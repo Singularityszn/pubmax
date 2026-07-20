@@ -8,6 +8,8 @@
 
 import { getAccessToken } from "@/lib/authClient";
 import { readActivePlan } from "@/lib/activePlan";
+import { nextPushIdentityMutation, type PushIdentityMutation } from "@/lib/pushInstallation";
+import { pushFetch, withPushTimeout } from "@/lib/pushTimeout";
 import { encodeWebPushSubscription } from "@/lib/webPushSubscription";
 
 export type ClientPushRegistration = {
@@ -43,6 +45,14 @@ const lifecycleListeners = new Set<() => void>();
 const retryCancels = new Set<() => void>();
 const ACCOUNT_RETRY_DELAYS_MS = [75, 225] as const;
 const planOperationTails = new Map<string, Promise<void>>();
+
+function nextMutation(): PushIdentityMutation | null {
+  try {
+    return nextPushIdentityMutation();
+  } catch {
+    return null;
+  }
+}
 
 function setAccountLifecycleStatus(status: AccountPushLifecycleStatus): void {
   accountLifecycleStatus = status;
@@ -101,9 +111,10 @@ export function resumeAccountPushJoins(): void {
   setAccountLifecycleStatus("idle");
 }
 
-/** Synchronous logout barrier: stops new joins and cancels only retry WAITERS.
- * An already-issued fetch is deliberately not abandoned; DELETE is queued
- * behind it so the final server mutation is always the unlink. */
+/** Synchronous logout barrier: stops new joins and cancels retry waiters. An
+ * issued fetch gets its bounded attempt; then the higher-version DELETE runs.
+ * Server watermarks keep that unlink authoritative even if an aborted POST
+ * nevertheless completes remotely. */
 export function stopAccountPushJoins(): void {
   accountLifecycleGeneration += 1;
   accountJoinsAllowed = false;
@@ -126,7 +137,7 @@ function storedRegistration(): ClientPushRegistration | null {
 async function recoverWebRegistration(): Promise<PushRegistrationRecovery> {
   if (typeof window === "undefined" || !("serviceWorker" in navigator)) return { status: "none" };
   try {
-    const registration = await navigator.serviceWorker.ready;
+    const registration = await withPushTimeout(navigator.serviceWorker.ready);
     const subscription = await registration.pushManager.getSubscription();
     const token = subscription ? encodeWebPushSubscription(subscription.toJSON()) : null;
     return token
@@ -186,7 +197,7 @@ async function accountAccessToken(): Promise<string | null> {
 
 async function accountMutationRequest(
   method: "POST" | "DELETE",
-  body: ClientPushRegistration | { all: true },
+  body: (ClientPushRegistration | { all: true } | { installationOnly: true }) & PushIdentityMutation,
   generation: number,
 ): Promise<AccountPushMutationResult> {
   for (let attempt = 0; attempt <= ACCOUNT_RETRY_DELAYS_MS.length; attempt += 1) {
@@ -200,7 +211,7 @@ async function accountMutationRequest(
       return { ok: false, status: "auth_required" };
     }
     try {
-      const response = await fetch("/api/push-tokens/account", {
+      const response = await pushFetch("/api/push-tokens/account", {
         method,
         headers: {
           "content-type": "application/json",
@@ -248,6 +259,8 @@ async function accountMutationRequest(
  * serialized with logout so an older POST must settle before DELETE begins. */
 export function linkCurrentPushToClaimedAccount(): Promise<AccountPushMutationResult> {
   const generation = accountLifecycleGeneration;
+  const mutation = nextMutation();
+  if (!mutation) return Promise.resolve({ ok: false, status: "retryable" });
   return enqueueAccountOperation(async () => {
     if (!accountJoinsAllowed || generation !== accountLifecycleGeneration) {
       return { ok: false, status: "stopped" };
@@ -255,7 +268,7 @@ export function linkCurrentPushToClaimedAccount(): Promise<AccountPushMutationRe
     const registration = await currentPushRegistration();
     if (!registration) return { ok: true, status: "no_registration" };
     setAccountLifecycleStatus("linking");
-    return accountMutationRequest("POST", registration, generation);
+    return accountMutationRequest("POST", { ...registration, ...mutation }, generation);
   });
 }
 
@@ -265,13 +278,15 @@ export function linkPushRegistrationToClaimedAccount(
 ): Promise<AccountPushMutationResult> {
   const clean = validRegistration(registration);
   const generation = accountLifecycleGeneration;
+  const mutation = nextMutation();
+  if (!mutation) return Promise.resolve({ ok: false, status: "retryable" });
   if (!clean) return Promise.resolve({ ok: false, status: "retryable" });
   return enqueueAccountOperation(async () => {
     if (!accountJoinsAllowed || generation !== accountLifecycleGeneration) {
       return { ok: false, status: "stopped" };
     }
     setAccountLifecycleStatus("linking");
-    return accountMutationRequest("POST", clean, generation);
+    return accountMutationRequest("POST", { ...clean, ...mutation }, generation);
   });
 }
 
@@ -281,10 +296,12 @@ export function unlinkPushRegistrationFromClaimedAccount(
   registration: ClientPushRegistration,
 ): Promise<AccountPushMutationResult> {
   const clean = validRegistration(registration);
+  const mutation = nextMutation();
+  if (!mutation) return Promise.resolve({ ok: false, status: "retryable" });
   if (!clean) return Promise.resolve({ ok: false, status: "retryable" });
   return enqueueAccountOperation(async () => {
     setAccountLifecycleStatus("unlinking");
-    return accountMutationRequest("DELETE", clean, accountLifecycleGeneration);
+    return accountMutationRequest("DELETE", { ...clean, ...mutation }, accountLifecycleGeneration);
   });
 }
 
@@ -297,25 +314,43 @@ export async function unlinkCurrentPushFromClaimedAccount(): Promise<AccountPush
 
 /** Account-erasure/privacy seam; callers must still hold a verified JWT. */
 export function unlinkAllPushFromClaimedAccount(): Promise<AccountPushMutationResult> {
+  const mutation = nextMutation();
+  if (!mutation) return Promise.resolve({ ok: false, status: "retryable" });
   return enqueueAccountOperation(async () => {
     setAccountLifecycleStatus("unlinking");
-    return accountMutationRequest("DELETE", { all: true }, accountLifecycleGeneration);
+    return accountMutationRequest("DELETE", { all: true, ...mutation }, accountLifecycleGeneration);
+  });
+}
+
+/** Logout privacy barrier independent of notification permission/raw token. */
+export function unlinkPushInstallationFromClaimedAccount(): Promise<AccountPushMutationResult> {
+  const mutation = nextMutation();
+  if (!mutation) return Promise.resolve({ ok: false, status: "retryable" });
+  return enqueueAccountOperation(async () => {
+    setAccountLifecycleStatus("unlinking");
+    return accountMutationRequest(
+      "DELETE",
+      { installationOnly: true, ...mutation },
+      accountLifecycleGeneration,
+    );
   });
 }
 
 /** Link to a Plan using either its raw in-memory capability or its existing
  * path-scoped HttpOnly cookie. */
 export function linkCurrentPushToPlan(planId: string, memberToken?: string): Promise<boolean> {
+  const mutation = nextMutation();
+  if (!mutation) return Promise.resolve(false);
   return enqueuePlanOperation(planId, async () => {
     const registration = await currentPushRegistration();
     if (!registration) return false;
     try {
       const headers = new Headers({ "content-type": "application/json" });
       if (memberToken) headers.set("authorization", `Bearer ${memberToken}`);
-      const response = await fetch(`/api/plans/${encodeURIComponent(planId)}/push-tokens`, {
+      const response = await pushFetch(`/api/plans/${encodeURIComponent(planId)}/push-tokens`, {
         method: "POST",
         headers,
-        body: JSON.stringify(registration),
+        body: JSON.stringify({ ...registration, ...mutation }),
       });
       return response.ok;
     } catch {
@@ -325,16 +360,18 @@ export function linkCurrentPushToPlan(planId: string, memberToken?: string): Pro
 }
 
 export function unlinkCurrentPushFromPlan(planId: string, memberToken?: string): Promise<boolean> {
+  const mutation = nextMutation();
+  if (!mutation) return Promise.resolve(false);
   return enqueuePlanOperation(planId, async () => {
     const registration = await currentPushRegistration();
     if (!registration) return true;
     try {
       const headers = new Headers({ "content-type": "application/json" });
       if (memberToken) headers.set("authorization", `Bearer ${memberToken}`);
-      const response = await fetch(`/api/plans/${encodeURIComponent(planId)}/push-tokens`, {
+      const response = await pushFetch(`/api/plans/${encodeURIComponent(planId)}/push-tokens`, {
         method: "DELETE",
         headers,
-        body: JSON.stringify(registration),
+        body: JSON.stringify({ ...registration, ...mutation }),
       });
       return response.ok;
     } catch {

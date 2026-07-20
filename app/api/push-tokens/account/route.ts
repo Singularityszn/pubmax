@@ -9,6 +9,7 @@ import { publicApiError } from "@/lib/apiError";
 import { jsonNoStore } from "@/lib/apiResponses";
 import { callerAuthSessionIdentity } from "@/lib/authServer";
 import { profileStore } from "@/lib/profileStore";
+import { validatePushIdentityMutation } from "@/lib/pushInstallation";
 import { pushTokenStore, validatePushToken } from "@/lib/pushTokenStore";
 import { assertServerEnv } from "@/lib/serverEnv";
 
@@ -60,11 +61,15 @@ export async function POST(request: Request): Promise<Response> {
   if (!body) return publicApiError("Malformed request body.", "MALFORMED_REQUEST", 400);
   const validation = validatePushToken(body);
   if (!validation.ok) return publicApiError(validation.error, "INVALID_REQUEST", 400);
+  const mutation = validatePushIdentityMutation(body);
+  if (!mutation.ok) return publicApiError(mutation.error, "INVALID_REQUEST", 400);
 
   const result = await pushTokenStore().linkAccount(
     validation.input.token,
     authority.userId,
     authority.sessionId,
+    mutation.input.installationId,
+    mutation.input.mutationVersion,
   );
   if (result === "linked" || result === "replayed") {
     return jsonNoStore({ ok: true, linked: true }, { status: 200 });
@@ -82,10 +87,25 @@ export async function DELETE(request: Request): Promise<Response> {
   if (!authority.ok) return authority.response;
   const body = await bodyOf(request);
   if (!body) return publicApiError("Malformed request body.", "MALFORMED_REQUEST", 400);
+  const mutation = validatePushIdentityMutation(body);
+  if (!mutation.ok) return publicApiError(mutation.error, "INVALID_REQUEST", 400);
 
   try {
     if (body.all === true) {
+      await pushTokenStore().unlinkInstallationForAccount(
+        mutation.input.installationId,
+        authority.userId,
+        authority.sessionId,
+        mutation.input.mutationVersion,
+      );
       await pushTokenStore().unlinkAllForAccount(authority.userId);
+    } else if (body.installationOnly === true) {
+      await pushTokenStore().unlinkInstallationForAccount(
+        mutation.input.installationId,
+        authority.userId,
+        authority.sessionId,
+        mutation.input.mutationVersion,
+      );
     } else {
       const validation = validatePushToken(body);
       if (!validation.ok) return publicApiError(validation.error, "INVALID_REQUEST", 400);
@@ -93,6 +113,8 @@ export async function DELETE(request: Request): Promise<Response> {
         validation.input.token,
         authority.userId,
         authority.sessionId,
+        mutation.input.installationId,
+        mutation.input.mutationVersion,
       );
     }
   } catch {

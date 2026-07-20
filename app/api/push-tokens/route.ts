@@ -1,10 +1,12 @@
 // Push-token registration for the Capacitor shell and installed web app
 // (lib/nativePush.ts / lib/webPush.ts).
 //
-//   POST { token, platform }  →  { ok: true }
+//   POST { token, platform, installationId }  →  { ok: true }
 //
 // The shell registers pre-auth; the web seam is explicitly invoked after
-// browser permission. Neither payload carries identity, only delivery material.
+// browser permission. The random installation epoch is not person identity or
+// delivery material; it exists so authenticated logout can revoke without
+// recovering a provider token.
 // Abuse boundary is DUAL: a
 // per-IP durable rate limit (a device registers once per boot, so 10/hour is
 // generous) plus a global route-wide backstop, because the per-IP key is
@@ -16,6 +18,7 @@
 import { publicApiError } from "@/lib/apiError";
 import { jsonNoStore } from "@/lib/apiResponses";
 import { isLimited } from "@/lib/pintDrops";
+import { isPushInstallationId } from "@/lib/pushInstallation";
 import { pushTokenStore, validatePushToken } from "@/lib/pushTokenStore";
 import { assertServerEnv } from "@/lib/serverEnv";
 import { clientIp, hashIp } from "@/lib/supabase";
@@ -45,6 +48,9 @@ export async function POST(request: Request): Promise<Response> {
   if (!validation.ok) {
     return publicApiError(validation.error, "INVALID_REQUEST", 400);
   }
+  if (!isPushInstallationId(body.installationId)) {
+    return publicApiError("A valid push installation is required.", "INVALID_REQUEST", 400);
+  }
 
   // Per-IP durable limit, same key derivation as the other public write paths
   // (plan-generate) — the raw IP is hashed before it becomes a limiter key.
@@ -65,7 +71,7 @@ export async function POST(request: Request): Promise<Response> {
   }
 
   try {
-    await pushTokenStore().save(validation.input);
+    await pushTokenStore().save({ ...validation.input, installationId: body.installationId });
   } catch {
     // Registration is best-effort on the client; a storage hiccup should read
     // as retry-later, not a broken app boot.

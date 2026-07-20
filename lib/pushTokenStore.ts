@@ -22,7 +22,7 @@ export type PushTokenDTO = {
   lastSeenAt: string;
 };
 
-export type PushTokenInput = { token: string; platform: PushPlatform };
+export type PushTokenInput = { token: string; platform: PushPlatform; installationId?: string };
 
 export type PushTokenValidation =
   | { ok: true; input: PushTokenInput }
@@ -65,22 +65,27 @@ export type PushTokenStore = {
   listForPlan(planId: string): Promise<PushTokenDTO[]>;
   /** Atomically link an existing registration to one claimed account. A token
    * can never be reassigned while another account owns its link. */
-  linkAccount(token: string, userId: string, sessionId: string): Promise<PushIdentityJoinResult>;
+  linkAccount(token: string, userId: string, sessionId: string, installationId: string, mutationVersion: number): Promise<PushIdentityJoinResult>;
   /** Remove only the caller's account link. Missing/wrong-owner rows are the
    * same idempotent result so the endpoint cannot enumerate registrations. */
-  unlinkAccount(token: string, userId: string, sessionId: string): Promise<void>;
+  unlinkAccount(token: string, userId: string, sessionId: string, installationId: string, mutationVersion: number): Promise<void>;
+  /** Revoke every registration bound to this opaque installation, even when
+   * native permission prevents recovery of the current provider token. */
+  unlinkInstallationForAccount(installationId: string, userId: string, sessionId: string, mutationVersion: number): Promise<void>;
   /** Privacy/account-erasure seam: clear every link for one verified account. */
   unlinkAllForAccount(userId: string): Promise<void>;
   /** Link one existing registration to one verified member per Plan. */
-  linkPlan(token: string, planId: string, memberId: string): Promise<PushIdentityJoinResult>;
+  linkPlan(token: string, planId: string, memberId: string, installationId: string, mutationVersion: number): Promise<PushIdentityJoinResult>;
   /** Remove only the matching verified member's Plan link, idempotently. */
-  unlinkPlan(token: string, planId: string, memberId: string): Promise<void>;
+  unlinkPlan(token: string, planId: string, memberId: string, installationId: string, mutationVersion: number): Promise<void>;
   /** Remove a token the push provider reported invalid (APNs 410 /
    *  BadDeviceToken). Idempotent — deleting an absent token is a no-op. */
   delete(token: string): Promise<void>;
 };
 
-export type PushIdentityJoinResult = "linked" | "replayed" | "conflict" | "missing" | "error";
+export type PushIdentityJoinResult = "linked" | "replayed" | "conflict" | "stale" | "missing" | "error";
+
+export const LEGACY_TEST_INSTALLATION_ID = "00000000-0000-4000-8000-000000000047";
 
 const TABLE = "push_tokens";
 const PLAN_LINKS = "push_token_plan_memberships";
@@ -88,21 +93,22 @@ const PLAN_LINKS = "push_token_plan_memberships";
 // ── Supabase implementation ──────────────────────────────────────────────────
 export const supabasePushTokenStore: PushTokenStore = {
   async save(input) {
-    const now = new Date().toISOString();
-    const { data, error } = await admin()
-      .from(TABLE)
-      .upsert(
-        { token: input.token, platform: input.platform, last_seen_at: now },
-        { onConflict: "token" },
-      )
-      .select("token, platform, created_at, last_seen_at")
-      .single();
+    const installationId = input.installationId;
+    if (!installationId) throw new Error("Push installation is required.");
+    const { data, error } = await admin().rpc("register_push_token_installation_atomic", {
+      p_token: input.token,
+      p_platform: input.platform,
+      p_installation_id: installationId,
+      p_seen_at: new Date().toISOString(),
+    });
     if (error) throw new Error(error.message);
+    if (!data || typeof data !== "object") throw new Error("Push installation conflict.");
+    const row = data as Record<string, unknown>;
     return {
-      token: String(data.token),
-      platform: data.platform === "web" ? "web" : data.platform === "android" ? "android" : "ios",
-      createdAt: String(data.created_at),
-      lastSeenAt: String(data.last_seen_at),
+      token: String(row.token),
+      platform: row.platform === "web" ? "web" : row.platform === "android" ? "android" : "ios",
+      createdAt: String(row.created_at),
+      lastSeenAt: String(row.last_seen_at),
     };
   },
   async list() {
@@ -142,21 +148,34 @@ export const supabasePushTokenStore: PushTokenStore = {
       return row && typeof row === "object" ? [tokenFromRow(row as Record<string, unknown>)] : [];
     });
   },
-  async linkAccount(token, userId, sessionId) {
+  async linkAccount(token, userId, sessionId, installationId, mutationVersion) {
     const { data, error } = await admin().rpc("link_push_token_account_atomic", {
       p_token: token,
       p_user_id: userId,
       p_session_id: sessionId,
+      p_installation_id: installationId,
+      p_mutation_version: mutationVersion,
       p_linked_at: new Date().toISOString(),
     });
     if (error) return "error";
     return joinResult(data);
   },
-  async unlinkAccount(token, userId, sessionId) {
+  async unlinkAccount(token, userId, sessionId, installationId, mutationVersion) {
     const { error } = await admin().rpc("unlink_push_token_account_atomic", {
       p_token: token,
       p_user_id: userId,
       p_session_id: sessionId,
+      p_installation_id: installationId,
+      p_mutation_version: mutationVersion,
+    });
+    if (error) throw new Error(error.message);
+  },
+  async unlinkInstallationForAccount(installationId, userId, sessionId, mutationVersion) {
+    const { error } = await admin().rpc("unlink_push_installation_account_atomic", {
+      p_installation_id: installationId,
+      p_user_id: userId,
+      p_session_id: sessionId,
+      p_mutation_version: mutationVersion,
     });
     if (error) throw new Error(error.message);
   },
@@ -166,21 +185,25 @@ export const supabasePushTokenStore: PushTokenStore = {
     });
     if (error) throw new Error(error.message);
   },
-  async linkPlan(token, planId, memberId) {
+  async linkPlan(token, planId, memberId, installationId, mutationVersion) {
     const { data, error } = await admin().rpc("link_push_token_plan_member_atomic", {
       p_token: token,
       p_plan_id: planId,
       p_member_id: memberId,
+      p_installation_id: installationId,
+      p_mutation_version: mutationVersion,
       p_linked_at: new Date().toISOString(),
     });
     if (error) return "error";
     return joinResult(data);
   },
-  async unlinkPlan(token, planId, memberId) {
+  async unlinkPlan(token, planId, memberId, installationId, mutationVersion) {
     const { error } = await admin().rpc("unlink_push_token_plan_member_atomic", {
       p_token: token,
       p_plan_id: planId,
       p_member_id: memberId,
+      p_installation_id: installationId,
+      p_mutation_version: mutationVersion,
     });
     if (error) throw new Error(error.message);
   },
@@ -193,6 +216,7 @@ export const supabasePushTokenStore: PushTokenStore = {
 // ── In-memory implementation ─────────────────────────────────────────────────
 type MemoryRegistration = {
   registration: PushTokenDTO;
+  installationId: string;
   accountUserId: string | null;
   accountSessionId: string | null;
   blockedAccountSessionId: string | null;
@@ -200,6 +224,15 @@ type MemoryRegistration = {
 };
 
 const memoryTokens = new Map<string, MemoryRegistration>();
+const memoryAccountVersions = new Map<string, number>();
+const memoryAccountRevocations = new Set<string>();
+const memoryInstallationRevocations = new Set<string>();
+const memoryPlanVersions = new Map<string, number>();
+
+const accountVersionKey = (token: string, installationId: string) => `${token}\u0000${installationId}`;
+const accountRevocationKey = (token: string, sessionId: string) => `${token}\u0000${sessionId}`;
+const installationRevocationKey = (installationId: string, sessionId: string) => `${installationId}\u0000${sessionId}`;
+const planVersionKey = (token: string, installationId: string, planId: string) => `${token}\u0000${installationId}\u0000${planId}`;
 
 function tokenFromRow(row: Record<string, unknown>): PushTokenDTO {
   return {
@@ -211,7 +244,7 @@ function tokenFromRow(row: Record<string, unknown>): PushTokenDTO {
 }
 
 function joinResult(value: unknown): PushIdentityJoinResult {
-  return value === "linked" || value === "replayed" || value === "conflict" || value === "missing"
+  return value === "linked" || value === "replayed" || value === "conflict" || value === "stale" || value === "missing"
     ? value
     : "error";
 }
@@ -220,6 +253,10 @@ export const memoryPushTokenStore: PushTokenStore = {
   async save(input) {
     const now = new Date().toISOString();
     const existing = memoryTokens.get(input.token);
+    const installationId = input.installationId ?? existing?.installationId ?? LEGACY_TEST_INSTALLATION_ID;
+    if (existing && existing.installationId !== installationId) {
+      throw new Error("Push token is already bound to another installation.");
+    }
     const dto: PushTokenDTO = {
       token: input.token,
       platform: input.platform,
@@ -228,6 +265,7 @@ export const memoryPushTokenStore: PushTokenStore = {
     };
     memoryTokens.set(input.token, {
       registration: dto,
+      installationId,
       accountUserId: existing?.accountUserId ?? null,
       accountSessionId: existing?.accountSessionId ?? null,
       blockedAccountSessionId: existing?.blockedAccountSessionId ?? null,
@@ -248,45 +286,93 @@ export const memoryPushTokenStore: PushTokenStore = {
       .filter((row) => row.planMembers.has(planId))
       .map((row) => ({ ...row.registration }));
   },
-  async linkAccount(token, userId, sessionId) {
+  async linkAccount(token, userId, sessionId, installationId, mutationVersion) {
     const row = memoryTokens.get(token);
-    if (!row) return "missing";
-    if (row.accountUserId === userId && row.accountSessionId === sessionId) return "replayed";
-    if (row.blockedAccountSessionId === sessionId) return "conflict";
+    if (!row || row.installationId !== installationId) return "missing";
+    if (memoryAccountRevocations.has(accountRevocationKey(token, sessionId))
+      || memoryInstallationRevocations.has(installationRevocationKey(installationId, sessionId))) return "conflict";
+    const versionKey = accountVersionKey(token, installationId);
+    const currentVersion = memoryAccountVersions.get(versionKey) ?? 0;
+    if (mutationVersion < currentVersion) return "stale";
+    if (mutationVersion === currentVersion) {
+      return row.accountUserId === userId && row.accountSessionId === sessionId ? "replayed" : "stale";
+    }
     if (row.accountUserId && row.accountUserId !== userId) return "conflict";
+    memoryAccountVersions.set(versionKey, mutationVersion);
     row.accountUserId = userId;
     row.accountSessionId = sessionId;
     return "linked";
   },
-  async unlinkAccount(token, userId, sessionId) {
+  async unlinkAccount(token, userId, sessionId, installationId, mutationVersion) {
     const row = memoryTokens.get(token);
-    if (row?.accountUserId === userId && row.accountSessionId === sessionId) {
+    memoryAccountRevocations.add(accountRevocationKey(token, sessionId));
+    memoryInstallationRevocations.add(installationRevocationKey(installationId, sessionId));
+    const versionKey = accountVersionKey(token, installationId);
+    const currentVersion = memoryAccountVersions.get(versionKey) ?? 0;
+    if (mutationVersion > currentVersion) memoryAccountVersions.set(versionKey, mutationVersion);
+    if (row?.installationId === installationId && mutationVersion >= currentVersion
+      && row.accountUserId === userId && row.accountSessionId === sessionId) {
       row.accountUserId = null;
       row.accountSessionId = null;
       row.blockedAccountSessionId = sessionId;
     }
   },
+  async unlinkInstallationForAccount(installationId, userId, sessionId, mutationVersion) {
+    memoryInstallationRevocations.add(installationRevocationKey(installationId, sessionId));
+    for (const [token, row] of memoryTokens) {
+      if (row.installationId !== installationId) continue;
+      memoryAccountRevocations.add(accountRevocationKey(token, sessionId));
+      const versionKey = accountVersionKey(token, installationId);
+      const currentVersion = memoryAccountVersions.get(versionKey) ?? 0;
+      if (mutationVersion > currentVersion) memoryAccountVersions.set(versionKey, mutationVersion);
+      if (mutationVersion >= currentVersion && row.accountUserId === userId) {
+        row.accountUserId = null;
+        row.accountSessionId = null;
+        row.blockedAccountSessionId = sessionId;
+      }
+    }
+  },
   async unlinkAllForAccount(userId) {
-    for (const row of memoryTokens.values()) {
+    for (const [token, row] of memoryTokens) {
       if (row.accountUserId === userId) {
+        if (row.accountSessionId) {
+          memoryAccountRevocations.add(accountRevocationKey(token, row.accountSessionId));
+          memoryInstallationRevocations.add(
+            installationRevocationKey(row.installationId, row.accountSessionId),
+          );
+        }
         row.blockedAccountSessionId = row.accountSessionId;
         row.accountUserId = null;
         row.accountSessionId = null;
       }
     }
   },
-  async linkPlan(token, planId, memberId) {
+  async linkPlan(token, planId, memberId, installationId, mutationVersion) {
     const row = memoryTokens.get(token);
-    if (!row) return "missing";
+    if (!row || row.installationId !== installationId) return "missing";
+    const versionKey = planVersionKey(token, installationId, planId);
+    const currentVersion = memoryPlanVersions.get(versionKey) ?? 0;
+    if (mutationVersion < currentVersion) return "stale";
+    if (mutationVersion === currentVersion) {
+      return row.planMembers.get(planId) === memberId ? "replayed" : "stale";
+    }
     const existing = row.planMembers.get(planId);
-    if (existing === memberId) return "replayed";
+    if (existing === memberId) {
+      memoryPlanVersions.set(versionKey, mutationVersion);
+      return "replayed";
+    }
     if (existing) return "conflict";
+    memoryPlanVersions.set(versionKey, mutationVersion);
     row.planMembers.set(planId, memberId);
     return "linked";
   },
-  async unlinkPlan(token, planId, memberId) {
+  async unlinkPlan(token, planId, memberId, installationId, mutationVersion) {
     const row = memoryTokens.get(token);
-    if (row?.planMembers.get(planId) === memberId) row.planMembers.delete(planId);
+    const versionKey = planVersionKey(token, installationId, planId);
+    const currentVersion = memoryPlanVersions.get(versionKey) ?? 0;
+    if (mutationVersion > currentVersion) memoryPlanVersions.set(versionKey, mutationVersion);
+    if (row?.installationId === installationId && mutationVersion >= currentVersion
+      && row.planMembers.get(planId) === memberId) row.planMembers.delete(planId);
   },
   async delete(token) {
     memoryTokens.delete(token);
@@ -306,4 +392,8 @@ export function __listMemoryPushTokens(): PushTokenDTO[] {
 /** Test-only: clear the in-memory registry between cases. */
 export function __resetMemoryPushTokens(): void {
   memoryTokens.clear();
+  memoryAccountVersions.clear();
+  memoryAccountRevocations.clear();
+  memoryInstallationRevocations.clear();
+  memoryPlanVersions.clear();
 }

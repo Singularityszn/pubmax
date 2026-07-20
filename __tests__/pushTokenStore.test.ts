@@ -17,6 +17,16 @@ const WEB_TOKEN = encodeWebPushSubscription({
   expirationTime: null,
   keys: { p256dh: "A".repeat(87), auth: "B".repeat(22) },
 })!;
+const INSTALLATION_ID = "00000000-0000-4000-8000-000000000047";
+
+const linkAccount = (token: string, userId: string, sessionId: string, version = 1) =>
+  memoryPushTokenStore.linkAccount(token, userId, sessionId, INSTALLATION_ID, version);
+const unlinkAccount = (token: string, userId: string, sessionId: string, version = 2) =>
+  memoryPushTokenStore.unlinkAccount(token, userId, sessionId, INSTALLATION_ID, version);
+const linkPlan = (token: string, planId: string, memberId: string, version = 1) =>
+  memoryPushTokenStore.linkPlan(token, planId, memberId, INSTALLATION_ID, version);
+const unlinkPlan = (token: string, planId: string, memberId: string, version = 2) =>
+  memoryPushTokenStore.unlinkPlan(token, planId, memberId, INSTALLATION_ID, version);
 
 function uncheckedWebToken(endpoint: string): string {
   return `webpush:${Buffer.from(JSON.stringify({
@@ -102,6 +112,19 @@ describe("memoryPushTokenStore", () => {
     expect(second.createdAt).toBe(first.createdAt);
   });
 
+  it("refuses anonymous rebinding of a token to another installation epoch", async () => {
+    await memoryPushTokenStore.save({
+      token: "tok-1",
+      platform: "ios",
+      installationId: INSTALLATION_ID,
+    });
+    await expect(memoryPushTokenStore.save({
+      token: "tok-1",
+      platform: "ios",
+      installationId: "11111111-1111-4111-8111-111111111111",
+    })).rejects.toThrow(/another installation/);
+  });
+
   it("stores distinct tokens independently", async () => {
     await memoryPushTokenStore.save({ token: "tok-1", platform: "ios" });
     await memoryPushTokenStore.save({ token: "tok-2", platform: "android" });
@@ -118,8 +141,8 @@ describe("memoryPushTokenStore", () => {
   it("links an account idempotently without exposing identity in public reads", async () => {
     await memoryPushTokenStore.save({ token: "tok-1", platform: "ios" });
 
-    await expect(memoryPushTokenStore.linkAccount("tok-1", "user-a", "session-a")).resolves.toBe("linked");
-    await expect(memoryPushTokenStore.linkAccount("tok-1", "user-a", "session-a")).resolves.toBe("replayed");
+    await expect(linkAccount("tok-1", "user-a", "session-a")).resolves.toBe("linked");
+    await expect(linkAccount("tok-1", "user-a", "session-a")).resolves.toBe("replayed");
     expect(await memoryPushTokenStore.listForAccount("user-a")).toEqual([
       expect.objectContaining({ token: "tok-1" }),
     ]);
@@ -130,21 +153,21 @@ describe("memoryPushTokenStore", () => {
 
   it("refuses cross-account reassignment until the verified owner unlinks", async () => {
     await memoryPushTokenStore.save({ token: "tok-1", platform: "ios" });
-    await memoryPushTokenStore.linkAccount("tok-1", "user-a", "session-a");
+    await linkAccount("tok-1", "user-a", "session-a");
 
-    await expect(memoryPushTokenStore.linkAccount("tok-1", "user-b", "session-b")).resolves.toBe("conflict");
-    await memoryPushTokenStore.unlinkAccount("tok-1", "user-b", "session-b");
+    await expect(linkAccount("tok-1", "user-b", "session-b", 2)).resolves.toBe("conflict");
+    await unlinkAccount("tok-1", "user-b", "session-b", 2);
     expect(await memoryPushTokenStore.listForAccount("user-a")).toHaveLength(1);
 
-    await memoryPushTokenStore.unlinkAccount("tok-1", "user-a", "session-a");
-    await expect(memoryPushTokenStore.linkAccount("tok-1", "user-b", "session-b")).resolves.toBe("linked");
+    await unlinkAccount("tok-1", "user-a", "session-a", 3);
+    await expect(linkAccount("tok-1", "user-b", "session-c", 4)).resolves.toBe("linked");
     expect(await memoryPushTokenStore.listForAccount("user-b")).toHaveLength(1);
   });
 
   it("supports privacy unlink-all without deleting identity-free registrations", async () => {
     for (const token of ["tok-1", "tok-2"]) {
       await memoryPushTokenStore.save({ token, platform: "ios" });
-      await memoryPushTokenStore.linkAccount(token, "user-a", "session-a");
+      await linkAccount(token, "user-a", "session-a");
     }
     await memoryPushTokenStore.unlinkAllForAccount("user-a");
 
@@ -155,20 +178,20 @@ describe("memoryPushTokenStore", () => {
   it("links one verified member per token and Plan while allowing other Plans", async () => {
     await memoryPushTokenStore.save({ token: "tok-1", platform: "ios" });
 
-    await expect(memoryPushTokenStore.linkPlan("tok-1", "plan-a", "member-a")).resolves.toBe("linked");
-    await expect(memoryPushTokenStore.linkPlan("tok-1", "plan-a", "member-a")).resolves.toBe("replayed");
-    await expect(memoryPushTokenStore.linkPlan("tok-1", "plan-a", "member-b")).resolves.toBe("conflict");
-    await expect(memoryPushTokenStore.linkPlan("tok-1", "plan-b", "member-b")).resolves.toBe("linked");
+    await expect(linkPlan("tok-1", "plan-a", "member-a")).resolves.toBe("linked");
+    await expect(linkPlan("tok-1", "plan-a", "member-a")).resolves.toBe("replayed");
+    await expect(linkPlan("tok-1", "plan-a", "member-b", 2)).resolves.toBe("conflict");
+    await expect(linkPlan("tok-1", "plan-b", "member-b", 3)).resolves.toBe("linked");
     expect((await memoryPushTokenStore.listForPlan("plan-a")).map((row) => row.token)).toEqual(["tok-1"]);
     expect((await memoryPushTokenStore.listForPlan("plan-b")).map((row) => row.token)).toEqual(["tok-1"]);
   });
 
   it("makes wrong-member Plan unlink a no-op and cascades identity on token delete", async () => {
     await memoryPushTokenStore.save({ token: "tok-1", platform: "ios" });
-    await memoryPushTokenStore.linkAccount("tok-1", "user-a", "session-a");
-    await memoryPushTokenStore.linkPlan("tok-1", "plan-a", "member-a");
+    await linkAccount("tok-1", "user-a", "session-a");
+    await linkPlan("tok-1", "plan-a", "member-a");
 
-    await memoryPushTokenStore.unlinkPlan("tok-1", "plan-a", "member-b");
+    await unlinkPlan("tok-1", "plan-a", "member-b");
     expect(await memoryPushTokenStore.listForPlan("plan-a")).toHaveLength(1);
     await memoryPushTokenStore.delete("tok-1");
     expect(await memoryPushTokenStore.listForPlan("plan-a")).toEqual([]);
@@ -176,30 +199,77 @@ describe("memoryPushTokenStore", () => {
   });
 
   it("does not invent identity joins for missing registrations", async () => {
-    await expect(memoryPushTokenStore.linkAccount("missing", "user-a", "session-a")).resolves.toBe("missing");
-    await expect(memoryPushTokenStore.linkPlan("missing", "plan-a", "member-a")).resolves.toBe("missing");
+    await expect(linkAccount("missing", "user-a", "session-a")).resolves.toBe("missing");
+    await expect(linkPlan("missing", "plan-a", "member-a")).resolves.toBe("missing");
   });
 
   it("tombstones a logged-out auth session against delayed relink", async () => {
     await memoryPushTokenStore.save({ token: "tok-1", platform: "ios" });
-    await memoryPushTokenStore.linkAccount("tok-1", "user-a", "session-old");
-    await memoryPushTokenStore.unlinkAccount("tok-1", "user-a", "session-old");
+    await linkAccount("tok-1", "user-a", "session-old", 1);
+    await unlinkAccount("tok-1", "user-a", "session-old", 2);
 
-    await expect(memoryPushTokenStore.linkAccount("tok-1", "user-a", "session-old"))
+    await expect(linkAccount("tok-1", "user-a", "session-old", 1))
       .resolves.toBe("conflict");
-    await expect(memoryPushTokenStore.linkAccount("tok-1", "user-a", "session-new"))
+    await expect(linkAccount("tok-1", "user-a", "session-new", 3))
       .resolves.toBe("linked");
 
     // A late DELETE from the old session cannot unlink the fresh session.
-    await memoryPushTokenStore.unlinkAccount("tok-1", "user-a", "session-old");
+    await unlinkAccount("tok-1", "user-a", "session-old", 2);
     expect(await memoryPushTokenStore.listForAccount("user-a")).toHaveLength(1);
   });
 
   it("orders concurrent in-memory Plan link then unlink to an unlinked final state", async () => {
     await memoryPushTokenStore.save({ token: "tok-1", platform: "ios" });
-    const linked = memoryPushTokenStore.linkPlan("tok-1", "plan-a", "member-a");
-    const unlinked = memoryPushTokenStore.unlinkPlan("tok-1", "plan-a", "member-a");
+    const linked = linkPlan("tok-1", "plan-a", "member-a", 1);
+    const unlinked = unlinkPlan("tok-1", "plan-a", "member-a", 2);
     await Promise.all([linked, unlinked]);
     expect(await memoryPushTokenStore.listForPlan("plan-a")).toEqual([]);
+  });
+
+  it("records account revocation before any link and rejects the delayed older POST", async () => {
+    await memoryPushTokenStore.save({ token: "tok-1", platform: "ios" });
+    await unlinkAccount("tok-1", "user-a", "session-a", 2);
+    await expect(linkAccount("tok-1", "user-a", "session-a", 1)).resolves.toBe("conflict");
+    expect(await memoryPushTokenStore.listForAccount("user-a")).toEqual([]);
+  });
+
+  it("retains installation/session revocation across provider-token deletion", async () => {
+    await memoryPushTokenStore.save({ token: "tok-1", platform: "ios" });
+    await linkAccount("tok-1", "user-a", "session-a", 1);
+    await unlinkAccount("tok-1", "user-a", "session-a", 2);
+    await memoryPushTokenStore.delete("tok-1");
+    await memoryPushTokenStore.save({ token: "tok-1", platform: "ios" });
+    await expect(linkAccount("tok-1", "user-a", "session-a", 1)).resolves.toBe("conflict");
+  });
+
+  it("retains A and B session revocations so a very late A link stays blocked", async () => {
+    await memoryPushTokenStore.save({ token: "tok-1", platform: "ios" });
+    await linkAccount("tok-1", "user-a", "session-a", 1);
+    await unlinkAccount("tok-1", "user-a", "session-a", 2);
+    await linkAccount("tok-1", "user-a", "session-b", 3);
+    await unlinkAccount("tok-1", "user-a", "session-b", 4);
+    await expect(linkAccount("tok-1", "user-a", "session-a", 1)).resolves.toBe("conflict");
+    await expect(linkAccount("tok-1", "user-a", "session-b", 3)).resolves.toBe("conflict");
+  });
+
+  it("keeps Plan unlink authoritative when DELETE reaches the server before delayed POST", async () => {
+    await memoryPushTokenStore.save({ token: "tok-1", platform: "ios" });
+    await unlinkPlan("tok-1", "plan-a", "member-a", 2);
+    await expect(linkPlan("tok-1", "plan-a", "member-a", 1)).resolves.toBe("stale");
+    expect(await memoryPushTokenStore.listForPlan("plan-a")).toEqual([]);
+    await expect(linkPlan("tok-1", "plan-a", "member-a", 3)).resolves.toBe("linked");
+  });
+
+  it("revokes an installation without a provider token and blocks its old session", async () => {
+    await memoryPushTokenStore.save({ token: "tok-1", platform: "ios" });
+    await linkAccount("tok-1", "user-a", "session-a", 1);
+    await memoryPushTokenStore.unlinkInstallationForAccount(
+      INSTALLATION_ID,
+      "user-a",
+      "session-a",
+      2,
+    );
+    expect(await memoryPushTokenStore.listForAccount("user-a")).toEqual([]);
+    await expect(linkAccount("tok-1", "user-a", "session-a", 1)).resolves.toBe("conflict");
   });
 });

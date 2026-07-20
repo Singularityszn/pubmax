@@ -130,7 +130,11 @@ user/plan identity**. Consequences, enforced in code:
    armed by a qualifying plan action. It never requests permission at boot.
 7. **Private identity joins** — before account/crew targeting is activated,
    apply `supabase/migrations/20260720170000_0047_push_identity_join.sql`.
-   Native logout recovers the exact already-permitted OS token after a WebView
-   restart, unlinks it with the still-valid JWT, and fails closed if recovery or
-   unlink cannot be confirmed. Migration 0047's auth-session tombstone prevents
-   an older delayed link from reversing that privacy action.
+   Registration binds an opaque installation epoch before permission/token
+   delivery. Native logout revokes that installation with the still-valid JWT,
+   so denied permission or a WebView restart never requires raw-token recovery.
+   Per-session revocations plus monotonic mutation watermarks make DELETE intent
+   authoritative under reversed network/database order. Revocation has a hard
+   timeout and logout fails closed; successful logout uses Supabase local scope
+   because only this installation was revoked. The 30-day private tombstone and
+   watermark rows are expiry-indexed and pruned by identity mutations.

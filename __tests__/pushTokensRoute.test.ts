@@ -33,12 +33,16 @@ import { __listMemoryPushTokens, __resetMemoryPushTokens } from "@/lib/pushToken
 import { encodeWebPushSubscription } from "@/lib/webPushSubscription";
 
 const URL_BASE = "http://localhost/api/push-tokens";
+const INSTALLATION_ID = "00000000-0000-4000-8000-000000000047";
 
 function post(body: unknown, headers?: Record<string, string>): Promise<Response> {
+  const payload = body && typeof body === "object" && !Array.isArray(body)
+    ? { installationId: INSTALLATION_ID, ...body as Record<string, unknown> }
+    : body;
   return POST(
     new Request(URL_BASE, {
       method: "POST",
-      body: typeof body === "string" ? body : JSON.stringify(body),
+      body: typeof payload === "string" ? payload : JSON.stringify(payload),
       headers: { "content-type": "application/json", ...headers },
     }),
   );
@@ -93,6 +97,12 @@ describe("POST /api/push-tokens", () => {
       retryable: false,
     });
     expect(__listMemoryPushTokens()).toHaveLength(0);
+  });
+
+  it("400s a caller-chosen non-opaque installation epoch", async () => {
+    const res = await post({ token: "apns-token-1", platform: "ios", installationId: "shared-device" });
+    expect(res.status).toBe(400);
+    expect(__listMemoryPushTokens()).toEqual([]);
   });
 
   it("registers a valid identity-free web subscription", async () => {

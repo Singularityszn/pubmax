@@ -32,9 +32,20 @@ import {
   refreshExistingNativePushRegistration,
   registerNativePush,
 } from "@/lib/nativePush";
+import { __resetPushInstallation, PUSH_INSTALLATION_KEY } from "@/lib/pushInstallation";
+
+let installationValues: Map<string, string>;
 
 beforeEach(() => {
   __resetNativePushRecovery();
+  __resetPushInstallation();
+  installationValues = new Map();
+  vi.stubGlobal("window", {
+    localStorage: {
+      getItem: (key: string) => installationValues.get(key) ?? null,
+      setItem: (key: string, value: string) => installationValues.set(key, value),
+    },
+  });
   isNativeApp.mockReturnValue(true);
   nativePlatform.mockReturnValue("ios");
   checkPermissions.mockResolvedValue({ receive: "granted" });
@@ -64,6 +75,7 @@ describe("registerNativePush", () => {
     await expect(registerNativePush()).resolves.toBe(false);
 
     expect(requestPermissions).toHaveBeenCalledOnce();
+    expect(installationValues.get(PUSH_INSTALLATION_KEY)).toMatch(/^[0-9a-f-]{36}$/i);
     expect(addListener).not.toHaveBeenCalled();
     expect(register).not.toHaveBeenCalled();
   });
@@ -88,10 +100,16 @@ describe("registerNativePush", () => {
     onRegistration({ value: "device-token" });
 
     await vi.waitFor(() => expect(fetch).toHaveBeenCalledOnce());
-    expect(fetch).toHaveBeenCalledWith("/api/push-tokens", {
+    expect(fetch).toHaveBeenCalledWith("/api/push-tokens", expect.objectContaining({
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ token: "device-token", platform: "ios" }),
+      body: expect.any(String),
+      signal: expect.any(AbortSignal),
+    }));
+    expect(JSON.parse(String(fetch.mock.calls[0][1]?.body))).toMatchObject({
+      token: "device-token",
+      platform: "ios",
+      installationId: expect.stringMatching(/^[0-9a-f-]{36}$/i),
     });
   });
 

@@ -24,12 +24,16 @@ import {
 } from "@/lib/pushTokenStore";
 
 const URL = "http://localhost/api/push-tokens/account";
+const INSTALLATION_ID = "00000000-0000-4000-8000-000000000047";
 
-function request(method: "POST" | "DELETE", body: unknown): Request {
+function request(method: "POST" | "DELETE", body: unknown, mutationVersion = 1): Request {
+  const payload = body && typeof body === "object" && !Array.isArray(body)
+    ? { installationId: INSTALLATION_ID, mutationVersion, ...body as Record<string, unknown> }
+    : body;
   return new Request(URL, {
     method,
     headers: { "content-type": "application/json", authorization: "Bearer verified-jwt" },
-    body: typeof body === "string" ? body : JSON.stringify(body),
+    body: typeof payload === "string" ? payload : JSON.stringify(payload),
   });
 }
 
@@ -39,7 +43,7 @@ beforeEach(async () => {
   callerAuthSessionIdentityMock.mockResolvedValue({ id: "user-a", email: "a@example.com", sessionId: "session-a" });
   getByUserIdMock.mockReset();
   getByUserIdMock.mockImplementation(async (userId: string) => ({ id: "profile-a", userId }));
-  await memoryPushTokenStore.save({ token: "device-token", platform: "ios" });
+  await memoryPushTokenStore.save({ token: "device-token", platform: "ios", installationId: INSTALLATION_ID });
 });
 
 describe("push account identity route", () => {
@@ -55,6 +59,16 @@ describe("push account identity route", () => {
     const response = await POST(request("POST", { token: "device-token", platform: "ios" }));
     expect(response.status).toBe(403);
     expect(await response.json()).toMatchObject({ code: "PUSH_ACCOUNT_CLAIM_REQUIRED" });
+  });
+
+  it("rejects missing or non-monotonic client mutation authority", async () => {
+    const response = await POST(request("POST", {
+      token: "device-token",
+      platform: "ios",
+      mutationVersion: 0,
+    }));
+    expect(response.status).toBe(400);
+    expect(await memoryPushTokenStore.listForAccount("user-a")).toEqual([]);
   });
 
   it("ignores a forged client user id and links only the verified caller", async () => {
@@ -76,7 +90,7 @@ describe("push account identity route", () => {
   });
 
   it("flattens missing and cross-account joins and never reassigns", async () => {
-    await memoryPushTokenStore.linkAccount("device-token", "user-b", "session-b");
+    await memoryPushTokenStore.linkAccount("device-token", "user-b", "session-b", INSTALLATION_ID, 1);
     const conflict = await POST(request("POST", { token: "device-token", platform: "ios" }));
     const missing = await POST(request("POST", { token: "other-device", platform: "ios" }));
     expect(conflict.status).toBe(409);
@@ -86,7 +100,7 @@ describe("push account identity route", () => {
   });
 
   it("wrong-owner and repeated unlink are indistinguishable no-ops", async () => {
-    await memoryPushTokenStore.linkAccount("device-token", "user-b", "session-b");
+    await memoryPushTokenStore.linkAccount("device-token", "user-b", "session-b", INSTALLATION_ID, 1);
     const first = await DELETE(request("DELETE", { token: "device-token", platform: "ios" }));
     const second = await DELETE(request("DELETE", { token: "device-token", platform: "ios" }));
     expect(first.status).toBe(200);
@@ -96,7 +110,7 @@ describe("push account identity route", () => {
   });
 
   it("supports verified privacy unlink-all without deleting public registration", async () => {
-    await memoryPushTokenStore.linkAccount("device-token", "user-a", "session-a");
+    await memoryPushTokenStore.linkAccount("device-token", "user-a", "session-a", INSTALLATION_ID, 1);
     const response = await DELETE(request("DELETE", { all: true, userId: "user-b" }));
     expect(response.status).toBe(200);
     expect(await memoryPushTokenStore.listForAccount("user-a")).toEqual([]);
@@ -105,15 +119,31 @@ describe("push account identity route", () => {
 
   it("blocks a delayed POST from the logged-out session but permits a fresh session", async () => {
     const body = { token: "device-token", platform: "ios" };
-    expect((await POST(request("POST", body))).status).toBe(200);
-    expect((await DELETE(request("DELETE", body))).status).toBe(200);
-    expect((await POST(request("POST", body))).status).toBe(409);
+    expect((await POST(request("POST", body, 1))).status).toBe(200);
+    expect((await DELETE(request("DELETE", body, 2))).status).toBe(200);
+    expect((await POST(request("POST", body, 1))).status).toBe(409);
 
     callerAuthSessionIdentityMock.mockResolvedValue({
       id: "user-a",
       email: "a@example.com",
       sessionId: "session-new",
     });
-    expect((await POST(request("POST", body))).status).toBe(200);
+    expect((await POST(request("POST", body, 3))).status).toBe(200);
+  });
+
+  it("revokes by installation without recovering a raw provider token", async () => {
+    const token = { token: "device-token", platform: "ios" };
+    expect((await POST(request("POST", token, 1))).status).toBe(200);
+    const revoked = await DELETE(request("DELETE", { installationOnly: true }, 2));
+    expect(revoked.status).toBe(200);
+    expect(await memoryPushTokenStore.listForAccount("user-a")).toEqual([]);
+    expect((await POST(request("POST", token, 1))).status).toBe(409);
+  });
+
+  it("makes fresh DELETE-before-delayed-POST authoritative", async () => {
+    const token = { token: "device-token", platform: "ios" };
+    expect((await DELETE(request("DELETE", token, 2))).status).toBe(200);
+    expect((await POST(request("POST", token, 1))).status).toBe(409);
+    expect(await memoryPushTokenStore.listForAccount("user-a")).toEqual([]);
   });
 });

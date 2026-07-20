@@ -10,6 +10,7 @@ import { jsonNoStore } from "@/lib/apiResponses";
 import { isPlanId } from "@/lib/plan";
 import { planMemberCapability } from "@/lib/planMemberCapability";
 import { planMemberIdentityResult } from "@/lib/planStore";
+import { validatePushIdentityMutation } from "@/lib/pushInstallation";
 import { pushTokenStore, validatePushToken } from "@/lib/pushTokenStore";
 import { assertServerEnv } from "@/lib/serverEnv";
 
@@ -78,11 +79,15 @@ export async function POST(request: Request, context: Context): Promise<Response
   if (!authority.ok) return authority.response;
   const validation = validatePushToken(parts.body);
   if (!validation.ok) return publicApiError(validation.error, "INVALID_REQUEST", 400);
+  const mutation = validatePushIdentityMutation(parts.body);
+  if (!mutation.ok) return publicApiError(mutation.error, "INVALID_REQUEST", 400);
 
   const result = await pushTokenStore().linkPlan(
     validation.input.token,
     parts.planId,
     authority.memberId,
+    mutation.input.installationId,
+    mutation.input.mutationVersion,
   );
   if (result === "linked" || result === "replayed") {
     return jsonNoStore({ ok: true, linked: true }, { status: 200 });
@@ -101,12 +106,16 @@ export async function DELETE(request: Request, context: Context): Promise<Respon
   if (!authority.ok) return authority.response;
   const validation = validatePushToken(parts.body);
   if (!validation.ok) return publicApiError(validation.error, "INVALID_REQUEST", 400);
+  const mutation = validatePushIdentityMutation(parts.body);
+  if (!mutation.ok) return publicApiError(mutation.error, "INVALID_REQUEST", 400);
 
   try {
     await pushTokenStore().unlinkPlan(
       validation.input.token,
       parts.planId,
       authority.memberId,
+      mutation.input.installationId,
+      mutation.input.mutationVersion,
     );
   } catch {
     return publicApiError("Could not unlink Plan notifications. Try again.", "PUSH_PLAN_UNLINK_UNAVAILABLE", 503, { retryable: true });

@@ -4,6 +4,8 @@
 
 import { encodeWebPushSubscription } from "@/lib/webPushSubscription";
 import { rememberPushRegistration } from "@/lib/pushIdentityClient";
+import { pushInstallationId } from "@/lib/pushInstallation";
+import { pushFetch, withPushTimeout } from "@/lib/pushTimeout";
 
 function applicationServerKey(value: string): Uint8Array<ArrayBuffer> | null {
   try {
@@ -22,6 +24,7 @@ function applicationServerKey(value: string): Uint8Array<ArrayBuffer> | null {
 export async function registerWebPush(): Promise<boolean> {
   if (typeof window === "undefined" || !("serviceWorker" in navigator)) return false;
   if (!("PushManager" in window) || !("Notification" in window)) return false;
+  const installationId = pushInstallationId();
 
   const publicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
   const key = publicKey ? applicationServerKey(publicKey) : null;
@@ -38,7 +41,7 @@ export async function registerWebPush(): Promise<boolean> {
       : Notification.permission;
     if (permission !== "granted") return false;
 
-    const registration = await navigator.serviceWorker.ready;
+    const registration = await withPushTimeout(navigator.serviceWorker.ready);
     const subscription = await registration.pushManager.getSubscription()
       ?? await registration.pushManager.subscribe({
         userVisibleOnly: true,
@@ -47,10 +50,10 @@ export async function registerWebPush(): Promise<boolean> {
     const token = encodeWebPushSubscription(subscription.toJSON());
     if (!token) return false;
 
-    const response = await fetch("/api/push-tokens", {
+    const response = await pushFetch("/api/push-tokens", {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ token, platform: "web" }),
+      body: JSON.stringify({ token, platform: "web", installationId }),
     });
     if (response.ok) rememberPushRegistration({ token, platform: "web" });
     return response.ok;

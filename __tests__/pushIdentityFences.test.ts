@@ -29,8 +29,8 @@ describe("push identity security fences", () => {
 
   it("unlinks person targeting before invalidating the local auth session", () => {
     const provider = read("components/auth/AuthProvider.tsx");
-    const unlink = provider.indexOf("unlinkPushRegistrationFromClaimedAccount(registration)");
-    const signOut = provider.indexOf("await supabase.auth.signOut();", unlink);
+    const unlink = provider.indexOf("await unlinkPushInstallationFromClaimedAccount()");
+    const signOut = provider.indexOf("await supabase.auth.signOut({ scope: \"local\" });", unlink);
     expect(unlink).toBeGreaterThan(-1);
     expect(signOut).toBeGreaterThan(unlink);
   });
@@ -49,5 +49,22 @@ describe("push identity security fences", () => {
     const refresh = native.slice(native.indexOf("async function recoverExistingNativePushRegistration"));
     expect(refresh).toMatch(/checkPermissions\(\)/);
     expect(refresh).not.toMatch(/requestPermissions\(\)/);
+  });
+
+  it("uses bounded push I/O and a versioned sync marker", () => {
+    const client = read("lib/pushIdentityClient.ts");
+    const native = read("lib/nativePush.ts");
+    const web = read("lib/webPush.ts");
+    const provider = read("components/auth/AuthProvider.tsx");
+    expect(client).toMatch(/withPushTimeout\(navigator\.serviceWorker\.ready\)/);
+    expect(client).toMatch(/pushFetch\("\/api\/push-tokens\/account"/);
+    expect(native).toMatch(/pushFetch\("\/api\/push-tokens"/);
+    expect(web).toMatch(/withPushTimeout\(navigator\.serviceWorker\.ready\)/);
+    expect(web).toMatch(/pushFetch\("\/api\/push-tokens"/);
+    expect(provider).toContain("pubmax_identity_synced_user_push_v2_0047");
+    expect(provider).not.toMatch(/const SYNCED_USER_KEY = "pubmax_identity_synced_user"/);
+    const logout = provider.slice(provider.indexOf("const signOut = useCallback"));
+    expect(logout).toMatch(/unlinkPushInstallationFromClaimedAccount/);
+    expect(logout).not.toMatch(/recoverNativePushRegistration/);
   });
 });

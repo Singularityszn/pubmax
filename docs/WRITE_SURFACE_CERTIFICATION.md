@@ -75,15 +75,17 @@ Plan member capability and use idempotency keys or atomic store operations.
   `{ error, code: "RATE_LIMITED", retryable: true }`. Fail-open on limiter
   outage (no anonymous paid spend behind this route).
 - **Auth stance:** deliberately anonymous — native registration happens
-  pre-sign-in, and a row carries no identity (only "this device/browser can
-  receive public pushes"). Web registration is invoked only after a real user
-  action and granted browser permission. Upsert on token keeps re-registration
-  idempotent, so table
+  pre-sign-in, and a row carries no person identity. The payload includes an
+  opaque random installation UUID used only as a privacy-revocation epoch; it
+  contains no account, Plan, member, or provider material. Web registration is
+  invoked only after a real user action and granted browser permission. The
+  atomic registration RPC refuses rebinding a token to another installation
+  and keeps same-installation registration idempotent, so table
   growth is bounded by distinct tokens × the IP budget.
 - **Rollback / kill:** remove VAPID/APNs provider credentials to select the
   transport-specific loud no-ops, or 503 the registration route. Both client
   seams degrade fail-soft. Durable rows live in `public.push_tokens`
-  (migrations 0039 + 0046, RLS on, anon/authenticated revoked);
+  (migrations 0039 + 0046 + 0047, RLS on, anon/authenticated revoked);
   `truncate public.push_tokens` is a safe reset — devices re-register on next
   boot.
 
@@ -159,16 +161,24 @@ Plan member capability and use idempotency keys or atomic store operations.
   reassign it. Missing-token and cross-account results collapse to the same 409.
   Unlink is owner-matched, idempotent, and always returns the same success body,
   including missing/wrong-owner rows.
-- **Logout/privacy:** account mutations are serialized client-side: logout
-  synchronously stops new/retrying joins, drains an accepted POST, then issues
-  DELETE while the JWT still verifies and only then invalidates auth. A
-  per-registration verified-session tombstone also rejects a delayed POST that
-  reaches the server after DELETE (including cross-tab/network reordering),
-  while a fresh auth session may link again. After a WebView restart, Web state
-  is recovered from `PushManager` and native asks the OS to re-emit an already
-  permitted token without prompting. Recovery/unlink failure keeps the user
-  signed in and surfaces an honest retry error. The all-device unlink is the
-  account-erasure seam.
+- **Ordering authority:** registration binds the delivery token once to a
+  random installation UUID. That UUID is not identity and contains no provider
+  material. Every account intent carries a local monotonic mutation version;
+  the server atomically compares it with the per-token/installation watermark.
+  Per-token/session and installation/session revocation rows are unique, retain
+  multiple old sessions, expire after 30 days, and are pruned during mutations.
+  Consequently DELETE(v2) defeats delayed POST(v1) even when DELETE acquires the
+  database lock first. A revoked session stays blocked for the access-JWT
+  lifetime; a fresh verified session may issue a later version.
+- **Logout/privacy:** logout stops new joins, then uses authenticated
+  revoke-by-installation while the JWT verifies. It does not need the raw APNs
+  token, so denied OS permission and a restarted WebView cannot hide an older
+  durable association. Only after confirmed revocation does Supabase sign out
+  with `{ scope: "local" }`, matching the current-installation privacy action
+  without signing other devices out. Failed or hard-timeout revocation keeps
+  the user signed in and displays an honest retry error. PushManager recovery,
+  native recovery, and every push fetch have hard timeouts. The all-device
+  unlink remains the account-erasure seam.
   Provider-invalid token deletion, account deletion, or explicit unlink removes
   targeting authority; public delivery opt-in remains independent.
 
@@ -186,12 +196,13 @@ Plan member capability and use idempotency keys or atomic store operations.
   multiple Plans. Same-member replay succeeds; another member cannot reassign
   that Plan's link. Missing and cross-member joins share one 409; unlink is
   member-matched and idempotent with a flat success response. Link and unlink
-  share the same transaction advisory lock, and the browser serializes its Plan
-  mutations, so a delayed link response cannot resurrect a revoked membership.
+  share a transaction lock and durable per-token/installation/Plan mutation
+  watermark. Thus DELETE(v2) wins over POST(v1) in either server acquisition
+  order; client serialization is only an additional optimisation.
 - **Storage and revocation:** migration 0047 adds the private
   `push_token_plan_memberships` table. Token, Plan, and member foreign keys
   cascade deletion. RLS is enabled; public/anon/authenticated have no grants;
-  the table grants only select/insert/delete to `service_role`, and the five
+  all five identity tables deny public/anon/authenticated access, and the seven
   search-path-pinned RPCs are execute-only for `service_role`. Keyless account
   joins honestly return 401 because no verified auth identity exists; keyless
   Plan joins use the bounded in-memory registry only after the normal in-memory

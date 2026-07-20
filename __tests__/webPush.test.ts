@@ -53,7 +53,11 @@ describe("registerWebPush", () => {
       body: expect.stringContaining('"platform":"web"'),
     }));
     const body = JSON.parse(String(fetch.mock.calls[0][1]?.body));
-    expect(body).toEqual({ token: expect.stringMatching(/^webpush:/), platform: "web" });
+    expect(body).toEqual({
+      token: expect.stringMatching(/^webpush:/),
+      platform: "web",
+      installationId: expect.stringMatching(/^[0-9a-f-]{36}$/i),
+    });
     expect(body).not.toHaveProperty("userId");
     expect(body).not.toHaveProperty("planId");
   });

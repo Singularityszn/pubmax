@@ -21,7 +21,9 @@ import {
   unlinkCurrentPushFromClaimedAccount,
   unlinkCurrentPushFromPlan,
   unlinkPushRegistrationFromClaimedAccount,
+  unlinkPushInstallationFromClaimedAccount,
 } from "@/lib/pushIdentityClient";
+import { __resetPushInstallation } from "@/lib/pushInstallation";
 
 function storageHarness(): Storage {
   const values = new Map<string, string>();
@@ -37,6 +39,7 @@ function storageHarness(): Storage {
 
 beforeEach(() => {
   __resetPushIdentityClient();
+  __resetPushInstallation();
   getAccessTokenMock.mockReset();
   getAccessTokenMock.mockResolvedValue(null);
   readActivePlanMock.mockReset();
@@ -44,6 +47,7 @@ beforeEach(() => {
   const events = new EventTarget();
   vi.stubGlobal("window", {
     sessionStorage: storageHarness(),
+    localStorage: storageHarness(),
     addEventListener: events.addEventListener.bind(events),
     removeEventListener: events.removeEventListener.bind(events),
     dispatchEvent: events.dispatchEvent.bind(events),
@@ -80,7 +84,12 @@ describe("push identity client", () => {
     await expect(linkCurrentPushToClaimedAccount()).resolves.toEqual({ ok: true, status: "linked" });
     const [, init] = fetchMock.mock.calls[0];
     expect(new Headers(init?.headers).get("authorization")).toBe("Bearer verified-jwt");
-    expect(JSON.parse(String(init?.body))).toEqual({ token: "device-token", platform: "ios" });
+    expect(JSON.parse(String(init?.body))).toMatchObject({
+      token: "device-token",
+      platform: "ios",
+      installationId: expect.stringMatching(/^[0-9a-f-]{36}$/i),
+      mutationVersion: expect.any(Number),
+    });
   });
 
   it("unlinks the current account before logout and supports all-device privacy cleanup", async () => {
@@ -91,10 +100,12 @@ describe("push identity client", () => {
 
     await expect(unlinkCurrentPushFromClaimedAccount()).resolves.toEqual({ ok: true, status: "unlinked" });
     await expect(unlinkAllPushFromClaimedAccount()).resolves.toEqual({ ok: true, status: "unlinked" });
-    expect(fetchMock.mock.calls.map(([, init]) => [init?.method, JSON.parse(String(init?.body))])).toEqual([
-      ["DELETE", { token: "device-token", platform: "ios" }],
-      ["DELETE", { all: true }],
-    ]);
+    const calls = fetchMock.mock.calls.map(([, init]) => [init?.method, JSON.parse(String(init?.body))] as const);
+    expect(calls[0][0]).toBe("DELETE");
+    expect(calls[0][1]).toMatchObject({ token: "device-token", platform: "ios" });
+    expect(calls[1][0]).toBe("DELETE");
+    expect(calls[1][1]).toMatchObject({ all: true });
+    expect(calls[1][1].mutationVersion).toBeGreaterThan(calls[0][1].mutationVersion);
   });
 
   it("joins and revokes a Plan with capability but no client member id", async () => {
@@ -107,7 +118,12 @@ describe("push identity client", () => {
     for (const [url, init] of fetchMock.mock.calls) {
       expect(url).toBe("/api/plans/plan-id/push-tokens");
       expect(new Headers(init?.headers).get("authorization")).toBe("Bearer member-capability");
-      expect(JSON.parse(String(init?.body))).toEqual({ token: "device-token", platform: "ios" });
+      expect(JSON.parse(String(init?.body))).toMatchObject({
+        token: "device-token",
+        platform: "ios",
+        installationId: expect.stringMatching(/^[0-9a-f-]{36}$/i),
+        mutationVersion: expect.any(Number),
+      });
     }
     expect(fetchMock.mock.calls.map(([, init]) => init?.method)).toEqual(["POST", "DELETE"]);
   });
@@ -154,6 +170,8 @@ describe("push identity client", () => {
     await linking;
     await expect(unlinking).resolves.toEqual({ ok: true, status: "unlinked" });
     expect(methods).toEqual(["POST", "DELETE"]);
+    const bodies = fetchMock.mock.calls.map(([, init]) => JSON.parse(String(init?.body)) as { mutationVersion: number });
+    expect(bodies[1].mutationVersion).toBeGreaterThan(bodies[0].mutationVersion);
   });
 
   it("stops new joins synchronously once logout begins", async () => {
@@ -164,6 +182,22 @@ describe("push identity client", () => {
     stopAccountPushJoins();
     await expect(linkCurrentPushToClaimedAccount()).resolves.toEqual({ ok: false, status: "stopped" });
     expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("revokes the opaque installation without a raw provider token", async () => {
+    getAccessTokenMock.mockResolvedValue("verified-jwt");
+    const fetchMock = vi.fn<typeof fetch>(async () => new Response(null, { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+    stopAccountPushJoins();
+    await expect(unlinkPushInstallationFromClaimedAccount()).resolves.toEqual({
+      ok: true,
+      status: "unlinked",
+    });
+    expect(JSON.parse(String(fetchMock.mock.calls[0][1]?.body))).toMatchObject({
+      installationOnly: true,
+      installationId: expect.stringMatching(/^[0-9a-f-]{36}$/i),
+      mutationVersion: expect.any(Number),
+    });
   });
 
   it("recovers Web PushManager state after reload and retries bounded transient failures", async () => {
@@ -209,6 +243,8 @@ describe("push identity client", () => {
     await expect(link).resolves.toBe(true);
     await expect(unlink).resolves.toBe(true);
     expect(methods).toEqual(["POST", "DELETE"]);
+    const bodies = fetchMock.mock.calls.map(([, init]) => JSON.parse(String(init?.body)) as { mutationVersion: number });
+    expect(bodies[1].mutationVersion).toBeGreaterThan(bodies[0].mutationVersion);
   });
 
   it("wakes a waiting Plan join when an async native token arrives", async () => {

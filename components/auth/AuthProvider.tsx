@@ -39,12 +39,14 @@ import {
   recoverCurrentPushRegistration,
   resumeAccountPushJoins,
   stopAccountPushJoins,
-  unlinkPushRegistrationFromClaimedAccount,
+  unlinkPushInstallationFromClaimedAccount,
 } from "@/lib/pushIdentityClient";
 import { recoverNativePushRegistration } from "@/lib/nativePush";
 
 const HANDLE_KEY = "pubmax_handle";
-const SYNCED_USER_KEY = "pubmax_identity_synced_user";
+// Versioned separately from the pre-Wave identity-claim marker: users already
+// marked by older builds must still execute the new push-identity join.
+const SYNCED_USER_KEY = "pubmax_identity_synced_user_push_v2_0047";
 const CLAIM_DEFERRED_KEY = "pubmax_claim_deferred";
 
 type ClaimPreviewResponse = ClaimPreview & { needsClaim: boolean };
@@ -461,35 +463,22 @@ export function AuthProvider({ children }: { children: ReactNode }): React.JSX.E
     const supabase = getSupabaseBrowser();
     if (!supabase) return { error: "Sign-out is not configured." };
 
-    // Privacy barrier first. New/retrying joins stop synchronously; an already
-    // accepted POST is drained, then DELETE is queued as the last authoritative
-    // account mutation while the JWT still verifies.
+    // Privacy barrier first. New/retrying joins stop synchronously. The
+    // revoke-by-installation intent receives a higher durable mutation version,
+    // so it remains authoritative even if an older timed-out POST reaches the
+    // server afterward.
     stopAccountPushJoins();
-    const web = await recoverCurrentPushRegistration();
-    let registration = web.status === "registration" ? web.registration : null;
-    if (!registration) {
-      const recovered = await recoverNativePushRegistration();
-      if (recovered.status === "registration") registration = recovered.registration;
-      else if (recovered.status === "failed" || (web.status === "failed" && recovered.status === "not_native")) {
-        resumeAccountPushJoins();
-        const error = "Could not verify notification privacy before sign-out. Try again when the device is online.";
-        setPushIdentityError(error);
-        return { error };
-      }
-      // not_native/not_permitted proves there is no native registration. Web
-      // was already checked through PushManager by currentPushRegistration().
-    }
-    if (registration) {
-      const unlinked = await unlinkPushRegistrationFromClaimedAccount(registration);
-      if (!unlinked.ok) {
-        resumeAccountPushJoins();
-        const error = "Could not unlink personal notifications, so you are still signed in. Try again when the device is online.";
-        setPushIdentityError(error);
-        return { error };
-      }
+    const unlinked = await unlinkPushInstallationFromClaimedAccount();
+    if (!unlinked.ok) {
+      resumeAccountPushJoins();
+      const error = "Could not unlink personal notifications, so you are still signed in. Try again when the device is online.";
+      setPushIdentityError(error);
+      return { error };
     }
 
-    const { error: authError } = await supabase.auth.signOut();
+    // Only this installation was revoked, so align Supabase semantics with a
+    // local session logout rather than silently invalidating other devices.
+    const { error: authError } = await supabase.auth.signOut({ scope: "local" });
     if (authError) {
       resumeAccountPushJoins();
       setPushIdentityError(authError.message);

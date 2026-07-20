@@ -7,6 +7,8 @@
 
 import { isNativeApp, nativePlatform } from "@/lib/nativePlatform";
 import { rememberPushRegistration, type ClientPushRegistration } from "@/lib/pushIdentityClient";
+import { pushInstallationId } from "@/lib/pushInstallation";
+import { pushFetch } from "@/lib/pushTimeout";
 
 export type NativePushRecoveryResult =
   | { status: "registration"; registration: ClientPushRegistration }
@@ -18,10 +20,10 @@ async function postToken(token: string): Promise<void> {
   const platform = nativePlatform();
   if (!platform) return;
   try {
-    const response = await fetch("/api/push-tokens", {
+    const response = await pushFetch("/api/push-tokens", {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ token, platform }),
+      body: JSON.stringify({ token, platform, installationId: pushInstallationId() }),
     });
     if (response.ok) rememberPushRegistration({ token, platform });
   } catch {
@@ -38,6 +40,9 @@ async function postToken(token: string): Promise<void> {
 export async function registerNativePush(): Promise<boolean> {
   if (!isNativeApp()) return false;
   try {
+    // Establish the privacy/revocation epoch before reading or requesting OS
+    // permission. It remains available if permission is later denied.
+    pushInstallationId();
     const { PushNotifications } = await import("@capacitor/push-notifications");
     let permission = await PushNotifications.checkPermissions();
     if (permission.receive === "prompt") {
