@@ -192,9 +192,10 @@ timestamps. This delivery rail is funnel telemetry only and
 does not change the PNC ledger authority below.
 
 The signing root is operator-configured (at least 32 random bytes) for every
-Supabase-backed or production process. A true keyless demo instead gets one
-random process-local key, matching its in-memory lifetime; there is no public
-development signing constant. If trusted signing is misconfigured, Plan
+Supabase-backed or production process. A non-production keyless demo instead
+gets one random process-local key, matching its in-memory lifetime; there is no
+public development signing constant. The storage-only `PUBMAX_E2E_KEYLESS`
+escape never changes this signing policy. If trusted signing is misconfigured, Plan
 generation, creation, and completion fail before mutation with a retryable 503,
 while verified event ingestion retains pending delivery for retry. Once a
 configured key is present, tokens with invalid signatures are discarded.

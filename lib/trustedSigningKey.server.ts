@@ -1,6 +1,7 @@
 import { randomBytes } from "node:crypto";
 
-import { isSupabaseConfigured, requiresSupabaseStore } from "@/lib/supabase";
+import { isDeployedProduction } from "@/lib/deploymentEnv";
+import { isSupabaseConfigured } from "@/lib/supabase";
 
 export const MIN_TRUSTED_SIGNING_SECRET_BYTES = 32;
 
@@ -41,7 +42,10 @@ export function trustedSigningKey(): Buffer {
   const shared = configuredSecret("RATE_LIMIT_SALT");
   if (shared) return shared;
 
-  if (requiresSupabaseStore() || isSupabaseConfigured()) {
+  // Trusted signing is deliberately stricter than the storage backend policy.
+  // PUBMAX_E2E_KEYLESS may select in-memory stores for local production-style
+  // QA, but it can never authorize an ephemeral signing key in production.
+  if (process.env.NODE_ENV === "production" || isDeployedProduction() || isSupabaseConfigured()) {
     throw new TrustedSigningKeyUnavailableError(
       "Trusted signing secret is unavailable. Configure PLAN_IDEMPOTENCY_SECRET or RATE_LIMIT_SALT with at least 32 bytes and retry.",
     );

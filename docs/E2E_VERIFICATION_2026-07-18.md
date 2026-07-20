@@ -19,7 +19,7 @@ touched, nothing was pushed.
 | Chromium | ms-playwright chromium-1228 |
 | Worktree | `.claude/worktrees/agent-abef47bca7abeda9d` |
 | node_modules | APFS copy-on-write clone of the main checkout |
-| Build per branch | `NEXT_DIST_DIR=.next-e2e PUBMAX_E2E_KEYLESS=1 npm run build` (via Playwright `webServer`), ~60–90s cold |
+| Build per branch | `NEXT_DIST_DIR=.next-e2e PUBMAX_E2E_KEYLESS=1 npm run build` (via Playwright `webServer`), ~60–90s cold. The config also injects a fresh random 32-byte `PLAN_IDEMPOTENCY_SECRET` into both build and start; the keyless flag relaxes storage only. |
 | Test invocation | `PW_PORT=311x NEXT_DIST_DIR=.next-e2e playwright test <specs>` |
 | Distinct port per branch | forces a fresh production build per checkout (no stale server reuse) |
 

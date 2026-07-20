@@ -181,6 +181,10 @@ export async function GET(request: Request): Promise<Response> {
 export async function POST(request: Request): Promise<Response> {
   let body: Record<string, unknown>;
   try { body = await request.json() as Record<string, unknown>; } catch { return publicApiError("Malformed request body.", "MALFORMED_REQUEST", 400); }
+  // Do not spend a caller's limiter budget when this process cannot mint the
+  // trusted proof required for any successful generation response.
+  const signingUnavailable = planSigningPreflightResponse();
+  if (signingUnavailable) return signingUnavailable;
   const limiterKey = `plan-generate:${hashIp(clientIp(request))}`;
   if (await isLimited(limiterKey, limiterKey, RATE_LIMIT_MAX, RATE_LIMIT_WINDOW_MS)) return publicApiError("Too many requests.", "RATE_LIMITED", 429, { retryable: true });
   const query = typeof body.query === "string" ? body.query.trim() : "";
@@ -195,8 +199,6 @@ export async function POST(request: Request): Promise<Response> {
   if (!cityId) return publicApiError("cityId is invalid.", "CITY_INVALID", 400);
   const area = getNightArea(context.nightArea);
   if (area.cityId !== cityId) return publicApiError("That area isn't in this city.", "NIGHT_AREA_CITY_MISMATCH", 422);
-	const signingUnavailable = planSigningPreflightResponse();
-	if (signingUnavailable) return signingUnavailable;
 	const routeReady = isNightAreaRouteReady(area);
 	const coverage = publicNightAreaCoverage(area);
 	const requestNow = Date.now();

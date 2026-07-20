@@ -1,6 +1,8 @@
 import { createHmac } from "node:crypto";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+import playwrightConfig from "../playwright.config";
+
 const analyticsEvent = { name: "plan_accepted" as const, props: { stops: 3, grounded: true } };
 const candidates = ["venue-a", "venue-b", "venue-c", "venue-d"];
 const accepted = candidates.slice(0, 3);
@@ -23,6 +25,23 @@ afterEach(() => {
 });
 
 describe("externally trusted signing keys", () => {
+  it("injects a fresh strong signing secret into each production-style Playwright server", async () => {
+    const webServer = playwrightConfig.webServer as { command?: string } | undefined;
+    const command = webServer?.command ?? "";
+    const encodedSecret = /PLAN_IDEMPOTENCY_SECRET=([A-Za-z0-9_-]+)/.exec(command)?.[1];
+
+    expect(encodedSecret).toBeTruthy();
+    expect(Buffer.from(encodedSecret!, "base64url")).toHaveLength(32);
+    expect(command).toContain("PUBMAX_E2E_KEYLESS=1");
+
+    vi.resetModules();
+    const nextConfig = (await import("../playwright.config")).default;
+    const nextWebServer = nextConfig.webServer as { command?: string } | undefined;
+    const nextSecret = /PLAN_IDEMPOTENCY_SECRET=([A-Za-z0-9_-]+)/.exec(nextWebServer?.command ?? "")?.[1];
+    expect(nextSecret).toBeTruthy();
+    expect(nextSecret).not.toBe(encodedSecret);
+  });
+
   it("fails closed when a Supabase-backed process has no signing secret", async () => {
     vi.stubEnv("NODE_ENV", "development");
     process.env.SUPABASE_URL = "https://example.supabase.co";
@@ -36,21 +55,18 @@ describe("externally trusted signing keys", () => {
       .toThrow(/signing secret/i);
   });
 
-  it("fails closed in deployed production but preserves explicit local keyless E2E mode", async () => {
+  it("fails closed in every production runtime even when the storage E2E escape is set", async () => {
     vi.stubEnv("NODE_ENV", "production");
-    vi.stubEnv("VERCEL_ENV", "production");
     clearSigningEnv();
-    process.env.VERCEL_ENV = "production";
-    const deployed = await import("@/lib/verifiedAnalytics.server");
-    expect(() => deployed.mintVerifiedAnalyticsToken(analyticsEvent, "plan:production", occurredAt))
+    process.env.PUBMAX_E2E_KEYLESS = "1";
+    const production = await import("@/lib/verifiedAnalytics.server");
+
+    expect(() => production.mintVerifiedAnalyticsToken(analyticsEvent, "plan:production", occurredAt))
       .toThrow(/signing secret/i);
 
-    vi.resetModules();
-    delete process.env.VERCEL_ENV;
-    process.env.PUBMAX_E2E_KEYLESS = "1";
-    const keylessE2e = await import("@/lib/verifiedAnalytics.server");
-    const token = keylessE2e.mintVerifiedAnalyticsToken(analyticsEvent, "plan:e2e", occurredAt);
-    expect(keylessE2e.verifyAnalyticsDeliveryToken(token, analyticsEvent, issuedAt + 1_000)).not.toBeNull();
+    process.env.PLAN_IDEMPOTENCY_SECRET = "production-e2e-signing-key-0123456789abcdef";
+    const token = production.mintVerifiedAnalyticsToken(analyticsEvent, "plan:production", occurredAt);
+    expect(production.verifyAnalyticsDeliveryToken(token, analyticsEvent, issuedAt + 1_000)).not.toBeNull();
   });
 
   it("uses RATE_LIMIT_SALT as the configured trusted fallback", async () => {

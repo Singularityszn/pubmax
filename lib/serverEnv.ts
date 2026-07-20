@@ -37,6 +37,7 @@ const NEXT_PRODUCTION_BUILD_PHASE = "phase-production-build";
  * PUBMAX_E2E_KEYLESS=1 is a deliberately exact, test-only escape hatch for
  * Playwright's local `next start` server. It must never be configured on a
  * deployed application: doing so opts that process into ephemeral stores.
+ * It does not relax trusted signing; Playwright supplies a fresh dedicated key.
  * On a real Vercel Production deploy (`VERCEL_ENV=production`) it is
  * therefore ignored — production always runs the full assertions.
  */

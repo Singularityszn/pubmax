@@ -120,6 +120,8 @@ describe("POST /api/plans/generate", () => {
       code: "PLAN_SIGNING_UNAVAILABLE",
       retryable: true,
     });
+    expect(isLimitedMock).not.toHaveBeenCalled();
+    expect(loadConciergeVenuesMock).not.toHaveBeenCalled();
   });
 
   it("requires a description or explicit Night Context", async () => {

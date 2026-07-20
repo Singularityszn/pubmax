@@ -1,3 +1,4 @@
+import { randomBytes } from "node:crypto";
 import { defineConfig, devices } from "@playwright/test";
 
 // P3.11 browser smoke suite. One chromium project, one webServer that builds and
@@ -7,6 +8,11 @@ import { defineConfig, devices } from "@playwright/test";
 const PORT = Number(process.env.PW_PORT ?? 3100);
 const BASE_URL = `http://localhost:${PORT}`;
 const SCREENSHOT_RUN = !!process.env.PW_SCREENSHOTS;
+// Production-style browser tests retain the keyless in-memory stores, but
+// trusted Plan claims never use that storage escape hatch. Give each Playwright
+// invocation a fresh process-only signing key shared by its build/start command.
+const E2E_PLAN_SIGNING_SECRET = randomBytes(32).toString("base64url");
+const E2E_SERVER_ENV = `PLAN_IDEMPOTENCY_SECRET=${E2E_PLAN_SIGNING_SECRET} PUBMAX_E2E_KEYLESS=1`;
 
 export default defineConfig({
   testDir: "./e2e",
@@ -119,8 +125,8 @@ export default defineConfig({
   ],
   webServer: {
     command: SCREENSHOT_RUN
-      ? `PUBMAX_E2E_KEYLESS=1 npm run start -- --port ${PORT}`
-      : `NEXT_DIST_DIR=.next-e2e PUBMAX_E2E_KEYLESS=1 npm run build && NEXT_DIST_DIR=.next-e2e PUBMAX_E2E_KEYLESS=1 npm run start -- --port ${PORT}`,
+      ? `${E2E_SERVER_ENV} npm run start -- --port ${PORT}`
+      : `NEXT_DIST_DIR=.next-e2e ${E2E_SERVER_ENV} npm run build && NEXT_DIST_DIR=.next-e2e ${E2E_SERVER_ENV} npm run start -- --port ${PORT}`,
     url: BASE_URL,
     reuseExistingServer: !process.env.CI && !SCREENSHOT_RUN,
     // Production build can take a while cold; give it room in CI.
