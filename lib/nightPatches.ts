@@ -19,7 +19,7 @@ export type NightPatch = {
 
 // Nightlife-gravity order, not alphabetical. Coordinates are the patch's
 // walking heart (station exit / high street), inside the priced-data footprint.
-export const NIGHT_PATCHES: NightPatch[] = [
+export const NIGHT_PATCHES = [
   { id: "soho", label: "Soho", lat: 51.5136, lng: -0.1365 },
   { id: "shoreditch", label: "Shoreditch", lat: 51.5265, lng: -0.0785 },
   { id: "camden", label: "Camden", lat: 51.539, lng: -0.1426 },
@@ -30,7 +30,10 @@ export const NIGHT_PATCHES: NightPatch[] = [
   // Broadway Market / London Fields — Hackney's pub heart carries the priced
   // density; Hackney Central itself is thin in the index.
   { id: "hackney", label: "Hackney", lat: 51.5346, lng: -0.0611 },
-];
+] as const satisfies readonly NightPatch[];
+
+/** Stable ids for the eight user-facing London night patches. */
+export type NightPatchId = (typeof NIGHT_PATCHES)[number]["id"];
 
 // The unpicked default: show central London's answer before asking anything.
 // Centred between Soho and Covent Garden so the first cards read unmistakably
