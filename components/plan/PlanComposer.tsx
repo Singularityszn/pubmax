@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useEffect, useMemo, useState, useSyncExternalStore } from "react";
+import { FormEvent, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 
@@ -28,6 +28,7 @@ import {
   planIntakeNightContextPatch,
   readPlanIntakeDraft,
   reopenPlanIntakeStep,
+  resolveFutureLondonStartIso,
   writePlanIntakeDraft,
   type PlanIntakeDraft,
 } from "@/lib/planIntake";
@@ -391,6 +392,7 @@ function PlanComposerForm({
   const [venues, setVenues] = useState<VenueOption[]>([]);
   const [conciergeQuery, setConciergeQuery] = useState(recoveredDraft?.conciergeQuery ?? "");
   const [planIntake, setPlanIntake] = useState(recoveredIntake);
+  const initialPlanIntakeRef = useRef(recoveredIntake);
   const [conciergeNote, setConciergeNote] = useState("");
   const [nightContext, setNightContext] = useState<NightContext | null>(recoveredRouteDraft?.nightContext ?? null);
   const [explicitNightContext, setExplicitNightContext] = useState<Partial<NightContext>>({});
@@ -466,6 +468,7 @@ function PlanComposerForm({
   }, [nightContext, routeRevision, routeStale, stops]);
 
   useEffect(() => {
+    if (planIntake === initialPlanIntakeRef.current) return;
     writePlanIntakeDraft(planIntake);
   }, [planIntake]);
 
@@ -485,7 +488,7 @@ function PlanComposerForm({
 
   function updatePlanStartTime(value: string) {
     setStartTime(value);
-    const exactStartIso = londonDateTimeInputToIso(value);
+    const exactStartIso = londonDateTimeInputToIso(value, new Date());
     if (planIntake.answers.timeWindow) {
       const next = {
         ...planIntake,
@@ -608,9 +611,12 @@ function PlanComposerForm({
     setSubmitting(true);
     setError("");
     try {
-      const exactStartIso = planIntake.answers.exactStartIso
-        ?? londonDateTimeInputToIso(startTime);
-      if (!exactStartIso) throw new Error("Choose a valid London start time.");
+      const exactStartIso = resolveFutureLondonStartIso(
+        startTime,
+        planIntake.answers.exactStartIso,
+        new Date(),
+      );
+      if (!exactStartIso) throw new Error("Choose a valid future London start time.");
       const createPayload = {
         title,
         creatorName,
@@ -654,11 +660,9 @@ function PlanComposerForm({
         });
         if (!metadataResponse.ok) throw new Error("The route was created, but its Night Context could not be saved. Please try again.");
       }
-      try {
-        sessionStorage.removeItem(PLAN_DRAFT_KEY);
-        localStorage.removeItem(PLAN_ROUTE_DRAFT_KEY);
-        clearPlanIntakeDraft();
-      } catch { /* best effort */ }
+      try { sessionStorage.removeItem(PLAN_DRAFT_KEY); } catch { /* best effort */ }
+      try { localStorage.removeItem(PLAN_ROUTE_DRAFT_KEY); } catch { /* best effort */ }
+      clearPlanIntakeDraft();
       clearPersistentPlanMutationKey("create", operationKey);
       router.push(`/plan/${body.plan.plan.id}`);
     } catch (caught) {

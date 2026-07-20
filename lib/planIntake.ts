@@ -249,6 +249,21 @@ export function londonDateTimeInputFromIso(value: string): string | null {
   return londonInput(londonParts(new Date(timestamp)));
 }
 
+/** Resolve the displayed London wall time without letting a stale exact handoff bypass the future check. */
+export function resolveFutureLondonStartIso(
+  value: string,
+  exactStartIso: string | null,
+  now = new Date(),
+): string | null {
+  if (!exactStartIso) return londonDateTimeInputToIso(value, now);
+  const timestamp = Date.parse(exactStartIso);
+  return Number.isFinite(timestamp)
+    && timestamp > now.getTime()
+    && londonDateTimeInputFromIso(exactStartIso) === value
+    ? new Date(timestamp).toISOString()
+    : null;
+}
+
 /** Next future occurrence of a preset's London wall time, including DST rollover. */
 export function nextLondonOccurrenceIso(windowId: PlanTimeWindowId, now = new Date()): string {
   const option = PLAN_TIME_WINDOWS.find((candidate) => candidate.id === windowId);

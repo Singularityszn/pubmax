@@ -18,6 +18,7 @@ import {
   planIntakeStepHasAnswer,
   readPlanIntakeDraft,
   reopenPlanIntakeStep,
+  resolveFutureLondonStartIso,
   settlePlanIntakeStep,
   skipRemainingPlanIntake,
   writePlanIntakeDraft,
@@ -240,7 +241,22 @@ describe("Europe/London exact time", () => {
     expect(londonDateTimeInputToIso("2026-03-29T01:30")).toBeNull();
     expect(londonDateTimeInputToIso("2026-10-25T01:30", new Date("2026-10-25T00:45:00.000Z")))
       .toBe("2026-10-25T01:30:00.000Z");
+    expect(londonDateTimeInputToIso("2026-10-25T01:30", new Date("2026-10-25T01:30:00.000Z")))
+      .toBeNull();
     expect(londonDateTimeInputFromIso("2026-07-20T16:30:00.000Z")).toBe("2026-07-20T17:30");
+  });
+
+  it("revalidates a dated exact handoff as future without changing its occurrence", () => {
+    expect(resolveFutureLondonStartIso(
+      "2026-10-25T01:30",
+      "2026-10-25T01:30:00.000Z",
+      new Date("2026-10-25T01:29:59.000Z"),
+    )).toBe("2026-10-25T01:30:00.000Z");
+    expect(resolveFutureLondonStartIso(
+      "2026-10-25T01:30",
+      "2026-10-25T01:30:00.000Z",
+      new Date("2026-10-25T01:30:00.000Z"),
+    )).toBeNull();
   });
 });
 

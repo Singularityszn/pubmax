@@ -39,12 +39,24 @@ test("concierge picks become a public Plan that a mate joins with only a name", 
     .toBeLessThanOrEqual(1);
 
   await page.getByLabel("Your name").fill("Karan");
+  expect(await page.evaluate(() => window.localStorage.getItem("pubmax:plan-intake:v1"))).not.toBeNull();
+  await page.evaluate(() => {
+    const nativeRemoveItem = Storage.prototype.removeItem;
+    Object.defineProperty(window.sessionStorage, "removeItem", {
+      configurable: true,
+      value(key: string) {
+        if (key === "pubmax:plan-draft:v1") throw new Error("session cleanup blocked");
+        return nativeRemoveItem.call(this, key);
+      },
+    });
+  });
   await page.getByRole("button", { name: "Lock it in" }).click();
   await expect.poll(() => createIdempotencyKey).toMatch(/^create-[0-9a-f-]{36}$/);
   await expect(page).toHaveURL(/\/plan\/[0-9a-f-]{36}$/);
   await expect(page.getByRole("heading", { name: /Who.s in/ })).toBeVisible();
   await expect(page.getByText("Karan", { exact: true })).toBeVisible();
   expect(await page.evaluate(() => window.localStorage.getItem("pubmax:plan-intake:v1"))).toBeNull();
+  expect(await page.evaluate(() => window.localStorage.getItem("pubmaxx:plan-route-draft:v1"))).toBeNull();
   const publicUrl = page.url();
 
   const mate = await browser.newContext();

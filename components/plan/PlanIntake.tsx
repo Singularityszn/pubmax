@@ -217,7 +217,7 @@ export default function PlanIntake({
                   type="datetime-local"
                   value={londonDateTimeInputFromIso(draft.answers.exactStartIso) ?? ""}
                   onChange={(event) => {
-                    const exactStartIso = londonDateTimeInputToIso(event.target.value);
+                    const exactStartIso = londonDateTimeInputToIso(event.target.value, new Date());
                     onChange({ ...draft, answers: { ...draft.answers, exactStartIso } });
                   }}
                   onKeyDown={(event) => advanceSingleValueStep(event, draft, onChange)}
