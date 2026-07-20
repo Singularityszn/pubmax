@@ -238,7 +238,7 @@ describe("auth callback URL safety", () => {
   });
 
   it("does not consume tab A's fragment for an unrelated attempt B", () => {
-    const { storage } = memoryStorage();
+    const { storage, values } = memoryStorage();
     beginAuthAttempt(
       "https://pubmaxxing.com/plan/abc#invite=SECRET-A",
       undefined,
@@ -246,13 +246,20 @@ describe("auth callback URL safety", () => {
       fixedCrypto(0xaa),
       1_000,
     );
+    const beforeAttack = new Map(values);
 
     const unrelated = captureAuthCallback(
-      `https://pubmaxxing.com/plan/abc?code=other&_authCallback=1&_authAttempt=${ATTEMPT_B}`,
+      `https://pubmaxxing.com/plan/abc?code=ATTACKER_CODE&_authCallback=1&_authAttempt=${ATTEMPT_B}`,
       storage,
       2_000,
     );
     expect(unrelated?.cleanUrl).toBe("/plan/abc");
+    expect(unrelated?.attempt).toEqual({
+      attemptId: null,
+      code: null,
+      providerError: true,
+    });
+    expect(values).toEqual(beforeAttack);
 
     const original = captureAuthCallback(
       `https://pubmaxxing.com/plan/abc?code=pkce&_authCallback=1&_authAttempt=${ATTEMPT_A}`,
@@ -260,6 +267,55 @@ describe("auth callback URL safety", () => {
       3_000,
     );
     expect(original?.cleanUrl).toBe("/plan/abc#invite=SECRET-A");
+    expect(original?.attempt).toEqual({
+      attemptId: ATTEMPT_A,
+      code: "pkce",
+      providerError: false,
+    });
+  });
+
+  it("does not expose a code for an expired active attempt", () => {
+    const { storage, values } = memoryStorage();
+    beginAuthAttempt(
+      "https://pubmaxxing.com/plan/abc#invite=SECRET-A",
+      undefined,
+      storage,
+      fixedCrypto(0xaa),
+      1_000,
+    );
+    const before = new Map(values);
+
+    const expired = captureAuthCallback(
+      `https://pubmaxxing.com/plan/abc?code=expired&_authCallback=1&_authAttempt=${ATTEMPT_A}`,
+      storage,
+      3_602_000,
+    );
+
+    expect(expired?.attempt).toEqual({ attemptId: null, code: null, providerError: true });
+    expect(values).toEqual(before);
+  });
+
+  it("does not expose or exchange a replay after the attempt was released", () => {
+    const { storage } = memoryStorage();
+    beginAuthAttempt(
+      "https://pubmaxxing.com/map",
+      undefined,
+      storage,
+      fixedCrypto(0xaa),
+      1_000,
+    );
+    releaseAuthAttempt(ATTEMPT_A, storage);
+    const exchangeCodeForSession = vi.fn();
+
+    const replay = captureAuthCallback(
+      `https://pubmaxxing.com/map?code=replayed&_authCallback=1&_authAttempt=${ATTEMPT_A}`,
+      storage,
+      2_000,
+    );
+    if (replay?.attempt.code) void exchangeCodeForSession(replay.attempt.code);
+
+    expect(replay?.attempt).toEqual({ attemptId: null, code: null, providerError: true });
+    expect(exchangeCodeForSession).not.toHaveBeenCalled();
   });
 
   it("supports an attempt with no fragment and releases only its lock", () => {

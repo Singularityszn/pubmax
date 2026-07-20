@@ -287,12 +287,25 @@ export function captureAuthCallback(
   storage?: AuthFragmentStorage | null,
   now = Date.now(),
 ): CapturedAuthCallback | null {
-  const attempt = readAuthCallbackAttempt(currentUrl);
-  if (!attempt) return null;
+  const parsedAttempt = readAuthCallbackAttempt(currentUrl);
+  if (!parsedAttempt) return null;
   const current = new URL(currentUrl);
-  const fragment = attempt.attemptId
-    ? takeAuthReturnFragment(currentUrl, attempt.attemptId, storage, now)
-    : "";
+  const active = storage ? readActiveAttempt(storage) : null;
+  const matchesActiveAttempt = Boolean(
+    parsedAttempt.attemptId &&
+      active?.id === parsedAttempt.attemptId &&
+      active.expiresAt > now,
+  );
+  // Never expose a code to AuthProvider unless it belongs to the exact live
+  // browser attempt. A mismatched/injected/replayed callback must not consume
+  // the real attempt's verifier, fragment, or lock.
+  const attempt: AuthCallbackAttempt = matchesActiveAttempt
+    ? parsedAttempt
+    : { attemptId: null, code: null, providerError: true };
+  const fragment =
+    matchesActiveAttempt && parsedAttempt.attemptId
+      ? takeAuthReturnFragment(currentUrl, parsedAttempt.attemptId, storage, now)
+      : "";
   current.searchParams.delete("code");
   current.searchParams.delete(AUTH_CALLBACK_MARKER);
   current.searchParams.delete(AUTH_ATTEMPT_PARAM);
