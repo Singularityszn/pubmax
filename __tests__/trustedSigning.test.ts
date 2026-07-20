@@ -1,8 +1,6 @@
 import { createHmac } from "node:crypto";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import playwrightConfig from "../playwright.config";
-
 const analyticsEvent = { name: "plan_accepted" as const, props: { stops: 3, grounded: true } };
 const candidates = ["venue-a", "venue-b", "venue-c", "venue-d"];
 const accepted = candidates.slice(0, 3);
@@ -26,18 +24,29 @@ afterEach(() => {
 
 describe("externally trusted signing keys", () => {
   it("injects a fresh strong signing secret into each production-style Playwright server", async () => {
-    const webServer = playwrightConfig.webServer as { command?: string } | undefined;
+    vi.stubEnv("PW_SCREENSHOTS", "");
+    vi.resetModules();
+    const playwrightConfig = (await import("../playwright.config")).default;
+    const webServer = playwrightConfig.webServer as {
+      command?: string;
+      env?: Record<string, string>;
+    } | undefined;
     const command = webServer?.command ?? "";
-    const encodedSecret = /PLAN_IDEMPOTENCY_SECRET=([A-Za-z0-9_-]+)/.exec(command)?.[1];
+    const encodedSecret = webServer?.env?.PLAN_IDEMPOTENCY_SECRET;
 
     expect(encodedSecret).toBeTruthy();
     expect(Buffer.from(encodedSecret!, "base64url")).toHaveLength(32);
-    expect(command).toContain("PUBMAX_E2E_KEYLESS=1");
+    expect(webServer?.env?.PUBMAX_E2E_KEYLESS).toBe("1");
+    expect(command).not.toContain("PLAN_IDEMPOTENCY_SECRET");
+    expect(command).not.toContain("PUBMAX_E2E_KEYLESS");
+    expect(command).not.toContain(encodedSecret!);
+    expect(command).toContain("npm run build &&");
+    expect(command).toContain("npm run start");
 
     vi.resetModules();
     const nextConfig = (await import("../playwright.config")).default;
-    const nextWebServer = nextConfig.webServer as { command?: string } | undefined;
-    const nextSecret = /PLAN_IDEMPOTENCY_SECRET=([A-Za-z0-9_-]+)/.exec(nextWebServer?.command ?? "")?.[1];
+    const nextWebServer = nextConfig.webServer as { env?: Record<string, string> } | undefined;
+    const nextSecret = nextWebServer?.env?.PLAN_IDEMPOTENCY_SECRET;
     expect(nextSecret).toBeTruthy();
     expect(nextSecret).not.toBe(encodedSecret);
   });
