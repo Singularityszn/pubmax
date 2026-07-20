@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-// Pure gate logic for the native-shell first-run redirect to the map
+// Pure gate logic for the native-shell first-run redirect to onboarding
 // (lib/nativeFirstRun.ts). Must never route on the web, must never route
 // twice, and must never override a viewer who already has a preferred-city
 // choice persisted (has state).

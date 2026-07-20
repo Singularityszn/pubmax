@@ -2,11 +2,13 @@ import { describe, expect, it } from "vitest";
 
 // Contract tests for the entry-decision seam (lib/entryDecision.ts, issue
 // #439). Precedence under test: deep links bypass untouched (shell or not),
-// then app-shell opens at the root land on /tonight (native first-run keeps
-// the one-time map onboarding), then the browser keeps the landing page.
+// then app-shell opens at the root land on /tonight (native first-run opens
+// the dedicated onboarding), then the browser keeps the landing page.
 import {
   decideEntry,
+  entryFirstRunHref,
   isAppShell,
+  ONBOARDING_PATH,
   SHELL_START_PATH,
   type EntryContext,
 } from "@/lib/entryDecision";
@@ -43,13 +45,11 @@ describe("decideEntry", () => {
     });
   });
 
-  it("genuine native first-run keeps the map onboarding redirect", () => {
+  it("genuine native first-run opens the dedicated onboarding", () => {
     expect(
-      decideEntry(
-        { ...WEB_ROOT, isNativeShell: true, isNativeFirstRun: true },
-        "/map",
-      ),
-    ).toEqual({ kind: "route", href: "/map", reason: "native-first-run" });
+      decideEntry({ ...WEB_ROOT, isNativeShell: true, isNativeFirstRun: true }),
+    ).toEqual({ kind: "route", href: ONBOARDING_PATH, reason: "native-first-run" });
+    expect(entryFirstRunHref()).toBe(ONBOARDING_PATH);
   });
 
   it("first-run is native-only: a spurious flag never sends a PWA to onboarding", () => {

@@ -1,5 +1,15 @@
 import { describe, expect, it } from "vitest";
-import { TOUR_PROMPT_SURFACE, claimTourPromptBudget, tourHasPromptBudget } from "@/lib/firstRunTour";
+import {
+  FIRST_RUN_COMPANIONS,
+  TOUR_PROMPT_SURFACE,
+  claimTourPromptBudget,
+  isFirstRunCompanion,
+  readFirstRunCompanion,
+  releaseTourPromptBudget,
+  resetFirstRunCompanion,
+  tourHasPromptBudget,
+  writeFirstRunCompanion,
+} from "@/lib/firstRunTour";
 import { claimPromptBudget, hasPromptBudgetFor, promptBudgetHolder } from "@/lib/promptBudget";
 
 import {
@@ -126,5 +136,45 @@ describe("first-run tour — prompt budget adoption", () => {
     // No injected storage and no window → resolveStorage returns null.
     expect(tourHasPromptBudget()).toBe(true);
     expect(claimTourPromptBudget()).toBe(true);
+  });
+
+  it("releases only its own hold for the explicit Plan handoff", () => {
+    const s = makeMemoryStorage();
+    expect(claimTourPromptBudget(s)).toBe(true);
+    releaseTourPromptBudget(s);
+    expect(promptBudgetHolder(s)).toBeNull();
+    expect(claimPromptBudget("native-push", s)).toBe(true);
+
+    const sibling = makeMemoryStorage();
+    expect(claimPromptBudget("identity-nudge", sibling)).toBe(true);
+    releaseTourPromptBudget(sibling);
+    expect(promptBudgetHolder(sibling)).toBe("identity-nudge");
+  });
+});
+
+describe("first-run companion preference", () => {
+  it("offers the six launch companions with stable ids", () => {
+    expect(FIRST_RUN_COMPANIONS.map((choice) => choice.id)).toEqual([
+      "greyhound",
+      "cat",
+      "fox",
+      "pigeon",
+      "badger",
+      "corgi",
+    ]);
+  });
+
+  it("persists one valid choice and rejects unknown stored values", () => {
+    const s = makeMemoryStorage();
+    expect(readFirstRunCompanion(s)).toBeNull();
+    writeFirstRunCompanion("pigeon", s);
+    expect(readFirstRunCompanion(s)).toBe("pigeon");
+    expect(isFirstRunCompanion("pigeon")).toBe(true);
+    expect(isFirstRunCompanion("robot")).toBe(false);
+
+    s.setItem("pubmax:first-run-companion:v1", "robot");
+    expect(readFirstRunCompanion(s)).toBeNull();
+    resetFirstRunCompanion(s);
+    expect(s.length).toBe(0);
   });
 });

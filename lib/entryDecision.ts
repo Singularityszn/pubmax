@@ -1,7 +1,8 @@
 // Entry-decision seam — the ONE place that decides which surface the app
 // starts on when it boots at the site root ("/"). Owner-locked (issue #439):
-// the wrapped app opens on /tonight on every cold start after first-run; the
-// landing page is web-only marketing the app never sees.
+// the wrapped app opens on /tonight on every cold start after first-run; a
+// genuine native first-run opens the dedicated onboarding; the landing page
+// is web-only marketing the app never sees.
 //
 // "App shell" here means either signal, probed through existing seams only:
 //   - the Capacitor native wrap (lib/nativePlatform.ts isNativeApp(); the
@@ -13,16 +14,16 @@
 //   1. Deep link — any path other than "/" is an explicit destination (share
 //      link, push click-through, universal link) and bypasses the decision
 //      untouched, shell or not. The decision NEVER rewrites a deep link.
-//   2. App shell at the root — a genuine native first-run keeps the existing
-//      map-onboarding redirect (lib/nativeFirstRun.ts gate, native shell
-//      only); every other shell open lands on /tonight.
+//   2. App shell at the root — a genuine native first-run opens the dedicated
+//      onboarding (lib/nativeFirstRun.ts gate, native shell only); every
+//      other shell open lands on /tonight.
 //   3. Web default — a browser visit keeps the marketing landing page.
 //
 // The decision is a pure function of an explicit context snapshot so it unit
 // tests in the node vitest env; the thin live probes at the bottom are the
 // only globals readers, mirroring the lib/a2hsPrompt.ts snapshot idiom.
 
-import { preferredCityMapHref, readPreferredCity } from "@/lib/cityPreference";
+import { readPreferredCity } from "@/lib/cityPreference";
 import {
   getNativeFirstRunSnapshot,
   shouldRouteNativeFirstRun,
@@ -31,6 +32,8 @@ import { isNativeApp } from "@/lib/nativePlatform";
 
 /** Where every post-first-run shell open lands (owner-locked, issue #439). */
 export const SHELL_START_PATH = "/tonight";
+/** The native shell's one-time first-run surface (owner-locked, issue #441). */
+export const ONBOARDING_PATH = "/onboarding";
 
 export type EntryContext = {
   /** Pathname at boot (no query/hash) — "/" is the only decided route. */
@@ -43,7 +46,7 @@ export type EntryContext = {
    * Genuine native first-run per the lib/nativeFirstRun.ts gate (native
    * shell, never routed before, no persisted city preference). Always false
    * outside the native shell — the gate enforces it, and decideEntry guards
-   * it again so a spurious flag can never send a PWA to map onboarding.
+   * it again so a spurious flag can never send a PWA to onboarding.
    */
   isNativeFirstRun: boolean;
 };
@@ -58,12 +61,10 @@ export function isAppShell(ctx: Pick<EntryContext, "isNativeShell" | "isStandalo
 }
 
 /**
- * The single entry decision. Pure and total. `firstRunHref` is the map
- * onboarding target for a genuine native first-run (callers pass
- * preferredCityMapHref(); the gate guarantees no city preference exists in
- * that branch, so it resolves to "/map").
+ * The single entry decision. Pure and total. `firstRunHref` stays injectable
+ * for contract tests, while production always uses ONBOARDING_PATH.
  */
-export function decideEntry(ctx: EntryContext, firstRunHref: string = "/map"): EntryDecision {
+export function decideEntry(ctx: EntryContext, firstRunHref: string = ONBOARDING_PATH): EntryDecision {
   if (ctx.path !== "/") return { kind: "stay", reason: "deep-link" };
   if (ctx.isNativeShell && ctx.isNativeFirstRun) {
     return { kind: "route", href: firstRunHref, reason: "native-first-run" };
@@ -106,7 +107,7 @@ export function readEntryContext(path: string): EntryContext {
   };
 }
 
-/** Live first-run target — the existing map-onboarding href. */
+/** Live first-run target — the dedicated native onboarding route. */
 export function entryFirstRunHref(): string {
-  return preferredCityMapHref();
+  return ONBOARDING_PATH;
 }

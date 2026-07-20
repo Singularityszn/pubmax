@@ -1,7 +1,7 @@
 // Native-shell first-run routing gate — decides whether the Capacitor app's
-// very first launch should skip the web landing page and open straight on
-// the map (the map IS the onboarding; the first-run tour from a separate
-// change covers the in-map tour side, so this does not duplicate it).
+// very first launch should skip the web landing page and open the dedicated
+// onboarding route. Every later root launch is owned by lib/entryDecision.ts
+// and lands on /tonight.
 //
 // The remote-URL wrap (capacitor.config.ts) always loads the site root, so a
 // first-time native user would otherwise land on the marketing page built
@@ -36,7 +36,7 @@ export type NativeFirstRunState = {
 
 /**
  * Pure gate function — exported for unit testing. No storage/DOM access.
- * Routes to the map only on a genuinely first native launch with no
+ * Routes to onboarding only on a genuinely first native launch with no
  * existing city-preference state, and only once ever.
  */
 export function shouldRouteNativeFirstRun(state: NativeFirstRunState): boolean {

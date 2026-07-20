@@ -45,6 +45,7 @@ import PalPortrait from "./PalPortrait";
 import PubPalVoice from "@/components/pubpal/PubPalVoice";
 import { Button } from "@/components/ui/button";
 import { setActivePlanPalContext } from "@/lib/activePlan";
+import { readFirstRunCompanion } from "@/lib/firstRunTour";
 
 const STORAGE_KEY = "pubmax_pub_pal_v1";
 const PRIVACY_KEY = "pubmax_pub_pal_privacy_v1";
@@ -235,6 +236,16 @@ export default function PalExperience() {
       }
     }
     restored ??= migrateLegacyPalOnboardingDraft(owner);
+    const rememberedCompanion = readFirstRunCompanion();
+    const firstRunDraft = rememberedCompanion
+      ? {
+          ...DEFAULT_PAL_DRAFT,
+          appearance: {
+            ...DEFAULT_PAL_DRAFT.appearance,
+            species: rememberedCompanion,
+          },
+        }
+      : DEFAULT_PAL_DRAFT;
     let cancelled = false;
     void Promise.resolve().then(() => {
       if (cancelled) return;
@@ -243,7 +254,7 @@ export default function PalExperience() {
       setDraftOwner(owner);
       setMode(restored && activated ? "onboarding" : "meeting");
       setStep(restored?.step ?? 0);
-      setDraft(restored?.draft ?? DEFAULT_PAL_DRAFT);
+      setDraft(restored?.draft ?? firstRunDraft);
       setPrivacy(restored?.privacy ?? DEFAULT_PRIVACY);
     });
     return () => { cancelled = true; };
