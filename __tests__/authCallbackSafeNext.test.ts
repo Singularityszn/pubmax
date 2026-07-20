@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { safeNext } from "@/app/auth/callback/route";
+import { GET, safeNext } from "@/app/auth/callback/route";
 
 const ORIGIN = "https://pubmaxxing.com";
 
@@ -44,5 +44,34 @@ describe("safeNext (auth callback open-redirect guard)", () => {
     expect(safeNext("evil.com", ORIGIN)).toBe("/");
     expect(safeNext("", ORIGIN)).toBe("/");
     expect(safeNext(null, ORIGIN)).toBe("/");
+  });
+});
+
+describe("auth callback flow", () => {
+  it("forwards the PKCE code to an allowlisted deep link", async () => {
+    const response = await GET(
+      new Request(`${ORIGIN}/auth/callback?code=pkce-code&next=%2Fmap%3Farea%3Dsoho`),
+    );
+
+    expect(response.status).toBe(307);
+    expect(response.headers.get("location")).toBe(`${ORIGIN}/map?area=soho&code=pkce-code`);
+  });
+
+  it("drops a hostile destination while still completing the callback", async () => {
+    const response = await GET(
+      new Request(`${ORIGIN}/auth/callback?code=pkce-code&next=${encodeURIComponent("//evil.com")}`),
+    );
+
+    expect(response.headers.get("location")).toBe(`${ORIGIN}/?code=pkce-code`);
+  });
+
+  it("returns safely to anonymous browsing when the link is invalid or expired", async () => {
+    const missing = await GET(new Request(`${ORIGIN}/auth/callback`));
+    const rejected = await GET(
+      new Request(`${ORIGIN}/auth/callback?error=access_denied&next=%2Fmap`),
+    );
+
+    expect(missing.headers.get("location")).toBe(`${ORIGIN}/?authError=1`);
+    expect(rejected.headers.get("location")).toBe(`${ORIGIN}/?authError=1`);
   });
 });

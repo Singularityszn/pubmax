@@ -9,6 +9,67 @@
   min-width: 0;
 }
 
+.authOptions {
+  display: grid;
+  gap: 0.65rem;
+  max-width: 26rem;
+}
+
+.authMagicLink {
+  display: grid;
+  gap: 0.4rem;
+  min-width: 0;
+}
+
+.authMagicLinkLabel {
+  color: var(--ink-soft);
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.authMagicLinkRow {
+  display: flex;
+  gap: 0.4rem;
+  min-width: 0;
+}
+
+.authMagicLinkInput {
+  min-width: 9rem;
+  width: 100%;
+  padding: 0.55rem 0.7rem;
+  border: 1px solid var(--line);
+  border-radius: 0.7rem;
+  background: var(--panel);
+  color: var(--ink);
+  font: inherit;
+  font-size: 0.88rem;
+}
+
+.authMagicLinkInput:focus-visible {
+  outline: 2px solid var(--brass);
+  outline-offset: 2px;
+}
+
+.authMagicLinkInput:disabled {
+  opacity: 0.65;
+}
+
+.authMagicLinkButton {
+  flex: 0 0 auto;
+}
+
+.authMagicLinkSuccess,
+.authMagicLink .authError {
+  margin: 0;
+  max-width: 25rem;
+  font-size: 0.78rem;
+  line-height: 1.35;
+}
+
+.authMagicLinkSuccess {
+  color: var(--ink-soft);
+}
+
 .authSignIn {
   display: inline-flex;
   align-items: center;
@@ -83,6 +144,15 @@
   .authSignInLabelShort {
     display: none;
   }
+
+  .authMagicLinkRow {
+    display: grid;
+  }
+
+  .authMagicLinkButton {
+    width: 100%;
+    justify-content: center;
+  }
 }
 
 /* ── Compact nav sign-in (UX defect fix) ─────────────────────────────────
@@ -97,10 +167,6 @@
 .authUserNav {
   position: relative;
   flex-wrap: nowrap;
-}
-
-.authUserNav .authProviders {
-  display: none;
 }
 
 .authCompact {
@@ -172,7 +238,7 @@
   z-index: var(--z-modal, 60);
   display: grid;
   gap: 0.4rem;
-  min-width: 15.5rem;
+  width: min(22rem, calc(100vw - 2rem));
   padding: 0.5rem;
   border: 1px solid var(--line);
   border-radius: 0.9rem;
@@ -205,9 +271,14 @@
   justify-content: flex-start;
 }
 
+.authMenu .authMagicLink {
+  padding-top: 0.25rem;
+  border-top: 1px solid var(--line);
+}
+
 /* A rare OAuth-call error in the compact host renders as a small anchored
    note instead of stretching the (nowrap) nav row. */
-.authUserNav .authError {
+.authUserNav > .authError {
   position: absolute;
   top: calc(100% + 6px);
   right: 0;

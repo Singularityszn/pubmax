@@ -1,7 +1,7 @@
 "use client";
 
 // App-wide auth context. Holds the current Supabase session/user (or null) and
-// exposes signInWithGoogle()/signInWithMicrosoft()/signOut(). Additive only:
+// exposes Google, Microsoft, passwordless email, and sign-out actions. Additive only:
 // anonymous browsing is unaffected — nothing here gates a route or blocks a
 // render. A signed-in session just establishes identity for future authed actions.
 //
@@ -29,11 +29,13 @@ import type { Session, User } from "@supabase/supabase-js";
 import { ClaimNightDialog } from "@/components/auth/ClaimNightDialog";
 import IdentityNudge from "@/components/identity/IdentityNudge";
 import { getSupabaseBrowser, isAuthConfigured } from "@/lib/authClient";
+import { buildAuthCallbackUrl } from "@/lib/authRedirect";
 import { authedFetch } from "@/lib/authedFetch";
 import type { ClaimChoice, ClaimPreview } from "@/lib/identityClaim";
 import { readDeviceHandle } from "@/lib/identityClaimClient";
 import { normalizeHandle } from "@/lib/profiles";
 import { emitIdentityHandleChanged, IDENTITY_HANDLE_CHANGED_EVENT } from "@/lib/identityClient";
+import { requestMagicLink, type MagicLinkResult } from "@/lib/passwordlessAuth";
 
 const HANDLE_KEY = "pubmax_handle";
 const SYNCED_USER_KEY = "pubmax_identity_synced_user";
@@ -120,6 +122,8 @@ export type AuthContextValue = {
   signInWithGoogle: () => Promise<{ error: string | null }>;
   /** Start the Microsoft (Azure) OAuth redirect. No-op when unconfigured. */
   signInWithMicrosoft: () => Promise<{ error: string | null }>;
+  /** Send a passwordless email link with normalized, non-enumerating feedback. */
+  signInWithEmail: (email: string, next?: string) => Promise<MagicLinkResult>;
   /** Clear the local session. */
   signOut: () => Promise<void>;
   /**
@@ -382,10 +386,11 @@ export function AuthProvider({ children }: { children: ReactNode }): React.JSX.E
     }
     // origin is only read inside this handler (post-mount, browser-only), so it
     // is SSR-safe. redirectTo must be an allowed URL in Supabase Auth settings.
-    const origin = typeof window !== "undefined" ? window.location.origin : "";
+    const callback = typeof window !== "undefined" ? buildAuthCallbackUrl(window.location.href) : null;
+    if (!callback) return { error: "Sign-in is unavailable on this page." };
     const { error } = await supabase.auth.signInWithOAuth({
       provider: "google",
-      options: { redirectTo: `${origin}/auth/callback` },
+      options: { redirectTo: callback },
     });
     return { error: error ? error.message : null };
   }, []);
@@ -395,18 +400,37 @@ export function AuthProvider({ children }: { children: ReactNode }): React.JSX.E
     if (!supabase) {
       return { error: "Sign-in is not configured." };
     }
-    const origin = typeof window !== "undefined" ? window.location.origin : "";
+    const callback = typeof window !== "undefined" ? buildAuthCallbackUrl(window.location.href) : null;
+    if (!callback) return { error: "Sign-in is unavailable on this page." };
     // Supabase's Microsoft provider id is "azure". Request email so we can
     // derive a handle the same way as Google.
     const { error } = await supabase.auth.signInWithOAuth({
       provider: "azure",
       options: {
         scopes: "email",
-        redirectTo: `${origin}/auth/callback`,
+        redirectTo: callback,
       },
     });
     return { error: error ? error.message : null };
   }, []);
+
+  const signInWithEmail = useCallback(
+    async (email: string, next?: string): Promise<MagicLinkResult> => {
+      const supabase = getSupabaseBrowser();
+      if (!supabase) {
+        return { status: "error", message: "Sign-in is not configured." };
+      }
+      const callback =
+        typeof window !== "undefined"
+          ? buildAuthCallbackUrl(window.location.href, next)
+          : null;
+      if (!callback) {
+        return { status: "error", message: "Sign-in is unavailable on this page." };
+      }
+      return requestMagicLink(supabase.auth, email, callback);
+    },
+    [],
+  );
 
   const signOut = useCallback(async (): Promise<void> => {
     const supabase = getSupabaseBrowser();
@@ -424,10 +448,11 @@ export function AuthProvider({ children }: { children: ReactNode }): React.JSX.E
       configured,
       signInWithGoogle,
       signInWithMicrosoft,
+      signInWithEmail,
       signOut,
       handle: canonicalHandle ?? handleFromUser(user),
     };
-  }, [session, loading, configured, signInWithGoogle, signInWithMicrosoft, signOut, canonicalHandle]);
+  }, [session, loading, configured, signInWithGoogle, signInWithMicrosoft, signInWithEmail, signOut, canonicalHandle]);
 
   return (
     <AuthContext.Provider value={value}>
@@ -460,6 +485,7 @@ export function useAuth(): AuthContextValue {
     configured: false,
     signInWithGoogle: async () => ({ error: "Sign-in is not configured." }),
     signInWithMicrosoft: async () => ({ error: "Sign-in is not configured." }),
+    signInWithEmail: async () => ({ status: "error", message: "Sign-in is not configured." }),
     signOut: async () => {},
     handle: null,
   };

@@ -1,4 +1,5 @@
-// OAuth callback landing. Supabase Auth (Google / Azure / etc.) redirects here
+// Auth callback landing. Supabase Auth (Google / Azure / email magic link)
+// redirects here
 // with a `?code=` after the user approves. We hand that code back to the browser
 // so the browser Supabase client — which holds the PKCE code-verifier in its own
 // localStorage — completes `exchangeCodeForSession` on load (see
@@ -15,6 +16,7 @@
 // app always lands somewhere valid — anonymous browsing is never blocked.
 
 import { NextResponse } from "next/server";
+import { safeAuthNext } from "@/lib/authRedirect";
 
 /**
  * Only same-origin absolute paths are honoured.
@@ -30,19 +32,7 @@ import { NextResponse } from "next/server";
  * and require the result to stay on that origin.
  */
 export function safeNext(raw: string | null, origin: string): string {
-  if (!raw) return "/";
-  const trimmed = raw.trim();
-  if (!trimmed.startsWith("/") || trimmed.startsWith("//") || trimmed.includes("\\")) {
-    return "/";
-  }
-  try {
-    const dest = new URL(trimmed, origin);
-    if (dest.origin !== new URL(origin).origin) return "/";
-    // Preserve path + query + hash only — never an absolute external URL.
-    return `${dest.pathname}${dest.search}${dest.hash}` || "/";
-  } catch {
-    return "/";
-  }
+  return safeAuthNext(raw, origin);
 }
 
 export async function GET(request: Request): Promise<Response> {

@@ -80,9 +80,9 @@ Buckets are not SQL objects, so create it **out of band** (Supabase dashboard �
 - Mutable social/admin responses use `Cache-Control: no-store` via `jsonNoStore` (`lib/apiResponses.ts`) so private inboxes and ownership-gated writes are never CDN-cached.
 - Hidden Pint Drop photos: DTOs null out URLs; Storage objects are deleted on takedown; bucket must be private (see Storage bucket note above).
 
-### 3. Browser sign-in (Google + Microsoft)
+### 3. Browser sign-in (email magic link + Google + Microsoft)
 
-The app calls Supabase Auth OAuth (`signInWithOAuth`) and finishes the PKCE exchange at `/auth/callback`. Secrets stay in the Supabase dashboard — the Next.js app only needs the public URL + publishable key above.
+The app calls Supabase Auth with `signInWithOtp` for passwordless email and `signInWithOAuth` for Google/Microsoft. All three finish the PKCE exchange at `/auth/callback`, then return to the same-origin path where sign-in started. The callback rejects absolute, protocol-relative, and backslash redirect targets; never add a client-controlled redirect that bypasses that seam. Secrets stay in the Supabase dashboard — the Next.js app only needs the public URL + publishable key above.
 
 #### Shared Supabase URL config
 
@@ -92,6 +92,19 @@ Dashboard → Authentication → URL Configuration:
 |---|---|
 | Site URL | `https://pubmaxxing.com` (canonical production apex) |
 | Redirect URLs | `https://pubmaxxing.com/auth/callback`, `https://www.pubmaxxing.com/auth/callback`, `http://localhost:3000/auth/callback`, plus any preview hosts you use |
+
+Preview hosts must be listed explicitly (or with Supabase's narrowly scoped preview wildcard pattern); do not add a broad wildcard covering unrelated domains.
+
+#### Passwordless email (magic link)
+
+1. Supabase → Authentication → Providers → **Email**: enable Email and confirm-password/email links. The app intentionally calls `shouldCreateUser: true`, so a valid first-time address creates an account through the same flow.
+2. Supabase → Project Settings → Auth → SMTP: configure a production sender, verified domain, and reply-to address. Supabase's development sender is not a production delivery guarantee. Review the dashboard's email rate limits against expected launch traffic.
+3. Authentication → Email Templates → **Magic Link**: keep the action URL based on `{{ .ConfirmationURL }}`. The current PKCE browser client expects Supabase to return a `?code=` to the allowlisted `/auth/callback`; a custom `token_hash` template needs a separate server-cookie verification route and must not be switched on silently.
+4. Make the template name PUBMAXX, state that the link signs the recipient in, include an expiry/help line, and do not include account-existence language. Test delivery, expiry, duplicate clicks, a new address, an existing address, and spam placement before launch.
+
+The UI deliberately gives the same success message for every address and replaces provider failures with normalized retry/rate-limit copy. This prevents the client from becoming an account-enumeration oracle. Supabase remains the enforcement point for actual email sending and rate limits.
+
+**Wrapped shell / deep links:** the current Capacitor app is a remote-URL shell and the magic link is HTTPS, so the callback is safe and usable in the browser that receives the email. PKCE requires the browser containing the code verifier. If a mail app opens the link in a different browser context, including outside the shell, that context may not complete the exchange. Native return-to-app auth therefore remains an owner/configuration item: verified Associated Domains/Android App Links plus an auth-specific handoff must be designed and device-tested before claiming in-shell magic-link completion. Do not change the dashboard redirect to a custom scheme; the web callback and existing universal-link seam are the safe starting point.
 
 Vercel must attach both `pubmaxxing.com` and `www.pubmaxxing.com` to the same production project, with `www.pubmaxxing.com` permanently redirecting to the canonical apex. After an explicitly authorised deployment, verify that the apex returns the release, the `www` redirect preserves the path and query string, and both TLS certificates are valid:
 

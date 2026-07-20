@@ -26,6 +26,7 @@
 import { useEffect, useState, useSyncExternalStore } from "react";
 
 import { useAuth } from "@/components/auth/AuthProvider";
+import MagicLinkForm from "@/components/auth/MagicLinkForm";
 import { isValidEmail } from "@/lib/emailSubscribers";
 import {
   getIdentityNudgeClientSnapshot,
@@ -83,7 +84,14 @@ export default function IdentityNudge(): React.JSX.Element | null {
     getIdentityNudgeClientSnapshot,
     getIdentityNudgeServerSnapshot,
   );
-  const { user, loading, configured, signInWithGoogle, signInWithMicrosoft } = useAuth();
+  const {
+    user,
+    loading,
+    configured,
+    signInWithGoogle,
+    signInWithMicrosoft,
+    signInWithEmail,
+  } = useAuth();
 
   // Local email-capture state (hooks run unconditionally, before any early
   // return). `status` drives the honest, no-fake-success flow:
@@ -210,6 +218,7 @@ export default function IdentityNudge(): React.JSX.Element | null {
             </span>
           </button>
         </div>
+        <MagicLinkForm disabled={false} signInWithEmail={signInWithEmail} />
 
         {/* The lighter path: leave just an email for the weekly pint digest.
             One field, one CTA, one stated purpose. Replaced by an honest

@@ -138,7 +138,7 @@ export default function ActivityPage(): React.JSX.Element {
           <EmptyState
             eyebrow="Activity"
             title="Sign in or claim a handle"
-            body="Sign in with Google, or drop a pint to set a handle. Then follows, reactions, comments, and crawl saves show up here."
+            body="Sign in, or drop a pint to set a handle. Then follows, reactions, comments, and crawl saves show up here."
             action={<SignInButton />}
           />
         ) : failed ? (
