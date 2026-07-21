@@ -39,6 +39,23 @@ type ModeratorComment = {
   createdAt: string;
 };
 
+// Moderator visit-report row as returned by GET /api/visit-reports?status=hidden.
+// The full row minus nothing (report metadata rides along for the reviewer).
+type ModeratorVisitReport = {
+  id: string;
+  venueId: string;
+  handle: string;
+  visitedAt: string;
+  busyness: string | null;
+  atmosphere: string | null;
+  wouldReturn: string | null;
+  priceSanity: string | null;
+  note: string;
+  reportReason?: string;
+  reportCount?: number;
+  reportedAt?: string;
+};
+
 type AdminTab = "moderation" | "import";
 
 type ImportNoteRow = {
@@ -94,6 +111,7 @@ export default function AdminPage() {
   const [drops, setDrops] = useState<ModeratorDrop[]>([]);
   const [venueNames, setVenueNames] = useState<Map<string, string>>(new Map());
   const [comments, setComments] = useState<ModeratorComment[]>([]);
+  const [visitReports, setVisitReports] = useState<ModeratorVisitReport[]>([]);
   const [message, setMessage] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [pendingId, setPendingId] = useState<string | null>(null);
@@ -213,6 +231,19 @@ export default function AdminPage() {
       } catch {
         setComments([]);
       }
+      // Load the hidden visit-report queue (Wayfinder 3.4) in the same pass.
+      // Best-effort — a failure never blocks drop/comment moderation.
+      try {
+        const vRes = await fetch("/api/visit-reports?status=hidden", SESSION_FETCH);
+        if (vRes.ok) {
+          const vBody = (await vRes.json()) as { reports: ModeratorVisitReport[] };
+          setVisitReports(vBody.reports ?? []);
+        } else {
+          setVisitReports([]);
+        }
+      } catch {
+        setVisitReports([]);
+      }
       if ((body.drops ?? []).length === 0) setMessage("No reported drops in the queue.");
     } catch {
       setDrops([]);
@@ -243,6 +274,33 @@ export default function AdminPage() {
       // Decided comments leave the hidden queue either way.
       setComments((current) => current.filter((c) => c.id !== id));
       setMessage(action === "restore" ? "Comment restored." : "Comment kept hidden.");
+    } catch {
+      setMessage("Could not reach the server.");
+    } finally {
+      setPendingId(null);
+    }
+  }, []);
+
+  const decideVisitReport = useCallback(async (id: string, action: "restore" | "keep_hidden") => {
+    setPendingId(id);
+    setMessage(null);
+    try {
+      const res = await fetch("/api/visit-reports", {
+        ...SESSION_FETCH,
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ action, id }),
+      });
+      if (res.status === 403) {
+        setMessage("Not authorised. Check the admin token.");
+        return;
+      }
+      if (!res.ok) {
+        setMessage("Action failed. Try again.");
+        return;
+      }
+      setVisitReports((current) => current.filter((v) => v.id !== id));
+      setMessage(action === "restore" ? "Visit report restored." : "Visit report kept hidden.");
     } catch {
       setMessage("Could not reach the server.");
     } finally {
@@ -569,6 +627,61 @@ export default function AdminPage() {
                       disabled={pendingId === c.id}
                     >
                       {pendingId === c.id ? "Working…" : "Keep hidden"}
+                    </button>
+                  </div>
+                </article>
+              ))}
+            </div>
+          )}
+          {/* ── Visit report moderation queue (Wayfinder 3.4) ───────────────── */}
+          <h2 className="admin-section">Reported visit reports</h2>
+          <p className="admin-sub">
+            Review reported structured visit reports. Restore the good, keep the rest hidden.
+          </p>
+          {visitReports.length === 0 ? (
+            <div className="admin-empty">
+              <strong>No reported visit reports</strong>
+              <span>Reported visit reports will appear here after they reach the review threshold.</span>
+            </div>
+          ) : (
+            <div className="admin-list">
+              {visitReports.map((v) => (
+                <article className="admin-card" key={v.id}>
+                  <div className="admin-card-head">
+                    <span className="admin-handle">{v.handle}</span>
+                    <span className="admin-report">{v.visitedAt}</span>
+                  </div>
+                  <div className="admin-venue">
+                    <span className="admin-venue-name">{venueNames.get(v.venueId) ?? v.venueId}</span>
+                    <Link className="admin-venue-link" href={venueMapUrl(v.venueId)}>
+                      View on map
+                    </Link>
+                  </div>
+                  {v.note ? <p className="admin-note">{v.note}</p> : null}
+                  <div className="admin-meta">
+                    {v.busyness ? <span>Busyness: {v.busyness}</span> : null}
+                    {v.atmosphere ? <span>Vibe: {v.atmosphere}</span> : null}
+                    {v.wouldReturn ? <span>Return: {v.wouldReturn}</span> : null}
+                    {v.priceSanity ? <span>Price: {v.priceSanity}</span> : null}
+                    {v.reportReason ? (
+                      <span className="admin-report">Reason: {v.reportReason}</span>
+                    ) : null}
+                    <span className="admin-report">Reports: {v.reportCount ?? 1}</span>
+                  </div>
+                  <div className="admin-actions">
+                    <button
+                      className="admin-btn admin-restore"
+                      onClick={() => decideVisitReport(v.id, "restore")}
+                      disabled={pendingId === v.id}
+                    >
+                      {pendingId === v.id ? "Working…" : "Restore"}
+                    </button>
+                    <button
+                      className="admin-btn admin-keep"
+                      onClick={() => decideVisitReport(v.id, "keep_hidden")}
+                      disabled={pendingId === v.id}
+                    >
+                      {pendingId === v.id ? "Working…" : "Keep hidden"}
                     </button>
                   </div>
                 </article>

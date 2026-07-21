@@ -24,6 +24,7 @@ import JsonLd from "@/components/seo/JsonLd";
 import ReadLedgerButton from "@/components/ledger/ReadLedgerButton";
 import ShareWithFamilyButton from "@/components/ledger/ShareWithFamilyButton";
 import VenueRatingPanel from "@/components/ratings/VenueRatingPanel";
+import VisitReportPanel from "@/components/visits/VisitReportPanel";
 
 import "./ledger.css";
 
@@ -332,6 +333,11 @@ export default async function LedgerPage({ params, searchParams }: PageProps) {
             the viewer's own half-star vote. A client sliver; the rest of the
             page stays a server render. */}
         <VenueRatingPanel venueId={canonicalId} venueName={venue.name} />
+
+        {/* Structured Visit Reports (Wayfinder 3.4): recency-weighted summary
+            lines (no star score) alongside the ratings, plus the compact
+            three-tap capture card. */}
+        <VisitReportPanel venueId={canonicalId} venueName={venue.name} />
       </header>
 
       <p className="ledgerLaneNote">
