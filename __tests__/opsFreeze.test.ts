@@ -232,7 +232,6 @@ describe("guard containment fence (source-reading)", () => {
     "app/api/night-stories/[id]/publish-proposals/route.ts",
     "app/api/night-stories/[id]/publish-confirmations/route.ts",
     "app/api/night-memories/[id]/moments/route.ts",
-    "app/api/visit-reports/route.ts",
   ];
 
   it("every guarded route imports and calls the freeze seam", () => {

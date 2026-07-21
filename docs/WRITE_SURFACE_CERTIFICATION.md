@@ -216,6 +216,34 @@ Plan member capability and use idempotency keys or atomic store operations.
   delete/503 the route and the venue-sheet panel fails soft to its empty state
   while the existing star ratings still render.
 
+## Internal cron routes (excluded from the mutating-verb inventory)
+
+The Vercel cron freshness plane adds three scheduled routes under
+`app/api/cron/*` (`refresh-weather`, `refresh-whats-on`, `freshness-audit`). They
+are **mutating by effect** (weather writes to the durable `weather_snapshots`
+store; What's-On stamps `feed_freshness`) but are deliberately **NOT counted in
+the 66-route inventory**, for the same reason token-gated `GET`
+confirm/unsubscribe endpoints are excluded:
+
+- **They are `GET` handlers.** Vercel Cron dispatches `GET` (its dispatcher also
+  accepts `POST`); the inventory scans for public `POST/PUT/PATCH/DELETE`
+  handlers (`MUTATION_EXPORT`), which these do not export. The structural count
+  therefore stays **66** with no bump.
+- **They are internal, `CRON_SECRET`-gated schedulers, not a public surface.**
+  Authority is `Authorization: Bearer $CRON_SECRET` enforced twice — by Vercel's
+  cron dispatcher and again inside each handler (`lib/cronAuth.ts`,
+  constant-time compare; unset secret in production ⇒ `401`, refuses to run).
+  This is the certification boundary for these routes (an internal-secret gate,
+  analogous to the moderator token) even though they are not part of the
+  public mutating-verb tally.
+- **Failure posture is no-fake-success:** provider outage ⇒ `502` with nothing
+  written; durable write failure ⇒ `503`; per-area contract failures are skipped
+  and reported. See `docs/CRON_PLANE_RUNBOOK.md`.
+
+If a cron route is ever converted to a `POST` (or a public mutating verb is added
+under `app/api/cron/*`), it MUST be folded into the inventory count in the same
+commit.
+
 ## Certification command
 
 ```bash
