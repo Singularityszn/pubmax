@@ -26,6 +26,8 @@ import {
   writeRememberedArea,
   type NightPatch,
 } from "@/lib/nightPatches";
+import { nearestSupportedPatch, type NearestPatch } from "@/lib/areaDemand";
+import UnsupportedAreaPreview from "@/components/coverage/UnsupportedAreaPreview";
 
 import "./nearMeNow.css";
 
@@ -77,6 +79,9 @@ export default function NearMeNow({
   const [borough, setBorough] = useState<string | null>(null);
   const [patch, setPatch] = useState<NightPatch | null>(null);
   const [patchReason, setPatchReason] = useState<PatchReason>(null);
+  // Located fine but nothing priced within reach: the honest "we do not cover
+  // where you are yet" state, carrying the REAL nearest supported patch.
+  const [outsideCoverage, setOutsideCoverage] = useState<NearestPatch | null>(null);
   const slimRef = useRef<PricedPoint[] | null>(venues ?? null);
   const loadingSlimRef = useRef<Promise<PricedPoint[]> | null>(null);
 
@@ -109,6 +114,7 @@ export default function NearMeNow({
         setScope(answer.scope);
         setPatch(next);
         setBorough(null);
+        setOutsideCoverage(null);
         if (reason !== null) setPatchReason(reason);
         setState("ready");
         writeRememberedArea({ kind: "patch", id: next.id });
@@ -123,6 +129,7 @@ export default function NearMeNow({
         setCards(rankBoroughCheapest(slim, name));
         setBorough(name);
         setPatch(null);
+        setOutsideCoverage(null);
         setScope("walkable");
         setState("ready");
         writeRememberedArea({ kind: "borough", name });
@@ -161,8 +168,23 @@ export default function NearMeNow({
         void loadSlim().then((slim) => {
           const answer = rankNearMe(position.coords.latitude, position.coords.longitude, slim);
           if (answer.scope === "none") {
-            // Located fine, but nothing priced in range — answer from an area
-            // instead of showing a dead end.
+            // Located fine, but nothing priced in range — be honest that we do
+            // not cover here yet, name the REAL nearest patch, and let them
+            // register demand, instead of silently pretending central London.
+            const nearest = nearestSupportedPatch(
+              position.coords.latitude,
+              position.coords.longitude,
+            );
+            if (nearest) {
+              setCards([]);
+              setBorough(null);
+              setPatch(null);
+              setPatchReason(null);
+              setOutsideCoverage(nearest);
+              setState("ready");
+              return;
+            }
+            // No patch to offer (should not happen) — fall back to an area answer.
             answerWithoutFix("none");
             return;
           }
@@ -172,6 +194,7 @@ export default function NearMeNow({
           setBorough(null);
           setPatch(null);
           setPatchReason(null);
+          setOutsideCoverage(null);
         });
       },
       (error) => {
@@ -254,7 +277,22 @@ export default function NearMeNow({
         </div>
       ) : null}
 
-      {state === "ready" && !borough && !patch ? (
+      {state === "ready" && outsideCoverage ? (
+        <div className="nmnOutside">
+          <UnsupportedAreaPreview
+            nearest={outsideCoverage}
+            source="near-empty"
+            onPickPatch={(next: NightPatch) => pickPatch(next)}
+          />
+          <footer className="nmnFoot nmnFootArea">
+            <button type="button" className="nmnRetry nmnRetryGhost" onClick={locate}>
+              <LocateFixed size={15} aria-hidden="true" /> Try my location again
+            </button>
+          </footer>
+        </div>
+      ) : null}
+
+      {state === "ready" && !outsideCoverage && !borough && !patch ? (
         <>
           <header className="nmnHead">
             <h2>{scope === "widened" ? "Nearest priced pubs" : "Cheapest pints near you"}</h2>
@@ -285,7 +323,13 @@ export default function NearMeNow({
           </header>
           <NearMeCardList cards={cards} onOpen={openVenue} />
           {cards.length === 0 ? (
-            <p className="nmnSub">Nothing priced here yet. Pick another area.</p>
+            <div className="nmnOutside">
+              <UnsupportedAreaPreview
+                area={areaLabel}
+                source="area-picker"
+                onPickPatch={(next: NightPatch) => pickPatch(next)}
+              />
+            </div>
           ) : null}
           <footer className="nmnFoot nmnFootArea">
             <AreaPicker

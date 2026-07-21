@@ -47,18 +47,20 @@ const mutationRoutes = routeFiles(API_ROOT)
 
 describe("mutating API surface certification", () => {
   it("keeps the reviewed inventory explicit", () => {
-    // 64 = the Wave 0 inventory of 60 + the email-capture POST
+    // 65 = the Wave 0 inventory of 60 + the email-capture POST
     // (app/api/email-subscribers/route.ts, merged) + push-tokens (native shell
     // registration) + the Social Loop "we're out" check-in POST
     // (app/api/check-ins/route.ts, feat/social-loop-v1) + the vibe-vote POST
     // (app/api/plans/[id]/vibe-votes/route.ts, feat/vibe-votes — share-loop
     // tally; its sibling GET aggregate read is NOT a mutating verb and is not
-    // counted). Token-gated GET confirm/unsubscribe endpoints and the Social
-    // Loop's read-only GETs (/check-ins GET, /profiles/[handle]/lot) are
-    // intentionally NOT counted. This literal is the deliberate
-    // merge-coordination point: any branch adding a mutating route bumps it in
-    // the same commit (docs/WRITE_SURFACE_CERTIFICATION.md).
-    expect(mutationRoutes).toHaveLength(64);
+    // counted) + the area-demand capture POST (app/api/area-demand/route.ts,
+    // lane/area-demand-capture — Wayfinder 3.2 honest unsupported-area preview).
+    // Token-gated GET confirm/unsubscribe endpoints and the Social Loop's
+    // read-only GETs (/check-ins GET, /profiles/[handle]/lot) are intentionally
+    // NOT counted. This literal is the deliberate merge-coordination point: any
+    // branch adding a mutating route bumps it in the same commit
+    // (docs/WRITE_SURFACE_CERTIFICATION.md).
+    expect(mutationRoutes).toHaveLength(65);
   });
 
   it("gives every mutating route an abuse or authority boundary", () => {

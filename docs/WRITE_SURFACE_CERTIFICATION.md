@@ -6,12 +6,13 @@ reviewed surface—even when a POST is semantically read-only. The regression te
 Adding a sixty-second mutating route or removing its authority/abuse boundary fails
 CI until this certification is deliberately updated.
 
-> **Inventory: 64 mutating routes.** The count grew 60 → 61 (email-capture
+> **Inventory: 65 mutating routes.** The count grew 60 → 61 (email-capture
 > `POST /api/email-subscribers`) → 62 (native `POST /api/push-tokens`) → 63 (the
 > Social Loop "we're out" `POST /api/check-ins`) → 64 (the vibe-vote
-> `POST /api/plans/[id]/vibe-votes`). Token-gated GET confirm/unsubscribe
-> endpoints and read-only GETs (the Social Loop reads, the vibe-vote tally read)
-> are deliberately excluded from the mutating-verb inventory. The number is a
+> `POST /api/plans/[id]/vibe-votes`) → 65 (the area-demand capture
+> `POST /api/area-demand`). Token-gated GET confirm/unsubscribe endpoints and
+> read-only GETs (the Social Loop reads, the vibe-vote tally read) are
+> deliberately excluded from the mutating-verb inventory. The number is a
 > merge-conflict coordination point across in-flight branches — reconcile it (not
 > silently overwrite) when branches meet.
 
@@ -131,6 +132,45 @@ Plan member capability and use idempotency keys or atomic store operations.
   revoked, service_role only); `truncate` both is a safe reset. Until the owner
   applies 0044 the durable write 503s and the tally read drops the share-card
   line (the card still renders) — no crash, no fake success.
+
+### `app/api/area-demand` — unsupported-area demand capture (route 65)
+
+- **Route / method:** `POST app/api/area-demand/route.ts` (Wayfinder 3.2,
+  `lane/area-demand-capture`). Backs the demand ask on the honest unsupported-
+  area preview (`components/coverage/UnsupportedAreaPreview`), which always shows
+  the nearest supported patch as a live alternative BEFORE the ask (value first,
+  never a form-wall — taste doctrine).
+- **Validation:** `parseAreaDemandInput` (`lib/areaDemand.ts`) — `area` is
+  REQUIRED (normalised, whitespace-collapsed, ≤ 80 chars) or 400 `INVALID_AREA`;
+  `email` is OPTIONAL and, when a non-empty value is offered, must pass
+  `parseEmail` or 400 `INVALID_EMAIL`. A blank/absent email is valid: demand is
+  captured WITHOUT contact. `source` is coerced to the
+  `{near-empty, area-picker, map-miss}` allowlist; `matchedPatchId` is re-derived
+  server-side (an arbitrary body match is never trusted). No coordinates are
+  ever accepted or stored. Validation runs BEFORE the limiter so a bad body 400s
+  cheaply.
+- **Rate limit (boundary):** durable per-IP `isLimited` with key
+  `area-demand:ip:${hashIp(clientIp(request))}` (raw IP never keyed), budget
+  8/min — a genuine user registers a handful of areas — PLUS a route-wide global
+  circuit breaker (`area-demand:global`, 200/min across all callers) that bounds
+  table growth against a distributed flood. Either exceed → 429
+  `{ error, code: "RATE_LIMITED", retryable: true }`. This is the certification
+  boundary (rate_limit class). Public contribution posture: NOT fail-closed — a
+  transient limiter outage degrades to a tighter in-memory budget rather than
+  refusing genuine signals (no anonymous paid spend behind this route).
+- **Auth stance:** deliberately anonymous. Demand is a keyless community signal;
+  a row carries no identity beyond an optional self-offered email. There is no
+  account or capability gate by design — requiring sign-in to say "cover my area"
+  would be exactly the form-wall the doctrine forbids.
+- **Rollback / kill:** durable rows live in `public.area_demand` (migration 0045,
+  RLS on, anon/authenticated revoked, service_role only); `truncate
+  public.area_demand` is a safe reset. Until the OWNER applies 0045 the store
+  fails soft to process-memory (`lib/areaDemandStore.ts`) — capture keeps working
+  and becomes durable the moment the table lands, no code change (the same soft
+  degradation vibe votes ship with). A hard durable-store write failure answers
+  503 `STORE_UNAVAILABLE` rather than a fake success. Disabling is
+  consequence-free: delete/503 the route and the preview's capture button fails
+  soft to a quiet retry line while the alternative (nearest patch) still renders.
 
 ## Certification command
 
