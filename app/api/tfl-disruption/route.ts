@@ -1,0 +1,59 @@
+// GET /api/tfl-disruption?lat=..&lng=..  →  { disruption: PatchDisruption | null }
+//
+// The material-disruption layer (ticket 3.7): given the drinker's rough point,
+// resolve the night patch they are in, and return the ONE line-status disruption
+// severe enough to reshape a night out there tonight — a suspension, a severe
+// delay, or a planned closure whose window is tonight, on a line that actually
+// serves that patch. When nothing material touches the patch, `disruption` is
+// null and the surface renders nothing (no status board, no "all good" line).
+//
+// TfL Line Status is fetched once for every night mode and cached server-side
+// (lib/tflDisruption fetchLineStatuses, 5-min revalidate via the Next data
+// cache), so this route never fetches per render. Like /api/last-train it never
+// throws and never 500s: any failure degrades to `{ disruption: null }`.
+
+import {
+  disruptionForPatch,
+  fetchLineStatuses,
+} from "@/lib/tflDisruption";
+import { CITIES, pointInCityBounds } from "@/lib/cities";
+import { nearestNightPatch } from "@/lib/nightPatches";
+
+export const runtime = "nodejs";
+export const maxDuration = 15;
+
+function json(body: unknown, status = 200): Response {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: {
+      "content-type": "application/json; charset=utf-8",
+      // The upstream TfL call is already cached with a 5-min revalidate; this
+      // per-patch response is cheap to recompute, so we let the browser reuse it
+      // briefly but never pin it long at a shared edge.
+      "cache-control": "public, s-maxage=60, stale-while-revalidate=300",
+    },
+  });
+}
+
+export async function GET(request: Request): Promise<Response> {
+  const params = new URL(request.url).searchParams;
+  const lat = Number.parseFloat(params.get("lat") ?? "");
+  const lng = Number.parseFloat(params.get("lng") ?? "");
+  if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
+    return json({ error: "lat and lng are required numbers.", disruption: null }, 400);
+  }
+  if (!pointInCityBounds(lat, lng, CITIES.london)) {
+    // The patch relevance table is London-only; anywhere else is honestly silent.
+    return json({ disruption: null, generatedAt: new Date().toISOString() });
+  }
+
+  const patch = nearestNightPatch(lat, lng);
+  if (!patch) {
+    return json({ disruption: null, generatedAt: new Date().toISOString() });
+  }
+
+  const statuses = await fetchLineStatuses();
+  const disruption = disruptionForPatch(statuses, patch.id, new Date());
+
+  return json({ disruption, generatedAt: new Date().toISOString() });
+}
