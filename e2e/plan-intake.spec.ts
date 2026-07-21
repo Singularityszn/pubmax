@@ -102,6 +102,44 @@ test("an outside-London location preserves the selected area", async ({ page, co
     .toBe(JSON.stringify({ kind: "patch", id: "clapham" }));
 });
 
+test("a delayed location result cannot overwrite the area after Continue", async ({ page }) => {
+  await page.addInitScript(() => {
+    const testWindow = window as typeof window & { completeLocation?: () => void };
+    Object.defineProperty(navigator, "geolocation", {
+      configurable: true,
+      value: {
+        getCurrentPosition: (success: PositionCallback) => {
+          testWindow.completeLocation = () => success({
+            coords: {
+              accuracy: 10,
+              altitude: null,
+              altitudeAccuracy: null,
+              heading: null,
+              latitude: 51.527,
+              longitude: -0.08,
+              speed: null,
+            },
+            timestamp: Date.now(),
+          });
+        },
+      },
+    });
+  });
+  await page.goto("/plan");
+  await page.getByRole("button", { name: "Clapham" }).click();
+  await page.getByRole("button", { name: "Use my location" }).click();
+  await continueIntake(page);
+  await expect(page.getByRole("heading", { name: "When are you heading out?" })).toBeVisible();
+
+  await page.evaluate(() => {
+    (window as typeof window & { completeLocation?: () => void }).completeLocation?.();
+  });
+
+  await expect(page.getByRole("heading", { name: "When are you heading out?" })).toBeVisible();
+  await expect.poll(() => page.evaluate(() => window.localStorage.getItem("pubmax:nightPatch:v1")))
+    .toBe(JSON.stringify({ kind: "patch", id: "clapham" }));
+});
+
 test("a typed exact time rejects an autumn overlap once both occurrences have passed", async ({ page }) => {
   await page.clock.setFixedTime(new Date("2026-10-25T01:30:00.000Z"));
   await page.goto("/plan");
