@@ -1,13 +1,13 @@
 #!/usr/bin/env node
 // Generate the @capacitor/assets SOURCE images for the native iOS + Android
-// icon / splash sets from the single "Crossing" brand geometry (the same
-// source of truth as scripts/gen-brand-assets.mjs and public/brand/icon.svg).
+// icon / splash sets from the single "Clink" brand geometry (the same source of
+// truth as scripts/gen-brand-assets.mjs and components/brand/PubmaxxMark.tsx).
 //
 // Outputs to assets/ — the default input directory @capacitor/assets reads:
-//   icon-only.png        1024  full-bleed coral plaque + crossing (iOS icon)
-//   icon-foreground.png  1024  transparent, crossing only (Android adaptive fg)
+//   icon-only.png        1024  full-bleed coral tile + ink Clink (iOS icon)
+//   icon-foreground.png  1024  transparent, Clink only (Android adaptive fg)
 //   icon-background.png  1024  solid coral (Android adaptive bg)
-//   splash.png           2732  coral field, centred mark (light splash)
+//   splash.png           2732  coral field, centred ink mark (light splash)
 //   splash-dark.png      2732  ink-deep field, coral mark (dark splash)
 //
 // Then run:  npx @capacitor/assets@3 generate
@@ -17,7 +17,9 @@
 // is committed anyway, so it is fetched ephemerally via npx only when the mark
 // changes. (If the nested sharp binary fails to load under a blocked-install
 // sandbox, `rm -rf node_modules/@capacitor/assets/node_modules/sharp` once so
-// it resolves the hoisted sharp.)
+// it resolves the hoisted sharp. When npx cannot fetch the tool at all, the
+// committed ios/ + android/ PNGs can be re-stamped from these sources directly
+// with the hoisted sharp — see the activation notes in docs/BRAND_MARK.md.)
 //
 // Usage:  node scripts/gen-native-app-icons.mjs
 
@@ -34,20 +36,20 @@ mkdirSync(OUT, { recursive: true });
 // scripts/gen-brand-assets.mjs and components/brand/PubmaxxMark.tsx.
 const C = { coral: "#ff5a5f", bright: "#ff7a55", inkDeep: "#060607" };
 
-// Crossing geometry on the canonical 64-unit grid.
+// THE CLINK on the canonical 64-unit grid: two tapered pint arms (wide mouths
+// up, narrow bases down) meeting at an ember node.
 const G = {
-  stroke: 8.5,
-  armA: "M18.5 18.5 L45.5 45.5",
-  armB: "M45.5 18.5 L18.5 45.5",
+  armA: "19.8,8.7 10.2,17.3 46.0,53.7 52.0,48.3",
+  armB: "44.2,8.7 53.8,17.3 18.0,53.7 12.0,48.3",
   node: { cx: 32, cy: 32, r: 3.2 },
 };
 
-// The crossing group on a 64 grid, scaled about centre. `strokeColor` lets the
-// dark splash flip the mark to coral on an ink field.
-function crossing(strokeColor, scale = 1) {
+// The Clink group on a 64 grid, scaled about centre. `armColor` lets the dark
+// splash flip the arms to coral on an ink field; the ember stays bright.
+function clink(armColor, scale = 1) {
   const inner =
-    `<path d="${G.armA}" stroke="${strokeColor}" stroke-width="${G.stroke}" stroke-linecap="round"/>` +
-    `<path d="${G.armB}" stroke="${strokeColor}" stroke-width="${G.stroke}" stroke-linecap="round"/>` +
+    `<polygon points="${G.armA}" fill="${armColor}"/>` +
+    `<polygon points="${G.armB}" fill="${armColor}"/>` +
     `<circle cx="${G.node.cx}" cy="${G.node.cy}" r="${G.node.r}" fill="${C.bright}"/>`;
   return `<g transform="translate(32 32) scale(${scale}) translate(-32 -32)">${inner}</g>`;
 }
@@ -63,18 +65,18 @@ async function png(markup, size, file) {
 
 const jobs = [
   // iOS app icon: full-bleed coral square (no alpha, no rounding — iOS masks).
-  ["icon-only.png", 1024, svg(`<rect width="64" height="64" fill="${C.coral}"/>${crossing(C.inkDeep, 0.82)}`)],
+  ["icon-only.png", 1024, svg(`<rect width="64" height="64" fill="${C.coral}"/>${clink(C.inkDeep, 0.82)}`)],
   // Android adaptive background: flat coral (the system clips it to the mask).
   ["icon-background.png", 1024, svg(`<rect width="64" height="64" fill="${C.coral}"/>`)],
-  // Android adaptive foreground: crossing on transparent, near full-bleed
+  // Android adaptive foreground: Clink on transparent, near full-bleed
   // (scale 1.0). The generated adaptive-icon XML already insets this layer
   // 16.7%, so the mark must fill the source or it lands tiny in the launcher;
-  // at 1.0 the arms span ~55% of the canvas — comfortably inside the safe zone.
-  ["icon-foreground.png", 1024, svg(`${crossing(C.inkDeep, 1.0)}`)],
+  // at 1.0 the arms span ~56% of the canvas — comfortably inside the safe zone.
+  ["icon-foreground.png", 1024, svg(`${clink(C.inkDeep, 1.0)}`)],
   // Light splash: centred mark on the coral field, small (scale 0.28).
-  ["splash.png", 2732, svg(`<rect width="64" height="64" fill="${C.coral}"/>${crossing(C.inkDeep, 0.28)}`)],
+  ["splash.png", 2732, svg(`<rect width="64" height="64" fill="${C.coral}"/>${clink(C.inkDeep, 0.28)}`)],
   // Dark splash: coral mark on the ink-deep field.
-  ["splash-dark.png", 2732, svg(`<rect width="64" height="64" fill="${C.inkDeep}"/>${crossing(C.coral, 0.28)}`)],
+  ["splash-dark.png", 2732, svg(`<rect width="64" height="64" fill="${C.inkDeep}"/>${clink(C.coral, 0.28)}`)],
 ];
 
 process.stdout.write("Generating native icon/splash source assets:\n");

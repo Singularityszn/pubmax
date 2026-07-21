@@ -1,106 +1,78 @@
 # PUBMAXX brand mark
 
-PUBMAXX had no mark — only the `PubmaxxWordmark` text lockup (the old landing
-badge was removed in #311). This doc presents three mark concepts, the chosen
-system, and the rules for using it. It ships the **system and the doc only** —
-the live favicon/manifest are **not** repointed here (see § Activation).
+The master mark is **The Clink**, owner-approved on 2026-07-21 and activated
+across every web and native surface from a single geometry source. It supersedes
+the earlier "Crossing" exploration (which lives on only in the OG share cards and
+the store-listing masters until their own follow-up sync; see the note at the
+end).
 
-The brand reality this mark answers to:
+## The story
 
-- **Name** — `PUBMA××ING`. The doubled **××** is the hero of the wordmark
+The X is two pints the second they touch in a toast, the moment a night
+officially starts. The ember is the clink.
+
+Each arm is a tapered pint glass caught mid-toast: wide mouth up, narrow base
+down. The ember dot at the point where the two glasses meet is the clink itself.
+At size the taper reads as glasses; at a 16px favicon it collapses to a confident
+chiselled X. It keeps the previous mark's ember, so the brand evolves rather than
+reboots, and it is the one reduction of the name where the joy is structural: it
+is literally the moment the product exists for.
+
+The brand reality the mark answers to:
+
+- **Name**: `PUBMA××ING`. The doubled `××` is the hero of the wordmark
   (`components/brand/PubmaxxWordmark.tsx`; second X in `--brass`).
-- **Product** — London pubs, honest prices, night navigation.
-- **Tone** — dry London. No kitsch: **no beer mugs, no foam, no froth.**
-- **Tokens** — coral `--brass #ff5a5f` + `--brass-bright #ff7a55` (brand/action),
-  amber `--amber #f0a01a` (price/route energy), `--ink-deep #060607` / `--paper`,
-  pint-green `--pint`. Price plaques read brass; the mark inherits that language.
+- **Product**: London pubs, honest prices, night navigation.
+- **Tone**: dry London. No kitsch, no foam, no froth. The pints are implied by
+  the taper, never drawn as mugs.
+- **Tokens**: coral `--brass #ff5a5f` + `--brass-bright #ff7a55` (the ember),
+  `--ink-deep #060607`, `--paper #fffdf9`.
 
----
+## Geometry
 
-## The three concepts
-
-Each is drawn on a 64×64 grid with shared stroke weight and corner radius, is
-single-colour capable, and is legible at a 16px favicon.
-
-### Concept A — The Crossing  ★ chosen
-
-A single bold **X**: "× marks the pub," and two routes meeting at a lit
-**rendezvous node**. It is the mark half of the identity — the wordmark keeps the
-doubled ××, the mark distils it to one. One X survives a 16px favicon where a
-pair smears, and it is the most ownable, least-kitsch reduction of the name.
-
-Plaque (app icon), duotone (lockup), mono (favicon-in-context / inline):
+Drawn on a 64x64 grid, the single source of truth is `MARK_GEOMETRY` in
+`components/brand/PubmaxxMark.tsx`. The two arms are filled polygons (not stroked
+paths) so the flat-cut chiselled terminals stay crisp at every raster tier. The
+same numbers are copied, and MUST stay identical, in `scripts/gen-brand-assets.mjs`
+and `scripts/gen-native-app-icons.mjs`.
 
 ```svg
-<!-- plaque -->
+<!-- bare Clink (transparent): favicon / PWA "any" icons -->
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
-  <rect width="64" height="64" rx="15" fill="#ff5a5f"/>
-  <path d="M18.5 18.5 L45.5 45.5" stroke="#060607" stroke-width="8.5" stroke-linecap="round"/>
-  <path d="M45.5 18.5 L18.5 45.5" stroke="#060607" stroke-width="8.5" stroke-linecap="round"/>
+  <polygon points="19.8,8.7 10.2,17.3 46.0,53.7 52.0,48.3" fill="#ff5a5f"/>
+  <polygon points="44.2,8.7 53.8,17.3 18.0,53.7 12.0,48.3" fill="#ff5a5f"/>
   <circle cx="32" cy="32" r="3.2" fill="#ff7a55"/>
 </svg>
-<!-- duotone (transparent) -->
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none">
-  <path d="M18.5 18.5 L45.5 45.5" stroke="#ff5a5f" stroke-width="8.5" stroke-linecap="round"/>
-  <path d="M45.5 18.5 L18.5 45.5" stroke="#f0a01a" stroke-width="8.5" stroke-linecap="round"/>
+<!-- tile (app icon / maskable / apple-touch): coral Clink on ink-deep -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <rect width="64" height="64" rx="15" fill="#060607"/>
+  <polygon points="19.8,8.7 10.2,17.3 46.0,53.7 52.0,48.3" fill="#ff5a5f"/>
+  <polygon points="44.2,8.7 53.8,17.3 18.0,53.7 12.0,48.3" fill="#ff5a5f"/>
   <circle cx="32" cy="32" r="3.2" fill="#ff7a55"/>
 </svg>
-<!-- mono (currentColor) -->
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none">
-  <path d="M18.5 18.5 L45.5 45.5" stroke="currentColor" stroke-width="8.5" stroke-linecap="round"/>
-  <path d="M45.5 18.5 L18.5 45.5" stroke="currentColor" stroke-width="8.5" stroke-linecap="round"/>
-</svg>
 ```
 
-**Rationale:** the name's own hero, reduced. Ownable, dry, geometric, and the
-only concept that stays unmistakable at 16px.
+- **Arm A** (top-left mouth to bottom-right base): `19.8,8.7 10.2,17.3 46.0,53.7 52.0,48.3`
+- **Arm B** (top-right mouth to bottom-left base): `44.2,8.7 53.8,17.3 18.0,53.7 12.0,48.3`
+- **Ember node**: circle cx 32, cy 32, r 3.2, fill `#ff7a55`.
 
-### Concept B — The Plaque Pint
+## Small-optics rule
 
-A pint reduced to pure geometry: a nonic silhouette flattened to a tapered
-trapezoid on a brass plaque, with one crossbar = the honest **price / fill
-line**. No handle, no foam — a plaque, not a mug. Nods hardest to the price-plaque
-token system.
+At raster tiers of 24px or smaller the ember would smear into the arm crossing,
+so it **drops out and the arms carry the mark alone** (the #444 precedent). This
+is a raster-generation rule: the 16px member of `favicon.ico` is stamped without
+the node, while the live vector component keeps the ember on the `duo` and
+`plaque` variants at every size (a vector never smears).
 
-```svg
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
-  <rect width="64" height="64" rx="15" fill="#f0a01a"/>
-  <path d="M23 19 L41 19 L38 45 Q37.6 47 35.5 47 L28.5 47 Q26.4 47 26 45 Z"
-        fill="none" stroke="#060607" stroke-width="5" stroke-linejoin="round"/>
-  <path d="M25 31 L39 31" stroke="#060607" stroke-width="5" stroke-linecap="round"/>
-</svg>
-```
+## Component
 
-**Rationale:** most literal "honest pint price." Risk: a lone vessel can read as
-a cup/bag at 16px and edges toward the beer-glass cliché we're avoiding.
+Implemented in `components/brand/PubmaxxMark.tsx`. Three variants, one API:
 
-### Concept C — Pin Crossing
-
-A map pin whose interior counter is an **X** — "location" fused with the ××
-rendezvous. Reads as a night-map marker large, and as a pin at favicon size.
-
-```svg
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
-  <path d="M32 7 C21 7 12.5 15.3 12.5 26 C12.5 38.5 32 57 32 57 C32 57 51.5 38.5 51.5 26 C51.5 15.3 43 7 32 7 Z" fill="#ff5a5f"/>
-  <path d="M26 20 L38 32 M38 20 L26 32" stroke="#060607" stroke-width="5" stroke-linecap="round"/>
-</svg>
-```
-
-**Rationale:** most explicit "navigation" read. Risk: the pin silhouette is a
-generic UI trope; the X hole nearly closes at 16px, weakening the brand tie.
-
----
-
-## Chosen system — The Crossing
-
-Implemented in `components/brand/PubmaxxMark.tsx` (`MARK_GEOMETRY` is the single
-source of truth). Three variants:
-
-| variant  | fill                                    | use                                   |
-| -------- | --------------------------------------- | ------------------------------------- |
-| `mono`   | `currentColor` X, transparent           | inline in text, single-colour, stamps |
-| `duo`    | coral + amber X, lit node, transparent  | wordmark lockup, on-surface badge     |
-| `plaque` | coral chip, ink-deep X, lit node        | app icon, avatar, standalone tile     |
+| variant  | fill                                          | use                                   |
+| -------- | --------------------------------------------- | ------------------------------------- |
+| `mono`   | `currentColor` arms, no ember, transparent    | inline in text, single-colour, stamps |
+| `duo`    | coral arms + coral-bright ember, transparent  | wordmark lockup, on-surface badge     |
+| `plaque` | ink-deep tile, coral arms, coral-bright ember | app icon, avatar, standalone tile     |
 
 ```tsx
 import PubmaxxMark from "@/components/brand/PubmaxxMark";
@@ -111,64 +83,71 @@ import PubmaxxWordmark from "@/components/brand/PubmaxxWordmark";
 <PubmaxxWordmark />                                            // text-only (unchanged)
 ```
 
-Colours resolve from live theme tokens (`var(--brass …)`) with literal
-fallbacks, so the mark is correct in **both** light and dark and also renders
-outside the app's CSS. `mono` inherits theme ink via `currentColor`.
+Colours resolve from live theme tokens (`var(--brass ...)`) with literal
+fallbacks, so the mark is correct in both light and dark and also renders outside
+the app's CSS. `mono` inherits theme ink via `currentColor`.
 
-### Lockup & spacing rules
+### Lockup and spacing rules
 
-- **Clear space** between mark and wordmark = `0.42em` of the wordmark size
-  (`.pubmaxxLockup` gap). Around the whole lockup, keep clear space ≥ half the
-  mark height.
-- **Minimum sizes** — mark: 16px (favicon). Lockup: wordmark ≥ 14px so the ××
-  glyphs stay legible; below that, use the mark alone.
-- Mark and wordmark scale as **one unit** — never resize one independently.
+- **Clear space** between mark and wordmark is `0.42em` of the wordmark size
+  (`.pubmaxxLockup` gap). Around the whole lockup, keep clear space of at least
+  half the mark height.
+- **Minimum sizes**: mark 16px (favicon). Lockup: wordmark at least 14px so the
+  `××` glyphs stay legible; below that, use the mark alone.
+- Mark and wordmark scale as **one unit**. Never resize one independently.
 
 ### Don'ts
 
-- Don't add a beer glass, foam, handle, or froth to the mark.
-- Don't recolour the X outside the token palette (coral/amber/ink/currentColor).
-- Don't rotate, skew, outline-stroke, or add a drop shadow to the X.
-- Don't stretch — width and height stay equal.
-- Don't place the `duo`/`mono` mark on a low-contrast surface; use `plaque` there.
-- Don't reintroduce the old "P/pint" glyph (`public/favicon.svg` legacy).
-
----
+- Don't add a beer glass, foam, handle, or froth. The pints are the taper.
+- Don't recolour the arms outside the token palette (coral / ink / currentColor).
+- Don't rotate, skew, outline-stroke, or drop-shadow the mark.
+- Don't stretch. Width and height stay equal.
+- Don't place the `duo` or `mono` mark on a low-contrast surface; use `plaque`.
+- Don't reintroduce the old X "Crossing" arms or the retired pint glyph.
 
 ## Static assets
 
-`scripts/gen-brand-assets.mjs` stamps every static asset from the same geometry
-into **`public/brand/`** (staging):
+`scripts/gen-brand-assets.mjs` stamps the **live** web assets from the geometry
+above (the earlier staging plus copy dance is retired now that the Clink is
+activated). Run `node scripts/gen-brand-assets.mjs`; it needs `sharp` (already a
+dependency).
 
-- `favicon.svg`, `icon.svg` (scalable "any")
-- `icon-192.png`, `icon-512.png`
-- `icon-maskable.svg`, `icon-maskable-512.png` (full-bleed; mark inside the 80%
-  safe zone)
-- `apple-touch-icon.png` (180px, opaque — iOS supplies its own corner mask)
-- `mark-mono.svg`
+Live under `public/`:
 
-Run `node scripts/gen-brand-assets.mjs`. PNGs are stamped via `sharp` when it is
-installed (it is, in this repo); without it the script writes the source SVGs and
-prints the manual raster step.
+- `favicon.svg`, `favicon.ico` (16 / 32 / 48 PNG members; the 16 uses the no-node
+  small-optics cut)
+- `icon-192.svg` / `icon-192.png`, `icon-512.svg` / `icon-512.png` (bare Clink)
+- `icon-maskable.svg` / `icon-maskable-512.png` (ink-deep tile, mark inside the
+  80% safe zone, rx 0 for the platform mask)
+- `apple-touch-icon.png` (180px, coral Clink on ink-deep, iOS supplies its own
+  corner mask)
 
-## OG / share-card integration (note only — do not edit here)
+A `public/brand/` reference mirror (plus `mark-mono.svg`) is refreshed by the
+same run. The `?v=` cache-busting token on the `<head>` icon URLs (`app/layout.tsx`)
+is bumped to `20260721-clink` on activation.
 
-`lib/ogBrand.tsx` renders share cards through `next/og` + satori, which cannot
-read `var(--…)` and cannot import this component (it re-declares tokens as
-literals). Its `Wordmark`/`PintGlyph` still draw the old pint lockup. On
-activation, port The Crossing into `ogBrand.tsx` as an inline-literal SVG:
-coral `#ff5a5f` chip, two `#060607` strokes (`stroke-width` ≈ `size*8.5/64`,
-round caps), a `#ff7a55` node — mirroring the `plaque` variant. Left unchanged in
-this PR by design.
+## Native app icons and splash
 
-## Activation (follow-up, one commit)
+`scripts/gen-native-app-icons.mjs` writes the `@capacitor/assets` source images
+into `assets/` (coral icon field with the ink Clink; a light coral splash and a
+dark ink splash, mark centred). The canonical stamp step is
+`npx @capacitor/assets@3 generate`, which fans them into `ios/` and `android/`.
+When that tool cannot run in a sandbox (its bundled `sharp` binary fails to load),
+the committed `ios/` and `android/` PNGs are re-stamped directly from the same
+geometry with the hoisted `sharp`, reusing each launcher file's existing alpha
+silhouette so the rounded-square and circle masks are preserved exactly.
 
-This PR does not touch live references. To activate the chosen concept:
+## Follow-up (not in the activation lane)
 
-1. `cp public/brand/{favicon.svg,icon-192.png,icon-512.png,apple-touch-icon.png} public/`
-   and `cp public/brand/icon-maskable.svg public/`.
-2. Regenerate `public/icon-512.svg` / `icon-192.svg` from `public/brand/icon.svg`.
-3. Update `public/manifest.webmanifest` maskable entry to the raster
-   `icon-maskable-512.png` (or keep the SVG) and confirm `theme_color`.
-4. Port the mark into `lib/ogBrand.tsx` per the note above.
-5. Swap `PubmaxxWordmark` call sites to `withMark` where a mark is wanted.
+Two surfaces still draw the old Crossing geometry and need their own sync:
+
+1. `lib/ogBrand.tsx` `CrossingMark`, used by the dynamic `next/og` share cards
+   (roughly 17 `opengraph-image.tsx` / `*-card` routes) and `public/og.png`.
+2. The store-listing masters in `public/store-assets/` and their generator
+   `scripts/gen-store-assets.mjs`, pinned by `__tests__/storeAssets.test.ts` to
+   the canonical Crossing arm endpoints. Updating these means porting the Clink
+   polygons into the masters and re-pinning that test.
+
+Both were left untouched here so the activation lane stays scoped and the test
+suite stays green; they carry the mark but sit outside the favicon / PWA / native
+icon set this lane owns.

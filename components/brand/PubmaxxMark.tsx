@@ -1,24 +1,30 @@
 import "./pubmaxxMark.css";
 
-// ── PUBMAXX mark: "The Crossing" ──────────────────────────────────────────────
-// A single bold X — "× marks the pub" / two routes meeting at a lit rendezvous
-// node. It is the mark half of the identity; the wordmark carries the doubled
-// ×× (PUBMA××ING). One X reads cleanly down to a 16px favicon where a pair
-// would smear, and it is the most ownable, least kitsch reduction of the brand
-// (no beer mugs, no foam).
+// ── PUBMAXX mark: "The Clink" ─────────────────────────────────────────────────
+// The X is two pints the second they touch in a toast, the moment a night
+// officially starts. Each arm is a tapered pint glass (wide mouth up, narrow
+// base down); the ember dot at the contact point is the clink itself. At size
+// the taper reads as glasses; at 16px it collapses to a confident chiselled X.
+// It keeps the current mark's ember, so the brand evolves rather than reboots.
 //
 // Geometry lives on a 64×64 grid and is the single source of truth shared with
-// scripts/gen-brand-assets.mjs (which stamps the static favicon / PWA / apple
-// assets from the same numbers). If you change a coordinate here, re-run
-// `node scripts/gen-brand-assets.mjs` so the exported assets stay identical.
+// scripts/gen-brand-assets.mjs and scripts/gen-native-app-icons.mjs (which stamp
+// the static favicon / PWA / apple / native assets from the same numbers). If
+// you change a coordinate here, re-run those generators so the exported assets
+// stay identical. The arms are filled polygons, not strokes, so the flat-cut
+// chiselled terminals stay crisp at every raster tier.
 
 export const MARK_GEOMETRY = {
   viewBox: "0 0 64 64",
-  stroke: 8.5,
-  // Two arms of the crossing, symmetric about centre (32,32).
-  armA: { x1: 18.5, y1: 18.5, x2: 45.5, y2: 45.5 },
-  armB: { x1: 45.5, y1: 18.5, x2: 18.5, y2: 45.5 },
+  // Two tapered arms, symmetric about centre (32,32). `points` strings feed an
+  // SVG <polygon> directly. Arm A runs top-left → bottom-right, arm B mirrors it.
+  armA: "19.8,8.7 10.2,17.3 46.0,53.7 52.0,48.3",
+  armB: "44.2,8.7 53.8,17.3 18.0,53.7 12.0,48.3",
+  // The ember: the clink. Drops out at raster tiers ≤24px (the small-optics
+  // rule, #444 precedent) — a rule the raster generators apply; the live vector
+  // component keeps the node on the duo/plaque variants at every size.
   node: { cx: 32, cy: 32, r: 3.2 },
+  // Full-bleed tile radius for the standalone/plaque variant.
   plaqueRadius: 15,
 } as const;
 
@@ -27,7 +33,6 @@ export const MARK_GEOMETRY = {
 // lib/ogBrand.tsx). Inside the app these resolve to the live theme tokens.
 const COL = {
   coral: "var(--brass, #ff5a5f)",
-  amber: "var(--amber, #f0a01a)",
   bright: "var(--brass-bright, #ff7a55)",
   inkDeep: "var(--ink-deep, #060607)",
 } as const;
@@ -38,9 +43,9 @@ export interface PubmaxxMarkProps {
   /** Rendered pixel size (width & height). Default 28. */
   size?: number;
   /**
-   * mono   — single-colour X in `currentColor`; inherits theme ink. Default.
-   * duo    — coral + amber crossing with a lit coral-bright node, transparent bg.
-   * plaque — coral rounded-square chip with an ink-deep X knocked across it.
+   * mono   — single-colour Clink in `currentColor`; inherits theme ink. Default.
+   * duo    — coral Clink with a lit coral-bright ember node, transparent bg.
+   * plaque — ink-deep rounded-square tile with the coral Clink + ember on it.
    */
   variant?: PubmaxxMarkVariant;
   /**
@@ -61,8 +66,10 @@ export default function PubmaxxMark({
   className = "",
 }: PubmaxxMarkProps) {
   const labelled = Boolean(title);
-  const strokeColorA = variant === "mono" ? "currentColor" : variant === "plaque" ? COL.inkDeep : COL.coral;
-  const strokeColorB = variant === "mono" ? "currentColor" : variant === "plaque" ? COL.inkDeep : COL.amber;
+  // Arms are coral on the duo/plaque variants and inherit ink via currentColor
+  // on mono. The plaque lays them on an ink-deep tile; duo/mono are transparent.
+  const armFill = variant === "mono" ? "currentColor" : COL.coral;
+  const showTile = variant === "plaque";
   const showNode = variant !== "mono";
 
   return (
@@ -77,21 +84,11 @@ export default function PubmaxxMark({
       focusable="false"
     >
       {title ? <title>{title}</title> : null}
-      {variant === "plaque" ? (
-        <rect width="64" height="64" rx={g.plaqueRadius} fill={COL.coral} />
+      {showTile ? (
+        <rect width="64" height="64" rx={g.plaqueRadius} fill={COL.inkDeep} />
       ) : null}
-      <path
-        d={`M${g.armA.x1} ${g.armA.y1} L${g.armA.x2} ${g.armA.y2}`}
-        stroke={strokeColorA}
-        strokeWidth={g.stroke}
-        strokeLinecap="round"
-      />
-      <path
-        d={`M${g.armB.x1} ${g.armB.y1} L${g.armB.x2} ${g.armB.y2}`}
-        stroke={strokeColorB}
-        strokeWidth={g.stroke}
-        strokeLinecap="round"
-      />
+      <polygon points={g.armA} fill={armFill} />
+      <polygon points={g.armB} fill={armFill} />
       {showNode ? <circle cx={g.node.cx} cy={g.node.cy} r={g.node.r} fill={COL.bright} /> : null}
     </svg>
   );
