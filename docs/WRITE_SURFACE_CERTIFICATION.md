@@ -6,12 +6,13 @@ reviewed surface—even when a POST is semantically read-only. The regression te
 Adding a sixty-second mutating route or removing its authority/abuse boundary fails
 CI until this certification is deliberately updated.
 
-> **Inventory: 66 mutating routes.** The count grew 60 → 61 (email-capture
+> **Inventory: 67 mutating routes.** The count grew 60 → 61 (email-capture
 > `POST /api/email-subscribers`) → 62 (native `POST /api/push-tokens`) → 63 (the
 > Social Loop "we're out" `POST /api/check-ins`) → 64 (the vibe-vote
 > `POST /api/plans/[id]/vibe-votes`) → 65 (the area-demand capture
 > `POST /api/area-demand`) → 66 (the structured Visit Reports
-> `POST /api/visit-reports`). Token-gated GET confirm/unsubscribe endpoints and
+> `POST /api/visit-reports`) → 67 (author-confirmed alt text
+> `PATCH /api/night-moments/[id]/alt-text`). Token-gated GET confirm/unsubscribe endpoints and
 > read-only GETs (the Social Loop reads, the vibe-vote tally read, the Visit
 > Report per-venue summary read) are deliberately excluded from the mutating-verb
 > inventory. The number is a merge-conflict coordination point across in-flight
@@ -216,19 +217,52 @@ Plan member capability and use idempotency keys or atomic store operations.
   delete/503 the route and the venue-sheet panel fails soft to its empty state
   while the existing star ratings still render.
 
+### `app/api/night-moments/[id]/alt-text` — author-confirmed alt text (route 67)
+
+- **Route / method:** `PATCH app/api/night-moments/[id]/alt-text/route.ts`
+  (Wayfinder 5.6, `lane/alt-text-authoring`). The author confirms (or clears) the
+  alt-text description on their OWN photo Moment — the act that unblocks that
+  photo for publication. A private authoring write, never itself a publication.
+- **Validation:** body `altText` normalised by `cleanText(..., 200)` in
+  `setMomentAltText` (`lib/nightMemoryStore.ts`); an over-long pre-normalisation
+  payload 400s early. A non-empty description gains a fresh server-stamped
+  `altTextConfirmedAt`; an empty one clears the stamp (and re-blocks the photo).
+- **Auth stance (boundary):** `callerUserId` (account class). `setMomentAltText`
+  additionally refuses unless the caller OWNS the Moment AND it carries media —
+  a non-owner or a non-photo Moment answers 403. No account/memory identifiers
+  are returned (mirrors the other Night surfaces).
+- **Publication gate (belt & braces):** the description feeds the single publish
+  choke — `proposeNightStoryPublication` / `confirmNightStoryPublication` refuse
+  any selected photo Moment lacking author-confirmed alt text (naming it via
+  `findPublishAltTextGap`), and `getPublishedRecapSource` never emits an
+  UNCONFIRMED description as author text — composed AFTER the 5.5 redaction belt
+  (departed contributors' media is dropped first; the alt-text belt then only
+  touches surviving media). Private Memory saves never consult it.
+- **Grandfathering:** already-published Stories are never retroactively
+  unpublished; a pre-gate photo simply reports "no confirmed description" and its
+  media still emits (the recap belt only nulls the unconfirmed text, not the
+  photo). The gate applies to publishes going forward.
+- **Rollback / kill:** durable in the additive `night_moments.alt_text` /
+  `alt_text_confirmed_at` columns (migration 0047 — additive, idempotent, length
+  CHECK ≤ 200; the OWNER applies with this release). Reads tolerate the columns'
+  absence (report null); a Moment saved without a description never references
+  them, so private capture keeps working pre-apply. Disabling is
+  consequence-free: 503/remove the route and photos simply can't be described
+  (and so can't be published) until it returns.
+
 ## Internal cron routes (excluded from the mutating-verb inventory)
 
 The Vercel cron freshness plane adds three scheduled routes under
 `app/api/cron/*` (`refresh-weather`, `refresh-whats-on`, `freshness-audit`). They
 are **mutating by effect** (weather writes to the durable `weather_snapshots`
 store; What's-On stamps `feed_freshness`) but are deliberately **NOT counted in
-the 66-route inventory**, for the same reason token-gated `GET`
+the 67-route inventory**, for the same reason token-gated `GET`
 confirm/unsubscribe endpoints are excluded:
 
 - **They are `GET` handlers.** Vercel Cron dispatches `GET` (its dispatcher also
   accepts `POST`); the inventory scans for public `POST/PUT/PATCH/DELETE`
   handlers (`MUTATION_EXPORT`), which these do not export. The structural count
-  therefore stays **66** with no bump.
+  therefore stays **67** with no bump.
 - **They are internal, `CRON_SECRET`-gated schedulers, not a public surface.**
   Authority is `Authorization: Bearer $CRON_SECRET` enforced twice — by Vercel's
   cron dispatcher and again inside each handler (`lib/cronAuth.ts`,

@@ -1,9 +1,13 @@
 import { createHash, randomBytes, randomUUID, timingSafeEqual } from "node:crypto";
 
 import {
+  altTextGapLabel,
   canEditNightStory,
   cleanNightMomentDraft,
+  hasConfirmedAltText,
   hasPublicationConsent,
+  momentNeedsAltTextConfirmation,
+  NIGHT_MOMENT_ALT_TEXT_MAX,
   type MomentConsent,
   type MomentConsentStatus,
   type NightMemory,
@@ -80,6 +84,11 @@ function momentFromRow(row: Record<string, unknown>): NightMoment {
     mediaObjectKey: typeof row.media_object_key === "string" ? row.media_object_key : null,
     occurredAt: typeof row.occurred_at === "string" ? row.occurred_at : null,
     visibility: "private",
+    // Additive alt-text columns (migration 0047). Reads tolerate their absence —
+    // a pre-migration row simply reports null, so the store degrades to "no
+    // author-confirmed description yet" rather than throwing.
+    altText: typeof row.alt_text === "string" ? row.alt_text : null,
+    altTextConfirmedAt: typeof row.alt_text_confirmed_at === "string" ? row.alt_text_confirmed_at : null,
     createdAt: String(row.created_at),
   };
 }
@@ -214,6 +223,9 @@ export async function createNightMemoryFromPlanRecap(
         mediaObjectKey: null,
         occurredAt: recap.completedAt,
         visibility: "private",
+        // Plan-recap stops carry no photo, so they never need alt text.
+        altText: null,
+        altTextConfirmedAt: null,
         createdAt: moments.get(id)?.createdAt ?? timestamp,
       };
       moments.set(id, moment);
@@ -284,12 +296,20 @@ export async function addNightMoment(
   const memory = await getMemory(memoryId);
   const draft = cleanNightMomentDraft(raw);
   if (!memory || !draft || (!options.allowContributor && memory.ownerId !== ownerId)) return null;
+  const createdAt = now();
+  // Author-confirmed at creation: alt text supplied here came straight from the
+  // author's keyboard on the capture surface (no AI provider is wired in v1), so
+  // saving IS the confirmation. When a suggestion provider is added later it must
+  // NOT flow through this path pre-confirmed — route the suggestion to the UI and
+  // let the author save it (setMomentAltText), never auto-stamp a machine guess.
+  const altTextConfirmedAt = draft.altText ? createdAt : null;
   const moment: NightMoment = {
     id: randomUUID(),
     memoryId,
     ownerId,
     ...draft,
-    createdAt: now(),
+    altTextConfirmedAt,
+    createdAt,
   };
   if (!isSupabaseConfigured()) {
     moments.set(moment.id, moment);
@@ -309,6 +329,13 @@ export async function addNightMoment(
       occurred_at: moment.occurredAt,
       visibility: "private",
       created_at: moment.createdAt,
+      // Only reference the additive alt-text columns when there is alt text to
+      // write, so a Moment saved WITHOUT a description keeps working even before
+      // migration 0047 is applied (fail-soft). A photo WITH a description needs
+      // the columns present — the owner applies 0047 with this release.
+      ...(moment.altText
+        ? { alt_text: moment.altText, alt_text_confirmed_at: moment.altTextConfirmedAt }
+        : {}),
     })
     .select("*")
     .single();
@@ -648,11 +675,27 @@ export async function getPublishedRecapSource(
     if (error) return null;
     storyMoments = (data ?? []).map((row) => momentFromRow(row as Record<string, unknown>));
   }
-  return redactStoryView({
+  // Two emission belts, composed in order — never one overwriting the other.
+  // FIRST the one-choke redaction (Wayfinder 5.5): every Moment owned by a
+  // departed contributor is dropped (their media gone) and their name scrubbed
+  // from the survivors and the Story text. THEN, on the SURVIVING media, the
+  // alt-text belt (Wayfinder 5.6): the public recap must never present an
+  // UNCONFIRMED description as if the author stood behind it (a future AI
+  // suggestion, or a pre-gate value) — we null the string but NEVER drop the
+  // photo, so grandfathered published photos keep showing. Redaction can only
+  // remove media the alt-text belt would have sanitised; running it first means
+  // the belt only touches media that actually survives to the public.
+  const redacted = redactStoryView({
     story: safeNightStory(story),
     moments: storyMoments.filter((moment) => allow.has(moment.id)),
     departed,
   });
+  return {
+    story: redacted.story,
+    moments: redacted.moments.map((moment) =>
+      hasConfirmedAltText(moment) ? moment : { ...moment, altText: null },
+    ),
+  };
 }
 
 export type NightStoryWorkspace = {
@@ -660,6 +703,13 @@ export type NightStoryWorkspace = {
   moments: Array<Pick<NightMoment, "id" | "kind" | "caption" | "venueId" | "occurredAt"> & {
     ownedByCaller: boolean;
     consent: MomentConsentStatus | "pending";
+    // Alt-text authoring at review time. `hasPhoto` gates the field's presence;
+    // `altText` is disclosed only to the photo's OWNER (their own words to edit);
+    // `altTextConfirmed` is a plain boolean anyone in the workspace can see so a
+    // host knows whether a contributor's photo is publication-ready.
+    hasPhoto: boolean;
+    altText: string | null;
+    altTextConfirmed: boolean;
   }>;
   contributors: Array<Pick<StoryContributor, "role" | "status" | "joinedAt"> & { handle: string | null }>;
   caller: { role: StoryContributorRole; canEdit: boolean };
@@ -737,6 +787,9 @@ export async function getNightStoryWorkspaceResult(actorId: string, storyId: str
         occurredAt: moment.occurredAt,
         ownedByCaller,
         consent,
+        hasPhoto: Boolean(moment.mediaObjectKey),
+        altText: ownedByCaller ? moment.altText : null,
+        altTextConfirmed: hasConfirmedAltText(moment),
       }] : [];
     });
     return { ok: true, value: {
@@ -977,6 +1030,10 @@ export async function proposeNightStoryPublication(
     moment && (moment.ownerId === actorId || hasPublicationConsent(moment.ownerId, moment.id, storyConsents)),
   );
   if (!canPublishAll) return null;
+  // Accessibility gate (5.6): a photo Moment cannot be published until its author
+  // has confirmed alt text. Blocks here at the single publish choke; the route
+  // surfaces WHICH photo via findPublishAltTextGap. Private saves never reach this.
+  if (selected.some((moment) => moment && momentNeedsAltTextConfirmation(moment))) return null;
   const confirmationToken = randomBytes(32).toString("hex");
   const proposal: NightStoryPublicationProposal = {
     id: randomUUID(),
@@ -1076,8 +1133,70 @@ async function proposeEligibility(actorId: string, storyId: string, momentIds: s
   ]);
   if (!story || !canEditNightStory(actorId, members)) return false;
   const selected = await Promise.all(momentIds.map(getMoment));
+  // Re-check consent AND the alt-text gate at confirmation time — a description
+  // cleared or a consent withdrawn between proposal and confirm must lose.
   return selected.every((moment) =>
     Boolean(moment && moment.memoryId === story.memoryId &&
-      (moment.ownerId === actorId || hasPublicationConsent(moment.ownerId, moment.id, storyConsents))),
+      (moment.ownerId === actorId || hasPublicationConsent(moment.ownerId, moment.id, storyConsents)) &&
+      !momentNeedsAltTextConfirmation(moment)),
   );
+}
+
+/**
+ * Read-only diagnostic for the publish routes: given the moments a caller tried
+ * to publish, name the FIRST photo still missing author-confirmed alt text (or
+ * null if none). Lets the 409 response be value-first and specific rather than
+ * generic. Does not mutate; the propose/confirm paths remain the enforcing gate.
+ */
+export async function findPublishAltTextGap(
+  actorId: string,
+  storyId: string,
+  rawMomentIds: unknown,
+): Promise<{ momentId: string; label: string } | null> {
+  const momentIds = Array.isArray(rawMomentIds)
+    ? rawMomentIds.filter((value): value is string => typeof value === "string" && value.length > 0)
+    : [];
+  if (momentIds.length === 0) return null;
+  const story = await getStoryRaw(storyId);
+  if (!story) return null;
+  const selected = await Promise.all(momentIds.map(getMoment));
+  for (const moment of selected) {
+    if (moment && moment.memoryId === story.memoryId && momentNeedsAltTextConfirmation(moment)) {
+      return { momentId: moment.id, label: altTextGapLabel(moment) };
+    }
+  }
+  return null;
+}
+
+/**
+ * Author-confirm (or clear) the alt text on the caller's OWN photo Moment. The
+ * act of saving is the confirmation — a non-empty description gains a fresh
+ * confirmedAt stamp; clearing it drops the stamp (and re-blocks publication).
+ * Only the owner of a Moment that actually carries media may write here.
+ *
+ * AI-suggestion seam: v1 has no suggestion provider. When one is added, pass the
+ * *suggested* string to the authoring UI as a prefill the author can edit and
+ * then save through THIS function — never call this with machine text on the
+ * author's behalf, or the confirmation stops meaning "a human stood behind it".
+ */
+export async function setMomentAltText(
+  actorId: string,
+  momentId: string,
+  rawAltText: unknown,
+): Promise<NightMoment | null> {
+  const moment = await getMoment(momentId);
+  if (!moment || moment.ownerId !== actorId || !moment.mediaObjectKey) return null;
+  const altText = cleanText(rawAltText, NIGHT_MOMENT_ALT_TEXT_MAX) || null;
+  const altTextConfirmedAt = altText ? now() : null;
+  const updated: NightMoment = { ...moment, altText, altTextConfirmedAt };
+  if (!isSupabaseConfigured()) {
+    moments.set(momentId, updated);
+    return updated;
+  }
+  const { error } = await requireSupabaseAdmin()
+    .from("night_moments")
+    .update({ alt_text: altText, alt_text_confirmed_at: altTextConfirmedAt })
+    .eq("id", momentId)
+    .eq("owner_id", actorId);
+  return error ? null : updated;
 }

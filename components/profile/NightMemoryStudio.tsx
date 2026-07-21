@@ -19,7 +19,7 @@ type Moment = { id: string; kind: NightMomentKind; caption: string; venueId: str
 type Story = { id: string; memoryId?: string; title: string; summary: string; status: "draft" | "published"; visibility: string; publishedMomentIds?: string[]; membership?: { role: "host" | "editor" | "contributor"; status: "invited" | "accepted" | "removed"; joinedAt: string | null } };
 type StoryWorkspace = {
   story: Story;
-  moments: Array<{ id: string; kind: NightMomentKind; caption: string; venueId: string | null; occurredAt: string | null; ownedByCaller: boolean; consent: "pending" | "approved" | "withdrawn" }>;
+  moments: Array<{ id: string; kind: NightMomentKind; caption: string; venueId: string | null; occurredAt: string | null; ownedByCaller: boolean; consent: "pending" | "approved" | "withdrawn"; hasPhoto: boolean; altText: string | null; altTextConfirmed: boolean }>;
   contributors: Array<{ handle: string | null; role: "host" | "editor" | "contributor"; status: "invited" | "accepted" | "removed"; joinedAt: string | null }>;
   caller: { role: "host" | "editor" | "contributor"; canEdit: boolean };
 };
@@ -47,6 +47,8 @@ export default function NightMemoryStudio({ userId }: { userId: string }) {
   const [publishVisibility, setPublishVisibility] = useState<"public" | "unlisted">("unlisted");
   const [confirmation, setConfirmation] = useState<PublicationConfirmation | null>(null);
   const [inviteHandle, setInviteHandle] = useState("");
+  // Per-photo alt-text drafts, keyed by moment id. Falls back to the saved value.
+  const [altDrafts, setAltDrafts] = useState<Record<string, string>>({});
   const [contributionDraft, setContributionDraft] = useState<{ kind: NightMomentKind; caption: string; venueId: string }>({
     kind: "quote",
     caption: "",
@@ -304,6 +306,33 @@ export default function NightMemoryStudio({ userId }: { userId: string }) {
     }
   }
 
+  // Author-confirm the alt text on the caller's OWN photo Moment. Saving their
+  // typed words IS the confirmation (no AI provider in v1). A confirmed
+  // description is what unblocks that photo for publication.
+  async function saveMomentAltText(momentId: string) {
+    if (!workspace) return;
+    const altText = altDrafts[momentId] ?? "";
+    setSaving(true);
+    invalidatePublication();
+    try {
+      const response = await authedFetch(`/api/night-moments/${encodeURIComponent(momentId)}/alt-text`, {
+        method: "PATCH",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ altText }),
+      });
+      const body = await response.json().catch(() => ({})) as { altTextConfirmed?: boolean; error?: string };
+      if (!response.ok) throw new Error(body.error ?? "That photo description could not be saved.");
+      if (!await refreshWorkspace(workspace.story.id)) return;
+      setMessage(body.altTextConfirmed
+        ? "Photo description saved. This photo can now be published."
+        : "Photo description cleared. Add one before publishing this photo.");
+    } catch (caught) {
+      setMessage(caught instanceof Error ? caught.message : "That photo description could not be saved.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
   async function addStoryContribution(event: FormEvent) {
     event.preventDefault();
     if (!workspace || workspace.caller.canEdit || workspace.story.status !== "draft") return;
@@ -518,6 +547,31 @@ export default function NightMemoryStudio({ userId }: { userId: string }) {
                         <button type="button" disabled={saving} onClick={() => void setMomentConsent(moment.id, moment.consent === "approved" ? "withdrawn" : "approved")}>
                           {moment.consent === "approved" ? "Withdraw approval" : "Approve for Story"}
                         </button>
+                      ) : null}
+                      {moment.ownedByCaller && moment.hasPhoto ? (
+                        <div className="memoryMomentAlt">
+                          <label>
+                            <span>
+                              Photo description
+                              {moment.altTextConfirmed
+                                ? <small className="memoryMomentAlt__ok"> · confirmed</small>
+                                : <small className="memoryMomentAlt__todo"> · needed to publish</small>}
+                            </span>
+                            {/* AI-suggestion seam (v1: none): a provider could prefill
+                                this for the author to edit and save. It must never
+                                auto-fill or auto-confirm — the saved words are the
+                                author confirmation the publish gate requires. */}
+                            <textarea
+                              value={altDrafts[moment.id] ?? moment.altText ?? ""}
+                              onChange={(event) => setAltDrafts((current) => ({ ...current, [moment.id]: event.target.value }))}
+                              maxLength={200}
+                              rows={2}
+                              disabled={saving}
+                              placeholder="Describe the photo for someone who cannot see it."
+                            />
+                          </label>
+                          <button type="button" disabled={saving} onClick={() => void saveMomentAltText(moment.id)}>Save description</button>
+                        </div>
                       ) : null}
                     </li>
                   );

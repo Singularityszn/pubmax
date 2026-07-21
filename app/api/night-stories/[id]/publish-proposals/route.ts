@@ -1,7 +1,12 @@
 import { jsonNoStore } from "@/lib/apiResponses";
 import { callerUserId } from "@/lib/authServer";
-import { proposeNightStoryPublication } from "@/lib/nightMemoryStore";
+import { findPublishAltTextGap, proposeNightStoryPublication } from "@/lib/nightMemoryStore";
 import { socialFreezeResponse } from "@/lib/opsFreeze";
+
+/** Value-first, photo-naming message when publication is blocked on alt text. */
+function altTextBlockMessage(label: string): string {
+  return `“${label}” still needs a one-line photo description so someone using a screen reader can picture it. Add it, then publish — it stays private until you do.`;
+}
 
 type Context = { params: Promise<{ id: string }> };
 
@@ -18,7 +23,12 @@ export async function POST(request: Request, context: Context): Promise<Response
   }
   const { id } = await context.params;
   const proposal = await proposeNightStoryPublication(actorId, id, body);
-  return proposal
-    ? jsonNoStore(proposal, { status: 201 })
+  if (proposal) return jsonNoStore(proposal, { status: 201 });
+  // Distinguish the accessibility block from the consent block so the author gets
+  // a specific, value-first message naming which photo needs a description.
+  const momentIds = body && typeof body === "object" ? (body as { momentIds?: unknown }).momentIds : undefined;
+  const gap = await findPublishAltTextGap(actorId, id, momentIds);
+  return gap
+    ? jsonNoStore({ error: altTextBlockMessage(gap.label), code: "MOMENT_ALT_TEXT_REQUIRED", momentId: gap.momentId }, { status: 409 })
     : jsonNoStore({ error: "Every selected Moment needs current owner approval." }, { status: 409 });
 }

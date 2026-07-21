@@ -18,6 +18,8 @@ function moment(overrides: Partial<NightMoment> & Pick<NightMoment, "id" | "owne
     mediaObjectKey: null,
     occurredAt: null,
     visibility: "private",
+    altText: null,
+    altTextConfirmedAt: null,
     createdAt: "2026-07-19T20:00:00.000Z",
     ...overrides,
   };
