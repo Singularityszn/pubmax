@@ -51,6 +51,10 @@ function setupScratch(files: Record<string, unknown>): string {
     join(ROOT, "lib", "nightOutPlaceSourceUrl.mjs"),
     join(scratchLib, "nightOutPlaceSourceUrl.mjs"),
   );
+  cpSync(
+    join(ROOT, "lib", "nightOutPlaceContract.mjs"),
+    join(scratchLib, "nightOutPlaceContract.mjs"),
+  );
   for (const f of [
     "london_pois.json",
     "tfl_lines.json",

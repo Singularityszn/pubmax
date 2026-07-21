@@ -6,7 +6,8 @@
 // The only publishable facts are deterministic JSON-LD fields read from the
 // discovered source page. Generated summaries and free-form search snippets
 // are ignored. Every row must pass lib/slopFilter.ts, London bounds, source URL,
-// observation-date, and expiry checks before it can enter the committed feed.
+// observation-date, and expiry checks in the shared night-out-place contract
+// before it can enter the committed feed.
 //
 // Provider failures are fail-closed. Missing keys, authentication failures,
 // credit/rate-limit responses, or upstream errors abort before the artifact is
@@ -25,20 +26,31 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import ipaddr from "ipaddr.js";
 
-import { presentableDescription } from "../lib/slopFilter.ts";
+import {
+  NIGHT_OUT_PLACE_MAX_AGE_MS,
+  isCurrentNightOutPlace,
+  isLondonNightOutPlaceCoordinates,
+  isValidNightOutPlaceSnapshot,
+  jobForNightOutPlaceCategory,
+  nightOutPlaceProvenanceRegistryValidationErrors,
+  presentableNightOutPlaceDescription,
+} from "../lib/nightOutPlaceContract.mjs";
 import {
   canonicalizeNightOutPlaceSourceUrl,
-  isCanonicalNightOutPlaceSourceUrl,
   nightOutPlaceSourceName,
 } from "../lib/nightOutPlaceSourceUrl.mjs";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 const OUTPUT = join(ROOT, "public", "data", "night_out_places", "latest.json");
+const PROVENANCE_REGISTRY = join(
+  ROOT,
+  "data",
+  "night_out_place_provenance_registry.json",
+);
 
 const EXA_ENDPOINT = "https://api.exa.ai/search";
 const FIRECRAWL_SEARCH_ENDPOINT = "https://api.firecrawl.dev/v2/search";
 const FIRECRAWL_SCRAPE_ENDPOINT = "https://api.firecrawl.dev/v2/scrape";
-const MAX_AGE_MS = 30 * 24 * 60 * 60 * 1_000;
 const MAX_PROVIDER_TIMESTAMP_SKEW_MS = 5 * 60 * 1_000;
 const DEFAULT_LIMIT_PER_QUERY = 5;
 const FIRECRAWL_LIVE_OPTIONS = {
@@ -157,7 +169,7 @@ function locationFromJsonLd(value) {
   const lat = finiteNumber(geo.latitude);
   const lng = finiteNumber(geo.longitude);
   if (lat === null || lng === null) return null;
-  if (lat < 51.26 || lat > 51.72 || lng < -0.55 || lng > 0.3) return null;
+  if (!isLondonNightOutPlaceCoordinates(lat, lng)) return null;
   return { lat, lng };
 }
 
@@ -169,6 +181,8 @@ export function sourcePageToPlace(
   page,
   { category, discoveredVia, observedAt },
 ) {
+  const job = jobForNightOutPlaceCategory(category);
+  if (!job) return null;
   const sourceUrl = normalizeSourceUrl(page?.url);
   const sourceName = sourceUrl ? sourceNameFromUrl(sourceUrl) : null;
   if (!sourceUrl || !sourceName) return null;
@@ -187,7 +201,7 @@ export function sourcePageToPlace(
   );
   for (const value of candidates) {
     const name = text(value.name, 160) ? value.name.trim() : null;
-    const description = presentableDescription(
+    const description = presentableNightOutPlaceDescription(
       text(value.description, 600) ? value.description : null,
     );
     const address = addressFromJsonLd(value);
@@ -197,7 +211,7 @@ export function sourcePageToPlace(
     return {
       id: stablePlaceId(category, sourceUrl),
       category,
-      job: category === "restaurant" ? "near_pub_food" : "pre_pub_attraction",
+      job,
       name,
       description,
       address: address.address,
@@ -206,7 +220,7 @@ export function sourcePageToPlace(
       sourceUrl,
       sourceName,
       observedAt: new Date(observedMs).toISOString(),
-      expiresAt: new Date(observedMs + MAX_AGE_MS).toISOString(),
+      expiresAt: new Date(observedMs + NIGHT_OUT_PLACE_MAX_AGE_MS).toISOString(),
       discoveredVia,
       extractedVia: "firecrawl",
     };
@@ -550,69 +564,20 @@ function validIso(value) {
   return typeof value === "string" && Number.isFinite(Date.parse(value));
 }
 
-function validPlaceRow(row) {
-  if (!isRecord(row)) return false;
-  const expectedJob = row.category === "restaurant"
-    ? "near_pub_food"
-    : row.category === "attraction"
-      ? "pre_pub_attraction"
-      : null;
-  const description = text(row.description, 600)
-    ? presentableDescription(row.description)
-    : null;
-  return (
-    text(row.id, 120) &&
-    expectedJob !== null &&
-    row.job === expectedJob &&
-    text(row.name, 160) &&
-    description !== null &&
-    description === row.description.trim() &&
-    text(row.address, 300) &&
-    text(row.area, 120) &&
-    isRecord(row.location) &&
-    Number.isFinite(row.location.lat) &&
-    row.location.lat >= 51.26 &&
-    row.location.lat <= 51.72 &&
-    Number.isFinite(row.location.lng) &&
-    row.location.lng >= -0.55 &&
-    row.location.lng <= 0.3 &&
-    isCanonicalNightOutPlaceSourceUrl(row.sourceUrl) &&
-    text(row.sourceName, 160) &&
-    sourceNameFromUrl(row.sourceUrl) === row.sourceName &&
-    validIso(row.observedAt) &&
-    validIso(row.expiresAt) &&
-    Date.parse(row.expiresAt) > Date.parse(row.observedAt) &&
-    Date.parse(row.expiresAt) - Date.parse(row.observedAt) <= MAX_AGE_MS &&
-    ["exa", "firecrawl"].includes(row.discoveredVia) &&
-    row.extractedVia === "firecrawl"
-  );
+export function isValidPlaceSnapshot(snapshot) {
+  return isValidNightOutPlaceSnapshot(snapshot);
 }
 
-export function isValidPlaceSnapshot(snapshot) {
-  if (
-    !isRecord(snapshot) ||
-    snapshot.version !== 1 ||
-    snapshot.provenanceRegistryVersion !== 1 ||
-    !validIso(snapshot.generatedAt) ||
-    !["published", "empty"].includes(snapshot.status) ||
-    !Array.isArray(snapshot.places) ||
-    (snapshot.status === "empty" && snapshot.places.length !== 0) ||
-    (snapshot.status === "published" && snapshot.places.length === 0)
-  ) {
-    return false;
+function assertValidProvenanceRegistry(snapshot, registryPath = PROVENANCE_REGISTRY) {
+  let registry;
+  try {
+    registry = JSON.parse(readFileSync(registryPath, "utf8"));
+  } catch {
+    throw new ProviderHaltError("Provenance registry", "is required but invalid");
   }
-  const ids = new Set();
-  return snapshot.places.every((row) => {
-    if (
-      !validPlaceRow(row) ||
-      ids.has(row.id) ||
-      Date.parse(row.observedAt) > Date.parse(snapshot.generatedAt)
-    ) {
-      return false;
-    }
-    ids.add(row.id);
-    return true;
-  });
+  if (nightOutPlaceProvenanceRegistryValidationErrors(registry, snapshot).length > 0) {
+    throw new ProviderHaltError("Provenance registry", "does not match the candidate artifact");
+  }
 }
 
 export function loadCurrentPlaces(nowMs, outputPath = OUTPUT) {
@@ -624,11 +589,9 @@ export function loadCurrentPlaces(nowMs, outputPath = OUTPUT) {
     if (!isValidPlaceSnapshot(snapshot)) {
       throw new ProviderHaltError("Current artifact", "failed validation");
     }
-    return snapshot.places.filter((place) => {
-      const observed = Date.parse(place?.observedAt);
-      const expires = Date.parse(place?.expiresAt);
-      return Number.isFinite(observed) && observed <= nowMs && expires > nowMs;
-    });
+    return snapshot.places.filter((place) =>
+      isCurrentNightOutPlace(place, nowMs),
+    );
   } catch (error) {
     if (error instanceof ProviderHaltError) throw error;
     throw new ProviderHaltError("Current artifact", "could not be parsed");
@@ -647,6 +610,7 @@ export function writeSnapshot(snapshot, outputPath = OUTPUT) {
   if (!isValidPlaceSnapshot(snapshot)) {
     throw new ProviderHaltError("Candidate artifact", "failed validation");
   }
+  assertValidProvenanceRegistry(snapshot);
   const temp = `${outputPath}.tmp-${process.pid}-${Date.now()}`;
   try {
     writeFileSync(temp, `${JSON.stringify(snapshot, null, 2)}\n`, { flag: "wx" });
@@ -688,6 +652,7 @@ export async function runIngestion({
     throw new ProviderHaltError("Ingestion clock", "returned an invalid timestamp");
   }
   const existing = loadCurrentPlaces(Date.parse(startedAt), outputPath);
+  assertValidProvenanceRegistry({ provenanceRegistryVersion: 1 });
   const discoveries = await fetchDiscoveries(
     { exaKey, firecrawlKey, limit },
     fetchImpl,
