@@ -19,7 +19,6 @@ import {
   classifySlimShards,
 } from "./lib/slimShards.mjs";
 import {
-  isLondonNightOutPlaceCoordinates,
   nightOutPlaceProvenanceRegistryValidationErrors,
   nightOutPlaceSnapshotValidationErrors,
 } from "../lib/nightOutPlaceContract.mjs";
@@ -97,6 +96,13 @@ const POI_CATEGORIES = new Set([
   "sight",
 ]);
 
+// Generic bundled-map safety bounds. Night-out places do not use this helper:
+// their authoritative bounds live in lib/nightOutPlaceContract.mjs.
+const LON_MIN = -0.55;
+const LON_MAX = 0.3;
+const LAT_MIN = 51.26;
+const LAT_MAX = 51.72;
+
 // A healthy pint dataset is ~3k rows; anything well below that means the export
 // truncated. Fail hard so we never ship a gutted map.
 const PINT_ROW_FLOOR = 2500;
@@ -130,7 +136,7 @@ function isFiniteNumber(value) {
 }
 
 function inLondon(lng, lat) {
-  return isLondonNightOutPlaceCoordinates(lat, lng);
+  return lng >= LON_MIN && lng <= LON_MAX && lat >= LAT_MIN && lat <= LAT_MAX;
 }
 
 function normaliseVenueKeyPart(value) {

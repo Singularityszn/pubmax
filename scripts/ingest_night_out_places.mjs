@@ -606,11 +606,15 @@ export function mergePlaceRows(existing, incoming) {
   return [...byId.values()].sort((a, b) => a.id.localeCompare(b.id));
 }
 
-export function writeSnapshot(snapshot, outputPath = OUTPUT) {
+export function writeSnapshot(
+  snapshot,
+  outputPath = OUTPUT,
+  registryPath = PROVENANCE_REGISTRY,
+) {
   if (!isValidPlaceSnapshot(snapshot)) {
     throw new ProviderHaltError("Candidate artifact", "failed validation");
   }
-  assertValidProvenanceRegistry(snapshot);
+  assertValidProvenanceRegistry(snapshot, registryPath);
   const temp = `${outputPath}.tmp-${process.pid}-${Date.now()}`;
   try {
     writeFileSync(temp, `${JSON.stringify(snapshot, null, 2)}\n`, { flag: "wx" });

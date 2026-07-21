@@ -327,6 +327,7 @@ describe("night-out place ingestion", () => {
       { exaKey: "exa-test", firecrawlKey: "fc-test", limit: 1 },
       fetchMock as typeof fetch,
       lookup,
+      () => new Date(OBSERVED_AT),
     );
     const firecrawl = requests.filter((request) => request.url.includes("firecrawl"));
     const search = firecrawl.filter((request) => request.url.endsWith("/search"));
@@ -507,6 +508,31 @@ describe("night-out place ingestion", () => {
     };
     expect(isValidPlaceSnapshot(invalidCandidate)).toBe(false);
     expect(() => writeSnapshot(invalidCandidate, outputPath)).toThrow("OWNER ACTION");
+    expect(readFileSync(outputPath, "utf8")).toBe(original);
+    rmSync(dir, { recursive: true, force: true });
+  });
+
+  it("leaves the artifact byte-identical when the provenance registry is invalid", () => {
+    const dir = mkdtempSync(join(tmpdir(), "night-out-provenance-"));
+    const outputPath = join(dir, "latest.json");
+    const registryPath = join(dir, "registry.json");
+    const original = '{"version":1,"status":"empty","places":[]}\n';
+    writeFileSync(outputPath, original);
+    writeFileSync(registryPath, JSON.stringify({ version: 2, producers: [] }));
+    const [row] = buildPlaceRows(
+      [{ category: "restaurant", discoveredVia: "exa", url: restaurant.url, rawHtml: jsonLdPage(restaurant) }],
+      { observedAt: OBSERVED_AT },
+    );
+    const candidate = {
+      version: 1,
+      generatedAt: OBSERVED_AT,
+      status: "published",
+      provenanceRegistryVersion: 1,
+      places: [row],
+    };
+
+    expect(isValidPlaceSnapshot(candidate)).toBe(true);
+    expect(() => writeSnapshot(candidate, outputPath, registryPath)).toThrow("OWNER ACTION");
     expect(readFileSync(outputPath, "utf8")).toBe(original);
     rmSync(dir, { recursive: true, force: true });
   });
