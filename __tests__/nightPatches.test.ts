@@ -7,6 +7,7 @@ import {
   CENTRAL_PATCH,
   NIGHT_PATCHES,
   clearRememberedArea,
+  nearestNightPatch,
   readRememberedArea,
   resolveNightPatch,
   writeRememberedArea,
@@ -43,6 +44,23 @@ describe("night patches — the list itself", () => {
     expect(resolveNightPatch("central")).toBe(CENTRAL_PATCH);
     expect(resolveNightPatch("narnia")).toBeNull();
     expect(resolveNightPatch(null)).toBeNull();
+  });
+});
+
+describe("nearest night patch", () => {
+  it("uses haversine distance to resolve a London coordinate", () => {
+    expect(nearestNightPatch(51.527, -0.08)?.id).toBe("shoreditch");
+    expect(nearestNightPatch(51.4627, -0.1145)?.id).toBe("brixton");
+  });
+
+  it("rejects non-finite coordinates", () => {
+    expect(nearestNightPatch(Number.NaN, -0.12)).toBeNull();
+    expect(nearestNightPatch(51.52, Number.POSITIVE_INFINITY)).toBeNull();
+  });
+
+  it("rejects finite coordinates outside the configured London bounds", () => {
+    expect(nearestNightPatch(53.48, -2.24)).toBeNull();
+    expect(nearestNightPatch(51.52, -0.551)).toBeNull();
   });
 });
 

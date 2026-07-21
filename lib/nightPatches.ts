@@ -10,6 +10,8 @@
 // Persistence mirrors lib/cityPreference.ts: localStorage-backed, SSR-safe,
 // silent degradation, no-op writes skipped.
 
+import { CITIES, pointInCityBounds } from "@/lib/cities";
+
 export type NightPatch = {
   id: string;
   label: string;
@@ -49,6 +51,46 @@ export function resolveNightPatch(id: string | null | undefined): NightPatch | n
   if (!id) return null;
   if (id === CENTRAL_PATCH.id) return CENTRAL_PATCH;
   return NIGHT_PATCHES.find((patch) => patch.id === id) ?? null;
+}
+
+const EARTH_RADIUS_METRES = 6_371_000;
+
+function toRadians(degrees: number): number {
+  return degrees * Math.PI / 180;
+}
+
+function haversineMetres(latA: number, lngA: number, latB: number, lngB: number): number {
+  const latDelta = toRadians(latB - latA);
+  const lngDelta = toRadians(lngB - lngA);
+  const startLat = toRadians(latA);
+  const endLat = toRadians(latB);
+  const chord = Math.sin(latDelta / 2) ** 2
+    + Math.cos(startLat) * Math.cos(endLat) * Math.sin(lngDelta / 2) ** 2;
+  return 2 * EARTH_RADIUS_METRES * Math.asin(Math.sqrt(chord));
+}
+
+/**
+ * Resolve a usable London coordinate to the nearest supported night patch.
+ * Invalid and out-of-city coordinates deliberately return null so callers do
+ * not silently turn a failed location lookup into a misleading area choice.
+ */
+export function nearestNightPatch(
+  lat: number,
+  lng: number,
+): (typeof NIGHT_PATCHES)[number] | null {
+  if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
+  if (!pointInCityBounds(lat, lng, CITIES.london)) return null;
+
+  let nearest: (typeof NIGHT_PATCHES)[number] | null = null;
+  let nearestDistance = Number.POSITIVE_INFINITY;
+  for (const patch of NIGHT_PATCHES) {
+    const distance = haversineMetres(lat, lng, patch.lat, patch.lng);
+    if (distance < nearestDistance) {
+      nearest = patch;
+      nearestDistance = distance;
+    }
+  }
+  return nearest;
 }
 
 /** What the viewer last chose when location wasn't playing: a patch or a borough. */
