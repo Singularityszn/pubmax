@@ -169,6 +169,17 @@
       "gate": "none (keyless); TFL_APP_KEY only raises rate limits"
     },
     {
+      "id": "tfl_disruption",
+      "label": "TfL material disruption (night-shaping layer)",
+      "class": "live",
+      "artifact": null,
+      "stamp": null,
+      "cadence": "live — TfL Line Status fetched server-side and revalidated every 5 min (Next data cache), then filtered to material disruptions (suspensions, severe delays, planned closures overlapping tonight 17:00-02:00 London) touching the active night patch. No disk artifact; nothing renders when clear.",
+      "stalenessBudgetHours": null,
+      "refreshWorkflow": "live-per-request with 5-min server revalidate (app/api/tfl-disruption via lib/tflDisruption)",
+      "gate": "none (keyless); TFL_APP_KEY only raises rate limits"
+    },
+    {
       "id": "food_hygiene",
       "label": "FSA food hygiene ratings (FHRS)",
       "class": "live",
