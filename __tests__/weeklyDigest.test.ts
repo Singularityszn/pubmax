@@ -280,7 +280,7 @@ describe("rendering — honest, email-safe", () => {
     expect(text).toContain("Quiet week");
     expect(text).not.toContain("£");
     // Tip still present.
-    expect(text).toContain("ONE FOR THE ROAD");
+    expect(text).toContain("WORTH REMEMBERING");
   });
 
   it("text alternative mirrors the HTML content", () => {

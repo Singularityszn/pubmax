@@ -423,7 +423,7 @@ export function renderWeeklyDigestHtml(digest: WeeklyDigest): string {
 
   // Tip always renders (honest advice; clearly a tip, not data).
   rows.push(sectionBlock(
-    "One for the road",
+    "Worth remembering",
     `<p style="margin:0;font-size:15px;color:${BRAND.inkSoft};font-style:italic;">${esc(s.tip)}</p>`,
   ));
 
@@ -505,7 +505,7 @@ export function renderWeeklyDigestText(digest: WeeklyDigest): string {
     lines.push("");
   }
 
-  lines.push("ONE FOR THE ROAD");
+  lines.push("WORTH REMEMBERING");
   lines.push(`  ${s.tip}`);
   lines.push("");
   lines.push("—");

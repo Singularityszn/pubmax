@@ -247,7 +247,7 @@ export default function TodayClient({ dateLabel, weather, picks, fact }: Props) 
         <h1 className="todayTitle">Your day out, sorted.</h1>
         <p className="todayLede">
           <span className="todayDate">{dateLabel}</span>. The weather, tonight&rsquo;s best,
-          how you&rsquo;ll get home, and one for the road.
+          how you&rsquo;ll get home, and one to remember.
         </p>
       </header>
 
