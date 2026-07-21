@@ -50,11 +50,13 @@ const UNSETTLED_PCT = 50;
 const SUMMER_MONTHS = new Set([6, 7, 8]);
 const AUTUMN_MONTHS = new Set([9, 10, 11]);
 const SPRING_MONTHS = new Set([3, 4, 5]);
+const WINTER_MONTHS = new Set([12, 1, 2]);
 
 // Order matters. Extremes first (rain and cold drive you indoors regardless of
-// the calendar), then the warm-dry garden window, then the shoulder-season
-// bands. Copy is honest: each line describes weather that genuinely earns the
-// pint named. No em dashes anywhere.
+// the calendar), then the warm-dry garden window, then winter (which claims its
+// own months indoors before the riverside rule can offer a January towpath),
+// then the remaining shoulder-season bands. Copy is honest: each line describes
+// weather that genuinely earns the pint named. No em dashes anywhere.
 export const DRINK_WEATHER_RULES: readonly DrinkWeatherRule[] = [
   {
     ruleId: "hard-rain",
@@ -85,6 +87,24 @@ export const DRINK_WEATHER_RULES: readonly DrinkWeatherRule[] = [
     venueLens: "beer-garden",
     drinkSuggestion: "a cold lager or cider",
     line: "Warm and dry. Beer garden weather.",
+  },
+  {
+    // Winter owns its whole non-freezing, non-garden band before the riverside
+    // rule can claim a January evening. London winters run dark by teatime and
+    // the demand is indoors, so an 8-18C December-to-February night reads as a
+    // porter regardless of how still the air is. No precipitation guard: a damp
+    // winter evening still earns this verdict rather than falling through to
+    // null, which is the winter gap the summer-tuned table left open. The
+    // fireplace lens is the indoor signal only; it makes no venue claim, because
+    // no fireplace amenity exists in the vocabulary to back one (see header).
+    // "Dark early" leans on the month, not a clock: December-to-February London
+    // is genuinely dark by late afternoon, so the line stays honest without
+    // inventing a per-evening sunset the snapshot does not carry.
+    ruleId: "winter-porter",
+    when: ({ tempC, month }) => tempC >= COLD_C && tempC < WARM_C && WINTER_MONTHS.has(month),
+    venueLens: "fireplace",
+    drinkSuggestion: "a porter",
+    line: "Winter evening, dark early. Porter weather.",
   },
   {
     ruleId: "mild-riverside",
