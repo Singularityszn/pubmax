@@ -30,6 +30,7 @@ test.beforeEach(async ({ page }) => {
 });
 
 test("reloading a recovered draft does not extend its near expiry", async ({ page }) => {
+  await page.clock.setFixedTime(new Date("2026-07-21T10:00:00.000Z"));
   await page.goto("/plan");
   const expiresAt = await page.evaluate(() => {
     const now = Date.now();
@@ -65,6 +66,38 @@ test("reloading a recovered draft does not extend its near expiry", async ({ pag
     const raw = window.localStorage.getItem("pubmax:plan-intake:v1");
     return raw ? JSON.parse(raw).expiresAt as string : null;
   })).toBe(expiresAt);
+});
+
+test("location is opt-in and selects the nearest patch without advancing", async ({ page, context }) => {
+  await context.grantPermissions(["geolocation"]);
+  await context.setGeolocation({ latitude: 51.527, longitude: -0.08 });
+  await page.goto("/plan");
+
+  const locate = page.getByRole("button", { name: "Use my location" });
+  await expect(locate).toBeVisible();
+  await page.getByRole("button", { name: "Clapham" }).click();
+  await expect(page.getByRole("button", { name: "Shoreditch" })).toHaveAttribute("aria-pressed", "false");
+
+  await locate.click();
+  await expect(page.getByRole("status")).toContainText("Shoreditch is your nearest supported area");
+  await expect(page.getByRole("button", { name: "Shoreditch" })).toHaveAttribute("aria-pressed", "true");
+  await expect(page.getByRole("heading", { name: "Where should the night happen?" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Continue" })).toBeEnabled();
+  await expect.poll(() => page.evaluate(() => window.localStorage.getItem("pubmax:nightPatch:v1")))
+    .toBe(JSON.stringify({ kind: "patch", id: "shoreditch" }));
+});
+
+test("an outside-London location preserves the selected area", async ({ page, context }) => {
+  await context.grantPermissions(["geolocation"]);
+  await context.setGeolocation({ latitude: 53.48, longitude: -2.24 });
+  await page.goto("/plan");
+  await page.getByRole("button", { name: "Clapham" }).click();
+
+  await page.getByRole("button", { name: "Use my location" }).click();
+  await expect(page.getByRole("alert")).toContainText("outside London");
+  await expect(page.getByRole("button", { name: "Clapham" })).toHaveAttribute("aria-pressed", "true");
+  await expect.poll(() => page.evaluate(() => window.localStorage.getItem("pubmax:nightPatch:v1")))
+    .toBe(JSON.stringify({ kind: "patch", id: "clapham" }));
 });
 
 test("a typed exact time rejects an autumn overlap once both occurrences have passed", async ({ page }) => {

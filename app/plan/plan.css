@@ -485,6 +485,26 @@
 }
 .planIntake__note { max-width: 610px; margin: 12px 0 0; color: var(--ink-soft); font-size: 0.88rem; line-height: 1.5; }
 .planIntake__choices { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 22px; }
+.planIntake__areaPicker { display: grid; justify-items: start; gap: 10px; margin-top: 22px; }
+.planIntake__locate {
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  border: 1px solid var(--plan-accent);
+  border-radius: 999px;
+  padding: 8px 15px;
+  background: color-mix(in srgb, var(--plan-accent) 12%, var(--panel));
+  color: var(--plan-accent-strong);
+  font: inherit;
+  font-size: 0.8rem;
+  font-weight: 820;
+  cursor: pointer;
+}
+.planIntake__locationStatus { max-width: 610px; margin: 0; color: var(--ink-soft); font-size: 0.78rem; line-height: 1.45; }
+.planIntake__locationStatus--error { color: var(--color-negative, #a52c24); font-weight: 700; }
+.planIntake__areaPicker .planIntake__choices { margin-top: 2px; }
 .planIntake__choices button,
 .planIntake__numberChoices button {
   min-height: 48px;
