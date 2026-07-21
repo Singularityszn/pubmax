@@ -13,7 +13,7 @@
 // Trusted data is never touched here: a proposal is a REQUEST an admin reviews.
 // All writes use authedFetch so the server binds the account to the verified JWT.
 
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 
 import { useAuth } from "@/components/auth/AuthProvider";
 import { authedFetch } from "@/lib/authedFetch";
@@ -72,26 +72,28 @@ export default function OperatorRailPanel({ venueId, venueName }: OperatorRailPa
   const [savingProposal, setSavingProposal] = useState(false);
   const [proposalFeedback, setProposalFeedback] = useState<Feedback>(null);
 
-  const loadClaim = useCallback(async () => {
-    if (!signedIn) return;
-    try {
-      const res = await authedFetch(
-        `/api/venue-operators/claim?venueId=${encodeURIComponent(venueId)}`,
-      );
-      if (res.ok) {
-        const data = (await res.json()) as { claim: OperatorClaimDTO | null };
-        setClaim(data.claim);
-      }
-    } catch {
-      // Leave claim null; the verify affordance still renders.
-    } finally {
-      setChecked(true);
-    }
-  }, [signedIn, venueId]);
-
+  // Load the caller's own claim state when the card opens (signed in only). State
+  // is set inside the async .then chain — never synchronously in the effect body —
+  // and guarded by `active` so a close/unmount mid-flight is a no-op (the sanctioned
+  // pattern, mirroring components/plan/NightCrawlMode.tsx).
   useEffect(() => {
-    if (open && signedIn && !checked) void loadClaim();
-  }, [open, signedIn, checked, loadClaim]);
+    if (!open || !signedIn) return;
+    let active = true;
+    authedFetch(`/api/venue-operators/claim?venueId=${encodeURIComponent(venueId)}`)
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data: { claim: OperatorClaimDTO | null } | null) => {
+        if (!active) return;
+        if (data) setClaim(data.claim);
+        setChecked(true);
+      })
+      .catch(() => {
+        // Leave claim null; the verify affordance still renders.
+        if (active) setChecked(true);
+      });
+    return () => {
+      active = false;
+    };
+  }, [open, signedIn, venueId]);
 
   const submitClaim = async () => {
     const note = evidenceNote.trim();
@@ -194,14 +196,12 @@ export default function OperatorRailPanel({ venueId, venueName }: OperatorRailPa
             <p className="operatorRailBody">Checking your status…</p>
           ) : state === "pending" ? (
             <p className="operatorRailBody" role="status">
-              Verification pending. We're checking that you run {venueName} and will open the
-              propose tools once you're verified.
+              {`Verification pending. We're checking that you run ${venueName} and will open the propose tools once you're verified.`}
             </p>
           ) : state === "verified" ? (
             <div className="operatorRailForm">
               <p className="operatorRailBody">
-                You're verified for {venueName}. Propose an update and we'll review it before it
-                shows. Your submissions never overwrite existing notes.
+                {`You're verified for ${venueName}. Propose an update and we'll review it before it shows. Your submissions never overwrite existing notes.`}
               </p>
               <label className="operatorRailField">
                 <span>What kind</span>

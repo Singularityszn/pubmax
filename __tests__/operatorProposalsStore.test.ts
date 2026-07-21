@@ -48,7 +48,7 @@ vi.mock("@/lib/supabase", () => {
     };
 
     const q: Record<string, unknown> = {
-      select(_cols?: string) {
+      select() {
         if (!state.op) state.op = "select";
         return q;
       },
