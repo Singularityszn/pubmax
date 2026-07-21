@@ -2114,15 +2114,25 @@ input[type="range"] {
 }
 
 .landmarkPhoto figcaption {
+  /* Full-width bottom bar (not a bottom-right chip): the compliant CC credit is
+     author + licence + link, longer than the old platform-only caption, so it
+     wraps cleanly instead of crowding a corner. */
   position: absolute;
+  left: 0;
   right: 0;
   bottom: 0;
-  padding: 2px 7px;
+  padding: 3px 7px;
   font-size: 0.6rem;
+  line-height: 1.35;
   letter-spacing: 0.02em;
   color: var(--color-on-inverse);
-  background: rgba(15, 28, 22, 0.62);
-  border-top-left-radius: var(--radius-sm);
+  background: rgba(15, 28, 22, 0.72);
+}
+
+.landmarkPhoto figcaption a {
+  color: inherit;
+  text-decoration: underline;
+  text-underline-offset: 1.5px;
 }
 
 .landmarkCardHead {

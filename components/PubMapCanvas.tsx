@@ -35,6 +35,7 @@ import {
   isTransitNetworkVisible,
 } from "@/lib/poiToggleGroups";
 import MapLayersControl from "@/components/map/MapLayersControl";
+import LandmarkPhotoCredit from "@/components/LandmarkPhotoCredit";
 import type { CityId } from "@/lib/cities";
 import { DEFAULT_CITY_ID, getCity } from "@/lib/cities";
 import { resolveCompassAction } from "@/lib/mapCompass";
@@ -2073,7 +2074,7 @@ export default function PubMapCanvas({
                 loading="lazy"
                 decoding="async"
               />
-              <figcaption>Photo · {activeLandmark.image.credit}</figcaption>
+              <LandmarkPhotoCredit image={activeLandmark.image} />
             </figure>
           ) : null}
           <div className="landmarkCardHead">
