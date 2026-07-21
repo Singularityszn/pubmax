@@ -22,6 +22,7 @@ export function safeAuthNext(raw: string | null | undefined, origin: string): st
 const AUTH_ACTIVE_ATTEMPT_KEY = "pubmax_auth_active_attempt";
 const AUTH_TAB_ATTEMPT_KEY = "pubmax_auth_tab_attempt";
 const AUTH_RETURN_FRAGMENT_PREFIX = "pubmax_auth_return_fragment:";
+const AUTH_ATTEMPT_LOCK_NAME = "pubmax-auth-attempt";
 const AUTH_ATTEMPT_TTL_MS = 60 * 60 * 1000;
 const AUTH_ATTEMPT_ID_PATTERN = /^[0-9a-f]{32}$/;
 
@@ -66,6 +67,11 @@ export type AuthAttemptOptions = {
   now?: number;
 };
 
+export type AuthCallbackCaptureOptions = Pick<
+  AuthAttemptOptions,
+  "persistentStorage" | "tabStorage" | "lockManager" | "now"
+>;
+
 export type AuthAttemptStart =
   | { ok: true; id: string; callbackUrl: string }
   | { ok: false; message: string };
@@ -93,6 +99,15 @@ function authDestination(currentUrl: string, requestedNext?: string): URL | null
   try {
     const current = new URL(currentUrl);
     if (current.protocol !== "https:" && current.protocol !== "http:") return null;
+    if (
+      current.searchParams.get(AUTH_CALLBACK_MARKER) === "1" ||
+      current.searchParams.get("authError") === "1"
+    ) {
+      current.searchParams.delete("code");
+      current.searchParams.delete(AUTH_CALLBACK_MARKER);
+      current.searchParams.delete(AUTH_ATTEMPT_PARAM);
+      current.searchParams.delete("authError");
+    }
     const currentPath = `${current.pathname}${current.search}${current.hash}`;
     return new URL(
       safeAuthNext(
@@ -317,7 +332,7 @@ export async function beginCoordinatedAuthAttempt(
     return { ok: false, message: AUTH_COORDINATION_UNAVAILABLE_MESSAGE };
   }
   try {
-    return await lockManager.request("pubmax-auth-attempt", async () =>
+    return await lockManager.request(AUTH_ATTEMPT_LOCK_NAME, async () =>
       beginAuthAttempt(currentUrl, requestedNext, options),
     );
   } catch {
@@ -353,16 +368,60 @@ export function releaseAuthAttempt(
   }
 }
 
+function cleanAuthCallbackUrl(currentUrl: string): string | null {
+  try {
+    const current = new URL(currentUrl);
+    current.searchParams.delete("code");
+    current.searchParams.delete(AUTH_CALLBACK_MARKER);
+    current.searchParams.delete(AUTH_ATTEMPT_PARAM);
+    current.searchParams.delete("authError");
+    return `${current.pathname}${current.search}${current.hash}` || "/";
+  } catch {
+    return null;
+  }
+}
+
+function rejectedAuthCallback(cleanUrl: string): CapturedAuthCallback {
+  return {
+    attempt: { attemptId: null, code: null, providerError: true },
+    cleanUrl,
+  };
+}
+
+function restoreAuthFragment(cleanUrl: string, fragment: string): string {
+  try {
+    const restored = new URL(cleanUrl, "https://pubmax.invalid");
+    restored.hash = fragment;
+    return `${restored.pathname}${restored.search}${restored.hash}` || "/";
+  } catch {
+    return cleanUrl;
+  }
+}
+
+/** Validate and claim while the caller holds AUTH_ATTEMPT_LOCK_NAME. */
 function claimAuthCallback(
   currentUrl: string,
-  attemptId: string,
-  active: StoredActiveAttempt,
+  parsedAttempt: AuthCallbackAttempt,
+  cleanUrl: string,
   persistentStorage: AuthFragmentStorage,
-  now = Date.now(),
-): { ok: boolean; fragment: string } {
-  if (!isAuthAttemptId(attemptId)) return { ok: false, fragment: "" };
+  now: number,
+): CapturedAuthCallback {
+  const attemptId = parsedAttempt.attemptId;
+  if (!attemptId) return rejectedAuthCallback(cleanUrl);
   try {
+    const active = readActiveAttempt(persistentStorage);
+    if (active?.id !== attemptId) {
+      return rejectedAuthCallback(cleanUrl);
+    }
     const key = authFragmentKey(attemptId);
+    if (active.expiresAt <= now) {
+      applyStorageMutations([
+        { storage: persistentStorage, key: AUTH_ACTIVE_ATTEMPT_KEY, value: null },
+        { storage: persistentStorage, key, value: null },
+      ]);
+      return rejectedAuthCallback(cleanUrl);
+    }
+    if (active.callbackClaimed) return rejectedAuthCallback(cleanUrl);
     const raw = persistentStorage.getItem(key);
     let fragment = "";
     if (raw) {
@@ -394,9 +453,13 @@ function claimAuthCallback(
       { storage: persistentStorage, key: AUTH_ACTIVE_ATTEMPT_KEY, value: claimedAttempt },
       { storage: persistentStorage, key, value: null },
     ]);
-    return { ok, fragment: ok ? fragment : "" };
+    if (!ok) return rejectedAuthCallback(cleanUrl);
+    return {
+      attempt: parsedAttempt,
+      cleanUrl: fragment ? restoreAuthFragment(cleanUrl, fragment) : cleanUrl,
+    };
   } catch {
-    return { ok: false, fragment: "" };
+    return rejectedAuthCallback(cleanUrl);
   }
 }
 
@@ -418,65 +481,66 @@ export function readAuthCallbackAttempt(currentUrl: string): AuthCallbackAttempt
   }
 }
 
-/** Capture all callback state locally and return a URL safe to show immediately. */
-export function captureAuthCallback(
+async function capturePreparedAuthCallback(
   currentUrl: string,
-  persistentStorage?: AuthFragmentStorage | null,
-  _tabStorage?: AuthFragmentStorage | null,
-  now = Date.now(),
-): CapturedAuthCallback | null {
-  const parsedAttempt = readAuthCallbackAttempt(currentUrl);
-  if (!parsedAttempt) return null;
-  const current = new URL(currentUrl);
-  let active: StoredActiveAttempt | null = null;
+  parsedAttempt: AuthCallbackAttempt,
+  cleanUrl: string,
+  options: AuthCallbackCaptureOptions,
+): Promise<CapturedAuthCallback> {
+  const { persistentStorage, lockManager } = options;
+  if (!persistentStorage || !lockManager) return rejectedAuthCallback(cleanUrl);
   try {
-    active = persistentStorage ? readActiveAttempt(persistentStorage) : null;
+    return await lockManager.request(AUTH_ATTEMPT_LOCK_NAME, () =>
+      claimAuthCallback(
+        currentUrl,
+        parsedAttempt,
+        cleanUrl,
+        persistentStorage,
+        options.now ?? Date.now(),
+      ),
+    );
   } catch {
-    // Storage failures reject the callback without exposing its one-use code.
+    return rejectedAuthCallback(cleanUrl);
   }
-  const matchesActiveAttempt = Boolean(
-    parsedAttempt.attemptId &&
-      active?.id === parsedAttempt.attemptId &&
-      active.expiresAt > now &&
-      !active.callbackClaimed,
-  );
-  const claimed =
-    matchesActiveAttempt && parsedAttempt.attemptId && active && persistentStorage
-      ? claimAuthCallback(
-          currentUrl,
-          parsedAttempt.attemptId,
-          active,
-          persistentStorage,
-          now,
-        )
-      : { ok: false, fragment: "" };
-  // Never expose a code to AuthProvider unless it belongs to the exact live
-  // browser attempt. A mismatched/injected/replayed callback must not consume
-  // the real attempt's verifier, fragment, or lock.
-  const attempt: AuthCallbackAttempt = matchesActiveAttempt && claimed.ok
-    ? parsedAttempt
-    : { attemptId: null, code: null, providerError: true };
-  const fragment = claimed.fragment;
-  current.searchParams.delete("code");
-  current.searchParams.delete(AUTH_CALLBACK_MARKER);
-  current.searchParams.delete(AUTH_ATTEMPT_PARAM);
-  current.searchParams.delete("authError");
-  if (fragment) current.hash = fragment;
-  return {
-    attempt,
-    cleanUrl: `${current.pathname}${current.search}${current.hash}` || "/",
-  };
 }
 
-/** Scrub callback credentials synchronously before the caller starts exchange. */
+/** Claim callback state under the same cross-tab lock used to start attempts. */
+export function captureAuthCallback(
+  currentUrl: string,
+  options: AuthCallbackCaptureOptions,
+): Promise<CapturedAuthCallback | null> {
+  const parsedAttempt = readAuthCallbackAttempt(currentUrl);
+  const cleanUrl = cleanAuthCallbackUrl(currentUrl);
+  if (!parsedAttempt || !cleanUrl) return Promise.resolve(null);
+  return capturePreparedAuthCallback(currentUrl, parsedAttempt, cleanUrl, options);
+}
+
+/** Scrub credentials synchronously, then expose a code only after the locked claim. */
 export function scrubAuthCallback(
   currentUrl: string,
   replaceUrl: (cleanUrl: string) => void,
-  persistentStorage?: AuthFragmentStorage | null,
-  tabStorage?: AuthFragmentStorage | null,
-  now = Date.now(),
-): CapturedAuthCallback | null {
-  const captured = captureAuthCallback(currentUrl, persistentStorage, tabStorage, now);
-  if (captured) replaceUrl(captured.cleanUrl);
-  return captured;
+  options: AuthCallbackCaptureOptions,
+): Promise<CapturedAuthCallback | null> {
+  const parsedAttempt = readAuthCallbackAttempt(currentUrl);
+  const cleanUrl = cleanAuthCallbackUrl(currentUrl);
+  if (!parsedAttempt || !cleanUrl) return Promise.resolve(null);
+  // This happens before Web Locks can queue or any promise is awaited.
+  try {
+    replaceUrl(cleanUrl);
+  } catch {
+    return Promise.resolve(rejectedAuthCallback(cleanUrl));
+  }
+  return capturePreparedAuthCallback(currentUrl, parsedAttempt, cleanUrl, options).then(
+    (captured) => {
+      if (captured.cleanUrl !== cleanUrl) {
+        try {
+          replaceUrl(captured.cleanUrl);
+        } catch {
+          // Credentials were already scrubbed; continue so the caller releases
+          // the claimed attempt after exchange instead of stranding it.
+        }
+      }
+      return captured;
+    },
+  );
 }

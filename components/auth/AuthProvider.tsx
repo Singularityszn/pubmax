@@ -215,7 +215,7 @@ export function AuthProvider({ children }: { children: ReactNode }): React.JSX.E
   const callbackExchangeInFlight = useRef<
     Promise<{ session: Session | null; failed: boolean }> | null
   >(null);
-  const capturedCallback = useRef<CapturedAuthCallback | null | undefined>(undefined);
+  const capturedCallback = useRef<Promise<CapturedAuthCallback | null> | undefined>(undefined);
 
   useEffect(() => {
     const user = session?.user ?? null;
@@ -377,11 +377,14 @@ export function AuthProvider({ children }: { children: ReactNode }): React.JSX.E
       capturedCallback.current = scrubAuthCallback(
         window.location.href,
         (cleanUrl) => window.history.replaceState(window.history.state, "", cleanUrl),
-        browserLocalStorage(),
-        browserSessionStorage(),
+        {
+          persistentStorage: browserLocalStorage(),
+          tabStorage: browserSessionStorage(),
+          lockManager: browserLockManager(),
+        },
       );
     }
-    const callbackAttempt = capturedCallback.current?.attempt ?? null;
+    const callbackCapture = capturedCallback.current ?? Promise.resolve(null);
     const supabase = getSupabaseBrowser();
     // Unconfigured / SSR-only: nothing to subscribe to. Flip loading off in a
     // microtask so we never setState synchronously in the effect body.
@@ -389,11 +392,15 @@ export function AuthProvider({ children }: { children: ReactNode }): React.JSX.E
       let cancelled = false;
       queueMicrotask(() => {
         if (cancelled) return;
+        setLoading(false);
+      });
+      void callbackCapture.then((captured) => {
+        const callbackAttempt = captured?.attempt ?? null;
         if (callbackAttempt?.attemptId) {
           releaseBrowserAuthAttempt(callbackAttempt.attemptId);
         }
+        if (cancelled) return;
         if (callbackAttempt) setAuthCallbackError(AUTH_CALLBACK_ERROR_MESSAGE);
-        setLoading(false);
       });
       return () => {
         cancelled = true;
@@ -437,6 +444,7 @@ export function AuthProvider({ children }: { children: ReactNode }): React.JSX.E
     // one-time URL parameters are removed on both success and failure.
     void (async () => {
       await Promise.resolve();
+      const callbackAttempt = (await callbackCapture)?.attempt ?? null;
       let exchangedSession: Session | null = null;
       let exchangeFailed = Boolean(
         callbackAttempt &&
