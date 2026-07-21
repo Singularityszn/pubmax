@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const REQUEST_NOW = Date.parse("2026-07-20T12:00:00.000Z");
 
-const { currentEvent, loadConciergeVenuesMock } = vi.hoisted(() => ({
+const { currentEvent, routeWideEvent, loadConciergeVenuesMock } = vi.hoisted(() => ({
   currentEvent: {
     id: "music:venue-3:20260720",
     venueId: "venue-3",
@@ -12,6 +12,18 @@ const { currentEvent, loadConciergeVenuesMock } = vi.hoisted(() => ({
     endsAt: "2026-07-20T18:30:00.000Z",
     title: "Current Monday music",
     source: { label: "Venue programme", url: "https://venue.example/music" },
+    observedAt: "2026-07-20T10:00:00.000Z",
+    confidence: "confirmed" as const,
+  },
+  routeWideEvent: {
+    id: "music:venue-3:20260720-route-wide",
+    venueId: "venue-3",
+    placeName: "Venue venue-3",
+    kind: "music" as const,
+    startsAt: "2026-07-20T16:00:00.000Z",
+    endsAt: "2026-07-20T21:00:00.000Z",
+    title: "Route-wide Monday music",
+    source: { label: "Venue programme", url: "https://venue.example/route-wide-music" },
     observedAt: "2026-07-20T10:00:00.000Z",
     confidence: "confirmed" as const,
   },
@@ -27,7 +39,7 @@ vi.mock("@/lib/concierge/venues.server", () => ({
   loadConciergeVenues: loadConciergeVenuesMock,
 }));
 vi.mock("@/lib/whatsOnStore", () => ({
-  loadBaselineWhatsOn: () => [currentEvent],
+  loadBaselineWhatsOn: () => [currentEvent, routeWideEvent],
 }));
 vi.mock("@/lib/planGenerationSelection.server", () => ({
   selectPlanGenerationCandidates: vi.fn(async (candidates: unknown[]) => ({
@@ -103,6 +115,7 @@ vi.mock("@/public/data/night_signals/latest.json", () => ({
 
 import { POST } from "@/app/api/plans/generate/route";
 import type { ConciergeVenue } from "@/lib/concierge/rank";
+import { planTemporalEvidence } from "@/lib/planGenerationTemporalEvidence";
 import type { PlanIntakeHandoff } from "@/lib/planIntake";
 
 type GeneratedBody = {
@@ -210,8 +223,9 @@ describe("Plan generation temporal evidence", () => {
     ]);
     expect(body.stops.map((stop: { venueId: string }) => stop.venueId)).not.toContain("venue-1");
     expect(body.stops.map((stop: { venueId: string }) => stop.venueId)).toContain("venue-4");
-    expect(body.stops.find((stop: { venueId: string }) => stop.venueId === "venue-3")?.evidence)
-      .toContain("Tonight: Current Monday music (confirmed)");
+    const venueThreeEvidence = body.stops.find((stop: { venueId: string }) => stop.venueId === "venue-3")?.evidence ?? [];
+    expect(venueThreeEvidence).toContain("Tonight: Route-wide Monday music (confirmed)");
+    expect(venueThreeEvidence).not.toContain("Tonight: Current Monday music (confirmed)");
   });
 
   it("preserves request-time evidence for legacy requests without an intake", async () => {
@@ -231,5 +245,43 @@ describe("Plan generation temporal evidence", () => {
     expect(body.stops.map((stop: { venueId: string }) => stop.venueId)).toEqual(
       expect.arrayContaining(["venue-2", "venue-3", "venue-4"]),
     );
+  });
+
+  it("keeps partial avoid claims as a conservative fence but rejects partial boosts", () => {
+    const claim = (id: string, routeEffect: "avoid" | "boost") => ({
+      id,
+      kind: "transport",
+      entity: { type: "venue", id: `venue-${id}` },
+      claim: `${routeEffect} claim`,
+      sourceUrl: "https://venue.example/signal",
+      publisher: "Venue Example",
+      publishedAt: "2026-07-20T10:00:00.000Z",
+      observedAt: "2026-07-20T10:30:00.000Z",
+      expiresAt: "2026-07-20T18:00:00.000Z",
+      confidence: 0.9,
+      reviewState: "approved",
+      verification: "manual_review",
+      routeEffect,
+      corroboratingSources: [],
+      reviewedAt: "2026-07-20T11:00:00.000Z",
+      reviewAuthority: "operations",
+    });
+    const result = planTemporalEvidence({
+      weatherSnapshot: { version: 1, generatedAt: "2026-07-20T11:00:00.000Z", observations: [] },
+      nightSignalSnapshot: {
+        version: 1,
+        generatedAt: "2026-07-20T11:30:00.000Z",
+        claims: [claim("avoid", "avoid"), claim("boost", "boost")],
+      },
+      whatsOnRows: [],
+      nightArea: "clapham",
+      requestNow: REQUEST_NOW,
+      routeWindow: {
+        startsAt: "2026-07-20T16:30:00.000Z",
+        endsAt: "2026-07-20T20:30:00.000Z",
+      },
+    });
+
+    expect(result.signalClaims.map((item) => item.id)).toEqual(["avoid"]);
   });
 });

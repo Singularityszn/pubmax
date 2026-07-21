@@ -34,6 +34,16 @@ function overlapsWindow(
   return startsAt < windowEnd && endsAt > windowStart;
 }
 
+function coversWindow(
+  startsAt: number,
+  endsAt: number,
+  window: PlanEvidenceWindow,
+): boolean {
+  const windowStart = Date.parse(window.startsAt);
+  const windowEnd = Date.parse(window.endsAt);
+  return startsAt <= windowStart && endsAt >= windowEnd;
+}
+
 function whatsOnForWindow(
   rows: WhatsOnRow[],
   requestNow: number,
@@ -43,7 +53,7 @@ function whatsOnForWindow(
   return rows.filter((row) => {
     const observedAt = Date.parse(row.observedAt);
     return observedAt <= requestNow
-      && overlapsWindow(Date.parse(row.startsAt), rowEffectiveEnd(row), routeWindow);
+      && coversWindow(Date.parse(row.startsAt), rowEffectiveEnd(row), routeWindow);
   });
 }
 
@@ -54,17 +64,25 @@ function signalClaimsForWindow(
 ): NightSignalClaim[] {
   const availableClaims = activeNightSignalClaims(snapshot, requestNow);
   if (!routeWindow) return availableClaims;
-  return availableClaims.filter((claim) => overlapsWindow(
-    Date.parse(claim.observedAt),
-    Date.parse(claim.expiresAt),
-    routeWindow,
-  ));
+  return availableClaims.filter((claim) => {
+    const observedAt = Date.parse(claim.observedAt);
+    const expiresAt = Date.parse(claim.expiresAt);
+    // Stop times do not exist until after ranking. Positive/neutral evidence
+    // may therefore shape preselection only when it is valid for every
+    // possible visit in the route. Avoid claims deliberately remain an
+    // any-overlap safety fence: over-exclusion is safer than routing through a
+    // reviewed hazard that may be active during part of the night.
+    return claim.routeEffect === "avoid"
+      ? overlapsWindow(observedAt, expiresAt, routeWindow)
+      : coversWindow(observedAt, expiresAt, routeWindow);
+  });
 }
 
 /**
  * Separates evidence availability at request time from applicability to the
- * planned visit. What's-On rows and reviewed claims carry effective intervals,
- * so dated routes use interval overlap. The weather snapshot is a current
+ * planned visit. Before stop times are assigned, positive What's-On and signal
+ * evidence must cover the whole route; reviewed avoid claims use conservative
+ * any-overlap exclusion. The weather snapshot is a current
  * observation whose expiry is a cache-freshness bound, not a forecast window;
  * it is therefore omitted for every explicitly future route.
  *
