@@ -110,6 +110,26 @@ function browserLocalStorage(): Storage | null {
   }
 }
 
+function browserSessionStorage(): Storage | null {
+  try {
+    return window.sessionStorage;
+  } catch {
+    return null;
+  }
+}
+
+function browserLockManager(): LockManager | null {
+  try {
+    return typeof navigator !== "undefined" ? navigator.locks : null;
+  } catch {
+    return null;
+  }
+}
+
+function releaseBrowserAuthAttempt(attemptId: string): void {
+  releaseAuthAttempt(attemptId, browserLocalStorage(), browserSessionStorage());
+}
+
 async function prepareAuthCallback(
   currentUrl: string,
   requestedNext?: string,
@@ -117,9 +137,12 @@ async function prepareAuthCallback(
   return beginCoordinatedAuthAttempt(
     currentUrl,
     requestedNext,
-    browserLocalStorage(),
-    globalThis.crypto,
-    typeof navigator !== "undefined" ? navigator.locks : null,
+    {
+      persistentStorage: browserLocalStorage(),
+      tabStorage: browserSessionStorage(),
+      cryptoProvider: globalThis.crypto,
+      lockManager: browserLockManager(),
+    },
   );
 }
 
@@ -355,6 +378,7 @@ export function AuthProvider({ children }: { children: ReactNode }): React.JSX.E
         window.location.href,
         (cleanUrl) => window.history.replaceState(window.history.state, "", cleanUrl),
         browserLocalStorage(),
+        browserSessionStorage(),
       );
     }
     const callbackAttempt = capturedCallback.current?.attempt ?? null;
@@ -366,7 +390,7 @@ export function AuthProvider({ children }: { children: ReactNode }): React.JSX.E
       queueMicrotask(() => {
         if (cancelled) return;
         if (callbackAttempt?.attemptId) {
-          releaseAuthAttempt(callbackAttempt.attemptId, browserLocalStorage());
+          releaseBrowserAuthAttempt(callbackAttempt.attemptId);
         }
         if (callbackAttempt) setAuthCallbackError(AUTH_CALLBACK_ERROR_MESSAGE);
         setLoading(false);
@@ -430,7 +454,7 @@ export function AuthProvider({ children }: { children: ReactNode }): React.JSX.E
         exchangeFailed = exchange.failed;
       }
       if (callbackAttempt?.attemptId) {
-        releaseAuthAttempt(callbackAttempt.attemptId, browserLocalStorage());
+        releaseBrowserAuthAttempt(callbackAttempt.attemptId);
       }
       if (!active) return;
       if (exchangeFailed) setAuthCallbackError(AUTH_CALLBACK_ERROR_MESSAGE);
@@ -480,10 +504,10 @@ export function AuthProvider({ children }: { children: ReactNode }): React.JSX.E
         provider: "google",
         options: { redirectTo: attempt.callbackUrl },
       });
-      if (error) releaseAuthAttempt(attempt.id, browserLocalStorage());
+      if (error) releaseBrowserAuthAttempt(attempt.id);
       return { error: error ? error.message : null };
     } catch {
-      releaseAuthAttempt(attempt.id, browserLocalStorage());
+      releaseBrowserAuthAttempt(attempt.id);
       return { error: "Sign-in could not be started. Try again." };
     }
   }, []);
@@ -506,10 +530,10 @@ export function AuthProvider({ children }: { children: ReactNode }): React.JSX.E
           redirectTo: attempt.callbackUrl,
         },
       });
-      if (error) releaseAuthAttempt(attempt.id, browserLocalStorage());
+      if (error) releaseBrowserAuthAttempt(attempt.id);
       return { error: error ? error.message : null };
     } catch {
-      releaseAuthAttempt(attempt.id, browserLocalStorage());
+      releaseBrowserAuthAttempt(attempt.id);
       return { error: "Sign-in could not be started. Try again." };
     }
   }, []);
@@ -527,7 +551,7 @@ export function AuthProvider({ children }: { children: ReactNode }): React.JSX.E
       if (!attempt.ok) return { status: "error", message: attempt.message };
       const result = await requestMagicLink(supabase.auth, email, attempt.callbackUrl);
       if (result.status !== "sent") {
-        releaseAuthAttempt(attempt.id, browserLocalStorage());
+        releaseBrowserAuthAttempt(attempt.id);
       }
       return result;
     },
