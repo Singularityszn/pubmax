@@ -5,11 +5,10 @@ import { loadConciergeVenues } from "@/lib/concierge/venues.server";
 import { getNightArea, isNightAreaRouteReady, publicNightAreaCoverage } from "@/lib/nightAreas";
 import { haversineKm } from "@/lib/haversine";
 import type { PlanningConfidence } from "@/lib/planIntelligence";
-import { filterTonight, type WhatsOnRow } from "@/lib/whatsOn";
+import type { WhatsOnRow } from "@/lib/whatsOn";
 import { loadBaselineWhatsOn } from "@/lib/whatsOnStore";
 import nightSignalSnapshot from "@/public/data/night_signals/latest.json";
 import {
-	activeNightSignalClaims,
 	canAffectRoute,
 	claimsForEntity,
 } from "@/lib/nightSignalClaims";
@@ -24,19 +23,19 @@ import {
 } from "@/lib/planGenerationDto";
 import { planEvidenceWarning, planGenerationEvidenceGaps, scoreVenueForPlan } from "@/lib/planGenerationRanking";
 import { selectPlanGenerationCandidates } from "@/lib/planGenerationSelection.server";
+import { planTemporalEvidence } from "@/lib/planGenerationTemporalEvidence";
 import type { PlanConstraintReport, SelectedGroundedPlanStop } from "@/lib/planRouteOptimizer";
 import { assertServerEnv } from "@/lib/serverEnv";
 import { clientIp, hashIp, RATE_LIMIT_MAX, RATE_LIMIT_WINDOW_MS } from "@/lib/supabase";
-import { planningWeatherForArea } from "@/lib/weatherSnapshots";
 import weatherSnapshot from "@/public/data/weather/latest.json";
 
 assertServerEnv();
 
 let baselineWhatsOn: WhatsOnRow[] | null = null;
 
-function baselineTonight(now: number): WhatsOnRow[] {
+function baselineWhatsOnRows(): WhatsOnRow[] {
   baselineWhatsOn ??= loadBaselineWhatsOn();
-  return filterTonight(baselineWhatsOn, now);
+  return baselineWhatsOn;
 }
 
 function distanceKm(a: { lat: number; lng: number }, b: { lat: number; lng: number }): number {
@@ -51,7 +50,7 @@ export async function GET(request: Request): Promise<Response> {
   const url = new URL(request.url);
   const cityId = parseCityId(url.searchParams.get("cityId") ?? "") ?? DEFAULT_CITY_ID;
   await loadConciergeVenues(cityId);
-  baselineTonight(Date.now());
+  baselineWhatsOnRows();
   return new Response(null, {
     status: 204,
     headers: { "cache-control": "no-store" },
@@ -85,9 +84,17 @@ export async function POST(request: Request): Promise<Response> {
   if (area.cityId !== cityId) return publicApiError("That area isn't in this city.", "NIGHT_AREA_CITY_MISMATCH", 422);
 	const routeReady = isNightAreaRouteReady(area, new Date(requestNow));
 	const coverage = publicNightAreaCoverage(area);
-	const planningWeather = planningWeatherForArea(weatherSnapshot, area.slug, requestNow);
-	const tonightRows = baselineTonight(requestNow);
-	const reviewedSignalClaims = activeNightSignalClaims(nightSignalSnapshot, requestNow);
+	const temporalEvidence = planTemporalEvidence({
+		weatherSnapshot,
+		nightSignalSnapshot,
+		whatsOnRows: baselineWhatsOnRows(),
+		nightArea: area.slug,
+		requestNow,
+		routeWindow: intake?.routeWindow,
+	});
+	const planningWeather = temporalEvidence.weather;
+	const tonightRows = temporalEvidence.whatsOn;
+	const reviewedSignalClaims = temporalEvidence.signalClaims;
 	if (
 		claimsForEntity(reviewedSignalClaims, "night_area", area.slug)
 			.some((claim) => canAffectRoute(claim) && claim.routeEffect === "avoid")
