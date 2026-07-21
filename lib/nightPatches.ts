@@ -10,7 +10,10 @@
 // Persistence mirrors lib/cityPreference.ts: localStorage-backed, SSR-safe,
 // silent degradation, no-op writes skipped.
 
-import { CITIES, pointInCityBounds } from "@/lib/cities";
+import londonBoroughBoundaries from "@/data/london_boroughs_simplified.json";
+import { haversineKm } from "@/lib/haversine";
+import type { BoroughBoundaryCollection } from "@/lib/londonBoroughClassifier";
+import { boroughNameForPoint } from "@/lib/londonBoroughPoint.mjs";
 
 export type NightPatch = {
   id: string;
@@ -37,6 +40,9 @@ export const NIGHT_PATCHES = [
 /** Stable ids for the eight user-facing London night patches. */
 export type NightPatchId = (typeof NIGHT_PATCHES)[number]["id"];
 
+const GREATER_LONDON_BOUNDARIES =
+  londonBoroughBoundaries as BoroughBoundaryCollection;
+
 // The unpicked default: show central London's answer before asking anything.
 // Centred between Soho and Covent Garden so the first cards read unmistakably
 // "central" to a visitor and a local alike.
@@ -53,22 +59,6 @@ export function resolveNightPatch(id: string | null | undefined): NightPatch | n
   return NIGHT_PATCHES.find((patch) => patch.id === id) ?? null;
 }
 
-const EARTH_RADIUS_METRES = 6_371_000;
-
-function toRadians(degrees: number): number {
-  return degrees * Math.PI / 180;
-}
-
-function haversineMetres(latA: number, lngA: number, latB: number, lngB: number): number {
-  const latDelta = toRadians(latB - latA);
-  const lngDelta = toRadians(lngB - lngA);
-  const startLat = toRadians(latA);
-  const endLat = toRadians(latB);
-  const chord = Math.sin(latDelta / 2) ** 2
-    + Math.cos(startLat) * Math.cos(endLat) * Math.sin(lngDelta / 2) ** 2;
-  return 2 * EARTH_RADIUS_METRES * Math.asin(Math.sqrt(chord));
-}
-
 /**
  * Resolve a usable London coordinate to the nearest supported night patch.
  * Invalid and out-of-city coordinates deliberately return null so callers do
@@ -79,12 +69,12 @@ export function nearestNightPatch(
   lng: number,
 ): (typeof NIGHT_PATCHES)[number] | null {
   if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
-  if (!pointInCityBounds(lat, lng, CITIES.london)) return null;
+  if (!boroughNameForPoint(lat, lng, GREATER_LONDON_BOUNDARIES)) return null;
 
   let nearest: (typeof NIGHT_PATCHES)[number] | null = null;
   let nearestDistance = Number.POSITIVE_INFINITY;
   for (const patch of NIGHT_PATCHES) {
-    const distance = haversineMetres(lat, lng, patch.lat, patch.lng);
+    const distance = haversineKm([lng, lat], [patch.lng, patch.lat]);
     if (distance < nearestDistance) {
       nearest = patch;
       nearestDistance = distance;

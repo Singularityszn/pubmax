@@ -155,7 +155,11 @@ export function rankTonightPicks(rows: readonly WhatsOnRow[], limit = 3): WhatsO
       return a.index - b.index;
     });
 
-  const cappedLimit = Number.isFinite(limit) ? Math.max(0, Math.floor(limit)) : 0;
+  const cappedLimit = limit === Number.POSITIVE_INFINITY
+    ? ranked.length
+    : Number.isFinite(limit)
+      ? Math.max(0, Math.floor(limit))
+      : 0;
   if (cappedLimit === 0) return [];
   const seenTitles = new Set<string>();
   const picks: WhatsOnRow[] = [];

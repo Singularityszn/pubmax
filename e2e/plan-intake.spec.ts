@@ -79,7 +79,9 @@ test("location is opt-in and selects the nearest patch without advancing", async
   await expect(page.getByRole("button", { name: "Shoreditch" })).toHaveAttribute("aria-pressed", "false");
 
   await locate.click();
-  await expect(page.getByRole("status")).toContainText("Shoreditch is your nearest supported area");
+  await expect(page.locator(".planIntake__locationStatus")).toContainText(
+    "Shoreditch is your nearest supported area",
+  );
   await expect(page.getByRole("button", { name: "Shoreditch" })).toHaveAttribute("aria-pressed", "true");
   await expect(page.getByRole("heading", { name: "Where should the night happen?" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Continue" })).toBeEnabled();
@@ -94,7 +96,7 @@ test("an outside-London location preserves the selected area", async ({ page, co
   await page.getByRole("button", { name: "Clapham" }).click();
 
   await page.getByRole("button", { name: "Use my location" }).click();
-  await expect(page.getByRole("alert")).toContainText("outside London");
+  await expect(page.locator(".planIntake__locationStatus")).toContainText("outside London");
   await expect(page.getByRole("button", { name: "Clapham" })).toHaveAttribute("aria-pressed", "true");
   await expect.poll(() => page.evaluate(() => window.localStorage.getItem("pubmax:nightPatch:v1")))
     .toBe(JSON.stringify({ kind: "patch", id: "clapham" }));

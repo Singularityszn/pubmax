@@ -107,6 +107,14 @@ export default function PlanIntake({
     draftRef.current = draft;
   }, [draft]);
 
+  useEffect(() => () => {
+    locationRequestRef.current += 1;
+  }, []);
+
+  function cancelLocationRequest(): void {
+    locationRequestRef.current += 1;
+  }
+
   function useCurrentLocation(): void {
     const requestId = locationRequestRef.current + 1;
     locationRequestRef.current = requestId;
@@ -203,7 +211,14 @@ export default function PlanIntake({
           <p className="planIntake__kicker">Shape the route</p>
           <p className="planIntake__count">Step {stepIndex + 1} of {PLAN_INTAKE_STEPS.length}</p>
         </div>
-        <button type="button" className="planIntake__describe" onClick={() => onChange(skipRemainingPlanIntake(draft))}>
+        <button
+          type="button"
+          className="planIntake__describe"
+          onClick={() => {
+            cancelLocationRequest();
+            onChange(skipRemainingPlanIntake(draft));
+          }}
+        >
           Describe instead
         </button>
       </header>
@@ -256,7 +271,7 @@ export default function PlanIntake({
                   type="button"
                   aria-pressed={draft.answers.area === patch.id}
                   onClick={() => {
-                    locationRequestRef.current += 1;
+                    cancelLocationRequest();
                     setLocationState({ kind: "idle", message: "" });
                     writeRememberedArea({ kind: "patch", id: patch.id });
                     onChange({ ...draft, answers: { ...draft.answers, area: patch.id } });
@@ -411,14 +426,24 @@ export default function PlanIntake({
           }}
         >Back</button>
         <div>
-          <button type="button" className="planIntake__skip" onClick={() => onChange(settlePlanIntakeStep(draft, { skip: true }))}>
+          <button
+            type="button"
+            className="planIntake__skip"
+            onClick={() => {
+              cancelLocationRequest();
+              onChange(settlePlanIntakeStep(draft, { skip: true }));
+            }}
+          >
             Skip for now
           </button>
           <button
             type="button"
             className="planIntake__continue"
             disabled={!planIntakeStepHasAnswer(draft)}
-            onClick={() => onChange(settlePlanIntakeStep(draft))}
+            onClick={() => {
+              cancelLocationRequest();
+              onChange(settlePlanIntakeStep(draft));
+            }}
           >
             {stepIndex === PLAN_INTAKE_STEPS.length - 1 ? "Use these details" : "Continue"}
           </button>

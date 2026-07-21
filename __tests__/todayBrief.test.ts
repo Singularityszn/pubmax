@@ -212,6 +212,19 @@ describe("rankTonightPicks", () => {
     expect(rankTonightPicks(rows, 3).map((row) => row.id)).toEqual(["a"]);
   });
 
+  it("preserves the previous unlimited behavior for a positive infinite limit", () => {
+    const rows = [
+      makeRow({ id: "a", title: "First" }),
+      makeRow({ id: "b", title: "Second" }),
+    ];
+    expect(rankTonightPicks(rows, Number.POSITIVE_INFINITY).map((row) => row.id)).toEqual([
+      "a",
+      "b",
+    ]);
+    expect(rankTonightPicks(rows, Number.NaN)).toEqual([]);
+    expect(rankTonightPicks(rows, Number.NEGATIVE_INFINITY)).toEqual([]);
+  });
+
   it("does not mutate the input array", () => {
     const rows = [makeRow({ id: "a" }), makeRow({ id: "b", confidence: "confirmed" })];
     const before = rows.map((r) => r.id);

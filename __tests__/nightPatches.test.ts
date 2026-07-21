@@ -58,9 +58,12 @@ describe("nearest night patch", () => {
     expect(nearestNightPatch(51.52, Number.POSITIVE_INFINITY)).toBeNull();
   });
 
-  it("rejects finite coordinates outside the configured London bounds", () => {
+  it("rejects finite coordinates outside Greater London's borough boundary", () => {
     expect(nearestNightPatch(53.48, -2.24)).toBeNull();
     expect(nearestNightPatch(51.52, -0.551)).toBeNull();
+    expect(nearestNightPatch(51.656, -0.397)).toBeNull(); // Watford
+    expect(nearestNightPatch(51.698, 0.11)).toBeNull(); // Epping
+    expect(nearestNightPatch(51.446, 0.218)).toBeNull(); // Dartford
   });
 });
 
