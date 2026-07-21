@@ -102,6 +102,17 @@ export default function SignInButton({
   const wasOpenRef = useRef(false);
   const menuId = useId();
 
+  // A successful provider start normally navigates away before its promise
+  // settles, leaving `busy` set. If Back restores this page from the BFCache,
+  // React state is restored too, so explicitly re-enable the provider buttons.
+  useEffect(() => {
+    const onPageShow = (event: PageTransitionEvent) => {
+      if (event.persisted) setBusy(null);
+    };
+    window.addEventListener("pageshow", onPageShow);
+    return () => window.removeEventListener("pageshow", onPageShow);
+  }, []);
+
   // Light-dismiss for the compact popover: outside pointer-down or Escape.
   // Listeners only exist while the menu is open, so this costs nothing when
   // closed and never runs for the non-compact (standalone) variant. Tab/
