@@ -282,7 +282,7 @@ export default function NearMeNow({
           <UnsupportedAreaPreview
             nearest={outsideCoverage}
             source="near-empty"
-            onPickPatch={(next) => pickPatch(next)}
+            onPickPatch={(next: NightPatch) => pickPatch(next)}
           />
           <footer className="nmnFoot nmnFootArea">
             <button type="button" className="nmnRetry nmnRetryGhost" onClick={locate}>
@@ -327,7 +327,7 @@ export default function NearMeNow({
               <UnsupportedAreaPreview
                 area={areaLabel}
                 source="area-picker"
-                onPickPatch={(next) => pickPatch(next)}
+                onPickPatch={(next: NightPatch) => pickPatch(next)}
               />
             </div>
           ) : null}
