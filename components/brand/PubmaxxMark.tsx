@@ -31,11 +31,16 @@ export const MARK_GEOMETRY = {
 // Token colours with literal fallbacks so the mark also renders correctly
 // outside the app's CSS (Storybook, emails, satori is handled separately in
 // lib/ogBrand.tsx). Inside the app these resolve to the live theme tokens.
-const COL = {
+// Exported so the Strike animation family (PubmaxxMarkStrike) can single-source
+// the same palette without re-declaring the tokens — a drift here would ship a
+// mark whose animated draw finishes in a different colour than the static rest.
+export const MARK_COLORS = {
   coral: "var(--brass, #ff5a5f)",
   bright: "var(--brass-bright, #ff7a55)",
   inkDeep: "var(--ink-deep, #060607)",
 } as const;
+
+const COL = MARK_COLORS;
 
 export type PubmaxxMarkVariant = "mono" | "duo" | "plaque";
 

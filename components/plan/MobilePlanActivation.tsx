@@ -3,6 +3,7 @@
 import { Mic, MicOff, ShieldCheck, Sparkles } from "lucide-react";
 import { startTransition, useEffect, useRef, useState } from "react";
 
+import PubmaxxLoadingEmber from "@/components/brand/PubmaxxLoadingEmber";
 import { Button } from "@/components/ui/button";
 import { Chip } from "@/components/ui/chip";
 import { useAuth } from "@/components/auth/AuthProvider";
@@ -212,7 +213,7 @@ export function MobilePlanActivation({
         <Chip aria-pressed={stepFree} onClick={() => setStepFree((current) => !current)}>Step-free</Chip>
         <Chip aria-pressed={zeroProof} onClick={() => setZeroProof((current) => !current)}>0.0 options</Chip>
       </div>
-      <Button type="button" size="large" className="w-full" disabled={loading} aria-busy={loading} onClick={() => void generate()}>{loading ? "Building route" : "Build 3-stop route"}</Button>
+      <Button type="button" size="large" className="w-full" disabled={loading} aria-busy={loading} onClick={() => void generate()}>{loading ? <span className="mobilePlannerIntentPending"><PubmaxxLoadingEmber size={15} />Building route</span> : "Build 3-stop route"}</Button>
       {error ? <p className="mobilePlannerIntentError" role="alert">{error}</p> : null}
       {result ? (
         <div className="mobilePlannerResult" role="status">
