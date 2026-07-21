@@ -227,6 +227,13 @@ export default function LandingPage() {
           </Link>
         </section>
       </main>
+
+      <footer className="lpFloor">
+        <p>
+          PUBMAXX is for over-18s. Drink responsibly, know the facts at{" "}
+          <a href="https://www.drinkaware.co.uk" rel="noreferrer">drinkaware.co.uk</a>.
+        </p>
+      </footer>
     </div>
   );
 }

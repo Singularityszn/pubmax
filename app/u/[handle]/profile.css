@@ -1300,3 +1300,10 @@
   .memoryStoryReview__confirmation { grid-template-columns: auto minmax(0, 1fr); }
   .memoryStoryReview__confirmation button { grid-column: 1 / -1; width: 100%; }
 }
+
+/* CAP Code section 18 responsible floor (docs/CAP_COPY_AUDIT_2026-07-21.md,
+   owner ruling #3). Same quiet, permanent over-18s + Drinkaware line the
+   marketing page carries, at the base of the You surface. No banner, no nag. */
+.profilePage .profileFloor { margin-top: 32px; padding: 22px 4px 8px; border-top: 1px solid var(--line); text-align: center; }
+.profilePage .profileFloor p { margin: 0; color: var(--ink-soft); font-size: 12px; line-height: 1.55; }
+.profilePage .profileFloor a { color: inherit; text-decoration: underline; text-underline-offset: 2px; }
