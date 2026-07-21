@@ -6,15 +6,16 @@ reviewed surface—even when a POST is semantically read-only. The regression te
 Adding a sixty-second mutating route or removing its authority/abuse boundary fails
 CI until this certification is deliberately updated.
 
-> **Inventory: 65 mutating routes.** The count grew 60 → 61 (email-capture
+> **Inventory: 66 mutating routes.** The count grew 60 → 61 (email-capture
 > `POST /api/email-subscribers`) → 62 (native `POST /api/push-tokens`) → 63 (the
 > Social Loop "we're out" `POST /api/check-ins`) → 64 (the vibe-vote
 > `POST /api/plans/[id]/vibe-votes`) → 65 (the area-demand capture
-> `POST /api/area-demand`). Token-gated GET confirm/unsubscribe endpoints and
-> read-only GETs (the Social Loop reads, the vibe-vote tally read) are
-> deliberately excluded from the mutating-verb inventory. The number is a
-> merge-conflict coordination point across in-flight branches — reconcile it (not
-> silently overwrite) when branches meet.
+> `POST /api/area-demand`) → 66 (the structured Visit Reports
+> `POST /api/visit-reports`). Token-gated GET confirm/unsubscribe endpoints and
+> read-only GETs (the Social Loop reads, the vibe-vote tally read, the Visit
+> Report per-venue summary read) are deliberately excluded from the mutating-verb
+> inventory. The number is a merge-conflict coordination point across in-flight
+> branches — reconcile it (not silently overwrite) when branches meet.
 
 ## Boundary classes
 
@@ -171,6 +172,49 @@ Plan member capability and use idempotency keys or atomic store operations.
   503 `STORE_UNAVAILABLE` rather than a fake success. Disabling is
   consequence-free: delete/503 the route and the preview's capture button fails
   soft to a quiet retry line while the alternative (nearest patch) still renders.
+
+### `app/api/visit-reports` — structured Visit Reports (route 66)
+
+- **Route / method:** `POST app/api/visit-reports/route.ts` (Wayfinder 3.4,
+  `lane/visit-reports`). Structured, recency-weighted reads of what a pub is like
+  on the night (busyness, atmosphere, would-return, price sanity, an optional
+  short note) — the structured sibling of the free-text Pint Drop. The route also
+  exports a read-only `GET` (the per-venue reports + the honest summary, which
+  carries NO star score) which is NOT a mutating verb and is not counted.
+- **Validation:** `validateVisitReport` (`lib/visitReports.ts`) — venue + handle
+  required; every structured field is coerced to a fixed allowlist (unknown →
+  null, mirrored by the DB CHECK constraints in migration 0046); the note is
+  cleaned, capped at 140 chars, and **slop-filtered at write time**
+  (`lib/slopFilter`); `visitedAt` resolves to a London "evening date" and a
+  future night is rejected; at least ONE signal must survive or the body 400s
+  (`INVALID_REPORT`) before the limiter/store is touched.
+- **Rate limit (boundary):** durable per-handle + hashed-IP `isLimited` with key
+  `visit-report:${handle}:${hashIp(clientIp(request))}` (raw IP never keyed) —
+  429 `{ code: "RATE_LIMITED", retryable: true }` on exceed. The public `report`
+  action carries the same two-axis flood cap as Pint Drops (per-target + a
+  per-actor budget of 1). This is the certification boundary (rate_limit class).
+- **Moderation (boundary):** the `restore` / `keep_hidden` actions require the
+  admin token (`isModerator` — moderator class); a public `report` records a
+  per-actor-deduped flag and hides the row only once
+  `VISIT_REPORT_HIDE_THRESHOLD` (2) DISTINCT actors flag it (never on the first).
+  Hidden rows surface in the admin moderation queue (`GET ?status=hidden`),
+  mirroring the Pint Drop hidden-queue flow.
+- **Auth stance:** the self-asserted handle resolved through
+  `resolveMessageHandle` (JWT-linked handle wins when signed in) and gated by
+  `gateHandleAction` — the same demo identity boundary as a Pint Drop, rating, or
+  check-in. Creation pauses under the solo-operator social freeze; reporting and
+  moderation stay open. One report per handle per venue per night: the store
+  upserts on `(venue_id, handle, visited_at)`.
+- **Rollback / kill:** durable rows live in `public.structured_visit_reports`
+  (migration 0046, RLS on, anon/authenticated revoked, service_role only — a NEW
+  table, distinct from the Pint Drop `visit_reports` table); `truncate` is a safe
+  reset. Until the OWNER applies 0046 the store fails soft to process-memory
+  (`lib/visitReportsStore.ts`) — capture keeps working and becomes durable the
+  moment the table lands, no code change (the same soft degradation area demand
+  ships with). A hard durable-store write failure answers 503
+  `STORE_UNAVAILABLE` rather than a fake success. Disabling is consequence-free:
+  delete/503 the route and the venue-sheet panel fails soft to its empty state
+  while the existing star ratings still render.
 
 ## Certification command
 

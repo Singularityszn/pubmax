@@ -1,0 +1,220 @@
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+
+// Hermetic tests for BOTH backends of the structured visit reports store. The
+// memory backend is exercised directly; the Supabase backend runs against an
+// in-memory fluent mock of the admin client (no network), proving the durable
+// path's upsert / report / moderate match the process-memory contract and that a
+// schema-miss fails soft to memory.
+
+import {
+  __resetVisitReports,
+  memoryVisitReportStore,
+  supabaseVisitReportStore,
+} from "@/lib/visitReportsStore";
+import type { VisitReportFields } from "@/lib/visitReports";
+
+type Row = Record<string, unknown>;
+
+const db = vi.hoisted(() => ({ rows: [] as Row[], schemaMiss: false, failWrites: false }));
+
+vi.mock("@/lib/supabase", () => {
+  const TABLE_MISSING = "Could not find the table 'public.structured_visit_reports'";
+
+  function makeQuery() {
+    const state: {
+      op: "select" | "insert" | "update" | null;
+      insertRow: Row | null;
+      patch: Row | null;
+      filters: { col: string; value: unknown }[];
+      single: boolean;
+    } = { op: null, insertRow: null, patch: null, filters: [], single: false };
+
+    const matches = (r: Row) => state.filters.every((f) => r[f.col] === f.value);
+
+    const result = () => {
+      if (db.schemaMiss) return { data: null, error: { message: TABLE_MISSING } };
+      const rows = db.rows.filter(matches);
+      if (state.op === "insert") {
+        if (db.failWrites) return { data: null, error: { message: "insert boom" } };
+        const row = state.insertRow!;
+        const dup = db.rows.find(
+          (r) =>
+            r.venue_id === row.venue_id && r.handle === row.handle && r.visited_at === row.visited_at,
+        );
+        if (dup) return { data: null, error: { code: "23505", message: "duplicate" } };
+        db.rows.push({ ...row });
+        return { data: null, error: null };
+      }
+      if (state.op === "update") {
+        if (db.failWrites) return { data: null, error: { message: "update boom" } };
+        rows.forEach((r) => Object.assign(r, state.patch));
+        return { data: rows.map((r) => ({ id: r.id })), error: null };
+      }
+      if (state.single) return { data: rows[0] ?? null, error: null };
+      return { data: rows, error: null };
+    };
+
+    const q: Record<string, unknown> = {
+      select(_cols?: string) {
+        if (!state.op) state.op = "select";
+        return q;
+      },
+      insert(row: Row) {
+        state.op = "insert";
+        state.insertRow = row;
+        return q;
+      },
+      update(patch: Row) {
+        state.op = "update";
+        state.patch = patch;
+        return q;
+      },
+      eq(col: string, value: unknown) {
+        state.filters.push({ col, value });
+        return q;
+      },
+      is(col: string, value: unknown) {
+        state.filters.push({ col, value });
+        return q;
+      },
+      order() {
+        return q;
+      },
+      limit() {
+        return q;
+      },
+      maybeSingle() {
+        state.single = true;
+        return Promise.resolve(result());
+      },
+      then(onFulfilled: (v: unknown) => unknown, onRejected?: (e: unknown) => unknown) {
+        return Promise.resolve(result()).then(onFulfilled, onRejected);
+      },
+    };
+    return q;
+  }
+
+  return {
+    isSupabaseConfigured: () => true,
+    requireSupabaseAdmin: () => ({ from: () => makeQuery() }),
+  };
+});
+
+const fields = (over: Partial<VisitReportFields> = {}): VisitReportFields => ({
+  venueId: "venue-1",
+  handle: "sam",
+  visitedAt: "2026-07-20",
+  busyness: "steady",
+  atmosphere: null,
+  wouldReturn: "yes",
+  priceSanity: "fine",
+  note: "",
+  ...over,
+});
+
+beforeEach(() => {
+  db.rows = [];
+  db.schemaMiss = false;
+  db.failWrites = false;
+  __resetVisitReports();
+});
+
+afterEach(() => {
+  vi.clearAllMocks();
+});
+
+describe("memoryVisitReportStore", () => {
+  it("creates a report and reads it back for the venue", async () => {
+    const dto = await memoryVisitReportStore.create(fields());
+    expect(dto.handle).toBe("sam");
+    const list = await memoryVisitReportStore.listForVenue("venue-1");
+    expect(list).toHaveLength(1);
+    expect(list[0].busyness).toBe("steady");
+  });
+
+  it("is idempotent: one report per handle per venue per night (upsert in place)", async () => {
+    const first = await memoryVisitReportStore.create(fields({ busyness: "quiet" }));
+    const second = await memoryVisitReportStore.create(fields({ busyness: "rammed" }));
+    // Same night → same row id, updated fields, not a second row.
+    expect(second.id).toBe(first.id);
+    const list = await memoryVisitReportStore.listForVenue("venue-1");
+    expect(list).toHaveLength(1);
+    expect(list[0].busyness).toBe("rammed");
+  });
+
+  it("a different night is a distinct report", async () => {
+    await memoryVisitReportStore.create(fields({ visitedAt: "2026-07-20" }));
+    await memoryVisitReportStore.create(fields({ visitedAt: "2026-07-21" }));
+    expect(await memoryVisitReportStore.listForVenue("venue-1")).toHaveLength(2);
+  });
+
+  it("hides only after two DISTINCT actors report; a same-actor repeat is a no-op", async () => {
+    const dto = await memoryVisitReportStore.create(fields());
+    // Same actor twice — still visible (counter never bumps twice).
+    expect(await memoryVisitReportStore.report(dto.id, "spam", "actor-a")).toBe(true);
+    expect(await memoryVisitReportStore.report(dto.id, "spam", "actor-a")).toBe(true);
+    expect(await memoryVisitReportStore.listForVenue("venue-1")).toHaveLength(1);
+    // A second distinct actor crosses the threshold → hidden.
+    expect(await memoryVisitReportStore.report(dto.id, "spam", "actor-b")).toBe(true);
+    expect(await memoryVisitReportStore.listForVenue("venue-1")).toHaveLength(0);
+    // Now in the moderator queue.
+    const queue = await memoryVisitReportStore.listForReview("hidden");
+    expect(queue.map((r) => r.id)).toContain(dto.id);
+  });
+
+  it("report on an unknown id is false", async () => {
+    expect(await memoryVisitReportStore.report("nope", undefined, "actor-a")).toBe(false);
+  });
+
+  it("moderate restores a hidden report and clears it from the queue", async () => {
+    const dto = await memoryVisitReportStore.create(fields());
+    await memoryVisitReportStore.report(dto.id, undefined, "a");
+    await memoryVisitReportStore.report(dto.id, undefined, "b");
+    expect(await memoryVisitReportStore.moderate(dto.id, "visible", "looks fine")).toBe(true);
+    expect(await memoryVisitReportStore.listForVenue("venue-1")).toHaveLength(1);
+    expect(await memoryVisitReportStore.listForReview("hidden")).toHaveLength(0);
+  });
+});
+
+describe("supabaseVisitReportStore", () => {
+  it("inserts, upserts per night, and reads back", async () => {
+    const first = await supabaseVisitReportStore.create(fields({ busyness: "quiet" }));
+    expect(db.rows).toHaveLength(1);
+    // Same night again → update in place (no second row), same id.
+    const second = await supabaseVisitReportStore.create(fields({ busyness: "rammed" }));
+    expect(db.rows).toHaveLength(1);
+    expect(second.id).toBe(first.id);
+    const list = await supabaseVisitReportStore.listForVenue("venue-1");
+    expect(list).toHaveLength(1);
+    expect(list[0].busyness).toBe("rammed");
+  });
+
+  it("report dedupes per actor and hides at the threshold", async () => {
+    const dto = await supabaseVisitReportStore.create(fields());
+    await supabaseVisitReportStore.report(dto.id, "spam", "a");
+    await supabaseVisitReportStore.report(dto.id, "spam", "a"); // dup — no-op
+    expect((db.rows[0].report_count as number)).toBe(1);
+    expect(db.rows[0].status).toBe("visible");
+    await supabaseVisitReportStore.report(dto.id, "spam", "b");
+    expect((db.rows[0].report_count as number)).toBe(2);
+    expect(db.rows[0].status).toBe("hidden");
+    // Public read excludes it; the moderator queue includes it.
+    expect(await supabaseVisitReportStore.listForVenue("venue-1")).toHaveLength(0);
+    expect(await supabaseVisitReportStore.listForReview("hidden")).toHaveLength(1);
+  });
+
+  it("throws on a hard write failure (route maps that to 503)", async () => {
+    db.failWrites = true;
+    await expect(supabaseVisitReportStore.create(fields())).rejects.toThrow();
+  });
+
+  it("fails soft to memory on a schema miss (table not yet applied)", async () => {
+    db.schemaMiss = true;
+    const dto = await supabaseVisitReportStore.create(fields());
+    expect(dto.handle).toBe("sam");
+    // The memory fallback holds the row.
+    expect(await memoryVisitReportStore.listForVenue("venue-1")).toHaveLength(1);
+    // A read also fails soft to memory.
+    expect(await supabaseVisitReportStore.listForVenue("venue-1")).toHaveLength(1);
+  });
+});
