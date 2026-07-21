@@ -96,20 +96,31 @@ export function priceEvidenceUsableForCeiling(evidence: PlanPriceEvidence): bool
     && (evidence.confidenceState === "fresh" || evidence.confidenceState === "aging");
 }
 
-function londonClock(iso: string): { weekday: string; minute: number } | null {
+function londonClock(iso: string): { weekday: string; minute: number; localDay: number } | null {
   if (validIso(iso) === null) return null;
   const parts = new Intl.DateTimeFormat("en-GB", {
     timeZone: LONDON_TIME_ZONE,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
     weekday: "long",
     hour: "2-digit",
     minute: "2-digit",
     hourCycle: "h23",
   }).formatToParts(new Date(iso));
   const weekday = parts.find((part) => part.type === "weekday")?.value;
+  const year = Number(parts.find((part) => part.type === "year")?.value);
+  const month = Number(parts.find((part) => part.type === "month")?.value);
+  const day = Number(parts.find((part) => part.type === "day")?.value);
   const hour = Number(parts.find((part) => part.type === "hour")?.value);
   const minute = Number(parts.find((part) => part.type === "minute")?.value);
-  return weekday && Number.isFinite(hour) && Number.isFinite(minute)
-    ? { weekday, minute: hour * 60 + minute }
+  return weekday
+    && Number.isInteger(year)
+    && Number.isInteger(month)
+    && Number.isInteger(day)
+    && Number.isFinite(hour)
+    && Number.isFinite(minute)
+    ? { weekday, minute: hour * 60 + minute, localDay: Date.UTC(year, month - 1, day) / 86_400_000 }
     : null;
 }
 
@@ -121,24 +132,32 @@ function rangeMinute(value: string): number | null {
   return hour <= 29 && minute <= 59 ? hour * 60 + minute : null;
 }
 
-function rangeContains(ranges: readonly WeeklyTimeRange[], iso: string): boolean {
+function containingRangeOccurrences(ranges: readonly WeeklyTimeRange[], iso: string): Set<string> {
   const clock = londonClock(iso);
-  if (!clock) return false;
+  if (!clock) return new Set();
   const weekdays = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
   const index = weekdays.indexOf(clock.weekday);
-  if (index < 0) return false;
+  if (index < 0) return new Set();
+  const occurrences = new Set<string>();
   for (const offset of [0, -1]) {
     const weekday = weekdays[(index + offset + 7) % 7];
-    for (const range of ranges.filter((item) => item.weekday === weekday)) {
+    for (const [rangeIndex, range] of ranges.entries()) {
+      if (range.weekday !== weekday) continue;
       const starts = rangeMinute(range.startsAt);
       const ends = rangeMinute(range.endsAt);
       if (starts === null || ends === null) continue;
       const adjustedEnd = ends <= starts ? ends + 24 * 60 : ends;
       const minute = offset === -1 ? clock.minute + 24 * 60 : clock.minute;
-      if (minute >= starts && minute < adjustedEnd) return true;
+      if (minute >= starts && minute < adjustedEnd) {
+        occurrences.add(`${rangeIndex}:${clock.localDay + offset}`);
+      }
     }
   }
-  return false;
+  return occurrences;
+}
+
+function rangeContains(ranges: readonly WeeklyTimeRange[], iso: string): boolean {
+  return containingRangeOccurrences(ranges, iso).size > 0;
 }
 
 export function accessNeedSatisfied(
@@ -158,8 +177,15 @@ export function accessNeedSatisfied(
 }
 
 function intervalIsListedOpen(schedule: PlanOpeningSchedule, startsAt: string, endsAt: string): boolean {
-  return rangeContains(schedule.ranges, startsAt)
-    && rangeContains(schedule.ranges, new Date(Date.parse(endsAt) - 60_000).toISOString());
+  const startTimestamp = validIso(startsAt);
+  const endTimestamp = validIso(endsAt);
+  if (startTimestamp === null || endTimestamp === null || endTimestamp <= startTimestamp) return false;
+  const startOccurrences = containingRangeOccurrences(schedule.ranges, startsAt);
+  const endOccurrences = containingRangeOccurrences(
+    schedule.ranges,
+    new Date(endTimestamp - 1).toISOString(),
+  );
+  return [...startOccurrences].some((occurrence) => endOccurrences.has(occurrence));
 }
 
 export function assessOpeningSchedule(
