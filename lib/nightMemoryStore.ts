@@ -17,6 +17,7 @@ import {
 import { isSupabaseConfigured, requireSupabaseAdmin } from "@/lib/supabase";
 import { profileStore } from "@/lib/profileStore";
 import type { PendingPlanRecap } from "@/lib/planRecap";
+import { redactPublicStoryFields, redactStoryView, type DepartedContributor } from "@/lib/storyRedaction";
 import { cleanText } from "@/lib/textClean";
 
 type PublishVisibility = "public" | "unlisted";
@@ -487,6 +488,74 @@ async function getConsents(storyId: string): Promise<MomentConsent[]> {
   return error ? [] : (data ?? []).map((row) => consentFromRow(row as Record<string, unknown>));
 }
 
+/**
+ * The departed contributors of a Story (Wayfinder 5.5) — everyone whose content
+ * and identity the publish gate must redact. Two independent, additive triggers,
+ * unioned here so redaction has ONE input regardless of how someone left:
+ *   • CONSENT WITHDRAWN — a contributor withdrew publication consent (the
+ *     existing per-owner consents API writes status "withdrawn").
+ *   • ACCOUNT DELETED — the profile-delete hook marked their contributor rows
+ *     "withdrawn" across every Story (markContributorsDepartedByProfileId).
+ * Each departed id is resolved to its handle + display name (fail-soft: a lookup
+ * miss still redacts the owned Moments, it just cannot scrub free-text mentions).
+ */
+async function resolveDepartedContributors(
+  contributorsList: StoryContributor[],
+  consentsList: MomentConsent[],
+): Promise<DepartedContributor[]> {
+  const departedIds = new Set<string>();
+  for (const contributor of contributorsList) {
+    if (contributor.status === "withdrawn") departedIds.add(contributor.profileId);
+  }
+  for (const consent of consentsList) {
+    if (consent.status === "withdrawn") departedIds.add(consent.ownerId);
+  }
+  if (departedIds.size === 0) return [];
+  const store = profileStore();
+  return Promise.all(
+    [...departedIds].sort().map(async (profileId) => {
+      const profile = await store.getByUserId(profileId).catch(() => null);
+      return { profileId, handle: profile?.handle ?? null, displayName: profile?.displayName ?? null };
+    }),
+  );
+}
+
+/**
+ * Mark a departing account's Story contributions as "withdrawn" everywhere at
+ * once — the account-deletion half of the redaction trigger (Wayfinder 5.5).
+ * Additive and idempotent: only accepted rows flip, so re-running is a no-op, and
+ * it never frees the host slot or touches Moments (redaction is emission-time).
+ * Returns the number of contributions marked so the caller can log loudly.
+ */
+export async function markContributorsDepartedByProfileId(profileId: string): Promise<number> {
+  const id = typeof profileId === "string" ? profileId.trim() : "";
+  if (!id) return 0;
+  if (!isSupabaseConfigured()) {
+    let count = 0;
+    for (const [storyId, list] of contributors.entries()) {
+      let changed = false;
+      const next = list.map((contributor) => {
+        if (contributor.profileId === id && contributor.status === "accepted") {
+          changed = true;
+          count += 1;
+          return { ...contributor, status: "withdrawn" as const };
+        }
+        return contributor;
+      });
+      if (changed) contributors.set(storyId, next);
+    }
+    return count;
+  }
+  const { data, error } = await requireSupabaseAdmin()
+    .from("night_story_contributors")
+    .update({ status: "withdrawn" })
+    .eq("profile_id", id)
+    .eq("status", "accepted")
+    .select("story_id");
+  if (error) throw new Error(error.message);
+  return (data ?? []).length;
+}
+
 async function getStoryRaw(storyId: string): Promise<NightStory | null> {
   if (!isSupabaseConfigured()) return stories.get(storyId) ?? null;
   const admin = requireSupabaseAdmin();
@@ -508,11 +577,13 @@ export async function getNightStory(
   const story = await getStoryRaw(storyId);
   if (!story) return null;
   if (story.status === "published" && story.visibility !== "private") {
+    const contributorsList = await getContributors(storyId);
     const membership = actorId
-      ? (await getContributors(storyId)).some(
-          (item) => item.profileId === actorId && item.status === "accepted",
-        )
+      ? contributorsList.some((item) => item.profileId === actorId && item.status === "accepted")
       : false;
+    // A member gets the unredacted Story (their own workspace projection); the
+    // public projection is redacted at the same choke so the OG card + any
+    // public API read never carries a departed person's identity (5.5).
     if (membership) return story;
     const publicStory: PublicNightStory = {
       id: story.id,
@@ -526,7 +597,8 @@ export async function getNightStory(
       createdAt: story.createdAt,
       updatedAt: story.updatedAt,
     };
-    return publicStory;
+    const departed = await resolveDepartedContributors(contributorsList, await getConsents(storyId));
+    return redactPublicStoryFields(publicStory, departed);
   }
   if (!actorId) return null;
   const membership = (await getContributors(storyId)).some(
@@ -548,9 +620,21 @@ export async function getPublishedRecapSource(
 ): Promise<{ story: PublicNightStory; moments: NightMoment[] } | null> {
   const story = await getStoryRaw(storyId);
   if (!story || story.status !== "published" || story.visibility === "private") return null;
+
+  // The one-choke redaction (Wayfinder 5.5): a departing person's content and
+  // identity are erased here, at the single public-emission gate, so every
+  // downstream surface (recap page, recap OG, feed) inherits the erase with no
+  // second gate. Redaction is emission-time — the private source Moments below
+  // are never mutated; only this projected copy is.
+  const [contributorsList, consentsList] = await Promise.all([
+    getContributors(storyId),
+    getConsents(storyId),
+  ]);
+  const departed = await resolveDepartedContributors(contributorsList, consentsList);
+
   const allow = new Set(story.publishedMomentIds);
   if (allow.size === 0) {
-    return { story: safeNightStory(story), moments: [] };
+    return redactStoryView({ story: safeNightStory(story), moments: [], departed });
   }
   let storyMoments: NightMoment[];
   if (!isSupabaseConfigured()) {
@@ -564,7 +648,11 @@ export async function getPublishedRecapSource(
     if (error) return null;
     storyMoments = (data ?? []).map((row) => momentFromRow(row as Record<string, unknown>));
   }
-  return { story: safeNightStory(story), moments: storyMoments.filter((moment) => allow.has(moment.id)) };
+  return redactStoryView({
+    story: safeNightStory(story),
+    moments: storyMoments.filter((moment) => allow.has(moment.id)),
+    departed,
+  });
 }
 
 export type NightStoryWorkspace = {
