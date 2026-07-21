@@ -133,13 +133,19 @@ const CONFIDENCE_RANK: Record<WhatsOnConfidence, number> = {
 };
 
 /**
- * Rank already-windowed What's-On rows for the brief and take the top `limit`.
+ * Rank already-windowed What's-On rows for the brief and take up to `limit`
+ * distinct titles. Chain-wide promotions can arrive once per venue; treating
+ * those copies as three separate recommendations makes the brief look broken.
+ * Title identity is deliberately conservative rather than fuzzy: Unicode
+ * compatibility form, case, and whitespace are ignored, but punctuation and
+ * wording still distinguish genuinely different listings.
+ *
  * Highest confidence first, then soonest start, then original order (stable).
  * Pure: the caller supplies rows already filtered to tonight's window via the
  * store's #409 interval-overlap windowing. An empty input yields an empty list.
  */
 export function rankTonightPicks(rows: readonly WhatsOnRow[], limit = 3): WhatsOnRow[] {
-  return rows
+  const ranked = rows
     .map((row, index) => ({ row, index }))
     .sort((a, b) => {
       const byConfidence = CONFIDENCE_RANK[b.row.confidence] - CONFIDENCE_RANK[a.row.confidence];
@@ -147,9 +153,28 @@ export function rankTonightPicks(rows: readonly WhatsOnRow[], limit = 3): WhatsO
       const byStart = Date.parse(a.row.startsAt) - Date.parse(b.row.startsAt);
       if (Number.isFinite(byStart) && byStart !== 0) return byStart;
       return a.index - b.index;
-    })
-    .slice(0, Math.max(0, limit))
-    .map((entry) => entry.row);
+    });
+
+  const cappedLimit = limit === Number.POSITIVE_INFINITY
+    ? ranked.length
+    : Number.isFinite(limit)
+      ? Math.max(0, Math.floor(limit))
+      : 0;
+  if (cappedLimit === 0) return [];
+  const seenTitles = new Set<string>();
+  const picks: WhatsOnRow[] = [];
+  for (const { row } of ranked) {
+    const titleKey = row.title
+      .normalize("NFKC")
+      .toLocaleLowerCase("en-GB")
+      .trim()
+      .replace(/\s+/g, " ");
+    if (seenTitles.has(titleKey)) continue;
+    seenTitles.add(titleKey);
+    picks.push(row);
+    if (picks.length >= cappedLimit) break;
+  }
+  return picks;
 }
 
 // Serializable subset of a pick for the client card (the row's link is resolved

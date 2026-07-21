@@ -32,6 +32,7 @@ import IdentityNudge from "@/components/identity/IdentityNudge";
 import { exchangeAuthCallbackCode } from "@/lib/authCallbackClient";
 import { getSupabaseBrowser, isAuthConfigured } from "@/lib/authClient";
 import {
+  AUTH_RETURN_FRAGMENT_RESTORED_EVENT,
   beginCoordinatedAuthAttempt,
   releaseAuthAttempt,
   scrubAuthCallback,
@@ -110,6 +111,26 @@ function browserLocalStorage(): Storage | null {
   }
 }
 
+function browserSessionStorage(): Storage | null {
+  try {
+    return window.sessionStorage;
+  } catch {
+    return null;
+  }
+}
+
+function browserLockManager(): LockManager | null {
+  try {
+    return typeof navigator !== "undefined" ? navigator.locks : null;
+  } catch {
+    return null;
+  }
+}
+
+function releaseBrowserAuthAttempt(attemptId: string): void {
+  releaseAuthAttempt(attemptId, browserLocalStorage(), browserSessionStorage());
+}
+
 async function prepareAuthCallback(
   currentUrl: string,
   requestedNext?: string,
@@ -117,9 +138,12 @@ async function prepareAuthCallback(
   return beginCoordinatedAuthAttempt(
     currentUrl,
     requestedNext,
-    browserLocalStorage(),
-    globalThis.crypto,
-    typeof navigator !== "undefined" ? navigator.locks : null,
+    {
+      persistentStorage: browserLocalStorage(),
+      tabStorage: browserSessionStorage(),
+      cryptoProvider: globalThis.crypto,
+      lockManager: browserLockManager(),
+    },
   );
 }
 
@@ -192,7 +216,7 @@ export function AuthProvider({ children }: { children: ReactNode }): React.JSX.E
   const callbackExchangeInFlight = useRef<
     Promise<{ session: Session | null; failed: boolean }> | null
   >(null);
-  const capturedCallback = useRef<CapturedAuthCallback | null | undefined>(undefined);
+  const capturedCallback = useRef<Promise<CapturedAuthCallback | null> | undefined>(undefined);
 
   useEffect(() => {
     const user = session?.user ?? null;
@@ -354,10 +378,17 @@ export function AuthProvider({ children }: { children: ReactNode }): React.JSX.E
       capturedCallback.current = scrubAuthCallback(
         window.location.href,
         (cleanUrl) => window.history.replaceState(window.history.state, "", cleanUrl),
-        browserLocalStorage(),
+        {
+          persistentStorage: browserLocalStorage(),
+          tabStorage: browserSessionStorage(),
+          lockManager: browserLockManager(),
+          onFragmentRestored: () => {
+            window.dispatchEvent(new Event(AUTH_RETURN_FRAGMENT_RESTORED_EVENT));
+          },
+        },
       );
     }
-    const callbackAttempt = capturedCallback.current?.attempt ?? null;
+    const callbackCapture = capturedCallback.current ?? Promise.resolve(null);
     const supabase = getSupabaseBrowser();
     // Unconfigured / SSR-only: nothing to subscribe to. Flip loading off in a
     // microtask so we never setState synchronously in the effect body.
@@ -365,11 +396,16 @@ export function AuthProvider({ children }: { children: ReactNode }): React.JSX.E
       let cancelled = false;
       queueMicrotask(() => {
         if (cancelled) return;
-        if (callbackAttempt?.attemptId) {
-          releaseAuthAttempt(callbackAttempt.attemptId, browserLocalStorage());
-        }
-        if (callbackAttempt) setAuthCallbackError(AUTH_CALLBACK_ERROR_MESSAGE);
         setLoading(false);
+      });
+      void callbackCapture.then((captured) => {
+        const callbackAttempt = captured?.attempt ?? null;
+        if (callbackAttempt?.attemptId) {
+          releaseBrowserAuthAttempt(callbackAttempt.attemptId);
+        }
+        captured?.releaseCoordination();
+        if (cancelled) return;
+        if (callbackAttempt) setAuthCallbackError(AUTH_CALLBACK_ERROR_MESSAGE);
       });
       return () => {
         cancelled = true;
@@ -413,24 +449,30 @@ export function AuthProvider({ children }: { children: ReactNode }): React.JSX.E
     // one-time URL parameters are removed on both success and failure.
     void (async () => {
       await Promise.resolve();
+      const captured = await callbackCapture;
+      const callbackAttempt = captured?.attempt ?? null;
       let exchangedSession: Session | null = null;
       let exchangeFailed = Boolean(
         callbackAttempt &&
           (callbackAttempt.providerError || !callbackAttempt.code || !callbackAttempt.attemptId),
       );
-      if (callbackAttempt?.code && !callbackAttempt.providerError) {
-        if (!callbackExchangeInFlight.current) {
-          callbackExchangeInFlight.current = exchangeAuthCallbackCode(
-            supabase.auth,
-            callbackAttempt.code,
-          );
+      try {
+        if (callbackAttempt?.code && !callbackAttempt.providerError) {
+          if (!callbackExchangeInFlight.current) {
+            callbackExchangeInFlight.current = exchangeAuthCallbackCode(
+              supabase.auth,
+              callbackAttempt.code,
+            );
+          }
+          const exchange = await callbackExchangeInFlight.current;
+          exchangedSession = exchange.session;
+          exchangeFailed = exchange.failed;
         }
-        const exchange = await callbackExchangeInFlight.current;
-        exchangedSession = exchange.session;
-        exchangeFailed = exchange.failed;
-      }
-      if (callbackAttempt?.attemptId) {
-        releaseAuthAttempt(callbackAttempt.attemptId, browserLocalStorage());
+      } finally {
+        if (callbackAttempt?.attemptId) {
+          releaseBrowserAuthAttempt(callbackAttempt.attemptId);
+        }
+        captured?.releaseCoordination();
       }
       if (!active) return;
       if (exchangeFailed) setAuthCallbackError(AUTH_CALLBACK_ERROR_MESSAGE);
@@ -480,10 +522,10 @@ export function AuthProvider({ children }: { children: ReactNode }): React.JSX.E
         provider: "google",
         options: { redirectTo: attempt.callbackUrl },
       });
-      if (error) releaseAuthAttempt(attempt.id, browserLocalStorage());
+      if (error) releaseBrowserAuthAttempt(attempt.id);
       return { error: error ? error.message : null };
     } catch {
-      releaseAuthAttempt(attempt.id, browserLocalStorage());
+      releaseBrowserAuthAttempt(attempt.id);
       return { error: "Sign-in could not be started. Try again." };
     }
   }, []);
@@ -506,10 +548,10 @@ export function AuthProvider({ children }: { children: ReactNode }): React.JSX.E
           redirectTo: attempt.callbackUrl,
         },
       });
-      if (error) releaseAuthAttempt(attempt.id, browserLocalStorage());
+      if (error) releaseBrowserAuthAttempt(attempt.id);
       return { error: error ? error.message : null };
     } catch {
-      releaseAuthAttempt(attempt.id, browserLocalStorage());
+      releaseBrowserAuthAttempt(attempt.id);
       return { error: "Sign-in could not be started. Try again." };
     }
   }, []);
@@ -527,7 +569,7 @@ export function AuthProvider({ children }: { children: ReactNode }): React.JSX.E
       if (!attempt.ok) return { status: "error", message: attempt.message };
       const result = await requestMagicLink(supabase.auth, email, attempt.callbackUrl);
       if (result.status !== "sent") {
-        releaseAuthAttempt(attempt.id, browserLocalStorage());
+        releaseBrowserAuthAttempt(attempt.id);
       }
       return result;
     },

@@ -11,6 +11,7 @@ const realFetch = global.fetch;
 const ORIGINAL_SUPABASE_URL = process.env.SUPABASE_URL;
 const ORIGINAL_SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const ORIGINAL_TOKEN = process.env.EVENTBRITE_API_TOKEN;
+const FIXTURE_NOW = new Date("2026-07-18T17:00:00.000Z");
 
 const musicEvent = {
   id: "eb-1",
@@ -23,6 +24,8 @@ const musicEvent = {
 
 beforeEach(() => {
   vi.restoreAllMocks();
+  vi.useFakeTimers();
+  vi.setSystemTime(FIXTURE_NOW);
   resetEventbriteCache();
   delete process.env.SUPABASE_URL;
   delete process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -30,6 +33,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  vi.useRealTimers();
   global.fetch = realFetch;
   if (ORIGINAL_SUPABASE_URL === undefined) delete process.env.SUPABASE_URL;
   else process.env.SUPABASE_URL = ORIGINAL_SUPABASE_URL;
@@ -69,10 +73,26 @@ describe("GET /api/events/tonight", () => {
     expect(res.status).toBe(200);
     expect(res.headers.get("cache-control")).toMatch(/s-maxage=/);
     const body = await res.json();
-    // Rows only survive if within tonight's window relative to the real Date.now();
-    // the shape + provenance contract is what we assert here.
-    expect(Array.isArray(body.rows)).toBe(true);
-    expect(body.providers[0]).toMatchObject({ name: "eventbrite", configured: true });
+    expect(body.rows).toEqual([
+      {
+        id: "events-eb-1fe06oj",
+        placeName: "The Windmill Brixton",
+        kind: "music",
+        startsAt: "2026-07-18T19:00:00.000Z",
+        title: "Basement Live Session",
+        source: {
+          label: "Eventbrite",
+          url: musicEvent.url,
+        },
+        observedAt: FIXTURE_NOW.toISOString(),
+        confidence: "listed",
+        lat: 51.4626,
+        lng: -0.1145,
+      },
+    ]);
+    expect(body.providers).toEqual([
+      { name: "eventbrite", configured: true, rows: 1 },
+    ]);
   });
 
   it("honours the flat { error, rows: [] } contract with a 429 when rate-limited", async () => {

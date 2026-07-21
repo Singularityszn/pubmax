@@ -19,9 +19,9 @@ import {
   classifySlimShards,
 } from "./lib/slimShards.mjs";
 import {
-  isCanonicalNightOutPlaceSourceUrl,
-  nightOutPlaceSourceName,
-} from "../lib/nightOutPlaceSourceUrl.mjs";
+  nightOutPlaceProvenanceRegistryValidationErrors,
+  nightOutPlaceSnapshotValidationErrors,
+} from "../lib/nightOutPlaceContract.mjs";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT_DIR = join(__dirname, "..");
@@ -96,10 +96,8 @@ const POI_CATEGORIES = new Set([
   "sight",
 ]);
 
-// Greater London bounding box. Coordinates are [lng, lat] to match
-// lib/landmarks.ts / lib/pois.ts convention. Kept in lockstep with
-// scripts/export_app_dataset_json.py and scripts/build_slim_index.mjs so the
-// export, the slim index, and this validator all agree on "in London".
+// Generic bundled-map safety bounds. Night-out places do not use this helper:
+// their authoritative bounds live in lib/nightOutPlaceContract.mjs.
 const LON_MIN = -0.55;
 const LON_MAX = 0.3;
 const LAT_MIN = 51.26;
@@ -1374,9 +1372,6 @@ function validateLateFoodEvidenceSnapshot() {
   return { ok, count };
 }
 
-// This is a boundary validator: keeping every field rule visible in one place
-// is more useful than splitting it solely to satisfy a cyclomatic heuristic.
-// eslint-disable-next-line complexity
 function validateNightOutPlacesSnapshot() {
   const name = "public/data/night_out_places/latest.json";
   const path = join(DATA_DIR, "night_out_places", "latest.json");
@@ -1391,52 +1386,8 @@ function validateNightOutPlacesSnapshot() {
     console.log(`FAIL ${name}: could not read/parse (${e.message})`);
     return { ok: false, count: 0 };
   }
-  const iso = (value) => typeof value === "string" && Number.isFinite(Date.parse(value));
-  const text = (value, max) => typeof value === "string" && value.trim().length > 0 && value.length <= max;
-  // Mirror lib/slopFilter.ts because this validator stays dependency-free and
-  // scratch-copyable. The focused ingestion tests pin the live filter itself.
-  const slopPhrases = [
-    "whether you", "welcome to", "vibrant", "nestled", "boasts", "perfect spot", "unwind",
-    "for your entertainment", "something for everyone", "look no further", "hidden gem",
-    "must-visit", "must visit", "wide selection of food and drinks", "plan your visit today",
-  ];
-  const slop = (value) => {
-    const trimmed = String(value ?? "").trim();
-    const lower = trimmed.toLowerCase();
-    return slopPhrases.some((phrase) => lower.includes(phrase)) || /^\s*[^.!?]{0,160}!/.test(trimmed);
-  };
-  if (data?.version !== 1 || data?.provenanceRegistryVersion !== 1 || !iso(data?.generatedAt) ||
-      !["published", "empty"].includes(data?.status) || !Array.isArray(data?.places)) {
-    console.log(`FAIL ${name}: expected a v1 snapshot with generatedAt, status, registry version and places`);
-    return { ok: false, count: 0 };
-  }
-  if (data.status === "empty" && data.places.length !== 0) errs.add("empty snapshot contains rows");
-  if (data.status === "published" && data.places.length === 0) errs.add("published snapshot has no rows");
-  const ids = new Set();
-  for (const [index, row] of data.places.entries()) {
-    const where = `row ${index}`;
-    if (!text(row?.id, 120) || ids.has(row?.id)) errs.add(`${where}: missing or duplicate id`);
-    ids.add(row?.id);
-    if (![["restaurant", "near_pub_food"], ["attraction", "pre_pub_attraction"]]
-      .some(([category, job]) => row?.category === category && row?.job === job)) {
-      errs.add(`${where}: category and night-out job do not match`);
-    }
-    if (!text(row?.name, 160) || !text(row?.description, 600) || slop(row?.description)) {
-      errs.add(`${where}: name/description is missing or failed the slop filter`);
-    }
-    if (!text(row?.address, 300) || !text(row?.area, 120)) errs.add(`${where}: address and area are required`);
-    if (!isFiniteNumber(row?.location?.lat) || !isFiniteNumber(row?.location?.lng) ||
-        !inLondon(row?.location?.lng, row?.location?.lat)) errs.add(`${where}: location must be in Greater London bounds`);
-    if (!isCanonicalNightOutPlaceSourceUrl(row?.sourceUrl) || !text(row?.sourceName, 160) ||
-        nightOutPlaceSourceName(row?.sourceUrl) !== row.sourceName) {
-      errs.add(`${where}: source URL/name provenance is invalid`);
-    }
-    if (!iso(row?.observedAt) || !iso(row?.expiresAt) || Date.parse(row?.expiresAt) <= Date.parse(row?.observedAt) ||
-        Date.parse(row?.expiresAt) - Date.parse(row?.observedAt) > 30 * 24 * 60 * 60 * 1_000 ||
-        Date.parse(row?.observedAt) > Date.parse(data.generatedAt)) errs.add(`${where}: observation/expiry dates are invalid`);
-    if (!["exa", "firecrawl"].includes(row?.discoveredVia) || row?.extractedVia !== "firecrawl") {
-      errs.add(`${where}: producer lineage is invalid`);
-    }
+  for (const error of nightOutPlaceSnapshotValidationErrors(data)) {
+    errs.add(error);
   }
   const provenancePath = join(ROOT_DIR, "data", "night_out_place_provenance_registry.json");
   if (!existsSync(provenancePath)) {
@@ -1444,18 +1395,18 @@ function validateNightOutPlacesSnapshot() {
   } else {
     try {
       const registry = JSON.parse(readFileSync(provenancePath, "utf8"));
-      const ids = Array.isArray(registry?.producers) ? registry.producers.map((p) => p?.id) : [];
-      if (registry?.version !== data.provenanceRegistryVersion || !ids.includes("exa") || !ids.includes("firecrawl")) {
-        errs.add("provenance registry version/providers do not match the snapshot");
+      for (const error of nightOutPlaceProvenanceRegistryValidationErrors(registry, data)) {
+        errs.add(error);
       }
     } catch (e) {
       errs.add(`provenance registry could not be read (${e.message})`);
     }
   }
   const ok = errs.count === 0;
-  console.log(`${ok ? "PASS" : "FAIL"} ${name}: ${data.places.length} sourced place(s), ${errs.count} error(s)`);
+  const count = Array.isArray(data?.places) ? data.places.length : 0;
+  console.log(`${ok ? "PASS" : "FAIL"} ${name}: ${count} sourced place(s), ${errs.count} error(s)`);
   if (!ok) errs.report();
-  return { ok, count: data.places.length };
+  return { ok, count };
 }
 
 // ---------------------------------------------------------------------------

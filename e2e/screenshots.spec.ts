@@ -179,6 +179,53 @@ test.describe("screenshot baseline", () => {
         await shot(page, `plan-${theme}-${viewportName}`);
       });
 
+      test("plan location success", async ({ page, context }) => {
+        test.skip(isDesktop || viewportName !== "390", "390px mobile evidence only");
+        await setTheme(page, theme);
+        await context.grantPermissions(["geolocation"]);
+        await context.setGeolocation({ latitude: 51.527, longitude: -0.08 });
+        const response = await page.goto("/plan");
+        expect(response?.status()).toBe(200);
+        await page.getByRole("button", { name: "Use my location" }).click();
+        await expect(page.locator(".planIntake__locationStatus")).toContainText(
+          "Shoreditch is your nearest supported area",
+        );
+        await shot(page, `plan-location-success-${theme}-${viewportName}`);
+      });
+
+      test("plan location failure", async ({ page, context }) => {
+        test.skip(isDesktop || viewportName !== "390", "390px mobile evidence only");
+        await setTheme(page, theme);
+        await context.grantPermissions(["geolocation"]);
+        await context.setGeolocation({ latitude: 53.48, longitude: -2.24 });
+        const response = await page.goto("/plan");
+        expect(response?.status()).toBe(200);
+        await page.getByRole("button", { name: "Clapham" }).click();
+        await page.getByRole("button", { name: "Use my location" }).click();
+        await expect(page.locator(".planIntake__locationStatus")).toContainText(
+          "outside London",
+        );
+        await expect(page.getByRole("button", { name: "Clapham" })).toHaveAttribute(
+          "aria-pressed",
+          "true",
+        );
+        await shot(page, `plan-location-failure-${theme}-${viewportName}`);
+      });
+
+      test("today title diversity", async ({ page }) => {
+        test.skip(isDesktop || viewportName !== "390", "390px mobile evidence only");
+        await setTheme(page, theme);
+        const response = await page.goto("/today");
+        expect(response?.status()).toBe(200);
+        await page.getByTestId("today-screen").waitFor({ state: "visible", timeout: 15_000 });
+        const titles = await page.locator(".todayPickTitle").allTextContents();
+        const normalized = titles.map((title) =>
+          title.normalize("NFKC").toLocaleLowerCase("en-GB").trim().replace(/\s+/g, " "),
+        );
+        expect(new Set(normalized).size).toBe(normalized.length);
+        await shot(page, `today-diversity-${theme}-${viewportName}`);
+      });
+
       test("shared planned night", async ({ page, request }) => {
         await setTheme(page, theme);
         const fixture = await createPlanFixture(request, "ready");
