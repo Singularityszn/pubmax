@@ -35,3 +35,14 @@ delete process.env.SUPABASE_SERVICE_ROLE_KEY;
 // ambient env. Tests that assert the off behaviour stub the flag explicitly
 // (see __tests__/demoContent.test.ts) and are unaffected.
 delete process.env.NEXT_PUBLIC_DEMO_CONTENT;
+
+// Same trap again for the cron freshness plane (#485): the Vercel build env
+// carries real provider keys (EXA_API_KEY on Production), and the cron route
+// tests assert the documented keyless default (skip + warn). Letting ambient
+// keys leak in turns those tests red only inside Vercel builds. Strip every
+// ingest/event provider key; tests that assert key-present behaviour stub
+// them explicitly via vi.stubEnv and are unaffected.
+delete process.env.EXA_API_KEY;
+delete process.env.FIRECRAWL_API_KEY;
+delete process.env.TICKETMASTER_API_KEY;
+delete process.env.SKIDDLE_API_KEY;
