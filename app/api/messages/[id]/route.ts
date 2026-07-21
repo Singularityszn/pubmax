@@ -10,6 +10,7 @@
 import { jsonNoStore } from "@/lib/apiResponses";
 import { requireLinkedActor } from "@/lib/messageAuth";
 import { messagesStore } from "@/lib/messagesStore";
+import { socialFreezeResponse } from "@/lib/opsFreeze";
 import { isLimited } from "@/lib/pintDrops";
 import { gateHandleAction } from "@/lib/profileOwnership";
 import { assertServerEnv } from "@/lib/serverEnv";
@@ -87,6 +88,11 @@ export async function POST(request: Request, { params }: Ctx): Promise<Response>
   }
 
   if (action === "send") {
+    // Solo-operator emergency freeze (U15): sending is a social write. The
+    // `report` branch above returns first, so reporting a message stays OPEN.
+    const frozen = socialFreezeResponse();
+    if (frozen) return frozen;
+
     const key = `msg-send:${handle}:${hashIp(clientIp(request))}`;
     if (await isLimited(key, key, SEND_LIMIT, SEND_WINDOW_MS)) {
       return jsonNoStore({ error: "Too many messages, slow down." }, { status: 429 });
