@@ -22,6 +22,7 @@ import {
   type NightAreaSlug,
 } from "@/lib/nightAreas";
 import { planningWeatherForArea } from "@/lib/weatherSnapshots";
+import { loadWeatherSnapshot } from "@/lib/weatherSnapshots.server";
 import { evaluateDrinkWeather } from "@/lib/drinkWeather";
 import {
   lensVenuePredicate,
@@ -68,7 +69,10 @@ export async function resolveTonightConditions(
   options: ResolveConditionsOptions,
 ): Promise<TonightConditionsSummary | null> {
   const { point, now } = options;
-  const snapshot = options.snapshot ?? weatherSnapshot;
+  // Store-first (the cron plane writes fresh readings to the durable store), then
+  // the committed snapshot file — the same honest ordering as
+  // lib/weatherSnapshots.server. An injected `snapshot` (tests) bypasses both.
+  const snapshot = options.snapshot ?? (await loadWeatherSnapshot()) ?? weatherSnapshot;
   const loadVenues = options.loadVenues ?? loadConciergeVenues;
 
   const area = point
