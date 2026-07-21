@@ -295,6 +295,7 @@
   .mobilePlannerIntentChips::-webkit-scrollbar { display: none; }
   .mobilePlannerIntentChips > button[aria-pressed="true"] { border-color: var(--color-accent); background: color-mix(in srgb, var(--color-accent) 13%, var(--color-surface)); color: var(--color-accent); }
   .mobilePlannerIntentError { margin: 0; color: var(--color-danger); font-size: var(--text-sm); }
+  .mobilePlannerIntentPending { display: inline-flex; align-items: center; gap: 8px; }
   .mobilePlannerConfidence { display: flex; align-items: flex-start; gap: 9px; padding: 10px; border-radius: var(--radius); background: color-mix(in srgb, var(--color-accent) 10%, var(--color-surface-raised)); color: var(--color-accent); }
   .mobilePlannerConfidence > div { display: grid; gap: 3px; color: var(--color-text); }
   .mobilePlannerConfidence span, .mobilePlannerConfidence small { color: var(--color-text-soft); font-size: var(--text-xs); line-height: 1.35; }
