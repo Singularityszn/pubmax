@@ -19,6 +19,13 @@
   color: var(--ink);
 }
 
+.uapEvidence {
+  margin: 0;
+  font-size: 0.86rem;
+  line-height: 1.35;
+  color: var(--muted);
+}
+
 .uapNearest {
   display: flex;
   flex-direction: column;
