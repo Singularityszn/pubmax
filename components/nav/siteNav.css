@@ -9,6 +9,12 @@
    the old .siteNav / .appNav globals, which may be cleaned up separately. */
 
 .siteNavBar {
+  /* Installed-app displays (A2HS standalone, native shell): viewport-fit=cover
+     plus black-translucent extends the page under the iOS status bar, leaving
+     this bar's controls buried beneath the clock and untappable. The system
+     inset clears it; env() is 0 wherever the browser's own chrome owns that
+     zone, so ordinary web layouts are unchanged. The floating map variant
+     offsets itself (see .siteNavBarFloating) and is scoped out below. */
   display: flex;
   align-items: center;
   gap: 12px;
@@ -26,6 +32,10 @@
   box-shadow: 0 16px 36px rgba(44, 30, 62, 0.12), 0 5px 14px rgba(255, 90, 95, 0.05);
   backdrop-filter: blur(14px) saturate(1.06);
   -webkit-backdrop-filter: blur(14px) saturate(1.06);
+}
+
+.siteNavBar:not(.siteNavBarFloating) {
+  margin-top: env(safe-area-inset-top, 0px);
 }
 
 /* Content pages embed the bar inside a narrow reading column (~880px), which
