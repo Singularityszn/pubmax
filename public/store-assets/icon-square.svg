@@ -1,12 +1,16 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 64 64">
   <!--
-    Store icon master (issue #440, owner-locked): the Crossing mark in
-    candle-coral on the ink-deep field. No text, no rounding (both stores mask).
-    Geometry and hexes are the canonical 64-grid Crossing from docs/BRAND_MARK.md
-    / lib/ogBrand.tsx: arms 18.5..45.5 at stroke 8.5, node r 3.2. The faint
-    radial glow is the candle: visible at listing sizes, gone at launcher sizes.
-    Exports at or under 64px use icon-square-small.svg instead (thicker optics).
-    Native width/height 1024 so raster tools render this size before scaling.
+    Store icon master (issue #440, owner-locked): The Clink mark in candle-coral
+    on the ink-deep field. No text, no rounding (both stores mask). Geometry and
+    hexes are the canonical 64-grid Clink from docs/BRAND_MARK.md /
+    components/brand/PubmaxxMark.tsx MARK_GEOMETRY (also stamped by
+    scripts/gen-brand-assets.mjs): two tapered pint-glass arms as filled
+    polygons, coral, meeting at the lit coral-bright ember node (r 3.2). The
+    scale 0.82 tile inset matches the activated web maskable icon exactly. The
+    faint radial glow is the candle: visible at listing sizes, gone at launcher
+    sizes. Exports at or under 64px use icon-square-small.svg instead (the
+    small-optics cut: the ember drops out). Native width/height 1024 so raster
+    tools render this size before scaling.
   -->
   <defs>
     <radialGradient id="candle" cx="0.5" cy="0.5" r="0.5">
@@ -18,8 +22,8 @@
   <rect width="64" height="64" fill="#060607"/>
   <circle cx="32" cy="32" r="30" fill="url(#candle)"/>
   <g transform="translate(32 32) scale(0.82) translate(-32 -32)">
-    <path d="M18.5 18.5 L45.5 45.5" stroke="#ff5a5f" stroke-width="8.5" stroke-linecap="round"/>
-    <path d="M45.5 18.5 L18.5 45.5" stroke="#ff5a5f" stroke-width="8.5" stroke-linecap="round"/>
+    <polygon points="19.8,8.7 10.2,17.3 46.0,53.7 52.0,48.3" fill="#ff5a5f"/>
+    <polygon points="44.2,8.7 53.8,17.3 18.0,53.7 12.0,48.3" fill="#ff5a5f"/>
     <circle cx="32" cy="32" r="3.2" fill="#ff7a55"/>
   </g>
 </svg>
