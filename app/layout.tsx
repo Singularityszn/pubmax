@@ -151,7 +151,11 @@ export const metadata: Metadata = {
     images: ["/og.png?v=20260715-coral"],
   },
   icons: {
+    // Classic /favicon.ico fallback: Google's favicon crawler and older
+    // clients request it directly; its 404 was why search kept a stale icon.
+    shortcut: "/favicon.ico",
     icon: [
+      { url: "/favicon.ico", type: "image/x-icon", sizes: "48x48" },
       { url: "/favicon.svg?v=20260721-coralx", type: "image/svg+xml", sizes: "any" },
       { url: "/icon-192.png?v=20260721-coralx", type: "image/png", sizes: "192x192" },
       { url: "/icon-512.png?v=20260721-coralx", type: "image/png", sizes: "512x512" },
