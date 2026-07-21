@@ -32,6 +32,7 @@ import IdentityNudge from "@/components/identity/IdentityNudge";
 import { exchangeAuthCallbackCode } from "@/lib/authCallbackClient";
 import { getSupabaseBrowser, isAuthConfigured } from "@/lib/authClient";
 import {
+  AUTH_RETURN_FRAGMENT_RESTORED_EVENT,
   beginCoordinatedAuthAttempt,
   releaseAuthAttempt,
   scrubAuthCallback,
@@ -381,6 +382,9 @@ export function AuthProvider({ children }: { children: ReactNode }): React.JSX.E
           persistentStorage: browserLocalStorage(),
           tabStorage: browserSessionStorage(),
           lockManager: browserLockManager(),
+          onFragmentRestored: () => {
+            window.dispatchEvent(new Event(AUTH_RETURN_FRAGMENT_RESTORED_EVENT));
+          },
         },
       );
     }
@@ -399,6 +403,7 @@ export function AuthProvider({ children }: { children: ReactNode }): React.JSX.E
         if (callbackAttempt?.attemptId) {
           releaseBrowserAuthAttempt(callbackAttempt.attemptId);
         }
+        captured?.releaseCoordination();
         if (cancelled) return;
         if (callbackAttempt) setAuthCallbackError(AUTH_CALLBACK_ERROR_MESSAGE);
       });
@@ -444,25 +449,30 @@ export function AuthProvider({ children }: { children: ReactNode }): React.JSX.E
     // one-time URL parameters are removed on both success and failure.
     void (async () => {
       await Promise.resolve();
-      const callbackAttempt = (await callbackCapture)?.attempt ?? null;
+      const captured = await callbackCapture;
+      const callbackAttempt = captured?.attempt ?? null;
       let exchangedSession: Session | null = null;
       let exchangeFailed = Boolean(
         callbackAttempt &&
           (callbackAttempt.providerError || !callbackAttempt.code || !callbackAttempt.attemptId),
       );
-      if (callbackAttempt?.code && !callbackAttempt.providerError) {
-        if (!callbackExchangeInFlight.current) {
-          callbackExchangeInFlight.current = exchangeAuthCallbackCode(
-            supabase.auth,
-            callbackAttempt.code,
-          );
+      try {
+        if (callbackAttempt?.code && !callbackAttempt.providerError) {
+          if (!callbackExchangeInFlight.current) {
+            callbackExchangeInFlight.current = exchangeAuthCallbackCode(
+              supabase.auth,
+              callbackAttempt.code,
+            );
+          }
+          const exchange = await callbackExchangeInFlight.current;
+          exchangedSession = exchange.session;
+          exchangeFailed = exchange.failed;
         }
-        const exchange = await callbackExchangeInFlight.current;
-        exchangedSession = exchange.session;
-        exchangeFailed = exchange.failed;
-      }
-      if (callbackAttempt?.attemptId) {
-        releaseBrowserAuthAttempt(callbackAttempt.attemptId);
+      } finally {
+        if (callbackAttempt?.attemptId) {
+          releaseBrowserAuthAttempt(callbackAttempt.attemptId);
+        }
+        captured?.releaseCoordination();
       }
       if (!active) return;
       if (exchangeFailed) setAuthCallbackError(AUTH_CALLBACK_ERROR_MESSAGE);

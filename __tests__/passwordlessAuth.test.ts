@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 import {
   AUTH_COORDINATION_UNAVAILABLE_MESSAGE,
   AUTH_ATTEMPT_IN_PROGRESS_MESSAGE,
+  AUTH_RETURN_FRAGMENT_RESTORED_EVENT,
   AUTH_STORAGE_UNAVAILABLE_MESSAGE,
   beginAuthAttempt,
   beginCoordinatedAuthAttempt,
@@ -11,6 +12,7 @@ import {
   readAuthCallbackAttempt,
   releaseAuthAttempt,
   scrubAuthCallback,
+  subscribeToAuthFragmentRestored,
   type AuthAttemptOptions,
   type AuthAttemptStart,
 } from "@/lib/authRedirect";
@@ -394,7 +396,7 @@ describe("auth callback URL safety", () => {
       tabStorage,
       3_000,
     );
-    expect(liveCallback).toEqual({
+    expect(liveCallback).toMatchObject({
       attempt: { attemptId: ATTEMPT_B, code: "fresh", providerError: false },
       cleanUrl: "/map#venue-b",
     });
@@ -427,7 +429,7 @@ describe("auth callback URL safety", () => {
       tabBStorage,
       2_000,
     );
-    expect(newTabCallback).toEqual({
+    expect(newTabCallback).toMatchObject({
       attempt: { attemptId: ATTEMPT_A, code: "pkce", providerError: false },
       cleanUrl: "/plan/abc#invite=SECRET-A",
     });
@@ -439,6 +441,7 @@ describe("auth callback URL safety", () => {
       .toEqual({ attemptId: null, code: null, providerError: true });
 
     releaseAuthAttempt(ATTEMPT_A, persistentStorage, tabBStorage);
+    newTabCallback?.releaseCoordination();
     expect(persistentValues.size).toBe(0);
     expect(tabAValues.size).toBe(1);
     const restarted = await beginCoordinatedAuthAttempt(
@@ -633,16 +636,73 @@ describe("auth callback URL safety", () => {
     const callbackUrl =
       `https://pubmaxxing.com/map?code=pkce&_authCallback=1&_authAttempt=${ATTEMPT_A}`;
 
-    const callbacks = await Promise.all([
-      claimCallback(callbackUrl, persistentStorage, tabAStorage, 2_000, locks),
-      claimCallback(callbackUrl, persistentStorage, tabBStorage, 2_000, locks),
-    ]);
+    const firstCallbackPromise = claimCallback(
+      callbackUrl,
+      persistentStorage,
+      tabAStorage,
+      2_000,
+      locks,
+    );
+    const secondCallbackPromise = claimCallback(
+      callbackUrl,
+      persistentStorage,
+      tabBStorage,
+      2_000,
+      locks,
+    );
+    const firstCallback = await firstCallbackPromise;
+    expect(firstCallback?.attempt.code).toBe("pkce");
+    releaseAuthAttempt(ATTEMPT_A, persistentStorage, tabAStorage);
+    firstCallback?.releaseCoordination();
+    const callbacks = [firstCallback, await secondCallbackPromise];
     expect(callbacks.filter((captured) => captured?.attempt.code === "pkce")).toHaveLength(1);
     expect(callbacks.filter((captured) => captured?.attempt.providerError)).toHaveLength(1);
     expect(callbacks.map((captured) => captured?.cleanUrl).sort()).toEqual([
       "/map",
       "/map#venue",
     ]);
+  });
+
+  it("holds the verifier lock across exchange when a callback is claimed at the TTL boundary", async () => {
+    const { storage: persistentStorage } = memoryStorage();
+    const { storage: tabAStorage } = memoryStorage();
+    const { storage: tabBStorage } = memoryStorage();
+    const locks = queuedLocks();
+    await beginCoordinatedAuthAttempt("https://pubmaxxing.com/map", undefined, {
+      persistentStorage,
+      tabStorage: tabAStorage,
+      cryptoProvider: fixedCrypto(0xaa),
+      lockManager: locks,
+      now: 1_000,
+    });
+    const callback = await claimCallback(
+      `https://pubmaxxing.com/map?code=pkce&_authCallback=1&_authAttempt=${ATTEMPT_A}`,
+      persistentStorage,
+      tabAStorage,
+      3_600_999,
+      locks,
+    );
+    expect(callback?.attempt.code).toBe("pkce");
+
+    let restartSettled = false;
+    const restart = beginCoordinatedAuthAttempt("https://pubmaxxing.com/map", undefined, {
+      persistentStorage,
+      tabStorage: tabBStorage,
+      cryptoProvider: fixedCrypto(0xbb),
+      lockManager: locks,
+      now: 3_601_000,
+    }).then((result) => {
+      restartSettled = true;
+      return result;
+    });
+    await Promise.resolve();
+    expect(restartSettled).toBe(false);
+
+    // AuthProvider performs matching cleanup while the callback lease is still
+    // held, then releases it only after exchange has finished.
+    releaseAuthAttempt(ATTEMPT_A, persistentStorage, tabAStorage);
+    callback?.releaseCoordination();
+    await expect(restart).resolves.toMatchObject({ ok: true, id: ATTEMPT_B });
   });
 
   it("prevents a stale callback claim from overwriting a queued same-tab restart", async () => {
@@ -682,7 +742,7 @@ describe("auth callback URL safety", () => {
         3_000,
         locks,
       ),
-    ).resolves.toEqual({
+    ).resolves.toMatchObject({
       attempt: { attemptId: ATTEMPT_B, code: "fresh", providerError: false },
       cleanUrl: "/map#fresh",
     });
@@ -709,6 +769,7 @@ describe("auth callback URL safety", () => {
     );
     expect(captured?.cleanUrl).toBe("/map?area=soho");
     releaseAuthAttempt(ATTEMPT_B, persistentStorage, tabStorage);
+    captured?.releaseCoordination();
     expect(persistentValues.size).toBe(0);
     expect(tabValues.size).toBe(0);
   });
@@ -732,12 +793,13 @@ describe("auth callback URL safety", () => {
       tabStorage,
       2_000,
     );
-    expect(providerError).toEqual({
+    expect(providerError).toMatchObject({
       attempt: { attemptId: ATTEMPT_A, code: null, providerError: true },
       cleanUrl: "/plan/abc#invite=SECRET-A",
     });
 
     releaseAuthAttempt(ATTEMPT_A, persistentStorage, tabStorage);
+    providerError?.releaseCoordination();
     expect(persistentValues.size).toBe(0);
     expect(tabValues.size).toBe(0);
   });
@@ -861,7 +923,7 @@ describe("auth callback URL safety", () => {
         2_000,
         failingLocks,
       ),
-    ).resolves.toEqual({
+    ).resolves.toMatchObject({
       attempt: { attemptId: null, code: null, providerError: true },
       cleanUrl: "/map",
     });
@@ -904,6 +966,60 @@ describe("auth callback URL safety", () => {
     const captured = await capturedPromise;
     expect(captured?.attempt.code).toBe("pkce");
     expect(replaceUrl).toHaveBeenLastCalledWith("/map#venue");
+    releaseAuthAttempt(ATTEMPT_A, persistentStorage, tabStorage);
+    captured?.releaseCoordination();
+  });
+
+  it("notifies a mounted invite consumer when the fragment is restored after an async claim", async () => {
+    const { persistentStorage, tabStorage } = authStores();
+    beginAuthAttempt("https://pubmaxxing.com/plan/abc#invite=SECRET-A", undefined, {
+      persistentStorage,
+      tabStorage,
+      cryptoProvider: fixedCrypto(0xaa),
+      now: 1_000,
+    });
+    const fragmentEvents = new EventTarget();
+    let visibleUrl = "/plan/abc";
+    const consumedInvites: string[] = [];
+    const unsubscribe = subscribeToAuthFragmentRestored(() => {
+      const hash = new URL(visibleUrl, "https://pubmax.invalid").hash;
+      const invite = new URLSearchParams(hash.replace(/^#/, "")).get("invite");
+      if (invite) consumedInvites.push(invite);
+    }, fragmentEvents);
+    let releaseLock = () => {};
+    const lockGate = new Promise<void>((resolve) => {
+      releaseLock = resolve;
+    });
+    const delayedLocks = {
+      request: async (_name: string, callback: () => AuthAttemptStart) => {
+        await lockGate;
+        return callback();
+      },
+    } as unknown as NonNullable<AuthAttemptOptions["lockManager"]>;
+
+    const callback = scrubAuthCallback(
+      `https://pubmaxxing.com/plan/abc?code=pkce&_authCallback=1&_authAttempt=${ATTEMPT_A}`,
+      (cleanUrl) => {
+        visibleUrl = cleanUrl;
+      },
+      {
+        persistentStorage,
+        tabStorage,
+        lockManager: delayedLocks,
+        now: 2_000,
+        onFragmentRestored: () => {
+          fragmentEvents.dispatchEvent(new Event(AUTH_RETURN_FRAGMENT_RESTORED_EVENT));
+        },
+      },
+    );
+    expect(consumedInvites).toEqual([]);
+    releaseLock();
+    const captured = await callback;
+    expect(consumedInvites).toEqual(["SECRET-A"]);
+    expect(visibleUrl).toBe("/plan/abc#invite=SECRET-A");
+    unsubscribe();
+    releaseAuthAttempt(ATTEMPT_A, persistentStorage, tabStorage);
+    captured?.releaseCoordination();
   });
 
   it("fails closed when synchronous URL scrubbing throws", async () => {
