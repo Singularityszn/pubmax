@@ -16,6 +16,8 @@ import {
   type AuthAttemptOptions,
   type AuthAttemptStart,
 } from "@/lib/authRedirect";
+import { exchangeAuthCallbackCode } from "@/lib/authCallbackClient";
+import { withAuthFetchTimeout } from "@/lib/authFetch";
 import {
   MAGIC_LINK_ERROR_MESSAGE,
   MAGIC_LINK_RATE_LIMIT_MESSAGE,
@@ -684,6 +686,25 @@ describe("auth callback URL safety", () => {
     );
     expect(callback?.attempt.code).toBe("pkce");
 
+    const events: string[] = [];
+    const hangingFetch = vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
+      const signal = init?.signal;
+      if (!signal) throw new Error("missing abort signal");
+      return await new Promise<Response>((_resolve, reject) => {
+        signal.addEventListener("abort", () => {
+          events.push("underlying-aborted");
+          reject(signal.reason);
+        }, { once: true });
+      });
+    }) as typeof fetch;
+    const timedFetch = withAuthFetchTimeout(hangingFetch, 10);
+    const exchange = exchangeAuthCallbackCode({
+      exchangeCodeForSession: async () => {
+        await timedFetch("https://auth.example/token");
+        return { data: { session: null }, error: null };
+      },
+    }, "pkce");
+
     let restartSettled = false;
     const restart = beginCoordinatedAuthAttempt("https://pubmaxxing.com/map", undefined, {
       persistentStorage,
@@ -698,8 +719,12 @@ describe("auth callback URL safety", () => {
     await Promise.resolve();
     expect(restartSettled).toBe(false);
 
+    await expect(exchange).resolves.toEqual({ session: null, failed: true });
+    expect(events).toEqual(["underlying-aborted"]);
+    expect(restartSettled).toBe(false);
+
     // AuthProvider performs matching cleanup while the callback lease is still
-    // held, then releases it only after exchange has finished.
+    // held, then releases it only after the aborted exchange has settled.
     releaseAuthAttempt(ATTEMPT_A, persistentStorage, tabAStorage);
     callback?.releaseCoordination();
     await expect(restart).resolves.toMatchObject({ ok: true, id: ATTEMPT_B });
