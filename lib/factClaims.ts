@@ -20,15 +20,21 @@
 // Where a value came from, strongest first. `official` is the venue/operator's
 // own current statement or a first-party licensed source; `scraped` is an
 // on-record dataset/third-party observation; `community` is a user report or
-// vouch; `operator-future` is a declared-but-not-yet fact (e.g. an announced
-// price rise) that must never outrank an observed present fact when serving now.
-export type FactAuthority = "official" | "scraped" | "community" | "operator-future";
+// vouch; `operator` is a verified venue operator's REVIEWED proposal
+// (correction/event/offer) materialised through the admin acceptance seam
+// (lib/operatorProposals.ts, Wayfinder 3.5). It sits at the BOTTOM of the rank
+// on purpose: an operator's accepted claim is attributed, additive evidence that
+// must NEVER silently outrank the trusted observed corpus. A disagreement is
+// EXPOSED as a live conflict, exactly as a declared-but-not-yet fact would be.
+// Renamed from the reserved `operator-future` slot (#483): the only consumer was
+// this module, so the token change is additive; the rank-0 semantics are unchanged.
+export type FactAuthority = "official" | "scraped" | "community" | "operator";
 
 export const FACT_AUTHORITY_RANK: Record<FactAuthority, number> = {
   official: 3,
   scraped: 2,
   community: 1,
-  "operator-future": 0,
+  operator: 0,
 };
 
 // Mirrors nightSignalClaims' verification vocabulary. `corroborated` = two or
@@ -217,4 +223,31 @@ export function resolveClaims<T>(
     values.length >= 2 ? { fieldId: winner.fieldId, values, claims: live } : null;
 
   return { fieldId: winner.fieldId, winner, conflict };
+}
+
+/**
+ * The ONE bridge that turns an admin-ACCEPTED operator proposal into a
+ * `FactSource` (Wayfinder 3.5). Authority is `operator` — rank 0 — so the
+ * materialised claim is attributed, reviewed evidence that a venue surface folds
+ * into `buildFactClaims`/`resolveClaims` WITHOUT ever silently outranking the
+ * trusted observed corpus; a disagreement surfaces as a conflict, never an
+ * overwrite. `reviewed: true` records that a human (the owner/moderator) stood
+ * behind it at acceptance. Pure: the caller supplies the value, the acceptance
+ * time, and a stable publisher (e.g. `operator:<accountId>`). This lives here,
+ * NOT in lib/operatorProposals.ts, so the proposal store stays free of any fact
+ * import and the fence (proposal store cannot touch trusted data) holds by
+ * construction — only the admin acceptance path reaches for this function.
+ */
+export function acceptedProposalFactSource<T>(input: {
+  value: T;
+  acceptedAt: number;
+  publisher: string;
+}): FactSource<T> {
+  return {
+    authority: "operator",
+    value: input.value,
+    observedAt: input.acceptedAt,
+    publisher: input.publisher,
+    reviewed: true,
+  };
 }

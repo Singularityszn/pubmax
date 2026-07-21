@@ -6,17 +6,20 @@ reviewed surface—even when a POST is semantically read-only. The regression te
 Adding a sixty-second mutating route or removing its authority/abuse boundary fails
 CI until this certification is deliberately updated.
 
-> **Inventory: 67 mutating routes.** The count grew 60 → 61 (email-capture
+> **Inventory: 69 mutating routes.** The count grew 60 → 61 (email-capture
 > `POST /api/email-subscribers`) → 62 (native `POST /api/push-tokens`) → 63 (the
 > Social Loop "we're out" `POST /api/check-ins`) → 64 (the vibe-vote
 > `POST /api/plans/[id]/vibe-votes`) → 65 (the area-demand capture
 > `POST /api/area-demand`) → 66 (the structured Visit Reports
 > `POST /api/visit-reports`) → 67 (author-confirmed alt text
-> `PATCH /api/night-moments/[id]/alt-text`). Token-gated GET confirm/unsubscribe endpoints and
-> read-only GETs (the Social Loop reads, the vibe-vote tally read, the Visit
-> Report per-venue summary read) are deliberately excluded from the mutating-verb
-> inventory. The number is a merge-conflict coordination point across in-flight
-> branches — reconcile it (not silently overwrite) when branches meet.
+> `PATCH /api/night-moments/[id]/alt-text`) → 69 (the operator rail: `POST
+> /api/venue-operators/claim` and `POST /api/operator-proposals`). Token-gated GET
+> confirm/unsubscribe endpoints and read-only GETs (the Social Loop reads, the
+> vibe-vote tally read, the Visit Report per-venue summary read, the operator
+> own-claim / moderator queue reads) are deliberately excluded from the
+> mutating-verb inventory. The number is a merge-conflict coordination point
+> across in-flight branches — reconcile it (not silently overwrite) when branches
+> meet.
 
 ## Boundary classes
 
@@ -256,13 +259,13 @@ The Vercel cron freshness plane adds three scheduled routes under
 `app/api/cron/*` (`refresh-weather`, `refresh-whats-on`, `freshness-audit`). They
 are **mutating by effect** (weather writes to the durable `weather_snapshots`
 store; What's-On stamps `feed_freshness`) but are deliberately **NOT counted in
-the 67-route inventory**, for the same reason token-gated `GET`
+the 69-route inventory**, for the same reason token-gated `GET`
 confirm/unsubscribe endpoints are excluded:
 
 - **They are `GET` handlers.** Vercel Cron dispatches `GET` (its dispatcher also
   accepts `POST`); the inventory scans for public `POST/PUT/PATCH/DELETE`
   handlers (`MUTATION_EXPORT`), which these do not export. The structural count
-  therefore stays **67** with no bump.
+  therefore stays **69** with no bump.
 - **They are internal, `CRON_SECRET`-gated schedulers, not a public surface.**
   Authority is `Authorization: Bearer $CRON_SECRET` enforced twice — by Vercel's
   cron dispatcher and again inside each handler (`lib/cronAuth.ts`,
@@ -277,6 +280,81 @@ confirm/unsubscribe endpoints are excluded:
 If a cron route is ever converted to a `POST` (or a public mutating verb is added
 under `app/api/cron/*`), it MUST be folded into the inventory count in the same
 commit.
+
+### `app/api/venue-operators/claim` — venue operator claim (route 68)
+
+- **Route / method:** `POST app/api/venue-operators/claim/route.ts` (Wayfinder
+  3.5, `lane/operator-rail`). A signed-in account claims to run a venue and
+  records HOW it can be verified (an email on the venue domain, a phone behind the
+  bar, a document). v1 only RECORDS the claim; the OWNER verifies it manually in
+  the admin queue. The route also exports a read-only `GET` (the caller's OWN
+  claim state, or the moderator review queue) which is NOT a mutating verb and is
+  not counted.
+- **Validation:** `validateOperatorClaim` (`lib/venueOperators.ts`) — `venueId`
+  required (≤ 120 chars), `evidenceKind` ∈ {`email-domain`, `phone`, `document`},
+  a cleaned/capped (≤ 500) non-empty `evidenceNote`. Malformed bodies 400
+  (`INVALID_CLAIM`) before the limiter/store is touched; the DB CHECK constraints
+  in migration 0048 mirror the allowlists.
+- **Auth stance (ACCOUNT — the CREATE boundary):** `account_id` is the VERIFIED
+  Supabase uid from the bearer JWT (`callerAuthIdentity`), never a body value; an
+  anonymous caller is 401. Idempotent per `(account_id, venue_id)` — a re-claim
+  UPDATES in place and reopens the row to `pending`, so table growth is bounded by
+  distinct account×venue pairs.
+- **Rate limit (boundary):** durable per-account + hashed-IP `isLimited` with key
+  `venue-operator-claim:${accountId}:${hashIp(clientIp)}` (raw IP never keyed),
+  budget 10 — an operator may run a few pubs. 429 `{ code: "RATE_LIMITED",
+  retryable: true }` on exceed. This is the certification boundary (rate_limit
+  class).
+- **Moderation (boundary):** `verify` / `reject` / `revoke` require the admin
+  token (`isModerator` — moderator class); they set the verification state and
+  stamp the review. Verification is the gate a proposal must pass (see route 69).
+- **Freeze stance:** deliberately NOT wired to the solo-operator SOCIAL freeze — a
+  venue operator asking to be verified is venue-BUSINESS content, not a social
+  post. The freeze seam is intentionally absent (documented exemption).
+- **Rollback / kill:** durable rows live in `public.venue_operators` (migration
+  0048, RLS on, anon/authenticated revoked, service_role only); `truncate` is a
+  safe reset. Until the OWNER applies 0048 the store fails soft to process-memory
+  (`lib/venueOperatorsStore.ts`) — the flow keeps working and becomes durable the
+  moment the table lands. A hard durable write failure answers 503
+  `STORE_UNAVAILABLE`, never a fake success.
+
+### `app/api/operator-proposals` — reviewed operator proposals (route 69)
+
+- **Route / method:** `POST app/api/operator-proposals/route.ts` (Wayfinder 3.5,
+  `lane/operator-rail`). A VERIFIED operator proposes an attributed, structured
+  update (`correction` / `event` / `offer` / `response`) that routes through
+  REVIEW. The route also exports a read-only `GET` (the moderator review queue by
+  status) which is NOT a mutating verb and is not counted.
+- **Validation:** `validateOperatorProposal` (`lib/operatorProposals.ts`) —
+  `venueId` + `type` required; the flat structured payload (title/body/field/
+  startsAt) is cleaned/capped and must carry the type's required fields
+  (correction → field+body, event → title+startsAt, offer → title+body, response
+  → body) or 400 `INVALID_PROPOSAL`.
+- **Auth stance (ACCOUNT + CAPABILITY — the CREATE boundary):** `account_id` is
+  the VERIFIED uid (`callerAuthIdentity`; anonymous → 401), AND the caller must
+  ALREADY be a VERIFIED operator of the venue
+  (`venueOperatorsStore().isVerifiedOperator`) or the proposal is 403
+  `NOT_VERIFIED_OPERATOR`. The verification check fails CLOSED on a storage wobble
+  (returns false), so no proposal slips through unverified.
+- **Rate limit (boundary):** durable per-account + hashed-IP `isLimited` with key
+  `operator-proposal:${accountId}:${hashIp(clientIp)}`, budget 20 — 429
+  `{ retryable: true }` on exceed. This is the rate_limit-class boundary; the
+  route also carries the moderator class (accept/decline).
+- **Moderation + the admin acceptance seam (boundary):** `accept` / `decline`
+  require the admin token (`isModerator`). TRUSTED DATA IS UNTOUCHED — a proposal
+  NEVER writes a venue fact. Only the `accept` branch (the admin acceptance seam)
+  materialises an accepted payload into served evidence, and even then only as a
+  `FactSource` of authority `operator` (rank 0, `factClaims.
+  acceptedProposalFactSource`): additive, attributed, and exposed as a CONFLICT if
+  it disagrees with the observed corpus, never a silent overwrite. A fence test
+  (`__tests__/operatorProposalFence.test.ts`) asserts the proposal store/module
+  import NO venue-fact module — the acceptance route is the sole bridge.
+- **Freeze stance:** NOT under the SOCIAL freeze (venue-business content), same
+  exemption as route 68.
+- **Rollback / kill:** durable rows live in `public.operator_proposals` (migration
+  0048, RLS on, anon/authenticated revoked, service_role only); `truncate` is a
+  safe reset. Fails soft to process-memory until 0048 lands
+  (`lib/operatorProposalsStore.ts`); a hard write failure answers 503.
 
 ## Certification command
 

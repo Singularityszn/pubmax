@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  acceptedProposalFactSource,
   buildFactClaims,
+  FACT_AUTHORITY_RANK,
   resolveClaims,
   type FactSource,
 } from "@/lib/factClaims";
@@ -243,5 +245,46 @@ describe("generality — the model serves a non-price fact (hours)", () => {
     const res = resolveClaims(claims, { now: NOW, conflictWindowMs: 14 * DAY });
     expect(res?.winner.value).toBe("17:00-23:00"); // official serves
     expect(res?.conflict?.values).toEqual(["17:00-23:00", "17:00-00:00"]);
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Operator rail bridge (Wayfinder 3.5): an accepted operator proposal folds in as
+// an `operator` FactSource — additive, attributed, and RANK 0 so it can never
+// silently outrank the observed corpus (renamed from the reserved operator-future
+// slot #483, semantics unchanged).
+// ─────────────────────────────────────────────────────────────────────────────
+describe("acceptedProposalFactSource (operator materialisation)", () => {
+  it("builds a reviewed operator source at rank 0", () => {
+    const src = acceptedProposalFactSource({
+      value: "Open till 1am",
+      acceptedAt: NOW,
+      publisher: "operator:acct-1",
+    });
+    expect(src.authority).toBe("operator");
+    expect(src.value).toBe("Open till 1am");
+    expect(src.observedAt).toBe(NOW);
+    expect(src.reviewed).toBe(true);
+    expect(FACT_AUTHORITY_RANK.operator).toBe(0);
+  });
+
+  it("never outranks an observed present fact — surfaces as a conflict instead", () => {
+    const scraped: FactSource<string> = {
+      authority: "scraped",
+      value: "17:00-23:00",
+      observedAt: NOW - DAY,
+      publisher: "dataset",
+    };
+    const operator = acceptedProposalFactSource({
+      value: "17:00-01:00",
+      acceptedAt: NOW,
+      publisher: "operator:acct-1",
+    });
+    const claims = buildFactClaims("hours:venue-9", [scraped, operator]);
+    const res = resolveClaims(claims, { now: NOW, conflictWindowMs: 14 * DAY });
+    // Scraped (rank 2) still serves; the fresher operator claim is EXPOSED as a
+    // live conflict, never a silent overwrite.
+    expect(res?.winner.value).toBe("17:00-23:00");
+    expect(res?.conflict?.values).toContain("17:00-01:00");
   });
 });

@@ -56,7 +56,26 @@ type ModeratorVisitReport = {
   reportedAt?: string;
 };
 
-type AdminTab = "moderation" | "import";
+type AdminTab = "moderation" | "import" | "operators";
+
+// Operator rail (Wayfinder 3.5) review DTOs, as returned by the moderator GETs.
+type OperatorClaimRow = {
+  id: string;
+  venueId: string;
+  verificationState: "pending" | "verified" | "rejected" | "revoked";
+  evidenceKind: "email-domain" | "phone" | "document";
+  evidenceNote: string;
+  createdAt: string;
+};
+
+type OperatorProposalRow = {
+  id: string;
+  venueId: string;
+  type: "correction" | "event" | "offer" | "response";
+  payload: { title?: string; body?: string; field?: string; startsAt?: string };
+  status: "pending" | "accepted" | "declined";
+  createdAt: string;
+};
 
 type ImportNoteRow = {
   id: string;
@@ -129,6 +148,13 @@ export default function AdminPage() {
   const [importLoading, setImportLoading] = useState(false);
   const [importShowDismissed, setImportShowDismissed] = useState(false);
   const [importActionId, setImportActionId] = useState<string | null>(null);
+
+  // Operator rail (Wayfinder 3.5) — pending claims + proposals review.
+  const [operatorClaims, setOperatorClaims] = useState<OperatorClaimRow[]>([]);
+  const [operatorProposals, setOperatorProposals] = useState<OperatorProposalRow[]>([]);
+  const [operatorLoading, setOperatorLoading] = useState(false);
+  const [operatorMsg, setOperatorMsg] = useState<string | null>(null);
+  const [operatorActionId, setOperatorActionId] = useState<string | null>(null);
 
   const ensureAdminSession = useCallback(async (force = false): Promise<boolean> => {
     const t = token.trim();
@@ -421,6 +447,113 @@ export default function AdminPage() {
     }
   }
 
+  // ── Operator rail review (Wayfinder 3.5) ─────────────────────────────────────
+  const loadOperators = useCallback(async () => {
+    setOperatorLoading(true);
+    setOperatorMsg(null);
+    try {
+      const authed = await ensureAdminSession();
+      if (!authed) {
+        setOperatorClaims([]);
+        setOperatorProposals([]);
+        setOperatorMsg("Not authorised. Check the admin token.");
+        return;
+      }
+      const [claimsRes, proposalsRes] = await Promise.all([
+        retryWithFreshSession(() =>
+          fetch("/api/venue-operators/claim?state=pending", SESSION_FETCH),
+        ),
+        retryWithFreshSession(() =>
+          fetch("/api/operator-proposals?status=pending", SESSION_FETCH),
+        ),
+      ]);
+      if (claimsRes.status === 403 || proposalsRes.status === 403) {
+        setOperatorClaims([]);
+        setOperatorProposals([]);
+        setOperatorMsg("Not authorised. Check the admin token.");
+        return;
+      }
+      setOperatorClaims(
+        claimsRes.ok ? ((await claimsRes.json()) as { claims?: OperatorClaimRow[] }).claims ?? [] : [],
+      );
+      setOperatorProposals(
+        proposalsRes.ok
+          ? ((await proposalsRes.json()) as { proposals?: OperatorProposalRow[] }).proposals ?? []
+          : [],
+      );
+    } catch {
+      setOperatorClaims([]);
+      setOperatorProposals([]);
+      setOperatorMsg("Could not reach the server.");
+    } finally {
+      setOperatorLoading(false);
+    }
+  }, [ensureAdminSession, retryWithFreshSession]);
+
+  const decideOperatorClaim = useCallback(
+    async (id: string, action: "verify" | "reject" | "revoke") => {
+      setOperatorActionId(id);
+      setOperatorMsg(null);
+      try {
+        const res = await retryWithFreshSession(() =>
+          fetch("/api/venue-operators/claim", {
+            ...SESSION_FETCH,
+            method: "POST",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify({ action, id }),
+          }),
+        );
+        if (res.status === 403) {
+          setOperatorMsg("Not authorised. Check the admin token.");
+          return;
+        }
+        if (!res.ok) {
+          setOperatorMsg("Action failed. Try again.");
+          return;
+        }
+        setOperatorClaims((current) => current.filter((c) => c.id !== id));
+        setOperatorMsg(`Claim ${action === "verify" ? "verified" : action === "reject" ? "rejected" : "revoked"}.`);
+      } catch {
+        setOperatorMsg("Could not reach the server.");
+      } finally {
+        setOperatorActionId(null);
+      }
+    },
+    [retryWithFreshSession],
+  );
+
+  const decideOperatorProposal = useCallback(
+    async (id: string, action: "accept" | "decline") => {
+      setOperatorActionId(id);
+      setOperatorMsg(null);
+      try {
+        const res = await retryWithFreshSession(() =>
+          fetch("/api/operator-proposals", {
+            ...SESSION_FETCH,
+            method: "POST",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify({ action, id }),
+          }),
+        );
+        if (res.status === 403) {
+          setOperatorMsg("Not authorised. Check the admin token.");
+          return;
+        }
+        if (!res.ok) {
+          setOperatorMsg("Action failed. Try again.");
+          return;
+        }
+        setOperatorProposals((current) => current.filter((p) => p.id !== id));
+        setOperatorMsg(action === "accept" ? "Proposal accepted." : "Proposal declined.");
+      } catch {
+        setOperatorMsg("Could not reach the server.");
+      } finally {
+        setOperatorActionId(null);
+      }
+    },
+    [retryWithFreshSession],
+  );
+
   return (
     <main className="admin">
       <SiteNav />
@@ -454,6 +587,18 @@ export default function AdminPage() {
           }}
         >
           Import note
+        </button>
+        <button
+          type="button"
+          role="tab"
+          className={tab === "operators" ? "admin-tab active" : "admin-tab"}
+          aria-selected={tab === "operators"}
+          onClick={() => {
+            setTab("operators");
+            void loadOperators();
+          }}
+        >
+          Operators
         </button>
       </div>
 
@@ -689,7 +834,7 @@ export default function AdminPage() {
             </div>
           )}
         </>
-      ) : (
+      ) : tab === "import" ? (
         <>
           <h2 className="admin-section" style={{ marginTop: 0, borderTop: "none", paddingTop: 0 }}>
             Import note
@@ -852,6 +997,130 @@ export default function AdminPage() {
               </ul>
             )}
           </div>
+        </>
+      ) : (
+        <>
+          <h2 className="admin-section" style={{ marginTop: 0, borderTop: "none", paddingTop: 0 }}>
+            Operator rail
+          </h2>
+          <p className="admin-sub">
+            Verify the people who run each pub, then review the updates they propose. Accepting a
+            proposal records it as attributed operator evidence. It never overwrites existing notes.
+          </p>
+
+          {operatorMsg ? (
+            <div
+              className="admin-msg"
+              role={
+                operatorMsg.startsWith("Not authorised") || operatorMsg.startsWith("Could not") ||
+                operatorMsg.includes("failed")
+                  ? "alert"
+                  : "status"
+              }
+            >
+              {operatorMsg}
+            </div>
+          ) : null}
+
+          <div className="admin-bar">
+            <button
+              type="button"
+              className="admin-btn"
+              onClick={() => void loadOperators()}
+              disabled={operatorLoading}
+            >
+              {operatorLoading ? "Loading…" : "Refresh"}
+            </button>
+          </div>
+
+          <h3 className="admin-section">Pending operator claims</h3>
+          {operatorClaims.length === 0 ? (
+            <div className="admin-empty">
+              <strong>No pending claims</strong>
+              <span>Verify claims out of band (check the email domain, ring the bar, read the document).</span>
+            </div>
+          ) : (
+            <div className="admin-list">
+              {operatorClaims.map((c) => (
+                <article className="admin-card" key={c.id}>
+                  <div className="admin-card-head">
+                    <span className="admin-handle">{venueNames.get(c.venueId) ?? c.venueId}</span>
+                    <span className="admin-report">{c.evidenceKind}</span>
+                  </div>
+                  <p className="admin-note">{c.evidenceNote}</p>
+                  <div className="admin-meta">
+                    <Link className="admin-venue-link" href={`/ledger/${encodeURIComponent(c.venueId)}`}>
+                      Open the ledger
+                    </Link>
+                    <span>Filed: {new Date(c.createdAt).toLocaleString()}</span>
+                  </div>
+                  <div className="admin-actions">
+                    <button
+                      className="admin-btn admin-restore"
+                      onClick={() => void decideOperatorClaim(c.id, "verify")}
+                      disabled={operatorActionId === c.id}
+                    >
+                      {operatorActionId === c.id ? "Working…" : "Verify"}
+                    </button>
+                    <button
+                      className="admin-btn admin-keep"
+                      onClick={() => void decideOperatorClaim(c.id, "reject")}
+                      disabled={operatorActionId === c.id}
+                    >
+                      {operatorActionId === c.id ? "Working…" : "Reject"}
+                    </button>
+                  </div>
+                </article>
+              ))}
+            </div>
+          )}
+
+          <h3 className="admin-section">Pending proposals</h3>
+          {operatorProposals.length === 0 ? (
+            <div className="admin-empty">
+              <strong>No pending proposals</strong>
+              <span>Proposals from verified operators land here for review before they show.</span>
+            </div>
+          ) : (
+            <div className="admin-list">
+              {operatorProposals.map((p) => (
+                <article className="admin-card" key={p.id}>
+                  <div className="admin-card-head">
+                    <span className="admin-handle">{venueNames.get(p.venueId) ?? p.venueId}</span>
+                    <span className="admin-report">{p.type}</span>
+                  </div>
+                  <p className="admin-note">
+                    {p.payload.field ? <strong>{p.payload.field}: </strong> : null}
+                    {p.payload.title ? <strong>{p.payload.title} </strong> : null}
+                    {p.payload.startsAt ? <em>({p.payload.startsAt}) </em> : null}
+                    {p.payload.body ?? ""}
+                  </p>
+                  <div className="admin-meta">
+                    <Link className="admin-venue-link" href={`/ledger/${encodeURIComponent(p.venueId)}`}>
+                      Open the ledger
+                    </Link>
+                    <span>Proposed: {new Date(p.createdAt).toLocaleString()}</span>
+                  </div>
+                  <div className="admin-actions">
+                    <button
+                      className="admin-btn admin-restore"
+                      onClick={() => void decideOperatorProposal(p.id, "accept")}
+                      disabled={operatorActionId === p.id}
+                    >
+                      {operatorActionId === p.id ? "Working…" : "Accept"}
+                    </button>
+                    <button
+                      className="admin-btn admin-keep"
+                      onClick={() => void decideOperatorProposal(p.id, "decline")}
+                      disabled={operatorActionId === p.id}
+                    >
+                      {operatorActionId === p.id ? "Working…" : "Decline"}
+                    </button>
+                  </div>
+                </article>
+              ))}
+            </div>
+          )}
         </>
       )}
     </main>
