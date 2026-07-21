@@ -1,10 +1,9 @@
 # PUBMAXX brand mark
 
 The master mark is **The Clink**, owner-approved on 2026-07-21 and activated
-across every web and native surface from a single geometry source. It supersedes
-the earlier "Crossing" exploration (which lives on only in the OG share cards and
-the store-listing masters until their own follow-up sync; see the note at the
-end).
+across every web and native surface from a single geometry source, including the
+dynamic OG share cards and the store-listing masters. It fully supersedes the
+earlier "Crossing" exploration, which no longer renders on any surface.
 
 ## The story
 
@@ -137,17 +136,17 @@ the committed `ios/` and `android/` PNGs are re-stamped directly from the same
 geometry with the hoisted `sharp`, reusing each launcher file's existing alpha
 silhouette so the rounded-square and circle masks are preserved exactly.
 
-## Follow-up (not in the activation lane)
+## OG cards and store masters (synced 2026-07-21)
 
-Two surfaces still draw the old Crossing geometry and need their own sync:
+The two surfaces the activation lane deferred now carry the Clink too:
 
-1. `lib/ogBrand.tsx` `CrossingMark`, used by the dynamic `next/og` share cards
-   (roughly 17 `opengraph-image.tsx` / `*-card` routes) and `public/og.png`.
-2. The store-listing masters in `public/store-assets/` and their generator
-   `scripts/gen-store-assets.mjs`, pinned by `__tests__/storeAssets.test.ts` to
-   the canonical Crossing arm endpoints. Updating these means porting the Clink
-   polygons into the masters and re-pinning that test.
-
-Both were left untouched here so the activation lane stays scoped and the test
-suite stays green; they carry the mark but sit outside the favicon / PWA / native
-icon set this lane owns.
+1. `lib/ogBrand.tsx` `CrossingMark` draws the Clink polygons + ember (export
+   name/API unchanged so its ~17 `next/og` consumers — `opengraph-image.tsx` /
+   `*-card` routes plus the `app/og.png` route — stay untouched). satori renders
+   the `<polygon>` subset natively; a full rasterisation of a consuming card was
+   verified.
+2. The store-listing masters in `public/store-assets/` (rendered by
+   `scripts/gen-store-assets.mjs`, pinned by `__tests__/storeAssets.test.ts`) now
+   draw the Clink polygons. `icon-square-small.svg` applies the small-optics cut
+   (the ember drops out; the arms carry the ≤64px iOS slots alone), matching the
+   16px favicon.ico treatment.
