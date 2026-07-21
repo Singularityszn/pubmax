@@ -1284,6 +1284,14 @@
 .memoryStoryReview__moments li label span { display: grid; min-width: 0; }
 .memoryStoryReview__moments li label small { color: var(--muted); font-weight: 500; }
 .memoryStoryReview__moments li button { background: transparent; color: var(--ink-soft); border: 1px solid var(--line); font-size: .75rem; }
+.memoryMomentAlt { grid-column: 1 / -1; display: grid; gap: .5rem; margin-top: .35rem; padding-top: .6rem; border-top: 1px dashed var(--line-soft); }
+.memoryMomentAlt label { display: grid; gap: .3rem; }
+.memoryMomentAlt label > span { font-size: .78rem; font-weight: 650; color: var(--ink-soft); }
+.memoryMomentAlt__ok { color: var(--brass); font-weight: 600; }
+.memoryMomentAlt__todo { color: var(--muted); font-weight: 600; }
+.memoryMomentAlt textarea { width: 100%; min-height: 44px; padding: .55rem .7rem; border: 1px solid var(--line); border-radius: 10px; background: var(--paper); color: var(--ink); font: 500 15px/1.4 var(--font-body); resize: vertical; }
+.memoryMomentAlt textarea:focus-visible { outline: 2px solid color-mix(in srgb, var(--brass) 55%, transparent); outline-offset: 1px; border-color: var(--brass); }
+.memoryMomentAlt > button { justify-self: start; background: transparent; color: var(--ink-soft); border: 1px solid var(--line); border-radius: 10px; padding: .4rem .8rem; font-size: .75rem; }
 .memoryStoryReview__controls { grid-template-columns: 1fr 1fr; padding-top: .8rem; border-top: 1px solid var(--line-soft); }
 .memoryStoryReview__controls label > span { display: inline-flex; align-items: center; gap: .35rem; }
 .memoryStoryReview__confirmation { display: grid; grid-template-columns: auto minmax(0, 1fr) auto auto; align-items: center; gap: .75rem; padding: .8rem; border: 1px solid var(--brass); border-radius: 14px; background: color-mix(in srgb, var(--brass) 10%, transparent); }
