@@ -14,7 +14,12 @@ export type NightMomentKind = (typeof NIGHT_MOMENT_KINDS)[number];
 export type NightStoryVisibility = "private" | "unlisted" | "public";
 export type NightStoryStatus = "draft" | "published";
 export type StoryContributorRole = "host" | "editor" | "contributor";
-export type StoryContributorStatus = "invited" | "accepted" | "removed";
+// "withdrawn" (Wayfinder 5.5) marks a contributor who has departed a published
+// Story — via consent withdrawal or account deletion — so the publish gate can
+// redact their content + identity. It is additive: it never frees the host slot
+// (the host-uniqueness index keys off `status <> 'removed'`), and it is distinct
+// from "removed" (an invitation declined / a member kicked before publish).
+export type StoryContributorStatus = "invited" | "accepted" | "removed" | "withdrawn";
 export type MomentConsentStatus = "pending" | "approved" | "withdrawn";
 
 export type NightMomentDraft = {
