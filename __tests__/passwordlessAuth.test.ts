@@ -1,7 +1,9 @@
 import { describe, expect, it, vi } from "vitest";
 
 import {
+  AUTH_COORDINATION_UNAVAILABLE_MESSAGE,
   AUTH_ATTEMPT_IN_PROGRESS_MESSAGE,
+  AUTH_STORAGE_UNAVAILABLE_MESSAGE,
   beginAuthAttempt,
   beginCoordinatedAuthAttempt,
   buildAuthCallbackUrl,
@@ -9,6 +11,7 @@ import {
   readAuthCallbackAttempt,
   releaseAuthAttempt,
   scrubAuthCallback,
+  type AuthAttemptOptions,
   type AuthAttemptStart,
 } from "@/lib/authRedirect";
 import {
@@ -160,6 +163,17 @@ describe("auth callback URL safety", () => {
     };
   }
 
+  function authStores() {
+    const persistent = memoryStorage();
+    const tab = memoryStorage();
+    return {
+      persistentStorage: persistent.storage,
+      persistentValues: persistent.values,
+      tabStorage: tab.storage,
+      tabValues: tab.values,
+    };
+  }
+
   function fixedCrypto(hexPair: number) {
     return {
       getRandomValues: <T extends ArrayBufferView | null>(array: T): T => {
@@ -169,6 +183,10 @@ describe("auth callback URL safety", () => {
     };
   }
 
+  const immediateLocks = {
+    request: async (_name: string, callback: () => AuthAttemptStart) => callback(),
+  } as unknown as NonNullable<AuthAttemptOptions["lockManager"]>;
+
   it("preserves a same-origin deep link", () => {
     expect(buildAuthCallbackUrl("https://pubmaxxing.com/map?area=soho#venue", undefined, ATTEMPT_A))
       .toBe(
@@ -177,34 +195,39 @@ describe("auth callback URL safety", () => {
   });
 
   it("locks the browser-wide verifier without losing tab A's invite", () => {
-    const { storage } = memoryStorage();
+    const { persistentStorage, tabStorage } = authStores();
     const first = beginAuthAttempt(
       "https://pubmaxxing.com/plan/abc#invite=SECRET-A",
       undefined,
-      storage,
-      fixedCrypto(0xaa),
-      1_000,
+      { persistentStorage, tabStorage, cryptoProvider: fixedCrypto(0xaa), now: 1_000 },
     );
     const second = beginAuthAttempt(
       "https://pubmaxxing.com/map#venue-b",
       undefined,
-      storage,
-      fixedCrypto(0xbb),
-      2_000,
+      // A different tab cannot present tab A's initiating marker.
+      {
+        persistentStorage,
+        tabStorage: memoryStorage().storage,
+        cryptoProvider: fixedCrypto(0xbb),
+        now: 2_000,
+      },
     );
 
     expect(first).toMatchObject({ ok: true, id: ATTEMPT_A });
     expect(second).toEqual({ ok: false, message: AUTH_ATTEMPT_IN_PROGRESS_MESSAGE });
     const captured = captureAuthCallback(
       `https://pubmaxxing.com/plan/abc?code=pkce&_authCallback=1&_authAttempt=${ATTEMPT_A}`,
-      storage,
+      persistentStorage,
+      tabStorage,
       3_000,
     );
     expect(captured?.cleanUrl).toBe("/plan/abc#invite=SECRET-A");
   });
 
   it("serializes simultaneous tab A/B claims before either can overwrite the verifier", async () => {
-    const { storage } = memoryStorage();
+    const { storage: persistentStorage } = memoryStorage();
+    const { storage: tabAStorage } = memoryStorage();
+    const { storage: tabBStorage } = memoryStorage();
     let tail = Promise.resolve();
     const locks = {
       request: (_name: string, callback: () => AuthAttemptStart) => {
@@ -212,24 +235,30 @@ describe("auth callback URL safety", () => {
         tail = result.then(() => undefined);
         return result;
       },
-    } as unknown as NonNullable<Parameters<typeof beginCoordinatedAuthAttempt>[4]>;
+    } as unknown as NonNullable<AuthAttemptOptions["lockManager"]>;
 
     const [first, second] = await Promise.all([
       beginCoordinatedAuthAttempt(
         "https://pubmaxxing.com/plan/abc#invite=SECRET-A",
         undefined,
-        storage,
-        fixedCrypto(0xaa),
-        locks,
-        1_000,
+        {
+          persistentStorage,
+          tabStorage: tabAStorage,
+          cryptoProvider: fixedCrypto(0xaa),
+          lockManager: locks,
+          now: 1_000,
+        },
       ),
       beginCoordinatedAuthAttempt(
         "https://pubmaxxing.com/map#venue-b",
         undefined,
-        storage,
-        fixedCrypto(0xbb),
-        locks,
-        1_000,
+        {
+          persistentStorage,
+          tabStorage: tabBStorage,
+          cryptoProvider: fixedCrypto(0xbb),
+          lockManager: locks,
+          now: 1_000,
+        },
       ),
     ]);
 
@@ -237,20 +266,190 @@ describe("auth callback URL safety", () => {
     expect(second).toEqual({ ok: false, message: AUTH_ATTEMPT_IN_PROGRESS_MESSAGE });
   });
 
+  it("keeps the browser-wide claim live for exactly 60 minutes", async () => {
+    const { storage: persistentStorage } = memoryStorage();
+    const { storage: tabAStorage } = memoryStorage();
+    const { storage: tabBStorage } = memoryStorage();
+    await beginCoordinatedAuthAttempt("https://pubmaxxing.com/map", undefined, {
+      persistentStorage,
+      tabStorage: tabAStorage,
+      cryptoProvider: fixedCrypto(0xaa),
+      lockManager: immediateLocks,
+      now: 1_000,
+    });
+
+    await expect(
+      beginCoordinatedAuthAttempt("https://pubmaxxing.com/map", undefined, {
+        persistentStorage,
+        tabStorage: tabBStorage,
+        cryptoProvider: fixedCrypto(0xbb),
+        lockManager: immediateLocks,
+        now: 3_600_999,
+      }),
+    ).resolves.toEqual({ ok: false, message: AUTH_ATTEMPT_IN_PROGRESS_MESSAGE });
+    await expect(
+      beginCoordinatedAuthAttempt("https://pubmaxxing.com/map", undefined, {
+        persistentStorage,
+        tabStorage: tabBStorage,
+        cryptoProvider: fixedCrypto(0xbb),
+        lockManager: immediateLocks,
+        now: 3_601_000,
+      }),
+    ).resolves.toMatchObject({ ok: true, id: ATTEMPT_B });
+  });
+
+  it("atomically replaces an abandoned attempt when the initiating tab retries", async () => {
+    const {
+      persistentStorage,
+      persistentValues,
+      tabStorage,
+      tabValues,
+    } = authStores();
+    const first = await beginCoordinatedAuthAttempt(
+      "https://pubmaxxing.com/plan/abc#invite=SECRET-A",
+      undefined,
+      {
+        persistentStorage,
+        tabStorage,
+        cryptoProvider: fixedCrypto(0xaa),
+        lockManager: immediateLocks,
+        now: 1_000,
+      },
+    );
+    const restarted = await beginCoordinatedAuthAttempt(
+      "https://pubmaxxing.com/map#venue-b",
+      undefined,
+      {
+        persistentStorage,
+        tabStorage,
+        cryptoProvider: fixedCrypto(0xbb),
+        lockManager: immediateLocks,
+        now: 2_000,
+      },
+    );
+
+    expect(first).toMatchObject({ ok: true, id: ATTEMPT_A });
+    expect(restarted).toMatchObject({ ok: true, id: ATTEMPT_B });
+    expect([...persistentValues.values()].join(" ")).not.toContain("SECRET-A");
+    expect([...persistentValues.values()].join(" ")).not.toContain("venue-b");
+    expect([...tabValues.values()].join(" ")).not.toContain("SECRET-A");
+    expect([...tabValues.values()].join(" ")).toContain("#venue-b");
+
+    const replacedCallback = captureAuthCallback(
+      `https://pubmaxxing.com/plan/abc?code=old&_authCallback=1&_authAttempt=${ATTEMPT_A}`,
+      persistentStorage,
+      tabStorage,
+      3_000,
+    );
+    expect(replacedCallback?.attempt).toEqual({
+      attemptId: null,
+      code: null,
+      providerError: true,
+    });
+
+    const liveCallback = captureAuthCallback(
+      `https://pubmaxxing.com/map?code=fresh&_authCallback=1&_authAttempt=${ATTEMPT_B}`,
+      persistentStorage,
+      tabStorage,
+      3_000,
+    );
+    expect(liveCallback).toEqual({
+      attempt: { attemptId: ATTEMPT_B, code: "fresh", providerError: false },
+      cleanUrl: "/map#venue-b",
+    });
+  });
+
+  it("keeps capability fragments isolated to their initiating tab", async () => {
+    const { storage: persistentStorage, values: persistentValues } = memoryStorage();
+    const { storage: tabAStorage, values: tabAValues } = memoryStorage();
+    const { storage: tabBStorage, values: tabBValues } = memoryStorage();
+    await beginCoordinatedAuthAttempt(
+      "https://pubmaxxing.com/plan/abc#invite=SECRET-A",
+      undefined,
+      {
+        persistentStorage,
+        tabStorage: tabAStorage,
+        cryptoProvider: fixedCrypto(0xaa),
+        lockManager: immediateLocks,
+        now: 1_000,
+      },
+    );
+
+    expect([...persistentValues.values()].join(" ")).not.toContain("SECRET-A");
+    expect([...tabAValues.values()].join(" ")).toContain("SECRET-A");
+    expect(tabBValues.size).toBe(0);
+    const wrongTab = captureAuthCallback(
+      `https://pubmaxxing.com/plan/abc?code=pkce&_authCallback=1&_authAttempt=${ATTEMPT_A}`,
+      persistentStorage,
+      tabBStorage,
+      2_000,
+    );
+    expect(wrongTab?.attempt).toEqual({ attemptId: null, code: null, providerError: true });
+    expect([...tabAValues.values()].join(" ")).toContain("SECRET-A");
+  });
+
+  it("rolls back a failed same-tab replacement and leaves the original callback live", async () => {
+    const { persistentStorage, persistentValues, tabStorage, tabValues } = authStores();
+    await beginCoordinatedAuthAttempt(
+      "https://pubmaxxing.com/plan/abc#invite=SECRET-A",
+      undefined,
+      {
+        persistentStorage,
+        tabStorage,
+        cryptoProvider: fixedCrypto(0xaa),
+        lockManager: immediateLocks,
+        now: 1_000,
+      },
+    );
+    const failingTabStorage = {
+      ...tabStorage,
+      setItem: () => {
+        throw new Error("blocked");
+      },
+    };
+
+    await expect(
+      beginCoordinatedAuthAttempt("https://pubmaxxing.com/map#venue-b", undefined, {
+        persistentStorage,
+        tabStorage: failingTabStorage,
+        cryptoProvider: fixedCrypto(0xbb),
+        lockManager: immediateLocks,
+        now: 2_000,
+      }),
+    ).resolves.toEqual({ ok: false, message: AUTH_STORAGE_UNAVAILABLE_MESSAGE });
+    expect([...persistentValues.values()].join(" ")).toContain(ATTEMPT_A);
+    expect([...persistentValues.values()].join(" ")).not.toContain(ATTEMPT_B);
+    expect([...tabValues.values()].join(" ")).toContain("SECRET-A");
+
+    expect(
+      captureAuthCallback(
+        `https://pubmaxxing.com/plan/abc?code=pkce&_authCallback=1&_authAttempt=${ATTEMPT_A}`,
+        persistentStorage,
+        tabStorage,
+        3_000,
+      )?.attempt,
+    ).toEqual({ attemptId: ATTEMPT_A, code: "pkce", providerError: false });
+  });
+
   it("does not consume tab A's fragment for an unrelated attempt B", () => {
-    const { storage, values } = memoryStorage();
+    const {
+      persistentStorage,
+      persistentValues,
+      tabStorage,
+      tabValues,
+    } = authStores();
     beginAuthAttempt(
       "https://pubmaxxing.com/plan/abc#invite=SECRET-A",
       undefined,
-      storage,
-      fixedCrypto(0xaa),
-      1_000,
+      { persistentStorage, tabStorage, cryptoProvider: fixedCrypto(0xaa), now: 1_000 },
     );
-    const beforeAttack = new Map(values);
+    const beforePersistent = new Map(persistentValues);
+    const beforeTab = new Map(tabValues);
 
     const unrelated = captureAuthCallback(
       `https://pubmaxxing.com/plan/abc?code=ATTACKER_CODE&_authCallback=1&_authAttempt=${ATTEMPT_B}`,
-      storage,
+      persistentStorage,
+      tabStorage,
       2_000,
     );
     expect(unrelated?.cleanUrl).toBe("/plan/abc");
@@ -259,11 +458,13 @@ describe("auth callback URL safety", () => {
       code: null,
       providerError: true,
     });
-    expect(values).toEqual(beforeAttack);
+    expect(persistentValues).toEqual(beforePersistent);
+    expect(tabValues).toEqual(beforeTab);
 
     const original = captureAuthCallback(
       `https://pubmaxxing.com/plan/abc?code=pkce&_authCallback=1&_authAttempt=${ATTEMPT_A}`,
-      storage,
+      persistentStorage,
+      tabStorage,
       3_000,
     );
     expect(original?.cleanUrl).toBe("/plan/abc#invite=SECRET-A");
@@ -275,41 +476,46 @@ describe("auth callback URL safety", () => {
   });
 
   it("does not expose a code for an expired active attempt", () => {
-    const { storage, values } = memoryStorage();
+    const {
+      persistentStorage,
+      persistentValues,
+      tabStorage,
+      tabValues,
+    } = authStores();
     beginAuthAttempt(
       "https://pubmaxxing.com/plan/abc#invite=SECRET-A",
       undefined,
-      storage,
-      fixedCrypto(0xaa),
-      1_000,
+      { persistentStorage, tabStorage, cryptoProvider: fixedCrypto(0xaa), now: 1_000 },
     );
-    const before = new Map(values);
+    const beforePersistent = new Map(persistentValues);
+    const beforeTab = new Map(tabValues);
 
     const expired = captureAuthCallback(
       `https://pubmaxxing.com/plan/abc?code=expired&_authCallback=1&_authAttempt=${ATTEMPT_A}`,
-      storage,
+      persistentStorage,
+      tabStorage,
       3_602_000,
     );
 
     expect(expired?.attempt).toEqual({ attemptId: null, code: null, providerError: true });
-    expect(values).toEqual(before);
+    expect(persistentValues).toEqual(beforePersistent);
+    expect(tabValues).toEqual(beforeTab);
   });
 
   it("does not expose or exchange a replay after the attempt was released", () => {
-    const { storage } = memoryStorage();
+    const { persistentStorage, tabStorage } = authStores();
     beginAuthAttempt(
       "https://pubmaxxing.com/map",
       undefined,
-      storage,
-      fixedCrypto(0xaa),
-      1_000,
+      { persistentStorage, tabStorage, cryptoProvider: fixedCrypto(0xaa), now: 1_000 },
     );
-    releaseAuthAttempt(ATTEMPT_A, storage);
+    releaseAuthAttempt(ATTEMPT_A, persistentStorage, tabStorage);
     const exchangeCodeForSession = vi.fn();
 
     const replay = captureAuthCallback(
       `https://pubmaxxing.com/map?code=replayed&_authCallback=1&_authAttempt=${ATTEMPT_A}`,
-      storage,
+      persistentStorage,
+      tabStorage,
       2_000,
     );
     if (replay?.attempt.code) void exchangeCodeForSession(replay.attempt.code);
@@ -318,41 +524,197 @@ describe("auth callback URL safety", () => {
     expect(exchangeCodeForSession).not.toHaveBeenCalled();
   });
 
+  it("rejects a replay while the first callback exchange is still in flight", () => {
+    const { persistentStorage, tabStorage } = authStores();
+    beginAuthAttempt("https://pubmaxxing.com/map", undefined, {
+      persistentStorage,
+      tabStorage,
+      cryptoProvider: fixedCrypto(0xaa),
+      now: 1_000,
+    });
+    const callbackUrl =
+      `https://pubmaxxing.com/map?code=pkce&_authCallback=1&_authAttempt=${ATTEMPT_A}`;
+
+    expect(captureAuthCallback(callbackUrl, persistentStorage, tabStorage, 2_000)?.attempt)
+      .toEqual({ attemptId: ATTEMPT_A, code: "pkce", providerError: false });
+    expect(captureAuthCallback(callbackUrl, persistentStorage, tabStorage, 2_000)?.attempt)
+      .toEqual({ attemptId: null, code: null, providerError: true });
+  });
+
   it("supports an attempt with no fragment and releases only its lock", () => {
-    const { storage, values } = memoryStorage();
+    const {
+      persistentStorage,
+      persistentValues,
+      tabStorage,
+      tabValues,
+    } = authStores();
     const started = beginAuthAttempt(
       "https://pubmaxxing.com/map?area=soho",
       undefined,
-      storage,
-      fixedCrypto(0xbb),
-      1_000,
+      { persistentStorage, tabStorage, cryptoProvider: fixedCrypto(0xbb), now: 1_000 },
     );
     expect(started).toMatchObject({ ok: true, id: ATTEMPT_B });
     const captured = captureAuthCallback(
       `https://pubmaxxing.com/map?area=soho&code=pkce&_authCallback=1&_authAttempt=${ATTEMPT_B}`,
-      storage,
+      persistentStorage,
+      tabStorage,
       2_000,
     );
     expect(captured?.cleanUrl).toBe("/map?area=soho");
-    releaseAuthAttempt(ATTEMPT_B, storage);
-    expect(values.size).toBe(0);
+    releaseAuthAttempt(ATTEMPT_B, persistentStorage, tabStorage);
+    expect(persistentValues.size).toBe(0);
+    expect(tabValues.size).toBe(0);
+  });
+
+  it("restores the local fragment on provider error and releases both claims", () => {
+    const {
+      persistentStorage,
+      persistentValues,
+      tabStorage,
+      tabValues,
+    } = authStores();
+    beginAuthAttempt(
+      "https://pubmaxxing.com/plan/abc#invite=SECRET-A",
+      undefined,
+      { persistentStorage, tabStorage, cryptoProvider: fixedCrypto(0xaa), now: 1_000 },
+    );
+
+    const providerError = captureAuthCallback(
+      `https://pubmaxxing.com/plan/abc?_authCallback=1&_authAttempt=${ATTEMPT_A}&authError=1`,
+      persistentStorage,
+      tabStorage,
+      2_000,
+    );
+    expect(providerError).toEqual({
+      attempt: { attemptId: ATTEMPT_A, code: null, providerError: true },
+      cleanUrl: "/plan/abc#invite=SECRET-A",
+    });
+
+    releaseAuthAttempt(ATTEMPT_A, persistentStorage, tabStorage);
+    expect(persistentValues.size).toBe(0);
+    expect(tabValues.size).toBe(0);
+  });
+
+  it("does not let a replaced attempt's release clear the live retry", async () => {
+    const { persistentStorage, tabStorage } = authStores();
+    await beginCoordinatedAuthAttempt("https://pubmaxxing.com/map", undefined, {
+      persistentStorage,
+      tabStorage,
+      cryptoProvider: fixedCrypto(0xaa),
+      lockManager: immediateLocks,
+      now: 1_000,
+    });
+    await beginCoordinatedAuthAttempt("https://pubmaxxing.com/map", undefined, {
+      persistentStorage,
+      tabStorage,
+      cryptoProvider: fixedCrypto(0xbb),
+      lockManager: immediateLocks,
+      now: 2_000,
+    });
+
+    releaseAuthAttempt(ATTEMPT_A, persistentStorage, tabStorage);
+    expect(
+      captureAuthCallback(
+        `https://pubmaxxing.com/map?code=fresh&_authCallback=1&_authAttempt=${ATTEMPT_B}`,
+        persistentStorage,
+        tabStorage,
+        3_000,
+      )?.attempt,
+    ).toEqual({ attemptId: ATTEMPT_B, code: "fresh", providerError: false });
+  });
+
+  it("fails closed when either browser store or Web Locks is unavailable", async () => {
+    const { storage: persistentStorage } = memoryStorage();
+    const { storage: tabStorage } = memoryStorage();
+    const lockRequest = vi.fn();
+
+    await expect(
+      beginCoordinatedAuthAttempt("https://pubmaxxing.com/map", undefined, {
+        persistentStorage,
+        tabStorage: null,
+        cryptoProvider: fixedCrypto(0xaa),
+        lockManager: { request: lockRequest } as unknown as NonNullable<
+          AuthAttemptOptions["lockManager"]
+        >,
+      }),
+    ).resolves.toEqual({ ok: false, message: AUTH_STORAGE_UNAVAILABLE_MESSAGE });
+    expect(lockRequest).not.toHaveBeenCalled();
+
+    await expect(
+      beginCoordinatedAuthAttempt("https://pubmaxxing.com/map", undefined, {
+        persistentStorage,
+        tabStorage: persistentStorage,
+        cryptoProvider: fixedCrypto(0xaa),
+        lockManager: immediateLocks,
+      }),
+    ).resolves.toEqual({ ok: false, message: AUTH_STORAGE_UNAVAILABLE_MESSAGE });
+
+    await expect(
+      beginCoordinatedAuthAttempt("https://pubmaxxing.com/map", undefined, {
+        persistentStorage,
+        tabStorage,
+        cryptoProvider: fixedCrypto(0xaa),
+        lockManager: null,
+      }),
+    ).resolves.toEqual({ ok: false, message: AUTH_COORDINATION_UNAVAILABLE_MESSAGE });
+  });
+
+  it("cleans a partial claim and reports the storage failure", async () => {
+    const { storage: persistentStorage, values: persistentValues } = memoryStorage();
+    const failingTabStorage = {
+      getItem: () => null,
+      setItem: () => {
+        throw new Error("quota denied");
+      },
+      removeItem: () => undefined,
+    };
+
+    await expect(
+      beginCoordinatedAuthAttempt("https://pubmaxxing.com/map", undefined, {
+        persistentStorage,
+        tabStorage: failingTabStorage,
+        cryptoProvider: fixedCrypto(0xaa),
+        lockManager: immediateLocks,
+        now: 1_000,
+      }),
+    ).resolves.toEqual({ ok: false, message: AUTH_STORAGE_UNAVAILABLE_MESSAGE });
+    expect(persistentValues.size).toBe(0);
+  });
+
+  it("normalizes a Web Locks failure without attempting an unsafe claim", async () => {
+    const { persistentStorage, persistentValues, tabStorage, tabValues } = authStores();
+    const failingLocks = {
+      request: () => {
+        throw new Error("locks denied");
+      },
+    } as unknown as NonNullable<AuthAttemptOptions["lockManager"]>;
+
+    await expect(
+      beginCoordinatedAuthAttempt("https://pubmaxxing.com/map", undefined, {
+        persistentStorage,
+        tabStorage,
+        cryptoProvider: fixedCrypto(0xaa),
+        lockManager: failingLocks,
+      }),
+    ).resolves.toEqual({ ok: false, message: AUTH_COORDINATION_UNAVAILABLE_MESSAGE });
+    expect(persistentValues.size).toBe(0);
+    expect(tabValues.size).toBe(0);
   });
 
   it("scrubs callback credentials synchronously before a hung exchange", () => {
-    const { storage } = memoryStorage();
+    const { persistentStorage, tabStorage } = authStores();
     beginAuthAttempt(
       "https://pubmaxxing.com/map#venue",
       undefined,
-      storage,
-      fixedCrypto(0xaa),
-      1_000,
+      { persistentStorage, tabStorage, cryptoProvider: fixedCrypto(0xaa), now: 1_000 },
     );
     const replaceUrl = vi.fn();
     const neverSettles = new Promise(() => {});
     const captured = scrubAuthCallback(
       `https://pubmaxxing.com/map?code=pkce&_authCallback=1&_authAttempt=${ATTEMPT_A}`,
       replaceUrl,
-      storage,
+      persistentStorage,
+      tabStorage,
       2_000,
     );
 
