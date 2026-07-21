@@ -331,9 +331,9 @@ describe("auth callback URL safety", () => {
     expect(first).toMatchObject({ ok: true, id: ATTEMPT_A });
     expect(restarted).toMatchObject({ ok: true, id: ATTEMPT_B });
     expect([...persistentValues.values()].join(" ")).not.toContain("SECRET-A");
-    expect([...persistentValues.values()].join(" ")).not.toContain("venue-b");
+    expect([...persistentValues.values()].join(" ")).toContain("#venue-b");
     expect([...tabValues.values()].join(" ")).not.toContain("SECRET-A");
-    expect([...tabValues.values()].join(" ")).toContain("#venue-b");
+    expect([...tabValues.values()].join(" ")).not.toContain("venue-b");
 
     const replacedCallback = captureAuthCallback(
       `https://pubmaxxing.com/plan/abc?code=old&_authCallback=1&_authAttempt=${ATTEMPT_A}`,
@@ -359,7 +359,7 @@ describe("auth callback URL safety", () => {
     });
   });
 
-  it("keeps capability fragments isolated to their initiating tab", async () => {
+  it("completes an emailed callback in a new tab exactly once and restores its fragment", async () => {
     const { storage: persistentStorage, values: persistentValues } = memoryStorage();
     const { storage: tabAStorage, values: tabAValues } = memoryStorage();
     const { storage: tabBStorage, values: tabBValues } = memoryStorage();
@@ -375,17 +375,45 @@ describe("auth callback URL safety", () => {
       },
     );
 
-    expect([...persistentValues.values()].join(" ")).not.toContain("SECRET-A");
-    expect([...tabAValues.values()].join(" ")).toContain("SECRET-A");
+    expect([...persistentValues.values()].join(" ")).toContain("SECRET-A");
+    expect([...tabAValues.values()].join(" ")).not.toContain("SECRET-A");
     expect(tabBValues.size).toBe(0);
-    const wrongTab = captureAuthCallback(
-      `https://pubmaxxing.com/plan/abc?code=pkce&_authCallback=1&_authAttempt=${ATTEMPT_A}`,
+    const callbackUrl =
+      `https://pubmaxxing.com/plan/abc?code=pkce&_authCallback=1&_authAttempt=${ATTEMPT_A}`;
+    const newTabCallback = captureAuthCallback(
+      callbackUrl,
       persistentStorage,
       tabBStorage,
       2_000,
     );
-    expect(wrongTab?.attempt).toEqual({ attemptId: null, code: null, providerError: true });
-    expect([...tabAValues.values()].join(" ")).toContain("SECRET-A");
+    expect(newTabCallback).toEqual({
+      attempt: { attemptId: ATTEMPT_A, code: "pkce", providerError: false },
+      cleanUrl: "/plan/abc#invite=SECRET-A",
+    });
+    expect([...persistentValues.values()].join(" ")).not.toContain("SECRET-A");
+    expect(tabAValues.size).toBe(1);
+    expect(tabBValues.size).toBe(0);
+
+    expect(captureAuthCallback(callbackUrl, persistentStorage, tabBStorage, 2_000)?.attempt)
+      .toEqual({ attemptId: null, code: null, providerError: true });
+
+    releaseAuthAttempt(ATTEMPT_A, persistentStorage, tabBStorage);
+    expect(persistentValues.size).toBe(0);
+    expect(tabAValues.size).toBe(1);
+    const restarted = await beginCoordinatedAuthAttempt(
+      "https://pubmaxxing.com/map#venue-b",
+      undefined,
+      {
+        persistentStorage,
+        tabStorage: tabAStorage,
+        cryptoProvider: fixedCrypto(0xbb),
+        lockManager: immediateLocks,
+        now: 3_000,
+      },
+    );
+    expect(restarted).toMatchObject({ ok: true, id: ATTEMPT_B });
+    expect(captureAuthCallback(callbackUrl, persistentStorage, tabBStorage, 4_000)?.attempt)
+      .toEqual({ attemptId: null, code: null, providerError: true });
   });
 
   it("rolls back a failed same-tab replacement and leaves the original callback live", async () => {
@@ -419,7 +447,8 @@ describe("auth callback URL safety", () => {
     ).resolves.toEqual({ ok: false, message: AUTH_STORAGE_UNAVAILABLE_MESSAGE });
     expect([...persistentValues.values()].join(" ")).toContain(ATTEMPT_A);
     expect([...persistentValues.values()].join(" ")).not.toContain(ATTEMPT_B);
-    expect([...tabValues.values()].join(" ")).toContain("SECRET-A");
+    expect([...persistentValues.values()].join(" ")).toContain("SECRET-A");
+    expect([...tabValues.values()].join(" ")).not.toContain("SECRET-A");
 
     expect(
       captureAuthCallback(
@@ -431,7 +460,7 @@ describe("auth callback URL safety", () => {
     ).toEqual({ attemptId: ATTEMPT_A, code: "pkce", providerError: false });
   });
 
-  it("does not consume tab A's fragment for an unrelated attempt B", () => {
+  it("does not consume the live persistent fragment for an unrelated attempt B", () => {
     const {
       persistentStorage,
       persistentValues,
@@ -524,7 +553,7 @@ describe("auth callback URL safety", () => {
     expect(exchangeCodeForSession).not.toHaveBeenCalled();
   });
 
-  it("rejects a replay while the first callback exchange is still in flight", () => {
+  it("rejects a replay and same-tab restart while the first callback exchange is in flight", async () => {
     const { persistentStorage, tabStorage } = authStores();
     beginAuthAttempt("https://pubmaxxing.com/map", undefined, {
       persistentStorage,
@@ -539,6 +568,15 @@ describe("auth callback URL safety", () => {
       .toEqual({ attemptId: ATTEMPT_A, code: "pkce", providerError: false });
     expect(captureAuthCallback(callbackUrl, persistentStorage, tabStorage, 2_000)?.attempt)
       .toEqual({ attemptId: null, code: null, providerError: true });
+    await expect(
+      beginCoordinatedAuthAttempt("https://pubmaxxing.com/map", undefined, {
+        persistentStorage,
+        tabStorage,
+        cryptoProvider: fixedCrypto(0xbb),
+        lockManager: immediateLocks,
+        now: 2_500,
+      }),
+    ).resolves.toEqual({ ok: false, message: AUTH_ATTEMPT_IN_PROGRESS_MESSAGE });
   });
 
   it("supports an attempt with no fragment and releases only its lock", () => {
