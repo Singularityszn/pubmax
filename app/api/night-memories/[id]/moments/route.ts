@@ -48,6 +48,10 @@ export async function POST(request: Request, context: Context): Promise<Response
         venueId: form.get("venueId"),
         occurredAt: form.get("occurredAt"),
         mediaObjectKey: uploadedKey,
+        // Author-written photo description from the capture surface. Optional at
+        // save time (a photo can be kept privately without one); it only becomes
+        // REQUIRED at publication (the publish gate), never for a private save.
+        altText: form.get("altText"),
       };
     } else {
       body = await request.json();
