@@ -6,6 +6,7 @@ import type {
   PlanStopConstraintFlag,
 } from "@/lib/planGenerationDto";
 import {
+  OPENING_EVIDENCE_FRESH_DAYS,
   accessNeedSatisfied,
   assessOpeningSchedule,
   priceEvidenceUsableForCeiling,
@@ -198,7 +199,13 @@ function report<T>(evaluation: EvaluatedRoute<T>, constraints: GroundedPlanRoute
     version: 1,
     source: "plan-intake-v1",
     hardConstraints: [
-      { code: "safety", status: "satisfied", message: "Stops with an active reviewed avoid signal were excluded." },
+      {
+        code: "safety",
+        status: "satisfied",
+        message: constraints.routeWindow
+          ? "Stops with a reviewed avoid signal overlapping any part of the route window were conservatively excluded."
+          : "Stops with an active reviewed avoid signal were excluded.",
+      },
       { code: "exclusions", status: "satisfied", message: "Excluded and promoted venues were not eligible." },
       {
         code: "transport_feasibility",
@@ -258,6 +265,26 @@ const ROUTE_PERMUTATIONS = [
   [2, 0, 1],
   [2, 1, 0],
 ] as const;
+
+function hasCurrentAttributableOpeningSchedule(
+  schedule: PlanOpeningSchedule | null,
+  now: number,
+): boolean {
+  if (!schedule || schedule.venueListedOpen !== true) return false;
+  const { source } = schedule;
+  if (
+    !source
+    || typeof source.label !== "string"
+    || !source.label.trim()
+    || typeof source.url !== "string"
+    || !/^https?:\/\//.test(source.url)
+    || typeof source.observedAt !== "string"
+  ) return false;
+  const observedAt = Date.parse(source.observedAt);
+  if (!Number.isFinite(observedAt)) return false;
+  const ageDays = (now - observedAt) / 86_400_000;
+  return ageDays >= 0 && ageDays <= OPENING_EVIDENCE_FRESH_DAYS;
+}
 
 function bestRouteFromCombination<T>(
   combination: readonly [
@@ -358,12 +385,19 @@ export function selectGroundedPlanRoute<T>(
       return true;
     });
 
-  const best = findBestRoute(eligible, constraints);
-  if (!best) return { ok: false, eligibleCandidateCount: eligible.length, rejected };
+  const routeEligible = constraints.routeWindow
+    ? eligible.filter((candidate) => hasCurrentAttributableOpeningSchedule(candidate.openingSchedule, constraints.now))
+    : eligible;
+  if (routeEligible.length < 3) {
+    return { ok: false, eligibleCandidateCount: routeEligible.length, rejected };
+  }
+
+  const best = findBestRoute(routeEligible, constraints);
+  if (!best) return { ok: false, eligibleCandidateCount: routeEligible.length, rejected };
 
   const stops = selectedStops(best);
   const selectedIds = new Set(best.route.map((candidate) => candidate.venueId));
-  const alternatives = stops.map((_, position) => eligible.flatMap((candidate) => {
+  const alternatives = stops.map((_, position) => routeEligible.flatMap((candidate) => {
     if (selectedIds.has(candidate.venueId)) return [];
     const replacement = [...best!.route] as [
       GroundedPlanRouteCandidate<T>, GroundedPlanRouteCandidate<T>, GroundedPlanRouteCandidate<T>,

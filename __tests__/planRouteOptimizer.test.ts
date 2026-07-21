@@ -100,6 +100,43 @@ describe("selectGroundedPlanRoute", () => {
     ))).toBe(true);
   });
 
+  it("fails a dense dated pool after one linear opening-evidence pass when fewer than three schedules are current", () => {
+    let openingScheduleReads = 0;
+    const fresh = freshMondaySchedule();
+    const candidates = Array.from({ length: 132 }, (_, index) => {
+      const result = candidate(`venue-${String(index).padStart(3, "0")}`);
+      const invalidSchedule = (() => {
+        if (index < 2) return fresh;
+        switch (index % 6) {
+          case 0: return null;
+          case 1: return { ...fresh, source: { ...fresh.source, observedAt: "not-a-date" } };
+          case 2: return { ...fresh, source: { ...fresh.source, observedAt: "2026-07-21T12:00:00.000Z" } };
+          case 3: return { ...fresh, source: { ...fresh.source, observedAt: "2026-06-19T11:59:59.999Z" } };
+          case 4: return { ...fresh, venueListedOpen: false };
+          default: return { ...fresh, source: { ...fresh.source, label: "" } };
+        }
+      })();
+      Object.defineProperty(result, "openingSchedule", {
+        enumerable: true,
+        get() {
+          openingScheduleReads += 1;
+          return invalidSchedule;
+        },
+      });
+      return result;
+    });
+
+    const result = selectGroundedPlanRoute(candidates, constraints({
+      routeWindow: {
+        startsAt: "2026-07-20T16:30:00.000Z",
+        endsAt: "2026-07-20T20:30:00.000Z",
+      },
+    }));
+
+    expect(result).toMatchObject({ ok: false, eligibleCandidateCount: 2 });
+    expect(openingScheduleReads).toBe(candidates.length);
+  });
+
   it("fails closed for requested transport constraints without matching evidence", () => {
     const candidates = [candidate("a"), candidate("b"), candidate("c")];
 
