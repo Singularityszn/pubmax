@@ -103,6 +103,18 @@ const partyFace = Bungee({
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://pubmaxxing.com"),
+  // Large image previews in search results; without this Google caps result
+  // thumbnails at the small default and often shows none at all.
+  robots: {
+    index: true,
+    follow: true,
+    "max-image-preview": "large",
+    googleBot: {
+      index: true,
+      follow: true,
+      "max-image-preview": "large",
+    },
+  },
   title: {
     default: "PUBMAXX: real pint prices on a live map",
     template: "%s | PUBMAXX",
