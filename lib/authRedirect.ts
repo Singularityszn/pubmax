@@ -34,6 +34,8 @@ export const AUTH_STORAGE_UNAVAILABLE_MESSAGE =
   "Sign-in needs browser storage. Enable site storage, then try again.";
 export const AUTH_COORDINATION_UNAVAILABLE_MESSAGE =
   "This browser cannot safely coordinate sign-in tabs. Close other PUBMAXX tabs, update your browser, and try again.";
+export const AUTH_RETURN_FRAGMENT_RESTORED_EVENT =
+  "pubmax-auth-return-fragment-restored";
 
 export type AuthFragmentStorage = Pick<Storage, "getItem" | "setItem" | "removeItem">;
 
@@ -70,7 +72,9 @@ export type AuthAttemptOptions = {
 export type AuthCallbackCaptureOptions = Pick<
   AuthAttemptOptions,
   "persistentStorage" | "tabStorage" | "lockManager" | "now"
->;
+> & {
+  onFragmentRestored?: (cleanUrl: string) => void;
+};
 
 export type AuthAttemptStart =
   | { ok: true; id: string; callbackUrl: string }
@@ -85,7 +89,20 @@ export type AuthCallbackAttempt = {
 export type CapturedAuthCallback = {
   attempt: AuthCallbackAttempt;
   cleanUrl: string;
+  /** Release only after exchange and matching persistent cleanup complete. */
+  releaseCoordination: () => void;
 };
+
+type AuthFragmentEventTarget = Pick<EventTarget, "addEventListener" | "removeEventListener">;
+
+export function subscribeToAuthFragmentRestored(
+  listener: EventListener,
+  target?: AuthFragmentEventTarget,
+): () => void {
+  const eventTarget = target ?? window;
+  eventTarget.addEventListener(AUTH_RETURN_FRAGMENT_RESTORED_EVENT, listener);
+  return () => eventTarget.removeEventListener(AUTH_RETURN_FRAGMENT_RESTORED_EVENT, listener);
+}
 
 function authFragmentKey(attemptId: string): string {
   return `${AUTH_RETURN_FRAGMENT_PREFIX}${attemptId}`;
@@ -385,6 +402,7 @@ function rejectedAuthCallback(cleanUrl: string): CapturedAuthCallback {
   return {
     attempt: { attemptId: null, code: null, providerError: true },
     cleanUrl,
+    releaseCoordination: () => {},
   };
 }
 
@@ -457,6 +475,7 @@ function claimAuthCallback(
     return {
       attempt: parsedAttempt,
       cleanUrl: fragment ? restoreAuthFragment(cleanUrl, fragment) : cleanUrl,
+      releaseCoordination: () => {},
     };
   } catch {
     return rejectedAuthCallback(cleanUrl);
@@ -489,19 +508,47 @@ async function capturePreparedAuthCallback(
 ): Promise<CapturedAuthCallback> {
   const { persistentStorage, lockManager } = options;
   if (!persistentStorage || !lockManager) return rejectedAuthCallback(cleanUrl);
-  try {
-    return await lockManager.request(AUTH_ATTEMPT_LOCK_NAME, () =>
-      claimAuthCallback(
-        currentUrl,
-        parsedAttempt,
-        cleanUrl,
-        persistentStorage,
-        options.now ?? Date.now(),
-      ),
-    );
-  } catch {
-    return rejectedAuthCallback(cleanUrl);
-  }
+  return new Promise<CapturedAuthCallback>((resolve) => {
+    let resolved = false;
+    const resolveOnce = (captured: CapturedAuthCallback) => {
+      if (resolved) return;
+      resolved = true;
+      resolve(captured);
+    };
+    try {
+      void Promise.resolve(
+        lockManager.request(AUTH_ATTEMPT_LOCK_NAME, async () => {
+          const captured = claimAuthCallback(
+            currentUrl,
+            parsedAttempt,
+            cleanUrl,
+            persistentStorage,
+            options.now ?? Date.now(),
+          );
+          if (!captured.attempt.attemptId) {
+            resolveOnce(captured);
+            return;
+          }
+
+          let releaseLease = () => {};
+          let released = false;
+          const lease = new Promise<void>((release) => {
+            releaseLease = () => {
+              if (released) return;
+              released = true;
+              release();
+            };
+          });
+          resolveOnce({ ...captured, releaseCoordination: releaseLease });
+          // Fail closed while exchange is live. Navigation/crash releases Web
+          // Locks with the document; a live caller releases explicitly in finally.
+          await lease;
+        }),
+      ).catch(() => resolveOnce(rejectedAuthCallback(cleanUrl)));
+    } catch {
+      resolveOnce(rejectedAuthCallback(cleanUrl));
+    }
+  });
 }
 
 /** Claim callback state under the same cross-tab lock used to start attempts. */
@@ -535,6 +582,7 @@ export function scrubAuthCallback(
       if (captured.cleanUrl !== cleanUrl) {
         try {
           replaceUrl(captured.cleanUrl);
+          options.onFragmentRestored?.(captured.cleanUrl);
         } catch {
           // Credentials were already scrubbed; continue so the caller releases
           // the claimed attempt after exchange instead of stranding it.
