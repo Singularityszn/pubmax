@@ -228,6 +228,7 @@ const VERDICT_CATEGORY_BY_RULE: Record<string, DrinkCategory> = {
   cold: "beer",
   "summer-garden": "beer",
   "warm-dry": "beer",
+  "winter-porter": "beer",
   "mild-riverside": "beer",
   "crisp-autumn": "beer",
   "cool-spring": "beer",
