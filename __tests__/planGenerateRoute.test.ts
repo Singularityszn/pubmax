@@ -548,7 +548,7 @@ describe("POST /api/plans/generate", () => {
 		},
 	);
 
-  it("makes missing dated opening evidence explicit on the route and every stop", async () => {
+  it("returns no route when a dated route lacks opening evidence", async () => {
     const clock = vi.spyOn(Date, "now").mockReturnValue(Date.parse("2026-07-20T12:00:00.000Z"));
     loadConciergeVenuesMock.mockResolvedValueOnce([
       generatedVenue("ordinary-1"),
@@ -570,21 +570,8 @@ describe("POST /api/plans/generate", () => {
         }) }),
       }));
       const body = await response.json();
-      expect(response.status).toBe(200);
-      expect(body.constraintReport.hardConstraints).toContainEqual(expect.objectContaining({
-        code: "opening_hours",
-        status: "flagged",
-      }));
-			expect(body.routeTiming).toMatchObject({
-				walkingSpeedKmh: 4.8,
-				transferUncertaintyMinutes: 10,
-				basis: expect.stringContaining("five minutes"),
-			});
-      expect(body.stops.every((stop: { constraintFlags: Array<{ code: string }> }) =>
-        stop.constraintFlags.some((flag) => flag.code === "opening_hours_unconfirmed"))).toBe(true);
-      expect(body.stops.flatMap((stop: { alternatives: Array<{ constraintFlags: Array<{ code: string }> }> }) => stop.alternatives)
-        .every((alternative: { constraintFlags: Array<{ code: string }> }) =>
-          alternative.constraintFlags.some((flag) => flag.code === "opening_hours_unconfirmed"))).toBe(true);
+      expect(response.status).toBe(422);
+      expect(body).toMatchObject({ code: "GROUNDED_CONSTRAINTS_UNSATISFIED" });
     } finally {
       clock.mockRestore();
     }

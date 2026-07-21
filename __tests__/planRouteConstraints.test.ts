@@ -172,10 +172,11 @@ describe("ordered grounded route optimization", () => {
   });
 
   it("derives visit windows from each leg's walking estimate and uncertainty", () => {
+    const allEvening = openSchedule([{ weekday: "Monday", startsAt: "16:00", endsAt: "23:00" }]);
     const selection = selectGroundedPlanRoute([
-      candidate("a", { lat: 51.5, lng: -0.13 }),
-      candidate("b", { lat: 51.504, lng: -0.13 }),
-      candidate("c", { lat: 51.508, lng: -0.13 }),
+      candidate("a", { lat: 51.5, lng: -0.13, openingSchedule: allEvening }),
+      candidate("b", { lat: 51.504, lng: -0.13, openingSchedule: allEvening }),
+      candidate("c", { lat: 51.508, lng: -0.13, openingSchedule: allEvening }),
     ], constraints({ routeWindow: { startsAt: "2026-07-20T16:30:00.000Z", endsAt: "2026-07-20T20:30:00.000Z" } }));
     expect(selection.ok).toBe(true);
     if (!selection.ok) return;
@@ -200,14 +201,20 @@ describe("hard evidence fences", () => {
 
   it("time-matches structured low-noise evidence and rejects prose-shaped substitutes", () => {
     const quiet = { ranges: [{ weekday: "Monday", startsAt: "17:00", endsAt: "21:00" }], source: SOURCE };
-    const rows = ["a", "b", "c"].map((id) => candidate(id, { access: { lowNoise: quiet } }));
+    const allEvening = openSchedule([{ weekday: "Monday", startsAt: "16:00", endsAt: "23:00" }]);
+    const rows = ["a", "b", "c"].map((id) => candidate(id, {
+      access: { lowNoise: quiet },
+      openingSchedule: allEvening,
+    }));
     const matching = selectGroundedPlanRoute(rows, constraints({
       accessibilityNeeds: ["low-noise"],
       routeWindow: { startsAt: "2026-07-20T16:30:00.000Z", endsAt: "2026-07-20T20:30:00.000Z" },
     }));
     expect(matching.ok).toBe(true);
     const prose = selectGroundedPlanRoute([
-      candidate("a", { access: { quietHours: "Usually quiet" } as never }), candidate("b"), candidate("c"),
+      candidate("a", { access: { quietHours: "Usually quiet" } as never, openingSchedule: allEvening }),
+      candidate("b", { openingSchedule: allEvening }),
+      candidate("c", { openingSchedule: allEvening }),
     ], constraints({
       accessibilityNeeds: ["low-noise"],
       routeWindow: { startsAt: "2026-07-20T16:30:00.000Z", endsAt: "2026-07-20T20:30:00.000Z" },

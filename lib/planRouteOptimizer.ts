@@ -160,7 +160,7 @@ function evaluateRoute<T>(
     visits[position] ?? null,
     constraints.now,
   )) as [OpeningAssessment, OpeningAssessment, OpeningAssessment];
-  if (opening.some((assessment) => assessment.state === "listed_closed")) return null;
+  if (visits.length > 0 && opening.some((assessment) => assessment.state !== "listed_open")) return null;
   return {
     route,
     timing,
@@ -194,7 +194,6 @@ function selectedStops<T>(evaluation: EvaluatedRoute<T>): [
 
 function report<T>(evaluation: EvaluatedRoute<T>, constraints: GroundedPlanRouteConstraints): PlanConstraintReport {
   const dated = evaluation.timing.visitWindows.length === 3;
-  const unknownOpening = evaluation.opening.some((item) => item.state === "unknown");
   return {
     version: 1,
     source: "plan-intake-v1",
@@ -203,10 +202,8 @@ function report<T>(evaluation: EvaluatedRoute<T>, constraints: GroundedPlanRoute
       { code: "exclusions", status: "satisfied", message: "Excluded and promoted venues were not eligible." },
       {
         code: "transport_feasibility",
-        status: constraints.transportConstraints.length ? "flagged" : "satisfied",
-        message: constraints.transportConstraints.length
-          ? "The route passed direct-distance walking limits, but requested per-venue transport evidence is unavailable."
-          : `Travel time uses ${PLAN_WALKING_KMH} km/h direct-distance walking plus ${PLAN_TRANSFER_UNCERTAINTY_MINUTES} minutes uncertainty per leg; pavement routing is not claimed.`,
+        status: "satisfied",
+        message: `Travel time uses ${PLAN_WALKING_KMH} km/h direct-distance walking plus ${PLAN_TRANSFER_UNCERTAINTY_MINUTES} minutes uncertainty per leg; pavement routing is not claimed.`,
       },
       ...(constraints.exactArea ? [{
         code: "exact_area" as const,
@@ -226,9 +223,7 @@ function report<T>(evaluation: EvaluatedRoute<T>, constraints: GroundedPlanRoute
       ...(dated ? [{
         code: "opening_hours" as const,
         status: "flagged" as const,
-        message: unknownOpening
-          ? "No stop is listed closed, but at least one visit lacks fresh recurring-hours evidence."
-          : "Recurring weekly schedules list every stop open; holiday and one-off exceptions are not confirmed and must be checked.",
+        message: "Recurring weekly schedules list every stop open; holiday and one-off exceptions are not confirmed and must be checked.",
       }] : []),
     ],
     softRelaxations: [
@@ -255,12 +250,88 @@ function better<T>(candidate: EvaluatedRoute<T>, incumbent: EvaluatedRoute<T> | 
   return candidate.key.localeCompare(incumbent.key, "en-GB") < 0;
 }
 
-/** Enumerate every ordered three-stop route, then apply deterministic tie-breaks. */
+const ROUTE_PERMUTATIONS = [
+  [0, 1, 2],
+  [0, 2, 1],
+  [1, 0, 2],
+  [1, 2, 0],
+  [2, 0, 1],
+  [2, 1, 0],
+] as const;
+
+function bestRouteFromCombination<T>(
+  combination: readonly [
+    GroundedPlanRouteCandidate<T>,
+    GroundedPlanRouteCandidate<T>,
+    GroundedPlanRouteCandidate<T>,
+  ],
+  constraints: GroundedPlanRouteConstraints,
+  incumbent: EvaluatedRoute<T> | null,
+): EvaluatedRoute<T> | null {
+  let best = incumbent;
+  for (const permutation of ROUTE_PERMUTATIONS) {
+    const evaluated = evaluateRoute([
+      combination[permutation[0]],
+      combination[permutation[1]],
+      combination[permutation[2]],
+    ], constraints);
+    if (evaluated && better(evaluated, best)) best = evaluated;
+  }
+  return best;
+}
+
+/**
+ * Visit candidate triples in descending score-bound order. Once an incumbent
+ * exists, a branch whose three best remaining scores cannot match it is
+ * discarded. A surviving unordered triple still checks every ordering, so the
+ * walking-distance and lexical route tie-breaks remain exact.
+ */
+function findBestRoute<T>(
+  eligible: readonly GroundedPlanRouteCandidate<T>[],
+  constraints: GroundedPlanRouteConstraints,
+): EvaluatedRoute<T> | null {
+  const ranked = [...eligible].sort((left, right) => right.score - left.score
+    || left.venueId.localeCompare(right.venueId, "en-GB"));
+  const combination: GroundedPlanRouteCandidate<T>[] = [];
+  let best: EvaluatedRoute<T> | null = null;
+
+  const visit = (start: number, partialScore: number): void => {
+    const remaining = 3 - combination.length;
+    if (remaining === 0) {
+      best = bestRouteFromCombination(combination as [
+        GroundedPlanRouteCandidate<T>,
+        GroundedPlanRouteCandidate<T>,
+        GroundedPlanRouteCandidate<T>,
+      ], constraints, best);
+      return;
+    }
+
+    for (let index = start; index <= ranked.length - remaining; index += 1) {
+      let upperScore = partialScore + ranked[index].score;
+      for (let offset = 1; offset < remaining; offset += 1) {
+        upperScore += ranked[index + offset].score;
+      }
+      if (best && upperScore < best.score) break;
+
+      combination.push(ranked[index]);
+      visit(index + 1, partialScore + ranked[index].score);
+      combination.pop();
+    }
+  };
+
+  visit(0, 0);
+  return best;
+}
+
+/** Select the strongest feasible three-stop route with deterministic tie-breaks. */
 export function selectGroundedPlanRoute<T>(
   candidates: readonly GroundedPlanRouteCandidate<T>[],
   constraints: GroundedPlanRouteConstraints,
 ): GroundedPlanRouteSelection<T> {
   const rejected = { safety: 0, exclusions: 0, accessibility: 0, budgetEvidence: 0, budgetCeiling: 0 };
+  if (constraints.transportConstraints.length > 0) {
+    return { ok: false, eligibleCandidateCount: 0, rejected };
+  }
   const eligible = [...candidates]
     .sort((left, right) => left.venueId.localeCompare(right.venueId, "en-GB"))
     .filter((candidate) => {
@@ -287,17 +358,7 @@ export function selectGroundedPlanRoute<T>(
       return true;
     });
 
-  let best: EvaluatedRoute<T> | null = null;
-  for (let first = 0; first < eligible.length; first += 1) {
-    for (let second = 0; second < eligible.length; second += 1) {
-      if (second === first) continue;
-      for (let third = 0; third < eligible.length; third += 1) {
-        if (third === first || third === second) continue;
-        const evaluated = evaluateRoute([eligible[first], eligible[second], eligible[third]], constraints);
-        if (evaluated && better(evaluated, best)) best = evaluated;
-      }
-    }
-  }
+  const best = findBestRoute(eligible, constraints);
   if (!best) return { ok: false, eligibleCandidateCount: eligible.length, rejected };
 
   const stops = selectedStops(best);
