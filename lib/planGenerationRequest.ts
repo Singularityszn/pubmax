@@ -74,7 +74,7 @@ function strictList(value: unknown): string[] | null {
 }
 
 function parseContext(value: unknown): Partial<NightContext> | null | undefined {
-  if (value === undefined) return null;
+  if (value === undefined || value === null) return null;
   if (!isPlainRecord(value) || !hasOnlyKeys(value, CONTEXT_KEYS)) return undefined;
   const result: Partial<NightContext> = {};
   for (const key of Object.keys(value) as (keyof NightContext)[]) {
