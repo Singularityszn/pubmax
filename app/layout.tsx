@@ -140,9 +140,9 @@ export const metadata: Metadata = {
   },
   icons: {
     icon: [
-      { url: "/favicon.svg", type: "image/svg+xml", sizes: "any" },
-      { url: "/icon-192.png", type: "image/png", sizes: "192x192" },
-      { url: "/icon-512.png", type: "image/png", sizes: "512x512" },
+      { url: "/favicon.svg?v=20260721-coralx", type: "image/svg+xml", sizes: "any" },
+      { url: "/icon-192.png?v=20260721-coralx", type: "image/png", sizes: "192x192" },
+      { url: "/icon-512.png?v=20260721-coralx", type: "image/png", sizes: "512x512" },
     ],
     // iOS Safari requires a raster apple-touch-icon (SVG is ignored).
     apple: [{ url: "/apple-touch-icon.png", type: "image/png", sizes: "180x180" }],
