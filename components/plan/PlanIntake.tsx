@@ -113,6 +113,7 @@ export default function PlanIntake({
 
   function cancelLocationRequest(): void {
     locationRequestRef.current += 1;
+    setLocationState({ kind: "idle", message: "" });
   }
 
   function useCurrentLocation(): void {
@@ -272,7 +273,6 @@ export default function PlanIntake({
                   aria-pressed={draft.answers.area === patch.id}
                   onClick={() => {
                     cancelLocationRequest();
-                    setLocationState({ kind: "idle", message: "" });
                     writeRememberedArea({ kind: "patch", id: patch.id });
                     onChange({ ...draft, answers: { ...draft.answers, area: patch.id } });
                   }}

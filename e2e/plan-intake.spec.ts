@@ -138,6 +138,9 @@ test("a delayed location result cannot overwrite the area after Continue", async
   await expect(page.getByRole("heading", { name: "When are you heading out?" })).toBeVisible();
   await expect.poll(() => page.evaluate(() => window.localStorage.getItem("pubmax:nightPatch:v1")))
     .toBe(JSON.stringify({ kind: "patch", id: "clapham" }));
+  await page.getByRole("button", { name: "Back" }).click();
+  await expect(page.getByRole("heading", { name: "Where should the night happen?" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Use my location" })).toBeEnabled();
 });
 
 test("a typed exact time rejects an autumn overlap once both occurrences have passed", async ({ page }) => {
