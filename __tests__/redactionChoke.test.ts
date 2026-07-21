@@ -38,6 +38,8 @@ async function publishStoryWithFriend() {
     kind: "photo",
     caption: "Great night with @jordanx and the crew",
     mediaObjectKey: "night-media/host/1.webp",
+    // Photos need author-confirmed alt text to clear the 5.6 publish gate.
+    altText: "The crew raising pints on a bar terrace.",
   });
   const story = await createNightStory("host", { memoryId: memory!.id, title: "Friday orbit with Jordan" });
 
@@ -47,6 +49,8 @@ async function publishStoryWithFriend() {
     kind: "photo",
     caption: "My round at the second stop",
     mediaObjectKey: "night-media/friend/1.webp",
+    // Photos need author-confirmed alt text to clear the 5.6 publish gate.
+    altText: "A tray of drinks at the second bar.",
   });
   await setMomentPublicationConsent("friend", story!.id, friendMoment!.id, "approved");
 

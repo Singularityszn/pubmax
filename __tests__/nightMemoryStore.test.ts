@@ -19,6 +19,7 @@ import {
   getNightStoryWorkspace,
   getPublishedRecapSource,
   listNightStoryInbox,
+  markContributorsDepartedByProfileId,
   proposeNightStoryPublication,
   setMomentAltText,
   setMomentPublicationConsent,
@@ -196,6 +197,52 @@ describe("collaborative Night Story storage", () => {
     await setMomentAltText("host", photo!.id, "A described photo.");
     const refreshed = await getNightStoryWorkspace("host", story!.id);
     expect(refreshed?.moments[0]).toMatchObject({ hasPhoto: true, altText: "A described photo.", altTextConfirmed: true });
+  });
+
+  it("composes the 5.5 redaction and the 5.6 alt-text belt in one public emission", async () => {
+    // A departed contributor's still-published photo is DROPPED (5.5 redaction),
+    // and on the surviving owner's photo an unconfirmed description is emitted as
+    // NULL — never dropped (5.6 alt-text belt). Both effects, one emission.
+    await profileStore().linkUser("friend", "friend-user");
+    const memory = await createNightMemory("host", { title: "Two-photo night" });
+    const hostPhoto = await addNightMoment("host", memory!.id, {
+      kind: "photo",
+      caption: "Host rooftop",
+      mediaObjectKey: "night-media/host/rooftop.webp",
+      altText: "A rooftop bar lit by string lights.",
+    });
+    const friendPhoto = await addNightMoment("friend-user", memory!.id, {
+      kind: "photo",
+      caption: "Friend's neon shot",
+      mediaObjectKey: "night-media/friend/neon.webp",
+      altText: "Pink neon over a wet street.",
+    }, { allowContributor: true });
+    const story = await createNightStory("host", { memoryId: memory!.id, title: "Two-photo night" });
+    await upsertStoryContributor("host", story!.id, { handle: "friend", role: "contributor" });
+    await acceptStoryContribution("friend-user", story!.id);
+    await setMomentPublicationConsent("friend-user", story!.id, friendPhoto!.id, "approved");
+
+    // Both photos carry confirmed alt text, so publication proceeds for both.
+    const proposed = await proposeNightStoryPublication("host", story!.id, {
+      momentIds: [hostPhoto!.id, friendPhoto!.id],
+      visibility: "public",
+    });
+    await confirmNightStoryPublication("host", story!.id, { proposalId: proposed!.proposal.id, confirmationToken: proposed!.confirmationToken });
+    const before = await getPublishedRecapSource(story!.id);
+    expect(before?.moments.map((moment) => moment.id).sort()).toEqual([hostPhoto!.id, friendPhoto!.id].sort());
+
+    // The friend deletes their account (both photos still in publishedMomentIds)...
+    expect(await markContributorsDepartedByProfileId("friend-user")).toBe(1);
+    // ...and the host's own description is later cleared (a grandfathered survivor).
+    await setMomentAltText("host", hostPhoto!.id, "");
+
+    const after = await getPublishedRecapSource(story!.id);
+    // 5.5: the departed friend's photo is gone from the emission entirely.
+    expect(after?.moments.map((moment) => moment.id)).toEqual([hostPhoto!.id]);
+    // 5.6: the surviving host photo is STILL emitted, but its unconfirmed
+    // description is nulled — media never dropped, text never presented unconfirmed.
+    expect(after?.moments[0]?.altText).toBeNull();
+    expect(after?.moments[0]?.mediaObjectKey).toBe("night-media/host/rooftop.webp");
   });
 
   it("sorts every pending invitation ahead of a long accepted Story shelf", async () => {

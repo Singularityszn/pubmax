@@ -57,12 +57,15 @@ describe("mutating API surface certification", () => {
     // lane/area-demand-capture — Wayfinder 3.2 honest unsupported-area preview)
     // + the structured Visit Reports POST (app/api/visit-reports/route.ts,
     // lane/visit-reports — Wayfinder 3.4; its per-venue GET summary read is NOT
-    // a mutating verb and is not counted). Token-gated GET confirm/unsubscribe
-    // endpoints and the Social Loop's read-only GETs (/check-ins GET,
-    // /profiles/[handle]/lot) are intentionally NOT counted. This literal is the
-    // deliberate merge-coordination point: any branch adding a mutating route
-    // bumps it in the same commit (docs/WRITE_SURFACE_CERTIFICATION.md).
-    expect(mutationRoutes).toHaveLength(66);
+    // a mutating verb and is not counted) + the author-confirmed alt-text PATCH
+    // (app/api/night-moments/[id]/alt-text/route.ts, lane/alt-text-authoring —
+    // Wayfinder 5.6; a PRIVATE authoring write, account-gated, not a publication).
+    // Token-gated GET confirm/unsubscribe endpoints and the Social Loop's
+    // read-only GETs (/check-ins GET, /profiles/[handle]/lot) are intentionally
+    // NOT counted. This literal is the deliberate merge-coordination point: any
+    // branch adding a mutating route bumps it in the same commit
+    // (docs/WRITE_SURFACE_CERTIFICATION.md).
+    expect(mutationRoutes).toHaveLength(67);
   });
 
   it("gives every mutating route an abuse or authority boundary", () => {
