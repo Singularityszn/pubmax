@@ -14,10 +14,13 @@ import {
   confirmNightStoryPublication,
   createNightMemory,
   createNightStory,
+  findPublishAltTextGap,
   getNightStory,
   getNightStoryWorkspace,
+  getPublishedRecapSource,
   listNightStoryInbox,
   proposeNightStoryPublication,
+  setMomentAltText,
   setMomentPublicationConsent,
   upsertStoryContributor,
 } from "@/lib/nightMemoryStore";
@@ -116,6 +119,83 @@ describe("collaborative Night Story storage", () => {
     expect(workspace?.caller).toEqual({ role: "contributor", canEdit: false });
     expect(workspace?.moments).toEqual([expect.objectContaining({ id: friendMoment!.id, caption: "Friend photo", ownedByCaller: true })]);
     expect(JSON.stringify(workspace)).not.toContain("Host private note");
+  });
+
+  it("blocks publishing a photo Moment until the author confirms alt text, and names the photo", async () => {
+    const memory = await createNightMemory("host", { title: "Rooftop night" });
+    // A PRIVATE save of a photo with no description is unaffected by the gate.
+    const photo = await addNightMoment("host", memory!.id, {
+      kind: "photo",
+      caption: "The rooftop at midnight",
+      mediaObjectKey: "night-media/host/rooftop.webp",
+    });
+    expect(photo).toMatchObject({ visibility: "private", altText: null, altTextConfirmedAt: null });
+    const story = await createNightStory("host", { memoryId: memory!.id, title: "Rooftop night" });
+
+    // Publication is refused while the photo lacks author-confirmed alt text...
+    expect(await proposeNightStoryPublication("host", story!.id, { momentIds: [photo!.id], visibility: "public" })).toBeNull();
+    // ...and the block names exactly which photo needs a description.
+    expect(await findPublishAltTextGap("host", story!.id, [photo!.id])).toMatchObject({ momentId: photo!.id, label: "The rooftop at midnight" });
+
+    // The author confirms a description by saving their own words.
+    const confirmed = await setMomentAltText("host", photo!.id, "A rooftop bar lit by string lights.");
+    expect(confirmed).toMatchObject({ altText: "A rooftop bar lit by string lights." });
+    expect(confirmed!.altTextConfirmedAt).toBeTruthy();
+
+    expect(await findPublishAltTextGap("host", story!.id, [photo!.id])).toBeNull();
+    const proposed = await proposeNightStoryPublication("host", story!.id, { momentIds: [photo!.id], visibility: "public" });
+    expect(proposed).toMatchObject({ proposal: { storyId: story!.id } });
+    const published = await confirmNightStoryPublication("host", story!.id, {
+      proposalId: proposed!.proposal.id,
+      confirmationToken: proposed!.confirmationToken,
+    });
+    expect(published).toMatchObject({ status: "published", publishedMomentIds: [photo!.id] });
+  });
+
+  it("only the photo owner may set its alt text, and non-photo Moments never carry one", async () => {
+    const memory = await createNightMemory("host", { title: "Owner check" });
+    const photo = await addNightMoment("host", memory!.id, { kind: "photo", caption: "A photo", mediaObjectKey: "night-media/host/p.webp" });
+    const quote = await addNightMoment("host", memory!.id, { kind: "quote", caption: "A line" });
+    expect(await setMomentAltText("intruder", photo!.id, "Sneaky")).toBeNull();
+    expect(await setMomentAltText("host", quote!.id, "Quotes have no photo")).toBeNull();
+    expect(await setMomentAltText("host", photo!.id, "The owner's words.")).toMatchObject({ altText: "The owner's words." });
+  });
+
+  it("grandfathers an already-published photo whose confirmed description is later cleared", async () => {
+    const memory = await createNightMemory("host", { title: "Kept night" });
+    const photo = await addNightMoment("host", memory!.id, {
+      kind: "photo",
+      caption: "Neon over the canal",
+      mediaObjectKey: "night-media/host/canal.webp",
+      altText: "Pink neon reflected in a still canal.",
+    });
+    expect(photo!.altTextConfirmedAt).toBeTruthy();
+    const story = await createNightStory("host", { memoryId: memory!.id, title: "Kept night" });
+    const proposed = await proposeNightStoryPublication("host", story!.id, { momentIds: [photo!.id], visibility: "public" });
+    await confirmNightStoryPublication("host", story!.id, { proposalId: proposed!.proposal.id, confirmationToken: proposed!.confirmationToken });
+
+    const before = await getPublishedRecapSource(story!.id);
+    expect(before?.moments.map((moment) => moment.id)).toEqual([photo!.id]);
+    expect(before?.moments[0]?.altText).toBe("Pink neon reflected in a still canal.");
+
+    // Simulate pre-gate / withdrawn description on already-published content.
+    await setMomentAltText("host", photo!.id, "");
+    const after = await getPublishedRecapSource(story!.id);
+    // Still published, still emitted — never retroactively unpublished...
+    expect(after?.moments.map((moment) => moment.id)).toEqual([photo!.id]);
+    // ...but the recap belt refuses to emit an unconfirmed description as author text.
+    expect(after?.moments[0]?.altText).toBeNull();
+  });
+
+  it("surfaces alt-text state to the owner in the Story workspace review", async () => {
+    const memory = await createNightMemory("host", { title: "Review night" });
+    const photo = await addNightMoment("host", memory!.id, { kind: "photo", caption: "Needs a description", mediaObjectKey: "night-media/host/x.webp" });
+    const story = await createNightStory("host", { memoryId: memory!.id, title: "Review night" });
+    const workspace = await getNightStoryWorkspace("host", story!.id);
+    expect(workspace?.moments[0]).toMatchObject({ id: photo!.id, hasPhoto: true, altText: null, altTextConfirmed: false });
+    await setMomentAltText("host", photo!.id, "A described photo.");
+    const refreshed = await getNightStoryWorkspace("host", story!.id);
+    expect(refreshed?.moments[0]).toMatchObject({ hasPhoto: true, altText: "A described photo.", altTextConfirmed: true });
   });
 
   it("sorts every pending invitation ahead of a long accepted Story shelf", async () => {
