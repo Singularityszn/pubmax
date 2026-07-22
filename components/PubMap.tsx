@@ -1706,6 +1706,9 @@ export default function PubMap({
     </>
   ) : null;
 
+  const mapLoadingActive = !mapCanvasErrored && (!mapCanvasReady || (slimPins.length === 0 && !loaded));
+  const mobileShellReady = !mapLoadingActive;
+
   return (
     <main
       className={
@@ -1750,13 +1753,13 @@ export default function PubMap({
             BOTH the slim pin index and WebGL basemap scene are ready. Warmup
             can make slim pins arrive before tiles; retiring early left a blank
             canvas. Copy matches MapLoadingSkeleton for a seamless handoff. */}
-        {!mapCanvasErrored && (!mapCanvasReady || (slimPins.length === 0 && !loaded)) ? (
+        {mapLoadingActive ? (
           <div
             className="mapLoading"
             role="status"
             aria-busy="true"
             aria-live="polite"
-            aria-label={`Loading the ${city.displayName} pub map. Finding the pubs. Fetching tonight's prices.`}
+            aria-label={`Loading the ${city.displayName} pub map. Finding the pubs. Warming up the map.`}
           >
             <div className="mapLoadingScene" aria-hidden="true">
               <span className="mapLoadingStreet mapLoadingStreet--one" />
@@ -1769,7 +1772,7 @@ export default function PubMap({
             </div>
             <div className="mapLoadingCopy">
               <span className="mapLoadingEyebrow">{city.displayName} pub map</span>
-              <span>Finding the pubs. Fetching tonight&rsquo;s prices.</span>
+              <span>Finding the pubs. Warming up the map.</span>
             </div>
           </div>
         ) : null}
@@ -1942,6 +1945,7 @@ export default function PubMap({
           onPrefetchVenue={prefetchVenueDetail}
         />
 
+        {mobileShellReady ? (
         <MobileMapShell
           cityLabel={activeNightArea?.name ?? city.displayName}
           overlay={mobileShellState.overlay}
@@ -2114,6 +2118,7 @@ export default function PubMap({
             ) : null
           }
         />
+        ) : null}
 
         {/* §4.5 onboarding overlay: a dismissible "Start with a story" card that
             offers curated crawls on a clean first paint. It's the mobile
