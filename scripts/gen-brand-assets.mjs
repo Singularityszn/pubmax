@@ -1,9 +1,14 @@
 #!/usr/bin/env node
-// Generate the PUBMAXX "Clink" web brand assets (favicon / PWA / apple) from the
-// single geometry source of truth. The Clink was activated as the master mark on
-// 2026-07-21, so this script now stamps the LIVE files under public/ directly
-// (the earlier staging → cp activation dance in docs/BRAND_MARK.md is retired);
-// it also refreshes the public/brand/ reference mirror the doc points at.
+// Generate the PUBMAXX X web brand assets (favicon / PWA / apple) from the
+// single geometry source of truth. The mark is the double-struck X (one thick
+// descending stroke + two thin ascending strokes), owner-approved 2026-07-22.
+// This script stamps the LIVE files under public/ directly and also refreshes
+// the public/brand/ reference mirror docs/BRAND_MARK.md points at.
+//
+// The static icon exports carry NO ember: the double-struck crossing is already
+// the event, and a dot muddies the silhouette at icon sizes. The 16px favicon.ico
+// entry uses the simplified single-slash variant (`slashSimple`) because the
+// double-stroke channel closes up below ~24px.
 //
 // Usage:  node scripts/gen-brand-assets.mjs
 // PNGs + the favicon.ico container are stamped via `sharp` (already a
@@ -19,46 +24,48 @@ const PUBLIC = join(ROOT, "public");
 const BRAND = join(PUBLIC, "brand");
 
 // Geometry — MUST match MARK_GEOMETRY in components/brand/PubmaxxMark.tsx and
-// the copy in scripts/gen-native-app-icons.mjs. THE CLINK: two tapered pint
-// arms mid-toast (wide mouths up, narrow bases down) meeting at an ember node.
+// the copy in scripts/gen-native-app-icons.mjs. THE DOUBLE-STRUCK X: one thick
+// descending stroke (\) drawn on top of two thin parallel ascending strokes (/).
 const G = {
-  armA: "19.8,8.7 10.2,17.3 46.0,53.7 52.0,48.3",
-  armB: "44.2,8.7 53.8,17.3 18.0,53.7 12.0,48.3",
+  thick: "9,10 21,10 55,54 43,54",
+  thinA: "42,10 47,10 13,54 8,54",
+  thinB: "51,10 56,10 22,54 17,54",
+  slashSimple: "45,10 53,10 19,54 11,54",
   node: { cx: 32, cy: 32, r: 3.2 },
   plaqueRadius: 15,
 };
 // Tokens (literal — these files render outside the app CSS).
 const C = { coral: "#ff5a5f", bright: "#ff7a55", inkDeep: "#060607" };
 
-// The bare Clink: two filled arms + the ember. `withNode:false` is the
-// small-optics cut (raster tiers ≤24px, the #444 precedent): the ember would
-// smear, so the arms carry the mark alone.
-function clink(fill, { withNode = true } = {}) {
-  return (
-    `<polygon points="${G.armA}" fill="${fill}"/>` +
-    `<polygon points="${G.armB}" fill="${fill}"/>` +
-    (withNode ? `<circle cx="${G.node.cx}" cy="${G.node.cy}" r="${G.node.r}" fill="${C.bright}"/>` : "")
-  );
+// The X mark: two thin ascending strokes then the thick descending stroke on
+// top. `simple:true` is the small-optics cut (16px raster tier): the double
+// stroke closes up, so a single clean ascending slash carries the mark. The
+// static icon exports never carry the ember (`node` is app-surface only).
+function mark(fill, { simple = false } = {}) {
+  const ascending = simple
+    ? `<polygon points="${G.slashSimple}" fill="${fill}"/>`
+    : `<polygon points="${G.thinA}" fill="${fill}"/><polygon points="${G.thinB}" fill="${fill}"/>`;
+  return ascending + `<polygon points="${G.thick}" fill="${fill}"/>`;
 }
 
 function svg(body) {
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">${body}</svg>`;
 }
 
-// Bare Clink on transparent — favicon / PWA "any" icons; coral arms + ember.
-function bareSvg({ withNode = true, fill = C.coral } = {}) {
-  return svg(clink(fill, { withNode }));
+// Bare X on transparent — favicon / PWA "any" icons; coral strokes, no ember.
+function bareSvg({ simple = false, fill = C.coral } = {}) {
+  return svg(mark(fill, { simple }));
 }
 
-// Clink on a full-bleed ink-deep tile. `rx` lets the maskable variant go
-// square (rx 0, the platform supplies the mask); `scale` insets the mark into
-// the maskable safe zone. Arms are coral, ember bright, field ink-deep.
+// X on a full-bleed ink-deep tile. `rx` lets the maskable variant go square
+// (rx 0, the platform supplies the mask); `scale` insets the mark into the
+// maskable safe zone. Strokes are coral, field ink-deep, no ember.
 function tileSvg({ rx = G.plaqueRadius, scale = 1 } = {}) {
-  const mark =
+  const m =
     scale === 1
-      ? clink(C.coral)
-      : `<g transform="translate(32 32) scale(${scale}) translate(-32 -32)">${clink(C.coral)}</g>`;
-  return svg(`<rect width="64" height="64" rx="${rx}" fill="${C.inkDeep}"/>${mark}`);
+      ? mark(C.coral)
+      : `<g transform="translate(32 32) scale(${scale}) translate(-32 -32)">${mark(C.coral)}</g>`;
+  return svg(`<rect width="64" height="64" rx="${rx}" fill="${C.inkDeep}"/>${m}`);
 }
 
 let sharp;
@@ -80,8 +87,9 @@ async function pngBuffer(markup, size, { opaque = false } = {}) {
 }
 
 // Build a classic multi-image ICO (PNG members): 6-byte ICONDIR + one 16-byte
-// ICONDIRENTRY per size + the PNG blobs. The 16px entry uses the no-node
-// small-optics cut. The repo has no ico tool, so we assemble the container.
+// ICONDIRENTRY per size + the PNG blobs. The 16px entry uses the simplified
+// single-slash small-optics cut. The repo has no ico tool, so we assemble the
+// container.
 function buildIco(entries) {
   const count = entries.length;
   const header = Buffer.alloc(6);
@@ -110,9 +118,9 @@ mkdirSync(BRAND, { recursive: true });
 // ── SVGs ──────────────────────────────────────────────────────────────────────
 const bare = bareSvg() + "\n";
 const maskable = tileSvg({ rx: 0, scale: 0.82 }) + "\n";
-const monoMark = svg(`<g fill="currentColor">${clink("currentColor", { withNode: false })}</g>`) + "\n";
+const monoMark = svg(`<g fill="currentColor">${mark("currentColor")}</g>`) + "\n";
 const sized = (px) =>
-  `<svg xmlns="http://www.w3.org/2000/svg" width="${px}" height="${px}" viewBox="0 0 64 64">${clink(C.coral)}</svg>\n`;
+  `<svg xmlns="http://www.w3.org/2000/svg" width="${px}" height="${px}" viewBox="0 0 64 64">${mark(C.coral)}</svg>\n`;
 
 // Live public/ files (the icons app/layout.tsx references).
 writeFileSync(join(PUBLIC, "favicon.svg"), bare);
@@ -143,14 +151,14 @@ writeFileSync(join(BRAND, "apple-touch-icon.png"), appleTouch);
 
 // ── favicon.ico (16 no-node / 32 / 48) ────────────────────────────────────────
 const ico = buildIco([
-  { size: 16, png: await pngBuffer(bareSvg({ withNode: false }), 16) },
+  { size: 16, png: await pngBuffer(bareSvg({ simple: true }), 16) },
   { size: 32, png: await pngBuffer(bareSvg(), 32) },
   { size: 48, png: await pngBuffer(bareSvg(), 48) },
 ]);
 writeFileSync(join(PUBLIC, "favicon.ico"), ico);
 
 console.log(
-  "✓ Clink web assets stamped:\n" +
+  "✓ PUBMAXX X web assets stamped:\n" +
     "  public/: favicon.svg, favicon.ico, icon-192.svg/.png, icon-512.svg/.png,\n" +
     "           icon-maskable.svg, icon-maskable-512.png, apple-touch-icon.png\n" +
     "  public/brand/: favicon.svg, icon.svg, icon-maskable.svg, mark-mono.svg + PNGs",

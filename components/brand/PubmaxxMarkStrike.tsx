@@ -17,9 +17,11 @@ import { MARK_COLORS, MARK_GEOMETRY, type PubmaxxMarkProps } from "./PubmaxxMark
 // matchMedia, testable via renderToStaticMarkup.
 //
 // The draw is a stroke-dashoffset wipe on an SVG <mask>: a thick white beam is
-// stroked down each arm's centreline and its dash is retracted to reveal the
-// filled arm polygon from mouth to base. Only stroke-dashoffset (the draw) and
-// transform/opacity (the ember pop + fade) animate — no layout, no paint churn.
+// stroked down each stroke's centreline and its dash is retracted to reveal the
+// filled polygons from top to base. Beam A draws the thick descending stroke;
+// beam B draws BOTH thin ascending strokes (one beam, wide enough to cover the
+// double-stroke band). Only stroke-dashoffset (the draw) and transform/opacity
+// (the ember pop + fade) animate — no layout, no paint churn.
 
 export interface PubmaxxMarkStrikeProps extends PubmaxxMarkProps {
   /**
@@ -38,11 +40,12 @@ export interface PubmaxxMarkStrikeProps extends PubmaxxMarkProps {
 
 const g = MARK_GEOMETRY;
 
-// Beam centrelines: mouth (top) → base (bottom), extended a touch past both ends
-// so the round stroke cap fully covers each arm's flat-cut terminal. The wipe
-// runs from the path start (the mouth), so each arm draws mouth-first.
-const BEAM_A = "M13,10.8 L51,53.2"; // heavy first beam (top-left mouth → bottom-right base)
-const BEAM_B = "M51,10.8 L13,53.2"; // second beam, mirrored
+// Beam centrelines: top → base, extended a touch past both ends so the round
+// stroke cap (width 22, wide enough to cover the double-stroke band) fully
+// covers each terminal. The wipe runs from the path start (the top), so each
+// stroke draws top-first.
+const BEAM_A = "M14,8.7 L50,55.3"; // heavy first beam — the thick descending \ centreline
+const BEAM_B = "M50,8.7 L14,55.3"; // second beam — the ascending / centreline (covers both thins)
 
 export default function PubmaxxMarkStrike({
   size = 28,
@@ -90,8 +93,11 @@ export default function PubmaxxMarkStrike({
         </mask>
       </defs>
       {showTile ? <rect className="markStrike__tile" width="64" height="64" rx={g.plaqueRadius} fill={MARK_COLORS.inkDeep} /> : null}
-      <polygon points={g.armA} fill={armFill} mask={`url(#${maskA})`} />
-      <polygon points={g.armB} fill={armFill} mask={`url(#${maskB})`} />
+      {/* Two thin ascending strokes (revealed by beam B), then the thick
+          descending stroke on top (beam A) — the double-struck crossing. */}
+      <polygon points={g.thinA} fill={armFill} mask={`url(#${maskB})`} />
+      <polygon points={g.thinB} fill={armFill} mask={`url(#${maskB})`} />
+      <polygon points={g.thick} fill={armFill} mask={`url(#${maskA})`} />
       {showNode ? <circle className="markStrike__ember" cx={g.node.cx} cy={g.node.cy} r={g.node.r} fill={emberFill} /> : null}
     </svg>
   );
