@@ -7,6 +7,7 @@ import type { PlanConstraint, PlanConstraintKind, PlanInvite, PlanRouteProposal,
 import { publishPlanCollaborationChange, subscribePlanCollaborationChange, type PlanCollaborationChangeKind } from "@/lib/planContinuity";
 import { trackEvent } from "@/lib/analytics";
 import { recordPlanHighIntentAction } from "@/lib/nativePushPrompt";
+import { formatInviteExpiry, invitePrivacyBlurb } from "@/lib/planInviteUi";
 
 type CollaborationState = {
   memberId: string;
@@ -55,6 +56,7 @@ export default function PlanCollaborationPanel({ planId, memberToken, isHost, dr
   const [evidenceProposalId, setEvidenceProposalId] = useState("");
   const [evidenceSources, setEvidenceSources] = useState<Record<string, { sourceUrl: string; publisher: string }>>({});
   const [invite, setInvite] = useState<{ value: PlanInvite; url: string } | null>(null);
+  const [revokeConfirmId, setRevokeConfirmId] = useState<string | null>(null);
   const [pending, setPending] = useState("");
   const [status, setStatus] = useState("");
   const [error, setError] = useState("");
@@ -140,6 +142,7 @@ export default function PlanCollaborationPanel({ planId, memberToken, isHost, dr
       const body = await response.json();
       if (!response.ok) throw new Error(errorMessage(body, "Could not revoke this invite."));
       if (invite?.value.id === inviteId) setInvite(null);
+      setRevokeConfirmId(null);
       announce("invite");
       setStatus("Invite revoked."); await refresh();
     } catch (caught) { setError(caught instanceof Error ? caught.message : "Could not revoke this invite."); }
@@ -243,8 +246,36 @@ export default function PlanCollaborationPanel({ planId, memberToken, isHost, dr
       {isHost ? (
         <div className="planCollab__invite">
           <button type="button" onClick={() => void createInvite()} disabled={Boolean(pending)}>Create private invite</button>
+          <small className="planCollab__status">{invitePrivacyBlurb()}</small>
           {invite ? <output aria-label="Private invite link">{invite.url}</output> : null}
-          {state.invites.map((activeInvite) => <div className="planCollab__activeInvite" key={activeInvite.id}><small>Expires {new Date(activeInvite.expiresAt).toLocaleString()}</small><button type="button" className="planCollab__quiet" onClick={() => void revokeInvite(activeInvite.id)} disabled={Boolean(pending)}>Revoke</button></div>)}
+          {state.invites.map((activeInvite) => (
+            <div className="planCollab__activeInvite" key={activeInvite.id}>
+              <small>
+                One-use · {formatInviteExpiry(activeInvite.expiresAt)}
+                {" · "}
+                {new Date(activeInvite.expiresAt).toLocaleString()}
+              </small>
+              {revokeConfirmId === activeInvite.id ? (
+                <span className="planCollab__actions">
+                  <button type="button" onClick={() => void revokeInvite(activeInvite.id)} disabled={Boolean(pending)}>
+                    Confirm revoke
+                  </button>
+                  <button type="button" className="planCollab__quiet" onClick={() => setRevokeConfirmId(null)} disabled={Boolean(pending)}>
+                    Keep
+                  </button>
+                </span>
+              ) : (
+                <button
+                  type="button"
+                  className="planCollab__quiet"
+                  onClick={() => setRevokeConfirmId(activeInvite.id)}
+                  disabled={Boolean(pending)}
+                >
+                  Revoke
+                </button>
+              )}
+            </div>
+          ))}
         </div>
       ) : null}
 
