@@ -4,7 +4,10 @@
    --panel-raised, --line, --paper) so the surface inherits the shared theme. */
 
 .feedShell {
-  --feed-max: 620px;
+  /* Reading column adopts the shared --content-max (640px). The feed ran at a
+     20px-narrower 620px before the width audit; the token wins so the stream
+     lines up with /today, crawl and moment columns. */
+  --feed-max: var(--content-max);
   --feed-card-max: 520px;
   --feed-glass: var(--panel-raised);
   --feed-glass-solid: var(--panel-raised);

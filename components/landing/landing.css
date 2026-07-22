@@ -1,5 +1,5 @@
 .lp {
-  --lp-max: 1240px;
+  --lp-max: var(--content-max-wide);
   /* Landing keeps its generous up-to-52px desktop gutter, but never dips below
      the global --page-gutter (≥20px + safe-area) on phones — the owner's hero
      letters were nearly touching the glass at the old 18px floor. */
