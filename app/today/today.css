@@ -17,7 +17,7 @@
 
 .todayEyebrow {
   margin: 0 0 6px;
-  font-size: 0.72rem;
+  font-size: 0.75rem;
   font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -83,7 +83,7 @@
 
 .todayCardEyebrow {
   margin: 0 0 2px;
-  font-size: 0.66rem;
+  font-size: 0.75rem;
   font-weight: 700;
   letter-spacing: 0.06em;
   text-transform: uppercase;
@@ -208,7 +208,7 @@
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  min-height: 32px;
+  min-height: 44px;
   padding: 0;
   border: 0;
   background: none;
@@ -306,7 +306,7 @@
 }
 
 .todayPickKind {
-  font-size: 0.64rem;
+  font-size: 0.75rem;
   font-weight: 700;
   letter-spacing: 0.06em;
   text-transform: uppercase;
@@ -330,7 +330,7 @@
 }
 
 .todayPickPrice {
-  font-size: 0.72rem;
+  font-size: 0.75rem;
   font-weight: 700;
   color: var(--ink-soft);
 }
@@ -354,7 +354,7 @@
 }
 
 .todayPickSource {
-  font-size: 0.74rem;
+  font-size: 0.75rem;
   color: var(--ink-soft);
   opacity: 0.85;
 }
@@ -367,7 +367,7 @@
   border-radius: 999px;
   border: 1px solid color-mix(in srgb, var(--brass) 34%, var(--line));
   background: color-mix(in srgb, var(--brass) 10%, var(--panel-raised));
-  font-size: 0.68rem;
+  font-size: 0.75rem;
   font-weight: 700;
   letter-spacing: 0.03em;
   color: var(--brass);

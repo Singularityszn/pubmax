@@ -138,7 +138,9 @@
     border-radius: 12px;
     color: var(--muted, var(--ink-soft));
     text-decoration: none;
-    font-size: 0.625rem;
+    /* iOS-convention tab labels — floored at 11px (the one sub-12px exception),
+       ellipsis preserved by .mobileTabLabel. */
+    font-size: 0.6875rem;
     font-weight: 700;
     letter-spacing: 0;
     line-height: 1.05;
@@ -295,9 +297,9 @@
   }
 
   .mobileTab {
-    /* Hold the 44px WCAG tap target even on the smallest phones; only the
-       label shrinks slightly to fit six tabs across ~340px. */
-    font-size: 0.5625rem;
+    /* Hold the 44px WCAG tap target even on the smallest phones; label stays at
+       the 11px floor (iOS-convention exception) to fit six tabs across ~340px. */
+    font-size: 0.6875rem;
     padding: 2px 0;
     min-height: 44px;
   }

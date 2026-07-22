@@ -164,8 +164,11 @@ describe("identity nudge store (localStorage-backed)", () => {
     recordPlanNudgeTrigger();
     expect(getIdentityNudgeClientSnapshot()).toBeNull();
 
-    // ...but it does once the cooldown has elapsed.
+    // ...but a fresh action once the cooldown has elapsed does. (The action must
+    // be fresh — a pending trigger armed 7 days earlier is long past its TTL, so
+    // we re-arm at the post-cooldown moment rather than reusing the stale flag.)
     vi.spyOn(Date, "now").mockReturnValue(NOW + IDENTITY_NUDGE_COOLDOWN_MS);
+    recordPlanNudgeTrigger();
     expect(getIdentityNudgeClientSnapshot()).toBe("plan");
   });
 
