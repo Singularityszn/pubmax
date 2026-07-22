@@ -1309,7 +1309,7 @@
 
 /* Empty-feed CTA contract: one primary (44px) + at most one quiet secondary
    link. Header compose is hidden on empty/error, so this pair is the whole
-   next-step surface — never a four-button stack. */
+   next-step surface, never a four-button stack. */
 .feedEmptyActions {
   display: flex;
   flex-direction: column;

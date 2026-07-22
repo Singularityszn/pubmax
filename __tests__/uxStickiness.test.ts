@@ -149,7 +149,7 @@ describe("Feed empty-state CTA collapse", () => {
     expect(emptyBlock).toContain('className="feedEmptySecondary"');
     expect(emptyBlock).toContain('href="/map?log=1"');
     expect(emptyBlock).toContain('href="/moment"');
-    // Exactly two action links in the empty action cluster — not the old
+    // Exactly two action links in the empty action cluster, not the old
     // four-way stack (header Capture + Log + We're out + Find a pub).
     const actionHrefs = emptyBlock.match(/href="[^"]+"/g) ?? [];
     expect(actionHrefs).toHaveLength(2);
