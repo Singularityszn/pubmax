@@ -66,7 +66,7 @@
       const cache = await scope.caches.open(cacheName);
       await cache.put(url.pathname, response.clone());
       await trimPlanCache(cacheName, MAX_PLAN_ENTRIES);
-    } catch (err) {
+    } catch {
       // swallow: caching is an optimisation, not a correctness requirement
     }
   }
@@ -77,7 +77,7 @@
     try {
       const cache = await scope.caches.open(cacheName);
       return await cache.match(url.pathname, { ignoreSearch: true });
-    } catch (err) {
+    } catch {
       return undefined;
     }
   }

@@ -43,7 +43,7 @@ const CURRENT_CACHES = [DATA_CACHE, SWR_CACHE, SHELL_CACHE, PLAN_CACHE];
 // self.planCache so a missing module degrades cleanly.
 try {
   importScripts(`/sw-plan-cache.js?v=${VERSION}`);
-} catch (err) {
+} catch {
   // no-op: plan caching is an enhancement, offline shell still works
 }
 
