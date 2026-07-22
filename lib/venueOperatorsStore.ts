@@ -4,11 +4,10 @@
 // exactly like visitReportsStore / areaDemandStore.
 //
 // Supabase when env keys exist, process-memory otherwise. Before migration 0047
-// lands (or on a schema-cache miss) the durable path fails soft to memory, so the
-// flow keeps working and becomes durable the moment the table exists — the same
-// soft degradation visit reports (#484) / area demand (#474) ship with. A HARD
-// durable write failure THROWS so the route answers 503 (never a fake success).
-// Reads are fail-soft ([]/null on error).
+// lands (or on a schema-cache miss) local/preview paths fail soft to memory, so
+// demos keep working and become durable the moment the table exists. Deployed
+// production fails closed: missing-schema and hard write failures THROW so the
+// route answers 503 (never a fake success). Reads remain fail-soft.
 //
 // Idempotent by construction: ONE claim per (accountId, venueId). A re-claim for
 // the same pair UPDATES the existing row (refreshes the evidence, resets a
@@ -17,7 +16,11 @@
 
 import { randomUUID } from "crypto";
 
-import { createFailSoftGuard, selectStore } from "@/lib/storeBackend";
+import {
+  createFailSoftGuard,
+  onMissingDurableWrite,
+  selectStore,
+} from "@/lib/storeBackend";
 import { requireSupabaseAdmin } from "@/lib/supabase";
 import {
   toOperatorClaimDTO,
@@ -197,7 +200,12 @@ export const supabaseVenueOperatorStore: VenueOperatorStore = {
     const createdAt = new Date(now).toISOString();
     return guard<OperatorClaimDTO>({
       context: "claim",
-      onSchemaMiss: () => memoryVenueOperatorStore.claim(fields, now),
+      onSchemaMiss: () =>
+        onMissingDurableWrite({
+          storeTag: "venue-operators",
+          migrationHint: "apply migration 0048",
+          fallback: () => memoryVenueOperatorStore.claim(fields, now),
+        }),
       // No onError: a hard write failure THROWS so the route answers 503.
       run: async () => {
         const existing = await selectByPair(fields.accountId, fields.venueId);
@@ -289,7 +297,12 @@ export const supabaseVenueOperatorStore: VenueOperatorStore = {
   async setState(id, state, note) {
     return guard<boolean>({
       context: "setState",
-      onSchemaMiss: () => memoryVenueOperatorStore.setState(id, state, note),
+      onSchemaMiss: () =>
+        onMissingDurableWrite({
+          storeTag: "venue-operators",
+          migrationHint: "apply migration 0048",
+          fallback: () => memoryVenueOperatorStore.setState(id, state, note),
+        }),
       run: async () => {
         const { data, error } = await admin()
           .from(TABLE)

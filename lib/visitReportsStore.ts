@@ -4,11 +4,10 @@
 // seam, exactly like areaDemandStore / ratingsStore / priceConfirmStore.
 //
 // Supabase when env keys exist, process-memory otherwise. Before migration 0046
-// lands (or on a schema-cache miss) the durable path fails soft to the in-memory
-// store, so capture keeps working and becomes durable the moment the table
-// exists — the same soft degradation vibe votes (#435) and area demand (#474)
-// ship with. A HARD durable write failure throws so the route answers 503 (house
-// rule: degraded dependency, never a fake success). Reads are fail-soft.
+// lands (or on a schema-cache miss) local/preview paths fail soft to the in-memory
+// store so demos keep working. Deployed production fails closed: missing-schema
+// and hard write failures throw so the route answers 503 (house rule: degraded
+// dependency, never a fake success). Reads remain fail-soft.
 //
 // Idempotent by construction: ONE report per handle per venue per night. A
 // re-submission for the same (venueId, handle, visitedAt) UPDATES the existing
@@ -21,7 +20,11 @@
 
 import { randomUUID } from "crypto";
 
-import { createFailSoftGuard, selectStore } from "@/lib/storeBackend";
+import {
+  createFailSoftGuard,
+  onMissingDurableWrite,
+  selectStore,
+} from "@/lib/storeBackend";
 import { requireSupabaseAdmin } from "@/lib/supabase";
 import {
   cleanAtmosphere,
@@ -253,7 +256,12 @@ export const supabaseVisitReportStore: VisitReportStore = {
     const createdAt = new Date(now).toISOString();
     return guard<VisitReportDTO>({
       context: "create",
-      onSchemaMiss: () => memoryVisitReportStore.create(fields, now),
+      onSchemaMiss: () =>
+        onMissingDurableWrite({
+          storeTag: "visit-reports",
+          migrationHint: "apply migration 0046",
+          fallback: () => memoryVisitReportStore.create(fields, now),
+        }),
       // No onError: a hard write failure THROWS so the route answers 503.
       run: async () => {
         // Idempotent upsert (one per night): update in place when a row for this
@@ -323,7 +331,12 @@ export const supabaseVisitReportStore: VisitReportStore = {
   async report(id, reason, actorHash) {
     return guard<boolean>({
       context: "report",
-      onSchemaMiss: () => memoryVisitReportStore.report(id, reason, actorHash),
+      onSchemaMiss: () =>
+        onMissingDurableWrite({
+          storeTag: "visit-reports",
+          migrationHint: "apply migration 0046",
+          fallback: () => memoryVisitReportStore.report(id, reason, actorHash),
+        }),
       // A report that can't be recorded should surface, not fake-succeed — but a
       // read/no-row case returns false. Non-schema errors throw → route 503.
       run: async () => {
@@ -367,7 +380,12 @@ export const supabaseVisitReportStore: VisitReportStore = {
   async moderate(id, status, note) {
     return guard<boolean>({
       context: "moderate",
-      onSchemaMiss: () => memoryVisitReportStore.moderate(id, status, note),
+      onSchemaMiss: () =>
+        onMissingDurableWrite({
+          storeTag: "visit-reports",
+          migrationHint: "apply migration 0046",
+          fallback: () => memoryVisitReportStore.moderate(id, status, note),
+        }),
       run: async () => {
         const { data, error } = await admin()
           .from(TABLE)
