@@ -6,6 +6,8 @@ import {
   pickPubOfTheDayFact,
   toTonightPickDto,
 } from "@/lib/todayBrief";
+import { loadHistoricPubs } from "@/lib/historic";
+import { buildQuietPint } from "@/lib/quietPint";
 import { formatConditionDate } from "@/lib/tonightConditions";
 import { getPricedVenues } from "@/lib/venuePriceIndex";
 import { loadWhatsOn } from "@/lib/whatsOnStore";
@@ -66,7 +68,37 @@ export default async function TodayPage() {
   // Cheapest priced pints per area, precomputed from the bundled price dataset so
   // the client can answer the viewer's remembered area with no venue data of its
   // own and no request-time work.
-  const pintsIndex = buildTodayPintsIndex(await getPricedVenues());
+  const pricedVenues = await getPricedVenues();
+  const pintsIndex = buildTodayPintsIndex(pricedVenues);
+
+  // "A quiet pint" — heritage-cited pubs that also read as quiet at this hour,
+  // for the calmer 45-60 cohort. Ranked server-side from the cited historic-pub
+  // set, joined to verified pint prices by venue id. Fail-soft to null (a busy
+  // hour, or no cited candidates), and the card then renders nothing.
+  const priceById = new Map<string, number>();
+  for (const venue of pricedVenues) {
+    if (typeof venue.cheapestPrice === "number") priceById.set(venue.id, venue.cheapestPrice);
+  }
+  const historicPubs = await loadHistoricPubs();
+  const quietPint = buildQuietPint({
+    candidates: historicPubs.flatMap((pub) =>
+      pub.venueId
+        ? [
+            {
+              venueId: pub.venueId,
+              name: pub.name,
+              slug: pub.slug,
+              hook: pub.hook,
+              facts: pub.facts,
+              era: pub.era,
+              listed: pub.listed,
+            },
+          ]
+        : [],
+    ),
+    priceById,
+    now,
+  });
 
   return (
     <TodayClient
@@ -75,6 +107,7 @@ export default async function TodayPage() {
       picks={picks}
       fact={fact}
       pintsIndex={pintsIndex}
+      quietPint={quietPint}
     />
   );
 }
