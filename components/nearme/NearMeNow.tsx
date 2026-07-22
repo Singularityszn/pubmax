@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { ChevronDown, Footprints, LocateFixed, MapPin, RotateCw } from "lucide-react";
 
 import { DEFAULT_CITY_ID, type CityId } from "@/lib/cities";
@@ -66,6 +66,13 @@ export type NearMeNowProps = {
    * geolocation), so the sheet answers immediately without a second prompt.
    */
   initialLocation?: { lat: number; lng: number } | null;
+  /**
+   * Shareable `/near?patch=soho` entry: answer from that patch centre without
+   * prompting for geolocation. Invalid ids are ignored.
+   */
+  initialPatchId?: string | null;
+  /** When true, patch picks rewrite `?patch=` on the current path. */
+  syncPatchToUrl?: boolean;
 };
 
 const GEO_OPTS: PositionOptions = { enableHighAccuracy: false, timeout: 7000, maximumAge: 60_000 };
@@ -77,11 +84,18 @@ export default function NearMeNow({
   autoLocate = false,
   venues,
   initialLocation = null,
+  initialPatchId = null,
+  syncPatchToUrl = false,
 }: NearMeNowProps) {
   const router = useRouter();
+  const pathname = usePathname();
+  const bootPatch = resolveNightPatch(initialPatchId);
   // Map mode (initialLocation) resolves an answer on mount — start on the
   // spinner, not the idle CTA, so there is no "Find my pint" flash.
-  const [state, setState] = useState<LocateState>(initialLocation ? "requesting" : "idle");
+  // Shareable patch links also skip the idle CTA.
+  const [state, setState] = useState<LocateState>(
+    initialLocation || bootPatch ? "requesting" : "idle",
+  );
   const [cards, setCards] = useState<NearMeCard[]>([]);
   const [scope, setScope] = useState<NearMeScope>("none");
   const [borough, setBorough] = useState<string | null>(null);
@@ -132,9 +146,15 @@ export default function NearMeNow({
         if (reason !== null) setPatchReason(reason);
         setState("ready");
         writeRememberedArea({ kind: "patch", id: next.id });
+        if (syncPatchToUrl && pathname) {
+          const params = new URLSearchParams(typeof window !== "undefined" ? window.location.search : "");
+          params.set("patch", next.id);
+          const query = params.toString();
+          router.replace(query ? `${pathname}?${query}` : pathname, { scroll: false });
+        }
       });
     },
-    [loadSlim],
+    [loadSlim, pathname, router, syncPatchToUrl],
   );
 
   const pickBorough = useCallback(
@@ -237,15 +257,21 @@ export default function NearMeNow({
       });
       return;
     }
+    // Shareable patch entry beats auto-locate so deep links stay honest.
+    if (bootPatch) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      pickPatch(bootPatch, null);
+      return;
+    }
     if (!autoLocate) return;
     // Kick off geolocation on mount. locate() sets "requesting" then resolves
     // asynchronously via the Geolocation API — an external-system sync, the
     // documented exception to the no-setState-in-effect guidance.
     // eslint-disable-next-line react-hooks/set-state-in-effect
     locate();
-    // Mount-only: loadSlim/locate are stable for a given cityId.
+    // Mount-only: loadSlim/locate/pickPatch are stable for a given cityId.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [autoLocate, initialLocation]);
+  }, [autoLocate, initialLocation, bootPatch?.id]);
 
   const openVenue = useCallback(
     (id: string) => {
@@ -282,6 +308,22 @@ export default function NearMeNow({
             <LocateFixed size={18} aria-hidden="true" /> Find my pint
           </button>
           <p className="nmnHint">We only use your location to rank pubs nearby. Nothing is stored.</p>
+          <div className="nmnQuickPatches">
+            <p className="nmnQuickPatchesLabel">Or pick a patch</p>
+            <ul className="nmnAreaChips" aria-label="Pick a night area">
+              {NIGHT_PATCHES.map((entry) => (
+                <li key={entry.id}>
+                  <button
+                    type="button"
+                    className="nmnBoroughChip"
+                    onClick={() => pickPatch(entry)}
+                  >
+                    {entry.label}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </div>
         </div>
       ) : null}
 
