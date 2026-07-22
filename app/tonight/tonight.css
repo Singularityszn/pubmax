@@ -11,6 +11,21 @@
   color: var(--ink);
 }
 
+/* Top-bar uniformity (nav-wrapper only): SiteNav is this page's first child, so
+   the shell's 16px top padding set the bar's top offset — the standard bar's
+   top sat at 16px while landing/map sit ~10px from the viewport top. Drop the
+   mobile top padding to a flat 10px so the bar lands on the same rect
+   page-to-page. NOTE the bar itself already adds env(safe-area-inset-top) via
+   .siteNavBar:not(.siteNavBarFloating){margin-top}, so this stays a flat 10px
+   (NOT --topbar-inset, which would double the safe-area on notched devices):
+   10px + safe-area == the map bar's --topbar-inset. Mobile-scoped so desktop
+   (>640px) is unchanged; content shifts up ~6px with the padding. */
+@media (max-width: 640px) {
+  .tonightPage {
+    padding-top: 10px;
+  }
+}
+
 .tonightHead {
   margin: 8px 0 20px;
 }

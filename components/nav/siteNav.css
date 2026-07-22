@@ -40,6 +40,16 @@
   --topbar-inset: calc(env(safe-area-inset-top, 0px) + 10px);
   --topbar-radius: 14px;
   --topbar-pad-x: 10px;
+  /* Shared MOBILE side inset — the viewport-relative left/right gap every top
+     bar leaves on ≤640px. 10px is not a new invention: the landing bar already
+     runs width:calc(100vw - 20px) (→10px each side) and the mobile map chrome
+     already pins left:10px/right:10px. The only outlier was the standard
+     in-flow bar, which inherited each page shell's --page-gutter (~22-32px) as
+     its side inset and so sat NARROWER page-to-page. Adopting the value the
+     other two already ship makes all four rects identical with the least
+     churn. Consumed with a 10px literal fallback so routes that don't load this
+     sheet still resolve the same. */
+  --topbar-side: 10px;
   --topbar-shadow: var(--map-overlay-shadow-tight, 0 6px 16px rgba(0, 0, 0, 0.12));
 }
 
@@ -446,14 +456,36 @@
     gap: 6px;
     /* Shared frame: 14px rounded-card radius (was the base 999px pill), 52px
        height, 10px horizontal padding, tight shadow. Identical to the map +
-       landing bars so the bar never changes shape page-to-page. */
-    padding: 4px var(--topbar-pad-x, 10px);
+       landing bars so the bar never changes shape page-to-page.
+       Vertical padding is 3px (was 4px): the bar's tallest child is a 44px
+       touch target and box-sizing is border-box with a 1px frame border, so
+       44 + 3 + 3 + 1 + 1 = 52px — the rendered height now EQUALS --topbar-h
+       instead of overshooting it to 54px (the token is truth). */
+    padding: 3px var(--topbar-pad-x, 10px);
     min-height: var(--topbar-h, 52px);
     border-radius: var(--topbar-radius, 14px);
     background: var(--panel-raised);
     box-shadow: var(--topbar-shadow, var(--map-overlay-shadow-tight, 0 6px 16px rgba(0, 0, 0, 0.12)));
     backdrop-filter: none;
     -webkit-backdrop-filter: none;
+  }
+
+  /* Uniform side inset for the IN-FLOW standard bar. Each page shell wraps
+     SiteNav as its first child inside a column padded by --page-gutter
+     (~22-32px), so the bar used to inherit that gutter as its left/right inset
+     and sit narrower than the fixed landing/map bars (10px). Break the bar out
+     of the host gutter to the shared --topbar-side: width goes auto so the
+     symmetric negative margins WIDEN it (a fixed width would only shift it),
+     landing both edges exactly --topbar-side from the viewport — the same rect
+     the landing + map bars already occupy. Scoped away from the floating map
+     variant, which owns its own inset below. align-self:stretch is required
+     because some shells (e.g. /feed) are flex columns with align-items:center —
+     without it width:auto would shrink-wrap the bar there instead of filling;
+     it is inert in a plain block host (e.g. /tonight). */
+  .siteNavBar:not(.siteNavBarFloating) {
+    width: auto;
+    align-self: stretch;
+    margin-inline: calc(var(--topbar-side, 10px) - var(--page-gutter, 22px));
   }
 
   .siteNavLinks {
