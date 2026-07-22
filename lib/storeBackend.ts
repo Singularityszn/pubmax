@@ -4,6 +4,7 @@
 // store keeps its own interface, empty sentinels, and domain logic.
 
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { isDeployedProduction } from "@/lib/deploymentEnv";
 import { isSupabaseConfigured, requireSupabaseAdmin } from "@/lib/supabase";
 
 /** Normalise unknown thrown values to a log-safe string. */
@@ -14,6 +15,29 @@ export function errorMessage(err: unknown): string {
 /** Single seam: durable Supabase when env keys exist, process-memory otherwise. */
 export function selectStore<T>(memory: T, supabase: T): T {
   return isSupabaseConfigured() ? supabase : memory;
+}
+
+/**
+ * Missing-table handling for write paths in dual-backend stores. Keyless local
+ * development and preview deployments may keep using the process-memory
+ * implementation while a migration is being prepared. A deployed production
+ * instance must never acknowledge that ephemeral write as persisted.
+ */
+export function onMissingDurableWrite<T>(opts: {
+  storeTag: string;
+  migrationHint: string;
+  fallback: () => Promise<T>;
+  /** Optional result-style failure for stores whose public contract never throws. */
+  onProduction?: (error: Error) => Promise<T>;
+}): Promise<T> {
+  if (isDeployedProduction()) {
+    const error = new Error(
+      `[${opts.storeTag}] durable schema missing in production; refusing process-memory write fallback (${opts.migrationHint})`,
+    );
+    if (opts.onProduction) return opts.onProduction(error);
+    return Promise.reject(error);
+  }
+  return opts.fallback();
 }
 
 /**

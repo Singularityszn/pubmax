@@ -7,9 +7,9 @@
 // public.area_demand) — the exact dual-backend seam as
 // lib/emailSubscribersStore.ts: Supabase when env keys exist, process-memory
 // otherwise, chosen at the single areaDemandStore() seam. Before migration 0045
-// lands (or on a schema miss) the Supabase path fails soft to the in-memory
-// store, so capture keeps working and becomes durable the moment the table
-// exists — the same soft degradation vibe votes (#435) ship with.
+// lands (or on a schema miss), local/preview paths fail soft to memory. Deployed
+// production returns a failed write outcome so the route answers 503 instead of
+// acknowledging an ephemeral process-memory write.
 //
 // PRIVACY: `area` is free text as the user said it and `email` is OPTIONAL —
 // most rows carry NO contact at all (demand is captured without it). No
@@ -22,7 +22,11 @@ import {
   type AreaDemandSource,
   type NormalisedAreaDemand,
 } from "@/lib/areaDemand";
-import { createFailSoftGuard, selectStore } from "@/lib/storeBackend";
+import {
+  createFailSoftGuard,
+  onMissingDurableWrite,
+  selectStore,
+} from "@/lib/storeBackend";
 import { requireSupabaseAdmin } from "@/lib/supabase";
 
 export type RecordAreaDemandInput = NormalisedAreaDemand;
@@ -107,7 +111,16 @@ export const supabaseAreaDemandStore: AreaDemandStore = {
     const iso = new Date(now).toISOString();
     return guard<RecordAreaDemandOutcome>({
       context: "record",
-      onSchemaMiss: () => memoryAreaDemandStore.record(input, now),
+      onSchemaMiss: () =>
+        onMissingDurableWrite({
+          storeTag: "area-demand",
+          migrationHint: "apply migration 0045",
+          fallback: () => memoryAreaDemandStore.record(input, now),
+          onProduction: async (error) => {
+            console.error(error.message);
+            return { status: "recorded", failed: true };
+          },
+        }),
       message: "record failed — flagging degraded write",
       onError: () => ({ status: "recorded", failed: true }),
       run: async () => {

@@ -7,7 +7,8 @@
 //
 // One VenueOperatorStore interface, two implementations (lib/venueOperatorsStore):
 // Supabase (public.venue_operators) when env keys exist, process-memory otherwise,
-// with a fail-soft-to-memory degradation until migration 0047 lands.
+// with local/preview memory degradation until migration 0048 lands. Production
+// schema misses fail closed with 503.
 //
 // Boundaries (write-surface certification): the CREATE path is ACCOUNT-bound —
 // account_id is the VERIFIED Supabase uid from the bearer JWT (callerAuthIdentity),
