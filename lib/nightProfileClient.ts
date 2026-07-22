@@ -60,6 +60,17 @@ export function writeDeviceNightProfile(
   }
 }
 
+/** Mirror a loaded account Night Profile onto this device for signed-out continuity. */
+export function mirrorAccountNightProfileToDevice(
+  account: NightProfile | null,
+  storage = browserStorage(),
+): NightProfileInput | null {
+  if (!account) return null;
+  const input = nightProfileInput(account);
+  if (!writeDeviceNightProfile(input, storage)) return null;
+  return input;
+}
+
 export function clearDeviceNightProfile(storage = browserStorage()): void {
   try {
     storage?.removeItem(NIGHT_PROFILE_DEVICE_KEY);

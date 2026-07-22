@@ -1433,6 +1433,10 @@ export default function PubMap({
     () => activeNightArea ?? nearestNightAreaForViewport(cityId, mapViewport.center),
     [activeNightArea, cityId, mapViewport.center],
   );
+  const venuesById = useMemo(
+    () => new Map(filteredVenues.map((venue) => [venue.id, venue])),
+    [filteredVenues],
+  );
   const applyGeneratedMobilePlan = useCallback((generated: GeneratedMobilePlan) => {
     const ids = generated.stops.map((stop) => stop.venueId);
     activateGeneratedPlan(generated.context.nightArea, ids);
@@ -1558,6 +1562,7 @@ export default function PubMap({
         <MobilePlanActivation
           cityId={cityId}
           initialNightArea={suggestedPlanArea.slug}
+          venuesById={venuesById}
           onGenerated={applyGeneratedMobilePlan}
         />
       ) : null}
