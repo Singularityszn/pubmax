@@ -21,6 +21,14 @@
 // 429 { error, code: "RATE_LIMITED", retryable: true }. Durable (Supabase) when
 // configured, degrading to a per-instance in-memory budget otherwise — the same
 // documented fail-open behaviour as every other rate-limited route.
+//
+// GLOBAL DAILY BUDGET: the per-client cap can't bound aggregate ORS spend, and
+// under the degraded (per-instance) limiter many instances each grant their own
+// 20/min. So an ACTUAL provider call also draws down a durable global daily
+// budget (lib/walkRouteBudget consumeOrsBudget, keyed ors-global:<UTC-date>,
+// ORS_DAILY_BUDGET default 2000). Over the daily cap ⇒ skip the provider and
+// serve the straight leg — the same fail-soft the keyless/unroutable paths use.
+// Cache hits and the keyless path never call it, so they never consume budget.
 
 import { publicApiError } from "@/lib/apiError";
 import { jsonNoStore } from "@/lib/apiResponses";
@@ -38,6 +46,7 @@ import {
   type LngLat,
   type WalkLeg,
 } from "@/lib/walkRoute";
+import { consumeOrsBudget } from "@/lib/walkRouteBudget";
 import { fetchWalkLeg, orsApiKey } from "@/lib/walkRouteProvider";
 import { walkRouteStore } from "@/lib/walkRouteStore";
 
@@ -73,6 +82,10 @@ async function resolveLegs(stops: LngLat[]): Promise<WalkLeg[]> {
       const cached = await store.getLeg(key);
       if (cached) return { ...straight, coordinates: cached, source: "ors" };
       if (!hasKey) return straight;
+      // A real provider call is about to happen (cache miss + key present).
+      // Draw down the global daily ORS budget FIRST; over the cap ⇒ serve the
+      // straight leg (fail-soft), so the day's quota can't be silently drained.
+      if (!(await consumeOrsBudget())) return straight;
       const routed = await fetchWalkLeg(pair.from, pair.to);
       if (!routed) return straight;
       await store.putLeg(key, routed);
