@@ -21,8 +21,11 @@ import {
   useRef,
   useState,
   useSyncExternalStore,
+  type CSSProperties,
 } from "react";
 import { usePathname } from "next/navigation";
+
+import { tourSpotlightColumn } from "@/components/nav/MobileTabBar";
 
 import {
   claimTourPromptBudget,
@@ -62,13 +65,13 @@ const STEPS: readonly TourStep[] = [
     target: "map",
   },
   {
-    eyebrow: "The move",
-    title: "DROP a pint",
+    eyebrow: "Moment",
+    title: "Capture the moment",
     body: "Log what you're drinking and share the story. It's the signature move.",
     target: "drop",
   },
   {
-    eyebrow: "Discover",
+    eyebrow: "Stories",
     title: "Cheapest tonight",
     body: "Browse drinks, compare prices, and steal a crawl someone already ran.",
     target: "discover",
@@ -228,7 +231,19 @@ export default function FirstRunTour(): React.JSX.Element | null {
           CSS hides it on desktop where the tab bar is display:none). We own
           this overlay entirely — the nav components are untouched. */}
       {current.target ? (
-        <div className="tourSpotlight" data-target={current.target} aria-hidden="true">
+        <div
+          className="tourSpotlight"
+          data-target={current.target}
+          aria-hidden="true"
+          // Position from the LIVE tab geometry (column index + total), not a
+          // hardcoded viewport %, so the ring always sits under its real tab.
+          style={
+            {
+              "--tour-col": tourSpotlightColumn(current.target).index,
+              "--tour-cols": tourSpotlightColumn(current.target).total,
+            } as CSSProperties
+          }
+        >
           <span className="tourSpotlightArrow" />
         </div>
       ) : null}

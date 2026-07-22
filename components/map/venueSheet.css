@@ -567,7 +567,7 @@
   margin-left: 8px;
   padding: 1px 7px;
   border-radius: 999px;
-  font-size: 0.68rem;
+  font-size: 0.75rem;
   font-weight: 600;
   letter-spacing: 0.01em;
   line-height: 1.5;
@@ -587,6 +587,12 @@
   color: var(--rust);
   background: color-mix(in srgb, var(--rust) 12%, transparent);
   border-color: color-mix(in srgb, var(--rust) 34%, transparent);
+}
+
+/* The base rust is too dark to read on the dark sheet — lift it to a warmer,
+   lighter rust that keeps the "past the leave-by clock" warning tone legible. */
+html[data-theme="dark"] .trainBadge[data-tone="risk"] {
+  --rust: #e0885c;
 }
 
 /* ── Paper/linen texture on the raised sheet panel (D3) ───────────────────────
@@ -671,7 +677,9 @@ html[data-legacy="1"] .venueTabPanel::before {
 }
 
 .venueTab {
-  min-height: 38px;
+  /* 44px WCAG tap target across all bands (the ≤640 rule already floors to 44;
+     this covers the 641-1023 tablet band that previously inherited 38px). */
+  min-height: 44px;
   padding: 8px 13px;
   border: 0;
   border-radius: 999px;
@@ -1073,7 +1081,7 @@ html[data-legacy="1"] .venueTabPanel::before {
   border-radius: 999px;
   background: color-mix(in srgb, var(--brass) 12%, var(--panel-raised));
   color: var(--ink);
-  font-size: 0.68rem;
+  font-size: 0.75rem;
   font-weight: 700;
   letter-spacing: 0.01em;
   line-height: 1;
@@ -1084,7 +1092,7 @@ html[data-legacy="1"] .venueTabPanel::before {
 }
 
 .venueTonightChecked {
-  font-size: 0.64rem;
+  font-size: 0.75rem;
   font-weight: 600;
   color: var(--muted);
   letter-spacing: 0.02em;
@@ -1234,7 +1242,7 @@ html[data-legacy="1"] .venueTabPanel::before {
   border-radius: 999px;
   background: color-mix(in srgb, var(--brass) 12%, var(--panel-raised));
   color: var(--brass);
-  font-size: 0.7rem;
+  font-size: 0.75rem;
   font-weight: 700;
   letter-spacing: 0.01em;
 }

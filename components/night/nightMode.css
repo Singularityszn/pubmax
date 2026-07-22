@@ -68,6 +68,11 @@
   .nightCard {
     animation: none;
   }
+  /* The press dip is motion too — hold still for reduced-motion users. */
+  .nightCard__logBtn:active,
+  .nightCard__next:active {
+    transform: none;
+  }
 }
 
 .nightCard__grab {
@@ -99,7 +104,7 @@
 
 .nightCard__eyebrow {
   margin: 0;
-  font-size: 11px;
+  font-size: 12px;
   text-transform: uppercase;
   letter-spacing: 0.06em;
   font-weight: 600;
@@ -327,7 +332,7 @@
 
 .nightCard__foodList small {
   color: var(--ink-soft, #6b726a);
-  font-size: 11px;
+  font-size: 12px;
   text-transform: capitalize;
 }
 
@@ -521,7 +526,7 @@
 }
 
 .nightCard__crewCount {
-  font-size: 11px;
+  font-size: 12px;
   text-transform: uppercase;
   letter-spacing: 0.05em;
   font-weight: 600;

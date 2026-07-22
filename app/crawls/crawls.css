@@ -4,7 +4,8 @@
    var(--serif) — the legacy alias that now resolves to Space Grotesk). */
 
 .crawlsShell {
-  min-height: 100vh;
+  min-height: 100vh; /* fallback for browsers without dvh support */
+  min-height: 100dvh;
   background: var(--paper);
   color: var(--ink);
   padding: 24px var(--page-gutter) 64px;
@@ -12,11 +13,6 @@
   flex-direction: column;
   align-items: center;
   gap: 28px;
-}
-
-.crawlsShell .siteNav {
-  width: 100%;
-  max-width: 640px;
 }
 
 /* --- shared bits ---------------------------------------------------------- */
@@ -86,6 +82,7 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
+  min-height: 44px;
   padding: 6px 12px;
   border-radius: 999px;
   border: 1px solid var(--line);
@@ -118,7 +115,7 @@
 }
 
 .routePackChipCount {
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 700;
   opacity: 0.7;
 }
@@ -163,7 +160,7 @@
   border-radius: 999px;
   border: 1px solid var(--brass);
   color: var(--brass);
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 700;
   letter-spacing: 0.6px;
   text-transform: uppercase;
