@@ -3,6 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import ActivePlanMarker from "@/components/plan/ActivePlanMarker";
+import JoinInMotion from "@/components/plan/JoinInMotion";
 import NightCrawlMode from "@/components/plan/NightCrawlMode";
 import PlanCrew from "@/components/plan/PlanCrew";
 import SiteNav from "@/components/nav/SiteNav";
@@ -109,6 +110,7 @@ export default async function PlanPage({ params }: Props) {
           default full-screen surface on mobile and offers an inline entry
           otherwise. Client-only gating, no new route. */}
       {!completed ? <NightCrawlMode planId={id} initialState={state} /> : null}
+      {!completed ? <JoinInMotion planId={id} initialState={state} /> : null}
       <div className="planPage__grid">
         <PlanSummary planId={id} state={state} />
         <aside className="planPage__side">

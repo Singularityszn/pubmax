@@ -878,3 +878,228 @@ html[data-theme="dark"] .planComposer__submit { color: #090d0b; }
   from { stroke-dashoffset: 1; }
   to { stroke-dashoffset: 0; }
 }
+
+/* Join in Motion - a read-only, link-friendly intercept card. It intentionally
+   lives after the plan stylesheet so this isolated surface can evolve without
+   widening any of the established Plan card selectors above. */
+.joinInMotion {
+  position: relative;
+  isolation: isolate;
+  display: grid;
+  gap: 22px;
+  width: min(100%, 1160px);
+  overflow: hidden;
+  margin: 0 auto clamp(24px, 5vw, 54px);
+  padding: clamp(22px, 4vw, 34px);
+  border: 1px solid color-mix(in srgb, var(--plan-accent) 32%, var(--line));
+  border-radius: clamp(18px, 3vw, 28px);
+  background:
+    radial-gradient(circle at 100% 0, color-mix(in srgb, var(--plan-accent) 15%, transparent), transparent 38%),
+    color-mix(in srgb, var(--panel-raised) 96%, transparent);
+  box-shadow: var(--shadow-sm);
+}
+
+.joinInMotion::before {
+  position: absolute;
+  z-index: -1;
+  inset: 0 auto 0 0;
+  width: 4px;
+  background: linear-gradient(180deg, var(--plan-accent), color-mix(in srgb, var(--plan-accent) 18%, transparent));
+  content: "";
+}
+
+.joinInMotion__heading { display: grid; gap: 9px; }
+.joinInMotion__eyebrow {
+  margin: 0;
+  color: var(--plan-accent-strong);
+  font-size: 0.68rem;
+  font-weight: 850;
+  letter-spacing: 0.17em;
+}
+.joinInMotion__heading h2 {
+  max-width: 19ch;
+  margin: 0;
+  color: var(--ink);
+  font-size: clamp(1.75rem, 4vw, 2.6rem);
+  line-height: 0.98;
+  letter-spacing: -0.035em;
+}
+.joinInMotion__intro {
+  max-width: 56ch;
+  margin: 2px 0 0;
+  color: var(--ink-soft);
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
+.joinInMotion__eta {
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+.joinInMotion__eta legend {
+  margin-bottom: 10px;
+  color: var(--muted);
+  font-size: 0.7rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.joinInMotion__etaOptions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.joinInMotion__etaChip {
+  min-height: 44px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 8px 13px;
+  background: color-mix(in srgb, var(--panel) 90%, transparent);
+  color: var(--ink-soft);
+  font: inherit;
+  font-size: 0.76rem;
+  font-weight: 800;
+  cursor: pointer;
+  transition: border-color 150ms ease, background-color 150ms ease, color 150ms ease, transform 150ms ease;
+}
+.joinInMotion__etaChip:hover { border-color: var(--plan-accent); color: var(--ink); }
+.joinInMotion__etaChip:active { transform: translateY(1px); }
+.joinInMotion__etaChip[aria-pressed="true"] {
+  border-color: var(--plan-accent);
+  background: var(--plan-accent);
+  color: #fff;
+}
+
+.joinInMotion__result {
+  display: grid;
+  grid-template-columns: 48px minmax(0, 1fr);
+  gap: 14px;
+  align-items: center;
+  min-height: 128px;
+  padding: 18px;
+  border: 1px solid color-mix(in srgb, var(--plan-accent) 28%, var(--line));
+  border-radius: 18px;
+  background: color-mix(in srgb, var(--plan-accent) 7%, var(--panel));
+}
+.joinInMotion__stopMarker {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 46px;
+  height: 46px;
+  border-radius: 50%;
+  background: var(--plan-accent);
+  color: #fff;
+  box-shadow: 0 0 0 6px color-mix(in srgb, var(--plan-accent) 12%, transparent);
+  font-size: 1rem;
+  font-weight: 900;
+}
+.joinInMotion__stopMarker::after {
+  position: absolute;
+  top: 100%;
+  width: 1px;
+  height: 31px;
+  background: linear-gradient(var(--plan-accent), transparent);
+  content: "";
+}
+.joinInMotion__resultCopy { min-width: 0; }
+.joinInMotion__resultCopy--empty { grid-column: 1 / -1; }
+.joinInMotion__aim {
+  margin: 0 0 3px;
+  color: var(--plan-accent-strong);
+  font-size: 0.69rem;
+  font-weight: 850;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+.joinInMotion__result h3 {
+  overflow: hidden;
+  margin: 0;
+  color: var(--ink);
+  font-family: var(--display, var(--serif));
+  font-size: clamp(1.25rem, 3vw, 1.65rem);
+  line-height: 1.05;
+  text-overflow: ellipsis;
+}
+.joinInMotion__note {
+  max-width: 48ch;
+  margin: 8px 0 0;
+  color: var(--muted);
+  font-size: 0.78rem;
+  line-height: 1.45;
+}
+.joinInMotion__method {
+  margin: -12px 0 0;
+  color: var(--muted);
+  font-size: 0.7rem;
+  line-height: 1.4;
+}
+
+.joinInMotion__actions {
+  display: grid;
+  grid-template-columns: minmax(0, 1.25fr) minmax(0, 0.75fr);
+  gap: 9px;
+}
+.joinInMotion__actions a,
+.joinInMotion__actions button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 50px;
+  border-radius: 12px;
+  padding: 10px 15px;
+  font: inherit;
+  font-size: 0.79rem;
+  font-weight: 850;
+  text-align: center;
+  text-decoration: none;
+  cursor: pointer;
+}
+.joinInMotion__actions a {
+  border: 0;
+  background: var(--ink);
+  color: var(--paper);
+}
+.joinInMotion__actions a span { font-size: 1rem; line-height: 1; }
+.joinInMotion__actions button {
+  border: 1px solid color-mix(in srgb, var(--plan-accent) 45%, var(--line));
+  background: color-mix(in srgb, var(--plan-accent) 7%, var(--panel));
+  color: var(--plan-accent-strong);
+}
+.joinInMotion__actions a:hover { background: color-mix(in srgb, var(--ink) 88%, var(--plan-accent)); }
+.joinInMotion__actions button:hover { border-color: var(--plan-accent); background: color-mix(in srgb, var(--plan-accent) 12%, var(--panel)); }
+.joinInMotion__etaChip:focus-visible,
+.joinInMotion__actions a:focus-visible,
+.joinInMotion__actions button:focus-visible {
+  outline: 3px solid color-mix(in srgb, var(--plan-accent) 58%, transparent);
+  outline-offset: 3px;
+}
+.joinInMotion__status {
+  min-height: 1.35em;
+  margin: -12px 0 0;
+  color: var(--color-positive);
+  font-size: 0.73rem;
+  font-weight: 780;
+  text-align: right;
+}
+
+html[data-theme="dark"] .joinInMotion__etaChip[aria-pressed="true"],
+html[data-theme="dark"] .joinInMotion__stopMarker { color: #090d0b; }
+
+@media (max-width: 520px) {
+  .joinInMotion { gap: 19px; padding: 22px 18px; }
+  .joinInMotion__etaOptions { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .joinInMotion__etaChip { padding-inline: 8px; }
+  .joinInMotion__result { grid-template-columns: 42px minmax(0, 1fr); gap: 12px; padding: 16px 14px; }
+  .joinInMotion__stopMarker { width: 40px; height: 40px; }
+  .joinInMotion__actions { grid-template-columns: 1fr; }
+  .joinInMotion__status { text-align: left; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .joinInMotion__etaChip { transition: none; }
+  .joinInMotion__etaChip:active { transform: none; }
+}
