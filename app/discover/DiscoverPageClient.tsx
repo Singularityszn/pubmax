@@ -16,7 +16,8 @@ import LeaderboardTable from "@/components/discovery/LeaderboardTable";
 import CityRivalryTable from "@/components/discovery/CityRivalryTable";
 import TonightBoard from "@/components/discovery/TonightBoard";
 import EditorialCard, { type EditorialCardData } from "@/components/discovery/EditorialCard";
-import TonightNearbyLane from "@/components/discovery/TonightNearbyLane";
+import TonightMapPointer from "@/components/discovery/TonightMapPointer";
+import MusicTonightLane from "@/components/discovery/MusicTonightLane";
 import DealsTonightLane from "@/components/discovery/DealsTonightLane";
 import GardenTonightCard from "@/components/discovery/GardenTonightCard";
 import ThenVsNowCard from "@/components/discovery/ThenVsNowCard";
@@ -547,9 +548,11 @@ export default function DiscoverPageClient({
         )}
       </section>
 
-      <TonightNearbyLane />
+      <TonightMapPointer />
 
       <DealsTonightLane />
+
+      <MusicTonightLane />
 
       <GardenTonightCard />
 

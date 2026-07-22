@@ -63,7 +63,7 @@ export default function LastCrewInvite({
       try {
         await navigator.clipboard.writeText(message);
         trackEvent("plan_invite_sent", { channel: "copy" });
-        setStatus("Invite copied — paste it to the usual lot.");
+        setStatus("Invite copied. Paste it to the usual lot.");
       } catch {
         setStatus("");
       }

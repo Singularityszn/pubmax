@@ -109,5 +109,5 @@ export function buildLastCrewShareText(input: {
   const title = typeof input.title === "string" && input.title.trim()
     ? input.title.trim()
     : "Tonight";
-  return `${title} — ${who}. I'm in: ${input.planUrl}`;
+  return `${title}: ${who}. I'm in: ${input.planUrl}`;
 }

@@ -73,11 +73,11 @@ absorption — not rebuilding the surface.
 ### Wave W — What's-On flagship
 | ID | Item | Tier → model |
 | --- | --- | --- |
-| W1 (=B6+E1) | **Tonight surface**: map pin badges (glyph per kind, existing pin pipeline ONLY — frozen canvas) + Tonight lane above the tab bar (3–5 nearby cards: pint price, what's-on badge, walk time, garden/weather) with kind filter chips. Absorbs `TonightNearbyLane`; first consumer of `/api/whats-on`. 390px first, both themes, reduced-motion. | **SHIPPED** on main (walk/garden enrichment + Discover absorb = residual polish) |
-| W2 | Sport fixtures data: fixture calendar × screening pubs → `derived` rows; UI contract unchanged | T3 → GPT |
-| W3 (=B4) | Deals vertical: chain deal days + own pint prices ("cheap round") | T2 → Sonnet |
-| W4 (=B5) | Music vertical, last: CityMCP events + chain what's-on, thin-coverage labels | T2 → Sonnet |
-| W5 (=B7) | Concierge intents: parser gains sport/quiz/deal/music moods + tonight-row rank boost; LLM schema extends mood enum only | T3 → Opus |
+| W1 (=B6+E1) | **Tonight surface**: map pin badges + Tonight lane + `/api/whats-on` consumer; Discover points at the map lane (CityMCP `TonightNearbyLane` absorbed). | **SHIPPED** |
+| W2 | Sport fixtures data: fixture calendar × screening pubs → `derived` rows; UI contract unchanged | **SHIPPED** (#203) |
+| W3 (=B4) | Deals vertical: chain deal days + own pint prices ("cheap round") | **SHIPPED** (`DealsTonightLane`) |
+| W4 (=B5) | Music vertical, last: CityMCP events + chain what's-on, thin-coverage labels | **SHIPPED** (`MusicTonightLane`) |
+| W5 (=B7) | Concierge intents: parser gains sport/quiz/deal/music moods + tonight-row rank boost; LLM schema extends mood enum only | **SHIPPED** (`lib/concierge/whatsOn.ts`) |
 
 ### Wave F — Refactor lane (hard canvas freeze during F1)
 F1 (#165) decompose PubMapCanvas/PubMap → F2 (#166) split VenueInspector /
