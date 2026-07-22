@@ -554,7 +554,14 @@
   color: var(--color-positive, #18a76d);
 }
 
-/* Re-open pill (shown after dismissal). */
+/* Re-open pill (shown after dismissal).
+   Clearance contract (F3/F4): this pill is fixed bottom-right. On phones it sits
+   at tab-bar + 10px and is 44px tall, so its rect reaches 54px above the tab-bar
+   top. It is suppressed (renders nothing) on / and /pal/chat and /map* in
+   NightModeCard so it never covers a page's own bottom CTA; on surfaces that
+   keep it and hold a bottom CTA (e.g. /pal), that surface pads past tab-bar +
+   54px so its CTA stays clear of this rect. Height stays 44px (touch floor) and
+   the offsets below are the numbers those consumers mirror. */
 .nightPill {
   position: fixed;
   right: 12px;

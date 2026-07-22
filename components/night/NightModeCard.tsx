@@ -227,9 +227,20 @@ export default function NightModeCard() {
   const pathname = usePathname();
   const { ref } = useActivePlan();
 
-  // The mobile map already owns the active-plan pill and planner sheet. Keeping
-  // this global surface off /map prevents a second fixed sheet from stacking.
+  // Clearance contract (F3/F4): the "Tonight" re-entry pill is a global fixed
+  // affordance, so it must never float over a surface that already owns its
+  // bottom edge. It yields (renders nothing) on three surfaces:
+  //   - /map*     : the map owns the active-plan pill + planner sheet.
+  //   - /         : the landing page is a long marketing scroll whose many
+  //                 in-flow CTAs (the hero "Plan my night" among them) a fixed
+  //                 pill would inevitably clip; the pill has no home there.
+  //   - /pal/chat : the chat composer is a pinned bottom control (its own fixed
+  //                 bottom CTA), so the pill would sit on the send button.
+  // Every other surface keeps the pill, which holds tab-bar clearance via
+  // nightMode.css; surfaces with a bottom CTA (e.g. /pal) pad past the pill.
   if (pathname === "/map" || pathname.startsWith("/map/")) return null;
+  if (pathname === "/") return null;
+  if (pathname === "/pal/chat") return null;
 
   if (!ref) return null;
   return <NightModeSurface key={ref.id} entry={ref} />;
