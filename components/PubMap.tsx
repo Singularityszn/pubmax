@@ -169,9 +169,15 @@ import {
   shouldFitQueryVenuesOnArrival,
   resolveQueryRestoreFit,
 } from "@/lib/mapArrival";
-import { areaUnderCentre, type AreaElsewhereOption } from "@/lib/areaButton";
+import {
+  areaSheetOpenDelay,
+  areaUnderCentre,
+  planAreaSelect,
+  type AreaElsewhereOption,
+} from "@/lib/areaButton";
+import type { AreaSheetPlaceFocus } from "@/components/map/AreaSheet";
 import { parseLocalityGazetteer, type Locality } from "@/lib/localities";
-import { getNightArea, nearestNightAreaForViewport, nightAreaForMapQuery } from "@/lib/nightAreas";
+import { getNightArea, getNightAreasForCity, nearestNightAreaForViewport, nightAreaForMapQuery, type NightArea } from "@/lib/nightAreas";
 import { defaultPoiHiddenForViewport } from "@/lib/poiToggleGroups";
 import {
   readMobileMapSession,
@@ -1480,6 +1486,65 @@ export default function PubMap({
       token: (prev?.token ?? 0) + 1,
     }));
   }, []);
+
+  // The Area sheet target set by a map-search select: a modelled area (shown
+  // as-is) or an ad-hoc locality/borough ring. null = the Area button, which
+  // falls back to the area under the map centre.
+  const [searchAreaTarget, setSearchAreaTarget] = useState<
+    | { kind: "area"; area: NightArea }
+    | ({ kind: "place" } & AreaSheetPlaceFocus)
+    | null
+  >(null);
+  // Deferred open of the Area sheet so its pubs appear AS the fly settles, not
+  // mid-flight. Cleared on any manual overlay change / new select / unmount.
+  const areaSheetOpenTimer = useRef<number | null>(null);
+  const clearAreaSheetTimer = useCallback(() => {
+    if (areaSheetOpenTimer.current !== null) {
+      window.clearTimeout(areaSheetOpenTimer.current);
+      areaSheetOpenTimer.current = null;
+    }
+  }, []);
+  useEffect(() => clearAreaSheetTimer, [clearAreaSheetTimer]);
+
+  // Map-search area/locality/borough select — the owner-specified journey:
+  // the dropdown CLOSES, the map flies there, and the pubs there are DISPLAYED
+  // as the camera settles. All three, in order. (A pub select is handled by
+  // selectVenue, which already collapses search and opens the venue card.)
+  const selectSearchArea = useCallback(
+    (option: AreaElsewhereOption) => {
+      const journey = planAreaSelect(option);
+      // 1. Fly the camera to the chosen place.
+      setAreaFocus((prev) => ({
+        center: journey.camera.center,
+        zoom: journey.camera.zoom,
+        token: (prev?.token ?? 0) + 1,
+      }));
+      // 2. Resolve what the sheet shows on arrival.
+      const target = journey.target;
+      if (target.kind === "place") {
+        setSearchAreaTarget({ kind: "place", name: target.name, center: target.center, radiusKm: target.radiusKm });
+      } else {
+        const area = getNightAreasForCity(cityId).find((a) => a.slug === target.slug) ?? null;
+        setSearchAreaTarget(area ? { kind: "area", area } : null);
+      }
+      // 3. Collapse the search UI now (unmounts the input → keyboard closes,
+      //    suggestions panel gone) via a direct set so it survives the auto-open
+      //    below (changeMapOverlay would clear the pending target + timer).
+      setLogIntentFallbackVisible(false);
+      setMapOverlay("none");
+      // 4. Open the pubs display as the camera settles (reduced-motion jumps,
+      //    so the sheet opens on the next tick instead of trailing the fly).
+      clearAreaSheetTimer();
+      const reduced =
+        typeof window !== "undefined" &&
+        window.matchMedia?.("(prefers-reduced-motion: reduce)").matches === true;
+      areaSheetOpenTimer.current = window.setTimeout(() => {
+        areaSheetOpenTimer.current = null;
+        setMapOverlay("area");
+      }, areaSheetOpenDelay(reduced));
+    },
+    [cityId, clearAreaSheetTimer],
+  );
   const applyGeneratedMobilePlan = useCallback((generated: GeneratedMobilePlan) => {
     const ids = generated.stops.map((stop) => stop.venueId);
     activateGeneratedPlan(generated.context.nightArea, ids);
@@ -1514,8 +1579,13 @@ export default function PubMap({
       setSelectedVenueId("");
       closeComposer();
     }
+    // A manual overlay change (X, the Area button, any chip) cancels a pending
+    // search auto-open and drops its searched target, so the Area button always
+    // shows the area under the map centre — never a stale search result.
+    clearAreaSheetTimer();
+    setSearchAreaTarget(null);
     setMapOverlay(next);
-  }, [closeComposer]);
+  }, [closeComposer, clearAreaSheetTimer]);
 
   useEffect(() => {
     writeMobileMapSession({
@@ -2025,7 +2095,7 @@ export default function PubMap({
               mapCenter={mapViewport.center}
               placeholder={`Search ${city.displayName} pubs or areas`}
               onSelectVenue={selectVenue}
-              onFlyToArea={flyToArea}
+              onFlyToArea={selectSearchArea}
               onSubmitQuery={selectTopSearchMatch}
               onClose={() => changeMapOverlay("none")}
             />
@@ -2166,7 +2236,8 @@ export default function PubMap({
           areaContent={
             <AreaSheet
               cityId={cityId}
-              area={centreArea}
+              area={searchAreaTarget ? (searchAreaTarget.kind === "area" ? searchAreaTarget.area : null) : centreArea}
+              placeFocus={searchAreaTarget?.kind === "place" ? searchAreaTarget : null}
               venues={venues}
               center={mapViewport.center}
               onSelectVenue={selectVenue}

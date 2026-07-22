@@ -406,12 +406,19 @@
   .mobilePlanActivation:active { transform: translateX(-50%); }
 }
 
-/* Owner report (Plan tonight sheet): fields clipped above a dead band. Same
-   phantom-band disease as the contextual fix above - the planner sheet (.left)
-   renders NO venueSheetStickyBar (VenueStickyBar mounts only inside
-   VenueInspector), so its 72px command-bar reservation was pure void that
-   clipped the form. Only the venue sheet (.right) keeps the real strip. */
+/* Audit F7: the venue sheet's command-bar dock (#536) reserves a 72px footer
+   strip by shortening every .mobileSharedSheetBody at half/full. Contextual
+   sheets (TfL live, map layers) have NO command bar, so that reservation was a
+   phantom empty band that clipped their last card mid-sentence into a void and
+   fought #539's content-fit math. Zeroing the token here restores
+   body = visible - header - dock for contextual sheets, exactly what
+   resolveHalfContentFit assumes. Owner report extended the same fix to the
+   planner (.left): it renders NO venueSheetStickyBar either (VenueStickyBar
+   mounts only inside VenueInspector), so its reservation clipped the Plan
+   tonight form above a dead band. Only the venue sheet (.right) earns and
+   keeps the real 72px strip. */
 @media (max-width: 640px) {
+  .mobileSharedSheet.contextual,
   .mobileSharedSheet.left {
     --venue-cmdbar-h: 0px;
   }
