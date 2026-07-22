@@ -1,10 +1,16 @@
 import { describe, expect, it } from "vitest";
 import { buildTabs } from "@/components/nav/MobileTabBar";
+import { navPathMatches } from "@/components/nav/navigationModel";
 
 // Six-tab contract for the mobile bar (owner-locked journey order). The shared
 // PRIMARY_NAV_ITEMS model stays four destinations by its own contract test;
 // Today and Moment are injected by the bar, so THIS test locks what a thumb
 // actually meets: order, destinations, and the centre action.
+
+function activeLabel(pathname: string, mapHref = "/map"): string | undefined {
+  const tabs = buildTabs(mapHref, pathname);
+  return tabs.find((tab) => !tab.primary && navPathMatches(pathname, tab.match ?? [tab.href]))?.label;
+}
 
 describe("mobile tab bar contract", () => {
   it("renders exactly six tabs in the journey order", () => {
@@ -35,5 +41,14 @@ describe("mobile tab bar contract", () => {
     const tabs = buildTabs("/map", "/map");
     expect(tabs.filter((tab) => tab.primary).map((tab) => tab.label)).toEqual(["Moment"]);
     expect(tabs[2].label).toBe("Moment");
+  });
+
+  it("marks Stories active on /feed and the retired /stories alias", () => {
+    expect(activeLabel("/feed")).toBe("Stories");
+    expect(activeLabel("/stories")).toBe("Stories");
+    expect(activeLabel("/discover")).toBe("Stories");
+    expect(activeLabel("/crawls")).toBe("Stories");
+    // Moment is a compose action, never a persistent location.
+    expect(activeLabel("/moment")).toBeUndefined();
   });
 });

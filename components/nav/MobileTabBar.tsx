@@ -10,7 +10,13 @@ import {
 } from "@/lib/cityPreference";
 import { warmMapRoute } from "@/lib/mapWarmup";
 import { markPubmaxTiming } from "@/lib/performanceMarks";
-import { MOMENT_NAV_ACTION, PRIMARY_NAV_ITEMS, momentHref, type PrimaryNavKey } from "@/components/nav/navigationModel";
+import {
+  MOMENT_NAV_ACTION,
+  PRIMARY_NAV_ITEMS,
+  momentHref,
+  navPathMatches,
+  type PrimaryNavKey,
+} from "@/components/nav/navigationModel";
 import "./mobileNav.css";
 
 // Mobile-first bottom tab bar. Visible only ≤640px (see mobileNav.css); on
@@ -67,10 +73,7 @@ function isActive(pathname: string, tab: Tab): boolean {
   // The primary Moment action is intentionally not painted as a persistent
   // active tab; its raised shape communicates creation rather than location.
   if (tab.primary) return false;
-  const prefixes = tab.match ?? [tab.href];
-  return prefixes.some(
-    (prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`),
-  );
+  return navPathMatches(pathname, tab.match ?? [tab.href]);
 }
 
 export default function MobileTabBar() {
