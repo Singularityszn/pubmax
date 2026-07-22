@@ -92,10 +92,9 @@ export default function NearMeNow({
   const bootPatch = resolveNightPatch(initialPatchId);
   // Map mode (initialLocation) resolves an answer on mount — start on the
   // spinner, not the idle CTA, so there is no "Find my pint" flash.
-  // Shareable patch links also skip the idle CTA.
-  const [state, setState] = useState<LocateState>(
-    initialLocation || bootPatch ? "requesting" : "idle",
-  );
+  // Shareable patch links start idle and let pickPatch() flip to requesting
+  // so a missed effect can never leave a permanent locate spinner.
+  const [state, setState] = useState<LocateState>(initialLocation ? "requesting" : "idle");
   const [cards, setCards] = useState<NearMeCard[]>([]);
   const [scope, setScope] = useState<NearMeScope>("none");
   const [borough, setBorough] = useState<string | null>(null);
@@ -140,21 +139,31 @@ export default function NearMeNow({
       if (reason !== null) setPatchReason(reason);
       void loadSlim()
         .then((slim) => {
-          const answer = rankNearMe(next.lat, next.lng, slim);
-          setCards(answer.cards);
-          setScope(answer.scope);
-          // Derive this patch's honest coverage tier from the priced pubs actually
-          // in the slim index (real counts, no uniform claim).
-          setPatchProfile(derivePatchProfile(next, { venues: slim }));
+          try {
+            const answer = rankNearMe(next.lat, next.lng, slim);
+            setCards(answer.cards);
+            setScope(answer.scope);
+            // Derive this patch's honest coverage tier from the priced pubs actually
+            // in the slim index (real counts, no uniform claim).
+            setPatchProfile(derivePatchProfile(next, { venues: slim }));
+          } catch {
+            setCards([]);
+            setScope("none");
+            setPatchProfile(null);
+          }
           setState("ready");
           writeRememberedArea({ kind: "patch", id: next.id });
           if (syncPatchToUrl && pathname) {
-            const params = new URLSearchParams(
-              typeof window !== "undefined" ? window.location.search : "",
-            );
-            params.set("patch", next.id);
-            const query = params.toString();
-            router.replace(query ? `${pathname}?${query}` : pathname, { scroll: false });
+            try {
+              const params = new URLSearchParams(
+                typeof window !== "undefined" ? window.location.search : "",
+              );
+              params.set("patch", next.id);
+              const query = params.toString();
+              router.replace(query ? `${pathname}?${query}` : pathname, { scroll: false });
+            } catch {
+              // URL sync is best-effort — never block the answer.
+            }
           }
         })
         .catch(() => {
