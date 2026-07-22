@@ -1,6 +1,12 @@
 import { describe, it, expect } from "vitest";
 
-import { encodeCrawl, decodeCrawl, seedCrawlState, type CrawlUrlState } from "@/lib/crawlUrl";
+import {
+  buildCrawlMapHref,
+  encodeCrawl,
+  decodeCrawl,
+  seedCrawlState,
+  type CrawlUrlState,
+} from "@/lib/crawlUrl";
 import { initialFilters } from "@/components/map/ControlRail";
 
 const sample: CrawlUrlState = {
@@ -282,5 +288,23 @@ describe("crawlUrl", () => {
     expect(decoded.filters.query).toBe("Lucky Saint");
     expect(decoded.filters.requireNonAlcoholic).toBe(true);
     expect(decoded.filters.requireCocktails).toBe(true);
+  });
+
+  describe("buildCrawlMapHref", () => {
+    it("deep links the whole ordered crawl into build mode", () => {
+      const href = buildCrawlMapHref(["venue-abc", "venue-def", "venue-ghi"]);
+      expect(href).toMatch(/^\/map\?mode=build&pubs=/);
+      // Ordered pub ids round-trip back through the decoder in the same order
+      // (URLSearchParams percent-encodes the commas, same as every share link).
+      const decoded = decodeCrawl(new URLSearchParams(href!.split("?")[1]));
+      expect(decoded.mode).toBe("build");
+      expect(decoded.builtIds).toEqual(["venue-abc", "venue-def", "venue-ghi"]);
+    });
+
+    it("returns null for fewer than two stops (no walk to show)", () => {
+      expect(buildCrawlMapHref([])).toBeNull();
+      expect(buildCrawlMapHref(["venue-abc"])).toBeNull();
+      expect(buildCrawlMapHref(["", ""])).toBeNull();
+    });
   });
 });
