@@ -33,6 +33,22 @@ export const MOMENT_NAV_ACTION = {
   label: "Moment",
 } as const;
 
+/**
+ * First-run tour spotlight targets, mapped to the live mobile tab keys. The
+ * tour anchors its bottom-bar ring to the REAL tab column (see MobileTabBar
+ * `buildTabs` / `tourSpotlightColumn`), so this is the single source tying tour
+ * copy targets to nav destinations: "drop" is the Moment centre action, and
+ * "discover" is the Stories tab. A new or reordered tab that shifts these keys'
+ * columns is caught by the tour-geometry regression test.
+ */
+export type TourSpotlightTarget = "map" | "drop" | "discover";
+
+export const TOUR_TARGET_TAB_KEY: Record<TourSpotlightTarget, string> = {
+  map: "map",
+  drop: MOMENT_NAV_ACTION.key,
+  discover: "stories",
+} as const;
+
 export type MomentReturnTarget = string;
 
 const BLOCKED_MOMENT_RETURN_PREFIXES = ["/api", "/admin", "/auth", "/moment"];

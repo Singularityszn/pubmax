@@ -11,6 +11,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 // same-tab notify() never throws.
 import {
   IDENTITY_NUDGE_COOLDOWN_MS,
+  IDENTITY_NUDGE_PENDING_TTL_MS,
   getIdentityNudgeClientSnapshot,
   getIdentityNudgeServerSnapshot,
   isIdentityNudgePending,
@@ -181,6 +182,31 @@ describe("identity nudge store (localStorage-backed)", () => {
     recordPlanNudgeTrigger();
     markIdentityNudgeDismissed();
     resetIdentityNudge();
+    recordMomentNudgeTrigger();
+    expect(getIdentityNudgeClientSnapshot()).toBe("moment");
+  });
+
+  it("expires a stale pending trigger after the TTL and self-clears it on read", () => {
+    recordPlanNudgeTrigger();
+    expect(getIdentityNudgeClientSnapshot()).toBe("plan");
+
+    // Still valid a moment before the TTL elapses.
+    vi.spyOn(Date, "now").mockReturnValue(NOW + IDENTITY_NUDGE_PENDING_TTL_MS - 1);
+    expect(getIdentityNudgeClientSnapshot()).toBe("plan");
+
+    // At/after the TTL the stale trigger no longer surfaces and is cleared —
+    // this is the "fires at first paint long after the action" bug, fixed.
+    vi.spyOn(Date, "now").mockReturnValue(NOW + IDENTITY_NUDGE_PENDING_TTL_MS);
+    expect(getIdentityNudgeClientSnapshot()).toBeNull();
+    expect(isIdentityNudgePending()).toBe(false);
+  });
+
+  it("re-arms cleanly when a fresh action follows an expired pending", () => {
+    recordPlanNudgeTrigger();
+    // Jump past the TTL: the old plan trigger is now stale.
+    vi.spyOn(Date, "now").mockReturnValue(NOW + IDENTITY_NUDGE_PENDING_TTL_MS);
+    expect(getIdentityNudgeClientSnapshot()).toBeNull();
+    // A genuinely recent action arms afresh (not swallowed by the stale flag).
     recordMomentNudgeTrigger();
     expect(getIdentityNudgeClientSnapshot()).toBe("moment");
   });
