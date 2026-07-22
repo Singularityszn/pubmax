@@ -173,8 +173,8 @@
   }
   .mobileMapChipPrimary:disabled { opacity: .72; }
 
-  /* TIER 3 — utility corner: compact icon-buttons stacked at the map's right
-     edge, below the chrome, above the plan pill. List view (#346) joins here. */
+  /* TIER 3 — utility corner: compact TfL icon-button at the map's right edge,
+     below the chrome, above the plan pill. List view lives in Layers. */
   .mobileMapUtilityCorner {
     position: fixed;
     right: 10px;
