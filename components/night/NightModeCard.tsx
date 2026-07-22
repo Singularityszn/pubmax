@@ -231,6 +231,16 @@ export default function NightModeCard() {
   // this global surface off /map prevents a second fixed sheet from stacking.
   if (pathname === "/map" || pathname.startsWith("/map/")) return null;
 
+  // The web-only marketing landing ("/") owns the fold with its own full-width
+  // hero action band ("Find my pint" / "Open the map" / "Plan my night"). A
+  // bottom-right floating pill collides with the right end of that band on the
+  // narrower, shorter phones where the wrapped headline pushes the actions down
+  // into the pill's viewport strip, and it cannot be lifted clear by bottom
+  // padding because the actions are mid-document, not page-bottom. The pill's
+  // whole job, resume tonight's plan, is served on every in-app route, so it
+  // yields on this one surface rather than cover a primary CTA.
+  if (pathname === "/") return null;
+
   if (!ref) return null;
   return <NightModeSurface key={ref.id} entry={ref} />;
 }

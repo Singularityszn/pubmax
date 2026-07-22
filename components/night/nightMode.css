@@ -3,6 +3,30 @@
    touch targets, tuned for 390×844 first. Sits above the mobile tab bar but
    below full-screen overlays/modals. No map-canvas coupling. */
 
+/* ── Overlay clearance stack ──────────────────────────────────────────────────
+   One coordinated bottom stack so the app's fixed overlays never cover each
+   other or a page's own bottom CTAs. Bottom-up on phones:
+       env(safe-area-inset-bottom)   home indicator
+       var(--tabbar-h)               mobile tab bar (owned by nav; consumed here)
+       the re-open "Tonight" pill     this lane's only floating chrome
+       page bottom CTAs               /pal primary, landing footer/final CTA
+   The pill PUBLISHES its own footprint as --night-pill-clearance, which is 0px
+   until the pill is actually mounted (html:has(.nightPill)). Surfaces add that
+   var to their existing bottom clearance, so they reserve room for the pill ONLY
+   when one is really floating: no dead whitespace on a night with no live plan,
+   and nothing to guess: the number is derived from the pill's own tokens. */
+:root {
+  --night-pill-h: 44px;    /* the pill's touch-target height */
+  --night-pill-inset: 10px; /* the pill's own gap above the tab bar (mobile) */
+  --night-pill-clearance: 0px;
+}
+
+html:has(.nightPill) {
+  /* Pill footprint + a small breathing gap, so a CTA docked above it is clear,
+     not kissing its top edge. */
+  --night-pill-clearance: calc(var(--night-pill-h) + var(--night-pill-inset) + 8px);
+}
+
 .nightCard {
   position: fixed;
   left: 50%;

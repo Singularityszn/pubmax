@@ -329,10 +329,12 @@
 
 @media (max-width: 760px) {
   body:has(.palOnboarding) .mobileTabBar { display: none; }
-  /* House tab-bar clearance: bind the bottom pad to the shared --tabbar-h token
-     (mobileNav.css) + the home-indicator inset, so the "Meet your Pub Pal" CTA
-     always clears the floating tab bar instead of hiding behind it. */
-  .palExperience { padding: calc(1rem + env(safe-area-inset-top)) 1rem calc(var(--tabbar-h, 64px) + env(safe-area-inset-bottom, 0px) + 3.25rem); }
+  /* House tab-bar + pill clearance: bind the bottom pad to the shared --tabbar-h
+     token (mobileNav.css) + the home-indicator inset + the re-open pill's
+     published footprint (--night-pill-clearance, 0px unless a pill is floating),
+     so the "Meet your Pub Pal" CTA always clears BOTH the tab bar and the pill
+     instead of hiding behind either. */
+  .palExperience { padding: calc(1rem + env(safe-area-inset-top)) 1rem calc(var(--tabbar-h, 64px) + env(safe-area-inset-bottom, 0px) + 3.25rem + var(--night-pill-clearance, 0px)); }
   .palTopbar { grid-template-columns: 1fr auto; }
   .palTopbar > :nth-child(2):not(:last-child) { display: none; }
   .palMeetingStage, .palHomeHero, .palOnboardingLayout, .palControls { grid-template-columns: 1fr; }
