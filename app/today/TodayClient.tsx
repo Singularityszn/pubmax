@@ -19,10 +19,19 @@ import {
 
 import { useEffect, useState } from "react";
 
+import { useAuth } from "@/components/auth/AuthProvider";
 import SiteNav from "@/components/nav/SiteNav";
-import { readRememberedArea } from "@/lib/nightPatches";
+import { authedFetch } from "@/lib/authedFetch";
+import type { NightAreaSlug } from "@/lib/nightAreas";
+import { cleanNightProfile, type NightProfile } from "@/lib/nightProfile";
+import { NIGHT_PATCHES, readRememberedArea } from "@/lib/nightPatches";
+import { readPlanIntakeDraft } from "@/lib/planIntake";
 import { resolveTonightNear } from "@/lib/tonight";
 import { orderPicksNear, type TodayFact, type TonightPickDto, type WeatherBrief } from "@/lib/todayBrief";
+import {
+  applyTodayPersonalization,
+  resolveTodayPersonalization,
+} from "@/lib/todayPersonalization";
 
 import TodayGetThereStrip from "./TodayGetThereStrip";
 import TodayPintsCard from "./TodayPintsCard";
@@ -35,6 +44,7 @@ import "./today.css";
 type Props = {
   dateLabel: string;
   weather: WeatherBrief | null;
+  weatherByArea: Partial<Record<NightAreaSlug, WeatherBrief | null>>;
   picks: TonightPickDto[];
   fact: TodayFact | null;
   pintsIndex: TodayPintsIndex;
@@ -228,25 +238,85 @@ function FactCard({ fact }: { fact: TodayFact | null }) {
   );
 }
 
-export default function TodayClient({ dateLabel, weather, picks, fact, pintsIndex, quietPint }: Props) {
-  // Silent continuity (#427 seam): if the viewer chose an area anywhere in the
-  // app, lead with the picks nearest it. Same server-chosen picks, same count,
-  // order only; no remembered area = server order untouched. localStorage is
-  // read inside the effect so the first paint always matches SSR.
-  const [orderedPicks, setOrderedPicks] = useState(picks);
+export default function TodayClient({ dateLabel, weather, weatherByArea, picks, fact, pintsIndex, quietPint }: Props) {
+  const { user } = useAuth();
+  const userId = user?.id ?? null;
+  const [accountSnapshot, setAccountSnapshot] = useState<{
+    userId: string;
+    profile: NightProfile | null;
+  } | null>(null);
+  // Never show one account's preferences while a different session loads.
+  const accountProfile = userId && accountSnapshot?.userId === userId
+    ? accountSnapshot.profile
+    : null;
+  const [brief, setBrief] = useState({ weather, picks });
+
+  // Account preferences are a read-only enhancement. An absent session, 401,
+  // malformed response, or temporary store failure all preserve the baseline.
   useEffect(() => {
     let cancelled = false;
-    // Deferred like useWhatsOnTonight's setState: reading localStorage is the
-    // external-system sync; the state lands next microtask (react-hooks rule).
+    if (!userId) {
+      void Promise.resolve().then(() => {
+        if (!cancelled) setAccountSnapshot(null);
+      });
+      return () => {
+        cancelled = true;
+      };
+    }
+    void authedFetch("/api/me/night-profile")
+      .then(async (response) => response.ok ? response.json() : null)
+      .then((body: unknown) => {
+        if (cancelled) return;
+        const profile = body && typeof body === "object" && !Array.isArray(body)
+          ? cleanNightProfile((body as { profile?: unknown }).profile)
+          : null;
+        setAccountSnapshot({ userId, profile });
+      })
+      .catch(() => {
+        if (!cancelled) setAccountSnapshot({ userId, profile: null });
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [userId]);
+
+  // Silent continuity (#427 seam), now resolved field-by-field. The progressive
+  // intake and account are trustworthy parsed sources. Device Night Profile is
+  // deliberately absent because Today has no explicit "reviewed" attestation;
+  // the pure resolver will not infer one. localStorage remains effect-only so
+  // the first paint matches SSR.
+  useEffect(() => {
+    let cancelled = false;
     void Promise.resolve().then(() => {
       if (cancelled) return;
-      const near = resolveTonightNear(null, readRememberedArea());
-      setOrderedPicks(near ? orderPicksNear(picks, near.near) : picks);
+      const remembered = readRememberedArea();
+      const rememberedPatch = remembered?.kind === "patch"
+        ? NIGHT_PATCHES.find((patch) => patch.id === remembered.id)?.id ?? null
+        : null;
+      const resolved = resolveTodayPersonalization({
+        progressiveIntake: readPlanIntakeDraft(),
+        account: accountProfile,
+        reviewedDevice: null,
+        defaults: rememberedPatch ? { preferredPatch: rememberedPatch } : null,
+      });
+      const personalized = applyTodayPersonalization(
+        { weather, picks },
+        weatherByArea,
+        resolved,
+      );
+      // Preserve the existing borough-memory behavior for the no-profile path.
+      // Modelled profile/intake fields take precedence and never consult it.
+      const near = !resolved.personalized
+        ? resolveTonightNear(null, remembered)
+        : null;
+      setBrief(near
+        ? { ...personalized, picks: orderPicksNear(personalized.picks, near.near) }
+        : personalized);
     });
     return () => {
       cancelled = true;
     };
-  }, [picks]);
+  }, [accountProfile, picks, weather, weatherByArea]);
 
   return (
     <main className="todayPage" data-testid="today-screen">
@@ -262,9 +332,9 @@ export default function TodayClient({ dateLabel, weather, picks, fact, pintsInde
       </header>
 
       <div className="todayStack">
-        <WeatherCard weather={weather} />
+        <WeatherCard weather={brief.weather} />
         <TodayTubeCard />
-        <PicksCard picks={orderedPicks} />
+        <PicksCard picks={brief.picks} />
         <TodayGetThereStrip />
         <TodayPintsCard index={pintsIndex} />
         <TodayQuietPintCard module={quietPint} />

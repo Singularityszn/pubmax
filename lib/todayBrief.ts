@@ -81,6 +81,7 @@ export function buildWeatherBrief(
   snapshot: unknown,
   now: Date,
   area: NightAreaSlug = BRIEF_DEFAULT_AREA,
+  options: { fallbackToFirst?: boolean } = {},
 ): WeatherBrief | null {
   const validated = validateWeatherSnapshot(snapshot);
   if (!validated) return null;
@@ -91,7 +92,7 @@ export function buildWeatherBrief(
 
   const observation =
     validated.observations.find((candidate) => candidate.nightArea === area) ??
-    validated.observations[0];
+    (options.fallbackToFirst === false ? undefined : validated.observations[0]);
   if (!observation) return null;
 
   const observedMs = Date.parse(observation.observedAt);
