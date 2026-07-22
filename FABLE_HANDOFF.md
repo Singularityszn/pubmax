@@ -144,3 +144,13 @@ Owner queue: unchanged (migrations 0038-0049, CRON_SECRET, ORS_API_KEY, #473 rul
 - Disk incident 2: 44 worktrees / 6.9GB filled the disk mid-launch; 23 merged-lane worktrees removed with git worktree remove --force (all provably merged), 6.5GB freed. Lesson: prune lane worktrees at each wave close, not at day end.
 - Taste/cohort review (Fable fork, full-site screenshots): verdicts in the report - 30-45 best-served cohort, 18-30 needs a living feed, 45-60 needs a quiet-pint/heritage lens (containable vibe layer). Morning-habit loop now has freshness (crons) + content (#527/#528); trigger (push) remains Sol's lane.
 - Day total: 26 lane PRs merged (#489-494, 499, 500, 506, 511-515, 518-529). Owner queue remaining: migrations 0038-0049, #473 ruling, age-gate U20, invite-preview privacy ruling, Search Console, store-asset masters port (#440 follow-up), 45-60 heritage lens (next wave candidate).
+
+## 2026-07-22 late-night close-out (waves 9-10, #532-#536)
+
+- #532 living feed: London tab seeded with real price sightings (Spotted kicker, source+date, never fake user activity), user drops always lead.
+- #533 quiet pint heritage lens: /today card gated on genuinely quiet hours, 346 cited historic pubs, /crawls heritage rail lifted; lib/quietPint ready for /tonight adoption post-#495.
+- #534 landing blue line: .lpScanline painted with --river (steel blue in dark) - repointed to --hairline. Dark sweep clean.
+- #535 map search popup: areas (20 modeled + boroughs from venue centroids) AND pubs as-you-type, distance from GPS or map centre (honestly labelled), aria-combobox, tap flies/opens. Root cause of "no results for Hackney": boroughs were not in the search space at all. VERIFIED LIVE (Hackney 5.7km + Old Ship £6.80).
+- #536 venue sheet strip: sticky bottom:0 inside the sheet scroller floated over the tab row at half snap - now a fixed docked footer with reserved body space per snap, hidden at peek. CSS-only.
+- Waves 9-10 all live-verified. Day total: 35 lane PRs (#489-494, 499, 500, 506, 511-515, 518-536 excluding non-lane numbers).
+- Owner queue: unchanged (migrations 0038-0049, #473, age-gate U20, invite-preview privacy, Search Console; device-side: Safari website-data clear for the cached bookmark icon).
