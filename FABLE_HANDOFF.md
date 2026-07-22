@@ -132,3 +132,15 @@ Merged + live-verified: #518 width tokens + crawls hover gating, #519 top-bar fr
 Day total: 23 PRs merged (#489-494, 499, 500, 506, 511-515, 518-524). docs/COLOR_V2_PLAN executed in full same day.
 Open judgment noted from #524: light nav/controlRail warm identity borders kept, reads fine on live check.
 Owner queue: unchanged (migrations 0038-0049, CRON_SECRET, ORS_API_KEY, #473 ruling, age-gate U20, invite-preview privacy ruling, Search Console). Sol/Cursor fleets: verdicts + merge order in docs/SOL_SYNC_2026-07-22.md; foreign WIP still in shared-checkout stash@{0}.
+
+## 2026-07-22 night close-out (alignment + taste waves, #525-#529)
+
+- #525 Moment tab circle flush on the row axis (owner ruling: uniform bar beats raised FAB).
+- #526 top-bar uniform rect PROVEN by live measurement: top 10 / h 52 / sides 10 identical on /tonight, /feed, /, /map at 430px.
+- #527 dealsDigest: identical chain deals grouped into one honest card (real venue counts), per-source diversity cap; /today consumes; /tonight adoption waits on Cursor #495.
+- #528 /today morning check: Tube-this-morning card (location-free, remembered-area) + cheapest-pints-near-you top5 with area switcher link.
+- #529 P1 taste pack: pal CTA tab-bar clearance + house surfaces, /u/you ink-coral avatar + CTA hierarchy, sign-in primary contrast, landing footer clearance, moment solid hairline, messages copy de-spliced.
+- OPS: CRON_SECRET set (generated, encrypted, never seen) and ORS_API_KEY set (owner-provided, validated against ORS with a live 200 before storing); production redeployed; /api/walk-route serving source:"ors" 26-point street geometry CONFIRMED. Crons live on schedule.
+- Disk incident 2: 44 worktrees / 6.9GB filled the disk mid-launch; 23 merged-lane worktrees removed with git worktree remove --force (all provably merged), 6.5GB freed. Lesson: prune lane worktrees at each wave close, not at day end.
+- Taste/cohort review (Fable fork, full-site screenshots): verdicts in the report - 30-45 best-served cohort, 18-30 needs a living feed, 45-60 needs a quiet-pint/heritage lens (containable vibe layer). Morning-habit loop now has freshness (crons) + content (#527/#528); trigger (push) remains Sol's lane.
+- Day total: 26 lane PRs merged (#489-494, 499, 500, 506, 511-515, 518-529). Owner queue remaining: migrations 0038-0049, #473 ruling, age-gate U20, invite-preview privacy ruling, Search Console, store-asset masters port (#440 follow-up), 45-60 heritage lens (next wave candidate).
