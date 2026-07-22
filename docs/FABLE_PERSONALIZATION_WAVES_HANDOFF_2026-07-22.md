@@ -1,7 +1,8 @@
 # Fable handoff ledger: personalization Waves A and B
 
-Status: **open, no implementation evidence yet**  
-Baseline: `origin/main@a3fde784` on 2026-07-22  
+Status: **implemented in integration; fixed-point review and full gate pending**
+
+Baseline: `origin/main@a3fde784` on 2026-07-22
 Release roles: Karan owns product rulings; Fable owns architecture review, green-gate review, merge order, and rollout verdict.
 
 ## Scope and ownership
@@ -10,7 +11,7 @@ Wave A makes the existing `/today` brief respond deterministically to already-av
 
 | Lane | Exact ownership | Branch / worktree |
 | --- | --- | --- |
-| Wave A: Personalized Today | One new pure resolver module, its focused tests, and only the minimum wiring needed in `app/today/page.tsx`, `app/today/TodayClient.tsx`, or `lib/todayBrief.ts` | `codex/wave-personalized-today-20260722` / `.codex-worktrees/wave-personalized-today` |
+| Wave A: Personalized Today | `lib/todayPersonalization.ts`, `__tests__/todayPersonalization.test.ts`, minimum wiring in `app/today/page.tsx`, `app/today/TodayClient.tsx`, the area-specific weather option in `lib/todayBrief.ts`, and its existing focused test | `codex/wave-personalized-today-20260722` / `.codex-worktrees/wave-personalized-today` |
 | Wave B: Surprise Drink | `lib/surpriseDrink.ts` and `__tests__/surpriseDrink.test.ts` only. No UI wiring. | `codex/wave-surprise-drink-20260722` / `.codex-worktrees/wave-surprise-drink` |
 | Integration / handoff | This ledger and later conflict review only after both lane SHAs and touched-file manifests exist. This ledger commit contains no product code. | `codex/wave-personalization-integration-20260722` / `.codex-worktrees/wave-personalization-integration` |
 
@@ -18,7 +19,7 @@ All three local branches started at the same baseline and tracked `origin/main`;
 
 ## Overlap exclusions
 
-Personalized Today must not edit any existing file outside its three-file allowlist. Explicit exclusions are:
+Personalized Today must not edit any existing file outside its declared manifest. Explicit exclusions are:
 
 - `app/today/today.css` and all other existing `/today` cards/helpers;
 - PlanComposer, auth, generation, account-hub, or preference-capture surfaces;
@@ -46,9 +47,9 @@ Fill every field before merge; `TBD` is not release evidence.
 
 | Lane | Commit / PR | Touched-file manifest | Focused tests | `npm run verify` | Visual / live evidence | Fable verdict |
 | --- | --- | --- | --- | --- | --- | --- |
-| Wave A: Personalized Today | TBD | TBD | TBD | TBD | TBD | TBD |
-| Wave B: Surprise Drink | TBD | `lib/surpriseDrink.ts`; `__tests__/surpriseDrink.test.ts` | TBD | TBD | Not applicable until a separately approved UI wave | TBD |
-| Integrated Waves A and B | TBD | Reconciled manifest: TBD | TBD | TBD | 390x844 light/dark, desktop light/dark, reduced motion: TBD | TBD |
+| Wave A: Personalized Today | lane `155a2769`; integrated `671437f3` | `lib/todayPersonalization.ts`; `__tests__/todayPersonalization.test.ts`; `app/today/page.tsx`; `app/today/TodayClient.tsx`; `lib/todayBrief.ts`; `__tests__/todayBrief.test.ts` | 78/78 across six Today/profile/intake files; typecheck passed; lane lint passed with 37 pre-existing warnings and no errors | Integration gate pending | Browser evidence pending after review | Pending |
+| Wave B: Surprise Drink | lane `7ca77b74`; integrated `649c4439` | `lib/surpriseDrink.ts`; `__tests__/surpriseDrink.test.ts` | 33/33 across Surprise + persona datasets; typecheck passed; lane lint passed with 37 pre-existing warnings and no errors | Integration gate pending | Not applicable until a separately approved UI wave | Pending |
+| Integrated Waves A and B | current `649c4439` | Nine files including this ledger; feature manifests are disjoint | Focused integration rerun pending | Pending | 390x844 light/dark, desktop light/dark, reduced motion: pending for Wave A | Pending |
 
 ## Rollout
 
