@@ -32,7 +32,20 @@ const PREFIX = "pubmax-sw-";
 const DATA_CACHE = `${PREFIX}data-${VERSION}`;
 const SWR_CACHE = `${PREFIX}swr-${VERSION}`;
 const SHELL_CACHE = `${PREFIX}shell-${VERSION}`;
-const CURRENT_CACHES = [DATA_CACHE, SWR_CACHE, SHELL_CACHE];
+// Locked-plan pages a crew opened earlier, so they reopen offline (U18, #457
+// coordination: caching logic lives in the separate sw-plan-cache.js module).
+const PLAN_CACHE = `${PREFIX}plan-${VERSION}`;
+const CURRENT_CACHES = [DATA_CACHE, SWR_CACHE, SHELL_CACHE, PLAN_CACHE];
+
+// Load the plan-navigation cache helpers (self.planCache). Version-busted like
+// every other asset, and non-fatal: if it fails to load the SW keeps its prior
+// behaviour rather than failing to install. Every use below is guarded on
+// self.planCache so a missing module degrades cleanly.
+try {
+  importScripts(`/sw-plan-cache.js?v=${VERSION}`);
+} catch (err) {
+  // no-op: plan caching is an enhancement, offline shell still works
+}
 
 // Tiles + hashed build assets can grow without bound (a long crawl-planning
 // session pulls hundreds of tiles). Cache.keys() returns entries oldest-first,
@@ -141,9 +154,21 @@ async function handleNavigation(event, request, url) {
       event.waitUntil(
         caches.open(SHELL_CACHE).then((cache) => cache.put(url.pathname, copy)),
       );
+    } else if (response.ok && self.planCache && self.planCache.isPlanPath(url.pathname)) {
+      // U18: shelve locked-plan pages so a crew that opened the link earlier
+      // can reopen it with no signal. Cache-on-success, bounded + LRU inside
+      // the module; best-effort via waitUntil so it never delays the response.
+      const copy = response.clone();
+      event.waitUntil(self.planCache.cachePlanNavigation(request, copy, url, PLAN_CACHE));
     }
     return response;
   } catch {
+    // U18: offline, a locked plan reopens from its own cached HTML before the
+    // generic shell ladder — that copy carries the night's stops/route/times.
+    if (self.planCache) {
+      const plan = await self.planCache.matchPlanNavigation(url, PLAN_CACHE);
+      if (plan) return plan;
+    }
     const shell = await caches.open(SHELL_CACHE);
     const exact = await shell.match(url.pathname, { ignoreSearch: true });
     if (exact) return exact;
