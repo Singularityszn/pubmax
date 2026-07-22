@@ -405,3 +405,17 @@
   .mobileSharedSheet.mapDrawer { transition: none !important; }
   .mobilePlanActivation:active { transform: translateX(-50%); }
 }
+
+/* Audit F7: the venue sheet's command-bar dock (#536) reserves a 72px footer
+   strip by shortening every .mobileSharedSheetBody at half/full. Contextual
+   sheets (TfL live, map layers) have NO command bar, so that reservation was a
+   phantom empty band that clipped their last card mid-sentence into a void and
+   fought #539's content-fit math. Zeroing the token here restores
+   body = visible - header - dock for contextual sheets, exactly what
+   resolveHalfContentFit assumes; venue (.right) and planner (.left) keep the
+   real 72px strip. */
+@media (max-width: 640px) {
+  .mobileSharedSheet.contextual {
+    --venue-cmdbar-h: 0px;
+  }
+}
