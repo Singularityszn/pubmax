@@ -177,6 +177,24 @@ export function markSessionEntryConsumed(storage?: Storage | null): void {
   }
 }
 
+/**
+ * Deep-link boot stamp (2026-07-22, closes the installed-PWA home-tap hole).
+ * The PWA manifest cold-starts the app on start_url (/tonight), so
+ * AppEntryRoute — mounted only at "/" — never ran and never stamped the
+ * per-session flag. The FIRST in-app wordmark tap to "/" then read as a cold
+ * start and bounced straight back to /tonight. A boot on any non-root path IS
+ * this session's entry decision (precedence rule 1: deep links bypass), so it
+ * must consume the session entry too. Root boots stay entirely with
+ * AppEntryRoute — stamping first at "/" would corrupt the cold-start read.
+ * Returns whether the flag was stamped (false at "/"), so contract tests can
+ * assert both sides.
+ */
+export function consumeDeepLinkBootEntry(path: string, storage?: Storage | null): boolean {
+  if (path === "/") return false;
+  markSessionEntryConsumed(storage);
+  return true;
+}
+
 /** Snapshot the live entry context for the given boot pathname. */
 export function readEntryContext(path: string): EntryContext {
   return {

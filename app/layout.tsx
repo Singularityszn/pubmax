@@ -13,6 +13,7 @@ import CommandPaletteProvider from "@/components/command/CommandPaletteProvider"
 import PerformanceVitals from "@/components/PerformanceVitals";
 import JsonLd from "@/components/seo/JsonLd";
 import DailyActivityPulse from "@/components/DailyActivityPulse";
+import EntryBootStamp from "@/components/native/EntryBootStamp";
 import A2HSTracking from "@/components/A2HSTracking";
 
 // Site-wide structured data (Wave S1.3). WebSite + Organization only — the
@@ -297,6 +298,11 @@ export default async function RootLayout({
                 signals: daily return-rate pulse and the A2HS install funnel. */}
             <DailyActivityPulse />
             <A2HSTracking />
+            {/* Deep-link boot stamp: a boot on any non-root path consumes the
+                session's entry decision, so the installed PWA (which cold-starts
+                on the manifest start_url /tonight) can reach the landing page on
+                a wordmark tap instead of bouncing back to /tonight. */}
+            <EntryBootStamp />
           </CommandPaletteProvider>
         </AuthProvider>
         {/* Vercel Web Analytics (R3) — consent-gated pageviews only. Product
