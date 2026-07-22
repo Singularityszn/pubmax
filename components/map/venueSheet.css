@@ -535,6 +535,96 @@
   }
 }
 
+/* ── Owner fix: dock the command bar BELOW the scroll body, never over the tabs
+   ────────────────────────────────────────────────────────────────────────────
+   Bug (owner iPhone, "The Old Nick", venue sheet at the default `half` snap):
+   the Drop / Share strip floated ON TOP of the tab row (Overview/Drinks/Stories
+   /Lore/Ask/Train), overlapping it.
+
+   Root cause: `.venueSheetStickyBar` was `position: sticky; bottom: 0` living
+   INSIDE `.mobileSharedSheetBody` — the portal sheet's fixed-height scroll
+   container, sized to the visible snap height (mobileMapShell.css). A bar stuck
+   to `bottom: 0` of that scrollport pins to the bottom of the *visible* body and
+   floats over whatever scrolls there. At the `half` snap the pre-tab header
+   (16:9 photo + tonight chips) is about as tall as the whole visible body, so
+   the tab row sits inside the bar's bottom band at rest and the strip painted
+   straight over it. A bottom-pinned bar sharing the tabs' scroller can never
+   avoid this: the tabs are scrollable content that slides under it.
+
+   Fix (portal bottom-sheet only, ≤640px — the phone path that renders
+   `.mobileSharedSheet`): reserve a real footer strip. The scroll body is
+   shortened by the bar's height so the tab row (and all panel content) can
+   never reach the bar's band, and the bar is lifted OUT of the scroller —
+   `position: fixed` resolves against the transformed `.mobileSharedSheet`
+   (its per-snap `translateY` + `will-change: transform` make it the fixed
+   containing block), so the bar rides 1:1 with the sheet on drag/snap yet
+   never scrolls under the tabs. Offsets are keyed off the snap CLASS
+   (`.sheet-half` / `.sheet-full`), which is stable through a drag — not
+   `--mobile-sheet-visible-height`, which flips to its base at drag-start and
+   would jump the bar. Peek is a 22dvh sliver with no honest room for a 44px
+   bar, so it is hidden there and returns at half/full. The legacy 641–768
+   drawer (`:not(.mobileSharedSheet)`, handled above) and desktop are untouched. */
+@media (max-width: 640px) {
+  .mobileSharedSheet {
+    /* Footer strip reserved for the bar: 44px control + 2×10px pad + a hair of
+       breathing room above it. */
+    --venue-cmdbar-h: 72px;
+  }
+
+  /* Shorten the scroll body by the reserved strip so the tab row stays above the
+     docked bar. Keyed on the snap class; peek keeps the base full-height body
+     (no strip — the bar is hidden there). Body-bottom lands exactly on the bar's
+     top at rest (header height cancels: body-bottom = visible − dock − cmdbar). */
+  .mobileSharedSheet.sheet-half .mobileSharedSheetBody,
+  .mobileSharedSheet.sheet-full .mobileSharedSheetBody {
+    height: calc(
+      var(--mobile-sheet-visible-height)
+      - var(--mobile-sheet-header-height, 64px)
+      - var(--mobile-map-dock-clearance, 76px)
+      - var(--venue-cmdbar-h)
+    );
+  }
+
+  /* Lift the bar out of the scroller and fix it to the sheet, in the strip. */
+  .mobileSharedSheet .venueSheetStickyBar {
+    position: fixed;
+    left: 0;
+    right: 0;
+    z-index: 8;
+    margin: 0;
+    /* The dock clearance below the bar already clears the home-indicator safe
+       area, and 16px gutters match the body, so no per-bar safe-area pad. */
+    padding: 10px 16px;
+    /* Solid surface: content no longer scrolls under the bar (the reserved strip
+       sits below the scrollport), so the old scrim gradient isn't needed. */
+    background: var(--color-surface-raised, var(--panel));
+    /* Ease `bottom` on the sheet's clock so it stays glued as snaps animate. */
+    transition: bottom var(--duration-slow, 320ms) var(--ease-out, ease-out);
+  }
+
+  /* Off-screen remainder below the visible body: (100dvh − visible) + dock. The
+     bar's bottom then sits `dock` px above the screen edge, on the reserved dock
+     band — the same screen height at every snap, so it never jumps. */
+  .mobileSharedSheet.sheet-half .venueSheetStickyBar {
+    bottom: calc(100dvh - 55dvh + var(--mobile-map-dock-clearance, 76px));
+  }
+
+  .mobileSharedSheet.sheet-full .venueSheetStickyBar {
+    bottom: calc(100dvh - 92dvh + var(--mobile-map-dock-clearance, 76px));
+  }
+
+  /* Peek: no honest room for the bar — hide it (body keeps its base height). */
+  .mobileSharedSheet.sheet-peek .venueSheetStickyBar {
+    display: none;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .mobileSharedSheet .venueSheetStickyBar {
+      transition: none;
+    }
+  }
+}
+
 /* ── Large-text / 200% zoom pass (user story 18) ─────────────────────────────
    Fixed px heights clip under large text; rem-based sizing and no fixed
    max-height on the tab strip lets the strip and its labels grow with the
