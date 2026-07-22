@@ -47,6 +47,9 @@
   --map-sky-horizon: var(--paper); /* light: unchanged soft horizon fade */
   --map-building-emissive: var(--amber); /* light: existing amber-tinted massing */
   --map-park-tint: #7ea052; /* light: olive-sage foliage, distinct from --pint teal */
+  /* Crawl walk-route line — a deepened, legible cousin of coral (--brass) that
+     reads as dark red over the pale Positron paper. Overridden bright in dark. */
+  --route-line: #8b1a2b;
 
   /* — Colour, semantic roles: alias the palette above by job, not hue, so new
        components reach for "what this means" rather than re-picking a raw

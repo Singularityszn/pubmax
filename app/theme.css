@@ -110,6 +110,9 @@ html[data-theme="dark"] {
   --map-sky-horizon: var(--brass);
   --map-building-emissive: #8f7d6b;
   --map-park-tint: #3f5c38;
+  /* Crawl walk-route line — bright coral-ember so the route pops on the OLED
+     ink basemap (the dark-mode counterpart to the light dark-crimson). */
+  --route-line: #ff6b5c;
 
   /* Apple-neutral elevation language (replaces amber street-light bloom): a
      top-inset hairline catches light on the card's top edge, a 1px dark ring

@@ -1633,6 +1633,45 @@ export default function PubMapCanvas({
     });
   }, [route, selectedVenueId, mapReady, applyToMap, applyRouteData]);
 
+  // Road-following upgrade (T4). The effect above paints the straight line
+  // instantly (routeToLine, drawn dashed as "approximate"); here we ask
+  // /api/walk-route to redraw the SAME ordered stops along real walking roads.
+  // On an "ors" success we swap routeLineRef to the road LineString and repaint
+  // (buildRoute draws it solid); on any failure the straight dashed line simply
+  // stays. Debounced via an AbortController so rapid stop edits collapse to the
+  // last route (mirrors the hover-detail fetch above). `routeCoordKey` is the
+  // ordered `lng,lat;lng,lat` wire format /api/walk-route decodes (parseStops),
+  // and re-fires only when the stop coordinates actually change.
+  const routeCoordKey = route.map((v) => `${v.longitude},${v.latitude}`).join(";");
+  useEffect(() => {
+    if (!mapReady) return;
+    if (routeCoordKey.split(";").length < 2) return;
+    const controller = new AbortController();
+    const timeout = window.setTimeout(() => controller.abort(), 8000);
+    fetch(`/api/walk-route?stops=${encodeURIComponent(routeCoordKey)}`, {
+      signal: controller.signal,
+    })
+      .then((response) => (response.ok ? response.json() : null))
+      .then((body: { line?: GeoJSON.FeatureCollection; source?: string } | null) => {
+        // Only upgrade when the server actually routed roads; a "straight"
+        // response is the same geometry we already painted, so leave it dashed.
+        if (!body || body.source !== "ors" || !body.line?.features?.length) return;
+        routeLineRef.current = body.line;
+        applyRouteData();
+      })
+      .catch((error) => {
+        if (error instanceof DOMException && error.name === "AbortError") return;
+        // fail-soft: keep the instant straight line.
+      })
+      .finally(() => {
+        window.clearTimeout(timeout);
+      });
+    return () => {
+      window.clearTimeout(timeout);
+      controller.abort();
+    };
+  }, [routeCoordKey, mapReady, applyRouteData]);
+
   const didFitQueryOnArrivalRef = useRef(false);
   useEffect(() => {
     didFitQueryOnArrivalRef.current = false;
