@@ -92,4 +92,37 @@ describe("fetchWalkLeg", () => {
     const doFetch = vi.fn<WalkRouteFetch>().mockRejectedValue(new Error("boom"));
     expect(await fetchWalkLeg(A, B, { apiKey: "k", doFetch })).toBeNull();
   });
+
+  it("degrades to null when the ORS call outruns the per-call timeout", async () => {
+    // A fetch that never resolves on its own — it only settles when the
+    // deadline aborts its signal. A tiny timeoutMs proves the bound fires
+    // without a real 4s wait.
+    const doFetch = vi.fn<WalkRouteFetch>((_url, init) =>
+      new Promise((_resolve, reject) => {
+        init.signal?.addEventListener("abort", () =>
+          reject(new DOMException("aborted", "AbortError")),
+        );
+      }),
+    );
+    expect(await fetchWalkLeg(A, B, { apiKey: "k", doFetch, timeoutMs: 5 })).toBeNull();
+    expect(doFetch).toHaveBeenCalledTimes(1);
+    // The signal handed to fetch is the bounded deadline signal, and it aborted.
+    expect(doFetch.mock.calls[0][1].signal?.aborted).toBe(true);
+  });
+
+  it("aborts the leg when the caller's own signal is already aborted", async () => {
+    const doFetch = vi.fn<WalkRouteFetch>((_url, init) =>
+      new Promise((_resolve, reject) => {
+        if (init.signal?.aborted) reject(new DOMException("aborted", "AbortError"));
+        init.signal?.addEventListener("abort", () =>
+          reject(new DOMException("aborted", "AbortError")),
+        );
+      }),
+    );
+    const controller = new AbortController();
+    controller.abort();
+    expect(
+      await fetchWalkLeg(A, B, { apiKey: "k", doFetch, signal: controller.signal }),
+    ).toBeNull();
+  });
 });

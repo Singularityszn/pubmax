@@ -5,8 +5,10 @@ import {
   encodeStops,
   isValidLngLat,
   legCacheKey,
+  legDistances,
   legsToLineString,
   parseStops,
+  polylineDistanceKm,
   roundCoord,
   routeSource,
   stitchLegCoordinates,
@@ -16,6 +18,7 @@ import {
   type LngLat,
   type WalkLeg,
 } from "@/lib/walkRoute";
+import { haversineKm } from "@/lib/haversine";
 
 // Two real central-London pub coordinates, [lng, lat].
 const A: LngLat = [-0.1005, 51.5136];
@@ -133,5 +136,37 @@ describe("legsToLineString", () => {
 
   it("returns an empty collection when there is nothing drawable", () => {
     expect(legsToLineString([]).features).toEqual([]);
+  });
+});
+
+describe("polylineDistanceKm", () => {
+  it("measures nothing for fewer than two points", () => {
+    expect(polylineDistanceKm([])).toBe(0);
+    expect(polylineDistanceKm([A])).toBe(0);
+  });
+
+  it("equals the straight haversine distance for a two-point leg", () => {
+    expect(polylineDistanceKm([A, B])).toBeCloseTo(haversineKm(A, B), 9);
+  });
+
+  it("sums every hop, so a dog-leg is longer than the straight line", () => {
+    const via: LngLat = [-0.098, 51.516];
+    const routed = polylineDistanceKm([A, via, B]);
+    expect(routed).toBeCloseTo(haversineKm(A, via) + haversineKm(via, B), 9);
+    expect(routed).toBeGreaterThan(polylineDistanceKm([A, B]));
+  });
+});
+
+describe("legDistances", () => {
+  it("reports each leg's measured length and source, in order", () => {
+    const legs: WalkLeg[] = [
+      { fromIndex: 0, toIndex: 1, coordinates: [A, [-0.098, 51.516], B], source: "ors" },
+      { fromIndex: 1, toIndex: 2, coordinates: [B, C], source: "straight" },
+    ];
+    const distances = legDistances(legs);
+    expect(distances[0]).toMatchObject({ fromIndex: 0, toIndex: 1, source: "ors" });
+    expect(distances[0].distanceKm).toBeCloseTo(polylineDistanceKm(legs[0].coordinates), 9);
+    expect(distances[1]).toMatchObject({ fromIndex: 1, toIndex: 2, source: "straight" });
+    expect(distances[1].distanceKm).toBeCloseTo(haversineKm(B, C), 9);
   });
 });

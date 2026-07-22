@@ -7,6 +7,7 @@ import {
   legMinutes,
   poisOnLeg,
   poisOnRoute,
+  withRoutedDistances,
   WALK_KMH,
   RUN_KMH,
   ON_THE_WAY_KM,
@@ -105,6 +106,18 @@ describe("formatLeg / formatRouteTotal", () => {
     expect(formatLeg(leg)).toBe("12 min walk · 0.9 km, straight-line");
   });
 
+  it("keeps straight-line wording verbatim for an explicit straight-line leg", () => {
+    expect(formatLeg({ ...leg, distanceBasis: "straight-line" })).toBe(
+      "12 min walk · 0.9 km, straight-line",
+    );
+  });
+
+  it("labels a routed leg as a walking route", () => {
+    expect(formatLeg({ ...leg, distanceKm: 1.1, distanceBasis: "routed" })).toBe(
+      "12 min walk · 1.1 km, walking route",
+    );
+  });
+
   it("labels a run leg with 'run' instead of 'walk'", () => {
     expect(formatLeg({ ...leg, pace: "run" })).toContain("min run");
   });
@@ -112,6 +125,71 @@ describe("formatLeg / formatRouteTotal", () => {
   it("formats a route total the same honest way", () => {
     const summary = { legs: [leg], totalKm: 0.9, totalMinutes: 12, pace: "walk" as const };
     expect(formatRouteTotal(summary)).toBe("12 min walk total · 0.9 km, straight-line");
+  });
+
+  it("labels a fully routed total as a walking route", () => {
+    const summary = {
+      legs: [leg],
+      totalKm: 1.1,
+      totalMinutes: 12,
+      pace: "walk" as const,
+      distanceBasis: "routed" as const,
+    };
+    expect(formatRouteTotal(summary)).toBe("12 min walk total · 1.1 km, walking route");
+  });
+});
+
+describe("withRoutedDistances", () => {
+  const route = [
+    v("a", "A", -0.1, 51.5),
+    v("b", "B", -0.101, 51.501),
+    v("c", "C", -0.11, 51.51),
+  ];
+
+  it("upgrades a leg with its routed distance and relabels it routed", () => {
+    const straight = buildRouteLegs(route);
+    const routedLeg0Km = straight.legs[0].distanceKm + 0.2; // pavement is longer
+    const upgraded = withRoutedDistances(straight, new Map([[0, routedLeg0Km]]));
+    expect(upgraded.legs[0].distanceKm).toBeCloseTo(routedLeg0Km, 9);
+    expect(upgraded.legs[0].distanceBasis).toBe("routed");
+    expect(upgraded.legs[0].minutes).toBe(legMinutes(routedLeg0Km, "walk"));
+    expect(formatLeg(upgraded.legs[0])).toContain("walking route");
+  });
+
+  it("keeps an unrouted leg straight-line, verbatim", () => {
+    const straight = buildRouteLegs(route);
+    const upgraded = withRoutedDistances(straight, new Map([[0, 0.9]]));
+    // Leg 1 got no routed entry — untouched distance, no routed basis.
+    expect(upgraded.legs[1].distanceKm).toBe(straight.legs[1].distanceKm);
+    expect(upgraded.legs[1].distanceBasis).toBeUndefined();
+    expect(formatLeg(upgraded.legs[1])).toContain("straight-line");
+  });
+
+  it("marks the total routed only when EVERY leg is routed", () => {
+    const straight = buildRouteLegs(route);
+    const partial = withRoutedDistances(straight, new Map([[0, 0.9]]));
+    expect(partial.distanceBasis).toBe("straight-line");
+    const full = withRoutedDistances(straight, new Map([[0, 0.9], [1, 1.4]]));
+    expect(full.distanceBasis).toBe("routed");
+    expect(full.totalKm).toBeCloseTo(0.9 + 1.4, 9);
+    expect(full.totalMinutes).toBe(
+      legMinutes(0.9, "walk") + legMinutes(1.4, "walk"),
+    );
+  });
+
+  it("ignores a non-positive routed distance (keeps the straight leg)", () => {
+    const straight = buildRouteLegs(route);
+    const upgraded = withRoutedDistances(straight, new Map([[0, 0]]));
+    expect(upgraded.legs[0].distanceBasis).toBeUndefined();
+    expect(upgraded.legs[0].distanceKm).toBe(straight.legs[0].distanceKm);
+  });
+
+  it("does not mutate the input summary", () => {
+    const straight = buildRouteLegs(route);
+    const before = straight.legs[0].distanceKm;
+    withRoutedDistances(straight, new Map([[0, before + 0.5]]));
+    expect(straight.legs[0].distanceKm).toBe(before);
+    expect(straight.legs[0].distanceBasis).toBeUndefined();
   });
 });
 
