@@ -133,26 +133,38 @@ export default function NearMeNow({
   // walk minutes stay real (they read from the patch's walking heart).
   const pickPatch = useCallback(
     (next: NightPatch, reason: PatchReason = null) => {
-      void loadSlim().then((slim) => {
-        const answer = rankNearMe(next.lat, next.lng, slim);
-        setCards(answer.cards);
-        setScope(answer.scope);
-        setPatch(next);
-        // Derive this patch's honest coverage tier from the priced pubs actually
-        // in the slim index (real counts, no uniform claim).
-        setPatchProfile(derivePatchProfile(next, { venues: slim }));
-        setBorough(null);
-        setOutsideCoverage(null);
-        if (reason !== null) setPatchReason(reason);
-        setState("ready");
-        writeRememberedArea({ kind: "patch", id: next.id });
-        if (syncPatchToUrl && pathname) {
-          const params = new URLSearchParams(typeof window !== "undefined" ? window.location.search : "");
-          params.set("patch", next.id);
-          const query = params.toString();
-          router.replace(query ? `${pathname}?${query}` : pathname, { scroll: false });
-        }
-      });
+      setState("requesting");
+      setPatch(next);
+      setBorough(null);
+      setOutsideCoverage(null);
+      if (reason !== null) setPatchReason(reason);
+      void loadSlim()
+        .then((slim) => {
+          const answer = rankNearMe(next.lat, next.lng, slim);
+          setCards(answer.cards);
+          setScope(answer.scope);
+          // Derive this patch's honest coverage tier from the priced pubs actually
+          // in the slim index (real counts, no uniform claim).
+          setPatchProfile(derivePatchProfile(next, { venues: slim }));
+          setState("ready");
+          writeRememberedArea({ kind: "patch", id: next.id });
+          if (syncPatchToUrl && pathname) {
+            const params = new URLSearchParams(
+              typeof window !== "undefined" ? window.location.search : "",
+            );
+            params.set("patch", next.id);
+            const query = params.toString();
+            router.replace(query ? `${pathname}?${query}` : pathname, { scroll: false });
+          }
+        })
+        .catch(() => {
+          // Slim index miss must still surface the chosen patch, never hang on
+          // the locate spinner — empty cards + AreaPicker remain available.
+          setCards([]);
+          setScope("none");
+          setPatchProfile(null);
+          setState("ready");
+        });
     },
     [loadSlim, pathname, router, syncPatchToUrl],
   );
@@ -330,7 +342,9 @@ export default function NearMeNow({
       {state === "requesting" ? (
         <div className="nmnStatus" role="status">
           <span className="nmnSpinner" aria-hidden="true" />
-          Finding the cheapest pints near you…
+          {patch
+            ? `Finding the cheapest pints around ${patch.label}…`
+            : "Finding the cheapest pints near you…"}
         </div>
       ) : null}
 
