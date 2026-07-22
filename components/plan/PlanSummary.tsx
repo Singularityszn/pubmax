@@ -5,10 +5,13 @@ import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import type { PlanState } from "@/lib/plan";
 import PlanRoute from "@/components/plan/PlanRoute";
 import PlanCollaborationPanel from "@/components/plan/PlanCollaborationPanel";
+import InvitePrivacyPreview from "@/components/plan/InvitePrivacyPreview";
 import { planViewModel } from "@/components/plan/planPresentation";
 import { routeStopsFromGenerated } from "@/components/plan/PlanComposer";
 import { parsePlanCapabilitySnapshot, planCapabilityEvent, readPlanCapabilitySnapshot } from "@/lib/planSessionCapability";
 import { setActivePlanRole } from "@/lib/activePlan";
+import { buildInvitePrivacyPreview } from "@/lib/invitePrivacyPreview";
+import type { VibeTally } from "@/lib/vibeTally";
 
 type RouteRevision = string | number;
 type RouteAlternative = { venueId: string; venueName: string };
@@ -174,7 +177,7 @@ function canonicalStateFromBody(value: unknown): PlanState | null {
   return null;
 }
 
-export default function PlanSummary({ planId, state }: { planId: string; state: PlanState }) {
+export default function PlanSummary({ planId, state, vibeTally }: { planId: string; state: PlanState; vibeTally?: VibeTally | null }) {
   const view = planViewModel(state);
   const tokenEvent = planCapabilityEvent(planId);
   const pendingEvent = `pubmax:pending-route:${planId}`;
@@ -189,6 +192,7 @@ export default function PlanSummary({ planId, state }: { planId: string; state: 
     () => "|0|",
   );
   const { token: memberToken, collaborationAuthorized, role } = parsePlanCapabilitySnapshot(capabilitySnapshot);
+  const invitePreview = useMemo(() => buildInvitePrivacyPreview(state, vibeTally), [state, vibeTally]);
   const pendingRaw = useSyncExternalStore(
     (onChange) => {
       window.addEventListener("storage", onChange);
@@ -396,11 +400,15 @@ export default function PlanSummary({ planId, state }: { planId: string; state: 
       {status ? <p className="planSummary__status" role="status" aria-live="polite">{status}</p> : null}
       {error ? <p className="planComposer__error" role="alert">{error}</p> : null}
       {!editing && !pending ? (
-        <PlanRoute
-          planId={planId}
-          startTime={state.plan.startTime}
-          stops={visibleStops}
-        />
+        memberToken
+          ? (
+            <PlanRoute
+              planId={planId}
+              startTime={state.plan.startTime}
+              stops={visibleStops}
+            />
+          )
+          : <InvitePrivacyPreview preview={invitePreview} />
       ) : null}
       {memberToken && canCollaborate ? (
         <PlanCollaborationPanel
