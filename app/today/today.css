@@ -5,7 +5,7 @@
    behind the bar. No em dashes in any copy this file drives. */
 
 .todayPage {
-  max-width: 640px;
+  max-width: var(--content-max);
   margin: 0 auto;
   padding: 16px var(--page-gutter) calc(96px + env(safe-area-inset-bottom, 0px));
   color: var(--ink);
