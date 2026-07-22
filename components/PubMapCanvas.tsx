@@ -894,6 +894,10 @@ export default function PubMapCanvas({
       });
     };
     map.on("moveend", () => {
+      // Audit F5: every camera move (programmatic flys included) ends on a
+      // fresh present. A repaint moves no camera, so this cannot re-fire
+      // moveend; deliberately NOT hooked on `idle` (that would loop).
+      map.triggerRepaint();
       const center = map.getCenter();
       onViewportChangeRef.current?.({
         center: [center.lng, center.lat],
@@ -979,6 +983,12 @@ export default function PubMapCanvas({
           detail: { reason, generation },
         }));
         startPinEntrance();
+        // Audit F5: MapLibre renders on demand and can park on the pre-tile
+        // black backbuffer after a programmatic arrival (nothing in the custom
+        // RAF loop dirties the scene without a route or selection). Force one
+        // present at the first painted-frame reveal so arrival never shows a
+        // black canvas until the user touches the map.
+        map.triggerRepaint();
       },
     });
     const buildScene = () => {
@@ -1001,6 +1011,9 @@ export default function PubMapCanvas({
       try {
         buildSceneBody();
         settleSceneReady();
+        // Audit F5: one present after the scene graph builds, so a settled
+        // style never waits on user input for its first frame.
+        map.triggerRepaint();
       } catch (error) {
         pinRevealCoordinator.cancel();
         console.error("[pubmap] buildScene failed", error);
