@@ -31,7 +31,7 @@ describe("author-confirmed alt text authoring surfaces (5.6)", () => {
   });
 
   it("ships an additive, capped, idempotent alt-text migration", () => {
-    const sql = read("supabase/migrations/20260721130000_0047_night_moment_alt_text.sql");
+    const sql = read("supabase/migrations/20260721133000_0047_night_moment_alt_text.sql");
     expect(sql).toContain("add column if not exists alt_text text");
     expect(sql).toContain("add column if not exists alt_text_confirmed_at timestamptz");
     expect(sql).toContain("night_moments_alt_text_len_check");

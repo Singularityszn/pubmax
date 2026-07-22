@@ -3,8 +3,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 // Hermetic tests for BOTH backends of the area-demand store. The memory backend
 // is exercised directly; the Supabase backend runs against an in-memory fluent
 // mock of the admin client (no network), proving the durable path's insert +
-// count-by-area-key match the process-memory contract and that a schema-miss
-// fails soft to memory.
+// count-by-area-key match the process-memory contract, while schema misses fall
+// back only outside deployed production.
 
 import {
   __resetAreaDemand,
@@ -88,6 +88,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  vi.unstubAllEnvs();
   vi.clearAllMocks();
 });
 
@@ -134,10 +135,30 @@ describe("supabaseAreaDemandStore", () => {
   });
 
   it("fails soft to memory on a schema miss (table not yet applied)", async () => {
+    vi.stubEnv("VERCEL_ENV", "preview");
     db.schemaMiss = true;
     const outcome = await supabaseAreaDemandStore.record(input());
     expect(outcome).toEqual({ status: "recorded" });
     // The memory fallback holds the row, so a subsequent memory read sees it.
     expect(await memoryAreaDemandStore.countForArea("peckham")).toBe(1);
+  });
+
+  it("returns a failed outcome without writing memory on a production schema miss", async () => {
+    vi.stubEnv("VERCEL_ENV", "production");
+    db.schemaMiss = true;
+
+    expect(await supabaseAreaDemandStore.record(input())).toEqual({
+      status: "recorded",
+      failed: true,
+    });
+    expect(await memoryAreaDemandStore.countForArea("peckham")).toBe(0);
+  });
+
+  it("keeps schema-miss reads fail-soft in deployed production", async () => {
+    vi.stubEnv("VERCEL_ENV", "production");
+    await memoryAreaDemandStore.record(input());
+    db.schemaMiss = true;
+
+    expect(await supabaseAreaDemandStore.countForArea("peckham")).toBe(1);
   });
 });
