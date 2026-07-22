@@ -6,6 +6,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useAuth } from "@/components/auth/AuthProvider";
 import FeedCard from "@/components/feed/FeedCard";
 import FeedFilters from "@/components/feed/FeedFilters";
+import FeedSightings from "@/components/feed/FeedSightings";
 import PresenceStrip from "@/components/feed/PresenceStrip";
 import SocialTabs, { type SocialTab } from "@/components/feed/SocialTabs";
 import SiteNav from "@/components/nav/SiteNav";
@@ -22,6 +23,7 @@ import {
   type FeedItem,
   type PintDropDTO,
 } from "@/lib/feed";
+import { sightingPlacement, type SightingDTO } from "@/lib/feedSightings";
 import {
   OPTIMISTIC_SPILL_EVENT,
   buildOptimisticSpillRetryFormData,
@@ -121,7 +123,15 @@ function toggleMine(mine: ReactionKey[], key: ReactionKey): ReactionKey[] {
   return mine.includes(key) ? mine.filter((k) => k !== key) : [...mine, key];
 }
 
-export default function FeedPageClient() {
+export default function FeedPageClient({
+  // Ambient price sightings (lib/feedSightings.ts), resolved server-side and
+  // rendered ONLY on the London tab: as the whole surface when no drinker has
+  // logged (replacing the dead empty state honestly), else a compact strip below
+  // real user drops. Defaults to [] so the client still stands alone in tests.
+  sightings = [],
+}: {
+  sightings?: SightingDTO[];
+} = {}) {
   // Raw normalized items from the API (the full fetched set); filtering and
   // pagination are derived client-side from this. Fetch happens in an effect,
   // but setState only fires inside the async resolution / catch — never in the
@@ -771,6 +781,22 @@ export default function FeedPageClient() {
     lotHandles.size === 0 &&
     checkInItems.length === 0;
 
+  // Where ambient sightings sit on the London tab (lib/feedSightings.ts):
+  //  - "primary" — no user drops, so sightings ARE the surface (they stand in
+  //    for the dead empty state, honestly badged as sourced, never as drinkers);
+  //  - "strip"   — user drops exist, so sightings collapse to a quiet strip below
+  //    the fresh content — real drinkers always lead;
+  //  - "none"    — other tabs, still loading/errored, or no sightings.
+  // This is a SEPARATE data source + card type from the error/empty states, so it
+  // does not touch that branch (coordination with the error-honesty work in the
+  // draft PR #498 that also edits this file).
+  const sightingSpot = sightingPlacement({
+    tab,
+    status,
+    userItemCount: filtered.length,
+    sightingCount: sightings.length,
+  });
+
   return (
     <main className="feedShell">
       <SiteNav active="feed" />
@@ -844,6 +870,11 @@ export default function FeedPageClient() {
           body="Your lot is the people you both follow. Add a friend by their handle or share your link at the table, and their nights, drops and check-ins land here."
           action={<Link href="/discover">Add your lot</Link>}
         />
+      ) : sightingSpot === "primary" ? (
+        // London cold start: no drinker has logged yet, so the honestly-sourced
+        // sightings ARE the surface instead of a dead empty state. Kept as its
+        // own branch above the empty state so it never touches that component.
+        <FeedSightings variant="primary" sightings={sightings} />
       ) : isEmpty ? (
         <EmptyState
           className="feedEmpty"
@@ -882,6 +913,12 @@ export default function FeedPageClient() {
           ) : (
             <p className="feedEnd">You&rsquo;ve reached the bottom of the barrel.</p>
           )}
+          {/* Real drinkers lead; ambient sightings sit BELOW them as a quiet,
+              clearly-sourced strip so the London tab stays alive without ever
+              faking user activity. */}
+          {sightingSpot === "strip" ? (
+            <FeedSightings variant="strip" sightings={sightings} />
+          ) : null}
         </>
       )}
         </div>
