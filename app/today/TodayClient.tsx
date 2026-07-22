@@ -26,8 +26,10 @@ import { orderPicksNear, type TodayFact, type TonightPickDto, type WeatherBrief 
 
 import TodayGetThereStrip from "./TodayGetThereStrip";
 import TodayPintsCard from "./TodayPintsCard";
+import TodayQuietPintCard from "./TodayQuietPintCard";
 import TodayTubeCard from "./TodayTubeCard";
 import type { TodayPintsIndex } from "./todayPints";
+import type { QuietPintModule } from "@/lib/quietPint";
 import "./today.css";
 
 type Props = {
@@ -36,6 +38,7 @@ type Props = {
   picks: TonightPickDto[];
   fact: TodayFact | null;
   pintsIndex: TodayPintsIndex;
+  quietPint: QuietPintModule | null;
 };
 
 function WeatherCard({ weather }: { weather: WeatherBrief | null }) {
@@ -225,7 +228,7 @@ function FactCard({ fact }: { fact: TodayFact | null }) {
   );
 }
 
-export default function TodayClient({ dateLabel, weather, picks, fact, pintsIndex }: Props) {
+export default function TodayClient({ dateLabel, weather, picks, fact, pintsIndex, quietPint }: Props) {
   // Silent continuity (#427 seam): if the viewer chose an area anywhere in the
   // app, lead with the picks nearest it. Same server-chosen picks, same count,
   // order only; no remembered area = server order untouched. localStorage is
@@ -264,6 +267,7 @@ export default function TodayClient({ dateLabel, weather, picks, fact, pintsInde
         <PicksCard picks={orderedPicks} />
         <TodayGetThereStrip />
         <TodayPintsCard index={pintsIndex} />
+        <TodayQuietPintCard module={quietPint} />
         <FactCard fact={fact} />
       </div>
 
