@@ -64,7 +64,9 @@
   display: grid;
   place-items: center;
   border-radius: 50%;
-  background: linear-gradient(145deg, var(--ink-deep), var(--river));
+  /* House ink/coral identity chip. Was a navy (--river) gradient that lives
+     nowhere else in the app; now an ink base warmed toward the brass accent. */
+  background: linear-gradient(145deg, var(--ink-deep), color-mix(in srgb, var(--brass) 55%, var(--ink-deep)));
   color: var(--color-on-inverse);
   font: 750 1.05rem/1 var(--font-data);
   letter-spacing: .08em;
@@ -88,6 +90,10 @@
   text-decoration: none;
 }
 .profilePage .youIdentityActions a:first-child { border-color: var(--brass); background: var(--brass); color: var(--color-on-accent); }
+/* "Claim your @handle" is the primary here (brass, above); "Meet your Pub Pal"
+   steps back to a quiet secondary so the two don't compete at equal weight. */
+.profilePage .youIdentityActions a:last-child { border-color: transparent; background: transparent; color: var(--ink-soft); font-weight: 600; }
+.profilePage .youIdentityActions a:last-child:hover { color: var(--ink); }
 
 /* Invite-your-lot is the crew loop's primary action, so it wears the brass fill
    the pub-pal / edit pills leave quiet. Shares the pill geometry above. */

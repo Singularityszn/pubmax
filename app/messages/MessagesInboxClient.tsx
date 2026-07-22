@@ -100,8 +100,7 @@ export default function MessagesInboxClient(): React.JSX.Element {
       <main className="container messagesMain">
         <h1 className="messagesHeading">Messages</h1>
         <p className="messagesCourtesyNote">
-          Messages require a signed-in account. Keep it low-stakes; report anything
-          off.
+          Messages need a signed-in account. Keep it low-key, and report anything off.
         </p>
 
         {!loaded ? (

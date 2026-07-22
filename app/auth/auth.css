@@ -54,8 +54,21 @@
   opacity: 0.65;
 }
 
+/* "Email me a link" is the primary action of the sign-in wall, so it wears the
+   house accent fill (brass + on-accent) instead of inheriting the quiet
+   panel-raised pill the OAuth buttons use. Fixes the low-contrast white-on-grey
+   render on /activity and /messages, in both themes. */
 .authMagicLinkButton {
   flex: 0 0 auto;
+  border-color: var(--brass);
+  background: var(--brass);
+  color: var(--color-on-accent);
+  font-weight: 700;
+}
+
+.authMagicLinkButton:hover:not(:disabled) {
+  border-color: var(--brass-bright);
+  background: var(--brass-bright);
 }
 
 .authMagicLinkSuccess,
