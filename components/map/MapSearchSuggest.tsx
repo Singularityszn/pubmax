@@ -128,6 +128,7 @@ export default function MapSearchSuggest({
           center: item.center,
           coverage: item.coverage,
           zoom: item.flyZoom,
+          kind: item.kind,
         });
       }
     },

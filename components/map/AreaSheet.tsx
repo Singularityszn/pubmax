@@ -6,12 +6,26 @@ import type { CityId } from "@/lib/cities";
 import {
   areaElsewhereOptions,
   cheapestPintsInArea,
+  cheapestPintsNearPoint,
   type AreaElsewhereOption,
 } from "@/lib/areaButton";
 import type { NightArea } from "@/lib/nightAreas";
 import type { Venue } from "@/lib/venues";
 
 import "./areaSheet.css";
+
+/**
+ * An ad-hoc place (a locality or borough a map search flew to) that is NOT one
+ * of the modelled Night Areas: the sheet derives its pubs from a walkable ring
+ * around this centroid instead of an area's own region. When set it takes
+ * precedence over `area`, and the header names this place.
+ */
+export type AreaSheetPlaceFocus = {
+  name: string;
+  /** [lng, lat] the map flew to — the ring centre + distance origin. */
+  center: [number, number];
+  radiusKm: number;
+};
 
 // Body of the map's Area sheet (the house bottom Sheet the mobile top-bar Area
 // button opens). Two sections: the current area's cheapest pints, and a "go
@@ -21,6 +35,9 @@ type AreaSheetProps = {
   cityId: CityId;
   /** The Night Area under the map centre, or null before the map settles. */
   area: NightArea | null;
+  /** A searched locality/borough to show instead of `area` — the ad-hoc ring.
+   *  null (the Area button) keeps the modelled `area` behaviour. */
+  placeFocus?: AreaSheetPlaceFocus | null;
   /** Full on-map venue set (unfiltered) — the price pins the map loaded. */
   venues: Venue[];
   /** Live map centre [lng, lat], for area membership + row distances. */
@@ -40,6 +57,7 @@ const AREA_HOP_CLOSE_MS = 900;
 export default function AreaSheet({
   cityId,
   area,
+  placeFocus = null,
   venues,
   center,
   onSelectVenue,
@@ -48,10 +66,19 @@ export default function AreaSheet({
 }: AreaSheetProps) {
   const closeTimer = useRef<number | null>(null);
   const elsewhere = useMemo(() => areaElsewhereOptions(cityId), [cityId]);
+  // A searched locality/borough (placeFocus) derives its pubs from a walkable
+  // ring around its centroid; otherwise the modelled area under the map centre
+  // owns the list. The name shown in the header follows the same precedence.
   const pubs = useMemo(
-    () => (area ? cheapestPintsInArea(area, venues, center) : []),
-    [area, venues, center],
+    () =>
+      placeFocus
+        ? cheapestPintsNearPoint(placeFocus.center, venues, placeFocus.radiusKm)
+        : area
+          ? cheapestPintsInArea(area, venues, center)
+          : [],
+    [placeFocus, area, venues, center],
   );
+  const focusName = placeFocus?.name ?? area?.name ?? null;
 
   const clearCloseTimer = useCallback(() => {
     if (closeTimer.current !== null) {
@@ -86,9 +113,9 @@ export default function AreaSheet({
     <div className="areaSheet">
       <section className="areaSheetSection" aria-label="Cheapest pints in this area">
         <h3 className="areaSheetHeading">
-          {area ? `Cheapest pints in ${area.name}` : "Cheapest pints here"}
+          {focusName ? `Cheapest pints in ${focusName}` : "Cheapest pints here"}
         </h3>
-        {area && pubs.length > 0 ? (
+        {focusName && pubs.length > 0 ? (
           <ul className="areaSheetList">
             {pubs.map((pub) => (
               <li key={pub.id}>
@@ -123,9 +150,11 @@ export default function AreaSheet({
           </ul>
         ) : (
           <p className="areaSheetEmpty">
-            {area
-              ? "No priced pints in this area yet. Try somewhere else below."
-              : "Pan the map over an area to see its cheapest pints."}
+            {placeFocus
+              ? "No priced pints nearby yet. Try somewhere else below."
+              : area
+                ? "No priced pints in this area yet. Try somewhere else below."
+                : "Pan the map over an area to see its cheapest pints."}
           </p>
         )}
       </section>
