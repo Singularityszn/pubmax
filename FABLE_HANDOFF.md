@@ -125,3 +125,10 @@ Review verdicts for Sol #456-462 and Cursor #495-507 published in docs/SOL_SYNC_
 Wave 6 lane in flight at close: width-token retrofit + crawls hover gating.
 FOREIGN WORK NOTE: an uncommitted local work-in-progress (walk-route contract inversion + minimap/profile test edits, likely Sol/Cursor local) sat in the shared checkout; a rebase autostash conflicted, tree was cleaned with the work PRESERVED in `git stash` (stash@{0}, autostash 1828e636) plus untracked docs/CLOSED_PR_REVIEW_2026-07-22.md left in place. Whoever owns it: `git stash pop` and reconcile with merged #515.
 Owner queue unchanged plus: X-mark verdict still pending; ORS_API_KEY; migrations through 0049; CRON_SECRET; U20 age-gate ruling; invite-preview privacy ruling.
+
+## 2026-07-22 evening close-out (waves 7-8, #518-#524)
+
+Merged + live-verified: #518 width tokens + crawls hover gating, #519 top-bar frame unification (52px/14px/shared inset), #520 double-struck X mark all surfaces (owner reference-matched; store-asset masters #440 still old mark, flagged follow-up), #521 area button (map bar: live map-centre area label, sheet with cheapest-pints top10 + 20-area switcher; verified live, Cock Tavern £4.30 King's Cross), #522 dark basemap overhaul (luminance inversion, roads brightest; verified live, night-and-day), #523 white-tile coral-X icon set (?v=20260722-xwhite), #524 light color v2 (elevation ladder via html/body split, AA ramp, neutral hairline; verified live).
+Day total: 23 PRs merged (#489-494, 499, 500, 506, 511-515, 518-524). docs/COLOR_V2_PLAN executed in full same day.
+Open judgment noted from #524: light nav/controlRail warm identity borders kept, reads fine on live check.
+Owner queue: unchanged (migrations 0038-0049, CRON_SECRET, ORS_API_KEY, #473 ruling, age-gate U20, invite-preview privacy ruling, Search Console). Sol/Cursor fleets: verdicts + merge order in docs/SOL_SYNC_2026-07-22.md; foreign WIP still in shared-checkout stash@{0}.
