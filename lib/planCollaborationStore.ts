@@ -7,6 +7,7 @@ import { selectStore } from "@/lib/storeBackend";
 import { requireSupabaseAdmin } from "@/lib/supabase";
 import { isVibeChipId, type VibeChipId } from "@/lib/vibeChips";
 import { EMPTY_VIBE_TALLY, tallyVibeVotes, type VibeTally } from "@/lib/vibeTally";
+import { inviteExpiresAtIso, isPastPlanScheduledEnd } from "@/lib/inviteExpiry";
 
 export type PlanInvite = {
   id: string;
@@ -234,6 +235,25 @@ export type PlanCollaborationStore = {
   list(planId: string, token: unknown): Promise<{ ok: true; memberId: string; invites: PlanInvite[]; constraints: PlanConstraint[]; proposals: PlanRouteProposal[]; votes: PlanVote[] } | Failure>;
 };
 
+async function resolveInviteExpiresAt(
+  planId: string,
+  expiresInMinutes: number,
+  now: Date,
+): Promise<{ ok: true; expiresAt: string } | Failure> {
+  const plan = await planStore().get(planId);
+  if (!plan) return { ok: false, error: "not_found" };
+  const expiresAt = inviteExpiresAtIso({ startTime: plan.plan.startTime, expiresInMinutes, now });
+  if (!expiresAt) return { ok: false, error: "expired" };
+  return { ok: true, expiresAt };
+}
+
+async function rejectIfPlanEnded(planId: string, now: Date): Promise<Failure | null> {
+  const plan = await planStore().get(planId);
+  if (!plan) return { ok: false, error: "not_found" };
+  if (isPastPlanScheduledEnd(plan.plan.startTime, now)) return { ok: false, error: "expired" };
+  return null;
+}
+
 const memoryStore: PlanCollaborationStore = {
   async createInvite(planId, token, input) {
     if (!isPlanId(planId) || !validKey(input.idempotencyKey) || !Number.isInteger(input.expiresInMinutes) || input.expiresInMinutes < 5 || input.expiresInMinutes > 10_080) return { ok: false, error: "invalid" };
@@ -244,12 +264,14 @@ const memoryStore: PlanCollaborationStore = {
     if (replay) return structuredClone(replay);
     const rawToken = randomBytes(32).toString("hex");
     const now = input.now ?? new Date();
+    const expires = await resolveInviteExpiresAt(planId, input.expiresInMinutes, now);
+    if (!expires.ok) return expires;
     const invite: StoredInvite = {
       id: randomUUID(),
       planId,
       role: "guest",
       createdAt: now.toISOString(),
-      expiresAt: new Date(now.getTime() + input.expiresInMinutes * 60_000).toISOString(),
+      expiresAt: expires.expiresAt,
       revokedAt: null,
       redeemedAt: null,
       tokenHash: inviteHash(rawToken),
@@ -282,6 +304,8 @@ const memoryStore: PlanCollaborationStore = {
     if (!invite) return { ok: false, error: "not_found" };
     if (invite.revokedAt) return { ok: false, error: "revoked" };
     if (Date.parse(invite.expiresAt) <= now.getTime()) return { ok: false, error: "expired" };
+    const ended = await rejectIfPlanEnded(planId, now);
+    if (ended) return ended;
     if (invite.redeemedAt) return { ok: false, error: "replayed" };
     invite.redeemedAt = now.toISOString();
     return { ok: true, inviteId: invite.id, role: "guest" };
@@ -299,6 +323,8 @@ const memoryStore: PlanCollaborationStore = {
     if (!invite) return { ok: false, error: "not_found" };
     if (invite.revokedAt) return { ok: false, error: "revoked" };
     if (Date.parse(invite.expiresAt) <= now.getTime()) return { ok: false, error: "expired" };
+    const ended = await rejectIfPlanEnded(planId, now);
+    if (ended) return ended;
     if (invite.redeemedAt) return { ok: false, error: "replayed" };
     invite.redeemedAt = now.toISOString();
     const joined = await planStore().join(planId, name, { collaborationAuthorized: true, idempotencyKey: key });
@@ -321,6 +347,8 @@ const memoryStore: PlanCollaborationStore = {
     if (invite.revokedAt) return { ok: false, error: "revoked" };
     if (invite.redeemedAt) return { ok: false, error: "replayed" };
     if (Date.parse(invite.expiresAt) <= now.getTime()) return { ok: false, error: "expired" };
+    const ended = await rejectIfPlanEnded(planId, now);
+    if (ended) return ended;
     if (!grantMemoryPlanCollaboration(planId, rawMemberToken)) return { ok: false, error: "error" };
     invite.redeemedAt = now.toISOString();
     return { ok: true, collaborationAuthorized: true, inviteId: invite.id };
@@ -487,7 +515,9 @@ const supabaseStore: PlanCollaborationStore = {
     if (existing.error) return { ok: false, error: "error" };
     if (existing.data) return { ok: true, invite: inviteFromRow(existing.data as Record<string, unknown>), token: rawToken };
     const now = input.now ?? new Date();
-    const row = { id: randomUUID(), plan_id: planId, created_by_member_id: identity.memberId, role: "guest", token_hash: inviteHash(rawToken), idempotency_key: key, created_at: now.toISOString(), expires_at: new Date(now.getTime() + input.expiresInMinutes * 60_000).toISOString(), revoked_at: null, redeemed_at: null };
+    const expires = await resolveInviteExpiresAt(planId, input.expiresInMinutes, now);
+    if (!expires.ok) return expires;
+    const row = { id: randomUUID(), plan_id: planId, created_by_member_id: identity.memberId, role: "guest", token_hash: inviteHash(rawToken), idempotency_key: key, created_at: now.toISOString(), expires_at: expires.expiresAt, revoked_at: null, redeemed_at: null };
     const inserted = await admin.from(INVITES).insert(row).select("id,plan_id,role,created_at,expires_at,revoked_at,redeemed_at").single();
     if (inserted.data) return { ok: true, invite: inviteFromRow(inserted.data as Record<string, unknown>), token: rawToken };
     const replay = await admin.from(INVITES).select("id,plan_id,role,created_at,expires_at,revoked_at,redeemed_at").eq("plan_id", planId).eq("created_by_member_id", identity.memberId).eq("idempotency_key", key).maybeSingle();
@@ -516,6 +546,8 @@ const supabaseStore: PlanCollaborationStore = {
     const row = found.data as Record<string, unknown>;
     if (row.revoked_at) return { ok: false, error: "revoked" };
     if (Date.parse(String(row.expires_at)) <= now.getTime()) return { ok: false, error: "expired" };
+    const ended = await rejectIfPlanEnded(planId, now);
+    if (ended) return ended;
     if (row.redeemed_at) return { ok: false, error: "replayed" };
     const updated = await admin.from(INVITES).update({ redeemed_at: now.toISOString() }).eq("id", String(row.id)).is("redeemed_at", null).select("id").maybeSingle();
     return updated.data ? { ok: true, inviteId: String(row.id), role: "guest" } : { ok: false, error: "replayed" };
@@ -523,6 +555,8 @@ const supabaseStore: PlanCollaborationStore = {
 
   async redeemInviteAndJoin(planId, rawToken, name, now = new Date(), options = {}) {
     if (!isPlanId(planId) || typeof rawToken !== "string" || !rawToken.trim() || !name) return { ok: false, error: "invalid" };
+    const ended = await rejectIfPlanEnded(planId, now);
+    if (ended) return ended;
     const key = isPlanIdempotencyKey(options.idempotencyKey) ? options.idempotencyKey.trim() : randomUUID();
     const inviteTokenHash = inviteHash(rawToken.trim());
     const memberToken = planIdempotencyDigest(`plan-invite-join-token:${planId}`, key);
@@ -545,6 +579,8 @@ const supabaseStore: PlanCollaborationStore = {
 
   async upgradeMemberInvite(planId, rawMemberToken, rawInviteToken, now = new Date()) {
     if (!isPlanId(planId) || typeof rawMemberToken !== "string" || typeof rawInviteToken !== "string") return { ok: false, error: "invalid" };
+    const ended = await rejectIfPlanEnded(planId, now);
+    if (ended) return ended;
     const admin = requireSupabaseAdmin();
     const tokenHash = inviteHash(rawInviteToken.trim());
     const { data, error } = await admin.rpc("upgrade_plan_member_invite_atomic", {
