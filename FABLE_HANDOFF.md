@@ -107,3 +107,12 @@ Still correctly gated: waves 4-7 (activation baseline + owner gates), Sol open P
 - Mobile click-through QA: all 8 tab/nav destinations correct, zero console errors, full plan flow real-venue-verified. Open small tickets: /u/[handle] has no generateMetadata (generic title); "Lock it in" shows only the native validation tooltip when the name is empty (PlanComposer = Sol's file, hand to Sol).
 - X mark redesign: research + 5 candidates + showcase delivered to owner (scratchpad/xmark/). AWAITING OWNER PICK (rec: A letterform + D ember). Rollout after pick: PubmaxxMark MARK_GEOMETRY, ogBrand, favicon/ico/icon set via scripts/gen-brand-assets.mjs + gen-native-app-icons.mjs, verify Strike draw path.
 - OWNER: set ORS_API_KEY in Vercel (routes stay dashed straight until then), apply migration 0049_walk_route_legs after 0048, X-mark verdict.
+
+## 2026-07-22 second wave (#492-#494) + fleet updates
+
+- #492 metadata sweep: 10 routes gained real titles via the house server-shell/client split (indexable: profiles/@handle, /crawls, /feed; noindex: activity/admin/messages/rounds/we-are-out/your-profile). Verified live via SSR titles.
+- #493 plan-page route mini-map (T8-lite): PlanRouteMiniMap SVG transit-card on /plan/[id], straight-paint-then-ORS-upgrade, solid=routed dashed=approximate, reduced-motion gated, degrades to nothing. VISUAL BROWSER CHECK PENDING: Chrome extension disconnected (browser closed); logic test-covered (17 unit tests), verify visually when the owner's Chrome is back.
+- #494 walk-route hardening: 4s per-call ORS timeout, 20/min per-client rate limit (pintDrops isLimited seam, flat 429), additive `legs` array with per-leg distanceKm+source; lib/routeLegs.ts source-aware labels groundwork (UI wiring deferred to Sol - MobilePlanActivation reads forbidden plans/generate output). Verified live: /api/walk-route returns legs.
+- docs/SOL_SYNC_2026-07-22.md pushed (Sol brief: state + his next wave). X-mark v2 candidates pushed to docs/design-explorations/x-mark-v2/ - OWNER VERDICT PENDING.
+- Fleet: claude 2.1.217, codex 0.145.0, cursor-agent updated, opencode 1.18.4; skills synced into ~/.codex/skills (288) and ~/.config/opencode/skills (274).
+- Owner queue additions: none new beyond ORS_API_KEY + migration 0049 (already listed).
