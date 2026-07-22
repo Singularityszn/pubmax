@@ -11,6 +11,7 @@ import { getLateFoodForArea, normalizeLateFoodArea } from "@/lib/lateFood";
 import { filterTonight, type WhatsOnRow } from "@/lib/whatsOn";
 import { loadBaselineWhatsOn } from "@/lib/whatsOnStore";
 import nightSignalSnapshot from "@/public/data/night_signals/latest.json";
+import { estimatePlanWalking, estimateStraightLinePlanWalking } from "@/lib/walkRouteLegs";
 import {
 	activeNightSignalClaims,
 	canAffectRoute,
@@ -258,15 +259,15 @@ export async function POST(request: Request): Promise<Response> {
 		withinLimit: context.budgetLimitPence === null || estimatedPerPersonPence === null ? null : estimatedPerPersonPence <= context.budgetLimitPence,
 		basis: "one-recorded-pint-per-stop",
 	};
-	let straightLineWalkingKm = 0;
-	for (let index = 0; index < chosen.length - 1; index += 1) {
-		straightLineWalkingKm += distanceKm(chosen[index].venue, chosen[index + 1].venue);
-	}
+	const chosenWalkingStops = chosen.map(({ venue }) => ({ lat: venue.lat, lng: venue.lng }));
+	const walkingEstimate = await estimatePlanWalking(chosenWalkingStops).catch(() =>
+		estimateStraightLinePlanWalking(chosenWalkingStops),
+	);
 	const routeTotals: PlanRouteTotals = {
 		stopCount: chosen.length,
-		straightLineWalkingKm: Number(straightLineWalkingKm.toFixed(2)),
-		estimatedWalkingMinutes: Math.ceil((straightLineWalkingKm / 4.8) * 60),
-		distanceBasis: "straight-line",
+		straightLineWalkingKm: Number(walkingEstimate.straightLineWalkingKm.toFixed(2)),
+		estimatedWalkingMinutes: walkingEstimate.estimatedWalkingMinutes,
+		distanceBasis: walkingEstimate.distanceBasis,
 	};
 	const lastStop = chosen.at(-1)?.venue;
 	const extensions = candidates.slice(3, 5).map(({ venue }) => ({
@@ -304,6 +305,7 @@ export async function POST(request: Request): Promise<Response> {
 	      venueId: venue.id,
 	      venueName: venue.name,
 	      position: index,
+			walkingMinutesFromPrevious: walkingEstimate.walkingMinutesFromPrevious[index] ?? null,
 			distanceKm: Number(distance.toFixed(2)),
 			estimatedPintPricePence: venue.cheapestPrice === null ? null : Math.round(venue.cheapestPrice * 100),
 			evidence: reasons,

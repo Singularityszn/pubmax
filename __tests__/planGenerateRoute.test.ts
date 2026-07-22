@@ -14,6 +14,15 @@ const { isLimitedMock, loadConciergeVenuesMock } = vi.hoisted(() => ({
   loadConciergeVenuesMock: vi.fn(),
 }));
 
+const { fetchWalkLegRouteMock, orsApiKeyMock, walkRouteStoreMock } = vi.hoisted(() => ({
+  fetchWalkLegRouteMock: vi.fn(),
+  orsApiKeyMock: vi.fn<() => string | null>(() => null),
+  walkRouteStoreMock: {
+    getLeg: vi.fn(async () => null),
+    putLeg: vi.fn(async () => undefined),
+  },
+}));
+
 vi.mock("@/lib/serverEnv", () => ({ assertServerEnv: () => {} }));
 // Hermetic weather: the live refresh workflow rewrites the shipped snapshot
 // (0 or 20 observations depending on the day), which would flip the "does not
@@ -31,15 +40,31 @@ vi.mock("@/lib/concierge/venues.server", async (importOriginal) => {
   loadConciergeVenuesMock.mockImplementation(actual.loadConciergeVenues);
   return { ...actual, loadConciergeVenues: loadConciergeVenuesMock };
 });
+vi.mock("@/lib/walkRouteProvider", () => ({
+  fetchWalkLegRoute: fetchWalkLegRouteMock,
+  orsApiKey: orsApiKeyMock,
+}));
+vi.mock("@/lib/walkRouteStore", () => ({
+  walkRouteStore: () => walkRouteStoreMock,
+}));
 
 import { GET, POST } from "@/app/api/plans/generate/route";
 import { hashIp } from "@/lib/supabase";
+import type { LngLat } from "@/lib/walkRoute";
 
 describe("POST /api/plans/generate", () => {
   beforeEach(() => {
     isLimitedMock.mockClear();
     isLimitedMock.mockResolvedValue(false);
     loadConciergeVenuesMock.mockClear();
+    fetchWalkLegRouteMock.mockReset();
+    fetchWalkLegRouteMock.mockResolvedValue(null);
+    orsApiKeyMock.mockReset();
+    orsApiKeyMock.mockReturnValue(null);
+    walkRouteStoreMock.getLeg.mockReset();
+    walkRouteStoreMock.getLeg.mockResolvedValue(null);
+    walkRouteStoreMock.putLeg.mockReset();
+    walkRouteStoreMock.putLeg.mockResolvedValue(undefined);
   });
 
   it("warms stable planning data without creating a plan", async () => {
@@ -74,7 +99,11 @@ describe("POST /api/plans/generate", () => {
       stopCount: 3,
       straightLineWalkingKm: expect.any(Number),
       estimatedWalkingMinutes: expect.any(Number),
+      distanceBasis: "straight-line",
     });
+    expect(body.stops.map((stop: { walkingMinutesFromPrevious: number | null }) => stop.walkingMinutesFromPrevious))
+      .toEqual([null, expect.any(Number), expect.any(Number)]);
+    expect(fetchWalkLegRouteMock).not.toHaveBeenCalled();
     expect(body.endingRecommendations).toEqual([
       expect.objectContaining({ kind: "food", requiresConfirmation: true }),
       expect.objectContaining({ kind: "get_home", requiresConfirmation: true }),
@@ -272,6 +301,50 @@ describe("POST /api/plans/generate", () => {
       distanceKm: expect.any(Number),
       evidence: expect.any(Array),
     });
+  });
+
+  it("uses ORS leg durations for per-stop and route walking minutes when keyed", async () => {
+    const durations = [125, 240];
+    orsApiKeyMock.mockReturnValue("ork_secret");
+    fetchWalkLegRouteMock.mockImplementation(async (from: LngLat, to: LngLat) => ({
+      coordinates: [from, to],
+      durationSeconds: durations.shift() ?? null,
+    }));
+
+    const response = await POST(new Request("http://localhost/api/plans/generate", {
+      method: "POST",
+      body: JSON.stringify({ query: "Four of us after work in Clapham, cheap and lively" }),
+    }));
+    const body = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(body.routeTotals).toMatchObject({
+      stopCount: 3,
+      estimatedWalkingMinutes: 7,
+      distanceBasis: "routed",
+    });
+    expect(body.stops.map((stop: { walkingMinutesFromPrevious: number | null }) => stop.walkingMinutesFromPrevious))
+      .toEqual([null, 3, 4]);
+    expect(walkRouteStoreMock.getLeg).toHaveBeenCalledTimes(2);
+    expect(walkRouteStoreMock.putLeg).toHaveBeenCalledTimes(2);
+  });
+
+  it("still returns 200 and straight-line walking estimates when routing returns null", async () => {
+    orsApiKeyMock.mockReturnValue("ork_secret");
+    fetchWalkLegRouteMock.mockResolvedValue(null);
+
+    const response = await POST(new Request("http://localhost/api/plans/generate", {
+      method: "POST",
+      body: JSON.stringify({ query: "Four of us after work in Clapham, cheap and lively" }),
+    }));
+    const body = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(body.routeTotals.distanceBasis).toBe("straight-line");
+    expect(body.routeTotals.estimatedWalkingMinutes).toEqual(expect.any(Number));
+    expect(body.stops.map((stop: { walkingMinutesFromPrevious: number | null }) => stop.walkingMinutesFromPrevious))
+      .toEqual([null, expect.any(Number), expect.any(Number)]);
+    expect(fetchWalkLegRouteMock).toHaveBeenCalledTimes(2);
   });
 
   it("does not claim a food ending when official evidence is insufficient", async () => {
