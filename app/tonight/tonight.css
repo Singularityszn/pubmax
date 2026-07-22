@@ -77,6 +77,178 @@
   color: var(--ink-soft);
 }
 
+/* Outcome-first mobile launcher. The existing Tonight filters answer "which
+   listing?"; this card answers the earlier question: one pub, a crawl, or an
+   event. It is deliberately shallow and routes into existing product depth. */
+.tonightDecision {
+  margin: 0 0 18px;
+  padding: 16px;
+  border: 1px solid var(--hairline, var(--line));
+  border-radius: var(--radius-lg, 18px);
+  background:
+    radial-gradient(circle at 94% 0%, color-mix(in srgb, var(--river) 16%, transparent), transparent 42%),
+    var(--panel-raised);
+  box-shadow: var(--shadow-sm);
+}
+
+.tonightDecisionHead {
+  display: grid;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.tonightDecisionEyebrow {
+  margin: 0 0 5px;
+  color: var(--river);
+  font: 750 0.66rem/1 var(--font-data);
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+}
+
+.tonightDecisionHead h2 {
+  margin: 0;
+  color: var(--ink);
+  font: 760 1.35rem/1.05 var(--font-display);
+  letter-spacing: -0.035em;
+}
+
+.tonightDecisionProof {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  width: fit-content;
+  margin: 0;
+  color: var(--ink-soft);
+  font: 600 0.68rem/1.35 var(--font-data);
+}
+
+.tonightDecisionProof > span {
+  width: 7px;
+  height: 7px;
+  flex: none;
+  border-radius: 50%;
+  background: var(--pint);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--pint) 13%, transparent);
+}
+
+.tonightDecisionGrid {
+  display: grid;
+  gap: 8px;
+}
+
+.tonightDecisionOption {
+  position: relative;
+  display: grid;
+  grid-template-columns: 22px 38px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  min-height: 62px;
+  padding: 9px 12px;
+  border: 1px solid var(--hairline, var(--line));
+  border-radius: var(--radius, 8px);
+  background: color-mix(in srgb, var(--panel-raised) 88%, var(--panel) 12%);
+  color: var(--ink);
+  text-decoration: none;
+}
+
+.tonightDecisionOption[data-intent="one-pub"] {
+  border-color: color-mix(in srgb, var(--ink-deep) 72%, var(--line));
+  background: var(--ink-deep);
+  color: var(--color-on-inverse);
+}
+
+.tonightDecisionNumber {
+  align-self: start;
+  padding-top: 4px;
+  color: currentColor;
+  font: 650 0.58rem/1 var(--font-data);
+  opacity: 0.56;
+}
+
+.tonightDecisionIcon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--river) 11%, var(--panel-raised));
+  color: var(--river);
+}
+
+.tonightDecisionOption[data-intent="one-pub"] .tonightDecisionIcon {
+  background: color-mix(in srgb, var(--brass-bright) 20%, transparent);
+  color: var(--brass-bright);
+}
+
+.tonightDecisionCopy {
+  min-width: 0;
+}
+
+.tonightDecisionCopy strong,
+.tonightDecisionCopy small {
+  display: block;
+}
+
+.tonightDecisionCopy strong {
+  font: 720 0.91rem/1.15 var(--font-display);
+  letter-spacing: -0.01em;
+}
+
+.tonightDecisionCopy small {
+  margin-top: 4px;
+  color: currentColor;
+  font-size: 0.7rem;
+  line-height: 1.25;
+  opacity: 0.68;
+}
+
+.tonightDecisionArrow {
+  color: currentColor;
+  opacity: 0.68;
+}
+
+.tonightDecisionOption:focus-visible {
+  outline: 2px solid var(--brass);
+  outline-offset: 2px;
+}
+
+.tonightListingAnchor {
+  display: block;
+  scroll-margin-top: 94px;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .tonightDecisionOption:hover {
+    border-color: color-mix(in srgb, var(--river) 44%, var(--line));
+  }
+
+  .tonightDecisionOption[data-intent="one-pub"]:hover {
+    border-color: var(--brass-bright);
+  }
+}
+
+@media (min-width: 620px) {
+  .tonightDecisionHead {
+    grid-template-columns: 1fr auto;
+    align-items: end;
+  }
+
+  .tonightDecisionGrid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .tonightDecisionOption {
+    grid-template-columns: 22px 38px minmax(0, 1fr);
+  }
+
+  .tonightDecisionArrow {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+  }
+}
+
 .tonightLocation {
   display: grid;
   gap: 8px;

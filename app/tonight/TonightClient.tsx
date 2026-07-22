@@ -30,11 +30,13 @@ import SiteNav from "@/components/nav/SiteNav";
 import { useWhatsOnTonight } from "@/components/map/useWhatsOnTonight";
 import TonightConditionsStrip from "./TonightConditionsStrip";
 import TonightGetHomeStrip from "./TonightGetHomeStrip";
+import TonightDecisionCard from "./TonightDecisionCard";
 import AreaNewsRail from "@/components/desktop/AreaNewsRail";
 import { nearestNightAreaForViewport } from "@/lib/nightAreas";
 import TonightShareButton from "./TonightShareButton";
 import { trackEvent } from "@/lib/analytics";
 import { firstHttp } from "@/lib/httpUrl";
+import { tonightDecisionListingState } from "@/lib/tonightDecision";
 import { resolveTonightNear, walkLabel, walkMinutes } from "@/lib/tonight";
 import { readRememberedArea, type RememberedArea } from "@/lib/nightPatches";
 import { palChatHref, VIBE_CHIPS } from "@/lib/vibeChips";
@@ -176,6 +178,7 @@ export default function TonightClient() {
     );
   const showLocation = hasGeoRows || thinNight;
   const locationExpanded = locationOpen || origin != null;
+  const decisionListingState = tonightDecisionListingState(status);
 
   return (
     <main className="tonightPage" data-testid="tonight-screen">
@@ -205,6 +208,12 @@ export default function TonightClient() {
         ) : null}
       </header>
 
+      <TonightDecisionCard
+        listingState={decisionListingState}
+        listingCount={rows.length}
+        nearContext={tonightNear}
+      />
+
       <TonightConditionsStrip origin={origin} />
       {/* Wide viewports place the strip plus this block in a sticky right rail
           (tonight.css grid); below the breakpoint the rail block simply follows
@@ -223,6 +232,12 @@ export default function TonightClient() {
           }
         />
       </div>
+
+      <span
+        id="tonight-listings"
+        className="tonightListingAnchor"
+        aria-hidden="true"
+      />
 
       {loading ? (
         <p className="tonightStatus" role="status">

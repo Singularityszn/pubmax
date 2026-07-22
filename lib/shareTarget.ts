@@ -16,6 +16,13 @@ export type ShareTargetDecision = {
 
 const MAX_FIELD_LENGTH = 500;
 const PUBMAX_HOSTS = new Set(["pubmaxxing.com", "www.pubmaxxing.com", "localhost"]);
+const GOOGLE_MAPS_HOSTS = new Set([
+  "google.com",
+  "www.google.com",
+  "maps.google.com",
+  "maps.google.co.uk",
+]);
+const SHORT_MAP_HOSTS = new Set(["maps.app.goo.gl", "goo.gl"]);
 
 function firstParam(value: string | string[] | undefined): string {
   const raw = Array.isArray(value) ? value[0] : value;
@@ -47,6 +54,14 @@ function parseUrl(value: string): URL | null {
   }
 }
 
+function safeDecode(value: string): string {
+  try {
+    return decodeURIComponent(value.replaceAll("+", " "));
+  } catch {
+    return value.replaceAll("+", " ");
+  }
+}
+
 function isPubmaxUrl(url: URL): boolean {
   return PUBMAX_HOSTS.has(url.hostname.toLowerCase());
 }
@@ -67,14 +82,38 @@ function cleanQuery(value: string): string {
     .slice(0, 120);
 }
 
-function externalLabel(url: URL): string {
+function sharedMapPlace(url: URL): string | null {
+  const host = url.hostname.toLowerCase();
+  const queryValue =
+    url.searchParams.get("query") ??
+    url.searchParams.get("q") ??
+    url.searchParams.get("address");
+
+  if (host === "maps.apple.com" || GOOGLE_MAPS_HOSTS.has(host)) {
+    const cleanedQuery = queryValue ? cleanQuery(safeDecode(queryValue)) : "";
+    if (cleanedQuery) return cleanedQuery;
+  }
+
+  if (GOOGLE_MAPS_HOSTS.has(host)) {
+    const segments = url.pathname.split("/").filter(Boolean);
+    const placeIndex = segments.findIndex((segment) => segment.toLowerCase() === "place");
+    const place = placeIndex >= 0 ? segments[placeIndex + 1] : undefined;
+    const cleanedPlace = place ? cleanQuery(safeDecode(place)) : "";
+    if (cleanedPlace && !cleanedPlace.startsWith("@")) return cleanedPlace;
+  }
+
+  return null;
+}
+
+function externalLabel(url: URL): string | null {
   const host = url.hostname.replace(/^www\./, "");
-  const path = decodeURIComponent(url.pathname)
+  if (SHORT_MAP_HOSTS.has(host.toLowerCase())) return null;
+  const path = safeDecode(url.pathname)
     .split("/")
     .filter(Boolean)
     .slice(-1)[0]
     ?.replace(/[-_+]/g, " ");
-  return cleanQuery(path ? `${path} ${host}` : host);
+  return cleanQuery(path ? `${path} ${host}` : host) || null;
 }
 
 export function resolveShareTarget(params: ShareTargetParams): ShareTargetDecision {
@@ -99,7 +138,8 @@ export function resolveShareTarget(params: ShareTargetParams): ShareTargetDecisi
   const query =
     cleanQuery(title) ||
     cleanQuery(text) ||
-    (parsedUrl ? externalLabel(parsedUrl) : "") ||
+    (parsedUrl ? sharedMapPlace(parsedUrl) : null) ||
+    (parsedUrl ? externalLabel(parsedUrl) : null) ||
     null;
 
   if (!query) {

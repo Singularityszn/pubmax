@@ -38,6 +38,35 @@ describe("share target", () => {
     expect(decision.query).toBe("Ye Olde Cheshire Cheese");
   });
 
+  it("extracts a place name from a shared Google Maps place URL", () => {
+    const decision = resolveShareTarget({
+      url: "https://www.google.com/maps/place/The+Harp/@51.5084,-0.1254,17z",
+    });
+
+    expect(decision.kind).toBe("map-query");
+    expect(decision.query).toBe("The Harp");
+    expect(decision.primaryHref).toBe("/map?q=The%20Harp&intent=share");
+  });
+
+  it("extracts a place name from Apple Maps query fields", () => {
+    const decision = resolveShareTarget({
+      url: "https://maps.apple.com/?q=The%20French%20House&address=Soho",
+    });
+
+    expect(decision.kind).toBe("map-query");
+    expect(decision.query).toBe("The French House");
+  });
+
+  it("does not turn an opaque short map URL into a junk search", () => {
+    const decision = resolveShareTarget({
+      url: "https://maps.app.goo.gl/abc123",
+    });
+
+    expect(decision.kind).toBe("empty");
+    expect(decision.primaryHref).toBe("/map");
+    expect(decision.sourceUrl).toBe("https://maps.app.goo.gl/abc123");
+  });
+
   it("keeps an empty share useful", () => {
     const decision = resolveShareTarget({});
 

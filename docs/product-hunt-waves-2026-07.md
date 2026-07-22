@@ -169,3 +169,16 @@ guest link must produce a useful outcome for one real night.
 - `/share` triages shared pub names, map links, and PUBMAXX links.
 - Internal PUBMAXX links open directly; external shares become `/map?q=...&intent=share`.
 - No auth, persistence, location collection, or ownership overlap with map sheet/planner lanes.
+
+## Wave 3 shipped
+
+- `/tonight` now starts with one outcome choice: one nearby pub, a three-stop
+  crawl, or the sourced listings already on the page.
+- The launcher keeps the first action thumb-sized and useful while listings are
+  loading, quiet, or temporarily unavailable.
+- Remembered-area context appears as a quiet proof line without asking for
+  location or storing anything new.
+- Mobile shares from Google Maps place URLs and Apple Maps query links now
+  resolve to clean pub-name searches.
+- Opaque short map links fail safely to the full map instead of searching a
+  meaningless URL fragment.
