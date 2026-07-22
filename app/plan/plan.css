@@ -792,3 +792,89 @@ html[data-theme="dark"] .planComposer__submit { color: #090d0b; }
 @media (prefers-reduced-motion: reduce) {
   .planPage *, .planPage *::before, .planPage *::after { scroll-behavior: auto !important; transition: none !important; animation: none !important; }
 }
+
+/* ── Route mini-map (T8) ────────────────────────────────────────────────────
+   A lightweight static route card for the locked plan page: the crawl's stops
+   as numbered discs on the walking line, drawn as a self-contained SVG (no
+   MapLibre mount, no tiles, no basemap) styled like a transit diagram. The
+   honesty rule mirrors the big map — the line is SOLID for a real routed walk
+   ("ors") and DASHED for the straight-line approximation. The route colour and
+   the numbered discs reuse the shared map tokens (--route-line deep-crimson
+   light / coral-ember dark; disc fill --ink-deep with a --brass-bright ring,
+   matching buildRouteStops) so the card reads as the same route system. */
+.planRouteMiniMap {
+  margin: 22px 0 4px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg, 18px);
+  background:
+    radial-gradient(120% 120% at 0% 0%, color-mix(in srgb, var(--route-line) 6%, transparent), transparent 60%),
+    var(--panel-raised);
+  overflow: hidden;
+}
+/* A faint transit-diagram dot grid so the card reads as an abstract map rather
+   than a blank panel — pinned to the route-line hue at a whisper of opacity. */
+.planRouteMiniMap__svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  border-radius: calc(var(--radius-lg, 18px) - 8px);
+  background-image: radial-gradient(color-mix(in srgb, var(--route-line) 14%, transparent) 0.6px, transparent 0.7px);
+  background-size: 15px 15px;
+  background-position: -1px -1px;
+}
+.planRouteMiniMap__casing {
+  fill: none;
+  stroke: var(--paper);
+  stroke-width: 6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  opacity: 0.85;
+}
+[data-theme="dark"] .planRouteMiniMap__casing { stroke: var(--ink-deep); }
+.planRouteMiniMap__line {
+  fill: none;
+  stroke: var(--route-line);
+  stroke-width: 3.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+/* Honesty: dashed = approximate straight-line; solid = real routed roads. */
+.planRouteMiniMap[data-source="straight"] .planRouteMiniMap__line {
+  stroke-dasharray: 5 6;
+  opacity: 0.9;
+}
+.planRouteMiniMap__disc {
+  fill: var(--ink-deep);
+  stroke: var(--brass-bright);
+  stroke-width: 2;
+}
+.planRouteMiniMap__num {
+  fill: var(--paper);
+  font-family: var(--font-data, ui-monospace, "SFMono-Regular", monospace);
+  font-size: 12px;
+  font-weight: 800;
+}
+[data-theme="dark"] .planRouteMiniMap__num { fill: var(--ink); }
+
+/* Subtle draw-in — gated behind no-preference (the .planPage reduce block above
+   also hard-stops it via animation: none). The card rises/fades in once its
+   stops resolve; a real routed line additionally draws itself along its length
+   (pathLength=1), which replays when the straight line upgrades to roads. The
+   dashed straight line keeps its dash and simply fades, so the honesty pattern
+   is never animated away. Reduced-motion users get a static solid/dashed line. */
+@media (prefers-reduced-motion: no-preference) {
+  .planRouteMiniMap--in { animation: planRouteMiniMapRise 460ms ease-out both; }
+  .planRouteMiniMap[data-source="ors"] .planRouteMiniMap__line {
+    stroke-dasharray: 1;
+    animation: planRouteMiniMapDraw 900ms ease-out both;
+  }
+}
+@keyframes planRouteMiniMapRise {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes planRouteMiniMapDraw {
+  from { stroke-dashoffset: 1; }
+  to { stroke-dashoffset: 0; }
+}
