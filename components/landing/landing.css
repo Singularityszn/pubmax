@@ -116,7 +116,12 @@
 .lpOrbit { position: absolute; border: 1px solid color-mix(in srgb, var(--river) 28%, transparent); border-radius: 50%; }
 .lpOrbitOne { width: min(62vw, 840px); aspect-ratio: 1; right: -18%; top: -24%; }
 .lpOrbitTwo { width: min(40vw, 540px); aspect-ratio: 1; left: -18%; bottom: -25%; border-color: color-mix(in srgb, var(--brass) 22%, transparent); }
-.lpScanline { position: absolute; left: 7%; top: 17%; width: 1px; height: 68%; background: linear-gradient(transparent, color-mix(in srgb, var(--river) 40%, transparent), transparent); }
+/* Faint vertical hairline in the hero atmosphere. Uses the house --hairline
+   (warm-neutral in both themes) NOT --river: in dark, --river (#7aa6cc, steel
+   blue) painted a light-blue streak down the left edge that read as a rendering
+   glitch beside the hero copy and the stacked stat readout. --hairline keeps it
+   as quiet intentional structure that stays clean in light and dark. */
+.lpScanline { position: absolute; left: 7%; top: 17%; width: 1px; height: 68%; background: linear-gradient(transparent, color-mix(in srgb, var(--hairline) 82%, transparent), transparent); }
 
 .lpHeroCopy { position: relative; z-index: 2; max-width: 610px; }
 .lpHeroKicker {
