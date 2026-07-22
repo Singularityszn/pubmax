@@ -86,6 +86,11 @@ import { easeOutCubic, PUB_SELECT_PITCH, PUB_SELECT_PITCH_MOBILE, PUB_SELECT_DUR
 import { mobileSelectCameraOffset } from "@/lib/sheetSnap";
 import { nearbyVenuesForMap } from "@/lib/nearby";
 import type { MapViewportSnapshot } from "@/lib/mobileShell";
+import {
+  PAINT_WATCHDOG_INTERVAL_MS,
+  PAINT_WATCHDOG_MAX_RETRIES,
+  shouldRecoverPaint,
+} from "@/lib/mapPaintWatchdog";
 
 
 type PubMapCanvasProps = {
@@ -1334,6 +1339,104 @@ export default function PubMapCanvas({
     };
     armFirstFrameWatchdog();
 
+    // --- Black-canvas recovery net (two mechanisms). These are NOT a render
+    // driver — #544's event-based kicks (style.load scene build, pin-reveal,
+    // moveend triggerRepaint) remain the primary presenters. This net only
+    // catches the failure that dodges every one of those events: a "Plan
+    // tonight" sheet opening resizes the map container, and a missed resize / a
+    // throttled rAF present (iOS Low Power Mode) / a backgrounded-then-resumed
+    // tab can leave the renderer parked on its pre-tile black backbuffer with no
+    // further event to dirty the scene — DOM overlays alive, canvas solid black.
+
+    // (1) Resize integrity. MapLibre's own trackResize watches the WINDOW, not
+    // the container, so a layout change that resizes .maplibreMap without a
+    // window resize (a sheet opening/closing) never reaches map.resize() — the
+    // canonical black-canvas recovery. Observe the real container element and
+    // call resize() on any box change, debounced to a microtask so a burst of
+    // sub-frame resize entries collapses to a single resize() per tick.
+    let resizePending = false;
+    const paintObserver = new ResizeObserver(() => {
+      if (resizePending) return;
+      resizePending = true;
+      queueMicrotask(() => {
+        resizePending = false;
+        if (mapRef.current === map) map.resize();
+      });
+    });
+    paintObserver.observe(container);
+
+    // (2) Paint watchdog. Stamp the last real present from MapLibre's "render"
+    // event (fires only from an actual frame), then poll on a coarse interval:
+    // if the map/style are loaded, the canvas is on-screen with a non-zero size,
+    // and no frame has presented for longer than the stall threshold, fire ONE
+    // recovery (resize + triggerRepaint). A capped retry counter means it can
+    // never loop hot — after the cap it logs one structured warning and stops.
+    // The decision itself is the pure shouldRecoverPaint() (lib/mapPaintWatchdog)
+    // so it stays hermetically testable; this wrapper only owns the side effects.
+    let lastRenderAt: number | null = null;
+    const stampRender = () => {
+      lastRenderAt = performance.now();
+    };
+    map.on("render", stampRender);
+    let paintRetries = 0;
+    let paintCapWarned = false;
+    let paintWatchdogTimer: ReturnType<typeof setInterval> | undefined;
+    const samplePaint = () => {
+      if (document.visibilityState === "hidden") return; // paused while hidden
+      if (mapRef.current !== map) return;
+      const canvas = map.getCanvas();
+      // A detached/display:none canvas reports zero offset dimensions; a live,
+      // on-screen canvas reports its CSS box. Guard on the backing size too.
+      const onScreen = canvas.offsetWidth > 0 && canvas.offsetHeight > 0;
+      const recover = shouldRecoverPaint({
+        now: performance.now(),
+        lastRenderAt,
+        documentVisible: true,
+        mapLoaded: Boolean(map.isStyleLoaded()),
+        canvasVisible: onScreen,
+        canvasWidth: canvas.width,
+        canvasHeight: canvas.height,
+        retries: paintRetries,
+      });
+      if (!recover) return;
+      paintRetries += 1;
+      map.resize();
+      map.triggerRepaint();
+      if (paintRetries >= PAINT_WATCHDOG_MAX_RETRIES && !paintCapWarned) {
+        paintCapWarned = true;
+        console.warn("[pubmap] paint watchdog exhausted its recovery budget", {
+          retries: paintRetries,
+          lastRenderAt,
+          intervalMs: PAINT_WATCHDOG_INTERVAL_MS,
+        });
+        if (paintWatchdogTimer) clearInterval(paintWatchdogTimer);
+        paintWatchdogTimer = undefined;
+      }
+    };
+    const startPaintWatchdog = () => {
+      if (paintWatchdogTimer || paintCapWarned) return;
+      paintWatchdogTimer = setInterval(samplePaint, PAINT_WATCHDOG_INTERVAL_MS);
+    };
+    const stopPaintWatchdog = () => {
+      if (paintWatchdogTimer) clearInterval(paintWatchdogTimer);
+      paintWatchdogTimer = undefined;
+    };
+    // Pause the interval entirely while the tab is hidden (no wasted wakes, and
+    // no false stall from a legitimately throttled background rAF); resume — and
+    // stamp — on return so a backgrounded-then-resumed map gets a clean first
+    // sample and one present.
+    const onPaintVisibility = () => {
+      if (document.visibilityState === "hidden") {
+        stopPaintWatchdog();
+      } else if (mapRef.current === map) {
+        lastRenderAt = performance.now();
+        map.triggerRepaint();
+        startPaintWatchdog();
+      }
+    };
+    document.addEventListener("visibilitychange", onPaintVisibility);
+    if (document.visibilityState !== "hidden") startPaintWatchdog();
+
     // --- Click + cursor wiring (see components/map/canvas/interactions.ts).
     // Pub-first hit testing: a single map click queries pubs/route stops before
     // landmarks/POIs so dense central London taps open a pub sheet, not a
@@ -1464,6 +1567,11 @@ export default function PubMapCanvas({
       cancelAnimationFrame(rafId);
       if (firstFrameTimer) clearTimeout(firstFrameTimer);
       map.off("render", onFirstFrame);
+      // Black-canvas recovery net teardown.
+      paintObserver.disconnect();
+      map.off("render", stampRender);
+      stopPaintWatchdog();
+      document.removeEventListener("visibilitychange", onPaintVisibility);
       clearTimeout(fallbackTimer);
       if (hardFailTimer) clearTimeout(hardFailTimer);
       clearTimeout(hangFailTimer);
