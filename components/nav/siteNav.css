@@ -8,6 +8,41 @@
    These use their OWN classes (siteNavBar / siteNavLinks / …) — independent of
    the old .siteNav / .appNav globals, which may be cleaned up separately. */
 
+/* ── Shared top-bar FRAME tokens ─────────────────────────────────────────────
+   Owner report (iPhone screenshots): the mobile top bar visibly changed
+   size/shape page-to-page. The fix is ONE frame for every top bar (the
+   standard bar on Tonight/Feed/…, the floating map variant, and the landing
+   .lpNav) so navigating never makes the bar jump. Contents may differ per
+   surface; the FRAME (height, top offset, corner radius, horizontal padding,
+   shadow) is identical.
+
+   Chosen standard (measured all three first, best pick documented):
+     · --topbar-h      52px. The app-shell / map-chrome height. Map + standard
+                              bars already used it; landing tightened 58 to 52.
+     · --topbar-radius 14px. The map-chrome card radius. The map is the primary
+                              (map-first) surface, where this bar twins the search
+                              toolbar; adopting the rounded-card shape everywhere
+                              on mobile keeps that twin AND unifies the standard +
+                              landing bars (were 999px pills). Desktop bars keep
+                              their capsule (already consistent page-to-page).
+     · --topbar-pad-x  10px. Landing's value; standard/map were 8px.
+     · --topbar-inset  env(safe-area-inset-top)+10px. The floating top offset
+                              that clears the notch (the map's proven form). The
+                              in-flow standard bar keeps its own safe-area margin;
+                              landing keeps its max() literal, locked by
+                              landingChromeCss.test, resolving to the same ~10px.
+     · --topbar-shadow the tight map-overlay shadow. Landing drops its heavy
+                              0 16px 36px glass shadow on mobile to match.
+   Consumed with literal fallbacks at every use site so the landing route (which
+   does not load this file's stylesheet) still resolves to the same values. */
+:root {
+  --topbar-h: 52px;
+  --topbar-inset: calc(env(safe-area-inset-top, 0px) + 10px);
+  --topbar-radius: 14px;
+  --topbar-pad-x: 10px;
+  --topbar-shadow: var(--map-overlay-shadow-tight, 0 6px 16px rgba(0, 0, 0, 0.12));
+}
+
 .siteNavBar {
   /* Installed-app displays (A2HS standalone, native shell): viewport-fit=cover
      plus black-translucent extends the page under the iOS status bar, leaving
@@ -409,10 +444,14 @@
 @media (max-width: 640px) {
   .siteNavBar {
     gap: 6px;
-    padding: 4px 8px;
-    min-height: 52px;
+    /* Shared frame: 14px rounded-card radius (was the base 999px pill), 52px
+       height, 10px horizontal padding, tight shadow. Identical to the map +
+       landing bars so the bar never changes shape page-to-page. */
+    padding: 4px var(--topbar-pad-x, 10px);
+    min-height: var(--topbar-h, 52px);
+    border-radius: var(--topbar-radius, 14px);
     background: var(--panel-raised);
-    box-shadow: var(--map-overlay-shadow-tight, 0 6px 16px rgba(0, 0, 0, 0.12));
+    box-shadow: var(--topbar-shadow, var(--map-overlay-shadow-tight, 0 6px 16px rgba(0, 0, 0, 0.12)));
     backdrop-filter: none;
     -webkit-backdrop-filter: none;
   }
@@ -424,13 +463,16 @@
   /* On the map the floating bar spans the same inset as .mapToolbar — a clean
      compact header twin, never a centred pill that could clip. */
   .siteNavBarFloating {
-    top: calc(10px + env(safe-area-inset-top, 0px));
+    /* Shared frame tokens: same top offset + radius the standard and landing
+       bars now use. Values are unchanged from before (env+10px / 14px); only
+       the source is now the one shared token so all three stay locked together. */
+    top: var(--topbar-inset, calc(10px + env(safe-area-inset-top, 0px)));
     left: var(--map-chrome-inset, 10px);
     right: var(--map-chrome-inset, 10px);
     width: auto;
     max-width: none;
     transform: none;
-    border-radius: var(--map-chrome-radius, 14px);
+    border-radius: var(--topbar-radius, 14px);
   }
 
   /* Taste — header consistency: the wordmark is the plain PubmaxxWordmark on
