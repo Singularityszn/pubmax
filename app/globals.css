@@ -200,6 +200,21 @@
            leaving the clamp() in charge. */
   --page-gutter: max(clamp(22px, 5vw, 32px), env(safe-area-inset-left, 0px), env(safe-area-inset-right, 0px));
 
+  /* — Content width: two shared max-widths so the reading column stops changing
+       from route to route (desktop audit found six competing values: today 640,
+       feed 620, crawls 640/760, moment 650, landing 1240, profile ~1280).
+         --content-max       reading column — prose/cards/single-column routes.
+                             640px matches the dominant pattern (today, crawls,
+                             moment, ≈feed): adopt on /tonight, /feed, crawl and
+                             moment pages, profile's text column.
+         --content-max-wide  full-bleed / marketing + map-class surfaces that
+                             intentionally run wider: landing page, profile shell,
+                             any hero/gallery grid.
+       DEFINE-ONLY this wave — per-page CSS is retrofitted next wave (other lanes
+       own those files). New work should reach for these instead of a literal. */
+  --content-max: 640px;
+  --content-max-wide: 1240px;
+
   /* — Spacing scale: 4px base, used for new work; existing literal paddings
        are untouched. */
   --space-1: 4px;
@@ -282,7 +297,7 @@
   --z-map-toolbar: 560;      /* mapToolbar, citySwitcher */
   --z-nav: 650;              /* planning-open drawer lift */
   --z-tabbar: 700;           /* mobile bottom tab bar (above map/nav, below modals) */
-  --z-modal: 1200;           /* appNav + siteNav floating rails, full-screen overlays */
+  --z-modal: 1200;           /* siteNav floating rails, full-screen overlays */
   --z-overlay-top: 1300;     /* map onboarding — topmost transient overlay */
 
   /* — Spill (always-dark) palette: the "spilling right now" / spill-composer
@@ -545,15 +560,6 @@ button {
   background: linear-gradient(135deg, var(--brass), var(--brass-bright));
   color: var(--color-on-accent);
   box-shadow: 0 8px 20px color-mix(in srgb, var(--brass) 28%, transparent);
-}
-
-.appNav {
-  position: fixed;
-  top: 12px;
-  left: 50%;
-  z-index: var(--z-modal);
-  transform: translateX(-50%);
-  backdrop-filter: blur(10px);
 }
 
 .demoDataNote {
@@ -4501,12 +4507,6 @@ button:disabled {
     bottom: 10px;
     justify-content: center;
   }
-
-  .appNav {
-    top: 8px;
-    max-width: calc(100vw - 20px);
-    overflow-x: auto;
-  }
 }
 
 @media (max-width: 640px) {
@@ -4638,9 +4638,10 @@ button:disabled {
     background: color-mix(in srgb, var(--river) 14%, var(--panel-raised));
   }
 
-  /* Keep the floating theme toggle clear of the map legend and reachable. */
+  /* Keep the floating theme toggle clear of the map legend and reachable, and
+     below the notch on fixed chrome (dark-mode-v1 audit). */
   .themeToggle.floating {
-    top: 12px;
+    top: max(12px, env(safe-area-inset-top, 0px));
     right: 12px;
   }
 
@@ -5038,71 +5039,6 @@ html[data-legacy="1"] *::after {
   animation-iteration-count: 1 !important;
   transition-duration: 0.001ms !important;
   scroll-behavior: auto !important;
-}
-
-/* Legacy toggle button — same shape/behaviour as .themeToggle (theme.css) so
-   the two controls sit together as a matched pair; kept here since
-   LegacyToggle.tsx/globals.css are this feature's owned files. */
-.legacyToggle {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 36px;
-  height: 36px;
-  border: 1px solid transparent;
-  border-radius: 999px;
-  background: transparent;
-  color: var(--ink-soft);
-  transition:
-    background 0.15s ease,
-    color 0.15s ease,
-    border-color 0.15s ease,
-    transform 0.15s ease;
-}
-
-.legacyToggle:hover {
-  color: var(--brass);
-  background: color-mix(in srgb, var(--brass) 10%, transparent);
-  border-color: color-mix(in srgb, var(--brass) 30%, transparent);
-}
-
-.legacyToggle:focus-visible {
-  outline: 2px solid var(--brass);
-  outline-offset: 2px;
-}
-
-.legacyToggle[aria-pressed="true"] {
-  color: var(--brass);
-  background: color-mix(in srgb, var(--brass) 14%, transparent);
-  border-color: color-mix(in srgb, var(--brass) 35%, transparent);
-}
-
-/* Floating variant on /map — matches .themeToggle.floating's pill, offset
-   so the two floating controls stack without overlapping. */
-.legacyToggle.floating {
-  position: fixed;
-  top: 16px;
-  right: 62px;
-  z-index: var(--z-float);
-  width: 40px;
-  height: 40px;
-  border-color: var(--line);
-  background: var(--panel-raised);
-  box-shadow: var(--shadow);
-}
-
-.legacyToggle.floating:hover {
-  color: var(--ink);
-  background: var(--panel-raised);
-  border-color: var(--brass);
-  transform: translateY(-1px);
-}
-
-@media (max-width: 640px) {
-  .legacyToggle.floating {
-    top: 12px;
-    right: 58px;
-  }
 }
 
 /* Map mobile nav guard: /map renders the shared SiteNav over a full-bleed map.
