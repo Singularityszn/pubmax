@@ -1221,11 +1221,82 @@
   outline-offset: 2px;
 }
 
+.feedEndWrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  padding-top: 4px;
+}
+
 .feedEnd {
-  margin: 4px 0 0;
+  margin: 0;
   color: var(--muted, #8a8577);
   font-size: 0.84rem;
   font-style: italic;
+}
+
+/* Primary CTA at the very end of the feed — closes the dead-end so the viewer
+   has one clear next step after exhausting the scroll. Sized to 44px min-height
+   (touch target), styled to match .feedMomentCta (same colour register). */
+.feedEndCta {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  padding: 0 20px;
+  border: 1px solid color-mix(in srgb, var(--brass) 45%, var(--line));
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--brass) 12%, var(--panel-raised));
+  color: var(--ink);
+  font-size: 0.88rem;
+  font-weight: 750;
+  text-decoration: none;
+  transition: border-color 0.16s ease, background 0.16s ease;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .feedEndCta:hover {
+    border-color: color-mix(in srgb, var(--brass) 70%, var(--line));
+    background: color-mix(in srgb, var(--brass) 18%, var(--panel-raised));
+  }
+}
+
+.feedEndCta:focus-visible {
+  outline: 2px solid var(--brass);
+  outline-offset: 2px;
+}
+
+/* Error-state retry button. Same visual weight as .feedLoadMoreBtn but sized to
+   sit inside the shared EmptyState action slot. The error state uses role="alert"
+   so AT announces it immediately; the button gives keyboard users a one-tap path
+   back to the feed without a page reload. */
+.feedRetryBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  padding: 0 20px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--panel-raised);
+  color: var(--ink);
+  font: inherit;
+  font-size: 0.88rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: border-color 0.16s ease;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .feedRetryBtn:hover {
+    border-color: color-mix(in srgb, var(--brass) 50%, var(--line));
+  }
+}
+
+.feedRetryBtn:focus-visible {
+  outline: 2px solid var(--brass);
+  outline-offset: 2px;
 }
 
 /* ── Empty state ──────────────────────────────────────────────────────── */
@@ -1234,6 +1305,38 @@
    this class only widens it slightly for the feed's column layout. */
 .feedEmpty {
   max-width: 500px;
+}
+
+/* Empty-feed CTA contract: one primary (44px) + at most one quiet secondary
+   link. Header compose is hidden on empty/error, so this pair is the whole
+   next-step surface, never a four-button stack. */
+.feedEmptyActions {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.feedEmpty .emptyStateAction a.feedEmptyPrimary {
+  min-height: 44px;
+}
+
+.feedEmpty .emptyStateAction a.feedEmptySecondary {
+  min-height: 44px;
+  padding: 0 12px;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  color: var(--ink-soft);
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  filter: none;
+}
+
+.feedEmpty .emptyStateAction a.feedEmptySecondary:hover {
+  filter: none;
+  color: var(--ink);
 }
 
 /* ── Skeleton ─────────────────────────────────────────────────────────── */

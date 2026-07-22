@@ -418,10 +418,10 @@ export default function MomentCapture(): React.JSX.Element {
         {savedMemoryId ? (
           <section className="momentSaved" aria-labelledby="moment-saved-title">
             <h2 id="moment-saved-title">Saved. Still yours.</h2>
-            <p>Open You to add more moments, choose the order and shape a Story.</p>
-            <div>
-              <Link href="/u/you#night-memories">Open your Memories</Link>
-              <Link href="/feed">See Stories</Link>
+            <p>Add more Moments, choose which to include, and shape a Story when you are ready.</p>
+            <div className="momentSavedActions">
+              <Link href="/u/you#night-memories" className="momentSavedPrimary">Build your Story</Link>
+              <Link href="/tonight" className="momentSavedSecondary">Back to Tonight</Link>
             </div>
           </section>
         ) : null}
