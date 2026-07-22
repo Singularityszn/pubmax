@@ -7,6 +7,7 @@ import type { PlanConstraint, PlanConstraintKind, PlanInvite, PlanRouteProposal,
 import { publishPlanCollaborationChange, subscribePlanCollaborationChange, type PlanCollaborationChangeKind } from "@/lib/planContinuity";
 import { trackEvent } from "@/lib/analytics";
 import { recordPlanHighIntentAction } from "@/lib/nativePushPrompt";
+import MatchGroupPrefs from "@/components/plan/MatchGroupPrefs";
 
 type CollaborationState = {
   memberId: string;
@@ -247,6 +248,8 @@ export default function PlanCollaborationPanel({ planId, memberToken, isHost, dr
           {state.invites.map((activeInvite) => <div className="planCollab__activeInvite" key={activeInvite.id}><small>Expires {new Date(activeInvite.expiresAt).toLocaleString()}</small><button type="button" className="planCollab__quiet" onClick={() => void revokeInvite(activeInvite.id)} disabled={Boolean(pending)}>Revoke</button></div>)}
         </div>
       ) : null}
+
+      {state.memberId ? <MatchGroupPrefs planId={planId} memberId={state.memberId} /> : null}
 
       <form className="planCollab__form" onSubmit={addConstraint}>
         <strong>Add a need</strong>
