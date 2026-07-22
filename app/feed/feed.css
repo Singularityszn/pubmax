@@ -1302,7 +1302,11 @@
      calmer title size, and tighter block gaps put the first card ~185px in.
      Editorial density, not compression: every tap target stays 44px+. */
   .feedShell {
-    padding: 12px var(--page-gutter) calc(var(--mobile-tab-clearance, 72px) + 48px);
+    /* Top padding is 10px (was 12px): SiteNav is the first child, so this sets
+       the standard bar's top offset. 10px + the bar's own env(safe-area) margin
+       matches the landing/map bars' shared top inset, so the bar lands on the
+       identical rect page-to-page. */
+    padding: 10px var(--page-gutter) calc(var(--mobile-tab-clearance, 72px) + 48px);
     gap: 10px;
   }
 

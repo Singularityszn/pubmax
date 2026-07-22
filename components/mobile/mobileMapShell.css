@@ -5,7 +5,11 @@
 
 @media (max-width: 640px) {
   :root {
-    --mobile-map-top: calc(env(safe-area-inset-top, 0px) + 8px);
+    /* Top offset for the mobile map chrome. Adopts the shared --topbar-inset
+       (env(safe-area) + 10px) so the map's top bar sits at the SAME top offset
+       as the standard + landing bars (was +8px, which sat 2px higher than the
+       rest and made the bar jump on nav to/from /map). */
+    --mobile-map-top: var(--topbar-inset, calc(env(safe-area-inset-top, 0px) + 10px));
     --mobile-map-bar-h: 52px;
     --mobile-map-rail-h: 52px;
     --mobile-map-dock-clearance: calc(var(--tabbar-h) + env(safe-area-inset-bottom, 0px) + 12px);
@@ -79,9 +83,14 @@
     grid-template-columns: minmax(64px, 1fr) minmax(0, 108px) 44px 44px 44px;
     align-items: center;
     gap: 2px;
-    padding: 4px 5px 4px 12px;
+    /* Vertical padding 3px (was 4px): 44px control row + 3+3 padding + 1+1
+       border box-sizes to exactly 52px (--mobile-map-bar-h / --topbar-h), so
+       the rendered height matches the standard + landing bars instead of
+       overshooting to 54px. Radius adopts the shared --topbar-radius (14px, was
+       --radius-lg 18px) so all four bars share one corner too. */
+    padding: 3px 5px 3px 12px;
     border: 1px solid color-mix(in srgb, var(--color-border) 88%, transparent);
-    border-radius: var(--radius-lg);
+    border-radius: var(--topbar-radius, 14px);
     background: color-mix(in srgb, var(--color-surface-raised) 94%, transparent);
     box-shadow: var(--shadow-sm);
     backdrop-filter: blur(14px) saturate(135%);
