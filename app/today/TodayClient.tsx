@@ -119,6 +119,9 @@ function PicksCard({ picks }: { picks: TonightPickDto[] }) {
                     <MapPin size={13} aria-hidden="true" />
                     <span>{pick.placeName}</span>
                   </p>
+                  {pick.venueNote ? (
+                    <span className="todayPickDigest">{pick.venueNote}</span>
+                  ) : null}
                   <span className="todayPickSource">via {pick.sourceLabel}</span>
                 </>
               );
