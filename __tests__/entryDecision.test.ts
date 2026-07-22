@@ -11,6 +11,7 @@ import { describe, expect, it } from "vitest";
 // "the shell never COLD-STARTS on the landing page": a cold start still lands
 // on /tonight, but a later in-app arrival at "/" reaches the landing page.
 import {
+  consumeDeepLinkBootEntry,
   decideEntry,
   entryFirstRunHref,
   hasConsumedSessionEntry,
@@ -216,5 +217,49 @@ describe("session-entry flag (owner amendment 2026-07-21)", () => {
         sessionEntryConsumed: hasConsumedSessionEntry(null),
       }),
     ).toEqual({ kind: "route", href: SHELL_START_PATH, reason: "shell-cold-start" });
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Deep-link boot stamp (2026-07-22): the installed PWA cold-starts on the
+// manifest start_url (/tonight), never mounting AppEntryRoute at "/". Without
+// this stamp the first in-app wordmark tap to "/" read as a cold start and
+// bounced back to /tonight (owner report).
+// ---------------------------------------------------------------------------
+describe("consumeDeepLinkBootEntry", () => {
+  it("a non-root boot consumes the session entry, so the home tap stays", () => {
+    const storage = makeMemoryStorage();
+    // Installed PWA boots on the manifest start_url — a deep-link entry.
+    expect(consumeDeepLinkBootEntry(SHELL_START_PATH, storage)).toBe(true);
+    expect(hasConsumedSessionEntry(storage)).toBe(true);
+    // First wordmark tap to "/" now reads as a session revisit, not a cold
+    // start — the landing page is reached.
+    expect(
+      decideEntry({
+        ...WEB_ROOT,
+        isStandaloneDisplay: true,
+        sessionEntryConsumed: hasConsumedSessionEntry(storage),
+      }),
+    ).toEqual({ kind: "stay", reason: "session-revisit" });
+  });
+
+  it("a root boot does NOT stamp — the cold-start decision stays with AppEntryRoute", () => {
+    const storage = makeMemoryStorage();
+    expect(consumeDeepLinkBootEntry("/", storage)).toBe(false);
+    expect(hasConsumedSessionEntry(storage)).toBe(false);
+    // The Capacitor shell (which loads the site root) still cold-starts on
+    // /tonight exactly as before.
+    expect(
+      decideEntry({
+        ...WEB_ROOT,
+        isNativeShell: true,
+        sessionEntryConsumed: hasConsumedSessionEntry(storage),
+      }),
+    ).toEqual({ kind: "route", href: SHELL_START_PATH, reason: "shell-cold-start" });
+  });
+
+  it("no storage: stamping is a silent no-op and boots keep the old behavior", () => {
+    expect(consumeDeepLinkBootEntry(SHELL_START_PATH, null)).toBe(true);
+    expect(hasConsumedSessionEntry(null)).toBe(false);
   });
 });
