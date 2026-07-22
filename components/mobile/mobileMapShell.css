@@ -219,7 +219,7 @@
     min-width: min(246px, calc(100vw - 88px));
     max-width: calc(100vw - 88px);
     min-height: 48px;
-    bottom: calc(var(--mobile-map-dock-clearance) + 12px);
+    bottom: calc(var(--mobile-map-dock-clearance) + 10px);
     display: inline-flex;
     align-items: center;
     justify-content: center;
