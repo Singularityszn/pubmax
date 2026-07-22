@@ -8,6 +8,7 @@ import { CalendarClock, Music, Tag, Tv, type LucideIcon } from "lucide-react";
 // source of truth (lib/planGetIn) so the shapes cannot drift. Erased at build,
 // so no server code reaches the client bundle.
 import type { PlanGetInReportDTO, PlanGetInStopDTO } from "@/lib/planGetIn";
+import PlanRouteMiniMap from "@/components/plan/PlanRouteMiniMap";
 import { buildCrawlMapHref } from "@/lib/crawlUrl";
 import { isValidWhatsOnRow, type WhatsOnKind, type WhatsOnRow } from "@/lib/whatsOn";
 import { checkedLabel } from "@/lib/whatsOnBadges";
@@ -107,6 +108,11 @@ export default function PlanRoute({
           Get-in estimate for {groupSize === 1 ? "one" : groupSize} going. Never a guarantee of entry.
         </p>
       ) : null}
+      {/* Static route mini-map (T8): the crawl drawn as numbered discs on the
+          walking line, straight-then-routed with the same solid/dashed honesty
+          rule as the big map. Degrades to nothing when it can't locate ≥2 stops,
+          so the deep link below always stands on its own. */}
+      {stops.length >= 2 ? <PlanRouteMiniMap stops={stops} /> : null}
       {walkRouteHref ? (
         <Link className="planRoute__walk" href={walkRouteHref}>
           See the walking route
