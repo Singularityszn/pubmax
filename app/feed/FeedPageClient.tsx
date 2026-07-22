@@ -795,14 +795,19 @@ export default function FeedPageClient({
   //    the fresh content — real drinkers always lead;
   //  - "none"    — other tabs, still loading/errored, or no sightings.
   // This is a SEPARATE data source + card type from the error/empty states, so it
-  // does not touch that branch (coordination with the error-honesty work in the
-  // draft PR #498 that also edits this file).
+  // does not touch that branch (coordination with the error-honesty work in
+  // this PR's own empty/error rework).
   const sightingSpot = sightingPlacement({
     tab,
     status,
     userItemCount: filtered.length,
     sightingCount: sightings.length,
   });
+
+  // Empty / error / lot-empty surfaces own their single next step. Keep the
+  // header compose stack off those states so mobile never stacks Capture /
+  // Log / We're out / Find a pub as four competing CTAs.
+  const showComposeActions = status === "ready" && !isEmpty && !lotEmpty;
 
   return (
     <main className="feedShell">
@@ -813,11 +818,13 @@ export default function FeedPageClient({
           old eyebrow + lede stack pushed real content below the fold. */}
       <header className="feedHeader">
         <h1 className="feedTitle">The Pint Feed</h1>
-        <div className="feedComposeActions" aria-label="Create">
-          <Link href="/moment" className="feedMomentCta">Capture a Moment</Link>
-          <Link href="/map?log=1" className="feedDropCta">Log a Pint Drop</Link>
-          <Link href="/we-are-out" className="feedMomentCta">We&rsquo;re out</Link>
-        </div>
+        {showComposeActions ? (
+          <div className="feedComposeActions" aria-label="Create">
+            <Link href="/moment" className="feedMomentCta">Capture a Moment</Link>
+            <Link href="/map?log=1" className="feedDropCta">Log a Pint Drop</Link>
+            <Link href="/we-are-out" className="feedMomentCta">We&rsquo;re out</Link>
+          </div>
+        ) : null}
       </header>
 
       {/* N4: two wrapper divs only — display:contents below 1024px means they
@@ -904,7 +911,16 @@ export default function FeedPageClient({
           eyebrow="Quiet at the bar"
           title="No pints logged yet tonight."
           body="Be the first to drop one. Snap your pint, log the price, pass down a story. The feed fills up as London drinks."
-          action={<Link href="/map?log=1">Find a pub and drop a pint</Link>}
+          action={
+            <div className="feedEmptyActions">
+              <Link href="/map?log=1" className="feedEmptyPrimary">
+                Find a pub and drop a pint
+              </Link>
+              <Link href="/moment" className="feedEmptySecondary">
+                Capture a Moment instead
+              </Link>
+            </div>
+          }
         />
       ) : (
         <>

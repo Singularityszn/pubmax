@@ -1307,6 +1307,38 @@
   max-width: 500px;
 }
 
+/* Empty-feed CTA contract: one primary (44px) + at most one quiet secondary
+   link. Header compose is hidden on empty/error, so this pair is the whole
+   next-step surface — never a four-button stack. */
+.feedEmptyActions {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.feedEmpty .emptyStateAction a.feedEmptyPrimary {
+  min-height: 44px;
+}
+
+.feedEmpty .emptyStateAction a.feedEmptySecondary {
+  min-height: 44px;
+  padding: 0 12px;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  color: var(--ink-soft);
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  filter: none;
+}
+
+.feedEmpty .emptyStateAction a.feedEmptySecondary:hover {
+  filter: none;
+  color: var(--ink);
+}
+
 /* ── Skeleton ─────────────────────────────────────────────────────────── */
 .feedCardSkeleton {
   padding: 14px;

@@ -1,12 +1,13 @@
 /**
  * UX Stickiness Wave — behavioural contract tests.
  *
- * Covers the four shippable items in this wave:
+ * Covers the shippable items in this wave:
  *   1. Feed: error state is distinct from empty state (role="alert" vs role="status")
  *   2. Feed: end-of-feed CTA is present (feedEndCta class)
- *   3. Tonight: filter-chip active state has strengthened styling
- *   4. NightMemoryStudio: first-run callout gated behind studioLoaded
- *   5. Moment saved: corrected post-save links (Story CTA, not /feed)
+ *   3. Feed: empty state collapses to one primary CTA + at most one secondary
+ *   4. Tonight: filter-chip active state has strengthened styling
+ *   5. NightMemoryStudio: first-run callout gated behind studioLoaded
+ *   6. Moment saved: corrected post-save links (Story CTA, not /feed)
  */
 
 import { createElement } from "react";
@@ -119,7 +120,74 @@ describe("Feed end-of-feed CTA CSS", () => {
   });
 });
 
-// ── 3. Tonight filter chip active state ───────────────────────────────────
+// ── 3. Feed empty-state CTA collapse (mobile audit) ───────────────────────
+
+const feedClientSource = readFileSync(
+  join(process.cwd(), "app/feed/FeedPageClient.tsx"),
+  "utf8",
+);
+
+describe("Feed empty-state CTA collapse", () => {
+  // Header compose (Capture / Log / We're out) must stand down on empty and
+  // error so those surfaces own a single next step.
+  it("gates header compose behind showComposeActions (ready + not empty)", () => {
+    expect(feedClientSource).toContain(
+      "const showComposeActions = status === \"ready\" && !isEmpty && !lotEmpty;",
+    );
+    expect(feedClientSource).toContain("{showComposeActions ? (");
+    expect(feedClientSource).toContain('aria-label="Create"');
+  });
+
+  it("empty branch ships one primary CTA and at most one secondary link", () => {
+    // Isolate the isEmpty EmptyState props block (self-closing JSX).
+    const emptyBlock =
+      feedClientSource.match(
+        /eyebrow="Quiet at the bar"[\s\S]*?\/>/,
+      )?.[0] ?? "";
+    expect(emptyBlock.length).toBeGreaterThan(0);
+    expect(emptyBlock).toContain('className="feedEmptyPrimary"');
+    expect(emptyBlock).toContain('className="feedEmptySecondary"');
+    expect(emptyBlock).toContain('href="/map?log=1"');
+    expect(emptyBlock).toContain('href="/moment"');
+    // Exactly two action links in the empty action cluster — not the old
+    // four-way stack (header Capture + Log + We're out + Find a pub).
+    const actionHrefs = emptyBlock.match(/href="[^"]+"/g) ?? [];
+    expect(actionHrefs).toHaveLength(2);
+    // We're out is not a third empty-state CTA.
+    expect(emptyBlock).not.toContain("/we-are-out");
+  });
+
+  it("error branch keeps a single retry action (no compose pile-on)", () => {
+    const errorBlock =
+      feedClientSource.match(
+        /title="Feed failed to load\."[\s\S]*?\/>/,
+      )?.[0] ?? "";
+    expect(errorBlock.length).toBeGreaterThan(0);
+    expect(errorBlock).toContain("feedRetryBtn");
+    expect(errorBlock).toContain("Try again");
+    // Error must not invite compose CTAs inside the alert surface.
+    expect(errorBlock).not.toContain("/map?log=1");
+    expect(errorBlock).not.toContain("/moment");
+    expect(errorBlock).not.toContain("/we-are-out");
+  });
+
+  it("feedEmptyPrimary keeps a 44px primary touch target in CSS", () => {
+    expect(feedCss).toMatch(
+      /\.feedEmpty\s+\.emptyStateAction\s+a\.feedEmptyPrimary\s*\{[\s\S]*?min-height:\s*44px/,
+    );
+  });
+
+  it("feedEmptySecondary is a quiet text link, not a second primary button", () => {
+    expect(feedCss).toMatch(
+      /\.feedEmpty\s+\.emptyStateAction\s+a\.feedEmptySecondary\s*\{[\s\S]*?background:\s*transparent/,
+    );
+    expect(feedCss).toMatch(
+      /\.feedEmpty\s+\.emptyStateAction\s+a\.feedEmptySecondary\s*\{[\s\S]*?text-decoration:\s*underline/,
+    );
+  });
+});
+
+// ── 4. Tonight filter chip active state ───────────────────────────────────
 
 const tonightCss = readFileSync(join(process.cwd(), "app/tonight/tonight.css"), "utf8");
 
@@ -169,7 +237,7 @@ describe("Tonight filter chip active state", () => {
   });
 });
 
-// ── 4. NightMemoryStudio first-run callout gating ─────────────────────────
+// ── 5. NightMemoryStudio first-run callout gating ─────────────────────────
 
 describe("NightMemoryStudio first-run callout", () => {
   // The callout renders only when studioLoaded=true AND both arrays are empty.
@@ -207,7 +275,7 @@ describe("NightMemoryStudio first-run callout", () => {
   });
 });
 
-// ── 5. Moment saved: corrected Story nudge links ──────────────────────────
+// ── 6. Moment saved: corrected Story nudge links ──────────────────────────
 
 describe("Moment saved Story nudge", () => {
   // After saving a Moment the primary CTA should go to the Memory Studio,
