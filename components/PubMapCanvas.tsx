@@ -196,6 +196,12 @@ type PubMapCanvasProps = {
   poiHidden?: Record<PoiCategory, boolean>;
   onPoiHiddenChange?: (next: Record<PoiCategory, boolean>) => void;
   hideLayersControl?: boolean;
+  /**
+   * Area button fly-to: bump `token` to fly the camera to `center` (a Night
+   * Area centre). Reduced-motion is honoured by the shared `cinematic` helper
+   * (it jumps at duration 0). Null / an unchanged token is a no-op.
+   */
+  focusPoint?: { center: [number, number]; zoom: number; token: number } | null;
   onViewportChange?: (viewport: MapViewportSnapshot) => void;
   /**
    * Emitted (on first idle + every moveend) with the current viewport edges so
@@ -286,6 +292,7 @@ export default function PubMapCanvas({
   poiHidden: controlledPoiHidden,
   onPoiHiddenChange,
   hideLayersControl = false,
+  focusPoint = null,
   onViewportChange,
   onBoundsChange,
 }: PubMapCanvasProps) {
@@ -615,6 +622,21 @@ export default function PubMapCanvas({
     if (!landmark) return;
     cinematic({ center: landmark.coordinates, zoom: 15, duration: 800 }, "landmark");
   }, [initialLandmarkId, mapReady, landmarkById, cinematic]);
+
+  // Area button "go somewhere else": fly the camera to a Night Area centre when
+  // the parent bumps focusPoint.token. cinematic honours reduced-motion (it
+  // jumps at duration 0), so this needs no extra guard here.
+  const focusTokenRef = useRef(0);
+  useEffect(() => {
+    if (!mapReady || !focusPoint || focusPoint.token === focusTokenRef.current) {
+      return;
+    }
+    focusTokenRef.current = focusPoint.token;
+    cinematic(
+      { center: focusPoint.center, zoom: focusPoint.zoom, duration: 900 },
+      "area",
+    );
+  }, [mapReady, focusPoint, cinematic]);
 
   useEffect(() => {
     if (!hoveredVenueId) return;
