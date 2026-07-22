@@ -3,10 +3,15 @@ import { describe, expect, it } from "vitest";
 import {
   buildMapSearchSuggestions,
   formatSuggestDistance,
+  LOCALITY_FLY_ZOOM,
   SUGGEST_PUB_LIMIT,
 } from "@/lib/mapSearchSuggest";
-import { getNightArea } from "@/lib/nightAreas";
+import { parseLocalityGazetteer, type Locality } from "@/lib/localities";
+import { getNightArea, getNightAreasForCity } from "@/lib/nightAreas";
 import type { Venue } from "@/lib/venues";
+// The committed gazetteer — tests read it directly; the generation script
+// (scripts/gen_london_localities.mjs) is never run here (hermetic).
+import gazetteer from "@/public/data/london_localities.json";
 
 // Minimal Venue factory — only the fields the suggest models read matter.
 // Mirrors the house pattern in __tests__/areaButton.test.ts.
@@ -216,5 +221,136 @@ describe("buildMapSearchSuggestions — the as-you-type popup model", () => {
       mapCenter: CENTRE,
     });
     expect(result.pubs[0].distanceLabel).toBe("");
+  });
+});
+
+// A tiny synthetic gazetteer — a locality, a modelled-area collision, and a
+// same-named borough — so the ranking/dedup rules are exercised deterministically.
+const LOCALITIES: Locality[] = [
+  { name: "Willesden", lat: 51.549, lng: -0.229, borough: "Brent" },
+  { name: "Cricklewood", lat: 51.556, lng: -0.213, borough: "Brent" },
+  { name: "Shoreditch", lat: 51.524, lng: -0.079, borough: "Hackney" }, // modelled-area collision
+];
+
+describe("buildMapSearchSuggestions — localities (the basemap-label gap)", () => {
+  it("surfaces a locality the basemap paints but the model never knew", () => {
+    const result = buildMapSearchSuggestions({
+      cityId: "london",
+      query: "willes",
+      venues: [],
+      localities: LOCALITIES,
+      userLocation: null,
+      mapCenter: CENTRE,
+    });
+    const willesden = result.areas.find((a) => a.name === "Willesden");
+    expect(willesden).toBeDefined();
+    expect(willesden?.kind).toBe("locality");
+    expect(willesden?.center).toEqual([-0.229, 51.549]);
+    expect(willesden?.contextLabel).toBe("Brent");
+  });
+
+  it("gives a locality NO coverage chip and a deeper fly zoom (place, not a promise)", () => {
+    const result = buildMapSearchSuggestions({
+      cityId: "london",
+      query: "cricklewood",
+      venues: [],
+      localities: LOCALITIES,
+      userLocation: null,
+      mapCenter: CENTRE,
+    });
+    const row = result.areas.find((a) => a.name === "Cricklewood");
+    expect(row?.coverage).toBeNull();
+    expect(row?.flyZoom).toBe(LOCALITY_FLY_ZOOM);
+  });
+
+  it("drops a locality that collides with a modelled area (no double Shoreditch)", () => {
+    const result = buildMapSearchSuggestions({
+      cityId: "london",
+      query: "shoreditch",
+      venues: [],
+      localities: LOCALITIES,
+      userLocation: null,
+      mapCenter: CENTRE,
+    });
+    const shoreditches = result.areas.filter((a) => a.name === "Shoreditch");
+    expect(shoreditches).toHaveLength(1);
+    expect(shoreditches[0].kind).toBe("area");
+  });
+
+  it("orders modelled area, then locality, then borough at an equal tier + distance", () => {
+    // All three share a coordinate + a whole-label match, so only kind breaks the tie.
+    const soho2 = getNightArea("piccadilly-soho");
+    const pt: [number, number] = [soho2.centre.lng, soho2.centre.lat];
+    const result = buildMapSearchSuggestions({
+      cityId: "london",
+      query: "riverside",
+      venues: [venue({ id: "b1", primaryBorough: "Riverside", latitude: pt[1], longitude: pt[0] })],
+      localities: [
+        { name: "Soho", lat: pt[1], lng: pt[0], borough: "Westminster" }, // dropped: modelled alias
+        { name: "Riverside", lat: pt[1], lng: pt[0], borough: "Wandsworth" },
+      ],
+      userLocation: null,
+      mapCenter: pt,
+      areaLimit: 20,
+    });
+    // "Riverside" exists as both a locality and a borough at the same point/tier;
+    // the locality must rank ahead of the borough, and the borough is deduped out.
+    const riverside = result.areas.filter((a) => a.name === "Riverside");
+    expect(riverside).toHaveLength(1);
+    expect(riverside[0].kind).toBe("locality");
+  });
+
+  it("ignores localities on an empty query (the prompt stays to modelled areas)", () => {
+    const result = buildMapSearchSuggestions({
+      cityId: "london",
+      query: "",
+      venues: [],
+      localities: LOCALITIES,
+      userLocation: null,
+      mapCenter: CENTRE,
+    });
+    expect(result.areas.every((a) => a.kind === "area")).toBe(true);
+  });
+});
+
+describe("london_localities.json — committed gazetteer integrity", () => {
+  const localities = parseLocalityGazetteer(gazetteer);
+  const [lonMin, latMin, lonMax, latMax] = gazetteer.bbox as [number, number, number, number];
+
+  it("ships an ODbL / OpenStreetMap attribution header", () => {
+    expect(gazetteer.license).toMatch(/odbl/i);
+    expect(gazetteer.attribution).toMatch(/openstreetmap/i);
+  });
+
+  it("clears the count floor and matches its header count", () => {
+    expect(localities.length).toBeGreaterThanOrEqual(300);
+    expect(gazetteer.count).toBe(gazetteer.localities.length);
+  });
+
+  it("has finite coordinates inside the Greater London bbox for every row", () => {
+    for (const l of localities) {
+      expect(Number.isFinite(l.lat) && Number.isFinite(l.lng)).toBe(true);
+      expect(l.lng).toBeGreaterThanOrEqual(lonMin);
+      expect(l.lng).toBeLessThanOrEqual(lonMax);
+      expect(l.lat).toBeGreaterThanOrEqual(latMin);
+      expect(l.lat).toBeLessThanOrEqual(latMax);
+      expect(l.name.length).toBeGreaterThan(0);
+      expect(l.borough.length).toBeGreaterThan(0);
+    }
+  });
+
+  it("carries globally-unique normalised names (dedupe invariant)", () => {
+    const norm = localities.map((l) => l.name.trim().toLowerCase().replace(/\s+/g, " "));
+    expect(new Set(norm).size).toBe(norm.length);
+  });
+
+  it("never collides with a modelled Night Area name or alias", () => {
+    const modelled = new Set<string>();
+    for (const area of getNightAreasForCity("london")) {
+      modelled.add(area.name.toLowerCase());
+      for (const alias of area.aliases) modelled.add(alias.toLowerCase());
+    }
+    const collisions = localities.filter((l) => modelled.has(l.name.toLowerCase()));
+    expect(collisions).toHaveLength(0);
   });
 });

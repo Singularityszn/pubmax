@@ -183,6 +183,9 @@ export type AreaElsewhereOption = {
   /** [lng, lat] the map flies to — GeoJSON order, matching the camera helpers. */
   center: [number, number];
   coverage: AreaCoverageLabel;
+  /** Optional camera zoom for the fly; undefined lets the map keep its default
+   *  area zoom. A locality search result flies a notch deeper than an area. */
+  zoom?: number;
 };
 
 /** The modelled Night Areas for the city as a compact "go somewhere else" grid. */
