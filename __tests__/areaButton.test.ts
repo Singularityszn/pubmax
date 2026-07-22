@@ -3,10 +3,17 @@ import { describe, expect, it } from "vitest";
 import {
   areaCoverageLabel,
   areaElsewhereOptions,
+  areaSheetOpenDelay,
   areaUnderCentre,
+  AREA_SHEET_SETTLE_MS,
   buildAreaSheetModel,
   cheapestPintsInArea,
+  cheapestPintsNearPoint,
+  DEFAULT_AREA_FLY_ZOOM,
   formatAreaDistance,
+  LOCALITY_RADIUS_KM,
+  planAreaSelect,
+  type AreaElsewhereOption,
 } from "@/lib/areaButton";
 import { getNightArea } from "@/lib/nightAreas";
 import type { Venue } from "@/lib/venues";
@@ -137,6 +144,97 @@ describe("cheapestPintsInArea — ranking + fail-soft pricing", () => {
     );
     expect(rows).toHaveLength(10);
     expect(rows.some((r) => r.id === "faraway")).toBe(false);
+  });
+});
+
+describe("cheapestPintsNearPoint — the ad-hoc locality/borough ring", () => {
+  // Willesden-ish centroid, well away from any modelled Night Area centre.
+  const centre: [number, number] = [-0.23, 51.55];
+  const near = (id: string, extra: Partial<Venue> = {}) =>
+    venue({ id, latitude: centre[1] + 0.002, longitude: centre[0] + 0.002, ...extra });
+
+  it("ranks priced pubs cheapest first, measured from the centroid", () => {
+    const rows = cheapestPintsNearPoint(
+      centre,
+      [
+        near("dear", { cheapestPrice: 6.5 }),
+        near("cheap", { cheapestPrice: 4.1 }),
+      ],
+    );
+    expect(rows.map((r) => r.id)).toEqual(["cheap", "dear"]);
+    expect(rows[0].priceLabel).toBe("£4.10");
+    // Distance is measured from the centroid the camera flew to, so a venue a
+    // couple hundred metres off reads as a short metres-away hop.
+    expect(rows[0].distanceLabel).toMatch(/m away$/);
+  });
+
+  it("excludes venues outside the ~1.2km ring and caps at ten", () => {
+    const inside = Array.from({ length: 12 }, (_, i) =>
+      near(`in-${i}`, { cheapestPrice: 4 + i * 0.1 }),
+    );
+    // ~3km north of the centroid — outside the walkable ring.
+    const outside = venue({ id: "outside", latitude: centre[1] + 0.03, longitude: centre[0], cheapestPrice: 1 });
+    const rows = cheapestPintsNearPoint(centre, [...inside, outside], LOCALITY_RADIUS_KM);
+    expect(rows).toHaveLength(10);
+    expect(rows.some((r) => r.id === "outside")).toBe(false);
+  });
+
+  it("returns [] (the honest no-priced-pints-nearby fallback) for an empty ring", () => {
+    const faraway = venue({ id: "faraway", latitude: 51.9, longitude: 0.2, cheapestPrice: 5 });
+    expect(cheapestPintsNearPoint(centre, [faraway])).toEqual([]);
+  });
+
+  it("fails soft on a non-finite centroid rather than throwing", () => {
+    expect(cheapestPintsNearPoint([Number.NaN, 51.5], [near("x", { cheapestPrice: 4 })])).toEqual([]);
+  });
+});
+
+describe("planAreaSelect — the search-select journey (panel closed + camera + sheet)", () => {
+  const option = (over: Partial<AreaElsewhereOption> & Pick<AreaElsewhereOption, "slug" | "name" | "center">): AreaElsewhereOption => ({
+    coverage: null,
+    ...over,
+  });
+
+  it("collapses search and opens the Area sheet on any select", () => {
+    const journey = planAreaSelect(option({ slug: "shoreditch", name: "Shoreditch", center: [-0.079, 51.524], kind: "area" }));
+    // The dropdown CLOSES and the pubs display OPENS — both, every time.
+    expect(journey.collapseSearch).toBe(true);
+    expect(journey.openSheet).toBe("area");
+  });
+
+  it("flies a modelled area to the default zoom and shows it as-is by slug", () => {
+    const journey = planAreaSelect(option({ slug: "shoreditch", name: "Shoreditch", center: [-0.079, 51.524], kind: "area" }));
+    expect(journey.camera).toEqual({ center: [-0.079, 51.524], zoom: DEFAULT_AREA_FLY_ZOOM });
+    expect(journey.target).toEqual({ kind: "area", slug: "shoreditch", name: "Shoreditch" });
+  });
+
+  it("derives a radius ring for a locality and honours its deeper fly zoom", () => {
+    const journey = planAreaSelect(
+      option({ slug: "locality:willesden", name: "Willesden", center: [-0.23, 51.55], kind: "locality", zoom: 14.5 }),
+    );
+    expect(journey.camera).toEqual({ center: [-0.23, 51.55], zoom: 14.5 });
+    expect(journey.target).toEqual({ kind: "place", name: "Willesden", center: [-0.23, 51.55], radiusKm: LOCALITY_RADIUS_KM });
+  });
+
+  it("treats a borough as a place ring too", () => {
+    const journey = planAreaSelect(option({ slug: "borough:hackney", name: "Hackney", center: [-0.06, 51.545], kind: "borough" }));
+    expect(journey.target.kind).toBe("place");
+    expect(journey.camera.zoom).toBe(DEFAULT_AREA_FLY_ZOOM);
+  });
+
+  it("treats an option with no kind (the Area-button grid) as a modelled area", () => {
+    const journey = planAreaSelect(option({ slug: "clapham", name: "Clapham", center: [-0.138, 51.462] }));
+    expect(journey.target).toEqual({ kind: "area", slug: "clapham", name: "Clapham" });
+  });
+});
+
+describe("areaSheetOpenDelay — sheet opens as the camera settles", () => {
+  it("waits the fly's settle time under normal motion", () => {
+    expect(areaSheetOpenDelay(false)).toBe(AREA_SHEET_SETTLE_MS);
+  });
+
+  it("opens on the next tick when reduced-motion jumps the camera", () => {
+    expect(areaSheetOpenDelay(true)).toBe(0);
   });
 });
 
