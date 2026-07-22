@@ -412,10 +412,14 @@
    phantom empty band that clipped their last card mid-sentence into a void and
    fought #539's content-fit math. Zeroing the token here restores
    body = visible - header - dock for contextual sheets, exactly what
-   resolveHalfContentFit assumes; venue (.right) and planner (.left) keep the
-   real 72px strip. */
+   resolveHalfContentFit assumes. Owner report extended the same fix to the
+   planner (.left): it renders NO venueSheetStickyBar either (VenueStickyBar
+   mounts only inside VenueInspector), so its reservation clipped the Plan
+   tonight form above a dead band. Only the venue sheet (.right) earns and
+   keeps the real 72px strip. */
 @media (max-width: 640px) {
-  .mobileSharedSheet.contextual {
+  .mobileSharedSheet.contextual,
+  .mobileSharedSheet.left {
     --venue-cmdbar-h: 0px;
   }
 }
