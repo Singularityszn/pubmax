@@ -9,7 +9,7 @@ truth; the shell renders its descriptors.
 |---|---|---|
 | 1 | **Near me** | The only primary-weight chip (`.mobileMapChipPrimary`, filled accent) |
 | 2 | **Tonight**, **Filters** | Quiet chips. Filters absorbs the old Drinks + price chips (both always opened the same sheet); refinement count renders as the chip badge |
-| 3 | **TfL** (+ **List**) | Compact 44px icon-buttons in `.mobileMapUtilityCorner` (fixed, right edge, badge-capable) |
+| 3 | **TfL** | Compact 44px icon-button in `.mobileMapUtilityCorner` (fixed, right edge, badge-capable). **List view** lives in the Layers sheet shortcut grid. |
 
 The Tonight lane, plan pill, and tab bar are unchanged — they are lanes/docks,
 not chips, and sit outside this hierarchy.
@@ -25,11 +25,9 @@ not chips, and sit outside this hierarchy.
   that branch — that becomes its only mobile home. Add `zoneActive` as a third
   refinement input to `buildFiltersChip` (one-line: extend the input type and
   the count/aria parts). Desktop toolbar chip unchanged.
-- **#346 list view** (`fix/a11y-findings`): mount the List toggle as the second
-  icon-button inside `.mobileMapUtilityCorner` (after TfL), reusing its
-  existing handler; drop its standalone placement. Add an entry to
-  `buildTflCorner`'s pattern if it needs a model (it's stateless — a plain
-  IconButton is fine).
+- **#346 list view** (`fix/a11y-findings`): mount the List toggle inside the
+  Layers sheet's `.mobileLayerShortcuts`, reusing its existing handler; drop its
+  standalone placement and keep `.mobileMapUtilityCorner` reserved for TfL.
 
 ## Props change (shell)
 
