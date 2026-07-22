@@ -148,6 +148,7 @@ import type { ThingsToDoOpportunity } from "@/lib/citymcp/client";
 import { slimVenuesToPins } from "@/lib/slimPins";
 import { computeZonePintIndex } from "@/lib/zones";
 import ZonePicker from "@/components/map/ZonePicker";
+import AreaSheet from "@/components/map/AreaSheet";
 import { haversineKm } from "@/lib/haversine";
 import { mergeLazyDetailPins } from "@/lib/lazyVenueDetail";
 import {
@@ -168,6 +169,7 @@ import {
   shouldFitQueryVenuesOnArrival,
   resolveQueryRestoreFit,
 } from "@/lib/mapArrival";
+import { areaUnderCentre, type AreaElsewhereOption } from "@/lib/areaButton";
 import { getNightArea, nearestNightAreaForViewport, nightAreaForMapQuery } from "@/lib/nightAreas";
 import { defaultPoiHiddenForViewport } from "@/lib/poiToggleGroups";
 import {
@@ -1433,6 +1435,24 @@ export default function PubMap({
     () => activeNightArea ?? nearestNightAreaForViewport(cityId, mapViewport.center),
     [activeNightArea, cityId, mapViewport.center],
   );
+  // The Area button's live label: the Night Area whose region holds the map
+  // centre. Recomputes only when the viewport settles (moveend drives
+  // mapViewport), so panning updates it without a separate debounce timer.
+  const centreArea = useMemo(
+    () => areaUnderCentre(cityId, mapViewport.center),
+    [cityId, mapViewport.center],
+  );
+  // Area button "go somewhere else": bump a token to fly the canvas camera.
+  const [areaFocus, setAreaFocus] = useState<
+    { center: [number, number]; zoom: number; token: number } | null
+  >(null);
+  const flyToArea = useCallback((option: AreaElsewhereOption) => {
+    setAreaFocus((prev) => ({
+      center: option.center,
+      zoom: 14,
+      token: (prev?.token ?? 0) + 1,
+    }));
+  }, []);
   const applyGeneratedMobilePlan = useCallback((generated: GeneratedMobilePlan) => {
     const ids = generated.stops.map((stop) => stop.venueId);
     activateGeneratedPlan(generated.context.nightArea, ids);
@@ -1814,6 +1834,7 @@ export default function PubMap({
           poiHidden={poiHidden}
           onPoiHiddenChange={setPoiHidden}
           hideLayersControl={mobileViewport}
+          focusPoint={areaFocus}
           onViewportChange={setMapViewport}
           onBoundsChange={handleMapBoundsChange}
         />
@@ -1943,7 +1964,7 @@ export default function PubMap({
         />
 
         <MobileMapShell
-          cityLabel={activeNightArea?.name ?? city.displayName}
+          cityLabel={centreArea?.name ?? activeNightArea?.name ?? city.displayName}
           overlay={mobileShellState.overlay}
           onOverlayChange={changeMapOverlay}
           activeQuery={trimmedMapQuery}
@@ -2112,6 +2133,17 @@ export default function PubMap({
                 }))}
               />
             ) : null
+          }
+          areaContent={
+            <AreaSheet
+              cityId={cityId}
+              area={centreArea}
+              venues={venues}
+              center={mapViewport.center}
+              onSelectVenue={selectVenue}
+              onFlyToArea={flyToArea}
+              onClose={() => changeMapOverlay("none")}
+            />
           }
         />
 
