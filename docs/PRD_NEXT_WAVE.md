@@ -23,9 +23,10 @@ Greptile) must pass, then the architect (Fable) reviews before merge. Never
 - GitHub Actions still dead at the ACCOUNT level (billing/spending limit — every
   run `startup_failure` pre-allocation). Owner-only fix. Vercel build + local
   gates remain the interim gate; ci.yml stays manual-only until fixed.
-- W4 music data + W5 concierge what's-on intents + E2 Night Mode + lane_to_plan
-  analytics are on main; **W1 map Tonight surface is shipped** (lane + pin
-  badges + `/api/whats-on` consumers). Residual: walk/garden card enrichment.
+- W1–W5 What's-On flagship + E2 Night Mode + lane_to_plan analytics are on main
+  (map Tonight lane/pin badges, Deals + Music Discover lanes, concierge intents).
+  Residual polish ships via the Trust & Tonight residuals PR (walk/garden cues,
+  Discover→map absorb, usual-lot invite).
 
 ## House guardrails (bind every task)
 
