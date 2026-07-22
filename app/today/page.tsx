@@ -10,9 +10,9 @@ import { loadHistoricPubs } from "@/lib/historic";
 import { buildQuietPint } from "@/lib/quietPint";
 import { formatConditionDate } from "@/lib/tonightConditions";
 import { getPricedVenues } from "@/lib/venuePriceIndex";
+import { loadFreshWeatherSnapshot } from "@/lib/weatherFreshness.server";
 import { loadWhatsOn } from "@/lib/whatsOnStore";
 import heritageCache from "@/public/data/heritage_cache.json";
-import weatherSnapshot from "@/public/data/weather/latest.json";
 
 import TodayClient from "./TodayClient";
 import { buildTodayPintsIndex } from "./todayPints";
@@ -43,7 +43,11 @@ export const runtime = "nodejs";
 export default async function TodayPage() {
   const now = new Date();
 
-  const weather = buildWeatherBrief(weatherSnapshot, now);
+  // Store-first read-through: the freshest durable/cached reading when it is
+  // recent, else a live Open-Meteo top-up (reusing the cron's fetcher), else the
+  // committed snapshot with its honest staleness banner. Guarantees the card is
+  // never needlessly stale even between cron runs or before migration 0047 lands.
+  const weather = buildWeatherBrief(await loadFreshWeatherSnapshot({ now }), now);
 
   // Baseline-only (fail-soft live disabled): the brief must be reliable and
   // instant, and the bundled listings are already sourced. Tonight's own page
