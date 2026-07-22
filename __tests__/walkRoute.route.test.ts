@@ -9,6 +9,17 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { __resetWalkRouteStore } from "@/lib/walkRouteStore";
 import { encodeStops, type LngLat } from "@/lib/walkRoute";
 
+// The route module runs assertServerEnv() at import scope (the house pattern).
+// On Vercel vitest reads as production without test-scoped Supabase vars, so the
+// import would throw — mock it to a no-op, exactly like every sibling route test
+// (see __tests__/opsFreeze.test.ts). Pin the supabase seam to unconfigured so
+// walkRouteStore() selects the process-memory backend the cache tests rely on.
+vi.mock("@/lib/serverEnv", () => ({ assertServerEnv: () => {} }));
+vi.mock("@/lib/supabase", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/supabase")>();
+  return { ...actual, isSupabaseConfigured: () => false, requiresSupabaseStore: () => false };
+});
+
 const fetchWalkLeg = vi.hoisted(() => vi.fn());
 const orsApiKey = vi.hoisted(() => vi.fn<() => string | null>(() => null));
 
