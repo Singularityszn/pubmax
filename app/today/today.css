@@ -373,6 +373,55 @@
   color: var(--brass);
 }
 
+/* Cheapest pints near you today */
+.todayPintList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.todayPintRow {
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--panel-raised) 60%, transparent);
+  transition: border-color 0.18s ease;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .todayPintRow:hover {
+    border-color: color-mix(in srgb, var(--brass) 50%, var(--line));
+  }
+}
+
+.todayPintLink {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 44px;
+  padding: 8px 14px;
+  color: inherit;
+  text-decoration: none;
+}
+
+.todayPintName {
+  font-size: 0.9rem;
+  font-weight: 650;
+  line-height: 1.25;
+  color: var(--ink);
+}
+
+.todayPintPrice {
+  flex: none;
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--brass);
+  font-variant-numeric: tabular-nums;
+}
+
 /* Page foot */
 .todayFoot {
   display: flex;
