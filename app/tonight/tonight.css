@@ -285,8 +285,9 @@
 }
 
 .tonightVibeChip[data-active="true"] {
-  border-color: color-mix(in srgb, var(--brass) 70%, var(--line));
-  background: color-mix(in srgb, var(--brass) 16%, var(--panel-raised));
+  border-color: color-mix(in srgb, var(--brass) 85%, var(--line));
+  background: color-mix(in srgb, var(--brass) 22%, var(--panel-raised));
+  color: var(--ink);
 }
 
 @media (hover: hover) and (pointer: fine) {
@@ -322,9 +323,15 @@
 }
 
 .tonightChip[data-active="true"] {
-  border-color: color-mix(in srgb, var(--brass) 60%, var(--line));
-  background: color-mix(in srgb, var(--brass) 14%, var(--panel-raised));
+  border-color: color-mix(in srgb, var(--brass) 80%, var(--line));
+  background: color-mix(in srgb, var(--brass) 20%, var(--panel-raised));
   color: var(--ink);
+  font-weight: 800;
+}
+
+.tonightChip[data-active="true"] .tonightChipCount {
+  color: var(--ink);
+  opacity: 1;
 }
 
 @media (hover: hover) and (pointer: fine) {
