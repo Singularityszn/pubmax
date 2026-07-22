@@ -1112,6 +1112,104 @@ const SEVERITY_ORDER: Record<string, number> = {
   info: 1,
 };
 
+// ---------- Night-shaping filter: drop airline / airport-flight noise ----------
+//
+// CityMCP occasionally surfaces aviation stories (an EasyJet cancellation at
+// Gatwick, an airline strike) in the city-status feed. For a London pub-night
+// app those are noise: they don't shape whether you can get across town
+// tonight. This pure filter drops airline / flight-side airport signals, but
+// KEEPS any signal that also carries a ground-transport term — a rail, coach,
+// or road link is exactly how a Londoner reaches (or is blocked from) an
+// airport tonight, so "Gatwick Express suspended" stays while "EasyJet cancels
+// flights" goes.
+
+// Terms that mark a signal as flight-side aviation.
+const AVIATION_NOISE_PATTERNS: readonly RegExp[] = [
+  /\bairlines?\b/,
+  /\baviation\b/,
+  /\bflights?\b/,
+  /\beasyjet\b/,
+  /\bryanair\b/,
+  /\bbritish airways\b/,
+  /\bwizz ?air\b/,
+  /\bvueling\b/,
+  /\bjet2\b/,
+  /\blufthansa\b/,
+  /\bemirates\b/,
+  /\brunway\b/,
+  /\bcheck-?in desk\b/,
+  /\bdepartures? board\b/,
+  /\bbaggage\b/,
+  /\bboarding\b/,
+  /\bair traffic\b/,
+  /\bcabin crew\b/,
+];
+
+// Airport references that read as flight-side on their own — but each doubles
+// as a rail/coach destination, so an airport mention only counts as noise when
+// no ground-transport term rescues it.
+const AIRPORT_PATTERNS: readonly RegExp[] = [
+  /\bgatwick\b/,
+  /\bheathrow\b/,
+  /\bstansted\b/,
+  /\bluton airport\b/,
+  /\bcity airport\b/,
+  /\bsouthend airport\b/,
+  /\bairport\b/,
+];
+
+// Ground-transport terms that keep a signal in — it's about GETTING around
+// London tonight, whatever else it mentions.
+const GROUND_TRANSPORT_PATTERNS: readonly RegExp[] = [
+  /\btube\b/,
+  /\bunderground\b/,
+  /\boverground\b/,
+  /\belizabeth line\b/,
+  /\bnational rail\b/,
+  /\brail\b/,
+  /\btrains?\b/,
+  /\bexpress\b/,
+  /\bdlr\b/,
+  /\bthameslink\b/,
+  /\bsouthern\b/,
+  /\bsoutheastern\b/,
+  /\bcoach\b/,
+  /\bbus\b/,
+  /\btram\b/,
+  /\broad\b/,
+  /\bm25\b/,
+  /\ba\d{1,4}\b/,
+  /\bstation\b/,
+  /\bline\b/,
+];
+
+/**
+ * Is this signal flight-side aviation noise (an airline incident or an
+ * airport-terminal story with no bearing on getting around London tonight)?
+ * A signal that also mentions any ground-transport term is never noise — the
+ * ground link is the night-shaping part. Pure and exported for tests.
+ */
+export function isAviationNoiseSignal(signal: CityStatusSignal): boolean {
+  const text = `${signal.headline ?? ""} ${signal.detail ?? ""}`.toLowerCase();
+  if (!text.trim()) return false;
+  if (GROUND_TRANSPORT_PATTERNS.some((re) => re.test(text))) return false;
+  if (AVIATION_NOISE_PATTERNS.some((re) => re.test(text))) return true;
+  if (AIRPORT_PATTERNS.some((re) => re.test(text))) return true;
+  return false;
+}
+
+/**
+ * Drop flight-side aviation noise from a city-status signal list, keeping
+ * genuinely night-shaping London items (tube / rail / bus / road). Pure —
+ * returns a new array, never mutates. Exported for tests + the status route.
+ */
+export function filterNightShapingSignals(
+  signals: readonly CityStatusSignal[] | undefined,
+): CityStatusSignal[] {
+  if (!Array.isArray(signals)) return [];
+  return signals.filter((signal) => !isAviationNoiseSignal(signal));
+}
+
 /**
  * Return the top-N signals by severity (major > notable > info > unknown),
  * preserving upstream order for equal severities. Used by the status route

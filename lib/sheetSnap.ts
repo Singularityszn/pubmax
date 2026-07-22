@@ -156,3 +156,44 @@ export function resolveSheetSnap({
 export function sheetTranslateY(snap: SheetSnap, viewportHeight: number): number {
   return snapToY(snap, viewportHeight);
 }
+
+export type ContentFitInput = {
+  /** Viewport height in px. */
+  viewportHeight: number;
+  /** Measured sheet-header height in px. */
+  headerHeight: number;
+  /** Reserved clearance (tab bar + safe area) below the body, in px. */
+  dockClearance: number;
+  /** The body's natural content extent (scrollHeight) in px. */
+  contentHeight: number;
+};
+
+export type ContentFit = {
+  /** Body height to pin (equals the natural content height). */
+  bodyPx: number;
+  /** translateY (px) that anchors content `dockClearance` above the tab bar. */
+  translatePx: number;
+};
+
+/**
+ * Content-fit for the `half` detent (the void-killer, owner's "TfL live"
+ * screenshot). When the body's natural content is SHORTER than the height the
+ * half snap would give it, hug the content instead of stretching to 55dvh and
+ * showing a white void: pin the body to its content height and translate the
+ * sheet so the content's bottom sits the same `dockClearance` above the tab bar
+ * the full-height half uses.
+ *
+ * Returns null when content is tall enough to fill (or exceed) half — the
+ * caller then uses the normal 55dvh half detent — or when inputs are
+ * degenerate. The result never exceeds the half snap on open, and because it
+ * only governs the resting half detent, full/peek and the live drag stay
+ * authoritative. Pure; exported for tests.
+ */
+export function resolveHalfContentFit(input: ContentFitInput): ContentFit | null {
+  const { viewportHeight, headerHeight, dockClearance, contentHeight } = input;
+  if (!(viewportHeight > 0) || !(contentHeight > 0)) return null;
+  const halfBodyPx = viewportHeight * SHEET_SNAP_FRACTIONS.half - headerHeight - dockClearance;
+  if (!(halfBodyPx > 0) || contentHeight >= halfBodyPx) return null;
+  const translatePx = Math.max(0, Math.round(viewportHeight - headerHeight - contentHeight - dockClearance));
+  return { bodyPx: contentHeight, translatePx };
+}

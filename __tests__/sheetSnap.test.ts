@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   resolveSheetSnap,
+  resolveHalfContentFit,
   sheetTranslateY,
   sheetTranslateYFraction,
   SHEET_SNAP_FRACTIONS,
@@ -188,5 +189,43 @@ describe("resolveSheetSnap — edge cases", () => {
       velocity: 2,
     });
     expect(result).toEqual({ snap: "half", dismissed: false });
+  });
+});
+
+describe("resolveHalfContentFit — content-aware half detent (void killer)", () => {
+  const VH = 844; // iPhone 14/15 logical height
+  const HEADER = 64;
+  const DOCK = 120;
+
+  it("hugs short content: pins body to content and anchors it above the dock", () => {
+    const contentHeight = 140; // one small card
+    const fit = resolveHalfContentFit({ viewportHeight: VH, headerHeight: HEADER, dockClearance: DOCK, contentHeight });
+    expect(fit).not.toBeNull();
+    expect(fit!.bodyPx).toBe(contentHeight);
+    // Content bottom lands exactly `DOCK` above the viewport bottom.
+    expect(fit!.translatePx).toBe(Math.round(VH - HEADER - contentHeight - DOCK));
+    // Revealed height (header + body + dock) never exceeds the half snap.
+    const revealed = HEADER + fit!.bodyPx + DOCK;
+    expect(revealed).toBeLessThanOrEqual(VH * SHEET_SNAP_FRACTIONS.half + 0.5);
+  });
+
+  it("sits LOWER than the plain half snap, so a short sheet is smaller not taller", () => {
+    const fit = resolveHalfContentFit({ viewportHeight: VH, headerHeight: HEADER, dockClearance: DOCK, contentHeight: 140 });
+    expect(fit!.translatePx).toBeGreaterThan(sheetTranslateY("half", VH));
+  });
+
+  it("returns null when content is as tall as (or taller than) the half body", () => {
+    const halfBody = VH * SHEET_SNAP_FRACTIONS.half - HEADER - DOCK;
+    expect(
+      resolveHalfContentFit({ viewportHeight: VH, headerHeight: HEADER, dockClearance: DOCK, contentHeight: halfBody }),
+    ).toBeNull();
+    expect(
+      resolveHalfContentFit({ viewportHeight: VH, headerHeight: HEADER, dockClearance: DOCK, contentHeight: halfBody + 400 }),
+    ).toBeNull();
+  });
+
+  it("returns null for degenerate inputs (no viewport, no content)", () => {
+    expect(resolveHalfContentFit({ viewportHeight: 0, headerHeight: HEADER, dockClearance: DOCK, contentHeight: 100 })).toBeNull();
+    expect(resolveHalfContentFit({ viewportHeight: VH, headerHeight: HEADER, dockClearance: DOCK, contentHeight: 0 })).toBeNull();
   });
 });
