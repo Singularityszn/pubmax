@@ -3,7 +3,7 @@
 // public.venue_operators), chosen at the single venueOperatorsStore() seam,
 // exactly like visitReportsStore / areaDemandStore.
 //
-// Supabase when env keys exist, process-memory otherwise. Before migration 0047
+// Supabase when env keys exist, process-memory otherwise. Before migration 0048
 // lands (or on a schema-cache miss) local/preview paths fail soft to memory, so
 // demos keep working and become durable the moment the table exists. Deployed
 // production fails closed: missing-schema and hard write failures THROW so the

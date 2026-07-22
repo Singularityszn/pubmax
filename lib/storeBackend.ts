@@ -86,8 +86,9 @@ export function missingTables(...tables: string[]): (err: unknown) => boolean {
 export type MemoryFallbackWarner = (context: string, err: unknown) => void;
 
 /**
- * Deduped console.warn when the Supabase path falls back to process-memory
- * because the durable table is missing. One warn per `context` per process.
+ * Deduped console.warn when a Supabase table is missing and the caller's
+ * schema-miss policy is invoked. That policy may use memory outside production
+ * or fail closed in production, so the log must not promise a fallback.
  */
 export function createMemoryFallbackWarner(
   storeTag: string,
@@ -99,7 +100,7 @@ export function createMemoryFallbackWarner(
       if (seen.has(context)) return;
       seen.add(context);
       console.warn(
-        `[${storeTag}] ${context} durable table missing — using process-memory fallback (${migrationHint}):`,
+        `[${storeTag}] ${context} durable table missing — applying schema-miss policy (${migrationHint}):`,
         errorMessage(err),
       );
     },
