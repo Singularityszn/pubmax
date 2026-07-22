@@ -29,7 +29,6 @@ import PubMapCanvas from "@/components/PubMapCanvas";
 import MobileMapShell from "@/components/mobile/MobileMapShell";
 import { Sheet } from "@/components/ui/sheet";
 import MobileTflPanel, { useMobileTflStatus } from "@/components/mobile/MobileTflPanel";
-import { SearchField } from "@/components/ui/search-field";
 import { Button } from "@/components/ui/button";
 import type { GeneratedMobilePlan } from "@/components/plan/MobilePlanActivation";
 const MobilePlanActivation = dynamic(
@@ -149,6 +148,7 @@ import { slimVenuesToPins } from "@/lib/slimPins";
 import { computeZonePintIndex } from "@/lib/zones";
 import ZonePicker from "@/components/map/ZonePicker";
 import AreaSheet from "@/components/map/AreaSheet";
+import MapSearchSuggest from "@/components/map/MapSearchSuggest";
 import { haversineKm } from "@/lib/haversine";
 import { mergeLazyDetailPins } from "@/lib/lazyVenueDetail";
 import {
@@ -1987,18 +1987,19 @@ export default function PubMap({
           planInteractive={mobileViewport}
           onPlan={openPlanning}
           searchContent={
-            <SearchField
+            <MapSearchSuggest
               id="mobileMapSearchInput"
-              value={filters.query}
-              onChange={(query) => setFilters((current) => ({ ...current, query }))}
-              onKeyDown={(event) => {
-                if (event.key === "Enter") {
-                  event.preventDefault();
-                  selectTopSearchMatch();
-                }
-              }}
+              cityId={cityId}
+              query={filters.query}
+              onQueryChange={(query) => setFilters((current) => ({ ...current, query }))}
+              venues={venues}
+              userLocation={userLocation}
+              mapCenter={mapViewport.center}
               placeholder={`Search ${city.displayName} pubs or areas`}
-              autoFocus
+              onSelectVenue={selectVenue}
+              onFlyToArea={flyToArea}
+              onSubmitQuery={selectTopSearchMatch}
+              onClose={() => changeMapOverlay("none")}
             />
           }
           filtersContent={
