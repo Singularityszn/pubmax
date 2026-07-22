@@ -61,6 +61,7 @@ beforeEach(() => {
 afterEach(() => {
   vi.useRealTimers();
   vi.restoreAllMocks();
+  vi.unstubAllGlobals();
 });
 
 describe("countSpillingNow (pure)", () => {
@@ -147,6 +148,10 @@ describe("subscribeToNewDrops — SIGNAL ONLY", () => {
 });
 
 describe("subscribeToComments", () => {
+  beforeEach(() => {
+    vi.stubGlobal("window", {});
+  });
+
   it("is a no-op for a falsy dropId", () => {
     const nudge = vi.fn();
     const unsub = subscribeToComments("", nudge);
@@ -185,5 +190,15 @@ describe("subscribeToComments", () => {
     expect(poll).toHaveBeenCalledTimes(1);
     expect(nudge).not.toHaveBeenCalled();
     unsub();
+  });
+
+  it("does not retain a polling timer during server rendering", () => {
+    vi.unstubAllGlobals();
+    const nudge = vi.fn();
+    const unsub = subscribeToComments("drop-1", nudge);
+
+    vi.advanceTimersByTime(60_000);
+    expect(nudge).not.toHaveBeenCalled();
+    expect(() => unsub()).not.toThrow();
   });
 });

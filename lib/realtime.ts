@@ -100,6 +100,7 @@ function subscribeByPolling(
   options: SubscribeOptions | undefined,
 ): Unsubscribe {
   if (options?.enabled === false) return () => {};
+  if (typeof window === "undefined") return () => {};
   const id = setInterval(options?.poll ?? onSignal, POLL_INTERVAL_MS);
   return () => clearInterval(id);
 }
