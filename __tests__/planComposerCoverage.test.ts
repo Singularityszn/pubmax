@@ -8,6 +8,7 @@ import {
   nightAreaOptionLabel,
   nightAreaSelectorGroups,
   nightContextChanged,
+  planLockValidationError,
   routeStopsFromGenerated,
   swapDraftStop,
 } from "@/components/plan/PlanComposer";
@@ -109,6 +110,25 @@ describe("PlanComposer Night Area coverage states", () => {
 });
 
 describe("PlanComposer route preview seam", () => {
+  it("uses house error copy when Lock it in is missing only a name", () => {
+    expect(planLockValidationError({
+      creatorName: " ",
+      startTime: "2026-07-20T18:00",
+      completeStopCount: 2,
+    })).toEqual({ message: "Add your name.", focus: "name" });
+  });
+
+  it("keeps the broader Lock it in validation copy for mixed missing fields", () => {
+    expect(planLockValidationError({
+      creatorName: " ",
+      startTime: "",
+      completeStopCount: 0,
+    })).toEqual({
+      message: "Add your name, a start time, and choose at least one venue from the list.",
+      focus: "name",
+    });
+  });
+
   it("keeps exactly three generated stops and attaches the top-level alternative pool", () => {
     const stops = routeStopsFromGenerated([
       { venueId: "a", venueName: "A" },

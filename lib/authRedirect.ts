@@ -385,6 +385,27 @@ export function releaseAuthAttempt(
   }
 }
 
+/** User-initiated cancel: clear the active browser claim so sign-in can restart before the TTL. */
+export function cancelAuthAttempt(
+  persistentStorage?: AuthFragmentStorage | null,
+  tabStorage?: AuthFragmentStorage | null,
+): boolean {
+  let attemptId: string | null = null;
+  try {
+    attemptId = persistentStorage ? readActiveAttempt(persistentStorage)?.id ?? null : null;
+  } catch {
+    attemptId = null;
+  }
+  try {
+    attemptId ??= tabStorage ? readTabAttempt(tabStorage)?.id ?? null : null;
+  } catch {
+    // No tab marker means there may still be a browser-wide active claim.
+  }
+  if (!attemptId) return false;
+  releaseAuthAttempt(attemptId, persistentStorage, tabStorage);
+  return true;
+}
+
 function cleanAuthCallbackUrl(currentUrl: string): string | null {
   try {
     const current = new URL(currentUrl);

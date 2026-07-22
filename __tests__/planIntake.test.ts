@@ -7,6 +7,7 @@ import {
   PLAN_INTAKE_STEPS,
   PLAN_INTAKE_STORAGE_KEY,
   buildPlanGenerationIntakeBody,
+  canSeedPlanIntakeArea,
   clearPlanIntakeDraft,
   createPlanIntakeDraft,
   londonDateTimeInputFromIso,
@@ -19,6 +20,7 @@ import {
   readPlanIntakeDraft,
   reopenPlanIntakeStep,
   resolveFutureLondonStartIso,
+  resolvePlanIntakeAreaSeed,
   settlePlanIntakeStep,
   skipRemainingPlanIntake,
   writePlanIntakeDraft,
@@ -137,6 +139,24 @@ describe("progressive Plan intake", () => {
     expect(reopened).toMatchObject({ currentStep: "budget", completed: false });
     expect(reopened.settledSteps).not.toContain("budget");
     expect(settlePlanIntakeStep(reopened, { skip: true }).completed).toBe(true);
+  });
+});
+
+describe("Plan intake area seed precedence", () => {
+  it("prefers a live-position patch over a stale remembered patch", () => {
+    expect(resolvePlanIntakeAreaSeed("shoreditch", { kind: "patch", id: "soho" }))
+      .toEqual({ kind: "patch", id: "shoreditch" });
+  });
+
+  it("falls back to the remembered area when live position is unavailable", () => {
+    expect(resolvePlanIntakeAreaSeed(null, { kind: "patch", id: "soho" }))
+      .toEqual({ kind: "patch", id: "soho" });
+  });
+
+  it("only auto-seeds a blank intake draft", () => {
+    expect(canSeedPlanIntakeArea(createPlanIntakeDraft())).toBe(true);
+    expect(canSeedPlanIntakeArea(createPlanIntakeDraft({ kind: "patch", id: "soho" }))).toBe(false);
+    expect(canSeedPlanIntakeArea(settlePlanIntakeStep(createPlanIntakeDraft(), { skip: true }))).toBe(false);
   });
 });
 

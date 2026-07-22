@@ -34,6 +34,7 @@ import { getSupabaseBrowser, isAuthConfigured } from "@/lib/authClient";
 import {
   AUTH_RETURN_FRAGMENT_RESTORED_EVENT,
   beginCoordinatedAuthAttempt,
+  cancelAuthAttempt,
   releaseAuthAttempt,
   scrubAuthCallback,
   type AuthAttemptStart,
@@ -131,6 +132,10 @@ function releaseBrowserAuthAttempt(attemptId: string): void {
   releaseAuthAttempt(attemptId, browserLocalStorage(), browserSessionStorage());
 }
 
+function cancelBrowserAuthAttempt(): void {
+  cancelAuthAttempt(browserLocalStorage(), browserSessionStorage());
+}
+
 async function prepareAuthCallback(
   currentUrl: string,
   requestedNext?: string,
@@ -179,6 +184,8 @@ export type AuthContextValue = {
   signInWithMicrosoft: () => Promise<{ error: string | null }>;
   /** Send a passwordless email link with normalized, non-enumerating feedback. */
   signInWithEmail: (email: string, next?: string) => Promise<MagicLinkResult>;
+  /** User cancelled an abandoned provider or magic-link attempt. */
+  cancelAuthAttempt: () => void;
   /** Clear the local session. */
   signOut: () => Promise<void>;
   /**
@@ -593,6 +600,7 @@ export function AuthProvider({ children }: { children: ReactNode }): React.JSX.E
       signInWithGoogle,
       signInWithMicrosoft,
       signInWithEmail,
+      cancelAuthAttempt: cancelBrowserAuthAttempt,
       signOut,
       handle: canonicalHandle ?? handleFromUser(user),
     };
@@ -638,6 +646,7 @@ export function useAuth(): AuthContextValue {
     signInWithGoogle: async () => ({ error: "Sign-in is not configured." }),
     signInWithMicrosoft: async () => ({ error: "Sign-in is not configured." }),
     signInWithEmail: async () => ({ status: "error", message: "Sign-in is not configured." }),
+    cancelAuthAttempt: () => {},
     signOut: async () => {},
     handle: null,
   };
