@@ -46,3 +46,11 @@ delete process.env.EXA_API_KEY;
 delete process.env.FIRECRAWL_API_KEY;
 delete process.env.TICKETMASTER_API_KEY;
 delete process.env.SKIDDLE_API_KEY;
+
+// Same trap for the road-route plane: the walk-route provider (lib/walkRouteProvider.ts)
+// routes crawl legs through OpenRouteService when ORS_API_KEY is present. The
+// provider + route tests assert the documented keyless default (return null →
+// straight-line fallback). A leaked Production key would flip them to the
+// key-present path only inside Vercel builds. Key-present behaviour is proven
+// with an explicit apiKey / vi.stubEnv.
+delete process.env.ORS_API_KEY;
