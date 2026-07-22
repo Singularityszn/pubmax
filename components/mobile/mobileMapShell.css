@@ -405,3 +405,14 @@
   .mobileSharedSheet.mapDrawer { transition: none !important; }
   .mobilePlanActivation:active { transform: translateX(-50%); }
 }
+
+/* Owner report (Plan tonight sheet): fields clipped above a dead band. Same
+   phantom-band disease as the contextual fix above - the planner sheet (.left)
+   renders NO venueSheetStickyBar (VenueStickyBar mounts only inside
+   VenueInspector), so its 72px command-bar reservation was pure void that
+   clipped the form. Only the venue sheet (.right) keeps the real strip. */
+@media (max-width: 640px) {
+  .mobileSharedSheet.left {
+    --venue-cmdbar-h: 0px;
+  }
+}
