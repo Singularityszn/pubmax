@@ -157,9 +157,9 @@ export const metadata: Metadata = {
     shortcut: "/favicon.ico",
     icon: [
       { url: "/favicon.ico", type: "image/x-icon", sizes: "48x48" },
-      { url: "/favicon.svg?v=20260721-clink", type: "image/svg+xml", sizes: "any" },
-      { url: "/icon-192.png?v=20260721-clink", type: "image/png", sizes: "192x192" },
-      { url: "/icon-512.png?v=20260721-clink", type: "image/png", sizes: "512x512" },
+      { url: "/favicon.svg?v=20260722-x", type: "image/svg+xml", sizes: "any" },
+      { url: "/icon-192.png?v=20260722-x", type: "image/png", sizes: "192x192" },
+      { url: "/icon-512.png?v=20260722-x", type: "image/png", sizes: "512x512" },
     ],
     // iOS Safari requires a raster apple-touch-icon (SVG is ignored).
     apple: [{ url: "/apple-touch-icon.png", type: "image/png", sizes: "180x180" }],

@@ -21,7 +21,7 @@
 .markStrike__beam {
   fill: none;
   stroke: #fff; /* white = reveal, inside the <mask> luminance space */
-  stroke-width: 20;
+  stroke-width: 22; /* wide enough to cover the ascending double-stroke band */
   stroke-linecap: round;
   stroke-dasharray: 1 1;
 }
