@@ -1,8 +1,9 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
+import { Clock3, Footprints, LockKeyhole, Navigation, Send } from "lucide-react";
 
-import { INTERCEPT_ETA_OPTIONS, recommendCrawlIntercept } from "@/lib/crawlIntercept";
+import { INTERCEPT_ETA_OPTIONS, recommendCrawlIntercept, summarizeInterceptProgress } from "@/lib/crawlIntercept";
 import type { PlanState } from "@/lib/plan";
 
 const POLL_INTERVAL_MS = 20_000;
@@ -128,9 +129,7 @@ export default function JoinInMotion({ planId, initialState }: { planId: string;
     () => recommendCrawlIntercept(plan, etaMinutes),
     [etaMinutes, plan],
   );
-  const hasProgress = Boolean(plan.actions?.some(
-    (action) => action.stopPosition !== null && (action.type === "arrived" || action.type === "skipped"),
-  ));
+  const progress = useMemo(() => summarizeInterceptProgress(plan), [plan]);
 
   const chooseEta = useCallback((minutes: (typeof INTERCEPT_ETA_OPTIONS)[number]) => {
     inMemoryEta.set(planId, minutes);
@@ -215,7 +214,7 @@ export default function JoinInMotion({ planId, initialState }: { planId: string;
             <div className="joinInMotion__resultCopy">
               <p className="joinInMotion__aim">Aim for stop {recommendation.targetIndex + 1}</p>
               <h3>{recommendation.stop.venueName}</h3>
-              <p className="joinInMotion__note">{recommendationNote(recommendation.kind, hasProgress)}</p>
+              <p className="joinInMotion__note">{recommendationNote(recommendation.kind, progress.hasProgress)}</p>
             </div>
           </>
         ) : (
@@ -226,15 +225,43 @@ export default function JoinInMotion({ planId, initialState }: { planId: string;
           </div>
         )}
       </div>
-      <p className="joinInMotion__method">Estimate allows about 35 minutes per pub and updates from confirmed crew check-ins.</p>
+
+      <div className="joinInMotion__pulse" aria-label="Crawl signal">
+        <div className="joinInMotion__pulseItem">
+          <Clock3 size={15} aria-hidden="true" />
+          <span>
+            <strong>{progress.completedStops} of {progress.totalStops}</strong>
+            <small>crew check-ins</small>
+          </span>
+        </div>
+        <div className="joinInMotion__pulseItem">
+          <Footprints size={15} aria-hidden="true" />
+          <span>
+            <strong>{recommendation ? `${etaMinutes} min` : "Ask first"}</strong>
+            <small>{recommendation?.kind === "ahead" ? "meet ahead" : "walking ETA"}</small>
+          </span>
+        </div>
+        <div className="joinInMotion__pulseItem">
+          <LockKeyhole size={15} aria-hidden="true" />
+          <span>
+            <strong>Private</strong>
+            <small>no location ping</small>
+          </span>
+        </div>
+      </div>
+      <p className="joinInMotion__method">
+        Estimate allows about 35 minutes per pub and updates from confirmed crew check-ins.
+        {progress.nextStop ? ` Next likely move: ${progress.nextStop.venueName}.` : ""}
+      </p>
 
       {recommendation && directionsUrl ? (
-        <div className="joinInMotion__actions">
+        <div className="joinInMotion__actions" aria-label="Catch-up actions">
           <a href={directionsUrl} target="_blank" rel="noreferrer">
+            <Navigation size={16} aria-hidden="true" />
             Find walking directions
-            <span aria-hidden="true">↗</span>
           </a>
           <button type="button" onClick={() => void tellCrew()}>
+            <Send size={15} aria-hidden="true" />
             Tell the crew
           </button>
         </div>

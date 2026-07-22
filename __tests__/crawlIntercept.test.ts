@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   INTERCEPT_ETA_OPTIONS,
   recommendCrawlIntercept,
+  summarizeInterceptProgress,
 } from "@/lib/crawlIntercept";
 import type { PlanActionDTO, PlanState, PlanStopDTO } from "@/lib/plan";
 
@@ -133,6 +134,33 @@ describe("recommendCrawlIntercept", () => {
       currentIndex: 1,
       targetIndex: 1,
       kind: "current",
+    });
+  });
+
+  it("summarizes crawl progress for the mobile catch-up surface", () => {
+    const state = plan(
+      [stop(20, "Third"), stop(4, "First"), stop(11, "Second")],
+      [action("arrived", 4), action("arrived", 999, "removed-stop"), action("skipped", 4, "dupe")],
+    );
+
+    expect(summarizeInterceptProgress(state)).toMatchObject({
+      totalStops: 3,
+      completedStops: 1,
+      currentIndex: 1,
+      currentStop: { venueName: "Second" },
+      nextStop: { venueName: "Third" },
+      hasProgress: true,
+    });
+  });
+
+  it("returns an empty progress summary when a crawl has no stops", () => {
+    expect(summarizeInterceptProgress(plan([]))).toEqual({
+      totalStops: 0,
+      completedStops: 0,
+      currentIndex: null,
+      currentStop: null,
+      nextStop: null,
+      hasProgress: false,
     });
   });
 

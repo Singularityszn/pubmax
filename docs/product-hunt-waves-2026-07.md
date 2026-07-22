@@ -162,3 +162,10 @@ a second generator, a second push registry, or a competing ingestion pipeline.
 The cross-cutting launch rule comes from the FriendMap and Gowalla failure mode:
 do not require critical mass or contact import before the feature has value. One
 guest link must produce a useful outcome for one real night.
+
+## Wave 2 shipped
+
+- Web Share Target registration for installed/mobile users.
+- `/share` triages shared pub names, map links, and PUBMAXX links.
+- Internal PUBMAXX links open directly; external shares become `/map?q=...&intent=share`.
+- No auth, persistence, location collection, or ownership overlap with map sheet/planner lanes.

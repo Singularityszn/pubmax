@@ -16,6 +16,15 @@ export type InterceptRecommendation = {
   kind: InterceptTargetKind;
 };
 
+export type InterceptProgressSummary = {
+  totalStops: number;
+  completedStops: number;
+  currentIndex: number | null;
+  currentStop: PlanStopDTO | null;
+  nextStop: PlanStopDTO | null;
+  hasProgress: boolean;
+};
+
 function normalizeEtaMinutes(value: unknown): InterceptEtaMinutes {
   const parsed = typeof value === "number"
     ? value
@@ -38,6 +47,52 @@ function normalizeEtaMinutes(value: unknown): InterceptEtaMinutes {
   return nearest;
 }
 
+function sortedStops(state: PlanState): PlanStopDTO[] {
+  return [...state.stops].sort((a, b) => a.position - b.position);
+}
+
+function completedStopPositions(state: PlanState): Set<number> {
+  const completedPositions = new Set<number>();
+  const routePositions = new Set(state.stops.map((stop) => stop.position));
+  for (const action of state.actions ?? []) {
+    if (
+      action.stopPosition !== null
+      && routePositions.has(action.stopPosition)
+      && (action.type === "arrived" || action.type === "skipped")
+    ) {
+      completedPositions.add(action.stopPosition);
+    }
+  }
+  return completedPositions;
+}
+
+export function summarizeInterceptProgress(state: PlanState): InterceptProgressSummary {
+  const stops = sortedStops(state);
+  if (stops.length === 0) {
+    return {
+      totalStops: 0,
+      completedStops: 0,
+      currentIndex: null,
+      currentStop: null,
+      nextStop: null,
+      hasProgress: false,
+    };
+  }
+
+  const completedPositions = completedStopPositions(state);
+  const firstUncompleted = stops.findIndex((stop) => !completedPositions.has(stop.position));
+  const currentIndex = firstUncompleted === -1 ? stops.length - 1 : firstUncompleted;
+
+  return {
+    totalStops: stops.length,
+    completedStops: completedPositions.size,
+    currentIndex,
+    currentStop: stops[currentIndex] ?? null,
+    nextStop: stops[currentIndex + 1] ?? null,
+    hasProgress: completedPositions.size > 0,
+  };
+}
+
 /**
  * Recommend the pub where a late arrival should intercept a crawl.
  *
@@ -50,19 +105,10 @@ export function recommendCrawlIntercept(
   state: PlanState,
   etaMinutes: unknown,
 ): InterceptRecommendation | null {
-  const stops = [...state.stops].sort((a, b) => a.position - b.position);
+  const stops = sortedStops(state);
   if (stops.length === 0) return null;
 
-  const completedPositions = new Set<number>();
-  for (const action of state.actions ?? []) {
-    if (
-      action.stopPosition !== null
-      && (action.type === "arrived" || action.type === "skipped")
-    ) {
-      completedPositions.add(action.stopPosition);
-    }
-  }
-
+  const completedPositions = completedStopPositions(state);
   const firstUncompleted = stops.findIndex((stop) => !completedPositions.has(stop.position));
   const currentIndex = firstUncompleted === -1 ? stops.length - 1 : firstUncompleted;
   const normalizedEta = normalizeEtaMinutes(etaMinutes);

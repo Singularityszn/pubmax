@@ -693,11 +693,14 @@ html[data-theme="dark"] .planCrew,
 html[data-theme="dark"] .planVibe,
 html[data-theme="dark"] .planShare,
 html[data-theme="dark"] .planComposer { border-radius: 12px; }
+html[data-theme="dark"] .mobilePlanHandoff { border-radius: 12px; }
 html[data-theme="dark"] .planSummary__marker,
 html[data-theme="dark"] .planCrew__join button,
 html[data-theme="dark"] .planComposer__conciergeInput button,
 html[data-theme="dark"] .planIntake__continue,
-html[data-theme="dark"] .planComposer__submit { color: #090d0b; }
+html[data-theme="dark"] .planComposer__submit,
+html[data-theme="dark"] .mobilePlanHandoff__marker,
+html[data-theme="dark"] .mobilePlanHandoff__primary { color: #090d0b; }
 
 @media (max-width: 760px) {
   .planPage__grid { grid-template-columns: 1fr; }
@@ -752,6 +755,214 @@ html[data-theme="dark"] .planComposer__submit { color: #090d0b; }
   .planComposer__routeStale { align-items: stretch; flex-direction: column; }
   .planComposer__regenerate { width: 100%; }
   .planComposer__routeStatus { margin-left: 0; }
+}
+
+/* Mobile v1 handoff — the first shared-plan glance for someone opening the
+   link from a phone. It uses the same intercept logic as Join in Motion, but
+   stays shallow: one destination, one primary action, two secondary actions. */
+.mobilePlanHandoff {
+  display: grid;
+  gap: 16px;
+  width: min(100%, 1160px);
+  margin: calc(-1 * clamp(18px, 4vw, 34px)) auto clamp(22px, 5vw, 46px);
+  padding: clamp(18px, 3.5vw, 28px);
+  border: 1px solid color-mix(in srgb, var(--plan-accent) 30%, var(--line));
+  border-radius: clamp(18px, 3vw, 28px);
+  background:
+    linear-gradient(135deg, color-mix(in srgb, var(--plan-accent) 10%, transparent), transparent 44%),
+    color-mix(in srgb, var(--panel-raised) 96%, transparent);
+  box-shadow: var(--shadow-sm);
+}
+
+.mobilePlanHandoff__status {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  color: var(--muted);
+  font-size: 0.72rem;
+}
+.mobilePlanHandoff__status span {
+  color: var(--plan-accent-strong);
+  font-weight: 850;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+.mobilePlanHandoff__status strong {
+  color: var(--ink-soft);
+  font-weight: 760;
+}
+
+.mobilePlanHandoff__target {
+  display: grid;
+  grid-template-columns: 50px minmax(0, 1fr);
+  gap: 14px;
+  align-items: center;
+}
+.mobilePlanHandoff__marker {
+  display: grid;
+  place-items: center;
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: var(--plan-accent);
+  color: #fff;
+  box-shadow: 0 0 0 6px color-mix(in srgb, var(--plan-accent) 12%, transparent);
+  font-size: 1rem;
+  font-weight: 900;
+}
+.mobilePlanHandoff__target p {
+  margin: 0 0 3px;
+  color: var(--muted);
+  font-size: 0.73rem;
+  font-weight: 850;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.mobilePlanHandoff__target h2 {
+  overflow: hidden;
+  margin: 0;
+  color: var(--ink);
+  font-family: var(--display, var(--serif));
+  font-size: clamp(1.55rem, 5vw, 2.3rem);
+  line-height: 1;
+  letter-spacing: -0.035em;
+  text-overflow: ellipsis;
+}
+
+.mobilePlanHandoff__meta {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+.mobilePlanHandoff__meta span {
+  display: inline-flex;
+  min-width: 0;
+  min-height: 40px;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 8px;
+  border: 1px solid var(--line-soft);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--panel) 78%, transparent);
+  color: var(--ink-soft);
+  font-size: 0.72rem;
+  font-weight: 760;
+  white-space: nowrap;
+}
+.mobilePlanHandoff__meta svg { flex: 0 0 auto; color: var(--plan-accent-strong); }
+
+.mobilePlanHandoff__actions {
+  display: grid;
+  grid-template-columns: minmax(0, 1.35fr) repeat(2, minmax(70px, 0.65fr));
+  gap: 8px;
+}
+.mobilePlanHandoff__actions a,
+.mobilePlanHandoff__actions button {
+  display: inline-flex;
+  min-width: 0;
+  min-height: 50px;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  border: 1px solid color-mix(in srgb, var(--plan-accent) 38%, var(--line));
+  border-radius: 12px;
+  padding: 10px 12px;
+  background: color-mix(in srgb, var(--plan-accent) 7%, var(--panel));
+  color: var(--plan-accent-strong);
+  font: inherit;
+  font-size: 0.78rem;
+  font-weight: 850;
+  text-align: center;
+  text-decoration: none;
+  cursor: pointer;
+}
+.mobilePlanHandoff__actions svg { flex: 0 0 auto; }
+.mobilePlanHandoff__actions .mobilePlanHandoff__primary {
+  border-color: var(--plan-accent);
+  background: var(--plan-accent);
+  color: #fff;
+}
+.mobilePlanHandoff__actions a:hover,
+.mobilePlanHandoff__actions button:hover {
+  border-color: var(--plan-accent);
+  background: color-mix(in srgb, var(--plan-accent) 12%, var(--panel));
+  color: var(--ink);
+}
+.mobilePlanHandoff__actions .mobilePlanHandoff__primary:hover {
+  background: color-mix(in srgb, var(--plan-accent) 88%, var(--ink));
+  color: var(--paper);
+}
+.mobilePlanHandoff__actions a:focus-visible,
+.mobilePlanHandoff__actions button:focus-visible {
+  outline: 3px solid color-mix(in srgb, var(--plan-accent) 58%, transparent);
+  outline-offset: 3px;
+}
+
+.mobilePlanHandoff__privacy,
+.mobilePlanHandoff__shareStatus {
+  margin: -5px 0 0;
+  color: var(--muted);
+  font-size: 0.72rem;
+  line-height: 1.35;
+}
+.mobilePlanHandoff__shareStatus {
+  min-height: 1.35em;
+  color: var(--color-positive);
+  font-weight: 780;
+}
+
+@media (min-width: 761px) {
+  .mobilePlanHandoff {
+    grid-template-columns: minmax(0, 1fr) minmax(340px, 0.62fr);
+    align-items: center;
+  }
+  .mobilePlanHandoff__status,
+  .mobilePlanHandoff__target,
+  .mobilePlanHandoff__meta { grid-column: 1; }
+  .mobilePlanHandoff__actions,
+  .mobilePlanHandoff__privacy,
+  .mobilePlanHandoff__shareStatus { grid-column: 2; }
+  .mobilePlanHandoff__actions { align-self: end; }
+}
+
+@media (max-width: 520px) {
+  .mobilePlanHandoff {
+    gap: 14px;
+    margin-top: -18px;
+    padding: 17px 15px 15px;
+    border-radius: 18px;
+  }
+  .mobilePlanHandoff__status {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 3px;
+  }
+  .mobilePlanHandoff__target { grid-template-columns: 42px minmax(0, 1fr); gap: 12px; }
+  .mobilePlanHandoff__marker { width: 40px; height: 40px; }
+  .mobilePlanHandoff__meta { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .mobilePlanHandoff__meta span {
+    min-height: 38px;
+    gap: 4px;
+    padding-inline: 5px;
+    font-size: 0.66rem;
+  }
+  .mobilePlanHandoff__actions { grid-template-columns: minmax(0, 1fr) repeat(2, 50px); }
+  .mobilePlanHandoff__actions a,
+  .mobilePlanHandoff__actions button {
+    min-height: 48px;
+    border-radius: 11px;
+    padding-inline: 10px;
+  }
+  .mobilePlanHandoff__actions button span,
+  .mobilePlanHandoff__actions a:not(.mobilePlanHandoff__primary) span {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+  }
 }
 
 /* Entrances live only inside no-preference so the base state is fully visible —
@@ -1036,6 +1247,48 @@ html[data-theme="dark"] .planComposer__submit { color: #090d0b; }
   font-size: 0.7rem;
   line-height: 1.4;
 }
+.joinInMotion__pulse {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+.joinInMotion__pulseItem {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 9px;
+  min-height: 58px;
+  padding: 10px;
+  border: 1px solid var(--line-soft);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--panel) 82%, transparent);
+  color: var(--ink-soft);
+}
+.joinInMotion__pulseItem svg {
+  flex: 0 0 auto;
+  color: var(--plan-accent-strong);
+}
+.joinInMotion__pulseItem span {
+  display: grid;
+  min-width: 0;
+  gap: 2px;
+}
+.joinInMotion__pulseItem strong,
+.joinInMotion__pulseItem small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.joinInMotion__pulseItem strong {
+  color: var(--ink);
+  font-size: 0.76rem;
+  font-weight: 850;
+}
+.joinInMotion__pulseItem small {
+  color: var(--muted);
+  font-size: 0.66rem;
+  line-height: 1.1;
+}
 
 .joinInMotion__actions {
   display: grid;
@@ -1058,6 +1311,7 @@ html[data-theme="dark"] .planComposer__submit { color: #090d0b; }
   text-decoration: none;
   cursor: pointer;
 }
+.joinInMotion__actions svg { flex: 0 0 auto; }
 .joinInMotion__actions a {
   border: 0;
   background: var(--ink);
@@ -1090,16 +1344,56 @@ html[data-theme="dark"] .joinInMotion__etaChip[aria-pressed="true"],
 html[data-theme="dark"] .joinInMotion__stopMarker { color: #090d0b; }
 
 @media (max-width: 520px) {
-  .joinInMotion { gap: 19px; padding: 22px 18px; }
+  .joinInMotion {
+    gap: 18px;
+    margin-bottom: 18px;
+    padding: 20px 16px 18px;
+    border-radius: 18px;
+  }
   .joinInMotion__etaOptions { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .joinInMotion__etaChip { padding-inline: 8px; }
   .joinInMotion__result { grid-template-columns: 42px minmax(0, 1fr); gap: 12px; padding: 16px 14px; }
   .joinInMotion__stopMarker { width: 40px; height: 40px; }
-  .joinInMotion__actions { grid-template-columns: 1fr; }
+  .joinInMotion__pulse { grid-template-columns: 1fr; }
+  .joinInMotion__pulseItem {
+    min-height: 48px;
+    padding-block: 8px;
+  }
+  .joinInMotion__pulseItem span {
+    grid-template-columns: auto minmax(0, 1fr);
+    align-items: baseline;
+    column-gap: 8px;
+  }
+  .joinInMotion__actions {
+    position: sticky;
+    z-index: 5;
+    bottom: calc(84px + env(safe-area-inset-bottom));
+    grid-template-columns: minmax(0, 1fr) auto;
+    padding: 8px;
+    border: 1px solid var(--line);
+    border-radius: 16px;
+    background: color-mix(in srgb, var(--panel-raised) 94%, transparent);
+    box-shadow: 0 18px 42px color-mix(in srgb, var(--ink) 18%, transparent);
+    backdrop-filter: blur(14px);
+  }
+  .joinInMotion__actions a,
+  .joinInMotion__actions button {
+    min-height: 48px;
+    border-radius: 11px;
+    padding-inline: 12px;
+  }
+  .joinInMotion__actions button {
+    aspect-ratio: 1;
+    width: 48px;
+    padding: 0;
+  }
+  .joinInMotion__actions button { font-size: 0; }
+  .joinInMotion__actions button svg { width: 17px; height: 17px; }
   .joinInMotion__status { text-align: left; }
 }
 
 @media (prefers-reduced-motion: reduce) {
   .joinInMotion__etaChip { transition: none; }
   .joinInMotion__etaChip:active { transform: none; }
+  .joinInMotion__actions { backdrop-filter: none; }
 }
