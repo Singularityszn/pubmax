@@ -5,8 +5,10 @@ import {
   buildWeatherBrief,
   pickPubOfTheDayFact,
   toTonightPickDto,
+  type WeatherBrief,
 } from "@/lib/todayBrief";
 import { loadHistoricPubs } from "@/lib/historic";
+import { NIGHT_AREA_SLUGS, type NightAreaSlug } from "@/lib/nightAreas";
 import { buildQuietPint } from "@/lib/quietPint";
 import { formatConditionDate } from "@/lib/tonightConditions";
 import { getPricedVenues } from "@/lib/venuePriceIndex";
@@ -47,7 +49,14 @@ export default async function TodayPage() {
   // recent, else a live Open-Meteo top-up (reusing the cron's fetcher), else the
   // committed snapshot with its honest staleness banner. Guarantees the card is
   // never needlessly stale even between cron runs or before migration 0047 lands.
-  const weather = buildWeatherBrief(await loadFreshWeatherSnapshot({ now }), now);
+  const weatherSnapshot = await loadFreshWeatherSnapshot({ now });
+  const weather = buildWeatherBrief(weatherSnapshot, now);
+  const weatherByArea = Object.fromEntries(
+    NIGHT_AREA_SLUGS.map((area) => [
+      area,
+      buildWeatherBrief(weatherSnapshot, now, area, { fallbackToFirst: false }),
+    ]),
+  ) as Partial<Record<NightAreaSlug, WeatherBrief | null>>;
 
   // Baseline-only (fail-soft live disabled): the brief must be reliable and
   // instant, and the bundled listings are already sourced. Tonight's own page
@@ -108,6 +117,7 @@ export default async function TodayPage() {
     <TodayClient
       dateLabel={formatConditionDate(now)}
       weather={weather}
+      weatherByArea={weatherByArea}
       picks={picks}
       fact={fact}
       pintsIndex={pintsIndex}
