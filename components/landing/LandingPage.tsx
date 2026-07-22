@@ -187,7 +187,7 @@ export default function LandingPage({ stats }: { stats?: AboutStats }) {
               <Link className="lpButton lpButtonQuiet" href={primaryCtaHref} {...warmProps}>
                 <MapPin size={17} aria-hidden="true" /> Open the map
               </Link>
-              <Link className="lpButton lpButtonQuiet" href="/pal">
+              <Link className="lpButton lpButtonQuiet" href="/plan">
                 <MessageSquareText size={17} aria-hidden="true" /> Plan my night
               </Link>
             </div>
@@ -269,7 +269,7 @@ export default function LandingPage({ stats }: { stats?: AboutStats }) {
           <div className="lpPalCallout" id="landlord">
             <span className="lpPalIcon"><MessageSquareText size={23} aria-hidden="true" /></span>
             <div><h3>Ask your Pub Pal</h3><p>Turn a mood, budget or half-formed idea into a grounded plan. Then confirm every change yourself.</p></div>
-            <Link href="/pal" className="lpTextLink">Plan my night <ArrowRight size={16} aria-hidden="true" /></Link>
+            <Link href="/plan" className="lpTextLink">Plan my night <ArrowRight size={16} aria-hidden="true" /></Link>
           </div>
         </section>
 
