@@ -24,7 +24,11 @@ export const PRIMARY_NAV_ITEMS: readonly PrimaryNavItem[] = [
     // via its own legacy-active handler).
     match: ["/discover", "/feed", "/crawls"],
   },
-  { key: "you", href: "/u/you", label: "You", match: ["/u", "/pal"] },
+  // You owns the profile surfaces under /u only. /pal (Pub Pal, the AI
+  // concierge) is its OWN destination with no primary tab — it used to sit in
+  // this match set and wrongly lit "You" on both the mobile tab bar and the
+  // desktop nav (audit F10). Dropped so /pal maps to no active tab.
+  { key: "you", href: "/u/you", label: "You", match: ["/u"] },
 ] as const;
 
 export const MOMENT_NAV_ACTION = {

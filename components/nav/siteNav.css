@@ -470,22 +470,38 @@
     -webkit-backdrop-filter: none;
   }
 
-  /* Uniform side inset for the IN-FLOW standard bar. Each page shell wraps
-     SiteNav as its first child inside a column padded by --page-gutter
-     (~22-32px), so the bar used to inherit that gutter as its left/right inset
-     and sit narrower than the fixed landing/map bars (10px). Break the bar out
-     of the host gutter to the shared --topbar-side: width goes auto so the
-     symmetric negative margins WIDEN it (a fixed width would only shift it),
-     landing both edges exactly --topbar-side from the viewport — the same rect
-     the landing + map bars already occupy. Scoped away from the floating map
-     variant, which owns its own inset below. align-self:stretch is required
-     because some shells (e.g. /feed) are flex columns with align-items:center —
-     without it width:auto would shrink-wrap the bar there instead of filling;
-     it is inert in a plain block host (e.g. /tonight). */
+  /* Uniform side inset for the IN-FLOW standard bar — land both edges exactly
+     --topbar-side (10px) from the viewport on EVERY page, so the pill is the
+     same rect the fixed landing + map bars occupy and never jumps shape.
+
+     The bar breaks out of its host column with symmetric negative margins;
+     width:auto lets those margins WIDEN it (a fixed width would only shift it).
+     The breakout distance must equal whatever gap the host puts between the
+     viewport edge and the bar's own containing block — but that gap is NOT
+     always --page-gutter. Standard shells (/feed, /tonight) pad by --page-gutter
+     (~22-32px), but others give the bar a differently-padded host: /moment and
+     /u (.profilePage) wrap it in a ZERO-padding shell, /activity pads 16px,
+     /messages 20px. Subtracting the fixed --page-gutter there overshot and
+     dragged the bar (and its wordmark) off the left edge — audit F2's clipped
+     "UBMAXX" and full-bleed bar.
+
+     (100vw - 100%) / 2 measures that real gap geometrically: for any centred,
+     symmetric host, 100% (the bar's containing-block inline size) already nets
+     out every ancestor's padding + centring, so this resolves to the exact
+     distance from the viewport edge to the bar's containing block — 0-gutter,
+     16px, or --page-gutter alike. Pulling back by it and adding --topbar-side
+     pins the left/right edges to 10px from the viewport everywhere. On the
+     standard --page-gutter shells this evaluates to the previous
+     (--topbar-side - --page-gutter), so their rect is unchanged.
+
+     Scoped away from the floating map variant, which owns its own inset below.
+     align-self:stretch is required because some shells (e.g. /feed) are flex
+     columns with align-items:center — without it width:auto would shrink-wrap
+     the bar there instead of filling; it is inert in a plain block host. */
   .siteNavBar:not(.siteNavBarFloating) {
     width: auto;
     align-self: stretch;
-    margin-inline: calc(var(--topbar-side, 10px) - var(--page-gutter, 22px));
+    margin-inline: calc(var(--topbar-side, 10px) - (100vw - 100%) / 2);
   }
 
   .siteNavLinks {
