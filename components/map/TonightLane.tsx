@@ -20,6 +20,7 @@ import { CalendarClock, MapPin, MoonStar, Tv, X } from "lucide-react";
 
 import { trackEvent } from "@/lib/analytics";
 import type { WhatsOnKind, WhatsOnRow } from "@/lib/whatsOn";
+import { WhatsOnUrgencyBadge } from "@/components/map/WhatsOnUrgencyBadge";
 import {
   checkedLabel,
   filterLaneRows,
@@ -81,6 +82,7 @@ export default function TonightLane({
     () => laneCardsFromRows(filterLaneRows(rows, activeKind), { limit: 5 }),
     [rows, activeKind],
   );
+  const rowsById = useMemo(() => new Map(rows.map((row) => [row.id, row])), [rows]);
 
   // Honest outage state: the PRIMARY spine failed — say so quietly instead of
   // pretending it's a quiet night. Badges are simply absent in this state.
@@ -247,6 +249,7 @@ export default function TonightLane({
         {cards.map((card) => {
           const when = card.timeLabel ?? card.badgeLabel;
           const KindIcon = card.kind === "sport" ? Tv : CalendarClock;
+          const sourceRow = rowsById.get(card.id);
           return (
             <li key={card.id} className="tonightLaneCard" data-kind={card.kind}>
               {card.venueId ? (
@@ -258,11 +261,11 @@ export default function TonightLane({
                     onSelectVenue(card.venueId as string);
                   }}
                 >
-                  <TonightLaneCardBody card={card} when={when} KindIcon={KindIcon} />
+                  <TonightLaneCardBody card={card} when={when} KindIcon={KindIcon} sourceRow={sourceRow} />
                 </button>
               ) : (
                 <div className="tonightLaneCardTap">
-                  <TonightLaneCardBody card={card} when={when} KindIcon={KindIcon} />
+                  <TonightLaneCardBody card={card} when={when} KindIcon={KindIcon} sourceRow={sourceRow} />
                 </div>
               )}
               <Link
@@ -325,10 +328,12 @@ function TonightLaneCardBody({
   card,
   when,
   KindIcon,
+  sourceRow,
 }: {
   card: ReturnType<typeof laneCardsFromRows>[number];
   when: string;
   KindIcon: typeof Tv;
+  sourceRow?: WhatsOnRow;
 }) {
   return (
     <>
@@ -346,7 +351,10 @@ function TonightLaneCardBody({
         <MapPin size={12} aria-hidden="true" />
         <span>{card.placeName}</span>
       </p>
-      <p className="tonightLaneCardWhen">{when}</p>
+      <p className="tonightLaneCardWhen">
+        <span>{when}</span>
+        {sourceRow ? <WhatsOnUrgencyBadge row={sourceRow} /> : null}
+      </p>
       <p className="tonightLaneCardSource">via {card.sourceLabel}</p>
     </>
   );
