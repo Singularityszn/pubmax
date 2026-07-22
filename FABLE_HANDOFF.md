@@ -116,3 +116,12 @@ Still correctly gated: waves 4-7 (activation baseline + owner gates), Sol open P
 - docs/SOL_SYNC_2026-07-22.md pushed (Sol brief: state + his next wave). X-mark v2 candidates pushed to docs/design-explorations/x-mark-v2/ - OWNER VERDICT PENDING.
 - Fleet: claude 2.1.217, codex 0.145.0, cursor-agent updated, opencode 1.18.4; skills synced into ~/.codex/skills (288) and ~/.config/opencode/skills (274).
 - Owner queue additions: none new beyond ORS_API_KEY + migration 0049 (already listed).
+
+## 2026-07-22 v1 push close-out (waves 3-5, #499-#515)
+
+Merged and live-verified both themes on prod: #499 landing v1 (real stats, mission footer, audit fixes), #500 dark mode v1 (elevation steps + --hairline token; body-scoped --line override preserves the WebGL basemap), #506 desktop Moment affordance, #511 voice sweep + docs/VOICE.md, #512 offline plan cache (sw-plan-cache.js module, minimal sw.js hooks, fence test), #513 mobile fix-pack (6-tab tour geometry + regression test, identity-nudge TTL+grace, tap targets/type floors/safe areas across ~20 files), #514 night kit (wake lock default-off, safe-night strip 999/116123, morning re-entry card 36h TTL), #515 ORS daily budget (2000/day durable counter, consume-only-on-provider-call) + seven 100dvh fallbacks.
+Screenshot verdict: dark /tonight now has real surface separation (x.com/Linear bar met, warm ink kept); light landing v1-credible.
+Review verdicts for Sol #456-462 and Cursor #495-507 published in docs/SOL_SYNC_2026-07-22.md, including the invite-preview privacy DESIGN DECISION (server redaction vs offline cache) awaiting owner/Sol.
+Wave 6 lane in flight at close: width-token retrofit + crawls hover gating.
+FOREIGN WORK NOTE: an uncommitted local work-in-progress (walk-route contract inversion + minimap/profile test edits, likely Sol/Cursor local) sat in the shared checkout; a rebase autostash conflicted, tree was cleaned with the work PRESERVED in `git stash` (stash@{0}, autostash 1828e636) plus untracked docs/CLOSED_PR_REVIEW_2026-07-22.md left in place. Whoever owns it: `git stash pop` and reconcile with merged #515.
+Owner queue unchanged plus: X-mark verdict still pending; ORS_API_KEY; migrations through 0049; CRON_SECRET; U20 age-gate ruling; invite-preview privacy ruling.
