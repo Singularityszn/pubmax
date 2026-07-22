@@ -34,8 +34,14 @@ const G = {
   node: { cx: 32, cy: 32, r: 3.2 },
   plaqueRadius: 15,
 };
-// Tokens (literal — these files render outside the app CSS).
-const C = { coral: "#ff5a5f", bright: "#ff7a55", inkDeep: "#060607" };
+// Tokens (literal — these files render outside the app CSS). `white` is the
+// app-icon field (Wave C, owner verdict 2026-07-22): the icon set is a clean
+// WHITE tile + coral double-struck X. Pure #ffffff was chosen over the house
+// warm-white #fff8f4 after rendering both at 180px — pure white reads crisper
+// on an iPhone home screen and gives the coral X maximum contrast; the warm
+// tint was nearly indistinguishable and slightly softened the coral. `inkDeep`
+// is retained only for opaque-flatten fallbacks, not as an icon field.
+const C = { coral: "#ff5a5f", bright: "#ff7a55", inkDeep: "#060607", white: "#ffffff" };
 
 // The X mark: two thin ascending strokes then the thick descending stroke on
 // top. `simple:true` is the small-optics cut (16px raster tier): the double
@@ -52,20 +58,18 @@ function svg(body) {
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">${body}</svg>`;
 }
 
-// Bare X on transparent — favicon / PWA "any" icons; coral strokes, no ember.
-function bareSvg({ simple = false, fill = C.coral } = {}) {
-  return svg(mark(fill, { simple }));
-}
-
-// X on a full-bleed ink-deep tile. `rx` lets the maskable variant go square
-// (rx 0, the platform supplies the mask); `scale` insets the mark into the
-// maskable safe zone. Strokes are coral, field ink-deep, no ember.
-function tileSvg({ rx = G.plaqueRadius, scale = 1 } = {}) {
+// X on a coloured tile. Wave C: the field is WHITE and the strokes CORAL (the
+// inverse of the retired ink tile). `rx` lets the maskable / apple variants go
+// square (rx 0, the platform supplies the mask) while the "any" icons keep the
+// rounded plaque; `scale` insets the mark (both for the maskable safe zone and
+// to give the X breathing room inside the rounded tile). `simple` takes the
+// small-optics single-slash cut for the 16px favicon tier. No ember.
+function tileSvg({ rx = G.plaqueRadius, scale = 0.9, bg = C.white, fill = C.coral, simple = false } = {}) {
   const m =
     scale === 1
-      ? mark(C.coral)
-      : `<g transform="translate(32 32) scale(${scale}) translate(-32 -32)">${mark(C.coral)}</g>`;
-  return svg(`<rect width="64" height="64" rx="${rx}" fill="${C.inkDeep}"/>${m}`);
+      ? mark(fill, { simple })
+      : `<g transform="translate(32 32) scale(${scale}) translate(-32 -32)">${mark(fill, { simple })}</g>`;
+  return svg(`<rect width="64" height="64" rx="${rx}" fill="${bg}"/>${m}`);
 }
 
 let sharp;
@@ -82,7 +86,9 @@ try {
 
 async function pngBuffer(markup, size, { opaque = false } = {}) {
   let img = sharp(Buffer.from(markup)).resize(size, size);
-  if (opaque) img = img.flatten({ background: C.inkDeep });
+  // The opaque icons (maskable / apple-touch) are full-bleed white tiles now,
+  // so any sub-pixel edge flattens to white, not the retired ink field.
+  if (opaque) img = img.flatten({ background: C.white });
   return img.png().toBuffer();
 }
 
@@ -116,27 +122,31 @@ function buildIco(entries) {
 mkdirSync(BRAND, { recursive: true });
 
 // ── SVGs ──────────────────────────────────────────────────────────────────────
-const bare = bareSvg() + "\n";
+// `tile` is the rounded white plaque + coral X — the "any" favicon/PWA icon.
+// A white tile (rather than a transparent coral X) keeps the mark legible on
+// dark browser-tab chrome, where a transparent coral X can go muddy, and makes
+// the browser-tab identity match the home-screen icon exactly.
+const tile = tileSvg() + "\n";
 const maskable = tileSvg({ rx: 0, scale: 0.82 }) + "\n";
 const monoMark = svg(`<g fill="currentColor">${mark("currentColor")}</g>`) + "\n";
 const sized = (px) =>
-  `<svg xmlns="http://www.w3.org/2000/svg" width="${px}" height="${px}" viewBox="0 0 64 64">${mark(C.coral)}</svg>\n`;
+  `<svg xmlns="http://www.w3.org/2000/svg" width="${px}" height="${px}" viewBox="0 0 64 64"><rect width="64" height="64" rx="${G.plaqueRadius}" fill="${C.white}"/><g transform="translate(32 32) scale(0.9) translate(-32 -32)">${mark(C.coral)}</g></svg>\n`;
 
 // Live public/ files (the icons app/layout.tsx references).
-writeFileSync(join(PUBLIC, "favicon.svg"), bare);
+writeFileSync(join(PUBLIC, "favicon.svg"), tile);
 writeFileSync(join(PUBLIC, "icon-192.svg"), sized(192));
 writeFileSync(join(PUBLIC, "icon-512.svg"), sized(512));
 writeFileSync(join(PUBLIC, "icon-maskable.svg"), maskable);
 
 // public/brand/ reference mirror (docs/BRAND_MARK.md points here).
-writeFileSync(join(BRAND, "favicon.svg"), bare);
-writeFileSync(join(BRAND, "icon.svg"), bare);
+writeFileSync(join(BRAND, "favicon.svg"), tile);
+writeFileSync(join(BRAND, "icon.svg"), tile);
 writeFileSync(join(BRAND, "icon-maskable.svg"), maskable);
 writeFileSync(join(BRAND, "mark-mono.svg"), monoMark);
 
 // ── PNGs ──────────────────────────────────────────────────────────────────────
-const icon192 = await pngBuffer(bareSvg(), 192);
-const icon512 = await pngBuffer(bareSvg(), 512);
+const icon192 = await pngBuffer(tileSvg(), 192);
+const icon512 = await pngBuffer(tileSvg(), 512);
 const maskable512 = await pngBuffer(tileSvg({ rx: 0, scale: 0.82 }), 512, { opaque: true });
 const appleTouch = await pngBuffer(tileSvg({ rx: 0, scale: 0.9 }), 180, { opaque: true });
 
@@ -151,9 +161,9 @@ writeFileSync(join(BRAND, "apple-touch-icon.png"), appleTouch);
 
 // ── favicon.ico (16 no-node / 32 / 48) ────────────────────────────────────────
 const ico = buildIco([
-  { size: 16, png: await pngBuffer(bareSvg({ simple: true }), 16) },
-  { size: 32, png: await pngBuffer(bareSvg(), 32) },
-  { size: 48, png: await pngBuffer(bareSvg(), 48) },
+  { size: 16, png: await pngBuffer(tileSvg({ simple: true }), 16) },
+  { size: 32, png: await pngBuffer(tileSvg(), 32) },
+  { size: 48, png: await pngBuffer(tileSvg(), 48) },
 ]);
 writeFileSync(join(PUBLIC, "favicon.ico"), ico);
 
