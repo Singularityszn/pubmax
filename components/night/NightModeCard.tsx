@@ -22,7 +22,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { BookOpen, ChevronRight, MapPin, PlusCircle, TrainFront, Trash2, X } from "lucide-react";
+import { BookOpen, ChevronRight, MapPin, MonitorSmartphone, PlusCircle, TrainFront, Trash2, X } from "lucide-react";
 
 import {
   setActivePlanStopIndex,
@@ -42,7 +42,10 @@ import type { LateFoodApiResponse, LateFoodTerminal } from "@/lib/lateFood";
 import { haversineKm } from "@/lib/haversine";
 import RouteEndingCard, { type RouteEndingId, type RouteEndingOptions } from "@/components/night/RouteEndingCard";
 import { NightCalmLine } from "@/components/night/NightCalmLine";
+import { SafeNightStrip } from "@/components/night/SafeNightStrip";
+import { useScreenWakeLock } from "@/components/night/useScreenWakeLock";
 import { useActivePlan } from "@/components/night/useActivePlan";
+import { recordCompletedNight, MORNING_REENTRY_VERSION } from "@/lib/morningReentry";
 import {
   ensurePendingPlanRecap,
   readPendingPlanRecap,
@@ -294,6 +297,10 @@ function NightModeSheet({ entry, onCollapse }: { entry: ActivePlanRef; onCollaps
   // the dragY state commit, so release must read the ref, not stale state.
   const dragYRef = useRef(0);
   const closeRef = useRef<HTMLButtonElement>(null);
+  // Keep-screen-awake toggle. Default OFF for battery honesty; the lock is only
+  // held while the card is open and released on close/unmount by the hook.
+  const [keepAwake, setKeepAwake] = useState(false);
+  const wakeLock = useScreenWakeLock(keepAwake);
 
   useEffect(() => {
     closeRef.current?.focus({ preventScroll: true });
@@ -345,6 +352,12 @@ function NightModeSheet({ entry, onCollapse }: { entry: ActivePlanRef; onCollaps
         if (controller.signal.aborted || !body?.completion) return;
         const existing = readPendingPlanRecap(id);
         if (!existing || existing.completionId !== body.completion.id) setRecap(ensurePendingPlanRecap(body.completion, title));
+        // Arm the morning-after card. This is a fresh open (not the session the
+        // night was completed in), so it is eligible to show now / next open.
+        recordCompletedNight(
+          { version: MORNING_REENTRY_VERSION, planId: id, title, completedAt: body.completion.completedAt },
+          { suppressThisSession: false },
+        );
       } catch {
         // A failed seed simply leaves no local recap; nothing is invented.
       } finally {
@@ -508,6 +521,12 @@ function NightModeSheet({ entry, onCollapse }: { entry: ActivePlanRef; onCollaps
         : null;
       if (completed) {
         setRecap(ensurePendingPlanRecap(completed, canonical.plan.title));
+        // Arm the morning-after card, suppressed for THIS session so it greets
+        // the next open (the morning after), not the moment the night ends.
+        recordCompletedNight(
+          { version: MORNING_REENTRY_VERSION, planId: id, title: canonical.plan.title, completedAt: completed.completedAt },
+          { suppressThisSession: true },
+        );
       }
       setActivePlanEndingPreview(id, null);
     } catch (caught) {
@@ -744,6 +763,26 @@ function NightModeSheet({ entry, onCollapse }: { entry: ActivePlanRef; onCollaps
             </>
           ) : null}
         </div>
+      ) : null}
+
+      <SafeNightStrip planId={id} />
+
+      {wakeLock.supported ? (
+        <button
+          type="button"
+          className="nightCard__awake"
+          role="switch"
+          aria-checked={keepAwake}
+          onClick={() => setKeepAwake((value) => !value)}
+        >
+          <span className="nightCard__awakeLabel">
+            <MonitorSmartphone size={15} aria-hidden="true" />
+            Keep screen awake
+          </span>
+          <span className="nightCard__awakeState" data-on={keepAwake ? "" : undefined}>
+            {keepAwake ? "On" : "Off"}
+          </span>
+        </button>
       ) : null}
 
       {arrived.length > 0 ? (

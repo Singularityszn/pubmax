@@ -575,3 +575,183 @@
     bottom: calc(var(--tabbar-h, 64px) + env(safe-area-inset-bottom, 0px) + 10px);
   }
 }
+
+/* ── Night survival kit (U19 wake lock + U21a safe strip) ─────────────────────
+   Appended as a self-contained block so it stays separable from any concurrent
+   line-level tap-target / font-floor polish elsewhere in this file. Uses the
+   same paper/ink tokens, 44px targets and 12px+ type as the rest of the card. */
+
+/* U19 — keep-screen-awake toggle. A quiet utility row, not a shouty switch. */
+.nightCard__awake {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  width: 100%;
+  min-height: 44px;
+  padding: 8px 12px;
+  border: 1px solid var(--line, #d9d4c7);
+  border-radius: var(--radius-sm, 10px);
+  background: var(--paper, #fff);
+  color: var(--ink, #2a2a26);
+  font: inherit;
+  cursor: pointer;
+  text-align: left;
+}
+
+.nightCard__awakeLabel {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink, #2a2a26);
+}
+
+.nightCard__awakeState {
+  flex: 0 0 auto;
+  min-width: 34px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--ink, #2a2a26) 8%, transparent);
+  color: var(--ink-soft, #6b726a);
+  font-size: 12px;
+  font-weight: 700;
+  text-align: center;
+}
+
+.nightCard__awakeState[data-on] {
+  background: color-mix(in srgb, var(--color-positive, #18a76d) 18%, transparent);
+  color: var(--color-positive, #18a76d);
+}
+
+/* U21a — safe night strip. Calm register: soft ink, brass accent, never alarm. */
+.nightSafe {
+  display: grid;
+  gap: 8px;
+  padding: 10px 12px;
+  border: 1px solid var(--line, #d9d4c7);
+  border-radius: var(--radius-sm, 10px);
+  background: color-mix(in srgb, var(--brass, #9b7a2a) 6%, transparent);
+}
+
+.nightSafe__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+  min-height: 44px;
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--ink, #2a2a26);
+  font: inherit;
+  cursor: pointer;
+  text-align: left;
+}
+
+.nightSafe__title {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--ink, #2a2a26);
+}
+
+.nightSafe__chevron {
+  flex: 0 0 auto;
+  color: var(--ink-soft, #6b726a);
+  transition: transform 160ms ease;
+}
+
+.nightSafe__chevron[data-open] {
+  transform: rotate(180deg);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .nightSafe__chevron {
+    transition: none;
+  }
+}
+
+.nightSafe__body {
+  display: grid;
+  gap: 7px;
+}
+
+.nightSafe__line {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--ink-soft, #6b726a);
+}
+
+.nightSafe__tel {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--ink, #2a2a26);
+  font-weight: 700;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.nightSafe__tel:hover {
+  text-decoration: underline;
+}
+
+.nightSafe__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 2px;
+}
+
+.nightSafe__share {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 44px;
+  padding: 0 14px;
+  border: none;
+  border-radius: 999px;
+  background: var(--brass, #9b7a2a);
+  color: var(--color-on-accent-strong, #16122a);
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.nightSafe__share:active {
+  transform: translateY(1px);
+}
+
+.nightSafe__hide {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  padding: 0 12px;
+  border: 1px solid var(--line, #d9d4c7);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--ink-soft, #6b726a);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.nightSafe__note {
+  margin: 0;
+  font-size: 12px;
+  color: var(--ink-soft, #6b726a);
+}
+
+@media (max-width: 360px) {
+  .nightSafe__actions > * {
+    width: 100%;
+  }
+}
