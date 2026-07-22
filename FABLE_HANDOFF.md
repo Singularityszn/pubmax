@@ -154,3 +154,11 @@ Owner queue: unchanged (migrations 0038-0049, CRON_SECRET, ORS_API_KEY, #473 rul
 - #536 venue sheet strip: sticky bottom:0 inside the sheet scroller floated over the tab row at half snap - now a fixed docked footer with reserved body space per snap, hidden at peek. CSS-only.
 - Waves 9-10 all live-verified. Day total: 35 lane PRs (#489-494, 499, 500, 506, 511-515, 518-536 excluding non-lane numbers).
 - Owner queue: unchanged (migrations 0038-0049, #473, age-gate U20, invite-preview privacy, Search Console; device-side: Safari website-data clear for the cached bookmark icon).
+
+## 2026-07-22 final wave (#498, #505, #538, #539 + verification)
+
+- Cursor drafts landed by Fable rebase: #498 feed error honesty (one FeedPageClient conflict resolved keeping both), #505 match-the-group prefs. First Cursor-fleet merges.
+- #538 London gazetteer: 763 OSM localities (ODbL, attributed; scripts/gen_london_localities.mjs reproducible; validate-data wired). Search now covers every neighbourhood; area BUTTON stays on the 20 modeled coverage areas by design. VERIFIED LIVE (Willesden/Willesden Green + Brent + distances).
+- #539 sheet content-fit (short sheets hug content, resolveHalfContentFit; #536 venue-dock contract protected) + aviation-noise filter in citymcp status (EasyJet out, Gatwick Express stays; "Nothing disrupting tonight." empty state).
+- #536 overlap fix verified live post-deploy (docked Drop/Share footer).
+- Owner queue unchanged. Sol still owes his rebase stack; #495/#496/#497/#501-504/#507 remain per verdicts; invite-privacy + age-gate rulings open.
