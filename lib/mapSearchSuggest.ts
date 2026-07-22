@@ -11,6 +11,7 @@
 import { areaCoverageLabel, type AreaCoverageLabel } from "@/lib/areaButton";
 import type { CityId } from "@/lib/cities";
 import { haversineKm } from "@/lib/haversine";
+import type { Locality } from "@/lib/localities";
 import { getNightAreasForCity } from "@/lib/nightAreas";
 import type { Venue } from "@/lib/venues";
 
@@ -22,21 +23,31 @@ export const SUGGEST_AREA_LIMIT = 6;
 /** Cap on the "nearby areas" shown on an empty query (taste-first, minimal). */
 export const SUGGEST_EMPTY_AREA_LIMIT = 5;
 
+/** Camera zoom a locality tap flies to. A locality is tighter than a modelled
+ *  area, so it sits one notch deeper than the area fly's default (14). */
+export const LOCALITY_FLY_ZOOM = 14.5;
+
 /** Where the row distances are measured from — decides the honest label. */
 export type SuggestOrigin = "user" | "map-centre";
 
 export type AreaSuggestion = {
-  /** Stable React key + fly identity ("area:shoreditch" / "borough:hackney"). */
+  /** Stable React key + fly identity ("area:shoreditch" / "locality:willesden"
+   *  / "borough:hackney"). */
   key: string;
-  kind: "area" | "borough";
+  kind: "area" | "locality" | "borough";
   slug: string;
   name: string;
+  /** A quiet second-line hint — the borough for a locality; "" otherwise. */
+  contextLabel: string;
   /** [lng, lat] the map flies to — GeoJSON order, matching the camera helpers. */
   center: [number, number];
+  /** Camera zoom the fly should use; undefined lets the caller keep its default. */
+  flyZoom?: number;
   distanceKm: number;
   /** "1.2 km away" (from the viewer) or "1.2 km from centre" — never faked. */
   distanceLabel: string;
-  /** Honest coverage chip for a modelled area; null for a plain borough. */
+  /** Honest coverage chip for a modelled area; null for a locality or a plain
+   *  borough (a locality is a place, not a coverage promise). */
   coverage: AreaCoverageLabel;
 };
 
@@ -65,6 +76,10 @@ export type MapSearchSuggestInput = {
   cityId: CityId;
   query: string;
   venues: Venue[];
+  /** The Greater London locality gazetteer (public/data/london_localities.json).
+   *  Optional + defaults to []: a non-London city, or a fetch that hasn't
+   *  landed yet, simply falls back to the modelled areas + boroughs. */
+  localities?: Locality[];
   /** The viewer's GPS position when Near me granted it; else null. */
   userLocation: { lat: number; lng: number } | null;
   /** Live map centre [lng, lat] — the honest fallback origin. */
@@ -160,8 +175,16 @@ function buildBoroughCentroids(
   return out;
 }
 
-/** Areas first by match tier, then nearest, then modelled area over a plain
- *  borough, then name — a stable, deterministic order. */
+/** Kind precedence when tier + distance tie: a modelled area (with its coverage
+ *  chip) leads, then a named locality, then a plain borough. */
+const AREA_KIND_RANK: Record<AreaSuggestion["kind"], number> = {
+  area: 0,
+  locality: 1,
+  borough: 2,
+};
+
+/** Areas first by match tier, then nearest, then modelled area over a locality
+ *  over a plain borough, then name — a stable, deterministic order. */
 function compareArea(
   left: { tier: number; suggestion: AreaSuggestion },
   right: { tier: number; suggestion: AreaSuggestion },
@@ -171,7 +194,7 @@ function compareArea(
   const rightKm = Number.isFinite(right.suggestion.distanceKm) ? right.suggestion.distanceKm : Infinity;
   if (leftKm !== rightKm) return leftKm - rightKm;
   if (left.suggestion.kind !== right.suggestion.kind) {
-    return left.suggestion.kind === "area" ? -1 : 1;
+    return AREA_KIND_RANK[left.suggestion.kind] - AREA_KIND_RANK[right.suggestion.kind];
   }
   return left.suggestion.name.localeCompare(right.suggestion.name);
 }
@@ -189,9 +212,11 @@ function comparePub(
 
 /**
  * Everything the map search popup renders, derived once and hermetically
- * testable. Matches AREAS (the modelled Night Areas plus boroughs that don't
- * collide with one) and PUBS by name, each carrying its distance from the
- * viewer's position when granted, else from the map centre — labelled honestly.
+ * testable. Matches AREAS (the modelled Night Areas, then the Greater London
+ * locality gazetteer, then boroughs that don't collide with either) and PUBS by
+ * name, each carrying its distance from the viewer's position when granted, else
+ * from the map centre — labelled honestly. Only modelled areas carry a coverage
+ * chip; localities and boroughs are navigation targets, not coverage promises.
  *
  * An empty query returns the nearest few areas (a minimal, taste-first prompt)
  * and no pubs. A non-empty query with no match returns empty groups, so the
@@ -199,6 +224,7 @@ function comparePub(
  */
 export function buildMapSearchSuggestions(input: MapSearchSuggestInput): MapSearchSuggestions {
   const { cityId, venues, userLocation, mapCenter, now = new Date() } = input;
+  const localities = input.localities ?? [];
   const pubLimit = input.pubLimit ?? SUGGEST_PUB_LIMIT;
   const query = normalize(input.query);
   const isEmptyQuery = query.length === 0;
@@ -231,6 +257,7 @@ export function buildMapSearchSuggestions(input: MapSearchSuggestInput): MapSear
         kind: "area",
         slug: area.slug,
         name: area.name,
+        contextLabel: "",
         center,
         distanceKm,
         distanceLabel: formatSuggestDistance(distanceKm, origin),
@@ -239,13 +266,51 @@ export function buildMapSearchSuggestions(input: MapSearchSuggestInput): MapSear
     });
   }
 
+  // Localities (public/data/london_localities.json) join only for a typed query
+  // — the empty-query prompt stays to the modelled areas. A locality whose name
+  // is already a modelled area (or one of its aliases) is dropped so search never
+  // double-lists it; the curated area, with its coverage chip, wins. Localities
+  // carry NO coverage — they are places to fly to, not coverage promises.
+  const shownLocalityLabels = new Set<string>();
+  if (!isEmptyQuery) {
+    for (const locality of localities) {
+      const label = normalize(locality.name);
+      if (!label || modelledLabels.has(label) || shownLocalityLabels.has(label)) continue;
+      const tier = matchTier([locality.name], query);
+      if (tier === null) continue;
+      if (!Number.isFinite(locality.lng) || !Number.isFinite(locality.lat)) continue;
+      shownLocalityLabels.add(label);
+      const center: [number, number] = [locality.lng, locality.lat];
+      const distanceKm = distanceKmFrom(originPoint, center);
+      areaMatches.push({
+        tier,
+        suggestion: {
+          key: `locality:${slugify(locality.name)}`,
+          kind: "locality",
+          slug: `locality:${slugify(locality.name)}`,
+          name: locality.name,
+          contextLabel: locality.borough,
+          center,
+          flyZoom: LOCALITY_FLY_ZOOM,
+          distanceKm,
+          distanceLabel: formatSuggestDistance(distanceKm, origin),
+          coverage: null,
+        },
+      });
+    }
+  }
+
   // Boroughs join only for a typed query (empty-query prompts stay to the
   // modelled areas). A borough whose name is already a modelled area (or one of
   // its aliases) is dropped so we never show "Camden" twice — the curated area,
   // with its real centre and coverage, wins.
   if (!isEmptyQuery) {
     for (const [name, info] of buildBoroughCentroids(venues)) {
-      if (modelledLabels.has(normalize(name))) continue;
+      const label = normalize(name);
+      // Drop a borough that collides with a modelled area (curated area wins) or
+      // with a locality already shown (no "Bromley" twice — the locality centroid
+      // is the finer target).
+      if (modelledLabels.has(label) || shownLocalityLabels.has(label)) continue;
       const tier = matchTier([name], query);
       if (tier === null) continue;
       const distanceKm = distanceKmFrom(originPoint, info.center);
@@ -256,6 +321,7 @@ export function buildMapSearchSuggestions(input: MapSearchSuggestInput): MapSear
           kind: "borough",
           slug: `borough:${slugify(name)}`,
           name,
+          contextLabel: "",
           center: info.center,
           distanceKm,
           distanceLabel: formatSuggestDistance(distanceKm, origin),

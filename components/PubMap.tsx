@@ -170,6 +170,7 @@ import {
   resolveQueryRestoreFit,
 } from "@/lib/mapArrival";
 import { areaUnderCentre, type AreaElsewhereOption } from "@/lib/areaButton";
+import { parseLocalityGazetteer, type Locality } from "@/lib/localities";
 import { getNightArea, nearestNightAreaForViewport, nightAreaForMapQuery } from "@/lib/nightAreas";
 import { defaultPoiHiddenForViewport } from "@/lib/poiToggleGroups";
 import {
@@ -736,6 +737,31 @@ export default function PubMap({
       cancelled = true;
     };
   }, [cityId]);
+
+  // Greater London locality gazetteer (public/data/london_localities.json) —
+  // hundreds of neighbourhood names the basemap paints, so map search can fly to
+  // any of them, not just the modelled areas. London-only; fail-soft to [] so a
+  // missing file or a non-London city just falls back to areas + boroughs.
+  const [londonLocalities, setLondonLocalities] = useState<Locality[]>([]);
+  useEffect(() => {
+    if (cityId !== "london") return;
+    let cancelled = false;
+    fetch("/data/london_localities.json")
+      .then((response) => (response.ok ? response.json() : null))
+      .then((raw) => {
+        if (cancelled || !raw) return;
+        setLondonLocalities(parseLocalityGazetteer(raw));
+      })
+      .catch(() => {
+        // No gazetteer (or bad JSON) — modelled areas + boroughs still search.
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [cityId]);
+  // Gate at the point of use (mirrors priceUpdates): the fetch is London-only, so
+  // a non-London city never sees stale gazetteer rows in its search.
+  const localities = cityId === "london" ? londonLocalities : [];
 
   const baseVenues = useMemo(() => mergeLazyDetailPins(slimPins, detailById), [slimPins, detailById]);
   const venues = useMemo<Venue[]>(
@@ -1449,7 +1475,8 @@ export default function PubMap({
   const flyToArea = useCallback((option: AreaElsewhereOption) => {
     setAreaFocus((prev) => ({
       center: option.center,
-      zoom: 14,
+      // Localities carry a slightly deeper zoom; areas/boroughs keep the default.
+      zoom: option.zoom ?? 14,
       token: (prev?.token ?? 0) + 1,
     }));
   }, []);
@@ -1993,6 +2020,7 @@ export default function PubMap({
               query={filters.query}
               onQueryChange={(query) => setFilters((current) => ({ ...current, query }))}
               venues={venues}
+              localities={localities}
               userLocation={userLocation}
               mapCenter={mapViewport.center}
               placeholder={`Search ${city.displayName} pubs or areas`}

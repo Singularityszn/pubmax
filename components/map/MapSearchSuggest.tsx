@@ -11,6 +11,7 @@ import {
   type PubSuggestion,
 } from "@/lib/mapSearchSuggest";
 import type { AreaElsewhereOption } from "@/lib/areaButton";
+import type { Locality } from "@/lib/localities";
 import type { Venue } from "@/lib/venues";
 
 import "./mapSearchSuggest.css";
@@ -35,6 +36,8 @@ type MapSearchSuggestProps = {
   query: string;
   onQueryChange: (query: string) => void;
   venues: Venue[];
+  /** Greater London locality gazetteer; [] for other cities / before it loads. */
+  localities: Locality[];
   userLocation: { lat: number; lng: number } | null;
   mapCenter: [number, number];
   placeholder: string;
@@ -54,6 +57,7 @@ export default function MapSearchSuggest({
   query,
   onQueryChange,
   venues,
+  localities,
   userLocation,
   mapCenter,
   placeholder,
@@ -75,10 +79,11 @@ export default function MapSearchSuggest({
         cityId,
         query: deferredQuery,
         venues,
+        localities,
         userLocation,
         mapCenter,
       }),
-    [cityId, deferredQuery, venues, userLocation, mapCenter],
+    [cityId, deferredQuery, venues, localities, userLocation, mapCenter],
   );
 
   const items = useMemo<FlatItem[]>(
@@ -122,6 +127,7 @@ export default function MapSearchSuggest({
           name: item.name,
           center: item.center,
           coverage: item.coverage,
+          zoom: item.flyZoom,
         });
       }
     },
@@ -203,6 +209,9 @@ export default function MapSearchSuggest({
                     <span className="mapSearchSuggestRowMain">
                       <MapPin size={15} aria-hidden="true" className="mapSearchSuggestRowIcon" />
                       <span className="mapSearchSuggestRowName">{area.name}</span>
+                      {area.contextLabel ? (
+                        <span className="mapSearchSuggestBorough">{area.contextLabel}</span>
+                      ) : null}
                       {area.coverage ? (
                         <span className="mapSearchSuggestCoverage" data-tone={area.coverage.tone}>
                           {area.coverage.label}
