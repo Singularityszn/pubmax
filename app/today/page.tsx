@@ -1,9 +1,9 @@
 import type { Metadata } from "next";
 
+import { dealDigestNote, digestSectionPicks } from "@/lib/dealsDigest";
 import {
   buildWeatherBrief,
   pickPubOfTheDayFact,
-  rankTonightPicks,
   toTonightPickDto,
 } from "@/lib/todayBrief";
 import { formatConditionDate } from "@/lib/tonightConditions";
@@ -47,7 +47,16 @@ export default async function TodayPage() {
     { window: "tonight" },
     { now: now.getTime(), fetchLive: async () => [] },
   );
-  const picks = rankTonightPicks(whatsOn.rows, 3).map(toTonightPickDto);
+  // Group syndicated chain deals (identical title + source across venues) into
+  // one pick carrying the real venue count, cap to one card per source, and take
+  // the top 3. Fixes the live-taste P0 where one Wetherspoon promotion filled the
+  // section with five identical cards. No location on the server, so the digest
+  // resolves each group's display to its soonest venue; the client re-orders the
+  // resulting picks around the viewer's remembered patch below.
+  const picks = digestSectionPicks(whatsOn.rows, { limit: 3 }).map((pick) => {
+    const dto = toTonightPickDto(pick.row);
+    return pick.digest ? { ...dto, venueNote: dealDigestNote(pick.digest.venueCount) } : dto;
+  });
 
   const fact = pickPubOfTheDayFact(heritageCache, now);
 

@@ -195,6 +195,10 @@ export type TonightPickDto = {
    *  around the viewer's remembered patch (#427) without another fetch. */
   lat: number | null;
   lng: number | null;
+  /** Honest one-line note when this pick stands in for a syndicated deal running
+   *  at several venues ("Same deal at 12 pubs"), or null for a single venue. The
+   *  count is real row data (lib/dealsDigest.ts), never padded. */
+  venueNote?: string | null;
 };
 
 const KIND_LABEL: Record<WhatsOnKind, string> = {

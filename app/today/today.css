@@ -359,6 +359,19 @@
   opacity: 0.85;
 }
 
+/* Chain-deal disclosure: "Same deal at 12 pubs". Honest, understated, so a
+   syndicated promotion reads as one deal at many pubs, not many picks. */
+.todayPickDigest {
+  align-self: flex-start;
+  padding: 2px 8px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: var(--panel-raised);
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--ink-soft);
+}
+
 /* Provenance chip (matches the app's Sourced idiom). */
 .todayProvChip {
   display: inline-flex;
