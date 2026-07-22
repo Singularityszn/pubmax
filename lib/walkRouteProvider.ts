@@ -19,6 +19,33 @@ import { isValidLngLat, type LngLat } from "@/lib/walkRoute";
 export const ORS_FOOT_WALKING_URL =
   "https://api.openrouteservice.org/v2/directions/foot-walking/geojson";
 
+// Per-call ORS deadline. Without it a hung foot-walking request rides the
+// platform timeout — one slow leg stalling the whole route while the client
+// waits on the map. When it fires the fetch aborts, the catch below degrades
+// the leg to null, and the caller draws its straight segment. 4s is comfortably
+// above ORS's usual sub-second reply while still bounding a stall. Injectable
+// (opts.timeoutMs) so tests prove the deadline path without a real wait.
+export const WALK_LEG_TIMEOUT_MS = 4000;
+
+// Bound a fetch to `timeoutMs`, honouring any caller signal too, without
+// depending on AbortSignal.any/timeout being present. The returned signal
+// aborts when either the deadline elapses or the caller's signal fires; `clear`
+// releases the timer so a fast reply never leaves it pending.
+function deadlineSignal(
+  callerSignal: AbortSignal | undefined,
+  timeoutMs: number,
+): { signal: AbortSignal; clear: () => void } {
+  const controller = new AbortController();
+  const timer = setTimeout(() => {
+    controller.abort(new DOMException("walk-route ORS timeout", "TimeoutError"));
+  }, timeoutMs);
+  if (callerSignal) {
+    if (callerSignal.aborted) controller.abort(callerSignal.reason);
+    else callerSignal.addEventListener("abort", () => controller.abort(callerSignal.reason), { once: true });
+  }
+  return { signal: controller.signal, clear: () => clearTimeout(timer) };
+}
+
 /** Trimmed ORS_API_KEY, or null when unset/blank (the keyless default). */
 export function orsApiKey(): string | null {
   const key = process.env.ORS_API_KEY?.trim();
@@ -63,12 +90,14 @@ export type FetchWalkLegOptions = {
   apiKey?: string | null;
   doFetch?: WalkRouteFetch;
   signal?: AbortSignal;
+  /** Per-call deadline in ms; defaults to WALK_LEG_TIMEOUT_MS. Injectable for tests. */
+  timeoutMs?: number;
 };
 
 // Fetch the routed pavement geometry for ONE leg (two ordered stops). Resolves
 // to the [lng,lat] path on success, or null on any soft failure (no key,
-// non-200, malformed payload, network error, abort) so the caller draws the
-// straight segment for that leg.
+// non-200, malformed payload, network error, abort, or the per-call timeout) so
+// the caller draws the straight segment for that leg.
 export async function fetchWalkLeg(
   from: LngLat,
   to: LngLat,
@@ -77,6 +106,7 @@ export async function fetchWalkLeg(
   const apiKey = opts.apiKey === undefined ? orsApiKey() : opts.apiKey;
   if (!apiKey) return null;
   const doFetch = opts.doFetch ?? defaultFetch;
+  const { signal, clear } = deadlineSignal(opts.signal, opts.timeoutMs ?? WALK_LEG_TIMEOUT_MS);
   try {
     const response = await doFetch(ORS_FOOT_WALKING_URL, {
       method: "POST",
@@ -91,12 +121,14 @@ export async function fetchWalkLeg(
           [to[0], to[1]],
         ],
       }),
-      signal: opts.signal,
+      signal,
     });
     if (!response.ok) return null;
     return parseOrsGeometry(await response.json());
   } catch {
-    // Network error, abort, or a JSON parse throw — all degrade to straight.
+    // Network error, abort, timeout, or a JSON parse throw — all degrade to straight.
     return null;
+  } finally {
+    clear();
   }
 }

@@ -7,7 +7,11 @@
 // Honesty is the design (same stance as lib/routeLegs.ts): a leg with real
 // routed geometry reads as walked pavement; a leg with only its straight segment
 // is marked source "straight" so the map can dash it as "approximate, not
-// routed" rather than claim a route it never computed.
+// routed" rather than claim a route it never computed. The same honesty carries
+// into the leg LABELS: measure a routed leg's real length along its polyline
+// (polylineDistanceKm) so it can read "walking route" instead of "straight-line".
+
+import { haversineKm } from "@/lib/haversine";
 
 export type LngLat = [number, number];
 
@@ -129,6 +133,41 @@ export function stitchLegCoordinates(legs: LngLat[][]): LngLat[] {
 // long as a fully-approximate one is never dressed up as pavement.
 export function routeSource(legs: WalkLeg[]): WalkRouteSource {
   return legs.some((leg) => leg.source === "ors") ? "ors" : "straight";
+}
+
+// Real walked distance in km along a drawn polyline: the sum of the great-circle
+// hops between its consecutive points. For a straight two-point leg this equals
+// the haversine distance between the stops; for an ORS pavement leg it is the
+// TRUE routed length (always >= the straight-line distance), which is exactly
+// what lets a leg label read an honest "walking route" instead of "straight-
+// line". Fewer than two points measures nothing (0).
+export function polylineDistanceKm(coordinates: LngLat[]): number {
+  let km = 0;
+  for (let i = 1; i < coordinates.length; i += 1) {
+    km += haversineKm(coordinates[i - 1], coordinates[i]);
+  }
+  return km;
+}
+
+/** A leg's measured distance + how it was drawn — the serializable per-leg
+ *  distance breakdown GET /api/walk-route returns so a client can relabel each
+ *  leg source-aware (see lib/routeLegs withRoutedDistances). */
+export type WalkLegDistance = {
+  fromIndex: number;
+  toIndex: number;
+  /** Distance in km along this leg's drawn polyline (routed length or straight). */
+  distanceKm: number;
+  source: WalkRouteSource;
+};
+
+/** Per-leg measured distances, in leg order — polylineDistanceKm per leg. */
+export function legDistances(legs: WalkLeg[]): WalkLegDistance[] {
+  return legs.map((leg) => ({
+    fromIndex: leg.fromIndex,
+    toIndex: leg.toIndex,
+    distanceKm: polylineDistanceKm(leg.coordinates),
+    source: leg.source,
+  }));
 }
 
 // Stitch legs into ONE GeoJSON FeatureCollection whose single LineString feature
