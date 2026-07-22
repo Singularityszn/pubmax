@@ -878,3 +878,67 @@ html[data-theme="dark"] .planComposer__submit { color: #090d0b; }
   from { stroke-dashoffset: 1; }
   to { stroke-dashoffset: 0; }
 }
+
+/* ── Invite privacy preview (Wayfinder 4.2) ────────────────────────────────
+   Shown to pre-acceptance viewers in place of the route stop list + mini-map.
+   Reveals only: host name, broad area, time, stop count, vibe, accessibility.
+   No venue ids or names appear in the rendered output. */
+.invitePreview {
+  padding: clamp(22px, 4vw, 44px) 0 clamp(22px, 4vw, 44px) 72px;
+}
+.invitePreview h2 {
+  margin: 8px 0 28px;
+  font-family: var(--display, var(--serif));
+  font-size: clamp(1.5rem, 3.5vw, 2.6rem);
+  letter-spacing: -0.04em;
+  line-height: 1.05;
+  text-wrap: balance;
+}
+.invitePreview__details {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 16px 24px;
+  margin: 0 0 28px;
+  padding: 0;
+}
+.invitePreview__detail {
+  display: grid;
+  gap: 3px;
+}
+.invitePreview__detail dt {
+  color: var(--muted);
+  font-size: 0.7rem;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+.invitePreview__detail dd {
+  margin: 0;
+  color: var(--ink);
+  font-size: 1rem;
+  font-weight: 700;
+}
+.invitePreview__hint {
+  margin: 0 0 22px;
+  color: var(--ink-soft);
+  font-size: 0.85rem;
+  line-height: 1.45;
+}
+.invitePreview__join {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 12px 22px;
+  border-radius: 999px;
+  background: var(--plan-accent);
+  color: #fff;
+  font-size: 0.9rem;
+  font-weight: 800;
+  letter-spacing: 0.01em;
+  text-decoration: none;
+  transition: background 140ms ease;
+}
+.invitePreview__join:hover { background: var(--plan-accent-strong); }
+@media (max-width: 600px) {
+  .invitePreview { padding-left: 0; }
+}
