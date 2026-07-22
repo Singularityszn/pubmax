@@ -222,6 +222,7 @@ export function MobilePlanActivation({
             <div><strong>{result.confidence.level === "high" ? "Higher confidence" : result.confidence.level === "medium" ? "Plan with checks" : "Low confidence, fully editable"}</strong><span>{result.budget.estimatedPerPersonPence === null ? "Price evidence is incomplete; check each stop before relying on the budget." : `Estimated £${(result.budget.estimatedPerPersonPence / 100).toFixed(2)} each for one recorded pint per stop.`}</span>{result.confidence.warnings.length ? <ul aria-label="Evidence warnings">{result.confidence.warnings.map((warning) => <li key={warning}><small>{warning}</small></li>)}</ul> : null}</div>
           </div>
           <p className="mobilePlannerRouteTotal"><strong>{result.routeTotals.estimatedWalkingMinutes} min walk</strong> · {result.routeTotals.straightLineWalkingKm.toFixed(1)} km straight-line</p>
+          <p className="mobilePlannerNextStep">Route preview stays on this device. Open Plan and Lock it in when you want a shareable crew link.</p>
           <div className="mobilePlannerEndings" aria-label="Ending recommendations">
             {result.endings.map((ending) => (
               <div key={ending.kind} data-recommended={ending.preselected ? "true" : undefined}>
