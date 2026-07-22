@@ -28,6 +28,7 @@ import {
 
 import SiteNav from "@/components/nav/SiteNav";
 import { useWhatsOnTonight } from "@/components/map/useWhatsOnTonight";
+import DealsTonightLane from "@/components/discovery/DealsTonightLane";
 import TonightConditionsStrip from "./TonightConditionsStrip";
 import TonightGetHomeStrip from "./TonightGetHomeStrip";
 import AreaNewsRail from "@/components/desktop/AreaNewsRail";
@@ -206,6 +207,8 @@ export default function TonightClient() {
       </header>
 
       <TonightConditionsStrip origin={origin} />
+      {/* W3 cheap-round surface on /tonight — same deals spine as Discover. */}
+      <DealsTonightLane />
       {/* Wide viewports place the strip plus this block in a sticky right rail
           (tonight.css grid); below the breakpoint the rail block simply follows
           the strip in flow. Area news needs a coarse area: the shared

@@ -68,8 +68,9 @@
 }
 
 /* N3 desktop inspector photo header — taller, edge-to-edge under title.
-   Real-photo path only; the empty fallback stays slim (rule above). */
-@media (min-width: 960px) {
+   Real-photo path only; the empty fallback stays slim (rule above).
+   ≥1024px matches venueSheet.css / globals "real desktop" cut. */
+@media (min-width: 1024px) {
   .venueInspector .venueImage--header {
     border-radius: 0 0 14px 14px;
     margin: 0 0 0.75rem;

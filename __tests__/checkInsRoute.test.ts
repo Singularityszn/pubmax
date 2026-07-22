@@ -106,4 +106,19 @@ describe("GET /api/check-ins", () => {
     const data = (await res.json()) as { checkIns: unknown[] };
     expect(data.checkIns).toEqual([]);
   });
+
+  it("ignores spoofed ?viewer= in production (friends lane stays closed)", async () => {
+    vi.stubEnv("NODE_ENV", "production");
+    const s = followStore();
+    await s.follow("karan", "amy");
+    await s.follow("amy", "karan");
+    await POST(postBody({ handle: "amy", areaSlug: "brixton" }));
+
+    const res = await GET(new Request("http://localhost/api/check-ins?viewer=karan"));
+    expect(res.status).toBe(200);
+    const data = (await res.json()) as { checkIns: unknown[] };
+    // Without a JWT-linked profile, production must not honour the query handle.
+    expect(data.checkIns).toEqual([]);
+    vi.unstubAllEnvs();
+  });
 });

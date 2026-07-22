@@ -6,6 +6,7 @@ import { CREW_NAME_MAX, type CrewMemberDTO, type CrewPresenceStatus } from "@/li
 import { subscribeToPlanCrew } from "@/lib/crewRealtime";
 import { trackEvent } from "@/lib/analytics";
 import { isIdentityNudgePending, recordPlanNudgeTrigger } from "@/lib/identityNudge";
+import { rememberLastCrew } from "@/lib/lastCrew";
 import { parsePlanCapabilitySnapshot, planCapabilityEvent, readPlanCapabilitySnapshot, restorePlanCapability, writePlanCapability } from "@/lib/planSessionCapability";
 import { clearPersistentPlanMutationKey, persistentPlanMutationKey } from "@/lib/planMutationKey";
 import { recordPlanHighIntentAction } from "@/lib/nativePushPrompt";
@@ -142,6 +143,16 @@ export default function PlanCrew({ planId, initialCrew }: { planId: string; init
   useEffect(() => {
     return subscribeToPlanCrew(planId, refetchCrew, { poll: refetchCrew });
   }, [planId, refetchCrew]);
+
+  // Sort My Night P1: remember the usual lot once a real crew forms (2+ names)
+  // so the next /plan can one-tap re-invite them via the share link.
+  useEffect(() => {
+    if (crew.length < 2) return;
+    rememberLastCrew(
+      crew.map((member) => member.name),
+      planId,
+    );
+  }, [crew, planId]);
 
   async function join(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
