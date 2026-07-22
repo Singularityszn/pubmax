@@ -391,20 +391,47 @@ export function buildPois(ctx: SceneCtx) {
 }
 
 export function buildRoute(ctx: SceneCtx) {
-  const { map, tokens, addLayerOnce, routeLine } = ctx;
-  // --- Crawl route: solid brass underlay + animated brass dash on top.
+  const { map, tokens, dark, addLayerOnce, routeLine } = ctx;
+  // --- Crawl route: a high-contrast walking line that follows real roads.
+  // Three layers off the one `route-line` source, whose single LineString
+  // feature carries a `source` property ("ors" | "straight", set by
+  // lib/walkRoute legsToLineString):
+  //   1. casing — an opposite-luminance halo so the line stays legible over both
+  //      the pale Positron paper and the OLED-dark basemap (the two-layer
+  //      casing/colour idiom copied from tube-lines above).
+  //   2. the solid coloured line — full strength for a real routed line ("ors"),
+  //      dropped to a faint underlay for the straight fallback so the dash reads.
+  //   3. the marching-ants dash — shown ONLY for the "straight" fallback, where
+  //      it now MEANS "approximate, not routed"; hidden for a real routed line.
+  // Opacity is data-driven off the feature's `source`, so the ors/straight look
+  // flips with the data (and survives a theme setStyle rebuild) without any
+  // imperative repaint. The dash animation (RAF loop in PubMapCanvas) is already
+  // reduced-motion gated, so a static dash holds for reduced-motion users.
   if (!map.getSource("route-line")) {
     map.addSource("route-line", { type: "geojson", data: routeLine });
   }
+  addLayerOnce({
+    id: "route-line-casing",
+    type: "line",
+    source: "route-line",
+    layout: { "line-cap": "round", "line-join": "round" },
+    paint: {
+      "line-color": dark ? tokens.inkDeep : tokens.paper,
+      "line-width": 6,
+      "line-opacity": 0.85,
+    },
+  });
   addLayerOnce({
     id: "route-line",
     type: "line",
     source: "route-line",
     layout: { "line-cap": "round", "line-join": "round" },
     paint: {
-      "line-color": tokens.brass,
+      "line-color": tokens.routeLine,
       "line-width": 4,
-      "line-opacity": 0.3,
+      // Solid at full strength for a routed line; a faint underlay under the
+      // dash for the straight fallback.
+      "line-opacity": ["case", ["==", ["get", "source"], "straight"], 0.3, 0.95],
     },
   });
   addLayerOnce({
@@ -413,9 +440,11 @@ export function buildRoute(ctx: SceneCtx) {
     source: "route-line",
     layout: { "line-cap": "round", "line-join": "round" },
     paint: {
-      "line-color": tokens.brassBright,
+      "line-color": tokens.routeLine,
       "line-width": 2.5,
-      "line-opacity": 0.9,
+      // Only the straight fallback wears the marching-ants dash; a routed line
+      // stays solid (the layer paints nothing when source is "ors").
+      "line-opacity": ["case", ["==", ["get", "source"], "straight"], 0.9, 0],
       "line-dasharray": DASH_SEQ[0],
     },
   });

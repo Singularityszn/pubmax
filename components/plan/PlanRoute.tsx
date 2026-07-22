@@ -8,6 +8,7 @@ import { CalendarClock, Music, Tag, Tv, type LucideIcon } from "lucide-react";
 // source of truth (lib/planGetIn) so the shapes cannot drift. Erased at build,
 // so no server code reaches the client bundle.
 import type { PlanGetInReportDTO, PlanGetInStopDTO } from "@/lib/planGetIn";
+import { buildCrawlMapHref } from "@/lib/crawlUrl";
 import { isValidWhatsOnRow, type WhatsOnKind, type WhatsOnRow } from "@/lib/whatsOn";
 import { checkedLabel } from "@/lib/whatsOnBadges";
 import { stopEventChips, type StopEventChip } from "@/lib/planWhatsOn";
@@ -94,6 +95,10 @@ export default function PlanRoute({
 
   const signals = new Map((report?.stops ?? []).map((stop) => [stop.venueId, stop]));
   const groupSize = report?.groupSize ?? 0;
+  // Deep link the whole ordered crawl onto the map, where the route now follows
+  // real walking roads. The per-stop "Open on the map" links below still jump to
+  // a single pin; this shows the walk between every stop.
+  const walkRouteHref = buildCrawlMapHref(stops.map((stop) => stop.venueId));
 
   return (
     <div className="planRoute">
@@ -101,6 +106,11 @@ export default function PlanRoute({
         <p className="planRoute__basis">
           Get-in estimate for {groupSize === 1 ? "one" : groupSize} going. Never a guarantee of entry.
         </p>
+      ) : null}
+      {walkRouteHref ? (
+        <Link className="planRoute__walk" href={walkRouteHref}>
+          See the walking route
+        </Link>
       ) : null}
       <ol className="planSummary__stops">
         {stops.map((stop, index) => {

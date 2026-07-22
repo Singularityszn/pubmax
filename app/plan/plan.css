@@ -244,6 +244,21 @@
 }
 .planRoute__body { display: grid; gap: 6px; min-width: 0; }
 
+/* "See the walking route" — deep links the whole ordered crawl to the map,
+   where the route follows real walking roads. Sits above the stop list, aligned
+   with the numbered rows' text column. */
+.planRoute__walk {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin: 22px 0 -4px 72px;
+  color: var(--plan-accent-strong);
+  font-weight: 700;
+  font-size: 0.82rem;
+  letter-spacing: 0.01em;
+  text-underline-offset: 3px;
+}
+
 /* ── On-tonight event chips (C3) ───────────────────────────────────────────
    Mirrors the venue-sheet W1 "on tonight" chip system (venueSheet.css
    .venueTonightChip) so a real quiz/sport/deal/music row reads as the same

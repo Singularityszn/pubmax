@@ -1,0 +1,137 @@
+import { describe, expect, it } from "vitest";
+
+import {
+  CACHE_COORD_DP,
+  encodeStops,
+  isValidLngLat,
+  legCacheKey,
+  legsToLineString,
+  parseStops,
+  roundCoord,
+  routeSource,
+  stitchLegCoordinates,
+  stopPairs,
+  straightLegCoordinates,
+  straightLegs,
+  type LngLat,
+  type WalkLeg,
+} from "@/lib/walkRoute";
+
+// Two real central-London pub coordinates, [lng, lat].
+const A: LngLat = [-0.1005, 51.5136];
+const B: LngLat = [-0.0975, 51.5142];
+const C: LngLat = [-0.0951, 51.5155];
+
+describe("roundCoord + legCacheKey", () => {
+  it("rounds to the documented precision", () => {
+    expect(roundCoord(-0.10054321)).toBe(-0.10054);
+    expect(CACHE_COORD_DP).toBe(5);
+  });
+
+  it("keys the same ordered pair identically within precision, and is direction-sensitive", () => {
+    expect(legCacheKey(A, B)).toBe(legCacheKey([-0.100501, 51.513604], B));
+    expect(legCacheKey(A, B)).not.toBe(legCacheKey(B, A));
+  });
+});
+
+describe("isValidLngLat", () => {
+  it("accepts in-range finite pairs and rejects everything else", () => {
+    expect(isValidLngLat(A)).toBe(true);
+    expect(isValidLngLat([0, 0])).toBe(true);
+    expect(isValidLngLat([200, 0])).toBe(false);
+    expect(isValidLngLat([0, 91])).toBe(false);
+    expect(isValidLngLat([Number.NaN, 0])).toBe(false);
+    expect(isValidLngLat([0])).toBe(false);
+    expect(isValidLngLat("nope")).toBe(false);
+  });
+});
+
+describe("encodeStops / parseStops round-trip", () => {
+  it("round-trips a valid ordered list", () => {
+    expect(parseStops(encodeStops([A, B, C]))).toEqual([A, B, C]);
+  });
+
+  it("drops malformed and out-of-range pairs, never throws", () => {
+    expect(parseStops("-0.1005,51.5136;nan,nan;;200,0;-0.0975,51.5142")).toEqual([A, B]);
+    expect(parseStops("")).toEqual([]);
+    expect(parseStops(null)).toEqual([]);
+    expect(parseStops(undefined)).toEqual([]);
+  });
+});
+
+describe("stopPairs + straightLegs", () => {
+  it("yields N-1 adjacent legs, straight by default", () => {
+    expect(stopPairs([A, B, C])).toHaveLength(2);
+    const legs = straightLegs([A, B, C]);
+    expect(legs).toHaveLength(2);
+    expect(legs[0]).toMatchObject({ fromIndex: 0, toIndex: 1, source: "straight" });
+    expect(legs[0].coordinates).toEqual(straightLegCoordinates(A, B));
+    expect(legs[1]).toMatchObject({ fromIndex: 1, toIndex: 2, source: "straight" });
+  });
+
+  it("yields no legs for fewer than two stops", () => {
+    expect(straightLegs([A])).toEqual([]);
+    expect(straightLegs([])).toEqual([]);
+  });
+});
+
+describe("stitchLegCoordinates", () => {
+  it("drops the duplicated shared vertex between adjacent legs", () => {
+    const routed: LngLat[] = [
+      [-0.1005, 51.5136],
+      [-0.099, 51.5139],
+      [-0.0975, 51.5142],
+    ];
+    const next: LngLat[] = [
+      [-0.0975, 51.5142],
+      [-0.0951, 51.5155],
+    ];
+    expect(stitchLegCoordinates([routed, next])).toEqual([
+      [-0.1005, 51.5136],
+      [-0.099, 51.5139],
+      [-0.0975, 51.5142],
+      [-0.0951, 51.5155],
+    ]);
+  });
+});
+
+describe("routeSource", () => {
+  it("is straight only when every leg fell back, ors when any leg routed", () => {
+    const straight: WalkLeg = { fromIndex: 0, toIndex: 1, coordinates: [A, B], source: "straight" };
+    const ors: WalkLeg = { fromIndex: 1, toIndex: 2, coordinates: [B, C], source: "ors" };
+    expect(routeSource([straight, straight])).toBe("straight");
+    expect(routeSource([straight, ors])).toBe("ors");
+    expect(routeSource([])).toBe("straight");
+  });
+});
+
+describe("legsToLineString", () => {
+  it("stitches legs into one LineString carrying the source flag", () => {
+    const legs = straightLegs([A, B, C]);
+    const fc = legsToLineString(legs);
+    expect(fc.features).toHaveLength(1);
+    const feature = fc.features[0];
+    expect(feature.geometry.type).toBe("LineString");
+    expect(feature.properties).toEqual({ source: "straight" });
+    expect((feature.geometry as GeoJSON.LineString).coordinates).toEqual([A, B, C]);
+  });
+
+  it("marks the line ors when a leg carries routed geometry", () => {
+    const legs: WalkLeg[] = [
+      { fromIndex: 0, toIndex: 1, coordinates: [A, [-0.099, 51.5139], B], source: "ors" },
+      { fromIndex: 1, toIndex: 2, coordinates: [B, C], source: "straight" },
+    ];
+    const fc = legsToLineString(legs);
+    expect(fc.features[0].properties).toEqual({ source: "ors" });
+    expect((fc.features[0].geometry as GeoJSON.LineString).coordinates).toEqual([
+      A,
+      [-0.099, 51.5139],
+      B,
+      C,
+    ]);
+  });
+
+  it("returns an empty collection when there is nothing drawable", () => {
+    expect(legsToLineString([]).features).toEqual([]);
+  });
+});
