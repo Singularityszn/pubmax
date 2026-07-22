@@ -161,12 +161,29 @@ describe("subscribeToComments", () => {
     expect(() => unsub()).not.toThrow();
   });
 
-  it("nudges (payload-free) on a comment INSERT", () => {
+  it("polls the filtered API even when a Realtime channel could report subscribed", () => {
     const nudge = vi.fn();
-    subscribeToComments("drop-1", nudge);
-    subscribeCb?.("SUBSCRIBED");
-    capturedHandler?.({ new: { id: "c1", handle: "x", body: "leak?" } });
+    const unsub = subscribeToComments("drop-1", nudge);
+
+    expect(capturedHandler).toBeNull();
+    expect(subscribeCb).toBeNull();
+    vi.advanceTimersByTime(30_000);
     expect(nudge).toHaveBeenCalledTimes(1);
     expect(nudge.mock.calls[0]).toHaveLength(0);
+
+    unsub();
+    vi.advanceTimersByTime(30_000);
+    expect(nudge).toHaveBeenCalledTimes(1);
+  });
+
+  it("uses an explicit filtered-API poll callback when supplied", () => {
+    const nudge = vi.fn();
+    const poll = vi.fn();
+    const unsub = subscribeToComments("drop-1", nudge, { poll });
+
+    vi.advanceTimersByTime(30_000);
+    expect(poll).toHaveBeenCalledTimes(1);
+    expect(nudge).not.toHaveBeenCalled();
+    unsub();
   });
 });

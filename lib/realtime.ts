@@ -90,6 +90,20 @@ type SubscribeOptions = {
   enabled?: boolean;
 };
 
+/**
+ * API-only tables cannot safely use browser Postgres Changes: Supabase may
+ * report a channel as subscribed while RLS/SELECT grants filter every event.
+ * Poll the filtered API on the same gentle cadence instead.
+ */
+function subscribeByPolling(
+  onSignal: LiveSignal,
+  options: SubscribeOptions | undefined,
+): Unsubscribe {
+  if (options?.enabled === false) return () => {};
+  const id = setInterval(options?.poll ?? onSignal, POLL_INTERVAL_MS);
+  return () => clearInterval(id);
+}
+
 // Core subscription primitive. Opens ONE channel bound to a single INSERT event
 // on `table` (optionally row-filtered), and:
 //   1. arms a join watchdog — if the channel isn't SUBSCRIBED within
@@ -231,14 +245,13 @@ export function subscribeToNewDrops(
 }
 
 /**
- * Subscribe to NEW comments (and threaded replies) on ONE drop. `onComment` is
- * a bare nudge — on each event the caller must REFETCH via GET
- * /api/pint-drops/comments so only visible rows render. The payload row is never
- * surfaced. Falls back to `options.poll` on a 30s interval. Returns a safe
- * Unsubscribe. A falsy `dropId` yields a pure no-op (nothing to watch).
- *
- * NOTE: `pint_drop_comments` must be in the `supabase_realtime` publication for
- * INSERT events to fire (see 0013 header).
+ * Watch comments (and threaded replies) on ONE drop. Migration 0050 makes raw
+ * `pint_drop_comments` reads API-only so actor hashes and parent visibility can
+ * never leak through the browser client. A Realtime channel can still report
+ * `SUBSCRIBED` while RLS silently filters every event, so this path deliberately
+ * polls GET /api/pint-drops/comments every 30s instead. `onComment` remains a
+ * payload-free refetch nudge and is used when no explicit `poll` is supplied.
+ * A falsy `dropId` yields a pure no-op (nothing to watch).
  */
 export function subscribeToComments(
   dropId: string,
@@ -246,11 +259,5 @@ export function subscribeToComments(
   options?: SubscribeOptions,
 ): Unsubscribe {
   if (!dropId) return () => {};
-  return subscribeInsert(
-    `live:comments:${dropId}`,
-    "pint_drop_comments",
-    `pint_drop_id=eq.${dropId}`,
-    onComment,
-    options,
-  );
+  return subscribeByPolling(onComment, options);
 }

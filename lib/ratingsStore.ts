@@ -35,7 +35,7 @@ import {
 import { normalizeHandle } from "@/lib/profiles";
 import {
   admin,
-  createMemoryFallbackWarner,
+  createSchemaMissWarner,
   missingTables,
   selectStore,
 } from "@/lib/storeBackend";
@@ -74,7 +74,7 @@ const TABLES: Record<RatingKind, { table: string; refColumn: string }> = {
 const TOP_SCAN_ROWS = 5000;
 
 const isMissingRatingsSchema = missingTables("drink_ratings", "venue_ratings");
-const { warn: warnMemoryFallback } = createMemoryFallbackWarner(
+const { warn: warnMemoryFallback } = createSchemaMissWarner(
   "ratings",
   "apply migration 0020",
 );

@@ -83,17 +83,17 @@ export function missingTables(...tables: string[]): (err: unknown) => boolean {
   return (err) => isMissingTableSchema(err, tables);
 }
 
-export type MemoryFallbackWarner = (context: string, err: unknown) => void;
+export type SchemaMissWarner = (context: string, err: unknown) => void;
 
 /**
  * Deduped console.warn when a Supabase table is missing and the caller's
  * schema-miss policy is invoked. That policy may use memory outside production
  * or fail closed in production, so the log must not promise a fallback.
  */
-export function createMemoryFallbackWarner(
+export function createSchemaMissWarner(
   storeTag: string,
   migrationHint: string,
-): { warn: MemoryFallbackWarner; resetWarnings: () => void } {
+): { warn: SchemaMissWarner; resetWarnings: () => void } {
   const seen = new Set<string>();
   return {
     warn(context, err) {
@@ -117,7 +117,7 @@ export type RunStoreOpOptions<T> = {
   /** When set, schema-miss routes here instead of onError / rethrow. */
   onSchemaMiss?: () => Promise<T>;
   isSchemaMiss?: (err: unknown) => boolean;
-  warnSchemaMiss?: MemoryFallbackWarner;
+  warnSchemaMiss?: SchemaMissWarner;
   /** Fail-soft path for non-schema errors. When omitted, non-schema errors rethrow. */
   onError?: (err: unknown) => T | Promise<T>;
   /** When onError is used, optional `[tag] message` log line before the fallback. */
@@ -173,7 +173,7 @@ export type FailSoftGuard = {
   /** Bound schema-miss predicate, for stores that also branch on it manually. */
   isSchemaMiss: (err: unknown) => boolean;
   /** Deduped fallback warner (same instance the guard uses). */
-  warn: MemoryFallbackWarner;
+  warn: SchemaMissWarner;
   /** Reset the deduped schema-miss warnings — test-only. */
   resetWarnings: () => void;
 };
@@ -195,7 +195,7 @@ export function createFailSoftGuard(opts: {
   migrationHint: string;
 }): FailSoftGuard {
   const tables = Array.isArray(opts.tables) ? [...opts.tables] : [opts.tables];
-  const { warn, resetWarnings } = createMemoryFallbackWarner(opts.tag, opts.migrationHint);
+  const { warn, resetWarnings } = createSchemaMissWarner(opts.tag, opts.migrationHint);
   const isSchemaMiss = missingTables(...tables);
   return {
     isSchemaMiss,
