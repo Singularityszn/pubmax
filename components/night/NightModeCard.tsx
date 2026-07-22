@@ -186,26 +186,26 @@ export function endingOptionsForSignals({
       id: "food",
       title: "Find food",
       description: lateFoodCount > 0
-        ? `${lateFoodCount} reviewed nearby option${lateFoodCount === 1 ? "" : "s"}; verify tonight's hours.`
-        : "No reviewed late-food option is available here yet.",
-      actionLabel: "Review food",
+        ? `${lateFoodCount} reviewed nearby option${lateFoodCount === 1 ? "" : "s"}. Check tonight's hours.`
+        : "No late food worth flagging here yet.",
+      actionLabel: "See the food",
     },
     {
       id: "get_home",
       title: "Get home",
       description: leaveByIso
-        ? `Live leave-by signal for ${stationName ?? "the nearest station"}.`
-        : `Review ${stationName ?? "the nearest transport anchor"} before confirming.`,
-      actionLabel: "Review journey",
+        ? `Live last-train time for ${stationName ?? "the nearest station"}.`
+        : `Check ${stationName ?? "the nearest station"} before you confirm.`,
+      actionLabel: "Check the way home",
       recommended: true,
     },
     {
       id: "keep_going",
       title: "Keep going",
       description: extensionCount > 0
-        ? `${extensionCount} grounded nearby extension${extensionCount === 1 ? "" : "s"}; hours unverified.`
-        : "No grounded nearby extension is available yet.",
-      actionLabel: "Review extensions",
+        ? `${extensionCount} nearby spot${extensionCount === 1 ? "" : "s"} for one more. Hours not checked.`
+        : "Nowhere close enough for one more yet.",
+      actionLabel: "See what's near",
     },
   ];
 }
@@ -772,11 +772,11 @@ function FoodEndingPicker({
   onChoose: (terminal: LateFoodTerminal) => void;
 }) {
   if (terminals.length === 0) {
-    return <p className="nightCard__endingHint">Reviewed nearby food recommendations are not available for this route yet.</p>;
+    return <p className="nightCard__endingHint">No late food worth pointing you to round here yet.</p>;
   }
   return (
     <div className="nightCard__foodPicker" aria-label="Choose a food ending">
-      <strong>Nearby food to review</strong>
+      <strong>Late food nearby</strong>
       <ul>
         {terminals.slice(0, 3).map((terminal) => (
           <li key={terminal.id}>
@@ -811,10 +811,10 @@ function GetHomeEndingConfirmation({
 }) {
   return (
     <div className="nightCard__foodPicker" aria-label="Confirm Get home ending">
-      <strong>Review the journey signal</strong>
-      <p>{leaveByIso ? `A live leave-by signal is available for ${stationName ?? "the nearest station"}.` : `Check live status and your destination from ${stationName ?? "the nearest transport anchor"}.`}</p>
+      <strong>Getting home</strong>
+      <p>{leaveByIso ? `We've got a live last-train time for ${stationName ?? "the nearest station"}.` : `Check the last trains from ${stationName ?? "the nearest station"} before you head off.`}</p>
       <button type="button" className="nightCard__endingLink" disabled={saving} onClick={onConfirm}>
-        Confirm Get home ending
+        That&apos;s my way home
       </button>
       <a className="nightCard__endingLink" href="https://tfl.gov.uk/plan-a-journey/" target="_blank" rel="noreferrer">Open TfL journey planner</a>
     </div>
@@ -831,17 +831,17 @@ function KeepGoingPicker({
   onChoose: (extension: KeepGoingExtension) => void;
 }) {
   if (extensions.length === 0) {
-    return <p className="nightCard__endingHint">No grounded nearby extension is available without widening the route.</p>;
+    return <p className="nightCard__endingHint">Nothing close enough to add without dragging the night out.</p>;
   }
   return (
     <div className="nightCard__foodPicker" aria-label="Choose a Keep going extension">
-      <strong>Grounded nearby extensions</strong>
+      <strong>One more nearby</strong>
       <ul>
         {extensions.map((extension) => (
           <li key={extension.id}>
             <button type="button" className="nightCard__endingLink" disabled={saving} onClick={() => onChoose(extension)}>
               <span>{extension.name}</span>
-              <small>{extension.distanceKm.toFixed(1)} km straight-line · {extension.cheapestPrice === null ? "price unknown" : `about £${extension.cheapestPrice.toFixed(2)} for one recorded pint`} · hours unverified</small>
+              <small>{extension.distanceKm.toFixed(1)} km away · {extension.cheapestPrice === null ? "no price yet" : `about £${extension.cheapestPrice.toFixed(2)} a pint`} · hours not checked</small>
             </button>
           </li>
         ))}
@@ -938,10 +938,10 @@ function NightEndingResult({
             ))}
           </ul>
         ) : (
-          <p>Food options round here still need review. Check the map before walking.</p>
+          <p>No late food flagged round here yet. Check the map before you walk.</p>
         )}
         <p className="nightCard__endingFineprint">
-          Kitchen hours can change; verify tonight before leaving the last pub.
+          Kitchens can shut early. Check tonight&apos;s hours before you leave the last pub.
         </p>
       </div>
     );
@@ -950,10 +950,10 @@ function NightEndingResult({
   if (ending === "keep_going") {
     return (
       <div className="nightCard__endingResult" data-ending="keep_going">
-        <strong>Keep it feasible</strong>
+        <strong>Keep it sensible</strong>
         <p>
-          {keepGoingExtension ? `${keepGoingExtension.name} is your reviewed extension from ${currentStop.venueName}.` : `Open the map around ${currentStop.venueName} and choose something genuinely nearby.`}
-          {" "}PUBMAXX will not reward extra drinking or volume.
+          {keepGoingExtension ? `${keepGoingExtension.name} is your next stop from ${currentStop.venueName}.` : `Open the map around ${currentStop.venueName} and pick somewhere genuinely close.`}
+          {" "}We won&apos;t push you to drink more. This is just what&apos;s nearby.
         </p>
         <Link
           className="nightCard__endingLink"
@@ -970,7 +970,7 @@ function NightEndingResult({
       <strong>Get home safe</strong>
       <p>
         {leaveByIso ? "Use the leave-by time above and start moving now." : "Check TfL or your preferred route home before leaving the group."}
-        {stationName ? ` Nearest rail signal: ${stationName}.` : ""}
+        {stationName ? ` Nearest station: ${stationName}.` : ""}
       </p>
       <NightCalmLine area={nightArea} />
     </div>

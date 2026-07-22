@@ -58,7 +58,7 @@ describe("recommendedEndingForPlan", () => {
 });
 
 describe("endingOptionsForSignals", () => {
-  it("turns grounded live-night signals into review copy without selecting an ending", () => {
+  it("turns live-night signals into plain review copy without selecting an ending", () => {
     const options = endingOptionsForSignals({
       lateFoodCount: 2,
       stationName: "Clapham Common",
@@ -68,7 +68,7 @@ describe("endingOptionsForSignals", () => {
 
     expect(options[0].description).toContain("2 reviewed nearby options");
     expect(options[1].description).toContain("Clapham Common");
-    expect(options[2].description).toContain("2 grounded nearby extensions");
+    expect(options[2].description).toContain("2 nearby spots");
   });
 });
 
