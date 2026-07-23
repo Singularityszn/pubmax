@@ -10,17 +10,15 @@ import {
 } from "@/lib/cityPreference";
 import { warmMapRoute } from "@/lib/mapWarmup";
 import { markPubmaxTiming } from "@/lib/performanceMarks";
-<<<<<<< HEAD
 import {
   MOMENT_NAV_ACTION,
   PRIMARY_NAV_ITEMS,
+  TOUR_TARGET_TAB_KEY,
   momentHref,
   navPathMatches,
   type PrimaryNavKey,
+  type TourSpotlightTarget,
 } from "@/components/nav/navigationModel";
-=======
-import { MOMENT_NAV_ACTION, PRIMARY_NAV_ITEMS, TOUR_TARGET_TAB_KEY, momentHref, type PrimaryNavKey, type TourSpotlightTarget } from "@/components/nav/navigationModel";
->>>>>>> origin/main
 import "./mobileNav.css";
 
 // Mobile-first bottom tab bar. Visible only ≤640px (see mobileNav.css); on
