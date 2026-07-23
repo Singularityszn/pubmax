@@ -47,6 +47,8 @@ export type SurpriseDrinkInput = {
   personKey: string;
   /** The person's local calendar date, in YYYY-MM-DD form. */
   dayKey: string;
+  /** Explicit selection instant. Evidence may not be newer than this value. */
+  asOfIso: string;
   /** Controlled counter: zero for the first pick, +1 for each explicit Another. */
   anotherIndex: number;
   /** Confirmed exact-drink availability. Category-only map hints must not enter here. */
@@ -96,15 +98,13 @@ function cleanToken(value: string): string {
   return value.trim().toLocaleLowerCase("en-GB");
 }
 
-function validObservedAt(value: string, dayKey: string): boolean {
+function validObservedAt(value: string, asOfMs: number): boolean {
   const observedAt = Date.parse(value);
-  const dayEnd = Date.parse(`${dayKey}T23:59:59.999Z`);
   return (
     value.trim().length > 0
     && Number.isFinite(observedAt)
-    && Number.isFinite(dayEnd)
-    && observedAt <= dayEnd
-    && observedAt >= dayEnd - MAX_EVIDENCE_AGE_MS
+    && observedAt <= asOfMs
+    && observedAt >= asOfMs - MAX_EVIDENCE_AGE_MS
   );
 }
 
@@ -121,7 +121,7 @@ function validDayKey(value: string): boolean {
 
 function cleanVenueEvidence(
   evidence: readonly SurpriseDrinkVenueEvidence[],
-  dayKey: string,
+  asOfMs: number,
 ): SurpriseDrinkVenueEvidence[] {
   const candidates: SurpriseDrinkVenueEvidence[] = [];
   for (const row of evidence) {
@@ -146,7 +146,7 @@ function cleanVenueEvidence(
       !Number.isFinite(row.priceGbp) ||
       row.priceGbp <= 0 ||
       row.priceGbp > 500 ||
-      !validObservedAt(observedAt, dayKey)
+      !validObservedAt(observedAt, asOfMs)
     ) continue;
     candidates.push({ venueId, venueName, priceGbp: row.priceGbp, source, observedAt });
   }
@@ -177,8 +177,8 @@ function stableHash(value: string): number {
 
 function sourceRationale(persona: PersonaDrink): string {
   return persona.kind === "fictional"
-    ? `As ordered in ${persona.knownFor}; sourced to ${persona.sourceName}.`
-    : `Reported favourite sourced to ${persona.sourceName}.`;
+    ? `As ordered in ${persona.knownFor}. Source: ${persona.sourceName}.`
+    : `Reported favourite. Source: ${persona.sourceName}.`;
 }
 
 function weatherRationale(
@@ -187,12 +187,22 @@ function weatherRationale(
   weatherCategory: DrinkCategory | null,
 ): string {
   if (!verdict || !weatherCategory) {
-    return "No grounded weather preference was available, so weather did not affect this pick.";
+    return "No weather suggestion was available, so weather did not affect this pick.";
   }
   if (persona.drinkCategory === weatherCategory) {
     return `Fits tonight's weather suggestion: ${verdict.drinkSuggestion}.`;
   }
-  return `Tonight's weather points to ${verdict.drinkSuggestion}; this is the next confirmed available choice.`;
+  return `Tonight's weather points to ${verdict.drinkSuggestion}; this menu-listed choice is next.`;
+}
+
+const EVIDENCE_MONTHS = [
+  "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+  "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
+] as const;
+
+function evidenceDateLabel(value: string): string {
+  const date = new Date(value);
+  return `${date.getUTCDate()} ${EVIDENCE_MONTHS[date.getUTCMonth()]} ${date.getUTCFullYear()}`;
 }
 
 function availabilityRationale(
@@ -201,10 +211,12 @@ function availabilityRationale(
 ): string {
   const category = categoryLabel(persona.drinkCategory).toLocaleLowerCase("en-GB");
   if (venues.length === 1) {
-    return `On the current menu at ${venues[0].venueName} for £${venues[0].priceGbp.toFixed(2)} (${category}).`;
+    return `Listed at ${venues[0].venueName} for £${venues[0].priceGbp.toFixed(2)} (${category}), checked ${evidenceDateLabel(venues[0].observedAt)}.`;
   }
   const prices = venues.map((venue) => venue.priceGbp);
-  return `On current menus at ${venues.length} pubs from £${Math.min(...prices).toFixed(2)} (${category}).`;
+  const latest = venues.reduce((best, venue) =>
+    Date.parse(venue.observedAt) > Date.parse(best.observedAt) ? venue : best);
+  return `Listed at ${venues.length} pubs from £${Math.min(...prices).toFixed(2)} (${category}); latest check ${evidenceDateLabel(latest.observedAt)}.`;
 }
 
 /**
@@ -215,11 +227,22 @@ function availabilityRationale(
  * `anotherIndex` walks that fixed order and wraps without random churn.
  */
 export function selectSurpriseDrink(input: SurpriseDrinkInput): SurpriseDrinkResult {
+  if (
+    !input
+    || typeof input.personKey !== "string"
+    || typeof input.dayKey !== "string"
+    || typeof input.asOfIso !== "string"
+  ) {
+    return { status: "empty", reason: "invalid-selection-key" };
+  }
   const personKey = input.personKey.trim();
   const dayKey = input.dayKey.trim();
+  const asOfMs = Date.parse(input.asOfIso);
   if (
     !personKey ||
     !validDayKey(dayKey) ||
+    !Number.isFinite(asOfMs) ||
+    !input.asOfIso.startsWith(dayKey) ||
     !Number.isSafeInteger(input.anotherIndex) ||
     input.anotherIndex < 0
   ) {
@@ -243,7 +266,7 @@ export function selectSurpriseDrink(input: SurpriseDrinkInput): SurpriseDrinkRes
     ) {
       continue;
     }
-    const venues = cleanVenueEvidence(available.venues, dayKey);
+    const venues = cleanVenueEvidence(available.venues, asOfMs);
     if (venues.length === 0) continue;
     const current = availabilityRowsByPersona.get(available.personaId) ?? {
       venues: [],
@@ -259,7 +282,7 @@ export function selectSurpriseDrink(input: SurpriseDrinkInput): SurpriseDrinkRes
     { venues: SurpriseDrinkVenueEvidence[]; alcoholType: AlcoholType }
   >();
   for (const [personaId, available] of availabilityRowsByPersona) {
-    const venues = cleanVenueEvidence(available.venues, dayKey);
+    const venues = cleanVenueEvidence(available.venues, asOfMs);
     const alcoholTypes = new Set(available.alcoholTypes);
     availabilityByPersona.set(personaId, {
       venues,

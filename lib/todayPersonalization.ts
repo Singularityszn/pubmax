@@ -100,16 +100,6 @@ const CONTEXT_FIELDS = [
   "transportConstraints",
 ] as const satisfies readonly (keyof NightContext)[];
 
-const EXACT_PATCH_FOR_AREA: Partial<Record<NightAreaSlug, NightPatchId>> = {
-  "piccadilly-soho": "soho",
-  shoreditch: "shoreditch",
-  camden: "camden",
-  "bermondsey-london-bridge": "london-bridge",
-  brixton: "brixton",
-  clapham: "clapham",
-  islington: "islington",
-};
-
 function hasOwn<T extends object>(value: T, key: PropertyKey): boolean {
   return Object.prototype.hasOwnProperty.call(value, key);
 }
@@ -268,7 +258,7 @@ function locationPreferenceFromLayers(layers: readonly NormalizedLayer[]): {
       if (!area && (layer.source === "account" || layer.source === "reviewed-device")) continue;
       return {
         preferredPatch: {
-          value: area ? EXACT_PATCH_FOR_AREA[area] ?? null : null,
+          value: null,
           source: layer.source,
         },
         weatherArea: {
@@ -336,10 +326,20 @@ export type TodayBriefReadModel = {
 };
 
 function normalizedTopicMatch(pick: TonightPickDto, topics: readonly string[]): boolean {
-  const haystack = `${pick.kind} ${pick.kindLabel} ${pick.title}`
+  const normalized = `${pick.kind} ${pick.kindLabel} ${pick.title}`
     .normalize("NFKC")
-    .toLocaleLowerCase("en-GB");
-  return topics.some((topic) => haystack.includes(topic));
+    .toLocaleLowerCase("en-GB")
+    .replace(/[^\p{L}\p{N}]+/gu, " ")
+    .trim();
+  const haystack = ` ${normalized} `;
+  return topics.some((topic) => {
+    const phrase = topic
+      .normalize("NFKC")
+      .toLocaleLowerCase("en-GB")
+      .replace(/[^\p{L}\p{N}]+/gu, " ")
+      .trim();
+    return phrase.length > 0 && haystack.includes(` ${phrase} `);
+  });
 }
 
 function pickNightArea(pick: TonightPickDto): NightAreaSlug | null {
@@ -368,8 +368,16 @@ export function applyTodayPersonalization(
     return !area || !mutedAreas.has(area);
   });
   const patch = resolveNightPatch(resolved.preferredPatch.value);
-  const picks = orderPicksNear(filtered, patch ? { lat: patch.lat, lng: patch.lng } : null);
-  const personalizedWeather = resolved.preferredPatch.value
+  const area = resolved.weatherArea.source !== "defaults"
+    ? NIGHT_AREAS.find((candidate) => candidate.slug === resolved.weatherArea.value)
+    : null;
+  const near = patch
+    ? { lat: patch.lat, lng: patch.lng }
+    : area
+      ? { lat: area.centre.lat, lng: area.centre.lng }
+      : null;
+  const picks = orderPicksNear(filtered, near);
+  const personalizedWeather = resolved.weatherArea.source !== "defaults" || resolved.preferredPatch.value
     ? weatherByArea[resolved.weatherArea.value]
     : undefined;
 
