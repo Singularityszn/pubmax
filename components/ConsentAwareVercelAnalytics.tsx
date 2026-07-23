@@ -1,11 +1,13 @@
 "use client";
 
+import { useEffect } from "react";
+
 import {
   Analytics,
   type BeforeSendEvent,
 } from "@vercel/analytics/next";
 
-import { analyticsCollectionAllowed } from "@/lib/analytics";
+import { analyticsCollectionAllowed, flushVerifiedAnalyticsOutbox } from "@/lib/analytics";
 
 export function consentAwareBeforeSend(
   event: BeforeSendEvent,
@@ -15,5 +17,6 @@ export function consentAwareBeforeSend(
 
 /** Vercel pageviews remain disabled until explicit analytics consent. */
 export default function ConsentAwareVercelAnalytics() {
+  useEffect(() => { void flushVerifiedAnalyticsOutbox(); }, []);
   return <Analytics beforeSend={consentAwareBeforeSend} />;
 }

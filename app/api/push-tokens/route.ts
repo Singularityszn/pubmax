@@ -1,9 +1,11 @@
-// Push-token registration for the Capacitor native shell (lib/nativePush.ts).
+// Push-token registration for the Capacitor shell and installed web app
+// (lib/nativePush.ts / lib/webPush.ts).
 //
 //   POST { token, platform }  →  { ok: true }
 //
-// The shell registers on boot, pre-auth, so the payload carries no identity —
-// only "this device token can receive pushes". Abuse boundary is DUAL: a
+// The shell registers pre-auth; the web seam is explicitly invoked after
+// browser permission. Neither payload carries identity, only delivery material.
+// Abuse boundary is DUAL: a
 // per-IP durable rate limit (a device registers once per boot, so 10/hour is
 // generous) plus a global route-wide backstop, because the per-IP key is
 // derived from spoofable forwarding headers. Errors use the flat public envelope

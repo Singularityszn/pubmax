@@ -34,7 +34,7 @@ html[data-theme="dark"] .nightSeal--auto {
   overflow: visible;
 }
 
-/* The Clink, centred at 0.72 of the stamp. */
+/* The X mark, centred at 0.72 of the stamp. */
 .nightSeal__mark {
   position: absolute;
   top: 50%;

@@ -3,8 +3,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 // Hermetic tests for BOTH backends of the structured visit reports store. The
 // memory backend is exercised directly; the Supabase backend runs against an
 // in-memory fluent mock of the admin client (no network), proving the durable
-// path's upsert / report / moderate match the process-memory contract and that a
-// schema-miss fails soft to memory.
+// path's upsert / report / moderate match the process-memory contract, while
+// schema misses fall back only outside deployed production.
 
 import {
   __resetVisitReports,
@@ -120,6 +120,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  vi.unstubAllEnvs();
   vi.clearAllMocks();
 });
 
@@ -209,12 +210,41 @@ describe("supabaseVisitReportStore", () => {
   });
 
   it("fails soft to memory on a schema miss (table not yet applied)", async () => {
+    vi.stubEnv("VERCEL_ENV", "preview");
     db.schemaMiss = true;
     const dto = await supabaseVisitReportStore.create(fields());
     expect(dto.handle).toBe("sam");
     // The memory fallback holds the row.
     expect(await memoryVisitReportStore.listForVenue("venue-1")).toHaveLength(1);
     // A read also fails soft to memory.
+    expect(await supabaseVisitReportStore.listForVenue("venue-1")).toHaveLength(1);
+  });
+
+  it("refuses all schema-miss write fallbacks in deployed production", async () => {
+    vi.stubEnv("VERCEL_ENV", "production");
+    db.schemaMiss = true;
+
+    await expect(supabaseVisitReportStore.create(fields())).rejects.toThrow(
+      /refusing process-memory write fallback.*0046/,
+    );
+    expect(await memoryVisitReportStore.listForVenue("venue-1")).toHaveLength(0);
+
+    const seeded = await memoryVisitReportStore.create(fields());
+    await expect(supabaseVisitReportStore.report(seeded.id, "spam", "actor-a")).rejects.toThrow(
+      /refusing process-memory write fallback.*0046/,
+    );
+    await expect(supabaseVisitReportStore.moderate(seeded.id, "hidden")).rejects.toThrow(
+      /refusing process-memory write fallback.*0046/,
+    );
+    expect(await memoryVisitReportStore.listForVenue("venue-1")).toHaveLength(1);
+    expect(await memoryVisitReportStore.listForReview("hidden")).toHaveLength(0);
+  });
+
+  it("keeps schema-miss reads fail-soft in deployed production", async () => {
+    vi.stubEnv("VERCEL_ENV", "production");
+    await memoryVisitReportStore.create(fields());
+    db.schemaMiss = true;
+
     expect(await supabaseVisitReportStore.listForVenue("venue-1")).toHaveLength(1);
   });
 });

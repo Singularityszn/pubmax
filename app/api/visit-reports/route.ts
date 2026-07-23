@@ -9,7 +9,8 @@
 //
 // One VisitReportStore interface, two implementations (lib/visitReportsStore):
 // Supabase (public.structured_visit_reports) when env keys exist, process-memory
-// otherwise, with a fail-soft-to-memory degradation until migration 0046 lands.
+// otherwise, with local/preview memory degradation until migration 0046 lands.
+// Production schema misses fail closed with 503.
 //
 // Boundaries (write-surface certification): PUBLIC keyless contribution path.
 // Creation and reporting are durably RATE LIMITED (rate_limit class); moderator

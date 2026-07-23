@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 
 import {
   resolveSheetSnap,
+  resolveSheetHeightSnap,
+  sheetSnapCaps,
   sheetTranslateY,
   sheetTranslateYFraction,
   SHEET_SNAP_FRACTIONS,
@@ -186,6 +188,175 @@ describe("resolveSheetSnap — edge cases", () => {
       viewportHeight: 0,
       dragDeltaY: 200,
       velocity: 2,
+    });
+    expect(result).toEqual({ snap: "half", dismissed: false });
+  });
+});
+
+// The rebuilt phone portal sheet is bottom-anchored with a content-driven height
+// capped by the snap's fraction of the viewport. The void is killed in CSS
+// (height:auto; max-height:cap), so the only pure logic left is (a) the per-snap
+// cap heights and (b) the height-drag → snap resolver.
+describe("sheetSnapCaps — per-snap cap heights (bottom-anchored model)", () => {
+  it("is the snap fraction of the viewport minus the bottom dock clearance", () => {
+    const caps = sheetSnapCaps(800, 0);
+    expect(caps.peek).toBeCloseTo(800 * SHEET_SNAP_FRACTIONS.peek);
+    expect(caps.half).toBeCloseTo(800 * SHEET_SNAP_FRACTIONS.half);
+    expect(caps.full).toBeCloseTo(800 * SHEET_SNAP_FRACTIONS.full);
+    // full > half > peek, mirroring the ordered snaps.
+    expect(caps.full).toBeGreaterThan(caps.half);
+    expect(caps.half).toBeGreaterThan(caps.peek);
+  });
+
+  it("subtracts the dock clearance and never goes negative", () => {
+    const caps = sheetSnapCaps(800, 100);
+    expect(caps.half).toBeCloseTo(800 * SHEET_SNAP_FRACTIONS.half - 100);
+    // A dock taller than the peek fraction clamps peek to 0 rather than negative.
+    expect(sheetSnapCaps(800, 100_000).peek).toBe(0);
+  });
+});
+
+describe("resolveSheetHeightSnap — no-velocity (nearest neighbour on height)", () => {
+  const caps = sheetSnapCaps(800, 0); // peek 176, half 440, full 736
+
+  it("stays at the same snap when there is no drag (start height = its cap)", () => {
+    for (const snap of SHEET_SNAP_ORDER) {
+      const result = resolveSheetHeightSnap({
+        startSnap: snap,
+        startHeightPx: caps[snap],
+        releaseHeightPx: caps[snap],
+        velocity: 0,
+        caps,
+      });
+      expect(result).toEqual({ snap, dismissed: false });
+    }
+  });
+
+  it("keeps a SHORT content-hugged half at half, not peek (start height in peek's band)", () => {
+    // A hugged half sheet renders far shorter than half's cap — even shorter than
+    // peek's cap. Absolute nearest-cap would mis-snap it to peek; the start-height
+    // reference keeps a still finger on half.
+    const hugged = 120; // < caps.peek (176)
+    const result = resolveSheetHeightSnap({
+      startSnap: "half",
+      startHeightPx: hugged,
+      releaseHeightPx: hugged,
+      velocity: 0,
+      caps,
+    });
+    expect(result).toEqual({ snap: "half", dismissed: false });
+  });
+
+  it("resolves to full when dragged up from half toward the full cap", () => {
+    const result = resolveSheetHeightSnap({
+      startSnap: "half",
+      startHeightPx: caps.half,
+      releaseHeightPx: caps.full,
+      velocity: 0,
+      caps,
+    });
+    expect(result).toEqual({ snap: "full", dismissed: false });
+  });
+
+  it("resolves to half when dragged down from full toward the half cap", () => {
+    const result = resolveSheetHeightSnap({
+      startSnap: "full",
+      startHeightPx: caps.full,
+      releaseHeightPx: caps.half,
+      velocity: 0,
+      caps,
+    });
+    expect(result).toEqual({ snap: "half", dismissed: false });
+  });
+
+  it("dismisses when collapsed well below peek without a flick", () => {
+    const result = resolveSheetHeightSnap({
+      startSnap: "peek",
+      startHeightPx: caps.peek,
+      releaseHeightPx: caps.peek * 0.4, // below the half-a-peek dismiss line
+      velocity: 0,
+      caps,
+    });
+    expect(result).toEqual({ snap: "peek", dismissed: true });
+  });
+
+  it("does not dismiss on a small downward nudge from peek", () => {
+    const result = resolveSheetHeightSnap({
+      startSnap: "peek",
+      startHeightPx: caps.peek,
+      releaseHeightPx: caps.peek - 5,
+      velocity: 0,
+      caps,
+    });
+    expect(result).toEqual({ snap: "peek", dismissed: false });
+  });
+});
+
+describe("resolveSheetHeightSnap — flick (velocity-driven overshoot)", () => {
+  const caps = sheetSnapCaps(800, 0);
+
+  it("a fast upward flick from peek jumps to half, not full, in one step", () => {
+    const result = resolveSheetHeightSnap({
+      startSnap: "peek",
+      startHeightPx: caps.peek,
+      releaseHeightPx: caps.peek + 10, // barely grew
+      velocity: 1.2, // fast growth (positive = up)
+      caps,
+    });
+    expect(result).toEqual({ snap: "half", dismissed: false });
+  });
+
+  it("a fast upward flick from half jumps to full", () => {
+    const result = resolveSheetHeightSnap({
+      startSnap: "half",
+      startHeightPx: caps.half,
+      releaseHeightPx: caps.half + 10,
+      velocity: 0.9,
+      caps,
+    });
+    expect(result).toEqual({ snap: "full", dismissed: false });
+  });
+
+  it("a fast upward flick from full stays at full (already the max)", () => {
+    const result = resolveSheetHeightSnap({
+      startSnap: "full",
+      startHeightPx: caps.full,
+      releaseHeightPx: caps.full + 10,
+      velocity: 0.8,
+      caps,
+    });
+    expect(result).toEqual({ snap: "full", dismissed: false });
+  });
+
+  it("a fast downward flick from full drops to half, not all the way to peek", () => {
+    const result = resolveSheetHeightSnap({
+      startSnap: "full",
+      startHeightPx: caps.full,
+      releaseHeightPx: caps.full - 10,
+      velocity: -0.8, // shrinking fast (negative = down)
+      caps,
+    });
+    expect(result).toEqual({ snap: "half", dismissed: false });
+  });
+
+  it("a fast downward flick from peek dismisses the sheet", () => {
+    const result = resolveSheetHeightSnap({
+      startSnap: "peek",
+      startHeightPx: caps.peek,
+      releaseHeightPx: caps.peek - 10,
+      velocity: -0.8,
+      caps,
+    });
+    expect(result).toEqual({ snap: "peek", dismissed: true });
+  });
+
+  it("a slow release just under the flick threshold uses nearest-neighbour, not the flick rule", () => {
+    const result = resolveSheetHeightSnap({
+      startSnap: "full",
+      startHeightPx: caps.full,
+      releaseHeightPx: caps.half,
+      velocity: -0.49, // just below the 0.5 px/ms threshold
+      caps,
     });
     expect(result).toEqual({ snap: "half", dismissed: false });
   });

@@ -232,7 +232,9 @@ export default function PubmaxxAccountHub() {
     if (!response.ok || !body.handle) return setMessage(body.error ?? "That handle is unavailable.");
     try { localStorage.setItem("pubmax_handle", body.handle); } catch { /* account ownership still persists */ }
     emitIdentityHandleChanged(body.handle);
-    if (!currentHandle) trackEvent("account_claimed", { source: "you" });
+    if (!currentHandle) {
+      trackEvent("account_claimed", { source: "you" });
+    }
     router.push(`/u/${encodeURIComponent(body.handle)}`);
   }
 

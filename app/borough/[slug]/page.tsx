@@ -388,8 +388,8 @@ export default async function BoroughPage({ params }: PageProps) {
             {heritage.count} notable {heritage.count === 1 ? "pub" : "pubs"} on record
             {heritage.oldest ? (
               <>
-                {" "}
-                &mdash; oldest is {heritage.oldest.name}
+                {". The oldest is "}
+                {heritage.oldest.name}
                 {heritage.oldest.era ? <> ({heritage.oldest.era})</> : null}
               </>
             ) : null}

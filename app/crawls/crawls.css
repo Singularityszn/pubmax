@@ -27,6 +27,9 @@
 
 /* --- empty state ---------------------------------------------------------- */
 
+/* Deliberate non-adopter of --content-max: the empty state is a single centered
+   panel that intentionally runs wider (760px) than the reading column so its
+   short prompt does not look starved on a blank page. */
 .crawlEmpty {
   width: 100%;
   max-width: 760px;
@@ -97,7 +100,13 @@
     background-color 0.15s ease;
 }
 
-.routePackChip:hover,
+@media (hover: hover) and (pointer: fine) {
+  .routePackChip:hover {
+    border-color: var(--brass);
+    color: var(--brass);
+  }
+}
+
 .routePackChip:focus-visible {
   border-color: var(--brass);
   color: var(--brass);
@@ -267,10 +276,12 @@
   transition: filter 0.15s ease;
 }
 
-.curatedLink:hover,
-.curatedPlanBtn:hover {
-  filter: brightness(1.05);
-  text-decoration: none;
+@media (hover: hover) and (pointer: fine) {
+  .curatedLink:hover,
+  .curatedPlanBtn:hover {
+    filter: brightness(1.05);
+    text-decoration: none;
+  }
 }
 
 .curatedLink:focus-visible,
@@ -283,7 +294,7 @@
 
 .curatedFeaturedWrap {
   width: 100%;
-  max-width: 640px;
+  max-width: var(--content-max);
   margin: 0 0 28px;
   text-align: left;
 }
@@ -349,8 +360,10 @@
   transition: background-color 0.15s ease, transform 0.15s ease;
 }
 
-.crawlCompactLink:hover {
-  background: color-mix(in srgb, var(--brass) 6%, transparent);
+@media (hover: hover) and (pointer: fine) {
+  .crawlCompactLink:hover {
+    background: color-mix(in srgb, var(--brass) 6%, transparent);
+  }
 }
 
 .crawlCompactLink:focus-visible {
@@ -412,7 +425,7 @@
 
 .crawlPoster {
   width: 100%;
-  max-width: 640px;
+  max-width: var(--content-max);
   background: var(--panel);
   border: 1px solid var(--line);
   border-radius: 16px;
@@ -579,8 +592,10 @@
   border: 1px solid var(--brass);
 }
 
-.crawlPrimaryBtn:hover {
-  filter: brightness(1.05);
+@media (hover: hover) and (pointer: fine) {
+  .crawlPrimaryBtn:hover {
+    filter: brightness(1.05);
+  }
 }
 
 .crawlSecondaryBtn {
@@ -589,8 +604,10 @@
   border: 1px solid var(--line);
 }
 
-.crawlSecondaryBtn:hover {
-  border-color: var(--brass);
+@media (hover: hover) and (pointer: fine) {
+  .crawlSecondaryBtn:hover {
+    border-color: var(--brass);
+  }
 }
 
 .crawlPrimaryBtn:focus-visible,

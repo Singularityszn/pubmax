@@ -32,7 +32,7 @@ type PintPassportProps = {
 };
 
 function formatGbp(value: number | null): string {
-  return value == null ? "—" : `£${value.toFixed(2)}`;
+  return value == null ? "–" : `£${value.toFixed(2)}`;
 }
 
 function Stat({ label, value }: { label: string; value: string | number }) {

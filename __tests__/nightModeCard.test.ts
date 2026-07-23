@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   completePlanPayload,
+  completionTelemetryFromBody,
   confirmedEndingForPlan,
   endingOptionsForSignals,
   foodEndingSelection,
@@ -87,6 +88,18 @@ describe("confirmedEndingForPlan", () => {
 });
 
 describe("canonical route revision completion", () => {
+  it("retries completion telemetry from a replayed canonical response", () => {
+    expect(completionTelemetryFromBody({
+      created: false,
+      completion: { ending: "get_home" },
+      eventTokens: { planCompleted: "completion-token", meaningfulCoreAction: "meaningful-token" },
+    })).toEqual({
+      ending: "get_home",
+      planCompletedToken: "completion-token",
+      meaningfulCoreActionToken: "meaningful-token",
+    });
+  });
+
   it("reads the active revision and sends the current canonical pub as terminal", () => {
     const current = { ...plan(), routeRevision: 7 } as PlanState & { routeRevision: number };
     expect(routeRevisionFromPlan(current)).toBe(7);

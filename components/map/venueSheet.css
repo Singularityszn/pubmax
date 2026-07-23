@@ -481,7 +481,7 @@
     gap: 5px;
     min-height: 44px;
     padding: 8px 10px;
-    border-radius: var(--radius-sm, 10px);
+    border-radius: var(--control-radius, 14px);
     font: inherit;
     font-size: 0.82rem;
     font-weight: 700;
@@ -532,6 +532,39 @@
   .venueSheetStickyGhost:focus-visible {
     outline: 2px solid var(--brass);
     outline-offset: 2px;
+  }
+}
+
+/* ── Portal sheet footer slot (systemic rebuild) ─────────────────────────────
+   The venue command bar (VenueStickyBar) no longer lives inside the scroll body
+   with fixed/sticky positioning against a transformed sheet (the five-patch
+   #536 machinery is gone). It now portals into `.mobileSharedSheetFooter` — a
+   real flex child of the bottom-anchored sheet column (mobileMapShell.css). So
+   here the bar just resets to an in-flow strip: no position, no offsets, no
+   reserved-height var. It rides 1:1 with the sheet on drag/snap because it IS in
+   the sheet's flow, and never scrolls under the tabs because it sits below the
+   scroll body, not inside it. The last content pixel (the bar's own bottom) sits
+   exactly the safe-area inset above the sheet's visible bottom edge — no dock
+   band. The legacy 641–768 inline drawer keeps the sticky bar rules above
+   (`:not(.mobileSharedSheet)`); this only touches the ≤640 portal footer. */
+@media (max-width: 640px) {
+  .mobileSharedSheetFooter .venueSheetStickyBar {
+    position: static;
+    margin: 0;
+    padding: 12px 16px calc(env(safe-area-inset-bottom, 0px));
+    border-top: 1px solid color-mix(in srgb, var(--brass) 28%, var(--line));
+    /* Solid surface: the bar sits below the scrollport now, so the old scrim
+       gradient (for content bleeding under a sticky bar) is unnecessary. */
+    background: var(--color-surface-raised, var(--panel));
+  }
+
+  /* The bar left the venue-inspector flow (it portals to the sheet footer), so
+     the ≤768 in-tab 84px sticky-bar reserve is dead space in the portal — it
+     would push a gap between the last content and the footer. Drop it to a plain
+     gutter so short content hugs tight and tall content ends flush above the
+     footer bar. */
+  .mobileSharedSheet .venueInspector {
+    padding-bottom: 8px;
   }
 }
 
