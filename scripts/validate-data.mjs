@@ -122,6 +122,10 @@ const DETAIL_VENUE_FLOOR = 900;
 // paint); total = every shard. Kept in lockstep with scripts/build_slim_index.mjs.
 const SLIM_EAGER_BUDGET_BYTES = 600 * 1024;
 const SLIM_TOTAL_BUDGET_BYTES = 1200 * 1024;
+// london_localities.json (OSM/ODbL gazetteer, scripts/gen_london_localities.mjs)
+// carries ~760 rows. Floor is a MINIMUM that catches a truncated/gutted regen,
+// not a target — a real dataset drop would blow well past it.
+const LOCALITY_FLOOR = 300;
 const PUBMAXXING_PUB_FLOOR = 150;
 const PUBMAXXING_BEVERAGE_ROW_FLOOR = 1400;
 const PUBMAXXING_HISTORY_SEED_FLOOR = 70;
@@ -273,6 +277,74 @@ function validatePois() {
   console.log(`${ok ? "PASS" : "FAIL"} ${name}: ${data.length} rows, ${errs.count} error(s)`);
   if (!ok) errs.report();
   return { ok, count: data.length };
+}
+
+// london_localities.json — the Greater London locality gazetteer (OSM/ODbL, built
+// by scripts/gen_london_localities.mjs). Mirrors lib/localities.ts isValidLocality:
+// finite coords inside Greater London, non-empty name + borough, an ODbL
+// attribution header, a count floor, and globally-unique normalised names (the
+// dedupe invariant the generator guarantees).
+function validateLondonLocalities() {
+  const name = "public/data/london_localities.json";
+  const errs = makeCollector();
+  let data;
+  try {
+    data = loadJson("london_localities.json");
+  } catch (e) {
+    console.log(`FAIL ${name}: could not read/parse (${e.message})`);
+    return { ok: false, count: 0 };
+  }
+
+  if (!data || typeof data !== "object" || Array.isArray(data) || !Array.isArray(data.localities)) {
+    console.log(`FAIL ${name}: expected an object with a "localities" array`);
+    return { ok: false, count: 0 };
+  }
+
+  // ODbL attribution must ship with the data (licence requirement).
+  if (typeof data.attribution !== "string" || !/openstreetmap/i.test(data.attribution)) {
+    errs.add("missing/invalid OpenStreetMap attribution header");
+  }
+  if (typeof data.license !== "string" || !/odbl/i.test(data.license)) {
+    errs.add("missing/invalid ODbL licence header");
+  }
+
+  const rows = data.localities;
+  const seenNames = new Set();
+  rows.forEach((row, i) => {
+    const where = `row ${i}`;
+    if (typeof row !== "object" || row === null) {
+      errs.add(`${where}: not an object`);
+      return;
+    }
+    if (typeof row.name !== "string" || row.name.trim().length === 0) {
+      errs.add(`${where}: missing/empty name`);
+    } else {
+      const key = row.name.trim().toLowerCase().replace(/\s+/g, " ");
+      if (seenNames.has(key)) errs.add(`${where}: duplicate name "${row.name}" (dedupe invariant)`);
+      else seenNames.add(key);
+    }
+    if (typeof row.borough !== "string" || row.borough.trim().length === 0) {
+      errs.add(`${where} (${row.name}): missing/empty borough`);
+    }
+    const { lat, lng } = row;
+    if (!isFiniteNumber(lat) || !isFiniteNumber(lng)) {
+      errs.add(`${where} (${row.name}): non-finite coordinates`);
+    } else if (!inLondon(lng, lat)) {
+      errs.add(`${where} (${row.name}): [${lng}, ${lat}] outside Greater London bounds`);
+    }
+  });
+
+  if (rows.length < LOCALITY_FLOOR) {
+    errs.add(`only ${rows.length} localities (< floor ${LOCALITY_FLOOR}) — likely a truncated regen`);
+  }
+  if (typeof data.count === "number" && data.count !== rows.length) {
+    errs.add(`header count ${data.count} !== ${rows.length} rows`);
+  }
+
+  const ok = errs.count === 0;
+  console.log(`${ok ? "PASS" : "FAIL"} ${name}: ${rows.length} rows, ${errs.count} error(s)`);
+  if (!ok) errs.report();
+  return { ok, count: rows.length };
 }
 
 // tfl_lines.json — a GeoJSON FeatureCollection where each feature carries a line
@@ -1417,6 +1489,7 @@ async function main() {
   console.log("Validating bundled datasets in public/data …\n");
   const results = [
     validatePois(),
+    validateLondonLocalities(),
     validateTflLines(),
     validatePintPrices(),
     validateSlimVenues(),

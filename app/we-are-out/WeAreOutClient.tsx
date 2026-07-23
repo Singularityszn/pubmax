@@ -62,7 +62,7 @@ export default function WeAreOutClient() {
       if (!res.ok) throw new Error(data.error ?? "Could not post that.");
       setState("done");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Network error. Try again.");
+      setError(err instanceof Error ? err.message : "That didn't send. Give it another go.");
       setState("error");
     }
   }
@@ -72,7 +72,7 @@ export default function WeAreOutClient() {
       <SiteNav active="feed" />
 
       <header className="feedHeader">
-        <p className="feedEyebrow">Social loop</p>
+        <p className="feedEyebrow">Out tonight</p>
         <h1 className="feedTitle">We&rsquo;re out</h1>
         <p className="feedLede">
           Tell your lot you&rsquo;re out tonight. Area only, no exact spot. Friends

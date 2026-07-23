@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { CirclePlus } from "lucide-react";
 import {
   useLayoutEffect,
   useRef,
@@ -21,9 +22,10 @@ import {
   preferredCityMapHref,
   subscribePreferredCity,
 } from "@/lib/cityPreference";
-import { PRIMARY_NAV_ITEMS } from "@/components/nav/navigationModel";
+import { PRIMARY_NAV_ITEMS, momentHref, navPathMatches } from "@/components/nav/navigationModel";
 
 import "./siteNav.css";
+import "./siteNavMoment.css";
 
 // Shared app-wide top navigation. One bar, used on every APP page (map, feed,
 // discover, crawls, profile, borough, admin) so navigation never duplicates or
@@ -80,10 +82,7 @@ const LINKS: NavLink[] = [
 ];
 
 function matchesPath(pathname: string, link: NavLink): boolean {
-  return link.match.some((prefix) =>
-    // "/" only matches the home route exactly (every path starts with "/").
-    prefix === "/" ? pathname === "/" : pathname === prefix || pathname.startsWith(`${prefix}/`),
-  );
+  return navPathMatches(pathname, link.match);
 }
 
 function primaryKeyForLegacyActive(active?: NavKey): NavKey | undefined {
@@ -214,6 +213,19 @@ export default function SiteNav({
       </ul>
 
       <div className="siteNavActions">
+        {/* Moment compose (desktop). On phones the bottom tab bar's raised
+            centre FAB owns this; the top bar has no such affordance, so desktop
+            users reach /moment here. Carries the same returnTo the mobile FAB
+            uses (momentHref) so composing returns to the current page. Hidden
+            ≤640px in siteNavMoment.css — the FAB covers mobile. */}
+        <Link
+          href={momentHref(pathname)}
+          className="siteNavMoment"
+          aria-label="Share a Moment"
+          title="Share a Moment"
+        >
+          <CirclePlus size={18} aria-hidden="true" />
+        </Link>
         {/* ⌘K command-palette affordance (feature N1). Unobtrusive hint button;
             hidden on phones (the bottom tab bar owns nav and there's no keyboard
             shortcut there). Label stays "⌘K" — Windows/Linux users still get the

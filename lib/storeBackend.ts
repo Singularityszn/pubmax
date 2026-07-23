@@ -4,6 +4,7 @@
 // store keeps its own interface, empty sentinels, and domain logic.
 
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { isDeployedProduction } from "@/lib/deploymentEnv";
 import { isSupabaseConfigured, requireSupabaseAdmin } from "@/lib/supabase";
 
 /** Normalise unknown thrown values to a log-safe string. */
@@ -14,6 +15,29 @@ export function errorMessage(err: unknown): string {
 /** Single seam: durable Supabase when env keys exist, process-memory otherwise. */
 export function selectStore<T>(memory: T, supabase: T): T {
   return isSupabaseConfigured() ? supabase : memory;
+}
+
+/**
+ * Missing-table handling for write paths in dual-backend stores. Keyless local
+ * development and preview deployments may keep using the process-memory
+ * implementation while a migration is being prepared. A deployed production
+ * instance must never acknowledge that ephemeral write as persisted.
+ */
+export function onMissingDurableWrite<T>(opts: {
+  storeTag: string;
+  migrationHint: string;
+  fallback: () => Promise<T>;
+  /** Optional result-style failure for stores whose public contract never throws. */
+  onProduction?: (error: Error) => Promise<T>;
+}): Promise<T> {
+  if (isDeployedProduction()) {
+    const error = new Error(
+      `[${opts.storeTag}] durable schema missing in production; refusing process-memory write fallback (${opts.migrationHint})`,
+    );
+    if (opts.onProduction) return opts.onProduction(error);
+    return Promise.reject(error);
+  }
+  return opts.fallback();
 }
 
 /**
@@ -59,23 +83,24 @@ export function missingTables(...tables: string[]): (err: unknown) => boolean {
   return (err) => isMissingTableSchema(err, tables);
 }
 
-export type MemoryFallbackWarner = (context: string, err: unknown) => void;
+export type SchemaMissWarner = (context: string, err: unknown) => void;
 
 /**
- * Deduped console.warn when the Supabase path falls back to process-memory
- * because the durable table is missing. One warn per `context` per process.
+ * Deduped console.warn when a Supabase table is missing and the caller's
+ * schema-miss policy is invoked. That policy may use memory outside production
+ * or fail closed in production, so the log must not promise a fallback.
  */
-export function createMemoryFallbackWarner(
+export function createSchemaMissWarner(
   storeTag: string,
   migrationHint: string,
-): { warn: MemoryFallbackWarner; resetWarnings: () => void } {
+): { warn: SchemaMissWarner; resetWarnings: () => void } {
   const seen = new Set<string>();
   return {
     warn(context, err) {
       if (seen.has(context)) return;
       seen.add(context);
       console.warn(
-        `[${storeTag}] ${context} durable table missing — using process-memory fallback (${migrationHint}):`,
+        `[${storeTag}] ${context} durable table missing — applying schema-miss policy (${migrationHint}):`,
         errorMessage(err),
       );
     },
@@ -92,7 +117,7 @@ export type RunStoreOpOptions<T> = {
   /** When set, schema-miss routes here instead of onError / rethrow. */
   onSchemaMiss?: () => Promise<T>;
   isSchemaMiss?: (err: unknown) => boolean;
-  warnSchemaMiss?: MemoryFallbackWarner;
+  warnSchemaMiss?: SchemaMissWarner;
   /** Fail-soft path for non-schema errors. When omitted, non-schema errors rethrow. */
   onError?: (err: unknown) => T | Promise<T>;
   /** When onError is used, optional `[tag] message` log line before the fallback. */
@@ -148,7 +173,7 @@ export type FailSoftGuard = {
   /** Bound schema-miss predicate, for stores that also branch on it manually. */
   isSchemaMiss: (err: unknown) => boolean;
   /** Deduped fallback warner (same instance the guard uses). */
-  warn: MemoryFallbackWarner;
+  warn: SchemaMissWarner;
   /** Reset the deduped schema-miss warnings — test-only. */
   resetWarnings: () => void;
 };
@@ -170,7 +195,7 @@ export function createFailSoftGuard(opts: {
   migrationHint: string;
 }): FailSoftGuard {
   const tables = Array.isArray(opts.tables) ? [...opts.tables] : [opts.tables];
-  const { warn, resetWarnings } = createMemoryFallbackWarner(opts.tag, opts.migrationHint);
+  const { warn, resetWarnings } = createSchemaMissWarner(opts.tag, opts.migrationHint);
   const isSchemaMiss = missingTables(...tables);
   return {
     isSchemaMiss,

@@ -12,7 +12,10 @@
 .profilePage .profileMain {
   padding-block: clamp(32px, 6vw, 64px);
   /* .container (Tailwind) sets width but no inline padding, so without this the
-     profile body text touched the screen edge on phones. */
+     profile body text touched the screen edge on phones. Cap the shell at the
+     shared --content-max-wide (1240px) so it stops widening past the marketing
+     surfaces at the ≥xl breakpoints (.container ran up to 1536px un-retrofit). */
+  max-width: var(--content-max-wide);
   padding-inline: var(--page-gutter);
   display: grid;
   gap: clamp(32px, 5vw, 52px);
@@ -61,7 +64,9 @@
   display: grid;
   place-items: center;
   border-radius: 50%;
-  background: linear-gradient(145deg, var(--ink-deep), var(--river));
+  /* House ink/coral identity chip. Was a navy (--river) gradient that lives
+     nowhere else in the app; now an ink base warmed toward the brass accent. */
+  background: linear-gradient(145deg, var(--ink-deep), color-mix(in srgb, var(--brass) 55%, var(--ink-deep)));
   color: var(--color-on-inverse);
   font: 750 1.05rem/1 var(--font-data);
   letter-spacing: .08em;
@@ -85,6 +90,10 @@
   text-decoration: none;
 }
 .profilePage .youIdentityActions a:first-child { border-color: var(--brass); background: var(--brass); color: var(--color-on-accent); }
+/* "Claim your @handle" is the primary here (brass, above); "Meet your Pub Pal"
+   steps back to a quiet secondary so the two don't compete at equal weight. */
+.profilePage .youIdentityActions a:last-child { border-color: transparent; background: transparent; color: var(--ink-soft); font-weight: 600; }
+.profilePage .youIdentityActions a:last-child:hover { color: var(--ink); }
 
 /* Invite-your-lot is the crew loop's primary action, so it wears the brass fill
    the pub-pal / edit pills leave quiet. Shares the pill geometry above. */
@@ -803,7 +812,7 @@
   .profilePage .profileStat { flex: 1 1 44%; }
   .profilePage .youProfileIdentity .profileStats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
   .profilePage .youProfileIdentity .profileStat { padding: 9px 6px; border: 0; background: transparent; text-align: center; }
-  .profilePage .youProfileIdentity .profileStat dt { font-size: .65rem; }
+  .profilePage .youProfileIdentity .profileStat dt { font-size: 0.75rem; }
   .profilePage .youProfileIdentity .profileStat dd { font-size: 1.12rem; }
 }
 
@@ -879,7 +888,7 @@
 .profilePage .passportKicker {
   margin: 0 0 2px;
   font-family: var(--font-data, monospace);
-  font-size: 0.7rem;
+  font-size: 0.75rem;
   font-weight: 700;
   letter-spacing: 0.14em;
   text-transform: uppercase;
@@ -909,7 +918,7 @@
   justify-content: center;
   padding: 6px 10px;
   border-radius: 6px;
-  font-size: 0.62rem;
+  font-size: 0.75rem;
   font-weight: 800;
   letter-spacing: 0.1em;
   line-height: 1;
@@ -1045,7 +1054,7 @@
 .profilePage .passportQuestOptInKicker {
   margin: 0 0 4px;
   font-family: var(--font-data, monospace);
-  font-size: 0.68rem;
+  font-size: 0.75rem;
   font-weight: 700;
   letter-spacing: 0.12em;
   text-transform: uppercase;
@@ -1095,7 +1104,7 @@
 .profilePage .passportQuestKicker {
   margin: 0 0 4px;
   font-family: var(--font-data, monospace);
-  font-size: 0.68rem;
+  font-size: 0.75rem;
   font-weight: 700;
   letter-spacing: 0.12em;
   text-transform: uppercase;
@@ -1308,3 +1317,10 @@
   .memoryStoryReview__confirmation { grid-template-columns: auto minmax(0, 1fr); }
   .memoryStoryReview__confirmation button { grid-column: 1 / -1; width: 100%; }
 }
+
+/* CAP Code section 18 responsible floor (docs/CAP_COPY_AUDIT_2026-07-21.md,
+   owner ruling #3). Same quiet, permanent over-18s + Drinkaware line the
+   marketing page carries, at the base of the You surface. No banner, no nag. */
+.profilePage .profileFloor { margin-top: 32px; padding: 22px 4px 8px; border-top: 1px solid var(--line); text-align: center; }
+.profilePage .profileFloor p { margin: 0; color: var(--ink-soft); font-size: 12px; line-height: 1.55; }
+.profilePage .profileFloor a { color: inherit; text-decoration: underline; text-underline-offset: 2px; }

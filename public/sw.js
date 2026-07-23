@@ -32,7 +32,20 @@ const PREFIX = "pubmax-sw-";
 const DATA_CACHE = `${PREFIX}data-${VERSION}`;
 const SWR_CACHE = `${PREFIX}swr-${VERSION}`;
 const SHELL_CACHE = `${PREFIX}shell-${VERSION}`;
-const CURRENT_CACHES = [DATA_CACHE, SWR_CACHE, SHELL_CACHE];
+// Locked-plan pages a crew opened earlier, so they reopen offline (U18, #457
+// coordination: caching logic lives in the separate sw-plan-cache.js module).
+const PLAN_CACHE = `${PREFIX}plan-${VERSION}`;
+const CURRENT_CACHES = [DATA_CACHE, SWR_CACHE, SHELL_CACHE, PLAN_CACHE];
+
+// Load the plan-navigation cache helpers (self.planCache). Version-busted like
+// every other asset, and non-fatal: if it fails to load the SW keeps its prior
+// behaviour rather than failing to install. Every use below is guarded on
+// self.planCache so a missing module degrades cleanly.
+try {
+  importScripts(`/sw-plan-cache.js?v=${VERSION}`);
+} catch {
+  // no-op: plan caching is an enhancement, offline shell still works
+}
 
 // Tiles + hashed build assets can grow without bound (a long crawl-planning
 // session pulls hundreds of tiles). Cache.keys() returns entries oldest-first,
@@ -76,6 +89,78 @@ self.addEventListener("activate", (event) => {
       )
       .then(() => self.clients.claim()),
   );
+});
+
+// Web Push payloads are always user-visible. Treat provider data as untrusted:
+// copy only short strings and reduce click-through to a same-origin path. A
+// malformed or empty push still shows a useful, honest fallback notification.
+function pushText(value, fallback, maxLength) {
+  return typeof value === "string" && value.trim()
+    ? value.trim().slice(0, maxLength)
+    : fallback;
+}
+
+function safeNotificationPath(value) {
+  if (typeof value !== "string" || !value.startsWith("/")) return "/today";
+  try {
+    const url = new URL(value, self.location.origin);
+    if (url.origin !== self.location.origin) return "/today";
+    return `${url.pathname}${url.search}`;
+  } catch {
+    return "/today";
+  }
+}
+
+self.addEventListener("push", (event) => {
+  let payload = {};
+  try {
+    const parsed = event.data ? event.data.json() : {};
+    payload = parsed && typeof parsed === "object" && !Array.isArray(parsed)
+      ? parsed
+      : {};
+  } catch {
+    payload = {};
+  }
+  const data = payload.data && typeof payload.data === "object" && !Array.isArray(payload.data)
+    ? payload.data
+    : {};
+  const url = safeNotificationPath(data.url);
+  event.waitUntil(
+    self.registration.showNotification(
+      pushText(payload.title, "PUBMAXX", 80),
+      {
+        body: pushText(payload.body, "Your London brief is ready.", 240),
+        icon: "/icon-192.png",
+        badge: "/icon-192.png",
+        tag: pushText(payload.tag, "pubmax-update", 80),
+        data: { url },
+      },
+    ),
+  );
+});
+
+self.addEventListener("notificationclick", (event) => {
+  event.notification.close();
+  const path = safeNotificationPath(event.notification.data?.url);
+  const target = new URL(path, self.location.origin).toString();
+  event.waitUntil((async () => {
+    const windows = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
+    const exact = windows.find((client) => client.url === target);
+    if (exact) return exact.focus();
+
+    const existing = windows.find((client) => {
+      try {
+        return new URL(client.url).origin === self.location.origin;
+      } catch {
+        return false;
+      }
+    });
+    if (existing) {
+      if (typeof existing.navigate === "function") await existing.navigate(target);
+      return existing.focus();
+    }
+    return self.clients.openWindow(target);
+  })());
 });
 
 self.addEventListener("fetch", (event) => {
@@ -141,9 +226,21 @@ async function handleNavigation(event, request, url) {
       event.waitUntil(
         caches.open(SHELL_CACHE).then((cache) => cache.put(url.pathname, copy)),
       );
+    } else if (response.ok && self.planCache && self.planCache.isPlanPath(url.pathname)) {
+      // U18: shelve locked-plan pages so a crew that opened the link earlier
+      // can reopen it with no signal. Cache-on-success, bounded + LRU inside
+      // the module; best-effort via waitUntil so it never delays the response.
+      const copy = response.clone();
+      event.waitUntil(self.planCache.cachePlanNavigation(request, copy, url, PLAN_CACHE));
     }
     return response;
   } catch {
+    // U18: offline, a locked plan reopens from its own cached HTML before the
+    // generic shell ladder — that copy carries the night's stops/route/times.
+    if (self.planCache) {
+      const plan = await self.planCache.matchPlanNavigation(url, PLAN_CACHE);
+      if (plan) return plan;
+    }
     const shell = await caches.open(SHELL_CACHE);
     const exact = await shell.match(url.pathname, { ignoreSearch: true });
     if (exact) return exact;

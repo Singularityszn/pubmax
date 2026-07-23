@@ -243,11 +243,11 @@ export default function PlanSummary({ planId, state, vibeTally }: { planId: stri
     }
     if (!state.context) {
       setEditing(false);
-      setError("This plan has no saved Night Context to use for a grounded replacement route.");
+      setError("This plan doesn't have enough saved to sort a fresh route. Add the details, then try again.");
       return;
     }
     setLoadingPreview(true);
-    setStatus("Finding a fresh three-stop proposal and its grounded alternatives…");
+    setStatus("Sorting a fresh three-stop route, with a backup for each stop…");
     try {
       const response = await fetch("/api/plans/generate", {
         method: "POST",
@@ -262,7 +262,7 @@ export default function PlanSummary({ planId, state, vibeTally }: { planId: stri
         position: index,
         alternatives: stop.alternatives,
       }));
-      if (!validRouteDraft(generated)) throw new Error("The planner did not return three distinct grounded stops.");
+      if (!validRouteDraft(generated)) throw new Error("Couldn't get three good stops that time. Give it another go.");
       setLocalStops(generated);
       writePendingRoute(planId, { stops: generated, expectedRouteRevision: routeRevisionFromPlanState(state) });
       setStatus(`Fresh route preview ready. Swap a stop, then ${isHost ? "save it" : "send it to the host"}.`);
@@ -282,7 +282,7 @@ export default function PlanSummary({ planId, state, vibeTally }: { planId: stri
     const usedByOtherStops = new Set(draftStops.filter((_, stopIndex) => stopIndex !== index).map((stop) => stop.venueId));
     const replacement = stopWithNextAlternative(current, usedByOtherStops);
     if (replacement === current) {
-      setStatus("No distinct grounded alternative is available for that stop yet.");
+      setStatus("No other stop to swap in for that one yet.");
       return;
     }
     const nextStops = draftStops.map((stop, stopIndex) => stopIndex === index ? replacement : stop);
@@ -371,7 +371,7 @@ export default function PlanSummary({ planId, state, vibeTally }: { planId: stri
                 <span className="planSummary__editMarker" aria-hidden="true">{index + 1}</span>
                 <span>
                   <strong>{stop.venueName}</strong>
-                  {stop.alternatives?.length ? <small>{stop.alternatives.length} grounded alternative{stop.alternatives.length === 1 ? "" : "s"}</small> : null}
+                  {stop.alternatives?.length ? <small>{stop.alternatives.length} backup{stop.alternatives.length === 1 ? "" : "s"} ready</small> : null}
                 </span>
                 <button
                   type="button"

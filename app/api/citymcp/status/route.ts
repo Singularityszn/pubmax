@@ -11,6 +11,7 @@
 import {
   CityMcpError,
   fetchCityStatus,
+  filterNightShapingSignals,
   trimSignals,
   type CityStatus,
   type CityStatusTubeLine,
@@ -81,7 +82,11 @@ async function getHandler(request: Request): Promise<Response> {
     });
   }
 
-  const trimmedSignals = trimSignals(status.signals, SIGNAL_CAP);
+  // Drop flight-side aviation noise (airline incidents / airport-terminal
+  // stories) BEFORE trimming to the severity top-N, so the compact feed spends
+  // its slots on things that actually shape getting around London tonight.
+  const nightShapingSignals = filterNightShapingSignals(status.signals);
+  const trimmedSignals = trimSignals(nightShapingSignals, SIGNAL_CAP);
   const trimmedLines = trimTubeLines(status.tubeLines);
 
   // A stale (last-known-good) answer must never be pinned at the edge — serve it

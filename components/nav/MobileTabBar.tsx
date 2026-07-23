@@ -10,7 +10,15 @@ import {
 } from "@/lib/cityPreference";
 import { warmMapRoute } from "@/lib/mapWarmup";
 import { markPubmaxTiming } from "@/lib/performanceMarks";
-import { MOMENT_NAV_ACTION, PRIMARY_NAV_ITEMS, momentHref, type PrimaryNavKey } from "@/components/nav/navigationModel";
+import {
+  MOMENT_NAV_ACTION,
+  PRIMARY_NAV_ITEMS,
+  TOUR_TARGET_TAB_KEY,
+  momentHref,
+  navPathMatches,
+  type PrimaryNavKey,
+  type TourSpotlightTarget,
+} from "@/components/nav/navigationModel";
 import "./mobileNav.css";
 
 // Mobile-first bottom tab bar. Visible only ≤640px (see mobileNav.css); on
@@ -63,14 +71,24 @@ export function buildTabs(mapHref: string, pathname: string): Tab[] {
   ];
 }
 
+// Resolve a first-run tour spotlight target ("map" | "drop" | "discover") to
+// its live column in the tab row, so the tour ring is positioned from the REAL
+// tab geometry and moves with it if the row grows or reorders. Args are
+// irrelevant to the order/count, so the canonical /map pair is fine. Exported
+// for the tour and its geometry regression test.
+export function tourSpotlightColumn(target: TourSpotlightTarget): { index: number; total: number } {
+  const tabs = buildTabs("/map", "/map");
+  return {
+    index: tabs.findIndex((tab) => tab.key === TOUR_TARGET_TAB_KEY[target]),
+    total: tabs.length,
+  };
+}
+
 function isActive(pathname: string, tab: Tab): boolean {
   // The primary Moment action is intentionally not painted as a persistent
   // active tab; its raised shape communicates creation rather than location.
   if (tab.primary) return false;
-  const prefixes = tab.match ?? [tab.href];
-  return prefixes.some(
-    (prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`),
-  );
+  return navPathMatches(pathname, tab.match ?? [tab.href]);
 }
 
 export default function MobileTabBar() {

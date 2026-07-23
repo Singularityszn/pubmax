@@ -1,8 +1,7 @@
-// Push delivery seam. ONE interface, TWO implementations — a no-op that is
-// active until APNs credentials exist, and the real APNs sender that speaks
-// HTTP/2 to Apple. Selection mirrors the env-based store seam
-// (lib/storeBackend.ts selectStore): the moment the APNs env keys land,
-// selectPushProvider() flips to the real sender with no caller change.
+// Push delivery seam. ONE interface routes native device tokens to APNs and
+// installed-web subscriptions to VAPID Web Push. Each transport has a truthful
+// no-op until its owner credentials exist, so callers and local development do
+// not branch on provider setup.
 //
 // No APNs SDK is a dependency. apnsPushProvider speaks HTTP/2 (node:http2) to
 // api.push.apple.com with an ES256 provider JWT (node:crypto) signed from
@@ -15,17 +14,24 @@
 
 import { createPrivateKey, sign as cryptoSign } from "node:crypto";
 import { connect as http2Connect, constants as http2Constants } from "node:http2";
+import webpush from "web-push";
+
+import {
+  decodeWebPushSubscription,
+  isWebPushToken,
+  type WebPushSubscription,
+} from "@/lib/webPushSubscription";
 
 /** Bundle id (apns-topic) for the Capacitor shell — see docs/CAPACITOR_WRAP.md. */
 export const APNS_BUNDLE_ID = "com.pubmaxx.app";
 
-/** A notification body, provider-agnostic. `data` rides the APNs custom keys. */
+/** A provider-agnostic notification. `data` carries safe routing hints. */
 export type PushPayload = {
   title: string;
   body: string;
   /** Deep-link / routing hints delivered as APNs custom data keys. */
   data?: Record<string, string>;
-  /** APNs `thread-id` — groups related notifications in the tray. */
+  /** APNs `thread-id` / Web Notification `tag` grouping key. */
   threadId?: string;
 };
 
@@ -55,6 +61,15 @@ export function isApnsConfigured(): boolean {
   );
 }
 
+/** Web Push uses a public VAPID key in the browser and its paired private key
+ * server-side. The public value deliberately carries the NEXT_PUBLIC_ prefix. */
+export function isVapidConfigured(): boolean {
+  return Boolean(
+    process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY
+      && process.env.VAPID_PRIVATE_KEY,
+  );
+}
+
 /**
  * Active until APNs credentials exist. Logs the count once and reports every
  * token as `skipped` — a truthful "nothing was delivered" the fan-out can
@@ -68,6 +83,19 @@ export const noopPushProvider: PushProvider = {
       );
     }
     return tokens.map((token) => ({ token, status: "skipped", reason: "apns_not_configured" }));
+  },
+};
+
+/** Web-specific no-op. Kept separate from the APNs no-op so mixed token batches
+ * report the missing owner key accurately. */
+export const noopWebPushProvider: PushProvider = {
+  async send(tokens, payload) {
+    if (tokens.length > 0) {
+      console.info(
+        `[pushProvider:web:noop] would deliver "${payload.title}" to ${tokens.length} web subscription(s) — VAPID not configured. Set NEXT_PUBLIC_VAPID_PUBLIC_KEY and VAPID_PRIVATE_KEY; skipping.`,
+      );
+    }
+    return tokens.map((token) => ({ token, status: "skipped", reason: "vapid_not_configured" }));
   },
 };
 
@@ -355,8 +383,153 @@ export function createApnsPushProvider(deps: ApnsProviderDeps = {}): PushProvide
  */
 export const apnsPushProvider: PushProvider = createApnsPushProvider();
 
-/** Single selection point (mirrors lib/storeBackend.ts selectStore): real APNs
- *  when its env keys exist, the no-op otherwise. */
+// ── Web Push / VAPID transport ──────────────────────────────────────────────
+
+export type VapidConfig = {
+  subject: string;
+  publicKey: string;
+  privateKey: string;
+};
+
+export type WebPushSend = (
+  subscription: WebPushSubscription,
+  payload: string,
+  config: VapidConfig,
+) => Promise<{ statusCode: number }>;
+
+export type WebPushProviderDeps = {
+  config?: () => VapidConfig;
+  send?: WebPushSend;
+};
+
+function resolveVapidConfig(): VapidConfig {
+  const publicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
+  const privateKey = process.env.VAPID_PRIVATE_KEY;
+  if (!publicKey || !privateKey) {
+    throw new Error(
+      "webPushProvider: NEXT_PUBLIC_VAPID_PUBLIC_KEY and VAPID_PRIVATE_KEY must both be set.",
+    );
+  }
+  const subject = process.env.VAPID_SUBJECT || "mailto:hello@pubmaxxing.com";
+  if (!subject.startsWith("mailto:") && !subject.startsWith("https://")) {
+    throw new Error("webPushProvider: VAPID_SUBJECT must be a mailto: or https: URI.");
+  }
+  return { subject, publicKey, privateKey };
+}
+
+const realWebPushSend: WebPushSend = async (subscription, payload, config) => {
+  const response = await webpush.sendNotification(subscription, payload, {
+    TTL: 6 * 60 * 60,
+    urgency: "normal",
+    vapidDetails: config,
+  });
+  return { statusCode: response.statusCode };
+};
+
+function webPayload(payload: PushPayload): string {
+  return JSON.stringify({
+    title: payload.title,
+    body: payload.body,
+    tag: payload.threadId,
+    data: payload.data ?? {},
+  });
+}
+
+function webPushStatus(err: unknown): number | null {
+  if (!err || typeof err !== "object") return null;
+  const statusCode = (err as { statusCode?: unknown }).statusCode;
+  return typeof statusCode === "number" && Number.isInteger(statusCode) ? statusCode : null;
+}
+
+/** VAPID Web Push provider. Subscriptions are decoded only here; malformed or
+ * expired endpoints are marked invalid so the existing sender prunes them. */
+export function createWebPushProvider(deps: WebPushProviderDeps = {}): PushProvider {
+  const resolveConfig = deps.config ?? resolveVapidConfig;
+  const send = deps.send ?? realWebPushSend;
+  return {
+    async send(tokens, payload) {
+      if (tokens.length === 0) return [];
+      const config = resolveConfig();
+      const body = webPayload(payload);
+      return Promise.all(tokens.map(async (token): Promise<PerTokenResult> => {
+        const subscription = decodeWebPushSubscription(token);
+        if (!subscription) return { token, status: "invalid", reason: "malformed_web_subscription" };
+        try {
+          const response = await send(subscription, body, config);
+          if (response.statusCode >= 200 && response.statusCode < 300) {
+            return { token, status: "sent" };
+          }
+          if (response.statusCode === 404 || response.statusCode === 410) {
+            return { token, status: "invalid", reason: `web_push_${response.statusCode}` };
+          }
+          return { token, status: "error", reason: `web_push_${response.statusCode}` };
+        } catch (err) {
+          const status = webPushStatus(err);
+          if (status === 404 || status === 410) {
+            return { token, status: "invalid", reason: `web_push_${status}` };
+          }
+          console.error(
+            "[pushProvider:web] delivery failed:",
+            status ? `push service returned ${status}` : "network_or_provider_error",
+          );
+          return { token, status: "error", reason: status ? `web_push_${status}` : "web_push_failed" };
+        }
+      }));
+    },
+  };
+}
+
+export const webPushProvider: PushProvider = createWebPushProvider();
+
+/** Route one mixed registry batch by token kind while preserving the original
+ * input order. Native and web providers keep independent configuration/no-op
+ * behaviour behind the single PushProvider interface. */
+export function createRoutingPushProvider(
+  nativeProvider: PushProvider,
+  browserProvider: PushProvider,
+): PushProvider {
+  return {
+    async send(tokens, payload) {
+      const native: Array<{ token: string; index: number }> = [];
+      const web: Array<{ token: string; index: number }> = [];
+      tokens.forEach((token, index) => {
+        (isWebPushToken(token) ? web : native).push({ token, index });
+      });
+      const sendGroup = async (
+        kind: "native" | "web",
+        provider: PushProvider,
+        group: Array<{ token: string; index: number }>,
+      ): Promise<PerTokenResult[]> => {
+        try {
+          return await provider.send(group.map((entry) => entry.token), payload);
+        } catch {
+          console.error(
+            `[pushProvider:routing] ${kind} provider failed for ${group.length} token(s); check ${kind} provider credentials.`,
+          );
+          return group.map(({ token }) => ({
+            token,
+            status: "error",
+            reason: `${kind}_provider_threw`,
+          }));
+        }
+      };
+      const [nativeResults, webResults] = await Promise.all([
+        sendGroup("native", nativeProvider, native),
+        sendGroup("web", browserProvider, web),
+      ]);
+      const results = new Array<PerTokenResult>(tokens.length);
+      native.forEach((entry, index) => { results[entry.index] = nativeResults[index]; });
+      web.forEach((entry, index) => { results[entry.index] = webResults[index]; });
+      return results;
+    },
+  };
+}
+
+/** Single selection point for both transports. Missing credentials select a
+ * truthful per-transport no-op; mixed native/web batches remain supported. */
 export function selectPushProvider(): PushProvider {
-  return isApnsConfigured() ? apnsPushProvider : noopPushProvider;
+  return createRoutingPushProvider(
+    isApnsConfigured() ? apnsPushProvider : noopPushProvider,
+    isVapidConfigured() ? webPushProvider : noopWebPushProvider,
+  );
 }

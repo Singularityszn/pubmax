@@ -1,7 +1,45 @@
 .momentPage {
+  min-height: 100svh; /* fallback for browsers without dvh support */
   min-height: 100dvh;
   background: var(--paper);
   color: var(--ink);
+}
+
+/* Suspense fallback skeleton — a minimal composer silhouette (eyebrow, title,
+   capture canvas, action row) so the first paint reads as "the composer is
+   loading" rather than a blank page. Static blocks (no shimmer) so there is no
+   reduced-motion concern. */
+.momentSkeleton {
+  display: grid;
+  gap: 16px;
+}
+
+.momentSkeleton > span {
+  display: block;
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--ink) 8%, var(--panel));
+}
+
+.momentSkeletonEyebrow {
+  width: 40%;
+  height: 14px;
+  border-radius: 999px;
+}
+
+.momentSkeletonTitle {
+  width: 70%;
+  height: 34px;
+}
+
+.momentSkeletonCanvas {
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  border-radius: 16px;
+}
+
+.momentSkeletonRow {
+  width: 100%;
+  height: 48px;
 }
 
 .momentMain {
@@ -10,7 +48,7 @@
   padding: clamp(48px, 8vw, 96px) 0 120px;
 }
 
-.momentIntro { max-width: 650px; }
+.momentIntro { max-width: var(--content-max); }
 .momentIntroRail { min-height: 44px; display: flex; align-items: center; justify-content: space-between; gap: 16px; }
 .momentPrivacy {
   min-height: 32px;
@@ -81,14 +119,16 @@
   place-items: center;
   align-content: center;
   gap: 7px;
-  border: 1px dashed color-mix(in srgb, var(--brass) 55%, var(--line));
+  /* Solid hairline + soft brass fill reads finished, not like an unfinished
+     dashed placeholder; the fill still marks it as a tappable drop zone. */
+  border: 1px solid var(--hairline);
   border-radius: 16px;
   background: color-mix(in srgb, var(--brass) 4%, var(--paper));
   color: var(--ink-soft);
   cursor: pointer;
   text-align: center;
 }
-.momentMediaPicker:hover { border-style: solid; background: color-mix(in srgb, var(--brass) 8%, var(--paper)); }
+.momentMediaPicker:hover { border-color: color-mix(in srgb, var(--brass) 55%, var(--line)); background: color-mix(in srgb, var(--brass) 8%, var(--paper)); }
 .momentMediaPicker strong { color: var(--ink); font-size: 15px; }
 .momentMediaPicker span { color: var(--muted); font-size: 12px; }
 .momentMediaPicker input { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); clip-path: inset(50%); }

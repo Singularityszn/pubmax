@@ -4,7 +4,9 @@ import Link from "next/link";
 import { FormEvent, useEffect, useRef, useState } from "react";
 import { Check, Eye, LockKeyhole, UserPlus } from "lucide-react";
 
-import { trackEvent } from "@/lib/analytics";
+import "./NightMemoryStudio.css";
+
+import { trackEvent, trackMeaningfulCoreAction } from "@/lib/analytics";
 import { authedFetch } from "@/lib/authedFetch";
 import type { NightMomentKind } from "@/lib/nightMemory";
 import {
@@ -41,6 +43,9 @@ export default function NightMemoryStudio({ userId }: { userId: string }) {
   const [stories, setStories] = useState<Story[]>([]);
   const [message, setMessage] = useState("");
   const [saving, setSaving] = useState(false);
+  // True once the initial memories+stories fetch settles (success or error).
+  // Gates the first-run onboarding callout so it never flickers during load.
+  const [studioLoaded, setStudioLoaded] = useState(false);
   const [selectedStoryId, setSelectedStoryId] = useState("");
   const [workspace, setWorkspace] = useState<StoryWorkspace | null>(null);
   const [selectedMomentIds, setSelectedMomentIds] = useState<string[]>([]);
@@ -72,6 +77,7 @@ export default function NightMemoryStudio({ userId }: { userId: string }) {
         : [];
       setMemories(nextMemories);
       setStories(nextStories);
+      setStudioLoaded(true);
       const current = selectedStoryIdRef.current;
       const nextStoryId = nextStories.some((story) => story.id === current && story.membership?.status !== "invited")
         ? current
@@ -87,7 +93,10 @@ export default function NightMemoryStudio({ userId }: { userId: string }) {
           : (nextMemories[0]?.id ?? ""),
       }));
     }).catch(() => {
-      if (!controller.signal.aborted) setMessage("Your Memory studio could not be loaded. Try again.");
+      if (!controller.signal.aborted) {
+        setMessage("Your Memory studio could not be loaded. Try again.");
+        setStudioLoaded(true);
+      }
     });
     return () => controller.abort();
   }, []);
@@ -430,8 +439,10 @@ export default function NightMemoryStudio({ userId }: { userId: string }) {
       const body = await response.json().catch(() => ({})) as { story?: Story; error?: string };
       if (!response.ok || !body.story) throw new Error(body.error ?? "That Story could not be published.");
       setConfirmation(null);
-      if (!await refreshWorkspace(workspace.story.id)) return;
       trackEvent("night_story_published", { contributors: workspace.contributors.length, moments: selectedMomentIds.length });
+      trackEvent("story_published", { visibility: publishVisibility, contributors: workspace.contributors.length, moments: selectedMomentIds.length });
+      trackMeaningfulCoreAction("story_published");
+      if (!await refreshWorkspace(workspace.story.id)) return;
       setMessage("Story published here in Stories. Your private Memory remains private.");
     } catch (caught) {
       setMessage(caught instanceof Error ? caught.message : "That Story could not be published.");
@@ -455,6 +466,19 @@ export default function NightMemoryStudio({ userId }: { userId: string }) {
         <p>Everything starts private. A Story is a separate draft, never an automatic post.</p>
         <Link className="memoryCaptureLink" href="/moment">Capture a Moment</Link>
       </div>
+
+      {studioLoaded && memories.length === 0 && stories.length === 0 ? (
+        <div className="memoryStudioFirstRun" role="status">
+          <p className="memoryStudioFirstRunTitle">Your Memory studio is empty.</p>
+          <p className="memoryStudioFirstRunBody">
+            A Memory is a private night out in your words. Add the Moments worth keeping, then shape a Story you decide whether to share. Start below, or capture tonight from the map.
+          </p>
+          <div className="memoryStudioFirstRunActions">
+            <Link href="/moment" className="memoryStudioFirstRunPrimary">Capture a Moment now</Link>
+            <Link href="/map?log=1" className="memoryStudioFirstRunSecondary">Log a pint first</Link>
+          </div>
+        </div>
+      ) : null}
 
       <div className="memoryStudioFlow">
         <form onSubmit={createMemory}>

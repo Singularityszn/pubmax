@@ -71,12 +71,15 @@ test.describe("mobile bottom-tab navigation", () => {
   test("Stories routes directly to the social feed", async ({ page }) => {
     await page.goto("/map");
 
-    await primaryNav(page)
-      .getByRole("link", { name: "Stories", exact: true })
-      .click();
+    const stories = primaryNav(page).getByRole("link", { name: "Stories", exact: true });
+    await stories.click();
 
     await expect(page).toHaveURL(/\/feed$/);
     await expect(page.getByRole("heading", { name: "The Pint Feed", exact: true })).toBeVisible();
+    // Active-state contract: landing on /feed must light Stories (aria-current
+    // + isActive), not leave the bar with no current tab.
+    await expect(stories).toHaveAttribute("aria-current", "page");
+    await expect(stories).toHaveClass(/isActive/);
   });
 
   test("You tab routes to the owned profile surface", async ({ page }) => {
