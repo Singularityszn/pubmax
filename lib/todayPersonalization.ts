@@ -76,9 +76,6 @@ export type ResolvedTodayPersonalization = {
     muteAll: ResolvedTodayField<boolean>;
     areas: ResolvedTodayField<readonly NightAreaSlug[]>;
     topics: ResolvedTodayField<readonly string[]>;
-    zeroProofOnly: ResolvedTodayField<boolean>;
-    accessibility: ResolvedTodayField<readonly string[]>;
-    budgetLimitPence: ResolvedTodayField<number | null>;
   };
 };
 
@@ -249,44 +246,42 @@ function nearestWeatherArea(patchId: NightPatchId): NightAreaSlug {
     .sort((left, right) => left.km - right.km)[0]?.slug ?? "piccadilly-soho";
 }
 
-function preferredPatchFromLayers(
-  layers: readonly NormalizedLayer[],
-): ResolvedTodayField<NightPatchId | null> {
+function locationPreferenceFromLayers(layers: readonly NormalizedLayer[]): {
+  preferredPatch: ResolvedTodayField<NightPatchId | null>;
+  weatherArea: ResolvedTodayField<NightAreaSlug>;
+} {
   for (const layer of layers) {
     if (hasOwn(layer, "preferredPatch")) {
-      return { value: layer.preferredPatch ?? null, source: layer.source };
+      const preferredPatch = layer.preferredPatch ?? null;
+      return {
+        preferredPatch: { value: preferredPatch, source: layer.source },
+        weatherArea: {
+          value: preferredPatch ? nearestWeatherArea(preferredPatch) : "piccadilly-soho",
+          source: layer.source,
+        },
+      };
     }
     if (hasOwn(layer.context, "nightArea")) {
       const area = layer.context.nightArea;
+      // A full stored profile contains the schema default `nightArea: null`.
+      // That is absence, not an instruction to erase a lower remembered patch.
+      if (!area && (layer.source === "account" || layer.source === "reviewed-device")) continue;
       return {
-        value: area ? EXACT_PATCH_FOR_AREA[area] ?? null : null,
-        source: layer.source,
+        preferredPatch: {
+          value: area ? EXACT_PATCH_FOR_AREA[area] ?? null : null,
+          source: layer.source,
+        },
+        weatherArea: {
+          value: area ?? "piccadilly-soho",
+          source: layer.source,
+        },
       };
     }
   }
-  return { value: null, source: "defaults" };
-}
-
-function weatherAreaFromLayers(
-  layers: readonly NormalizedLayer[],
-): ResolvedTodayField<NightAreaSlug> {
-  for (const layer of layers) {
-    if (hasOwn(layer, "preferredPatch")) {
-      return {
-        value: layer.preferredPatch
-          ? nearestWeatherArea(layer.preferredPatch)
-          : "piccadilly-soho",
-        source: layer.source,
-      };
-    }
-    if (hasOwn(layer.context, "nightArea")) {
-      return {
-        value: layer.context.nightArea ?? "piccadilly-soho",
-        source: layer.source,
-      };
-    }
-  }
-  return { value: "piccadilly-soho", source: "defaults" };
+  return {
+    preferredPatch: { value: null, source: "defaults" },
+    weatherArea: { value: "piccadilly-soho", source: "defaults" },
+  };
 }
 
 /**
@@ -318,21 +313,19 @@ export function resolveTodayPersonalization(
   ) as Record<keyof NightContext, TodayPersonalizationSource>;
   const muteAll = firstBriefingField(layers, "muteAll");
   const ignored = input.ignoreToday === true || muteAll.value;
+  const location = locationPreferenceFromLayers(layers);
 
   return {
     ignored,
     personalized: !ignored && layers.some((layer) => layer.source !== "defaults"),
     context,
     provenance,
-    preferredPatch: preferredPatchFromLayers(layers),
-    weatherArea: weatherAreaFromLayers(layers),
+    preferredPatch: location.preferredPatch,
+    weatherArea: location.weatherArea,
     hardExclusions: {
       muteAll,
       areas: firstBriefingField(layers, "mutedAreas"),
       topics: firstBriefingField(layers, "mutedTopics"),
-      zeroProofOnly: firstContextField(layers, "zeroProof"),
-      accessibility: firstContextField(layers, "accessibility"),
-      budgetLimitPence: firstContextField(layers, "budgetLimitPence"),
     },
   };
 }
@@ -376,9 +369,9 @@ export function applyTodayPersonalization(
   });
   const patch = resolveNightPatch(resolved.preferredPatch.value);
   const picks = orderPicksNear(filtered, patch ? { lat: patch.lat, lng: patch.lng } : null);
-  const personalizedWeather = resolved.weatherArea.source === "defaults"
-    ? undefined
-    : weatherByArea[resolved.weatherArea.value];
+  const personalizedWeather = resolved.preferredPatch.value
+    ? weatherByArea[resolved.weatherArea.value]
+    : undefined;
 
   return {
     weather: personalizedWeather ?? base.weather,

@@ -19,11 +19,8 @@ import {
 
 import { useEffect, useState } from "react";
 
-import { useAuth } from "@/components/auth/AuthProvider";
 import SiteNav from "@/components/nav/SiteNav";
-import { authedFetch } from "@/lib/authedFetch";
 import type { NightAreaSlug } from "@/lib/nightAreas";
-import { cleanNightProfile, type NightProfile } from "@/lib/nightProfile";
 import { NIGHT_PATCHES, readRememberedArea } from "@/lib/nightPatches";
 import { readPlanIntakeDraft } from "@/lib/planIntake";
 import { resolveTonightNear } from "@/lib/tonight";
@@ -239,52 +236,13 @@ function FactCard({ fact }: { fact: TodayFact | null }) {
 }
 
 export default function TodayClient({ dateLabel, weather, weatherByArea, picks, fact, pintsIndex, quietPint }: Props) {
-  const { user } = useAuth();
-  const userId = user?.id ?? null;
-  const [accountSnapshot, setAccountSnapshot] = useState<{
-    userId: string;
-    profile: NightProfile | null;
-  } | null>(null);
-  // Never show one account's preferences while a different session loads.
-  const accountProfile = userId && accountSnapshot?.userId === userId
-    ? accountSnapshot.profile
-    : null;
   const [brief, setBrief] = useState({ weather, picks });
 
-  // Account preferences are a read-only enhancement. An absent session, 401,
-  // malformed response, or temporary store failure all preserve the baseline.
-  useEffect(() => {
-    let cancelled = false;
-    if (!userId) {
-      void Promise.resolve().then(() => {
-        if (!cancelled) setAccountSnapshot(null);
-      });
-      return () => {
-        cancelled = true;
-      };
-    }
-    void authedFetch("/api/me/night-profile")
-      .then(async (response) => response.ok ? response.json() : null)
-      .then((body: unknown) => {
-        if (cancelled) return;
-        const profile = body && typeof body === "object" && !Array.isArray(body)
-          ? cleanNightProfile((body as { profile?: unknown }).profile)
-          : null;
-        setAccountSnapshot({ userId, profile });
-      })
-      .catch(() => {
-        if (!cancelled) setAccountSnapshot({ userId, profile: null });
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [userId]);
-
   // Silent continuity (#427 seam), now resolved field-by-field. The progressive
-  // intake and account are trustworthy parsed sources. Device Night Profile is
-  // deliberately absent because Today has no explicit "reviewed" attestation;
-  // the pure resolver will not infer one. localStorage remains effect-only so
-  // the first paint matches SSR.
+  // intake is the only newly consumed source in this UI wave. Account and
+  // device Night Profiles stay pure resolver inputs until their owning account
+  // lane provides an approved read contract. localStorage remains effect-only
+  // so the first paint matches SSR.
   useEffect(() => {
     let cancelled = false;
     void Promise.resolve().then(() => {
@@ -295,7 +253,6 @@ export default function TodayClient({ dateLabel, weather, weatherByArea, picks, 
         : null;
       const resolved = resolveTodayPersonalization({
         progressiveIntake: readPlanIntakeDraft(),
-        account: accountProfile,
         reviewedDevice: null,
         defaults: rememberedPatch ? { preferredPatch: rememberedPatch } : null,
       });
@@ -316,7 +273,7 @@ export default function TodayClient({ dateLabel, weather, weatherByArea, picks, 
     return () => {
       cancelled = true;
     };
-  }, [accountProfile, picks, weather, weatherByArea]);
+  }, [picks, weather, weatherByArea]);
 
   return (
     <main className="todayPage" data-testid="today-screen">

@@ -20,6 +20,7 @@ function available(
     alcoholType?: SurpriseDrinkAvailability["alcoholType"];
     venueId?: string;
     venueName?: string;
+    priceGbp?: number;
   } = {},
 ): SurpriseDrinkAvailability {
   return {
@@ -29,6 +30,7 @@ function available(
       {
         venueId: options.venueId ?? `venue-${personaId}`,
         venueName: options.venueName ?? `The ${personaId}`,
+        priceGbp: options.priceGbp ?? 6.5,
         source: "Venue menu",
         observedAt: "2026-07-22T18:00:00.000Z",
       },
@@ -98,7 +100,7 @@ describe("selectSurpriseDrink", () => {
         {
           personaId: cocktail.id,
           alcoholType: "alcoholic",
-          venues: [{ venueId: "bar", venueName: "A Bar", source: "", observedAt: "not-a-date" }],
+          venues: [{ venueId: "bar", venueName: "A Bar", priceGbp: 7, source: "", observedAt: "not-a-date" }],
         },
         available("not-in-the-sourced-persona-dataset"),
       ],
@@ -137,6 +139,30 @@ describe("selectSurpriseDrink", () => {
     if (result.status !== "selected") return;
     expect(result.persona.id).toBe(zeroProof.id);
     expect(result.alcoholType).toBe("low-no");
+  });
+
+  it("merges duplicate persona availability deterministically", () => {
+    const firstRow = available(beer.id, { venueId: "a", venueName: "A Arms", priceGbp: 6.2 });
+    const secondRow = available(beer.id, { venueId: "b", venueName: "B Arms", priceGbp: 5.9 });
+    const forward = selectSurpriseDrink(input({ availability: [firstRow, secondRow] }));
+    const reverse = selectSurpriseDrink(input({ availability: [secondRow, firstRow] }));
+
+    expect(forward).toEqual(reverse);
+    expect(forward.status === "selected" && forward.venues.map((venue) => venue.venueId)).toEqual(["a", "b"]);
+  });
+
+  it("requires a real price and rejects stale or future availability", () => {
+    const priced = available(beer.id);
+    const invalidPrice = { ...priced, venues: [{ ...priced.venues[0], priceGbp: 0 }] };
+    const recent = available(wine.id);
+    const stale = { ...recent, venues: [{ ...recent.venues[0], observedAt: "2025-01-01T12:00:00.000Z" }] };
+    const current = available(whisky.id);
+    const future = { ...current, venues: [{ ...current.venues[0], observedAt: "2026-07-23T00:00:00.000Z" }] };
+
+    expect(selectSurpriseDrink(input({ availability: [invalidPrice, stale, future] }))).toEqual({
+      status: "empty",
+      reason: "no-confirmed-availability",
+    });
   });
 
   it("honours hard exclusions across persona, category and exact drink name", () => {

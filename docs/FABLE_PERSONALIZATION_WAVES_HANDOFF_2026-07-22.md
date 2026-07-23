@@ -5,6 +5,11 @@ Status: **implemented in integration; fixed-point review and full gate pending**
 Baseline: `origin/main@a3fde784` on 2026-07-22
 Release roles: Karan owns product rulings; Fable owns architecture review, green-gate review, merge order, and rollout verdict.
 
+## Owner supersession record
+
+- Karan's 2026-07-22 direction asked Codex to build the user-personalised PUBMAXX product, then explicitly directed the 5.6-high agent fleet to execute the resulting tasks and waves. That authorises this narrow read-only Today slice and supersedes the original Lane A "Cut: personalization" line in `docs/UNIVERSAL_DAY0_PRD.md`; it does not authorise account writes, automatic memory, or new tracking.
+- The current `FABLE_HANDOFF.md` records the later owner decision `persona shape = pub-tied lens only`. That supersedes the older `OWNER DECISION PENDING` language in `docs/PERSONA_DRINKS_AND_DESKTOP_PRD.md`. Wave B implements only that pub-tied pure contract and still defers UI wiring.
+
 ## Scope and ownership
 
 Wave A makes the existing `/today` brief respond deterministically to already-available preference context. It may personalize existing composition, ordering, or presentation through a new pure resolver. It does not add a preference-capture flow, a data source, an account write, or an ungrounded recommendation. Wave B adds only a pure Surprise Drink resolver and its focused tests; UI wiring is explicitly deferred.
@@ -35,6 +40,7 @@ If either lane needs an excluded file, stop and return the proposed file plus re
 - The resolver is pure and deterministic: explicit inputs in, decision out; no React, fetch, storage, ambient clock, randomness, or mutation.
 - Resolver inputs, precedence, tie-breaking, and output effect are named in code and pinned by tests. Unsupported, absent, or corrupt preference context produces the current baseline `/today` behaviour exactly.
 - Personalization uses only existing grounded content. It preserves source labels, freshness/staleness language, honest empty states, the current pick cap, and existing remembered-area continuity.
+- Today enforces only exclusions its event DTO can prove: muted areas and topics. Zero-proof, accessibility, and budget remain planning context with provenance; this slice does not pretend event rows prove those constraints.
 - No new API route, migration, secret, analytics identifier, auth dependency, or durable write is introduced. Any such need is a scope change requiring a new ruling.
 - Existing Today contracts remain green, including `todayBrief`, patch continuity, Today area/pints, quiet-pint, deals-digest, and weather read-through coverage.
 - Keyboard and screen-reader semantics remain intact; both themes are visually checked at 390x844 and desktop width with reduced motion enabled once.
@@ -49,7 +55,7 @@ Fill every field before merge; `TBD` is not release evidence.
 | --- | --- | --- | --- | --- | --- | --- |
 | Wave A: Personalized Today | lane `155a2769`; integrated `671437f3` | `lib/todayPersonalization.ts`; `__tests__/todayPersonalization.test.ts`; `app/today/page.tsx`; `app/today/TodayClient.tsx`; `lib/todayBrief.ts`; `__tests__/todayBrief.test.ts` | 78/78 across six Today/profile/intake files; typecheck passed; lane lint passed with 37 pre-existing warnings and no errors | Integration gate pending | Browser evidence pending after review | Pending |
 | Wave B: Surprise Drink | lane `7ca77b74`; integrated `649c4439` | `lib/surpriseDrink.ts`; `__tests__/surpriseDrink.test.ts` | 33/33 across Surprise + persona datasets; typecheck passed; lane lint passed with 37 pre-existing warnings and no errors | Integration gate pending | Not applicable until a separately approved UI wave | Pending |
-| Integrated Waves A and B | current `649c4439` | Nine files including this ledger; feature manifests are disjoint | Focused integration rerun pending | Pending | 390x844 light/dark, desktop light/dark, reduced motion: pending for Wave A | Pending |
+| Integrated Waves A and B | correction commit pending after review findings | Nine files including this ledger; feature manifests are disjoint | 115/115 focused integration tests after corrections; typecheck passed | First run: data/lint/typecheck/4,994 tests passed; audit could not reach registry inside the sandbox and must be rerun with network | 390x844 light/dark, desktop light/dark, reduced motion: pending for Wave A | Pending |
 
 ## Rollout
 

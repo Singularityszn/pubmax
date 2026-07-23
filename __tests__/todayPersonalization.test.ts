@@ -138,7 +138,7 @@ describe("resolveTodayPersonalization", () => {
     expect(result.preferredPatch).toEqual({ value: "clapham", source: "defaults" });
   });
 
-  it("keeps field provenance for preferred patch, weather, and hard exclusions", () => {
+  it("keeps field provenance for preferred patch, weather, content mutes, and planning context", () => {
     const result = resolveTodayPersonalization({
       progressiveIntake: intake({ area: "hackney", accessibilityNeeds: ["step-free"] }),
       account: profile({
@@ -159,9 +159,22 @@ describe("resolveTodayPersonalization", () => {
     expect(result.weatherArea).toEqual({ value: "dalston", source: "progressive-intake" });
     expect(result.hardExclusions.areas).toEqual({ value: ["camden"], source: "account" });
     expect(result.hardExclusions.topics).toEqual({ value: ["quiz"], source: "account" });
-    expect(result.hardExclusions.accessibility).toEqual({ value: ["step-free"], source: "progressive-intake" });
-    expect(result.hardExclusions.zeroProofOnly).toEqual({ value: true, source: "account" });
-    expect(result.hardExclusions.budgetLimitPence).toEqual({ value: 2_000, source: "account" });
+    expect(result.context.accessibility).toEqual(["step-free"]);
+    expect(result.provenance.accessibility).toBe("progressive-intake");
+    expect(result.context.zeroProof).toBe(true);
+    expect(result.provenance.zeroProof).toBe("account");
+    expect(result.context.budgetLimitPence).toBe(2_000);
+    expect(result.provenance.budgetLimitPence).toBe("account");
+  });
+
+  it("lets a remembered patch survive an account profile with the default null area", () => {
+    const result = resolveTodayPersonalization({
+      account: profile(),
+      defaults: { preferredPatch: "clapham" },
+    });
+
+    expect(result.preferredPatch).toEqual({ value: "clapham", source: "defaults" });
+    expect(result.weatherArea).toEqual({ value: "clapham", source: "defaults" });
   });
 
   it("lets a higher source deliberately clear lower values", () => {
@@ -235,6 +248,13 @@ describe("applyTodayPersonalization", () => {
 
     expect(result.weather).toBe(camdenWeather);
     expect(result.picks.map((item) => item.id)).toEqual(["clapham-music"]);
+  });
+
+  it("uses remembered-patch weather without changing the no-memory baseline", () => {
+    const base = { weather: centralWeather, picks: [camdenQuiz] };
+    const resolved = resolveTodayPersonalization({ defaults: { preferredPatch: "camden" } });
+
+    expect(applyTodayPersonalization(base, { camden: camdenWeather }, resolved).weather).toBe(camdenWeather);
   });
 
   it("returns the baseline by reference when today is ignored", () => {
