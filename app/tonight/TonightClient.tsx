@@ -40,16 +40,18 @@ import { firstHttp } from "@/lib/httpUrl";
 import { resolveTonightNear, walkLabel, walkMinutes } from "@/lib/tonight";
 import { readRememberedArea, type RememberedArea } from "@/lib/nightPatches";
 import { palChatHref, VIBE_CHIPS } from "@/lib/vibeChips";
+import { dealDigestNote } from "@/lib/dealsDigest";
+import { groupTonightListings } from "@/lib/tonightListGrouping";
 import type { WhatsOnKind, WhatsOnRow } from "@/lib/whatsOn";
 import {
   checkedLabel,
-  filterLaneRows,
   laneKindFacets,
   laneTimeLabel,
   WHATS_ON_KIND_META,
 } from "@/lib/whatsOnBadges";
 
 import "./tonight.css";
+import "./tonightDedup.css";
 
 type Origin = { lat: number; lng: number };
 type LocationStatus = "idle" | "requesting" | "unavailable";
@@ -157,11 +159,24 @@ export default function TonightClient() {
     setLocationStatus("idle");
   }, []);
 
-  const facets = useMemo(() => laneKindFacets(rows), [rows]);
-  const visible = useMemo(
-    () => filterLaneRows(rows, activeKind),
-    [rows, activeKind],
+  // Collapse chain-wide duplicate offers (decision #11): one card per offer
+  // family, nearest venue first, the rest behind a "Same deal at N pubs"
+  // expander. Grouped on the same near signal that orders the list, so the card
+  // and its ordering agree. Group the whole set once, then filter by kind — a
+  // family carries a single kind, so this equals grouping the kind-filtered rows.
+  const groupedAll = useMemo(
+    () => groupTonightListings(rows, tonightNear?.near ?? null),
+    [rows, tonightNear],
   );
+  const grouped = useMemo(
+    () => (activeKind ? groupedAll.filter((g) => g.row.kind === activeKind) : groupedAll),
+    [groupedAll, activeKind],
+  );
+  // Filter chips count what the viewer actually sees — grouped families — while
+  // the provenance line below stays the raw inventory total ("16 listings
+  // tonight"). Reusing laneKindFacets on the grouped display rows keeps the map
+  // lane's own facets (same shared helper) untouched.
+  const facets = useMemo(() => laneKindFacets(groupedAll.map((g) => g.row)), [groupedAll]);
 
   const ready = status === "ready";
   const empty = status === "empty";
@@ -322,7 +337,7 @@ export default function TonightClient() {
                 onClick={() => setActiveKind(null)}
               >
                 All
-                <span className="tonightChipCount">{rows.length}</span>
+                <span className="tonightChipCount">{groupedAll.length}</span>
               </button>
               {facets.map((facet) => (
                 <button
@@ -345,7 +360,8 @@ export default function TonightClient() {
           ) : null}
 
           <ul className="tonightList" data-testid="tonight-list">
-            {visible.map((row) => {
+            {grouped.map((group) => {
+              const row = group.row;
               const link = rowHref(row);
               const meta = WHATS_ON_KIND_META[row.kind];
               const when = laneTimeLabel(row) ?? meta.badgeLabel;
@@ -424,12 +440,72 @@ export default function TonightClient() {
                   ) : (
                     <div className="tonightRowLink">{RowInner}</div>
                   )}
+                  {group.venueCount > 1 ? (
+                    <details className="tonightRowMore">
+                      <summary className="tonightRowMoreToggle">
+                        <ChevronDown
+                          size={14}
+                          aria-hidden="true"
+                          className="tonightRowMoreChevron"
+                        />
+                        {dealDigestNote(group.venueCount)}
+                      </summary>
+                      <ul className="tonightRowMoreList">
+                        {group.alternates.map((alt) => {
+                          const altLink = rowHref(alt);
+                          const altWalk =
+                            typeof alt.lat === "number" && typeof alt.lng === "number"
+                              ? walkLabel(walkMinutes(origin, { lat: alt.lat, lng: alt.lng }))
+                              : null;
+                          const altPlace = (
+                            <span className="tonightRowMorePlace">
+                              <MapPin size={12} aria-hidden="true" />
+                              {alt.placeName}
+                            </span>
+                          );
+                          return (
+                            <li key={alt.id} className="tonightRowMoreItem">
+                              {altLink ? (
+                                altLink.external ? (
+                                  <a
+                                    className="tonightRowMoreLink pressable"
+                                    href={altLink.href}
+                                    target="_blank"
+                                    rel="noreferrer noopener"
+                                  >
+                                    {altPlace}
+                                    {altWalk ? (
+                                      <span className="tonightRowMoreWalk">{altWalk}</span>
+                                    ) : null}
+                                  </a>
+                                ) : (
+                                  <Link className="tonightRowMoreLink pressable" href={altLink.href}>
+                                    {altPlace}
+                                    {altWalk ? (
+                                      <span className="tonightRowMoreWalk">{altWalk}</span>
+                                    ) : null}
+                                  </Link>
+                                )
+                              ) : (
+                                <span className="tonightRowMoreLink">
+                                  {altPlace}
+                                  {altWalk ? (
+                                    <span className="tonightRowMoreWalk">{altWalk}</span>
+                                  ) : null}
+                                </span>
+                              )}
+                            </li>
+                          );
+                        })}
+                      </ul>
+                    </details>
+                  ) : null}
                 </li>
               );
             })}
           </ul>
 
-          {visible.length === 0 ? (
+          {grouped.length === 0 ? (
             <p className="tonightStatus" role="status">
               No {activeKind ? WHATS_ON_KIND_META[activeKind].label.toLowerCase() : "matching"}{" "}
               listings tonight.{" "}
