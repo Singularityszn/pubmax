@@ -198,6 +198,45 @@ export function laneCardsFromRows(
  * so a 23:xx UTC check during BST reads as the London calendar day it actually
  * happened on, not the UTC day before midnight.
  */
+// Minutes before start when a listing reads "soon" rather than a wall clock.
+export const LISTING_URGENCY_SOON_MINUTES = 60;
+
+export type ListingUrgencyTier = "live" | "soon" | "later";
+
+export type ListingUrgency = {
+  tier: ListingUrgencyTier;
+  label: string;
+};
+
+/**
+ * Honest start-time urgency for a what's-on row. Untimed kinds (sport) and
+ * rows without a parseable start, or listings that already ended, return null.
+ */
+export function listingUrgency(row: WhatsOnRow, now: Date = new Date()): ListingUrgency | null {
+  if (!WHATS_ON_KIND_META[row.kind].timed) return null;
+  const startMs = Date.parse(row.startsAt);
+  if (!Number.isFinite(startMs)) return null;
+  const nowMs = now.getTime();
+  const endMs = row.endsAt ? Date.parse(row.endsAt) : Number.NaN;
+  if (Number.isFinite(endMs) && nowMs >= endMs) return null;
+
+  if (nowMs >= startMs) {
+    return { tier: "live", label: "Happening now" };
+  }
+
+  const minutesUntil = Math.ceil((startMs - nowMs) / 60_000);
+  if (minutesUntil <= LISTING_URGENCY_SOON_MINUTES) {
+    return {
+      tier: "soon",
+      label: minutesUntil <= 1 ? "Starts in 1 min" : `Starts in ${minutesUntil} min`,
+    };
+  }
+
+  const clock = formatWhatsOnTime(row.startsAt);
+  if (!clock) return null;
+  return { tier: "later", label: clock };
+}
+
 export function checkedLabel(iso?: string | null): string {
   if (!iso) return "Freshness unknown";
   const ms = Date.parse(iso);

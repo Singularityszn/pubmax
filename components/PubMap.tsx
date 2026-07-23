@@ -1467,6 +1467,10 @@ export default function PubMap({
     () => activeNightArea ?? nearestNightAreaForViewport(cityId, mapViewport.center),
     [activeNightArea, cityId, mapViewport.center],
   );
+  const venuesById = useMemo(
+    () => new Map(filteredVenues.map((venue) => [venue.id, venue])),
+    [filteredVenues],
+  );
   // The Area button's live label: the Night Area whose region holds the map
   // centre. Recomputes only when the viewport settles (moveend drives
   // mapViewport), so panning updates it without a separate debounce timer.
@@ -1675,6 +1679,7 @@ export default function PubMap({
         <MobilePlanActivation
           cityId={cityId}
           initialNightArea={suggestedPlanArea.slug}
+          venuesById={venuesById}
           onGenerated={applyGeneratedMobilePlan}
         />
       ) : null}

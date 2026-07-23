@@ -8,6 +8,7 @@ import {
   laneCardsFromRows,
   laneKindFacets,
   laneTimeLabel,
+  listingUrgency,
   summariseWhatsOnByVenue,
   WHATS_ON_KIND_META,
 } from "@/lib/whatsOnBadges";
@@ -135,5 +136,45 @@ describe("time + provenance helpers", () => {
     expect(WHATS_ON_KIND_META.quiz.timed).toBe(true);
     expect(WHATS_ON_KIND_META.sport.timed).toBe(false);
     expect(WHATS_ON_KIND_META.sport.badgeLabel).toBe("Screens live sport");
+  });
+});
+
+describe("listingUrgency", () => {
+  const now = new Date("2026-07-12T18:35:00.000Z"); // 19:35 BST
+
+  it("returns live when the listing has started and not ended", () => {
+    expect(listingUrgency(row({ kind: "deal", startsAt: "2026-07-12T18:00:00.000Z" }), now)).toEqual({
+      tier: "live",
+      label: "Happening now",
+    });
+  });
+
+  it("returns soon with minute countdown inside the soon window", () => {
+    expect(listingUrgency(row({ kind: "quiz", startsAt: "2026-07-12T19:00:00.000Z" }), now)).toEqual({
+      tier: "soon",
+      label: "Starts in 25 min",
+    });
+    expect(listingUrgency(row({ kind: "quiz", startsAt: "2026-07-12T18:35:30.000Z" }), now)).toEqual({
+      tier: "soon",
+      label: "Starts in 1 min",
+    });
+  });
+
+  it("returns later with a London wall clock beyond the soon window", () => {
+    expect(listingUrgency(row({ kind: "music", startsAt: "2026-07-12T21:00:00.000Z" }), now)).toEqual({
+      tier: "later",
+      label: "10:00 pm",
+    });
+  });
+
+  it("returns null for untimed kinds, ended listings, or bad starts", () => {
+    expect(listingUrgency(row({ kind: "sport" }), now)).toBeNull();
+    expect(
+      listingUrgency(
+        row({ kind: "deal", startsAt: "2026-07-12T17:00:00.000Z", endsAt: "2026-07-12T18:00:00.000Z" }),
+        now,
+      ),
+    ).toBeNull();
+    expect(listingUrgency(row({ kind: "deal", startsAt: "not-a-date" }), now)).toBeNull();
   });
 });
