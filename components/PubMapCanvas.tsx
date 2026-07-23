@@ -91,6 +91,7 @@ import {
   PAINT_WATCHDOG_MAX_RETRIES,
   shouldRecoverPaint,
 } from "@/lib/mapPaintWatchdog";
+import { classifyTileFailure, pruneTileFailures } from "@/lib/mapTileFailure";
 
 
 type PubMapCanvasProps = {
@@ -1263,10 +1264,87 @@ export default function PubMapCanvas({
       }, STYLE_LOAD_TIMEOUT_MS);
     };
     const fallbackTimer = setTimeout(swapToBasemapFallback, STYLE_LOAD_TIMEOUT_MS);
-    // An error before the first style loads means the style URL itself failed;
-    // tile hiccups after load are harmless and ignored.
-    map.on("error", () => {
-      if (!styleLoaded) swapToBasemapFallback();
+    // ONE recovery budget per mount, shared by both recovery nets (the tile
+    // classifier here and the paint watchdog below), so the two can never
+    // compound into more than PAINT_WATCHDOG_MAX_RETRIES total actions.
+    let recoverySpent = 0;
+    // An error before the first style loads means the style URL itself failed.
+    // AFTER load, errors are classified (lib/mapTileFailure): the paint
+    // watchdog below only sees a parked frame loop, so a source that fails
+    // while frames keep presenting would otherwise paint black at 60fps with
+    // no recovery and no message. A lone tile miss stays ignored; a burst (or
+    // a sprite/glyph failure, which breaks the whole map) spends ONE style
+    // reload from the same recovery budget as the paint watchdog, and if the
+    // failure survives that reload the honest error card takes over. The retry
+    // is deferred to a microtask because MapLibre fires mutation-validation
+    // errors synchronously from inside buildScene - a setStyle re-entering
+    // mid-build would leave every remaining addLayer throwing on an unloaded
+    // style (same hazard as the flag-setter ordering above).
+    let tileFailureStamps: number[] = [];
+    let tileRetrySpent = false;
+    let tileFailureSurfaced = false;
+    let tileRetryQueued = false;
+    map.on("error", (event) => {
+      if (!styleLoaded) {
+        swapToBasemapFallback();
+        return;
+      }
+      if (tileFailureSurfaced || mapRef.current !== map) return;
+      const now = performance.now();
+      tileFailureStamps = pruneTileFailures(tileFailureStamps, now);
+      tileFailureStamps.push(now);
+      const message = String(
+        (event as { error?: { message?: unknown } })?.error?.message ?? "",
+      );
+      const critical = /sprite|glyph/i.test(message);
+      const decision = classifyTileFailure({
+        now,
+        errorTimestamps: tileFailureStamps,
+        criticalFailure: critical,
+        documentVisible: document.visibilityState !== "hidden",
+        // A flyTo legitimately outruns the tile stream and paints black for a
+        // few seconds; the classifier stays silent until the flight ends.
+        cameraInFlight: map.isMoving(),
+        retrySpent: tileRetrySpent,
+        recoveryBudgetLeft: PAINT_WATCHDOG_MAX_RETRIES - recoverySpent,
+      });
+      if (decision === "ignore") return;
+      if (decision === "retry") {
+        if (tileRetryQueued) return;
+        tileRetryQueued = true;
+        queueMicrotask(() => {
+          tileRetryQueued = false;
+          if (mapRef.current !== map || tileFailureSurfaced) return;
+          tileRetrySpent = true;
+          recoverySpent += 1; // shared budget with the paint watchdog
+          tileFailureStamps = [];
+          console.warn("[pubmap] tile failure burst, reloading style", {
+            critical,
+            detail: message || undefined,
+          });
+          const styles = usingFallback ? FALLBACK_STYLES : MAP_STYLES;
+          map.setStyle(styles[themeRef.current], { diff: false });
+        });
+        return;
+      }
+      // surface: the bounded retry (or the budget) is spent and tiles are
+      // still failing. Same shape as the context-lost path: settle the scene
+      // state, stop the hang guard, and show the honest card with Retry.
+      tileFailureSurfaced = true;
+      sceneSettled = true;
+      clearTimeout(hangFailTimer);
+      console.warn("[pubmap] tile failure survived reload, surfacing", {
+        critical,
+        detail: message || undefined,
+      });
+      queueMicrotask(() =>
+        reportMapError({
+          kind: "tiles",
+          message:
+            "The map couldn't load its tiles right now. The pub list and crawl planner still work.",
+          detail: message || "Tile source failure after style load",
+        }),
+      );
     });
 
     // --- Post-init context loss. A GPU reset fires `webglcontextlost`; the
@@ -1378,7 +1456,6 @@ export default function PubMapCanvas({
       lastRenderAt = performance.now();
     };
     map.on("render", stampRender);
-    let paintRetries = 0;
     let paintCapWarned = false;
     let paintWatchdogTimer: ReturnType<typeof setInterval> | undefined;
     const samplePaint = () => {
@@ -1396,16 +1473,16 @@ export default function PubMapCanvas({
         canvasVisible: onScreen,
         canvasWidth: canvas.width,
         canvasHeight: canvas.height,
-        retries: paintRetries,
+        retries: recoverySpent,
       });
       if (!recover) return;
-      paintRetries += 1;
+      recoverySpent += 1;
       map.resize();
       map.triggerRepaint();
-      if (paintRetries >= PAINT_WATCHDOG_MAX_RETRIES && !paintCapWarned) {
+      if (recoverySpent >= PAINT_WATCHDOG_MAX_RETRIES && !paintCapWarned) {
         paintCapWarned = true;
         console.warn("[pubmap] paint watchdog exhausted its recovery budget", {
-          retries: paintRetries,
+          retries: recoverySpent,
           lastRenderAt,
           intervalMs: PAINT_WATCHDOG_INTERVAL_MS,
         });
