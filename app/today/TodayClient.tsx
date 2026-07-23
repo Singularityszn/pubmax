@@ -20,9 +20,15 @@ import {
 import { useEffect, useState } from "react";
 
 import SiteNav from "@/components/nav/SiteNav";
-import { readRememberedArea } from "@/lib/nightPatches";
+import type { NightAreaSlug } from "@/lib/nightAreas";
+import { NIGHT_PATCHES, readRememberedArea } from "@/lib/nightPatches";
+import { PLAN_INTAKE_STORAGE_KEY, parsePlanIntakeDraft } from "@/lib/planIntake";
 import { resolveTonightNear } from "@/lib/tonight";
 import { orderPicksNear, type TodayFact, type TonightPickDto, type WeatherBrief } from "@/lib/todayBrief";
+import {
+  applyTodayPersonalization,
+  resolveTodayPersonalization,
+} from "@/lib/todayPersonalization";
 
 import TodayGetThereStrip from "./TodayGetThereStrip";
 import TodayPintsCard from "./TodayPintsCard";
@@ -35,6 +41,7 @@ import "./today.css";
 type Props = {
   dateLabel: string;
   weather: WeatherBrief | null;
+  weatherByArea: Partial<Record<NightAreaSlug, WeatherBrief | null>>;
   picks: TonightPickDto[];
   fact: TodayFact | null;
   pintsIndex: TodayPintsIndex;
@@ -92,7 +99,7 @@ function WeatherCard({ weather }: { weather: WeatherBrief | null }) {
   );
 }
 
-function PicksCard({ picks }: { picks: TonightPickDto[] }) {
+function PicksCard({ picks, filteredPickCount }: { picks: TonightPickDto[]; filteredPickCount: number }) {
   return (
     <section className="todayCard" aria-labelledby="today-picks-title" data-testid="today-picks">
       <div className="todayCardHead">
@@ -168,8 +175,9 @@ function PicksCard({ picks }: { picks: TonightPickDto[] }) {
       ) : (
         <>
           <p className="todayCardEmpty">
-            Nothing confirmed for tonight yet. Listings firm up through the
-            afternoon.
+            {filteredPickCount > 0
+              ? "Tonight has listings, but none match your current preferences."
+              : "Nothing confirmed for tonight yet. Listings firm up through the afternoon."}
           </p>
           <p className="todayCardFootRow">
             <Link href="/map" className="todayCardFootLink">
@@ -181,6 +189,16 @@ function PicksCard({ picks }: { picks: TonightPickDto[] }) {
       )}
     </section>
   );
+}
+
+/** Read and validate the resumable Plan intake without cleaning up its storage. */
+function readPlanIntakeDraftReadonly() {
+  if (typeof window === "undefined") return null;
+  try {
+    return parsePlanIntakeDraft(window.localStorage.getItem(PLAN_INTAKE_STORAGE_KEY));
+  } catch {
+    return null;
+  }
 }
 
 function FactCard({ fact }: { fact: TodayFact | null }) {
@@ -228,25 +246,45 @@ function FactCard({ fact }: { fact: TodayFact | null }) {
   );
 }
 
-export default function TodayClient({ dateLabel, weather, picks, fact, pintsIndex, quietPint }: Props) {
-  // Silent continuity (#427 seam): if the viewer chose an area anywhere in the
-  // app, lead with the picks nearest it. Same server-chosen picks, same count,
-  // order only; no remembered area = server order untouched. localStorage is
-  // read inside the effect so the first paint always matches SSR.
-  const [orderedPicks, setOrderedPicks] = useState(picks);
+export default function TodayClient({ dateLabel, weather, weatherByArea, picks, fact, pintsIndex, quietPint }: Props) {
+  const [brief, setBrief] = useState({ weather, picks: picks.slice(0, 3), filteredPickCount: 0 });
+
+  // Silent continuity (#427 seam), now resolved field-by-field. The progressive
+  // intake is the only newly consumed source in this UI wave. Account and
+  // device Night Profiles stay pure resolver inputs until their owning account
+  // lane provides an approved read contract. localStorage remains effect-only
+  // so the first paint matches SSR.
   useEffect(() => {
     let cancelled = false;
-    // Deferred like useWhatsOnTonight's setState: reading localStorage is the
-    // external-system sync; the state lands next microtask (react-hooks rule).
     void Promise.resolve().then(() => {
       if (cancelled) return;
-      const near = resolveTonightNear(null, readRememberedArea());
-      setOrderedPicks(near ? orderPicksNear(picks, near.near) : picks);
+      const remembered = readRememberedArea();
+      const rememberedPatch = remembered?.kind === "patch"
+        ? NIGHT_PATCHES.find((patch) => patch.id === remembered.id)?.id ?? null
+        : null;
+      const resolved = resolveTodayPersonalization({
+        progressiveIntake: readPlanIntakeDraftReadonly(),
+        reviewedDevice: null,
+        defaults: rememberedPatch ? { preferredPatch: rememberedPatch } : null,
+      });
+      const personalized = applyTodayPersonalization(
+        { weather, picks, filteredPickCount: 0 },
+        weatherByArea,
+        resolved,
+      );
+      // Preserve the existing borough-memory behavior for the no-profile path.
+      // Modelled profile/intake fields take precedence and never consult it.
+      const near = !resolved.personalized
+        ? resolveTonightNear(null, remembered)
+        : null;
+      setBrief(near
+        ? { ...personalized, picks: orderPicksNear(personalized.picks, near.near) }
+        : personalized);
     });
     return () => {
       cancelled = true;
     };
-  }, [picks]);
+  }, [picks, weather, weatherByArea]);
 
   return (
     <main className="todayPage" data-testid="today-screen">
@@ -262,9 +300,9 @@ export default function TodayClient({ dateLabel, weather, picks, fact, pintsInde
       </header>
 
       <div className="todayStack">
-        <WeatherCard weather={weather} />
+        <WeatherCard weather={brief.weather} />
         <TodayTubeCard />
-        <PicksCard picks={orderedPicks} />
+        <PicksCard picks={brief.picks} filteredPickCount={brief.filteredPickCount} />
         <TodayGetThereStrip />
         <TodayPintsCard index={pintsIndex} />
         <TodayQuietPintCard module={quietPint} />
