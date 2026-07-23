@@ -12,6 +12,7 @@
 // "Screens live sport" attribute badge; deal + music are timed. Hero-kind
 // priority for a venue with several rows: quiz > sport > deal > music.
 
+import { walkLabel, walkMinutes } from "@/lib/tonight";
 import { WHATS_ON_KINDS, type WhatsOnKind, type WhatsOnRow } from "@/lib/whatsOn";
 
 export type WhatsOnKindMeta = {
@@ -102,6 +103,8 @@ export type WhatsOnLaneCard = {
   /** London start-time label for timed kinds; null for untimed (sport). */
   timeLabel: string | null;
   priceGbp?: number;
+  /** Straight-line "~N min walk" when the viewer shared a location. */
+  walkLabel?: string;
   sourceLabel: string;
   sourceUrl: string;
   observedAt: string;
@@ -162,12 +165,17 @@ export function laneKindFacets(rows: readonly WhatsOnRow[]): WhatsOnKindFacet[] 
  * Derive lane cards from whats-on rows, preserving the incoming order (the
  * store already sorts by nearness when `near` is supplied) and capping at
  * `limit` (default 5, per the PRD's "3–5 nearby cards").
+ *
+ * When `near` is provided, each card with venue coords gets a haversine
+ * "~N min walk" label — same estimate as `/tonight`, never an N-row journey
+ * fan-out.
  */
 export function laneCardsFromRows(
   rows: readonly WhatsOnRow[],
-  opts: { limit?: number } = {},
+  opts: { limit?: number; near?: { lat: number; lng: number } | null } = {},
 ): WhatsOnLaneCard[] {
   const limit = typeof opts.limit === "number" && opts.limit > 0 ? opts.limit : 5;
+  const near = opts.near ?? null;
   const cards: WhatsOnLaneCard[] = [];
   for (const row of rows) {
     const meta = WHATS_ON_KIND_META[row.kind];
@@ -186,6 +194,13 @@ export function laneCardsFromRows(
     };
     if (typeof row.venueId === "string" && row.venueId.length > 0) card.venueId = row.venueId;
     if (typeof row.priceGbp === "number") card.priceGbp = row.priceGbp;
+    const walk = walkLabel(
+      walkMinutes(near, {
+        lat: typeof row.lat === "number" ? row.lat : Number.NaN,
+        lng: typeof row.lng === "number" ? row.lng : Number.NaN,
+      }),
+    );
+    if (walk) card.walkLabel = walk;
     cards.push(card);
     if (cards.length >= limit) break;
   }
@@ -198,6 +213,45 @@ export function laneCardsFromRows(
  * so a 23:xx UTC check during BST reads as the London calendar day it actually
  * happened on, not the UTC day before midnight.
  */
+// Minutes before start when a listing reads "soon" rather than a wall clock.
+export const LISTING_URGENCY_SOON_MINUTES = 60;
+
+export type ListingUrgencyTier = "live" | "soon" | "later";
+
+export type ListingUrgency = {
+  tier: ListingUrgencyTier;
+  label: string;
+};
+
+/**
+ * Honest start-time urgency for a what's-on row. Untimed kinds (sport) and
+ * rows without a parseable start, or listings that already ended, return null.
+ */
+export function listingUrgency(row: WhatsOnRow, now: Date = new Date()): ListingUrgency | null {
+  if (!WHATS_ON_KIND_META[row.kind].timed) return null;
+  const startMs = Date.parse(row.startsAt);
+  if (!Number.isFinite(startMs)) return null;
+  const nowMs = now.getTime();
+  const endMs = row.endsAt ? Date.parse(row.endsAt) : Number.NaN;
+  if (Number.isFinite(endMs) && nowMs >= endMs) return null;
+
+  if (nowMs >= startMs) {
+    return { tier: "live", label: "Happening now" };
+  }
+
+  const minutesUntil = Math.ceil((startMs - nowMs) / 60_000);
+  if (minutesUntil <= LISTING_URGENCY_SOON_MINUTES) {
+    return {
+      tier: "soon",
+      label: minutesUntil <= 1 ? "Starts in 1 min" : `Starts in ${minutesUntil} min`,
+    };
+  }
+
+  const clock = formatWhatsOnTime(row.startsAt);
+  if (!clock) return null;
+  return { tier: "later", label: clock };
+}
+
 export function checkedLabel(iso?: string | null): string {
   if (!iso) return "Freshness unknown";
   const ms = Date.parse(iso);

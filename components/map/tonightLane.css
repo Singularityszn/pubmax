@@ -280,6 +280,28 @@
   white-space: nowrap;
 }
 
+.tonightLaneGardenCue {
+  display: block;
+  margin-top: 2px;
+  font-size: 0.66rem;
+  font-weight: 650;
+  line-height: 1.25;
+  color: color-mix(in srgb, var(--amber) 70%, var(--ink));
+}
+
+.tonightLaneCardWalk {
+  margin-left: 0.35rem;
+  color: var(--muted);
+  font-weight: 650;
+  white-space: nowrap;
+}
+
+.tonightLaneCardWalk::before {
+  content: "·";
+  margin-right: 0.35rem;
+  color: color-mix(in srgb, var(--muted) 70%, transparent);
+}
+
 .tonightLaneChips {
   display: flex;
   gap: 6px;
@@ -431,6 +453,10 @@
 
 .tonightLaneCardWhen {
   margin: 0 0 2px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
   font-size: 0.74rem;
   font-weight: 700;
   color: color-mix(in srgb, var(--river) 45%, var(--ink));

@@ -20,6 +20,7 @@ import { CalendarClock, MapPin, MoonStar, Tv, X } from "lucide-react";
 
 import { trackEvent } from "@/lib/analytics";
 import type { WhatsOnKind, WhatsOnRow } from "@/lib/whatsOn";
+import { WhatsOnUrgencyBadge } from "@/components/map/WhatsOnUrgencyBadge";
 import {
   checkedLabel,
   filterLaneRows,
@@ -37,6 +38,12 @@ type TonightLaneProps = {
   onSelectVenue: (venueId: string) => void;
   open?: boolean;
   onOpenChange?: (open: boolean) => void;
+  /** Viewer location for "~N min walk" on cards (haversine; optional). */
+  near?: { lat: number; lng: number } | null;
+  /** Garden/weather cue from tonight-conditions when relevant. */
+  gardenCue?: string | null;
+  /** Deep-link kind filter (e.g. map ?src=whats-on-deal). */
+  initialKind?: WhatsOnKind | null;
   /** Secondary CityMCP opportunity-pin overlay, folded into this top chrome. */
   overlayCount?: number;
   overlayActive?: boolean;
@@ -59,6 +66,9 @@ export default function TonightLane({
   onSelectVenue,
   open,
   onOpenChange,
+  near = null,
+  gardenCue = null,
+  initialKind = null,
   overlayCount = 0,
   overlayActive = false,
   onToggleOverlay,
@@ -66,7 +76,14 @@ export default function TonightLane({
   variant = "map",
 }: TonightLaneProps) {
   const inSheet = variant === "sheet";
-  const [activeKind, setActiveKind] = useState<WhatsOnKind | null>(null);
+  const [activeKind, setActiveKind] = useState<WhatsOnKind | null>(initialKind);
+  // Deep-link kind changes (e.g. /map?src=whats-on-deal) reset the chip during
+  // render — React's documented prop→state sync, no effect setState.
+  const [prevInitialKind, setPrevInitialKind] = useState(initialKind);
+  if (initialKind !== prevInitialKind) {
+    setPrevInitialKind(initialKind);
+    if (initialKind) setActiveKind(initialKind);
+  }
   const [internalOpen, setInternalOpen] = useState(false);
   const isOpen = open ?? internalOpen;
   const toggleOverlay = overlayCount > 0 ? onToggleOverlay : undefined;
@@ -77,10 +94,20 @@ export default function TonightLane({
   };
 
   const facets = useMemo(() => laneKindFacets(rows), [rows]);
+  const nearLat = near?.lat ?? null;
+  const nearLng = near?.lng ?? null;
   const cards = useMemo(
-    () => laneCardsFromRows(filterLaneRows(rows, activeKind), { limit: 5 }),
-    [rows, activeKind],
+    () =>
+      laneCardsFromRows(filterLaneRows(rows, activeKind), {
+        limit: 5,
+        near:
+          nearLat != null && nearLng != null
+            ? { lat: nearLat, lng: nearLng }
+            : null,
+      }),
+    [rows, activeKind, nearLat, nearLng],
   );
+  const rowsById = useMemo(() => new Map(rows.map((row) => [row.id, row])), [rows]);
 
   // Honest outage state: the PRIMARY spine failed — say so quietly instead of
   // pretending it's a quiet night. Badges are simply absent in this state.
@@ -173,6 +200,11 @@ export default function TonightLane({
           <div className="tonightLaneTitleMeta">
             <h2 className="tonightLaneTitle">On tonight</h2>
             <span className="tonightLaneChecked">{checkedLabel(asOf)}</span>
+            {gardenCue ? (
+              <span className="tonightLaneGardenCue" data-testid="tonight-lane-garden-cue">
+                {gardenCue}
+              </span>
+            ) : null}
           </div>
           <div className="tonightLaneTitleActions">
             {toggleOverlay ? (
@@ -247,6 +279,7 @@ export default function TonightLane({
         {cards.map((card) => {
           const when = card.timeLabel ?? card.badgeLabel;
           const KindIcon = card.kind === "sport" ? Tv : CalendarClock;
+          const sourceRow = rowsById.get(card.id);
           return (
             <li key={card.id} className="tonightLaneCard" data-kind={card.kind}>
               {card.venueId ? (
@@ -258,11 +291,11 @@ export default function TonightLane({
                     onSelectVenue(card.venueId as string);
                   }}
                 >
-                  <TonightLaneCardBody card={card} when={when} KindIcon={KindIcon} />
+                  <TonightLaneCardBody card={card} when={when} KindIcon={KindIcon} sourceRow={sourceRow} />
                 </button>
               ) : (
                 <div className="tonightLaneCardTap">
-                  <TonightLaneCardBody card={card} when={when} KindIcon={KindIcon} />
+                  <TonightLaneCardBody card={card} when={when} KindIcon={KindIcon} sourceRow={sourceRow} />
                 </div>
               )}
               <Link
@@ -325,10 +358,12 @@ function TonightLaneCardBody({
   card,
   when,
   KindIcon,
+  sourceRow,
 }: {
   card: ReturnType<typeof laneCardsFromRows>[number];
   when: string;
   KindIcon: typeof Tv;
+  sourceRow?: WhatsOnRow;
 }) {
   return (
     <>
@@ -345,8 +380,14 @@ function TonightLaneCardBody({
       <p className="tonightLaneCardPlace">
         <MapPin size={12} aria-hidden="true" />
         <span>{card.placeName}</span>
+        {card.walkLabel ? (
+          <span className="tonightLaneCardWalk">{card.walkLabel}</span>
+        ) : null}
       </p>
-      <p className="tonightLaneCardWhen">{when}</p>
+      <p className="tonightLaneCardWhen">
+        <span>{when}</span>
+        {sourceRow ? <WhatsOnUrgencyBadge row={sourceRow} /> : null}
+      </p>
       <p className="tonightLaneCardSource">via {card.sourceLabel}</p>
     </>
   );

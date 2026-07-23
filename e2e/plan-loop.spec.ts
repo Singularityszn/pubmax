@@ -27,7 +27,7 @@ test("concierge picks become a public Plan that a mate joins with only a name", 
   await page.getByRole("button", { name: "Describe instead" }).click();
   await page.getByLabel("Describe the night").fill("Quiet in Clapham for 4, not pricey");
   await page.getByRole("button", { name: "Plan my night" }).click();
-  await expect(page.getByText("Three grounded stops, shaped by the editable context below.")).toBeVisible();
+  await expect(page.getByText("Three stops we can stand behind, shaped by the night you set below.")).toBeVisible();
   await expect(page.getByRole("combobox", { name: /Area/i })).toHaveValue("clapham");
   await expect(page.getByRole("spinbutton", { name: /People/i })).toHaveValue("4");
   await page.getByText("Area coverage", { exact: true }).click();

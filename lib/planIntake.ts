@@ -355,6 +355,27 @@ function rememberedPatchId(remembered: RememberedArea | null): NightPatchId | nu
   return NIGHT_PATCHES.find((patch) => patch.label.toLocaleLowerCase() === normalized)?.id ?? null;
 }
 
+export function resolvePlanIntakeAreaSeed(
+  livePatchId: string | null | undefined,
+  remembered: RememberedArea | null,
+): RememberedArea | null {
+  return isPatchId(livePatchId) ? { kind: "patch", id: livePatchId } : remembered;
+}
+
+export function canSeedPlanIntakeArea(draft: PlanIntakeDraft): boolean {
+  return draft.currentStep === "area"
+    && draft.settledSteps.length === 0
+    && draft.skippedSteps.length === 0
+    && !draft.completed
+    && draft.answers.area === null
+    && draft.answers.timeWindow === null
+    && draft.answers.exactStartIso === null
+    && draft.answers.groupSize === null
+    && draft.answers.budget === null
+    && draft.answers.budgetLimitPence === null
+    && draft.answers.accessibilityNeeds.length === 0;
+}
+
 export function createPlanIntakeDraft(remembered: RememberedArea | null = null): PlanIntakeDraft {
   const area = rememberedPatchId(remembered);
   return {

@@ -10,13 +10,15 @@ routing per house convention.
 Since 2026-07-11 the fleet shipped all of Wave A (A1–A6), the B1 What's-On spine,
 B2 sport data (37 attribute rows, 0 timed — FANZO robots-gated), B3 quiz data
 (83 timed rows), C-1 booking links, the IA unification, and the U2–U6 polish
-batch. **Status update 2026-07-12 (live audit):** migrations **0024_plans** and
-**0025_price_confirms** are **applied** on prod (`iankajxliutqogqkmvdg`) with
+batch. **Status update 2026-07-22 (live audit):** migrations **0024_plans** and
+**0025_price_confirms** remain **applied** on prod (`iankajxliutqogqkmvdg`) with
 RPCs `create_plan_atomic` / `join_plan_atomic` present. E2 Night Mode, W4 music
 data, W5 concierge what's-on intents, lane_to_plan analytics, and map
-decomposition waves (F1/M*) have landed on main. The remaining flagship gap is
-**W1 map Tonight lane + pin badges consuming `/api/whats-on`** (shipping in the
-roadmap PR). Docs that still said “0024/0025 unapplied / plans 503” were stale.
+decomposition waves (F1/F2/M*) have landed on main. **W1 map Tonight lane + pin
+badges consuming `/api/whats-on` is shipped** (`TonightLane`,
+`useWhatsOnTonight`, pin badge join, analytics, e2e). Remaining W1 polish is
+card enrichment (walk minutes + garden cue) and Discover `TonightNearbyLane`
+absorption — not rebuilding the surface.
 
 ## Owner decisions (binding, from the 2026-07-12 grill)
 
@@ -71,11 +73,11 @@ roadmap PR). Docs that still said “0024/0025 unapplied / plans 503” were sta
 ### Wave W — What's-On flagship
 | ID | Item | Tier → model |
 | --- | --- | --- |
-| W1 (=B6+E1) | **Tonight surface**: map pin badges (glyph per kind, existing pin pipeline ONLY — frozen canvas) + Tonight lane above the tab bar (3–5 nearby cards: pint price, what's-on badge, walk time via journey API, garden/weather) with kind filter chips. Absorbs `TonightNearbyLane`; first consumer of `/api/whats-on`. 390px first, both themes, reduced-motion. | T4 → Opus/GPT |
-| W2 | Sport fixtures data: fixture calendar × screening pubs → `derived` rows; UI contract unchanged | T3 → GPT |
-| W3 (=B4) | Deals vertical: chain deal days + own pint prices ("cheap round") | T2 → Sonnet |
-| W4 (=B5) | Music vertical, last: CityMCP events + chain what's-on, thin-coverage labels | T2 → Sonnet |
-| W5 (=B7) | Concierge intents: parser gains sport/quiz/deal/music moods + tonight-row rank boost; LLM schema extends mood enum only | T3 → Opus |
+| W1 (=B6+E1) | **Tonight surface**: map pin badges + Tonight lane + `/api/whats-on` consumer; Discover points at the map lane (CityMCP `TonightNearbyLane` absorbed). | **SHIPPED** |
+| W2 | Sport fixtures data: fixture calendar × screening pubs → `derived` rows; UI contract unchanged | **SHIPPED** (#203) |
+| W3 (=B4) | Deals vertical: chain deal days + own pint prices ("cheap round") | **SHIPPED** (`DealsTonightLane`) |
+| W4 (=B5) | Music vertical, last: CityMCP events + chain what's-on, thin-coverage labels | **SHIPPED** (`MusicTonightLane`) |
+| W5 (=B7) | Concierge intents: parser gains sport/quiz/deal/music moods + tonight-row rank boost; LLM schema extends mood enum only | **SHIPPED** (`lib/concierge/whatsOn.ts`) |
 
 ### Wave F — Refactor lane (hard canvas freeze during F1)
 F1 (#165) decompose PubMapCanvas/PubMap → F2 (#166) split VenueInspector /
@@ -102,7 +104,7 @@ every Wave D defect must be invisible in the shots; grade movement recorded here
 1. Wave 0 + T + S fan out in parallel (only D2/D7 touch map files).
 2. D2+D7 merge → F1 starts (canvas freeze). W1 badge work fully before F1 or fully after — never during.
 3. W1 → W2/W3 parallel → W4 → W5. N4/N1 merge on green; N3 after F2.
-4. F1 → F2 → {F3, F4}. E4/E3′ after W1; E2 last, migration-gated.
+4. F1 → F2 → {F3, F4}. E4/E3′ after W1; E2 **shipped** (migrations applied; no longer gated).
 5. Every UI PR: before/after shots at 390×844 + 1440×900, both themes; bots + architect review; local-ci green; Vercel preview green.
 
 ## Guardrails (unchanged, binding)

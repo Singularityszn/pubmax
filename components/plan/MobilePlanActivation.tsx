@@ -16,7 +16,9 @@ import { inferNightContext, type NightContext } from "@/lib/nightPlanning";
 import type { PlanBudgetSummary, PlanEndingRecommendation, PlanningConfidence, PlanRouteTotals } from "@/lib/planIntelligence";
 import { shouldWarmMapIntent } from "@/lib/mapWarmup";
 import { writeDeviceNightContext } from "@/lib/nightProfileClient";
+import { planRouteTotalsFallbackLabel, resolvePlanRouteTotalLabel } from "@/lib/planRouteTotalsClient";
 import { recordPlanHighIntentAction } from "@/lib/nativePushPrompt";
+import type { Venue } from "@/lib/venues";
 
 type GeneratedStop = { venueId: string; venueName: string };
 
@@ -45,10 +47,12 @@ function responseError(body: unknown): string {
 export function MobilePlanActivation({
   cityId,
   initialNightArea,
+  venuesById,
   onGenerated,
 }: {
   cityId: CityId;
   initialNightArea: NightAreaSlug;
+  venuesById?: ReadonlyMap<string, Venue>;
   onGenerated: (plan: GeneratedMobilePlan) => void;
 }) {
   const { user } = useAuth();
@@ -72,15 +76,18 @@ export function MobilePlanActivation({
   const [result, setResult] = useState<{
     confidence: PlanningConfidence;
     budget: PlanBudgetSummary;
-    routeTotals: PlanRouteTotals;
+    routeTotalLabel: string;
     endings: PlanEndingRecommendation[];
   } | null>(null);
+  const routeUpgradeRef = useRef<AbortController | null>(null);
   const requestRef = useRef<AbortController | null>(null);
   const speech = useTransientSpeechInput(query, setQuery);
 
   useEffect(() => () => {
     requestRef.current?.abort();
     requestRef.current = null;
+    routeUpgradeRef.current?.abort();
+    routeUpgradeRef.current = null;
   }, []);
 
   useEffect(() => {
@@ -152,12 +159,24 @@ export function MobilePlanActivation({
         routeTotals: body.routeTotals,
         endings: body.endingRecommendations,
       } satisfies GeneratedMobilePlan;
+      const stopIds = generated.stops.map((stop) => stop.venueId);
       setResult({
         confidence: generated.confidence,
         budget: generated.budget,
-        routeTotals: generated.routeTotals,
+        routeTotalLabel: planRouteTotalsFallbackLabel(generated.routeTotals),
         endings: generated.endings,
       });
+      routeUpgradeRef.current?.abort();
+      const routeController = new AbortController();
+      routeUpgradeRef.current = routeController;
+      void resolvePlanRouteTotalLabel(stopIds, generated.routeTotals, venuesById, routeController.signal)
+        .then((routeTotalLabel) => {
+          if (routeController.signal.aborted) return;
+          setResult((current) => (current ? { ...current, routeTotalLabel } : current));
+        })
+        .catch(() => {
+          /* fail-soft: keep the straight-line label already shown */
+        });
       if (!user) writeDeviceNightContext(generated.context, cityId);
       // First meaningful plan action (starting a round): arms the native push
       // explainer in Capacitor or the daily-brief explainer in an installed
@@ -222,7 +241,7 @@ export function MobilePlanActivation({
             <ShieldCheck size={17} aria-hidden="true" />
             <div><strong>{result.confidence.level === "high" ? "Higher confidence" : result.confidence.level === "medium" ? "Plan with checks" : "Low confidence, fully editable"}</strong><span>{result.budget.estimatedPerPersonPence === null ? "Price evidence is incomplete; check each stop before relying on the budget." : `Estimated £${(result.budget.estimatedPerPersonPence / 100).toFixed(2)} each for one recorded pint per stop.`}</span>{result.confidence.warnings.length ? <ul aria-label="Evidence warnings">{result.confidence.warnings.map((warning) => <li key={warning}><small>{warning}</small></li>)}</ul> : null}</div>
           </div>
-          <p className="mobilePlannerRouteTotal"><strong>{result.routeTotals.estimatedWalkingMinutes} min walk</strong> · {result.routeTotals.straightLineWalkingKm.toFixed(1)} km straight-line</p>
+          <p className="mobilePlannerRouteTotal">{result.routeTotalLabel}</p>
           <p className="mobilePlannerNextStep">Route preview stays on this device. Lock it in on Plan when you want a shareable crew link.</p>
           <Button asChild size="large" variant="secondary" className="w-full">
             <Link href="/plan?src=mobile-route-preview">Open Plan to lock it in</Link>

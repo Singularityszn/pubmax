@@ -22,6 +22,7 @@ import {
   nightProfileMergeState,
   readDeviceNightProfile,
   subscribeDeviceNightProfile,
+  mirrorAccountNightProfileToDevice,
   writeDeviceNightProfile,
   type NightProfileMergeChoice,
   type NightProfileMergeState,
@@ -198,6 +199,8 @@ export default function PubmaxxAccountHub() {
         const profile = ((await nightProfile.json()) as { profile?: NightProfile | null }).profile ?? null;
         setAccountNightProfile(profile);
         setNightProfileDraft(profile ? nightProfileInput(profile) : DEFAULT_NIGHT_PROFILE_INPUT);
+        const mirrored = mirrorAccountNightProfileToDevice(profile);
+        if (mirrored) setDeviceNightProfile(mirrored);
       } else {
         setMessage("Your account Night Profile could not be loaded.");
       }

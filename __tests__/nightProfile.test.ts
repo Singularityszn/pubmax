@@ -7,6 +7,7 @@ import {
 } from "@/lib/nightProfile";
 import {
   confirmedNightProfileMerge,
+  mirrorAccountNightProfileToDevice,
   nightProfileMergeState,
   readDeviceNightProfile,
   writeDeviceNightContext,
@@ -83,6 +84,21 @@ describe("Night Profile contracts", () => {
 
     expect(writeDeviceNightContext(invalid, "london", storage)).toBeNull();
     expect(readDeviceNightProfile(storage)).toEqual(DEFAULT_NIGHT_PROFILE_INPUT);
+  });
+
+  it("mirrors a loaded account profile onto the device for signed-out continuity", () => {
+    const storage = memoryStorage();
+    const account: NightProfile = {
+      ...DEFAULT_NIGHT_PROFILE_INPUT,
+      context: { ...DEFAULT_NIGHT_PROFILE_INPUT.context, budget: "treat" as const },
+      createdAt: "2026-07-16T20:00:00.000Z",
+      updatedAt: "2026-07-16T20:05:00.000Z",
+    };
+
+    const mirrored = mirrorAccountNightProfileToDevice(account, storage);
+    expect(mirrored?.context.budget).toBe("treat");
+    expect(readDeviceNightProfile(storage)?.context.budget).toBe("treat");
+    expect(mirrorAccountNightProfileToDevice(null, storage)).toBeNull();
   });
 
   it("detects a merge but cannot choose a winner without an explicit choice", () => {

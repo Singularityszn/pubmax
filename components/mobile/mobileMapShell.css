@@ -195,23 +195,27 @@
   }
   .mobileMapChipPrimary:disabled { opacity: .72; }
 
-  /* TIER 3 — utility corner: compact icon-buttons stacked at the map's right
-     edge, below the chrome, above the plan pill. List view (#346) joins here. */
+  /* TIER 3 — lone TfL FAB after List moved into Layers. Keep clear of the
+     chrome, the plan pill, and the right map edge so it never stacks into a
+     button column again. */
   .mobileMapUtilityCorner {
     position: fixed;
-    right: 10px;
-    top: calc(var(--mobile-map-chrome-h, 118px) + env(safe-area-inset-top) + 10px);
+    right: max(12px, env(safe-area-inset-right));
+    top: calc(var(--mobile-map-chrome-h, 118px) + env(safe-area-inset-top) + 14px);
+    bottom: calc(var(--mobile-map-dock-clearance) + 72px);
     z-index: var(--z-map-toolbar);
     display: flex;
     flex-direction: column;
-    gap: 8px;
-    pointer-events: auto;
+    justify-content: flex-start;
+    gap: 10px;
+    pointer-events: none;
   }
   .mobileMapUtilityCorner > button {
     position: relative;
     min-width: 44px;
     min-height: 44px;
-    box-shadow: 0 3px 10px color-mix(in srgb, var(--ink-deep) 14%, transparent);
+    pointer-events: auto;
+    box-shadow: 0 2px 8px color-mix(in srgb, var(--ink-deep) 12%, transparent);
   }
   .mobileMapCornerSuffix { font-size: .62rem; font-weight: 700; margin-left: 2px; }
   .mobileMapCornerBadge {
@@ -233,7 +237,9 @@
     position: fixed;
     left: 50%;
     z-index: var(--z-map-toolbar);
-    min-width: min(246px, calc(100vw - 32px));
+    /* Leave a clear lane for the TfL corner FAB on narrow phones. */
+    min-width: min(246px, calc(100vw - 88px));
+    max-width: calc(100vw - 88px);
     min-height: 48px;
     bottom: calc(var(--mobile-map-dock-clearance) + 10px);
     display: inline-flex;
@@ -395,8 +401,8 @@
   .mobileSheetPortal .mapLayersPanel { border: 0; padding: 0; background: transparent; box-shadow: none; }
   .mobileSheetPortal .logIntentFallback { position: static; inset: auto; width: 100%; max-width: none; margin: 0; box-shadow: none; }
   .mobileLayersPanel { display: grid; gap: 16px; }
-  .mobileLayerShortcuts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
-  .mobileLayerShortcuts button { min-height: 44px; justify-content: flex-start; }
+  .mobileLayerShortcuts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+  .mobileLayerShortcuts button { min-height: 48px; justify-content: flex-start; gap: 10px; }
   .mobileLayersTheme { min-height: 58px; display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 10px 12px; border: 1px solid var(--color-border); border-radius: var(--radius); background: var(--color-surface); }
   .mobileLayersTheme > div { min-width: 0; display: grid; gap: 3px; }
   .mobileLayersTheme small { color: var(--color-text-muted); line-height: 1.35; }

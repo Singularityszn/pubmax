@@ -1,6 +1,6 @@
 "use client";
 
-import { MapPinned, ShieldCheck, Sparkles, X } from "lucide-react";
+import { List, MapPinned, ShieldCheck, Sparkles, X } from "lucide-react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
@@ -43,7 +43,8 @@ import DrinkShapeChips from "@/components/map/DrinkShapeChips";
 import FavoritePintPicker from "@/components/map/FavoritePintPicker";
 import PersonaLensPicker from "@/components/map/PersonaLensPicker";
 import PersonaLensCard from "@/components/map/PersonaLensCard";
-import { usePersonaTonightCategory } from "@/components/map/usePersonaTonight";
+import { useTonightLaneCue } from "@/components/map/usePersonaTonight";
+import type { WhatsOnKind } from "@/lib/whatsOn";
 import { findPersonaById, personaHighlightsPubs, type PersonaDrink } from "@/lib/personaDrinks";
 import MapLayersControl from "@/components/map/MapLayersControl";
 // Perf (mobile map budget): the planner rail/route panel, venue inspector,
@@ -495,6 +496,8 @@ export default function PubMap({
   );
   // W2: the live-events lane is map-first — a compact top chip until requested.
   const [tonightLaneOpen, setTonightLaneOpen] = useState(false);
+  /** Once the viewer collapses a deep-linked lane, don't keep forcing it open. */
+  const [dismissedTonightSrc, setDismissedTonightSrc] = useState<string | null>(null);
   const [mapListOpen, setMapListOpen] = useState(false);
 
   // Community Pint Drops: fetch/submit/report state lives in the hook.
@@ -509,8 +512,9 @@ export default function PubMap({
   const { opportunities: tonightOpportunities, status: tonightStatus } =
     useTonightOpportunities(isLondon);
   // W1: PRIMARY What's-On spine — venueId-joined pub events on tonight. Feeds
-  // the pin badges (summary) and the Tonight lane (rows).
-  const whatsOnTonight = useWhatsOnTonight(isLondon);
+  // the pin badges (summary) and the Tonight lane (rows). Nearness uses the
+  // same geolocation the walk labels and near-me shard merge already share.
+  const whatsOnTonight = useWhatsOnTonight(isLondon, userLocation);
 
   // Mobile bottom-sheet drag (GH #17) — state + pointer handlers live in
   // useSheetDrag. Two instances: venue (right) and planner (left). A fling
@@ -947,6 +951,23 @@ export default function PubMap({
   const selParam = searchParams?.get("sel") ?? "";
   useSelParamSync({ selParam, selectedVenueId, selectVenue });
 
+  // W3 cheap-round / vertical deep links: /map?src=whats-on-deal opens the
+  // Tonight lane already filtered to that kind (exact allowlisted tokens only).
+  const srcParam = searchParams?.get("src") ?? "";
+  const tonightDeepLinkKind = useMemo((): WhatsOnKind | null => {
+    const kindBySrc: Record<string, WhatsOnKind> = {
+      "whats-on-quiz": "quiz",
+      "whats-on-sport": "sport",
+      "whats-on-deal": "deal",
+      "whats-on-music": "music",
+    };
+    if (!isLondon) return null;
+    return kindBySrc[srcParam] ?? null;
+  }, [srcParam, isLondon]);
+  const tonightLaneKind =
+    tonightDeepLinkKind && srcParam !== dismissedTonightSrc ? tonightDeepLinkKind : null;
+  const tonightLaneForcedOpen = Boolean(tonightLaneKind);
+
   const logNearbyCandidates = useMemo(
     () => buildLogNearbyCandidates(filteredVenues, undefined, userLocation),
     [filteredVenues, userLocation],
@@ -986,10 +1007,11 @@ export default function PubMap({
   // lens RIDES the existing drink-category filter path (filterVenues +
   // pubsToGeoJSON) instead of forking a new pin pipeline; we only track WHICH
   // persona is active so the card can render. Conditions cross-link: personas
-  // whose category fits tonight sort first (usePersonaTonightCategory reuses the
+  // whose category fits tonight sort first (useTonightLaneCue reuses the
   // shared /api/tonight-conditions verdict, no duplicated weather rules).
   const [personaLensId, setPersonaLensId] = useState<string | null>(null);
-  const personaTonightCategory = usePersonaTonightCategory(isLondon);
+  const tonightLaneCue = useTonightLaneCue(isLondon);
+  const personaTonightCategory = tonightLaneCue.category;
 
   const selectPersona = useCallback((persona: PersonaDrink | null) => {
     if (!persona) {
@@ -1467,6 +1489,10 @@ export default function PubMap({
     () => activeNightArea ?? nearestNightAreaForViewport(cityId, mapViewport.center),
     [activeNightArea, cityId, mapViewport.center],
   );
+  const venuesById = useMemo(
+    () => new Map(filteredVenues.map((venue) => [venue.id, venue])),
+    [filteredVenues],
+  );
   // The Area button's live label: the Night Area whose region holds the map
   // centre. Recomputes only when the viewport settles (moveend drives
   // mapViewport), so panning updates it without a separate debounce timer.
@@ -1675,6 +1701,7 @@ export default function PubMap({
         <MobilePlanActivation
           cityId={cityId}
           initialNightArea={suggestedPlanArea.slug}
+          venuesById={venuesById}
           onGenerated={applyGeneratedMobilePlan}
         />
       ) : null}
@@ -1823,6 +1850,9 @@ export default function PubMap({
     </>
   ) : null;
 
+  const mapLoadingActive = !mapCanvasErrored && (!mapCanvasReady || (slimPins.length === 0 && !loaded));
+  const mobileShellReady = !mapLoadingActive;
+
   return (
     <main
       className={
@@ -1867,13 +1897,13 @@ export default function PubMap({
             BOTH the slim pin index and WebGL basemap scene are ready. Warmup
             can make slim pins arrive before tiles; retiring early left a blank
             canvas. Copy matches MapLoadingSkeleton for a seamless handoff. */}
-        {!mapCanvasErrored && (!mapCanvasReady || (slimPins.length === 0 && !loaded)) ? (
+        {mapLoadingActive ? (
           <div
             className="mapLoading"
             role="status"
             aria-busy="true"
             aria-live="polite"
-            aria-label={`Loading the ${city.displayName} pub map. Finding the pubs. Fetching tonight's prices.`}
+            aria-label={`Loading the ${city.displayName} pub map. Finding the pubs. Warming up the map.`}
           >
             <div className="mapLoadingScene" aria-hidden="true">
               <span className="mapLoadingStreet mapLoadingStreet--one" />
@@ -1886,7 +1916,7 @@ export default function PubMap({
             </div>
             <div className="mapLoadingCopy">
               <span className="mapLoadingEyebrow">{city.displayName} pub map</span>
-              <span>Finding the pubs. Fetching tonight&rsquo;s prices.</span>
+              <span>Finding the pubs. Warming up the map.</span>
             </div>
           </div>
         ) : null}
@@ -1977,8 +2007,14 @@ export default function PubMap({
             rows={whatsOnTonight.rows}
             asOf={whatsOnTonight.asOf}
             status={whatsOnTonight.status}
-            open={tonightLaneOpen}
-            onOpenChange={setTonightLaneOpen}
+            open={tonightLaneOpen || tonightLaneForcedOpen}
+            onOpenChange={(next) => {
+              setTonightLaneOpen(next);
+              if (!next && tonightDeepLinkKind) setDismissedTonightSrc(srcParam);
+            }}
+            near={userLocation}
+            gardenCue={tonightLaneCue.gardenCue}
+            initialKind={tonightLaneKind}
             onSelectVenue={(id) => selectVenue(id)}
             overlayCount={
               tonightStatus === "ready" && !tonightDismissed
@@ -2060,6 +2096,7 @@ export default function PubMap({
           onPrefetchVenue={prefetchVenueDetail}
         />
 
+        {mobileShellReady ? (
         <MobileMapShell
           cityLabel={centreArea?.name ?? activeNightArea?.name ?? city.displayName}
           overlay={mobileShellState.overlay}
@@ -2075,8 +2112,6 @@ export default function PubMap({
           priceLabel={filters.maxPrice < 10 ? `≤£${filters.maxPrice.toFixed(2)}` : "Price"}
           drinkFiltersActive={Boolean(filters.drinkCategory || filters.drinkBrand || filters.requireCocktails)}
           zoneActive={filters.zone !== "" && filters.zone !== "all"}
-          listOpen={mapListOpen}
-          onListToggle={() => setMapListOpen((open) => !open)}
           priceCapActive={filters.maxPrice < 10}
           planOpen={planningOpen}
           planActive={routeMappedActive || activePlanRoute.length >= 2}
@@ -2155,6 +2190,9 @@ export default function PubMap({
               open
               variant="sheet"
               onOpenChange={() => undefined}
+              near={userLocation}
+              gardenCue={tonightLaneCue.gardenCue}
+              initialKind={tonightLaneKind}
               onSelectVenue={selectVenue}
               overlayCount={tonightStatus === "ready" && !tonightDismissed ? tonightOpportunities.length : 0}
               overlayActive={tonightOverlayVisible}
@@ -2171,10 +2209,26 @@ export default function PubMap({
                 <TabsTrigger value="transit">Transit</TabsTrigger>
               </TabsList>
               <TabsContent value="layers" className="mobileLayersPanel">
-                <Button className="mobilePlannerLaunch w-full justify-start" onClick={openPlanning}>
-                  <MapPinned size={18} aria-hidden="true" />
-                  Plan tonight
-                </Button>
+                <div className="mobileLayerShortcuts">
+                  <Button className="mobilePlannerLaunch w-full justify-start" onClick={openPlanning}>
+                    <MapPinned size={18} aria-hidden="true" />
+                    Plan tonight
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    className="w-full justify-start"
+                    aria-label="List view of pubs on the map"
+                    aria-pressed={mapListOpen}
+                    onClick={() => {
+                      setMapListOpen((open) => !open);
+                      changeMapOverlay("none");
+                    }}
+                  >
+                    <List size={18} aria-hidden="true" />
+                    {mapListOpen ? "Hide pub list" : "List view"}
+                  </Button>
+                </div>
                 {routeMappedActive ? <Button variant="secondary" onClick={hideMappedRoute}>Hide active route</Button> : null}
                 <div className="mobileLayersTheme">
                   <div><strong>Map appearance</strong><small>Theme changes preserve this view and its active sheet.</small></div>
@@ -2188,7 +2242,22 @@ export default function PubMap({
                 <fieldset className="mobilePriceChoices"><legend>Maximum pint price</legend>{[10, 7, 6, 5.5].map((price) => <button type="button" key={price} className={filters.maxPrice === price ? "isActive" : ""} aria-pressed={filters.maxPrice === price} onClick={() => setFilters((current) => ({ ...current, maxPrice: price }))}>{price === 10 ? "Any" : `£${price.toFixed(2)}`}</button>)}</fieldset>
               </TabsContent>
               <TabsContent value="events">
-                <TonightLane rows={whatsOnTonight.rows} asOf={whatsOnTonight.asOf} status={whatsOnTonight.status} open variant="sheet" onOpenChange={() => undefined} onSelectVenue={selectVenue} overlayCount={tonightStatus === "ready" && !tonightDismissed ? tonightOpportunities.length : 0} overlayActive={tonightOverlayVisible} onToggleOverlay={() => setTonightOverlayVisible((visible) => !visible)} onDismissOverlay={dismissTonightOverlay} />
+                <TonightLane
+                  rows={whatsOnTonight.rows}
+                  asOf={whatsOnTonight.asOf}
+                  status={whatsOnTonight.status}
+                  open
+                  variant="sheet"
+                  onOpenChange={() => undefined}
+                  near={userLocation}
+                  gardenCue={tonightLaneCue.gardenCue}
+                  initialKind={tonightLaneKind}
+                  onSelectVenue={selectVenue}
+                  overlayCount={tonightStatus === "ready" && !tonightDismissed ? tonightOpportunities.length : 0}
+                  overlayActive={tonightOverlayVisible}
+                  onToggleOverlay={() => setTonightOverlayVisible((visible) => !visible)}
+                  onDismissOverlay={dismissTonightOverlay}
+                />
               </TabsContent>
               <TabsContent value="transit"><MobileTflPanel status={tflStatus} /></TabsContent>
             </Tabs>
@@ -2246,6 +2315,7 @@ export default function PubMap({
             />
           }
         />
+        ) : null}
 
         {/* §4.5 onboarding overlay: a dismissible "Start with a story" card that
             offers curated crawls on a clean first paint. It's the mobile

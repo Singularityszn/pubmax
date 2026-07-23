@@ -22,7 +22,7 @@ import {
   preferredCityMapHref,
   subscribePreferredCity,
 } from "@/lib/cityPreference";
-import { PRIMARY_NAV_ITEMS, momentHref } from "@/components/nav/navigationModel";
+import { PRIMARY_NAV_ITEMS, momentHref, navPathMatches } from "@/components/nav/navigationModel";
 
 import "./siteNav.css";
 import "./siteNavMoment.css";
@@ -82,10 +82,7 @@ const LINKS: NavLink[] = [
 ];
 
 function matchesPath(pathname: string, link: NavLink): boolean {
-  return link.match.some((prefix) =>
-    // "/" only matches the home route exactly (every path starts with "/").
-    prefix === "/" ? pathname === "/" : pathname === prefix || pathname.startsWith(`${prefix}/`),
-  );
+  return navPathMatches(pathname, link.match);
 }
 
 function primaryKeyForLegacyActive(active?: NavKey): NavKey | undefined {

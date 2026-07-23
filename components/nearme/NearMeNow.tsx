@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { ChevronDown, Footprints, LocateFixed, MapPin, RotateCw } from "lucide-react";
 
 import { DEFAULT_CITY_ID, type CityId } from "@/lib/cities";
@@ -66,6 +66,13 @@ export type NearMeNowProps = {
    * geolocation), so the sheet answers immediately without a second prompt.
    */
   initialLocation?: { lat: number; lng: number } | null;
+  /**
+   * Shareable `/near?patch=soho` entry: answer from that patch centre without
+   * prompting for geolocation. Invalid ids are ignored.
+   */
+  initialPatchId?: string | null;
+  /** When true, patch picks rewrite `?patch=` on the current path. */
+  syncPatchToUrl?: boolean;
 };
 
 const GEO_OPTS: PositionOptions = { enableHighAccuracy: false, timeout: 7000, maximumAge: 60_000 };
@@ -77,10 +84,16 @@ export default function NearMeNow({
   autoLocate = false,
   venues,
   initialLocation = null,
+  initialPatchId = null,
+  syncPatchToUrl = false,
 }: NearMeNowProps) {
   const router = useRouter();
+  const pathname = usePathname();
+  const bootPatch = resolveNightPatch(initialPatchId);
   // Map mode (initialLocation) resolves an answer on mount — start on the
   // spinner, not the idle CTA, so there is no "Find my pint" flash.
+  // Shareable patch links start idle and let pickPatch() flip to requesting
+  // so a missed effect can never leave a permanent locate spinner.
   const [state, setState] = useState<LocateState>(initialLocation ? "requesting" : "idle");
   const [cards, setCards] = useState<NearMeCard[]>([]);
   const [scope, setScope] = useState<NearMeScope>("none");
@@ -119,22 +132,50 @@ export default function NearMeNow({
   // walk minutes stay real (they read from the patch's walking heart).
   const pickPatch = useCallback(
     (next: NightPatch, reason: PatchReason = null) => {
-      void loadSlim().then((slim) => {
-        const answer = rankNearMe(next.lat, next.lng, slim);
-        setCards(answer.cards);
-        setScope(answer.scope);
-        setPatch(next);
-        // Derive this patch's honest coverage tier from the priced pubs actually
-        // in the slim index (real counts, no uniform claim).
-        setPatchProfile(derivePatchProfile(next, { venues: slim }));
-        setBorough(null);
-        setOutsideCoverage(null);
-        if (reason !== null) setPatchReason(reason);
-        setState("ready");
-        writeRememberedArea({ kind: "patch", id: next.id });
-      });
+      setState("requesting");
+      setPatch(next);
+      setBorough(null);
+      setOutsideCoverage(null);
+      if (reason !== null) setPatchReason(reason);
+      void loadSlim()
+        .then((slim) => {
+          try {
+            const answer = rankNearMe(next.lat, next.lng, slim);
+            setCards(answer.cards);
+            setScope(answer.scope);
+            // Derive this patch's honest coverage tier from the priced pubs actually
+            // in the slim index (real counts, no uniform claim).
+            setPatchProfile(derivePatchProfile(next, { venues: slim }));
+          } catch {
+            setCards([]);
+            setScope("none");
+            setPatchProfile(null);
+          }
+          setState("ready");
+          writeRememberedArea({ kind: "patch", id: next.id });
+          if (syncPatchToUrl && pathname) {
+            try {
+              const params = new URLSearchParams(
+                typeof window !== "undefined" ? window.location.search : "",
+              );
+              params.set("patch", next.id);
+              const query = params.toString();
+              router.replace(query ? `${pathname}?${query}` : pathname, { scroll: false });
+            } catch {
+              // URL sync is best-effort — never block the answer.
+            }
+          }
+        })
+        .catch(() => {
+          // Slim index miss must still surface the chosen patch, never hang on
+          // the locate spinner — empty cards + AreaPicker remain available.
+          setCards([]);
+          setScope("none");
+          setPatchProfile(null);
+          setState("ready");
+        });
     },
-    [loadSlim],
+    [loadSlim, pathname, router, syncPatchToUrl],
   );
 
   const pickBorough = useCallback(
@@ -237,15 +278,21 @@ export default function NearMeNow({
       });
       return;
     }
+    // Shareable patch entry beats auto-locate so deep links stay honest.
+    if (bootPatch) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      pickPatch(bootPatch, null);
+      return;
+    }
     if (!autoLocate) return;
     // Kick off geolocation on mount. locate() sets "requesting" then resolves
     // asynchronously via the Geolocation API — an external-system sync, the
     // documented exception to the no-setState-in-effect guidance.
     // eslint-disable-next-line react-hooks/set-state-in-effect
     locate();
-    // Mount-only: loadSlim/locate are stable for a given cityId.
+    // Mount-only: loadSlim/locate/pickPatch are stable for a given cityId.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [autoLocate, initialLocation]);
+  }, [autoLocate, initialLocation, bootPatch?.id]);
 
   const openVenue = useCallback(
     (id: string) => {
@@ -282,13 +329,31 @@ export default function NearMeNow({
             <LocateFixed size={18} aria-hidden="true" /> Find my pint
           </button>
           <p className="nmnHint">We only use your location to rank pubs nearby. Nothing is stored.</p>
+          <div className="nmnQuickPatches">
+            <p className="nmnQuickPatchesLabel">Or pick a patch</p>
+            <ul className="nmnAreaChips" aria-label="Pick a night area">
+              {NIGHT_PATCHES.map((entry) => (
+                <li key={entry.id}>
+                  <button
+                    type="button"
+                    className="nmnBoroughChip"
+                    onClick={() => pickPatch(entry)}
+                  >
+                    {entry.label}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </div>
         </div>
       ) : null}
 
       {state === "requesting" ? (
         <div className="nmnStatus" role="status">
           <span className="nmnSpinner" aria-hidden="true" />
-          Finding the cheapest pints near you…
+          {patch
+            ? `Finding the cheapest pints around ${patch.label}…`
+            : "Finding the cheapest pints near you…"}
         </div>
       ) : null}
 
