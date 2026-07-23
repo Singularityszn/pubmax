@@ -257,6 +257,86 @@ test("/map paints optimistic pins from the slim index quickly", async ({ page })
   expect(fullDatasetRequests).toEqual([]);
 });
 
+test("desktop area search resolves a gazetteer locality and fits the map", async ({ page }) => {
+  test.setTimeout(60_000);
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await page.addInitScript(() => {
+    (window as Window & { __cameraIntents?: Array<{ kind: string; sequence: number }> }).__cameraIntents = [];
+    window.addEventListener("pubmax:camera-intent", (event) => {
+      const detail = (event as CustomEvent<{ kind: string; sequence: number }>).detail;
+      (window as Window & { __cameraIntents?: Array<{ kind: string; sequence: number }> }).__cameraIntents?.push(detail);
+    });
+  });
+  await page.route("**/data/london_localities.json", (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        localities: [
+          { name: "Willesden", lat: 51.549, lng: -0.229, borough: "Brent" },
+        ],
+      }),
+    }),
+  );
+  await page.route("**/api/area-news**", (route) => {
+    const area = new URL(route.request().url()).searchParams.get("area");
+    return route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        entries: area === "brent"
+          ? [{
+              id: "brent-search-context",
+              kind: "opening",
+              title: "Brent search context",
+              sourceUrl: "https://example.com/brent",
+              sourceName: "Example Times",
+              observedAt: "2026-07-23T18:00:00.000Z",
+            }]
+          : [],
+      }),
+    });
+  });
+
+  const response = await page.goto("/map");
+  expect(response?.status()).toBe(200);
+  await expect(page.locator(".maplibreMap canvas").first()).toBeVisible({ timeout: 20_000 });
+  await expect(page.locator(".mapLoading")).toHaveCount(0, { timeout: 30_000 });
+
+  const search = page.locator("#mapSearchInput");
+  await expect(search).toBeVisible();
+  await search.fill("Willesden");
+
+  const listbox = page.getByRole("listbox", { name: "Search suggestions" });
+  await expect(listbox).toBeVisible();
+  const willesden = listbox.getByRole("option", { name: /Willesden.*Brent/i });
+  await expect(willesden).toBeVisible();
+  await expect(willesden).toContainText(/from centre/i);
+  await expect(willesden.locator(".mapSearchSuggestCoverage")).toHaveCount(0);
+
+  await search.press("ArrowDown");
+  await search.press("Enter");
+  await expect(listbox).toHaveCount(0);
+
+  await expect.poll(async () => page.evaluate(() => (
+    window as Window & { __cameraIntents?: Array<{ kind: string; sequence: number }> }
+  ).__cameraIntents?.filter((intent) => intent.kind === "area").length ?? 0)).toBe(1);
+
+  await expect.poll(async () => page.evaluate(() => {
+    const raw = window.localStorage.getItem("pubmaxx.mobile-map-session.v1");
+    if (!raw) return null;
+    const session = JSON.parse(raw) as { viewport?: { center?: [number, number]; zoom?: number } };
+    return session.viewport ?? null;
+  }), { timeout: 10_000 }).toMatchObject({
+    center: [expect.closeTo(-0.229, 2), expect.closeTo(51.549, 2)],
+    zoom: expect.closeTo(14.5, 1),
+  });
+
+  await expect(page.locator(".desktopRail.mapRail")).toContainText("Brent search context");
+  await expect(page.locator(".mapDrawer.right.open")).toHaveCount(0);
+});
+
 test("/map lazy-loads full venue detail only when a pub is selected", async ({ page }) => {
   test.setTimeout(30_000);
   const fullDatasetRequests: string[] = [];
