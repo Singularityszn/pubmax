@@ -1,6 +1,6 @@
 # Fable handoff ledger: personalization Waves A and B
 
-Status: **implemented in integration; fixed-point review and full gate pending**
+Status: **product/security fixed point `c362118b`; this metadata-only ledger update follows; final fixed-point review, Vercel gate, and visual verdict pending**
 
 Baseline: `origin/main@a3fde784` on 2026-07-22
 Release roles: Karan owns product rulings; Fable owns architecture review, green-gate review, merge order, and rollout verdict.
@@ -18,6 +18,7 @@ Wave A makes the existing `/today` brief respond deterministically to already-av
 | --- | --- | --- |
 | Wave A: Personalized Today | `lib/todayPersonalization.ts`, `__tests__/todayPersonalization.test.ts`, minimum wiring in `app/today/page.tsx`, `app/today/TodayClient.tsx`, the area-specific weather option in `lib/todayBrief.ts`, and its existing focused test | `codex/wave-personalized-today-20260722` / `.codex-worktrees/wave-personalized-today` |
 | Wave B: Surprise Drink | `lib/surpriseDrink.ts` and `__tests__/surpriseDrink.test.ts` only. No UI wiring. | `codex/wave-surprise-drink-20260722` / `.codex-worktrees/wave-surprise-drink` |
+| Security: Next.js advisory | `package.json` and `package-lock.json` only; exact stable patch update from vulnerable Next.js 16.2.10 to 16.2.11 | `codex/wave-next-16211-security-20260723` / `.codex-worktrees/wave-next-security` |
 | Integration / handoff | This ledger and later conflict review only after both lane SHAs and touched-file manifests exist. This ledger commit contains no product code. | `codex/wave-personalization-integration-20260722` / `.codex-worktrees/wave-personalization-integration` |
 
 All three local branches started at the same baseline and tracked `origin/main`; no lane-specific commit, remote lane ref, or PR number was locally available when this ledger was opened.
@@ -53,9 +54,21 @@ Fill every field before merge; `TBD` is not release evidence.
 
 | Lane | Commit / PR | Touched-file manifest | Focused tests | `npm run verify` | Visual / live evidence | Fable verdict |
 | --- | --- | --- | --- | --- | --- | --- |
-| Wave A: Personalized Today | lane `155a2769`; integrated `671437f3` | `lib/todayPersonalization.ts`; `__tests__/todayPersonalization.test.ts`; `app/today/page.tsx`; `app/today/TodayClient.tsx`; `lib/todayBrief.ts`; `__tests__/todayBrief.test.ts` | 78/78 across six Today/profile/intake files; typecheck passed; lane lint passed with 37 pre-existing warnings and no errors | Integration gate pending | Browser evidence pending after review | Pending |
-| Wave B: Surprise Drink | lane `7ca77b74`; integrated `649c4439` | `lib/surpriseDrink.ts`; `__tests__/surpriseDrink.test.ts` | 33/33 across Surprise + persona datasets; typecheck passed; lane lint passed with 37 pre-existing warnings and no errors | Integration gate pending | Not applicable until a separately approved UI wave | Pending |
-| Integrated Waves A and B | correction commit pending after review findings | Nine files including this ledger; feature manifests are disjoint | 115/115 focused integration tests after corrections; typecheck passed | First run: data/lint/typecheck/4,994 tests passed; audit could not reach registry inside the sandbox and must be rerun with network | 390x844 light/dark, desktop light/dark, reduced motion: pending for Wave A | Pending |
+| Wave A: Personalized Today | lane `155a2769`; integrated through `285b092d` | `lib/todayPersonalization.ts`; `__tests__/todayPersonalization.test.ts`; `app/today/page.tsx`; `app/today/TodayClient.tsx`; `lib/todayBrief.ts`; `__tests__/todayBrief.test.ts` | Included in final 118/118 focused set; typecheck and touched-file lint pass | Full coverage passed before review corrections; final Vercel gate pending | Browser evidence pending after final review | Pending |
+| Wave B: Surprise Drink | lane `7ca77b74`; integrated through `285b092d` | `lib/surpriseDrink.ts`; `__tests__/surpriseDrink.test.ts` | Included in final 118/118 focused set; typecheck and touched-file lint pass | Full coverage passed before review corrections; final Vercel gate pending | Not applicable until a separately approved UI wave | Pending |
+| Security: Next.js 16.2.11 | lane `9b83c046`; integrated `c362118b` | `package.json`; `package-lock.json` | Installed version 16.2.11; typecheck passed | Registry-backed `npm audit --audit-level=high`: 0 vulnerabilities | Canonical Vercel build pending | Pending |
+| Integrated waves | product/security fixed point `c362118b`; ledger metadata follows | 11 files including this ledger; product manifests remain disjoint | 118/118 focused tests; typecheck; touched-file lint; diff-check all pass | First full run: data/lint/typecheck and 4,994/4,994 tests passed. The original audit then found the newly disclosed Next.js advisory; `c362118b` fixes it and the networked audit is clean. | 390x844 light/dark, desktop light/dark, reduced motion: pending for Wave A | Pending |
+
+## Review ledger
+
+- Fixed point `16568bfb`: two independent 5.6-high reviews found auth scope creep, unenforced constraint labels, duplicate-order dependence, missing price/freshness guarantees, remembered-area masking, owner-decision documentation gaps, and voice-copy issues. Closed by `6adac551`.
+- Fixed point `6adac551`: two fresh isolated reviews found substring topic matching, overstated current-menu copy, modelled Night Areas without weather effects, a duplicated area mapping, and stale ledger evidence. Closed by `6f607f71`.
+- Fixed point `6f607f71`: two fresh isolated reviews found a mutating intake read, dishonest preference-filtered empty state, UTC/local-day conflation, and tied price-conflict selection. Closed by `285b092d`.
+- Security gate then found the newly disclosed high-severity Next.js advisory. The exact 16.2.11 patch is isolated in `9b83c046` and integrated as `c362118b`; no unrelated dependency was updated.
+
+## Build note
+
+The first isolated production-build attempt correctly failed because Turbopack will not compile against dependencies outside its worktree. After a copy-on-write local dependency tree was provided, Next.js 16.2.11 started the canonical Turbopack build but slept at 0% CPU for more than 23 minutes. Only that generated build process was stopped, and its incomplete `.next-security` output was removed. Vercel remains the canonical production build gate.
 
 ## Rollout
 
