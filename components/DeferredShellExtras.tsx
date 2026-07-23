@@ -16,6 +16,9 @@ import nextDynamic from "next/dynamic";
 const NightModeCard = nextDynamic(() => import("@/components/night/NightModeCard"), {
   ssr: false,
 });
+const MorningReentryCard = nextDynamic(() => import("@/components/night/MorningReentryCard"), {
+  ssr: false,
+});
 const PubPalSummon = nextDynamic(() => import("@/components/pubpal/PubPalSummon"), {
   ssr: false,
 });
@@ -42,6 +45,7 @@ export default function DeferredShellExtras() {
   return (
     <>
       <NightModeCard />
+      <MorningReentryCard />
       <PubPalSummon />
       <FirstRunTour />
       <A2HSInstallPrompt />

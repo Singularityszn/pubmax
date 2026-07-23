@@ -40,8 +40,15 @@
 .landmarkChapterPhoto figcaption {
   padding: 6px 10px;
   font-size: 0.72rem;
+  line-height: 1.4;
   color: var(--ink-soft);
   background: color-mix(in srgb, var(--panel-raised) 92%, transparent);
+}
+
+.landmarkChapterPhoto figcaption a {
+  color: inherit;
+  text-decoration: underline;
+  text-underline-offset: 1.5px;
 }
 
 .landmarkChapterHistory {

@@ -146,6 +146,23 @@ export function encodeCrawl(state: CrawlUrlState): string {
   return params.toString();
 }
 
+// Deep link to /map that hydrates a WHOLE ordered crawl in build mode — the
+// locked plan page (components/plan/PlanRoute.tsx) uses it to send the ordered
+// stop list to the map, where the road-following crawl route draws. Emits
+// `/map?mode=build&pubs=<ordered ids>` (defaults are omitted, so nothing else
+// clutters the link). Returns null for fewer than two stops — a single stop has
+// no walk to show.
+export function buildCrawlMapHref(venueIds: string[]): string | null {
+  const ids = venueIds.filter(Boolean);
+  if (ids.length < 2) return null;
+  return `/map?${encodeCrawl({
+    mode: "build",
+    filters: initialFilters,
+    builtIds: ids,
+    selectedVenueId: "",
+  })}`;
+}
+
 // Returns only the keys present + valid in the URL, so callers can spread over
 // their defaults. Filters come back as a Partial too (merge onto initialFilters).
 export function decodeCrawl(

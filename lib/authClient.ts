@@ -1,4 +1,4 @@
-// Browser-only Supabase client (singleton) for OAuth sign-in (Google + Microsoft/Azure).
+// Browser-only Supabase client (singleton) for OAuth and passwordless email sign-in.
 //
 // This is DISTINCT from lib/supabase.ts: that module is the server-only ADMIN
 // client (service-role key, no session persistence, all writes route through it).
@@ -7,11 +7,12 @@
 // Supabase Auth. It never touches privileged tables.
 //
 // Flow: PKCE (the supabase-js default). The code-verifier is minted and stored
-// in this browser's localStorage; `detectSessionInUrl` lets the client finish
-// the exchange when it lands back on a URL carrying `?code=` — see
+// in this browser's localStorage; AuthProvider explicitly finishes the exchange
+// when it lands back on a URL carrying our marked `?code=` — see
 // components/auth/AuthProvider.tsx and app/auth/callback/route.ts.
 
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
+import { withAuthFetchTimeout } from "@/lib/authFetch";
 
 let cached: SupabaseClient | null | undefined;
 
@@ -35,16 +36,19 @@ export function getSupabaseBrowser(): SupabaseClient | null {
   const key = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
   cached = url && key
     ? createClient(url, key, {
-        auth: {
-          // Keep the session in this browser and refresh it in the background.
-          persistSession: true,
-          autoRefreshToken: true,
-          // Complete the PKCE exchange when the browser lands on a URL with a
-          // `?code=` param (our callback forwards the code back to the app).
-          detectSessionInUrl: true,
-          flowType: "pkce",
-        },
-      })
+      global: {
+        fetch: withAuthFetchTimeout(globalThis.fetch.bind(globalThis)),
+      },
+      auth: {
+        // Keep the session in this browser and refresh it in the background.
+        persistSession: true,
+        autoRefreshToken: true,
+        // AuthProvider completes PKCE explicitly so exchange failures can be
+        // surfaced and one-time URL parameters are always removed.
+        detectSessionInUrl: false,
+        flowType: "pkce",
+      },
+    })
     : null;
 
   return cached;

@@ -6,6 +6,7 @@ import {
   uploadNightMomentPhoto,
 } from "@/lib/nightMomentMedia";
 import { addNightMoment, listNightMoments } from "@/lib/nightMemoryStore";
+import { socialFreezeResponse } from "@/lib/opsFreeze";
 
 type Context = { params: Promise<{ id: string }> };
 
@@ -23,6 +24,10 @@ export async function GET(request: Request, context: Context): Promise<Response>
 }
 
 export async function POST(request: Request, context: Context): Promise<Response> {
+  // Solo-operator emergency freeze (U15): posting a Night Moment is a social write.
+  const frozen = socialFreezeResponse();
+  if (frozen) return frozen;
+
   const ownerId = await callerUserId(request);
   if (!ownerId) return jsonNoStore({ error: "Sign in to add a Night Moment." }, { status: 401 });
   const { id } = await context.params;
@@ -43,6 +48,10 @@ export async function POST(request: Request, context: Context): Promise<Response
         venueId: form.get("venueId"),
         occurredAt: form.get("occurredAt"),
         mediaObjectKey: uploadedKey,
+        // Author-written photo description from the capture surface. Optional at
+        // save time (a photo can be kept privately without one); it only becomes
+        // REQUIRED at publication (the publish gate), never for a private save.
+        altText: form.get("altText"),
       };
     } else {
       body = await request.json();

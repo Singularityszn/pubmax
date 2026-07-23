@@ -1,7 +1,7 @@
 "use client";
 
 // App-wide auth context. Holds the current Supabase session/user (or null) and
-// exposes signInWithGoogle()/signInWithMicrosoft()/signOut(). Additive only:
+// exposes Google, Microsoft, passwordless email, and sign-out actions. Additive only:
 // anonymous browsing is unaffected — nothing here gates a route or blocks a
 // render. A signed-in session just establishes identity for future authed actions.
 //
@@ -26,18 +26,31 @@ import {
 } from "react";
 import type { Session, User } from "@supabase/supabase-js";
 
+import "@/app/auth/auth.css";
 import { ClaimNightDialog } from "@/components/auth/ClaimNightDialog";
 import IdentityNudge from "@/components/identity/IdentityNudge";
+import { exchangeAuthCallbackCode } from "@/lib/authCallbackClient";
 import { getSupabaseBrowser, isAuthConfigured } from "@/lib/authClient";
+import {
+  AUTH_RETURN_FRAGMENT_RESTORED_EVENT,
+  beginCoordinatedAuthAttempt,
+  releaseAuthAttempt,
+  scrubAuthCallback,
+  type AuthAttemptStart,
+  type CapturedAuthCallback,
+} from "@/lib/authRedirect";
 import { authedFetch } from "@/lib/authedFetch";
 import type { ClaimChoice, ClaimPreview } from "@/lib/identityClaim";
 import { readDeviceHandle } from "@/lib/identityClaimClient";
 import { normalizeHandle } from "@/lib/profiles";
 import { emitIdentityHandleChanged, IDENTITY_HANDLE_CHANGED_EVENT } from "@/lib/identityClient";
+import { requestMagicLink, type MagicLinkResult } from "@/lib/passwordlessAuth";
 
 const HANDLE_KEY = "pubmax_handle";
 const SYNCED_USER_KEY = "pubmax_identity_synced_user";
 const CLAIM_DEFERRED_KEY = "pubmax_claim_deferred";
+const AUTH_CALLBACK_ERROR_MESSAGE =
+  "Sign-in could not be completed. The link may be invalid or expired. Try again.";
 
 type ClaimPreviewResponse = ClaimPreview & { needsClaim: boolean };
 
@@ -90,6 +103,50 @@ function writeDeviceHandle(handle: string): void {
   emitIdentityHandleChanged(handle);
 }
 
+function browserLocalStorage(): Storage | null {
+  try {
+    return window.localStorage;
+  } catch {
+    return null;
+  }
+}
+
+function browserSessionStorage(): Storage | null {
+  try {
+    return window.sessionStorage;
+  } catch {
+    return null;
+  }
+}
+
+function browserLockManager(): LockManager | null {
+  try {
+    return typeof navigator !== "undefined" ? navigator.locks : null;
+  } catch {
+    return null;
+  }
+}
+
+function releaseBrowserAuthAttempt(attemptId: string): void {
+  releaseAuthAttempt(attemptId, browserLocalStorage(), browserSessionStorage());
+}
+
+async function prepareAuthCallback(
+  currentUrl: string,
+  requestedNext?: string,
+): Promise<AuthAttemptStart> {
+  return beginCoordinatedAuthAttempt(
+    currentUrl,
+    requestedNext,
+    {
+      persistentStorage: browserLocalStorage(),
+      tabStorage: browserSessionStorage(),
+      cryptoProvider: globalThis.crypto,
+      lockManager: browserLockManager(),
+    },
+  );
+}
+
 /** Quick path: PATCH-link auth handle and stamp localStorage (no dialog). */
 async function linkAuthHandleQuick(user: User, authHandle: string): Promise<boolean> {
   writeDeviceHandle(authHandle);
@@ -120,6 +177,8 @@ export type AuthContextValue = {
   signInWithGoogle: () => Promise<{ error: string | null }>;
   /** Start the Microsoft (Azure) OAuth redirect. No-op when unconfigured. */
   signInWithMicrosoft: () => Promise<{ error: string | null }>;
+  /** Send a passwordless email link with normalized, non-enumerating feedback. */
+  signInWithEmail: (email: string, next?: string) => Promise<MagicLinkResult>;
   /** Clear the local session. */
   signOut: () => Promise<void>;
   /**
@@ -148,9 +207,16 @@ export function AuthProvider({ children }: { children: ReactNode }): React.JSX.E
   const [claimBusy, setClaimBusy] = useState(false);
   const [claimError, setClaimError] = useState<string | null>(null);
   const [canonicalHandle, setCanonicalHandle] = useState<string | null>(null);
+  const [authCallbackError, setAuthCallbackError] = useState<string | null>(null);
   const configured = isAuthConfigured();
   // Guard overlapping sync runs (getSession + SIGNED_IN can both fire).
   const syncInFlight = useRef<string | null>(null);
+  // React Strict Mode replays effects in development. Reuse one exchange so a
+  // one-time PKCE code is never redeemed twice by the replayed mount effect.
+  const callbackExchangeInFlight = useRef<
+    Promise<{ session: Session | null; failed: boolean }> | null
+  >(null);
+  const capturedCallback = useRef<Promise<CapturedAuthCallback | null> | undefined>(undefined);
 
   useEffect(() => {
     const user = session?.user ?? null;
@@ -306,13 +372,40 @@ export function AuthProvider({ children }: { children: ReactNode }): React.JSX.E
   }, [closeClaim, session]);
 
   useEffect(() => {
+    // Capture callback inputs once across React Strict Mode's effect replay and
+    // scrub the address bar synchronously, before any exchange/network await.
+    if (capturedCallback.current === undefined) {
+      capturedCallback.current = scrubAuthCallback(
+        window.location.href,
+        (cleanUrl) => window.history.replaceState(window.history.state, "", cleanUrl),
+        {
+          persistentStorage: browserLocalStorage(),
+          tabStorage: browserSessionStorage(),
+          lockManager: browserLockManager(),
+          onFragmentRestored: () => {
+            window.dispatchEvent(new Event(AUTH_RETURN_FRAGMENT_RESTORED_EVENT));
+          },
+        },
+      );
+    }
+    const callbackCapture = capturedCallback.current ?? Promise.resolve(null);
     const supabase = getSupabaseBrowser();
     // Unconfigured / SSR-only: nothing to subscribe to. Flip loading off in a
     // microtask so we never setState synchronously in the effect body.
     if (!supabase) {
       let cancelled = false;
       queueMicrotask(() => {
-        if (!cancelled) setLoading(false);
+        if (cancelled) return;
+        setLoading(false);
+      });
+      void callbackCapture.then((captured) => {
+        const callbackAttempt = captured?.attempt ?? null;
+        if (callbackAttempt?.attemptId) {
+          releaseBrowserAuthAttempt(callbackAttempt.attemptId);
+        }
+        captured?.releaseCoordination();
+        if (cancelled) return;
+        if (callbackAttempt) setAuthCallbackError(AUTH_CALLBACK_ERROR_MESSAGE);
       });
       return () => {
         cancelled = true;
@@ -327,23 +420,6 @@ export function AuthProvider({ children }: { children: ReactNode }): React.JSX.E
     const loadingTimeout = window.setTimeout(() => {
       if (active) setLoading(false);
     }, 2500);
-
-    // Prime from any persisted session (async → setState is safe here).
-    supabase.auth
-      .getSession()
-      .then(({ data }) => {
-        if (!active) return;
-        window.clearTimeout(loadingTimeout);
-        setSession(data.session ?? null);
-        setLoading(false);
-        // Wave L3: refresh identity sync for an already-persisted session.
-        if (data.session?.user) void syncIdentityAfterSignIn(data.session.user);
-      })
-      .catch(() => {
-        if (!active) return;
-        window.clearTimeout(loadingTimeout);
-        setLoading(false);
-      });
 
     // Live updates: SIGNED_IN / SIGNED_OUT / TOKEN_REFRESHED. The callback is
     // the ONLY place these setStates run — never the effect body.
@@ -368,6 +444,62 @@ export function AuthProvider({ children }: { children: ReactNode }): React.JSX.E
       }
     });
 
+    // Prime from a callback code or any persisted session. PKCE is explicit so
+    // missing-verifier, expired-code, and network failures become visible and
+    // one-time URL parameters are removed on both success and failure.
+    void (async () => {
+      await Promise.resolve();
+      const captured = await callbackCapture;
+      const callbackAttempt = captured?.attempt ?? null;
+      let exchangedSession: Session | null = null;
+      let exchangeFailed = Boolean(
+        callbackAttempt &&
+          (callbackAttempt.providerError || !callbackAttempt.code || !callbackAttempt.attemptId),
+      );
+      try {
+        if (callbackAttempt?.code && !callbackAttempt.providerError) {
+          if (!callbackExchangeInFlight.current) {
+            callbackExchangeInFlight.current = exchangeAuthCallbackCode(
+              supabase.auth,
+              callbackAttempt.code,
+            );
+          }
+          const exchange = await callbackExchangeInFlight.current;
+          exchangedSession = exchange.session;
+          exchangeFailed = exchange.failed;
+        }
+      } finally {
+        if (callbackAttempt?.attemptId) {
+          releaseBrowserAuthAttempt(callbackAttempt.attemptId);
+        }
+        captured?.releaseCoordination();
+      }
+      if (!active) return;
+      if (exchangeFailed) setAuthCallbackError(AUTH_CALLBACK_ERROR_MESSAGE);
+
+      if (exchangedSession) {
+        window.clearTimeout(loadingTimeout);
+        setSession(exchangedSession);
+        setLoading(false);
+        void syncIdentityAfterSignIn(exchangedSession.user);
+        return;
+      }
+
+      try {
+        const { data } = await supabase.auth.getSession();
+        if (!active) return;
+        window.clearTimeout(loadingTimeout);
+        setSession(data.session ?? null);
+        setLoading(false);
+        // Wave L3: refresh identity sync for an already-persisted session.
+        if (data.session?.user) void syncIdentityAfterSignIn(data.session.user);
+      } catch {
+        if (!active) return;
+        window.clearTimeout(loadingTimeout);
+        setLoading(false);
+      }
+    })();
+
     return () => {
       active = false;
       window.clearTimeout(loadingTimeout);
@@ -382,12 +514,20 @@ export function AuthProvider({ children }: { children: ReactNode }): React.JSX.E
     }
     // origin is only read inside this handler (post-mount, browser-only), so it
     // is SSR-safe. redirectTo must be an allowed URL in Supabase Auth settings.
-    const origin = typeof window !== "undefined" ? window.location.origin : "";
-    const { error } = await supabase.auth.signInWithOAuth({
-      provider: "google",
-      options: { redirectTo: `${origin}/auth/callback` },
-    });
-    return { error: error ? error.message : null };
+    if (typeof window === "undefined") return { error: "Sign-in is unavailable on this page." };
+    const attempt = await prepareAuthCallback(window.location.href);
+    if (!attempt.ok) return { error: attempt.message };
+    try {
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: "google",
+        options: { redirectTo: attempt.callbackUrl },
+      });
+      if (error) releaseBrowserAuthAttempt(attempt.id);
+      return { error: error ? error.message : null };
+    } catch {
+      releaseBrowserAuthAttempt(attempt.id);
+      return { error: "Sign-in could not be started. Try again." };
+    }
   }, []);
 
   const signInWithMicrosoft = useCallback(async (): Promise<{ error: string | null }> => {
@@ -395,18 +535,46 @@ export function AuthProvider({ children }: { children: ReactNode }): React.JSX.E
     if (!supabase) {
       return { error: "Sign-in is not configured." };
     }
-    const origin = typeof window !== "undefined" ? window.location.origin : "";
+    if (typeof window === "undefined") return { error: "Sign-in is unavailable on this page." };
+    const attempt = await prepareAuthCallback(window.location.href);
+    if (!attempt.ok) return { error: attempt.message };
     // Supabase's Microsoft provider id is "azure". Request email so we can
     // derive a handle the same way as Google.
-    const { error } = await supabase.auth.signInWithOAuth({
-      provider: "azure",
-      options: {
-        scopes: "email",
-        redirectTo: `${origin}/auth/callback`,
-      },
-    });
-    return { error: error ? error.message : null };
+    try {
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: "azure",
+        options: {
+          scopes: "email",
+          redirectTo: attempt.callbackUrl,
+        },
+      });
+      if (error) releaseBrowserAuthAttempt(attempt.id);
+      return { error: error ? error.message : null };
+    } catch {
+      releaseBrowserAuthAttempt(attempt.id);
+      return { error: "Sign-in could not be started. Try again." };
+    }
   }, []);
+
+  const signInWithEmail = useCallback(
+    async (email: string, next?: string): Promise<MagicLinkResult> => {
+      const supabase = getSupabaseBrowser();
+      if (!supabase) {
+        return { status: "error", message: "Sign-in is not configured." };
+      }
+      if (typeof window === "undefined") {
+        return { status: "error", message: "Sign-in is unavailable on this page." };
+      }
+      const attempt = await prepareAuthCallback(window.location.href, next);
+      if (!attempt.ok) return { status: "error", message: attempt.message };
+      const result = await requestMagicLink(supabase.auth, email, attempt.callbackUrl);
+      if (result.status !== "sent") {
+        releaseBrowserAuthAttempt(attempt.id);
+      }
+      return result;
+    },
+    [],
+  );
 
   const signOut = useCallback(async (): Promise<void> => {
     const supabase = getSupabaseBrowser();
@@ -424,14 +592,23 @@ export function AuthProvider({ children }: { children: ReactNode }): React.JSX.E
       configured,
       signInWithGoogle,
       signInWithMicrosoft,
+      signInWithEmail,
       signOut,
       handle: canonicalHandle ?? handleFromUser(user),
     };
-  }, [session, loading, configured, signInWithGoogle, signInWithMicrosoft, signOut, canonicalHandle]);
+  }, [session, loading, configured, signInWithGoogle, signInWithMicrosoft, signInWithEmail, signOut, canonicalHandle]);
 
   return (
     <AuthContext.Provider value={value}>
       {children}
+      {authCallbackError ? (
+        <div className="authCallbackNotice" role="alert">
+          <span>{authCallbackError}</span>
+          <button type="button" onClick={() => setAuthCallbackError(null)}>
+            Dismiss
+          </button>
+        </div>
+      ) : null}
       {/* Signed-out account nudge after a high-intent action. Self-gates on
           auth + a pending trigger, so it renders nothing until armed. */}
       <IdentityNudge />
@@ -460,6 +637,7 @@ export function useAuth(): AuthContextValue {
     configured: false,
     signInWithGoogle: async () => ({ error: "Sign-in is not configured." }),
     signInWithMicrosoft: async () => ({ error: "Sign-in is not configured." }),
+    signInWithEmail: async () => ({ status: "error", message: "Sign-in is not configured." }),
     signOut: async () => {},
     handle: null,
   };

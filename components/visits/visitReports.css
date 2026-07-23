@@ -1,0 +1,169 @@
+/* Visit Report panel (Wayfinder 3.4). Restrained, sits next to the star
+   ratings on the venue sheet. Uses the shared --color-* tokens (same family as
+   the ratings panel) with safe fallbacks so it also renders cleanly on the
+   ledger/bar-tab surfaces. */
+
+.visitReportPanel {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--color-border, var(--line, rgba(0, 0, 0, 0.12)));
+}
+
+.visitReportLabel {
+  font-size: 0.75rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--color-text-muted, var(--muted, #6b6b6b));
+}
+
+.visitReportSummary {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.visitReportHeadline {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--color-text-soft, var(--ink-soft, #444));
+}
+
+.visitReportLines {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem 0.75rem;
+}
+
+.visitReportLines li {
+  font-size: 0.9rem;
+  color: var(--color-text, var(--ink, #1a1a1a));
+}
+
+.visitReportLines li::before {
+  content: "· ";
+  color: var(--color-text-muted, var(--muted, #6b6b6b));
+}
+
+.visitReportEmpty {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--color-text-muted, var(--muted, #6b6b6b));
+}
+
+.visitReportOpen {
+  align-self: flex-start;
+  background: none;
+  border: 1px dashed var(--color-border, var(--line, rgba(0, 0, 0, 0.2)));
+  border-radius: var(--radius-sm, 8px);
+  padding: 0.4rem 0.7rem;
+  font-size: 0.85rem;
+  color: var(--color-accent, var(--brass, #8a6d3b));
+  cursor: pointer;
+}
+
+.visitReportCard {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+  padding: 0.75rem;
+  border: 1px solid var(--color-border, var(--line, rgba(0, 0, 0, 0.12)));
+  border-radius: var(--radius-sm, 10px);
+  background: var(--color-surface-raised, var(--panel-raised, rgba(0, 0, 0, 0.02)));
+}
+
+.visitReportCardHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.visitReportCardTitle {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--color-text, var(--ink, #1a1a1a));
+}
+
+.visitReportDismiss {
+  background: none;
+  border: none;
+  font-size: 1.2rem;
+  line-height: 1;
+  cursor: pointer;
+  color: var(--color-text-muted, var(--muted, #6b6b6b));
+  padding: 0 0.25rem;
+}
+
+.visitReportChips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.visitChip {
+  border: 1px solid var(--color-border, var(--line, rgba(0, 0, 0, 0.18)));
+  border-radius: 999px;
+  padding: 0.35rem 0.7rem;
+  font-size: 0.82rem;
+  background: none;
+  color: var(--color-text, var(--ink, #1a1a1a));
+  cursor: pointer;
+}
+
+.visitChip.active {
+  background: var(--color-accent, var(--brass, #8a6d3b));
+  border-color: var(--color-accent, var(--brass, #8a6d3b));
+  color: var(--color-surface-raised, #fff);
+}
+
+.visitReportNote {
+  width: 100%;
+  resize: vertical;
+  border: 1px solid var(--color-border, var(--line, rgba(0, 0, 0, 0.18)));
+  border-radius: var(--radius-sm, 8px);
+  padding: 0.45rem 0.55rem;
+  font: inherit;
+  font-size: 0.85rem;
+  color: var(--color-text, var(--ink, #1a1a1a));
+  background: var(--color-surface, #fff);
+}
+
+.visitReportHandle {
+  border: 1px solid var(--color-border, var(--line, rgba(0, 0, 0, 0.18)));
+  border-radius: var(--radius-sm, 8px);
+  padding: 0.4rem 0.55rem;
+  font: inherit;
+  font-size: 0.85rem;
+}
+
+.visitReportSubmit {
+  align-self: flex-start;
+  border: none;
+  border-radius: var(--radius-sm, 8px);
+  padding: 0.45rem 0.9rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  color: #fff;
+  background: var(--color-accent, var(--brass, #8a6d3b));
+}
+
+.visitReportSubmit:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.visitReportOk {
+  font-size: 0.82rem;
+  color: var(--color-text-soft, var(--ink-soft, #3a6b3a));
+}
+
+.visitReportError {
+  font-size: 0.82rem;
+  color: var(--color-negative, #b03030);
+}

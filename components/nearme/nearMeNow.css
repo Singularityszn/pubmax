@@ -108,6 +108,13 @@
   color: color-mix(in srgb, var(--amber) 70%, var(--ink-soft));
 }
 
+/* Honest, derived patch coverage note (Wayfinder 3.1). */
+.nmnPatchTier {
+  margin: var(--space-1) 0 0;
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+
 /* — Answer cards — */
 .nmnList {
   list-style: none;
@@ -357,6 +364,22 @@
   background: color-mix(in srgb, var(--brass) 10%, var(--panel-raised));
 }
 
+/* Lightly-covered patch chip: a quiet honesty flag, not an alarm. */
+.nmnBoroughChip[data-lightly] {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 1px;
+  padding-top: var(--space-1);
+  padding-bottom: var(--space-1);
+}
+
+.nmnChipTier {
+  font-size: 0.62rem;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  color: var(--muted);
+}
+
 .nmnBoroughChip:active {
   transform: scale(0.97);
 }
@@ -389,4 +412,12 @@
   .nmnSpinner {
     animation: none;
   }
+}
+
+/* — Outside-coverage honest preview wrapper — */
+.nmnOutside {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  width: 100%;
 }

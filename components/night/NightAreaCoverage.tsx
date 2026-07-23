@@ -33,7 +33,7 @@ function stateForArea(area: NightArea, now: Date): CoverageState {
     return {
       bucket: "route_ready",
       label: "Route-ready",
-      detail: "Prices here are checked and current. A crawl can be planned.",
+      detail: "Prices here are fresh and checked. Plan a crawl whenever.",
       tone: "ready",
       actionLabel: "Open planner",
       href: "/plan",
@@ -42,8 +42,8 @@ function stateForArea(area: NightArea, now: Date): CoverageState {
 
   const openChecks = area.missingEvidence.length;
   const gateDetail = openChecks > 0
-    ? `${openChecks} evidence ${openChecks === 1 ? "check remains" : "checks remain"}; no route yet.`
-    : "The evidence gate is not complete yet; no route is promised.";
+    ? `${openChecks} more price ${openChecks === 1 ? "check" : "checks"} to do here before a crawl.`
+    : "Not enough fresh prices here yet to plan a crawl.";
   const shared = {
     actionLabel: "See the pubs",
     href: `/map?q=${encodeURIComponent(area.name)}`,
@@ -58,7 +58,7 @@ function stateForArea(area: NightArea, now: Date): CoverageState {
       return {
         bucket: "paused",
         label: "Paused",
-        detail: "The review window expired; browse-only until a fresh snapshot lands.",
+        detail: "Prices here have gone stale. Have a browse while we recheck them.",
         tone: "paused",
         ...shared,
       };
@@ -68,7 +68,7 @@ function stateForArea(area: NightArea, now: Date): CoverageState {
         return {
           bucket: "paused",
           label: "Paused",
-          detail: "The route-ready review window expired; browse-only until a fresh snapshot lands.",
+          detail: "This one was crawl-ready, but its prices have gone stale. Have a browse while we recheck them.",
           tone: "paused",
           ...shared,
         };
@@ -76,7 +76,7 @@ function stateForArea(area: NightArea, now: Date): CoverageState {
       return {
         bucket: "reviewed",
         label: "Reviewed",
-        detail: "The route-ready gate is not live; inspect pubs while evidence is checked again.",
+        detail: "Not crawl-ready right now. Have a browse while we recheck the prices.",
         tone: "reviewed",
         ...shared,
       };
@@ -86,7 +86,7 @@ function stateForArea(area: NightArea, now: Date): CoverageState {
       return {
         bucket: "discovered",
         label: "Discovered",
-        detail: "Capture has not started; browse-only for now.",
+        detail: "Haven't got to this one yet. Have a browse.",
         tone: "discovered",
         ...shared,
       };
@@ -151,8 +151,8 @@ export default function NightAreaCoverage() {
     <section className="nightAreaCoverage" aria-labelledby="night-area-coverage-title">
       <header className="nightAreaCoverage__head">
         <div>
-          <p className="nightAreaCoverage__eyebrow">London capture</p>
-          <h2 id="night-area-coverage-title">Areas near you, with the gate visible</h2>
+          <p className="nightAreaCoverage__eyebrow">Across London</p>
+          <h2 id="night-area-coverage-title">Where you can plan a crawl tonight</h2>
         </div>
         <Link className="nightAreaCoverage__plannerLink" href="/plan">
           Open planner
@@ -160,8 +160,8 @@ export default function NightAreaCoverage() {
       </header>
 
       <p className="nightAreaCoverage__intro">
-        Capture and review are evidence stages, not routes. Only an area with a complete,
-        live gate can produce a Crawl Route; everything else stays browse-only.
+        We only call an area crawl-ready when its prices are fresh and checked. The rest
+        are yours to browse.
       </p>
 
       <ul className="nightAreaCoverage__counts" aria-label="Area coverage counts">
@@ -186,8 +186,8 @@ export default function NightAreaCoverage() {
           <span className="nightAreaCoverage__detailsMeta">{areas.length} areas</span>
         </summary>
         <p className="nightAreaCoverage__detailsIntro">
-          “See the pubs” opens the map for browsing only. It does not turn a captured, reviewed,
-          discovered, or paused area into a planned route.
+          “See the pubs” just opens the map for a browse. It won’t turn an area into a
+          planned crawl until its prices are fresh.
         </p>
         <ul className="nightAreaCoverage__list" aria-label="All area coverage">
           {areas.map((area) => <CoverageRow key={area.slug} area={area} now={now} />)}

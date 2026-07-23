@@ -36,6 +36,7 @@
     "refresh:drink-prices": "node scripts/refresh_drink_prices.mjs",
     "whats-on-refresh": "node scripts/refresh_whats_on.mjs",
     "ingest:night-signals": "node scripts/ingest_night_signal_candidates.mjs",
+    "ingest:night-out-places": "node scripts/ingest_night_out_places.mjs",
     "refresh:night-signals": "node scripts/refresh_night_signal_claims.mjs",
     "refresh:weather": "node scripts/refresh_weather_snapshots.mjs",
     "push:daily": "tsx scripts/push/sendDailyBrief.mjs",
@@ -60,12 +61,13 @@
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "convex": "^1.42.2",
+    "ipaddr.js": "^2.4.0",
     "lucide-react": "^0.468.0",
     "maplibre-gl": "^5.24.0",
-    "next": "^16.0.10",
+    "next": "^16.2.11",
     "react": "^19.2.1",
     "react-dom": "^19.2.1",
-    "sharp": "^0.34.5",
+    "sharp": "^0.35.3",
     "tailwind-merge": "^3.6.0",
     "web-push": "^3.6.7"
   },
@@ -90,6 +92,7 @@
     "vitest": "^4.1.9"
   },
   "overrides": {
-    "postcss": "8.5.16"
+    "postcss": "8.5.16",
+    "sharp": "$sharp"
   }
 }

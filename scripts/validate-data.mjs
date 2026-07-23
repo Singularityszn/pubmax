@@ -18,6 +18,10 @@ import {
   buildShardManifest,
   classifySlimShards,
 } from "./lib/slimShards.mjs";
+import {
+  nightOutPlaceProvenanceRegistryValidationErrors,
+  nightOutPlaceSnapshotValidationErrors,
+} from "../lib/nightOutPlaceContract.mjs";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT_DIR = join(__dirname, "..");
@@ -92,10 +96,8 @@ const POI_CATEGORIES = new Set([
   "sight",
 ]);
 
-// Greater London bounding box. Coordinates are [lng, lat] to match
-// lib/landmarks.ts / lib/pois.ts convention. Kept in lockstep with
-// scripts/export_app_dataset_json.py and scripts/build_slim_index.mjs so the
-// export, the slim index, and this validator all agree on "in London".
+// Generic bundled-map safety bounds. Night-out places do not use this helper:
+// their authoritative bounds live in lib/nightOutPlaceContract.mjs.
 const LON_MIN = -0.55;
 const LON_MAX = 0.3;
 const LAT_MIN = 51.26;
@@ -120,6 +122,10 @@ const DETAIL_VENUE_FLOOR = 900;
 // paint); total = every shard. Kept in lockstep with scripts/build_slim_index.mjs.
 const SLIM_EAGER_BUDGET_BYTES = 600 * 1024;
 const SLIM_TOTAL_BUDGET_BYTES = 1200 * 1024;
+// london_localities.json (OSM/ODbL gazetteer, scripts/gen_london_localities.mjs)
+// carries ~760 rows. Floor is a MINIMUM that catches a truncated/gutted regen,
+// not a target — a real dataset drop would blow well past it.
+const LOCALITY_FLOOR = 300;
 const PUBMAXXING_PUB_FLOOR = 150;
 const PUBMAXXING_BEVERAGE_ROW_FLOOR = 1400;
 const PUBMAXXING_HISTORY_SEED_FLOOR = 70;
@@ -271,6 +277,74 @@ function validatePois() {
   console.log(`${ok ? "PASS" : "FAIL"} ${name}: ${data.length} rows, ${errs.count} error(s)`);
   if (!ok) errs.report();
   return { ok, count: data.length };
+}
+
+// london_localities.json — the Greater London locality gazetteer (OSM/ODbL, built
+// by scripts/gen_london_localities.mjs). Mirrors lib/localities.ts isValidLocality:
+// finite coords inside Greater London, non-empty name + borough, an ODbL
+// attribution header, a count floor, and globally-unique normalised names (the
+// dedupe invariant the generator guarantees).
+function validateLondonLocalities() {
+  const name = "public/data/london_localities.json";
+  const errs = makeCollector();
+  let data;
+  try {
+    data = loadJson("london_localities.json");
+  } catch (e) {
+    console.log(`FAIL ${name}: could not read/parse (${e.message})`);
+    return { ok: false, count: 0 };
+  }
+
+  if (!data || typeof data !== "object" || Array.isArray(data) || !Array.isArray(data.localities)) {
+    console.log(`FAIL ${name}: expected an object with a "localities" array`);
+    return { ok: false, count: 0 };
+  }
+
+  // ODbL attribution must ship with the data (licence requirement).
+  if (typeof data.attribution !== "string" || !/openstreetmap/i.test(data.attribution)) {
+    errs.add("missing/invalid OpenStreetMap attribution header");
+  }
+  if (typeof data.license !== "string" || !/odbl/i.test(data.license)) {
+    errs.add("missing/invalid ODbL licence header");
+  }
+
+  const rows = data.localities;
+  const seenNames = new Set();
+  rows.forEach((row, i) => {
+    const where = `row ${i}`;
+    if (typeof row !== "object" || row === null) {
+      errs.add(`${where}: not an object`);
+      return;
+    }
+    if (typeof row.name !== "string" || row.name.trim().length === 0) {
+      errs.add(`${where}: missing/empty name`);
+    } else {
+      const key = row.name.trim().toLowerCase().replace(/\s+/g, " ");
+      if (seenNames.has(key)) errs.add(`${where}: duplicate name "${row.name}" (dedupe invariant)`);
+      else seenNames.add(key);
+    }
+    if (typeof row.borough !== "string" || row.borough.trim().length === 0) {
+      errs.add(`${where} (${row.name}): missing/empty borough`);
+    }
+    const { lat, lng } = row;
+    if (!isFiniteNumber(lat) || !isFiniteNumber(lng)) {
+      errs.add(`${where} (${row.name}): non-finite coordinates`);
+    } else if (!inLondon(lng, lat)) {
+      errs.add(`${where} (${row.name}): [${lng}, ${lat}] outside Greater London bounds`);
+    }
+  });
+
+  if (rows.length < LOCALITY_FLOOR) {
+    errs.add(`only ${rows.length} localities (< floor ${LOCALITY_FLOOR}) — likely a truncated regen`);
+  }
+  if (typeof data.count === "number" && data.count !== rows.length) {
+    errs.add(`header count ${data.count} !== ${rows.length} rows`);
+  }
+
+  const ok = errs.count === 0;
+  console.log(`${ok ? "PASS" : "FAIL"} ${name}: ${rows.length} rows, ${errs.count} error(s)`);
+  if (!ok) errs.report();
+  return { ok, count: rows.length };
 }
 
 // tfl_lines.json — a GeoJSON FeatureCollection where each feature carries a line
@@ -1370,6 +1444,43 @@ function validateLateFoodEvidenceSnapshot() {
   return { ok, count };
 }
 
+function validateNightOutPlacesSnapshot() {
+  const name = "public/data/night_out_places/latest.json";
+  const path = join(DATA_DIR, "night_out_places", "latest.json");
+  if (!existsSync(path)) {
+    console.log(`FAIL ${name}: required artifact is missing`);
+    return { ok: false, count: 0 };
+  }
+  const errs = makeCollector();
+  let data;
+  try { data = JSON.parse(readFileSync(path, "utf8")); }
+  catch (e) {
+    console.log(`FAIL ${name}: could not read/parse (${e.message})`);
+    return { ok: false, count: 0 };
+  }
+  for (const error of nightOutPlaceSnapshotValidationErrors(data)) {
+    errs.add(error);
+  }
+  const provenancePath = join(ROOT_DIR, "data", "night_out_place_provenance_registry.json");
+  if (!existsSync(provenancePath)) {
+    errs.add("required provenance registry is missing");
+  } else {
+    try {
+      const registry = JSON.parse(readFileSync(provenancePath, "utf8"));
+      for (const error of nightOutPlaceProvenanceRegistryValidationErrors(registry, data)) {
+        errs.add(error);
+      }
+    } catch (e) {
+      errs.add(`provenance registry could not be read (${e.message})`);
+    }
+  }
+  const ok = errs.count === 0;
+  const count = Array.isArray(data?.places) ? data.places.length : 0;
+  console.log(`${ok ? "PASS" : "FAIL"} ${name}: ${count} sourced place(s), ${errs.count} error(s)`);
+  if (!ok) errs.report();
+  return { ok, count };
+}
+
 // ---------------------------------------------------------------------------
 // Runner
 // ---------------------------------------------------------------------------
@@ -1378,6 +1489,7 @@ async function main() {
   console.log("Validating bundled datasets in public/data …\n");
   const results = [
     validatePois(),
+    validateLondonLocalities(),
     validateTflLines(),
     validatePintPrices(),
     validateSlimVenues(),
@@ -1389,6 +1501,7 @@ async function main() {
     validateWeatherSnapshotData(),
     validatePintIndexSnapshot(),
     validateLateFoodEvidenceSnapshot(),
+    validateNightOutPlacesSnapshot(),
     validatePubmaxxingSeed(),
   ];
   const failed = results.filter((r) => !r.ok).length;

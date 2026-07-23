@@ -138,10 +138,10 @@ describe("buildWeatherBrief", () => {
 describe("rankTonightPicks", () => {
   it("orders by confidence, then soonest start, then input order; caps at limit", () => {
     const rows = [
-      makeRow({ id: "listed-late", confidence: "listed", startsAt: "2026-07-18T21:00:00+01:00" }),
-      makeRow({ id: "confirmed", confidence: "confirmed", startsAt: "2026-07-18T20:00:00+01:00" }),
-      makeRow({ id: "derived", confidence: "derived", startsAt: "2026-07-18T18:00:00+01:00" }),
-      makeRow({ id: "listed-early", confidence: "listed", startsAt: "2026-07-18T19:00:00+01:00" }),
+      makeRow({ id: "listed-late", title: "Late music", confidence: "listed", startsAt: "2026-07-18T21:00:00+01:00" }),
+      makeRow({ id: "confirmed", title: "Confirmed quiz", confidence: "confirmed", startsAt: "2026-07-18T20:00:00+01:00" }),
+      makeRow({ id: "derived", title: "Early deal", confidence: "derived", startsAt: "2026-07-18T18:00:00+01:00" }),
+      makeRow({ id: "listed-early", title: "Listed quiz", confidence: "listed", startsAt: "2026-07-18T19:00:00+01:00" }),
     ];
     expect(rankTonightPicks(rows, 3).map((r) => r.id)).toEqual([
       "confirmed",
@@ -152,6 +152,77 @@ describe("rankTonightPicks", () => {
 
   it("returns an empty list for an empty night (no padding)", () => {
     expect(rankTonightPicks([], 3)).toEqual([]);
+  });
+
+  it("keeps only the strongest-ranked copy of a title across venues", () => {
+    const rows = [
+      makeRow({
+        id: "small-plates-listed",
+        placeName: "The Moon",
+        title: "Small Plates Club",
+        confidence: "listed",
+        startsAt: "2026-07-18T18:00:00+01:00",
+      }),
+      makeRow({
+        id: "small-plates-confirmed",
+        placeName: "The Crown",
+        title: "Small Plates Club",
+        confidence: "confirmed",
+        startsAt: "2026-07-18T21:00:00+01:00",
+      }),
+      makeRow({ id: "quiz", title: "Tuesday quiz", confidence: "listed" }),
+    ];
+
+    expect(rankTonightPicks(rows, 3).map((row) => row.id)).toEqual([
+      "small-plates-confirmed",
+      "quiz",
+    ]);
+  });
+
+  it("normalizes Unicode compatibility, case, and whitespace without fuzzy matching", () => {
+    const rows = [
+      makeRow({ id: "full-width", title: "Ｓｍａｌｌ   Ｐｌａｔｅｓ Club" }),
+      makeRow({ id: "plain", title: " small plates club " }),
+      makeRow({ id: "punctuated", title: "Small Plates Club!" }),
+    ];
+
+    expect(rankTonightPicks(rows, 3).map((row) => row.id)).toEqual([
+      "full-width",
+      "punctuated",
+    ]);
+  });
+
+  it("continues scanning after duplicates to fill the limit with distinct titles", () => {
+    const rows = [
+      makeRow({ id: "a1", title: "Same deal", startsAt: "2026-07-18T18:00:00+01:00" }),
+      makeRow({ id: "a2", title: "Same deal", startsAt: "2026-07-18T18:30:00+01:00" }),
+      makeRow({ id: "b", title: "Live set", startsAt: "2026-07-18T19:00:00+01:00" }),
+      makeRow({ id: "c", title: "Pub quiz", startsAt: "2026-07-18T20:00:00+01:00" }),
+      makeRow({ id: "d", title: "Late food", startsAt: "2026-07-18T21:00:00+01:00" }),
+    ];
+
+    expect(rankTonightPicks(rows, 3).map((row) => row.id)).toEqual(["a1", "b", "c"]);
+  });
+
+  it("returns fewer than the limit rather than padding with duplicate titles", () => {
+    const rows = [
+      makeRow({ id: "a", title: "One recurring deal" }),
+      makeRow({ id: "b", title: "ONE RECURRING DEAL" }),
+    ];
+    expect(rankTonightPicks(rows, 3).map((row) => row.id)).toEqual(["a"]);
+  });
+
+  it("preserves the previous unlimited behavior for a positive infinite limit", () => {
+    const rows = [
+      makeRow({ id: "a", title: "First" }),
+      makeRow({ id: "b", title: "Second" }),
+    ];
+    expect(rankTonightPicks(rows, Number.POSITIVE_INFINITY).map((row) => row.id)).toEqual([
+      "a",
+      "b",
+    ]);
+    expect(rankTonightPicks(rows, Number.NaN)).toEqual([]);
+    expect(rankTonightPicks(rows, Number.NEGATIVE_INFINITY)).toEqual([]);
   });
 
   it("does not mutate the input array", () => {

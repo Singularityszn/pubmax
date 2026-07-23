@@ -9,6 +9,121 @@
   min-width: 0;
 }
 
+.authOptions {
+  display: grid;
+  gap: 0.65rem;
+  max-width: 26rem;
+}
+
+.authMagicLink {
+  display: grid;
+  gap: 0.4rem;
+  min-width: 0;
+}
+
+.authMagicLinkLabel {
+  color: var(--ink-soft);
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.authMagicLinkRow {
+  display: flex;
+  gap: 0.4rem;
+  min-width: 0;
+}
+
+.authMagicLinkInput {
+  min-width: 9rem;
+  width: 100%;
+  padding: 0.55rem 0.7rem;
+  border: 1px solid var(--line);
+  border-radius: 0.7rem;
+  background: var(--panel);
+  color: var(--ink);
+  font: inherit;
+  font-size: 0.88rem;
+}
+
+.authMagicLinkInput:focus-visible {
+  outline: 2px solid var(--brass);
+  outline-offset: 2px;
+}
+
+.authMagicLinkInput:disabled {
+  opacity: 0.65;
+}
+
+/* "Email me a link" is the primary action of the sign-in wall, so it wears the
+   house accent fill (brass + on-accent) instead of inheriting the quiet
+   panel-raised pill the OAuth buttons use. Fixes the low-contrast white-on-grey
+   render on /activity and /messages, in both themes. */
+.authMagicLinkButton {
+  flex: 0 0 auto;
+  border-color: var(--brass);
+  background: var(--brass);
+  color: var(--color-on-accent);
+  font-weight: 700;
+}
+
+.authMagicLinkButton:hover:not(:disabled) {
+  border-color: var(--brass-bright);
+  background: var(--brass-bright);
+}
+
+.authMagicLinkSuccess,
+.authMagicLink .authError {
+  margin: 0;
+  max-width: 25rem;
+  font-size: 0.78rem;
+  line-height: 1.35;
+}
+
+.authMagicLinkSuccess {
+  color: var(--ink-soft);
+}
+
+.authCallbackNotice {
+  position: fixed;
+  top: max(1rem, env(safe-area-inset-top));
+  left: 50%;
+  z-index: var(--z-modal, 60);
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  width: min(32rem, calc(100vw - 2rem));
+  padding: 0.75rem 0.9rem;
+  border: 1px solid color-mix(in srgb, var(--brick) 35%, var(--line));
+  border-radius: 0.8rem;
+  background: var(--panel-raised);
+  color: var(--ink);
+  box-shadow: 0 18px 40px color-mix(in srgb, var(--ink-deep) 22%, transparent);
+  transform: translateX(-50%);
+}
+
+.authCallbackNotice span {
+  flex: 1;
+  font-size: 0.88rem;
+  line-height: 1.4;
+}
+
+.authCallbackNotice button {
+  min-height: 44px;
+  padding: 0.45rem 0.7rem;
+  border: 1px solid var(--line);
+  border-radius: var(--control-radius, 14px);
+  background: var(--panel);
+  color: var(--ink);
+  font: inherit;
+  font-weight: 650;
+  cursor: pointer;
+}
+
+.authCallbackNotice button:focus-visible {
+  outline: 2px solid var(--brass);
+  outline-offset: 2px;
+}
+
 .authSignIn {
   display: inline-flex;
   align-items: center;
@@ -19,7 +134,7 @@
   min-width: 0;
   padding: 0.5rem 0.85rem;
   border: 1px solid var(--line);
-  border-radius: 999px;
+  border-radius: var(--control-radius, 14px);
   background: var(--panel-raised);
   color: var(--ink);
   font: inherit;
@@ -83,6 +198,15 @@
   .authSignInLabelShort {
     display: none;
   }
+
+  .authMagicLinkRow {
+    display: grid;
+  }
+
+  .authMagicLinkButton {
+    width: 100%;
+    justify-content: center;
+  }
 }
 
 /* ── Compact nav sign-in (UX defect fix) ─────────────────────────────────
@@ -99,10 +223,6 @@
   flex-wrap: nowrap;
 }
 
-.authUserNav .authProviders {
-  display: none;
-}
-
 .authCompact {
   position: relative;
   display: inline-flex;
@@ -117,7 +237,7 @@
   min-height: 44px;
   padding: 0 0.85rem;
   border: 1px solid var(--line);
-  border-radius: 999px;
+  border-radius: var(--control-radius, 14px);
   background: var(--panel-raised);
   color: var(--ink);
   font: inherit;
@@ -172,7 +292,7 @@
   z-index: var(--z-modal, 60);
   display: grid;
   gap: 0.4rem;
-  min-width: 15.5rem;
+  width: min(22rem, calc(100vw - 2rem));
   padding: 0.5rem;
   border: 1px solid var(--line);
   border-radius: 0.9rem;
@@ -205,9 +325,14 @@
   justify-content: flex-start;
 }
 
+.authMenu .authMagicLink {
+  padding-top: 0.25rem;
+  border-top: 1px solid var(--line);
+}
+
 /* A rare OAuth-call error in the compact host renders as a small anchored
    note instead of stretching the (nowrap) nav row. */
-.authUserNav .authError {
+.authUserNav > .authError {
   position: absolute;
   top: calc(100% + 6px);
   right: 0;
@@ -287,7 +412,7 @@
 .authSignOut {
   padding: 0.35rem 0.7rem;
   border: 1px solid var(--line);
-  border-radius: 999px;
+  border-radius: var(--control-radius, 14px);
   background: transparent;
   color: var(--ink-soft);
   font: inherit;
@@ -467,7 +592,7 @@
 .claimNightConfirm,
 .claimNightSkip {
   padding: 0.55rem 0.95rem;
-  border-radius: 999px;
+  border-radius: var(--control-radius, 14px);
   font: inherit;
   font-size: 0.88rem;
   font-weight: 650;

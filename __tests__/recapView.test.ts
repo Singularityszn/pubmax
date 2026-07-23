@@ -28,6 +28,8 @@ function moment(overrides: Partial<NightMoment>): NightMoment {
     mediaObjectKey: overrides.mediaObjectKey ?? null,
     occurredAt: overrides.occurredAt ?? null,
     visibility: "private",
+    altText: overrides.altText ?? null,
+    altTextConfirmedAt: overrides.altTextConfirmedAt ?? null,
     createdAt: overrides.createdAt ?? "2026-07-17T22:00:00.000Z",
   };
 }

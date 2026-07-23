@@ -17,6 +17,7 @@
 import { jsonNoStore } from "@/lib/apiResponses";
 import { requireLinkedActor } from "@/lib/messageAuth";
 import { messagesStore } from "@/lib/messagesStore";
+import { socialFreezeResponse } from "@/lib/opsFreeze";
 import { isLimited } from "@/lib/pintDrops";
 import { normalizeHandle } from "@/lib/profiles";
 import { gateHandleAction } from "@/lib/profileOwnership";
@@ -56,6 +57,11 @@ export async function GET(request: Request): Promise<Response> {
 }
 
 export async function POST(request: Request): Promise<Response> {
+  // Solo-operator emergency freeze (U15): opening a thread and sending a DM are
+  // social writes. (Message reporting lives on /api/messages/[id] and stays open.)
+  const frozen = socialFreezeResponse();
+  if (frozen) return frozen;
+
   let body: Record<string, unknown>;
   try {
     body = (await request.json()) as Record<string, unknown>;

@@ -55,10 +55,13 @@ describe("browser auth client", () => {
       "https://example.supabase.co",
       "publishable-key",
       {
+        global: {
+          fetch: expect.any(Function),
+        },
         auth: {
           persistSession: true,
           autoRefreshToken: true,
-          detectSessionInUrl: true,
+          detectSessionInUrl: false,
           flowType: "pkce",
         },
       },
