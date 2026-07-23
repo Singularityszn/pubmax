@@ -15,6 +15,7 @@ import {
 import ThemeToggle from "@/components/ThemeToggle";
 import MessagesLink from "@/components/nav/MessagesLink";
 import NotificationBell from "@/components/nav/NotificationBell";
+import SiteNavMore from "@/components/nav/SiteNavMore";
 import SignInButton from "@/components/auth/SignInButton";
 import PubmaxxWordmark from "@/components/brand/PubmaxxWordmark";
 import { useCommandPalette } from "@/components/command/CommandPaletteProvider";
@@ -213,6 +214,9 @@ export default function SiteNav({
       </ul>
 
       <div className="siteNavActions">
+        {/* D2.2: secondary destinations (Plan/Near/Pubs/Historic/Pal). Desktop
+            only — siteNav.css hides .siteNavMore at ≤640 so mobile is unchanged. */}
+        <SiteNavMore />
         {/* Moment compose (desktop). On phones the bottom tab bar's raised
             centre FAB owns this; the top bar has no such affordance, so desktop
             users reach /moment here. Carries the same returnTo the mobile FAB
