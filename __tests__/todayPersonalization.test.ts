@@ -223,6 +223,28 @@ describe("resolveTodayPersonalization", () => {
     expect(result.hardExclusions.areas).toEqual({ value: ["camden"], source: "account" });
   });
 
+  it("ignores wholly corrupt context arrays but preserves an intentional empty clear", () => {
+    const corrupt = resolveTodayPersonalization({
+      explicitCurrentIntent: {
+        context: { atmosphere: [123] as unknown as string[] },
+      },
+      account: profile({
+        context: { ...DEFAULT_NIGHT_PROFILE_INPUT.context, atmosphere: ["quiet"] },
+      }),
+    });
+    const cleared = resolveTodayPersonalization({
+      explicitCurrentIntent: { context: { atmosphere: [] } },
+      account: profile({
+        context: { ...DEFAULT_NIGHT_PROFILE_INPUT.context, atmosphere: ["quiet"] },
+      }),
+    });
+
+    expect(corrupt.context.atmosphere).toEqual(["quiet"]);
+    expect(corrupt.provenance.atmosphere).toBe("account");
+    expect(cleared.context.atmosphere).toEqual([]);
+    expect(cleared.provenance.atmosphere).toBe("explicit-current-intent");
+  });
+
   it("uses a same-layer Night Area when an explicit null clears patch precision", () => {
     const result = resolveTodayPersonalization({
       explicitCurrentIntent: {
