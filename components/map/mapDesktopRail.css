@@ -30,7 +30,12 @@
 
 /* While the rail is up (drawer closed, >=1024) it carries Conditions, so hide
    the toolbar's duplicate chip. When a venue drawer opens, `.detail-open` stops
-   matching and the chip returns as the always-on conditions fallback. */
+   matching and the chip returns as the always-on conditions fallback.
+   Known minor (non-blocking): this hides the chip from first paint, but the rail
+   that then carries Conditions only mounts after hydration — so at >=1024 there
+   is a brief first-paint window with no visible verdict. Harmless in practice:
+   ConditionsChip fetches its verdict async, so nothing renders until that lands
+   regardless of which host shows it. */
 @media (min-width: 1024px) {
   .appShell:not(.detail-open) .mapToolbar .conditionsChip {
     display: none;
