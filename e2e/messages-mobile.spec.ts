@@ -51,7 +51,9 @@ test.describe("messages mobile surface", () => {
     const main = page.locator(".messagesMain");
     await expect(main).toBeVisible();
     await expect(page.getByRole("heading", { name: "Messages", exact: true })).toBeVisible();
-    await expect(page.getByText("Messages require a signed-in account")).toBeVisible();
+    await expect(page.getByText("Messages need a signed-in account", { exact: false })).toBeVisible();
+    await expect(page.locator(".messagesInboxPane")).toBeVisible();
+    await expect(page.locator(".messagesThreadPane")).toBeHidden();
     await expect(
       page.getByRole("heading", { name: /sign in to message|no conversations yet/i }),
     ).toBeVisible();
@@ -71,6 +73,8 @@ test.describe("messages mobile surface", () => {
 
     const main = page.locator(".messagesMain");
     await expect(main).toBeVisible();
+    await expect(page.locator(".messagesInboxPane")).toBeHidden();
+    await expect(page.locator(".messagesThreadPane")).toBeVisible();
     await expectNoHorizontalOverflow(page);
 
     const backToInbox = main.getByRole("link", { name: /back to inbox/i }).first();
