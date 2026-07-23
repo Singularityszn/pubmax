@@ -18,6 +18,8 @@ import {
 export type SurpriseDrinkVenueEvidence = {
   venueId: string;
   venueName: string;
+  /** Current menu price for the exact drink, in pounds. */
+  priceGbp: number;
   /** Human-readable upstream/menu source, not a generated availability claim. */
   source: string;
   /** ISO timestamp or date at which this availability evidence was observed. */
@@ -88,13 +90,22 @@ type EligibleChoice = {
 };
 
 const DAY_KEY = /^\d{4}-\d{2}-\d{2}$/;
+const MAX_EVIDENCE_AGE_MS = 90 * 24 * 60 * 60 * 1_000;
 
 function cleanToken(value: string): string {
   return value.trim().toLocaleLowerCase("en-GB");
 }
 
-function validObservedAt(value: string): boolean {
-  return value.trim().length > 0 && Number.isFinite(Date.parse(value));
+function validObservedAt(value: string, dayKey: string): boolean {
+  const observedAt = Date.parse(value);
+  const dayEnd = Date.parse(`${dayKey}T23:59:59.999Z`);
+  return (
+    value.trim().length > 0
+    && Number.isFinite(observedAt)
+    && Number.isFinite(dayEnd)
+    && observedAt <= dayEnd
+    && observedAt >= dayEnd - MAX_EVIDENCE_AGE_MS
+  );
 }
 
 function validDayKey(value: string): boolean {
@@ -110,13 +121,15 @@ function validDayKey(value: string): boolean {
 
 function cleanVenueEvidence(
   evidence: readonly SurpriseDrinkVenueEvidence[],
+  dayKey: string,
 ): SurpriseDrinkVenueEvidence[] {
-  const byVenue = new Map<string, SurpriseDrinkVenueEvidence>();
+  const candidates: SurpriseDrinkVenueEvidence[] = [];
   for (const row of evidence) {
     if (!row || typeof row !== "object") continue;
     if (
       typeof row.venueId !== "string" ||
       typeof row.venueName !== "string" ||
+      typeof row.priceGbp !== "number" ||
       typeof row.source !== "string" ||
       typeof row.observedAt !== "string"
     ) {
@@ -126,12 +139,29 @@ function cleanVenueEvidence(
     const venueName = row.venueName.trim();
     const source = row.source.trim();
     const observedAt = row.observedAt.trim();
-    if (!venueId || !venueName || !source || !validObservedAt(observedAt)) continue;
-    if (!byVenue.has(venueId)) {
-      byVenue.set(venueId, { venueId, venueName, source, observedAt });
-    }
+    if (
+      !venueId ||
+      !venueName ||
+      !source ||
+      !Number.isFinite(row.priceGbp) ||
+      row.priceGbp <= 0 ||
+      row.priceGbp > 500 ||
+      !validObservedAt(observedAt, dayKey)
+    ) continue;
+    candidates.push({ venueId, venueName, priceGbp: row.priceGbp, source, observedAt });
   }
-  return [...byVenue.values()].sort((a, b) => a.venueId.localeCompare(b.venueId));
+
+  candidates.sort((a, b) =>
+    a.venueId.localeCompare(b.venueId)
+    || Date.parse(b.observedAt) - Date.parse(a.observedAt)
+    || a.priceGbp - b.priceGbp
+    || a.source.localeCompare(b.source)
+    || a.venueName.localeCompare(b.venueName));
+  const byVenue = new Map<string, SurpriseDrinkVenueEvidence>();
+  for (const row of candidates) {
+    if (!byVenue.has(row.venueId)) byVenue.set(row.venueId, row);
+  }
+  return [...byVenue.values()];
 }
 
 // FNV-1a over UTF-16 code units. It is deliberately small and specified here,
@@ -147,7 +177,7 @@ function stableHash(value: string): number {
 
 function sourceRationale(persona: PersonaDrink): string {
   return persona.kind === "fictional"
-    ? `Canon order sourced to ${persona.sourceName}.`
+    ? `As ordered in ${persona.knownFor}; sourced to ${persona.sourceName}.`
     : `Reported favourite sourced to ${persona.sourceName}.`;
 }
 
@@ -171,9 +201,10 @@ function availabilityRationale(
 ): string {
   const category = categoryLabel(persona.drinkCategory).toLocaleLowerCase("en-GB");
   if (venues.length === 1) {
-    return `Confirmed at ${venues[0].venueName} from its ${category} drink availability evidence.`;
+    return `On the current menu at ${venues[0].venueName} for £${venues[0].priceGbp.toFixed(2)} (${category}).`;
   }
-  return `Confirmed at ${venues.length} pubs from their ${category} drink availability evidence.`;
+  const prices = venues.map((venue) => venue.priceGbp);
+  return `On current menus at ${venues.length} pubs from £${Math.min(...prices).toFixed(2)} (${category}).`;
 }
 
 /**
@@ -197,9 +228,9 @@ export function selectSurpriseDrink(input: SurpriseDrinkInput): SurpriseDrinkRes
 
   const personas = loadPersonaDrinks();
   const personaById = new Map(personas.map((persona) => [persona.id, persona]));
-  const availabilityByPersona = new Map<
+  const availabilityRowsByPersona = new Map<
     string,
-    { venues: SurpriseDrinkVenueEvidence[]; alcoholType: AlcoholType }
+    { venues: SurpriseDrinkVenueEvidence[]; alcoholTypes: AlcoholType[] }
   >();
 
   for (const available of input.availability) {
@@ -208,16 +239,31 @@ export function selectSurpriseDrink(input: SurpriseDrinkInput): SurpriseDrinkRes
       typeof available.personaId !== "string" ||
       !["alcoholic", "low-no", "unknown"].includes(available.alcoholType) ||
       !Array.isArray(available.venues) ||
-      !personaById.has(available.personaId) ||
-      availabilityByPersona.has(available.personaId)
+      !personaById.has(available.personaId)
     ) {
       continue;
     }
-    const venues = cleanVenueEvidence(available.venues);
+    const venues = cleanVenueEvidence(available.venues, dayKey);
     if (venues.length === 0) continue;
-    availabilityByPersona.set(available.personaId, {
+    const current = availabilityRowsByPersona.get(available.personaId) ?? {
+      venues: [],
+      alcoholTypes: [],
+    };
+    current.venues.push(...venues);
+    current.alcoholTypes.push(available.alcoholType);
+    availabilityRowsByPersona.set(available.personaId, current);
+  }
+
+  const availabilityByPersona = new Map<
+    string,
+    { venues: SurpriseDrinkVenueEvidence[]; alcoholType: AlcoholType }
+  >();
+  for (const [personaId, available] of availabilityRowsByPersona) {
+    const venues = cleanVenueEvidence(available.venues, dayKey);
+    const alcoholTypes = new Set(available.alcoholTypes);
+    availabilityByPersona.set(personaId, {
       venues,
-      alcoholType: available.alcoholType,
+      alcoholType: alcoholTypes.size === 1 ? available.alcoholTypes[0] : "unknown",
     });
   }
 
