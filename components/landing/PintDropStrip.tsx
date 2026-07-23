@@ -99,6 +99,11 @@ export default function PintDropStrip() {
 
   useEffect(() => {
     const controller = new AbortController();
+    // Cap how long the skeleton rail can sit mid-landing if the feed hangs.
+    // After this, treat as empty and fail-soft hide (same end state as no drops).
+    const hangTimer = window.setTimeout(() => {
+      setStatus((current) => (current === "loading" ? "empty" : current));
+    }, 8_000);
 
     // The fetch runs in the effect but setState is only ever called from the
     // async handlers below (never the synchronous effect body) — this keeps
@@ -120,11 +125,18 @@ export default function PintDropStrip() {
         setStatus("hidden");
       });
 
-    return () => controller.abort();
+    return () => {
+      controller.abort();
+      window.clearTimeout(hangTimer);
+    };
   }, []);
 
-  // Silent failure: render nothing rather than a broken band.
-  if (status === "hidden") return null;
+  // Fail-soft (journey audit P1): hidden on fetch failure, and hidden when the
+  // feed is empty after load — never leave permanent empty skeleton cards or a
+  // "no drops yet" band mid-landing. Loading still paints a short skeleton so
+  // the section does not pop in late when data exists.
+  if (status === "hidden" || status === "empty") return null;
+  if (status === "ready" && drops.length === 0) return null;
 
   return (
     <div className="dropStrip" aria-labelledby="dropStrip-title">
@@ -148,12 +160,6 @@ export default function PintDropStrip() {
               <span className="skelLine skelLineShort" />
             </div>
           ))}
-        </div>
-      )}
-
-      {status === "empty" && (
-        <div className="dropStripEmpty">
-          No drops yet. Be the first: snap your pint, log the price, and it lands right here.
         </div>
       )}
 
