@@ -8,6 +8,7 @@ import {
   beginAuthAttempt,
   beginCoordinatedAuthAttempt,
   buildAuthCallbackUrl,
+  cancelAuthAttempt,
   captureAuthCallback,
   readAuthCallbackAttempt,
   releaseAuthAttempt,
@@ -339,6 +340,40 @@ describe("auth callback URL safety", () => {
         cryptoProvider: fixedCrypto(0xbb),
         lockManager: immediateLocks,
         now: 3_601_000,
+      }),
+    ).resolves.toMatchObject({ ok: true, id: ATTEMPT_B });
+  });
+
+  it("lets a user cancel an abandoned attempt and restart before the TTL", async () => {
+    const { storage: persistentStorage } = memoryStorage();
+    const { storage: tabAStorage } = memoryStorage();
+    const { storage: tabBStorage } = memoryStorage();
+    await beginCoordinatedAuthAttempt("https://pubmaxxing.com/map", undefined, {
+      persistentStorage,
+      tabStorage: tabAStorage,
+      cryptoProvider: fixedCrypto(0xaa),
+      lockManager: immediateLocks,
+      now: 1_000,
+    });
+
+    await expect(
+      beginCoordinatedAuthAttempt("https://pubmaxxing.com/map", undefined, {
+        persistentStorage,
+        tabStorage: tabBStorage,
+        cryptoProvider: fixedCrypto(0xbb),
+        lockManager: immediateLocks,
+        now: 2_000,
+      }),
+    ).resolves.toEqual({ ok: false, message: AUTH_ATTEMPT_IN_PROGRESS_MESSAGE });
+
+    expect(cancelAuthAttempt(persistentStorage, tabAStorage)).toBe(true);
+    await expect(
+      beginCoordinatedAuthAttempt("https://pubmaxxing.com/map", undefined, {
+        persistentStorage,
+        tabStorage: tabBStorage,
+        cryptoProvider: fixedCrypto(0xbb),
+        lockManager: immediateLocks,
+        now: 2_500,
       }),
     ).resolves.toMatchObject({ ok: true, id: ATTEMPT_B });
   });

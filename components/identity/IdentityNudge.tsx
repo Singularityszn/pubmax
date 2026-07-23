@@ -92,6 +92,7 @@ export default function IdentityNudge(): React.JSX.Element | null {
     signInWithGoogle,
     signInWithMicrosoft,
     signInWithEmail,
+    cancelAuthAttempt,
   } = useAuth();
 
   // Local email-capture state (hooks run unconditionally, before any early
@@ -201,6 +202,12 @@ export default function IdentityNudge(): React.JSX.Element | null {
     }
   }
 
+  function dismissAuthNudge(): void {
+    cancelAuthAttempt();
+    if (status === "done") markIdentityNudgeAccepted();
+    else markIdentityNudgeDismissed();
+  }
+
   return (
     <div className="claimNightBackdrop identityNudgeBackdrop" role="presentation">
       <div
@@ -250,7 +257,11 @@ export default function IdentityNudge(): React.JSX.Element | null {
           </button>
         </div>
         {authError ? <p className="authError" role="alert">{authError}</p> : null}
-        <MagicLinkForm disabled={authBusy} signInWithEmail={signInWithEmail} />
+        <MagicLinkForm
+          disabled={authBusy}
+          signInWithEmail={signInWithEmail}
+          cancelAuthAttempt={cancelAuthAttempt}
+        />
 
         {/* The lighter path: leave just an email for the weekly pint digest.
             One field, one CTA, one stated purpose. Replaced by an honest
@@ -306,7 +317,7 @@ export default function IdentityNudge(): React.JSX.Element | null {
           <button
             type="button"
             className="claimNightSkip"
-            onClick={status === "done" ? markIdentityNudgeAccepted : markIdentityNudgeDismissed}
+            onClick={dismissAuthNudge}
           >
             {status === "done" ? "Done" : "Not now"}
           </button>

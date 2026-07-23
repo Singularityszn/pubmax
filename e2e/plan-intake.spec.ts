@@ -243,7 +243,7 @@ test("editing the exact start marks a generated preview stale", async ({ page })
   await continueIntake(page);
   await page.getByRole("button", { name: "Describe instead" }).click();
   await page.getByRole("button", { name: "Plan my night" }).click();
-  await expect(page.getByText("Three grounded stops, shaped by the editable context below.")).toBeVisible();
+  await expect(page.getByText("Three stops we can stand behind, shaped by the night you set below.")).toBeVisible();
 
   const firstPint = page.getByLabel("First pint");
   await firstPint.fill("2026-07-22T20:00");
@@ -294,7 +294,7 @@ test("submission revalidates that the exact start is still in the future", async
   await continueIntake(page);
   await page.getByRole("button", { name: "Describe instead" }).click();
   await page.getByRole("button", { name: "Plan my night" }).click();
-  await expect(page.getByText("Three grounded stops, shaped by the editable context below.")).toBeVisible();
+  await expect(page.getByText("Three stops we can stand behind, shaped by the night you set below.")).toBeVisible();
   await page.getByLabel("Your name").fill("Karan");
 
   await page.clock.setFixedTime(new Date("2026-07-20T18:00:00.000Z"));

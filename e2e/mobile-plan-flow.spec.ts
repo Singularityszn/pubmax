@@ -45,7 +45,7 @@ test("mobile Plan flow stays tappable and usable at 390px", async ({ page }) => 
   await page.getByLabel("Describe the night").fill("Quiet in Clapham for 4, not pricey");
   await page.getByRole("button", { name: "Plan my night" }).click();
 
-  await expect(page.locator("#plan-concierge-status")).toContainText("Three grounded stops");
+  await expect(page.locator("#plan-concierge-status")).toContainText("Three stops we can stand behind");
   await expect(page.getByRole("combobox", { name: "Area" })).toHaveValue("clapham");
   await expect(page.getByRole("spinbutton", { name: "People" })).toHaveValue("4");
 
