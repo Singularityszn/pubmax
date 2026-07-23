@@ -97,6 +97,10 @@ describe("createFailSoftGuard", () => {
     expect(second).toBe("memory");
     // One warn per context for the whole guard lifetime (deduped).
     expect(warnSpy).toHaveBeenCalledTimes(1);
+    expect(warnSpy).toHaveBeenCalledWith(
+      expect.stringContaining("applying schema-miss policy"),
+      expect.any(String),
+    );
     // resetWarnings re-arms the dedupe.
     guardObj.resetWarnings();
     await guardObj.guard<string>({

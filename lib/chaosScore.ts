@@ -12,7 +12,7 @@
 // A frozen band table doubles as the rubric and the "oneLiner" copy. Ordered
 // low → high; `computeChaosScore` picks the last band whose `min` the score
 // clears. Exported so a UI can render the same rubric as a legend if wanted.
-export type ChaosGrade = "Quiet" | "Steady" | "Lively" | "Unhinged" | "Legendary";
+export type ChaosGrade = "Quiet" | "Steady" | "Lively" | "Saga" | "Legendary";
 
 export type ChaosBand = {
   min: number; // inclusive lower bound
@@ -24,8 +24,8 @@ export const CHAOS_BANDS: readonly ChaosBand[] = [
   { min: 0, grade: "Quiet", oneLiner: "A quiet one." },
   { min: 30, grade: "Steady", oneLiner: "A perfectly reasonable night." },
   { min: 55, grade: "Lively", oneLiner: "Started sensible, didn't stay that way." },
-  { min: 75, grade: "Unhinged", oneLiner: "Somebody's phone has evidence." },
-  { min: 90, grade: "Legendary", oneLiner: "Absolute scenes." },
+  { min: 75, grade: "Saga", oneLiner: "You took the scenic route." },
+  { min: 90, grade: "Legendary", oneLiner: "One for the group chat." },
 ] as const;
 
 export type ChaosScoreInputs = {
@@ -100,7 +100,7 @@ function latenessScore(lastDropHour: number | null | undefined): number {
 }
 
 // Borough hops: each hop beyond the first borough is worth 7 points, capped
-// at 14 (three-borough-plus nights are rare and already deep in "unhinged").
+// at 14 (three-borough-plus nights are rare and already deep in "Saga").
 function boroughHopScore(boroughHops: number | undefined): number {
   const n = Number.isFinite(boroughHops) ? Math.max(0, Math.trunc(boroughHops ?? 0)) : 0;
   return clamp(n * 7, 0, 14);

@@ -142,7 +142,7 @@
   padding: var(--space-3) var(--space-6);
   border: 1px solid var(--brass);
   background: var(--brass);
-  color: #fff;
+  color: var(--color-on-accent);
 }
 
 .tourClose:focus-visible,
@@ -152,10 +152,10 @@
   outline-offset: 2px;
 }
 
-/* — Approximate spotlight toward the real bottom tab bar. Mobile only; the
-     tab bar is display:none above 640px, so the hint is hidden there too.
-     Positioned by fixed coords over the (dimmed) tab slot — we never touch
-     the nav components. Robustness over pixel-perfect anchoring. */
+/* — Spotlight toward the real bottom tab bar. Mobile only; the tab bar is
+     display:none above 640px, so the hint is hidden there too. We never touch
+     the nav components — the ring is a fixed overlay positioned from the LIVE
+     tab geometry the tab bar itself renders. */
 .tourSpotlight {
   display: none;
 }
@@ -164,6 +164,18 @@
   .tourSpotlight {
     position: fixed;
     bottom: calc(env(safe-area-inset-bottom, 0px) + 6px);
+    /* Anchor to the REAL centered tab pill (mobileNav.css: .mobileTabList is
+       max-width 420px, margin:0 auto), never a raw viewport % — otherwise the
+       ring drifts off its tab on wide phones. --tour-col / --tour-cols are
+       written by FirstRunTour from the live tab array (tourSpotlightColumn),
+       so the ring tracks the real column and follows any tab add/reorder. The
+       pill is centred in the viewport, so its column centres sit at
+       50% + (col + 0.5 - cols/2) * columnWidth. */
+    --tour-track: min(420px, 100vw - 24px);
+    --tour-col-w: calc(var(--tour-track) / var(--tour-cols, 6));
+    left: calc(
+      50% + (var(--tour-col, 0) + 0.5 - var(--tour-cols, 6) / 2) * var(--tour-col-w)
+    );
     width: 64px;
     height: 64px;
     margin-left: -32px;
@@ -178,17 +190,6 @@
     );
     box-shadow: 0 0 0 2px color-mix(in srgb, var(--brass) 40%, transparent);
     pointer-events: none;
-  }
-
-  /* 5 tab slots span the width → centers near 10 / 30 / 50 / 70 / 90%. */
-  .tourSpotlight[data-target="map"] {
-    left: 10%;
-  }
-  .tourSpotlight[data-target="drop"] {
-    left: 50%;
-  }
-  .tourSpotlight[data-target="discover"] {
-    left: 70%;
   }
 
   .tourSpotlightArrow {

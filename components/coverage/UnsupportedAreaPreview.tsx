@@ -28,6 +28,19 @@ export type UnsupportedAreaPreviewProps = {
   source: AreaDemandSource;
   /** Switch the surface to a supported patch (the alternative is live, one tap). */
   onPickPatch: (patch: NightPatch) => void;
+  /**
+   * Coverage variant (Wayfinder 3.1):
+   *  - "unsupported" (default): the area is not covered at all. Lead with the
+   *    honest fact, then the nearest live alternative + the patch chips.
+   *  - "limited": the area IS covered but is thin on evidence. The parent has
+   *    already shown its pints (value first); this renders only the honest
+   *    coverage note and the same #474 demand-capture ask, so thin zones capture
+   *    demand too — never a nearest/alternatives block, never a form-wall.
+   */
+  variant?: "unsupported" | "limited";
+  /** Honest, real-count coverage line (e.g. "Only 4 priced pubs logged around
+   *  Hackney yet."). Shown above the ask; supplied by the derived patch tier. */
+  evidenceNote?: string | null;
 };
 
 type SubmitState = "idle" | "sending" | "done" | "error";
@@ -49,6 +62,8 @@ export default function UnsupportedAreaPreview({
   patches = NIGHT_PATCHES,
   source,
   onPickPatch,
+  variant = "unsupported",
+  evidenceNote = null,
 }: UnsupportedAreaPreviewProps) {
   const [asking, setAsking] = useState(false);
   const [typedArea, setTypedArea] = useState("");
@@ -67,9 +82,13 @@ export default function UnsupportedAreaPreview({
     [patches, nearest],
   );
 
-  const factLine = knownArea
-    ? `We have not mapped pubs in ${knownArea} yet.`
-    : "We do not have priced pubs right where you are yet.";
+  const limited = variant === "limited";
+
+  const factLine = limited
+    ? `We have ${knownArea ?? "this area"}, it is still lightly mapped.`
+    : knownArea
+      ? `We have not mapped pubs in ${knownArea} yet.`
+      : "We do not have priced pubs right where you are yet.";
 
   const submit = useCallback(async () => {
     if (!effectiveArea || state === "sending") return;
@@ -98,32 +117,42 @@ export default function UnsupportedAreaPreview({
       {/* ── Value first: the honest fact + the live alternative ─────────────── */}
       <p className="uapFact">{factLine}</p>
 
-      {nearest ? (
-        <div className="uapNearest">
-          <p className="uapNearestCopy">
-            Nearest we cover well is {nearest.patch.label}, {formatApproxKm(nearest.distanceKm)} away.
-          </p>
-          <button
-            type="button"
-            className="uapPrimary"
-            onClick={() => onPickPatch(nearest.patch)}
-          >
-            <MapPin size={15} aria-hidden="true" /> Show {nearest.patch.label}
-          </button>
-        </div>
-      ) : (
-        <p className="uapNearestCopy">Here is where we have the pints mapped:</p>
-      )}
+      {/* Honest, real-count coverage note from the derived patch tier. */}
+      {evidenceNote ? <p className="uapEvidence">{evidenceNote}</p> : null}
 
-      <ul className="uapPatches" aria-label="Areas we cover">
-        {alternativePatches.map((patch) => (
-          <li key={patch.id}>
-            <button type="button" className="uapChip" onClick={() => onPickPatch(patch)}>
-              {patch.label}
-            </button>
-          </li>
-        ))}
-      </ul>
+      {/* The nearest live alternative + the patch chips are the out-of-coverage
+          rescue. A "limited" patch is already covered (its pints render above in
+          the parent), so it skips straight to the ask — no alternatives block. */}
+      {!limited ? (
+        <>
+          {nearest ? (
+            <div className="uapNearest">
+              <p className="uapNearestCopy">
+                Nearest we cover well is {nearest.patch.label}, {formatApproxKm(nearest.distanceKm)} away.
+              </p>
+              <button
+                type="button"
+                className="uapPrimary"
+                onClick={() => onPickPatch(nearest.patch)}
+              >
+                <MapPin size={15} aria-hidden="true" /> Show {nearest.patch.label}
+              </button>
+            </div>
+          ) : (
+            <p className="uapNearestCopy">Here is where we have the pints mapped:</p>
+          )}
+
+          <ul className="uapPatches" aria-label="Areas we cover">
+            {alternativePatches.map((patch) => (
+              <li key={patch.id}>
+                <button type="button" className="uapChip" onClick={() => onPickPatch(patch)}>
+                  {patch.label}
+                </button>
+              </li>
+            ))}
+          </ul>
+        </>
+      ) : null}
 
       {/* ── The ask: only below the alternative, never a wall ───────────────── */}
       <div className="uapAsk">
@@ -175,7 +204,11 @@ export default function UnsupportedAreaPreview({
           </div>
         ) : (
           <button type="button" className="uapAskBtn" onClick={() => setAsking(true)}>
-            {knownArea ? `Tell us you want ${knownArea}` : "Ask us to cover your area"}
+            {limited
+              ? `Want more in ${knownArea ?? "this area"}? Tell us`
+              : knownArea
+                ? `Tell us you want ${knownArea}`
+                : "Ask us to cover your area"}
           </button>
         )}
       </div>

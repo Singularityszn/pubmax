@@ -1,0 +1,88 @@
+import { beforeEach, describe, expect, it, vi } from "vitest";
+
+vi.mock("@/lib/supabase", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/supabase")>();
+  return { ...actual, isSupabaseConfigured: () => false, requiresSupabaseStore: () => false };
+});
+vi.mock("@/lib/serverEnv", () => ({ assertServerEnv: () => {} }));
+vi.mock("@/lib/authServer", () => ({
+  callerUserId: async (request: Request) =>
+    request.headers.get("authorization")?.replace(/^Bearer\s+/i, "") || null,
+}));
+
+import { DELETE } from "@/app/api/profiles/[handle]/route";
+import {
+  __resetNightMemoryStore,
+  acceptStoryContribution,
+  addNightMoment,
+  addStoryMoment,
+  confirmNightStoryPublication,
+  createNightMemory,
+  createNightStory,
+  getPublishedRecapSource,
+  proposeNightStoryPublication,
+  setMomentPublicationConsent,
+  upsertStoryContributor,
+} from "@/lib/nightMemoryStore";
+import { __resetMemoryProfiles, profileStore } from "@/lib/profileStore";
+
+const params = (handle: string) => ({ params: Promise.resolve({ handle }) });
+const del = (handle: string, token: string) =>
+  DELETE(new Request(`http://localhost/api/profiles/${handle}`, {
+    method: "DELETE",
+    headers: { authorization: `Bearer ${token}` },
+  }), params(handle));
+
+describe("DELETE /api/profiles/[handle] triggers one-choke redaction (5.5)", () => {
+  beforeEach(() => {
+    __resetNightMemoryStore();
+    __resetMemoryProfiles();
+  });
+
+  it("redacts the deleted account's Moments + identity from a published Story, keeping the rest", async () => {
+    // A linked account 'friend' owning handle 'jordanx', contributing to a Story.
+    await profileStore().ensure("jordanx");
+    await profileStore().linkUser("jordanx", "friend");
+    await profileStore().update("jordanx", { displayName: "Jordan" });
+
+    const memory = await createNightMemory("host", { title: "Friday orbit" });
+    const hostMoment = await addNightMoment("host", memory!.id, {
+      kind: "quote",
+      caption: "Great night with @jordanx",
+    });
+    const story = await createNightStory("host", { memoryId: memory!.id, title: "Orbit with Jordan" });
+    await upsertStoryContributor("host", story!.id, { handle: "jordanx", role: "contributor" });
+    await acceptStoryContribution("friend", story!.id);
+    const friendMoment = await addStoryMoment("friend", story!.id, { kind: "quote", caption: "My round" });
+    await setMomentPublicationConsent("friend", story!.id, friendMoment!.id, "approved");
+    const proposed = await proposeNightStoryPublication("host", story!.id, {
+      momentIds: [hostMoment!.id, friendMoment!.id],
+      visibility: "public",
+    });
+    await confirmNightStoryPublication("host", story!.id, {
+      proposalId: proposed!.proposal.id,
+      confirmationToken: proposed!.confirmationToken,
+    });
+
+    // Sanity: both Moments live before deletion.
+    const before = await getPublishedRecapSource(story!.id);
+    expect(before!.moments.map((m) => m.id).sort()).toEqual([hostMoment!.id, friendMoment!.id].sort());
+
+    // The owner deletes their account.
+    const res = await del("jordanx", "friend");
+    expect(res.status).toBe(200);
+
+    // The gate now emits only the host's Moment, with a scrubbed caption.
+    const after = await getPublishedRecapSource(story!.id);
+    expect(after!.moments.map((m) => m.id)).toEqual([hostMoment!.id]);
+    expect(after!.moments[0].caption).toBe("Great night with a friend");
+    expect(JSON.stringify(after!.moments)).not.toMatch(/jordan/i);
+  });
+
+  it("still deletes (does not fail) when the account contributes to no Story", async () => {
+    await profileStore().ensure("solo");
+    await profileStore().linkUser("solo", "solo-user");
+    const res = await del("solo", "solo-user");
+    expect(res.status).toBe(200);
+  });
+});

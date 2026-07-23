@@ -16,13 +16,22 @@
   /* — Colour: neutral editorial paper + coral actions. */
   --ink: #17171a;
   --ink-soft: #3f3f46;
-  --muted: #6b6b73;
-  --line: #dedcdf;
+  --muted: #666670; /* color-v2: nudged darker + de-warmed to a disciplined neutral — clears AA (≥4.5:1) on EVERY light surface incl. the recessed panel (~4.6:1); was #6b6b73 which dipped ~4.4:1 on the deepened well. DOM-only (map never reads --muted). */
+  --line: #dedcdf; /* KEEP at :root: the LIGHT map reads --line here (readTokens at documentElement) for its road tint — the accepted light basemap. The DOM divider is the neutral --hairline, flowed in via the body remap below (mirrors #500's html-vs-body split). */
   --line-soft: #ece9eb;
-  --paper: #faf8f5;
-  --panel: #f5f2ef;
-  --panel-raised: #fffdf9; /* D4: candle-warm off-white — raised cards stay in the paper tonal family (never pure #fff) */
-  --panel-overlay: #ffffff;
+  /* ── Light elevation ladder (color-v2) ────────────────────────────────────
+     Page/card/overlay whites were near-identical (paper #faf8f5 → card #fffdf9
+     → overlay #fff, ~2–5 luminance apart — cards didn't lift). This defines a
+     visible-but-subtle four-step warm ladder mirroring dark's discipline from
+     #500 (each step a clear luminance move): recessed well < page < card <
+     overlay. --paper and --panel-raised are read by the LIGHT map at
+     documentElement, so their DOM values are set in the body remap below
+     (keeping these :root values as the map's accepted basemap inputs); --panel
+     and --panel-overlay are DOM-only and carry the ladder directly here. */
+  --paper: #faf8f5; /* KEEP at :root for the light map (--map-sky-horizon reads it). DOM page = #f8f2ec via body remap. */
+  --panel: #eee7df; /* recessed well — floor of the ladder, one clear step below the page (DOM-only, not map-read) */
+  --panel-raised: #fffdf9; /* KEEP at :root for the light map (donut rings). DOM card = #fdf9f4 via body remap — candle-warm near-white, never pure #fff. */
+  --panel-overlay: #ffffff; /* overlay/popover/sheet — top of the ladder, pure white + shadow (DOM-only, not map-read) */
   --ink-deep: #0b0b0d;
 
   --pint: #18a76d; /* cheap pint / positive — Field Guide semantic */
@@ -47,6 +56,9 @@
   --map-sky-horizon: var(--paper); /* light: unchanged soft horizon fade */
   --map-building-emissive: var(--amber); /* light: existing amber-tinted massing */
   --map-park-tint: #7ea052; /* light: olive-sage foliage, distinct from --pint teal */
+  /* Crawl walk-route line — a deepened, legible cousin of coral (--brass) that
+     reads as dark red over the pale Positron paper. Overridden bright in dark. */
+  --route-line: #8b1a2b;
 
   /* — Colour, semantic roles: alias the palette above by job, not hue, so new
        components reach for "what this means" rather than re-picking a raw
@@ -115,8 +127,15 @@
      edges read as a deliberate system, not per-component guesses.
        --hairline         standard divider / card edge
        --hairline-strong  structural edge (section / toolbar boundaries) */
-  --hairline: var(--line);
-  --hairline-strong: color-mix(in srgb, var(--line) 68%, var(--ink-soft) 32%);
+  /* color-v2: light gets its OWN dedicated neutral hairline (was `var(--line)`,
+     which carried a faint purple cast AND was the map's road-tint value). This
+     de-tints the divider to a disciplined cool-neutral gray and calibrates it to
+     x.com's light structural-edge reference (#eff3f4 on white ≈ 1.12:1): #e2e0e3
+     lands ~1.16:1 on the page and ~1.23:1 on a card — present but calm. The body
+     remap below points DOM --line at this, so cards/nav/chips inherit the neutral
+     edge while the map keeps #dedcdf at documentElement (basemap untouched). */
+  --hairline: #e2e0e3;
+  --hairline-strong: color-mix(in srgb, var(--hairline) 68%, var(--ink-soft) 32%);
 
   /* Fixed-contrast text: for content sitting on a solid brass/ink-deep FILL
      (buttons, chips, photo captions), not a theme-flipping surface. These
@@ -197,6 +216,21 @@
            leaving the clamp() in charge. */
   --page-gutter: max(clamp(22px, 5vw, 32px), env(safe-area-inset-left, 0px), env(safe-area-inset-right, 0px));
 
+  /* — Content width: two shared max-widths so the reading column stops changing
+       from route to route (desktop audit found six competing values: today 640,
+       feed 620, crawls 640/760, moment 650, landing 1240, profile ~1280).
+         --content-max       reading column — prose/cards/single-column routes.
+                             640px matches the dominant pattern (today, crawls,
+                             moment, ≈feed): adopt on /tonight, /feed, crawl and
+                             moment pages, profile's text column.
+         --content-max-wide  full-bleed / marketing + map-class surfaces that
+                             intentionally run wider: landing page, profile shell,
+                             any hero/gallery grid.
+       DEFINE-ONLY this wave — per-page CSS is retrofitted next wave (other lanes
+       own those files). New work should reach for these instead of a literal. */
+  --content-max: 640px;
+  --content-max-wide: 1240px;
+
   /* — Spacing scale: 4px base, used for new work; existing literal paddings
        are untouched. */
   --space-1: 4px;
@@ -217,6 +251,15 @@
   --radius-sm: 6px;
   --radius-lg: 18px;
   --radius-pill: 999px;
+  /* — Control radius (owner ruling 2026-07-23): the text-button / CTA / control-
+       chip family moves off the pill and onto the top bar's 14px rectangle card
+       language (--topbar-radius, siteNav.css) — "more rectangular like the top
+       menu bar, more elegant". Icon dots (close X, FAB, avatar), tab-group chips,
+       the bottom tab bar and descriptive label/status pills keep their geometry;
+       this token only re-bases text buttons/CTAs/control chips. Consumed as
+       var(--control-radius, 14px) so routes that don't load this sheet still land
+       on the same value. */
+  --control-radius: 14px;
 
   /* — Shadow: --shadow kept as the default (paper-lift in light, overridden to
        a deeper candle-glow in theme.css dark). --shadow-inset-* power the
@@ -279,7 +322,7 @@
   --z-map-toolbar: 560;      /* mapToolbar, citySwitcher */
   --z-nav: 650;              /* planning-open drawer lift */
   --z-tabbar: 700;           /* mobile bottom tab bar (above map/nav, below modals) */
-  --z-modal: 1200;           /* appNav + siteNav floating rails, full-screen overlays */
+  --z-modal: 1200;           /* siteNav floating rails, full-screen overlays */
   --z-overlay-top: 1300;     /* map onboarding — topmost transient overlay */
 
   /* — Spill (always-dark) palette: the "spilling right now" / spill-composer
@@ -355,6 +398,23 @@ body {
   color: var(--ink);
   font-family: var(--font-body);
   -webkit-font-smoothing: antialiased;
+}
+
+/* ── Light DOM surface remap (color-v2) ─────────────────────────────────────
+   The SAME html-vs-body split #500 introduced for dark, now applied to light.
+   The light basemap (accepted) is painted from tokens the map reads at
+   documentElement — components/map/canvas/tokens.ts readTokens() pulls --paper,
+   --panel-raised, --line (+ --ink, --ink-deep) from the html node. Those stay at
+   their :root values so the basemap is byte-identical. Everything the DOM paints
+   lives UNDER <body>, so re-pointing these three here gives the DOM the visible
+   elevation ladder + neutral hairline without repainting one map pixel. Scoped
+   `:not([data-theme="dark"])` so it never touches dark (theme.css sets the dark
+   values at html[data-theme="dark"], and its own `body` rule handles dark --line).
+     DOM ladder (luminance): panel #eee7df < paper #f8f2ec < card #fdf9f4 < overlay #fff. */
+html:not([data-theme="dark"]) body {
+  --paper: #f8f2ec; /* page — warm floor, deepened so cards visibly lift (map keeps #faf8f5 at html) */
+  --panel-raised: #fdf9f4; /* card — clean candle-warm near-white, a clear step above the page (map keeps #fffdf9 at html) */
+  --line: var(--hairline); /* DOM divider = the neutral --hairline; map keeps #dedcdf road tint at html */
 }
 
 /* Data/tabular utility — price stamps, stats, route metrics, and any other
@@ -462,6 +522,7 @@ button {
 
 .loadingShell {
   min-height: 100vh;
+  min-height: 100dvh;
   display: grid;
   place-items: center;
   background: var(--paper);
@@ -542,15 +603,6 @@ button {
   background: linear-gradient(135deg, var(--brass), var(--brass-bright));
   color: var(--color-on-accent);
   box-shadow: 0 8px 20px color-mix(in srgb, var(--brass) 28%, transparent);
-}
-
-.appNav {
-  position: fixed;
-  top: 12px;
-  left: 50%;
-  z-index: var(--z-modal);
-  transform: translateX(-50%);
-  backdrop-filter: blur(10px);
 }
 
 .demoDataNote {
@@ -2897,7 +2949,7 @@ input[type="range"] {
   margin-top: 12px;
   min-height: 42px;
   border: 1px solid var(--ink-deep);
-  border-radius: var(--radius-sm);
+  border-radius: var(--control-radius, 14px);
   background: var(--ink-deep);
   color: var(--color-on-inverse);
   font-weight: 700;
@@ -4332,7 +4384,7 @@ input[type="range"] {
   min-height: 48px;
   padding: 12px 16px;
   border: 1px solid var(--brass);
-  border-radius: var(--radius-sm);
+  border-radius: var(--control-radius, 14px);
   background: var(--brass);
   color: var(--color-on-accent);
   font-size: 0.95rem;
@@ -4498,12 +4550,6 @@ button:disabled {
     bottom: 10px;
     justify-content: center;
   }
-
-  .appNav {
-    top: 8px;
-    max-width: calc(100vw - 20px);
-    overflow-x: auto;
-  }
 }
 
 @media (max-width: 640px) {
@@ -4559,37 +4605,42 @@ button:disabled {
     transform: translateY(0);
   }
 
-  .mapDrawer.left.open:not(.sheet-dragging),
-  .mapDrawer.right.open:not(.sheet-dragging) {
+  .mapDrawer.left.open:not(.sheet-dragging):not(.mobileSharedSheet),
+  .mapDrawer.right.open:not(.sheet-dragging):not(.mobileSharedSheet) {
     transform: translateY(0) !important;
   }
 
   /* Keep in sync with lib/sheetSnap.ts SHEET_SNAP_FRACTIONS / venueSheet.css.
-     dvh (visible viewport) with vh fallback — see venueSheet.css for why. */
-  .mapDrawer.left.open.sheet-half:not(.sheet-dragging),
-  .mapDrawer.right.open.sheet-half:not(.sheet-dragging) {
+     dvh (visible viewport) with vh fallback — see venueSheet.css for why.
+     `:not(.mobileSharedSheet)` fences these to the LEGACY 641–768 inline drawer:
+     the ≤640 phone portal (.mobileSharedSheet) is a bottom-anchored, content-
+     height flex box (mobileMapShell.css) — a viewport-tall translateY panel would
+     reintroduce the void the rebuild removed, and these !important rules would
+     otherwise win over the portal's own geometry. */
+  .mapDrawer.left.open.sheet-half:not(.sheet-dragging):not(.mobileSharedSheet),
+  .mapDrawer.right.open.sheet-half:not(.sheet-dragging):not(.mobileSharedSheet) {
     transform: translateY(45vh) !important;
     transform: translateY(45dvh) !important;
   }
 
-  .mapDrawer.left.open.sheet-peek:not(.sheet-dragging),
-  .mapDrawer.right.open.sheet-peek:not(.sheet-dragging) {
+  .mapDrawer.left.open.sheet-peek:not(.sheet-dragging):not(.mobileSharedSheet),
+  .mapDrawer.right.open.sheet-peek:not(.sheet-dragging):not(.mobileSharedSheet) {
     transform: translateY(78vh) !important;
     transform: translateY(78dvh) !important;
   }
 
-  .mapDrawer.left.open.sheet-full:not(.sheet-dragging),
-  .mapDrawer.right.open.sheet-full:not(.sheet-dragging) {
+  .mapDrawer.left.open.sheet-full:not(.sheet-dragging):not(.mobileSharedSheet),
+  .mapDrawer.right.open.sheet-full:not(.sheet-dragging):not(.mobileSharedSheet) {
     transform: translateY(8vh) !important;
     transform: translateY(8dvh) !important;
   }
 
-  .mapDrawer.left.open.sheet-full:not(.sheet-dragging),
-  .mapDrawer.left.open.sheet-half:not(.sheet-dragging),
-  .mapDrawer.left.open.sheet-peek:not(.sheet-dragging),
-  .mapDrawer.right.open.sheet-full:not(.sheet-dragging),
-  .mapDrawer.right.open.sheet-half:not(.sheet-dragging),
-  .mapDrawer.right.open.sheet-peek:not(.sheet-dragging) {
+  .mapDrawer.left.open.sheet-full:not(.sheet-dragging):not(.mobileSharedSheet),
+  .mapDrawer.left.open.sheet-half:not(.sheet-dragging):not(.mobileSharedSheet),
+  .mapDrawer.left.open.sheet-peek:not(.sheet-dragging):not(.mobileSharedSheet),
+  .mapDrawer.right.open.sheet-full:not(.sheet-dragging):not(.mobileSharedSheet),
+  .mapDrawer.right.open.sheet-half:not(.sheet-dragging):not(.mobileSharedSheet),
+  .mapDrawer.right.open.sheet-peek:not(.sheet-dragging):not(.mobileSharedSheet) {
     height: 100vh;
     height: 100dvh;
     max-height: none;
@@ -4635,9 +4686,10 @@ button:disabled {
     background: color-mix(in srgb, var(--river) 14%, var(--panel-raised));
   }
 
-  /* Keep the floating theme toggle clear of the map legend and reachable. */
+  /* Keep the floating theme toggle clear of the map legend and reachable, and
+     below the notch on fixed chrome (dark-mode-v1 audit). */
   .themeToggle.floating {
-    top: 12px;
+    top: max(12px, env(safe-area-inset-top, 0px));
     right: 12px;
   }
 
@@ -5035,71 +5087,6 @@ html[data-legacy="1"] *::after {
   animation-iteration-count: 1 !important;
   transition-duration: 0.001ms !important;
   scroll-behavior: auto !important;
-}
-
-/* Legacy toggle button — same shape/behaviour as .themeToggle (theme.css) so
-   the two controls sit together as a matched pair; kept here since
-   LegacyToggle.tsx/globals.css are this feature's owned files. */
-.legacyToggle {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 36px;
-  height: 36px;
-  border: 1px solid transparent;
-  border-radius: 999px;
-  background: transparent;
-  color: var(--ink-soft);
-  transition:
-    background 0.15s ease,
-    color 0.15s ease,
-    border-color 0.15s ease,
-    transform 0.15s ease;
-}
-
-.legacyToggle:hover {
-  color: var(--brass);
-  background: color-mix(in srgb, var(--brass) 10%, transparent);
-  border-color: color-mix(in srgb, var(--brass) 30%, transparent);
-}
-
-.legacyToggle:focus-visible {
-  outline: 2px solid var(--brass);
-  outline-offset: 2px;
-}
-
-.legacyToggle[aria-pressed="true"] {
-  color: var(--brass);
-  background: color-mix(in srgb, var(--brass) 14%, transparent);
-  border-color: color-mix(in srgb, var(--brass) 35%, transparent);
-}
-
-/* Floating variant on /map — matches .themeToggle.floating's pill, offset
-   so the two floating controls stack without overlapping. */
-.legacyToggle.floating {
-  position: fixed;
-  top: 16px;
-  right: 62px;
-  z-index: var(--z-float);
-  width: 40px;
-  height: 40px;
-  border-color: var(--line);
-  background: var(--panel-raised);
-  box-shadow: var(--shadow);
-}
-
-.legacyToggle.floating:hover {
-  color: var(--ink);
-  background: var(--panel-raised);
-  border-color: var(--brass);
-  transform: translateY(-1px);
-}
-
-@media (max-width: 640px) {
-  .legacyToggle.floating {
-    top: 12px;
-    right: 58px;
-  }
 }
 
 /* Map mobile nav guard: /map renders the shared SiteNav over a full-bleed map.

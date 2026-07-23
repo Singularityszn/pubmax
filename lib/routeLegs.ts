@@ -3,10 +3,16 @@
 // each leg — "on the way: Borough Market, …" (user stories 25-26,
 // docs/PRD_FOR_FABLE.md).
 //
-// Every distance here is haversine (straight-line, see lib/haversine) — never
-// a real routed/pavement distance. We say so everywhere this surfaces in the
-// UI; there is no routing engine in this app and there isn't going to be one
-// just for a leg label, so honesty is the design, not a placeholder.
+// Every distance BUILT here is haversine (straight-line, see lib/haversine) —
+// never a real routed/pavement distance on its own. We say so everywhere this
+// surfaces in the UI; honesty is the design, not a placeholder.
+//
+// Since the road-route work landed (GET /api/walk-route, ORS foot-walking) a
+// real router DOES exist. A caller that has routed geometry can upgrade a
+// straight-line summary with withRoutedDistances: the upgraded legs carry the
+// real routed distance and relabel "walking route", while any leg left unrouted
+// keeps its straight-line distance AND its "straight-line" wording verbatim. A
+// summary that was never upgraded is unchanged — still straight-line.
 //
 // Pure, dependency-light (haversine + pois types only) so it's trivially unit
 // tested without a map, a network, or React — see __tests__/routeLegs.test.ts.
@@ -28,6 +34,11 @@ export const WALK_KMH = 4.8;
 export const RUN_KMH = 9;
 
 export type RoutePace = "walk" | "run";
+
+// How a leg's (or a whole route's) distance was measured. Absent is treated as
+// "straight-line" everywhere so pre-existing legs, and any summary that was
+// never upgraded with routed geometry, keep the honest straight-line wording.
+export type RouteDistanceBasis = "straight-line" | "routed";
 
 // The POI categories eligible for "on the way" threading (story 26). Tube/
 // rail/bus/river stay off this list on purpose — they're transport, not the
@@ -51,11 +62,14 @@ export type RouteLeg = {
   toIndex: number;
   from: Venue;
   to: Venue;
-  /** Straight-line (haversine) distance in km. */
+  /** Distance in km. Straight-line (haversine) unless upgraded via
+   *  withRoutedDistances, in which case it is the real routed length. */
   distanceKm: number;
   /** Estimated minutes to cover distanceKm at the given pace, rounded up. */
   minutes: number;
   pace: RoutePace;
+  /** How distanceKm was measured. Absent = straight-line (the default). */
+  distanceBasis?: RouteDistanceBasis;
 };
 
 export type RouteLegsSummary = {
@@ -63,6 +77,9 @@ export type RouteLegsSummary = {
   totalKm: number;
   totalMinutes: number;
   pace: RoutePace;
+  /** How the total was measured. "routed" only when EVERY leg is routed;
+   *  absent = straight-line (the default). */
+  distanceBasis?: RouteDistanceBasis;
 };
 
 function paceKmh(pace: RoutePace): number {
@@ -102,19 +119,61 @@ export function buildRouteLegs(route: Venue[], pace: RoutePace = "walk"): RouteL
   return { legs, totalKm, totalMinutes, pace };
 }
 
-// Format a leg for display: "12 min walk · 0.9 km, straight-line". Kept a
-// pure formatter (not JSX) so it's unit-testable and reusable outside
+/** The distance-basis label suffix: "walking route" for routed, else the honest
+ *  "straight-line" verbatim (absent basis included). */
+function basisLabel(basis: RouteDistanceBasis | undefined): string {
+  return basis === "routed" ? "walking route" : "straight-line";
+}
+
+// Format a leg for display: "12 min walk · 0.9 km, straight-line", or
+// "12 min walk · 1.1 km, walking route" once the leg carries routed geometry.
+// Kept a pure formatter (not JSX) so it's unit-testable and reusable outside
 // RoutePanel if another surface ever wants the same label.
 export function formatLeg(leg: RouteLeg): string {
   const verb = leg.pace === "run" ? "run" : "walk";
-  return `${leg.minutes} min ${verb} · ${leg.distanceKm.toFixed(1)} km, straight-line`;
+  return `${leg.minutes} min ${verb} · ${leg.distanceKm.toFixed(1)} km, ${basisLabel(leg.distanceBasis)}`;
 }
 
 export function formatRouteTotal(summary: RouteLegsSummary): string {
   const verb = summary.pace === "run" ? "run" : "walk";
   return `${summary.totalMinutes} min ${verb} total · ${summary.totalKm.toFixed(
     1,
-  )} km, straight-line`;
+  )} km, ${basisLabel(summary.distanceBasis)}`;
+}
+
+// Upgrade a straight-line summary with real routed leg distances, keyed by each
+// leg's fromIndex (e.g. from GET /api/walk-route's per-leg distances, where a
+// leg with source "ors" contributes its routed length). A leg that gets a
+// positive routed distance is relabelled "routed" and its minutes recomputed
+// from the longer real distance; a leg with no routed entry keeps its straight-
+// line distance and "straight-line" wording verbatim. The TOTAL reads "routed"
+// only when every leg is routed — a mixed route keeps the honest straight-line
+// total rather than dress a partly-approximate walk as fully routed. Pure: it
+// returns a new summary and never mutates the input.
+export function withRoutedDistances(
+  summary: RouteLegsSummary,
+  routedKmByFromIndex: ReadonlyMap<number, number>,
+): RouteLegsSummary {
+  const legs = summary.legs.map((leg): RouteLeg => {
+    const routedKm = routedKmByFromIndex.get(leg.fromIndex);
+    if (routedKm === undefined || !(routedKm > 0)) return leg;
+    return {
+      ...leg,
+      distanceKm: routedKm,
+      minutes: legMinutes(routedKm, leg.pace),
+      distanceBasis: "routed",
+    };
+  });
+  const totalKm = legs.reduce((sum, leg) => sum + leg.distanceKm, 0);
+  const totalMinutes = legs.reduce((sum, leg) => sum + leg.minutes, 0);
+  const allRouted = legs.length > 0 && legs.every((leg) => leg.distanceBasis === "routed");
+  return {
+    legs,
+    totalKm,
+    totalMinutes,
+    pace: summary.pace,
+    distanceBasis: allRouted ? "routed" : "straight-line",
+  };
 }
 
 // --- "On the way" POI threading (story 26) ----------------------------------

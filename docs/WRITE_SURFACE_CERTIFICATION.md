@@ -6,15 +6,20 @@ reviewed surface—even when a POST is semantically read-only. The regression te
 Adding a sixty-second mutating route or removing its authority/abuse boundary fails
 CI until this certification is deliberately updated.
 
-> **Inventory: 65 mutating routes.** The count grew 60 → 61 (email-capture
+> **Inventory: 69 mutating routes.** The count grew 60 → 61 (email-capture
 > `POST /api/email-subscribers`) → 62 (native `POST /api/push-tokens`) → 63 (the
 > Social Loop "we're out" `POST /api/check-ins`) → 64 (the vibe-vote
 > `POST /api/plans/[id]/vibe-votes`) → 65 (the area-demand capture
-> `POST /api/area-demand`). Token-gated GET confirm/unsubscribe endpoints and
-> read-only GETs (the Social Loop reads, the vibe-vote tally read) are
-> deliberately excluded from the mutating-verb inventory. The number is a
-> merge-conflict coordination point across in-flight branches — reconcile it (not
-> silently overwrite) when branches meet.
+> `POST /api/area-demand`) → 66 (the structured Visit Reports
+> `POST /api/visit-reports`) → 67 (author-confirmed alt text
+> `PATCH /api/night-moments/[id]/alt-text`) → 69 (the operator rail: `POST
+> /api/venue-operators/claim` and `POST /api/operator-proposals`). Token-gated GET
+> confirm/unsubscribe endpoints and read-only GETs (the Social Loop reads, the
+> vibe-vote tally read, the Visit Report per-venue summary read, the operator
+> own-claim / moderator queue reads) are deliberately excluded from the
+> mutating-verb inventory. The number is a merge-conflict coordination point
+> across in-flight branches — reconcile it (not silently overwrite) when branches
+> meet.
 
 ## Boundary classes
 
@@ -171,6 +176,185 @@ Plan member capability and use idempotency keys or atomic store operations.
   503 `STORE_UNAVAILABLE` rather than a fake success. Disabling is
   consequence-free: delete/503 the route and the preview's capture button fails
   soft to a quiet retry line while the alternative (nearest patch) still renders.
+
+### `app/api/visit-reports` — structured Visit Reports (route 66)
+
+- **Route / method:** `POST app/api/visit-reports/route.ts` (Wayfinder 3.4,
+  `lane/visit-reports`). Structured, recency-weighted reads of what a pub is like
+  on the night (busyness, atmosphere, would-return, price sanity, an optional
+  short note) — the structured sibling of the free-text Pint Drop. The route also
+  exports a read-only `GET` (the per-venue reports + the honest summary, which
+  carries NO star score) which is NOT a mutating verb and is not counted.
+- **Validation:** `validateVisitReport` (`lib/visitReports.ts`) — venue + handle
+  required; every structured field is coerced to a fixed allowlist (unknown →
+  null, mirrored by the DB CHECK constraints in migration 0046); the note is
+  cleaned, capped at 140 chars, and **slop-filtered at write time**
+  (`lib/slopFilter`); `visitedAt` resolves to a London "evening date" and a
+  future night is rejected; at least ONE signal must survive or the body 400s
+  (`INVALID_REPORT`) before the limiter/store is touched.
+- **Rate limit (boundary):** durable per-handle + hashed-IP `isLimited` with key
+  `visit-report:${handle}:${hashIp(clientIp(request))}` (raw IP never keyed) —
+  429 `{ code: "RATE_LIMITED", retryable: true }` on exceed. The public `report`
+  action carries the same two-axis flood cap as Pint Drops (per-target + a
+  per-actor budget of 1). This is the certification boundary (rate_limit class).
+- **Moderation (boundary):** the `restore` / `keep_hidden` actions require the
+  admin token (`isModerator` — moderator class); a public `report` records a
+  per-actor-deduped flag and hides the row only once
+  `VISIT_REPORT_HIDE_THRESHOLD` (2) DISTINCT actors flag it (never on the first).
+  Hidden rows surface in the admin moderation queue (`GET ?status=hidden`),
+  mirroring the Pint Drop hidden-queue flow.
+- **Auth stance:** the self-asserted handle resolved through
+  `resolveMessageHandle` (JWT-linked handle wins when signed in) and gated by
+  `gateHandleAction` — the same demo identity boundary as a Pint Drop, rating, or
+  check-in. Creation pauses under the solo-operator social freeze; reporting and
+  moderation stay open. One report per handle per venue per night: the store
+  upserts on `(venue_id, handle, visited_at)`.
+- **Rollback / kill:** durable rows live in `public.structured_visit_reports`
+  (migration 0046, RLS on, anon/authenticated revoked, service_role only — a NEW
+  table, distinct from the Pint Drop `visit_reports` table); `truncate` is a safe
+  reset. Until the OWNER applies 0046 the store fails soft to process-memory
+  (`lib/visitReportsStore.ts`) — capture keeps working and becomes durable the
+  moment the table lands, no code change (the same soft degradation area demand
+  ships with). A hard durable-store write failure answers 503
+  `STORE_UNAVAILABLE` rather than a fake success. Disabling is consequence-free:
+  delete/503 the route and the venue-sheet panel fails soft to its empty state
+  while the existing star ratings still render.
+
+### `app/api/night-moments/[id]/alt-text` — author-confirmed alt text (route 67)
+
+- **Route / method:** `PATCH app/api/night-moments/[id]/alt-text/route.ts`
+  (Wayfinder 5.6, `lane/alt-text-authoring`). The author confirms (or clears) the
+  alt-text description on their OWN photo Moment — the act that unblocks that
+  photo for publication. A private authoring write, never itself a publication.
+- **Validation:** body `altText` normalised by `cleanText(..., 200)` in
+  `setMomentAltText` (`lib/nightMemoryStore.ts`); an over-long pre-normalisation
+  payload 400s early. A non-empty description gains a fresh server-stamped
+  `altTextConfirmedAt`; an empty one clears the stamp (and re-blocks the photo).
+- **Auth stance (boundary):** `callerUserId` (account class). `setMomentAltText`
+  additionally refuses unless the caller OWNS the Moment AND it carries media —
+  a non-owner or a non-photo Moment answers 403. No account/memory identifiers
+  are returned (mirrors the other Night surfaces).
+- **Publication gate (belt & braces):** the description feeds the single publish
+  choke — `proposeNightStoryPublication` / `confirmNightStoryPublication` refuse
+  any selected photo Moment lacking author-confirmed alt text (naming it via
+  `findPublishAltTextGap`), and `getPublishedRecapSource` never emits an
+  UNCONFIRMED description as author text — composed AFTER the 5.5 redaction belt
+  (departed contributors' media is dropped first; the alt-text belt then only
+  touches surviving media). Private Memory saves never consult it.
+- **Grandfathering:** already-published Stories are never retroactively
+  unpublished; a pre-gate photo simply reports "no confirmed description" and its
+  media still emits (the recap belt only nulls the unconfirmed text, not the
+  photo). The gate applies to publishes going forward.
+- **Rollback / kill:** durable in the additive `night_moments.alt_text` /
+  `alt_text_confirmed_at` columns (migration 0047 — additive, idempotent, length
+  CHECK ≤ 200; the OWNER applies with this release). Reads tolerate the columns'
+  absence (report null); a Moment saved without a description never references
+  them, so private capture keeps working pre-apply. Disabling is
+  consequence-free: 503/remove the route and photos simply can't be described
+  (and so can't be published) until it returns.
+
+## Internal cron routes (excluded from the mutating-verb inventory)
+
+The Vercel cron freshness plane adds three scheduled routes under
+`app/api/cron/*` (`refresh-weather`, `refresh-whats-on`, `freshness-audit`). They
+are **mutating by effect** (weather writes to the durable `weather_snapshots`
+store; What's-On stamps `feed_freshness`) but are deliberately **NOT counted in
+the 69-route inventory**, for the same reason token-gated `GET`
+confirm/unsubscribe endpoints are excluded:
+
+- **They are `GET` handlers.** Vercel Cron dispatches `GET` (its dispatcher also
+  accepts `POST`); the inventory scans for public `POST/PUT/PATCH/DELETE`
+  handlers (`MUTATION_EXPORT`), which these do not export. The structural count
+  therefore stays **69** with no bump.
+- **They are internal, `CRON_SECRET`-gated schedulers, not a public surface.**
+  Authority is `Authorization: Bearer $CRON_SECRET` enforced twice — by Vercel's
+  cron dispatcher and again inside each handler (`lib/cronAuth.ts`,
+  constant-time compare; unset secret in production ⇒ `401`, refuses to run).
+  This is the certification boundary for these routes (an internal-secret gate,
+  analogous to the moderator token) even though they are not part of the
+  public mutating-verb tally.
+- **Failure posture is no-fake-success:** provider outage ⇒ `502` with nothing
+  written; durable write failure ⇒ `503`; per-area contract failures are skipped
+  and reported. See `docs/CRON_PLANE_RUNBOOK.md`.
+
+If a cron route is ever converted to a `POST` (or a public mutating verb is added
+under `app/api/cron/*`), it MUST be folded into the inventory count in the same
+commit.
+
+### `app/api/venue-operators/claim` — venue operator claim (route 68)
+
+- **Route / method:** `POST app/api/venue-operators/claim/route.ts` (Wayfinder
+  3.5, `lane/operator-rail`). A signed-in account claims to run a venue and
+  records HOW it can be verified (an email on the venue domain, a phone behind the
+  bar, a document). v1 only RECORDS the claim; the OWNER verifies it manually in
+  the admin queue. The route also exports a read-only `GET` (the caller's OWN
+  claim state, or the moderator review queue) which is NOT a mutating verb and is
+  not counted.
+- **Validation:** `validateOperatorClaim` (`lib/venueOperators.ts`) — `venueId`
+  required (≤ 120 chars), `evidenceKind` ∈ {`email-domain`, `phone`, `document`},
+  a cleaned/capped (≤ 500) non-empty `evidenceNote`. Malformed bodies 400
+  (`INVALID_CLAIM`) before the limiter/store is touched; the DB CHECK constraints
+  in migration 0048 mirror the allowlists.
+- **Auth stance (ACCOUNT — the CREATE boundary):** `account_id` is the VERIFIED
+  Supabase uid from the bearer JWT (`callerAuthIdentity`), never a body value; an
+  anonymous caller is 401. Idempotent per `(account_id, venue_id)` — a re-claim
+  UPDATES in place and reopens the row to `pending`, so table growth is bounded by
+  distinct account×venue pairs.
+- **Rate limit (boundary):** durable per-account + hashed-IP `isLimited` with key
+  `venue-operator-claim:${accountId}:${hashIp(clientIp)}` (raw IP never keyed),
+  budget 10 — an operator may run a few pubs. 429 `{ code: "RATE_LIMITED",
+  retryable: true }` on exceed. This is the certification boundary (rate_limit
+  class).
+- **Moderation (boundary):** `verify` / `reject` / `revoke` require the admin
+  token (`isModerator` — moderator class); they set the verification state and
+  stamp the review. Verification is the gate a proposal must pass (see route 69).
+- **Freeze stance:** deliberately NOT wired to the solo-operator SOCIAL freeze — a
+  venue operator asking to be verified is venue-BUSINESS content, not a social
+  post. The freeze seam is intentionally absent (documented exemption).
+- **Rollback / kill:** durable rows live in `public.venue_operators` (migration
+  0048, RLS on, anon/authenticated revoked, service_role only); `truncate` is a
+  safe reset. Until the OWNER applies 0048 the store fails soft to process-memory
+  (`lib/venueOperatorsStore.ts`) — the flow keeps working and becomes durable the
+  moment the table lands. A hard durable write failure answers 503
+  `STORE_UNAVAILABLE`, never a fake success.
+
+### `app/api/operator-proposals` — reviewed operator proposals (route 69)
+
+- **Route / method:** `POST app/api/operator-proposals/route.ts` (Wayfinder 3.5,
+  `lane/operator-rail`). A VERIFIED operator proposes an attributed, structured
+  update (`correction` / `event` / `offer` / `response`) that routes through
+  REVIEW. The route also exports a read-only `GET` (the moderator review queue by
+  status) which is NOT a mutating verb and is not counted.
+- **Validation:** `validateOperatorProposal` (`lib/operatorProposals.ts`) —
+  `venueId` + `type` required; the flat structured payload (title/body/field/
+  startsAt) is cleaned/capped and must carry the type's required fields
+  (correction → field+body, event → title+startsAt, offer → title+body, response
+  → body) or 400 `INVALID_PROPOSAL`.
+- **Auth stance (ACCOUNT + CAPABILITY — the CREATE boundary):** `account_id` is
+  the VERIFIED uid (`callerAuthIdentity`; anonymous → 401), AND the caller must
+  ALREADY be a VERIFIED operator of the venue
+  (`venueOperatorsStore().isVerifiedOperator`) or the proposal is 403
+  `NOT_VERIFIED_OPERATOR`. The verification check fails CLOSED on a storage wobble
+  (returns false), so no proposal slips through unverified.
+- **Rate limit (boundary):** durable per-account + hashed-IP `isLimited` with key
+  `operator-proposal:${accountId}:${hashIp(clientIp)}`, budget 20 — 429
+  `{ retryable: true }` on exceed. This is the rate_limit-class boundary; the
+  route also carries the moderator class (accept/decline).
+- **Moderation + the admin acceptance seam (boundary):** `accept` / `decline`
+  require the admin token (`isModerator`). TRUSTED DATA IS UNTOUCHED — a proposal
+  NEVER writes a venue fact. Only the `accept` branch (the admin acceptance seam)
+  materialises an accepted payload into served evidence, and even then only as a
+  `FactSource` of authority `operator` (rank 0, `factClaims.
+  acceptedProposalFactSource`): additive, attributed, and exposed as a CONFLICT if
+  it disagrees with the observed corpus, never a silent overwrite. A fence test
+  (`__tests__/operatorProposalFence.test.ts`) asserts the proposal store/module
+  import NO venue-fact module — the acceptance route is the sole bridge.
+- **Freeze stance:** NOT under the SOCIAL freeze (venue-business content), same
+  exemption as route 68.
+- **Rollback / kill:** durable rows live in `public.operator_proposals` (migration
+  0048, RLS on, anon/authenticated revoked, service_role only); `truncate` is a
+  safe reset. Fails soft to process-memory until 0048 lands
+  (`lib/operatorProposalsStore.ts`); a hard write failure answers 503.
 
 ## Certification command
 

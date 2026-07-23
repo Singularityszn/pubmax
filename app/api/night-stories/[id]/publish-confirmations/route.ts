@@ -18,7 +18,10 @@ export async function POST(request: Request, context: Context): Promise<Response
   }
   const { id } = await context.params;
   const story = await confirmNightStoryPublication(actorId, id, body);
+  // The store re-checks consent AND the alt-text gate at confirm time (belt to the
+  // propose-time braces), so a description cleared or consent withdrawn in the
+  // race window still refuses here.
   return story
     ? jsonNoStore({ story })
-    : jsonNoStore({ error: "This confirmation is invalid, expired, used, or no longer has consent." }, { status: 409 });
+    : jsonNoStore({ error: "This confirmation is invalid, expired, used, or no longer has consent and a confirmed photo description." }, { status: 409 });
 }

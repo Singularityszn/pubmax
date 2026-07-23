@@ -133,6 +133,13 @@ describe("buildWeatherBrief", () => {
     expect(brief).not.toBeNull();
     expect(brief.tempLabel).toBe("19C");
   });
+
+  it("can require an exact area for personalized weather", () => {
+    const snap = snapshot({ area: "clapham", feelsLikeC: 19 });
+    expect(
+      buildWeatherBrief(snap, NOW, BRIEF_DEFAULT_AREA, { fallbackToFirst: false }),
+    ).toBeNull();
+  });
 });
 
 describe("rankTonightPicks", () => {

@@ -189,6 +189,14 @@ export default function MomentCapture(): React.JSX.Element {
     setMessage(selection.media.length === 1 ? "Photo added. It is still private." : `${selection.media.length} photos added. They are still private.`);
   }
 
+  // Author-written alt text lives on the draft media item. This is the ONLY way
+  // a description is set in v1 — the author types it. AI-suggestion seam: a
+  // provider could compute a suggestion and pass it as a prefill for this field
+  // to edit, but it must never auto-fill or auto-confirm (see the field below).
+  function updateMediaAlt(id: string, value: string) {
+    update({ media: draft.media.map((item) => (item.id === id ? { ...item, alt: value } : item)) });
+  }
+
   function removeMedia(id: string) {
     const target = draft.media.find((item) => item.id === id);
     if (target?.objectUrl) {
@@ -241,6 +249,9 @@ export default function MomentCapture(): React.JSX.Element {
         body.set("caption", index === 0 ? draft.caption : "");
         body.set("venueId", draft.venueId);
         body.set("occurredAt", draft.occurredAt);
+        // Author-confirmed alt text travels with the photo. Empty is allowed for a
+        // private save; it only blocks publication later, never this save.
+        body.set("altText", item.alt ?? "");
       }
       const response = await authedFetch(
         `/api/night-memories/${encodeURIComponent(memoryId)}/moments`,
@@ -338,6 +349,32 @@ export default function MomentCapture(): React.JSX.Element {
             ) : null}
           </div>
 
+          {draft.media.length ? (
+            <fieldset className="momentAltText">
+              <legend>Describe each photo</legend>
+              <p className="momentAltText__hint">
+                Describe the photo for someone who cannot see it. One clear line
+                each. It is what a screen reader reads aloud when you publish.
+              </p>
+              {draft.media.map((item, index) => (
+                <label className="momentAltText__row" key={`alt-${item.id}`}>
+                  <span>Photo {index + 1}</span>
+                  {/* AI-suggestion seam (v1: none): a provider could prefill this with
+                      a suggestion for the author to edit and confirm. It must never
+                      auto-fill or auto-confirm — the author's typed words are the
+                      confirmation the publish gate checks for. */}
+                  <textarea
+                    value={item.alt}
+                    onChange={(event) => updateMediaAlt(item.id, event.target.value)}
+                    maxLength={200}
+                    rows={2}
+                    placeholder="e.g. Four friends toasting pints at a candlelit table."
+                  />
+                </label>
+              ))}
+            </fieldset>
+          ) : null}
+
           <div className="momentFields">
             <label>
               <span>What happened?</span>
@@ -381,10 +418,10 @@ export default function MomentCapture(): React.JSX.Element {
         {savedMemoryId ? (
           <section className="momentSaved" aria-labelledby="moment-saved-title">
             <h2 id="moment-saved-title">Saved. Still yours.</h2>
-            <p>Open You to add more moments, choose the order and shape a Story.</p>
-            <div>
-              <Link href="/u/you#night-memories">Open your Memories</Link>
-              <Link href="/feed">See Stories</Link>
+            <p>Add more Moments, choose which to include, and shape a Story when you are ready.</p>
+            <div className="momentSavedActions">
+              <Link href="/u/you#night-memories" className="momentSavedPrimary">Build your Story</Link>
+              <Link href="/tonight" className="momentSavedSecondary">Back to Tonight</Link>
             </div>
           </section>
         ) : null}

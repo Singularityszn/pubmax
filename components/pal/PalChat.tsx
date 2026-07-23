@@ -268,8 +268,8 @@ export default function PalChat() {
         </p>
         <h1 className="palChatTitle">{"What's the night?"}</h1>
         <p className="palChatIntro">
-          Grounded answers from what we have sourced. Every card keeps its source.
-          No made-up venues, prices, or events.
+          Straight answers from what we have actually seen. Every card keeps its
+          source. No made-up venues, prices, or events.
         </p>
       </header>
 

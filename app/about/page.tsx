@@ -14,11 +14,11 @@ import "./about.css";
 // Provenance rule (CONTEXT.md / PRODUCT.md): every number in the traction band
 // is computed at request time from the same data the map reads (lib/aboutStats)
 // — no invented users, revenue, or growth metrics. The prose is the owner's own
-// narrative in brand voice; there are no fabricated third-party quotes.
+// narrative in brand voice (docs/VOICE.md); there are no fabricated quotes.
 
 const PAGE_TITLE = "Our story: why PUBMAXX exists";
 const PAGE_DESCRIPTION =
-  "After a hard day you want a cheap pint nearby, a couple of places, maybe to meet some people, without bouncing between Google Maps, other maps, and ChatGPT. PUBMAXX is one price-aware, story-led, map-first app for the whole night out.";
+  "A pint in London can cost eight quid, and nobody tells you where it doesn't. PUBMAXX puts real prices from real people on one map, with the whole night in a single plan. Free, and nobody pays to rank.";
 
 export const metadata: Metadata = {
   title: PAGE_TITLE,
@@ -54,7 +54,7 @@ function fmtInt(n: number): string {
 }
 
 function fmtGbp(n: number | null): string {
-  if (n === null) return "—";
+  if (n === null) return "–";
   return new Intl.NumberFormat("en-GB", {
     style: "currency",
     currency: "GBP",
@@ -70,12 +70,12 @@ function tractionStats(s: AboutStats): Stat[] {
     {
       value: fmtInt(s.pubsTracked),
       label: "pubs tracked",
-      note: "distinct venues carrying a real price",
+      note: "each one carrying a real, sourced price",
     },
     {
       value: fmtInt(s.pintPricesObserved),
-      label: "pint prices observed",
-      note: "individual readings from public data",
+      label: "pint prices logged",
+      note: "readings from public data, every one dated",
     },
     {
       value: fmtInt(s.historicPubsCited),
@@ -85,7 +85,7 @@ function tractionStats(s: AboutStats): Stat[] {
     {
       value: fmtInt(s.citiesCovered),
       label: "UK cities live",
-      note: "London flagship, more browseable",
+      note: "London first, more to browse",
     },
   ];
 }
@@ -117,7 +117,7 @@ export default async function AboutPage() {
       url: "https://pubmaxxing.com",
       logo: "https://pubmaxxing.com/icon-512.png",
       description:
-        "A price-aware, story-led, map-first pub-crawl planner for the UK. Real pint prices, cited heritage, and community Pint Drops. No ads, no paywalls.",
+        "Real pint prices from real people, mapped, with the heritage that makes each pub worth the walk. A pub-crawl planner for the UK that's free, carries no ads, and never lets anyone pay to rank.",
       email: CONTACT_EMAIL,
       sameAs: ["https://x.com/karansznx"],
     },
@@ -141,32 +141,68 @@ export default async function AboutPage() {
       <header className="aboutHead">
         <p className="aboutEyebrow">Our story</p>
         <h1 className="aboutTitle">
-          One app for the whole night out.
+          A pint in London can cost eight quid. Nobody tells you where it doesn&rsquo;t.
         </h1>
         <p className="aboutLede">
-          After a hard day&rsquo;s work you want a cheap pint nearby, a couple of
-          places, maybe to meet some people &mdash; without bouncing between
-          Google Maps, other maps, and ChatGPT. One app. Great memories. That
-          is the whole idea behind PUBMAXX.
+          You finish work, you want a good pint nearby, maybe two, maybe
+          somewhere your mates can actually find. So you open Google Maps, then
+          another map, then reviews, then you&rsquo;re asking ChatGPT, and an
+          hour later you&rsquo;re back at the same place as last time. We built
+          PUBMAXX so you don&rsquo;t have to do that. One map. Real prices. The
+          whole night in one place.
         </p>
       </header>
 
       <section className="aboutSection" aria-labelledby="why">
         <h2 id="why" className="aboutH2">Why we built it</h2>
         <p className="aboutBody">
-          Planning a night out had quietly become a chore. The good pint is on
-          one app, the walking route on another, the &ldquo;is this place any
-          good?&rdquo; on a third, and the price &mdash; the thing that actually
-          decides where you go &mdash; is nowhere at all. So you open five tabs,
-          give up, and end up at the same place as last time.
+          Planning a night out had quietly turned into admin. The cheap pint is
+          on one app. The walk is on another. Whether the place is any good is
+          on a third. And the price, the thing that actually decides where you
+          go, is nowhere at all.
         </p>
         <p className="aboutBody">
-          PUBMAXX collapses that into one map. It is{" "}
-          <strong>price-aware</strong> &mdash; you can see what a pint actually
-          costs before you set off. It is <strong>story-led</strong> &mdash;
-          every pub carries the heritage that makes it worth the walk. And it is{" "}
-          <strong>map-first</strong> &mdash; the map is the product, not another
-          feed to scroll.
+          So most nights you don&rsquo;t plan. You give up and end up where you
+          always end up. We got tired of that. A pint shouldn&rsquo;t cost a
+          day&rsquo;s lunch, and finding the one that doesn&rsquo;t
+          shouldn&rsquo;t cost your whole evening.
+        </p>
+      </section>
+
+      <section className="aboutSection" aria-labelledby="did">
+        <h2 id="did" className="aboutH2">What we did about it</h2>
+        <p className="aboutBody">
+          We put real prices on the map. Every one comes from someone who was
+          actually there, with a date on it. Tap a pub and you see what a pint
+          costs before you set off, not after you&rsquo;ve handed over a note.
+        </p>
+        <p className="aboutBody">
+          We kept the stories too. Most of these pubs have been pouring for a
+          century or two, and the good ones earned their walk. So we cite the
+          heritage, and we never make it up.
+        </p>
+        <p className="aboutBody">
+          And we made it one link for the crew. You plan the night, you send it,
+          everyone lands in the same place walking the same route. No group-chat
+          archaeology at half six.
+        </p>
+        <p className="aboutBody">
+          One more thing, and it&rsquo;s the important one. Nobody pays to rank.
+          Not ever. There&rsquo;s a wall in the code between anyone&rsquo;s money
+          and the prices you see. A sponsored thing says so and sits in its own
+          slot. The order of pubs on your map is never for sale.
+        </p>
+      </section>
+
+      <section className="aboutSection" aria-labelledby="who">
+        <h2 id="who" className="aboutH2">Who it&rsquo;s for</h2>
+        <p className="aboutBody">
+          Everyone who actually goes to the pub. The after-work crowd who want a
+          cheap round before the last train. The quiet-pint person who just
+          wants a good one and a seat by the window. The birthday mob who need
+          somewhere that&rsquo;ll take twelve of them on a Friday. We&rsquo;re
+          not building this for the few who can drop eight quid on a lager
+          without noticing. We&rsquo;re building it for everyone else.
         </p>
       </section>
 
@@ -174,24 +210,23 @@ export default async function AboutPage() {
         <h2 id="ethos" className="aboutH2">What we stand for</h2>
         <ul className="aboutEthos">
           <li>
-            <strong>Honest data, always.</strong> Every price and heritage claim
-            shows where it came from &mdash; sourced, contributed, or passed
-            down. We never invent a fact to fill a gap.
+            <strong>Real prices, or nothing.</strong> Every price and every fact
+            shows where it came from. If we can&rsquo;t stand a number up, we
+            leave it blank. No filler, no guess dressed up as data.
           </li>
           <li>
-            <strong>Experience over quantity.</strong> A great night is measured
-            by the life around the drink, never by how much you drank. Nothing
-            in PUBMAXX rewards drinking more.
+            <strong>The night, not the units.</strong> A good one is measured by
+            who you were with, not how many you had. Nothing in here nudges you
+            to drink more.
           </li>
           <li>
-            <strong>Privacy-first.</strong> Your memories are yours. Nothing is
-            public unless you deliberately share it, and browsing needs no
+            <strong>Your nights are yours.</strong> Nothing&rsquo;s public unless
+            you choose to share it, and you can browse the whole thing without an
             account.
           </li>
           <li>
-            <strong>No ads, no paywalls, ever.</strong> Playfully
-            anti-capitalist, operationally pro-joy: a response to rising costs
-            and samey routines, not another thing to sell you.
+            <strong>No ads. No paywall.</strong> This is a response to getting
+            mugged for a lager, not another thing trying to sell you one.
           </li>
         </ul>
       </section>
@@ -200,8 +235,9 @@ export default async function AboutPage() {
       <section className="aboutSection aboutTraction" aria-labelledby="traction">
         <h2 id="traction" className="aboutH2">By the numbers</h2>
         <p className="aboutBody aboutTractionIntro">
-          Everything below is computed from the same public datasets the app
-          runs on &mdash; no vanity metrics, no invented users.
+          Every number here is counted from the same public data the app runs
+          on. No vanity metrics, no invented users. If it&rsquo;s on this page,
+          it&rsquo;s real.
         </p>
         <dl className="aboutStatGrid">
           {tractionStats(stats).map((stat) => (
@@ -216,10 +252,11 @@ export default async function AboutPage() {
         </dl>
         <p className="aboutPriceLine">
           Across <strong>{fmtInt(stats.boroughsCovered)}</strong> London
-          boroughs and neighbourhoods, the cheapest observed pint is{" "}
-          <span className="aboutPriceStamp">{cheapest}</span>, the dearest{" "}
-          <span className="aboutPriceStamp">{dearest}</span>, and the average
-          sits at <span className="aboutPriceStamp">{average}</span>.
+          boroughs and neighbourhoods, the cheapest pint we&rsquo;ve logged is{" "}
+          <span className="aboutPriceStamp">{cheapest}</span>. The dearest is{" "}
+          <span className="aboutPriceStamp">{dearest}</span>, and someone is
+          paying it. The average sits at{" "}
+          <span className="aboutPriceStamp">{average}</span>.
         </p>
       </section>
 
@@ -229,13 +266,13 @@ export default async function AboutPage() {
         <dl className="aboutPressGrid">
           <div className="aboutPressRow">
             <dt>Name</dt>
-            <dd>PUBMAXX (the product and movement; the app is PUBMAXXING)</dd>
+            <dd>PUBMAXX. The app is PUBMAXXING.</dd>
           </div>
           <div className="aboutPressRow">
             <dt>One line</dt>
             <dd>
-              A price-aware, story-led, map-first pub-crawl planner for the UK
-              &mdash; real pint prices, cited heritage, and community Pint Drops.
+              Real pint prices from real people, one map, and the whole night in
+              a single plan. Free, and nobody pays to rank.
             </dd>
           </div>
           <div className="aboutPressRow">
@@ -253,7 +290,8 @@ export default async function AboutPage() {
           <div className="aboutPressRow">
             <dt>Founder</dt>
             <dd>
-              Karan Manoharan &mdash;{" "}
+              Karan Manoharan
+              {" · "}
               <a
                 href="https://x.com/karansznx"
                 target="_blank"
@@ -295,8 +333,9 @@ export default async function AboutPage() {
       <section className="aboutSection aboutPress" aria-labelledby="press-hooks">
         <h2 id="press-hooks" className="aboutH2">Story hooks</h2>
         <p className="aboutBody">
-          London runs on its pubs. This is the app that runs your night. If you
-          are writing about the cost of a night out, the Pint Index is the angle.
+          London runs on its pubs. This is the app that runs your night. If
+          you&rsquo;re writing about the cost of a night out, the Pint Index is
+          your angle.
         </p>
         <ul className="aboutEthos">
           <li>
@@ -305,21 +344,20 @@ export default async function AboutPage() {
             <strong>{fmtInt(stats.boroughsCovered)}</strong> boroughs and
             neighbourhoods by the price of a pint, from{" "}
             <span className="aboutPriceStamp">{cheapest}</span> at the cheap end
-            to <span className="aboutPriceStamp">{dearest}</span> at the top,
-            built from{" "}
+            to <span className="aboutPriceStamp">{dearest}</span> at the top. It
+            is built from{" "}
             <strong>{fmtInt(stats.pintPricesObserved)}</strong> sourced
-            readings. Every figure links back to where it came from.
+            readings, and every figure links back to where it came from.
           </li>
           <li>
-            <strong>A price series, not a one-off headline.</strong> Because we
-            record the date on every reading, the Pint Index is longitudinal: it
-            can show how the price of a London pint moves over a season, not just
-            what it is today.
+            <strong>A price series, not a one-off headline.</strong> We date
+            every reading, so the Pint Index can show how a London pint moves
+            over a season, not just what it costs today.
           </li>
           <li>
-            <strong>Sourced, never invented.</strong> When the data cannot
-            support an honest number for an area, the table shows nothing there.
-            No filler, no estimate dressed up as a fact.
+            <strong>Sourced, never invented.</strong> Where the data
+            can&rsquo;t stand up an honest number for an area, the table shows
+            nothing there. No filler, no estimate dressed up as a fact.
           </li>
         </ul>
         <p className="aboutBody">
@@ -332,8 +370,8 @@ export default async function AboutPage() {
       <section className="aboutSection aboutCta" aria-labelledby="cta">
         <h2 id="cta" className="aboutH2">Come pubmaxxing</h2>
         <p className="aboutBody">
-          Investors, press, and future Pubmaxxers welcome. Start on the map, or
-          say hello.
+          Press, investors, and anyone who just wants a cheaper pint: you&rsquo;re
+          all welcome. Start on the map, or say hello.
         </p>
         <div className="aboutCtaRow">
           <Link href="/map" className="aboutBtn aboutBtnPrimary">

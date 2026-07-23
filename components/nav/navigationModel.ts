@@ -24,13 +24,33 @@ export const PRIMARY_NAV_ITEMS: readonly PrimaryNavItem[] = [
     // via its own legacy-active handler).
     match: ["/discover", "/feed", "/crawls"],
   },
-  { key: "you", href: "/u/you", label: "You", match: ["/u", "/pal"] },
+  // You owns the profile surfaces under /u only. /pal (Pub Pal, the AI
+  // concierge) is its OWN destination with no primary tab — it used to sit in
+  // this match set and wrongly lit "You" on both the mobile tab bar and the
+  // desktop nav (audit F10). Dropped so /pal maps to no active tab.
+  { key: "you", href: "/u/you", label: "You", match: ["/u"] },
 ] as const;
 
 export const MOMENT_NAV_ACTION = {
   key: "moment",
   href: "/moment",
   label: "Moment",
+} as const;
+
+/**
+ * First-run tour spotlight targets, mapped to the live mobile tab keys. The
+ * tour anchors its bottom-bar ring to the REAL tab column (see MobileTabBar
+ * `buildTabs` / `tourSpotlightColumn`), so this is the single source tying tour
+ * copy targets to nav destinations: "drop" is the Moment centre action, and
+ * "discover" is the Stories tab. A new or reordered tab that shifts these keys'
+ * columns is caught by the tour-geometry regression test.
+ */
+export type TourSpotlightTarget = "map" | "drop" | "discover";
+
+export const TOUR_TARGET_TAB_KEY: Record<TourSpotlightTarget, string> = {
+  map: "map",
+  drop: MOMENT_NAV_ACTION.key,
+  discover: "stories",
 } as const;
 
 export type MomentReturnTarget = string;

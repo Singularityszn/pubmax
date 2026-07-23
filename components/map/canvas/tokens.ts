@@ -109,6 +109,9 @@ export type Tokens = {
   brassBright: string;
   river: string;
   riverBright: string;
+  // Crawl walk-route line colour — dark crimson (light) / bright coral-ember
+  // (dark). High-contrast on both basemaps; see buildScene.buildRoute.
+  routeLine: string;
   // M4 — dusk/night signature look + light-theme hierarchy audit. Sky gradient
   // (setSky zenith/horizon), warmed 3-D building emissive tint, and a park
   // green kept deliberately distinct from --pint (see theme.css / globals.css).
@@ -156,6 +159,7 @@ export function readTokens(): Tokens {
     brassBright: token("--brass-bright", "#d3a44a"),
     river: token("--river", "#2f6f8f"),
     riverBright: token("--river-bright", "#4f9ec4"),
+    routeLine: token("--route-line", "#8b1a2b"),
     skyZenith: token("--map-sky-zenith", "#0f1c16"),
     skyHorizon: token("--map-sky-horizon", "#b0813a"),
     buildingEmissive: token("--map-building-emissive", "#8f7d6b"),
