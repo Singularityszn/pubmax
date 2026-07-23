@@ -106,7 +106,7 @@
   justify-content: center;
   padding: 0 16px;
   border: 1px solid var(--line);
-  border-radius: 999px;
+  border-radius: var(--control-radius, 14px);
   background: var(--panel-raised);
   color: var(--ink);
   font-size: .88rem;
@@ -190,7 +190,7 @@
   z-index: 40;
   padding: 7px 16px;
   border: 1px solid color-mix(in srgb, var(--brass) 38%, var(--feed-border));
-  border-radius: 999px;
+  border-radius: var(--control-radius, 14px);
   background: var(--feed-coral-wash);
   color: var(--brass);
   font-size: 0.8rem;
@@ -314,38 +314,16 @@
   max-width: var(--feed-max);
   display: flex;
   column-gap: 8px;
-  /* Extra vertical breathing room so the gliding indicator (a slim underline
-     hugging each chip's bottom edge) never crowds a wrapped second row. */
-  row-gap: 16px;
+  /* Vertical breathing room between chips when the strip wraps to a second row. */
+  row-gap: 12px;
   flex-wrap: wrap;
   justify-content: center;
 }
 
-/* Wave L1 — the active lane used to just swap fill instantly; this slim brass
-   underline now GLIDES from the previous active chip to the new one, measured
-   off the real chip buttons (FeedFilters.tsx) so it tracks correctly whether
-   the strip has wrapped to a second row (desktop) or sits mid-scroll (mobile).
-   Sits BEHIND the chips (z-index 0) and is purely decorative (aria-hidden) —
-   each chip's own active fill/border/text colour (below) is still the primary,
-   always-correct cue; the glide is an additive craft touch. */
-.feedFilterIndicator {
-  position: absolute;
-  top: 0;
-  left: 0;
-  z-index: 0;
-  height: 3px;
-  border-radius: 999px;
-  background: linear-gradient(90deg, var(--brass), var(--brass-bright, var(--brass)));
-  box-shadow: 0 0 8px color-mix(in srgb, var(--brass) 45%, transparent);
-  pointer-events: none;
-}
-
-@media (prefers-reduced-motion: no-preference) {
-  .feedFilterIndicator {
-    transition: transform 180ms var(--ease-out-strong, ease-out),
-      width 180ms var(--ease-out-strong, ease-out);
-  }
-}
+/* Owner ruling (2026-07-23): the gliding brass underline strip beneath the
+   active chip is removed — "remove the dash underline, it's ugly". The active
+   chip's own filled gradient (.feedFilterChip.isActive below) already carries
+   the selected state, so no decorative indicator is needed. */
 
 .feedFilterChip {
   position: relative;
@@ -474,7 +452,7 @@
   min-height: 44px;
   padding: 6px 11px;
   border: 1px solid var(--feed-border);
-  border-radius: 999px;
+  border-radius: var(--control-radius, 14px);
   background: var(--feed-glass);
   color: var(--ink);
   font: inherit;
@@ -1202,7 +1180,7 @@
 .feedLoadMoreBtn {
   padding: 11px 22px;
   border: 1px solid var(--line);
-  border-radius: 999px;
+  border-radius: var(--control-radius, 14px);
   background: var(--feed-glass-solid);
   color: var(--ink);
   font-size: 0.92rem;
@@ -1246,7 +1224,7 @@
   min-height: 44px;
   padding: 0 20px;
   border: 1px solid color-mix(in srgb, var(--brass) 45%, var(--line));
-  border-radius: 999px;
+  border-radius: var(--control-radius, 14px);
   background: color-mix(in srgb, var(--brass) 12%, var(--panel-raised));
   color: var(--ink);
   font-size: 0.88rem;
@@ -1278,7 +1256,7 @@
   min-height: 44px;
   padding: 0 20px;
   border: 1px solid var(--line);
-  border-radius: 999px;
+  border-radius: var(--control-radius, 14px);
   background: var(--panel-raised);
   color: var(--ink);
   font: inherit;
@@ -1651,7 +1629,7 @@
   min-height: 44px;
   padding: 9px 12px;
   border: 1px solid var(--line);
-  border-radius: 999px;
+  border-radius: var(--control-radius, 14px);
   background: var(--panel);
   color: var(--ink-soft);
   font: inherit;
@@ -1797,7 +1775,7 @@
   min-height: 44px;
   padding: 10px 20px;
   border: 0;
-  border-radius: 999px;
+  border-radius: var(--control-radius, 14px);
   background: var(--brass);
   color: var(--ink-deep, #1a160e);
   font: inherit;

@@ -166,6 +166,14 @@ export type ContentFitInput = {
   dockClearance: number;
   /** The body's natural content extent (scrollHeight) in px. */
   contentHeight: number;
+  /**
+   * Height (px) of a docked footer strip reserved BELOW the scroll body and
+   * ABOVE the dock clearance — e.g. the venue sheet's fixed Drop/Share command
+   * bar (--venue-cmdbar-h, #536). The scroll body is shortened by this strip, so
+   * the fit has less room to fill and the hugged sheet must sit this much higher.
+   * Defaults to 0 for contextual sheets (TfL live, map layers…) with no footer.
+   */
+  footerHeight?: number;
 };
 
 export type ContentFit = {
@@ -183,6 +191,14 @@ export type ContentFit = {
  * sheet so the content's bottom sits the same `dockClearance` above the tab bar
  * the full-height half uses.
  *
+ * A `footerHeight` (default 0) accounts for a docked footer strip reserved below
+ * the scroll body — the venue sheet's fixed Drop/Share command bar (#536). With
+ * a footer, the available half-body is that much shorter (so short content is
+ * detected the same way the CSS shortens the body), and the sheet is translated
+ * an extra `footerHeight` up so the FOOTER's bottom — not the body's — lands the
+ * `dockClearance` above the tab bar. The caller derives the docked bar's own
+ * offset from `translatePx` (bar bottom = translatePx + dockClearance).
+ *
  * Returns null when content is tall enough to fill (or exceed) half — the
  * caller then uses the normal 55dvh half detent — or when inputs are
  * degenerate. The result never exceeds the half snap on open, and because it
@@ -191,9 +207,14 @@ export type ContentFit = {
  */
 export function resolveHalfContentFit(input: ContentFitInput): ContentFit | null {
   const { viewportHeight, headerHeight, dockClearance, contentHeight } = input;
+  const footerHeight = input.footerHeight && input.footerHeight > 0 ? input.footerHeight : 0;
   if (!(viewportHeight > 0) || !(contentHeight > 0)) return null;
-  const halfBodyPx = viewportHeight * SHEET_SNAP_FRACTIONS.half - headerHeight - dockClearance;
+  const halfBodyPx =
+    viewportHeight * SHEET_SNAP_FRACTIONS.half - headerHeight - dockClearance - footerHeight;
   if (!(halfBodyPx > 0) || contentHeight >= halfBodyPx) return null;
-  const translatePx = Math.max(0, Math.round(viewportHeight - headerHeight - contentHeight - dockClearance));
+  const translatePx = Math.max(
+    0,
+    Math.round(viewportHeight - headerHeight - contentHeight - footerHeight - dockClearance),
+  );
   return { bodyPx: contentHeight, translatePx };
 }

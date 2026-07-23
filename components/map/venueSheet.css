@@ -481,7 +481,7 @@
     gap: 5px;
     min-height: 44px;
     padding: 8px 10px;
-    border-radius: var(--radius-sm, 10px);
+    border-radius: var(--control-radius, 14px);
     font: inherit;
     font-size: 0.82rem;
     font-weight: 700;
@@ -571,6 +571,16 @@
     --venue-cmdbar-h: 72px;
   }
 
+  /* Portal path: the command bar is docked in its own reserved strip
+     (--venue-cmdbar-h) OUTSIDE the scroll body, so the in-tab 84px sticky-bar
+     reserve the ≤768 rule adds to .venueInspector is dead space here — it pushes
+     content down and defeats the short-content hug. Drop it to a plain gutter so
+     short content hugs tight (no void, owner ruling) and tall content ends flush
+     above the docked bar. */
+  .mobileSharedSheet .venueInspector {
+    padding-bottom: 16px;
+  }
+
   /* Shorten the scroll body by the reserved strip so the tab row stays above the
      docked bar. Keyed on the snap class; peek keeps the base full-height body
      (no strip — the bar is hidden there). Body-bottom lands exactly on the bar's
@@ -616,6 +626,22 @@
   /* Peek: no honest room for the bar — hide it (body keeps its base height). */
   .mobileSharedSheet.sheet-peek .venueSheetStickyBar {
     display: none;
+  }
+
+  /* ── Owner ruling (2026-07-23): short-content venue sheet hugs, dock follows ──
+     When a venue sheet's natural content is shorter than the half detent, #539's
+     content-fit engages for venue too (MobileSharedSheet: kind === "venue"). The
+     sheet is translated down to hug the content (inline transform) and its body
+     is pinned to the content height (inline height) — the same machinery as the
+     contextual sheets. The one venue-specific piece is this docked bar: instead
+     of the fixed 55dvh line above, it rides at the hugged content's bottom via
+     --venue-fit-bar-bottom (= translatePx + dock, set inline on the sheet). This
+     kills the void the owner saw below the Drop/Share bar on the "Kings Head"
+     half snap. Placed AFTER .sheet-half so, at equal specificity, .sheet-fit wins
+     while resting; a drag drops .sheet-fit and the .sheet-half math resumes, so
+     TALL content is entirely unchanged. */
+  .mobileSharedSheet.sheet-fit .venueSheetStickyBar {
+    bottom: var(--venue-fit-bar-bottom, calc(100dvh - 55dvh + var(--mobile-map-dock-clearance, 76px)));
   }
 
   @media (prefers-reduced-motion: reduce) {

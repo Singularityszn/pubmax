@@ -105,7 +105,7 @@
 .planSummary__cancel {
   min-height: 44px;
   border: 1px solid var(--line);
-  border-radius: 999px;
+  border-radius: var(--control-radius, 14px);
   padding: 8px 14px;
   background: var(--panel);
   color: var(--ink);
@@ -400,7 +400,7 @@
 .planCrew__presence { margin-top: 20px; display: flex; flex-wrap: wrap; gap: 8px; }
 .planCrew__presence button,
 .planComposer__add,
-.planComposer__remove { min-height: 44px; border: 1px solid var(--line); border-radius: 999px; padding: 8px 13px; background: var(--panel); color: var(--ink); font: inherit; font-size: 0.8rem; font-weight: 750; cursor: pointer; }
+.planComposer__remove { min-height: 44px; border: 1px solid var(--line); border-radius: var(--control-radius, 14px); padding: 8px 13px; background: var(--panel); color: var(--ink); font: inherit; font-size: 0.8rem; font-weight: 750; cursor: pointer; }
 .planCrew__presence button:hover,
 .planComposer__add:hover { border-color: var(--plan-accent); color: var(--plan-accent-strong); }
 /* Your current status reads back instantly (set optimistically on tap). Without
@@ -429,7 +429,7 @@
   min-height: 44px;
   padding: 8px 14px;
   border: 1px solid var(--line);
-  border-radius: 999px;
+  border-radius: var(--control-radius, 14px);
   background: var(--panel);
   color: var(--ink);
   font: inherit;
@@ -480,7 +480,7 @@
 .planIntake__tune,
 .planIntake__summaryChips button {
   min-height: 44px;
-  border-radius: 999px;
+  border-radius: var(--control-radius, 14px);
   padding: 8px 14px;
   font: inherit;
   font-size: 0.78rem;
@@ -523,7 +523,7 @@
   justify-content: center;
   gap: 7px;
   border: 1px solid var(--plan-accent);
-  border-radius: 999px;
+  border-radius: var(--control-radius, 14px);
   padding: 8px 15px;
   background: color-mix(in srgb, var(--plan-accent) 12%, var(--panel));
   color: var(--plan-accent-strong);
@@ -550,7 +550,7 @@
 }
 .planIntake__choices button[aria-pressed="true"],
 .planIntake__numberChoices button[aria-pressed="true"] { border-color: var(--plan-accent); background: color-mix(in srgb, var(--plan-accent) 13%, var(--panel)); color: var(--plan-accent-strong); }
-.planIntake__choices--areas button { display: inline-flex; align-items: center; gap: 7px; border-radius: 999px; }
+.planIntake__choices--areas button { display: inline-flex; align-items: center; gap: 7px; border-radius: var(--control-radius, 14px); }
 .planIntake__choices--cards { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); }
 .planIntake__choices--cards button { min-height: 74px; display: grid; align-content: center; gap: 3px; text-align: left; }
 .planIntake__choices--cards small { color: var(--muted); font-size: 0.69rem; font-weight: 650; line-height: 1.35; }
@@ -608,7 +608,7 @@
 .planComposer__template {
   min-height: 44px;
   border: 1px solid var(--line);
-  border-radius: 999px;
+  border-radius: var(--control-radius, 14px);
   padding: 8px 14px;
   background: var(--panel);
   color: var(--ink);
@@ -639,12 +639,12 @@
 .planComposer__routeStale > div { display: grid; gap: 2px; min-width: 0; }
 .planComposer__routeStale strong { font-size: 0.84rem; }
 .planComposer__routeStale span { color: var(--ink-soft); font-size: 0.78rem; line-height: 1.35; }
-.planComposer__regenerate { flex: 0 0 auto; min-height: 44px; border: 0; border-radius: 999px; padding: 8px 14px; background: var(--plan-accent); color: #fff; font: inherit; font-size: 0.78rem; font-weight: 800; cursor: pointer; }
+.planComposer__regenerate { flex: 0 0 auto; min-height: 44px; border: 0; border-radius: var(--control-radius, 14px); padding: 8px 14px; background: var(--plan-accent); color: #fff; font: inherit; font-size: 0.78rem; font-weight: 800; cursor: pointer; }
 .planComposer__regenerate:disabled { opacity: 0.58; cursor: wait; }
 .planComposer__context { margin: 18px 0 0; padding: 0; border: 0; display: flex; flex-wrap: wrap; gap: 8px; }
 .planComposer__context legend { width: 100%; margin-bottom: 2px; }
 .planComposer__contextNote { width: 100%; margin: 0 0 2px; color: var(--muted); font-size: 0.78rem; line-height: 1.4; }
-.planComposer__context label { display: flex; align-items: center; gap: 6px; min-width: 0; min-height: 44px; padding: 0 10px; border: 1px solid var(--line); border-radius: 999px; background: var(--panel); }
+.planComposer__context label { display: flex; align-items: center; gap: 6px; min-width: 0; min-height: 44px; padding: 0 10px; border: 1px solid var(--line); border-radius: var(--control-radius, 14px); background: var(--panel); }
 .planComposer__context select, .planComposer__context input { min-width: 0; max-width: 100%; width: auto; min-height: 44px; padding: 4px; border: 0; background: transparent; color: var(--ink); font: inherit; font-weight: 760; }
 .planComposer__context input { width: 54px; }
 .planComposer__srOnly { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
@@ -682,7 +682,7 @@
 .planComposer__stop { display: grid; grid-template-columns: 44px minmax(0, 1fr) auto; gap: 12px; align-items: end; margin-bottom: 14px; }
 .planComposer__stop > div { display: grid; gap: 6px; }
 .planComposer__stopActions { display: flex; flex-wrap: wrap; align-items: center; justify-content: end; gap: 6px; }
-.planComposer__swap { min-height: 44px; border: 1px solid color-mix(in srgb, var(--plan-accent) 45%, var(--line)); border-radius: 999px; padding: 8px 12px; background: color-mix(in srgb, var(--plan-accent) 8%, var(--panel)); color: var(--plan-accent-strong); font: inherit; font-size: 0.76rem; font-weight: 800; cursor: pointer; }
+.planComposer__swap { min-height: 44px; border: 1px solid color-mix(in srgb, var(--plan-accent) 45%, var(--line)); border-radius: var(--control-radius, 14px); padding: 8px 12px; background: color-mix(in srgb, var(--plan-accent) 8%, var(--panel)); color: var(--plan-accent-strong); font: inherit; font-size: 0.76rem; font-weight: 800; cursor: pointer; }
 .planComposer__swap:disabled { opacity: 0.48; cursor: not-allowed; }
 .planComposer__previewLabel { margin-left: 8px; color: var(--muted); font-size: 0.68rem; font-weight: 700; letter-spacing: 0.03em; text-transform: none; }
 .planComposer__routeStatus { min-height: 1.35em; margin: 0 0 18px 56px; color: var(--muted); font-size: 0.78rem; line-height: 1.4; }

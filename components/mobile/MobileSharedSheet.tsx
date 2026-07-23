@@ -29,7 +29,17 @@ function measureCssLengthPx(host: HTMLElement, value: string): number {
   return Number.isFinite(px) ? px : 0;
 }
 
-type SheetFit = { bodyPx: number; translatePx: number };
+type SheetFit = {
+  bodyPx: number;
+  translatePx: number;
+  /**
+   * Docked command-bar bottom offset (px, relative to the transformed sheet) for
+   * the hugged venue sheet — bar bottom = translatePx + dockClearance so the
+   * Drop/Share bar rides at the content's bottom. null for footerless contextual
+   * sheets, which have no docked bar to reposition.
+   */
+  barBottomPx: number | null;
+};
 
 export default function MobileSharedSheet({ kind, title, initialSnap = "half", requestedSnap, onClose, children }: { kind: MapSheetKind | null; title: string; initialSnap?: MapSheetDetent; requestedSnap?: MapSheetDetent; onClose: () => void; children: React.ReactNode }) {
   const titleId = useId();
@@ -44,19 +54,21 @@ export default function MobileSharedSheet({ kind, title, initialSnap = "half", r
   useEffect(() => { onCloseRef.current = onClose; }, [onClose]);
   const requestClose = useCallback(() => onCloseRef.current(), []);
 
-  // Content-fit: when a short contextual sheet (TfL live, map layers…) rests at
-  // the `half` detent, hug its content instead of stretching to 55dvh and
-  // leaving a white void below one card. Venue (right) / planner (left) keep
-  // their full-height, footer-docked contract untouched — #536's command-bar
-  // reserved-space math depends on the fixed body height, so fit never touches
-  // them.
+  // Content-fit: when a short sheet rests at the `half` detent, hug its content
+  // instead of stretching to 55dvh and leaving a white void. Contextual sheets
+  // (TfL live, map layers…) hug the plain body. VENUE (right) also hugs (owner
+  // ruling, "Kings Head" screenshot): its fixed Drop/Share command bar (#536)
+  // then rides at the content's bottom via `barBottomPx` instead of the fixed
+  // 55dvh line. Planner (left) stays exempt — its footer contract is untouched.
   const isContextual = kind !== null && kind !== "venue" && kind !== "planner";
+  const isVenue = kind === "venue";
+  const fitEnabled = isContextual || isVenue;
   const [fit, setFit] = useState<SheetFit | null>(null);
 
   // Feed the fit's resting position into the drag gesture so the hugged sheet is
   // treated as the half detent's true home (a tap settles back to it, not down
   // to peek; a full→half release lands on content). Only while resting at half.
-  const halfOverride = fit && isContextual ? fit.translatePx : null;
+  const halfOverride = fit && fitEnabled ? fit.translatePx : null;
   const { sheetSnap, setSheetSnap, sheetDragY, setSheetDragY, onSheetDragStart, onSheetDragMove, onSheetDragEnd } = useSheetDrag(requestClose, halfOverride);
 
   const measureFit = useCallback(() => {
@@ -65,7 +77,7 @@ export default function MobileSharedSheet({ kind, title, initialSnap = "half", r
     const body = bodyRef.current;
     const content = contentRef.current;
     if (!sheet || !header || !body || !content || typeof window === "undefined") return;
-    if (!isContextual || window.innerWidth > SHEET_FIT_MAX_WIDTH) {
+    if (!fitEnabled || window.innerWidth > SHEET_FIT_MAX_WIDTH) {
       setFit(null);
       return;
     }
@@ -74,14 +86,27 @@ export default function MobileSharedSheet({ kind, title, initialSnap = "half", r
     // or fit-overridden, so its scrollHeight would report the box, not content.
     const cs = window.getComputedStyle(body);
     const paddingV = (parseFloat(cs.paddingTop) || 0) + (parseFloat(cs.paddingBottom) || 0);
-    const next = resolveHalfContentFit({
+    const dockClearance = measureCssLengthPx(sheet, "var(--mobile-map-dock-clearance)");
+    // Venue reserves a fixed command-bar strip (--venue-cmdbar-h) below the body;
+    // that footer shortens the fit's room and lifts the hugged sheet by its height
+    // so the bar (not the body) lands the dock clearance above the tab bar.
+    const footerHeight = isVenue ? measureCssLengthPx(sheet, "var(--venue-cmdbar-h)") : 0;
+    const base = resolveHalfContentFit({
       viewportHeight: window.innerHeight,
       headerHeight: header.offsetHeight,
-      dockClearance: measureCssLengthPx(sheet, "var(--mobile-map-dock-clearance)"),
+      dockClearance,
       contentHeight: content.offsetHeight + paddingV,
+      footerHeight,
     });
-    setFit((prev) => (prev && next && prev.bodyPx === next.bodyPx && prev.translatePx === next.translatePx ? prev : next));
-  }, [isContextual]);
+    const next: SheetFit | null = base
+      ? { ...base, barBottomPx: isVenue ? base.translatePx + dockClearance : null }
+      : null;
+    setFit((prev) =>
+      prev && next && prev.bodyPx === next.bodyPx && prev.translatePx === next.translatePx && prev.barBottomPx === next.barBottomPx
+        ? prev
+        : next,
+    );
+  }, [fitEnabled, isVenue]);
 
   useEffect(() => {
     if (!kind) return;
@@ -135,11 +160,18 @@ export default function MobileSharedSheet({ kind, title, initialSnap = "half", r
 
   // Fit only governs the resting `half` detent and yields the moment a drag
   // starts — full/peek and the live drag transform stay authoritative.
-  const fitActive = fit !== null && isContextual && sheetSnap === "half" && sheetDragY === null;
+  const fitActive = fit !== null && fitEnabled && sheetSnap === "half" && sheetDragY === null;
   const sectionStyle: React.CSSProperties | undefined = sheetDragY !== null
     ? { transform: `translateY(${Math.max(0, sheetTranslateY(sheetSnap, window.innerHeight) + sheetDragY)}px)`, transition: "none" }
     : fitActive
-      ? { transform: `translateY(${fit.translatePx}px)` }
+      ? {
+          transform: `translateY(${fit.translatePx}px)`,
+          // Venue only: park the fixed Drop/Share bar at the hugged content's
+          // bottom (consumed by .sheet-fit .venueSheetStickyBar in venueSheet.css).
+          ...(fit.barBottomPx !== null
+            ? ({ ["--venue-fit-bar-bottom"]: `${fit.barBottomPx}px` } as React.CSSProperties)
+            : null),
+        }
       : undefined;
 
   return createPortal(
@@ -173,10 +205,13 @@ export default function MobileSharedSheet({ kind, title, initialSnap = "half", r
           className={`mobileSharedSheetBody${sheetSnap === "full" ? " isScrollable" : ""}`}
           style={fitActive ? { flex: "0 0 auto", height: `${fit.bodyPx}px` } : undefined}
         >
-          {/* Only contextual sheets get the measuring wrapper. Venue/planner
-              render children directly so their `position: sticky` footer dock
-              (#536) keeps the exact DOM/containing-block it relies on. */}
-          {isContextual ? <div ref={contentRef}>{children}</div> : children}
+          {/* Contextual sheets and the venue sheet get the measuring wrapper.
+              The wrapper is a plain block (no transform/filter), so the venue's
+              fixed Drop/Share command bar (#536) still resolves against the
+              transformed sheet — the containing block it relies on — and the bar,
+              being out of flow, never inflates the measured content height.
+              Planner (left) still renders children directly. */}
+          {fitEnabled ? <div ref={contentRef}>{children}</div> : children}
         </div>
       </section>
     </div>,

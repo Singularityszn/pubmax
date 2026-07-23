@@ -157,7 +157,7 @@
   justify-content: center;
   gap: 9px;
   border: 1px solid transparent;
-  border-radius: 16px;
+  border-radius: var(--control-radius, 14px);
   font-size: 14px;
   font-weight: 750;
   text-decoration: none;
