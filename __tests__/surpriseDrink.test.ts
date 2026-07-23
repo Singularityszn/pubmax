@@ -256,6 +256,23 @@ describe("selectSurpriseDrink", () => {
     expect(selectSurpriseDrink(input({ availability: [precise] })).status).toBe("selected");
   });
 
+  it("rejects impossible civil UTC offsets", () => {
+    expect(selectSurpriseDrink(input({ asOfIso: "2026-07-22T20:00:00+14:01" }))).toEqual({
+      status: "empty",
+      reason: "invalid-selection-key",
+    });
+    const row = available(beer.id);
+    const impossibleOffset = {
+      ...row,
+      venues: [{ ...row.venues[0], observedAt: "2026-07-22T18:00:00+23:59" }],
+    };
+
+    expect(selectSurpriseDrink(input({ availability: [impossibleOffset] }))).toEqual({
+      status: "empty",
+      reason: "no-confirmed-availability",
+    });
+  });
+
   it("labels evidence on the Europe/London calendar day", () => {
     const row = available(beer.id);
     const nearMidnight = {

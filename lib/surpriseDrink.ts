@@ -111,12 +111,17 @@ function parseExplicitIsoInstant(value: string): number | null {
   const match = clean.match(EXPLICIT_ISO_INSTANT);
   if (!match) return null;
   const [, year, month, day, hour, minute, second, , zone, offsetHour, offsetMinute] = match;
+  const offsetHours = Number(offsetHour);
+  const offsetMinutes = Number(offsetMinute);
   if (
     !validDayKey(`${year}-${month}-${day}`)
     || Number(hour) > 23
     || Number(minute) > 59
     || Number(second) > 59
-    || (zone.toUpperCase() !== "Z" && (Number(offsetHour) > 23 || Number(offsetMinute) > 59))
+    || (
+      zone.toUpperCase() !== "Z"
+      && (offsetHours > 14 || offsetMinutes > 59 || (offsetHours === 14 && offsetMinutes !== 0))
+    )
   ) return null;
   const parsed = Date.parse(clean);
   return Number.isFinite(parsed) ? parsed : null;
