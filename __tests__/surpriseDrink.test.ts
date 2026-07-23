@@ -228,6 +228,22 @@ describe("selectSurpriseDrink", () => {
     });
   });
 
+  it("rejects impossible calendar dates instead of accepting Date.parse normalization", () => {
+    expect(selectSurpriseDrink(input({ asOfIso: "2026-06-31T20:00:00Z" }))).toEqual({
+      status: "empty",
+      reason: "invalid-selection-key",
+    });
+    const row = available(beer.id);
+    const impossible = {
+      ...row,
+      venues: [{ ...row.venues[0], observedAt: "2026-06-31T18:00:00Z" }],
+    };
+    expect(selectSurpriseDrink(input({ availability: [impossible] }))).toEqual({
+      status: "empty",
+      reason: "no-confirmed-availability",
+    });
+  });
+
   it("labels evidence on the Europe/London calendar day", () => {
     const row = available(beer.id);
     const nearMidnight = {

@@ -95,7 +95,7 @@ type EligibleChoice = {
 };
 
 const DAY_KEY = /^\d{4}-\d{2}-\d{2}$/;
-const EXPLICIT_ISO_INSTANT = /^\d{4}-\d{2}-\d{2}T.+(?:Z|[+-]\d{2}:\d{2})$/i;
+const EXPLICIT_ISO_INSTANT = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})(?:\.(\d{1,3}))?(Z|[+-](\d{2}):(\d{2}))$/i;
 const MAX_EVIDENCE_AGE_MS = 90 * 24 * 60 * 60 * 1_000;
 
 function cleanToken(value: string): string {
@@ -108,7 +108,16 @@ function stableTextCompare(left: string, right: string): number {
 
 function parseExplicitIsoInstant(value: string): number | null {
   const clean = value.trim();
-  if (!EXPLICIT_ISO_INSTANT.test(clean)) return null;
+  const match = clean.match(EXPLICIT_ISO_INSTANT);
+  if (!match) return null;
+  const [, year, month, day, hour, minute, second, , zone, offsetHour, offsetMinute] = match;
+  if (
+    !validDayKey(`${year}-${month}-${day}`)
+    || Number(hour) > 23
+    || Number(minute) > 59
+    || Number(second) > 59
+    || (zone.toUpperCase() !== "Z" && (Number(offsetHour) > 23 || Number(offsetMinute) > 59))
+  ) return null;
   const parsed = Date.parse(clean);
   return Number.isFinite(parsed) ? parsed : null;
 }
