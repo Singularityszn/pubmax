@@ -28,6 +28,7 @@ describe("parsePlanGenerationRequest", () => {
         cityId: null,
         intake: null,
         hasIntake: false,
+        operationKey: null,
       },
     });
   });

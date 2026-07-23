@@ -102,9 +102,34 @@ export const ANALYTICS_EVENTS = {
   // Native shell (Capacitor) — contextual push pre-permission explainer.
   native_push_prompt_enable: [],
   native_push_prompt_later: [],
+  // Wave 0.5 loop metrics. These names describe confirmed product outcomes,
+  // not page views. Props stay deliberately coarse: no Plan/Memory/Story ids,
+  // user content, locations, coordinates, or elapsed-time fingerprints.
+  plan_generated: ["stops", "grounded"],
+  plan_accepted: ["stops", "grounded"],
+  plan_saved: ["stops", "grounded"],
+  claim_started: ["source"],
+  claim_completed: ["source"],
+  plan_completed: ["ending"],
+  memory_reviewed: ["source"],
+  story_published: ["visibility", "contributors", "moments"],
+  // One roll-up event gives Reach a stable denominator in PostHog. Only the
+  // explicit loop actions below qualify; route generation, claim steps, and
+  // passive opens never do.
+  meaningful_core_action: ["action"],
 } as const;
 
 export type AnalyticsEventName = keyof typeof ANALYTICS_EVENTS;
+
+export const WEEKLY_MEANINGFUL_CORE_ACTIONS = [
+  "plan_accepted",
+  "plan_saved",
+  "plan_completed",
+  "memory_reviewed",
+  "story_published",
+] as const satisfies readonly AnalyticsEventName[];
+
+export type WeeklyMeaningfulCoreAction = (typeof WEEKLY_MEANINGFUL_CORE_ACTIONS)[number];
 
 export type AnalyticsProps = Record<string, string | number | boolean>;
 
@@ -136,6 +161,9 @@ const SAFE_STRING_VALUES = new Set([
   // A2HS platform values (#313): fixed enum, no UA strings
   "android", "ios-safari", "standalone", "unsupported",
   "CLS", "FCP", "INP", "LCP", "TTFB", "good", "needs-improvement", "poor",
+  // Wave 0.5 fixed loop vocabulary.
+  "auth", "inline_recap", "full_recap",
+  "plan_accepted", "plan_saved", "plan_completed", "memory_reviewed", "story_published",
   ...NIGHT_AREA_SLUGS,
   ...COVERAGE_STATUSES,
   ...ROUTE_READY_GATE_CODES,
@@ -153,6 +181,30 @@ function isAllowedDistrictEventProp(name: AnalyticsEventName, key: string, value
   if (!name.startsWith("district_") && name !== "route_ready_gate_failed") return true;
   const allowed = DISTRICT_EVENT_PROP_VALUES[key as keyof typeof DISTRICT_EVENT_PROP_VALUES];
   return !allowed || (allowed as readonly (string | number | boolean)[]).includes(value);
+}
+
+function isAllowedLoopEventProp(name: AnalyticsEventName, key: string, value: string | number | boolean): boolean {
+  if (["plan_generated", "plan_accepted", "plan_saved"].includes(name)) {
+    if (key === "stops") return typeof value === "number" && Number.isInteger(value) && value >= 1 && value <= 10;
+    if (key === "grounded") return typeof value === "boolean";
+  }
+  if ((name === "claim_started" || name === "claim_completed") && key === "source") return value === "auth";
+  if (name === "plan_completed" && key === "ending") {
+    return typeof value === "string" && ["food", "get_home", "keep_going"].includes(value);
+  }
+  if (name === "memory_reviewed" && key === "source") {
+    return typeof value === "string" && ["inline_recap", "full_recap"].includes(value);
+  }
+  if (name === "story_published") {
+    if (key === "visibility") return typeof value === "string" && ["public", "unlisted"].includes(value);
+    if (key === "contributors" || key === "moments") {
+      return typeof value === "number" && Number.isInteger(value) && value >= 0 && value <= 100;
+    }
+  }
+  if (name === "meaningful_core_action" && key === "action") {
+    return typeof value === "string" && (WEEKLY_MEANINGFUL_CORE_ACTIONS as readonly string[]).includes(value);
+  }
+  return true;
 }
 
 // UUID-shaped values (e.g. a plan invite's own row id) are the one exception
@@ -210,9 +262,15 @@ export function sanitizeEvent(
       const customValidator = CUSTOM_PROP_VALIDATORS[key];
       const valid = customValidator
         ? customValidator(value)
-        : isSafeValue(value) && isAllowedDistrictEventProp(name, key, value);
+        : isSafeValue(value)
+          && isAllowedDistrictEventProp(name, key, value)
+          && isAllowedLoopEventProp(name, key, value);
       if (valid) out[key] = value as string | number | boolean;
     }
   }
+  // The roll-up is meaningful only with its exact reviewed action. Unlike
+  // ordinary optional props, a missing/invalid discriminator must reject the
+  // whole event so ingest can never record an ambiguous core action.
+  if (name === "meaningful_core_action" && out.action === undefined) return null;
   return { name, props: out };
 }

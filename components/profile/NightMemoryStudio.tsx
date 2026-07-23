@@ -6,7 +6,7 @@ import { Check, Eye, LockKeyhole, UserPlus } from "lucide-react";
 
 import "./NightMemoryStudio.css";
 
-import { trackEvent } from "@/lib/analytics";
+import { trackEvent, trackMeaningfulCoreAction } from "@/lib/analytics";
 import { authedFetch } from "@/lib/authedFetch";
 import type { NightMomentKind } from "@/lib/nightMemory";
 import {
@@ -439,8 +439,10 @@ export default function NightMemoryStudio({ userId }: { userId: string }) {
       const body = await response.json().catch(() => ({})) as { story?: Story; error?: string };
       if (!response.ok || !body.story) throw new Error(body.error ?? "That Story could not be published.");
       setConfirmation(null);
-      if (!await refreshWorkspace(workspace.story.id)) return;
       trackEvent("night_story_published", { contributors: workspace.contributors.length, moments: selectedMomentIds.length });
+      trackEvent("story_published", { visibility: publishVisibility, contributors: workspace.contributors.length, moments: selectedMomentIds.length });
+      trackMeaningfulCoreAction("story_published");
+      if (!await refreshWorkspace(workspace.story.id)) return;
       setMessage("Story published here in Stories. Your private Memory remains private.");
     } catch (caught) {
       setMessage(caught instanceof Error ? caught.message : "That Story could not be published.");

@@ -1,3 +1,4 @@
+import { randomBytes } from "node:crypto";
 import { defineConfig, devices } from "@playwright/test";
 
 // P3.11 browser smoke suite. One chromium project, one webServer that builds and
@@ -7,6 +8,11 @@ import { defineConfig, devices } from "@playwright/test";
 const PORT = Number(process.env.PW_PORT ?? 3100);
 const BASE_URL = `http://localhost:${PORT}`;
 const SCREENSHOT_RUN = !!process.env.PW_SCREENSHOTS;
+// Production-style browser tests retain the keyless in-memory stores, but
+// trusted Plan claims never use that storage escape hatch. Give each Playwright
+// invocation a fresh process-only signing key shared by its build/start shell.
+// webServer.env keeps both values out of the command string and process argv.
+const E2E_PLAN_SIGNING_SECRET = randomBytes(32).toString("base64url");
 // Public-only deterministic test key. The private half is neither needed nor
 // present: E2E stubs the browser subscription while exercising the real UI and
 // registration POST. NEXT_PUBLIC_* must be present at Next build time.
@@ -123,8 +129,14 @@ export default defineConfig({
   ],
   webServer: {
     command: SCREENSHOT_RUN
-      ? `NEXT_PUBLIC_VAPID_PUBLIC_KEY=${E2E_VAPID_PUBLIC_KEY} PUBMAX_E2E_KEYLESS=1 npm run start -- --port ${PORT}`
-      : `NEXT_PUBLIC_VAPID_PUBLIC_KEY=${E2E_VAPID_PUBLIC_KEY} NEXT_DIST_DIR=.next-e2e PUBMAX_E2E_KEYLESS=1 npm run build && NEXT_PUBLIC_VAPID_PUBLIC_KEY=${E2E_VAPID_PUBLIC_KEY} NEXT_DIST_DIR=.next-e2e PUBMAX_E2E_KEYLESS=1 npm run start -- --port ${PORT}`,
+      ? `NEXT_PUBLIC_VAPID_PUBLIC_KEY=${E2E_VAPID_PUBLIC_KEY} npm run start -- --port ${PORT}`
+      : `NEXT_PUBLIC_VAPID_PUBLIC_KEY=${E2E_VAPID_PUBLIC_KEY} NEXT_DIST_DIR=.next-e2e npm run build && NEXT_PUBLIC_VAPID_PUBLIC_KEY=${E2E_VAPID_PUBLIC_KEY} NEXT_DIST_DIR=.next-e2e npm run start -- --port ${PORT}`,
+    // Trusted Plan claims never touch the keyless escape hatch: give each run a
+    // fresh process-only signing key via env so it stays out of the command argv.
+    env: {
+      PLAN_IDEMPOTENCY_SECRET: E2E_PLAN_SIGNING_SECRET,
+      PUBMAX_E2E_KEYLESS: "1",
+    },
     url: BASE_URL,
     reuseExistingServer: !process.env.CI && !SCREENSHOT_RUN,
     // Production build can take a while cold; give it room in CI.

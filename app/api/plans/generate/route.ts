@@ -1,3 +1,5 @@
+import { randomUUID } from "node:crypto";
+
 import { jsonNoStore } from "@/lib/apiResponses";
 import { publicApiError } from "@/lib/apiError";
 import { DEFAULT_CITY_ID, parseCityId } from "@/lib/cities";
@@ -25,6 +27,8 @@ import { planEvidenceWarning, planGenerationEvidenceGaps, scoreVenueForPlan } fr
 import { selectPlanGenerationCandidates } from "@/lib/planGenerationSelection.server";
 import { planTemporalEvidence } from "@/lib/planGenerationTemporalEvidence";
 import type { PlanConstraintReport, SelectedGroundedPlanStop } from "@/lib/planRouteOptimizer";
+import { mintPlanGroundingProof } from "@/lib/planGrounding.server";
+import { planSigningPreflightResponse, planSigningUnavailableResponse } from "@/lib/planSigningHttp.server";
 import { assertServerEnv } from "@/lib/serverEnv";
 import { clientIp, hashIp, RATE_LIMIT_MAX, RATE_LIMIT_WINDOW_MS } from "@/lib/supabase";
 import weatherSnapshot from "@/public/data/weather/latest.json";
@@ -64,6 +68,11 @@ export async function POST(request: Request): Promise<Response> {
 		return publicApiError(parsedRequest.message, parsedRequest.code, parsedRequest.status);
 	}
 	const { query, context: contextPatch, intake } = parsedRequest.value;
+  // Do not spend a caller's limiter budget when this process cannot mint the
+  // trusted proof required for any successful generation response.
+  const signingUnavailable = planSigningPreflightResponse();
+  if (signingUnavailable) return signingUnavailable;
+  const operationKey = parsedRequest.value.operationKey ?? `create-${randomUUID()}`;
   const limiterKey = `plan-generate:${hashIp(clientIp(request))}`;
   if (await isLimited(limiterKey, limiterKey, RATE_LIMIT_MAX, RATE_LIMIT_WINDOW_MS)) return publicApiError("Too many requests.", "RATE_LIMITED", 429, { retryable: true });
 	if (intake?.unsupportedPatch) {
@@ -195,30 +204,15 @@ export async function POST(request: Request): Promise<Response> {
 		now: requestNow,
 	});
 	const nightArea = { id: area.slug, ...coverage };
-  return jsonNoStore({
-    inferredContext: context,
-		contextFieldSources: reconciled.fieldSources,
-    confidence: reconciled.confidence,
-		planningConfidence,
-		budgetSummary,
-		routeTotals,
-		routeTiming: planRouteTimingDisclosure(groundedTiming),
-		endingRecommendations,
-		weatherEvidence: planningWeather,
-		nightArea,
-		...(constraintReport ? { constraintReport } : {}),
-		// Back-compatible alias until every client has moved to Night Area.
-		district: nightArea,
-		explanations: reconciled.reasons,
-	    stops: chosen.map(({ venue, distance, reasons, tonightEvents, signalClaims }, index) => {
-			const grounded = groundedStops?.[index] ?? null;
-			const alternativeCandidates = groundedAlternatives?.[index]
-				?? candidates.filter(({ venue: alternative }) =>
-					!chosen.some(({ venue: selected }) => selected.id === alternative.id));
-			return {
-				venueId: venue.id,
-				venueName: venue.name,
-				position: index,
+	const stops = chosen.map(({ venue, distance, reasons, tonightEvents, signalClaims }, index) => {
+		const grounded = groundedStops?.[index] ?? null;
+		const alternativeCandidates = groundedAlternatives?.[index]
+			?? candidates.filter(({ venue: alternative }) =>
+				!chosen.some(({ venue: selected }) => selected.id === alternative.id));
+		return {
+			venueId: venue.id,
+			venueName: venue.name,
+			position: index,
 			distanceKm: Number(distance.toFixed(2)),
 			estimatedPintPricePence: grounded
 				? grounded.price.pence
@@ -251,8 +245,8 @@ export async function POST(request: Request): Promise<Response> {
 					asOf: planningWeather.observedAt,
 				}] : []),
 			],
-				reason: `${distance < 0.5 ? "Close to the heart of the area" : `${distance.toFixed(1)} km from the area centre`}${reasons.length ? `, ${reasons.slice(0, 2).join(", ")}` : ""}.`,
-				alternatives: alternativeCandidates
+			reason: `${distance < 0.5 ? "Close to the heart of the area" : `${distance.toFixed(1)} km from the area centre`}${reasons.length ? `, ${reasons.slice(0, 2).join(", ")}` : ""}.`,
+			alternatives: alternativeCandidates
 				.map((alternativeEntry) => {
 					const alternativeGrounded = "value" in alternativeEntry ? alternativeEntry : null;
 					const alternative = alternativeGrounded
@@ -281,8 +275,45 @@ export async function POST(request: Request): Promise<Response> {
 				})
 				.sort((left, right) => left.distanceKm - right.distanceKm)
 				.slice(0, 2),
-			};
-		}),
+		};
+	});
+	// Ground the proof over exactly the venues this response commits to: the
+	// three chosen stops plus every alternative id we actually emit above.
+	const groundingCandidateIds = [
+		...chosen.map(({ venue }) => venue.id),
+		...stops.flatMap((stop) => stop.alternatives.map((alternative) => alternative.venueId)),
+	];
+	let groundingProof: string;
+	try {
+		groundingProof = mintPlanGroundingProof(groundingCandidateIds, operationKey, requestNow);
+	} catch (error) {
+		const unavailable = planSigningUnavailableResponse(error);
+		if (unavailable) return unavailable;
+		throw error;
+	}
+  return jsonNoStore({
+    // This response is assembled exclusively from the reviewed venue dataset
+    // above and only exists when three canonical venue records were selected.
+    // The explicit flag lets clients distinguish server-grounded generation
+    // from a manual draft without guessing from unrelated revision metadata.
+    grounded: true,
+    groundingProof,
+    operationKey,
+    inferredContext: context,
+		contextFieldSources: reconciled.fieldSources,
+    confidence: reconciled.confidence,
+		planningConfidence,
+		budgetSummary,
+		routeTotals,
+		routeTiming: planRouteTimingDisclosure(groundedTiming),
+		endingRecommendations,
+		weatherEvidence: planningWeather,
+		nightArea,
+		...(constraintReport ? { constraintReport } : {}),
+		// Back-compatible alias until every client has moved to Night Area.
+		district: nightArea,
+		explanations: reconciled.reasons,
+		stops,
 	    contextEffects: [
 	      "budget",
 	      "daypart",

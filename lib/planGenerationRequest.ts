@@ -11,11 +11,12 @@ import {
   type ParsedPlanGenerationIntake,
   type PlanIntakeParseFailure,
 } from "@/lib/planGenerationIntake";
+import { isPlanIdempotencyKey } from "@/lib/planStore";
 
 export const MAX_PLAN_GENERATION_BODY_BYTES = 16_384;
 export const MAX_PLAN_GENERATION_QUERY_LENGTH = 500;
 
-const REQUEST_KEYS = ["query", "context", "cityId", "intake"] as const;
+const REQUEST_KEYS = ["query", "context", "cityId", "intake", "operationKey"] as const;
 const CONTEXT_KEYS = [
   "nightArea",
   "daypart",
@@ -36,6 +37,7 @@ export type PlanGenerationRequest = {
   cityId: string | null;
   intake: ParsedPlanGenerationIntake | null;
   hasIntake: boolean;
+  operationKey: string | null;
 };
 
 export type PlanGenerationRequestFailure = {
@@ -196,6 +198,9 @@ export async function parsePlanGenerationRequest(
       cityId: typeof raw.cityId === "string" ? raw.cityId : null,
       intake,
       hasIntake,
+      // A caller may pin idempotency by supplying its own create operation key.
+      // Anything that is not a well-formed key is ignored so the route mints one.
+      operationKey: isPlanIdempotencyKey(raw.operationKey) ? raw.operationKey.trim() : null,
     },
   };
 }
