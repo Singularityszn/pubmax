@@ -242,7 +242,6 @@ export default function DiscoverPageClient({
   const hungryMapHref = hungryHref(preferredCity);
   const lowNoMapHref = lowNoHref(preferredCity);
   const openMapHref = preferredCityMapHref();
-  const logPintHref = preferredCityMapHref(new URLSearchParams({ log: "1" }));
 
   // Defer the 5.9MB public dataset until the data-heavy sections are near the
   // viewport. The route shell and drink categories can paint without competing
@@ -573,74 +572,73 @@ export default function DiscoverPageClient({
         )}
       </section>
 
-      <section className="discoverSection" aria-labelledby="cheap-title">
-        <h2 id="cheap-title" className="discoverSectionTitle">
-          Cheap Pint Leaderboard
-        </h2>
-        <p className="discoverSectionDek">
-          The cheapest pints we&rsquo;ve got on record, not tonight&rsquo;s live
-          prices. Open a pub to see how fresh its number is.
-        </p>
-        {status === "idle" ? (
-          <p className="discoverEmpty" role="status">
-            The cheap pint table loads when you reach the rankings.
+      {/* Fail-soft (journey audit P1): after load, empty data → omit the whole
+          section (no permanent "Counting…" / empty shell). Loading still shows
+          a short status so the layout does not jump when data is on the way. */}
+      {status === "error" || status === "idle" || status === "loading" || entries.length > 0 ? (
+        <section className="discoverSection" aria-labelledby="cheap-title">
+          <h2 id="cheap-title" className="discoverSectionTitle">
+            Cheap Pint Leaderboard
+          </h2>
+          <p className="discoverSectionDek">
+            The cheapest pints we&rsquo;ve got on record, not tonight&rsquo;s live
+            prices. Open a pub to see how fresh its number is.
           </p>
-        ) : status === "loading" ? (
-          <p className="discoverEmpty" role="status">
-            Counting the cheapest pints…
-          </p>
-        ) : status === "error" ? (
-          <p className="discoverEmpty" role="status">
-            Couldn&rsquo;t load the leaderboard just now.{" "}
-            <Link href={openMapHref}>Open the map</Link>{" "}
-            instead.
-          </p>
-        ) : (
-          <LeaderboardTable entries={entries} />
-        )}
-      </section>
+          {status === "idle" ? (
+            <p className="discoverEmpty" role="status">
+              The cheap pint table loads when you reach the rankings.
+            </p>
+          ) : status === "loading" ? (
+            <p className="discoverEmpty" role="status">
+              Counting the cheapest pints…
+            </p>
+          ) : status === "error" ? (
+            <p className="discoverEmpty" role="status">
+              Couldn&rsquo;t load the leaderboard just now.{" "}
+              <Link href={openMapHref}>Open the map</Link>{" "}
+              instead.
+            </p>
+          ) : (
+            <LeaderboardTable entries={entries} />
+          )}
+        </section>
+      ) : null}
 
-      <section className="discoverSection" aria-labelledby="thenVsNow-title">
-        <h2 id="thenVsNow-title" className="discoverSectionTitle">
-          Then vs Now
-        </h2>
-        <p className="discoverSectionDek">
-          Today&rsquo;s community-reported pint against the baseline price on
-          record. The biggest movers first. Community numbers, not gospel.
-        </p>
-        <p className="discoverSectionNote">
-          Then is the price on record. Now is the latest one someone logged.
-        </p>
-        {status === "idle" ? (
-          <p className="discoverEmpty" role="status">
-            Price comparisons load when you reach the rankings.
+      {status === "error" || status === "idle" || status === "loading" || thenVsNow.length > 0 ? (
+        <section className="discoverSection" aria-labelledby="thenVsNow-title">
+          <h2 id="thenVsNow-title" className="discoverSectionTitle">
+            Then vs Now
+          </h2>
+          <p className="discoverSectionDek">
+            Today&rsquo;s community-reported pint against the baseline price on
+            record. The biggest movers first. Community numbers, not gospel.
           </p>
-        ) : status === "loading" ? (
-          <p className="discoverEmpty" role="status">
-            Comparing baseline prices…
+          <p className="discoverSectionNote">
+            Then is the price on record. Now is the latest one someone logged.
           </p>
-        ) : status === "error" ? (
-          <p className="discoverEmpty" role="status">
-            Couldn&rsquo;t load price comparisons just now.{" "}
-            <Link href={openMapHref}>Open the map</Link>{" "}
-            instead.
-          </p>
-        ) : thenVsNow.length === 0 ? (
-          <p className="discoverEmpty" role="status">
-            Not enough community prices yet to compare.{" "}
-            <Link href={logPintHref}>
-              Log a pint on the map
-            </Link>{" "}
-            to help fill this in.
-          </p>
-        ) : (
-          <div className="tvnGrid">
-            {thenVsNow.map((item) => (
-              <ThenVsNowCard key={item.venueId} item={item} />
-            ))}
-          </div>
-        )}
-      </section>
+          {status === "idle" ? (
+            <p className="discoverEmpty" role="status">
+              Price comparisons load when you reach the rankings.
+            </p>
+          ) : status === "loading" ? (
+            <p className="discoverEmpty" role="status">
+              Comparing baseline prices…
+            </p>
+          ) : status === "error" ? (
+            <p className="discoverEmpty" role="status">
+              Couldn&rsquo;t load price comparisons just now.{" "}
+              <Link href={openMapHref}>Open the map</Link>{" "}
+              instead.
+            </p>
+          ) : (
+            <div className="tvnGrid">
+              {thenVsNow.map((item) => (
+                <ThenVsNowCard key={item.venueId} item={item} />
+              ))}
+            </div>
+          )}
+        </section>
+      ) : null}
 
       <section className="discoverSection" aria-labelledby="editorial-title">
         <h2 id="editorial-title" className="discoverSectionTitle">
