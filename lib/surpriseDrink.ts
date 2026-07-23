@@ -14,11 +14,14 @@ import {
   loadPersonaDrinks,
   type PersonaDrink,
 } from "@/lib/personaDrinks";
+import { londonDayKey } from "@/lib/pintContributions";
 
 export type SurpriseDrinkVenueEvidence = {
   venueId: string;
   venueName: string;
-  /** Current menu price for the exact drink, in pounds. */
+  /** Menu item observed at this venue. It must match the persona's exact order. */
+  drinkName: string;
+  /** Observed listed price for the exact drink, in pounds. */
   priceGbp: number;
   /** Human-readable upstream/menu source, not a generated availability claim. */
   source: string;
@@ -98,6 +101,10 @@ function cleanToken(value: string): string {
   return value.trim().toLocaleLowerCase("en-GB");
 }
 
+function stableTextCompare(left: string, right: string): number {
+  return left < right ? -1 : left > right ? 1 : 0;
+}
+
 function validObservedAt(value: string, asOfMs: number): boolean {
   const observedAt = Date.parse(value);
   return (
@@ -122,6 +129,7 @@ function validDayKey(value: string): boolean {
 function cleanVenueEvidence(
   evidence: readonly SurpriseDrinkVenueEvidence[],
   asOfMs: number,
+  expectedDrinkName: string,
 ): SurpriseDrinkVenueEvidence[] {
   const candidates: SurpriseDrinkVenueEvidence[] = [];
   for (const row of evidence) {
@@ -129,6 +137,7 @@ function cleanVenueEvidence(
     if (
       typeof row.venueId !== "string" ||
       typeof row.venueName !== "string" ||
+      typeof row.drinkName !== "string" ||
       typeof row.priceGbp !== "number" ||
       typeof row.source !== "string" ||
       typeof row.observedAt !== "string"
@@ -137,25 +146,34 @@ function cleanVenueEvidence(
     }
     const venueId = row.venueId.trim();
     const venueName = row.venueName.trim();
+    const drinkName = row.drinkName.trim();
     const source = row.source.trim();
     const observedAt = row.observedAt.trim();
     if (
       !venueId ||
       !venueName ||
+      cleanToken(drinkName.normalize("NFKC")) !== cleanToken(expectedDrinkName.normalize("NFKC")) ||
       !source ||
       !Number.isFinite(row.priceGbp) ||
       row.priceGbp <= 0 ||
       row.priceGbp > 500 ||
       !validObservedAt(observedAt, asOfMs)
     ) continue;
-    candidates.push({ venueId, venueName, priceGbp: row.priceGbp, source, observedAt });
+    candidates.push({
+      venueId,
+      venueName,
+      drinkName: expectedDrinkName,
+      priceGbp: row.priceGbp,
+      source,
+      observedAt: new Date(Date.parse(observedAt)).toISOString(),
+    });
   }
 
   candidates.sort((a, b) =>
-    a.venueId.localeCompare(b.venueId)
+    stableTextCompare(a.venueId, b.venueId)
     || Date.parse(b.observedAt) - Date.parse(a.observedAt)
-    || a.source.localeCompare(b.source)
-    || a.venueName.localeCompare(b.venueName));
+    || stableTextCompare(a.source, b.source)
+    || stableTextCompare(a.venueName, b.venueName));
   const byVenue = new Map<string, SurpriseDrinkVenueEvidence>();
   const conflictedVenueIds = new Set<string>();
   for (const row of candidates) {
@@ -165,7 +183,7 @@ function cleanVenueEvidence(
       byVenue.set(row.venueId, row);
       continue;
     }
-    if (current.observedAt === row.observedAt && current.priceGbp !== row.priceGbp) {
+    if (Date.parse(current.observedAt) === Date.parse(row.observedAt) && current.priceGbp !== row.priceGbp) {
       byVenue.delete(row.venueId);
       conflictedVenueIds.add(row.venueId);
     }
@@ -211,7 +229,15 @@ const EVIDENCE_MONTHS = [
 
 function evidenceDateLabel(value: string): string {
   const date = new Date(value);
-  return `${date.getUTCDate()} ${EVIDENCE_MONTHS[date.getUTCMonth()]} ${date.getUTCFullYear()}`;
+  const parts = new Intl.DateTimeFormat("en-GB", {
+    timeZone: "Europe/London",
+    year: "numeric",
+    month: "numeric",
+    day: "numeric",
+  }).formatToParts(date);
+  const part = (type: Intl.DateTimeFormatPartTypes) =>
+    Number(parts.find((candidate) => candidate.type === type)?.value ?? "0");
+  return `${part("day")} ${EVIDENCE_MONTHS[part("month") - 1]} ${part("year")}`;
 }
 
 function availabilityRationale(
@@ -251,6 +277,7 @@ export function selectSurpriseDrink(input: SurpriseDrinkInput): SurpriseDrinkRes
     !personKey ||
     !validDayKey(dayKey) ||
     !Number.isFinite(asOfMs) ||
+    londonDayKey(new Date(asOfMs)) !== dayKey ||
     !Number.isSafeInteger(input.anotherIndex) ||
     input.anotherIndex < 0
   ) {
@@ -274,7 +301,8 @@ export function selectSurpriseDrink(input: SurpriseDrinkInput): SurpriseDrinkRes
     ) {
       continue;
     }
-    const venues = cleanVenueEvidence(available.venues, asOfMs);
+    const persona = personaById.get(available.personaId)!;
+    const venues = cleanVenueEvidence(available.venues, asOfMs, persona.drink);
     if (venues.length === 0) continue;
     const current = availabilityRowsByPersona.get(available.personaId) ?? {
       venues: [],
@@ -290,7 +318,8 @@ export function selectSurpriseDrink(input: SurpriseDrinkInput): SurpriseDrinkRes
     { venues: SurpriseDrinkVenueEvidence[]; alcoholType: AlcoholType }
   >();
   for (const [personaId, available] of availabilityRowsByPersona) {
-    const venues = cleanVenueEvidence(available.venues, asOfMs);
+    const persona = personaById.get(personaId)!;
+    const venues = cleanVenueEvidence(available.venues, asOfMs, persona.drink);
     if (venues.length === 0) continue;
     const alcoholTypes = new Set(available.alcoholTypes);
     availabilityByPersona.set(personaId, {

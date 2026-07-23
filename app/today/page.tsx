@@ -66,12 +66,13 @@ export default async function TodayPage() {
     { now: now.getTime(), fetchLive: async () => [] },
   );
   // Group syndicated chain deals (identical title + source across venues) into
-  // one pick carrying the real venue count, cap to one card per source, and take
-  // the top 3. Fixes the live-taste P0 where one Wetherspoon promotion filled the
+  // one pick carrying the real venue count and cap to one card per source. Keep
+  // the ranked candidate set uncapped until the client applies evidenced mutes,
+  // then Today takes its top 3. Fixes the live-taste P0 where one Wetherspoon promotion filled the
   // section with five identical cards. No location on the server, so the digest
   // resolves each group's display to its soonest venue; the client re-orders the
   // resulting picks around the viewer's remembered patch below.
-  const picks = digestSectionPicks(whatsOn.rows, { limit: 3 }).map((pick) => {
+  const picks = digestSectionPicks(whatsOn.rows, { limit: Number.POSITIVE_INFINITY }).map((pick) => {
     const dto = toTonightPickDto(pick.row);
     return pick.digest ? { ...dto, venueNote: dealDigestNote(pick.digest.venueCount) } : dto;
   });

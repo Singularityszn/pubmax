@@ -279,6 +279,39 @@ describe("applyTodayPersonalization", () => {
     expect(applyTodayPersonalization(base, {}, resolved).picks).toEqual([party]);
   });
 
+  it("filters the full candidate set before taking the top three", () => {
+    const mutedOne = pick("muted-one", { title: "Pub quiz one" });
+    const mutedTwo = pick("muted-two", { title: "Pub quiz two" });
+    const mutedThree = pick("muted-three", { title: "Pub quiz three" });
+    const matchingFourth = pick("matching-fourth", {
+      title: "Live music",
+      kind: "music",
+      kindLabel: "Live music",
+    });
+    const resolved = resolveTodayPersonalization({
+      explicitCurrentIntent: { hardExclusions: { topics: ["quiz"] } },
+    });
+
+    const result = applyTodayPersonalization(
+      { weather: centralWeather, picks: [mutedOne, mutedTwo, mutedThree, matchingFourth] },
+      {},
+      resolved,
+    );
+
+    expect(result.picks.map((item) => item.id)).toEqual(["matching-fourth"]);
+    expect(result.filteredPickCount).toBe(3);
+  });
+
+  it("keeps the anonymous brief capped at three", () => {
+    const base = {
+      weather: centralWeather,
+      picks: [pick("one"), pick("two"), pick("three"), pick("four")],
+    };
+
+    expect(applyTodayPersonalization(base, {}, resolveTodayPersonalization()).picks)
+      .toEqual(base.picks.slice(0, 3));
+  });
+
   it("returns the baseline by reference when today is ignored", () => {
     const base = { weather: centralWeather, picks: [camdenQuiz] };
     const resolved = resolveTodayPersonalization({
