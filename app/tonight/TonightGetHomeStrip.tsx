@@ -16,6 +16,7 @@
 import { useEffect, useState } from "react";
 import { TrainFront } from "lucide-react";
 
+import DisruptionLine from "@/components/transport/DisruptionLine";
 import { roundCoord } from "@/lib/geo";
 import { summariseGetHome, type GetHomeSummary } from "@/lib/tonightGetHome";
 import type { LastTrainResult } from "@/lib/tfl";
@@ -43,15 +44,22 @@ export default function TonightGetHomeStrip({ origin }: Props) {
     return () => controller.abort();
   }, [origin.lat, origin.lng]);
 
-  if (!summary) return null;
-
+  // The get-home summary and the disruption line are independent: a material
+  // disruption can matter even when we have no last-train time to show, and vice
+  // versa. Each renders nothing when it has nothing to say, so an all-clear night
+  // with no summary produces no output at all.
   return (
-    <div className="tonightGetHome" data-testid="tonight-get-home">
-      <TrainFront size={15} aria-hidden="true" className="tonightGetHomeIcon" />
-      <p className="tonightGetHomeCopy">
-        <span className="tonightGetHomeStatus">{summary.statusLine}</span>{" "}
-        <span>{summary.trainLine}</span>
-      </p>
-    </div>
+    <>
+      {summary ? (
+        <div className="tonightGetHome" data-testid="tonight-get-home">
+          <TrainFront size={15} aria-hidden="true" className="tonightGetHomeIcon" />
+          <p className="tonightGetHomeCopy">
+            <span className="tonightGetHomeStatus">{summary.statusLine}</span>{" "}
+            <span>{summary.trainLine}</span>
+          </p>
+        </div>
+      ) : null}
+      <DisruptionLine lat={origin.lat} lng={origin.lng} />
+    </>
   );
 }

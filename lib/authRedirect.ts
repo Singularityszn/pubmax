@@ -20,7 +20,9 @@ export function safeAuthNext(raw: string | null | undefined, origin: string): st
 }
 
 const AUTH_ACTIVE_ATTEMPT_KEY = "pubmax_auth_active_attempt";
+const AUTH_TAB_ATTEMPT_KEY = "pubmax_auth_tab_attempt";
 const AUTH_RETURN_FRAGMENT_PREFIX = "pubmax_auth_return_fragment:";
+const AUTH_ATTEMPT_LOCK_NAME = "pubmax-auth-attempt";
 const AUTH_ATTEMPT_TTL_MS = 60 * 60 * 1000;
 const AUTH_ATTEMPT_ID_PATTERN = /^[0-9a-f]{32}$/;
 
@@ -32,15 +34,23 @@ export const AUTH_STORAGE_UNAVAILABLE_MESSAGE =
   "Sign-in needs browser storage. Enable site storage, then try again.";
 export const AUTH_COORDINATION_UNAVAILABLE_MESSAGE =
   "This browser cannot safely coordinate sign-in tabs. Close other PUBMAXX tabs, update your browser, and try again.";
+export const AUTH_RETURN_FRAGMENT_RESTORED_EVENT =
+  "pubmax-auth-return-fragment-restored";
 
 export type AuthFragmentStorage = Pick<Storage, "getItem" | "setItem" | "removeItem">;
 
-type StoredActiveAttempt = {
+type StoredAttemptRef = {
   id: string;
   expiresAt: number;
 };
 
-type StoredAuthFragment = StoredActiveAttempt & {
+type StoredActiveAttempt = StoredAttemptRef & {
+  callbackClaimed: boolean;
+};
+
+type StoredTabAttempt = StoredAttemptRef;
+
+type StoredAuthFragment = StoredAttemptRef & {
   origin: string;
   path: string;
   hash: string;
@@ -48,6 +58,23 @@ type StoredAuthFragment = StoredActiveAttempt & {
 
 type AuthCrypto = Pick<Crypto, "getRandomValues">;
 type AuthLockManager = Pick<LockManager, "request">;
+
+export type AuthAttemptOptions = {
+  /** Browser-wide attempt claim. This must be localStorage in production. */
+  persistentStorage?: AuthFragmentStorage | null;
+  /** Initiating-tab ownership marker. This must be sessionStorage. */
+  tabStorage?: AuthFragmentStorage | null;
+  cryptoProvider?: AuthCrypto | null;
+  lockManager?: AuthLockManager | null;
+  now?: number;
+};
+
+export type AuthCallbackCaptureOptions = Pick<
+  AuthAttemptOptions,
+  "persistentStorage" | "tabStorage" | "lockManager" | "now"
+> & {
+  onFragmentRestored?: (cleanUrl: string) => void;
+};
 
 export type AuthAttemptStart =
   | { ok: true; id: string; callbackUrl: string }
@@ -62,7 +89,20 @@ export type AuthCallbackAttempt = {
 export type CapturedAuthCallback = {
   attempt: AuthCallbackAttempt;
   cleanUrl: string;
+  /** Release only after exchange and matching persistent cleanup complete. */
+  releaseCoordination: () => void;
 };
+
+type AuthFragmentEventTarget = Pick<EventTarget, "addEventListener" | "removeEventListener">;
+
+export function subscribeToAuthFragmentRestored(
+  listener: EventListener,
+  target?: AuthFragmentEventTarget,
+): () => void {
+  const eventTarget = target ?? window;
+  eventTarget.addEventListener(AUTH_RETURN_FRAGMENT_RESTORED_EVENT, listener);
+  return () => eventTarget.removeEventListener(AUTH_RETURN_FRAGMENT_RESTORED_EVENT, listener);
+}
 
 function authFragmentKey(attemptId: string): string {
   return `${AUTH_RETURN_FRAGMENT_PREFIX}${attemptId}`;
@@ -76,6 +116,15 @@ function authDestination(currentUrl: string, requestedNext?: string): URL | null
   try {
     const current = new URL(currentUrl);
     if (current.protocol !== "https:" && current.protocol !== "http:") return null;
+    if (
+      current.searchParams.get(AUTH_CALLBACK_MARKER) === "1" ||
+      current.searchParams.get("authError") === "1"
+    ) {
+      current.searchParams.delete("code");
+      current.searchParams.delete(AUTH_CALLBACK_MARKER);
+      current.searchParams.delete(AUTH_ATTEMPT_PARAM);
+      current.searchParams.delete("authError");
+    }
     const currentPath = `${current.pathname}${current.search}${current.hash}`;
     return new URL(
       safeAuthNext(
@@ -101,14 +150,64 @@ function randomAuthAttemptId(cryptoProvider?: AuthCrypto | null): string | null 
 }
 
 function readActiveAttempt(storage: AuthFragmentStorage): StoredActiveAttempt | null {
+  const raw = storage.getItem(AUTH_ACTIVE_ATTEMPT_KEY);
+  const attempt = parseStoredAttempt(raw);
+  if (!attempt) return null;
   try {
-    const raw = storage.getItem(AUTH_ACTIVE_ATTEMPT_KEY);
-    if (!raw) return null;
-    const record = JSON.parse(raw) as Partial<StoredActiveAttempt>;
+    const record = JSON.parse(raw ?? "null") as Partial<StoredActiveAttempt> | null;
+    return { ...attempt, callbackClaimed: record?.callbackClaimed === true };
+  } catch {
+    return null;
+  }
+}
+
+function readTabAttempt(storage: AuthFragmentStorage): StoredTabAttempt | null {
+  return parseStoredAttempt(storage.getItem(AUTH_TAB_ATTEMPT_KEY));
+}
+
+function parseStoredAttempt(raw: string | null): StoredAttemptRef | null {
+  if (!raw) return null;
+  try {
+    const record = JSON.parse(raw) as Partial<StoredAttemptRef>;
     if (!isAuthAttemptId(record.id) || typeof record.expiresAt !== "number") return null;
     return { id: record.id, expiresAt: record.expiresAt };
   } catch {
     return null;
+  }
+}
+
+type StorageMutation = {
+  storage: AuthFragmentStorage;
+  key: string;
+  value: string | null;
+};
+
+/** Best-effort transaction across the two browser stores while the Web Lock is held. */
+function applyStorageMutations(mutations: StorageMutation[]): boolean {
+  const snapshots: Array<StorageMutation> = [];
+  try {
+    for (const mutation of mutations) {
+      snapshots.push({
+        storage: mutation.storage,
+        key: mutation.key,
+        value: mutation.storage.getItem(mutation.key),
+      });
+    }
+    for (const mutation of mutations) {
+      if (mutation.value === null) mutation.storage.removeItem(mutation.key);
+      else mutation.storage.setItem(mutation.key, mutation.value);
+    }
+    return true;
+  } catch {
+    for (const snapshot of snapshots.reverse()) {
+      try {
+        if (snapshot.value === null) snapshot.storage.removeItem(snapshot.key);
+        else snapshot.storage.setItem(snapshot.key, snapshot.value);
+      } catch {
+        // A blocked store may also reject rollback. Never proceed to the provider.
+      }
+    }
+    return false;
   }
 }
 
@@ -145,21 +244,32 @@ export function buildAuthCallbackUrl(
 export function beginAuthAttempt(
   currentUrl: string,
   requestedNext: string | undefined,
-  storage?: AuthFragmentStorage | null,
-  cryptoProvider?: AuthCrypto | null,
-  now = Date.now(),
+  options: Omit<AuthAttemptOptions, "lockManager">,
 ): AuthAttemptStart {
-  if (!storage) return { ok: false, message: AUTH_STORAGE_UNAVAILABLE_MESSAGE };
+  const {
+    persistentStorage,
+    tabStorage,
+    cryptoProvider,
+    now = Date.now(),
+  } = options;
+  if (!persistentStorage || !tabStorage || persistentStorage === tabStorage) {
+    return { ok: false, message: AUTH_STORAGE_UNAVAILABLE_MESSAGE };
+  }
 
-  let startedId: string | null = null;
   try {
-    const active = readActiveAttempt(storage);
+    const active = readActiveAttempt(persistentStorage);
+    const tabAttempt = readTabAttempt(tabStorage);
     if (active && active.expiresAt > now) {
-      return { ok: false, message: AUTH_ATTEMPT_IN_PROGRESS_MESSAGE };
-    }
-    if (active) {
-      storage.removeItem(authFragmentKey(active.id));
-      storage.removeItem(AUTH_ACTIVE_ATTEMPT_KEY);
+      const sameInitiatingTab = Boolean(
+        tabAttempt &&
+          tabAttempt.id === active.id &&
+          tabAttempt.expiresAt === active.expiresAt &&
+          tabAttempt.expiresAt > now &&
+          !active.callbackClaimed,
+      );
+      if (!sameInitiatingTab) {
+        return { ok: false, message: AUTH_ATTEMPT_IN_PROGRESS_MESSAGE };
+      }
     }
 
     const id = randomAuthAttemptId(cryptoProvider);
@@ -170,10 +280,26 @@ export function beginAuthAttempt(
     if (!id || !destination || !callbackUrl) {
       return { ok: false, message: AUTH_STORAGE_UNAVAILABLE_MESSAGE };
     }
-    startedId = id;
 
     const expiresAt = now + AUTH_ATTEMPT_TTL_MS;
-    storage.setItem(AUTH_ACTIVE_ATTEMPT_KEY, JSON.stringify({ id, expiresAt }));
+    const storedAttempt = JSON.stringify({
+      id,
+      expiresAt,
+      callbackClaimed: false,
+    } satisfies StoredActiveAttempt);
+    const storedTabAttempt = JSON.stringify({ id, expiresAt } satisfies StoredTabAttempt);
+    const mutations: StorageMutation[] = [
+      {
+        storage: persistentStorage,
+        key: AUTH_ACTIVE_ATTEMPT_KEY,
+        value: storedAttempt,
+      },
+      {
+        storage: tabStorage,
+        key: AUTH_TAB_ATTEMPT_KEY,
+        value: storedTabAttempt,
+      },
+    ];
     if (destination.hash) {
       const fragment: StoredAuthFragment = {
         id,
@@ -182,11 +308,29 @@ export function beginAuthAttempt(
         hash: destination.hash,
         expiresAt,
       };
-      storage.setItem(authFragmentKey(id), JSON.stringify(fragment));
+      mutations.push({
+        storage: persistentStorage,
+        key: authFragmentKey(id),
+        value: JSON.stringify(fragment),
+      });
+    }
+    const staleAttemptIds = new Set(
+      [active?.id, tabAttempt?.id].filter(
+        (attemptId): attemptId is string => Boolean(attemptId && attemptId !== id),
+      ),
+    );
+    for (const staleAttemptId of staleAttemptIds) {
+      mutations.push({
+        storage: persistentStorage,
+        key: authFragmentKey(staleAttemptId),
+        value: null,
+      });
+    }
+    if (!applyStorageMutations(mutations)) {
+      return { ok: false, message: AUTH_STORAGE_UNAVAILABLE_MESSAGE };
     }
     return { ok: true, id, callbackUrl };
   } catch {
-    if (startedId) releaseAuthAttempt(startedId, storage);
     return { ok: false, message: AUTH_STORAGE_UNAVAILABLE_MESSAGE };
   }
 }
@@ -195,17 +339,18 @@ export function beginAuthAttempt(
 export async function beginCoordinatedAuthAttempt(
   currentUrl: string,
   requestedNext: string | undefined,
-  storage?: AuthFragmentStorage | null,
-  cryptoProvider?: AuthCrypto | null,
-  lockManager?: AuthLockManager | null,
-  now = Date.now(),
+  options: AuthAttemptOptions,
 ): Promise<AuthAttemptStart> {
+  const { persistentStorage, tabStorage, lockManager } = options;
+  if (!persistentStorage || !tabStorage || persistentStorage === tabStorage) {
+    return { ok: false, message: AUTH_STORAGE_UNAVAILABLE_MESSAGE };
+  }
   if (!lockManager) {
     return { ok: false, message: AUTH_COORDINATION_UNAVAILABLE_MESSAGE };
   }
   try {
-    return await lockManager.request("pubmax-auth-attempt", async () =>
-      beginAuthAttempt(currentUrl, requestedNext, storage, cryptoProvider, now),
+    return await lockManager.request(AUTH_ATTEMPT_LOCK_NAME, async () =>
+      beginAuthAttempt(currentUrl, requestedNext, options),
     );
   } catch {
     return { ok: false, message: AUTH_COORDINATION_UNAVAILABLE_MESSAGE };
@@ -215,51 +360,125 @@ export async function beginCoordinatedAuthAttempt(
 /** Release only the matching lock; another tab's attempt is never disturbed. */
 export function releaseAuthAttempt(
   attemptId: string,
-  storage?: AuthFragmentStorage | null,
+  persistentStorage?: AuthFragmentStorage | null,
+  tabStorage?: AuthFragmentStorage | null,
 ): void {
-  if (!storage || !isAuthAttemptId(attemptId)) return;
+  if (!isAuthAttemptId(attemptId)) return;
   try {
-    const active = readActiveAttempt(storage);
-    if (active?.id === attemptId) storage.removeItem(AUTH_ACTIVE_ATTEMPT_KEY);
-    storage.removeItem(authFragmentKey(attemptId));
+    if (persistentStorage) {
+      const active = readActiveAttempt(persistentStorage);
+      if (active?.id === attemptId) persistentStorage.removeItem(AUTH_ACTIVE_ATTEMPT_KEY);
+      persistentStorage.removeItem(authFragmentKey(attemptId));
+    }
   } catch {
     // Best-effort cleanup; TTL keeps an abandoned lock bounded.
   }
+  try {
+    if (tabStorage) {
+      const tabAttempt = readTabAttempt(tabStorage);
+      if (tabAttempt?.id === attemptId) tabStorage.removeItem(AUTH_TAB_ATTEMPT_KEY);
+      // Clean up fragments from the short-lived sessionStorage implementation.
+      tabStorage.removeItem(authFragmentKey(attemptId));
+    }
+  } catch {
+    // Best-effort cleanup; a later same-tab restart or the TTL can recover.
+  }
 }
 
-function takeAuthReturnFragment(
-  currentUrl: string,
-  attemptId: string,
-  storage?: AuthFragmentStorage | null,
-  now = Date.now(),
-): string {
-  if (!storage || !isAuthAttemptId(attemptId)) return "";
+function cleanAuthCallbackUrl(currentUrl: string): string | null {
   try {
-    const key = authFragmentKey(attemptId);
-    const raw = storage.getItem(key);
-    storage.removeItem(key);
-    if (!raw) return "";
-    const record = JSON.parse(raw) as Partial<StoredAuthFragment>;
     const current = new URL(currentUrl);
     current.searchParams.delete("code");
     current.searchParams.delete(AUTH_CALLBACK_MARKER);
     current.searchParams.delete(AUTH_ATTEMPT_PARAM);
     current.searchParams.delete("authError");
-    const path = `${current.pathname}${current.search}`;
-    if (
-      record.id !== attemptId ||
-      record.origin !== current.origin ||
-      record.path !== path ||
-      typeof record.hash !== "string" ||
-      !record.hash.startsWith("#") ||
-      typeof record.expiresAt !== "number" ||
-      record.expiresAt < now
-    ) {
-      return "";
-    }
-    return record.hash;
+    return `${current.pathname}${current.search}${current.hash}` || "/";
   } catch {
-    return "";
+    return null;
+  }
+}
+
+function rejectedAuthCallback(cleanUrl: string): CapturedAuthCallback {
+  return {
+    attempt: { attemptId: null, code: null, providerError: true },
+    cleanUrl,
+    releaseCoordination: () => {},
+  };
+}
+
+function restoreAuthFragment(cleanUrl: string, fragment: string): string {
+  try {
+    const restored = new URL(cleanUrl, "https://pubmax.invalid");
+    restored.hash = fragment;
+    return `${restored.pathname}${restored.search}${restored.hash}` || "/";
+  } catch {
+    return cleanUrl;
+  }
+}
+
+/** Validate and claim while the caller holds AUTH_ATTEMPT_LOCK_NAME. */
+function claimAuthCallback(
+  currentUrl: string,
+  parsedAttempt: AuthCallbackAttempt,
+  cleanUrl: string,
+  persistentStorage: AuthFragmentStorage,
+  now: number,
+): CapturedAuthCallback {
+  const attemptId = parsedAttempt.attemptId;
+  if (!attemptId) return rejectedAuthCallback(cleanUrl);
+  try {
+    const active = readActiveAttempt(persistentStorage);
+    if (active?.id !== attemptId) {
+      return rejectedAuthCallback(cleanUrl);
+    }
+    const key = authFragmentKey(attemptId);
+    if (active.expiresAt <= now) {
+      applyStorageMutations([
+        { storage: persistentStorage, key: AUTH_ACTIVE_ATTEMPT_KEY, value: null },
+        { storage: persistentStorage, key, value: null },
+      ]);
+      return rejectedAuthCallback(cleanUrl);
+    }
+    if (active.callbackClaimed) return rejectedAuthCallback(cleanUrl);
+    const raw = persistentStorage.getItem(key);
+    let fragment = "";
+    if (raw) {
+      const record = JSON.parse(raw) as Partial<StoredAuthFragment>;
+      const current = new URL(currentUrl);
+      current.searchParams.delete("code");
+      current.searchParams.delete(AUTH_CALLBACK_MARKER);
+      current.searchParams.delete(AUTH_ATTEMPT_PARAM);
+      current.searchParams.delete("authError");
+      const path = `${current.pathname}${current.search}`;
+      if (
+        record.id === attemptId &&
+        record.origin === current.origin &&
+        record.path === path &&
+        typeof record.hash === "string" &&
+        record.hash.startsWith("#") &&
+        typeof record.expiresAt === "number" &&
+        record.expiresAt >= now
+      ) {
+        fragment = record.hash;
+      }
+    }
+    const claimedAttempt = JSON.stringify({
+      id: active.id,
+      expiresAt: active.expiresAt,
+      callbackClaimed: true,
+    } satisfies StoredActiveAttempt);
+    const ok = applyStorageMutations([
+      { storage: persistentStorage, key: AUTH_ACTIVE_ATTEMPT_KEY, value: claimedAttempt },
+      { storage: persistentStorage, key, value: null },
+    ]);
+    if (!ok) return rejectedAuthCallback(cleanUrl);
+    return {
+      attempt: parsedAttempt,
+      cleanUrl: fragment ? restoreAuthFragment(cleanUrl, fragment) : cleanUrl,
+      releaseCoordination: () => {},
+    };
+  } catch {
+    return rejectedAuthCallback(cleanUrl);
   }
 }
 
@@ -281,50 +500,95 @@ export function readAuthCallbackAttempt(currentUrl: string): AuthCallbackAttempt
   }
 }
 
-/** Capture all callback state locally and return a URL safe to show immediately. */
-export function captureAuthCallback(
+async function capturePreparedAuthCallback(
   currentUrl: string,
-  storage?: AuthFragmentStorage | null,
-  now = Date.now(),
-): CapturedAuthCallback | null {
-  const parsedAttempt = readAuthCallbackAttempt(currentUrl);
-  if (!parsedAttempt) return null;
-  const current = new URL(currentUrl);
-  const active = storage ? readActiveAttempt(storage) : null;
-  const matchesActiveAttempt = Boolean(
-    parsedAttempt.attemptId &&
-      active?.id === parsedAttempt.attemptId &&
-      active.expiresAt > now,
-  );
-  // Never expose a code to AuthProvider unless it belongs to the exact live
-  // browser attempt. A mismatched/injected/replayed callback must not consume
-  // the real attempt's verifier, fragment, or lock.
-  const attempt: AuthCallbackAttempt = matchesActiveAttempt
-    ? parsedAttempt
-    : { attemptId: null, code: null, providerError: true };
-  const fragment =
-    matchesActiveAttempt && parsedAttempt.attemptId
-      ? takeAuthReturnFragment(currentUrl, parsedAttempt.attemptId, storage, now)
-      : "";
-  current.searchParams.delete("code");
-  current.searchParams.delete(AUTH_CALLBACK_MARKER);
-  current.searchParams.delete(AUTH_ATTEMPT_PARAM);
-  current.searchParams.delete("authError");
-  if (fragment) current.hash = fragment;
-  return {
-    attempt,
-    cleanUrl: `${current.pathname}${current.search}${current.hash}` || "/",
-  };
+  parsedAttempt: AuthCallbackAttempt,
+  cleanUrl: string,
+  options: AuthCallbackCaptureOptions,
+): Promise<CapturedAuthCallback> {
+  const { persistentStorage, lockManager } = options;
+  if (!persistentStorage || !lockManager) return rejectedAuthCallback(cleanUrl);
+  return new Promise<CapturedAuthCallback>((resolve) => {
+    let resolved = false;
+    const resolveOnce = (captured: CapturedAuthCallback) => {
+      if (resolved) return;
+      resolved = true;
+      resolve(captured);
+    };
+    try {
+      void Promise.resolve(
+        lockManager.request(AUTH_ATTEMPT_LOCK_NAME, async () => {
+          const captured = claimAuthCallback(
+            currentUrl,
+            parsedAttempt,
+            cleanUrl,
+            persistentStorage,
+            options.now ?? Date.now(),
+          );
+          if (!captured.attempt.attemptId) {
+            resolveOnce(captured);
+            return;
+          }
+
+          let releaseLease = () => {};
+          let released = false;
+          const lease = new Promise<void>((release) => {
+            releaseLease = () => {
+              if (released) return;
+              released = true;
+              release();
+            };
+          });
+          resolveOnce({ ...captured, releaseCoordination: releaseLease });
+          // Fail closed while exchange is live. Navigation/crash releases Web
+          // Locks with the document; a live caller releases explicitly in finally.
+          await lease;
+        }),
+      ).catch(() => resolveOnce(rejectedAuthCallback(cleanUrl)));
+    } catch {
+      resolveOnce(rejectedAuthCallback(cleanUrl));
+    }
+  });
 }
 
-/** Scrub callback credentials synchronously before the caller starts exchange. */
+/** Claim callback state under the same cross-tab lock used to start attempts. */
+export function captureAuthCallback(
+  currentUrl: string,
+  options: AuthCallbackCaptureOptions,
+): Promise<CapturedAuthCallback | null> {
+  const parsedAttempt = readAuthCallbackAttempt(currentUrl);
+  const cleanUrl = cleanAuthCallbackUrl(currentUrl);
+  if (!parsedAttempt || !cleanUrl) return Promise.resolve(null);
+  return capturePreparedAuthCallback(currentUrl, parsedAttempt, cleanUrl, options);
+}
+
+/** Scrub credentials synchronously, then expose a code only after the locked claim. */
 export function scrubAuthCallback(
   currentUrl: string,
   replaceUrl: (cleanUrl: string) => void,
-  storage?: AuthFragmentStorage | null,
-  now = Date.now(),
-): CapturedAuthCallback | null {
-  const captured = captureAuthCallback(currentUrl, storage, now);
-  if (captured) replaceUrl(captured.cleanUrl);
-  return captured;
+  options: AuthCallbackCaptureOptions,
+): Promise<CapturedAuthCallback | null> {
+  const parsedAttempt = readAuthCallbackAttempt(currentUrl);
+  const cleanUrl = cleanAuthCallbackUrl(currentUrl);
+  if (!parsedAttempt || !cleanUrl) return Promise.resolve(null);
+  // This happens before Web Locks can queue or any promise is awaited.
+  try {
+    replaceUrl(cleanUrl);
+  } catch {
+    return Promise.resolve(rejectedAuthCallback(cleanUrl));
+  }
+  return capturePreparedAuthCallback(currentUrl, parsedAttempt, cleanUrl, options).then(
+    (captured) => {
+      if (captured.cleanUrl !== cleanUrl) {
+        try {
+          replaceUrl(captured.cleanUrl);
+          options.onFragmentRestored?.(captured.cleanUrl);
+        } catch {
+          // Credentials were already scrubbed; continue so the caller releases
+          // the claimed attempt after exchange instead of stranding it.
+        }
+      }
+      return captured;
+    },
+  );
 }

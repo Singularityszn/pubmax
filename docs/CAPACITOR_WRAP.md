@@ -37,6 +37,11 @@ later-session fallback after at least one healthy remote load.
 **Seam rule:** no file imports `@capacitor/*` except the `lib/native*.ts` seam
 modules. Everything else branches on `isNativeApp()`.
 
+The owner approved the universal/app-link route seam as an early Wave 1
+wrapped-shell prerequisite on 2026-07-21. It remains allow-listed and a safe
+no-op on web; this exception does not open the broader Wave 7 native companion
+scope.
+
 ## Developer workflow
 
 ```sh

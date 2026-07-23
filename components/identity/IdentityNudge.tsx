@@ -29,6 +29,7 @@ import { useAuth } from "@/components/auth/AuthProvider";
 import MagicLinkForm from "@/components/auth/MagicLinkForm";
 import { isValidEmail } from "@/lib/emailSubscribers";
 import {
+  IDENTITY_NUDGE_FIRST_PAINT_GRACE_MS,
   getIdentityNudgeClientSnapshot,
   getIdentityNudgeServerSnapshot,
   markIdentityNudgeAccepted,
@@ -102,11 +103,31 @@ export default function IdentityNudge(): React.JSX.Element | null {
   const [authBusy, setAuthBusy] = useState(false);
   const [authError, setAuthError] = useState("");
 
+  // First-paint grace: never interrupt the very first moment on a page. The
+  // nudge holds until the user has been here ~8s OR interacts, so a still-armed
+  // trigger can't slam a dialog over a page the instant it loads (belt-and-
+  // braces with the pending TTL in lib/identityNudge.ts). setState only fires
+  // from async callbacks (timer / one-shot listeners), never the effect body.
+  const [graced, setGraced] = useState(false);
+  useEffect(() => {
+    if (graced) return;
+    const settle = () => setGraced(true);
+    const timer = window.setTimeout(settle, IDENTITY_NUDGE_FIRST_PAINT_GRACE_MS);
+    window.addEventListener("pointerdown", settle, { once: true });
+    window.addEventListener("keydown", settle, { once: true });
+    return () => {
+      window.clearTimeout(timer);
+      window.removeEventListener("pointerdown", settle);
+      window.removeEventListener("keydown", settle);
+    };
+  }, [graced]);
+
   // Signed-in state is applied here (live via useAuth) rather than in the store
   // snapshot, so a sign-in in another tab instantly hides the nudge. Nothing to
-  // offer when auth is unconfigured — no dead buttons.
+  // offer when auth is unconfigured — no dead buttons. The grace gate keeps it
+  // off the first paint.
   const canShow =
-    Boolean(trigger) && !loading && !user && configured && hasPromptBudgetFor(IDENTITY_SURFACE);
+    Boolean(trigger) && graced && !loading && !user && configured && hasPromptBudgetFor(IDENTITY_SURFACE);
 
   // Claim the shared one-prompt-per-session budget at the moment it shows
   // (docs/PROMPT_ORCHESTRATION.md). Idempotent for this surface.

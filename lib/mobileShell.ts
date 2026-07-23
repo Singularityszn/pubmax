@@ -14,7 +14,8 @@ export type MapOverlay =
   | "planner"
   | "pub-pal"
   | "moment"
-  | "near-me";
+  | "near-me"
+  | "area";
 
 export type MapSheetKind = Exclude<MapOverlay, "none" | "search">;
 export type MapSheetDetent = SheetSnap;

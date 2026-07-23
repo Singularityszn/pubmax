@@ -4,6 +4,13 @@ import { join } from "node:path";
 
 import { describe, expect, it, vi } from "vitest";
 
+import {
+  isValidNightOutPlaceSnapshot as isValidRuntimeSnapshot,
+} from "@/lib/nightOutPlaces";
+import {
+  isValidNightOutPlaceSnapshot as isValidContractSnapshot,
+} from "@/lib/nightOutPlaceContract.mjs";
+
 // Plain ESM build-time script. Its exported normalisers are exercised only
 // with fixtures; these tests never contact Exa or Firecrawl.
 import {
@@ -58,6 +65,39 @@ const restaurant = {
 };
 
 describe("night-out place ingestion", () => {
+  it("keeps ingest, runtime and authoritative snapshot validation in parity", () => {
+    const [row] = buildPlaceRows(
+      [{ category: "restaurant", discoveredVia: "exa", url: restaurant.url, rawHtml: jsonLdPage(restaurant) }],
+      { observedAt: OBSERVED_AT },
+    );
+    const valid = {
+      version: 1,
+      generatedAt: OBSERVED_AT,
+      status: "published",
+      provenanceRegistryVersion: 1,
+      places: [row],
+    };
+    const candidates = [
+      valid,
+      { ...valid, places: [{ ...row, job: "pre_pub_attraction" }] },
+      { ...valid, places: [{ ...row, location: { lat: 53.48, lng: -2.24 } }] },
+      { ...valid, places: [{ ...row, description: "Welcome to this vibrant hidden gem!" }] },
+      { ...valid, places: [{ ...row, sourceName: "not-example.com" }] },
+      { ...valid, places: [{ ...row, expiresAt: "2027-07-20T12:00:00.000Z" }] },
+    ];
+
+    for (const candidate of candidates) {
+      const decisions = [
+        isValidPlaceSnapshot(candidate),
+        isValidRuntimeSnapshot(candidate),
+        isValidContractSnapshot(candidate),
+      ];
+      expect(new Set(decisions).size, JSON.stringify(candidate)).toBe(1);
+    }
+    expect(isValidPlaceSnapshot(valid)).toBe(true);
+    expect(isValidPlaceSnapshot(candidates[1])).toBe(false);
+  });
+
   it("normalises attributable HTTPS source URLs", () => {
     expect(normalizeSourceUrl("https://example.com/london/test-kitchen/?utm=x#menu")).toBe(
       "https://example.com/london/test-kitchen",
@@ -287,6 +327,7 @@ describe("night-out place ingestion", () => {
       { exaKey: "exa-test", firecrawlKey: "fc-test", limit: 1 },
       fetchMock as typeof fetch,
       lookup,
+      () => new Date(OBSERVED_AT),
     );
     const firecrawl = requests.filter((request) => request.url.includes("firecrawl"));
     const search = firecrawl.filter((request) => request.url.endsWith("/search"));
@@ -467,6 +508,31 @@ describe("night-out place ingestion", () => {
     };
     expect(isValidPlaceSnapshot(invalidCandidate)).toBe(false);
     expect(() => writeSnapshot(invalidCandidate, outputPath)).toThrow("OWNER ACTION");
+    expect(readFileSync(outputPath, "utf8")).toBe(original);
+    rmSync(dir, { recursive: true, force: true });
+  });
+
+  it("leaves the artifact byte-identical when the provenance registry is invalid", () => {
+    const dir = mkdtempSync(join(tmpdir(), "night-out-provenance-"));
+    const outputPath = join(dir, "latest.json");
+    const registryPath = join(dir, "registry.json");
+    const original = '{"version":1,"status":"empty","places":[]}\n';
+    writeFileSync(outputPath, original);
+    writeFileSync(registryPath, JSON.stringify({ version: 2, producers: [] }));
+    const [row] = buildPlaceRows(
+      [{ category: "restaurant", discoveredVia: "exa", url: restaurant.url, rawHtml: jsonLdPage(restaurant) }],
+      { observedAt: OBSERVED_AT },
+    );
+    const candidate = {
+      version: 1,
+      generatedAt: OBSERVED_AT,
+      status: "published",
+      provenanceRegistryVersion: 1,
+      places: [row],
+    };
+
+    expect(isValidPlaceSnapshot(candidate)).toBe(true);
+    expect(() => writeSnapshot(candidate, outputPath, registryPath)).toThrow("OWNER ACTION");
     expect(readFileSync(outputPath, "utf8")).toBe(original);
     rmSync(dir, { recursive: true, force: true });
   });

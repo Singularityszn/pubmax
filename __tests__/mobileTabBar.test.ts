@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { buildTabs } from "@/components/nav/MobileTabBar";
+import { buildTabs, tourSpotlightColumn } from "@/components/nav/MobileTabBar";
+import { TOUR_TARGET_TAB_KEY } from "@/components/nav/navigationModel";
 
 // Six-tab contract for the mobile bar (owner-locked journey order). The shared
 // PRIMARY_NAV_ITEMS model stays four destinations by its own contract test;
@@ -35,5 +36,40 @@ describe("mobile tab bar contract", () => {
     const tabs = buildTabs("/map", "/map");
     expect(tabs.filter((tab) => tab.primary).map((tab) => tab.label)).toEqual(["Moment"]);
     expect(tabs[2].label).toBe("Moment");
+  });
+});
+
+// The first-run tour spotlight rings are positioned from the LIVE tab geometry
+// (tourSpotlightColumn → buildTabs), so the ring can never drift off its tab.
+// Lock the exact columns each tour target resolves to: a future 7th tab — or a
+// reorder — that shifts "map" / Moment / "stories" out of these slots fails
+// here, forcing the tour copy + geometry to be reconsidered in lockstep.
+describe("first-run tour spotlight geometry", () => {
+  const tabs = buildTabs("/map", "/map");
+
+  it("maps each tour target to the tab key it names", () => {
+    expect(TOUR_TARGET_TAB_KEY).toEqual({ map: "map", drop: "moment", discover: "stories" });
+  });
+
+  it("anchors 'map' to the Map column", () => {
+    const { index, total } = tourSpotlightColumn("map");
+    expect(total).toBe(6);
+    expect(index).toBe(1);
+    expect(tabs[index]!.label).toBe("Map");
+  });
+
+  it("anchors 'drop' to the Moment centre column", () => {
+    const { index, total } = tourSpotlightColumn("drop");
+    expect(total).toBe(6);
+    expect(index).toBe(2);
+    expect(tabs[index]!.label).toBe("Moment");
+    expect(tabs[index]!.primary).toBe(true);
+  });
+
+  it("anchors 'discover' to the Stories column", () => {
+    const { index, total } = tourSpotlightColumn("discover");
+    expect(total).toBe(6);
+    expect(index).toBe(4);
+    expect(tabs[index]!.label).toBe("Stories");
   });
 });

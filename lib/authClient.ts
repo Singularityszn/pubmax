@@ -12,6 +12,7 @@
 // components/auth/AuthProvider.tsx and app/auth/callback/route.ts.
 
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
+import { withAuthFetchTimeout } from "@/lib/authFetch";
 
 let cached: SupabaseClient | null | undefined;
 
@@ -35,16 +36,19 @@ export function getSupabaseBrowser(): SupabaseClient | null {
   const key = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
   cached = url && key
     ? createClient(url, key, {
-        auth: {
-          // Keep the session in this browser and refresh it in the background.
-          persistSession: true,
-          autoRefreshToken: true,
-          // AuthProvider completes PKCE explicitly so exchange failures can be
-          // surfaced and one-time URL parameters are always removed.
-          detectSessionInUrl: false,
-          flowType: "pkce",
-        },
-      })
+      global: {
+        fetch: withAuthFetchTimeout(globalThis.fetch.bind(globalThis)),
+      },
+      auth: {
+        // Keep the session in this browser and refresh it in the background.
+        persistSession: true,
+        autoRefreshToken: true,
+        // AuthProvider completes PKCE explicitly so exchange failures can be
+        // surfaced and one-time URL parameters are always removed.
+        detectSessionInUrl: false,
+        flowType: "pkce",
+      },
+    })
     : null;
 
   return cached;

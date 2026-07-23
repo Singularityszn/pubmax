@@ -2,6 +2,7 @@
 
 .pubsShell {
   min-height: 100vh;
+  min-height: 100dvh;
   background:
     radial-gradient(1200px 480px at 12% -10%, color-mix(in srgb, var(--pint) 14%, transparent), transparent 60%),
     radial-gradient(900px 420px at 90% 0%, color-mix(in srgb, var(--amber) 12%, transparent), transparent 55%),

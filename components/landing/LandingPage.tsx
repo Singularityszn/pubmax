@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
   ArrowRight,
+  Building2,
   CalendarClock,
   Camera,
   Coins,
@@ -12,8 +13,9 @@ import {
   LocateFixed,
   MapPin,
   MessageSquareText,
+  Receipt,
   Route,
-  Sparkles,
+  Smartphone,
   UsersRound,
 } from "lucide-react";
 import { useCallback, useEffect, useSyncExternalStore } from "react";
@@ -28,6 +30,7 @@ import ThemeToggle from "@/components/ThemeToggle";
 // The landing bar isn't the SiteNav component, but it now flies the same
 // wordmark + action cluster, so it pulls in those shared styles directly.
 import "@/components/nav/siteNav.css";
+import type { AboutStats } from "@/lib/aboutStats";
 import {
   preferredCityMapHref,
   readPreferredCity,
@@ -48,28 +51,72 @@ const PintDropStrip = dynamic(() => import("./PintDropStrip"), {
 const PRODUCT_SIGNALS = [
   {
     icon: Coins,
-    title: "Prices you can trust",
-    body: "Observed prices carry dates and provenance, so a cheap pint never arrives as a vague promise.",
+    title: "Prices from real people",
+    body: "Every price has a date and someone behind it. So a cheap pint is a fact you can check, not a promise you have to trust.",
   },
   {
     icon: CalendarClock,
-    title: "A city that changes with you",
-    body: "Morning calm, after-work energy and late-night events appear when they are useful, not all at once.",
+    title: "The city, when it's useful",
+    body: "A quiet one at lunch, a cheap round after work, whatever's on late. It turns up when you need it, not all in a heap.",
   },
   {
     icon: Route,
-    title: "One route, every way there",
-    body: "See distance, walking and transport choices without losing the place you were actually trying to reach.",
+    title: "One route, sorted",
+    body: "The walk, the stops, the way home, all in one place. So you get to the pub instead of losing it between three apps.",
   },
 ] as const;
 
 const MEMORY_STEPS = [
-  { icon: Compass, n: "01", title: "What's on round the corner", body: "Start with a mood, a price or something happening nearby." },
-  { icon: UsersRound, n: "02", title: "Bring the crew", body: "Turn a saved place into a night people can join and shape together." },
-  { icon: Camera, n: "03", title: "Keep the moment", body: "Capture what happened privately, then publish only what everyone approves." },
+  { icon: Compass, n: "01", title: "See what's on nearby", body: "Start with a mood, a price, or something happening round the corner." },
+  { icon: UsersRound, n: "02", title: "Get the crew in", body: "Turn a saved pub into a night your mates can join and shape with you." },
+  { icon: Camera, n: "03", title: "Keep the good bits", body: "Snap the night privately, then share only what everyone signs off." },
 ] as const;
 
-export default function LandingPage() {
+// Locale integer with grouping (2800 -> "2,800"). British thousands separators
+// match the receipt-numeral voice used everywhere prices are shown.
+function fmtInt(n: number): string {
+  return n.toLocaleString("en-GB");
+}
+
+// Turn the honest, build-time coverage stats into the hero "live readout" — the
+// small proof row under the CTAs. Only counts that survived the real dataset
+// (> 0) become chips; a missing/zeroed figure is dropped rather than shown as a
+// hollow "0 pubs". When nothing survives (a failed data read) the caller falls
+// back to plain product copy so the hero never looks broken. Taste doctrine:
+// no invented counts — every number here is derived in lib/aboutStats.
+function heroReadout(
+  stats: AboutStats | undefined,
+): Array<{ icon: typeof MapPin; value: string; label: string }> {
+  if (!stats) return [];
+  const chips: Array<{ icon: typeof MapPin; value: string; label: string }> = [];
+  if (stats.pubsTracked > 0) {
+    chips.push({ icon: MapPin, value: fmtInt(stats.pubsTracked), label: "pubs tracked" });
+  }
+  if (stats.pintPricesObserved > 0) {
+    chips.push({ icon: Receipt, value: fmtInt(stats.pintPricesObserved), label: "prices, each dated" });
+  }
+  if (stats.boroughsCovered > 0) {
+    chips.push({ icon: Building2, value: fmtInt(stats.boroughsCovered), label: "London boroughs" });
+  }
+  return chips;
+}
+
+// Footer coverage facts — the same honest counts as the hero readout plus the
+// UK-city reach. Guarded the same way: a zeroed figure is dropped, never shown.
+function footerFacts(
+  stats: AboutStats | undefined,
+): Array<{ value: string; label: string }> {
+  if (!stats) return [];
+  const facts: Array<{ value: string; label: string }> = [];
+  if (stats.pubsTracked > 0) facts.push({ value: fmtInt(stats.pubsTracked), label: "pubs tracked" });
+  if (stats.pintPricesObserved > 0) facts.push({ value: fmtInt(stats.pintPricesObserved), label: "dated prices" });
+  if (stats.boroughsCovered > 0) facts.push({ value: fmtInt(stats.boroughsCovered), label: "London boroughs" });
+  if (stats.citiesCovered > 0) facts.push({ value: fmtInt(stats.citiesCovered), label: "UK cities" });
+  if (stats.historicPubsCited > 0) facts.push({ value: fmtInt(stats.historicPubsCited), label: "historic pubs cited" });
+  return facts;
+}
+
+export default function LandingPage({ stats }: { stats?: AboutStats }) {
   const router = useRouter();
   const preferredCity = useSyncExternalStore(
     subscribePreferredCity,
@@ -87,6 +134,8 @@ export default function LandingPage() {
         onFocus: warmMap,
       }
     : {};
+
+  const readout = heroReadout(stats);
 
   useEffect(() => {
     const hour = new Date().getHours();
@@ -138,14 +187,27 @@ export default function LandingPage() {
               <Link className="lpButton lpButtonQuiet" href={primaryCtaHref} {...warmProps}>
                 <MapPin size={17} aria-hidden="true" /> Open the map
               </Link>
-              <Link className="lpButton lpButtonQuiet" href="/pal">
+              <Link className="lpButton lpButtonQuiet" href="/plan">
                 <MessageSquareText size={17} aria-hidden="true" /> Plan my night
               </Link>
             </div>
-            <div className="lpLiveReadout" aria-label="Product highlights">
-              <span><MapPin size={15} aria-hidden="true" /> Price-aware places</span>
-              <span><Sparkles size={15} aria-hidden="true" /> The good stuff nearby</span>
-            </div>
+            {readout.length > 0 ? (
+              <dl className="lpLiveReadout" aria-label="What PUBMAXX tracks right now">
+                {readout.map(({ icon: Icon, value, label }) => (
+                  <div className="lpReadoutStat" key={label}>
+                    <dt>
+                      <Icon size={15} aria-hidden="true" /> {label}
+                    </dt>
+                    <dd>{value}</dd>
+                  </div>
+                ))}
+              </dl>
+            ) : (
+              <div className="lpLiveReadout" aria-label="Product highlights">
+                <span><MapPin size={15} aria-hidden="true" /> Real prices, mapped</span>
+                <span><Receipt size={15} aria-hidden="true" /> Every one dated</span>
+              </div>
+            )}
           </div>
 
           <figure className="lpHeroMap">
@@ -157,7 +219,7 @@ export default function LandingPage() {
         <section className="lpSignalSection" id="wedge" aria-labelledby="signal-title">
           <div className="lpSectionIntro">
             <h2 id="signal-title">Cheap pints near you, live</h2>
-            <p>PUBMAXX clears away the listings noise and keeps the three things that change your decision.</p>
+            <p>No endless listings. Just the three things that actually decide where you go.</p>
           </div>
           <div className="lpSignalGrid">
             {PRODUCT_SIGNALS.map(({ icon: Icon, title, body }, index) => (
@@ -178,7 +240,7 @@ export default function LandingPage() {
             <div className="lpMemoryCopy">
               <p className="lpSectionLabel">From a pin to a story</p>
               <h2 id="memory-title">Plan the night. Keep the parts that mattered.</h2>
-              <p>Your Night Memory stays private. When the crew is ready, turn approved moments into a Story worth reliving.</p>
+              <p>Your night stays private until you say otherwise. When the crew&rsquo;s ready, turn the moments everyone likes into a story worth keeping.</p>
               <div className="lpMemoryActions">
                 <Link href="/plan" className="lpButton lpButtonPrimary">Start a plan</Link>
               <Link href="/feed" className="lpTextLink">Explore stories <ArrowRight size={16} aria-hidden="true" /></Link>
@@ -201,13 +263,13 @@ export default function LandingPage() {
               <p className="lpSectionLabel">Live product proof</p>
               <h2 id="proof-title">The map gets better when Pubmaxxers show up.</h2>
             </div>
-            <p>Pint Drops keep prices fresh, Stories reveal the atmosphere, and every useful contribution carries its source.</p>
+            <p>Pint Drops keep the prices honest. Stories show what a place is actually like. And whatever you add always says where it came from.</p>
           </div>
           <PintDropStrip />
           <div className="lpPalCallout" id="landlord">
             <span className="lpPalIcon"><MessageSquareText size={23} aria-hidden="true" /></span>
-            <div><h3>Ask your Pub Pal</h3><p>Turn a mood, budget or half-formed idea into a grounded plan. Then confirm every change yourself.</p></div>
-            <Link href="/pal" className="lpTextLink">Plan my night <ArrowRight size={16} aria-hidden="true" /></Link>
+            <div><h3>Ask your Pub Pal</h3><p>Tell it a mood, a budget, or half an idea, and it hands back a real plan. You confirm every change, always.</p></div>
+            <Link href="/plan" className="lpTextLink">Plan my night <ArrowRight size={16} aria-hidden="true" /></Link>
           </div>
         </section>
 
@@ -227,6 +289,66 @@ export default function LandingPage() {
           </Link>
         </section>
       </main>
+
+      <footer className="lpFooter">
+        <div className="lpFooterInner">
+          <div className="lpFooterBrand">
+            <Link href="/" className="lpWordmark" aria-label="PUBMAXXING home">
+              <PubmaxxWordmark />
+            </Link>
+            <p className="lpFooterPitch">
+              A pint in London can cost eight quid and nobody tells you where it is
+              cheaper. We show real prices from real people, get your mates in one
+              place, and put you all on one route.
+            </p>
+            <p className="lpFooterMission">
+              Built so the price of a pint stays fair, by people who go to the pub.
+            </p>
+            <p className="lpInstallNudge">
+              <Smartphone size={15} aria-hidden="true" />
+              Put PUBMAXX on your home screen and tonight is one tap away. We only
+              ask once you have been back, never on your first pint. On iPhone, tap
+              Share then Add to Home Screen.
+            </p>
+          </div>
+
+          <nav className="lpFooterNav" aria-label="Footer">
+            <div className="lpFooterCol">
+              <h2>Get out tonight</h2>
+              <Link href={primaryCtaHref} {...warmProps}>The map</Link>
+              <Link href="/near">Find my pint</Link>
+              <Link href="/tonight">Tonight</Link>
+              <Link href="/plan">Plan a night</Link>
+            </div>
+            <div className="lpFooterCol">
+              <h2>The good stuff</h2>
+              <Link href="/feed">Stories</Link>
+              <Link href="/pal">Pub Pal</Link>
+              <Link href="/choose-city">Pick your city</Link>
+              <Link href="/about">Our story</Link>
+            </div>
+          </nav>
+        </div>
+
+        <div className="lpFooterBase">
+          <p className="lpFooterProvenance">
+            Every price comes with a source and the date someone saw it. Nothing
+            here is made up, and no pub can pay to rank higher.
+          </p>
+          {footerFacts(stats).length > 0 ? (
+            <ul className="lpFooterFacts" aria-label="What we track">
+              {footerFacts(stats).map(({ value, label }) => (
+                <li key={label}>
+                  <span className="lpFooterFactValue">{value}</span> {label}
+                </li>
+              ))}
+            </ul>
+          ) : null}
+          <p className="lpFooterLegal">
+            PUBMAXX. Know your limits. Prices change, so check at the bar.
+          </p>
+        </div>
+      </footer>
     </div>
   );
 }

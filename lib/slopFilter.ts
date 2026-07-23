@@ -18,35 +18,16 @@
 // e.g. "…one of the oldest in London, dating back over 500 years" survives while
 // "Welcome to the Prince Albert! …vibrant atmosphere" is filtered.
 
-// Marketing / filler phrases. All matched case-insensitively as substrings, so
-// "whether you" covers "whether you're", "whether you are", "whether you want".
-export const SLOP_PHRASES = [
-  // Required tells (from the audit).
-  "whether you",
-  "welcome to",
-  "vibrant",
-  "nestled",
-  "boasts",
-  "perfect spot",
-  "unwind",
-  // Additional high-precision filler tells found by sampling the dataset. These
-  // are pure marketing boilerplate that (unlike broad adjectives such as
-  // "cozy"/"charming"/"delicious") rarely co-occur with a real, specific fact.
-  "for your entertainment",
-  "something for everyone",
-  "look no further",
-  "hidden gem",
-  "must-visit",
-  "must visit",
-  "wide selection of food and drinks",
-  "plan your visit today",
-] as const;
+import {
+  NIGHT_OUT_PLACE_SLOP_PHRASES,
+  isNightOutPlaceSlopDescription,
+  presentableNightOutPlaceDescription,
+} from "@/lib/nightOutPlaceContract.mjs";
 
-// An "exclamation-led opener": the first sentence ends on a "!" — the tell-tale
-// tour-guide shout ("Welcome to The Greyhound Pub in Kensington!"). Anchored to
-// the start and stopping at the first sentence terminator, so a "!" buried deep
-// in an otherwise plain description does not trip it.
-const EXCLAMATION_OPENER = /^\s*[^.!?]{0,160}!/;
+// Kept as the public name used by the venue-story render seam. The values live
+// in the night-out-place contract so runtime, ingestion and validation cannot
+// drift onto different marketing-phrase lists.
+export const SLOP_PHRASES = NIGHT_OUT_PLACE_SLOP_PHRASES;
 
 /**
  * True when a scraped description reads as AI marketing slop and should not be
@@ -55,13 +36,7 @@ const EXCLAMATION_OPENER = /^\s*[^.!?]{0,160}!/;
  * {@link presentableDescription}.
  */
 export function isSlopDescription(input: string | null | undefined): boolean {
-  if (!input) return false;
-  const text = input.trim();
-  if (!text) return false;
-  const lower = text.toLowerCase();
-  if (SLOP_PHRASES.some((phrase) => lower.includes(phrase))) return true;
-  if (EXCLAMATION_OPENER.test(text)) return true;
-  return false;
+  return isNightOutPlaceSlopDescription(input);
 }
 
 /**
@@ -71,8 +46,5 @@ export function isSlopDescription(input: string | null | undefined): boolean {
  * caller's honest empty state takes over in both cases.
  */
 export function presentableDescription(input: string | null | undefined): string | null {
-  if (!input) return null;
-  const text = input.trim();
-  if (!text) return null;
-  return isSlopDescription(text) ? null : text;
+  return presentableNightOutPlaceDescription(input);
 }

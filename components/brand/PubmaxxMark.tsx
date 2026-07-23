@@ -1,36 +1,60 @@
 import "./pubmaxxMark.css";
 
-// ── PUBMAXX mark: "The Crossing" ──────────────────────────────────────────────
-// A single bold X — "× marks the pub" / two routes meeting at a lit rendezvous
-// node. It is the mark half of the identity; the wordmark carries the doubled
-// ×× (PUBMA××ING). One X reads cleanly down to a 16px favicon where a pair
-// would smear, and it is the most ownable, least kitsch reduction of the brand
-// (no beer mugs, no foam).
+// ── PUBMAXX mark: "The Crossing X" ────────────────────────────────────────────
+// A blackboard-bold / double-struck X, built on the X Corp construction: one
+// THICK solid descending stroke (\, top-left → bottom-right) and an ascending
+// stroke (/, bottom-left → top-right) SPLIT INTO TWO thin parallel strokes that
+// pass either side of the thick one, leaving a clear channel where they cross.
+// Flat sharp terminals, zero ornament — a confident, distinctly PUBMAXX X that
+// survives down to a 16px favicon (where it falls back to the simplified single
+// ascending stroke, `slashSimple`, since the double-stroke channel closes up).
 //
 // Geometry lives on a 64×64 grid and is the single source of truth shared with
-// scripts/gen-brand-assets.mjs (which stamps the static favicon / PWA / apple
-// assets from the same numbers). If you change a coordinate here, re-run
-// `node scripts/gen-brand-assets.mjs` so the exported assets stay identical.
+// scripts/gen-brand-assets.mjs and scripts/gen-native-app-icons.mjs (which stamp
+// the static favicon / PWA / apple / native assets from the same numbers). If
+// you change a coordinate here, re-run those generators so the exported assets
+// stay identical. The strokes are filled polygons, not stroked paths, so the
+// flat-cut terminals stay crisp at every raster tier.
 
 export const MARK_GEOMETRY = {
   viewBox: "0 0 64 64",
-  stroke: 8.5,
-  // Two arms of the crossing, symmetric about centre (32,32).
-  armA: { x1: 18.5, y1: 18.5, x2: 45.5, y2: 45.5 },
-  armB: { x1: 45.5, y1: 18.5, x2: 18.5, y2: 45.5 },
+  // The thick descending stroke (\), ~12u wide, drawn on top of the two thin
+  // ascending strokes so the crossing reads as a clean interlock. `points`
+  // feeds an SVG <polygon> directly.
+  thick: "9,10 21,10 55,54 43,54",
+  // The ascending stroke (/) split into two thin (~5u) parallel strokes that
+  // pass either side of the thick one, with a ~4u channel between them where
+  // the thick stroke crosses — the double-struck construction. thinA is the
+  // upper-left stroke, thinB the lower-right.
+  thinA: "42,10 47,10 13,54 8,54",
+  thinB: "51,10 56,10 22,54 17,54",
+  // Simplified single ascending stroke (~8u) for the smallest raster tier
+  // (the 16px favicon.ico entry): at 16px the double-stroke channel closes up,
+  // so the icon falls back to a single clean forward slash + the thick stroke.
+  slashSimple: "45,10 53,10 19,54 11,54",
+  // The ember: a lit spark at the crossing. It is NOT part of the icon
+  // silhouette — the static favicon / PWA / app-icon exports drop it (the
+  // double-struck crossing is already the event, and a dot muddies it). It is
+  // kept only on the lit in-app brand surfaces (duo / plaque variants, the
+  // Strike pop, the night seal, the loading ember) as a personality touch.
   node: { cx: 32, cy: 32, r: 3.2 },
+  // Full-bleed tile radius for the standalone/plaque variant.
   plaqueRadius: 15,
 } as const;
 
 // Token colours with literal fallbacks so the mark also renders correctly
 // outside the app's CSS (Storybook, emails, satori is handled separately in
 // lib/ogBrand.tsx). Inside the app these resolve to the live theme tokens.
-const COL = {
+// Exported so the Strike animation family (PubmaxxMarkStrike) can single-source
+// the same palette without re-declaring the tokens — a drift here would ship a
+// mark whose animated draw finishes in a different colour than the static rest.
+export const MARK_COLORS = {
   coral: "var(--brass, #ff5a5f)",
-  amber: "var(--amber, #f0a01a)",
   bright: "var(--brass-bright, #ff7a55)",
   inkDeep: "var(--ink-deep, #060607)",
 } as const;
+
+const COL = MARK_COLORS;
 
 export type PubmaxxMarkVariant = "mono" | "duo" | "plaque";
 
@@ -39,8 +63,8 @@ export interface PubmaxxMarkProps {
   size?: number;
   /**
    * mono   — single-colour X in `currentColor`; inherits theme ink. Default.
-   * duo    — coral + amber crossing with a lit coral-bright node, transparent bg.
-   * plaque — coral rounded-square chip with an ink-deep X knocked across it.
+   * duo    — coral X with a lit coral-bright ember at the crossing, transparent bg.
+   * plaque — ink-deep rounded-square tile with the coral X + ember on it.
    */
   variant?: PubmaxxMarkVariant;
   /**
@@ -61,8 +85,11 @@ export default function PubmaxxMark({
   className = "",
 }: PubmaxxMarkProps) {
   const labelled = Boolean(title);
-  const strokeColorA = variant === "mono" ? "currentColor" : variant === "plaque" ? COL.inkDeep : COL.coral;
-  const strokeColorB = variant === "mono" ? "currentColor" : variant === "plaque" ? COL.inkDeep : COL.amber;
+  // Strokes are coral on the duo/plaque variants and inherit ink via
+  // currentColor on mono. The plaque lays them on an ink-deep tile; duo/mono
+  // are transparent.
+  const armFill = variant === "mono" ? "currentColor" : COL.coral;
+  const showTile = variant === "plaque";
   const showNode = variant !== "mono";
 
   return (
@@ -77,21 +104,14 @@ export default function PubmaxxMark({
       focusable="false"
     >
       {title ? <title>{title}</title> : null}
-      {variant === "plaque" ? (
-        <rect width="64" height="64" rx={g.plaqueRadius} fill={COL.coral} />
+      {showTile ? (
+        <rect width="64" height="64" rx={g.plaqueRadius} fill={COL.inkDeep} />
       ) : null}
-      <path
-        d={`M${g.armA.x1} ${g.armA.y1} L${g.armA.x2} ${g.armA.y2}`}
-        stroke={strokeColorA}
-        strokeWidth={g.stroke}
-        strokeLinecap="round"
-      />
-      <path
-        d={`M${g.armB.x1} ${g.armB.y1} L${g.armB.x2} ${g.armB.y2}`}
-        stroke={strokeColorB}
-        strokeWidth={g.stroke}
-        strokeLinecap="round"
-      />
+      {/* Two thin ascending strokes first, then the thick descending stroke on
+          top — the double-struck crossing. */}
+      <polygon points={g.thinA} fill={armFill} />
+      <polygon points={g.thinB} fill={armFill} />
+      <polygon points={g.thick} fill={armFill} />
       {showNode ? <circle cx={g.node.cx} cy={g.node.cy} r={g.node.r} fill={COL.bright} /> : null}
     </svg>
   );

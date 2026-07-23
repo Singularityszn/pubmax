@@ -177,7 +177,7 @@ export default async function CrawlStoryPage({ params }: PageProps) {
                 {stop.note ? <p className="storyStopNote">{stop.note}</p> : null}
               </div>
               <span className="storyStopPrice">
-                {typeof stop.priceGbp === "number" ? formatGbp(stop.priceGbp) : "—"}
+                {typeof stop.priceGbp === "number" ? formatGbp(stop.priceGbp) : "–"}
               </span>
             </li>
           ))}

@@ -9,6 +9,7 @@ import { isIdentityNudgePending, recordPlanNudgeTrigger } from "@/lib/identityNu
 import { parsePlanCapabilitySnapshot, planCapabilityEvent, readPlanCapabilitySnapshot, restorePlanCapability, writePlanCapability } from "@/lib/planSessionCapability";
 import { clearPersistentPlanMutationKey, persistentPlanMutationKey } from "@/lib/planMutationKey";
 import { recordPlanHighIntentAction } from "@/lib/nativePushPrompt";
+import { subscribeToAuthFragmentRestored } from "@/lib/authRedirect";
 
 const STATUS_LABELS: Record<CrewPresenceStatus, string> = {
   in: "In",
@@ -26,6 +27,7 @@ export default function PlanCrew({ planId, initialCrew }: { planId: string; init
   const [sessionCheckedPlanId, setSessionCheckedPlanId] = useState<string | null>(null);
   const [sessionUnavailable, setSessionUnavailable] = useState(false);
   const [sessionAttempt, setSessionAttempt] = useState(0);
+  const [restoredHashVersion, setRestoredHashVersion] = useState(0);
   const tokenEvent = planCapabilityEvent(planId);
   const statusKey = `pubmax-plan-status:${planId}`;
   const statusEvent = `pubmax-plan-status-change:${planId}`;
@@ -90,6 +92,12 @@ export default function PlanCrew({ planId, initialCrew }: { planId: string; init
   }, [memberToken, planId, sessionAttempt]);
 
   useEffect(() => {
+    return subscribeToAuthFragmentRestored(() => {
+      setRestoredHashVersion((version) => version + 1);
+    });
+  }, []);
+
+  useEffect(() => {
     if (!memberToken) return;
     const inviteToken = new URLSearchParams(window.location.hash.replace(/^#/, "")).get("invite");
     if (!inviteToken) return;
@@ -121,7 +129,7 @@ export default function PlanCrew({ planId, initialCrew }: { planId: string; init
         if (!controller.signal.aborted) setError(caught instanceof Error ? caught.message : "Could not unlock crew decisions.");
       });
     return () => controller.abort();
-  }, [collaborationAuthorized, memberToken, planId, role]);
+  }, [collaborationAuthorized, memberToken, planId, restoredHashVersion, role]);
 
   const refetchCrew = useCallback(async () => {
     if (document.visibilityState !== "visible") return;

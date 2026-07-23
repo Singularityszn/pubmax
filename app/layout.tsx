@@ -13,6 +13,7 @@ import CommandPaletteProvider from "@/components/command/CommandPaletteProvider"
 import PerformanceVitals from "@/components/PerformanceVitals";
 import JsonLd from "@/components/seo/JsonLd";
 import DailyActivityPulse from "@/components/DailyActivityPulse";
+import EntryBootStamp from "@/components/native/EntryBootStamp";
 import A2HSTracking from "@/components/A2HSTracking";
 
 // Site-wide structured data (Wave S1.3). WebSite + Organization only — the
@@ -103,6 +104,18 @@ const partyFace = Bungee({
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://pubmaxxing.com"),
+  // Large image previews in search results; without this Google caps result
+  // thumbnails at the small default and often shows none at all.
+  robots: {
+    index: true,
+    follow: true,
+    "max-image-preview": "large",
+    googleBot: {
+      index: true,
+      follow: true,
+      "max-image-preview": "large",
+    },
+  },
   title: {
     default: "PUBMAXX: real pint prices on a live map",
     template: "%s | PUBMAXX",
@@ -139,13 +152,23 @@ export const metadata: Metadata = {
     images: ["/og.png?v=20260715-coral"],
   },
   icons: {
+    // Classic /favicon.ico fallback: Google's favicon crawler and older
+    // clients request it directly; its 404 was why search kept a stale icon.
+    shortcut: "/favicon.ico",
+    // The linked icons live at *-x paths (owner ruling 2026-07-22: the old
+    // mark must never appear anywhere). Browsers key their favicon cache by
+    // URL and many ignore query-string busts for icons, so a NEW PATH is the
+    // only reliable way to force every returning visitor off the cached old
+    // mark without a manual cache clear. The conventional un-suffixed files
+    // stay in public/ (byte-identical) for crawlers and hardcoded consumers.
     icon: [
-      { url: "/favicon.svg?v=20260721-coralx", type: "image/svg+xml", sizes: "any" },
-      { url: "/icon-192.png?v=20260721-coralx", type: "image/png", sizes: "192x192" },
-      { url: "/icon-512.png?v=20260721-coralx", type: "image/png", sizes: "512x512" },
+      { url: "/favicon.ico", type: "image/x-icon", sizes: "48x48" },
+      { url: "/favicon-x.svg", type: "image/svg+xml", sizes: "any" },
+      { url: "/icon-x-192.png", type: "image/png", sizes: "192x192" },
+      { url: "/icon-x-512.png", type: "image/png", sizes: "512x512" },
     ],
     // iOS Safari requires a raster apple-touch-icon (SVG is ignored).
-    apple: [{ url: "/apple-touch-icon.png", type: "image/png", sizes: "180x180" }],
+    apple: [{ url: "/apple-touch-icon-x.png", type: "image/png", sizes: "180x180" }],
   },
 };
 
@@ -281,6 +304,11 @@ export default async function RootLayout({
                 signals: daily return-rate pulse and the A2HS install funnel. */}
             <DailyActivityPulse />
             <A2HSTracking />
+            {/* Deep-link boot stamp: a boot on any non-root path consumes the
+                session's entry decision, so the installed PWA (which cold-starts
+                on the manifest start_url /tonight) can reach the landing page on
+                a wordmark tap instead of bouncing back to /tonight. */}
+            <EntryBootStamp />
           </CommandPaletteProvider>
         </AuthProvider>
         {/* Vercel Web Analytics (R3) — consent-gated pageviews only. Product

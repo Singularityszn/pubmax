@@ -24,6 +24,7 @@ import { cleanComment, commentsStore, InvalidParentError } from "@/lib/commentsS
 import { dropOwnerHandle, emitNotification } from "@/lib/notificationsStore";
 import { filterPubliclyReadableDropIds } from "@/lib/pintDropLookup";
 import { isLimited } from "@/lib/pintDrops";
+import { socialFreezeResponse } from "@/lib/opsFreeze";
 import { resolveMessageHandle } from "@/lib/messageAuth";
 import { gateHandleAction } from "@/lib/profileOwnership";
 import { assertServerEnv } from "@/lib/serverEnv";
@@ -55,6 +56,10 @@ export async function GET(request: Request): Promise<Response> {
 }
 
 export async function POST(request: Request): Promise<Response> {
+  // Solo-operator emergency freeze (U15): commenting is a social write.
+  const frozen = socialFreezeResponse();
+  if (frozen) return frozen;
+
   let body: Record<string, unknown>;
   try {
     body = (await request.json()) as Record<string, unknown>;

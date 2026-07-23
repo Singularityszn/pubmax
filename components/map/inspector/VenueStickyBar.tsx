@@ -1,9 +1,13 @@
+"use client";
+
+import { createPortal } from "react-dom";
 import { PlusCircle, Route as RouteIcon, Share2 } from "lucide-react";
 
 import type { Venue } from "@/lib/venues";
 import type { CrawlMode } from "@/components/map/ControlRail";
 import type { ShareFeedback } from "@/lib/venueShare";
 import type { TabKey } from "@/lib/venueInspectorTabs";
+import { useSheetFooterSlot } from "@/components/mobile/sheetFooterContext";
 
 export default function VenueStickyBar({
   venue,
@@ -24,7 +28,12 @@ export default function VenueStickyBar({
   shareVenue: () => Promise<void>;
   currentShareFeedback: ShareFeedback | null;
 }) {
-  return (
+  // Inside the mobile portal sheet, render into the footer slot (a flex child
+  // OUTSIDE the scroll body) so the bar is always visible above scrolling
+  // content and rides 1:1 with the sheet on drag/snap. Outside the sheet
+  // (desktop) the context is null → render in place (CSS-hidden above 640px).
+  const footerSlot = useSheetFooterSlot();
+  const bar = (
     <div className="venueSheetStickyBar" role="toolbar" aria-label="Venue actions">
       <button
         type="button"
@@ -72,4 +81,6 @@ export default function VenueStickyBar({
       ) : null}
     </div>
   );
+
+  return footerSlot ? createPortal(bar, footerSlot) : bar;
 }
