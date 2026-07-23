@@ -40,6 +40,8 @@ import { firstHttp } from "@/lib/httpUrl";
 import { resolveTonightNear, walkLabel, walkMinutes } from "@/lib/tonight";
 import { readRememberedArea, type RememberedArea } from "@/lib/nightPatches";
 import { palChatHref, VIBE_CHIPS } from "@/lib/vibeChips";
+import { dealDigestNote } from "@/lib/dealsDigest";
+import { groupTonightListings } from "@/lib/tonightListGrouping";
 import type { WhatsOnKind, WhatsOnRow } from "@/lib/whatsOn";
 import {
   checkedLabel,
@@ -50,6 +52,7 @@ import {
 } from "@/lib/whatsOnBadges";
 
 import "./tonight.css";
+import "./tonightDedup.css";
 
 type Origin = { lat: number; lng: number };
 type LocationStatus = "idle" | "requesting" | "unavailable";
@@ -161,6 +164,14 @@ export default function TonightClient() {
   const visible = useMemo(
     () => filterLaneRows(rows, activeKind),
     [rows, activeKind],
+  );
+  // Collapse chain-wide duplicate offers (decision #11): one card per offer
+  // family, nearest venue first, the rest behind a "Same deal at N pubs"
+  // expander. Grouped on the same near signal that orders the list, so the card
+  // and its ordering agree.
+  const grouped = useMemo(
+    () => groupTonightListings(visible, tonightNear?.near ?? null),
+    [visible, tonightNear],
   );
 
   const ready = status === "ready";
@@ -345,7 +356,8 @@ export default function TonightClient() {
           ) : null}
 
           <ul className="tonightList" data-testid="tonight-list">
-            {visible.map((row) => {
+            {grouped.map((group) => {
+              const row = group.row;
               const link = rowHref(row);
               const meta = WHATS_ON_KIND_META[row.kind];
               const when = laneTimeLabel(row) ?? meta.badgeLabel;
@@ -424,6 +436,66 @@ export default function TonightClient() {
                   ) : (
                     <div className="tonightRowLink">{RowInner}</div>
                   )}
+                  {group.venueCount > 1 ? (
+                    <details className="tonightRowMore">
+                      <summary className="tonightRowMoreToggle">
+                        <ChevronDown
+                          size={14}
+                          aria-hidden="true"
+                          className="tonightRowMoreChevron"
+                        />
+                        {dealDigestNote(group.venueCount)}
+                      </summary>
+                      <ul className="tonightRowMoreList">
+                        {group.alternates.map((alt) => {
+                          const altLink = rowHref(alt);
+                          const altWalk =
+                            typeof alt.lat === "number" && typeof alt.lng === "number"
+                              ? walkLabel(walkMinutes(origin, { lat: alt.lat, lng: alt.lng }))
+                              : null;
+                          const altPlace = (
+                            <span className="tonightRowMorePlace">
+                              <MapPin size={12} aria-hidden="true" />
+                              {alt.placeName}
+                            </span>
+                          );
+                          return (
+                            <li key={alt.id} className="tonightRowMoreItem">
+                              {altLink ? (
+                                altLink.external ? (
+                                  <a
+                                    className="tonightRowMoreLink pressable"
+                                    href={altLink.href}
+                                    target="_blank"
+                                    rel="noreferrer noopener"
+                                  >
+                                    {altPlace}
+                                    {altWalk ? (
+                                      <span className="tonightRowMoreWalk">{altWalk}</span>
+                                    ) : null}
+                                  </a>
+                                ) : (
+                                  <Link className="tonightRowMoreLink pressable" href={altLink.href}>
+                                    {altPlace}
+                                    {altWalk ? (
+                                      <span className="tonightRowMoreWalk">{altWalk}</span>
+                                    ) : null}
+                                  </Link>
+                                )
+                              ) : (
+                                <span className="tonightRowMoreLink">
+                                  {altPlace}
+                                  {altWalk ? (
+                                    <span className="tonightRowMoreWalk">{altWalk}</span>
+                                  ) : null}
+                                </span>
+                              )}
+                            </li>
+                          );
+                        })}
+                      </ul>
+                    </details>
+                  ) : null}
                 </li>
               );
             })}
