@@ -156,9 +156,32 @@ export default function ActivityClient(): React.JSX.Element {
         </header>
 
         {!handleReady || loading ? (
-          <p className="activityLoading" role="status">
-            Loading your activity…
-          </p>
+          // Skeleton mirrors the ready-state grid so first paint already carries
+          // the page's shape — a plain list on phones, rail + two-up timeline at
+          // ≥1024 — instead of a jump from one line of text. Same block idiom as
+          // the feed; the shimmer is gated behind prefers-reduced-motion in CSS.
+          <div className="activityGrid activitySkeleton" role="status" aria-label="Loading your activity">
+            <aside className="activityRail" aria-hidden="true">
+              <div className="activityFilters">
+                {Array.from({ length: 4 }).map((_, i) => (
+                  <span key={i} className="activitySkelChip" />
+                ))}
+              </div>
+              <div className="activitySkelSummary">
+                {Array.from({ length: 3 }).map((_, i) => (
+                  <span key={i} className="activitySkelLine activitySkelLineShort" />
+                ))}
+              </div>
+            </aside>
+            <ul className="activityList" aria-hidden="true">
+              {Array.from({ length: 6 }).map((_, i) => (
+                <li key={i} className="activityItem activitySkelItem">
+                  <span className="activitySkelLine" />
+                  <span className="activitySkelLine activitySkelLineShort" />
+                </li>
+              ))}
+            </ul>
+          </div>
         ) : !handle.trim() ? (
           <EmptyState
             eyebrow="Activity"

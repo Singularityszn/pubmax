@@ -27,10 +27,69 @@
   font-size: 14px;
 }
 
-.activityLoading {
-  color: var(--ink-soft);
-  font-size: 14px;
-  padding: 24px 0;
+/* Loading skeleton — reuses the ready-state grid classes (.activityGrid /
+   .activityRail / .activityList / .activityItem) so it collapses to the phone
+   list below 1024 and blooms into the rail + two-up timeline above it, exactly
+   like the real content. Blocks are the soft line tone; the shimmer sweep lives
+   in the prefers-reduced-motion: no-preference block, so it's static blocks for
+   anyone who opts out. Same idiom as the feed skeleton. */
+.activitySkelItem {
+  display: grid;
+  gap: 10px;
+  min-height: 68px;
+  align-content: center;
+}
+
+.activitySkelChip {
+  width: 64px;
+  height: 36px;
+  border-radius: 999px;
+  background: var(--line-soft, var(--line));
+}
+.activitySkelChip:first-child {
+  width: 48px;
+}
+
+.activitySkelSummary {
+  display: grid;
+  gap: 10px;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--panel);
+}
+
+.activitySkelLine {
+  display: block;
+  height: 12px;
+  border-radius: 6px;
+  background: var(--line-soft, var(--line));
+}
+.activitySkelLine.activitySkelLineShort {
+  width: 45%;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .activitySkelChip,
+  .activitySkelLine {
+    background: linear-gradient(
+      100deg,
+      var(--line-soft, var(--line)) 30%,
+      color-mix(in srgb, var(--line) 55%, var(--panel-raised) 45%) 50%,
+      var(--line-soft, var(--line)) 70%
+    );
+    background-size: 220% 100%;
+    animation: activityShimmer 1.9s linear infinite;
+  }
+}
+
+@keyframes activityShimmer {
+  from {
+    background-position: 200% 0;
+  }
+  to {
+    background-position: -200% 0;
+  }
 }
 
 .activityList {
