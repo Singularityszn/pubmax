@@ -154,7 +154,9 @@ import { slimVenuesToPins } from "@/lib/slimPins";
 import { computeZonePintIndex } from "@/lib/zones";
 import ZonePicker from "@/components/map/ZonePicker";
 import AreaSheet from "@/components/map/AreaSheet";
-import MapSearchSuggest from "@/components/map/MapSearchSuggest";
+import MapSearchSuggest, {
+  type MapSearchSuggestProps,
+} from "@/components/map/MapSearchSuggest";
 import { haversineKm } from "@/lib/haversine";
 import { mergeLazyDetailPins } from "@/lib/lazyVenueDetail";
 import {
@@ -183,6 +185,7 @@ import {
 } from "@/lib/areaButton";
 import type { AreaSheetPlaceFocus } from "@/components/map/AreaSheet";
 import { parseLocalityGazetteer, type Locality } from "@/lib/localities";
+import type { MapSearchAreaOption } from "@/lib/mapSearchSuggest";
 import { getNightArea, getNightAreasForCity, nearestNightAreaForViewport, nightAreaForMapQuery, type NightArea } from "@/lib/nightAreas";
 import { defaultPoiHiddenForViewport } from "@/lib/poiToggleGroups";
 import {
@@ -1156,6 +1159,8 @@ export default function PubMap({
   // unrelated churn (drops/signals) never yanks the camera; only a query
   // change drives a move.
   const [searchFitToken, setSearchFitToken] = useState(0);
+  const [searchAreaNewsArea, setSearchAreaNewsArea] = useState<string | null>(null);
+  const selectedSearchAreaQueryRef = useRef<string | null>(null);
   const filteredVenuesRef = useRef(filteredVenues);
   useEffect(() => {
     filteredVenuesRef.current = filteredVenues;
@@ -1176,6 +1181,9 @@ export default function PubMap({
     // Too short to be a deliberate lookup; don't move the camera on a stray key.
     if (trimmedMapQuery.length < 2) return;
     const handle = window.setTimeout(() => {
+      // An explicit area/locality choice owns the camera. Do not let the typed
+      // pub-fit timer fire late and replace that target with matching venue pins.
+      if (selectedSearchAreaQueryRef.current === trimmedMapQuery) return;
       const matches = filteredVenuesRef.current;
       if (matches.length === 1) {
         // Exactly one match: fly to it and open its sheet (reuses the pin path).
@@ -1239,9 +1247,15 @@ export default function PubMap({
   // #395 R1: clear only the search query and unfilter the map. Used by the
   // mobile active-search chip so a restored (or typed) query is never an
   // invisible filter. Leaves every other filter and the camera untouched.
-  const clearMapQuery = useCallback(() => {
-    setFilters((current) => ({ ...current, query: "" }));
+  const changeMapSearchQuery = useCallback((query: string) => {
+    selectedSearchAreaQueryRef.current = null;
+    setSearchAreaNewsArea(null);
+    setFilters((current) => ({ ...current, query }));
   }, [setFilters]);
+
+  const clearMapQuery = useCallback(() => {
+    changeMapSearchQuery("");
+  }, [changeMapSearchQuery]);
 
   const openComposerForLog = useCallback(() => {
     closePlanning();
@@ -1560,8 +1574,10 @@ export default function PubMap({
   // as the camera settles. All three, in order. (A pub select is handled by
   // selectVenue, which already collapses search and opens the venue card.)
   const selectSearchArea = useCallback(
-    (option: AreaElsewhereOption) => {
+    (option: MapSearchAreaOption) => {
       const journey = planAreaSelect(option);
+      selectedSearchAreaQueryRef.current = trimmedMapQuery;
+      setSearchAreaNewsArea(option.areaNewsArea || null);
       // 1. Fly the camera to the chosen place.
       setAreaFocus((prev) => ({
         center: journey.camera.center,
@@ -1592,8 +1608,21 @@ export default function PubMap({
         setMapOverlay("area");
       }, areaSheetOpenDelay(reduced));
     },
-    [cityId, clearAreaSheetTimer],
+    [cityId, clearAreaSheetTimer, trimmedMapQuery],
   );
+  const sharedMapSearchProps = {
+    cityId,
+    query: filters.query,
+    onQueryChange: changeMapSearchQuery,
+    venues,
+    localities,
+    userLocation,
+    mapCenter: mapViewport.center,
+    onSelectVenue: selectVenue,
+    onFlyToArea: selectSearchArea,
+    onSubmitQuery: selectTopSearchMatch,
+  } satisfies Omit<MapSearchSuggestProps, "id" | "mode" | "placeholder" | "onClose">;
+
   const applyGeneratedMobilePlan = useCallback((generated: GeneratedMobilePlan) => {
     const ids = generated.stops.map((stop) => stop.venueId);
     activateGeneratedPlan(generated.context.nightArea, ids);
@@ -1990,8 +2019,15 @@ export default function PubMap({
         />
         {!mobileViewport ? <MapToolbar
           query={filters.query}
-          onQueryChange={(query) => setFilters((current) => ({ ...current, query }))}
-          onSubmitQuery={selectTopSearchMatch}
+          onQueryChange={changeMapSearchQuery}
+          searchContent={
+            <MapSearchSuggest
+              {...sharedMapSearchProps}
+              id="mapSearchInput"
+              mode="toolbar"
+              placeholder={`Search ${city.displayName} pubs or areas`}
+            />
+          }
           favoritePint={favoritePint}
           onFavoritePintChange={changeFavoritePint}
           drinkCategory={filters.drinkCategory}
@@ -2026,7 +2062,7 @@ export default function PubMap({
             The area is the Night Area under the current view (search-area first,
             else nearest to centre); AreaNewsRail fail-soft hides when it has none. */}
         {railViewport && !detailOpen ? (
-          <MapDesktopRail area={suggestedPlanArea?.slug ?? null} />
+          <MapDesktopRail area={searchAreaNewsArea ?? suggestedPlanArea?.slug ?? null} />
         ) : null}
         {!mobileViewport ? <CitySuggestBanner cityId={cityId} onLocationFound={setUserLocation} /> : null}
         {!mobileViewport && isLondon ? <CityStatusBanner cityId={cityId} /> : null}
@@ -2152,18 +2188,10 @@ export default function PubMap({
           onPlan={openPlanning}
           searchContent={
             <MapSearchSuggest
+              {...sharedMapSearchProps}
               id="mobileMapSearchInput"
-              cityId={cityId}
-              query={filters.query}
-              onQueryChange={(query) => setFilters((current) => ({ ...current, query }))}
-              venues={venues}
-              localities={localities}
-              userLocation={userLocation}
-              mapCenter={mapViewport.center}
+              mode="overlay"
               placeholder={`Search ${city.displayName} pubs or areas`}
-              onSelectVenue={selectVenue}
-              onFlyToArea={selectSearchArea}
-              onSubmitQuery={selectTopSearchMatch}
               onClose={() => changeMapOverlay("none")}
             />
           }

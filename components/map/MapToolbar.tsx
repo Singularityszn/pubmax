@@ -1,7 +1,7 @@
 "use client";
 
-import { Route, Search, Wine, X } from "lucide-react";
-import { useEffect, useState } from "react";
+import { Route, Wine } from "lucide-react";
+import { useEffect, useState, type ReactNode } from "react";
 
 import CitySwitcher from "@/components/map/CitySwitcher";
 import ConditionsChip from "@/components/desktop/ConditionsChip";
@@ -23,8 +23,8 @@ import "./mapToolbar.css";
 type MapToolbarProps = {
   query: string;
   onQueryChange: (query: string) => void;
-  /** Enter/submit in the search box: jump to the current top match. */
-  onSubmitQuery?: () => void;
+  /** Shared gazetteer search surface, configured by PubMap for desktop mode. */
+  searchContent: ReactNode;
   favoritePint: string | null;
   onFavoritePintChange: (beerId: string | null) => void;
   drinkCategory: string;
@@ -55,7 +55,7 @@ type MapToolbarProps = {
 export default function MapToolbar({
   query,
   onQueryChange,
-  onSubmitQuery,
+  searchContent,
   favoritePint,
   onFavoritePintChange,
   drinkCategory,
@@ -109,33 +109,7 @@ export default function MapToolbar({
   return (
     <div className="mapToolbar" role="search">
       <div className="mapToolbarRow">
-        <div className="mapToolbarSearch">
-          <Search size={15} aria-hidden="true" />
-          <input
-            id="mapSearchInput"
-            type="search"
-            value={query}
-            onChange={(event) => onQueryChange(event.target.value)}
-            onKeyDown={(event) => {
-              if (event.key === "Enter") {
-                event.preventDefault();
-                onSubmitQuery?.();
-              }
-            }}
-            placeholder="Search pubs"
-            aria-label="Search pubs by name, area, borough or drink"
-          />
-          {query ? (
-            <button
-              type="button"
-              className="mapToolbarClear"
-              onClick={() => onQueryChange("")}
-              aria-label="Clear search"
-            >
-              <X size={13} />
-            </button>
-          ) : null}
-        </div>
+        <div className="mapToolbarSearch">{searchContent}</div>
 
         {isMobile === false ? <div className="mapToolbarDesktopExtras">{favoritePicker}</div> : null}
 

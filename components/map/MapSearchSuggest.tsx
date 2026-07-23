@@ -30,8 +30,9 @@ type FlatItem =
   | { type: "area"; item: AreaSuggestion }
   | { type: "pub"; item: PubSuggestion };
 
-type MapSearchSuggestProps = {
+export type MapSearchSuggestProps = {
   id: string;
+  mode?: "overlay" | "toolbar";
   cityId: CityId;
   query: string;
   onQueryChange: (query: string) => void;
@@ -53,6 +54,7 @@ type MapSearchSuggestProps = {
 
 export default function MapSearchSuggest({
   id,
+  mode = "overlay",
   cityId,
   query,
   onQueryChange,
@@ -68,6 +70,13 @@ export default function MapSearchSuggest({
 }: MapSearchSuggestProps) {
   const listboxId = useId();
   const optionId = useCallback((index: number) => `${listboxId}-opt-${index}`, [listboxId]);
+  const [toolbarFocused, setToolbarFocused] = useState(false);
+  const closeToolbarPanel = useCallback(() => {
+    if (mode !== "toolbar") return;
+    setToolbarFocused(false);
+    const active = document.activeElement;
+    if (active instanceof HTMLElement) active.blur();
+  }, [mode]);
 
   // Deferred query keeps the input responsive while the (single-pass, whole-set)
   // match recompute runs off the keystroke — the "debounced" behaviour the spec
@@ -112,7 +121,8 @@ export default function MapSearchSuggest({
   const trimmed = query.trim();
   // Panel shows once there is anything to say: matches, the empty-query area
   // prompt, or the honest "nothing matching" line for a typed dead end.
-  const showPanel = trimmed.length > 0 ? true : items.length > 0;
+  const panelEnabled = mode === "overlay" || toolbarFocused;
+  const showPanel = panelEnabled && (trimmed.length > 0 || items.length > 0);
   const showEmptyLine = trimmed.length > 0 && !suggestions.hasResults;
 
   const activate = useCallback(
@@ -120,6 +130,7 @@ export default function MapSearchSuggest({
       if (!entry) return;
       if (entry.type === "pub") {
         onSelectVenue(entry.item.id);
+        closeToolbarPanel();
       } else {
         const { item } = entry;
         onFlyToArea({
@@ -131,9 +142,10 @@ export default function MapSearchSuggest({
           kind: item.kind,
           areaNewsArea: item.areaNewsArea,
         });
+        closeToolbarPanel();
       }
     },
-    [onFlyToArea, onSelectVenue],
+    [closeToolbarPanel, onFlyToArea, onSelectVenue],
   );
 
   const handleKeyDown = useCallback(
@@ -162,10 +174,11 @@ export default function MapSearchSuggest({
           setActiveIndex(-1);
           return;
         }
+        closeToolbarPanel();
         onClose?.();
       }
     },
-    [activate, safeActive, items, onClose, onSubmitQuery],
+    [activate, closeToolbarPanel, safeActive, items, onClose, onSubmitQuery],
   );
 
   const pubStartIndex = suggestions.areas.length;
@@ -173,7 +186,7 @@ export default function MapSearchSuggest({
     suggestions.origin === "user" ? "Distances from you" : "Distances from the map centre";
 
   return (
-    <div className="mapSearchSuggest">
+    <div className={`mapSearchSuggest mapSearchSuggest--${mode}`}>
       <SearchField
         id={id}
         role="combobox"
@@ -183,9 +196,13 @@ export default function MapSearchSuggest({
         aria-activedescendant={safeActive >= 0 ? optionId(safeActive) : undefined}
         value={query}
         onChange={changeQuery}
+        onFocus={() => setToolbarFocused(true)}
+        onBlur={() => {
+          if (mode === "toolbar") setToolbarFocused(false);
+        }}
         onKeyDown={handleKeyDown}
         placeholder={placeholder}
-        autoFocus
+        autoFocus={mode === "overlay"}
       />
 
       {showPanel ? (
