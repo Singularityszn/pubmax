@@ -26,6 +26,16 @@ import {
   writeRememberedArea,
   type NightPatch,
 } from "@/lib/nightPatches";
+import { nearestSupportedPatch, type NearestPatch } from "@/lib/areaDemand";
+import {
+  derivePatchCapabilities,
+  derivePatchProfile,
+  patchIsLimited,
+  patchTierLabel,
+  summarisePatchEvidence,
+  type PatchCapabilityProfile,
+} from "@/lib/patchCapabilities";
+import UnsupportedAreaPreview from "@/components/coverage/UnsupportedAreaPreview";
 
 import "./nearMeNow.css";
 
@@ -77,6 +87,12 @@ export default function NearMeNow({
   const [borough, setBorough] = useState<string | null>(null);
   const [patch, setPatch] = useState<NightPatch | null>(null);
   const [patchReason, setPatchReason] = useState<PatchReason>(null);
+  // Honest, derived coverage tier for the active patch (Wayfinder 3.1): real
+  // priced-pub counts from the slim index in memory, never a uniform claim.
+  const [patchProfile, setPatchProfile] = useState<PatchCapabilityProfile | null>(null);
+  // Located fine but nothing priced within reach: the honest "we do not cover
+  // where you are yet" state, carrying the REAL nearest supported patch.
+  const [outsideCoverage, setOutsideCoverage] = useState<NearestPatch | null>(null);
   const slimRef = useRef<PricedPoint[] | null>(venues ?? null);
   const loadingSlimRef = useRef<Promise<PricedPoint[]> | null>(null);
 
@@ -108,7 +124,11 @@ export default function NearMeNow({
         setCards(answer.cards);
         setScope(answer.scope);
         setPatch(next);
+        // Derive this patch's honest coverage tier from the priced pubs actually
+        // in the slim index (real counts, no uniform claim).
+        setPatchProfile(derivePatchProfile(next, { venues: slim }));
         setBorough(null);
+        setOutsideCoverage(null);
         if (reason !== null) setPatchReason(reason);
         setState("ready");
         writeRememberedArea({ kind: "patch", id: next.id });
@@ -123,6 +143,8 @@ export default function NearMeNow({
         setCards(rankBoroughCheapest(slim, name));
         setBorough(name);
         setPatch(null);
+        setPatchProfile(null);
+        setOutsideCoverage(null);
         setScope("walkable");
         setState("ready");
         writeRememberedArea({ kind: "borough", name });
@@ -161,8 +183,24 @@ export default function NearMeNow({
         void loadSlim().then((slim) => {
           const answer = rankNearMe(position.coords.latitude, position.coords.longitude, slim);
           if (answer.scope === "none") {
-            // Located fine, but nothing priced in range — answer from an area
-            // instead of showing a dead end.
+            // Located fine, but nothing priced in range — be honest that we do
+            // not cover here yet, name the REAL nearest patch, and let them
+            // register demand, instead of silently pretending central London.
+            const nearest = nearestSupportedPatch(
+              position.coords.latitude,
+              position.coords.longitude,
+            );
+            if (nearest) {
+              setCards([]);
+              setBorough(null);
+              setPatch(null);
+              setPatchProfile(null);
+              setPatchReason(null);
+              setOutsideCoverage(nearest);
+              setState("ready");
+              return;
+            }
+            // No patch to offer (should not happen) — fall back to an area answer.
             answerWithoutFix("none");
             return;
           }
@@ -171,7 +209,9 @@ export default function NearMeNow({
           setState("ready");
           setBorough(null);
           setPatch(null);
+          setPatchProfile(null);
           setPatchReason(null);
+          setOutsideCoverage(null);
         });
       },
       (error) => {
@@ -226,6 +266,13 @@ export default function NearMeNow({
           : `No location on this device, so here's ${areaLabel}.`
       : null;
 
+  // Honest, derived coverage tier for the active patch. The note reads from real
+  // priced-pub counts (slim index in memory); a "limited" patch also gets the
+  // #474 demand-capture ask so a thin zone captures demand — value first, always
+  // after the pints. Borough view carries no patch profile, so it is skipped.
+  const patchEvidenceNote = patch && patchProfile ? summarisePatchEvidence(patchProfile) : null;
+  const patchLimited = Boolean(patch && patchProfile && patchIsLimited(patchProfile));
+
   return (
     <section className="nmn" aria-label="Cheapest pints near you now">
       {state === "idle" ? (
@@ -254,7 +301,22 @@ export default function NearMeNow({
         </div>
       ) : null}
 
-      {state === "ready" && !borough && !patch ? (
+      {state === "ready" && outsideCoverage ? (
+        <div className="nmnOutside">
+          <UnsupportedAreaPreview
+            nearest={outsideCoverage}
+            source="near-empty"
+            onPickPatch={(next: NightPatch) => pickPatch(next)}
+          />
+          <footer className="nmnFoot nmnFootArea">
+            <button type="button" className="nmnRetry nmnRetryGhost" onClick={locate}>
+              <LocateFixed size={15} aria-hidden="true" /> Try my location again
+            </button>
+          </footer>
+        </div>
+      ) : null}
+
+      {state === "ready" && !outsideCoverage && !borough && !patch ? (
         <>
           <header className="nmnHead">
             <h2>{scope === "widened" ? "Nearest priced pubs" : "Cheapest pints near you"}</h2>
@@ -282,10 +344,29 @@ export default function NearMeNow({
           <header className="nmnHead">
             <h2>{borough ? `Cheapest in ${borough}` : `Cheapest around ${patch?.label}`}</h2>
             {patchMessage ? <p className="nmnSub">{patchMessage}</p> : null}
+            {patchEvidenceNote ? <p className="nmnPatchTier">{patchEvidenceNote}</p> : null}
           </header>
           <NearMeCardList cards={cards} onOpen={openVenue} />
           {cards.length === 0 ? (
-            <p className="nmnSub">Nothing priced here yet. Pick another area.</p>
+            <div className="nmnOutside">
+              <UnsupportedAreaPreview
+                area={areaLabel}
+                source="area-picker"
+                onPickPatch={(next: NightPatch) => pickPatch(next)}
+              />
+            </div>
+          ) : patchLimited ? (
+            // Covered but thin: pints shown above, now capture demand for MORE
+            // here (the #474 seam wired to LIMITED patches, not just unsupported).
+            <div className="nmnOutside">
+              <UnsupportedAreaPreview
+                area={areaLabel}
+                variant="limited"
+                evidenceNote={patchProfile?.prices.explanation ?? null}
+                source="area-picker"
+                onPickPatch={(next: NightPatch) => pickPatch(next)}
+              />
+            </div>
           ) : null}
           <footer className="nmnFoot nmnFootArea">
             <AreaPicker
@@ -355,6 +436,11 @@ function AreaPicker({
   const [open, setOpen] = useState(false);
   const [showBoroughs, setShowBoroughs] = useState(false);
   const [boroughs, setBoroughs] = useState<string[]>([]);
+  // Honest per-patch tiers (Wayfinder 3.1), derived once the panel opens from the
+  // priced pubs actually in the slim index — a lightly-covered patch chip says so
+  // instead of every chip reading identically supported.
+  const [patchProfiles, setPatchProfiles] =
+    useState<Record<string, PatchCapabilityProfile> | null>(null);
 
   useEffect(() => {
     if (!showBoroughs || boroughs.length > 0) return;
@@ -366,6 +452,17 @@ function AreaPicker({
       alive = false;
     };
   }, [showBoroughs, boroughs.length, loadSlim]);
+
+  useEffect(() => {
+    if (!open || patchProfiles) return;
+    let alive = true;
+    void loadSlim().then((slim) => {
+      if (alive) setPatchProfiles(derivePatchCapabilities({ venues: slim }));
+    });
+    return () => {
+      alive = false;
+    };
+  }, [open, patchProfiles, loadSlim]);
 
   useEffect(() => {
     if (!open) return;
@@ -394,22 +491,29 @@ function AreaPicker({
       </button>
       <div className={`nmnAreaPanel${open ? " nmnAreaPanelOpen" : ""}`} aria-hidden={!open}>
         <ul className="nmnAreaChips" aria-label="Pick a night area">
-          {NIGHT_PATCHES.map((entry) => (
-            <li key={entry.id}>
-              <button
-                type="button"
-                className="nmnBoroughChip"
-                data-active={entry.label === activeLabel || undefined}
-                tabIndex={open ? undefined : -1}
-                onClick={() => {
-                  onPickPatch(entry);
-                  close();
-                }}
-              >
-                {entry.label}
-              </button>
-            </li>
-          ))}
+          {NIGHT_PATCHES.map((entry) => {
+            const profile = patchProfiles?.[entry.id];
+            const lightly = profile ? patchIsLimited(profile) : false;
+            return (
+              <li key={entry.id}>
+                <button
+                  type="button"
+                  className="nmnBoroughChip"
+                  data-active={entry.label === activeLabel || undefined}
+                  data-lightly={lightly || undefined}
+                  tabIndex={open ? undefined : -1}
+                  title={profile ? patchTierLabel(profile) : undefined}
+                  onClick={() => {
+                    onPickPatch(entry);
+                    close();
+                  }}
+                >
+                  {entry.label}
+                  {lightly ? <span className="nmnChipTier">Lightly covered</span> : null}
+                </button>
+              </li>
+            );
+          })}
         </ul>
         {showBoroughs ? (
           <ul className="nmnAreaChips nmnAreaBoroughs" aria-label="All London boroughs">

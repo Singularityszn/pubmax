@@ -16,7 +16,7 @@ scripts/__pycache__/
 .firecrawl/
 test-results/
 playwright-report/
-coverage/
+/coverage/
 e2e/screenshots/
 data/generated/venue_detail_index.json
 data/generated/venue_details.jsonl

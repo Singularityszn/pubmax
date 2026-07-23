@@ -1,0 +1,155 @@
+/* Map search suggestions popup — the as-you-type panel under the map's search
+   input (components/map/MapSearchSuggest.tsx). Both themes via the role tokens
+   the house SearchField already uses; reduced-motion drops the reveal. Rows are
+   44px tap targets; the panel contains its own overscroll so a fling never
+   drags the map underneath. */
+
+.mapSearchSuggest {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.mapSearchSuggestPanel {
+  border: 1px solid var(--color-border, var(--line));
+  border-radius: var(--radius, 12px);
+  background: var(--color-surface-raised, var(--panel-raised));
+  box-shadow: var(--shadow-md, 0 12px 30px rgba(0, 0, 0, 0.18));
+  overflow: hidden;
+  animation: mapSearchSuggestIn 140ms ease;
+}
+
+@keyframes mapSearchSuggestIn {
+  from { opacity: 0; transform: translateY(-4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.mapSearchSuggestScroll {
+  max-height: min(52vh, 420px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+}
+
+.mapSearchSuggestGroup {
+  padding: 4px 0 6px;
+}
+
+.mapSearchSuggestGroup + .mapSearchSuggestGroup {
+  border-top: 1px solid var(--color-border-soft, var(--line-soft, var(--line)));
+}
+
+.mapSearchSuggestGroupHead {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  margin: 0;
+  padding: 8px 14px 4px;
+  font-size: 0.68rem;
+  font-weight: 750;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--color-text-muted, var(--muted));
+}
+
+.mapSearchSuggestOrigin {
+  text-transform: none;
+  letter-spacing: 0;
+  font-weight: 600;
+  font-size: 0.66rem;
+  opacity: 0.85;
+}
+
+.mapSearchSuggestRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  width: 100%;
+  min-height: 44px;
+  padding: 6px 14px;
+  cursor: pointer;
+  color: var(--color-text, var(--ink));
+  transition: background-color 120ms ease;
+}
+
+.mapSearchSuggestRow.isActive,
+.mapSearchSuggestRow:hover {
+  background: var(--state-active-surface, color-mix(in srgb, var(--color-accent, var(--brass)) 12%, transparent));
+}
+
+.mapSearchSuggestRowMain {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+}
+
+.mapSearchSuggestRowIcon {
+  flex: none;
+  color: var(--color-text-muted, var(--muted));
+}
+
+.mapSearchSuggestRowName {
+  font-size: 0.94rem;
+  font-weight: 650;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.mapSearchSuggestBorough {
+  flex: none;
+  font-size: 0.72rem;
+  color: var(--color-text-muted, var(--muted));
+}
+
+.mapSearchSuggestMeta {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: none;
+}
+
+.mapSearchSuggestPrice {
+  font-size: 0.86rem;
+  font-weight: 700;
+  color: var(--color-text, var(--ink));
+}
+
+.mapSearchSuggestDistance {
+  flex: none;
+  font-size: 0.74rem;
+  color: var(--color-text-muted, var(--muted));
+  white-space: nowrap;
+}
+
+.mapSearchSuggestCoverage {
+  flex: none;
+  padding: 1px 7px;
+  border-radius: 999px;
+  font-size: 0.66rem;
+  font-weight: 700;
+  background: color-mix(in srgb, var(--color-text-muted, var(--muted)) 16%, transparent);
+  color: var(--color-text-soft, var(--ink-soft, var(--ink)));
+}
+
+.mapSearchSuggestCoverage[data-tone="discovery"],
+.mapSearchSuggestCoverage[data-tone="paused"] {
+  background: color-mix(in srgb, var(--color-warn, #d16353) 18%, transparent);
+  color: var(--color-warn, #d16353);
+}
+
+.mapSearchSuggestEmpty {
+  margin: 0;
+  padding: 14px;
+  font-size: 0.86rem;
+  color: var(--color-text-soft, var(--ink-soft, var(--ink)));
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mapSearchSuggestPanel { animation: none; }
+  .mapSearchSuggestRow { transition: none; }
+}

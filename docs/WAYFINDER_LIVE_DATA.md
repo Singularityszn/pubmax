@@ -35,6 +35,7 @@ what the *honest* source (first-party page, official API, open data) supports.
 | **Food price updates** | Menu harvest | Manual harvest (no workflow) | Episodic | `FIRECRAWL_API_KEY` for scraping | Episodic | 60 d |
 | **Pint Index (borough medians)** | Confirmed Pint Drops + official-publisher / open-data | Recomputed as eligible observations arrive | **Event-sourced** (grows with the product) | none | User-cadence — **the growth loop IS the refresh** | untracked |
 | **Late-food evidence** | Hand-evidenced per Night Area | Manual curation | Episodic | none | Episodic | untracked |
+| **Night-out restaurants + attractions** | Exa discovery + Firecrawl source-page transport; facts only from source JSON-LD | `ingest:night-out-places` manual reviewed artifact | **Honest empty on main** | `EXA_API_KEY` + `FIRECRAWL_API_KEY`; Actions billing for automation | Manual until funded, then daily review candidate | 30 d per row |
 | **Venue presence (Wetherspoons/OSM)** | OSM Overpass + directory | `fetch:city-pubs` / `fetch_wetherspoons_pubs.mjs` (manual) | Episodic | `FIRECRAWL_API_KEY` for directory path; OSM keyless | Episodic (OSM changes slowly) | untracked |
 | **PUBMAXXING all-drinks / history seed** | Sibling `pubmaxxing` repo | Manual `build:pubmaxxing-seed` import | Episodic | none | Per-import | untracked |
 | **CityMCP (buzz/status/journey/places)** | `citymcp.com/london/mcp` (keyless) | Proxied **per request**, short in-process TTLs (3–10 min) | Live | none (buzz quality rides CityMCP's own EXA-backed enrichment) | Live | live |
@@ -55,6 +56,7 @@ sets a secret. Exact env var → mechanism mapping:
 | `TICKETMASTER_API_KEY` | GH Actions secret (branch `feat/event-sources`) | What's-On **events** vertical (Ticketmaster Discovery) | Provider skipped; contributes 0 rows |
 | `SKIDDLE_API_KEY` | GH Actions secret (branch `feat/event-sources`) | What's-On events (Skiddle) — **also needs written commercial approval from dev@skiddle.com** | Provider noop-skipped |
 | `FIRECRAWL_API_KEY` | Local `.env` / CI secret | Menu scraping (food prices), Wetherspoons directory refresh, research | Those harvest scripts can't fetch; bundled data unaffected |
+| `EXA_API_KEY` + `FIRECRAWL_API_KEY` | Local environment; future GitHub Actions secrets | Governed restaurant/attraction discovery plus source-page JSON-LD transport (`ingest:night-out-places`) | Script halts before write and reports `OWNER ACTION`; the committed honest-empty feed remains untouched |
 | `TFL_APP_KEY` | Vercel env | Higher TfL rate limits | Last-train works fully keyless; only limits are lower |
 | `OPENROUTER_API_KEY` | Vercel env | The Landlord heritage narration | `/api/heritage` returns grounded, structured-only answers |
 | `POSTHOG_PROJECT_API_KEY` | Vercel env | Server-side analytics forwarding | Events still logged to Vercel structured sink |
@@ -91,10 +93,11 @@ Honest accounting of what will **not** get fresher on its own:
 3. **What's-On events are branch-only + key-off.** `feat/event-sources` has the
    full Ticketmaster/Skiddle pipeline, but it isn't merged and the cron is
    commented out. **Gap: merge + provider keys (+ Skiddle approval).**
-4. **Food prices, late-food evidence, venue presence, all-drinks seed → manual,
+4. **Food prices, late-food evidence, night-out places, venue presence, all-drinks seed → manual,
    episodic.** No workflow. Refreshed by running the harvest/import script by
-   hand. Registered `untracked` (no budget) so they surface honestly without
-   nagging the build.
+   hand. The restaurant/attraction feed is budgeted at 30 days per accepted row
+   and fails closed to an empty result; the other episodic feeds remain
+   untracked where their contracts say so.
 5. **Buzz is upstream-EXA-blocked.** Even live, CityMCP returns no digest for
    many venues; the app renders nothing rather than invent buzz. Nothing to
    automate our side.

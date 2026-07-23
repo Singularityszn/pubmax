@@ -4,6 +4,8 @@ import Link from "next/link";
 import { FormEvent, useEffect, useRef, useState } from "react";
 import { Check, Eye, LockKeyhole, UserPlus } from "lucide-react";
 
+import "./NightMemoryStudio.css";
+
 import { trackEvent } from "@/lib/analytics";
 import { authedFetch } from "@/lib/authedFetch";
 import type { NightMomentKind } from "@/lib/nightMemory";
@@ -19,7 +21,7 @@ type Moment = { id: string; kind: NightMomentKind; caption: string; venueId: str
 type Story = { id: string; memoryId?: string; title: string; summary: string; status: "draft" | "published"; visibility: string; publishedMomentIds?: string[]; membership?: { role: "host" | "editor" | "contributor"; status: "invited" | "accepted" | "removed"; joinedAt: string | null } };
 type StoryWorkspace = {
   story: Story;
-  moments: Array<{ id: string; kind: NightMomentKind; caption: string; venueId: string | null; occurredAt: string | null; ownedByCaller: boolean; consent: "pending" | "approved" | "withdrawn" }>;
+  moments: Array<{ id: string; kind: NightMomentKind; caption: string; venueId: string | null; occurredAt: string | null; ownedByCaller: boolean; consent: "pending" | "approved" | "withdrawn"; hasPhoto: boolean; altText: string | null; altTextConfirmed: boolean }>;
   contributors: Array<{ handle: string | null; role: "host" | "editor" | "contributor"; status: "invited" | "accepted" | "removed"; joinedAt: string | null }>;
   caller: { role: "host" | "editor" | "contributor"; canEdit: boolean };
 };
@@ -41,12 +43,17 @@ export default function NightMemoryStudio({ userId }: { userId: string }) {
   const [stories, setStories] = useState<Story[]>([]);
   const [message, setMessage] = useState("");
   const [saving, setSaving] = useState(false);
+  // True once the initial memories+stories fetch settles (success or error).
+  // Gates the first-run onboarding callout so it never flickers during load.
+  const [studioLoaded, setStudioLoaded] = useState(false);
   const [selectedStoryId, setSelectedStoryId] = useState("");
   const [workspace, setWorkspace] = useState<StoryWorkspace | null>(null);
   const [selectedMomentIds, setSelectedMomentIds] = useState<string[]>([]);
   const [publishVisibility, setPublishVisibility] = useState<"public" | "unlisted">("unlisted");
   const [confirmation, setConfirmation] = useState<PublicationConfirmation | null>(null);
   const [inviteHandle, setInviteHandle] = useState("");
+  // Per-photo alt-text drafts, keyed by moment id. Falls back to the saved value.
+  const [altDrafts, setAltDrafts] = useState<Record<string, string>>({});
   const [contributionDraft, setContributionDraft] = useState<{ kind: NightMomentKind; caption: string; venueId: string }>({
     kind: "quote",
     caption: "",
@@ -70,6 +77,7 @@ export default function NightMemoryStudio({ userId }: { userId: string }) {
         : [];
       setMemories(nextMemories);
       setStories(nextStories);
+      setStudioLoaded(true);
       const current = selectedStoryIdRef.current;
       const nextStoryId = nextStories.some((story) => story.id === current && story.membership?.status !== "invited")
         ? current
@@ -85,7 +93,10 @@ export default function NightMemoryStudio({ userId }: { userId: string }) {
           : (nextMemories[0]?.id ?? ""),
       }));
     }).catch(() => {
-      if (!controller.signal.aborted) setMessage("Your Memory studio could not be loaded. Try again.");
+      if (!controller.signal.aborted) {
+        setMessage("Your Memory studio could not be loaded. Try again.");
+        setStudioLoaded(true);
+      }
     });
     return () => controller.abort();
   }, []);
@@ -304,6 +315,33 @@ export default function NightMemoryStudio({ userId }: { userId: string }) {
     }
   }
 
+  // Author-confirm the alt text on the caller's OWN photo Moment. Saving their
+  // typed words IS the confirmation (no AI provider in v1). A confirmed
+  // description is what unblocks that photo for publication.
+  async function saveMomentAltText(momentId: string) {
+    if (!workspace) return;
+    const altText = altDrafts[momentId] ?? "";
+    setSaving(true);
+    invalidatePublication();
+    try {
+      const response = await authedFetch(`/api/night-moments/${encodeURIComponent(momentId)}/alt-text`, {
+        method: "PATCH",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ altText }),
+      });
+      const body = await response.json().catch(() => ({})) as { altTextConfirmed?: boolean; error?: string };
+      if (!response.ok) throw new Error(body.error ?? "That photo description could not be saved.");
+      if (!await refreshWorkspace(workspace.story.id)) return;
+      setMessage(body.altTextConfirmed
+        ? "Photo description saved. This photo can now be published."
+        : "Photo description cleared. Add one before publishing this photo.");
+    } catch (caught) {
+      setMessage(caught instanceof Error ? caught.message : "That photo description could not be saved.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
   async function addStoryContribution(event: FormEvent) {
     event.preventDefault();
     if (!workspace || workspace.caller.canEdit || workspace.story.status !== "draft") return;
@@ -427,6 +465,19 @@ export default function NightMemoryStudio({ userId }: { userId: string }) {
         <Link className="memoryCaptureLink" href="/moment">Capture a Moment</Link>
       </div>
 
+      {studioLoaded && memories.length === 0 && stories.length === 0 ? (
+        <div className="memoryStudioFirstRun" role="status">
+          <p className="memoryStudioFirstRunTitle">Your Memory studio is empty.</p>
+          <p className="memoryStudioFirstRunBody">
+            A Memory is a private night out in your words. Add the Moments worth keeping, then shape a Story you decide whether to share. Start below, or capture tonight from the map.
+          </p>
+          <div className="memoryStudioFirstRunActions">
+            <Link href="/moment" className="memoryStudioFirstRunPrimary">Capture a Moment now</Link>
+            <Link href="/map?log=1" className="memoryStudioFirstRunSecondary">Log a pint first</Link>
+          </div>
+        </div>
+      ) : null}
+
       <div className="memoryStudioFlow">
         <form onSubmit={createMemory}>
           <span className="memoryStudioStep">1</span>
@@ -518,6 +569,31 @@ export default function NightMemoryStudio({ userId }: { userId: string }) {
                         <button type="button" disabled={saving} onClick={() => void setMomentConsent(moment.id, moment.consent === "approved" ? "withdrawn" : "approved")}>
                           {moment.consent === "approved" ? "Withdraw approval" : "Approve for Story"}
                         </button>
+                      ) : null}
+                      {moment.ownedByCaller && moment.hasPhoto ? (
+                        <div className="memoryMomentAlt">
+                          <label>
+                            <span>
+                              Photo description
+                              {moment.altTextConfirmed
+                                ? <small className="memoryMomentAlt__ok"> · confirmed</small>
+                                : <small className="memoryMomentAlt__todo"> · needed to publish</small>}
+                            </span>
+                            {/* AI-suggestion seam (v1: none): a provider could prefill
+                                this for the author to edit and save. It must never
+                                auto-fill or auto-confirm — the saved words are the
+                                author confirmation the publish gate requires. */}
+                            <textarea
+                              value={altDrafts[moment.id] ?? moment.altText ?? ""}
+                              onChange={(event) => setAltDrafts((current) => ({ ...current, [moment.id]: event.target.value }))}
+                              maxLength={200}
+                              rows={2}
+                              disabled={saving}
+                              placeholder="Describe the photo for someone who cannot see it."
+                            />
+                          </label>
+                          <button type="button" disabled={saving} onClick={() => void saveMomentAltText(moment.id)}>Save description</button>
+                        </div>
                       ) : null}
                     </li>
                   );

@@ -18,6 +18,7 @@ import {
   type ProfileRecord,
 } from "@/lib/profileStore";
 import { followStore } from "@/lib/followStore";
+import { markContributorsDepartedByProfileId } from "@/lib/nightMemoryStore";
 import {
   clientIp,
   hashIp,
@@ -253,6 +254,29 @@ export async function DELETE(
     }
 
     const profile = await store.softDelete(handle);
+
+    // Redaction on account deletion (Wayfinder 5.5): mark this account's Story
+    // contributions "withdrawn" so the publish gate erases their content +
+    // identity from every published Story on the next public read — without
+    // destroying the rest of anyone's Story. Additive, and fail-soft: a marking
+    // hiccup must not fail the delete the caller already succeeded at, but it is
+    // logged loudly so the owner can reconcile.
+    if (existing.userId) {
+      try {
+        const marked = await markContributorsDepartedByProfileId(existing.userId);
+        if (marked > 0) {
+          console.info(
+            `[redaction] account deletion for @${handle}: marked ${marked} Story contribution(s) departed`,
+          );
+        }
+      } catch (err) {
+        console.error(
+          `[redaction] account deletion for @${handle}: FAILED to mark Story contributions departed — reconcile manually`,
+          err,
+        );
+      }
+    }
+
     return jsonNoStore({ profile: toPublicProfile(profile) }, { status: 200 });
   } catch {
     return jsonNoStore({ error: "Profile storage is unavailable." }, { status: 503 });

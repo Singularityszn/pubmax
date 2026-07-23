@@ -21,6 +21,7 @@ import { POST as ADD_STORY_MOMENT } from "@/app/api/night-stories/[id]/moments/r
 import { POST as SET_STORY_CONSENT } from "@/app/api/night-stories/[id]/consents/route";
 import { POST as PROPOSE } from "@/app/api/night-stories/[id]/publish-proposals/route";
 import { POST as CONFIRM } from "@/app/api/night-stories/[id]/publish-confirmations/route";
+import { PATCH as SET_ALT } from "@/app/api/night-moments/[id]/alt-text/route";
 import { __resetNightMemoryStore } from "@/lib/nightMemoryStore";
 import { __resetMemoryProfiles, profileStore } from "@/lib/profileStore";
 
@@ -87,6 +88,45 @@ describe("Night Memory HTTP contract", () => {
     const publicBody = await publicResponse.json();
     expect(publicBody.story).not.toHaveProperty("memoryId");
     expect(publicBody.story).not.toHaveProperty("hostEditorId");
+  });
+
+  it("refuses to publish a photo lacking confirmed alt text, names it, then unblocks once the owner describes it", async () => {
+    const memoryResponse = await CREATE_MEMORY(auth("/api/night-memories", { title: "Rooftop" }));
+    const { memory } = await memoryResponse.json();
+    // A private photo save with no description succeeds (gate is publication-only).
+    const momentResponse = await ADD_MEMORY_MOMENT(auth(`/api/night-memories/${memory.id}/moments`, { kind: "photo", caption: "The rooftop at midnight", mediaObjectKey: "night-media/host/r.webp" }), ctx(memory.id));
+    expect(momentResponse.status).toBe(201);
+    const { moment } = await momentResponse.json();
+    const storyResponse = await CREATE_STORY(auth("/api/night-stories", { memoryId: memory.id, title: "Rooftop" }));
+    const { story } = await storyResponse.json();
+
+    const blocked = await PROPOSE(auth(`/api/night-stories/${story.id}/publish-proposals`, { momentIds: [moment.id], visibility: "public" }), ctx(story.id));
+    expect(blocked.status).toBe(409);
+    const blockedBody = await blocked.json();
+    expect(blockedBody).toMatchObject({ code: "MOMENT_ALT_TEXT_REQUIRED", momentId: moment.id });
+    expect(blockedBody.error).toContain("The rooftop at midnight");
+
+    // Only the owner may describe the photo.
+    const strangerPatch = new Request(`http://localhost/api/night-moments/${moment.id}/alt-text`, {
+      method: "PATCH",
+      headers: { authorization: "Bearer stranger", "content-type": "application/json" },
+      body: JSON.stringify({ altText: "Sneaky" }),
+    });
+    expect((await SET_ALT(strangerPatch, ctx(moment.id))).status).toBe(403);
+
+    const ownerPatch = new Request(`http://localhost/api/night-moments/${moment.id}/alt-text`, {
+      method: "PATCH",
+      headers: { authorization: "Bearer host", "content-type": "application/json" },
+      body: JSON.stringify({ altText: "A rooftop bar lit by string lights." }),
+    });
+    const described = await SET_ALT(ownerPatch, ctx(moment.id));
+    expect(described.status).toBe(200);
+    const describedBody = await described.json();
+    expect(describedBody).toMatchObject({ altTextConfirmed: true });
+    expect(JSON.stringify(describedBody)).not.toContain('"ownerId"');
+
+    const proposalResponse = await PROPOSE(auth(`/api/night-stories/${story.id}/publish-proposals`, { momentIds: [moment.id], visibility: "public" }), ctx(story.id));
+    expect(proposalResponse.status).toBe(201);
   });
 
   it("edits and previews a private Story without exposing account identifiers", async () => {

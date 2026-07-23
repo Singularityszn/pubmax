@@ -25,6 +25,11 @@ import { resolveTonightNear } from "@/lib/tonight";
 import { orderPicksNear, type TodayFact, type TonightPickDto, type WeatherBrief } from "@/lib/todayBrief";
 
 import TodayGetThereStrip from "./TodayGetThereStrip";
+import TodayPintsCard from "./TodayPintsCard";
+import TodayQuietPintCard from "./TodayQuietPintCard";
+import TodayTubeCard from "./TodayTubeCard";
+import type { TodayPintsIndex } from "./todayPints";
+import type { QuietPintModule } from "@/lib/quietPint";
 import "./today.css";
 
 type Props = {
@@ -32,6 +37,8 @@ type Props = {
   weather: WeatherBrief | null;
   picks: TonightPickDto[];
   fact: TodayFact | null;
+  pintsIndex: TodayPintsIndex;
+  quietPint: QuietPintModule | null;
 };
 
 function WeatherCard({ weather }: { weather: WeatherBrief | null }) {
@@ -119,6 +126,9 @@ function PicksCard({ picks }: { picks: TonightPickDto[] }) {
                     <MapPin size={13} aria-hidden="true" />
                     <span>{pick.placeName}</span>
                   </p>
+                  {pick.venueNote ? (
+                    <span className="todayPickDigest">{pick.venueNote}</span>
+                  ) : null}
                   <span className="todayPickSource">via {pick.sourceLabel}</span>
                 </>
               );
@@ -218,7 +228,7 @@ function FactCard({ fact }: { fact: TodayFact | null }) {
   );
 }
 
-export default function TodayClient({ dateLabel, weather, picks, fact }: Props) {
+export default function TodayClient({ dateLabel, weather, picks, fact, pintsIndex, quietPint }: Props) {
   // Silent continuity (#427 seam): if the viewer chose an area anywhere in the
   // app, lead with the picks nearest it. Same server-chosen picks, same count,
   // order only; no remembered area = server order untouched. localStorage is
@@ -247,14 +257,17 @@ export default function TodayClient({ dateLabel, weather, picks, fact }: Props) 
         <h1 className="todayTitle">Your day out, sorted.</h1>
         <p className="todayLede">
           <span className="todayDate">{dateLabel}</span>. The weather, tonight&rsquo;s best,
-          how you&rsquo;ll get home, and one for the road.
+          how you&rsquo;ll get home, and one to remember.
         </p>
       </header>
 
       <div className="todayStack">
         <WeatherCard weather={weather} />
+        <TodayTubeCard />
         <PicksCard picks={orderedPicks} />
         <TodayGetThereStrip />
+        <TodayPintsCard index={pintsIndex} />
+        <TodayQuietPintCard module={quietPint} />
         <FactCard fact={fact} />
       </div>
 

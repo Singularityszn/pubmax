@@ -5,6 +5,12 @@ import { ArrowDownRight, ArrowUpRight, Minus, TrendingUp } from "lucide-react";
 
 import PriceBadge from "@/components/PriceBadge";
 import { priceConfidence } from "@/lib/priceConfidence";
+import {
+  conflictPrices,
+  priceFieldId,
+  priceStorySignals,
+  resolvePrice,
+} from "@/lib/priceFactClaims";
 import { formatPrice, type Venue } from "@/lib/venues";
 import type { Provenance } from "@/lib/curation";
 import { PROVENANCE_LABEL } from "@/lib/provenanceLabels";
@@ -30,6 +36,13 @@ import "./venuePriceStory.css";
 
 function ProvChip({ provenance }: { provenance: Provenance }) {
   return <span className={`provChip ${provenance}`}>{PROVENANCE_LABEL[provenance]}</span>;
+}
+
+// "£6.40 and £6.90" / "£6.40, £6.90 and £7.10" — plain register, no dashes.
+function formatPriceList(gbps: number[]): string {
+  const parts = gbps.map((gbp) => formatPrice(gbp));
+  if (parts.length <= 1) return parts.join("");
+  return `${parts.slice(0, -1).join(", ")} and ${parts[parts.length - 1]}`;
 }
 
 function direction(deltaGbp: number): "up" | "down" | "flat" {
@@ -92,19 +105,31 @@ function ConfirmTick() {
 // visitor, not only to the person who tapped. Fail-soft: any error yields null
 // and the chip renders exactly as it did before this hook existed.
 type ConfirmTally = { confirms: number; lastConfirmedAt: number | null; recentConfirms: number };
-type ConfirmRead = { tally: ConfirmTally; confidence: ReturnType<typeof priceConfidence> | null };
+type ConfirmRead = {
+  tally: ConfirmTally;
+  confidence: ReturnType<typeof priceConfidence> | null;
+  // Distinct GBP values in a live price conflict (ascending), or [] when the
+  // price resolves cleanly. Resolved through the generic fact-claim model.
+  conflictGbps: number[];
+};
 
-// Confidence is derived INSIDE the effect (with the wall clock read there, not
-// in render) so the component stays pure for the React Compiler — the clock is
-// captured once per fetch, which is exactly the freshness the label describes.
-function usePriceConfirmTally(venueId: string, priceGbp: number): ConfirmRead | null {
+// Confidence AND the price-conflict resolution are derived INSIDE the effect
+// (with the wall clock read there, not in render) so the component stays pure for
+// the React Compiler — the clock is captured once per fetch, which is exactly the
+// freshness the resolution reasons about.
+function usePriceConfirmTally(
+  venueId: string,
+  confirmTargetGbp: number,
+  baselineGbp: number | null,
+  nowGbp: number | null,
+): ConfirmRead | null {
   const [read, setRead] = useState<ConfirmRead | null>(null);
   useEffect(() => {
     let cancelled = false;
     (async () => {
       try {
         const res = await fetch(
-          `/api/price-confirm?venueId=${encodeURIComponent(venueId)}&priceGbp=${priceGbp}`,
+          `/api/price-confirm?venueId=${encodeURIComponent(venueId)}&priceGbp=${confirmTargetGbp}`,
         );
         if (!res.ok) return;
         const data = (await res.json()) as Partial<ConfirmTally>;
@@ -115,9 +140,23 @@ function usePriceConfirmTally(venueId: string, priceGbp: number): ConfirmRead | 
             typeof data.lastConfirmedAt === "number" ? data.lastConfirmedAt : null,
           recentConfirms: typeof data.recentConfirms === "number" ? data.recentConfirms : 0,
         };
+        // Wire baseline + community "now" + the vouch tally through the
+        // fact-claim model. A live conflict (on-record price vs a freshly-vouched
+        // different price) is exposed plainly rather than silently picked.
+        const resolution = resolvePrice(
+          priceFieldId(venueId),
+          priceStorySignals({
+            baselineGbp,
+            nowGbp,
+            confirm: tally,
+            confirmTargetGbp,
+          }),
+          { now: Date.now() },
+        );
         setRead({
           tally,
           confidence: tally.confirms > 0 ? priceConfidence(tally, Date.now()) : null,
+          conflictGbps: conflictPrices(resolution),
         });
       } catch {
         // Fail-soft: no tally, chip behaves as before.
@@ -126,7 +165,7 @@ function usePriceConfirmTally(venueId: string, priceGbp: number): ConfirmRead | 
     return () => {
       cancelled = true;
     };
-  }, [venueId, priceGbp]);
+  }, [venueId, confirmTargetGbp, baselineGbp, nowGbp]);
   return read;
 }
 
@@ -238,8 +277,14 @@ export default function VenuePriceStory({ venue, drops, onPriceChanged }: VenueP
   // story is empty — the fetch is skipped server-side by validation and the
   // tally stays null.
   const confirmTarget = story.now ?? story.baseline;
-  const read = usePriceConfirmTally(venue.id, confirmTarget ? confirmTarget.gbp : 0);
+  const read = usePriceConfirmTally(
+    venue.id,
+    confirmTarget ? confirmTarget.gbp : 0,
+    story.baseline ? story.baseline.gbp : null,
+    story.now ? story.now.gbp : null,
+  );
   const confidence = confirmTarget ? (read?.confidence ?? null) : null;
+  const conflictGbps = read?.conflictGbps ?? [];
 
   if (story.isEmpty) {
     return (
@@ -329,6 +374,16 @@ export default function VenuePriceStory({ venue, drops, onPriceChanged }: VenueP
                   baseline!.gbp,
                 )} baseline, community-reported.`}
           </span>
+        </p>
+      ) : null}
+
+      {/* Honest conflict: when the on-record price and a freshly-vouched
+          community price disagree, both are shown plainly rather than silently
+          serving one. Resolved through the generic fact-claim model. */}
+      {conflictGbps.length >= 2 ? (
+        <p className="vpsConflict" role="note">
+          Reported at {formatPriceList(conflictGbps)} recently. Both stand until
+          the next confirm settles it.
         </p>
       ) : null}
 

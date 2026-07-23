@@ -423,7 +423,7 @@ export function renderWeeklyDigestHtml(digest: WeeklyDigest): string {
 
   // Tip always renders (honest advice; clearly a tip, not data).
   rows.push(sectionBlock(
-    "One for the road",
+    "Worth remembering",
     `<p style="margin:0;font-size:15px;color:${BRAND.inkSoft};font-style:italic;">${esc(s.tip)}</p>`,
   ));
 
@@ -431,7 +431,7 @@ export function renderWeeklyDigestHtml(digest: WeeklyDigest): string {
     ? `<p style="margin:0 0 20px;font-size:15px;color:${BRAND.inkSoft};">Quiet week in your corner of London. No new prices or events near you. Here's one thing worth remembering anyway.</p>`
     : "";
 
-  return `<!-- PUBMAXX weekly digest — email-safe, inline styles only -->
+  return `<!-- PUBMAXX weekly digest: email-safe, inline styles only -->
 <div style="margin:0;padding:0;background:${BRAND.paper};">
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:${BRAND.paper};">
 <tr><td align="center" style="padding:24px 12px;">
@@ -505,10 +505,10 @@ export function renderWeeklyDigestText(digest: WeeklyDigest): string {
     lines.push("");
   }
 
-  lines.push("ONE FOR THE ROAD");
+  lines.push("WORTH REMEMBERING");
   lines.push(`  ${s.tip}`);
   lines.push("");
-  lines.push("—");
+  lines.push("---");
   lines.push(
     "You're getting this because you asked us to keep you posted. We only show real, sourced data. We never invent a pint.",
   );
@@ -541,7 +541,7 @@ export function assertNoResidualPlaceholders(rendered: string, part: "html" | "t
   const match = /\{\{\s*([^}]*?)\s*\}\}/.exec(rendered);
   if (match) {
     throw new Error(
-      `weeklyDigest: unresolved template placeholder "{{${match[1]}}}" in rendered ${part} — refusing to build an email with unsubstituted content.`,
+      `weeklyDigest: unresolved template placeholder "{{${match[1]}}}" in rendered ${part}: refusing to build an email with unsubstituted content.`,
     );
   }
 }
