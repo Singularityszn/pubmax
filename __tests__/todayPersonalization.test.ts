@@ -4,6 +4,7 @@ import {
   DEFAULT_NIGHT_PROFILE_INPUT,
   type NightProfileInput,
 } from "@/lib/nightProfile";
+import type { NightAreaSlug } from "@/lib/nightAreas";
 import { createPlanIntakeDraft, type PlanIntakeDraft } from "@/lib/planIntake";
 import {
   applyTodayPersonalization,
@@ -201,6 +202,40 @@ describe("resolveTodayPersonalization", () => {
     expect(result.ignored).toBe(false);
   });
 
+  it("ignores wholly corrupt exclusion arrays instead of clearing lower preferences", () => {
+    const result = resolveTodayPersonalization({
+      explicitCurrentIntent: {
+        hardExclusions: {
+          topics: [123] as unknown as string[],
+          areas: ["not-an-area"] as unknown as NightAreaSlug[],
+        },
+      },
+      account: profile({
+        briefingPreferences: {
+          ...DEFAULT_NIGHT_PROFILE_INPUT.briefingPreferences,
+          mutedTopics: ["quiz"],
+          mutedAreas: ["camden"],
+        },
+      }),
+    });
+
+    expect(result.hardExclusions.topics).toEqual({ value: ["quiz"], source: "account" });
+    expect(result.hardExclusions.areas).toEqual({ value: ["camden"], source: "account" });
+  });
+
+  it("uses a same-layer Night Area when an explicit null clears patch precision", () => {
+    const result = resolveTodayPersonalization({
+      explicitCurrentIntent: {
+        preferredPatch: null,
+        context: { nightArea: "camden" },
+      },
+      defaults: { preferredPatch: "clapham" },
+    });
+
+    expect(result.preferredPatch).toEqual({ value: null, source: "explicit-current-intent" });
+    expect(result.weatherArea).toEqual({ value: "camden", source: "explicit-current-intent" });
+  });
+
   it("treats ignore today as ephemeral suppression without changing resolved facts", () => {
     const baseInput = {
       account: profile({
@@ -310,6 +345,44 @@ describe("applyTodayPersonalization", () => {
 
     expect(applyTodayPersonalization(base, {}, resolveTodayPersonalization()).picks)
       .toEqual(base.picks.slice(0, 3));
+  });
+
+  it("preserves source diversity after personalized distance ordering", () => {
+    const nearA = pick("near-a", { sourceLabel: "Source A", lat: 51.539, lng: -0.143 });
+    const nearA2 = pick("near-a-2", { sourceLabel: "Source A", lat: 51.54, lng: -0.143 });
+    const nearA3 = pick("near-a-3", { sourceLabel: "Source A", lat: 51.541, lng: -0.143 });
+    const farB = pick("far-b", { sourceLabel: "Source B", lat: 51.462, lng: -0.138 });
+    const farC = pick("far-c", { sourceLabel: "Source C", lat: 51.463, lng: -0.138 });
+    const resolved = resolveTodayPersonalization({
+      explicitCurrentIntent: { preferredPatch: "camden" },
+    });
+
+    const result = applyTodayPersonalization(
+      { weather: centralWeather, picks: [nearA, farB, farC, nearA2, nearA3] },
+      {},
+      resolved,
+    );
+
+    expect(result.picks[0].sourceLabel).toBe("Source A");
+    expect(new Set(result.picks.map((item) => item.sourceLabel))).toEqual(
+      new Set(["Source A", "Source B", "Source C"]),
+    );
+  });
+
+  it("keeps remembered-area membership to the server-ranked top three", () => {
+    const first = pick("first", { lat: 51.462, lng: -0.138 });
+    const second = pick("second", { lat: 51.463, lng: -0.138 });
+    const third = pick("third", { lat: 51.464, lng: -0.138 });
+    const fourthNearCamden = pick("fourth", { lat: 51.539, lng: -0.143 });
+    const resolved = resolveTodayPersonalization({ defaults: { preferredPatch: "camden" } });
+
+    const result = applyTodayPersonalization(
+      { weather: centralWeather, picks: [first, second, third, fourthNearCamden] },
+      {},
+      resolved,
+    );
+
+    expect(result.picks.map((item) => item.id)).toEqual(["first", "second", "third"]);
   });
 
   it("returns the baseline by reference when today is ignored", () => {

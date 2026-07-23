@@ -106,20 +106,22 @@ function hasOwn<T extends object>(value: T, key: PropertyKey): boolean {
 
 function cleanTopics(value: unknown): string[] | undefined {
   if (!Array.isArray(value)) return undefined;
-  return value
+  const cleaned = value
     .filter((item): item is string => typeof item === "string")
     .map((item) => item.trim().toLocaleLowerCase("en-GB"))
     .filter(Boolean)
     .filter((item, index, all) => all.indexOf(item) === index)
     .slice(0, 8);
+  return value.length > 0 && cleaned.length === 0 ? undefined : cleaned;
 }
 
 function cleanAreas(value: unknown): NightAreaSlug[] | undefined {
   if (!Array.isArray(value)) return undefined;
   const allowed = new Set<NightAreaSlug>(NIGHT_AREAS.map((area) => area.slug));
-  return value
+  const cleaned = value
     .filter((item): item is NightAreaSlug => typeof item === "string" && allowed.has(item as NightAreaSlug))
     .filter((item, index, all) => all.indexOf(item) === index);
+  return value.length > 0 && cleaned.length === 0 ? undefined : cleaned;
 }
 
 function normalizeIntent(
@@ -243,10 +245,15 @@ function locationPreferenceFromLayers(layers: readonly NormalizedLayer[]): {
   for (const layer of layers) {
     if (hasOwn(layer, "preferredPatch")) {
       const preferredPatch = layer.preferredPatch ?? null;
+      const sameLayerArea = hasOwn(layer.context, "nightArea")
+        ? layer.context.nightArea
+        : null;
       return {
         preferredPatch: { value: preferredPatch, source: layer.source },
         weatherArea: {
-          value: preferredPatch ? nearestWeatherArea(preferredPatch) : "piccadilly-soho",
+          value: preferredPatch
+            ? nearestWeatherArea(preferredPatch)
+            : sameLayerArea ?? "piccadilly-soho",
           source: layer.source,
         },
       };
@@ -359,6 +366,21 @@ function pickNightArea(pick: TonightPickDto): NightAreaSlug | null {
   return nearest?.slug ?? null;
 }
 
+function sourceDiverseOrder(picks: readonly TonightPickDto[]): TonightPickDto[] {
+  const primary: TonightPickDto[] = [];
+  const overflow: TonightPickDto[] = [];
+  const seen = new Set<string>();
+  for (const pick of picks) {
+    const source = pick.sourceLabel.normalize("NFKC").trim().toLocaleLowerCase("en-GB");
+    if (seen.has(source)) overflow.push(pick);
+    else {
+      seen.add(source);
+      primary.push(pick);
+    }
+  }
+  return [...primary, ...overflow];
+}
+
 /** Apply only claims the Today DTO can prove: patch order, weather area, and mutes. */
 export function applyTodayPersonalization(
   base: TodayBriefReadModel,
@@ -380,7 +402,9 @@ export function applyTodayPersonalization(
     const area = pickNightArea(pick);
     return !area || !mutedAreas.has(area);
   });
-  const patch = resolveNightPatch(resolved.preferredPatch.value);
+  const patch = resolved.preferredPatch.source !== "defaults"
+    ? resolveNightPatch(resolved.preferredPatch.value)
+    : null;
   const area = resolved.weatherArea.source !== "defaults"
     ? NIGHT_AREAS.find((candidate) => candidate.slug === resolved.weatherArea.value)
     : null;
@@ -389,7 +413,7 @@ export function applyTodayPersonalization(
     : area
       ? { lat: area.centre.lat, lng: area.centre.lng }
       : null;
-  const picks = orderPicksNear(filtered, near).slice(0, TODAY_PICK_LIMIT);
+  const picks = sourceDiverseOrder(orderPicksNear(filtered, near)).slice(0, TODAY_PICK_LIMIT);
   const personalizedWeather = resolved.weatherArea.source !== "defaults" || resolved.preferredPatch.value
     ? weatherByArea[resolved.weatherArea.value]
     : undefined;

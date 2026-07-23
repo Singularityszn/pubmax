@@ -95,6 +95,7 @@ type EligibleChoice = {
 };
 
 const DAY_KEY = /^\d{4}-\d{2}-\d{2}$/;
+const EXPLICIT_ISO_INSTANT = /^\d{4}-\d{2}-\d{2}T.+(?:Z|[+-]\d{2}:\d{2})$/i;
 const MAX_EVIDENCE_AGE_MS = 90 * 24 * 60 * 60 * 1_000;
 
 function cleanToken(value: string): string {
@@ -105,11 +106,17 @@ function stableTextCompare(left: string, right: string): number {
   return left < right ? -1 : left > right ? 1 : 0;
 }
 
+function parseExplicitIsoInstant(value: string): number | null {
+  const clean = value.trim();
+  if (!EXPLICIT_ISO_INSTANT.test(clean)) return null;
+  const parsed = Date.parse(clean);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
 function validObservedAt(value: string, asOfMs: number): boolean {
-  const observedAt = Date.parse(value);
+  const observedAt = parseExplicitIsoInstant(value);
   return (
-    value.trim().length > 0
-    && Number.isFinite(observedAt)
+    observedAt !== null
     && observedAt <= asOfMs
     && observedAt >= asOfMs - MAX_EVIDENCE_AGE_MS
   );
@@ -272,11 +279,11 @@ export function selectSurpriseDrink(input: SurpriseDrinkInput): SurpriseDrinkRes
   }
   const personKey = input.personKey.trim();
   const dayKey = input.dayKey.trim();
-  const asOfMs = Date.parse(input.asOfIso);
+  const asOfMs = parseExplicitIsoInstant(input.asOfIso);
   if (
     !personKey ||
     !validDayKey(dayKey) ||
-    !Number.isFinite(asOfMs) ||
+    asOfMs === null ||
     londonDayKey(new Date(asOfMs)) !== dayKey ||
     !Number.isSafeInteger(input.anotherIndex) ||
     input.anotherIndex < 0
@@ -375,7 +382,7 @@ export function selectSurpriseDrink(input: SurpriseDrinkInput): SurpriseDrinkRes
     })
     .sort((a, b) => {
       if (a.fitsWeather !== b.fitsWeather) return a.fitsWeather ? -1 : 1;
-      return a.tieBreak - b.tieBreak || a.persona.id.localeCompare(b.persona.id);
+      return a.tieBreak - b.tieBreak || stableTextCompare(a.persona.id, b.persona.id);
     });
 
   const choice = ordered[input.anotherIndex % ordered.length];
