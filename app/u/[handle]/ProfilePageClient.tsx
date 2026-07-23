@@ -529,164 +529,181 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
           </div>
         ) : (
           <>
-            {isYouRoute && isAnonymous ? (
-              <section className="youIdentityIntro" aria-labelledby="you-title">
-                <div className="youIdentityAvatar" aria-hidden="true">PXX</div>
-                <div>
-                  <p className="profileSectionKicker">Your PUBMAXX identity</p>
-                  <h1 id="you-title">Make the night yours.</h1>
-                  <p>Claim a unique @handle, meet your Pub Pal, and keep every moment in one place.</p>
-                </div>
-                <div className="youIdentityActions">
-                  <a href="#account-settings">Claim your @handle</a>
-                  <Link href="/pal">Meet your Pub Pal</Link>
-                </div>
-              </section>
-            ) : null}
-
-            {!(isYouRoute && isAnonymous) ? (
-              <div className={isOwnProfile ? "youProfileIdentity" : undefined}>
-                <ProfileHeader
-                  profile={profile}
-                  stats={stats}
-                  crawls={storyCount}
-                  memories={stats.memoriesPosted}
-                  drops={drops}
-                  followers={counts.followers}
-                  following={counts.following}
-                  actions={headerActions}
-                />
-              </div>
-            ) : null}
-
-            {passportIsOwn && !youSignedOut ? (
-              <div id="passport">
-                <PintPassport
-                  handle={routeHandle}
-                  displayName={profile.displayName}
-                  data={passport}
-                  isOwn={passportIsOwn}
-                  hero
-                />
-              </div>
-            ) : null}
-
-            {isOwnProfile ? (
-              <YourContributionsCard handle={routeHandle} claimNudge />
-            ) : null}
-
-            {(isYouRoute || isOwnProfile) && !youSignedOut ? (
-              <nav className="youProfileTabs" aria-label="Your profile sections">
-                <a href="#timeline">Moments</a>
-                <a href="#passport">Passport</a>
-                <a href="#saved-pubs">Saved</a>
-                <a href="#account-settings">Settings</a>
-              </nav>
-            ) : null}
-
-            {!passportIsOwn ? (
-              <PintPassport
-                handle={routeHandle}
-                displayName={profile.displayName}
-                data={passport}
-                isOwn={passportIsOwn}
-                hero={false}
-              />
-            ) : null}
-
-            {/* Quest chips (Loop 2): next-badge progress for the viewed handle.
-                NextBadgeChips fetches public drops and filters by handle — works
-                for any profile with drops; renders nothing when empty. Own
-                profile also surfaces local "Crawls walked" from crawlCompletion. */}
-            {routeHandle && routeHandle !== YOU_SENTINEL ? (
-              <NextBadgeChips handle={routeHandle} showCrawlsWalked={isOwnProfile} />
-            ) : null}
-
-            {!youSignedOut && joinableBadgeEvents.length ? (
-              <section className="passportQuestOptIn" aria-labelledby="questOptInHeading">
-                <div>
-                  <p className="passportQuestOptInKicker">Optional events</p>
-                  <h2 id="questOptInHeading" className="passportQuestOptInTitle">
-                    Seasonal badges
-                  </h2>
-                  <p className="passportQuestOptInCopy">
-                    Join only if you want them. Progress starts from the moment you join.
-                  </p>
-                </div>
-                <div className="passportQuestOptInActions">
-                  {joinableBadgeEvents.map((event) => (
-                    <button
-                      key={event.id}
-                      type="button"
-                      className="passportCta passportCtaPrimary"
-                      onClick={() => joinBadgeEvent(event.id)}
-                    >
-                      Join {event.label}
-                    </button>
-                  ))}
-                </div>
-              </section>
-            ) : null}
-
-            {isOwnProfile && editing ? (
-              <ProfileEditor
-                handle={routeHandle}
-                initial={{
-                  // Only pre-fill from durable, user-owned values — never the
-                  // synthesized bio/name (those are placeholders the user hasn't
-                  // authored, so the fields should read as empty and editable).
-                  displayName: stored?.displayName,
-                  bio: stored?.bio,
-                  homeCity: stored?.homeCity,
-                  avatarUrl: stored?.avatarUrl,
-                }}
-                onSaved={handleSaved}
-                onClose={() => setEditing(false)}
-              />
-            ) : null}
-
-            {!youSignedOut ? (
-              <section id="timeline" className="profileDropsSection" aria-labelledby="dropsHeading">
-                <h2 id="dropsHeading" className="profileSectionHeading">
-                  Timeline
-                </h2>
-
-                {state === "loading" ? (
-                  <div className="profileTimelineSkel feedList" aria-hidden="true">
-                    {Array.from({ length: 2 }).map((_, i) => (
-                      <div key={i} className="feedCard feedCardSkeleton">
-                        <div className="feedSkelHead">
-                          <span className="feedSkelAvatar" />
-                          <span className="feedSkelLine feedSkelLineShort" />
-                        </div>
-                        <div className="feedSkelPhoto" />
-                        <div className="feedSkelLine" />
-                      </div>
-                    ))}
+            {youSignedOut ? (
+              // Signed-out /u/you is an invitation, not a profile — it keeps the
+              // single full-width column (intro + claim surface), never the
+              // multi-pane scaffolding.
+              <>
+                <section className="youIdentityIntro" aria-labelledby="you-title">
+                  <div className="youIdentityAvatar" aria-hidden="true">PXX</div>
+                  <div>
+                    <p className="profileSectionKicker">Your PUBMAXX identity</p>
+                    <h1 id="you-title">Make the night yours.</h1>
+                    <p>Claim a unique @handle, meet your Pub Pal, and keep every moment in one place.</p>
                   </div>
-                ) : drops.length === 0 ? (
-                  <p className="profileEmpty">No pints logged under @{routeHandle} yet.</p>
-                ) : (
-                  <ProfileTimeline drops={drops as Array<Record<string, unknown>>} />
-                )}
-              </section>
-            ) : null}
+                  <div className="youIdentityActions">
+                    <a href="#account-settings">Claim your @handle</a>
+                    <Link href="/pal">Meet your Pub Pal</Link>
+                  </div>
+                </section>
 
-            {!youSignedOut ? (
-              <div id="saved-pubs">
-                <SavedPubList
-                  ownerHandle={isYouRoute ? myHandle : routeHandle}
-                  groups={saved}
-                  followedLists={followedLists}
-                />
-              </div>
-            ) : null}
+                <div id="account-settings">
+                  <PubmaxxAccountHub />
+                </div>
+              </>
+            ) : (
+              // Desktop multi-pane (≥1024): identity/bio docks into a sticky left
+              // pane; passport, timeline and saved flow in the main pane. Both
+              // panes are display:contents below the breakpoint, so the phone
+              // layout is the same single column it was before.
+              <div className="profileLayout">
+                <div className="profileIdentityPane">
+                  <div className={isOwnProfile ? "youProfileIdentity" : undefined}>
+                    <ProfileHeader
+                      profile={profile}
+                      stats={stats}
+                      crawls={storyCount}
+                      memories={stats.memoriesPosted}
+                      drops={drops}
+                      followers={counts.followers}
+                      following={counts.following}
+                      actions={headerActions}
+                    />
+                  </div>
+                </div>
 
-            {isYouRoute || isOwnProfile ? (
-              <div id="account-settings">
-                <PubmaxxAccountHub />
+                <div className="profileContentPane">
+                  {passportIsOwn && !youSignedOut ? (
+                    <div id="passport">
+                      <PintPassport
+                        handle={routeHandle}
+                        displayName={profile.displayName}
+                        data={passport}
+                        isOwn={passportIsOwn}
+                        hero
+                      />
+                    </div>
+                  ) : null}
+
+                  {isOwnProfile ? (
+                    <YourContributionsCard handle={routeHandle} claimNudge />
+                  ) : null}
+
+                  {(isYouRoute || isOwnProfile) && !youSignedOut ? (
+                    <nav className="youProfileTabs" aria-label="Your profile sections">
+                      <a href="#timeline">Moments</a>
+                      <a href="#passport">Passport</a>
+                      <a href="#saved-pubs">Saved</a>
+                      <a href="#account-settings">Settings</a>
+                    </nav>
+                  ) : null}
+
+                  {!passportIsOwn ? (
+                    <PintPassport
+                      handle={routeHandle}
+                      displayName={profile.displayName}
+                      data={passport}
+                      isOwn={passportIsOwn}
+                      hero={false}
+                    />
+                  ) : null}
+
+                  {/* Quest chips (Loop 2): next-badge progress for the viewed handle.
+                      NextBadgeChips fetches public drops and filters by handle — works
+                      for any profile with drops; renders nothing when empty. Own
+                      profile also surfaces local "Crawls walked" from crawlCompletion. */}
+                  {routeHandle && routeHandle !== YOU_SENTINEL ? (
+                    <NextBadgeChips handle={routeHandle} showCrawlsWalked={isOwnProfile} />
+                  ) : null}
+
+                  {!youSignedOut && joinableBadgeEvents.length ? (
+                    <section className="passportQuestOptIn" aria-labelledby="questOptInHeading">
+                      <div>
+                        <p className="passportQuestOptInKicker">Optional events</p>
+                        <h2 id="questOptInHeading" className="passportQuestOptInTitle">
+                          Seasonal badges
+                        </h2>
+                        <p className="passportQuestOptInCopy">
+                          Join only if you want them. Progress starts from the moment you join.
+                        </p>
+                      </div>
+                      <div className="passportQuestOptInActions">
+                        {joinableBadgeEvents.map((event) => (
+                          <button
+                            key={event.id}
+                            type="button"
+                            className="passportCta passportCtaPrimary"
+                            onClick={() => joinBadgeEvent(event.id)}
+                          >
+                            Join {event.label}
+                          </button>
+                        ))}
+                      </div>
+                    </section>
+                  ) : null}
+
+                  {isOwnProfile && editing ? (
+                    <ProfileEditor
+                      handle={routeHandle}
+                      initial={{
+                        // Only pre-fill from durable, user-owned values — never the
+                        // synthesized bio/name (those are placeholders the user hasn't
+                        // authored, so the fields should read as empty and editable).
+                        displayName: stored?.displayName,
+                        bio: stored?.bio,
+                        homeCity: stored?.homeCity,
+                        avatarUrl: stored?.avatarUrl,
+                      }}
+                      onSaved={handleSaved}
+                      onClose={() => setEditing(false)}
+                    />
+                  ) : null}
+
+                  {!youSignedOut ? (
+                    <section id="timeline" className="profileDropsSection" aria-labelledby="dropsHeading">
+                      <h2 id="dropsHeading" className="profileSectionHeading">
+                        Timeline
+                      </h2>
+
+                      {state === "loading" ? (
+                        <div className="profileTimelineSkel feedList" aria-hidden="true">
+                          {Array.from({ length: 2 }).map((_, i) => (
+                            <div key={i} className="feedCard feedCardSkeleton">
+                              <div className="feedSkelHead">
+                                <span className="feedSkelAvatar" />
+                                <span className="feedSkelLine feedSkelLineShort" />
+                              </div>
+                              <div className="feedSkelPhoto" />
+                              <div className="feedSkelLine" />
+                            </div>
+                          ))}
+                        </div>
+                      ) : drops.length === 0 ? (
+                        <p className="profileEmpty">No pints logged under @{routeHandle} yet.</p>
+                      ) : (
+                        <ProfileTimeline drops={drops as Array<Record<string, unknown>>} />
+                      )}
+                    </section>
+                  ) : null}
+
+                  {!youSignedOut ? (
+                    <div id="saved-pubs">
+                      <SavedPubList
+                        ownerHandle={isYouRoute ? myHandle : routeHandle}
+                        groups={saved}
+                        followedLists={followedLists}
+                      />
+                    </div>
+                  ) : null}
+
+                  {isYouRoute || isOwnProfile ? (
+                    <div id="account-settings">
+                      <PubmaxxAccountHub />
+                    </div>
+                  ) : null}
+                </div>
               </div>
-            ) : null}
+            )}
 
             <footer className="profileFloor">
               <p>

@@ -21,6 +21,57 @@
   gap: clamp(32px, 5vw, 52px);
 }
 
+/* ── Desktop multi-pane (≥1024) ───────────────────────────────────────────
+   SOC-3: on a wide monitor the profile stops being one narrow column in a
+   1240px void. The identity/bio docks into a sticky left pane and the passport /
+   drops / saved content flows in a wider main pane. The three wrappers are
+   display:contents below the breakpoint, so every child stays a direct grid item
+   of .profileMain there and the phone layout is byte-for-byte unchanged.
+   Signed-out /u/you never renders this — it keeps its single-column invite. */
+.profilePage .profileLayout,
+.profilePage .profileIdentityPane,
+.profilePage .profileContentPane {
+  display: contents;
+}
+
+@media (min-width: 1024px) {
+  .profilePage .profileLayout {
+    display: grid;
+    grid-template-columns: 340px minmax(0, 1fr);
+    align-items: start;
+    column-gap: clamp(28px, 3vw, 44px);
+  }
+
+  .profilePage .profileIdentityPane {
+    display: block;
+    position: sticky;
+    top: 96px; /* clears the floating SiteNav pill, same offset as feed/tonight */
+    align-self: start;
+  }
+
+  .profilePage .profileContentPane {
+    display: grid;
+    gap: clamp(28px, 4vw, 44px);
+    min-width: 0;
+  }
+
+  /* Reflow the header for the narrow sticky pane — same shape as the phone
+     column: avatar + names stack, actions drop to a full-width row, stats wrap. */
+  .profilePage .profileIdentityPane .profileIdentity {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 14px;
+  }
+  .profilePage .profileIdentityPane .profileActions {
+    margin-left: 0;
+    width: 100%;
+    justify-content: flex-start;
+  }
+  .profilePage .profileIdentityPane .youProfileIdentity .profileActions > * {
+    flex: 1 1 140px;
+  }
+}
+
 .profilePage .profileSectionHeading,
 .profilePage .savedHeading {
   font-family: var(--font-display, var(--serif), system-ui, sans-serif);
