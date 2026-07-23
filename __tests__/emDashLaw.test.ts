@@ -37,19 +37,44 @@ import { describe, expect, it } from "vitest";
 const ROOT = process.cwd();
 
 // Surfaces the law governs. Every .tsx under app/ and components/ is a rendered
-// surface. The listed lib files export copy a reader sees (API errors, the
-// freeze wall, TfL disruption phrasing, weather nudges, OG card words); the rest
-// of lib is plumbing and logs, out of scope on purpose.
+// surface. lib/ is scanned WHOLESALE: every .ts/.tsx under lib/ is fenced by
+// default, so a new copy-bearing module (a digest, a nudge, an empty state) is
+// covered the day it lands, with no list to remember to extend. The allowlist
+// below names the plumbing files whose only dashes live in server logs, thrown
+// developer errors, or never-rendered bookkeeping: words no reader ever sees.
+// Adding a file here is a claim that NOTHING in it reaches a reader. If a
+// listed file grows real copy, remove it and fix the dashes instead.
 const SCAN_DIRS = ["app", "components"] as const;
-const SCAN_LIB_FILES = [
-  "lib/apiError.ts",
-  "lib/opsFreeze.ts",
-  "lib/tfl.ts",
-  "lib/tflDisruption.ts",
-  "lib/drinkWeather.ts",
-  "lib/gardenWeather.ts",
-  "lib/ogBrand.tsx",
-] as const;
+const LIB_NON_COPY_ALLOWLIST: ReadonlySet<string> = new Set([
+  // Server stores and providers: degraded-write and fallback log lines only.
+  "lib/areaDemandStore.ts",
+  "lib/commentsStore.ts",
+  "lib/emailProvider.ts",
+  "lib/emailSubscribersStore.ts",
+  "lib/feedFreshnessStore.ts",
+  "lib/messagesStore.ts",
+  "lib/notificationsStore.ts",
+  "lib/operatorProposalsStore.ts",
+  "lib/pintDropsStore.ts",
+  "lib/priceConfirmStore.ts",
+  "lib/pushProvider.ts",
+  "lib/ratingsStore.ts",
+  "lib/storeBackend.ts",
+  "lib/venueOperatorsStore.ts",
+  "lib/visitReportsStore.ts",
+  "lib/walkRouteStore.ts",
+  "lib/weatherProvider.ts",
+  "lib/weatherSnapshotStore.ts",
+  // Ops plumbing: cron/env/limiter guards that log or throw for developers.
+  "lib/cronAuth.ts",
+  "lib/dataFreshness.ts",
+  "lib/freshnessNotify.ts",
+  "lib/serverEnv.ts",
+  "lib/supabase.ts",
+  // Curated data whose dashed venueHint strings are reviewer-only bookkeeping,
+  // documented in-file as never rendered (chips are labelled elsewhere).
+  "lib/venueAccessibilitySeeds.ts",
+]);
 
 // Provably-necessary dashes, keyed by file + 1-based line + reason. EMPTY TODAY.
 const EXCEPTIONS: ReadonlyArray<{ file: string; line: number; reason: string }> = [];
@@ -62,13 +87,13 @@ const SPACED_EN = new RegExp(`(?:\\s|&nbsp;)(?:${EN_DASH}|&ndash;)(?:\\s|&nbsp;)
 
 type Violation = { file: string; line: number; kind: string; reason: string; text: string };
 
-function walkDir(dir: string, out: string[]): void {
+function walkDir(dir: string, out: string[], ext: RegExp): void {
   for (const entry of readdirSync(dir)) {
     const full = join(dir, entry);
     if (statSync(full).isDirectory()) {
       if (entry === "node_modules" || entry === "__tests__") continue;
-      walkDir(full, out);
-    } else if (/\.tsx$/.test(entry) && !/\.test\.tsx$/.test(entry)) {
+      walkDir(full, out, ext);
+    } else if (ext.test(entry) && !/\.test\.tsx?$/.test(entry) && !/\.d\.ts$/.test(entry)) {
       out.push(full);
     }
   }
@@ -76,8 +101,13 @@ function walkDir(dir: string, out: string[]): void {
 
 function collectFiles(): string[] {
   const files: string[] = [];
-  for (const d of SCAN_DIRS) walkDir(join(ROOT, d), files);
-  for (const f of SCAN_LIB_FILES) files.push(join(ROOT, f));
+  for (const d of SCAN_DIRS) walkDir(join(ROOT, d), files, /\.tsx$/);
+  const libFiles: string[] = [];
+  walkDir(join(ROOT, "lib"), libFiles, /\.tsx?$/);
+  for (const f of libFiles) {
+    const rel = f.replace(ROOT + "/", "");
+    if (!LIB_NON_COPY_ALLOWLIST.has(rel)) files.push(f);
+  }
   return files.sort();
 }
 
@@ -161,7 +191,21 @@ describe("the em-dash law (docs/VOICE.md house law)", () => {
   const violations = files.flatMap(scanFile);
 
   it("scans a real spread of surfaces (the law is not looking at an empty tree)", () => {
-    expect(files.length).toBeGreaterThan(100);
+    expect(files.length).toBeGreaterThan(400);
+    // The wholesale lib sweep is really in the net, not just app/components.
+    expect(files).toContain(join(ROOT, "lib/weeklyDigest.ts"));
+    expect(files).toContain(join(ROOT, "lib/apiError.ts"));
+  });
+
+  it("keeps the lib allowlist honest (every entry exists; none is a rendered surface)", () => {
+    for (const rel of LIB_NON_COPY_ALLOWLIST) {
+      // A stale entry (file deleted or renamed) must be pruned, not carried.
+      expect(() => statSync(join(ROOT, rel)), `allowlisted file missing: ${rel}`).not.toThrow();
+      // The allowlist is for lib plumbing only; it must never grow to exempt a
+      // rendered .tsx surface from the law.
+      expect(rel.startsWith("lib/"), `allowlist entry outside lib/: ${rel}`).toBe(true);
+      expect(rel.endsWith(".tsx"), `allowlist must not exempt a rendered surface: ${rel}`).toBe(false);
+    }
   });
 
   it("finds no banned dash in any user-facing string", () => {
