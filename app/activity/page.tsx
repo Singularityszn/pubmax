@@ -8,7 +8,7 @@ import ActivityClient from "./ActivityClient";
 // is nothing here for a crawler to see.
 export const metadata: Metadata = {
   title: "Activity",
-  description: "Who followed you, reacted, commented, or saved your crawl on PUBMAXX.",
+  description: "Who followed you, cheered a pint, left a comment, or saved your crawl on PUBMAXX.",
   robots: { index: false, follow: false },
 };
 

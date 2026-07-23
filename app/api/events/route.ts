@@ -11,6 +11,8 @@
 // Events are also emitted as a structured server log line
 // (`[pubmax-analytics] …`) for release diagnosis. Both sinks fail soft:
 // malformed input or a provider outage returns 204 and never breaks a journey.
+// Verified loop outcomes add a response header so the bounded client outbox can
+// retry without exposing transport failures to the product UI.
 //
 // This is a public, unauthenticated endpoint, so it also carries its own
 // abuse guards: a per-hashed-IP rate limit (isEventsRateLimited) and a
@@ -23,6 +25,9 @@ import { sanitizeEvent } from "@/lib/analyticsEvents";
 import { isAnonymousAnalyticsId } from "@/lib/analyticsIdentity";
 import { isEventsRateLimited } from "@/lib/eventsRateLimit";
 import { capturePosthogEvent } from "@/lib/posthogServer";
+import { analyticsReceiptStore } from "@/lib/analyticsReceiptStore";
+import { analyticsDeliveryTokenDigest, verifyAnalyticsDeliveryToken } from "@/lib/verifiedAnalytics.server";
+import { isTrustedSigningKeyUnavailableError, trustedSigningKey } from "@/lib/trustedSigningKey.server";
 
 export const runtime = "nodejs";
 
@@ -44,11 +49,20 @@ export function analyticsSurfaceFromPath(path: unknown): string | null {
   return null;
 }
 
-function noContent(): Response {
+function noContent(delivery?: "delivered" | "retry" | "discard"): Response {
   return new Response(null, {
     status: 204,
-    headers: { "cache-control": "no-store" },
+    headers: {
+      "cache-control": "no-store",
+      ...(delivery ? { "x-analytics-delivery": delivery } : {}),
+    },
   });
+}
+
+function requiresVerifiedDelivery(name: string, props: Record<string, string | number | boolean>): boolean {
+  return name === "plan_accepted"
+    || name === "plan_completed"
+    || (name === "meaningful_core_action" && ["plan_accepted", "plan_completed"].includes(String(props.action)));
 }
 
 export async function POST(req: Request): Promise<Response> {
@@ -77,12 +91,13 @@ export async function POST(req: Request): Promise<Response> {
     }
     if (!body || typeof body !== "object") return noContent();
 
-    const { name, props, path, anonymousId, analyticsConsent } = body as {
+    const { name, props, path, anonymousId, analyticsConsent, deliveryToken } = body as {
       name?: unknown;
       props?: unknown;
       path?: unknown;
       anonymousId?: unknown;
       analyticsConsent?: unknown;
+      deliveryToken?: unknown;
     };
     if (typeof name !== "string") return noContent();
 
@@ -100,6 +115,28 @@ export async function POST(req: Request): Promise<Response> {
     // Coarse path only (own-origin pathname), no query, capped — never a URL
     // that could carry a token.
     const safePath = analyticsSurfaceFromPath(path);
+    const verified = requiresVerifiedDelivery(event.name, event.props);
+    if (verified) {
+      try {
+        trustedSigningKey();
+      } catch (error) {
+        // Configuration loss is retryable: do not tell the browser to discard
+        // a token that may be valid again once the same secret is restored.
+        if (isTrustedSigningKeyUnavailableError(error)) return noContent("retry");
+        throw error;
+      }
+    }
+    const delivery = verified ? verifyAnalyticsDeliveryToken(deliveryToken, event) : null;
+    if (verified && !delivery) return noContent("discard");
+    if (delivery) {
+      const claim = await analyticsReceiptStore().claim({
+        eventId: delivery.eventId,
+        tokenDigest: analyticsDeliveryTokenDigest(String(deliveryToken)),
+        eventName: event.name,
+      });
+      if (claim === "delivered") return noContent("delivered");
+      if (claim !== "claimed") return noContent(claim === "conflict" ? "discard" : "retry");
+    }
 
     // Structured, PII-free log line. Server owns the timestamp.
     console.log(
@@ -111,9 +148,24 @@ export async function POST(req: Request): Promise<Response> {
       })}`,
     );
 
-    // A provider outage must not create retries or block navigation. Awaiting a
-    // short, bounded request keeps delivery reliable in serverless runtimes.
-    await capturePosthogEvent({ event, path: safePath, anonymousId, analyticsConsent });
+    // Awaiting a short, bounded request keeps delivery reliable in serverless
+    // runtimes. Ordinary events stay fire-and-forget; verified outcomes retain
+    // their outbox item when the provider asks for a retry.
+    const forwarded = await capturePosthogEvent({
+      event,
+      path: safePath,
+      anonymousId,
+      analyticsConsent,
+      ...(delivery ? { insertId: delivery.eventId } : {}),
+      ...(delivery ? { occurredAt: new Date(delivery.issuedAt).toISOString() } : {}),
+    });
+
+    if (delivery) {
+      const providerDisabled = !process.env.POSTHOG_PROJECT_API_KEY?.trim();
+      if (!providerDisabled && !forwarded) return noContent("retry");
+      if (!await analyticsReceiptStore().complete(delivery.eventId)) return noContent("retry");
+      return noContent("delivered");
+    }
 
     return noContent();
   } catch {

@@ -102,6 +102,22 @@ test("an outside-London location preserves the selected area", async ({ page, co
     .toBe(JSON.stringify({ kind: "patch", id: "clapham" }));
 });
 
+test("an unsupported Hackney location preserves the selected generation area", async ({ page, context }) => {
+  await context.grantPermissions(["geolocation"]);
+  await context.setGeolocation({ latitude: 51.5346, longitude: -0.0611 });
+  await page.goto("/plan");
+  await page.getByRole("button", { name: "Clapham" }).click();
+
+  await page.getByRole("button", { name: "Use my location" }).click();
+  await expect(page.locator(".planIntake__locationStatus")).toContainText(
+    "exact route generation is not available there yet",
+  );
+  await expect(page.getByRole("button", { name: "Clapham" })).toHaveAttribute("aria-pressed", "true");
+  await expect(page.getByRole("button", { name: "Hackney" })).toHaveAttribute("aria-pressed", "false");
+  await expect.poll(() => page.evaluate(() => window.localStorage.getItem("pubmax:nightPatch:v1")))
+    .toBe(JSON.stringify({ kind: "patch", id: "clapham" }));
+});
+
 test("a delayed location result cannot overwrite the area after Continue", async ({ page }) => {
   await page.addInitScript(() => {
     const testWindow = window as typeof window & { completeLocation?: () => void };

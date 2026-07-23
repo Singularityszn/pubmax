@@ -163,7 +163,7 @@ These are derived from the actual code, not aspirations. File references are inl
 | Precise / coarse location | **Not collected off-device.** The app requests location permission and uses it on the phone only, to sort pubs by distance. Coordinates are never sent to our servers. | No | No | App functionality (near-me ranking) | `components/nearme/NearMeNow.tsx` calls `rankNearMe(position.coords…)` against the in-memory slim index; the coordinates never leave the client. `PubMap.tsx`, `CityChooser.tsx` use geolocation client-side only. |
 | Product interaction / usage data | **Yes, only after the user opts in.** A closed set of about ten named UI events (badge tap, booking click, tour complete, and similar) with allow-listed enum props. | No (pseudonymous id only) | No | Analytics | `lib/analytics.ts`: consent-gated (default off), honours Do-Not-Track, forwards to PostHog EU ingest only when consent is granted; props are an enum allow-list in `lib/analyticsEvents.ts` with no coordinates or free text. |
 | Pseudonymous analytics id | Yes, only after opt-in | No (contains no account, contact, or location data) | No | Analytics | `lib/analytics.ts` `anonymousAnalyticsId()`: an `anon_` UUID created only once consent is `granted`, stored in localStorage. |
-| Device push token | Yes, when the user enables notifications | No (stored with no user or plan link) | No | App functionality (send the night-signal "went live" push) | `lib/nativePush.ts` posts the token to `POST /api/push-tokens`; `lib/pushTokenStore.ts` stores it with no identity column (see `supabase/migrations/…_0039_push_tokens.sql`). |
+| Device/web push delivery material | Yes, when the user enables notifications | No (stored with no user or plan link) | No | App functionality (public night-signal and installed-web daily-brief pushes) | `lib/nativePush.ts` or explicitly-invoked `lib/webPush.ts` posts to `POST /api/push-tokens`; `lib/pushTokenStore.ts` stores it with no identity column (migrations 0039 + 0046). |
 | Photos (Moments) | Only when the user chooses to share a Moment. Drafts stay on the phone. | Tied to that content only, not to a real-world identity | No | User content | `lib/momentDraft.ts` keeps drafts in IndexedDB/localStorage on the device; `lib/nightMomentMedia.ts` uploads to Supabase storage only on publish. Camera access is via `lib/nativeCamera.ts` with the usage strings in `ios/App/App/Info.plist`. |
 | Email address | Only if the user submits it to get updates | Yes (it is the contact) | No | App functionality (email updates the user asked for), with confirm/unsubscribe | `app/api/email-subscribers/route.ts` and `confirm` / `unsubscribe` routes. Double opt-in. |
 
@@ -215,25 +215,25 @@ Screenshots already exist in `docs/screenshots` from the Gate Z set (`docs/scree
 - Apple: 6.7" (1290x2796) and 6.5" (1242x2688) are the two that satisfy the current iPhone requirement. One set can cover both if uploaded at 6.7". iPad screenshots only needed if the app is offered on iPad (it is universal-capable, so either provide 12.9" iPad shots or set availability to iPhone only).
 - Google Play: minimum two, up to eight, phone screenshots at 16:9 or 9:16, min 320px, max 3840px. The 430-wide frames upscale fine. A feature graphic (1024x500) is also required, build it from the brand mark on the coral field.
 
-**Feature graphic (Google Play, 1024x500):** ink-deep field (`#060607`) with the coral Crossing mark, per the identity lock in section 7, plus wordmark "PUBMAXX" and tagline "Cheap pints near you." (text is fine on the feature graphic, the no-text rule applies to the icon and splash). Start from the `public/store-assets/splash.svg` composition.
+**Feature graphic (Google Play, 1024x500):** ink-deep field (`#060607`) with the coral double-struck X mark, per the identity lock in section 7, plus wordmark "PUBMAXX" and tagline "Cheap pints near you." (text is fine on the feature graphic, the no-text rule applies to the icon and splash). Start from the `public/store-assets/splash.svg` composition (which keeps the ink field).
 
 ---
 
 ## 7. Store visual identity: icon + splash set (issue #440)
 
-**Owner lock:** the Crossing mark in candle-coral on the ink-dark field, no text in the icon; the splash follows the icon. This supersedes the earlier coral-field sources in `assets/` (from the #377 native-readiness pass); regenerate the native projects from these masters at the next `npx cap sync` (see wiring below).
+**Owner lock (Wave C, #520/#523):** the icon is a clean **white tile with the coral double-struck X**, no text; no ember (static exports drop it). The **splash keeps the ink-deep field** (splashes are not icons, per #523) with the same coral X. This supersedes both the earlier coral-field sources in `assets/` (from the #377 native-readiness pass) and the retired ink-tile / Clink lock; regenerate the native projects from these masters at the next `npx cap sync` (see wiring below).
 
 ### SVG masters (source of truth, `public/store-assets/`)
 
 | File | Native size | Role |
 | --- | --- | --- |
-| `icon-square.svg` | 1024 | Icon master: ink-deep field, coral crossing, faint candle glow. Full bleed, no rounding (both stores mask). |
-| `icon-square-small.svg` | 64 | Small-size optics for exports at or under 64px: arms 8.5 to 10.5, node r 3.2 to 4.6, glow dropped. |
-| `play-adaptive-foreground.svg` | 1024 | Play adaptive foreground: coral crossing on transparent, 108dp canvas, mark inside the 66dp safe circle (farthest cap edge 25.7dp from centre). |
-| `play-adaptive-background.svg` | 1024 | Play adaptive background: solid ink-deep, deliberately flat (parallax layer). |
-| `splash.svg` | 2732 | Splash: ink-deep field, centred coral mark (~15% span), faint glow. One splash serves light and dark. |
+| `icon-square.svg` | 1024 | Icon master: pure white (`#ffffff`) field, coral double-struck X at scale 0.82. Full bleed, no rounding (both stores mask). |
+| `icon-square-small.svg` | 64 | Small-size optics for exports at or under 64px: same white tile, but the single-slash `slashSimple` + thick stroke (the double-struck channel closes up below ~24px). |
+| `play-adaptive-foreground.svg` | 1024 | Play adaptive foreground: coral double-struck X on transparent, 108dp canvas, mark inside the 66dp safe circle (farthest stroke corner ~29.3dp from centre at scale 0.9). |
+| `play-adaptive-background.svg` | 1024 | Play adaptive background: solid white, deliberately flat (parallax layer). |
+| `splash.svg` | 2732 | Splash: ink-deep field (kept per #523), centred coral X at scale 0.28, faint glow. One splash serves light and dark. |
 
-Colour and geometry are pinned to `lib/ogBrand.tsx` / `docs/BRAND_MARK.md` by `__tests__/storeAssets.test.ts` (hexes, canonical arm endpoints, no `<text>`, flat background layer).
+Colour and geometry are pinned to `lib/ogBrand.tsx` / `docs/BRAND_MARK.md` by `__tests__/storeAssets.test.ts` (hexes, canonical double-struck X endpoints, white icon tile, no ember, no `<text>`, flat background layer).
 
 ### PNG export set (committed, `public/store-assets/png/`)
 
@@ -248,18 +248,18 @@ node scripts/gen-store-assets.mjs
 | `ios/AppIcon-{size}.png` | 20, 29, 40, 58, 60, 76, 80, 87, 120, 152, 167, 180, 1024 | Opaque, alpha stripped (the 1024 marketing slot rejects alpha). Sizes at or under 64 render from the small-optics master. |
 | `play/play-store-512.png` | 512 | Play Console listing icon. |
 | `play/adaptive-foreground-432.png` | 432 | 108dp at xxxhdpi, keeps transparency. |
-| `play/adaptive-background-432.png` | 432 | Flat ink-deep. |
+| `play/adaptive-background-432.png` | 432 | Flat white. |
 | `splash/splash-2732.png` | 2732 | Capacitor splash source, covers the largest iPad requirement. |
 
 ### Legibility at small sizes (checked)
 
-Coral `#ff5a5f` on ink-deep `#060607` measures ~6.6:1 contrast. At 29px the canonical 8.5 stroke renders 3.9px arms, readable, but the r 3.2 node falls under 3px and vanishes; the small-optics master thickens arms to 10.5 and grows the node to r 4.6, so the 20 to 64px tier keeps the mark's weight and lit centre. Verified by rendering and inspecting the 29px and 1024px exports.
+Coral `#ff5a5f` on a white `#ffffff` tile measures ~3.7:1 contrast — comfortably above the 3:1 large-graphic threshold and crisper on a home screen than the retired coral-on-ink treatment. The full double-struck X holds at 40px+, but its two thin ascending strokes (~4u channel) merge below ~24px, so the ≤64px small-optics master takes the single-slash `slashSimple` + thick descending stroke instead — one clean forward slash that stays legible at the 20px slot. No ember at any tier (the crossing is already the event). Verified by sampling rendered pixels on the 29px, 512px and 1024px exports (white field, coral stroke).
 
 ### Wiring into the native shells (when syncing)
 
 - **iOS:** `ios/App/App/Assets.xcassets/AppIcon.appiconset/` uses a single universal 1024 (`AppIcon-512@2x.png`); replace its contents with `png/ios/AppIcon-1024.png` at the next native pass. The full classic slot set exists for older Xcode setups and App Store Connect uploads.
 - **Android / Play:** upload `play-store-512.png` in the Play Console; the adaptive layers feed `@capacitor/assets` (or hand-placed `mipmap` resources) at sync time.
-- **Capacitor splash:** feed `splash/splash-2732.png` as both `splash` and `splash-dark` sources, the ink-dark art is the same for both, then `npx @capacitor/assets@3 generate` (fetched ephemerally, see the header of `scripts/gen-native-app-icons.mjs` for the npm-audit rationale).
+- **Capacitor splash:** feed `splash/splash-2732.png` as both `splash` and `splash-dark` sources, the ink-dark art is the same for both (the splash keeps the ink field even though the icon is now a white tile), then `npx @capacitor/assets@3 generate` (fetched ephemerally, see the header of `scripts/gen-native-app-icons.mjs` for the npm-audit rationale).
 
 ### Manual export fallback (no sharp)
 

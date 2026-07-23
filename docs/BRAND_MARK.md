@@ -1,77 +1,90 @@
 # PUBMAXX brand mark
 
-The master mark is **The Clink**, owner-approved on 2026-07-21 and activated
-across every web and native surface from a single geometry source, including the
-dynamic OG share cards and the store-listing masters. It fully supersedes the
-earlier "Crossing" exploration, which no longer renders on any surface.
+The master mark is **the double-struck X** ("The Crossing X"), owner-approved on
+2026-07-22 and stamped across the web and native surfaces plus the dynamic OG
+share cards from a single geometry source. It supersedes the earlier "Clink"
+(tapered-pint) exploration on those surfaces.
 
 ## The story
 
-The X is two pints the second they touch in a toast, the moment a night
-officially starts. The ember is the clink.
-
-Each arm is a tapered pint glass caught mid-toast: wide mouth up, narrow base
-down. The ember dot at the point where the two glasses meet is the clink itself.
-At size the taper reads as glasses; at a 16px favicon it collapses to a confident
-chiselled X. It keeps the previous mark's ember, so the brand evolves rather than
-reboots, and it is the one reduction of the name where the joy is structural: it
-is literally the moment the product exists for.
+A confident, clean X built on the X Corp / blackboard-bold (double-struck)
+construction: one **thick solid descending stroke** (`\`, top-left to
+bottom-right) crossed by an **ascending stroke** (`/`, bottom-left to top-right)
+that is **split into two thin parallel strokes** passing either side of the thick
+one, leaving a clear channel where they cross. Flat sharp terminals, zero
+ornament. Distinctiveness is ours: coral `#ff5a5f` on ink `#060607`, our own
+proportions and terminal angles — a similar construction to X Corp's, never a
+trace of their asset.
 
 The brand reality the mark answers to:
 
 - **Name**: `PUBMA××ING`. The doubled `××` is the hero of the wordmark
-  (`components/brand/PubmaxxWordmark.tsx`; second X in `--brass`).
+  (`components/brand/PubmaxxWordmark.tsx`; both glyphs now use the master mark
+  construction, the second tinted `--brass`).
 - **Product**: London pubs, honest prices, night navigation.
-- **Tone**: dry London. No kitsch, no foam, no froth. The pints are implied by
-  the taper, never drawn as mugs.
+- **Tone**: dry London. No kitsch, no foam, no froth.
 - **Tokens**: coral `--brass #ff5a5f` + `--brass-bright #ff7a55` (the ember),
   `--ink-deep #060607`, `--paper #fffdf9`.
 
 ## Geometry
 
 Drawn on a 64x64 grid, the single source of truth is `MARK_GEOMETRY` in
-`components/brand/PubmaxxMark.tsx`. The two arms are filled polygons (not stroked
-paths) so the flat-cut chiselled terminals stay crisp at every raster tier. The
+`components/brand/PubmaxxMark.tsx`. Every stroke is a filled polygon (not a
+stroked path) so the flat-cut terminals stay crisp at every raster tier. The
 same numbers are copied, and MUST stay identical, in `scripts/gen-brand-assets.mjs`
 and `scripts/gen-native-app-icons.mjs`.
 
 ```svg
-<!-- bare Clink (transparent): favicon / PWA "any" icons -->
+<!-- bare X (transparent): favicon / PWA "any" icons. No ember on the icon. -->
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
-  <polygon points="19.8,8.7 10.2,17.3 46.0,53.7 52.0,48.3" fill="#ff5a5f"/>
-  <polygon points="44.2,8.7 53.8,17.3 18.0,53.7 12.0,48.3" fill="#ff5a5f"/>
-  <circle cx="32" cy="32" r="3.2" fill="#ff7a55"/>
+  <polygon points="42,10 47,10 13,54 8,54" fill="#ff5a5f"/>   <!-- thin / A -->
+  <polygon points="51,10 56,10 22,54 17,54" fill="#ff5a5f"/>  <!-- thin / B -->
+  <polygon points="9,10 21,10 55,54 43,54" fill="#ff5a5f"/>   <!-- thick \ (on top) -->
 </svg>
-<!-- tile (app icon / maskable / apple-touch): coral Clink on ink-deep -->
+<!-- tile (app icon / maskable / apple-touch): coral X on ink-deep -->
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
   <rect width="64" height="64" rx="15" fill="#060607"/>
-  <polygon points="19.8,8.7 10.2,17.3 46.0,53.7 52.0,48.3" fill="#ff5a5f"/>
-  <polygon points="44.2,8.7 53.8,17.3 18.0,53.7 12.0,48.3" fill="#ff5a5f"/>
-  <circle cx="32" cy="32" r="3.2" fill="#ff7a55"/>
+  <polygon points="42,10 47,10 13,54 8,54" fill="#ff5a5f"/>
+  <polygon points="51,10 56,10 22,54 17,54" fill="#ff5a5f"/>
+  <polygon points="9,10 21,10 55,54 43,54" fill="#ff5a5f"/>
 </svg>
 ```
 
-- **Arm A** (top-left mouth to bottom-right base): `19.8,8.7 10.2,17.3 46.0,53.7 52.0,48.3`
-- **Arm B** (top-right mouth to bottom-left base): `44.2,8.7 53.8,17.3 18.0,53.7 12.0,48.3`
-- **Ember node**: circle cx 32, cy 32, r 3.2, fill `#ff7a55`.
+- **Thick stroke** (`\`, descending, ~12u wide, drawn on top): `9,10 21,10 55,54 43,54`
+- **Thin stroke A** (`/`, upper-left, ~5u): `42,10 47,10 13,54 8,54`
+- **Thin stroke B** (`/`, lower-right, ~5u): `51,10 56,10 22,54 17,54`
+- **Channel** between the two thin strokes ≈ 4u (where the thick stroke crosses).
+- **Simplified slash** (16px raster fallback, replaces the two thins): `45,10 53,10 19,54 11,54`
+- **Ember node** (in-app surfaces only, not the icon): circle cx 32, cy 32, r 3.2, fill `#ff7a55`.
 
-## Small-optics rule
+## Small-optics rule (16px acceptance bar)
 
-At raster tiers of 24px or smaller the ember would smear into the arm crossing,
-so it **drops out and the arms carry the mark alone** (the #444 precedent). This
-is a raster-generation rule: the 16px member of `favicon.ico` is stamped without
-the node, while the live vector component keeps the ember on the `duo` and
-`plaque` variants at every size (a vector never smears).
+The double-struck read holds down to ~24-32px; below that the ~4u channel between
+the two thin strokes closes up. So the **16px member of `favicon.ico` uses the
+simplified single ascending slash** (`slashSimple`) plus the thick stroke — a
+crisp, unmistakable X at 16px (verified by rendering). `favicon.svg` ("any" size)
+keeps the full double-struck construction: on retina tabs it renders at ~32px+
+and resolves cleanly; the low-DPI 16px fallback is the `.ico` simplified entry.
+
+## Ember decision
+
+The ember is **not part of the icon silhouette**. On the double-struck crossing
+the interlock is already the visual event, and a dot at centre muddies the
+channel (verified by rendering). So every static icon export — `favicon.svg`,
+`favicon.ico`, `icon-192/512`, maskable, apple-touch — and the native icon/splash
+sources drop it. It is kept only on the **lit in-app brand surfaces** as a
+personality spark: the `duo`/`plaque` component variants, the Strike pop, the
+night seal, the loading ember, and the OG share cards (rendered ≥46px).
 
 ## Component
 
 Implemented in `components/brand/PubmaxxMark.tsx`. Three variants, one API:
 
-| variant  | fill                                          | use                                   |
-| -------- | --------------------------------------------- | ------------------------------------- |
-| `mono`   | `currentColor` arms, no ember, transparent    | inline in text, single-colour, stamps |
-| `duo`    | coral arms + coral-bright ember, transparent  | wordmark lockup, on-surface badge     |
-| `plaque` | ink-deep tile, coral arms, coral-bright ember | app icon, avatar, standalone tile     |
+| variant  | fill                                             | use                                   |
+| -------- | ------------------------------------------------ | ------------------------------------- |
+| `mono`   | `currentColor` strokes, no ember, transparent    | inline in text, single-colour, stamps |
+| `duo`    | coral strokes + coral-bright ember, transparent  | wordmark lockup, on-surface badge     |
+| `plaque` | ink-deep tile, coral strokes, coral-bright ember | app icon, avatar, standalone tile     |
 
 ```tsx
 import PubmaxxMark from "@/components/brand/PubmaxxMark";
@@ -97,56 +110,56 @@ the app's CSS. `mono` inherits theme ink via `currentColor`.
 
 ### Don'ts
 
-- Don't add a beer glass, foam, handle, or froth. The pints are the taper.
-- Don't recolour the arms outside the token palette (coral / ink / currentColor).
+- Don't merge the two thin ascending strokes or close their channel (except the
+  sanctioned 16px `slashSimple` fallback).
+- Don't recolour the strokes outside the token palette (coral / ink / currentColor).
+- Don't add the ember to an icon export or small tier.
 - Don't rotate, skew, outline-stroke, or drop-shadow the mark.
 - Don't stretch. Width and height stay equal.
 - Don't place the `duo` or `mono` mark on a low-contrast surface; use `plaque`.
-- Don't reintroduce the old X "Crossing" arms or the retired pint glyph.
+- Don't reintroduce the retired "Clink" tapered-pint arms.
 
 ## Static assets
 
 `scripts/gen-brand-assets.mjs` stamps the **live** web assets from the geometry
-above (the earlier staging plus copy dance is retired now that the Clink is
-activated). Run `node scripts/gen-brand-assets.mjs`; it needs `sharp` (already a
+above. Run `node scripts/gen-brand-assets.mjs`; it needs `sharp` (already a
 dependency).
 
 Live under `public/`:
 
-- `favicon.svg`, `favicon.ico` (16 / 32 / 48 PNG members; the 16 uses the no-node
-  small-optics cut)
-- `icon-192.svg` / `icon-192.png`, `icon-512.svg` / `icon-512.png` (bare Clink)
+- `favicon.svg`, `favicon.ico` (16 / 32 / 48 PNG members; the 16 uses the
+  simplified single-slash cut)
+- `icon-192.svg` / `icon-192.png`, `icon-512.svg` / `icon-512.png` (bare X)
 - `icon-maskable.svg` / `icon-maskable-512.png` (ink-deep tile, mark inside the
   80% safe zone, rx 0 for the platform mask)
-- `apple-touch-icon.png` (180px, coral Clink on ink-deep, iOS supplies its own
+- `apple-touch-icon.png` (180px, coral X on ink-deep, iOS supplies its own
   corner mask)
 
 A `public/brand/` reference mirror (plus `mark-mono.svg`) is refreshed by the
-same run. The `?v=` cache-busting token on the `<head>` icon URLs (`app/layout.tsx`)
-is bumped to `20260721-clink` on activation.
+same run. The `?v=` cache-busting token on the `<head>` icon URLs
+(`app/layout.tsx`) is bumped to `20260722-x`.
 
 ## Native app icons and splash
 
 `scripts/gen-native-app-icons.mjs` writes the `@capacitor/assets` source images
-into `assets/` (coral icon field with the ink Clink; a light coral splash and a
-dark ink splash, mark centred). The canonical stamp step is
-`npx @capacitor/assets@3 generate`, which fans them into `ios/` and `android/`.
-When that tool cannot run in a sandbox (its bundled `sharp` binary fails to load),
-the committed `ios/` and `android/` PNGs are re-stamped directly from the same
-geometry with the hoisted `sharp`, reusing each launcher file's existing alpha
-silhouette so the rounded-square and circle masks are preserved exactly.
+into `assets/` (coral icon field with the ink X; a light coral splash and a dark
+ink splash, mark centred, no ember). The Android adaptive foreground is stamped
+at scale 0.8 so the wider X stays inside the 66/108 safe zone. The canonical
+stamp step is `npx @capacitor/assets@3 generate`, which fans them into `ios/` and
+`android/`.
 
-## OG cards and store masters (synced 2026-07-21)
+## OG cards
 
-The two surfaces the activation lane deferred now carry the Clink too:
+`lib/ogBrand.tsx` `CrossingMark` draws the double-struck X polygons + the ember
+(export name/API unchanged so its ~17 `next/og` consumers — `opengraph-image.tsx`
+/ `*-card` routes plus the `app/og.png` route — stay untouched). satori renders
+the `<polygon>` subset natively.
 
-1. `lib/ogBrand.tsx` `CrossingMark` draws the Clink polygons + ember (export
-   name/API unchanged so its ~17 `next/og` consumers — `opengraph-image.tsx` /
-   `*-card` routes plus the `app/og.png` route — stay untouched). satori renders
-   the `<polygon>` subset natively; a full rasterisation of a consuming card was
-   verified.
-2. The store-listing masters in `public/store-assets/` (rendered by
-   `scripts/gen-store-assets.mjs`, pinned by `__tests__/storeAssets.test.ts`) now
-   draw the Clink polygons. `icon-square-small.svg` applies the small-optics cut
-   (the ember drops out; the arms carry the ≤64px iOS slots alone), matching the
-   16px favicon.ico treatment.
+## Pending: store-listing masters
+
+The store-listing masters under `public/store-assets/` (rendered by
+`scripts/gen-store-assets.mjs`, pinned by `__tests__/storeAssets.test.ts`, issue
+#440) still carry the retired Clink polygons and are **out of scope for this
+lane**. They need a follow-up pass to the double-struck construction so the App
+Store / Play icons match; until then the store icons will lag the web/native/OG
+surfaces.

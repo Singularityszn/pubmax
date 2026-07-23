@@ -122,8 +122,8 @@ export default function FirstRunOnboarding({
               />
               <p aria-live="polite">
                 {selectedCompanion
-                  ? `${selectedCompanion.label} will be ready beside your first Plan.`
-                  : "Choose the presence you want beside your first Plan."}
+                  ? `${selectedCompanion.label} will be in your corner for the first night.`
+                  : "Pick the Pal you want in your corner for the first night."}
               </p>
             </div>
           ) : (
@@ -147,7 +147,7 @@ export default function FirstRunOnboarding({
                 <p className="firstRunEyebrow">Your companion</p>
                 <h1>Pick your Pub Pal.</h1>
                 <p className="firstRunLead">
-                  Every Pal uses the same grounded evidence. Choose the presence you want beside the Plan.
+                  Every Pal reads the same real prices and routes. Pick the one you want in your corner tonight.
                 </p>
 
                 <div className="firstRunCompanionGrid" role="group" aria-label="Choose your Pub Pal">
@@ -171,7 +171,7 @@ export default function FirstRunOnboarding({
 
                 <p className="firstRunPrivacy">
                   <ShieldCheck size={16} aria-hidden="true" />
-                  You can name, tune or skip your Pal after the route exists.
+                  You can name, tweak, or skip your Pal later.
                 </p>
 
                 <div className="firstRunActions">
@@ -188,7 +188,7 @@ export default function FirstRunOnboarding({
                   </button>
                 </div>
                 <p className="firstRunPermissionNote">
-                  Notifications wait until after your first route is built.
+                  We won&rsquo;t ask about notifications until your first night&rsquo;s sorted.
                 </p>
               </>
             ) : (
@@ -196,7 +196,7 @@ export default function FirstRunOnboarding({
                 <p className="firstRunEyebrow">Your city</p>
                 <h1>London is ready.</h1>
                 <p className="firstRunLead">
-                  Start with reviewed routes, recorded pint prices and a clear way home.
+                  Start with checked routes, real pint prices, and a clear way home.
                 </p>
 
                 <div className="firstRunAreaList" aria-label="Reviewed London route areas">

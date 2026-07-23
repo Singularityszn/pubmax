@@ -68,6 +68,7 @@ accepted at runtime; keep these stable:
 - `"first-run-tour"` — #296 tour (this PR)
 - `"identity-nudge"` — #312
 - `"native-push"` — #299
+- `"web-push"` — installed-PWA daily London brief, after a qualifying plan action
 - `"a2hs"` — #313
 
 ---

@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 
 import PubmaxxNightSeal from "@/components/brand/PubmaxxNightSeal";
 import SiteNav from "@/components/nav/SiteNav";
+import MemoryReviewAnalytics from "@/components/plan/MemoryReviewAnalytics";
 import RecapShareButton from "@/components/plan/RecapShareButton";
 import { isPlanId } from "@/lib/plan";
 import { planCompletionResult, planStore } from "@/lib/planStore";
@@ -149,6 +150,7 @@ export default async function PlanRecapPage({ params }: Props) {
 
   return (
     <main className="recapPage">
+      <MemoryReviewAnalytics />
       <SiteNav />
 
       <header className="recapHero" style={step()}>

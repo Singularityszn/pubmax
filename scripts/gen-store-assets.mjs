@@ -1,14 +1,17 @@
 #!/usr/bin/env node
 // Render the store PNG export set from the SVG masters in public/store-assets/
-// (issue #440: The Clink mark on ink dark, candle-coral accent, no text).
+// (issue #440; mark re-branded to the Wave C white-tile + coral double-struck X
+// identity, #520/#523: no text).
 //
 // Masters (hand-authored, the source of truth; keep geometry in lockstep with
-// the canonical Clink polygons in components/brand/PubmaxxMark.tsx):
-//   icon-square.svg               1024  ink-deep field, coral Clink (iOS + Play icon)
-//   icon-square-small.svg           64  small-optics cut (ember drops out, arms alone)
-//   play-adaptive-foreground.svg  1024  coral Clink on transparent, 66/108 safe zone
-//   play-adaptive-background.svg  1024  solid ink-deep, deliberately flat
-//   splash.svg                    2732  ink-deep field, centred coral Clink
+// the canonical double-struck X polygons in components/brand/PubmaxxMark.tsx
+// MARK_GEOMETRY, the same numbers scripts/gen-brand-assets.mjs and
+// scripts/gen-native-app-icons.mjs stamp):
+//   icon-square.svg               1024  white tile, coral X (iOS + Play icon)
+//   icon-square-small.svg           64  small-optics cut (single-slash `slashSimple` + thick stroke)
+//   play-adaptive-foreground.svg  1024  coral X on transparent, 66/108 safe zone
+//   play-adaptive-background.svg  1024  solid white, deliberately flat
+//   splash.svg                    2732  ink-deep field (splashes keep ink per #523), centred coral X
 //
 // Outputs (committed) under public/store-assets/png/:
 //   ios/AppIcon-{20,29,40,58,60,76,80,87,120,152,167,180,1024}.png  opaque, no alpha

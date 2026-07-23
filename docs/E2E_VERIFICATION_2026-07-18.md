@@ -19,7 +19,7 @@ touched, nothing was pushed.
 | Chromium | ms-playwright chromium-1228 |
 | Worktree | `.claude/worktrees/agent-abef47bca7abeda9d` |
 | node_modules | APFS copy-on-write clone of the main checkout |
-| Build per branch | `NEXT_DIST_DIR=.next-e2e PUBMAX_E2E_KEYLESS=1 npm run build` (via Playwright `webServer`), ~60–90s cold |
+| Build per branch | `NEXT_DIST_DIR=.next-e2e npm run build` (via Playwright `webServer`), ~60–90s cold. The single build+start shell inherits a fresh random 32-byte `PLAN_IDEMPOTENCY_SECRET` and the storage-only keyless flag through `webServer.env`; neither appears in its command/argv. |
 | Test invocation | `PW_PORT=311x NEXT_DIST_DIR=.next-e2e playwright test <specs>` |
 | Distinct port per branch | forces a fresh production build per checkout (no stale server reuse) |
 
@@ -205,6 +205,13 @@ the mission's primary deliverable is the pass/fail truth table and shots are
 explicitly best-effort, they were skipped to keep the overnight window focused on
 verification. The shots tooling itself was not exercised, so no claim is made about
 whether it works in-worktree.
+
+The screenshot wrapper performs its production build before Playwright starts
+the screenshot projects. That build does not receive the runtime signing key,
+which is intentional: route handlers do not mint or verify trusted claims during
+compilation, and no signing material is baked into the build. When Playwright
+starts the already-built server, `webServer.env` supplies a fresh key for the
+entire runtime. The key remains absent from the shell command and argv.
 
 ## Bottom line
 

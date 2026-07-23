@@ -133,12 +133,39 @@ export async function broadcastNightSignalLive(
     threadId: "night-signals",
     data: {
       kind: "night_signal_live",
+      url: "/tonight",
       entityId: lead.entityId,
       signalId: lead.id,
       count: String(highlights.length),
     },
   };
   return dispatch(tokens, payload);
+}
+
+export type DailyBriefHighlight = {
+  /** Source-backed weather verdict from lib/todayBrief.ts. */
+  weatherLine: string;
+  /** Highest-ranked, current What's-On pick from lib/todayBrief.ts. */
+  topPickTitle: string;
+  topPickPlace: string;
+};
+
+/** Manual installed-web daily brief. It is a city-wide public broadcast and
+ * therefore does not pretend to have identity targeting before Wave 1.4. Only
+ * explicit web subscriptions are selected; native APNs behaviour is unchanged. */
+export async function broadcastDailyBrief(
+  highlight: DailyBriefHighlight,
+): Promise<PushDispatchSummary> {
+  const registrations = await pushTokenStore().list();
+  const tokens = registrations
+    .filter((registration) => registration.platform === "web")
+    .map((registration) => registration.token);
+  return dispatch(tokens, {
+    title: "Today in London",
+    body: `${highlight.weatherLine} Tonight: ${highlight.topPickTitle} at ${highlight.topPickPlace}.`,
+    threadId: "daily-brief",
+    data: { kind: "daily_brief", url: "/today" },
+  });
 }
 
 // In-process dedup — a CHEAP FIRST CHECK ONLY, never the authority. It is
@@ -227,7 +254,12 @@ export async function notifyPlanUpdate(
     title: payload.title,
     body: payload.body,
     threadId: `plan:${payload.planId}`,
-    data: { kind: "plan_update", planId: payload.planId, reason: payload.reason },
+    data: {
+      kind: "plan_update",
+      url: `/plan/${encodeURIComponent(payload.planId)}`,
+      planId: payload.planId,
+      reason: payload.reason,
+    },
   });
 }
 
