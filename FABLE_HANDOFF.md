@@ -170,3 +170,9 @@ Owner queue: unchanged (migrations 0038-0049, CRON_SECRET, ORS_API_KEY, #473 rul
 - INCIDENTS: 3x disk-full (root causes: lane-started next dev server whose next-server pid survived pkill by name; worktree accumulation; machine 163/228GB full systemically - cleared 3.8GB plugins-archive). LESSONS ENFORCED: lanes never start dev servers; worktrees pruned at merge; watch for "next-server" not just "next dev". My Chrome rode a morning SW all day (sw.js deliberately never skipWaiting) - my late-night "prod regression" was self-inflicted staleness; owner's phone was the real signal both times. TICKET: "new version ready - refresh" prompt for waiting SW (doctrine change, spec first).
 - Verification debt: post-#547/#548 on-device check pending (owner: kill + reopen the app, open map + Plan tonight). My browser extension link needs the pending prompt clicked on the Mac.
 - Day total: 44 lane/direct PRs merged + 2 Cursor PRs landed. Owner queue unchanged.
+
+## 2026-07-23 morning close-out (#549-#550)
+
+- #550 next 16.2.11: nine overnight App Router advisories killed every build via the audit gate (second dependency-advisory incident in two days; same playbook as sharp #490 - check the audit tail before blaming a diff).
+- #549 owner taste rulings: feed active-chip underline removed (with its JS measurement scaffolding), 39 CTA/button sites moved from pills to var(--control-radius, 14px) matching the top bar (icon circles + tab bar deliberately kept), venue sheets content-fit like contextual/planner (dock rides hugged content bottom; tall content unchanged), dead reserved padding trimmed (~80px in-sheet, feed row-gap).
+- Owner verification pending on device: feed (no underline, rectangular CTAs), Kings Head sheet (no void), map black-canvas watchdog (#548), planner sheet (#547).
