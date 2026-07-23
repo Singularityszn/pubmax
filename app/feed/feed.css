@@ -2021,7 +2021,10 @@ html:not([data-theme="dark"]) .feedSpillCat svg {
     align-items: start;
     gap: 28px;
     width: 100%;
-    max-width: 1180px;
+    /* D2.4: was a hard 1180px — at 1440 that left ~130px dead side gutters past
+       the page padding. Align with the shared wide reading token so the rail +
+       two-up stream use the designed max without sprawling full-bleed. */
+    max-width: var(--content-max-wide, 1240px);
     margin: 0 auto;
   }
 

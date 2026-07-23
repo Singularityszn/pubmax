@@ -18,6 +18,7 @@ vi.mock("@/components/nav/MessagesLink", () => ({ default: () => null }));
 vi.mock("@/components/nav/NotificationBell", () => ({ default: () => null }));
 vi.mock("@/components/auth/SignInButton", () => ({ default: () => null }));
 vi.mock("@/components/brand/PubmaxxWordmark", () => ({ default: () => null }));
+// SiteNavMore keeps real markup so the overflow link contract is tested.
 
 async function renderSiteNav(): Promise<string> {
   const { default: SiteNav } = await import("@/components/nav/SiteNav");
@@ -43,6 +44,42 @@ describe("SiteNav desktop Moment affordance (audit D2)", () => {
   });
 
   it("keeps the Moment affordance free of em dashes", async () => {
+    const markup = await renderSiteNav();
+    expect(markup).not.toContain("—");
+  });
+});
+
+describe("SiteNav More overflow (Wave D2.2)", () => {
+  afterEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("renders a More control for secondary destinations", async () => {
+    const markup = await renderSiteNav();
+    expect(markup).toContain("siteNavMore");
+    expect(markup).toContain("siteNavMoreBtn");
+    expect(markup).toContain(">More</span>");
+  });
+
+  it("exposes only Plan, Near, Pubs, Historic, Pal as more-menu destinations", async () => {
+    const { SITE_NAV_MORE_LINKS } = await import("@/components/nav/SiteNavMore");
+    expect(SITE_NAV_MORE_LINKS.map((link) => link.href)).toEqual([
+      "/plan",
+      "/near",
+      "/pubs",
+      "/historic",
+      "/pal",
+    ]);
+    expect(SITE_NAV_MORE_LINKS.map((link) => link.label)).toEqual([
+      "Plan",
+      "Near",
+      "Pubs",
+      "Historic",
+      "Pal",
+    ]);
+  });
+
+  it("keeps More markup free of em dashes", async () => {
     const markup = await renderSiteNav();
     expect(markup).not.toContain("—");
   });
