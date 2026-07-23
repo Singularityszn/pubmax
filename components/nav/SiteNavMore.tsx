@@ -4,6 +4,10 @@
 // not in the primary Today/Map/Tonight/Stories/You row. Desktop ≥641 only —
 // CSS hides this entire control on phones so the compact bar stays unchanged.
 // Links only: no feature rewrites. Esc closes; ArrowUp/Down move focus.
+//
+// Menu is portaled to document.body with position:fixed. The siteNavBar uses
+// backdrop-filter + pill border-radius, which clips absolutely positioned
+// descendants (design-gate: Historic/Pal were cut off). Portaling escapes that.
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -12,10 +16,13 @@ import {
   useCallback,
   useEffect,
   useId,
+  useLayoutEffect,
   useRef,
   useState,
+  type CSSProperties,
   type KeyboardEvent as ReactKeyboardEvent,
 } from "react";
+import { createPortal } from "react-dom";
 
 export const SITE_NAV_MORE_LINKS = [
   { href: "/plan", label: "Plan" },
@@ -29,22 +36,41 @@ function pathMatches(pathname: string, href: string): boolean {
   return pathname === href || pathname.startsWith(`${href}/`);
 }
 
+type MenuCoords = { top: number; right: number };
+
 export default function SiteNavMore(): React.JSX.Element {
   const pathname = usePathname() ?? "";
   const menuId = useId();
-  const rootRef = useRef<HTMLDivElement | null>(null);
   const buttonRef = useRef<HTMLButtonElement | null>(null);
+  const menuRef = useRef<HTMLDivElement | null>(null);
   const itemRefs = useRef<Array<HTMLAnchorElement | null>>([]);
   const [open, setOpen] = useState(false);
+  const [coords, setCoords] = useState<MenuCoords | null>(null);
 
   const close = useCallback(() => setOpen(false), []);
+
+  const measure = useCallback(() => {
+    const btn = buttonRef.current;
+    if (!btn) return;
+    const rect = btn.getBoundingClientRect();
+    setCoords({
+      top: rect.bottom + 8,
+      right: Math.max(8, window.innerWidth - rect.right),
+    });
+  }, []);
+
+  useLayoutEffect(() => {
+    if (!open) return;
+    measure();
+  }, [open, measure]);
 
   useEffect(() => {
     if (!open) return;
     function onPointerDown(event: MouseEvent) {
-      const root = rootRef.current;
-      if (!root) return;
-      if (event.target instanceof Node && root.contains(event.target)) return;
+      const target = event.target;
+      if (!(target instanceof Node)) return;
+      if (buttonRef.current?.contains(target)) return;
+      if (menuRef.current?.contains(target)) return;
       setOpen(false);
     }
     function onKeyDown(event: KeyboardEvent) {
@@ -54,13 +80,21 @@ export default function SiteNavMore(): React.JSX.Element {
         buttonRef.current?.focus();
       }
     }
+    function onReposition() {
+      measure();
+    }
     document.addEventListener("mousedown", onPointerDown);
     window.addEventListener("keydown", onKeyDown);
+    window.addEventListener("resize", onReposition);
+    // Capture scroll from any ancestor so fixed coords stay aligned.
+    window.addEventListener("scroll", onReposition, true);
     return () => {
       document.removeEventListener("mousedown", onPointerDown);
       window.removeEventListener("keydown", onKeyDown);
+      window.removeEventListener("resize", onReposition);
+      window.removeEventListener("scroll", onReposition, true);
     };
-  }, [open]);
+  }, [open, measure]);
 
   function onMenuKeyDown(event: ReactKeyboardEvent<HTMLDivElement>) {
     if (!open) return;
@@ -92,8 +126,49 @@ export default function SiteNavMore(): React.JSX.Element {
     }
   }
 
+  const menuStyle: CSSProperties | undefined = coords
+    ? { top: coords.top, right: coords.right }
+    : undefined;
+
+  // Portal only in the browser (document exists after hydration). Avoid a
+  // mounted-flag effect — house lint forbids setState in effect bodies.
+  const menu =
+    open && coords && typeof document !== "undefined"
+      ? createPortal(
+          <div
+            ref={menuRef}
+            className="siteNavMoreMenu siteNavMoreMenuPortaled"
+            id={menuId}
+            role="menu"
+            aria-label="More pages"
+            style={menuStyle}
+            onKeyDown={onMenuKeyDown}
+          >
+            {SITE_NAV_MORE_LINKS.map((link, index) => {
+              const active = pathMatches(pathname, link.href);
+              return (
+                <Link
+                  key={link.href}
+                  ref={(el) => {
+                    itemRefs.current[index] = el;
+                  }}
+                  href={link.href}
+                  role="menuitem"
+                  className={active ? "siteNavMoreItem isActive" : "siteNavMoreItem"}
+                  aria-current={active ? "page" : undefined}
+                  onClick={close}
+                >
+                  {link.label}
+                </Link>
+              );
+            })}
+          </div>,
+          document.body,
+        )
+      : null;
+
   return (
-    <div className="siteNavMore" ref={rootRef} onKeyDown={onMenuKeyDown}>
+    <div className="siteNavMore">
       <button
         ref={buttonRef}
         type="button"
@@ -106,28 +181,7 @@ export default function SiteNavMore(): React.JSX.Element {
         <span>More</span>
         <ChevronDown size={14} aria-hidden="true" className="siteNavMoreChevron" />
       </button>
-      {open ? (
-        <div className="siteNavMoreMenu" id={menuId} role="menu" aria-label="More pages">
-          {SITE_NAV_MORE_LINKS.map((link, index) => {
-            const active = pathMatches(pathname, link.href);
-            return (
-              <Link
-                key={link.href}
-                ref={(el) => {
-                  itemRefs.current[index] = el;
-                }}
-                href={link.href}
-                role="menuitem"
-                className={active ? "siteNavMoreItem isActive" : "siteNavMoreItem"}
-                aria-current={active ? "page" : undefined}
-                onClick={close}
-              >
-                {link.label}
-              </Link>
-            );
-          })}
-        </div>
-      ) : null}
+      {menu}
     </div>
   );
 }

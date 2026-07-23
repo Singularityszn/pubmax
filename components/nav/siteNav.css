@@ -346,6 +346,19 @@
   box-shadow: var(--shadow-sm, 0 7px 18px rgba(60, 30, 20, 0.09));
 }
 
+/* Portaled menu (body): escapes .siteNavBar backdrop-filter + pill radius
+   clipping that cut Historic/Pal off the absolute dropdown. top/right come
+   from the button's getBoundingClientRect in SiteNavMore.tsx. */
+.siteNavMoreMenuPortaled {
+  position: fixed;
+  top: 0;
+  right: 0;
+  z-index: var(--z-modal, 1200);
+  /* Never clipped by page columns (today/feed reading shells). */
+  max-height: none;
+  overflow: visible;
+}
+
 .siteNavMoreItem {
   display: flex;
   align-items: center;
