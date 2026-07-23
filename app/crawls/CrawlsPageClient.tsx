@@ -43,6 +43,19 @@ function styleLabel(style: string): string {
     .replace(/^./, (char) => char.toUpperCase());
 }
 
+// The compact groups are keyed by style label. The heritage rail leads (the
+// cohort review found the older, quiet-pint drinker under-served here) and reads
+// in the page's calm voice rather than a bare machine label. Every other group
+// keeps its plain style label; a head that isn't overridden falls through to it.
+const HERITAGE_GROUP_LABEL = styleLabel("heritage");
+const GROUP_HEAD: Record<string, string> = {
+  [HERITAGE_GROUP_LABEL]: "Heritage routes, handed down",
+};
+
+function groupHead(label: string): string {
+  return GROUP_HEAD[label] ?? label;
+}
+
 // Reproduce a crawl on the map from a story's stop ids, matching the existing
 // share-URL format read by seedCrawlState (mode=build&pubs=id1,id2). Stops that
 // carry no venueId (e.g. a hand-authored story) just aren't planned back.
@@ -110,7 +123,17 @@ function CrawlsPageInner() {
       }
       byLabel.get(label)!.push(crawl);
     }
-    return order.map((label) => [label, byLabel.get(label)!]);
+    // Lift the heritage rail to the top; everything else keeps its first-seen
+    // order (stable). Nothing is dropped, every crawl stays reachable.
+    const ordered = order
+      .map((label, index) => ({ label, index }))
+      .sort((a, b) => {
+        const aHeritage = a.label === HERITAGE_GROUP_LABEL ? 0 : 1;
+        const bHeritage = b.label === HERITAGE_GROUP_LABEL ? 0 : 1;
+        return aHeritage - bHeritage || a.index - b.index;
+      })
+      .map((entry) => entry.label);
+    return ordered.map((label) => [label, byLabel.get(label)!]);
   }, [remainingCrawls]);
 
   const [copied, setCopied] = useState(false);
@@ -188,7 +211,7 @@ function CrawlsPageInner() {
                     id={`crawlGroup-${groupLabel.replace(/\s+/g, "-")}`}
                     className="crawlCompactGroupHeading"
                   >
-                    {groupLabel}
+                    {groupHead(groupLabel)}
                   </h3>
                   <ul className="crawlCompactList" aria-label={`${groupLabel} crawls`}>
                     {crawlsInGroup.map((crawl) => (
@@ -300,7 +323,7 @@ function CompactCrawlRow({
             {stopCount} stop{stopCount === 1 ? "" : "s"}
           </span>
           <span className="crawlCompactPrice">
-            {priceRange ? formatPriceRange(priceRange) : "—"}
+            {priceRange ? formatPriceRange(priceRange) : "–"}
           </span>
         </span>
       </Link>
@@ -348,7 +371,7 @@ function CrawlPoster({
               {stop.note ? <p className="crawlStopNote">{stop.note}</p> : null}
             </div>
             <span className="crawlStopPrice">
-              {typeof stop.priceGbp === "number" ? formatGbp(stop.priceGbp) : "—"}
+              {typeof stop.priceGbp === "number" ? formatGbp(stop.priceGbp) : "–"}
             </span>
           </li>
         ))}

@@ -212,14 +212,16 @@
 
   .mobileTabPrimary .mobileTabIcon {
     /* Compact Drop circle; parent .mobileTab keeps the tap target.
-       Baseline contract: every label in the bar sits on ONE baseline. The
-       circle is 28px against the 20px icon row, so the -8px top margin makes
-       its occupied height identical (28 - 8 = 20) and the extra 8px reads as
-       a raise ABOVE the row instead of pushing this label below its five
-       siblings (the exact misalignment the owner's screenshot showed). */
-    width: 28px;
-    height: 28px;
-    margin-top: -8px;
+       Baseline contract: every label in the bar sits on ONE baseline, and the
+       circle's CENTRE sits on the same axis as its five sibling icons. The
+       circle is 24px against the 20px icon row; symmetric -2px margins keep
+       its occupied height at 20px so it overhangs equally above and below the
+       row instead of riding raised above it (owner ruling 2026-07-22: the
+       raised-FAB look read as misalignment, the bar must be uniform). */
+    width: 24px;
+    height: 24px;
+    margin-top: -2px;
+    margin-bottom: -2px;
     border-radius: 50%;
     background: color-mix(in srgb, var(--brass) 92%, var(--panel-raised));
     color: var(--color-on-accent, #fdfaf2);

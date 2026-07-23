@@ -687,6 +687,16 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
                 <PubmaxxAccountHub />
               </div>
             ) : null}
+
+            <footer className="profileFloor">
+              <p>
+                PUBMAXX is for over-18s. Drink responsibly, know the facts at{" "}
+                <a href="https://www.drinkaware.co.uk" rel="noreferrer">
+                  drinkaware.co.uk
+                </a>
+                .
+              </p>
+            </footer>
           </>
         )}
       </main>

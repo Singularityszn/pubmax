@@ -116,7 +116,12 @@
 .lpOrbit { position: absolute; border: 1px solid color-mix(in srgb, var(--river) 28%, transparent); border-radius: 50%; }
 .lpOrbitOne { width: min(62vw, 840px); aspect-ratio: 1; right: -18%; top: -24%; }
 .lpOrbitTwo { width: min(40vw, 540px); aspect-ratio: 1; left: -18%; bottom: -25%; border-color: color-mix(in srgb, var(--brass) 22%, transparent); }
-.lpScanline { position: absolute; left: 7%; top: 17%; width: 1px; height: 68%; background: linear-gradient(transparent, color-mix(in srgb, var(--river) 40%, transparent), transparent); }
+/* Faint vertical hairline in the hero atmosphere. Uses the house --hairline
+   (warm-neutral in both themes) NOT --river: in dark, --river (#7aa6cc, steel
+   blue) painted a light-blue streak down the left edge that read as a rendering
+   glitch beside the hero copy and the stacked stat readout. --hairline keeps it
+   as quiet intentional structure that stays clean in light and dark. */
+.lpScanline { position: absolute; left: 7%; top: 17%; width: 1px; height: 68%; background: linear-gradient(transparent, color-mix(in srgb, var(--hairline) 82%, transparent), transparent); }
 
 .lpHeroCopy { position: relative; z-index: 2; max-width: 610px; }
 .lpHeroKicker {
@@ -152,7 +157,7 @@
   justify-content: center;
   gap: 9px;
   border: 1px solid transparent;
-  border-radius: 16px;
+  border-radius: var(--control-radius, 14px);
   font-size: 14px;
   font-weight: 750;
   text-decoration: none;
@@ -291,7 +296,15 @@
 }
 
 @media (max-width: 700px) {
-  .lpNav { top: max(10px, env(safe-area-inset-top)); width: calc(100vw - 20px); min-height: 58px; padding: 6px 10px; gap: 8px; }.lpWordmark { font-size: 12px; }
+  /* Shared top-bar FRAME (siteNav.css :root --topbar-*): on mobile the landing
+     bar adopts the same 52px height, 14px rounded-card radius, 10px h-padding and
+     tight shadow as the in-app bars so navigating landing↔app never jumps. Was
+     a 58px 999px-pill with the heavy 0 16px 36px glass shadow. Vertical padding
+     is 3px so the 44px wordmark + 3+3 padding + 1+1 border box-sizes to exactly
+     --topbar-h (52px) — the 58px overshoot came from the old 6px padding. The
+     top offset keeps its max() literal (locked by landingChromeCss.test),
+     resolving to the same ~10px + notch clearance. Desktop keeps capsule+glass. */
+  .lpNav { top: max(10px, env(safe-area-inset-top)); width: calc(100vw - 20px); min-height: var(--topbar-h, 52px); padding: 3px var(--topbar-pad-x, 10px); gap: 8px; border-radius: var(--topbar-radius, 14px); box-shadow: var(--topbar-shadow, var(--map-overlay-shadow-tight, 0 6px 16px rgba(0, 0, 0, 0.12))); }.lpWordmark { font-size: 12px; }
   .lpHero { padding: 106px var(--lp-pad) 64px; gap: 38px; }.lpHero::before { background: linear-gradient(180deg, color-mix(in srgb, var(--paper) 92%, transparent), var(--paper) 70%), url("/landing/hero-thames.jpg") center / cover; }
   .lpHero h1 { font-size: clamp(48px, 12.5vw, 56px); line-height: .94; }.lpHeroLede { max-width: 34ch; font-size: 16px; }.lpHeroActions { grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: stretch; }.lpHeroActions .lpButton:first-child { grid-column: 1 / -1; }.lpHeroActions .lpButton { width: 100%; padding-inline: 10px; font-size: 13px; }
   .lpLiveReadout { align-items: flex-start; flex-direction: column; gap: 8px; }
@@ -334,6 +347,11 @@
   .lpFinalCta > p { font-size: 12px; }
   .lpFooterInner { grid-template-columns: 1fr; gap: 36px; }
   .lpFooterPitch { font-size: 15px; }
+  /* Below-fold clearance: on phones the fixed tab bar overlays the footer, so
+     the coverage-stats row and legal line sit clipped. Add the shared
+     --tabbar-h token to the footer's own bottom pad (content spacing only; the
+     bar geometry itself lives in mobileNav.css / .lpNav, untouched here). */
+  .lpFooter { padding-bottom: calc(36px + var(--tabbar-h, 64px) + env(safe-area-inset-bottom)); }
 }
 
 @media (max-width: 430px) {
@@ -361,3 +379,7 @@
   .lpNav, .lpSignalGrid, .dropStripCard, .lpPalCallout { border-color: currentColor; }
   .lpButtonQuiet, .thamesHeroPinGlyph { border-width: 2px; }
 }
+
+/* CAP Code section 18 responsible floor (docs/CAP_COPY_AUDIT_2026-07-21.md,
+   owner ruling #3). One quiet, permanent line: over-18s + Drinkaware. No
+   banner, no nag; it just sits at the base of the marketing page. */

@@ -119,14 +119,16 @@
   place-items: center;
   align-content: center;
   gap: 7px;
-  border: 1px dashed color-mix(in srgb, var(--brass) 55%, var(--line));
+  /* Solid hairline + soft brass fill reads finished, not like an unfinished
+     dashed placeholder; the fill still marks it as a tappable drop zone. */
+  border: 1px solid var(--hairline);
   border-radius: 16px;
   background: color-mix(in srgb, var(--brass) 4%, var(--paper));
   color: var(--ink-soft);
   cursor: pointer;
   text-align: center;
 }
-.momentMediaPicker:hover { border-style: solid; background: color-mix(in srgb, var(--brass) 8%, var(--paper)); }
+.momentMediaPicker:hover { border-color: color-mix(in srgb, var(--brass) 55%, var(--line)); background: color-mix(in srgb, var(--brass) 8%, var(--paper)); }
 .momentMediaPicker strong { color: var(--ink); font-size: 15px; }
 .momentMediaPicker span { color: var(--muted); font-size: 12px; }
 .momentMediaPicker input { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); clip-path: inset(50%); }

@@ -35,7 +35,7 @@ import {
 import { normalizeHandle } from "@/lib/profiles";
 import {
   admin,
-  createMemoryFallbackWarner,
+  createSchemaMissWarner,
   missingTables,
   selectStore,
 } from "@/lib/storeBackend";
@@ -74,7 +74,7 @@ const TABLES: Record<RatingKind, { table: string; refColumn: string }> = {
 const TOP_SCAN_ROWS = 5000;
 
 const isMissingRatingsSchema = missingTables("drink_ratings", "venue_ratings");
-const { warn: warnMemoryFallback } = createMemoryFallbackWarner(
+const { warn: warnSchemaMiss } = createSchemaMissWarner(
   "ratings",
   "apply migration 0020",
 );
@@ -144,7 +144,7 @@ export const supabaseRatingsStore: RatingsStore = {
       if (error) throw new Error(error.message);
     } catch (err) {
       if (isMissingRatingsSchema(err)) {
-        warnMemoryFallback("rate", err);
+        warnSchemaMiss("rate", err);
         return memoryRatingsStore.rate(input);
       }
       throw err;
@@ -179,7 +179,7 @@ export const supabaseRatingsStore: RatingsStore = {
       return out;
     } catch (err) {
       if (isMissingRatingsSchema(err)) {
-        warnMemoryFallback("summaryFor", err);
+        warnSchemaMiss("summaryFor", err);
         return memoryRatingsStore.summaryFor(kind, refs);
       }
       console.error(
@@ -215,7 +215,7 @@ export const supabaseRatingsStore: RatingsStore = {
       );
     } catch (err) {
       if (isMissingRatingsSchema(err)) {
-        warnMemoryFallback("top", err);
+        warnSchemaMiss("top", err);
         return memoryRatingsStore.top(kind, options);
       }
       console.error(

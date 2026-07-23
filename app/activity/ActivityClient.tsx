@@ -123,7 +123,7 @@ export default function ActivityClient(): React.JSX.Element {
       <main className="activity">
         <header className="activityHead">
           <h1>Activity</h1>
-          <p className="activitySub">Who followed you, reacted, commented, or saved your crawl.</p>
+          <p className="activitySub">Who followed you, cheered a pint, left a comment, or saved your crawl.</p>
           {/* Quest chips (IDEAS B2-lite): "next badge" progress for the claimed
               handle. Renders nothing without a handle, so the signed-out empty
               state below stays exactly as it is. */}
@@ -137,21 +137,21 @@ export default function ActivityClient(): React.JSX.Element {
         ) : !handle.trim() ? (
           <EmptyState
             eyebrow="Activity"
-            title="Sign in or claim a handle"
-            body="Sign in, or drop a pint to set a handle. Then follows, reactions, comments, and crawl saves show up here."
+            title="This corner is yours. Claim it."
+            body="Sign in, or drop a pint to grab a handle. After that, every follow, cheers and comment lands right here."
             action={<SignInButton />}
           />
         ) : failed ? (
           <EmptyState
-            title="Couldn't load your activity"
-            body="Couldn't reach the server. Try again in a moment."
+            title="Couldn't load your activity."
+            body="We couldn't reach the bar. Give it a moment and try again."
             role="alert"
           />
         ) : items.length === 0 ? (
           <EmptyState
             eyebrow="Activity"
-            title="Nothing yet"
-            body="When people follow you, react to your Pint Drops, comment, or save your crawls, it shows up here."
+            title="Nothing's landed yet."
+            body="When someone follows you, cheers a Pint Drop, leaves a comment or saves one of your crawls, it turns up here. Go give them a reason to."
             action={
               <Link href="/feed" className="activityCta">
                 Browse the feed

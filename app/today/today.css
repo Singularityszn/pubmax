@@ -175,7 +175,7 @@
   width: fit-content;
   padding: 8px 14px;
   border: 1px solid color-mix(in srgb, var(--brass) 42%, var(--line));
-  border-radius: 999px;
+  border-radius: var(--control-radius, 14px);
   background: color-mix(in srgb, var(--brass) 9%, var(--panel-raised));
   color: var(--ink);
   font: inherit;
@@ -201,7 +201,7 @@
 .todayTextButton:focus-visible {
   outline: 2px solid var(--brass);
   outline-offset: 2px;
-  border-radius: 999px;
+  border-radius: var(--control-radius, 14px);
 }
 
 .todayTextButton {
@@ -359,6 +359,19 @@
   opacity: 0.85;
 }
 
+/* Chain-deal disclosure: "Same deal at 12 pubs". Honest, understated, so a
+   syndicated promotion reads as one deal at many pubs, not many picks. */
+.todayPickDigest {
+  align-self: flex-start;
+  padding: 2px 8px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: var(--panel-raised);
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--ink-soft);
+}
+
 /* Provenance chip (matches the app's Sourced idiom). */
 .todayProvChip {
   display: inline-flex;
@@ -371,6 +384,158 @@
   font-weight: 700;
   letter-spacing: 0.03em;
   color: var(--brass);
+}
+
+/* Cheapest pints near you today */
+.todayPintList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.todayPintRow {
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--panel-raised) 60%, transparent);
+  transition: border-color 0.18s ease;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .todayPintRow:hover {
+    border-color: color-mix(in srgb, var(--brass) 50%, var(--line));
+  }
+}
+
+.todayPintLink {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 44px;
+  padding: 8px 14px;
+  color: inherit;
+  text-decoration: none;
+}
+
+.todayPintName {
+  font-size: 0.9rem;
+  font-weight: 650;
+  line-height: 1.25;
+  color: var(--ink);
+}
+
+.todayPintPrice {
+  flex: none;
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--brass);
+  font-variant-numeric: tabular-nums;
+}
+
+/* A quiet pint (heritage-cited, quiet-hour). Same raised-row idiom as the picks
+   and pints lists; the cited heritage line carries the weight, so rows breathe
+   a little more. Both themes via role tokens. */
+.quietPintList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.quietPintRow {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--panel-raised) 60%, transparent);
+  transition: border-color 0.18s ease;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .quietPintRow:hover {
+    border-color: color-mix(in srgb, var(--brass) 50%, var(--line));
+  }
+}
+
+.quietPintLink {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 12px 14px 8px;
+  color: inherit;
+  text-decoration: none;
+}
+
+.quietPintTop {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.quietPintName {
+  font-size: 0.96rem;
+  font-weight: 700;
+  line-height: 1.25;
+  color: var(--ink);
+}
+
+.quietPintPrice {
+  flex: none;
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--brass);
+  font-variant-numeric: tabular-nums;
+}
+
+.quietPintHeritage {
+  font-size: 0.85rem;
+  line-height: 1.5;
+  color: var(--ink-soft);
+}
+
+.quietPintFoot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 10px;
+  padding: 0 14px 12px;
+}
+
+.quietPintGrade {
+  padding: 2px 8px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: var(--panel-raised);
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--ink-soft);
+}
+
+.quietPintQuiet {
+  font-size: 0.76rem;
+  color: var(--ink-soft);
+}
+
+.quietPintSource {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.75rem;
+  color: var(--ink-soft);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .quietPintSource:hover {
+    color: var(--brass);
+  }
 }
 
 /* Page foot */

@@ -74,7 +74,9 @@ export default function HistoricPageClient({
 
       {pubs.length === 0 ? (
         <p className="historicStatus" role="status">
-          The historic index isn&rsquo;t available right now. Check back shortly.
+          The historic index isn&rsquo;t loading just now. The{" "}
+          <Link href="/map">map</Link> is still up, and it still knows where the
+          cheap pints are.
         </p>
       ) : (
         <>

@@ -7,6 +7,7 @@ import type { PlanConstraint, PlanConstraintKind, PlanInvite, PlanRouteProposal,
 import { publishPlanCollaborationChange, subscribePlanCollaborationChange, type PlanCollaborationChangeKind } from "@/lib/planContinuity";
 import { trackEvent } from "@/lib/analytics";
 import { recordPlanHighIntentAction } from "@/lib/nativePushPrompt";
+import MatchGroupPrefs from "@/components/plan/MatchGroupPrefs";
 
 type CollaborationState = {
   memberId: string;
@@ -248,6 +249,8 @@ export default function PlanCollaborationPanel({ planId, memberToken, isHost, dr
         </div>
       ) : null}
 
+      {state.memberId ? <MatchGroupPrefs planId={planId} memberId={state.memberId} /> : null}
+
       <form className="planCollab__form" onSubmit={addConstraint}>
         <strong>Add a need</strong>
         <div className="planCollab__fields">
@@ -274,7 +277,7 @@ export default function PlanCollaborationPanel({ planId, memberToken, isHost, dr
         <form className="planCollab__form" onSubmit={createProposal}>
           <strong>{isHost ? "Share this route change" : "Propose this swap"}</strong>
           <textarea maxLength={300} value={proposalReason} onChange={(event) => setProposalReason(event.target.value)} placeholder="Why this route works better" aria-label="Explain this route proposal" />
-          {state.constraints.some((constraint) => constraint.priority === "required") ? <p className="planCollab__evidenceNote">Required needs stay unresolved until the host attaches grounded evidence for every proposed stop. A proposal cannot claim them by itself.</p> : null}
+          {state.constraints.some((constraint) => constraint.priority === "required") ? <p className="planCollab__evidenceNote">A must-have need isn&rsquo;t ticked off until the host confirms every stop can actually meet it. A proposal can&rsquo;t promise that on its own.</p> : null}
           <button disabled={pending === "proposal" || !proposalReason.trim()}>Send for crew review</button>
         </form>
       ) : null}

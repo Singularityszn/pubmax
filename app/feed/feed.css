@@ -106,7 +106,7 @@
   justify-content: center;
   padding: 0 16px;
   border: 1px solid var(--line);
-  border-radius: 999px;
+  border-radius: var(--control-radius, 14px);
   background: var(--panel-raised);
   color: var(--ink);
   font-size: .88rem;
@@ -190,7 +190,7 @@
   z-index: 40;
   padding: 7px 16px;
   border: 1px solid color-mix(in srgb, var(--brass) 38%, var(--feed-border));
-  border-radius: 999px;
+  border-radius: var(--control-radius, 14px);
   background: var(--feed-coral-wash);
   color: var(--brass);
   font-size: 0.8rem;
@@ -314,38 +314,16 @@
   max-width: var(--feed-max);
   display: flex;
   column-gap: 8px;
-  /* Extra vertical breathing room so the gliding indicator (a slim underline
-     hugging each chip's bottom edge) never crowds a wrapped second row. */
-  row-gap: 16px;
+  /* Vertical breathing room between chips when the strip wraps to a second row. */
+  row-gap: 12px;
   flex-wrap: wrap;
   justify-content: center;
 }
 
-/* Wave L1 — the active lane used to just swap fill instantly; this slim brass
-   underline now GLIDES from the previous active chip to the new one, measured
-   off the real chip buttons (FeedFilters.tsx) so it tracks correctly whether
-   the strip has wrapped to a second row (desktop) or sits mid-scroll (mobile).
-   Sits BEHIND the chips (z-index 0) and is purely decorative (aria-hidden) —
-   each chip's own active fill/border/text colour (below) is still the primary,
-   always-correct cue; the glide is an additive craft touch. */
-.feedFilterIndicator {
-  position: absolute;
-  top: 0;
-  left: 0;
-  z-index: 0;
-  height: 3px;
-  border-radius: 999px;
-  background: linear-gradient(90deg, var(--brass), var(--brass-bright, var(--brass)));
-  box-shadow: 0 0 8px color-mix(in srgb, var(--brass) 45%, transparent);
-  pointer-events: none;
-}
-
-@media (prefers-reduced-motion: no-preference) {
-  .feedFilterIndicator {
-    transition: transform 180ms var(--ease-out-strong, ease-out),
-      width 180ms var(--ease-out-strong, ease-out);
-  }
-}
+/* Owner ruling (2026-07-23): the gliding brass underline strip beneath the
+   active chip is removed — "remove the dash underline, it's ugly". The active
+   chip's own filled gradient (.feedFilterChip.isActive below) already carries
+   the selected state, so no decorative indicator is needed. */
 
 .feedFilterChip {
   position: relative;
@@ -474,7 +452,7 @@
   min-height: 44px;
   padding: 6px 11px;
   border: 1px solid var(--feed-border);
-  border-radius: 999px;
+  border-radius: var(--control-radius, 14px);
   background: var(--feed-glass);
   color: var(--ink);
   font: inherit;
@@ -1202,7 +1180,7 @@
 .feedLoadMoreBtn {
   padding: 11px 22px;
   border: 1px solid var(--line);
-  border-radius: 999px;
+  border-radius: var(--control-radius, 14px);
   background: var(--feed-glass-solid);
   color: var(--ink);
   font-size: 0.92rem;
@@ -1221,11 +1199,82 @@
   outline-offset: 2px;
 }
 
+.feedEndWrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  padding-top: 4px;
+}
+
 .feedEnd {
-  margin: 4px 0 0;
+  margin: 0;
   color: var(--muted, #8a8577);
   font-size: 0.84rem;
   font-style: italic;
+}
+
+/* Primary CTA at the very end of the feed — closes the dead-end so the viewer
+   has one clear next step after exhausting the scroll. Sized to 44px min-height
+   (touch target), styled to match .feedMomentCta (same colour register). */
+.feedEndCta {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  padding: 0 20px;
+  border: 1px solid color-mix(in srgb, var(--brass) 45%, var(--line));
+  border-radius: var(--control-radius, 14px);
+  background: color-mix(in srgb, var(--brass) 12%, var(--panel-raised));
+  color: var(--ink);
+  font-size: 0.88rem;
+  font-weight: 750;
+  text-decoration: none;
+  transition: border-color 0.16s ease, background 0.16s ease;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .feedEndCta:hover {
+    border-color: color-mix(in srgb, var(--brass) 70%, var(--line));
+    background: color-mix(in srgb, var(--brass) 18%, var(--panel-raised));
+  }
+}
+
+.feedEndCta:focus-visible {
+  outline: 2px solid var(--brass);
+  outline-offset: 2px;
+}
+
+/* Error-state retry button. Same visual weight as .feedLoadMoreBtn but sized to
+   sit inside the shared EmptyState action slot. The error state uses role="alert"
+   so AT announces it immediately; the button gives keyboard users a one-tap path
+   back to the feed without a page reload. */
+.feedRetryBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  padding: 0 20px;
+  border: 1px solid var(--line);
+  border-radius: var(--control-radius, 14px);
+  background: var(--panel-raised);
+  color: var(--ink);
+  font: inherit;
+  font-size: 0.88rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: border-color 0.16s ease;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .feedRetryBtn:hover {
+    border-color: color-mix(in srgb, var(--brass) 50%, var(--line));
+  }
+}
+
+.feedRetryBtn:focus-visible {
+  outline: 2px solid var(--brass);
+  outline-offset: 2px;
 }
 
 /* ── Empty state ──────────────────────────────────────────────────────── */
@@ -1234,6 +1283,38 @@
    this class only widens it slightly for the feed's column layout. */
 .feedEmpty {
   max-width: 500px;
+}
+
+/* Empty-feed CTA contract: one primary (44px) + at most one quiet secondary
+   link. Header compose is hidden on empty/error, so this pair is the whole
+   next-step surface, never a four-button stack. */
+.feedEmptyActions {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.feedEmpty .emptyStateAction a.feedEmptyPrimary {
+  min-height: 44px;
+}
+
+.feedEmpty .emptyStateAction a.feedEmptySecondary {
+  min-height: 44px;
+  padding: 0 12px;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  color: var(--ink-soft);
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  filter: none;
+}
+
+.feedEmpty .emptyStateAction a.feedEmptySecondary:hover {
+  filter: none;
+  color: var(--ink);
 }
 
 /* ── Skeleton ─────────────────────────────────────────────────────────── */
@@ -1302,7 +1383,11 @@
      calmer title size, and tighter block gaps put the first card ~185px in.
      Editorial density, not compression: every tap target stays 44px+. */
   .feedShell {
-    padding: 12px var(--page-gutter) calc(var(--mobile-tab-clearance, 72px) + 48px);
+    /* Top padding is 10px (was 12px): SiteNav is the first child, so this sets
+       the standard bar's top offset. 10px + the bar's own env(safe-area) margin
+       matches the landing/map bars' shared top inset, so the bar lands on the
+       identical rect page-to-page. */
+    padding: 10px var(--page-gutter) calc(var(--mobile-tab-clearance, 72px) + 48px);
     gap: 10px;
   }
 
@@ -1544,7 +1629,7 @@
   min-height: 44px;
   padding: 9px 12px;
   border: 1px solid var(--line);
-  border-radius: 999px;
+  border-radius: var(--control-radius, 14px);
   background: var(--panel);
   color: var(--ink-soft);
   font: inherit;
@@ -1690,7 +1775,7 @@
   min-height: 44px;
   padding: 10px 20px;
   border: 0;
-  border-radius: 999px;
+  border-radius: var(--control-radius, 14px);
   background: var(--brass);
   color: var(--ink-deep, #1a160e);
   font: inherit;

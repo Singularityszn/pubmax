@@ -84,6 +84,33 @@ describe("GET /api/citymcp/status", () => {
     expect(res.headers.get("cache-control")).toMatch(/public/);
   });
 
+  it("drops flight-side aviation noise before trimming, keeping ground-transport signals", async () => {
+    const signals = [
+      { headline: "Victoria line part closure", severity: "major" },
+      { headline: "EasyJet cancels flights at Gatwick", detail: "crew shortage", severity: "major" },
+      { headline: "Gatwick Express suspended", detail: "overnight rail works", severity: "notable" },
+      { headline: "Heathrow baggage system down", severity: "notable" },
+    ];
+    global.fetch = vi.fn(async () =>
+      new Response(
+        sseFrame({
+          jsonrpc: "2.0",
+          id: 1,
+          result: { structuredContent: { asOf: "2026-07-11T00:00:00Z", signals } },
+        }),
+        { status: 200 },
+      ),
+    );
+
+    const res = await GET(new Request("http://localhost/api/citymcp/status"));
+    const body = await res.json();
+    const headlines = body.signals.map((s: { headline: string }) => s.headline);
+    expect(headlines).toContain("Victoria line part closure");
+    expect(headlines).toContain("Gatwick Express suspended");
+    expect(headlines).not.toContain("EasyJet cancels flights at Gatwick");
+    expect(headlines).not.toContain("Heathrow baggage system down");
+  });
+
   it("forwards the borough parameter when short enough", async () => {
     global.fetch = vi.fn(async () =>
       new Response(

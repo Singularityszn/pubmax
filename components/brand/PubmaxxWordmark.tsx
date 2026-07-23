@@ -1,11 +1,19 @@
 import "./pubmaxxWordmark.css";
-import PubmaxxMark, { type PubmaxxMarkVariant } from "./PubmaxxMark";
+import PubmaxxMark, { MARK_GEOMETRY, type PubmaxxMarkVariant } from "./PubmaxxMark";
+
+// The doubled `××` hero of the wordmark uses the SAME double-struck construction
+// as the mark (MARK_GEOMETRY), so both glyphs are byte-identical to each other
+// and to the master mark — no more per-glyph drift. Rendered mono via
+// `currentColor` (the second glyph is tinted coral by pubmaxxWordmark.css); no
+// ember — these are letterforms, not the lit brand moment.
+const g = MARK_GEOMETRY;
 
 function XGlyph(): React.JSX.Element {
   return (
-    <svg viewBox="0 0 16 16" aria-hidden="true" focusable="false">
-      <path d="M1.8 2h3.35l9.05 12h-3.35L1.8 2Z" />
-      <path d="M11.95 2h2.25L4.05 14H1.8L11.95 2Z" />
+    <svg viewBox={g.viewBox} aria-hidden="true" focusable="false">
+      <polygon points={g.thinA} />
+      <polygon points={g.thinB} />
+      <polygon points={g.thick} />
     </svg>
   );
 }

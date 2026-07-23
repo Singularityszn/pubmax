@@ -3,9 +3,11 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   analyticsCollectionAllowed,
   anonymousAnalyticsId,
+  flushVerifiedAnalyticsOutbox,
   laneSourceFromSearch,
   setAnalyticsConsent,
   trackEvent,
+  trackMeaningfulCoreAction,
 } from "@/lib/analytics";
 import { consentAwareBeforeSend } from "@/components/ConsentAwareVercelAnalytics";
 
@@ -62,6 +64,63 @@ describe("trackEvent", () => {
     const [url, blob] = beacon.mock.calls[0];
     expect(url).toBe("/api/events");
     expect(blob).toBeInstanceOf(Blob);
+  });
+
+  it("retains a verified event after lost delivery and retries without a beacon", async () => {
+    setWindow();
+    setAnalyticsConsent(true);
+    const fetchMock = vi.fn()
+      .mockRejectedValueOnce(new Error("response lost"))
+      .mockResolvedValueOnce(new Response(null, {
+        status: 204,
+        headers: { "x-analytics-delivery": "delivered" },
+      }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    trackEvent("plan_accepted", { stops: 3, grounded: true }, { deliveryToken: "signed-delivery-token" });
+    await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
+    await flushVerifiedAnalyticsOutbox();
+    if (fetchMock.mock.calls.length === 1) await flushVerifiedAnalyticsOutbox();
+
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    const beacon = (globalThis as { navigator: FakeNavigator }).navigator.sendBeacon as ReturnType<typeof vi.fn>;
+    expect(beacon).not.toHaveBeenCalled();
+  });
+
+  it("cancels an active flush on revocation and cannot remove a re-granted event", async () => {
+    setWindow();
+    setAnalyticsConsent(true);
+    await flushVerifiedAnalyticsOutbox();
+    let resolveFirst!: (response: Response) => void;
+    const firstResponse = new Promise<Response>((resolve) => { resolveFirst = resolve; });
+    const fetchMock = vi.fn()
+      .mockReturnValueOnce(firstResponse)
+      .mockResolvedValue(new Response(null, {
+        status: 204,
+        headers: { "x-analytics-delivery": "delivered" },
+      }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    trackEvent("plan_accepted", { stops: 3, grounded: true }, { deliveryToken: "revocation-token-a" });
+    await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
+    trackEvent("plan_completed", { ending: "get_home" }, { deliveryToken: "revocation-token-b" });
+
+    setAnalyticsConsent(false);
+    const firstSignal = (fetchMock.mock.calls[0]?.[1] as RequestInit | undefined)?.signal as AbortSignal | undefined;
+    expect(firstSignal?.aborted).toBe(true);
+
+    setAnalyticsConsent(true);
+    trackEvent("plan_accepted", { stops: 3, grounded: true }, { deliveryToken: "revocation-token-a" });
+    resolveFirst(new Response(null, {
+      status: 204,
+      headers: { "x-analytics-delivery": "delivered" },
+    }));
+    await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
+    await flushVerifiedAnalyticsOutbox();
+
+    const deliveredTokens = fetchMock.mock.calls.map((call) => JSON.parse(String((call[1] as RequestInit).body)).deliveryToken);
+    expect(deliveredTokens).toEqual(["revocation-token-a", "revocation-token-a"]);
+    expect(deliveredTokens).not.toContain("revocation-token-b");
   });
 
   it("creates no persistent id before consent and clears it after revocation", () => {
@@ -151,6 +210,19 @@ describe("trackEvent", () => {
       .sendBeacon as ReturnType<typeof vi.fn>;
     expect(beacon).not.toHaveBeenCalled();
     expect(consentAwareBeforeSend({ type: "pageview", url: "/tonight" })).toBeNull();
+  });
+
+  it("sends the reviewed Weekly Meaningful Pubmaxxers roll-up through the same consent gate", () => {
+    setWindow();
+    trackMeaningfulCoreAction("plan_completed");
+    const beacon = (globalThis as { navigator: FakeNavigator }).navigator
+      .sendBeacon as ReturnType<typeof vi.fn>;
+    expect(beacon).not.toHaveBeenCalled();
+
+    setAnalyticsConsent(true);
+    trackMeaningfulCoreAction("memory_reviewed");
+    expect(beacon).toHaveBeenCalledTimes(1);
+    expect(beacon.mock.calls[0]?.[0]).toBe("/api/events");
   });
 
   it("allows Vercel pageviews only after consent and still honors DNT", () => {

@@ -1,0 +1,154 @@
+import { readFile } from "node:fs/promises";
+import path from "node:path";
+
+import { PINT_DATASET_OBSERVED_AT } from "@/lib/dataFreshness";
+import { haversineKm } from "@/lib/haversine";
+import {
+  buildPriceEvidence,
+  type AccessEvidenceSource,
+  type PlanAccessEvidence,
+  type PlanOpeningSchedule,
+  type PlanPriceEvidence,
+} from "@/lib/planRouteEvidence";
+import { getVenueAccessibility } from "@/lib/venueAccessibilitySeeds";
+import { groupVenuePrices, type VenuePrice } from "@/lib/venues";
+import type { WetherspoonsPub } from "@/lib/wetherspoonsDirectory";
+
+type EvidenceVenue = { id: string; name: string; area: string; lat: number; lng: number };
+
+let priceIndex: Promise<Map<string, { pence: unknown; label: unknown; url: unknown; observedAt: unknown }>> | null = null;
+
+function canonicalGbpToPence(value: number | null): number | null {
+  if (typeof value !== "number" || !Number.isFinite(value) || value <= 0) return null;
+  const match = /^(\d+)(?:\.(\d{1,2}))?$/.exec(String(value));
+  if (!match) return null;
+  const pence = Number(match[1]) * 100 + Number((match[2] ?? "").padEnd(2, "0") || 0);
+  return Number.isSafeInteger(pence) && pence > 0 ? pence : null;
+}
+
+async function loadPriceIndex(): Promise<Map<string, { pence: unknown; label: unknown; url: unknown; observedAt: unknown }>> {
+  priceIndex ??= (async () => {
+    try {
+      const rows = JSON.parse(await readFile(
+        path.join(process.cwd(), "public/data/pint_prices_app_dataset.json"),
+        "utf8",
+      )) as unknown;
+      if (!Array.isArray(rows)) return new Map();
+      return new Map(groupVenuePrices(rows as VenuePrice[]).map((venue) => {
+        const cheapest = venue.prices.find((row) => row.price_gbp === venue.cheapestPrice);
+        const attributed = cheapest && cheapest.source_datasets.trim()
+          && (cheapest.pub_url.trim() || cheapest.constructed_pub_url.trim());
+        return [venue.id, {
+          pence: canonicalGbpToPence(venue.cheapestPrice),
+          label: attributed ? `Pint Prices (${cheapest.source_datasets})` : null,
+          url: attributed ? cheapest.pub_url.trim() || cheapest.constructed_pub_url.trim() : null,
+          observedAt: PINT_DATASET_OBSERVED_AT.toISOString(),
+        }];
+      }));
+    } catch {
+      return new Map();
+    }
+  })();
+  return priceIndex;
+}
+
+export async function planPriceEvidenceForVenues(
+  venues: readonly EvidenceVenue[],
+  now: number,
+): Promise<Map<string, PlanPriceEvidence>> {
+  const index = await loadPriceIndex();
+  return new Map(venues.map((venue) => {
+    const evidence = index.get(venue.id);
+    return [venue.id, evidence
+      ? buildPriceEvidence({ ...evidence, now })
+      : { pence: null, source: null, confidenceState: "unknown" as const }];
+  }));
+}
+
+function normalizeName(value: string): string {
+  return value.toLocaleLowerCase("en-GB").normalize("NFKD")
+    .replace(/[’']/g, "").replace(/\([^)]*\)/g, " ")
+    .replace(/\bjd wetherspoons?\b/g, " ").replace(/[^a-z0-9]+/g, " ")
+    .trim().replace(/^the\s+/, "");
+}
+
+const ACCESS_SOURCES: Record<string, Partial<Record<"stepFree" | "accessibleToilet", AccessEvidenceSource>>> = {
+  "the ice wharf - jd wetherspoon": {
+    stepFree: { label: "J D Wetherspoon: The Ice Wharf", url: "https://www.jdwetherspoon.com/pubs/the-ice-wharf-camden/", observedAt: null },
+  },
+  "the coronet": {
+    stepFree: { label: "AccessAble: The Coronet", url: "https://www.accessable.co.uk/islington-council/access-guides/the-coronet", observedAt: null },
+    accessibleToilet: { label: "AccessAble: The Coronet", url: "https://www.accessable.co.uk/islington-council/access-guides/the-coronet", observedAt: null },
+  },
+  "the crosse keys": {
+    accessibleToilet: { label: "CAMRA: The Crosse Keys", url: "https://camra.org.uk/pubs/crosse-keys-london-156614", observedAt: null },
+  },
+  "the brockley barge - jd wetherspoon": {
+    accessibleToilet: { label: "AccessAble: The Brockley Barge", url: "https://www.accessable.co.uk/london-borough-of-lewisham/access-guides/the-brockley-barge-jd-wetherspoon", observedAt: null },
+  },
+};
+
+export function planAccessEvidenceForVenue(venue: EvidenceVenue): PlanAccessEvidence {
+  const facts = getVenueAccessibility(venue.name, venue.area);
+  const sources = ACCESS_SOURCES[venue.name.trim().toLocaleLowerCase("en-GB")] ?? {};
+  return {
+    ...(facts?.stepFree === true && sources.stepFree
+      ? { stepFree: { confirmed: true as const, source: sources.stepFree } }
+      : {}),
+    ...(facts?.accessibleToilet === true && sources.accessibleToilet
+      ? { accessibleToilet: { confirmed: true as const, source: sources.accessibleToilet } }
+      : {}),
+    // Deliberately no seating/lowNoise projection: seated service and a prose
+    // quiet-hours note do not answer those intake questions.
+  };
+}
+
+let openingRows: Promise<WetherspoonsPub[]> | null = null;
+
+async function loadOpeningRows(): Promise<WetherspoonsPub[]> {
+  openingRows ??= (async () => {
+    try {
+      const raw = JSON.parse(await readFile(path.join(process.cwd(), "public/data/wetherspoons/pubs.json"), "utf8")) as { pubs?: unknown };
+      return Array.isArray(raw.pubs) ? raw.pubs as WetherspoonsPub[] : [];
+    } catch {
+      return [];
+    }
+  })();
+  return openingRows;
+}
+
+export async function planOpeningSchedulesForVenues(
+  venues: readonly EvidenceVenue[],
+): Promise<Map<string, PlanOpeningSchedule | null>> {
+  const rows = await loadOpeningRows();
+  return new Map(venues.map((venue) => {
+    const match = rows
+      .filter((pub) => normalizeName(pub.name) === normalizeName(venue.name))
+      .filter((pub) => typeof pub.latitude === "number" && typeof pub.longitude === "number")
+      .map((pub) => ({ pub, distance: haversineKm([venue.lng, venue.lat], [pub.longitude!, pub.latitude!]) }))
+      .filter(({ distance }) => distance <= 0.25)
+      .sort((left, right) => left.distance - right.distance)[0]?.pub;
+    if (
+      !match
+      || typeof match.observedAt !== "string"
+      || !Number.isFinite(Date.parse(match.observedAt))
+      || !match.source
+      || typeof match.source.url !== "string"
+      || typeof match.source.label !== "string"
+    ) return [venue.id, null];
+    return [venue.id, {
+      venueListedOpen: !Array.isArray(match.statuses) || match.statuses.length === 0 || match.statuses.includes("Open"),
+      ranges: (match.regularOpeningTimes ?? []).flatMap((row) =>
+        typeof row.day_of_the_week === "string"
+        && typeof row.opening_time === "string"
+        && typeof row.closing_time === "string"
+          ? [{ weekday: row.day_of_the_week, startsAt: row.opening_time, endsAt: row.closing_time }]
+          : []),
+      source: {
+        label: match.source.label,
+        url: match.source.url,
+        observedAt: new Date(Date.parse(match.observedAt)).toISOString(),
+      },
+    }];
+  }));
+}
