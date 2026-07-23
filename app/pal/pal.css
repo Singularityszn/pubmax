@@ -90,7 +90,9 @@
   justify-content: center;
   gap: .75rem;
   background: var(--pal-accent) !important;
-  box-shadow: inset 0 1px 0 color-mix(in srgb, white 24%, transparent), 0 .9rem 2.4rem color-mix(in srgb, var(--pal-accent) 24%, transparent);
+  /* Accent primary, but no off-system coloured glow: a restrained neutral drop
+     shadow keeps the CTA on house surfaces instead of a floating neon slab. */
+  box-shadow: inset 0 1px 0 color-mix(in srgb, white 24%, transparent), 0 .6rem 1.6rem color-mix(in srgb, var(--ink-deep) 22%, transparent);
   color: var(--color-on-accent) !important;
   font-weight: 750;
   text-decoration: none;
@@ -108,9 +110,10 @@
   padding: .9rem 1rem;
   border: 1px solid var(--pal-line);
   border-radius: 1rem 1rem 1rem .3rem;
-  background: color-mix(in srgb, var(--panel-raised) 84%, transparent);
+  /* House surface: solid panel-raised + hairline, so the speech card reads on the
+     app's own surfaces instead of picking up the accent-tinted page wash. */
+  background: var(--panel-raised);
   box-shadow: inset 0 1px 0 color-mix(in srgb, white 10%, transparent), 0 1.25rem 3rem color-mix(in srgb, var(--ink-deep) 22%, transparent);
-  backdrop-filter: blur(1.1rem) saturate(140%);
   color: var(--pal-paper);
   font-size: .86rem;
   line-height: 1.45;
@@ -326,7 +329,12 @@
 
 @media (max-width: 760px) {
   body:has(.palOnboarding) .mobileTabBar { display: none; }
-  .palExperience { padding: calc(1rem + env(safe-area-inset-top)) 1rem calc(7.25rem + env(safe-area-inset-bottom)); }
+  /* House tab-bar + pill clearance: bind the bottom pad to the shared --tabbar-h
+     token (mobileNav.css) + the home-indicator inset + the re-open pill's
+     published footprint (--night-pill-clearance, 0px unless a pill is floating),
+     so the "Meet your Pub Pal" CTA always clears BOTH the tab bar and the pill
+     instead of hiding behind either. */
+  .palExperience { padding: calc(1rem + env(safe-area-inset-top)) 1rem calc(var(--tabbar-h, 64px) + env(safe-area-inset-bottom, 0px) + 3.25rem + var(--night-pill-clearance, 0px)); }
   .palTopbar { grid-template-columns: 1fr auto; }
   .palTopbar > :nth-child(2):not(:last-child) { display: none; }
   .palMeetingStage, .palHomeHero, .palOnboardingLayout, .palControls { grid-template-columns: 1fr; }

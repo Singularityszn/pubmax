@@ -45,7 +45,11 @@ type TastePalette = {
   park: string;
   building: string;
   water: string;
+  /** Side streets / service / paths — the subtlest visible road tier. */
+  roadMinor: string;
+  /** Secondary + tertiary roads — the medium road tier. */
   road: string;
+  /** A-roads / motorways / trunks — the BRIGHTEST stroke on the dark map. */
   roadMajor: string;
 };
 
@@ -113,36 +117,81 @@ function tryPaint(map: PaintMap, layerId: string, prop: string, value: unknown):
   }
 }
 
+// ── Wave A · DARK basemap palette (owner: "fix the map in dark mode") ────────
+// Working dark maps (Apple/Google night) INVERT the light-map relationship:
+// roads are the LIGHTEST strokes on a near-black canvas, buildings a clear
+// step above ground, water an unmistakable deep slate-blue. The pre-Wave-A
+// dark palette derived roads from `--line` (#2c2c30 — a near-black DOM divider
+// #500 deliberately keeps dark for card/nav hairlines) and buildings from a
+// low-alpha emissive, so streets sat DARKER than buildings and vanished, and
+// footprints read as low-contrast mud with no luminance hierarchy.
+//
+// These NAMED CONSTANTS are the dark map's own palette, deliberately decoupled
+// from the DOM token scale (which #500 remaps under <body> and which the map
+// reads at documentElement — see tokens.ts readTokens). That decoupling is the
+// point: the dark map no longer inherits a structural divider colour as its
+// road brightness. Every value is a one-line tuning surface for the reviewer's
+// live screenshot loop. All greys are warm (R≥G≥B) so the canvas stays in the
+// house "warm ink" family rather than going cool/blue.
+const DARK = {
+  // Ground: warm near-black with a hint of house ink — not pure #000, and a
+  // hair above --ink-deep (#060607, also the sky fog-color) so land and the
+  // horizon fog still blend seamlessly at distance.
+  ground: "#0b0908",
+  // Landcover/landuse fringe — one barely-perceptible warm step over ground.
+  landSoft: "#161310",
+  // Residential blocks — subtle warm lift, still clearly "ground", not building.
+  residential: "#1b1712",
+  // Greenspace/parks: dark DESATURATED green, distinct in hue from the warm
+  // building brown so a park never reads as a block of buildings.
+  park: "#2d3f27",
+  // Buildings (2-D footprint fill under the 3-D extrusion): one clear luminance
+  // step above ground, warm gray-brown — harmonises with the --map-building-
+  // emissive massing above it (buildScene) instead of fighting it.
+  building: "#332e28",
+  // Warm light edge so roof/footprint outlines separate from the fill (was a
+  // cool blue-gray rgba(154,163,181,…) that read as a different material).
+  buildingOutline: "rgba(150,140,126,0.32)",
+  // Water: deep slate-blue, painted SOLID (not an alpha wash that near-black
+  // ground would drown) so it reads as water at a glance.
+  water: "#16344e",
+  // Roads — the lightest strokes on the map, in three warm-gray tiers, all
+  // painted SOLID so near-black ground can't dim them. Majors brightest →
+  // secondary medium → side streets subtle-but-visible.
+  roadMajor: "#c3bcae",
+  road: "#7e786d",
+  roadMinor: "#514c44",
+  // Near-black casing so the bright inners read as raised streets, not flat
+  // fills. Deeper than the ground so majors especially pop.
+  roadCasing: "#050403",
+} as const;
+
 /** Exported for unit tests — dark land must never equal cream ink. */
 export function buildPalette(tokens: BasemapTasteTokens, dark: boolean): TastePalette {
   if (dark) {
-    // Night city (Apple/Google Maps night pattern): deep cool land, buildings
-    // a clear step lighter — M4 warms this massing (buildingEmissive) rather
-    // than the old flat cool gray, but stays desaturated: never brass/coral
-    // wash (vanishes into inkDeep) and never `--line` alone (too close to
-    // land at low alpha). OpenFreeMap dark Liberty uses highway_* ids — keep
-    // those bright. Park uses parkTint (M4), never pint — pint is the "cheap
-    // pint" UI semantic and must not double as foliage.
+    // Wave A — see the DARK constant block above for the full rationale. Land
+    // stays a warm near-black (never cream `--ink`); roads are the brightest
+    // strokes; buildings a clear step up; water an unmistakable slate-blue.
     return {
-      land: tokens.inkDeep || tokens.paper,
-      landSoft: withAlpha(tokens.brass, 0.14),
-      residential: withAlpha(tokens.brass, 0.12),
-      park: withAlpha(tokens.parkTint, 0.32),
-      // Warmed massing (M4) — lifted well above land so footprints read, now
-      // with a dusk-lamp warmth instead of the old cool blue-gray.
-      building: mixHex(tokens.buildingEmissive, tokens.inkDeep, 0.42),
-      water: withAlpha(tokens.river, 0.58),
-      road: withAlpha(tokens.line, 0.72),
-      roadMajor: withAlpha(mixHex(tokens.line, tokens.ink, 0.26), 0.82),
+      land: DARK.ground,
+      landSoft: DARK.landSoft,
+      residential: DARK.residential,
+      park: DARK.park,
+      building: DARK.building,
+      water: DARK.water,
+      roadMinor: DARK.roadMinor,
+      road: DARK.road,
+      roadMajor: DARK.roadMajor,
     };
   }
-  // Light-theme hierarchy audit (M4): calmer water (was the saturated
-  // riverBright cyan, painted opaque — now a translucent wash of the deeper
-  // `river` blue so it reads as calm water, not neon); roads brighter than
-  // land (was a brass/coral wash near-indistinguishable from the warm paper
-  // land — now a near-white minor-road base with a warmer gold major-road
-  // tier, both mixed from panelRaised so they read as paper-map streets);
-  // park uses parkTint, never pint (see dark branch comment).
+  // Light-theme hierarchy audit (M4) — UNTOUCHED by Wave A (light palette is
+  // accepted): calmer water (was the saturated riverBright cyan, painted opaque
+  // — now a translucent wash of the deeper `river` blue so it reads as calm
+  // water, not neon); roads brighter than land (was a brass/coral wash near-
+  // indistinguishable from the warm paper land — now a near-white minor-road
+  // base with a warmer gold major-road tier, both mixed from panelRaised so
+  // they read as paper-map streets); park uses parkTint, never pint.
+  const lightRoad = withAlpha(mixHex(tokens.panelRaised, tokens.amber, 0.08), 0.85);
   return {
     land: tokens.paper,
     landSoft: withAlpha(tokens.amber, 0.14),
@@ -150,7 +199,10 @@ export function buildPalette(tokens: BasemapTasteTokens, dark: boolean): TastePa
     park: withAlpha(tokens.parkTint, 0.26),
     building: withAlpha(tokens.buildingEmissive, 0.22),
     water: withAlpha(tokens.river, 0.6),
-    road: withAlpha(mixHex(tokens.panelRaised, tokens.amber, 0.08), 0.85),
+    // Light minor + secondary roads share the near-white base (no behaviour
+    // change vs pre-Wave-A, which had a single non-major tier).
+    roadMinor: lightRoad,
+    road: lightRoad,
     roadMajor: withAlpha(mixHex(tokens.panelRaised, tokens.amber, 0.4), 0.95),
   };
 }
@@ -232,6 +284,23 @@ function isMajorRoad(id: string): boolean {
   return /motorway|trunk|primary|major|highway_major/i.test(id);
 }
 
+/** Side-street / service / path / link tier — the subtlest visible roads.
+ *  Only consulted AFTER isMajorRoad, so a motorway link (matches both) stays
+ *  major; `road_secondary_tertiary` matches neither and falls to the medium
+ *  `road` tier. */
+function isMinorRoad(id: string): boolean {
+  return /minor|service|track|path|pedestrian|footway|cycleway|_link|residential/i.test(id);
+}
+
+/** Three-tier road colour: brightest majors → medium secondary/tertiary →
+ *  subtle side streets. In light mode roadMinor === road, so light roads keep
+ *  their existing two-tier look. */
+function roadLineColor(id: string, palette: TastePalette): string {
+  if (isMajorRoad(id)) return palette.roadMajor;
+  if (isMinorRoad(id)) return palette.roadMinor;
+  return palette.road;
+}
+
 function landFillColor(id: string, palette: TastePalette): string {
   if (isParkish(id)) return palette.park;
   if (isResidentialish(id)) return palette.residential;
@@ -249,9 +318,10 @@ function paintKnownLayers(map: PaintMap, palette: TastePalette, dark: boolean): 
   for (const id of BUILDING_FILL_IDS) {
     tryPaint(map, id, "fill-color", palette.building);
     tryPaint(map, id, "fill-opacity", dark ? 0.92 : 0.7);
-    // OFM dark outline is rgb(27,27,29) — lift it so edges separate from land.
+    // OFM dark outline is rgb(27,27,29) — lift it (warm light edge) so roof
+    // footprints separate from land.
     if (dark) {
-      tryPaint(map, id, "fill-outline-color", "rgba(154,163,181,0.28)");
+      tryPaint(map, id, "fill-outline-color", DARK.buildingOutline);
     }
   }
 
@@ -261,14 +331,14 @@ function paintKnownLayers(map: PaintMap, palette: TastePalette, dark: boolean): 
   }
 
   for (const id of ROAD_LINE_IDS) {
-    // Dark-only: near-black casings so cream/amber inners read as streets.
-    // Light styles keep their stock casing colours.
+    // Dark-only: near-black casings so the light warm-gray inners read as
+    // raised streets. Light styles keep their stock casing colours.
     if (dark && id.includes("casing")) {
-      tryPaint(map, id, "line-color", withAlpha("#090806", isMajorRoad(id) ? 0.55 : 0.4));
+      tryPaint(map, id, "line-color", withAlpha(DARK.roadCasing, isMajorRoad(id) ? 0.55 : 0.4));
       continue;
     }
     if (!dark && id.includes("casing")) continue;
-    tryPaint(map, id, "line-color", isMajorRoad(id) ? palette.roadMajor : palette.road);
+    tryPaint(map, id, "line-color", roadLineColor(id, palette));
   }
 }
 
@@ -283,7 +353,7 @@ function paintDiscoveredFill(
     tryPaint(map, layerId, "fill-color", palette.building);
     tryPaint(map, layerId, "fill-opacity", dark ? 0.92 : 0.7);
     if (dark) {
-      tryPaint(map, layerId, "fill-outline-color", "rgba(154,163,181,0.28)");
+      tryPaint(map, layerId, "fill-outline-color", DARK.buildingOutline);
     }
     return;
   }
@@ -322,10 +392,10 @@ function paintDiscoveredLine(
   if (!isRoad) return;
   if (id.includes("casing")) {
     if (!dark) return;
-    tryPaint(map, layerId, "line-color", withAlpha("#090806", 0.45));
+    tryPaint(map, layerId, "line-color", withAlpha(DARK.roadCasing, 0.45));
     return;
   }
-  tryPaint(map, layerId, "line-color", isMajorRoad(id) ? palette.roadMajor : palette.road);
+  tryPaint(map, layerId, "line-color", roadLineColor(id, palette));
 }
 
 function paintDiscoveredSymbol(
@@ -343,8 +413,10 @@ function paintDiscoveredSymbol(
   const halo = dark ? tokens.inkDeep || tokens.paper : tokens.paper;
   tryPaint(map, layerId, "text-color", text);
   tryPaint(map, layerId, "text-halo-color", halo);
-  tryPaint(map, layerId, "text-halo-width", dark ? 1.4 : 1.1);
-  tryPaint(map, layerId, "text-opacity", dark ? 0.76 : 0.88);
+  // Wave A — brighter dark labels with a firm near-black halo so place/road
+  // names stay crisp against the new near-black ground (was 0.76, washed out).
+  tryPaint(map, layerId, "text-halo-width", dark ? 1.5 : 1.1);
+  tryPaint(map, layerId, "text-opacity", dark ? 0.92 : 0.88);
 }
 
 /** All layer IDs handled explicitly by paintKnownLayers — skip these in the

@@ -22,7 +22,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { BookOpen, ChevronRight, MapPin, PlusCircle, TrainFront, Trash2, X } from "lucide-react";
+import { BookOpen, ChevronRight, MapPin, MonitorSmartphone, PlusCircle, TrainFront, Trash2, X } from "lucide-react";
 
 import {
   setActivePlanStopIndex,
@@ -31,7 +31,7 @@ import {
   markNightModeActiveFired,
   type ActivePlanRef,
 } from "@/lib/activePlan";
-import { trackEvent } from "@/lib/analytics";
+import { trackEvent, trackMeaningfulCoreAction } from "@/lib/analytics";
 import { authedFetch } from "@/lib/authedFetch";
 import type { PlanGetInReportDTO, PlanGetInStopDTO } from "@/lib/planGetIn";
 import type { CrawlEnding, EndingSelection, PlanCompletionDTO, PlanState, PlanStopDTO } from "@/lib/plan";
@@ -42,7 +42,10 @@ import type { LateFoodApiResponse, LateFoodTerminal } from "@/lib/lateFood";
 import { haversineKm } from "@/lib/haversine";
 import RouteEndingCard, { type RouteEndingId, type RouteEndingOptions } from "@/components/night/RouteEndingCard";
 import { NightCalmLine } from "@/components/night/NightCalmLine";
+import { SafeNightStrip } from "@/components/night/SafeNightStrip";
+import { useScreenWakeLock } from "@/components/night/useScreenWakeLock";
 import { useActivePlan } from "@/components/night/useActivePlan";
+import { recordCompletedNight, MORNING_REENTRY_VERSION } from "@/lib/morningReentry";
 import {
   ensurePendingPlanRecap,
   readPendingPlanRecap,
@@ -74,6 +77,26 @@ function readMemberToken(planId: string): string {
 }
 
 export type PlanRouteRevision = string | number;
+
+export function completionTelemetryFromBody(value: unknown): {
+  ending: CrawlEnding;
+  planCompletedToken: string;
+  meaningfulCoreActionToken: string;
+} | null {
+  if (!value || typeof value !== "object") return null;
+  const row = value as { completion?: unknown; eventTokens?: unknown };
+  if (!row.completion || typeof row.completion !== "object" || !row.eventTokens || typeof row.eventTokens !== "object") return null;
+  const ending = (row.completion as { ending?: unknown }).ending;
+  const tokens = row.eventTokens as { planCompleted?: unknown; meaningfulCoreAction?: unknown };
+  if (!(["food", "get_home", "keep_going"] as const).includes(ending as CrawlEnding)) return null;
+  if (typeof tokens.planCompleted !== "string" || !tokens.planCompleted || tokens.planCompleted.length > 2_000
+    || typeof tokens.meaningfulCoreAction !== "string" || !tokens.meaningfulCoreAction || tokens.meaningfulCoreAction.length > 2_000) return null;
+  return {
+    ending: ending as CrawlEnding,
+    planCompletedToken: tokens.planCompleted,
+    meaningfulCoreActionToken: tokens.meaningfulCoreAction,
+  };
+}
 
 export function routeRevisionFromPlan(value: PlanState | null): PlanRouteRevision | null {
   if (!value) return null;
@@ -186,26 +209,26 @@ export function endingOptionsForSignals({
       id: "food",
       title: "Find food",
       description: lateFoodCount > 0
-        ? `${lateFoodCount} reviewed nearby option${lateFoodCount === 1 ? "" : "s"}; verify tonight's hours.`
-        : "No reviewed late-food option is available here yet.",
-      actionLabel: "Review food",
+        ? `${lateFoodCount} reviewed nearby option${lateFoodCount === 1 ? "" : "s"}. Check tonight's hours.`
+        : "No late food worth flagging here yet.",
+      actionLabel: "See the food",
     },
     {
       id: "get_home",
       title: "Get home",
       description: leaveByIso
-        ? `Live leave-by signal for ${stationName ?? "the nearest station"}.`
-        : `Review ${stationName ?? "the nearest transport anchor"} before confirming.`,
-      actionLabel: "Review journey",
+        ? `Live last-train time for ${stationName ?? "the nearest station"}.`
+        : `Check ${stationName ?? "the nearest station"} before you confirm.`,
+      actionLabel: "Check the way home",
       recommended: true,
     },
     {
       id: "keep_going",
       title: "Keep going",
       description: extensionCount > 0
-        ? `${extensionCount} grounded nearby extension${extensionCount === 1 ? "" : "s"}; hours unverified.`
-        : "No grounded nearby extension is available yet.",
-      actionLabel: "Review extensions",
+        ? `${extensionCount} nearby spot${extensionCount === 1 ? "" : "s"} for one more. Hours not checked.`
+        : "Nowhere close enough for one more yet.",
+      actionLabel: "See what's near",
     },
   ];
 }
@@ -227,6 +250,16 @@ export default function NightModeCard() {
   // The mobile map already owns the active-plan pill and planner sheet. Keeping
   // this global surface off /map prevents a second fixed sheet from stacking.
   if (pathname === "/map" || pathname.startsWith("/map/")) return null;
+
+  // The web-only marketing landing ("/") owns the fold with its own full-width
+  // hero action band ("Find my pint" / "Open the map" / "Plan my night"). A
+  // bottom-right floating pill collides with the right end of that band on the
+  // narrower, shorter phones where the wrapped headline pushes the actions down
+  // into the pill's viewport strip, and it cannot be lifted clear by bottom
+  // padding because the actions are mid-document, not page-bottom. The pill's
+  // whole job, resume tonight's plan, is served on every in-app route, so it
+  // yields on this one surface rather than cover a primary CTA.
+  if (pathname === "/") return null;
 
   if (!ref) return null;
   return <NightModeSurface key={ref.id} entry={ref} />;
@@ -281,6 +314,7 @@ function NightModeSheet({ entry, onCollapse }: { entry: ActivePlanRef; onCollaps
   // blank gap between the ending result and its recap invitation.
   const [recapSeeding, setRecapSeeding] = useState(false);
   const [recapOpen, setRecapOpen] = useState(false);
+  const [recapReviewed, setRecapReviewed] = useState(false);
   const [recapSaving, setRecapSaving] = useState(false);
   const recapSavingRef = useRef(false);
   const [recapMessage, setRecapMessage] = useState("");
@@ -294,6 +328,10 @@ function NightModeSheet({ entry, onCollapse }: { entry: ActivePlanRef; onCollaps
   // the dragY state commit, so release must read the ref, not stale state.
   const dragYRef = useRef(0);
   const closeRef = useRef<HTMLButtonElement>(null);
+  // Keep-screen-awake toggle. Default OFF for battery honesty; the lock is only
+  // held while the card is open and released on close/unmount by the hook.
+  const [keepAwake, setKeepAwake] = useState(false);
+  const wakeLock = useScreenWakeLock(keepAwake);
 
   useEffect(() => {
     closeRef.current?.focus({ preventScroll: true });
@@ -345,6 +383,12 @@ function NightModeSheet({ entry, onCollapse }: { entry: ActivePlanRef; onCollaps
         if (controller.signal.aborted || !body?.completion) return;
         const existing = readPendingPlanRecap(id);
         if (!existing || existing.completionId !== body.completion.id) setRecap(ensurePendingPlanRecap(body.completion, title));
+        // Arm the morning-after card. This is a fresh open (not the session the
+        // night was completed in), so it is eligible to show now / next open.
+        recordCompletedNight(
+          { version: MORNING_REENTRY_VERSION, planId: id, title, completedAt: body.completion.completedAt },
+          { suppressThisSession: false },
+        );
       } catch {
         // A failed seed simply leaves no local recap; nothing is invented.
       } finally {
@@ -503,11 +547,22 @@ function NightModeSheet({ entry, onCollapse }: { entry: ActivePlanRef; onCollaps
         throw new Error("The ending response was not canonical. Nothing was marked complete in this view.");
       }
       setPlan(canonical);
+      const completionTelemetry = completionTelemetryFromBody(body);
+      if (completionTelemetry) {
+        trackEvent("plan_completed", { ending: completionTelemetry.ending }, { deliveryToken: completionTelemetry.planCompletedToken });
+        trackMeaningfulCoreAction("plan_completed", completionTelemetry.meaningfulCoreActionToken);
+      }
       const completed = body && typeof body === "object" && "completion" in body
         ? (body as { completion?: PlanCompletionDTO }).completion ?? null
         : null;
       if (completed) {
         setRecap(ensurePendingPlanRecap(completed, canonical.plan.title));
+        // Arm the morning-after card, suppressed for THIS session so it greets
+        // the next open (the morning after), not the moment the night ends.
+        recordCompletedNight(
+          { version: MORNING_REENTRY_VERSION, planId: id, title: canonical.plan.title, completedAt: completed.completedAt },
+          { suppressThisSession: true },
+        );
       }
       setActivePlanEndingPreview(id, null);
     } catch (caught) {
@@ -722,7 +777,15 @@ function NightModeSheet({ entry, onCollapse }: { entry: ActivePlanRef; onCollaps
                 <div className="nightCard__recapInvite">
                   <p className="nightCard__recapLede">That&rsquo;s the night. Keep it as a private Memory. The route and any words you add, nothing posted.</p>
                   <div className="nightCard__recapActions">
-                    <button type="button" className="nightCard__endingLink" onClick={() => setRecapOpen((open) => !open)} aria-expanded={recapOpen}>
+                    <button type="button" className="nightCard__endingLink" onClick={() => {
+                      const opening = !recapOpen;
+                      setRecapOpen(opening);
+                      if (opening && !recapReviewed) {
+                        setRecapReviewed(true);
+                        trackEvent("memory_reviewed", { source: "inline_recap" });
+                        trackMeaningfulCoreAction("memory_reviewed");
+                      }
+                    }} aria-expanded={recapOpen}>
                       <BookOpen size={16} aria-hidden="true" /> {recapOpen ? "Hide recap" : "Review private recap"}
                     </button>
                     <button type="button" className="nightCard__quietButton" onClick={() => { resolvePendingPlanRecap(recap, "discarded"); setRecap(null); setRecapOpen(false); }}>
@@ -744,6 +807,26 @@ function NightModeSheet({ entry, onCollapse }: { entry: ActivePlanRef; onCollaps
             </>
           ) : null}
         </div>
+      ) : null}
+
+      <SafeNightStrip planId={id} />
+
+      {wakeLock.supported ? (
+        <button
+          type="button"
+          className="nightCard__awake"
+          role="switch"
+          aria-checked={keepAwake}
+          onClick={() => setKeepAwake((value) => !value)}
+        >
+          <span className="nightCard__awakeLabel">
+            <MonitorSmartphone size={15} aria-hidden="true" />
+            Keep screen awake
+          </span>
+          <span className="nightCard__awakeState" data-on={keepAwake ? "" : undefined}>
+            {keepAwake ? "On" : "Off"}
+          </span>
+        </button>
       ) : null}
 
       {arrived.length > 0 ? (
@@ -772,11 +855,11 @@ function FoodEndingPicker({
   onChoose: (terminal: LateFoodTerminal) => void;
 }) {
   if (terminals.length === 0) {
-    return <p className="nightCard__endingHint">Reviewed nearby food recommendations are not available for this route yet.</p>;
+    return <p className="nightCard__endingHint">No late food worth pointing you to round here yet.</p>;
   }
   return (
     <div className="nightCard__foodPicker" aria-label="Choose a food ending">
-      <strong>Nearby food to review</strong>
+      <strong>Late food nearby</strong>
       <ul>
         {terminals.slice(0, 3).map((terminal) => (
           <li key={terminal.id}>
@@ -811,10 +894,10 @@ function GetHomeEndingConfirmation({
 }) {
   return (
     <div className="nightCard__foodPicker" aria-label="Confirm Get home ending">
-      <strong>Review the journey signal</strong>
-      <p>{leaveByIso ? `A live leave-by signal is available for ${stationName ?? "the nearest station"}.` : `Check live status and your destination from ${stationName ?? "the nearest transport anchor"}.`}</p>
+      <strong>Getting home</strong>
+      <p>{leaveByIso ? `We've got a live last-train time for ${stationName ?? "the nearest station"}.` : `Check the last trains from ${stationName ?? "the nearest station"} before you head off.`}</p>
       <button type="button" className="nightCard__endingLink" disabled={saving} onClick={onConfirm}>
-        Confirm Get home ending
+        That&apos;s my way home
       </button>
       <a className="nightCard__endingLink" href="https://tfl.gov.uk/plan-a-journey/" target="_blank" rel="noreferrer">Open TfL journey planner</a>
     </div>
@@ -831,17 +914,17 @@ function KeepGoingPicker({
   onChoose: (extension: KeepGoingExtension) => void;
 }) {
   if (extensions.length === 0) {
-    return <p className="nightCard__endingHint">No grounded nearby extension is available without widening the route.</p>;
+    return <p className="nightCard__endingHint">Nothing close enough to add without dragging the night out.</p>;
   }
   return (
     <div className="nightCard__foodPicker" aria-label="Choose a Keep going extension">
-      <strong>Grounded nearby extensions</strong>
+      <strong>One more nearby</strong>
       <ul>
         {extensions.map((extension) => (
           <li key={extension.id}>
             <button type="button" className="nightCard__endingLink" disabled={saving} onClick={() => onChoose(extension)}>
               <span>{extension.name}</span>
-              <small>{extension.distanceKm.toFixed(1)} km straight-line · {extension.cheapestPrice === null ? "price unknown" : `about £${extension.cheapestPrice.toFixed(2)} for one recorded pint`} · hours unverified</small>
+              <small>{extension.distanceKm.toFixed(1)} km away · {extension.cheapestPrice === null ? "no price yet" : `about £${extension.cheapestPrice.toFixed(2)} a pint`} · hours not checked</small>
             </button>
           </li>
         ))}
@@ -938,10 +1021,10 @@ function NightEndingResult({
             ))}
           </ul>
         ) : (
-          <p>Food options round here still need review. Check the map before walking.</p>
+          <p>No late food flagged round here yet. Check the map before you walk.</p>
         )}
         <p className="nightCard__endingFineprint">
-          Kitchen hours can change; verify tonight before leaving the last pub.
+          Kitchens can shut early. Check tonight&apos;s hours before you leave the last pub.
         </p>
       </div>
     );
@@ -950,10 +1033,10 @@ function NightEndingResult({
   if (ending === "keep_going") {
     return (
       <div className="nightCard__endingResult" data-ending="keep_going">
-        <strong>Keep it feasible</strong>
+        <strong>Keep it sensible</strong>
         <p>
-          {keepGoingExtension ? `${keepGoingExtension.name} is your reviewed extension from ${currentStop.venueName}.` : `Open the map around ${currentStop.venueName} and choose something genuinely nearby.`}
-          {" "}PUBMAXX will not reward extra drinking or volume.
+          {keepGoingExtension ? `${keepGoingExtension.name} is your next stop from ${currentStop.venueName}.` : `Open the map around ${currentStop.venueName} and pick somewhere genuinely close.`}
+          {" "}We won&apos;t push you to drink more. This is just what&apos;s nearby.
         </p>
         <Link
           className="nightCard__endingLink"
@@ -970,7 +1053,7 @@ function NightEndingResult({
       <strong>Get home safe</strong>
       <p>
         {leaveByIso ? "Use the leave-by time above and start moving now." : "Check TfL or your preferred route home before leaving the group."}
-        {stationName ? ` Nearest rail signal: ${stationName}.` : ""}
+        {stationName ? ` Nearest station: ${stationName}.` : ""}
       </p>
       <NightCalmLine area={nightArea} />
     </div>

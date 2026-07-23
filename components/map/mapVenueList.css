@@ -28,7 +28,10 @@
 
 @media (max-width: 640px) {
   .mapVenueList {
-    bottom: calc(var(--mobile-tab-clearance, 58px) + 12px);
+    /* max() so the fallback path (var undefined) still clears the home-indicator
+       inset the base rule guarantees — the clearance token already folds the
+       inset in, so this never double-counts. */
+    bottom: calc(max(var(--mobile-tab-clearance, 58px), env(safe-area-inset-bottom, 0px)) + 12px);
   }
 }
 
@@ -87,7 +90,7 @@
   border-radius: 999px;
   background: color-mix(in srgb, var(--brass) 20%, var(--panel));
   color: var(--ink);
-  font-size: 0.72rem;
+  font-size: 0.75rem;
   font-weight: 850;
 }
 
@@ -111,6 +114,14 @@
 @keyframes mapVenueListIn {
   from { opacity: 0; transform: translateY(6px); }
   to { opacity: 1; transform: translateY(0); }
+}
+
+/* The global reduced-motion reset only neutralises transitions, not this
+   entrance ANIMATION — gate it here so reduced-motion users get the static panel. */
+@media (prefers-reduced-motion: reduce) {
+  .mapVenueListPanel {
+    animation: none;
+  }
 }
 
 .mapVenueListHead {
@@ -137,7 +148,7 @@
 }
 
 .mapVenueListCount {
-  font-size: 0.74rem;
+  font-size: 0.75rem;
   color: var(--muted);
 }
 

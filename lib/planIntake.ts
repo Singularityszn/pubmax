@@ -110,6 +110,15 @@ const PATCH_TO_NIGHT_AREA: Partial<Record<NightPatchId, NightAreaSlug>> = {
   islington: "islington",
 };
 
+/**
+ * Exact generator coverage for a user-facing Night Patch. `null` is a real
+ * unsupported result: notably, Hackney must never be silently widened or
+ * coerced to Shoreditch just because that is the nearest generation area.
+ */
+export function nightAreaForPlanIntakePatch(patchId: NightPatchId): NightAreaSlug | null {
+  return PATCH_TO_NIGHT_AREA[patchId] ?? null;
+}
+
 function isStep(value: unknown): value is PlanIntakeStep {
   return typeof value === "string" && (PLAN_INTAKE_STEPS as readonly string[]).includes(value);
 }
@@ -559,7 +568,7 @@ export function planIntakeHandoff(draft: PlanIntakeDraft): PlanIntakeHandoff {
 /** Compatibility adapter for the current generator. Wave 2.2 consumes the full handoff. */
 export function planIntakeNightContextPatch(draft: PlanIntakeDraft): Partial<NightContext> {
   const timeWindow = PLAN_TIME_WINDOWS.find((option) => option.id === draft.answers.timeWindow);
-  const nightArea = draft.answers.area ? PATCH_TO_NIGHT_AREA[draft.answers.area] : undefined;
+  const nightArea = draft.answers.area ? nightAreaForPlanIntakePatch(draft.answers.area) : null;
   return {
     ...(nightArea ? { nightArea } : {}),
     ...(timeWindow ? { daypart: timeWindow.daypart } : {}),

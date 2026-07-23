@@ -16,6 +16,9 @@ import nextDynamic from "next/dynamic";
 const NightModeCard = nextDynamic(() => import("@/components/night/NightModeCard"), {
   ssr: false,
 });
+const MorningReentryCard = nextDynamic(() => import("@/components/night/MorningReentryCard"), {
+  ssr: false,
+});
 const PubPalSummon = nextDynamic(() => import("@/components/pubpal/PubPalSummon"), {
   ssr: false,
 });
@@ -26,6 +29,9 @@ const A2HSInstallPrompt = nextDynamic(() => import("@/components/pwa/A2HSInstall
   ssr: false,
 });
 const NativePushPrompt = nextDynamic(() => import("@/components/native/NativePushPrompt"), {
+  ssr: false,
+});
+const WebPushPrompt = nextDynamic(() => import("@/components/pwa/WebPushPrompt"), {
   ssr: false,
 });
 const NativeSystemBars = nextDynamic(() => import("@/components/native/NativeSystemBars"), {
@@ -39,10 +45,12 @@ export default function DeferredShellExtras() {
   return (
     <>
       <NightModeCard />
+      <MorningReentryCard />
       <PubPalSummon />
       <FirstRunTour />
       <A2HSInstallPrompt />
       <NativePushPrompt />
+      <WebPushPrompt />
       <NativeSystemBars />
       <NativeDeepLinks />
     </>
