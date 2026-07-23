@@ -103,14 +103,25 @@ for (const viewport of VIEWPORTS) {
         return JSON.stringify(raw?.viewport ?? null);
       })).not.toBe(viewportBeforeNearby);
       await waitForMapPaint(page);
+      const nearMeClose = page.getByRole("button", { name: "Close Cheapest pints near you" });
+      if (await nearMeClose.isVisible().catch(() => false)) {
+        await nearMeClose.click();
+        await expect(page.locator(".mobileSheetPortal:visible")).toHaveCount(0);
+      }
 
       const chromeRows = page.locator(".mobileMapChrome > :visible");
       await expect(chromeRows).toHaveCount(2);
       const navLinks = page.getByRole("navigation", { name: "Primary" }).getByRole("link");
-      await expect(navLinks).toHaveCount(5);
-      await expect(navLinks).toHaveText(["Map", "Tonight", "Moment", "Stories", "You"]);
+      await expect(navLinks).toHaveCount(6);
+      await expect(navLinks).toHaveText(["Today", "Map", "Moment", "Tonight", "Stories", "You"]);
       await expect(navLinks.filter({ hasText: "Moment" })).not.toHaveAttribute("aria-current");
       await expect(navLinks.filter({ hasText: "Map" })).toHaveAttribute("aria-current", "page");
+
+      const utilityCorner = page.locator(".mobileMapUtilityCorner");
+      await expect(utilityCorner).toBeVisible();
+      await expect(utilityCorner.getByRole("button")).toHaveCount(1);
+      await expect(utilityCorner.getByRole("button", { name: /TfL live/ })).toBeVisible();
+      await expect(utilityCorner.getByRole("button", { name: "List view of pubs on the map" })).toHaveCount(0);
 
       for (const selector of [
         ".mapStage > .mapToolbar",
@@ -124,7 +135,7 @@ for (const viewport of VIEWPORTS) {
         await expect(page.locator(selector)).toHaveCount(0);
       }
 
-      await expectTouchTargets(page.locator(".mobileMapTopbar button, .mobileMapRail button, .mobileTabBar a"));
+      await expectTouchTargets(page.locator(".mobileMapTopbar button, .mobileMapRail button, .mobileMapUtilityCorner button, .mobileTabBar a"));
       await expectNoHorizontalOverflow(page);
       await saveShot(page, `map-${viewport.width}x${viewport.height}-${theme}`);
 
@@ -154,8 +165,21 @@ for (const viewport of VIEWPORTS) {
       await page.keyboard.press("ArrowLeft");
       await expect(layersTab).toHaveAttribute("aria-selected", "true");
 
+      const listShortcut = page
+        .locator('.mobileSheetPortal[data-sheet-kind="layers"]:visible')
+        .getByRole("button", { name: "List view of pubs on the map" });
+      await expect(listShortcut).toBeVisible();
+      await expectTouchTargets(listShortcut);
+      await listShortcut.click();
+      await expect(page.locator(".mobileSheetPortal:visible")).toHaveCount(0);
+      await expect(page.locator(".mapVenueListPanel")).toBeVisible();
+      await expect(page.getByRole("heading", { name: "Pubs on the map" })).toBeVisible();
+      await page.getByRole("button", { name: "Close pub list" }).click();
+      await expect(page.locator(".mapVenueListPanel")).toHaveCount(0);
+
+      await page.getByRole("button", { name: "More map controls" }).click();
       await page.getByRole("button", { name: "Close Map layers" }).click();
-      await page.getByRole("button", { name: "Drinks" }).click();
+      await page.getByRole("button", { name: /Filters/ }).click();
       const filtersSheet = page.locator('.mobileSheetPortal[data-sheet-kind="filters"]:visible');
       await expect(filtersSheet).toHaveCount(1);
       await expect(filtersSheet.getByRole("heading", { name: "Drinks and price" })).toBeVisible();

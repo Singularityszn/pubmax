@@ -72,10 +72,9 @@
   color: var(--brass);
 }
 
-/* #353 tiers: the utility-corner icon owns the toggle on phones. This rule must
-   stay AFTER the base .mapVenueListToggle rule above (equal specificity; source
-   order decides) — it previously sat before it and silently lost, which is how
-   two list affordances ended up on screen at once. */
+/* Mobile owns the List toggle from the Layers sheet. This rule must stay AFTER
+   the base .mapVenueListToggle rule above (equal specificity; source order
+   decides) so the desktop floater does not reappear on phones. */
 @media (max-width: 640px) {
   .mapVenueListToggle { display: none; }
 }

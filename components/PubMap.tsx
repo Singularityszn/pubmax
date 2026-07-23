@@ -1,6 +1,6 @@
 "use client";
 
-import { MapPinned, ShieldCheck, Sparkles, X } from "lucide-react";
+import { List, MapPinned, ShieldCheck, Sparkles, X } from "lucide-react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
@@ -2079,8 +2079,6 @@ export default function PubMap({
           priceLabel={filters.maxPrice < 10 ? `≤£${filters.maxPrice.toFixed(2)}` : "Price"}
           drinkFiltersActive={Boolean(filters.drinkCategory || filters.drinkBrand || filters.requireCocktails)}
           zoneActive={filters.zone !== "" && filters.zone !== "all"}
-          listOpen={mapListOpen}
-          onListToggle={() => setMapListOpen((open) => !open)}
           priceCapActive={filters.maxPrice < 10}
           planOpen={planningOpen}
           planActive={routeMappedActive || activePlanRoute.length >= 2}
@@ -2175,10 +2173,26 @@ export default function PubMap({
                 <TabsTrigger value="transit">Transit</TabsTrigger>
               </TabsList>
               <TabsContent value="layers" className="mobileLayersPanel">
-                <Button className="mobilePlannerLaunch w-full justify-start" onClick={openPlanning}>
-                  <MapPinned size={18} aria-hidden="true" />
-                  Plan tonight
-                </Button>
+                <div className="mobileLayerShortcuts">
+                  <Button className="mobilePlannerLaunch w-full justify-start" onClick={openPlanning}>
+                    <MapPinned size={18} aria-hidden="true" />
+                    Plan tonight
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    className="w-full justify-start"
+                    aria-label="List view of pubs on the map"
+                    aria-pressed={mapListOpen}
+                    onClick={() => {
+                      setMapListOpen((open) => !open);
+                      changeMapOverlay("none");
+                    }}
+                  >
+                    <List size={18} aria-hidden="true" />
+                    {mapListOpen ? "Hide pub list" : "List view"}
+                  </Button>
+                </div>
                 {routeMappedActive ? <Button variant="secondary" onClick={hideMappedRoute}>Hide active route</Button> : null}
                 <div className="mobileLayersTheme">
                   <div><strong>Map appearance</strong><small>Theme changes preserve this view and its active sheet.</small></div>
