@@ -95,7 +95,7 @@ type EligibleChoice = {
 };
 
 const DAY_KEY = /^\d{4}-\d{2}-\d{2}$/;
-const EXPLICIT_ISO_INSTANT = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})(?:\.(\d{1,3}))?(Z|[+-](\d{2}):(\d{2}))$/i;
+const EXPLICIT_ISO_INSTANT = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})(?:\.(\d+))?(Z|[+-](\d{2}):(\d{2}))$/i;
 const MAX_EVIDENCE_AGE_MS = 90 * 24 * 60 * 60 * 1_000;
 
 function cleanToken(value: string): string {
