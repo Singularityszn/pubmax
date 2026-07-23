@@ -140,3 +140,81 @@ pwa_standalone_launch: [],
 - `__tests__/planCollaborationRoutes.test.ts` (pre-existing, unmodified)
   still passes with `upgradeMemberInvite`'s widened return type — it asserts
   via `toMatchObject`, so the added `inviteId` field is additive.
+
+## Wave 0.5 loop metrics
+
+The closed registry also carries the complete Plan to Memory to Story loop.
+All timing comes from server-owned PostHog event timestamps for the existing
+pseudonymous `distinct_id`; client-supplied timestamps are ignored. Event props
+never include durations, account ids, Plan ids, raw coordinates, free text, or
+user content.
+
+| Event | Confirmed seam | Allowed props |
+|---|---|---|
+| `plan_generated` | A non-empty grounded route returns from `/api/plans/generate` | `stops`, `grounded` |
+| `plan_accepted` | The person explicitly locks the preview; original and replay responses return the same server-signed delivery token, while ingest records/forwards it once | `stops`, `grounded` |
+| `plan_saved` | The created Plan and its route metadata finish saving | `stops`, `grounded` |
+| `claim_started` | The AuthProvider account-preservation claim is submitted to `/api/identity/claim`, excluding handle creation and renames | `source` (`auth`) |
+| `claim_completed` | That account-preservation claim succeeds | `source` (`auth`) |
+| `plan_completed` | The completion response is checked against canonical completed Plan state | `ending` |
+| `memory_reviewed` | The completed Plan's inline editor or full private recap is explicitly opened | `source` (`inline_recap` or `full_recap`) |
+| `story_published` | The separate Story publication confirmation succeeds | `visibility`, `contributors`, `moments` |
+
+Activation is the elapsed time from `plan_generated` to the first
+`plan_accepted` or `plan_saved` with `grounded = true` for the same
+pseudonymous identity. Manual Plans remain visible in the loop events with
+`grounded = false`, but do not enter this grounded-route activation measure.
+`grounded` on acceptance/save is server-owned: generation returns a two-hour
+HMAC proof covering its candidate venue ids and one create idempotency operation.
+Plan creation verifies the exact accepted three-stop route against that proof
+after canonical Venue Dataset resolution. The proof digest is part of the
+durable create request hash, so a replay cannot remove or replace attribution;
+the original Plan creation time reconstructs the same result after proof expiry.
+Draft storage may retain the signed proof and operation for recovery, but never
+a writable grounding boolean. Manual venue edits invalidate both in the composer,
+and the API independently fails closed for stale, forged, or cross-operation proof reuse.
+
+Acceptance and completion loop events use a consent-gated verified-delivery
+path. Their canonical API responses return stable signed tokens on both the
+original response and every idempotent replay. The browser keeps unacknowledged
+tokens in a bounded local outbox and retries them. Revoking consent aborts any
+active delivery request, clears the outbox, and advances a consent epoch so a
+stale response cannot send another item or remove an event queued after consent
+is granted again. `/api/events` verifies the
+exact sanitized event, claims a service-role-only `analytics_event_receipts`
+row, and forwards a stable derived event id as PostHog `$insert_id`. The signed
+token, Plan/completion id, and receipt hash are never event props. Provider or
+acknowledgement loss leaves the receipt pending for retry; completed receipts
+make later submissions no-ops. Verified events use the occurrence time signed
+into their token as the provider timestamp, including after a delayed retry;
+ordinary events continue to use server receipt time and ignore client-supplied
+timestamps. This delivery rail is funnel telemetry only and
+does not change the PNC ledger authority below.
+
+The signing root is operator-configured (at least 32 random bytes) for every
+Supabase-backed or production process. A non-production keyless demo instead
+gets one random process-local key, matching its in-memory lifetime; there is no
+public development signing constant. The storage-only `PUBMAX_E2E_KEYLESS`
+escape never changes this signing policy. If trusted signing is misconfigured, Plan
+generation, creation, and completion fail before mutation with a retryable 503,
+while verified event ingestion retains pending delivery for retry. Once a
+configured key is present, tokens with invalid signatures are discarded.
+
+Weekly Meaningful Pubmaxxers is the number of distinct pseudonymous identities
+with at least one `meaningful_core_action` in a seven-day window. Its `action`
+is a fixed enum and can only be one of:
+
+- `plan_accepted`
+- `plan_saved`
+- `plan_completed`
+- `memory_reviewed`
+- `story_published`
+
+Route generation, claim steps, generic page views, install signals, and passive opens
+do not qualify. Each qualifying event is emitted beside its primary loop event
+only after the corresponding product action succeeds. Confirmed Planned Nights
+remain defined solely by the durable, service-role-only
+`pnc_qualified_completions` view. The browser `plan_completed` event is only
+funnel and Weekly Meaningful Pubmaxxers telemetry; it cannot increment or
+replace PNC. Loop depth uses `memory_reviewed` after completion, while Story
+publication remains separately queryable through `story_published`.

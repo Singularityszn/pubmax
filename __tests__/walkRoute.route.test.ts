@@ -30,6 +30,15 @@ vi.mock("@/lib/walkRouteProvider", () => ({
   ORS_FOOT_WALKING_URL: "https://api.openrouteservice.org/v2/directions/foot-walking/geojson",
 }));
 
+// Stub the global daily ORS budget so the route's budget contract (consume only
+// on a real provider call; over budget ⇒ straight) is proven deterministically
+// without exercising the durable limiter's arithmetic. The budget module's own
+// logic is unit-tested in __tests__/walkRouteBudget.test.ts. Defaults to "budget
+// remains" so every pre-existing test behaves exactly as before.
+const consumeOrsBudget = vi.hoisted(() => vi.fn<() => Promise<boolean>>(() => Promise.resolve(true)));
+
+vi.mock("@/lib/walkRouteBudget", () => ({ consumeOrsBudget }));
+
 import { GET, WALK_ROUTE_RATE_LIMIT } from "@/app/api/walk-route/route";
 
 const A: LngLat = [-0.1005, 51.5136];
@@ -58,6 +67,8 @@ beforeEach(() => {
   fetchWalkLeg.mockReset();
   orsApiKey.mockReset();
   orsApiKey.mockReturnValue(null);
+  consumeOrsBudget.mockReset();
+  consumeOrsBudget.mockResolvedValue(true);
 });
 
 afterEach(() => {
@@ -152,5 +163,64 @@ describe("GET /api/walk-route", () => {
     const payload = (await limited.json()) as { code: string; retryable: boolean };
     expect(payload.code).toBe("RATE_LIMITED");
     expect(payload.retryable).toBe(true);
+  });
+});
+
+describe("GET /api/walk-route — global daily ORS budget", () => {
+  it("keyless: never draws down the daily budget", async () => {
+    // No key ⇒ no provider call, so the budget must be untouched.
+    const { source } = await body(await get([A, B, C]));
+    expect(source).toBe("straight");
+    expect(fetchWalkLeg).not.toHaveBeenCalled();
+    expect(consumeOrsBudget).not.toHaveBeenCalled();
+  });
+
+  it("a cached leg is served without drawing down the daily budget", async () => {
+    orsApiKey.mockReturnValue("ork_secret");
+    fetchWalkLeg.mockResolvedValue([A, B]);
+    await get([A, B]); // warms the cache: one provider call, one budget draw
+    expect(consumeOrsBudget).toHaveBeenCalledTimes(1);
+    consumeOrsBudget.mockClear();
+    fetchWalkLeg.mockClear();
+
+    const { source } = await body(await get([A, B])); // now served from cache
+    expect(source).toBe("ors");
+    expect(fetchWalkLeg).not.toHaveBeenCalled();
+    expect(consumeOrsBudget).not.toHaveBeenCalled();
+  });
+
+  it("draws exactly one budget unit per ACTUAL provider call", async () => {
+    orsApiKey.mockReturnValue("ork_secret");
+    fetchWalkLeg.mockImplementation(async (from: LngLat, to: LngLat) => [from, to]);
+    const { source } = await body(await get([A, B, C])); // two uncached legs
+    expect(source).toBe("ors");
+    expect(fetchWalkLeg).toHaveBeenCalledTimes(2);
+    expect(consumeOrsBudget).toHaveBeenCalledTimes(2);
+  });
+
+  it("over the daily budget: skips the provider and serves the straight line", async () => {
+    orsApiKey.mockReturnValue("ork_secret");
+    consumeOrsBudget.mockResolvedValue(false); // day exhausted
+    fetchWalkLeg.mockResolvedValue([A, B]); // would route if ever called
+    const { line, source } = await body(await get([A, B, C]));
+    expect(source).toBe("straight");
+    expect(fetchWalkLeg).not.toHaveBeenCalled();
+    // The drawable line is the straight fallback through every stop.
+    expect((line.features[0].geometry as GeoJSON.LineString).coordinates).toEqual([A, B, C]);
+  });
+
+  it("partial budget: only the funded leg calls the provider, the denied leg is straight", async () => {
+    orsApiKey.mockReturnValue("ork_secret");
+    // Exactly one leg still has budget; the other is denied (order-independent
+    // under Promise.all — whichever leg reserves first gets the single unit).
+    consumeOrsBudget.mockResolvedValueOnce(true).mockResolvedValue(false);
+    fetchWalkLeg.mockImplementation(async (from: LngLat, to: LngLat) => [from, to]);
+    const { legs } = await body(await get([A, B, C]));
+    // Both legs asked the budget; only the funded one reached the provider.
+    expect(consumeOrsBudget).toHaveBeenCalledTimes(2);
+    expect(fetchWalkLeg).toHaveBeenCalledTimes(1);
+    // One leg routed, one fell back to straight (order-independent).
+    const sources = legs.map((leg) => leg.source).sort();
+    expect(sources).toEqual(["ors", "straight"]);
   });
 });

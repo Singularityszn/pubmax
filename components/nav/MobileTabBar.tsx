@@ -10,6 +10,7 @@ import {
 } from "@/lib/cityPreference";
 import { warmMapRoute } from "@/lib/mapWarmup";
 import { markPubmaxTiming } from "@/lib/performanceMarks";
+<<<<<<< HEAD
 import {
   MOMENT_NAV_ACTION,
   PRIMARY_NAV_ITEMS,
@@ -17,6 +18,9 @@ import {
   navPathMatches,
   type PrimaryNavKey,
 } from "@/components/nav/navigationModel";
+=======
+import { MOMENT_NAV_ACTION, PRIMARY_NAV_ITEMS, TOUR_TARGET_TAB_KEY, momentHref, type PrimaryNavKey, type TourSpotlightTarget } from "@/components/nav/navigationModel";
+>>>>>>> origin/main
 import "./mobileNav.css";
 
 // Mobile-first bottom tab bar. Visible only ≤640px (see mobileNav.css); on
@@ -67,6 +71,19 @@ export function buildTabs(mapHref: string, pathname: string): Tab[] {
     { ...MOMENT_NAV_ACTION, href: momentHref(pathname), match: [], Icon: icons.moment, primary: true },
     ...destinations.slice(2),
   ];
+}
+
+// Resolve a first-run tour spotlight target ("map" | "drop" | "discover") to
+// its live column in the tab row, so the tour ring is positioned from the REAL
+// tab geometry and moves with it if the row grows or reorders. Args are
+// irrelevant to the order/count, so the canonical /map pair is fine. Exported
+// for the tour and its geometry regression test.
+export function tourSpotlightColumn(target: TourSpotlightTarget): { index: number; total: number } {
+  const tabs = buildTabs("/map", "/map");
+  return {
+    index: tabs.findIndex((tab) => tab.key === TOUR_TARGET_TAB_KEY[target]),
+    total: tabs.length,
+  };
 }
 
 function isActive(pathname: string, tab: Tab): boolean {

@@ -36,11 +36,30 @@ export type IdentityNudgeTrigger = "plan" | "moment";
 
 const DISMISSED_AT_KEY = "pubmax:identityNudge:dismissedAt:v1";
 const PENDING_KEY = "pubmax:identityNudge:pending:v1";
+const PENDING_AT_KEY = "pubmax:identityNudge:pendingAt:v1";
 
 /** How long a "not now" keeps the gate shut before the next qualifying action can re-open it. */
 export const IDENTITY_NUDGE_COOLDOWN_DAYS = 7;
 const DAY_MS = 24 * 60 * 60 * 1000;
 export const IDENTITY_NUDGE_COOLDOWN_MS = IDENTITY_NUDGE_COOLDOWN_DAYS * DAY_MS;
+
+/**
+ * TTL on an armed-but-unshown trigger. A pending flag older than this has gone
+ * stale — the user acted, then left before the nudge ever showed (a closed tab,
+ * a browser restart). Without a TTL the flag persisted forever and fired at the
+ * first paint of ANY surface much later (observed live on /tonight after a
+ * restart). Expired reads self-clear (see readPending), so the nudge only ever
+ * follows a genuinely recent action.
+ */
+export const IDENTITY_NUDGE_PENDING_TTL_MS = 20 * 60 * 1000;
+
+/**
+ * First-paint grace (consumed by components/identity/IdentityNudge.tsx): the
+ * nudge must not slam a dialog over a page the instant it loads. It waits until
+ * the user has been on the page this long OR has interacted — belt-and-braces
+ * with the TTL above against a stale trigger surfacing at first paint.
+ */
+export const IDENTITY_NUDGE_FIRST_PAINT_GRACE_MS = 8000;
 
 /** Same-tab notify so useSyncExternalStore clients (the nudge UI) re-read after a write. */
 export const IDENTITY_NUDGE_EVENT = "pubmax:identity-nudge";
@@ -65,11 +84,31 @@ function readOptionalInt(key: string): number | null {
   }
 }
 
+/** Remove the pending trigger + its timestamp. Silent (no notify) so it is safe
+ *  to call from inside a read/snapshot path without risking a re-render loop. */
+function clearPending(): void {
+  try {
+    window.localStorage.removeItem(PENDING_KEY);
+    window.localStorage.removeItem(PENDING_AT_KEY);
+  } catch {
+    // ignore
+  }
+}
+
 function readPending(): IdentityNudgeTrigger | null {
   if (!hasStorage()) return null;
   try {
     const raw = window.localStorage.getItem(PENDING_KEY);
-    return raw === "plan" || raw === "moment" ? raw : null;
+    const trigger = raw === "plan" || raw === "moment" ? raw : null;
+    if (trigger === null) return null;
+    // TTL: a pending trigger older than the window has gone stale. Clear it on
+    // read so it can never surface late at the first paint of an unrelated page.
+    const armedAt = readOptionalInt(PENDING_AT_KEY);
+    if (armedAt !== null && Date.now() - armedAt >= IDENTITY_NUDGE_PENDING_TTL_MS) {
+      clearPending();
+      return null;
+    }
+    return trigger;
   } catch {
     return null;
   }
@@ -146,9 +185,12 @@ function armTrigger(trigger: IdentityNudgeTrigger): void {
   if (!hasStorage()) return;
   try {
     // First qualifying action keeps its copy until the nudge resolves; a second
-    // trigger before resolution does not clobber the first.
-    if (window.localStorage.getItem(PENDING_KEY)) return;
+    // trigger before resolution does not clobber the first. readPending() (not a
+    // raw read) so an EXPIRED pending is treated as absent — it self-clears, and
+    // the fresh action re-arms cleanly with a new timestamp.
+    if (readPending() !== null) return;
     window.localStorage.setItem(PENDING_KEY, trigger);
+    window.localStorage.setItem(PENDING_AT_KEY, String(Date.now()));
   } catch {
     return;
   }
@@ -214,6 +256,7 @@ export function markIdentityNudgeDismissed(): void {
   try {
     window.localStorage.setItem(DISMISSED_AT_KEY, String(Date.now()));
     window.localStorage.removeItem(PENDING_KEY);
+    window.localStorage.removeItem(PENDING_AT_KEY);
     notify();
   } catch {
     // Storage full / disabled / private mode — degrade silently.
@@ -229,6 +272,7 @@ export function markIdentityNudgeAccepted(): void {
   if (!hasStorage()) return;
   try {
     window.localStorage.removeItem(PENDING_KEY);
+    window.localStorage.removeItem(PENDING_AT_KEY);
     notify();
   } catch {
     // ignore
@@ -241,6 +285,7 @@ export function resetIdentityNudge(): void {
   try {
     window.localStorage.removeItem(DISMISSED_AT_KEY);
     window.localStorage.removeItem(PENDING_KEY);
+    window.localStorage.removeItem(PENDING_AT_KEY);
     notify();
   } catch {
     // ignore
