@@ -212,6 +212,22 @@ describe("selectSurpriseDrink", () => {
     });
   });
 
+  it("rejects zone-less selection and evidence timestamps", () => {
+    expect(selectSurpriseDrink(input({ asOfIso: "2026-07-22T20:00:00" }))).toEqual({
+      status: "empty",
+      reason: "invalid-selection-key",
+    });
+    const row = available(beer.id);
+    const zoneLess = {
+      ...row,
+      venues: [{ ...row.venues[0], observedAt: "2026-07-22T18:00:00" }],
+    };
+    expect(selectSurpriseDrink(input({ availability: [zoneLess] }))).toEqual({
+      status: "empty",
+      reason: "no-confirmed-availability",
+    });
+  });
+
   it("labels evidence on the Europe/London calendar day", () => {
     const row = available(beer.id);
     const nearMidnight = {
