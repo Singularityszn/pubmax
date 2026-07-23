@@ -30,6 +30,7 @@ function available(
       {
         venueId: options.venueId ?? `venue-${personaId}`,
         venueName: options.venueName ?? `The ${personaId}`,
+        drinkName: personas.find((persona) => persona.id === personaId)?.drink ?? "Unknown drink",
         priceGbp: options.priceGbp ?? 6.5,
         source: "Venue menu",
         observedAt: "2026-07-22T18:00:00.000Z",
@@ -101,7 +102,7 @@ describe("selectSurpriseDrink", () => {
         {
           personaId: cocktail.id,
           alcoholType: "alcoholic",
-          venues: [{ venueId: "bar", venueName: "A Bar", priceGbp: 7, source: "", observedAt: "not-a-date" }],
+          venues: [{ venueId: "bar", venueName: "A Bar", drinkName: cocktail.drink, priceGbp: 7, source: "", observedAt: "not-a-date" }],
         },
         available("not-in-the-sourced-persona-dataset"),
       ],
@@ -121,6 +122,19 @@ describe("selectSurpriseDrink", () => {
     } as unknown as SurpriseDrinkAvailability;
 
     expect(selectSurpriseDrink(input({ availability: [categoryHint] }))).toEqual({
+      status: "empty",
+      reason: "no-confirmed-availability",
+    });
+  });
+
+  it("rejects venue evidence for a different menu item", () => {
+    const row = available(beer.id);
+    const mismatched = {
+      ...row,
+      venues: [{ ...row.venues[0], drinkName: wine.drink }],
+    };
+
+    expect(selectSurpriseDrink(input({ availability: [mismatched] }))).toEqual({
       status: "empty",
       reason: "no-confirmed-availability",
     });
@@ -166,6 +180,24 @@ describe("selectSurpriseDrink", () => {
     });
   });
 
+  it("rejects price conflicts at the same instant across equivalent ISO spellings", () => {
+    const lower = available(beer.id, { venueId: "same", priceGbp: 5.5 });
+    const baseHigher = available(beer.id, { venueId: "same", priceGbp: 7.5 });
+    const higher = {
+      ...baseHigher,
+      venues: [{ ...baseHigher.venues[0], observedAt: "2026-07-22T18:00:00Z" }],
+    };
+
+    expect(selectSurpriseDrink(input({ availability: [lower, higher] }))).toEqual({
+      status: "empty",
+      reason: "no-confirmed-availability",
+    });
+    expect(selectSurpriseDrink(input({ availability: [higher, lower] }))).toEqual({
+      status: "empty",
+      reason: "no-confirmed-availability",
+    });
+  });
+
   it("requires a real price and rejects stale or future availability", () => {
     const priced = available(beer.id);
     const invalidPrice = { ...priced, venues: [{ ...priced.venues[0], priceGbp: 0 }] };
@@ -178,6 +210,19 @@ describe("selectSurpriseDrink", () => {
       status: "empty",
       reason: "no-confirmed-availability",
     });
+  });
+
+  it("labels evidence on the Europe/London calendar day", () => {
+    const row = available(beer.id);
+    const nearMidnight = {
+      ...row,
+      venues: [{ ...row.venues[0], observedAt: "2026-07-21T23:30:00.000Z" }],
+    };
+    const result = selectSurpriseDrink(input({ availability: [nearMidnight] }));
+
+    expect(result.status).toBe("selected");
+    expect(result.status === "selected" && result.rationale.availability)
+      .toContain("checked 22 Jul 2026");
   });
 
   it("honours hard exclusions across persona, category and exact drink name", () => {
@@ -211,6 +256,10 @@ describe("selectSurpriseDrink", () => {
       dayKey: "2026-07-23",
       asOfIso: "2026-07-22T23:30:00.000Z",
     })).status).toBe("selected");
+    expect(selectSurpriseDrink(input({
+      dayKey: "2026-07-22",
+      asOfIso: "2026-07-22T23:30:00.000Z",
+    }))).toEqual({ status: "empty", reason: "invalid-selection-key" });
     expect(selectSurpriseDrink(input({ availability: [] }))).toEqual({
       status: "empty",
       reason: "no-confirmed-availability",

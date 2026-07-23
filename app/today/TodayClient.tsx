@@ -176,7 +176,7 @@ function PicksCard({ picks, filteredPickCount }: { picks: TonightPickDto[]; filt
         <>
           <p className="todayCardEmpty">
             {filteredPickCount > 0
-              ? "Tonight has confirmed listings, but none match your current preferences."
+              ? "Tonight has listings, but none match your current preferences."
               : "Nothing confirmed for tonight yet. Listings firm up through the afternoon."}
           </p>
           <p className="todayCardFootRow">
@@ -247,7 +247,7 @@ function FactCard({ fact }: { fact: TodayFact | null }) {
 }
 
 export default function TodayClient({ dateLabel, weather, weatherByArea, picks, fact, pintsIndex, quietPint }: Props) {
-  const [brief, setBrief] = useState({ weather, picks, filteredPickCount: 0 });
+  const [brief, setBrief] = useState({ weather, picks: picks.slice(0, 3), filteredPickCount: 0 });
 
   // Silent continuity (#427 seam), now resolved field-by-field. The progressive
   // intake is the only newly consumed source in this UI wave. Account and
