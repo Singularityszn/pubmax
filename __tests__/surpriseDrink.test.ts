@@ -244,6 +244,18 @@ describe("selectSurpriseDrink", () => {
     });
   });
 
+  it("accepts valid ISO instants with sub-millisecond precision", () => {
+    expect(selectSurpriseDrink(input({ asOfIso: "2026-07-22T20:00:00.123456Z" })).status)
+      .toBe("selected");
+    const row = available(beer.id);
+    const precise = {
+      ...row,
+      venues: [{ ...row.venues[0], observedAt: "2026-07-22T18:00:00.123456789+00:00" }],
+    };
+
+    expect(selectSurpriseDrink(input({ availability: [precise] })).status).toBe("selected");
+  });
+
   it("labels evidence on the Europe/London calendar day", () => {
     const row = available(beer.id);
     const nearMidnight = {
