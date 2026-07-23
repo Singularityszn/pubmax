@@ -8,31 +8,35 @@ function render(props: Parameters<typeof PubmaxxMark>[0] = {}): string {
   return renderToStaticMarkup(createElement(PubmaxxMark, props));
 }
 
-describe("PubmaxxMark — The Clink", () => {
-  it("pins the canonical Clink geometry (two tapered pint arms + ember node)", () => {
+describe("PubmaxxMark — the double-struck X", () => {
+  it("pins the canonical X geometry (thick descending stroke + two thin ascending strokes)", () => {
     // These coordinates are the master brand geometry, owner-approved
-    // 2026-07-21. They must stay in lockstep with scripts/gen-brand-assets.mjs
+    // 2026-07-22. They must stay in lockstep with scripts/gen-brand-assets.mjs
     // and scripts/gen-native-app-icons.mjs — a drift here ships everywhere.
     expect(MARK_GEOMETRY.viewBox).toBe("0 0 64 64");
-    expect(MARK_GEOMETRY.armA).toBe("19.8,8.7 10.2,17.3 46.0,53.7 52.0,48.3");
-    expect(MARK_GEOMETRY.armB).toBe("44.2,8.7 53.8,17.3 18.0,53.7 12.0,48.3");
+    expect(MARK_GEOMETRY.thick).toBe("9,10 21,10 55,54 43,54");
+    expect(MARK_GEOMETRY.thinA).toBe("42,10 47,10 13,54 8,54");
+    expect(MARK_GEOMETRY.thinB).toBe("51,10 56,10 22,54 17,54");
+    expect(MARK_GEOMETRY.slashSimple).toBe("45,10 53,10 19,54 11,54");
     expect(MARK_GEOMETRY.node).toEqual({ cx: 32, cy: 32, r: 3.2 });
     expect(MARK_GEOMETRY.plaqueRadius).toBe(15);
   });
 
-  it("renders the arms as two filled polygons — never stroked paths", () => {
+  it("renders the strokes as three filled polygons — never stroked paths", () => {
     const svg = render();
     expect(svg).toContain("<svg");
     expect(svg).toContain(`viewBox="${MARK_GEOMETRY.viewBox}"`);
-    expect(svg).toContain(`points="${MARK_GEOMETRY.armA}"`);
-    expect(svg).toContain(`points="${MARK_GEOMETRY.armB}"`);
-    expect((svg.match(/<polygon/g) ?? []).length).toBe(2);
-    // The Clink is filled geometry: no <path>, no stroke language survives.
+    // Two thin ascending strokes + the thick descending stroke.
+    expect(svg).toContain(`points="${MARK_GEOMETRY.thinA}"`);
+    expect(svg).toContain(`points="${MARK_GEOMETRY.thinB}"`);
+    expect(svg).toContain(`points="${MARK_GEOMETRY.thick}"`);
+    expect((svg.match(/<polygon/g) ?? []).length).toBe(3);
+    // The X is filled geometry: no <path>, no stroke language survives.
     expect(svg).not.toContain("<path");
     expect(svg).not.toContain("stroke-width");
   });
 
-  it("mono variant is theme-agnostic: currentColor arms, no baked hex, no node", () => {
+  it("mono variant is theme-agnostic: currentColor strokes, no baked hex, no node", () => {
     const svg = render({ variant: "mono" });
     expect(svg).toContain("currentColor");
     expect(svg).not.toMatch(/#[0-9a-f]{6}/i);
@@ -41,22 +45,22 @@ describe("PubmaxxMark — The Clink", () => {
     expect(svg).not.toContain("<rect");
   });
 
-  it("duo variant is the bare coral Clink with a lit ember, on transparent", () => {
+  it("duo variant is the bare coral X with a lit ember, on transparent", () => {
     const duo = render({ variant: "duo" });
-    // Both arms are coral (no amber anywhere in the Clink palette).
-    expect((duo.match(/var\(--brass, #ff5a5f\)/g) ?? []).length).toBe(2);
+    // All three strokes are coral (no amber anywhere in the X palette).
+    expect((duo.match(/var\(--brass, #ff5a5f\)/g) ?? []).length).toBe(3);
     expect(duo).not.toContain("--amber");
     expect(duo).toContain("var(--brass-bright, #ff7a55)"); // ember
     expect(duo).toContain("<circle");
     expect(duo).not.toContain("<rect"); // transparent, no tile
   });
 
-  it("plaque variant lays the coral Clink + ember on an ink-deep tile", () => {
+  it("plaque variant lays the coral X + ember on an ink-deep tile", () => {
     const plaque = render({ variant: "plaque" });
     expect(plaque).toContain("<rect");
     expect(plaque).toContain(`rx="${MARK_GEOMETRY.plaqueRadius}"`);
     expect(plaque).toContain("var(--ink-deep, #060607)"); // tile
-    expect((plaque.match(/var\(--brass, #ff5a5f\)/g) ?? []).length).toBe(2); // coral arms
+    expect((plaque.match(/var\(--brass, #ff5a5f\)/g) ?? []).length).toBe(3); // coral strokes
     expect(plaque).toContain("var(--brass-bright, #ff7a55)"); // ember
   });
 

@@ -1,12 +1,14 @@
 #!/usr/bin/env node
 // Generate the @capacitor/assets SOURCE images for the native iOS + Android
-// icon / splash sets from the single "Clink" brand geometry (the same source of
-// truth as scripts/gen-brand-assets.mjs and components/brand/PubmaxxMark.tsx).
+// icon / splash sets from the single PUBMAXX X brand geometry (the same source
+// of truth as scripts/gen-brand-assets.mjs and components/brand/PubmaxxMark.tsx).
+// The mark is the double-struck X; the native icon/splash exports carry no
+// ember, matching the static web icons (the crossing is already the event).
 //
 // Outputs to assets/ — the default input directory @capacitor/assets reads:
-//   icon-only.png        1024  full-bleed coral tile + ink Clink (iOS icon)
-//   icon-foreground.png  1024  transparent, Clink only (Android adaptive fg)
-//   icon-background.png  1024  solid coral (Android adaptive bg)
+//   icon-only.png        1024  full-bleed white tile + coral X (iOS icon)
+//   icon-foreground.png  1024  transparent, coral X only (Android adaptive fg)
+//   icon-background.png  1024  solid white (Android adaptive bg)
 //   splash.png           2732  coral field, centred ink mark (light splash)
 //   splash-dark.png      2732  ink-deep field, coral mark (dark splash)
 //
@@ -33,24 +35,29 @@ const OUT = join(ROOT, "assets");
 mkdirSync(OUT, { recursive: true });
 
 // Tokens — literal (these render outside the app CSS). MUST match
-// scripts/gen-brand-assets.mjs and components/brand/PubmaxxMark.tsx.
-const C = { coral: "#ff5a5f", bright: "#ff7a55", inkDeep: "#060607" };
+// scripts/gen-brand-assets.mjs and components/brand/PubmaxxMark.tsx. `white` is
+// the Wave C app-icon field (owner verdict 2026-07-22): the icon set is a clean
+// white tile + coral X, so the iOS icon and Android adaptive layers flip from
+// the retired coral field / ink mark to a white field + coral mark. `inkDeep`
+// is retained only for the dark splash field (splashes are NOT icons and keep
+// the coral-on-ink treatment).
+const C = { coral: "#ff5a5f", bright: "#ff7a55", inkDeep: "#060607", white: "#ffffff" };
 
-// THE CLINK on the canonical 64-unit grid: two tapered pint arms (wide mouths
-// up, narrow bases down) meeting at an ember node.
+// THE DOUBLE-STRUCK X on the canonical 64-unit grid: one thick descending
+// stroke (\) over two thin parallel ascending strokes (/).
 const G = {
-  armA: "19.8,8.7 10.2,17.3 46.0,53.7 52.0,48.3",
-  armB: "44.2,8.7 53.8,17.3 18.0,53.7 12.0,48.3",
-  node: { cx: 32, cy: 32, r: 3.2 },
+  thick: "9,10 21,10 55,54 43,54",
+  thinA: "42,10 47,10 13,54 8,54",
+  thinB: "51,10 56,10 22,54 17,54",
 };
 
-// The Clink group on a 64 grid, scaled about centre. `armColor` lets the dark
-// splash flip the arms to coral on an ink field; the ember stays bright.
+// The X group on a 64 grid, scaled about centre. `armColor` lets the dark
+// splash flip the strokes to coral on an ink field. No ember on native icons.
 function clink(armColor, scale = 1) {
   const inner =
-    `<polygon points="${G.armA}" fill="${armColor}"/>` +
-    `<polygon points="${G.armB}" fill="${armColor}"/>` +
-    `<circle cx="${G.node.cx}" cy="${G.node.cy}" r="${G.node.r}" fill="${C.bright}"/>`;
+    `<polygon points="${G.thinA}" fill="${armColor}"/>` +
+    `<polygon points="${G.thinB}" fill="${armColor}"/>` +
+    `<polygon points="${G.thick}" fill="${armColor}"/>`;
   return `<g transform="translate(32 32) scale(${scale}) translate(-32 -32)">${inner}</g>`;
 }
 
@@ -64,15 +71,18 @@ async function png(markup, size, file) {
 }
 
 const jobs = [
-  // iOS app icon: full-bleed coral square (no alpha, no rounding — iOS masks).
-  ["icon-only.png", 1024, svg(`<rect width="64" height="64" fill="${C.coral}"/>${clink(C.inkDeep, 0.82)}`)],
-  // Android adaptive background: flat coral (the system clips it to the mask).
-  ["icon-background.png", 1024, svg(`<rect width="64" height="64" fill="${C.coral}"/>`)],
-  // Android adaptive foreground: Clink on transparent, near full-bleed
-  // (scale 1.0). The generated adaptive-icon XML already insets this layer
-  // 16.7%, so the mark must fill the source or it lands tiny in the launcher;
-  // at 1.0 the arms span ~56% of the canvas — comfortably inside the safe zone.
-  ["icon-foreground.png", 1024, svg(`${clink(C.inkDeep, 1.0)}`)],
+  // iOS app icon: full-bleed WHITE square + coral X (no alpha, no rounding —
+  // iOS masks). Wave C flips the field from coral to white and the mark to coral.
+  ["icon-only.png", 1024, svg(`<rect width="64" height="64" fill="${C.white}"/>${clink(C.coral, 0.82)}`)],
+  // Android adaptive background: flat WHITE (the system clips it to the mask).
+  ["icon-background.png", 1024, svg(`<rect width="64" height="64" fill="${C.white}"/>`)],
+  // Android adaptive foreground: coral X on transparent. The generated
+  // adaptive-icon XML already insets this layer 16.7%, so the mark must fill a
+  // good part of the source or it lands tiny in the launcher. The double-struck
+  // X is wide (its strokes span ~75% of the 64 grid), so scale 0.8 keeps the
+  // mark's ~60% span comfortably inside the 66/108 adaptive safe zone. Coral so
+  // it reads on the white background layer.
+  ["icon-foreground.png", 1024, svg(`${clink(C.coral, 0.8)}`)],
   // Light splash: centred mark on the coral field, small (scale 0.28).
   ["splash.png", 2732, svg(`<rect width="64" height="64" fill="${C.coral}"/>${clink(C.inkDeep, 0.28)}`)],
   // Dark splash: coral mark on the ink-deep field.

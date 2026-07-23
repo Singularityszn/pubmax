@@ -26,6 +26,7 @@ import { GET as GET_COMPLETION, POST as COMPLETE } from "@/app/api/plans/[id]/co
 import { __resetMemoryPlans, planStore } from "@/lib/planStore";
 
 const ctx = (id: string) => ({ params: Promise.resolve({ id }) });
+const VITEST_PLAN_SIGNING_SECRET = process.env.PLAN_IDEMPOTENCY_SECRET;
 
 async function createPlan() {
   const response = await CREATE(new Request("http://localhost/api/plans", {
@@ -66,7 +67,11 @@ beforeEach(() => {
   __resetMemoryPlans();
   vi.spyOn(Date, "now").mockReturnValue(Date.parse("2026-07-16T23:00:00.000Z"));
 });
-afterEach(() => vi.restoreAllMocks());
+afterEach(() => {
+  vi.restoreAllMocks();
+  delete process.env.PLAN_IDEMPOTENCY_SECRET;
+  delete process.env.RATE_LIMIT_SALT;
+});
 
 describe("Plan Completion", () => {
   it("pins the durable RPC to the canonical host and an in-route arrival", () => {
@@ -144,17 +149,58 @@ describe("Plan Completion", () => {
     });
     expect(firstBody.completion).not.toHaveProperty("actorMemberId");
     expect(JSON.stringify(firstBody)).not.toContain(created.memberToken);
+    expect(firstBody).toHaveProperty("eventTokens.planCompleted");
 
     // Replays use the stored, host-confirmed completion. Current food evidence
     // may expire between a successful response and a network retry.
     vi.mocked(Date.now).mockReturnValue(Date.parse("2027-07-16T23:00:00.000Z"));
     const retry = await COMPLETE(request(), ctx(id));
     expect(retry.status).toBe(200);
-    expect(await retry.json()).toMatchObject({ created: false, completion: firstBody.completion });
+    expect(await retry.json()).toMatchObject({ created: false, completion: firstBody.completion, eventTokens: firstBody.eventTokens });
 
     const get = await GET_COMPLETION(new Request(`http://localhost/api/plans/${id}/complete`), ctx(id));
     expect(get.status).toBe(200);
     expect(await get.json()).toEqual({ completion: firstBody.completion });
+  });
+
+  it("fails before completion and succeeds cleanly after event-token signing recovers", async () => {
+    const created = await createPlan();
+    const id = created.plan.plan.id;
+    const arrival = await ACTION(new Request(`http://localhost/api/plans/${id}/actions`, {
+      method: "POST",
+      headers: { authorization: `Bearer ${created.memberToken}`, "idempotency-key": "completion-signing-arrival" },
+      body: JSON.stringify({ type: "arrived", stopPosition: 0 }),
+    }), ctx(id));
+    expect(arrival.status).toBe(201);
+    const request = () => new Request(`http://localhost/api/plans/${id}/complete`, {
+      method: "POST",
+      headers: { authorization: `Bearer ${created.memberToken}` },
+      body: JSON.stringify({
+        expectedRouteRevision: 1,
+        ending: "get_home",
+        endingSelection: {
+          kind: "get_home",
+          optionId: "transport:nearest-station",
+          evidenceSnapshot: { label: "Nearest station", confidence: "unknown" },
+        },
+      }),
+    });
+
+    process.env.PLAN_IDEMPOTENCY_SECRET = "too-short";
+    const unavailable = await COMPLETE(request(), ctx(id));
+    expect(unavailable.status).toBe(503);
+    expect(unavailable.headers.get("retry-after")).toBe("60");
+    expect(await unavailable.json()).toMatchObject({ code: "PLAN_SIGNING_UNAVAILABLE", retryable: true });
+    const beforeRetry = await GET_COMPLETION(new Request(`http://localhost/api/plans/${id}/complete`), ctx(id));
+    expect(await beforeRetry.json()).toEqual({ completion: null });
+
+    process.env.PLAN_IDEMPOTENCY_SECRET = VITEST_PLAN_SIGNING_SECRET!;
+    const retry = await COMPLETE(request(), ctx(id));
+    expect(retry.status).toBe(201);
+    expect(await retry.json()).toMatchObject({
+      created: true,
+      eventTokens: { planCompleted: expect.any(String), meaningfulCoreAction: expect.any(String) },
+    });
   });
 
   it("rejects an ending snapshot whose kind does not match the confirmed ending", async () => {

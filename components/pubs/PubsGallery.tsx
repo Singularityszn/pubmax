@@ -303,7 +303,7 @@ export default function PubsGallery({ pubs }: { pubs: ScrapedPub[] }) {
               <p className="pubsCardPrice">
                 {pub.cheapestPrice != null
                   ? `From ${formatPrice(pub.cheapestPrice)}`
-                  : "Price coming soon"}
+                  : "No price logged yet"}
               </p>
               <div className="pubsCardActions">
                 <Link className="pubsMapLink" href={venueMapUrl(pub.id)}>
@@ -351,7 +351,7 @@ export default function PubsGallery({ pubs }: { pubs: ScrapedPub[] }) {
       ) : null}
 
       {visible.length === 0 ? (
-        <p className="pubsEmpty">No pubs match that filter yet.</p>
+        <p className="pubsEmpty">No pubs under that filter yet. Loosen it, or take it to the map.</p>
       ) : null}
     </div>
   );

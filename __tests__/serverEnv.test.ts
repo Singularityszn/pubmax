@@ -12,6 +12,7 @@ describe("assertProductionSecrets", () => {
     vi.unstubAllEnvs();
     delete process.env.ADMIN_TOKEN;
     delete process.env.RATE_LIMIT_SALT;
+    delete process.env.PLAN_IDEMPOTENCY_SECRET;
     delete process.env.SUPABASE_URL;
     delete process.env.SUPABASE_SERVICE_ROLE_KEY;
     delete process.env.NEXT_PHASE;
@@ -91,10 +92,27 @@ describe("assertProductionSecrets", () => {
     expect(() => assertProductionSecrets()).toThrow(/RATE_LIMIT_SALT/);
   });
 
+  it("throws when RATE_LIMIT_SALT is too short for trusted production signing", () => {
+    vi.stubEnv("NODE_ENV", "production");
+    process.env.ADMIN_TOKEN = "secret-admin";
+    process.env.RATE_LIMIT_SALT = "unique-but-short";
+
+    expect(() => assertProductionSecrets()).toThrow(/shorter than 32 bytes/);
+  });
+
+  it("throws when the optional dedicated Plan signing secret is too short", () => {
+    vi.stubEnv("NODE_ENV", "production");
+    process.env.ADMIN_TOKEN = "secret-admin";
+    process.env.RATE_LIMIT_SALT = "random-rate-limit-salt-0123456789abcdef";
+    process.env.PLAN_IDEMPOTENCY_SECRET = "too-short";
+
+    expect(() => assertProductionSecrets()).toThrow(/PLAN_IDEMPOTENCY_SECRET/);
+  });
+
   it("passes when production secrets are configured", () => {
     vi.stubEnv("NODE_ENV", "production");
     process.env.ADMIN_TOKEN = "secret-admin";
-    process.env.RATE_LIMIT_SALT = "unique-prod-salt";
+    process.env.RATE_LIMIT_SALT = "unique-production-salt-0123456789abcdef";
 
     expect(() => assertProductionSecrets()).not.toThrow();
   });
@@ -113,6 +131,7 @@ describe("assertServerEnv", () => {
     vi.unstubAllEnvs();
     delete process.env.ADMIN_TOKEN;
     delete process.env.RATE_LIMIT_SALT;
+    delete process.env.PLAN_IDEMPOTENCY_SECRET;
     delete process.env.SUPABASE_URL;
     delete process.env.SUPABASE_SERVICE_ROLE_KEY;
     delete process.env.NEXT_PHASE;
@@ -174,7 +193,7 @@ describe("assertServerEnv", () => {
     process.env.SUPABASE_URL = "https://example.supabase.co";
     process.env.SUPABASE_SERVICE_ROLE_KEY = "service-role-key";
     process.env.ADMIN_TOKEN = "secret-admin";
-    process.env.RATE_LIMIT_SALT = "unique-prod-salt";
+    process.env.RATE_LIMIT_SALT = "unique-production-salt-0123456789abcdef";
 
     expect(() => assertServerEnv()).not.toThrow();
   });

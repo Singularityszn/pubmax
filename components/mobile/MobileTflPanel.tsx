@@ -71,7 +71,7 @@ export default function MobileTflPanel({ status }: { status: MobileTflStatus }) 
 
   if (failed) return <div className="mobileSheetEmpty" role="status"><Info /><strong>TfL updates are unavailable.</strong><p>The map and venue details still work.</p></div>;
   if (!payload) return <div className="mobileSheetSkeleton" role="status">Checking TfL live status</div>;
-  if (!disrupted.length && !grouped.length) return <div className="mobileSheetEmpty" role="status"><TrainFront /><strong>No reported disruption.</strong><p>Checked live for this session.</p>{freshness(payload.asOf)}</div>;
+  if (!disrupted.length && !grouped.length) return <div className="mobileSheetEmpty" role="status"><TrainFront /><strong>Nothing disrupting tonight.</strong><p>Checked live for this session.</p>{freshness(payload.asOf)}</div>;
 
   return (
     <div className="mobileTflGroups">

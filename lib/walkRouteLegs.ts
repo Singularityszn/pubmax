@@ -1,6 +1,7 @@
 import { haversineKm } from "@/lib/haversine";
 import { legMinutes, WALK_KMH } from "@/lib/routeLegs";
 import { legCacheKey, stopPairs, type LngLat, type WalkRouteSource } from "@/lib/walkRoute";
+import { consumeOrsBudget } from "@/lib/walkRouteBudget";
 import { fetchWalkLegRoute, orsApiKey, type RoutedWalkLeg } from "@/lib/walkRouteProvider";
 import { walkRouteStore } from "@/lib/walkRouteStore";
 
@@ -105,6 +106,13 @@ export async function estimatePlanWalking(stops: readonly PlanWalkingStop[]): Pr
     } catch {
       // Cache failures should not affect plan generation or routing attempts.
     }
+
+    // A real provider call is about to happen (cache miss + key present). Draw
+    // down the global daily ORS budget FIRST, exactly like /api/walk-route does
+    // (app/api/plans/generate shares the same ors-global:<UTC-date> bucket), so
+    // Friday-night plan generation can't drain the day's quota outside the cap.
+    // Over budget -> keep this leg's straight-line estimate (fail-soft).
+    if (!(await consumeOrsBudget())) return leg;
 
     let routed: RoutedWalkLeg | null = null;
     try {

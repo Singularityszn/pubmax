@@ -5,6 +5,7 @@
 
 .permalink {
   min-height: 100vh;
+  min-height: 100dvh;
   padding: clamp(20px, 5vw, 56px) 16px 96px;
   display: flex;
   flex-direction: column;

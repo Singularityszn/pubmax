@@ -5,7 +5,7 @@ import CityChooser from "@/components/city/CityChooser";
 export const metadata: Metadata = {
   title: "Choose your city",
   description:
-    "Pick a PUBMAXXING city map: London, Manchester, Glasgow, and more. Price-aware pubs, crawls, and last rides.",
+    "Pick your PUBMAXXING city map: London, Manchester, Glasgow, and more. Real pint prices, crawls, and the last way home.",
   alternates: { canonical: "/choose-city" },
 };
 

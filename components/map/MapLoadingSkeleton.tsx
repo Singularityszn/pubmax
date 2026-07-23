@@ -84,7 +84,7 @@ export default function MapLoadingSkeleton() {
           <span aria-hidden="true" className="mapSkeletonSpinnerDot" />
           <div>
             <h1>London pub map</h1>
-            <p>Finding the pubs. Fetching tonight&rsquo;s prices.</p>
+            <p>Finding the pubs. Warming up the map.</p>
           </div>
         </div>
       </div>
