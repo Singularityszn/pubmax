@@ -140,7 +140,9 @@
 .planSummary__editStops small { color: var(--muted); font-size: 0.7rem; }
 .planSummary__editMarker { width: 30px; height: 30px; display: grid; place-items: center; border-radius: 50%; background: var(--plan-accent); color: #fff; font-size: 0.75rem; font-weight: 850; }
 .planSummary__editorActions { display: flex; flex-wrap: wrap; gap: 8px; }
-.planSummary__save { border-color: var(--plan-accent); background: var(--plan-accent); color: #fff; }
+/* Primary action fill — coral via --brass (not --plan-accent, which goes
+   amber in dark for chips/rails/secondary). Matches landing .lpButtonPrimary. */
+.planSummary__save { border-color: var(--brass); background: var(--brass); color: var(--color-on-accent); }
 .planSummary__status { margin: 18px 0 0 72px; color: var(--ink-soft); font-size: 0.8rem; line-height: 1.4; }
 .planCollab {
   display: grid;
@@ -395,6 +397,8 @@
 .planPage button:focus-visible { outline: 3px solid color-mix(in srgb, var(--plan-accent) 55%, transparent); outline-offset: 2px; }
 .planCrew__join button,
 .planComposer__submit { min-height: 48px; border: 0; border-radius: 11px; padding: 0 20px; background: var(--plan-accent); color: #fff; font: inherit; font-weight: 800; cursor: pointer; }
+/* Plan my night / Lock-flow primary — coral only; join stays plan-accent. */
+.planComposer__submit { background: var(--brass); color: var(--color-on-accent); }
 .planCrew__join button:disabled,
 .planComposer__submit:disabled { opacity: 0.58; cursor: wait; }
 .planCrew__presence { margin-top: 20px; display: flex; flex-wrap: wrap; gap: 8px; }
@@ -492,7 +496,7 @@
 .planIntake__skip,
 .planIntake__tune,
 .planIntake__summaryChips button { border: 1px solid var(--line); background: var(--panel-raised); color: var(--ink-soft); }
-.planIntake__continue { border: 1px solid var(--plan-accent); background: var(--plan-accent); color: #fff; padding-inline: 20px; }
+.planIntake__continue { border: 1px solid var(--brass); background: var(--brass); color: var(--color-on-accent); padding-inline: 20px; }
 .planIntake button:disabled { opacity: 0.5; cursor: not-allowed; }
 
 .planIntake__progress { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 8px; margin: 20px 0 0; padding: 0; list-style: none; }
@@ -522,11 +526,11 @@
   align-items: center;
   justify-content: center;
   gap: 7px;
-  border: 1px solid var(--plan-accent);
+  border: 1px solid var(--brass);
   border-radius: var(--control-radius, 14px);
   padding: 8px 15px;
-  background: color-mix(in srgb, var(--plan-accent) 12%, var(--panel));
-  color: var(--plan-accent-strong);
+  background: var(--brass);
+  color: var(--color-on-accent);
   font: inherit;
   font-size: 0.8rem;
   font-weight: 820;
@@ -644,9 +648,8 @@
 .planComposer__concierge { grid-column: 1 / -1; padding: 0 0 28px; border-bottom: 1px solid var(--line); }
 .planComposer__concierge h2 { margin: 0; max-width: 600px; font-size: clamp(1.6rem, 4vw, 2.7rem); line-height: 1; }
 .planComposer__conciergeInput { margin-top: 20px; display: grid; grid-template-columns: 1fr auto; gap: 8px; }
-/* "Sort it" is the primary accent action of the concierge — same accent fill as
-   .planComposer__submit so it reads as the page's canonical primary button. */
-.planComposer__conciergeInput button { min-height: 48px; border: 0; border-radius: 11px; padding: 0 20px; background: var(--plan-accent); color: #fff; font: inherit; font-weight: 800; cursor: pointer; }
+/* "Sort it" / Plan my night — coral primary (same as .planComposer__submit). */
+.planComposer__conciergeInput button { min-height: 48px; border: 0; border-radius: 11px; padding: 0 20px; background: var(--brass); color: var(--color-on-accent); font: inherit; font-weight: 800; cursor: pointer; }
 .planComposer__conciergeInput button:disabled { opacity: 0.58; cursor: wait; }
 .planComposer__concierge > p { margin: 12px 0 0; color: var(--ink-soft); font-size: 0.9rem; }
 .planComposer__conciergeStatus:empty { display: none; }
@@ -724,11 +727,9 @@ html[data-theme="dark"] .planCrew,
 html[data-theme="dark"] .planVibe,
 html[data-theme="dark"] .planShare,
 html[data-theme="dark"] .planComposer { border-radius: 12px; }
+/* Dark ink on amber fills only — primary CTAs use coral + --color-on-accent. */
 html[data-theme="dark"] .planSummary__marker,
-html[data-theme="dark"] .planCrew__join button,
-html[data-theme="dark"] .planComposer__conciergeInput button,
-html[data-theme="dark"] .planIntake__continue,
-html[data-theme="dark"] .planComposer__submit { color: #090d0b; }
+html[data-theme="dark"] .planCrew__join button { color: #090d0b; }
 
 @media (max-width: 760px) {
   .planPage__grid { grid-template-columns: 1fr; }
