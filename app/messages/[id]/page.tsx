@@ -3,6 +3,8 @@ import type { Metadata } from "next";
 import MessageThread from "@/components/messages/MessageThread";
 import SiteNav from "@/components/nav/SiteNav";
 
+import MessagesInboxClient from "../MessagesInboxClient";
+
 import "../messages.css";
 
 // A single conversation's thread (PRD E4). Thin SERVER shell: it owns the page
@@ -31,8 +33,15 @@ export default async function MessageThreadPage({
   return (
     <div className="lp messagesPage">
       <SiteNav />
-      <main className="container messagesMain">
-        <MessageThread conversationId={id} />
+      <main className="container messagesMain messagesMainThread">
+        <div className="messagesSplit">
+          <aside className="messagesInboxPane" aria-label="Inbox">
+            <MessagesInboxClient activeConversationId={id} />
+          </aside>
+          <section className="messagesThreadPane" aria-label="Conversation">
+            <MessageThread conversationId={id} />
+          </section>
+        </div>
       </main>
     </div>
   );

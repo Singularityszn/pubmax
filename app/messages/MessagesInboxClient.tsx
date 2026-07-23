@@ -6,7 +6,6 @@ import { useCallback, useEffect, useState } from "react";
 import EmptyState from "@/components/EmptyState";
 import { useAuth } from "@/components/auth/AuthProvider";
 import SignInButton from "@/components/auth/SignInButton";
-import SiteNav from "@/components/nav/SiteNav";
 import { authedFetch } from "@/lib/authedFetch";
 import type { ConversationDTO } from "@/lib/messages";
 import { normalizeHandle } from "@/lib/profiles";
@@ -24,7 +23,11 @@ function readHandle(): string {
   return normalizeHandle(window.localStorage.getItem(HANDLE_KEY) ?? "");
 }
 
-export default function MessagesInboxClient(): React.JSX.Element {
+export default function MessagesInboxClient({
+  activeConversationId,
+}: {
+  activeConversationId?: string;
+}): React.JSX.Element {
   const { user, handle: authHandle } = useAuth();
   const [handle, setHandle] = useState("");
   const [conversations, setConversations] = useState<ConversationDTO[]>([]);
@@ -95,33 +98,40 @@ export default function MessagesInboxClient(): React.JSX.Element {
   }, [refresh, handle]);
 
   return (
-    <div className="lp messagesPage">
-      <SiteNav />
-      <main className="container messagesMain">
-        <h1 className="messagesHeading">Messages</h1>
-        <p className="messagesCourtesyNote">
-          Messages need a signed-in account. Keep it low-key, and report anything off.
-        </p>
+    <>
+      <h1 className="messagesHeading">Messages</h1>
+      <p className="messagesCourtesyNote">
+        Messages need a signed-in account. Keep it low-key, and report anything off.
+      </p>
 
-        {!loaded ? (
-          <p className="conversationPreview">Loading…</p>
-        ) : needsSignIn || !user ? (
-          <EmptyState
-            title="Sign in to message"
-            body="Private messages need a signed-in account so nobody can read or send as your handle."
-            action={<SignInButton />}
-          />
-        ) : conversations.length === 0 ? (
-          <EmptyState
-            title="Nobody in here yet."
-            body="Find someone worth a pint on the feed, open their profile, and tap Message. That's how a round starts."
-            action={<Link href="/feed">Find someone to message</Link>}
-          />
-        ) : (
-          <ul className="conversationList">
-            {conversations.map((c) => (
-              <li key={c.id} className="conversationItem">
-                <Link href={`/messages/${encodeURIComponent(c.id)}`} className="conversationLink">
+      {!loaded ? (
+        <p className="conversationPreview">Loading…</p>
+      ) : needsSignIn || !user ? (
+        <EmptyState
+          title="Sign in to message"
+          body="Private messages need a signed-in account so nobody can read or send as your handle."
+          action={<SignInButton />}
+        />
+      ) : conversations.length === 0 ? (
+        <EmptyState
+          title="Nobody in here yet."
+          body="Find someone worth a pint on the feed, open their profile, and tap Message. That's how a round starts."
+          action={<Link href="/feed">Find someone to message</Link>}
+        />
+      ) : (
+        <ul className="conversationList">
+          {conversations.map((c) => {
+            const active = c.id === activeConversationId;
+            return (
+              <li
+                key={c.id}
+                className={active ? "conversationItem conversationItemActive" : "conversationItem"}
+              >
+                <Link
+                  href={`/messages/${encodeURIComponent(c.id)}`}
+                  className="conversationLink"
+                  aria-current={active ? "page" : undefined}
+                >
                   <div className="conversationBody">
                     <div className="conversationHandle">@{c.otherHandle}</div>
                     <div className="conversationPreview">
@@ -137,10 +147,10 @@ export default function MessagesInboxClient(): React.JSX.Element {
                   ) : null}
                 </Link>
               </li>
-            ))}
-          </ul>
-        )}
-      </main>
-    </div>
+            );
+          })}
+        </ul>
+      )}
+    </>
   );
 }

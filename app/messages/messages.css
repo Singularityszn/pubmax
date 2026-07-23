@@ -8,12 +8,57 @@
 }
 
 .messagesMain {
+  width: 100%;
   max-width: 720px;
   /* U6a — standard page gutters (matches the discover/feed page padding) so
      the heading and thread never sit flush against the screen edge on phones. */
   padding-block: 1.5rem 4rem;
   padding-inline: 20px;
   margin-inline: auto;
+}
+
+.messagesSplit {
+  min-width: 0;
+}
+
+.messagesMainInbox .messagesThreadPane,
+.messagesMainThread .messagesInboxPane {
+  display: none;
+}
+
+.messagesInboxPane,
+.messagesThreadPane {
+  min-width: 0;
+}
+
+.messagesThreadEmpty {
+  color: var(--muted);
+}
+
+.messagesThreadEmpty > div {
+  max-width: 28rem;
+  margin: auto;
+  text-align: center;
+}
+
+.messagesThreadEmpty h2 {
+  margin: 0.25rem 0 0.5rem;
+  color: var(--ink);
+  font-family: var(--font-display, var(--serif));
+  font-size: clamp(1.5rem, 2vw, 2rem);
+}
+
+.messagesThreadEmpty p {
+  margin: 0;
+  line-height: 1.5;
+}
+
+.messagesThreadEyebrow {
+  color: var(--brass);
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
 }
 
 .messagesHeading {
@@ -60,6 +105,15 @@
 
 .conversationLink:hover {
   background: var(--panel-raised);
+}
+
+.conversationItemActive {
+  border-color: color-mix(in srgb, var(--brass) 58%, var(--line));
+  box-shadow: inset 3px 0 0 var(--brass);
+}
+
+.conversationItemActive .conversationLink {
+  background: color-mix(in srgb, var(--brass) 9%, var(--panel));
 }
 
 .conversationBody {
@@ -281,4 +335,68 @@
 .profileMessageBtn:disabled {
   cursor: wait;
   opacity: 0.72;
+}
+
+@media (min-width: 1024px) {
+  .messagesMain {
+    max-width: var(--content-max-wide);
+    padding-block: 2rem 3rem;
+    padding-inline: 24px;
+  }
+
+  .messagesSplit {
+    display: grid;
+    grid-template-columns: minmax(19rem, 22rem) minmax(0, 1fr);
+    min-height: calc(100dvh - 9rem);
+    overflow: hidden;
+    border: 1px solid var(--line);
+    border-radius: 1rem;
+    background: var(--panel);
+    box-shadow: var(--shadow-card);
+  }
+
+  .messagesMainInbox .messagesThreadPane,
+  .messagesMainThread .messagesInboxPane {
+    display: block;
+  }
+
+  .messagesInboxPane {
+    padding: 1.5rem;
+    border-right: 1px solid var(--line);
+    background: var(--panel);
+  }
+
+  .messagesThreadPane {
+    min-height: 0;
+    padding: 1.5rem;
+    background: var(--paper);
+  }
+
+  .messagesThreadEmpty {
+    display: grid !important;
+    place-items: center;
+  }
+
+  .messagesThreadPane .messageThread {
+    display: flex;
+    flex-direction: column;
+    min-height: calc(100dvh - 12rem);
+  }
+
+  .messagesThreadPane .threadMessages {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    padding-right: 0.25rem;
+  }
+
+  .messagesThreadPane .composer {
+    position: sticky;
+    bottom: 0;
+    background: var(--paper);
+  }
+
+  .threadBackLink {
+    display: none;
+  }
 }
