@@ -30,7 +30,8 @@ const route = [{ venueId: "venue-1f5ygjb" }, { venueId: "venue-xjf3n0" }, { venu
 beforeEach(() => { __resetMemoryPlans(); __resetPlanCollaboration(); });
 
 async function createPlan() {
-  const response = await CREATE(new Request(URL, { method: "POST", headers: { "idempotency-key": `collab-host-${crypto.randomUUID()}` }, body: JSON.stringify({ startTime: "2026-07-16T19:00:00.000Z", creatorName: "Host", stops: route }) }));
+  const startTime = new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString();
+  const response = await CREATE(new Request(URL, { method: "POST", headers: { "idempotency-key": `collab-host-${crypto.randomUUID()}` }, body: JSON.stringify({ startTime, creatorName: "Host", stops: route }) }));
   return await response.json() as { plan: { plan: { id: string } }; memberToken: string; role: string };
 }
 

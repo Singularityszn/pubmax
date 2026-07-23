@@ -127,7 +127,7 @@ export default function PlanCollaborationPanel({ planId, memberToken, isHost, dr
       if (typeof body.invite?.id === "string") trackEvent("invite_created", { inviteId: body.invite.id });
       announce("invite");
       await navigator.clipboard?.writeText(url).catch(() => undefined);
-      setStatus("Private one-use invite copied. It expires in 24 hours.");
+      setStatus("Private one-use invite copied. It expires by plan end (or sooner).");
       await refresh();
     } catch (caught) { setError(caught instanceof Error ? caught.message : "Could not create an invite."); }
     finally { setPending(""); }

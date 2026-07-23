@@ -16,17 +16,17 @@ const stops = [
   { venueId: "venue-c", venueName: "C", position: 2 },
 ];
 
-async function members() {
+async function members(startTime = new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString()) {
   const created = await memoryPlanStore.create({
     title: "Crew test",
-    startTime: "2026-07-16T19:00:00.000Z",
+    startTime,
     creatorName: "Host",
     stops,
   });
   if (!created.ok) throw new Error("plan setup failed");
   const joined = await memoryPlanStore.join(created.plan.plan.id, "Guest", { collaborationAuthorized: true });
   if (!joined.ok) throw new Error("guest setup failed");
-  return { id: created.plan.plan.id, host: created.memberToken, guest: joined.memberToken };
+  return { id: created.plan.plan.id, host: created.memberToken, guest: joined.memberToken, startTime };
 }
 
 beforeEach(() => {
@@ -59,7 +59,8 @@ describe("plan collaboration capabilities", () => {
   });
 
   it("rejects expired and revoked invite capabilities", async () => {
-    const { id, host } = await members();
+    // Fixed calendar so TTL expiry assertions stay deterministic.
+    const { id, host } = await members("2026-07-16T19:00:00.000Z");
     const store = planCollaborationStore();
     const now = new Date("2026-07-16T18:00:00.000Z");
     const expired = await store.createInvite(id, host, { expiresInMinutes: 5, idempotencyKey: "host-invite-expire", now });
@@ -70,6 +71,24 @@ describe("plan collaboration capabilities", () => {
     if (!revoked.ok) throw new Error("invite setup failed");
     expect(await store.revokeInvite(id, host, revoked.invite.id, "host-revoke-1")).toMatchObject({ ok: true });
     expect(await store.consumeInvite(id, revoked.token, now)).toMatchObject({ ok: false, error: "revoked" });
+  });
+
+  it("clamps invite TTL to the plan scheduled end and refuses minting after it", async () => {
+    const { id, host } = await members("2026-07-16T19:00:00.000Z");
+    const store = planCollaborationStore();
+    // Plan starts 19:00; ACTIVE_PLAN_POST_MS ends at 03:00 next day.
+    const during = new Date("2026-07-16T22:00:00.000Z");
+    const clamped = await store.createInvite(id, host, { expiresInMinutes: 1_440, idempotencyKey: "host-invite-plan-end", now: during });
+    expect(clamped).toMatchObject({ ok: true });
+    if (!clamped.ok) throw new Error("invite setup failed");
+    expect(clamped.invite.expiresAt).toBe("2026-07-17T03:00:00.000Z");
+
+    const afterEnd = new Date("2026-07-17T04:00:00.000Z");
+    expect(await store.createInvite(id, host, { expiresInMinutes: 30, idempotencyKey: "host-invite-after-end", now: afterEnd })).toMatchObject({
+      ok: false,
+      error: "expired",
+    });
+    expect(await store.consumeInvite(id, clamped.token, afterEnd)).toMatchObject({ ok: false, error: "expired" });
   });
 
   it("redeems a one-use invite for only one concurrent keyless join", async () => {
