@@ -8,9 +8,9 @@ import type { CityId } from "@/lib/cities";
 import {
   buildMapSearchSuggestions,
   type AreaSuggestion,
+  type MapSearchAreaOption,
   type PubSuggestion,
 } from "@/lib/mapSearchSuggest";
-import type { AreaElsewhereOption } from "@/lib/areaButton";
 import type { Locality } from "@/lib/localities";
 import type { Venue } from "@/lib/venues";
 
@@ -44,7 +44,7 @@ type MapSearchSuggestProps = {
   /** Fly + open a pub's venue card (the same select a pin tap drives). */
   onSelectVenue: (id: string) => void;
   /** Fly the map to an area/borough centre (reduced-motion safe in the canvas). */
-  onFlyToArea: (option: AreaElsewhereOption) => void;
+  onFlyToArea: (option: MapSearchAreaOption) => void;
   /** Enter with nothing highlighted and no suggestions: keep the old behaviour. */
   onSubmitQuery?: () => void;
   /** Escape on the field: close the search overlay. */
@@ -129,6 +129,7 @@ export default function MapSearchSuggest({
           coverage: item.coverage,
           zoom: item.flyZoom,
           kind: item.kind,
+          areaNewsArea: item.areaNewsArea,
         });
       }
     },
