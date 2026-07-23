@@ -8,7 +8,58 @@
    These use their OWN classes (siteNavBar / siteNavLinks / …) — independent of
    the old .siteNav / .appNav globals, which may be cleaned up separately. */
 
+/* ── Shared top-bar FRAME tokens ─────────────────────────────────────────────
+   Owner report (iPhone screenshots): the mobile top bar visibly changed
+   size/shape page-to-page. The fix is ONE frame for every top bar (the
+   standard bar on Tonight/Feed/…, the floating map variant, and the landing
+   .lpNav) so navigating never makes the bar jump. Contents may differ per
+   surface; the FRAME (height, top offset, corner radius, horizontal padding,
+   shadow) is identical.
+
+   Chosen standard (measured all three first, best pick documented):
+     · --topbar-h      52px. The app-shell / map-chrome height. Map + standard
+                              bars already used it; landing tightened 58 to 52.
+     · --topbar-radius 14px. The map-chrome card radius. The map is the primary
+                              (map-first) surface, where this bar twins the search
+                              toolbar; adopting the rounded-card shape everywhere
+                              on mobile keeps that twin AND unifies the standard +
+                              landing bars (were 999px pills). Desktop bars keep
+                              their capsule (already consistent page-to-page).
+     · --topbar-pad-x  10px. Landing's value; standard/map were 8px.
+     · --topbar-inset  env(safe-area-inset-top)+10px. The floating top offset
+                              that clears the notch (the map's proven form). The
+                              in-flow standard bar keeps its own safe-area margin;
+                              landing keeps its max() literal, locked by
+                              landingChromeCss.test, resolving to the same ~10px.
+     · --topbar-shadow the tight map-overlay shadow. Landing drops its heavy
+                              0 16px 36px glass shadow on mobile to match.
+   Consumed with literal fallbacks at every use site so the landing route (which
+   does not load this file's stylesheet) still resolves to the same values. */
+:root {
+  --topbar-h: 52px;
+  --topbar-inset: calc(env(safe-area-inset-top, 0px) + 10px);
+  --topbar-radius: 14px;
+  --topbar-pad-x: 10px;
+  /* Shared MOBILE side inset — the viewport-relative left/right gap every top
+     bar leaves on ≤640px. 10px is not a new invention: the landing bar already
+     runs width:calc(100vw - 20px) (→10px each side) and the mobile map chrome
+     already pins left:10px/right:10px. The only outlier was the standard
+     in-flow bar, which inherited each page shell's --page-gutter (~22-32px) as
+     its side inset and so sat NARROWER page-to-page. Adopting the value the
+     other two already ship makes all four rects identical with the least
+     churn. Consumed with a 10px literal fallback so routes that don't load this
+     sheet still resolve the same. */
+  --topbar-side: 10px;
+  --topbar-shadow: var(--map-overlay-shadow-tight, 0 6px 16px rgba(0, 0, 0, 0.12));
+}
+
 .siteNavBar {
+  /* Installed-app displays (A2HS standalone, native shell): viewport-fit=cover
+     plus black-translucent extends the page under the iOS status bar, leaving
+     this bar's controls buried beneath the clock and untappable. The system
+     inset clears it; env() is 0 wherever the browser's own chrome owns that
+     zone, so ordinary web layouts are unchanged. The floating map variant
+     offsets itself (see .siteNavBarFloating) and is scoped out below. */
   display: flex;
   align-items: center;
   gap: 12px;
@@ -26,6 +77,10 @@
   box-shadow: 0 16px 36px rgba(44, 30, 62, 0.12), 0 5px 14px rgba(255, 90, 95, 0.05);
   backdrop-filter: blur(14px) saturate(1.06);
   -webkit-backdrop-filter: blur(14px) saturate(1.06);
+}
+
+.siteNavBar:not(.siteNavBarFloating) {
+  margin-top: env(safe-area-inset-top, 0px);
 }
 
 /* Content pages embed the bar inside a narrow reading column (~880px), which
@@ -311,7 +366,7 @@
   border-radius: 999px;
   background: linear-gradient(135deg, var(--brass), var(--pink, var(--brass)));
   color: var(--panel-raised);
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 700;
   line-height: 16px;
   text-align: center;
@@ -399,12 +454,54 @@
 @media (max-width: 640px) {
   .siteNavBar {
     gap: 6px;
-    padding: 4px 8px;
-    min-height: 52px;
+    /* Shared frame: 14px rounded-card radius (was the base 999px pill), 52px
+       height, 10px horizontal padding, tight shadow. Identical to the map +
+       landing bars so the bar never changes shape page-to-page.
+       Vertical padding is 3px (was 4px): the bar's tallest child is a 44px
+       touch target and box-sizing is border-box with a 1px frame border, so
+       44 + 3 + 3 + 1 + 1 = 52px — the rendered height now EQUALS --topbar-h
+       instead of overshooting it to 54px (the token is truth). */
+    padding: 3px var(--topbar-pad-x, 10px);
+    min-height: var(--topbar-h, 52px);
+    border-radius: var(--topbar-radius, 14px);
     background: var(--panel-raised);
-    box-shadow: var(--map-overlay-shadow-tight, 0 6px 16px rgba(0, 0, 0, 0.12));
+    box-shadow: var(--topbar-shadow, var(--map-overlay-shadow-tight, 0 6px 16px rgba(0, 0, 0, 0.12)));
     backdrop-filter: none;
     -webkit-backdrop-filter: none;
+  }
+
+  /* Uniform side inset for the IN-FLOW standard bar — land both edges exactly
+     --topbar-side (10px) from the viewport on EVERY page, so the pill is the
+     same rect the fixed landing + map bars occupy and never jumps shape.
+
+     The bar breaks out of its host column with symmetric negative margins;
+     width:auto lets those margins WIDEN it (a fixed width would only shift it).
+     The breakout distance must equal whatever gap the host puts between the
+     viewport edge and the bar's own containing block — but that gap is NOT
+     always --page-gutter. Standard shells (/feed, /tonight) pad by --page-gutter
+     (~22-32px), but others give the bar a differently-padded host: /moment and
+     /u (.profilePage) wrap it in a ZERO-padding shell, /activity pads 16px,
+     /messages 20px. Subtracting the fixed --page-gutter there overshot and
+     dragged the bar (and its wordmark) off the left edge — audit F2's clipped
+     "UBMAXX" and full-bleed bar.
+
+     (100vw - 100%) / 2 measures that real gap geometrically: for any centred,
+     symmetric host, 100% (the bar's containing-block inline size) already nets
+     out every ancestor's padding + centring, so this resolves to the exact
+     distance from the viewport edge to the bar's containing block — 0-gutter,
+     16px, or --page-gutter alike. Pulling back by it and adding --topbar-side
+     pins the left/right edges to 10px from the viewport everywhere. On the
+     standard --page-gutter shells this evaluates to the previous
+     (--topbar-side - --page-gutter), so their rect is unchanged.
+
+     Scoped away from the floating map variant, which owns its own inset below.
+     align-self:stretch is required because some shells (e.g. /feed) are flex
+     columns with align-items:center — without it width:auto would shrink-wrap
+     the bar there instead of filling; it is inert in a plain block host. */
+  .siteNavBar:not(.siteNavBarFloating) {
+    width: auto;
+    align-self: stretch;
+    margin-inline: calc(var(--topbar-side, 10px) - (100vw - 100%) / 2);
   }
 
   .siteNavLinks {
@@ -414,13 +511,16 @@
   /* On the map the floating bar spans the same inset as .mapToolbar — a clean
      compact header twin, never a centred pill that could clip. */
   .siteNavBarFloating {
-    top: calc(10px + env(safe-area-inset-top, 0px));
+    /* Shared frame tokens: same top offset + radius the standard and landing
+       bars now use. Values are unchanged from before (env+10px / 14px); only
+       the source is now the one shared token so all three stay locked together. */
+    top: var(--topbar-inset, calc(10px + env(safe-area-inset-top, 0px)));
     left: var(--map-chrome-inset, 10px);
     right: var(--map-chrome-inset, 10px);
     width: auto;
     max-width: none;
     transform: none;
-    border-radius: var(--map-chrome-radius, 14px);
+    border-radius: var(--topbar-radius, 14px);
   }
 
   /* Taste — header consistency: the wordmark is the plain PubmaxxWordmark on

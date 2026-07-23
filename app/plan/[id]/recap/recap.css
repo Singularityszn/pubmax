@@ -99,8 +99,20 @@ html[data-theme="dark"] {
 
 /* ── Hero ───────────────────────────────────────────────────────────────── */
 .recapHero {
+  position: relative;
   padding: 28px 0 20px;
   border-bottom: 1px solid var(--hairline-strong);
+}
+/* The completed-night seal, stamped top-right of the recap card. */
+.recapHero__seal {
+  position: absolute;
+  top: 18px;
+  right: 0;
+}
+/* Reserve the stamp's corner so the eyebrow and title never run under it. */
+.recapHero__eyebrow,
+.recapHero__title {
+  padding-right: 76px;
 }
 .recapHero__eyebrow {
   margin: 0 0 6px;

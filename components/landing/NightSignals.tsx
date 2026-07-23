@@ -1,7 +1,13 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState, type CSSProperties } from "react";
+import {
+  useEffect,
+  useRef,
+  useState,
+  type CSSProperties,
+  type KeyboardEvent as ReactKeyboardEvent,
+} from "react";
 import { ArrowRight, Check } from "lucide-react";
 
 import type { SignalFamily } from "@/lib/pubPal";
@@ -115,6 +121,8 @@ export const NIGHT_SIGNALS: NightSignal[] = [
 export default function NightSignals() {
   const [active, setActive] = useState(0);
   const [pending, setPending] = useState<SignalFamily | null>(null);
+  const confirmRef = useRef<HTMLDivElement | null>(null);
+  const restoreFocusRef = useRef<HTMLElement | null>(null);
 
   useEffect(() => {
     try {
@@ -125,6 +133,51 @@ export default function NightSignals() {
       // Selection is fully usable when storage is unavailable.
     }
   }, []);
+
+  // Focus management for the optional save dialog: on open, remember the prior
+  // focus and move into the dialog; on close, restore it. Escape + Tab-trap are
+  // handled by onDialogKeyDown so keyboard users can't tab out behind it.
+  useEffect(() => {
+    if (!pending) return;
+    restoreFocusRef.current =
+      document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    const id = window.requestAnimationFrame(() => {
+      const primary = confirmRef.current?.querySelector<HTMLElement>("button:last-of-type");
+      (primary ?? confirmRef.current)?.focus();
+    });
+    return () => {
+      window.cancelAnimationFrame(id);
+      restoreFocusRef.current?.focus?.({ preventScroll: true });
+      restoreFocusRef.current = null;
+    };
+  }, [pending]);
+
+  const onDialogKeyDown = (e: ReactKeyboardEvent<HTMLDivElement>) => {
+    if (e.key === "Escape") {
+      e.stopPropagation();
+      setPending(null);
+      return;
+    }
+    if (e.key !== "Tab") return;
+    const card = confirmRef.current;
+    if (!card) return;
+    const focusables = card.querySelectorAll<HTMLElement>(
+      'button:not([disabled]), [href], [tabindex]:not([tabindex="-1"])',
+    );
+    if (focusables.length === 0) return;
+    const first = focusables[0]!;
+    const last = focusables[focusables.length - 1]!;
+    const activeEl = document.activeElement;
+    if (e.shiftKey) {
+      if (activeEl === first || activeEl === card) {
+        e.preventDefault();
+        last.focus();
+      }
+    } else if (activeEl === last) {
+      e.preventDefault();
+      first.focus();
+    }
+  };
 
   const signal = NIGHT_SIGNALS[active];
   const confirm = () => {
@@ -147,7 +200,7 @@ export default function NightSignals() {
       <header className="nightSignalsIntro">
         <p className="nsKicker">Start with tonight</p>
         <h2 id="signals-title">What are you in the mood for?</h2>
-        <p>Choose a direction, not a personality test. PUBMAXX will keep the route grounded in real places, prices and journeys home.</p>
+        <p>Pick a direction, not a personality test. We keep the route on real pubs, real prices, and a way home.</p>
       </header>
 
       <div className="nightSignalChooser">
@@ -201,7 +254,15 @@ export default function NightSignals() {
       </div>
 
       {pending ? (
-        <div className="signalConfirm" role="dialog" aria-label="Save drink preference">
+        <div
+          className="signalConfirm"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Save drink preference"
+          ref={confirmRef}
+          tabIndex={-1}
+          onKeyDown={onDialogKeyDown}
+        >
           <div>
             <span>Optional</span>
             <p>Remember {pending} as a drink preference?</p>

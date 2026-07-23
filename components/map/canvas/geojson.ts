@@ -133,6 +133,10 @@ export function poisToGeoJSON(pois: Poi[]): GeoJSON.FeatureCollection {
   };
 }
 
+// The instant straight-line paint: joins the stops with straight segments. It
+// carries `source: "straight"` so the map draws it as the dashed "approximate"
+// route (buildScene.buildRoute) until /api/walk-route upgrades routeLineRef to a
+// road-following LineString (source "ors", drawn solid). See PubMapCanvas.
 export function routeToLine(route: Venue[]): GeoJSON.FeatureCollection {
   return {
     type: "FeatureCollection",
@@ -141,7 +145,7 @@ export function routeToLine(route: Venue[]): GeoJSON.FeatureCollection {
         ? [
             {
               type: "Feature" as const,
-              properties: {},
+              properties: { source: "straight" },
               geometry: {
                 type: "LineString" as const,
                 coordinates: route.map((venue) => [venue.longitude, venue.latitude]),

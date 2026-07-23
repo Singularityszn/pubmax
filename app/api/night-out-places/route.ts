@@ -1,7 +1,9 @@
 import { publicApiError } from "@/lib/apiError";
+import { isLondonNightOutPlaceCoordinates } from "@/lib/nightOutPlaceContract.mjs";
 import {
   isNightOutPlaceJob,
   placesForNightOutJob,
+  type NightOutPlaceSnapshot,
 } from "@/lib/nightOutPlaces";
 import { loadNightOutPlaceSnapshot } from "@/lib/nightOutPlaces.server";
 import { withRouteTiming } from "@/lib/routeObservability";
@@ -21,10 +23,6 @@ function finiteParam(value: string | null): number | null {
   return Number.isFinite(number) ? number : null;
 }
 
-function inLondon(lat: number, lng: number): boolean {
-  return lat >= 51.26 && lat <= 51.72 && lng >= -0.55 && lng <= 0.3;
-}
-
 function jsonResponse(body: unknown): Response {
   return Response.json(body, {
     headers: {
@@ -33,9 +31,33 @@ function jsonResponse(body: unknown): Response {
   });
 }
 
-export const GET = withRouteTiming("night-out-places", getHandler);
+type NightOutPlacesRouteDependencies = {
+  now: () => Date;
+  loadSnapshot: () => NightOutPlaceSnapshot;
+};
 
-async function getHandler(request: Request): Promise<Response> {
+const DEFAULT_DEPENDENCIES: NightOutPlacesRouteDependencies = {
+  now: () => new Date(),
+  loadSnapshot: () => loadNightOutPlaceSnapshot(),
+};
+
+/** Injectable clock/artifact seam keeps route tests independent of wall time and disk. */
+export function createNightOutPlacesHandler(
+  dependencies: Partial<NightOutPlacesRouteDependencies> = {},
+): (request: Request) => Promise<Response> {
+  const resolved = { ...DEFAULT_DEPENDENCIES, ...dependencies };
+  return (request) => getHandler(request, resolved);
+}
+
+export const GET = withRouteTiming(
+  "night-out-places",
+  createNightOutPlacesHandler(),
+);
+
+async function getHandler(
+  request: Request,
+  dependencies: NightOutPlacesRouteDependencies,
+): Promise<Response> {
   const params = new URL(request.url).searchParams;
   const job = params.get("job")?.trim() ?? "";
   if (!isNightOutPlaceJob(job)) {
@@ -48,7 +70,11 @@ async function getHandler(request: Request): Promise<Response> {
 
   const lat = finiteParam(params.get("lat"));
   const lng = finiteParam(params.get("lng"));
-  if (lat === null || lng === null || !inLondon(lat, lng)) {
+  if (
+    lat === null ||
+    lng === null ||
+    !isLondonNightOutPlaceCoordinates(lat, lng)
+  ) {
     return publicApiError(
       "A valid London anchor is required.",
       "INVALID_LONDON_ANCHOR",
@@ -66,14 +92,14 @@ async function getHandler(request: Request): Promise<Response> {
     MAX_RADIUS_KM,
     Math.max(0.1, requestedRadius ?? DEFAULT_RADIUS_KM),
   );
-  const snapshot = loadNightOutPlaceSnapshot();
+  const snapshot = dependencies.loadSnapshot();
   const places = placesForNightOutJob(snapshot.places, {
     job,
     lat,
     lng,
     radiusKm,
     limit,
-    now: new Date(),
+    now: dependencies.now(),
   });
 
   return jsonResponse({

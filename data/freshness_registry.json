@@ -64,10 +64,10 @@
       "class": "cron",
       "artifact": "public/data/weather/latest.json",
       "stamp": { "kind": "field", "pointer": "generatedAt" },
-      "cadence": "daily, 14:15 UTC",
+      "cadence": "every 6h via Vercel cron (0 */6 * * * UTC); observedAt is store-backed when migration 0047 is applied, else the committed file",
       "stalenessBudgetHours": 48,
-      "refreshWorkflow": "Weather cache refresh",
-      "gate": "none (Open-Meteo is keyless)"
+      "refreshWorkflow": "Vercel cron GET /api/cron/refresh-weather → durable weather_snapshots store (read store-first via lib/weatherSnapshots.server); committed file is the pre-migration/degraded fallback. GitHub Actions retired.",
+      "gate": "none (Open-Meteo is keyless — the weather feed always runs)"
     },
     {
       "id": "whats_on",
@@ -75,10 +75,10 @@
       "class": "cron",
       "artifact": "public/data/whats_on/latest.json",
       "stamp": { "kind": "field", "pointer": "generatedAt" },
-      "cadence": "target daily 15:45 UTC (events vertical); baseline verticals episodic",
+      "cadence": "SLIM tonight-window revalidation daily via Vercel cron (0 14 * * * UTC = 15:00 London BST / 14:00 GMT); observedAt is store-backed (feed_freshness) after migration 0047, else the committed baseline file. Full ingest is out-of-function (see docs/CRON_PLANE_RUNBOOK.md).",
       "stalenessBudgetHours": 48,
-      "refreshWorkflow": "What's-On events refresh (feat/event-sources — cron commented out until keys)",
-      "gate": "TICKETMASTER_API_KEY and/or SKIDDLE_API_KEY (Skiddle needs written commercial approval). Baseline rows are hand-verified transforms; live layer also blends CityMCP at request time."
+      "refreshWorkflow": "Vercel cron GET /api/cron/refresh-whats-on revalidates the servable tonight window (baseline blended with live CityMCP at request time) and stamps feed_freshness. FULL ingest (baseline scrape aggregation via scripts/refresh_whats_on.mjs; events via scripts/whatson/eventsRefresh.mjs) stays a LOCAL/manual job — it needs pre-scraped agent outputs and writes committed files a read-only serverless FS cannot persist. GitHub Actions retired.",
+      "gate": "Full-ingest keys: EXA_API_KEY / FIRECRAWL_API_KEY (baseline scrape), TICKETMASTER_API_KEY and/or SKIDDLE_API_KEY (events; Skiddle needs written commercial approval). Absent keys degrade loud-but-soft: the slim cron logs + skips full ingest. Baseline rows are hand-verified transforms; live layer also blends CityMCP at request time."
     },
     {
       "id": "whats_on_sport_fixtures",
@@ -166,6 +166,17 @@
       "cadence": "live — fetched per request from api.tfl.gov.uk, never disk-cached",
       "stalenessBudgetHours": null,
       "refreshWorkflow": "live-per-request (app/api/last-train)",
+      "gate": "none (keyless); TFL_APP_KEY only raises rate limits"
+    },
+    {
+      "id": "tfl_disruption",
+      "label": "TfL material disruption (night-shaping layer)",
+      "class": "live",
+      "artifact": null,
+      "stamp": null,
+      "cadence": "live — TfL Line Status fetched server-side and revalidated every 5 min (Next data cache), then filtered to material disruptions (suspensions, severe delays, planned closures overlapping tonight 17:00-02:00 London) touching the active night patch. No disk artifact; nothing renders when clear.",
+      "stalenessBudgetHours": null,
+      "refreshWorkflow": "live-per-request with 5-min server revalidate (app/api/tfl-disruption via lib/tflDisruption)",
       "gate": "none (keyless); TFL_APP_KEY only raises rate limits"
     },
     {

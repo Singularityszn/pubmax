@@ -35,6 +35,7 @@ import {
   isTransitNetworkVisible,
 } from "@/lib/poiToggleGroups";
 import MapLayersControl from "@/components/map/MapLayersControl";
+import LandmarkPhotoCredit from "@/components/LandmarkPhotoCredit";
 import type { CityId } from "@/lib/cities";
 import { DEFAULT_CITY_ID, getCity } from "@/lib/cities";
 import { resolveCompassAction } from "@/lib/mapCompass";
@@ -85,6 +86,12 @@ import { easeOutCubic, PUB_SELECT_PITCH, PUB_SELECT_PITCH_MOBILE, PUB_SELECT_DUR
 import { mobileSelectCameraOffset } from "@/lib/sheetSnap";
 import { nearbyVenuesForMap } from "@/lib/nearby";
 import type { MapViewportSnapshot } from "@/lib/mobileShell";
+import {
+  PAINT_WATCHDOG_INTERVAL_MS,
+  PAINT_WATCHDOG_MAX_RETRIES,
+  shouldRecoverPaint,
+} from "@/lib/mapPaintWatchdog";
+import { classifyTileFailure, pruneTileFailures } from "@/lib/mapTileFailure";
 
 
 type PubMapCanvasProps = {
@@ -195,6 +202,12 @@ type PubMapCanvasProps = {
   poiHidden?: Record<PoiCategory, boolean>;
   onPoiHiddenChange?: (next: Record<PoiCategory, boolean>) => void;
   hideLayersControl?: boolean;
+  /**
+   * Area button fly-to: bump `token` to fly the camera to `center` (a Night
+   * Area centre). Reduced-motion is honoured by the shared `cinematic` helper
+   * (it jumps at duration 0). Null / an unchanged token is a no-op.
+   */
+  focusPoint?: { center: [number, number]; zoom: number; token: number } | null;
   onViewportChange?: (viewport: MapViewportSnapshot) => void;
   /**
    * Emitted (on first idle + every moveend) with the current viewport edges so
@@ -285,6 +298,7 @@ export default function PubMapCanvas({
   poiHidden: controlledPoiHidden,
   onPoiHiddenChange,
   hideLayersControl = false,
+  focusPoint = null,
   onViewportChange,
   onBoundsChange,
 }: PubMapCanvasProps) {
@@ -615,6 +629,21 @@ export default function PubMapCanvas({
     cinematic({ center: landmark.coordinates, zoom: 15, duration: 800 }, "landmark");
   }, [initialLandmarkId, mapReady, landmarkById, cinematic]);
 
+  // Area button "go somewhere else": fly the camera to a Night Area centre when
+  // the parent bumps focusPoint.token. cinematic honours reduced-motion (it
+  // jumps at duration 0), so this needs no extra guard here.
+  const focusTokenRef = useRef(0);
+  useEffect(() => {
+    if (!mapReady || !focusPoint || focusPoint.token === focusTokenRef.current) {
+      return;
+    }
+    focusTokenRef.current = focusPoint.token;
+    cinematic(
+      { center: focusPoint.center, zoom: focusPoint.zoom, duration: 900 },
+      "area",
+    );
+  }, [mapReady, focusPoint, cinematic]);
+
   useEffect(() => {
     if (!hoveredVenueId) return;
     const id = hoveredVenueId;
@@ -871,6 +900,10 @@ export default function PubMapCanvas({
       });
     };
     map.on("moveend", () => {
+      // Audit F5: every camera move (programmatic flys included) ends on a
+      // fresh present. A repaint moves no camera, so this cannot re-fire
+      // moveend; deliberately NOT hooked on `idle` (that would loop).
+      map.triggerRepaint();
       const center = map.getCenter();
       onViewportChangeRef.current?.({
         center: [center.lng, center.lat],
@@ -956,6 +989,12 @@ export default function PubMapCanvas({
           detail: { reason, generation },
         }));
         startPinEntrance();
+        // Audit F5: MapLibre renders on demand and can park on the pre-tile
+        // black backbuffer after a programmatic arrival (nothing in the custom
+        // RAF loop dirties the scene without a route or selection). Force one
+        // present at the first painted-frame reveal so arrival never shows a
+        // black canvas until the user touches the map.
+        map.triggerRepaint();
       },
     });
     const buildScene = () => {
@@ -978,6 +1017,9 @@ export default function PubMapCanvas({
       try {
         buildSceneBody();
         settleSceneReady();
+        // Audit F5: one present after the scene graph builds, so a settled
+        // style never waits on user input for its first frame.
+        map.triggerRepaint();
       } catch (error) {
         pinRevealCoordinator.cancel();
         console.error("[pubmap] buildScene failed", error);
@@ -1222,10 +1264,87 @@ export default function PubMapCanvas({
       }, STYLE_LOAD_TIMEOUT_MS);
     };
     const fallbackTimer = setTimeout(swapToBasemapFallback, STYLE_LOAD_TIMEOUT_MS);
-    // An error before the first style loads means the style URL itself failed;
-    // tile hiccups after load are harmless and ignored.
-    map.on("error", () => {
-      if (!styleLoaded) swapToBasemapFallback();
+    // ONE recovery budget per mount, shared by both recovery nets (the tile
+    // classifier here and the paint watchdog below), so the two can never
+    // compound into more than PAINT_WATCHDOG_MAX_RETRIES total actions.
+    let recoverySpent = 0;
+    // An error before the first style loads means the style URL itself failed.
+    // AFTER load, errors are classified (lib/mapTileFailure): the paint
+    // watchdog below only sees a parked frame loop, so a source that fails
+    // while frames keep presenting would otherwise paint black at 60fps with
+    // no recovery and no message. A lone tile miss stays ignored; a burst (or
+    // a sprite/glyph failure, which breaks the whole map) spends ONE style
+    // reload from the same recovery budget as the paint watchdog, and if the
+    // failure survives that reload the honest error card takes over. The retry
+    // is deferred to a microtask because MapLibre fires mutation-validation
+    // errors synchronously from inside buildScene - a setStyle re-entering
+    // mid-build would leave every remaining addLayer throwing on an unloaded
+    // style (same hazard as the flag-setter ordering above).
+    let tileFailureStamps: number[] = [];
+    let tileRetrySpent = false;
+    let tileFailureSurfaced = false;
+    let tileRetryQueued = false;
+    map.on("error", (event) => {
+      if (!styleLoaded) {
+        swapToBasemapFallback();
+        return;
+      }
+      if (tileFailureSurfaced || mapRef.current !== map) return;
+      const now = performance.now();
+      tileFailureStamps = pruneTileFailures(tileFailureStamps, now);
+      tileFailureStamps.push(now);
+      const message = String(
+        (event as { error?: { message?: unknown } })?.error?.message ?? "",
+      );
+      const critical = /sprite|glyph/i.test(message);
+      const decision = classifyTileFailure({
+        now,
+        errorTimestamps: tileFailureStamps,
+        criticalFailure: critical,
+        documentVisible: document.visibilityState !== "hidden",
+        // A flyTo legitimately outruns the tile stream and paints black for a
+        // few seconds; the classifier stays silent until the flight ends.
+        cameraInFlight: map.isMoving(),
+        retrySpent: tileRetrySpent,
+        recoveryBudgetLeft: PAINT_WATCHDOG_MAX_RETRIES - recoverySpent,
+      });
+      if (decision === "ignore") return;
+      if (decision === "retry") {
+        if (tileRetryQueued) return;
+        tileRetryQueued = true;
+        queueMicrotask(() => {
+          tileRetryQueued = false;
+          if (mapRef.current !== map || tileFailureSurfaced) return;
+          tileRetrySpent = true;
+          recoverySpent += 1; // shared budget with the paint watchdog
+          tileFailureStamps = [];
+          console.warn("[pubmap] tile failure burst, reloading style", {
+            critical,
+            detail: message || undefined,
+          });
+          const styles = usingFallback ? FALLBACK_STYLES : MAP_STYLES;
+          map.setStyle(styles[themeRef.current], { diff: false });
+        });
+        return;
+      }
+      // surface: the bounded retry (or the budget) is spent and tiles are
+      // still failing. Same shape as the context-lost path: settle the scene
+      // state, stop the hang guard, and show the honest card with Retry.
+      tileFailureSurfaced = true;
+      sceneSettled = true;
+      clearTimeout(hangFailTimer);
+      console.warn("[pubmap] tile failure survived reload, surfacing", {
+        critical,
+        detail: message || undefined,
+      });
+      queueMicrotask(() =>
+        reportMapError({
+          kind: "tiles",
+          message:
+            "The map couldn't load its tiles right now. The pub list and crawl planner still work.",
+          detail: message || "Tile source failure after style load",
+        }),
+      );
     });
 
     // --- Post-init context loss. A GPU reset fires `webglcontextlost`; the
@@ -1297,6 +1416,103 @@ export default function PubMapCanvas({
       }, FIRST_FRAME_TIMEOUT_MS);
     };
     armFirstFrameWatchdog();
+
+    // --- Black-canvas recovery net (two mechanisms). These are NOT a render
+    // driver — #544's event-based kicks (style.load scene build, pin-reveal,
+    // moveend triggerRepaint) remain the primary presenters. This net only
+    // catches the failure that dodges every one of those events: a "Plan
+    // tonight" sheet opening resizes the map container, and a missed resize / a
+    // throttled rAF present (iOS Low Power Mode) / a backgrounded-then-resumed
+    // tab can leave the renderer parked on its pre-tile black backbuffer with no
+    // further event to dirty the scene — DOM overlays alive, canvas solid black.
+
+    // (1) Resize integrity. MapLibre's own trackResize watches the WINDOW, not
+    // the container, so a layout change that resizes .maplibreMap without a
+    // window resize (a sheet opening/closing) never reaches map.resize() — the
+    // canonical black-canvas recovery. Observe the real container element and
+    // call resize() on any box change, debounced to a microtask so a burst of
+    // sub-frame resize entries collapses to a single resize() per tick.
+    let resizePending = false;
+    const paintObserver = new ResizeObserver(() => {
+      if (resizePending) return;
+      resizePending = true;
+      queueMicrotask(() => {
+        resizePending = false;
+        if (mapRef.current === map) map.resize();
+      });
+    });
+    paintObserver.observe(container);
+
+    // (2) Paint watchdog. Stamp the last real present from MapLibre's "render"
+    // event (fires only from an actual frame), then poll on a coarse interval:
+    // if the map/style are loaded, the canvas is on-screen with a non-zero size,
+    // and no frame has presented for longer than the stall threshold, fire ONE
+    // recovery (resize + triggerRepaint). A capped retry counter means it can
+    // never loop hot — after the cap it logs one structured warning and stops.
+    // The decision itself is the pure shouldRecoverPaint() (lib/mapPaintWatchdog)
+    // so it stays hermetically testable; this wrapper only owns the side effects.
+    let lastRenderAt: number | null = null;
+    const stampRender = () => {
+      lastRenderAt = performance.now();
+    };
+    map.on("render", stampRender);
+    let paintCapWarned = false;
+    let paintWatchdogTimer: ReturnType<typeof setInterval> | undefined;
+    const samplePaint = () => {
+      if (document.visibilityState === "hidden") return; // paused while hidden
+      if (mapRef.current !== map) return;
+      const canvas = map.getCanvas();
+      // A detached/display:none canvas reports zero offset dimensions; a live,
+      // on-screen canvas reports its CSS box. Guard on the backing size too.
+      const onScreen = canvas.offsetWidth > 0 && canvas.offsetHeight > 0;
+      const recover = shouldRecoverPaint({
+        now: performance.now(),
+        lastRenderAt,
+        documentVisible: true,
+        mapLoaded: Boolean(map.isStyleLoaded()),
+        canvasVisible: onScreen,
+        canvasWidth: canvas.width,
+        canvasHeight: canvas.height,
+        retries: recoverySpent,
+      });
+      if (!recover) return;
+      recoverySpent += 1;
+      map.resize();
+      map.triggerRepaint();
+      if (recoverySpent >= PAINT_WATCHDOG_MAX_RETRIES && !paintCapWarned) {
+        paintCapWarned = true;
+        console.warn("[pubmap] paint watchdog exhausted its recovery budget", {
+          retries: recoverySpent,
+          lastRenderAt,
+          intervalMs: PAINT_WATCHDOG_INTERVAL_MS,
+        });
+        if (paintWatchdogTimer) clearInterval(paintWatchdogTimer);
+        paintWatchdogTimer = undefined;
+      }
+    };
+    const startPaintWatchdog = () => {
+      if (paintWatchdogTimer || paintCapWarned) return;
+      paintWatchdogTimer = setInterval(samplePaint, PAINT_WATCHDOG_INTERVAL_MS);
+    };
+    const stopPaintWatchdog = () => {
+      if (paintWatchdogTimer) clearInterval(paintWatchdogTimer);
+      paintWatchdogTimer = undefined;
+    };
+    // Pause the interval entirely while the tab is hidden (no wasted wakes, and
+    // no false stall from a legitimately throttled background rAF); resume — and
+    // stamp — on return so a backgrounded-then-resumed map gets a clean first
+    // sample and one present.
+    const onPaintVisibility = () => {
+      if (document.visibilityState === "hidden") {
+        stopPaintWatchdog();
+      } else if (mapRef.current === map) {
+        lastRenderAt = performance.now();
+        map.triggerRepaint();
+        startPaintWatchdog();
+      }
+    };
+    document.addEventListener("visibilitychange", onPaintVisibility);
+    if (document.visibilityState !== "hidden") startPaintWatchdog();
 
     // --- Click + cursor wiring (see components/map/canvas/interactions.ts).
     // Pub-first hit testing: a single map click queries pubs/route stops before
@@ -1428,6 +1644,11 @@ export default function PubMapCanvas({
       cancelAnimationFrame(rafId);
       if (firstFrameTimer) clearTimeout(firstFrameTimer);
       map.off("render", onFirstFrame);
+      // Black-canvas recovery net teardown.
+      paintObserver.disconnect();
+      map.off("render", stampRender);
+      stopPaintWatchdog();
+      document.removeEventListener("visibilitychange", onPaintVisibility);
       clearTimeout(fallbackTimer);
       if (hardFailTimer) clearTimeout(hardFailTimer);
       clearTimeout(hangFailTimer);
@@ -1631,6 +1852,45 @@ export default function PubMapCanvas({
       applySelectionMute(map, Boolean(selectedIdRef.current), selectionMuteStoreRef.current);
     });
   }, [route, selectedVenueId, mapReady, applyToMap, applyRouteData]);
+
+  // Road-following upgrade (T4). The effect above paints the straight line
+  // instantly (routeToLine, drawn dashed as "approximate"); here we ask
+  // /api/walk-route to redraw the SAME ordered stops along real walking roads.
+  // On an "ors" success we swap routeLineRef to the road LineString and repaint
+  // (buildRoute draws it solid); on any failure the straight dashed line simply
+  // stays. Debounced via an AbortController so rapid stop edits collapse to the
+  // last route (mirrors the hover-detail fetch above). `routeCoordKey` is the
+  // ordered `lng,lat;lng,lat` wire format /api/walk-route decodes (parseStops),
+  // and re-fires only when the stop coordinates actually change.
+  const routeCoordKey = route.map((v) => `${v.longitude},${v.latitude}`).join(";");
+  useEffect(() => {
+    if (!mapReady) return;
+    if (routeCoordKey.split(";").length < 2) return;
+    const controller = new AbortController();
+    const timeout = window.setTimeout(() => controller.abort(), 8000);
+    fetch(`/api/walk-route?stops=${encodeURIComponent(routeCoordKey)}`, {
+      signal: controller.signal,
+    })
+      .then((response) => (response.ok ? response.json() : null))
+      .then((body: { line?: GeoJSON.FeatureCollection; source?: string } | null) => {
+        // Only upgrade when the server actually routed roads; a "straight"
+        // response is the same geometry we already painted, so leave it dashed.
+        if (!body || body.source !== "ors" || !body.line?.features?.length) return;
+        routeLineRef.current = body.line;
+        applyRouteData();
+      })
+      .catch((error) => {
+        if (error instanceof DOMException && error.name === "AbortError") return;
+        // fail-soft: keep the instant straight line.
+      })
+      .finally(() => {
+        window.clearTimeout(timeout);
+      });
+    return () => {
+      window.clearTimeout(timeout);
+      controller.abort();
+    };
+  }, [routeCoordKey, mapReady, applyRouteData]);
 
   const didFitQueryOnArrivalRef = useRef(false);
   useEffect(() => {
@@ -2073,7 +2333,7 @@ export default function PubMapCanvas({
                 loading="lazy"
                 decoding="async"
               />
-              <figcaption>Photo · {activeLandmark.image.credit}</figcaption>
+              <LandmarkPhotoCredit image={activeLandmark.image} />
             </figure>
           ) : null}
           <div className="landmarkCardHead">

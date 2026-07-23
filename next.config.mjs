@@ -95,6 +95,25 @@ const nextConfig = {
     // links and search-engine equity alive instead of dropping visitors on an
     // unbranded 404. __tests__/storiesRedirect.test.ts pins this.
     return [
+      // Host canonicalisation (SEO split-brain fix, docs/SEO_CANONICAL_RUNBOOK
+      // _2026-07-21.md). www.pubmaxxing.com was serving a full 200 MIRROR of the
+      // app instead of redirecting to the apex, so Google indexed it as a second
+      // site and pinned a stale crawl (old title/favicon) under the www host.
+      // Every page already emits an apex `rel=canonical` (metadataBase +
+      // per-route alternates.canonical), but a canonical is only a HINT — a URL
+      // that answers 200 with no redirect keeps getting indexed. This permanent
+      // (308) host redirect is the DIRECTIVE that collapses www into the apex,
+      // and it lives in-repo so the consolidation holds regardless of the Vercel
+      // dashboard domain config (which should ALSO be set to redirect www→apex;
+      // see the runbook). `has` host match fires only for the www host, so the
+      // apex is never self-redirected. :path* preserves the full path + carries
+      // "/" through to the apex root. __tests__/wwwHostRedirect.test.ts pins it.
+      {
+        source: "/:path*",
+        has: [{ type: "host", value: "www.pubmaxxing.com" }],
+        destination: "https://pubmaxxing.com/:path*",
+        permanent: true,
+      },
       { source: "/stories", destination: "/feed", permanent: true },
       { source: "/stories/:path*", destination: "/feed", permanent: true },
       // The You surface lives at /u/you (the nav points there); the bare /you

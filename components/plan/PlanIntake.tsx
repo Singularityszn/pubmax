@@ -1,9 +1,9 @@
 "use client";
 
-import { useEffect, useMemo, useRef, type KeyboardEvent } from "react";
-import { Check, MapPin, RotateCcw } from "lucide-react";
+import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from "react";
+import { Check, LocateFixed, MapPin, RotateCcw } from "lucide-react";
 
-import { writeRememberedArea } from "@/lib/nightPatches";
+import { nearestNightPatch, writeRememberedArea } from "@/lib/nightPatches";
 import {
   PLAN_ACCESSIBILITY_NEEDS,
   PLAN_BUDGET_OPTIONS,
@@ -93,9 +93,78 @@ export default function PlanIntake({
 }) {
   const headingRef = useRef<HTMLHeadingElement | null>(null);
   const hasRenderedRef = useRef(false);
+  const draftRef = useRef(draft);
+  const locationRequestRef = useRef(0);
+  const [locationState, setLocationState] = useState<{
+    kind: "idle" | "locating" | "success" | "error";
+    message: string;
+  }>({ kind: "idle", message: "" });
   const summary = useMemo(() => planIntakeSummary(draft), [draft]);
   const stepIndex = PLAN_INTAKE_STEPS.indexOf(draft.currentStep);
   const copy = STEP_COPY[draft.currentStep];
+
+  useEffect(() => {
+    draftRef.current = draft;
+  }, [draft]);
+
+  useEffect(() => () => {
+    locationRequestRef.current += 1;
+  }, []);
+
+  function cancelLocationRequest(): void {
+    locationRequestRef.current += 1;
+    setLocationState({ kind: "idle", message: "" });
+  }
+
+  function useCurrentLocation(): void {
+    const requestId = locationRequestRef.current + 1;
+    locationRequestRef.current = requestId;
+    if (!navigator.geolocation) {
+      setLocationState({
+        kind: "error",
+        message: "Location is not available in this browser. Pick an area instead.",
+      });
+      return;
+    }
+
+    setLocationState({ kind: "locating", message: "Finding your nearest night-out area…" });
+    navigator.geolocation.getCurrentPosition(
+      ({ coords }) => {
+        if (locationRequestRef.current !== requestId || draftRef.current.currentStep !== "area") return;
+        const patch = nearestNightPatch(coords.latitude, coords.longitude);
+        if (!patch) {
+          const finite = Number.isFinite(coords.latitude) && Number.isFinite(coords.longitude);
+          setLocationState({
+            kind: "error",
+            message: finite
+              ? "That location is outside London. Pick an area to keep planning."
+              : "We could not use that location. Try again or pick an area.",
+          });
+          return;
+        }
+
+        writeRememberedArea({ kind: "patch", id: patch.id });
+        onChange({
+          ...draftRef.current,
+          answers: { ...draftRef.current.answers, area: patch.id },
+        });
+        setLocationState({
+          kind: "success",
+          message: `${patch.label} is your nearest supported area. Continue when you are ready.`,
+        });
+      },
+      (error) => {
+        if (locationRequestRef.current !== requestId || draftRef.current.currentStep !== "area") return;
+        const message = error.code === error.PERMISSION_DENIED
+          ? "Location access was denied. Pick an area or allow it in your browser settings."
+          : error.code === error.TIMEOUT
+            ? "We could not get your location in time. Try again or pick an area."
+            : "We could not find your location. Check your signal or pick an area.";
+        setLocationState({ kind: "error", message });
+      },
+      { enableHighAccuracy: false, maximumAge: 5 * 60 * 1000, timeout: 10_000 },
+    );
+  }
 
   useEffect(() => {
     if (!hasRenderedRef.current) {
@@ -143,7 +212,14 @@ export default function PlanIntake({
           <p className="planIntake__kicker">Shape the route</p>
           <p className="planIntake__count">Step {stepIndex + 1} of {PLAN_INTAKE_STEPS.length}</p>
         </div>
-        <button type="button" className="planIntake__describe" onClick={() => onChange(skipRemainingPlanIntake(draft))}>
+        <button
+          type="button"
+          className="planIntake__describe"
+          onClick={() => {
+            cancelLocationRequest();
+            onChange(skipRemainingPlanIntake(draft));
+          }}
+        >
           Describe instead
         </button>
       </header>
@@ -171,20 +247,40 @@ export default function PlanIntake({
         <p className="planIntake__note">{copy.note}</p>
 
         {draft.currentStep === "area" ? (
-          <div className="planIntake__choices planIntake__choices--areas" role="group" aria-label="Choose an area">
-            {NIGHT_PATCHES.map((patch) => (
-              <button
-                key={patch.id}
-                type="button"
-                aria-pressed={draft.answers.area === patch.id}
-                onClick={() => {
-                  writeRememberedArea({ kind: "patch", id: patch.id });
-                  onChange({ ...draft, answers: { ...draft.answers, area: patch.id } });
-                }}
+          <div className="planIntake__areaPicker">
+            <button
+              type="button"
+              className="planIntake__locate"
+              onClick={useCurrentLocation}
+              disabled={locationState.kind === "locating"}
+            >
+              <LocateFixed size={17} aria-hidden="true" />
+              {locationState.kind === "locating" ? "Finding your area…" : "Use my location"}
+            </button>
+            {locationState.kind !== "idle" ? (
+              <p
+                className={`planIntake__locationStatus${locationState.kind === "error" ? " planIntake__locationStatus--error" : ""}`}
+                role={locationState.kind === "error" ? "alert" : "status"}
               >
-                <MapPin size={16} aria-hidden="true" /> {patch.label}
-              </button>
-            ))}
+                {locationState.message}
+              </p>
+            ) : null}
+            <div className="planIntake__choices planIntake__choices--areas" role="group" aria-label="Choose an area">
+              {NIGHT_PATCHES.map((patch) => (
+                <button
+                  key={patch.id}
+                  type="button"
+                  aria-pressed={draft.answers.area === patch.id}
+                  onClick={() => {
+                    cancelLocationRequest();
+                    writeRememberedArea({ kind: "patch", id: patch.id });
+                    onChange({ ...draft, answers: { ...draft.answers, area: patch.id } });
+                  }}
+                >
+                  <MapPin size={16} aria-hidden="true" /> {patch.label}
+                </button>
+              ))}
+            </div>
           </div>
         ) : null}
 
@@ -330,14 +426,24 @@ export default function PlanIntake({
           }}
         >Back</button>
         <div>
-          <button type="button" className="planIntake__skip" onClick={() => onChange(settlePlanIntakeStep(draft, { skip: true }))}>
+          <button
+            type="button"
+            className="planIntake__skip"
+            onClick={() => {
+              cancelLocationRequest();
+              onChange(settlePlanIntakeStep(draft, { skip: true }));
+            }}
+          >
             Skip for now
           </button>
           <button
             type="button"
             className="planIntake__continue"
             disabled={!planIntakeStepHasAnswer(draft)}
-            onClick={() => onChange(settlePlanIntakeStep(draft))}
+            onClick={() => {
+              cancelLocationRequest();
+              onChange(settlePlanIntakeStep(draft));
+            }}
           >
             {stepIndex === PLAN_INTAKE_STEPS.length - 1 ? "Use these details" : "Continue"}
           </button>

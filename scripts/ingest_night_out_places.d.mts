@@ -88,7 +88,11 @@ export function loadCurrentPlaces(
   nowMs: number,
   outputPath?: string,
 ): IngestedNightOutPlace[];
-export function writeSnapshot(snapshot: unknown, outputPath?: string): void;
+export function writeSnapshot(
+  snapshot: unknown,
+  outputPath?: string,
+  registryPath?: string,
+): void;
 export function runIngestion(options?: {
   dryRun?: boolean;
   limit?: number;

@@ -90,7 +90,7 @@ export default function BoroughPassportSlice({ boroughName, venueIds }: BoroughP
         </div>
         <div className="boroughPassportStat">
           <dt>Cheapest pint</dt>
-          <dd>{passport.cheapestPintGbp == null ? "—" : `£${passport.cheapestPintGbp.toFixed(2)}`}</dd>
+          <dd>{passport.cheapestPintGbp == null ? "–" : `£${passport.cheapestPintGbp.toFixed(2)}`}</dd>
         </div>
       </dl>
       {hasActivity ? (

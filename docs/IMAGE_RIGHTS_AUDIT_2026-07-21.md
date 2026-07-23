@@ -131,10 +131,16 @@ is **re-served from our origin** and **CDN-cached up to 7 days**. Assessment:
 
 ## 5. Attribution obligations currently unmet
 
+> **Finding 2 (Wikimedia landmarks) RESOLVED 2026-07-21** — see §9. The 34
+> landmark Commons photos now render author + licence + a link to the file page.
+> The 2 Wikimedia photos that flowed through the venue proxy (mislabelled "Photo:
+> pub website", no author slot) were dropped rather than shipped unattributed.
+
 - **Wikimedia (landmarks):** `lib/landmarks.ts` sets `credit: "Wikimedia Commons"`
   and the card renders `Photo · Wikimedia Commons`. Most Commons files are
   CC-BY / CC-BY-SA and require **author name + license name + link**, not just
   the platform name. Crediting the platform is **not** compliant attribution.
+  **(Fixed 2026-07-21 — §9.)**
 - **Flickr (proxied):** CC-licensed Flickr photos need the photographer's name +
   a link back to the photo page. None shown.
 - **Google Places (proxied `googleusercontent`):** Places photos require the
@@ -181,7 +187,7 @@ re-hosting exposure — that is the proxy's job, §7.)
    author + license (+ link) to `lib/landmarks.ts` `image` objects and render
    them in the landmark card / chapter page. Same pattern for any Flickr-CC or
    Google-Places photo retained via the proxy — surface the attribution the
-   provenance chip already has a slot for.
+   provenance chip already has a slot for. **DONE 2026-07-21 — §9.**
 3. **Drop the pure-platform-cache origins outright.** `encrypted-tbn0.gstatic.com`
    (Google's thumbnail cache — worst posture, thumbnails of others' images) and
    `media-cdn.tripadvisor.com` (explicit ToS breach) should be removed from the
@@ -208,10 +214,56 @@ re-hosting exposure — that is the proxy's job, §7.)
 2. **Fix Wikimedia attribution this week.** Landmark photos credit only
    "Wikimedia Commons"; CC-BY-SA requires author + license + link. It is cheap,
    it is a real legal obligation, and the UI already has a provenance slot for it.
+   **DONE 2026-07-21 — §9.**
 3. **Ship the "proxy-or-nothing" CSP (done here) and delete the worst origins.**
    The 9 dead brand/platform origins are removed from the CSP in this PR; next,
    purge `gstatic` thumbnails and `media-cdn.tripadvisor.com` from the data +
    proxy allowlist so the highest-risk sources can't be served at all.
+
+## 9. Finding 2 resolution — Wikimedia CC attribution (2026-07-21)
+
+**Objective met:** every Wikimedia-sourced image PUBMAXX renders now carries
+compliant attribution (author + licence short name + a link to the Commons file
+page), or has been honestly dropped.
+
+**Enrichment (data side, additive).** `scripts/enrich_landmark_attribution.mjs`
+reads the `commons("<file>")` calls out of `lib/landmarks.ts`, asks the Commons
+API (`action=query&prop=imageinfo&iiprop=extmetadata|url`) for each file's
+`Artist`, `LicenseShortName`, `LicenseUrl` and canonical file-page URL, cleans
+the Artist HTML to plain text, and writes the observed-at table to
+`public/data/landmark_image_attribution.json` (`observedAt: 2026-07-21`). **34 of
+34** landmark files enriched, 0 missed. `lib/landmarks.ts` merges the table into
+each `image` object at module load through additive optional fields (`author`,
+`licenseShortName`, `licenseUrl`, `sourcePageUrl`); nothing is fetched at render
+time. One file (the Gherkin) is public domain, so it carries a licence name with
+no licence link — rendered as plain text.
+
+**Render (both direct-render surfaces).** A shared `LandmarkPhotoCredit`
+component (fed by the pure, tested `lib/landmarkCredit.ts` builder) replaces the
+old `Photo · Wikimedia Commons` figcaption on:
+
+- the map landmark card (`components/PubMapCanvas.tsx`), and
+- the landmark chapter page (`app/landmark/[id]/page.tsx`).
+
+It renders `Photo: <author> · <licence link> · via <file-page link>` — a compact
+credit line in the existing provenance idiom, plain per the taste doctrine, with
+alt text preserved. A photo missing author metadata falls back to the honest
+platform-only credit.
+
+**Honest drops (proxied venue photos).** Two Wikimedia Commons photos sat in the
+served `pint_prices_app_dataset.json` `image_url` field (Coach & Horses ×7 rows,
+The Flask ×1 row) and rendered through `/api/image-proxy` via `VenueImage`, which
+mislabelled them "Photo: pub website" and has no per-image author slot.
+Retrofitting that shared render path for two of 3,773 rows was disproportionate,
+so those `image_url` values were blanked (the established no-photo convention;
+the venues fall back to the community/gradient state). Listed here and in the PR
+for owner review rather than silently removed.
+
+**Tests.** `__tests__/landmarkCredit.test.ts` covers the present-fields path
+(every landmark image carries author + licence + file-page link), the
+public-domain licence-as-plain-text path, the no-licence path, and the
+absent-author platform-only fallback. Full `vitest` suite green (4,259 tests);
+`tsc --noEmit` clean.
 
 ---
 
