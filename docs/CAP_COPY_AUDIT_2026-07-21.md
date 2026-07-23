@@ -282,11 +282,30 @@ register and this audit treats it as load-bearing.
    18.1 exposure in the product. Keep, soften the copy while keeping the
    mechanic, or gate it harder. Owner decision because it is a PRD feature with
    tests and rewording is redesign-adjacent (out of this lane's scope).
+   **IMPLEMENTED, PENDING OWNER MERGE (2026-07-21, lane/cap-compliance-floor).**
+   Softened the copy while keeping the mechanic and data shape untouched: the
+   grade taxonomy now grounds a high score in the NIGHT (detours, stops, borough
+   hops) rather than intoxication. Grade "Unhinged" → "Saga"; one-liner
+   "Somebody's phone has evidence." → "You took the scenic route."; one-liner
+   "Absolute scenes." → "One for the group chat." (grade "Legendary" kept, per
+   owner note that a night may be Legendary if the copy is grounded in what
+   happened). "Share the chaos" and the "Cheap chaos" pack are the named
+   feature/route-pack and were left as-is (the feature is kept). Held for owner
+   review before merge.
 3. **Responsible-drinking / age-affirmation line.** Decide whether the app
    should carry any such copy at all, and if so where (store listing, Pal
    creation, first run), and whether "Lock-In / chaos-forward as the default for
    young users" (lib/viewMode.ts) should change, before the TikTok channel opens
    (18.14/18.15, U4).
+   **PARTLY IMPLEMENTED, PENDING OWNER MERGE (2026-07-21,
+   lane/cap-compliance-floor).** Added one quiet, permanent floor line to the
+   site footer (LandingPage) and the You surface (/u/[handle]): "PUBMAXX is for
+   over-18s. Drink responsibly, know the facts at drinkaware.co.uk." No banners,
+   interstitials, or nags anywhere else. STILL OPEN for the owner: whether the
+   line should also appear on other first-run surfaces (Pal creation), and the
+   bigger product decision of whether "Lock-In / chaos-forward as the default for
+   young users" (lib/viewMode.ts) should change — that default was deliberately
+   NOT touched in this lane.
 4. **"On a bender" / "Get lit"** are already owner-accepted (VIBE_LAYER_SPEC
    decision 4); recorded here only so the acceptance is visible in the compliance
    trail. No new decision needed unless Apple review bounces "On a bender" (the
@@ -309,6 +328,33 @@ brand-voice surfaces; no behaviour change on any of them.
 
 No vibe chips touched; the "coward" line, Chaos Score, and register chips are
 recorded above and left for owner ruling, not changed.
+
+### Follow-up lane: owner rulings 2 and 3 (2026-07-21, lane/cap-compliance-floor)
+
+Implements owner rulings 2 and 3 above. Held for explicit owner review before
+merge (product-policy surface). No behaviour change; the Chaos Score mechanic,
+its inputs, and its data shape are untouched. All before/after pairs:
+
+- lib/chaosScore.ts: grade "Unhinged" → "Saga".
+- lib/chaosScore.ts: one-liner "Somebody's phone has evidence." → "You took the
+  scenic route." (removes the 18.1/18.4 blackout-adjacency read).
+- lib/chaosScore.ts: one-liner "Absolute scenes." → "One for the group chat."
+  (grade "Legendary" kept; the line is now grounded in the shared memory, not
+  the drinking).
+- app/u/[handle]/page.tsx + components/landing/LandingPage.tsx: added the floor
+  line "PUBMAXX is for over-18s. Drink responsibly, know the facts at
+  drinkaware.co.uk." (was: no responsible/age line anywhere — the structural gap
+  named in section 1).
+- Pinned-copy assertions updated to match: __tests__/chaosScore.test.ts,
+  __tests__/chaosCardParams.test.ts. Added a chaos-taxonomy fence in
+  __tests__/chaosScore.test.ts (proposal 5.1, scoped to the band table) pinning
+  the blackout/excess register absent from every grade and one-liner.
+
+Deliberately NOT changed (recorded, out of this lane): the "Cheap chaos" route
+pack and the "Share the chaos" button (named feature/route pack, feature kept);
+the "coward" tally jab (owner ruling 1, still pending); the vibe chips; and
+lib/viewMode.ts's chaos-forward default for young users (the bigger product
+decision under owner ruling 3, still open).
 
 ## 8. Out-of-scope note for the data lane
 

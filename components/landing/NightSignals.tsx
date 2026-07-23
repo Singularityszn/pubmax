@@ -200,7 +200,7 @@ export default function NightSignals() {
       <header className="nightSignalsIntro">
         <p className="nsKicker">Start with tonight</p>
         <h2 id="signals-title">What are you in the mood for?</h2>
-        <p>Choose a direction, not a personality test. PUBMAXX will keep the route grounded in real places, prices and journeys home.</p>
+        <p>Pick a direction, not a personality test. We keep the route on real pubs, real prices, and a way home.</p>
       </header>
 
       <div className="nightSignalChooser">

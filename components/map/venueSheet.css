@@ -481,7 +481,7 @@
     gap: 5px;
     min-height: 44px;
     padding: 8px 10px;
-    border-radius: var(--radius-sm, 10px);
+    border-radius: var(--control-radius, 14px);
     font: inherit;
     font-size: 0.82rem;
     font-weight: 700;
@@ -535,6 +535,39 @@
   }
 }
 
+/* ── Portal sheet footer slot (systemic rebuild) ─────────────────────────────
+   The venue command bar (VenueStickyBar) no longer lives inside the scroll body
+   with fixed/sticky positioning against a transformed sheet (the five-patch
+   #536 machinery is gone). It now portals into `.mobileSharedSheetFooter` — a
+   real flex child of the bottom-anchored sheet column (mobileMapShell.css). So
+   here the bar just resets to an in-flow strip: no position, no offsets, no
+   reserved-height var. It rides 1:1 with the sheet on drag/snap because it IS in
+   the sheet's flow, and never scrolls under the tabs because it sits below the
+   scroll body, not inside it. The last content pixel (the bar's own bottom) sits
+   exactly the safe-area inset above the sheet's visible bottom edge — no dock
+   band. The legacy 641–768 inline drawer keeps the sticky bar rules above
+   (`:not(.mobileSharedSheet)`); this only touches the ≤640 portal footer. */
+@media (max-width: 640px) {
+  .mobileSharedSheetFooter .venueSheetStickyBar {
+    position: static;
+    margin: 0;
+    padding: 12px 16px calc(env(safe-area-inset-bottom, 0px));
+    border-top: 1px solid color-mix(in srgb, var(--brass) 28%, var(--line));
+    /* Solid surface: the bar sits below the scrollport now, so the old scrim
+       gradient (for content bleeding under a sticky bar) is unnecessary. */
+    background: var(--color-surface-raised, var(--panel));
+  }
+
+  /* The bar left the venue-inspector flow (it portals to the sheet footer), so
+     the ≤768 in-tab 84px sticky-bar reserve is dead space in the portal — it
+     would push a gap between the last content and the footer. Drop it to a plain
+     gutter so short content hugs tight and tall content ends flush above the
+     footer bar. */
+  .mobileSharedSheet .venueInspector {
+    padding-bottom: 8px;
+  }
+}
+
 /* ── Large-text / 200% zoom pass (user story 18) ─────────────────────────────
    Fixed px heights clip under large text; rem-based sizing and no fixed
    max-height on the tab strip lets the strip and its labels grow with the
@@ -567,7 +600,7 @@
   margin-left: 8px;
   padding: 1px 7px;
   border-radius: 999px;
-  font-size: 0.68rem;
+  font-size: 0.75rem;
   font-weight: 600;
   letter-spacing: 0.01em;
   line-height: 1.5;
@@ -587,6 +620,12 @@
   color: var(--rust);
   background: color-mix(in srgb, var(--rust) 12%, transparent);
   border-color: color-mix(in srgb, var(--rust) 34%, transparent);
+}
+
+/* The base rust is too dark to read on the dark sheet — lift it to a warmer,
+   lighter rust that keeps the "past the leave-by clock" warning tone legible. */
+html[data-theme="dark"] .trainBadge[data-tone="risk"] {
+  --rust: #e0885c;
 }
 
 /* ── Paper/linen texture on the raised sheet panel (D3) ───────────────────────
@@ -671,7 +710,9 @@ html[data-legacy="1"] .venueTabPanel::before {
 }
 
 .venueTab {
-  min-height: 38px;
+  /* 44px WCAG tap target across all bands (the ≤640 rule already floors to 44;
+     this covers the 641-1023 tablet band that previously inherited 38px). */
+  min-height: 44px;
   padding: 8px 13px;
   border: 0;
   border-radius: 999px;
@@ -1073,7 +1114,7 @@ html[data-legacy="1"] .venueTabPanel::before {
   border-radius: 999px;
   background: color-mix(in srgb, var(--brass) 12%, var(--panel-raised));
   color: var(--ink);
-  font-size: 0.68rem;
+  font-size: 0.75rem;
   font-weight: 700;
   letter-spacing: 0.01em;
   line-height: 1;
@@ -1084,7 +1125,7 @@ html[data-legacy="1"] .venueTabPanel::before {
 }
 
 .venueTonightChecked {
-  font-size: 0.64rem;
+  font-size: 0.75rem;
   font-weight: 600;
   color: var(--muted);
   letter-spacing: 0.02em;
@@ -1234,7 +1275,7 @@ html[data-legacy="1"] .venueTabPanel::before {
   border-radius: 999px;
   background: color-mix(in srgb, var(--brass) 12%, var(--panel-raised));
   color: var(--brass);
-  font-size: 0.7rem;
+  font-size: 0.75rem;
   font-weight: 700;
   letter-spacing: 0.01em;
 }

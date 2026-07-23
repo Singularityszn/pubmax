@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 
 import { useAuth } from "@/components/auth/AuthProvider";
 import PlanIntake from "@/components/plan/PlanIntake";
-import { laneSourceFromSearch, trackEvent } from "@/lib/analytics";
+import { laneSourceFromSearch, trackEvent, trackMeaningfulCoreAction } from "@/lib/analytics";
 import { recordPlanNudgeTrigger } from "@/lib/identityNudge";
 import { CREW_NAME_MAX } from "@/lib/crew";
 import { isNightAreaRouteReady, NIGHT_AREAS, type NightArea } from "@/lib/nightAreas";
@@ -58,7 +58,49 @@ export type StoredRouteDraft = {
   nightContext: NightContext | null;
   routeRevision: RouteRevision | null;
   routeStale: boolean;
+  groundingProof: string | null;
+  createOperationKey: string | null;
 };
+
+export type ServerPlanCreationAttribution = {
+  created: boolean;
+  grounded: boolean;
+};
+
+/** Validate attribution returned by POST /api/plans; never source it from draft storage. */
+export function serverPlanCreationAttribution(value: unknown): ServerPlanCreationAttribution | null {
+  if (!value || typeof value !== "object") return null;
+  const row = value as { created?: unknown; grounded?: unknown };
+  if (typeof row.created !== "boolean" || typeof row.grounded !== "boolean") return null;
+  return { created: row.created, grounded: row.grounded };
+}
+
+/** Rebuild the exact server-attributed event on originals and idempotent replays. */
+export function planAcceptanceTelemetry(value: unknown, stops: number): { stops: number; grounded: boolean } | null {
+  const attribution = serverPlanCreationAttribution(value);
+  if (!attribution || !Number.isInteger(stops) || stops < 1 || stops > 50) return null;
+  return { stops, grounded: attribution.grounded };
+}
+
+function responseEventToken(value: unknown, key: "planAccepted" | "meaningfulCoreAction"): string | null {
+  if (!value || typeof value !== "object") return null;
+  const tokens = (value as { eventTokens?: unknown }).eventTokens;
+  if (!tokens || typeof tokens !== "object") return null;
+  const token = (tokens as Record<string, unknown>)[key];
+  return typeof token === "string" && token.length <= 2_000 ? token : null;
+}
+
+/** Trust only the generator's explicit server-owned grounding assertion. */
+export function isGroundedGeneratedRoute(value: unknown, stops: readonly DraftStop[]): boolean {
+  return Boolean(
+    value
+    && typeof value === "object"
+    && (value as { grounded?: unknown }).grounded === true
+    && typeof (value as { groundingProof?: unknown }).groundingProof === "string"
+    && Boolean((value as { groundingProof: string }).groundingProof)
+    && stops.length === 3,
+  );
+}
 
 function cleanRouteRevision(value: unknown): RouteRevision | null {
   if (typeof value === "string" && value.trim()) return value.trim();
@@ -188,6 +230,12 @@ export function parsePlanRouteDraft(raw: string | null): StoredRouteDraft | null
       nightContext: cleanNightContext(value.nightContext) ?? null,
       routeRevision: cleanRouteRevision(value.routeRevision),
       routeStale: value.routeStale === true,
+      groundingProof: typeof value.groundingProof === "string" && value.groundingProof.length <= 8_000
+        ? value.groundingProof
+        : null,
+      createOperationKey: typeof value.createOperationKey === "string" && value.createOperationKey.length <= 120
+        ? value.createOperationKey
+        : null,
     };
   } catch {
     return null;
@@ -389,7 +437,7 @@ function conciergeStatusText(
   unsupportedPatch: NightPatch | null,
   note: string,
 ): string {
-  if (sorting) return "Planning your night, checking confidence and finding grounded stops.";
+  if (sorting) return "Planning your night, checking confidence and picking stops we can back up.";
   if (unsupportedPatch) {
     return `${unsupportedPatch.label} is saved. Exact Plan generation is not available for this patch yet. Pick another area to build the route now.`;
   }
@@ -431,6 +479,8 @@ function PlanComposerForm({
   const [explicitNightContext, setExplicitNightContext] = useState<Partial<NightContext>>({});
   const [routeRevision, setRouteRevision] = useState<RouteRevision | null>(recoveredRouteDraft?.routeRevision ?? null);
   const [routeStale, setRouteStale] = useState(recoveredRouteDraft?.routeStale ?? false);
+  const [groundingProof, setGroundingProof] = useState(recoveredRouteDraft?.groundingProof ?? null);
+  const [createOperationKey, setCreateOperationKey] = useState(recoveredRouteDraft?.createOperationKey ?? null);
   const [sorting, setSorting] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
@@ -495,11 +545,13 @@ function PlanComposerForm({
         nightContext,
         routeRevision,
         routeStale,
+        groundingProof,
+        createOperationKey,
       } satisfies StoredRouteDraft));
     } catch {
       // A blocked localStorage should not make the route editor unusable.
     }
-  }, [nightContext, routeRevision, routeStale, stops]);
+  }, [createOperationKey, groundingProof, nightContext, routeRevision, routeStale, stops]);
 
   useEffect(() => {
     if (planIntake === initialPlanIntakeRef.current) return;
@@ -578,6 +630,10 @@ function PlanComposerForm({
     setStops((current) => current.map((stop) => stop.key === key
       ? { ...stop, venueName, venueId: match?.id ?? "", alternatives: [] }
       : stop));
+    // Manual edits are still canonicalized by POST /api/plans, but they no
+    // longer carry provenance from the generated candidate set.
+    setGroundingProof(null);
+    setCreateOperationKey(null);
     setRouteStatus("Stop edited in the route preview. Review it before locking.");
   }
 
@@ -599,7 +655,7 @@ function PlanComposerForm({
     const usedByOtherStops = new Set(stops.filter((stop) => stop.key !== key).map((stop) => stop.venueId));
     const next = swapDraftStop(current, usedByOtherStops);
     if (next === current) {
-      setRouteStatus("No distinct grounded alternative is available for that stop yet.");
+      setRouteStatus("No other pub we can vouch for near that stop yet.");
       return;
     }
     setStops((existing) => existing.map((stop) => stop.key === key ? next : stop));
@@ -610,7 +666,7 @@ function PlanComposerForm({
     if (!canSortWithCurrentGenerator) return;
     setSorting(true);
     setError("");
-    setRouteStatus("Refreshing the route, checking the updated context and grounded stops.");
+    setRouteStatus("Refreshing the route, rechecking every stop against your updated night.");
     try {
       const response = await fetch("/api/plans/generate", {
         method: "POST",
@@ -632,6 +688,7 @@ function PlanComposerForm({
         return;
       }
       setStops(suggested);
+      const grounded = isGroundedGeneratedRoute(body, suggested);
       if (body.inferredContext) {
         const inferredContext = body.inferredContext as NightContext;
         setNightContext(inferredContext);
@@ -639,8 +696,11 @@ function PlanComposerForm({
       }
       setRouteRevision(routeRevisionFromState(body));
       setRouteStale(false);
+      setGroundingProof(typeof body.groundingProof === "string" ? body.groundingProof : null);
+      setCreateOperationKey(typeof body.operationKey === "string" ? body.operationKey : null);
       markPalRouteActivation();
-      setConciergeNote("Three grounded stops, shaped by the editable context below.");
+      trackEvent("plan_generated", { stops: suggested.length, grounded });
+      setConciergeNote("Three stops we can stand behind, shaped by the night you set below.");
       setRouteStatus("Route refreshed. Review the preview, then lock it in when it feels right.");
       if (body.inferredContext) {
         trackEvent("night_description_submitted", { area: body.inferredContext.nightArea, daypart: body.inferredContext.daypart });
@@ -672,7 +732,7 @@ function PlanComposerForm({
       return;
     }
     if (nightContext && completeStops.length !== 3) {
-      setError("A generated crawl needs exactly three grounded stops before you lock it in.");
+      setError("A generated crawl needs exactly three stops we can stand behind before you lock it in.");
       return;
     }
     if (routeStale) {
@@ -694,8 +754,9 @@ function PlanComposerForm({
         creatorName,
         startTime: exactStartIso,
         stops: completeStops.map(({ venueId, venueName }) => ({ venueId, venueName })),
+        ...(groundingProof ? { groundingProof } : {}),
       };
-      const operationKey = await persistentPlanMutationKey("create", createPayload);
+      const operationKey = createOperationKey ?? await persistentPlanMutationKey("create", createPayload);
       const response = await fetch("/api/plans", {
         method: "POST",
         headers: { "content-type": "application/json", "idempotency-key": operationKey },
@@ -705,20 +766,30 @@ function PlanComposerForm({
       if (!response.ok || !body?.plan?.plan?.id) {
         throw new Error(body?.error || "The plan could not be created.");
       }
+      const attribution = serverPlanCreationAttribution(body);
+      if (!attribution) throw new Error("The plan was created without verifiable route attribution. Please reload it before continuing.");
+      const { grounded } = attribution;
+      const acceptanceTelemetry = planAcceptanceTelemetry(body, completeStops.length);
+      const acceptedToken = responseEventToken(body, "planAccepted");
+      const meaningfulToken = responseEventToken(body, "meaningfulCoreAction");
+      if (acceptanceTelemetry && acceptedToken && meaningfulToken) {
+        trackEvent("plan_accepted", acceptanceTelemetry, { deliveryToken: acceptedToken });
+        trackMeaningfulCoreAction("plan_accepted", meaningfulToken);
+      }
       // lane_to_plan only counts creations with lane provenance (?src=…, set
       // by lane surfaces such as the W1 Tonight lane). window.location is read
       // at submit time — not via useSearchParams — so this client component
       // needs no Suspense boundary on the server-rendered /plan page. Without
       // a known src the event stays silent: honest zero > invented signal.
       const laneSource = laneSourceFromSearch(window.location.search);
-      if (laneSource) {
+      if (attribution.created && laneSource) {
         trackEvent("lane_to_plan", { source: laneSource, stops: completeStops.length });
       }
-      trackEvent("plan_created", { count: completeStops.length });
+      if (attribution.created) trackEvent("plan_created", { count: completeStops.length });
       // First high-intent action → arm the signed-out account nudge (self-gates
       // on auth/cooldown; browsing was never gated). In the native shell this
       // wins over the push prompt, which defers via isIdentityNudgePending().
-      recordPlanNudgeTrigger();
+      if (attribution.created) recordPlanNudgeTrigger();
       if (body.memberToken) {
         const planId = body.plan.plan.id as string;
         writePlanCapability(planId, { token: body.memberToken, collaborationAuthorized: true, role: "host" });
@@ -732,6 +803,8 @@ function PlanComposerForm({
         });
         if (!metadataResponse.ok) throw new Error("The route was created, but its Night Context could not be saved. Please try again.");
       }
+      trackEvent("plan_saved", { stops: completeStops.length, grounded });
+      trackMeaningfulCoreAction("plan_saved");
       try { sessionStorage.removeItem(PLAN_DRAFT_KEY); } catch { /* best effort */ }
       try { localStorage.removeItem(PLAN_ROUTE_DRAFT_KEY); } catch { /* best effort */ }
       clearPlanIntakeDraft();

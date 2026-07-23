@@ -100,6 +100,10 @@ function readLiveTranslateY(host: HTMLElement | null): number | null {
  * / closes the planner there). Pointer Events (not touch/mouse-specific) so a
  * mouse-drag on a narrow browser window works too — which keeps this testable
  * without a real touch device.
+ *
+ * This is the LEGACY translateY drag for the 641–768px inline drawer PubMap
+ * renders above the phone breakpoint. The ≤640px phone portal sheet uses the
+ * rebuilt bottom-anchored height drag (components/mobile/useSheetHeightDrag.ts).
  */
 export function useSheetDrag(onDismiss: () => void): SheetDrag {
   // "half" is the default resting snap whenever a sheet opens — PubMap

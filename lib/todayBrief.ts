@@ -81,6 +81,7 @@ export function buildWeatherBrief(
   snapshot: unknown,
   now: Date,
   area: NightAreaSlug = BRIEF_DEFAULT_AREA,
+  options: { fallbackToFirst?: boolean } = {},
 ): WeatherBrief | null {
   const validated = validateWeatherSnapshot(snapshot);
   if (!validated) return null;
@@ -91,7 +92,7 @@ export function buildWeatherBrief(
 
   const observation =
     validated.observations.find((candidate) => candidate.nightArea === area) ??
-    validated.observations[0];
+    (options.fallbackToFirst === false ? undefined : validated.observations[0]);
   if (!observation) return null;
 
   const observedMs = Date.parse(observation.observedAt);
@@ -195,6 +196,10 @@ export type TonightPickDto = {
    *  around the viewer's remembered patch (#427) without another fetch. */
   lat: number | null;
   lng: number | null;
+  /** Honest one-line note when this pick stands in for a syndicated deal running
+   *  at several venues ("Same deal at 12 pubs"), or null for a single venue. The
+   *  count is real row data (lib/dealsDigest.ts), never padded. */
+  venueNote?: string | null;
 };
 
 const KIND_LABEL: Record<WhatsOnKind, string> = {

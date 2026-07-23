@@ -39,6 +39,7 @@
     "ingest:night-out-places": "node scripts/ingest_night_out_places.mjs",
     "refresh:night-signals": "node scripts/refresh_night_signal_claims.mjs",
     "refresh:weather": "node scripts/refresh_weather_snapshots.mjs",
+    "push:daily": "tsx scripts/push/sendDailyBrief.mjs",
     "refresh:events": "node scripts/whatson/eventsRefresh.mjs",
     "check:realtime": "node scripts/check-realtime.mjs",
     "verify": "npm run validate-data && npm run lint && npm run typecheck && npm run coverage && npm audit --audit-level=high",
@@ -63,11 +64,12 @@
     "ipaddr.js": "^2.4.0",
     "lucide-react": "^0.468.0",
     "maplibre-gl": "^5.24.0",
-    "next": "^16.0.10",
+    "next": "^16.2.11",
     "react": "^19.2.1",
     "react-dom": "^19.2.1",
     "sharp": "^0.35.3",
-    "tailwind-merge": "^3.6.0"
+    "tailwind-merge": "^3.6.0",
+    "web-push": "^3.6.7"
   },
   "devDependencies": {
     "@capacitor/cli": "^8.4.2",
@@ -79,11 +81,13 @@
     "@types/node": "^22.10.2",
     "@types/react": "^19.0.2",
     "@types/react-dom": "^19.0.2",
+    "@types/web-push": "^3.6.4",
     "@vitest/coverage-v8": "^4.1.10",
     "eslint": "^9.17.0",
     "eslint-config-next": "^16.0.10",
     "knip": "^5.30.0",
     "tailwindcss": "^4.3.2",
+    "tsx": "^4.20.6",
     "typescript": "^5.7.2",
     "vitest": "^4.1.9"
   },

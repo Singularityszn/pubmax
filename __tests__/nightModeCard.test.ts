@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   completePlanPayload,
+  completionTelemetryFromBody,
   confirmedEndingForPlan,
   endingOptionsForSignals,
   foodEndingSelection,
@@ -58,7 +59,7 @@ describe("recommendedEndingForPlan", () => {
 });
 
 describe("endingOptionsForSignals", () => {
-  it("turns grounded live-night signals into review copy without selecting an ending", () => {
+  it("turns live-night signals into plain review copy without selecting an ending", () => {
     const options = endingOptionsForSignals({
       lateFoodCount: 2,
       stationName: "Clapham Common",
@@ -68,7 +69,7 @@ describe("endingOptionsForSignals", () => {
 
     expect(options[0].description).toContain("2 reviewed nearby options");
     expect(options[1].description).toContain("Clapham Common");
-    expect(options[2].description).toContain("2 grounded nearby extensions");
+    expect(options[2].description).toContain("2 nearby spots");
   });
 });
 
@@ -87,6 +88,18 @@ describe("confirmedEndingForPlan", () => {
 });
 
 describe("canonical route revision completion", () => {
+  it("retries completion telemetry from a replayed canonical response", () => {
+    expect(completionTelemetryFromBody({
+      created: false,
+      completion: { ending: "get_home" },
+      eventTokens: { planCompleted: "completion-token", meaningfulCoreAction: "meaningful-token" },
+    })).toEqual({
+      ending: "get_home",
+      planCompletedToken: "completion-token",
+      meaningfulCoreActionToken: "meaningful-token",
+    });
+  });
+
   it("reads the active revision and sends the current canonical pub as terminal", () => {
     const current = { ...plan(), routeRevision: 7 } as PlanState & { routeRevision: number };
     expect(routeRevisionFromPlan(current)).toBe(7);

@@ -54,8 +54,21 @@
   opacity: 0.65;
 }
 
+/* "Email me a link" is the primary action of the sign-in wall, so it wears the
+   house accent fill (brass + on-accent) instead of inheriting the quiet
+   panel-raised pill the OAuth buttons use. Fixes the low-contrast white-on-grey
+   render on /activity and /messages, in both themes. */
 .authMagicLinkButton {
   flex: 0 0 auto;
+  border-color: var(--brass);
+  background: var(--brass);
+  color: var(--color-on-accent);
+  font-weight: 700;
+}
+
+.authMagicLinkButton:hover:not(:disabled) {
+  border-color: var(--brass-bright);
+  background: var(--brass-bright);
 }
 
 .authMagicLinkCancel {
@@ -114,7 +127,7 @@
   min-height: 44px;
   padding: 0.45rem 0.7rem;
   border: 1px solid var(--line);
-  border-radius: 999px;
+  border-radius: var(--control-radius, 14px);
   background: var(--panel);
   color: var(--ink);
   font: inherit;
@@ -137,7 +150,7 @@
   min-width: 0;
   padding: 0.5rem 0.85rem;
   border: 1px solid var(--line);
-  border-radius: 999px;
+  border-radius: var(--control-radius, 14px);
   background: var(--panel-raised);
   color: var(--ink);
   font: inherit;
@@ -240,7 +253,7 @@
   min-height: 44px;
   padding: 0 0.85rem;
   border: 1px solid var(--line);
-  border-radius: 999px;
+  border-radius: var(--control-radius, 14px);
   background: var(--panel-raised);
   color: var(--ink);
   font: inherit;
@@ -415,7 +428,7 @@
 .authSignOut {
   padding: 0.35rem 0.7rem;
   border: 1px solid var(--line);
-  border-radius: 999px;
+  border-radius: var(--control-radius, 14px);
   background: transparent;
   color: var(--ink-soft);
   font: inherit;
@@ -595,7 +608,7 @@
 .claimNightConfirm,
 .claimNightSkip {
   padding: 0.55rem 0.95rem;
-  border-radius: 999px;
+  border-radius: var(--control-radius, 14px);
   font: inherit;
   font-size: 0.88rem;
   font-weight: 650;

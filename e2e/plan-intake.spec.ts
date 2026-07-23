@@ -102,6 +102,22 @@ test("an outside-London location preserves the selected area", async ({ page, co
     .toBe(JSON.stringify({ kind: "patch", id: "clapham" }));
 });
 
+test("an unsupported Hackney location preserves the selected generation area", async ({ page, context }) => {
+  await context.grantPermissions(["geolocation"]);
+  await context.setGeolocation({ latitude: 51.5346, longitude: -0.0611 });
+  await page.goto("/plan");
+  await page.getByRole("button", { name: "Clapham" }).click();
+
+  await page.getByRole("button", { name: "Use my location" }).click();
+  await expect(page.locator(".planIntake__locationStatus")).toContainText(
+    "exact route generation is not available there yet",
+  );
+  await expect(page.getByRole("button", { name: "Clapham" })).toHaveAttribute("aria-pressed", "true");
+  await expect(page.getByRole("button", { name: "Hackney" })).toHaveAttribute("aria-pressed", "false");
+  await expect.poll(() => page.evaluate(() => window.localStorage.getItem("pubmax:nightPatch:v1")))
+    .toBe(JSON.stringify({ kind: "patch", id: "clapham" }));
+});
+
 test("a delayed location result cannot overwrite the area after Continue", async ({ page }) => {
   await page.addInitScript(() => {
     const testWindow = window as typeof window & { completeLocation?: () => void };
@@ -227,7 +243,7 @@ test("editing the exact start marks a generated preview stale", async ({ page })
   await continueIntake(page);
   await page.getByRole("button", { name: "Describe instead" }).click();
   await page.getByRole("button", { name: "Plan my night" }).click();
-  await expect(page.getByText("Three grounded stops, shaped by the editable context below.")).toBeVisible();
+  await expect(page.getByText("Three stops we can stand behind, shaped by the night you set below.")).toBeVisible();
 
   const firstPint = page.getByLabel("First pint");
   await firstPint.fill("2026-07-22T20:00");
@@ -278,7 +294,7 @@ test("submission revalidates that the exact start is still in the future", async
   await continueIntake(page);
   await page.getByRole("button", { name: "Describe instead" }).click();
   await page.getByRole("button", { name: "Plan my night" }).click();
-  await expect(page.getByText("Three grounded stops, shaped by the editable context below.")).toBeVisible();
+  await expect(page.getByText("Three stops we can stand behind, shaped by the night you set below.")).toBeVisible();
   await page.getByLabel("Your name").fill("Karan");
 
   await page.clock.setFixedTime(new Date("2026-07-20T18:00:00.000Z"));

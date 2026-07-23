@@ -37,7 +37,8 @@ export function requiresSupabaseStore(): boolean {
   // PUBMAX_E2E_KEYLESS=1 so local/mobile QA can exercise real write paths
   // against the in-memory stores. A real Vercel Production deploy ignores the
   // escape hatch — setting it there must not opt production into ephemeral
-  // stores.
+  // stores. This helper controls storage only; trusted signing has an
+  // independent fail-closed production policy.
   if (process.env.VERCEL_ENV === "production") return true;
   if (process.env.PUBMAX_E2E_KEYLESS === "1") return false;
   return isDeployedProduction();
