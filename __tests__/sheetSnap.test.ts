@@ -228,4 +228,62 @@ describe("resolveHalfContentFit — content-aware half detent (void killer)", ()
     expect(resolveHalfContentFit({ viewportHeight: 0, headerHeight: HEADER, dockClearance: DOCK, contentHeight: 100 })).toBeNull();
     expect(resolveHalfContentFit({ viewportHeight: VH, headerHeight: HEADER, dockClearance: DOCK, contentHeight: 0 })).toBeNull();
   });
+
+  it("footerHeight of 0 is identical to omitting it (contextual sheets unchanged)", () => {
+    const plain = resolveHalfContentFit({ viewportHeight: VH, headerHeight: HEADER, dockClearance: DOCK, contentHeight: 140 });
+    const zeroFooter = resolveHalfContentFit({ viewportHeight: VH, headerHeight: HEADER, dockClearance: DOCK, contentHeight: 140, footerHeight: 0 });
+    expect(zeroFooter).toEqual(plain);
+  });
+});
+
+// Owner ruling (2026-07-23): the venue sheet reserves a fixed Drop/Share command
+// bar (--venue-cmdbar-h) below the scroll body. A short venue sheet hugs its
+// content and the docked bar rides at the content's bottom — no void.
+describe("resolveHalfContentFit — venue footer (docked command bar)", () => {
+  const VH = 844;
+  const HEADER = 64;
+  const DOCK = 120;
+  const FOOTER = 72; // --venue-cmdbar-h
+
+  it("lifts the hugged sheet by the footer height so the BAR (not the body) sits above the dock", () => {
+    const contentHeight = 140;
+    const withFooter = resolveHalfContentFit({ viewportHeight: VH, headerHeight: HEADER, dockClearance: DOCK, contentHeight, footerHeight: FOOTER });
+    expect(withFooter).not.toBeNull();
+    expect(withFooter!.bodyPx).toBe(contentHeight);
+    // translate = VH − header − content − footer − dock: the whole stack
+    // (header + body + footer + dock) lands flush at the viewport bottom.
+    expect(withFooter!.translatePx).toBe(Math.round(VH - HEADER - contentHeight - FOOTER - DOCK));
+    // The docked bar's bottom (derived by the caller as translate + dock) leaves
+    // exactly `dock` between the bar and the screen edge, and the bar's top meets
+    // the body's bottom — no gap, no void.
+    const barBottom = withFooter!.translatePx + DOCK;
+    const bodyBottomFromSheetTop = HEADER + withFooter!.bodyPx;
+    const barTopFromSheetTop = VH - barBottom - FOOTER;
+    expect(barTopFromSheetTop).toBe(bodyBottomFromSheetTop);
+  });
+
+  it("sits higher (smaller translate) than the footerless fit — the footer eats into the room", () => {
+    const contentHeight = 140;
+    const noFooter = resolveHalfContentFit({ viewportHeight: VH, headerHeight: HEADER, dockClearance: DOCK, contentHeight });
+    const withFooter = resolveHalfContentFit({ viewportHeight: VH, headerHeight: HEADER, dockClearance: DOCK, contentHeight, footerHeight: FOOTER });
+    expect(withFooter!.translatePx).toBe(noFooter!.translatePx - FOOTER);
+  });
+
+  it("returns null (tall content → normal half detent) when content fills the footer-shortened body", () => {
+    const halfBodyWithFooter = VH * SHEET_SNAP_FRACTIONS.half - HEADER - DOCK - FOOTER;
+    expect(
+      resolveHalfContentFit({ viewportHeight: VH, headerHeight: HEADER, dockClearance: DOCK, contentHeight: halfBodyWithFooter, footerHeight: FOOTER }),
+    ).toBeNull();
+  });
+
+  it("content that would fit WITHOUT a footer can become tall (null) once the footer reserve is counted", () => {
+    // Between the footerless and footered thresholds: hugs plain, but fills once
+    // the 72px bar is reserved — proving the footer genuinely shortens the room.
+    const halfBodyNoFooter = VH * SHEET_SNAP_FRACTIONS.half - HEADER - DOCK;
+    const between = halfBodyNoFooter - FOOTER / 2;
+    expect(resolveHalfContentFit({ viewportHeight: VH, headerHeight: HEADER, dockClearance: DOCK, contentHeight: between })).not.toBeNull();
+    expect(
+      resolveHalfContentFit({ viewportHeight: VH, headerHeight: HEADER, dockClearance: DOCK, contentHeight: between, footerHeight: FOOTER }),
+    ).toBeNull();
+  });
 });

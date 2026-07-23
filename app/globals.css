@@ -251,6 +251,15 @@
   --radius-sm: 6px;
   --radius-lg: 18px;
   --radius-pill: 999px;
+  /* — Control radius (owner ruling 2026-07-23): the text-button / CTA / control-
+       chip family moves off the pill and onto the top bar's 14px rectangle card
+       language (--topbar-radius, siteNav.css) — "more rectangular like the top
+       menu bar, more elegant". Icon dots (close X, FAB, avatar), tab-group chips,
+       the bottom tab bar and descriptive label/status pills keep their geometry;
+       this token only re-bases text buttons/CTAs/control chips. Consumed as
+       var(--control-radius, 14px) so routes that don't load this sheet still land
+       on the same value. */
+  --control-radius: 14px;
 
   /* — Shadow: --shadow kept as the default (paper-lift in light, overridden to
        a deeper candle-glow in theme.css dark). --shadow-inset-* power the
@@ -2940,7 +2949,7 @@ input[type="range"] {
   margin-top: 12px;
   min-height: 42px;
   border: 1px solid var(--ink-deep);
-  border-radius: var(--radius-sm);
+  border-radius: var(--control-radius, 14px);
   background: var(--ink-deep);
   color: var(--color-on-inverse);
   font-weight: 700;
@@ -4375,7 +4384,7 @@ input[type="range"] {
   min-height: 48px;
   padding: 12px 16px;
   border: 1px solid var(--brass);
-  border-radius: var(--radius-sm);
+  border-radius: var(--control-radius, 14px);
   background: var(--brass);
   color: var(--color-on-accent);
   font-size: 0.95rem;
