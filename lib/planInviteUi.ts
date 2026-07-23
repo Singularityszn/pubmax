@@ -15,5 +15,5 @@ export function formatInviteExpiry(expiresAt: string, now: Date = new Date()): s
 }
 
 export function invitePrivacyBlurb(): string {
-  return "One-use private link. Guests see the inviter, broad area, time window, and vibe — not the full stop list — until they join.";
+  return "One-use private link. Until they join, guests see the inviter, broad area, time window, and vibe, never the full stop list.";
 }

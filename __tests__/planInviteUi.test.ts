@@ -14,6 +14,6 @@ describe("planInviteUi", () => {
 
   it("keeps privacy blurb honest about pre-join disclosure", () => {
     expect(invitePrivacyBlurb()).toMatch(/One-use private link/);
-    expect(invitePrivacyBlurb()).toMatch(/not the full stop list/);
+    expect(invitePrivacyBlurb()).toMatch(/never the full stop list/);
   });
 });
