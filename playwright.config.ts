@@ -13,6 +13,10 @@ const SCREENSHOT_RUN = !!process.env.PW_SCREENSHOTS;
 // invocation a fresh process-only signing key shared by its build/start shell.
 // webServer.env keeps both values out of the command string and process argv.
 const E2E_PLAN_SIGNING_SECRET = randomBytes(32).toString("base64url");
+// Public-only deterministic test key. The private half is neither needed nor
+// present: E2E stubs the browser subscription while exercising the real UI and
+// registration POST. NEXT_PUBLIC_* must be present at Next build time.
+const E2E_VAPID_PUBLIC_KEY = "BJVNwV9XflSMFMBkpBQ8zuzYIfru_xnE_LnqA3x8ENQl2ehKJYw_20TE1UTVr_7vQ207rjQwC1FHbbKE9QeOk4w";
 
 export default defineConfig({
   testDir: "./e2e",
@@ -125,8 +129,10 @@ export default defineConfig({
   ],
   webServer: {
     command: SCREENSHOT_RUN
-      ? `npm run start -- --port ${PORT}`
-      : `NEXT_DIST_DIR=.next-e2e npm run build && NEXT_DIST_DIR=.next-e2e npm run start -- --port ${PORT}`,
+      ? `NEXT_PUBLIC_VAPID_PUBLIC_KEY=${E2E_VAPID_PUBLIC_KEY} npm run start -- --port ${PORT}`
+      : `NEXT_PUBLIC_VAPID_PUBLIC_KEY=${E2E_VAPID_PUBLIC_KEY} NEXT_DIST_DIR=.next-e2e npm run build && NEXT_PUBLIC_VAPID_PUBLIC_KEY=${E2E_VAPID_PUBLIC_KEY} NEXT_DIST_DIR=.next-e2e npm run start -- --port ${PORT}`,
+    // Trusted Plan claims never touch the keyless escape hatch: give each run a
+    // fresh process-only signing key via env so it stays out of the command argv.
     env: {
       PLAN_IDEMPOTENCY_SECRET: E2E_PLAN_SIGNING_SECRET,
       PUBMAX_E2E_KEYLESS: "1",

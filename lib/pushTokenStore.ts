@@ -1,15 +1,17 @@
-// Device push-token registry for the Capacitor native shell. ONE interface,
-// TWO implementations (process-memory + Supabase public.push_tokens), same
-// seam pattern as the other stores (lib/storeBackend.ts). A token row is keyed
-// by the token string itself — re-registering the same device is an idempotent
-// upsert that refreshes last_seen_at, never a duplicate.
+// Identity-free push registry for the Capacitor shell and installed web app.
+// ONE interface, TWO storage implementations (process-memory + Supabase
+// public.push_tokens), same seam pattern as the other stores. A row is keyed by
+// its opaque native token / serialized web subscription; re-registration is an
+// idempotent last_seen_at refresh.
 //
-// No auth: registration happens before sign-in (the shell registers on boot),
-// so a row carries no identity — it is only "this device can receive pushes".
+// No auth: native registration happens before sign-in and web registration only
+// after explicit browser permission, but neither carries identity. A row means
+// only "this device/browser can receive public pushes".
 
 import { admin, selectStore } from "@/lib/storeBackend";
+import { decodeWebPushSubscription } from "@/lib/webPushSubscription";
 
-export type PushPlatform = "ios" | "android";
+export type PushPlatform = "ios" | "android" | "web";
 
 export type PushTokenDTO = {
   token: string;
@@ -24,7 +26,7 @@ export type PushTokenValidation =
   | { ok: true; input: PushTokenInput }
   | { ok: false; error: string };
 
-export const MAX_TOKEN_LENGTH = 512;
+export const MAX_TOKEN_LENGTH = 2_048;
 
 /** Validate an untrusted { token, platform } payload from the shell. */
 export function validatePushToken(raw: {
@@ -37,8 +39,14 @@ export function validatePushToken(raw: {
     return { ok: false, error: `Token is too long (max ${MAX_TOKEN_LENGTH} characters).` };
   }
   const platform = raw.platform;
-  if (platform !== "ios" && platform !== "android") {
-    return { ok: false, error: "Platform must be ios or android." };
+  if (platform !== "ios" && platform !== "android" && platform !== "web") {
+    return { ok: false, error: "Platform must be ios, android or web." };
+  }
+  if (platform === "web" && !decodeWebPushSubscription(token)) {
+    return { ok: false, error: "Web token must contain a valid push subscription." };
+  }
+  if (platform !== "web" && decodeWebPushSubscription(token)) {
+    return { ok: false, error: "Web push subscriptions must use the web platform." };
   }
   return { ok: true, input: { token, platform } };
 }
@@ -72,7 +80,7 @@ export const supabasePushTokenStore: PushTokenStore = {
     if (error) throw new Error(error.message);
     return {
       token: String(data.token),
-      platform: data.platform === "android" ? "android" : "ios",
+      platform: data.platform === "web" ? "web" : data.platform === "android" ? "android" : "ios",
       createdAt: String(data.created_at),
       lastSeenAt: String(data.last_seen_at),
     };
@@ -85,7 +93,7 @@ export const supabasePushTokenStore: PushTokenStore = {
     if (error) throw new Error(error.message);
     return (data ?? []).map((row) => ({
       token: String(row.token),
-      platform: row.platform === "android" ? "android" : "ios",
+      platform: row.platform === "web" ? "web" : row.platform === "android" ? "android" : "ios",
       createdAt: String(row.created_at),
       lastSeenAt: String(row.last_seen_at),
     }));

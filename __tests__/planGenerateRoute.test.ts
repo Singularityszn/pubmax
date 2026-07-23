@@ -35,6 +35,49 @@ vi.mock("@/lib/concierge/venues.server", async (importOriginal) => {
 import { GET, POST } from "@/app/api/plans/generate/route";
 import { verifyPlanGroundingProof } from "@/lib/planGrounding.server";
 import { hashIp } from "@/lib/supabase";
+import type { ConciergeVenue } from "@/lib/concierge/rank";
+import type { PlanIntakeHandoff } from "@/lib/planIntake";
+
+function generationIntake(
+  overrides: Partial<PlanIntakeHandoff> = {},
+): PlanIntakeHandoff {
+  return {
+    version: 1,
+    area: { kind: "night-patch", id: "clapham" },
+    timeWindow: null,
+    groupSize: 4,
+    budget: { tier: "standard", limitPence: null },
+    accessibilityNeeds: [],
+    skipped: ["time-window"],
+    ...overrides,
+  };
+}
+
+function generatedVenue(
+  id: string,
+  options: Partial<ConciergeVenue> = {},
+): ConciergeVenue {
+  const index = Number(id.replace(/\D/g, "")) || 0;
+  return {
+    id,
+    name: `Venue ${id}`,
+    area: "Lambeth",
+    lat: 51.462 + index * 0.001,
+    lng: -0.138 + index * 0.001,
+    cheapestPrice: 5,
+    amenities: {
+      beerGarden: false,
+      cocktails: false,
+      food: false,
+      liveSports: false,
+      liveMusic: false,
+    },
+    nearWater: false,
+    hasStory: false,
+    canonical: true,
+    ...options,
+  };
+}
 
 describe("POST /api/plans/generate", () => {
   beforeEach(() => {
@@ -133,6 +176,20 @@ describe("POST /api/plans/generate", () => {
       retryable: false,
     });
   });
+
+	it("rejects oversized bodies with the public API envelope before rate limiting", async () => {
+		const response = await POST(new Request("http://localhost/api/plans/generate", {
+			method: "POST",
+			body: JSON.stringify({ query: "x".repeat(17_000) }),
+		}));
+		expect(response.status).toBe(413);
+		expect(await response.json()).toEqual({
+			error: "Request body is too large.",
+			code: "REQUEST_TOO_LARGE",
+			retryable: false,
+		});
+		expect(isLimitedMock).not.toHaveBeenCalled();
+	});
 
   it("uses the same privacy-safe per-client bucket for local and durable limiting", async () => {
     const rawIp = "203.0.113.42";
@@ -341,6 +398,218 @@ describe("POST /api/plans/generate", () => {
         detail: expect.stringContaining("direct-distance estimate"),
         provenance: [expect.objectContaining({ label: expect.stringContaining("Balans Restaurants") })],
       })]);
+    } finally {
+      clock.mockRestore();
+    }
+  });
+
+  it.each([
+    [null, "PLAN_INTAKE_MALFORMED"],
+    [{ ...generationIntake(), version: 2 }, "INTAKE_VERSION_UNSUPPORTED"],
+    [{ ...generationIntake(), accessibilityNeeds: ["maybe-step-free"] }, "PLAN_INTAKE_MALFORMED"],
+  ])("fails closed when a present intake envelope is malformed", async (intakeValue, code) => {
+    const response = await POST(new Request("http://localhost/api/plans/generate", {
+      method: "POST",
+      body: JSON.stringify({ query: "Clapham", intake: intakeValue }),
+    }));
+    expect(response.status).toBe(400);
+    expect(await response.json()).toMatchObject({ code, retryable: false });
+		expect(isLimitedMock).not.toHaveBeenCalled();
+  });
+
+	it("returns an honest unsupported result for Hackney instead of routing Shoreditch", async () => {
+    const response = await POST(new Request("http://localhost/api/plans/generate", {
+      method: "POST",
+      body: JSON.stringify({
+        query: "A night in Shoreditch",
+        context: { nightArea: "shoreditch" },
+        intake: generationIntake({ area: { kind: "night-patch", id: "hackney" } }),
+      }),
+    }));
+    expect(response.status).toBe(422);
+    expect(await response.json()).toMatchObject({
+      code: "NIGHT_PATCH_UNSUPPORTED",
+      details: { patchId: "hackney" },
+	});
+	});
+
+	it.each(["soho", "shoreditch", "camden", "london-bridge", "brixton", "clapham", "islington"] as const)(
+		"generates for mapped Night Patch %s regardless of readiness metadata",
+		async (patchId) => {
+			const response = await POST(new Request("http://localhost/api/plans/generate", {
+				method: "POST",
+				body: JSON.stringify({ intake: generationIntake({ area: { kind: "night-patch", id: patchId } }) }),
+			}));
+			expect(response.status).toBe(200);
+			const body = await response.json();
+			expect(body.stops).toHaveLength(3);
+			expect(body.contextFieldSources.nightArea).toBe("intake");
+		},
+	);
+
+	it("generates a low-confidence route when the mapped patch lacks route-feasibility metadata", async () => {
+    const response = await POST(new Request("http://localhost/api/plans/generate", {
+      method: "POST",
+      body: JSON.stringify({
+        query: "Shoreditch",
+        intake: generationIntake({ area: { kind: "night-patch", id: "shoreditch" } }),
+      }),
+    }));
+		expect(response.status).toBe(200);
+		expect(await response.json()).toMatchObject({
+			inferredContext: { nightArea: "shoreditch" },
+			planningConfidence: { level: "low", routeReady: false },
+			stops: [{}, {}, {}],
+		});
+  });
+
+  it("makes the exact intake patch authoritative over conflicting inference", async () => {
+    const response = await POST(new Request("http://localhost/api/plans/generate", {
+      method: "POST",
+      body: JSON.stringify({
+        query: "Shoreditch after work",
+        context: { nightArea: "shoreditch" },
+        intake: generationIntake(),
+      }),
+    }));
+    const body = await response.json();
+		expect(response.status).toBe(200);
+		expect(body.inferredContext.nightArea).toBe("clapham");
+		expect(body.contextFieldSources.nightArea).toBe("intake");
+		expect(body.explanations.filter((reason: { field: string }) => reason.field === "nightArea"))
+			.toEqual([expect.objectContaining({ explanation: expect.stringContaining("Plan intake") })]);
+    expect(body.constraintReport).toMatchObject({
+      version: 1,
+      source: "plan-intake-v1",
+      hardConstraints: expect.arrayContaining([
+        expect.objectContaining({ code: "exact_area", status: "satisfied" }),
+        expect.objectContaining({ code: "transport_feasibility", status: "satisfied" }),
+      ]),
+      softRelaxations: [],
+    });
+  });
+
+	it("reports end to end that unevidenced group capacity could not shape ranking", async () => {
+		const response = await POST(new Request("http://localhost/api/plans/generate", {
+			method: "POST",
+			body: JSON.stringify({ intake: generationIntake({ groupSize: 8 }) }),
+		}));
+		const body = await response.json();
+
+		expect(response.status).toBe(200);
+		expect(body.constraintReport.softRelaxations).toContainEqual({
+			code: "group_fit_unverified",
+			message: "The requested group size could not shape ranking because venue capacity is not evidenced in the dataset.",
+		});
+	});
+
+	it("fails closed when custom candidates cannot be joined to canonical price evidence", async () => {
+    loadConciergeVenuesMock.mockResolvedValueOnce([
+      generatedVenue("v1", { cheapestPrice: 9 }),
+      generatedVenue("v2", { cheapestPrice: 6 }),
+      generatedVenue("v3", { cheapestPrice: 5 }),
+      generatedVenue("v4", { cheapestPrice: 4 }),
+      generatedVenue("v5", { cheapestPrice: 3 }),
+    ]);
+    const response = await POST(new Request("http://localhost/api/plans/generate", {
+      method: "POST",
+      body: JSON.stringify({
+        query: "Clapham",
+        intake: generationIntake({ budget: { tier: "value", limitPence: 1_200 } }),
+      }),
+    }));
+    const body = await response.json();
+		expect(response.status).toBe(422);
+		expect(body).toMatchObject({
+			code: "GROUNDED_CONSTRAINTS_UNSATISFIED",
+			details: { rejected: { budgetEvidence: 5 } },
+		});
+  });
+
+  it("never returns a stop without confirmed required accessibility", async () => {
+    loadConciergeVenuesMock.mockResolvedValueOnce([
+      generatedVenue("accessible-1", { name: "The Ice Wharf - JD Wetherspoon", area: "Camden" }),
+      generatedVenue("accessible-2", { name: "The Ice Wharf - JD Wetherspoon", area: "Camden" }),
+      generatedVenue("accessible-3", { name: "The Ice Wharf - JD Wetherspoon", area: "Camden" }),
+      generatedVenue("accessible-4", { name: "The Ice Wharf - JD Wetherspoon", area: "Camden" }),
+      generatedVenue("unknown-5", { name: "Unknown Access", cheapestPrice: 1 }),
+    ]);
+    const response = await POST(new Request("http://localhost/api/plans/generate", {
+      method: "POST",
+      body: JSON.stringify({
+        query: "Clapham",
+        intake: generationIntake({ accessibilityNeeds: ["step-free"] }),
+      }),
+    }));
+    const body = await response.json();
+    expect(response.status).toBe(200);
+    expect(body.stops).toHaveLength(3);
+    expect(body.stops.every((stop: { venueName: string }) => stop.venueName === "The Ice Wharf - JD Wetherspoon")).toBe(true);
+    expect(body.stops.flatMap((stop: { alternatives: Array<{ venueName: string }> }) => stop.alternatives)
+      .every((alternative: { venueName: string }) => alternative.venueName === "The Ice Wharf - JD Wetherspoon")).toBe(true);
+    expect(body.constraintReport.hardConstraints).toContainEqual(expect.objectContaining({
+      code: "accessibility",
+      status: "satisfied",
+    }));
+  });
+
+  it("returns no route rather than treating unknown access facts as accessible", async () => {
+    loadConciergeVenuesMock.mockResolvedValueOnce([
+      generatedVenue("unknown-1"),
+      generatedVenue("unknown-2"),
+      generatedVenue("unknown-3"),
+      generatedVenue("unknown-4"),
+    ]);
+    const response = await POST(new Request("http://localhost/api/plans/generate", {
+      method: "POST",
+      body: JSON.stringify({
+        query: "Clapham",
+        intake: generationIntake({ accessibilityNeeds: ["step-free"] }),
+      }),
+    }));
+    expect(response.status).toBe(422);
+    expect(await response.json()).toMatchObject({
+      code: "GROUNDED_CONSTRAINTS_UNSATISFIED",
+      details: { rejected: { accessibility: 4 } },
+    });
+  });
+
+	it.each(["seating", "low-noise"] as const)(
+		"returns no real-catalogue route when distinct %s evidence is unavailable",
+		async (need) => {
+			const response = await POST(new Request("http://localhost/api/plans/generate", {
+				method: "POST",
+				body: JSON.stringify({ intake: generationIntake({ accessibilityNeeds: [need] }) }),
+			}));
+			expect(response.status).toBe(422);
+			expect(await response.json()).toMatchObject({ code: "GROUNDED_CONSTRAINTS_UNSATISFIED" });
+		},
+	);
+
+  it("returns no route when a dated route lacks opening evidence", async () => {
+    const clock = vi.spyOn(Date, "now").mockReturnValue(Date.parse("2026-07-20T12:00:00.000Z"));
+    loadConciergeVenuesMock.mockResolvedValueOnce([
+      generatedVenue("ordinary-1"),
+      generatedVenue("ordinary-2"),
+      generatedVenue("ordinary-3"),
+      generatedVenue("ordinary-4"),
+    ]);
+    try {
+      const response = await POST(new Request("http://localhost/api/plans/generate", {
+        method: "POST",
+        body: JSON.stringify({ intake: generationIntake({
+          timeWindow: {
+            id: "after-work",
+            start: "17:30",
+            end: "20:30",
+            exactStartIso: "2026-07-20T16:30:00.000Z",
+          },
+          skipped: [],
+        }) }),
+      }));
+      const body = await response.json();
+      expect(response.status).toBe(422);
+      expect(body).toMatchObject({ code: "GROUNDED_CONSTRAINTS_UNSATISFIED" });
     } finally {
       clock.mockRestore();
     }
