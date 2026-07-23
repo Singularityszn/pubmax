@@ -447,6 +447,21 @@
   }
 }
 
+/* Mid-width discoverability valley (IA-4 / KB-2): from 641–900px the full link
+   row is up but the phone tab bar is not, yet the ⌘K pill above is hidden — so
+   there is no visible entry to the palette in that band. Restore it here (this
+   rule follows the max-width:900 hide, so it wins by source order at 641–900),
+   tightened to an icon-width pill so it reclaims minimal room from the links.
+   ≤640 stays hidden (the max-width:640 rule below still matches; this one does
+   not), keeping the phone bar unchanged. */
+@media (min-width: 641px) and (max-width: 900px) {
+  .siteNavCmdk {
+    display: inline-flex;
+    min-width: 40px;
+    padding: 0 6px;
+  }
+}
+
 /* ── Mobile: the COMPACT bar (the overflow fix) ────────────────────────── */
 /* At ≤640px the bottom tab bar owns primary navigation, so the full link row is
    removed entirely and only the wordmark + actions remain. With the links gone
