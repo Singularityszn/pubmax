@@ -25,7 +25,7 @@ export type SurpriseDrinkVenueEvidence = {
   priceGbp: number;
   /** Human-readable upstream/menu source, not a generated availability claim. */
   source: string;
-  /** ISO timestamp or date at which this availability evidence was observed. */
+  /** ISO instant with `Z` or a numeric offset when this evidence was observed. */
   observedAt: string;
 };
 

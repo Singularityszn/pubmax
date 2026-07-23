@@ -100,8 +100,37 @@ const CONTEXT_FIELDS = [
   "transportConstraints",
 ] as const satisfies readonly (keyof NightContext)[];
 
+const CONTEXT_LIST_FIELDS = [
+  "atmosphere",
+  "foodNeeds",
+  "accessibility",
+  "transportConstraints",
+] as const satisfies readonly (keyof NightContext)[];
+
 function hasOwn<T extends object>(value: T, key: PropertyKey): boolean {
   return Object.prototype.hasOwnProperty.call(value, key);
+}
+
+function omitWhollyCorruptContextLists(
+  raw: unknown,
+  cleaned: Partial<NightContext>,
+): Partial<NightContext> {
+  const result = { ...cleaned };
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return result;
+  const source = raw as Record<string, unknown>;
+  for (const field of CONTEXT_LIST_FIELDS) {
+    const rawList = source[field];
+    const cleanedList = result[field];
+    if (
+      Array.isArray(rawList)
+      && rawList.length > 0
+      && Array.isArray(cleanedList)
+      && cleanedList.length === 0
+    ) {
+      delete result[field];
+    }
+  }
+  return result;
 }
 
 function cleanTopics(value: unknown): string[] | undefined {
@@ -129,7 +158,10 @@ function normalizeIntent(
   layer: TodayIntentLayer | null | undefined,
 ): NormalizedLayer | null {
   if (!layer) return null;
-  const context = cleanNightContextPatch(layer.context) ?? {};
+  const context = omitWhollyCorruptContextLists(
+    layer.context,
+    cleanNightContextPatch(layer.context) ?? {},
+  );
   const hardExclusions = layer.hardExclusions;
   const patch = hasOwn(layer, "preferredPatch")
     ? layer.preferredPatch === null || resolveNightPatch(layer.preferredPatch)
@@ -173,7 +205,7 @@ function normalizeProfile(
   return clean
     ? {
         source,
-        context: clean.context,
+        context: omitWhollyCorruptContextLists(profile?.context, clean.context),
         briefing: {
           muteAll: clean.briefingPreferences.muteAll,
           mutedAreas: cleanAreas(clean.briefingPreferences.mutedAreas) ?? [],
