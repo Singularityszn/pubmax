@@ -84,7 +84,7 @@ Shipped in this branch:
 - `lib/supabase.ts` — `requiresSupabaseStore()` mirrors the same rule so Preview runtimes can use the memory store instead of 503-ing every write.
 - Tests updated in `__tests__/serverEnv.test.ts`.
 
-**Production remains strict:** missing Supabase on a Production target still FATALs, and the `PUBMAX_E2E_KEYLESS=1` test escape hatch is ignored when `VERCEL_ENV=production`.
+**Production remains strict:** missing Supabase on a Production target still FATALs. The `PUBMAX_E2E_KEYLESS=1` test escape hatch is ignored for storage when `VERCEL_ENV=production`, and never relaxes trusted signing in any `NODE_ENV=production` process. Local production-style Playwright servers receive a fresh random signing secret through `webServer.env`, not their command or argv.
 
 ---
 

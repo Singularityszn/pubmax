@@ -10,6 +10,21 @@ import {
   __listMemoryPushTokens,
   __resetMemoryPushTokens,
 } from "@/lib/pushTokenStore";
+import { encodeWebPushSubscription } from "@/lib/webPushSubscription";
+
+const WEB_TOKEN = encodeWebPushSubscription({
+  endpoint: "https://updates.push.services.mozilla.com/wpush/v2/abc",
+  expirationTime: null,
+  keys: { p256dh: "A".repeat(87), auth: "B".repeat(22) },
+})!;
+
+function uncheckedWebToken(endpoint: string): string {
+  return `webpush:${Buffer.from(JSON.stringify({
+    endpoint,
+    expirationTime: null,
+    keys: { p256dh: "A".repeat(87), auth: "B".repeat(22) },
+  })).toString("base64url")}`;
+}
 
 beforeEach(() => {
   __resetMemoryPushTokens();
@@ -37,10 +52,33 @@ describe("validatePushToken", () => {
   });
 
   it("rejects unknown platforms", () => {
-    for (const platform of [undefined, "web", "IOS", 1]) {
+    for (const platform of [undefined, "desktop", "IOS", 1]) {
       const result = validatePushToken({ token: "tok", platform });
       expect(result.ok).toBe(false);
-      if (!result.ok) expect(result.error).toMatch(/ios or android/);
+      if (!result.ok) expect(result.error).toMatch(/ios, android or web/);
+    }
+  });
+
+  it("accepts a valid identity-free web subscription only on the web platform", () => {
+    expect(validatePushToken({ token: WEB_TOKEN, platform: "web" })).toEqual({
+      ok: true,
+      input: { token: WEB_TOKEN, platform: "web" },
+    });
+    expect(validatePushToken({ token: WEB_TOKEN, platform: "ios" }).ok).toBe(false);
+    expect(validatePushToken({ token: "not-a-subscription", platform: "web" }).ok).toBe(false);
+  });
+
+  it("rejects SSRF endpoints before persistence", () => {
+    for (const endpoint of [
+      "https://127.0.0.1/wpush/token",
+      "https://10.0.0.8/wpush/token",
+      "https://169.254.169.254/latest/meta-data",
+      "https://[::1]/wpush/token",
+      "https://localhost/wpush/token",
+      "https://push.example.test/wpush/token",
+      "https://fcm.googleapis.com:444/fcm/send/token",
+    ]) {
+      expect(validatePushToken({ token: uncheckedWebToken(endpoint), platform: "web" }).ok, endpoint).toBe(false);
     }
   });
 });
@@ -68,5 +106,12 @@ describe("memoryPushTokenStore", () => {
     await memoryPushTokenStore.save({ token: "tok-1", platform: "ios" });
     await memoryPushTokenStore.save({ token: "tok-2", platform: "android" });
     expect(__listMemoryPushTokens().map((t) => t.token)).toEqual(["tok-1", "tok-2"]);
+  });
+
+  it("stores a web subscription without attaching identity", async () => {
+    const row = await memoryPushTokenStore.save({ token: WEB_TOKEN, platform: "web" });
+    expect(row).toMatchObject({ token: WEB_TOKEN, platform: "web" });
+    expect(row).not.toHaveProperty("userId");
+    expect(row).not.toHaveProperty("planId");
   });
 });

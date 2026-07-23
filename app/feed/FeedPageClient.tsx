@@ -6,6 +6,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useAuth } from "@/components/auth/AuthProvider";
 import FeedCard from "@/components/feed/FeedCard";
 import FeedFilters from "@/components/feed/FeedFilters";
+import FeedSightings from "@/components/feed/FeedSightings";
 import PresenceStrip from "@/components/feed/PresenceStrip";
 import SocialTabs, { type SocialTab } from "@/components/feed/SocialTabs";
 import SiteNav from "@/components/nav/SiteNav";
@@ -22,6 +23,7 @@ import {
   type FeedItem,
   type PintDropDTO,
 } from "@/lib/feed";
+import { sightingPlacement, type SightingDTO } from "@/lib/feedSightings";
 import {
   OPTIMISTIC_SPILL_EVENT,
   buildOptimisticSpillRetryFormData,
@@ -121,13 +123,24 @@ function toggleMine(mine: ReactionKey[], key: ReactionKey): ReactionKey[] {
   return mine.includes(key) ? mine.filter((k) => k !== key) : [...mine, key];
 }
 
-export default function FeedPageClient() {
+export default function FeedPageClient({
+  // Ambient price sightings (lib/feedSightings.ts), resolved server-side and
+  // rendered ONLY on the London tab: as the whole surface when no drinker has
+  // logged (replacing the dead empty state honestly), else a compact strip below
+  // real user drops. Defaults to [] so the client still stands alone in tests.
+  sightings = [],
+}: {
+  sightings?: SightingDTO[];
+} = {}) {
   // Raw normalized items from the API (the full fetched set); filtering and
   // pagination are derived client-side from this. Fetch happens in an effect,
   // but setState only fires inside the async resolution / catch — never in the
   // effect body (react-hooks/set-state-in-effect).
   const [items, setItems] = useState<FeedItem[]>([]);
   const [status, setStatus] = useState<LoadState>("loading");
+  // Bump this to retrigger the main feed fetch (used by the error-state retry
+  // button). Incrementing the counter re-runs the fetch effect below.
+  const [fetchTick, setFetchTick] = useState(0);
   // The active lane. Server-renders the SSR-stable "latest" so hydration never
   // mismatches; a mount effect then steers the *initial* lane by view mode
   // (Lock-In opens on the energetic "for-you" lane, Ledger on the calm "latest"
@@ -201,6 +214,9 @@ export default function FeedPageClient() {
 
   useEffect(() => {
     const controller = new AbortController();
+    // Re-arm the loading state in a microtask so setState never fires
+    // synchronously in the effect body (react-hooks/set-state-in-effect).
+    void Promise.resolve().then(() => setStatus("loading"));
     fetch("/api/pint-drops", { signal: controller.signal })
       .then(async (res) => {
         if (!res.ok) throw new Error(`Feed request failed: ${res.status}`);
@@ -218,11 +234,11 @@ export default function FeedPageClient() {
       .catch((err: unknown) => {
         // Abort is expected on unmount — not an error surface.
         if (err instanceof DOMException && err.name === "AbortError") return;
-        // Any real failure degrades to the empty state, never a crash.
+        // Any real failure degrades to the error state (distinct from empty).
         setStatus("error");
       });
     return () => controller.abort();
-  }, []);
+  }, [fetchTick]);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -759,7 +775,8 @@ export default function FeedPageClient() {
     setPagesLoaded(1);
   }
 
-  const isEmpty = status === "error" || (status === "ready" && filtered.length === 0);
+  const isError = status === "error";
+  const isEmpty = status === "ready" && filtered.length === 0;
 
   // The Your lot tab's own empty state: the viewer has no mutual follows AND no
   // check-ins to show. A mutual follow (not a one-way follow) is what fills this
@@ -771,6 +788,27 @@ export default function FeedPageClient() {
     lotHandles.size === 0 &&
     checkInItems.length === 0;
 
+  // Where ambient sightings sit on the London tab (lib/feedSightings.ts):
+  //  - "primary" — no user drops, so sightings ARE the surface (they stand in
+  //    for the dead empty state, honestly badged as sourced, never as drinkers);
+  //  - "strip"   — user drops exist, so sightings collapse to a quiet strip below
+  //    the fresh content — real drinkers always lead;
+  //  - "none"    — other tabs, still loading/errored, or no sightings.
+  // This is a SEPARATE data source + card type from the error/empty states, so it
+  // does not touch that branch (coordination with the error-honesty work in
+  // this PR's own empty/error rework).
+  const sightingSpot = sightingPlacement({
+    tab,
+    status,
+    userItemCount: filtered.length,
+    sightingCount: sightings.length,
+  });
+
+  // Empty / error / lot-empty surfaces own their single next step. Keep the
+  // header compose stack off those states so mobile never stacks Capture /
+  // Log / We're out / Find a pub as four competing CTAs.
+  const showComposeActions = status === "ready" && !isEmpty && !lotEmpty;
+
   return (
     <main className="feedShell">
       <SiteNav active="feed" />
@@ -780,11 +818,13 @@ export default function FeedPageClient() {
           old eyebrow + lede stack pushed real content below the fold. */}
       <header className="feedHeader">
         <h1 className="feedTitle">The Pint Feed</h1>
-        <div className="feedComposeActions" aria-label="Create">
-          <Link href="/moment" className="feedMomentCta">Capture a Moment</Link>
-          <Link href="/map?log=1" className="feedDropCta">Log a Pint Drop</Link>
-          <Link href="/we-are-out" className="feedMomentCta">We&rsquo;re out</Link>
-        </div>
+        {showComposeActions ? (
+          <div className="feedComposeActions" aria-label="Create">
+            <Link href="/moment" className="feedMomentCta">Capture a Moment</Link>
+            <Link href="/map?log=1" className="feedDropCta">Log a Pint Drop</Link>
+            <Link href="/we-are-out" className="feedMomentCta">We&rsquo;re out</Link>
+          </div>
+        ) : null}
       </header>
 
       {/* N4: two wrapper divs only — display:contents below 1024px means they
@@ -836,6 +876,22 @@ export default function FeedPageClient() {
             </div>
           ))}
         </div>
+      ) : isError ? (
+        <EmptyState
+          className="feedEmpty"
+          title="Couldn't pour the feed."
+          body="We can't reach the bar right now. Check your signal, then give it another go."
+          role="alert"
+          action={
+            <button
+              type="button"
+              className="feedRetryBtn"
+              onClick={() => setFetchTick((n) => n + 1)}
+            >
+              Try again
+            </button>
+          }
+        />
       ) : lotEmpty ? (
         <EmptyState
           className="feedEmpty"
@@ -844,13 +900,27 @@ export default function FeedPageClient() {
           body="Your lot is the people you both follow. Add a friend by their handle or share your link at the table, and their nights, drops and check-ins land here."
           action={<Link href="/discover">Add your lot</Link>}
         />
+      ) : sightingSpot === "primary" ? (
+        // London cold start: no drinker has logged yet, so the honestly-sourced
+        // sightings ARE the surface instead of a dead empty state. Kept as its
+        // own branch above the empty state so it never touches that component.
+        <FeedSightings variant="primary" sightings={sightings} />
       ) : isEmpty ? (
         <EmptyState
           className="feedEmpty"
           eyebrow="Quiet at the bar"
           title="No pints logged yet tonight."
           body="Be the first to drop one. Snap your pint, log the price, pass down a story. The feed fills up as London drinks."
-          action={<Link href="/map?log=1">Find a pub and drop a pint</Link>}
+          action={
+            <div className="feedEmptyActions">
+              <Link href="/map?log=1" className="feedEmptyPrimary">
+                Find a pub and drop a pint
+              </Link>
+              <Link href="/moment" className="feedEmptySecondary">
+                Capture a Moment instead
+              </Link>
+            </div>
+          }
         />
       ) : (
         <>
@@ -880,8 +950,17 @@ export default function FeedPageClient() {
               </button>
             </div>
           ) : (
-            <p className="feedEnd">You&rsquo;ve reached the bottom of the barrel.</p>
+            <div className="feedEndWrap">
+              <p className="feedEnd">You&rsquo;ve reached the bottom of the barrel.</p>
+              <Link href="/map?log=1" className="feedEndCta">Log your pint</Link>
+            </div>
           )}
+          {/* Real drinkers lead; ambient sightings sit BELOW them as a quiet,
+              clearly-sourced strip so the London tab stays alive without ever
+              faking user activity. */}
+          {sightingSpot === "strip" ? (
+            <FeedSightings variant="strip" sightings={sightings} />
+          ) : null}
         </>
       )}
         </div>

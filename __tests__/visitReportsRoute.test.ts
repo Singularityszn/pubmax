@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 // POST/GET /api/visit-reports — validation, the durable rate-limit boundary, the
 // public report → hide flow, and the moderator gate. The @/lib/supabase seam is
@@ -37,6 +37,8 @@ beforeEach(() => {
   __resetPintDrops();
 });
 
+afterEach(() => vi.restoreAllMocks());
+
 describe("POST /api/visit-reports (create)", () => {
   it("creates a valid report (201) and stores it", async () => {
     const res = await POST(post({ venueId: "venue-1", handle: "sam", busyness: "steady", wouldReturn: "yes" }));
@@ -44,6 +46,18 @@ describe("POST /api/visit-reports (create)", () => {
     const data = (await res.json()) as { report: { id: string; handle: string } };
     expect(data.report.handle).toBe("sam");
     expect(await memoryVisitReportStore.listForVenue("venue-1")).toHaveLength(1);
+  });
+
+  it("returns a retryable 503 when report persistence is unavailable", async () => {
+    vi.spyOn(memoryVisitReportStore, "create").mockRejectedValueOnce(
+      new Error("durable schema missing in production"),
+    );
+
+    const res = await POST(
+      post({ venueId: "venue-1", handle: "sam", busyness: "steady", wouldReturn: "yes" }),
+    );
+    expect(res.status).toBe(503);
+    expect(await res.json()).toMatchObject({ code: "STORE_UNAVAILABLE", retryable: true });
   });
 
   it("400s a malformed body", async () => {
@@ -100,6 +114,28 @@ describe("POST /api/visit-reports (report + moderation)", () => {
   it("403s a moderator action without the admin token", async () => {
     const res = await POST(post({ action: "keep_hidden", id: "whatever" }));
     expect(res.status).toBe(403);
+  });
+
+  it("returns a retryable 503 when an abuse report cannot persist", async () => {
+    vi.spyOn(memoryVisitReportStore, "report").mockRejectedValueOnce(
+      new Error("durable schema missing in production"),
+    );
+
+    const res = await POST(post({ action: "report", id: "report-1", actor: "actor-a" }));
+    expect(res.status).toBe(503);
+    expect(await res.json()).toMatchObject({ code: "STORE_UNAVAILABLE", retryable: true });
+  });
+
+  it("returns a retryable 503 when moderation cannot persist", async () => {
+    vi.spyOn(memoryVisitReportStore, "moderate").mockRejectedValueOnce(
+      new Error("durable schema missing in production"),
+    );
+    const request = post({ action: "restore", id: "report-1" });
+    request.headers.set("x-admin-token", "test-admin-secret");
+
+    const res = await POST(request);
+    expect(res.status).toBe(503);
+    expect(await res.json()).toMatchObject({ code: "STORE_UNAVAILABLE", retryable: true });
   });
 });
 

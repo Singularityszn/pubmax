@@ -50,11 +50,23 @@ Empty states, errors, the morning after, the return visit: each earns a human li
 
 ## House law (non-negotiable)
 
-- **No em dashes. Anywhere in product copy.** Use a full stop, a comma, or a colon. (Enforced by `__tests__/opsFreeze.test.ts` and `__tests__/frictionVoice.test.ts`. Never reintroduce one.)
+- **No em dashes. Anywhere in product copy.** Use a full stop, a comma, or a colon. (Enforced tree-wide by `__tests__/emDashLaw.test.ts`, the em-dash law below. Never reintroduce one.)
 - **No exclamation marks.** A Londoner doesn't oversell. One confident line beats a shouted one.
 - **No fake counts, no invented data.** If a number isn't real, don't show it. "No price logged here yet" beats "0 observations". (Taste doctrine.)
 - **British spelling.** _colour, favourite, realise, licence, metre, cancelled._ Never _color, favorite, realize._
 - **No begging.** No "please try again", no "check back later", no "don't miss out".
+
+## The em-dash law
+
+An em dash in product copy is the single loudest tell that a machine wrote it. So the ban is not a style note, it is a fence: `__tests__/emDashLaw.test.ts` reads the source of every user-facing surface and fails the build if a reader could ever see one.
+
+**What it scans.** Every `.tsx` under `app/` and `components/`, plus the `lib` files that export copy a person reads (API errors, the freeze wall, TfL disruption phrasing, weather nudges, the OG card). It parses each file to an AST and inspects only JSX text, string literals, and template literals, so the words on a screen are judged and nothing else.
+
+**What it fails on.** A literal em dash (U+2014), its HTML entity (`&mdash;`, `&#8212;`, `&#x2014;`), and an en dash used as a clause separator (a space on each side, ` – `), which is just an em dash in a smaller coat.
+
+**What it allows.** Code comments, because they are not copy and the AST never sees them. Decorative glyphs inside an `aria-hidden` element, because a screen reader skips them. Module specifiers in imports. Number and date ranges written with an en dash and no spaces (`2019–2024`, `28A–28B`), which is correct typography. And an explicit exceptions list, which is empty today and should stay that way: if a string seems to need a dash, the sentence around it is the problem, not the punctuation.
+
+The fix is never a mechanical swap. When you find one, rewrite the sentence so it does not want the dash. The dash is a symptom; the sentence built around it is the disease.
 
 ## Banned words
 
@@ -82,6 +94,9 @@ Some of these are lines we already own and should copy the rhythm of. Others are
 | 8 | No grounded nearby extension is available without widening the route. | Nothing close enough to add without dragging the night out. | `NightModeCard` |
 | 9 | Nearest rail signal: {station}. | Nearest station: {station}. | `NightModeCard` |
 | 10 | Kitchen hours can change; verify tonight before leaving the last pub. | Kitchens can shut early. Check tonight's hours before you leave the last pub. | `NightModeCard` |
+| 11 | It is price-aware — you can see what a pint costs. It is story-led — every pub carries heritage. And it is map-first — the map is the product. | We put real prices on the map. Every one comes from someone who was actually there, with a date on it. Tap a pub and you see what a pint costs before you set off, not after you've handed over a note. | `/about` story page (killed the "It is X. It is Y. And it is Z." triad and three em dashes) |
+| 12 | After a hard day's work you want a cheap pint nearby — without bouncing between Google Maps, other maps, and ChatGPT. | You finish work, you want a good pint nearby. So you open Google Maps, then another map, then reviews, then you're asking ChatGPT, and an hour later you're back at the same place as last time. | `/about` lede |
+| 13 | Karan Manoharan &mdash; X | Karan Manoharan · X | `/about` press-kit founder line (no dash construction) |
 
 ## The north star (lines we already own)
 

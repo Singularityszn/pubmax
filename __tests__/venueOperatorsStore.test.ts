@@ -3,7 +3,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 // Hermetic tests for BOTH backends of the venue-operator claims store. Memory is
 // exercised directly; the Supabase backend runs against an in-memory fluent mock
 // of the admin client (no network), proving the durable path's upsert-on-pair,
-// verification lifecycle, and the schema-miss fail-soft to memory.
+// verification lifecycle, preview schema-miss fallback, and production
+// fail-closed writes.
 
 import {
   __resetVenueOperators,
@@ -107,6 +108,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  vi.unstubAllEnvs();
   vi.clearAllMocks();
 });
 
@@ -175,12 +177,39 @@ describe("supabaseVenueOperatorStore", () => {
   });
 
   it("fails soft to memory on a schema miss (table not yet applied)", async () => {
+    vi.stubEnv("VERCEL_ENV", "preview");
     db.schemaMiss = true;
     const dto = await supabaseVenueOperatorStore.claim(fields());
     expect(dto.verificationState).toBe("pending");
     // The memory fallback holds it; a durable read also fails soft to memory.
     expect(await memoryVenueOperatorStore.getForAccountVenue("acct-1", "venue-1")).not.toBeNull();
     expect(await supabaseVenueOperatorStore.getForAccountVenue("acct-1", "venue-1")).not.toBeNull();
+  });
+
+  it("refuses claim and moderation memory fallbacks in deployed production", async () => {
+    vi.stubEnv("VERCEL_ENV", "production");
+    db.schemaMiss = true;
+
+    await expect(supabaseVenueOperatorStore.claim(fields())).rejects.toThrow(
+      /refusing process-memory write fallback.*0048/,
+    );
+    expect(await memoryVenueOperatorStore.getForAccountVenue("acct-1", "venue-1")).toBeNull();
+
+    const seeded = await memoryVenueOperatorStore.claim(fields());
+    await expect(supabaseVenueOperatorStore.setState(seeded.id, "verified")).rejects.toThrow(
+      /refusing process-memory write fallback.*0048/,
+    );
+    expect(await memoryVenueOperatorStore.isVerifiedOperator("acct-1", "venue-1")).toBe(false);
+  });
+
+  it("keeps schema-miss reads fail-soft in deployed production", async () => {
+    vi.stubEnv("VERCEL_ENV", "production");
+    const seeded = await memoryVenueOperatorStore.claim(fields());
+    await memoryVenueOperatorStore.setState(seeded.id, "verified");
+    db.schemaMiss = true;
+
+    expect(await supabaseVenueOperatorStore.getForAccountVenue("acct-1", "venue-1")).not.toBeNull();
+    expect(await supabaseVenueOperatorStore.isVerifiedOperator("acct-1", "venue-1")).toBe(true);
   });
 
   it("isVerifiedOperator fails closed (false) on a read wobble", async () => {

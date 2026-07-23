@@ -18,20 +18,22 @@ function ember(props: Parameters<typeof PubmaxxLoadingEmber>[0] = {}): string {
 }
 
 describe("PubmaxxMarkStrike — the draw-in", () => {
-  it("reuses the canonical Clink geometry (two filled arm polygons, never strokes)", () => {
+  it("reuses the canonical X geometry (three filled stroke polygons, never strokes)", () => {
     const svg = strike();
-    expect(svg).toContain(`points="${MARK_GEOMETRY.armA}"`);
-    expect(svg).toContain(`points="${MARK_GEOMETRY.armB}"`);
-    expect((svg.match(/<polygon/g) ?? []).length).toBe(2);
+    expect(svg).toContain(`points="${MARK_GEOMETRY.thinA}"`);
+    expect(svg).toContain(`points="${MARK_GEOMETRY.thinB}"`);
+    expect(svg).toContain(`points="${MARK_GEOMETRY.thick}"`);
+    expect((svg.match(/<polygon/g) ?? []).length).toBe(3);
   });
 
-  it("drives the draw with two masked beams (a=heavy/first, b=second)", () => {
+  it("drives the draw with two masked beams (a=thick descending, b=ascending double)", () => {
     const svg = strike();
     expect((svg.match(/<mask/g) ?? []).length).toBe(2);
     expect(svg).toContain("markStrike__beam markStrike__beam--a");
     expect(svg).toContain("markStrike__beam markStrike__beam--b");
-    // Each arm polygon is revealed through a mask.
-    expect((svg.match(/mask="url\(#strikeBeam/g) ?? []).length).toBe(2);
+    // All three stroke polygons are revealed through a mask (beam A the thick
+    // descending stroke, beam B both thin ascending strokes).
+    expect((svg.match(/mask="url\(#strikeBeam/g) ?? []).length).toBe(3);
     // pathLength normalises the dash sweep across sizes.
     expect(svg).toContain('pathLength="1"');
   });
@@ -44,9 +46,9 @@ describe("PubmaxxMarkStrike — the draw-in", () => {
     expect(frozen).not.toContain("markStrike--play");
   });
 
-  it("defaults to the duo Clink: coral arms + a lit bright ember", () => {
+  it("defaults to the duo X: coral strokes + a lit bright ember", () => {
     const svg = strike();
-    expect((svg.match(/var\(--brass, #ff5a5f\)/g) ?? []).length).toBe(2);
+    expect((svg.match(/var\(--brass, #ff5a5f\)/g) ?? []).length).toBe(3);
     expect(svg).toContain("var(--brass-bright, #ff7a55)");
     expect(svg).toContain('class="markStrike__ember"');
   });

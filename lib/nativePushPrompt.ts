@@ -27,6 +27,7 @@
 // isNativeApp() (lib/nativePlatform.ts), the only Capacitor-detection seam.
 
 import { isNativeApp } from "@/lib/nativePlatform";
+import { recordWebPushHighIntentAction } from "@/lib/webPushPrompt";
 
 const ENABLED_KEY = "pubmax:nativePush:enabled:v1";
 const DISMISSED_SEQ_KEY = "pubmax:nativePush:dismissedSeq:v1";
@@ -131,7 +132,11 @@ function dismissedAtSeq(): number | null {
  * the sequence never advances there, so the prompt can never fire.
  */
 export function recordPlanHighIntentAction(): void {
-  if (!isNativeApp() || !hasStorage()) return;
+  if (!isNativeApp()) {
+    recordWebPushHighIntentAction();
+    return;
+  }
+  if (!hasStorage()) return;
   const nextSeq = currentActionSeq() + 1;
   try {
     window.localStorage.setItem(SEQ_KEY, String(nextSeq));
