@@ -164,7 +164,7 @@
 }
 
 .threadWith {
-  font-family: var(--font-serif, Georgia, serif);
+  font-family: var(--font-display, var(--serif));
   font-size: 1.25rem;
   color: var(--ink);
 }
