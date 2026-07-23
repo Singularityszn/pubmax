@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { Mic, MicOff, ShieldCheck, Sparkles } from "lucide-react";
 import { startTransition, useEffect, useRef, useState } from "react";
 
@@ -241,6 +242,10 @@ export function MobilePlanActivation({
             <div><strong>{result.confidence.level === "high" ? "Higher confidence" : result.confidence.level === "medium" ? "Plan with checks" : "Low confidence, fully editable"}</strong><span>{result.budget.estimatedPerPersonPence === null ? "Price evidence is incomplete; check each stop before relying on the budget." : `Estimated £${(result.budget.estimatedPerPersonPence / 100).toFixed(2)} each for one recorded pint per stop.`}</span>{result.confidence.warnings.length ? <ul aria-label="Evidence warnings">{result.confidence.warnings.map((warning) => <li key={warning}><small>{warning}</small></li>)}</ul> : null}</div>
           </div>
           <p className="mobilePlannerRouteTotal">{result.routeTotalLabel}</p>
+          <p className="mobilePlannerNextStep">Route preview stays on this device. Lock it in on Plan when you want a shareable crew link.</p>
+          <Button asChild size="large" variant="secondary" className="w-full">
+            <Link href="/plan?src=mobile-route-preview">Open Plan to lock it in</Link>
+          </Button>
           <div className="mobilePlannerEndings" aria-label="Ending recommendations">
             {result.endings.map((ending) => (
               <div key={ending.kind} data-recommended={ending.preselected ? "true" : undefined}>

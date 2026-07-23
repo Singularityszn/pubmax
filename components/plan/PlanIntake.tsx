@@ -190,7 +190,7 @@ export default function PlanIntake({
           <p className="planIntake__eyebrow">Your night so far</p>
           <h2 id="plan-intake-summary-title">{summary.length ? summary.join(" · ") : "Start in your own words"}</h2>
           <p>{summary.length
-            ? "Saved on this device. Tune any detail or describe the rest below."
+            ? "Saved for later on this device. Lock it in below when you want a share link for the crew."
             : "No choices required. Describe what matters and we will work from that."}</p>
           {summary.length ? (
             <div className="planIntake__summaryChips" aria-label="Saved planning details">
