@@ -1,10 +1,10 @@
 # Fable handoff ledger: personalization Waves A and B
 
-Status: **product fixed point `e131e751` on refreshed `origin/main`; final clean-room review, Vercel gate, and visual verdict pending**
+Status: **product fixed point `4c4a0678` on refreshed `origin/main`; final clean-room review, Vercel gate, and visual verdict pending**
 
 Original lane baseline: `origin/main@a3fde784` on 2026-07-22
 
-Refreshed integration baseline: `origin/main@1bee9fe0` after Fable's #549 to #551 close-out
+Refreshed integration baseline: `origin/main@b6f4a4ad` after Fable's #549 to #552 close-out
 Release roles: Karan owns product rulings; Fable owns architecture review, green-gate review, merge order, and rollout verdict.
 
 ## Owner supersession record
@@ -55,10 +55,10 @@ Fill every field before merge; `TBD` is not release evidence.
 
 | Lane | Commit / PR | Touched-file manifest | Focused tests | `npm run verify` | Visual / live evidence | Fable verdict |
 | --- | --- | --- | --- | --- | --- | --- |
-| Wave A: Personalized Today | lane `155a2769`; integrated through `e131e751` | `lib/todayPersonalization.ts`; `__tests__/todayPersonalization.test.ts`; `app/today/page.tsx`; `app/today/TodayClient.tsx`; `lib/todayBrief.ts`; `__tests__/todayBrief.test.ts` | Included in final 130/130 focused set; typecheck and touched-file lint pass | Final full coverage passed | Browser evidence pending after final review | Pending |
-| Wave B: Surprise Drink | lane `7ca77b74`; integrated through `e131e751` | `lib/surpriseDrink.ts`; `__tests__/surpriseDrink.test.ts` | Included in final 130/130 focused set; typecheck and touched-file lint pass | Final full coverage passed | Not applicable until a separately approved UI wave | Pending |
+| Wave A: Personalized Today | lane `155a2769`; integrated through `4c4a0678` | `lib/todayPersonalization.ts`; `__tests__/todayPersonalization.test.ts`; `app/today/page.tsx`; `app/today/TodayClient.tsx`; `lib/todayBrief.ts`; `__tests__/todayBrief.test.ts` | Included in final 132/132 focused set; typecheck and touched-file lint pass | Full coverage passed before two final timestamp controls; Vercel gate pending | Browser evidence pending after final review | Pending |
+| Wave B: Surprise Drink | lane `7ca77b74`; integrated through `4c4a0678` | `lib/surpriseDrink.ts`; `__tests__/surpriseDrink.test.ts` | Included in final 132/132 focused set; typecheck and touched-file lint pass | Full coverage passed before two final timestamp controls; Vercel gate pending | Not applicable until a separately approved UI wave | Pending |
 | Inherited security baseline | Fable #550 / `b5f9b7b9` | No dependency file belongs to this branch after rebase | Installed Next.js 16.2.11; typecheck passed | Registry-backed `npm audit --audit-level=high`: 0 vulnerabilities | Canonical Vercel build pending | Already merged by Fable |
-| Integrated waves | product fixed point `e131e751`; ledger metadata follows | 9 files including this ledger; feature manifests remain disjoint | 130/130 focused tests; typecheck; touched-file lint; diff-check all pass | Final data/lint/typecheck/coverage: 516 files and 5,021/5,021 tests passed; registry-backed audit found 0 vulnerabilities. | 390x844 light/dark, desktop light/dark, reduced motion: pending for Wave A | Pending |
+| Integrated waves | product fixed point `4c4a0678`; ledger metadata follows | 9 files including this ledger; feature manifests remain disjoint | 132/132 focused tests; typecheck; touched-file lint; diff-check all pass | Latest full data/lint/typecheck/coverage: 516 files and 5,021/5,021 tests passed; the two later timestamp controls pass targeted validation. Registry-backed audit found 0 vulnerabilities. | 390x844 light/dark, desktop light/dark, reduced motion: pending for Wave A | Pending |
 
 ## Review ledger
 
@@ -69,6 +69,7 @@ Fill every field before merge; `TBD` is not release evidence.
 - Fixed point `467c349d`: two more isolated 5.6-high reviews found that uncapped distance ordering could break source diversity and remembered-area membership, zone-less instants remained host-dependent, a final hash-collision tie-break still used locale collation, wholly corrupt higher-priority arrays could clear lower preferences, and an explicit null patch masked the same layer's valid Night Area. All five were closed in `7cd1ea4b`, with focused tests increasing from 123 to 128.
 - Fixed point `1c82e44c`: product/spec review returned clean; standards review found wholly corrupt non-empty planning-context arrays still clearing lower fields and an outdated date-only evidence comment. Both were closed in `74eaaec3`, with an intentional-empty-array control test and focused total increasing from 128 to 129.
 - Fixed point `cd74933a`: standards review returned clean; product/spec review found that `Date.parse` normalized impossible zoned calendar dates. Strict calendar and wall-clock component validation in `e131e751` now rejects impossible `asOfIso` and `observedAt` values, with focused total increasing from 129 to 130.
+- Fixed point `6a1a7fb7`: two isolated reviews found valid microsecond ISO instants were rejected and impossible civil offsets above `±14:00` were accepted. Rebased commits `6103cb01` and `4c4a0678` close both boundaries; the focused total increased from 130 to 132.
 - The security gate found the newly disclosed high-severity Next.js advisory and proved the exact 16.2.11 patch in isolated lane `9b83c046`. Fable independently merged the same patch as #550 before our final fetch. Rebase dropped the duplicate commit cleanly; this branch now changes no dependency file and the networked audit remains clean.
 
 ## Build note
@@ -92,7 +93,7 @@ The first isolated production-build attempt correctly failed because Turbopack w
 
 ## Evidence inspected
 
-- `AGENTS.md` and the current `FABLE_HANDOFF.md`, including Fable's reviewer/merger protocol, current Cursor ownership exclusions, and the 2026-07-22 close-out through #551.
+- `AGENTS.md` and the current `FABLE_HANDOFF.md`, including Fable's reviewer/merger protocol, current Cursor ownership exclusions, and the 2026-07-22 close-out through #552.
 - `docs/SOL_SYNC_2026-07-22.md`, including active file-collision rules and the recorded Cursor/Fable lane boundaries.
-- Local refs, worktree registry, branch tracking, and history for the integration branch plus Waves A and B at `a3fde784`, then a conflict-reviewed rebase onto `1bee9fe0`; no lane-specific remote PR evidence existed at ledger creation.
+- Local refs, worktree registry, branch tracking, and history for the integration branch plus Waves A and B at `a3fde784`, then conflict-reviewed rebases onto `1bee9fe0` and `b6f4a4ad`; no lane-specific remote PR evidence existed at ledger creation.
 - Existing Today lineage: #414 morning brief, #429 remembered-area ordering, #527 deal diversity, #528 Tube/pints modules, #533 quiet-pint module, and #540 weather read-through.
