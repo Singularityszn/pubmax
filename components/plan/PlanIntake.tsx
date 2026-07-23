@@ -11,6 +11,7 @@ import {
   PLAN_TIME_WINDOWS,
   londonDateTimeInputFromIso,
   londonDateTimeInputToIso,
+  nightAreaForPlanIntakePatch,
   nextLondonOccurrenceIso,
   planIntakeStepHasAnswer,
   planIntakeSummary,
@@ -139,6 +140,13 @@ export default function PlanIntake({
             message: finite
               ? "That location is outside London. Pick an area to keep planning."
               : "We could not use that location. Try again or pick an area.",
+          });
+          return;
+        }
+        if (!nightAreaForPlanIntakePatch(patch.id)) {
+          setLocationState({
+            kind: "error",
+            message: `${patch.label} is nearest, but exact route generation is not available there yet. Pick another area to keep planning.`,
           });
           return;
         }

@@ -13,7 +13,7 @@ const COMPLETIONS = "plan_completions";
 const PLAN_COMPLETION_SELECT = "id,plan_id,ending,terminal_venue_id,ending_selection,final_pint_drop_id,route_revision,route_snapshot,qualifying_arrival_action_id,qualifying_arrival_stop_position,qualifying_arrival_at,completed_at";
 
 export type PlanWriteError = "invalid" | "arrival_required" | "not_found" | "full" | "forbidden" | "conflict" | "error";
-export type PlanCreateResult = { ok: true; plan: PlanState; memberToken: string; role: "host" } | { ok: false; error: PlanWriteError };
+export type PlanCreateResult = { ok: true; plan: PlanState; memberToken: string; role: "host"; created: boolean } | { ok: false; error: PlanWriteError };
 export type PlanJoinResult = { ok: true; plan: PlanState; memberToken: string; role: "guest"; collaborationAuthorized: boolean } | { ok: false; error: PlanWriteError };
 export type PlanPresenceResult = { ok: true; plan: PlanState } | { ok: false; error: PlanWriteError };
 export type PlanUpdateResult = PlanPresenceResult;
@@ -22,7 +22,7 @@ export type PlanCompletionResult =
   | { ok: false; error: PlanWriteError };
 
 export type PlanStore = {
-  create(input: CreatePlanInput, options?: { idempotencyKey?: string }): Promise<PlanCreateResult>;
+  create(input: CreatePlanInput, options?: { idempotencyKey?: string; groundingProofDigest?: string }): Promise<PlanCreateResult>;
   get(id: string): Promise<PlanState | null>;
   join(id: string, name: unknown, options?: { collaborationAuthorized?: boolean; idempotencyKey?: string }): Promise<PlanJoinResult>;
   updatePresence(id: string, memberToken: unknown, status: unknown): Promise<PlanPresenceResult>;
@@ -135,7 +135,9 @@ export const supabasePlanStore: PlanStore = {
     if (!clean) return { ok: false, error: "invalid" };
     const key = isPlanIdempotencyKey(options.idempotencyKey) ? options.idempotencyKey.trim() : randomUUID();
     const keyHash = planIdempotencyDigest("plan-create-key", key);
-    const requestHash = planRequestDigest(clean);
+    const requestHash = options.groundingProofDigest
+      ? planRequestDigest({ plan: clean, groundingProofDigest: options.groundingProofDigest })
+      : planRequestDigest(clean);
     const id = planIdempotentUuid("plan-create-id", key);
     const memberToken = planIdempotencyDigest("plan-create-token", key);
     const memberId = planIdempotentUuid("plan-create-member", key);
@@ -157,7 +159,7 @@ export const supabasePlanStore: PlanStore = {
       if (data === "conflict") return { ok: false, error: "conflict" };
       if (data !== "created" && data !== "replayed") return { ok: false, error: "error" };
       const plan = await this.get(id);
-      return plan ? { ok: true, plan, memberToken, role: "host" } : { ok: false, error: "error" };
+      return plan ? { ok: true, plan, memberToken, role: "host", created: data === "created" } : { ok: false, error: "error" };
     } catch (error) {
       console.error("[plans] create failed:", error instanceof Error ? error.message : error);
       return { ok: false, error: "error" };
@@ -435,13 +437,15 @@ export const memoryPlanStore: PlanStore = {
     if (!clean) return { ok: false, error: "invalid" };
     const key = isPlanIdempotencyKey(options.idempotencyKey) ? options.idempotencyKey.trim() : randomUUID();
     const keyHash = planIdempotencyDigest("plan-create-key", key);
-    const requestHash = planRequestDigest(clean);
+    const requestHash = options.groundingProofDigest
+      ? planRequestDigest({ plan: clean, groundingProofDigest: options.groundingProofDigest })
+      : planRequestDigest(clean);
     const replay = planMemory.createRequests.get(keyHash);
     if (replay) {
       if (replay.requestHash !== requestHash) return { ok: false, error: "conflict" };
       const existing = memoryPlans.get(replay.planId);
       return existing
-        ? { ok: true, plan: publicState(existing), memberToken: planIdempotencyDigest("plan-create-token", key), role: "host" }
+        ? { ok: true, plan: publicState(existing), memberToken: planIdempotencyDigest("plan-create-token", key), role: "host", created: false }
         : { ok: false, error: "error" };
     }
     const id = planIdempotentUuid("plan-create-id", key);
@@ -461,7 +465,7 @@ export const memoryPlanStore: PlanStore = {
     };
     memoryPlans.set(id, plan);
     planMemory.createRequests.set(keyHash, { requestHash, planId: id });
-    return { ok: true, plan: publicState(plan), memberToken, role: "host" };
+    return { ok: true, plan: publicState(plan), memberToken, role: "host", created: true };
   },
   async get(id) {
     if (!isPlanId(id)) return null;

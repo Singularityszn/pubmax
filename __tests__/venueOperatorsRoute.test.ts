@@ -45,7 +45,7 @@ beforeEach(() => {
   __resetPintDrops();
 });
 
-afterEach(() => vi.clearAllMocks());
+afterEach(() => vi.restoreAllMocks());
 
 describe("POST /api/venue-operators/claim (create)", () => {
   it("401s an anonymous caller", async () => {
@@ -60,6 +60,19 @@ describe("POST /api/venue-operators/claim (create)", () => {
     const data = (await res.json()) as { claim: { verificationState: string } };
     expect(data.claim.verificationState).toBe("pending");
     expect(await memoryVenueOperatorStore.isVerifiedOperator("acct-1", "v1")).toBe(false);
+  });
+
+  it("returns a retryable 503 when claim persistence is unavailable", async () => {
+    auth.identity = { id: "acct-1", email: "landlord@thepub.co.uk" };
+    vi.spyOn(memoryVenueOperatorStore, "claim").mockRejectedValueOnce(
+      new Error("durable schema missing in production"),
+    );
+
+    const res = await POST(
+      req({ venueId: "v1", evidenceKind: "email-domain", evidenceNote: "on the domain" }),
+    );
+    expect(res.status).toBe(503);
+    expect(await res.json()).toMatchObject({ code: "STORE_UNAVAILABLE", retryable: true });
   });
 
   it("400s an invalid claim (missing evidence kind)", async () => {
@@ -96,6 +109,16 @@ describe("POST /api/venue-operators/claim (moderator verify/reject/revoke)", () 
   it("404s a moderator action against an unknown id", async () => {
     const res = await POST(withAdmin(req({ action: "reject", id: "nope" })));
     expect(res.status).toBe(404);
+  });
+
+  it("returns a retryable 503 when a moderator decision cannot persist", async () => {
+    vi.spyOn(memoryVenueOperatorStore, "setState").mockRejectedValueOnce(
+      new Error("durable schema missing in production"),
+    );
+
+    const res = await POST(withAdmin(req({ action: "verify", id: "claim-1" })));
+    expect(res.status).toBe(503);
+    expect(await res.json()).toMatchObject({ code: "STORE_UNAVAILABLE", retryable: true });
   });
 });
 

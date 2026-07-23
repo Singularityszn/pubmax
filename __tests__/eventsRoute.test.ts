@@ -2,6 +2,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { analyticsSurfaceFromPath, POST } from "@/app/api/events/route";
 import { __resetPintDrops } from "@/lib/pintDrops";
+import { __resetMemoryAnalyticsReceipts } from "@/lib/analyticsReceiptStore";
+import { mintVerifiedAnalyticsToken } from "@/lib/verifiedAnalytics.server";
+
+const VITEST_PLAN_SIGNING_SECRET = process.env.PLAN_IDEMPOTENCY_SECRET;
 
 function post(body: string, headers: Record<string, string> = {}): Request {
   return new Request("http://localhost/api/events", {
@@ -18,12 +22,19 @@ function post(body: string, headers: Record<string, string> = {}): Request {
 beforeEach(() => {
   delete process.env.SUPABASE_URL;
   delete process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (VITEST_PLAN_SIGNING_SECRET) process.env.PLAN_IDEMPOTENCY_SECRET = VITEST_PLAN_SIGNING_SECRET;
+  delete process.env.RATE_LIMIT_SALT;
   delete process.env.POSTHOG_PROJECT_API_KEY;
   __resetPintDrops();
+  __resetMemoryAnalyticsReceipts();
 });
 
 afterEach(() => {
   vi.restoreAllMocks();
+  delete process.env.SUPABASE_URL;
+  delete process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (VITEST_PLAN_SIGNING_SECRET) process.env.PLAN_IDEMPOTENCY_SECRET = VITEST_PLAN_SIGNING_SECRET;
+  delete process.env.RATE_LIMIT_SALT;
 });
 
 describe("POST /api/events", () => {
@@ -59,6 +70,26 @@ describe("POST /api/events", () => {
     expect(res.status).toBe(204);
     expect(log).not.toHaveBeenCalled();
   });
+
+  it.each([undefined, "arrived", "plan_generated"])(
+    "silently drops a meaningful core action with discriminator %s",
+    async (action) => {
+      process.env.POSTHOG_PROJECT_API_KEY = "phc_test_project";
+      const fetchMock = vi.fn().mockResolvedValue(new Response(null, { status: 200 }));
+      vi.stubGlobal("fetch", fetchMock);
+      const log = vi.spyOn(console, "log").mockImplementation(() => {});
+      const res = await POST(post(JSON.stringify({
+        name: "meaningful_core_action",
+        props: action === undefined ? {} : { action },
+        anonymousId: "anon_0123456789abcdef",
+        analyticsConsent: true,
+      })));
+
+      expect(res.status).toBe(204);
+      expect(log).not.toHaveBeenCalled();
+      expect(fetchMock).not.toHaveBeenCalled();
+    },
+  );
 
   it("fail-softs on malformed JSON without throwing", async () => {
     const res = await POST(post("{not json"));
@@ -108,13 +139,16 @@ describe("POST /api/events", () => {
     vi.stubGlobal("fetch", fetchMock);
     vi.spyOn(console, "log").mockImplementation(() => {});
 
+    const before = Date.now();
     const res = await POST(post(JSON.stringify({
       name: "plan_created",
       props: { count: 3, freeText: "do not forward" },
       path: "/plan?memberToken=secret",
       anonymousId: "anon_0123456789abcdef",
       analyticsConsent: true,
+      ts: 123,
     })));
+    const after = Date.now();
 
     expect(res.status).toBe(204);
     expect(fetchMock).toHaveBeenCalledTimes(1);
@@ -124,9 +158,12 @@ describe("POST /api/events", () => {
       api_key: string;
       event: string;
       properties: Record<string, unknown>;
+      timestamp: string;
     };
     expect(payload.api_key).toBe("phc_test_project");
     expect(payload.event).toBe("plan_created");
+    expect(Date.parse(payload.timestamp)).toBeGreaterThanOrEqual(before);
+    expect(Date.parse(payload.timestamp)).toBeLessThanOrEqual(after);
     expect(payload.properties).toMatchObject({
       count: 3,
       path: "/plan",
@@ -135,6 +172,92 @@ describe("POST /api/events", () => {
     });
     expect(JSON.stringify(payload)).not.toContain("memberToken");
     expect(JSON.stringify(payload)).not.toContain("freeText");
+  });
+
+  it("durably deduplicates a verified event and never forwards its token", async () => {
+    process.env.POSTHOG_PROJECT_API_KEY = "phc_test_project";
+    const fetchMock = vi.fn().mockResolvedValue(new Response(null, { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+    const log = vi.spyOn(console, "log").mockImplementation(() => {});
+    const event = { name: "plan_accepted" as const, props: { stops: 3, grounded: true } };
+    const deliveryToken = mintVerifiedAnalyticsToken(event, "plan:dedupe", new Date().toISOString());
+    const body = JSON.stringify({
+      ...event,
+      deliveryToken,
+      path: "/plan",
+      anonymousId: "anon_0123456789abcdef",
+      analyticsConsent: true,
+    });
+
+    const first = await POST(post(body));
+    const replay = await POST(post(body));
+
+    expect(first.headers.get("x-analytics-delivery")).toBe("delivered");
+    expect(replay.headers.get("x-analytics-delivery")).toBe("delivered");
+    expect(log).toHaveBeenCalledTimes(1);
+    expect(JSON.stringify(log.mock.calls)).not.toContain(deliveryToken);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    const providerPayload = JSON.parse(String((fetchMock.mock.calls[0]?.[1] as RequestInit).body));
+    expect(providerPayload.properties.$insert_id).toMatch(/^[0-9a-f-]{36}$/);
+    expect(JSON.stringify(providerPayload)).not.toContain(deliveryToken);
+  });
+
+  it("preserves the signed occurrence timestamp across delayed verified delivery", async () => {
+    process.env.POSTHOG_PROJECT_API_KEY = "phc_test_project";
+    const fetchMock = vi.fn().mockResolvedValue(new Response(null, { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+    vi.spyOn(console, "log").mockImplementation(() => {});
+    const event = { name: "plan_completed" as const, props: { ending: "get_home" } };
+    const occurredAt = new Date(Date.now() - 2 * 24 * 60 * 60 * 1_000).toISOString();
+    const deliveryToken = mintVerifiedAnalyticsToken(event, "completion:delayed", occurredAt);
+
+    const response = await POST(post(JSON.stringify({
+      ...event,
+      deliveryToken,
+      anonymousId: "anon_0123456789abcdef",
+      analyticsConsent: true,
+    })));
+
+    expect(response.headers.get("x-analytics-delivery")).toBe("delivered");
+    const providerPayload = JSON.parse(String((fetchMock.mock.calls[0]?.[1] as RequestInit).body));
+    expect(providerPayload.timestamp).toBe(occurredAt);
+  });
+
+  it("retains a verified event for retry when the trusted signing key is temporarily unavailable", async () => {
+    const event = { name: "plan_accepted" as const, props: { stops: 3, grounded: true } };
+    process.env.PLAN_IDEMPOTENCY_SECRET = "configured-random-signing-key-0123456789abcdef";
+    const deliveryToken = mintVerifiedAnalyticsToken(event, "plan:key-outage", new Date().toISOString());
+    process.env.SUPABASE_URL = "https://example.supabase.co";
+    process.env.SUPABASE_SERVICE_ROLE_KEY = "service-role-key";
+    delete process.env.PLAN_IDEMPOTENCY_SECRET;
+
+    const response = await POST(post(JSON.stringify({
+      ...event,
+      deliveryToken,
+      anonymousId: "anon_0123456789abcdef",
+      analyticsConsent: true,
+    })));
+
+    expect(response.status).toBe(204);
+    expect(response.headers.get("x-analytics-delivery")).toBe("retry");
+  });
+
+  it("rejects spoofed acceptance and completion events without a server token", async () => {
+    process.env.POSTHOG_PROJECT_API_KEY = "phc_test_project";
+    const fetchMock = vi.fn().mockResolvedValue(new Response(null, { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+    const log = vi.spyOn(console, "log").mockImplementation(() => {});
+
+    const response = await POST(post(JSON.stringify({
+      name: "plan_completed",
+      props: { ending: "get_home" },
+      anonymousId: "anon_0123456789abcdef",
+      analyticsConsent: true,
+    })));
+
+    expect(response.headers.get("x-analytics-delivery")).toBe("discard");
+    expect(log).not.toHaveBeenCalled();
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 
   it("templates dynamic paths before logging or forwarding", async () => {

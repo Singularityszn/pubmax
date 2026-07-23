@@ -482,10 +482,12 @@
   cursor: not-allowed;
 }
 
-/* Clear the fixed mobile tab bar so the composer never hides behind it. */
+/* Clear the fixed mobile tab bar AND the floating re-open pill so the composer
+   never hides behind either. --night-pill-clearance is 0px unless a pill is
+   actually mounted (see components/night/nightMode.css). */
 @media (max-width: 640px) {
   .palChat {
-    padding-bottom: calc(var(--tabbar-h, 64px) + env(safe-area-inset-bottom, 0px));
+    padding-bottom: calc(var(--tabbar-h, 64px) + env(safe-area-inset-bottom, 0px) + var(--night-pill-clearance, 0px));
   }
   .palChatComposer {
     padding-bottom: 0.7rem;
