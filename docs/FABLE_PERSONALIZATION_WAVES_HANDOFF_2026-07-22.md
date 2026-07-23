@@ -1,8 +1,10 @@
 # Fable handoff ledger: personalization Waves A and B
 
-Status: **product/security fixed point `c362118b`; this metadata-only ledger update follows; final fixed-point review, Vercel gate, and visual verdict pending**
+Status: **product fixed point `42b2b04e` on refreshed `origin/main`; final clean-room review, Vercel gate, and visual verdict pending**
 
-Baseline: `origin/main@a3fde784` on 2026-07-22
+Original lane baseline: `origin/main@a3fde784` on 2026-07-22
+
+Refreshed integration baseline: `origin/main@1bee9fe0` after Fable's #549 to #551 close-out
 Release roles: Karan owns product rulings; Fable owns architecture review, green-gate review, merge order, and rollout verdict.
 
 ## Owner supersession record
@@ -18,10 +20,9 @@ Wave A makes the existing `/today` brief respond deterministically to already-av
 | --- | --- | --- |
 | Wave A: Personalized Today | `lib/todayPersonalization.ts`, `__tests__/todayPersonalization.test.ts`, minimum wiring in `app/today/page.tsx`, `app/today/TodayClient.tsx`, the area-specific weather option in `lib/todayBrief.ts`, and its existing focused test | `codex/wave-personalized-today-20260722` / `.codex-worktrees/wave-personalized-today` |
 | Wave B: Surprise Drink | `lib/surpriseDrink.ts` and `__tests__/surpriseDrink.test.ts` only. No UI wiring. | `codex/wave-surprise-drink-20260722` / `.codex-worktrees/wave-surprise-drink` |
-| Security: Next.js advisory | `package.json` and `package-lock.json` only; exact stable patch update from vulnerable Next.js 16.2.10 to 16.2.11 | `codex/wave-next-16211-security-20260723` / `.codex-worktrees/wave-next-security` |
 | Integration / handoff | This ledger and later conflict review only after both lane SHAs and touched-file manifests exist. This ledger commit contains no product code. | `codex/wave-personalization-integration-20260722` / `.codex-worktrees/wave-personalization-integration` |
 
-All three local branches started at the same baseline and tracked `origin/main`; no lane-specific commit, remote lane ref, or PR number was locally available when this ledger was opened.
+Both feature branches started at the same original baseline and tracked `origin/main`; no lane-specific remote ref or PR number was locally available when this ledger was opened. A separate security lane proved the Next.js fix, but Fable independently merged the same exact 16.2.11 patch as #550. The integration rebase therefore dropped our duplicate dependency commit and inherits #550 without touching either manifest.
 
 ## Overlap exclusions
 
@@ -54,21 +55,22 @@ Fill every field before merge; `TBD` is not release evidence.
 
 | Lane | Commit / PR | Touched-file manifest | Focused tests | `npm run verify` | Visual / live evidence | Fable verdict |
 | --- | --- | --- | --- | --- | --- | --- |
-| Wave A: Personalized Today | lane `155a2769`; integrated through `285b092d` | `lib/todayPersonalization.ts`; `__tests__/todayPersonalization.test.ts`; `app/today/page.tsx`; `app/today/TodayClient.tsx`; `lib/todayBrief.ts`; `__tests__/todayBrief.test.ts` | Included in final 118/118 focused set; typecheck and touched-file lint pass | Full coverage passed before review corrections; final Vercel gate pending | Browser evidence pending after final review | Pending |
-| Wave B: Surprise Drink | lane `7ca77b74`; integrated through `285b092d` | `lib/surpriseDrink.ts`; `__tests__/surpriseDrink.test.ts` | Included in final 118/118 focused set; typecheck and touched-file lint pass | Full coverage passed before review corrections; final Vercel gate pending | Not applicable until a separately approved UI wave | Pending |
-| Security: Next.js 16.2.11 | lane `9b83c046`; integrated `c362118b` | `package.json`; `package-lock.json` | Installed version 16.2.11; typecheck passed | Registry-backed `npm audit --audit-level=high`: 0 vulnerabilities | Canonical Vercel build pending | Pending |
-| Integrated waves | product/security fixed point `c362118b`; ledger metadata follows | 11 files including this ledger; product manifests remain disjoint | 118/118 focused tests; typecheck; touched-file lint; diff-check all pass | First full run: data/lint/typecheck and 4,994/4,994 tests passed. The original audit then found the newly disclosed Next.js advisory; `c362118b` fixes it and the networked audit is clean. | 390x844 light/dark, desktop light/dark, reduced motion: pending for Wave A | Pending |
+| Wave A: Personalized Today | lane `155a2769`; integrated through `42b2b04e` | `lib/todayPersonalization.ts`; `__tests__/todayPersonalization.test.ts`; `app/today/page.tsx`; `app/today/TodayClient.tsx`; `lib/todayBrief.ts`; `__tests__/todayBrief.test.ts` | Included in final 123/123 focused set; typecheck and touched-file lint pass | Full coverage passed before review corrections; final Vercel gate pending | Browser evidence pending after final review | Pending |
+| Wave B: Surprise Drink | lane `7ca77b74`; integrated through `42b2b04e` | `lib/surpriseDrink.ts`; `__tests__/surpriseDrink.test.ts` | Included in final 123/123 focused set; typecheck and touched-file lint pass | Full coverage passed before review corrections; final Vercel gate pending | Not applicable until a separately approved UI wave | Pending |
+| Inherited security baseline | Fable #550 / `b5f9b7b9` | No dependency file belongs to this branch after rebase | Installed Next.js 16.2.11; typecheck passed | Registry-backed `npm audit --audit-level=high`: 0 vulnerabilities | Canonical Vercel build pending | Already merged by Fable |
+| Integrated waves | product fixed point `42b2b04e`; ledger metadata follows | 9 files including this ledger; feature manifests remain disjoint | 123/123 focused tests; typecheck; touched-file lint; diff-check all pass | First full run: data/lint/typecheck and 4,994/4,994 tests passed. Final full gate pending after fixed-point corrections. | 390x844 light/dark, desktop light/dark, reduced motion: pending for Wave A | Pending |
 
 ## Review ledger
 
 - Fixed point `16568bfb`: two independent 5.6-high reviews found auth scope creep, unenforced constraint labels, duplicate-order dependence, missing price/freshness guarantees, remembered-area masking, owner-decision documentation gaps, and voice-copy issues. Closed by `6adac551`.
 - Fixed point `6adac551`: two fresh isolated reviews found substring topic matching, overstated current-menu copy, modelled Night Areas without weather effects, a duplicated area mapping, and stale ledger evidence. Closed by `6f607f71`.
 - Fixed point `6f607f71`: two fresh isolated reviews found a mutating intake read, dishonest preference-filtered empty state, UTC/local-day conflation, and tied price-conflict selection. Closed by `285b092d`.
-- Security gate then found the newly disclosed high-severity Next.js advisory. The exact 16.2.11 patch is isolated in `9b83c046` and integrated as `c362118b`; no unrelated dependency was updated.
+- Fixed point `527854dc`: two fresh isolated 5.6-high reviews found missing exact-drink identity, equivalent-timestamp price conflicts, filter-after-cap behaviour, an unenforced London day key, an overstated confirmation claim, UTC evidence-date display, and locale-dependent evidence order. All seven were closed in rebased fixed point `42b2b04e`, with focused tests increasing from 118 to 123.
+- The security gate found the newly disclosed high-severity Next.js advisory and proved the exact 16.2.11 patch in isolated lane `9b83c046`. Fable independently merged the same patch as #550 before our final fetch. Rebase dropped the duplicate commit cleanly; this branch now changes no dependency file and the networked audit remains clean.
 
 ## Build note
 
-The first isolated production-build attempt correctly failed because Turbopack will not compile against dependencies outside its worktree. After a copy-on-write local dependency tree was provided, Next.js 16.2.11 started the canonical Turbopack build but slept at 0% CPU for more than 23 minutes. Only that generated build process was stopped, and its incomplete `.next-security` output was removed. Vercel remains the canonical production build gate.
+The first isolated production-build attempt correctly failed because Turbopack will not compile against dependencies outside its worktree. After a copy-on-write local dependency tree was provided, Next.js 16.2.11 started the canonical Turbopack build but slept at 0% CPU for more than 23 minutes. Only that generated build process was stopped, and its incomplete `.next-security` output was removed. Fable's #550 now supplies the same dependency baseline; Vercel remains the canonical production build gate.
 
 ## Rollout
 
@@ -87,7 +89,7 @@ The first isolated production-build attempt correctly failed because Turbopack w
 
 ## Evidence inspected
 
-- `AGENTS.md` and the current `FABLE_HANDOFF.md`, including Fable's reviewer/merger protocol, current Cursor ownership exclusions, and the 2026-07-22 close-out through #548.
+- `AGENTS.md` and the current `FABLE_HANDOFF.md`, including Fable's reviewer/merger protocol, current Cursor ownership exclusions, and the 2026-07-22 close-out through #551.
 - `docs/SOL_SYNC_2026-07-22.md`, including active file-collision rules and the recorded Cursor/Fable lane boundaries.
-- Local refs, worktree registry, branch tracking, and history for the integration branch plus Waves A and B at `a3fde784`; no lane-specific local or remote PR evidence existed at ledger creation.
+- Local refs, worktree registry, branch tracking, and history for the integration branch plus Waves A and B at `a3fde784`, then a conflict-reviewed rebase onto `1bee9fe0`; no lane-specific remote PR evidence existed at ledger creation.
 - Existing Today lineage: #414 morning brief, #429 remembered-area ordering, #527 deal diversity, #528 Tube/pints modules, #533 quiet-pint module, and #540 weather read-through.
