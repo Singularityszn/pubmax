@@ -13,6 +13,7 @@ import { jsonNoStore } from "@/lib/apiResponses";
 import { validateCheckInInput, type CheckInInputRaw } from "@/lib/checkIn";
 import { isCheckInLimited } from "@/lib/checkInRateLimit";
 import { checkInStore } from "@/lib/checkInStore";
+import { socialFreezeResponse } from "@/lib/opsFreeze";
 import { resolveMessageHandle } from "@/lib/messageAuth";
 import { gateHandleAction } from "@/lib/profileOwnership";
 import { assertServerEnv } from "@/lib/serverEnv";
@@ -49,6 +50,10 @@ export async function GET(request: Request): Promise<Response> {
 }
 
 export async function POST(request: Request): Promise<Response> {
+  // Solo-operator emergency freeze (U15): posting a check-in is a social write.
+  const frozen = socialFreezeResponse();
+  if (frozen) return frozen;
+
   let body: Record<string, unknown>;
   try {
     body = (await request.json()) as Record<string, unknown>;

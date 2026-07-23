@@ -4,6 +4,7 @@
 
 .roundShell {
   min-height: 100vh;
+  min-height: 100dvh;
   background: var(--paper);
   color: var(--ink);
   padding: 24px var(--page-gutter) 64px;

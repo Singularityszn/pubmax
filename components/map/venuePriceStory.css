@@ -152,6 +152,20 @@
   color: var(--ink-soft);
 }
 
+/* Honest price conflict: on-record vs a freshly-vouched different price. Shown
+   plainly, never resolved away. A quiet caution band, not an alarm. */
+.vpsConflict {
+  margin: 10px 0 0;
+  padding: 9px 11px;
+  border: 1px solid rgba(176, 129, 58, 0.32);
+  border-radius: var(--radius-sm);
+  background: rgba(176, 129, 58, 0.09);
+  color: var(--ink);
+  font-size: 0.84rem;
+  line-height: 1.45;
+  font-variant-numeric: tabular-nums;
+}
+
 /* The inflation line — a dated, priced memory revalued into today's money. */
 .vpsInflation {
   margin-top: 12px;

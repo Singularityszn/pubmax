@@ -93,7 +93,7 @@ export function ClaimNightDialog({
         </h2>
         <p id={descId} className="claimNightLead">
           {same
-            ? "Your device already uses this handle. Link it to your Google or Microsoft account so your pubs stay yours."
+            ? "Your device already uses this handle. Link it to your signed-in account so your pubs stay yours."
             : "This device has a handle from before you signed in. Keep those pubs on your account, or start fresh with your account handle."}
         </p>
 

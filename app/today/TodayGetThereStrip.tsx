@@ -16,6 +16,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { LocateFixed, TrainFront, X } from "lucide-react";
 
+import DisruptionLine from "@/components/transport/DisruptionLine";
 import { roundCoord } from "@/lib/geo";
 import { summariseGetHome, type GetHomeSummary } from "@/lib/tonightGetHome";
 import type { LastTrainResult } from "@/lib/tfl";
@@ -92,6 +93,7 @@ export default function TodayGetThereStrip() {
             <span className="todayGetThereStatus">{result.summary.statusLine}</span>{" "}
             <span>{result.summary.trainLine}</span>
           </p>
+          <DisruptionLine lat={origin.lat} lng={origin.lng} />
           <div className="todayCardFootRow">
             <span className="todayProvenance">via TfL</span>
             <button type="button" className="todayTextButton" onClick={clearLocation}>
@@ -105,6 +107,7 @@ export default function TodayGetThereStrip() {
           <p className="todayCardEmpty">
             Couldn&rsquo;t find a last train near you just now. Check TfL before you head out.
           </p>
+          <DisruptionLine lat={origin.lat} lng={origin.lng} />
           <div className="todayCardFootRow">
             <button type="button" className="todayTextButton" onClick={clearLocation}>
               <X size={14} aria-hidden="true" />

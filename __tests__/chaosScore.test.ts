@@ -33,7 +33,7 @@ describe("computeChaosScore", () => {
     });
     expect(result.score).toBe(100);
     expect(result.grade).toBe("Legendary");
-    expect(result.oneLiner).toBe("Absolute scenes.");
+    expect(result.oneLiner).toBe("One for the group chat.");
   });
 
   it("never goes negative or exceeds 100 for malformed inputs", () => {
@@ -98,8 +98,8 @@ describe("computeChaosScore", () => {
     { score: 54, grade: "Steady" },
     { score: 55, grade: "Lively" },
     { score: 74, grade: "Lively" },
-    { score: 75, grade: "Unhinged" },
-    { score: 89, grade: "Unhinged" },
+    { score: 75, grade: "Saga" },
+    { score: 89, grade: "Saga" },
     { score: 90, grade: "Legendary" },
     { score: 100, grade: "Legendary" },
   ])("bands score $score as $grade", ({ score, grade }) => {
@@ -116,5 +116,32 @@ describe("computeChaosScore", () => {
   it("rounds to a whole number", () => {
     const result = computeChaosScore({ stopCount: 1, prices: [4.33, 7.77] });
     expect(Number.isInteger(result.score)).toBe(true);
+  });
+
+  // CAP Code section 18 fence (docs/CAP_COPY_AUDIT_2026-07-21.md, owner ruling
+  // #2). The grade taxonomy grounds a high score in the NIGHT — detours, stops,
+  // borough hops — never in intoxication. This pins that: no band grade or
+  // one-liner may reintroduce the blackout/excess register (18.1 excessive
+  // drinking, 18.4 drinking-as-a-challenge) that the reword removed. Extend the
+  // list, never delete an entry, if the copy drifts back toward it.
+  it("keeps the band taxonomy free of CAP 18 blackout/excess register", () => {
+    const banned = [
+      "unhinged",
+      "absolute scenes",
+      "somebody's phone has evidence",
+      "wasted",
+      "hammered",
+      "smashed",
+      "blackout",
+      "messy",
+      "carnage",
+      "write-off",
+    ];
+    for (const band of CHAOS_BANDS) {
+      const haystack = `${band.grade} ${band.oneLiner}`.toLowerCase();
+      for (const phrase of banned) {
+        expect(haystack).not.toContain(phrase);
+      }
+    }
   });
 });

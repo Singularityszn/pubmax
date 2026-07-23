@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
+import PubmaxxNightSeal from "@/components/brand/PubmaxxNightSeal";
 import SiteNav from "@/components/nav/SiteNav";
 import MemoryReviewAnalytics from "@/components/plan/MemoryReviewAnalytics";
 import RecapShareButton from "@/components/plan/RecapShareButton";
@@ -153,6 +154,8 @@ export default async function PlanRecapPage({ params }: Props) {
       <SiteNav />
 
       <header className="recapHero" style={step()}>
+        {/* A completed night mints its seal — struck on first reveal. */}
+        <PubmaxxNightSeal className="recapHero__seal" size={64} title="Night sealed" />
         <p className="type-meta recapHero__eyebrow">The morning after</p>
         <h1 className="recapHero__title type-section-title">{view.title}</h1>
         <div className="recapHero__stats" aria-label="Night at a glance">

@@ -21,9 +21,11 @@ import { groupVenuePrices, type Venue, type VenuePrice } from "@/lib/venues";
 import { isSupabaseConfigured } from "@/lib/supabase";
 import { memoryPintDropStore, supabasePintDropStore } from "@/lib/pintDropsStore";
 import JsonLd from "@/components/seo/JsonLd";
+import OperatorRailPanel from "@/components/operators/OperatorRailPanel";
 import ReadLedgerButton from "@/components/ledger/ReadLedgerButton";
 import ShareWithFamilyButton from "@/components/ledger/ShareWithFamilyButton";
 import VenueRatingPanel from "@/components/ratings/VenueRatingPanel";
+import VisitReportPanel from "@/components/visits/VisitReportPanel";
 
 import "./ledger.css";
 
@@ -332,6 +334,11 @@ export default async function LedgerPage({ params, searchParams }: PageProps) {
             the viewer's own half-star vote. A client sliver; the rest of the
             page stays a server render. */}
         <VenueRatingPanel venueId={canonicalId} venueName={venue.name} />
+
+        {/* Structured Visit Reports (Wayfinder 3.4): recency-weighted summary
+            lines (no star score) alongside the ratings, plus the compact
+            three-tap capture card. */}
+        <VisitReportPanel venueId={canonicalId} venueName={venue.name} />
       </header>
 
       <p className="ledgerLaneNote">
@@ -454,6 +461,12 @@ export default async function LedgerPage({ params, searchParams }: PageProps) {
           </ol>
         )}
       </section>
+
+      {/* Operator rail (Wayfinder 3.5): a quiet door for the person who runs the
+          pub. Signed-in users can verify they run it; verified operators propose
+          corrections/events/offers that route through REVIEW and never overwrite
+          the trusted notes above. */}
+      <OperatorRailPanel venueId={canonicalId} venueName={venue.name} />
 
       <p className="ledgerFootnote">
         Every pint has a story. <Link href={venueMapUrl(canonicalId)}>See {venue.name} on the map →</Link>

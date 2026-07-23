@@ -1,5 +1,5 @@
 .lp {
-  --lp-max: 1240px;
+  --lp-max: var(--content-max-wide);
   /* Landing keeps its generous up-to-52px desktop gutter, but never dips below
      the global --page-gutter (≥20px + safe-area) on phones — the owner's hero
      letters were nearly touching the glass at the old 18px floor. */
@@ -21,7 +21,9 @@
 
 .lpNav {
   position: fixed;
-  top: 14px;
+  /* Clear the notch/dynamic-island on installed/standalone opens — the bar is
+     fixed, so without the safe-area inset it hides under the status bar. */
+  top: max(14px, env(safe-area-inset-top));
   left: 50%;
   z-index: 720;
   width: min(var(--lp-max), calc(100vw - 28px));
@@ -114,7 +116,12 @@
 .lpOrbit { position: absolute; border: 1px solid color-mix(in srgb, var(--river) 28%, transparent); border-radius: 50%; }
 .lpOrbitOne { width: min(62vw, 840px); aspect-ratio: 1; right: -18%; top: -24%; }
 .lpOrbitTwo { width: min(40vw, 540px); aspect-ratio: 1; left: -18%; bottom: -25%; border-color: color-mix(in srgb, var(--brass) 22%, transparent); }
-.lpScanline { position: absolute; left: 7%; top: 17%; width: 1px; height: 68%; background: linear-gradient(transparent, color-mix(in srgb, var(--river) 40%, transparent), transparent); }
+/* Faint vertical hairline in the hero atmosphere. Uses the house --hairline
+   (warm-neutral in both themes) NOT --river: in dark, --river (#7aa6cc, steel
+   blue) painted a light-blue streak down the left edge that read as a rendering
+   glitch beside the hero copy and the stacked stat readout. --hairline keeps it
+   as quiet intentional structure that stays clean in light and dark. */
+.lpScanline { position: absolute; left: 7%; top: 17%; width: 1px; height: 68%; background: linear-gradient(transparent, color-mix(in srgb, var(--hairline) 82%, transparent), transparent); }
 
 .lpHeroCopy { position: relative; z-index: 2; max-width: 610px; }
 .lpHeroKicker {
@@ -150,7 +157,7 @@
   justify-content: center;
   gap: 9px;
   border: 1px solid transparent;
-  border-radius: 16px;
+  border-radius: var(--control-radius, 14px);
   font-size: 14px;
   font-weight: 750;
   text-decoration: none;
@@ -207,7 +214,7 @@
 .lpMemorySteps { margin: 0; padding: 0; list-style: none; border-top: 1px solid rgba(255,255,255,.15); }
 .lpMemorySteps li { padding: 24px 0; display: grid; grid-template-columns: 48px 1fr; gap: 17px; border-bottom: 1px solid rgba(255,255,255,.15); }
 .lpStepIcon { width: 44px; height: 44px; display: grid; place-items: center; border: 1px solid rgba(255,255,255,.16); border-radius: 14px; color: var(--brass-bright); background: rgba(255,255,255,.05); }
-.lpMemorySteps li div > span { color: rgba(255,255,255,.46); font: 600 9px/1 var(--font-data); }
+.lpMemorySteps li div > span { color: rgba(255,255,255,.7); font: 600 9px/1 var(--font-data); }
 .lpMemorySteps h3 { margin: 6px 0 0; font: 650 20px/1.1 var(--font-display); }
 .lpMemorySteps p { margin: 7px 0 0; color: rgba(255,255,255,.65); font-size: 13px; line-height: 1.5; }
 
@@ -218,7 +225,7 @@
 .dropStripHead { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; }
 .dropStripHead .eyebrow { margin: 0; display: flex; align-items: center; gap: 7px; color: var(--ink); font-size: 13px; font-weight: 700; }
 .dropStripHint { color: var(--ink-soft); font: 550 10px/1 var(--font-data); }
-.dropStripRail { margin: 0; padding: 0 0 10px; display: grid; grid-auto-flow: column; grid-auto-columns: minmax(260px, 1fr); gap: 12px; overflow-x: auto; list-style: none; scroll-snap-type: x proximity; scrollbar-width: thin; }
+.dropStripRail { margin: 0; padding: 0 0 10px; display: grid; grid-auto-flow: column; grid-auto-columns: minmax(260px, 1fr); gap: 12px; overflow-x: auto; overscroll-behavior-x: contain; list-style: none; scroll-snap-type: x proximity; scrollbar-width: thin; }
 .dropStripCard { min-height: 210px; padding: 20px; display: flex; flex-direction: column; scroll-snap-align: start; border: 1px solid var(--line); border-radius: 18px; background: var(--panel-raised); }
 .dropStripTop { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
 .dropStripWho { color: var(--ink-soft); font: 600 11px/1 var(--font-data); }
@@ -239,12 +246,45 @@
 
 .lpCityChooser { padding: 28px var(--lp-pad) 90px; background: var(--paper); }
 .lpFinalCta { position: relative; min-height: 66vh; padding: 90px var(--lp-pad); display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; overflow: hidden; background: var(--ink-deep); color: var(--color-on-inverse); }
-.lpFinalCta > p { margin: 0 0 20px; color: rgba(255,255,255,.58); font: 600 10px/1 var(--font-data); letter-spacing: .1em; text-transform: uppercase; }
+.lpFinalCta > p { margin: 0 0 20px; color: rgba(255,255,255,.7); font: 600 10px/1 var(--font-data); letter-spacing: .1em; text-transform: uppercase; }
 .lpFinalCta h2 { max-width: 10ch; }
 .lpFinalCta .lpButton { margin-top: 30px; background: var(--brass); color: var(--color-on-accent); }
 .lpFinalLines { position: absolute; inset: 0; pointer-events: none; }
 .lpFinalLines span { position: absolute; left: 50%; bottom: -70%; width: min(1100px, 120vw); aspect-ratio: 1; border: 1px solid rgba(255,255,255,.1); border-radius: 50%; transform: translateX(-50%); }
 .lpFinalLines span:nth-child(2) { width: min(820px, 90vw); bottom: -54%; }.lpFinalLines span:nth-child(3) { width: min(540px, 62vw); bottom: -35%; }
+
+/* Hero live readout as real stat blocks — big receipt numeral over its label,
+   derived from lib/aboutStats (see LandingPage.heroReadout). The <dl> is only
+   rendered when a real count survives; the plain-span fallback keeps the old
+   shape. */
+.lpLiveReadout { flex-wrap: wrap; }
+.lpReadoutStat { display: flex; flex-direction: column; gap: 3px; }
+.lpReadoutStat + .lpReadoutStat { padding-left: 20px; border-left: 1px solid var(--line); }
+.lpReadoutStat dt { order: 2; margin: 0; display: inline-flex; align-items: center; gap: 6px; color: var(--ink-soft); font: 600 11px/1.2 var(--font-data); }
+.lpReadoutStat dt svg { color: var(--river); }
+.lpReadoutStat dd { order: 1; margin: 0; color: var(--ink); font: 750 26px/1 var(--font-data); letter-spacing: -.02em; font-variant-numeric: tabular-nums; }
+
+/* Honest footer: real links, real coverage counts, and one quiet install note
+   that describes the existing A2HS affordance (never a dead button here). */
+.lpFooter { padding: clamp(60px, 8vw, 100px) var(--lp-pad) calc(36px + env(safe-area-inset-bottom)); background: var(--paper); border-top: 1px solid var(--line); color: var(--ink); }
+.lpFooterInner { width: min(var(--lp-max), 100%); margin: 0 auto; display: grid; grid-template-columns: 1.3fr 1fr; gap: clamp(40px, 6vw, 92px); }
+.lpFooterBrand { max-width: 520px; }
+.lpFooterBrand .lpWordmark { color: var(--ink); }
+.lpFooterPitch { margin: 20px 0 0; color: var(--ink-soft); font-size: 16px; line-height: 1.55; }
+.lpFooterMission { margin: 16px 0 0; color: var(--ink); font-size: 15px; font-weight: 700; line-height: 1.5; }
+.lpInstallNudge { margin: 22px 0 0; display: flex; align-items: flex-start; gap: 9px; padding: 14px 16px; border: 1px solid color-mix(in srgb, var(--line) 72%, var(--brass) 28%); border-radius: 14px; background: color-mix(in srgb, var(--brass) 6%, var(--panel-raised)); color: var(--ink-soft); font-size: 13px; line-height: 1.5; }
+.lpInstallNudge svg { flex: none; margin-top: 2px; color: var(--brass); }
+.lpFooterNav { display: grid; grid-template-columns: 1fr 1fr; gap: 28px; }
+.lpFooterCol { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; }
+.lpFooterCol h2 { margin: 0 0 8px; color: var(--muted); font: 650 12px/1 var(--font-data); letter-spacing: .04em; }
+.lpFooterCol a { min-height: 40px; display: inline-flex; align-items: center; color: var(--ink-soft); font-size: 15px; font-weight: 600; text-decoration: none; }
+.lpFooterCol a:hover { color: var(--ink); }
+.lpFooterBase { width: min(var(--lp-max), 100%); margin: clamp(40px, 5vw, 60px) auto 0; padding-top: 24px; border-top: 1px solid var(--line); display: flex; flex-direction: column; gap: 14px; }
+.lpFooterProvenance { margin: 0; max-width: 640px; color: var(--ink-soft); font-size: 13px; line-height: 1.55; }
+.lpFooterFacts { margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 8px 10px; list-style: none; }
+.lpFooterFacts li { padding: 6px 11px; border: 1px solid var(--line); border-radius: 999px; color: var(--ink-soft); font: 550 12px/1 var(--font-data); }
+.lpFooterFactValue { color: var(--ink); font-weight: 750; font-variant-numeric: tabular-nums; }
+.lpFooterLegal { margin: 0; color: var(--muted); font: 550 12px/1.4 var(--font-data); }
 
 @media (hover: hover) and (pointer: fine) { .thamesHeroHintTouch { display: none; }.thamesHeroHintPointer { display: inline; } }
 
@@ -256,7 +296,15 @@
 }
 
 @media (max-width: 700px) {
-  .lpNav { top: 10px; width: calc(100vw - 20px); min-height: 58px; padding: 6px 10px; gap: 8px; }.lpWordmark { font-size: 12px; }
+  /* Shared top-bar FRAME (siteNav.css :root --topbar-*): on mobile the landing
+     bar adopts the same 52px height, 14px rounded-card radius, 10px h-padding and
+     tight shadow as the in-app bars so navigating landing↔app never jumps. Was
+     a 58px 999px-pill with the heavy 0 16px 36px glass shadow. Vertical padding
+     is 3px so the 44px wordmark + 3+3 padding + 1+1 border box-sizes to exactly
+     --topbar-h (52px) — the 58px overshoot came from the old 6px padding. The
+     top offset keeps its max() literal (locked by landingChromeCss.test),
+     resolving to the same ~10px + notch clearance. Desktop keeps capsule+glass. */
+  .lpNav { top: max(10px, env(safe-area-inset-top)); width: calc(100vw - 20px); min-height: var(--topbar-h, 52px); padding: 3px var(--topbar-pad-x, 10px); gap: 8px; border-radius: var(--topbar-radius, 14px); box-shadow: var(--topbar-shadow, var(--map-overlay-shadow-tight, 0 6px 16px rgba(0, 0, 0, 0.12))); }.lpWordmark { font-size: 12px; }
   .lpHero { padding: 106px var(--lp-pad) 64px; gap: 38px; }.lpHero::before { background: linear-gradient(180deg, color-mix(in srgb, var(--paper) 92%, transparent), var(--paper) 70%), url("/landing/hero-thames.jpg") center / cover; }
   .lpHero h1 { font-size: clamp(48px, 12.5vw, 56px); line-height: .94; }.lpHeroLede { max-width: 34ch; font-size: 16px; }.lpHeroActions { grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: stretch; }.lpHeroActions .lpButton:first-child { grid-column: 1 / -1; }.lpHeroActions .lpButton { width: 100%; padding-inline: 10px; font-size: 13px; }
   .lpLiveReadout { align-items: flex-start; flex-direction: column; gap: 8px; }
@@ -275,11 +323,40 @@
   .lpSignalSection, .lpProofSection { width: calc(100% - 2 * var(--lp-pad)); padding: 82px 0; }.lpSectionIntro h2, .lpMemoryCopy h2, .lpFinalCta h2 { font-size: clamp(39px, 12vw, 56px); }
   .lpSignalGrid { margin-top: 38px; grid-template-columns: 1fr; }.lpSignalGrid article { min-height: 230px; border-right: 0; border-bottom: 1px solid var(--line); }.lpSignalGrid article:last-child { border-bottom: 0; }
   .lpMemorySection { padding: 76px var(--lp-pad); }.lpMemoryCanvas { gap: 48px; }.lpMemorySteps li { grid-template-columns: 44px 1fr; }
-  .dropStripRail { width: calc(100vw - 18px); grid-auto-columns: min(82vw, 310px); }.lpPalCallout { grid-template-columns: auto 1fr; align-items: start; }.lpPalCallout > a { grid-column: 2; }
+  /* Full-bleed the rail to the section's own gutters symmetrically (negative
+     margin then re-pad) so the first and last card line up with the content
+     edges and nothing overflows the viewport on one side. */
+  .dropStripRail { margin-inline: calc(-1 * var(--lp-pad)); padding-inline: var(--lp-pad); grid-auto-columns: min(82vw, 310px); }.lpPalCallout { grid-template-columns: auto 1fr; align-items: start; }.lpPalCallout > a { grid-column: 2; }
   .lpCityChooser { padding-inline: var(--lp-pad); }.lpFinalCta { min-height: 72vh; padding-inline: var(--lp-pad); }
 }
 
-@media (max-width: 420px) {
+/* Mobile legibility floor (coordinator audit): every visible micro-label rides
+   at least 12px on a phone. The worst offender was the hero pin category
+   (.thamesHeroPinCat), the only label left on a pin once place/price are hidden
+   at this width. Desktop keeps the tighter display sizes. */
+@media (max-width: 700px) {
+  .lpLiveReadout, .lpLiveReadout span { font-size: 12px; }
+  .lpReadoutStat dt { font-size: 12px; }
+  .thamesHeroHint { font-size: 12px; }
+  .thamesHeroPinCat { font-size: 12px; letter-spacing: .04em; }
+  .lpSignalTopline { font-size: 12px; }
+  .lpSectionLabel { font-size: 12px; }
+  .lpMemorySteps li div > span { font-size: 12px; }
+  .lpHeroMap figcaption { font-size: 12px; }
+  .dropStripWho, .dropStripHint, .dropStripEra, .provChip { font-size: 12px; }
+  .lpFinalCta > p { font-size: 12px; }
+  .lpFooterInner { grid-template-columns: 1fr; gap: 36px; }
+  .lpFooterPitch { font-size: 15px; }
+  /* Below-fold clearance: on phones the fixed tab bar overlays the footer, so
+     the coverage-stats row and legal line sit clipped. Add the shared
+     --tabbar-h token to the footer's own bottom pad (content spacing only; the
+     bar geometry itself lives in mobileNav.css / .lpNav, untouched here). */
+  .lpFooter { padding-bottom: calc(36px + var(--tabbar-h, 64px) + env(safe-area-inset-bottom)); }
+}
+
+@media (max-width: 430px) {
+  /* Primary phone canvas (430px): show three hero pins, not four, so the 44px
+     hit targets never crowd or overlap on the narrowest common screen. */
   .thamesHeroPhoto { min-height: 0; }.thamesHeroPin:nth-child(n+4) { display: none; }
   .lpMemoryActions { align-items: stretch; flex-direction: column; }.lpMemoryActions .lpTextLink { justify-content: center; }
 }
@@ -302,3 +379,7 @@
   .lpNav, .lpSignalGrid, .dropStripCard, .lpPalCallout { border-color: currentColor; }
   .lpButtonQuiet, .thamesHeroPinGlyph { border-width: 2px; }
 }
+
+/* CAP Code section 18 responsible floor (docs/CAP_COPY_AUDIT_2026-07-21.md,
+   owner ruling #3). One quiet, permanent line: over-18s + Drinkaware. No
+   banner, no nag; it just sits at the base of the marketing page. */

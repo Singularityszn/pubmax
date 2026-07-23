@@ -15,6 +15,7 @@ import { parseCityId } from "@/lib/cities";
 import { resolveViewerContextFromRequest } from "@/lib/pintDropViewer";
 import { log } from "@/lib/log";
 import { resolveMessageHandle } from "@/lib/messageAuth";
+import { socialFreezeResponse } from "@/lib/opsFreeze";
 import {
   isLimited,
   validatePintDrop,
@@ -237,6 +238,12 @@ export async function POST(request: Request): Promise<Response> {
       return storageUnavailable();
     }
   }
+
+  // Solo-operator emergency freeze (U15): dropping a pint is a social write. The
+  // `report` and moderator (`restore`/`keep_hidden`) branches return above, so
+  // reporting and moderation stay OPEN under a freeze — only creation is paused.
+  const frozen = socialFreezeResponse();
+  if (frozen) return frozen;
 
   const result = validatePintDrop(fields);
   if (!result.ok) {

@@ -20,6 +20,7 @@ import {
   type FreshnessDataset,
   type FreshnessRegistry,
 } from "@/lib/freshness";
+import { resolveStoreObservedAt } from "@/lib/freshnessStoreOverlay";
 
 export const runtime = "nodejs";
 
@@ -65,8 +66,12 @@ export async function GET(): Promise<Response> {
   }
 
   const now = new Date();
+  // Cron-plane feeds report their durable store observedAt (the committed file is
+  // read-only on serverless and would report a frozen stamp); every other feed
+  // keeps its disk-derived stamp. Fail-soft: no store configured → empty overlay.
+  const overlay = await resolveStoreObservedAt();
   const stampFor = (dataset: FreshnessDataset): string | null =>
-    resolveObservedAt(dataset.stamp, readArtifact(rootDir, dataset.artifact));
+    overlay[dataset.id] ?? resolveObservedAt(dataset.stamp, readArtifact(rootDir, dataset.artifact));
   const results = evaluateRegistry(registry, stampFor, now);
 
   const summary = results.reduce<Record<string, number>>((acc, r) => {

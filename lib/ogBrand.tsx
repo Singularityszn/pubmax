@@ -137,34 +137,31 @@ export function priceStamp(value: number | null | undefined): string | null {
 
 // ── Shared marks ─────────────────────────────────────────────────────────────
 
-// The Crossing mark (concept A, docs/BRAND_MARK.md) as an inline-literal SVG:
-// the same geometry the app component and static assets stamp, re-declared here
-// because satori can't read `var(--…)` or import the client component. Mirrors
-// the `plaque` variant's linework: two crossing arms in `ink` (round caps,
-// stroke-width = size*8.5/64 via the 64-unit viewBox) with a lit coral-bright
-// rendezvous node. `ink` is the arm colour so it can sit on the coral chip
-// (ink-deep) or on a dark panel (coral). Replaces the retired pint glyph.
+// The PUBMAXX X mark (the owner-approved master, docs/BRAND_MARK.md) as an
+// inline-literal SVG: the same 64-grid geometry the app component
+// (components/brand/PubmaxxMark.tsx MARK_GEOMETRY) and the static favicon / PWA
+// / native assets stamp, re-declared here because satori can't read `var(--…)`
+// or import the client component. It is a double-struck X — one thick descending
+// stroke (\) and two thin parallel ascending strokes (/) either side of it — the
+// X Corp / blackboard-bold construction, plus a lit coral-bright ember at the
+// crossing (kept here because these cards render the mark large, ≥46px). Filled
+// polygons (not strokes) keep the flat-cut terminals crisp; satori renders
+// <polygon> from the SVG subset directly. `ink` is the stroke colour so the mark
+// can sit on the coral chip (ink-deep strokes) or on a dark panel (coral
+// strokes). The export name/API is unchanged so the ~17 OG routes that draw it
+// stay untouched.
 export function CrossingMark({ ink, size = 46 }: { ink: string; size?: number }) {
   return (
     <svg width={size} height={size} viewBox="0 0 64 64" fill="none">
-      <path
-        d="M18.5 18.5 L45.5 45.5"
-        stroke={ink}
-        strokeWidth="8.5"
-        strokeLinecap="round"
-      />
-      <path
-        d="M45.5 18.5 L18.5 45.5"
-        stroke={ink}
-        strokeWidth="8.5"
-        strokeLinecap="round"
-      />
+      <polygon points="42,10 47,10 13,54 8,54" fill={ink} />
+      <polygon points="51,10 56,10 22,54 17,54" fill={ink} />
+      <polygon points="9,10 21,10 55,54 43,54" fill={ink} />
       <circle cx="32" cy="32" r="3.2" fill={OG.coralBright} />
     </svg>
   );
 }
 
-// The PUBMAXX wordmark lockup: a coral rounded-square holding The Crossing mark,
+// The PUBMAXX wordmark lockup: a coral rounded-square holding the X mark,
 // then the wordmark set in Space Grotesk. `scale` shrinks the whole lockup for
 // tighter footers.
 export function Wordmark({ scale = 1 }: { scale?: number }) {

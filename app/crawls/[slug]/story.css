@@ -8,6 +8,7 @@
 
 .storyShell {
   min-height: 100vh;
+  min-height: 100dvh;
   background: var(--paper);
   color: var(--ink);
   padding: 24px 16px 88px;

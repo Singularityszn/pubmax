@@ -47,33 +47,79 @@ const darkTokens = {
   parkTint: "#3f5c38",
 };
 
-describe("mapBasemapTaste (Wave J1 / dark streets)", () => {
+// Wave A — crude luminance proxy (sum of RGB channels) shared by the dark-map
+// hierarchy assertions. Accepts `#rrggbb`; the dark palette paints solid hex.
+function lumSum(hex: string): number {
+  const n = parseInt(hex.replace("#", ""), 16);
+  return ((n >> 16) & 255) + ((n >> 8) & 255) + (n & 255);
+}
+
+describe("mapBasemapTaste (Wave A / dark basemap overhaul)", () => {
   it("keeps dark land near-black — never cream ink", () => {
     const dark = buildPalette(darkTokens, true);
     const light = buildPalette(tokens, false);
-    expect(dark.land).toBe(darkTokens.inkDeep);
+    // Wave A: land is a warm near-black constant (hint of house ink, not pure
+    // #000 and never the cream --ink). Decoupled from --ink-deep so it can sit
+    // a hair warmer than the fog while still blending at the horizon.
+    expect(dark.land).toBe("#0b0908");
     expect(dark.land).not.toBe(darkTokens.ink);
+    expect(lumSum(dark.land)).toBeLessThan(40); // unmistakably near-black
     expect(light.land).toBe(tokens.paper);
-    // Streets remain legible without turning the whole basemap into white
-    // linework; major roads retain the warmer transport hierarchy.
-    expect(dark.road).toContain("65, 58, 52"); // neutral line rgb
-    expect(dark.roadMajor).not.toContain("240, 160, 26"); // never amber road soup
-    // Buildings: M4 warmed emissive massing — readable on near-black land,
-    // still desaturated (never a literal brass/coral wash).
+  });
+
+  it("Wave A — dark roads are the LIGHTEST strokes, brighter than ground, in 3 tiers", () => {
+    const dark = buildPalette(darkTokens, true);
+    // Root-cause fix: roads used to derive from --line (#2c2c30, a near-black
+    // DOM divider) and sat DARKER than buildings. Now every road tier is a warm
+    // light-gray, painted SOLID, and clearly lighter than both ground and
+    // buildings — the inversion working dark maps rely on.
+    expect(dark.roadMajor).toBe("#c3bcae");
+    expect(dark.road).toBe("#7e786d");
+    expect(dark.roadMinor).toBe("#514c44");
+    // Strict luminance hierarchy: major > secondary > minor > building > ground.
+    expect(lumSum(dark.roadMajor)).toBeGreaterThan(lumSum(dark.road));
+    expect(lumSum(dark.road)).toBeGreaterThan(lumSum(dark.roadMinor));
+    expect(lumSum(dark.roadMinor)).toBeGreaterThan(lumSum(dark.building));
+    expect(lumSum(dark.building)).toBeGreaterThan(lumSum(dark.land));
+    // Never amber/coral road soup.
+    expect(dark.roadMajor).not.toContain("240, 160, 26");
+  });
+
+  it("Wave A — dark buildings are a clear step above ground, warm, never a coral wash", () => {
+    const dark = buildPalette(darkTokens, true);
+    expect(dark.building).toBe("#332e28");
     expect(dark.building).not.toBe(darkTokens.inkDeep);
     expect(dark.building).not.toBe(darkTokens.buildingEmissive);
     expect(dark.building).not.toBe(darkTokens.brass);
     expect(dark.building).not.toContain("255, 107, 122"); // old brass coral
+    // Warm gray-brown: red channel ≥ green ≥ blue.
+    const n = parseInt(dark.building.slice(1), 16);
+    expect((n >> 16) & 255).toBeGreaterThanOrEqual((n >> 8) & 255);
+    expect((n >> 8) & 255).toBeGreaterThanOrEqual(n & 255);
   });
 
-  it("M4 — park tint is never the pint UI semantic, in either theme", () => {
+  it("Wave A — dark water is a deep slate-blue, read as water at a glance", () => {
+    const dark = buildPalette(darkTokens, true);
+    // Solid deep slate-blue (was a low-alpha --river wash that near-black ground
+    // drowned). Blue channel dominates, clearly above the ground floor.
+    expect(dark.water).toBe("#16344e");
+    const n = parseInt(dark.water.slice(1), 16);
+    expect(n & 255).toBeGreaterThan((n >> 16) & 255); // blue > red → reads blue
+  });
+
+  it("Wave A — dark park is a dark desaturated green, distinct from the building brown", () => {
     const dark = buildPalette(darkTokens, true);
     const light = buildPalette(tokens, false);
-    // Old formula was withAlpha(pint, …) — assert park no longer matches it.
+    // Old formula washed --pint/--parkTint at low alpha; now a solid dark green
+    // constant, hue-distinct from the warm building brown so parks never read
+    // as building blocks.
+    expect(dark.park).toBe("#2d3f27");
     expect(dark.park).not.toBe(withAlpha(darkTokens.pint, 0.32));
+    const n = parseInt(dark.park.slice(1), 16);
+    expect((n >> 8) & 255).toBeGreaterThan((n >> 16) & 255); // green > red → reads green
+    expect((n >> 8) & 255).toBeGreaterThan(n & 255); // green > blue
+    // Light park is UNTOUCHED by Wave A — still the parkTint wash.
     expect(light.park).not.toBe(withAlpha(tokens.pint, 0.26));
-    // Sanity: park is actually derived from parkTint, not left unpainted.
-    expect(dark.park).toContain("63, 92, 56"); // darkTokens.parkTint rgb
     expect(light.park).toContain("126, 160, 82"); // tokens.parkTint rgb
   });
 
@@ -131,7 +177,7 @@ describe("mapBasemapTaste (Wave J1 / dark streets)", () => {
     applyBasemapTaste(map, darkTokens, true);
 
     const bg = paints.find(([id, prop]) => id === "background" && prop === "background-color");
-    expect(bg?.[2]).toBe(darkTokens.inkDeep);
+    expect(bg?.[2]).toBe("#0b0908"); // Wave A warm near-black ground
 
     expect(paints.some(([id, prop]) => id === "park" && prop === "fill-color")).toBe(true);
     expect(paints.some(([id, prop]) => id === "water" && prop === "fill-color")).toBe(true);
@@ -146,7 +192,7 @@ describe("mapBasemapTaste (Wave J1 / dark streets)", () => {
     ).toBe(0.92);
     expect(
       paints.find(([id, prop]) => id === "building" && prop === "fill-outline-color")?.[2],
-    ).toBe("rgba(154,163,181,0.28)");
+    ).toBe("rgba(150,140,126,0.32)"); // Wave A warm light edge
     expect(
       paints.some(([id, prop]) => id === "landuse_residential" && prop === "fill-color"),
     ).toBe(true);

@@ -10,6 +10,11 @@
 // Persistence mirrors lib/cityPreference.ts: localStorage-backed, SSR-safe,
 // silent degradation, no-op writes skipped.
 
+import londonBoroughBoundaries from "@/data/london_boroughs_simplified.json";
+import { haversineKm } from "@/lib/haversine";
+import type { BoroughBoundaryCollection } from "@/lib/londonBoroughClassifier";
+import { boroughNameForPoint } from "@/lib/londonBoroughPoint.mjs";
+
 export type NightPatch = {
   id: string;
   label: string;
@@ -19,7 +24,7 @@ export type NightPatch = {
 
 // Nightlife-gravity order, not alphabetical. Coordinates are the patch's
 // walking heart (station exit / high street), inside the priced-data footprint.
-export const NIGHT_PATCHES: NightPatch[] = [
+export const NIGHT_PATCHES = [
   { id: "soho", label: "Soho", lat: 51.5136, lng: -0.1365 },
   { id: "shoreditch", label: "Shoreditch", lat: 51.5265, lng: -0.0785 },
   { id: "camden", label: "Camden", lat: 51.539, lng: -0.1426 },
@@ -30,7 +35,13 @@ export const NIGHT_PATCHES: NightPatch[] = [
   // Broadway Market / London Fields — Hackney's pub heart carries the priced
   // density; Hackney Central itself is thin in the index.
   { id: "hackney", label: "Hackney", lat: 51.5346, lng: -0.0611 },
-];
+] as const satisfies readonly NightPatch[];
+
+/** Stable ids for the eight user-facing London night patches. */
+export type NightPatchId = (typeof NIGHT_PATCHES)[number]["id"];
+
+const GREATER_LONDON_BOUNDARIES =
+  londonBoroughBoundaries as BoroughBoundaryCollection;
 
 // The unpicked default: show central London's answer before asking anything.
 // Centred between Soho and Covent Garden so the first cards read unmistakably
@@ -46,6 +57,30 @@ export function resolveNightPatch(id: string | null | undefined): NightPatch | n
   if (!id) return null;
   if (id === CENTRAL_PATCH.id) return CENTRAL_PATCH;
   return NIGHT_PATCHES.find((patch) => patch.id === id) ?? null;
+}
+
+/**
+ * Resolve a usable London coordinate to the nearest supported night patch.
+ * Invalid and out-of-city coordinates deliberately return null so callers do
+ * not silently turn a failed location lookup into a misleading area choice.
+ */
+export function nearestNightPatch(
+  lat: number,
+  lng: number,
+): (typeof NIGHT_PATCHES)[number] | null {
+  if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
+  if (!boroughNameForPoint(lat, lng, GREATER_LONDON_BOUNDARIES)) return null;
+
+  let nearest: (typeof NIGHT_PATCHES)[number] | null = null;
+  let nearestDistance = Number.POSITIVE_INFINITY;
+  for (const patch of NIGHT_PATCHES) {
+    const distance = haversineKm([lng, lat], [patch.lng, patch.lat]);
+    if (distance < nearestDistance) {
+      nearest = patch;
+      nearestDistance = distance;
+    }
+  }
+  return nearest;
 }
 
 /** What the viewer last chose when location wasn't playing: a patch or a borough. */

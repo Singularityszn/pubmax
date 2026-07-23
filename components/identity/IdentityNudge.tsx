@@ -26,8 +26,10 @@
 import { useEffect, useState, useSyncExternalStore } from "react";
 
 import { useAuth } from "@/components/auth/AuthProvider";
+import MagicLinkForm from "@/components/auth/MagicLinkForm";
 import { isValidEmail } from "@/lib/emailSubscribers";
 import {
+  IDENTITY_NUDGE_FIRST_PAINT_GRACE_MS,
   getIdentityNudgeClientSnapshot,
   getIdentityNudgeServerSnapshot,
   markIdentityNudgeAccepted,
@@ -83,7 +85,14 @@ export default function IdentityNudge(): React.JSX.Element | null {
     getIdentityNudgeClientSnapshot,
     getIdentityNudgeServerSnapshot,
   );
-  const { user, loading, configured, signInWithGoogle, signInWithMicrosoft } = useAuth();
+  const {
+    user,
+    loading,
+    configured,
+    signInWithGoogle,
+    signInWithMicrosoft,
+    signInWithEmail,
+  } = useAuth();
 
   // Local email-capture state (hooks run unconditionally, before any early
   // return). `status` drives the honest, no-fake-success flow:
@@ -91,12 +100,34 @@ export default function IdentityNudge(): React.JSX.Element | null {
   const [email, setEmail] = useState("");
   const [status, setStatus] = useState<"idle" | "submitting" | "done" | "error">("idle");
   const [message, setMessage] = useState("");
+  const [authBusy, setAuthBusy] = useState(false);
+  const [authError, setAuthError] = useState("");
+
+  // First-paint grace: never interrupt the very first moment on a page. The
+  // nudge holds until the user has been here ~8s OR interacts, so a still-armed
+  // trigger can't slam a dialog over a page the instant it loads (belt-and-
+  // braces with the pending TTL in lib/identityNudge.ts). setState only fires
+  // from async callbacks (timer / one-shot listeners), never the effect body.
+  const [graced, setGraced] = useState(false);
+  useEffect(() => {
+    if (graced) return;
+    const settle = () => setGraced(true);
+    const timer = window.setTimeout(settle, IDENTITY_NUDGE_FIRST_PAINT_GRACE_MS);
+    window.addEventListener("pointerdown", settle, { once: true });
+    window.addEventListener("keydown", settle, { once: true });
+    return () => {
+      window.clearTimeout(timer);
+      window.removeEventListener("pointerdown", settle);
+      window.removeEventListener("keydown", settle);
+    };
+  }, [graced]);
 
   // Signed-in state is applied here (live via useAuth) rather than in the store
   // snapshot, so a sign-in in another tab instantly hides the nudge. Nothing to
-  // offer when auth is unconfigured — no dead buttons.
+  // offer when auth is unconfigured — no dead buttons. The grace gate keeps it
+  // off the first paint.
   const canShow =
-    Boolean(trigger) && !loading && !user && configured && hasPromptBudgetFor(IDENTITY_SURFACE);
+    Boolean(trigger) && graced && !loading && !user && configured && hasPromptBudgetFor(IDENTITY_SURFACE);
 
   // Claim the shared one-prompt-per-session budget at the moment it shows
   // (docs/PROMPT_ORCHESTRATION.md). Idempotent for this surface.
@@ -109,12 +140,18 @@ export default function IdentityNudge(): React.JSX.Element | null {
   const copy = COPY[trigger];
   const emailValid = isValidEmail(email);
 
-  function startSignIn(provider: () => Promise<{ error: string | null }>) {
+  async function startSignIn(provider: () => Promise<{ error: string | null }>) {
+    setAuthBusy(true);
+    setAuthError("");
+    const result = await provider();
+    if (result.error) {
+      setAuthError(result.error);
+      setAuthBusy(false);
+      return;
+    }
     // Accepting is not a decline — clear the pending trigger (no cooldown) so it
-    // won't re-appear on return from the OAuth redirect; a live session hides it
-    // anyway. Then hand off to the existing OAuth flow (email is captured there).
+    // won't re-appear on return from the OAuth redirect; a live session hides it.
     markIdentityNudgeAccepted();
-    void provider();
   }
 
   // Turn the server's honest response into user-facing success copy. We never
@@ -184,7 +221,8 @@ export default function IdentityNudge(): React.JSX.Element | null {
           <button
             type="button"
             className="authSignIn"
-            onClick={() => startSignIn(signInWithGoogle)}
+            onClick={() => void startSignIn(signInWithGoogle)}
+            disabled={authBusy}
             aria-label="Continue with Google"
           >
             <GoogleMark />
@@ -198,7 +236,8 @@ export default function IdentityNudge(): React.JSX.Element | null {
           <button
             type="button"
             className="authSignIn"
-            onClick={() => startSignIn(signInWithMicrosoft)}
+            onClick={() => void startSignIn(signInWithMicrosoft)}
+            disabled={authBusy}
             aria-label="Continue with Microsoft"
           >
             <MicrosoftMark />
@@ -210,6 +249,8 @@ export default function IdentityNudge(): React.JSX.Element | null {
             </span>
           </button>
         </div>
+        {authError ? <p className="authError" role="alert">{authError}</p> : null}
+        <MagicLinkForm disabled={authBusy} signInWithEmail={signInWithEmail} />
 
         {/* The lighter path: leave just an email for the weekly pint digest.
             One field, one CTA, one stated purpose. Replaced by an honest

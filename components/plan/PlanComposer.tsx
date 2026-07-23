@@ -1,14 +1,16 @@
 "use client";
 
-import { FormEvent, useEffect, useMemo, useState, useSyncExternalStore } from "react";
+import { FormEvent, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 
 import { useAuth } from "@/components/auth/AuthProvider";
+import PlanIntake from "@/components/plan/PlanIntake";
 import { laneSourceFromSearch, trackEvent, trackMeaningfulCoreAction } from "@/lib/analytics";
 import { recordPlanNudgeTrigger } from "@/lib/identityNudge";
 import { CREW_NAME_MAX } from "@/lib/crew";
 import { isNightAreaRouteReady, NIGHT_AREAS, type NightArea } from "@/lib/nightAreas";
+import { readRememberedArea, resolveNightPatch, type NightPatch } from "@/lib/nightPatches";
 import { PLAN_TEMPLATES, type PlanTemplate } from "@/lib/planTemplates";
 import { cleanNightContext, type NightContext } from "@/lib/nightPlanning";
 import { parsePlanDraft, PLAN_DRAFT_KEY } from "@/lib/planDraft";
@@ -16,6 +18,20 @@ import { writePlanCapability } from "@/lib/planSessionCapability";
 import { markPalRouteActivation } from "@/lib/pubPal";
 import { clearPersistentPlanMutationKey, persistentPlanMutationKey } from "@/lib/planMutationKey";
 import { writeDeviceNightContext } from "@/lib/nightProfileClient";
+import {
+  buildPlanGenerationIntakeBody,
+  clearPlanIntakeDraft,
+  createPlanIntakeDraft,
+  londonDateTimeInputFromIso,
+  londonDateTimeInputToIso,
+  planIntakeHandoff,
+  planIntakeNightContextPatch,
+  readPlanIntakeDraft,
+  reopenPlanIntakeStep,
+  resolveFutureLondonStartIso,
+  writePlanIntakeDraft,
+  type PlanIntakeDraft,
+} from "@/lib/planIntake";
 
 export type RouteRevision = string | number;
 export type RouteAlternative = { venueId: string; venueName: string };
@@ -367,12 +383,44 @@ function nextEvening(): string {
   return local.toISOString().slice(0, 16);
 }
 
+function unsupportedPatchForCurrentGenerator(
+  draft: PlanIntakeDraft,
+  contextPatch: Partial<NightContext>,
+): NightPatch | null {
+  if (!draft.answers.area || contextPatch.nightArea) return null;
+  return resolveNightPatch(draft.answers.area);
+}
+
+function canSortPlan(
+  query: string,
+  contextPatch: Partial<NightContext>,
+  currentContext: NightContext | null,
+  unsupportedPatch: NightPatch | null,
+): boolean {
+  if (unsupportedPatch) return false;
+  return [query.trim(), contextPatch.nightArea, currentContext].some(Boolean);
+}
+
+function conciergeStatusText(
+  sorting: boolean,
+  unsupportedPatch: NightPatch | null,
+  note: string,
+): string {
+  if (sorting) return "Planning your night, checking confidence and finding grounded stops.";
+  if (unsupportedPatch) {
+    return `${unsupportedPatch.label} is saved. Exact Plan generation is not available for this patch yet. Pick another area to build the route now.`;
+  }
+  return note;
+}
+
 function PlanComposerForm({
   recoveredDraft,
   recoveredRouteDraft,
+  recoveredIntake,
 }: {
   recoveredDraft: ReturnType<typeof parsePlanDraft>;
   recoveredRouteDraft: StoredRouteDraft | null;
+  recoveredIntake: PlanIntakeDraft;
 }) {
   const router = useRouter();
   const { user } = useAuth();
@@ -391,8 +439,11 @@ function PlanComposerForm({
   ]);
   const [venues, setVenues] = useState<VenueOption[]>([]);
   const [conciergeQuery, setConciergeQuery] = useState(recoveredDraft?.conciergeQuery ?? "");
+  const [planIntake, setPlanIntake] = useState(recoveredIntake);
+  const initialPlanIntakeRef = useRef(recoveredIntake);
   const [conciergeNote, setConciergeNote] = useState("");
   const [nightContext, setNightContext] = useState<NightContext | null>(recoveredRouteDraft?.nightContext ?? null);
+  const [explicitNightContext, setExplicitNightContext] = useState<Partial<NightContext>>({});
   const [routeRevision, setRouteRevision] = useState<RouteRevision | null>(recoveredRouteDraft?.routeRevision ?? null);
   const [routeStale, setRouteStale] = useState(recoveredRouteDraft?.routeStale ?? false);
   const [groundingProof, setGroundingProof] = useState(recoveredRouteDraft?.groundingProof ?? null);
@@ -412,6 +463,18 @@ function PlanComposerForm({
     () => stops.filter((stop) => stop.venueName.trim() && stop.venueId.trim()),
     [stops],
   );
+  const intakeContextPatch = useMemo(
+    () => planIntakeNightContextPatch(planIntake),
+    [planIntake],
+  );
+  const unsupportedIntakePatch = unsupportedPatchForCurrentGenerator(planIntake, intakeContextPatch);
+  const canSortWithCurrentGenerator = canSortPlan(
+    conciergeQuery,
+    intakeContextPatch,
+    nightContext,
+    unsupportedIntakePatch,
+  );
+  const conciergeStatus = conciergeStatusText(sorting, unsupportedIntakePatch, conciergeNote);
 
   useEffect(() => {
     let active = true;
@@ -456,6 +519,46 @@ function PlanComposerForm({
     }
   }, [createOperationKey, groundingProof, nightContext, routeRevision, routeStale, stops]);
 
+  useEffect(() => {
+    if (planIntake === initialPlanIntakeRef.current) return;
+    writePlanIntakeDraft(planIntake);
+  }, [planIntake]);
+
+  function updatePlanIntake(next: PlanIntakeDraft) {
+    const answersChanged = JSON.stringify(planIntakeHandoff(planIntake))
+      !== JSON.stringify(planIntakeHandoff(next));
+    if (answersChanged && nightContext) {
+      setRouteStale(true);
+      setRouteStatus("Route needs refreshing after those planning details changed.");
+    }
+    const exactStartInput = next.answers.exactStartIso
+      ? londonDateTimeInputFromIso(next.answers.exactStartIso)
+      : null;
+    if (exactStartInput) setStartTime(exactStartInput);
+    setPlanIntake(next);
+  }
+
+  function updatePlanStartTime(value: string) {
+    setStartTime(value);
+    const exactStartIso = londonDateTimeInputToIso(value, new Date());
+    if (planIntake.answers.timeWindow) {
+      const next = {
+        ...planIntake,
+        answers: { ...planIntake.answers, exactStartIso },
+      };
+      updatePlanIntake(exactStartIso ? next : reopenPlanIntakeStep(next, "time-window"));
+      if (nightContext) {
+        setRouteStale(true);
+        setRouteStatus("Route needs refreshing after the exact start time changed.");
+      }
+      return;
+    }
+    if (nightContext) {
+      setRouteStale(true);
+      setRouteStatus("Route needs refreshing after the exact start time changed.");
+    }
+  }
+
   function chooseVenue(key: number, venueName: string) {
     const match = venues.find((venue) => venue.name.toLocaleLowerCase() === venueName.trim().toLocaleLowerCase());
     setStops((current) => current.map((stop) => stop.key === key
@@ -476,6 +579,7 @@ function PlanComposerForm({
       setRouteStatus("Route needs refreshing after that context change.");
     }
     setNightContext(next);
+    setExplicitNightContext((current) => ({ ...current, ...patch }));
     if (!user) writeDeviceNightContext(next);
   }
 
@@ -493,7 +597,7 @@ function PlanComposerForm({
   }
 
   async function sortWithConcierge() {
-    if (!conciergeQuery.trim() && !nightContext) return;
+    if (!canSortWithCurrentGenerator) return;
     setSorting(true);
     setError("");
     setRouteStatus("Refreshing the route, checking the updated context and grounded stops.");
@@ -501,7 +605,12 @@ function PlanComposerForm({
       const response = await fetch("/api/plans/generate", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ ...(conciergeQuery.trim() ? { query: conciergeQuery } : {}), ...(nightContext ? { context: nightContext } : {}) }),
+        body: JSON.stringify(buildPlanGenerationIntakeBody(
+          planIntake,
+          conciergeQuery,
+          nightContext,
+          explicitNightContext,
+        )),
       });
       const body = await response.json();
       if (!response.ok) throw new Error(errorMessageFromBody(body, "PUBMAXX could not sort this one."));
@@ -562,10 +671,16 @@ function PlanComposerForm({
     setSubmitting(true);
     setError("");
     try {
+      const exactStartIso = resolveFutureLondonStartIso(
+        startTime,
+        planIntake.answers.exactStartIso,
+        new Date(),
+      );
+      if (!exactStartIso) throw new Error("Choose a valid future London start time.");
       const createPayload = {
         title,
         creatorName,
-        startTime: new Date(startTime).toISOString(),
+        startTime: exactStartIso,
         stops: completeStops.map(({ venueId, venueName }) => ({ venueId, venueName })),
         ...(groundingProof ? { groundingProof } : {}),
       };
@@ -618,10 +733,9 @@ function PlanComposerForm({
       }
       trackEvent("plan_saved", { stops: completeStops.length, grounded });
       trackMeaningfulCoreAction("plan_saved");
-      try {
-        sessionStorage.removeItem(PLAN_DRAFT_KEY);
-        localStorage.removeItem(PLAN_ROUTE_DRAFT_KEY);
-      } catch { /* best effort */ }
+      try { sessionStorage.removeItem(PLAN_DRAFT_KEY); } catch { /* best effort */ }
+      try { localStorage.removeItem(PLAN_ROUTE_DRAFT_KEY); } catch { /* best effort */ }
+      clearPlanIntakeDraft();
       clearPersistentPlanMutationKey("create", operationKey);
       router.push(`/plan/${body.plan.plan.id}`);
     } catch (caught) {
@@ -633,6 +747,10 @@ function PlanComposerForm({
 
   return (
     <form className="planComposer" onSubmit={submit}>
+      <PlanIntake
+        draft={planIntake}
+        onChange={updatePlanIntake}
+      />
       <section className="planComposer__concierge" aria-labelledby="plan-concierge-title" aria-busy={sorting}>
         <div>
           <span className="planPage__eyebrow">Describe your night</span>
@@ -640,11 +758,11 @@ function PlanComposerForm({
         </div>
         <div className="planComposer__conciergeInput">
           <label className="planComposer__srOnly" htmlFor="plan-concierge-query">Describe the night</label>
-          <input id="plan-concierge-query" aria-describedby="plan-concierge-status" value={conciergeQuery} onChange={(event) => setConciergeQuery(event.target.value)} placeholder="Quiet-ish in Clapham, 4 of us, not pricey" maxLength={500} />
-          <button type="button" onClick={sortWithConcierge} disabled={sorting || !conciergeQuery.trim()} aria-busy={sorting}>{sorting ? "Planning…" : "Plan my night"}</button>
+          <input id="plan-concierge-query" aria-describedby="plan-concierge-status" value={conciergeQuery} onChange={(event) => setConciergeQuery(event.target.value)} placeholder="Add a mood, occasion or anything we missed" maxLength={500} />
+          <button type="button" onClick={sortWithConcierge} disabled={sorting || !canSortWithCurrentGenerator} aria-busy={sorting}>{sorting ? "Planning…" : "Plan my night"}</button>
         </div>
         <p id="plan-concierge-status" className="planComposer__conciergeStatus" role="status" aria-live="polite">
-          {sorting ? "Planning your night, checking confidence and finding grounded stops." : conciergeNote}
+          {conciergeStatus}
         </p>
         {routeStale ? (
           <div className="planComposer__routeStale" role="group" aria-labelledby="plan-route-stale-title">
@@ -656,7 +774,7 @@ function PlanComposerForm({
               type="button"
               className="planComposer__regenerate"
               onClick={sortWithConcierge}
-              disabled={sorting || (!conciergeQuery.trim() && !nightContext)}
+              disabled={sorting || !canSortWithCurrentGenerator}
               aria-busy={sorting}
             >
               {sorting ? "Refreshing…" : "Regenerate route"}
@@ -785,7 +903,7 @@ function PlanComposerForm({
       </div>
       <div className="planComposer__field">
         <label htmlFor="plan-time">First pint</label>
-        <input id="plan-time" type="datetime-local" required value={startTime} onChange={(event) => setStartTime(event.target.value)} />
+        <input id="plan-time" type="datetime-local" required value={startTime} onChange={(event) => updatePlanStartTime(event.target.value)} />
       </div>
 
       <fieldset className="planComposer__stops">
@@ -844,5 +962,16 @@ export default function PlanComposer() {
     if (!hydrated) return null;
     try { return parsePlanRouteDraft(localStorage.getItem(PLAN_ROUTE_DRAFT_KEY)); } catch { return null; }
   }, [hydrated]);
-  return <PlanComposerForm key={hydrated ? "hydrated" : "server"} recoveredDraft={recoveredDraft} recoveredRouteDraft={recoveredRouteDraft} />;
+  const recoveredIntake = useMemo(() => {
+    if (!hydrated) return createPlanIntakeDraft();
+    return readPlanIntakeDraft() ?? createPlanIntakeDraft(readRememberedArea());
+  }, [hydrated]);
+  return (
+    <PlanComposerForm
+      key={hydrated ? "hydrated" : "server"}
+      recoveredDraft={recoveredDraft}
+      recoveredRouteDraft={recoveredRouteDraft}
+      recoveredIntake={recoveredIntake}
+    />
+  );
 }

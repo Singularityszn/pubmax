@@ -4,6 +4,7 @@ import { ExternalLink } from "lucide-react";
 import { notFound } from "next/navigation";
 
 import SiteNav from "@/components/nav/SiteNav";
+import LandmarkPhotoCredit from "@/components/LandmarkPhotoCredit";
 import { landmarkById, nearestStoryPubs } from "@/lib/landmarks";
 import { groupVenuePrices, type Venue, type VenuePrice } from "@/lib/venues";
 
@@ -92,7 +93,7 @@ export default async function LandmarkChapterPage({ params }: PageProps) {
         <figure className="landmarkChapterPhoto">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src={landmark.image.url} alt={landmark.name} loading="eager" decoding="async" />
-          <figcaption>Photo · {landmark.image.credit}</figcaption>
+          <LandmarkPhotoCredit image={landmark.image} />
         </figure>
       ) : null}
 

@@ -52,7 +52,7 @@ describe("verified analytics delivery", () => {
   });
 
   it("keeps durable claim and completion atomic and service-role only", () => {
-    const sql = readFileSync(join(process.cwd(), "supabase/migrations/20260720150000_0045_analytics_event_receipts.sql"), "utf8");
+    const sql = readFileSync(join(process.cwd(), "supabase/migrations/20260723120000_0051_analytics_event_receipts.sql"), "utf8");
 
     expect(sql).toContain("pg_advisory_xact_lock");
     expect(sql).toContain("status in ('pending', 'delivered')");

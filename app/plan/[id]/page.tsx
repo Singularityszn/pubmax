@@ -3,6 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import ActivePlanMarker from "@/components/plan/ActivePlanMarker";
+import NightCrawlMode from "@/components/plan/NightCrawlMode";
 import PlanCrew from "@/components/plan/PlanCrew";
 import SiteNav from "@/components/nav/SiteNav";
 import PlanSummary from "@/components/plan/PlanSummary";
@@ -104,6 +105,10 @@ export default async function PlanPage({ params }: Props) {
           <p>{state.stops.length} {state.stops.length === 1 ? "pub" : "pubs"}, one link, zero account walls.</p>
         )}
       </section>
+      {/* Night-crawl mode (U7): while this plan's night is on, it becomes the
+          default full-screen surface on mobile and offers an inline entry
+          otherwise. Client-only gating, no new route. */}
+      {!completed ? <NightCrawlMode planId={id} initialState={state} /> : null}
       <div className="planPage__grid">
         <PlanSummary planId={id} state={state} />
         <aside className="planPage__side">

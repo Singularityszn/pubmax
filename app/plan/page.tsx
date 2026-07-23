@@ -24,7 +24,7 @@ export default function NewPlanPage() {
       <section className="planPage__intro">
         <p className="planPage__eyebrow">One link. No group-chat archaeology.</p>
         <h1>Describe the night. We’ll put it in order.</h1>
-        <p>Get three grounded stops, edit anything PUBMAXX inferred, then send one Plan everyone can open without an account.</p>
+        <p>Get three stops that actually make sense, change anything you don&rsquo;t fancy, then send one plan the whole crew can open without an account.</p>
       </section>
       <PlanComposer />
     </main>

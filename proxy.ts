@@ -53,7 +53,23 @@ export function proxy(request: NextRequest) {
     "default-src 'self'",
     scriptSrc,
     "style-src 'self' 'unsafe-inline'",
-    "img-src 'self' data: blob: https://commons.wikimedia.org https://upload.wikimedia.org https://*.supabase.co https://*.googleusercontent.com https://gkbr-p-001.sitecorecontenthub.cloud https://www.jdwetherspoon.com https://live.staticflickr.com https://whatpub-new.s3.eu-west-1.amazonaws.com https://media-cdn.tripadvisor.com https://images.squarespace-cdn.com https://images.cdn.inapub.co.uk https://www.greeneking.co.uk https://encrypted-tbn0.gstatic.com https://static.wixstatic.com",
+    // img-src is deliberately MINIMAL — a "proxy-or-nothing" guard (image
+    // rights audit U9, docs/IMAGE_RIGHTS_AUDIT_2026-07-21.md). Only origins the
+    // BROWSER loads directly are listed: Wikimedia (landmark cards in
+    // PubMapCanvas + /landmark/[id], via Special:FilePath which 302s to
+    // upload.wikimedia.org), the Greene King Sitecore DAM (the 4 food-menu tiles
+    // MenuCategoryGrid renders raw), *.supabase.co (community Pint Drop photos +
+    // user avatars, our own bucket) and *.googleusercontent.com (Google IdP
+    // sign-in/profile avatars). Every OTHER venue photo — the ~439 open-ended
+    // pub-website hosts plus the brand/platform CDNs — is fetched server-side by
+    // /api/image-proxy and re-served same-origin, so it loads under 'self' and
+    // needs no entry here. The brand/platform origins that USED to be listed
+    // (jdwetherspoon, greeneking, staticflickr, tripadvisor, squarespace-cdn,
+    // inapub, wixstatic, whatpub S3, gstatic) were dead — never loaded directly —
+    // and were removed so a future direct hotlink of unlicensed imagery fails
+    // visibly instead of silently shipping. Do NOT re-add a third-party image
+    // host here: route it through /api/image-proxy (and license it) instead.
+    "img-src 'self' data: blob: https://commons.wikimedia.org https://upload.wikimedia.org https://*.supabase.co https://*.googleusercontent.com https://gkbr-p-001.sitecorecontenthub.cloud",
     "font-src 'self' data: https://tiles.openfreemap.org",
     "connect-src 'self' https://tiles.openfreemap.org https://basemaps.cartocdn.com https://tiles.basemaps.cartocdn.com https://*.supabase.co wss://*.supabase.co",
     "worker-src 'self' blob:",

@@ -8,6 +8,7 @@ import { jsonNoStore } from "@/lib/apiResponses";
 import { resolveMessageHandle } from "@/lib/messageAuth";
 import { emitNotification } from "@/lib/notificationsStore";
 import { isLimited } from "@/lib/pintDrops";
+import { socialFreezeResponse } from "@/lib/opsFreeze";
 import { normalizeHandle } from "@/lib/profiles";
 import { followStore, isSelfFollow } from "@/lib/followStore";
 import { gateHandleAction } from "@/lib/profileOwnership";
@@ -24,6 +25,10 @@ export async function POST(
   request: Request,
   { params }: { params: Promise<{ handle: string }> },
 ): Promise<Response> {
+  // Solo-operator emergency freeze (U15): changing the follow graph is a social write.
+  const frozen = socialFreezeResponse();
+  if (frozen) return frozen;
+
   const target = normalizeHandle((await params).handle);
   if (!target) return jsonNoStore({ error: "Missing handle." }, { status: 400 });
 

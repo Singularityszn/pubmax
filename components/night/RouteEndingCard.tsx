@@ -39,7 +39,7 @@ export const DEFAULT_ROUTE_ENDINGS = [
   {
     id: "food",
     title: "Find food",
-    description: "Refuel with a late bite nearby.",
+    description: "Grab a late bite nearby.",
     actionLabel: "Find food",
   },
   {

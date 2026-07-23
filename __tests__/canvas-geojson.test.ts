@@ -81,6 +81,9 @@ describe("routeToLine", () => {
       [-0.1, 51.5],
       [-0.2, 51.6],
     ]);
+    // Marks the instant paint as the approximate (dashed) route until the
+    // /api/walk-route road geometry upgrades it.
+    expect(fc.features[0]?.properties).toEqual({ source: "straight" });
   });
 });
 

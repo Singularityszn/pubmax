@@ -56,3 +56,15 @@ Each of the surfaces above is also saved for:
 - shared Planned Night and active-night lifecycle states
 
 Filenames follow `{surface}-{theme}-{390|430|1280|1440}.png`.
+
+## Fable remediation evidence (390×844)
+
+The 2026-07-21 remediation records both themes for the user-triggered Plan
+location success/failure states and Today title diversity:
+
+- `plan-location-success-light-390.png`
+- `plan-location-success-dark-390.png`
+- `plan-location-failure-light-390.png`
+- `plan-location-failure-dark-390.png`
+- `today-diversity-light-390.png`
+- `today-diversity-dark-390.png`
