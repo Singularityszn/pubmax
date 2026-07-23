@@ -4605,37 +4605,42 @@ button:disabled {
     transform: translateY(0);
   }
 
-  .mapDrawer.left.open:not(.sheet-dragging),
-  .mapDrawer.right.open:not(.sheet-dragging) {
+  .mapDrawer.left.open:not(.sheet-dragging):not(.mobileSharedSheet),
+  .mapDrawer.right.open:not(.sheet-dragging):not(.mobileSharedSheet) {
     transform: translateY(0) !important;
   }
 
   /* Keep in sync with lib/sheetSnap.ts SHEET_SNAP_FRACTIONS / venueSheet.css.
-     dvh (visible viewport) with vh fallback — see venueSheet.css for why. */
-  .mapDrawer.left.open.sheet-half:not(.sheet-dragging),
-  .mapDrawer.right.open.sheet-half:not(.sheet-dragging) {
+     dvh (visible viewport) with vh fallback — see venueSheet.css for why.
+     `:not(.mobileSharedSheet)` fences these to the LEGACY 641–768 inline drawer:
+     the ≤640 phone portal (.mobileSharedSheet) is a bottom-anchored, content-
+     height flex box (mobileMapShell.css) — a viewport-tall translateY panel would
+     reintroduce the void the rebuild removed, and these !important rules would
+     otherwise win over the portal's own geometry. */
+  .mapDrawer.left.open.sheet-half:not(.sheet-dragging):not(.mobileSharedSheet),
+  .mapDrawer.right.open.sheet-half:not(.sheet-dragging):not(.mobileSharedSheet) {
     transform: translateY(45vh) !important;
     transform: translateY(45dvh) !important;
   }
 
-  .mapDrawer.left.open.sheet-peek:not(.sheet-dragging),
-  .mapDrawer.right.open.sheet-peek:not(.sheet-dragging) {
+  .mapDrawer.left.open.sheet-peek:not(.sheet-dragging):not(.mobileSharedSheet),
+  .mapDrawer.right.open.sheet-peek:not(.sheet-dragging):not(.mobileSharedSheet) {
     transform: translateY(78vh) !important;
     transform: translateY(78dvh) !important;
   }
 
-  .mapDrawer.left.open.sheet-full:not(.sheet-dragging),
-  .mapDrawer.right.open.sheet-full:not(.sheet-dragging) {
+  .mapDrawer.left.open.sheet-full:not(.sheet-dragging):not(.mobileSharedSheet),
+  .mapDrawer.right.open.sheet-full:not(.sheet-dragging):not(.mobileSharedSheet) {
     transform: translateY(8vh) !important;
     transform: translateY(8dvh) !important;
   }
 
-  .mapDrawer.left.open.sheet-full:not(.sheet-dragging),
-  .mapDrawer.left.open.sheet-half:not(.sheet-dragging),
-  .mapDrawer.left.open.sheet-peek:not(.sheet-dragging),
-  .mapDrawer.right.open.sheet-full:not(.sheet-dragging),
-  .mapDrawer.right.open.sheet-half:not(.sheet-dragging),
-  .mapDrawer.right.open.sheet-peek:not(.sheet-dragging) {
+  .mapDrawer.left.open.sheet-full:not(.sheet-dragging):not(.mobileSharedSheet),
+  .mapDrawer.left.open.sheet-half:not(.sheet-dragging):not(.mobileSharedSheet),
+  .mapDrawer.left.open.sheet-peek:not(.sheet-dragging):not(.mobileSharedSheet),
+  .mapDrawer.right.open.sheet-full:not(.sheet-dragging):not(.mobileSharedSheet),
+  .mapDrawer.right.open.sheet-half:not(.sheet-dragging):not(.mobileSharedSheet),
+  .mapDrawer.right.open.sheet-peek:not(.sheet-dragging):not(.mobileSharedSheet) {
     height: 100vh;
     height: 100dvh;
     max-height: none;

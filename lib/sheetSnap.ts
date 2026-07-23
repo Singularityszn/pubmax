@@ -152,69 +152,102 @@ export function resolveSheetSnap({
   return { snap: nearest, dismissed: false };
 }
 
-/** translateY in px for a given snap + viewport height — used by the sheet's inline style while dragging/settling. */
+/** translateY in px for a given snap + viewport height — used by the LEGACY
+ *  641–768px inline drawer's drag (components/map/useSheetDrag.ts) and PubMap's
+ *  inline drawer transforms. The rebuilt phone portal sheet no longer uses a
+ *  translateY snap model — see the height resolver below. */
 export function sheetTranslateY(snap: SheetSnap, viewportHeight: number): number {
   return snapToY(snap, viewportHeight);
 }
 
-export type ContentFitInput = {
-  /** Viewport height in px. */
-  viewportHeight: number;
-  /** Measured sheet-header height in px. */
-  headerHeight: number;
-  /** Reserved clearance (tab bar + safe area) below the body, in px. */
-  dockClearance: number;
-  /** The body's natural content extent (scrollHeight) in px. */
-  contentHeight: number;
-  /**
-   * Height (px) of a docked footer strip reserved BELOW the scroll body and
-   * ABOVE the dock clearance — e.g. the venue sheet's fixed Drop/Share command
-   * bar (--venue-cmdbar-h, #536). The scroll body is shortened by this strip, so
-   * the fit has less room to fill and the hugged sheet must sit this much higher.
-   * Defaults to 0 for contextual sheets (TfL live, map layers…) with no footer.
-   */
-  footerHeight?: number;
-};
+// ── Height-driven snap resolver (bottom-anchored content-fit sheet model) ─────
+// The rebuilt mobile portal sheet (components/mobile/MobileSharedSheet.tsx) is a
+// bottom-anchored flex column whose rendered height is min(content, cap) — CSS
+// `height:auto; max-height:<cap>` does the void-killing natively, so there is no
+// content-measuring, no reserved-footer var math, no translateY. A drag grows or
+// shrinks that height directly, so a release resolves by comparing the released
+// HEIGHT to each snap's cap — the height-space mirror of resolveSheetSnap's
+// translateY nearest-neighbour.
 
-export type ContentFit = {
-  /** Body height to pin (equals the natural content height). */
-  bodyPx: number;
-  /** translateY (px) that anchors content `dockClearance` above the tab bar. */
-  translatePx: number;
+export type SheetSnapCaps = Record<SheetSnap, number>;
+
+/**
+ * Per-snap cap heights (px) for the bottom-anchored sheet: the snap's fraction
+ * of the viewport MINUS `dockPx`, the sheet box's bottom offset from the viewport
+ * bottom (the rebuilt phone sheet anchors at bottom:0, so the hook passes 0 and
+ * the caps are the plain `<fraction>dvh` used in mobileMapShell.css; the param
+ * keeps the resolver correct if the anchor ever grows a safe-area/dock offset).
+ */
+export function sheetSnapCaps(viewportHeight: number, dockPx: number): SheetSnapCaps {
+  const cap = (snap: SheetSnap) =>
+    Math.max(0, viewportHeight * SHEET_SNAP_FRACTIONS[snap] - dockPx);
+  return { peek: cap("peek"), half: cap("half"), full: cap("full") };
+}
+
+export type ResolveHeightSnapInput = {
+  /** Snap the drag started from. */
+  startSnap: SheetSnap;
+  /**
+   * Rendered box height (px) at grab — the START snap's true resting height
+   * (content-hugged when short, cap when tall). Used as the START snap's
+   * reference so a short content-hugged half stays half instead of mis-snapping
+   * to peek merely because its px height sits in peek's band.
+   */
+  startHeightPx: number;
+  /** Presented box height (px) at release. */
+  releaseHeightPx: number;
+  /**
+   * Signed height velocity (px/ms) at release: + = growing (dragged up), − =
+   * shrinking (dragged down). 0 for a still/paused release.
+   */
+  velocity: number;
+  /** Per-snap cap heights (px), from sheetSnapCaps. */
+  caps: SheetSnapCaps;
 };
 
 /**
- * Content-fit for the `half` detent (the void-killer, owner's "TfL live"
- * screenshot). When the body's natural content is SHORTER than the height the
- * half snap would give it, hug the content instead of stretching to 55dvh and
- * showing a white void: pin the body to its content height and translate the
- * sheet so the content's bottom sits the same `dockClearance` above the tab bar
- * the full-height half uses.
- *
- * A `footerHeight` (default 0) accounts for a docked footer strip reserved below
- * the scroll body — the venue sheet's fixed Drop/Share command bar (#536). With
- * a footer, the available half-body is that much shorter (so short content is
- * detected the same way the CSS shortens the body), and the sheet is translated
- * an extra `footerHeight` up so the FOOTER's bottom — not the body's — lands the
- * `dockClearance` above the tab bar. The caller derives the docked bar's own
- * offset from `translatePx` (bar bottom = translatePx + dockClearance).
- *
- * Returns null when content is tall enough to fill (or exceed) half — the
- * caller then uses the normal 55dvh half detent — or when inputs are
- * degenerate. The result never exceeds the half snap on open, and because it
- * only governs the resting half detent, full/peek and the live drag stay
- * authoritative. Pure; exported for tests.
+ * Resolve a height-drag release to a snap. Mirrors resolveSheetSnap:
+ *  • A flick (|velocity| ≥ threshold) steps one snap in the flick direction from
+ *    the current snap; a downward flick from peek dismisses.
+ *  • Otherwise nearest-neighbour on the released height, where the START snap's
+ *    reference is its rendered start height and every other snap uses its cap.
+ *  • A slow collapse below half of peek's cap dismisses.
+ * Pure; exported for tests.
  */
-export function resolveHalfContentFit(input: ContentFitInput): ContentFit | null {
-  const { viewportHeight, headerHeight, dockClearance, contentHeight } = input;
-  const footerHeight = input.footerHeight && input.footerHeight > 0 ? input.footerHeight : 0;
-  if (!(viewportHeight > 0) || !(contentHeight > 0)) return null;
-  const halfBodyPx =
-    viewportHeight * SHEET_SNAP_FRACTIONS.half - headerHeight - dockClearance - footerHeight;
-  if (!(halfBodyPx > 0) || contentHeight >= halfBodyPx) return null;
-  const translatePx = Math.max(
-    0,
-    Math.round(viewportHeight - headerHeight - contentHeight - footerHeight - dockClearance),
-  );
-  return { bodyPx: contentHeight, translatePx };
+export function resolveSheetHeightSnap({
+  startSnap,
+  startHeightPx,
+  releaseHeightPx,
+  velocity,
+  caps,
+}: ResolveHeightSnapInput): ResolveSnapResult {
+  const isFlick = Math.abs(velocity) >= VELOCITY_FLICK_THRESHOLD;
+  if (isFlick) {
+    const index = SHEET_SNAP_ORDER.indexOf(startSnap);
+    if (velocity < 0) {
+      // Shrinking fast (dragged down): step one snap down; below peek dismisses.
+      if (index <= 0) return { snap: "peek", dismissed: true };
+      return { snap: SHEET_SNAP_ORDER[index - 1], dismissed: false };
+    }
+    const nextIndex = Math.min(index + 1, SHEET_SNAP_ORDER.length - 1);
+    return { snap: SHEET_SNAP_ORDER[nextIndex], dismissed: false };
+  }
+
+  // Slow collapse well below peek → dismiss (mirror of resolveSheetSnap's
+  // half-a-peek dismiss threshold, in height space).
+  if (releaseHeightPx < caps.peek * 0.5) {
+    return { snap: "peek", dismissed: true };
+  }
+
+  const ref = (snap: SheetSnap) => (snap === startSnap ? startHeightPx : caps[snap]);
+  let nearest: SheetSnap = SHEET_SNAP_ORDER[0];
+  let nearestDist = Infinity;
+  for (const snap of SHEET_SNAP_ORDER) {
+    const dist = Math.abs(ref(snap) - releaseHeightPx);
+    if (dist < nearestDist) {
+      nearestDist = dist;
+      nearest = snap;
+    }
+  }
+  return { snap: nearest, dismissed: false };
 }

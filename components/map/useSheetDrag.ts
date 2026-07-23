@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 
 import {
   SHEET_SNAP_FRACTIONS,
@@ -100,31 +100,16 @@ function readLiveTranslateY(host: HTMLElement | null): number | null {
  * / closes the planner there). Pointer Events (not touch/mouse-specific) so a
  * mouse-drag on a narrow browser window works too — which keeps this testable
  * without a real touch device.
+ *
+ * This is the LEGACY translateY drag for the 641–768px inline drawer PubMap
+ * renders above the phone breakpoint. The ≤640px phone portal sheet uses the
+ * rebuilt bottom-anchored height drag (components/mobile/useSheetHeightDrag.ts).
  */
-/**
- * `halfTranslatePx` (optional): a content-fit resting translateY (px) that
- * REPLACES the `half` detent's fixed 0.45·vh position while it is non-null.
- * When a short contextual sheet hugs its content (MobileSharedSheet's fit), the
- * sheet actually rests lower than the geometric half; feeding that live px here
- * makes the gesture treat it as the half detent's true home, so a tap settles
- * back to the hugged position (not down to peek) and a full→half release lands
- * on content directly. Null/omitted → the unchanged geometric half (PubMap's
- * venue/planner drawers pass nothing).
- */
-export function useSheetDrag(onDismiss: () => void, halfTranslatePx?: number | null): SheetDrag {
+export function useSheetDrag(onDismiss: () => void): SheetDrag {
   // "half" is the default resting snap whenever a sheet opens — PubMap
   // re-asserts that on each open; we just seed it here.
   const [sheetSnap, setSheetSnap] = useState<SheetSnap>("half");
   const [sheetDragY, setSheetDragY] = useState<number | null>(null);
-  // Live fit override, read inside the pointer callbacks without re-subscribing.
-  const halfOverrideRef = useRef<number | null>(halfTranslatePx ?? null);
-  useEffect(() => { halfOverrideRef.current = halfTranslatePx ?? null; }, [halfTranslatePx]);
-  // Resting translateY for a snap, honouring the live half-detent fit override.
-  const restingTranslateY = useCallback((snap: SheetSnap, viewportHeight: number): number => {
-    const override = halfOverrideRef.current;
-    if (snap === "half" && override !== null && override > 0) return override;
-    return sheetTranslateY(snap, viewportHeight);
-  }, []);
   const dragRef = useRef<{
     startY: number;
     // Offset (px) between the sheet's live position at grab and its resting
@@ -158,7 +143,7 @@ export function useSheetDrag(onDismiss: () => void, halfTranslatePx?: number | n
       if (target.closest("button, a, input, textarea, select")) return;
       const now = performance.now();
       const viewportHeight = window.innerHeight;
-      const baseY = restingTranslateY(sheetSnap, viewportHeight);
+      const baseY = sheetTranslateY(sheetSnap, viewportHeight);
       // Start from the presentation value: read where the sheet actually is on
       // screen right now (mid-settle or at rest) and offset our tracking so the
       // sheet stays exactly under the finger from the first frame.
@@ -184,7 +169,7 @@ export function useSheetDrag(onDismiss: () => void, halfTranslatePx?: number | n
         setSheetDragY(originOffset);
       }
     },
-    [gestureEnabled, restingTranslateY, sheetSnap],
+    [gestureEnabled, sheetSnap],
   );
 
   const onSheetDragMove = useCallback((event: React.PointerEvent<HTMLElement>) => {
@@ -258,7 +243,7 @@ export function useSheetDrag(onDismiss: () => void, halfTranslatePx?: number | n
       let nearest: SheetSnap = SHEET_SNAP_ORDER[0];
       let nearestDist = Infinity;
       for (const snap of SHEET_SNAP_ORDER) {
-        const dist = Math.abs(restingTranslateY(snap, viewportHeight) - projectedY);
+        const dist = Math.abs(sheetTranslateY(snap, viewportHeight) - projectedY);
         if (dist < nearestDist) {
           nearestDist = dist;
           nearest = snap;
@@ -266,7 +251,7 @@ export function useSheetDrag(onDismiss: () => void, halfTranslatePx?: number | n
       }
       setSheetSnap(nearest);
     },
-    [onDismiss, restingTranslateY],
+    [onDismiss],
   );
 
   return {
