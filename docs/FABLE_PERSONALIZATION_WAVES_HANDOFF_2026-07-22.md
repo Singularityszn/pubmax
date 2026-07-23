@@ -1,10 +1,13 @@
 # Fable handoff ledger: personalization Waves A and B
 
-Status: **product fixed point `9bd58f94` on refreshed `origin/main`; final clean-room review complete, Vercel gate and visual verdict pending**
+Status: **merged as PR #557 / `5c69d630`; automated release gates and exact deployed browser verification complete; Fable human review queued**
 
 Original lane baseline: `origin/main@a3fde784` on 2026-07-22
 
 Refreshed integration baseline: `origin/main@07b645ea` after Fable's #549 to #556 close-out
+
+Post-merge evidence baseline: `origin/main@a10cc675` after Fable merged guarded web push #457 and grounded Plan generation #462
+
 Release roles: Karan owns product rulings; Fable owns architecture review, green-gate review, merge order, and rollout verdict.
 
 ## Owner supersession record
@@ -46,7 +49,7 @@ If either lane needs an excluded file, stop and return the proposed file plus re
 - No new API route, migration, secret, analytics identifier, auth dependency, or durable write is introduced. Any such need is a scope change requiring a new ruling.
 - Existing Today contracts remain green, including `todayBrief`, patch continuity, Today area/pints, quiet-pint, deals-digest, and weather read-through coverage.
 - Keyboard and screen-reader semantics remain intact; both themes are visually checked at 390x844 and desktop width with reduced motion enabled once.
-- `npm run verify` and the Vercel gate pass on the integrated SHA. Production rollout waits for Fable's diff review and visual verdict.
+- `npm run verify` and the Vercel gate pass on the integrated SHA. Fable's human diff and rollout verdict remains explicitly queued even though the automated gates passed and PR #557 was merged externally.
 - Wave B changes exactly `lib/surpriseDrink.ts` and `__tests__/surpriseDrink.test.ts`; it has no component, page, style, route, or other UI integration.
 
 ## Test and review evidence
@@ -55,10 +58,56 @@ Fill every field before merge; `TBD` is not release evidence.
 
 | Lane | Commit / PR | Touched-file manifest | Focused tests | `npm run verify` | Visual / live evidence | Fable verdict |
 | --- | --- | --- | --- | --- | --- | --- |
-| Wave A: Personalized Today | lane `155a2769`; integrated through `9bd58f94` | `lib/todayPersonalization.ts`; `__tests__/todayPersonalization.test.ts`; `app/today/page.tsx`; `app/today/TodayClient.tsx`; `lib/todayBrief.ts`; `__tests__/todayBrief.test.ts` | Included in final 134/134 focused set; typecheck and touched-file lint pass | Full coverage passed before four final timestamp controls; Vercel gate pending | Browser evidence pending after final review | Pending |
-| Wave B: Surprise Drink | lane `7ca77b74`; integrated through `9bd58f94` | `lib/surpriseDrink.ts`; `__tests__/surpriseDrink.test.ts` | Included in final 134/134 focused set; typecheck and touched-file lint pass | Full coverage passed before four final timestamp controls; Vercel gate pending | Not applicable until a separately approved UI wave | Pending |
-| Inherited security baseline | Fable #550 / `b5f9b7b9` | No dependency file belongs to this branch after rebase | Installed Next.js 16.2.11; typecheck passed | Registry-backed `npm audit --audit-level=high`: 0 vulnerabilities | Canonical Vercel build pending | Already merged by Fable |
-| Integrated waves | product fixed point `9bd58f94`; ledger metadata follows | 9 files including this ledger; feature manifests remain disjoint | 134/134 focused tests; typecheck; touched-file lint; diff-check all pass | Latest full data/lint/typecheck/coverage: 516 files and 5,021/5,021 tests passed; four later timestamp controls pass targeted validation. Registry-backed audit found 0 vulnerabilities. | 390x844 light/dark, desktop light/dark, reduced motion: pending for Wave A | Pending |
+| Wave A: Personalized Today | lane `155a2769`; integrated through `9bd58f94`; PR #557 merged as `5c69d630` | `lib/todayPersonalization.ts`; `__tests__/todayPersonalization.test.ts`; `app/today/page.tsx`; `app/today/TodayClient.tsx`; `lib/todayBrief.ts`; `__tests__/todayBrief.test.ts` | Included in final 134/134 focused set; typecheck and touched-file lint pass | Both Vercel projects passed on PR #557 and on subsequent current-main deployments | Production desktop light and 390x844 light/dark baseline passed. Exact preference-path check proved progressive Camden intake wins over remembered Clapham for weather, storage is read-only, and a fresh tab reports zero errors and zero warnings. | Automated clean; Fable human review queued per owner request |
+| Wave B: Surprise Drink | lane `7ca77b74`; integrated through `9bd58f94`; PR #557 merged as `5c69d630` | `lib/surpriseDrink.ts`; `__tests__/surpriseDrink.test.ts` | Included in final 134/134 focused set; typecheck and touched-file lint pass; final Surprise-only set 21/21 | Both Vercel projects passed on PR #557 and on subsequent current-main deployments | Not applicable until a separately approved UI wave | Automated clean; Fable human review queued per owner request |
+| Inherited security baseline | Fable #550 / `b5f9b7b9` | No dependency file belongs to this branch after rebase | Installed Next.js 16.2.11; typecheck passed | Registry-backed `npm audit --audit-level=high`: 0 vulnerabilities | Canonical builds passed through PR #557 and later `main` deployments | Already merged by Fable; duplicate Codex dependency commit correctly dropped |
+| Integrated waves | product fixed point `9bd58f94`; PR head `f1957ea8`; merge `5c69d630` | 9-file feature manifest including this ledger; feature manifests remain disjoint | 134/134 focused tests; typecheck; touched-file lint; diff-check all pass | Latest full data/lint/typecheck/coverage before the four final timestamp controls: 516 files and 5,021/5,021 tests passed. The four later controls passed targeted validation. Registry-backed audit found 0 vulnerabilities. PR #557 Vercel chengdu/pubmax and CodeRabbit passed. | Production desktop light, mobile light/dark, and an exact deployed personalized-state path passed. The protected preview redirected to Vercel login, recorded as access protection rather than a product failure. | Automated fixed point clean; Fable human review queued per owner request |
+
+## Deployed browser evidence
+
+All checks below ran against `https://pubmaxxing.com/today` after PR #557 merged. Temporary browser state was limited to the two existing keys `pubmax:plan-intake:v1` and `pubmax:nightPatch:v1`; both were removed after the check.
+
+- Desktop baseline, light: [full-page capture](evidence/pr-557/pubmax-today-desktop-baseline.png)
+- Desktop baseline, dark: [full-page capture](evidence/pr-557/pubmax-today-desktop-dark-baseline.png)
+- Desktop dark with reduced motion requested: [full-page capture](evidence/pr-557/pubmax-today-desktop-dark-reduced-motion.png)
+- Mobile baseline at 390x844, light: [full-page capture](evidence/pr-557/pubmax-today-mobile-baseline.png)
+- Mobile baseline at 390x844, dark: [full-page capture](evidence/pr-557/pubmax-today-mobile-dark-baseline.png)
+- Mobile deployed preference path at 390x844: [full-page capture](evidence/pr-557/pubmax-today-mobile-personalized-pr557.png)
+- The [machine-readable live-state trace](evidence/pr-557/pr557-live-state-evidence.json) records the exact production URL, 1440x1000 dark viewport, reduced-motion media query, zero running document animations, headings, navigation, storage comparisons, and weather evidence URL.
+- The preference-path control stored a valid progressive intake with `area: "camden"` and a lower-priority remembered patch `clapham`. The trace records weather coordinates `latitude=51.539&longitude=-0.143`, the repository's Camden coordinates, plus byte-identical progressive-intake and remembered-patch strings after hydration.
+- The [fresh-tab console artifact](evidence/pr-557/pr557-live-console.txt) records `0` errors and `0` warnings. Temporary browser keys were removed after capture.
+- [PR #557 checks](https://github.com/karanmrn/pubmax/pull/557/checks) record both Vercel projects and CodeRabbit passing. The corresponding checks also passed on later main merges [#457](https://github.com/karanmrn/pubmax/pull/457/checks) and [#462](https://github.com/karanmrn/pubmax/pull/462/checks), so the feature remained deployed after Fable's subsequent voice, web-push, and grounded-generation work.
+
+## Proposed next non-overlapping product queue
+
+Status: **planning only**. `sol_execution.md` pauses the next implementation wave until Fable reviews the open Sol work. None of the slices below has started, and each requires a fresh ownership check immediately before branching.
+
+Current collision fence: do not touch the newly merged #462 Plan-generation contract or remaining PlanComposer drafts (#495 to #497, #510), analytics (#456), auth or push identity (#459), Tonight (#495, #504), map chrome/search (#501, #502, #509), invitations (#503, #508, #516), `/near` (#517), or Fable's owner-blocked migrations and configuration sequence.
+
+The broader `/choose` concept is **not implementation-ready**: its pub discovery, distance, and comparison journey would collide at product scope with `/near` #517 and map-search work #501/#502/#509 even if it used new filenames. Fable must first rule whether a separate chooser should exist or whether those capabilities belong inside the existing map and near journeys.
+
+The safe queue below stays inside the already-merged Today/Surprise Drink domain. No open PR in the 2026-07-23 GitHub inventory claimed `lib/surpriseDrink.ts` or the `/today` feature files, but Fable must repeat that ownership check before each branch starts.
+
+Exact-drink availability is the entry gate, not an assumption. The existing authoritative input is `DrinkPriceUpdate` from `public/data/drink_price_updates/latest.json`, validated by `lib/drinkPriceUpdates.ts`. The browser-only `lib/priceUpdatesLoader.ts` is not a server adapter because it deliberately yields no data when `window` is absent. The new server-only seam must instead mirror `app/feed/feedSightings.server.ts`: read the public JSON with `fs`, parse it with `parseDrinkPriceUpdates`, and resolve canonical `venueKey` values to venue IDs/names. No adapter currently converts those rows into `SurpriseDrinkAvailability`, and Today's event picks alone do not prove that a venue serves a persona's exact order. All UI slices below remain blocked until Fable assigns that bounded adapter and its coverage audit finds enough exact matches to justify a card.
+
+| Priority | Slice | User outcome | Bounded implementation surface | Acceptance gate and non-overlap proof |
+| --- | --- | --- | --- | --- |
+| P0 | **Exact-drink availability adapter and coverage audit** | The product learns whether it can truthfully offer persona drinks at Today's pubs before any card promises them | New server-only `lib/surpriseDrinkAvailability.ts`, focused tests, and a read-only audit script; direct server read and validation mirroring `app/feed/feedSightings.server.ts`; bounded `lib/surpriseDrink.ts` contract extension plus tests to replace the flat `source` string with the complete structured source `{ label, url, licence }` | Exact canonical venue and normalized exact drink-name matches only; preserve price, linked source label/URL, licence, and observed time in `SurpriseDrinkAvailability`; fail closed to zero rows; publish match-rate evidence; no browser loader, scrape, migration, client fetch, or inferred menu claim |
+| P0, blocked on adapter | **Surprise Drink card** for an existing Today pick | A person gets one concrete drink, at one already-recommended pub, with exact price and evidence instead of a generic beverage category | New Today card/component consuming the approved adapter and `lib/surpriseDrink.ts`, plus minimum `/today` wiring ruled by Fable | Render only when the adapter proves an exact match at a pub already present in Today's three-pick result; honest absent state or no card at zero coverage; no venue discovery, Plan, Map, Tonight, account, storage, analytics, or migration edits |
+| P1, blocked on card | **Why this drink?** evidence trace | Weather, daypart, personality lens, price, source, and freshness are understandable without presenting taste as fact | New pure presentation DTO beside `lib/surpriseDrink.ts` and card copy only | Every displayed reason maps to an enforced resolver field and approved availability row; missing evidence is visibly unknown; no additional recommendation or ranking engine |
+| P1, blocked on card | **Drink mood lens** for this view | The user can explicitly ask for classic, adventurous, refreshing, warming, or alcohol-free without building an account profile | Session-only state in the Surprise Drink card; lens values remain drink-scoped and do not copy Plan's area, group-size, budget, accessibility, or navigation schemas | Refresh returns to baseline; no localStorage; explicit current lens outranks inferred lens; strict zero-proof cannot relax; no active Plan-intake ownership crossed |
+| P2, blocked on coverage | **Same-pub alternative and deterministic cycling** | A user can ask again without reopening the location decision | Extend the pure output and card to cycle only among availability rows for the same canonical venue | Every alternative has its own exact price/source/freshness evidence; stable order independent of input order; no randomness, tracking, persistence, cross-pub comparison, `/near`, map-search, route, or Plan behavior |
+
+Suggested wave order after Fable clears the hold: availability adapter and measured coverage first. Only if that gate passes should the card, evidence trace, drink mood lens, and same-pub cycling proceed. Keep each slice in its own worktree and PR, and re-run the open-PR collision check before assigning files.
+
+## Open security, reliability, and owner gates
+
+- No new high-severity dependency issue was found: Next.js 16.2.11 is inherited from Fable #550 and the registry-backed high-severity audit returned zero vulnerabilities.
+- Production migrations remain an owner-authorized operation. The live handoff records migrations through 0050 plus later Sol mappings as unapplied or sequence-sensitive; do not apply, renumber, or route around them from a product lane.
+- Web push #457 is merged, but production targeting remains bounded by the still-open identity join #459 and by VAPID/provider configuration. Do not duplicate that work in chooser or personalization code.
+- GitHub scheduled-job billing/capacity and remaining external credentials are infrastructure blockers documented in `sol_execution.md`; product UI must fail soft and must not claim background freshness it cannot prove.
+- Mobile owner-device verification debt remains for the sheet/map fixes listed in `FABLE_HANDOFF.md`. The captures in this ledger verify `/today`; they do not close unrelated map, planner, or native-shell rendering claims.
+- Worktree and disk hygiene is release reliability, not housekeeping: remove only a lane proven merged or otherwise preserved, and stop orphaned Next servers before production builds. No Fable worktree was removed in this wave.
 
 ## Review ledger
 
@@ -87,9 +136,10 @@ The first isolated production-build attempt correctly failed because Turbopack w
 
 ## Rollback
 
-- Keep Waves A and B as separate squash commits so either can be reverted independently.
-- For a personalization regression, revert its merge commit or remove only the resolver wiring; the no-preference path must immediately return to the pre-wave ordering and content.
-- For a Surprise Drink regression, revert only Wave B; its two-file boundary contains no UI or persisted-state cleanup.
+- PR #557 merged Waves A and B in one squash commit, `5c69d630`. To remove both, create a rollback branch at current `main`, run `git revert 5c69d630`, execute the full gate, and ship the resulting revert through the normal PR and Vercel process.
+- To remove only Wave A, create a forward rollback commit that restores `app/today/TodayClient.tsx`, `app/today/page.tsx`, `lib/todayBrief.ts`, and `__tests__/todayBrief.test.ts` from `5c69d630^`, and removes `lib/todayPersonalization.ts` plus `__tests__/todayPersonalization.test.ts` by restoring those paths from the same parent. Leave the two Surprise Drink paths untouched. Run Today-focused tests, `npm run verify`, and both Vercel gates; the no-preference path must match the pre-wave ordering and content.
+- To remove only Wave B, restore `lib/surpriseDrink.ts` and `__tests__/surpriseDrink.test.ts` from `5c69d630^` in a forward rollback commit, leaving all six Wave A paths untouched. Run the focused Today suite, `npm run verify`, and both Vercel gates. Wave B has no UI or persisted-state cleanup.
+- Update this ledger in any selective rollback so Fable can distinguish code removal from a failed deployment or disabled UI.
 - No database or account cleanup should be needed. If implementation creates persisted state, migrations, or new external dependencies, stop rollout because the accepted scope has changed.
 
 ## Evidence inspected
