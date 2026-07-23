@@ -176,3 +176,10 @@ Owner queue: unchanged (migrations 0038-0049, CRON_SECRET, ORS_API_KEY, #473 rul
 - #550 next 16.2.11: nine overnight App Router advisories killed every build via the audit gate (second dependency-advisory incident in two days; same playbook as sharp #490 - check the audit tail before blaming a diff).
 - #549 owner taste rulings: feed active-chip underline removed (with its JS measurement scaffolding), 39 CTA/button sites moved from pills to var(--control-radius, 14px) matching the top bar (icon circles + tab bar deliberately kept), venue sheets content-fit like contextual/planner (dock rides hugged content bottom; tall content unchanged), dead reserved padding trimmed (~80px in-sheet, feed row-gap).
 - Owner verification pending on device: feed (no underline, rectangular CTAs), Kings Head sheet (no void), map black-canvas watchdog (#548), planner sheet (#547).
+
+## 2026-07-23 voice close-out (#551)
+
+- Em-dash LAW: __tests__/emDashLaw.test.ts parses every user-facing string (AST, not grep) in app/+components/+copy-exporting libs; failed on base tree (20 violations incl. 10 on the story page), green after rewrite; EXCEPTIONS list empty and asserted empty. The ruling is now CI-permanent.
+- Full-site rewrite to the fall-in-love bar: story page rebuilt from first principles ("A pint in London can cost eight quid. Nobody tells you where it doesn't." / "There's a wall in the code between anyone's money and the prices you see." / "The dearest is X, and someone is paying it."), plumbing words scrubbed (grounded/curated/provenance/capture), empty+error states hand the reader the map, OG card fixed. VOICE.md updated with the law + before/afters.
+- Handed to Cursor fleet: PlanComposer.tsx lines 361/536/547/577 still say "grounded" (their file).
+- Owner device verification still pending on the last three UI fixes (#547/#548/#549) + this voice deploy.
