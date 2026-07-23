@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { groupTonightListings } from "@/lib/tonightListGrouping";
+import { laneKindFacets } from "@/lib/whatsOnBadges";
 import type { WhatsOnRow } from "@/lib/whatsOn";
 
 // A well-formed Tonight listing; override per case. Distinct ids so stable
@@ -92,5 +93,26 @@ describe("groupTonightListings", () => {
     for (const [, n] of counts) expect(n).toBeLessThanOrEqual(2);
     // And in fact the 60 duplicates are a single card carrying all 60 venues.
     expect(grouped[0].venueCount).toBe(60);
+  });
+
+  it("feeds GROUPED family counts to the kind-filter facets, not raw inventory", () => {
+    // The mocked scene: 14 identical Curry Club deals + one quiz + one live-music.
+    const deals = Array.from({ length: 14 }, (_, i) =>
+      makeRow({ title: "Curry Club", placeName: `Curry ${i}` }),
+    );
+    const quiz = makeRow({ title: "Thursday Quiz", kind: "quiz", placeName: "The Sharp Wit" });
+    const music = makeRow({ title: "Live Jazz", kind: "music", placeName: "The Blue Note" });
+
+    const grouped = groupTonightListings([...deals, quiz, music], null);
+    // 16 raw listings collapse to 3 family cards → the "All" chip reads 3.
+    expect(grouped).toHaveLength(3);
+
+    // The kind chips count families (Deal 1, Quiz 1, Live music 1), the count the
+    // viewer sees, not the 14-deal raw inventory. Reuses the shared laneKindFacets
+    // on the grouped display rows, exactly as TonightClient does.
+    const byKind = Object.fromEntries(
+      laneKindFacets(grouped.map((g) => g.row)).map((f) => [f.kind, f.count]),
+    );
+    expect(byKind).toEqual({ deal: 1, quiz: 1, music: 1 });
   });
 });

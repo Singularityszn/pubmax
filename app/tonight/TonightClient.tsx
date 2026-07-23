@@ -45,7 +45,6 @@ import { groupTonightListings } from "@/lib/tonightListGrouping";
 import type { WhatsOnKind, WhatsOnRow } from "@/lib/whatsOn";
 import {
   checkedLabel,
-  filterLaneRows,
   laneKindFacets,
   laneTimeLabel,
   WHATS_ON_KIND_META,
@@ -160,19 +159,24 @@ export default function TonightClient() {
     setLocationStatus("idle");
   }, []);
 
-  const facets = useMemo(() => laneKindFacets(rows), [rows]);
-  const visible = useMemo(
-    () => filterLaneRows(rows, activeKind),
-    [rows, activeKind],
-  );
   // Collapse chain-wide duplicate offers (decision #11): one card per offer
   // family, nearest venue first, the rest behind a "Same deal at N pubs"
   // expander. Grouped on the same near signal that orders the list, so the card
-  // and its ordering agree.
-  const grouped = useMemo(
-    () => groupTonightListings(visible, tonightNear?.near ?? null),
-    [visible, tonightNear],
+  // and its ordering agree. Group the whole set once, then filter by kind — a
+  // family carries a single kind, so this equals grouping the kind-filtered rows.
+  const groupedAll = useMemo(
+    () => groupTonightListings(rows, tonightNear?.near ?? null),
+    [rows, tonightNear],
   );
+  const grouped = useMemo(
+    () => (activeKind ? groupedAll.filter((g) => g.row.kind === activeKind) : groupedAll),
+    [groupedAll, activeKind],
+  );
+  // Filter chips count what the viewer actually sees — grouped families — while
+  // the provenance line below stays the raw inventory total ("16 listings
+  // tonight"). Reusing laneKindFacets on the grouped display rows keeps the map
+  // lane's own facets (same shared helper) untouched.
+  const facets = useMemo(() => laneKindFacets(groupedAll.map((g) => g.row)), [groupedAll]);
 
   const ready = status === "ready";
   const empty = status === "empty";
@@ -333,7 +337,7 @@ export default function TonightClient() {
                 onClick={() => setActiveKind(null)}
               >
                 All
-                <span className="tonightChipCount">{rows.length}</span>
+                <span className="tonightChipCount">{groupedAll.length}</span>
               </button>
               {facets.map((facet) => (
                 <button
@@ -501,7 +505,7 @@ export default function TonightClient() {
             })}
           </ul>
 
-          {visible.length === 0 ? (
+          {grouped.length === 0 ? (
             <p className="tonightStatus" role="status">
               No {activeKind ? WHATS_ON_KIND_META[activeKind].label.toLowerCase() : "matching"}{" "}
               listings tonight.{" "}
