@@ -1,11 +1,9 @@
 "use client";
 
-import Link from "next/link";
-import { ArrowLeft } from "lucide-react";
 import { Suspense, useSyncExternalStore } from "react";
 import { useSearchParams } from "next/navigation";
 
-import PubmaxxWordmark from "@/components/brand/PubmaxxWordmark";
+import SiteNav from "@/components/nav/SiteNav";
 import { readPreferredCity, subscribePreferredCity } from "@/lib/cityPreference";
 import { DEFAULT_CITY_ID } from "@/lib/cities";
 import { resolveNightPatch } from "@/lib/nightPatches";
@@ -26,16 +24,10 @@ function NearPageBody() {
 
   return (
     <div className="nmnPage">
-      <header className="nmnPageNav">
-        <div className="nmnPageNavPill">
-          <Link href="/" className="nmnPageBack" aria-label="Back to home">
-            <ArrowLeft size={18} aria-hidden="true" />
-          </Link>
-          <Link href="/" className="nmnPageBrand" aria-label="PUBMAXXING home">
-            <PubmaxxWordmark />
-          </Link>
-        </div>
-      </header>
+      {/* Standard app chrome (journey audit P0): same floating SiteNav pill as
+          every other app page. /near is not a primary-nav destination, so no
+          active key is set (Map stays unlit). */}
+      <SiteNav />
       <main className="nmnPageBody">
         {/* Idle-first on /near so patch chips are reachable without granting
             location. Shareable ?patch= deep links answer immediately. */}

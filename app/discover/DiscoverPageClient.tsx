@@ -242,7 +242,6 @@ export default function DiscoverPageClient({
   const hungryMapHref = hungryHref(preferredCity);
   const lowNoMapHref = lowNoHref(preferredCity);
   const openMapHref = preferredCityMapHref();
-  const logPintHref = preferredCityMapHref(new URLSearchParams({ log: "1" }));
 
   // Defer the 5.9MB public dataset until the data-heavy sections are near the
   // viewport. The route shell and drink categories can paint without competing
@@ -298,48 +297,73 @@ export default function DiscoverPageClient({
     };
   }, []);
 
-  // Scroll entrance for the leaderboard / tonight / then-vs-now / editorial
-  // cards (see [data-reveal] in discover.css): each of those rows/cards only
-  // exists in the DOM once its section's fetch resolves (or, for editorial,
-  // at mount), so this re-scans whenever that state changes and hands any
-  // newly-mounted [data-reveal] element to a one-shot IntersectionObserver.
-  // Reduced-motion users never see the opacity:0 starting state at all (that
-  // rule lives behind a no-preference query), so this is purely additive.
+  // Scroll entrance for leaderboard / tonight / then-vs-now / editorial rows
+  // (see [data-reveal] in discover.css). Reduced-motion users never get the
+  // opacity:0 starting state (that rule is behind prefers-reduced-motion).
+  //
+  // Sibling reveal: when any row/card in a table body, list, or editorial grid
+  // intersects, mark every [data-reveal] sibling revealed too. Without that, a
+  // partially-visible leaderboard shows 3 rows then a void of opacity:0 rows
+  // still taking layout space (the bounce void in discover-1440-dark-after).
   useEffect(() => {
     const root = revealRootRef.current;
     if (!root) return;
+
+    const markRevealed = (el: Element) => {
+      if (!(el instanceof HTMLElement)) return;
+      el.classList.add("is-revealed");
+      const parent = el.parentElement;
+      if (!parent) return;
+      for (const sib of parent.children) {
+        if (sib instanceof HTMLElement && sib.hasAttribute("data-reveal")) {
+          sib.classList.add("is-revealed");
+        }
+      }
+    };
+
+    const revealIntersecting = (marginPx = 160) => {
+      const vh = window.innerHeight;
+      root.querySelectorAll<HTMLElement>("[data-reveal]:not(.is-revealed)").forEach((el) => {
+        const rect = el.getBoundingClientRect();
+        if (rect.bottom > -marginPx && rect.top < vh + marginPx) {
+          markRevealed(el);
+        }
+      });
+    };
+
+    // Data just mounted (or editorial already in the tree): immediately reveal
+    // anything already near the viewport so we never paint a headed void while
+    // the IntersectionObserver is still scheduling.
+    revealIntersecting();
+
     const targets = root.querySelectorAll<HTMLElement>(
       "[data-reveal]:not(.is-revealed)",
     );
     if (targets.length === 0) return;
     if (typeof IntersectionObserver === "undefined") {
-      targets.forEach((el) => el.classList.add("is-revealed"));
+      targets.forEach((el) => markRevealed(el));
       return;
     }
     const observer = new IntersectionObserver(
       (observedEntries) => {
         for (const observed of observedEntries) {
           if (observed.isIntersecting) {
-            observed.target.classList.add("is-revealed");
+            markRevealed(observed.target);
             observer.unobserve(observed.target);
           }
         }
       },
-      { threshold: 0.12, rootMargin: "0px 0px -8% 0px" },
+      // Generous rootMargin so below-fold siblings of a visible table arm
+      // before the user sees an empty void; threshold 0 avoids flaky <tr> IO.
+      { threshold: 0, rootMargin: "120px 0px 120px 0px" },
     );
     targets.forEach((el) => observer.observe(el));
     return () => observer.disconnect();
-  }, [entries, tonight, thenVsNow]);
+  }, [entries, tonight, thenVsNow, heritageCards.length]);
 
   // Arm the [data-reveal] hidden-by-default CSS (discover.css) only once the
-  // page has genuinely scrolled. Below-the-fold sections (the leaderboard,
-  // tonight board, editorial cards) mount well after first paint as their
-  // fetches resolve, so gating the opacity:0 state on mount — rather than on
-  // real scroll — meant a one-shot full-document capture (screenshot tool,
-  // print, share-image) could catch those rows/cards before the observer
-  // ever fired for them, rendering as permanently blank tables/boxes. Real
-  // scrolling users are unaffected: this fires on their very first scroll
-  // pixel, same as before.
+  // page has genuinely scrolled. Gating opacity:0 on scroll (not mount) keeps
+  // one-shot full-document captures honest until the user actually moves.
   useEffect(() => {
     const root = revealRootRef.current;
     if (!root) return;
@@ -347,13 +371,21 @@ export default function DiscoverPageClient({
     const armReveal = () => {
       if (armed) return;
       armed = true;
-      // Mark anything already on screen visible FIRST, synchronously, so
-      // adding .revealArmed can never flash currently-visible rows to hidden
-      // before their own IntersectionObserver entry fires.
+      // Sync-reveal near-viewport items FIRST (with sibling fan-out) so adding
+      // .revealArmed never flashes a visible table into a void of opacity:0.
+      const vh = window.innerHeight;
+      const marginPx = 160;
       root.querySelectorAll<HTMLElement>("[data-reveal]:not(.is-revealed)").forEach((el) => {
         const rect = el.getBoundingClientRect();
-        if (rect.top < window.innerHeight && rect.bottom > 0) {
+        if (rect.bottom > -marginPx && rect.top < vh + marginPx) {
           el.classList.add("is-revealed");
+          const parent = el.parentElement;
+          if (!parent) return;
+          for (const sib of parent.children) {
+            if (sib instanceof HTMLElement && sib.hasAttribute("data-reveal")) {
+              sib.classList.add("is-revealed");
+            }
+          }
         }
       });
       root.classList.add("revealArmed");
@@ -491,7 +523,11 @@ export default function DiscoverPageClient({
         </div>
       </section>
 
-      <section className="discoverSection" aria-labelledby="rivalry-title">
+      <section
+        ref={analysisRef}
+        className="discoverSection"
+        aria-labelledby="rivalry-title"
+      >
         <h2 id="rivalry-title" className="discoverSectionTitle">
           UK city energy
         </h2>
@@ -506,47 +542,52 @@ export default function DiscoverPageClient({
         <CityRivalryTable entries={rivalry} />
       </section>
 
-      <section
-        ref={analysisRef}
-        className="discoverSection"
-        aria-labelledby="tonight-title"
-      >
-        <h2 id="tonight-title" className="discoverSectionTitle">
-          Cheapest Pints Tonight
-        </h2>
-        <p className="discoverSectionDek">
-          Live from the community. The cheapest pints logged in the last 24
-          hours, cheapest first. Community-reported, not gospel.
-        </p>
-        {status === "idle" ? (
-          <p className="discoverEmpty" role="status">
-            Tonight&rsquo;s prices load as you reach the rankings.
+      {/* Fail-soft: after load with zero drops, omit the whole section (heading
+          included). Never leave a labeled empty board shell. Loading/error keep
+          a short status so the layout does not jump while data is on the way.
+          Lazy-load target stays on UK city energy above (always mounted). */}
+      {status === "error" || status === "idle" || status === "loading" || tonight.length > 0 ? (
+        <section
+          className="discoverSection"
+          aria-labelledby="tonight-title"
+        >
+          <h2 id="tonight-title" className="discoverSectionTitle">
+            Cheapest Pints Tonight
+          </h2>
+          <p className="discoverSectionDek">
+            Live from the community. The cheapest pints logged in the last 24
+            hours, cheapest first. Community-reported, not gospel.
           </p>
-        ) : status === "loading" ? (
-          <>
-            <span className="srOnly" role="status">
-              Loading tonight&rsquo;s prices…
-            </span>
-            <div className="discoverSkelList" aria-hidden="true">
-              {Array.from({ length: 4 }).map((_, i) => (
-                <div key={i} className="discoverSkelRow">
-                  <span className="discoverSkelRank" />
-                  <span className="discoverSkelLine" />
-                  <span className="discoverSkelPrice" />
-                </div>
-              ))}
-            </div>
-          </>
-        ) : status === "error" ? (
-          <p className="discoverEmpty" role="status">
-            Couldn&rsquo;t load tonight&rsquo;s prices just now.{" "}
-            <Link href={openMapHref}>Open the map</Link>{" "}
-            instead.
-          </p>
-        ) : (
-          <TonightBoard entries={tonight} />
-        )}
-      </section>
+          {status === "idle" ? (
+            <p className="discoverEmpty" role="status">
+              Tonight&rsquo;s prices load as you reach the rankings.
+            </p>
+          ) : status === "loading" ? (
+            <>
+              <span className="srOnly" role="status">
+                Loading tonight&rsquo;s prices…
+              </span>
+              <div className="discoverSkelList" aria-hidden="true">
+                {Array.from({ length: 4 }).map((_, i) => (
+                  <div key={i} className="discoverSkelRow">
+                    <span className="discoverSkelRank" />
+                    <span className="discoverSkelLine" />
+                    <span className="discoverSkelPrice" />
+                  </div>
+                ))}
+              </div>
+            </>
+          ) : status === "error" ? (
+            <p className="discoverEmpty" role="status">
+              Couldn&rsquo;t load tonight&rsquo;s prices just now.{" "}
+              <Link href={openMapHref}>Open the map</Link>{" "}
+              instead.
+            </p>
+          ) : (
+            <TonightBoard entries={tonight} />
+          )}
+        </section>
+      ) : null}
 
       <TonightMapPointer />
 
@@ -573,74 +614,73 @@ export default function DiscoverPageClient({
         )}
       </section>
 
-      <section className="discoverSection" aria-labelledby="cheap-title">
-        <h2 id="cheap-title" className="discoverSectionTitle">
-          Cheap Pint Leaderboard
-        </h2>
-        <p className="discoverSectionDek">
-          The cheapest pints we&rsquo;ve got on record, not tonight&rsquo;s live
-          prices. Open a pub to see how fresh its number is.
-        </p>
-        {status === "idle" ? (
-          <p className="discoverEmpty" role="status">
-            The cheap pint table loads when you reach the rankings.
+      {/* Fail-soft (journey audit P1): after load, empty data → omit the whole
+          section (no permanent "Counting…" / empty shell). Loading still shows
+          a short status so the layout does not jump when data is on the way. */}
+      {status === "error" || status === "idle" || status === "loading" || entries.length > 0 ? (
+        <section className="discoverSection" aria-labelledby="cheap-title">
+          <h2 id="cheap-title" className="discoverSectionTitle">
+            Cheap Pint Leaderboard
+          </h2>
+          <p className="discoverSectionDek">
+            The cheapest pints we&rsquo;ve got on record, not tonight&rsquo;s live
+            prices. Open a pub to see how fresh its number is.
           </p>
-        ) : status === "loading" ? (
-          <p className="discoverEmpty" role="status">
-            Counting the cheapest pints…
-          </p>
-        ) : status === "error" ? (
-          <p className="discoverEmpty" role="status">
-            Couldn&rsquo;t load the leaderboard just now.{" "}
-            <Link href={openMapHref}>Open the map</Link>{" "}
-            instead.
-          </p>
-        ) : (
-          <LeaderboardTable entries={entries} />
-        )}
-      </section>
+          {status === "idle" ? (
+            <p className="discoverEmpty" role="status">
+              The cheap pint table loads when you reach the rankings.
+            </p>
+          ) : status === "loading" ? (
+            <p className="discoverEmpty" role="status">
+              Counting the cheapest pints…
+            </p>
+          ) : status === "error" ? (
+            <p className="discoverEmpty" role="status">
+              Couldn&rsquo;t load the leaderboard just now.{" "}
+              <Link href={openMapHref}>Open the map</Link>{" "}
+              instead.
+            </p>
+          ) : (
+            <LeaderboardTable entries={entries} />
+          )}
+        </section>
+      ) : null}
 
-      <section className="discoverSection" aria-labelledby="thenVsNow-title">
-        <h2 id="thenVsNow-title" className="discoverSectionTitle">
-          Then vs Now
-        </h2>
-        <p className="discoverSectionDek">
-          Today&rsquo;s community-reported pint against the baseline price on
-          record. The biggest movers first. Community numbers, not gospel.
-        </p>
-        <p className="discoverSectionNote">
-          Then is the price on record. Now is the latest one someone logged.
-        </p>
-        {status === "idle" ? (
-          <p className="discoverEmpty" role="status">
-            Price comparisons load when you reach the rankings.
+      {status === "error" || status === "idle" || status === "loading" || thenVsNow.length > 0 ? (
+        <section className="discoverSection" aria-labelledby="thenVsNow-title">
+          <h2 id="thenVsNow-title" className="discoverSectionTitle">
+            Then vs Now
+          </h2>
+          <p className="discoverSectionDek">
+            Today&rsquo;s community-reported pint against the baseline price on
+            record. The biggest movers first. Community numbers, not gospel.
           </p>
-        ) : status === "loading" ? (
-          <p className="discoverEmpty" role="status">
-            Comparing baseline prices…
+          <p className="discoverSectionNote">
+            Then is the price on record. Now is the latest one someone logged.
           </p>
-        ) : status === "error" ? (
-          <p className="discoverEmpty" role="status">
-            Couldn&rsquo;t load price comparisons just now.{" "}
-            <Link href={openMapHref}>Open the map</Link>{" "}
-            instead.
-          </p>
-        ) : thenVsNow.length === 0 ? (
-          <p className="discoverEmpty" role="status">
-            Not enough community prices yet to compare.{" "}
-            <Link href={logPintHref}>
-              Log a pint on the map
-            </Link>{" "}
-            to help fill this in.
-          </p>
-        ) : (
-          <div className="tvnGrid">
-            {thenVsNow.map((item) => (
-              <ThenVsNowCard key={item.venueId} item={item} />
-            ))}
-          </div>
-        )}
-      </section>
+          {status === "idle" ? (
+            <p className="discoverEmpty" role="status">
+              Price comparisons load when you reach the rankings.
+            </p>
+          ) : status === "loading" ? (
+            <p className="discoverEmpty" role="status">
+              Comparing baseline prices…
+            </p>
+          ) : status === "error" ? (
+            <p className="discoverEmpty" role="status">
+              Couldn&rsquo;t load price comparisons just now.{" "}
+              <Link href={openMapHref}>Open the map</Link>{" "}
+              instead.
+            </p>
+          ) : (
+            <div className="tvnGrid">
+              {thenVsNow.map((item) => (
+                <ThenVsNowCard key={item.venueId} item={item} />
+              ))}
+            </div>
+          )}
+        </section>
+      ) : null}
 
       <section className="discoverSection" aria-labelledby="editorial-title">
         <h2 id="editorial-title" className="discoverSectionTitle">

@@ -1,70 +1,21 @@
+/* /near page shell. Matches other app reading pages (discover/today): standard
+   SiteNav + a centred content column. No custom back-arrow bar — the shared
+   nav owns wayfinding (journey audit P0). */
+
 .nmnPage {
   min-height: 100dvh;
   background: var(--paper);
   color: var(--ink);
-  display: flex;
-  flex-direction: column;
-}
-
-.nmnPageNav {
-  /* Owner screenshot 2026-07-19: first content line clipped behind the iPhone
-     status area — respect the notch/Dynamic Island on standalone/PWA views. */
-  padding: calc(var(--space-3) + env(safe-area-inset-top, 0px)) var(--space-4) 0;
-}
-
-/* Judge-w2 polish 3: the sub-page header now echoes the app's header pill
-   (globals .siteNav — same border mix, pill radius, raised-panel gradient)
-   instead of a bare underlined row, so /near reads as the same app the user
-   navigated from. Back arrow stays: a sub-page still needs its exit. */
-.nmnPageNavPill {
-  display: flex;
-  align-items: center;
-  gap: var(--space-3);
-  padding: 5px;
-  border: 1px solid color-mix(in srgb, var(--line) 70%, var(--brass) 30%);
-  border-radius: var(--radius-pill);
-  background:
-    linear-gradient(
-      135deg,
-      color-mix(in srgb, var(--panel-raised) 92%, transparent),
-      color-mix(in srgb, var(--surface-tint-river) 82%, transparent)
-    );
-}
-
-.nmnPageBack {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 40px;
-  height: 40px;
-  border-radius: var(--radius-pill);
-  border: 1px solid var(--line);
-  color: var(--ink);
-  text-decoration: none;
-  transition: border-color 160ms ease-out;
-}
-
-.nmnPageBack:hover {
-  border-color: color-mix(in srgb, var(--line) 55%, var(--brass) 45%);
-}
-
-.nmnPageBrand {
-  display: inline-flex;
-  align-items: center;
-  color: var(--ink);
-  text-decoration: none;
+  /* Same outer pad rhythm as .discoverPage / content pages so the column
+     does not sit in a left-biased void at 1440. */
+  padding: 16px var(--page-gutter) calc(96px + env(safe-area-inset-bottom, 0px));
+  box-sizing: border-box;
 }
 
 .nmnPageBody {
-  flex: 1;
   width: 100%;
-  max-width: 560px;
+  max-width: min(560px, 100%);
   margin: 0 auto;
-  padding: var(--space-6) var(--page-gutter) var(--space-10);
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .nmnPageBack {
-    transition: none;
-  }
+  padding: var(--space-6, 24px) 0 var(--space-10, 48px);
+  box-sizing: border-box;
 }
