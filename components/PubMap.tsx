@@ -11,6 +11,7 @@ import ThemeToggle from "@/components/ThemeToggle";
 import "@/components/map/venueSheet.css";
 import "@/components/map/spillComposer.css";
 import "@/components/map/logIntentFallback.css";
+import "@/components/map/mapBannerStaging.css";
 
 import {
   buildCrawlRoute,
