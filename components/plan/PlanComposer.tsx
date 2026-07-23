@@ -11,7 +11,12 @@ import { recordPlanNudgeTrigger } from "@/lib/identityNudge";
 import { CREW_NAME_MAX } from "@/lib/crew";
 import { readLastCrew, subscribeLastCrew } from "@/lib/lastCrew";
 import { isNightAreaRouteReady, NIGHT_AREAS, type NightArea } from "@/lib/nightAreas";
-import { readRememberedArea, resolveNightPatch, type NightPatch } from "@/lib/nightPatches";
+import {
+  nearestNightPatch,
+  readRememberedArea,
+  resolveNightPatch,
+  type NightPatch,
+} from "@/lib/nightPatches";
 import { PLAN_TEMPLATES, type PlanTemplate } from "@/lib/planTemplates";
 import { cleanNightContext, type NightContext } from "@/lib/nightPlanning";
 import { parsePlanDraft, PLAN_DRAFT_KEY } from "@/lib/planDraft";
@@ -22,6 +27,7 @@ import { writeDeviceNightContext } from "@/lib/nightProfileClient";
 import {
   buildPlanGenerationIntakeBody,
   clearPlanIntakeDraft,
+  canSeedPlanIntakeArea,
   createPlanIntakeDraft,
   londonDateTimeInputFromIso,
   londonDateTimeInputToIso,
@@ -30,6 +36,7 @@ import {
   readPlanIntakeDraft,
   reopenPlanIntakeStep,
   resolveFutureLondonStartIso,
+  resolvePlanIntakeAreaSeed,
   writePlanIntakeDraft,
   type PlanIntakeDraft,
 } from "@/lib/planIntake";
@@ -293,6 +300,30 @@ export function errorMessageFromBody(body: unknown, fallback: string): string {
   return fallback;
 }
 
+export type PlanLockValidationInput = {
+  creatorName: string;
+  startTime: string;
+  completeStopCount: number;
+};
+
+export function planLockValidationError({
+  creatorName,
+  startTime,
+  completeStopCount,
+}: PlanLockValidationInput): { message: string; focus: "name" | null } | null {
+  const missingName = !creatorName.trim();
+  const missingTime = !startTime;
+  const missingStops = completeStopCount === 0;
+  if (!missingName && !missingTime && !missingStops) return null;
+  if (missingName && !missingTime && !missingStops) {
+    return { message: "Add your name.", focus: "name" };
+  }
+  return {
+    message: "Add your name, a start time, and choose at least one venue from the list.",
+    focus: missingName ? "name" : null,
+  };
+}
+
 type NightAreaCoverageTone = "ready" | "review" | "capture" | "discovery" | "paused";
 
 export type NightAreaCoverageSummary = {
@@ -407,7 +438,7 @@ function conciergeStatusText(
   unsupportedPatch: NightPatch | null,
   note: string,
 ): string {
-  if (sorting) return "Planning your night, checking confidence and finding grounded stops.";
+  if (sorting) return "Planning your night, checking confidence and picking stops we can back up.";
   if (unsupportedPatch) {
     return `${unsupportedPatch.label} is saved. Exact Plan generation is not available for this patch yet. Pick another area to build the route now.`;
   }
@@ -418,10 +449,12 @@ function PlanComposerForm({
   recoveredDraft,
   recoveredRouteDraft,
   recoveredIntake,
+  hasDurableIntakeDraft,
 }: {
   recoveredDraft: ReturnType<typeof parsePlanDraft>;
   recoveredRouteDraft: StoredRouteDraft | null;
   recoveredIntake: PlanIntakeDraft;
+  hasDurableIntakeDraft: boolean;
 }) {
   const router = useRouter();
   const { user } = useAuth();
@@ -460,6 +493,7 @@ function PlanComposerForm({
       : "",
   );
   const usualLot = useSyncExternalStore(subscribeLastCrew, readLastCrew, () => null);
+  const nameInputRef = useRef<HTMLInputElement | null>(null);
 
   const completeStops = useMemo(
     () => stops.filter((stop) => stop.venueName.trim() && stop.venueId.trim()),
@@ -526,6 +560,38 @@ function PlanComposerForm({
     writePlanIntakeDraft(planIntake);
   }, [planIntake]);
 
+  useEffect(() => {
+    if (hasDurableIntakeDraft) return;
+    let cancelled = false;
+    function seedArea(patchId: string | null): void {
+      const seed = resolvePlanIntakeAreaSeed(patchId, readRememberedArea());
+      if (!seed) return;
+      setPlanIntake((current) => {
+        if (cancelled || !canSeedPlanIntakeArea(current)) return current;
+        return createPlanIntakeDraft(seed);
+      });
+    }
+    function seedRememberedSoon(): void {
+      queueMicrotask(() => {
+        if (!cancelled) seedArea(null);
+      });
+    }
+    if (typeof navigator === "undefined" || !navigator.geolocation) {
+      seedRememberedSoon();
+      return () => { cancelled = true; };
+    }
+    navigator.geolocation.getCurrentPosition(
+      ({ coords }) => {
+        if (cancelled) return;
+        const patch = nearestNightPatch(coords.latitude, coords.longitude);
+        seedArea(patch?.id ?? null);
+      },
+      () => seedRememberedSoon(),
+      { enableHighAccuracy: false, maximumAge: 5 * 60 * 1000, timeout: 10_000 },
+    );
+    return () => { cancelled = true; };
+  }, [hasDurableIntakeDraft]);
+
   function updatePlanIntake(next: PlanIntakeDraft) {
     const answersChanged = JSON.stringify(planIntakeHandoff(planIntake))
       !== JSON.stringify(planIntakeHandoff(next));
@@ -591,7 +657,7 @@ function PlanComposerForm({
     const usedByOtherStops = new Set(stops.filter((stop) => stop.key !== key).map((stop) => stop.venueId));
     const next = swapDraftStop(current, usedByOtherStops);
     if (next === current) {
-      setRouteStatus("No distinct grounded alternative is available for that stop yet.");
+      setRouteStatus("No other pub we can vouch for near that stop yet.");
       return;
     }
     setStops((existing) => existing.map((stop) => stop.key === key ? next : stop));
@@ -602,7 +668,7 @@ function PlanComposerForm({
     if (!canSortWithCurrentGenerator) return;
     setSorting(true);
     setError("");
-    setRouteStatus("Refreshing the route, checking the updated context and grounded stops.");
+    setRouteStatus("Refreshing the route, rechecking every stop against your updated night.");
     try {
       const response = await fetch("/api/plans/generate", {
         method: "POST",
@@ -636,7 +702,7 @@ function PlanComposerForm({
       setCreateOperationKey(typeof body.operationKey === "string" ? body.operationKey : null);
       markPalRouteActivation();
       trackEvent("plan_generated", { stops: suggested.length, grounded });
-      setConciergeNote("Three grounded stops, shaped by the editable context below.");
+      setConciergeNote("Three stops we can stand behind, shaped by the night you set below.");
       setRouteStatus("Route refreshed. Review the preview, then lock it in when it feels right.");
       if (body.inferredContext) {
         trackEvent("night_description_submitted", { area: body.inferredContext.nightArea, daypart: body.inferredContext.daypart });
@@ -653,8 +719,14 @@ function PlanComposerForm({
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!creatorName.trim() || !startTime || completeStops.length === 0) {
-      setError("Add your name, a start time, and choose at least one venue from the list.");
+    const validationError = planLockValidationError({
+      creatorName,
+      startTime,
+      completeStopCount: completeStops.length,
+    });
+    if (validationError) {
+      setError(validationError.message);
+      if (validationError.focus === "name") nameInputRef.current?.focus();
       return;
     }
     if (new Set(completeStops.map((stop) => stop.venueId)).size !== completeStops.length) {
@@ -662,7 +734,7 @@ function PlanComposerForm({
       return;
     }
     if (nightContext && completeStops.length !== 3) {
-      setError("A generated crawl needs exactly three grounded stops before you lock it in.");
+      setError("A generated crawl needs exactly three stops we can stand behind before you lock it in.");
       return;
     }
     if (routeStale) {
@@ -748,7 +820,7 @@ function PlanComposerForm({
   }
 
   return (
-    <form className="planComposer" onSubmit={submit}>
+    <form className="planComposer" onSubmit={submit} noValidate>
       <PlanIntake
         draft={planIntake}
         onChange={updatePlanIntake}
@@ -918,7 +990,7 @@ function PlanComposerForm({
       </div>
       <div className="planComposer__field">
         <label htmlFor="plan-name">Your name</label>
-        <input id="plan-name" autoComplete="name" maxLength={CREW_NAME_MAX} required value={creatorName} onChange={(event) => setCreatorName(event.target.value)} placeholder="Karan" />
+        <input id="plan-name" ref={nameInputRef} autoComplete="name" maxLength={CREW_NAME_MAX} required value={creatorName} onChange={(event) => setCreatorName(event.target.value)} placeholder="Karan" />
       </div>
       <div className="planComposer__field">
         <label htmlFor="plan-time">First pint</label>
@@ -982,15 +1054,20 @@ export default function PlanComposer() {
     try { return parsePlanRouteDraft(localStorage.getItem(PLAN_ROUTE_DRAFT_KEY)); } catch { return null; }
   }, [hydrated]);
   const recoveredIntake = useMemo(() => {
-    if (!hydrated) return createPlanIntakeDraft();
-    return readPlanIntakeDraft() ?? createPlanIntakeDraft(readRememberedArea());
+    if (!hydrated) return { draft: createPlanIntakeDraft(), hasDurableDraft: false };
+    const durableDraft = readPlanIntakeDraft();
+    return {
+      draft: durableDraft ?? createPlanIntakeDraft(),
+      hasDurableDraft: Boolean(durableDraft),
+    };
   }, [hydrated]);
   return (
     <PlanComposerForm
       key={hydrated ? "hydrated" : "server"}
       recoveredDraft={recoveredDraft}
       recoveredRouteDraft={recoveredRouteDraft}
-      recoveredIntake={recoveredIntake}
+      recoveredIntake={recoveredIntake.draft}
+      hasDurableIntakeDraft={recoveredIntake.hasDurableDraft}
     />
   );
 }

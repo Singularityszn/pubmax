@@ -6,10 +6,11 @@ import { DEFAULT_CITY_ID, parseCityId } from "@/lib/cities";
 import { loadConciergeVenues } from "@/lib/concierge/venues.server";
 import { getNightArea, isNightAreaRouteReady, publicNightAreaCoverage } from "@/lib/nightAreas";
 import { haversineKm } from "@/lib/haversine";
-import type { PlanningConfidence } from "@/lib/planIntelligence";
+import type { PlanningConfidence, PlanRouteTotals } from "@/lib/planIntelligence";
 import type { WhatsOnRow } from "@/lib/whatsOn";
 import { loadBaselineWhatsOn } from "@/lib/whatsOnStore";
 import nightSignalSnapshot from "@/public/data/night_signals/latest.json";
+import { estimatePlanWalking, estimateStraightLinePlanWalking } from "@/lib/walkRouteLegs";
 import {
 	canAffectRoute,
 	claimsForEntity,
@@ -20,7 +21,6 @@ import { reconcilePlanContext } from "@/lib/planGenerationContext";
 import { planGenerationEndings } from "@/lib/planGenerationEndings.server";
 import {
 	planBudgetSummary,
-	planRouteSummary,
 	planRouteTimingDisclosure,
 } from "@/lib/planGenerationDto";
 import { planEvidenceWarning, planGenerationEvidenceGaps, scoreVenueForPlan } from "@/lib/planGenerationRanking";
@@ -192,7 +192,21 @@ export async function POST(request: Request): Promise<Response> {
 		],
 	};
 	const budgetSummary = planBudgetSummary(context, pricePence);
-	const routeTotals = planRouteSummary(chosen.map(({ venue }) => venue), groundedTiming);
+	// Per-stop walking minutes (Sol S3). Fail-soft: keyless keeps the straight-
+	// line estimate; a routing failure never blocks generation. When the ORS key
+	// is present AND the global daily budget allows the call (lib/walkRouteLegs
+	// routes every provider call through consumeOrsBudget), routed leg durations
+	// upgrade the totals to a "routed" basis.
+	const chosenWalkingStops = chosen.map(({ venue }) => ({ lat: venue.lat, lng: venue.lng }));
+	const walkingEstimate = await estimatePlanWalking(chosenWalkingStops).catch(() =>
+		estimateStraightLinePlanWalking(chosenWalkingStops),
+	);
+	const routeTotals: PlanRouteTotals = {
+		stopCount: chosen.length,
+		straightLineWalkingKm: Number(walkingEstimate.straightLineWalkingKm.toFixed(2)),
+		estimatedWalkingMinutes: walkingEstimate.estimatedWalkingMinutes,
+		distanceBasis: walkingEstimate.distanceBasis,
+	};
 	const endingRecommendations = planGenerationEndings({
 		chosen,
 		candidates,
@@ -209,10 +223,15 @@ export async function POST(request: Request): Promise<Response> {
 		const alternativeCandidates = groundedAlternatives?.[index]
 			?? candidates.filter(({ venue: alternative }) =>
 				!chosen.some(({ venue: selected }) => selected.id === alternative.id));
+		// The leg feeding THIS stop (from the previous stop). Routed only when
+		// estimatePlanWalking secured an ORS duration for it; drives both the
+		// per-stop minutes and an honest transportBasis label below.
+		const legRouted = walkingEstimate.legs.some((leg) => leg.toIndex === index && leg.source === "ors");
 		return {
 			venueId: venue.id,
 			venueName: venue.name,
 			position: index,
+			walkingMinutesFromPrevious: walkingEstimate.walkingMinutesFromPrevious[index] ?? null,
 			distanceKm: Number(distance.toFixed(2)),
 			estimatedPintPricePence: grounded
 				? grounded.price.pence
@@ -225,9 +244,11 @@ export async function POST(request: Request): Promise<Response> {
 				openingAtVisit: grounded?.opening.state ?? null,
 				openingSource: grounded?.opening.source ?? null,
 				visitWindow: grounded?.visitWindow ?? null,
-				transportBasis: grounded
-					? "direct-distance at 4.8 km/h plus 5 minutes uncertainty per leg"
-					: "compact-straight-line",
+				transportBasis: legRouted
+					? "openrouteservice foot-walking route duration"
+					: grounded
+						? "direct-distance at 4.8 km/h plus 5 minutes uncertainty per leg"
+						: "compact-straight-line",
 			},
 			provenance: [
 				{ kind: "venue_dataset", label: `PUBMAXX venue record for ${venue.name}` },

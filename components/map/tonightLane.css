@@ -453,6 +453,10 @@
 
 .tonightLaneCardWhen {
   margin: 0 0 2px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
   font-size: 0.74rem;
   font-weight: 700;
   color: color-mix(in srgb, var(--river) 45%, var(--ink));

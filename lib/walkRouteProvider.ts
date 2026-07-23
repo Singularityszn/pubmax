@@ -65,14 +65,23 @@ export type WalkRouteFetch = (
 
 const defaultFetch: WalkRouteFetch = (url, init) => fetch(url, init);
 
-// Pull the LineString coordinates out of an ORS GeoJSON directions response.
-// ORS coordinates are [lng, lat] (optionally with an elevation third element —
-// we take the first two). Returns null unless at least two valid points parse.
-function parseOrsGeometry(body: unknown): LngLat[] | null {
+export type RoutedWalkLeg = {
+  coordinates: LngLat[];
+  /** ORS summary.duration in seconds when present. */
+  durationSeconds: number | null;
+};
+
+// Pull the LineString coordinates and optional summary duration out of an ORS
+// GeoJSON directions response. ORS coordinates are [lng, lat] (optionally with
+// an elevation third element — we take the first two).
+function parseOrsRoute(body: unknown): RoutedWalkLeg | null {
   const features = (body as { features?: unknown } | null)?.features;
   if (!Array.isArray(features) || features.length === 0) return null;
-  const geometry = (features[0] as { geometry?: { type?: unknown; coordinates?: unknown } } | null)
-    ?.geometry;
+  const feature = features[0] as {
+    geometry?: { type?: unknown; coordinates?: unknown };
+    properties?: { summary?: { duration?: unknown } };
+  } | null;
+  const geometry = feature?.geometry;
   if (!geometry || geometry.type !== "LineString" || !Array.isArray(geometry.coordinates)) {
     return null;
   }
@@ -82,7 +91,12 @@ function parseOrsGeometry(body: unknown): LngLat[] | null {
     const candidate: [number, number] = [Number(point[0]), Number(point[1])];
     if (isValidLngLat(candidate)) coords.push(candidate);
   }
-  return coords.length >= 2 ? coords : null;
+  if (coords.length < 2) return null;
+  const duration = Number(feature?.properties?.summary?.duration);
+  return {
+    coordinates: coords,
+    durationSeconds: Number.isFinite(duration) && duration >= 0 ? duration : null,
+  };
 }
 
 export type FetchWalkLegOptions = {
@@ -94,15 +108,15 @@ export type FetchWalkLegOptions = {
   timeoutMs?: number;
 };
 
-// Fetch the routed pavement geometry for ONE leg (two ordered stops). Resolves
-// to the [lng,lat] path on success, or null on any soft failure (no key,
-// non-200, malformed payload, network error, abort, or the per-call timeout) so
-// the caller draws the straight segment for that leg.
-export async function fetchWalkLeg(
+// Fetch the routed pavement geometry and metadata for ONE leg (two ordered
+// stops). Resolves to the ORS path on success, or null on any soft failure (no
+// key, non-200, malformed payload, network error, abort, or the per-call
+// timeout) so the caller draws the straight segment for that leg.
+export async function fetchWalkLegRoute(
   from: LngLat,
   to: LngLat,
   opts: FetchWalkLegOptions = {},
-): Promise<LngLat[] | null> {
+): Promise<RoutedWalkLeg | null> {
   const apiKey = opts.apiKey === undefined ? orsApiKey() : opts.apiKey;
   if (!apiKey) return null;
   const doFetch = opts.doFetch ?? defaultFetch;
@@ -124,11 +138,20 @@ export async function fetchWalkLeg(
       signal,
     });
     if (!response.ok) return null;
-    return parseOrsGeometry(await response.json());
+    return parseOrsRoute(await response.json());
   } catch {
     // Network error, abort, timeout, or a JSON parse throw — all degrade to straight.
     return null;
   } finally {
     clear();
   }
+}
+
+// Back-compatible geometry-only API used by /api/walk-route (Fable T7).
+export async function fetchWalkLeg(
+  from: LngLat,
+  to: LngLat,
+  opts: FetchWalkLegOptions = {},
+): Promise<LngLat[] | null> {
+  return (await fetchWalkLegRoute(from, to, opts))?.coordinates ?? null;
 }

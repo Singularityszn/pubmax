@@ -1,6 +1,6 @@
 "use client";
 
-import { MapPinned, ShieldCheck, Sparkles, X } from "lucide-react";
+import { List, MapPinned, ShieldCheck, Sparkles, X } from "lucide-react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
@@ -1489,6 +1489,10 @@ export default function PubMap({
     () => activeNightArea ?? nearestNightAreaForViewport(cityId, mapViewport.center),
     [activeNightArea, cityId, mapViewport.center],
   );
+  const venuesById = useMemo(
+    () => new Map(filteredVenues.map((venue) => [venue.id, venue])),
+    [filteredVenues],
+  );
   // The Area button's live label: the Night Area whose region holds the map
   // centre. Recomputes only when the viewport settles (moveend drives
   // mapViewport), so panning updates it without a separate debounce timer.
@@ -1697,6 +1701,7 @@ export default function PubMap({
         <MobilePlanActivation
           cityId={cityId}
           initialNightArea={suggestedPlanArea.slug}
+          venuesById={venuesById}
           onGenerated={applyGeneratedMobilePlan}
         />
       ) : null}
@@ -1845,6 +1850,9 @@ export default function PubMap({
     </>
   ) : null;
 
+  const mapLoadingActive = !mapCanvasErrored && (!mapCanvasReady || (slimPins.length === 0 && !loaded));
+  const mobileShellReady = !mapLoadingActive;
+
   return (
     <main
       className={
@@ -1889,13 +1897,13 @@ export default function PubMap({
             BOTH the slim pin index and WebGL basemap scene are ready. Warmup
             can make slim pins arrive before tiles; retiring early left a blank
             canvas. Copy matches MapLoadingSkeleton for a seamless handoff. */}
-        {!mapCanvasErrored && (!mapCanvasReady || (slimPins.length === 0 && !loaded)) ? (
+        {mapLoadingActive ? (
           <div
             className="mapLoading"
             role="status"
             aria-busy="true"
             aria-live="polite"
-            aria-label={`Loading the ${city.displayName} pub map. Finding the pubs. Fetching tonight's prices.`}
+            aria-label={`Loading the ${city.displayName} pub map. Finding the pubs. Warming up the map.`}
           >
             <div className="mapLoadingScene" aria-hidden="true">
               <span className="mapLoadingStreet mapLoadingStreet--one" />
@@ -1908,7 +1916,7 @@ export default function PubMap({
             </div>
             <div className="mapLoadingCopy">
               <span className="mapLoadingEyebrow">{city.displayName} pub map</span>
-              <span>Finding the pubs. Fetching tonight&rsquo;s prices.</span>
+              <span>Finding the pubs. Warming up the map.</span>
             </div>
           </div>
         ) : null}
@@ -2088,6 +2096,7 @@ export default function PubMap({
           onPrefetchVenue={prefetchVenueDetail}
         />
 
+        {mobileShellReady ? (
         <MobileMapShell
           cityLabel={centreArea?.name ?? activeNightArea?.name ?? city.displayName}
           overlay={mobileShellState.overlay}
@@ -2103,8 +2112,6 @@ export default function PubMap({
           priceLabel={filters.maxPrice < 10 ? `≤£${filters.maxPrice.toFixed(2)}` : "Price"}
           drinkFiltersActive={Boolean(filters.drinkCategory || filters.drinkBrand || filters.requireCocktails)}
           zoneActive={filters.zone !== "" && filters.zone !== "all"}
-          listOpen={mapListOpen}
-          onListToggle={() => setMapListOpen((open) => !open)}
           priceCapActive={filters.maxPrice < 10}
           planOpen={planningOpen}
           planActive={routeMappedActive || activePlanRoute.length >= 2}
@@ -2202,10 +2209,26 @@ export default function PubMap({
                 <TabsTrigger value="transit">Transit</TabsTrigger>
               </TabsList>
               <TabsContent value="layers" className="mobileLayersPanel">
-                <Button className="mobilePlannerLaunch w-full justify-start" onClick={openPlanning}>
-                  <MapPinned size={18} aria-hidden="true" />
-                  Plan tonight
-                </Button>
+                <div className="mobileLayerShortcuts">
+                  <Button className="mobilePlannerLaunch w-full justify-start" onClick={openPlanning}>
+                    <MapPinned size={18} aria-hidden="true" />
+                    Plan tonight
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    className="w-full justify-start"
+                    aria-label="List view of pubs on the map"
+                    aria-pressed={mapListOpen}
+                    onClick={() => {
+                      setMapListOpen((open) => !open);
+                      changeMapOverlay("none");
+                    }}
+                  >
+                    <List size={18} aria-hidden="true" />
+                    {mapListOpen ? "Hide pub list" : "List view"}
+                  </Button>
+                </div>
                 {routeMappedActive ? <Button variant="secondary" onClick={hideMappedRoute}>Hide active route</Button> : null}
                 <div className="mobileLayersTheme">
                   <div><strong>Map appearance</strong><small>Theme changes preserve this view and its active sheet.</small></div>
@@ -2292,6 +2315,7 @@ export default function PubMap({
             />
           }
         />
+        ) : null}
 
         {/* §4.5 onboarding overlay: a dismissible "Start with a story" card that
             offers curated crawls on a clean first paint. It's the mobile

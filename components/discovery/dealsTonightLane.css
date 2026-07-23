@@ -74,6 +74,13 @@
   letter-spacing: -0.01em;
 }
 
+.dealsTonightCardHead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem 0.5rem;
+}
+
 .dealsTonightPlace {
   font-size: 0.8rem;
   font-weight: 700;

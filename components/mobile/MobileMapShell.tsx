@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Ellipsis, List, LocateFixed, MapPin, Route, Search, SlidersHorizontal, Sparkles, TrainFront, X } from "lucide-react";
+import { Ellipsis, LocateFixed, MapPin, Route, Search, SlidersHorizontal, Sparkles, TrainFront, X } from "lucide-react";
 import { useCallback } from "react";
 
 import PubmaxxWordmark from "@/components/brand/PubmaxxWordmark";
@@ -49,7 +49,7 @@ function PalSignalAvatar() {
   );
 }
 
-export default function MobileMapShell({ cityLabel, overlay, onOverlayChange, activeQuery, onClearQuery, onNearMe, nearMeStatus, nearbyCount, tonightCount, tflCount, tflStatus, priceLabel, drinkFiltersActive, priceCapActive, zoneActive, listOpen, onListToggle, planOpen, planActive, planStopCount, planInteractive, onPlan, searchContent, filtersContent, tflContent, tonightContent, layersContent, palContent, momentContent, nearMeContent, areaContent }: {
+export default function MobileMapShell({ cityLabel, overlay, onOverlayChange, activeQuery, onClearQuery, onNearMe, nearMeStatus, nearbyCount, tonightCount, tflCount, tflStatus, priceLabel, drinkFiltersActive, priceCapActive, zoneActive, planOpen, planActive, planStopCount, planInteractive, onPlan, searchContent, filtersContent, tflContent, tonightContent, layersContent, palContent, momentContent, nearMeContent, areaContent }: {
   cityLabel: string;
   overlay: MapOverlay;
   onOverlayChange: (overlay: MapOverlay) => void;
@@ -67,9 +67,6 @@ export default function MobileMapShell({ cityLabel, overlay, onOverlayChange, ac
   drinkFiltersActive: boolean;
   /** #329 zone lens counts as a filters refinement (its mobile home is the filters sheet). */
   zoneActive?: boolean;
-  /** #346 adoption: the a11y List view's toggle lives in the utility corner on mobile. */
-  listOpen?: boolean;
-  onListToggle?: () => void;
   priceCapActive: boolean;
   planOpen: boolean;
   planActive: boolean;
@@ -150,8 +147,7 @@ export default function MobileMapShell({ cityLabel, overlay, onOverlayChange, ac
           </div>
         ) : null}
       </div>
-      {/* TIER 3 — utilities live in the map's corner, out of the answer's way.
-          List view (#346) joins this stack on its rebase. */}
+      {/* TIER 3 — TfL stays in the map's corner, out of the answer's way. */}
       {overlay !== "search" ? (
         <div className="mobileMapUtilityCorner" aria-label="Map utilities">
           <IconButton aria-label={tflCorner.ariaLabel} aria-expanded={overlay === "tfl"} onClick={() => set("tfl")}>
@@ -159,11 +155,6 @@ export default function MobileMapShell({ cityLabel, overlay, onOverlayChange, ac
             {tflCorner.statusSuffix ? <span className="mobileMapCornerSuffix" aria-hidden="true">{tflCorner.statusSuffix}</span> : null}
             {tflCorner.badge ? <span className="mobileMapCornerBadge">{tflCorner.badge}</span> : null}
           </IconButton>
-          {onListToggle ? (
-            <IconButton aria-label="List view of pubs on the map" aria-pressed={Boolean(listOpen)} onClick={onListToggle}>
-              <List size={19} />
-            </IconButton>
-          ) : null}
         </div>
       ) : null}
       {overlay === "none" && !planOpen ? (

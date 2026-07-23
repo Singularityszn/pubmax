@@ -12,9 +12,11 @@ function looksLikeEmail(value: string): boolean {
 export default function MagicLinkForm({
   disabled,
   signInWithEmail,
+  cancelAuthAttempt,
 }: {
   disabled: boolean;
   signInWithEmail: (email: string) => Promise<MagicLinkResult>;
+  cancelAuthAttempt: () => void;
 }): React.JSX.Element {
   const inputId = useId();
   const messageId = useId();
@@ -35,6 +37,13 @@ export default function MagicLinkForm({
     },
     [disabled, email, signInWithEmail, status, valid],
   );
+
+  const cancel = useCallback(() => {
+    cancelAuthAttempt();
+    setStatus("idle");
+    setMessage("");
+    setEmail("");
+  }, [cancelAuthAttempt]);
 
   return (
     <form className="authMagicLink" onSubmit={submit} noValidate>
@@ -69,6 +78,15 @@ export default function MagicLinkForm({
           <Mail size={18} aria-hidden="true" />
           {status === "sending" ? "Sending…" : status === "sent" ? "Link sent" : "Email me a link"}
         </button>
+        {status === "sent" ? (
+          <button
+            type="button"
+            className="authMagicLinkCancel"
+            onClick={cancel}
+          >
+            Cancel sign-in
+          </button>
+        ) : null}
       </div>
       {message ? (
         <p

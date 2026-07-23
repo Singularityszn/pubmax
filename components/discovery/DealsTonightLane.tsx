@@ -11,6 +11,7 @@ import { trackEvent } from "@/lib/analytics";
 import { isValidWhatsOnRow, type WhatsOnRow } from "@/lib/whatsOn";
 import { checkedLabel, WHATS_ON_KIND_META } from "@/lib/whatsOnBadges";
 import { preferredCityMapHref } from "@/lib/cityPreference";
+import { WhatsOnUrgencyBadge } from "@/components/map/WhatsOnUrgencyBadge";
 
 import "./dealsTonightLane.css";
 
@@ -65,7 +66,10 @@ export default function DealsTonightLane() {
                 className="dealsTonightCard"
                 onClick={() => trackEvent("lane_card_tap")}
               >
-                <strong>{row.title}</strong>
+                <div className="dealsTonightCardHead">
+                  <strong>{row.title}</strong>
+                  <WhatsOnUrgencyBadge row={row} />
+                </div>
                 <span className="dealsTonightPlace">{row.placeName}</span>
                 {row.detail ? <span className="dealsTonightDetail">{row.detail}</span> : null}
                 <span className="dealsTonightSource">

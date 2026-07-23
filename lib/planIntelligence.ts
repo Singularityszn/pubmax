@@ -28,8 +28,8 @@ export type PlanRouteTotals = {
   stopCount: number;
   straightLineWalkingKm: number;
   estimatedWalkingMinutes: number;
-  /** Route geometry is straight-line; pavement routing is intentionally not implied. */
-  distanceBasis: "straight-line";
+  /** "routed" only when every inter-stop leg used ORS durations (else straight-line). */
+  distanceBasis: "straight-line" | "routed";
 };
 
 export type PlanEndingOption = {

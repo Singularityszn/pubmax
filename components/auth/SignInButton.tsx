@@ -91,6 +91,7 @@ export default function SignInButton({
     signInWithGoogle,
     signInWithMicrosoft,
     signInWithEmail,
+    cancelAuthAttempt,
     signOut,
   } = useAuth();
   const [busy, setBusy] = useState<"google" | "microsoft" | "out" | null>(null);
@@ -107,11 +108,14 @@ export default function SignInButton({
   // React state is restored too, so explicitly re-enable the provider buttons.
   useEffect(() => {
     const onPageShow = (event: PageTransitionEvent) => {
-      if (event.persisted) setBusy(null);
+      if (event.persisted) {
+        cancelAuthAttempt();
+        setBusy(null);
+      }
     };
     window.addEventListener("pageshow", onPageShow);
     return () => window.removeEventListener("pageshow", onPageShow);
-  }, []);
+  }, [cancelAuthAttempt]);
 
   // Light-dismiss for the compact popover: outside pointer-down or Escape.
   // Listeners only exist while the menu is open, so this costs nothing when
@@ -287,7 +291,11 @@ export default function SignInButton({
           </span>
         </button>
       </div>
-      <MagicLinkForm disabled={busy !== null} signInWithEmail={signInWithEmail} />
+      <MagicLinkForm
+        disabled={busy !== null}
+        signInWithEmail={signInWithEmail}
+        cancelAuthAttempt={cancelAuthAttempt}
+      />
     </div>
   );
 
@@ -346,7 +354,11 @@ export default function SignInButton({
               <MicrosoftMark />
               Continue with Microsoft
             </button>
-            <MagicLinkForm disabled={busy !== null} signInWithEmail={signInWithEmail} />
+            <MagicLinkForm
+              disabled={busy !== null}
+              signInWithEmail={signInWithEmail}
+              cancelAuthAttempt={cancelAuthAttempt}
+            />
           </div>
         ) : null}
       </div>
