@@ -1,6 +1,6 @@
 # Fable handoff ledger: personalization Waves A and B
 
-Status: **product fixed point `42b2b04e` on refreshed `origin/main`; final clean-room review, Vercel gate, and visual verdict pending**
+Status: **product fixed point `7cd1ea4b` on refreshed `origin/main`; final clean-room review, Vercel gate, and visual verdict pending**
 
 Original lane baseline: `origin/main@a3fde784` on 2026-07-22
 
@@ -55,10 +55,10 @@ Fill every field before merge; `TBD` is not release evidence.
 
 | Lane | Commit / PR | Touched-file manifest | Focused tests | `npm run verify` | Visual / live evidence | Fable verdict |
 | --- | --- | --- | --- | --- | --- | --- |
-| Wave A: Personalized Today | lane `155a2769`; integrated through `42b2b04e` | `lib/todayPersonalization.ts`; `__tests__/todayPersonalization.test.ts`; `app/today/page.tsx`; `app/today/TodayClient.tsx`; `lib/todayBrief.ts`; `__tests__/todayBrief.test.ts` | Included in final 123/123 focused set; typecheck and touched-file lint pass | Full coverage passed before review corrections; final Vercel gate pending | Browser evidence pending after final review | Pending |
-| Wave B: Surprise Drink | lane `7ca77b74`; integrated through `42b2b04e` | `lib/surpriseDrink.ts`; `__tests__/surpriseDrink.test.ts` | Included in final 123/123 focused set; typecheck and touched-file lint pass | Full coverage passed before review corrections; final Vercel gate pending | Not applicable until a separately approved UI wave | Pending |
+| Wave A: Personalized Today | lane `155a2769`; integrated through `7cd1ea4b` | `lib/todayPersonalization.ts`; `__tests__/todayPersonalization.test.ts`; `app/today/page.tsx`; `app/today/TodayClient.tsx`; `lib/todayBrief.ts`; `__tests__/todayBrief.test.ts` | Included in final 128/128 focused set; typecheck and touched-file lint pass | Full coverage passed after review corrections; final Vercel gate pending | Browser evidence pending after final review | Pending |
+| Wave B: Surprise Drink | lane `7ca77b74`; integrated through `7cd1ea4b` | `lib/surpriseDrink.ts`; `__tests__/surpriseDrink.test.ts` | Included in final 128/128 focused set; typecheck and touched-file lint pass | Full coverage passed after review corrections; final Vercel gate pending | Not applicable until a separately approved UI wave | Pending |
 | Inherited security baseline | Fable #550 / `b5f9b7b9` | No dependency file belongs to this branch after rebase | Installed Next.js 16.2.11; typecheck passed | Registry-backed `npm audit --audit-level=high`: 0 vulnerabilities | Canonical Vercel build pending | Already merged by Fable |
-| Integrated waves | product fixed point `42b2b04e`; ledger metadata follows | 9 files including this ledger; feature manifests remain disjoint | 123/123 focused tests; typecheck; touched-file lint; diff-check all pass | First full run: data/lint/typecheck and 4,994/4,994 tests passed. Final full gate pending after fixed-point corrections. | 390x844 light/dark, desktop light/dark, reduced motion: pending for Wave A | Pending |
+| Integrated waves | product fixed point `7cd1ea4b`; ledger metadata follows | 9 files including this ledger; feature manifests remain disjoint | 128/128 focused tests; typecheck; touched-file lint; diff-check all pass | Final data/lint/typecheck/coverage: 516 files and 5,015/5,015 tests passed; audit rerun with registry access found 0 vulnerabilities. | 390x844 light/dark, desktop light/dark, reduced motion: pending for Wave A | Pending |
 
 ## Review ledger
 
@@ -66,6 +66,7 @@ Fill every field before merge; `TBD` is not release evidence.
 - Fixed point `6adac551`: two fresh isolated reviews found substring topic matching, overstated current-menu copy, modelled Night Areas without weather effects, a duplicated area mapping, and stale ledger evidence. Closed by `6f607f71`.
 - Fixed point `6f607f71`: two fresh isolated reviews found a mutating intake read, dishonest preference-filtered empty state, UTC/local-day conflation, and tied price-conflict selection. Closed by `285b092d`.
 - Fixed point `527854dc`: two fresh isolated 5.6-high reviews found missing exact-drink identity, equivalent-timestamp price conflicts, filter-after-cap behaviour, an unenforced London day key, an overstated confirmation claim, UTC evidence-date display, and locale-dependent evidence order. All seven were closed in rebased fixed point `42b2b04e`, with focused tests increasing from 118 to 123.
+- Fixed point `467c349d`: two more isolated 5.6-high reviews found that uncapped distance ordering could break source diversity and remembered-area membership, zone-less instants remained host-dependent, a final hash-collision tie-break still used locale collation, wholly corrupt higher-priority arrays could clear lower preferences, and an explicit null patch masked the same layer's valid Night Area. All five were closed in `7cd1ea4b`, with focused tests increasing from 123 to 128.
 - The security gate found the newly disclosed high-severity Next.js advisory and proved the exact 16.2.11 patch in isolated lane `9b83c046`. Fable independently merged the same patch as #550 before our final fetch. Rebase dropped the duplicate commit cleanly; this branch now changes no dependency file and the networked audit remains clean.
 
 ## Build note
