@@ -9,21 +9,41 @@ import {
   apnsPushProvider,
   buildApnsJwt,
   createApnsPushProvider,
+  createRoutingPushProvider,
+  createWebPushProvider,
   isApnsConfigured,
+  isVapidConfigured,
   noopPushProvider,
+  noopWebPushProvider,
   selectPushProvider,
   type ApnsConfig,
   type ApnsProviderDeps,
   type ApnsRawResponse,
   type ApnsRequest,
   type ApnsTransport,
+  type PushProvider,
 } from "@/lib/pushProvider";
+import { encodeWebPushSubscription } from "@/lib/webPushSubscription";
 
 const APNS_ENV = {
   APNS_KEY_ID: "KEY123",
   APNS_TEAM_ID: "TEAM456",
   APNS_PRIVATE_KEY: "-----BEGIN PRIVATE KEY-----\nabc\n-----END PRIVATE KEY-----",
 };
+
+const WEB_TOKEN = encodeWebPushSubscription({
+  endpoint: "https://updates.push.services.mozilla.com/wpush/v2/provider",
+  expirationTime: null,
+  keys: { p256dh: "A".repeat(87), auth: "B".repeat(22) },
+})!;
+
+function uncheckedWebToken(endpoint: string): string {
+  return `webpush:${Buffer.from(JSON.stringify({
+    endpoint,
+    expirationTime: null,
+    keys: { p256dh: "A".repeat(87), auth: "B".repeat(22) },
+  })).toString("base64url")}`;
+}
 
 function stubApnsEnv(): void {
   for (const [k, v] of Object.entries(APNS_ENV)) vi.stubEnv(k, v);
@@ -85,13 +105,22 @@ describe("isApnsConfigured", () => {
 });
 
 describe("selectPushProvider", () => {
-  it("chooses the no-op provider when APNs is unconfigured", () => {
-    expect(selectPushProvider()).toBe(noopPushProvider);
+  it("routes an unconfigured mixed batch to truthful transport no-ops", async () => {
+    const results = await selectPushProvider().send(
+      ["native-token", WEB_TOKEN],
+      { title: "T", body: "B" },
+    );
+    expect(results).toEqual([
+      { token: "native-token", status: "skipped", reason: "apns_not_configured" },
+      { token: WEB_TOKEN, status: "skipped", reason: "vapid_not_configured" },
+    ]);
   });
 
-  it("chooses the APNs provider once its env keys exist", () => {
-    stubApnsEnv();
-    expect(selectPushProvider()).toBe(apnsPushProvider);
+  it("recognises VAPID only when the public/private pair is complete", () => {
+    vi.stubEnv("NEXT_PUBLIC_VAPID_PUBLIC_KEY", "public");
+    expect(isVapidConfigured()).toBe(false);
+    vi.stubEnv("VAPID_PRIVATE_KEY", "private");
+    expect(isVapidConfigured()).toBe(true);
   });
 });
 
@@ -109,6 +138,115 @@ describe("noopPushProvider", () => {
 
   it("returns [] for no tokens", async () => {
     expect(await noopPushProvider.send([], { title: "T", body: "B" })).toEqual([]);
+  });
+});
+
+describe("Web Push / VAPID provider", () => {
+  const config = {
+    subject: "mailto:test@pubmaxxing.com",
+    publicKey: "public-key",
+    privateKey: "private-key",
+  };
+
+  it("sends the service-worker payload with VAPID config", async () => {
+    const send = vi.fn(async () => ({ statusCode: 201 }));
+    const provider = createWebPushProvider({ config: () => config, send });
+    expect(await provider.send([WEB_TOKEN], {
+      title: "Today in London",
+      body: "Warm and dry.",
+      threadId: "daily-brief",
+      data: { kind: "daily_brief", url: "/today" },
+    })).toEqual([{ token: WEB_TOKEN, status: "sent" }]);
+    expect(send).toHaveBeenCalledWith(
+      expect.objectContaining({ endpoint: "https://updates.push.services.mozilla.com/wpush/v2/provider" }),
+      JSON.stringify({
+        title: "Today in London",
+        body: "Warm and dry.",
+        tag: "daily-brief",
+        data: { kind: "daily_brief", url: "/today" },
+      }),
+      config,
+    );
+  });
+
+  it("marks 404/410 endpoints invalid and keeps 5xx retryable", async () => {
+    const gone = createWebPushProvider({
+      config: () => config,
+      send: async () => { throw { statusCode: 410 }; },
+    });
+    const down = createWebPushProvider({
+      config: () => config,
+      send: async () => { throw { statusCode: 503 }; },
+    });
+    expect((await gone.send([WEB_TOKEN], { title: "T", body: "B" }))[0]).toMatchObject({
+      status: "invalid", reason: "web_push_410",
+    });
+    expect((await down.send([WEB_TOKEN], { title: "T", body: "B" }))[0]).toMatchObject({
+      status: "error", reason: "web_push_503",
+    });
+  });
+
+  it("prunes a malformed encoded subscription without calling the network", async () => {
+    const send = vi.fn(async () => ({ statusCode: 201 }));
+    const provider = createWebPushProvider({ config: () => config, send });
+    expect(await provider.send(["webpush:broken"], { title: "T", body: "B" })).toEqual([
+      { token: "webpush:broken", status: "invalid", reason: "malformed_web_subscription" },
+    ]);
+    expect(send).not.toHaveBeenCalled();
+  });
+
+  it("revalidates stored endpoints at send time before any network call", async () => {
+    const send = vi.fn(async () => ({ statusCode: 201 }));
+    const provider = createWebPushProvider({ config: () => config, send });
+    const tokens = [
+      "https://127.0.0.1/wpush/token",
+      "https://10.0.0.8/wpush/token",
+      "https://169.254.169.254/latest/meta-data",
+      "https://[::1]/wpush/token",
+      "https://localhost/wpush/token",
+      "https://push.example.test/wpush/token",
+      "https://fcm.googleapis.com:444/fcm/send/token",
+    ].map(uncheckedWebToken);
+    const results = await provider.send(tokens, { title: "T", body: "B" });
+    expect(results).toHaveLength(tokens.length);
+    expect(results.every((result) =>
+      result.status === "invalid" && result.reason === "malformed_web_subscription",
+    )).toBe(true);
+    expect(send).not.toHaveBeenCalled();
+  });
+
+  it("the web no-op is loud in its result and never sends", async () => {
+    expect(await noopWebPushProvider.send([WEB_TOKEN], { title: "T", body: "B" })).toEqual([
+      { token: WEB_TOKEN, status: "skipped", reason: "vapid_not_configured" },
+    ]);
+  });
+
+  it("routing preserves mixed input order", async () => {
+    const native: PushProvider = { send: async (tokens) => tokens.map((token) => ({ token, status: "sent" })) };
+    const web: PushProvider = { send: async (tokens) => tokens.map((token) => ({ token, status: "skipped", reason: "test" })) };
+    const results = await createRoutingPushProvider(native, web).send(
+      [WEB_TOKEN, "native-a", "webpush:broken", "native-b"],
+      { title: "T", body: "B" },
+    );
+    expect(results.map((result) => [result.token, result.status])).toEqual([
+      [WEB_TOKEN, "skipped"],
+      ["native-a", "sent"],
+      ["webpush:broken", "skipped"],
+      ["native-b", "sent"],
+    ]);
+  });
+
+  it("a broken web configuration does not poison successful native delivery", async () => {
+    const native: PushProvider = { send: async (tokens) => tokens.map((token) => ({ token, status: "sent" })) };
+    const web: PushProvider = { send: async () => { throw new Error("bad private key"); } };
+    const results = await createRoutingPushProvider(native, web).send(
+      ["native-a", WEB_TOKEN],
+      { title: "T", body: "B" },
+    );
+    expect(results).toEqual([
+      { token: "native-a", status: "sent" },
+      { token: WEB_TOKEN, status: "error", reason: "web_provider_threw" },
+    ]);
   });
 });
 
