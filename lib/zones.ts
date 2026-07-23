@@ -138,7 +138,7 @@ export function computeZonePintIndex(venues: readonly ZonePricedVenue[]): ZonePi
   return { rows, ranked, dearest, cheapest, taxGbp };
 }
 
-/** "£6.40" style GBP for the index; null → em dash placeholder. */
+/** "£6.40" style GBP for the index; null → en dash placeholder. */
 export function formatZoneGbp(value: number | null): string {
-  return typeof value === "number" ? `£${value.toFixed(2)}` : "—";
+  return typeof value === "number" ? `£${value.toFixed(2)}` : "–";
 }

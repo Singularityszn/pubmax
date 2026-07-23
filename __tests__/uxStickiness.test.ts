@@ -24,16 +24,16 @@ describe("Feed error vs empty state", () => {
   it("an error result renders role=alert (not a passive empty result)", () => {
     const html = renderToStaticMarkup(
       createElement(EmptyState, {
-        title: "Feed failed to load.",
-        body: "Couldn't reach the server. Check your connection and try again.",
+        title: "Couldn't pour the feed.",
+        body: "We can't reach the bar right now. Check your signal, then give it another go.",
         role: "alert",
       }),
     );
     expect(html).toContain('role="alert"');
     expect(html).not.toContain('role="status"');
-    expect(html).toContain("Feed failed to load.");
+    expect(html).toContain("pour the feed.");
     // renderToStaticMarkup HTML-encodes the apostrophe; match the encoded form.
-    expect(html).toContain("reach the server.");
+    expect(html).toContain("reach the bar right now.");
   });
 
   it("an empty-feed result renders role=status (a passive, honest result)", () => {
@@ -160,7 +160,7 @@ describe("Feed empty-state CTA collapse", () => {
   it("error branch keeps a single retry action (no compose pile-on)", () => {
     const errorBlock =
       feedClientSource.match(
-        /title="Feed failed to load\."[\s\S]*?\/>/,
+        /title="Couldn't pour the feed\."[\s\S]*?\/>/,
       )?.[0] ?? "";
     expect(errorBlock.length).toBeGreaterThan(0);
     expect(errorBlock).toContain("feedRetryBtn");

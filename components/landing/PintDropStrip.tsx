@@ -42,7 +42,7 @@ const PROVENANCE_LABEL: Record<PublicDrop["provenance"], string> = {
 };
 
 function formatPrice(price: number | null): string {
-  if (typeof price !== "number" || !Number.isFinite(price)) return "—";
+  if (typeof price !== "number" || !Number.isFinite(price)) return "–";
   return `£${price.toFixed(2)}`;
 }
 
@@ -153,7 +153,7 @@ export default function PintDropStrip() {
 
       {status === "empty" && (
         <div className="dropStripEmpty">
-          No community drops yet. Be the first to log a pint on the map.
+          No drops yet. Be the first: snap your pint, log the price, and it lands right here.
         </div>
       )}
 

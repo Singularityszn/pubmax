@@ -34,7 +34,7 @@ function initialOf(name: string, handle: string): string {
 }
 
 function formatGbp(value: number | null): string {
-  return value == null ? "—" : `£${value.toFixed(2)}`;
+  return value == null ? "–" : `£${value.toFixed(2)}`;
 }
 
 export default function ProfileHeader({

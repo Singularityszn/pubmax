@@ -323,7 +323,7 @@ function CompactCrawlRow({
             {stopCount} stop{stopCount === 1 ? "" : "s"}
           </span>
           <span className="crawlCompactPrice">
-            {priceRange ? formatPriceRange(priceRange) : "—"}
+            {priceRange ? formatPriceRange(priceRange) : "–"}
           </span>
         </span>
       </Link>
@@ -371,7 +371,7 @@ function CrawlPoster({
               {stop.note ? <p className="crawlStopNote">{stop.note}</p> : null}
             </div>
             <span className="crawlStopPrice">
-              {typeof stop.priceGbp === "number" ? formatGbp(stop.priceGbp) : "—"}
+              {typeof stop.priceGbp === "number" ? formatGbp(stop.priceGbp) : "–"}
             </span>
           </li>
         ))}
