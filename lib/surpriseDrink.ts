@@ -96,7 +96,15 @@ type EligibleChoice = {
 
 const DAY_KEY = /^\d{4}-\d{2}-\d{2}$/;
 const EXPLICIT_ISO_INSTANT = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})(?:\.(\d+))?(Z|[+-](\d{2}):(\d{2}))$/i;
-const MAX_EVIDENCE_AGE_MS = 90 * 24 * 60 * 60 * 1_000;
+const MAX_EVIDENCE_AGE_SECONDS = 90 * 24 * 60 * 60;
+
+type ParsedIsoInstant = {
+  epochSecond: number;
+  /** Decimal digits after the second, normalized by removing trailing zeroes. */
+  fraction: string;
+  /** Equivalent UTC representation that preserves every significant fractional digit. */
+  canonical: string;
+};
 
 function cleanToken(value: string): string {
   return value.trim().toLocaleLowerCase("en-GB");
@@ -106,11 +114,17 @@ function stableTextCompare(left: string, right: string): number {
   return left < right ? -1 : left > right ? 1 : 0;
 }
 
-function parseExplicitIsoInstant(value: string): number | null {
+function compareInstants(left: ParsedIsoInstant, right: ParsedIsoInstant): number {
+  if (left.epochSecond !== right.epochSecond) return left.epochSecond - right.epochSecond;
+  const width = Math.max(left.fraction.length, right.fraction.length);
+  return stableTextCompare(left.fraction.padEnd(width, "0"), right.fraction.padEnd(width, "0"));
+}
+
+function parseExplicitIsoInstant(value: string): ParsedIsoInstant | null {
   const clean = value.trim();
   const match = clean.match(EXPLICIT_ISO_INSTANT);
   if (!match) return null;
-  const [, year, month, day, hour, minute, second, , zone, offsetHour, offsetMinute] = match;
+  const [, year, month, day, hour, minute, second, rawFraction = "", zone, offsetHour, offsetMinute] = match;
   const offsetHours = Number(offsetHour);
   const offsetMinutes = Number(offsetMinute);
   if (
@@ -123,17 +137,33 @@ function parseExplicitIsoInstant(value: string): number | null {
       && (offsetHours > 14 || offsetMinutes > 59 || (offsetHours === 14 && offsetMinutes !== 0))
     )
   ) return null;
-  const parsed = Date.parse(clean);
-  return Number.isFinite(parsed) ? parsed : null;
+  const normalizedZone = zone.toUpperCase() === "Z" ? "Z" : zone;
+  const epochMs = Date.parse(
+    `${year}-${month}-${day}T${hour}:${minute}:${second}${normalizedZone}`,
+  );
+  if (!Number.isFinite(epochMs)) return null;
+  const epochSecond = Math.floor(epochMs / 1_000);
+  const fraction = rawFraction.replace(/0+$/, "");
+  const utcSecond = new Date(epochSecond * 1_000).toISOString().slice(0, 19);
+  return {
+    epochSecond,
+    fraction,
+    canonical: `${utcSecond}.${fraction || "000"}Z`,
+  };
 }
 
-function validObservedAt(value: string, asOfMs: number): boolean {
+function validObservedAt(
+  value: string,
+  asOf: ParsedIsoInstant,
+): ParsedIsoInstant | null {
   const observedAt = parseExplicitIsoInstant(value);
-  return (
-    observedAt !== null
-    && observedAt <= asOfMs
-    && observedAt >= asOfMs - MAX_EVIDENCE_AGE_MS
-  );
+  if (!observedAt || compareInstants(observedAt, asOf) > 0) return null;
+  const oldest = {
+    epochSecond: asOf.epochSecond - MAX_EVIDENCE_AGE_SECONDS,
+    fraction: asOf.fraction,
+    canonical: "",
+  };
+  return compareInstants(observedAt, oldest) >= 0 ? observedAt : null;
 }
 
 function validDayKey(value: string): boolean {
@@ -149,7 +179,7 @@ function validDayKey(value: string): boolean {
 
 function cleanVenueEvidence(
   evidence: readonly SurpriseDrinkVenueEvidence[],
-  asOfMs: number,
+  asOf: ParsedIsoInstant,
   expectedDrinkName: string,
 ): SurpriseDrinkVenueEvidence[] {
   const candidates: SurpriseDrinkVenueEvidence[] = [];
@@ -170,6 +200,7 @@ function cleanVenueEvidence(
     const drinkName = row.drinkName.trim();
     const source = row.source.trim();
     const observedAt = row.observedAt.trim();
+    const observedInstant = validObservedAt(observedAt, asOf);
     if (
       !venueId ||
       !venueName ||
@@ -178,7 +209,7 @@ function cleanVenueEvidence(
       !Number.isFinite(row.priceGbp) ||
       row.priceGbp <= 0 ||
       row.priceGbp > 500 ||
-      !validObservedAt(observedAt, asOfMs)
+      !observedInstant
     ) continue;
     candidates.push({
       venueId,
@@ -186,13 +217,13 @@ function cleanVenueEvidence(
       drinkName: expectedDrinkName,
       priceGbp: row.priceGbp,
       source,
-      observedAt: new Date(Date.parse(observedAt)).toISOString(),
+      observedAt: observedInstant.canonical,
     });
   }
 
   candidates.sort((a, b) =>
     stableTextCompare(a.venueId, b.venueId)
-    || Date.parse(b.observedAt) - Date.parse(a.observedAt)
+    || compareInstants(parseExplicitIsoInstant(b.observedAt)!, parseExplicitIsoInstant(a.observedAt)!)
     || stableTextCompare(a.source, b.source)
     || stableTextCompare(a.venueName, b.venueName));
   const byVenue = new Map<string, SurpriseDrinkVenueEvidence>();
@@ -204,7 +235,13 @@ function cleanVenueEvidence(
       byVenue.set(row.venueId, row);
       continue;
     }
-    if (Date.parse(current.observedAt) === Date.parse(row.observedAt) && current.priceGbp !== row.priceGbp) {
+    if (
+      compareInstants(
+        parseExplicitIsoInstant(current.observedAt)!,
+        parseExplicitIsoInstant(row.observedAt)!,
+      ) === 0
+      && current.priceGbp !== row.priceGbp
+    ) {
       byVenue.delete(row.venueId);
       conflictedVenueIds.add(row.venueId);
     }
@@ -271,7 +308,10 @@ function availabilityRationale(
   }
   const prices = venues.map((venue) => venue.priceGbp);
   const latest = venues.reduce((best, venue) =>
-    Date.parse(venue.observedAt) > Date.parse(best.observedAt) ? venue : best);
+    compareInstants(
+      parseExplicitIsoInstant(venue.observedAt)!,
+      parseExplicitIsoInstant(best.observedAt)!,
+    ) > 0 ? venue : best);
   return `Listed at ${venues.length} pubs from £${Math.min(...prices).toFixed(2)} (${category}); latest check ${evidenceDateLabel(latest.observedAt)}.`;
 }
 
@@ -293,12 +333,12 @@ export function selectSurpriseDrink(input: SurpriseDrinkInput): SurpriseDrinkRes
   }
   const personKey = input.personKey.trim();
   const dayKey = input.dayKey.trim();
-  const asOfMs = parseExplicitIsoInstant(input.asOfIso);
+  const asOf = parseExplicitIsoInstant(input.asOfIso);
   if (
     !personKey ||
     !validDayKey(dayKey) ||
-    asOfMs === null ||
-    londonDayKey(new Date(asOfMs)) !== dayKey ||
+    asOf === null ||
+    londonDayKey(new Date(asOf.epochSecond * 1_000)) !== dayKey ||
     !Number.isSafeInteger(input.anotherIndex) ||
     input.anotherIndex < 0
   ) {
@@ -323,7 +363,7 @@ export function selectSurpriseDrink(input: SurpriseDrinkInput): SurpriseDrinkRes
       continue;
     }
     const persona = personaById.get(available.personaId)!;
-    const venues = cleanVenueEvidence(available.venues, asOfMs, persona.drink);
+    const venues = cleanVenueEvidence(available.venues, asOf, persona.drink);
     if (venues.length === 0) continue;
     const current = availabilityRowsByPersona.get(available.personaId) ?? {
       venues: [],
@@ -340,7 +380,7 @@ export function selectSurpriseDrink(input: SurpriseDrinkInput): SurpriseDrinkRes
   >();
   for (const [personaId, available] of availabilityRowsByPersona) {
     const persona = personaById.get(personaId)!;
-    const venues = cleanVenueEvidence(available.venues, asOfMs, persona.drink);
+    const venues = cleanVenueEvidence(available.venues, asOf, persona.drink);
     if (venues.length === 0) continue;
     const alcoholTypes = new Set(available.alcoholTypes);
     availabilityByPersona.set(personaId, {

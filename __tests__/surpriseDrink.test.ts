@@ -256,6 +256,38 @@ describe("selectSurpriseDrink", () => {
     expect(selectSurpriseDrink(input({ availability: [precise] })).status).toBe("selected");
   });
 
+  it("rejects future evidence within the same millisecond", () => {
+    const row = available(beer.id);
+    const future = {
+      ...row,
+      venues: [{ ...row.venues[0], observedAt: "2026-07-22T20:00:00.123789Z" }],
+    };
+
+    expect(selectSurpriseDrink(input({
+      asOfIso: "2026-07-22T20:00:00.123456Z",
+      availability: [future],
+    }))).toEqual({ status: "empty", reason: "no-confirmed-availability" });
+  });
+
+  it("keeps distinct microsecond observations distinct when resolving the latest price", () => {
+    const earlierBase = available(beer.id, { venueId: "same", priceGbp: 5.5 });
+    const laterBase = available(beer.id, { venueId: "same", priceGbp: 7.5 });
+    const earlier = {
+      ...earlierBase,
+      venues: [{ ...earlierBase.venues[0], observedAt: "2026-07-22T18:00:00.123456Z" }],
+    };
+    const later = {
+      ...laterBase,
+      venues: [{ ...laterBase.venues[0], observedAt: "2026-07-22T18:00:00.123789Z" }],
+    };
+
+    const result = selectSurpriseDrink(input({ availability: [earlier, later] }));
+    expect(result.status).toBe("selected");
+    expect(result.status === "selected" && result.venues[0].priceGbp).toBe(7.5);
+    expect(result.status === "selected" && result.venues[0].observedAt)
+      .toBe("2026-07-22T18:00:00.123789Z");
+  });
+
   it("rejects impossible civil UTC offsets", () => {
     expect(selectSurpriseDrink(input({ asOfIso: "2026-07-22T20:00:00+14:01" }))).toEqual({
       status: "empty",
