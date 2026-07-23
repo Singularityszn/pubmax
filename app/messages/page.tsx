@@ -1,6 +1,10 @@
 import type { Metadata } from "next";
 
+import SiteNav from "@/components/nav/SiteNav";
+
 import MessagesInboxClient from "./MessagesInboxClient";
+
+import "./messages.css";
 
 // Server shell for /messages so the route carries real metadata (the client
 // component can't export it). Direct messages are private to the signed-in
@@ -12,5 +16,23 @@ export const metadata: Metadata = {
 };
 
 export default function MessagesInboxPage(): React.JSX.Element {
-  return <MessagesInboxClient />;
+  return (
+    <div className="lp messagesPage">
+      <SiteNav />
+      <main className="container messagesMain messagesMainInbox">
+        <div className="messagesSplit">
+          <aside className="messagesInboxPane" aria-label="Inbox">
+            <MessagesInboxClient />
+          </aside>
+          <section className="messagesThreadPane messagesThreadEmpty" aria-label="Conversation">
+            <div>
+              <p className="messagesThreadEyebrow">Your conversations</p>
+              <h2>Pick a message</h2>
+              <p>Choose someone from your inbox to read the thread and reply.</p>
+            </div>
+          </section>
+        </div>
+      </main>
+    </div>
+  );
 }

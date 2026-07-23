@@ -219,7 +219,7 @@ export default function MessageThread({
   }
 
   return (
-    <div>
+    <div className="messageThread">
       <div className="threadHeader">
         <Link href="/messages" className="threadBackLink">
           ← Inbox
@@ -264,7 +264,9 @@ export default function MessageThread({
               </li>
             );
           })}
-          <div ref={listEndRef} />
+          <li className="threadListEnd" aria-hidden="true">
+            <div ref={listEndRef} />
+          </li>
         </ul>
       )}
 
