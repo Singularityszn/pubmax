@@ -879,8 +879,8 @@ export default function FeedPageClient({
       ) : isError ? (
         <EmptyState
           className="feedEmpty"
-          title="Feed failed to load."
-          body="Couldn't reach the server. Check your connection and try again."
+          title="Couldn't pour the feed."
+          body="We can't reach the bar right now. Check your signal, then give it another go."
           role="alert"
           action={
             <button

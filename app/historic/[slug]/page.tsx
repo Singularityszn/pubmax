@@ -220,7 +220,7 @@ export default async function HistoricDetailPage({ params }: PageProps) {
       </section>
 
       <footer className="hdProvenance">
-        Cited from Wikipedia and Wikidata &mdash; never invented.
+        Cited from Wikipedia and Wikidata. Never invented.
       </footer>
     </main>
   );

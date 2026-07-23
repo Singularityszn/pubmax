@@ -353,8 +353,8 @@ export default function MomentCapture(): React.JSX.Element {
             <fieldset className="momentAltText">
               <legend>Describe each photo</legend>
               <p className="momentAltText__hint">
-                Describe the photo for someone who cannot see it. One clear line each —
-                it is what a screen reader will read aloud when you publish.
+                Describe the photo for someone who cannot see it. One clear line
+                each. It is what a screen reader reads aloud when you publish.
               </p>
               {draft.media.map((item, index) => (
                 <label className="momentAltText__row" key={`alt-${item.id}`}>

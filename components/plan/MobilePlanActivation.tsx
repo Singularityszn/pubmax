@@ -182,7 +182,7 @@ export function MobilePlanActivation({
         <Sparkles size={20} aria-hidden="true" />
         <div>
           <h3 id="mobile-plan-intent-title">Describe your night</h3>
-          <p>Three editable stops, grounded in the map.</p>
+          <p>Three stops you can edit, all straight off the map.</p>
         </div>
       </div>
       <div className="mobilePlannerIntentInput">
