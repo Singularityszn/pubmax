@@ -59,7 +59,7 @@ test.describe("mobile Activity", () => {
     expect(response?.status()).toBe(200);
 
     await expect(page.getByRole("heading", { name: "Activity", exact: true })).toBeVisible();
-    await expect(page.getByRole("heading", { name: "Nothing yet", exact: true })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Nothing's landed yet.", exact: true })).toBeVisible();
     await expectTappable(page.getByRole("link", { name: "Browse the feed" }), "Browse the feed CTA");
 
     const siteNav = page.getByRole("navigation", { name: "Site navigation" });
