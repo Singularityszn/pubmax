@@ -111,7 +111,7 @@ export default async function PlanPage({ params }: Props) {
           otherwise. Client-only gating, no new route. */}
       {!completed ? <NightCrawlMode planId={id} initialState={state} /> : null}
       <div className="planPage__grid">
-        <PlanSummary planId={id} state={state} />
+        <PlanSummary planId={id} state={state} vibeTally={vibeTally} />
         <aside className="planPage__side">
           <PlanCrew planId={id} initialCrew={state.crew} />
           <PlanVibe planId={id} initialTally={vibeTally} />
