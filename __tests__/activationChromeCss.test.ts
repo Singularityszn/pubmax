@@ -52,11 +52,23 @@ describe("activation chrome CSS", () => {
     );
   });
 
-  it("keeps every mobile sheet detent scrollable above the bottom dock", () => {
+  it("keeps the mobile sheet a bottom-anchored, content-capped flex column", () => {
+    // Systemic rebuild: the sheet is no longer a viewport-tall translated panel
+    // with a fixed-height, dock-reserving body (which rendered the reservation as
+    // an opaque void band over a tab bar the sheet already hides). It is now
+    // bottom-anchored (bottom:0) with `max-height: var(--sheet-cap)` on the box
+    // and a flex-1 scrolling body, so `height:auto; max-height:cap` hugs short
+    // content and caps + scrolls tall content — no dock band in either case.
     expect(mobileMapShellCss).toMatch(
-      /\.mobileSharedSheetBody\s*{[\s\S]*?height:\s*calc\(var\(--mobile-sheet-visible-height\) - var\(--mobile-sheet-header-height\) - var\(--mobile-map-dock-clearance\)\);[\s\S]*?overflow-y:\s*auto;/,
+      /\.mobileSharedSheet\.mapDrawer\s*{[\s\S]*?bottom:\s*0;[\s\S]*?max-height:\s*var\(--sheet-cap\);/,
     );
-    expect(mobileMapShellCss).toMatch(/\.mobileSharedSheet\.open\.sheet-half[^}]*--mobile-sheet-visible-height:\s*55dvh;/);
-    expect(mobileMapShellCss).toMatch(/\.mobileSharedSheet\.open\.sheet-full[^}]*--mobile-sheet-visible-height:\s*92dvh;/);
+    expect(mobileMapShellCss).toMatch(
+      /\.mobileSharedSheetBody\s*{[\s\S]*?flex:\s*1 1 auto;[\s\S]*?min-height:\s*0;[\s\S]*?overflow-y:\s*auto;/,
+    );
+    // The snap caps are the snap fractions of the viewport — no dock subtraction.
+    expect(mobileMapShellCss).toMatch(/\.mobileSharedSheet\.open\.sheet-half[^}]*--sheet-cap:\s*55dvh;/);
+    expect(mobileMapShellCss).toMatch(/\.mobileSharedSheet\.open\.sheet-full[^}]*--sheet-cap:\s*92dvh;/);
+    // The dock band is gone from the sheet's height math entirely.
+    expect(mobileMapShellCss).not.toMatch(/\.mobileSharedSheetBody\s*{[\s\S]*?--mobile-map-dock-clearance/);
   });
 });

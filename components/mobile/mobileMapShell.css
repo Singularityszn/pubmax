@@ -262,42 +262,83 @@
 
   .mobileSheetPortal { position: fixed; inset: 0; z-index: var(--z-overlay-top); }
   .mobileSheetScrim { position: absolute; inset: 0; width: 100%; border: 0; background: color-mix(in srgb, var(--ink-deep) 32%, transparent); }
+
+  /* ── Bottom-sheet box model (systemic rebuild) ──────────────────────────────
+     The sheet is a bottom-anchored flex column — header (auto) / body (flex-1,
+     scrolls) / footer (auto) — whose CONTAINER height is content-driven and
+     capped by --sheet-cap. `height:auto; max-height:<cap>` does the void-killing
+     natively: short content hugs (box = header+body+footer natural height); tall
+     content caps at --sheet-cap and the body (the only shrinkable child) scrolls
+     while header/footer stay pinned. The box's visible bottom edge is the
+     viewport bottom (bottom:0) — the sheet covers the tab bar, which is already
+     hidden on detail-open / planning-open and scrim-covered for contextual
+     sheets, so NO --mobile-map-dock-clearance is reserved (that phantom band was
+     the five-patch void). The only reserved bottom space is the safe-area inset,
+     carried on the last element (footer for venue, body for the others). */
   .mobileSharedSheet.mapDrawer {
-    --mobile-sheet-visible-height: 55dvh;
-    --mobile-sheet-header-height: 64px;
+    --sheet-cap: 55dvh;
     display: flex;
     flex-direction: column;
     position: fixed;
-    inset: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    top: auto;
     width: 100%;
     max-width: none;
-    height: 100dvh;
-    max-height: none;
+    height: auto;
+    max-height: var(--sheet-cap);
     border-radius: var(--radius-lg) var(--radius-lg) 0 0;
     border: 1px solid var(--color-border);
     background: var(--color-surface-raised);
     box-shadow: var(--shadow);
     overflow: hidden;
-    will-change: transform;
-    transition: transform var(--duration-slow) var(--ease-out);
+    /* Override the legacy .mapDrawer bottom-sheet transform (globals.css @768:
+       translateY(100% + tab-clearance)). This box is positioned by bottom:0 +
+       max-height, never a transform — without this, a contextual portal (which
+       isn't .left/.right, so the legacy `.open` transform reset never matches it)
+       would inherit the off-screen translate. */
+    transform: none;
+    will-change: max-height;
+    transition: max-height var(--duration-slow) var(--ease-out);
   }
-  .mobileSharedSheet.open.sheet-peek:not(.sheet-dragging) { --mobile-sheet-visible-height: 22dvh; transform: translateY(78dvh); }
-  .mobileSharedSheet.open.sheet-half:not(.sheet-dragging) { --mobile-sheet-visible-height: 55dvh; transform: translateY(45dvh); }
-  .mobileSharedSheet.open.sheet-full:not(.sheet-dragging) { --mobile-sheet-visible-height: 92dvh; transform: translateY(8dvh); }
-  .mobileSharedSheetHeader { position: relative; min-height: 64px; display: grid; grid-template-columns: 44px 1fr 44px; align-items: center; padding: 10px 12px 4px; touch-action: none; }
+  .mobileSharedSheet.open.sheet-peek:not(.sheet-dragging) { --sheet-cap: 22dvh; }
+  .mobileSharedSheet.open.sheet-half:not(.sheet-dragging) { --sheet-cap: 55dvh; }
+  .mobileSharedSheet.open.sheet-full:not(.sheet-dragging) { --sheet-cap: 92dvh; }
+  /* Mid-drag: the hook writes an inline max-height (px) for 1:1 finger tracking;
+     kill the transition so it tracks live, not eased. */
+  .mobileSharedSheet.sheet-dragging { transition: none; }
+  .mobileSharedSheetHeader { position: relative; flex: 0 0 auto; min-height: 64px; display: grid; grid-template-columns: 44px 1fr 44px; align-items: center; padding: 10px 12px 4px; touch-action: none; }
   .mobileSharedSheetHeader h2 { grid-column: 2; margin: 0; text-align: center; font-family: var(--font-display); font-size: var(--text-lg); letter-spacing: var(--tracking-tight); }
   .mobileSharedSheetDetent { position: absolute; top: 0; left: 50%; z-index: 1; width: 52px; height: 44px; border: 0; background: transparent; transform: translateX(-50%); }
   .mobileSharedSheetGrab { position: absolute; top: 7px; left: 50%; width: 44px; height: 5px; border-radius: 999px; background: color-mix(in srgb, var(--color-text-muted) 55%, transparent); transform: translateX(-50%); }
   .mobileSharedSheetDetent:focus-visible { outline: 2px solid var(--color-accent); outline-offset: -6px; border-radius: var(--radius); }
   .mobileSharedSheetClose { grid-column: 3; }
   .mobileSharedSheetBody {
-    flex: 0 0 auto;
+    flex: 1 1 auto;
     min-height: 0;
-    height: calc(var(--mobile-sheet-visible-height) - var(--mobile-sheet-header-height) - var(--mobile-map-dock-clearance));
     overflow-y: auto;
     overscroll-behavior: contain;
-    padding: 8px 16px calc(20px + env(safe-area-inset-bottom, 0px));
+    -webkit-overflow-scrolling: touch;
+    /* No footer (contextual + planner): the body is the last element, so its end
+       reserves the safe-area inset and NOTHING more — the last content pixel sits
+       exactly the safe-area above the sheet's visible bottom edge (no dock band).
+       The 8px top keeps a hair below the header/grabber. */
+    padding: 8px 16px env(safe-area-inset-bottom, 0px);
   }
+  /* Venue (right): the footer owns the bottom edge + safe-area, so the body only
+     needs a small gutter separating its content from the command bar (this gutter
+     is between content and footer, not the sheet's bottom edge). */
+  .mobileSharedSheet.right .mobileSharedSheetBody {
+    padding-bottom: 8px;
+  }
+  /* Footer slot — a real flex child OUTSIDE the scroll body. The venue command
+     bar (VenueStickyBar) portals into this via SheetFooterContext, so it rides
+     1:1 with the sheet on drag/snap (in flow, no fixed positioning) and is
+     always visible above a scrolling body. Empty for contextual/planner sheets,
+     where it collapses to nothing. */
+  .mobileSharedSheetFooter { flex: 0 0 auto; }
+  .mobileSharedSheetFooter:empty { display: none; }
 
   .mobileMapFilters { display: grid; gap: 18px; }
   .mobilePlannerIntent { display: grid; gap: 14px; margin: 0 0 18px; padding: 14px; border: 1px solid var(--color-border); border-radius: var(--radius-lg); background: var(--color-surface); }
@@ -410,20 +451,3 @@
   .mobilePlanActivation:active { transform: translateX(-50%); }
 }
 
-/* Audit F7: the venue sheet's command-bar dock (#536) reserves a 72px footer
-   strip by shortening every .mobileSharedSheetBody at half/full. Contextual
-   sheets (TfL live, map layers) have NO command bar, so that reservation was a
-   phantom empty band that clipped their last card mid-sentence into a void and
-   fought #539's content-fit math. Zeroing the token here restores
-   body = visible - header - dock for contextual sheets, exactly what
-   resolveHalfContentFit assumes. Owner report extended the same fix to the
-   planner (.left): it renders NO venueSheetStickyBar either (VenueStickyBar
-   mounts only inside VenueInspector), so its reservation clipped the Plan
-   tonight form above a dead band. Only the venue sheet (.right) earns and
-   keeps the real 72px strip. */
-@media (max-width: 640px) {
-  .mobileSharedSheet.contextual,
-  .mobileSharedSheet.left {
-    --venue-cmdbar-h: 0px;
-  }
-}
