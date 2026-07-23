@@ -345,7 +345,11 @@ export default function LandingPage({ stats }: { stats?: AboutStats }) {
             </ul>
           ) : null}
           <p className="lpFooterLegal">
-            PUBMAXX. Know your limits. Prices change, so check at the bar.
+            PUBMAXX is for over-18s. Know your limits, and know the facts at{" "}
+            <a href="https://www.drinkaware.co.uk" rel="noreferrer">
+              drinkaware.co.uk
+            </a>
+            . Prices change, so check at the bar.
           </p>
         </div>
       </footer>

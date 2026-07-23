@@ -379,3 +379,7 @@
   .lpNav, .lpSignalGrid, .dropStripCard, .lpPalCallout { border-color: currentColor; }
   .lpButtonQuiet, .thamesHeroPinGlyph { border-width: 2px; }
 }
+
+/* CAP Code section 18 responsible floor (docs/CAP_COPY_AUDIT_2026-07-21.md,
+   owner ruling #3). One quiet, permanent line: over-18s + Drinkaware. No
+   banner, no nag; it just sits at the base of the marketing page. */
