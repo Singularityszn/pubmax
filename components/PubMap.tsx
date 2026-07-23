@@ -76,6 +76,10 @@ import VenueSheetSkeleton from "@/components/map/VenueSheetSkeleton";
 const MapToolbar = dynamic(() => import("@/components/map/MapToolbar"), {
   ssr: false,
 });
+// Desktop right-rail (D3.1): off the critical map chunk and never on mobile.
+const MapDesktopRail = dynamic(() => import("@/components/map/MapDesktopRail"), {
+  ssr: false,
+});
 // List view (a11y keyboard venue path) joins the off-critical-path dynamic set:
 // it renders on demand, so it must not enter the eager map chunk (#306 budget).
 const MapVenueList = dynamic(() => import("@/components/map/MapVenueList"), {
@@ -238,6 +242,19 @@ function mobileViewportSnapshot(): boolean {
   return isMobileViewport();
 }
 
+// The desktop right-rail lives at >=1024, matching the feed/tonight rails (the
+// 640 phone split is a separate threshold). Its own matchMedia so the rail
+// mounts only when actually shown — no phantom conditions/area fetches below it.
+const DESKTOP_RAIL_MEDIA_QUERY = "(min-width: 1024px)";
+function subscribeDesktopRailViewport(onChange: () => void): () => void {
+  const query = window.matchMedia(DESKTOP_RAIL_MEDIA_QUERY);
+  query.addEventListener("change", onChange);
+  return () => query.removeEventListener("change", onChange);
+}
+function desktopRailViewportSnapshot(): boolean {
+  return typeof window !== "undefined" && window.matchMedia(DESKTOP_RAIL_MEDIA_QUERY).matches;
+}
+
 // mergeVenueDrops (lib/venues.ts) folds drops into DERIVED SUMMARY SIGNALS only:
 // a bare price is never a story, and demo seeds never move prices or hasStory.
 
@@ -325,6 +342,11 @@ export default function PubMap({
   const mobileViewport = useSyncExternalStore(
     subscribeMobileViewport,
     mobileViewportSnapshot,
+    () => false,
+  );
+  const railViewport = useSyncExternalStore(
+    subscribeDesktopRailViewport,
+    desktopRailViewportSnapshot,
     () => false,
   );
   const isLondon = cityId === "london";
@@ -1996,6 +2018,15 @@ export default function PubMap({
           zoneIndex={zoneIndex}
           cityId={cityId}
         /> : null}
+        {/* D3.1/D3.2 desktop right-rail: always-on Conditions + Area news at the
+            map's top-right. Mounted only at >=1024 and only while the RIGHT venue
+            drawer is closed — the drawer owns that edge, so the rail steps aside
+            and the toolbar chip carries Conditions instead (mapDesktopRail.css).
+            The area is the Night Area under the current view (search-area first,
+            else nearest to centre); AreaNewsRail fail-soft hides when it has none. */}
+        {railViewport && !detailOpen ? (
+          <MapDesktopRail area={suggestedPlanArea?.slug ?? null} />
+        ) : null}
         {!mobileViewport ? <CitySuggestBanner cityId={cityId} onLocationFound={setUserLocation} /> : null}
         {!mobileViewport && isLondon ? <CityStatusBanner cityId={cityId} /> : null}
         {/* F3: concierge as map home — a first-class grounded ask affordance in
