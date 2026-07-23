@@ -30,6 +30,7 @@ vi.mock("@/lib/pintDrops", async (importOriginal) => {
 
 import { POST } from "@/app/api/push-tokens/route";
 import { __listMemoryPushTokens, __resetMemoryPushTokens } from "@/lib/pushTokenStore";
+import { encodeWebPushSubscription } from "@/lib/webPushSubscription";
 
 const URL_BASE = "http://localhost/api/push-tokens";
 
@@ -41,6 +42,14 @@ function post(body: unknown, headers?: Record<string, string>): Promise<Response
       headers: { "content-type": "application/json", ...headers },
     }),
   );
+}
+
+function uncheckedWebToken(endpoint: string): string {
+  return `webpush:${Buffer.from(JSON.stringify({
+    endpoint,
+    expirationTime: null,
+    keys: { p256dh: "A".repeat(87), auth: "B".repeat(22) },
+  })).toString("base64url")}`;
 }
 
 beforeEach(() => {
@@ -86,11 +95,41 @@ describe("POST /api/push-tokens", () => {
     expect(__listMemoryPushTokens()).toHaveLength(0);
   });
 
+  it("registers a valid identity-free web subscription", async () => {
+    const token = encodeWebPushSubscription({
+      endpoint: "https://updates.push.services.mozilla.com/wpush/v2/route",
+      expirationTime: null,
+      keys: { p256dh: "A".repeat(87), auth: "B".repeat(22) },
+    })!;
+    const res = await post({ token, platform: "web" });
+    expect(res.status).toBe(200);
+    expect(__listMemoryPushTokens()).toEqual([
+      expect.objectContaining({ token, platform: "web" }),
+    ]);
+  });
+
+  it("400s SSRF endpoints before the limiter or store", async () => {
+    for (const endpoint of [
+      "https://127.0.0.1/wpush/token",
+      "https://10.0.0.8/wpush/token",
+      "https://169.254.169.254/latest/meta-data",
+      "https://[::1]/wpush/token",
+      "https://localhost/wpush/token",
+      "https://push.example.test/wpush/token",
+      "https://fcm.googleapis.com:444/fcm/send/token",
+    ]) {
+      const res = await post({ token: uncheckedWebToken(endpoint), platform: "web" });
+      expect(res.status, endpoint).toBe(400);
+    }
+    expect(isLimitedMock).not.toHaveBeenCalled();
+    expect(__listMemoryPushTokens()).toHaveLength(0);
+  });
+
   it("400s on an unknown platform", async () => {
-    const res = await post({ token: "tok", platform: "web" });
+    const res = await post({ token: "tok", platform: "desktop" });
     expect(res.status).toBe(400);
     expect(await res.json()).toEqual({
-      error: "Platform must be ios or android.",
+      error: "Platform must be ios, android or web.",
       code: "INVALID_REQUEST",
       retryable: false,
     });

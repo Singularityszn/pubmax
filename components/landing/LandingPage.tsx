@@ -51,25 +51,25 @@ const PintDropStrip = dynamic(() => import("./PintDropStrip"), {
 const PRODUCT_SIGNALS = [
   {
     icon: Coins,
-    title: "Prices you can trust",
-    body: "Observed prices carry dates and provenance, so a cheap pint never arrives as a vague promise.",
+    title: "Prices from real people",
+    body: "Every price has a date and someone behind it. So a cheap pint is a fact you can check, not a promise you have to trust.",
   },
   {
     icon: CalendarClock,
-    title: "A city that changes with you",
-    body: "Morning calm, after-work energy and late-night events appear when they are useful, not all at once.",
+    title: "The city, when it's useful",
+    body: "A quiet one at lunch, a cheap round after work, whatever's on late. It turns up when you need it, not all in a heap.",
   },
   {
     icon: Route,
-    title: "One route, every way there",
-    body: "See distance, walking and transport choices without losing the place you were actually trying to reach.",
+    title: "One route, sorted",
+    body: "The walk, the stops, the way home, all in one place. So you get to the pub instead of losing it between three apps.",
   },
 ] as const;
 
 const MEMORY_STEPS = [
-  { icon: Compass, n: "01", title: "What's on round the corner", body: "Start with a mood, a price or something happening nearby." },
-  { icon: UsersRound, n: "02", title: "Bring the crew", body: "Turn a saved place into a night people can join and shape together." },
-  { icon: Camera, n: "03", title: "Keep the moment", body: "Capture what happened privately, then publish only what everyone approves." },
+  { icon: Compass, n: "01", title: "See what's on nearby", body: "Start with a mood, a price, or something happening round the corner." },
+  { icon: UsersRound, n: "02", title: "Get the crew in", body: "Turn a saved pub into a night your mates can join and shape with you." },
+  { icon: Camera, n: "03", title: "Keep the good bits", body: "Snap the night privately, then share only what everyone signs off." },
 ] as const;
 
 // Locale integer with grouping (2800 -> "2,800"). British thousands separators
@@ -187,7 +187,7 @@ export default function LandingPage({ stats }: { stats?: AboutStats }) {
               <Link className="lpButton lpButtonQuiet" href={primaryCtaHref} {...warmProps}>
                 <MapPin size={17} aria-hidden="true" /> Open the map
               </Link>
-              <Link className="lpButton lpButtonQuiet" href="/pal">
+              <Link className="lpButton lpButtonQuiet" href="/plan">
                 <MessageSquareText size={17} aria-hidden="true" /> Plan my night
               </Link>
             </div>
@@ -204,8 +204,8 @@ export default function LandingPage({ stats }: { stats?: AboutStats }) {
               </dl>
             ) : (
               <div className="lpLiveReadout" aria-label="Product highlights">
-                <span><MapPin size={15} aria-hidden="true" /> Price-aware places</span>
-                <span><Receipt size={15} aria-hidden="true" /> Every price dated</span>
+                <span><MapPin size={15} aria-hidden="true" /> Real prices, mapped</span>
+                <span><Receipt size={15} aria-hidden="true" /> Every one dated</span>
               </div>
             )}
           </div>
@@ -219,7 +219,7 @@ export default function LandingPage({ stats }: { stats?: AboutStats }) {
         <section className="lpSignalSection" id="wedge" aria-labelledby="signal-title">
           <div className="lpSectionIntro">
             <h2 id="signal-title">Cheap pints near you, live</h2>
-            <p>PUBMAXX clears away the listings noise and keeps the three things that change your decision.</p>
+            <p>No endless listings. Just the three things that actually decide where you go.</p>
           </div>
           <div className="lpSignalGrid">
             {PRODUCT_SIGNALS.map(({ icon: Icon, title, body }, index) => (
@@ -240,7 +240,7 @@ export default function LandingPage({ stats }: { stats?: AboutStats }) {
             <div className="lpMemoryCopy">
               <p className="lpSectionLabel">From a pin to a story</p>
               <h2 id="memory-title">Plan the night. Keep the parts that mattered.</h2>
-              <p>Your Night Memory stays private. When the crew is ready, turn approved moments into a Story worth reliving.</p>
+              <p>Your night stays private until you say otherwise. When the crew&rsquo;s ready, turn the moments everyone likes into a story worth keeping.</p>
               <div className="lpMemoryActions">
                 <Link href="/plan" className="lpButton lpButtonPrimary">Start a plan</Link>
               <Link href="/feed" className="lpTextLink">Explore stories <ArrowRight size={16} aria-hidden="true" /></Link>
@@ -263,13 +263,13 @@ export default function LandingPage({ stats }: { stats?: AboutStats }) {
               <p className="lpSectionLabel">Live product proof</p>
               <h2 id="proof-title">The map gets better when Pubmaxxers show up.</h2>
             </div>
-            <p>Pint Drops keep prices fresh, Stories reveal the atmosphere, and every useful contribution carries its source.</p>
+            <p>Pint Drops keep the prices honest. Stories show what a place is actually like. And whatever you add always says where it came from.</p>
           </div>
           <PintDropStrip />
           <div className="lpPalCallout" id="landlord">
             <span className="lpPalIcon"><MessageSquareText size={23} aria-hidden="true" /></span>
-            <div><h3>Ask your Pub Pal</h3><p>Turn a mood, budget or half-formed idea into a grounded plan. Then confirm every change yourself.</p></div>
-            <Link href="/pal" className="lpTextLink">Plan my night <ArrowRight size={16} aria-hidden="true" /></Link>
+            <div><h3>Ask your Pub Pal</h3><p>Tell it a mood, a budget, or half an idea, and it hands back a real plan. You confirm every change, always.</p></div>
+            <Link href="/plan" className="lpTextLink">Plan my night <ArrowRight size={16} aria-hidden="true" /></Link>
           </div>
         </section>
 
@@ -345,7 +345,11 @@ export default function LandingPage({ stats }: { stats?: AboutStats }) {
             </ul>
           ) : null}
           <p className="lpFooterLegal">
-            PUBMAXX. Know your limits. Prices change, so check at the bar.
+            PUBMAXX is for over-18s. Know your limits, and know the facts at{" "}
+            <a href="https://www.drinkaware.co.uk" rel="noreferrer">
+              drinkaware.co.uk
+            </a>
+            . Prices change, so check at the bar.
           </p>
         </div>
       </footer>

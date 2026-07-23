@@ -3,23 +3,31 @@ import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { OG } from "@/lib/ogBrand";
 
-// Contract for the store visual identity masters (issue #440): The Clink mark
-// on ink dark with the candle-coral accent, no text, hexes never drifting from
-// the OG brand kit, geometry never drifting from the canonical 64-grid Clink
-// polygons (components/brand/PubmaxxMark.tsx MARK_GEOMETRY, mirrored by
-// scripts/gen-brand-assets.mjs). These are the masters
-// scripts/gen-store-assets.mjs renders the whole store PNG set from, so a drift
-// here ships to both stores.
+// Contract for the store visual identity masters (issue #440), re-branded to the
+// Wave C icon identity (#520/#523): a clean WHITE tile with the coral
+// double-struck X, no text, no ember. Hexes never drift from the OG brand kit;
+// geometry never drifts from the canonical 64-grid double-struck X polygons
+// (components/brand/PubmaxxMark.tsx MARK_GEOMETRY, the same numbers
+// scripts/gen-brand-assets.mjs and scripts/gen-native-app-icons.mjs stamp).
+// These are the masters scripts/gen-store-assets.mjs renders the whole store PNG
+// set from, so a drift here ships to both stores.
 
 const DIR = join(process.cwd(), "public", "store-assets");
+const WHITE = "#ffffff";
 
-// The canonical Clink arms — two tapered pint-glass polygons, symmetric about
-// centre (32,32). Copied verbatim from MARK_GEOMETRY.armA / armB; the store
-// masters MUST draw these exact point strings.
-const CLINK_ARM_A = "19.8,8.7 10.2,17.3 46.0,53.7 52.0,48.3";
-const CLINK_ARM_B = "44.2,8.7 53.8,17.3 18.0,53.7 12.0,48.3";
+// The canonical double-struck X polygons, verbatim from MARK_GEOMETRY: the thick
+// descending stroke, the two thin ascending strokes, and the simplified single
+// ascending stroke (`slashSimple`) for the small-optics tier.
+const X_THICK = "9,10 21,10 55,54 43,54";
+const X_THIN_A = "42,10 47,10 13,54 8,54";
+const X_THIN_B = "51,10 56,10 22,54 17,54";
+const X_SLASH_SIMPLE = "45,10 53,10 19,54 11,54";
 
-// Masters that draw the Clink arms at all.
+// The retired Clink arms — these MUST NOT appear on any master any more.
+const RETIRED_CLINK_A = "19.8,8.7 10.2,17.3 46.0,53.7 52.0,48.3";
+const RETIRED_CLINK_B = "44.2,8.7 53.8,17.3 18.0,53.7 12.0,48.3";
+
+// Masters that draw the X at all (they all carry the thick descending stroke).
 const MARK_CARRIERS = [
   "icon-square.svg",
   "icon-square-small.svg",
@@ -27,22 +35,25 @@ const MARK_CARRIERS = [
   "splash.svg",
 ] as const;
 
-// Masters that keep the lit ember node. icon-square-small is deliberately
-// EXCLUDED — it applies the small-optics cut (ember drops out ≤24px tiers).
-const EMBER_CARRIERS = [
+// Masters that draw the full double-struck X (both thin ascending strokes).
+// icon-square-small is EXCLUDED — it takes the small-optics single-slash cut.
+const DOUBLE_STRUCK_CARRIERS = [
   "icon-square.svg",
   "play-adaptive-foreground.svg",
   "splash.svg",
 ] as const;
 
-const INK_FIELDS = [
+// White-tile masters (the icon field flips from the retired ink to pure white).
+// The splash is deliberately EXCLUDED — splashes keep the ink field per #523.
+const WHITE_FIELDS = [
   "icon-square.svg",
   "icon-square-small.svg",
   "play-adaptive-background.svg",
-  "splash.svg",
 ] as const;
 
-const ALL_MASTERS = [...new Set([...MARK_CARRIERS, ...INK_FIELDS])];
+const ALL_MASTERS = [
+  ...new Set([...MARK_CARRIERS, ...WHITE_FIELDS, "play-adaptive-background.svg"]),
+] as const;
 
 const read = (name: string) => readFileSync(join(DIR, name), "utf8");
 
@@ -56,48 +67,67 @@ describe("store asset masters", () => {
     }
   });
 
-  it("mark carriers draw the canonical coral Clink polygons (no retired Crossing arms)", () => {
+  it("mark carriers draw the coral double-struck X, never the retired Clink arms", () => {
     for (const name of MARK_CARRIERS) {
       const svg = read(name);
-      // The two tapered pint-glass arms, as filled polygons in coral.
-      expect(svg, name).toContain(`points="${CLINK_ARM_A}"`);
-      expect(svg, name).toContain(`points="${CLINK_ARM_B}"`);
+      // The thick descending stroke, as a filled polygon in coral.
+      expect(svg, name).toContain(`points="${X_THICK}"`);
       expect(svg, name).toContain(`fill="${OG.coral}"`);
-      // Filled polygons, never the retired stroked Crossing arms.
       expect(svg, name).toMatch(/<polygon[\s>]/);
-      expect(svg, name).not.toContain("M18.5 18.5 L45.5 45.5");
-      expect(svg, name).not.toContain("M45.5 18.5 L18.5 45.5");
+      // The retired Clink arms are gone.
+      expect(svg, name).not.toContain(RETIRED_CLINK_A);
+      expect(svg, name).not.toContain(RETIRED_CLINK_B);
     }
   });
 
-  it("ember carriers light the coral-bright node at centre", () => {
-    for (const name of EMBER_CARRIERS) {
+  it("full-size carriers draw both thin ascending strokes (double-struck)", () => {
+    for (const name of DOUBLE_STRUCK_CARRIERS) {
       const svg = read(name);
-      expect(svg, name).toContain('cx="32" cy="32" r="3.2"');
-      expect(svg, name).toContain(`fill="${OG.coralBright}"`);
+      expect(svg, name).toContain(`points="${X_THIN_A}"`);
+      expect(svg, name).toContain(`points="${X_THIN_B}"`);
+      // Not the simplified small-optics slash.
+      expect(svg, name).not.toContain(X_SLASH_SIMPLE);
     }
   });
 
-  it("small-optics cut: icon-square-small drops the ember, arms carry alone", () => {
+  it("small-optics cut: icon-square-small takes the single-slash `slashSimple`", () => {
     const small = read("icon-square-small.svg");
-    // Arms present…
-    expect(small).toContain(`points="${CLINK_ARM_A}"`);
-    expect(small).toContain(`points="${CLINK_ARM_B}"`);
-    // …ember gone (no node circle, no coral-bright at all)…
-    expect(small).not.toMatch(/<circle[\s>]/);
-    expect(small).not.toContain(OG.coralBright);
-    // …and no glow gradient (mud at these sizes).
+    // The simplified single ascending stroke + the thick descending stroke…
+    expect(small).toContain(`points="${X_SLASH_SIMPLE}"`);
+    expect(small).toContain(`points="${X_THICK}"`);
+    // …not the double-struck thin pair (the channel closes up below ~24px)…
+    expect(small).not.toContain(X_THIN_A);
+    expect(small).not.toContain(X_THIN_B);
+    // …no glow gradient (mud at these sizes).
     expect(small).not.toMatch(/<radialGradient[\s>]/);
   });
 
-  it("field masters sit on ink-deep", () => {
-    for (const name of INK_FIELDS) {
-      expect(read(name), name).toContain(`fill="${OG.inkDeep}"`);
+  it("no ember anywhere: static store exports drop the lit node (#523)", () => {
+    for (const name of ALL_MASTERS) {
+      const svg = read(name);
+      // No coral-bright fill and no r 3.2 node circle on any master.
+      expect(svg, name).not.toContain(OG.coralBright);
+      expect(svg, name).not.toContain('r="3.2"');
     }
   });
 
-  it("adaptive background stays flat: no mark, no gradient (parallax layer)", () => {
+  it("icon masters sit on a pure white tile", () => {
+    for (const name of WHITE_FIELDS) {
+      expect(read(name), name).toContain(`fill="${WHITE}"`);
+    }
+  });
+
+  it("splash keeps the ink-deep field (splashes are not icons, #523)", () => {
+    const svg = read("splash.svg");
+    expect(svg).toContain(`fill="${OG.inkDeep}"`);
+    // …but carries the coral X, not the retired Clink.
+    expect(svg).toContain(`points="${X_THICK}"`);
+    expect(svg).not.toContain(RETIRED_CLINK_A);
+  });
+
+  it("adaptive background stays flat white: no mark, no gradient (parallax layer)", () => {
     const svg = read("play-adaptive-background.svg");
+    expect(svg).toContain(`fill="${WHITE}"`);
     expect(svg).not.toMatch(/<polygon[\s>]/);
     expect(svg).not.toMatch(/<path[\s>]/);
     expect(svg).not.toMatch(/<radialGradient[\s>]/);

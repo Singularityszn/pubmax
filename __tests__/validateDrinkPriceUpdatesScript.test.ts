@@ -57,6 +57,7 @@ function setupScratch(files: Record<string, unknown>): string {
   );
   for (const f of [
     "london_pois.json",
+    "london_localities.json",
     "tfl_lines.json",
     "pint_prices_app_dataset.json",
     "pubmaxxing_seed_snapshot.json",

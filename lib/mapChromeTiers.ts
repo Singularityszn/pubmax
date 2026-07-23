@@ -10,8 +10,8 @@
 //                                the same sheet) and, when the zone lens lands,
 //                                the Zone picker (its sheet section already
 //                                exists there on that branch).
-//   TIER 3  TfL (+ List later) — utilities; compact corner icon-buttons with
-//                                badges, out of the answer's way.
+//   TIER 3  TfL               — compact corner icon-button with badges, out of
+//                                the answer's way. List lives in Layers.
 //
 // Pure and render-free so the hierarchy is unit-testable; the shell just maps
 // descriptors to components. Adoption notes for the in-flight chip PRs live in

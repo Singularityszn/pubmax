@@ -1,13 +1,47 @@
 import { jsonNoStore } from "@/lib/apiResponses";
 import { publicApiError } from "@/lib/apiError";
-import { cleanEndingSelection, isPlanId, type CrawlEnding } from "@/lib/plan";
+import { cleanEndingSelection, isPlanId, type CrawlEnding, type PlanCompletionDTO, type PlanState } from "@/lib/plan";
 import { planCompletionResult, planMemberIdentityResult, planStateResult, planStore } from "@/lib/planStore";
 import { canonicalEndingSelection } from "@/lib/planEndingSelection.server";
+import { planSigningPreflightResponse, planSigningUnavailableResponse } from "@/lib/planSigningHttp.server";
 import { planMemberCapability } from "@/lib/planMemberCapability";
 import { cleanText } from "@/lib/textClean";
+import { completionLoopEventTokens } from "@/lib/verifiedAnalytics.server";
 
 type Context = { params: Promise<{ id: string }> };
 const ENDINGS: CrawlEnding[] = ["food", "get_home", "keep_going"];
+
+function completionResponse(
+  plan: PlanState,
+  completion: PlanCompletionDTO,
+  created: boolean,
+): Record<string, unknown> {
+  return {
+    plan,
+    completion,
+    created,
+    eventTokens: completionLoopEventTokens({
+      completionId: completion.id,
+      completedAt: completion.completedAt,
+      ending: completion.ending,
+    }),
+  };
+}
+
+function verifiedCompletionResponse(
+  plan: PlanState,
+  completion: PlanCompletionDTO,
+  created: boolean,
+  status = 200,
+): Response {
+  try {
+    return jsonNoStore(completionResponse(plan, completion, created), { status });
+  } catch (error) {
+    const unavailable = planSigningUnavailableResponse(error);
+    if (unavailable) return unavailable;
+    throw error;
+  }
+}
 
 export async function GET(_request: Request, context: Context): Promise<Response> {
   const { id } = await context.params;
@@ -32,6 +66,8 @@ export async function POST(request: Request, context: Context): Promise<Response
   if (!ending || !memberToken || !expectedRouteRevision) return publicApiError("Add a valid Crawl Ending, member capability, and canonical route revision.", "PLAN_COMPLETION_INVALID", 400);
   if (!endingSelection) return publicApiError("Choose a valid grounded ending option.", "PLAN_ENDING_SELECTION_INVALID", 400);
   if (ending === "food" && !terminalVenueId) return publicApiError("Include the current route stop before completing this Plan with food.", "PLAN_FOOD_TERMINAL_REQUIRED", 400);
+  const signingUnavailable = planSigningPreflightResponse();
+  if (signingUnavailable) return signingUnavailable;
   const [planLookup, completionLookup] = await Promise.all([
     planStateResult(id),
     planCompletionResult(id),
@@ -42,7 +78,7 @@ export async function POST(request: Request, context: Context): Promise<Response
     const identityLookup = await planMemberIdentityResult(id, memberToken);
     if (!identityLookup.ok) return publicApiError("Plan completion data is temporarily unavailable.", "PLAN_COMPLETION_UNAVAILABLE", 503, { retryable: true });
     if (identityLookup.identity?.role !== "host") return publicApiError("That member capability cannot complete this Plan.", "PLAN_COMPLETION_FORBIDDEN", 403);
-    return jsonNoStore({ plan: planLookup.plan, completion: completionLookup.completion, created: false });
+    return verifiedCompletionResponse(planLookup.plan, completionLookup.completion, false);
   }
   const canonicalSelection = await canonicalEndingSelection(planLookup.plan, endingSelection, terminalVenueId);
   if (!canonicalSelection) {
@@ -60,5 +96,5 @@ export async function POST(request: Request, context: Context): Promise<Response
     result.error === "forbidden" ? 403 : result.error === "not_found" ? 404 : result.error === "conflict" ? 409 : result.error === "error" ? 503 : 400,
     { retryable: result.error === "error" || result.error === "conflict" },
   );
-  return jsonNoStore({ plan: result.plan, completion: result.completion, created: result.created }, { status: result.created ? 201 : 200 });
+  return verifiedCompletionResponse(result.plan, result.completion, result.created, result.created ? 201 : 200);
 }

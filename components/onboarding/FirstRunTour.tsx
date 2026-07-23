@@ -66,8 +66,8 @@ const STEPS: readonly TourStep[] = [
   },
   {
     eyebrow: "Moment",
-    title: "Capture the moment",
-    body: "Log what you're drinking and share the story. It's the signature move.",
+    title: "Keep the night",
+    body: "Log what you're drinking and pass down the story. It's the signature move.",
     target: "drop",
   },
   {

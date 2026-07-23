@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 
 import FeedPageClient from "./FeedPageClient";
+import { loadFeedSightings } from "./feedSightings.server";
 
 // Server shell for /feed so the route carries real metadata (the client
 // component can't export it). The Pint Feed is a public browse surface (like
@@ -29,6 +30,10 @@ export const metadata: Metadata = {
   },
 };
 
-export default function FeedPage() {
-  return <FeedPageClient />;
+export default async function FeedPage() {
+  // Ambient price sightings for the London tab's cold start, resolved server-side
+  // (real pub names + map links) so the surface is never a dead empty state.
+  // Fail-soft: [] when the overlay/index can't be read (see feedSightings.server).
+  const sightings = await loadFeedSightings();
+  return <FeedPageClient sightings={sightings} />;
 }

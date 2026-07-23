@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 // POST /api/area-demand — validation, the durable rate-limit boundary, and the
 // certification posture. The @/lib/supabase seam is pinned so isSupabaseConfigured
@@ -29,6 +29,8 @@ beforeEach(() => {
   __resetPintDrops();
 });
 
+afterEach(() => vi.restoreAllMocks());
+
 describe("POST /api/area-demand", () => {
   it("records demand for an area with no email (200)", async () => {
     const res = await POST(post({ area: "Peckham", source: "area-picker" }));
@@ -37,6 +39,17 @@ describe("POST /api/area-demand", () => {
     expect(data.ok).toBe(true);
     expect(data.status).toBe("recorded");
     expect(await memoryAreaDemandStore.countForArea("peckham")).toBe(1);
+  });
+
+  it("returns a retryable 503 when demand persistence is unavailable", async () => {
+    vi.spyOn(memoryAreaDemandStore, "record").mockResolvedValueOnce({
+      status: "recorded",
+      failed: true,
+    });
+
+    const res = await POST(post({ area: "Peckham", source: "area-picker" }));
+    expect(res.status).toBe(503);
+    expect(await res.json()).toMatchObject({ code: "STORE_UNAVAILABLE", retryable: true });
   });
 
   it("records demand with an offered email (200)", async () => {

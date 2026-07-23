@@ -111,7 +111,7 @@ export default async function Image() {
               marginBottom: 24,
             }}
           >
-            Real prices · Live plans · Side quests
+            Real prices · One map · Last train home
           </div>
           <div
             style={{
@@ -143,8 +143,8 @@ export default async function Image() {
               maxWidth: 860,
             }}
           >
-            A price-aware nightlife map. Find the right place for your mood, plan
-            the crawl, and turn a spontaneous night into a story worth keeping.
+            Real pint prices on one map. Find the right place, plan the crawl,
+            and turn a good night into one worth keeping.
           </div>
         </div>
 
