@@ -1,8 +1,11 @@
 "use client";
 
 // Desktop polish shell for /add/[handle] (D1.5). Keeps ConfirmFollow untouched
-// (owned outside this allowlist) and layers Escape dismiss + a centred dialog
+// (owned outside this allowlist) and layers Escape dismiss + a centred panel
 // frame at wide widths via CSS classes on this host only.
+//
+// Not a modal dialog: no role=dialog / aria-modal (would mark SiteNav inert for
+// AT). Visual centring + Esc→feed only — KB-4 focus-trap gate stays N/A here.
 
 import { useRouter } from "next/navigation";
 import { useEffect, type ReactNode } from "react";
@@ -33,14 +36,7 @@ export default function AddPageShell({ children }: { children: ReactNode }) {
 
   return (
     <div className="addDialogHost">
-      <div
-        className="addDialogPanel"
-        role="dialog"
-        aria-modal="true"
-        aria-label="Add to your lot"
-      >
-        {children}
-      </div>
+      <div className="addDialogPanel">{children}</div>
       <p className="addDialogEscHint" aria-hidden="true">
         Esc to dismiss
       </p>
