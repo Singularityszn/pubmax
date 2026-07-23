@@ -104,6 +104,21 @@ describe("laneCardsFromRows", () => {
     expect(card.timeLabel).toBeNull();
     expect(card.badgeLabel).toBe("Screens live sport");
   });
+
+  it("adds a haversine walk label when near + venue coords are present", () => {
+    const [card] = laneCardsFromRows(
+      [row({ kind: "quiz", venueId: "v1", lat: 51.515, lng: -0.09 })],
+      { near: { lat: 51.515, lng: -0.092 } },
+    );
+    expect(card.walkLabel).toMatch(/^~\d+ min walk$/);
+  });
+
+  it("omits walk label without a near origin", () => {
+    const [card] = laneCardsFromRows([
+      row({ kind: "quiz", venueId: "v1", lat: 51.515, lng: -0.09 }),
+    ]);
+    expect(card.walkLabel).toBeUndefined();
+  });
 });
 
 describe("time + provenance helpers", () => {

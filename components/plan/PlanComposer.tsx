@@ -9,6 +9,7 @@ import PlanIntake from "@/components/plan/PlanIntake";
 import { laneSourceFromSearch, trackEvent, trackMeaningfulCoreAction } from "@/lib/analytics";
 import { recordPlanNudgeTrigger } from "@/lib/identityNudge";
 import { CREW_NAME_MAX } from "@/lib/crew";
+import { readLastCrew, subscribeLastCrew } from "@/lib/lastCrew";
 import { isNightAreaRouteReady, NIGHT_AREAS, type NightArea } from "@/lib/nightAreas";
 import {
   nearestNightPatch,
@@ -491,6 +492,7 @@ function PlanComposerForm({
         : "Recovered your route preview. Nothing is published until you lock it in."
       : "",
   );
+  const usualLot = useSyncExternalStore(subscribeLastCrew, readLastCrew, () => null);
   const nameInputRef = useRef<HTMLInputElement | null>(null);
 
   const completeStops = useMemo(
@@ -890,6 +892,23 @@ function PlanComposerForm({
         <p className="planComposer__templatesLead">
           Optional occasion prompts fill the description. Still editable.
         </p>
+        {usualLot ? (
+          <div className="planComposer__usualLot" data-testid="plan-usual-lot">
+            <p>
+              Usual lot: <strong>{usualLot.names.join(", ")}</strong>
+            </p>
+            <button
+              type="button"
+              className="planComposer__template"
+              onClick={() => {
+                setTitle("Usual lot · tonight");
+                setConciergeNote(`Re-invite ${usualLot.names.join(", ")} after you lock it in.`);
+              }}
+            >
+              Plan with the usual lot
+            </button>
+          </div>
+        ) : null}
         <div className="planComposer__templateRow">
           {PLAN_TEMPLATES.map((template: PlanTemplate) => (
             <button

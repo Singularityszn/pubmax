@@ -15,6 +15,8 @@ import { isCheckInLimited } from "@/lib/checkInRateLimit";
 import { checkInStore } from "@/lib/checkInStore";
 import { socialFreezeResponse } from "@/lib/opsFreeze";
 import { resolveMessageHandle } from "@/lib/messageAuth";
+import { normalizeViewerHandle } from "@/lib/pintDrops";
+import { resolveViewerFromRequest } from "@/lib/pintDropViewer";
 import { gateHandleAction } from "@/lib/profileOwnership";
 import { assertServerEnv } from "@/lib/serverEnv";
 import { areaPublicCheckIns, visibleCheckInsForViewer } from "@/lib/socialFeed";
@@ -26,12 +28,32 @@ function readString(value: unknown): string | undefined {
   return typeof value === "string" && value.trim() ? value : undefined;
 }
 
+/** Dev/test only: allow self-asserted ?viewer= when JWT does not resolve. */
+function allowQueryViewerFallback(): boolean {
+  const env = process.env.NODE_ENV;
+  return env === "development" || env === "test";
+}
+
+/**
+ * Friends-gated "Your lot" viewer — same posture as pint-drops (#29):
+ * JWT → profiles.user_id → handle is authoritative; ?viewer= is a
+ * dev/test fallback only and never unlocks friends reads in production.
+ */
+async function resolveCheckInViewer(request: Request, queryViewer?: string): Promise<string> {
+  const resolved = await resolveViewerFromRequest(request);
+  let handle = resolved.handle ? normalizeViewerHandle(resolved.handle) : "";
+  if (!handle && allowQueryViewerFallback() && queryViewer) {
+    handle = normalizeViewerHandle(queryViewer);
+  }
+  return handle;
+}
+
 // GET /api/check-ins?viewer=<handle>  → the viewer's "Your lot" check-ins.
 // GET /api/check-ins?scope=area       → the area-public check-ins (visibility 'area').
 // Read-only; the privacy choke (lib/socialFeed.ts) decides what is returned.
 export async function GET(request: Request): Promise<Response> {
   const url = new URL(request.url);
-  const viewer = readString(url.searchParams.get("viewer") ?? undefined);
+  const queryViewer = readString(url.searchParams.get("viewer") ?? undefined);
   const scope = readString(url.searchParams.get("scope") ?? undefined);
 
   try {
@@ -39,9 +61,11 @@ export async function GET(request: Request): Promise<Response> {
       const checkIns = await areaPublicCheckIns();
       return jsonNoStore({ checkIns }, { status: 200 });
     }
-    // Default + viewer path: the friends-only "Your lot" read. No viewer handle
-    // (anonymous) resolves to an empty list inside the choke, never a leak.
-    const checkIns = await visibleCheckInsForViewer(viewer ?? "");
+    // Default + viewer path: the friends-only "Your lot" read. No verified
+    // viewer (anonymous / spoofed query in production) resolves to an empty
+    // list inside the choke, never a leak.
+    const viewer = await resolveCheckInViewer(request, queryViewer);
+    const checkIns = await visibleCheckInsForViewer(viewer);
     return jsonNoStore({ checkIns }, { status: 200 });
   } catch {
     // Fail-soft read: an empty list keeps the feed tab honest, never a crash.

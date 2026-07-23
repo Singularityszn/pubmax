@@ -16,15 +16,27 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 //    selects the memory store, and requiresSupabaseStore() false disarms the 503
 //    guard. This is the design-doc house pattern for write-route tests (see
 //    pushTokensRoute.test.ts). hashIp/clientIp/hashActor pass through via ...actual.
+//
+// 3. Friends GET no longer trusts ?viewer= when NODE_ENV=production (Vercel CI).
+//    Happy-path friends reads mock resolveViewerFromRequest to a JWT-linked
+//    handle — same posture as pint-drops (#29) / dropVisibility tests.
 vi.mock("@/lib/serverEnv", () => ({ assertServerEnv: () => {} }));
 vi.mock("@/lib/supabase", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/supabase")>();
   return { ...actual, isSupabaseConfigured: () => false, requiresSupabaseStore: () => false };
 });
+vi.mock("@/lib/pintDropViewer", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/pintDropViewer")>();
+  return {
+    ...actual,
+    resolveViewerFromRequest: vi.fn(async () => ({ handle: null, authenticated: false })),
+  };
+});
 
 import { GET, POST } from "@/app/api/check-ins/route";
 import { __resetMemoryCheckIns } from "@/lib/checkInStore";
 import { __resetMemoryFollows, followStore } from "@/lib/followStore";
+import { resolveViewerFromRequest } from "@/lib/pintDropViewer";
 import { __resetMemoryProfiles } from "@/lib/profileStore";
 
 function postBody(body: unknown): Request {
@@ -41,6 +53,10 @@ beforeEach(() => {
   __resetMemoryCheckIns();
   __resetMemoryFollows();
   __resetMemoryProfiles();
+  vi.mocked(resolveViewerFromRequest).mockResolvedValue({
+    handle: null,
+    authenticated: false,
+  });
 });
 
 describe("POST /api/check-ins", () => {
@@ -77,7 +93,11 @@ describe("GET /api/check-ins", () => {
     await s.follow("amy", "karan");
     await POST(postBody({ handle: "amy", areaSlug: "brixton" }));
 
-    const res = await GET(new Request("http://localhost/api/check-ins?viewer=karan"));
+    vi.mocked(resolveViewerFromRequest).mockResolvedValue({
+      handle: "karan",
+      authenticated: true,
+    });
+    const res = await GET(new Request("http://localhost/api/check-ins"));
     expect(res.status).toBe(200);
     const data = (await res.json()) as { checkIns: { handle: string }[] };
     expect(data.checkIns.map((c) => c.handle)).toContain("amy");
@@ -85,7 +105,11 @@ describe("GET /api/check-ins", () => {
 
   it("does not return a non-mutual's check-in", async () => {
     await POST(postBody({ handle: "stranger", areaSlug: "brixton" }));
-    const res = await GET(new Request("http://localhost/api/check-ins?viewer=karan"));
+    vi.mocked(resolveViewerFromRequest).mockResolvedValue({
+      handle: "karan",
+      authenticated: true,
+    });
+    const res = await GET(new Request("http://localhost/api/check-ins"));
     const data = (await res.json()) as { checkIns: { handle: string }[] };
     expect(data.checkIns).toEqual([]);
   });
@@ -105,5 +129,24 @@ describe("GET /api/check-ins", () => {
     const res = await GET(new Request("http://localhost/api/check-ins"));
     const data = (await res.json()) as { checkIns: unknown[] };
     expect(data.checkIns).toEqual([]);
+  });
+
+  it("ignores spoofed ?viewer= in production (friends lane stays closed)", async () => {
+    vi.stubEnv("NODE_ENV", "production");
+    const s = followStore();
+    await s.follow("karan", "amy");
+    await s.follow("amy", "karan");
+    await POST(postBody({ handle: "amy", areaSlug: "brixton" }));
+
+    // No JWT-linked profile — only a spoofed query handle.
+    vi.mocked(resolveViewerFromRequest).mockResolvedValue({
+      handle: null,
+      authenticated: false,
+    });
+    const res = await GET(new Request("http://localhost/api/check-ins?viewer=karan"));
+    expect(res.status).toBe(200);
+    const data = (await res.json()) as { checkIns: unknown[] };
+    expect(data.checkIns).toEqual([]);
+    vi.unstubAllEnvs();
   });
 });

@@ -12,6 +12,7 @@
 // "Screens live sport" attribute badge; deal + music are timed. Hero-kind
 // priority for a venue with several rows: quiz > sport > deal > music.
 
+import { walkLabel, walkMinutes } from "@/lib/tonight";
 import { WHATS_ON_KINDS, type WhatsOnKind, type WhatsOnRow } from "@/lib/whatsOn";
 
 export type WhatsOnKindMeta = {
@@ -102,6 +103,8 @@ export type WhatsOnLaneCard = {
   /** London start-time label for timed kinds; null for untimed (sport). */
   timeLabel: string | null;
   priceGbp?: number;
+  /** Straight-line "~N min walk" when the viewer shared a location. */
+  walkLabel?: string;
   sourceLabel: string;
   sourceUrl: string;
   observedAt: string;
@@ -162,12 +165,17 @@ export function laneKindFacets(rows: readonly WhatsOnRow[]): WhatsOnKindFacet[] 
  * Derive lane cards from whats-on rows, preserving the incoming order (the
  * store already sorts by nearness when `near` is supplied) and capping at
  * `limit` (default 5, per the PRD's "3–5 nearby cards").
+ *
+ * When `near` is provided, each card with venue coords gets a haversine
+ * "~N min walk" label — same estimate as `/tonight`, never an N-row journey
+ * fan-out.
  */
 export function laneCardsFromRows(
   rows: readonly WhatsOnRow[],
-  opts: { limit?: number } = {},
+  opts: { limit?: number; near?: { lat: number; lng: number } | null } = {},
 ): WhatsOnLaneCard[] {
   const limit = typeof opts.limit === "number" && opts.limit > 0 ? opts.limit : 5;
+  const near = opts.near ?? null;
   const cards: WhatsOnLaneCard[] = [];
   for (const row of rows) {
     const meta = WHATS_ON_KIND_META[row.kind];
@@ -186,6 +194,13 @@ export function laneCardsFromRows(
     };
     if (typeof row.venueId === "string" && row.venueId.length > 0) card.venueId = row.venueId;
     if (typeof row.priceGbp === "number") card.priceGbp = row.priceGbp;
+    const walk = walkLabel(
+      walkMinutes(near, {
+        lat: typeof row.lat === "number" ? row.lat : Number.NaN,
+        lng: typeof row.lng === "number" ? row.lng : Number.NaN,
+      }),
+    );
+    if (walk) card.walkLabel = walk;
     cards.push(card);
     if (cards.length >= limit) break;
   }
