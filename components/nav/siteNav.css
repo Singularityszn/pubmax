@@ -178,35 +178,8 @@
   flex-wrap: nowrap;
 }
 
-/* Gliding active-link indicator — a thin underline (not the pill fill; that
-   stays owned by .siteNavLink.isActive / the data-cat tints below, so this
-   never has to duplicate the category-colour logic). Geometry is set by
-   SiteNav.tsx as --nav-indicator-x / --nav-indicator-scale from the real
-   link's measured offsetLeft/offsetWidth; a 1px base width scaled by
-   --nav-indicator-scale (a unitless px count) means this only ever animates
-   `transform` + `opacity`. Painted first, so flex-item stacking puts the
-   links visually above it — see SiteNav.tsx's comment on this element. */
-.siteNavIndicator {
-  position: absolute;
-  left: 0;
-  bottom: -3px;
-  width: 1px;
-  height: 2px;
-  border-radius: 999px;
-  background: var(--brass);
-  transform-origin: left center;
-  transform: translateX(var(--nav-indicator-x, 0)) scaleX(var(--nav-indicator-scale, 0));
-  z-index: 0;
-  pointer-events: none;
-}
-
-@media (prefers-reduced-motion: no-preference) {
-  .siteNavIndicator {
-    transition:
-      transform var(--duration-base) var(--ease-out-strong),
-      opacity var(--duration-fast) var(--ease-out-strong);
-  }
-}
+/* Active state is the .siteNavLink.isActive pill fill only (owner design
+   feedback: no second gliding underline under the active link). */
 
 .siteNavItem {
   display: flex;
