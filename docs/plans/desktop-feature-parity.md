@@ -489,13 +489,13 @@ git worktree add -b feat/desktop-parity-d1-messages \
 
 ## 12. Open questions for owner
 
-**PARKED — owner only.** Supervisors and agents must **not** answer, default, or implement against assumed answers while Karan is away. Leave this section unchanged until the owner responds.
+**OWNER ANSWERED 2026-07-23 21:1x (Karan, via supervisor AskUserQuestion):**
 
-1. **Rail scope:** Map + Tonight + Feed only, or every authenticated app page?  
-2. **Secondary nav:** Prefer SiteNav overflow menu, left app rail, or ⌘K-only for Plan/Near/Historic?  
-3. **Tablet:** Small-desktop drawers or large-phone portal through 768?  
-4. **Today role:** Is Today the desktop “home” when not on map, or is Map still default reentry?  
-5. **Launch bar:** Is MAP-1 + MAP-2 enough for “desktop parity” milestone, or must Messages split-pane ship too?  
+1. **Rail scope:** **Map + Tonight + Feed only.** Other pages stay focused.  
+2. **Secondary nav:** **SiteNav “More” overflow menu** (Wave D2.2 as planned).  
+3. **Tablet:** **STILL PARKED** — small-desktop drawers vs large-phone portal through 768 undecided. D6 stays blocked on this.  
+4. **Today role:** **Today is desktop home** when not on map. Justifies D4 Today 2-col investment.  
+5. **Launch bar:** **MAP-1 + MAP-2** (map rail + area search) defines the desktop-parity milestone. D1 social density ships after but is not milestone-gating.  
 
 ---
 
