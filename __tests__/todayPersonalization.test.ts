@@ -220,6 +220,7 @@ describe("resolveTodayPersonalization", () => {
 describe("applyTodayPersonalization", () => {
   const centralWeather = weather("18C");
   const camdenWeather = weather("15C");
+  const dalstonWeather = weather("16C");
   const camdenQuiz = pick("camden-quiz", { lat: 51.539, lng: -0.143 });
   const claphamMusic = pick("clapham-music", {
     title: "Live music",
@@ -255,6 +256,26 @@ describe("applyTodayPersonalization", () => {
     const resolved = resolveTodayPersonalization({ defaults: { preferredPatch: "camden" } });
 
     expect(applyTodayPersonalization(base, { camden: camdenWeather }, resolved).weather).toBe(camdenWeather);
+  });
+
+  it("uses a modelled Night Area even when it has no exact patch mapping", () => {
+    const base = { weather: centralWeather, picks: [camdenQuiz] };
+    const resolved = resolveTodayPersonalization({
+      explicitCurrentIntent: { context: { nightArea: "dalston" } },
+    });
+
+    expect(resolved.preferredPatch.value).toBeNull();
+    expect(applyTodayPersonalization(base, { dalston: dalstonWeather }, resolved).weather).toBe(dalstonWeather);
+  });
+
+  it("matches muted topics as normalized phrases, not arbitrary substrings", () => {
+    const party = pick("party", { title: "Party tonight", kind: "music", kindLabel: "Live music" });
+    const base = { weather: centralWeather, picks: [party] };
+    const resolved = resolveTodayPersonalization({
+      explicitCurrentIntent: { hardExclusions: { topics: ["art"] } },
+    });
+
+    expect(applyTodayPersonalization(base, {}, resolved).picks).toEqual([party]);
   });
 
   it("returns the baseline by reference when today is ignored", () => {

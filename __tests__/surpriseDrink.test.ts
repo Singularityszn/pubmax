@@ -42,6 +42,7 @@ function input(overrides: Partial<SurpriseDrinkInput> = {}): SurpriseDrinkInput 
   return {
     personKey: "person-123",
     dayKey: "2026-07-22",
+    asOfIso: "2026-07-22T20:00:00.000Z",
     anotherIndex: 0,
     availability: [available(beer.id), available(wine.id), available(whisky.id)],
     ...overrides,
@@ -189,6 +190,10 @@ describe("selectSurpriseDrink", () => {
       reason: "invalid-selection-key",
     });
     expect(selectSurpriseDrink(input({ dayKey: "2026-02-31" }))).toEqual({
+      status: "empty",
+      reason: "invalid-selection-key",
+    });
+    expect(selectSurpriseDrink(input({ asOfIso: "2026-07-23T00:00:00.000Z" }))).toEqual({
       status: "empty",
       reason: "invalid-selection-key",
     });
