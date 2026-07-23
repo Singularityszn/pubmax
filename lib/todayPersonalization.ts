@@ -323,6 +323,11 @@ export function resolveTodayPersonalization(
 export type TodayBriefReadModel = {
   weather: WeatherBrief | null;
   picks: TonightPickDto[];
+  filteredPickCount?: number;
+};
+
+export type PersonalizedTodayBriefReadModel = TodayBriefReadModel & {
+  filteredPickCount: number;
 };
 
 function normalizedTopicMatch(pick: TonightPickDto, topics: readonly string[]): boolean {
@@ -357,8 +362,8 @@ export function applyTodayPersonalization(
   base: TodayBriefReadModel,
   weatherByArea: Readonly<Partial<Record<NightAreaSlug, WeatherBrief | null>>>,
   resolved: ResolvedTodayPersonalization,
-): TodayBriefReadModel {
-  if (resolved.ignored) return base;
+): PersonalizedTodayBriefReadModel {
+  if (resolved.ignored) return { ...base, filteredPickCount: base.filteredPickCount ?? 0 };
 
   const mutedAreas = new Set(resolved.hardExclusions.areas.value);
   const mutedTopics = resolved.hardExclusions.topics.value;
@@ -384,5 +389,6 @@ export function applyTodayPersonalization(
   return {
     weather: personalizedWeather ?? base.weather,
     picks,
+    filteredPickCount: base.picks.length - filtered.length,
   };
 }

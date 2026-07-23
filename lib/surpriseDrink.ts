@@ -154,12 +154,21 @@ function cleanVenueEvidence(
   candidates.sort((a, b) =>
     a.venueId.localeCompare(b.venueId)
     || Date.parse(b.observedAt) - Date.parse(a.observedAt)
-    || a.priceGbp - b.priceGbp
     || a.source.localeCompare(b.source)
     || a.venueName.localeCompare(b.venueName));
   const byVenue = new Map<string, SurpriseDrinkVenueEvidence>();
+  const conflictedVenueIds = new Set<string>();
   for (const row of candidates) {
-    if (!byVenue.has(row.venueId)) byVenue.set(row.venueId, row);
+    if (conflictedVenueIds.has(row.venueId)) continue;
+    const current = byVenue.get(row.venueId);
+    if (!current) {
+      byVenue.set(row.venueId, row);
+      continue;
+    }
+    if (current.observedAt === row.observedAt && current.priceGbp !== row.priceGbp) {
+      byVenue.delete(row.venueId);
+      conflictedVenueIds.add(row.venueId);
+    }
   }
   return [...byVenue.values()];
 }
@@ -242,7 +251,6 @@ export function selectSurpriseDrink(input: SurpriseDrinkInput): SurpriseDrinkRes
     !personKey ||
     !validDayKey(dayKey) ||
     !Number.isFinite(asOfMs) ||
-    !input.asOfIso.startsWith(dayKey) ||
     !Number.isSafeInteger(input.anotherIndex) ||
     input.anotherIndex < 0
   ) {
@@ -283,6 +291,7 @@ export function selectSurpriseDrink(input: SurpriseDrinkInput): SurpriseDrinkRes
   >();
   for (const [personaId, available] of availabilityRowsByPersona) {
     const venues = cleanVenueEvidence(available.venues, asOfMs);
+    if (venues.length === 0) continue;
     const alcoholTypes = new Set(available.alcoholTypes);
     availabilityByPersona.set(personaId, {
       venues,

@@ -152,6 +152,20 @@ describe("selectSurpriseDrink", () => {
     expect(forward.status === "selected" && forward.venues.map((venue) => venue.venueId)).toEqual(["a", "b"]);
   });
 
+  it("rejects same-time price conflicts instead of selecting the cheapest claim", () => {
+    const lower = available(beer.id, { venueId: "same", priceGbp: 5.5 });
+    const higher = available(beer.id, { venueId: "same", priceGbp: 7.5 });
+
+    expect(selectSurpriseDrink(input({ availability: [lower, higher] }))).toEqual({
+      status: "empty",
+      reason: "no-confirmed-availability",
+    });
+    expect(selectSurpriseDrink(input({ availability: [higher, lower] }))).toEqual({
+      status: "empty",
+      reason: "no-confirmed-availability",
+    });
+  });
+
   it("requires a real price and rejects stale or future availability", () => {
     const priced = available(beer.id);
     const invalidPrice = { ...priced, venues: [{ ...priced.venues[0], priceGbp: 0 }] };
@@ -193,10 +207,10 @@ describe("selectSurpriseDrink", () => {
       status: "empty",
       reason: "invalid-selection-key",
     });
-    expect(selectSurpriseDrink(input({ asOfIso: "2026-07-23T00:00:00.000Z" }))).toEqual({
-      status: "empty",
-      reason: "invalid-selection-key",
-    });
+    expect(selectSurpriseDrink(input({
+      dayKey: "2026-07-23",
+      asOfIso: "2026-07-22T23:30:00.000Z",
+    })).status).toBe("selected");
     expect(selectSurpriseDrink(input({ availability: [] }))).toEqual({
       status: "empty",
       reason: "no-confirmed-availability",

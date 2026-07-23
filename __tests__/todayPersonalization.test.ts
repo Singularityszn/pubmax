@@ -234,7 +234,7 @@ describe("applyTodayPersonalization", () => {
     const base = { weather: centralWeather, picks: [camdenQuiz, claphamMusic] };
     const result = applyTodayPersonalization(base, { camden: camdenWeather }, resolveTodayPersonalization());
 
-    expect(result).toEqual(base);
+    expect(result).toEqual({ ...base, filteredPickCount: 0 });
   });
 
   it("uses the preferred weather and enforces only evidenced area/topic mutes", () => {
@@ -249,6 +249,7 @@ describe("applyTodayPersonalization", () => {
 
     expect(result.weather).toBe(camdenWeather);
     expect(result.picks.map((item) => item.id)).toEqual(["clapham-music"]);
+    expect(result.filteredPickCount).toBe(1);
   });
 
   it("uses remembered-patch weather without changing the no-memory baseline", () => {
@@ -285,6 +286,9 @@ describe("applyTodayPersonalization", () => {
       ignoreToday: true,
     });
 
-    expect(applyTodayPersonalization(base, { camden: camdenWeather }, resolved)).toBe(base);
+    expect(applyTodayPersonalization(base, { camden: camdenWeather }, resolved)).toEqual({
+      ...base,
+      filteredPickCount: 0,
+    });
   });
 });
