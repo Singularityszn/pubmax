@@ -17,6 +17,16 @@ import "./activity.css";
 
 const HANDLE_KEY = "pubmax_handle";
 
+// The kind filters offered in the desktop rail, in a stable order. Labels are
+// nouns for the event class (the list rows carry the verb copy). Kept in lockstep
+// with NotificationKind; a filter only renders when the loaded feed has that kind.
+const KIND_FILTERS: ReadonlyArray<{ kind: NotificationKind; label: string }> = [
+  { kind: "follow", label: "Follows" },
+  { kind: "reaction", label: "Cheers" },
+  { kind: "comment", label: "Comments" },
+  { kind: "crawl_save", label: "Saves" },
+];
+
 function readHandle(): string {
   if (typeof window === "undefined") return "";
   return normalizeHandle(window.localStorage.getItem(HANDLE_KEY) ?? "");
@@ -64,6 +74,10 @@ export default function ActivityClient(): React.JSX.Element {
   const [items, setItems] = useState<NotificationDTO[]>([]);
   const [loading, setLoading] = useState(true);
   const [failed, setFailed] = useState(false);
+  // Desktop-only kind filter. Defaults to "all", and the control that changes it
+  // is CSS-hidden below 1024px, so the mobile render is always the full list —
+  // unchanged from before this rail existed.
+  const [kindFilter, setKindFilter] = useState<NotificationKind | "all">("all");
 
   useEffect(() => {
     let active = true;
@@ -113,6 +127,17 @@ export default function ActivityClient(): React.JSX.Element {
     void Promise.resolve().then(() => load());
   }, [load]);
 
+  // Per-kind tallies drive which filters render and the rail summary; both are
+  // derived from the already-loaded feed (no extra fetch). The visible list is
+  // the full feed unless a desktop filter narrows it.
+  const kindCounts = items.reduce<Record<string, number>>((acc, n) => {
+    acc[n.kind] = (acc[n.kind] ?? 0) + 1;
+    return acc;
+  }, {});
+  const unreadCount = items.reduce((n, item) => (item.read ? n : n + 1), 0);
+  const visibleItems =
+    kindFilter === "all" ? items : items.filter((n) => n.kind === kindFilter);
+
   return (
     // The nav lives OUTSIDE the 640px-capped <main> (same shape as the other
     // pages' full-width shells) — nesting it inside the narrow column wrapped
@@ -131,9 +156,32 @@ export default function ActivityClient(): React.JSX.Element {
         </header>
 
         {!handleReady || loading ? (
-          <p className="activityLoading" role="status">
-            Loading your activity…
-          </p>
+          // Skeleton mirrors the ready-state grid so first paint already carries
+          // the page's shape — a plain list on phones, rail + two-up timeline at
+          // ≥1024 — instead of a jump from one line of text. Same block idiom as
+          // the feed; the shimmer is gated behind prefers-reduced-motion in CSS.
+          <div className="activityGrid activitySkeleton" role="status" aria-label="Loading your activity">
+            <aside className="activityRail" aria-hidden="true">
+              <div className="activityFilters">
+                {Array.from({ length: 4 }).map((_, i) => (
+                  <span key={i} className="activitySkelChip" />
+                ))}
+              </div>
+              <div className="activitySkelSummary">
+                {Array.from({ length: 3 }).map((_, i) => (
+                  <span key={i} className="activitySkelLine activitySkelLineShort" />
+                ))}
+              </div>
+            </aside>
+            <ul className="activityList" aria-hidden="true">
+              {Array.from({ length: 6 }).map((_, i) => (
+                <li key={i} className="activityItem activitySkelItem">
+                  <span className="activitySkelLine" />
+                  <span className="activitySkelLine activitySkelLineShort" />
+                </li>
+              ))}
+            </ul>
+          </div>
         ) : !handle.trim() ? (
           <EmptyState
             eyebrow="Activity"
@@ -159,28 +207,66 @@ export default function ActivityClient(): React.JSX.Element {
             }
           />
         ) : (
-          <ul className="activityList">
-            {items.map((n) => {
-              const href = subjectHref(n);
-              return (
-                <li key={n.id} className={n.read ? "activityItem" : "activityItem isUnread"}>
-                  <Link href={`/u/${encodeURIComponent(n.actorHandle)}`} className="activityActor">
-                    @{n.actorHandle}
-                  </Link>{" "}
-                  <span className="activityVerb">{verb(n.kind)}</span>
-                  {n.subjectLabel ? (
-                    <span className="activitySubject">: {n.subjectLabel}</span>
-                  ) : null}
-                  <span className="activityTime"> · {relativeTime(n.createdAt)}</span>
-                  {href ? (
-                    <Link href={href} className="activityLink">
-                      View
-                    </Link>
-                  ) : null}
-                </li>
-              );
-            })}
-          </ul>
+          <div className="activityGrid">
+            {/* Desktop rail: kind filters + a quick tally. Hidden below 1024px,
+                so the phone layout stays the single list it always was. */}
+            <aside className="activityRail" aria-label="Filter activity">
+              <div className="activityFilters" role="group" aria-label="Filter by kind">
+                <button
+                  type="button"
+                  className="activityFilter"
+                  aria-pressed={kindFilter === "all"}
+                  onClick={() => setKindFilter("all")}
+                >
+                  All
+                </button>
+                {KIND_FILTERS.filter((f) => (kindCounts[f.kind] ?? 0) > 0).map((f) => (
+                  <button
+                    key={f.kind}
+                    type="button"
+                    className="activityFilter"
+                    aria-pressed={kindFilter === f.kind}
+                    onClick={() => setKindFilter(f.kind)}
+                  >
+                    {f.label} ({kindCounts[f.kind]})
+                  </button>
+                ))}
+              </div>
+              <dl className="activitySummary">
+                <div className="activitySummaryRow">
+                  <dt>Total</dt>
+                  <dd>{items.length}</dd>
+                </div>
+                <div className="activitySummaryRow">
+                  <dt>Unread</dt>
+                  <dd>{unreadCount}</dd>
+                </div>
+              </dl>
+            </aside>
+
+            <ul className="activityList">
+              {visibleItems.map((n) => {
+                const href = subjectHref(n);
+                return (
+                  <li key={n.id} className={n.read ? "activityItem" : "activityItem isUnread"}>
+                    <Link href={`/u/${encodeURIComponent(n.actorHandle)}`} className="activityActor">
+                      @{n.actorHandle}
+                    </Link>{" "}
+                    <span className="activityVerb">{verb(n.kind)}</span>
+                    {n.subjectLabel ? (
+                      <span className="activitySubject">: {n.subjectLabel}</span>
+                    ) : null}
+                    <span className="activityTime"> · {relativeTime(n.createdAt)}</span>
+                    {href ? (
+                      <Link href={href} className="activityLink">
+                        View
+                      </Link>
+                    ) : null}
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
         )}
       </main>
     </div>

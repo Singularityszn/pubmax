@@ -146,8 +146,8 @@ test.describe("notifications — bell + activity feed", () => {
     // stuck forever.
     const empty = page.locator(".emptyState");
     await expect(empty).toBeVisible();
-    await expect(empty.locator(".emptyStateTitle")).toContainText(/sign in or claim a handle/i);
-    await expect(empty.locator(".emptyStateBody")).toContainText(/drop a pint to set a handle/i);
+    await expect(empty.locator(".emptyStateTitle")).toContainText(/this corner is yours\. claim it\./i);
+    await expect(empty.locator(".emptyStateBody")).toContainText(/drop a pint to grab a handle/i);
     await expect(empty.locator(".emptyStateAction :is(a, button)")).toHaveCount(0);
 
     expect(errors).toEqual([]);
