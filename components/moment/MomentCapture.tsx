@@ -3,14 +3,25 @@
 import Link from "next/link";
 import Image from "next/image";
 import { useRouter, useSearchParams } from "next/navigation";
-import { ArrowRight, Camera, ImagePlus, LockKeyhole, MapPin, Sparkles, X } from "lucide-react";
-import { ChangeEvent, FormEvent, MouseEvent as ReactMouseEvent, useEffect, useMemo, useRef, useState } from "react";
+import { ArrowRight, Camera, ImagePlus, LockKeyhole, MapPin, Sparkles, Upload, X } from "lucide-react";
+import {
+  ChangeEvent,
+  DragEvent as ReactDragEvent,
+  FormEvent,
+  MouseEvent as ReactMouseEvent,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from "react";
 
 import SignInButton from "@/components/auth/SignInButton";
 import { useAuth } from "@/components/auth/AuthProvider";
 import SiteNav from "@/components/nav/SiteNav";
 import { safeMomentReturnTo } from "@/components/nav/navigationModel";
 import { trackEvent } from "@/lib/analytics";
+import { MOBILE_MEDIA_QUERY } from "@/lib/breakpoints";
 import { recordMomentNudgeTrigger } from "@/lib/identityNudge";
 import { authedFetch } from "@/lib/authedFetch";
 import { captureNativePhoto } from "@/lib/nativeCamera";
@@ -31,6 +42,19 @@ import "./moment.css";
 const GUEST_OWNER = "guest";
 const PHOTO_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
 const MAX_PHOTO_BYTES = 10 * 1024 * 1024;
+
+/** Phone shell (≤640): camera-first. Wider: upload / drag-drop primacy. */
+function subscribeMobileViewport(onStoreChange: () => void): () => void {
+  if (typeof window === "undefined") return () => {};
+  const mq = window.matchMedia(MOBILE_MEDIA_QUERY);
+  mq.addEventListener("change", onStoreChange);
+  return () => mq.removeEventListener("change", onStoreChange);
+}
+
+function getMobileViewportSnapshot(): boolean {
+  if (typeof window === "undefined") return false;
+  return window.matchMedia(MOBILE_MEDIA_QUERY).matches;
+}
 
 type SaveState = "idle" | "saving" | "saved";
 
@@ -71,11 +95,17 @@ export default function MomentCapture(): React.JSX.Element {
   const returnTo = safeMomentReturnTo(searchParams?.get("returnTo"));
   const { user, loading: authLoading } = useAuth();
   const ownerKey = user?.id ?? GUEST_OWNER;
+  const isPhone = useSyncExternalStore(
+    subscribeMobileViewport,
+    getMobileViewportSnapshot,
+    () => false,
+  );
   const [draft, setDraft] = useState<MomentDraftV1>(() => newDraft(GUEST_OWNER));
   const [hydrated, setHydrated] = useState(false);
   const [message, setMessage] = useState("Your draft stays on this device until you save it.");
   const [saveState, setSaveState] = useState<SaveState>("idle");
   const [savedMemoryId, setSavedMemoryId] = useState<string | null>(null);
+  const [dragOver, setDragOver] = useState(false);
   const previewUrls = useRef<Set<string>>(new Set());
   // Arm the identity nudge once per composer visit, the first time a signed-out
   // guest has a Moment draft worth keeping. The server save path requires auth,
@@ -170,6 +200,38 @@ export default function MomentCapture(): React.JSX.Element {
     if (file) addFiles([file]);
   }
 
+  function onPickerDragEnter(event: ReactDragEvent<HTMLLabelElement>) {
+    if (isPhone || isNativeApp()) return;
+    event.preventDefault();
+    event.stopPropagation();
+    setDragOver(true);
+  }
+
+  function onPickerDragOver(event: ReactDragEvent<HTMLLabelElement>) {
+    if (isPhone || isNativeApp()) return;
+    event.preventDefault();
+    event.stopPropagation();
+    event.dataTransfer.dropEffect = "copy";
+    setDragOver(true);
+  }
+
+  function onPickerDragLeave(event: ReactDragEvent<HTMLLabelElement>) {
+    if (isPhone || isNativeApp()) return;
+    event.preventDefault();
+    // Only clear when leaving the label itself (not a child).
+    if (event.currentTarget.contains(event.relatedTarget as Node | null)) return;
+    setDragOver(false);
+  }
+
+  function onPickerDrop(event: ReactDragEvent<HTMLLabelElement>) {
+    if (isPhone || isNativeApp()) return;
+    event.preventDefault();
+    event.stopPropagation();
+    setDragOver(false);
+    const files = Array.from(event.dataTransfer.files ?? []);
+    addFiles(files);
+  }
+
   function addFiles(files: File[]) {
     if (!files.length) return;
     const invalid = files.find((file) => !PHOTO_TYPES.has(file.type) || file.size > MAX_PHOTO_BYTES);
@@ -188,6 +250,15 @@ export default function MomentCapture(): React.JSX.Element {
     update({ media: selection.media, kind: "photo" });
     setMessage(selection.media.length === 1 ? "Photo added. It is still private." : `${selection.media.length} photos added. They are still private.`);
   }
+
+  const pickerPrimary = draft.media.length
+    ? "Add another"
+    : isPhone
+      ? "Take a photo"
+      : "Upload a photo";
+  const pickerSecondary = isPhone
+    ? "Camera or library"
+    : "JPEG, PNG, or WebP · drag and drop or browse";
 
   // Author-written alt text lives on the draft media item. This is the ONLY way
   // a description is set in v1 — the author types it. AI-suggestion seam: a
@@ -300,13 +371,24 @@ export default function MomentCapture(): React.JSX.Element {
             <Link href={returnTo} className="momentCancel">Cancel</Link>
           </div>
           <h1>Keep this one.</h1>
-          <p>Take the photo now. Decide what it means, and who sees it, when the night slows down.</p>
+          <p>
+            {isPhone
+              ? "Take the photo now. Decide what it means, and who sees it, when the night slows down."
+              : "Add a photo from this computer. Decide what it means, and who sees it, when the night slows down."}
+          </p>
         </header>
 
         <section className="momentIntent" aria-label="Choose what to capture">
           <div className="momentIntentCurrent">
-            <Camera size={21} aria-hidden="true" />
-            <div><strong>Private Moment</strong><span>Photos, people, places and detours</span></div>
+            {isPhone ? <Camera size={21} aria-hidden="true" /> : <Upload size={21} aria-hidden="true" />}
+            <div>
+              <strong>Private Moment</strong>
+              <span>
+                {isPhone
+                  ? "Photos, people, places and detours"
+                  : "Upload photos, then caption the night"}
+              </span>
+            </div>
           </div>
           <Link href="/map?log=1" className="momentIntentLink">
             <MapPin size={21} aria-hidden="true" />
@@ -334,14 +416,28 @@ export default function MomentCapture(): React.JSX.Element {
               </figure>
             ))}
             {draft.media.length < 4 ? (
-              <label className="momentMediaPicker" onClick={chooseNativeMedia}>
-                <ImagePlus size={28} aria-hidden="true" />
-                <strong>{draft.media.length ? "Add another" : "Take a photo"}</strong>
-                <span>Camera or library</span>
+              <label
+                className={
+                  dragOver ? "momentMediaPicker momentMediaPickerDragOver" : "momentMediaPicker"
+                }
+                onClick={chooseNativeMedia}
+                onDragEnter={onPickerDragEnter}
+                onDragOver={onPickerDragOver}
+                onDragLeave={onPickerDragLeave}
+                onDrop={onPickerDrop}
+              >
+                {isPhone ? (
+                  <ImagePlus size={28} aria-hidden="true" />
+                ) : (
+                  <Upload size={28} aria-hidden="true" />
+                )}
+                <strong>{pickerPrimary}</strong>
+                <span>{pickerSecondary}</span>
                 <input
                   type="file"
                   accept="image/jpeg,image/png,image/webp"
-                  capture="environment"
+                  // Rear camera only on phone / native. Desktop is file pick.
+                  {...(isPhone ? { capture: "environment" as const } : {})}
                   multiple
                   onChange={chooseMedia}
                 />
