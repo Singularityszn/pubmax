@@ -1,11 +1,6 @@
 import { describe, expect, it } from "vitest";
-<<<<<<< HEAD
-import { buildTabs } from "@/components/nav/MobileTabBar";
-import { navPathMatches } from "@/components/nav/navigationModel";
-=======
 import { buildTabs, tourSpotlightColumn } from "@/components/nav/MobileTabBar";
-import { TOUR_TARGET_TAB_KEY } from "@/components/nav/navigationModel";
->>>>>>> origin/main
+import { TOUR_TARGET_TAB_KEY, navPathMatches } from "@/components/nav/navigationModel";
 
 // Six-tab contract for the mobile bar (owner-locked journey order). The shared
 // PRIMARY_NAV_ITEMS model stays four destinations by its own contract test;
