@@ -31,7 +31,7 @@ import {
   markNightModeActiveFired,
   type ActivePlanRef,
 } from "@/lib/activePlan";
-import { trackEvent } from "@/lib/analytics";
+import { trackEvent, trackMeaningfulCoreAction } from "@/lib/analytics";
 import { authedFetch } from "@/lib/authedFetch";
 import type { PlanGetInReportDTO, PlanGetInStopDTO } from "@/lib/planGetIn";
 import type { CrawlEnding, EndingSelection, PlanCompletionDTO, PlanState, PlanStopDTO } from "@/lib/plan";
@@ -77,6 +77,26 @@ function readMemberToken(planId: string): string {
 }
 
 export type PlanRouteRevision = string | number;
+
+export function completionTelemetryFromBody(value: unknown): {
+  ending: CrawlEnding;
+  planCompletedToken: string;
+  meaningfulCoreActionToken: string;
+} | null {
+  if (!value || typeof value !== "object") return null;
+  const row = value as { completion?: unknown; eventTokens?: unknown };
+  if (!row.completion || typeof row.completion !== "object" || !row.eventTokens || typeof row.eventTokens !== "object") return null;
+  const ending = (row.completion as { ending?: unknown }).ending;
+  const tokens = row.eventTokens as { planCompleted?: unknown; meaningfulCoreAction?: unknown };
+  if (!(["food", "get_home", "keep_going"] as const).includes(ending as CrawlEnding)) return null;
+  if (typeof tokens.planCompleted !== "string" || !tokens.planCompleted || tokens.planCompleted.length > 2_000
+    || typeof tokens.meaningfulCoreAction !== "string" || !tokens.meaningfulCoreAction || tokens.meaningfulCoreAction.length > 2_000) return null;
+  return {
+    ending: ending as CrawlEnding,
+    planCompletedToken: tokens.planCompleted,
+    meaningfulCoreActionToken: tokens.meaningfulCoreAction,
+  };
+}
 
 export function routeRevisionFromPlan(value: PlanState | null): PlanRouteRevision | null {
   if (!value) return null;
@@ -231,6 +251,16 @@ export default function NightModeCard() {
   // this global surface off /map prevents a second fixed sheet from stacking.
   if (pathname === "/map" || pathname.startsWith("/map/")) return null;
 
+  // The web-only marketing landing ("/") owns the fold with its own full-width
+  // hero action band ("Find my pint" / "Open the map" / "Plan my night"). A
+  // bottom-right floating pill collides with the right end of that band on the
+  // narrower, shorter phones where the wrapped headline pushes the actions down
+  // into the pill's viewport strip, and it cannot be lifted clear by bottom
+  // padding because the actions are mid-document, not page-bottom. The pill's
+  // whole job, resume tonight's plan, is served on every in-app route, so it
+  // yields on this one surface rather than cover a primary CTA.
+  if (pathname === "/") return null;
+
   if (!ref) return null;
   return <NightModeSurface key={ref.id} entry={ref} />;
 }
@@ -284,6 +314,7 @@ function NightModeSheet({ entry, onCollapse }: { entry: ActivePlanRef; onCollaps
   // blank gap between the ending result and its recap invitation.
   const [recapSeeding, setRecapSeeding] = useState(false);
   const [recapOpen, setRecapOpen] = useState(false);
+  const [recapReviewed, setRecapReviewed] = useState(false);
   const [recapSaving, setRecapSaving] = useState(false);
   const recapSavingRef = useRef(false);
   const [recapMessage, setRecapMessage] = useState("");
@@ -516,6 +547,11 @@ function NightModeSheet({ entry, onCollapse }: { entry: ActivePlanRef; onCollaps
         throw new Error("The ending response was not canonical. Nothing was marked complete in this view.");
       }
       setPlan(canonical);
+      const completionTelemetry = completionTelemetryFromBody(body);
+      if (completionTelemetry) {
+        trackEvent("plan_completed", { ending: completionTelemetry.ending }, { deliveryToken: completionTelemetry.planCompletedToken });
+        trackMeaningfulCoreAction("plan_completed", completionTelemetry.meaningfulCoreActionToken);
+      }
       const completed = body && typeof body === "object" && "completion" in body
         ? (body as { completion?: PlanCompletionDTO }).completion ?? null
         : null;
@@ -741,7 +777,15 @@ function NightModeSheet({ entry, onCollapse }: { entry: ActivePlanRef; onCollaps
                 <div className="nightCard__recapInvite">
                   <p className="nightCard__recapLede">That&rsquo;s the night. Keep it as a private Memory. The route and any words you add, nothing posted.</p>
                   <div className="nightCard__recapActions">
-                    <button type="button" className="nightCard__endingLink" onClick={() => setRecapOpen((open) => !open)} aria-expanded={recapOpen}>
+                    <button type="button" className="nightCard__endingLink" onClick={() => {
+                      const opening = !recapOpen;
+                      setRecapOpen(opening);
+                      if (opening && !recapReviewed) {
+                        setRecapReviewed(true);
+                        trackEvent("memory_reviewed", { source: "inline_recap" });
+                        trackMeaningfulCoreAction("memory_reviewed");
+                      }
+                    }} aria-expanded={recapOpen}>
                       <BookOpen size={16} aria-hidden="true" /> {recapOpen ? "Hide recap" : "Review private recap"}
                     </button>
                     <button type="button" className="nightCard__quietButton" onClick={() => { resolvePendingPlanRecap(recap, "discarded"); setRecap(null); setRecapOpen(false); }}>

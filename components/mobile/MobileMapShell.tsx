@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Ellipsis, List, LocateFixed, Route, Search, SlidersHorizontal, Sparkles, TrainFront, X } from "lucide-react";
+import { Ellipsis, List, LocateFixed, MapPin, Route, Search, SlidersHorizontal, Sparkles, TrainFront, X } from "lucide-react";
 import { useCallback } from "react";
 
 import PubmaxxWordmark from "@/components/brand/PubmaxxWordmark";
@@ -21,6 +21,7 @@ const SHEET_TITLES: Partial<Record<MapOverlay, string>> = {
   "pub-pal": "Pub Pal",
   moment: "Choose a pub",
   "near-me": "Cheapest pints near you",
+  area: "This area",
 };
 
 const CONTEXTUAL_SHEETS: readonly MapSheetKind[] = [
@@ -31,6 +32,7 @@ const CONTEXTUAL_SHEETS: readonly MapSheetKind[] = [
   "pub-pal",
   "moment",
   "near-me",
+  "area",
 ];
 
 function PalSignalAvatar() {
@@ -47,7 +49,7 @@ function PalSignalAvatar() {
   );
 }
 
-export default function MobileMapShell({ cityLabel, overlay, onOverlayChange, activeQuery, onClearQuery, onNearMe, nearMeStatus, nearbyCount, tonightCount, tflCount, tflStatus, priceLabel, drinkFiltersActive, priceCapActive, zoneActive, listOpen, onListToggle, planOpen, planActive, planStopCount, planInteractive, onPlan, searchContent, filtersContent, tflContent, tonightContent, layersContent, palContent, momentContent, nearMeContent }: {
+export default function MobileMapShell({ cityLabel, overlay, onOverlayChange, activeQuery, onClearQuery, onNearMe, nearMeStatus, nearbyCount, tonightCount, tflCount, tflStatus, priceLabel, drinkFiltersActive, priceCapActive, zoneActive, listOpen, onListToggle, planOpen, planActive, planStopCount, planInteractive, onPlan, searchContent, filtersContent, tflContent, tonightContent, layersContent, palContent, momentContent, nearMeContent, areaContent }: {
   cityLabel: string;
   overlay: MapOverlay;
   onOverlayChange: (overlay: MapOverlay) => void;
@@ -82,6 +84,8 @@ export default function MobileMapShell({ cityLabel, overlay, onOverlayChange, ac
   palContent: React.ReactNode;
   momentContent: React.ReactNode;
   nearMeContent: React.ReactNode;
+  /** The Area sheet body (cheapest pints here + go somewhere else). */
+  areaContent: React.ReactNode;
 }) {
   const set = (next: MapOverlay) => onOverlayChange(overlay === next ? "none" : next);
   const closeSheet = useCallback(() => onOverlayChange("none"), [onOverlayChange]);
@@ -91,14 +95,24 @@ export default function MobileMapShell({ cityLabel, overlay, onOverlayChange, ac
   const sheetKind = CONTEXTUAL_SHEETS.includes(overlay as MapSheetKind)
     ? (overlay as MapSheetKind)
     : null;
-  const sheetContent = sheetKind === "filters" ? filtersContent : sheetKind === "tfl" ? tflContent : sheetKind === "tonight" ? tonightContent : sheetKind === "layers" ? layersContent : sheetKind === "moment" ? momentContent : sheetKind === "near-me" ? nearMeContent : palContent;
+  const sheetContent = sheetKind === "filters" ? filtersContent : sheetKind === "tfl" ? tflContent : sheetKind === "tonight" ? tonightContent : sheetKind === "layers" ? layersContent : sheetKind === "moment" ? momentContent : sheetKind === "near-me" ? nearMeContent : sheetKind === "area" ? areaContent : palContent;
 
   return (
     <>
       <div className="mobileMapChrome" aria-label="Map controls">
         <header className="mobileMapTopbar">
           <Link href="/" className="mobileMapBrand" aria-label="Open PUBMAXX landing page"><PubmaxxWordmark /></Link>
-          <span className="mobileMapCity">{cityLabel}</span>
+          <button
+            type="button"
+            className="mobileMapArea"
+            aria-expanded={overlay === "area"}
+            aria-haspopup="dialog"
+            aria-label={`Area: ${cityLabel}. See its cheapest pints or go somewhere else`}
+            onClick={() => set("area")}
+          >
+            <MapPin size={14} aria-hidden="true" />
+            <span className="mobileMapAreaLabel">{cityLabel}</span>
+          </button>
           <IconButton aria-label="Search the map" aria-expanded={overlay === "search"} onClick={() => set("search")}><Search size={19} /></IconButton>
           <IconButton className="mobileMapPalButton" aria-label="Open Pub Pal" aria-expanded={overlay === "pub-pal"} onClick={() => set("pub-pal")}><PalSignalAvatar /></IconButton>
           <IconButton aria-label="More map controls" aria-expanded={overlay === "layers"} onClick={() => set("layers")}><Ellipsis size={20} /></IconButton>
@@ -167,7 +181,7 @@ export default function MobileMapShell({ cityLabel, overlay, onOverlayChange, ac
           </span>
         </button>
       ) : null}
-      <Sheet kind={sheetKind} title={sheetKind ? SHEET_TITLES[sheetKind] ?? "Map controls" : "Map controls"} initialSnap={sheetKind === "moment" || sheetKind === "layers" || sheetKind === "near-me" ? "full" : "half"} onClose={closeSheet}>{sheetContent}</Sheet>
+      <Sheet kind={sheetKind} title={sheetKind ? SHEET_TITLES[sheetKind] ?? "Map controls" : "Map controls"} initialSnap={sheetKind === "moment" || sheetKind === "layers" || sheetKind === "near-me" || sheetKind === "area" ? "full" : "half"} onClose={closeSheet}>{sheetContent}</Sheet>
     </>
   );
 }

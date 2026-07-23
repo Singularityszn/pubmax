@@ -24,6 +24,7 @@ export { isDeployedProduction } from "@/lib/deploymentEnv";
 
 /** Dev default for RATE_LIMIT_SALT — must not be used in production. */
 export const DEV_RATE_LIMIT_SALT = "pubmax-rate-limit";
+const MIN_PRODUCTION_SECRET_BYTES = 32;
 
 const NEXT_PRODUCTION_BUILD_PHASE = "phase-production-build";
 
@@ -36,6 +37,7 @@ const NEXT_PRODUCTION_BUILD_PHASE = "phase-production-build";
  * PUBMAX_E2E_KEYLESS=1 is a deliberately exact, test-only escape hatch for
  * Playwright's local `next start` server. It must never be configured on a
  * deployed application: doing so opts that process into ephemeral stores.
+ * It does not relax trusted signing; Playwright supplies a fresh dedicated key.
  * On a real Vercel Production deploy (`VERCEL_ENV=production`) it is
  * therefore ignored — production always runs the full assertions.
  */
@@ -70,11 +72,19 @@ export function assertProductionSecrets(): void {
   }
 
   const rateLimitSalt = process.env.RATE_LIMIT_SALT?.trim();
-  if (!rateLimitSalt || rateLimitSalt === DEV_RATE_LIMIT_SALT) {
+  if (!rateLimitSalt || rateLimitSalt === DEV_RATE_LIMIT_SALT
+    || Buffer.byteLength(rateLimitSalt, "utf8") < MIN_PRODUCTION_SECRET_BYTES) {
     throw new Error(
-      "FATAL: RATE_LIMIT_SALT is unset or still the dev default in production. " +
+      `FATAL: RATE_LIMIT_SALT is unset, still the dev default, or shorter than ${MIN_PRODUCTION_SECRET_BYTES} bytes in production. ` +
         "IP/actor hashes would be computable from public code. " +
-        "Set a secret RATE_LIMIT_SALT and redeploy.",
+        "Set a high-entropy RATE_LIMIT_SALT and redeploy.",
+    );
+  }
+  const planSigningSecret = process.env.PLAN_IDEMPOTENCY_SECRET?.trim();
+  if (planSigningSecret && Buffer.byteLength(planSigningSecret, "utf8") < MIN_PRODUCTION_SECRET_BYTES) {
+    throw new Error(
+      `FATAL: PLAN_IDEMPOTENCY_SECRET must contain at least ${MIN_PRODUCTION_SECRET_BYTES} bytes in production. ` +
+        "Set a high-entropy secret or remove it to use RATE_LIMIT_SALT, then redeploy.",
     );
   }
 }

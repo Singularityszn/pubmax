@@ -496,12 +496,12 @@ export default function DiscoverPageClient({
           UK city energy
         </h2>
         <p className="discoverSectionDek">
-          Cult rivalry without fake price catalogues. Cities ranked by demo
-          Pint Drops, curated crawl packs, and venue coverage. Open a map and
-          add to the score.
+          City pride, minus the made-up numbers. Cities ranked on Pint Drops,
+          crawl packs, and how much ground we cover. Open a map and add to your
+          city&rsquo;s tally.
         </p>
         <p className="discoverSectionNote">
-          Demo seeds only where they exist. No invented organics.
+          Seeded only where we&rsquo;ve got demo data. Nothing invented to pad it out.
         </p>
         <CityRivalryTable entries={rivalry} />
       </section>
@@ -578,8 +578,8 @@ export default function DiscoverPageClient({
           Cheap Pint Leaderboard
         </h2>
         <p className="discoverSectionDek">
-          Dataset cheapest-on-record taps. Not a live tonight feed. Open a pub
-          for sourced or community freshness.
+          The cheapest pints we&rsquo;ve got on record, not tonight&rsquo;s live
+          prices. Open a pub to see how fresh its number is.
         </p>
         {status === "idle" ? (
           <p className="discoverEmpty" role="status">
@@ -609,7 +609,7 @@ export default function DiscoverPageClient({
           record. The biggest movers first. Community numbers, not gospel.
         </p>
         <p className="discoverSectionNote">
-          Then = dataset baseline. Now = latest community report.
+          Then is the price on record. Now is the latest one someone logged.
         </p>
         {status === "idle" ? (
           <p className="discoverEmpty" role="status">

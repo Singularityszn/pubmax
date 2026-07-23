@@ -7,7 +7,7 @@ import MessagesInboxClient from "./MessagesInboxClient";
 // participant, so the inbox is noindex, follow:false.
 export const metadata: Metadata = {
   title: "Messages",
-  description: "Your PUBMAXX direct messages.",
+  description: "Direct messages with the people you go out with. Signed-in only, and kept low-key.",
   robots: { index: false, follow: false },
 };
 
