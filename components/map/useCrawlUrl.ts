@@ -13,6 +13,12 @@ export { seedCrawlState };
 
 const DEBOUNCE_MS = 300;
 
+// Owned Map params that encodeCrawl does not model but must survive a URL sync:
+// the Drop-intent flag, the planner deep link, and the accepted-handoff markers
+// (trusted-handoff §4.6). Without this merge the debounced replaceState would
+// silently drop `accept`/`src`/`plan` the moment any crawl state changed.
+const OWNED_PASSTHROUGH_PARAMS = ["log", "plan", "accept", "src"] as const;
+
 export function useCrawlUrlSync(state: CrawlUrlState): void {
   const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
@@ -21,8 +27,10 @@ export function useCrawlUrlSync(state: CrawlUrlState): void {
     if (timer.current) clearTimeout(timer.current);
     timer.current = setTimeout(() => {
       const params = new URLSearchParams(encodeCrawl(state));
-      if (new URLSearchParams(window.location.search).get("log") === "1") {
-        params.set("log", "1");
+      const live = new URLSearchParams(window.location.search);
+      for (const key of OWNED_PASSTHROUGH_PARAMS) {
+        const value = live.get(key);
+        if (value !== null && !params.has(key)) params.set(key, value);
       }
       const query = params.toString();
       // Keep a clean pathname when nothing meaningful is encoded (no trailing `?`).

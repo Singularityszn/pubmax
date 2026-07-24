@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 
 import PubMaxingShell from "@/components/PubMaxingShell";
+import { readTrustedHandoffFlags } from "@/lib/trustedHandoffFlags.server";
 import {
   cityMapOgAlt,
   cityMapOgDescription,
@@ -51,5 +52,5 @@ export async function generateMetadata({
 }
 
 export default function MapPage() {
-  return <PubMaxingShell cityId="london" />;
+  return <PubMaxingShell cityId="london" flags={readTrustedHandoffFlags()} />;
 }

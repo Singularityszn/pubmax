@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
 import PubMaxingShell from "@/components/PubMaxingShell";
+import { readTrustedHandoffFlags } from "@/lib/trustedHandoffFlags.server";
 import { getCity, parseCityId } from "@/lib/cities";
 import {
   cityMapOgAlt,
@@ -46,5 +47,5 @@ export default async function CityMapPage({ params }: CityMapPageProps) {
   const { city: raw } = await params;
   const cityId = parseCityId(raw);
   if (!cityId || !getCity(cityId).enabled) notFound();
-  return <PubMaxingShell cityId={cityId} />;
+  return <PubMaxingShell cityId={cityId} flags={readTrustedHandoffFlags()} />;
 }

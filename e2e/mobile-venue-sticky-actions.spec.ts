@@ -104,9 +104,10 @@ test("mobile sticky Train action opens Last train and the sheet reopens cleanly"
   await expect(portal.locator("#venuePanel-getting-home")).toBeVisible();
   await expect(sheet).toHaveClass(/sheet-full/);
 
-  await portal.getByRole("button", { name: "Close pub detail" }).click();
-  await expect(portal).toHaveCount(0);
-
+  // Trusted-handoff §4.6: a reload while the Venue is selected retains it (the
+  // sentinel keeps `sel` in the URL), so the sheet reopens cleanly at Overview.
+  // (Close now pops the selected entry with Back — covered in
+  // e2e/map-selection-history.spec.ts — so we reload with the sheet still open.)
   await page.reload();
   const reopenedPortal = page.locator('.mobileSheetPortal[data-sheet-kind="venue"]');
   await expect(reopenedPortal).toBeVisible();

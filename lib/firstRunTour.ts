@@ -221,11 +221,19 @@ export function shouldShowFirstRunTour(params: {
   mounted: boolean;
   seen: boolean;
   pathname: string;
+  /**
+   * Trusted-handoff §4.7: an explicit/restored Map arrival suppresses the tour
+   * for THIS arrival so it never stacks over a deep-linked Venue or planner.
+   * Suppression is per-arrival only — it never marks the tour seen, so a later
+   * clean Map open stays eligible.
+   */
+  explicitIntent?: boolean;
 }): boolean {
-  const { mounted, seen, pathname } = params;
+  const { mounted, seen, pathname, explicitIntent = false } = params;
   return (
     mounted &&
     !seen &&
+    !explicitIntent &&
     isTourEligiblePathname(pathname) &&
     !hasDedicatedOnboarding(pathname)
   );

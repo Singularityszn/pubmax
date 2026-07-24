@@ -36,6 +36,11 @@ import {
   subscribeTour,
   tourHasPromptBudget,
 } from "@/lib/firstRunTour";
+import {
+  restoredSessionHasExplicitIntent,
+  searchHasExplicitMapIntent,
+} from "@/lib/explicitMapIntent";
+import { readMobileMapSession } from "@/lib/mobileShell";
 import { trackEvent } from "@/lib/analytics";
 import "./firstRunTour.css";
 
@@ -102,6 +107,18 @@ export default function FirstRunTour(): React.JSX.Element | null {
   // Mount guard: first client render returns null (matching the SSR "seen"
   // snapshot) so there is never a hydration mismatch.
   const [mounted, setMounted] = useState(false);
+  // §4.7: freeze whether THIS arrival is an explicit/restored Map intent, so a
+  // deep link suppresses the tour before the selected sheet mounts. Frozen at
+  // mount from the arrival URL + restored session (the sentinel keeps `sel` in
+  // the final URL, so the read is stable). Search params alone are enough here
+  // — PlanningIntent-only arrivals carry sel/accept anyway.
+  const [explicitIntent] = useState(() => {
+    if (typeof window === "undefined") return false;
+    return (
+      searchHasExplicitMapIntent(window.location.search) ||
+      restoredSessionHasExplicitIntent(readMobileMapSession())
+    );
+  });
   const [step, setStep] = useState(0);
   // 1 = advancing (slide from right), -1 = going back (slide from left).
   const [dir, setDir] = useState<1 | -1>(1);
@@ -121,7 +138,7 @@ export default function FirstRunTour(): React.JSX.Element | null {
   // one-prompt-per-session budget: don't open if a sibling surface (A2HS /
   // identity / push) already holds it. See docs/PROMPT_ORCHESTRATION.md.
   const active =
-    shouldShowFirstRunTour({ mounted, seen, pathname }) && tourHasPromptBudget();
+    shouldShowFirstRunTour({ mounted, seen, pathname, explicitIntent }) && tourHasPromptBudget();
 
   // Claim the shared budget at the moment the tour actually shows, so an
   // eligible-but-hidden tour never starves a sibling. Idempotent for the tour.

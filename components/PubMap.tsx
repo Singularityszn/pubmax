@@ -116,6 +116,7 @@ import { useLiveDrops } from "@/components/map/useLiveDrops";
 import { useSheetDrag } from "@/components/map/useSheetDrag";
 import { useBuiltIdsPersistence } from "@/components/map/pubmap/useBuiltIdsPersistence";
 import { useSelParamSync } from "@/components/map/pubmap/useSelParamSync";
+import { useMapSelectionHistory } from "@/components/map/pubmap/useMapSelectionHistory";
 import { useMapKeyboardShortcuts } from "@/components/map/pubmap/useMapKeyboardShortcuts";
 import { useLandmarkJourney } from "@/components/map/pubmap/useLandmarkJourney";
 import { useLogIntent } from "@/components/map/pubmap/useLogIntent";
@@ -134,6 +135,10 @@ import { useMapPlanCoordinator, useMapPlanPresentation } from "@/components/map/
 import { planStopsToRouteVenues } from "@/lib/activePlanRoute";
 import { sheetTranslateY } from "@/lib/sheetSnap";
 import { seedCrawlState, useCrawlUrlSync } from "@/components/map/useCrawlUrl";
+import {
+  TRUSTED_HANDOFF_FLAGS_OFF,
+  type TrustedHandoffFlagsDTO,
+} from "@/lib/trustedHandoffFlags";
 import type { AltCrawlStyle } from "@/lib/crawlUrl";
 import {
   clearFavoritePint,
@@ -198,7 +203,6 @@ import {
   type NearbyMapResult,
 } from "@/lib/mobileShell";
 import {
-  hasCrawlArrivalParams,
   filtersForCuratedCrawl,
   buildMapSeed,
   detailStatusFor,
@@ -207,6 +211,16 @@ import {
   type MapSeed,
   type VenueDetailStatus,
 } from "@/lib/pubMap";
+import { explicitMapIntent } from "@/lib/explicitMapIntent";
+import {
+  readPlanningIntent,
+  writePlanningIntent,
+  type PlanningIntentSource,
+} from "@/lib/planningIntent";
+import {
+  buildMapAcceptanceIntentInput,
+  initialAcceptanceSource,
+} from "@/lib/mapAcceptance";
 
 // The "Near me now" instant-answer cards (Cycle 3, Lane 1). Loaded lazily so it
 // never rides in the eager map chunk (perf budget, PR #306) — it only mounts
@@ -339,8 +353,10 @@ function readBandChipDismissed(bandId: string): boolean {
 
 export default function PubMap({
   cityId = DEFAULT_CITY_ID,
+  flags = TRUSTED_HANDOFF_FLAGS_OFF,
 }: {
   cityId?: CityId;
+  flags?: TrustedHandoffFlagsDTO;
 }) {
   const city = getCity(cityId);
   const mobileViewport = useSyncExternalStore(
@@ -388,8 +404,16 @@ export default function PubMap({
   // link)? Captured ONCE at mount — useCrawlUrlSync starts writing mode/style back
   // to the URL after ~300ms, so re-reading location.search later would be wrong.
   // If any of these are present, the arrival is intentional and we never onboard.
-  const [arrivedWithCrawlParams] = useState(
-    () => hasCrawlArrivalParams(currentSearch()) || hasMapLogIntent(currentSearch()),
+  // §4.7 shared onboarding intent: the generic first-run tour and this curated
+  // "Start with a story" overlay consume the SAME answer, so an intentional Map
+  // arrival never gets a tour/onboarding stacked over it. PlanningIntent is only
+  // consulted when intent read is on (off keeps it ignored-but-preserved).
+  const [explicitArrivalIntent] = useState(() =>
+    explicitMapIntent({
+      search: currentSearch(),
+      planningIntent: flags.intentRead ? readPlanningIntent() : null,
+      restoredMobileSession,
+    }),
   );
   // `loaded` means the slim map index has settled. The full price dataset is no
   // longer fetched on /map mount; full details arrive lazily per selected venue.
@@ -951,9 +975,22 @@ export default function PubMap({
   // components/map/pubmap/useBuiltIdsPersistence.ts).
   useBuiltIdsPersistence(builtIds, BUILT_STORAGE_KEY);
 
+  // §4.8 typed acceptance source. Seeded from an `accept=1&src=` arrival, set to
+  // "map-search" when a search result is picked, and reset to null (browse) on
+  // an ordinary pin tap or generic `?sel=` selection. Consumed ONLY by an
+  // explicit Make it Stop 1 — opening details never writes intent.
+  const selectionOriginRef = useRef<PlanningIntentSource | null>(
+    initialAcceptanceSource(currentSearch()),
+  );
+
   const selectVenue = useCallback(
-    (id: string, initialTab: TabKey = "overview") => {
+    (
+      id: string,
+      initialTab: TabKey = "overview",
+      origin: PlanningIntentSource | null = null,
+    ) => {
       if (!id) return;
+      selectionOriginRef.current = origin;
       prefetchVenue(id);
       setTonightLaneOpen(false);
       setMapOverlay("none");
@@ -967,6 +1004,30 @@ export default function PubMap({
     [closeComposer, closePlanning, setSelectedVenueId, setSheetSnap, setSheetDragY],
   );
 
+  // §4.8 Make it Stop 1 — the ONE Map intent-write. The caller only wires this
+  // when the intent-write flag is on; the guard is defence in depth. It records
+  // a minimal honest PlanningIntent for the accepted Venue with its typed source
+  // (map-search selection, or the accepted-handoff arrival source), fires the
+  // verified acceptance + handoff analytics, then hands off to the Plan
+  // composer. Only an explicit tap reaches here — opening details never does.
+  const acceptStop1 = useCallback(() => {
+    if (!flags.intentWrite) return;
+    const venue = selectedVenue;
+    if (!venue) return;
+    const source: PlanningIntentSource = selectionOriginRef.current ?? "map-search";
+    writePlanningIntent(
+      buildMapAcceptanceIntentInput({ source, cityId, acceptedVenueId: venue.id }),
+    );
+    trackEvent("venue_accepted", {
+      source,
+      hasArea: false,
+      hasDate: false,
+      hasProvenance: false,
+    });
+    trackEvent("planning_handoff_opened", { from: source, to: "plan" });
+    if (typeof window !== "undefined") window.location.assign("/plan");
+  }, [flags.intentWrite, selectedVenue, cityId]);
+
   const prefetchVenueDetail = useCallback((id: string) => {
     prefetchVenue(id);
     // Also populate the shared warm cache so select can skip a second fetch.
@@ -976,6 +1037,12 @@ export default function PubMap({
   // ?sel= client-nav sync — verbatim in components/map/pubmap/useSelParamSync.ts.
   const selParam = searchParams?.get("sel") ?? "";
   useSelParamSync({ selParam, selectedVenueId, selectVenue });
+
+  // §4.6 selection-history sentinel: exact Back/close contract for the Venue
+  // sheet. Owns the `sel` history entry; every close path funnels through the
+  // selectedVenueId transition, so this single call covers button, Escape, and
+  // fling dismissals as well as browser Back.
+  useMapSelectionHistory({ arrivalSearch, selectedVenueId, onBackClose: dismissSheet });
 
   // W3 cheap-round / vertical deep links: /map?src=whats-on-deal opens the
   // Tonight lane already filtered to that kind (exact allowlisted tokens only).
@@ -1610,6 +1677,13 @@ export default function PubMap({
     },
     [cityId, clearAreaSheetTimer, trimmedMapQuery],
   );
+  // §4.8: picking a search result records the typed "map-search" origin, unlike
+  // a browse pin tap. The current search input text is NOT proof of origin — only
+  // an explicit result selection through this seam is.
+  const selectVenueFromSearch = useCallback(
+    (id: string) => selectVenue(id, "overview", "map-search"),
+    [selectVenue],
+  );
   const sharedMapSearchProps = {
     cityId,
     query: filters.query,
@@ -1618,7 +1692,7 @@ export default function PubMap({
     localities,
     userLocation,
     mapCenter: mapViewport.center,
-    onSelectVenue: selectVenue,
+    onSelectVenue: selectVenueFromSearch,
     onFlyToArea: selectSearchArea,
     onSubmitQuery: selectTopSearchMatch,
   } satisfies Omit<MapSearchSuggestProps, "id" | "mode" | "placeholder" | "onClose">;
@@ -1734,7 +1808,7 @@ export default function PubMap({
   const showOnboarding = shouldShowCuratedOnboarding({
     loaded,
     onboardingDismissed,
-    arrivedWithCrawlParams,
+    arrivedWithCrawlParams: explicitArrivalIntent,
     mode,
     builtIdsCount: builtIds.length,
     hasActiveCrawl: Boolean(activeCrawl),
@@ -1884,6 +1958,7 @@ export default function PubMap({
         latestContributorPrice={venueSignals.get(selectedVenue.id)?.latestContributorPrice}
         onToggleStop={toggleBuiltStop}
         onSelectVenue={selectVenue}
+        onAcceptStop1={flags.intentWrite ? acceptStop1 : undefined}
         initialTab={venueInitialTab}
         pintDrops={pintDrops}
         onGrabDragStart={mobileViewport ? undefined : onSheetDragStart}

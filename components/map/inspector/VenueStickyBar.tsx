@@ -1,7 +1,7 @@
 "use client";
 
 import { createPortal } from "react-dom";
-import { PlusCircle, Route as RouteIcon, Share2 } from "lucide-react";
+import { Flag, PlusCircle, Route as RouteIcon, Share2 } from "lucide-react";
 
 import type { Venue } from "@/lib/venues";
 import type { CrawlMode } from "@/components/map/ControlRail";
@@ -14,6 +14,7 @@ export default function VenueStickyBar({
   mode,
   inCrawl,
   onToggleStop,
+  onAcceptStop1,
   selectTab,
   setComposerOpen,
   shareVenue,
@@ -23,6 +24,8 @@ export default function VenueStickyBar({
   mode: CrawlMode;
   inCrawl: boolean;
   onToggleStop: (id: string) => void;
+  /** Trusted-handoff §4.8: accept this Venue as Stop 1. Absent when off. */
+  onAcceptStop1?: () => void;
   selectTab: (key: TabKey) => void;
   setComposerOpen: (open: boolean) => void;
   shareVenue: () => Promise<void>;
@@ -35,9 +38,20 @@ export default function VenueStickyBar({
   const footerSlot = useSheetFooterSlot();
   const bar = (
     <div className="venueSheetStickyBar" role="toolbar" aria-label="Venue actions">
+      {onAcceptStop1 ? (
+        <button
+          type="button"
+          className="venueSheetStickyPrimary"
+          onClick={onAcceptStop1}
+          aria-label={`Make ${venue.name} Stop 1`}
+        >
+          <Flag size={16} aria-hidden="true" />
+          Make it Stop 1
+        </button>
+      ) : null}
       <button
         type="button"
-        className="venueSheetStickyPrimary"
+        className={onAcceptStop1 ? "venueSheetStickyGhost" : "venueSheetStickyPrimary"}
         onClick={() => {
           selectTab("pints");
           setComposerOpen(true);
