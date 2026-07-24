@@ -515,3 +515,38 @@
     --line: currentColor;
   }
 }
+
+/* Trusted Handoff L16: gazetteer-grounded locality line, explicit acceptance
+   handoff, and Pal-local back path. All render only when palHandoff is on. */
+.palChatBack {
+  align-self: flex-start;
+  color: var(--ink-soft);
+  font: 500 0.85rem/1 var(--font-body);
+  text-decoration: none;
+  margin-bottom: 0.25rem;
+}
+
+.palChatBack:hover {
+  color: var(--ink);
+}
+
+.palChatLocality {
+  margin: 0.25rem 0 0.5rem;
+  color: var(--ink-soft);
+  font: 500 0.82rem/1.35 var(--font-body);
+}
+
+.palChatCardAccept {
+  display: inline-block;
+  margin-top: 0.5rem;
+  padding: 0.4rem 0.75rem;
+  border-radius: 0.5rem;
+  background: var(--brass);
+  color: var(--color-on-accent);
+  font: 600 0.85rem/1 var(--font-body);
+  text-decoration: none;
+}
+
+.palChatCardAccept:hover {
+  background: var(--brass-bright);
+}

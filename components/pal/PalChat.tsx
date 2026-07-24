@@ -25,6 +25,8 @@ import { DEFAULT_CITY_ID } from "@/lib/cities";
 import { rankNearMe } from "@/lib/nearMeAnswer";
 import { CENTRAL_PATCH, readRememberedArea, resolveNightPatch } from "@/lib/nightPatches";
 import { formatPalWhen, type PalAnswer, type PalCard } from "@/lib/palChat";
+import { palLocalityLine, resolvePalLocality, type PalLocality } from "@/lib/palLocality";
+import { writePlanningIntent } from "@/lib/planningIntent";
 import { createPalChatSession } from "@/lib/palChatClient";
 import {
   cheapestGlanceLine,
@@ -43,7 +45,7 @@ import "./palChat.css";
 
 type Entry =
   | { kind: "user"; id: string; text: string }
-  | { kind: "answer"; id: string; answer: PalAnswer }
+  | { kind: "answer"; id: string; answer: PalAnswer; locality: PalLocality | null }
   | { kind: "error"; id: string; message: string };
 
 function VenueLink({
@@ -93,7 +95,36 @@ function ProvChip({ card }: { card: PalCard }) {
   return <span className="palChatProv">{label}</span>;
 }
 
-function AnswerCard({ card, onOpen }: { card: PalCard; onOpen: () => void }) {
+// Explicit Pub Pal acceptance (§4.8: Pal owns its own "Use this Venue", distinct
+// from browsing). Writes a source-"pal" PlanningIntent then hands off to the Map
+// acceptance URL. Storage failure is swallowed by writePlanningIntent; the href
+// still carries accept=1&src=pal so the handoff never depends on client storage.
+function acceptPalVenue(card: PalCard, locality: PalLocality | null): void {
+  writePlanningIntent({
+    source: "pal",
+    cityId: DEFAULT_CITY_ID,
+    acceptedVenueId: card.venueId,
+    acceptedArea: locality?.area ?? null,
+    startsAt: null,
+    displayEvidence: {
+      kind: card.provenance.kind === "whats-on" ? "whats-on" : "directory",
+      observedAt: card.when ?? null,
+    },
+  });
+  trackEvent("venue_accepted", { source: "pal" });
+}
+
+export function AnswerCard({
+  card,
+  onOpen,
+  palHandoff,
+  locality,
+}: {
+  card: PalCard;
+  onOpen: () => void;
+  palHandoff: boolean;
+  locality: PalLocality | null;
+}) {
   const when = card.when ? formatPalWhen(card.when) : "";
   return (
     <li className="palChatCard">
@@ -124,11 +155,20 @@ function AnswerCard({ card, onOpen }: { card: PalCard; onOpen: () => void }) {
           ) : null}
         </div>
       </VenueLink>
+      {palHandoff && card.venueId ? (
+        <Link
+          className="palChatCardAccept pressable"
+          href={`/map?sel=${encodeURIComponent(card.venueId)}&accept=1&src=pal`}
+          onClick={() => acceptPalVenue(card, locality)}
+        >
+          Use this Venue
+        </Link>
+      ) : null}
     </li>
   );
 }
 
-export default function PalChat() {
+export default function PalChat({ palHandoff = false }: { palHandoff?: boolean }) {
   const [entries, setEntries] = useState<Entry[]>([]);
   const [query, setQuery] = useState("");
   const [pending, setPending] = useState(false);
@@ -167,12 +207,15 @@ export default function PalChat() {
         ]);
         return;
       }
+      // Ground WHERE this answer applies from the query and remembered area,
+      // only when the handoff is on. Off = no locality copy, byte-identical.
+      const locality = palHandoff ? resolvePalLocality(text, readRememberedArea()) : null;
       setEntries((prev) => [
         ...prev,
-        { kind: "answer", id: nextId(), answer: result },
+        { kind: "answer", id: nextId(), answer: result, locality },
       ]);
     },
-    [nextId, pending],
+    [nextId, pending, palHandoff],
   );
 
   const onSubmit = useCallback(
@@ -262,6 +305,11 @@ export default function PalChat() {
   return (
     <main className="palChat">
       <header className="palChatHead">
+        {palHandoff ? (
+          <Link className="palChatBack" href="/pal">
+            ← Pub Pal
+          </Link>
+        ) : null}
         <p className="palChatEyebrow">
           <Sparkles size={14} aria-hidden="true" />
           Ask your Pub Pal
@@ -295,7 +343,7 @@ export default function PalChat() {
                 </div>
               );
             }
-            const { answer } = entry;
+            const { answer, locality } = entry;
             return (
               <div key={entry.id} className="palChatRow palChatRow--pal">
                 <p
@@ -305,10 +353,21 @@ export default function PalChat() {
                 >
                   {answer.message}
                 </p>
+                {palHandoff && locality ? (
+                  <p className="palChatLocality" role="note">
+                    {palLocalityLine(locality)}
+                  </p>
+                ) : null}
                 {answer.cards.length > 0 ? (
                   <ul className="palChatCards">
                     {answer.cards.map((card) => (
-                      <AnswerCard key={card.key} card={card} onOpen={openVenue} />
+                      <AnswerCard
+                        key={card.key}
+                        card={card}
+                        onOpen={openVenue}
+                        palHandoff={palHandoff}
+                        locality={locality}
+                      />
                     ))}
                   </ul>
                 ) : null}

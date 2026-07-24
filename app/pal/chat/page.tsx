@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 
 import PalChat from "@/components/pal/PalChat";
+import { readTrustedHandoffFlags } from "@/lib/trustedHandoffFlags.server";
 
 export const metadata: Metadata = {
   title: "Ask your Pub Pal",
@@ -12,5 +13,8 @@ export const metadata: Metadata = {
 // by URL this cycle (nav entry is a follow-up, owned by Lane A). Reuses the
 // durably rate-limited /api/concierge route; no new backend surface.
 export default function PalChatPage() {
-  return <PalChat />;
+  // palHandoff off = existing Pal, byte-identical; on = gazetteer-grounded
+  // locality copy + explicit acceptance handoff to Map (Trusted Handoff L16).
+  const flags = readTrustedHandoffFlags();
+  return <PalChat palHandoff={flags.palHandoff} />;
 }
