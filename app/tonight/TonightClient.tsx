@@ -38,7 +38,7 @@ import { nearestNightAreaForViewport } from "@/lib/nightAreas";
 import TonightShareButton from "./TonightShareButton";
 import { trackEvent } from "@/lib/analytics";
 import { firstHttp } from "@/lib/httpUrl";
-import { resolveTonightNear, walkLabel, walkMinutes } from "@/lib/tonight";
+import { resolveTonightNear, tonightLocalityBasis, walkLabel, walkMinutes } from "@/lib/tonight";
 import { acceptTonightVenue } from "@/lib/tonightAcceptance";
 import { readRememberedArea, type RememberedArea } from "@/lib/nightPatches";
 import { palChatHref, VIBE_CHIPS } from "@/lib/vibeChips";
@@ -245,6 +245,7 @@ export default function TonightClient({ flags }: { flags: TrustedHandoffFlagsDTO
   // each firing their own /api/whats-on fetch (dedup is always on — no duplicate
   // first-viewport request). Their POSITION is flag-gated below: flag off keeps
   // their prod slot above the list; flag on moves them under the main list.
+  const localityBasis = tonightLocalityBasis(origin != null, tonightNear);
   const secondaryHeroes = groupedAll.map((group) => group.row);
   const secondaryLanes = (
     <>
@@ -493,11 +494,16 @@ export default function TonightClient({ flags }: { flags: TrustedHandoffFlagsDTO
                         href={link.href}
                         target="_blank"
                         rel="noreferrer noopener"
+                        onClick={() => trackEvent("tonight_result_opened", { kind: row.kind, localityBasis })}
                       >
                         {RowInner}
                       </a>
                     ) : (
-                      <Link className="tonightRowLink pressable" href={link.href}>
+                      <Link
+                        className="tonightRowLink pressable"
+                        href={link.href}
+                        onClick={() => trackEvent("tonight_result_opened", { kind: row.kind, localityBasis })}
+                      >
                         {RowInner}
                       </Link>
                     )
