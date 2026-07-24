@@ -4,10 +4,12 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { ChevronDown, Footprints, LocateFixed, MapPin, RotateCw } from "lucide-react";
 
-import { DEFAULT_CITY_ID, type CityId } from "@/lib/cities";
+import { trackEvent } from "@/lib/analytics";
+import { CITIES, DEFAULT_CITY_ID, type CityId } from "@/lib/cities";
 import { mapHrefForCity } from "@/lib/cityPreference";
 import { PINT_DATASET_OBSERVED_AT, formatMonthYear } from "@/lib/dataFreshness";
 import { formatPrice } from "@/lib/venues";
+import { acceptNearVenue, type RawAcceptedArea } from "@/lib/venueAcceptance";
 import { venueMapUrl } from "@/lib/venueMapUrl";
 import { loadSlimVenuesForCity } from "@/lib/venuesSlim";
 import {
@@ -73,9 +75,60 @@ export type NearMeNowProps = {
   initialPatchId?: string | null;
   /** When true, patch picks rewrite `?patch=` on the current path. */
   syncPatchToUrl?: boolean;
+  /**
+   * Trusted-handoff intent-write flag (`PUBMAX_TRUSTED_HANDOFF_INTENT_WRITE`),
+   * delivered as a server-owned DTO by the caller — never read from the env on
+   * the client. Off (the default) keeps every card a browse-only link exactly
+   * as before. On adds an explicit "Use this pub" acceptance to each card that
+   * records a PlanningIntent (source `near`) and hands the Venue off as
+   * accepted, distinct from opening it for a look.
+   */
+  intentWrite?: boolean;
 };
 
 const GEO_OPTS: PositionOptions = { enableHighAccuracy: false, timeout: 7000, maximumAge: 60_000 };
+
+/** The active browse area as an acceptance area, or null for a located answer. */
+function rawAcceptArea(patch: NightPatch | null, borough: string | null): RawAcceptedArea {
+  if (patch) return { kind: "night-patch", id: patch.id };
+  if (borough) return { kind: "borough", name: borough };
+  return null;
+}
+
+/** City to record when the venue id itself does not resolve to a known city. */
+function resolveFallbackCityId(cityId: CityId | string): CityId {
+  return typeof cityId === "string" && Object.hasOwn(CITIES, cityId)
+    ? (cityId as CityId)
+    : DEFAULT_CITY_ID;
+}
+
+/**
+ * The answer's cards plus, when acceptance is live, the evidence receipt above
+ * them and a "Use this pub" affordance on each. With `accept` off this is the
+ * exact browse-only list it has always been.
+ */
+function AnswerCards({
+  cards,
+  onOpen,
+  onAccept,
+  accept,
+  receipt,
+}: {
+  cards: NearMeCard[];
+  onOpen: (id: string) => void;
+  onAccept: (id: string) => void;
+  accept: boolean;
+  receipt: string | null;
+}) {
+  return (
+    <>
+      {accept && receipt && cards.length > 0 ? (
+        <p className="nmnAcceptReceipt">{receipt}</p>
+      ) : null}
+      <NearMeCardList cards={cards} onOpen={onOpen} onAccept={accept ? onAccept : undefined} />
+    </>
+  );
+}
 
 export default function NearMeNow({
   cityId = DEFAULT_CITY_ID,
@@ -86,6 +139,7 @@ export default function NearMeNow({
   initialLocation = null,
   initialPatchId = null,
   syncPatchToUrl = false,
+  intentWrite = false,
 }: NearMeNowProps) {
   const router = useRouter();
   const pathname = usePathname();
@@ -302,8 +356,35 @@ export default function NearMeNow({
     [onSelectVenue, router],
   );
 
+  // Explicit acceptance (§4.8): only "Use this pub" reaches here — opening a card
+  // above stays browse-only. Records one PlanningIntent (source "near") carrying
+  // the active area, tonight, and the price provenance, then hands the Venue off
+  // via the accept deep link. A storage failure degrades to a browse selection
+  // (canonical `?sel=`) and emits nothing, so an unrecorded acceptance is never
+  // counted. Never fires with intentWrite off.
+  const acceptVenue = useCallback(
+    (id: string) => {
+      const result = acceptNearVenue({
+        venueId: id,
+        area: rawAcceptArea(patch, borough),
+        // Near answers "right now"; no explicit future date is chosen.
+        startsAt: null,
+        observedAt: PINT_DATASET_OBSERVED_AT.toISOString(),
+        fallbackCityId: resolveFallbackCityId(cityId),
+      });
+      if (result.telemetry) trackEvent("venue_accepted", result.telemetry);
+      router.push(result.href);
+    },
+    [patch, borough, cityId, router],
+  );
+
   const collectedLabel = `Prices collected ${formatMonthYear(PINT_DATASET_OBSERVED_AT)}`;
   const areaLabel = borough ?? patch?.label ?? null;
+  // Evidence receipt (§L06): what "Use this pub" carries into the plan. Shown
+  // only when acceptance is live, so the browse-only surface stays uncluttered.
+  const acceptReceipt = intentWrite
+    ? `Keeps ${areaLabel ?? "this pub"}, tonight, and the ${formatMonthYear(PINT_DATASET_OBSERVED_AT)} price in your plan.`
+    : null;
   const patchMessage =
     areaLabel && patchReason
       ? patchReason === "denied"
@@ -391,7 +472,13 @@ export default function NearMeNow({
               <p className="nmnSub">Within about a 12-minute walk.</p>
             )}
           </header>
-          <NearMeCardList cards={cards} onOpen={openVenue} />
+          <AnswerCards
+            cards={cards}
+            onOpen={openVenue}
+            onAccept={acceptVenue}
+            accept={intentWrite}
+            receipt={acceptReceipt}
+          />
           <footer className="nmnFoot">
             <a className="nmnRetry" href={resolvedMapHref}>
               <MapPin size={16} aria-hidden="true" /> Open the full map
@@ -411,7 +498,13 @@ export default function NearMeNow({
             {patchMessage ? <p className="nmnSub">{patchMessage}</p> : null}
             {patchEvidenceNote ? <p className="nmnPatchTier">{patchEvidenceNote}</p> : null}
           </header>
-          <NearMeCardList cards={cards} onOpen={openVenue} />
+          <AnswerCards
+            cards={cards}
+            onOpen={openVenue}
+            onAccept={acceptVenue}
+            accept={intentWrite}
+            receipt={acceptReceipt}
+          />
           {cards.length === 0 ? (
             <div className="nmnOutside">
               <UnsupportedAreaPreview
@@ -451,33 +544,70 @@ export default function NearMeNow({
   );
 }
 
-function NearMeCardList({ cards, onOpen }: { cards: NearMeCard[]; onOpen: (id: string) => void }) {
+function NearMeCardBody({ card }: { card: NearMeCard }) {
+  return (
+    <>
+      <span className="nmnCardMain">
+        <span className="nmnCardName">{card.name}</span>
+        <span className="nmnCardMeta">
+          <span className="nmnCardBorough">{card.borough}</span>
+          {card.walkMinutes != null ? (
+            <span className="nmnCardWalk">
+              <Footprints size={13} aria-hidden="true" />
+              {card.walkMinutes} min
+              {card.distanceKm != null ? ` · ${card.distanceKm.toFixed(1)} km` : null}
+            </span>
+          ) : null}
+        </span>
+      </span>
+      <span className="nmnCardPrice">
+        <span className="nmnCardPriceValue">{formatPrice(card.cheapestPrice)}</span>
+        <span className="nmnCardPriceLabel">cheapest pint</span>
+      </span>
+    </>
+  );
+}
+
+function NearMeCardList({
+  cards,
+  onOpen,
+  onAccept,
+}: {
+  cards: NearMeCard[];
+  onOpen: (id: string) => void;
+  /**
+   * When present (intent-write on), each card gains a distinct "Use this pub"
+   * acceptance beside the browse tap. When absent, the card is the exact
+   * browse-only button it has always been.
+   */
+  onAccept?: (id: string) => void;
+}) {
   if (cards.length === 0) return null;
   return (
     <ul className="nmnList">
-      {cards.map((card) => (
-        <li key={card.id}>
-          <button type="button" className="nmnCard" onClick={() => onOpen(card.id)}>
-            <span className="nmnCardMain">
-              <span className="nmnCardName">{card.name}</span>
-              <span className="nmnCardMeta">
-                <span className="nmnCardBorough">{card.borough}</span>
-                {card.walkMinutes != null ? (
-                  <span className="nmnCardWalk">
-                    <Footprints size={13} aria-hidden="true" />
-                    {card.walkMinutes} min
-                    {card.distanceKm != null ? ` · ${card.distanceKm.toFixed(1)} km` : null}
-                  </span>
-                ) : null}
-              </span>
-            </span>
-            <span className="nmnCardPrice">
-              <span className="nmnCardPriceValue">{formatPrice(card.cheapestPrice)}</span>
-              <span className="nmnCardPriceLabel">cheapest pint</span>
-            </span>
-          </button>
-        </li>
-      ))}
+      {cards.map((card) =>
+        onAccept ? (
+          <li key={card.id} className="nmnCardRow">
+            <button type="button" className="nmnCard nmnCardBrowse" onClick={() => onOpen(card.id)}>
+              <NearMeCardBody card={card} />
+            </button>
+            <button
+              type="button"
+              className="nmnAccept"
+              aria-label={`Use ${card.name} for your plan`}
+              onClick={() => onAccept(card.id)}
+            >
+              Use this pub
+            </button>
+          </li>
+        ) : (
+          <li key={card.id}>
+            <button type="button" className="nmnCard" onClick={() => onOpen(card.id)}>
+              <NearMeCardBody card={card} />
+            </button>
+          </li>
+        ),
+      )}
     </ul>
   );
 }

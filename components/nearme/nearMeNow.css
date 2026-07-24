@@ -226,6 +226,57 @@
   color: var(--muted);
 }
 
+/* — Explicit acceptance (intent-write on) —
+   Each card splits into a browse tap plus a distinct "Use this pub" CTA that
+   accepts the Venue into a plan. The CTA uses the one loud accent (a plan
+   action). None of this renders when acceptance is off, so the browse-only
+   surface is byte-for-byte unchanged. Wraps on narrow widths so the row never
+   forces horizontal scroll. */
+.nmnCardRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: stretch;
+  gap: var(--space-2);
+}
+
+.nmnCardRow .nmnCardBrowse {
+  flex: 1 1 12rem;
+  min-width: 0;
+}
+
+.nmnAccept {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  padding: 0 var(--space-4);
+  border: 1px solid transparent;
+  border-radius: var(--radius-lg);
+  background: var(--accent-action);
+  color: var(--color-on-accent);
+  font-size: 0.85rem;
+  font-weight: 700;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: transform 160ms ease-out, background-color 160ms ease-out;
+}
+
+.nmnAccept:hover {
+  background: var(--accent-action-strong);
+  color: var(--color-on-accent-strong);
+}
+
+.nmnAccept:active {
+  transform: scale(0.97);
+}
+
+.nmnAcceptReceipt {
+  margin: 0 0 var(--space-2);
+  font-size: 0.74rem;
+  color: var(--muted);
+}
+
 /* — Footer actions — */
 .nmnFoot {
   display: flex;
@@ -401,6 +452,7 @@
 
 .nmnLocate:focus-visible,
 .nmnCard:focus-visible,
+.nmnAccept:focus-visible,
 .nmnRetry:focus-visible,
 .nmnBack:focus-visible,
 .nmnBoroughChip:focus-visible {
@@ -411,6 +463,7 @@
 @media (prefers-reduced-motion: reduce) {
   .nmnLocate,
   .nmnCard,
+  .nmnAccept,
   .nmnRetry,
   .nmnBack,
   .nmnBoroughChip,
@@ -419,6 +472,7 @@
   }
   .nmnLocate:active,
   .nmnCard:active,
+  .nmnAccept:active,
   .nmnRetry:active,
   .nmnBack:active,
   .nmnBoroughChip:active {
