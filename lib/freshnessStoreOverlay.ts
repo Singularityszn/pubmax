@@ -19,6 +19,11 @@ import { weatherSnapshotStore } from "@/lib/weatherSnapshotStore";
 export const WHATS_ON_FEED_KEY = "whats_on";
 export const WEATHER_DATASET_ID = "weather";
 export const WHATS_ON_DATASET_ID = "whats_on";
+// Night Signal candidate ingestion (the Vercel-cron EXA sweep). This is the
+// PENDING-candidate feed, distinct from the human-reviewed `night_signals`
+// snapshot — it reports when ingestion last ran, never that claims were shipped.
+export const NIGHT_SIGNAL_CANDIDATES_FEED_KEY = "night_signal_candidates";
+export const NIGHT_SIGNAL_CANDIDATES_DATASET_ID = "night_signal_candidates";
 
 /**
  * Resolve store-backed observedAt for the cron-plane feeds. Returns a map of
@@ -38,6 +43,13 @@ export async function resolveStoreObservedAt(): Promise<Record<string, string>> 
   try {
     const stamp = await feedFreshnessStore().read(WHATS_ON_FEED_KEY);
     if (stamp?.observedAt) overlay[WHATS_ON_DATASET_ID] = stamp.observedAt;
+  } catch {
+    // fail-soft: keep the disk stamp
+  }
+
+  try {
+    const stamp = await feedFreshnessStore().read(NIGHT_SIGNAL_CANDIDATES_FEED_KEY);
+    if (stamp?.observedAt) overlay[NIGHT_SIGNAL_CANDIDATES_DATASET_ID] = stamp.observedAt;
   } catch {
     // fail-soft: keep the disk stamp
   }
