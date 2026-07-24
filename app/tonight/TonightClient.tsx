@@ -10,7 +10,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import {
   ArrowUpRight,
   Beer,
@@ -79,6 +79,13 @@ function coverageLabel(count: number): string {
 // null asOf to "Freshness unknown"; keying off the kind makes the intent explicit.
 function freshnessLabel(kind: TonightFreshnessKind, asOf: string | null): string {
   return kind === "unknown" ? "Freshness unknown" : checkedLabel(asOf);
+}
+
+// Deals/Music placement: below the main list under the canonical model (§4.11
+// main-list-first), else in their shipped slot above it. Keeping the branch in a
+// helper holds TonightClient under the cyclomatic-complexity cap.
+function placeSecondaryLanes(below: boolean, lanes: ReactNode): { above: ReactNode; below: ReactNode } {
+  return below ? { above: null, below: lanes } : { above: lanes, below: null };
 }
 
 // A thin night (0-2 confirmed listings) leaves the list short enough that the
@@ -234,6 +241,19 @@ export default function TonightClient({ flags }: { flags: TrustedHandoffFlagsDTO
   const showLocation = hasGeoRows || thinNight;
   const locationExpanded = locationOpen || origin != null;
 
+  // Secondary Deals/Music lanes reuse the already-loaded grouped heroes instead of
+  // each firing their own /api/whats-on fetch (dedup is always on — no duplicate
+  // first-viewport request). Their POSITION is flag-gated below: flag off keeps
+  // their prod slot above the list; flag on moves them under the main list.
+  const secondaryHeroes = groupedAll.map((group) => group.row);
+  const secondaryLanes = (
+    <>
+      <DealsTonightLane rows={secondaryHeroes} asOf={asOf} />
+      <MusicTonightLane rows={secondaryHeroes} asOf={asOf} />
+    </>
+  );
+  const lanePlacement = placeSecondaryLanes(flags.tonightGrouping, secondaryLanes);
+
   return (
     <main className="tonightPage" data-testid="tonight-screen">
       <SiteNav active="tonight" />
@@ -266,9 +286,10 @@ export default function TonightClient({ flags }: { flags: TrustedHandoffFlagsDTO
       </header>
 
       <TonightConditionsStrip origin={origin} />
-      {/* W3 cheap-round surface on /tonight — same deals spine as Discover. */}
-      <DealsTonightLane />
-      <MusicTonightLane />
+      {/* Deals/Music secondary treatment. Flag off keeps their shipped position
+          here (above the main list) so the page is byte-identical to prod; flag on
+          moves them below the main list (§4.11 main-list-first). */}
+      {lanePlacement.above}
       {/* Wide viewports place the strip plus this block in a sticky right rail
           (tonight.css grid); below the breakpoint the rail block simply follows
           the strip in flow. Area news needs a coarse area: the shared
@@ -582,6 +603,10 @@ export default function TonightClient({ flags }: { flags: TrustedHandoffFlagsDTO
           </p>
         </>
       ) : null}
+
+      {/* Main-list-first (§4.11): under the canonical model the Deals/Music
+          treatment follows the main list instead of preceding it. */}
+      {lanePlacement.below}
 
       {thinNight ? (
         <section className="tonightQuiet" aria-label="While it's quiet">
