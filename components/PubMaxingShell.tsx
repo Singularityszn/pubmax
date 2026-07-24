@@ -6,6 +6,10 @@ import { useEffect, useState } from "react";
 import MapLoadingSkeleton from "@/components/map/MapLoadingSkeleton";
 import type { CityId } from "@/lib/cities";
 import { DEFAULT_CITY_ID } from "@/lib/cities";
+import {
+  TRUSTED_HANDOFF_FLAGS_OFF,
+  type TrustedHandoffFlagsDTO,
+} from "@/lib/trustedHandoffFlags";
 
 const PubMap = dynamic(() => import("./PubMap"), {
   ssr: false,
@@ -58,10 +62,14 @@ function persistOnboardingDismissal(): void {
 
 type PubMaxingShellProps = {
   cityId?: CityId;
+  // Server-owned trusted-handoff flag DTO, read once in the RSC page and passed
+  // down immutably. The client never interprets flag env vars itself.
+  flags?: TrustedHandoffFlagsDTO;
 };
 
 export default function PubMaxingShell({
   cityId = DEFAULT_CITY_ID,
+  flags = TRUSTED_HANDOFF_FLAGS_OFF,
 }: PubMaxingShellProps) {
   // Lazy initializer = runs exactly once, before the dynamic PubMap (ssr:false)
   // can possibly have mounted and read the sessionStorage flag.
@@ -82,5 +90,5 @@ export default function PubMaxingShell({
     };
   }, []);
 
-  return <PubMap key={cityId} cityId={cityId} />;
+  return <PubMap key={cityId} cityId={cityId} flags={flags} />;
 }

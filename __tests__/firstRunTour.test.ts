@@ -70,6 +70,14 @@ describe("shouldShowFirstRunTour", () => {
     expect(shouldShowFirstRunTour({ ...base, pathname: "/pint-index" })).toBe(false);
   });
 
+  it("stands down for an explicit/restored Map arrival (§4.7) without marking seen", () => {
+    // A deep-linked or restored Map arrival suppresses the tour for THIS arrival.
+    expect(shouldShowFirstRunTour({ ...base, explicitIntent: true })).toBe(false);
+    // Suppression is per-arrival: a later clean Map open (no intent) is eligible.
+    expect(shouldShowFirstRunTour({ ...base, explicitIntent: false })).toBe(true);
+    expect(shouldShowFirstRunTour(base)).toBe(true); // default is not intent
+  });
+
   it("never shows over Pub Pal or You's dedicated onboarding, even on their own routes", () => {
     expect(shouldShowFirstRunTour({ ...base, pathname: "/pal" })).toBe(false);
     expect(shouldShowFirstRunTour({ ...base, pathname: "/u/somehandle" })).toBe(false);

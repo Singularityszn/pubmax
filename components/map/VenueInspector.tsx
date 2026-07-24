@@ -39,6 +39,11 @@ type VenueInspectorProps = {
   latestContributorPrice: number | null | undefined;
   onToggleStop: (id: string) => void;
   onSelectVenue?: (id: string) => void;
+  /**
+   * Trusted-handoff §4.8 "Make it Stop 1": accept this Venue into a Plan. Only
+   * provided when the intent-write flag is on; the action is otherwise absent.
+   */
+  onAcceptStop1?: () => void;
   initialTab?: TabKey;
   pintDrops: PintDropsState;
   // The mobile bottom-sheet drag gesture (GH #17) lives in PubMap.tsx (the
@@ -71,6 +76,7 @@ export default function VenueInspector({
   latestContributorPrice,
   onToggleStop,
   onSelectVenue,
+  onAcceptStop1,
   initialTab = DEFAULT_TAB,
   pintDrops,
   onGrabDragStart,
@@ -212,6 +218,7 @@ export default function VenueInspector({
         mode={mode}
         inCrawl={inCrawl}
         onToggleStop={onToggleStop}
+        onAcceptStop1={onAcceptStop1}
         selectTab={selectTab}
         setComposerOpen={setComposerOpen}
         shareVenue={shareVenue}

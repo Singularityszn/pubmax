@@ -1,4 +1,10 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+
+// The map pages now read the server-owned trusted-handoff flags, which pulls the
+// Next.js `server-only` guard module in at import time. It has no npm package to
+// resolve under vitest, so stub it (the same pattern trustedHandoffFlags.test
+// uses). generateMetadata itself never touches the flags.
+vi.mock("server-only", () => ({}));
 
 import { generateMetadata as generateCityMetadata } from "@/app/map/[city]/page";
 import { generateMetadata as generateLondonMetadata } from "@/app/map/page";
