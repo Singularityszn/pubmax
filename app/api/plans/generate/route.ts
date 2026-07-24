@@ -2,9 +2,11 @@ import { randomUUID } from "node:crypto";
 
 import { jsonNoStore } from "@/lib/apiResponses";
 import { publicApiError } from "@/lib/apiError";
-import { DEFAULT_CITY_ID, parseCityId } from "@/lib/cities";
+import { DEFAULT_CITY_ID, parseCityId, type CityId } from "@/lib/cities";
 import { loadConciergeVenues } from "@/lib/concierge/venues.server";
-import { getNightArea, isNightAreaRouteReady, publicNightAreaCoverage } from "@/lib/nightAreas";
+import { getNightArea, isNightAreaRouteReady, publicNightAreaCoverage, type NightArea } from "@/lib/nightAreas";
+import type { NightContext } from "@/lib/nightPlanning";
+import type { ParsedPlanGenerationIntake } from "@/lib/planGenerationIntake";
 import { haversineKm } from "@/lib/haversine";
 import type { PlanningConfidence, PlanRouteTotals } from "@/lib/planIntelligence";
 import type { WhatsOnRow } from "@/lib/whatsOn";
@@ -24,10 +26,14 @@ import {
 	planRouteTimingDisclosure,
 } from "@/lib/planGenerationDto";
 import { planEvidenceWarning, planGenerationEvidenceGaps, scoreVenueForPlan } from "@/lib/planGenerationRanking";
-import { selectPlanGenerationCandidates } from "@/lib/planGenerationSelection.server";
+import { selectAnchoredPlanGenerationCandidates, selectPlanGenerationCandidates, type ScoredPlanCandidate } from "@/lib/planGenerationSelection.server";
+import type { PlanGenerationAnchor } from "@/lib/planGenerationRequest";
 import { planTemporalEvidence } from "@/lib/planGenerationTemporalEvidence";
-import type { PlanConstraintReport, SelectedGroundedPlanStop } from "@/lib/planRouteOptimizer";
-import { mintPlanGroundingProof } from "@/lib/planGrounding.server";
+import type { PlanConstraintReport, PlanRouteTiming, SelectedGroundedPlanStop } from "@/lib/planRouteOptimizer";
+import { resolvePlanningAnchor } from "@/lib/planningAnchor.server";
+import type { PlanningIntentSource } from "@/lib/planningIntent";
+import { readTrustedHandoffFlag } from "@/lib/trustedHandoffFlags.server";
+import { mintPlanGroundingProof, mintPlanGroundingProofV2 } from "@/lib/planGrounding.server";
 import { planSigningPreflightResponse, planSigningUnavailableResponse } from "@/lib/planSigningHttp.server";
 import { assertServerEnv } from "@/lib/serverEnv";
 import { clientIp, hashIp, RATE_LIMIT_MAX, RATE_LIMIT_WINDOW_MS } from "@/lib/supabase";
@@ -59,6 +65,127 @@ export async function GET(request: Request): Promise<Response> {
     status: 204,
     headers: { "cache-control": "no-store" },
   });
+}
+
+type AnchoredRouteData<T extends ScoredPlanCandidate> = {
+	chosen: T[];
+	groundedStops: readonly SelectedGroundedPlanStop<T>[];
+	groundedAlternatives: readonly (readonly SelectedGroundedPlanStop<T>[])[];
+	groundedTiming: PlanRouteTiming;
+	constraintReport: PlanConstraintReport;
+	accessibilityEnforced: boolean;
+	anchorContext: { anchorVenueId: string; anchorSource: PlanningIntentSource };
+};
+
+/**
+ * Preflight the accepted anchor and run the anchor-pinned optimizer. Returns a
+ * ready Response for the conflict and one-Stop anchor-only outcomes, or the
+ * grounded route data for the shared three-Stop response assembly.
+ */
+async function runAnchoredGeneration<T extends ScoredPlanCandidate>(params: {
+	cityId: CityId;
+	anchor: PlanGenerationAnchor;
+	candidates: readonly T[];
+	context: NightContext;
+	intake: ParsedPlanGenerationIntake | null;
+	requestNow: number;
+	operationKey: string;
+	area: NightArea;
+	coverage: ReturnType<typeof publicNightAreaCoverage>;
+}): Promise<{ done: Response } | { route: AnchoredRouteData<T> }> {
+	const { cityId, anchor, candidates, context, intake, requestNow, operationKey, area, coverage } = params;
+	const nightArea = { id: area.slug, ...coverage };
+	const anchorConflict = (reason: string, message: string): { done: Response } => ({
+		done: jsonNoStore({
+			grounded: false,
+			outcome: "anchor-conflict",
+			anchored: true,
+			routeReady: false,
+			stops: [],
+			reason,
+			message,
+			operationKey,
+			nightArea,
+		}, { status: 200 }),
+	});
+
+	const anchorResolution = await resolvePlanningAnchor({
+		cityId,
+		venueId: anchor.venueId,
+		startsAt: anchor.startsAt,
+		acceptedArea: anchor.acceptedArea,
+		now: requestNow,
+	});
+	if (anchorResolution.status === "conflict") {
+		return anchorConflict(anchorResolution.code, anchorResolution.message);
+	}
+	const anchorVenueId = anchorResolution.canonical.venueId;
+	const selection = await selectAnchoredPlanGenerationCandidates(candidates, context, intake, requestNow, anchorVenueId);
+	if (!selection.ok) {
+		return anchorConflict("ANCHOR_ROUTE_CONFLICT", "We could not build a Route from that Venue right now. Try a different anchor.");
+	}
+	if (selection.outcome === "anchor-only") {
+		let anchorOnlyProof: string;
+		try {
+			anchorOnlyProof = mintPlanGroundingProofV2({
+				routeVenueIds: [anchorVenueId],
+				allowedVenueIds: [anchorVenueId],
+				anchorVenueId,
+				anchorSource: anchor.source,
+				outcome: "anchor-only",
+				operationKey,
+			}, requestNow);
+		} catch (error) {
+			const unavailable = planSigningUnavailableResponse(error);
+			if (unavailable) return { done: unavailable };
+			throw error;
+		}
+		const stop = selection.anchor;
+		return { done: jsonNoStore({
+			// A grounded one-Stop draft: the accepted Venue is kept as Stop 1 and
+			// never emits plan_accepted (routeReady stays false until three Stops).
+			grounded: true,
+			outcome: "anchor-only",
+			anchored: true,
+			routeReady: false,
+			reason: "ANCHOR_COMPANIONS_INSUFFICIENT",
+			anchorVenueId,
+			anchorSource: anchor.source,
+			groundingProof: anchorOnlyProof,
+			operationKey,
+			inferredContext: context,
+			nightArea,
+			stops: [{
+				venueId: stop.venueId,
+				venueName: stop.venueName,
+				position: 0,
+				estimatedPintPricePence: stop.price.pence,
+				priceEvidence: stop.price,
+				accessEvidence: stop.access,
+				constraintFlags: stop.constraintFlags,
+				operationalEvidence: {
+					openingAtVisit: stop.opening.state,
+					openingSource: stop.opening.source,
+					visitWindow: null,
+					transportBasis: "compact-straight-line",
+				},
+				provenance: [
+					{ kind: "venue_dataset", label: `PUBMAXX venue record for ${stop.venueName}` },
+					{ kind: "night_area_review", label: `${area.name} Night Area review`, asOf: area.lastReviewedAt },
+				],
+				alternatives: [],
+			}],
+		}, { status: 200 }) };
+	}
+	return { route: {
+		chosen: selection.chosen,
+		groundedStops: selection.selection.stops,
+		groundedAlternatives: selection.selection.alternatives,
+		groundedTiming: selection.selection.timing,
+		constraintReport: selection.selection.constraintReport,
+		accessibilityEnforced: selection.accessibilityEnforced,
+		anchorContext: { anchorVenueId, anchorSource: anchor.source },
+	} };
 }
 
 export async function POST(request: Request): Promise<Response> {
@@ -141,22 +268,41 @@ export async function POST(request: Request): Promise<Response> {
 	let constraintReport: PlanConstraintReport | null = null;
 	let groundedTiming: { straightLineWalkingKm: number; walkingMinutes: number; transferUncertaintyMinutes: number; scheduledRouteMinutes: number } | null = null;
 	let accessibilityEnforced = false;
-	const generatedSelection = await selectPlanGenerationCandidates(candidates, context, intake, requestNow);
-	if (!generatedSelection.ok) {
-		return publicApiError(
-			`No three-stop route in ${area.name} can satisfy every required constraint with the evidence available.`,
-			"GROUNDED_CONSTRAINTS_UNSATISFIED",
-			422,
-			{ details: { nightArea: area.slug, availableVenueCount: candidates.length, ...generatedSelection.selection } },
-		);
-	}
-	const chosen = generatedSelection.chosen;
-	if (!generatedSelection.legacy) {
-		groundedStops = generatedSelection.selection.stops;
-		groundedAlternatives = generatedSelection.selection.alternatives;
-		groundedTiming = generatedSelection.selection.timing;
-		constraintReport = generatedSelection.selection.constraintReport;
-		accessibilityEnforced = generatedSelection.accessibilityEnforced;
+	let anchorContext: { anchorVenueId: string; anchorSource: PlanningIntentSource } | null = null;
+	let chosen: Candidate[];
+	const anchorRequest = parsedRequest.value.anchor;
+	// Anchored generation is opt-in behind the flag; off ignores the anchor and
+	// leaves the legacy unanchored path byte-identical.
+	if (readTrustedHandoffFlag("anchoredGeneration") && anchorRequest) {
+		const anchored = await runAnchoredGeneration({
+			cityId, anchor: anchorRequest, candidates, context, intake, requestNow, operationKey, area, coverage,
+		});
+		if ("done" in anchored) return anchored.done;
+		chosen = anchored.route.chosen;
+		groundedStops = anchored.route.groundedStops;
+		groundedAlternatives = anchored.route.groundedAlternatives;
+		groundedTiming = anchored.route.groundedTiming;
+		constraintReport = anchored.route.constraintReport;
+		accessibilityEnforced = anchored.route.accessibilityEnforced;
+		anchorContext = anchored.route.anchorContext;
+	} else {
+		const generatedSelection = await selectPlanGenerationCandidates(candidates, context, intake, requestNow);
+		if (!generatedSelection.ok) {
+			return publicApiError(
+				`No three-stop route in ${area.name} can satisfy every required constraint with the evidence available.`,
+				"GROUNDED_CONSTRAINTS_UNSATISFIED",
+				422,
+				{ details: { nightArea: area.slug, availableVenueCount: candidates.length, ...generatedSelection.selection } },
+			);
+		}
+		chosen = generatedSelection.chosen;
+		if (!generatedSelection.legacy) {
+			groundedStops = generatedSelection.selection.stops;
+			groundedAlternatives = generatedSelection.selection.alternatives;
+			groundedTiming = generatedSelection.selection.timing;
+			constraintReport = generatedSelection.selection.constraintReport;
+			accessibilityEnforced = generatedSelection.accessibilityEnforced;
+		}
 	}
   if (chosen.length < 3) return publicApiError(`Not enough grounded venues are available in ${area.name} yet.`, "GROUNDED_VENUES_INSUFFICIENT", 422, { details: { nightArea: area.slug, availableVenueCount: chosen.length } });
 	const pricePence = chosen.map(({ venue }, position) => groundedStops
@@ -306,7 +452,17 @@ export async function POST(request: Request): Promise<Response> {
 	];
 	let groundingProof: string;
 	try {
-		groundingProof = mintPlanGroundingProof(groundingCandidateIds, operationKey, requestNow);
+		groundingProof = anchorContext
+			? mintPlanGroundingProofV2({
+				// chosen[0] is the anchor: exact server-selected order, anchor first.
+				routeVenueIds: chosen.map(({ venue }) => venue.id),
+				allowedVenueIds: groundingCandidateIds,
+				anchorVenueId: anchorContext.anchorVenueId,
+				anchorSource: anchorContext.anchorSource,
+				outcome: "route",
+				operationKey,
+			}, requestNow)
+			: mintPlanGroundingProof(groundingCandidateIds, operationKey, requestNow);
 	} catch (error) {
 		const unavailable = planSigningUnavailableResponse(error);
 		if (unavailable) return unavailable;
@@ -318,6 +474,13 @@ export async function POST(request: Request): Promise<Response> {
     // The explicit flag lets clients distinguish server-grounded generation
     // from a manual draft without guessing from unrelated revision metadata.
     grounded: true,
+    ...(anchorContext ? {
+      outcome: "route" as const,
+      anchored: true,
+      routeReady: true,
+      anchorVenueId: anchorContext.anchorVenueId,
+      anchorSource: anchorContext.anchorSource,
+    } : {}),
     groundingProof,
     operationKey,
     inferredContext: context,

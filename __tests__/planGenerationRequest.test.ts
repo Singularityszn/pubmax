@@ -29,6 +29,7 @@ describe("parsePlanGenerationRequest", () => {
         intake: null,
         hasIntake: false,
         operationKey: null,
+        anchor: null,
       },
     });
   });

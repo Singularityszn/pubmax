@@ -1,5 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+vi.mock("server-only", () => ({}));
+
 const REQUEST_NOW = Date.parse("2026-07-20T12:00:00.000Z");
 
 const { currentEvent, routeWideEvent, loadConciergeVenuesMock } = vi.hoisted(() => ({

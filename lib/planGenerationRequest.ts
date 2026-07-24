@@ -1,3 +1,4 @@
+import { LONDON_BOROUGHS } from "@/lib/boroughs";
 import {
   isBudget,
   isDaypart,
@@ -5,18 +6,28 @@ import {
   isPartyType,
   type NightContext,
 } from "@/lib/nightPlanning";
+import { NIGHT_PATCHES, type NightPatchId } from "@/lib/nightPatches";
 import {
   isPlainRecord,
   parsePlanGenerationIntake,
   type ParsedPlanGenerationIntake,
   type PlanIntakeParseFailure,
 } from "@/lib/planGenerationIntake";
+import {
+  PLANNING_INTENT_SOURCES,
+  type PlanningIntentArea,
+  type PlanningIntentSource,
+} from "@/lib/planningIntent";
 import { isPlanIdempotencyKey } from "@/lib/planStore";
 
 export const MAX_PLAN_GENERATION_BODY_BYTES = 16_384;
 export const MAX_PLAN_GENERATION_QUERY_LENGTH = 500;
 
-const REQUEST_KEYS = ["query", "context", "cityId", "intake", "operationKey"] as const;
+const REQUEST_KEYS = ["query", "context", "cityId", "intake", "operationKey", "anchor"] as const;
+const ANCHOR_KEYS = ["venueId", "source", "acceptedArea", "startsAt"] as const;
+const NIGHT_PATCH_AREA_KEYS = ["kind", "id"] as const;
+const BOROUGH_AREA_KEYS = ["kind", "name"] as const;
+const ANCHOR_VENUE_ID_PATTERN = /^[A-Za-z0-9:_-]{1,128}$/;
 const CONTEXT_KEYS = [
   "nightArea",
   "daypart",
@@ -31,6 +42,13 @@ const CONTEXT_KEYS = [
   "transportConstraints",
 ] as const satisfies readonly (keyof NightContext)[];
 
+export type PlanGenerationAnchor = {
+  venueId: string;
+  source: PlanningIntentSource;
+  acceptedArea: PlanningIntentArea;
+  startsAt: string | null;
+};
+
 export type PlanGenerationRequest = {
   query: string;
   context: Partial<NightContext> | null;
@@ -38,6 +56,7 @@ export type PlanGenerationRequest = {
   intake: ParsedPlanGenerationIntake | null;
   hasIntake: boolean;
   operationKey: string | null;
+  anchor: PlanGenerationAnchor | null;
 };
 
 export type PlanGenerationRequestFailure = {
@@ -61,6 +80,60 @@ function failure(
 
 function hasOnlyKeys(record: Record<string, unknown>, allowed: readonly string[]): boolean {
   return Object.keys(record).every((key) => allowed.includes(key));
+}
+
+function hasExactKeys(record: Record<string, unknown>, keys: readonly string[]): boolean {
+  const actual = Object.keys(record);
+  return actual.length === keys.length && actual.every((key) => keys.includes(key));
+}
+
+function parseAnchorArea(value: unknown): PlanningIntentArea | undefined {
+  if (value === null) return null;
+  if (!isPlainRecord(value)) return undefined;
+  if (
+    hasExactKeys(value, NIGHT_PATCH_AREA_KEYS)
+    && value.kind === "night-patch"
+    && typeof value.id === "string"
+    && NIGHT_PATCHES.some((patch) => patch.id === value.id)
+  ) {
+    return { kind: "night-patch", id: value.id as NightPatchId };
+  }
+  if (
+    hasExactKeys(value, BOROUGH_AREA_KEYS)
+    && value.kind === "borough"
+    && typeof value.name === "string"
+    && LONDON_BOROUGHS.includes(value.name)
+  ) {
+    return { kind: "borough", name: value.name };
+  }
+  return undefined;
+}
+
+function canonicalIsoOrNull(value: unknown): string | null | undefined {
+  if (value === null) return null;
+  if (typeof value !== "string") return undefined;
+  const time = Date.parse(value);
+  return Number.isFinite(time) && new Date(time).toISOString() === value ? value : undefined;
+}
+
+/** Parse the optional acceptance anchor. `undefined` return rejects the request. */
+function parseAnchor(value: unknown): PlanGenerationAnchor | null | undefined {
+  if (value === undefined || value === null) return null;
+  if (!isPlainRecord(value) || !hasExactKeys(value, ANCHOR_KEYS)) return undefined;
+  if (typeof value.venueId !== "string" || !ANCHOR_VENUE_ID_PATTERN.test(value.venueId)) return undefined;
+  if (typeof value.source !== "string" || !(PLANNING_INTENT_SOURCES as readonly string[]).includes(value.source)) {
+    return undefined;
+  }
+  const acceptedArea = parseAnchorArea(value.acceptedArea);
+  if (acceptedArea === undefined) return undefined;
+  const startsAt = canonicalIsoOrNull(value.startsAt);
+  if (startsAt === undefined) return undefined;
+  return {
+    venueId: value.venueId,
+    source: value.source as PlanningIntentSource,
+    acceptedArea,
+    startsAt,
+  };
 }
 
 function strictList(value: unknown): string[] | null {
@@ -190,6 +263,8 @@ export async function parsePlanGenerationRequest(
     if (!parsed.ok) return { ...parsed, status: 400 };
     intake = parsed.value;
   }
+  const anchor = parseAnchor(raw.anchor);
+  if (anchor === undefined) return failure("Acceptance anchor is invalid.");
   return {
     ok: true,
     value: {
@@ -201,6 +276,7 @@ export async function parsePlanGenerationRequest(
       // A caller may pin idempotency by supplying its own create operation key.
       // Anything that is not a well-formed key is ignored so the route mints one.
       operationKey: isPlanIdempotencyKey(raw.operationKey) ? raw.operationKey.trim() : null,
+      anchor,
     },
   };
 }

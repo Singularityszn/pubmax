@@ -10,8 +10,13 @@ import {
   planPriceEvidenceForVenues,
 } from "@/lib/planRouteEvidence.server";
 import {
+  selectAnchoredGroundedPlanRoute,
   selectGroundedPlanRoute,
+  type AnchoredGroundedPlanRouteSelection,
+  type GroundedPlanRouteCandidate,
+  type GroundedPlanRouteConstraints,
   type GroundedPlanRouteSelection,
+  type SelectedGroundedPlanStop,
 } from "@/lib/planRouteOptimizer";
 
 export type ScoredPlanCandidate = {
@@ -34,6 +39,68 @@ export type PlanGenerationSelection<T extends ScoredPlanCandidate> =
       selection: Extract<GroundedPlanRouteSelection<T>, { ok: false }>;
     };
 
+export type AnchoredPlanGenerationSelection<T extends ScoredPlanCandidate> =
+  | {
+      ok: true;
+      outcome: "route";
+      chosen: T[];
+      selection: Extract<AnchoredGroundedPlanRouteSelection<T>, { outcome: "route" }>;
+      accessibilityEnforced: boolean;
+    }
+  | {
+      ok: true;
+      outcome: "anchor-only";
+      anchor: SelectedGroundedPlanStop<T>;
+      anchorValue: T;
+      accessibilityEnforced: boolean;
+    }
+  | { ok: false; reason: "ANCHOR_MISSING" };
+
+/** Join canonical price, access, and opening evidence onto scored candidates. */
+async function groundedRouteCandidates<T extends ScoredPlanCandidate>(
+  candidates: readonly T[],
+  now: number,
+): Promise<GroundedPlanRouteCandidate<T>[]> {
+  const venues = candidates.map(({ venue }) => venue);
+  const [priceEvidence, openingSchedules] = await Promise.all([
+    planPriceEvidenceForVenues(venues, now),
+    planOpeningSchedulesForVenues(venues),
+  ]);
+  return candidates.map((candidate) => ({
+    value: candidate,
+    venueId: candidate.venue.id,
+    venueName: candidate.venue.name,
+    score: candidate.score,
+    lat: candidate.venue.lat,
+    lng: candidate.venue.lng,
+    price: priceEvidence.get(candidate.venue.id)
+      ?? { pence: null, source: null, confidenceState: "unknown" as const },
+    promoted: candidate.venue.promoted === true,
+    avoidedByReviewedSignal: candidate.signalClaims.some((claim) =>
+      canAffectRoute(claim) && claim.routeEffect === "avoid"),
+    access: planAccessEvidenceForVenue(candidate.venue),
+    openingSchedule: openingSchedules.get(candidate.venue.id) ?? null,
+  }));
+}
+
+function groundedConstraints(
+  context: NightContext,
+  intake: ParsedPlanGenerationIntake | null,
+  accessibilityNeeds: readonly PlanAccessibilityNeed[],
+  now: number,
+): GroundedPlanRouteConstraints {
+  return {
+    exactArea: intake?.exactNightArea ?? null,
+    accessibilityNeeds,
+    budgetLimitPence: context.budgetLimitPence,
+    budgetTier: context.budget,
+    groupSize: context.groupSize,
+    transportConstraints: context.transportConstraints,
+    routeWindow: intake?.routeWindow ?? null,
+    now,
+  };
+}
+
 /** Join canonical evidence and run the intake-only hard-constraint optimizer. */
 export async function selectPlanGenerationCandidates<T extends ScoredPlanCandidate>(
   candidates: readonly T[],
@@ -43,37 +110,9 @@ export async function selectPlanGenerationCandidates<T extends ScoredPlanCandida
 ): Promise<PlanGenerationSelection<T>> {
   if (!intake) return { ok: true, legacy: true, chosen: candidates.slice(0, 3) };
   const requiredAccessibilityNeeds: PlanAccessibilityNeed[] = [...intake.handoff.accessibilityNeeds];
-  const venues = candidates.map(({ venue }) => venue);
-  const [priceEvidence, openingSchedules] = await Promise.all([
-    planPriceEvidenceForVenues(venues, now),
-    planOpeningSchedulesForVenues(venues),
-  ]);
   const selection = selectGroundedPlanRoute(
-    candidates.map((candidate) => ({
-      value: candidate,
-      venueId: candidate.venue.id,
-      venueName: candidate.venue.name,
-      score: candidate.score,
-      lat: candidate.venue.lat,
-      lng: candidate.venue.lng,
-      price: priceEvidence.get(candidate.venue.id)
-        ?? { pence: null, source: null, confidenceState: "unknown" as const },
-      promoted: candidate.venue.promoted === true,
-      avoidedByReviewedSignal: candidate.signalClaims.some((claim) =>
-        canAffectRoute(claim) && claim.routeEffect === "avoid"),
-      access: planAccessEvidenceForVenue(candidate.venue),
-      openingSchedule: openingSchedules.get(candidate.venue.id) ?? null,
-    })),
-    {
-      exactArea: intake.exactNightArea,
-      accessibilityNeeds: requiredAccessibilityNeeds,
-      budgetLimitPence: context.budgetLimitPence,
-      budgetTier: context.budget,
-      groupSize: context.groupSize,
-      transportConstraints: context.transportConstraints,
-      routeWindow: intake.routeWindow,
-      now,
-    },
+    await groundedRouteCandidates(candidates, now),
+    groundedConstraints(context, intake, requiredAccessibilityNeeds, now),
   );
   return selection.ok
     ? {
@@ -84,4 +123,41 @@ export async function selectPlanGenerationCandidates<T extends ScoredPlanCandida
         accessibilityEnforced: requiredAccessibilityNeeds.length > 0,
       }
     : { ok: false, selection };
+}
+
+/**
+ * Run the anchor-pinned optimizer. Unlike the unanchored path this always joins
+ * canonical evidence (the accepted Venue is grounded even without full intake)
+ * and returns an honest route or one-Stop anchor-only outcome.
+ */
+export async function selectAnchoredPlanGenerationCandidates<T extends ScoredPlanCandidate>(
+  candidates: readonly T[],
+  context: NightContext,
+  intake: ParsedPlanGenerationIntake | null,
+  now: number,
+  anchorVenueId: string,
+): Promise<AnchoredPlanGenerationSelection<T>> {
+  const requiredAccessibilityNeeds: PlanAccessibilityNeed[] = intake ? [...intake.handoff.accessibilityNeeds] : [];
+  const selection = selectAnchoredGroundedPlanRoute(
+    await groundedRouteCandidates(candidates, now),
+    groundedConstraints(context, intake, requiredAccessibilityNeeds, now),
+    anchorVenueId,
+  );
+  if (!selection.ok) return { ok: false, reason: "ANCHOR_MISSING" };
+  const accessibilityEnforced = requiredAccessibilityNeeds.length > 0;
+  return selection.outcome === "anchor-only"
+    ? {
+        ok: true,
+        outcome: "anchor-only",
+        anchor: selection.anchor,
+        anchorValue: selection.anchor.value,
+        accessibilityEnforced,
+      }
+    : {
+        ok: true,
+        outcome: "route",
+        chosen: selection.stops.map((stop) => stop.value),
+        selection,
+        accessibilityEnforced,
+      };
 }
