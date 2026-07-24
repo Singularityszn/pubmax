@@ -125,9 +125,10 @@ test("feed → map: clicking a pub name opens the map with it selected", async (
 
   const link = page.locator(".feedVenueLink").first();
   if ((await link.count()) === 0) {
-    // No cards to navigate from (empty feed) — nothing to assert here; the
-    // shape of the link is covered by the test above. Skip cleanly.
-    test.skip(true, "empty feed: no venue link to navigate from");
+    // Empty inventory is still a complete, asserted state. Never turn missing
+    // fixture data into a skipped test that can make the gate look healthier.
+    await expect(page.locator(".feedEmpty")).toBeVisible();
+    await expect(page).toHaveURL(/\/feed$/);
     return;
   }
 
@@ -531,10 +532,11 @@ test("mobile feed reveals more cards on scroll without clicking 'Load more' (§2
 
   const initial = await cards.count();
   // Infinite scroll only has something to reveal when there is more than one
-  // page of data. The first page is 12 cards (§2.5), so <13 visible means the
-  // whole feed already fits on page one — nothing to page. Skip cleanly.
+  // page of data. A short feed is still a complete state: assert that mobile
+  // does not expose the desktop paging control instead of skipping the test.
   if (initial < 13) {
-    test.skip(true, "feed is a single page (or empty): no second page to reveal on scroll");
+    await expect(page.getByRole("button", { name: /load more/i })).toHaveCount(0);
+    expect(errors).toEqual([]);
     return;
   }
 

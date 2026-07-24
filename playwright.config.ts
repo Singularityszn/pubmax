@@ -8,6 +8,9 @@ import { defineConfig, devices } from "@playwright/test";
 const PORT = Number(process.env.PW_PORT ?? 3100);
 const BASE_URL = `http://localhost:${PORT}`;
 const SCREENSHOT_RUN = !!process.env.PW_SCREENSHOTS;
+const SKIP_WEBSERVER = process.env.PW_SKIP_WEBSERVER === "1";
+const NEXT_DIST_DIR =
+  process.env.PW_NEXT_DIST_DIR ?? (SCREENSHOT_RUN ? ".next" : ".next-e2e");
 // Production-style browser tests retain the keyless in-memory stores, but
 // trusted Plan claims never use that storage escape hatch. Give each Playwright
 // invocation a fresh process-only signing key shared by its build/start shell.
@@ -127,21 +130,25 @@ export default defineConfig({
         ]
       : []),
   ],
-  webServer: {
-    command: SCREENSHOT_RUN
-      ? `NEXT_PUBLIC_VAPID_PUBLIC_KEY=${E2E_VAPID_PUBLIC_KEY} npm run start -- --port ${PORT}`
-      : `NEXT_PUBLIC_VAPID_PUBLIC_KEY=${E2E_VAPID_PUBLIC_KEY} NEXT_DIST_DIR=.next-e2e npm run build && NEXT_PUBLIC_VAPID_PUBLIC_KEY=${E2E_VAPID_PUBLIC_KEY} NEXT_DIST_DIR=.next-e2e npm run start -- --port ${PORT}`,
-    // Trusted Plan claims never touch the keyless escape hatch: give each run a
-    // fresh process-only signing key via env so it stays out of the command argv.
-    env: {
-      PLAN_IDEMPOTENCY_SECRET: E2E_PLAN_SIGNING_SECRET,
-      PUBMAX_E2E_KEYLESS: "1",
-    },
-    url: BASE_URL,
-    reuseExistingServer: !process.env.CI && !SCREENSHOT_RUN,
-    // Production build can take a while cold; give it room in CI.
-    timeout: 600_000,
-    stdout: "pipe",
-    stderr: "pipe",
-  },
+  webServer: SKIP_WEBSERVER
+    ? undefined
+    : {
+        command: SCREENSHOT_RUN
+          ? `npm run start -- --port ${PORT}`
+          : `npm run build && npm run start -- --port ${PORT}`,
+        // Trusted Plan claims never touch the keyless escape hatch: give each run a
+        // fresh process-only signing key via env so it stays out of the command argv.
+        env: {
+          NEXT_DIST_DIR,
+          NEXT_PUBLIC_VAPID_PUBLIC_KEY: E2E_VAPID_PUBLIC_KEY,
+          PLAN_IDEMPOTENCY_SECRET: E2E_PLAN_SIGNING_SECRET,
+          PUBMAX_E2E_KEYLESS: "1",
+        },
+        url: BASE_URL,
+        reuseExistingServer: !process.env.CI && !SCREENSHOT_RUN,
+        // Production build can take a while cold; give it room in CI.
+        timeout: 600_000,
+        stdout: "pipe",
+        stderr: "pipe",
+      },
 });
