@@ -24,10 +24,12 @@ const state: PlanState = {
     { venueId: "venue-hidden-tavern", venueName: VENUE_B, position: 1 },
   ],
   crew: [
-    { id: "c1", name: "Dave", status: "in", joinedAt: "2026-07-24T12:00:00.000Z" },
-    { id: "c2", name: GUEST, status: "here", joinedAt: "2026-07-24T12:30:00.000Z" },
+    { id: "c1", name: "Dave", status: "in", joinedAt: "2026-07-24T12:00:00.000Z", updatedAt: "2026-07-24T12:00:00.000Z" },
+    { id: "c2", name: GUEST, status: "here", joinedAt: "2026-07-24T12:30:00.000Z", updatedAt: "2026-07-24T12:30:00.000Z" },
   ],
-  context: { nightArea: "shoreditch", accessibility: [] } as PlanState["context"],
+  // Test only reads nightArea + accessibility via buildPlanPrivacyPreview; the
+  // full NightContext shape is irrelevant here, so cast through unknown.
+  context: { nightArea: "shoreditch", accessibility: [] } as unknown as PlanState["context"],
 };
 
 const preview = buildPlanPrivacyPreview(state);
