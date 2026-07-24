@@ -135,7 +135,7 @@ export default defineConfig({
     : {
         command: SCREENSHOT_RUN
           ? `npm run start -- --port ${PORT}`
-          : `npm run build && npm run start -- --port ${PORT}`,
+          : `node scripts/run-with-restored-next-env.mjs npm run build && npm run start -- --port ${PORT}`,
         // Trusted Plan claims never touch the keyless escape hatch: give each run a
         // fresh process-only signing key via env so it stays out of the command argv.
         env: {

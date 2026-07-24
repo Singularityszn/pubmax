@@ -2,6 +2,7 @@
 
 import { readdir, readFile, stat } from "node:fs/promises";
 import path from "node:path";
+import ts from "typescript";
 
 const root = path.resolve(process.argv[2] ?? "e2e");
 
@@ -19,13 +20,34 @@ async function filesUnder(entry) {
   return files;
 }
 
-function lineNumber(source, index) {
-  return source.slice(0, index).split("\n").length;
+function scriptKind(file) {
+  if (/\.tsx$/.test(file)) return ts.ScriptKind.TSX;
+  if (/\.jsx$/.test(file)) return ts.ScriptKind.JSX;
+  if (/\.[cm]?js$/.test(file)) return ts.ScriptKind.JS;
+  return ts.ScriptKind.TS;
+}
+
+function skipCallKind(expression) {
+  if (!ts.isPropertyAccessExpression(expression)) return null;
+  const method = expression.name.text;
+  if (method !== "skip" && method !== "fixme") return null;
+
+  const owner = expression.expression;
+  if (ts.isIdentifier(owner) && owner.text === "test") return method;
+  if (
+    ts.isPropertyAccessExpression(owner) &&
+    owner.name.text === "describe" &&
+    ts.isIdentifier(owner.expression) &&
+    owner.expression.text === "test"
+  ) {
+    return `describe.${method}`;
+  }
+  return null;
 }
 
 function isIntentionalProjectGate(file, expression) {
   const compact = expression.replace(/\s+/g, " ").trim();
-  if (/^!process\.env\.[A-Z0-9_]+$/.test(compact)) return true;
+  if (/^\(*!process\.env\.[A-Z0-9_]+\)*$/.test(compact)) return true;
   if (
     path.basename(file) === "screenshots.spec.ts" &&
     /^(?:!?isDesktop|isDesktop \|\| viewportName !== ["']390["'])$/.test(compact)
@@ -53,28 +75,42 @@ if (files.length === 0) {
 const findings = [];
 for (const file of files) {
   const source = await readFile(file, "utf8");
-  const pattern = /\btest\.(skip|fixme)\s*\(\s*([^,\n]+)(?:,|\))/g;
-  for (const match of source.matchAll(pattern)) {
-    const expression = match[2].trim();
-    if (!isIntentionalProjectGate(file, expression)) {
-      findings.push({
-        file: path.relative(process.cwd(), file),
-        line: lineNumber(source, match.index ?? 0),
-        kind: match[1],
-        expression,
-      });
+  const sourceFile = ts.createSourceFile(
+    file,
+    source,
+    ts.ScriptTarget.Latest,
+    true,
+    scriptKind(file),
+  );
+
+  function visit(node) {
+    if (ts.isCallExpression(node)) {
+      const kind = skipCallKind(node.expression);
+      if (kind) {
+        const argument = node.arguments[0];
+        const position = sourceFile.getLineAndCharacterOfPosition(node.getStart(sourceFile));
+        let expression = argument?.getText(sourceFile) ?? "missing condition";
+        const staticDeclaration =
+          !argument ||
+          ts.isStringLiteral(argument) ||
+          ts.isNoSubstitutionTemplateLiteral(argument) ||
+          kind.startsWith("describe.");
+        if (staticDeclaration) expression = "static skipped declaration";
+
+        if (staticDeclaration || !isIntentionalProjectGate(file, expression)) {
+          findings.push({
+            file: path.relative(process.cwd(), file),
+            line: position.line + 1,
+            kind,
+            expression: expression.replace(/\s+/g, " ").trim(),
+          });
+        }
+      }
     }
+    ts.forEachChild(node, visit);
   }
 
-  const staticPattern = /\b(?:test|describe)\.(skip|fixme)\s*\(\s*["'`]/g;
-  for (const match of source.matchAll(staticPattern)) {
-    findings.push({
-      file: path.relative(process.cwd(), file),
-      line: lineNumber(source, match.index ?? 0),
-      kind: match[1],
-      expression: "static skipped declaration",
-    });
-  }
+  visit(sourceFile);
 }
 
 if (findings.length > 0) {

@@ -531,22 +531,19 @@ test("mobile feed reveals more cards on scroll without clicking 'Load more' (§2
     .toBeGreaterThan(0);
 
   const initial = await cards.count();
-  // Infinite scroll only has something to reveal when there is more than one
-  // page of data. A short feed is still a complete state: assert that mobile
-  // does not expose the desktop paging control instead of skipping the test.
-  if (initial < 13) {
+  const sentinel = page.locator(".feedSentinel");
+  if ((await sentinel.count()) === 0) {
+    // No next cursor means inventory is genuinely exhausted. Assert the terminal
+    // state, rather than using hidden desktop controls as a proxy for pagination.
+    await expect(page.locator(".feedEndWrap")).toBeVisible();
     await expect(page.getByRole("button", { name: /load more/i })).toHaveCount(0);
     expect(errors).toEqual([]);
     return;
   }
 
-  // Scroll the last visible card into view so the end-of-list sentinel enters the
-  // observer's root margin — this must trigger the next page with NO click.
-  await cards.nth(initial - 1).scrollIntoViewIfNeeded();
-
-  // Web-first (auto-retrying) wait for the card count to grow on its own. We
-  // never touch the "Load more" button — its presence on mobile would itself be
-  // the bug, but we assert the count-growth (the user-visible contract) directly.
+  // Presence of the sentinel is the rendered proof that another page exists.
+  // Bringing it into view must grow the actual card set without a button click.
+  await sentinel.scrollIntoViewIfNeeded();
   await expect.poll(async () => cards.count()).toBeGreaterThan(initial);
 
   expect(errors).toEqual([]);

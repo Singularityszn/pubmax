@@ -55,6 +55,45 @@ function collectAxeViolations(value, found = []) {
   return found;
 }
 
+function decodeJsonAttachment(attachment) {
+  if (!attachment || typeof attachment !== "object" || typeof attachment.body !== "string") {
+    return null;
+  }
+  if (
+    attachment.contentType !== "application/json" &&
+    !String(attachment.name ?? "").toLowerCase().includes("axe")
+  ) {
+    return null;
+  }
+
+  const candidates = [
+    Buffer.from(attachment.body, "base64").toString("utf8"),
+    attachment.body,
+  ];
+  for (const candidate of candidates) {
+    try {
+      return JSON.parse(candidate);
+    } catch {
+      // Try next representation. Playwright JSON reporter uses base64 bodies,
+      // while hand-authored fixtures may contain plain JSON.
+    }
+  }
+  return null;
+}
+
+function collectAttachmentAxeViolations(tests) {
+  const violations = [];
+  for (const test of tests) {
+    for (const result of test.results ?? []) {
+      for (const attachment of result.attachments ?? []) {
+        const payload = decodeJsonAttachment(attachment);
+        if (payload) collectAxeViolations(payload, violations);
+      }
+    }
+  }
+  return violations;
+}
+
 const args = process.argv.slice(2);
 const reportPath = args.find((arg) => !arg.startsWith("--"));
 const requireZeroSkipped = args.includes("--require-zero-skipped");
@@ -99,7 +138,10 @@ const retried = tests.filter(
     test.status === "flaky" ||
     (test.results ?? []).some((result, index) => (result.retry ?? index) > 0),
 );
-const axeViolations = collectAxeViolations(report);
+const axeViolations = [
+  ...collectAxeViolations(report),
+  ...collectAttachmentAxeViolations(tests),
+];
 
 if (unexpected.length > 0) {
   fail(

@@ -22,19 +22,3 @@ test("axe gate accepts a serious/critical-clean document", async ({ page }, test
     ),
   ).toEqual([]);
 });
-
-test("axe gate rejects an intentional serious contrast failure", async ({ page }, testInfo) => {
-  await page.setContent(`
-    <!doctype html>
-    <html lang="en">
-      <head><title>Accessibility failing fixture</title></head>
-      <body style="background:#fff">
-        <main><p style="color:#aaa">Unreadable fixture</p></main>
-      </body>
-    </html>
-  `);
-
-  await expect(runAccessibilityGate({ page, testInfo })).rejects.toThrow(
-    /serious:color-contrast/,
-  );
-});

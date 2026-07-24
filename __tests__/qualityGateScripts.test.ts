@@ -45,6 +45,39 @@ function playwrightReport(overrides: Record<string, unknown> = {}) {
   };
 }
 
+function playwrightAxeAttachmentReport() {
+  const body = Buffer.from(
+    JSON.stringify({
+      testEngine: { name: "axe-core", version: "4.12.0" },
+      violations: [
+        {
+          id: "color-contrast",
+          impact: "serious",
+          description: "Ensure foreground and background colors have enough contrast",
+          nodes: [{ html: "<p>Unreadable fixture</p>" }],
+        },
+      ],
+    }),
+    "utf8",
+  ).toString("base64");
+
+  return playwrightReport({
+    results: [
+      {
+        status: "passed",
+        retry: 0,
+        attachments: [
+          {
+            name: "axe-results",
+            contentType: "application/json",
+            body,
+          },
+        ],
+      },
+    ],
+  });
+}
+
 afterEach(() => {
   for (const directory of tempDirectories.splice(0)) {
     rmSync(directory, { recursive: true, force: true });
@@ -60,6 +93,9 @@ describe("Playwright isolated build configuration", () => {
     );
     expect(source).toContain("SKIP_WEBSERVER = process.env.PW_SKIP_WEBSERVER === \"1\"");
     expect(source).toContain("webServer: SKIP_WEBSERVER");
+    expect(source).toContain(
+      "node scripts/run-with-restored-next-env.mjs npm run build && npm run start",
+    );
     expect(source).toContain("NEXT_DIST_DIR,");
     expect(source).not.toContain("NEXT_DIST_DIR=.next-e2e npm run build");
   });
@@ -99,11 +135,7 @@ describe("assert-playwright-gate", () => {
     ],
     ["zero tests", { suites: [] }, "zero tests discovered"],
     ["malformed shape", { projects: [] }, "suites array"],
-    [
-      "axe violation",
-      { ...playwrightReport(), axe: { violations: [{ id: "color-contrast", impact: "serious" }] } },
-      "serious:color-contrast",
-    ],
+    ["axe attachment violation", playwrightAxeAttachmentReport(), "serious:color-contrast"],
   ])("rejects %s", (_label, value, expected) => {
     const directory = tempDirectory();
     const report = path.join(directory, "report.json");
@@ -151,6 +183,28 @@ describe("assert-no-conditional-e2e-skips", () => {
 
     expect(result.status).toBe(1);
     expect(result.stderr).toContain("depends on true");
+  });
+
+  it("rejects multiline skip conditions through the TypeScript AST", () => {
+    const directory = tempDirectory();
+    writeFileSync(
+      path.join(directory, "multiline.spec.ts"),
+      `import { test } from "@playwright/test";
+       test("x", async ({ page }) => {
+         const count = await page.locator("li").count();
+         test.skip(
+           count === 0 ||
+             process.env.PUBMAX_ALLOW_EMPTY === "1",
+           "quiet inventory",
+         );
+       });
+      `,
+    );
+
+    const result = run("assert-no-conditional-e2e-skips.mjs", [directory]);
+
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain("count === 0 || process.env.PUBMAX_ALLOW_EMPTY");
   });
 
   it("rejects an empty spec directory", () => {

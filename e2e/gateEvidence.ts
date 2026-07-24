@@ -1,4 +1,4 @@
-import type { Page, TestInfo } from "@playwright/test";
+import type { BrowserContext, Page, TestInfo } from "@playwright/test";
 
 export type GateViewport = {
   width: 390 | 1440;
@@ -53,12 +53,12 @@ export async function captureGateScreenshot(
 }
 
 export async function samplePagePerformance({
-  page,
+  context,
   url,
   samples,
   usefulSelector,
 }: {
-  page: Page;
+  context: BrowserContext;
   url: string;
   samples: number;
   usefulSelector?: string;
@@ -69,65 +69,84 @@ export async function samplePagePerformance({
 
   const results: BrowserPerformanceSample[] = [];
   for (let index = 0; index < samples; index += 1) {
-    await page.addInitScript(() => {
-      const gateWindow = window as typeof window & {
-        __pubmaxGateMetrics?: { lcp: number; cls: number; inp: number };
-      };
-      gateWindow.__pubmaxGateMetrics = { lcp: 0, cls: 0, inp: 0 };
-
-      new PerformanceObserver((list) => {
-        const entries = list.getEntries();
-        const last = entries.at(-1);
-        if (last) gateWindow.__pubmaxGateMetrics!.lcp = last.startTime;
-      }).observe({ type: "largest-contentful-paint", buffered: true });
-
-      new PerformanceObserver((list) => {
-        for (const entry of list.getEntries() as Array<PerformanceEntry & { hadRecentInput?: boolean; value?: number }>) {
-          if (!entry.hadRecentInput) {
-            gateWindow.__pubmaxGateMetrics!.cls += entry.value ?? 0;
-          }
-        }
-      }).observe({ type: "layout-shift", buffered: true });
-
-      new PerformanceObserver((list) => {
-        for (const entry of list.getEntries() as Array<PerformanceEntry & { duration: number; interactionId?: number }>) {
-          if ((entry.interactionId ?? 0) > 0) {
-            gateWindow.__pubmaxGateMetrics!.inp = Math.max(
-              gateWindow.__pubmaxGateMetrics!.inp,
-              entry.duration,
-            );
-          }
-        }
-      }).observe({ type: "event", buffered: true, durationThreshold: 16 } as PerformanceObserverInit);
-    });
-
-    const navigationStarted = Date.now();
-    await page.goto(url, { waitUntil: "networkidle" });
-    let usefulState = null;
-    if (usefulSelector) {
-      await page.locator(usefulSelector).first().waitFor({ state: "visible" });
-      usefulState = Date.now() - navigationStarted;
-    }
-    await page.waitForTimeout(100);
-
-    results.push(
-      await page.evaluate((measuredUsefulState) => {
+    // A fresh page gives each sample exactly one observer set and a clean
+    // performance timeline. Reusing one page would accumulate addInitScript
+    // registrations and count later samples more than once.
+    const page = await context.newPage();
+    try {
+      await page.addInitScript(() => {
         const gateWindow = window as typeof window & {
           __pubmaxGateMetrics?: { lcp: number; cls: number; inp: number };
         };
-        const navigation = performance.getEntriesByType("navigation")[0] as
-          | PerformanceNavigationTiming
-          | undefined;
-        const metrics = gateWindow.__pubmaxGateMetrics ?? { lcp: 0, cls: 0, inp: 0 };
-        return {
-          lcp: metrics.lcp,
-          cls: metrics.cls,
-          inp: metrics.inp || null,
-          ttfb: navigation ? navigation.responseStart : 0,
-          usefulState: measuredUsefulState,
-        };
-      }, usefulState),
-    );
+        gateWindow.__pubmaxGateMetrics = { lcp: 0, cls: 0, inp: 0 };
+
+        new PerformanceObserver((list) => {
+          const entries = list.getEntries();
+          const last = entries.at(-1);
+          if (last) gateWindow.__pubmaxGateMetrics!.lcp = last.startTime;
+        }).observe({ type: "largest-contentful-paint", buffered: true });
+
+        new PerformanceObserver((list) => {
+          for (const entry of list.getEntries() as Array<
+            PerformanceEntry & { hadRecentInput?: boolean; value?: number }
+          >) {
+            if (!entry.hadRecentInput) {
+              gateWindow.__pubmaxGateMetrics!.cls += entry.value ?? 0;
+            }
+          }
+        }).observe({ type: "layout-shift", buffered: true });
+
+        new PerformanceObserver((list) => {
+          for (const entry of list.getEntries() as Array<
+            PerformanceEntry & { duration: number; interactionId?: number }
+          >) {
+            if ((entry.interactionId ?? 0) > 0) {
+              gateWindow.__pubmaxGateMetrics!.inp = Math.max(
+                gateWindow.__pubmaxGateMetrics!.inp,
+                entry.duration,
+              );
+            }
+          }
+        }).observe({
+          type: "event",
+          buffered: true,
+          durationThreshold: 16,
+        } as PerformanceObserverInit);
+      });
+
+      // Start before navigation. Useful-state timing ends when target selector
+      // becomes visible, independent of later network-idle or load completion.
+      const navigationStarted = Date.now();
+      await page.goto(url, { waitUntil: "domcontentloaded" });
+      let usefulState = null;
+      if (usefulSelector) {
+        await page.locator(usefulSelector).first().waitFor({ state: "visible" });
+        usefulState = Date.now() - navigationStarted;
+      }
+      await page.waitForLoadState("load");
+      await page.waitForTimeout(100);
+
+      results.push(
+        await page.evaluate((measuredUsefulState) => {
+          const gateWindow = window as typeof window & {
+            __pubmaxGateMetrics?: { lcp: number; cls: number; inp: number };
+          };
+          const navigation = performance.getEntriesByType("navigation")[0] as
+            | PerformanceNavigationTiming
+            | undefined;
+          const metrics = gateWindow.__pubmaxGateMetrics ?? { lcp: 0, cls: 0, inp: 0 };
+          return {
+            lcp: metrics.lcp,
+            cls: metrics.cls,
+            inp: metrics.inp || null,
+            ttfb: navigation ? navigation.responseStart : 0,
+            usefulState: measuredUsefulState,
+          };
+        }, usefulState),
+      );
+    } finally {
+      await page.close();
+    }
   }
 
   return results;
