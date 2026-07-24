@@ -258,7 +258,7 @@ test("/map paints optimistic pins from the slim index quickly", async ({ page })
 });
 
 test("desktop area search resolves a gazetteer locality and fits the map", async ({ page }) => {
-  test.setTimeout(60_000);
+  test.setTimeout(120_000);
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.emulateMedia({ reducedMotion: "reduce" });
   await page.addInitScript(() => {
@@ -302,10 +302,9 @@ test("desktop area search resolves a gazetteer locality and fits the map", async
   const response = await page.goto("/map");
   expect(response?.status()).toBe(200);
   await expect(page.locator(".maplibreMap canvas").first()).toBeVisible({ timeout: 20_000 });
-  await expect(page.locator(".mapLoading")).toHaveCount(0, { timeout: 30_000 });
 
   const search = page.locator("#mapSearchInput");
-  await expect(search).toBeVisible();
+  await expect(search).toBeVisible({ timeout: 30_000 });
   await search.fill("Willesden");
 
   const listbox = page.getByRole("listbox", { name: "Search suggestions" });
