@@ -13,6 +13,72 @@
   --tabbar-h: 64px;
 }
 
+/* Instant primary-tab loading shell (App Router loading.tsx). Paper/ink only —
+   no brand animation beyond a quiet pulse; reduced-motion freezes it. */
+.routeLoadingShell {
+  min-height: 100dvh;
+  min-height: 100svh;
+  box-sizing: border-box;
+  padding: max(24px, env(safe-area-inset-top)) 20px
+    calc(var(--tabbar-h) + env(safe-area-inset-bottom, 0px) + 24px);
+  background: var(--paper);
+  color: var(--ink);
+}
+.routeLoadingShellInner {
+  width: min(100%, 28rem);
+  margin: 0 auto;
+  display: grid;
+  gap: 14px;
+}
+.routeLoadingShellBar,
+.routeLoadingShellCard {
+  display: block;
+  border-radius: var(--radius-sm, 10px);
+  background: color-mix(in srgb, var(--ink) 8%, var(--panel-raised, var(--paper)));
+  animation: routeLoadingPulse 1.4s ease-in-out infinite;
+}
+.routeLoadingShellBar {
+  height: 1.1rem;
+  width: 42%;
+}
+.routeLoadingShellBar--short {
+  width: 28%;
+  height: 0.85rem;
+  opacity: 0.85;
+  animation-delay: 0.12s;
+}
+.routeLoadingShellCard {
+  height: 5.5rem;
+  width: 100%;
+  animation-delay: 0.2s;
+}
+.routeLoadingShellCard + .routeLoadingShellCard {
+  animation-delay: 0.32s;
+  height: 4.25rem;
+  opacity: 0.9;
+}
+.routeLoadingShellLabel {
+  margin: 6px 0 0;
+  font: 600 0.78rem/1.3 var(--font-body, system-ui);
+  color: var(--ink-soft, var(--muted));
+  letter-spacing: 0.02em;
+}
+@keyframes routeLoadingPulse {
+  0%,
+  100% {
+    opacity: 0.72;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .routeLoadingShellBar,
+  .routeLoadingShellCard {
+    animation: none;
+  }
+}
+
 .mobileTabBar {
   display: none;
 }

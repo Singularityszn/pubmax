@@ -101,17 +101,17 @@ export type MapRoutePrefetcher = {
 };
 
 /**
- * Wave K2 — warm map navigation on intent.
- * Prefetches the Next.js route chunk and the city slim (+ POI/transit) payloads
- * once per session. Does not prefetch full venue detail.
+ * Prefetch any App Router href once per session. Map destinations also warm
+ * the slim venue (+ POI/transit) payloads the canvas will request next.
+ * Best-effort only — navigation never depends on success.
  */
-export function warmMapRoute(
+export function warmNavRoute(
   router: MapRoutePrefetcher,
-  href = "/map",
+  href: string,
   seen: Set<string> = warmedRoutes,
 ): void {
   const prefetchHref = href.split("?")[0] || href;
-  if (seen.has(prefetchHref)) return;
+  if (!prefetchHref || seen.has(prefetchHref)) return;
   try {
     router.prefetch(prefetchHref);
     // Only mark warmed AFTER a successful prefetch call — a throw here (dev
@@ -121,6 +121,7 @@ export function warmMapRoute(
   } catch {
     // Best-effort — navigation must never depend on prefetch. Leave `seen`
     // untouched so a follow-up hover/touch can try again.
+    return;
   }
   // Only warm slim/POI payloads for map routes (not Discover etc.).
   if (prefetchHref === "/map" || prefetchHref.startsWith("/map/")) {
@@ -133,6 +134,36 @@ export function warmMapRoute(
       paths: warmPathsForMapHref(prefetchHref),
       seen: sessionSeen,
     });
+  }
+}
+
+/**
+ * Wave K2 — warm map navigation on intent.
+ * Prefetches the Next.js route chunk and the city slim (+ POI/transit) payloads
+ * once per session. Does not prefetch full venue detail.
+ */
+export function warmMapRoute(
+  router: MapRoutePrefetcher,
+  href = "/map",
+  seen: Set<string> = warmedRoutes,
+): void {
+  warmNavRoute(router, href, seen);
+}
+
+/**
+ * Mobile tab bar: warm every durable destination once the bar mounts so a
+ * cold thumb-tap does not wait on first-fetch of the target route bundle.
+ * Skips the Moment compose action (query-string heavy, not a location tab).
+ */
+export function warmPrimaryTabRoutes(
+  router: MapRoutePrefetcher,
+  hrefs: readonly string[],
+  seen: Set<string> = warmedRoutes,
+): void {
+  for (const href of hrefs) {
+    // Moment is `?returnTo=`-keyed compose; skip — not a sticky destination.
+    if (href.startsWith("/moment")) continue;
+    warmNavRoute(router, href, seen);
   }
 }
 

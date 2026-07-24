@@ -3,12 +3,13 @@
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Map, CirclePlus, UserRound, Images, CalendarClock, Sunrise } from "lucide-react";
-import { useCallback, useSyncExternalStore, type CSSProperties } from "react";
+import { useCallback, useEffect, useMemo, useSyncExternalStore, type CSSProperties } from "react";
 import {
   preferredCityMapHref,
   subscribePreferredCity,
 } from "@/lib/cityPreference";
-import { warmMapRoute } from "@/lib/mapWarmup";
+import { readDeviceHandle } from "@/lib/identityClaimClient";
+import { warmNavRoute, warmPrimaryTabRoutes } from "@/lib/mapWarmup";
 import { markPubmaxTiming } from "@/lib/performanceMarks";
 import {
   MOMENT_NAV_ACTION,
@@ -27,8 +28,8 @@ import "./mobileNav.css";
 // Moment is the emphasized centre action and opens the private-first camera
 // composer. Pint Drop remains an explicit action inside Moment and the map.
 //
-// No effects: usePathname() is enough to mark the active tab, which keeps this
-// clear of react-hooks/set-state-in-effect.
+// Path active-state is pure (usePathname). Mount-time prefetch of destination
+// tabs is the only effect — it must not set state (react-hooks/set-state-in-effect).
 
 type Tab = {
   key: PrimaryNavKey | "today" | typeof MOMENT_NAV_ACTION.key;
@@ -55,11 +56,11 @@ const TODAY_TAB: Omit<Tab, "Icon" | "primary"> = {
 
 // Map follows the preferred city (null → /map); every other route is canonical.
 // Exported for the six-tab contract test (order + destinations are load-bearing).
-export function buildTabs(mapHref: string, pathname: string): Tab[] {
+export function buildTabs(mapHref: string, pathname: string, youHref = "/u/you"): Tab[] {
   const icons = { today: Sunrise, map: Map, tonight: CalendarClock, moment: CirclePlus, stories: Images, you: UserRound };
   const primary = PRIMARY_NAV_ITEMS.map((item) => ({
     ...item,
-    href: item.key === "map" ? mapHref : item.href,
+    href: item.key === "map" ? mapHref : item.key === "you" ? youHref : item.href,
     Icon: icons[item.key],
   }));
   // Today, Map | Moment (centre) | Tonight, Stories, You.
@@ -91,6 +92,12 @@ function isActive(pathname: string, tab: Tab): boolean {
   return navPathMatches(pathname, tab.match ?? [tab.href]);
 }
 
+function subscribeDeviceHandle(onChange: () => void): () => void {
+  if (typeof window === "undefined") return () => {};
+  window.addEventListener("storage", onChange);
+  return () => window.removeEventListener("storage", onChange);
+}
+
 export default function MobileTabBar() {
   const pathname = usePathname() ?? "";
   const searchParams = useSearchParams();
@@ -102,25 +109,42 @@ export default function MobileTabBar() {
     preferredCityMapHref,
     () => "/map",
   );
+  // You tab: when the device already has a claimed handle, point straight at
+  // /u/<handle> instead of the /u/you sentinel (which client-redirects after
+  // mount and doubles the navigation cost — the cold-tap 846ms prod median).
+  const deviceHandle = useSyncExternalStore(
+    subscribeDeviceHandle,
+    readDeviceHandle,
+    () => "",
+  );
+  const youHref = deviceHandle ? `/u/${encodeURIComponent(deviceHandle)}` : "/u/you";
   const returnTo = `${pathname}${searchParams.size ? `?${searchParams.toString()}` : ""}`;
-  const tabs = buildTabs(mapHref, returnTo);
+  const tabs = useMemo(
+    () => buildTabs(mapHref, returnTo, youHref),
+    [mapHref, returnTo, youHref],
+  );
   // Drives the gliding highlight pill (mobileNav.css). -1 (no match — e.g. a
   // route none of the tabs own) hides it via CSS rather than pinning it to a
   // wrong tab.
   const activeIndex = tabs.findIndex((tab) => isActive(pathname, tab));
   const warmTab = useCallback(
     (href: string) => {
-      const prefetchHref = href.split("?")[0] || href;
-      if (prefetchHref === "/map" || prefetchHref.startsWith("/map/")) {
-        warmMapRoute(router, href, warmedTabs);
-        return;
-      }
-      if (warmedTabs.has(prefetchHref)) return;
-      warmedTabs.add(prefetchHref);
-      router.prefetch(prefetchHref);
+      warmNavRoute(router, href, warmedTabs);
     },
     [router],
   );
+
+  // Mount-time warmup of every durable tab destination (Today / Map / Tonight /
+  // Stories / You). Extends the landing map-warmup pattern so a cold thumb-tap
+  // does not wait on first-fetch of the target route bundle. No setState.
+  useEffect(() => {
+    warmPrimaryTabRoutes(
+      router,
+      tabs.map((tab) => tab.href),
+      warmedTabs,
+    );
+  }, [router, tabs]);
+
   const markDropTap = useCallback((primary?: boolean) => {
     if (primary) markPubmaxTiming("pubmax:drop-tap");
   }, []);
@@ -156,6 +180,7 @@ export default function MobileTabBar() {
             <li key={tab.label} className="mobileTabItem">
               <Link
                 href={tab.href}
+                prefetch
                 className={
                   "mobileTab pressable" +
                   (tab.primary ? " mobileTabPrimary" : "") +
