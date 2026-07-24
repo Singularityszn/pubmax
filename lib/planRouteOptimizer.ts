@@ -350,15 +350,14 @@ function findBestRoute<T>(
   return best;
 }
 
-/** Select the strongest feasible three-stop route with deterministic tie-breaks. */
-export function selectGroundedPlanRoute<T>(
+type RouteRejectionCounts = { safety: number; exclusions: number; accessibility: number; budgetEvidence: number; budgetCeiling: number };
+
+/** Apply the hard per-candidate eligibility filter, tallying rejection reasons. */
+function routeEligibleCandidates<T>(
   candidates: readonly GroundedPlanRouteCandidate<T>[],
   constraints: GroundedPlanRouteConstraints,
-): GroundedPlanRouteSelection<T> {
-  const rejected = { safety: 0, exclusions: 0, accessibility: 0, budgetEvidence: 0, budgetCeiling: 0 };
-  if (constraints.transportConstraints.length > 0) {
-    return { ok: false, eligibleCandidateCount: 0, rejected };
-  }
+  rejected: RouteRejectionCounts,
+): GroundedPlanRouteCandidate<T>[] {
   const eligible = [...candidates]
     .sort((left, right) => left.venueId.localeCompare(right.venueId, "en-GB"))
     .filter((candidate) => {
@@ -385,9 +384,21 @@ export function selectGroundedPlanRoute<T>(
       return true;
     });
 
-  const routeEligible = constraints.routeWindow
+  return constraints.routeWindow
     ? eligible.filter((candidate) => hasCurrentAttributableOpeningSchedule(candidate.openingSchedule, constraints.now))
     : eligible;
+}
+
+/** Select the strongest feasible three-stop route with deterministic tie-breaks. */
+export function selectGroundedPlanRoute<T>(
+  candidates: readonly GroundedPlanRouteCandidate<T>[],
+  constraints: GroundedPlanRouteConstraints,
+): GroundedPlanRouteSelection<T> {
+  const rejected = { safety: 0, exclusions: 0, accessibility: 0, budgetEvidence: 0, budgetCeiling: 0 };
+  if (constraints.transportConstraints.length > 0) {
+    return { ok: false, eligibleCandidateCount: 0, rejected };
+  }
+  const routeEligible = routeEligibleCandidates(candidates, constraints, rejected);
   if (routeEligible.length < 3) {
     return { ok: false, eligibleCandidateCount: routeEligible.length, rejected };
   }
@@ -410,4 +421,93 @@ export function selectGroundedPlanRoute<T>(
       SelectedGroundedPlanStop<T>[], SelectedGroundedPlanStop<T>[], SelectedGroundedPlanStop<T>[],
     ];
   return { ok: true, stops, alternatives, timing: best.timing, constraintReport: report(best, constraints) };
+}
+
+export type AnchoredGroundedPlanRouteSelection<T> =
+  | {
+      ok: true;
+      outcome: "route";
+      stops: readonly [SelectedGroundedPlanStop<T>, SelectedGroundedPlanStop<T>, SelectedGroundedPlanStop<T>];
+      alternatives: readonly [
+        readonly SelectedGroundedPlanStop<T>[],
+        readonly SelectedGroundedPlanStop<T>[],
+        readonly SelectedGroundedPlanStop<T>[],
+      ];
+      timing: PlanRouteTiming;
+      constraintReport: PlanConstraintReport;
+    }
+  | {
+      ok: true;
+      outcome: "anchor-only";
+      anchor: SelectedGroundedPlanStop<T>;
+      reason: "ANCHOR_COMPANIONS_INSUFFICIENT";
+    }
+  | { ok: false; reason: "ANCHOR_MISSING" };
+
+/** Build the anchor as a standalone grounded Stop 1 (no visit window, no swap). */
+function anchorOnlyStop<T>(
+  anchor: GroundedPlanRouteCandidate<T>,
+  now: number,
+): SelectedGroundedPlanStop<T> {
+  const opening = assessOpeningSchedule(anchor.openingSchedule, null, now);
+  return { ...anchor, position: 0, visitWindow: null, opening, constraintFlags: flagsFor(opening, false) };
+}
+
+/**
+ * Select the strongest feasible route that keeps the accepted anchor as Stop 1.
+ * Only permutations with the anchor at index zero are evaluated, the anchor has
+ * no ordinary alternative, and when fewer than two companions can complete a
+ * grounded route the accepted Venue is still returned as a one-Stop draft.
+ */
+export function selectAnchoredGroundedPlanRoute<T>(
+  candidates: readonly GroundedPlanRouteCandidate<T>[],
+  constraints: GroundedPlanRouteConstraints,
+  anchorVenueId: string,
+): AnchoredGroundedPlanRouteSelection<T> {
+  // The accepted Venue must be among the loaded candidates to carry evidence.
+  const anchor = candidates.find((candidate) => candidate.venueId === anchorVenueId);
+  if (!anchor) return { ok: false, reason: "ANCHOR_MISSING" };
+
+  const anchorStop = anchorOnlyStop(anchor, constraints.now);
+  const insufficient: AnchoredGroundedPlanRouteSelection<T> = {
+    ok: true,
+    outcome: "anchor-only",
+    anchor: anchorStop,
+    reason: "ANCHOR_COMPANIONS_INSUFFICIENT",
+  };
+  // Transport constraints are not modelled for routing; keep the anchor useful.
+  if (constraints.transportConstraints.length > 0) return insufficient;
+
+  const rejected = { safety: 0, exclusions: 0, accessibility: 0, budgetEvidence: 0, budgetCeiling: 0 };
+  const companions = routeEligibleCandidates(candidates, constraints, rejected)
+    .filter((candidate) => candidate.venueId !== anchorVenueId);
+
+  let best: EvaluatedRoute<T> | null = null;
+  for (let i = 0; i < companions.length; i += 1) {
+    for (let j = 0; j < companions.length; j += 1) {
+      if (i === j) continue;
+      const evaluated = evaluateRoute([anchor, companions[i], companions[j]], constraints);
+      if (evaluated && better(evaluated, best)) best = evaluated;
+    }
+  }
+  if (!best) return insufficient;
+
+  const stops = selectedStops(best);
+  const selectedIds = new Set(best.route.map((candidate) => candidate.venueId));
+  const alternatives = stops.map((_, position) => position === 0
+    // The anchor owns Stop 1 and offers no ordinary alternative or Swap.
+    ? []
+    : companions.flatMap((candidate) => {
+        if (selectedIds.has(candidate.venueId)) return [];
+        const replacement = [...best!.route] as [
+          GroundedPlanRouteCandidate<T>, GroundedPlanRouteCandidate<T>, GroundedPlanRouteCandidate<T>,
+        ];
+        replacement[position] = candidate;
+        const evaluated = evaluateRoute(replacement, constraints);
+        return evaluated ? [selectedStops(evaluated)[position]] : [];
+      }).sort((left, right) => right.score - left.score
+        || left.venueId.localeCompare(right.venueId, "en-GB"))) as [
+          SelectedGroundedPlanStop<T>[], SelectedGroundedPlanStop<T>[], SelectedGroundedPlanStop<T>[],
+        ];
+  return { ok: true, outcome: "route", stops, alternatives, timing: best.timing, constraintReport: report(best, constraints) };
 }

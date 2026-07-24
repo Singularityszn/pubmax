@@ -1,5 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+vi.mock("server-only", () => ({}));
+
 const { isLimitedMock, loadConciergeVenuesMock } = vi.hoisted(() => ({
   isLimitedMock: vi.fn(async (...args: [
     localKey: string,
