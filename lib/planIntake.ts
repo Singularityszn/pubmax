@@ -14,6 +14,7 @@ import type {
 export const PLAN_INTAKE_VERSION = 1 as const;
 export const PLAN_INTAKE_STORAGE_KEY = "pubmax:plan-intake:v1";
 export const PLAN_INTAKE_DRAFT_TTL_MS = 24 * 60 * 60 * 1000;
+export const PLAN_INTAKE_MAX_RAW_BYTES = 12 * 1024;
 const LONDON_TIME_ZONE = "Europe/London";
 
 export const PLAN_INTAKE_STEPS = [
@@ -98,6 +99,14 @@ type StoredPlanIntakeEnvelope = {
   savedAt: string;
   expiresAt: string;
   draft: PlanIntakeDraft;
+};
+
+export type ParsedPlanIntakeDraft = {
+  storageVersion: typeof PLAN_INTAKE_VERSION;
+  savedAt: string;
+  expiresAt: string;
+  draft: PlanIntakeDraft;
+  legacy: false;
 };
 
 const PATCH_TO_NIGHT_AREA: Partial<Record<NightPatchId, NightAreaSlug>> = {
@@ -396,8 +405,15 @@ export function createPlanIntakeDraft(remembered: RememberedArea | null = null):
   };
 }
 
-export function parsePlanIntakeDraft(raw: string | null, now = Date.now()): PlanIntakeDraft | null {
-  if (!raw || raw.length > 12_000) return null;
+function planIntakeRawBytes(raw: string): number {
+  return new TextEncoder().encode(raw).byteLength;
+}
+
+export function parsePlanIntakeDraftWithMetadata(
+  raw: string | null,
+  now = Date.now(),
+): ParsedPlanIntakeDraft | null {
+  if (!raw || planIntakeRawBytes(raw) > PLAN_INTAKE_MAX_RAW_BYTES) return null;
   try {
     const envelope = JSON.parse(raw) as Partial<StoredPlanIntakeEnvelope>;
     const savedAt = Date.parse(typeof envelope.savedAt === "string" ? envelope.savedAt : "");
@@ -407,6 +423,8 @@ export function parsePlanIntakeDraft(raw: string | null, now = Date.now()): Plan
       || envelope.storageVersion !== PLAN_INTAKE_VERSION
       || !Number.isFinite(savedAt)
       || !Number.isFinite(expiresAt)
+      || new Date(savedAt).toISOString() !== envelope.savedAt
+      || new Date(expiresAt).toISOString() !== envelope.expiresAt
       || savedAt > now + 5 * 60 * 1000
       || expiresAt <= now
       || expiresAt <= savedAt
@@ -437,16 +455,26 @@ export function parsePlanIntakeDraft(raw: string | null, now = Date.now()): Plan
     const terminal = firstUnsettled === undefined;
     if (value.completed !== terminal) return null;
     return {
-      version: PLAN_INTAKE_VERSION,
-      currentStep: firstUnsettled ?? PLAN_INTAKE_STEPS[PLAN_INTAKE_STEPS.length - 1],
-      settledSteps,
-      skippedSteps,
-      completed: terminal,
-      answers: canonicalAnswers,
+      storageVersion: PLAN_INTAKE_VERSION,
+      savedAt: envelope.savedAt,
+      expiresAt: envelope.expiresAt,
+      draft: {
+        version: PLAN_INTAKE_VERSION,
+        currentStep: firstUnsettled ?? PLAN_INTAKE_STEPS[PLAN_INTAKE_STEPS.length - 1],
+        settledSteps,
+        skippedSteps,
+        completed: terminal,
+        answers: canonicalAnswers,
+      },
+      legacy: false,
     };
   } catch {
     return null;
   }
+}
+
+export function parsePlanIntakeDraft(raw: string | null, now = Date.now()): PlanIntakeDraft | null {
+  return parsePlanIntakeDraftWithMetadata(raw, now)?.draft ?? null;
 }
 
 function resolveStorage(storage?: Storage | null): Storage | null {
@@ -459,17 +487,24 @@ function resolveStorage(storage?: Storage | null): Storage | null {
   }
 }
 
-export function readPlanIntakeDraft(storage?: Storage | null, now = Date.now()): PlanIntakeDraft | null {
+export function readPlanIntakeDraftWithMetadata(
+  storage?: Storage | null,
+  now = Date.now(),
+): ParsedPlanIntakeDraft | null {
   const store = resolveStorage(storage);
   if (!store) return null;
   try {
     const raw = store.getItem(PLAN_INTAKE_STORAGE_KEY);
-    const parsed = parsePlanIntakeDraft(raw, now);
+    const parsed = parsePlanIntakeDraftWithMetadata(raw, now);
     if (raw && !parsed) store.removeItem(PLAN_INTAKE_STORAGE_KEY);
     return parsed;
   } catch {
     return null;
   }
+}
+
+export function readPlanIntakeDraft(storage?: Storage | null, now = Date.now()): PlanIntakeDraft | null {
+  return readPlanIntakeDraftWithMetadata(storage, now)?.draft ?? null;
 }
 
 export function writePlanIntakeDraft(
@@ -486,6 +521,7 @@ export function writePlanIntakeDraft(
       expiresAt: new Date(now + PLAN_INTAKE_DRAFT_TTL_MS).toISOString(),
       draft,
     } satisfies StoredPlanIntakeEnvelope);
+    if (planIntakeRawBytes(next) > PLAN_INTAKE_MAX_RAW_BYTES) return;
     if (store.getItem(PLAN_INTAKE_STORAGE_KEY) !== next) {
       store.setItem(PLAN_INTAKE_STORAGE_KEY, next);
     }
