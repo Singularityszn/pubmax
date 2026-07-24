@@ -61,6 +61,10 @@ const nextConfig = {
   distDir: process.env.NEXT_DIST_DIR ?? ".next",
   images: {
     qualities: [75, 78],
+    // Serve AVIF first (then WebP) for every next/image — notably the landing
+    // hero-night.jpg (fill+priority). Next negotiates by Accept header; the
+    // source JPEGs stay the fallback.
+    formats: ["image/avif", "image/webp"],
   },
   outputFileTracingIncludes: {
     // App Router dynamic segment — must match app/api/venue/[id]/route.ts.

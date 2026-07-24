@@ -95,10 +95,37 @@
   position: absolute;
   inset: 0;
   z-index: -3;
+  /* Fallback for browsers without image-set(): layered gradient + JPEG. The
+     gradient, position (70% 45%), size (cover) and opacity are unchanged from
+     the original — only the encoded bytes shrink (AVIF/WebP below). */
   background:
     linear-gradient(90deg, var(--paper) 0%, color-mix(in srgb, var(--paper) 92%, transparent) 42%, color-mix(in srgb, var(--paper) 55%, transparent) 100%),
-    url("/landing/hero-thames.jpg") 70% 45% / cover no-repeat;
+    url("/landing/hero-thames-1600.jpg") 70% 45% / cover no-repeat;
   opacity: .96;
+}
+
+/* Modern format negotiation (AVIF -> WebP -> JPEG). Only the image layers are
+   swapped; background-position/size inherit from the shorthand above. */
+@supports (background-image: image-set(url("i.avif") type("image/avif"))) {
+  .lpHero::before {
+    background-image:
+      linear-gradient(90deg, var(--paper) 0%, color-mix(in srgb, var(--paper) 92%, transparent) 42%, color-mix(in srgb, var(--paper) 55%, transparent) 100%),
+      image-set(
+        url("/landing/hero-thames-1600.avif") type("image/avif"),
+        url("/landing/hero-thames-1600.webp") type("image/webp"),
+        url("/landing/hero-thames-1600.jpg") type("image/jpeg"));
+  }
+
+  @media (max-width: 768px) {
+    .lpHero::before {
+      background-image:
+        linear-gradient(90deg, var(--paper) 0%, color-mix(in srgb, var(--paper) 92%, transparent) 42%, color-mix(in srgb, var(--paper) 55%, transparent) 100%),
+        image-set(
+          url("/landing/hero-thames-1024.avif") type("image/avif"),
+          url("/landing/hero-thames-1024.webp") type("image/webp"),
+          url("/landing/hero-thames-1024.jpg") type("image/jpeg"));
+    }
+  }
 }
 
 .lpHero::after {

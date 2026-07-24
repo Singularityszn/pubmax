@@ -13,6 +13,9 @@ import { describe, expect, it } from "vitest";
 const DEFINITION_SITES = new Set([
   "app/layout.tsx",
   "app/globals.css",
+  // Route-scoped definition of the token (the next/font module loaded only by
+  // /tonight and /pal). It defines --font-party, it does not consume it.
+  "app/fonts/partyFace.ts",
 ]);
 
 // Surfaces the spec bans outright — a --font-party reference here is a leak
