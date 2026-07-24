@@ -56,7 +56,12 @@ test("anonymous plan surfaces never leak the route, venues, or title", async ({ 
     assertClean(recapBody, "recap API");
     expect(recapBody).toContain('"visibility":"preview"');
 
-    // 4. OG card still renders (image); preview-safe by construction.
+    // 4. Anonymous get-in API → no venue/route detail leaks through the
+    //    per-stop estimate surface (§4.10 boundary list).
+    const getin = await anon.get(`/api/plans/${id}/getin`);
+    assertClean(await getin.text(), "get-in API");
+
+    // 5. OG card still renders (image); preview-safe by construction.
     const card = await anon.get(`/api/plan-card?id=${id}`);
     expect(card.ok()).toBe(true);
   } finally {

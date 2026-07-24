@@ -1,10 +1,8 @@
 import { expect, test, type Page } from "@playwright/test";
 
-// DAG L19 — landing hierarchy under PUBMAX_LANDING_FIND_MY_PINT.
-// Default webServer leaves the flag off (shipped). Flag-on cases require
-// PUBMAX_LANDING_FIND_MY_PINT=1 on the Playwright webServer (see playwright.config).
-
-const FLAG_ON = process.env.PUBMAX_LANDING_FIND_MY_PINT === "1";
+// DAG L19 — landing hierarchy, shipped flag-OFF (default) behaviour. The flag-ON
+// half lives in landing-find-my-pint.flag-on.spec.ts (chromium-flag-on project,
+// PUBMAX_LANDING_FIND_MY_PINT=1 build) so neither half needs a runtime test.skip.
 
 async function openLanding(page: Page, viewport: { width: number; height: number }) {
   await page.setViewportSize(viewport);
@@ -23,8 +21,6 @@ async function openLanding(page: Page, viewport: { width: number; height: number
 }
 
 test.describe("landing Find my pint hierarchy (flag off / default)", () => {
-  test.skip(FLAG_ON, "this suite asserts the flag-off (shipped) hierarchy");
-
   test("keeps three hero buttons: Find my pint primary, Map and Plan quiet", async ({ page }) => {
     await openLanding(page, { width: 1440, height: 900 });
 
@@ -56,53 +52,5 @@ test.describe("landing Find my pint hierarchy (flag off / default)", () => {
     await expect(primary).toHaveCount(1);
     const box = await primary.boundingBox();
     expect(box?.height ?? 0).toBeGreaterThanOrEqual(44);
-  });
-});
-
-test.describe("landing Find my pint hierarchy (flag on)", () => {
-  test.skip(!FLAG_ON, "run with PUBMAX_LANDING_FIND_MY_PINT=1");
-
-  test("makes Find my pint the sole primary; Map and Plan are secondary text", async ({ page }) => {
-    await openLanding(page, { width: 1440, height: 900 });
-
-    const hero = page.locator(".lpHeroActions");
-    await expect(hero).toHaveClass(/lpHeroActions--findMyPint/);
-
-    const primaries = hero.locator(".lpButtonPrimary");
-    await expect(primaries).toHaveCount(1);
-    await expect(primaries.first()).toHaveAttribute("href", "/near");
-    await expect(primaries.first()).toContainText("Find my pint");
-
-    // No quiet equal-weight pair under the hero.
-    await expect(hero.locator(".lpButtonQuiet")).toHaveCount(0);
-
-    const secondary = hero.locator(".lpHeroSecondaryRow");
-    await expect(secondary).toBeVisible();
-    const mapLink = secondary.getByRole("link", { name: /Open the map/i });
-    const planLink = secondary.getByRole("link", { name: /Plan my night/i });
-    await expect(mapLink).toBeVisible();
-    await expect(planLink).toBeVisible();
-    await expect(mapLink).toHaveClass(/lpTextLink/);
-    await expect(planLink).toHaveClass(/lpTextLink/);
-    await expect(planLink).toHaveAttribute("href", "/plan");
-  });
-
-  test("dominant primary stays above the fold on desktop and mobile", async ({ page }) => {
-    for (const viewport of [
-      { width: 1440, height: 900 },
-      { width: 390, height: 844 },
-    ] as const) {
-      await openLanding(page, viewport);
-      await page.evaluate(() => window.scrollTo(0, 0));
-      await expect(page.locator(".lp.lp--findMyPint")).toHaveCount(1);
-      const primary = page.locator(".lpHeroActions--findMyPint .lpButtonPrimary");
-      await expect(primary).toBeVisible();
-      const box = await primary.boundingBox();
-      expect(box).not.toBeNull();
-      // Flag-on primary must fully fit the first screen (L19 browser proof).
-      expect((box?.y ?? 0) + (box?.height ?? 0)).toBeLessThanOrEqual(viewport.height + 1);
-      // No equal-weight Map/Plan button pair on mobile.
-      await expect(page.locator(".lpHeroActions .lpButtonQuiet")).toHaveCount(0);
-    }
   });
 });
