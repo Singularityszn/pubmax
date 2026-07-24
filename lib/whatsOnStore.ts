@@ -4,6 +4,7 @@
 // baseline-only, never an error to the caller.
 
 import { haversineKm } from "@/lib/haversine";
+import { groupTonightListings } from "@/lib/tonightListGrouping";
 import {
   dedupeKey,
   fetchRawThingsToDoStartsAt,
@@ -24,6 +25,15 @@ import rawMusicLondon from "../public/data/whats_on/music_london.json";
 import rawEventsLondon from "../public/data/whats_on/events_london.json";
 import rawWhatsOnLatest from "../public/data/whats_on/latest.json";
 
+const BASELINE_DATASETS: unknown[] = [
+  rawQuizLondon,
+  rawDealsLondon,
+  rawSportFixtures,
+  rawMusicLondon,
+  rawEventsLondon,
+  rawWhatsOnLatest,
+];
+
 // Parse a bundled file with `now` fixed to the file's own generatedAt, so a row
 // whose observedAt equals generatedAt is never rejected as "future" (mirrors the
 // drink-updates pattern).
@@ -32,21 +42,41 @@ function generatedAtOf(raw: unknown): number {
   return Number.isFinite(at) ? at : Date.now();
 }
 
+function canonicalPastIso(value: unknown, now: number): string | null {
+  if (typeof value !== "string") return null;
+  const ms = Date.parse(value);
+  if (!Number.isFinite(ms) || ms > now) return null;
+  return new Date(ms).toISOString();
+}
+
+function rowsOf(raw: unknown): unknown[] {
+  if (Array.isArray(raw)) return raw;
+  if (typeof raw !== "object" || raw === null) return [];
+  const rows = (raw as { rows?: unknown }).rows;
+  return Array.isArray(rows) ? rows : [];
+}
+
+// Mixed bundled inventory is only as fresh as its oldest contributing dataset.
+// Empty sidecars do not pull the aggregate backwards because they serve no rows.
+export function baselineSourceObservedAt(now: number = Date.now()): string | null {
+  const generated = BASELINE_DATASETS.flatMap((raw) => {
+    if (rowsOf(raw).length === 0) return [];
+    const value = canonicalPastIso((raw as { generatedAt?: unknown }).generatedAt, now);
+    return value ? [value] : [];
+  });
+  if (generated.length === 0) return null;
+  return generated.reduce((oldest, value) =>
+    Date.parse(value) < Date.parse(oldest) ? value : oldest,
+  );
+}
+
 // Validated + de-duped baseline rows from every bundled whats_on rows file.
-// (Attribute sidecars like sport_attributes.json are a different contract and
-// are deliberately NOT loaded here — they carry no startsAt. sport_fixtures.json
-// IS loaded: it derives startsAt rows from sport_attributes.json x a fixture
-// calendar — see scripts/whatson/sportFixtures.mjs. music_london.json is a
-// small, hand-verified set of weekly residency-night rows — see
-// scripts/whatson/musicRefresh.mjs.)
+// Attribute sidecars are deliberately excluded; they carry no startsAt.
 export function loadBaselineWhatsOn(): WhatsOnRow[] {
   const quiz = parseWhatsOnRows(rawQuizLondon, generatedAtOf(rawQuizLondon));
   const deals = parseWhatsOnRows(rawDealsLondon, generatedAtOf(rawDealsLondon));
   const sportFixtures = parseWhatsOnRows(rawSportFixtures, generatedAtOf(rawSportFixtures));
   const music = parseWhatsOnRows(rawMusicLondon, generatedAtOf(rawMusicLondon));
-  // events_london.json is the live-API vertical (Ticketmaster/Skiddle). It ships
-  // empty until provider keys land (see scripts/whatson/eventsRefresh.mjs), so
-  // today this contributes 0 rows; it lights up with no store change.
   const events = parseWhatsOnRows(rawEventsLondon, generatedAtOf(rawEventsLondon));
   const latest = parseWhatsOnRows(rawWhatsOnLatest, generatedAtOf(rawWhatsOnLatest));
   const byKey = new Map<string, WhatsOnRow>();
@@ -61,7 +91,7 @@ export function loadBaselineWhatsOn(): WhatsOnRow[] {
 }
 
 // derived < listed < confirmed: a cross-referenced inference never outranks
-// an actual listing or confirmation on collision (mergeWhatsOn below).
+// an actual listing or confirmation on collision.
 const CONFIDENCE_RANK: Record<WhatsOnRow["confidence"], number> = {
   confirmed: 2,
   listed: 1,
@@ -89,71 +119,164 @@ export function mergeWhatsOn(baseline: WhatsOnRow[], live: WhatsOnRow[]): WhatsO
   return Array.from(byKey.values());
 }
 
+export type WhatsOnSourceFreshnessKind =
+  | "provider-observed"
+  | "dataset-generated"
+  | "unknown";
+
+export type WhatsOnLocalityBasis =
+  | "live-location"
+  | "remembered-patch"
+  | "remembered-borough"
+  | "london-default";
+
 export type LoadWhatsOnParams = {
   kind?: WhatsOnKind;
   window?: "tonight";
   near?: { lat: number; lng: number };
   limit?: number;
+  localityBasis?: WhatsOnLocalityBasis;
 };
 
 export type FetchLiveArgs = { now: number; area?: string; limit?: number };
-export type FetchLive = (args: FetchLiveArgs) => Promise<WhatsOnRow[]>;
+export type FetchLiveResult = {
+  rows: WhatsOnRow[];
+  sourceObservedAt: string | null;
+};
+export type FetchLive = (args: FetchLiveArgs) => Promise<WhatsOnRow[] | FetchLiveResult>;
 
 export type LoadWhatsOnDeps = {
   now?: number;
   loadBaseline?: () => WhatsOnRow[];
+  baselineSourceObservedAt?: string | null;
   fetchLive?: FetchLive;
 };
 
-// Default live layer: CityMCP things_to_do (trimmed) mapped to whats-on rows,
-// with best-effort raw starts. Any throw propagates so loadWhatsOn can fail-soft.
-export const defaultFetchLive: FetchLive = async ({ now, area, limit }) => {
+// Default live layer: CityMCP things_to_do mapped to whats-on rows, with
+// best-effort raw starts. Final user limits are deliberately NOT forwarded to
+// either provider call: the complete inventory must survive through grouping
+// before the response limit is applied.
+export const defaultFetchLive: FetchLive = async ({ now, area }) => {
   const result: ThingsToDoResult = await fetchThingsToDo({
     window: "tonight",
     ...(area ? { area } : {}),
-    ...(limit ? { limit } : {}),
   });
   let startsAtByTitle: Map<string, string> | undefined;
   try {
-    startsAtByTitle = await fetchRawThingsToDoStartsAt({ window: "tonight", area, limit });
+    startsAtByTitle = await fetchRawThingsToDoStartsAt({ window: "tonight", area });
   } catch {
-    startsAtByTitle = undefined; // raw starts are a best-effort enrichment only
+    startsAtByTitle = undefined;
   }
   const windowStart = londonServiceDayBounds(now).start;
-  return mapThingsToDoToRows(result, { now, windowStart, startsAtByTitle });
+  return {
+    rows: mapThingsToDoToRows(result, { now, windowStart, startsAtByTitle }),
+    sourceObservedAt: canonicalPastIso(result.asOf, now),
+  };
 };
 
-export type LoadWhatsOnResult = { rows: WhatsOnRow[]; asOf: string };
+export type LoadWhatsOnResult = {
+  rows: WhatsOnRow[];
+  servedAt: string;
+  sourceObservedAt: string | null;
+  sourceFreshnessKind: WhatsOnSourceFreshnessKind;
+  localityBasis: WhatsOnLocalityBasis;
+  /** Compatibility alias for pre-L15 clients. It is source time, never request time. */
+  asOf: string | null;
+};
 
-// Orchestrator: baseline union live (fail-soft), then kind / tonight / near / limit.
+function normaliseLiveResult(
+  result: WhatsOnRow[] | FetchLiveResult,
+  now: number,
+): FetchLiveResult {
+  if (Array.isArray(result)) {
+    const observed = result
+      .map((row) => canonicalPastIso(row.observedAt, now))
+      .filter((value): value is string => value !== null);
+    return {
+      rows: result,
+      sourceObservedAt:
+        observed.length === 0
+          ? null
+          : observed.reduce((latest, value) =>
+              Date.parse(value) > Date.parse(latest) ? value : latest,
+            ),
+    };
+  }
+  return {
+    rows: Array.isArray(result.rows) ? result.rows : [],
+    sourceObservedAt: canonicalPastIso(result.sourceObservedAt, now),
+  };
+}
+
+function flattenGroupsBeforeLimit(
+  rows: WhatsOnRow[],
+  near: { lat: number; lng: number } | null,
+  limit: number | undefined,
+): WhatsOnRow[] {
+  const groups = groupTonightListings(rows, near);
+  const selected = typeof limit === "number" && limit > 0 ? groups.slice(0, limit) : groups;
+  return selected.flatMap((group) => [group.row, ...group.alternates]);
+}
+
+// Orchestrator: baseline union live (fail-soft), remove ended rows, apply the
+// service window and locality ordering, group exact offer families, then apply
+// the final card limit. Reads never present servedAt as source freshness.
 export async function loadWhatsOn(
   params: LoadWhatsOnParams = {},
   deps: LoadWhatsOnDeps = {},
 ): Promise<LoadWhatsOnResult> {
   const now = deps.now ?? Date.now();
+  const servedAt = new Date(now).toISOString();
   const baseline = (deps.loadBaseline ?? loadBaselineWhatsOn)();
+  const datasetObservedAt =
+    deps.baselineSourceObservedAt === undefined
+      ? deps.loadBaseline
+        ? null
+        : baselineSourceObservedAt(now)
+      : canonicalPastIso(deps.baselineSourceObservedAt, now);
 
-  let live: WhatsOnRow[] = [];
+  let live: FetchLiveResult = { rows: [], sourceObservedAt: null };
+  let liveFailed = false;
   try {
-    live = await (deps.fetchLive ?? defaultFetchLive)({ now, limit: params.limit });
+    // Do not pass params.limit. Grouping needs the provider's full inventory.
+    live = normaliseLiveResult(await (deps.fetchLive ?? defaultFetchLive)({ now }), now);
   } catch {
-    live = []; // fail-soft: live down → baseline only
+    liveFailed = true;
   }
 
-  let rows = mergeWhatsOn(baseline, live);
-  // Freshness guard (#408): drop any past-dated row (its interval already ended)
-  // so a stale bundled seed is never served. The tonight window path scopes past
-  // rows out via filterTonight, so this only needs to bite on the DEFAULT (no
-  // window) query path — the one that would otherwise serve a played fixture (or
-  // any finished row) forever once its end, or its start when it has no end, is
-  // in the past.
-  if (!params.window) rows = filterNotPast(rows, now);
+  let rows = filterNotPast(mergeWhatsOn(baseline, live.rows), now);
   if (params.kind) rows = filterByKind(rows, params.kind);
   if (params.window === "tonight") rows = filterTonight(rows, now);
   if (params.near) rows = sortByNear(rows, params.near);
-  if (typeof params.limit === "number" && params.limit > 0) rows = rows.slice(0, params.limit);
 
-  return { rows, asOf: new Date(now).toISOString() };
+  if (params.window === "tonight") {
+    rows = flattenGroupsBeforeLimit(rows, params.near ?? null, params.limit);
+  } else if (typeof params.limit === "number" && params.limit > 0) {
+    rows = rows.slice(0, params.limit);
+  }
+
+  let sourceObservedAt: string | null = null;
+  let sourceFreshnessKind: WhatsOnSourceFreshnessKind = "unknown";
+  if (live.sourceObservedAt) {
+    sourceObservedAt = live.sourceObservedAt;
+    sourceFreshnessKind = "provider-observed";
+  } else if ((liveFailed || live.rows.length === 0) && datasetObservedAt) {
+    sourceObservedAt = datasetObservedAt;
+    sourceFreshnessKind = "dataset-generated";
+  }
+
+  const localityBasis = params.near
+    ? (params.localityBasis ?? "live-location")
+    : (params.localityBasis ?? "london-default");
+
+  return {
+    rows,
+    servedAt,
+    sourceObservedAt,
+    sourceFreshnessKind,
+    localityBasis,
+    asOf: sourceObservedAt,
+  };
 }
 
 // Ascending haversine sort; rows without coords sort last (stable among each

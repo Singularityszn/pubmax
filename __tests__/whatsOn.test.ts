@@ -137,6 +137,31 @@ describe("London tonight windowing (04:00 service-day rollback)", () => {
     expect(end).toBe("2026-07-12T03:00:00.000Z");
   });
 
+  it("changes service day exactly at 04:00 London", () => {
+    const before = londonServiceDayBounds(Date.parse("2026-07-12T02:59:59.000Z"));
+    expect(before.start).toBe("2026-07-11T15:00:00.000Z");
+    const boundary = londonServiceDayBounds(Date.parse("2026-07-12T03:00:00.000Z"));
+    expect(boundary.start).toBe("2026-07-12T15:00:00.000Z");
+  });
+
+  it("resolves spring-forward boundaries independently (11-hour window)", () => {
+    const bounds = londonServiceDayBounds(Date.parse("2026-03-28T20:00:00.000Z"));
+    expect(bounds).toEqual({
+      start: "2026-03-28T16:00:00.000Z",
+      end: "2026-03-29T03:00:00.000Z",
+    });
+    expect(Date.parse(bounds.end) - Date.parse(bounds.start)).toBe(11 * 60 * 60 * 1000);
+  });
+
+  it("resolves autumn-repeat boundaries independently (13-hour window)", () => {
+    const bounds = londonServiceDayBounds(Date.parse("2026-10-24T20:00:00.000Z"));
+    expect(bounds).toEqual({
+      start: "2026-10-24T15:00:00.000Z",
+      end: "2026-10-25T04:00:00.000Z",
+    });
+    expect(Date.parse(bounds.end) - Date.parse(bounds.start)).toBe(13 * 60 * 60 * 1000);
+  });
+
   it("isOnTonight / filterTonight select rows inside the window", () => {
     const now = Date.parse("2026-07-11T20:00:00.000Z");
     const inside = makeRow({ id: "in", startsAt: "2026-07-11T19:30:00+01:00" });
@@ -242,6 +267,17 @@ describe("past-dated freshness guard (isPastDated / filterNotPast)", () => {
     });
     expect(isPastDated(finishedDeal, NOW_GUARD)).toBe(true);
     expect(filterNotPast([finishedDeal], NOW_GUARD)).toEqual([]);
+  });
+
+  it("drops an interval at the exact endsAt boundary", () => {
+    const boundary = makeRow({
+      id: "deal-boundary",
+      kind: "deal",
+      startsAt: "2026-07-18T18:00:00.000Z",
+      endsAt: new Date(NOW_GUARD).toISOString(),
+    });
+    expect(isPastDated(boundary, NOW_GUARD)).toBe(true);
+    expect(filterNotPast([boundary], NOW_GUARD)).toEqual([]);
   });
 
   it("filterNotPast partitions a mixed set, preserving order of the survivors", () => {
@@ -360,6 +396,24 @@ describe("mapThingsToDoToRows", () => {
     expect(music.startsAt).toBe(windowStart);
     expect(music.lat).toBe(51.52);
     expect(music.detail).toContain("Listed time: 8pm");
+  });
+
+  it("uses a valid provider asOf for live-row observedAt", () => {
+    const rows = mapThingsToDoToRows(
+      {
+        ...result([
+          {
+            title: "Provider-timed gig",
+            kind: "gig",
+            place: { name: "Venue" },
+            source: { label: "T", url: "https://t.com" },
+          },
+        ]),
+        asOf: "2026-07-11T18:30:00.000Z",
+      },
+      { now: NOW, windowStart },
+    );
+    expect(rows[0].observedAt).toBe("2026-07-11T18:30:00.000Z");
   });
 
   it("drops non-mapping kinds, missing place names, and non-http sources", () => {

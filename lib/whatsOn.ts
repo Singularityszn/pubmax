@@ -262,6 +262,24 @@ function londonOffsetMs(base: Date): number {
   return asIfUtc - Math.floor(base.getTime() / 1000) * 1000;
 }
 
+// Convert a London wall-clock time to an absolute instant. Two offset passes are
+// enough because Europe/London has only GMT/BST offsets and our service
+// boundaries (16:00 and 04:00) are outside the repeated/skipped transition hour.
+// Resolving each boundary independently matters on clock-change nights: using
+// `now`'s offset for both ends makes the spring window an hour too long and the
+// autumn window an hour too short.
+function londonWallTimeToUtcMs(
+  year: number,
+  month: number,
+  day: number,
+  hour: number,
+): number {
+  const wallAsUtc = Date.UTC(year, month - 1, day, hour, 0, 0);
+  let instant = wallAsUtc - londonOffsetMs(new Date(wallAsUtc));
+  instant = wallAsUtc - londonOffsetMs(new Date(instant));
+  return instant;
+}
+
 // "Now" in Europe/London as a wall-clock Date (same approach as manchesterNow).
 // Its local getHours()/getDate() read the London wall clock; do NOT use it as an
 // absolute instant.
@@ -272,26 +290,28 @@ export function londonNow(base: Date = new Date()): Date {
 
 // The "tonight" window as absolute ISO instants: [evening 16:00, next 04:00).
 // Before 04:00 London, the evening date rolls back a day (the still-running
-// evening). Offset is read at `now`; the span never crosses the 01:00 DST
-// switch in a way that matters here, so a single offset is exact enough.
+// evening). Resolve each wall-clock boundary independently so spring/autumn DST
+// transitions produce the real 11h/13h service window rather than an invented
+// fixed 12h span.
 export function londonServiceDayBounds(now: number = Date.now()): { start: string; end: string } {
-  const base = new Date(now);
-  const p = londonParts(base);
-  const offset = londonOffsetMs(base);
-
-  let ey = p.year;
-  let em = p.month;
-  let ed = p.day;
+  const p = londonParts(new Date(now));
+  const serviceDate = new Date(Date.UTC(p.year, p.month - 1, p.day));
   if (p.hour < SERVICE_DAY_ROLLBACK_HOUR) {
-    const prev = new Date(Date.UTC(p.year, p.month - 1, p.day));
-    prev.setUTCDate(prev.getUTCDate() - 1);
-    ey = prev.getUTCFullYear();
-    em = prev.getUTCMonth() + 1;
-    ed = prev.getUTCDate();
+    serviceDate.setUTCDate(serviceDate.getUTCDate() - 1);
   }
 
-  const startMs = Date.UTC(ey, em - 1, ed, WINDOW_OPEN_HOUR, 0, 0) - offset;
-  const endMs = Date.UTC(ey, em - 1, ed + 1, SERVICE_DAY_ROLLBACK_HOUR, 0, 0) - offset;
+  const ey = serviceDate.getUTCFullYear();
+  const em = serviceDate.getUTCMonth() + 1;
+  const ed = serviceDate.getUTCDate();
+  const nextDate = new Date(Date.UTC(ey, em - 1, ed + 1));
+
+  const startMs = londonWallTimeToUtcMs(ey, em, ed, WINDOW_OPEN_HOUR);
+  const endMs = londonWallTimeToUtcMs(
+    nextDate.getUTCFullYear(),
+    nextDate.getUTCMonth() + 1,
+    nextDate.getUTCDate(),
+    SERVICE_DAY_ROLLBACK_HOUR,
+  );
   return { start: new Date(startMs).toISOString(), end: new Date(endMs).toISOString() };
 }
 
@@ -359,7 +379,7 @@ export function rowEffectiveEnd(row: WhatsOnRow): number {
 }
 
 // Freshness guard for the serving/build seam. A row is past-dated once its
-// interval has ended: effectiveEnd < now. A point row (no endsAt) stays live for
+// interval has ended: effectiveEnd <= now. A point row (no endsAt) stays live for
 // its kind-aware grace after startsAt (POINT_ROW_GRACE_MS), then goes past; an
 // interval row (e.g. an all-day deal) stays live while it is still running,
 // exactly like isOnTonight's overlap test.
@@ -371,7 +391,7 @@ export function rowEffectiveEnd(row: WhatsOnRow): number {
 // path, which would otherwise surface a played fixture forever.
 export function isPastDated(row: WhatsOnRow, now: number = Date.now()): boolean {
   const end = rowEffectiveEnd(row);
-  return Number.isFinite(end) && end < now;
+  return Number.isFinite(end) && end <= now;
 }
 
 export function filterNotPast(rows: WhatsOnRow[], now: number = Date.now()): WhatsOnRow[] {
@@ -425,7 +445,14 @@ export type MapThingsToDoOpts = {
 // Drops any opp whose kind does not map, that lacks a place name, or whose
 // source has no absolute-http url (provenance non-negotiable).
 export function mapThingsToDoToRows(result: ThingsToDoResult, opts: MapThingsToDoOpts): WhatsOnRow[] {
-  const observedAt = new Date(opts.now).toISOString();
+  const providerObservedAt = isValidObservedAt(result.asOf, opts.now)
+    ? new Date(Date.parse(result.asOf as string)).toISOString()
+    : null;
+  // The row contract predates response-level three-state freshness and requires
+  // an observedAt. Keep the request instant only as an internal fallback when
+  // the provider omits its timestamp; callers must expose that case as
+  // sourceFreshnessKind="unknown", never as a checked-at label.
+  const observedAt = providerObservedAt ?? new Date(opts.now).toISOString();
   const rows: WhatsOnRow[] = [];
   for (const opp of result.opportunities) {
     const kind = opp.kind ? THINGS_TO_DO_KIND_MAP[opp.kind] : undefined;

@@ -41,6 +41,39 @@ test("the /tonight screen mounts with an honest header and provenance", async ({
   expect(errors).toEqual([]);
 });
 
+test("unknown source freshness never displays request time as checked", async ({ page }) => {
+  await page.route("**/api/whats-on?**", (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        servedAt: "2026-07-15T21:59:59.000Z",
+        sourceObservedAt: null,
+        sourceFreshnessKind: "unknown",
+        localityBasis: "london-default",
+        asOf: null,
+        rows: [
+          {
+            id: "quiz-unknown-freshness",
+            venueId: "venue-xjf3n0",
+            placeName: "The Test Arms",
+            kind: "quiz",
+            startsAt: "2026-07-15T20:00:00.000Z",
+            title: "Quiz night",
+            source: { label: "Pub listing", url: "https://example.com/quiz" },
+            observedAt: "2026-07-15T21:59:59.000Z",
+            confidence: "listed",
+          },
+        ],
+      }),
+    }),
+  );
+
+  await page.goto("/tonight");
+  await expect(page.getByText(/Freshness unknown · via what’s-on/i)).toBeVisible();
+  await expect(page.getByText(/Checked 15 Jul/i)).toHaveCount(0);
+});
+
 test("filtering by kind narrows the list and rows tap into a venue", async ({
   page,
 }) => {

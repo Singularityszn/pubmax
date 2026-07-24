@@ -5,9 +5,22 @@ import {
   loadWhatsOn,
   type LoadWhatsOnDeps,
   type LoadWhatsOnParams,
+  type WhatsOnLocalityBasis,
+  type WhatsOnSourceFreshnessKind,
 } from "@/lib/whatsOnStore";
+import type { WhatsOnRow } from "@/lib/whatsOn";
 
 const MAX_LIMIT = 100;
+
+export type WhatsOnResponse = {
+  rows: WhatsOnRow[];
+  servedAt: string;
+  sourceObservedAt: string | null;
+  sourceFreshnessKind: WhatsOnSourceFreshnessKind;
+  localityBasis: WhatsOnLocalityBasis;
+  /** Compatibility alias for pre-L15 clients; always equals sourceObservedAt. */
+  asOf: string | null;
+};
 
 function parseKind(raw: string | null): WhatsOnKind | undefined {
   if (!raw) return undefined;
@@ -56,8 +69,16 @@ export async function handleWhatsOnRequest(
     const limit = parseLimit(params.get("limit"));
     if (limit) load.limit = limit;
 
-    const { rows, asOf } = await loadWhatsOn(load, deps);
-    return jsonNoStore({ rows, asOf });
+    const result = await loadWhatsOn(load, deps);
+    const response: WhatsOnResponse = {
+      rows: result.rows,
+      servedAt: result.servedAt,
+      sourceObservedAt: result.sourceObservedAt,
+      sourceFreshnessKind: result.sourceFreshnessKind,
+      localityBasis: result.localityBasis,
+      asOf: result.sourceObservedAt,
+    };
+    return jsonNoStore(response);
   } catch (err) {
     const message = err instanceof Error ? err.message : "What's-On request failed";
     return jsonNoStore({ rows: [], error: message });

@@ -212,7 +212,10 @@ export default function TonightClient() {
           <p className="tonightProvenance">
             {coverageLabel(rows.length)}
             <span aria-hidden="true"> · </span>
-            {checkedLabel(asOf)} · via what&rsquo;s-on
+            {/* One template literal so the separator spacing survives JSX
+                text-node splitting (the built output was eating the space
+                before the interpunct, rendering "unknown· via"). */}
+            {`${checkedLabel(asOf)} · via what’s-on`}
             {/* The one quiet continuity line: when the order comes from a
                 remembered patch (not a live position), say which. */}
             {ready && tonightNear?.patchLabel
