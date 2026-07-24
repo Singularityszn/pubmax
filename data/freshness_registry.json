@@ -55,8 +55,19 @@
       "stamp": { "kind": "field", "pointer": "generatedAt" },
       "cadence": "daily, 08:15 UTC",
       "stalenessBudgetHours": 48,
-      "refreshWorkflow": "Night Signal refresh",
-      "gate": "EXA_API_KEY arms candidate ingestion; without it the reviewed snapshot publishes empty (staged candidates only). Every claim still passes human review before it ships."
+      "refreshWorkflow": "Night Signal refresh (human-gated reviewed publish)",
+      "gate": "EXA_API_KEY arms candidate ingestion (now via the Vercel cron GET /api/cron/refresh-night-signals — see the night_signal_candidates feed); without it the reviewed snapshot publishes empty. Every claim still passes human review before it ships, so this reviewed feed advances only on an approved publish, never automatically."
+    },
+    {
+      "id": "night_signal_candidates",
+      "label": "Night Signal candidate ingestion (Exa sweep, pending review)",
+      "class": "cron",
+      "artifact": null,
+      "stamp": null,
+      "cadence": "daily, 05:15 UTC via Vercel cron",
+      "stalenessBudgetHours": null,
+      "refreshWorkflow": "Vercel cron GET /api/cron/refresh-night-signals sweeps Exa for dated, attributable London pub buzz and stamps feed_freshness (durable store, migration 0047 plane). Store-only: the freshness overlay surfaces the real observedAt (visible in /api/freshness); there is no committed artifact, so the file-based check treats it as untracked. Hard staleness-budgeting an artifact-less cron feed is a registry-model follow-up. This feed reports when INGESTION last ran, not that any claim shipped.",
+      "gate": "EXA_API_KEY (present in Vercel Preview + Production). Keyless = safe no-op. Candidates stay PENDING; durable candidate persistence + a store-based human-review surface are the follow-up before the reviewed night_signals feed can advance without GitHub runners."
     },
     {
       "id": "weather",
