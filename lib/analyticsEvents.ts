@@ -44,7 +44,22 @@ export const ANALYTICS_EVENTS = {
   discovery_viewed: ["surface", "daypart"],
   plan_invite_sent: ["channel"],
   plan_invite_opened: ["source"],
-  crew_committed: ["source", "participants"],
+  // Trusted pint-to-crew handoff. Every prop is fixed-schema and low-cardinality;
+  // required-field validation below rejects the whole event on mismatch.
+  near_answer_ready: ["source", "resultBand"],
+  venue_accepted: ["source", "hasArea", "hasDate", "hasProvenance"],
+  planning_handoff_opened: ["from", "to"],
+  planning_handoff_preserved: [
+    "from",
+    "to",
+    "venuePreserved",
+    "areaPreserved",
+    "datePreserved",
+    "provenancePreserved",
+  ],
+  map_search_no_results: [],
+  tonight_result_opened: ["kind", "localityBasis"],
+  crew_committed: ["source", "participants", "routeReady"],
   account_claimed: ["source"],
   social_account_connected: ["provider", "connectionType"],
   night_moment_saved: ["kind", "visibility"],
@@ -106,7 +121,8 @@ export const ANALYTICS_EVENTS = {
   // not page views. Props stay deliberately coarse: no Plan/Memory/Story ids,
   // user content, locations, coordinates, or elapsed-time fingerprints.
   plan_generated: ["stops", "grounded"],
-  plan_accepted: ["stops", "grounded"],
+  plan_draft_saved: ["stops", "grounded", "anchored", "routeReady", "source"],
+  plan_accepted: ["stops", "grounded", "anchored", "routeReady", "source"],
   plan_saved: ["stops", "grounded"],
   claim_started: ["source"],
   claim_completed: ["source"],
@@ -120,6 +136,82 @@ export const ANALYTICS_EVENTS = {
 } as const;
 
 export type AnalyticsEventName = keyof typeof ANALYTICS_EVENTS;
+
+export const PLANNING_SOURCES = [
+  "near",
+  "map-search",
+  "tonight",
+  "pal",
+  "direct-plan",
+  "mobile-route-preview",
+] as const;
+export type PlanningSource = (typeof PLANNING_SOURCES)[number];
+
+export const ACCEPTANCE_SOURCES = ["near", "map-search", "tonight", "pal"] as const;
+export type AcceptanceSource = (typeof ACCEPTANCE_SOURCES)[number];
+
+export const HANDOFF_SOURCES = [
+  "near",
+  "map-search",
+  "tonight",
+  "pal",
+  "mobile-route-preview",
+] as const;
+export type HandoffSource = (typeof HANDOFF_SOURCES)[number];
+
+export const TONIGHT_LOCALITY_BASES = [
+  "live-location",
+  "remembered-patch",
+  "remembered-borough",
+  "london-default",
+] as const;
+export type TonightLocalityBasis = (typeof TONIGHT_LOCALITY_BASES)[number];
+
+export type TrustedHandoffAnalyticsPropsByEvent = {
+  near_answer_ready: {
+    source: "location" | "remembered-area" | "picked-area";
+    resultBand: "0" | "1-3" | "4+";
+  };
+  venue_accepted: {
+    source: AcceptanceSource;
+    hasArea: boolean;
+    hasDate: boolean;
+    hasProvenance: boolean;
+  };
+  planning_handoff_opened: { from: HandoffSource; to: "map" | "plan" };
+  planning_handoff_preserved: {
+    from: HandoffSource;
+    to: "map" | "plan";
+    venuePreserved: boolean;
+    areaPreserved: boolean;
+    datePreserved: boolean;
+    provenancePreserved: boolean;
+  };
+  map_search_no_results: Record<never, never>;
+  tonight_result_opened: {
+    kind: "sport" | "quiz" | "deal" | "music" | "gig" | "event" | "other";
+    localityBasis: TonightLocalityBasis;
+  };
+  plan_draft_saved: {
+    stops: 1;
+    grounded: true;
+    anchored: true;
+    routeReady: false;
+    source: PlanningSource;
+  };
+  plan_accepted: {
+    stops: 3;
+    grounded: true;
+    anchored: boolean;
+    routeReady: true;
+    source: PlanningSource;
+  };
+  crew_committed: {
+    source: "shared-plan";
+    participants: number;
+    routeReady: boolean;
+  };
+};
 
 export const WEEKLY_MEANINGFUL_CORE_ACTIONS = [
   "plan_accepted",
@@ -145,6 +237,9 @@ const SAFE_STRING_VALUES = new Set([
   // fixed product surfaces and provenance
   "landing", "home", "map", "tonight", "plan", "you", "pal", "borough", "crawl", "recap",
   "shared-plan", "plan-link", "crew-reinvite", "completed_plan",
+  "near", "map-search", "direct-plan", "mobile-route-preview",
+  "location", "remembered-area", "picked-area", "0", "1-3", "4+",
+  "live-location", "remembered-patch", "remembered-borough", "london-default", "other",
   "tonight-lane", "whats-on-quiz", "whats-on-sport", "whats-on-deal", "whats-on-music",
   // fixed actions, states, providers, and fallbacks
   "copy", "native", "whatsapp", "sms", "x", "instagram", "tiktok", "oauth", "manual",
@@ -183,8 +278,90 @@ function isAllowedDistrictEventProp(name: AnalyticsEventName, key: string, value
   return !allowed || (allowed as readonly (string | number | boolean)[]).includes(value);
 }
 
+const TRUSTED_HANDOFF_REQUIRED_KEYS = {
+  near_answer_ready: ["source", "resultBand"],
+  venue_accepted: ["source", "hasArea", "hasDate", "hasProvenance"],
+  planning_handoff_opened: ["from", "to"],
+  planning_handoff_preserved: [
+    "from",
+    "to",
+    "venuePreserved",
+    "areaPreserved",
+    "datePreserved",
+    "provenancePreserved",
+  ],
+  tonight_result_opened: ["kind", "localityBasis"],
+  plan_draft_saved: ["stops", "grounded", "anchored", "routeReady", "source"],
+  plan_accepted: ["stops", "grounded", "anchored", "routeReady", "source"],
+  crew_committed: ["source", "participants", "routeReady"],
+  meaningful_core_action: ["action"],
+} as const satisfies Partial<Record<AnalyticsEventName, readonly string[]>>;
+
+function includesValue(values: readonly string[], value: string | number | boolean): boolean {
+  return typeof value === "string" && values.includes(value);
+}
+
+function isAllowedVerifiedOutcomeProp(
+  name: "plan_draft_saved" | "plan_accepted" | "crew_committed",
+  key: string,
+  value: string | number | boolean,
+): boolean {
+  if (name === "plan_draft_saved") {
+    if (key === "stops") return value === 1;
+    if (key === "grounded" || key === "anchored") return value === true;
+    if (key === "routeReady") return value === false;
+    return key === "source" && includesValue(PLANNING_SOURCES, value);
+  }
+  if (name === "plan_accepted") {
+    if (key === "stops") return value === 3;
+    if (key === "grounded" || key === "routeReady") return value === true;
+    if (key === "anchored") return typeof value === "boolean";
+    return key === "source" && includesValue(PLANNING_SOURCES, value);
+  }
+  if (key === "source") return value === "shared-plan";
+  if (key === "participants") {
+    return typeof value === "number" && Number.isInteger(value) && value >= 1 && value <= 100;
+  }
+  return key === "routeReady" && typeof value === "boolean";
+}
+
+function isAllowedTrustedHandoffEventProp(
+  name: AnalyticsEventName,
+  key: string,
+  value: string | number | boolean,
+): boolean {
+  if (name === "plan_draft_saved" || name === "plan_accepted" || name === "crew_committed") {
+    return isAllowedVerifiedOutcomeProp(name, key, value);
+  }
+  switch (name) {
+    case "near_answer_ready":
+      return key === "source"
+        ? includesValue(["location", "remembered-area", "picked-area"], value)
+        : key === "resultBand" && includesValue(["0", "1-3", "4+"], value);
+    case "venue_accepted":
+      return key === "source"
+        ? includesValue(ACCEPTANCE_SOURCES, value)
+        : ["hasArea", "hasDate", "hasProvenance"].includes(key) && typeof value === "boolean";
+    case "planning_handoff_opened":
+      return key === "from"
+        ? includesValue(HANDOFF_SOURCES, value)
+        : key === "to" && includesValue(["map", "plan"], value);
+    case "planning_handoff_preserved":
+      if (key === "from") return includesValue(HANDOFF_SOURCES, value);
+      if (key === "to") return includesValue(["map", "plan"], value);
+      return ["venuePreserved", "areaPreserved", "datePreserved", "provenancePreserved"].includes(key)
+        && typeof value === "boolean";
+    case "tonight_result_opened":
+      return key === "kind"
+        ? includesValue(["sport", "quiz", "deal", "music", "gig", "event", "other"], value)
+        : key === "localityBasis" && includesValue(TONIGHT_LOCALITY_BASES, value);
+    default:
+      return true;
+  }
+}
+
 function isAllowedLoopEventProp(name: AnalyticsEventName, key: string, value: string | number | boolean): boolean {
-  if (["plan_generated", "plan_accepted", "plan_saved"].includes(name)) {
+  if (["plan_generated", "plan_saved"].includes(name)) {
     if (key === "stops") return typeof value === "number" && Number.isInteger(value) && value >= 1 && value <= 10;
     if (key === "grounded") return typeof value === "boolean";
   }
@@ -264,13 +441,15 @@ export function sanitizeEvent(
         ? customValidator(value)
         : isSafeValue(value)
           && isAllowedDistrictEventProp(name, key, value)
-          && isAllowedLoopEventProp(name, key, value);
+          && isAllowedLoopEventProp(name, key, value)
+          && isAllowedTrustedHandoffEventProp(name, key, value);
       if (valid) out[key] = value as string | number | boolean;
     }
   }
-  // The roll-up is meaningful only with its exact reviewed action. Unlike
-  // ordinary optional props, a missing/invalid discriminator must reject the
-  // whole event so ingest can never record an ambiguous core action.
-  if (name === "meaningful_core_action" && out.action === undefined) return null;
+  // Fixed-schema outcomes and handoff discriminators fail closed. Unknown keys
+  // are still dropped, but a missing or invalid required key rejects the whole
+  // event rather than producing an ambiguous partial metric.
+  const requiredKeys = TRUSTED_HANDOFF_REQUIRED_KEYS[name as keyof typeof TRUSTED_HANDOFF_REQUIRED_KEYS];
+  if (requiredKeys?.some((key) => out[key] === undefined)) return null;
   return { name, props: out };
 }

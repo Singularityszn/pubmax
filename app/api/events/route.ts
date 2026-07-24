@@ -60,7 +60,9 @@ function noContent(delivery?: "delivered" | "retry" | "discard"): Response {
 }
 
 function requiresVerifiedDelivery(name: string, props: Record<string, string | number | boolean>): boolean {
-  return name === "plan_accepted"
+  return name === "plan_draft_saved"
+    || name === "plan_accepted"
+    || name === "crew_committed"
     || name === "plan_completed"
     || (name === "meaningful_core_action" && ["plan_accepted", "plan_completed"].includes(String(props.action)));
 }

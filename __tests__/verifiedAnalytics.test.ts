@@ -11,7 +11,10 @@ import {
 
 describe("verified analytics delivery", () => {
   const occurredAt = "2026-07-20T12:00:00.000Z";
-  const event = { name: "plan_accepted" as const, props: { stops: 3, grounded: true } };
+  const event = {
+    name: "plan_accepted" as const,
+    props: { stops: 3, grounded: true, anchored: true, routeReady: true, source: "near" },
+  };
 
   beforeEach(() => __resetMemoryAnalyticsReceipts());
 
@@ -22,7 +25,7 @@ describe("verified analytics delivery", () => {
     expect(replay).toBe(first);
     expect(verifyAnalyticsDeliveryToken(first, event, Date.parse(occurredAt) + 1_000)).toMatchObject({
       name: "plan_accepted",
-      props: { stops: 3, grounded: true },
+      props: { stops: 3, grounded: true, anchored: true, routeReady: true, source: "near" },
     });
     expect(verifyAnalyticsDeliveryToken(first, { ...event, props: { stops: 2, grounded: true } }, Date.parse(occurredAt) + 1_000)).toBeNull();
   });

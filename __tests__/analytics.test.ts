@@ -77,7 +77,7 @@ describe("trackEvent", () => {
       }));
     vi.stubGlobal("fetch", fetchMock);
 
-    trackEvent("plan_accepted", { stops: 3, grounded: true }, { deliveryToken: "signed-delivery-token" });
+    trackEvent("plan_accepted", { stops: 3, grounded: true, anchored: true, routeReady: true, source: "near" }, { deliveryToken: "signed-delivery-token" });
     await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
     await flushVerifiedAnalyticsOutbox();
     if (fetchMock.mock.calls.length === 1) await flushVerifiedAnalyticsOutbox();
@@ -101,7 +101,7 @@ describe("trackEvent", () => {
       }));
     vi.stubGlobal("fetch", fetchMock);
 
-    trackEvent("plan_accepted", { stops: 3, grounded: true }, { deliveryToken: "revocation-token-a" });
+    trackEvent("plan_accepted", { stops: 3, grounded: true, anchored: true, routeReady: true, source: "near" }, { deliveryToken: "revocation-token-a" });
     await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
     trackEvent("plan_completed", { ending: "get_home" }, { deliveryToken: "revocation-token-b" });
 
@@ -110,7 +110,7 @@ describe("trackEvent", () => {
     expect(firstSignal?.aborted).toBe(true);
 
     setAnalyticsConsent(true);
-    trackEvent("plan_accepted", { stops: 3, grounded: true }, { deliveryToken: "revocation-token-a" });
+    trackEvent("plan_accepted", { stops: 3, grounded: true, anchored: true, routeReady: true, source: "near" }, { deliveryToken: "revocation-token-a" });
     resolveFirst(new Response(null, {
       status: 204,
       headers: { "x-analytics-delivery": "delivered" },

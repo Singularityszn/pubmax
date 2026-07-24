@@ -152,7 +152,7 @@ user content.
 | Event | Confirmed seam | Allowed props |
 |---|---|---|
 | `plan_generated` | A non-empty grounded route returns from `/api/plans/generate` | `stops`, `grounded` |
-| `plan_accepted` | The person explicitly locks the preview; original and replay responses return the same server-signed delivery token, while ingest records/forwards it once | `stops`, `grounded` |
+| `plan_accepted` | First server-verified transition to a grounded, Route-ready three-Stop Plan; original and replay responses return the same signed delivery token, while ingest records/forwards it once | `stops` (`3`), `grounded` (`true`), `anchored`, `routeReady` (`true`), `source` |
 | `plan_saved` | The created Plan and its route metadata finish saving | `stops`, `grounded` |
 | `claim_started` | The AuthProvider account-preservation claim is submitted to `/api/identity/claim`, excluding handle creation and renames | `source` (`auth`) |
 | `claim_completed` | That account-preservation claim succeeds | `source` (`auth`) |
@@ -160,12 +160,15 @@ user content.
 | `memory_reviewed` | The completed Plan's inline editor or full private recap is explicitly opened | `source` (`inline_recap` or `full_recap`) |
 | `story_published` | The separate Story publication confirmation succeeds | `visibility`, `contributors`, `moments` |
 
-Activation is the elapsed time from `plan_generated` to the first
-`plan_accepted` or `plan_saved` with `grounded = true` for the same
-pseudonymous identity. Manual Plans remain visible in the loop events with
-`grounded = false`, but do not enter this grounded-route activation measure.
-`grounded` on acceptance/save is server-owned: generation returns a two-hour
-HMAC proof covering its candidate venue ids and one create idempotency operation.
+Activation is the elapsed time from `plan_generated` to the first verified
+`plan_accepted` with `stops = 3`, `grounded = true`, `routeReady = true` for the
+same pseudonymous identity. `plan_saved` and `plan_draft_saved` remain separate
+signals and never enter this grounded-Route activation measure. Direct/manual
+Plans do not emit `plan_accepted`; the legacy creation response keeps acceptance
+delivery suppressed until L09 installs the one-Stop-to-three-Stop lifecycle and
+its server-owned transition token. `grounded`, `anchored`, `routeReady`, and
+`source` on acceptance are server-owned: generation returns a two-hour HMAC
+proof covering its candidate Venue ids and one create idempotency operation.
 Plan creation verifies the exact accepted three-stop route against that proof
 after canonical Venue Dataset resolution. The proof digest is part of the
 durable create request hash, so a replay cannot remove or replace attribution;
@@ -177,10 +180,11 @@ and the API independently fails closed for stale, forged, or cross-operation pro
 Acceptance and completion loop events use a consent-gated verified-delivery
 path. Their canonical API responses return stable signed tokens on both the
 original response and every idempotent replay. The browser keeps unacknowledged
-tokens in a bounded local outbox and retries them. Revoking consent aborts any
-active delivery request, clears the outbox, and advances a consent epoch so a
-stale response cannot send another item or remove an event queued after consent
-is granted again. `/api/events` verifies the
+tokens in a bounded local outbox and retries them. Revoking consent in any tab
+aborts active delivery requests, clears persistent and tab-local outboxes, and
+advances each observing tab's consent epoch. Cross-tab storage changes replace,
+never merge, verified memory after revocation, so granting consent again cannot
+replay an event retained by another tab. `/api/events` verifies the
 exact sanitized event, claims a service-role-only `analytics_event_receipts`
 row, and forwards a stable derived event id as PostHog `$insert_id`. The signed
 token, Plan/completion id, and receipt hash are never event props. Provider or
