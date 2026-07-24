@@ -16,6 +16,8 @@ import {
   ROUTE_READY_GATE_CODES,
   ROUTE_READY_GATE_VERSION,
 } from "@/lib/nightAreas";
+import { ROUTE_PATTERNS, ROUTE_PATTERN_OTHER } from "@/lib/routePattern";
+import { VITAL_METRICS, VITAL_RATINGS, sanitizeVitalTarget } from "@/lib/webVitals";
 
 /** Allowed prop keys per event. An empty list means the event carries no props. */
 export const ANALYTICS_EVENTS = {
@@ -71,7 +73,7 @@ export const ANALYTICS_EVENTS = {
   recap_share_gate_opened: ["planId"],
   next_night_committed: ["windowDays", "source"],
   draft_recovered: ["kind", "surface"],
-  web_vital: ["metric", "value", "rating"],
+  web_vital: ["metric", "value", "rating", "route", "target"],
   guest_plan_participated: ["action"],
   // Wave A
   tonight_screen_view: [],
@@ -295,6 +297,9 @@ const TRUSTED_HANDOFF_REQUIRED_KEYS = {
   plan_accepted: ["stops", "grounded", "anchored", "routeReady", "source"],
   crew_committed: ["source", "participants", "routeReady"],
   meaningful_core_action: ["action"],
+  // Field RUM: a vital is meaningless without which metric, its value, rating,
+  // and the route it happened on. `target` (attribution selector) is optional.
+  web_vital: ["metric", "value", "rating", "route"],
 } as const satisfies Partial<Record<AnalyticsEventName, readonly string[]>>;
 
 function includesValue(values: readonly string[], value: string | number | boolean): boolean {
@@ -394,10 +399,34 @@ function isUuidLike(value: unknown): value is string {
   return typeof value === "string" && UUID_PATTERN.test(value);
 }
 
+// A vital's `route` may only be one of the app's known route templates (or the
+// "/other" fallback) — never a raw path, so a venue id/slug/handle can never
+// ride in. `target` must survive the same selector sanitiser the beacon applied.
+const KNOWN_ROUTE_PATTERNS = new Set<string>([...ROUTE_PATTERNS, ROUTE_PATTERN_OTHER]);
+
+function isKnownRoutePattern(value: unknown): value is string {
+  return typeof value === "string" && KNOWN_ROUTE_PATTERNS.has(value);
+}
+
+function isSafeVitalTarget(value: unknown): value is string {
+  return typeof value === "string" && sanitizeVitalTarget(value) === value;
+}
+
 /** Per-prop-key validators that replace the generic enum check for that key. */
 const CUSTOM_PROP_VALIDATORS: Partial<Record<string, (value: unknown) => value is string | number | boolean>> = {
   inviteId: isUuidLike,
+  route: isKnownRoutePattern,
+  target: isSafeVitalTarget,
 };
+
+/** web_vital metric/rating/value strictness (route/target use custom validators). */
+function isAllowedVitalProp(name: AnalyticsEventName, key: string, value: string | number | boolean): boolean {
+  if (name !== "web_vital") return true;
+  if (key === "metric") return includesValue(VITAL_METRICS, value);
+  if (key === "rating") return includesValue(VITAL_RATINGS, value);
+  if (key === "value") return typeof value === "number" && Number.isFinite(value) && value >= 0;
+  return true;
+}
 
 export function isKnownEvent(name: string): name is AnalyticsEventName {
   return Object.prototype.hasOwnProperty.call(ANALYTICS_EVENTS, name);
@@ -442,7 +471,8 @@ export function sanitizeEvent(
         : isSafeValue(value)
           && isAllowedDistrictEventProp(name, key, value)
           && isAllowedLoopEventProp(name, key, value)
-          && isAllowedTrustedHandoffEventProp(name, key, value);
+          && isAllowedTrustedHandoffEventProp(name, key, value)
+          && isAllowedVitalProp(name, key, value);
       if (valid) out[key] = value as string | number | boolean;
     }
   }
