@@ -171,10 +171,29 @@
 }
 
 .mapSearchSuggestEmpty {
-  margin: 0;
+  display: grid;
+  gap: 4px;
+  min-height: 72px;
+  border-top: 1px solid var(--color-border-soft, var(--line-soft, var(--line)));
   padding: 14px;
-  font-size: 0.86rem;
   color: var(--color-text-soft, var(--ink-soft, var(--ink)));
+}
+
+.mapSearchSuggestEmptyTitle,
+.mapSearchSuggestEmptyHint {
+  margin: 0;
+}
+
+.mapSearchSuggestEmptyTitle {
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--color-text, var(--ink));
+}
+
+.mapSearchSuggestEmptyHint {
+  max-width: 38ch;
+  font-size: 0.78rem;
+  line-height: 1.45;
 }
 
 @media (prefers-reduced-motion: reduce) {
