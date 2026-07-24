@@ -1,0 +1,206 @@
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+
+vi.mock("server-only", () => ({}));
+vi.mock("@/lib/supabase", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/supabase")>();
+  return { ...actual, isSupabaseConfigured: () => false };
+});
+vi.mock("@/lib/serverEnv", () => ({ assertServerEnv: () => {} }));
+vi.mock("@/lib/pintDrops", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/pintDrops")>();
+  return { ...actual, isLimited: async () => false };
+});
+vi.mock("@/lib/concierge/venues.server", () => ({
+  loadConciergeVenues: async () => [
+    { id: "venue-a", name: "Venue A" },
+    { id: "venue-b", name: "Venue B" },
+    { id: "venue-c", name: "Venue C" },
+  ],
+}));
+
+import { POST as CREATE } from "@/app/api/plans/route";
+import { PATCH } from "@/app/api/plans/[id]/route";
+import { mintPlanGroundingProofV2 } from "@/lib/planGrounding.server";
+import { __resetMemoryPlans } from "@/lib/planStore";
+
+const URL = "http://localhost/api/plans";
+const FLAG = "PUBMAX_ANCHORED_GENERATION";
+const OP = "op-anchor-lock-01";
+
+function anchorOnlyProof(operationKey = OP): string {
+  return mintPlanGroundingProofV2({
+    routeVenueIds: ["venue-a"],
+    allowedVenueIds: ["venue-a"],
+    anchorVenueId: "venue-a",
+    anchorSource: "near",
+    outcome: "anchor-only",
+    operationKey,
+  });
+}
+
+function create(body: Record<string, unknown>, idempotencyKey = OP): Promise<Response> {
+  return CREATE(new Request(URL, {
+    method: "POST",
+    headers: { "idempotency-key": idempotencyKey, "content-type": "application/json" },
+    body: JSON.stringify({
+      title: "Tonight",
+      startTime: "2026-07-24T19:00:00.000Z",
+      creatorName: "Host",
+      ...body,
+    }),
+  }));
+}
+
+const ANCHOR = { venueId: "venue-a", source: "near", outcome: "anchor-only" };
+
+describe("POST /api/plans — anchored lock", () => {
+  beforeEach(() => { __resetMemoryPlans(); });
+  afterEach(() => { __resetMemoryPlans(); delete process.env[FLAG]; });
+
+  it("persists a one-Stop draft and emits plan_draft_saved, never plan_accepted", async () => {
+    process.env[FLAG] = "1";
+    const response = await create({
+      stops: [{ venueId: "venue-a", venueName: "A" }],
+      groundingProof: anchorOnlyProof(),
+      anchor: ANCHOR,
+    });
+    expect(response.status).toBe(201);
+    const body = await response.json();
+    expect(body.plan.plan).toMatchObject({ outcome: "anchor-only", routeReadyAt: null });
+    expect(body.plan.stops).toHaveLength(1);
+    expect(body.eventTokens.planDraftSaved).toEqual(expect.any(String));
+    expect(body.eventTokens.planDraftSaved.length).toBeGreaterThan(0);
+    expect(body.eventTokens.planAccepted).toBe("");
+    expect(body.grounded).toBe(true);
+  });
+
+  it("maps each proof failure to an explicit 422", async () => {
+    process.env[FLAG] = "1";
+    const [encoded, signature] = anchorOnlyProof().split(".");
+
+    const missing = await create({ stops: [{ venueId: "venue-a", venueName: "A" }], anchor: ANCHOR });
+    expect(missing.status).toBe(422);
+    expect((await missing.json()).code).toBe("PLAN_ANCHOR_PROOF_MISSING");
+
+    const tampered = await create({
+      stops: [{ venueId: "venue-a", venueName: "A" }],
+      groundingProof: `${encoded}.${signature}x`,
+      anchor: ANCHOR,
+    });
+    expect(tampered.status).toBe(422);
+    expect((await tampered.json()).code).toBe("PLAN_ANCHOR_PROOF_INVALID");
+
+    // A proof minted for a different operation key cannot lock this Plan.
+    const wrongOp = await create({
+      stops: [{ venueId: "venue-a", venueName: "A" }],
+      groundingProof: anchorOnlyProof("op-other-99"),
+      anchor: ANCHOR,
+    });
+    expect(wrongOp.status).toBe(422);
+    expect((await wrongOp.json()).code).toBe("PLAN_ANCHOR_PROOF_OPERATION_MISMATCH");
+
+    // Route-order mismatch: proof covers only venue-a, Plan submits a different set.
+    const mismatch = await create({
+      stops: [{ venueId: "venue-b", venueName: "B" }],
+      groundingProof: anchorOnlyProof(),
+      anchor: { venueId: "venue-b", source: "near", outcome: "anchor-only" },
+    });
+    expect(mismatch.status).toBe(422);
+    expect((await mismatch.json()).code).toBe("PLAN_ANCHOR_PROOF_ROUTE_MISMATCH");
+  });
+
+  it("conflicts (409) when the same operation key relocks with a changed anchor", async () => {
+    process.env[FLAG] = "1";
+    const first = await create({ stops: [{ venueId: "venue-a", venueName: "A" }], groundingProof: anchorOnlyProof(), anchor: ANCHOR });
+    expect(first.status).toBe(201);
+    // Same idempotency key, different anchor/proof → the store's request hash conflicts.
+    const relock = await create({
+      stops: [{ venueId: "venue-b", venueName: "B" }],
+      groundingProof: mintPlanGroundingProofV2({
+        routeVenueIds: ["venue-b"], allowedVenueIds: ["venue-b"], anchorVenueId: "venue-b",
+        anchorSource: "near", outcome: "anchor-only", operationKey: OP,
+      }),
+      anchor: { venueId: "venue-b", source: "near", outcome: "anchor-only" },
+    });
+    expect(relock.status).toBe(409);
+  });
+
+  async function createDraft(): Promise<{ planId: string; memberToken: string }> {
+    const response = await create({ stops: [{ venueId: "venue-a", venueName: "A" }], groundingProof: anchorOnlyProof(), anchor: ANCHOR });
+    const body = await response.json();
+    return { planId: body.plan.plan.id, memberToken: body.memberToken };
+  }
+
+  function routeProof(operationKey: string): string {
+    return mintPlanGroundingProofV2({
+      routeVenueIds: ["venue-a", "venue-b", "venue-c"],
+      allowedVenueIds: ["venue-a", "venue-b", "venue-c"],
+      anchorVenueId: "venue-a",
+      anchorSource: "near",
+      outcome: "route",
+      operationKey,
+    });
+  }
+
+  function patchUpgrade(planId: string, body: Record<string, unknown>): Promise<Response> {
+    return PATCH(new Request(`http://localhost/api/plans/${planId}`, {
+      method: "PATCH",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(body),
+    }), { params: Promise.resolve({ id: planId }) });
+  }
+
+  it("upgrades a one-Stop draft to a grounded route and emits plan_accepted once", async () => {
+    process.env[FLAG] = "1";
+    const { planId, memberToken } = await createDraft();
+    const upgraded = await patchUpgrade(planId, {
+      memberToken,
+      stops: [{ venueId: "venue-a", venueName: "A" }, { venueId: "venue-b", venueName: "B" }, { venueId: "venue-c", venueName: "C" }],
+      expectedRouteRevision: 1,
+      groundingProof: routeProof("op-upgrade-01"),
+      operationKey: "op-upgrade-01",
+    });
+    expect(upgraded.status).toBe(200);
+    const body = await upgraded.json();
+    expect(body.plan.id).toBe(planId);
+    expect(body.plan.outcome).toBe("route");
+    expect(body.plan.routeReadyAt).toEqual(expect.any(String));
+    expect(body.stops).toHaveLength(3);
+    expect(body.eventTokens.planAccepted.length).toBeGreaterThan(0);
+    expect(body.eventTokens.meaningfulCoreAction.length).toBeGreaterThan(0);
+  });
+
+  it("refuses an upgrade without a valid proof and maps proof failures to 422", async () => {
+    process.env[FLAG] = "1";
+    const { planId, memberToken } = await createDraft();
+    const stops = [{ venueId: "venue-a", venueName: "A" }, { venueId: "venue-b", venueName: "B" }, { venueId: "venue-c", venueName: "C" }];
+
+    // No proof: the anchored draft cannot upgrade and never becomes route-ready.
+    const noProof = await patchUpgrade(planId, { memberToken, stops, expectedRouteRevision: 1 });
+    expect(noProof.status).toBe(403);
+
+    // A proof for a different operation is a 422.
+    const wrongOp = await patchUpgrade(planId, {
+      memberToken, stops, expectedRouteRevision: 1,
+      groundingProof: routeProof("op-upgrade-real"), operationKey: "op-upgrade-other",
+    });
+    expect(wrongOp.status).toBe(422);
+    expect((await wrongOp.json()).code).toBe("PLAN_ANCHOR_PROOF_OPERATION_MISMATCH");
+  });
+
+  it("ignores the anchor when the flag is off and stays on the legacy event shape", async () => {
+    delete process.env[FLAG];
+    const response = await create({
+      stops: [{ venueId: "venue-a", venueName: "A" }],
+      groundingProof: anchorOnlyProof(),
+      anchor: ANCHOR,
+    });
+    expect(response.status).toBe(201);
+    const body = await response.json();
+    expect(body.plan.plan.outcome).toBeNull();
+    expect(body.plan.plan.routeReadyAt).toBeNull();
+    expect(body.eventTokens).not.toHaveProperty("planDraftSaved");
+    expect(body.eventTokens).toHaveProperty("planAccepted");
+    expect(body.eventTokens).toHaveProperty("meaningfulCoreAction");
+  });
+});

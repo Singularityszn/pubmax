@@ -2,6 +2,8 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+vi.mock("server-only", () => ({}));
+
 // Plan completion has both durable and keyless backends. Pin this unit test to
 // the keyless seam so Vercel credentials cannot turn it into a live database
 // integration test during `npm run ci`.

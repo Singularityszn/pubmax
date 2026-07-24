@@ -1,7 +1,7 @@
 import { createHash, createHmac, randomBytes, randomUUID } from "node:crypto";
 
 import { cleanCrewName, CREW_MAX_MEMBERS, isCrewPresenceStatus, type CrewMemberDTO, type CrewPresenceStatus } from "@/lib/crew";
-import { canTransitionPlannedNight, cleanCreatePlan, cleanEndingSelection, isPlanId, PLANNED_NIGHT_STATUSES, type CrawlEnding, type CreatePlanInput, type EndingSelection, type PlanActionDTO, type PlanCompletionDTO, type PlanDTO, type PlanMemberRole, type PlannedNightStatus, type PlanState, type PlanStopDTO } from "@/lib/plan";
+import { canTransitionPlannedNight, cleanCreatePlan, cleanEndingSelection, isPlanId, PLANNED_NIGHT_STATUSES, type CleanPlanInput, type CrawlEnding, type CreatePlanInput, type EndingSelection, type PlanActionDTO, type PlanAnchorMetadata, type PlanCompletionDTO, type PlanDTO, type PlanMemberRole, type PlannedNightStatus, type PlanState, type PlanStopDTO } from "@/lib/plan";
 import type { NightContext } from "@/lib/nightPlanning";
 import { isSupabaseConfigured, requireSupabaseAdmin } from "@/lib/supabase";
 
@@ -21,12 +21,19 @@ export type PlanCompletionResult =
   | { ok: true; plan: PlanState; completion: PlanCompletionDTO; created: boolean }
   | { ok: false; error: PlanWriteError };
 
+export type PlanCreateOptions = {
+  idempotencyKey?: string;
+  groundingProofDigest?: string;
+  /** Grounded anchor metadata (§3.3). Present only for anchored generation. */
+  anchor?: PlanAnchorMetadata;
+};
+
 export type PlanStore = {
-  create(input: CreatePlanInput, options?: { idempotencyKey?: string; groundingProofDigest?: string }): Promise<PlanCreateResult>;
+  create(input: CreatePlanInput, options?: PlanCreateOptions): Promise<PlanCreateResult>;
   get(id: string): Promise<PlanState | null>;
   join(id: string, name: unknown, options?: { collaborationAuthorized?: boolean; idempotencyKey?: string }): Promise<PlanJoinResult>;
   updatePresence(id: string, memberToken: unknown, status: unknown): Promise<PlanPresenceResult>;
-  update(id: string, memberToken: unknown, update: { status?: PlannedNightStatus; context?: NightContext; stops?: PlanStopDTO[]; expectedRouteRevision?: number }): Promise<PlanUpdateResult>;
+  update(id: string, memberToken: unknown, update: { status?: PlannedNightStatus; context?: NightContext; stops?: PlanStopDTO[]; expectedRouteRevision?: number; groundedUpgrade?: boolean }): Promise<PlanUpdateResult>;
   addAction(id: string, memberToken: unknown, action: { type: PlanActionDTO["type"]; stopPosition?: number; ending?: CrawlEnding; idempotencyKey?: string }): Promise<PlanUpdateResult>;
   getCompletion(id: string): Promise<PlanCompletionDTO | null>;
   complete(id: string, memberToken: unknown, input: { expectedRouteRevision: number; ending: CrawlEnding; terminalVenueId?: string; endingSelection: EndingSelection }): Promise<PlanCompletionResult>;
@@ -62,6 +69,36 @@ export function planRequestDigest(value: unknown): string {
   return createHash("sha256").update(JSON.stringify(value)).digest("hex");
 }
 
+/**
+ * Confirm anchor metadata is consistent with the submitted Stops: an anchor-only
+ * outcome is exactly one Stop, a route outcome is exactly three, and either way
+ * the accepted anchor Venue is Stop 1.
+ */
+function validatedCreateAnchor(
+  clean: CleanPlanInput,
+  anchor: PlanAnchorMetadata | undefined,
+): PlanAnchorMetadata | undefined | "invalid" {
+  if (!anchor) return undefined;
+  const expectedStops = anchor.outcome === "route" ? 3 : 1;
+  if (clean.stops.length !== expectedStops) return "invalid";
+  if (clean.stops[0]?.venueId !== anchor.venueId) return "invalid";
+  return anchor;
+}
+
+/**
+ * Fold the grounding proof and anchor into the idempotency request hash so a
+ * replay with a different proof or anchor is a conflict, while a plain create
+ * (no proof, no anchor) keeps its historical hash exactly.
+ */
+function createRequestHash(clean: CleanPlanInput, options: PlanCreateOptions): string {
+  if (!options.groundingProofDigest && !options.anchor) return planRequestDigest(clean);
+  return planRequestDigest({
+    plan: clean,
+    ...(options.groundingProofDigest ? { groundingProofDigest: options.groundingProofDigest } : {}),
+    ...(options.anchor ? { anchor: options.anchor } : {}),
+  });
+}
+
 function planFromRow(row: Record<string, unknown>): PlanDTO {
   return {
     id: String(row.id),
@@ -70,6 +107,10 @@ function planFromRow(row: Record<string, unknown>): PlanDTO {
     createdAt: String(row.created_at),
     routeRevision: Number(row.route_revision ?? 1),
     status: (row.status as PlannedNightStatus) ?? "draft",
+    anchorVenueId: typeof row.anchor_venue_id === "string" ? row.anchor_venue_id : null,
+    anchorSource: typeof row.anchor_source === "string" ? row.anchor_source as PlanDTO["anchorSource"] : null,
+    outcome: typeof row.plan_outcome === "string" ? row.plan_outcome as PlanDTO["outcome"] : null,
+    routeReadyAt: typeof row.route_ready_at === "string" ? row.route_ready_at : null,
   };
 }
 
@@ -133,11 +174,11 @@ export const supabasePlanStore: PlanStore = {
   async create(input, options = {}) {
     const clean = cleanCreatePlan(input);
     if (!clean) return { ok: false, error: "invalid" };
+    const anchor = validatedCreateAnchor(clean, options.anchor);
+    if (anchor === "invalid") return { ok: false, error: "invalid" };
     const key = isPlanIdempotencyKey(options.idempotencyKey) ? options.idempotencyKey.trim() : randomUUID();
     const keyHash = planIdempotencyDigest("plan-create-key", key);
-    const requestHash = options.groundingProofDigest
-      ? planRequestDigest({ plan: clean, groundingProofDigest: options.groundingProofDigest })
-      : planRequestDigest(clean);
+    const requestHash = createRequestHash(clean, options);
     const id = planIdempotentUuid("plan-create-id", key);
     const memberToken = planIdempotencyDigest("plan-create-token", key);
     const memberId = planIdempotentUuid("plan-create-member", key);
@@ -154,6 +195,11 @@ export const supabasePlanStore: PlanStore = {
         p_joined_at: joinedAt,
         p_idempotency_key_hash: keyHash,
         p_request_hash: requestHash,
+        // Anchor metadata is additive; the RPC stamps route_ready_at = created_at
+        // for a grounded three-Stop route and leaves it null for anchor-only.
+        p_anchor_venue_id: anchor?.venueId ?? null,
+        p_anchor_source: anchor?.source ?? null,
+        p_outcome: anchor?.outcome ?? null,
       });
       if (error) throw new Error(error.message);
       if (data === "conflict") return { ok: false, error: "conflict" };
@@ -171,7 +217,7 @@ export const supabasePlanStore: PlanStore = {
     try {
       const admin = requireSupabaseAdmin();
       const { data: planRow, error } = await admin.from(PLANS)
-        .select("id,title,start_time,created_at,status,route_revision,night_context,ending").eq("id", id).maybeSingle();
+        .select("id,title,start_time,created_at,status,route_revision,night_context,ending,anchor_venue_id,anchor_source,plan_outcome,route_ready_at").eq("id", id).maybeSingle();
       if (error) throw new Error(error.message);
       if (!planRow) return null;
       const [{ data: stopRows, error: stopsError }, { data: memberRows, error: membersError }, { data: actionRows, error: actionsError }] = await Promise.all([
@@ -261,6 +307,8 @@ export const supabasePlanStore: PlanStore = {
           p_expected_route_revision: update.expectedRouteRevision,
           p_stops: stops.map(({ venueId, venueName }) => ({ venueId, venueName })),
           p_context: update.context ?? null,
+          // Anchored Plans upgrade to a grounded route only after proof verification.
+          p_grounded_upgrade: update.groundedUpgrade === true,
         });
         if (error) throw new Error(error.message);
         if (data !== "ok") return { ok: false, error: data === "forbidden" ? "forbidden" : data === "conflict" ? "conflict" : "invalid" };
@@ -435,11 +483,11 @@ export const memoryPlanStore: PlanStore = {
   async create(input, options = {}) {
     const clean = cleanCreatePlan(input);
     if (!clean) return { ok: false, error: "invalid" };
+    const anchor = validatedCreateAnchor(clean, options.anchor);
+    if (anchor === "invalid") return { ok: false, error: "invalid" };
     const key = isPlanIdempotencyKey(options.idempotencyKey) ? options.idempotencyKey.trim() : randomUUID();
     const keyHash = planIdempotencyDigest("plan-create-key", key);
-    const requestHash = options.groundingProofDigest
-      ? planRequestDigest({ plan: clean, groundingProofDigest: options.groundingProofDigest })
-      : planRequestDigest(clean);
+    const requestHash = createRequestHash(clean, options);
     const replay = planMemory.createRequests.get(keyHash);
     if (replay) {
       if (replay.requestHash !== requestHash) return { ok: false, error: "conflict" };
@@ -452,7 +500,15 @@ export const memoryPlanStore: PlanStore = {
     const memberToken = planIdempotencyDigest("plan-create-token", key);
     const createdAt = stamp();
     const plan: MemoryPlan = {
-      plan: { id, title: clean.title, startTime: clean.startTime, createdAt, routeRevision: 1, status: "draft" },
+      plan: {
+        id, title: clean.title, startTime: clean.startTime, createdAt, routeRevision: 1, status: "draft",
+        anchorVenueId: anchor?.venueId ?? null,
+        anchorSource: anchor?.source ?? null,
+        outcome: anchor?.outcome ?? null,
+        // A grounded three-Stop route is route-ready at creation; a one-Stop
+        // anchor-only draft stays not-ready until it is upgraded.
+        routeReadyAt: anchor?.outcome === "route" ? createdAt : null,
+      },
       stops: clean.stops.map((stop, position) => ({ ...stop, position })),
       crew: [{
         id: planIdempotentUuid("plan-create-member", key), name: clean.creatorName, status: "in", joinedAt: createdAt,
@@ -520,10 +576,22 @@ export const memoryPlanStore: PlanStore = {
       if (!stops || !Number.isInteger(update.expectedRouteRevision) || update.expectedRouteRevision! < 1 || update.status) return { ok: false, error: "invalid" };
       if (routeRevisionOf(plan.plan) !== update.expectedRouteRevision) return { ok: false, error: "conflict" };
       if (plan.plan.status === "completed" || plan.plan.status === "abandoned") return { ok: false, error: "invalid" };
+      // An anchored Plan keeps its accepted Venue as Stop 1 — the anchor never
+      // moves or gains an ordinary Swap. Replacing a one-Stop anchor-only draft
+      // with three Stops is the atomic upgrade to a grounded route, and it is
+      // only allowed once the caller has verified the grounding proof.
+      if (plan.plan.anchorVenueId && (!update.groundedUpgrade || stops[0].venueId !== plan.plan.anchorVenueId)) {
+        return { ok: false, error: "forbidden" };
+      }
       // One synchronous mutation keeps the demo store's route + revision
       // semantics equivalent to the production RPC transaction.
       plan.stops = stops;
       plan.plan.routeRevision = routeRevisionOf(plan.plan) + 1;
+      if (plan.plan.anchorVenueId) {
+        plan.plan.outcome = "route";
+        // routeReadyAt is stamped once and then immutable across later edits.
+        plan.plan.routeReadyAt ??= stamp();
+      }
       if (update.context) plan.context = structuredClone(update.context);
       return { ok: true, plan: publicState(plan) };
     }
