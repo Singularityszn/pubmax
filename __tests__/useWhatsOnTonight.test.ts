@@ -34,6 +34,54 @@ describe("loadWhatsOnTonight (W1 primary-spine loader)", () => {
     expect(result.asOf).toBe("2026-07-12T10:00:00.000Z");
   });
 
+  it("carries provider-observed source freshness through, distinct from request time", async () => {
+    const result = await loadWhatsOnTonight({
+      fetchImpl: async () =>
+        jsonResponse({
+          rows: [validRow],
+          servedAt: "2026-07-12T20:00:00.000Z",
+          sourceObservedAt: "2026-07-12T18:30:00.000Z",
+          sourceFreshnessKind: "provider-observed",
+          asOf: "2026-07-12T18:30:00.000Z",
+        }),
+    });
+    expect(result.sourceFreshnessKind).toBe("provider-observed");
+    expect(result.sourceObservedAt).toBe("2026-07-12T18:30:00.000Z");
+    expect(result.asOf).toBe("2026-07-12T18:30:00.000Z");
+  });
+
+  it("reports unknown freshness with a null source time (never request time)", async () => {
+    const result = await loadWhatsOnTonight({
+      fetchImpl: async () =>
+        jsonResponse({
+          rows: [validRow],
+          servedAt: "2026-07-12T20:00:00.000Z",
+          sourceObservedAt: null,
+          sourceFreshnessKind: "unknown",
+          asOf: null,
+        }),
+    });
+    expect(result.sourceFreshnessKind).toBe("unknown");
+    expect(result.sourceObservedAt).toBeNull();
+    expect(result.asOf).toBeNull();
+  });
+
+  it("defaults to unknown freshness for a legacy body carrying only asOf", async () => {
+    const result = await loadWhatsOnTonight({
+      fetchImpl: async () => jsonResponse({ rows: [validRow], asOf: "2026-07-12T10:00:00.000Z" }),
+    });
+    // No sourceFreshnessKind field → unknown; asOf still aliases sourceObservedAt.
+    expect(result.sourceFreshnessKind).toBe("unknown");
+    expect(result.sourceObservedAt).toBe("2026-07-12T10:00:00.000Z");
+  });
+
+  it("reports unknown freshness with no source time on an outage", async () => {
+    const result = await loadWhatsOnTonight({ fetchImpl: async () => jsonResponse({}, false) });
+    expect(result.status).toBe("error");
+    expect(result.sourceFreshnessKind).toBe("unknown");
+    expect(result.sourceObservedAt).toBeNull();
+  });
+
   it("returns empty (not error) when the spine is up but quiet", async () => {
     const result = await loadWhatsOnTonight({
       fetchImpl: async () => jsonResponse({ rows: [], asOf: "2026-07-12T10:00:00.000Z" }),

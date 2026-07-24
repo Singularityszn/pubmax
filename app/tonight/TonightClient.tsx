@@ -42,6 +42,7 @@ import { readRememberedArea, type RememberedArea } from "@/lib/nightPatches";
 import { palChatHref, VIBE_CHIPS } from "@/lib/vibeChips";
 import { dealDigestNote } from "@/lib/dealsDigest";
 import { groupTonightListings } from "@/lib/tonightListGrouping";
+import type { TrustedHandoffFlagsDTO } from "@/lib/trustedHandoffFlags";
 import type { WhatsOnKind, WhatsOnRow } from "@/lib/whatsOn";
 import {
   checkedLabel,
@@ -106,7 +107,7 @@ const QUIET_ALTERNATIVES: QuietAlternative[] = [
   },
 ];
 
-export default function TonightClient() {
+export default function TonightClient({ flags }: { flags: TrustedHandoffFlagsDTO }) {
   const [activeKind, setActiveKind] = useState<WhatsOnKind | null>(null);
   const [origin, setOrigin] = useState<Origin | null>(null);
   // The area the viewer last chose anywhere in the app (#427 nightPatches
@@ -135,7 +136,10 @@ export default function TonightClient() {
   // Real position wins; else the remembered patch's heart; else store order —
   // the same answer the map's Near me gives, so tabs stop disagreeing.
   const tonightNear = resolveTonightNear(origin, remembered);
-  const { rows, asOf, status, retry } = useWhatsOnTonight(true, tonightNear?.near ?? null);
+  const { rows, asOf, sourceFreshnessKind, status, retry } = useWhatsOnTonight(
+    true,
+    tonightNear?.near ?? null,
+  );
 
   const requestLocation = useCallback(() => {
     if (typeof navigator === "undefined" || !navigator.geolocation) {
@@ -164,9 +168,14 @@ export default function TonightClient() {
   // expander. Grouped on the same near signal that orders the list, so the card
   // and its ordering agree. Group the whole set once, then filter by kind — a
   // family carries a single kind, so this equals grouping the kind-filtered rows.
+  // Consume the canonical model: when PUBMAX_TONIGHT_GROUPING is on the server
+  // already ordered + diversity-capped + flattened the rows, so regrouping with
+  // the SAME v2 mode reconstructs the server's cards in the server's order (the
+  // client stops being its own grouping authority). Flag off keeps the shipped
+  // chain-duplicate collapse, byte-identical to today.
   const groupedAll = useMemo(
-    () => groupTonightListings(rows, tonightNear?.near ?? null),
-    [rows, tonightNear],
+    () => groupTonightListings(rows, tonightNear?.near ?? null, { v2: flags.tonightGrouping }),
+    [rows, tonightNear, flags.tonightGrouping],
   );
   const grouped = useMemo(
     () => (activeKind ? groupedAll.filter((g) => g.row.kind === activeKind) : groupedAll),
@@ -212,10 +221,12 @@ export default function TonightClient() {
           <p className="tonightProvenance">
             {coverageLabel(rows.length)}
             <span aria-hidden="true"> · </span>
-            {/* One template literal so the separator spacing survives JSX
-                text-node splitting (the built output was eating the space
-                before the interpunct, rendering "unknown· via"). */}
-            {`${checkedLabel(asOf)} · via what’s-on`}
+            {/* Honest source freshness (L13 contract): an unknown source shows
+                "Freshness unknown", never the request instant dressed as a check.
+                One template literal so the separator spacing survives JSX
+                text-node splitting (the built output was eating the space before
+                the interpunct, rendering "unknown· via"). */}
+            {`${sourceFreshnessKind === "unknown" ? "Freshness unknown" : checkedLabel(asOf)} · via what’s-on`}
             {/* The one quiet continuity line: when the order comes from a
                 remembered patch (not a live position), say which. */}
             {ready && tonightNear?.patchLabel
