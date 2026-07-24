@@ -1009,6 +1009,18 @@ input[type="range"] {
   height: 100%;
 }
 
+/* Dynamic PubMapCanvas loading plate — full-bleed, map-shaped, no text so the
+   parent .mapLoading chrome (pitched-London skeleton) remains the only status
+   UI. Dark basemap ink keeps CLS at 0 when the WebGL canvas mounts over it. */
+.mapCanvasSkeleton {
+  background: var(--ink-deep, #090806);
+  min-height: 100%;
+}
+[data-theme="light"] .mapCanvasSkeleton {
+  /* Liberty/Positron-adjacent paper so light theme handoff is continuous. */
+  background: color-mix(in srgb, var(--paper, #faf8f5) 88%, var(--river, #5a7a8c) 12%);
+}
+
 .mapCameraControls {
   position: absolute;
   top: var(--map-overlay-top);

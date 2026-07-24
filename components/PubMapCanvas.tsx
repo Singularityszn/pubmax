@@ -74,7 +74,7 @@ import {
   HOVER_CARD_MIN_TOP_PX, HOVER_CARD_X_OFFSET_PX, HOVER_CARD_Y_OFFSET_PX,
   withBoundedHoverDetailCache, hoverImageUrlFor, hoverPriceLine,
 } from "@/components/map/canvas/hoverCard";
-import { assembleScene } from "@/components/map/canvas/buildScene";
+import { assembleScene, buildTransitLines } from "@/components/map/canvas/buildScene";
 import { createDonutClusterSync, type DonutClusterSync } from "@/components/map/canvas/donutClusters";
 import { createPinRevealCoordinator } from "@/components/map/canvas/pinRevealCoordinator";
 import { applySelectionMute } from "@/lib/mapBasemapTaste";
@@ -1060,6 +1060,10 @@ export default function PubMapCanvas({
       // components/map/canvas/buildScene.ts). The D2 tile-paint gate and the
       // pendingUpdatesRef flush below stay component-owned (they touch a
       // construct-scope timer and component refs).
+      // Cold-open: do NOT pass transitLinesPath into the first assembleScene.
+      // MapLibre fetches that GeoJSON URL when the source is added (~125 KB for
+      // London TfL). Defer it until the first map `idle` so basemap tiles + pub
+      // pins win the critical path; transit is an overlay, not first paint.
       assembleScene({
         map,
         tokens,
@@ -1067,7 +1071,7 @@ export default function PubMapCanvas({
         textFont,
         addLayerOnce,
         poiHidden: poiHiddenRef.current,
-        transitLinesPath,
+        transitLinesPath: null,
         showLandmarks,
         landmarksGeoJSON: landmarksGeoJSONRef.current,
         poisData: poisDataRef.current,
@@ -1082,6 +1086,53 @@ export default function PubMapCanvas({
         selectedId: selectedIdRef.current,
         selectionMuteStore: selectionMuteStoreRef.current,
       });
+
+      if (transitLinesPath) {
+        const deferredTransitPath = transitLinesPath;
+        let transitScheduled = false;
+        let transitFallbackTimer = 0;
+        const loadDeferredTransit = () => {
+          if (transitScheduled) return;
+          transitScheduled = true;
+          window.clearTimeout(transitFallbackTimer);
+          if (!map.getStyle()) return;
+          try {
+            buildTransitLines({
+              map,
+              tokens,
+              dark,
+              textFont,
+              addLayerOnce,
+              poiHidden: poiHiddenRef.current,
+              transitLinesPath: deferredTransitPath,
+              // Remaining SceneCtx fields are unused by buildTransitLines;
+              // pass empty placeholders to satisfy the type without re-fetching.
+              showLandmarks: false,
+              landmarksGeoJSON: landmarksGeoJSONRef.current,
+              poisData: poisDataRef.current,
+              routeLine: routeLineRef.current,
+              routeStops: routeStopsRef.current,
+              bandCorridor: bandCorridorRef.current,
+              bandColor: bandColorRef.current,
+              bandMemberIds: bandMemberIdsRef.current,
+              pubsData: pubsDataRef.current,
+              tonightData: tonightDataRef.current,
+              tonightVisible: tonightOverlayVisibleRef.current,
+              selectedId: selectedIdRef.current,
+              selectionMuteStore: selectionMuteStoreRef.current,
+            });
+          } catch {
+            // Transit is additive; never block the pub map on overlay failure.
+          }
+        };
+        // Prefer first full idle (basemap + pins settled). Continuous tile
+        // repaint can starve `idle` on some GPUs — fall back after 2.5s so the
+        // overlay still appears without riding the critical path.
+        map.once("idle", loadDeferredTransit);
+        transitFallbackTimer = window.setTimeout(loadDeferredTransit, 2500);
+        (map as maplibregl.Map & { __pubmaxTransitFallback?: number }).__pubmaxTransitFallback =
+          transitFallbackTimer;
+      }
 
       // --- Tile-paint gate (D2). buildScene runs on `style.load`, which fires
       // BEFORE the basemap's vector tiles have painted. The pub layers draw from
@@ -1658,6 +1709,11 @@ export default function PubMapCanvas({
       window.removeEventListener("blur", onBlur);
       window.removeEventListener("focus", onFocus);
       donutSync.destroy();
+      {
+        const fallback = (map as maplibregl.Map & { __pubmaxTransitFallback?: number })
+          .__pubmaxTransitFallback;
+        if (fallback) window.clearTimeout(fallback);
+      }
       map.remove();
       mapRef.current = null;
       publishMapReady(false);
