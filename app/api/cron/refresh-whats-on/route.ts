@@ -60,7 +60,11 @@ export async function GET(request: Request): Promise<Response> {
   try {
     const result = await loadWhatsOn({ window: "tonight" });
     rows = result.rows.length;
-    asOf = result.asOf;
+    // Stamp the honest source-observed time when the feed reports one, so
+    // /api/freshness shows real freshness rather than the frozen generatedAt.
+    // Only when source freshness is genuinely unknown do we fall back to the
+    // served instant — we never invent a source timestamp from request time.
+    asOf = result.asOf ?? result.servedAt;
   } catch (err) {
     console.error("[cron:refresh-whats-on] tonight-window revalidation failed:", err instanceof Error ? err.message : String(err));
   }

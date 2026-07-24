@@ -211,44 +211,149 @@ describe("loadWhatsOn orchestration", () => {
     expect(rows.map((r) => r.id).sort()).toEqual(["future", "interval-live"]);
   });
 
-  it("does NOT apply the past-dated guard when a window is requested (tonight already scopes it)", async () => {
-    const baseline = [makeRow({ id: "quiz-out", kind: "quiz", startsAt: "2026-07-10T19:30:00+01:00" })];
+  it("removes ended rows before the tonight window, including endsAt === now", async () => {
+    const baseline = [
+      makeRow({ id: "old", startsAt: "2026-07-10T19:30:00+01:00" }),
+      makeRow({
+        id: "boundary",
+        kind: "deal",
+        startsAt: "2026-07-11T18:00:00.000Z",
+        endsAt: new Date(NOW).toISOString(),
+      }),
+    ];
     const { rows } = await loadWhatsOn(
       { window: "tonight" },
       { now: NOW, loadBaseline: () => baseline, fetchLive: async () => [] },
     );
-    // Excluded by filterTonight's own window logic, not by filterNotPast — this
-    // just documents that the two mechanisms don't double up.
-    expect(rows.map((r) => r.id)).toEqual([]);
+    expect(rows).toEqual([]);
   });
 
-  it("fails soft to baseline when the live fetch throws", async () => {
-    const { rows, asOf } = await loadWhatsOn(
+  it("fails soft to baseline and reports dataset freshness when live fetch throws", async () => {
+    const result = await loadWhatsOn(
       {},
       {
         now: NOW,
         loadBaseline: () => [makeRow({ id: "b1" })],
+        baselineSourceObservedAt: "2026-07-11T17:00:00.000Z",
         fetchLive: async () => {
           throw new Error("live down");
         },
       },
     );
-    expect(rows.map((r) => r.id)).toEqual(["b1"]);
-    expect(asOf).toBe(new Date(NOW).toISOString());
+    expect(result.rows.map((r) => r.id)).toEqual(["b1"]);
+    expect(result.servedAt).toBe(new Date(NOW).toISOString());
+    expect(result.sourceObservedAt).toBe("2026-07-11T17:00:00.000Z");
+    expect(result.sourceFreshnessKind).toBe("dataset-generated");
+    expect(result.asOf).toBe(result.sourceObservedAt);
+  });
+
+  it("uses provider-observed freshness without confusing it with servedAt", async () => {
+    const result = await loadWhatsOn(
+      {},
+      {
+        now: NOW,
+        loadBaseline: () => [],
+        fetchLive: async () => ({
+          rows: [makeRow({ id: "live" })],
+          sourceObservedAt: "2026-07-11T18:30:00.000Z",
+        }),
+      },
+    );
+    expect(result.servedAt).toBe("2026-07-11T20:00:00.000Z");
+    expect(result.sourceObservedAt).toBe("2026-07-11T18:30:00.000Z");
+    expect(result.sourceFreshnessKind).toBe("provider-observed");
+    expect(result.asOf).toBe("2026-07-11T18:30:00.000Z");
+  });
+
+  it("reports unknown source freshness when provider inventory has no source timestamp", async () => {
+    const result = await loadWhatsOn(
+      {},
+      {
+        now: NOW,
+        loadBaseline: () => [],
+        fetchLive: async () => ({ rows: [makeRow({ id: "live" })], sourceObservedAt: null }),
+      },
+    );
+    expect(result.rows.map((row) => row.id)).toEqual(["live"]);
+    expect(result.sourceObservedAt).toBeNull();
+    expect(result.sourceFreshnessKind).toBe("unknown");
+    expect(result.asOf).toBeNull();
+  });
+
+  it("groups the full provider inventory before applying the final card limit", async () => {
+    let fetchArgs: unknown;
+    const curry = Array.from({ length: 60 }, (_, index) =>
+      makeRow({ id: `curry-${index}`, placeName: `Curry ${index}`, title: "Curry Club" }),
+    );
+    const distinct = Array.from({ length: 12 }, (_, index) =>
+      makeRow({
+        id: `distinct-${index}`,
+        placeName: `Distinct Arms ${index}`,
+        title: `Distinct ${index}`,
+      }),
+    );
+    const result = await loadWhatsOn(
+      { window: "tonight", limit: 10 },
+      {
+        now: NOW,
+        loadBaseline: () => [],
+        fetchLive: async (args) => {
+          fetchArgs = args;
+          return { rows: [...curry, ...distinct], sourceObservedAt: "2026-07-11T18:00:00.000Z" };
+        },
+      },
+    );
+
+    expect(fetchArgs).toEqual({ now: NOW });
+    // Ten families are selected, but all 60 members of the selected Curry family
+    // survive so the existing client expander retains its full venue inventory.
+    expect(result.rows).toHaveLength(69);
+    expect(result.rows.filter((row) => row.title === "Curry Club")).toHaveLength(60);
+    expect(new Set(result.rows.map((row) => row.title)).size).toBe(10);
+  });
+
+  it("reports locality basis independently from source freshness", async () => {
+    const live = await loadWhatsOn(
+      { near: { lat: 51.5, lng: -0.1 } },
+      { now: NOW, loadBaseline: () => [], fetchLive: async () => [] },
+    );
+    expect(live.localityBasis).toBe("live-location");
+
+    const remembered = await loadWhatsOn(
+      {
+        near: { lat: 51.51, lng: -0.12 },
+        localityBasis: "remembered-patch",
+      },
+      { now: NOW, loadBaseline: () => [], fetchLive: async () => [] },
+    );
+    expect(remembered.localityBasis).toBe("remembered-patch");
+
+    const fallback = await loadWhatsOn(
+      {},
+      { now: NOW, loadBaseline: () => [], fetchLive: async () => [] },
+    );
+    expect(fallback.localityBasis).toBe("london-default");
   });
 });
 
 describe("GET /api/whats-on (handleWhatsOnRequest)", () => {
-  it("returns rows with asOf and no-store caching", async () => {
+  it("returns honest freshness fields and no-store caching", async () => {
     const res = await handleWhatsOnRequest(req(), {
       now: NOW,
       loadBaseline: () => [makeRow()],
+      baselineSourceObservedAt: "2026-07-11T17:00:00.000Z",
       fetchLive: async () => [],
     });
     expect(res.status).toBe(200);
     const body = await res.json();
     expect(body.rows).toHaveLength(1);
-    expect(body.asOf).toBe(new Date(NOW).toISOString());
+    expect(body).toMatchObject({
+      servedAt: "2026-07-11T20:00:00.000Z",
+      sourceObservedAt: "2026-07-11T17:00:00.000Z",
+      sourceFreshnessKind: "dataset-generated",
+      localityBasis: "london-default",
+      asOf: "2026-07-11T17:00:00.000Z",
+    });
     expect(res.headers.get("Cache-Control")).toBe("no-store");
   });
 
