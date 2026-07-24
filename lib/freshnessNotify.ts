@@ -1,7 +1,9 @@
-// Notification seam for the freshness-audit cron. TODAY this only logs — it is a
-// deliberate seam so a later push/alert integration (Sol's push lane owns the
-// actual delivery: lib/push*, sw.js) can hang off ONE place without the audit
-// cron growing a delivery dependency now. This module MUST NOT send pushes.
+// Notification seam for the freshness-audit cron. A budget breach logs at ERROR
+// level with a distinct `[freshness-audit][ALERT]` marker so it is loud enough to
+// trip log-based alerting (monitors escalate error, not warn) and stays greppable
+// — the advisory warn nobody read is gone. It remains a deliberate seam so a later
+// push integration (Sol's push lane owns delivery: lib/push*, sw.js) can hang off
+// ONE place. This module MUST NOT send pushes.
 
 import type { FreshnessResult } from "@/lib/freshness";
 
@@ -35,10 +37,10 @@ export function notifyStaleFeeds(stale: readonly FreshnessResult[]): StaleFeedNo
     return notices;
   }
 
-  console.warn(`[freshness-audit] ${notices.length} feed(s) breaching freshness:`);
+  console.error(`[freshness-audit][ALERT] ${notices.length} feed(s) breaching freshness budget:`);
   for (const notice of notices) {
-    console.warn(
-      `[freshness-audit]   ${notice.id} (${notice.status}) — ${notice.detail}` +
+    console.error(
+      `[freshness-audit][ALERT]   ${notice.id} (${notice.status}) — ${notice.detail}` +
         (notice.observedAt ? ` observedAt=${notice.observedAt}` : ""),
     );
   }
