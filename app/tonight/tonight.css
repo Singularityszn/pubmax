@@ -495,6 +495,26 @@
   }
 }
 
+/* Explicit Tonight acceptance — the one filled action on a row (§4.8), rendered
+   only when intentWrite is on. Distinct from the browse CTA above it. */
+.tonightRowAccept {
+  align-self: flex-start;
+  margin-top: 10px;
+  padding: 8px 15px;
+  border: none;
+  border-radius: 999px;
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--ink-inverse, #fff);
+  background: var(--brass);
+  cursor: pointer;
+}
+
+.tonightRowAccept:focus-visible {
+  outline: 2px solid var(--brass);
+  outline-offset: 2px;
+}
+
 /* Thin-night alternatives — fills the space a short (or empty) listing leaves
    behind with the three things still genuinely useful tonight. Same card
    idiom as .tonightRow so it reads as part of the page, not a bolted-on ad. */

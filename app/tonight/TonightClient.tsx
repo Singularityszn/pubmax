@@ -9,6 +9,7 @@
 // React 19 safe: settle() defers setState out of the effect body.
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ArrowUpRight,
@@ -38,6 +39,7 @@ import TonightShareButton from "./TonightShareButton";
 import { trackEvent } from "@/lib/analytics";
 import { firstHttp } from "@/lib/httpUrl";
 import { resolveTonightNear, walkLabel, walkMinutes } from "@/lib/tonight";
+import { acceptTonightVenue } from "@/lib/tonightAcceptance";
 import { readRememberedArea, type RememberedArea } from "@/lib/nightPatches";
 import { palChatHref, VIBE_CHIPS } from "@/lib/vibeChips";
 import { dealDigestNote } from "@/lib/dealsDigest";
@@ -135,10 +137,32 @@ export default function TonightClient({ flags }: { flags: TrustedHandoffFlagsDTO
 
   // Real position wins; else the remembered patch's heart; else store order —
   // the same answer the map's Near me gives, so tabs stop disagreeing.
+  const router = useRouter();
   const tonightNear = resolveTonightNear(origin, remembered);
-  const { rows, asOf, sourceFreshnessKind, status, retry } = useWhatsOnTonight(
+  const { rows, asOf, sourceObservedAt, sourceFreshnessKind, status, retry } = useWhatsOnTonight(
     true,
     tonightNear?.near ?? null,
+  );
+
+  // Explicit acceptance (§4.8): only "Use this Venue" reaches here — opening a
+  // listing stays browse-only. Writes one PlanningIntent (source "tonight")
+  // carrying the remembered area and the honest source-freshness date, then hands
+  // the Venue off via the accept deep link. Storage failure degrades to a browse
+  // selection and emits nothing. Never rendered with intentWrite off.
+  const acceptVenue = useCallback(
+    (venueId: string) => {
+      const result = acceptTonightVenue({
+        venueId,
+        area: remembered,
+        // Tonight answers "tonight"; like Near, no explicit future date is chosen.
+        startsAt: null,
+        observedAt: sourceObservedAt,
+        fallbackCityId: "london",
+      });
+      if (result.telemetry) trackEvent("venue_accepted", result.telemetry);
+      router.push(result.href);
+    },
+    [remembered, sourceObservedAt, router],
   );
 
   const requestLocation = useCallback(() => {
@@ -454,6 +478,18 @@ export default function TonightClient({ flags }: { flags: TrustedHandoffFlagsDTO
                   ) : (
                     <div className="tonightRowLink">{RowInner}</div>
                   )}
+                  {/* Explicit acceptance, distinct from the browse tap above
+                      (§4.8). Only present when intentWrite is on, so the flag-off
+                      surface is byte-identical to today. */}
+                  {flags.intentWrite && typeof row.venueId === "string" && row.venueId.length > 0 ? (
+                    <button
+                      type="button"
+                      className="tonightRowAccept pressable"
+                      onClick={() => acceptVenue(row.venueId as string)}
+                    >
+                      Use this venue
+                    </button>
+                  ) : null}
                   {group.venueCount > 1 ? (
                     <details className="tonightRowMore">
                       <summary className="tonightRowMoreToggle">
