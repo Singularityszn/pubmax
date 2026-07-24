@@ -38,18 +38,39 @@ export const metadata: Metadata = {
 };
 
 // The brief reads the current London day (weather staleness, tonight's window,
-// the pub-of-the-day rotation), so it can never be statically cached.
-export const dynamic = "force-dynamic";
+// the pub-of-the-day rotation), so it must never be statically cached. Dynamic
+// rendering is already guaranteed by the root layout's per-request `headers()`
+// (the CSP nonce), which opts every route into dynamic rendering — so an
+// explicit `force-dynamic` here is redundant and has been removed. (If the
+// layout's nonce read is ever removed, restore force-dynamic to keep /today
+// from being statically cached with stale weather.)
 export const runtime = "nodejs";
 
 export default async function TodayPage() {
   const now = new Date();
 
-  // Store-first read-through: the freshest durable/cached reading when it is
-  // recent, else a live Open-Meteo top-up (reusing the cron's fetcher), else the
-  // committed snapshot with its honest staleness banner. Guarantees the card is
-  // never needlessly stale even between cron runs or before migration 0047 lands.
-  const weatherSnapshot = await loadFreshWeatherSnapshot({ now });
+  // The four server reads below are independent — none consumes another's
+  // result — so they run concurrently. Serialising them stacked a live
+  // Open-Meteo weather top-up behind the listings, price, and heritage reads for
+  // no reason; Promise.all collapses the brief's server render to the slowest
+  // single read. Each retains its own fail-soft path.
+  const [weatherSnapshot, whatsOn, pricedVenues, historicPubs] = await Promise.all([
+    // Store-first read-through: the freshest durable/cached reading when it is
+    // recent, else a live Open-Meteo top-up (reusing the cron's fetcher), else
+    // the committed snapshot with its honest staleness banner. Never needlessly
+    // stale even between cron runs or before migration 0047 lands.
+    loadFreshWeatherSnapshot({ now }),
+    // Baseline-only (fail-soft live disabled): the brief must be reliable and
+    // instant, and the bundled listings are already sourced. Tonight's own page
+    // still layers the live CityMCP enrichment on top.
+    loadWhatsOn({ window: "tonight" }, { now: now.getTime(), fetchLive: async () => [] }),
+    // Cheapest priced pints per area, precomputed from the bundled price dataset
+    // so the client can answer the viewer's remembered area with no venue data
+    // of its own and no request-time work.
+    getPricedVenues(),
+    loadHistoricPubs(),
+  ]);
+
   const weather = buildWeatherBrief(weatherSnapshot, now);
   const weatherByArea = Object.fromEntries(
     NIGHT_AREA_SLUGS.map((area) => [
@@ -58,13 +79,6 @@ export default async function TodayPage() {
     ]),
   ) as Partial<Record<NightAreaSlug, WeatherBrief | null>>;
 
-  // Baseline-only (fail-soft live disabled): the brief must be reliable and
-  // instant, and the bundled listings are already sourced. Tonight's own page
-  // still layers the live CityMCP enrichment on top.
-  const whatsOn = await loadWhatsOn(
-    { window: "tonight" },
-    { now: now.getTime(), fetchLive: async () => [] },
-  );
   // Group syndicated chain deals (identical title + source across venues) into
   // one pick carrying the real venue count and cap to one card per source. Keep
   // the ranked candidate set uncapped until the client applies evidenced mutes,
@@ -79,10 +93,6 @@ export default async function TodayPage() {
 
   const fact = pickPubOfTheDayFact(heritageCache, now);
 
-  // Cheapest priced pints per area, precomputed from the bundled price dataset so
-  // the client can answer the viewer's remembered area with no venue data of its
-  // own and no request-time work.
-  const pricedVenues = await getPricedVenues();
   const pintsIndex = buildTodayPintsIndex(pricedVenues);
 
   // "A quiet pint" — heritage-cited pubs that also read as quiet at this hour,
@@ -93,7 +103,6 @@ export default async function TodayPage() {
   for (const venue of pricedVenues) {
     if (typeof venue.cheapestPrice === "number") priceById.set(venue.id, venue.cheapestPrice);
   }
-  const historicPubs = await loadHistoricPubs();
   const quietPint = buildQuietPint({
     candidates: historicPubs.flatMap((pub) =>
       pub.venueId
