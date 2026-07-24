@@ -1,16 +1,18 @@
 /* Auth UI — token-driven, matches the pub-guidebook surfaces. Scoped to the
    sign-in buttons + signed-in menu so it can't leak into the rest of the app. */
 
+/* One alignment system for the standalone sign-in wall: the two provider
+   buttons stack full-width in a single column, exactly matching the email
+   field + CTA below them (see `.authOptions .authSignIn` and
+   `.authMagicLinkRow`). No intrinsic-width centered pills, no full-width row
+   sitting beside centered ones. The compact nav popover (.authMenu) is
+   unaffected — it renders its buttons outside .authProviders. */
 .authProviders {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  flex-wrap: wrap;
-  gap: 0.4rem;
-  flex: 0 1 auto;
-  min-width: 0;
-  max-width: 100%;
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0.5rem;
   width: 100%;
+  min-width: 0;
 }
 
 .authOptions {
@@ -29,6 +31,26 @@
   container-name: auth-options;
 }
 
+/* Every control in the standalone wall is a full-width pill — the two provider
+   buttons and the "Email me a link" CTA share one width and one centre line.
+   Scoped to .authOptions so the nav's inline .authSignIn (flex:0 1 auto) and the
+   .authMenu popover keep their own sizing. */
+.authOptions .authSignIn {
+  width: 100%;
+  max-width: 100%;
+  justify-content: center;
+}
+
+/* A full-width provider pill always has room for the full "Continue with …"
+   label, so never fall back to the side-by-side short-label swap here. */
+.authProviders .authSignInLabelFull {
+  display: inline;
+}
+
+.authProviders .authSignInLabelShort {
+  display: none;
+}
+
 .authMagicLink {
   display: grid;
   gap: 0.4rem;
@@ -41,8 +63,11 @@
   font-weight: 600;
 }
 
+/* Field + CTA stack full-width in the same single column as the provider
+   buttons — one bounded stack, every control the same width. */
 .authMagicLinkRow {
-  display: flex;
+  display: grid;
+  grid-template-columns: 1fr;
   gap: 0.4rem;
   min-width: 0;
 }
@@ -504,7 +529,11 @@
   display: block;
   width: min(26rem, 100%);
   max-width: min(26rem, 100%);
-  min-width: min(26rem, calc(100vw - 3rem));
+  /* Definite min inline size for the container queries, but sized off the
+     VIEWPORT minus the host card's gutter (page padding + emptyState's 18px
+     inner padding) so the wall never overruns a padded card's right edge at
+     phone widths — the source of the earlier right-side bleed. */
+  min-width: min(26rem, calc(100vw - 4.5rem));
   margin-inline: auto;
   box-sizing: border-box;
 }
