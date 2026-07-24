@@ -1845,6 +1845,7 @@ export default function PubMap({
           initialNightArea={suggestedPlanArea.slug}
           venuesById={venuesById}
           onGenerated={applyGeneratedMobilePlan}
+          mapRouteTransfer={flags.mapRouteTransfer}
         />
       ) : null}
       {!mobileViewport ? <button type="button" className="plannerMapButton" onClick={closePlanning}>
