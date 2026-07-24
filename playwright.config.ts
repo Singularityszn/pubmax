@@ -143,6 +143,11 @@ export default defineConfig({
           NEXT_PUBLIC_VAPID_PUBLIC_KEY: E2E_VAPID_PUBLIC_KEY,
           PLAN_IDEMPOTENCY_SECRET: E2E_PLAN_SIGNING_SECRET,
           PUBMAX_E2E_KEYLESS: "1",
+          // Pass-through for lane e2e that must exercise a flag-on server
+          // (L19 landing hierarchy). Unknown/absent stays off (strict 0|1).
+          ...(process.env.PUBMAX_LANDING_FIND_MY_PINT
+            ? { PUBMAX_LANDING_FIND_MY_PINT: process.env.PUBMAX_LANDING_FIND_MY_PINT }
+            : {}),
         },
         url: BASE_URL,
         reuseExistingServer: !process.env.CI && !SCREENSHOT_RUN,
