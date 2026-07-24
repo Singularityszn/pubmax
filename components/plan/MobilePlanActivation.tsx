@@ -1,8 +1,9 @@
 "use client";
 
-import Link from "next/link";
 import { Mic, MicOff, ShieldCheck, Sparkles } from "lucide-react";
 import { startTransition, useEffect, useRef, useState } from "react";
+
+import { MapRouteTransferButton, type MapRouteResponse } from "@/components/plan/MapRouteTransferButton";
 
 import PubmaxxLoadingEmber from "@/components/brand/PubmaxxLoadingEmber";
 import { Button } from "@/components/ui/button";
@@ -49,11 +50,14 @@ export function MobilePlanActivation({
   initialNightArea,
   venuesById,
   onGenerated,
+  mapRouteTransfer = false,
 }: {
   cityId: CityId;
   initialNightArea: NightAreaSlug;
   venuesById?: ReadonlyMap<string, Venue>;
   onGenerated: (plan: GeneratedMobilePlan) => void;
+  /** L12: when true, "Open Plan" carries the exact Route into the Plan draft. */
+  mapRouteTransfer?: boolean;
 }) {
   const { user } = useAuth();
   const areas = getNightAreasForCity(cityId);
@@ -78,6 +82,8 @@ export function MobilePlanActivation({
     budget: PlanBudgetSummary;
     routeTotalLabel: string;
     endings: PlanEndingRecommendation[];
+    // L12: full grounded response carried for a zero-regeneration Plan transfer.
+    mapRoute: MapRouteResponse | null;
   } | null>(null);
   const routeUpgradeRef = useRef<AbortController | null>(null);
   const requestRef = useRef<AbortController | null>(null);
@@ -165,6 +171,9 @@ export function MobilePlanActivation({
         budget: generated.budget,
         routeTotalLabel: planRouteTotalsFallbackLabel(generated.routeTotals),
         endings: generated.endings,
+        // The narrow body type above omits proof/operationKey/alternatives; the
+        // runtime response carries them for the exact-Route transfer.
+        mapRoute: body as unknown as MapRouteResponse,
       });
       routeUpgradeRef.current?.abort();
       const routeController = new AbortController();
@@ -243,9 +252,7 @@ export function MobilePlanActivation({
           </div>
           <p className="mobilePlannerRouteTotal">{result.routeTotalLabel}</p>
           <p className="mobilePlannerNextStep">Route preview stays on this device. Lock it in on Plan when you want a shareable crew link.</p>
-          <Button asChild size="large" variant="secondary" className="w-full">
-            <Link href="/plan?src=mobile-route-preview">Open Plan to lock it in</Link>
-          </Button>
+          <MapRouteTransferButton response={result.mapRoute} mapRouteTransfer={mapRouteTransfer} />
           <div className="mobilePlannerEndings" aria-label="Ending recommendations">
             {result.endings.map((ending) => (
               <div key={ending.kind} data-recommended={ending.preselected ? "true" : undefined}>
