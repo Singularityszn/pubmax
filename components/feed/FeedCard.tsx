@@ -26,6 +26,13 @@ import { venueMapUrl } from "@/lib/venueMapUrl";
 // For .cheersGatePrompt — the claim-a-handle failure prompt style (U2), now
 // rendered beside the reaction row.
 import "./cheersButton.css";
+// The card's own chrome (.feedCard, .feedSpill, reaction row, provenance…) lives
+// in feed.css. Co-locate the import here so a FeedCard renders styled wherever it
+// mounts — /feed and /we-are-out import feed.css too, but the profile Timeline
+// (ProfileTimeline) and any future consumer did not, so those cards painted raw.
+// Placed AFTER cheersButton.css so the feed route's cascade order is byte-identical
+// (feed.css already loads via FeedPageClient after cheersButton; the dupe dedupes).
+import "@/app/feed/feed.css";
 
 // Pub-native reactions — no likes/hearts. The chip set is derived from the
 // canonical server allowlist (REACTION_KEYS) so the UI and the reactions route
