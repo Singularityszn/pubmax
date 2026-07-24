@@ -4,15 +4,29 @@
 .authProviders {
   display: inline-flex;
   align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
   gap: 0.4rem;
   flex: 0 1 auto;
   min-width: 0;
+  max-width: 100%;
+  width: 100%;
 }
 
 .authOptions {
   display: grid;
   gap: 0.65rem;
+  width: 100%;
   max-width: 26rem;
+  min-width: 0;
+  margin-inline: auto;
+  box-sizing: border-box;
+  /* Named container: label full/short swaps on CONTAINER width so a tight
+     empty-state card at a wide viewport no longer forces clipped full labels.
+     Must sit under a definite-width host (see .authUser:not(.authUserNav)) —
+     size containment would otherwise collapse under justify-items:center. */
+  container-type: inline-size;
+  container-name: auth-options;
 }
 
 .authMagicLink {
@@ -148,6 +162,7 @@
      overflow/clip when the bar is tight (see the 390px fix below). */
   flex: 0 1 auto;
   min-width: 0;
+  max-width: 100%;
   padding: 0.5rem 0.85rem;
   border: 1px solid var(--line);
   border-radius: var(--control-radius, 14px);
@@ -158,21 +173,108 @@
   font-size: 0.9rem;
   line-height: 1;
   white-space: nowrap;
+  /* Soft overflow: never hard-clip mid-glyph when the pill is still tight
+     (magic-link "Email me a link" shares this class). */
+  overflow: hidden;
+  text-overflow: ellipsis;
   cursor: pointer;
   transition:
     border-color 0.18s ease,
     background-color 0.18s ease;
 }
 
+/* Label text can shrink inside the pill; the provider mark stays solid. */
+.authSignIn .authProviderMark {
+  flex: 0 0 auto;
+}
+
+.authSignInLabelFull,
+.authSignInLabelShort {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 /* Full vs. short label: only one renders at a time (both are real text, not a
    display:none replacement of the accessible name — each button keeps its own
    aria-label regardless of which is visible). Default (room to spare) shows
-   the full label; ≤720px swaps to short provider names so Google + Microsoft
-   never crowd or clip the nav at 390px alongside the wordmark and theme toggle. */
+   the full label; tight containers / ≤720px viewports swap to short provider
+   names so Google + Microsoft never crowd or clip. */
 .authSignInLabelShort {
   display: none;
 }
 
+/* ── Container-aware label swap (primary) ────────────────────────────────
+   Root cause of the /activity clip: empty-state cards constrain the auth
+   block to ~26rem while the viewport stays 1440, so viewport-only short
+   labels never fired. When the options/providers container is too tight
+   for two full "Continue with …" pills side-by-side, use short names.
+   Very narrow containers (stacked phone rows) restore full labels. */
+@container auth-options (max-width: 32rem) {
+  .authSignIn {
+    padding: 0.5rem 0.65rem;
+    font-size: 0.82rem;
+    gap: 0.35rem;
+  }
+
+  .authSignInLabelFull {
+    display: none;
+  }
+
+  .authSignInLabelShort {
+    display: inline;
+  }
+
+  /* Stack the email field + CTA so "Email me a link" never mid-glyph clips
+     next to the input in a ~26rem empty-state card. */
+  .authMagicLinkRow {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 0.45rem;
+  }
+
+  .authMagicLinkButton {
+    width: 100%;
+    max-width: 100%;
+    justify-content: center;
+    flex: 0 0 auto;
+  }
+}
+
+/* Phone-narrow container: each pill can take a full row — prefer full labels. */
+@container auth-options (max-width: 22rem) {
+  .authProviders {
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+
+  .authSignIn {
+    min-height: 44px;
+    padding: 0.55rem 0.9rem;
+    font-size: 0.9rem;
+    gap: 0.5rem;
+  }
+
+  .authSignInLabelFull {
+    display: inline;
+  }
+
+  .authSignInLabelShort {
+    display: none;
+  }
+
+  .authMagicLinkRow {
+    display: grid;
+  }
+
+  .authMagicLinkButton {
+    width: 100%;
+    justify-content: center;
+  }
+}
+
+/* Viewport fallback for browsers without container queries (same thresholds
+   as before this fix). Order after @container so ≤480 still wins on phones. */
 @media (max-width: 720px) {
   .authSignIn {
     padding: 0.5rem 0.65rem;
@@ -205,6 +307,8 @@
   .authSignIn {
     min-height: 44px;
     padding: 0.55rem 0.9rem;
+    font-size: 0.9rem;
+    gap: 0.5rem;
   }
 
   .authSignInLabelFull {
@@ -389,6 +493,20 @@
   gap: 0.55rem;
   flex-wrap: wrap;
   justify-content: flex-end;
+}
+
+/* Standalone sign-in wall (empty states / passport). Give the wall a real
+   min inline size so .authOptions container queries work under
+   globals .emptyState { justify-items: center } (parent shrink-wraps to
+   content; size containment would otherwise report 0). Nav compact keeps
+   the inline-flex .authUser rule above. */
+.authUser:not(.authUserNav) {
+  display: block;
+  width: min(26rem, 100%);
+  max-width: min(26rem, 100%);
+  min-width: min(26rem, calc(100vw - 3rem));
+  margin-inline: auto;
+  box-sizing: border-box;
 }
 
 .authAvatar {
