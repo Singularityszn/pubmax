@@ -31,7 +31,7 @@ import { ClaimNightDialog } from "@/components/auth/ClaimNightDialog";
 import IdentityNudge from "@/components/identity/IdentityNudge";
 import { trackEvent } from "@/lib/analytics";
 import { exchangeAuthCallbackCode } from "@/lib/authCallbackClient";
-import { getSupabaseBrowser, isAuthConfigured } from "@/lib/authClient";
+import { ensureSupabaseBrowser, isAuthConfigured } from "@/lib/authClient";
 import {
   AUTH_RETURN_FRAGMENT_RESTORED_EVENT,
   beginCoordinatedAuthAttempt,
@@ -399,126 +399,135 @@ export function AuthProvider({ children }: { children: ReactNode }): React.JSX.E
       );
     }
     const callbackCapture = capturedCallback.current ?? Promise.resolve(null);
-    const supabase = getSupabaseBrowser();
-    // Unconfigured / SSR-only: nothing to subscribe to. Flip loading off in a
-    // microtask so we never setState synchronously in the effect body.
-    if (!supabase) {
-      let cancelled = false;
-      queueMicrotask(() => {
-        if (cancelled) return;
-        setLoading(false);
-      });
-      void callbackCapture.then((captured) => {
-        const callbackAttempt = captured?.attempt ?? null;
-        if (callbackAttempt?.attemptId) {
-          releaseBrowserAuthAttempt(callbackAttempt.attemptId);
-        }
-        captured?.releaseCoordination();
-        if (cancelled) return;
-        if (callbackAttempt) setAuthCallbackError(AUTH_CALLBACK_ERROR_MESSAGE);
-      });
-      return () => {
-        cancelled = true;
-      };
-    }
 
     let active = true;
+    let subscription: { unsubscribe: () => void } | null = null;
     // Session restoration is additive; it must never hold the anonymous app or
     // Pub Pal onboarding behind an infinite loading screen when the provider is
-    // slow, blocked, or temporarily unavailable. A later auth event can still
-    // hydrate the session after this fail-soft boundary.
+    // slow, blocked, or temporarily unavailable. This fail-soft boundary also
+    // covers the lazy supabase-js chunk import; loading stays true until the
+    // client resolves and a session (or its absence) is known, so the signed-in
+    // header never flickers signed-out → signed-in. A later auth event can still
+    // hydrate the session after this boundary.
     const loadingTimeout = window.setTimeout(() => {
       if (active) setLoading(false);
     }, 2500);
 
-    // Live updates: SIGNED_IN / SIGNED_OUT / TOKEN_REFRESHED. The callback is
-    // the ONLY place these setStates run — never the effect body.
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((event, nextSession) => {
+    // Lazy-load the browser client (dynamic import) off the critical path, then
+    // subscribe and restore. Everything client-dependent runs after it resolves.
+    void ensureSupabaseBrowser().then((supabase) => {
       if (!active) return;
-      setSession(nextSession ?? null);
-      setLoading(false);
-      // Wave L3: on sign-in, maybe open Claim your night (never silent overwrite).
-      if (event === "SIGNED_IN" && nextSession?.user) {
-        void syncIdentityAfterSignIn(nextSession.user);
-      }
-      if (event === "SIGNED_OUT") {
-        try {
-          window.sessionStorage.removeItem(SYNCED_USER_KEY);
-        } catch {
-          // ignore
-        }
-        clearClaimDeferred();
-        closeClaim();
-      }
-    });
 
-    // Prime from a callback code or any persisted session. PKCE is explicit so
-    // missing-verifier, expired-code, and network failures become visible and
-    // one-time URL parameters are removed on both success and failure.
-    void (async () => {
-      await Promise.resolve();
-      const captured = await callbackCapture;
-      const callbackAttempt = captured?.attempt ?? null;
-      let exchangedSession: Session | null = null;
-      let exchangeFailed = Boolean(
-        callbackAttempt &&
-          (callbackAttempt.providerError || !callbackAttempt.code || !callbackAttempt.attemptId),
-      );
-      try {
-        if (callbackAttempt?.code && !callbackAttempt.providerError) {
-          if (!callbackExchangeInFlight.current) {
-            callbackExchangeInFlight.current = exchangeAuthCallbackCode(
-              supabase.auth,
-              callbackAttempt.code,
-            );
-          }
-          const exchange = await callbackExchangeInFlight.current;
-          exchangedSession = exchange.session;
-          exchangeFailed = exchange.failed;
-        }
-      } finally {
-        if (callbackAttempt?.attemptId) {
-          releaseBrowserAuthAttempt(callbackAttempt.attemptId);
-        }
-        captured?.releaseCoordination();
-      }
-      if (!active) return;
-      if (exchangeFailed) setAuthCallbackError(AUTH_CALLBACK_ERROR_MESSAGE);
-
-      if (exchangedSession) {
+      // Unconfigured / SSR-only: nothing to subscribe to.
+      if (!supabase) {
         window.clearTimeout(loadingTimeout);
-        setSession(exchangedSession);
         setLoading(false);
-        void syncIdentityAfterSignIn(exchangedSession.user);
+        void callbackCapture.then((captured) => {
+          const callbackAttempt = captured?.attempt ?? null;
+          if (callbackAttempt?.attemptId) {
+            releaseBrowserAuthAttempt(callbackAttempt.attemptId);
+          }
+          captured?.releaseCoordination();
+          if (!active) return;
+          if (callbackAttempt) setAuthCallbackError(AUTH_CALLBACK_ERROR_MESSAGE);
+        });
         return;
       }
 
-      try {
-        const { data } = await supabase.auth.getSession();
+      // Live updates: SIGNED_IN / SIGNED_OUT / TOKEN_REFRESHED. The callback is
+      // the ONLY place these setStates run — never the effect body.
+      const registration = supabase.auth.onAuthStateChange((event, nextSession) => {
         if (!active) return;
-        window.clearTimeout(loadingTimeout);
-        setSession(data.session ?? null);
+        setSession(nextSession ?? null);
         setLoading(false);
-        // Wave L3: refresh identity sync for an already-persisted session.
-        if (data.session?.user) void syncIdentityAfterSignIn(data.session.user);
-      } catch {
-        if (!active) return;
-        window.clearTimeout(loadingTimeout);
-        setLoading(false);
+        // Wave L3: on sign-in, maybe open Claim your night (never silent overwrite).
+        if (event === "SIGNED_IN" && nextSession?.user) {
+          void syncIdentityAfterSignIn(nextSession.user);
+        }
+        if (event === "SIGNED_OUT") {
+          try {
+            window.sessionStorage.removeItem(SYNCED_USER_KEY);
+          } catch {
+            // ignore
+          }
+          clearClaimDeferred();
+          closeClaim();
+        }
+      });
+      subscription = registration.data.subscription;
+      // Unmounted while the chunk was loading: tear the subscription right back
+      // down so the cleanup's null slot doesn't leak it.
+      if (!active) {
+        subscription.unsubscribe();
+        return;
       }
-    })();
+
+      // Prime from a callback code or any persisted session. PKCE is explicit so
+      // missing-verifier, expired-code, and network failures become visible and
+      // one-time URL parameters are removed on both success and failure.
+      void (async () => {
+        await Promise.resolve();
+        const captured = await callbackCapture;
+        const callbackAttempt = captured?.attempt ?? null;
+        let exchangedSession: Session | null = null;
+        let exchangeFailed = Boolean(
+          callbackAttempt &&
+            (callbackAttempt.providerError || !callbackAttempt.code || !callbackAttempt.attemptId),
+        );
+        try {
+          if (callbackAttempt?.code && !callbackAttempt.providerError) {
+            if (!callbackExchangeInFlight.current) {
+              callbackExchangeInFlight.current = exchangeAuthCallbackCode(
+                supabase.auth,
+                callbackAttempt.code,
+              );
+            }
+            const exchange = await callbackExchangeInFlight.current;
+            exchangedSession = exchange.session;
+            exchangeFailed = exchange.failed;
+          }
+        } finally {
+          if (callbackAttempt?.attemptId) {
+            releaseBrowserAuthAttempt(callbackAttempt.attemptId);
+          }
+          captured?.releaseCoordination();
+        }
+        if (!active) return;
+        if (exchangeFailed) setAuthCallbackError(AUTH_CALLBACK_ERROR_MESSAGE);
+
+        if (exchangedSession) {
+          window.clearTimeout(loadingTimeout);
+          setSession(exchangedSession);
+          setLoading(false);
+          void syncIdentityAfterSignIn(exchangedSession.user);
+          return;
+        }
+
+        try {
+          const { data } = await supabase.auth.getSession();
+          if (!active) return;
+          window.clearTimeout(loadingTimeout);
+          setSession(data.session ?? null);
+          setLoading(false);
+          // Wave L3: refresh identity sync for an already-persisted session.
+          if (data.session?.user) void syncIdentityAfterSignIn(data.session.user);
+        } catch {
+          if (!active) return;
+          window.clearTimeout(loadingTimeout);
+          setLoading(false);
+        }
+      })();
+    });
 
     return () => {
       active = false;
       window.clearTimeout(loadingTimeout);
-      subscription.unsubscribe();
+      subscription?.unsubscribe();
     };
   }, [closeClaim, syncIdentityAfterSignIn]);
 
   const signInWithGoogle = useCallback(async (): Promise<{ error: string | null }> => {
-    const supabase = getSupabaseBrowser();
+    const supabase = await ensureSupabaseBrowser();
     if (!supabase) {
       return { error: "Sign-in is not configured." };
     }
@@ -541,7 +550,7 @@ export function AuthProvider({ children }: { children: ReactNode }): React.JSX.E
   }, []);
 
   const signInWithMicrosoft = useCallback(async (): Promise<{ error: string | null }> => {
-    const supabase = getSupabaseBrowser();
+    const supabase = await ensureSupabaseBrowser();
     if (!supabase) {
       return { error: "Sign-in is not configured." };
     }
@@ -568,7 +577,7 @@ export function AuthProvider({ children }: { children: ReactNode }): React.JSX.E
 
   const signInWithEmail = useCallback(
     async (email: string, next?: string): Promise<MagicLinkResult> => {
-      const supabase = getSupabaseBrowser();
+      const supabase = await ensureSupabaseBrowser();
       if (!supabase) {
         return { status: "error", message: "Sign-in is not configured." };
       }
@@ -587,7 +596,7 @@ export function AuthProvider({ children }: { children: ReactNode }): React.JSX.E
   );
 
   const signOut = useCallback(async (): Promise<void> => {
-    const supabase = getSupabaseBrowser();
+    const supabase = await ensureSupabaseBrowser();
     if (!supabase) return;
     await supabase.auth.signOut();
     // onAuthStateChange fires SIGNED_OUT → session clears via the subscription.

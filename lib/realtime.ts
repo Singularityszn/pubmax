@@ -123,7 +123,9 @@ function subscribeInsert(
   const poll = options?.poll;
 
   // No browser client (no public env, or SSR) → realtime is impossible. Degrade
-  // to polling if a poll fn was given, else a pure no-op. Never throws.
+  // to polling if a poll fn was given, else a pure no-op. Never throws. supabase-js
+  // now loads lazily (dynamic import), so a cold-cache subscribe also lands here
+  // and polls until the client warms (AuthProvider primes it per route mount).
   const supabase = getSupabaseBrowser();
   if (!supabase || !isAuthConfigured()) {
     if (!poll) return () => {};

@@ -11,47 +11,69 @@
 // when it lands back on a URL carrying our marked `?code=` — see
 // components/auth/AuthProvider.tsx and app/auth/callback/route.ts.
 
-import { createClient, type SupabaseClient } from "@supabase/supabase-js";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { withAuthFetchTimeout } from "@/lib/authFetch";
 
+// @supabase/supabase-js (~208KB) is DYNAMICALLY imported so it code-splits off
+// the browser critical path instead of loading on every route via this module.
+// Both the module import and the client construction are memoized so concurrent
+// callers never double-import or build two clients. `cached` mirrors the resolved
+// client synchronously for the best-effort sync accessor below.
+let modulePromise: Promise<typeof import("@supabase/supabase-js")> | undefined;
+let clientPromise: Promise<SupabaseClient | null> | undefined;
 let cached: SupabaseClient | null | undefined;
 
-/**
- * The browser Supabase client, or null when the public env is absent (so the
- * UI degrades to "sign-in unavailable" instead of throwing at import time).
- * Guarded for SSR: on the server there is no window/localStorage, and calling
- * this returns null rather than constructing a client that can't persist.
- */
-export function getSupabaseBrowser(): SupabaseClient | null {
-  if (cached !== undefined) return cached;
+function buildBrowserClient(): Promise<SupabaseClient | null> {
+  return (async () => {
+    const { createClient } = await (modulePromise ??= import("@supabase/supabase-js"));
+    const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const key = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
+    cached = url && key
+      ? createClient(url, key, {
+        global: {
+          fetch: withAuthFetchTimeout(globalThis.fetch.bind(globalThis)),
+        },
+        auth: {
+          // Keep the session in this browser and refresh it in the background.
+          persistSession: true,
+          autoRefreshToken: true,
+          // AuthProvider completes PKCE explicitly so exchange failures can be
+          // surfaced and one-time URL parameters are always removed.
+          detectSessionInUrl: false,
+          flowType: "pkce",
+        },
+      })
+      : null;
+    return cached;
+  })();
+}
 
-  // No window → server render. Return null; the provider loads the session
-  // asynchronously once mounted in the browser.
+/**
+ * The browser Supabase client, loading the supabase-js chunk on first call and
+ * memoizing it. Resolves to null when the public env is absent (UI degrades to
+ * "sign-in unavailable") or during SSR (no window/localStorage to persist into).
+ * Auth-correctness-critical callers (AuthProvider, getAccessToken) await this.
+ */
+export function ensureSupabaseBrowser(): Promise<SupabaseClient | null> {
+  // No window → server render. Never import the chunk on the server.
   if (typeof window === "undefined") {
     cached = null;
-    return cached;
+    return Promise.resolve(null);
   }
+  return clientPromise ??= buildBrowserClient();
+}
 
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const key = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
-  cached = url && key
-    ? createClient(url, key, {
-      global: {
-        fetch: withAuthFetchTimeout(globalThis.fetch.bind(globalThis)),
-      },
-      auth: {
-        // Keep the session in this browser and refresh it in the background.
-        persistSession: true,
-        autoRefreshToken: true,
-        // AuthProvider completes PKCE explicitly so exchange failures can be
-        // surfaced and one-time URL parameters are always removed.
-        detectSessionInUrl: false,
-        flowType: "pkce",
-      },
-    })
-    : null;
-
-  return cached;
+/**
+ * Best-effort SYNChronous accessor for consumers that return synchronously (the
+ * realtime subscribe helpers). Returns the client once it has loaded, else null
+ * while kicking off the lazy load in the background. A null here simply means the
+ * caller degrades to its existing poll fallback until the client warms.
+ */
+export function getSupabaseBrowser(): SupabaseClient | null {
+  if (typeof window === "undefined") return null;
+  if (cached !== undefined) return cached;
+  void ensureSupabaseBrowser();
+  return null;
 }
 
 /** True when the public Supabase env is present (browser sign-in can be shown). */
@@ -69,7 +91,7 @@ export function isAuthConfigured(): boolean {
  * anonymous request (still valid for an unlinked, demo handle).
  */
 export async function getAccessToken(): Promise<string | null> {
-  const supabase = getSupabaseBrowser();
+  const supabase = await ensureSupabaseBrowser();
   if (!supabase) return null;
   try {
     const { data } = await supabase.auth.getSession();

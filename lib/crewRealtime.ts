@@ -13,6 +13,9 @@ export function subscribeToPlanCrew(
   options?: CrewRealtimeOptions,
 ): CrewUnsubscribe {
   if (!planId || options?.enabled === false) return () => {};
+  // supabase-js loads lazily (dynamic import): a cold-cache subscribe sees null
+  // here and polls; once the client warms (AuthProvider primes it on every route
+  // mount) a later resubscribe upgrades to realtime — same graceful poll fallback.
   const client = getSupabaseBrowser();
   const poll = options?.poll;
   if (!client || !isAuthConfigured()) {
