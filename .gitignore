@@ -1,8 +1,5 @@
 .next/
-.next-prod/
-.next-isolated/
-.next-e2e/
-.next-mobile-qa/
+.next-*/
 node_modules/
 out/
 dist/
@@ -16,6 +13,7 @@ scripts/__pycache__/
 .firecrawl/
 test-results/
 playwright-report/
+artifacts/
 /coverage/
 e2e/screenshots/
 data/generated/venue_detail_index.json

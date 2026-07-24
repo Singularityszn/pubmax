@@ -15,6 +15,9 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:e2e": "playwright test",
+    "gate:playwright": "node scripts/assert-playwright-gate.mjs",
+    "gate:e2e-skips": "node scripts/assert-no-conditional-e2e-skips.mjs e2e",
+    "gate:privacy": "node scripts/assert-privacy-response.mjs",
     "shots": "PUBMAX_E2E_KEYLESS=1 PW_SCREENSHOTS=1 PUBMAX_TRACKED_OUTPUTS=docs/screenshots node scripts/run-with-restored-next-env.mjs sh -c 'npm run build && base=$((30000 + ($$ % 10000))); i=0; for p in shots-390-light shots-1440-light shots-390-dark shots-1440-dark; do PW_PORT=$((base + i)) playwright test --workers=1 --project=$p || exit; i=$((i + 1)); done'",
     "shots:extended": "PUBMAX_E2E_KEYLESS=1 PW_SCREENSHOTS=1 PUBMAX_TRACKED_OUTPUTS=docs/screenshots node scripts/run-with-restored-next-env.mjs sh -c 'npm run build && base=$((30000 + ($$ % 10000))); i=0; for p in shots-390-light shots-430-light shots-1280-light shots-1440-light shots-390-dark shots-430-dark shots-1280-dark shots-1440-dark; do PW_PORT=$((base + i)) playwright test --workers=1 --project=$p || exit; i=$((i + 1)); done'",
     "coverage": "vitest run --coverage --maxWorkers=4",
@@ -72,6 +75,7 @@
     "web-push": "^3.6.7"
   },
   "devDependencies": {
+    "@axe-core/playwright": "^4.12.1",
     "@capacitor/cli": "^8.4.2",
     "@capacitor/core": "^8.4.2",
     "@capacitor/ios": "^8.4.2",

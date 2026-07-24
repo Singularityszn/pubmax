@@ -38,6 +38,23 @@ describe("run-with-restored-next-env", () => {
     expect(readFileSync(join(cwd, "tsconfig.json"), "utf8")).toBe("{\"canonical\":true}\n");
   });
 
+  it("leaves a tracked checkout clean after Next-managed files are rewritten", () => {
+    const cwd = workspace();
+    initialiseGit(cwd);
+    execFileSync(
+      process.execPath,
+      [
+        wrapper,
+        process.execPath,
+        "-e",
+        "const fs=require('fs'); fs.writeFileSync('next-env.d.ts','generated\\n'); fs.writeFileSync('tsconfig.json','{\\\"generated\\\":true}\\n')",
+      ],
+      { cwd, env: { ...process.env, NEXT_DIST_DIR: "caller-dist" } },
+    );
+
+    expect(execFileSync("git", ["status", "--short"], { cwd, encoding: "utf8" })).toBe("");
+  });
+
   it("restores the exact stub and preserves a failing exit code", () => {
     const cwd = workspace();
     const result = spawnSync(process.execPath, [wrapper, process.execPath, "-e", "require('fs').writeFileSync('next-env.d.ts', 'rewritten\\n'); process.exit(23)"], { cwd });
