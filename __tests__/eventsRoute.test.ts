@@ -3,7 +3,11 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { analyticsSurfaceFromPath, POST } from "@/app/api/events/route";
 import { __resetPintDrops } from "@/lib/pintDrops";
 import { __resetMemoryAnalyticsReceipts } from "@/lib/analyticsReceiptStore";
-import { mintVerifiedAnalyticsToken } from "@/lib/verifiedAnalytics.server";
+import {
+  crewCommittedEventToken,
+  mintVerifiedAnalyticsToken,
+  planDraftSavedEventToken,
+} from "@/lib/verifiedAnalytics.server";
 
 const VITEST_PLAN_SIGNING_SECRET = process.env.PLAN_IDEMPOTENCY_SECRET;
 
@@ -179,7 +183,10 @@ describe("POST /api/events", () => {
     const fetchMock = vi.fn().mockResolvedValue(new Response(null, { status: 200 }));
     vi.stubGlobal("fetch", fetchMock);
     const log = vi.spyOn(console, "log").mockImplementation(() => {});
-    const event = { name: "plan_accepted" as const, props: { stops: 3, grounded: true } };
+    const event = {
+      name: "plan_accepted" as const,
+      props: { stops: 3, grounded: true, anchored: true, routeReady: true, source: "near" },
+    };
     const deliveryToken = mintVerifiedAnalyticsToken(event, "plan:dedupe", new Date().toISOString());
     const body = JSON.stringify({
       ...event,
@@ -224,7 +231,10 @@ describe("POST /api/events", () => {
   });
 
   it("retains a verified event for retry when the trusted signing key is temporarily unavailable", async () => {
-    const event = { name: "plan_accepted" as const, props: { stops: 3, grounded: true } };
+    const event = {
+      name: "plan_accepted" as const,
+      props: { stops: 3, grounded: true, anchored: true, routeReady: true, source: "near" },
+    };
     process.env.PLAN_IDEMPOTENCY_SECRET = "configured-random-signing-key-0123456789abcdef";
     const deliveryToken = mintVerifiedAnalyticsToken(event, "plan:key-outage", new Date().toISOString());
     process.env.SUPABASE_URL = "https://example.supabase.co";
@@ -240,6 +250,70 @@ describe("POST /api/events", () => {
 
     expect(response.status).toBe(204);
     expect(response.headers.get("x-analytics-delivery")).toBe("retry");
+  });
+
+  it("delivers server-verified draft and join outcomes", async () => {
+    process.env.POSTHOG_PROJECT_API_KEY = "phc_test_project";
+    const fetchMock = vi.fn().mockResolvedValue(new Response(null, { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+    vi.spyOn(console, "log").mockImplementation(() => {});
+    const occurredAt = new Date().toISOString();
+    const draft = {
+      name: "plan_draft_saved" as const,
+      props: { stops: 1, grounded: true, anchored: true, routeReady: false, source: "tonight" },
+    };
+    const crew = {
+      name: "crew_committed" as const,
+      props: { source: "shared-plan", participants: 3, routeReady: true },
+    };
+
+    const draftResponse = await POST(post(JSON.stringify({
+      ...draft,
+      deliveryToken: planDraftSavedEventToken({ planId: "plan-draft", savedAt: occurredAt, source: "tonight" }),
+      anonymousId: "anon_0123456789abcdef",
+      analyticsConsent: true,
+    })));
+    const crewResponse = await POST(post(JSON.stringify({
+      ...crew,
+      deliveryToken: crewCommittedEventToken({
+        joinId: "join-one",
+        joinedAt: occurredAt,
+        participants: 3,
+        routeReady: true,
+      }),
+      anonymousId: "anon_0123456789abcdef",
+      analyticsConsent: true,
+    })));
+
+    expect(draftResponse.headers.get("x-analytics-delivery")).toBe("delivered");
+    expect(crewResponse.headers.get("x-analytics-delivery")).toBe("delivered");
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it.each([
+    {
+      name: "plan_draft_saved",
+      props: { stops: 1, grounded: true, anchored: true, routeReady: false, source: "near" },
+    },
+    {
+      name: "crew_committed",
+      props: { source: "shared-plan", participants: 2, routeReady: true },
+    },
+  ])("rejects spoofed verified outcome $name without a server token", async (event) => {
+    process.env.POSTHOG_PROJECT_API_KEY = "phc_test_project";
+    const fetchMock = vi.fn().mockResolvedValue(new Response(null, { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+    const log = vi.spyOn(console, "log").mockImplementation(() => {});
+
+    const response = await POST(post(JSON.stringify({
+      ...event,
+      anonymousId: "anon_0123456789abcdef",
+      analyticsConsent: true,
+    })));
+
+    expect(response.headers.get("x-analytics-delivery")).toBe("discard");
+    expect(log).not.toHaveBeenCalled();
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 
   it("rejects spoofed acceptance and completion events without a server token", async () => {

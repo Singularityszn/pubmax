@@ -1,6 +1,10 @@
 import { createHash, createHmac, timingSafeEqual } from "node:crypto";
 
-import { sanitizeEvent, type AnalyticsEvent } from "@/lib/analyticsEvents";
+import {
+  sanitizeEvent,
+  type AnalyticsEvent,
+  type PlanningSource,
+} from "@/lib/analyticsEvents";
 import { trustedSigningKey } from "@/lib/trustedSigningKey.server";
 
 const TOKEN_VERSION = 1;
@@ -18,9 +22,25 @@ type VerifiedAnalyticsClaims = {
 
 function canonicalEvent(event: AnalyticsEvent): AnalyticsEvent | null {
   const sanitized = sanitizeEvent(event.name, event.props);
-  if (!sanitized) return null;
-  const props = Object.fromEntries(Object.entries(sanitized.props).sort(([left], [right]) => left.localeCompare(right)));
-  return { name: sanitized.name, props };
+  if (sanitized) {
+    const props = Object.fromEntries(Object.entries(sanitized.props).sort(([left], [right]) => left.localeCompare(right)));
+    return { name: sanitized.name, props };
+  }
+
+  // Compatibility only for the pre-handoff Plan creation response. Its client
+  // event is now rejected by sanitizeEvent, so this token can never be ingested;
+  // retaining deterministic minting keeps direct/manual Plan creation working
+  // until L09 replaces this legacy response contract.
+  if (event.name === "plan_accepted"
+    && Object.keys(event.props).length === 2
+    && Number.isInteger(event.props.stops)
+    && typeof event.props.grounded === "boolean") {
+    return {
+      name: event.name,
+      props: { grounded: event.props.grounded, stops: event.props.stops },
+    };
+  }
+  return null;
 }
 
 function signature(encoded: string, key: Buffer): Buffer {
@@ -79,7 +99,7 @@ export function verifyAnalyticsDeliveryToken(
     if (claims.name !== canonical.name || JSON.stringify(claims.props) !== JSON.stringify(canonical.props)) return null;
     if (typeof claims.issuedAt !== "number" || !Number.isSafeInteger(claims.issuedAt)
       || typeof claims.expiresAt !== "number" || !Number.isSafeInteger(claims.expiresAt)) return null;
-    if (claims.expiresAt !== claims.issuedAt + TOKEN_TTL_MS || now > claims.expiresAt) return null;
+    if (claims.expiresAt !== claims.issuedAt + TOKEN_TTL_MS || now >= claims.expiresAt) return null;
     if (claims.issuedAt > now + 30_000) return null;
     if (!/^[0-9a-f-]{36}$/i.test(claims.eventId)) return null;
     return claims as VerifiedAnalyticsClaims;
@@ -104,12 +124,81 @@ export function planLoopEventTokens(input: {
       `plan:${input.planId}`,
       input.createdAt,
     ),
+    // Legacy direct/manual Plan creation is not the trusted three-Stop outcome.
+    // Empty compatibility value keeps its response shape stable while making
+    // the existing client condition fail closed until L09 emits the V2 token.
+    meaningfulCoreAction: "",
+  };
+}
+
+export function planDraftSavedEventToken(input: {
+  planId: string;
+  savedAt: string;
+  source: PlanningSource;
+}): string {
+  return mintVerifiedAnalyticsToken(
+    {
+      name: "plan_draft_saved",
+      props: {
+        stops: 1,
+        grounded: true,
+        anchored: true,
+        routeReady: false,
+        source: input.source,
+      },
+    },
+    `plan:${input.planId}:draft`,
+    input.savedAt,
+  );
+}
+
+export function planAcceptedEventTokens(input: {
+  planId: string;
+  acceptedAt: string;
+  anchored: boolean;
+  source: PlanningSource;
+}): { planAccepted: string; meaningfulCoreAction: string } {
+  return {
+    planAccepted: mintVerifiedAnalyticsToken(
+      {
+        name: "plan_accepted",
+        props: {
+          stops: 3,
+          grounded: true,
+          anchored: input.anchored,
+          routeReady: true,
+          source: input.source,
+        },
+      },
+      `plan:${input.planId}:route-ready`,
+      input.acceptedAt,
+    ),
     meaningfulCoreAction: mintVerifiedAnalyticsToken(
       { name: "meaningful_core_action", props: { action: "plan_accepted" } },
-      `plan:${input.planId}:accepted`,
-      input.createdAt,
+      `plan:${input.planId}:route-ready:meaningful`,
+      input.acceptedAt,
     ),
   };
+}
+
+export function crewCommittedEventToken(input: {
+  joinId: string;
+  joinedAt: string;
+  participants: number;
+  routeReady: boolean;
+}): string {
+  return mintVerifiedAnalyticsToken(
+    {
+      name: "crew_committed",
+      props: {
+        source: "shared-plan",
+        participants: input.participants,
+        routeReady: input.routeReady,
+      },
+    },
+    `join:${input.joinId}:crew-committed`,
+    input.joinedAt,
+  );
 }
 
 export function completionLoopEventTokens(input: {

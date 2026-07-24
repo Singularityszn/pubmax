@@ -35,8 +35,71 @@ const inMemoryVerifiedOutbox = new Map<string, string>();
 let verifiedFlush: Promise<void> | null = null;
 let verifiedFlushAbort: AbortController | null = null;
 let analyticsConsentEpoch = 0;
+let analyticsStorageListenerWindow: Window | null = null;
 
 type TrackEventOptions = { deliveryToken?: string };
+
+function abortVerifiedFlush(): void {
+  analyticsConsentEpoch += 1;
+  verifiedFlushAbort?.abort();
+  verifiedFlushAbort = null;
+  verifiedFlush = null;
+}
+
+function replaceInMemoryVerifiedOutbox(raw: string | null): void {
+  inMemoryVerifiedOutbox.clear();
+  if (!raw) return;
+  try {
+    const parsed = JSON.parse(raw) as unknown;
+    if (!Array.isArray(parsed)) return;
+    for (const row of parsed.slice(-20)) {
+      if (!row || typeof row !== "object") continue;
+      const token = (row as { token?: unknown }).token;
+      const payload = (row as { payload?: unknown }).payload;
+      if (typeof token === "string" && typeof payload === "string") {
+        inMemoryVerifiedOutbox.set(token, payload);
+      }
+    }
+  } catch { /* malformed cross-tab state is treated as an empty outbox */ }
+}
+
+function handleAnalyticsStorageChange(event: StorageEvent): void {
+  if (event.key !== ANALYTICS_CONSENT_STORAGE_KEY && event.key !== VERIFIED_OUTBOX_KEY) return;
+  abortVerifiedFlush();
+
+  if (event.key === ANALYTICS_CONSENT_STORAGE_KEY) {
+    if (event.newValue !== "granted") {
+      inMemoryConsentGranted = false;
+      inMemoryAnonymousId = null;
+      inMemoryVerifiedOutbox.clear();
+      return;
+    }
+    inMemoryConsentGranted = true;
+    void flushVerifiedAnalyticsOutbox();
+    return;
+  }
+
+  let consentGranted = false;
+  try {
+    consentGranted = window.localStorage.getItem(ANALYTICS_CONSENT_STORAGE_KEY) === "granted";
+  } catch {
+    consentGranted = inMemoryConsentGranted;
+  }
+  if (!consentGranted) {
+    inMemoryVerifiedOutbox.clear();
+    return;
+  }
+  replaceInMemoryVerifiedOutbox(event.newValue);
+  void flushVerifiedAnalyticsOutbox();
+}
+
+function ensureAnalyticsStorageListener(): void {
+  if (typeof window === "undefined"
+    || analyticsStorageListenerWindow === window
+    || typeof window.addEventListener !== "function") return;
+  window.addEventListener("storage", handleAnalyticsStorageChange);
+  analyticsStorageListenerWindow = window;
+}
 
 function persistedVerifiedOutbox(): Map<string, string> {
   const items = new Map(inMemoryVerifiedOutbox);
@@ -78,6 +141,7 @@ function removeVerifiedOutboxItem(token: string): void {
 
 export async function flushVerifiedAnalyticsOutbox(): Promise<void> {
   if (verifiedFlush) return verifiedFlush;
+  ensureAnalyticsStorageListener();
   if (typeof window === "undefined" || !analyticsCollectionAllowed()) return;
   const epoch = analyticsConsentEpoch;
   const controller = new AbortController();
@@ -130,6 +194,7 @@ function newAnonymousAnalyticsId(): string {
  */
 export function anonymousAnalyticsId(): string | null {
   if (typeof window === "undefined") return null;
+  ensureAnalyticsStorageListener();
   try {
     if (window.localStorage.getItem(ANALYTICS_CONSENT_STORAGE_KEY) !== "granted") return null;
     inMemoryConsentGranted = true;
@@ -147,13 +212,11 @@ export function anonymousAnalyticsId(): string | null {
 
 export function setAnalyticsConsent(granted: boolean): void {
   if (typeof window === "undefined") return;
-  // Every consent transition invalidates snapshots captured by an older
-  // flush. Abort immediately, then let the epoch checks prevent a fetch that
-  // ignored abort from sending the next item or mutating a re-granted queue.
-  analyticsConsentEpoch += 1;
-  verifiedFlushAbort?.abort();
-  verifiedFlushAbort = null;
-  verifiedFlush = null;
+  ensureAnalyticsStorageListener();
+  // Every local or cross-tab consent transition invalidates snapshots captured
+  // by an older flush. Epoch checks also protect against fetch implementations
+  // that resolve after abort.
+  abortVerifiedFlush();
   try {
     if (granted) {
       inMemoryConsentGranted = true;
@@ -191,7 +254,9 @@ function doNotTrack(): boolean {
  * unavailable unless the person explicitly granted consent in this session.
  */
 export function analyticsCollectionAllowed(): boolean {
-  if (typeof window === "undefined" || doNotTrack()) return false;
+  if (typeof window === "undefined") return false;
+  ensureAnalyticsStorageListener();
+  if (doNotTrack()) return false;
   try {
     return window.localStorage.getItem(ANALYTICS_CONSENT_STORAGE_KEY) === "granted";
   } catch {

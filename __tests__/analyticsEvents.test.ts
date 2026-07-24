@@ -59,13 +59,14 @@ describe("sanitizeEvent", () => {
 
   it("keeps the activation and retention funnel free of identity and free text", () => {
     expect(sanitizeEvent("crew_committed", {
-      source: "plan-link",
+      source: "shared-plan",
       participants: 3,
+      routeReady: true,
       handle: "night_owl",
       note: "meet us by the bar",
     })).toEqual({
       name: "crew_committed",
-      props: { source: "plan-link", participants: 3 },
+      props: { source: "shared-plan", participants: 3, routeReady: true },
     });
 
     expect(sanitizeEvent("next_night_committed", {
@@ -185,8 +186,17 @@ describe("sanitizeEvent", () => {
         query: "quiet near my home",
         coordinates: "51.5,-0.1",
       })).toEqual({ name: "plan_generated", props: { stops: 3, grounded: true } });
-      expect(sanitizeEvent("plan_accepted", { stops: 3, grounded: true, planId: "private-plan" }))
-        .toEqual({ name: "plan_accepted", props: { stops: 3, grounded: true } });
+      expect(sanitizeEvent("plan_accepted", {
+        stops: 3,
+        grounded: true,
+        anchored: true,
+        routeReady: true,
+        source: "near",
+        planId: "private-plan",
+      })).toEqual({
+        name: "plan_accepted",
+        props: { stops: 3, grounded: true, anchored: true, routeReady: true, source: "near" },
+      });
       expect(sanitizeEvent("plan_saved", { stops: 3, grounded: false, title: "Friday with Jamie" }))
         .toEqual({ name: "plan_saved", props: { stops: 3, grounded: false } });
       expect(sanitizeEvent("claim_started", { source: "auth", handle: "private_handle" }))
@@ -212,7 +222,13 @@ describe("sanitizeEvent", () => {
 
     it("enforces exact loop prop types and ranges", () => {
       expect(sanitizeEvent("plan_generated", { stops: 51, grounded: 1 })?.props).toEqual({});
-      expect(sanitizeEvent("plan_accepted", { stops: 0, grounded: "true" })?.props).toEqual({});
+      expect(sanitizeEvent("plan_accepted", {
+        stops: 0,
+        grounded: "true",
+        anchored: true,
+        routeReady: true,
+        source: "near",
+      })).toBeNull();
       expect(sanitizeEvent("plan_saved", { stops: 3, grounded: true })?.props)
         .toEqual({ stops: 3, grounded: true });
       expect(sanitizeEvent("claim_started", { source: "you" })?.props).toEqual({});

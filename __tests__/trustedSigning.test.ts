@@ -3,7 +3,10 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-const analyticsEvent = { name: "plan_accepted" as const, props: { stops: 3, grounded: true } };
+const analyticsEvent = {
+  name: "plan_accepted" as const,
+  props: { stops: 3, grounded: true, anchored: true, routeReady: true, source: "near" },
+};
 const candidates = ["venue-a", "venue-b", "venue-c", "venue-d"];
 const accepted = candidates.slice(0, 3);
 const occurredAt = "2026-07-20T12:00:00.000Z";
