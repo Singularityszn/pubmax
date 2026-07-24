@@ -39,4 +39,26 @@ describe("GET /api/cron/freshness-audit", () => {
       expect(["stale", "unknown"]).toContain(notice.status);
     }
   });
+
+  it("escalates a budget breach to a loud error-level [ALERT], not an advisory warn", async () => {
+    // The committed registry has feeds past budget today, so the audit breaches.
+    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+
+    const res = await GET(req("Bearer test-secret"));
+    const body = await res.json();
+
+    expect(body.breach).toBe(true);
+    // Loud: error-level, distinct alert marker for log-based alerting.
+    expect(errorSpy).toHaveBeenCalled();
+    const alerted = errorSpy.mock.calls.some(([first]) =>
+      typeof first === "string" && first.includes("[freshness-audit][ALERT]"),
+    );
+    expect(alerted).toBe(true);
+    // The breach path no longer hides behind an advisory warn.
+    const warnedBreach = warnSpy.mock.calls.some(([first]) =>
+      typeof first === "string" && first.includes("breaching"),
+    );
+    expect(warnedBreach).toBe(false);
+  });
 });
