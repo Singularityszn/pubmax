@@ -1,6 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("server-only", () => ({}));
+// House pattern (followingRoute / planIdempotencyRoutes): the route asserts
+// server env at module load, and CI has no Supabase vars.
+vi.mock("@/lib/serverEnv", () => ({ assertServerEnv: () => {} }));
 
 import { GET } from "@/app/api/plans/anchor/route";
 
