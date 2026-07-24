@@ -461,7 +461,7 @@ function conciergeStatusText(
  * their favour. Rendered only when the handoff is active; the underlying fields
  * stay editable below, so nothing is hidden or silently changed.
  */
-function AcceptedContextPanel({ handoff }: { handoff: ComposerHydration }) {
+export function AcceptedContextPanel({ handoff }: { handoff: ComposerHydration }) {
   const venueName = handoff.routePreview?.value.stops
     .find((stop) => stop.venueId === handoff.acceptedVenueId)?.venueName
     ?? handoff.acceptedVenueId;
@@ -494,6 +494,15 @@ function AcceptedContextPanel({ handoff }: { handoff: ComposerHydration }) {
       )}
     </>
   );
+}
+
+/**
+ * The lock-failure banner. Copy for anchored 422 (proof invalid/expired) and 409
+ * (replay-conflict) is mapped by composerLockErrorFromResponse before it reaches
+ * `message`; this is the exact element the form renders it in.
+ */
+export function PlanComposerErrorNotice({ message }: { message: string }) {
+  return <p className="planComposer__error" role="alert">{message}</p>;
 }
 
 function PlanComposerForm({
@@ -1097,7 +1106,7 @@ function PlanComposerForm({
         <button className="planComposer__add" type="button" onClick={() => setStops((current) => [...current, { key: Math.max(0, ...current.map((stop) => stop.key)) + 1, venueId: "", venueName: "", alternatives: [] }])}>Add another stop</button>
       </fieldset>
 
-      {error ? <p className="planComposer__error" role="alert">{error}</p> : null}
+      {error ? <PlanComposerErrorNotice message={error} /> : null}
       <button className="planComposer__submit" type="submit" disabled={submitting || sorting}>{submitting ? "Locking it in…" : "Lock it in"}</button>
       <p className="planComposer__trust">Anyone with the link can see the plan. Joining only asks for a name.</p>
     </form>
