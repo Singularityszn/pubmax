@@ -16,13 +16,23 @@ import "./dealsTonightLane.css";
 
 type MusicState = { rows: WhatsOnRow[]; asOf: string | null };
 
+export type MusicTonightLaneProps = {
+  /** When provided, render from these already-loaded rows (music families are
+   *  filtered out here) and skip the self-fetch, so a host that already loaded the
+   *  spine (Tonight) never fires a duplicate request. Omitted on Discover. */
+  rows?: WhatsOnRow[];
+  asOf?: string | null;
+};
+
 /** Below this count we label coverage as thin rather than implying a full guide. */
 const THIN_COVERAGE_MAX = 4;
 
-export default function MusicTonightLane() {
+export default function MusicTonightLane({ rows: providedRows, asOf: providedAsOf }: MusicTonightLaneProps = {}) {
+  const provided = providedRows !== undefined;
   const [state, setState] = useState<MusicState>({ rows: [], asOf: null });
 
   useEffect(() => {
+    if (provided) return; // reuse mode: the host already loaded the spine.
     const controller = new AbortController();
     fetch("/api/whats-on?kind=music&window=tonight&limit=8", {
       signal: controller.signal,
@@ -38,12 +48,17 @@ export default function MusicTonightLane() {
       })
       .catch(() => undefined);
     return () => controller.abort();
-  }, []);
+  }, [provided]);
 
-  if (state.rows.length === 0) return null;
+  const rows = provided
+    ? providedRows.filter((row) => row.kind === "music").slice(0, 8)
+    : state.rows;
+  const asOf = provided ? (providedAsOf ?? null) : state.asOf;
+
+  if (rows.length === 0) return null;
 
   const meta = WHATS_ON_KIND_META.music;
-  const thin = state.rows.length <= THIN_COVERAGE_MAX;
+  const thin = rows.length <= THIN_COVERAGE_MAX;
 
   return (
     <section className="dealsTonight" aria-labelledby="music-tonight-title" data-coverage={thin ? "thin" : "ok"}>
@@ -51,15 +66,15 @@ export default function MusicTonightLane() {
         <h2 id="music-tonight-title">
           <Music2 size={18} aria-hidden="true" /> Live music tonight
         </h2>
-        <span className="dealsTonightChecked">{checkedLabel(state.asOf)}</span>
+        <span className="dealsTonightChecked">{checkedLabel(asOf)}</span>
       </div>
       <p className="dealsTonightLead">
         {thin
-          ? `Thin coverage tonight: ${state.rows.length} sourced listing${state.rows.length === 1 ? "" : "s"} only. Not a full gig guide.`
+          ? `Thin coverage tonight: ${rows.length} sourced listing${rows.length === 1 ? "" : "s"} only. Not a full gig guide.`
           : `${meta.badgeLabel} from sourced listings. Times and line-ups vary; check the source.`}
       </p>
       <ul className="dealsTonightList">
-        {state.rows.map((row) => {
+        {rows.map((row) => {
           const mapHref = row.venueId
             ? `/map?sel=${encodeURIComponent(row.venueId)}`
             : preferredCityMapHref();

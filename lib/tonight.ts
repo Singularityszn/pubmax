@@ -10,6 +10,7 @@
 // are DERIVED from whatever kinds the upstream actually returns, never a fixed
 // taxonomy we might not be able to populate.
 
+import type { TonightLocalityBasis } from "@/lib/analyticsEvents";
 import { haversineKm } from "@/lib/haversine";
 import { resolveNightPatch, type RememberedArea } from "@/lib/nightPatches";
 import { labelForKind, opportunityMapHref } from "@/lib/thingsToDoMap";
@@ -150,6 +151,22 @@ export function resolveTonightNear(
     if (patch) return { near: { lat: patch.lat, lng: patch.lng }, patchLabel: patch.label };
   }
   return null;
+}
+
+/**
+ * The locality basis the tonight list was actually ordered from (§4.9
+ * tonight_result_opened). A live position reports "live-location"; a resolved
+ * patch centre reports "remembered-patch". A remembered BOROUGH has no canonical
+ * centroid, so resolveTonightNear returns null and the list orders — and this
+ * reports — "london-default". It never claims a basis the ordering did not use.
+ */
+export function tonightLocalityBasis(
+  hasOrigin: boolean,
+  tonightNear: TonightNear | null,
+): TonightLocalityBasis {
+  if (hasOrigin) return "live-location";
+  if (tonightNear?.patchLabel) return "remembered-patch";
+  return "london-default";
 }
 
 // ── Venue ↔ opportunity matching (Wave A · A1 sheet chips) ──────────────────

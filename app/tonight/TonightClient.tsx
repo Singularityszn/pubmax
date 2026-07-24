@@ -9,7 +9,8 @@
 // React 19 safe: settle() defers setState out of the effect body.
 
 import Link from "next/link";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import {
   ArrowUpRight,
   Beer,
@@ -27,7 +28,7 @@ import {
 } from "lucide-react";
 
 import SiteNav from "@/components/nav/SiteNav";
-import { useWhatsOnTonight } from "@/components/map/useWhatsOnTonight";
+import { useWhatsOnTonight, type TonightFreshnessKind } from "@/components/map/useWhatsOnTonight";
 import DealsTonightLane from "@/components/discovery/DealsTonightLane";
 import MusicTonightLane from "@/components/discovery/MusicTonightLane";
 import TonightConditionsStrip from "./TonightConditionsStrip";
@@ -37,11 +38,13 @@ import { nearestNightAreaForViewport } from "@/lib/nightAreas";
 import TonightShareButton from "./TonightShareButton";
 import { trackEvent } from "@/lib/analytics";
 import { firstHttp } from "@/lib/httpUrl";
-import { resolveTonightNear, walkLabel, walkMinutes } from "@/lib/tonight";
+import { resolveTonightNear, tonightLocalityBasis, walkLabel, walkMinutes } from "@/lib/tonight";
+import { acceptTonightVenue } from "@/lib/tonightAcceptance";
 import { readRememberedArea, type RememberedArea } from "@/lib/nightPatches";
 import { palChatHref, VIBE_CHIPS } from "@/lib/vibeChips";
 import { dealDigestNote } from "@/lib/dealsDigest";
 import { groupTonightListings } from "@/lib/tonightListGrouping";
+import type { TrustedHandoffFlagsDTO } from "@/lib/trustedHandoffFlags";
 import type { WhatsOnKind, WhatsOnRow } from "@/lib/whatsOn";
 import {
   checkedLabel,
@@ -69,6 +72,24 @@ function coverageLabel(count: number): string {
   if (count === 0) return "Quiet night";
   if (count === 1) return "1 listing tonight";
   return `${count} listings tonight`;
+}
+
+// Honest source-freshness label (L13 contract): an unknown source is stated as
+// such, never the request instant dressed as a check. checkedLabel already maps a
+// null asOf to "Freshness unknown"; keying off the kind makes the intent explicit.
+function freshnessLabel(kind: TonightFreshnessKind, asOf: string | null): string {
+  return kind === "unknown" ? "Freshness unknown" : checkedLabel(asOf);
+}
+
+// Deals/Music placement. Flag off keeps their shipped slot above the main list.
+// Flag on wraps them so CSS can place them: on desktop they populate the right
+// rail (using the canvas, matching the flag-off desktop shape); below the rail
+// breakpoint they stack under the main list (§4.11 main-list-first). Keeping the
+// branch in a helper holds TonightClient under the cyclomatic-complexity cap.
+function placeSecondaryLanes(below: boolean, lanes: ReactNode): { above: ReactNode; below: ReactNode } {
+  return below
+    ? { above: null, below: <div className="tonightSecondaryLanes">{lanes}</div> }
+    : { above: lanes, below: null };
 }
 
 // A thin night (0-2 confirmed listings) leaves the list short enough that the
@@ -106,7 +127,7 @@ const QUIET_ALTERNATIVES: QuietAlternative[] = [
   },
 ];
 
-export default function TonightClient() {
+export default function TonightClient({ flags }: { flags: TrustedHandoffFlagsDTO }) {
   const [activeKind, setActiveKind] = useState<WhatsOnKind | null>(null);
   const [origin, setOrigin] = useState<Origin | null>(null);
   // The area the viewer last chose anywhere in the app (#427 nightPatches
@@ -134,8 +155,33 @@ export default function TonightClient() {
 
   // Real position wins; else the remembered patch's heart; else store order —
   // the same answer the map's Near me gives, so tabs stop disagreeing.
+  const router = useRouter();
   const tonightNear = resolveTonightNear(origin, remembered);
-  const { rows, asOf, status, retry } = useWhatsOnTonight(true, tonightNear?.near ?? null);
+  const { rows, asOf, sourceObservedAt, sourceFreshnessKind, status, retry } = useWhatsOnTonight(
+    true,
+    tonightNear?.near ?? null,
+  );
+
+  // Explicit acceptance (§4.8): only "Use this Venue" reaches here — opening a
+  // listing stays browse-only. Writes one PlanningIntent (source "tonight")
+  // carrying the remembered area and the honest source-freshness date, then hands
+  // the Venue off via the accept deep link. Storage failure degrades to a browse
+  // selection and emits nothing. Never rendered with intentWrite off.
+  const acceptVenue = useCallback(
+    (venueId: string) => {
+      const result = acceptTonightVenue({
+        venueId,
+        area: remembered,
+        // Tonight answers "tonight"; like Near, no explicit future date is chosen.
+        startsAt: null,
+        observedAt: sourceObservedAt,
+        fallbackCityId: "london",
+      });
+      if (result.telemetry) trackEvent("venue_accepted", result.telemetry);
+      router.push(result.href);
+    },
+    [remembered, sourceObservedAt, router],
+  );
 
   const requestLocation = useCallback(() => {
     if (typeof navigator === "undefined" || !navigator.geolocation) {
@@ -164,9 +210,14 @@ export default function TonightClient() {
   // expander. Grouped on the same near signal that orders the list, so the card
   // and its ordering agree. Group the whole set once, then filter by kind — a
   // family carries a single kind, so this equals grouping the kind-filtered rows.
+  // Consume the canonical model: when PUBMAX_TONIGHT_GROUPING is on the server
+  // already ordered + diversity-capped + flattened the rows, so regrouping with
+  // the SAME v2 mode reconstructs the server's cards in the server's order (the
+  // client stops being its own grouping authority). Flag off keeps the shipped
+  // chain-duplicate collapse, byte-identical to today.
   const groupedAll = useMemo(
-    () => groupTonightListings(rows, tonightNear?.near ?? null),
-    [rows, tonightNear],
+    () => groupTonightListings(rows, tonightNear?.near ?? null, { v2: flags.tonightGrouping }),
+    [rows, tonightNear, flags.tonightGrouping],
   );
   const grouped = useMemo(
     () => (activeKind ? groupedAll.filter((g) => g.row.kind === activeKind) : groupedAll),
@@ -194,6 +245,20 @@ export default function TonightClient() {
   const showLocation = hasGeoRows || thinNight;
   const locationExpanded = locationOpen || origin != null;
 
+  // Secondary Deals/Music lanes reuse the already-loaded grouped heroes instead of
+  // each firing their own /api/whats-on fetch (dedup is always on — no duplicate
+  // first-viewport request). Their POSITION is flag-gated below: flag off keeps
+  // their prod slot above the list; flag on moves them under the main list.
+  const localityBasis = tonightLocalityBasis(origin != null, tonightNear);
+  const secondaryHeroes = groupedAll.map((group) => group.row);
+  const secondaryLanes = (
+    <>
+      <DealsTonightLane rows={secondaryHeroes} asOf={asOf} />
+      <MusicTonightLane rows={secondaryHeroes} asOf={asOf} />
+    </>
+  );
+  const lanePlacement = placeSecondaryLanes(flags.tonightGrouping, secondaryLanes);
+
   return (
     <main className="tonightPage" data-testid="tonight-screen">
       <SiteNav active="tonight" />
@@ -213,9 +278,9 @@ export default function TonightClient() {
             {coverageLabel(rows.length)}
             <span aria-hidden="true"> · </span>
             {/* One template literal so the separator spacing survives JSX
-                text-node splitting (the built output was eating the space
-                before the interpunct, rendering "unknown· via"). */}
-            {`${checkedLabel(asOf)} · via what’s-on`}
+                text-node splitting (the built output was eating the space before
+                the interpunct, rendering "unknown· via"). */}
+            {`${freshnessLabel(sourceFreshnessKind, asOf)} · via what’s-on`}
             {/* The one quiet continuity line: when the order comes from a
                 remembered patch (not a live position), say which. */}
             {ready && tonightNear?.patchLabel
@@ -226,9 +291,10 @@ export default function TonightClient() {
       </header>
 
       <TonightConditionsStrip origin={origin} />
-      {/* W3 cheap-round surface on /tonight — same deals spine as Discover. */}
-      <DealsTonightLane />
-      <MusicTonightLane />
+      {/* Deals/Music secondary treatment. Flag off keeps their shipped position
+          here (above the main list) so the page is byte-identical to prod; flag on
+          moves them below the main list (§4.11 main-list-first). */}
+      {lanePlacement.above}
       {/* Wide viewports place the strip plus this block in a sticky right rail
           (tonight.css grid); below the breakpoint the rail block simply follows
           the strip in flow. Area news needs a coarse area: the shared
@@ -432,17 +498,34 @@ export default function TonightClient() {
                         href={link.href}
                         target="_blank"
                         rel="noreferrer noopener"
+                        onClick={() => trackEvent("tonight_result_opened", { kind: row.kind, localityBasis })}
                       >
                         {RowInner}
                       </a>
                     ) : (
-                      <Link className="tonightRowLink pressable" href={link.href}>
+                      <Link
+                        className="tonightRowLink pressable"
+                        href={link.href}
+                        onClick={() => trackEvent("tonight_result_opened", { kind: row.kind, localityBasis })}
+                      >
                         {RowInner}
                       </Link>
                     )
                   ) : (
                     <div className="tonightRowLink">{RowInner}</div>
                   )}
+                  {/* Explicit acceptance, distinct from the browse tap above
+                      (§4.8). Only present when intentWrite is on, so the flag-off
+                      surface is byte-identical to today. */}
+                  {flags.intentWrite && typeof row.venueId === "string" && row.venueId.length > 0 ? (
+                    <button
+                      type="button"
+                      className="tonightRowAccept pressable"
+                      onClick={() => acceptVenue(row.venueId as string)}
+                    >
+                      Use this venue
+                    </button>
+                  ) : null}
                   {group.venueCount > 1 ? (
                     <details className="tonightRowMore">
                       <summary className="tonightRowMoreToggle">
@@ -530,6 +613,10 @@ export default function TonightClient() {
           </p>
         </>
       ) : null}
+
+      {/* Main-list-first (§4.11): under the canonical model the Deals/Music
+          treatment follows the main list instead of preceding it. */}
+      {lanePlacement.below}
 
       {thinNight ? (
         <section className="tonightQuiet" aria-label="While it's quiet">

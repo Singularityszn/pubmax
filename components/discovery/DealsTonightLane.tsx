@@ -17,10 +17,21 @@ import "./dealsTonightLane.css";
 
 type DealsState = { rows: WhatsOnRow[]; asOf: string | null };
 
-export default function DealsTonightLane() {
+export type DealsTonightLaneProps = {
+  /** When provided, render from these already-loaded rows (deal families are
+   *  filtered out here) and skip the self-fetch, so a host that already loaded the
+   *  spine (Tonight) never fires a duplicate request. Omitted on Discover, which
+   *  self-fetches exactly as before. */
+  rows?: WhatsOnRow[];
+  asOf?: string | null;
+};
+
+export default function DealsTonightLane({ rows: providedRows, asOf: providedAsOf }: DealsTonightLaneProps = {}) {
+  const provided = providedRows !== undefined;
   const [state, setState] = useState<DealsState>({ rows: [], asOf: null });
 
   useEffect(() => {
+    if (provided) return; // reuse mode: the host already loaded the spine.
     const controller = new AbortController();
     fetch("/api/whats-on?kind=deal&window=tonight&limit=8", {
       signal: controller.signal,
@@ -36,9 +47,14 @@ export default function DealsTonightLane() {
       })
       .catch(() => undefined);
     return () => controller.abort();
-  }, []);
+  }, [provided]);
 
-  if (state.rows.length === 0) return null;
+  const rows = provided
+    ? providedRows.filter((row) => row.kind === "deal").slice(0, 8)
+    : state.rows;
+  const asOf = provided ? (providedAsOf ?? null) : state.asOf;
+
+  if (rows.length === 0) return null;
 
   const meta = WHATS_ON_KIND_META.deal;
 
@@ -48,14 +64,14 @@ export default function DealsTonightLane() {
         <h2 id="deals-tonight-title">
           <PoundSterling size={18} aria-hidden="true" /> Cheap round tonight
         </h2>
-        <span className="dealsTonightChecked">{checkedLabel(state.asOf)}</span>
+        <span className="dealsTonightChecked">{checkedLabel(asOf)}</span>
       </div>
       <p className="dealsTonightLead">
         First-party chain deal days, {meta.badgeLabel.toLowerCase()}. Prices and
         dishes vary by pub; check the source.
       </p>
       <ul className="dealsTonightList">
-        {state.rows.map((row) => {
+        {rows.map((row) => {
           const mapHref = row.venueId
             ? `/map?sel=${encodeURIComponent(row.venueId)}`
             : preferredCityMapHref();

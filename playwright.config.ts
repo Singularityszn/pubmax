@@ -163,6 +163,15 @@ export default defineConfig({
           ...(process.env.PUBMAX_PAL_HANDOFF
             ? { PUBMAX_PAL_HANDOFF: process.env.PUBMAX_PAL_HANDOFF }
             : {}),
+          // L15 Tonight trusted UI: the canonical grouping/layout and the explicit
+          // Venue acceptance are each flag-ON server behaviour, so the flag-ON spec
+          // exports these to drive a matching server. Absent stays off (strict 0|1).
+          ...(process.env.PUBMAX_TONIGHT_GROUPING
+            ? { PUBMAX_TONIGHT_GROUPING: process.env.PUBMAX_TONIGHT_GROUPING }
+            : {}),
+          ...(process.env.PUBMAX_TRUSTED_HANDOFF_INTENT_WRITE
+            ? { PUBMAX_TRUSTED_HANDOFF_INTENT_WRITE: process.env.PUBMAX_TRUSTED_HANDOFF_INTENT_WRITE }
+            : {}),
         },
         url: BASE_URL,
         reuseExistingServer: !process.env.CI && !SCREENSHOT_RUN,
