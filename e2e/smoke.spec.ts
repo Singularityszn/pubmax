@@ -31,8 +31,11 @@ test("landing / serves, shows hero + Demo honesty label + a working city-first m
   const response = await page.goto("/");
   expect(response?.status()).toBe(200);
 
-  // Hero headline (stable id in components/landing/LandingPage.tsx).
-  await expect(page.locator("#hero-title")).toContainText("Make tonight");
+  // Hero headline (stable id in components/landing/LandingPage.tsx). Assert the
+  // current product promise rather than retired campaign copy.
+  await expect(page.locator("#hero-title")).toContainText(
+    "Real pint prices on a live map",
+  );
 
   // Honesty guarantee: seeded demo cards are labelled "Demo" (P4 unified
   // provenance vocabulary — see lib/provenanceLabels.ts).
@@ -44,7 +47,7 @@ test("landing / serves, shows hero + Demo honesty label + a working city-first m
   await expect(cta).toHaveAttribute("href", "/choose-city");
   await cta.click();
   await expect(page).toHaveURL(/\/choose-city$/);
-  await page.getByRole("link", { name: /^London .*Open map\.$/i }).click();
+  await page.getByRole("link", { name: /^London:.*Open map\.$/i }).click();
   await expect(page).toHaveURL(/\/map/);
 
   expect(errors).toEqual([]);
@@ -101,17 +104,25 @@ test("/feed mounts the social feed scaffold without uncaught errors", async ({ p
   expect(errors).toEqual([]);
 });
 
-test("/feed exposes the For You lane control (issue #36)", async ({ page }) => {
+test("/feed exposes the current London lane filters (issue #36)", async ({ page }) => {
   const errors = watchPageErrors(page);
   await dismissMapFirstRunTour(page);
   const response = await page.goto("/feed");
   expect(response?.status()).toBe(200);
-  // The lane switcher is always rendered (FeedFilters), independent of feed
-  // content — assert the new For-You chip is present and pressable.
-  const forYou = page.getByRole("button", { name: /for you/i }).first();
-  await expect(forYou).toBeVisible();
-  await forYou.click();
-  await expect(forYou).toHaveAttribute("aria-pressed", "true");
+
+  // B1 splits the top-level social axis (Your lot / Nearby / London) from the
+  // city-wide lane filters. Select London explicitly, then prove the canonical
+  // filter group is interactive instead of asserting a retired default lane.
+  const london = page.getByRole("tab", { name: "London", exact: true });
+  await expect(london).toBeVisible();
+  await london.click();
+  await expect(london).toHaveAttribute("aria-selected", "true");
+
+  const lanes = page.getByRole("group", { name: "Feed lanes" });
+  await expect(lanes).toBeVisible();
+  const tonight = lanes.getByRole("button", { name: "Tonight", exact: true });
+  await tonight.click();
+  await expect(tonight).toHaveAttribute("aria-pressed", "true");
   expect(errors).toEqual([]);
 });
 
@@ -226,7 +237,12 @@ test("mobile map shell controls stay inside the coordinated chrome at 390px", as
     );
   }
 
-  await page.getByRole("button", { name: "Drinks" }).click();
+  // B1 consolidated separate Drinks/Price controls into one Filters sheet.
+  const filters = page
+    .getByRole("navigation", { name: "Contextual map controls" })
+    .getByRole("button", { name: /^Filters/ });
+  await expect(filters).toBeVisible();
+  await filters.click();
   const sheet = page.locator('.mobileSheetPortal[data-sheet-kind="filters"]:visible');
   await expect(sheet).toHaveCount(1);
   await expect(sheet.getByRole("heading", { name: "Drinks and price" })).toBeVisible();
@@ -344,7 +360,10 @@ test("mobile venue sheet sticky actions switch to Train and Drop without desktop
   await page.getByRole("tab", { name: "Stories", exact: true }).click();
   await expect(sheet).toHaveClass(/sheet-full/);
 
-  const stickyActions = page.getByRole("toolbar", { name: "Venue actions" });
+  // Wait for the command bar to finish portaling into the sheet footer. The
+  // footer is outside the scroll body, so actions remain reachable at full snap.
+  const sheetFooter = sheet.locator(".mobileSharedSheetFooter");
+  const stickyActions = sheetFooter.getByRole("toolbar", { name: "Venue actions" });
   await expect(stickyActions).toBeVisible();
 
   // The tab row is the single Train entry point (the sticky strip holds
@@ -353,6 +372,13 @@ test("mobile venue sheet sticky actions switch to Train and Drop without desktop
   await gettingHomeTab.click();
   await expect(gettingHomeTab).toHaveAttribute("aria-selected", "true");
   await expect(page.locator("#venuePanel-getting-home")).toBeVisible();
+
+  // Full snap prioritises the scroll body. Collapse through the real detent
+  // control before using the footer command bar, proving the mobile action is
+  // reachable through supported sheet interaction rather than forced scrolling.
+  await sheet.getByRole("button", { name: "Collapse sheet" }).click();
+  await expect(sheet).toHaveClass(/sheet-half/);
+  await expect(stickyActions).toBeInViewport();
 
   await stickyActions.getByRole("button", { name: /log a pint drop/i }).click();
   const dropsTab = page.getByRole("tab", { name: "Stories", exact: true });

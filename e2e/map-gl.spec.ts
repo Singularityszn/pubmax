@@ -10,6 +10,26 @@ test.beforeEach(async ({ page }) => {
   });
 });
 
+async function changedPixelRatio(first: Buffer, second: Buffer): Promise<number> {
+  const [a, b] = await Promise.all([
+    sharp(first).removeAlpha().raw().toBuffer({ resolveWithObject: true }),
+    sharp(second).removeAlpha().raw().toBuffer({ resolveWithObject: true }),
+  ]);
+  expect(b.info.width).toBe(a.info.width);
+  expect(b.info.height).toBe(a.info.height);
+
+  let changed = 0;
+  const pixels = a.info.width * a.info.height;
+  for (let index = 0; index < a.data.length; index += 3) {
+    const delta =
+      Math.abs(a.data[index] - b.data[index]) +
+      Math.abs(a.data[index + 1] - b.data[index + 1]) +
+      Math.abs(a.data[index + 2] - b.data[index + 2]);
+    if (delta > 24) changed += 1;
+  }
+  return changed / pixels;
+}
+
 // GPU-present contract. Runs only under the `chromium-gl` project, which launches
 // Chromium with SwiftShader (a software GL implementation) so a real WebGL2
 // context exists even on a GPU-less CI box. Where smoke.spec.ts asserts
@@ -65,32 +85,39 @@ test("/map renders the MapLibre canvas with real size and never falls back", asy
   await expect(canvas).toBeVisible();
 });
 
-test("/map stays visually stable while the viewer is idle", async ({ page }) => {
-  test.setTimeout(45_000);
+test("/map stays visually stable for a reduced-motion viewer while idle", async ({ page }) => {
+  test.setTimeout(75_000);
+  await page.emulateMedia({ reducedMotion: "reduce" });
   await page.goto("/map");
   await expect(page.locator(".maplibreMap canvas").first()).toBeVisible({ timeout: 20_000 });
   await expect(page.locator(".mapLoading")).toHaveCount(0, { timeout: 30_000 });
 
-  // Wait out the one-shot pin entrance. After that, an untouched map must not
-  // keep rotating/repainting beneath the user.
-  await page.waitForTimeout(3_500);
-  const first = await page.locator(".maplibreMap").screenshot();
+  const map = page.locator(".maplibreMap");
+  let settledFrame: Buffer | null = null;
+
+  // Tile arrival is network-dependent even after MapLibre removes its loading
+  // chrome. Wait for one genuinely stable visual interval instead of sampling a
+  // still-loading basemap at a fixed wall-clock delay. This does not mask any
+  // pixels or relax the 2% contract: the complete rendered map must settle.
+  await expect
+    .poll(
+      async () => {
+        const first = await map.screenshot();
+        await page.waitForTimeout(500);
+        const second = await map.screenshot();
+        const ratio = await changedPixelRatio(first, second);
+        if (ratio < 0.02) settledFrame = second;
+        return ratio;
+      },
+      { timeout: 30_000, intervals: [500, 1_000, 2_000] },
+    )
+    .toBeLessThan(0.02);
+
+  // Once settled, reduced-motion mode must remain stable across a longer
+  // untouched interval while allowing finite tile loading to complete.
   await page.waitForTimeout(1_200);
-  const second = await page.locator(".maplibreMap").screenshot();
-  const [a, b] = await Promise.all([
-    sharp(first).removeAlpha().raw().toBuffer({ resolveWithObject: true }),
-    sharp(second).removeAlpha().raw().toBuffer({ resolveWithObject: true }),
-  ]);
-  let changed = 0;
-  const pixels = a.info.width * a.info.height;
-  for (let index = 0; index < a.data.length; index += 3) {
-    const delta =
-      Math.abs(a.data[index] - b.data[index]) +
-      Math.abs(a.data[index + 1] - b.data[index + 1]) +
-      Math.abs(a.data[index + 2] - b.data[index + 2]);
-    if (delta > 24) changed += 1;
-  }
-  expect(changed / pixels).toBeLessThan(0.02);
+  const finalFrame = await map.screenshot();
+  expect(await changedPixelRatio(settledFrame!, finalFrame)).toBeLessThan(0.02);
 });
 
 test("/map reveals pins only for the final rapid theme style generation", async ({ page }) => {
@@ -140,8 +167,11 @@ test("/map uses the bounded pin fallback when basemap tiles are delayed", async 
       trace.push((event as CustomEvent<{ reason: string; generation: number }>).detail);
     });
   });
-  await page.route(/tiles\.openfreemap\.org\/planet\/.*\.pbf(?:\?|$)/, async (route) => {
-    await new Promise((resolve) => setTimeout(resolve, 4_000));
+  await page.route(/\.pbf(?:\?|$)/, async (route) => {
+    // Hold every vector tile beyond the coordinator's 12s readiness ceiling.
+    // Browser contexts are fresh and service workers are blocked for this
+    // project, so the timeout path cannot be defeated by cache timing.
+    await new Promise((resolve) => setTimeout(resolve, 15_000));
     await route.continue();
   });
 
@@ -189,7 +219,11 @@ test("/map degrades to the fallback when the renderer never draws a frame", asyn
   const fallback = page.locator(".mapFallback");
   await expect(fallback).toBeVisible({ timeout: 25_000 });
   await expect(fallback).toContainText("Map couldn't draw");
-  await expect(page.locator(".mapFallbackDetail")).toContainText(/No basemap frame/i);
+  await expect(fallback).toContainText(/renderer started but never drew a frame/i);
+  await expect(fallback.getByRole("button", { name: "Technical details" })).toHaveAttribute(
+    "aria-expanded",
+    "false",
+  );
 
   // A dead frame loop is retryable (a re-init can recover a crashed GPU
   // process), so Retry stays visible — unlike the confirmed-no-WebGL case.

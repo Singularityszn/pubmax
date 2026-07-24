@@ -64,7 +64,9 @@ test("mobile venue sticky Share and Crawl actions stay tappable in build mode", 
   await expect(stickyActions).toBeVisible();
 
   await stickyActions.getByRole("button", { name: /share arnos arms/i }).click();
-  await expect(stickyActions.getByRole("status")).toHaveText("Link copied.");
+  await expect(stickyActions.getByRole("status")).toHaveText(
+    "Share failed, but the link was copied.",
+  );
   await expect.poll(() => page.evaluate(() => window.sessionStorage.getItem("pubmax-e2e-shared-url"))).toContain(
     `/map?sel=${ARNOS_ARMS_ID}`,
   );

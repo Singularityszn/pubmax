@@ -277,34 +277,35 @@
      content over the copy (owner screenshot, The Black Friar). `dvh` tracks
      the visible viewport, matching the JS drag math (lib/sheetSnap.ts uses
      innerHeight-derived fractions). vh lines stay as the older-browser
-     fallback. */
-  .mapDrawer.left.open.sheet-full,
-  .mapDrawer.right.open.sheet-full {
+     fallback. These transforms belong only to the legacy inline drawer; the
+     portal `.mobileSharedSheet` owns its height and position in mobileMapShell.css. */
+  .mapDrawer.left.open.sheet-full:not(.mobileSharedSheet),
+  .mapDrawer.right.open.sheet-full:not(.mobileSharedSheet) {
     transform: translateY(8vh);
     transform: translateY(8dvh);
   }
 
-  .mapDrawer.left.open.sheet-half,
-  .mapDrawer.right.open.sheet-half {
+  .mapDrawer.left.open.sheet-half:not(.mobileSharedSheet),
+  .mapDrawer.right.open.sheet-half:not(.mobileSharedSheet) {
     /* Reveal ~55dvh of sheet content above the fixed mobile tab bar. */
     transform: translateY(45vh);
     transform: translateY(45dvh);
   }
 
-  .mapDrawer.left.open.sheet-peek,
-  .mapDrawer.right.open.sheet-peek {
+  .mapDrawer.left.open.sheet-peek:not(.mobileSharedSheet),
+  .mapDrawer.right.open.sheet-peek:not(.mobileSharedSheet) {
     /* Reveal ~22dvh — grabber plus the useful venue summary and action. */
     transform: translateY(78vh);
     transform: translateY(78dvh);
   }
 
   /* Viewport-tall so translateY(dvh) reveals exactly SHEET_SNAP_FRACTIONS. */
-  .mapDrawer.left.open.sheet-full,
-  .mapDrawer.left.open.sheet-half,
-  .mapDrawer.left.open.sheet-peek,
-  .mapDrawer.right.open.sheet-full,
-  .mapDrawer.right.open.sheet-half,
-  .mapDrawer.right.open.sheet-peek {
+  .mapDrawer.left.open.sheet-full:not(.mobileSharedSheet),
+  .mapDrawer.left.open.sheet-half:not(.mobileSharedSheet),
+  .mapDrawer.left.open.sheet-peek:not(.mobileSharedSheet),
+  .mapDrawer.right.open.sheet-full:not(.mobileSharedSheet),
+  .mapDrawer.right.open.sheet-half:not(.mobileSharedSheet),
+  .mapDrawer.right.open.sheet-peek:not(.mobileSharedSheet) {
     height: 100vh;
     height: 100dvh;
     max-height: none;
