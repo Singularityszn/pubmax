@@ -698,9 +698,15 @@
 
   /* Flag-on (canonical) Deals/Music: on desktop they populate the right rail so
      the canvas is used and the shape matches flag-off; below 1024px this wrapper
-     is a normal block that stacks under the main list (main-list-first). */
+     is a normal block that stacks under the main list (main-list-first).
+     Placed below the Conditions (row 1) and area-news rail (row 2) but spanning
+     the remaining rows with align-self:start, so it TOP-aligns beside the main
+     list instead of dropping to the bottom, and its height never stretches a
+     shared row out of line with the main column. */
   .tonightPage > .tonightSecondaryLanes {
     grid-column: 2;
+    grid-row: 3 / span 24;
+    align-self: start;
     display: flex;
     flex-direction: column;
     gap: 16px;
