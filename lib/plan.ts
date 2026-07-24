@@ -7,6 +7,20 @@ export const PLAN_STOP_MAX = 8;
 export const PLAN_VENUE_ID_MAX = 80;
 export const PLAN_VENUE_NAME_MAX = 120;
 
+/** The two grounded generation outcomes a Plan can be anchored on (§3.3). */
+export const PLAN_OUTCOMES = ["route", "anchor-only"] as const;
+export type PlanOutcome = (typeof PLAN_OUTCOMES)[number];
+
+/** Acceptance sources that can anchor a Plan (the four browse-to-accept surfaces). */
+export const PLAN_ANCHOR_SOURCES = ["near", "map-search", "tonight", "pal"] as const;
+export type PlanAnchorSource = (typeof PLAN_ANCHOR_SOURCES)[number];
+
+export type PlanAnchorMetadata = {
+  venueId: string;
+  source: PlanAnchorSource;
+  outcome: PlanOutcome;
+};
+
 export type PlanDTO = {
   id: string;
   title: string;
@@ -16,7 +30,35 @@ export type PlanDTO = {
   routeRevision?: number | string;
   /** Defaults to draft for legacy Plan records created before Planned Night lifecycle metadata. */
   status?: PlannedNightStatus;
+  /** Accepted anchor Venue kept as Stop 1. Null for legacy/manual Plans. */
+  anchorVenueId?: string | null;
+  /** The acceptance source that anchored the Plan. Null for legacy/manual Plans. */
+  anchorSource?: PlanAnchorSource | null;
+  /** Grounded generation outcome; null for legacy/manual Plans. */
+  outcome?: PlanOutcome | null;
+  /** Set once, immutably, on the first grounded three-Stop transition. Null while a one-Stop draft. */
+  routeReadyAt?: string | null;
 };
+
+/**
+ * Server-derived route readiness. A Plan is route-ready only as a grounded
+ * three-Stop route whose immutable routeReadyAt has been stamped — a one-Stop
+ * anchor-only draft is never route-ready.
+ */
+export function planRouteReady(plan: PlanDTO, stopCount: number): boolean {
+  return plan.outcome === "route" && typeof plan.routeReadyAt === "string" && Boolean(plan.routeReadyAt) && stopCount === 3;
+}
+
+/** Validate optional anchor metadata supplied on Plan creation. */
+export function cleanPlanAnchor(value: unknown): PlanAnchorMetadata | null {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  const row = value as Record<string, unknown>;
+  const venueId = cleanText(row.venueId, PLAN_VENUE_ID_MAX);
+  const source = (PLAN_ANCHOR_SOURCES as readonly unknown[]).includes(row.source) ? row.source as PlanAnchorSource : null;
+  const outcome = (PLAN_OUTCOMES as readonly unknown[]).includes(row.outcome) ? row.outcome as PlanOutcome : null;
+  if (!venueId || !source || !outcome) return null;
+  return { venueId, source, outcome };
+}
 
 export const PLANNED_NIGHT_STATUSES = ["draft", "ready", "active", "ending", "completed", "abandoned"] as const;
 export type PlannedNightStatus = (typeof PLANNED_NIGHT_STATUSES)[number];
