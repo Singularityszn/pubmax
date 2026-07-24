@@ -19,7 +19,16 @@ import {
 } from "@/lib/nightPatches";
 import { PLAN_TEMPLATES, type PlanTemplate } from "@/lib/planTemplates";
 import { cleanNightContext, type NightContext } from "@/lib/nightPlanning";
-import { parsePlanDraft, PLAN_DRAFT_KEY } from "@/lib/planDraft";
+import { parsePlanDraft, PLAN_DRAFT_KEY, readPlanDraftEnvelope } from "@/lib/planDraft";
+import { readPlanRouteDraftEnvelope } from "@/lib/planRouteDraft";
+import { readPlanningIntent } from "@/lib/planningIntent";
+import {
+  composerLockErrorFromResponse,
+  londonServiceDateLabel,
+  resolveComposerHydration,
+  type ComposerHydration,
+} from "@/lib/planComposerHandoff";
+import { TRUSTED_HANDOFF_FLAGS_OFF, type TrustedHandoffFlagsDTO } from "@/lib/trustedHandoffFlags";
 import { writePlanCapability } from "@/lib/planSessionCapability";
 import { markPalRouteActivation } from "@/lib/pubPal";
 import { clearPersistentPlanMutationKey, persistentPlanMutationKey } from "@/lib/planMutationKey";
@@ -34,6 +43,7 @@ import {
   planIntakeHandoff,
   planIntakeNightContextPatch,
   readPlanIntakeDraft,
+  readPlanIntakeDraftWithMetadata,
   reopenPlanIntakeStep,
   resolveFutureLondonStartIso,
   resolvePlanIntakeAreaSeed,
@@ -445,25 +455,79 @@ function conciergeStatusText(
   return note;
 }
 
+/**
+ * L11 accepted-context panel: an editable summary of the Venue, area, and date
+ * the person already accepted, plus any arbitration conflicts we resolved in
+ * their favour. Rendered only when the handoff is active; the underlying fields
+ * stay editable below, so nothing is hidden or silently changed.
+ */
+export function AcceptedContextPanel({ handoff }: { handoff: ComposerHydration }) {
+  const venueName = handoff.routePreview?.value.stops
+    .find((stop) => stop.venueId === handoff.acceptedVenueId)?.venueName
+    ?? handoff.acceptedVenueId;
+  const whenLabel = londonServiceDateLabel(handoff.startsAt);
+  return (
+    <>
+      {handoff.showAcceptedSummary && (
+        <section className="planComposer__accepted" aria-label="Accepted plan context">
+          <span className="planPage__eyebrow">Carried over from what you accepted</span>
+          <dl className="planComposer__acceptedList">
+            {handoff.acceptedVenueId && (
+              <div><dt>Venue</dt><dd>{venueName}</dd></div>
+            )}
+            {handoff.area && (
+              <div><dt>Area</dt><dd>{handoff.area.kind === "borough" ? handoff.area.name : handoff.area.id}</dd></div>
+            )}
+            {whenLabel && (
+              <div><dt>When</dt><dd>{whenLabel}</dd></div>
+            )}
+          </dl>
+          <p className="planComposer__acceptedNote">You can still change any of these below.</p>
+        </section>
+      )}
+      {handoff.conflicts.length > 0 && (
+        <ul className="planComposer__conflicts" aria-label="Plan changes we kept safe">
+          {handoff.conflicts.map((conflict, index) => (
+            <li key={`${conflict.code}-${index}`}>{conflict.message}</li>
+          ))}
+        </ul>
+      )}
+    </>
+  );
+}
+
+/**
+ * The lock-failure banner. Copy for anchored 422 (proof invalid/expired) and 409
+ * (replay-conflict) is mapped by composerLockErrorFromResponse before it reaches
+ * `message`; this is the exact element the form renders it in.
+ */
+export function PlanComposerErrorNotice({ message }: { message: string }) {
+  return <p className="planComposer__error" role="alert">{message}</p>;
+}
+
 function PlanComposerForm({
   recoveredDraft,
   recoveredRouteDraft,
   recoveredIntake,
   hasDurableIntakeDraft,
+  handoff,
 }: {
   recoveredDraft: ReturnType<typeof parsePlanDraft>;
   recoveredRouteDraft: StoredRouteDraft | null;
   recoveredIntake: PlanIntakeDraft;
   hasDurableIntakeDraft: boolean;
+  handoff: ComposerHydration | null;
 }) {
   const router = useRouter();
   const { user } = useAuth();
   const areaGroups = nightAreaSelectorGroups();
   const readyAreas = areaGroups[0]?.areas ?? [];
   const areasInProgress = areaGroups[1]?.areas ?? [];
-  const [title, setTitle] = useState(recoveredDraft?.title ?? "Tonight, sorted");
-  const [creatorName, setCreatorName] = useState(recoveredDraft?.creatorName ?? "");
-  const [startTime, setStartTime] = useState(recoveredDraft?.startTime ?? nextEvening);
+  // L11: prefer arbitrated accepted context when the handoff is active; the
+  // ?? chain keeps the generic Plan values when handoff is null (flags off).
+  const [title, setTitle] = useState(handoff?.title ?? recoveredDraft?.title ?? "Tonight, sorted");
+  const [creatorName, setCreatorName] = useState(handoff?.creatorName ?? recoveredDraft?.creatorName ?? "");
+  const [startTime, setStartTime] = useState(handoff?.startsAt ?? recoveredDraft?.startTime ?? nextEvening);
   const [stops, setStops] = useState<DraftStop[]>(recoveredRouteDraft?.stops ?? recoveredDraft?.stops.map((stop) => ({
     ...stop,
     alternatives: [],
@@ -576,6 +640,12 @@ function PlanComposerForm({
         if (!cancelled) seedArea(null);
       });
     }
+    // L11: an accepted night-patch area answers the area step up front, so the
+    // composer never re-asks a geography the person already accepted.
+    if (handoff?.area?.kind === "night-patch") {
+      seedArea(handoff.area.id);
+      return () => { cancelled = true; };
+    }
     if (typeof navigator === "undefined" || !navigator.geolocation) {
       seedRememberedSoon();
       return () => { cancelled = true; };
@@ -590,7 +660,7 @@ function PlanComposerForm({
       { enableHighAccuracy: false, maximumAge: 5 * 60 * 1000, timeout: 10_000 },
     );
     return () => { cancelled = true; };
-  }, [hasDurableIntakeDraft]);
+  }, [hasDurableIntakeDraft, handoff]);
 
   function updatePlanIntake(next: PlanIntakeDraft) {
     const answersChanged = JSON.stringify(planIntakeHandoff(planIntake))
@@ -766,7 +836,10 @@ function PlanComposerForm({
       });
       const body = await response.json();
       if (!response.ok || !body?.plan?.plan?.id) {
-        throw new Error(body?.error || "The plan could not be created.");
+        // L11: surface the L09 anchored-lock failures honestly — 422 (proof
+        // invalid/expired) and 409 (replay-conflict) — behind the handoff flags.
+        const mapped = handoff ? composerLockErrorFromResponse(response.status) : null;
+        throw new Error(mapped || body?.error || "The plan could not be created.");
       }
       const attribution = serverPlanCreationAttribution(body);
       if (!attribution) throw new Error("The plan was created without verifiable route attribution. Please reload it before continuing.");
@@ -821,6 +894,7 @@ function PlanComposerForm({
 
   return (
     <form className="planComposer" onSubmit={submit} noValidate>
+      {handoff && <AcceptedContextPanel handoff={handoff} />}
       <PlanIntake
         draft={planIntake}
         onChange={updatePlanIntake}
@@ -1032,19 +1106,37 @@ function PlanComposerForm({
         <button className="planComposer__add" type="button" onClick={() => setStops((current) => [...current, { key: Math.max(0, ...current.map((stop) => stop.key)) + 1, venueId: "", venueName: "", alternatives: [] }])}>Add another stop</button>
       </fieldset>
 
-      {error ? <p className="planComposer__error" role="alert">{error}</p> : null}
+      {error ? <PlanComposerErrorNotice message={error} /> : null}
       <button className="planComposer__submit" type="submit" disabled={submitting || sorting}>{submitting ? "Locking it in…" : "Lock it in"}</button>
       <p className="planComposer__trust">Anyone with the link can see the plan. Joining only asks for a name.</p>
     </form>
   );
 }
 
-export default function PlanComposer() {
+export default function PlanComposer({ flags = TRUSTED_HANDOFF_FLAGS_OFF }: { flags?: TrustedHandoffFlagsDTO } = {}) {
   const hydrated = useSyncExternalStore(
     () => () => {},
     () => true,
     () => false,
   );
+  // L11: resolve persisted state through the L04 arbitration seam BEFORE the
+  // form writes any product default. Both flags off yields a null handoff, so
+  // the composer behaves exactly like the generic Plan (byte-identical rollback).
+  const handoff = useMemo<ComposerHydration | null>(() => {
+    if (!hydrated || (!flags.intentRead && !flags.anchoredGeneration)) return null;
+    try {
+      return resolveComposerHydration({
+        planDraft: readPlanDraftEnvelope(sessionStorage),
+        routeDraft: readPlanRouteDraftEnvelope(localStorage),
+        intakeDraft: readPlanIntakeDraftWithMetadata(),
+        planningIntent: flags.intentRead ? readPlanningIntent() : null,
+        rememberedArea: readRememberedArea(),
+        flags,
+      });
+    } catch {
+      return null;
+    }
+  }, [hydrated, flags]);
   const recoveredDraft = useMemo(() => {
     if (!hydrated) return null;
     try { return parsePlanDraft(sessionStorage.getItem(PLAN_DRAFT_KEY)); } catch { return null; }
@@ -1068,6 +1160,7 @@ export default function PlanComposer() {
       recoveredRouteDraft={recoveredRouteDraft}
       recoveredIntake={recoveredIntake.draft}
       hasDurableIntakeDraft={recoveredIntake.hasDurableDraft}
+      handoff={handoff}
     />
   );
 }

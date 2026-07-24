@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 
 import PlanComposer from "@/components/plan/PlanComposer";
 import SiteNav from "@/components/nav/SiteNav";
+import { readTrustedHandoffFlags } from "@/lib/trustedHandoffFlags.server";
 
 import "./plan.css";
 
@@ -11,6 +12,9 @@ export const metadata: Metadata = {
 };
 
 export default function NewPlanPage() {
+  // Server reads the trusted-handoff flags once; the client composer receives an
+  // immutable DTO and never interprets env itself. All-off keeps today's Plan.
+  const flags = readTrustedHandoffFlags();
   return (
     <main className="planPage planPage--composer">
       {/* Standard site navigation — /plan is a shared-link surface and must
@@ -26,7 +30,7 @@ export default function NewPlanPage() {
         <h1>Describe the night. We’ll put it in order.</h1>
         <p>Get three stops that actually make sense, change anything you don&rsquo;t fancy, then send one plan the whole crew can open without an account.</p>
       </section>
-      <PlanComposer />
+      <PlanComposer flags={flags} />
     </main>
   );
 }
