@@ -20,8 +20,11 @@ const STATUS_LABELS: Record<CrewPresenceStatus, string> = {
   start_without_me: "Start without me",
 };
 
-export default function PlanCrew({ planId, initialCrew }: { planId: string; initialCrew: CrewMemberDTO[] }) {
-  const [crew, setCrew] = useState(initialCrew);
+// §4.10: the server passes only the host display name, never the crew list. The
+// full crew (names + presence + size) is fetched on mount from the
+// capability-gated /api/plans/[id] and only ever arrives for a valid member.
+export default function PlanCrew({ planId, hostName }: { planId: string; hostName: string }) {
+  const [crew, setCrew] = useState<CrewMemberDTO[]>([]);
   const [name, setName] = useState("");
   const [pending, setPending] = useState(false);
   const [error, setError] = useState("");
@@ -140,6 +143,22 @@ export default function PlanCrew({ planId, initialCrew }: { planId: string; init
     if (Array.isArray(body?.crew)) setCrew(body.crew);
   }, [planId]);
 
+  // Mount-upgrade: pull the full crew straight away so a member sees the real
+  // roster without waiting for the first poll tick. Anonymous viewers get the
+  // preview envelope (no `crew` array), so this leaves the host-only view intact.
+  useEffect(() => {
+    let active = true;
+    fetch(`/api/plans/${planId}`, { cache: "no-store" })
+      .then((response) => (response.ok ? response.json() : null))
+      .then((body) => {
+        if (active && Array.isArray(body?.crew)) setCrew(body.crew);
+      })
+      .catch(() => undefined);
+    return () => {
+      active = false;
+    };
+  }, [planId]);
+
   useEffect(() => {
     return subscribeToPlanCrew(planId, refetchCrew, { poll: refetchCrew });
   }, [planId, refetchCrew]);
@@ -220,7 +239,7 @@ export default function PlanCrew({ planId, initialCrew }: { planId: string; init
     <section className="planCrew" aria-labelledby="plan-crew-title">
       <div className="planCrew__heading">
         <div><p className="planPage__eyebrow">The crew</p><h2 id="plan-crew-title">Who&rsquo;s in</h2></div>
-        <span>{crew.length}</span>
+        <span>{crew.length || ""}</span>
       </div>
 
       {!sessionReady && !memberToken ? (
@@ -259,7 +278,17 @@ export default function PlanCrew({ planId, initialCrew }: { planId: string; init
             </li>
           ))}
         </ul>
-      ) : <p className="planCrew__empty">Be the first name on the night.</p>}
+      ) : (
+        // Preview: the host is the only name the server will name to a
+        // non-member. The rest of the roster arrives once the fetch above
+        // confirms a member capability.
+        <ul className="planCrew__list">
+          <li style={{ "--i": 0 } as CSSProperties}>
+            <span>{hostName}</span>
+            <small>Host</small>
+          </li>
+        </ul>
+      )}
       {error ? <p className="planComposer__error" role="alert">{error}</p> : null}
     </section>
   );
