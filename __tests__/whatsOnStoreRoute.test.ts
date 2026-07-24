@@ -312,6 +312,29 @@ describe("loadWhatsOn orchestration", () => {
     expect(new Set(result.rows.map((row) => row.title)).size).toBe(10);
   });
 
+  it("threads the tonightGrouping V2 flag so distinct schedules split before the limit", async () => {
+    // Same title/source/kind, two schedules, two venues each. The shipped collapse
+    // folds all four into one card; V2 keeps the two schedule-distinct cards, so a
+    // limit of one selects different inventory under each behaviour.
+    const sched1 = "2026-07-11T22:00:00+01:00";
+    const sched2 = "2026-07-11T23:00:00+01:00";
+    const rows = [
+      makeRow({ id: "a1", placeName: "A1", venueId: "va1", startsAt: sched1 }),
+      makeRow({ id: "a2", placeName: "A2", venueId: "va2", startsAt: sched1 }),
+      makeRow({ id: "b1", placeName: "B1", venueId: "vb1", startsAt: sched2 }),
+      makeRow({ id: "b2", placeName: "B2", venueId: "vb2", startsAt: sched2 }),
+    ];
+    const deps = { now: NOW, loadBaseline: () => [], fetchLive: async () => ({ rows, sourceObservedAt: null }) };
+
+    const off = await loadWhatsOn({ window: "tonight", limit: 1 }, { ...deps, tonightGroupingV2: false });
+    expect(off.rows).toHaveLength(4); // one collapsed family carries all four venues
+    expect(new Set(off.rows.map((r) => r.startsAt)).size).toBe(2);
+
+    const on = await loadWhatsOn({ window: "tonight", limit: 1 }, { ...deps, tonightGroupingV2: true });
+    expect(on.rows).toHaveLength(2); // only the first schedule-distinct family survives the limit
+    expect(new Set(on.rows.map((r) => r.startsAt)).size).toBe(1);
+  });
+
   it("reports locality basis independently from source freshness", async () => {
     const live = await loadWhatsOn(
       { near: { lat: 51.5, lng: -0.1 } },
@@ -355,6 +378,27 @@ describe("GET /api/whats-on (handleWhatsOnRequest)", () => {
       asOf: "2026-07-11T17:00:00.000Z",
     });
     expect(res.headers.get("Cache-Control")).toBe("no-store");
+  });
+
+  it("forwards an injected tonightGrouping V2 flag through to grouping", async () => {
+    const sched1 = "2026-07-11T22:00:00+01:00";
+    const sched2 = "2026-07-11T23:00:00+01:00";
+    const rows = [
+      makeRow({ id: "a1", placeName: "A1", venueId: "va1", startsAt: sched1 }),
+      makeRow({ id: "a2", placeName: "A2", venueId: "va2", startsAt: sched1 }),
+      makeRow({ id: "b1", placeName: "B1", venueId: "vb1", startsAt: sched2 }),
+      makeRow({ id: "b2", placeName: "B2", venueId: "vb2", startsAt: sched2 }),
+    ];
+    const deps = { now: NOW, loadBaseline: () => [], fetchLive: async () => ({ rows, sourceObservedAt: null }) };
+
+    // The server route injects tonightGroupingV2 from the canonical flag reader;
+    // the handler forwards it to the store. Off keeps the shipped collapse, on
+    // splits distinct schedules before the limit.
+    const off = await (await handleWhatsOnRequest(req("?window=tonight&limit=1"), { ...deps, tonightGroupingV2: false })).json();
+    expect(off.rows).toHaveLength(4);
+
+    const on = await (await handleWhatsOnRequest(req("?window=tonight&limit=1"), { ...deps, tonightGroupingV2: true })).json();
+    expect(on.rows).toHaveLength(2);
   });
 
   it("applies params; unknown kind and bad near are dropped, not 400", async () => {
