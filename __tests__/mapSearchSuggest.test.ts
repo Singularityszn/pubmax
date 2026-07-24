@@ -247,6 +247,7 @@ describe("buildMapSearchSuggestions — localities (the basemap-label gap)", () 
     expect(willesden?.kind).toBe("locality");
     expect(willesden?.center).toEqual([-0.229, 51.549]);
     expect(willesden?.contextLabel).toBe("Brent");
+    expect(willesden?.areaNewsArea).toBe("brent");
   });
 
   it("gives a locality NO coverage chip and a deeper fly zoom (place, not a promise)", () => {
@@ -275,6 +276,7 @@ describe("buildMapSearchSuggestions — localities (the basemap-label gap)", () 
     const shoreditches = result.areas.filter((a) => a.name === "Shoreditch");
     expect(shoreditches).toHaveLength(1);
     expect(shoreditches[0].kind).toBe("area");
+    expect(shoreditches[0].areaNewsArea).toBe("shoreditch");
   });
 
   it("orders modelled area, then locality, then borough at an equal tier + distance", () => {

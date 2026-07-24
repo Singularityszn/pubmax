@@ -23,6 +23,12 @@
   justify-content: flex-start;
 }
 
+.mapToolbarSearch {
+  position: relative;
+  min-width: 0;
+  padding: 0;
+}
+
 .mapToolbarSearchStatus {
   display: flex;
   align-items: center;

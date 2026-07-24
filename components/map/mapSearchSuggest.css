@@ -11,6 +11,34 @@
   gap: 8px;
 }
 
+.mapSearchSuggest--toolbar {
+  width: min(400px, 34vw);
+  min-width: 260px;
+  gap: 0;
+}
+
+.mapSearchSuggest--toolbar > label {
+  min-height: 34px;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  padding-inline: 10px;
+}
+
+.mapSearchSuggest--toolbar input {
+  width: 100%;
+  min-width: 0;
+  font-size: 0.85rem;
+}
+
+.mapSearchSuggest--toolbar .mapSearchSuggestPanel {
+  position: absolute;
+  top: calc(100% + 14px);
+  left: 0;
+  width: min(420px, calc(100vw - 32px));
+  z-index: calc(var(--z-map-toolbar) + 1);
+}
+
 .mapSearchSuggestPanel {
   border: 1px solid var(--color-border, var(--line));
   border-radius: var(--radius, 12px);

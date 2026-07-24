@@ -8,7 +8,12 @@
 // models. No fs, no serverEnv, no route imports — safe to import on the client
 // and to unit test without a DOM.
 
-import { areaCoverageLabel, type AreaCoverageLabel } from "@/lib/areaButton";
+import {
+  areaCoverageLabel,
+  type AreaCoverageLabel,
+  type AreaElsewhereOption,
+} from "@/lib/areaButton";
+import { slugifyBorough } from "@/lib/boroughs";
 import type { CityId } from "@/lib/cities";
 import { haversineKm } from "@/lib/haversine";
 import type { Locality } from "@/lib/localities";
@@ -39,6 +44,8 @@ export type AreaSuggestion = {
   name: string;
   /** A quiet second-line hint — the borough for a locality; "" otherwise. */
   contextLabel: string;
+  /** Canonical Night Area or borough slug for context surfaces such as Area news. */
+  areaNewsArea: string;
   /** [lng, lat] the map flies to — GeoJSON order, matching the camera helpers. */
   center: [number, number];
   /** Camera zoom the fly should use; undefined lets the caller keep its default. */
@@ -49,6 +56,11 @@ export type AreaSuggestion = {
   /** Honest coverage chip for a modelled area; null for a locality or a plain
    *  borough (a locality is a place, not a coverage promise). */
   coverage: AreaCoverageLabel;
+};
+
+export type MapSearchAreaOption = AreaElsewhereOption & {
+  /** Canonical Night Area or borough slug for context surfaces such as Area news. */
+  areaNewsArea: string;
 };
 
 export type PubSuggestion = {
@@ -258,6 +270,7 @@ export function buildMapSearchSuggestions(input: MapSearchSuggestInput): MapSear
         slug: area.slug,
         name: area.name,
         contextLabel: "",
+        areaNewsArea: area.slug,
         center,
         distanceKm,
         distanceLabel: formatSuggestDistance(distanceKm, origin),
@@ -290,6 +303,7 @@ export function buildMapSearchSuggestions(input: MapSearchSuggestInput): MapSear
           slug: `locality:${slugify(locality.name)}`,
           name: locality.name,
           contextLabel: locality.borough,
+          areaNewsArea: slugifyBorough(locality.borough),
           center,
           flyZoom: LOCALITY_FLY_ZOOM,
           distanceKm,
@@ -322,6 +336,7 @@ export function buildMapSearchSuggestions(input: MapSearchSuggestInput): MapSear
           slug: `borough:${slugify(name)}`,
           name,
           contextLabel: "",
+          areaNewsArea: slugifyBorough(name),
           center: info.center,
           distanceKm,
           distanceLabel: formatSuggestDistance(distanceKm, origin),
