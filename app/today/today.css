@@ -497,6 +497,13 @@
   font-size: 0.85rem;
   line-height: 1.5;
   color: var(--ink-soft);
+  /* M1 mobile taste: scannable brief — two lines only; full story via the
+     card link (map) and "More historic pubs". Chips below stay untouched. */
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  overflow: hidden;
 }
 
 .quietPintFoot {
