@@ -305,11 +305,37 @@ function titleCasePubName(name: string): string {
     .join(" ");
 }
 
+// A pub that heritage sources describe as closed or former is history, not a
+// place to send someone today — headlining it as "pub of the day" is the same
+// honesty break as a closed venue on the map. HeritageFact carries no structured
+// open/closed flag (see lib/heritageFacts), so we read the one signal that IS
+// present: the sourced prose the card would display. Kept to high-precision
+// closure phrases — an OPEN pub described as a "former coaching inn" or "former
+// brewery" is never dropped, because those name a past role, not a closure.
+const CLOSURE_MARKERS: readonly string[] = [
+  "former pub", // also matches "former public house" (substring)
+  "closed pub",
+  "now closed",
+  "closed down",
+  "closed permanently",
+  "permanently closed",
+  "no longer a pub",
+];
+
+function signalsClosure(text: string): boolean {
+  const haystack = text.toLowerCase();
+  return CLOSURE_MARKERS.some((marker) => haystack.includes(marker));
+}
+
 /**
  * Deterministically pick one genuinely sourced heritage fact as the pub of the
- * day, or null when the cache carries no sourced fact at all. Pubs whose only
+ * day, or null when the cache carries no eligible fact at all. Pubs whose only
  * facts are seed examples are skipped so the surfaced claim always attributes to
- * a real source with its provenance label.
+ * a real source with its provenance label; pubs the sources describe as closed
+ * or former are skipped so today's pick is always somewhere that still exists.
+ * Both skips run before the day-rotation, so the pick deterministically falls
+ * through to the next eligible pub, and an empty eligible set returns null (the
+ * card fails soft to its "still in the archive" state rather than lying).
  */
 export function pickPubOfTheDayFact(cache: unknown, now: Date): TodayFact | null {
   if (!cache || typeof cache !== "object" || Array.isArray(cache)) return null;
@@ -319,6 +345,9 @@ export function pickPubOfTheDayFact(cache: unknown, now: Date): TodayFact | null
     if (typeof name !== "string" || name.trim().length === 0) continue;
     const sourced = sanitizeHeritageFacts(rawFacts).filter((fact) => fact.source !== "seed");
     if (sourced.length === 0) continue;
+    // Closed/former pubs are ineligible — check the name and every sourced fact,
+    // not just the surfaced one, so a pub known to be gone never headlines.
+    if (signalsClosure(name) || sourced.some((fact) => signalsClosure(fact.fact))) continue;
     const best = [...sourced].sort((a, b) => sourcePriority(a.source) - sourcePriority(b.source))[0];
     entries.push({ name, fact: best });
   }
