@@ -59,12 +59,16 @@ async function openTonight(page: Page, viewport = { width: 390, height: 844 }) {
 async function shoot(page: Page, name: string) {
   fs.mkdirSync(SHOTS_DIR, { recursive: true });
   for (const scheme of ["light", "dark"] as const) {
+    // The app's dark theme is driven by html[data-theme="dark"], NOT the OS media
+    // query, so set the attribute directly — emulateMedia alone leaves it light.
     await page.emulateMedia({ colorScheme: scheme });
+    await page.evaluate((s) => document.documentElement.setAttribute("data-theme", s), scheme);
     for (const width of [390, 1440] as const) {
       await page.setViewportSize({ width, height: width === 390 ? 844 : 900 });
       await page.screenshot({ path: path.join(SHOTS_DIR, `${name}-${width}-${scheme}.png`), fullPage: true });
     }
   }
+  await page.evaluate(() => document.documentElement.setAttribute("data-theme", "light"));
   await page.emulateMedia({ colorScheme: "light" });
 }
 

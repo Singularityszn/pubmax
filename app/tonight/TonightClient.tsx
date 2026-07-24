@@ -81,11 +81,15 @@ function freshnessLabel(kind: TonightFreshnessKind, asOf: string | null): string
   return kind === "unknown" ? "Freshness unknown" : checkedLabel(asOf);
 }
 
-// Deals/Music placement: below the main list under the canonical model (§4.11
-// main-list-first), else in their shipped slot above it. Keeping the branch in a
-// helper holds TonightClient under the cyclomatic-complexity cap.
+// Deals/Music placement. Flag off keeps their shipped slot above the main list.
+// Flag on wraps them so CSS can place them: on desktop they populate the right
+// rail (using the canvas, matching the flag-off desktop shape); below the rail
+// breakpoint they stack under the main list (§4.11 main-list-first). Keeping the
+// branch in a helper holds TonightClient under the cyclomatic-complexity cap.
 function placeSecondaryLanes(below: boolean, lanes: ReactNode): { above: ReactNode; below: ReactNode } {
-  return below ? { above: null, below: lanes } : { above: lanes, below: null };
+  return below
+    ? { above: null, below: <div className="tonightSecondaryLanes">{lanes}</div> }
+    : { above: lanes, below: null };
 }
 
 // A thin night (0-2 confirmed listings) leaves the list short enough that the

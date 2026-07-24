@@ -695,4 +695,14 @@
     flex-direction: column;
     gap: 16px;
   }
+
+  /* Flag-on (canonical) Deals/Music: on desktop they populate the right rail so
+     the canvas is used and the shape matches flag-off; below 1024px this wrapper
+     is a normal block that stacks under the main list (main-list-first). */
+  .tonightPage > .tonightSecondaryLanes {
+    grid-column: 2;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
 }

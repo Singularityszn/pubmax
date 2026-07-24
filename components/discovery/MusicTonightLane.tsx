@@ -18,7 +18,7 @@ type MusicState = { rows: WhatsOnRow[]; asOf: string | null };
 
 export type MusicTonightLaneProps = {
   /** When provided, render from these already-loaded rows (music families are
-   *  filtered out here) and skip the self-fetch — a host that already loaded the
+   *  filtered out here) and skip the self-fetch, so a host that already loaded the
    *  spine (Tonight) never fires a duplicate request. Omitted on Discover. */
   rows?: WhatsOnRow[];
   asOf?: string | null;
