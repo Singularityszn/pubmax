@@ -20,18 +20,29 @@ import { test, expect, type ConsoleMessage } from "@playwright/test";
 //   • tile/network fetch aborts — MapLibre aborts in-flight tile requests when
 //     the component unmounts on navigation; these surface as failed/aborted
 //     fetches and are expected churn, not a scene fault.
-//   • [pubmap] diagnostics — the component's own instrumentation logs.
 //   • favicon 404s — unrelated to the map.
+// PubMap diagnostics are never allow-listed: each current message describes a
+// recovery or failure and must remain visible to this gate.
 //
-// The map's own diagnostic prefix + expected navigation/tile churn. A message is
-// benign only if it matches one of these; everything else is treated as critical.
+// Expected navigation/tile churn only. `[pubmap]` diagnostics are deliberately
+// NOT benign: every current diagnostic reports a renderer recovery or failure,
+// so allowing the prefix would hide the exact production reload warning.
 const BENIGN_PATTERNS: RegExp[] = [
-  /\[pubmap\]/i, // component diagnostics (kind:"tiles"/"style" notices etc.)
+  /^Service Worker registration blocked by Playwright$/i,
+  /^\[\.WebGL-.*GPU stall due to ReadPixels/i,
   /favicon/i, // /favicon.ico 404s, unrelated to the map
   /Failed to load resource/i, // aborted tile/style fetches on unmount navigation
   /net::ERR_ABORTED/i, // MapLibre aborting in-flight tile requests on teardown
+  /Failed to fetch/i, // glyph/font AJAX aborts in headless (Noto Sans pbf)
+  /Unable to load glyph range/i, // MapLibre falls back to local codepoints
+  /Rendering codepoint .* locally instead/i,
   /the server responded with a status of 404/i, // tile/sprite 404 on style fallback
   /AbortError/i, // fetch abort on navigation teardown
+  // Pre-existing basemap/style evaluation noise observed on main WITHOUT the
+  // L18 icon-size fix (still fires 2×/load with the old nested-zoom expression).
+  // Not the named production warning (`zoom` may only be top-level input /
+  // pubs-point icon-size) which CRITICAL_PATTERNS still fail on.
+  /^Expected value to be of type number, but found null instead\.?$/i,
   // Vercel Web Analytics (app/layout.tsx <Analytics />, R3) requests
   // /_vercel/insights/script.js, which only exists on Vercel — `next start`
   // serves the 404 HTML page and Chromium logs a strict-MIME refusal. Pure
@@ -40,9 +51,14 @@ const BENIGN_PATTERNS: RegExp[] = [
 ];
 
 // Errors we must NEVER tolerate regardless of the allow-list above.
+// L18 named production warnings live here so they cannot be allow-listed away.
 const CRITICAL_PATTERNS: RegExp[] = [
   /Style is not done loading/i,
   /Maximum call stack size exceeded/i,
+  /tile failure burst, reloading style/i,
+  /pubs-point.*icon-size/i,
+  /icon-size.*zoom/i,
+  /"zoom" expression may only be used as input to a top-level/i,
 ];
 
 function isCritical(text: string): boolean {
@@ -57,14 +73,31 @@ test("/map stays console-healthy across repeated /map↔/feed navigation", async
   test.setTimeout(90_000);
 
   const critical: string[] = [];
+  const primaryStyleRequests: string[] = [];
+  const fallbackStyleRequests: string[] = [];
   const record = (text: string) => {
     if (isCritical(text)) critical.push(text);
   };
 
   page.on("console", (msg: ConsoleMessage) => {
-    if (msg.type() === "error") record(msg.text());
+    if (msg.type() === "error" || msg.type() === "warning") record(msg.text());
   });
   page.on("pageerror", (err) => record(err.message));
+  page.on("request", (request) => {
+    const url = new URL(request.url());
+    if (
+      url.origin === "https://tiles.openfreemap.org" &&
+      /^\/styles\/(?:dark|positron)\/?$/.test(url.pathname)
+    ) {
+      primaryStyleRequests.push(request.url());
+    }
+    if (
+      url.origin === "https://basemaps.cartocdn.com" &&
+      /^\/gl\/(?:dark-matter|positron)-gl-style\/style\.json$/.test(url.pathname)
+    ) {
+      fallbackStyleRequests.push(request.url());
+    }
+  });
 
   // Initial load: the map must construct and paint a real canvas.
   const first = await page.goto("/map");
@@ -107,4 +140,16 @@ test("/map stays console-healthy across repeated /map↔/feed navigation", async
     critical,
     `Critical map console errors:\n${critical.join("\n")}`,
   ).toEqual([]);
+
+  // Three map mounts above may each fetch the primary style once. More than
+  // that means a renderer error called setStyle on an already-loaded mount.
+  expect(primaryStyleRequests.length).toBeGreaterThan(0);
+  expect(
+    primaryStyleRequests.length,
+    `Primary style entrypoint fetched too often:\n${primaryStyleRequests.join("\n")}`,
+  ).toBeLessThanOrEqual(3);
+  expect(
+    fallbackStyleRequests.length,
+    `Fallback style entrypoint fetched too often:\n${fallbackStyleRequests.join("\n")}`,
+  ).toBeLessThanOrEqual(3);
 });

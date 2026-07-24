@@ -243,11 +243,78 @@ describe("pinEntranceLocalTExpr (M7 — MapLibre-expression twin of pinEntranceL
   });
 });
 
+function zoomPaths(expr: unknown, path: number[] = []): number[][] {
+  if (!Array.isArray(expr)) return [];
+  if (expr[0] === "zoom") return [path];
+  return expr.flatMap((value, index) => zoomPaths(value, [...path, index]));
+}
+
+function evalIconSizeExpr(
+  expr: unknown,
+  props: Record<string, unknown>,
+  zoom: number,
+): unknown {
+  if (!Array.isArray(expr)) return expr;
+  const [op, ...args] = expr as [string, ...unknown[]];
+  if (op === "get") return props[args[0] as string];
+  if (op === "zoom") return zoom;
+  if (op === "coalesce") {
+    for (const arg of args) {
+      const value = evalIconSizeExpr(arg, props, zoom);
+      if (value !== undefined && value !== null) return value;
+    }
+    return undefined;
+  }
+  if (op === "==") {
+    return evalIconSizeExpr(args[0], props, zoom) === evalIconSizeExpr(args[1], props, zoom);
+  }
+  if (op === "case") {
+    return evalIconSizeExpr(args[0], props, zoom)
+      ? evalIconSizeExpr(args[1], props, zoom)
+      : evalIconSizeExpr(args[2], props, zoom);
+  }
+  if (["+", "-", "*", "/"].includes(op)) {
+    const left = Number(evalIconSizeExpr(args[0], props, zoom));
+    const right = Number(evalIconSizeExpr(args[1], props, zoom));
+    if (op === "+") return left + right;
+    if (op === "-") return left - right;
+    if (op === "*") return left * right;
+    return left / right;
+  }
+  if (op === "min" || op === "max") {
+    const values = args.map((arg) => Number(evalIconSizeExpr(arg, props, zoom)));
+    return op === "min" ? Math.min(...values) : Math.max(...values);
+  }
+  if (op === "interpolate") {
+    const input = Number(evalIconSizeExpr(args[1], props, zoom));
+    const stops = args.slice(2);
+    for (let index = 0; index < stops.length - 2; index += 2) {
+      const lowerStop = Number(stops[index]);
+      const upperStop = Number(stops[index + 2]);
+      if (input <= upperStop) {
+        const lower = Number(evalIconSizeExpr(stops[index + 1], props, zoom));
+        const upper = Number(evalIconSizeExpr(stops[index + 3], props, zoom));
+        const t = Math.max(0, Math.min(1, (input - lowerStop) / (upperStop - lowerStop)));
+        return lower + (upper - lower) * t;
+      }
+    }
+    return evalIconSizeExpr(stops.at(-1), props, zoom);
+  }
+  throw new Error(`evalIconSizeExpr: unhandled op "${op}"`);
+}
+
 describe("pinEntranceIconSizeExpr / pinEntranceIconOpacityExpr (M7 selection guard)", () => {
-  it("size: with no selection, wraps PIN_ICON_SIZE_EXPR in a localT multiply", () => {
-    const expr = pinEntranceIconSizeExpr(0, "", PIN_ENTRANCE_BUCKETS, PIN_ENTRANCE_STAGGER_MS, PIN_ENTRANCE_RAMP_MS);
-    expect(expr[0]).toBe("*");
-    expect(expr[2]).toEqual(PIN_ICON_SIZE_EXPR);
+  it("size: keeps zoom at the top-level interpolation while unselected pins ramp", () => {
+    const expr = pinEntranceIconSizeExpr(
+      0,
+      "",
+      PIN_ENTRANCE_BUCKETS,
+      PIN_ENTRANCE_STAGGER_MS,
+      PIN_ENTRANCE_RAMP_MS,
+    );
+    expect(expr[0]).toBe("interpolate");
+    expect(zoomPaths(expr)).toEqual([[2]]);
+    expect(evalIconSizeExpr(expr, { id: "pub-2", story: false, entranceSeed: 0 }, 10)).toBe(0);
   });
 
   it("size: the selected pin bypasses the ramp at boosted spotlight size", () => {
@@ -257,10 +324,13 @@ describe("pinEntranceIconSizeExpr / pinEntranceIconOpacityExpr (M7 selection gua
       PIN_ENTRANCE_BUCKETS,
       PIN_ENTRANCE_STAGGER_MS,
       PIN_ENTRANCE_RAMP_MS,
-    ) as unknown as ["case", unknown, unknown, unknown];
-    expect(expr[0]).toBe("case");
-    expect(expr[1]).toEqual(["==", ["get", "id"], "pub-1"]);
-    expect(expr[2]).toEqual(["*", PIN_ICON_SIZE_EXPR, SELECTED_PIN_SIZE_SCALE]);
+    );
+    expect(expr[0]).toBe("interpolate");
+    expect(zoomPaths(expr)).toEqual([[2]]);
+    expect(evalIconSizeExpr(expr, { id: "pub-1", story: false, entranceSeed: 13 }, 10)).toBeCloseTo(
+      0.62 * SELECTED_PIN_SIZE_SCALE,
+    );
+    expect(evalIconSizeExpr(expr, { id: "pub-2", story: false, entranceSeed: 13 }, 10)).toBe(0);
   });
 
   it("opacity: the selected pin keeps pubIconOpacityExpr's value, not the ramped one", () => {
@@ -281,12 +351,17 @@ describe("selectedPinIconSizeExpr", () => {
     expect(selectedPinIconSizeExpr("")).toEqual(PIN_ICON_SIZE_EXPR);
   });
 
-  it("scales the matching id and leaves others at baseline", () => {
-    expect(selectedPinIconSizeExpr("pub-1")).toEqual([
-      "case",
-      ["==", ["get", "id"], "pub-1"],
-      ["*", PIN_ICON_SIZE_EXPR, SELECTED_PIN_SIZE_SCALE],
-      PIN_ICON_SIZE_EXPR,
-    ]);
+  it("keeps zoom top-level and scales only the matching pin at every stop", () => {
+    const expr = selectedPinIconSizeExpr("pub-1");
+    expect(expr[0]).toBe("interpolate");
+    expect(zoomPaths(expr)).toEqual([[2]]);
+    expect(evalIconSizeExpr(expr, { id: "pub-1", story: false }, 10)).toBeCloseTo(
+      0.62 * SELECTED_PIN_SIZE_SCALE,
+    );
+    expect(evalIconSizeExpr(expr, { id: "pub-2", story: false }, 10)).toBeCloseTo(0.62);
+    expect(evalIconSizeExpr(expr, { id: "pub-1", story: true }, 15)).toBeCloseTo(
+      1.05 * SELECTED_PIN_SIZE_SCALE,
+    );
+    expect(evalIconSizeExpr(expr, { id: "pub-2", story: true }, 15)).toBeCloseTo(1.05);
   });
 });

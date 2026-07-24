@@ -66,17 +66,46 @@ export const TRANSPORT_ICON_MATCH: maplibregl.ExpressionSpecification = [
   iconId("tfl", "river"),
   iconId("tfl", "underground"),
 ];
+type PinIconSizeScale = number | maplibregl.ExpressionSpecification;
+
+function pinIconSizeOutput(
+  storySize: number,
+  standardSize: number,
+  scale: PinIconSizeScale,
+): maplibregl.ExpressionSpecification {
+  // Truthy `["get", "story"]` matches the long-standing paint property form
+  // (boolean true on the feature). Missing/null story falls to standardSize.
+  const base: maplibregl.ExpressionSpecification = [
+    "case",
+    ["get", "story"],
+    storySize,
+    standardSize,
+  ];
+  if (scale === 1) return base;
+  // Coalesce guards against a transient null product during entrance ramp
+  // frames (MapLibre warns "Expected number, found null" if * ever sees null).
+  return ["coalesce", ["*", base, scale], standardSize];
+}
+
+// MapLibre only permits `zoom` as the input to a top-level step/interpolate.
+// Selection and entrance multipliers therefore live inside each stop output;
+// wrapping this interpolation in case/multiply causes the invalid icon-size
+// warning and feeds a needless style-reload loop through the tile error net.
+function pinIconSizeExpr(scale: PinIconSizeScale): maplibregl.ExpressionSpecification {
+  return [
+    "interpolate",
+    ["linear"],
+    ["zoom"],
+    10,
+    pinIconSizeOutput(0.7, 0.62, scale),
+    15,
+    pinIconSizeOutput(1.05, 0.95, scale),
+  ];
+}
+
 // pubs-point `icon-size`, extracted so M7's entrance ramp (PubMapCanvas) can
-// wrap the exact same zoom-driven expression rather than re-declaring it.
-export const PIN_ICON_SIZE_EXPR: maplibregl.ExpressionSpecification = [
-  "interpolate",
-  ["linear"],
-  ["zoom"],
-  10,
-  ["case", ["get", "story"], 0.7, 0.62],
-  15,
-  ["case", ["get", "story"], 1.05, 0.95],
-];
+// reuse the exact same zoom-driven outputs rather than re-declaring them.
+export const PIN_ICON_SIZE_EXPR: maplibregl.ExpressionSpecification = pinIconSizeExpr(1);
 
 /**
  * pubs-point `icon-size` with the selected pin scaled up so it reads as the
@@ -86,12 +115,12 @@ export function selectedPinIconSizeExpr(
   selectedId: string,
 ): maplibregl.ExpressionSpecification {
   if (!selectedId) return PIN_ICON_SIZE_EXPR;
-  return [
+  return pinIconSizeExpr([
     "case",
     ["==", ["get", "id"], selectedId],
-    ["*", PIN_ICON_SIZE_EXPR, SELECTED_PIN_SIZE_SCALE],
-    PIN_ICON_SIZE_EXPR,
-  ];
+    SELECTED_PIN_SIZE_SCALE,
+    1,
+  ]);
 }
 
 // M1 selection spotlight — pubs-point `icon-opacity`. With no selection, the
@@ -197,14 +226,13 @@ export function pinEntranceIconSizeExpr(
   rampMs: number,
 ): maplibregl.ExpressionSpecification {
   const localT = pinEntranceLocalTExpr(elapsedMs, buckets, staggerMs, rampMs);
-  const ramped: maplibregl.ExpressionSpecification = ["*", localT, PIN_ICON_SIZE_EXPR];
-  if (!selectedId) return ramped;
-  const selectedSize: maplibregl.ExpressionSpecification = [
-    "*",
-    PIN_ICON_SIZE_EXPR,
+  if (!selectedId) return pinIconSizeExpr(localT);
+  return pinIconSizeExpr([
+    "case",
+    ["==", ["get", "id"], selectedId],
     SELECTED_PIN_SIZE_SCALE,
-  ];
-  return ["case", ["==", ["get", "id"], selectedId], selectedSize, ramped];
+    localT,
+  ]);
 }
 
 // pubs-point `icon-opacity` during the M7 entrance window — same guard: the
