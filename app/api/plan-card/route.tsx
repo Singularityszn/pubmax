@@ -3,6 +3,7 @@ import { ImageResponse } from "next/og";
 import { ogCardRateLimitedResponse } from "@/lib/ogCardRateLimit";
 import { CrossingMark, loadOgFonts, loadPartyFont } from "@/lib/ogBrand";
 import { planCollaborationStore } from "@/lib/planCollaborationStore";
+import { buildPlanPrivacyPreview } from "@/lib/planPrivacy";
 import { planStore } from "@/lib/planStore";
 import { vibeTallyLine } from "@/lib/vibeTally";
 
@@ -74,17 +75,14 @@ export async function GET(request: Request): Promise<Response> {
   // line is house prose (serif), never the party face (Bungee is stamp-only).
   const tallyResult = await planCollaborationStore().vibeTally(id);
   const tallyLine = tallyResult.ok ? vibeTallyLine(tallyResult.tally) : null;
-  const stops = state.stops
-    .slice()
-    .sort((a, b) => a.position - b.position)
-    .slice(0, 4);
-  const start = new Date(state.plan.startTime).toLocaleTimeString("en-GB", {
-    timeZone: "Europe/London",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-  const crewLine =
-    state.crew.length === 1 ? "1 in" : `${state.crew.length} in`;
+  // §4.10: the OG card is crawler-visible and can never carry a member
+  // capability, so it renders the privacy-safe preview only — never the
+  // user-entered title, the numbered venue route, venue names, or the crew size.
+  const preview = buildPlanPrivacyPreview(state, tallyResult.ok ? tallyResult.tally : null);
+  const safeHeadline = preview.areaName
+    ? `A night out in ${preview.areaName}`
+    : "A night out";
+  const start = preview.startLabel;
 
   return new ImageResponse(
     (
@@ -257,12 +255,12 @@ export async function GET(request: Request): Promise<Response> {
               style={{
                 display: "flex",
                 fontFamily: serif,
-                fontSize: clamp(state.plan.title, 62).length > 30 ? 52 : 62,
+                fontSize: clamp(safeHeadline, 62).length > 30 ? 52 : 62,
                 lineHeight: 1.03,
                 fontWeight: 700,
               }}
             >
-              {clamp(state.plan.title, 62)}
+              {clamp(safeHeadline, 62)}
             </div>
             {tallyLine ? (
               /* Crew vibe tally: house prose under the title, never the party
@@ -282,61 +280,35 @@ export async function GET(request: Request): Promise<Response> {
               </div>
             ) : null}
           </div>
+          {/* §4.10: no venue names, no stop order — a privacy-safe summary. The
+              route stop list reveals only after a viewer joins the crew. */}
           <div
             style={{
               width: "52%",
               display: "flex",
               flexDirection: "column",
+              justifyContent: "center",
               borderLeft: `3px solid ${BRASS}`,
               paddingLeft: 38,
-              gap: 16,
+              gap: 10,
             }}
           >
-            {stops.map((stop, index) => (
-              <div
-                key={`${stop.position}-${stop.venueId}`}
-                style={{ display: "flex", alignItems: "center", gap: 18 }}
-              >
-                <div
-                  style={{
-                    width: 44,
-                    height: 44,
-                    borderRadius: 22,
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    color: PAPER,
-                    background: BRASS,
-                    fontSize: 21,
-                    fontWeight: 700,
-                  }}
-                >
-                  {index + 1}
-                </div>
-                <div
-                  style={{
-                    display: "flex",
-                    fontFamily: serif,
-                    fontSize: 29,
-                    fontWeight: 700,
-                  }}
-                >
-                  {clamp(stop.venueName, 38)}
-                </div>
+            <div style={{ display: "flex", alignItems: "baseline", gap: 16 }}>
+              <div style={{ display: "flex", fontFamily: serif, fontSize: 96, fontWeight: 700, color: BRASS, lineHeight: 1 }}>
+                {preview.stopCount}
               </div>
-            ))}
-            {state.stops.length > stops.length ? (
-              <div
-                style={{
-                  display: "flex",
-                  fontSize: 21,
-                  color: CREAM_DIM,
-                  paddingLeft: 62,
-                }}
-              >
-                + {state.stops.length - stops.length} more
+              <div style={{ display: "flex", fontFamily: serif, fontSize: 34, fontWeight: 700 }}>
+                {preview.stopCount === 1 ? "stop" : "stops"}
+              </div>
+            </div>
+            {preview.areaName ? (
+              <div style={{ display: "flex", fontFamily: serif, fontSize: 28, color: CREAM_DIM }}>
+                Around {clamp(preview.areaName, 40)}
               </div>
             ) : null}
+            <div style={{ display: "flex", fontSize: 22, color: CREAM_DIM, marginTop: 6 }}>
+              Join the crew to see the route
+            </div>
           </div>
         </div>
 
@@ -359,7 +331,7 @@ export async function GET(request: Request): Promise<Response> {
               fontSize: 28,
             }}
           >
-            {crewLine} · open the link · tap I&rsquo;m in
+            Open the link · tap I&rsquo;m in
           </div>
           <div
             style={{
