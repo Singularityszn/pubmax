@@ -148,6 +148,21 @@ export default defineConfig({
           ...(process.env.PUBMAX_LANDING_FIND_MY_PINT
             ? { PUBMAX_LANDING_FIND_MY_PINT: process.env.PUBMAX_LANDING_FIND_MY_PINT }
             : {}),
+          // Trusted-handoff flag pass-throughs for the deferred lane e2e (L20
+          // prep): each stays off unless the run exports it, so a flag-ON spec
+          // (test.skip-gated on the same var) drives a matching flag-on server.
+          ...(process.env.PUBMAX_TRUSTED_HANDOFF_INTENT_READ
+            ? { PUBMAX_TRUSTED_HANDOFF_INTENT_READ: process.env.PUBMAX_TRUSTED_HANDOFF_INTENT_READ }
+            : {}),
+          ...(process.env.PUBMAX_ANCHORED_GENERATION
+            ? { PUBMAX_ANCHORED_GENERATION: process.env.PUBMAX_ANCHORED_GENERATION }
+            : {}),
+          ...(process.env.PUBMAX_MAP_ROUTE_TRANSFER
+            ? { PUBMAX_MAP_ROUTE_TRANSFER: process.env.PUBMAX_MAP_ROUTE_TRANSFER }
+            : {}),
+          ...(process.env.PUBMAX_PAL_HANDOFF
+            ? { PUBMAX_PAL_HANDOFF: process.env.PUBMAX_PAL_HANDOFF }
+            : {}),
         },
         url: BASE_URL,
         reuseExistingServer: !process.env.CI && !SCREENSHOT_RUN,
