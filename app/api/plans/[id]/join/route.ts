@@ -2,7 +2,8 @@ import { jsonNoStore } from "@/lib/apiResponses";
 import { publicApiError } from "@/lib/apiError";
 import { cleanCrewName } from "@/lib/crew";
 import { isLimited } from "@/lib/pintDrops";
-import { isPlanId } from "@/lib/plan";
+import { isPlanId, type PlanState } from "@/lib/plan";
+import { planRouteReady } from "@/lib/planPrivacy";
 import { planStateResult, planStore } from "@/lib/planStore";
 import { planCollaborationStore } from "@/lib/planCollaborationStore";
 import { collaborationErrorResponse } from "@/lib/planCollaborationHttp";
@@ -10,9 +11,25 @@ import { attachPlanMemberSession } from "@/lib/planMemberCapability";
 import { PLAN_IDEMPOTENCY_ERROR, planMutationIdempotencyKey } from "@/lib/planMutationHttp";
 import { assertServerEnv } from "@/lib/serverEnv";
 import { clientIp, hashIp } from "@/lib/supabase";
+import { crewCommittedEventToken } from "@/lib/verifiedAnalytics.server";
 
 assertServerEnv();
 type Context = { params: Promise<{ id: string }> };
+
+// §4.10: a successful join returns a verified crew_committed delivery token so
+// the client can report the north-star Friend proof. The joinId is the new
+// member's non-secret crew id — never the member capability. Absent when the
+// store returned no plan/crew (nothing to commit).
+function crewCommittedToken(plan: PlanState | null): string | undefined {
+  const joinId = plan?.crew.at(-1)?.id;
+  if (!plan || !joinId) return undefined;
+  return crewCommittedEventToken({
+    joinId,
+    joinedAt: new Date().toISOString(),
+    participants: plan.crew.length,
+    routeReady: planRouteReady(plan),
+  });
+}
 
 export async function POST(request: Request, context: Context): Promise<Response> {
   const { id } = await context.params;
@@ -40,7 +57,12 @@ export async function POST(request: Request, context: Context): Promise<Response
       if (joined.error === "full") return publicApiError("This Plan's crew is full.", "PLAN_CREW_FULL", 409);
       return collaborationErrorResponse(joined.error);
     }
-    return attachPlanMemberSession(jsonNoStore(joined, { status: 200 }), request, id, joined.memberToken);
+    return attachPlanMemberSession(
+      jsonNoStore({ ...joined, crewCommitted: crewCommittedToken(joined.plan) }, { status: 200 }),
+      request,
+      id,
+      joined.memberToken,
+    );
   }
   const result = await planStore().join(id, name, { collaborationAuthorized: false, idempotencyKey });
   if (!result.ok) {
@@ -49,7 +71,7 @@ export async function POST(request: Request, context: Context): Promise<Response
     return publicApiError(error, result.error === "error" ? "PLAN_JOIN_UNAVAILABLE" : result.error === "not_found" ? "PLAN_NOT_FOUND" : result.error === "full" ? "PLAN_CREW_FULL" : result.error === "conflict" ? "PLAN_IDEMPOTENCY_CONFLICT" : "PLAN_JOIN_INVALID", status, { retryable: result.error === "error" });
   }
   return attachPlanMemberSession(
-    jsonNoStore({ plan: result.plan, memberToken: result.memberToken, role: result.role, collaborationAuthorized: result.collaborationAuthorized }, { status: 200 }),
+    jsonNoStore({ plan: result.plan, memberToken: result.memberToken, role: result.role, collaborationAuthorized: result.collaborationAuthorized, crewCommitted: crewCommittedToken(result.plan) }, { status: 200 }),
     request,
     id,
     result.memberToken,

@@ -3,20 +3,39 @@ import { publicApiError } from "@/lib/apiError";
 import { isPlanId, PLANNED_NIGHT_STATUSES } from "@/lib/plan";
 import { cleanNightContext } from "@/lib/nightPlanning";
 import { planMemberCapability } from "@/lib/planMemberCapability";
+import { resolvePlanProjection } from "@/lib/planPrivacyBoundary.server";
 import { canonicalPlanRoute } from "@/lib/planRoute";
+import { planCollaborationStore } from "@/lib/planCollaborationStore";
 import { planStateResult, planStore } from "@/lib/planStore";
 import { assertServerEnv } from "@/lib/serverEnv";
 
 assertServerEnv();
 type Context = { params: Promise<{ id: string }> };
 
-export async function GET(_request: Request, context: Context): Promise<Response> {
+async function safeVibeTally(id: string) {
+  try {
+    const result = await planCollaborationStore().vibeTally(id);
+    return result.ok ? result.tally : null;
+  } catch {
+    return null;
+  }
+}
+
+export async function GET(request: Request, context: Context): Promise<Response> {
   const { id } = await context.params;
   if (!isPlanId(id)) return publicApiError("That Plan doesn't exist.", "PLAN_NOT_FOUND", 404);
   const lookup = await planStateResult(id);
   if (!lookup.ok) return publicApiError("Plan data is temporarily unavailable.", "PLAN_STORE_UNAVAILABLE", 503, { retryable: true });
   if (!lookup.plan) return publicApiError("That Plan doesn't exist.", "PLAN_NOT_FOUND", 404);
-  return jsonNoStore(lookup.plan, { status: 200 });
+  // §4.10: a valid host/guest capability (with member rehydration enabled) gets
+  // the raw PlanState it always did; everyone else gets the redacted preview.
+  const projection = await resolvePlanProjection({
+    request,
+    planId: id,
+    state: lookup.plan,
+    vibeTally: await safeVibeTally(id),
+  });
+  return jsonNoStore(projection.visibility === "member" ? projection.state : projection, { status: 200 });
 }
 
 export async function PATCH(request: Request, context: Context): Promise<Response> {

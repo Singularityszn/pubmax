@@ -106,13 +106,40 @@ describe("Plan public HTTP contract", () => {
     });
   });
 
-  it("lets anyone holding the unguessable Plan link view it without an account", async () => {
+  it("returns a privacy-safe preview to a link viewer with no member capability (§4.10)", async () => {
     const { body } = await createPlan();
     const response = await GET(new Request(`${URL}/${body.plan.plan.id}`), ctx(body.plan.plan.id));
     expect(response.status).toBe(200);
-    const state = await response.json() as PlanState;
-    expect(state.plan.title).toBe("Friday near Bank");
-    expect(state.crew.map((member) => member.name)).toEqual(["Karan"]);
+    const preview = await response.json() as Record<string, unknown>;
+    // No account, no capability: only the redacted preview — never the Route.
+    expect(preview.visibility).toBe("preview");
+    expect(preview.hostDisplayName).toBe("Karan");
+    expect(preview.stopCount).toBe(2);
+    expect(preview.stops).toBeUndefined();
+    expect(preview.crew).toBeUndefined();
+    // The user-entered title never reaches an uninvited viewer.
+    expect(JSON.stringify(preview)).not.toContain("Friday near Bank");
+  });
+
+  it("returns full member state to a valid capability once member rehydration is enabled", async () => {
+    const previous = process.env.PUBMAX_FRIEND_MEMBER_REHYDRATION_V2;
+    process.env.PUBMAX_FRIEND_MEMBER_REHYDRATION_V2 = "1";
+    try {
+      const { body } = await createPlan();
+      const response = await GET(
+        new Request(`${URL}/${body.plan.plan.id}`, {
+          headers: { authorization: `Bearer ${body.memberToken}` },
+        }),
+        ctx(body.plan.plan.id),
+      );
+      expect(response.status).toBe(200);
+      const state = await response.json() as PlanState;
+      expect(state.plan.title).toBe("Friday near Bank");
+      expect(state.crew.map((member) => member.name)).toEqual(["Karan"]);
+    } finally {
+      if (previous === undefined) delete process.env.PUBMAX_FRIEND_MEMBER_REHYDRATION_V2;
+      else process.env.PUBMAX_FRIEND_MEMBER_REHYDRATION_V2 = previous;
+    }
   });
 
   it("joins with only a name and returns a private presence token", async () => {
