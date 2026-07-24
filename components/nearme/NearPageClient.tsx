@@ -11,7 +11,7 @@ import { resolveNightPatch } from "@/lib/nightPatches";
 import NearMeNow from "./NearMeNow";
 import "./nearPage.css";
 
-function NearPageBody() {
+function NearPageBody({ intentWrite }: { intentWrite: boolean }) {
   const preferredCity = useSyncExternalStore(
     subscribePreferredCity,
     readPreferredCity,
@@ -36,16 +36,17 @@ function NearPageBody() {
           autoLocate={false}
           initialPatchId={initialPatchId}
           syncPatchToUrl
+          intentWrite={intentWrite}
         />
       </main>
     </div>
   );
 }
 
-export default function NearPageClient() {
+export default function NearPageClient({ intentWrite = false }: { intentWrite?: boolean }) {
   return (
     <Suspense fallback={<div className="nmnPage" aria-busy="true" />}>
-      <NearPageBody />
+      <NearPageBody intentWrite={intentWrite} />
     </Suspense>
   );
 }
