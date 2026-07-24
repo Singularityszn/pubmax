@@ -122,6 +122,37 @@ describe("warmPathsForMapHref", () => {
   });
 });
 
+describe("warmNavRoute / warmPrimaryTabRoutes", () => {
+  it("prefetches non-map destinations without re-entry", async () => {
+    const { warmNavRoute } = await import("@/lib/mapWarmup");
+    const seen = new Set<string>();
+    const prefetch = vi.fn();
+    warmNavRoute({ prefetch }, "/tonight", seen);
+    warmNavRoute({ prefetch }, "/feed", seen);
+    warmNavRoute({ prefetch }, "/tonight", seen);
+    expect(prefetch).toHaveBeenCalledTimes(2);
+    expect(prefetch).toHaveBeenCalledWith("/tonight");
+    expect(prefetch).toHaveBeenCalledWith("/feed");
+  });
+
+  it("warms every durable tab and skips Moment", async () => {
+    const { warmPrimaryTabRoutes } = await import("@/lib/mapWarmup");
+    const seen = new Set<string>();
+    const prefetch = vi.fn();
+    warmPrimaryTabRoutes(
+      { prefetch },
+      ["/today", "/map", "/moment?returnTo=%2Ftoday", "/tonight", "/feed", "/u/you"],
+      seen,
+    );
+    expect(prefetch).toHaveBeenCalledWith("/today");
+    expect(prefetch).toHaveBeenCalledWith("/map");
+    expect(prefetch).toHaveBeenCalledWith("/tonight");
+    expect(prefetch).toHaveBeenCalledWith("/feed");
+    expect(prefetch).toHaveBeenCalledWith("/u/you");
+    expect(prefetch.mock.calls.every(([href]) => !String(href).startsWith("/moment"))).toBe(true);
+  });
+});
+
 describe("warmMapRoute", () => {
   it("prefetches the route once and warms map data for /map", async () => {
     const { warmMapRoute } = await import("@/lib/mapWarmup");

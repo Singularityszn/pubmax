@@ -37,6 +37,14 @@ describe("mobile tab bar contract", () => {
     expect(byLabel.You.href).toBe("/u/you");
   });
 
+  it("points You at the device handle when known (skips /u/you sentinel hop)", () => {
+    const tabs = buildTabs("/map", "/today", "/u/karan");
+    const you = tabs.find((tab) => tab.label === "You");
+    expect(you?.href).toBe("/u/karan");
+    // Match stays /u so the tab still lights on the resolved profile.
+    expect(you?.match).toEqual(["/u"]);
+  });
+
   it("marks only Moment as the raised centre action, in the centre slot", () => {
     const tabs = buildTabs("/map", "/map");
     expect(tabs.filter((tab) => tab.primary).map((tab) => tab.label)).toEqual(["Moment"]);
