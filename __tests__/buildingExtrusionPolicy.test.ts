@@ -1,0 +1,54 @@
+import { describe, expect, it } from "vitest";
+import {
+  BUILDING_EXTRUSION_FLAT_ZOOM,
+  BUILDING_EXTRUSION_OPACITY,
+  buildingExtrusionHeightExpr,
+  tameFillExtrusionLayers,
+} from "@/components/map/canvas/buildScene";
+
+describe("building extrusion anti-Lego policy", () => {
+  it("caps opacity hard so grey prisms never dominate inspector zoom", () => {
+    expect(BUILDING_EXTRUSION_OPACITY).toBeLessThanOrEqual(0.2);
+    expect(BUILDING_EXTRUSION_OPACITY).toBeGreaterThan(0);
+  });
+
+  it("flattens fully at or before landmark-inspector zoom (15)", () => {
+    expect(BUILDING_EXTRUSION_FLAT_ZOOM).toBeLessThanOrEqual(15);
+    expect(BUILDING_EXTRUSION_FLAT_ZOOM).toBeGreaterThan(12);
+  });
+
+  it("height expression collapses to 0 at the flat zoom stop", () => {
+    const expr = buildingExtrusionHeightExpr(40);
+    // ["interpolate", ["linear"], ["zoom"], 12.5, 0, 13.5, full, flatZoom, 0]
+    expect(expr[0]).toBe("interpolate");
+    expect(expr[expr.length - 2]).toBe(BUILDING_EXTRUSION_FLAT_ZOOM);
+    expect(expr[expr.length - 1]).toBe(0);
+  });
+
+  it("tames every fill-extrusion layer's opacity and height", () => {
+    const paint = new Map<string, unknown>();
+    const map = {
+      getStyle: () => ({
+        layers: [
+          { id: "building-3d", type: "fill-extrusion" },
+          { id: "road", type: "line" },
+          { id: "buildings-3d", type: "fill-extrusion" },
+        ],
+      }),
+      setPaintProperty: (id: string, prop: string, value: unknown) => {
+        paint.set(`${id}::${prop}`, value);
+      },
+    };
+    tameFillExtrusionLayers(map as never);
+    expect(paint.get("building-3d::fill-extrusion-opacity")).toBe(
+      BUILDING_EXTRUSION_OPACITY,
+    );
+    expect(paint.get("buildings-3d::fill-extrusion-opacity")).toBe(
+      BUILDING_EXTRUSION_OPACITY,
+    );
+    expect(paint.has("road::fill-extrusion-opacity")).toBe(false);
+    const height = paint.get("building-3d::fill-extrusion-height") as unknown[];
+    expect(height[0]).toBe("interpolate");
+    expect(height[height.length - 1]).toBe(0);
+  });
+});

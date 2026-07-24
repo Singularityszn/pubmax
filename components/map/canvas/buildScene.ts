@@ -89,6 +89,72 @@ export function applySceneTaste(ctx: SceneCtx) {
   );
 }
 
+/**
+ * Hard ceiling on 3-D building massing. Owner iPhone audit (landmark-inspector
+ * zoom ~15): untextured grey fill-extrusion prisms dominated the basemap
+ * (Shaftesbury Memorial → grey hexagon "Lego"). Cap opacity hard so streets
+ * and labels stay the hero — matches the flat overview look, not a toy city.
+ */
+export const BUILDING_EXTRUSION_OPACITY = 0.15;
+
+/**
+ * Zoom at and above which extrusion height is forced to 0. Landmark-inspector
+ * camera flies to zoom 15; by 14.5 the massing is fully flattened so POI icons
+ * (and streets) are never buried under grey prisms.
+ */
+export const BUILDING_EXTRUSION_FLAT_ZOOM = 14.5;
+
+/** Height expression: subtle skyline mid-zoom, fully flat by inspector zoom. */
+export function buildingExtrusionHeightExpr(
+  fullHeight: maplibregl.ExpressionSpecification | number,
+): maplibregl.ExpressionSpecification {
+  return [
+    "interpolate",
+    ["linear"],
+    ["zoom"],
+    12.5,
+    0,
+    13.5,
+    fullHeight,
+    BUILDING_EXTRUSION_FLAT_ZOOM,
+    0,
+  ];
+}
+
+/**
+ * Tame every fill-extrusion layer already present in the basemap style
+ * (OpenFreeMap dark ships `building-3d`; Positron/CARTO may too). Best-effort:
+ * locked paint props are skipped. Called on every style.load so a fallback
+ * style swap re-applies the same policy.
+ */
+export function tameFillExtrusionLayers(map: maplibregl.Map): void {
+  const layers = map.getStyle()?.layers ?? [];
+  for (const layer of layers) {
+    if (layer.type !== "fill-extrusion") continue;
+    try {
+      map.setPaintProperty(layer.id, "fill-extrusion-opacity", BUILDING_EXTRUSION_OPACITY);
+    } catch {
+      // Style may lock the prop; continue to height flatten.
+    }
+    try {
+      // Flatten hard at inspector zoom regardless of the style's original
+      // height expression — property reads still work on OpenMapTiles building
+      // layers; missing props coalesce to a short stub then collapse to 0.
+      map.setPaintProperty(
+        layer.id,
+        "fill-extrusion-height",
+        buildingExtrusionHeightExpr([
+          "*",
+          ["coalesce", ["get", "render_height"], ["get", "height"], 14],
+          1.08,
+        ]),
+      );
+    } catch {
+      // Best-effort only.
+    }
+  }
+}
+
 export function buildSkyAndBuildings(ctx: SceneCtx) {
   const { map, tokens, dark, addLayerOnce } = ctx;
   // --- Sky + fog: M4 signature dusk/night gradient — deep indigo zenith
@@ -108,10 +174,12 @@ export function buildSkyAndBuildings(ctx: SceneCtx) {
     "atmosphere-blend": ["interpolate", ["linear"], ["zoom"], 8, 0.7, 12, 0.2],
   });
 
-  // --- 3-D buildings, extruded from the basemap's own building layer so
-  // the City and Canary Wharf read as skyline when you fly in. If the style
-  // already ships its own extrusion (OpenFreeMap Liberty has `building-3d`),
-  // use that rather than stacking a second layer on top of it.
+  // --- 3-D buildings. Always tame style-native extrusion first (dark Liberty
+  // ships its own `building-3d` at full opacity — that was the grey Lego).
+  // Only add our own `buildings-3d` when the style has none, still under the
+  // same hard opacity + flatten-by-inspector-zoom policy.
+  tameFillExtrusionLayers(map);
+
   const styleLayers = map.getStyle().layers;
   const firstSymbolId = styleLayers.find((layer) => layer.type === "symbol")?.id;
   const hasExtrusion = styleLayers.some((layer) => layer.type === "fill-extrusion");
@@ -130,34 +198,21 @@ export function buildSkyAndBuildings(ctx: SceneCtx) {
         "source-layer": "building",
         minzoom: 12.5,
         paint: {
-          // M4: warmed emissive massing in dark mode (dusk-lamp gray, not the
-          // old cool blue-gray) — token-derived, matches buildPalette's 2-D
-          // building fill so the skyline reads as one warm material. M6
-          // (interim, pre-6.x-bump): buildingMassingColorExpr turns that flat
-          // base into a two-stop height gradient — squat buildings darken
-          // toward inkDeep, tall ones settle back to the same base tone as
-          // before, so the overall look is unchanged at the top of the
-          // gradient (see buildingMassingColorExpr's own doc comment for why
-          // inkDeep and not the theme-flipping `ink`). The light-theme base
-          // switches from an alpha-blended tokens.line to the plain hex
-          // tokens.line so mixHex (hex-only) can derive its dark stop; the
-          // dropped local alpha (0.95) is folded into fill-extrusion-opacity
-          // below (0.58 → 0.551) so the overall wash is unchanged.
+          // M4/M6 massing colour still applies — just much quieter. Opacity is
+          // the hard anti-Lego ceiling (BUILDING_EXTRUSION_OPACITY); height
+          // collapses fully by BUILDING_EXTRUSION_FLAT_ZOOM so landmark fly-ins
+          // read as flat streets + POI icons.
           "fill-extrusion-color": buildingMassingColorExpr(
             dark ? tokens.buildingEmissive : tokens.line,
             tokens.inkDeep,
           ) as maplibregl.ExpressionSpecification,
-          "fill-extrusion-height": [
-            "interpolate",
-            ["linear"],
-            ["zoom"],
-            12.5,
-            0,
-            14,
-            ["*", ["coalesce", ["get", "render_height"], ["get", "height"], 14], 1.08],
-          ],
+          "fill-extrusion-height": buildingExtrusionHeightExpr([
+            "*",
+            ["coalesce", ["get", "render_height"], ["get", "height"], 14],
+            1.08,
+          ]),
           "fill-extrusion-base": ["coalesce", ["get", "render_min_height"], 0],
-          "fill-extrusion-opacity": dark ? 0.9 : 0.551,
+          "fill-extrusion-opacity": BUILDING_EXTRUSION_OPACITY,
         },
       },
       firstSymbolId,
@@ -271,26 +326,59 @@ export function buildLandmarks(ctx: SceneCtx) {
   } else {
     (map.getSource("landmarks") as maplibregl.GeoJSONSource).setData(landmarksGeoJSON);
   }
+  // Landmark-inspector zoom is 15 (selectLandmark cinematic). No maxzoom —
+  // every curated landmark pin must stay rendered and prominent there so
+  // Piccadilly Circus reads like London Eye (owner audit: icon vanished under
+  // grey extrusion massing; icons also stayed too small at z15).
   addLayerOnce({
     id: "landmarks-icon",
     type: "symbol",
     source: "landmarks",
     layout: {
       "icon-image": ["get", "icon"],
-      "icon-size": ["interpolate", ["linear"], ["zoom"], 9, 0.5, 13, 0.82, 16, 1],
+      // Grow hard into inspector zoom so the pin is the hero, not basemap massing.
+      "icon-size": [
+        "interpolate",
+        ["linear"],
+        ["zoom"],
+        9,
+        0.55,
+        12,
+        0.9,
+        15,
+        1.35,
+        17,
+        1.5,
+      ],
       "icon-allow-overlap": true,
+      // Icons never yield to denser street labels at high zoom.
+      "icon-ignore-placement": true,
       "text-field": ["get", "name"],
       "text-font": textFont,
-      "text-size": 10.5,
+      "text-size": [
+        "interpolate",
+        ["linear"],
+        ["zoom"],
+        9.5,
+        10.5,
+        13,
+        11.5,
+        15,
+        13,
+      ],
       "text-letter-spacing": 0.04,
-      "text-offset": [0, 1.4],
+      "text-offset": [0, 1.55],
       "text-anchor": "top",
+      // Label may drop if crowded; the icon always stays.
       "text-optional": true,
+      "text-allow-overlap": true,
     },
     paint: {
       "text-color": tokens.ink,
       "text-halo-color": dark ? tokens.inkDeep : tokens.paper,
-      "text-halo-width": 1.3,
+      "text-halo-width": 1.5,
+      "icon-opacity": 1,
+      "text-opacity": 1,
     },
     minzoom: 9.5,
   });

@@ -69,7 +69,12 @@ export default defineConfig({
       // GL-requiring specs: map-gl asserts the canvas paints; map-console-health
       // asserts the scene stays error-free across repeated navigation. Both need
       // a real WebGL2 context (SwiftShader), so both run here.
-      testMatch: ["**/map-gl.spec.ts", "**/map-console-health.spec.ts"],
+      testMatch: [
+        "**/map-gl.spec.ts",
+        "**/map-console-health.spec.ts",
+        // Synthetic webglcontextlost recovery — needs a real GL canvas.
+        "**/map-webgl-recovery.spec.ts",
+      ],
       use: {
         ...devices["Desktop Chrome"],
         launchOptions: {
