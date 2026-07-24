@@ -49,12 +49,15 @@ describe("sanitizeEvent", () => {
   });
 
   it("keeps only bounded performance fields for web vitals", () => {
+    // `route` is required (a known template); an unknown `attribution` key is
+    // dropped — only the sanitized `target` selector is allowed through.
     expect(sanitizeEvent("web_vital", {
       metric: "INP",
       value: 143,
       rating: "good",
+      route: "/near",
       attribution: "button#private-account-control",
-    })?.props).toEqual({ metric: "INP", value: 143, rating: "good" });
+    })?.props).toEqual({ metric: "INP", value: 143, rating: "good", route: "/near" });
   });
 
   it("keeps the activation and retention funnel free of identity and free text", () => {
