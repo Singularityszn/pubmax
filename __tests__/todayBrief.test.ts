@@ -306,4 +306,67 @@ describe("pickPubOfTheDayFact", () => {
     expect(pickPubOfTheDayFact(null, NOW)).toBeNull();
     expect(pickPubOfTheDayFact([], NOW)).toBeNull();
   });
+
+  it("skips a pub the sources describe as closed/former, falling through to the eligible ones", () => {
+    const withClosed = {
+      // Genuinely gone — the exact honesty bug this guards (a real prod pick).
+      "the george": [
+        {
+          source: "wikipedia",
+          fact: "The George is a former pub in Hammersmith, now offices.",
+          sourceRef: "https://en.wikipedia.org/wiki/The_George",
+        },
+      ],
+      "the anchor": [
+        {
+          source: "wikipedia",
+          fact: "The Anchor is a Grade II listed pub dating from the 18th century.",
+          sourceRef: "https://en.wikipedia.org/wiki/The_Anchor",
+        },
+      ],
+      "the swan": [
+        {
+          source: "wikipedia",
+          fact: "The Swan is a riverside pub rebuilt in 1901.",
+          sourceRef: "https://en.wikipedia.org/wiki/The_Swan",
+        },
+      ],
+    };
+    // Across a week the closed pub never surfaces; every pick is one that exists,
+    // and the day-rotation still spreads across the eligible set (the fallback is
+    // deterministic, not one stuck pub).
+    const seen = new Set<string>();
+    for (let d = 0; d < 7; d += 1) {
+      const pick = pickPubOfTheDayFact(withClosed, new Date(NOW_MS + d * 86_400_000));
+      expect(pick).not.toBeNull();
+      expect(pick?.pubName).not.toBe("The George");
+      if (pick?.pubName) seen.add(pick.pubName);
+    }
+    expect(seen).toEqual(new Set(["The Anchor", "The Swan"]));
+  });
+
+  it("returns null when every sourced pub reads as closed — fails soft, never lies", () => {
+    const allClosed = {
+      "the george": [
+        { source: "wikipedia", fact: "The George is a former public house, now flats.", sourceRef: "https://x.example/g" },
+      ],
+      "the swan": [
+        { source: "wikipedia", fact: "The Swan closed down in 1998.", sourceRef: "https://x.example/s" },
+      ],
+    };
+    expect(pickPubOfTheDayFact(allClosed, NOW)).toBeNull();
+  });
+
+  it("keeps an open pub whose heritage names a past role ('former coaching inn'), not a closure", () => {
+    const openHeritage = {
+      "the bell": [
+        {
+          source: "wikipedia",
+          fact: "The Bell is a former coaching inn, now a popular Grade II listed pub.",
+          sourceRef: "https://x.example/b",
+        },
+      ],
+    };
+    expect(pickPubOfTheDayFact(openHeritage, NOW)?.pubName).toBe("The Bell");
+  });
 });
