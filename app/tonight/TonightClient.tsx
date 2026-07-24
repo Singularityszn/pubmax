@@ -28,7 +28,7 @@ import {
 } from "lucide-react";
 
 import SiteNav from "@/components/nav/SiteNav";
-import { useWhatsOnTonight } from "@/components/map/useWhatsOnTonight";
+import { useWhatsOnTonight, type TonightFreshnessKind } from "@/components/map/useWhatsOnTonight";
 import DealsTonightLane from "@/components/discovery/DealsTonightLane";
 import MusicTonightLane from "@/components/discovery/MusicTonightLane";
 import TonightConditionsStrip from "./TonightConditionsStrip";
@@ -72,6 +72,13 @@ function coverageLabel(count: number): string {
   if (count === 0) return "Quiet night";
   if (count === 1) return "1 listing tonight";
   return `${count} listings tonight`;
+}
+
+// Honest source-freshness label (L13 contract): an unknown source is stated as
+// such, never the request instant dressed as a check. checkedLabel already maps a
+// null asOf to "Freshness unknown"; keying off the kind makes the intent explicit.
+function freshnessLabel(kind: TonightFreshnessKind, asOf: string | null): string {
+  return kind === "unknown" ? "Freshness unknown" : checkedLabel(asOf);
 }
 
 // A thin night (0-2 confirmed listings) leaves the list short enough that the
@@ -245,12 +252,10 @@ export default function TonightClient({ flags }: { flags: TrustedHandoffFlagsDTO
           <p className="tonightProvenance">
             {coverageLabel(rows.length)}
             <span aria-hidden="true"> · </span>
-            {/* Honest source freshness (L13 contract): an unknown source shows
-                "Freshness unknown", never the request instant dressed as a check.
-                One template literal so the separator spacing survives JSX
+            {/* One template literal so the separator spacing survives JSX
                 text-node splitting (the built output was eating the space before
                 the interpunct, rendering "unknown· via"). */}
-            {`${sourceFreshnessKind === "unknown" ? "Freshness unknown" : checkedLabel(asOf)} · via what’s-on`}
+            {`${freshnessLabel(sourceFreshnessKind, asOf)} · via what’s-on`}
             {/* The one quiet continuity line: when the order comes from a
                 remembered patch (not a live position), say which. */}
             {ready && tonightNear?.patchLabel
