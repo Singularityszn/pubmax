@@ -53,6 +53,10 @@ export default defineConfig({
         "**/screenshots.spec.ts",
         "**/map-gl.spec.ts",
         "**/map-fallback.spec.ts",
+        // Flag-ON specs run only in the chromium-flag-on project against a
+        // flag-on build (L20 zero-skip contract) — never in the default
+        // flag-off suite, where their assertions would false-fail.
+        "**/*.flag-on.spec.ts",
       ],
     },
     {
@@ -96,6 +100,18 @@ export default defineConfig({
           args: ["--disable-webgl", "--disable-webgl2"],
         },
       },
+    },
+    {
+      // Flag-ON half of the trusted-handoff matrix (L20 zero-skip contract).
+      // Runs ONLY the *.flag-on.spec.ts files, and only when invoked
+      // explicitly with the relevant PUBMAX_* flags exported — the shared
+      // webServer then builds a flag-on server (env pass-through below), so each
+      // spec's assertion always executes with no runtime test.skip. Kept out of
+      // a bare `playwright test` (no flags) because its specs assume a flag-on
+      // build; the assembly gate runs it as its own flag-set invocation.
+      name: "chromium-flag-on",
+      testMatch: "**/*.flag-on.spec.ts",
+      use: { ...devices["Desktop Chrome"] },
     },
     ...(process.env.PW_SCREENSHOTS
       ? [
@@ -168,6 +184,9 @@ export default defineConfig({
           // exports these to drive a matching server. Absent stays off (strict 0|1).
           ...(process.env.PUBMAX_TONIGHT_GROUPING
             ? { PUBMAX_TONIGHT_GROUPING: process.env.PUBMAX_TONIGHT_GROUPING }
+            : {}),
+          ...(process.env.PUBMAX_FRIEND_MEMBER_REHYDRATION_V2
+            ? { PUBMAX_FRIEND_MEMBER_REHYDRATION_V2: process.env.PUBMAX_FRIEND_MEMBER_REHYDRATION_V2 }
             : {}),
           ...(process.env.PUBMAX_TRUSTED_HANDOFF_INTENT_WRITE
             ? { PUBMAX_TRUSTED_HANDOFF_INTENT_WRITE: process.env.PUBMAX_TRUSTED_HANDOFF_INTENT_WRITE }
