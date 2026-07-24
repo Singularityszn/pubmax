@@ -1,9 +1,10 @@
 "use client";
 
 import { MapPin } from "lucide-react";
-import { useCallback, useDeferredValue, useId, useMemo, useState } from "react";
+import { useCallback, useDeferredValue, useEffect, useId, useMemo, useRef, useState } from "react";
 
 import { SearchField } from "@/components/ui/search-field";
+import { trackEvent } from "@/lib/analytics";
 import type { CityId } from "@/lib/cities";
 import {
   buildMapSearchSuggestions,
@@ -29,6 +30,9 @@ import "./mapSearchSuggest.css";
 type FlatItem =
   | { type: "area"; item: AreaSuggestion }
   | { type: "pub"; item: PubSuggestion };
+
+const NO_RESULTS_MESSAGE = "No Venues or areas match that search.";
+const NO_RESULTS_ANNOUNCE_DELAY_MS = 300;
 
 export type MapSearchSuggestProps = {
   id: string;
@@ -65,12 +69,17 @@ export default function MapSearchSuggest({
   placeholder,
   onSelectVenue,
   onFlyToArea,
-  onSubmitQuery,
+  // onSubmitQuery intentionally not used: zero-result Enter keeps the miss
+  // empty state open (hits use activate). Prop stays on the type for callers.
   onClose,
 }: MapSearchSuggestProps) {
+
   const listboxId = useId();
+  const emptyStateId = useId();
   const optionId = useCallback((index: number) => `${listboxId}-opt-${index}`, [listboxId]);
   const [toolbarFocused, setToolbarFocused] = useState(false);
+  const [announcedQuery, setAnnouncedQuery] = useState("");
+  const lastAnnouncedQuery = useRef("");
   const closeToolbarPanel = useCallback(() => {
     if (mode !== "toolbar") return;
     setToolbarFocused(false);
@@ -113,17 +122,40 @@ export default function MapSearchSuggest({
   const changeQuery = useCallback(
     (next: string) => {
       setActiveIndex(-1);
+      if (mode === "toolbar") setToolbarFocused(true);
       onQueryChange(next);
     },
-    [onQueryChange],
+    [mode, onQueryChange],
   );
 
   const trimmed = query.trim();
-  // Panel shows once there is anything to say: matches, the empty-query area
-  // prompt, or the honest "nothing matching" line for a typed dead end.
+  const deferredTrimmed = deferredQuery.trim();
+  const querySettled = deferredTrimmed === trimmed;
+  // Panel stays present for a typed miss so the combobox never collapses into a
+  // silent empty state. Toolbar search still closes when focus deliberately
+  // leaves the search surface; overlay search remains open until Escape/X.
   const panelEnabled = mode === "overlay" || toolbarFocused;
   const showPanel = panelEnabled && (trimmed.length > 0 || items.length > 0);
-  const showEmptyLine = trimmed.length > 0 && !suggestions.hasResults;
+  const showEmptyLine = showPanel && trimmed.length > 0 && querySettled && !suggestions.hasResults;
+
+  useEffect(() => {
+    if (!showEmptyLine) {
+      if (trimmed.length === 0 || suggestions.hasResults) lastAnnouncedQuery.current = "";
+      return;
+    }
+
+    const normalized = deferredTrimmed.toLocaleLowerCase();
+    if (lastAnnouncedQuery.current === normalized) return;
+
+    const timer = window.setTimeout(() => {
+      lastAnnouncedQuery.current = normalized;
+      setAnnouncedQuery(normalized);
+      // Fixed-schema, zero-property event: raw search text never enters telemetry.
+      trackEvent("map_search_no_results");
+    }, NO_RESULTS_ANNOUNCE_DELAY_MS);
+
+    return () => window.clearTimeout(timer);
+  }, [deferredTrimmed, showEmptyLine, suggestions.hasResults, trimmed.length]);
 
   const activate = useCallback(
     (entry: FlatItem | undefined) => {
@@ -164,36 +196,52 @@ export default function MapSearchSuggest({
         event.preventDefault();
         if (items.length > 0) {
           activate(safeActive >= 0 ? items[safeActive] : items[0]);
-        } else {
-          onSubmitQuery?.();
+          return;
         }
+        // Zero-result miss: keep the panel + empty state open and leave focus
+        // on the combobox. Do not fire onSubmitQuery (that path flies/clears
+        // and would hide the honest "nothing matching" message).
         return;
       }
       if (event.key === "Escape") {
+        // Always preventDefault: type=search natively clears the value on Escape,
+        // which would re-fire changeQuery, re-open the toolbar panel, and flash
+        // the empty-query "nearby areas" prompt instead of a clean dismiss.
+        event.preventDefault();
         if (safeActive >= 0) {
           setActiveIndex(-1);
           return;
         }
-        closeToolbarPanel();
+        if (mode === "toolbar") {
+          setToolbarFocused(false);
+          return;
+        }
         onClose?.();
+        window.requestAnimationFrame(() => {
+          document.querySelector<HTMLElement>('[aria-label="Search the map"]')?.focus();
+        });
       }
     },
-    [activate, closeToolbarPanel, safeActive, items, onClose, onSubmitQuery],
+    [activate, mode, safeActive, items, onClose],
   );
 
   const pubStartIndex = suggestions.areas.length;
   const originNote =
     suggestions.origin === "user" ? "Distances from you" : "Distances from the map centre";
+  const liveAnnouncement =
+    showEmptyLine && announcedQuery === deferredTrimmed.toLocaleLowerCase() ? NO_RESULTS_MESSAGE : "";
 
   return (
     <div className={`mapSearchSuggest mapSearchSuggest--${mode}`}>
       <SearchField
         id={id}
         role="combobox"
-        aria-expanded={showPanel && items.length > 0}
+        aria-expanded={showPanel}
         aria-controls={listboxId}
+        aria-describedby={showEmptyLine ? emptyStateId : undefined}
         aria-autocomplete="list"
         aria-activedescendant={safeActive >= 0 ? optionId(safeActive) : undefined}
+        aria-busy={!querySettled}
         value={query}
         onChange={changeQuery}
         onFocus={() => setToolbarFocused(true)}
@@ -283,12 +331,33 @@ export default function MapSearchSuggest({
               </div>
             ) : null}
 
+            {/* Empty state lives inside the listbox so the combobox panel keeps a
+                non-zero accessible surface on a miss (Enter must not collapse it). */}
             {showEmptyLine ? (
-              <p className="mapSearchSuggestEmpty">Nothing matching that. Try an area like Soho.</p>
+              <div
+                id={emptyStateId}
+                className="mapSearchSuggestEmpty"
+                data-testid="map-search-no-results"
+                role="presentation"
+              >
+                <p className="mapSearchSuggestEmptyTitle">{NO_RESULTS_MESSAGE}</p>
+                <p className="mapSearchSuggestEmptyHint">
+                  Try Soho, Willesden, or The Crown. Clear search to see every Venue.
+                </p>
+              </div>
             ) : null}
           </div>
         </div>
       ) : null}
+      <p
+        className="mapSearchSuggestLive sr-only"
+        role="status"
+        aria-live="polite"
+        aria-atomic="true"
+        data-testid="map-search-no-results-live"
+      >
+        {liveAnnouncement}
+      </p>
     </div>
   );
 }

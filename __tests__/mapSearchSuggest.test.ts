@@ -113,7 +113,22 @@ describe("buildMapSearchSuggestions — the as-you-type popup model", () => {
     expect(camdens[0].kind).toBe("area");
   });
 
-  it("matches pubs by name and caps the group", () => {
+  it("returns one exact Venue without inventing companion rows", () => {
+    const result = buildMapSearchSuggestions({
+      cityId: "london",
+      query: "only arms",
+      venues: [
+        venue({ id: "only", name: "The Only Arms" }),
+        venue({ id: "other", name: "Different Tavern" }),
+      ],
+      userLocation: null,
+      mapCenter: CENTRE,
+    });
+    expect(result.areas).toHaveLength(0);
+    expect(result.pubs.map((pub) => pub.id)).toEqual(["only"]);
+  });
+
+  it("matches many Venues by name and caps the group", () => {
     const venues = Array.from({ length: 10 }, (_, i) =>
       venue({ id: `crown-${i}`, name: `The Crown ${i}`, latitude: 51.51 + i * 0.001, longitude: -0.13 }),
     );
