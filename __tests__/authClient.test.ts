@@ -45,10 +45,15 @@ describe("browser auth client", () => {
     vi.stubEnv("NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY", "publishable-key");
     const client = { auth: { getSession: vi.fn() } };
     createClient.mockReturnValue(client);
-    const { getSupabaseBrowser, isAuthConfigured } = await loadAuthClient();
+    const { ensureSupabaseBrowser, getSupabaseBrowser, isAuthConfigured } = await loadAuthClient();
 
     expect(isAuthConfigured()).toBe(true);
-    expect(getSupabaseBrowser()).toBe(client);
+    // The sync accessor is null until the lazily-imported client resolves.
+    expect(getSupabaseBrowser()).toBeNull();
+    // Awaiting loads the supabase-js chunk once and memoizes the single client.
+    await expect(ensureSupabaseBrowser()).resolves.toBe(client);
+    await expect(ensureSupabaseBrowser()).resolves.toBe(client);
+    // Now the sync accessor mirrors the warmed client.
     expect(getSupabaseBrowser()).toBe(client);
     expect(createClient).toHaveBeenCalledOnce();
     expect(createClient).toHaveBeenCalledWith(

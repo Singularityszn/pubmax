@@ -52,6 +52,9 @@ export function subscribeToMessages(
   if (!conversationId) return () => {};
   const poll = options?.poll;
 
+  // supabase-js loads lazily (dynamic import): a cold-cache subscribe sees null
+  // here and polls until the client warms (AuthProvider primes it per route
+  // mount), then a resubscribe upgrades to realtime — same graceful poll fallback.
   const supabase = getSupabaseBrowser();
   if (!supabase || !isAuthConfigured()) {
     if (!poll) return () => {};
