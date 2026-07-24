@@ -92,6 +92,13 @@ import {
   shouldRecoverPaint,
 } from "@/lib/mapPaintWatchdog";
 import { classifyTileFailure, pruneTileFailures } from "@/lib/mapTileFailure";
+import {
+  CONTEXT_LOST_RECOVERY_MS,
+  contextHealthAction,
+  isMapWebGlContextLost,
+  snapshotMapCamera,
+  type MapCameraSnapshot,
+} from "@/components/map/canvas/webglRecovery";
 
 
 type PubMapCanvasProps = {
@@ -401,6 +408,21 @@ export default function PubMapCanvas({
   // constructor throw) and again on the user's Retry click. The cleanup fully
   // tears the map down, so each bump is a clean re-init.
   const [initAttempt, setInitAttempt] = useState(0);
+  // Soft, non-destructive retry chip for recoverable basemap failures (dead
+  // WebGL after iOS app-switch, accumulated tile errors after first paint).
+  // Keeps DOM overlays alive instead of replacing the whole canvas with the
+  // full fallback card — silent grey is the defect we refuse to ship.
+  const [softRetry, setSoftRetry] = useState<{
+    kind: "context-lost" | "tiles";
+    message: string;
+  } | null>(null);
+  // Camera snapshot restored after a context-loss re-init so selection/camera
+  // state survives the tear-down (selection is React state; camera is MapLibre).
+  const recoveryViewRef = useRef<MapCameraSnapshot | null>(null);
+  // Component-scoped budget: one silent auto re-init per dead-context episode.
+  // Construct-scoped flags reset on every effect re-run and would loop forever
+  // if the new canvas is also dead. User Retry (soft toast / full card) resets.
+  const contextAutoReinitSpentRef = useRef(false);
   const [activeLandmark, setActiveLandmark] = useState<Landmark | null>(() =>
     initialLandmarkId ? landmarkById(initialLandmarkId) ?? null : null,
   );
@@ -889,6 +911,30 @@ export default function PubMapCanvas({
     }
     map.addControl(new maplibregl.NavigationControl({ visualizePitch: true }), "top-right");
     mapRef.current = map;
+    // Context-loss re-init: restore the pre-teardown camera so selection fly-ins
+    // and the user's place on the map survive the rebuild. Selection/landmark
+    // state is React-owned and already live across the effect re-run.
+    const pendingRecovery = recoveryViewRef.current;
+    if (pendingRecovery) {
+      recoveryViewRef.current = null;
+      const applyRecoveryCamera = () => {
+        try {
+          map.jumpTo({
+            center: pendingRecovery.center,
+            zoom: pendingRecovery.zoom,
+            pitch: pendingRecovery.pitch,
+            bearing: pendingRecovery.bearing,
+          });
+          map.triggerRepaint();
+        } catch {
+          /* ignore */
+        }
+      };
+      if (map.loaded()) applyRecoveryCamera();
+      else map.once("load", applyRecoveryCamera);
+    }
+    // A successful construct clears any soft-retry chip from the previous life.
+    queueMicrotask(() => setSoftRetry(null));
     const emitBounds = () => {
       if (!onBoundsChangeRef.current) return;
       const b = map.getBounds();
@@ -1335,6 +1381,9 @@ export default function PubMapCanvas({
     let tileRetrySpent = false;
     let tileFailureSurfaced = false;
     let tileRetryQueued = false;
+    // Declared here so the tile-error surface path can prefer soft toast once
+    // a real frame has painted (set true by the first-frame watchdog below).
+    let firstFrameSeen = false;
     map.on("error", (event) => {
       if (!styleLoaded) {
         swapToBasemapFallback();
@@ -1379,8 +1428,9 @@ export default function PubMapCanvas({
         return;
       }
       // surface: the bounded retry (or the budget) is spent and tiles are
-      // still failing. Same shape as the context-lost path: settle the scene
-      // state, stop the hang guard, and show the honest card with Retry.
+      // still failing. Prefer a soft toast once the basemap has painted so we
+      // never leave a silent grey canvas; fall back to the full card only when
+      // nothing ever drew (first paint never landed).
       tileFailureSurfaced = true;
       sceneSettled = true;
       clearTimeout(hangFailTimer);
@@ -1388,42 +1438,166 @@ export default function PubMapCanvas({
         critical,
         detail: message || undefined,
       });
-      queueMicrotask(() =>
+      queueMicrotask(() => {
+        if (firstFrameSeen) {
+          setSoftRetry({
+            kind: "tiles",
+            message: "Map tiles failed to load. Tap Retry to try again.",
+          });
+          return;
+        }
         reportMapError({
           kind: "tiles",
           message:
             "The map couldn't load its tiles right now. The pub list and crawl planner still work.",
           detail: message || "Tile source failure after style load",
-        }),
-      );
+        });
+      });
     });
 
-    // --- Post-init context loss. A GPU reset fires `webglcontextlost`; the
-    // browser usually restores within a frame or two (`webglcontextrestored`),
-    // and MapLibre repaints on its own — so a brief loss should stay silent.
-    // Only a loss that never restores leaves a permanently blank canvas, and
-    // that is worth surfacing. We give it a grace window, then fall back with an
-    // honest one-liner (and a Retry, which fully re-inits the map).
-    map.on("webglcontextlost", () => {
+    // --- Post-init context loss (iOS Safari P0).
+    // iOS kills WebGL on app-switch / restores bfcache pages with a dead canvas.
+    // MapLibre does not auto-recover → blank basemap + live DOM overlays.
+    // Policy (all inside the canvas module so #601's code-split stays intact):
+    //   (a) canvas `webglcontextlost` → preventDefault + schedule recovery;
+    //       `webglcontextrestored` → resize + triggerRepaint
+    //   (b) pageshow(persisted) + visibility→visible → isContextLost health
+    //       check; dead → tear down + re-init preserving camera (selection is
+    //       React state and survives the effect re-run)
+    //   (c) if re-init already spent and still dead → soft retry toast
+    let contextRecoveryTimer: ReturnType<typeof setTimeout> | undefined;
+    const surfaceSoftContextRetry = () => {
+      sceneSettled = true;
+      clearTimeout(hangFailTimer);
+      // Soft toast only — full mapError would unmount the canvas and hide the
+      // live DOM overlays the owner still sees after iOS app-switch. Retry on
+      // the toast re-inits; if construct fails, the honest full card still lands.
+      queueMicrotask(() => {
+        setSoftRetry({
+          kind: "context-lost",
+          message: "The map lost its graphics. Tap Retry to reload the basemap.",
+        });
+      });
+    };
+    const scheduleContextRecovery = (reason: string) => {
+      // Coalesce: canvas + map events fire together; don't stack timers.
+      if (contextRecoveryTimer) return;
       if (contextLostTimer) clearTimeout(contextLostTimer);
-      contextLostTimer = setTimeout(() => {
-        // Always surface — even after a successful first paint — and stop the
-        // hang timer so it can't race a second error card.
-        sceneSettled = true;
-        clearTimeout(hangFailTimer);
-        queueMicrotask(() =>
-          reportMapError({
-            kind: "context-lost",
-            message: "The map lost its graphics context and couldn't recover.",
-            detail: "WebGL context lost without restore",
-          }),
-        );
-      }, 4000);
-    });
-    map.on("webglcontextrestored", () => {
+      // Optimistic paint kick in case the browser is about to restore.
+      try {
+        map.resize();
+        map.triggerRepaint();
+      } catch {
+        // Context may already be unusable.
+      }
+      contextRecoveryTimer = setTimeout(() => {
+        contextRecoveryTimer = undefined;
+        if (mapRef.current !== map) return;
+        const lost = isMapWebGlContextLost(map);
+        const action = contextHealthAction({
+          contextLost: lost,
+          reinitAlreadySpent: contextAutoReinitSpentRef.current,
+        });
+        if (action === "repaint") {
+          try {
+            map.resize();
+            map.triggerRepaint();
+          } catch {
+            /* ignore */
+          }
+          if (containerRef.current) {
+            containerRef.current.dataset.webglRecovery = "restored";
+          }
+          return;
+        }
+        if (action === "reinit") {
+          contextAutoReinitSpentRef.current = true;
+          try {
+            recoveryViewRef.current = snapshotMapCamera(map);
+          } catch {
+            recoveryViewRef.current = null;
+          }
+          console.warn("[pubmap] webgl context dead - re-init preserving camera", {
+            reason,
+          });
+          if (containerRef.current) {
+            containerRef.current.dataset.webglRecovery = "reinit";
+          }
+          queueMicrotask(() => setInitAttempt((a) => a + 1));
+          return;
+        }
+        console.warn("[pubmap] webgl context dead after re-init - soft retry", {
+          reason,
+        });
+        if (containerRef.current) {
+          containerRef.current.dataset.webglRecovery = "soft-retry";
+        }
+        surfaceSoftContextRetry();
+      }, CONTEXT_LOST_RECOVERY_MS);
+      if (containerRef.current) {
+        containerRef.current.dataset.webglRecovery = "recovering";
+      }
+    };
+    const canvasEl = map.getCanvas();
+    const onCanvasContextLost = (event: Event) => {
+      // preventDefault keeps the browser willing to restore the context.
+      event.preventDefault();
+      scheduleContextRecovery("webglcontextlost");
+    };
+    const onCanvasContextRestored = () => {
+      if (contextRecoveryTimer) clearTimeout(contextRecoveryTimer);
+      contextRecoveryTimer = undefined;
       if (contextLostTimer) clearTimeout(contextLostTimer);
       contextLostTimer = undefined;
+      try {
+        map.resize();
+        map.triggerRepaint();
+      } catch {
+        /* ignore */
+      }
+      if (containerRef.current) {
+        containerRef.current.dataset.webglRecovery = "restored";
+      }
+    };
+    canvasEl.addEventListener("webglcontextlost", onCanvasContextLost, false);
+    canvasEl.addEventListener("webglcontextrestored", onCanvasContextRestored, false);
+    // MapLibre also emits these as map events; keep them as a secondary signal
+    // (some builds only fire one path). preventDefault only works on the DOM
+    // event above — map events are already past that.
+    map.on("webglcontextlost", () => {
+      scheduleContextRecovery("map-webglcontextlost");
     });
+    map.on("webglcontextrestored", () => {
+      onCanvasContextRestored();
+    });
+    if (containerRef.current) {
+      containerRef.current.dataset.webglRecovery = "listening";
+    }
+
+    // bfcache restore (pageshow.persisted) + tab-foreground: health-check the
+    // context. A dead canvas after iOS app-switch is the owner-reported defect.
+    const healthCheckOnForeground = (reason: string) => {
+      if (mapRef.current !== map) return;
+      const lost = isMapWebGlContextLost(map);
+      const action = contextHealthAction({
+        contextLost: lost,
+        reinitAlreadySpent: contextAutoReinitSpentRef.current,
+      });
+      if (action === "repaint") {
+        try {
+          map.resize();
+          map.triggerRepaint();
+        } catch {
+          /* ignore */
+        }
+        return;
+      }
+      scheduleContextRecovery(reason);
+    };
+    const onPageShow = (event: PageTransitionEvent) => {
+      if (event.persisted) healthCheckOnForeground("pageshow-bfcache");
+    };
+    window.addEventListener("pageshow", onPageShow);
 
     // --- First-painted-frame watchdog (see FIRST_FRAME_TIMEOUT_MS). A single
     // MapLibre "render" event proves the frame loop is alive and disarms it
@@ -1432,7 +1606,7 @@ export default function PubMapCanvas({
     // (with Retry: a re-init can recover a crashed GPU process). While the tab
     // is hidden the browser legitimately throttles rAF to zero, so a lapse
     // there just re-arms rather than crying wolf at a background tab.
-    let firstFrameSeen = false;
+    // (`firstFrameSeen` is declared above the tile-error handler.)
     let firstFrameTimer: ReturnType<typeof setTimeout> | undefined;
     const onFirstFrame = () => {
       firstFrameSeen = true;
@@ -1558,7 +1732,8 @@ export default function PubMapCanvas({
         stopPaintWatchdog();
       } else if (mapRef.current === map) {
         lastRenderAt = performance.now();
-        map.triggerRepaint();
+        // Health-check WebGL on every return to foreground (iOS app-switch).
+        healthCheckOnForeground("visibility-visible");
         startPaintWatchdog();
       }
     };
@@ -1700,6 +1875,10 @@ export default function PubMapCanvas({
       map.off("render", stampRender);
       stopPaintWatchdog();
       document.removeEventListener("visibilitychange", onPaintVisibility);
+      window.removeEventListener("pageshow", onPageShow);
+      canvasEl.removeEventListener("webglcontextlost", onCanvasContextLost);
+      canvasEl.removeEventListener("webglcontextrestored", onCanvasContextRestored);
+      if (contextRecoveryTimer) clearTimeout(contextRecoveryTimer);
       clearTimeout(fallbackTimer);
       if (hardFailTimer) clearTimeout(hardFailTimer);
       clearTimeout(hangFailTimer);
@@ -2283,9 +2462,11 @@ export default function PubMapCanvas({
               className="mapFallbackRetry"
               onClick={() => {
                 setMapError(null);
+                setSoftRetry(null);
                 setDetailOpen(false);
                 publishMapErrored(false);
                 publishMapReady(false);
+                contextAutoReinitSpentRef.current = false;
                 setInitAttempt((a) => a + 1);
               }}
             >
@@ -2303,6 +2484,26 @@ export default function PubMapCanvas({
   return (
     <div className="mapCanvasWrap" data-route-stops={route.length} data-venue-count={venues.length}>
       <div ref={containerRef} className="maplibreMap" />
+      {softRetry ? (
+        <div className="mapSoftRetry" role="status" data-kind={softRetry.kind}>
+          <span className="mapSoftRetryMessage">{softRetry.message}</span>
+          <button
+            type="button"
+            className="mapSoftRetryBtn"
+            onClick={() => {
+              setSoftRetry(null);
+              setMapError(null);
+              setDetailOpen(false);
+              publishMapErrored(false);
+              publishMapReady(false);
+              contextAutoReinitSpentRef.current = false;
+              setInitAttempt((a) => a + 1);
+            }}
+          >
+            Retry
+          </button>
+        </div>
+      ) : null}
       {/* Camera fit for the active city — not a city switcher (toolbar owns that). */}
       <div className="mapCameraControls" aria-label="Map camera controls">
         <button

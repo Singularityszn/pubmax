@@ -2453,6 +2453,59 @@ input[type="range"] {
   color: var(--brass);
 }
 
+/* Soft basemap retry chip — recoverable tile/WebGL failures after first paint.
+   Sits over the live canvas (DOM overlays stay) so we never leave silent grey. */
+.mapSoftRetry {
+  position: absolute;
+  left: 50%;
+  bottom: max(16px, env(safe-area-inset-bottom, 0px));
+  z-index: var(--z-map-camera, 20);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  max-width: min(360px, calc(100% - 24px));
+  padding: 10px 12px 10px 14px;
+  border: 1px solid color-mix(in srgb, var(--brass, #c4a35a) 55%, transparent);
+  border-radius: var(--radius-sm, 8px);
+  background: color-mix(in srgb, var(--ink-deep, #090806) 92%, transparent);
+  color: var(--paper, #faf8f5);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.28);
+  transform: translateX(-50%);
+  backdrop-filter: blur(8px);
+}
+[data-theme="light"] .mapSoftRetry {
+  background: color-mix(in srgb, var(--paper, #faf8f5) 94%, transparent);
+  color: var(--ink, #1a1814);
+  box-shadow: 0 8px 24px rgba(20, 16, 10, 0.12);
+}
+.mapSoftRetryMessage {
+  flex: 1;
+  font-size: 0.78rem;
+  line-height: 1.35;
+  color: inherit;
+}
+.mapSoftRetryBtn {
+  flex-shrink: 0;
+  padding: 5px 12px;
+  border: 1px solid var(--brass, #c4a35a);
+  border-radius: var(--radius-sm, 8px);
+  background: transparent;
+  color: inherit;
+  font-family: var(--serif, inherit);
+  font-weight: 600;
+  font-size: 0.78rem;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+}
+.mapSoftRetryBtn:hover {
+  background: var(--brass, #c4a35a);
+  color: var(--ink-deep, #090806);
+}
+.mapSoftRetryBtn:focus-visible {
+  outline: 2px solid var(--brass, #c4a35a);
+  outline-offset: 2px;
+}
+
 /* WebGL-failure fallback — a calm notice where the canvas would be. */
 .mapFallback {
   display: grid;
