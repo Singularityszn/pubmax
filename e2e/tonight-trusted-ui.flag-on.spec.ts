@@ -1,14 +1,14 @@
 import fs from "node:fs";
 import path from "node:path";
 
-import { expect, test, type Page, type Request } from "@playwright/test";
+import { expect, test, type Page } from "@playwright/test";
 
-// DAG L15 — Tonight trusted UI, flag-OFF shipped half. The default webServer
-// leaves PUBMAX_TONIGHT_GROUPING off, so every case here asserts shipped
-// behaviour with no runtime test.skip (L20 zero-skip contract). The flag-ON
-// half lives in tonight-trusted-ui.flag-on.spec.ts, run by the chromium-flag-on
-// project against a server built with PUBMAX_TONIGHT_GROUPING=1 (and
-// PUBMAX_TRUSTED_HANDOFF_INTENT_WRITE=1 for acceptance).
+// DAG L15 flag-ON half, split out of tonight-trusted-ui.spec.ts so neither half
+// needs a runtime test.skip (L20 zero-skip contract). This file runs ONLY in the
+// flag-on invocation: the chromium-flag-on project drives a server built with
+// PUBMAX_TONIGHT_GROUPING=1 and PUBMAX_TRUSTED_HANDOFF_INTENT_WRITE=1 (see the
+// flag-on run's documented env set + playwright.config webServer pass-through),
+// so every assertion below always executes.
 
 const SHOTS_DIR = path.join(process.cwd(), "e2e-shots", "tonight-trusted-ui");
 
@@ -41,14 +41,6 @@ async function mockWhatsOn(page: Page, body: WhatsOnBody = {}) {
   );
 }
 
-function trackWhatsOn(page: Page): string[] {
-  const urls: string[] = [];
-  page.on("request", (req: Request) => {
-    if (req.url().includes("/api/whats-on")) urls.push(req.url());
-  });
-  return urls;
-}
-
 async function openTonight(page: Page, viewport = { width: 390, height: 844 }) {
   await page.setViewportSize(viewport);
   await page.addInitScript(() => window.localStorage.setItem("pubmax-tour-v1-done", "1"));
@@ -73,51 +65,29 @@ async function shoot(page: Page, name: string) {
   await page.emulateMedia({ colorScheme: "light" });
 }
 
-test.describe("Tonight trusted UI (flag off / shipped)", () => {
-  test("keeps Deals/Music above the main list (shipped position)", async ({ page }) => {
+test.describe("Tonight trusted UI (flag on / canonical)", () => {
+  test("moves Deals/Music below the main list (main-list-first §4.11)", async ({ page }) => {
     await mockWhatsOn(page);
     await openTonight(page);
-    // Shipped order: the deals lane precedes the main list in the DOM.
-    const deals = page.locator(".dealsTonight").first();
-    await expect(deals).toBeVisible();
     const order = await page.evaluate(() => {
-      const d = document.querySelector(".dealsTonight");
       const l = document.querySelector('[data-testid="tonight-list"]');
-      return d && l ? d.compareDocumentPosition(l) & Node.DOCUMENT_POSITION_FOLLOWING : 0;
+      const d = document.querySelector(".dealsTonight");
+      return l && d ? l.compareDocumentPosition(d) & Node.DOCUMENT_POSITION_FOLLOWING : 0;
     });
-    expect(order).toBeTruthy(); // list FOLLOWS deals → deals above
-    await shoot(page, "flagoff");
+    expect(order).toBeTruthy(); // deals FOLLOWS list → deals below
+    await shoot(page, "flagon");
   });
 
-  test("loads the spine once — secondary lanes reuse, never self-fetch", async ({ page }) => {
-    const urls = trackWhatsOn(page);
+  test("accepting a Tonight Venue arrives at the map as src=tonight", async ({ page }) => {
     await mockWhatsOn(page);
     await openTonight(page);
-    await expect(page.getByTestId("tonight-list")).toBeVisible();
-    await page.waitForTimeout(500);
-    // The main list fetches window=tonight; the lanes must NOT self-fetch by kind.
-    expect(urls.filter((u) => /kind=deal|kind=music/.test(u))).toHaveLength(0);
-    expect(urls.filter((u) => u.includes("window=tonight")).length).toBe(1);
-  });
-
-  test("renders honest unknown freshness, never request time", async ({ page }) => {
-    await mockWhatsOn(page, { sourceFreshnessKind: "unknown", sourceObservedAt: null });
-    await openTonight(page);
-    await expect(page.getByText(/Freshness unknown · via what’s-on/i)).toBeVisible();
-    await expect(page.getByText(/Checked 24 Jul/i)).toHaveCount(0);
-  });
-});
-
-test.describe("Discover secondary lanes still self-fetch", () => {
-  test("the deals lane fetches its own spine on /discover (no host to reuse)", async ({ page }) => {
-    const urls = trackWhatsOn(page);
-    await mockWhatsOn(page);
-    await page.setViewportSize({ width: 390, height: 844 });
-    await page.addInitScript(() => window.localStorage.setItem("pubmax-tour-v1-done", "1"));
-    const response = await page.goto("/discover");
-    expect(response?.status()).toBe(200);
-    await page.waitForTimeout(800);
-    // On Discover the lanes have no host rows, so they self-fetch by kind.
-    expect(urls.some((u) => u.includes("kind=deal"))).toBe(true);
+    const accept = page.getByRole("button", { name: /Use this venue/i }).first();
+    await expect(accept).toBeVisible();
+    await accept.click();
+    await page.waitForURL(/\/map\?/);
+    const url = new URL(page.url());
+    expect(url.searchParams.get("accept")).toBe("1");
+    expect(url.searchParams.get("src")).toBe("tonight");
+    expect(url.searchParams.get("sel")).toMatch(/^venue-/);
   });
 });
