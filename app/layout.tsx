@@ -1,7 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Suspense } from "react";
 import { headers } from "next/headers";
-import { Space_Grotesk, Inter, JetBrains_Mono, Bungee } from "next/font/google";
+import { Space_Grotesk, Inter, JetBrains_Mono } from "next/font/google";
 import ConsentAwareVercelAnalytics from "@/components/ConsentAwareVercelAnalytics";
 import "./globals.css";
 import "./theme.css";
@@ -88,19 +88,12 @@ const dataMono = JetBrains_Mono({
   weight: ["400", "500", "700"],
 });
 
-// Party accent (docs/VIBE_LAYER_SPEC_2026-07-19.md): Bungee, the urban-signage
-// face — pub-sign register for the vibe layer. QUARANTINED by spec: 2-4 words
-// max, 20px+ only, letter-spaced caps; vibe chips, vibe stamps, share headlines
-// — never body, never navigation, never data. At most three component families
-// may reference var(--font-party) (enforced by __tests__/fontPartyContainment
-// .test.ts). Single 400 weight on purpose: no weight axis means no temptation
-// to use it as a text face.
-const partyFace = Bungee({
-  subsets: ["latin"],
-  variable: "--font-party",
-  display: "swap",
-  weight: "400",
-});
+// Party accent (Bungee) is no longer loaded globally: it moved to the
+// route-scoped app/fonts/partyFace.ts, imported only by /tonight and /pal (the
+// two surfaces that consume var(--font-party)). Every other route no longer
+// ships the display font. Consumers fall back via var(--font-party,
+// var(--font-display)) where the variable is unset. Containment is still
+// enforced by __tests__/fontPartyContainment.test.ts.
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://pubmaxxing.com"),
@@ -197,7 +190,7 @@ export default async function RootLayout({
     <html
       lang="en"
       suppressHydrationWarning
-      className={`${displayFace.variable} ${bodySans.variable} ${dataMono.variable} ${partyFace.variable}`}
+      className={`${displayFace.variable} ${bodySans.variable} ${dataMono.variable}`}
     >
       <head>
         {/* Perf (mobile map budget): the WebGL basemap streams its vector tiles,

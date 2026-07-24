@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 
+import { partyFace } from "@/app/fonts/partyFace";
 import TonightClient from "./TonightClient";
 
 // First-class "Tonight" screen. The client owns the PRIMARY What's-On spine
@@ -13,5 +14,11 @@ export const metadata: Metadata = {
 };
 
 export default function TonightPage() {
-  return <TonightClient />;
+  // Scope the party accent to this route: the wrapper only sets --font-party
+  // (display:contents adds no layout box; the custom property still inherits).
+  return (
+    <div className={partyFace.variable} style={{ display: "contents" }}>
+      <TonightClient />
+    </div>
+  );
 }
