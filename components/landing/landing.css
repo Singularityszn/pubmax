@@ -149,6 +149,42 @@
 }
 .lpHeroLede { max-width: 520px; margin: 25px 0 0; color: var(--ink-soft); font-size: clamp(16px, 1.6vw, 20px); line-height: 1.55; }
 .lpHeroActions { width: min(100%, 680px); margin-top: 30px; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); align-items: stretch; gap: 10px; }
+/* L19 flag-on hierarchy: one full-weight primary; Map + Plan as text actions
+   (not equal quiet buttons). Keeps Map/Plan reachable without competing. */
+.lp--findMyPint .lpHero {
+  /* Pull the dominant CTA into the first 900px screen without touching flag-off. */
+  padding-top: clamp(96px, 10vh, 124px);
+  padding-bottom: clamp(48px, 6vh, 72px);
+}
+.lp--findMyPint .lpHero h1 {
+  font-size: clamp(48px, 6.4vw, 88px);
+}
+.lp--findMyPint .lpHeroLede { margin-top: 18px; }
+.lpHeroActions--findMyPint {
+  width: min(100%, 420px);
+  margin-top: 22px;
+  grid-template-columns: 1fr;
+  gap: 14px;
+  align-items: start;
+}
+.lpHeroActions--findMyPint .lpButtonPrimary {
+  width: 100%;
+  /* Brass on on-accent is the house high-contrast primary. */
+  box-shadow: 0 16px 38px color-mix(in srgb, var(--brass) 28%, transparent);
+}
+.lpHeroSecondaryRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 22px;
+}
+.lpHeroSecondaryRow .lpTextLink {
+  color: var(--ink);
+  text-decoration: underline;
+  text-underline-offset: 4px;
+  font-weight: 650;
+}
+.lpHeroSecondaryRow .lpTextLink:hover { color: var(--brass); }
 .lpButton {
   min-height: 54px;
   padding: 0 16px;
@@ -307,6 +343,8 @@
   .lpNav { top: max(10px, env(safe-area-inset-top)); width: calc(100vw - 20px); min-height: var(--topbar-h, 52px); padding: 3px var(--topbar-pad-x, 10px); gap: 8px; border-radius: var(--topbar-radius, 14px); box-shadow: var(--topbar-shadow, var(--map-overlay-shadow-tight, 0 6px 16px rgba(0, 0, 0, 0.12))); }.lpWordmark { font-size: 12px; }
   .lpHero { padding: 106px var(--lp-pad) 64px; gap: 38px; }.lpHero::before { background: linear-gradient(180deg, color-mix(in srgb, var(--paper) 92%, transparent), var(--paper) 70%), url("/landing/hero-thames.jpg") center / cover; }
   .lpHero h1 { font-size: clamp(48px, 12.5vw, 56px); line-height: .94; }.lpHeroLede { max-width: 34ch; font-size: 16px; }.lpHeroActions { grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: stretch; }.lpHeroActions .lpButton:first-child { grid-column: 1 / -1; }.lpHeroActions .lpButton { width: 100%; padding-inline: 10px; font-size: 13px; }
+  /* L19 flag-on: keep single primary stack — no equal-weight Map/Plan pair. */
+  .lpHeroActions--findMyPint { width: 100%; max-width: none; grid-template-columns: 1fr; }.lpHeroActions--findMyPint .lpButton:first-child { grid-column: auto; }.lpHeroActions--findMyPint .lpButtonPrimary { width: 100%; font-size: 14px; }
   .lpLiveReadout { align-items: flex-start; flex-direction: column; gap: 8px; }
   .lpHeroMap::before { inset: -7px; border-radius: 27px; }.thamesHeroPhoto { min-height: 0; aspect-ratio: 4 / 5; border-radius: 22px; }.thamesHeroImg { object-position: 52% 50%; }.thamesHeroPinGlyph { width: 46px; height: 46px; }.thamesHeroPin:nth-child(n+5) { display: none; }
   /* Keep a compact category label on phones so the glyphs are named, not a
@@ -365,6 +403,7 @@
   .lpNavActions .authUserNav { display: none; }
   .lpHeroActions { grid-template-columns: 1fr; }
   .lpHeroActions .lpButton:first-child { grid-column: auto; }
+  .lpHeroActions--findMyPint { grid-template-columns: 1fr; }
 }
 
 @media (prefers-reduced-motion: reduce) {
