@@ -26,7 +26,23 @@ import { nearestVenueIds, nearbyVenuesForMap } from "@/lib/nearby";
 import { buildMapVenueListModel } from "@/lib/mapVenueList";
 import { useFocusTrap } from "@/lib/useFocusTrap";
 import { MOBILE_MEDIA_QUERY } from "@/lib/breakpoints";
-import PubMapCanvas from "@/components/PubMapCanvas";
+// Perf (mobile /map cold-open): MapLibre (~327 KB) lives only in PubMapCanvas
+// and its canvas helpers (donutClusters / useMapCamera). Keep it out of the
+// PubMap shell chunk so first paint is shell + skeleton; MapLibre parses after
+// the dynamic import resolves. Type-only maplibre imports stay static in
+// filters/interactions/buildScene. Loading fallback is a full-bleed map-shaped
+// plate matching the dark basemap so CLS stays 0 under the existing .mapLoading
+// overlay (same absolute inset stage).
+const PubMapCanvas = dynamic(() => import("@/components/PubMapCanvas"), {
+  ssr: false,
+  loading: () => (
+    <div
+      className="mapCanvasWrap mapCanvasSkeleton"
+      aria-hidden="true"
+      data-map-canvas="loading"
+    />
+  ),
+});
 import MobileMapShell from "@/components/mobile/MobileMapShell";
 import { Sheet } from "@/components/ui/sheet";
 import MobileTflPanel, { useMobileTflStatus } from "@/components/mobile/MobileTflPanel";
