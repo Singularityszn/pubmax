@@ -10,8 +10,21 @@ import { planViewModel } from "@/components/plan/planPresentation";
 import { routeStopsFromGenerated } from "@/components/plan/PlanComposer";
 import { parsePlanCapabilitySnapshot, planCapabilityEvent, readPlanCapabilitySnapshot } from "@/lib/planSessionCapability";
 import { setActivePlanRole } from "@/lib/activePlan";
-import { buildInvitePrivacyPreview } from "@/lib/invitePrivacyPreview";
+import { buildInvitePrivacyPreview, type InvitePrivacyPreviewDTO } from "@/lib/invitePrivacyPreview";
+import type { PlanPrivacyPreviewDTO } from "@/lib/planPrivacy";
 import type { VibeTally } from "@/lib/vibeTally";
+
+/** Map the §4.10 preview onto the existing preview component's DTO. */
+function toInvitePreview(preview: PlanPrivacyPreviewDTO): InvitePrivacyPreviewDTO {
+  return {
+    hostName: preview.hostDisplayName,
+    areaName: preview.areaName,
+    startLabel: preview.startLabel,
+    stopCount: preview.stopCount,
+    vibeLabel: preview.vibeLabel,
+    accessibilitySummary: preview.accessibilitySummary,
+  };
+}
 
 type RouteRevision = string | number;
 type RouteAlternative = { venueId: string; venueName: string };
@@ -177,7 +190,54 @@ function canonicalStateFromBody(value: unknown): PlanState | null {
   return null;
 }
 
-export default function PlanSummary({ planId, state, vibeTally }: { planId: string; state: PlanState; vibeTally?: VibeTally | null }) {
+/**
+ * §4.10 boundary: the server never embeds the route in this component's props.
+ * The page passes only the privacy-safe preview; a member's full state is
+ * fetched on mount from the capability-gated /api/plans/[id] (which returns the
+ * raw PlanState only for a valid host/guest with the flag on, else the preview).
+ * Until — or unless — that member state arrives, only the redacted preview renders.
+ */
+export default function PlanSummary({
+  planId,
+  initialPreview,
+  vibeTally,
+}: {
+  planId: string;
+  initialPreview: PlanPrivacyPreviewDTO;
+  vibeTally?: VibeTally | null;
+}) {
+  const [state, setState] = useState<PlanState | null>(null);
+  useEffect(() => {
+    let active = true;
+    fetch(`/api/plans/${planId}`, { cache: "no-store" })
+      .then((response) => (response.ok ? response.json() : null))
+      .then((body) => {
+        const canonical = canonicalStateFromBody(body);
+        if (active && canonical) setState(canonical);
+      })
+      .catch(() => undefined);
+    return () => {
+      active = false;
+    };
+  }, [planId]);
+
+  if (!state) {
+    return (
+      <section className="planSummary" aria-labelledby="plan-stops-title">
+        <div className="planSummary__rail" aria-hidden="true" />
+        <div className="planSummary__heading">
+          <p className="planPage__eyebrow">First pint · {initialPreview.startLabel}</p>
+          <h2 id="plan-stops-title">The route</h2>
+        </div>
+        <InvitePrivacyPreview preview={toInvitePreview(initialPreview)} />
+      </section>
+    );
+  }
+
+  return <PlanSummaryMember planId={planId} state={state} vibeTally={vibeTally} />;
+}
+
+function PlanSummaryMember({ planId, state, vibeTally }: { planId: string; state: PlanState; vibeTally?: VibeTally | null }) {
   const view = planViewModel(state);
   const tokenEvent = planCapabilityEvent(planId);
   const pendingEvent = `pubmax:pending-route:${planId}`;

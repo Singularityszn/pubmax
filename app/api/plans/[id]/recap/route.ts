@@ -4,13 +4,35 @@ import { callerUserId } from "@/lib/authServer";
 import { createNightMemoryFromPlanRecap } from "@/lib/nightMemoryStore";
 import { isPlanId } from "@/lib/plan";
 import { planMemberCapability } from "@/lib/planMemberCapability";
-import { planCompletionResult, planMemberIdentityResult } from "@/lib/planStore";
+import { planCompletionResult, planMemberIdentityResult, planStore } from "@/lib/planStore";
+import { resolvePlanProjection } from "@/lib/planPrivacyBoundary.server";
+import { assembleMemberRecap } from "@/lib/planRecapView.server";
 import { validatePendingPlanRecap } from "@/lib/planRecap";
 
 type Context = { params: Promise<{ id: string }> };
 
 function error(error: string, code: string, status: number, retryable = false): Response {
   return publicApiError(error, code, status, { retryable });
+}
+
+/**
+ * §4.10: the full recap (route venue names, pints logged, the user title) is
+ * returned ONLY to a viewer whose request carries a valid host/guest capability
+ * with member rehydration enabled. Everyone else gets a preview shell with no
+ * route, venue, pint, or title — exactly like the main Plan projection.
+ */
+export async function GET(request: Request, context: Context): Promise<Response> {
+  const { id } = await context.params;
+  if (!isPlanId(id)) return error("That Plan doesn't exist.", "PLAN_NOT_FOUND", 404);
+  const state = await planStore().get(id);
+  if (!state) return error("That Plan doesn't exist.", "PLAN_NOT_FOUND", 404);
+  const projection = await resolvePlanProjection({ request, planId: id, state });
+  if (projection.visibility !== "member") {
+    return jsonNoStore({ visibility: "preview", stopCount: state.stops.length }, { status: 200 });
+  }
+  const assembly = await assembleMemberRecap(id);
+  if (!assembly) return error("That Plan doesn't exist.", "PLAN_NOT_FOUND", 404);
+  return jsonNoStore({ visibility: "member", ...assembly }, { status: 200 });
 }
 
 export async function POST(request: Request, context: Context): Promise<Response> {
