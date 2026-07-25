@@ -803,23 +803,6 @@
     "confidence": "medium"
   },
   {
-    "id": "conor-mcgregor",
-    "name": "Conor McGregor",
-    "kind": "person",
-    "knownFor": "UFC fighter and whiskey founder",
-    "drink": "Proper No. Twelve Irish whiskey",
-    "drinkCategory": "whisky",
-    "why": "He founded, chairs and majority-owns Proper No. Twelve, named for Dublin 12 where he grew up, and made it the whiskey he pours in public.",
-    "sourceUrl": "https://vinepair.com/articles/conor-mcgregor-irish-whiskey/",
-    "sourceName": "VinePair",
-    "observedAt": "2026-07-25",
-    "ingredients": [
-      "Irish whiskey"
-    ],
-    "howToOrder": "Proper Twelve, neat.",
-    "confidence": "high"
-  },
-  {
     "id": "cristiano-ronaldo",
     "name": "Cristiano Ronaldo",
     "kind": "person",
@@ -1122,21 +1105,6 @@
     ],
     "howToOrder": "A doppio macchiato.",
     "confidence": "high"
-  },
-  {
-    "id": "hugh-hefner",
-    "name": "Hugh Hefner",
-    "kind": "person",
-    "knownFor": "Playboy founder",
-    "drink": "Pepsi",
-    "drinkCategory": "other",
-    "why": "He stopped drinking alcohol around 1970 and switched to Pepsi, which staff say he got through by the dozens of bottles a day at the Mansion.",
-    "sourceUrl": "https://en.wikipedia.org/wiki/Hugh_Hefner",
-    "sourceName": "Wikipedia",
-    "observedAt": "2026-07-25",
-    "ingredients": [],
-    "howToOrder": "A Pepsi, please.",
-    "confidence": "medium"
   },
   {
     "id": "hunter-s-thompson",
@@ -1481,21 +1449,6 @@
     "observedAt": "2026-07-25",
     "ingredients": [],
     "howToOrder": "A pint of ale.",
-    "confidence": "medium"
-  },
-  {
-    "id": "mark-zuckerberg",
-    "name": "Mark Zuckerberg",
-    "kind": "person",
-    "knownFor": "Meta founder",
-    "drink": "Non-alcoholic beer",
-    "drinkCategory": "other",
-    "why": "Two decades on from the Heineken keg that marked Facebook's three millionth user, his public endorsement is blunt: 'Athletic Brewing is so good'.",
-    "sourceUrl": "https://nabeerclub.com/mark-zuckerberg-non-alcoholic-beer/",
-    "sourceName": "NA Beer Club",
-    "observedAt": "2026-07-25",
-    "ingredients": [],
-    "howToOrder": "An alcohol-free beer.",
     "confidence": "medium"
   },
   {
@@ -1927,25 +1880,6 @@
     ],
     "howToOrder": "A pint of Guinness.",
     "confidence": "high"
-  },
-  {
-    "id": "walt-disney",
-    "name": "Walt Disney",
-    "kind": "person",
-    "knownFor": "Disney co-founder",
-    "drink": "Scotch Mist",
-    "drinkCategory": "whisky",
-    "why": "His signature order at the Tam O'Shanter, the studio's unofficial commissary, was a Scotch Mist: whisky over crushed ice with a lemon twist.",
-    "sourceUrl": "https://www.morticianinthekitchen.com/there-will-be-spirits/walt-disney-and-the-tam-oshanter",
-    "sourceName": "Mortician in the Kitchen",
-    "observedAt": "2026-07-25",
-    "ingredients": [
-      "Scotch whisky",
-      "crushed ice",
-      "lemon twist"
-    ],
-    "howToOrder": "A Scotch Mist: whisky over crushed ice, lemon twist.",
-    "confidence": "medium"
   },
   {
     "id": "warren-buffett",
