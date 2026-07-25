@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Check, Tag } from "lucide-react";
 
 import {
-  communityStampLabel,
+  formatPriceDay,
   COMMUNITY_PRICE_MAX_GBP,
   DEFAULT_SUBMIT_CATEGORY,
   submitCategoryLabel,
@@ -81,8 +81,10 @@ export default function VenuePriceSubmit({
 
   // The venue's price on record leads the chips - one tap on the likeliest
   // answer beats typing, and a correction is usually a few pence away from it.
+  // Three fit one row at 390px; a fourth wraps and the block stops reading as
+  // a single row of shortcuts.
   const quickPrices = useMemo(
-    () => mergePriceChips(QUICK_ADD_PRICES_GBP, baselinePriceGbp).slice(0, 4),
+    () => mergePriceChips(QUICK_ADD_PRICES_GBP, baselinePriceGbp).slice(0, 3),
     [baselinePriceGbp],
   );
 
@@ -199,8 +201,11 @@ export default function VenuePriceSubmit({
         <p className="vpsubStamp" role="status">
           <Check size={14} aria-hidden="true" className="vpsubStampTick" />
           <strong className="vpsubStampPrice">{formatPrice(stamped.priceGbp)}</strong>
+          {/* The provenance word ("community") is already on the dated row in
+              the price block above, so the receipt only has to say that the
+              tap landed, and when. */}
           <span className="vpsubStampMeta">
-            On the map · {communityStampLabel(stamped.submittedAt)}
+            On the map · {formatPriceDay(stamped.submittedAt)}
           </span>
         </p>
       ) : (

@@ -63,6 +63,10 @@
   overflow-x: auto;
   scrollbar-width: none;
   -webkit-overflow-scrolling: touch;
+  /* Fade the trailing edge so a chip cut by the viewport reads as "there is
+     more, scroll" rather than as a clipped, broken label. */
+  mask-image: linear-gradient(to right, #000 calc(100% - 28px), transparent);
+  -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 28px), transparent);
 }
 
 .vpsubCats::-webkit-scrollbar {
@@ -125,10 +129,17 @@
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--brass) 18%, transparent);
 }
 
+/* The mono data face leaves an exaggerated decimal gap at this size on mobile
+   ("£4. 20"), the same defect venuePriceStory.css documents for its own large
+   prices. Use the app text face with tabular numerals so the figure still
+   aligns column-wise without the gap. */
 .vpsubCurrency {
-  font-family: var(--font-data);
+  font-family: var(--font-body);
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum" 1, "kern" 0;
   font-size: 1.25rem;
   font-weight: 700;
+  letter-spacing: -0.01em;
   color: var(--ink-soft);
 }
 
@@ -140,11 +151,11 @@
   border: 0;
   background: transparent;
   color: var(--ink);
-  /* The price is a data stamp, so it wears the mono face at full size - the
-     figure you type is the figure the map will carry. 16px+ keeps iOS from
-     zooming the viewport on focus. */
-  font-family: var(--font-data);
+  /* Matches .vpsubCurrency: text face, tabular numerals, no mono decimal gap.
+     16px+ keeps iOS from zooming the viewport on focus. */
+  font-family: var(--font-body);
   font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum" 1, "kern" 0;
   font-size: 1.25rem;
   font-weight: 700;
   letter-spacing: -0.01em;
@@ -201,8 +212,9 @@
   border-radius: var(--radius-pill, 999px);
   background: transparent;
   color: var(--ink-soft);
-  font-family: var(--font-data);
+  font-family: var(--font-body);
   font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum" 1, "kern" 0;
   font-size: 0.82rem;
   font-weight: 700;
   cursor: pointer;
@@ -257,10 +269,12 @@
 }
 
 .vpsubStampPrice {
-  font-family: var(--font-data);
+  font-family: var(--font-body);
   font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum" 1, "kern" 0;
   font-size: 1.05rem;
   font-weight: 700;
+  letter-spacing: -0.01em;
   color: var(--ink);
 }
 
