@@ -112,10 +112,11 @@ export function createDonutClusterSync(
 
   const sync = () => {
     if (!map.getSource("pubs") || !map.getLayer("clusters")) return;
-    // D2 contract: the source stops aggregating past CLUSTER_MAX_ZOOM, so
-    // above it there are no cluster features to query — markers clear and the
-    // handoff to individual pins is unaffected by this module.
-    if (map.getZoom() > CLUSTER_MAX_ZOOM) {
+    // D2 contract: cluster features exist while floor(zoom) <= CLUSTER_MAX_ZOOM
+    // (MapLibre serves cluster tiles through the whole 13.x band and dissolves
+    // them at CLUSTER_MAX_ZOOM + 1), so keep donuts live for that entire band —
+    // markers clear only once no cluster features remain to query.
+    if (map.getZoom() >= CLUSTER_MAX_ZOOM + 1) {
       deactivate();
       return;
     }
