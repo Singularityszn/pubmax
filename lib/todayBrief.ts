@@ -17,7 +17,7 @@
 // No em dashes or en dashes anywhere (product-copy rule extends to the strings
 // this module builds).
 
-import { evaluateDrinkWeather } from "@/lib/drinkWeather";
+import { evaluateDrinkWeather, type VenueLens } from "@/lib/drinkWeather";
 import { haversineKm } from "@/lib/haversine";
 import { sanitizeHeritageFacts, type HeritageFact } from "@/lib/heritageFacts";
 import { firstHttp } from "@/lib/httpUrl";
@@ -48,6 +48,9 @@ export type WeatherBrief = {
   verdictLine: string;
   /** Lower-case drink phrase, e.g. "a cold lager or cider". */
   drinkSuggestion: string;
+  /** The verdict's venue classification, so surfaces above the card (the /today
+   *  greeting) can phrase the same verdict without re-deriving one. */
+  venueLens: VenueLens;
   /** True once the observation has aged past its own expiry at `now`. */
   stale: boolean;
   /** "Checked 2 hours ago" (fresh) or "Last checked 3 days ago" (stale). */
@@ -114,6 +117,7 @@ export function buildWeatherBrief(
     conditionLabel: observation.condition.trim().toLocaleLowerCase("en-GB"),
     verdictLine: verdict.line,
     drinkSuggestion: verdict.drinkSuggestion,
+    venueLens: verdict.venueLens,
     stale,
     checkedLabel: `${stale ? "Last checked" : "Checked"} ${relative}`,
     source: { publisher: observation.source.publisher, url: observation.source.sourceUrl },
