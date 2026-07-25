@@ -19,8 +19,11 @@ import SaveToListControl from "@/components/savedpubs/SaveToListControl";
 import NextBadgeChips from "@/components/profile/NextBadgeChips";
 import FirstDropNudge from "@/components/map/inspector/FirstDropNudge";
 import VenuePriceSubmit from "@/components/map/VenuePriceSubmit";
-import { communityStampLabel } from "@/lib/communityPrice";
-import type { CommunityPricesState } from "@/components/map/useCommunityPrices";
+import { communityStampLabel, submitCategoryLabel } from "@/lib/communityPrice";
+import {
+  freshestCommunityPrice,
+  type CommunityPricesState,
+} from "@/components/map/useCommunityPrices";
 import VenueActionStrip from "@/components/map/VenueActionStrip";
 import CityPlaceStrip from "@/components/map/CityPlaceStrip";
 import VenueBuzz from "@/components/map/VenueBuzz";
@@ -89,8 +92,10 @@ export default function VenueOverviewTab({
     [venue.id, venue.name, venue.filterHints?.searchText, venue.filterHints?.cuisineTags],
   );
 
-  // The freshest community submission at this pub, across drink categories.
-  const communityPrice = communityPrices.freshestByVenueId.get(venue.id) ?? null;
+  // The freshest community submission at this pub, any drink category. The row
+  // names the drink, so a wine or cocktail figure can never read as the pint
+  // price - only beer submissions restamp the pin itself (freshestByVenueId).
+  const communityPrice = freshestCommunityPrice(communityPrices.byVenueId.get(venue.id));
 
   // Sourced attribution from mergePriceUpdates (optional field on the runtime
   // venue object). Absent when community is fresher or no refresh exists.
@@ -206,6 +211,7 @@ export default function VenueOverviewTab({
           </span>
           <strong>{formatPrice(communityPrice.priceGbp)}</strong>
           <small className="communityPriceStamp">
+            {submitCategoryLabel(communityPrice.drinkCategory)} ·{" "}
             {communityStampLabel(communityPrice.submittedAt)}
           </small>
           <small className="communityPriceNote">{COMMUNITY_PRICE_NOTE}</small>

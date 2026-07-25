@@ -89,6 +89,9 @@ export default function VenuePriceSubmit({
   );
 
   async function logPrice() {
+    // The Enter key reaches here even while the button is disabled; one
+    // submission at a time keeps the optimistic rollback snapshots coherent.
+    if (submitting) return;
     setError(null);
     const result = await submit({ venueId, drinkCategory: category, priceGbp: price });
     if (!result.ok) {

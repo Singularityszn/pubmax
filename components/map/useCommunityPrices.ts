@@ -27,7 +27,9 @@ export type CommunityPriceSubmitResult = { ok: true } | { ok: false; error: stri
 export type CommunityPricesState = {
   /** Freshest community price per drink category, by venue id. */
   byVenueId: Map<string, CommunityPrice[]>;
-  /** The single freshest community price at a venue - what the pin restamps to. */
+  /** The freshest BEER price at a venue - what the pin restamps to. Pins and
+   *  the list are pint-priced surfaces, so other categories never reach them;
+   *  they render on the sheet's own dated rows instead. */
   freshestByVenueId: Map<string, CommunityPrice>;
   /** Fetch the community prices on record for one venue (fail-soft, once per id). */
   loadVenue: (venueId: string) => void;
@@ -68,6 +70,28 @@ function readPrices(value: unknown): CommunityPrice[] {
     });
   }
   return out;
+}
+
+/** The freshest observation in a venue's per-category list, any drink. */
+export function freshestCommunityPrice(
+  rows: readonly CommunityPrice[] | undefined,
+): CommunityPrice | null {
+  if (!rows) return null;
+  return rows.reduce<CommunityPrice | null>(
+    (best, row) => (best === null || row.submittedAt > best.submittedAt ? row : best),
+    null,
+  );
+}
+
+/**
+ * The freshest BEER observation - the only category allowed to restamp a pin.
+ * Pin colours (priceBucket) and the hover price line are pint-oriented, so a
+ * £18 cocktail must never recolour a pin or read as the pub's pint price.
+ */
+export function freshestPintPrice(
+  rows: readonly CommunityPrice[] | undefined,
+): CommunityPrice | null {
+  return freshestCommunityPrice(rows?.filter((row) => row.drinkCategory === "beer"));
 }
 
 export function useCommunityPrices(): CommunityPricesState {
@@ -173,15 +197,12 @@ export function useCommunityPrices(): CommunityPricesState {
     [],
   );
 
-  // The single freshest observation per venue - what a pin can carry. Derived,
+  // The freshest beer observation per venue - what a pin can carry. Derived,
   // never stored, so it can't drift from the per-category lists.
   const freshestByVenueId = useMemo(() => {
     const freshest = new Map<string, CommunityPrice>();
     for (const [venueId, rows] of byVenueId) {
-      const top = rows.reduce<CommunityPrice | null>(
-        (best, row) => (best === null || row.submittedAt > best.submittedAt ? row : best),
-        null,
-      );
+      const top = freshestPintPrice(rows);
       if (top) freshest.set(venueId, top);
     }
     return freshest;

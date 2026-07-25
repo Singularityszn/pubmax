@@ -27,10 +27,11 @@
 --   • `drink_category` matches the closed DRINK_CATEGORIES union in
 --     lib/drinks.ts. Constrained here so a drifting client can never widen it.
 --   • `actor` is the server-derived hashed-IP token, or NULL when hashing was
---     unavailable. The partial unique index below lets one device REPLACE its
+--     unavailable. The unique constraint below lets one device REPLACE its
 --     own earlier observation for a drink (an upsert correction) rather than
 --     stacking rows, so one person can't weight a venue twice - while
---     anonymous (NULL-actor) rows stay insert-only, matching the memory store.
+--     anonymous (NULL-actor) rows stay insert-only, because NULLs never equal
+--     each other under a plain unique constraint, matching the memory store.
 --     Low-sensitivity, but raw tokens stay API-only - hence RLS with no policy.
 --   • The penny CHECK mirrors COMMUNITY_PRICE_MIN/MAX_GBP (£1 … £30) in
 --     lib/communityPrice.ts and the store's own envelope: three layers agreeing.
@@ -66,12 +67,23 @@ begin
 end $$;
 
 -- One live observation per (venue, drink, device) - the upsert conflict target
--- for an attributed correction. Partial so anonymous rows (actor is null) are
--- never collapsed together: two different phones behind a broken hash are two
--- observations, not one.
-create unique index if not exists community_prices_actor_key_idx
-  on public.community_prices (venue_id, drink_category, actor)
-  where actor is not null;
+-- (`onConflict: "venue_id,drink_category,actor"` in lib/communityPriceStore.ts).
+-- A full table constraint, not a partial index, because PostgREST's ON CONFLICT
+-- carries no index predicate, so only a constraint can arbitrate the upsert -
+-- the same reason 0025_price_confirms uses one. Anonymous rows (actor is null)
+-- are still never collapsed together: NULLs never equal each other under a
+-- plain unique constraint, so two different phones behind a broken hash stay
+-- two observations, not one.
+do $$
+begin
+  if not exists (
+    select 1 from pg_constraint where conname = 'community_prices_actor_key'
+  ) then
+    alter table public.community_prices
+      add constraint community_prices_actor_key
+      unique (venue_id, drink_category, actor);
+  end if;
+end $$;
 
 -- The hot read: every observation for one venue, newest first, reduced by the
 -- store to the freshest price per drink category.
