@@ -1,0 +1,302 @@
+/* "What's it tonight?" - the fast community price-submission card on the venue
+   sheet. Scoped to .venuePriceSubmit only; reuses the shared app tokens
+   (--brass, --brass-bright, --ink, --ink-soft, --line, --panel, --panel-raised,
+   --pint, --font-data, --radius-sm, --radius-pill) so it inherits Candle Coral
+   by day and Night Out by night without forking a single hex. Mobile-first:
+   every target clears 44px at 390px wide, and nothing here needs a hover. */
+
+/* The community price row in the venue price block. Reuses .contributorPrice
+   (app/globals.css) for layout and only re-tints it, so tonight's logged price
+   reads as the freshest line without becoming a different component. */
+.contributorPrice.communityPriceRow {
+  border-color: color-mix(in srgb, var(--brass) 34%, var(--line));
+  background: color-mix(in srgb, var(--brass) 8%, var(--panel-raised));
+}
+
+.contributorPrice.communityPriceRow strong {
+  color: var(--brass);
+}
+
+/* The dated half of the stamp - sits inline with the price, not on its own
+   line like the longer provenance note beneath it. */
+.contributorPrice.communityPriceRow .communityPriceStamp {
+  flex: 0 0 auto;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--brass);
+}
+
+.venuePriceSubmit {
+  margin-top: 16px;
+  padding: 14px;
+  border: 1px solid color-mix(in srgb, var(--brass) 22%, var(--line));
+  border-radius: var(--radius-lg, 18px);
+  background: color-mix(in srgb, var(--brass) 5%, var(--panel-raised));
+  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--panel-raised) 80%, transparent);
+}
+
+.vpsubHead {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  color: var(--brass);
+}
+
+.vpsubTitle {
+  margin: 0;
+  font-family: var(--font-display, var(--serif));
+  font-size: 1rem;
+  font-weight: 700;
+  line-height: 1.12;
+  color: var(--ink);
+}
+
+/* ── Drink category ───────────────────────────────────────────────────────── */
+/* A single scrolling row so five categories fit a 390px viewport without
+   wrapping into a second line that pushes the price field below the fold. */
+.vpsubCats {
+  display: flex;
+  gap: 6px;
+  margin: 11px 0 12px;
+  overflow-x: auto;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+}
+
+.vpsubCats::-webkit-scrollbar {
+  display: none;
+}
+
+.vpsubCat {
+  flex: 0 0 auto;
+  min-height: 38px;
+  padding: 8px 14px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-pill, 999px);
+  background: var(--panel-raised);
+  color: var(--ink-soft);
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition:
+    background-color 160ms ease,
+    border-color 160ms ease,
+    color 160ms ease,
+    transform 160ms cubic-bezier(0.34, 1.4, 0.64, 1);
+}
+
+.vpsubCat:active {
+  transform: scale(0.96);
+}
+
+.vpsubCatOn {
+  border-color: var(--brass);
+  background: linear-gradient(135deg, var(--brass), var(--brass-bright));
+  color: var(--color-on-accent, #fff);
+  font-weight: 700;
+}
+
+/* ── Price entry ──────────────────────────────────────────────────────────── */
+.vpsubEntry {
+  display: flex;
+  gap: 8px;
+  align-items: stretch;
+}
+
+.vpsubField {
+  display: flex;
+  align-items: center;
+  flex: 1 1 auto;
+  min-width: 0;
+  gap: 2px;
+  padding: 0 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md, 10px);
+  background: var(--panel-raised);
+  transition:
+    border-color 160ms ease,
+    box-shadow 160ms ease;
+}
+
+.vpsubField:focus-within {
+  border-color: var(--brass);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--brass) 18%, transparent);
+}
+
+.vpsubCurrency {
+  font-family: var(--font-data);
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--ink-soft);
+}
+
+.vpsubInput {
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 48px;
+  padding: 0 2px;
+  border: 0;
+  background: transparent;
+  color: var(--ink);
+  /* The price is a data stamp, so it wears the mono face at full size - the
+     figure you type is the figure the map will carry. 16px+ keeps iOS from
+     zooming the viewport on focus. */
+  font-family: var(--font-data);
+  font-variant-numeric: tabular-nums;
+  font-size: 1.25rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+.vpsubInput:focus {
+  outline: none;
+}
+
+.vpsubInput::placeholder {
+  color: color-mix(in srgb, var(--ink-soft) 45%, transparent);
+  font-weight: 600;
+}
+
+.vpsubLog {
+  flex: 0 0 auto;
+  min-height: 48px;
+  padding: 0 18px;
+  border: 1px solid var(--brass);
+  border-radius: var(--radius-pill, 999px);
+  background: linear-gradient(135deg, var(--brass), var(--brass-bright));
+  color: var(--color-on-accent, #fff);
+  font-size: 0.95rem;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 10px 22px color-mix(in srgb, var(--brass) 24%, transparent);
+  transition:
+    transform 160ms cubic-bezier(0.34, 1.4, 0.64, 1),
+    opacity 160ms ease;
+}
+
+.vpsubLog:active {
+  transform: scale(0.96);
+}
+
+.vpsubLog:disabled {
+  opacity: 0.45;
+  box-shadow: none;
+  cursor: default;
+}
+
+/* ── Quick-tap prices ─────────────────────────────────────────────────────── */
+.vpsubQuick {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 10px;
+}
+
+.vpsubQuickChip {
+  min-height: 34px;
+  padding: 6px 12px;
+  border: 1px dashed color-mix(in srgb, var(--ink-soft) 34%, var(--line));
+  border-radius: var(--radius-pill, 999px);
+  background: transparent;
+  color: var(--ink-soft);
+  font-family: var(--font-data);
+  font-variant-numeric: tabular-nums;
+  font-size: 0.82rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition:
+    border-color 160ms ease,
+    color 160ms ease,
+    transform 160ms cubic-bezier(0.34, 1.4, 0.64, 1);
+}
+
+.vpsubQuickChip:active {
+  transform: scale(0.94);
+}
+
+.vpsubQuickChip:hover {
+  border-style: solid;
+  border-color: var(--brass);
+  color: var(--brass);
+}
+
+/* ── Feedback ─────────────────────────────────────────────────────────────── */
+.vpsubError {
+  margin: 10px 0 0;
+  font-size: 0.84rem;
+  font-weight: 600;
+  color: var(--brick);
+}
+
+.vpsubNote {
+  margin: 10px 0 0;
+  font-size: 0.78rem;
+  line-height: 1.45;
+  color: var(--ink-soft);
+}
+
+/* The restamp: the price you just put on the map, wearing its own dated badge.
+   It scales in so the change reads as something YOU caused. */
+.vpsubStamp {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 12px 0 0;
+  padding: 9px 12px;
+  border: 1px solid color-mix(in srgb, var(--pint) 40%, var(--line));
+  border-radius: var(--radius-md, 10px);
+  background: color-mix(in srgb, var(--pint) 10%, var(--panel-raised));
+  animation: vpsubStampIn 320ms cubic-bezier(0.34, 1.4, 0.64, 1);
+}
+
+.vpsubStampTick {
+  flex: 0 0 auto;
+  color: var(--pint);
+}
+
+.vpsubStampPrice {
+  font-family: var(--font-data);
+  font-variant-numeric: tabular-nums;
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.vpsubStampMeta {
+  font-size: 0.76rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+}
+
+@keyframes vpsubStampIn {
+  from {
+    opacity: 0;
+    transform: scale(0.94) translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .vpsubStamp {
+    animation: none;
+  }
+
+  .vpsubCat,
+  .vpsubLog,
+  .vpsubQuickChip {
+    transition: none;
+  }
+
+  .vpsubCat:active,
+  .vpsubLog:active,
+  .vpsubQuickChip:active {
+    transform: none;
+  }
+}

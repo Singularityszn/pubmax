@@ -6,17 +6,19 @@ reviewed surface—even when a POST is semantically read-only. The regression te
 Adding a sixty-second mutating route or removing its authority/abuse boundary fails
 CI until this certification is deliberately updated.
 
-> **Inventory: 69 mutating routes.** The count grew 60 → 61 (email-capture
+> **Inventory: 70 mutating routes.** The count grew 60 → 61 (email-capture
 > `POST /api/email-subscribers`) → 62 (native `POST /api/push-tokens`) → 63 (the
 > Social Loop "we're out" `POST /api/check-ins`) → 64 (the vibe-vote
 > `POST /api/plans/[id]/vibe-votes`) → 65 (the area-demand capture
 > `POST /api/area-demand`) → 66 (the structured Visit Reports
 > `POST /api/visit-reports`) → 67 (author-confirmed alt text
 > `PATCH /api/night-moments/[id]/alt-text`) → 69 (the operator rail: `POST
-> /api/venue-operators/claim` and `POST /api/operator-proposals`). Token-gated GET
+> /api/venue-operators/claim` and `POST /api/operator-proposals`) → 70 (the
+> community price submission `POST /api/price-submit`). Token-gated GET
 > confirm/unsubscribe endpoints and read-only GETs (the Social Loop reads, the
 > vibe-vote tally read, the Visit Report per-venue summary read, the operator
-> own-claim / moderator queue reads) are deliberately excluded from the
+> own-claim / moderator queue reads, the community price-per-drink read) are
+> deliberately excluded from the
 > mutating-verb inventory. The number is a merge-conflict coordination point
 > across in-flight branches — reconcile it (not silently overwrite) when branches
 > meet.
@@ -364,6 +366,44 @@ commit.
   0048, RLS on, anon/authenticated revoked, service_role only); `truncate` is a
   safe reset. Fails soft to process-memory until 0048 lands
   (`lib/operatorProposalsStore.ts`); a hard write failure answers 503.
+
+### `app/api/price-submit` - community price submissions (route 70)
+
+- **Route / method:** `POST app/api/price-submit/route.ts` (`fm/price-submission`).
+  A drinker standing in the pub logs tonight's price for one drink category, and
+  the pin/card restamps. Sibling of `POST /api/price-confirm`, which only counts
+  vouches for an already-displayed figure; this is the first time a figure enters
+  the map from the community. The route also exports a read-only `GET` (the
+  freshest community price per drink at a venue) which is NOT a mutating verb and
+  is not counted.
+- **Validation:** `validateCommunityPrice` (`lib/communityPrice.ts`), the SAME
+  browser-safe validator the submit UI runs, so client and server can never
+  drift - `venueId` cleaned/capped at 64 chars, `drinkCategory` restricted to the
+  closed `DRINK_CATEGORIES` union, and `priceGbp` held to the plausible envelope
+  £1 - £30. Out-of-envelope or malformed input 400s with reader-facing copy before
+  the limiter or store is touched; the store re-checks the penny envelope and
+  migration 0054 adds the same CHECK, so three layers agree.
+- **Auth stance (deliberately anonymous):** identity is the server-derived
+  `hashActor(hashIp(clientIp))` token, exactly as `price-confirm` derives it, and
+  is NEVER trusted from the body. A body-supplied `submittedAt`/`source` is
+  ignored: the server stamps the clock and the `community` lane itself. No
+  account, no handle - a price at a bar must not require sign-up. The token is a
+  de-duplication key only and never leaves the store (`published()` strips it;
+  the durable read never selects the column).
+- **Rate limit (boundary):** durable `isLimited` keyed
+  `price-submit:${actor ?? "anon"}:${venueId}` - the same key shape as
+  `price-confirm`, so one device cannot spray prices across a venue. Exceed → 429.
+- **Provenance (the honesty boundary):** the route only ever APPENDS to
+  `community_prices`. It touches NOTHING in the versioned venue dataset, the
+  scraped price CSV, or `visit_reports` - a submission cannot overwrite a scraped
+  or sourced price. The venue sheet renders the community price on its own dated,
+  badged row ABOVE the price on record, which still renders untouched.
+- **Rollback / kill:** durable rows live in `public.community_prices` (migration
+  0054, RLS on, no anon/authenticated policy, service_role only); `truncate` is a
+  safe reset and cannot damage dataset prices. Until 0054 is applied the store
+  fails soft to process-memory OUTSIDE production (`onMissingDurableWrite` refuses
+  the ephemeral fallback in a deployed production instance), so keyless dev keeps
+  working; a hard durable write failure answers 503, never a fake success.
 
 ## Certification command
 

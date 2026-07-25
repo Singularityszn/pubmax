@@ -537,6 +537,12 @@ export function usePintDrops(cityId: CityId = "london") {
         hasPintDrops: boolean;
         dropCount: number;
         latestContributorPrice: number | null;
+        /**
+         * Epoch ms that contributor price was logged, or null. Carried so a
+         * freshest-wins merge (community price submissions) can tell which
+         * observation is actually newer instead of guessing.
+         */
+        latestContributorAt: number | null;
         /** Display-only demo price for pin colour when the slim index has null cheapestPrice. */
         latestDemoPrice: number | null;
       }
@@ -544,10 +550,15 @@ export function usePintDrops(cityId: CityId = "london") {
     for (const [venueId, venueDrops] of dropsByVenueId) {
       // Demo seeds never feed the "latest contributor price" signal — a seeded
       // price must not read as a community log.
-      const latestContributorPrice =
+      const latestContributorDrop =
         venueDrops.find(
           (drop) => drop.provenance !== "demo" && typeof drop.priceGbp === "number",
-        )?.priceGbp ?? null;
+        ) ?? null;
+      const latestContributorPrice = latestContributorDrop?.priceGbp ?? null;
+      const createdAtMs = latestContributorDrop
+        ? Date.parse(latestContributorDrop.createdAt)
+        : NaN;
+      const latestContributorAt = Number.isFinite(createdAtMs) ? createdAtMs : null;
       // Pin colour fallback only: when a city pack has null cheapestPrice,
       // a demo seed can still tint the pin. Never merges into venue.cheapestPrice.
       const latestDemoPrice =
@@ -560,6 +571,7 @@ export function usePintDrops(cityId: CityId = "london") {
         hasPintDrops: venueDrops.length > 0,
         dropCount: venueDrops.length,
         latestContributorPrice,
+        latestContributorAt,
         latestDemoPrice,
       });
     }

@@ -18,6 +18,9 @@ import {
 import SaveToListControl from "@/components/savedpubs/SaveToListControl";
 import NextBadgeChips from "@/components/profile/NextBadgeChips";
 import FirstDropNudge from "@/components/map/inspector/FirstDropNudge";
+import VenuePriceSubmit from "@/components/map/VenuePriceSubmit";
+import { communityStampLabel } from "@/lib/communityPrice";
+import type { CommunityPricesState } from "@/components/map/useCommunityPrices";
 import VenueActionStrip from "@/components/map/VenueActionStrip";
 import CityPlaceStrip from "@/components/map/CityPlaceStrip";
 import VenueBuzz from "@/components/map/VenueBuzz";
@@ -40,6 +43,7 @@ export default function VenueOverviewTab({
   mode,
   inCrawl,
   latestContributorPrice,
+  communityPrices,
   onToggleStop,
   presenceState,
   markPresenceHere,
@@ -55,6 +59,8 @@ export default function VenueOverviewTab({
   mode: CrawlMode;
   inCrawl: boolean;
   latestContributorPrice: number | null | undefined;
+  /** Community price layer - the dated submission row plus the submit card. */
+  communityPrices: CommunityPricesState;
   onToggleStop: (id: string) => void;
   presenceState: PresenceState;
   markPresenceHere: () => void;
@@ -82,6 +88,9 @@ export default function VenueOverviewTab({
       }),
     [venue.id, venue.name, venue.filterHints?.searchText, venue.filterHints?.cuisineTags],
   );
+
+  // The freshest community submission at this pub, across drink categories.
+  const communityPrice = communityPrices.freshestByVenueId.get(venue.id) ?? null;
 
   // Sourced attribution from mergePriceUpdates (optional field on the runtime
   // venue object). Absent when community is fresher or no refresh exists.
@@ -186,6 +195,22 @@ export default function VenueOverviewTab({
           <strong>Quiet hours:</strong> {quietHours}
         </p>
       ) : null}
+      {/* Tonight's community price sits ATOP the price on record, never
+          instead of it: its own row, its own dated badge, and the sourced /
+          baseline row below still renders untouched. A submission is an extra
+          dated observation - it never overwrites a scraped or sourced figure. */}
+      {communityPrice ? (
+        <div className="contributorPrice communityPriceRow">
+          <span>
+            <ClaimBadge kind="contributor" /> Logged by a Pubmaxxer
+          </span>
+          <strong>{formatPrice(communityPrice.priceGbp)}</strong>
+          <small className="communityPriceStamp">
+            {communityStampLabel(communityPrice.submittedAt)}
+          </small>
+          <small className="communityPriceNote">{COMMUNITY_PRICE_NOTE}</small>
+        </div>
+      ) : null}
       {/* Price honesty on overview: community override wins, then sourced
           observation, then baseline-on-record. Never imply a live feed. */}
       {latestContributorPrice !== null && latestContributorPrice !== undefined ? (
@@ -227,6 +252,17 @@ export default function VenueOverviewTab({
           onStartFirstDrop={onStartFirstDrop}
         />
       )}
+      {/* The submission loop itself: pick a drink, type tonight's price, and
+          the pin, the list row and the row above restamp on the same tap. */}
+      <VenuePriceSubmit
+        // Keyed by venue so the chosen drink, the typed price and the receipt
+        // never leak across pubs - this instance persists between selections.
+        key={venue.id}
+        venueId={venue.id}
+        venueName={venue.name}
+        communityPrices={communityPrices}
+        baselinePriceGbp={latestContributorPrice ?? venue.cheapestPrice}
+      />
       {mode === "build" ? (
         <button
           className="addStopBtn"

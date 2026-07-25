@@ -128,6 +128,8 @@ const MapConciergeAsk = dynamic(
 import { trackEvent } from "@/lib/analytics";
 import { writePreferredCity } from "@/lib/cityPreference";
 import { usePintDrops } from "@/components/map/usePintDrops";
+import { useCommunityPrices } from "@/components/map/useCommunityPrices";
+import { mergeCommunityPriceSignals } from "@/components/map/communityPriceSignals";
 import { useLiveDrops } from "@/components/map/useLiveDrops";
 import { useSheetDrag } from "@/components/map/useSheetDrag";
 import { useBuiltIdsPersistence } from "@/components/map/pubmap/useBuiltIdsPersistence";
@@ -570,8 +572,22 @@ export default function PubMap({
   // City-scoped so Manchester demo seeds colour Manchester pins without
   // leaking into the London feed/landing.
   const pintDrops = usePintDrops(cityId);
-  const { dropsByVenueId, venueSignals, refreshVenueDrops, closeComposer, setComposerOpen } =
-    pintDrops;
+  const {
+    dropsByVenueId,
+    venueSignals: dropSignals,
+    refreshVenueDrops,
+    closeComposer,
+    setComposerOpen,
+  } = pintDrops;
+  // Community price submissions ("tap a pub, log tonight's price"). Merging the
+  // freshest submission into the SAME venueSignals map the pins, the venue list
+  // and the sheet already read is the whole restamp: one merge here and every
+  // surface shows the price the viewer just logged, with no map-canvas change.
+  const communityPrices = useCommunityPrices();
+  const venueSignals = useMemo(
+    () => mergeCommunityPriceSignals(dropSignals, communityPrices.freshestByVenueId),
+    [dropSignals, communityPrices.freshestByVenueId],
+  );
   // Live map pins (issue #37): refetch the drops layer on a new-drop signal (or
   // a 30s poll when realtime is unavailable). Self-contained, signal-only.
   useLiveDrops(pintDrops.refreshAllDrops);
@@ -1972,12 +1988,17 @@ export default function PubMap({
         venue={selectedVenue}
         mode={mode}
         inCrawl={builtIds.includes(selectedVenue.id)}
-        latestContributorPrice={venueSignals.get(selectedVenue.id)?.latestContributorPrice}
+        // The UNMERGED drop signal on purpose: the sheet gives every source its
+        // own row, so the "Latest Pint Drop price" line must stay the Pint Drop
+        // price. The community submission gets its own dated row alongside it.
+        // Only the pins/list - which can show one number - take the merged one.
+        latestContributorPrice={dropSignals.get(selectedVenue.id)?.latestContributorPrice}
         onToggleStop={toggleBuiltStop}
         onSelectVenue={selectVenue}
         onAcceptStop1={flags.intentWrite ? acceptStop1 : undefined}
         initialTab={venueInitialTab}
         pintDrops={pintDrops}
+        communityPrices={communityPrices}
         onGrabDragStart={mobileViewport ? undefined : onSheetDragStart}
         onGrabDragMove={mobileViewport ? undefined : onSheetDragMove}
         onGrabDragEnd={mobileViewport ? undefined : onSheetDragEnd}
