@@ -159,7 +159,7 @@ async function fetchOverpass(query) {
   throw lastError ?? new Error("Overpass fetch failed");
 }
 
-/** Raw chunks are written compact: the full pull is ~45k elements across ~130
+/** Raw chunks are written compact: the full pull is ~38k elements across 132
  * files, and pretty-printing them would roughly quadruple what the repo carries
  * for zero readability gain on a machine-generated dump. */
 async function writeCompact(filePath, value) {

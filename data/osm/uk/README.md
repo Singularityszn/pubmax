@@ -19,9 +19,14 @@ data/osm/uk/
 ```
 
 `raw/` and `uk_osm_pubs.json` are written compact (no indentation) on purpose:
-the pull is ~45k elements over ~130 files, and pretty-printing multiplies what
+the pull is ~38k elements over 132 files, and pretty-printing multiplies what
 the repo carries for no readability gain on a machine-generated dump. The two
 small summary files stay pretty-printed.
+
+Current pull: **38,228 named pubs**, 66 of 132 cells carrying data (the rest are
+sea), **26 MB** on disk — inside the 100 MB budget this wave was given. Counts
+and the collection timestamp live in `chunks.json` / `uk_osm_pubs.json`; those
+files are the source of truth, not this paragraph.
 
 ## Refresh
 
