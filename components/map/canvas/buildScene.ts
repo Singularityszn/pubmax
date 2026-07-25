@@ -23,20 +23,55 @@ import {
   TRANSPORT_ICON_MATCH,
   TUBE_LINE_OFFSET_EXPR,
   pubIconOpacityExpr,
+  pinSortKeyExpr,
   PIN_ICON_SIZE_EXPR,
 } from "./filters";
 
-// Single source of truth for the cluster/uncluster boundary: the zoom at which
-// individual pins take over. The unclustered per-pub layers use it directly as
-// their `minzoom` floor; the pubs source clusters strictly BELOW it
-// (clusterMaxZoom = PIN_UNCLUSTER_ZOOM - 1, because MapLibre renders clusters
-// up to AND INCLUDING clusterMaxZoom — an equal value would draw cluster discs
-// and singleton pins together across the 12.x band). Isolated pubs sit outside
-// any cluster radius, so without the minzoom floor they paint as individual
-// pins at every zoom in BOTH themes ("pin soup" at city zoom); the dark
-// basemap just masked it. One constant, one clean handoff: below it, clusters
-// only; at/above it, clusters dissolve and pins appear together.
-export const PIN_UNCLUSTER_ZOOM = 12;
+// The two zooms that shape pub density. They are deliberately NOT the same
+// number any more:
+//
+//   PIN_MIN_ZOOM ......... floor for every unclustered per-pub layer. Isolated
+//                          pubs sit outside any cluster radius, so without this
+//                          floor they paint as individual pins at every zoom
+//                          ("pin soup" over the whole city).
+//   CLUSTER_MAX_ZOOM ..... last zoom at which the pubs source still aggregates
+//                          (MapLibre clusters up to AND INCLUDING this value).
+//
+// Between the two there is a deliberate mixed band (z12–z13): a dense pocket
+// stays one cluster disc while a pub with room around it resolves to its own
+// pin. That is the density rule this map now honours at every zoom — an
+// individual pin only appears where there is room for it — and it is what lets
+// the same layers carry a UK-wide (~45k point) source without the street-level
+// pile-up a hard "everything unclusters at z12" boundary produces.
+//
+// CLUSTER_MAX_ZOOM stays strictly below every camera zoom that targets a single
+// venue (selection flies to `max(zoom, 14)`), so a selected pub is always a
+// real pin and never hidden inside a cluster.
+export const PIN_MIN_ZOOM = 12;
+export const CLUSTER_MAX_ZOOM = 13;
+
+// Supercluster grouping radius in screen pixels. Sized off the widest cluster
+// disc this scene draws (radius 16 + stroke, see the `clusters` layer) so two
+// discs can never touch on a 390px-wide phone, with margin for the count label.
+export const CLUSTER_RADIUS_PX = 56;
+
+// `clusters` / `cluster-count` resting paint. Named because the entrance ramp
+// (PubMapCanvas) fades from 0 up to exactly these values and must restore them.
+export const CLUSTER_FILL_OPACITY = 0.94;
+export const CLUSTER_STROKE_OPACITY = 0.95;
+
+// Collision padding, in pixels, added around the cluster count's text box. A
+// circle layer contributes NOTHING to MapLibre's collision index, so without
+// this the disc is invisible to placement and neighbouring labels (landmark
+// names, basemap POIs) happily land on top of it. Padding the count's box out
+// to roughly the disc footprint makes the whole marker reserve its space.
+export const CLUSTER_COLLISION_PADDING = 10;
+
+// Zoom at/above which curated landmark pictograms stop yielding to other
+// symbols. Below it a landmark icon gives way where a pub cluster or pin
+// already occupies the spot; at/above it (the landmark-inspector camera flies
+// to 15) the curated icon is the hero and always draws.
+export const LANDMARK_ICON_PRIORITY_ZOOM = 14;
 
 export type SceneCtx = {
   map: maplibregl.Map;
@@ -350,9 +385,27 @@ export function buildLandmarks(ctx: SceneCtx) {
         17,
         1.5,
       ],
-      "icon-allow-overlap": true,
-      // Icons never yield to denser street labels at high zoom.
-      "icon-ignore-placement": true,
+      // Collision policy (owner mobile audit: "the names of the places are so
+      // close it looks janky"). Below the inspector band a landmark icon yields
+      // where a pub cluster/pin already holds the spot; from
+      // LANDMARK_ICON_PRIORITY_ZOOM up it always draws (Piccadilly Circus must
+      // read like the London Eye at inspector zoom). Either way the icon is now
+      // part of the collision index — `icon-ignore-placement: true` used to let
+      // it bulldoze every neighbouring label into a pile-up.
+      "icon-allow-overlap": [
+        "step",
+        ["zoom"],
+        false,
+        LANDMARK_ICON_PRIORITY_ZOOM,
+        true,
+      ],
+      "icon-ignore-placement": false,
+      "icon-padding": 4,
+      // Curation order is the collision priority: the catalog's earlier, more
+      // famous landmarks win a contested spot, and they win it the SAME way on
+      // every render (MapLibre's default is source order, which is not stable
+      // across tiles).
+      "symbol-sort-key": ["coalesce", ["get", "priority"], 999],
       "text-field": ["get", "name"],
       "text-font": textFont,
       "text-size": [
@@ -367,11 +420,22 @@ export function buildLandmarks(ctx: SceneCtx) {
         13,
       ],
       "text-letter-spacing": 0.04,
-      "text-offset": [0, 1.55],
-      "text-anchor": "top",
-      // Label may drop if crowded; the icon always stays.
+      // Below the pictogram by preference, but free to flip around it when that
+      // side is taken. Trying four sides before giving up keeps far more names
+      // on screen at city zoom than a fixed anchor, which can only drop.
+      "text-variable-anchor": ["top", "bottom", "left", "right"],
+      "text-radial-offset": 1.5,
+      "text-justify": "auto",
+      "text-max-width": 9,
+      // A crowded label DROPS; it never overprints its neighbour. Central
+      // London packs ~20 curated landmarks into one phone screen, so
+      // `text-allow-overlap: true` (the old value) guaranteed the pile of
+      // half-legible names the owner reported. `text-optional` keeps the icon
+      // when only the name has to go.
       "text-optional": true,
-      "text-allow-overlap": true,
+      "text-allow-overlap": false,
+      "text-ignore-placement": false,
+      "text-padding": 2,
     },
     paint: {
       "text-color": tokens.ink,
@@ -404,7 +468,10 @@ export function buildPois(ctx: SceneCtx) {
     layout: {
       "icon-image": TRANSPORT_ICON_MATCH,
       "icon-size": ["interpolate", ["linear"], ["zoom"], 9.5, 0.4, 13, 0.62, 16, 0.78],
-      "icon-allow-overlap": true,
+      // Major interchanges are the transit skeleton, but they still collide:
+      // two roundels stacked on one another read as a smudge, not a network.
+      "icon-allow-overlap": false,
+      "icon-padding": 2,
     },
   });
   addLayerOnce({
@@ -574,12 +641,13 @@ export function buildPubs(ctx: SceneCtx) {
       data: pubsData,
       cluster: true,
       // Mobile-first density: aggregate nearby venues into fewer, calmer
-      // clusters at city zoom. Drink silhouettes still appear at the same
-      // honest uncluster boundary once the user moves in.
-      clusterRadius: 42,
-      // -1: clusters render up to AND INCLUDING clusterMaxZoom, so this
-      // must sit one below the pin layers' minzoom or both draw at 12.x.
-      clusterMaxZoom: PIN_UNCLUSTER_ZOOM - 1,
+      // clusters, wide enough apart that two discs never touch on a phone.
+      clusterRadius: CLUSTER_RADIUS_PX,
+      // Clustering survives past the pin floor on purpose — see the
+      // PIN_MIN_ZOOM / CLUSTER_MAX_ZOOM note at the top of this file. A dense
+      // pocket keeps its disc through z13 while roomier pubs already resolve
+      // to their own pins, which is what keeps a UK-wide source legible.
+      clusterMaxZoom: CLUSTER_MAX_ZOOM,
       // M5 — per-cluster price-band mix for the donut markers
       // (components/map/canvas/donutClusters.ts). b0..b3 mirror
       // priceBucket() in geojson.ts (≤£5.50 / >£5.50–≤£7 / >£7 / no price —
@@ -599,7 +667,7 @@ export function buildPubs(ctx: SceneCtx) {
     id: "pubs-scraped-halo",
     type: "circle",
     source: "pubs",
-    minzoom: PIN_UNCLUSTER_ZOOM,
+    minzoom: PIN_MIN_ZOOM,
     filter: ["all", ["!", ["has", "point_count"]], ["get", "scraped"]],
     paint: {
       "circle-color": "rgba(0,0,0,0)",
@@ -616,7 +684,7 @@ export function buildPubs(ctx: SceneCtx) {
     id: "pubs-drops-halo",
     type: "circle",
     source: "pubs",
-    minzoom: PIN_UNCLUSTER_ZOOM,
+    minzoom: PIN_MIN_ZOOM,
     filter: ["all", ["!", ["has", "point_count"]], ["get", "drops"]],
     paint: {
       "circle-color": "rgba(0,0,0,0)",
@@ -637,7 +705,7 @@ export function buildPubs(ctx: SceneCtx) {
     id: "pubs-whatson-badge",
     type: "circle",
     source: "pubs",
-    minzoom: PIN_UNCLUSTER_ZOOM,
+    minzoom: PIN_MIN_ZOOM,
     filter: ["all", ["!", ["has", "point_count"]], ["has", "whatsOn"]],
     paint: {
       "circle-color": "rgba(0,0,0,0)",
@@ -673,7 +741,7 @@ export function buildPubs(ctx: SceneCtx) {
     id: "band-members-halo",
     type: "circle",
     source: "pubs",
-    minzoom: PIN_UNCLUSTER_ZOOM,
+    minzoom: PIN_MIN_ZOOM,
     filter: [
       "all",
       ["!", ["has", "point_count"]],
@@ -692,7 +760,7 @@ export function buildPubs(ctx: SceneCtx) {
     id: "pubs-point",
     type: "symbol",
     source: "pubs",
-    minzoom: PIN_UNCLUSTER_ZOOM,
+    minzoom: PIN_MIN_ZOOM,
     filter: ["!", ["has", "point_count"]],
     layout: {
       "icon-image": ["get", "icon"],
@@ -700,9 +768,21 @@ export function buildPubs(ctx: SceneCtx) {
       // (PubMapCanvas, right after settleSceneReady) this gets temporarily
       // overridden per-frame by pinEntranceIconSizeExpr, then restored here.
       "icon-size": PIN_ICON_SIZE_EXPR,
-      "icon-allow-overlap": true,
-      "icon-ignore-placement": true,
-      "icon-padding": 2,
+      // Pins collide like every other symbol on this map: where two drink
+      // silhouettes cannot both fit, one is dropped rather than smeared over
+      // the other. `icon-allow-overlap: true` (the old value) is what let a
+      // dense street render as a solid mass of half-hidden glyphs — and is what
+      // would make a ~45k-point UK source unreadable at street zoom.
+      "icon-allow-overlap": false,
+      "icon-ignore-placement": false,
+      // Padding covers the widest halo ring a pin can wear (scraped / drops /
+      // what's-on badges, radius ≤ 15px at z15) so those rings stay clear of
+      // the neighbouring pin too.
+      "icon-padding": 6,
+      // Placement priority when pins compete: the selected pin first (it is the
+      // one the user is looking at), then story pins, then priced pins, then
+      // the rest. Lower sort key = placed first = survives.
+      "symbol-sort-key": pinSortKeyExpr(selectedId),
     },
     paint: {
       // M1 selection spotlight: non-selected pins dim to SELECTION_DIM_OPACITY
@@ -721,7 +801,7 @@ export function buildPubs(ctx: SceneCtx) {
     id: "pubs-selected-glow",
     type: "circle",
     source: "pubs",
-    minzoom: PIN_UNCLUSTER_ZOOM,
+    minzoom: PIN_MIN_ZOOM,
     filter: ["==", ["get", "id"], selectedId],
     paint: {
       "circle-color": "rgba(0,0,0,0)",
@@ -738,7 +818,7 @@ export function buildPubs(ctx: SceneCtx) {
     id: "pubs-selected",
     type: "circle",
     source: "pubs",
-    minzoom: PIN_UNCLUSTER_ZOOM,
+    minzoom: PIN_MIN_ZOOM,
     filter: ["==", ["get", "id"], selectedId],
     paint: {
       "circle-color": "rgba(0,0,0,0)",
@@ -758,10 +838,14 @@ export function buildPubs(ctx: SceneCtx) {
       "circle-color": clusterCircleColorExpr(tokens, dark) as maplibregl.ExpressionSpecification,
       "circle-stroke-color": tokens.panelRaised,
       "circle-stroke-width": ["step", ["get", "point_count"], 1.25, 40, 1.5, 100, 1.75],
-      "circle-stroke-opacity": 0.95,
+      "circle-stroke-opacity": CLUSTER_STROKE_OPACITY,
       "circle-radius": ["step", ["get", "point_count"], 9, 25, 12, 100, 16],
       "circle-blur": ["step", ["get", "point_count"], 0.02, 40, 0.05, 100, 0.08],
-      "circle-opacity": 0.94,
+      "circle-opacity": CLUSTER_FILL_OPACITY,
+      // The entrance ramp fades these in from 0 (PubMapCanvas); a transition
+      // here would fight those per-frame writes exactly like the pin ramp's.
+      "circle-opacity-transition": { duration: 0, delay: 0 },
+      "circle-stroke-opacity-transition": { duration: 0, delay: 0 },
     },
   });
   addLayerOnce({
@@ -774,11 +858,22 @@ export function buildPubs(ctx: SceneCtx) {
       "text-font": textFont,
       "text-size": ["step", ["get", "point_count"], 9, 25, 10, 100, 11],
       "text-letter-spacing": 0.02,
+      // A disc without its number is worse than a tight fit, so the count
+      // always draws — but it is NOT invisible to placement: its padded box
+      // (CLUSTER_COLLISION_PADDING ≈ the disc footprint) is what makes every
+      // other label on the map, ours and the basemap's, keep off the disc.
+      "text-allow-overlap": true,
+      "text-ignore-placement": false,
+      "text-padding": CLUSTER_COLLISION_PADDING,
+      // Denser clusters win a contested spot.
+      "symbol-sort-key": ["-", 0, ["get", "point_count"]],
     },
     paint: {
       "text-color": dark ? tokens.ink : tokens.inkDeep,
       "text-halo-color": withAlpha(tokens.panelRaised, 0.75),
       "text-halo-width": 1,
+      "text-opacity": 1,
+      "text-opacity-transition": { duration: 0, delay: 0 },
     },
   });
 }
