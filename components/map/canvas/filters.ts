@@ -108,6 +108,40 @@ function pinIconSizeExpr(scale: PinIconSizeScale): maplibregl.ExpressionSpecific
 export const PIN_ICON_SIZE_EXPR: maplibregl.ExpressionSpecification = pinIconSizeExpr(1);
 
 /**
+ * pubs-point `symbol-sort-key` — placement priority now that pins collide
+ * instead of overlapping. MapLibre places the LOWEST sort key first, and a
+ * symbol that is placed keeps its spot, so this is the order in which pins
+ * survive a crowded street: the selected pin, then story pins (a band/crawl is
+ * telling you about them), then pins carrying a real price, then the rest.
+ * Ties fall back to MapLibre's own ordering.
+ */
+export function pinSortKeyExpr(selectedId: string): maplibregl.ExpressionSpecification {
+  const unselected: maplibregl.ExpressionSpecification = [
+    "case",
+    ["get", "story"],
+    1,
+    ["<", ["coalesce", ["get", "bucket"], 3], 3],
+    2,
+    3,
+  ];
+  if (!selectedId) return unselected;
+  return ["case", ["==", ["get", "id"], selectedId], 0, unselected];
+}
+
+/**
+ * Global 0→1 ease for the cluster entrance fade. Pub PINS stagger per feature
+ * (pinEntranceLocalT); cluster discs are few and large, so they share one
+ * eased ramp — enough to kill the "everything pops at once" flash without
+ * turning the city overview into a light show. Pure + unit-tested.
+ */
+export function clusterEntranceProgress(elapsedMs: number, totalMs: number): number {
+  if (!(totalMs > 0)) return 1;
+  const t = Math.max(0, Math.min(1, elapsedMs / totalMs));
+  // easeOutCubic — fast to mostly-there, then settles.
+  return 1 - Math.pow(1 - t, 3);
+}
+
+/**
  * pubs-point `icon-size` with the selected pin scaled up so it reads as the
  * pinpoint among neighbours. Deselect restores PIN_ICON_SIZE_EXPR.
  */

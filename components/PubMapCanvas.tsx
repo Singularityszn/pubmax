@@ -67,14 +67,17 @@ import {
   AMBIENT_CATEGORIES, poiFilter, transportFilter,
   TONIGHT_OPPORTUNITY_LAYERS, pubIconOpacityExpr, glowPulsePaint,
   pinEntranceIconSizeExpr, pinEntranceIconOpacityExpr,
-  selectedPinIconSizeExpr,
+  selectedPinIconSizeExpr, pinSortKeyExpr, clusterEntranceProgress,
 } from "@/components/map/canvas/filters";
 import {
   HOVER_CARD_VIEWPORT_GUTTER_PX, HOVER_CARD_WIDTH_PX, HOVER_CARD_HEIGHT_PX,
   HOVER_CARD_MIN_TOP_PX, HOVER_CARD_X_OFFSET_PX, HOVER_CARD_Y_OFFSET_PX,
   withBoundedHoverDetailCache, hoverImageUrlFor, hoverPriceLine,
 } from "@/components/map/canvas/hoverCard";
-import { assembleScene, buildTransitLines } from "@/components/map/canvas/buildScene";
+import {
+  assembleScene, buildTransitLines,
+  CLUSTER_FILL_OPACITY, CLUSTER_STROKE_OPACITY,
+} from "@/components/map/canvas/buildScene";
 import { createDonutClusterSync, type DonutClusterSync } from "@/components/map/canvas/donutClusters";
 import { createPinRevealCoordinator } from "@/components/map/canvas/pinRevealCoordinator";
 import { applySelectionMute } from "@/lib/mapBasemapTaste";
@@ -1259,6 +1262,23 @@ export default function PubMapCanvas({
           PIN_ENTRANCE_RAMP_MS,
         ),
       );
+      // City zoom shows clusters, not pins, so without this the entrance the
+      // owner actually sees on a phone was no entrance at all — every disc
+      // snapped in at full strength the moment the gate lifted. One shared
+      // eased ramp (the discs are few and large; a per-cluster stagger reads
+      // as flicker) lands them at the same moment the pins finish.
+      applyClusterEntranceFrame(clusterEntranceProgress(elapsedMs, PIN_ENTRANCE_TOTAL_MS));
+    };
+    // Writes the cluster disc + count opacities for one entrance frame.
+    // `progress` 1 restores the resting paint exactly (buildScene's constants).
+    const applyClusterEntranceFrame = (progress: number) => {
+      if (map.getLayer("clusters")) {
+        map.setPaintProperty("clusters", "circle-opacity", CLUSTER_FILL_OPACITY * progress);
+        map.setPaintProperty("clusters", "circle-stroke-opacity", CLUSTER_STROKE_OPACITY * progress);
+      }
+      if (map.getLayer("cluster-count")) {
+        map.setPaintProperty("cluster-count", "text-opacity", progress);
+      }
     };
     // Restores the static baseline (buildScene's own expressions) and
     // re-arms the layer's normal 250ms opacity transition (disabled for the
@@ -1266,6 +1286,7 @@ export default function PubMapCanvas({
     // smoothed/lagged by it — same reasoning as pubs-selected-glow's pulse).
     const finishPinEntrance = () => {
       pinEntranceActiveRef.current = false;
+      applyClusterEntranceFrame(1);
       if (!map.getLayer("pubs-point")) return;
       map.setPaintProperty("pubs-point", "icon-opacity-transition", {
         duration: 250,
@@ -2076,6 +2097,14 @@ export default function PubMapCanvas({
           "pubs-point",
           "icon-opacity",
           pubIconOpacityExpr(selectedIdRef.current),
+        );
+        // Pins collide now, so the spotlight is only honest if the selected pin
+        // also wins placement: re-key it to the front of the queue (and hand
+        // the key back when nothing is selected).
+        map.setLayoutProperty(
+          "pubs-point",
+          "symbol-sort-key",
+          pinSortKeyExpr(selectedIdRef.current),
         );
       }
       // M2 POI-at-initiation gating — while a venue is selected the selected pub

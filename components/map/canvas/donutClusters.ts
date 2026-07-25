@@ -1,7 +1,7 @@
 import maplibregl, { type GeoJSONFeature } from "maplibre-gl";
 import { buildDonutMarkerSvg, donutTotal, type DonutCounts } from "@/lib/donutClusterGeometry";
 import { readTokens } from "./tokens";
-import { PIN_UNCLUSTER_ZOOM } from "./buildScene";
+import { CLUSTER_MAX_ZOOM } from "./buildScene";
 
 // M5 — donut cluster markers segmented by price band. `clusterProperties`
 // (wired in buildPubs, buildScene.ts) accumulate per-bucket counts (b0..b3 —
@@ -112,11 +112,11 @@ export function createDonutClusterSync(
 
   const sync = () => {
     if (!map.getSource("pubs") || !map.getLayer("clusters")) return;
-    // D2 contract: clusters only exist strictly below PIN_UNCLUSTER_ZOOM
-    // (clusterMaxZoom = PIN_UNCLUSTER_ZOOM - 1). At/above the boundary there
-    // are no cluster features to query, so markers clear and the handoff to
-    // individual pins is unaffected by this module.
-    if (map.getZoom() >= PIN_UNCLUSTER_ZOOM) {
+    // D2 contract: cluster features exist while floor(zoom) <= CLUSTER_MAX_ZOOM
+    // (MapLibre serves cluster tiles through the whole 13.x band and dissolves
+    // them at CLUSTER_MAX_ZOOM + 1), so keep donuts live for that entire band —
+    // markers clear only once no cluster features remain to query.
+    if (map.getZoom() >= CLUSTER_MAX_ZOOM + 1) {
       deactivate();
       return;
     }

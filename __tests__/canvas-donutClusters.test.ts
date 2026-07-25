@@ -110,6 +110,28 @@ describe("createDonutClusterSync (M5 donut — listener lifecycle)", () => {
     expect(() => onStyleLoad()).not.toThrow();
   });
 
+  it("stays active through the whole 13.x band and deactivates only at CLUSTER_MAX_ZOOM + 1", () => {
+    // MapLibre serves cluster tiles while floor(zoom) <= clusterMaxZoom, so with
+    // CLUSTER_MAX_ZOOM = 13 cluster features remain queryable through 13.x and
+    // dissolve at 14 — donuts must not hand back to the plain GL disc early.
+    const runSyncAtZoom = (zoom: number) => {
+      const { map, handlers } = makeFakeMap();
+      const querySourceFeatures = vi.fn(() => []);
+      map.getSource = () => ({}) as never;
+      map.getLayer = () => ({}) as never;
+      map.getZoom = () => zoom;
+      map.querySourceFeatures = querySourceFeatures;
+      createDonutClusterSync(map as unknown as maplibregl.Map, () => {});
+      const [moveend] = [...(handlers.get("moveend") ?? [])];
+      moveend();
+      return querySourceFeatures;
+    };
+
+    expect(runSyncAtZoom(13).mock.calls.length).toBe(1);
+    expect(runSyncAtZoom(13.9).mock.calls.length).toBe(1);
+    expect(runSyncAtZoom(14).mock.calls.length).toBe(0);
+  });
+
   it("keeps mobile clusters in stable MapLibre layers instead of a render-synced DOM marker loop", () => {
     const { map } = makeFakeMap();
     // Regression: iOS Safari visibly flickers when source/render churn removes

@@ -219,12 +219,17 @@ export function landmarksToGeoJSON(catalog: readonly Landmark[]): GeoJSON.Featur
   // symbol layer draws a recognisable silhouette per feature.
   return {
     type: "FeatureCollection",
-    features: catalog.map((landmark) => ({
+    features: catalog.map((landmark, index) => ({
       type: "Feature",
       properties: {
         id: landmark.id,
         name: landmark.name,
         icon: iconId("lm", landmark.icon),
+        // Collision priority for the symbol layer's `symbol-sort-key`: the
+        // catalog is a curated list, so its order IS the ranking, and shipping
+        // it as a feature property keeps that ranking stable across tiles
+        // (MapLibre's default ordering is not).
+        priority: index,
       },
       geometry: { type: "Point", coordinates: landmark.coordinates },
     })),
