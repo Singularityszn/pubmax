@@ -252,7 +252,6 @@ const SAFE_STRING_VALUES = new Set([
   "tonight-lane", "whats-on-quiz", "whats-on-sport", "whats-on-deal", "whats-on-music",
   // fixed actions, states, providers, and fallbacks
   "copy", "native", "whatsapp", "sms", "x", "instagram", "tiktok", "oauth", "manual",
-  "google", "microsoft",
   "draft", "ready", "active", "ending", "completed", "abandoned",
   "arrived", "skipped", "swapped", "food_preview", "get_home_preview", "keep_going_preview",
   "food", "get_home", "keep_going", "hound", "raven", "fox",
@@ -474,13 +473,15 @@ export function sanitizeEvent(
       const value = (props as Record<string, unknown>)[key];
       if (value === undefined) continue;
       const customValidator = CUSTOM_PROP_VALIDATORS[key];
-      const valid = customValidator
-        ? customValidator(value)
-        : isSafeValue(value)
-          && isAllowedDistrictEventProp(name, key, value)
-          && isAllowedLoopEventProp(name, key, value)
-          && isAllowedTrustedHandoffEventProp(name, key, value)
-          && isAllowedVitalProp(name, key, value);
+      const valid = name === "sign_in_initiated" && key === "provider"
+        ? value === "google" || value === "microsoft"
+        : customValidator
+          ? customValidator(value)
+          : isSafeValue(value)
+            && isAllowedDistrictEventProp(name, key, value)
+            && isAllowedLoopEventProp(name, key, value)
+            && isAllowedTrustedHandoffEventProp(name, key, value)
+            && isAllowedVitalProp(name, key, value);
       if (valid) out[key] = value as string | number | boolean;
     }
   }

@@ -2,16 +2,23 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 const CONSENT_KEY = "pubmaxx:analytics-consent:v1";
 const OUTBOX_KEY = "pubmaxx:analytics-verified-outbox:v1";
-const posthogState = vi.hoisted(() => ({ initCount: 0, optedIn: false }));
-
-vi.mock("posthog-js", () => ({
-  default: {
-    init: () => { posthogState.initCount += 1; },
-    opt_in_capturing: () => { posthogState.optedIn = true; },
-    opt_out_capturing: () => { posthogState.optedIn = false; },
-    has_opted_in_capturing: () => posthogState.optedIn,
-  },
+const posthogState = vi.hoisted(() => ({
+  initCount: 0,
+  moduleLoads: 0,
+  optedIn: false,
 }));
+
+vi.mock("posthog-js", () => {
+  posthogState.moduleLoads += 1;
+  return {
+    default: {
+      init: () => { posthogState.initCount += 1; },
+      opt_in_capturing: () => { posthogState.optedIn = true; },
+      opt_out_capturing: () => { posthogState.optedIn = false; },
+      has_opted_in_capturing: () => posthogState.optedIn,
+    },
+  };
+});
 
 type StorageListener = (event: StorageEvent) => void;
 type TestWindow = Window & {
@@ -99,6 +106,7 @@ afterEach(() => {
   setGlobal("window", undefined);
   setGlobal("navigator", undefined);
   posthogState.initCount = 0;
+  posthogState.moduleLoads = 0;
   posthogState.optedIn = false;
 });
 
@@ -111,12 +119,36 @@ describe("verified analytics cross-tab consent", () => {
       vi.resetModules();
       const posthogClient = await import("@/lib/posthogClient");
 
+      expect(posthogState.moduleLoads).toBe(0);
       posthogClient.initializePosthog(false);
       expect(posthogState.initCount).toBe(0);
+      expect(posthogState.moduleLoads).toBe(0);
 
       posthogClient.syncPosthogConsent(true);
-      expect(posthogState.initCount).toBe(1);
-      expect(posthogState.optedIn).toBe(true);
+      await vi.waitFor(() => {
+        expect(posthogState.initCount).toBe(1);
+        expect(posthogState.optedIn).toBe(true);
+      });
+    } finally {
+      if (previousToken === undefined) delete process.env.NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN;
+      else process.env.NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN = previousToken;
+    }
+  });
+
+  it("does not initialize the browser SDK after consent is revoked during loading", async () => {
+    const previousToken = process.env.NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN;
+    process.env.NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN = "phc_test";
+
+    try {
+      vi.resetModules();
+      const posthogClient = await import("@/lib/posthogClient");
+
+      posthogClient.syncPosthogConsent(true);
+      posthogClient.syncPosthogConsent(false);
+
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      expect(posthogState.initCount).toBe(0);
+      expect(posthogState.optedIn).toBe(false);
     } finally {
       if (previousToken === undefined) delete process.env.NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN;
       else process.env.NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN = previousToken;
@@ -138,7 +170,7 @@ describe("verified analytics cross-tab consent", () => {
         posthogClient.initializePosthog(false);
         analytics.setAnalyticsConsent(true);
       });
-      expect(posthogState.optedIn).toBe(true);
+      await vi.waitFor(() => expect(posthogState.optedIn).toBe(true));
 
       await inWindow(tabB, () => tabB.localStorage.removeItem(CONSENT_KEY));
 

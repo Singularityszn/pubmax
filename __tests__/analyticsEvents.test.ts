@@ -155,11 +155,12 @@ describe("sanitizeEvent", () => {
       },
     );
 
-    it("rejects provider free text", () => {
-      expect(sanitizeEvent("sign_in_initiated", {
-        provider: "person@example.com",
-      })?.props).toEqual({});
-    });
+    it.each(["oauth", "private", "person@example.com"])(
+      "rejects provider value %s outside the sign-in button enum",
+      (provider) => {
+        expect(sanitizeEvent("sign_in_initiated", { provider })?.props).toEqual({});
+      },
+    );
 
     it.each([
       "user_signed_in",

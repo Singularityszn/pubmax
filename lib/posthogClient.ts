@@ -1,6 +1,6 @@
-import posthog, {
-  type CaptureResult,
-  type PostHogConfig,
+import type {
+  CaptureResult,
+  PostHogConfig,
 } from "posthog-js";
 
 const SAFE_EXCEPTION_TYPES = new Set([
@@ -15,6 +15,10 @@ const SAFE_EXCEPTION_TYPES = new Set([
   "URIError",
 ]);
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+type PostHogClient = (typeof import("posthog-js"))["default"];
+let client: PostHogClient | null = null;
+let clientLoad: Promise<PostHogClient | null> | null = null;
+let consentRevision = 0;
 let initialized = false;
 
 function safeExceptionType(value: unknown): string {
@@ -93,18 +97,45 @@ export const posthogBrowserConfig = {
   before_send: sanitizePosthogEvent,
 } satisfies Partial<PostHogConfig>;
 
+function loadPosthogClient(): Promise<PostHogClient | null> {
+  if (client) return Promise.resolve(client);
+  if (!clientLoad) {
+    clientLoad = import("posthog-js")
+      .then(({ default: loadedClient }) => {
+        client = loadedClient;
+        return loadedClient;
+      })
+      .catch(() => null)
+      .finally(() => {
+        clientLoad = null;
+      });
+  }
+  return clientLoad;
+}
+
 export function syncPosthogConsent(consentAllowed: boolean): void {
-  if (consentAllowed) {
+  const revision = ++consentRevision;
+  if (!consentAllowed) {
+    if (initialized) client?.opt_out_capturing();
+    return;
+  }
+
+  const token = process.env.NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN?.trim();
+  if (!token) return;
+
+  void loadPosthogClient().then((loadedClient) => {
+    if (!loadedClient || revision !== consentRevision) return;
     if (!initialized) {
-      const token = process.env.NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN?.trim();
-      if (!token) return;
-      posthog.init(token, posthogBrowserConfig);
+      loadedClient.init(token, posthogBrowserConfig);
       initialized = true;
     }
-    posthog.opt_in_capturing({ captureEventName: false });
-  } else if (initialized) {
-    posthog.opt_out_capturing();
-  }
+    if (revision !== consentRevision) {
+      loadedClient.opt_out_capturing();
+      return;
+    }
+    loadedClient.opt_in_capturing({ captureEventName: false });
+    if (revision !== consentRevision) loadedClient.opt_out_capturing();
+  }).catch(() => undefined);
 }
 
 export function initializePosthog(consentAllowed: boolean): void {
