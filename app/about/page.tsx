@@ -77,7 +77,7 @@ function tractionStats(s: AboutStats): Stat[] {
     {
       value: fmtInt(s.pintPricesObserved),
       label: "pint prices logged",
-      note: "readings from public data, every one dated",
+      note: "readings from public data, every one sourced",
     },
     {
       value: fmtInt(s.historicPubsCited),
@@ -174,9 +174,10 @@ export default async function AboutPage() {
       <section className="aboutSection" aria-labelledby="did">
         <h2 id="did" className="aboutH2">What we did about it</h2>
         <p className="aboutBody">
-          We put real prices on the map. Every one comes from someone who was
-          actually there, with a date on it. Tap a pub and you see what a pint
-          costs before you set off, not after you&rsquo;ve handed over a note.
+          We put real prices on the map. Every one names where it came from,
+          and the ones logged by drinkers carry the day they were seen. Tap a
+          pub and you see what a pint costs before you set off, not after
+          you&rsquo;ve handed over a note.
         </p>
         <p className="aboutBody">
           We kept the stories too. Most of these pubs have been pouring for a
@@ -352,9 +353,9 @@ export default async function AboutPage() {
             readings, and every figure links back to where it came from.
           </li>
           <li>
-            <strong>A price series, not a one-off headline.</strong> We date
-            every reading, so the Pint Index can show how a London pint moves
-            over a season, not just what it costs today.
+            <strong>A price series, not a one-off headline.</strong> The prices
+            people log carry the day they were seen, so the Pint Index can show
+            how a London pint moves over a season, not just what it costs today.
           </li>
           <li>
             <strong>Sourced, never invented.</strong> Where the data
