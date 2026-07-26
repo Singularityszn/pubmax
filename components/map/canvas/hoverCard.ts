@@ -1,3 +1,4 @@
+import { COMMUNITY_PROVISIONAL_SHORT_NOTE } from "@/lib/communityPrice";
 import { formatFreshness, formatObservedAt, type Venue } from "@/lib/venues";
 import { proxiedVenueImageUrl } from "@/lib/venueImages";
 import type { PricedVenue } from "@/lib/priceUpdates";
@@ -56,6 +57,8 @@ export type HoverCardCopy = {
   priceSuffix: string;
   provenance: string;
   detailLabel: string;
+  /** The provisional mark explained, or "" when the pin wears no badge. */
+  pendingNote: string;
 };
 
 // Compact honesty line for the map hover card. Price and provenance share one
@@ -100,6 +103,10 @@ export function hoverCardCopy(
   mapVenue: Venue | undefined,
   signal: VenueSignal | undefined,
   hoverDetail: Venue | null | undefined,
+  // Whether this pin is wearing the provisional badge. Only a pub can: the
+  // badge is about a pint report, and the price line above it is untouched
+  // either way — the note explains the DOT, it never explains the price.
+  provisional = false,
 ): HoverCardCopy {
   const kind = hoverDetail?.kind ?? mapVenue?.kind;
   const venueTypeLabel = venueKindLabel(kind);
@@ -111,6 +118,7 @@ export function hoverCardCopy(
       priceSuffix: "cheapest pint",
       provenance: line.provenance,
       detailLabel: "pub detail",
+      pendingNote: provisional ? COMMUNITY_PROVISIONAL_SHORT_NOTE : "",
     };
   }
 
@@ -137,5 +145,6 @@ export function hoverCardCopy(
       (kind === "bar" ? "cocktail anchor" : "large doner anchor"),
     provenance,
     detailLabel: "venue detail",
+    pendingNote: "",
   };
 }

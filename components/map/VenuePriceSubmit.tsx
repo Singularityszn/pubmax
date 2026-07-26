@@ -6,6 +6,7 @@ import { Check, Tag } from "lucide-react";
 import {
   communityReachNote,
   formatPriceDay,
+  marksMapProvisionally,
   paintsMap,
   COMMUNITY_PRICE_MAX_GBP,
   DEFAULT_SUBMIT_CATEGORY,
@@ -55,6 +56,13 @@ type VenuePriceSubmitProps = {
    * in that case either. Null/undefined reads as "no drop we can date".
    */
   latestPintDropAt?: number | null;
+  /**
+   * Can this pub's pin carry community price state at all? Curated venues can
+   * (the default). UK base pins are deliberately price-blind - no colour, no
+   * provisional dot - so their sheet passes false and the receipt stays on
+   * "On this pub's page" rather than claiming a mark the map never draws.
+   */
+  canMarkMap?: boolean;
 };
 
 /**
@@ -74,6 +82,7 @@ export default function VenuePriceSubmit({
   communityPrices,
   baselinePriceGbp = null,
   latestPintDropAt = null,
+  canMarkMap = true,
 }: VenuePriceSubmitProps) {
   const [category, setCategory] = useState<DrinkCategory>(DEFAULT_SUBMIT_CATEGORY);
   const [price, setPrice] = useState("");
@@ -119,6 +128,19 @@ export default function VenuePriceSubmit({
     () => mergePriceChips(QUICK_ADD_PRICES_GBP, baselinePriceGbp).slice(0, 3),
     [baselinePriceGbp],
   );
+
+  // What this tap actually did to the map, asked of the same predicates the map
+  // itself obeys - `paintsMap` for the price, `marksMapProvisionally` for the
+  // badge - so the receipt can never claim a reach the pin does not have.
+  const markedProvisionally =
+    canMarkMap && stamped ? marksMapProvisionally(stamped) : false;
+  const stampStanding = !stamped
+    ? ""
+    : canMarkMap && paintsMap(stamped, latestPintDropAt)
+      ? "On the map"
+      : markedProvisionally
+        ? "Marked on the map"
+        : "On this pub’s page";
 
   async function logPrice() {
     // The Enter key reaches here even while the button is disabled; one
@@ -235,19 +257,35 @@ export default function VenuePriceSubmit({
       {logged === category && stamped ? (
         // The receipt. Same figure and day label the venue card now carries -
         // one vocabulary, one moment. What it must NOT do is overclaim: a lone
-        // report is on the pub's page, not on the map, and saying "on the map"
-        // for it would be the exact dishonesty the trust gate exists to fix.
-        <p className="vpsubStamp" role="status">
-          <Check size={14} aria-hidden="true" className="vpsubStampTick" />
-          <strong className="vpsubStampPrice">{formatPrice(stamped.priceGbp)}</strong>
-          {/* The provenance word ("community") is already on the dated row in
-              the price block above, so the receipt only has to say where the
-              tap landed, and when. */}
-          <span className="vpsubStampMeta">
-            {paintsMap(stamped, latestPintDropAt) ? "On the map" : "On this pub’s page"} ·{" "}
-            {formatPriceDay(stamped.submittedAt)}
-          </span>
-        </p>
+        // report does not set the pin's price, and saying "on the map" for it
+        // would be the exact dishonesty the trust gate exists to fix.
+        //
+        // Three honest standings, in descending reach:
+        //   painting  - this figure IS the pin's price ("On the map");
+        //   marked    - the pin now wears the provisional dot, price unchanged;
+        //   page only - a non-pint drink, or an aged-out figure: no map at all.
+        <div className="vpsubStampBlock">
+          <p className="vpsubStamp" role="status">
+            <Check size={14} aria-hidden="true" className="vpsubStampTick" />
+            <strong className="vpsubStampPrice">{formatPrice(stamped.priceGbp)}</strong>
+            {/* The provenance word ("community") is already on the dated row in
+                the price block above, so the receipt only has to say where the
+                tap landed, and when. */}
+            <span className="vpsubStampMeta">
+              {stampStanding} · {formatPriceDay(stamped.submittedAt)}
+            </span>
+          </p>
+          {/* Close the loop in-session: the mark the map just gained, named and
+              coloured exactly as the map draws it, so the submitter can look up
+              and find their own dot rather than take our word for it. */}
+          {markedProvisionally ? (
+            <p className="vpsubStampHint">
+              <i className="vpsubStampDot" aria-hidden="true" />
+              Its pin now carries this dot. A second drinker logging the same
+              price is what sets the pin&rsquo;s colour.
+            </p>
+          ) : null}
+        </div>
       ) : (
         <p className="vpsubNote">
           Anyone can log a price. Yours shows on this pub&rsquo;s page straight

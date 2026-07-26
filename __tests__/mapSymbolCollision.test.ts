@@ -10,7 +10,10 @@ import {
   CLUSTER_MAX_ZOOM,
   CLUSTER_RADIUS_PX,
   LANDMARK_ICON_PRIORITY_ZOOM,
+  PIN_HALO_ENVELOPE_PX,
   PIN_MIN_ZOOM,
+  PROVISIONAL_BADGE_OFFSET_PX,
+  PROVISIONAL_BADGE_RADIUS_MAX_PX,
   UK_BASE_ICON_OPACITY,
   UK_BASE_ICON_SIZE_EXPR,
   UK_BASE_MIN_ZOOM,
@@ -20,6 +23,7 @@ import {
   clusterEntranceProgress,
   pinSortKeyExpr,
   PIN_ICON_SIZE_EXPR,
+  pubIconOpacityExpr,
   selectedPinFilter,
 } from "@/components/map/canvas/filters";
 import { landmarksToGeoJSON } from "@/components/map/canvas/geojson";
@@ -250,6 +254,62 @@ describe("symbol collision policy", () => {
         `${id} must not ignore placement`,
       ).toEqual({ id, text: false });
     }
+  });
+});
+
+// The provisional-report badge is the newest thing riding on a pin, so it is
+// also the easiest way to break two contracts at once: the density rule (a
+// marker that grows the pin's footprint changes which pins get placed) and the
+// price-band colour system (a badge that borrows a band colour reads as a
+// price). Both are asserted here rather than left to a screenshot.
+describe("provisional-report badge (ungated visibility, zero authority)", () => {
+  const { layers } = buildScenePieces();
+  const badge = layers.get("pubs-provisional-badge")!;
+  const paint = (badge.paint ?? {}) as Record<string, unknown>;
+
+  it("only ever rides an unclustered pin, from the pin floor", () => {
+    expect(badge.filter).toEqual([
+      "all",
+      ["!", ["has", "point_count"]],
+      ["get", "provisional"],
+    ]);
+    expect((badge as { minzoom?: number }).minzoom).toBe(PIN_MIN_ZOOM);
+  });
+
+  it("stays inside the halo envelope the pin's icon-padding already clears", () => {
+    // A circle layer is invisible to MapLibre's collision index, so the badge
+    // can only be free of the density contract while it sits inside the
+    // footprint `pubs-point` already reserves. Grow it past this and pins start
+    // touching on a 390px phone.
+    const [dx, dy] = PROVISIONAL_BADGE_OFFSET_PX;
+    expect(Math.hypot(dx, dy) + PROVISIONAL_BADGE_RADIUS_MAX_PX).toBeLessThanOrEqual(
+      PIN_HALO_ENVELOPE_PX,
+    );
+    expect(paint["circle-translate"]).toEqual(PROVISIONAL_BADGE_OFFSET_PX);
+  });
+
+  it("dims with its own pin instead of popping out of the spotlight", () => {
+    const selected = buildScenePieces("venue-abc").layers.get("pubs-provisional-badge")!;
+    const selectedPaint = (selected.paint ?? {}) as Record<string, unknown>;
+    expect(selectedPaint["circle-opacity"]).toEqual(pubIconOpacityExpr("venue-abc"));
+    expect(selectedPaint["circle-stroke-opacity"]).toEqual(pubIconOpacityExpr("venue-abc"));
+  });
+
+  it("draws over every per-pin layer, so no ring or selection can hide it", () => {
+    const ids = [...layers.keys()];
+    for (const under of [
+      "pubs-point",
+      "pubs-point-selected",
+      "pubs-selected-glow",
+      "pubs-selected",
+    ]) {
+      expect(ids.indexOf(under)).toBeLessThan(ids.indexOf("pubs-provisional-badge"));
+    }
+  });
+
+  it("reads no price at all - not the bucket, not a band colour", () => {
+    expect(JSON.stringify(paint)).not.toContain("bucket");
+    expect(JSON.stringify(paint)).not.toContain("latestContributorPrice");
   });
 });
 

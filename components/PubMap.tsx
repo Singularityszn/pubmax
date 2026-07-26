@@ -138,7 +138,10 @@ import { trackEvent } from "@/lib/analytics";
 import { writePreferredCity } from "@/lib/cityPreference";
 import { usePintDrops } from "@/components/map/usePintDrops";
 import { useCommunityPrices } from "@/components/map/useCommunityPrices";
-import { mergeCommunityPriceSignals } from "@/components/map/communityPriceSignals";
+import {
+  mergeCommunityPriceSignals,
+  provisionalCommunityPriceVenueIds,
+} from "@/components/map/communityPriceSignals";
 import { useLiveDrops } from "@/components/map/useLiveDrops";
 import { useSheetDrag } from "@/components/map/useSheetDrag";
 import { useBuiltIdsPersistence } from "@/components/map/pubmap/useBuiltIdsPersistence";
@@ -627,6 +630,22 @@ export default function PubMap({
     // cannot cross it inside a session and no re-render needs to chase it.
     () => mergeCommunityPriceSignals(dropSignals, communityPrices.freshestByVenueId),
     [dropSignals, communityPrices.freshestByVenueId],
+  );
+  // The OTHER half of the same loop: the pubs whose first report is in but not
+  // yet confirmed. Ungated on purpose - a first submitter has to see the map
+  // change under their thumb, or there is no reason to log a second price
+  // (captain decision 2026-07-26). It rides BESIDE the merge above, never
+  // through it: this set paints a badge, and the price a pin claims still comes
+  // only from the gated signals.
+  //
+  // Its REACH is whatever the community-price layer has loaded, and that layer
+  // fetches per venue as sheets open (useCommunityPrices.loadVenue). So the
+  // badge is guaranteed for the pub you just logged - the moment this exists to
+  // deliver - and fills in for others as you open them, rather than pretending
+  // to a city-wide pending feed the API does not serve.
+  const provisionalVenueIds = useMemo(
+    () => provisionalCommunityPriceVenueIds(communityPrices.freshestByVenueId),
+    [communityPrices.freshestByVenueId],
   );
   // Live map pins (issue #37): refetch the drops layer on a new-drop signal (or
   // a 30s poll when realtime is unavailable). Self-contained, signal-only.
@@ -2237,6 +2256,7 @@ export default function PubMap({
           favoritePint={favoritePint}
           drinkCategory={filters.drinkCategory || null}
           whatsOnByVenue={whatsOnTonight.summary}
+          provisionalVenueIds={provisionalVenueIds}
           activeBandId={activeBandId}
           onBandChange={setActiveBandId}
           onStartCrawl={startCrawlFromPubs}

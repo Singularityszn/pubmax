@@ -233,6 +233,39 @@ describe("pubsToGeoJSON", () => {
   });
 });
 
+// The provisional badge rides on the pin pipeline as a plain boolean prop, and
+// it must stay exactly that: a MARK. If it ever reaches `bucket`, one anonymous
+// report would be recolouring pins - the thing the trust gate exists to stop.
+describe("pubsToGeoJSON provisional mark", () => {
+  const signals = new Map<string, VenueSignal>();
+
+  it("is false for every pin when nothing is pending", () => {
+    const venue = makeVenue({ id: "quiet", cheapestPrice: 6 });
+    expect(pubsToGeoJSON([venue], signals, null).features[0]?.properties?.provisional).toBe(
+      false,
+    );
+  });
+
+  it("marks only the reported pub, and leaves its price band alone", () => {
+    const marked = makeVenue({ id: "marked", cheapestPrice: 6 });
+    const other = makeVenue({ id: "other", cheapestPrice: 6 });
+    const [a, b] = pubsToGeoJSON(
+      [marked, other],
+      signals,
+      null,
+      null,
+      null,
+      new Set(["marked"]),
+    ).features;
+    expect(a?.properties?.provisional).toBe(true);
+    expect(b?.properties?.provisional).toBe(false);
+    // Colour is still the baseline's bucket on both - the badge adds a fact,
+    // it never edits the price-band system.
+    expect(a?.properties?.bucket).toBe(priceBucket(6));
+    expect(b?.properties?.bucket).toBe(priceBucket(6));
+  });
+});
+
 describe("pubsToGeoJSON whats-on badge join (W1)", () => {
   it("stamps hero kind + timed flag on venues with a tonight row, absent otherwise", () => {
     const a = makeVenue({ id: "with-quiz" });

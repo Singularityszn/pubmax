@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   mergeCommunityPriceSignals,
+  provisionalCommunityPriceVenueIds,
   type PricedVenueSignal,
 } from "@/components/map/communityPriceSignals";
 import {
@@ -309,6 +310,82 @@ describe("mergeCommunityPriceSignals map candidate", () => {
   });
 });
 
+// The provisional mark: ungated VISIBILITY beside the gated AUTHORITY above.
+// The two must stay separable - a report that earns a badge must not be able to
+// earn a price, and the badge must vanish the moment the price is real.
+describe("provisionalCommunityPriceVenueIds", () => {
+  const pending = (
+    prices: Array<[string, CommunityPrice]>,
+    now: number = NOW,
+  ) => provisionalCommunityPriceVenueIds(new Map(prices), now);
+
+  it("marks a venue on its FIRST in-window pint report", () => {
+    const lone = price("v1", 4.2, NOW - MINUTE, "beer", 1);
+    expect([...pending([["v1", lone]])]).toEqual(["v1"]);
+  });
+
+  it("marks nothing when no one has reported", () => {
+    expect(pending([]).size).toBe(0);
+  });
+
+  it("drops the mark once the price is corroborated - the pin carries it now", () => {
+    const confirmed = price("v1", 4.2, NOW - MINUTE, "beer", 2);
+    expect(pending([["v1", confirmed]]).size).toBe(0);
+  });
+
+  it("drops the mark once the report ages out of the window", () => {
+    const stale = price("v1", 4.2, NOW - COMMUNITY_PRICE_MAX_AGE_MS - MINUTE, "beer", 1);
+    expect(pending([["v1", stale]]).size).toBe(0);
+  });
+
+  it("keeps the mark on the last in-window day and loses it on the next", () => {
+    const edge = NOW - COMMUNITY_PRICE_MAX_AGE_MS;
+    expect(pending([["v1", price("v1", 4.2, edge, "beer", 1)]]).size).toBe(1);
+    expect(pending([["v1", price("v1", 4.2, edge - 1, "beer", 1)]]).size).toBe(0);
+  });
+
+  it("never marks a pin for a drink the map does not price", () => {
+    // A lone £9 wine cannot be "one report from moving the map", because no
+    // number of wine reports moves a pint pin.
+    const wine = price("v1", 9, NOW - MINUTE, "wine", 1);
+    expect(pending([["v1", wine]]).size).toBe(0);
+  });
+
+  it("does not mark a pub whose corroborated price is already painting the pin", () => {
+    // A lone fresh disagreement at a confirmed pub: the map is stamped, so
+    // there is nothing provisional to say.
+    const contradiction = price("v1", 9, NOW - MINUTE, "beer", 1, {
+      priceGbp: 4.2,
+      submittedAt: NOW - 2 * MINUTE,
+      corroborations: 2,
+    });
+    expect(pending([["v1", contradiction]]).size).toBe(0);
+  });
+
+  it("re-marks a pub whose corroborated price has aged out from under it", () => {
+    const revived = price("v1", 4.4, NOW - MINUTE, "beer", 1, {
+      priceGbp: 4.2,
+      submittedAt: NOW - COMMUNITY_PRICE_MAX_AGE_MS - DAY,
+      corroborations: 3,
+    });
+    expect([...pending([["v1", revived]])]).toEqual(["v1"]);
+  });
+
+  it("returns one stable identity for 'nothing pending', so renders don't churn", () => {
+    expect(pending([])).toBe(pending([["v1", price("v1", 4.2, NOW, "beer", 2)]]));
+  });
+
+  // THE separation. Same input, both seams: the badge appears, the price does
+  // not. If this ever fails, one anonymous report is repainting pins again.
+  it("marks the map without moving any price the merge owns", () => {
+    const lone = price("v1", 4.2, NOW - MINUTE, "beer", 1);
+    const input = signals([["v1", { hasPintDrops: false, latestContributorPrice: null }]]);
+    expect(pending([["v1", lone]]).has("v1")).toBe(true);
+    // Byte-identical to today: the merge returns the very same map object.
+    expect(merge(input, [["v1", lone]])).toBe(input);
+  });
+});
+
 // The sheet is the other half of the policy: gated prices still SHOW, they just
 // say where they stand. If this copy ever goes empty for a gated price the pub
 // page would silently imply a restamp that never happened.
@@ -321,10 +398,31 @@ describe("communityTrustNote", () => {
     );
   });
 
-  it("explains a lone report is awaiting confirmation", () => {
-    expect(
-      communityTrustNote({ ...beer, corroborations: 1, submittedAt: NOW - MINUTE }, NOW),
-    ).toMatch(/awaiting confirmation/i);
+  it("tells a lone pint report where its provisional mark is, and what sets it", () => {
+    const note = communityTrustNote(
+      { ...beer, corroborations: 1, submittedAt: NOW - MINUTE },
+      NOW,
+    );
+    // The reader can go and look at the badge, so the note names it…
+    expect(note).toMatch(/marked on the map/i);
+    // …and still says plainly that the map has not moved yet.
+    expect(note).toMatch(/second drinker/i);
+  });
+
+  it("refuses to claim a mark when a corroborated figure already paints the pin", () => {
+    // A lone disagreeing report at a pub whose confirmed price is on the map:
+    // the pin is stamped, not provisional, so the note must not say "marked".
+    const note = communityTrustNote(
+      {
+        ...beer,
+        corroborations: 1,
+        submittedAt: NOW - MINUTE,
+        mapCandidate: { priceGbp: 4.2, submittedAt: NOW - 2 * MINUTE, corroborations: 2 },
+      },
+      NOW,
+    );
+    expect(note).toMatch(/awaiting confirmation/i);
+    expect(note).not.toMatch(/marked on the map/i);
   });
 
   it("explains an aged-out price has handed the map back to the record", () => {
@@ -339,6 +437,37 @@ describe("communityTrustNote", () => {
     expect(
       communityTrustNote({ ...beer, corroborations: 1, submittedAt: NOW - 31 * DAY }, NOW),
     ).toMatch(/30 days/i);
+  });
+
+  it("keeps naming the mark on surfaces whose pin can carry it", () => {
+    // canMarkMap defaults to true and can be passed explicitly - either way a
+    // curated pub's lone pint report gets the marked-on-the-map standing.
+    const note = communityTrustNote(
+      { ...beer, corroborations: 1, submittedAt: NOW - MINUTE },
+      NOW,
+      true,
+    );
+    expect(note).toMatch(/marked on the map/i);
+  });
+
+  it("never claims a mark on a surface whose pin cannot carry one", () => {
+    // UK base pins are price-blind: no badge layer reads them, so the sheet
+    // passes canMarkMap=false and a lone pint report must read page-only.
+    const waiting = communityTrustNote(
+      { ...beer, corroborations: 1, submittedAt: NOW - MINUTE },
+      NOW,
+      false,
+    );
+    expect(waiting).toMatch(/awaiting confirmation/i);
+    expect(waiting).not.toMatch(/map/i);
+    expect(waiting).not.toMatch(/mark/i);
+    const aged = communityTrustNote(
+      { ...beer, corroborations: 1, submittedAt: NOW - 31 * DAY },
+      NOW,
+      false,
+    );
+    expect(aged).toMatch(/30 days/i);
+    expect(aged).not.toMatch(/map/i);
   });
 
   it("never promises the map to a drink the map does not price", () => {

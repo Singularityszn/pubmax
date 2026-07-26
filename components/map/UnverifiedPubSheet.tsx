@@ -32,7 +32,11 @@ type UnverifiedPubSheetProps = {
 export default function UnverifiedPubSheet({ pub, communityPrices }: UnverifiedPubSheetProps) {
   const pricesKnown = communityPrices.byVenueId.has(pub.id);
   const communityPrice = freshestCommunityPrice(communityPrices.byVenueId.get(pub.id));
-  const communityTrustStanding = communityPrice ? communityTrustNote(communityPrice) : "";
+  // Base pins are price-blind - no colour, no provisional dot - so this sheet
+  // asks for page-only wording: the note may never claim a mark on the map.
+  const communityTrustStanding = communityPrice
+    ? communityTrustNote(communityPrice, undefined, false)
+    : "";
 
   return (
     <div className="unverifiedPub">
@@ -92,6 +96,7 @@ export default function UnverifiedPubSheet({ pub, communityPrices }: UnverifiedP
         venueId={pub.id}
         venueName={pub.name}
         communityPrices={communityPrices}
+        canMarkMap={false}
       />
 
       {/* ODbL requires attribution wherever these pins are publicly displayed
