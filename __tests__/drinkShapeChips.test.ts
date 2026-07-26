@@ -1,3 +1,6 @@
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
+
 import { describe, expect, it } from "vitest";
 
 import {
@@ -161,5 +164,30 @@ describe("nextTopShelfFilters", () => {
     const unchecked = { ...on, requireCocktails: false };
     expect(unchecked.drinkCategory).toBe("cocktail");
     expect(nextTopShelfFilters(unchecked).topShelfOnly).toBe(false);
+  });
+});
+
+// The mobile filter sheet renders DrinkShapeChips without MapToolbar (a
+// desktop-only dynamic chunk), so the chip styles only reach a 390px viewport
+// if the component imports its stylesheet itself. Locked from source, the same
+// idiom as mapBannerStagingCss.test.ts.
+describe("drink chip styling ships with the component", () => {
+  const component = readFileSync(
+    join(process.cwd(), "components/map/DrinkShapeChips.tsx"),
+    "utf8",
+  );
+  const css = readFileSync(
+    join(process.cwd(), "components/map/mapToolbar.css"),
+    "utf8",
+  );
+
+  it("imports the chip stylesheet directly (not only via MapToolbar)", () => {
+    expect(component).toMatch(/import\s+"\.\/mapToolbar\.css"/);
+  });
+
+  it("keeps selected-state rules for subtype and top-shelf chips in that stylesheet", () => {
+    expect(css).toMatch(/\.drinkShapeChip\.isOn/);
+    expect(css).toMatch(/\.drinkSubtypeChip\.isOn/);
+    expect(css).toMatch(/\.drinkSubtypeChip\.isTopShelf\.isOn/);
   });
 });
