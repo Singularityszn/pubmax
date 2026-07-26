@@ -44,7 +44,9 @@ const AUDIT_LEVELS = ["high", "critical"];
 //   (b) an eslint-10-compatible eslint-plugin-react/-import/-jsx-a11y set
 //       (then upgrade eslint to 10 and drop this waiver).
 //   Re-checked: 2026-07-26.
-export const WAIVED_ADVISORIES = new Set(["https://github.com/advisories/GHSA-mh99-v99m-4gvg"]);
+export const WAIVED_ADVISORIES = new Map([
+  ["https://github.com/advisories/GHSA-mh99-v99m-4gvg", "high"],
+]);
 
 function runAudit(extraArgs = []) {
   const result = spawnSync("npm", ["audit", "--json", "--audit-level=high", ...extraArgs], {
@@ -92,7 +94,8 @@ export function classifyFindings(report, waived = WAIVED_ADVISORIES) {
   for (const [name, entry] of Object.entries(vulnerabilities)) {
     if (!AUDIT_LEVELS.includes(entry.severity)) continue;
     const advisories = collectAdvisories(name, vulnerabilities);
-    const fullyWaived = advisories.length > 0 && advisories.every((a) => waived.has(a.url));
+    const fullyWaived =
+      advisories.length > 0 && advisories.every((a) => waived.get(a.url) === a.severity);
     (fullyWaived ? waivedNames : unwaivedNames).push(name);
   }
   return { waived: waivedNames, unwaived: unwaivedNames };

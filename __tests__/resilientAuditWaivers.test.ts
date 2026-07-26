@@ -11,13 +11,13 @@ import { WAIVED_ADVISORIES, classifyFindings } from "../scripts/resilient-audit.
 const WAIVED_URL = "https://github.com/advisories/GHSA-mh99-v99m-4gvg";
 const OTHER_URL = "https://github.com/advisories/GHSA-xxxx-yyyy-zzzz";
 
-function advisory(url: string) {
-  return { source: 1, name: "pkg", dependency: "pkg", title: "t", url, severity: "high" };
+function advisory(url: string, severity = "high") {
+  return { source: 1, name: "pkg", dependency: "pkg", title: "t", url, severity };
 }
 
 describe("resilient-audit waivers", () => {
   it("waives only the advisories explicitly listed", () => {
-    expect([...WAIVED_ADVISORIES]).toEqual([WAIVED_URL]);
+    expect([...WAIVED_ADVISORIES]).toEqual([[WAIVED_URL, "high"]]);
   });
 
   it("waives a finding whose only advisory is waived", () => {
@@ -48,6 +48,19 @@ describe("resilient-audit waivers", () => {
       },
     };
     expect(classifyFindings(report).unwaived).toEqual(["other"]);
+  });
+
+  it("fails a waived advisory when its severity changes", () => {
+    const report = {
+      vulnerabilities: {
+        "brace-expansion": {
+          name: "brace-expansion",
+          severity: "critical",
+          via: [advisory(WAIVED_URL, "critical")],
+        },
+      },
+    };
+    expect(classifyFindings(report).unwaived).toEqual(["brace-expansion"]);
   });
 
   it("fails a finding that mixes a waived advisory with an unwaived one", () => {
