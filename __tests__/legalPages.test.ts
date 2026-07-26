@@ -66,6 +66,22 @@ describe("legal content pages", () => {
     expect(privacy).toMatch(/PostHog/);
     expect(privacy).toMatch(/Supabase/);
     expect(privacy).toMatch(/Vercel/);
+    expect(privacy).toMatch(/PUBMAXX never stores raw IP addresses in its own/);
+    expect(privacy).not.toMatch(/We never store your IP address/);
+  });
+
+  it("discloses precise location processing without overstating retention", () => {
+    expect(privacy).toMatch(/coordinates stay in your browser/);
+    expect(privacy).toMatch(/\/api\/whats-on/);
+    expect(privacy).toMatch(/does not\s+write them to our database/);
+    expect(privacy).not.toMatch(/not sent to us or stored anywhere/);
+  });
+
+  it("describes durable rate-limit retention", () => {
+    expect(privacy).toMatch(/durable limiter rows are\s+keyed to salted hashes/);
+    expect(privacy).toMatch(/Hit timestamps\s+outside that window are pruned/);
+    expect(privacy).toMatch(/the key row remains/);
+    expect(privacy).not.toMatch(/Server and rate-limit records/);
   });
 
   it("states the product's own age framing on the terms page", () => {

@@ -63,10 +63,10 @@ export default function PrivacyPage() {
             settings, and you can turn it back off in the same place.
           </li>
           <li>
-            <strong>We never store your IP address.</strong>{" "}Where we need to
-            tell one device from another (rate limits, stopping one person
-            logging the same price twice) we store a salted hash of it, never
-            the address itself.
+            <strong>PUBMAXX never stores raw IP addresses in its own
+            database.</strong>{" "}Where we need to tell one device from another
+            (rate limits, stopping one person logging the same price twice) we
+            store a salted hash of it, never the address itself.
           </li>
           <li>
             <strong>We don&rsquo;t sell anything to anyone.</strong>{" "}No ads, no
@@ -141,9 +141,12 @@ export default function PrivacyPage() {
         <h3 className="legalH3">Location</h3>
         <p className="legalBody">
           &ldquo;Find my pint&rdquo; asks your browser for your location. The
-          coordinates are used in your browser to rank nearby pubs and are not
-          sent to us or stored anywhere. Say no and the app falls back to
-          picking an area.
+          coordinates stay in your browser while it ranks nearby pubs. The map
+          and Tonight also send them to our own server in an
+          {" "}<code>/api/whats-on</code>{" "}request so it can rank what is on
+          near you. That route uses them to answer the request and does not
+          write them to our database. Say no and the app falls back to picking
+          an area.
         </p>
 
         <h3 className="legalH3">Analytics, only with consent</h3>
@@ -342,8 +345,10 @@ export default function PrivacyPage() {
             individually.
           </li>
           <li>
-            <strong>Server and rate-limit records:</strong>{" "}short-lived, and
-            keyed to hashes rather than IP addresses.
+            <strong>Rate-limit records:</strong>{" "}durable limiter rows are
+            keyed to salted hashes, never raw IP addresses. Hit timestamps
+            outside that window are pruned when the hashed key is next used;
+            the key row remains.
           </li>
         </ul>
       </section>
