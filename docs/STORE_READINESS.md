@@ -194,7 +194,7 @@ Declare the following. Everything else: Not Collected.
 - **Is all data encrypted in transit?** Yes (HTTPS only, the shell loads `https://pubmaxxing.com`).
 - **Can users request data deletion?** Yes for email (unsubscribe) and Moments; describe the contact route.
 
-**Privacy policy URL:** required by both stores. Point at the site's privacy page (confirm the live URL before submitting, for example `https://pubmaxxing.com/privacy`). If that page does not exist yet, it must be published before either store submission. This is the one store-metadata dependency that is not code and not an account step.
+**Privacy policy URL:** required by both stores. Use `https://pubmaxxing.com/privacy` — the site publishes it (with `/terms`) from `app/privacy` / `app/terms`; see the AGENTS.md privacy-notice entry for the keep-it-honest rule.
 
 ---
 
@@ -303,4 +303,4 @@ Everything above is done or ready to paste. The steps below need a real account,
 
 ### Shared, not account-blocked
 
-- [ ] **Publish a privacy policy page** at a stable URL (for example `https://pubmaxxing.com/privacy`) and use it in both listings. Both stores reject without it. This is the only non-account, non-code blocker, and it can be done now.
+- [x] **Publish a privacy policy page** — done: `https://pubmaxxing.com/privacy` (and `/terms`) ship from `app/privacy` / `app/terms`, linked in the site footer. Use that URL in both listings.

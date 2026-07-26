@@ -37,6 +37,7 @@ import {
   subscribePreferredCity,
 } from "@/lib/cityPreference";
 import { warmMapRoute } from "@/lib/mapWarmup";
+import { CONTACT_MAILTO } from "@/lib/siteContact";
 import { trackEvent } from "@/lib/analytics";
 
 import PintDropStripLoading from "./PintDropStripLoading";
@@ -401,6 +402,14 @@ export default function LandingPage({
               ))}
             </ul>
           ) : null}
+          {/* Small print rail: the two pages a reader is entitled to find from
+              any page of the site, plus a contact address that actually works.
+              Sits with the over-18 line because that is where legal copy lives. */}
+          <nav className="lpFooterSmallPrint" aria-label="Small print">
+            <Link href="/privacy">Privacy</Link>
+            <Link href="/terms">Terms of use</Link>
+            <a href={CONTACT_MAILTO}>Contact</a>
+          </nav>
           <p className="lpFooterLegal">
             PUBMAXX is for over-18s. Know your limits, and know the facts at{" "}
             <a href="https://www.drinkaware.co.uk" rel="noreferrer">

@@ -130,6 +130,11 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { path: "/feed", priority: 0.5, changeFrequency: "daily", lastModified: now },
     { path: "/choose-city", priority: 0.5, changeFrequency: "monthly", lastModified: now },
     { path: "/about", priority: 0.5, changeFrequency: "monthly", lastModified: now },
+    // Static, token-free content pages a reader (or a crawler checking the site
+    // is legitimate) must be able to find: they are linked from the footer and
+    // carry no UGC, so they belong in the sitemap like /about.
+    { path: "/privacy", priority: 0.3, changeFrequency: "yearly", lastModified: now },
+    { path: "/terms", priority: 0.3, changeFrequency: "yearly", lastModified: now },
   ];
   for (const r of staticRoutes) {
     entries.push({
