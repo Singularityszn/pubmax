@@ -114,3 +114,217 @@ describe("communityPriceStore (memory backend)", () => {
     expect(await readCommunityPrices("")).toEqual([]);
   });
 });
+
+// Corroboration counting: the number that decides whether a figure moves a pin.
+// It is derived on the READ path from the per-(venue, category, actor) rows the
+// store already keeps - no new column, no second write - so these cases are the
+// contract the durable backend must match too (it counts the same rows through
+// the same freshestPerCategory). Enforcement lives in
+// components/map/communityPriceSignals.ts; this only pins the count.
+describe("communityPriceStore corroboration counting (memory backend)", () => {
+  beforeEach(() => {
+    delete process.env.SUPABASE_URL;
+    delete process.env.SUPABASE_SERVICE_ROLE_KEY;
+  });
+
+  afterEach(() => {
+    __resetCommunityPrices();
+    if (ORIGINAL_SUPABASE_URL === undefined) delete process.env.SUPABASE_URL;
+    else process.env.SUPABASE_URL = ORIGINAL_SUPABASE_URL;
+    if (ORIGINAL_SUPABASE_SERVICE_ROLE_KEY === undefined) {
+      delete process.env.SUPABASE_SERVICE_ROLE_KEY;
+    } else {
+      process.env.SUPABASE_SERVICE_ROLE_KEY = ORIGINAL_SUPABASE_SERVICE_ROLE_KEY;
+    }
+  });
+
+  async function beerAt(venueId: string, priceGbp: number, at: number, actor?: string) {
+    await submitCommunityPrice({ venueId, drinkCategory: "beer", priceGbp, actor }, at);
+  }
+
+  it("counts a lone report as one voice", async () => {
+    await beerAt("v1", 4.2, 1_000, "a");
+    expect((await readCommunityPrices("v1"))[0].corroborations).toBe(1);
+  });
+
+  it("counts two devices agreeing within tolerance as two", async () => {
+    await beerAt("v1", 4.2, 1_000, "a");
+    await beerAt("v1", 4.5, 2_000, "b");
+
+    const [row] = await readCommunityPrices("v1");
+    // The freshest figure is the one being corroborated, and £4.20 is inside
+    // its 50p window - so this is one price two people saw, not two prices.
+    expect(row.priceGbp).toBe(4.5);
+    expect(row.corroborations).toBe(2);
+  });
+
+  it("does not count a device that reported a different figure", async () => {
+    await beerAt("v1", 4.2, 1_000, "a");
+    await beerAt("v1", 6.5, 2_000, "b");
+
+    const [row] = await readCommunityPrices("v1");
+    // £4.20 does not corroborate £6.50; it contradicts it. A disagreement must
+    // never read as support, or two people arguing would restamp the pin.
+    expect(row.corroborations).toBe(1);
+  });
+
+  it("never lets one device corroborate itself by resubmitting", async () => {
+    await beerAt("v1", 4.2, 1_000, "a");
+    await beerAt("v1", 4.25, 2_000, "a");
+    await beerAt("v1", 4.3, 3_000, "a");
+
+    const rows = await readCommunityPrices("v1");
+    // The store already collapses a device's own corrections to one row; this
+    // asserts the trust count agrees, which is the whole spray defence.
+    expect(rows).toHaveLength(1);
+    expect(rows[0].corroborations).toBe(1);
+  });
+
+  it("counts all unattributed reports as at most one voice", async () => {
+    // Anonymous rows (IP hashing unavailable) stack in storage - NULLs never
+    // collide under the unique constraint - but they cannot be shown to come
+    // from different people, and the threshold is about INDEPENDENCE.
+    await beerAt("v1", 4.2, 1_000);
+    await beerAt("v1", 4.25, 2_000);
+    await beerAt("v1", 4.3, 3_000);
+    expect((await readCommunityPrices("v1"))[0].corroborations).toBe(1);
+
+    // One attributed device agreeing alongside them does make it two.
+    await beerAt("v1", 4.3, 4_000, "a");
+    expect((await readCommunityPrices("v1"))[0].corroborations).toBe(2);
+  });
+
+  it("counts each drink category on its own", async () => {
+    await beerAt("v1", 4.2, 1_000, "a");
+    await beerAt("v1", 4.3, 2_000, "b");
+    await submitCommunityPrice(
+      { venueId: "v1", drinkCategory: "wine", priceGbp: 8.5, actor: "a" },
+      3_000,
+    );
+
+    const rows = await readCommunityPrices("v1");
+    const byCategory = new Map(rows.map((row) => [row.drinkCategory, row.corroborations]));
+    // A wine report is not evidence about the pint, whatever it cost.
+    expect(byCategory.get("beer")).toBe(2);
+    expect(byCategory.get("wine")).toBe(1);
+  });
+
+  it("never leaks the actor token that the count is derived from", async () => {
+    await beerAt("v1", 4.2, 1_000, "secret-device-token");
+    const [row] = await readCommunityPrices("v1");
+    expect(JSON.stringify(row)).not.toContain("secret-device-token");
+    expect(row).not.toHaveProperty("actor");
+  });
+});
+
+// The map candidate: the best-corroborated IN-WINDOW figure per category,
+// riding alongside the freshest (sheet) row. This is what stops one device
+// un-painting a corroborated price with a single disagreeing tap - the sheet
+// stays freshest-wins, the map follows the best-backed figure until a
+// contradiction itself reaches the threshold (mergeCommunityPriceSignals
+// enforces; the store only states the facts).
+describe("communityPriceStore map candidate (memory backend)", () => {
+  const DAY = 86_400_000;
+
+  beforeEach(() => {
+    delete process.env.SUPABASE_URL;
+    delete process.env.SUPABASE_SERVICE_ROLE_KEY;
+  });
+
+  afterEach(() => {
+    __resetCommunityPrices();
+    if (ORIGINAL_SUPABASE_URL === undefined) delete process.env.SUPABASE_URL;
+    else process.env.SUPABASE_URL = ORIGINAL_SUPABASE_URL;
+    if (ORIGINAL_SUPABASE_SERVICE_ROLE_KEY === undefined) {
+      delete process.env.SUPABASE_SERVICE_ROLE_KEY;
+    } else {
+      process.env.SUPABASE_SERVICE_ROLE_KEY = ORIGINAL_SUPABASE_SERVICE_ROLE_KEY;
+    }
+  });
+
+  async function beerAt(venueId: string, priceGbp: number, at: number, actor?: string) {
+    await submitCommunityPrice({ venueId, drinkCategory: "beer", priceGbp, actor }, at);
+  }
+
+  it("hands the candidate to the corroborated cluster, not a lone fresh disagreement", async () => {
+    // Devices A and B agree on £4.20; C's fresh £9.00 becomes the sheet row.
+    await beerAt("v1", 4.2, 1_000, "a");
+    await beerAt("v1", 4.2, 2_000, "b");
+    await beerAt("v1", 9, 3_000, "c");
+
+    const [row] = await readCommunityPrices("v1", 10_000);
+    // Sheet: freshest-wins, honestly one voice.
+    expect(row.priceGbp).toBe(9);
+    expect(row.corroborations).toBe(1);
+    // Map: the corroborated figure, stamped with its cluster's freshest report.
+    expect(row.mapCandidate).toEqual({
+      priceGbp: 4.2,
+      submittedAt: 2_000,
+      corroborations: 2,
+    });
+  });
+
+  it("moves the candidate once the contradiction reaches the threshold itself", async () => {
+    await beerAt("v1", 4.2, 1_000, "a");
+    await beerAt("v1", 4.2, 2_000, "b");
+    await beerAt("v1", 9, 3_000, "c");
+    await beerAt("v1", 9, 4_000, "d");
+
+    const [row] = await readCommunityPrices("v1", 10_000);
+    // Both clusters count two voices; the tie goes to the fresher cluster,
+    // which is exactly "the new price takes over once it is confirmed".
+    expect(row.mapCandidate).toEqual({
+      priceGbp: 9,
+      submittedAt: 4_000,
+      corroborations: 2,
+    });
+  });
+
+  it("attaches no candidate when every report has aged out of the window", async () => {
+    await beerAt("v1", 4.2, 1_000, "a");
+    await beerAt("v1", 4.2, 2_000, "b");
+
+    const [row] = await readCommunityPrices("v1", 2_000 + 31 * DAY);
+    // The sheet keeps the dated row; the map has nothing current to stand on.
+    expect(row.priceGbp).toBe(4.2);
+    expect(row.mapCandidate).toBeUndefined();
+  });
+
+  it("skips aged-out clusters when picking the candidate", async () => {
+    // The corroborated £4.20 has aged out; only C's lone report is current.
+    await beerAt("v1", 4.2, 1_000, "a");
+    await beerAt("v1", 4.2, 2_000, "b");
+    await beerAt("v1", 9, 35 * DAY, "c");
+
+    const [row] = await readCommunityPrices("v1", 35 * DAY + 1_000);
+    // The candidate is stated honestly at one voice - the merge's threshold
+    // gate is what keeps it off the map, not a hidden count.
+    expect(row.mapCandidate).toEqual({
+      priceGbp: 9,
+      submittedAt: 35 * DAY,
+      corroborations: 1,
+    });
+  });
+
+  it("counts candidate clusters per category, and only for that category", async () => {
+    await beerAt("v1", 4.2, 1_000, "a");
+    await beerAt("v1", 4.2, 2_000, "b");
+    await submitCommunityPrice(
+      { venueId: "v1", drinkCategory: "wine", priceGbp: 8.5, actor: "c" },
+      3_000,
+    );
+
+    const rows = await readCommunityPrices("v1", 10_000);
+    const byCategory = new Map(rows.map((row) => [row.drinkCategory, row.mapCandidate]));
+    expect(byCategory.get("beer")).toEqual({
+      priceGbp: 4.2,
+      submittedAt: 2_000,
+      corroborations: 2,
+    });
+    expect(byCategory.get("wine")).toEqual({
+      priceGbp: 8.5,
+      submittedAt: 3_000,
+      corroborations: 1,
+    });
+  });
+});

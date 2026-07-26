@@ -28,6 +28,18 @@
   color: var(--brass);
 }
 
+/* Where a shown-but-not-yet-trusted price stands: "awaiting confirmation", or
+   aged past the 30-day window. Full-width beneath the stamp (inheriting
+   .contributorPrice small's flex-basis), sentence case, and deliberately NOT
+   brass - it is a caveat about the figure above, not a second claim, so it
+   sits at the same quiet weight as the provenance note below it while staying
+   a step more legible than muted. */
+.contributorPrice.communityPriceRow .communityPriceStanding {
+  color: var(--ink-soft);
+  font-weight: 600;
+  font-style: italic;
+}
+
 .venuePriceSubmit {
   margin-top: 16px;
   padding: 14px;

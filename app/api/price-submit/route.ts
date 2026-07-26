@@ -7,6 +7,12 @@
 //   POST { venueId, drinkCategory, priceGbp } → { ok: true, price }
 //   GET  ?venueId=<id>                        → { prices: CommunityPrice[] }
 //
+// Both shapes carry `corroborations` - how many independent submitters back the
+// figure. It is derived server-side on every read and is never accepted from a
+// body: it is the number that decides whether a price moves a pin, so a client
+// that could set it could repaint the map alone, which is exactly the hole the
+// trust wave closed.
+//
 // Identity is server-derived (hashActor of the hashed client IP), never trusted
 // from the body - exactly as price-confirm does it, so an anonymous drinker can
 // contribute with no account and one device still can't stack duplicate
@@ -95,7 +101,41 @@ export async function POST(request: Request): Promise<Response> {
   if (failed || !price) {
     return jsonNoStore({ error: "Could not log that price right now." }, { status: 503 });
   }
-  return jsonNoStore({ ok: true, price }, { status: 201 });
+  // Read the venue back so the response carries this figure's authoritative
+  // `corroborations` - the number that decides whether the submitter's tap
+  // moves a pin or only lands on the pub's sheet. The client cannot derive it
+  // (it never sees other devices' rows), and counting it in the store's one
+  // read path rather than a second time on write keeps a single definition of
+  // "how much the community backs this price".
+  //
+  // Adopted only when the read-back is still THIS submission's figure. When it
+  // is not - another device holds the freshest row for this drink at a
+  // different price, or the read degraded - answering with that row would show
+  // the submitter a price they never typed, so we answer with their own at an
+  // explicit one voice. A figure that is not even the record for its drink is
+  // certainly not driving the map, and stating the 1 beats omitting it and
+  // leaving the client to infer the same thing. The category's mapCandidate
+  // still rides along on that fallback: dropping it would let this submitter's
+  // own map transiently un-paint an already-corroborated figure until the next
+  // read. Only when the read-back really produced a row, though - a degraded
+  // or empty read stays candidate-less rather than inventing one.
+  const categoryRow = (await readCommunityPrices(result.value.venueId)).find(
+    (row) => row.drinkCategory === price.drinkCategory,
+  );
+  const record = categoryRow?.priceGbp === price.priceGbp ? categoryRow : undefined;
+  return jsonNoStore(
+    {
+      ok: true,
+      price:
+        record ??
+        {
+          ...price,
+          corroborations: 1,
+          ...(categoryRow?.mapCandidate ? { mapCandidate: categoryRow.mapCandidate } : {}),
+        },
+    },
+    { status: 201 },
+  );
 }
 
 export async function GET(request: Request): Promise<Response> {

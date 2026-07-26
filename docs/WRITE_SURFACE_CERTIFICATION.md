@@ -371,8 +371,10 @@ commit.
 ### `app/api/price-submit` - community price submissions (route 70)
 
 - **Route / method:** `POST app/api/price-submit/route.ts` (`fm/price-submission`).
-  A drinker standing in the pub logs tonight's price for one drink category, and
-  the pin/card restamps. Sibling of `POST /api/price-confirm`, which only counts
+  A drinker standing in the pub logs tonight's price for one drink category; it
+  shows on the venue sheet at once, and the pin/card restamp only after the
+  trust gate (second independent submitter, 30-day window - policy in
+  `lib/communityPrice.ts`). Sibling of `POST /api/price-confirm`, which only counts
   vouches for an already-displayed figure; this is the first time a figure enters
   the map from the community. The route also exports a read-only `GET` (the
   freshest community price per drink at a venue) which is NOT a mutating verb and
@@ -393,8 +395,10 @@ commit.
   is NEVER trusted from the body. A body-supplied `submittedAt`/`source` is
   ignored: the server stamps the clock and the `community` lane itself. No
   account, no handle - a price at a bar must not require sign-up. The token is a
-  de-duplication key only and never leaves the store (`published()` strips it;
-  the durable read never selects the column).
+  de-duplication key and, since the trust wave, the read path's way of counting
+  independent submitters (`corroborations`); it still never leaves the store -
+  the durable read selects the column only to count it, and `published()`
+  strips it.
 - **Rate limit (boundary):** two durable `isLimited` tiers. An actor-wide cap
   keyed `price-submit-actor:${actor ?? "anon"}` (30/hour) stops one device
   spraying prices across the whole map by rotating `venueId`; then the per-venue

@@ -19,7 +19,7 @@ import SaveToListControl from "@/components/savedpubs/SaveToListControl";
 import NextBadgeChips from "@/components/profile/NextBadgeChips";
 import FirstDropNudge from "@/components/map/inspector/FirstDropNudge";
 import VenuePriceSubmit from "@/components/map/VenuePriceSubmit";
-import { communityStampLabel, submitCategoryLabel } from "@/lib/communityPrice";
+import { communityStampLabel, communityTrustNote, submitCategoryLabel } from "@/lib/communityPrice";
 import {
   freshestCommunityPrice,
   type CommunityPricesState,
@@ -46,6 +46,7 @@ export default function VenueOverviewTab({
   mode,
   inCrawl,
   latestContributorPrice,
+  latestPintDropAt,
   communityPrices,
   onToggleStop,
   presenceState,
@@ -62,6 +63,10 @@ export default function VenueOverviewTab({
   mode: CrawlMode;
   inCrawl: boolean;
   latestContributorPrice: number | null | undefined;
+  /** Epoch ms of the latest Pint Drop (unmerged drop signal) - lets the
+   *  submit receipt refuse to claim the map when a newer drop outranks the
+   *  community figure in mergeCommunityPriceSignals. */
+  latestPintDropAt?: number | null;
   /** Community price layer - the dated submission row plus the submit card. */
   communityPrices: CommunityPricesState;
   onToggleStop: (id: string) => void;
@@ -94,8 +99,14 @@ export default function VenueOverviewTab({
 
   // The freshest community submission at this pub, any drink category. The row
   // names the drink, so a wine or cocktail figure can never read as the pint
-  // price - only beer submissions restamp the pin itself (freshestByVenueId).
+  // price - and reaching a PIN takes more still: only beer is a candidate
+  // (freshestByVenueId), and only a corroborated, under-30-days candidate
+  // actually restamps (mergeCommunityPriceSignals).
   const communityPrice = freshestCommunityPrice(communityPrices.byVenueId.get(venue.id));
+  // The sheet is deliberately UNGATED - it shows what people reported, so an
+  // uncorroborated or aged-out figure still renders here in full. What changes
+  // is that the row admits its standing instead of implying it moved the map.
+  const communityTrustStanding = communityPrice ? communityTrustNote(communityPrice) : "";
 
   // Sourced attribution from mergePriceUpdates (optional field on the runtime
   // venue object). Absent when community is fresher or no refresh exists.
@@ -214,6 +225,13 @@ export default function VenueOverviewTab({
             {submitCategoryLabel(communityPrice.drinkCategory)} ·{" "}
             {communityStampLabel(communityPrice.submittedAt)}
           </small>
+          {/* Where this figure stands. A single report shows here in full,
+              dated, from the first tap - it just says so plainly rather than
+              letting the reader assume the map moved with it. Empty (and so
+              unrendered) once the price is corroborated and current. */}
+          {communityTrustStanding ? (
+            <small className="communityPriceStanding">{communityTrustStanding}</small>
+          ) : null}
           <small className="communityPriceNote">{COMMUNITY_PRICE_NOTE}</small>
         </div>
       ) : null}
@@ -268,6 +286,7 @@ export default function VenueOverviewTab({
         venueName={venue.name}
         communityPrices={communityPrices}
         baselinePriceGbp={latestContributorPrice ?? venue.cheapestPrice}
+        latestPintDropAt={latestPintDropAt}
       />
       {mode === "build" ? (
         <button
