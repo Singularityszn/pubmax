@@ -25,6 +25,42 @@ async function firstCommittedOsmRef(): Promise<string> {
   return shard.pubs[0][0];
 }
 
+async function withMutatedFirstShard(
+  mutate: (body: Record<string, unknown>) => void,
+): Promise<Awaited<ReturnType<typeof getUkBaseIdIndex>>> {
+  const manifestPath = path.join(
+    process.cwd(),
+    "public",
+    "data",
+    "uk_base",
+    "manifest.json",
+  );
+  const manifest = JSON.parse(await fs.readFile(manifestPath, "utf8")) as {
+    shards: Array<{ url: string }>;
+  };
+  const shardPath = path.join(
+    process.cwd(),
+    "public",
+    manifest.shards[0].url.replace(/^\//, ""),
+  );
+  const realReadFile = fs.readFile.bind(fs);
+  const readSpy = vi.spyOn(fs, "readFile").mockImplementation(
+    async (...args: Parameters<typeof fs.readFile>) => {
+      const raw = await realReadFile(...args);
+      if (String(args[0]) !== shardPath || typeof raw !== "string") return raw;
+      const body = JSON.parse(raw) as Record<string, unknown>;
+      mutate(body);
+      return JSON.stringify(body);
+    },
+  );
+
+  try {
+    return await getUkBaseIdIndex();
+  } finally {
+    readSpy.mockRestore();
+  }
+}
+
 beforeEach(() => {
   resetUkBaseIndexForTests();
 });
@@ -93,5 +129,37 @@ describe("getUkBaseIdIndex", () => {
     } finally {
       readSpy.mockRestore();
     }
+  });
+
+  it("reports unavailable when a shard version or cell disagrees with its manifest", async () => {
+    expect(
+      await withMutatedFirstShard((body) => {
+        body.version = 999;
+      }),
+    ).toEqual({ status: "unavailable" });
+
+    resetUkBaseIndexForTests();
+    expect(
+      await withMutatedFirstShard((body) => {
+        body.cell = "wrong-cell";
+      }),
+    ).toEqual({ status: "unavailable" });
+  });
+
+  it("reports unavailable when a shard silently drops a malformed or missing row", async () => {
+    expect(
+      await withMutatedFirstShard((body) => {
+        const pubs = body.pubs as unknown[];
+        pubs[0] = ["n-broken", "", "", 51.5, -0.1];
+      }),
+    ).toEqual({ status: "unavailable" });
+
+    resetUkBaseIndexForTests();
+    expect(
+      await withMutatedFirstShard((body) => {
+        const pubs = body.pubs as unknown[];
+        pubs.pop();
+      }),
+    ).toEqual({ status: "unavailable" });
   });
 });

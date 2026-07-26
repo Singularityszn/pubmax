@@ -1,11 +1,12 @@
 import { promises as fs } from "fs";
 import path from "path";
 
-// Legacy venue identity resolution. Imports can collapse duplicate lineages or
-// promote a base pub into a curated record, recording every prior id in
-// public/data/venue_id_aliases.json as `oldId -> canonicalId`. Venue ids are
-// referenced by pint drops, plans and saved lists, so stored references must
-// remain readable at every server-side lookup-by-id seam.
+// Duplicate-venue-identity alias resolution (D1). The bundled dataset collapses
+// the same physical pub's duplicate lineages into one canonical venue id (see
+// scripts/canonicalize_venue_dataset.mjs), and records every losing id in
+// public/data/venue_id_aliases.json as `duplicateId -> canonicalId`. Venue ids
+// are referenced by pint drops, plans and saved lists, so a stored reference to
+// a merged id must still resolve at every server-side lookup-by-id seam.
 //
 // Reads the alias artifact with `fs`, so import ONLY from server code (route
 // handlers, server components), same rule as lib/venueIndex.ts. Never throws: a
@@ -50,17 +51,6 @@ export async function resolveCanonicalVenueId(id: string): Promise<string> {
   if (!id) return id;
   const map = await loadAliases();
   return map.get(id) ?? id;
-}
-
-export async function resolveVenueIdentityIds(id: string): Promise<string[]> {
-  if (!id) return [];
-  const map = await loadAliases();
-  const canonical = map.get(id) ?? id;
-  const identities = [canonical];
-  for (const [alias, target] of map) {
-    if (target === canonical && alias !== canonical) identities.push(alias);
-  }
-  return identities;
 }
 
 export function resetVenueAliasesForTests(): void {

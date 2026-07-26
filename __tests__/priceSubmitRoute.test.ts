@@ -1,6 +1,3 @@
-import { promises as fs } from "fs";
-import os from "os";
-import path from "path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 // Two Vercel-vs-local seams to pin (both would otherwise pass locally and fail
@@ -68,17 +65,12 @@ import { GET, POST } from "@/app/api/price-submit/route";
 import {
   __resetCommunityPrices,
   readCommunityPrices,
-  submitCommunityPrice,
 } from "@/lib/communityPriceStore";
 import { COMMUNITY_PRICE_MAX_GBP } from "@/lib/communityPrice";
 import { __resetPintDrops } from "@/lib/pintDrops";
 import { getUkBaseIdIndex } from "@/lib/ukBaseIndex";
 import { UK_BASE_ID_PREFIX } from "@/lib/ukBasePubs";
 import { getVenueIndex } from "@/lib/venueIndex";
-import {
-  resetVenueAliasesForTests,
-  setVenueAliasesPathForTests,
-} from "@/lib/venueAliases";
 
 type PriceBody = {
   ok?: boolean;
@@ -107,8 +99,6 @@ function get(query: string): Request {
 
 const ORIGINAL_SUPABASE_URL = process.env.SUPABASE_URL;
 const ORIGINAL_SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
-const aliasDirs: string[] = [];
-
 beforeEach(() => {
   delete process.env.SUPABASE_URL;
   delete process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -117,7 +107,6 @@ beforeEach(() => {
   readBackState.override = null;
   __resetCommunityPrices();
   __resetPintDrops();
-  resetVenueAliasesForTests();
 });
 
 afterEach(async () => {
@@ -128,10 +117,6 @@ afterEach(async () => {
   } else {
     process.env.SUPABASE_SERVICE_ROLE_KEY = ORIGINAL_SUPABASE_SERVICE_ROLE_KEY;
   }
-  resetVenueAliasesForTests();
-  await Promise.all(
-    aliasDirs.splice(0).map((dir) => fs.rm(dir, { recursive: true, force: true })),
-  );
 });
 
 describe("POST /api/price-submit", () => {
@@ -315,33 +300,6 @@ describe("GET /api/price-submit", () => {
     expect(await (await GET(get("?venueId=nobody-here"))).json()).toEqual({ prices: [] });
   });
 
-  it("reads historical base-id prices through a promoted venue alias", async () => {
-    const baseId = "venue-uk-n123";
-    const curatedId = "venue-curated-123";
-    const dir = await fs.mkdtemp(path.join(os.tmpdir(), "price-route-alias-"));
-    aliasDirs.push(dir);
-    const aliasPath = path.join(dir, "venue_id_aliases.json");
-    await fs.writeFile(
-      aliasPath,
-      JSON.stringify({ aliases: { [baseId]: curatedId } }),
-    );
-    setVenueAliasesPathForTests(aliasPath);
-    await submitCommunityPrice({
-      venueId: baseId,
-      drinkCategory: "beer",
-      priceGbp: 4.2,
-      actor: "historical-device",
-    });
-
-    const res = await GET(get(`?venueId=${curatedId}`));
-    const data = (await res.json()) as {
-      prices: Array<{ venueId: string; priceGbp: number }>;
-    };
-
-    expect(data.prices).toEqual([
-      expect.objectContaining({ venueId: curatedId, priceGbp: 4.2 }),
-    ]);
-  });
 });
 
 // The corroboration count the POST answers with is what promotes a submission

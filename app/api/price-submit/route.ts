@@ -30,14 +30,13 @@
 // No Supabase and no env are required.
 
 import { jsonNoStore } from "@/lib/apiResponses";
-import { validateCommunityPrice, type CommunityPrice } from "@/lib/communityPrice";
+import { validateCommunityPrice } from "@/lib/communityPrice";
 import { readCommunityPrices, submitCommunityPrice } from "@/lib/communityPriceStore";
 import { isLimited } from "@/lib/pintDrops";
 import { clientIp, hashActor, hashIp } from "@/lib/supabase";
 import { getUkBaseIdIndex } from "@/lib/ukBaseIndex";
 import { isUkBaseId } from "@/lib/ukBasePubs";
 import { getVenueIndex } from "@/lib/venueIndex";
-import { resolveVenueIdentityIds } from "@/lib/venueAliases";
 
 // Best-effort, server-derived submitter token. Never throws - if IP hashing is
 // unavailable the store records the observation unattributed (it still counts,
@@ -150,29 +149,11 @@ export async function POST(request: Request): Promise<Response> {
   );
 }
 
-async function readCommunityPricesAcrossIdentities(
-  requestedId: string,
-): Promise<CommunityPrice[]> {
-  const identities = await resolveVenueIdentityIds(requestedId);
-  const rows = (await Promise.all(identities.map((id) => readCommunityPrices(id)))).flat();
-  const freshest = new Map<CommunityPrice["drinkCategory"], CommunityPrice>();
-  for (const row of rows) {
-    const current = freshest.get(row.drinkCategory);
-    if (!current || row.submittedAt > current.submittedAt) {
-      freshest.set(row.drinkCategory, { ...row, venueId: requestedId });
-    }
-  }
-  return [...freshest.values()].sort((left, right) => right.submittedAt - left.submittedAt);
-}
-
 export async function GET(request: Request): Promise<Response> {
   try {
     const venueId = (new URL(request.url).searchParams.get("venueId") ?? "").trim();
     if (!venueId) return jsonNoStore({ prices: [] }, { status: 200 });
-    return jsonNoStore(
-      { prices: await readCommunityPricesAcrossIdentities(venueId) },
-      { status: 200 },
-    );
+    return jsonNoStore({ prices: await readCommunityPrices(venueId) }, { status: 200 });
   } catch {
     // The reader never 500s - degrade to no community prices so the sourced
     // baseline still renders on the sheet.

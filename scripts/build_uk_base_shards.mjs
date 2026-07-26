@@ -10,15 +10,16 @@
 // the camera is zoomed in far enough for individual pins to exist at all
 // (lib/ukBasePubs.ts owns the client half; UK_BASE_MIN_ZOOM owns the gate).
 //
-// WHAT IS DROPPED. Pubs that still resolve to a current venues_slim / city-pack
-// id. Curated wins, and the former base id is retained as an alias.
+// WHAT IS DROPPED. Every pub carrying `curatedRef` - the pack's own record that
+// the venue is already in venues_slim / a city pack. Curated wins: a deduped
+// pub must exist on the map exactly once, as its curated pin.
 //
 // PRICES. None. OSM is not a price source (data/osm/uk/README.md). A base pub
 // has no price by construction; it is the canvas the community prices in.
 //
 // Run: node scripts/build_uk_base_shards.mjs   (wired into `npm run prebuild`)
 
-import { mkdir, mkdtemp, readFile, rename, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -32,14 +33,11 @@ import {
   shardUrlForCell,
 } from "./lib/ukBaseGrid.mjs";
 import { publishStagedDirectory } from "./lib/atomicDirectoryPublish.mjs";
-import { buildUkBasePromotionPlan } from "./lib/ukBasePromotionAliases.mjs";
-import { mergeAliasMaps } from "./lib/venueCanonicalization.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, "..");
 const PACK_PATH = path.join(ROOT, "data", "osm", "uk", "uk_osm_pubs.json");
 const OUT_DIR = path.join(ROOT, "public", "data", SHARD_DIR_NAME);
-const ALIASES_PATH = path.join(ROOT, "public", "data", "venue_id_aliases.json");
 
 // Per-shard ceiling. A cell is one viewport-triggered fetch, so a fat cell is
 // felt directly as a stall while panning. The densest cell today (central
@@ -99,59 +97,6 @@ function median(values) {
   return sorted[Math.floor(sorted.length / 2)];
 }
 
-async function loadCuratedRowsBySource(pubs) {
-  const rowsByPath = new Map();
-  const rowsBySource = new Map();
-  const sources = new Set(
-    pubs.map((pub) => String(pub?.curatedRef?.source ?? "")).filter(Boolean),
-  );
-  for (const source of sources) {
-    const slimPath =
-      source === "curated-london-slim" || source === "outer-london-osm-seed"
-        ? path.join(ROOT, "public", "data", "venues_slim.json")
-        : source.startsWith("city:")
-          ? path.join(
-              ROOT,
-              "public",
-              "data",
-              "cities",
-              source.slice("city:".length),
-              "venues_slim.json",
-            )
-          : "";
-    if (!slimPath) throw new Error(`Unknown curated source "${source}" in ${PACK_PATH}`);
-    let rows = rowsByPath.get(slimPath);
-    if (!rows) {
-      rows = JSON.parse(await readFile(slimPath, "utf8"));
-      if (!Array.isArray(rows)) throw new Error(`Expected an array in ${slimPath}`);
-      rowsByPath.set(slimPath, rows);
-    }
-    rowsBySource.set(source, rows);
-  }
-  return rowsBySource;
-}
-
-async function buildAliasDocument(promotionAliases) {
-  const previousText = await readFile(ALIASES_PATH, "utf8");
-  const previous = JSON.parse(previousText);
-  if (!previous || typeof previous !== "object" || Array.isArray(previous)) {
-    throw new Error(`Expected an object in ${ALIASES_PATH}`);
-  }
-  const aliases = mergeAliasMaps(previous.aliases, promotionAliases);
-  const document = {
-    ...previous,
-    note:
-      "legacyVenueId -> canonicalVenueId. Duplicate venue lineages and UK base pubs promoted into curated packs retain one durable identity, so stored prices, plans, drops and saved references remain reachable.",
-    aliasCount: Object.keys(aliases).length,
-    basePromotionAliasCount: Object.keys(promotionAliases).length,
-    aliases,
-  };
-  return {
-    previousText,
-    nextText: `${JSON.stringify(document, null, 2)}\n`,
-  };
-}
-
 async function main() {
   const pack = JSON.parse(await readFile(PACK_PATH, "utf8"));
   const pubs = Array.isArray(pack?.pubs) ? pack.pubs : [];
@@ -159,9 +104,7 @@ async function main() {
     throw new Error(`${PACK_PATH} has no pubs — refresh it with npm run fetch:uk-pubs`);
   }
 
-  const curatedRowsBySource = await loadCuratedRowsBySource(pubs);
-  const promotionPlan = buildUkBasePromotionPlan(pubs, curatedRowsBySource);
-  const deduped = pubs.filter((pub) => !promotionPlan.promotedOsmIds.has(pub.osmId));
+  const deduped = pubs.filter((pub) => !pub.curatedRef);
   const renderable = deduped.filter(isRenderablePub);
   const skipped = deduped.length - renderable.length;
 
@@ -236,16 +179,9 @@ async function main() {
     }
     await writeFile(path.join(stagedDir, "manifest.json"), manifestBody);
 
-    const aliasDocument = await buildAliasDocument(promotionPlan.aliases);
-    if (aliasDocument.nextText !== aliasDocument.previousText) {
-      const stagedAliasPath = `${ALIASES_PATH}.tmp-${process.pid}-${Date.now()}`;
-      await writeFile(stagedAliasPath, aliasDocument.nextText);
-      await rename(stagedAliasPath, ALIASES_PATH);
-    }
     await publishStagedDirectory({
       stagedDir,
       targetDir: OUT_DIR,
-      preserveFiles: ["README.md"],
       requiredFiles: ["manifest.json"],
     });
 

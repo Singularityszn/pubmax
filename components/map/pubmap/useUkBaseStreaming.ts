@@ -10,6 +10,7 @@ import {
   type UkBaseLoader,
   type UkBasePub,
 } from "@/lib/ukBasePubs";
+import type { MapBounds } from "@/lib/slimShards";
 
 // Streams the UK base layer (lib/ukBasePubs.ts) into the map's `uk-base`
 // source, one viewport at a time.
@@ -57,6 +58,22 @@ type Options = {
  */
 export type UkBaseStreamState = { count: number; pubs: UkBasePub[] };
 
+export function ukBasePubsWithinBounds(
+  pubs: UkBasePub[],
+  bounds: MapBounds,
+): UkBasePub[] {
+  const containsLongitude =
+    bounds.west <= bounds.east
+      ? (lng: number) => lng >= bounds.west && lng <= bounds.east
+      : (lng: number) => lng >= bounds.west || lng <= bounds.east;
+  return pubs.filter(
+    (pub) =>
+      pub.lat >= bounds.south &&
+      pub.lat <= bounds.north &&
+      containsLongitude(pub.lng),
+  );
+}
+
 export function nextUkBaseStreamToken(
   generation: { current: number },
   zoom: number,
@@ -81,15 +98,25 @@ export function useUkBaseStreaming({
   useEffect(() => {
     onRestorePubRef.current = onRestorePub;
   }, [onRestorePub]);
-  const [published, setPublished] = useState<{ scopeKey: string; pubs: UkBasePub[] }>(
-    () => ({ scopeKey, pubs: [] }),
+  const [published, setPublished] = useState<{
+    scopeKey: string;
+    count: number;
+    pubs: UkBasePub[];
+  }>(
+    () => ({ scopeKey, count: 0, pubs: [] }),
   );
 
   const publish = useCallback(
-    (nextPubs: UkBasePub[]) => {
+    (nextPubs: UkBasePub[], viewportBounds?: MapBounds) => {
       const data = nextPubs.length > 0 ? ukBasePubsToGeoJSON(nextPubs) : EMPTY;
       ukBaseDataRef.current = data;
-      setPublished({ scopeKey, pubs: nextPubs });
+      setPublished({
+        scopeKey,
+        count: nextPubs.length,
+        pubs: viewportBounds
+          ? ukBasePubsWithinBounds(nextPubs, viewportBounds)
+          : [],
+      });
       applyToMap("uk-base:data", (map) => {
         (map.getSource("uk-base") as maplibregl.GeoJSONSource | undefined)?.setData(data);
       });
@@ -121,16 +148,17 @@ export function useUkBaseStreaming({
       }
       if (!loaderRef.current) loaderRef.current = createUkBaseLoader();
       const bounds = current.getBounds();
+      const viewportBounds = {
+        west: bounds.getWest(),
+        south: bounds.getSouth(),
+        east: bounds.getEast(),
+        north: bounds.getNorth(),
+      };
       void loaderRef.current
-        .pubsForBounds({
-          west: bounds.getWest(),
-          south: bounds.getSouth(),
-          east: bounds.getEast(),
-          north: bounds.getNorth(),
-        })
+        .pubsForBounds(viewportBounds)
         .then((pubs) => {
           if (cancelled || token !== generation.current) return;
-          publish(pubs);
+          publish(pubs, viewportBounds);
           const wanted = restoreIdRef.current;
           if (!wanted) return;
           const hit = pubs.find((pub) => pub.id === wanted);
@@ -158,6 +186,6 @@ export function useUkBaseStreaming({
     };
   }, [mapReady, mapRef, publish, ukBaseDataRef]);
 
-  const pubs = published.scopeKey === scopeKey ? published.pubs : [];
-  return { count: pubs.length, pubs };
+  if (published.scopeKey !== scopeKey) return { count: 0, pubs: [] };
+  return { count: published.count, pubs: published.pubs };
 }

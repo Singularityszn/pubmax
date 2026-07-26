@@ -752,6 +752,19 @@ function isUkBaseRow(row) {
   );
 }
 
+function listUkBaseJsonFiles(directory, prefix = "") {
+  const files = [];
+  for (const entry of readdirSync(directory, { withFileTypes: true })) {
+    const relative = prefix ? `${prefix}/${entry.name}` : entry.name;
+    if (entry.isDirectory()) {
+      files.push(...listUkBaseJsonFiles(join(directory, entry.name), relative));
+    } else if (entry.isFile() && entry.name.endsWith(".json")) {
+      files.push(relative);
+    }
+  }
+  return files;
+}
+
 function validateUkBaseShards() {
   const name = "public/data/uk_base shards";
   const errs = makeCollector();
@@ -781,8 +794,22 @@ function validateUkBaseShards() {
   // Files on disk must match the manifest exactly: an orphan is dead weight in
   // the repo, and a missing one is a 404 mid-pan.
   const onDisk = new Set(
-    readdirSync(UK_BASE_DIR).filter((f) => f.endsWith(".json") && f !== "manifest.json"),
+    listUkBaseJsonFiles(UK_BASE_DIR).filter((file) => file !== "manifest.json"),
   );
+  const rawPreviousGenerations = Array.isArray(manifest.previousGenerations)
+    ? manifest.previousGenerations
+    : [];
+  const previousGenerations = rawPreviousGenerations.filter(
+    (generation) =>
+      generation === "legacy" ||
+      (typeof generation === "string" && /^[a-f0-9]{16}$/.test(generation)),
+  );
+  if (
+    rawPreviousGenerations.length > 1 ||
+    previousGenerations.length !== rawPreviousGenerations.length
+  ) {
+    errs.add("manifest previousGenerations must contain at most one valid generation");
+  }
   const ids = new Set();
   let totalBytes = manifestBytes;
   let pubCount = 0;
@@ -835,7 +862,14 @@ function validateUkBaseShards() {
       pubCount += 1;
     }
   }
-  for (const orphan of onDisk) errs.add(`orphan shard body ${orphan} is not in the manifest`);
+  for (const orphan of onDisk) {
+    const retained =
+      (previousGenerations.includes("legacy") && !orphan.includes("/")) ||
+      previousGenerations.some((generation) =>
+        orphan.startsWith(`packs/${generation}/`),
+      );
+    if (!retained) errs.add(`orphan shard body ${orphan} is not in the manifest`);
+  }
 
   if (totalBytes >= UK_BASE_TOTAL_BUDGET_BYTES) {
     errs.add(
