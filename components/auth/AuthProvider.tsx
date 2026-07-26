@@ -32,6 +32,7 @@ import IdentityNudge from "@/components/identity/IdentityNudge";
 import { trackEvent } from "@/lib/analytics";
 import { exchangeAuthCallbackCode } from "@/lib/authCallbackClient";
 import { ensureSupabaseBrowser, isAuthConfigured } from "@/lib/authClient";
+import { createAuthSessionTransitionTracker } from "@/lib/authSessionTransition";
 import {
   AUTH_RETURN_FRAGMENT_RESTORED_EVENT,
   beginCoordinatedAuthAttempt,
@@ -217,6 +218,15 @@ export function AuthProvider({ children }: { children: ReactNode }): React.JSX.E
   const [canonicalHandle, setCanonicalHandle] = useState<string | null>(null);
   const [authCallbackError, setAuthCallbackError] = useState<string | null>(null);
   const configured = isAuthConfigured();
+  const sessionTransitions = useRef(createAuthSessionTransitionTracker());
+  const updateSession = useCallback((nextSession: Session | null, event: string | null = null) => {
+    const signedIn = sessionTransitions.current.update(
+      event,
+      nextSession?.user.id ?? null,
+    );
+    setSession(nextSession);
+    return signedIn;
+  }, []);
   // Guard overlapping sync runs (getSession + SIGNED_IN can both fire).
   const syncInFlight = useRef<string | null>(null);
   // React Strict Mode replays effects in development. Reuse one exchange so a
@@ -438,13 +448,15 @@ export function AuthProvider({ children }: { children: ReactNode }): React.JSX.E
       // the ONLY place these setStates run — never the effect body.
       const registration = supabase.auth.onAuthStateChange((event, nextSession) => {
         if (!active) return;
-        setSession(nextSession ?? null);
+        const signedIn = updateSession(nextSession ?? null, event);
         setLoading(false);
         // Wave L3: on sign-in, maybe open Claim your night (never silent overwrite).
         if (event === "SIGNED_IN" && nextSession?.user) {
+          if (signedIn) trackEvent("user_signed_in");
           void syncIdentityAfterSignIn(nextSession.user);
         }
         if (event === "SIGNED_OUT") {
+          trackEvent("user_signed_out");
           try {
             window.sessionStorage.removeItem(SYNCED_USER_KEY);
           } catch {
@@ -497,7 +509,7 @@ export function AuthProvider({ children }: { children: ReactNode }): React.JSX.E
 
         if (exchangedSession) {
           window.clearTimeout(loadingTimeout);
-          setSession(exchangedSession);
+          updateSession(exchangedSession);
           setLoading(false);
           void syncIdentityAfterSignIn(exchangedSession.user);
           return;
@@ -507,7 +519,7 @@ export function AuthProvider({ children }: { children: ReactNode }): React.JSX.E
           const { data } = await supabase.auth.getSession();
           if (!active) return;
           window.clearTimeout(loadingTimeout);
-          setSession(data.session ?? null);
+          updateSession(data.session ?? null);
           setLoading(false);
           // Wave L3: refresh identity sync for an already-persisted session.
           if (data.session?.user) void syncIdentityAfterSignIn(data.session.user);
@@ -524,7 +536,7 @@ export function AuthProvider({ children }: { children: ReactNode }): React.JSX.E
       window.clearTimeout(loadingTimeout);
       subscription?.unsubscribe();
     };
-  }, [closeClaim, syncIdentityAfterSignIn]);
+  }, [closeClaim, syncIdentityAfterSignIn, updateSession]);
 
   const signInWithGoogle = useCallback(async (): Promise<{ error: string | null }> => {
     const supabase = await ensureSupabaseBrowser();

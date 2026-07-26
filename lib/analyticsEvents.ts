@@ -64,6 +64,13 @@ export const ANALYTICS_EVENTS = {
   crew_committed: ["source", "participants", "routeReady"],
   account_claimed: ["source"],
   social_account_connected: ["provider", "connectionType"],
+  // PostHog wizard adoption. Auth state and successful writes carry no account,
+  // contact, handle, area, or response data. Provider is a fixed button enum.
+  sign_in_initiated: ["provider"],
+  user_signed_in: [],
+  user_signed_out: [],
+  check_in_created: [],
+  email_subscribed: [],
   night_moment_saved: ["kind", "visibility"],
   night_memory_created: ["source"],
   night_story_published: ["contributors", "moments"],
@@ -466,13 +473,15 @@ export function sanitizeEvent(
       const value = (props as Record<string, unknown>)[key];
       if (value === undefined) continue;
       const customValidator = CUSTOM_PROP_VALIDATORS[key];
-      const valid = customValidator
-        ? customValidator(value)
-        : isSafeValue(value)
-          && isAllowedDistrictEventProp(name, key, value)
-          && isAllowedLoopEventProp(name, key, value)
-          && isAllowedTrustedHandoffEventProp(name, key, value)
-          && isAllowedVitalProp(name, key, value);
+      const valid = name === "sign_in_initiated" && key === "provider"
+        ? value === "google" || value === "microsoft"
+        : customValidator
+          ? customValidator(value)
+          : isSafeValue(value)
+            && isAllowedDistrictEventProp(name, key, value)
+            && isAllowedLoopEventProp(name, key, value)
+            && isAllowedTrustedHandoffEventProp(name, key, value)
+            && isAllowedVitalProp(name, key, value);
       if (valid) out[key] = value as string | number | boolean;
     }
   }

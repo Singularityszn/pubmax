@@ -28,6 +28,16 @@ import type { NextRequest } from "next/server";
 // still ships from next.config.mjs on `/:path*`; only the CSP moved here so it
 // can be built per-request with the live nonce.
 export function proxy(request: NextRequest) {
+  const { pathname } = request.nextUrl;
+  if (pathname === "/ingest" || pathname.startsWith("/ingest/")) {
+    return NextResponse.next();
+  }
+  if (pathname.length > 1 && pathname.endsWith("/")) {
+    const canonicalUrl = new URL(request.url);
+    canonicalUrl.pathname = pathname.slice(0, -1);
+    return NextResponse.redirect(canonicalUrl, 308);
+  }
+
   // Crypto-random, base64-encoded nonce (a fresh UUID per request).
   const nonce = Buffer.from(crypto.randomUUID()).toString("base64");
   const isDev = process.env.NODE_ENV === "development";
@@ -96,15 +106,10 @@ export function proxy(request: NextRequest) {
 }
 
 export const config = {
-  // Apply to every request that renders an HTML document. Skip static assets
-  // (/_next/static, /_next/image, favicon) and the JSON/binary /api routes —
-  // none execute inline scripts, so a nonce'd CSP there is pointless. Skip
-  // prefetch requests (the `missing` clause) so router prefetches don't burn a
-  // nonce on a payload the browser won't execute inline. HTML documents at /,
-  // /map, /feed, /borough/*, /plan/*, /crawls, /p/* all still match.
   matcher: [
+    { source: "/:path+/" },
     {
-      source: "/((?!api|_next/static|_next/image|favicon.ico).*)",
+      source: "/((?!api|ingest|_next/static|_next/image|favicon.ico).*)",
       missing: [
         { type: "header", key: "next-router-prefetch" },
         { type: "header", key: "purpose", value: "prefetch" },

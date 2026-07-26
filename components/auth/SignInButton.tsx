@@ -19,6 +19,7 @@ import { LogIn } from "lucide-react";
 
 import { useAuth } from "@/components/auth/AuthProvider";
 import MagicLinkForm from "@/components/auth/MagicLinkForm";
+import { trackEvent } from "@/lib/analytics";
 import {
   AUTH_MENU_FOCUSABLE_SELECTOR,
   authMenuFocusBoundary,
@@ -185,6 +186,7 @@ export default function SignInButton({
   }, [menuOpen]);
 
   const onSignInGoogle = useCallback(async () => {
+    trackEvent("sign_in_initiated", { provider: "google" });
     setBusy("google");
     setError(null);
     const { error: signInError } = await signInWithGoogle();
@@ -197,6 +199,7 @@ export default function SignInButton({
   }, [signInWithGoogle]);
 
   const onSignInMicrosoft = useCallback(async () => {
+    trackEvent("sign_in_initiated", { provider: "microsoft" });
     setBusy("microsoft");
     setError(null);
     const { error: signInError } = await signInWithMicrosoft();

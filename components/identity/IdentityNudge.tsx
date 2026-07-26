@@ -27,6 +27,7 @@ import { useEffect, useState, useSyncExternalStore } from "react";
 
 import { useAuth } from "@/components/auth/AuthProvider";
 import MagicLinkForm from "@/components/auth/MagicLinkForm";
+import { trackEvent } from "@/lib/analytics";
 import { isValidEmail } from "@/lib/emailSubscribers";
 import {
   IDENTITY_NUDGE_FIRST_PAINT_GRACE_MS,
@@ -193,6 +194,7 @@ export default function IdentityNudge(): React.JSX.Element | null {
         );
         return;
       }
+      if (body.status === "created") trackEvent("email_subscribed");
       setStatus("done");
       setMessage(successMessage(body));
     } catch {
