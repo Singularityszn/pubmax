@@ -8,6 +8,7 @@ import { answerHeritage, NO_STORY_LINE, retrieveHeritage } from "@/lib/heritage"
 import { isLimited } from "@/lib/pintDrops";
 import { assertProductionSecrets } from "@/lib/serverEnv";
 import { clientIp, hashIp } from "@/lib/supabase";
+import { resolveVenue } from "@/lib/venueIndex";
 
 // Heritage does not require Supabase durability, but production still needs
 // ADMIN_TOKEN / RATE_LIMIT_SALT so the durable limiter salt is real.
@@ -69,8 +70,14 @@ export async function POST(request: Request): Promise<Response> {
     // reconstructed server-side (heritage cache + pub_heritage) so a client
     // cannot forge pub history.
     const venueId = typeof record.venueId === "string" ? record.venueId : undefined;
+    const resolvedVenue = venueId ? await resolveVenue(venueId) : null;
 
-    const response = await answerHeritage({ venueId, venueName, question });
+    const response = await answerHeritage({
+      venueId: resolvedVenue?.id ?? venueId,
+      venueName: resolvedVenue?.name ?? venueName,
+      venueKind: resolvedVenue?.kind,
+      question,
+    });
     return jsonNoStore(response, { status: 200 });
   } catch {
     // Never 500 the demo — degrade to the honest empty-line answer.

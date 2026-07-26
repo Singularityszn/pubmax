@@ -14,6 +14,10 @@ import { nearestLandmarks, type Landmark } from "@/lib/landmarks";
 import { curatedCrawlsForBand, placeStoryMapHref, type CuratedCrawl } from "@/lib/curatedCrawls";
 import type { CityId } from "@/lib/cities";
 import type { TabKey } from "@/lib/venueInspectorTabs";
+import {
+  isPubVenueKind,
+  venueKindNoun,
+} from "@/lib/venueKindFilters";
 
 export default function VenueStoryTab({
   venue,
@@ -35,6 +39,7 @@ export default function VenueStoryTab({
   // The distinct, provenance-stamped claim list for the inspected venue.
   // Editorial Sourced claims and contributor/anecdote drops stay separate.
   const claims = useMemo(() => buildVenueClaims(venue.curation, drops), [venue.curation, drops]);
+  const venueNoun = venueKindNoun(venue.kind);
 
   // The scraped `description` is third-party AI marketing slop for the large
   // majority of venues ("Welcome to the X pub!", "vibrant atmosphere"). Guard
@@ -53,16 +58,16 @@ export default function VenueStoryTab({
     [venue.latitude, venue.longitude, cityLandmarks],
   );
 
-  // Passive cited heritage (H1): the facts this pub carries "on record", read
+  // Passive cited heritage (H1): the facts this venue carries "on record", read
   // straight off GET /api/heritage so the story reads without interrogating the
   // Landlord. Server-payload only — every fact is validated + de-duped through
   // the pure sanitiser; nothing here is ever invented. Fail-soft on any error
   // (never throws, never blocks the tab), and an AbortController both cancels
-  // the in-flight fetch and guards against a stale pub's facts on venue switch.
+  // the in-flight fetch and guards against a stale venue's facts on venue switch.
   const [heritageFacts, setHeritageFacts] = useState<HeritageFact[]>([]);
   useEffect(() => {
     const controller = new AbortController();
-    // Reset first so the previous pub's facts never flash on the new one.
+    // Reset first so the previous venue's facts never flash on the new one.
     void Promise.resolve().then(() => {
       if (!controller.signal.aborted) setHeritageFacts([]);
     });
@@ -97,7 +102,7 @@ export default function VenueStoryTab({
       hidden={tab !== "story"}
     >
       {/* Passive cited heritage ("On record") — H1. Above the description so the
-          facts a pub carries land the instant the tab opens. Every fact wears
+          facts a venue carries land the instant the tab opens. Every fact wears
           its source chip + citation; provenance-honest, server-payload only. */}
       {heritageFacts.length > 0 ? (
         <section className="heritageOnRecord" aria-labelledby="on-record-title">
@@ -151,8 +156,9 @@ export default function VenueStoryTab({
         </>
       ) : heritageFacts.length === 0 ? (
         <p className="description muted">
-          No heritage note for {venue.name}{" "}yet. Log a Pint Drop below with a passed-down story
-          to be the first to give this pub some character.
+          {isPubVenueKind(venue.kind)
+            ? `No heritage note for ${venue.name} yet. Log a Pint Drop below with a passed-down story to be the first to give this pub some character.`
+            : `No sourced story has been added for this ${venueNoun}.`}
         </p>
       ) : null}
       {claims.length > 0 ? (

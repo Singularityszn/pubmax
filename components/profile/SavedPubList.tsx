@@ -4,6 +4,7 @@ import Link from "next/link";
 
 import EmptyState from "@/components/EmptyState";
 import { normalizeHandle } from "@/lib/profiles";
+import { formatSavedVenueCount } from "@/lib/savedListPresentation";
 import {
   LIST_TYPES,
   type FollowedSavedListDTO,
@@ -11,11 +12,11 @@ import {
   type SavedPubDTO,
 } from "@/lib/savedPubs";
 
-// Presentational saved-pub lists, grouped by list type. Prop-driven: the page
+// Presentational saved-venue lists, grouped by list type. Prop-driven: the page
 // resolves saves (durable API when a handle exists, else localStorage) into
 // SavedPubDTO groups and passes the grouped map. Each item renders the resolved
-// pub NAME (never a raw "venue-…" id) linking to the pub on the map, filed under
-// each list heading. Lists with no pubs are skipped; a fully-empty state shows a
+// venue name (never a raw "venue-…" id) linking to the venue on the map, filed under
+// each list heading. Empty lists are skipped; a fully-empty state shows a
 // friendly hint.
 type SavedPubListProps = {
   ownerHandle?: string;
@@ -47,12 +48,12 @@ export default function SavedPubList({
       <>
         <section className="savedSection" aria-labelledby="savedHeading">
           <h2 id="savedHeading" className="savedHeading">
-            Saved pubs
+            Saved venues
           </h2>
           <EmptyState
             eyebrow="Your lists"
-            title="No saved pubs yet."
-            body="Save a pub from the map to start a list. Favourites, want-to-try, whatever you call it."
+            title="No saved venues yet."
+            body="Save a venue from the map to start a list. Favourites, want-to-try, whatever you call it."
             action={<Link href="/map">Open the map</Link>}
           />
         </section>
@@ -65,11 +66,11 @@ export default function SavedPubList({
     <>
       <section className="savedSection" aria-labelledby="savedHeading">
         <h2 id="savedHeading" className="savedHeading">
-          Saved pubs
+          Saved venues
         </h2>
         <div className="savedLists">
           {populated.map((listType) => {
-            const pubs = groups[listType] ?? [];
+            const venues = groups[listType] ?? [];
             return (
               <div className="savedList" key={listType}>
                 <h3 className="savedListName">
@@ -85,16 +86,16 @@ export default function SavedPubList({
                   )}
                   <span className="savedListCount" aria-hidden="true">
                     {" "}
-                    · {pubs.length}
+                    · {venues.length}
                   </span>
                 </h3>
                 <ul className="savedListItems">
-                  {pubs.map((pub) => (
-                    <li className="savedItem" key={`${pub.venueId}:${listType}`}>
-                      <Link className="savedItemVenue" href={pub.venueMapUrl}>
-                        {pub.venueName}
+                  {venues.map((venue) => (
+                    <li className="savedItem" key={`${venue.venueId}:${listType}`}>
+                      <Link className="savedItemVenue" href={venue.venueMapUrl}>
+                        {venue.venueName}
                       </Link>
-                      {pub.note ? <span className="savedItemNote">{pub.note}</span> : null}
+                      {venue.note ? <span className="savedItemNote">{venue.note}</span> : null}
                     </li>
                   ))}
                 </ul>
@@ -128,7 +129,7 @@ function FollowedLists({ lists }: { lists: FollowedSavedListDTO[] }) {
               </Link>
             </div>
             <p className="followedListCounts">
-              {formatCount(list.savedCount, "pub", "pubs")} ·{" "}
+              {formatSavedVenueCount(list.savedCount)} ·{" "}
               {formatCount(list.followerCount, "follower", "followers")}
             </p>
           </article>

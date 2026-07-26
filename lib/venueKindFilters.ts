@@ -37,6 +37,14 @@ export function venueKindLabel(kind: VenueKind | undefined): string {
   return "Pub";
 }
 
+export function venueKindNoun(kind: VenueKind | undefined): string {
+  if (kind === "bar") return "bar";
+  if (kind === "food") return "late-food venue";
+  if (kind === "club") return "club";
+  if (kind === "restaurant") return "restaurant";
+  return "pub";
+}
+
 function waveOneKind(kind: VenueKind | undefined): WaveOneVenueKind | null {
   if (kind === "bar" || kind === "food") return kind;
   if (kind === undefined || kind === "pub") return "pub";

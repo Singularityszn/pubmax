@@ -203,7 +203,7 @@ export default function VenueInspector({
       ) : null}
 
       {/* Menu — visual hub (Drinks first) → drink list deep-dive. Food is
-          link-out only when we have a pub website / menu URL. */}
+          link-out only when we have a venue website / menu URL. */}
       <VenueMenuTab venue={venue} tab={tab} />
 
       {/* Story — description / heritage note + provenance-stamped claims. */}

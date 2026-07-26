@@ -8,6 +8,7 @@ import {
   isPubVenueKind,
   toggleVenueKind,
   venueKindLabel,
+  venueKindNoun,
 } from "@/lib/venueKindFilters";
 import type { Venue } from "@/lib/venues";
 
@@ -80,5 +81,14 @@ describe("venueKindFilters", () => {
     expect(venueKindLabel("pub")).toBe("Pub");
     expect(venueKindLabel("bar")).toBe("Bar");
     expect(venueKindLabel("food")).toBe("Late food");
+  });
+
+  it("supplies kind-honest nouns for shared venue copy", () => {
+    expect(venueKindNoun(undefined)).toBe("pub");
+    expect(venueKindNoun("pub")).toBe("pub");
+    expect(venueKindNoun("bar")).toBe("bar");
+    expect(venueKindNoun("food")).toBe("late-food venue");
+    expect(venueKindNoun("club")).toBe("club");
+    expect(venueKindNoun("restaurant")).toBe("restaurant");
   });
 });

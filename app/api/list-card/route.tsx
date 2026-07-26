@@ -2,6 +2,7 @@ import { ImageResponse } from "next/og";
 
 import { ogCardRateLimitedResponse } from "@/lib/ogCardRateLimit";
 import { OG_CACHE_HEADERS } from "@/lib/ogBrand";
+import { formatSavedVenueCount } from "@/lib/savedListPresentation";
 
 export const runtime = "nodejs";
 
@@ -52,10 +53,15 @@ export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const owner = clampParam(searchParams.get("owner"), 32, "pubmaxxer");
   const list = clampParam(searchParams.get("list"), 54, "London saved list");
-  const pubs = clampInt(searchParams.get("pubs"), 0, 999, 0);
+  const venueCount = clampInt(
+    searchParams.get("venues") ?? searchParams.get("pubs"),
+    0,
+    999,
+    0,
+  );
   const followers = clampInt(searchParams.get("followers"), 0, 999, 0);
 
-  const pubLabel = `${pubs} pub${pubs === 1 ? "" : "s"}`;
+  const venueLabel = formatSavedVenueCount(venueCount);
   const followerLabel = `${followers} follower${followers === 1 ? "" : "s"}`;
   const title = `@${owner}'s ${list}`;
 
@@ -176,7 +182,7 @@ export async function GET(request: Request) {
               display: "flex",
             }}
           >
-            Authored London pubs
+            Authored London venues
           </div>
           <div
             style={{
@@ -210,7 +216,7 @@ export async function GET(request: Request) {
                 fontSize: 30,
               }}
             >
-              {pubLabel}
+              {venueLabel}
             </div>
             <div
               style={{

@@ -2,6 +2,7 @@ import { Waves } from "lucide-react";
 
 import type { Venue } from "@/lib/venues";
 import type { TabKey } from "@/lib/venueInspectorTabs";
+import { venueKindNoun } from "@/lib/venueKindFilters";
 import VenueTonightChips from "@/components/map/VenueTonightChips";
 import VenueImage from "@/components/media/VenueImage";
 
@@ -56,7 +57,7 @@ export default function VenueInspectorHeader({
 
       {/* E3′ — shared provenance-labelled venue photo header: chain (scraped)
           photo first, honest community Pint Drop fallback, gradient
-          placeholder for photo-less pubs. Additive/self-contained so it does
+          placeholder for photo-less venues. Additive/self-contained so it does
           not touch the tab strip or grab-zone layout N3 owns below. */}
       <VenueImage
         className="venueImage--header venueBaselinePhoto"
@@ -64,7 +65,7 @@ export default function VenueInspectorHeader({
           { url: venue.imageUrl, provenance: "chain" },
           { url: communityPhotoUrl, provenance: "community" },
         ]}
-        alt={`${venue.name} exterior or bar photo`}
+        alt={`${venue.name} exterior or ${venueKindNoun(venue.kind)} interior photo`}
         width={720}
         height={420}
       />

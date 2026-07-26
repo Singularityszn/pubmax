@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import SiteNav from "@/components/nav/SiteNav";
 import SavedListDetail from "@/components/profile/SavedListDetail";
 import { normalizeHandle } from "@/lib/profiles";
+import { formatSavedVenueCount } from "@/lib/savedListPresentation";
 import {
   cleanListType,
   savedListFollowsStore,
@@ -40,7 +41,7 @@ function listCardHref(ownerHandle: string, listType: string, counts: SavedListFo
   const params = new URLSearchParams();
   params.set("owner", ownerHandle);
   params.set("list", listType);
-  params.set("pubs", String(counts.savedPubs));
+  params.set("venues", String(counts.savedPubs));
   params.set("followers", String(counts.followers));
   return `/api/list-card?${params.toString()}`;
 }
@@ -62,13 +63,12 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   }
 
   const saved = await savedPubsStore().listSaved({ handle: ownerHandle });
-  const pubs = saved.filter((pub) => pub.listType === listType);
+  const venues = saved.filter((venue) => venue.listType === listType);
   const listCounts = await savedListFollowsStore().counts(ownerHandle, listType);
-  const counts = { ...listCounts, savedPubs: pubs.length };
+  const counts = { ...listCounts, savedPubs: venues.length };
   const title = `@${ownerHandle}'s ${listType}`;
-  const description = `@${ownerHandle}'s ${listType} saved list on PUBMAXXING. ${plural(
+  const description = `@${ownerHandle}'s ${listType} saved list on PUBMAXXING. ${formatSavedVenueCount(
     counts.savedPubs,
-    "pub",
   )}, ${plural(counts.followers, "follower")}.`;
   const cardUrl = listCardHref(ownerHandle, listType, counts);
 
@@ -104,15 +104,15 @@ export default async function SavedListPage({ params }: PageProps) {
   const listType = cleanListType(decodeParam(rawListType));
 
   let counts: SavedListFollowCounts = { followers: 0, savedPubs: 0 };
-  let pubs: SavedPubDTO[] = [];
+  let venues: SavedPubDTO[] = [];
 
   if (ownerHandle && listType) {
     const [saved, listCounts] = await Promise.all([
       savedPubsStore().listSaved({ handle: ownerHandle }),
       savedListFollowsStore().counts(ownerHandle, listType),
     ]);
-    pubs = saved.filter((pub) => pub.listType === listType);
-    counts = { ...listCounts, savedPubs: pubs.length };
+    venues = saved.filter((venue) => venue.listType === listType);
+    counts = { ...listCounts, savedPubs: venues.length };
   }
 
   return (
@@ -125,7 +125,7 @@ export default async function SavedListPage({ params }: PageProps) {
           <SavedListDetail
             ownerHandle={ownerHandle}
             listType={listType}
-            pubs={pubs}
+            venues={venues}
             initialCounts={counts}
           />
         )}

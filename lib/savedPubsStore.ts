@@ -129,7 +129,7 @@ async function enrich(rows: SavedRow[]): Promise<SavedPubDTO[]> {
   return rows
     .map((row) => ({
       venueId: row.venueId,
-      venueName: index.get(row.venueId)?.name ?? "A London pub",
+      venueName: index.get(row.venueId)?.name ?? "A London venue",
       venueMapUrl: venueMapUrl(row.venueId),
       listType: row.listType,
       ...(row.note ? { note: row.note } : {}),

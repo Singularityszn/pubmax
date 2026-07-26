@@ -99,6 +99,24 @@ describe("menuHubTiles", () => {
     expect(tiles.some((t) => t.kind === "food-external")).toBe(true);
   });
 
+  it("labels a late-food external menu without calling it a pub site", () => {
+    const tiles = menuHubTiles(
+      venue({
+        kind: "food",
+        menuUrl: "https://food.example/menu",
+      }),
+      [],
+    );
+
+    expect(tiles).toContainEqual({
+      id: "food-external",
+      kind: "food-external",
+      label: "Food menu",
+      hint: "Opens the late-food venue site",
+      href: "https://food.example/menu",
+    });
+  });
+
   it("returns empty when there are no drinks and no food link", () => {
     expect(menuHubTiles(venue(), [])).toEqual([]);
   });
@@ -130,4 +148,3 @@ describe("menuHubTiles", () => {
     });
   });
 });
-

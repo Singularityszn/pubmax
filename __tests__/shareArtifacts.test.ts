@@ -112,9 +112,9 @@ describe("buildPassportShareText", () => {
 });
 
 describe("buildSavedListShareText", () => {
-  it("carries owner, list type and honest pub count", () => {
-    expect(buildSavedListShareText({ owner: "old_ken", listType: "favourites", pubCount: 5 })).toBe(
-      "old_ken's favourites list. 5 pubs on PUBMAXXING.",
+  it("carries owner, list type and neutral venue count", () => {
+    expect(buildSavedListShareText({ owner: "old_ken", listType: "favourites", venueCount: 5 })).toBe(
+      "old_ken's favourites list. 5 venues on PUBMAXXING.",
     );
   });
 });

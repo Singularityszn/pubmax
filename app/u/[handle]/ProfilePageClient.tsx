@@ -51,7 +51,7 @@ import "./profile.css";
 // generateStaticParams, so the build never pre-renders every handle. It fetches
 // the public Pint Drops feed, filters to this handle, synthesizes a demo
 // profile, and renders the header, the handle's recent drops (photo-first), and
-// their saved pubs (from localStorage). It NEVER crashes: a missing handle, a
+// their saved venues (from localStorage). It NEVER crashes: a missing handle, a
 // failed fetch, or an empty result all resolve to a friendly state.
 
 // The public drop DTO — kept loose; only the fields this page reads are named.
@@ -175,7 +175,7 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
 
   const [drops, setDrops] = useState<PublicDrop[]>([]);
   const [state, setState] = useState<LoadState>("loading");
-  // Saved pubs render as DTOs (venue NAME + map url). Durable when this handle has
+  // Saved venues render as DTOs (venue NAME + map url). Durable when this handle has
   // server-side saves (/api/saved-pubs); otherwise the localStorage fallback
   // (savedByList) mapped into DTOs. Start empty so the server render and the
   // client's first (hydration) paint match, then fill in after mount.
@@ -244,7 +244,7 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
     return () => controller.abort();
   }, [routeHandle]);
 
-  // Load this handle's saved pubs: durable first (the API resolves real venue
+  // Load this handle's saved venues: durable first (the API resolves real venue
   // names for the profile's handle), falling back to the viewer's localStorage
   // view mapped into DTOs. Done in an async callback (not the synchronous effect
   // body) so hydration paints the empty server state first, then swaps in the

@@ -19,6 +19,8 @@ import path from "node:path";
 import { normaliseVenueName } from "@/lib/curation";
 import { getListedBuilding } from "@/lib/heritageListings";
 import { getSupabaseAdmin, isSupabaseConfigured } from "@/lib/supabase";
+import { venueKindNoun } from "@/lib/venueKindFilters";
+import type { VenueKind } from "@/lib/venues";
 
 // Every source is a server-side (sourced) store. There is no client-supplied
 // source anymore — the route reconstructs context from server data only.
@@ -161,14 +163,16 @@ function structuredAnswer(facts: HeritageFact[]): string {
   return `Here's what's on record: ${facts.map((f) => f.fact.replace(/\.$/, "")).join("; ")}.`;
 }
 
-const SYSTEM_PROMPT = [
-  "You are the PUBMAXXER, a warm, concise, knowledgeable London local answering questions about one pub.",
-  "Answer ONLY from the CONTEXT facts provided. Never invent history, dates, names, or events.",
-  "Each CONTEXT fact is numbered like [F1]. When you use a fact, cite its id inline (e.g. [F1]). Never cite an id that does not appear in the CONTEXT.",
-  "If the context does not contain the answer, say so plainly. Do not guess.",
-  "Also name the source of each fact inline (e.g. 'on record', 'Wikipedia').",
-  "Ask ONE short clarifying question only if the question is ambiguous or there is no context at all.",
-].join(" ");
+function systemPrompt(venueNoun: string): string {
+  return [
+    `You are the PUBMAXXER, a warm, concise, knowledgeable London local answering questions about one ${venueNoun}.`,
+    "Answer ONLY from the CONTEXT facts provided. Never invent history, dates, names, or events.",
+    "Each CONTEXT fact is numbered like [F1]. When you use a fact, cite its id inline (e.g. [F1]). Never cite an id that does not appear in the CONTEXT.",
+    "If the context does not contain the answer, say so plainly. Do not guess.",
+    "Also name the source of each fact inline (e.g. 'on record', 'Wikipedia').",
+    "Ask ONE short clarifying question only if the question is ambiguous or there is no context at all.",
+  ].join(" ");
+}
 
 // LLM bounds (PRD P3.10): deterministic, capped, and time-boxed. Any failure
 // mode — timeout, network, bad status, phantom citation — returns null and the
@@ -197,6 +201,7 @@ function sanitiseModelAnswer(answer: string, factCount: number): string | null {
 async function answerWithModel(
   question: string,
   facts: HeritageFact[],
+  venueNoun: string,
 ): Promise<string | null> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), LLM_TIMEOUT_MS);
@@ -215,7 +220,7 @@ async function answerWithModel(
         temperature: 0,
         max_tokens: LLM_MAX_TOKENS,
         messages: [
-          { role: "system", content: SYSTEM_PROMPT },
+          { role: "system", content: systemPrompt(venueNoun) },
           { role: "user", content: `CONTEXT:\n${contextBlock}\n\nQUESTION: ${question}` },
         ],
       }),
@@ -257,18 +262,24 @@ function setAnswerCache(key: string, entry: { at: number; response: HeritageResp
   }
 }
 
-function cacheKey(venueName: string, question: string): string {
-  const qHash = createHash("sha256").update(question).digest("hex");
+function cacheKey(venueName: string, question: string, venueNoun: string): string {
+  const qHash = createHash("sha256")
+    .update(`${venueNoun}\0${question}`)
+    .digest("hex");
   return `${normaliseVenueName(venueName)}::${qHash}`;
 }
 
 export async function answerHeritage(input: {
   venueId?: string;
   venueName: string;
+  venueKind?: VenueKind;
   question: string;
 }): Promise<HeritageResponse> {
+  const venueNoun = venueKindNoun(input.venueKind);
   const useLlm = Boolean(process.env.OPENROUTER_API_KEY);
-  const key = useLlm ? cacheKey(input.venueName, input.question) : null;
+  const key = useLlm
+    ? cacheKey(input.venueName, input.question, venueNoun)
+    : null;
 
   if (key) {
     const hit = answerCache.get(key);
@@ -280,7 +291,7 @@ export async function answerHeritage(input: {
   const citations = dedupeCitations(facts);
 
   if (useLlm && key) {
-    const modelAnswer = await answerWithModel(input.question, facts);
+    const modelAnswer = await answerWithModel(input.question, facts, venueNoun);
     if (modelAnswer) {
       const response: HeritageResponse = { answer: modelAnswer, citations };
       setAnswerCache(key, { at: Date.now(), response });
@@ -292,7 +303,7 @@ export async function answerHeritage(input: {
   const answer = structuredAnswer(facts);
   const response: HeritageResponse = { answer, citations };
   if (facts.length === 0) {
-    response.clarifyingQuestion = "What would you like to know about this pub?";
+    response.clarifyingQuestion = `What would you like to know about this ${venueNoun}?`;
   }
   return response;
 }

@@ -20,6 +20,7 @@ import {
   type VenueAccessibility,
 } from "@/lib/venueAccessibility";
 import type { VenueMenuCategoryTile } from "@/lib/venueMenuEnrichment";
+import { isPubVenueKind } from "@/lib/venueKindFilters";
 import { parseZoneParam, venueMatchesZone } from "@/lib/zones";
 
 export type CrawlStyle =
@@ -640,7 +641,9 @@ export function filterVenues(
       venue.cheapestPrice === null ||
       venue.cheapestPrice <= filters.maxPrice;
 
-    const matchesPintDrops = !filters.requirePintDrops || hasPintDrops(venue.id);
+    const matchesPintDrops =
+      !filters.requirePintDrops ||
+      (isPubVenueKind(venue.kind) && hasPintDrops(venue.id));
 
     // Accessible-venue filters: an unknown fact fails a positive filter, so
     // filtering to step-free shows only pubs KNOWN step-free (never guessed).

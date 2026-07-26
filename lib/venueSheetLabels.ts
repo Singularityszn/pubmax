@@ -1,5 +1,5 @@
 import type { Venue } from "@/lib/venues";
-import { venueKindLabel } from "@/lib/venueKindFilters";
+import { venueKindLabel, venueKindNoun } from "@/lib/venueKindFilters";
 
 export type VenueSheetLabels = {
   typeLabel: string;
@@ -14,12 +14,7 @@ export function venueSheetLabels(
   venue: Pick<Venue, "kind"> | null | undefined,
 ): VenueSheetLabels {
   const typeLabel = venue ? venueKindLabel(venue.kind) : "Venue";
-  const noun =
-    !venue
-      ? "venue"
-      : venue.kind === "food"
-        ? "late-food venue"
-        : typeLabel.toLowerCase();
+  const noun = venue ? venueKindNoun(venue.kind) : "venue";
   const detailLabel = `${noun[0].toUpperCase()}${noun.slice(1)} detail`;
   return {
     typeLabel,

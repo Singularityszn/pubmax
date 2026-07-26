@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 
 import ShareBar from "@/components/share/ShareBar";
 import { normalizeHandle } from "@/lib/profiles";
+import { formatSavedVenueCount } from "@/lib/savedListPresentation";
 import { buildSavedListShareText } from "@/lib/shareArtifacts";
 import type { ListType, SavedPubDTO } from "@/lib/savedPubs";
 
@@ -16,7 +17,7 @@ type SavedListCounts = {
 type SavedListDetailProps = {
   ownerHandle: string;
   listType: ListType;
-  pubs: SavedPubDTO[];
+  venues: SavedPubDTO[];
   initialCounts: SavedListCounts;
   initialFollowing?: boolean;
   viewerHandle?: string;
@@ -51,7 +52,7 @@ function listUrl(ownerHandle: string, listType: string): string {
 export default function SavedListDetail({
   ownerHandle,
   listType,
-  pubs,
+  venues,
   initialCounts,
   initialFollowing = false,
   viewerHandle = "",
@@ -68,7 +69,7 @@ export default function SavedListDetail({
   const shareText = buildSavedListShareText({
     owner,
     listType,
-    pubCount: counts.savedPubs,
+    venueCount: counts.savedPubs,
   });
 
   useEffect(() => {
@@ -182,7 +183,7 @@ export default function SavedListDetail({
           </Link>
         </div>
         <div className="listDetailMeta" aria-label="List counts">
-          <span>{formatCount(counts.savedPubs, "pub", "pubs")}</span>
+          <span>{formatSavedVenueCount(counts.savedPubs)}</span>
           <span>{formatCount(counts.followers, "follower", "followers")}</span>
         </div>
         {canFollow ? (
@@ -212,20 +213,20 @@ export default function SavedListDetail({
         </div>
       </section>
 
-      <section className="savedSection" aria-labelledby="listPubsHeading">
-        <h2 id="listPubsHeading" className="savedHeading">
-          Pubs in this list
+      <section className="savedSection" aria-labelledby="listVenuesHeading">
+        <h2 id="listVenuesHeading" className="savedHeading">
+          Venues in this list
         </h2>
-        {pubs.length === 0 ? (
-          <p className="profileEmpty">@{owner} has not saved any pubs to this list yet.</p>
+        {venues.length === 0 ? (
+          <p className="profileEmpty">@{owner} has not saved any venues to this list yet.</p>
         ) : (
           <ul className="savedListItems listDetailItems">
-            {pubs.map((pub) => (
-              <li className="savedItem listDetailItem" key={`${pub.venueId}:${pub.listType}`}>
-                <Link className="savedItemVenue" href={pub.venueMapUrl}>
-                  {pub.venueName}
+            {venues.map((venue) => (
+              <li className="savedItem listDetailItem" key={`${venue.venueId}:${venue.listType}`}>
+                <Link className="savedItemVenue" href={venue.venueMapUrl}>
+                  {venue.venueName}
                 </Link>
-                {pub.note ? <span className="savedItemNote">{pub.note}</span> : null}
+                {venue.note ? <span className="savedItemNote">{venue.note}</span> : null}
               </li>
             ))}
           </ul>

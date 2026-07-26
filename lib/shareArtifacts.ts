@@ -1,3 +1,5 @@
+import { formatSavedVenueCount } from "@/lib/savedListPresentation";
+
 // WhatsApp-native share artifacts — one pure text builder per shareable night
 // object (Cycle 2 decision 5 / Wave C in fable-implement-prd.md). Every object
 // that can leave the site as a group-chat message builds its copy HERE, so the
@@ -148,13 +150,12 @@ export function buildPassportShareText(input: PassportShareInput): string {
 export type SavedListShareInput = {
   owner: string;
   listType: string;
-  pubCount: number;
+  venueCount: number;
 };
 
 export function buildSavedListShareText(input: SavedListShareInput): string {
-  return `${input.owner}'s ${input.listType} list. ${countNoun(
-    input.pubCount,
-    "pub",
+  return `${input.owner}'s ${input.listType} list. ${formatSavedVenueCount(
+    input.venueCount,
   )} on PUBMAXXING.`;
 }
 
