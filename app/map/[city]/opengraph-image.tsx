@@ -1,6 +1,7 @@
 import { ImageResponse } from "next/og";
 
 import { getCity, parseCityId } from "@/lib/cities";
+import { summarizeCityPubCoverage } from "@/lib/cityMapCoverage";
 import {
   CardShell,
   OG,
@@ -27,9 +28,7 @@ export const alt = "A city pub map on PUBMAXX";
 export const size = OG_SIZE;
 export const contentType = "image/png";
 
-type SlimVenue = { cheapestPrice?: number | null };
-
-// Read a city's slim venue pack and derive coverage: how many venues are mapped
+// Read a city's slim venue pack and derive coverage: how many pubs are mapped
 // and the observed cheapest-pint range. Never throws — on any failure the card
 // still renders (name + tagline only).
 async function cityCoverage(
@@ -40,18 +39,9 @@ async function cityCoverage(
     const path = await import("path");
     // slimVenuesPath is a public URL path (e.g. "/data/venues_slim.json").
     const file = path.join(process.cwd(), "public", slimVenuesPath.replace(/^\//, ""));
-    const rows = JSON.parse(await fs.readFile(file, "utf8")) as SlimVenue[];
-    if (!Array.isArray(rows)) return { count: 0, min: null, max: null };
-    let min: number | null = null;
-    let max: number | null = null;
-    for (const row of rows) {
-      const p = row?.cheapestPrice;
-      if (typeof p === "number" && Number.isFinite(p) && p > 0) {
-        min = min === null ? p : Math.min(min, p);
-        max = max === null ? p : Math.max(max, p);
-      }
-    }
-    return { count: rows.length, min, max };
+    return summarizeCityPubCoverage(
+      JSON.parse(await fs.readFile(file, "utf8")),
+    );
   } catch {
     return { count: 0, min: null, max: null };
   }

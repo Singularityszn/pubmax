@@ -111,8 +111,15 @@ export function venueBookingAction(venue: Venue): BookingResolution {
   });
 }
 
+function websiteLabel(venue: Venue): string {
+  if (venue.kind === "bar") return "Bar website";
+  if (venue.kind === "food") return "Late-food venue website";
+  if (venue.kind === undefined || venue.kind === "pub") return "Pub website";
+  return "Venue website";
+}
+
 /**
- * Resolve Book / Look at the menu / Pub website / Order food CTAs for a venue.
+ * Resolve Book / Look at the menu / venue website / Order food CTAs for a venue.
  * Order: book → menu/website → order. The book CTA always resolves (see
  * {@link resolveBookingAction}); menu/website/order never invent URLs.
  */
@@ -128,8 +135,8 @@ export function venueExternalActions(venue: Venue): VenueExternalAction[] {
   });
 
   // Curated menuUrl always wins as "Look at the menu". Otherwise, when the
-  // pub serves food, the homepage is an honest menu/site link-out; without
-  // food, label it "Pub website".
+  // venue serves food, the homepage is an honest menu/site link-out; without
+  // food, label the website for its venue kind.
   const curatedMenu = firstHttp(venue.menuUrl);
   if (curatedMenu) {
     actions.push({
@@ -151,7 +158,7 @@ export function venueExternalActions(venue: Venue): VenueExternalAction[] {
     if (website) {
       actions.push({
         kind: "website",
-        label: "Pub website",
+        label: websiteLabel(venue),
         href: website,
       });
     }

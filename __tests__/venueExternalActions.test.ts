@@ -204,6 +204,22 @@ describe("venueExternalActions", () => {
     });
   });
 
+  it.each([
+    ["bar", "Bar website"],
+    ["food", "Late-food venue website"],
+    ["club", "Venue website"],
+    ["restaurant", "Venue website"],
+  ] as const)("labels a %s website without calling it a pub", (kind, label) => {
+    const actions = venueExternalActions(
+      venue({ kind, website: `https://${kind}.example/` }),
+    );
+
+    expect(actions.find((action) => action.kind === "website")).toMatchObject({
+      kind: "website",
+      label,
+    });
+  });
+
   it("falls back to search tier for non-http booking links (never a dead/unsafe href)", () => {
     const actions = venueExternalActions(venue({ bookingLink: "javascript:alert(1)" }));
     expect(actions[0]).toMatchObject({ kind: "book", tier: "search" });

@@ -55,9 +55,18 @@ import {
   type PendingPlanRecap,
 } from "@/lib/planRecap";
 import { parsePlanCapabilitySnapshot, readPlanCapabilitySnapshot, restorePlanCapability } from "@/lib/planSessionCapability";
+import { isPubVenueKind } from "@/lib/venueKindFilters";
+import type { VenueKind } from "@/lib/venues";
 import "./nightMode.css";
 
-type VenueCoord = { id: string; name: string; lat: number; lng: number; cheapestPrice: number | null };
+type VenueCoord = {
+  id: string;
+  name: string;
+  lat: number;
+  lng: number;
+  cheapestPrice: number | null;
+  kind?: VenueKind;
+};
 type KeepGoingExtension = VenueCoord & { distanceKm: number };
 
 // Minimal shape we read off /api/last-train (LastRideResult) — narrowed so we
@@ -241,6 +250,28 @@ export function confirmedEndingForPlan(
   // canonical /complete response returns a persisted ending.
   void _confirmedChoice;
   return plan?.ending ?? null;
+}
+
+export function rankKeepGoingExtensions(
+  coords: readonly VenueCoord[],
+  currentCoord: VenueCoord,
+  routeVenueIds: ReadonlySet<string>,
+): KeepGoingExtension[] {
+  return coords
+    .filter(
+      (venue) =>
+        isPubVenueKind(venue.kind) && !routeVenueIds.has(venue.id),
+    )
+    .map((venue) => ({
+      ...venue,
+      distanceKm: haversineKm(
+        [currentCoord.lng, currentCoord.lat],
+        [venue.lng, venue.lat],
+      ),
+    }))
+    .filter((venue) => venue.distanceKm <= 2.5)
+    .sort((left, right) => left.distanceKm - right.distanceKm)
+    .slice(0, 2);
 }
 
 export default function NightModeCard() {
@@ -458,15 +489,7 @@ function NightModeSheet({ entry, onCollapse }: { entry: ActivePlanRef; onCollaps
   const keepGoingExtensions = useMemo<KeepGoingExtension[]>(() => {
     if (!currentCoord || !coords) return [];
     const routeIds = new Set(stops.map((stop) => stop.venueId));
-    return coords
-      .filter((venue) => !routeIds.has(venue.id))
-      .map((venue) => ({
-        ...venue,
-        distanceKm: haversineKm([currentCoord.lng, currentCoord.lat], [venue.lng, venue.lat]),
-      }))
-      .filter((venue) => venue.distanceKm <= 2.5)
-      .sort((left, right) => left.distanceKm - right.distanceKm)
-      .slice(0, 2);
+    return rankKeepGoingExtensions(coords, currentCoord, routeIds);
   }, [coords, currentCoord, stops]);
 
   // Last-train for the current venue (London last-ride feed) — omitted entirely

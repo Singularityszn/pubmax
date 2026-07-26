@@ -6,11 +6,11 @@ import { BUILT_IN_LIST_TYPES, toggleSaveDurable } from "@/lib/savedPubs";
 
 import "./saveToList.css";
 
-// Save-a-pub-to-a-list control with CUSTOM LIST support (story 33). A small,
+// Save-a-venue-to-a-list control with CUSTOM LIST support (story 33). A small,
 // self-contained island: it shows the seven built-in lists PLUS the viewer's own
-// custom lists, lets them file a pub under any of them, and lets them create a
+// custom lists, lets them file a venue under any of them, and lets them create a
 // new named list inline. Decoupled from the Venue type — it takes only a venueId
-// + a name for the toast — so it can be dropped anywhere a pub is in view.
+// + a name for the toast — so it can be dropped anywhere a venue is in view.
 //
 // INTEGRATOR MOUNT POINT (one line): render this next to the existing save button
 // inside the venue inspector, e.g.
@@ -84,7 +84,7 @@ export default function SaveToListControl({
     setBusy(true);
     try {
       const h = handle.trim();
-      // Register the custom list (best-effort) then file the pub under it.
+      // Register the custom list (best-effort) then file the venue under it.
       if (h) {
         try {
           const res = await fetch("/api/saved-pubs", {
@@ -120,7 +120,7 @@ export default function SaveToListControl({
   const allLists = [...BUILT_IN_LIST_TYPES, ...customLists];
 
   return (
-    <section className="saveToList" aria-label="Save this pub to a list">
+    <section className="saveToList" aria-label="Save this venue to a list">
       <div className="saveToListChips">
         {allLists.map((name) => (
           <button
