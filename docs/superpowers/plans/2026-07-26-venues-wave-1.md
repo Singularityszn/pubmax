@@ -109,4 +109,4 @@
 - [ ] Run app and inspect at 390x844: all three enabled chips toggle, bar/food glyphs are distinct, price colours vary within each type, and labels remain collision-managed.
 - [ ] Run `npm run verify` again and confirm pristine output.
 - [ ] Review diff for scope traps, generated-file churn, source quality, and no density constant changes.
-- [ ] Commit all intended files on `fm/venues-wave-1`.
+- [ ] Commit all intended files on `fm/venues-wave-1b`; after the rebase, the rename was required because the clean internal gate ref only accepted fast-forward updates.
