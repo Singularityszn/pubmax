@@ -21,6 +21,8 @@ import { normalizeHandle } from "@/lib/profiles";
 import { gateHandleAction } from "@/lib/profileOwnership";
 import { assertServerEnv } from "@/lib/serverEnv";
 import { clientIp, hashIp } from "@/lib/supabase";
+import { getVenueIndex } from "@/lib/venueIndex";
+import { isPubVenueKind } from "@/lib/venueKindFilters";
 
 assertServerEnv();
 
@@ -98,6 +100,21 @@ export async function POST(request: Request): Promise<Response> {
   const stops = readStops(body.stops);
   if (stops.length === 0) {
     return jsonNoStore({ error: "A crawl needs at least one stop." }, { status: 400 });
+  }
+  const venueIndex = await getVenueIndex();
+  if (venueIndex.size === 0) {
+    return jsonNoStore(
+      { error: "Venue list is unavailable right now, try again shortly." },
+      { status: 503 },
+    );
+  }
+  if (
+    stops.some((stop) => {
+      const venue = venueIndex.get(stop.venueId);
+      return !venue || !isPubVenueKind(venue.kind);
+    })
+  ) {
+    return jsonNoStore({ error: "Every crawl stop must be a pub from the map." }, { status: 400 });
   }
 
   // Rate-limit by hashed IP (no handle on a crawl story). Durable when Supabase

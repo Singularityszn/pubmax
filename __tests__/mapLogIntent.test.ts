@@ -177,11 +177,11 @@ describe("buildLogNearbyCandidates", () => {
         5,
       ),
     ).toEqual([
-      { id: "a", name: "Alpha Arms", priceLabel: "£4.50" },
-      { id: "b", name: "Beta Bar", priceLabel: "Price TBD" },
-      { id: "c", name: "Gamma", priceLabel: "£6.00" },
-      { id: "d", name: "Delta", priceLabel: "£5.00" },
-      { id: "e", name: "Echo", priceLabel: "£5.20" },
+      { id: "a", name: "Alpha Arms", typeLabel: "Pub", priceLabel: "£4.50" },
+      { id: "b", name: "Beta Bar", typeLabel: "Pub", priceLabel: "Price TBD" },
+      { id: "c", name: "Gamma", typeLabel: "Pub", priceLabel: "£6.00" },
+      { id: "d", name: "Delta", typeLabel: "Pub", priceLabel: "£5.00" },
+      { id: "e", name: "Echo", typeLabel: "Pub", priceLabel: "£5.20" },
     ]);
   });
 

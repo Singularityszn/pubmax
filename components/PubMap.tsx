@@ -905,6 +905,7 @@ export default function PubMap({
     [baseVenues, dropsByVenueId, priceUpdates, cityId],
   );
   const pubVenues = useMemo(() => venues.filter(isPubVenue), [venues]);
+  const hasTypeRelativePrices = pubVenues.length !== venues.length;
   const venueById = useMemo(() => new Map(venues.map((v) => [v.id, v])), [venues]);
   // Zone pint index (nearest-station fare zone medians) for the zone picker.
   // Computed off the full venue set so the strip's numbers don't shift as the
@@ -2153,6 +2154,7 @@ export default function PubMap({
               placement="header"
               filters={filters}
               onFiltersChange={setFilters}
+              hasTypeRelativePrices={hasTypeRelativePrices}
             />
           }
         />
@@ -2365,6 +2367,7 @@ export default function PubMap({
             placement="map"
             filters={filters}
             onFiltersChange={setFilters}
+            hasTypeRelativePrices={hasTypeRelativePrices}
           />
         ) : null}
 

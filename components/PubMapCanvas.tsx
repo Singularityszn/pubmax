@@ -72,7 +72,7 @@ import {
 import {
   HOVER_CARD_VIEWPORT_GUTTER_PX, HOVER_CARD_WIDTH_PX, HOVER_CARD_HEIGHT_PX,
   HOVER_CARD_MIN_TOP_PX, HOVER_CARD_X_OFFSET_PX, HOVER_CARD_Y_OFFSET_PX,
-  withBoundedHoverDetailCache, hoverImageUrlFor, hoverPriceLine,
+  withBoundedHoverDetailCache, hoverCardCopy, hoverImageUrlFor,
 } from "@/components/map/canvas/hoverCard";
 import {
   assembleScene, buildTransitLines,
@@ -2518,7 +2518,7 @@ export default function PubMapCanvas({
     [venues, hoveredVenueId],
   );
   const hoverSignal = hoveredVenueId ? venueSignals.get(hoveredVenueId) : undefined;
-  const hoverPrice = hoverPriceLine(hoverMapVenue, hoverSignal, hoverDetail);
+  const hoverCopy = hoverCardCopy(hoverMapVenue, hoverSignal, hoverDetail);
   const hoverImageUrl = hoverImageUrlFor(hoverDetail, failedHoverImage, hoveredVenueId);
   const hoverCardStyle = hoveredVenue
     ? {
@@ -2837,19 +2837,19 @@ export default function PubMapCanvas({
           <div className="venueHoverBody">
             <span className="venueHoverEyebrow">
               {hoverDetail === undefined
-                ? "Loading pub picture"
+                ? `Loading ${hoverCopy.venueTypeLabel.toLowerCase()} picture`
                 : hoverDetail
-                  ? "Pub preview"
-                  : "Fast map preview"}
+                  ? `${hoverCopy.venueTypeLabel} preview`
+                  : `Fast ${hoverCopy.venueTypeLabel.toLowerCase()} preview`}
             </span>
             <strong>{hoverDetail?.name ?? hoveredVenue.name}</strong>
             <span className="venueHoverMeta">
               {hoverDetail?.primaryBorough ? `${hoverDetail.primaryBorough} · ` : ""}
-              {hoverPrice.price !== null && hoverPrice.price !== undefined
-                ? `${formatPrice(hoverPrice.price)} cheapest pint`
-                : "Tap for full pub detail"}
+              {hoverCopy.price !== null && hoverCopy.price !== undefined
+                ? `${formatPrice(hoverCopy.price)} ${hoverCopy.priceSuffix}`
+                : `Tap for full ${hoverCopy.detailLabel}`}
             </span>
-            <span className="venueHoverProvenance">{hoverPrice.provenance}</span>
+            <span className="venueHoverProvenance">{hoverCopy.provenance}</span>
           </div>
         </aside>
       ) : null}

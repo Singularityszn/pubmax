@@ -77,9 +77,19 @@ describe("slimVenueToPin", () => {
   });
 
   it("carries optional venue kind and type-relative price band to the map pin", () => {
-    const pin = slimVenueToPin({ ...slim, kind: "bar", priceBand: 1 });
+    const pin = slimVenueToPin({
+      ...slim,
+      kind: "bar",
+      priceBand: 1,
+      anchorLabel: "House cocktail",
+      anchorObservedAt: "2026-07-26",
+      anchorSourceUrl: "https://example.com/menu",
+    });
     expect(pin.kind).toBe("bar");
     expect(pin.priceBand).toBe(1);
+    expect(pin.anchorLabel).toBe("House cocktail");
+    expect(pin.anchorObservedAt).toBe("2026-07-26");
+    expect(pin.anchorSourceUrl).toBe("https://example.com/menu");
   });
 
   it("keeps legacy slim rows backward-compatible as pubs", () => {

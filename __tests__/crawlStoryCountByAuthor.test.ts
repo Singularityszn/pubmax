@@ -12,14 +12,41 @@ vi.mock("@/lib/supabase", async (importOriginal) => {
   return { ...actual, isSupabaseConfigured: () => false };
 });
 vi.mock("@/lib/serverEnv", () => ({ assertServerEnv: () => {} }));
+vi.mock("@/lib/venueIndex", () => ({
+  getVenueIndex: async () =>
+    new Map([
+      [
+        "venue-a",
+        {
+          id: "venue-a",
+          name: "The Test Arms",
+          borough: "London",
+          lat: 51.5,
+          lng: -0.12,
+        },
+      ],
+      [
+        "bar-a",
+        {
+          id: "bar-a",
+          name: "Test Cocktail Bar",
+          borough: "London",
+          lat: 51.5,
+          lng: -0.12,
+          kind: "bar",
+        },
+      ],
+    ]),
+}));
 
-import { GET } from "@/app/api/crawls/route";
+import { GET, POST } from "@/app/api/crawls/route";
 import {
   __resetCrawlStories,
   countStoriesByAuthor,
   createCrawlStory,
   updateCrawlStory,
 } from "@/lib/crawlStoryStore";
+import { __resetPintDrops } from "@/lib/pintDrops";
 
 const URL_BASE = "http://localhost/api/crawls";
 
@@ -37,6 +64,7 @@ beforeEach(() => {
   delete process.env.SUPABASE_URL;
   delete process.env.SUPABASE_SERVICE_ROLE_KEY;
   __resetCrawlStories();
+  __resetPintDrops();
 });
 
 describe("countStoriesByAuthor", () => {
@@ -83,5 +111,25 @@ describe("GET /api/crawls?author=", () => {
     const res = await GET(new Request(`${URL_BASE}?author=`));
     expect(res.status).toBe(200);
     expect(await res.json()).toEqual({ handle: "", count: 0 });
+  });
+});
+
+describe("POST /api/crawls", () => {
+  function post(stops: Array<{ venueId: string }>): Promise<Response> {
+    return POST(
+      new Request(URL_BASE, {
+        method: "POST",
+        body: JSON.stringify({ title: "Test crawl", stops }),
+      }),
+    );
+  }
+
+  it("accepts a legacy pub stop", async () => {
+    expect((await post([{ venueId: "venue-a" }])).status).toBe(201);
+  });
+
+  it("rejects a cocktail bar before saving the crawl", async () => {
+    expect((await post([{ venueId: "bar-a" }])).status).toBe(400);
+    expect(await countStoriesByAuthor("nobody")).toBe(0);
   });
 });

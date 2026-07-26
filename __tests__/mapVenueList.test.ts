@@ -107,6 +107,27 @@ describe("buildMapVenueListModel — selection wiring + labels", () => {
     expect(byId.get("priced")).toBe("£4.50");
     expect(byId.get("unknown")).toBe("Price TBD");
   });
+
+  it("carries venue kind and accessible type labels", () => {
+    const model = buildMapVenueListModel(
+      [
+        venue({ id: "legacy" }),
+        venue({ id: "bar", kind: "bar" }),
+        venue({ id: "food", kind: "food" }),
+      ],
+      null,
+    );
+    const byId = new Map(model.rows.map((row) => [row.id, row]));
+    expect(byId.get("legacy")).toMatchObject({ typeLabel: "Pub" });
+    expect(byId.get("bar")).toMatchObject({
+      kind: "bar",
+      typeLabel: "Cocktail bar",
+    });
+    expect(byId.get("food")).toMatchObject({
+      kind: "food",
+      typeLabel: "Late food",
+    });
+  });
 });
 
 describe("buildUkBasePubListModel", () => {

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  hoverCardCopy,
   hoverPriceLine,
   withBoundedHoverDetailCache,
   hoverImageUrlFor,
@@ -61,6 +62,55 @@ describe("hoverPriceLine", () => {
     const line = hoverPriceLine({} as Venue, undefined, null);
     expect(line.price).toBeNull();
     expect(line.provenance).toBe("Tap for detail");
+  });
+});
+
+describe("hoverCardCopy", () => {
+  it("uses cocktail anchor metadata and ignores Pint Drop signals for bars", () => {
+    const copy = hoverCardCopy(
+      {
+        kind: "bar",
+        cheapestPrice: 25,
+        anchorLabel: "Welcome to The Savoy",
+        anchorObservedAt: "2026-07-26",
+        anchorSourceUrl:
+          "https://www.thesavoylondon.com/restaurants-and-bars/american-bar",
+      } as Venue,
+      {
+        hasPintDrops: true,
+        latestContributorPrice: 4.5,
+        latestContributorAt: Date.now(),
+      },
+      null,
+    );
+
+    expect(copy).toEqual({
+      venueTypeLabel: "Cocktail bar",
+      price: 25,
+      priceSuffix: "Welcome to The Savoy",
+      provenance: "Anchor · Jul · thesavoylondon.com",
+      detailLabel: "venue detail",
+    });
+    expect(copy.priceSuffix).not.toContain("pint");
+  });
+
+  it("uses the large doner anchor label for late-food venues", () => {
+    const copy = hoverCardCopy(
+      {
+        kind: "food",
+        cheapestPrice: 15,
+        anchorLabel: "Large lamb doner",
+        anchorObservedAt: "2026-07-26",
+        anchorSourceUrl: "https://tbtk.co.uk/",
+      } as Venue,
+      undefined,
+      null,
+    );
+
+    expect(copy.venueTypeLabel).toBe("Late food");
+    expect(copy.price).toBe(15);
+    expect(copy.priceSuffix).toBe("Large lamb doner");
+    expect(copy.provenance).toBe("Anchor · Jul · tbtk.co.uk");
   });
 });
 

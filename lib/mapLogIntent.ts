@@ -1,4 +1,6 @@
 import { haversineKm } from "@/lib/haversine";
+import { venueKindLabel } from "@/lib/venueKindFilters";
+import type { VenueKind } from "@/lib/venues";
 
 type ResolveMapLogIntentInput = {
   hasLogIntent: boolean;
@@ -19,6 +21,8 @@ export type MapLogIntentResolution =
 export type LogNearbyCandidate = {
   id: string;
   name: string;
+  kind?: VenueKind;
+  typeLabel: string;
   priceLabel: string;
   /** Straight-line km from origin when geo-sorted; omitted without a fix. */
   distanceKm?: number;
@@ -33,6 +37,7 @@ type LogNearbyVenue = {
   cheapestPrice?: number | null;
   latitude?: number;
   longitude?: number;
+  kind?: VenueKind;
 };
 
 type LogNearbyOrigin = { lat: number; lng: number };
@@ -75,6 +80,8 @@ export function buildLogNearbyCandidates(
   return ranked.slice(0, take).map(({ venue, distanceKm }) => ({
     id: venue.id,
     name: venue.name,
+    ...(venue.kind !== undefined ? { kind: venue.kind } : {}),
+    typeLabel: venueKindLabel(venue.kind),
     priceLabel: priceLabelFor(venue),
     ...(typeof distanceKm === "number" && Number.isFinite(distanceKm)
       ? { distanceKm }

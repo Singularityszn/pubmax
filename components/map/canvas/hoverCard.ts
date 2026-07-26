@@ -1,6 +1,14 @@
 import { formatFreshness, formatObservedAt, type Venue } from "@/lib/venues";
 import { proxiedVenueImageUrl } from "@/lib/venueImages";
 import type { PricedVenue } from "@/lib/priceUpdates";
+import {
+  anchorMonthLabel,
+  anchorSourceLabel,
+} from "@/lib/venueAnchorPresentation";
+import {
+  isPubVenueKind,
+  venueKindLabel,
+} from "@/lib/venueKindFilters";
 import type { VenueSignal, FailedHoverImage } from "./types";
 
 export const HOVER_DETAIL_CACHE_LIMIT = 24;
@@ -42,6 +50,14 @@ export type HoverPriceLine = {
   provenance: string;
 };
 
+export type HoverCardCopy = {
+  venueTypeLabel: string;
+  price: number | null;
+  priceSuffix: string;
+  provenance: string;
+  detailLabel: string;
+};
+
 // Compact honesty line for the map hover card. Price and provenance share one
 // precedence stack (community → sourced → baseline) so a baseline API detail
 // fetch never pairs with a Community/Sourced label.
@@ -78,4 +94,48 @@ export function hoverPriceLine(
     return { price: baseline, provenance: "Baseline · tap for detail" };
   }
   return { price: null, provenance: "Tap for detail" };
+}
+
+export function hoverCardCopy(
+  mapVenue: Venue | undefined,
+  signal: VenueSignal | undefined,
+  hoverDetail: Venue | null | undefined,
+): HoverCardCopy {
+  const kind = hoverDetail?.kind ?? mapVenue?.kind;
+  const venueTypeLabel = venueKindLabel(kind);
+  if (isPubVenueKind(kind)) {
+    const line = hoverPriceLine(mapVenue, signal, hoverDetail);
+    return {
+      venueTypeLabel,
+      price: line.price,
+      priceSuffix: "cheapest pint",
+      provenance: line.provenance,
+      detailLabel: "pub detail",
+    };
+  }
+
+  const price =
+    hoverDetail?.cheapestPrice ?? mapVenue?.cheapestPrice ?? null;
+  const anchorLabel =
+    hoverDetail?.anchorLabel ?? mapVenue?.anchorLabel;
+  const observedAt =
+    hoverDetail?.anchorObservedAt ?? mapVenue?.anchorObservedAt;
+  const sourceUrl =
+    hoverDetail?.anchorSourceUrl ?? mapVenue?.anchorSourceUrl;
+  const provenance = [
+    "Anchor",
+    anchorMonthLabel(observedAt),
+    anchorSourceLabel(sourceUrl),
+  ]
+    .filter(Boolean)
+    .join(" · ");
+  return {
+    venueTypeLabel,
+    price,
+    priceSuffix:
+      anchorLabel ??
+      (kind === "bar" ? "cocktail anchor" : "large doner anchor"),
+    provenance,
+    detailLabel: "venue detail",
+  };
 }

@@ -97,6 +97,13 @@ export function slimVenueToPin(slim: SlimVenue): Venue {
     ...(slim.filterHints ? { filterHints: slim.filterHints } : {}),
     ...(slim.kind !== undefined ? { kind: slim.kind } : {}),
     ...(slim.priceBand !== undefined ? { priceBand: slim.priceBand } : {}),
+    ...(slim.anchorLabel !== undefined ? { anchorLabel: slim.anchorLabel } : {}),
+    ...(slim.anchorObservedAt !== undefined
+      ? { anchorObservedAt: slim.anchorObservedAt }
+      : {}),
+    ...(slim.anchorSourceUrl !== undefined
+      ? { anchorSourceUrl: slim.anchorSourceUrl }
+      : {}),
   };
 }
 

@@ -18,6 +18,10 @@ import {
   type NightPatch,
 } from "@/lib/nightPatches";
 import { PLAN_TEMPLATES, type PlanTemplate } from "@/lib/planTemplates";
+import {
+  planVenueOptions,
+  type PlanVenueOption,
+} from "@/lib/planVenueOptions";
 import { cleanNightContext, type NightContext } from "@/lib/nightPlanning";
 import { parsePlanDraft, PLAN_DRAFT_KEY, readPlanDraftEnvelope } from "@/lib/planDraft";
 import { readPlanRouteDraftEnvelope } from "@/lib/planRouteDraft";
@@ -60,8 +64,6 @@ export type DraftStop = {
   reason?: string;
   alternatives: RouteAlternative[];
 };
-type VenueOption = { id: string; name: string; address?: string };
-
 export const PLAN_ROUTE_DRAFT_KEY = "pubmaxx:plan-route-draft:v1";
 
 export type StoredRouteDraft = {
@@ -535,7 +537,7 @@ function PlanComposerForm({
     { key: 1, venueId: "", venueName: "", alternatives: [] },
     { key: 2, venueId: "", venueName: "", alternatives: [] },
   ]);
-  const [venues, setVenues] = useState<VenueOption[]>([]);
+  const [venues, setVenues] = useState<PlanVenueOption[]>([]);
   const [conciergeQuery, setConciergeQuery] = useState(recoveredDraft?.conciergeQuery ?? "");
   const [planIntake, setPlanIntake] = useState(recoveredIntake);
   const initialPlanIntakeRef = useRef(recoveredIntake);
@@ -580,7 +582,9 @@ function PlanComposerForm({
     let active = true;
     fetch("/data/venues_slim.json")
       .then((response) => response.json())
-      .then((rows: VenueOption[]) => { if (active && Array.isArray(rows)) setVenues(rows); })
+      .then((rows: unknown) => {
+        if (active) setVenues(planVenueOptions(rows));
+      })
       .catch(() => undefined);
     return () => { active = false; };
   }, []);

@@ -22,6 +22,14 @@ export function isPubVenue(venue: Venue): boolean {
   return isPubVenueKind(venue.kind);
 }
 
+export function venueKindLabel(kind: VenueKind | undefined): string {
+  if (kind === "bar") return "Cocktail bar";
+  if (kind === "food") return "Late food";
+  if (kind === "club") return "Club";
+  if (kind === "restaurant") return "Restaurant";
+  return "Pub";
+}
+
 function waveOneKind(kind: VenueKind | undefined): WaveOneVenueKind | null {
   if (kind === "bar" || kind === "food") return kind;
   if (kind === undefined || kind === "pub") return "pub";

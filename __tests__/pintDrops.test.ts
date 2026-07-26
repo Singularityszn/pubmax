@@ -72,6 +72,34 @@ vi.mock("@/lib/supabase", async (importOriginal) => {
 // requiresSupabaseStore() flag below — so no-op it here for a deterministic import
 // in every environment.
 vi.mock("@/lib/serverEnv", () => ({ assertServerEnv: () => {} }));
+vi.mock("@/lib/venueIndex", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/venueIndex")>();
+  return {
+    ...actual,
+    getVenueIndex: async () =>
+      ({
+        size: 1,
+        get: (id: string) =>
+          id === "bar-test"
+            ? {
+                id,
+                name: "Test Cocktail Bar",
+                borough: "Westminster",
+                lat: 51.5,
+                lng: -0.12,
+                kind: "bar",
+              }
+            : {
+                id,
+                name:
+                  id === "venue-oxf-16404bl" ? "Turf Tavern" : "The Crown",
+                borough: id === "venue-oxf-16404bl" ? "Oxford" : "London",
+                lat: 51.5,
+                lng: -0.12,
+              },
+      }) as unknown as Map<string, import("@/lib/venueIndex").VenueRef>,
+  };
+});
 
 // Ownership gate is covered elsewhere; these route tests focus on storage /
 // rate-limit contracts and use unlinked demo handles. Keep the gate open so a
@@ -227,6 +255,17 @@ describe("POST /api/pint-drops (create)", () => {
   it("rejects a missing handle", async () => {
     const res = await post({ venueId: VENUE, priceGbp: 4.2 });
     expect(res.status).toBe(400);
+  });
+
+  it("rejects a cocktail bar before persisting a Pint Drop", async () => {
+    const res = await post({
+      venueId: "bar-test",
+      handle: "ale",
+      priceGbp: 12,
+    });
+    expect(res.status).toBe(400);
+    const listed = await get("bar-test");
+    expect((await listed.json()).drops).toEqual([]);
   });
 
   it("normalizes handles before persistence so author filters match", () => {

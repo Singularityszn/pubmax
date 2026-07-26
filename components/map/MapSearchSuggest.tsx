@@ -294,9 +294,9 @@ export default function MapSearchSuggest({
             ) : null}
 
             {suggestions.pubs.length > 0 ? (
-              <div role="group" aria-label="Pubs" className="mapSearchSuggestGroup">
+              <div role="group" aria-label="Venues" className="mapSearchSuggestGroup">
                 <p className="mapSearchSuggestGroupHead">
-                  <span>Pubs</span>
+                  <span>Venues</span>
                 </p>
                 {suggestions.pubs.map((pub, offset) => {
                   const index = pubStartIndex + offset;
@@ -313,6 +313,7 @@ export default function MapSearchSuggest({
                     >
                       <span className="mapSearchSuggestRowMain">
                         <span className="mapSearchSuggestRowName">{pub.name}</span>
+                        <span className="mapSearchSuggestBorough">{pub.typeLabel}</span>
                         {pub.boroughLabel ? (
                           <span className="mapSearchSuggestBorough">{pub.boroughLabel}</span>
                         ) : null}

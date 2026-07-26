@@ -31,6 +31,7 @@ import { assertServerEnv } from "@/lib/serverEnv";
 import { clientIp, hashActor, hashIp, requiresSupabaseStore, isSupabaseConfigured } from "@/lib/supabase";
 import { readString } from "@/lib/textClean";
 import { getVenueIndex, venueMapUrl } from "@/lib/venueIndex";
+import { isPubVenueKind } from "@/lib/venueKindFilters";
 
 // Fail fast at module load: a misconfigured production deploy (no Supabase)
 // would silently fall back to the process-memory store and lose every write on
@@ -248,6 +249,17 @@ export async function POST(request: Request): Promise<Response> {
   const result = validatePintDrop(fields);
   if (!result.ok) {
     return jsonNoStore({ error: result.error }, { status: 400 });
+  }
+  const venueIndex = await getVenueIndex();
+  if (venueIndex.size === 0) {
+    return jsonNoStore(
+      { error: "Venue list is unavailable right now, try again shortly." },
+      { status: 503 },
+    );
+  }
+  const venue = venueIndex.get(result.value.venueId);
+  if (!venue || !isPubVenueKind(venue.kind)) {
+    return jsonNoStore({ error: "Pick a pub from the map." }, { status: 400 });
   }
 
   // JWT-linked handle wins over a self-asserted body handle when signed in.

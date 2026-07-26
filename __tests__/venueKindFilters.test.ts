@@ -6,6 +6,7 @@ import {
   isPubVenue,
   isPubVenueKind,
   toggleVenueKind,
+  venueKindLabel,
 } from "@/lib/venueKindFilters";
 import type { Venue } from "@/lib/venues";
 
@@ -59,5 +60,12 @@ describe("venueKindFilters", () => {
       undefined,
       "pub",
     ]);
+  });
+
+  it("supplies accessible labels for each venue kind", () => {
+    expect(venueKindLabel(undefined)).toBe("Pub");
+    expect(venueKindLabel("pub")).toBe("Pub");
+    expect(venueKindLabel("bar")).toBe("Cocktail bar");
+    expect(venueKindLabel("food")).toBe("Late food");
   });
 });

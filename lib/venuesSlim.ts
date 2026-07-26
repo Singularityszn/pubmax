@@ -48,6 +48,9 @@ export type SlimVenue = {
   kind?: VenueKind;
   /** Type-relative price band for famous non-pub venue anchors. */
   priceBand?: 0 | 1 | 2;
+  anchorLabel?: string;
+  anchorObservedAt?: string;
+  anchorSourceUrl?: string;
 };
 
 function isBoolean(value: unknown): value is boolean {
@@ -108,11 +111,27 @@ function isValidSlimVenue(value: unknown): value is SlimVenue {
     ["pub", "bar", "club", "food", "restaurant"].includes(String(row.kind));
   const priceBandOk =
     row.priceBand === undefined || row.priceBand === 0 || row.priceBand === 1 || row.priceBand === 2;
+  const hasAnyAnchor =
+    row.anchorLabel !== undefined ||
+    row.anchorObservedAt !== undefined ||
+    row.anchorSourceUrl !== undefined;
+  const hasCompleteAnchor =
+    typeof row.anchorLabel === "string" &&
+    row.anchorLabel.trim().length > 0 &&
+    typeof row.anchorObservedAt === "string" &&
+    row.anchorObservedAt.trim().length > 0 &&
+    typeof row.anchorSourceUrl === "string" &&
+    row.anchorSourceUrl.trim().length > 0;
+  const anchorOk =
+    row.kind === "bar" || row.kind === "food"
+      ? hasCompleteAnchor
+      : !hasAnyAnchor || hasCompleteAnchor;
   return (
     priceOk &&
     zoneOk &&
     kindOk &&
     priceBandOk &&
+    anchorOk &&
     (row.filterHints === undefined || isFilterHints(row.filterHints))
   );
 }
@@ -134,6 +153,13 @@ function normalizeRows(data: unknown): SlimVenue[] {
     ...(venue.filterHints ? { filterHints: venue.filterHints } : {}),
     ...(venue.kind !== undefined ? { kind: venue.kind } : {}),
     ...(venue.priceBand !== undefined ? { priceBand: venue.priceBand } : {}),
+    ...(venue.anchorLabel !== undefined ? { anchorLabel: venue.anchorLabel } : {}),
+    ...(venue.anchorObservedAt !== undefined
+      ? { anchorObservedAt: venue.anchorObservedAt }
+      : {}),
+    ...(venue.anchorSourceUrl !== undefined
+      ? { anchorSourceUrl: venue.anchorSourceUrl }
+      : {}),
   }));
 }
 

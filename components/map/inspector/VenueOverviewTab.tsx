@@ -39,17 +39,7 @@ import type { JourneyPoint } from "@/lib/venueJourney";
 import type { CrawlMode } from "@/components/map/ControlRail";
 import type { TabKey } from "@/lib/venueInspectorTabs";
 import type { PresenceState } from "./usePresence";
-
-// "Jul" for a current-year anchor observation, "Jul 2025" otherwise — the
-// short stamp in the "Large lamb doner £15.00 · Jul" honesty row.
-function anchorMonthLabel(iso: string | undefined): string | null {
-  if (!iso) return null;
-  const date = new Date(iso);
-  if (Number.isNaN(date.getTime())) return null;
-  const month = date.toLocaleDateString("en-GB", { month: "short", timeZone: "UTC" });
-  const year = date.getUTCFullYear();
-  return year === new Date().getUTCFullYear() ? month : `${month} ${year}`;
-}
+import { anchorMonthLabel } from "@/lib/venueAnchorPresentation";
 
 export default function VenueOverviewTab({
   venue,

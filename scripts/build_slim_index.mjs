@@ -688,6 +688,9 @@ async function main() {
       ...(nearest ? { zone: nearest.zone } : {}),
       kind: row.kind,
       priceBand: famousPriceBands.get(row.id),
+      anchorLabel: row.anchor.label,
+      anchorObservedAt: row.anchor.observedAt,
+      anchorSourceUrl: row.anchor.sourceUrl,
       filterHints: famousVenueFilterHints(row),
     };
     slim.push(famousSlim);

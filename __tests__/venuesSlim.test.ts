@@ -60,7 +60,17 @@ function hasValidFamousVenueFields(row: Record<string, unknown>): boolean {
     row.priceBand === 0 ||
     row.priceBand === 1 ||
     row.priceBand === 2;
-  return kind && priceBand;
+  const anchor =
+    row.kind !== "bar" && row.kind !== "food" ||
+    (
+      typeof row.anchorLabel === "string" &&
+      row.anchorLabel.length > 0 &&
+      typeof row.anchorObservedAt === "string" &&
+      row.anchorObservedAt.length > 0 &&
+      typeof row.anchorSourceUrl === "string" &&
+      row.anchorSourceUrl.length > 0
+    );
+  return kind && priceBand && anchor;
 }
 
 function isSlimVenue(value: unknown): value is SlimVenue {
@@ -164,7 +174,17 @@ describe("venues_slim.json", () => {
       // it before the exact-shape check so both zoned and unknown-zone rows pass.
       .map((row) =>
         Object.keys(row)
-          .filter((key) => !["zone", "kind", "priceBand"].includes(key))
+          .filter(
+            (key) =>
+              ![
+                "zone",
+                "kind",
+                "priceBand",
+                "anchorLabel",
+                "anchorObservedAt",
+                "anchorSourceUrl",
+              ].includes(key),
+          )
           .sort(),
       )
       .filter((keys) => JSON.stringify(keys) !== JSON.stringify(SLIM_KEYS));
@@ -175,6 +195,18 @@ describe("venues_slim.json", () => {
     const rows = slim as unknown[];
     const bad = rows.filter((row) => !isSlimVenue(row));
     expect(bad).toEqual([]);
+  });
+
+  it("carries complete anchor provenance for famous non-pub venues", () => {
+    const famous = (slim as SlimVenue[]).filter(
+      (row) => row.kind === "bar" || row.kind === "food",
+    );
+    expect(famous.length).toBeGreaterThan(0);
+    for (const row of famous) {
+      expect(row.anchorLabel).toBeTruthy();
+      expect(row.anchorObservedAt).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+      expect(row.anchorSourceUrl).toMatch(/^https:\/\//);
+    }
   });
 
   it("every venue has finite coordinates in valid geographic range", () => {

@@ -184,6 +184,42 @@ describe("buildMapSearchSuggestions — the as-you-type popup model", () => {
     expect(unpriced?.priceLabel).toBeNull();
   });
 
+  it("carries venue kind labels and keeps non-pub anchors independent of Pint Drops", () => {
+    const result = buildMapSearchSuggestions({
+      cityId: "london",
+      query: "anchor",
+      venues: [
+        venue({
+          id: "bar",
+          name: "Anchor Cocktail Bar",
+          kind: "bar",
+          cheapestPrice: 25,
+          latestContributorPrice: 4.5,
+        }),
+        venue({
+          id: "food",
+          name: "Anchor Kebab",
+          kind: "food",
+          cheapestPrice: 15,
+          latestContributorPrice: 5,
+        }),
+      ],
+      userLocation: null,
+      mapCenter: CENTRE,
+    });
+    const byId = new Map(result.pubs.map((row) => [row.id, row]));
+    expect(byId.get("bar")).toMatchObject({
+      kind: "bar",
+      typeLabel: "Cocktail bar",
+      priceLabel: "£25.00",
+    });
+    expect(byId.get("food")).toMatchObject({
+      kind: "food",
+      typeLabel: "Late food",
+      priceLabel: "£15.00",
+    });
+  });
+
   it("ranks pubs nearest-first within a tier", () => {
     const venues = [
       venue({ id: "far", name: "Anchor Far", latitude: 51.6, longitude: -0.3 }),
