@@ -72,6 +72,14 @@ vi.mock("@/lib/supabase", async (importOriginal) => {
 // requiresSupabaseStore() flag below — so no-op it here for a deterministic import
 // in every environment.
 vi.mock("@/lib/serverEnv", () => ({ assertServerEnv: () => {} }));
+vi.mock("@/lib/venueAliases", () => ({
+  resolveCanonicalVenueId: async (id: string) =>
+    id === "legacy-pub"
+      ? "canonical-pub"
+      : id === "legacy-bar"
+        ? "bar-test"
+        : id,
+}));
 vi.mock("@/lib/venueIndex", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/venueIndex")>();
   return {
@@ -260,6 +268,30 @@ describe("POST /api/pint-drops (create)", () => {
   it("rejects a cocktail bar before persisting a Pint Drop", async () => {
     const res = await post({
       venueId: "bar-test",
+      handle: "ale",
+      priceGbp: 12,
+    });
+    expect(res.status).toBe(400);
+    const listed = await get("bar-test");
+    expect((await listed.json()).drops).toEqual([]);
+  });
+
+  it("canonicalizes a legacy pub alias before validation and persistence", async () => {
+    const res = await post({
+      venueId: "legacy-pub",
+      handle: "ale",
+      priceGbp: 4.2,
+    });
+    expect(res.status).toBe(201);
+    const { drop } = await res.json();
+    expect(drop.venueId).toBe("canonical-pub");
+    const listed = await get("canonical-pub");
+    expect((await listed.json()).drops).toHaveLength(1);
+  });
+
+  it("rejects a legacy alias that resolves to a cocktail bar", async () => {
+    const res = await post({
+      venueId: "legacy-bar",
       handle: "ale",
       priceGbp: 12,
     });

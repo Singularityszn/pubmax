@@ -1,0 +1,56 @@
+import { describe, expect, it } from "vitest";
+
+import { venueSheetLabels } from "@/lib/venueSheetLabels";
+import type { Venue } from "@/lib/venues";
+
+describe("venueSheetLabels", () => {
+  it("uses generic venue language before a selected venue is known", () => {
+    expect(venueSheetLabels(null)).toEqual({
+      typeLabel: "Venue",
+      summaryLabel: "Selected venue summary",
+      detailLabel: "Venue detail",
+      closeLabel: "Close venue detail",
+      loadingLabel: "Loading full venue details…",
+      unavailableLabel:
+        "Showing fast map details. Full venue notes are unavailable right now.",
+    });
+  });
+
+  it("preserves backward-compatible pub language for legacy venues", () => {
+    expect(venueSheetLabels({ kind: undefined } as Venue)).toMatchObject({
+      typeLabel: "Pub",
+      summaryLabel: "Selected pub summary",
+      detailLabel: "Pub detail",
+      closeLabel: "Close pub detail",
+    });
+  });
+
+  it.each([
+    [
+      "bar",
+      {
+        typeLabel: "Cocktail bar",
+        summaryLabel: "Selected cocktail bar summary",
+        detailLabel: "Cocktail bar detail",
+        closeLabel: "Close cocktail bar detail",
+        loadingLabel: "Loading full cocktail bar details…",
+        unavailableLabel:
+          "Showing fast map details. Full cocktail bar notes are unavailable right now.",
+      },
+    ],
+    [
+      "food",
+      {
+        typeLabel: "Late food",
+        summaryLabel: "Selected late-food venue summary",
+        detailLabel: "Late-food venue detail",
+        closeLabel: "Close late-food venue detail",
+        loadingLabel: "Loading full late-food venue details…",
+        unavailableLabel:
+          "Showing fast map details. Full late-food venue notes are unavailable right now.",
+      },
+    ],
+  ] as const)("uses kind-honest selected-sheet copy for %s venues", (kind, expected) => {
+    expect(venueSheetLabels({ kind } as Venue)).toEqual(expected);
+  });
+});

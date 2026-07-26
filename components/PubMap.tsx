@@ -59,6 +59,7 @@ const MobilePlanActivation = dynamic(
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import DrinkShapeChips from "@/components/map/DrinkShapeChips";
 import FavoritePintPicker from "@/components/map/FavoritePintPicker";
+import MobilePriceChoices from "@/components/map/MobilePriceChoices";
 import PersonaLensPicker from "@/components/map/PersonaLensPicker";
 import PersonaLensCard from "@/components/map/PersonaLensCard";
 import { useTonightLaneCue } from "@/components/map/usePersonaTonight";
@@ -226,6 +227,7 @@ import {
   filterVenuesByKind,
   isPubVenue,
 } from "@/lib/venueKindFilters";
+import { venueSheetLabels } from "@/lib/venueSheetLabels";
 import {
   readMobileMapSession,
   withCityCameraAttitude,
@@ -1012,6 +1014,7 @@ export default function PubMap({
   );
   const selectedVenueResolvable = selectedVenueId ? venueById.has(selectedVenueId) : false;
   const selectedVenueIsPub = selectedVenue ? isPubVenue(selectedVenue) : false;
+  const selectedVenueLabels = venueSheetLabels(selectedVenue);
   const selectedDetailStatus = detailStatusFor(selectedVenueId, detailById, detailStatusById);
 
   const venueIdByNormalisedName = useMemo(() => {
@@ -2046,7 +2049,7 @@ export default function PubMap({
     <UnverifiedPubSheet pub={selectedBasePub} communityPrices={communityPrices} />
   ) : detailOpen && selectedVenue ? (
     <>
-      <div className="mobileVenuePeekSummary" aria-label="Selected pub summary">
+      <div className="mobileVenuePeekSummary" aria-label={selectedVenueLabels.summaryLabel}>
         {typeof selectedVenue.cheapestPrice === "number" ? (
           <span>
             <strong>{formatPrice(selectedVenue.cheapestPrice)}</strong>
@@ -2083,10 +2086,12 @@ export default function PubMap({
           </button>
         ) : null}
       </div>
-      {selectedDetailStatus === "loading" ? <VenueSheetSkeleton /> : null}
+      {selectedDetailStatus === "loading" ? (
+        <VenueSheetSkeleton loadingLabel={selectedVenueLabels.loadingLabel} />
+      ) : null}
       {selectedDetailStatus === "unavailable" ? (
         <div style={DETAIL_WARNING_STYLE} role="status">
-          Showing fast map details. Full pub notes are unavailable right now.
+          {selectedVenueLabels.unavailableLabel}
         </div>
       ) : null}
       <VenueInspector
@@ -2466,20 +2471,13 @@ export default function PubMap({
                 onSelect={selectPersona}
                 tonightCategory={personaTonightCategory}
               />
-              <fieldset className="mobilePriceChoices">
-                <legend>Maximum pint price</legend>
-                {[10, 7, 6, 5.5].map((price) => (
-                  <button
-                    type="button"
-                    key={price}
-                    className={filters.maxPrice === price ? "isActive" : ""}
-                    aria-pressed={filters.maxPrice === price}
-                    onClick={() => setFilters((current) => ({ ...current, maxPrice: price }))}
-                  >
-                    {price === 10 ? "Any" : `£${price.toFixed(2)}`}
-                  </button>
-                ))}
-              </fieldset>
+              <MobilePriceChoices
+                maxPrice={filters.maxPrice}
+                hasTypeRelativePrices={hasTypeRelativePrices}
+                onMaxPriceChange={(maxPrice) =>
+                  setFilters((current) => ({ ...current, maxPrice }))
+                }
+              />
             </div>
           }
           tflContent={<MobileTflPanel status={tflStatus} />}
@@ -2540,7 +2538,13 @@ export default function PubMap({
               <TabsContent value="prices" className="mobileMapFilters">
                 <DrinkShapeChips filters={filters} onFiltersChange={setFilters} />
                 <FavoritePintPicker value={favoritePint} onChange={changeFavoritePint} drinkCategory={filters.drinkCategory} drinkBrand={filters.drinkBrand} onDrinkLensChange={({ drinkCategory, drinkBrand }) => setFilters((current) => ({ ...current, drinkCategory, drinkBrand, drinkSubtype: drinkCategory === current.drinkCategory ? current.drinkSubtype : "", topShelfOnly: drinkCategory ? current.topShelfOnly : false, requireCocktails: drinkCategory === "cocktail" }))} />
-                <fieldset className="mobilePriceChoices"><legend>Maximum pint price</legend>{[10, 7, 6, 5.5].map((price) => <button type="button" key={price} className={filters.maxPrice === price ? "isActive" : ""} aria-pressed={filters.maxPrice === price} onClick={() => setFilters((current) => ({ ...current, maxPrice: price }))}>{price === 10 ? "Any" : `£${price.toFixed(2)}`}</button>)}</fieldset>
+                <MobilePriceChoices
+                  maxPrice={filters.maxPrice}
+                  hasTypeRelativePrices={hasTypeRelativePrices}
+                  onMaxPriceChange={(maxPrice) =>
+                    setFilters((current) => ({ ...current, maxPrice }))
+                  }
+                />
               </TabsContent>
               <TabsContent value="events">
                 <TonightLane
@@ -2636,12 +2640,15 @@ export default function PubMap({
           kind={detailOpen ? "venue" : planningOpen ? "planner" : null}
           title={
             detailOpen
-              ? (basePubOpen ? selectedBasePub?.name : selectedVenue?.name) ?? "Pub detail"
+              ? basePubOpen
+                ? selectedBasePub?.name ?? "Pub detail"
+                : selectedVenue?.name ?? selectedVenueLabels.detailLabel
               : "Plan tonight"
           }
           initialSnap="half"
           requestedSnap={detailOpen ? sheetSnap : plannerSheetSnap}
           onClose={detailOpen ? dismissSheet : closePlanning}
+          closeLabel={detailOpen ? selectedVenueLabels.closeLabel : undefined}
         >
           {detailOpen ? venuePanel : plannerPanel}
         </Sheet>
@@ -2707,7 +2714,7 @@ export default function PubMap({
         // would be wrong (the user can still see and return to the map).
         aria-modal={detailOpen && sheetSnap === "full" ? true : undefined}
         role={detailOpen && sheetSnap === "full" ? "dialog" : undefined}
-        aria-label={detailOpen && sheetSnap === "full" ? "Pub detail" : undefined}
+        aria-label={detailOpen && sheetSnap === "full" ? selectedVenueLabels.detailLabel : undefined}
         style={
           sheetDragY !== null
             ? {
@@ -2729,7 +2736,7 @@ export default function PubMap({
             type="button"
             className="drawerClose"
             onClick={dismissSheet}
-            aria-label="Close pub detail"
+            aria-label={selectedVenueLabels.closeLabel}
           >
             <X size={16} />
           </button>

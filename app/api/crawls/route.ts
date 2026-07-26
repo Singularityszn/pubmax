@@ -21,6 +21,7 @@ import { normalizeHandle } from "@/lib/profiles";
 import { gateHandleAction } from "@/lib/profileOwnership";
 import { assertServerEnv } from "@/lib/serverEnv";
 import { clientIp, hashIp } from "@/lib/supabase";
+import { resolveCanonicalVenueId } from "@/lib/venueAliases";
 import { getVenueIndex } from "@/lib/venueIndex";
 import { isPubVenueKind } from "@/lib/venueKindFilters";
 
@@ -108,8 +109,14 @@ export async function POST(request: Request): Promise<Response> {
       { status: 503 },
     );
   }
+  const canonicalStops = await Promise.all(
+    stops.map(async (stop) => ({
+      ...stop,
+      venueId: await resolveCanonicalVenueId(stop.venueId),
+    })),
+  );
   if (
-    stops.some((stop) => {
+    canonicalStops.some((stop) => {
       const venue = venueIndex.get(stop.venueId);
       return !venue || !isPubVenueKind(venue.kind);
     })
@@ -146,7 +153,7 @@ export async function POST(request: Request): Promise<Response> {
     visibility: cleanVisibility(body.visibility),
     vibeTags: readVibeTags(body.vibeTags),
     ...(authorHandle ? { authorHandle } : {}),
-    stops,
+    stops: canonicalStops,
   };
 
   const result = await createCrawlStory(input);

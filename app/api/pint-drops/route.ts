@@ -30,6 +30,7 @@ import { profileStore } from "@/lib/profileStore";
 import { assertServerEnv } from "@/lib/serverEnv";
 import { clientIp, hashActor, hashIp, requiresSupabaseStore, isSupabaseConfigured } from "@/lib/supabase";
 import { readString } from "@/lib/textClean";
+import { resolveCanonicalVenueId } from "@/lib/venueAliases";
 import { getVenueIndex, venueMapUrl } from "@/lib/venueIndex";
 import { isPubVenueKind } from "@/lib/venueKindFilters";
 
@@ -257,15 +258,20 @@ export async function POST(request: Request): Promise<Response> {
       { status: 503 },
     );
   }
-  const venue = venueIndex.get(result.value.venueId);
+  const canonicalVenueId = await resolveCanonicalVenueId(result.value.venueId);
+  const venue = venueIndex.get(canonicalVenueId);
   if (!venue || !isPubVenueKind(venue.kind)) {
     return jsonNoStore({ error: "Pick a pub from the map." }, { status: 400 });
   }
+  const canonicalDrop = {
+    ...result.value,
+    venueId: canonicalVenueId,
+  };
 
   // JWT-linked handle wins over a self-asserted body handle when signed in.
   // Linked handles can only drop as their signed-in owner; unlinked handles keep
   // the anonymous demo path.
-  const actorHandle = await resolveMessageHandle(request, result.value.handle);
+  const actorHandle = await resolveMessageHandle(request, canonicalDrop.handle);
   if (!actorHandle) {
     return jsonNoStore({ error: "Add a handle." }, { status: 400 });
   }
@@ -273,7 +279,7 @@ export async function POST(request: Request): Promise<Response> {
   if (!ownership.allowed) {
     return jsonNoStore({ error: ownership.error }, { status: ownership.status });
   }
-  const dropPayload = { ...result.value, handle: ownership.handle };
+  const dropPayload = { ...canonicalDrop, handle: ownership.handle };
 
   // Durable key = handle + hashed IP (PRD P3.9); in-memory fallback stays
   // keyed on handle alone, exactly as before.

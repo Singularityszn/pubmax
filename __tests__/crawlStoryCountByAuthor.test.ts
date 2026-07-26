@@ -12,9 +12,17 @@ vi.mock("@/lib/supabase", async (importOriginal) => {
   return { ...actual, isSupabaseConfigured: () => false };
 });
 vi.mock("@/lib/serverEnv", () => ({ assertServerEnv: () => {} }));
+vi.mock("@/lib/venueAliases", () => ({
+  resolveCanonicalVenueId: async (id: string) =>
+    id === "legacy-a"
+      ? "venue-a"
+      : id === "legacy-bar"
+        ? "bar-a"
+        : id,
+}));
 vi.mock("@/lib/venueIndex", () => ({
-  getVenueIndex: async () =>
-    new Map([
+  getVenueIndex: async () => {
+    const venues = new Map([
       [
         "venue-a",
         {
@@ -36,7 +44,20 @@ vi.mock("@/lib/venueIndex", () => ({
           kind: "bar",
         },
       ],
-    ]),
+    ]);
+    return venues;
+  },
+  resolveVenue: async (id: string) =>
+    id === "venue-a"
+      ? {
+          id,
+          name: "The Test Arms",
+          borough: "London",
+          lat: 51.5,
+          lng: -0.12,
+        }
+      : null,
+  venueMapUrl: (id: string) => `/map?sel=${encodeURIComponent(id)}`,
 }));
 
 import { GET, POST } from "@/app/api/crawls/route";
@@ -128,8 +149,24 @@ describe("POST /api/crawls", () => {
     expect((await post([{ venueId: "venue-a" }])).status).toBe(201);
   });
 
+  it("canonicalizes a legacy pub alias before validation and persistence", async () => {
+    const saved = await post([{ venueId: "legacy-a" }]);
+    expect(saved.status).toBe(201);
+    const { slug } = await saved.json();
+    const fetched = await GET(
+      new Request(`${URL_BASE}?slug=${encodeURIComponent(slug)}`),
+    );
+    const { story } = await fetched.json();
+    expect(story.stops[0].venueId).toBe("venue-a");
+    expect(story.stops[0].venueName).toBe("The Test Arms");
+  });
+
   it("rejects a cocktail bar before saving the crawl", async () => {
     expect((await post([{ venueId: "bar-a" }])).status).toBe(400);
     expect(await countStoriesByAuthor("nobody")).toBe(0);
+  });
+
+  it("rejects a legacy alias that resolves to a cocktail bar", async () => {
+    expect((await post([{ venueId: "legacy-bar" }])).status).toBe(400);
   });
 });
