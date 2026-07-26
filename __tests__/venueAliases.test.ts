@@ -5,6 +5,7 @@ import path from "path";
 
 import {
   resolveCanonicalVenueId,
+  resolveVenueIdentityIds,
   resetVenueAliasesForTests,
   setVenueAliasesPathForTests,
 } from "@/lib/venueAliases";
@@ -30,6 +31,11 @@ describe("resolveCanonicalVenueId", () => {
 
     expect(await resolveCanonicalVenueId("venue-dupe1")).toBe("venue-canon");
     expect(await resolveCanonicalVenueId("venue-dupe2")).toBe("venue-canon");
+    expect(await resolveVenueIdentityIds("venue-canon")).toEqual([
+      "venue-canon",
+      "venue-dupe1",
+      "venue-dupe2",
+    ]);
   });
 
   it("returns the id unchanged when it has no alias", async () => {

@@ -3,27 +3,25 @@
 import { MapPin, Sparkles } from "lucide-react";
 
 import VenuePriceSubmit from "@/components/map/VenuePriceSubmit";
-import type { CommunityPricesState } from "@/components/map/useCommunityPrices";
+import {
+  freshestCommunityPrice,
+  type CommunityPricesState,
+} from "@/components/map/useCommunityPrices";
+import { ClaimBadge } from "@/components/map/venueInspectorBits";
+import {
+  communityStampLabel,
+  communityTrustNote,
+  submitCategoryLabel,
+} from "@/lib/communityPrice";
 import type { UkBasePub } from "@/lib/ukBasePubs";
+import { COMMUNITY_PRICE_NOTE, formatPrice } from "@/lib/venues";
 
 import "./unverifiedPubSheet.css";
 
-// The sheet behind a UK base pin - a pub OpenStreetMap knows about and this app
-// knows nothing else about.
-//
-// It is NOT a stripped-down VenueInspector. There is no price story, no
-// heritage, no what's-on and no crawl slot to show, and rendering that sheet
-// with every section empty would read as a broken pub rather than an honest
-// blank. So this surface says the one true thing - nobody has logged a price
-// here - and then hands over the whole card to the thing that fixes it.
-//
-// Price submission is deliberately OPEN on unverified pubs: an unpriced pub is
-// exactly where the first price is worth the most, and /api/price-submit keys
-// on an opaque venue id, so a base pub's `venue-uk-…` id needs no server
-// change. What a submitted price does NOT do here is promote the pin: base pins
-// carry no price colour at all, and the corroboration policy for when a
-// community price starts colouring a pin belongs to the price-trust lane, not
-// to this layer.
+// The sheet behind a UK base pin - a pub OpenStreetMap knows about but the
+// curated venue index does not. It shows existing community reports or invites
+// the first one while leaving base pins price-blind. Corroboration policy for
+// colouring a pin belongs to the price-trust lane, not this layer.
 
 type UnverifiedPubSheetProps = {
   pub: UkBasePub;
@@ -31,12 +29,15 @@ type UnverifiedPubSheetProps = {
 };
 
 export default function UnverifiedPubSheet({ pub, communityPrices }: UnverifiedPubSheetProps) {
+  const communityPrice = freshestCommunityPrice(communityPrices.byVenueId.get(pub.id));
+  const communityTrustStanding = communityPrice ? communityTrustNote(communityPrice) : "";
+
   return (
     <div className="unverifiedPub">
       <div className="unverifiedPubHead">
         <span className="unverifiedPubTag">
           <Sparkles size={12} aria-hidden="true" />
-          No price yet
+          {communityPrice ? "Community price" : "No price yet"}
         </span>
         <h2 className="unverifiedPubName">{pub.name}</h2>
         {pub.address ? (
@@ -47,10 +48,33 @@ export default function UnverifiedPubSheet({ pub, communityPrices }: UnverifiedP
         ) : null}
       </div>
 
-      <p className="unverifiedPubLead">
-        We know this pub is here, and that is all we know. Nobody has logged what
-        a drink costs - <strong>be the first</strong>.
-      </p>
+      {communityPrice ? (
+        <>
+          <p className="unverifiedPubLead">
+            We know this pub from OpenStreetMap. Here is what the community last
+            logged.
+          </p>
+          <div className="contributorPrice communityPriceRow">
+            <span>
+              <ClaimBadge kind="contributor" /> Logged by a Pubmaxxer
+            </span>
+            <strong>{formatPrice(communityPrice.priceGbp)}</strong>
+            <small className="communityPriceStamp">
+              {submitCategoryLabel(communityPrice.drinkCategory)} ·{" "}
+              {communityStampLabel(communityPrice.submittedAt)}
+            </small>
+            {communityTrustStanding ? (
+              <small className="communityPriceStanding">{communityTrustStanding}</small>
+            ) : null}
+            <small className="communityPriceNote">{COMMUNITY_PRICE_NOTE}</small>
+          </div>
+        </>
+      ) : (
+        <p className="unverifiedPubLead">
+          We know this pub is here, and that is all we know. Nobody has logged what
+          a drink costs - <strong>be the first</strong>.
+        </p>
+      )}
 
       <VenuePriceSubmit
         venueId={pub.id}

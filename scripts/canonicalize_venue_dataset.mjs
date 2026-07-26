@@ -69,7 +69,7 @@ async function main() {
     version: 1,
     generatedBy: "scripts/canonicalize_venue_dataset.mjs",
     note:
-      "duplicateVenueId -> canonicalVenueId. The same physical pub appeared twice across dataset lineages (e.g. Wetherspoons directory vs seed); those identities were collapsed into one venue. A stored reference to a merged id resolves to its canonical id via lib/venueAliases.ts — no id is ever deleted silently.",
+      "legacyVenueId -> canonicalVenueId. Duplicate venue lineages and UK base pubs promoted into curated packs retain one durable identity, so stored prices, plans, drops and saved references remain reachable.",
     aliasCount: Object.keys(mergedAliases).length,
     aliases: mergedAliases,
     clusters: clusters.length > 0 ? clusters : prev.clusters ?? [],

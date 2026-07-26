@@ -52,7 +52,7 @@ import { opportunitiesToGeoJSON } from "@/lib/thingsToDoMap";
 import { formatPrice, type Venue } from "@/lib/venues";
 import type { VenueSignal, HoveredVenue, VenueDetailResponse, FailedHoverImage } from "@/components/map/canvas/types";
 import {
-  MAP_STYLES, FALLBACK_STYLES, STYLE_LOAD_TIMEOUT_MS, LONDON_VIEW, LONDON_BOUNDS,
+  MAP_STYLES, FALLBACK_STYLES, STYLE_LOAD_TIMEOUT_MS, LONDON_VIEW, UK_BOUNDS,
   DASH_SEQ,
   GLOW_BASE_STROKE_OPACITY, GLOW_BASE_STROKE_WIDTH,
   PIN_ENTRANCE_BUCKETS, PIN_ENTRANCE_STAGGER_MS, PIN_ENTRANCE_RAMP_MS, PIN_ENTRANCE_TOTAL_MS,
@@ -117,6 +117,7 @@ type PubMapCanvasProps = {
    * unverified sheet without a lookup. Absent = base taps do nothing.
    */
   onUkBasePubClick?: (pub: UkBasePub) => void;
+  onUkBasePubsChange?: (pubs: UkBasePub[]) => void;
   /**
    * A restored `?sel=venue-uk-*` arrival: the base pub's id plus the `at=`
    * location hint the selecting tap wrote alongside it. Seeds the selection
@@ -179,8 +180,8 @@ type PubMapCanvasProps = {
     bearing: number;
   };
   /**
-   * MapLibre maxBounds [[west, south], [east, north]] from CityConfig.bounds
-   * (via cityMaxBounds). Defaults to Greater London.
+   * MapLibre maxBounds [[west, south], [east, north]]. Defaults to the UK pack
+   * boundary while mapView continues to own the city-specific opening frame.
    */
   maxBounds?: [[number, number], [number, number]];
   /**
@@ -298,6 +299,7 @@ export default function PubMapCanvas({
   selectedVenueId,
   onVenueClick,
   onUkBasePubClick,
+  onUkBasePubsChange,
   ukBaseRestore = null,
   onRouteStopClick,
   onVenuePrefetch,
@@ -314,7 +316,7 @@ export default function PubMapCanvas({
   onMapReady,
   onMapErrored,
   mapView = LONDON_VIEW,
-  maxBounds = LONDON_BOUNDS,
+  maxBounds = UK_BOUNDS,
   poisPath = LONDON_POIS_PATH,
   transitLinesPath = "/data/tfl_lines.json",
   cityLandmarks = londonLandmarks,
@@ -2054,9 +2056,13 @@ export default function PubMapCanvas({
     mapReady,
     applyToMap,
     ukBaseDataRef,
+    scopeKey: cityId,
     restoreId: ukBaseRestore?.id ?? null,
     onRestorePub: handleRestoredBasePub,
   });
+  useEffect(() => {
+    onUkBasePubsChange?.(ukBase.pubs);
+  }, [onUkBasePubsChange, ukBase.pubs]);
 
   // CityMCP tonight opportunities → source data + overlay visibility. Kept out
   // of the mount effect deps so live opportunity refreshes never remount MapLibre.

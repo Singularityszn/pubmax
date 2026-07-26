@@ -10,16 +10,15 @@
 // the camera is zoomed in far enough for individual pins to exist at all
 // (lib/ukBasePubs.ts owns the client half; UK_BASE_MIN_ZOOM owns the gate).
 //
-// WHAT IS DROPPED. Every pub carrying `curatedRef` — the pack's own record that
-// the venue is already in venues_slim / a city pack. Curated wins: a deduped
-// pub must exist on the map exactly once, as its curated pin.
+// WHAT IS DROPPED. Pubs that still resolve to a current venues_slim / city-pack
+// id. Curated wins, and the former base id is retained as an alias.
 //
 // PRICES. None. OSM is not a price source (data/osm/uk/README.md). A base pub
 // has no price by construction; it is the canvas the community prices in.
 //
 // Run: node scripts/build_uk_base_shards.mjs   (wired into `npm run prebuild`)
 
-import { mkdir, readFile, readdir, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, rename, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -32,12 +31,15 @@ import {
   cellBbox,
   shardUrlForCell,
 } from "./lib/ukBaseGrid.mjs";
+import { publishStagedDirectory } from "./lib/atomicDirectoryPublish.mjs";
+import { buildUkBasePromotionPlan } from "./lib/ukBasePromotionAliases.mjs";
+import { mergeAliasMaps } from "./lib/venueCanonicalization.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, "..");
 const PACK_PATH = path.join(ROOT, "data", "osm", "uk", "uk_osm_pubs.json");
 const OUT_DIR = path.join(ROOT, "public", "data", SHARD_DIR_NAME);
-const MANIFEST_PATH = path.join(OUT_DIR, "manifest.json");
+const ALIASES_PATH = path.join(ROOT, "public", "data", "venue_id_aliases.json");
 
 // Per-shard ceiling. A cell is one viewport-triggered fetch, so a fat cell is
 // felt directly as a stall while panning. The densest cell today (central
@@ -97,6 +99,59 @@ function median(values) {
   return sorted[Math.floor(sorted.length / 2)];
 }
 
+async function loadCuratedRowsBySource(pubs) {
+  const rowsByPath = new Map();
+  const rowsBySource = new Map();
+  const sources = new Set(
+    pubs.map((pub) => String(pub?.curatedRef?.source ?? "")).filter(Boolean),
+  );
+  for (const source of sources) {
+    const slimPath =
+      source === "curated-london-slim" || source === "outer-london-osm-seed"
+        ? path.join(ROOT, "public", "data", "venues_slim.json")
+        : source.startsWith("city:")
+          ? path.join(
+              ROOT,
+              "public",
+              "data",
+              "cities",
+              source.slice("city:".length),
+              "venues_slim.json",
+            )
+          : "";
+    if (!slimPath) throw new Error(`Unknown curated source "${source}" in ${PACK_PATH}`);
+    let rows = rowsByPath.get(slimPath);
+    if (!rows) {
+      rows = JSON.parse(await readFile(slimPath, "utf8"));
+      if (!Array.isArray(rows)) throw new Error(`Expected an array in ${slimPath}`);
+      rowsByPath.set(slimPath, rows);
+    }
+    rowsBySource.set(source, rows);
+  }
+  return rowsBySource;
+}
+
+async function buildAliasDocument(promotionAliases) {
+  const previousText = await readFile(ALIASES_PATH, "utf8");
+  const previous = JSON.parse(previousText);
+  if (!previous || typeof previous !== "object" || Array.isArray(previous)) {
+    throw new Error(`Expected an object in ${ALIASES_PATH}`);
+  }
+  const aliases = mergeAliasMaps(previous.aliases, promotionAliases);
+  const document = {
+    ...previous,
+    note:
+      "legacyVenueId -> canonicalVenueId. Duplicate venue lineages and UK base pubs promoted into curated packs retain one durable identity, so stored prices, plans, drops and saved references remain reachable.",
+    aliasCount: Object.keys(aliases).length,
+    basePromotionAliasCount: Object.keys(promotionAliases).length,
+    aliases,
+  };
+  return {
+    previousText,
+    nextText: `${JSON.stringify(document, null, 2)}\n`,
+  };
+}
+
 async function main() {
   const pack = JSON.parse(await readFile(PACK_PATH, "utf8"));
   const pubs = Array.isArray(pack?.pubs) ? pack.pubs : [];
@@ -104,9 +159,9 @@ async function main() {
     throw new Error(`${PACK_PATH} has no pubs — refresh it with npm run fetch:uk-pubs`);
   }
 
-  // Curated wins, always: a pub the pack already matched to venues_slim or a
-  // city pack renders as its curated pin and must not gain a second, dimmer one.
-  const deduped = pubs.filter((pub) => !pub.curatedRef);
+  const curatedRowsBySource = await loadCuratedRowsBySource(pubs);
+  const promotionPlan = buildUkBasePromotionPlan(pubs, curatedRowsBySource);
+  const deduped = pubs.filter((pub) => !promotionPlan.promotedOsmIds.has(pub.osmId));
   const renderable = deduped.filter(isRenderablePub);
   const skipped = deduped.length - renderable.length;
 
@@ -123,85 +178,93 @@ async function main() {
     cell.rows.push(toRow(pub));
   }
 
-  // A stale cell from an earlier, denser refresh would keep being fetched and
-  // would keep painting pubs the pack no longer has. Clear every generated body
-  // first — but only the JSON, so the directory's README (hand-written, not
-  // generated) survives a rebuild.
-  await mkdir(OUT_DIR, { recursive: true });
-  for (const file of await readdir(OUT_DIR)) {
-    if (file.endsWith(".json")) await rm(path.join(OUT_DIR, file));
-  }
+  await mkdir(path.dirname(OUT_DIR), { recursive: true });
+  const stagedDir = await mkdtemp(
+    path.join(path.dirname(OUT_DIR), `.${SHARD_DIR_NAME}-stage-`),
+  );
 
-  const shards = [];
-  const shardBytes = [];
-  let totalBytes = 0;
-  let fattest = { id: "", bytes: 0, count: 0 };
+  try {
+    const shards = [];
+    const shardBytes = [];
+    let totalBytes = 0;
+    let fattest = { id: "", bytes: 0, count: 0 };
 
-  // Sorted so the manifest (and the diff of every refresh) is deterministic.
-  for (const key of [...cells.keys()].sort()) {
-    const cell = cells.get(key);
-    // Within a cell, south→north keeps rows in a stable, reviewable order.
-    cell.rows.sort((a, b) => a[3] - b[3] || a[4] - b[4] || String(a[0]).localeCompare(String(b[0])));
-    const body = JSON.stringify({
+    for (const key of [...cells.keys()].sort()) {
+      const cell = cells.get(key);
+      cell.rows.sort((a, b) => a[3] - b[3] || a[4] - b[4] || String(a[0]).localeCompare(String(b[0])));
+      const body = JSON.stringify({
+        version: UK_BASE_SHARD_VERSION,
+        cell: key,
+        pubs: cell.rows,
+      });
+      const bytes = Buffer.byteLength(body);
+      totalBytes += bytes;
+      shardBytes.push(bytes);
+      if (bytes > fattest.bytes) fattest = { id: key, bytes, count: cell.rows.length };
+      if (bytes > SHARD_BUDGET_BYTES) {
+        throw new Error(
+          `Shard ${key} is ${formatBytes(bytes)} (${cell.rows.length} pubs), over the ` +
+            `${formatBytes(SHARD_BUDGET_BYTES)} per-viewport budget. Split UK_BASE_GRID rather than raising it.`,
+        );
+      }
+      await writeFile(path.join(stagedDir, `${key}.json`), body);
+      shards.push({
+        id: key,
+        core: false,
+        url: shardUrlForCell(key),
+        count: cell.rows.length,
+        bbox: cellBbox(cell.latIndex, cell.lonIndex),
+      });
+    }
+
+    const manifestBody = JSON.stringify({
       version: UK_BASE_SHARD_VERSION,
-      cell: key,
-      pubs: cell.rows,
+      grid: UK_BASE_GRID,
+      generatedFrom: { fetchedAt: pack.fetchedAt ?? null, count: pack.count ?? pubs.length },
+      shards,
     });
-    const bytes = Buffer.byteLength(body);
-    totalBytes += bytes;
-    shardBytes.push(bytes);
-    if (bytes > fattest.bytes) fattest = { id: key, bytes, count: cell.rows.length };
-    if (bytes > SHARD_BUDGET_BYTES) {
+    const manifestBytes = Buffer.byteLength(manifestBody);
+    if (manifestBytes > MANIFEST_BUDGET_BYTES) {
       throw new Error(
-        `Shard ${key} is ${formatBytes(bytes)} (${cell.rows.length} pubs), over the ` +
-          `${formatBytes(SHARD_BUDGET_BYTES)} per-viewport budget. Split UK_BASE_GRID rather than raising it.`,
+        `Manifest is ${formatBytes(manifestBytes)}, over the ${formatBytes(MANIFEST_BUDGET_BYTES)} budget.`,
       );
     }
-    await writeFile(path.join(OUT_DIR, `${key}.json`), body);
-    shards.push({
-      id: key,
-      // Every base shard is lazy — there is no eager "core" in this layer, which
-      // is exactly what keeps the curated first paint unchanged. The field is
-      // kept so the manifest parses as the shared ShardManifest (lib/slimShards).
-      core: false,
-      url: shardUrlForCell(key),
-      count: cell.rows.length,
-      bbox: cellBbox(cell.latIndex, cell.lonIndex),
+    if (totalBytes > TOTAL_BUDGET_BYTES) {
+      throw new Error(
+        `UK base shards total ${formatBytes(totalBytes)}, over the ${formatBytes(TOTAL_BUDGET_BYTES)} budget.`,
+      );
+    }
+    await writeFile(path.join(stagedDir, "manifest.json"), manifestBody);
+
+    const aliasDocument = await buildAliasDocument(promotionPlan.aliases);
+    if (aliasDocument.nextText !== aliasDocument.previousText) {
+      const stagedAliasPath = `${ALIASES_PATH}.tmp-${process.pid}-${Date.now()}`;
+      await writeFile(stagedAliasPath, aliasDocument.nextText);
+      await rename(stagedAliasPath, ALIASES_PATH);
+    }
+    await publishStagedDirectory({
+      stagedDir,
+      targetDir: OUT_DIR,
+      preserveFiles: ["README.md"],
+      requiredFiles: ["manifest.json"],
     });
-  }
 
-  const manifestBody = JSON.stringify({
-    version: UK_BASE_SHARD_VERSION,
-    grid: UK_BASE_GRID,
-    generatedFrom: { fetchedAt: pack.fetchedAt ?? null, count: pack.count ?? pubs.length },
-    shards,
-  });
-  const manifestBytes = Buffer.byteLength(manifestBody);
-  if (manifestBytes > MANIFEST_BUDGET_BYTES) {
-    throw new Error(
-      `Manifest is ${formatBytes(manifestBytes)}, over the ${formatBytes(MANIFEST_BUDGET_BYTES)} budget.`,
+    console.log(
+      [
+        `UK base pubs → ${shards.length} shards in public/data/${SHARD_DIR_NAME}/`,
+        `  pack ................ ${pubs.length} pubs`,
+        `  curated (dropped) ... ${pubs.length - deduped.length}`,
+        `  unusable (dropped) .. ${skipped}`,
+        `  shipped ............. ${renderable.length}`,
+        `  manifest ............ ${formatBytes(manifestBytes)} (deferred until the zoom gate)`,
+        `  shards total ........ ${formatBytes(totalBytes)}`,
+        `  fattest shard ....... ${fattest.id} — ${formatBytes(fattest.bytes)} (${fattest.count} pubs)`,
+        `  median shard ........ ${formatBytes(median(shardBytes))}`,
+      ].join("\n"),
     );
+  } finally {
+    await rm(stagedDir, { recursive: true, force: true });
   }
-  if (totalBytes > TOTAL_BUDGET_BYTES) {
-    throw new Error(
-      `UK base shards total ${formatBytes(totalBytes)}, over the ${formatBytes(TOTAL_BUDGET_BYTES)} budget.`,
-    );
-  }
-  await writeFile(MANIFEST_PATH, manifestBody);
-
-  console.log(
-    [
-      `UK base pubs → ${shards.length} shards in public/data/${SHARD_DIR_NAME}/`,
-      `  pack ................ ${pubs.length} pubs`,
-      `  curated (dropped) ... ${pubs.length - deduped.length}`,
-      `  unusable (dropped) .. ${skipped}`,
-      `  shipped ............. ${renderable.length}`,
-      `  manifest ............ ${formatBytes(manifestBytes)} (deferred until the zoom gate)`,
-      `  shards total ........ ${formatBytes(totalBytes)}`,
-      `  fattest shard ....... ${fattest.id} — ${formatBytes(fattest.bytes)} (${fattest.count} pubs)`,
-      `  median shard ........ ${formatBytes(median(shardBytes))}`,
-    ].join("\n"),
-  );
 }
 
 main().catch((error) => {

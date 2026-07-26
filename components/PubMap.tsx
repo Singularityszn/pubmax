@@ -23,7 +23,8 @@ import {
 import { filterMapVenues, withForcedVenue } from "@/lib/filterMapVenues";
 import { mergePriceUpdates, parsePriceUpdates, type PriceUpdate } from "@/lib/priceUpdates";
 import { nearestVenueIds, nearbyVenuesForMap } from "@/lib/nearby";
-import { buildMapVenueListModel } from "@/lib/mapVenueList";
+import { buildMapVenueListModel, buildUkBasePubListModel } from "@/lib/mapVenueList";
+import { UK_BOUNDS } from "@/components/map/canvas/tokens";
 import { useFocusTrap } from "@/lib/useFocusTrap";
 import { MOBILE_MEDIA_QUERY } from "@/lib/breakpoints";
 // Perf (mobile /map cold-open): MapLibre (~327 KB) lives only in PubMapCanvas
@@ -173,9 +174,9 @@ import { getSaved } from "@/lib/savedPubs";
 import { createSlimShardLoader, type MapBounds, type SlimShardLoader } from "@/lib/slimShards";
 import type { SlimVenue } from "@/lib/venuesSlim";
 import {
-  cityMaxBounds,
   DEFAULT_CITY_ID,
   getCity,
+  pointInCityBounds,
   type CityId,
 } from "@/lib/cities";
 import type { ThingsToDoOpportunity } from "@/lib/citymcp/client";
@@ -399,9 +400,6 @@ export default function PubMap({
   const cityLandmarks = useMemo(() => landmarksForCity(cityId), [cityId]);
   const cityStoryBands = useMemo(() => storyBandsForCity(cityId), [cityId]);
   const cityCuratedCrawls = useMemo(() => curatedCrawlsForCity(cityId), [cityId]);
-  // Stable identity — a fresh cityMaxBounds() array every render remounts MapLibre
-  // (PubMapCanvas init effect depends on maxBounds) and flickers the loading chrome.
-  const cityBounds = useMemo(() => cityMaxBounds(city), [city]);
   const searchParams = useSearchParams();
   useEffect(() => {
     markPubmaxTiming("pubmax:map-chunk-ready");
@@ -937,6 +935,16 @@ export default function PubMap({
     () => buildMapVenueListModel(mapMembershipVenues, mapViewport.center),
     [mapMembershipVenues, mapViewport.center],
   );
+  const [renderedBasePubs, setRenderedBasePubs] = useState<UkBasePub[]>([]);
+  const ukBasePubListModel = useMemo(
+    () => buildUkBasePubListModel(renderedBasePubs, mapViewport.center),
+    [renderedBasePubs, mapViewport.center],
+  );
+  const mapContextName =
+    !mapViewport.center ||
+    pointInCityBounds(mapViewport.center[1], mapViewport.center[0], city)
+      ? city.displayName
+      : "UK";
 
   const hasReactiveLogIntent = hasMapLogIntent(searchParams);
   const shouldBuildSuggestedRoute = !hasReactiveLogIntent || planningOpen || routeMapped;
@@ -2164,6 +2172,7 @@ export default function PubMap({
           selectedVenueId={selectedVenueId}
           onVenueClick={handleVenueClick}
           onUkBasePubClick={handleUkBasePubClick}
+          onUkBasePubsChange={setRenderedBasePubs}
           ukBaseRestore={ukBaseRestore}
           onRouteStopClick={selectVenue}
           onVenuePrefetch={prefetchVenueDetail}
@@ -2184,7 +2193,7 @@ export default function PubMap({
               ? withCityCameraAttitude(restoredMobileSession.viewport, city.mapView)
               : city.mapView
           }
-          maxBounds={cityBounds}
+          maxBounds={UK_BOUNDS}
           fitQueryOnArrival={shouldFitQueryVenuesOnArrival(arrivalSearch)}
           searchFitToken={searchFitToken}
           userLocation={userLocation}
@@ -2345,17 +2354,19 @@ export default function PubMap({
             map. */}
         <MapVenueList
           model={mapVenueListModel}
-          cityName={city.displayName}
+          ukBaseModel={ukBasePubListModel}
+          cityName={mapContextName}
           open={mapListOpen}
           onOpenChange={setMapListOpen}
           loaded={loaded && loadedCityId === cityId}
           onSelectVenue={selectVenue}
+          onSelectUkBasePub={handleUkBasePubClick}
           onPrefetchVenue={prefetchVenueDetail}
         />
 
         {mobileShellReady ? (
         <MobileMapShell
-          cityLabel={centreArea?.name ?? activeNightArea?.name ?? city.displayName}
+          cityLabel={centreArea?.name ?? activeNightArea?.name ?? mapContextName}
           overlay={mobileShellState.overlay}
           onOverlayChange={changeMapOverlay}
           activeQuery={trimmedMapQuery}

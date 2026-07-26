@@ -18,12 +18,15 @@ import { parseUkBaseShard, UK_BASE_MANIFEST_PATH } from "@/lib/ukBasePubs";
 // lib/ukBasePubs.ts; the id decode is shared (parseUkBaseShard), so the two
 // sides can never disagree about which ids exist.
 //
-// Degradation mirrors lib/venueIndex.ts exactly: never throws, a read/parse
-// failure yields an EMPTY set (the caller answers 503, retryable), each shard
-// is cached individually so a transient per-shard failure retries on the next
-// call, and the merged set is only memoized once every shard has loaded.
+// Never throws. A read/parse failure returns an explicit unavailable result,
+// each shard is cached individually so a transient per-shard failure retries
+// on the next call, and the merged set is only memoized once every shard loads.
 
-let cached: Set<string> | null = null;
+export type UkBaseIdIndexResult =
+  | { status: "ready"; ids: Set<string> }
+  | { status: "unavailable" };
+
+let cached: UkBaseIdIndexResult | null = null;
 const shardCache = new Map<string, string[]>();
 
 function publicDataPath(publicPath: string): string {
@@ -35,7 +38,7 @@ async function readShardIds(publicPath: string): Promise<string[]> {
   return parseUkBaseShard(body).map((pub) => pub.id);
 }
 
-export async function getUkBaseIdIndex(): Promise<Set<string>> {
+export async function getUkBaseIdIndex(): Promise<UkBaseIdIndexResult> {
   if (cached) return cached;
   let manifest: ReturnType<typeof parseShardManifest>;
   try {
@@ -45,25 +48,23 @@ export async function getUkBaseIdIndex(): Promise<Set<string>> {
   } catch {
     manifest = null;
   }
-  if (!manifest) return new Set();
-  let allLoaded = true;
+  if (!manifest) return { status: "unavailable" };
   for (const shard of manifest.shards) {
     if (shardCache.has(shard.url)) continue;
     try {
       shardCache.set(shard.url, await readShardIds(shard.url));
     } catch {
-      // Skip this shard for now; it retries on the next call.
-      allLoaded = false;
+      // Retry on the next call without publishing a partial authority.
     }
   }
   const index = new Set<string>();
   for (const shard of manifest.shards) {
     const ids = shardCache.get(shard.url);
-    if (!ids) continue;
+    if (!ids) return { status: "unavailable" };
     for (const id of ids) index.add(id);
   }
-  if (allLoaded) cached = index;
-  return index;
+  cached = { status: "ready", ids: index };
+  return cached;
 }
 
 export function resetUkBaseIndexForTests(): void {

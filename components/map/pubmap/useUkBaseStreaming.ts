@@ -36,6 +36,7 @@ type Options = {
   applyToMap: (key: string, fn: (map: maplibregl.Map) => void) => void;
   /** Reseeded by buildScene after a theme setStyle wipes every source. */
   ukBaseDataRef: React.MutableRefObject<GeoJSON.FeatureCollection>;
+  scopeKey?: string;
   /**
    * A restored `?sel=venue-uk-*` arrival's id, one-shot: once a streamed
    * viewport contains it, the whole record is handed to `onRestorePub` (the id
@@ -54,13 +55,23 @@ type Options = {
  * instance, and "the pins are there but too quiet to see" and "the pins never
  * loaded" look identical in a screenshot.
  */
-export type UkBaseStreamState = { count: number };
+export type UkBaseStreamState = { count: number; pubs: UkBasePub[] };
+
+export function nextUkBaseStreamToken(
+  generation: { current: number },
+  zoom: number,
+  minZoom: number,
+): number | null {
+  const token = ++generation.current;
+  return zoom < minZoom ? null : token;
+}
 
 export function useUkBaseStreaming({
   mapRef,
   mapReady,
   applyToMap,
   ukBaseDataRef,
+  scopeKey = "",
   restoreId = null,
   onRestorePub,
 }: Options): UkBaseStreamState {
@@ -70,17 +81,20 @@ export function useUkBaseStreaming({
   useEffect(() => {
     onRestorePubRef.current = onRestorePub;
   }, [onRestorePub]);
-  const [count, setCount] = useState(0);
+  const [published, setPublished] = useState<{ scopeKey: string; pubs: UkBasePub[] }>(
+    () => ({ scopeKey, pubs: [] }),
+  );
 
   const publish = useCallback(
-    (data: GeoJSON.FeatureCollection) => {
+    (nextPubs: UkBasePub[]) => {
+      const data = nextPubs.length > 0 ? ukBasePubsToGeoJSON(nextPubs) : EMPTY;
       ukBaseDataRef.current = data;
-      setCount(data.features.length);
+      setPublished({ scopeKey, pubs: nextPubs });
       applyToMap("uk-base:data", (map) => {
         (map.getSource("uk-base") as maplibregl.GeoJSONSource | undefined)?.setData(data);
       });
     },
-    [applyToMap, ukBaseDataRef],
+    [applyToMap, scopeKey, ukBaseDataRef],
   );
 
   useEffect(() => {
@@ -91,17 +105,21 @@ export function useUkBaseStreaming({
     let timer: ReturnType<typeof setTimeout> | null = null;
     // Monotonic token: a slow shard fetch that resolves after a later camera
     // move must not overwrite the newer viewport's pins.
-    let generation = 0;
+    const generation = { current: 0 };
 
     const stream = () => {
       const current = mapRef.current;
       if (cancelled || !current) return;
-      if (current.getZoom() < UK_BASE_MIN_ZOOM) {
-        if (ukBaseDataRef.current.features.length > 0) publish(EMPTY);
+      const token = nextUkBaseStreamToken(
+        generation,
+        current.getZoom(),
+        UK_BASE_MIN_ZOOM,
+      );
+      if (token === null) {
+        if (ukBaseDataRef.current.features.length > 0) publish([]);
         return;
       }
       if (!loaderRef.current) loaderRef.current = createUkBaseLoader();
-      const token = ++generation;
       const bounds = current.getBounds();
       void loaderRef.current
         .pubsForBounds({
@@ -111,8 +129,8 @@ export function useUkBaseStreaming({
           north: bounds.getNorth(),
         })
         .then((pubs) => {
-          if (cancelled || token !== generation) return;
-          publish(ukBasePubsToGeoJSON(pubs));
+          if (cancelled || token !== generation.current) return;
+          publish(pubs);
           const wanted = restoreIdRef.current;
           if (!wanted) return;
           const hit = pubs.find((pub) => pub.id === wanted);
@@ -140,5 +158,6 @@ export function useUkBaseStreaming({
     };
   }, [mapReady, mapRef, publish, ukBaseDataRef]);
 
-  return { count };
+  const pubs = published.scopeKey === scopeKey ? published.pubs : [];
+  return { count: pubs.length, pubs };
 }

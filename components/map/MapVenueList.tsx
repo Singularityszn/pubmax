@@ -4,7 +4,8 @@ import { useId } from "react";
 import { List, MapPin, X } from "lucide-react";
 
 import { formatLogNearbyDistance } from "@/lib/mapLogIntent";
-import type { MapVenueListModel } from "@/lib/mapVenueList";
+import type { MapVenueListModel, UkBasePubListModel } from "@/lib/mapVenueList";
+import type { UkBasePub } from "@/lib/ukBasePubs";
 
 import "./mapVenueList.css";
 
@@ -17,23 +18,29 @@ import "./mapVenueList.css";
 // shim.
 export default function MapVenueList({
   model,
+  ukBaseModel,
   cityName,
   open,
   onOpenChange,
   loaded,
   onSelectVenue,
+  onSelectUkBasePub,
   onPrefetchVenue,
 }: {
   model: MapVenueListModel;
+  ukBaseModel: UkBasePubListModel;
   cityName: string;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   loaded: boolean;
   onSelectVenue: (id: string) => void;
+  onSelectUkBasePub: (pub: UkBasePub) => void;
   onPrefetchVenue: (id: string) => void;
 }) {
   const panelId = useId();
-  const { rows, total, shown, truncated } = model;
+  const total = model.total + ukBaseModel.total;
+  const shown = model.shown + ukBaseModel.shown;
+  const truncated = model.truncated || ukBaseModel.truncated;
 
   return (
     <section className={`mapVenueList${open ? " mapVenueList--open" : ""}`} aria-label={`${cityName} pub list`}>
@@ -43,7 +50,7 @@ export default function MapVenueList({
             <div className="mapVenueListHeadMeta">
               <h2 className="mapVenueListTitle">Pubs on the map</h2>
               <span className="mapVenueListCount" role="status" aria-live="polite">
-                {!loaded
+                {!loaded && ukBaseModel.total === 0
                   ? "Loading pubs…"
                   : total === 0
                     ? "No pubs match your filters"
@@ -69,33 +76,70 @@ export default function MapVenueList({
                 : "Finding the pubs…"}
             </p>
           ) : (
-            <ul className="mapVenueListItems" aria-label="Pubs on the map, nearest first">
-              {rows.map((row) => (
-                <li key={row.id}>
-                  <button
-                    type="button"
-                    className="mapVenueListItem"
-                    onClick={() => {
-                      onSelectVenue(row.id);
-                      onOpenChange(false);
-                    }}
-                    onPointerEnter={() => onPrefetchVenue(row.id)}
-                    onFocus={() => onPrefetchVenue(row.id)}
-                  >
-                    <span className="mapVenueListItemName">
-                      <MapPin size={14} aria-hidden="true" />
-                      {row.name}
-                    </span>
-                    <span className="mapVenueListItemMeta">
-                      {typeof row.distanceKm === "number" ? (
-                        <span className="mapVenueListItemDist">{formatLogNearbyDistance(row.distanceKm)}</span>
-                      ) : null}
-                      <span>{row.priceLabel}</span>
-                    </span>
-                  </button>
-                </li>
-              ))}
-            </ul>
+            <div className="mapVenueListGroups">
+              {model.rows.length > 0 ? (
+                <section className="mapVenueListGroup" aria-label="Priced and curated pubs">
+                  <h3 className="mapVenueListGroupTitle">Priced and curated</h3>
+                  <ul className="mapVenueListItems" aria-label="Priced and curated pubs">
+                    {model.rows.map((row) => (
+                      <li key={row.id}>
+                        <button
+                          type="button"
+                          className="mapVenueListItem"
+                          onClick={() => {
+                            onSelectVenue(row.id);
+                            onOpenChange(false);
+                          }}
+                          onPointerEnter={() => onPrefetchVenue(row.id)}
+                          onFocus={() => onPrefetchVenue(row.id)}
+                        >
+                          <span className="mapVenueListItemName">
+                            <MapPin size={14} aria-hidden="true" />
+                            {row.name}
+                          </span>
+                          <span className="mapVenueListItemMeta">
+                            {typeof row.distanceKm === "number" ? (
+                              <span className="mapVenueListItemDist">{formatLogNearbyDistance(row.distanceKm)}</span>
+                            ) : null}
+                            <span>{row.priceLabel}</span>
+                          </span>
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                </section>
+              ) : null}
+              {ukBaseModel.rows.length > 0 ? (
+                <section className="mapVenueListGroup mapVenueListGroup--unverified" aria-label="Unverified pubs with no price">
+                  <h3 className="mapVenueListGroupTitle">Unverified pubs · no price</h3>
+                  <ul className="mapVenueListItems" aria-label="Unverified pubs with no price">
+                    {ukBaseModel.rows.map((row) => (
+                      <li key={row.id}>
+                        <button
+                          type="button"
+                          className="mapVenueListItem"
+                          onClick={() => {
+                            onSelectUkBasePub(row.pub);
+                            onOpenChange(false);
+                          }}
+                        >
+                          <span className="mapVenueListItemName">
+                            <MapPin size={14} aria-hidden="true" />
+                            {row.name}
+                          </span>
+                          <span className="mapVenueListItemMeta">
+                            {typeof row.distanceKm === "number" ? (
+                              <span className="mapVenueListItemDist">{formatLogNearbyDistance(row.distanceKm)}</span>
+                            ) : null}
+                            <span>{row.priceLabel}</span>
+                          </span>
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                </section>
+              ) : null}
+            </div>
           )}
         </div>
       ) : null}

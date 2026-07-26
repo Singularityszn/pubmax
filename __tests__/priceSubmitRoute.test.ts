@@ -1,3 +1,6 @@
+import { promises as fs } from "fs";
+import os from "os";
+import path from "path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 // Two Vercel-vs-local seams to pin (both would otherwise pass locally and fail
@@ -29,16 +32,17 @@ vi.mock("@/lib/venueIndex", async (importOriginal) => {
   };
 });
 
-// Same seam for the UK base index: its documented degraded mode is an empty
-// set, and the route must answer 503 (retryable) for a base id it cannot
-// check, exactly as it does when the curated index is unavailable.
+// Same seam for the UK base index: an unavailable result must produce a
+// retryable 503 for a base id it cannot validate.
 const ukBaseIndexState = vi.hoisted(() => ({ unavailable: false }));
 vi.mock("@/lib/ukBaseIndex", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/ukBaseIndex")>();
   return {
     ...actual,
     getUkBaseIdIndex: async () =>
-      ukBaseIndexState.unavailable ? new Set<string>() : actual.getUkBaseIdIndex(),
+      ukBaseIndexState.unavailable
+        ? { status: "unavailable" as const }
+        : actual.getUkBaseIdIndex(),
   };
 });
 
@@ -61,12 +65,20 @@ vi.mock("@/lib/communityPriceStore", async (importOriginal) => {
 });
 
 import { GET, POST } from "@/app/api/price-submit/route";
-import { __resetCommunityPrices, readCommunityPrices } from "@/lib/communityPriceStore";
+import {
+  __resetCommunityPrices,
+  readCommunityPrices,
+  submitCommunityPrice,
+} from "@/lib/communityPriceStore";
 import { COMMUNITY_PRICE_MAX_GBP } from "@/lib/communityPrice";
 import { __resetPintDrops } from "@/lib/pintDrops";
 import { getUkBaseIdIndex } from "@/lib/ukBaseIndex";
 import { UK_BASE_ID_PREFIX } from "@/lib/ukBasePubs";
 import { getVenueIndex } from "@/lib/venueIndex";
+import {
+  resetVenueAliasesForTests,
+  setVenueAliasesPathForTests,
+} from "@/lib/venueAliases";
 
 type PriceBody = {
   ok?: boolean;
@@ -95,6 +107,7 @@ function get(query: string): Request {
 
 const ORIGINAL_SUPABASE_URL = process.env.SUPABASE_URL;
 const ORIGINAL_SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
+const aliasDirs: string[] = [];
 
 beforeEach(() => {
   delete process.env.SUPABASE_URL;
@@ -104,9 +117,10 @@ beforeEach(() => {
   readBackState.override = null;
   __resetCommunityPrices();
   __resetPintDrops();
+  resetVenueAliasesForTests();
 });
 
-afterEach(() => {
+afterEach(async () => {
   if (ORIGINAL_SUPABASE_URL === undefined) delete process.env.SUPABASE_URL;
   else process.env.SUPABASE_URL = ORIGINAL_SUPABASE_URL;
   if (ORIGINAL_SUPABASE_SERVICE_ROLE_KEY === undefined) {
@@ -114,6 +128,10 @@ afterEach(() => {
   } else {
     process.env.SUPABASE_SERVICE_ROLE_KEY = ORIGINAL_SUPABASE_SERVICE_ROLE_KEY;
   }
+  resetVenueAliasesForTests();
+  await Promise.all(
+    aliasDirs.splice(0).map((dir) => fs.rm(dir, { recursive: true, force: true })),
+  );
 });
 
 describe("POST /api/price-submit", () => {
@@ -228,7 +246,10 @@ describe("POST /api/price-submit", () => {
 // membership somewhere real, never shape alone.
 describe("POST /api/price-submit UK base pubs", () => {
   async function realBaseId(): Promise<string> {
-    const first = (await getUkBaseIdIndex()).values().next().value;
+    const result = await getUkBaseIdIndex();
+    expect(result.status).toBe("ready");
+    if (result.status !== "ready") throw new Error("base index unavailable");
+    const first = result.ids.values().next().value;
     expect(typeof first).toBe("string");
     return first as string;
   }
@@ -240,6 +261,15 @@ describe("POST /api/price-submit UK base pubs", () => {
     const data = (await res.json()) as PriceBody;
     expect(data.ok).toBe(true);
     expect(data.price?.source).toBe("community");
+  });
+
+  it("accepts a base pub while the unrelated curated index is unavailable", async () => {
+    venueIndexState.unavailable = true;
+    const venueId = await realBaseId();
+
+    const res = await POST(post({ venueId, drinkCategory: "beer", priceGbp: 4.2 }));
+
+    expect(res.status).toBe(201);
   });
 
   it("rejects a well-formed but non-existent venue-uk id (400) without storing", async () => {
@@ -283,6 +313,34 @@ describe("GET /api/price-submit", () => {
     expect((await GET(get(""))).status).toBe(200);
     expect(await (await GET(get(""))).json()).toEqual({ prices: [] });
     expect(await (await GET(get("?venueId=nobody-here"))).json()).toEqual({ prices: [] });
+  });
+
+  it("reads historical base-id prices through a promoted venue alias", async () => {
+    const baseId = "venue-uk-n123";
+    const curatedId = "venue-curated-123";
+    const dir = await fs.mkdtemp(path.join(os.tmpdir(), "price-route-alias-"));
+    aliasDirs.push(dir);
+    const aliasPath = path.join(dir, "venue_id_aliases.json");
+    await fs.writeFile(
+      aliasPath,
+      JSON.stringify({ aliases: { [baseId]: curatedId } }),
+    );
+    setVenueAliasesPathForTests(aliasPath);
+    await submitCommunityPrice({
+      venueId: baseId,
+      drinkCategory: "beer",
+      priceGbp: 4.2,
+      actor: "historical-device",
+    });
+
+    const res = await GET(get(`?venueId=${curatedId}`));
+    const data = (await res.json()) as {
+      prices: Array<{ venueId: string; priceGbp: number }>;
+    };
+
+    expect(data.prices).toEqual([
+      expect.objectContaining({ venueId: curatedId, priceGbp: 4.2 }),
+    ]);
   });
 });
 

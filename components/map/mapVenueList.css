@@ -177,12 +177,34 @@
   outline-offset: -2px;
 }
 
+.mapVenueListGroups {
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.mapVenueListGroup + .mapVenueListGroup {
+  border-top: 1px solid color-mix(in srgb, var(--line) 70%, transparent);
+}
+
+.mapVenueListGroupTitle {
+  margin: 0;
+  padding: 10px 16px 4px;
+  color: var(--muted);
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.mapVenueListGroup--unverified .mapVenueListGroupTitle {
+  color: var(--brass);
+}
+
 .mapVenueListItems {
   list-style: none;
   margin: 0;
   padding: 6px;
-  overflow-y: auto;
-  overscroll-behavior: contain;
 }
 
 .mapVenueListItem {

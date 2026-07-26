@@ -1,0 +1,62 @@
+import { createElement } from "react";
+import { renderToStaticMarkup } from "react-dom/server";
+import { describe, expect, it } from "vitest";
+
+import MapVenueList from "@/components/map/MapVenueList";
+import type { MapVenueListModel, UkBasePubListModel } from "@/lib/mapVenueList";
+
+describe("MapVenueList", () => {
+  it("announces rendered base pubs as a distinct unverified group", () => {
+    const curated: MapVenueListModel = {
+      rows: [
+        {
+          id: "venue-curated",
+          name: "Curated Arms",
+          priceLabel: "£4.50",
+        },
+      ],
+      total: 1,
+      shown: 1,
+      truncated: false,
+    };
+    const base: UkBasePubListModel = {
+      rows: [
+        {
+          id: "venue-uk-n123",
+          name: "Base Arms",
+          priceLabel: "Unverified · no price",
+          pub: {
+            id: "venue-uk-n123",
+            osmRef: "n123",
+            name: "Base Arms",
+            address: "",
+            lat: 53.8,
+            lng: -1.55,
+          },
+        },
+      ],
+      total: 1,
+      shown: 1,
+      truncated: false,
+    };
+
+    const html = renderToStaticMarkup(
+      createElement(MapVenueList, {
+        model: curated,
+        ukBaseModel: base,
+        cityName: "UK",
+        open: true,
+        onOpenChange: () => {},
+        loaded: true,
+        onSelectVenue: () => {},
+        onSelectUkBasePub: () => {},
+        onPrefetchVenue: () => {},
+      }),
+    );
+
+    expect(html).toContain('aria-label="Priced and curated pubs"');
+    expect(html).toContain('aria-label="Unverified pubs with no price"');
+    expect(html).toContain("Base Arms");
+    expect(html).toContain("Unverified · no price");
+  });
+});
