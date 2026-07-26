@@ -58,4 +58,7 @@ current counts and sizes; `npm run build:uk-base` prints the payload summary.
 
 OpenStreetMap data © [OpenStreetMap contributors](https://www.openstreetmap.org/copyright),
 licensed under the [Open Database License (ODbL) 1.0](https://opendatacommons.org/licenses/odbl/).
-The unverified pub sheet carries this attribution in the UI.
+The unverified pub sheet carries this attribution in the UI, and the map corner
+credits OpenStreetMap contributors for all OSM-derived pub data
+(`OSM_ATTRIBUTION` in `components/map/canvas/tokens.ts`, pinned by
+`__tests__/mapOsmAttribution.test.ts`).

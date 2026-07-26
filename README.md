@@ -16,7 +16,7 @@ Pick a crawl style, filter, and either accept a **Suggested Crawl** or **Build y
 - **Pint Drops** — community photos + the price you paid + a passed-down note, moderated.
 - **Log tonight's price** - tap a pub, pick a drink category, enter the price; it shows on the pub's own page instantly, on its own dated row, never overwriting the price on record. The pin and card restamp with a dated community badge only once a second independent drinker logs the same figure, and a community price over 30 days old hands the map back to the price on record. Anonymous, no sign-up.
 - **The Landlord** — grounded pub-heritage Q&A that reads back only server-known facts and refuses to invent.
-- **Moderation** — reports hide a drop at a threshold; a token-gated `/admin` console reviews hidden drops.
+- **Moderation** — reports hide a Pint Drop at a threshold; a token-gated `/admin` console reviews hidden drops. A community price can also be reported by anyone, but never auto-hides: only a moderator hides it (hide, never delete) through the moderator-gated admin API.
 
 ## Stack
 
@@ -63,7 +63,9 @@ Those generated detail files are gitignored (large). Local/dev falls back to the
 
 The UK-wide unverified pub layer also comes from OpenStreetMap. Its pins remain
 outside the curated venue index, and its sheet displays source attribution while
-accepting community price submissions. See
+accepting community price submissions. Because OSM-derived venues ship in both
+pub layers, the map corner itself credits OpenStreetMap contributors (ODbL) via
+`OSM_ATTRIBUTION` in `components/map/canvas/tokens.ts`. See
 [`public/data/uk_base/README.md`](public/data/uk_base/README.md) for the runtime
 data contract.
 

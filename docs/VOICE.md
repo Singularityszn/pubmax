@@ -11,7 +11,7 @@ PUBMAX sounds like a Londoner who knows the pub, not a brand that owns one. Dry,
 Say it the way you'd say it to a mate, not the way a startup says it in a deck.
 
 - London pints cost a fortune. We show you what every pub actually charges, so you stop guessing and stop overpaying.
-- Every price comes from a real person who was actually there, with a date on it. No made-up numbers.
+- Every price names where it came from. The ones logged by drinkers carry the day they were seen; the rest are cited from public sources. Never claim every price is dated: only the people-logged lanes carry per-row dates (`__tests__/landingPriceHonesty.test.ts` pins the landing page's half of that). No made-up numbers.
 - Nobody buys their way to the top. There's a hard wall in the code (`lib/sponsorship.ts`) between paid placements and the prices you see. A sponsored thing says "Sponsored" and sits in its own slot. Prices are never for sale.
 
 Never write the mission as a mission. No "we're on a journey to democratise fair pricing." State the problem, hand the reader a choice, move on.
