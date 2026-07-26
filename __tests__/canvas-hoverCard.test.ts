@@ -20,6 +20,27 @@ describe("hoverPriceLine", () => {
     expect(line.provenance.startsWith("Community")).toBe(true);
   });
 
+  it("pairs a signal price with that signal's own freshness timestamp", () => {
+    const now = Date.now();
+    const line = hoverPriceLine(
+      {
+        latestContributorPrice: 5.5,
+        latestContributorAt: new Date(now - 3 * 86_400_000).toISOString(),
+      } as Venue,
+      {
+        hasPintDrops: false,
+        latestContributorPrice: 4.5,
+        latestContributorAt: now - 120_000,
+      } satisfies VenueSignal,
+      null,
+    );
+
+    expect(line).toEqual({
+      price: 4.5,
+      provenance: "Community · logged 2m ago",
+    });
+  });
+
   it("falls to sourced with cheapestPrice", () => {
     const line = hoverPriceLine(
       { cheapestPrice: 6, sourcedPrice: { observedAt: null } } as unknown as Venue,

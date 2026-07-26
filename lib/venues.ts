@@ -375,12 +375,19 @@ export const COMMUNITY_PRICE_NOTE =
 // Returns "" for a missing/invalid ISO so the UI can skip the note. Future /
 // clock-skew timestamps collapse to "just now" — never a negative age.
 function formatAgeLabel(
-  iso: string | null | undefined,
+  observedAt: string | number | null | undefined,
   verb: "logged" | "observed",
   now: Date,
 ): string {
-  if (typeof iso !== "string" || iso.length === 0) return "";
-  const then = Date.parse(iso);
+  if (
+    observedAt === null ||
+    observedAt === undefined ||
+    (typeof observedAt === "string" && observedAt.length === 0)
+  ) {
+    return "";
+  }
+  const then =
+    typeof observedAt === "number" ? observedAt : Date.parse(observedAt);
   if (!Number.isFinite(then)) return "";
   const diffMs = now.getTime() - then;
   if (diffMs < 0) return `${verb} just now`;
@@ -393,10 +400,14 @@ function formatAgeLabel(
   return `${verb} ${days} ${days === 1 ? "day" : "days"} ago`;
 }
 
-// Pure formatter for a community drop timestamp → "logged 2h ago".
+// Pure formatter for a community observation timestamp → "logged 2h ago".
+// Venue records use ISO strings; live map signals use epoch milliseconds.
 // Unit-tested at the boundaries.
-export function formatFreshness(iso: string | null | undefined, now: Date = new Date()): string {
-  return formatAgeLabel(iso, "logged", now);
+export function formatFreshness(
+  observedAt: string | number | null | undefined,
+  now: Date = new Date(),
+): string {
+  return formatAgeLabel(observedAt, "logged", now);
 }
 
 // Pure formatter for a sourced-price observedAt → "observed 2h ago".

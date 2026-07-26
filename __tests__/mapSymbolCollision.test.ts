@@ -28,7 +28,7 @@ type BuiltLayer = maplibregl.AddLayerObject & {
   paint?: Record<string, unknown>;
 };
 
-function buildScenePieces() {
+function buildScenePieces(selectedId = "") {
   const layers = new Map<string, BuiltLayer>();
   const sources = new Map<string, Record<string, unknown>>();
   const map = {
@@ -58,7 +58,7 @@ function buildScenePieces() {
     pubsData: { type: "FeatureCollection", features: [] },
     tonightData: { type: "FeatureCollection", features: [] },
     tonightVisible: false,
-    selectedId: "",
+    selectedId,
     selectionMuteStore: new Map<string, unknown>(),
   } satisfies SceneCtx;
 
@@ -109,6 +109,18 @@ describe("symbol collision policy", () => {
     // z15 on the scraped / drops / what's-on layers).
     expect(pins["icon-padding"]).toBeGreaterThanOrEqual(4);
     expect(pins["symbol-sort-key"]).toEqual(pinSortKeyExpr(""));
+  });
+
+  it("allows only the selected pub pin to overlap competing symbols", () => {
+    const selectedLayers = buildScenePieces("venue-abc").layers;
+    const pins = (selectedLayers.get("pubs-point")?.layout ?? {}) as Record<string, unknown>;
+
+    expect(pins["icon-allow-overlap"]).toEqual([
+      "case",
+      ["==", ["get", "id"], "venue-abc"],
+      true,
+      false,
+    ]);
   });
 
   it("keeps the cluster count drawn while still reserving the disc's space", () => {

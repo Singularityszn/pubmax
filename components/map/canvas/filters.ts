@@ -129,6 +129,17 @@ export function pinSortKeyExpr(selectedId: string): maplibregl.ExpressionSpecifi
 }
 
 /**
+ * Selected pin only may overlap symbols already placed by lower map layers.
+ * Other pub pins stay in the collision index and keep the density contract.
+ */
+export function pinAllowOverlapExpr(
+  selectedId: string,
+): false | maplibregl.ExpressionSpecification {
+  if (!selectedId) return false;
+  return ["case", ["==", ["get", "id"], selectedId], true, false];
+}
+
+/**
  * Global 0→1 ease for the cluster entrance fade. Pub PINS stagger per feature
  * (pinEntranceLocalT); cluster discs are few and large, so they share one
  * eased ramp — enough to kill the "everything pops at once" flash without

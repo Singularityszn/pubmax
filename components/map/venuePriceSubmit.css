@@ -75,7 +75,7 @@
 
 .vpsubCat {
   flex: 0 0 auto;
-  min-height: 38px;
+  min-height: 44px;
   padding: 8px 14px;
   border: 1px solid var(--line);
   border-radius: var(--radius-pill, 999px);
@@ -206,7 +206,7 @@
 }
 
 .vpsubQuickChip {
-  min-height: 34px;
+  min-height: 44px;
   padding: 6px 12px;
   border: 1px dashed color-mix(in srgb, var(--ink-soft) 34%, var(--line));
   border-radius: var(--radius-pill, 999px);

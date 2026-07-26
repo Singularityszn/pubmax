@@ -44,9 +44,12 @@ export type CommunityPricesState = {
 };
 
 /** Freshest-wins merge of one observation into a venue's per-category list. */
-function upsertPrice(rows: CommunityPrice[], next: CommunityPrice): CommunityPrice[] {
+export function upsertPrice(rows: CommunityPrice[], next: CommunityPrice): CommunityPrice[] {
+  const current = rows.find((row) => row.drinkCategory === next.drinkCategory);
+  const freshest =
+    current && current.submittedAt > next.submittedAt ? current : next;
   const others = rows.filter((row) => row.drinkCategory !== next.drinkCategory);
-  return [next, ...others].sort((a, b) => b.submittedAt - a.submittedAt);
+  return [freshest, ...others].sort((a, b) => b.submittedAt - a.submittedAt);
 }
 
 /** Narrow an untrusted API payload to the prices we can honestly render. */

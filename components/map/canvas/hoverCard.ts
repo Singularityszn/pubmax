@@ -53,7 +53,9 @@ export function hoverPriceLine(
   const communityPrice =
     signal?.latestContributorPrice ?? mapVenue?.latestContributorPrice ?? null;
   if (communityPrice !== null && communityPrice !== undefined) {
-    const fresh = formatFreshness(mapVenue?.latestContributorAt);
+    const fresh = formatFreshness(
+      signal?.latestContributorAt ?? mapVenue?.latestContributorAt,
+    );
     return {
       price: communityPrice,
       provenance: fresh ? `Community · ${fresh}` : "Community · tap for detail",

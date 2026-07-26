@@ -22,6 +22,7 @@ import {
   transportFilter,
   TRANSPORT_ICON_MATCH,
   TUBE_LINE_OFFSET_EXPR,
+  pinAllowOverlapExpr,
   pubIconOpacityExpr,
   pinSortKeyExpr,
   PIN_ICON_SIZE_EXPR,
@@ -773,7 +774,7 @@ export function buildPubs(ctx: SceneCtx) {
       // the other. `icon-allow-overlap: true` (the old value) is what let a
       // dense street render as a solid mass of half-hidden glyphs — and is what
       // would make a ~45k-point UK source unreadable at street zoom.
-      "icon-allow-overlap": false,
+      "icon-allow-overlap": pinAllowOverlapExpr(selectedId),
       "icon-ignore-placement": false,
       // Padding covers the widest halo ring a pin can wear (scraped / drops /
       // what's-on badges, radius ≤ 15px at z15) so those rings stay clear of

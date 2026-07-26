@@ -67,7 +67,7 @@ import {
   AMBIENT_CATEGORIES, poiFilter, transportFilter,
   TONIGHT_OPPORTUNITY_LAYERS, pubIconOpacityExpr, glowPulsePaint,
   pinEntranceIconSizeExpr, pinEntranceIconOpacityExpr,
-  selectedPinIconSizeExpr, pinSortKeyExpr, clusterEntranceProgress,
+  selectedPinIconSizeExpr, pinAllowOverlapExpr, pinSortKeyExpr, clusterEntranceProgress,
 } from "@/components/map/canvas/filters";
 import {
   HOVER_CARD_VIEWPORT_GUTTER_PX, HOVER_CARD_WIDTH_PX, HOVER_CARD_HEIGHT_PX,
@@ -2105,6 +2105,11 @@ export default function PubMapCanvas({
           "pubs-point",
           "symbol-sort-key",
           pinSortKeyExpr(selectedIdRef.current),
+        );
+        map.setLayoutProperty(
+          "pubs-point",
+          "icon-allow-overlap",
+          pinAllowOverlapExpr(selectedIdRef.current),
         );
       }
       // M2 POI-at-initiation gating — while a venue is selected the selected pub

@@ -28,6 +28,7 @@ import { validateCommunityPrice } from "@/lib/communityPrice";
 import { readCommunityPrices, submitCommunityPrice } from "@/lib/communityPriceStore";
 import { isLimited } from "@/lib/pintDrops";
 import { clientIp, hashActor, hashIp } from "@/lib/supabase";
+import { getVenueIndex } from "@/lib/venueIndex";
 
 // Best-effort, server-derived submitter token. Never throws - if IP hashing is
 // unavailable the store records the observation unattributed (it still counts,
@@ -55,11 +56,22 @@ export async function POST(request: Request): Promise<Response> {
     return jsonNoStore({ error: result.error }, { status: 400 });
   }
 
+  const venueIndex = await getVenueIndex();
+  if (!venueIndex.has(result.value.venueId)) {
+    return jsonNoStore({ error: "Pick a venue from the map." }, { status: 400 });
+  }
+
   const actor = deriveActor(request);
 
-  // Rate-limit the submission so one device can't spray prices across the map;
-  // keyed on the derived actor + venue (falls back to venue alone if the actor
-  // couldn't be derived), matching price-confirm's key shape.
+  // Cap one device across every venue before applying the tighter per-venue
+  // budget. Without this actor-only key, changing venueId resets the budget and
+  // lets one device spray a price across the whole map.
+  const actorLimitKey = `price-submit-actor:${actor ?? "anon"}`;
+  if (await isLimited(actorLimitKey, actorLimitKey, 30, 3_600_000)) {
+    return jsonNoStore({ error: "Too many price logs, slow down." }, { status: 429 });
+  }
+
+  // Keep the per-venue cap too, so one actor cannot churn one pub's figure.
   const limitKey = `price-submit:${actor ?? "anon"}:${result.value.venueId}`;
   if (await isLimited(limitKey, limitKey)) {
     return jsonNoStore({ error: "Too many price logs, slow down." }, { status: 429 });
