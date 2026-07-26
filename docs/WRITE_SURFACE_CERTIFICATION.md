@@ -383,7 +383,11 @@ commit.
   closed `DRINK_CATEGORIES` union, and `priceGbp` held to the plausible envelope
   £1 - £30. Out-of-envelope or malformed input 400s with reader-facing copy before
   the limiter or store is touched; the store re-checks the penny envelope and
-  migration 0054 adds the same CHECK, so three layers agree.
+  migration 0054 adds the same CHECK, so three layers agree. The `venueId` must
+  also exist in the slim venue index (`getVenueIndex`) - an unknown id 400s
+  without storing anything, and when the index itself is unavailable (its
+  documented degraded mode is an empty map) the route answers 503 (retryable),
+  never a 400 and never a stored row.
 - **Auth stance (deliberately anonymous):** identity is the server-derived
   `hashActor(hashIp(clientIp))` token, exactly as `price-confirm` derives it, and
   is NEVER trusted from the body. A body-supplied `submittedAt`/`source` is
@@ -391,9 +395,12 @@ commit.
   account, no handle - a price at a bar must not require sign-up. The token is a
   de-duplication key only and never leaves the store (`published()` strips it;
   the durable read never selects the column).
-- **Rate limit (boundary):** durable `isLimited` keyed
-  `price-submit:${actor ?? "anon"}:${venueId}` - the same key shape as
-  `price-confirm`, so one device cannot spray prices across a venue. Exceed → 429.
+- **Rate limit (boundary):** two durable `isLimited` tiers. An actor-wide cap
+  keyed `price-submit-actor:${actor ?? "anon"}` (30/hour) stops one device
+  spraying prices across the whole map by rotating `venueId`; then the per-venue
+  key `price-submit:${actor ?? "anon"}:${venueId}` - the same key shape as
+  `price-confirm` - stops one actor churning one pub's figure. Exceed either →
+  429.
 - **Provenance (the honesty boundary):** the route only ever APPENDS to
   `community_prices`. It touches NOTHING in the versioned venue dataset, the
   scraped price CSV, or `visit_reports` - a submission cannot overwrite a scraped
