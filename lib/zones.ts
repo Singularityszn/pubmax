@@ -69,6 +69,7 @@ export function median(values: readonly number[]): number | null {
 export type ZonePricedVenue = {
   zone?: number | null;
   cheapestPrice?: number | null;
+  kind?: "pub" | "bar" | "club" | "food" | "restaurant";
 };
 
 /** One zone's row in the pint index. */
@@ -104,6 +105,7 @@ export function computeZonePintIndex(venues: readonly ZonePricedVenue[]): ZonePi
   for (const id of ZONE_IDS) pricesByZone.set(id, []);
 
   for (const venue of venues) {
+    if (venue.kind !== undefined && venue.kind !== "pub") continue;
     const zone = toZoneId(venue.zone);
     if (zone === null) continue;
     const price = venue.cheapestPrice;

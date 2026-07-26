@@ -135,7 +135,20 @@ export default function VenueStoryTab({
         </section>
       ) : null}
       {description ? (
-        <p className="description">{description}</p>
+        <>
+          <p className="description">{description}</p>
+          {venue.storySourceUrl ? (
+            <a
+              className="heritageFactCite"
+              href={venue.storySourceUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              Story source
+              <ExternalLink size={13} />
+            </a>
+          ) : null}
+        </>
       ) : heritageFacts.length === 0 ? (
         <p className="description muted">
           No heritage note for {venue.name}{" "}yet. Log a Pint Drop below with a passed-down story

@@ -76,6 +76,18 @@ describe("slimVenueToPin", () => {
     expect(slimVenueToPin(slim).filterHints).toEqual(slim.filterHints);
   });
 
+  it("carries optional venue kind and type-relative price band to the map pin", () => {
+    const pin = slimVenueToPin({ ...slim, kind: "bar", priceBand: 1 });
+    expect(pin.kind).toBe("bar");
+    expect(pin.priceBand).toBe(1);
+  });
+
+  it("keeps legacy slim rows backward-compatible as pubs", () => {
+    const pin = slimVenueToPin(slim);
+    expect(pin.kind).toBeUndefined();
+    expect(pin.priceBand).toBeUndefined();
+  });
+
   it("produces an empty visibleBoroughs when borough is blank", () => {
     expect(slimVenueToPin({ ...slim, borough: "" }).visibleBoroughs).toEqual([]);
   });

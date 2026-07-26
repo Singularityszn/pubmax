@@ -10,7 +10,7 @@ import path from "node:path";
 
 import { computeZonePintIndex, type ZonePintIndex } from "@/lib/zones";
 
-type SlimRow = { zone?: unknown; cheapestPrice?: unknown };
+type SlimRow = { zone?: unknown; cheapestPrice?: unknown; kind?: unknown };
 
 function toFinite(value: unknown): number | null {
   return typeof value === "number" && Number.isFinite(value) ? value : null;
@@ -26,6 +26,10 @@ export async function loadZonePintIndex(): Promise<ZonePintIndex> {
       list.map((row) => ({
         zone: toFinite(row.zone),
         cheapestPrice: toFinite(row.cheapestPrice),
+        kind:
+          typeof row.kind === "string"
+            ? (row.kind as "pub" | "bar" | "club" | "food" | "restaurant")
+            : undefined,
       })),
     );
   } catch {

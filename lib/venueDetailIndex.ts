@@ -24,7 +24,30 @@ export type VenueDetailManifest = {
 
 export type VenueDetailArtifact = {
   id: string;
-  rows: VenuePrice[];
+  rows?: VenuePrice[];
+  famous?: {
+    seed: FamousVenueSeed;
+    slim: SlimVenue;
+  };
+};
+
+type FamousVenueSeed = {
+  id: string;
+  name: string;
+  address: string;
+  borough: string;
+  lat: number;
+  lng: number;
+  kind: "bar" | "food";
+  sourceUrl: string;
+  anchor: {
+    label: string;
+    price: number;
+    observedAt: string;
+    sourceUrl: string;
+    kind: "house_cocktail" | "pint" | "wine" | "large_doner" | "signature_item";
+  };
+  story: { text: string; sourceUrl: string };
 };
 
 const GENERATED_DIR =
@@ -35,7 +58,8 @@ const RAW_DATASET_FILE = path.join(process.cwd(), "public", "data", "pint_prices
 
 // Suffix bound is deliberately loose ({1,24}) so a future id generator that
 // bumps the entropy segment beyond today's 12 chars won't need a regex change.
-const VENUE_ID_RE = /^venue-(?:[a-z]{3}-)?[a-z0-9]{1,24}$/;
+const VENUE_ID_RE =
+  /^(?:venue-(?:[a-z]{3}-)?[a-z0-9]{1,24}|(?:bar|food)-[a-z0-9-]{1,100})$/;
 
 const cachedDetails = new Map<string, Venue>();
 /** Successful manifests only — I/O failures stay unset so the next call can retry.
@@ -63,9 +87,33 @@ export function venueFromDetailArtifact(
   artifact: VenueDetailArtifact,
   expectedId: string,
 ): Venue | null {
-  if (artifact.id !== expectedId || !Array.isArray(artifact.rows) || artifact.rows.length === 0) {
+  if (artifact.id !== expectedId) {
     return null;
   }
+  if (artifact.famous) {
+    const { seed, slim } = artifact.famous;
+    if (seed.id !== expectedId || slim.id !== expectedId) return null;
+    const venue = slimVenueToPin(slim);
+    return {
+      ...venue,
+      address: seed.address,
+      hasStory: true,
+      amenities: {
+        ...venue.amenities,
+        food: seed.kind === "food",
+        cocktails:
+          seed.kind === "bar" && seed.anchor.kind === "house_cocktail",
+      },
+      website: seed.sourceUrl,
+      description: seed.story.text,
+      sourceDatasets: ["famous_venues"],
+      anchorLabel: seed.anchor.label,
+      anchorObservedAt: seed.anchor.observedAt,
+      anchorSourceUrl: seed.anchor.sourceUrl,
+      storySourceUrl: seed.story.sourceUrl,
+    };
+  }
+  if (!Array.isArray(artifact.rows) || artifact.rows.length === 0) return null;
   const venue = groupVenuePrices(artifact.rows)[0];
   return venue?.id === expectedId ? venue : null;
 }
@@ -137,6 +185,34 @@ async function getFallbackIndex(): Promise<Map<string, Venue>> {
     }
   } catch {
     // Keep development and tests friendly if generated artifacts are absent.
+  }
+  for (const file of ["bars.json", "late_food.json"]) {
+    try {
+      const seeds = JSON.parse(
+        await fs.readFile(
+          path.join(process.cwd(), "data", "famous_venues", file),
+          "utf8",
+        ),
+      ) as FamousVenueSeed[];
+      for (const seed of seeds) {
+        const slim: SlimVenue = {
+          id: seed.id,
+          name: seed.name,
+          lat: seed.lat,
+          lng: seed.lng,
+          cheapestPrice: seed.anchor.price,
+          borough: seed.borough,
+          kind: seed.kind,
+        };
+        const venue = venueFromDetailArtifact(
+          { id: seed.id, famous: { seed, slim } },
+          seed.id,
+        );
+        if (venue) index.set(seed.id, venue);
+      }
+    } catch {
+      // One missing seed pack must not disable legacy development fallback.
+    }
   }
   fallbackIndex = index;
   return fallbackIndex;

@@ -30,6 +30,13 @@
       "observedAtBasis": "authenticated_firecrawl_response_receipt",
       "mayPublishFacts": true,
       "factSource": "source_page_json_ld_only"
+    },
+    {
+      "id": "manual",
+      "label": "Editorial curation",
+      "role": "source_page_verification",
+      "mayPublishFacts": true,
+      "factSource": "venue_or_award_page"
     }
   ],
   "requiredRowFields": [

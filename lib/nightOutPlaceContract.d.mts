@@ -1,5 +1,5 @@
-export const NIGHT_OUT_PLACE_CATEGORIES: readonly ["restaurant", "attraction"];
-export const NIGHT_OUT_PLACE_JOBS: readonly ["near_pub_food", "pre_pub_attraction"];
+export const NIGHT_OUT_PLACE_CATEGORIES: readonly ["restaurant", "attraction", "bar", "late_food"];
+export const NIGHT_OUT_PLACE_JOBS: readonly ["near_pub_food", "pre_pub_attraction", "late_night_bar", "crawl_ending_food"];
 export const NIGHT_OUT_PLACE_MAX_AGE_HOURS: number;
 export const NIGHT_OUT_PLACE_MAX_AGE_MS: number;
 export const NIGHT_OUT_PLACE_PROVENANCE_REGISTRY_VERSION: 1;
@@ -18,10 +18,10 @@ export function presentableNightOutPlaceDescription(value: unknown): string | nu
 export function isNightOutPlaceJob(value: unknown): boolean;
 export function categoryForNightOutJob(
   value: unknown,
-): "restaurant" | "attraction" | null;
+): "restaurant" | "attraction" | "bar" | "late_food" | null;
 export function jobForNightOutPlaceCategory(
   value: unknown,
-): "near_pub_food" | "pre_pub_attraction" | null;
+): "near_pub_food" | "pre_pub_attraction" | "late_night_bar" | "crawl_ending_food" | null;
 export function isLondonNightOutPlaceCoordinates(
   lat: unknown,
   lng: unknown,

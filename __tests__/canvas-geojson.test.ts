@@ -221,6 +221,16 @@ describe("pubsToGeoJSON", () => {
     const props = pubsToGeoJSON([venue], signals, null).features[0]?.properties;
     expect(props?.drinkKind).toBe("pint");
   });
+
+  it("uses venue-type glyphs and type-relative bands for famous bars and food", () => {
+    const bar = makeVenue({ id: "bar", kind: "bar", priceBand: 1, cheapestPrice: 18 });
+    const food = makeVenue({ id: "food", kind: "food", priceBand: 0, cheapestPrice: 12 });
+    const [barFeature, foodFeature] = pubsToGeoJSON([bar, food], signals, null).features;
+    expect(barFeature?.properties).toMatchObject({ kind: "bar", drinkKind: "coupe", bucket: 1 });
+    expect(foodFeature?.properties).toMatchObject({ kind: "food", drinkKind: "skewer", bucket: 0 });
+    expect(String(barFeature?.properties?.icon)).toContain("coupe-1");
+    expect(String(foodFeature?.properties?.icon)).toContain("skewer-0");
+  });
 });
 
 describe("pubsToGeoJSON whats-on badge join (W1)", () => {

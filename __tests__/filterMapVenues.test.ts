@@ -71,6 +71,22 @@ describe("filterMapVenues", () => {
     const result = filterMapVenues([slimPin()], filters, () => false);
     expect(result).toHaveLength(0);
   });
+
+  it("keeps non-pub anchors out of the maximum pint price filter", () => {
+    const filters = { ...initialFilters, maxPrice: 8 };
+    const bar = slimPin({
+      id: "bar-house-cocktail",
+      kind: "bar",
+      cheapestPrice: 14,
+    });
+    const pub = slimPin({
+      id: "pub-pricey-pint",
+      kind: "pub",
+      cheapestPrice: 14,
+    });
+
+    expect(filterMapVenues([bar, pub], filters, () => false)).toEqual([bar]);
+  });
 });
 
 describe("withForcedVenue", () => {

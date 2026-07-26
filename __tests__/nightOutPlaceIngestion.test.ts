@@ -559,6 +559,7 @@ describe("night-out place ingestion", () => {
     expect(registry.producers.map((provider: { id: string }) => provider.id).sort()).toEqual([
       "exa",
       "firecrawl",
+      "manual",
     ]);
     expect(registry.producers.find((provider: { id: string }) => provider.id === "exa").mayPublishFacts).toBe(false);
     expect(registry.producers.find((provider: { id: string }) => provider.id === "firecrawl").factSource).toBe(

@@ -19,7 +19,7 @@
 
 import { getCity, type CityId, DEFAULT_CITY_ID } from "@/lib/cities";
 import { offlineCache } from "@/lib/offlineCache";
-import type { VenueFilterHints } from "@/lib/venues";
+import type { VenueFilterHints, VenueKind } from "@/lib/venues";
 
 const OFFLINE_KEY_PREFIX = "venues_slim:v1";
 /** London legacy path — kept for back-compat with existing caches and tests. */
@@ -44,6 +44,10 @@ export type SlimVenue = {
    */
   zone?: number;
   filterHints?: VenueFilterHints;
+  /** Absent means pub, preserving existing payloads and offline caches. */
+  kind?: VenueKind;
+  /** Type-relative price band for famous non-pub venue anchors. */
+  priceBand?: 0 | 1 | 2;
 };
 
 function isBoolean(value: unknown): value is boolean {
@@ -99,9 +103,16 @@ function isValidSlimVenue(value: unknown): value is SlimVenue {
   const zoneOk =
     row.zone === undefined ||
     (typeof row.zone === "number" && Number.isInteger(row.zone) && row.zone > 0);
+  const kindOk =
+    row.kind === undefined ||
+    ["pub", "bar", "club", "food", "restaurant"].includes(String(row.kind));
+  const priceBandOk =
+    row.priceBand === undefined || row.priceBand === 0 || row.priceBand === 1 || row.priceBand === 2;
   return (
     priceOk &&
     zoneOk &&
+    kindOk &&
+    priceBandOk &&
     (row.filterHints === undefined || isFilterHints(row.filterHints))
   );
 }
@@ -121,6 +132,8 @@ function normalizeRows(data: unknown): SlimVenue[] {
     borough: venue.borough,
     ...(venue.zone !== undefined ? { zone: venue.zone } : {}),
     ...(venue.filterHints ? { filterHints: venue.filterHints } : {}),
+    ...(venue.kind !== undefined ? { kind: venue.kind } : {}),
+    ...(venue.priceBand !== undefined ? { priceBand: venue.priceBand } : {}),
   }));
 }
 

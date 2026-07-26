@@ -65,6 +65,7 @@ import { useTonightLaneCue } from "@/components/map/usePersonaTonight";
 import type { WhatsOnKind } from "@/lib/whatsOn";
 import { findPersonaById, personaHighlightsPubs, type PersonaDrink } from "@/lib/personaDrinks";
 import MapLayersControl from "@/components/map/MapLayersControl";
+import TonightArcChips from "@/components/map/TonightArcChips";
 // Perf (mobile map budget): the planner rail/route panel, venue inspector,
 // mobile plan activation, and the desktop-only map chrome below are NOT on the
 // first mobile map paint — the planner and inspector only mount after a user
@@ -220,6 +221,11 @@ import { parseLocalityGazetteer, type Locality } from "@/lib/localities";
 import type { MapSearchAreaOption } from "@/lib/mapSearchSuggest";
 import { getNightArea, getNightAreasForCity, nearestNightAreaForViewport, nightAreaForMapQuery, type NightArea } from "@/lib/nightAreas";
 import { defaultPoiHiddenForViewport } from "@/lib/poiToggleGroups";
+import {
+  defaultVenueKindVisibility,
+  filterVenuesByKind,
+  isPubVenue,
+} from "@/lib/venueKindFilters";
 import {
   readMobileMapSession,
   withCityCameraAttitude,
@@ -489,6 +495,9 @@ export default function PubMap({
       : city.mapView,
   );
   const [poiHidden, setPoiHidden] = useState(defaultPoiHiddenForViewport);
+  const [venueKindVisibility, setVenueKindVisibility] = useState(
+    defaultVenueKindVisibility,
+  );
   const [mobileLayersTab, setMobileLayersTab] = useState<"layers" | "prices" | "events" | "transit">("layers");
   const tflStatus = useMobileTflStatus();
   const [nearbyMapResult, setNearbyMapResult] = useState<NearbyMapResult | null>(null);
@@ -895,11 +904,12 @@ export default function PubMap({
       ),
     [baseVenues, dropsByVenueId, priceUpdates, cityId],
   );
+  const pubVenues = useMemo(() => venues.filter(isPubVenue), [venues]);
   const venueById = useMemo(() => new Map(venues.map((v) => [v.id, v])), [venues]);
   // Zone pint index (nearest-station fare zone medians) for the zone picker.
   // Computed off the full venue set so the strip's numbers don't shift as the
   // user filters — it's a stable "here's the lay of the land" reference.
-  const zoneIndex = useMemo(() => computeZonePintIndex(venues), [venues]);
+  const zoneIndex = useMemo(() => computeZonePintIndex(pubVenues), [pubVenues]);
   // Base narrowing: the existing filter pipeline (story filters, price, query,
   // pint-drops). Favorite-pint re-prices inside PubMapCanvas and never changes
   // membership, so it isn't part of this set.
@@ -912,6 +922,10 @@ export default function PubMap({
   const filteredVenues = useMemo(
     () => (savedOnly ? pipelineVenues.filter((v) => savedIds.has(v.id)) : pipelineVenues),
     [pipelineVenues, savedOnly, savedIds],
+  );
+  const filteredPubVenues = useMemo(
+    () => filteredVenues.filter(isPubVenue),
+    [filteredVenues],
   );
 
   // Deep-links from /pubs (?sel=) must still paint the pin even if a filter
@@ -926,15 +940,23 @@ export default function PubMap({
       : filteredVenues,
     [filteredVenues, nearbyVenueIds],
   );
+  const kindVisibleMapVenues = useMemo(
+    () => filterVenuesByKind(mapMembershipVenues, venueKindVisibility),
+    [mapMembershipVenues, venueKindVisibility],
+  );
   const canvasVenues = useMemo(
-    () => withForcedVenue(mapMembershipVenues, venueById, selectedVenueId),
-    [mapMembershipVenues, venueById, selectedVenueId],
+    () =>
+      filterVenuesByKind(
+        withForcedVenue(kindVisibleMapVenues, venueById, selectedVenueId),
+        venueKindVisibility,
+      ),
+    [kindVisibleMapVenues, venueById, selectedVenueId, venueKindVisibility],
   );
   // A11Y finding #1 — keyboard/SR-reachable model of the venues on the map,
   // ordered nearest-first to the viewport centre. Same set the canvas paints.
   const mapVenueListModel = useMemo(
-    () => buildMapVenueListModel(mapMembershipVenues, mapViewport.center),
-    [mapMembershipVenues, mapViewport.center],
+    () => buildMapVenueListModel(kindVisibleMapVenues, mapViewport.center),
+    [kindVisibleMapVenues, mapViewport.center],
   );
   const [renderedBasePubs, setRenderedBasePubs] = useState<UkBasePub[]>([]);
   const ukBasePubListModel = useMemo(
@@ -950,8 +972,8 @@ export default function PubMap({
   const hasReactiveLogIntent = hasMapLogIntent(searchParams);
   const shouldBuildSuggestedRoute = !hasReactiveLogIntent || planningOpen || routeMapped;
   const suggestedRoute = useMemo(
-    () => (shouldBuildSuggestedRoute ? buildCrawlRoute(filteredVenues, filters) : EMPTY_ROUTE),
-    [shouldBuildSuggestedRoute, filteredVenues, filters],
+    () => (shouldBuildSuggestedRoute ? buildCrawlRoute(filteredPubVenues, filters) : EMPTY_ROUTE),
+    [shouldBuildSuggestedRoute, filteredPubVenues, filters],
   );
   // C2 — a plan that's "on tonight" (lib/activePlan) draws on the map through
   // the SAME route paint the crawl planner uses. useActivePlanRoute carries the
@@ -1163,8 +1185,8 @@ export default function PubMap({
   const tonightLaneForcedOpen = Boolean(tonightLaneKind);
 
   const logNearbyCandidates = useMemo(
-    () => buildLogNearbyCandidates(filteredVenues, undefined, userLocation),
-    [filteredVenues, userLocation],
+    () => buildLogNearbyCandidates(filteredPubVenues, undefined, userLocation),
+    [filteredPubVenues, userLocation],
   );
 
   const showLoadedRoute = useCallback(
@@ -1602,7 +1624,7 @@ export default function PubMap({
         const ids = nearestVenueIds(
           position.coords.latitude,
           position.coords.longitude,
-          filteredVenues,
+          filteredPubVenues,
           filters.stopCount,
         );
         if (ids.length === 0) {
@@ -1621,7 +1643,7 @@ export default function PubMap({
       },
     );
   }, [
-    filteredVenues,
+    filteredPubVenues,
     filters.stopCount,
     setActiveCrawl,
     setBuiltIds,
@@ -1703,8 +1725,8 @@ export default function PubMap({
     [activeNightArea, cityId, mapViewport.center],
   );
   const venuesById = useMemo(
-    () => new Map(filteredVenues.map((venue) => [venue.id, venue])),
-    [filteredVenues],
+    () => new Map(filteredPubVenues.map((venue) => [venue.id, venue])),
+    [filteredPubVenues],
   );
   // The Area button's live label: the Night Area whose region holds the map
   // centre. Recomputes only when the viewport settles (moveend drives
@@ -1950,7 +1972,7 @@ export default function PubMap({
         onModeChange={setMode}
         filters={filters}
         onFiltersChange={setFilters}
-        filteredVenues={filteredVenues}
+        filteredVenues={filteredPubVenues}
         builtCount={builtIds.length}
         onClearBuilt={clearBuilt}
         onLoadCrawl={loadCuratedCrawl}
@@ -1969,7 +1991,7 @@ export default function PubMap({
         altStyle={altStyle}
         onAltStyleChange={setAltStyle}
         route={route}
-        filteredVenues={filteredVenues}
+        filteredVenues={filteredPubVenues}
         builtIds={builtIds}
         activeVenueId={selectedVenue?.id}
         venueSignals={venueSignals}
@@ -2117,7 +2139,7 @@ export default function PubMap({
           ? " sheet-full"
           : "") +
         (routeMappedActive ? " route-mapped" : "") +
-        (showOnboarding ? " onboarding-open" : "")
+        (!mobileViewport && showOnboarding ? " onboarding-open" : "")
       }
     >
       {!mobileViewport ? (
@@ -2138,6 +2160,10 @@ export default function PubMap({
           canvas pins are pointer-only; keyboard discovery is the tonight lane
           + search input inside this region). */}
       <section className="mapStage" aria-label={`Interactive pub map of ${city.displayName}`}>
+        <TonightArcChips
+          visibility={venueKindVisibility}
+          onChange={setVenueKindVisibility}
+        />
         {/* Wave K2 / Issue #35 — keep the pitched-London loading chrome until
             BOTH the slim pin index and WebGL basemap scene are ready. Warmup
             can make slim pins arrive before tiles; retiring early left a blank

@@ -102,7 +102,10 @@
     "vitest": "^4.1.9"
   },
   "overrides": {
+    "brace-expansion": "5.0.8",
+    "minimatch": "10.2.5",
     "postcss": "^8.5.23",
-    "sharp": "$sharp"
+    "sharp": "$sharp",
+    "tar": "7.5.22"
   }
 }

@@ -4,10 +4,10 @@ import {
   MAP_ICON_SPECS,
   LANDMARK_ICON_KEYS,
   TFL_ICON_KEYS,
-  DRINK_ICON_KEYS,
-  drinkPinIconKey,
+  VENUE_PIN_ICON_KEYS,
   drinkPinKindFromCategories,
   iconId,
+  venuePinIconKey,
   type IconSpec,
   type IconTokens,
 } from "@/lib/mapIcons";
@@ -165,10 +165,12 @@ describe("derived key lists", () => {
     expect([...TFL_ICON_KEYS]).toEqual(fromSpecs);
   });
 
-  it("DRINK_ICON_KEYS covers every kind × price bucket", () => {
-    expect(DRINK_ICON_KEYS).toHaveLength(16);
-    expect(DRINK_ICON_KEYS).toContain(drinkPinIconKey("pint", 0));
-    expect(DRINK_ICON_KEYS).toContain(drinkPinIconKey("cocktail", 2));
+  it("VENUE_PIN_ICON_KEYS covers every kind × price bucket", () => {
+    expect(VENUE_PIN_ICON_KEYS).toHaveLength(24);
+    expect(VENUE_PIN_ICON_KEYS).toContain(venuePinIconKey("pint", 0));
+    expect(VENUE_PIN_ICON_KEYS).toContain(venuePinIconKey("cocktail", 2));
+    expect(VENUE_PIN_ICON_KEYS).toContain(venuePinIconKey("coupe", 1));
+    expect(VENUE_PIN_ICON_KEYS).toContain(venuePinIconKey("skewer", 2));
     expect(drinkPinKindFromCategories(["vodka"], false)).toBe("spirits");
     expect(drinkPinKindFromCategories([], true)).toBe("cocktail");
     expect(drinkPinKindFromCategories(["wine"], false)).toBe("wine");
@@ -180,10 +182,10 @@ describe("derived key lists", () => {
   });
 
   it("drink pin draws do not throw for every kind × bucket", () => {
-    const kinds = ["pint", "wine", "cocktail", "spirits"] as const;
+    const kinds = ["pint", "wine", "cocktail", "spirits", "coupe", "skewer"] as const;
     for (const kind of kinds) {
       for (const bucket of [0, 1, 2, 3] as const) {
-        const key = drinkPinIconKey(kind, bucket);
+        const key = venuePinIconKey(kind, bucket);
         const spec = MAP_ICON_SPECS.find((s) => s.ns === "drink" && s.key === key);
         expect(spec, `spec ${key}`).toBeDefined();
         const tallies = exercise(spec!);
