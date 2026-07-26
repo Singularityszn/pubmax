@@ -51,6 +51,10 @@ vi.mock("@/lib/ukBaseIndex", async (importOriginal) => {
 // through untouched.
 const readBackState = vi.hoisted(() => ({
   override: null as import("@/lib/communityPrice").CommunityPrice[] | null,
+  statusOverride: null as {
+    prices: import("@/lib/communityPrice").CommunityPrice[];
+    degraded: boolean;
+  } | null,
 }));
 vi.mock("@/lib/communityPriceStore", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/communityPriceStore")>();
@@ -58,6 +62,11 @@ vi.mock("@/lib/communityPriceStore", async (importOriginal) => {
     ...actual,
     readCommunityPrices: async (venueId: string, now?: number) =>
       readBackState.override ?? actual.readCommunityPrices(venueId, now),
+    readCommunityPricesWithStatus: async (venueId: string, now?: number) =>
+      readBackState.statusOverride ?? {
+        prices: await actual.readCommunityPrices(venueId, now),
+        degraded: false,
+      },
   };
 });
 
@@ -105,6 +114,7 @@ beforeEach(() => {
   venueIndexState.unavailable = false;
   ukBaseIndexState.unavailable = false;
   readBackState.override = null;
+  readBackState.statusOverride = null;
   __resetCommunityPrices();
   __resetPintDrops();
 });
@@ -292,6 +302,7 @@ describe("GET /api/price-submit", () => {
     expect(res.status).toBe(200);
     const data = (await res.json()) as { prices: Array<{ drinkCategory: string }> };
     expect(data.prices.map((row) => row.drinkCategory).sort()).toEqual(["beer", "wine"]);
+    expect(data).not.toHaveProperty("degraded");
   });
 
   it("is honest-empty (200) for a missing or unknown venue, never a 500", async () => {
@@ -300,6 +311,14 @@ describe("GET /api/price-submit", () => {
     expect(await (await GET(get("?venueId=nobody-here"))).json()).toEqual({ prices: [] });
   });
 
+  it("adds a degraded signal without changing the fail-soft prices payload", async () => {
+    readBackState.statusOverride = { prices: [], degraded: true };
+
+    const res = await GET(get("?venueId=venue-3h52h"));
+
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ prices: [], degraded: true });
+  });
 });
 
 // The corroboration count the POST answers with is what promotes a submission

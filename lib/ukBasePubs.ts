@@ -24,6 +24,7 @@ import { bboxIntersects, type MapBounds, type ShardEntry, type ShardManifest, pa
 import { offlineCache } from "@/lib/offlineCache";
 
 export const UK_BASE_MANIFEST_PATH = "/data/uk_base/manifest.json";
+export const UK_BASE_SHARD_VERSION = 1;
 
 /**
  * Base ids are salted so they can never collide with a curated `venue-…` id
@@ -95,6 +96,24 @@ export function parseUkBaseShard(value: unknown): UkBasePub[] {
     });
   }
   return pubs;
+}
+
+export function parseUkBaseShardForEntry(
+  value: unknown,
+  entry: ShardEntry,
+): UkBasePub[] | null {
+  if (typeof value !== "object" || value === null) return null;
+  const record = value as Record<string, unknown>;
+  if (
+    record.version !== UK_BASE_SHARD_VERSION ||
+    record.cell !== entry.id ||
+    !Array.isArray(record.pubs) ||
+    record.pubs.length !== entry.count
+  ) {
+    return null;
+  }
+  const pubs = parseUkBaseShard(value);
+  return pubs.length === entry.count ? pubs : null;
 }
 
 /**
@@ -207,7 +226,8 @@ export function createUkBaseLoader(): UkBaseLoader {
     const request = fetch(entry.url)
       .then(async (response) => {
         if (!response.ok) throw new Error(`HTTP ${response.status}`);
-        const pubs = parseUkBaseShard(await response.json());
+        const pubs = parseUkBaseShardForEntry(await response.json(), entry);
+        if (!pubs) throw new Error("Invalid UK base shard");
         touch(entry.url, pubs);
         return pubs;
       })

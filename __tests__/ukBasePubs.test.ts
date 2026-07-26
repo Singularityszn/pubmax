@@ -138,14 +138,17 @@ describe("createUkBaseLoader", () => {
   const realFetch = globalThis.fetch;
   let fetched: string[] = [];
 
-  function installFetch(fail: Set<string> = new Set()) {
+  function installFetch(
+    fail: Set<string> = new Set(),
+    bodies: Record<string, unknown> = BODIES,
+  ) {
     fetched = [];
     globalThis.fetch = ((input: RequestInfo | URL) => {
       const url = String(input);
       fetched.push(url);
       if (fail.has(url)) return Promise.reject(new Error("cellar signal"));
-      if (url in BODIES) {
-        return Promise.resolve({ ok: true, json: () => Promise.resolve(BODIES[url]) } as Response);
+      if (url in bodies) {
+        return Promise.resolve({ ok: true, json: () => Promise.resolve(bodies[url]) } as Response);
       }
       return Promise.resolve({ ok: false, status: 404 } as Response);
     }) as typeof fetch;
@@ -192,6 +195,45 @@ describe("createUkBaseLoader", () => {
     installFetch();
     const retried = await loader.pubsForBounds({ west: -0.19, south: 51.42, east: -0.17, north: 51.44 });
     expect(retried.map((p) => p.name)).toEqual(["The Anchor", "The Bell"]);
+  });
+
+  it.each([
+    ["version", { ...(BODIES["/data/uk_base/a.json"] as object), version: 2 }],
+    ["cell", { ...(BODIES["/data/uk_base/a.json"] as object), cell: "wrong" }],
+    [
+      "partial rows",
+      {
+        version: 1,
+        cell: "a",
+        pubs: [
+          ["n1", "The Anchor", "1 Dock Road", 51.42, -0.18],
+          ["w2", "", "", 51.44, -0.12],
+        ],
+      },
+    ],
+  ])("does not cache a shard with invalid %s", async (_field, malformed) => {
+    const loader = createUkBaseLoader();
+    installFetch(
+      new Set(),
+      { ...BODIES, "/data/uk_base/a.json": malformed },
+    );
+    expect(
+      await loader.pubsForBounds({
+        west: -0.19,
+        south: 51.42,
+        east: -0.17,
+        north: 51.44,
+      }),
+    ).toEqual([]);
+
+    installFetch();
+    const retried = await loader.pubsForBounds({
+      west: -0.19,
+      south: 51.42,
+      east: -0.17,
+      north: 51.44,
+    });
+    expect(retried.map((pub) => pub.name).sort()).toEqual(["The Anchor", "The Bell"]);
   });
 
   it("yields no pins at all when the manifest is unreachable", async () => {

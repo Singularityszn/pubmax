@@ -3,11 +3,10 @@ import path from "path";
 
 import { parseShardManifest, type ShardEntry } from "@/lib/slimShards";
 import {
-  parseUkBaseShard,
   UK_BASE_MANIFEST_PATH,
+  UK_BASE_SHARD_VERSION,
+  parseUkBaseShardForEntry,
 } from "@/lib/ukBasePubs";
-
-const UK_BASE_SHARD_VERSION = 1;
 
 // Server-only membership index for the UK BASE layer, the sibling of
 // lib/venueIndex.ts for `venue-uk-…` ids. Base pubs deliberately live OUTSIDE
@@ -42,18 +41,8 @@ async function readShardIds(shard: ShardEntry): Promise<string[] | null> {
   const body: unknown = JSON.parse(
     await fs.readFile(publicDataPath(shard.url), "utf8"),
   );
-  if (typeof body !== "object" || body === null) return null;
-  const record = body as Record<string, unknown>;
-  if (
-    record.version !== UK_BASE_SHARD_VERSION ||
-    record.cell !== shard.id ||
-    !Array.isArray(record.pubs) ||
-    record.pubs.length !== shard.count
-  ) {
-    return null;
-  }
-  const pubs = parseUkBaseShard(body);
-  if (pubs.length !== shard.count) return null;
+  const pubs = parseUkBaseShardForEntry(body, shard);
+  if (!pubs) return null;
   return pubs.map((pub) => pub.id);
 }
 

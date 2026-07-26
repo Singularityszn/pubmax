@@ -131,6 +131,44 @@ function readPrices(value: unknown): CommunityPrice[] | null {
   return rows.length > 0 && out.length === 0 ? null : out;
 }
 
+export type VenuePriceLoad =
+  | { status: "ready"; prices: CommunityPrice[] }
+  | { status: "degraded"; prices: CommunityPrice[] }
+  | { status: "invalid"; prices: [] };
+
+export function readVenuePriceLoad(value: unknown): VenuePriceLoad {
+  const prices = readPrices(value);
+  if (!prices) return { status: "invalid", prices: [] };
+  if ((value as { degraded?: unknown }).degraded === true) {
+    return { status: "degraded", prices };
+  }
+  return { status: "ready", prices };
+}
+
+function sameObservation(left: CommunityPrice, right: CommunityPrice): boolean {
+  return (
+    left.venueId === right.venueId &&
+    left.drinkCategory === right.drinkCategory &&
+    left.priceGbp === right.priceGbp &&
+    left.submittedAt === right.submittedAt &&
+    left.source === right.source
+  );
+}
+
+export function rollbackOptimisticPrice(
+  current: CommunityPrice[] | undefined,
+  optimistic: CommunityPrice,
+  loaded: CommunityPrice[] | undefined,
+  loadedIsKnown: boolean,
+): CommunityPrice[] | undefined {
+  const withoutOptimistic = (current ?? []).filter(
+    (row) => !sameObservation(row, optimistic),
+  );
+  const restored = (loaded ?? []).reduce(upsertPrice, withoutOptimistic);
+  if (restored.length > 0) return restored;
+  return loadedIsKnown ? [] : undefined;
+}
+
 /** The freshest observation in a venue's per-category list, any drink. */
 export function freshestCommunityPrice(
   rows: readonly CommunityPrice[] | undefined,
@@ -159,7 +197,7 @@ export function useCommunityPrices(): CommunityPricesState {
   // Venues already fetched this session - the sheet re-mounts on every
   // selection and must not re-hit the API for a venue it already read.
   const loaded = useRef<Set<string>>(new Set());
-  const confirmedEmpty = useRef<Set<string>>(new Set());
+  const loadedRows = useRef<Map<string, CommunityPrice[]>>(new Map());
 
   const loadVenue = useCallback((venueId: string) => {
     if (!venueId || loaded.current.has(venueId)) return;
@@ -171,13 +209,18 @@ export function useCommunityPrices(): CommunityPricesState {
           loaded.current.delete(venueId);
           return;
         }
-        const prices = readPrices(await res.json());
-        if (!prices) {
+        const result = readVenuePriceLoad(await res.json());
+        if (result.status === "invalid") {
           loaded.current.delete(venueId);
           return;
         }
-        if (prices.length === 0) confirmedEmpty.current.add(venueId);
-        else confirmedEmpty.current.delete(venueId);
+        const { prices } = result;
+        if (result.status === "degraded") loaded.current.delete(venueId);
+        if (result.status === "degraded" && prices.length === 0) return;
+        loadedRows.current.set(
+          venueId,
+          prices.reduce(upsertPrice, loadedRows.current.get(venueId) ?? []),
+        );
         setByVenueId((current) => {
           if (prices.length === 0 && current.has(venueId)) return current;
           const next = new Map(current);
@@ -204,36 +247,41 @@ export function useCommunityPrices(): CommunityPricesState {
       const { venueId, drinkCategory, priceGbp } = parsed.value;
 
       const submittedAt = Date.now();
-      // Snapshot for rollback: exactly what was showing before this tap.
-      let previous: CommunityPrice[] | undefined;
+      const optimistic: CommunityPrice = {
+        venueId,
+        drinkCategory,
+        priceGbp,
+        submittedAt,
+        source: "community",
+        corroborations: 1,
+      };
       setByVenueId((current) => {
-        previous = current.get(venueId);
-        const optimistic: CommunityPrice = {
-          venueId,
-          drinkCategory,
-          priceGbp,
-          submittedAt,
-          source: "community",
-          // Your own report is one voice until the server says otherwise.
-          corroborations: 1,
-          // Keep the category's known map candidate riding along: your lone
-          // tap must not un-paint an already-corroborated figure, not even
-          // for the round-trip until the server's own candidate replaces it.
-          mapCandidate: previous?.find((row) => row.drinkCategory === drinkCategory)
-            ?.mapCandidate,
-        };
+        const previous = current.get(venueId);
+        const category = previous?.find(
+          (row) => row.drinkCategory === drinkCategory,
+        );
         const next = new Map(current);
-        next.set(venueId, upsertPrice(previous ?? [], optimistic));
+        next.set(
+          venueId,
+          upsertPrice(previous ?? [], {
+            ...optimistic,
+            mapCandidate: category?.mapCandidate,
+          }),
+        );
         return next;
       });
 
       const rollback = () => {
         setByVenueId((current) => {
           const next = new Map(current);
-          if (previous === undefined && confirmedEmpty.current.has(venueId)) {
-            next.set(venueId, []);
-          } else if (previous === undefined) next.delete(venueId);
-          else next.set(venueId, previous);
+          const restored = rollbackOptimisticPrice(
+            current.get(venueId),
+            optimistic,
+            loadedRows.current.get(venueId),
+            loadedRows.current.has(venueId),
+          );
+          if (restored === undefined) next.delete(venueId);
+          else next.set(venueId, restored);
           return next;
         });
       };
@@ -265,7 +313,10 @@ export function useCommunityPrices(): CommunityPricesState {
         // stamp forever.
         const [stored] = readPrices({ prices: [data?.price] }) ?? [];
         if (stored) {
-          confirmedEmpty.current.delete(venueId);
+          loadedRows.current.set(
+            venueId,
+            replacePrice(loadedRows.current.get(venueId) ?? [], stored),
+          );
           setByVenueId((current) => {
             const next = new Map(current);
             next.set(venueId, replacePrice(next.get(venueId) ?? [], stored));

@@ -62,6 +62,11 @@ export type CommunityPriceWriteResult = {
   failed?: true;
 };
 
+export type CommunityPriceReadResult = {
+  prices: CommunityPrice[];
+  degraded: boolean;
+};
+
 export type CommunityPriceStore = {
   /**
    * Record an observation and return it as stored. NEVER throws; a durable
@@ -72,10 +77,10 @@ export type CommunityPriceStore = {
   /**
    * The freshest community price per drink category at one venue, newest
    * first, each carrying its independent-submitter count (`corroborations`) so
-   * the read path can apply the trust threshold. NEVER throws - an outage reads
-   * as "no community price yet".
+   * the read path can apply the trust threshold. NEVER throws; `degraded`
+   * distinguishes an unavailable durable read from an honest empty.
    */
-  latestForVenue(venueId: string, now?: number): Promise<CommunityPrice[]>;
+  latestForVenue(venueId: string, now?: number): Promise<CommunityPriceReadResult>;
 };
 
 // Penny envelope, mirroring lib/communityPrice.ts (£1 … £30) and the DB CHECK
@@ -296,8 +301,11 @@ export const memoryCommunityPriceStore: CommunityPriceStore = {
 
   async latestForVenue(venueId, now = Date.now()) {
     const key = cleanVenueId(venueId);
-    if (!key) return [];
-    return freshestPerCategory(venues.get(key) ?? [], now);
+    if (!key) return { prices: [], degraded: false };
+    return {
+      prices: freshestPerCategory(venues.get(key) ?? [], now),
+      degraded: false,
+    };
   },
 };
 
@@ -394,13 +402,19 @@ export const supabaseCommunityPriceStore: CommunityPriceStore = {
 
   async latestForVenue(venueId, now = Date.now()) {
     const key = cleanVenueId(venueId);
-    if (!key) return [];
+    if (!key) return { prices: [], degraded: false };
     return guard({
       context: "read",
-      onSchemaMiss: () => memoryCommunityPriceStore.latestForVenue(key, now),
+      onSchemaMiss: async () => ({
+        prices: (await memoryCommunityPriceStore.latestForVenue(key, now)).prices,
+        degraded: true,
+      }),
       message: "read failed - returning no community prices",
-      onError: () => [],
-      run: () => selectVenuePrices(key, now),
+      onError: () => ({ prices: [], degraded: true }),
+      run: async () => ({
+        prices: await selectVenuePrices(key, now),
+        degraded: false,
+      }),
     });
   },
 };
@@ -427,6 +441,13 @@ export function readCommunityPrices(
   venueId: string,
   now: number = Date.now(),
 ): Promise<CommunityPrice[]> {
+  return readCommunityPricesWithStatus(venueId, now).then((result) => result.prices);
+}
+
+export function readCommunityPricesWithStatus(
+  venueId: string,
+  now: number = Date.now(),
+): Promise<CommunityPriceReadResult> {
   return communityPriceStore().latestForVenue(venueId, now);
 }
 

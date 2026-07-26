@@ -31,7 +31,11 @@
 
 import { jsonNoStore } from "@/lib/apiResponses";
 import { validateCommunityPrice } from "@/lib/communityPrice";
-import { readCommunityPrices, submitCommunityPrice } from "@/lib/communityPriceStore";
+import {
+  readCommunityPrices,
+  readCommunityPricesWithStatus,
+  submitCommunityPrice,
+} from "@/lib/communityPriceStore";
 import { isLimited } from "@/lib/pintDrops";
 import { clientIp, hashActor, hashIp } from "@/lib/supabase";
 import { getUkBaseIdIndex } from "@/lib/ukBaseIndex";
@@ -153,10 +157,16 @@ export async function GET(request: Request): Promise<Response> {
   try {
     const venueId = (new URL(request.url).searchParams.get("venueId") ?? "").trim();
     if (!venueId) return jsonNoStore({ prices: [] }, { status: 200 });
-    return jsonNoStore({ prices: await readCommunityPrices(venueId) }, { status: 200 });
+    const result = await readCommunityPricesWithStatus(venueId);
+    return jsonNoStore(
+      result.degraded
+        ? { prices: result.prices, degraded: true }
+        : { prices: result.prices },
+      { status: 200 },
+    );
   } catch {
     // The reader never 500s - degrade to no community prices so the sourced
     // baseline still renders on the sheet.
-    return jsonNoStore({ prices: [] }, { status: 200 });
+    return jsonNoStore({ prices: [], degraded: true }, { status: 200 });
   }
 }
