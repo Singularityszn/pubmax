@@ -81,7 +81,11 @@ export async function POST(request: Request): Promise<Response> {
     // Flood protection only - per-actor uniqueness is durable (the
     // community_price_reports unique pair), so a repeat that outlives this
     // window is an idempotent no-op in the store rather than a second count.
-    const reporter = deriveActor(request) ?? "anon";
+    // The "anon" sentinel exists ONLY for the rate-limit key; the store gets
+    // the real (possibly absent) actor so unattributed reports stay insert-only
+    // under the durable unique pair instead of collapsing into one shared actor.
+    const actor = deriveActor(request);
+    const reporter = actor ?? "anon";
     const REPORT_PER_ACTOR_LIMIT = 1;
     if (
       (await isLimited(`price-report:${id}`, `price-report:${id}`)) ||
@@ -93,7 +97,7 @@ export async function POST(request: Request): Promise<Response> {
     ) {
       return jsonNoStore({ error: "Too many reports, slow down." }, { status: 429 });
     }
-    const flagged = await reportCommunityPrice(id, readString(body.reason), reporter);
+    const flagged = await reportCommunityPrice(id, readString(body.reason), actor);
     if (!flagged) return jsonNoStore({ error: "Price not found." }, { status: 404 });
     return jsonNoStore({ ok: true }, { status: 200 });
   }

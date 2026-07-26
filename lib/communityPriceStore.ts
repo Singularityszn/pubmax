@@ -779,12 +779,15 @@ export const supabaseCommunityPriceStore: CommunityPriceStore = {
       onError: () => false,
       run: async () => {
         // Hide = stamp hidden_at; restore = clear it. The observation itself is
-        // never deleted, so a wrong call is always reversible.
+        // never deleted, so a wrong call is always reversible. A call without a
+        // note leaves the previous moderator note in place, exactly as the
+        // memory backend does.
+        const cleaned = cleanReason(note);
         const { data, error } = await admin()
           .from("community_prices")
           .update({
             hidden_at: hidden ? new Date().toISOString() : null,
-            moderator_note: cleanReason(note) ?? null,
+            ...(cleaned ? { moderator_note: cleaned } : {}),
             moderated_at: new Date().toISOString(),
           })
           .eq("id", id)
