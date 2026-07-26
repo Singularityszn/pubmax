@@ -6,6 +6,7 @@ import type maplibregl from "maplibre-gl";
 import { UK_BASE_MIN_ZOOM } from "@/components/map/canvas/buildScene";
 import {
   createUkBaseLoader,
+  ukBasePubsForDrawableVenues,
   ukBasePubsToGeoJSON,
   type UkBaseLoader,
   type UkBasePub,
@@ -37,6 +38,7 @@ type Options = {
   applyToMap: (key: string, fn: (map: maplibregl.Map) => void) => void;
   /** Reseeded by buildScene after a theme setStyle wipes every source. */
   ukBaseDataRef: React.MutableRefObject<GeoJSON.FeatureCollection>;
+  drawableVenueIds: ReadonlySet<string>;
   scopeKey?: string;
   /**
    * A restored `?sel=venue-uk-*` arrival's id, one-shot: once a streamed
@@ -88,6 +90,7 @@ export function useUkBaseStreaming({
   mapReady,
   applyToMap,
   ukBaseDataRef,
+  drawableVenueIds,
   scopeKey = "",
   restoreId = null,
   onRestorePub,
@@ -108,20 +111,26 @@ export function useUkBaseStreaming({
 
   const publish = useCallback(
     (nextPubs: UkBasePub[], viewportBounds?: MapBounds) => {
-      const data = nextPubs.length > 0 ? ukBasePubsToGeoJSON(nextPubs) : EMPTY;
+      const drawablePubs = ukBasePubsForDrawableVenues(
+        nextPubs,
+        drawableVenueIds,
+      );
+      const data =
+        drawablePubs.length > 0 ? ukBasePubsToGeoJSON(drawablePubs) : EMPTY;
       ukBaseDataRef.current = data;
       setPublished({
         scopeKey,
-        count: nextPubs.length,
+        count: drawablePubs.length,
         pubs: viewportBounds
-          ? ukBasePubsWithinBounds(nextPubs, viewportBounds)
+          ? ukBasePubsWithinBounds(drawablePubs, viewportBounds)
           : [],
       });
       applyToMap("uk-base:data", (map) => {
         (map.getSource("uk-base") as maplibregl.GeoJSONSource | undefined)?.setData(data);
       });
+      return drawablePubs;
     },
-    [applyToMap, scopeKey, ukBaseDataRef],
+    [applyToMap, drawableVenueIds, scopeKey, ukBaseDataRef],
   );
 
   useEffect(() => {
@@ -158,10 +167,10 @@ export function useUkBaseStreaming({
         .pubsForBounds(viewportBounds)
         .then((pubs) => {
           if (cancelled || token !== generation.current) return;
-          publish(pubs, viewportBounds);
+          const drawablePubs = publish(pubs, viewportBounds);
           const wanted = restoreIdRef.current;
           if (!wanted) return;
-          const hit = pubs.find((pub) => pub.id === wanted);
+          const hit = drawablePubs.find((pub) => pub.id === wanted);
           if (!hit) return;
           restoreIdRef.current = null;
           onRestorePubRef.current?.(hit);

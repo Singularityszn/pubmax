@@ -117,6 +117,7 @@ describe("buildUkBasePubListModel", () => {
       address: "",
       lat: 53.9,
       lng: -1.8,
+      curatedVenueId: "",
     },
     {
       id: "venue-uk-n-near",
@@ -124,6 +125,7 @@ describe("buildUkBasePubListModel", () => {
       address: "",
       lat: 53.8008,
       lng: -1.5491,
+      curatedVenueId: "",
     },
   ];
 

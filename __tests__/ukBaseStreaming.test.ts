@@ -23,6 +23,7 @@ describe("nextUkBaseStreamToken", () => {
         address: "",
         lat: 53.8,
         lng: -1.55,
+        curatedVenueId: "",
       },
       {
         id: "venue-uk-n-padding",
@@ -30,6 +31,7 @@ describe("nextUkBaseStreamToken", () => {
         address: "",
         lat: 53.95,
         lng: -1.8,
+        curatedVenueId: "",
       },
     ];
 

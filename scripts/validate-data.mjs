@@ -741,14 +741,16 @@ const UK_BASE_ID_PREFIX = "venue-uk-";
 function isUkBaseRow(row) {
   return (
     Array.isArray(row) &&
-    row.length === 5 &&
+    row.length === 6 &&
     typeof row[0] === "string" &&
     row[0].length > 0 &&
     typeof row[1] === "string" &&
     row[1].length > 0 &&
     typeof row[2] === "string" &&
     Number.isFinite(row[3]) &&
-    Number.isFinite(row[4])
+    Number.isFinite(row[4]) &&
+    typeof row[5] === "string" &&
+    (row[5] === "" || row[5].startsWith("venue-"))
   );
 }
 
@@ -796,6 +798,25 @@ function validateUkBaseShards() {
   const jsonFiles = listUkBaseJsonFiles(UK_BASE_DIR);
   const onDisk = new Set(jsonFiles.filter((file) => file !== "manifest.json"));
   const ids = new Set();
+  const curatedVenueIds = new Set();
+  try {
+    const londonSlim = loadJson("venues_slim.json");
+    for (const venue of Array.isArray(londonSlim) ? londonSlim : []) {
+      if (typeof venue?.id === "string") curatedVenueIds.add(venue.id);
+    }
+    const citiesDir = join(DATA_DIR, "cities");
+    for (const entry of readdirSync(citiesDir, { withFileTypes: true })) {
+      if (!entry.isDirectory()) continue;
+      const citySlimPath = join(citiesDir, entry.name, "venues_slim.json");
+      if (!existsSync(citySlimPath)) continue;
+      const citySlim = JSON.parse(readFileSync(citySlimPath, "utf8"));
+      for (const venue of Array.isArray(citySlim) ? citySlim : []) {
+        if (typeof venue?.id === "string") curatedVenueIds.add(venue.id);
+      }
+    }
+  } catch (e) {
+    errs.add(`could not load curated owner ids (${e.message})`);
+  }
   const totalBytes = jsonFiles.reduce(
     (sum, file) => sum + statSync(join(UK_BASE_DIR, file)).size,
     0,
@@ -841,6 +862,9 @@ function validateUkBaseShards() {
       const id = `${UK_BASE_ID_PREFIX}${row[0]}`;
       if (ids.has(id)) errs.add(`duplicate base id "${id}"`);
       ids.add(id);
+      if (row[5] && !curatedVenueIds.has(row[5])) {
+        errs.add(`shard "${shard.id}": unknown curated owner "${row[5]}"`);
+      }
       // A pub outside its own cell means the viewport that covers it would
       // never fetch the file it lives in — an invisible pub, not a loud bug.
       if (row[3] < minLat || row[3] > maxLat || row[4] < minLng || row[4] > maxLng) {

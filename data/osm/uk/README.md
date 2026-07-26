@@ -98,9 +98,9 @@ without recomputing the join.
 
 `scripts/build_uk_base_shards.mjs` is the one consumer: it turns this pack into
 the map's UK **base layer** under `public/data/uk_base/` (see that directory's
-README). It drops every pub carrying `curatedRef` so a deduped pub renders once
-as its curated pin, salts ids to `venue-uk-…` so they never collide with London
-`venue-…` ids, and never invents a price.
+README). It records the actual curated owner when one exists, salts base ids to
+`venue-uk-…`, and never invents a price. Runtime rendering suppresses a base row
+only when that owner is loaded and drawable.
 
 Nothing here feeds `venues_slim*.json`. Base pubs are not venues: they carry no
 price, do not enter search or the price filters, and are not routable stops.

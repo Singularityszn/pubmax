@@ -15,7 +15,7 @@ export const UK_BASE_SHARD_VERSION = 1;
 // so cell boundaries are stable numbers and no pub lands on a negative index.
 export const UK_BASE_GRID = {
   originLat: 49.75,
-  originLon: -8.75,
+  originLon: -9.1,
   latStep: 0.25,
   lonStep: 0.5,
 };

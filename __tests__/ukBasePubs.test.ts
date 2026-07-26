@@ -9,6 +9,7 @@ import {
   isUkBaseId,
   padBounds,
   parseUkBaseShard,
+  ukBasePubsForDrawableVenues,
   ukBaseIdFor,
   ukBasePubFromFeature,
   ukBasePubsToGeoJSON,
@@ -33,19 +34,19 @@ const BODIES: Record<string, unknown> = {
     version: 1,
     cell: "a",
     pubs: [
-      ["n1", "The Anchor", "1 Dock Road", 51.42, -0.18],
-      ["w2", "The Bell", "", 51.44, -0.12],
+      ["n1", "The Anchor", "1 Dock Road", 51.42, -0.18, "venue-owner"],
+      ["w2", "The Bell", "", 51.44, -0.12, ""],
     ],
   },
   "/data/uk_base/b.json": {
     version: 1,
     cell: "b",
-    pubs: [["n3", "The Crown", "3 High Street", 51.45, -0.05]],
+    pubs: [["n3", "The Crown", "3 High Street", 51.45, -0.05, ""]],
   },
   "/data/uk_base/far.json": {
     version: 1,
     cell: "far",
-    pubs: [["n4", "The Deansgate", "", 53.47, -2.24]],
+    pubs: [["n4", "The Deansgate", "", 53.47, -2.24, ""]],
   },
 };
 
@@ -67,18 +68,33 @@ describe("UK base ids", () => {
 describe("parseUkBaseShard", () => {
   it("turns tuple rows into pubs with salted ids", () => {
     expect(parseUkBaseShard(BODIES["/data/uk_base/a.json"])).toEqual([
-      { id: "venue-uk-n1", name: "The Anchor", address: "1 Dock Road", lat: 51.42, lng: -0.18 },
-      { id: "venue-uk-w2", name: "The Bell", address: "", lat: 51.44, lng: -0.12 },
+      {
+        id: "venue-uk-n1",
+        name: "The Anchor",
+        address: "1 Dock Road",
+        lat: 51.42,
+        lng: -0.18,
+        curatedVenueId: "venue-owner",
+      },
+      {
+        id: "venue-uk-w2",
+        name: "The Bell",
+        address: "",
+        lat: 51.44,
+        lng: -0.12,
+        curatedVenueId: "",
+      },
     ]);
   });
 
   it("drops malformed rows rather than poisoning the map", () => {
     const pubs = parseUkBaseShard({
       pubs: [
-        ["n1", "Good", "", 51.4, -0.1],
-        ["n2", "", "", 51.4, -0.1], // no name
-        ["n3", "Bad coords", "", "51.4", -0.1],
+        ["n1", "Good", "", 51.4, -0.1, ""],
+        ["n2", "", "", 51.4, -0.1, ""], // no name
+        ["n3", "Bad coords", "", "51.4", -0.1, ""],
         ["n4", "Too short", 51.4],
+        ["n5", "Bad owner", "", 51.4, -0.1, 42],
         null,
       ],
     });
@@ -101,11 +117,26 @@ describe("ukBasePubsToGeoJSON", () => {
       id: "venue-uk-n1",
       name: "The Anchor",
       address: "1 Dock Road",
+      curatedVenueId: "venue-owner",
     });
     // No bucket / price / story: the price-colour system must find nothing here.
     expect(feature.properties).not.toHaveProperty("bucket");
     expect(feature.properties).not.toHaveProperty("cheapestPrice");
     expect(feature.geometry).toEqual({ type: "Point", coordinates: [-0.18, 51.42] });
+  });
+
+  it("suppresses only a base pub whose recorded curated owner is drawable", () => {
+    expect(
+      ukBasePubsForDrawableVenues(pubs, new Set(["venue-owner"])).map(
+        (pub) => pub.id,
+      ),
+    ).toEqual(["venue-uk-w2"]);
+    expect(
+      ukBasePubsForDrawableVenues(
+        pubs,
+        new Set(["venue-somewhere-else"]),
+      ).map((pub) => pub.id),
+    ).toEqual(["venue-uk-n1", "venue-uk-w2"]);
   });
 
   it("round-trips back to the pub a tap needs", () => {
@@ -206,8 +237,8 @@ describe("createUkBaseLoader", () => {
         version: 1,
         cell: "a",
         pubs: [
-          ["n1", "The Anchor", "1 Dock Road", 51.42, -0.18],
-          ["w2", "", "", 51.44, -0.12],
+          ["n1", "The Anchor", "1 Dock Road", 51.42, -0.18, "venue-owner"],
+          ["w2", "", "", 51.44, -0.12, ""],
         ],
       },
     ],

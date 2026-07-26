@@ -13,6 +13,7 @@ const pub: UkBasePub = {
   address: "1 Test Street",
   lat: 53.8008,
   lng: -1.5491,
+  curatedVenueId: "",
 };
 
 function state(rows: CommunityPrice[], known = true): CommunityPricesState {

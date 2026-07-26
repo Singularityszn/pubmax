@@ -17,7 +17,7 @@ import {
 // scope its own rate-limit bucket and litter the community-price store, which
 // is exactly the hole the slim-index membership check closed.
 //
-// It reads the committed shard pack (~2.7 MB) with `fs` — so import it ONLY
+// It reads the committed shard pack with `fs` — so import it ONLY
 // from server code. Client code streams the same shards per viewport through
 // lib/ukBasePubs.ts; the id decode is shared (parseUkBaseShard), so the two
 // sides can never disagree about which ids exist.

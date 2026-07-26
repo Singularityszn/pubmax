@@ -10,9 +10,8 @@
 // the camera is zoomed in far enough for individual pins to exist at all
 // (lib/ukBasePubs.ts owns the client half; UK_BASE_MIN_ZOOM owns the gate).
 //
-// WHAT IS DROPPED. Every pub carrying `curatedRef` - the pack's own record that
-// the venue is already in venues_slim / a city pack. Curated wins: a deduped
-// pub must exist on the map exactly once, as its curated pin.
+// DEDUPE. A matched pub stays in its shard with the owning curated venue id.
+// The client suppresses it only while that exact curated venue is drawable.
 //
 // PRICES. None. OSM is not a price source (data/osm/uk/README.md). A base pub
 // has no price by construction; it is the canvas the community prices in.
@@ -33,11 +32,23 @@ import {
   shardUrlForCell,
 } from "./lib/ukBaseGrid.mjs";
 import { publishStagedDirectory } from "./lib/atomicDirectoryPublish.mjs";
+import { cityVenueIdForPub } from "./build_city_slim_index.mjs";
+import { CITIES } from "./fetch_city_osm_pubs.mjs";
+import {
+  haversineMeters,
+  namesLikelySamePub,
+  normalizeVenueIdentityName,
+  stableVenueIdFromKey,
+  venueGroupingKey,
+} from "./lib/venueCanonicalization.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, "..");
 const PACK_PATH = path.join(ROOT, "data", "osm", "uk", "uk_osm_pubs.json");
 const OUT_DIR = path.join(ROOT, "public", "data", SHARD_DIR_NAME);
+const LONDON_SLIM_PATH = path.join(ROOT, "public", "data", "venues_slim.json");
+const OUTER_LONDON_PATH = path.join(ROOT, "data", "osm", "outer_london_osm_pubs.json");
+const CURATED_MATCH_RADIUS_M = 150;
 
 // Per-shard ceiling. A cell is one viewport-triggered fetch, so a fat cell is
 // felt directly as a stall while panning. The densest cell today (central
@@ -76,15 +87,93 @@ function isRenderablePub(pub) {
   );
 }
 
-/** One shard row: [osmRef, name, address, lat, lng] — see lib/ukBasePubs.ts. */
-function toRow(pub) {
+/** One shard row: [osmRef, name, address, lat, lng, curatedVenueId]. */
+function toRow(pub, curatedVenueId) {
   return [
     compactOsmRef(pub.osmId),
     pub.name.trim(),
     typeof pub.address === "string" ? pub.address.trim() : "",
     round5(pub.lat),
     round5(pub.lng),
+    curatedVenueId,
   ];
+}
+
+function ownerKey(source, id) {
+  return `${source}\0${id}`;
+}
+
+async function loadCuratedVenueOwners() {
+  const owners = new Map();
+  const londonSlim = JSON.parse(await readFile(LONDON_SLIM_PATH, "utf8"));
+  const londonVenues = Array.isArray(londonSlim) ? londonSlim : [];
+  const londonIds = new Set(londonVenues.map((venue) => venue.id));
+
+  for (const venue of londonVenues) {
+    owners.set(ownerKey("curated-london-slim", venue.id), venue.id);
+  }
+
+  const outerPack = JSON.parse(await readFile(OUTER_LONDON_PATH, "utf8"));
+  for (const pub of Array.isArray(outerPack?.pubs) ? outerPack.pubs : []) {
+    const exactId = stableVenueIdFromKey(
+      venueGroupingKey({
+        pub_name: pub.name,
+        address: pub.address ?? "",
+        latitude: pub.lat,
+        longitude: pub.lng,
+      }),
+    );
+    let venueId = londonIds.has(exactId) ? exactId : "";
+    if (!venueId) {
+      const normalizedName = normalizeVenueIdentityName(pub.name);
+      let bestDistance = Infinity;
+      for (const venue of londonVenues) {
+        const distance = haversineMeters(pub.lat, pub.lng, venue.lat, venue.lng);
+        if (distance > CURATED_MATCH_RADIUS_M || distance >= bestDistance) continue;
+        if (
+          !namesLikelySamePub(
+            normalizedName,
+            normalizeVenueIdentityName(venue.name),
+          )
+        ) {
+          continue;
+        }
+        venueId = venue.id;
+        bestDistance = distance;
+      }
+    }
+    if (venueId) {
+      owners.set(ownerKey("outer-london-osm-seed", pub.osmId), venueId);
+    }
+  }
+
+  for (const [cityId, city] of Object.entries(CITIES)) {
+    if (!city.enabled) continue;
+    const cityPackPath = path.join(ROOT, "data", "cities", cityId, "osm_pubs.json");
+    const citySlimPath = path.join(
+      ROOT,
+      "public",
+      "data",
+      "cities",
+      cityId,
+      "venues_slim.json",
+    );
+    const [cityPack, citySlim] = await Promise.all([
+      readFile(cityPackPath, "utf8").then(JSON.parse),
+      readFile(citySlimPath, "utf8").then(JSON.parse),
+    ]);
+    const cityVenueIds = new Set(
+      (Array.isArray(citySlim) ? citySlim : []).map((venue) => venue.id),
+    );
+    for (const pub of Array.isArray(cityPack?.pubs) ? cityPack.pubs : []) {
+      const venueId = cityVenueIdForPub(city, pub);
+      if (cityVenueIds.has(venueId)) {
+        owners.set(ownerKey(`city:${cityId}`, pub.osmId), venueId);
+      }
+    }
+  }
+
+  return owners;
 }
 
 function formatBytes(bytes) {
@@ -104,9 +193,10 @@ async function main() {
     throw new Error(`${PACK_PATH} has no pubs — refresh it with npm run fetch:uk-pubs`);
   }
 
-  const deduped = pubs.filter((pub) => !pub.curatedRef);
-  const renderable = deduped.filter(isRenderablePub);
-  const skipped = deduped.length - renderable.length;
+  const curatedVenueOwners = await loadCuratedVenueOwners();
+  const renderable = pubs.filter(isRenderablePub);
+  const skipped = pubs.length - renderable.length;
+  let matchedOwners = 0;
 
   /** @type {Map<string, {latIndex: number, lonIndex: number, rows: unknown[][]}>} */
   const cells = new Map();
@@ -118,7 +208,14 @@ async function main() {
       cell = { latIndex, lonIndex, rows: [] };
       cells.set(key, cell);
     }
-    cell.rows.push(toRow(pub));
+    const source = pub.curatedRef?.source;
+    const id = pub.curatedRef?.id;
+    const curatedVenueId =
+      typeof source === "string" && typeof id === "string"
+        ? curatedVenueOwners.get(ownerKey(source, id)) ?? ""
+        : "";
+    if (curatedVenueId) matchedOwners += 1;
+    cell.rows.push(toRow(pub, curatedVenueId));
   }
 
   await mkdir(path.dirname(OUT_DIR), { recursive: true });
@@ -180,7 +277,7 @@ async function main() {
       [
         `UK base pubs → ${shards.length} shards in public/data/${SHARD_DIR_NAME}/`,
         `  pack ................ ${pubs.length} pubs`,
-        `  curated (dropped) ... ${pubs.length - deduped.length}`,
+        `  curated owners ...... ${matchedOwners}`,
         `  unusable (dropped) .. ${skipped}`,
         `  shipped ............. ${renderable.length}`,
         `  manifest ............ ${formatBytes(publication.manifestBytes)} (deferred until the zoom gate)`,

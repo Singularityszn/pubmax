@@ -31,6 +31,7 @@ describe("MapVenueList", () => {
             address: "",
             lat: 53.8,
             lng: -1.55,
+            curatedVenueId: "",
           },
         },
       ],

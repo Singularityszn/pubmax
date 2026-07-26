@@ -1,5 +1,5 @@
-// The UK BASE layer: every `amenity=pub` in the UK that the curated datasets do
-// NOT already carry (~35k), streamed to the map one grid cell at a time.
+// The UK BASE layer: every `amenity=pub` in the UK, streamed to the map one
+// grid cell at a time.
 //
 // These are not venues in the product sense. They have no price, no amenities,
 // no curation and no detail record - only "a pub is here, and nobody has said
@@ -43,6 +43,7 @@ export type UkBasePub = {
   address: string;
   lat: number;
   lng: number;
+  curatedVenueId: string;
 };
 
 export function ukBaseIdFor(osmRef: string): string {
@@ -55,15 +56,16 @@ export function isUkBaseId(id: string): boolean {
 
 /**
  * One shard row is a tuple, not an object: the bodies are machine-generated and
- * the map fetches them while the user pans, so repeating five keys 35k times is
- * paid for in the one place that matters. `[osmRef, name, address, lat, lng]`.
+ * the map fetches them while the user pans, so repeating six keys 35k times is
+ * paid for in the one place that matters.
+ * `[osmRef, name, address, lat, lng, curatedVenueId]`.
  */
-type ShardRow = [string, string, string, number, number];
+type ShardRow = [string, string, string, number, number, string];
 
 function isShardRow(value: unknown): value is ShardRow {
   return (
     Array.isArray(value) &&
-    value.length === 5 &&
+    value.length === 6 &&
     typeof value[0] === "string" &&
     value[0].length > 0 &&
     typeof value[1] === "string" &&
@@ -72,7 +74,8 @@ function isShardRow(value: unknown): value is ShardRow {
     typeof value[3] === "number" &&
     Number.isFinite(value[3]) &&
     typeof value[4] === "number" &&
-    Number.isFinite(value[4])
+    Number.isFinite(value[4]) &&
+    typeof value[5] === "string"
   );
 }
 
@@ -93,6 +96,7 @@ export function parseUkBaseShard(value: unknown): UkBasePub[] {
       address: row[2],
       lat: row[3],
       lng: row[4],
+      curatedVenueId: row[5],
     });
   }
   return pubs;
@@ -276,10 +280,25 @@ export function ukBasePubsToGeoJSON(pubs: UkBasePub[]): GeoJSON.FeatureCollectio
     type: "FeatureCollection",
     features: pubs.map((pub) => ({
       type: "Feature" as const,
-      properties: { id: pub.id, name: pub.name, address: pub.address },
+      properties: {
+        id: pub.id,
+        name: pub.name,
+        address: pub.address,
+        curatedVenueId: pub.curatedVenueId,
+      },
       geometry: { type: "Point" as const, coordinates: [pub.lng, pub.lat] },
     })),
   };
+}
+
+export function ukBasePubsForDrawableVenues(
+  pubs: UkBasePub[],
+  drawableVenueIds: ReadonlySet<string>,
+): UkBasePub[] {
+  return pubs.filter(
+    (pub) =>
+      !pub.curatedVenueId || !drawableVenueIds.has(pub.curatedVenueId),
+  );
 }
 
 /** Recover a base pub from a rendered `uk-base-point` feature. Null if it isn't one. */
@@ -290,10 +309,17 @@ export function ukBasePubFromFeature(feature: {
   const props = feature.properties;
   const geometry = feature.geometry;
   if (!props || geometry?.type !== "Point") return null;
-  const { id, name, address } = props;
+  const { id, name, address, curatedVenueId } = props;
   if (typeof id !== "string" || !isUkBaseId(id)) return null;
   if (typeof name !== "string" || name.length === 0) return null;
   const [lng, lat] = geometry.coordinates;
   if (!Number.isFinite(lng) || !Number.isFinite(lat)) return null;
-  return { id, name, address: typeof address === "string" ? address : "", lat, lng };
+  return {
+    id,
+    name,
+    address: typeof address === "string" ? address : "",
+    lat,
+    lng,
+    curatedVenueId: typeof curatedVenueId === "string" ? curatedVenueId : "",
+  };
 }

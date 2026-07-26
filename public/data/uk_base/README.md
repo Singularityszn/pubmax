@@ -1,8 +1,8 @@
 # UK base-pub shards
 
-Every `amenity=pub` in the UK that the curated datasets do **not** already
-carry, cut into one file per grid cell so the map can stream the layer a
-viewport at a time.
+Every `amenity=pub` in the UK, cut into one file per grid cell so the map can
+stream the layer a viewport at a time. Rows retain any matched curated owner so
+the client can deduplicate against what is actually loaded.
 
 Shard JSON is generated. This README is hand-written and survives rebuilds.
 `npm run build:uk-base` rebuilds the pack from
@@ -16,8 +16,9 @@ manifest.json                         # active { version, grid, generatedFrom, s
 packs/<generation>/<lat>_<lon>.json  # immutable cell: { version, cell, pubs[] }
 ```
 
-A shard row is a tuple, not an object — `[osmRef, name, address, lat, lng]`.
-These bodies are fetched while the user pans, so repeating five keys tens of
+A shard row is a tuple, not an object:
+`[osmRef, name, address, lat, lng, curatedVenueId]`. These bodies are fetched
+while the user pans, so repeating six keys tens of
 thousands of times is paid for in the one place it is felt. The decoder and the
 `venue-uk-…` id salting live in [`lib/ukBasePubs.ts`](../../../lib/ukBasePubs.ts);
 `__tests__/ukBasePubs.test.ts` pins the shape.
@@ -41,9 +42,9 @@ generation is removed so the published tree contains exactly one pack.
 
 - **Prices.** OSM is not a price source (`data/osm/uk/README.md`). A base pub
   has no price by construction; it is the canvas the community prices in.
-- **Pubs the curated index already has.** Every pack entry carrying
-  `curatedRef` is dropped at build time, so a deduped pub renders exactly once,
-  as its curated pin.
+- **Duplicate pins.** A recorded curated owner suppresses its base row only
+  while that exact curated venue is drawable. Outside the loaded city, the base
+  row remains available.
 
 ## Budgets
 

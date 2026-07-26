@@ -2057,11 +2057,16 @@ export default function PubMapCanvas({
     if (selectedIdRef.current !== pub.id) return;
     onUkBasePubClickRef.current?.(pub);
   }, []);
+  const drawableVenueIds = useMemo(
+    () => new Set(venues.map((venue) => venue.id)),
+    [venues],
+  );
   const ukBase = useUkBaseStreaming({
     mapRef,
     mapReady,
     applyToMap,
     ukBaseDataRef,
+    drawableVenueIds,
     scopeKey: cityId,
     restoreId: ukBaseRestore?.id ?? null,
     onRestorePub: handleRestoredBasePub,
