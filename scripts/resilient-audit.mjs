@@ -1,8 +1,10 @@
 // npm audit that fails on real high/critical vulnerabilities but tolerates
-// registry outages. Plain `npm audit` exits non-zero for BOTH findings and
-// infrastructure errors (e.g. the advisory endpoint returning 503), which
+// primary registry outages. Plain `npm audit` exits non-zero for BOTH findings
+// and infrastructure errors (e.g. the advisory endpoint returning 503), which
 // turns an npm-registry incident into a build failure with zero signal.
-// Here: findings -> exit 1; registry/endpoint failure -> warn + exit 0.
+// Here: findings -> exit 1; primary registry/endpoint failure -> warn + exit 0.
+// Once a waiver is needed, an unavailable production-only audit fails closed
+// because the waiver's dev-only scope cannot be proven.
 //
 // A finding may additionally be WAIVED, but only under the narrow terms in
 // WAIVED_ADVISORIES below: one named advisory, dev dependencies only, and
@@ -123,12 +125,12 @@ function main() {
       return 1;
     }
 
-    // Everything flagged is waived — but a waiver only covers dev dependencies.
+    // Everything flagged is waived, but a waiver only covers dev dependencies.
     // Re-audit production-only and fail if the same advisory reaches shipped code.
     const prod = runAudit(["--omit=dev"]);
     if (!hasVulnerabilities(prod.report)) {
       console.error(
-        "[resilient-audit] cannot confirm the waived advisories are dev-only (production audit unavailable) — failing closed.",
+        "[resilient-audit] cannot confirm the waived advisories are dev-only (production audit unavailable) - failing closed.",
       );
       process.stdout.write(stdout);
       return 1;
@@ -137,7 +139,7 @@ function main() {
     const prodFlagged = AUDIT_LEVELS.reduce((n, level) => n + (prodCounts[level] ?? 0), 0);
     if (prodFlagged > 0) {
       console.error(
-        `[resilient-audit] ${prodFlagged} high/critical vulnerabilities in PRODUCTION dependencies — waivers are dev-only.`,
+        `[resilient-audit] ${prodFlagged} high/critical vulnerabilities in PRODUCTION dependencies - waivers are dev-only.`,
       );
       process.stdout.write(prod.stdout);
       return 1;
@@ -150,9 +152,9 @@ function main() {
   }
 
   // No parseable report: npm itself failed (registry outage, ENOAUDIT, proxy).
-  // The audit is advisory infrastructure — do not fail the build on its absence.
+  // The audit is advisory infrastructure, so do not fail the build on its absence.
   const stderr = (result.stderr ?? "").slice(0, 2000);
-  console.warn("[resilient-audit] audit unavailable (registry/endpoint error) — skipping as advisory.");
+  console.warn("[resilient-audit] audit unavailable (registry/endpoint error) - skipping as advisory.");
   if (stderr) console.warn(stderr);
   return 0;
 }
