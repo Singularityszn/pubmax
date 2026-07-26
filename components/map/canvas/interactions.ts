@@ -3,6 +3,7 @@ import type { Dispatch, MutableRefObject, SetStateAction } from "react";
 import type { Landmark } from "@/lib/landmarks";
 import type { PoiCategory } from "@/lib/pois";
 import type { ThingsToDoOpportunity } from "@/lib/citymcp/client";
+import { ukBasePubFromFeature, type UkBasePub } from "@/lib/ukBasePubs";
 import { opportunityForFeature } from "./filters";
 import type { HoveredVenue } from "./types";
 
@@ -11,12 +12,17 @@ type ActivePoi = { name: string; category: PoiCategory };
 // Pub-first hit testing: a single map click queries pubs/route stops before
 // landmarks/POIs so dense central London taps open a pub sheet, not a
 // landmark card that happened to sit under the same finger.
+// `uk-base-point` sits AFTER the curated pub layers and before the ambient
+// ones: an unverified pub is still a pub (so it beats a landmark or a station
+// under the same thumb), but where a curated pin and a base pin overlap the
+// curated one wins — the same precedence the paint order states.
 export const PUB_FIRST_LAYERS = [
   "pubs-point-selected",
   "pubs-point",
   "route-stops",
   "tonight-point",
   "clusters",
+  "uk-base-point",
   "landmarks-icon",
   "pois-dot",
   "pois-transport-major",
@@ -28,6 +34,7 @@ type ClickDeps = {
   setHoveredVenue: Dispatch<SetStateAction<HoveredVenue | null>>;
   setActivePoi: Dispatch<SetStateAction<ActivePoi | null>>;
   onVenueClickRef: MutableRefObject<(id: string) => void>;
+  onUkBasePubClickRef: MutableRefObject<((pub: UkBasePub) => void) | undefined>;
   onRouteStopClickRef: MutableRefObject<(id: string) => void>;
   onTonightOpportunityClickRef: MutableRefObject<((op: ThingsToDoOpportunity) => void) | undefined>;
   cityLandmarksRef: MutableRefObject<Landmark[]>;
@@ -41,6 +48,7 @@ export function wireClickRouting(map: maplibregl.Map, deps: ClickDeps) {
     setHoveredVenue,
     setActivePoi,
     onVenueClickRef,
+    onUkBasePubClickRef,
     onRouteStopClickRef,
     onTonightOpportunityClickRef,
     cityLandmarksRef,
@@ -91,6 +99,17 @@ export function wireClickRouting(map: maplibregl.Map, deps: ClickDeps) {
         const [lng, lat] = (clusterHit.geometry as GeoJSON.Point).coordinates;
         cinematic({ center: [lng, lat], zoom, duration: 700 }, "cluster");
       });
+      return;
+    }
+
+    const baseHit = byLayer.get("uk-base-point");
+    if (baseHit) {
+      const pub = ukBasePubFromFeature(baseHit);
+      if (!pub) return;
+      selectLandmark(null);
+      setHoveredVenue(null);
+      setActivePoi(null);
+      onUkBasePubClickRef.current?.(pub);
       return;
     }
 
@@ -189,6 +208,7 @@ export function wireCursor(map: maplibregl.Map) {
     "clusters",
     "route-stops",
     "tonight-point",
+    "uk-base-point",
     "landmarks-icon",
     "pois-dot",
     "pois-transport-major",

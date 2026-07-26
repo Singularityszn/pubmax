@@ -5,16 +5,21 @@ import {
   buildLandmarks,
   buildPois,
   buildPubs,
+  buildUkBase,
   CLUSTER_COLLISION_PADDING,
   CLUSTER_MAX_ZOOM,
   CLUSTER_RADIUS_PX,
   LANDMARK_ICON_PRIORITY_ZOOM,
   PIN_MIN_ZOOM,
+  UK_BASE_ICON_OPACITY,
+  UK_BASE_ICON_SIZE_EXPR,
+  UK_BASE_MIN_ZOOM,
   type SceneCtx,
 } from "@/components/map/canvas/buildScene";
 import {
   clusterEntranceProgress,
   pinSortKeyExpr,
+  PIN_ICON_SIZE_EXPR,
   selectedPinFilter,
 } from "@/components/map/canvas/filters";
 import { landmarksToGeoJSON } from "@/components/map/canvas/geojson";
@@ -61,6 +66,7 @@ function buildScenePieces(selectedId = "") {
     bandColor: "#000000",
     bandMemberIds: [],
     pubsData: { type: "FeatureCollection", features: [] },
+    ukBaseData: { type: "FeatureCollection", features: [] },
     tonightData: { type: "FeatureCollection", features: [] },
     tonightVisible: false,
     selectedId,
@@ -69,6 +75,7 @@ function buildScenePieces(selectedId = "") {
 
   buildLandmarks(ctx);
   buildPois(ctx);
+  buildUkBase(ctx);
   buildPubs(ctx);
   return { layers, sources };
 }
@@ -99,6 +106,65 @@ describe("pub clustering density (scales to a UK-wide source)", () => {
     // `clusters` circle-radius tops out at 16px (+ stroke) — a grouping radius
     // under that diameter would let neighbouring discs overlap.
     expect(CLUSTER_RADIUS_PX).toBeGreaterThan(2 * 16);
+  });
+});
+
+describe("UK base layer (unpriced, visually subordinate, never clustered)", () => {
+  const { layers, sources } = buildScenePieces();
+  const base = sources.get("uk-base")!;
+  const layout = (id: string) => (layers.get(id)?.layout ?? {}) as Record<string, unknown>;
+
+  it("is its own source and is NOT clustered", () => {
+    // Clustering base pubs into the curated `pubs` source would inflate every
+    // London cluster count and grey out its donut — the curated overview below
+    // the pin floor has to stay exactly what it was.
+    expect(base.type).toBe("geojson");
+    expect(base.cluster).toBeUndefined();
+    expect(sources.get("pubs")!.cluster).toBe(true);
+  });
+
+  it("only appears from the pin floor, so the overview never carries it", () => {
+    expect((layers.get("uk-base-point") as { minzoom?: number }).minzoom).toBe(UK_BASE_MIN_ZOOM);
+    expect(UK_BASE_MIN_ZOOM).toBe(PIN_MIN_ZOOM);
+  });
+
+  it("draws under the curated pins, which is also how it loses collisions", () => {
+    // Placement runs top layer first, so a base pin can only take a spot no
+    // curated pin wanted. Insertion order IS the style order here.
+    const ids = [...layers.keys()];
+    expect(ids.indexOf("uk-base-point")).toBeLessThan(ids.indexOf("pubs-point"));
+  });
+
+  it("collides like every other symbol rather than stacking", () => {
+    expect(layout("uk-base-point")["icon-allow-overlap"]).toBe(false);
+    expect(layout("uk-base-point")["icon-ignore-placement"]).toBe(false);
+  });
+
+  it("stays visibly smaller than a curated pin at every shared zoom", () => {
+    // Both are ["interpolate", ["linear"], ["zoom"], z, out, …]. A curated stop
+    // output is itself ["case", story?, storySize, standardSize] — take the
+    // standard (fallback) size, the smallest a curated pin ever draws at.
+    const standard = (output: unknown) =>
+      Array.isArray(output) ? (output[output.length - 1] as number) : (output as number);
+    const sizeAt = (expr: unknown, zoom: number) => {
+      const stops = (expr as unknown[]).slice(3);
+      let value = standard(stops[1]);
+      for (let i = 0; i < stops.length; i += 2) {
+        if ((stops[i] as number) <= zoom) value = standard(stops[i + 1]);
+      }
+      return value;
+    };
+    for (const zoom of [UK_BASE_MIN_ZOOM, 15, 17]) {
+      expect(sizeAt(UK_BASE_ICON_SIZE_EXPR, zoom)).toBeLessThan(sizeAt(PIN_ICON_SIZE_EXPR, zoom));
+    }
+    // …and never fully opaque, so it reads as background even when isolated.
+    expect(UK_BASE_ICON_OPACITY).toBeLessThan(1);
+  });
+
+  it("carries no price-driven paint at all", () => {
+    const paint = (layers.get("uk-base-point")?.paint ?? {}) as Record<string, unknown>;
+    expect(JSON.stringify(paint)).not.toContain("bucket");
+    expect(layout("uk-base-point")["icon-image"]).toBe("base:pub");
   });
 });
 

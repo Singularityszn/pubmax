@@ -727,6 +727,143 @@ function validateSlimShards() {
   return { ok, count: shipShards.length };
 }
 
+// public/data/uk_base/** — the UK-wide unpriced base layer (built by
+// scripts/build_uk_base_shards.mjs, consumed by lib/ukBasePubs.ts). It is the
+// only dataset the map fetches WHILE PANNING, so the checks here are about the
+// two ways it can hurt: a body the client would silently drop, and a cell fat
+// enough to stall a pan. The per-cell budget mirrors the builder's own.
+const UK_BASE_DIR = join(DATA_DIR, "uk_base");
+const UK_BASE_SHARD_BUDGET_BYTES = 150 * 1024;
+const UK_BASE_TOTAL_BUDGET_BYTES = 5 * 1024 * 1024;
+const UK_BASE_MANIFEST_BUDGET_BYTES = 64 * 1024;
+const UK_BASE_ID_PREFIX = "venue-uk-";
+
+function isUkBaseRow(row) {
+  return (
+    Array.isArray(row) &&
+    row.length === 5 &&
+    typeof row[0] === "string" &&
+    row[0].length > 0 &&
+    typeof row[1] === "string" &&
+    row[1].length > 0 &&
+    typeof row[2] === "string" &&
+    Number.isFinite(row[3]) &&
+    Number.isFinite(row[4])
+  );
+}
+
+function validateUkBaseShards() {
+  const name = "public/data/uk_base shards";
+  const errs = makeCollector();
+  if (!existsSync(UK_BASE_DIR)) {
+    console.log(`FAIL ${name}: missing — run node scripts/build_uk_base_shards.mjs`);
+    return { ok: false, count: 0 };
+  }
+  let manifestRaw;
+  let manifest;
+  try {
+    manifestRaw = readFileSync(join(UK_BASE_DIR, "manifest.json"), "utf8");
+    manifest = JSON.parse(manifestRaw);
+  } catch (e) {
+    console.log(`FAIL ${name}: missing/broken manifest (${e.message})`);
+    return { ok: false, count: 0 };
+  }
+  const shards = Array.isArray(manifest.shards) ? manifest.shards : [];
+  if (shards.length === 0) errs.add("manifest lists no shards");
+
+  const manifestBytes = Buffer.byteLength(manifestRaw);
+  if (manifestBytes >= UK_BASE_MANIFEST_BUDGET_BYTES) {
+    errs.add(
+      `manifest ${(manifestBytes / 1024).toFixed(1)} KB exceeds ${(UK_BASE_MANIFEST_BUDGET_BYTES / 1024).toFixed(0)} KB budget`,
+    );
+  }
+
+  // Files on disk must match the manifest exactly: an orphan is dead weight in
+  // the repo, and a missing one is a 404 mid-pan.
+  const onDisk = new Set(
+    readdirSync(UK_BASE_DIR).filter((f) => f.endsWith(".json") && f !== "manifest.json"),
+  );
+  const ids = new Set();
+  let totalBytes = manifestBytes;
+  let pubCount = 0;
+
+  for (const shard of shards) {
+    const file = String(shard.url ?? "").replace(/^\/data\/uk_base\//, "");
+    if (!onDisk.delete(file)) {
+      errs.add(`shard "${shard.id}": body ${file} is missing`);
+      continue;
+    }
+    let raw;
+    let body;
+    try {
+      raw = readFileSync(join(UK_BASE_DIR, file), "utf8");
+      body = JSON.parse(raw);
+    } catch (e) {
+      errs.add(`shard "${shard.id}": unreadable body (${e.message})`);
+      continue;
+    }
+    const bytes = Buffer.byteLength(raw);
+    totalBytes += bytes;
+    if (bytes >= UK_BASE_SHARD_BUDGET_BYTES) {
+      errs.add(
+        `shard "${shard.id}": ${(bytes / 1024).toFixed(1)} KB exceeds the ${(UK_BASE_SHARD_BUDGET_BYTES / 1024).toFixed(0)} KB per-viewport budget`,
+      );
+    }
+    if (body.cell !== shard.id) errs.add(`shard "${shard.id}": body cell is "${body.cell}"`);
+    const rows = Array.isArray(body.pubs) ? body.pubs : null;
+    if (!rows) {
+      errs.add(`shard "${shard.id}": body has no pubs array`);
+      continue;
+    }
+    if (rows.length !== shard.count) {
+      errs.add(`shard "${shard.id}": ${rows.length} rows, manifest says ${shard.count}`);
+    }
+    const [minLng, minLat, maxLng, maxLat] = shard.bbox ?? [];
+    for (const row of rows) {
+      if (!isUkBaseRow(row)) {
+        errs.add(`shard "${shard.id}": malformed row ${JSON.stringify(row)?.slice(0, 60)}`);
+        continue;
+      }
+      const id = `${UK_BASE_ID_PREFIX}${row[0]}`;
+      if (ids.has(id)) errs.add(`duplicate base id "${id}"`);
+      ids.add(id);
+      // A pub outside its own cell means the viewport that covers it would
+      // never fetch the file it lives in — an invisible pub, not a loud bug.
+      if (row[3] < minLat || row[3] > maxLat || row[4] < minLng || row[4] > maxLng) {
+        errs.add(`shard "${shard.id}": pub "${row[1]}" at ${row[3]},${row[4]} is outside the cell bbox`);
+      }
+      pubCount += 1;
+    }
+  }
+  for (const orphan of onDisk) errs.add(`orphan shard body ${orphan} is not in the manifest`);
+
+  if (totalBytes >= UK_BASE_TOTAL_BUDGET_BYTES) {
+    errs.add(
+      `total ${(totalBytes / 1024).toFixed(1)} KB exceeds ${(UK_BASE_TOTAL_BUDGET_BYTES / 1024).toFixed(0)} KB budget`,
+    );
+  }
+
+  // The base layer exists to fill the gaps the curated index leaves; an id in
+  // both would double-pin that pub.
+  try {
+    const slim = loadJson("venues_slim.json");
+    if (Array.isArray(slim)) {
+      for (const venue of slim) {
+        if (venue && ids.has(venue.id)) errs.add(`base id "${venue.id}" also exists in venues_slim`);
+      }
+    }
+  } catch {
+    // venues_slim has its own check above; don't double-report its absence.
+  }
+
+  const ok = errs.count === 0;
+  console.log(
+    `${ok ? "PASS" : "FAIL"} ${name}: ${shards.length} cell(s), ${pubCount} pubs, total ${(totalBytes / 1024).toFixed(1)} KB / ${(UK_BASE_TOTAL_BUDGET_BYTES / 1024).toFixed(0)} KB, ${errs.count} error(s)`,
+  );
+  if (!ok) errs.report();
+  return { ok, count: shards.length };
+}
+
 // venue_detail_index.json + venue_details.jsonl — server-side lazy detail
 // artifacts generated beside venues_slim.json. The manifest points each venue
 // id to a byte range in the JSONL file, so /api/venue/[id] reads only one pub's
@@ -1494,6 +1631,7 @@ async function main() {
     validatePintPrices(),
     validateSlimVenues(),
     validateSlimShards(),
+    validateUkBaseShards(),
     validateVenueDetails(),
     validateDrinkPriceUpdates(),
     validateWhatsOnUpdates(),

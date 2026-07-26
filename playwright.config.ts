@@ -53,6 +53,7 @@ export default defineConfig({
         "**/screenshots.spec.ts",
         "**/map-gl.spec.ts",
         "**/map-fallback.spec.ts",
+        "**/map-uk-base-layer.spec.ts",
         // Flag-ON specs run only in the chromium-flag-on project against a
         // flag-on build (L20 zero-skip contract) — never in the default
         // flag-off suite, where their assertions would false-fail.
@@ -74,6 +75,8 @@ export default defineConfig({
         "**/map-console-health.spec.ts",
         // Synthetic webglcontextlost recovery — needs a real GL canvas.
         "**/map-webgl-recovery.spec.ts",
+        // UK base layer: asserts the zoom gate + a real tap on a painted pin.
+        "**/map-uk-base-layer.spec.ts",
       ],
       use: {
         ...devices["Desktop Chrome"],

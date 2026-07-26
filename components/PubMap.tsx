@@ -90,6 +90,12 @@ const VenueInspector = dynamic(
   { ssr: false },
 );
 import VenueSheetSkeleton from "@/components/map/VenueSheetSkeleton";
+// Only ever mounted for a tapped UK base pin, so it stays off the map's
+// critical chunk exactly like the curated inspector above it.
+const UnverifiedPubSheet = dynamic(
+  () => import("@/components/map/UnverifiedPubSheet"),
+  { ssr: false },
+);
 const MapToolbar = dynamic(() => import("@/components/map/MapToolbar"), {
   ssr: false,
 });
@@ -174,6 +180,7 @@ import {
 } from "@/lib/cities";
 import type { ThingsToDoOpportunity } from "@/lib/citymcp/client";
 import { slimVenuesToPins } from "@/lib/slimPins";
+import { isUkBaseId, type UkBasePub } from "@/lib/ukBasePubs";
 import { computeZonePintIndex } from "@/lib/zones";
 import ZonePicker from "@/components/map/ZonePicker";
 import AreaSheet from "@/components/map/AreaSheet";
@@ -787,6 +794,10 @@ export default function PubMap({
 
   useEffect(() => {
     if (!selectedVenueId || detailById.has(selectedVenueId)) return;
+    // A UK base pub has no detail record to warm - it is an OSM point, not a
+    // venue - so asking /api/venue for it would only buy a guaranteed 404 and a
+    // spurious "details unavailable" banner.
+    if (isUkBaseId(selectedVenueId)) return;
     // Always go through warmVenueDetail (cache hit → Promise.resolve) so we
     // never setState synchronously in the effect body (react-hooks/set-state-in-effect).
     let cancelled = false;
@@ -1032,7 +1043,8 @@ export default function PubMap({
     ) => {
       if (!id) return;
       selectionOriginRef.current = origin;
-      prefetchVenue(id);
+      // Base pubs have no /api/venue record; prefetching one is a certain 404.
+      if (!isUkBaseId(id)) prefetchVenue(id);
       setTonightLaneOpen(false);
       setMapOverlay("none");
       if (isMobileViewport()) closePlanning();
@@ -1068,6 +1080,23 @@ export default function PubMap({
     trackEvent("planning_handoff_opened", { from: source, to: "plan" });
     if (typeof window !== "undefined") window.location.assign("/plan");
   }, [flags.intentWrite, selectedVenue, cityId]);
+
+  // The tapped UK base pub, held whole because it exists in no index this
+  // component has: the map hands the record up with the tap. Selection itself
+  // still runs through selectedVenueId, so ?sel= deep-linking, Back/close and
+  // the selection ring all behave exactly as they do for a curated pin.
+  const [selectedBasePub, setSelectedBasePub] = useState<UkBasePub | null>(null);
+  const handleUkBasePubClick = useCallback(
+    (pub: UkBasePub) => {
+      setSelectedBasePub(pub);
+      selectVenue(pub.id);
+    },
+    [selectVenue],
+  );
+  // Selecting anything else (or closing the sheet) retires the base pub, by
+  // derivation rather than by a state-sync effect: the record only ever shows
+  // while it IS the selection.
+  const basePubOpen = Boolean(selectedBasePub && selectedBasePub.id === selectedVenueId);
 
   const prefetchVenueDetail = useCallback((id: string) => {
     prefetchVenue(id);
@@ -1632,7 +1661,9 @@ export default function PubMap({
     selectVenue(finalStop.id, "getting-home");
   }, [closePlanning, route, selectVenue]);
 
-  const detailOpen = Boolean(selectedVenueId && selectedVenue);
+  // The venue sheet is open for a curated venue OR for a tapped base pub; both
+  // fill the same drawer/sheet, so every open/close/snap path stays one path.
+  const detailOpen = Boolean(selectedVenueId && selectedVenue) || basePubOpen;
   const activeNightArea = useMemo(() => nightAreaForMapQuery(cityId, filters.query) ??
     (!filters.query.trim() && plannedNightArea ? getNightArea(plannedNightArea) : null),
   [cityId, filters.query, plannedNightArea]);
@@ -1956,7 +1987,9 @@ export default function PubMap({
     </>
   ) : null;
 
-  const venuePanel = detailOpen && selectedVenue ? (
+  const venuePanel = basePubOpen && selectedBasePub ? (
+    <UnverifiedPubSheet pub={selectedBasePub} communityPrices={communityPrices} />
+  ) : detailOpen && selectedVenue ? (
     <>
       <div className="mobileVenuePeekSummary" aria-label="Selected pub summary">
         {typeof selectedVenue.cheapestPrice === "number" ? (
@@ -2108,6 +2141,7 @@ export default function PubMap({
           route={routeForMap}
           selectedVenueId={selectedVenueId}
           onVenueClick={handleVenueClick}
+          onUkBasePubClick={handleUkBasePubClick}
           onRouteStopClick={selectVenue}
           onVenuePrefetch={prefetchVenueDetail}
           venueSignals={venueSignals}
@@ -2533,7 +2567,11 @@ export default function PubMap({
       {mobileViewport ? (
         <Sheet
           kind={detailOpen ? "venue" : planningOpen ? "planner" : null}
-          title={detailOpen ? selectedVenue?.name ?? "Pub detail" : "Plan tonight"}
+          title={
+            detailOpen
+              ? selectedBasePub?.name ?? selectedVenue?.name ?? "Pub detail"
+              : "Plan tonight"
+          }
           initialSnap="half"
           requestedSnap={detailOpen ? sheetSnap : plannerSheetSnap}
           onClose={detailOpen ? dismissSheet : closePlanning}

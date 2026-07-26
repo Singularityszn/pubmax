@@ -73,6 +73,12 @@ function setupScratch(files: Record<string, unknown>): string {
       cpSync(join(ROOT, "public", "data", f), join(scratchData, f));
     }
   }
+  // The UK base layer ships as a directory of per-cell shards + a manifest;
+  // validateUkBaseShards reads every one of them, so the scratch needs the
+  // whole directory rather than a named file list.
+  cpSync(join(ROOT, "public", "data", "uk_base"), join(scratchData, "uk_base"), {
+    recursive: true,
+  });
   mkdirSync(join(scratchData, "night_signals"), { recursive: true });
   cpSync(
     join(ROOT, "public", "data", "night_signals", "latest.json"),

@@ -96,22 +96,21 @@ without recomputing the join.
 
 ## Consuming these packs
 
-The runtime wave (slim-index sharding, CityId registry rework, map perf) is
-queued separately and touches none of this. When it lands it should:
+`scripts/build_uk_base_shards.mjs` is the one consumer: it turns this pack into
+the map's UK **base layer** under `public/data/uk_base/` (see that directory's
+README). It drops every pub carrying `curatedRef` so a deduped pub renders once
+as its curated pin, salts ids to `venue-uk-…` so they never collide with London
+`venue-…` ids, and never invents a price.
 
-1. Read `uk_osm_pubs.json` - one file, already OSM-id unique and sorted
-   south→north, so a geographic shard is a slice, not a re-sort.
-2. Skip or defer every pub carrying `curatedRef`: those venues are already in
-   `public/data/venues_slim*.json` or a city pack, and re-adding them would
-   double-pin the map. `dedupe_report.json` has the totals for a sanity check.
-3. Salt ids per shard the way `data/cities/README.md` describes
-   (`venue-mcr-…`), so UK ids never collide with London `venue-…` ids.
-4. Keep `cheapestPrice: null`. OSM is not a price source.
-5. Re-read `chunks.json` if it needs the grid: `chunkStats[].bbox` bounds every
-   raw file, and `missingChunks` must be empty for the pack to be complete.
+Nothing here feeds `venues_slim*.json`. Base pubs are not venues: they carry no
+price, do not enter search or the price filters, and are not routable stops.
 
 Enrichment crons (heritage, prices, what's-on) are explicitly **not** wired to
-these packs yet.
+these packs.
+
+`chunks.json` remains the fetch grid, not the serving grid: `chunkStats[].bbox`
+bounds every raw file, and `missingChunks` must be empty for the pack to be
+complete.
 
 ## Licence / attribution
 

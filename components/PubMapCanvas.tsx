@@ -88,6 +88,8 @@ import { useMapCamera } from "@/components/map/canvas/useMapCamera";
 import { easeOutCubic, PUB_SELECT_PITCH, PUB_SELECT_PITCH_MOBILE, PUB_SELECT_DURATION_MS } from "@/components/map/canvas/easing";
 import { mobileSelectCameraOffset } from "@/lib/sheetSnap";
 import { nearbyVenuesForMap } from "@/lib/nearby";
+import { isUkBaseId, type UkBasePub } from "@/lib/ukBasePubs";
+import { useUkBaseStreaming } from "@/components/map/pubmap/useUkBaseStreaming";
 import type { MapViewportSnapshot } from "@/lib/mobileShell";
 import {
   PAINT_WATCHDOG_INTERVAL_MS,
@@ -109,6 +111,12 @@ type PubMapCanvasProps = {
   route: Venue[];
   selectedVenueId: string;
   onVenueClick: (id: string) => void;
+  /**
+   * A tap on the UK base layer — an OSM pub with no price and no venue record.
+   * Handed up whole (it exists nowhere else in the app) so PubMap can open the
+   * unverified sheet without a lookup. Absent = base taps do nothing.
+   */
+  onUkBasePubClick?: (pub: UkBasePub) => void;
   onRouteStopClick: (id: string) => void;
   /** Speculative warm of `/api/venue/[id]` on press-start / hover intent. */
   onVenuePrefetch?: (id: string) => void;
@@ -279,6 +287,7 @@ export default function PubMapCanvas({
   route,
   selectedVenueId,
   onVenueClick,
+  onUkBasePubClick,
   onRouteStopClick,
   onVenuePrefetch,
   venueSignals = new Map(),
@@ -470,6 +479,11 @@ export default function PubMapCanvas({
   const [activePoi, setActivePoi] = useState<{ name: string; category: PoiCategory } | null>(null);
 
   const onVenueClickRef = useRef(onVenueClick);
+  const onUkBasePubClickRef = useRef<((pub: UkBasePub) => void) | undefined>(undefined);
+  // The last base pub a tap resolved, so the selection camera has coordinates
+  // for a pin that exists in no venue list. Keyed by id: a stale entry can
+  // never move the camera for a different selection.
+  const ukBaseSelectionRef = useRef<{ id: string; center: [number, number] } | null>(null);
   const onRouteStopClickRef = useRef(onRouteStopClick);
   const onVenuePrefetchRef = useRef(onVenuePrefetch);
   const onLandmarkSelectRef = useRef(onLandmarkSelect);
@@ -487,6 +501,12 @@ export default function PubMapCanvas({
   }, []);
   useEffect(() => {
     onVenueClickRef.current = onVenueClick;
+    onUkBasePubClickRef.current = onUkBasePubClick
+      ? (pub) => {
+          ukBaseSelectionRef.current = { id: pub.id, center: [pub.lng, pub.lat] };
+          onUkBasePubClick(pub);
+        }
+      : undefined;
     onRouteStopClickRef.current = onRouteStopClick;
     onVenuePrefetchRef.current = onVenuePrefetch;
     onLandmarkSelectRef.current = onLandmarkSelect;
@@ -496,6 +516,7 @@ export default function PubMapCanvas({
     cityLandmarksRef.current = cityLandmarks;
   }, [
     onVenueClick,
+    onUkBasePubClick,
     onRouteStopClick,
     onVenuePrefetch,
     onLandmarkSelect,
@@ -508,6 +529,13 @@ export default function PubMapCanvas({
   // Latest data lives in refs so buildScene can reseed sources after a
   // theme-driven setStyle wipes them.
   const pubsDataRef = useRef<GeoJSON.FeatureCollection>({
+    type: "FeatureCollection",
+    features: [],
+  });
+  // UK base pubs for the CURRENT viewport only (useUkBaseStreaming refills it
+  // on every settled camera). Held as a ref like every other source payload so
+  // a theme setStyle can reseed the layer without a refetch.
+  const ukBaseDataRef = useRef<GeoJSON.FeatureCollection>({
     type: "FeatureCollection",
     features: [],
   });
@@ -1131,6 +1159,7 @@ export default function PubMapCanvas({
         bandColor: bandColorRef.current,
         bandMemberIds: bandMemberIdsRef.current,
         pubsData: pubsDataRef.current,
+        ukBaseData: ukBaseDataRef.current,
         tonightData: tonightDataRef.current,
         tonightVisible: tonightOverlayVisibleRef.current,
         selectedId: selectedIdRef.current,
@@ -1166,6 +1195,7 @@ export default function PubMapCanvas({
               bandColor: bandColorRef.current,
               bandMemberIds: bandMemberIdsRef.current,
               pubsData: pubsDataRef.current,
+              ukBaseData: ukBaseDataRef.current,
               tonightData: tonightDataRef.current,
               tonightVisible: tonightOverlayVisibleRef.current,
               selectedId: selectedIdRef.current,
@@ -1772,6 +1802,7 @@ export default function PubMapCanvas({
       setHoveredVenue,
       setActivePoi,
       onVenueClickRef,
+      onUkBasePubClickRef,
       onRouteStopClickRef,
       onTonightOpportunityClickRef,
       cityLandmarksRef,
@@ -1990,6 +2021,12 @@ export default function PubMapCanvas({
     });
   }, [venues, venueSignals, favoritePint, drinkCategory, whatsOnByVenue, mapReady, applyToMap]);
 
+  // UK base pubs → their own source, streamed per settled viewport and only
+  // once the camera is past UK_BASE_MIN_ZOOM. Deliberately separate from the
+  // `pubs` effect above: nothing here touches the curated source, its clusters
+  // or its payload.
+  const ukBase = useUkBaseStreaming({ mapRef, mapReady, applyToMap, ukBaseDataRef });
+
   // CityMCP tonight opportunities → source data + overlay visibility. Kept out
   // of the mount effect deps so live opportunity refreshes never remount MapLibre.
   useEffect(() => {
@@ -2085,6 +2122,11 @@ export default function PubMapCanvas({
       }
       if (map.getLayer("pubs-selected")) {
         map.setFilter("pubs-selected", selectedFilter);
+      }
+      // The UK base layer answers a tap with its own quieter ring; the same
+      // selected id drives it, so exactly one of the two ever matches.
+      if (map.getLayer("uk-base-selected")) {
+        map.setFilter("uk-base-selected", selectedFilter);
       }
       // M1 selection spotlight — dim every non-selected pub pin; the selected
       // pin stays fully opaque. Deselect restores the plain serves-based dim.
@@ -2246,7 +2288,8 @@ export default function PubMapCanvas({
   // effect — and stays true across filter/drop churn, so `venues` itself can
   // remain out of the deps (no re-flying on churn, the original guarantee).
   const selectedPresent =
-    Boolean(selectedVenueId) && venues.some((item) => item.id === selectedVenueId);
+    Boolean(selectedVenueId) &&
+    (venues.some((item) => item.id === selectedVenueId) || isUkBaseId(selectedVenueId));
   // Idle auto-orbit (owner call 2026-07-19, supersedes the abeb471e removal —
   // rationale + the fixes for its three removal reasons live in lib/mapOrbit).
   // Enabled only after the first pin REVEAL (not style.load), so boot idle
@@ -2321,13 +2364,20 @@ export default function PubMapCanvas({
     const map = mapRef.current;
     if (!map || !mapReady || !selectedPresent) return;
     const venue = venuesRef.current.find((item) => item.id === selectedVenueId);
-    if (!venue) return;
+    // A UK base pub is not in `venues` by design (it is not a venue), so its
+    // coordinates come from the feature the tap just resolved.
+    const center = venue
+      ? ([venue.longitude, venue.latitude] as [number, number])
+      : ukBaseSelectionRef.current?.id === selectedVenueId
+        ? ukBaseSelectionRef.current.center
+        : null;
+    if (!center) return;
     // Mobile: offset the camera so the pin sits in the visible band above the
     // half-sheet (not under it); soften pitch so 3D buildings don't bury it.
     const isPhone = window.matchMedia("(max-width: 640px)").matches;
     const offset = isPhone ? mobileSelectCameraOffset(window.innerHeight, "half") : undefined;
     cinematic({
-      center: [venue.longitude, venue.latitude],
+      center,
       zoom: Math.max(map.getZoom(), 14),
       pitch: isPhone ? PUB_SELECT_PITCH_MOBILE : PUB_SELECT_PITCH,
       duration: PUB_SELECT_DURATION_MS,
@@ -2524,7 +2574,12 @@ export default function PubMapCanvas({
   const cityDisplayName = getCity(cityId).displayName;
 
   return (
-    <div className="mapCanvasWrap" data-route-stops={route.length} data-venue-count={venues.length}>
+    <div
+      className="mapCanvasWrap"
+      data-route-stops={route.length}
+      data-venue-count={venues.length}
+      data-uk-base-count={ukBase.count}
+    >
       <div ref={containerRef} className="maplibreMap" />
       {softRetry ? (
         <div className="mapSoftRetry" role="status" data-kind={softRetry.kind}>
