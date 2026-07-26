@@ -665,7 +665,7 @@ export default function PubMap({
     setMapOverlay("none");
     setPlannerSheetSnap("half");
     setPlannerSheetDragY(null);
-  }, [setPlannerSheetDragY, setPlannerSheetSnap]);
+  }, [setPlannerSheetDragY, setPlannerSheetSnap, setPlanningOpen]);
   useLayoutEffect(() => {
     closePlanningRef.current = closePlanning;
   }, [closePlanning]);
@@ -687,6 +687,7 @@ export default function PubMap({
     closeComposer,
     setPlannerSheetDragY,
     setPlannerSheetSnap,
+    setPlanningOpen,
     setSelectedVenueId,
     setSheetDragY,
     setSheetSnap,
@@ -1482,7 +1483,7 @@ export default function PubMap({
     );
     setRouteMapped(true);
     setActiveCrawl(null); // a manual stop change is no longer "the curated crawl"
-  }, []);
+  }, [setBuiltIds, setRouteMapped]);
 
   // Reverse the hand-built route: start from the opposite end. Event handler, so
   // setState is fine; URL-sync picks up the new builtIds order automatically.
@@ -1490,7 +1491,7 @@ export default function PubMap({
     setBuiltIds((current) => [...current].reverse());
     setRouteMapped(true);
     setActiveCrawl(null);
-  }, []);
+  }, [setBuiltIds, setRouteMapped]);
 
   const clearBuilt = useCallback(() => {
     setBuiltIds([]);
@@ -1498,7 +1499,7 @@ export default function PubMap({
     setActiveCrawl(null);
     // Explicit Clear also drops the refresh-safety net.
     if (typeof window !== "undefined") window.localStorage.removeItem(BUILT_STORAGE_KEY);
-  }, []);
+  }, [setBuiltIds, setRouteMapped]);
 
   // Trust fix (§4.3): a pin tap INSPECTS ONLY, in both modes. It never mutates
   // the crawl — otherwise browsing pubs in build mode silently adds/removes
@@ -1845,7 +1846,7 @@ export default function PubMap({
     clearAreaSheetTimer();
     setSearchAreaTarget(null);
     setMapOverlay(next);
-  }, [closeComposer, clearAreaSheetTimer]);
+  }, [clearAreaSheetTimer, closeComposer, setPlanningOpen]);
 
   useEffect(() => {
     writeMobileMapSession({

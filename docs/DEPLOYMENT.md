@@ -150,17 +150,23 @@ Supabase’s provider id is **Azure** (the app code uses `provider: "azure"` wit
 
 Until a provider is enabled in Supabase, its button opens the IdP and then fails the redirect — that is expected dashboard setup, not an app bug. The nav shows both Google and Microsoft whenever the public Supabase env is set; enable each provider when you are ready.
 
-## Venue detail artifacts (build-time)
+## Build-time data artifacts
 
-`npm run prebuild` runs `build:slim`, which generates both the browser slim index and the server-only venue detail pack:
+`npm run prebuild` regenerates the browser data packs and the server-only venue
+detail pack:
 
 | Output | Role |
 |---|---|
 | `public/data/venues_slim.json` | Map pins + filter hints (shipped to clients). |
+| `public/data/uk_base/` | Deferred, viewport-streamed unverified UK pub layer. See its README for the delivery contract. |
 | `data/generated/venue_detail_index.json` | Byte-offset manifest for lazy detail reads. |
 | `data/generated/venue_details.jsonl` | Per-venue price rows (not committed — large). |
 
-Do not commit the `data/generated/` detail binaries. Vercel/CI regenerates them on every build via `prebuild`. If artifacts are absent locally, `lib/venueDetailIndex.ts` falls back to the raw dataset outside production so `/api/venue/[id]` still works in dev/test.
+Do not commit the `data/generated/` detail binaries. Vercel/CI regenerates all
+build-time packs via `prebuild`; the UK base pack remains committed so first
+paint never needs server-side generation. If venue detail artifacts are absent
+locally, `lib/venueDetailIndex.ts` falls back to the raw dataset outside
+production so `/api/venue/[id]` still works in dev/test.
 
 ## Continuous integration and deployment checks
 

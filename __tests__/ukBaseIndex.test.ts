@@ -82,7 +82,8 @@ describe("getUkBaseIdIndex", () => {
     expect(result.status).toBe("ready");
     if (result.status !== "ready") return;
     const index = result.ids;
-    // The full pack is ~35k pubs; a partial read would collapse well below it.
+    // The full pack has tens of thousands of pubs; a partial read collapses
+    // well below this floor.
     expect(index.size).toBeGreaterThan(30_000);
     for (const id of index) {
       expect(id.startsWith(UK_BASE_ID_PREFIX)).toBe(true);

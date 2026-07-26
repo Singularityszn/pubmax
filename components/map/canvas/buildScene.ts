@@ -42,9 +42,9 @@ import {
 // Between the two there is a deliberate mixed band (z12–z13): a dense pocket
 // stays one cluster disc while a pub with room around it resolves to its own
 // pin. That is the density rule this map now honours at every zoom — an
-// individual pin only appears where there is room for it — and it is what lets
-// the same layers carry a UK-wide (~45k point) source without the street-level
-// pile-up a hard "everything unclusters at z12" boundary produces.
+// individual pin only appears where there is room for it. This keeps the
+// curated city sources legible without the street-level pile-up a hard
+// "everything unclusters at z12" boundary produces.
 //
 // CLUSTER_MAX_ZOOM stays strictly below every camera zoom that targets a single
 // venue (selection flies to `max(zoom, 14)`), so a selected pub is always a
@@ -665,7 +665,8 @@ export function buildBandCorridor(ctx: SceneCtx) {
 }
 
 /**
- * The UK base layer: every OSM pub the curated datasets do not already carry.
+ * The current viewport's UK base pubs after render-time curated-owner
+ * suppression.
  *
  * One symbol layer on one un-clustered source, added BEFORE buildPubs so it
  * sits underneath the curated pins in both paint order and collision priority.
@@ -855,8 +856,8 @@ export function buildPubs(ctx: SceneCtx) {
       // Pins collide like every other symbol on this map: where two drink
       // silhouettes cannot both fit, one is dropped rather than smeared over
       // the other. `icon-allow-overlap: true` (the old value) is what let a
-      // dense street render as a solid mass of half-hidden glyphs — and is what
-      // would make a ~45k-point UK source unreadable at street zoom.
+      // dense street render as a solid mass of half-hidden glyphs and would
+      // make any large curated city source unreadable at street zoom.
       "icon-allow-overlap": false,
       "icon-ignore-placement": false,
       // Padding covers the widest halo ring a pin can wear (scraped / drops /

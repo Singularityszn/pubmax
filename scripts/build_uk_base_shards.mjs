@@ -3,11 +3,11 @@
 //
 // WHY SHARDS AND NOT THE SLIM INDEX. The slim index (venues_slim*.json) is the
 // CURATED experience: priced pins, search, filters, crawl routing. Folding
-// ~35k unpriced OSM pubs into it would ship ~20 MB to every phone to render a
-// layer nobody has priced yet. So the base layer is a SEPARATE, second-class
-// dataset with its own delivery: a tiny manifest plus one small file per grid
-// cell, fetched only for the cells the camera is actually over, and only once
-// the camera is zoomed in far enough for individual pins to exist at all
+// the country-wide unpriced OSM pack into it would impose that whole payload on
+// every phone and leak unverified pubs into curated product systems. So the
+// base layer is a separate dataset with its own delivery: a compact manifest
+// plus one file per grid cell, fetched only for cells the camera is over and
+// only once the camera is zoomed in far enough for individual pins to exist
 // (lib/ukBasePubs.ts owns the client half; UK_BASE_MIN_ZOOM owns the gate).
 //
 // DEDUPE. A matched pub stays in its shard with the owning curated venue id.

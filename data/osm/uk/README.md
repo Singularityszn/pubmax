@@ -1,12 +1,13 @@
 # UK-wide OSM pub seed packs
 
 Every `amenity=pub` node/way in the United Kingdom (Great Britain + Northern
-Ireland), pulled from Overpass in grid chunks. These are **data packs only** -
-nothing here is wired into the app. The queued runtime wave consumes them (see
-[Consuming these packs](#consuming-these-packs)).
+Ireland), pulled from Overpass in grid chunks. These source packs feed the
+separate, unpriced map layer described in
+[`public/data/uk_base/README.md`](../../../public/data/uk_base/README.md); they
+never feed the curated venue index.
 
 Prices are **not** taken from OSM. Everything in these packs is venue presence
-and metadata; pint prices come from Pint Drops and the curated London datasets.
+and metadata; pint prices come from community submissions and curated datasets.
 
 ## Layout
 

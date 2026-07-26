@@ -14,7 +14,10 @@
 
 You pick a crawl style, filter, and either accept a **Suggested Crawl** or **Build your own** by tapping pubs — or load a curated **Featured route** ("Victorian Soho"), or **Pubs near me**. Any crawl is captured in the URL and shareable. Tapping a pub opens **The Landlord** — a retrieval-grounded AI that tells the pub's real history and honestly says when it doesn't know.
 
-**Stack:** Next.js 16 (App Router) · React 19 · TypeScript · MapLibre GL + CARTO basemaps · Supabase (Postgres + Storage + RLS) · OpenRouter (Claude) for The Landlord · Vitest + Playwright · deployed on Vercel.
+**Stack:** Next.js 16 (App Router) · React 19 · TypeScript · MapLibre GL +
+OpenFreeMap basemaps (CARTO fallback) · Supabase (Postgres + Storage + RLS) ·
+OpenRouter (Claude) for The Landlord · Vitest + Playwright · deployed on
+Vercel.
 
 ---
 
@@ -159,7 +162,12 @@ This is the pure, framework-free core of PubMaxing: it turns a flat ~3,097-row p
 
 ### Overview
 
-The map is PubMaxing's centerpiece: a pitched, slowly-rotating 3-D view of London where every pub is a price-coloured dot, story pubs wear a brass ring, and the crawl route is drawn with animated brass "marching ants." Rendered with **MapLibre GL** on free, keyless **CARTO** vector basemaps. Three deliberate choices run through `components/PubMapCanvas.tsx`:
+The map is PubMaxing's centerpiece: a pitched, slowly-rotating 3-D view of
+London and supported UK cities. Curated venues use price-aware markers, while
+UK-wide OpenStreetMap pubs form a quieter unverified layer with no price fields.
+The crawl route is drawn with animated brass "marching ants." Rendering uses
+**MapLibre GL** with keyless **OpenFreeMap** vector basemaps and a CARTO
+fallback. Three deliberate choices run through `components/PubMapCanvas.tsx`:
 
 1. **Client-only.** `"use client"`; everything happens inside one mount effect (`:271`). WebGL has no server story.
 2. **Token-driven.** `readTokens()` (`:79`) reads the app's CSS custom properties; `buildScene` derives every paint value from them, so one theme toggle repaints UI and map in lockstep.
@@ -169,13 +177,14 @@ The map is PubMaxing's centerpiece: a pitched, slowly-rotating 3-D view of Londo
 
 | Layer / concept | Purpose |
 |---|---|
-| `MAP_STYLES` (`:27`) | CARTO `dark-matter` (night) and `positron` (day); their `building` source-layer with `render_height` feeds the 3-D extrusion. |
-| `LONDON_VIEW` (`:33`) | Opening camera: `zoom 10.5`, `pitch 45`, `bearing -15`. |
+| `MAP_STYLES` / `FALLBACK_STYLES` | OpenFreeMap primary styles and CARTO fallbacks; `components/map/canvas/tokens.ts` owns the URLs. |
+| `LONDON_VIEW` | Opening London camera; `components/map/canvas/tokens.ts` owns its exact values. |
 | `readTokens()` (`:79`) | CSS vars → a `Tokens` object; every layer colour flows from here. |
 | `buildScene()` (`:309`) | Builds/rebuilds every source + layer from tokens; runs on `style.load`. |
 | `addLayerOnce()` (`:319`) | Guarded `addLayer` — skips if the layer exists, so a duplicate pass can't throw. |
 | `buildings-3d` (`:345`) | `fill-extrusion` off the basemap's `building` layer. |
 | `pubs-point` (`:459`) | Price-stamp dots: fill by price bucket, brass stroke + larger radius for story pubs. |
+| `uk-base-point` | Unclustered, unpriced OSM pubs for the current viewport, rendered below every curated pub layer. |
 | `pubs-selected-glow`+`pubs-selected` (`:503`,`:517`) | Double brass ring lifting the chosen pub. |
 | `pubs-drops-halo` (`:445`) | River-toned ring around pubs with Pint Drops. |
 | `clusters`+`cluster-count` (`:530`,`:553`) | Brass-tinted wells that deepen with count. |
@@ -184,7 +193,20 @@ The map is PubMaxing's centerpiece: a pitched, slowly-rotating 3-D view of Londo
 
 ### How it works
 
-**Mount → buildScene.** The mount effect (`:271`) reads the theme, wires reduced-motion, constructs the `Map` with the matching CARTO style + a London `maxBounds`, registers `buildScene` on `style.load` (`:602`), and wires click/cursor handlers **by layer id** (bound to the `Map`, so they survive style swaps). `buildScene` reads tokens, extrudes buildings, adds every source/layer, and finishes with `setMapReady(true)`.
+**Mount → buildScene.** The mount effect (`:271`) reads the theme, wires
+reduced-motion, constructs the `Map` with the matching vector style and UK pack
+bounds, registers `buildScene` on `style.load` (`:602`), and wires click/cursor
+handlers **by layer id** (bound to the `Map`, so they survive style swaps).
+`buildScene` reads tokens, extrudes buildings, adds every source/layer, and
+finishes with `setMapReady(true)`.
+
+**Two pub sources, two contracts.** The curated `pubs` source owns clustering,
+prices, search, filters, and crawl routing. `lib/ukBasePubs.ts` loads the
+separate `uk-base` source only after the street-level zoom gate, then fetches
+only cells overlapping the padded viewport. Base pins remain unclustered and
+lose symbol collisions to curated pins. Tapping one opens an unverified sheet
+that accepts a community price without adding the pub to the curated index.
+`public/data/uk_base/README.md` owns the shard and identity contract.
 
 **Why `addLayerOnce` guards exist.** `buildScene` runs on *every* `style.load` — first paint and after every theme flip. A bare `map.addLayer` on a live style throws `"Layer with id X already exists"` inside MapLibre's event dispatch, aborting the scene and half-building the map. `addLayerOnce` (`:319`) checks `getLayer` first; sources get `if (!map.getSource(...))` guards.
 
@@ -207,7 +229,12 @@ The map is PubMaxing's centerpiece: a pitched, slowly-rotating 3-D view of Londo
 
 ### Robustness notes
 
-**Strengths:** synchronous WebGL fallback; idempotent `buildScene` + crash-proof RAF via style-state guards; clean teardown; refs decouple data from lifecycle; reduced-motion + `document.hidden` respected. **Residual risks:** dependence on CARTO's style shape for 3-D buildings (renamed source-layer → silently flat); keyless CARTO CDN has no fallback tiles; landmark distances are straight-line by design (labelled as such).
+**Strengths:** synchronous WebGL fallback; idempotent `buildScene` + crash-proof
+RAF via style-state guards; clean teardown; refs decouple data from lifecycle;
+reduced-motion + `document.hidden` respected. **Residual risks:** dependence on
+the basemap's OpenMapTiles-style building layer for 3-D buildings (a renamed
+source layer silently flattens them); both primary and fallback styles are
+remote; landmark distances are straight-line by design (labelled as such).
 
 ---
 
@@ -372,7 +399,7 @@ If you want a green/red check *on the PR itself* (what Actions gave you), these 
 | Area | Strength | Watch out for |
 |---|---|---|
 | **Data** | Pure/deterministic, heavily tested; ids pinned to dataset by tests; `decodeCrawl` never throws | Grouping merges pubs sharing name+address+rounded coords (not seen in data) |
-| **Map** | WebGL fallback; idempotent `buildScene`; crash-proof RAF; clean teardown | Depends on CARTO style shape for 3-D buildings; keyless CDN has no tile fallback |
+| **Map** | WebGL fallback; idempotent `buildScene`; crash-proof RAF; clean teardown | Depends on remote OpenMapTiles-compatible style shapes for 3-D buildings |
 | **Writes** | Single path; server validation + DB CHECKs; orphan-free photos; production-503 (never lies about durability) | Two backends not unified — fix behaviour in both |
 | **Abuse** | Durable atomic rate-limit RPC; salted-hashed IP; constant-time admin gate | Fails **open** on a Supabase outage; `x-forwarded-for` trust relies on Vercel edge |
 | **The Landlord** | Grounded-only; rejects phantom citations; temp 0 + timeout; honest refusal | — |

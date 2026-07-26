@@ -51,9 +51,8 @@ generation is removed so the published tree contains exactly one pack.
 Enforced by both the builder and `scripts/validate-data.mjs`, which also checks
 that every pub sits inside its own cell's bbox (a pub outside it would be
 invisible rather than loudly broken), that ids are unique, and that no base id
-collides with a `venues_slim` id. Current build: 605 cells, 38,215 pubs, 43.7 KB
-manifest, 3,126.4 KB of shard bodies, and a 134.4 KB fattest cell containing
-1,501 pubs.
+collides with a `venues_slim` id. The manifest and generated shard files own
+current counts and sizes; `npm run build:uk-base` prints the payload summary.
 
 ## Licence / attribution
 

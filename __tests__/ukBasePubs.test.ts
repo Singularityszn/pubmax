@@ -308,8 +308,8 @@ describe("createUkBaseLoader", () => {
   });
 
   it("keeps residency bounded so panning the country cannot grow the tab", () => {
-    // The cap is what stops 35k pubs accumulating across a long session; the
-    // fetch path is exercised above, this pins the contract itself.
+    // The cap stops the country-wide pack accumulating across a long session;
+    // the fetch path is exercised above, this pins the contract itself.
     expect(MAX_RESIDENT_SHARDS).toBeGreaterThan(0);
     expect(MAX_RESIDENT_SHARDS).toBeLessThanOrEqual(12);
   });

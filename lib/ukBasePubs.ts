@@ -5,8 +5,8 @@
 // no curation and no detail record - only "a pub is here, and nobody has said
 // what a pint costs yet". So they deliberately live OUTSIDE the venue index:
 // they never enter `venues`, which is what keeps them out of search, the price
-// filters, the crawl router and the venue list. They exist as map features and
-// as a price-submission target, and nothing else.
+// filters and the crawl router. They exist as map features, a separate
+// in-viewport unverified list, and price-submission targets.
 //
 // DELIVERY. scripts/build_uk_base_shards.mjs emits a manifest plus one file per
 // ~28 x ~17 km cell under /data/uk_base/. This module fetches:
@@ -64,8 +64,8 @@ export function isUkBaseId(id: string): boolean {
 
 /**
  * One shard row is a tuple, not an object: the bodies are machine-generated and
- * the map fetches them while the user pans, so repeating six keys 35k times is
- * paid for in the one place that matters.
+ * the map fetches them while the user pans, so repeating six keys across the
+ * country-wide pack is paid for in the one place that matters.
  * `[osmRef, name, address, lat, lng, curatedVenueId]`.
  */
 type ShardRow = [string, string, string, number, number, string];
@@ -204,7 +204,7 @@ const MANIFEST_OFFLINE_KEY = "uk_base_manifest:v1";
  *
  * Offline: the MANIFEST is mirrored to IndexedDB because without it no cell can
  * be addressed at all. Cell bodies are not mirrored - public/sw.js already
- * serves `/data/*.json` cache-first, and duplicating 3.1 MB of pins into
+ * serves `/data/*.json` cache-first, and duplicating the whole shard pack into
  * IndexedDB to re-paint a layer that carries no prices is not worth the quota.
  */
 export function createUkBaseLoader(): UkBaseLoader {
