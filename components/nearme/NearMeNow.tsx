@@ -342,6 +342,7 @@ export default function NearMeNow({
     // Kick off geolocation on mount. locate() sets "requesting" then resolves
     // asynchronously via the Geolocation API — an external-system sync, the
     // documented exception to the no-setState-in-effect guidance.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     locate();
     // Mount-only: loadSlim/locate/pickPatch are stable for a given cityId.
     // eslint-disable-next-line react-hooks/exhaustive-deps
