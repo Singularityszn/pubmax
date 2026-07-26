@@ -167,14 +167,14 @@ for (const viewport of VIEWPORTS) {
 
       const listShortcut = page
         .locator('.mobileSheetPortal[data-sheet-kind="layers"]:visible')
-        .getByRole("button", { name: "List view of pubs on the map" });
+        .getByRole("button", { name: "List view of venues on the map" });
       await expect(listShortcut).toBeVisible();
       await expectTouchTargets(listShortcut);
       await listShortcut.click();
       await expect(page.locator(".mobileSheetPortal:visible")).toHaveCount(0);
       await expect(page.locator(".mapVenueListPanel")).toBeVisible();
-      await expect(page.getByRole("heading", { name: "Pubs on the map" })).toBeVisible();
-      await page.getByRole("button", { name: "Close pub list" }).click();
+      await expect(page.getByRole("heading", { name: "Venues on the map" })).toBeVisible();
+      await page.getByRole("button", { name: "Close venue list" }).click();
       await expect(page.locator(".mapVenueListPanel")).toHaveCount(0);
 
       await page.getByRole("button", { name: "More map controls" }).click();

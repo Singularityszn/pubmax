@@ -594,11 +594,15 @@ export default function PubMap({
   /** Once the viewer collapses a deep-linked lane, don't keep forcing it open. */
   const [dismissedTonightSrc, setDismissedTonightSrc] = useState<string | null>(null);
   const [mapListOpen, setMapListOpen] = useState(false);
+  const baseVenues = useMemo(
+    () => mergeLazyDetailPins(slimPins, detailById),
+    [slimPins, detailById],
+  );
 
   // Community Pint Drops: fetch/submit/report state lives in the hook.
   // City-scoped so Manchester demo seeds colour Manchester pins without
   // leaking into the London feed/landing.
-  const pintDrops = usePintDrops(cityId);
+  const pintDrops = usePintDrops(cityId, baseVenues);
   const {
     dropsByVenueId,
     venueSignals: dropSignals,
@@ -896,7 +900,6 @@ export default function PubMap({
   // a non-London city never sees stale gazetteer rows in its search.
   const localities = cityId === "london" ? londonLocalities : [];
 
-  const baseVenues = useMemo(() => mergeLazyDetailPins(slimPins, detailById), [slimPins, detailById]);
   const venues = useMemo<Venue[]>(
     () =>
       mergePriceUpdates(
