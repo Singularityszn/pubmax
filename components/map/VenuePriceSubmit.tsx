@@ -56,6 +56,13 @@ type VenuePriceSubmitProps = {
    * in that case either. Null/undefined reads as "no drop we can date".
    */
   latestPintDropAt?: number | null;
+  /**
+   * Can this pub's pin carry community price state at all? Curated venues can
+   * (the default). UK base pins are deliberately price-blind - no colour, no
+   * provisional dot - so their sheet passes false and the receipt stays on
+   * "On this pub's page" rather than claiming a mark the map never draws.
+   */
+  canMarkMap?: boolean;
 };
 
 /**
@@ -75,6 +82,7 @@ export default function VenuePriceSubmit({
   communityPrices,
   baselinePriceGbp = null,
   latestPintDropAt = null,
+  canMarkMap = true,
 }: VenuePriceSubmitProps) {
   const [category, setCategory] = useState<DrinkCategory>(DEFAULT_SUBMIT_CATEGORY);
   const [price, setPrice] = useState("");
@@ -124,10 +132,11 @@ export default function VenuePriceSubmit({
   // What this tap actually did to the map, asked of the same predicates the map
   // itself obeys - `paintsMap` for the price, `marksMapProvisionally` for the
   // badge - so the receipt can never claim a reach the pin does not have.
-  const markedProvisionally = stamped ? marksMapProvisionally(stamped) : false;
+  const markedProvisionally =
+    canMarkMap && stamped ? marksMapProvisionally(stamped) : false;
   const stampStanding = !stamped
     ? ""
-    : paintsMap(stamped, latestPintDropAt)
+    : canMarkMap && paintsMap(stamped, latestPintDropAt)
       ? "On the map"
       : markedProvisionally
         ? "Marked on the map"

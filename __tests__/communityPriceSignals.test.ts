@@ -439,6 +439,37 @@ describe("communityTrustNote", () => {
     ).toMatch(/30 days/i);
   });
 
+  it("keeps naming the mark on surfaces whose pin can carry it", () => {
+    // canMarkMap defaults to true and can be passed explicitly - either way a
+    // curated pub's lone pint report gets the marked-on-the-map standing.
+    const note = communityTrustNote(
+      { ...beer, corroborations: 1, submittedAt: NOW - MINUTE },
+      NOW,
+      true,
+    );
+    expect(note).toMatch(/marked on the map/i);
+  });
+
+  it("never claims a mark on a surface whose pin cannot carry one", () => {
+    // UK base pins are price-blind: no badge layer reads them, so the sheet
+    // passes canMarkMap=false and a lone pint report must read page-only.
+    const waiting = communityTrustNote(
+      { ...beer, corroborations: 1, submittedAt: NOW - MINUTE },
+      NOW,
+      false,
+    );
+    expect(waiting).toMatch(/awaiting confirmation/i);
+    expect(waiting).not.toMatch(/map/i);
+    expect(waiting).not.toMatch(/mark/i);
+    const aged = communityTrustNote(
+      { ...beer, corroborations: 1, submittedAt: NOW - 31 * DAY },
+      NOW,
+      false,
+    );
+    expect(aged).toMatch(/30 days/i);
+    expect(aged).not.toMatch(/map/i);
+  });
+
   it("never promises the map to a drink the map does not price", () => {
     // Pins and list rows are pint surfaces; a wine or cocktail row must state
     // its standing without implying any amount of confirmation moves a pin.

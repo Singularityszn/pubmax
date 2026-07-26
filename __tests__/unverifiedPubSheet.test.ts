@@ -94,6 +94,29 @@ describe("UnverifiedPubSheet", () => {
     expect(html).not.toContain("Nobody has logged");
   });
 
+  it("never claims a map mark for a lone pint report - base pins are price-blind", () => {
+    const html = renderToStaticMarkup(
+      createElement(UnverifiedPubSheet, {
+        pub,
+        communityPrices: state([
+          {
+            venueId: pub.id,
+            drinkCategory: "beer",
+            priceGbp: 4.6,
+            submittedAt: Date.now(),
+            source: "community",
+            corroborations: 1,
+          },
+        ]),
+      }),
+    );
+
+    // The standing note stays page-only: no badge layer reads the uk-base
+    // source, so "Marked on the map" here would name a mark that never draws.
+    expect(html).toContain("Awaiting confirmation");
+    expect(html).not.toContain("Marked on the map");
+  });
+
   it("shows be-the-first framing only after a confirmed empty response", () => {
     const html = renderToStaticMarkup(
       createElement(UnverifiedPubSheet, {

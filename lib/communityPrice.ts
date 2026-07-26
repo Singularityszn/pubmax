@@ -393,6 +393,12 @@ export function communityReachNote(category: DrinkCategory): string {
  * caps-are-stamps rule (DESIGN.md) - this is prose, not a stamp. Per-category
  * for the same honesty reason as `communityReachNote`: a wine or cocktail row
  * must not imply a map move that no amount of confirmation can deliver.
+ *
+ * `canMarkMap` is the surface's answer to "can this pub's pin carry community
+ * price state at all?". Curated venues can (the default); UK base pins are
+ * deliberately price-blind, so their sheet passes false and every map-claiming
+ * line falls back to page-only wording - the note may never name a mark the
+ * pin does not draw.
  */
 export function communityTrustNote(
   price: Pick<
@@ -400,8 +406,9 @@ export function communityTrustNote(
     "corroborations" | "submittedAt" | "drinkCategory" | "mapCandidate"
   >,
   now: number = Date.now(),
+  canMarkMap: boolean = true,
 ): string {
-  const pint = price.drinkCategory === "beer";
+  const pint = price.drinkCategory === "beer" && canMarkMap;
   if (!isWithinMaxAge(price, now)) {
     return pint
       ? "Over 30 days old, so the map is back on the price on record."
