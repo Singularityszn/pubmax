@@ -20,6 +20,11 @@ const privacy = read("app/privacy/page.tsx");
 const terms = read("app/terms/page.tsx");
 const landing = read("components/landing/LandingPage.tsx");
 const sitemap = read("app/sitemap.ts");
+const lastTrainRoute = read("app/api/last-train/route.ts");
+const cityMcpClient = read("lib/citymcp/client.ts");
+const useVenueJourney = read("components/map/useVenueJourney.ts");
+const venueJourney = read("lib/venueJourney.ts");
+const venueExternalActions = read("lib/venueExternalActions.ts");
 
 describe("legal content pages", () => {
   it("reaches the reader from the site footer", () => {
@@ -76,11 +81,26 @@ describe("legal content pages", () => {
     expect(privacy).toMatch(/\/api\/tonight-conditions/);
     expect(privacy).toMatch(/\/api\/last-train/);
     expect(privacy).toMatch(/\/api\/tfl-disruption/);
-    expect(privacy).toMatch(/rounds them to three decimal places/);
-    expect(privacy).toMatch(/Transport for London/);
+    expect(privacy).toMatch(/\/api\/citymcp\/journey/);
+    expect(privacy).toMatch(/without\s+rounding them first/);
+    expect(privacy).toMatch(/rounds your\s+point to three decimal places/);
     expect(privacy).toMatch(/public StopPoint API/);
     expect(privacy).not.toMatch(/does not\s+write them to our database/);
     expect(privacy).not.toMatch(/not sent to us or stored anywhere/);
+  });
+
+  it("names every third party that receives a viewer point", () => {
+    expect(lastTrainRoute).toMatch(/api\.tfl\.gov\.uk/);
+    expect(cityMcpClient).toMatch(/https:\/\/citymcp\.com\/london\/mcp/);
+    expect(useVenueJourney).toMatch(/privacyRoundedJourneyPoint/);
+    expect(useVenueJourney).toMatch(/fetch\("\/api\/citymcp\/journey"/);
+    expect(venueJourney).toMatch(/https:\/\/www\.google\.com\/maps\/dir/);
+    expect(venueJourney).toMatch(/params\.set\("origin"/);
+    expect(venueExternalActions).toMatch(/https:\/\/www\.google\.com\/maps\/search/);
+
+    expect(privacy).toMatch(/<dt>Transport for London<\/dt>/);
+    expect(privacy).toMatch(/<dt>CityMCP<\/dt>/);
+    expect(privacy).toMatch(/<dt>Google Maps<\/dt>/);
   });
 
   it("describes durable rate-limit retention", () => {

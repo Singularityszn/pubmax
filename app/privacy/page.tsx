@@ -142,15 +142,37 @@ export default function PrivacyPage() {
         <p className="legalBody">
           &ldquo;Find my pint&rdquo; asks your browser for your location and
           ranks nearby pubs there, so those coordinates never leave your
-          device. Sharing location on the map or Tonight sends your coordinates
-          to our own <code>/api/whats-on</code> route to rank what is on near
-          you. Tonight also rounds them to three decimal places, about 110
-          metres, before sending them to <code>/api/tonight-conditions</code>,
-          <code>/api/last-train</code> and <code>/api/tfl-disruption</code> so
-          our server can answer the nearby conditions, last train and relevant
-          transport disruption. The last-train route passes that rounded point
-          to Transport for London&rsquo;s public StopPoint API to find your
-          nearest station. Say no and the app falls back to picking an area.
+          device. Other location features work like this:
+        </p>
+        <ul className="legalList">
+          <li>
+            <strong>What&rsquo;s on:</strong>{" "}sharing location on the map or
+            Tonight sends the coordinates supplied by your browser, without
+            rounding them first, to our <code>/api/whats-on</code> route so it
+            can rank listings near you.
+          </li>
+          <li>
+            <strong>Conditions and getting home:</strong>{" "}Tonight rounds your
+            point to three decimal places, roughly 70 to 110 metres in London,
+            before sending it to our <code>/api/tonight-conditions</code>,
+            <code>/api/last-train</code> and <code>/api/tfl-disruption</code>
+            routes. Today uses the same rounding for last-train and disruption
+            requests. These answer nearby conditions, your nearest station and
+            relevant transport disruption. The last-train route passes the
+            rounded point to Transport for London&rsquo;s public StopPoint API.
+          </li>
+          <li>
+            <strong>Getting to a pub:</strong>{" "}sharing location for travel
+            times in a map venue sheet rounds your point to three decimal places
+            before posting it to our <code>/api/citymcp/journey</code> route.
+            Our server forwards that approximate origin to CityMCP for journey
+            options. If you then tap Maps, your browser sends the same rounded
+            origin to Google Maps for directions.
+          </li>
+        </ul>
+        <p className="legalBody">
+          Say no and the app falls back to picking an area or lets you open a
+          venue without your location.
         </p>
 
         <h3 className="legalH3">Analytics, only with consent</h3>
@@ -306,6 +328,23 @@ export default function PrivacyPage() {
               rounded to three decimal places to TfL&rsquo;s public StopPoint API
               to find your nearest station. It also fetches live arrivals,
               timetables and line-status information.
+            </dd>
+          </div>
+          <div className="legalRow">
+            <dt>CityMCP</dt>
+            <dd>
+              When you share location for travel times to a pub, our server sends
+              your origin rounded to three decimal places, with the selected
+              venue, to CityMCP London for journey options.
+            </dd>
+          </div>
+          <div className="legalRow">
+            <dt>Google Maps</dt>
+            <dd>
+              If you tap Maps after sharing location in a venue sheet, the
+              directions link gives Google your origin rounded to three decimal
+              places and the selected venue. Other Google map links include the
+              venue or search only, not your shared location.
             </dd>
           </div>
           <div className="legalRow">
