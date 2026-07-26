@@ -195,6 +195,9 @@ describe("buildMapSearchSuggestions — the as-you-type popup model", () => {
           kind: "bar",
           cheapestPrice: 25,
           latestContributorPrice: 4.5,
+          anchorLabel: "Signature cocktail",
+          anchorObservedAt: "2025-07-26",
+          anchorSourceUrl: "https://www.example.com/cocktails",
         }),
         venue({
           id: "food",
@@ -202,6 +205,9 @@ describe("buildMapSearchSuggestions — the as-you-type popup model", () => {
           kind: "food",
           cheapestPrice: 15,
           latestContributorPrice: 5,
+          anchorLabel: "Large lamb doner",
+          anchorObservedAt: "2025-06-15",
+          anchorSourceUrl: "https://menu.example.org/doner",
         }),
       ],
       userLocation: null,
@@ -212,11 +218,45 @@ describe("buildMapSearchSuggestions — the as-you-type popup model", () => {
       kind: "bar",
       typeLabel: "Bar",
       priceLabel: "£25.00",
+      anchor: {
+        label: "Signature cocktail",
+        observedLabel: "Jul 2025",
+        sourceLabel: "example.com",
+        sourceUrl: "https://www.example.com/cocktails",
+      },
     });
     expect(byId.get("food")).toMatchObject({
       kind: "food",
       typeLabel: "Late food",
       priceLabel: "£15.00",
+      anchor: {
+        label: "Large lamb doner",
+        observedLabel: "Jun 2025",
+        sourceLabel: "menu.example.org",
+        sourceUrl: "https://menu.example.org/doner",
+      },
+    });
+  });
+
+  it("omits a non-pub price when its compact provenance is incomplete", () => {
+    const result = buildMapSearchSuggestions({
+      cityId: "london",
+      query: "anchor",
+      venues: [
+        venue({
+          id: "bar",
+          name: "Anchor Cocktail Bar",
+          kind: "bar",
+          cheapestPrice: 25,
+        }),
+      ],
+      userLocation: null,
+      mapCenter: CENTRE,
+    });
+
+    expect(result.pubs[0]).toMatchObject({
+      priceLabel: null,
+      anchor: null,
     });
   });
 

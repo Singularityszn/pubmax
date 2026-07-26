@@ -14,6 +14,7 @@ import {
 } from "@/lib/mapSearchSuggest";
 import type { Locality } from "@/lib/localities";
 import type { Venue } from "@/lib/venues";
+import CompactVenuePrice from "@/components/map/CompactVenuePrice";
 
 import "./mapSearchSuggest.css";
 
@@ -320,7 +321,12 @@ export default function MapSearchSuggest({
                       </span>
                       <span className="mapSearchSuggestMeta">
                         {pub.priceLabel ? (
-                          <span className="mapSearchSuggestPrice">{pub.priceLabel}</span>
+                          <CompactVenuePrice
+                            priceLabel={pub.priceLabel}
+                            anchor={pub.anchor}
+                            className="mapSearchSuggestPrice"
+                            provenanceClassName="mapSearchSuggestPriceProvenance"
+                          />
                         ) : null}
                         {pub.distanceLabel ? (
                           <span className="mapSearchSuggestDistance">{pub.distanceLabel}</span>

@@ -3,6 +3,7 @@
 import { useId } from "react";
 import { List, MapPin, X } from "lucide-react";
 
+import CompactVenuePrice from "@/components/map/CompactVenuePrice";
 import { formatLogNearbyDistance } from "@/lib/mapLogIntent";
 import type { MapVenueListModel, UkBasePubListModel } from "@/lib/mapVenueList";
 import type { UkBasePub } from "@/lib/ukBasePubs";
@@ -102,7 +103,12 @@ export default function MapVenueList({
                             {typeof row.distanceKm === "number" ? (
                               <span className="mapVenueListItemDist">{formatLogNearbyDistance(row.distanceKm)}</span>
                             ) : null}
-                            <span>{row.priceLabel}</span>
+                            <CompactVenuePrice
+                              priceLabel={row.priceLabel}
+                              anchor={row.anchor}
+                              className="mapVenueListCompactPrice"
+                              provenanceClassName="mapVenueListPriceProvenance"
+                            />
                           </span>
                         </button>
                       </li>

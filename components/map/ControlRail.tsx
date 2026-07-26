@@ -103,6 +103,8 @@ export const initialFilters: Filters = {
   zone: "",
 };
 
+export const SAVED_ONLY_ARIA_LABEL = "Show only venues you have saved";
+
 type ControlRailProps = {
   mode: CrawlMode;
   onModeChange: (mode: CrawlMode) => void;
@@ -115,7 +117,7 @@ type ControlRailProps = {
   onNearbyCrawl: () => void;
   nearbyLoading: boolean;
   nearbyError: string | null;
-  // "Saved only": narrows the map + list to pubs this device has saved. Owned by
+  // "Saved only": narrows the map + list to venues this device has saved. Owned by
   // PubMap; rendered here alongside the other story filters.
   savedOnly: boolean;
   onSavedOnlyChange: (savedOnly: boolean) => void;
@@ -362,7 +364,7 @@ export default function ControlRail({
           ) : null}
         </div>
         <label
-          aria-label="Show only pubs you have saved"
+          aria-label={SAVED_ONLY_ARIA_LABEL}
           style={{ minHeight: 44 }}
         >
           <input

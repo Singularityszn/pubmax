@@ -996,7 +996,7 @@ html[data-legacy="1"] .venueTabPanel::before {
     var(--panel-raised);
 }
 
-#venuePanel-getting-home > section[aria-label="Last Pint"] {
+#venuePanel-getting-home > section {
   --line: color-mix(in srgb, var(--river) 36%, var(--line-soft));
   --panel-raised: color-mix(in srgb, var(--river) 7%, var(--paper));
 

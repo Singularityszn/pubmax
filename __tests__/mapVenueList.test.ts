@@ -128,6 +128,44 @@ describe("buildMapVenueListModel — selection wiring + labels", () => {
       typeLabel: "Late food",
     });
   });
+
+  it("carries complete non-pub anchor provenance with the compact price", () => {
+    const model = buildMapVenueListModel(
+      [
+        venue({
+          id: "bar",
+          kind: "bar",
+          cheapestPrice: 18,
+          anchorLabel: "House cocktail",
+          anchorObservedAt: "2025-07-26",
+          anchorSourceUrl: "https://www.bar.example/menu",
+        }),
+      ],
+      null,
+    );
+
+    expect(model.rows[0]).toMatchObject({
+      priceLabel: "£18.00",
+      anchor: {
+        label: "House cocktail",
+        observedLabel: "Jul 2025",
+        sourceLabel: "bar.example",
+        sourceUrl: "https://www.bar.example/menu",
+      },
+    });
+  });
+
+  it("does not expose a bare non-pub price without complete provenance", () => {
+    const model = buildMapVenueListModel(
+      [venue({ id: "bar", kind: "bar", cheapestPrice: 18 })],
+      null,
+    );
+
+    expect(model.rows[0]).toMatchObject({
+      priceLabel: "Price TBD",
+      anchor: null,
+    });
+  });
 });
 
 describe("buildUkBasePubListModel", () => {

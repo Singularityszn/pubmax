@@ -20,6 +20,10 @@ import type { Locality } from "@/lib/localities";
 import { getNightAreasForCity } from "@/lib/nightAreas";
 import type { Venue, VenueKind } from "@/lib/venues";
 import {
+  compactVenueAnchor,
+  type CompactVenueAnchor,
+} from "@/lib/venueAnchorPresentation";
+import {
   isPubVenue,
   venueKindLabel,
 } from "@/lib/venueKindFilters";
@@ -76,6 +80,7 @@ export type PubSuggestion = {
   boroughLabel: string;
   /** "£5.20" verified cheapest, or null when nothing is priced yet. */
   priceLabel: string | null;
+  anchor: CompactVenueAnchor | null;
   distanceKm: number;
   distanceLabel: string;
 };
@@ -370,6 +375,8 @@ export function buildMapSearchSuggestions(input: MapSearchSuggestInput): MapSear
       seen.add(venue.id);
       const distanceKm = distanceKmFrom(originPoint, [venue.longitude, venue.latitude]);
       const price = verifiedPrice(venue);
+      const anchor = compactVenueAnchor(venue);
+      const canShowPrice = isPubVenue(venue) || anchor !== null;
       pubMatches.push({
         tier,
         suggestion: {
@@ -378,7 +385,8 @@ export function buildMapSearchSuggestions(input: MapSearchSuggestInput): MapSear
           ...(venue.kind !== undefined ? { kind: venue.kind } : {}),
           typeLabel: venueKindLabel(venue.kind),
           boroughLabel: (venue.primaryBorough ?? "").trim(),
-          priceLabel: price !== null ? `£${price.toFixed(2)}` : null,
+          priceLabel: price !== null && canShowPrice ? `£${price.toFixed(2)}` : null,
+          anchor,
           distanceKm,
           distanceLabel: formatSuggestDistance(distanceKm, origin),
         },

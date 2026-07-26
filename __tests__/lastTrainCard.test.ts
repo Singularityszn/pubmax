@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 
 import {
   currentLastTrainState,
+  lastRideDecisionCopy,
+  lastRideLabelForVenue,
   lastTrainRequestKey,
   provenanceCopyForDepartures,
   provenanceCopyForResult,
@@ -69,6 +71,28 @@ describe("LastTrainCard provenance copy", () => {
         departures: [departure({ live: false })],
       }),
     ).toBe("Typical Metrolink last service (static)");
+  });
+});
+
+describe("LastTrainCard venue-kind copy", () => {
+  it("keeps London pub branding and verdicts for pubs", () => {
+    expect(lastRideLabelForVenue("Last Pint", "pub")).toBe("Last Pint");
+    expect(lastRideDecisionCopy("half_pint_only", "train", undefined, "pub")).toBe(
+      "Half pint only",
+    );
+  });
+
+  it("uses neutral transport copy for late-food venues", () => {
+    expect(lastRideLabelForVenue("Last Pint", "food")).toBe("Last train");
+    expect(lastRideDecisionCopy("order_one_more", "train", undefined, "food")).toBe(
+      "Time in hand",
+    );
+    expect(lastRideDecisionCopy("half_pint_only", "train", undefined, "food")).toBe(
+      "Brief stop only",
+    );
+    expect(lastRideDecisionCopy("settle_up_now", "train", undefined, "food")).toBe(
+      "Head off now",
+    );
   });
 });
 

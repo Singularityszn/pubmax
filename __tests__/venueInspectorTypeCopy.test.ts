@@ -5,6 +5,7 @@ import { describe, expect, it } from "vitest";
 import LandlordPanel from "@/components/LandlordPanel";
 import MenuCategoryGrid from "@/components/drinks/MenuCategoryGrid";
 import VenueInspectorHeader from "@/components/map/inspector/VenueInspectorHeader";
+import VenueGettingHomeTab from "@/components/map/inspector/VenueGettingHomeTab";
 import VenueStoryTab from "@/components/map/inspector/VenueStoryTab";
 import type { Venue } from "@/lib/venues";
 
@@ -126,5 +127,20 @@ describe("shared inspector venue copy", () => {
     expect(html).toContain("late-food venue");
     expect(html).not.toContain("this pub");
     expect(html).not.toContain("Pint Drop");
+  });
+
+  it("keeps late-food last-ride transport useful without pint branding", () => {
+    const html = renderToStaticMarkup(
+      createElement(VenueGettingHomeTab, {
+        venue: venue("food"),
+        tab: "getting-home",
+        cityId: "london",
+        onDecision: () => {},
+      }),
+    );
+
+    expect(html).toContain('aria-label="Last train"');
+    expect(html).toContain("Checking trains");
+    expect(html).not.toContain("Last Pint");
   });
 });

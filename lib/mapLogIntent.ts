@@ -1,5 +1,12 @@
 import { haversineKm } from "@/lib/haversine";
-import { venueKindLabel } from "@/lib/venueKindFilters";
+import {
+  compactVenueAnchor,
+  type CompactVenueAnchor,
+} from "@/lib/venueAnchorPresentation";
+import {
+  isPubVenueKind,
+  venueKindLabel,
+} from "@/lib/venueKindFilters";
 import type { VenueKind } from "@/lib/venues";
 
 type ResolveMapLogIntentInput = {
@@ -24,6 +31,7 @@ export type LogNearbyCandidate = {
   kind?: VenueKind;
   typeLabel: string;
   priceLabel: string;
+  anchor: CompactVenueAnchor | null;
   /** Straight-line km from origin when geo-sorted; omitted without a fix. */
   distanceKm?: number;
 };
@@ -38,12 +46,20 @@ type LogNearbyVenue = {
   latitude?: number;
   longitude?: number;
   kind?: VenueKind;
+  anchorLabel?: string;
+  anchorObservedAt?: string;
+  anchorSourceUrl?: string;
 };
 
 type LogNearbyOrigin = { lat: number; lng: number };
 
-function priceLabelFor(venue: LogNearbyVenue): string {
-  return typeof venue.cheapestPrice === "number" && Number.isFinite(venue.cheapestPrice)
+function priceLabelFor(
+  venue: LogNearbyVenue,
+  anchor: CompactVenueAnchor | null,
+): string {
+  return typeof venue.cheapestPrice === "number" &&
+    Number.isFinite(venue.cheapestPrice) &&
+    (isPubVenueKind(venue.kind) || anchor !== null)
     ? `£${venue.cheapestPrice.toFixed(2)}`
     : "Price TBD";
 }
@@ -77,16 +93,20 @@ export function buildLogNearbyCandidates(
         .sort((a, b) => a.distanceKm - b.distanceKm)
     : venues.map((venue) => ({ venue, distanceKm: undefined as number | undefined }));
 
-  return ranked.slice(0, take).map(({ venue, distanceKm }) => ({
-    id: venue.id,
-    name: venue.name,
-    ...(venue.kind !== undefined ? { kind: venue.kind } : {}),
-    typeLabel: venueKindLabel(venue.kind),
-    priceLabel: priceLabelFor(venue),
-    ...(typeof distanceKm === "number" && Number.isFinite(distanceKm)
-      ? { distanceKm }
-      : {}),
-  }));
+  return ranked.slice(0, take).map(({ venue, distanceKm }) => {
+    const anchor = compactVenueAnchor(venue);
+    return {
+      id: venue.id,
+      name: venue.name,
+      ...(venue.kind !== undefined ? { kind: venue.kind } : {}),
+      typeLabel: venueKindLabel(venue.kind),
+      priceLabel: priceLabelFor(venue, anchor),
+      anchor,
+      ...(typeof distanceKm === "number" && Number.isFinite(distanceKm)
+        ? { distanceKm }
+        : {}),
+    };
+  });
 }
 
 type QueryLike = string | { get(name: string): string | null };

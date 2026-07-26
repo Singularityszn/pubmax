@@ -237,6 +237,7 @@
   display: inline-flex;
   align-items: center;
   gap: 8px;
+  flex: 1 1 auto;
   min-width: 0;
   font-size: 0.83rem;
   font-weight: 700;
@@ -254,13 +255,38 @@
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  flex: 0 0 auto;
+  flex: 0 1 auto;
+  min-width: 0;
   font-size: 0.76rem;
   color: var(--muted);
 }
 
 .mapVenueListItemDist {
   color: color-mix(in srgb, var(--ink-soft, var(--ink)) 70%, var(--muted));
+}
+
+.mapVenueListCompactPrice {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: flex-end;
+  max-width: 160px;
+  min-width: 0;
+  color: var(--ink);
+  font-weight: 700;
+}
+
+.mapVenueListCompactPrice > span,
+.mapVenueListPriceProvenance {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mapVenueListPriceProvenance {
+  color: var(--muted);
+  font-size: 0.68rem;
+  font-weight: 500;
 }
 
 .mapVenueListEmpty {

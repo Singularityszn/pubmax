@@ -35,6 +35,8 @@ import {
   type LastPintDecisionKind,
   type LastTrainResult,
 } from "@/lib/tfl";
+import type { VenueKind } from "@/lib/venues";
+import { isPubVenueKind } from "@/lib/venueKindFilters";
 
 type LastTrainCardProps = {
   lat: number;
@@ -42,6 +44,7 @@ type LastTrainCardProps = {
   venueName?: string;
   /** Drives provider path + Last Pint / Last Tram copy. Defaults to London. */
   cityId?: CityId;
+  venueKind?: VenueKind;
   // Optional: when provided, tapping one of the 3 station pubs calls this
   // instead of just rendering a plain list. Backward-compatible — VenueInspector
   // (owned by another wave) doesn't pass this today and doesn't need to.
@@ -100,11 +103,26 @@ function toState(
 
 // Pub-voice copy for each decision state (user story 21) — this is the whole
 // point: it should read like PUBMAXXING, not a transit dashboard.
-function decisionCopy(
+export function lastRideLabelForVenue(
+  rideLabel: string,
+  venueKind: VenueKind | undefined,
+): string {
+  return !isPubVenueKind(venueKind) && rideLabel === "Last Pint"
+    ? "Last train"
+    : rideLabel;
+}
+
+export function lastRideDecisionCopy(
   kind: LastPintDecisionKind,
   modeLabel: string,
   provider: string | undefined,
+  venueKind: VenueKind | undefined,
 ): string {
+  if (!isPubVenueKind(venueKind)) {
+    if (kind === "order_one_more") return "Time in hand";
+    if (kind === "half_pint_only") return "Brief stop only";
+    if (kind === "settle_up_now") return "Head off now";
+  }
   switch (kind) {
     case "order_one_more":
       return "Order one more";
@@ -252,6 +270,7 @@ function DecisionBlock({
   countdownPhrase,
   shareState,
   onShare,
+  venueKind,
 }: {
   decision: LastPintDecision;
   mode: string;
@@ -260,12 +279,13 @@ function DecisionBlock({
   countdownPhrase: string | null;
   shareState: "idle" | "shared" | "error";
   onShare: () => void;
+  venueKind?: VenueKind;
 }) {
   const showLeaveBy = Boolean(leaveBy) && decision.decision !== "live_data_unavailable";
   return (
     <div style={styles.decision}>
       <p style={{ ...styles.decisionLine, color: DECISION_COLOUR[decision.decision] }}>
-        {decisionCopy(decision.decision, mode, provider)}
+        {lastRideDecisionCopy(decision.decision, mode, provider, venueKind)}
       </p>
       {showLeaveBy ? (
         <p style={styles.leaveBy}>
@@ -293,11 +313,15 @@ export default function LastTrainCard({
   lng,
   venueName,
   cityId = DEFAULT_CITY_ID,
+  venueKind,
   onSelectVenue,
   onDecision,
 }: LastTrainCardProps) {
   const destinationInputId = useId();
-  const rideLabel = getCity(cityId).lastRideLabel;
+  const rideLabel = lastRideLabelForVenue(
+    getCity(cityId).lastRideLabel,
+    venueKind,
+  );
   const [destination, setDestination] = useState(readSessionDestination);
   const [destinationDraft, setDestinationDraft] = useState("");
   const [editingDestination, setEditingDestination] = useState(false);
@@ -501,6 +525,7 @@ export default function LastTrainCard({
           countdownPhrase={countdownPhrase}
           shareState={shareState}
           onShare={shareToCrew}
+          venueKind={venueKind}
         />
       ) : null}
 
