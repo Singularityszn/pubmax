@@ -334,7 +334,7 @@ export default function VenueOverviewTab({
           latestPintDropAt={latestPintDropAt}
         />
       ) : null}
-      {mode === "build" ? (
+      {mode === "build" && isPubVenue(venue) ? (
         <button
           className="addStopBtn"
           aria-pressed={inCrawl}

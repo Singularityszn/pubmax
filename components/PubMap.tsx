@@ -1496,12 +1496,15 @@ export default function PubMap({
   useMapKeyboardShortcuts({ planningOpen, closePlanning, closeComposer, setSelectedVenueId });
 
   const toggleBuiltStop = useCallback((id: string) => {
-    setBuiltIds((current) =>
-      current.includes(id) ? current.filter((existing) => existing !== id) : [...current, id],
-    );
+    setBuiltIds((current) => {
+      if (current.includes(id)) return current.filter((existing) => existing !== id);
+      const venue = venueById.get(id);
+      if (venue && !isPubVenue(venue)) return current;
+      return [...current, id];
+    });
     setRouteMapped(true);
     setActiveCrawl(null); // a manual stop change is no longer "the curated crawl"
-  }, [setBuiltIds, setRouteMapped]);
+  }, [setBuiltIds, setRouteMapped, venueById]);
 
   // Reverse the hand-built route: start from the opposite end. Event handler, so
   // setState is fine; URL-sync picks up the new builtIds order automatically.
@@ -2067,13 +2070,15 @@ export default function PubMap({
           </strong>
           <small>{userLocation ? "walk" : "for walk time"}</small>
         </span>
-        <button
-          type="button"
-          aria-pressed={builtIds.includes(selectedVenue.id)}
-          onClick={() => toggleBuiltStop(selectedVenue.id)}
-        >
-          {builtIds.includes(selectedVenue.id) ? "In plan" : "Plan stop"}
-        </button>
+        {isPubVenue(selectedVenue) ? (
+          <button
+            type="button"
+            aria-pressed={builtIds.includes(selectedVenue.id)}
+            onClick={() => toggleBuiltStop(selectedVenue.id)}
+          >
+            {builtIds.includes(selectedVenue.id) ? "In plan" : "Plan stop"}
+          </button>
+        ) : null}
       </div>
       {selectedDetailStatus === "loading" ? <VenueSheetSkeleton /> : null}
       {selectedDetailStatus === "unavailable" ? (
