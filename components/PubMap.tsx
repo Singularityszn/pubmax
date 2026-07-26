@@ -458,8 +458,8 @@ export default function PubMap({
       restoredMobileSession,
     }),
   );
-  // `loaded` means the slim map index has settled. The full price dataset is no
-  // longer fetched on /map mount; full details arrive lazily per selected venue.
+  // `loaded` means the slim map index has settled. Source datasets are not
+  // fetched on /map mount; full details arrive lazily per selected venue.
   const [loaded, setLoaded] = useState(false);
   // Pair settlement with its city. On a client-side city switch there is one
   // render before the loading effect clears old pins; this prevents that prior
@@ -473,11 +473,10 @@ export default function PubMap({
   // We drop the loading skeleton immediately in that case even if slim pins
   // are still in flight, so the fallback card isn't hidden behind chrome.
   const [mapCanvasErrored, setMapCanvasErrored] = useState(false);
-  // Issue #35 — two-stage load. `slimPins` are Venue-SHAPE pins built from the
-  // ~400 KB slim index (or instantly from its IndexedDB mirror), painted BEFORE
-  // the ~5.6 MB full dataset lands so the first interactive pin appears fast.
-  // They carry only what pubsToGeoJSON needs (id/name/coords/cheapestPrice);
-  // hasStory + prices degrade to inert defaults until hydration (see lib/slimPins).
+  // Issue #35 - staged load. `slimPins` are Venue-shape pins built from the
+  // compact index (or its IndexedDB mirror) before any detail request. They
+  // carry kind, anchor provenance, and fast filter signals; detail-only fields
+  // keep inert defaults until a selected venue hydrates (see lib/slimPins).
   const [slimPins, setSlimPins] = useState<Venue[]>([]);
   const [detailById, setDetailById] = useState<Map<string, Venue>>(() => new Map());
   const [detailStatusById, setDetailStatusById] = useState<Map<string, VenueDetailStatus>>(
@@ -718,7 +717,7 @@ export default function PubMap({
   // CORE shard (inner-London priced index, ~515 KB, or instantly from
   // IndexedDB). This is the ONLY eager first-paint venue payload; the hollow
   // Outer-London boroughs (#315) stream in lazily as the viewport intersects
-  // them or near-me geolocates into them (see the two effects below). Full pub
+  // them or near-me geolocates into them (see the two effects below). Full venue
   // detail is still fetched lazily via /api/venue/[id] when inspected.
   //
   // One code path: the shard loader (lib/slimShards.ts) hides fetching, dedup,

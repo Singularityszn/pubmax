@@ -502,11 +502,11 @@ function validatePintPrices() {
   return { ok, count };
 }
 
-// venues_slim.json — the map's first-paint artifact. It must stay byte-aligned
-// with the full pint dataset grouping/id seam; otherwise pins can render fast
-// but fail when opened for lazy detail. This validator rebuilds the expected
-// slim index from the full dataset using the same plain-JS mirror as
-// scripts/build_slim_index.mjs.
+// venues_slim.json - the map's first-paint artifact. Legacy pub ids must stay
+// aligned with the full pint dataset grouping seam, while curated venue ids and
+// anchors must stay aligned with their seed packs. Otherwise pins can render
+// fast but fail when opened for lazy detail. This validator rebuilds both lanes
+// using the same plain-JS rules as scripts/build_slim_index.mjs.
 function validateSlimVenues() {
   const name = "public/data/venues_slim.json";
   const errs = makeCollector();
@@ -1064,10 +1064,10 @@ function validateUkBaseShards() {
   return { ok, count: shards.length };
 }
 
-// venue_detail_index.json + venue_details.jsonl — server-side lazy detail
+// venue_detail_index.json + venue_details.jsonl - server-side lazy detail
 // artifacts generated beside venues_slim.json. The manifest points each venue
-// id to a byte range in the JSONL file, so /api/venue/[id] reads only one pub's
-// rows instead of parsing/grouping the full pint dataset on cold start.
+// id to a byte range in the JSONL file, so /api/venue/[id] reads one venue's
+// pub-price rows or curated facts without loading every source on cold start.
 function validateVenueDetails() {
   const name = "data/generated/venue_details.jsonl";
   const manifestName = "data/generated/venue_detail_index.json";

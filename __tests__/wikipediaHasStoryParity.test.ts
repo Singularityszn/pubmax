@@ -3,7 +3,6 @@ import { getVenueCuration } from "@/lib/curation";
 import type { VenuePrice } from "@/lib/venues";
 // The build-time slim `hasStory` predicate. Importing the .mjs must not run
 // main() (guarded by the process.argv[1] === import.meta.url check).
-// @ts-expect-error — .mjs script has no type declarations.
 import { buildCurationHints } from "@/scripts/build_slim_index.mjs";
 
 function makeRow(overrides: Partial<VenuePrice> = {}): VenuePrice {

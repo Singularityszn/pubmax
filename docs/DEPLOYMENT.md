@@ -160,13 +160,14 @@ detail pack:
 | `public/data/venues_slim.json` | Map pins + filter hints (shipped to clients). |
 | `public/data/uk_base/` | Deferred, viewport-streamed unverified UK pub layer. See its README for the delivery contract. |
 | `data/generated/venue_detail_index.json` | Byte-offset manifest for lazy detail reads. |
-| `data/generated/venue_details.jsonl` | Per-venue price rows (not committed — large). |
+| `data/generated/venue_details.jsonl` | Per-venue detail payloads: pub price rows or curated venue facts (not committed). |
 
 Do not commit the `data/generated/` detail binaries. Vercel/CI regenerates all
 build-time packs via `prebuild`; the UK base pack remains committed so first
 paint never needs server-side generation. If venue detail artifacts are absent
-locally, `lib/venueDetailIndex.ts` falls back to the raw dataset outside
-production so `/api/venue/[id]` still works in dev/test.
+locally, `lib/venueDetailIndex.ts` falls back to the raw pint dataset plus
+`data/famous_venues/` outside production so `/api/venue/[id]` still works in
+dev/test.
 
 ## Continuous integration and deployment checks
 

@@ -555,7 +555,9 @@ button {
    drawers that slide in over it (see .mapDrawer). No grid — the map is never
    boxed into a column. */
 .appShell {
-  --map-top-clearance: 92px;
+  /* Desktop stacks Tonight arc below nav, then search toolbar. The previous
+     92px offset covered the venue-kind chip rail that starts at 80px. */
+  --map-top-clearance: 159px;
   --map-overlay-top: 108px;
   --mobile-tab-clearance: calc(58px + env(safe-area-inset-bottom, 0px));
   --map-overlay-shadow: 0 12px 28px rgba(44, 30, 62, 0.14);
@@ -4638,7 +4640,7 @@ button:disabled {
    the page scroll with a grab-handle affordance. */
 @media (max-width: 768px) {
   .appShell {
-    --map-top-clearance: calc(82px + env(safe-area-inset-top, 0px));
+    --map-top-clearance: calc(159px + env(safe-area-inset-top, 0px));
     --map-overlay-top: calc(var(--map-top-clearance) + 86px);
   }
 

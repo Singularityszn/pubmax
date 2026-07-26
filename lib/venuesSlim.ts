@@ -2,12 +2,12 @@
 // built by scripts/build_slim_index.mjs). This is the minimum the map needs to
 // render pins + labels + price colour + filter hints: the map fetches THIS
 // (~400 KB) on load
-// instead of the ~6 MB raw price dataset, and fetches heavy per-venue detail
-// lazily via /api/venue/[id] only when a pub is opened.
+// instead of the heavier source datasets, and fetches per-venue detail lazily
+// via /api/venue/[id] only when a venue is opened.
 //
-// SlimVenue.id is byte-identical to the "venue-…" id groupVenuePrices produces
-// (the build script mirrors its FNV-1a grouping), so a slim pin deep-links and
-// fetches detail by the same id the rest of the app uses.
+// Legacy pub ids remain byte-identical to the "venue-…" ids groupVenuePrices
+// produces, while curated rows retain their governed seed ids. In both cases a
+// slim pin deep-links and fetches detail through the same canonical id.
 //
 // Mirrors lib/pois.ts#loadPois defensiveness: hand/refresh-generated JSON can
 // drift, so malformed rows are dropped rather than allowed to poison the map.

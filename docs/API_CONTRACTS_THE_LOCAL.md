@@ -546,7 +546,7 @@ type LateFoodApiSuccessResponse = {
 
 ### Invariants (#252, honoured)
 
-- Late-food places are modelled **separately** from the Venue Dataset — no `venueId`, pint prices, or pub amenities — so they can never become a pint-price pin or Pint Drop venue.
+- Records returned by `/api/late-food` remain modelled **separately** from the Venue Dataset: no `venueId`, pint prices, or pub amenities. Hand-curated `kind: food` map pins are a separate discovery lane governed by [`NIGHT_OUT_PLACE_INGEST.md`](NIGHT_OUT_PLACE_INGEST.md); their sourced item anchors are not pint prices, and they are excluded from Pint Drops.
 - Unknown opening hours are **labelled** (`verifyOnNight: true`, `missingEvidence`), never assumed open.
 
 ### Rate limit
