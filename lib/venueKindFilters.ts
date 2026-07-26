@@ -22,6 +22,13 @@ export function isPubVenue(venue: Venue): boolean {
   return isPubVenueKind(venue.kind);
 }
 
+export function hasSavedPubVenue(
+  venues: readonly Venue[],
+  savedIds: ReadonlySet<string>,
+): boolean {
+  return venues.some((venue) => isPubVenue(venue) && savedIds.has(venue.id));
+}
+
 export function venueKindLabel(kind: VenueKind | undefined): string {
   if (kind === "bar") return "Bar";
   if (kind === "food") return "Late food";

@@ -225,6 +225,7 @@ import { defaultPoiHiddenForViewport } from "@/lib/poiToggleGroups";
 import {
   defaultVenueKindVisibility,
   filterVenuesByKind,
+  hasSavedPubVenue,
   isPubVenue,
 } from "@/lib/venueKindFilters";
 import { venueSheetLabels } from "@/lib/venueSheetLabels";
@@ -548,9 +549,9 @@ export default function PubMap({
     }
     return getFavoritePint();
   });
-  // "Show saved only": a viewer convenience that narrows the map + list to pubs
+  // "Show saved only": a viewer convenience that narrows the map + list to venues
   // this device has saved. The toggle lives here (ControlRail renders it); the
-  // saved-id set is read lazily and re-read on each toggle so a just-saved pub
+  // saved-id set is read lazily and re-read on each toggle so a just-saved venue
   // appears without a reload. localStorage-only for the signed-out demo — that's
   // fine, this is a per-viewer view, not shared state.
   const [savedOnly, setSavedOnly] = useState(false);
@@ -910,6 +911,10 @@ export default function PubMap({
     [baseVenues, dropsByVenueId, priceUpdates, cityId],
   );
   const pubVenues = useMemo(() => venues.filter(isPubVenue), [venues]);
+  const hasSavedPub = useMemo(
+    () => hasSavedPubVenue(pubVenues, savedIds),
+    [pubVenues, savedIds],
+  );
   const hasTypeRelativePrices = pubVenues.length !== venues.length;
   const venueById = useMemo(() => new Map(venues.map((v) => [v.id, v])), [venues]);
   // Zone pint index (nearest-station fare zone medians) for the zone picker.
@@ -1280,7 +1285,7 @@ export default function PubMap({
   }, [personaLensId, filters.drinkCategory]);
 
   // Flip "Saved only". Re-read the saved set from localStorage on every toggle
-  // (event handler, not an effect) so a pub saved elsewhere this session is
+  // (event handler, not an effect) so a venue saved elsewhere this session is
   // reflected the moment the filter is turned on — no stale set, no reload.
   const changeSavedOnly = useCallback((next: boolean) => {
     if (next) setSavedIds(readSavedVenueIds());
@@ -2024,7 +2029,7 @@ export default function PubMap({
         onRoundStarted={setActiveRoundStartedCode}
       >
         {loaded && filteredPubVenueCount === 0 ? (
-          savedOnly && savedIds.size === 0 ? (
+          savedOnly && !hasSavedPub ? (
             <section className="venueInspector" style={{ textAlign: "center" }}>
               <p className="description" style={{ marginTop: 0 }}>
                 No saved pubs yet. Tap a pub and Save it, then flip &ldquo;Saved only&rdquo;

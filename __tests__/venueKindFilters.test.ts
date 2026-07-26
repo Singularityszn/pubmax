@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   defaultVenueKindVisibility,
   filterVenuesByKind,
+  hasSavedPubVenue,
   isPubVenue,
   isPubVenueKind,
   toggleVenueKind,
@@ -60,6 +61,18 @@ describe("venueKindFilters", () => {
       undefined,
       "pub",
     ]);
+  });
+
+  it("does not let saved bars or food satisfy a saved-pub workflow", () => {
+    const venues = [
+      venue("legacy"),
+      venue("pub", "pub"),
+      venue("bar", "bar"),
+      venue("food", "food"),
+    ];
+
+    expect(hasSavedPubVenue(venues, new Set(["bar", "food"]))).toBe(false);
+    expect(hasSavedPubVenue(venues, new Set(["bar", "pub"]))).toBe(true);
   });
 
   it("supplies accessible labels for each venue kind", () => {
