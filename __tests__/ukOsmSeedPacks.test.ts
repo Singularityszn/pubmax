@@ -115,6 +115,27 @@ describe("uk osm grid", () => {
     expect(result.stderr).toContain('Unknown argument "--delay-ms=0"');
   });
 
+  it("exits non-zero when a targeted --chunk fetch fails", () => {
+    // A failed single-chunk refresh must not report success to scripts/CI.
+    const stubFetch = "globalThis.fetch = async () => new Response('stub outage', { status: 400 });";
+    const result = spawnSync(
+      process.execPath,
+      [
+        "--import",
+        `data:text/javascript,${encodeURIComponent(stubFetch)}`,
+        FETCHER_PATH,
+        "--chunk=lat49.80_lon-8.70",
+        "--refresh",
+      ],
+      { encoding: "utf8" },
+    );
+
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain("FAILED");
+    expect(result.stderr).toContain("lat49.80_lon-8.70");
+    expect(result.stdout).not.toContain("done - rerun without --chunk");
+  });
+
   it("clips each chunk query to the UK area so border cells drop the Republic of Ireland", () => {
     const query = buildUkOverpassQuery([54, -8, 55, -7]);
     expect(query).toContain("area(id:3600062149)->.uk;");

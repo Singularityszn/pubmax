@@ -401,6 +401,12 @@ async function main() {
   // A single-chunk run refreshes one raw file only; rebuilding the UK dataset
   // from that alone would silently truncate it to one cell.
   if (options.chunk) {
+    if (failures.length > 0) {
+      for (const failure of failures) console.error(`  ${failure.id}: ${failure.error}`);
+      console.error(`chunk ${options.chunk} FAILED - rerun \`npm run fetch:uk-pubs -- --chunk=${options.chunk}\` to retry`);
+      process.exitCode = 1;
+      return;
+    }
     console.log(`chunk ${options.chunk} done - rerun without --chunk (or with --from-raw) to rebuild the dataset`);
     return;
   }
