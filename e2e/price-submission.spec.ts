@@ -4,6 +4,20 @@ import { expect, test, type Page } from "@playwright/test";
 // phone - tap a pub, pick a drink, type tonight's price, and watch the venue
 // card restamp with its own dated community badge.
 //
+// TRUST GATE (captain decision 2026-07-26, review findings F1/F4). One device's
+// report is NOT the map's price. A browser is one device - same IP, so the same
+// server-derived actor - so everything this spec can submit stays at one voice
+// however many times it taps. That makes this the natural place to prove the
+// uncorroborated half of the policy end to end: the sheet restamps, says it is
+// awaiting confirmation, and the map keeps the price on record.
+//
+// The other two halves are unreachable from a browser and are pinned at their
+// seams instead. A genuinely independent second submitter needs two distinct
+// actors (__tests__/priceSubmitRoute.test.ts), and a 31-day-old price cannot be
+// created at all through the API - submissions are stamped with the server's
+// own clock, on purpose - so the age gate is asserted against an injected `now`
+// in __tests__/communityPriceSignals.test.ts.
+//
 // Style mirrors e2e/golden-thread.spec.ts: the non-canvas selection path
 // (/map?sel=<venueId>) so no WebGL is required, watchPageErrors, and a stable
 // class selector. Unlike that read-only spec this one MUTATES - it POSTs a
@@ -131,12 +145,44 @@ test("a drinker logs tonight's price and the card restamps, dated and badged", a
   await expect(stamp).toContainText(`£${landedPrice}`);
   await expect(stamp).toContainText("today");
 
+  // …and the receipt is honest about REACH. One device is one voice, so this
+  // tap has landed on the pub's page and NOT on the map. The old copy said "On
+  // the map" unconditionally, which was the promise the trust gate withdrew.
+  await expect(stamp).toContainText("On this pub’s page");
+  await expect(stamp).not.toContainText("On the map");
+
   // The venue card carries the same price on its own dated, badged row -
   // alongside the price on record, which is still shown.
   const communityRow = venueSheet.locator(".communityPriceRow");
   await expect(communityRow).toBeVisible();
   await expect(communityRow).toContainText(`£${landedPrice}`);
   await expect(communityRow).toContainText("today");
+
+  // The uncorroborated half of the policy, as the reader meets it: the figure
+  // shows in full, dated, and says where it stands rather than letting the
+  // reader assume a pin moved with it.
+  await expect(communityRow.locator(".communityPriceStanding")).toContainText(
+    /awaiting confirmation/i,
+  );
+
+  // And the number the map gate actually reads. Every submission in this test
+  // came from one browser - one IP, so one server-derived actor - so however
+  // many times it tapped, the venue still has exactly one voice behind it and
+  // mergeCommunityPriceSignals refuses to restamp. The pin itself is a WebGL
+  // surface this spec deliberately never opens, so the restamp decision is
+  // asserted at its seam instead (__tests__/communityPriceSignals.test.ts);
+  // what belongs here is proving the browser really did reach that state.
+  const record = await page.request.get(`/api/price-submit?venueId=${SEED_VENUE_ID}`);
+  expect(record.status()).toBe(200);
+  const { prices } = (await record.json()) as {
+    prices: Array<{ drinkCategory: string; priceGbp: number; corroborations?: number }>;
+  };
+  const beer = prices.find((row) => row.drinkCategory === "beer");
+  expect(beer?.priceGbp, "the submitted price is on record").toBe(Number(landedPrice));
+  expect(
+    beer?.corroborations,
+    "one device cannot corroborate itself, however many times it logs",
+  ).toBe(1);
 
   // Provenance is not flattened: whatever the pub had before the submission -
   // a sourced/baseline price row, or the honest "no price yet" nudge - is still

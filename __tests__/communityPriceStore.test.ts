@@ -114,3 +114,105 @@ describe("communityPriceStore (memory backend)", () => {
     expect(await readCommunityPrices("")).toEqual([]);
   });
 });
+
+// Corroboration counting: the number that decides whether a figure moves a pin.
+// It is derived on the READ path from the per-(venue, category, actor) rows the
+// store already keeps - no new column, no second write - so these cases are the
+// contract the durable backend must match too (it counts the same rows through
+// the same freshestPerCategory). Enforcement lives in
+// components/map/communityPriceSignals.ts; this only pins the count.
+describe("communityPriceStore corroboration counting (memory backend)", () => {
+  beforeEach(() => {
+    delete process.env.SUPABASE_URL;
+    delete process.env.SUPABASE_SERVICE_ROLE_KEY;
+  });
+
+  afterEach(() => {
+    __resetCommunityPrices();
+    if (ORIGINAL_SUPABASE_URL === undefined) delete process.env.SUPABASE_URL;
+    else process.env.SUPABASE_URL = ORIGINAL_SUPABASE_URL;
+    if (ORIGINAL_SUPABASE_SERVICE_ROLE_KEY === undefined) {
+      delete process.env.SUPABASE_SERVICE_ROLE_KEY;
+    } else {
+      process.env.SUPABASE_SERVICE_ROLE_KEY = ORIGINAL_SUPABASE_SERVICE_ROLE_KEY;
+    }
+  });
+
+  async function beerAt(venueId: string, priceGbp: number, at: number, actor?: string) {
+    await submitCommunityPrice({ venueId, drinkCategory: "beer", priceGbp, actor }, at);
+  }
+
+  it("counts a lone report as one voice", async () => {
+    await beerAt("v1", 4.2, 1_000, "a");
+    expect((await readCommunityPrices("v1"))[0].corroborations).toBe(1);
+  });
+
+  it("counts two devices agreeing within tolerance as two", async () => {
+    await beerAt("v1", 4.2, 1_000, "a");
+    await beerAt("v1", 4.5, 2_000, "b");
+
+    const [row] = await readCommunityPrices("v1");
+    // The freshest figure is the one being corroborated, and £4.20 is inside
+    // its 50p window - so this is one price two people saw, not two prices.
+    expect(row.priceGbp).toBe(4.5);
+    expect(row.corroborations).toBe(2);
+  });
+
+  it("does not count a device that reported a different figure", async () => {
+    await beerAt("v1", 4.2, 1_000, "a");
+    await beerAt("v1", 6.5, 2_000, "b");
+
+    const [row] = await readCommunityPrices("v1");
+    // £4.20 does not corroborate £6.50; it contradicts it. A disagreement must
+    // never read as support, or two people arguing would restamp the pin.
+    expect(row.corroborations).toBe(1);
+  });
+
+  it("never lets one device corroborate itself by resubmitting", async () => {
+    await beerAt("v1", 4.2, 1_000, "a");
+    await beerAt("v1", 4.25, 2_000, "a");
+    await beerAt("v1", 4.3, 3_000, "a");
+
+    const rows = await readCommunityPrices("v1");
+    // The store already collapses a device's own corrections to one row; this
+    // asserts the trust count agrees, which is the whole spray defence.
+    expect(rows).toHaveLength(1);
+    expect(rows[0].corroborations).toBe(1);
+  });
+
+  it("counts all unattributed reports as at most one voice", async () => {
+    // Anonymous rows (IP hashing unavailable) stack in storage - NULLs never
+    // collide under the unique constraint - but they cannot be shown to come
+    // from different people, and the threshold is about INDEPENDENCE.
+    await beerAt("v1", 4.2, 1_000);
+    await beerAt("v1", 4.25, 2_000);
+    await beerAt("v1", 4.3, 3_000);
+    expect((await readCommunityPrices("v1"))[0].corroborations).toBe(1);
+
+    // One attributed device agreeing alongside them does make it two.
+    await beerAt("v1", 4.3, 4_000, "a");
+    expect((await readCommunityPrices("v1"))[0].corroborations).toBe(2);
+  });
+
+  it("counts each drink category on its own", async () => {
+    await beerAt("v1", 4.2, 1_000, "a");
+    await beerAt("v1", 4.3, 2_000, "b");
+    await submitCommunityPrice(
+      { venueId: "v1", drinkCategory: "wine", priceGbp: 8.5, actor: "a" },
+      3_000,
+    );
+
+    const rows = await readCommunityPrices("v1");
+    const byCategory = new Map(rows.map((row) => [row.drinkCategory, row.corroborations]));
+    // A wine report is not evidence about the pint, whatever it cost.
+    expect(byCategory.get("beer")).toBe(2);
+    expect(byCategory.get("wine")).toBe(1);
+  });
+
+  it("never leaks the actor token that the count is derived from", async () => {
+    await beerAt("v1", 4.2, 1_000, "secret-device-token");
+    const [row] = await readCommunityPrices("v1");
+    expect(JSON.stringify(row)).not.toContain("secret-device-token");
+    expect(row).not.toHaveProperty("actor");
+  });
+});

@@ -38,7 +38,13 @@ import { getVenueIndex } from "@/lib/venueIndex";
 type PriceBody = {
   ok?: boolean;
   error?: string;
-  price?: { priceGbp: number; drinkCategory: string; source: string; submittedAt: number };
+  price?: {
+    priceGbp: number;
+    drinkCategory: string;
+    source: string;
+    submittedAt: number;
+    corroborations?: number;
+  };
 };
 
 function post(body: unknown): Request {
@@ -196,5 +202,83 @@ describe("GET /api/price-submit", () => {
     expect((await GET(get(""))).status).toBe(200);
     expect(await (await GET(get(""))).json()).toEqual({ prices: [] });
     expect(await (await GET(get("?venueId=nobody-here"))).json()).toEqual({ prices: [] });
+  });
+});
+
+// The corroboration count the POST answers with is what promotes a submission
+// from the pub's sheet onto the map, so the route has to state it - and has to
+// derive it, never accept it. Identity here is the server-derived hashed IP, so
+// "a different device" is a different x-forwarded-for.
+describe("POST /api/price-submit corroboration", () => {
+  function postAs(ip: string, body: unknown): Request {
+    return new Request("http://localhost/api/price-submit", {
+      method: "POST",
+      headers: { "content-type": "application/json", "x-forwarded-for": ip },
+      body: JSON.stringify(body),
+    });
+  }
+
+  async function priceOf(res: Response) {
+    expect(res.status).toBe(201);
+    return ((await res.json()) as PriceBody).price;
+  }
+
+  it("answers a first report with one voice - the tap landed, the map did not move", async () => {
+    const price = await priceOf(
+      await POST(postAs("1.1.1.1", { venueId: "route-c1", drinkCategory: "beer", priceGbp: 4.2 })),
+    );
+    expect(price?.corroborations).toBe(1);
+  });
+
+  it("answers the second independent agreeing report with two", async () => {
+    await POST(postAs("1.1.1.1", { venueId: "route-c2", drinkCategory: "beer", priceGbp: 4.2 }));
+    const price = await priceOf(
+      await POST(postAs("2.2.2.2", { venueId: "route-c2", drinkCategory: "beer", priceGbp: 4.5 })),
+    );
+    // The response is the submitter's own figure, now backed by two devices.
+    expect(price?.priceGbp).toBe(4.5);
+    expect(price?.corroborations).toBe(2);
+  });
+
+  it("keeps one voice when the same device logs again from the same address", async () => {
+    await POST(postAs("3.3.3.3", { venueId: "route-c3", drinkCategory: "beer", priceGbp: 4.2 }));
+    const price = await priceOf(
+      await POST(postAs("3.3.3.3", { venueId: "route-c3", drinkCategory: "beer", priceGbp: 4.3 })),
+    );
+    expect(price?.corroborations).toBe(1);
+  });
+
+  it("keeps one voice when a second device contradicts rather than agrees", async () => {
+    await POST(postAs("4.4.4.4", { venueId: "route-c4", drinkCategory: "beer", priceGbp: 4.2 }));
+    const price = await priceOf(
+      await POST(postAs("5.5.5.5", { venueId: "route-c4", drinkCategory: "beer", priceGbp: 7.5 })),
+    );
+    expect(price?.corroborations).toBe(1);
+  });
+
+  it("refuses a client-supplied corroboration count outright", async () => {
+    const price = await priceOf(
+      await POST(
+        postAs("6.6.6.6", {
+          venueId: "route-c5",
+          drinkCategory: "beer",
+          priceGbp: 4.2,
+          corroborations: 99,
+        }),
+      ),
+    );
+    // A body that could set this could repaint the map from one device, which
+    // is exactly the hole the threshold closes.
+    expect(price?.corroborations).toBe(1);
+  });
+
+  it("states the count on the read path too, so a reload agrees with the tap", async () => {
+    await POST(postAs("7.7.7.7", { venueId: "route-c6", drinkCategory: "beer", priceGbp: 4.2 }));
+    await POST(postAs("8.8.8.8", { venueId: "route-c6", drinkCategory: "beer", priceGbp: 4.2 }));
+
+    const data = (await (await GET(get("?venueId=route-c6"))).json()) as {
+      prices: Array<{ corroborations?: number }>;
+    };
+    expect(data.prices[0]?.corroborations).toBe(2);
   });
 });

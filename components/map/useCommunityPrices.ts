@@ -21,15 +21,25 @@ import type { DrinkCategory } from "@/lib/drinks";
 // replaced by the server's authoritative record when the POST lands. A REJECTED
 // submission is rolled back to whatever was showing before, so a bounced price
 // never lingers on the map as if it were real.
+//
+// The restamp is the SHEET's, not necessarily the map's. Since the trust wave a
+// price only recolours pins once a second independent submitter agrees, and
+// only the server can count that, so an optimistic entry claims the cautious
+// `corroborations: 1` and the POST response supplies the real number. Claiming
+// more locally would flash a pin colour the server is about to take back.
 
 export type CommunityPriceSubmitResult = { ok: true } | { ok: false; error: string };
 
 export type CommunityPricesState = {
-  /** Freshest community price per drink category, by venue id. */
+  /** Freshest community price per drink category, by venue id. Ungated on
+   *  purpose - this is what the venue sheet renders, so every submission shows
+   *  there, dated, whether or not it has earned the map. */
   byVenueId: Map<string, CommunityPrice[]>;
-  /** The freshest BEER price at a venue - what the pin restamps to. Pins and
-   *  the list are pint-priced surfaces, so other categories never reach them;
-   *  they render on the sheet's own dated rows instead. */
+  /** The freshest BEER price at a venue - the pin's CANDIDATE, not its verdict.
+   *  Pins and the list are pint-priced surfaces, so other categories never
+   *  reach them; they render on the sheet's own dated rows instead. Whether a
+   *  candidate actually restamps is decided by the trust gate in
+   *  mergeCommunityPriceSignals, the single seam onto the map. */
   freshestByVenueId: Map<string, CommunityPrice>;
   /** Fetch the community prices on record for one venue (fail-soft, once per id). */
   loadVenue: (venueId: string) => void;
@@ -82,6 +92,13 @@ function readPrices(value: unknown): CommunityPrice[] {
       priceGbp: price.priceGbp,
       submittedAt: price.submittedAt,
       source: "community",
+      // The trust count is the server's to state. A missing or nonsensical
+      // value reads as the cautious 1, never as "corroborated" - a payload we
+      // can't trust must not be able to talk its way onto the map.
+      corroborations:
+        typeof price.corroborations === "number" && Number.isFinite(price.corroborations)
+          ? Math.max(1, Math.floor(price.corroborations))
+          : 1,
     });
   }
   return out;
@@ -155,6 +172,8 @@ export function useCommunityPrices(): CommunityPricesState {
         priceGbp,
         submittedAt: Date.now(),
         source: "community",
+        // Your own report is one voice until the server says otherwise.
+        corroborations: 1,
       };
       // Snapshot for rollback: exactly what was showing before this tap.
       let previous: CommunityPrice[] | undefined;
@@ -191,15 +210,19 @@ export function useCommunityPrices(): CommunityPricesState {
             error: data?.error ?? "Could not log that price right now.",
           };
         }
-        // Adopt the server's authoritative timestamp so the dated badge is the
-        // record's day, not the device's guess at it. A forced replace, not the
-        // keep-newer merge: a device clock ahead of the server would otherwise
-        // out-rank the record and keep the optimistic stamp forever.
-        const stored = data?.price;
-        if (stored && typeof stored.submittedAt === "number") {
+        // Adopt the server's authoritative record: its timestamp, so the dated
+        // badge is the record's day rather than the device's guess at it, and
+        // its corroboration count, which is the only thing that can promote
+        // this price from the sheet onto the map. Narrowed by the same reader
+        // the GET uses, so there is one trust boundary for both. A forced
+        // replace, not the keep-newer merge: a device clock ahead of the
+        // server would otherwise out-rank the record and keep the optimistic
+        // stamp forever.
+        const [stored] = readPrices({ prices: [data?.price] });
+        if (stored) {
           setByVenueId((current) => {
             const next = new Map(current);
-            next.set(venueId, replacePrice(next.get(venueId) ?? [], { ...stored, source: "community" }));
+            next.set(venueId, replacePrice(next.get(venueId) ?? [], stored));
             return next;
           });
         }

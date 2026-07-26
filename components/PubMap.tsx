@@ -583,8 +583,17 @@ export default function PubMap({
   // freshest submission into the SAME venueSignals map the pins, the venue list
   // and the sheet already read is the whole restamp: one merge here and every
   // surface shows the price the viewer just logged, with no map-canvas change.
+  //
+  // The merge also gates: only a corroborated, under-30-days figure reaches
+  // these signals (see communityPriceSignals.ts). The venue sheet reads
+  // `communityPrices.byVenueId` for itself, so an uncorroborated submission
+  // still shows there, dated - it just doesn't move a pin.
   const communityPrices = useCommunityPrices();
   const venueSignals = useMemo(
+    // The age gate reads the clock inside the merge (its `now` default) rather
+    // than taking a Date.now() from here: calling it during render is impure,
+    // and there is nothing to gain - the window is 30 days, so a submission
+    // cannot cross it inside a session and no re-render needs to chase it.
     () => mergeCommunityPriceSignals(dropSignals, communityPrices.freshestByVenueId),
     [dropSignals, communityPrices.freshestByVenueId],
   );

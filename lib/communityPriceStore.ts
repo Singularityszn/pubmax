@@ -20,8 +20,17 @@
 // and the sourced baseline still renders). WRITES are honest: a hard durable
 // failure comes back flagged so the route can answer 503 rather than pretend the
 // tap landed.
+//
+// TRUST IS COUNTED HERE, ENFORCED ELSEWHERE. Reads attach `corroborations` -
+// how many independent submitters back the figure - derived from the per-
+// (venue, category, actor) rows already stored, with no schema change and no
+// extra write. The store never DECIDES anything with it: the map-side gate
+// (threshold + 30-day age) lives in the one merge seam,
+// components/map/communityPriceSignals.ts, and the policy constants it reads
+// live in lib/communityPrice.ts.
 
 import {
+  agreesWithinTolerance,
   roundToPennies,
   type CommunityPrice,
   type CommunityPriceInput,
@@ -60,7 +69,9 @@ export type CommunityPriceStore = {
   submit(input: CommunityPriceWrite, now?: number): Promise<CommunityPriceWriteResult>;
   /**
    * The freshest community price per drink category at one venue, newest
-   * first. NEVER throws - an outage reads as "no community price yet".
+   * first, each carrying its independent-submitter count (`corroborations`) so
+   * the read path can apply the trust threshold. NEVER throws - an outage reads
+   * as "no community price yet".
    */
   latestForVenue(venueId: string, now?: number): Promise<CommunityPrice[]>;
 };
@@ -116,17 +127,62 @@ function toPrice(
 }
 
 /**
- * Reduce raw observations to ONE per drink category - the freshest wins -
- * ordered newest-first. Shared by both backends so the memory store and the
- * durable store can never disagree about what "the community price" is.
+ * The bucket a row counts as ONE submitter under. An attributed row is its own
+ * device. Unattributed rows (actor null - IP hashing was unavailable) all share
+ * a single bucket: we cannot prove two of them came from different people, and
+ * the whole point of the threshold is INDEPENDENCE, so the honest reading is
+ * "at most one unattributed voice". Note this is stricter than the durable
+ * table's unique constraint, which lets NULL-actor rows stack - deliberately:
+ * storage keeps every observation, the trust count refuses to assume they are
+ * different drinkers.
  */
-function freshestPerCategory(rows: CommunityPrice[]): CommunityPrice[] {
-  const byCategory = new Map<DrinkCategory, CommunityPrice>();
+function submitterBucket(actor: string | null): string {
+  // The "anon:" sentinel cannot be produced by the "a:" branch, so a crafted
+  // actor token can never impersonate the unattributed bucket or vice versa.
+  return actor === null ? "anon:*" : `a:${actor}`;
+}
+
+/**
+ * How many INDEPENDENT submitters back `reference`, counting whoever logged it.
+ * Only rows for the same drink category that agree within the shared tolerance
+ * count; a device that reported a different figure is not corroborating this
+ * one, it is contradicting it.
+ */
+function countCorroborations(rows: StoredPrice[], reference: StoredPrice): number {
+  const submitters = new Set<string>();
+  for (const row of rows) {
+    if (row.drinkCategory !== reference.drinkCategory) continue;
+    if (!agreesWithinTolerance(reference.priceGbp, row.priceGbp)) continue;
+    submitters.add(submitterBucket(row.actor));
+  }
+  return submitters.size;
+}
+
+/**
+ * Reduce raw observations to ONE per drink category - the freshest wins -
+ * ordered newest-first, each carrying how many independent submitters agree
+ * with it. Shared by both backends so the memory store and the durable store
+ * can never disagree about what "the community price" is, or about how much
+ * the map should trust it. Actor tokens are counted here and dropped here;
+ * they never leave the store (see `published`).
+ */
+function freshestPerCategory(rows: StoredPrice[]): CommunityPrice[] {
+  const byCategory = new Map<DrinkCategory, StoredPrice>();
   for (const row of rows) {
     const held = byCategory.get(row.drinkCategory);
-    if (!held || row.submittedAt > held.submittedAt) byCategory.set(row.drinkCategory, row);
+    // `>=`, not `>`: two devices CAN land in the same millisecond, and a strict
+    // comparison silently made "freshest wins" mean "first of the tie wins" -
+    // so the second drinker's price was dropped from the read and their tap
+    // never showed. On a tie the later row in the scan wins, which is the later
+    // write in the memory backend and a stable pick in the durable one (rows
+    // arrive submitted_at desc, so a tied group's order is Postgres's, not
+    // ours). Either answer is defensible for a true tie; being deterministic
+    // and preferring the later write is the one that matches the contract.
+    if (!held || row.submittedAt >= held.submittedAt) byCategory.set(row.drinkCategory, row);
   }
-  return [...byCategory.values()].sort((a, b) => b.submittedAt - a.submittedAt);
+  return [...byCategory.values()]
+    .map((row) => ({ ...published(row), corroborations: countCorroborations(rows, row) }))
+    .sort((a, b) => b.submittedAt - a.submittedAt);
 }
 
 /**
@@ -194,8 +250,7 @@ export const memoryCommunityPriceStore: CommunityPriceStore = {
   async latestForVenue(venueId) {
     const key = cleanVenueId(venueId);
     if (!key) return [];
-    const rows = venues.get(key) ?? [];
-    return freshestPerCategory(rows.map(published));
+    return freshestPerCategory(venues.get(key) ?? []);
   },
 };
 
@@ -210,9 +265,9 @@ const { guard, resetWarnings: resetSchemaMissWarnings } = createFailSoftGuard({
  * Guard the untyped supabase-js projection: a malformed row is SKIPPED, never
  * coerced into a price. A fabricated £0 would be worse than a missing figure.
  */
-function rowsToPrices(rows: unknown, venueId: string): CommunityPrice[] {
+function rowsToPrices(rows: unknown, venueId: string): StoredPrice[] {
   if (!Array.isArray(rows)) return [];
-  const out: CommunityPrice[] = [];
+  const out: StoredPrice[] = [];
   for (const r of rows) {
     if (typeof r !== "object" || r === null) continue;
     const row = r as Record<string, unknown>;
@@ -225,15 +280,21 @@ function rowsToPrices(rows: unknown, venueId: string): CommunityPrice[] {
     if (typeof at !== "string" || at === "") continue;
     const submittedAt = Date.parse(at);
     if (!Number.isFinite(submittedAt)) continue;
-    out.push(toPrice(venueId, category, pennies, submittedAt));
+    // A non-string actor (null, or absent on an older projection) is the
+    // unattributed bucket - never coerced into a distinct submitter.
+    const actor = typeof row.actor === "string" && row.actor !== "" ? row.actor : null;
+    out.push({ ...toPrice(venueId, category, pennies, submittedAt), actor });
   }
   return out;
 }
 
 async function selectVenuePrices(venueId: string): Promise<CommunityPrice[]> {
+  // `actor` is selected ONLY to count independent submitters in
+  // freshestPerCategory; it is dropped again by `published` and never crosses
+  // the store boundary. Raw tokens stay API-side (migration 0054's RLS note).
   const { data, error } = await admin()
     .from("community_prices")
-    .select("drink_category, price_pennies, submitted_at")
+    .select("drink_category, price_pennies, submitted_at, actor")
     .eq("venue_id", venueId)
     .order("submitted_at", { ascending: false })
     .limit(VENUE_SCAN_ROWS);

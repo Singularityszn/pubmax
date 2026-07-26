@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Check, Tag } from "lucide-react";
 
 import {
+  drivesMap,
   formatPriceDay,
   COMMUNITY_PRICE_MAX_GBP,
   DEFAULT_SUBMIT_CATEGORY,
@@ -32,6 +33,11 @@ import "./venuePriceSubmit.css";
 // with its own dated "today · community" badge, and the scraped/sourced
 // baseline keeps rendering underneath it untouched. Nothing here overwrites a
 // dataset price - the submission is an additional dated observation.
+//
+// And the receipt tells the truth about REACH, not just about landing. Since
+// the trust wave a lone report is on the pub's page but not on the map, so both
+// the receipt and the pre-submit note say so rather than promising a restamp
+// this tap has not earned yet (lib/communityPrice.ts owns the policy).
 
 type VenuePriceSubmitProps = {
   venueId: string;
@@ -199,22 +205,26 @@ export default function VenuePriceSubmit({
       ) : null}
 
       {logged === category && stamped ? (
-        // The restamp. Same figure, same day label, same source word the pin
-        // and the venue card now carry - one vocabulary, one moment.
+        // The receipt. Same figure and day label the venue card now carries -
+        // one vocabulary, one moment. What it must NOT do is overclaim: a lone
+        // report is on the pub's page, not on the map, and saying "on the map"
+        // for it would be the exact dishonesty the trust gate exists to fix.
         <p className="vpsubStamp" role="status">
           <Check size={14} aria-hidden="true" className="vpsubStampTick" />
           <strong className="vpsubStampPrice">{formatPrice(stamped.priceGbp)}</strong>
           {/* The provenance word ("community") is already on the dated row in
-              the price block above, so the receipt only has to say that the
+              the price block above, so the receipt only has to say where the
               tap landed, and when. */}
           <span className="vpsubStampMeta">
-            On the map · {formatPriceDay(stamped.submittedAt)}
+            {drivesMap(stamped) ? "On the map" : "On this pub’s page"} ·{" "}
+            {formatPriceDay(stamped.submittedAt)}
           </span>
         </p>
       ) : (
         <p className="vpsubNote">
-          Anyone can log a price. Yours lands on the map straight away, dated and
-          badged as community - it never replaces the price on record. Up to £
+          Anyone can log a price. Yours shows on this pub&rsquo;s page straight
+          away, dated and badged as community - it never replaces the price on
+          record. It moves the map once a second drinker logs the same. Up to £
           {COMMUNITY_PRICE_MAX_GBP} a drink.
         </p>
       )}

@@ -55,6 +55,14 @@ export type CommunityPrice = {
   submittedAt: number;
   /** Always "community" - the provenance lane this price lives in. */
   source: "community";
+  /**
+   * How many INDEPENDENT submitters agree with this figure, counting the one
+   * who logged it - so a lone report is 1. Derived on the read path from the
+   * per-(venue, category, actor) rows the store already holds; never stored,
+   * never client-supplied. Absent means "unknown", read as 1 (the cautious
+   * reading: an unknown-provenance figure has not earned the map).
+   */
+  corroborations?: number;
 };
 
 /** The normalised, trusted shape a validated submission becomes. */
@@ -147,6 +155,118 @@ export function validateCommunityPrice(input: unknown): CommunityPriceValidation
 }
 
 const DAY_MS = 86_400_000;
+
+// ── Trust policy: what an anonymous figure has to earn before it moves the map ─
+//
+// Captain decision 2026-07-26 (community-price-trust-model / -max-age), closing
+// review findings F1 (product half) and F4. TWO gates, both pure read-side
+// policy over rows the store already keeps - nothing new is written, and the
+// pub's own sheet is never gated: a submission ALWAYS shows there, dated, from
+// the first tap. What the gates protect is the MAP - pin colour, list rows and
+// the cheapest buckets - where one anonymous device could otherwise repaint
+// every pub in London permanently (F1) with a figure that never ages out (F4).
+//
+// The whole policy lives here, browser-safe, so the store that counts it, the
+// merge that enforces it and the copy that explains it read the same constants.
+
+/**
+ * Independent submitters needed before a community price drives the map. Two
+ * is the smallest number that is not "one stranger's word": it takes a second
+ * device, in the same pub, agreeing about the same drink.
+ */
+export const COMMUNITY_PRICE_CORROBORATION_THRESHOLD = 2;
+
+/**
+ * How long a community price keeps the map after it was logged. Beyond this the
+ * map falls back to the scraped/sourced baseline (or a Pint Drop) while the
+ * sheet keeps the dated row - the observation was true, it is just no longer
+ * evidence about tonight. 30 days is a pub's realistic price-change horizon.
+ */
+export const COMMUNITY_PRICE_MAX_AGE_MS = 30 * DAY_MS;
+
+/**
+ * Agreement window between two reports of the same drink at the same pub:
+ * whichever is wider of 50p and 10% of the figure being corroborated.
+ *
+ * Both halves earn their place. The 50p FLOOR carries the pint case, where a
+ * strict percentage is too mean: two honest drinkers at a £4.20 pub routinely
+ * report £4.20 and £4.50 (board price vs till price, a different pump, a
+ * rounding). 10% of £4.20 is 42p, which would reject that pair and leave the
+ * feature never corroborating anything. The 10% FRACTION carries the top of the
+ * envelope, where 50p is too mean instead: an £18 cocktail and an £18.90 one
+ * are plainly the same drink, and the ceiling is £30. Taking the wider of the
+ * two is deliberate - the failure mode we care about is a real corroboration
+ * being refused, not two nearby-but-different drinks agreeing, because the
+ * category is already pinned and both reports still have to be independent.
+ */
+export const COMMUNITY_PRICE_AGREEMENT_FLOOR_GBP = 0.5;
+export const COMMUNITY_PRICE_AGREEMENT_FRACTION = 0.1;
+
+/** Whole pennies - the only precision a price has, and the only one worth comparing in. */
+function pennies(priceGbp: number): number {
+  return Math.round(priceGbp * 100);
+}
+
+/**
+ * Does `other` corroborate `reference`? Directional on purpose: the window is
+ * sized off the figure being corroborated (the freshest report), not off some
+ * symmetric midpoint, so the same reference always accepts the same band.
+ * Compared in integer pennies - `4.7 - 4.2` is 0.5000000000000004 in binary
+ * floating point, and a tolerance test that fails on that would be a bug.
+ */
+export function agreesWithinTolerance(referenceGbp: number, otherGbp: number): boolean {
+  if (!Number.isFinite(referenceGbp) || !Number.isFinite(otherGbp)) return false;
+  const window = Math.max(
+    pennies(COMMUNITY_PRICE_AGREEMENT_FLOOR_GBP),
+    Math.round(pennies(referenceGbp) * COMMUNITY_PRICE_AGREEMENT_FRACTION),
+  );
+  return Math.abs(pennies(referenceGbp) - pennies(otherGbp)) <= window;
+}
+
+/** Has this figure been corroborated by a second independent submitter? */
+export function isCorroborated(price: Pick<CommunityPrice, "corroborations">): boolean {
+  return (price.corroborations ?? 1) >= COMMUNITY_PRICE_CORROBORATION_THRESHOLD;
+}
+
+/** Is this observation still recent enough to be evidence about tonight? */
+export function isWithinMaxAge(
+  price: Pick<CommunityPrice, "submittedAt">,
+  now: number = Date.now(),
+): boolean {
+  if (!Number.isFinite(price.submittedAt)) return false;
+  return now - price.submittedAt <= COMMUNITY_PRICE_MAX_AGE_MS;
+}
+
+/**
+ * THE gate. A community price drives the map - pin colour, list rows, cheapest
+ * buckets - only when it is both corroborated and inside the age window. The
+ * pub's own sheet deliberately does NOT consult this: it shows every submission,
+ * dated, and explains its standing with `communityTrustNote` below.
+ */
+export function drivesMap(
+  price: Pick<CommunityPrice, "corroborations" | "submittedAt">,
+  now: number = Date.now(),
+): boolean {
+  return isCorroborated(price) && isWithinMaxAge(price, now);
+}
+
+/**
+ * The sheet's honest one-liner about a price that is showing but not driving
+ * the map, or "" when it is driving it and needs no explanation. Sentence case
+ * per the caps-are-stamps rule (DESIGN.md) - this is prose, not a stamp.
+ */
+export function communityTrustNote(
+  price: Pick<CommunityPrice, "corroborations" | "submittedAt">,
+  now: number = Date.now(),
+): string {
+  if (!isWithinMaxAge(price, now)) {
+    return "Over 30 days old, so the map is back on the price on record.";
+  }
+  if (!isCorroborated(price)) {
+    return "Awaiting confirmation - it moves the map once someone else logs the same.";
+  }
+  return "";
+}
 
 /**
  * The dated half of the restamp: "today" / "yesterday" / "3 Jul". Deliberately
