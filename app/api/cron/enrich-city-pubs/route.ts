@@ -11,6 +11,7 @@ import { assertCronRequest } from "@/lib/cronAuth";
 import {
   runScheduledCityEnrichment,
   TAVILY_CRON_QUERY_CAP,
+  type ScheduledEnrichmentProgress,
 } from "@/lib/tavilyPubEnrichment.server";
 
 export const runtime = "nodejs";
@@ -32,8 +33,32 @@ export async function GET(request: Request): Promise<Response> {
     });
   }
 
+  let lastProgress: ScheduledEnrichmentProgress | null = null;
+  let loggedPrices = 0;
+  let loggedPages = 0;
+
   try {
-    const result = await runScheduledCityEnrichment({ apiKey });
+    const result = await runScheduledCityEnrichment({
+      apiKey,
+      onProgress: (progress) => {
+        lastProgress = progress;
+        const newPrices = progress.prices.slice(loggedPrices);
+        const newPages = progress.pages.slice(loggedPages);
+        loggedPrices = progress.prices.length;
+        loggedPages = progress.pages.length;
+        console.log(
+          "[cron:enrich-city-pubs][city-enrichment][progress]",
+          JSON.stringify({
+            city: progress.city,
+            nextIndex: progress.nextIndex,
+            queriesSpent: progress.queriesSpent,
+            creditsSpent: progress.creditsSpent,
+            prices: newPrices,
+            pages: newPages,
+          }),
+        );
+      },
+    });
     console.log(
       "[cron:enrich-city-pubs][city-enrichment]",
       JSON.stringify({
@@ -70,6 +95,19 @@ export async function GET(request: Request): Promise<Response> {
       "[cron:enrich-city-pubs][city-enrichment][ALERT] Tavily enrichment failed:",
       error instanceof Error ? error.message : String(error),
     );
+    if (lastProgress) {
+      console.error(
+        "[cron:enrich-city-pubs][city-enrichment][partial]",
+        JSON.stringify({
+          city: lastProgress.city,
+          nextIndex: lastProgress.nextIndex,
+          queriesSpent: lastProgress.queriesSpent,
+          creditsSpent: lastProgress.creditsSpent,
+          matchedPubs: lastProgress.pages.length,
+          pricesExtracted: lastProgress.prices.length,
+        }),
+      );
+    }
     return publicApiError("City enrichment provider unavailable.", "PROVIDER_UNAVAILABLE", 502, {
       retryable: true,
     });

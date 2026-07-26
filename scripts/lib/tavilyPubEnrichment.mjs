@@ -205,6 +205,7 @@ export function extractPintPrices(markdown) {
     const sizeMatch = /\b(pint|568\s*ml)\b/i.exec(line);
     const priceMatch = /£\s*(\d{1,2}(?:\.\d{1,2})?)\b/i.exec(line);
     if (!sizeMatch || !priceMatch) continue;
+    if (/(?:\bhalf\b|½)/i.test(line.slice(0, Math.max(sizeMatch.index, priceMatch.index)))) continue;
     if (/\b(?:and|includes?|plus|served with|with)\s+(?:an?\s+)?pint\b/i.test(line)) continue;
     const priceGbp = Number(priceMatch[1]);
     if (!Number.isFinite(priceGbp) || priceGbp < 1.5 || priceGbp > 15) continue;
@@ -411,7 +412,7 @@ export async function runCityEnrichment({
         pubName: pub.name,
         address: pub.address,
         officialUrl: matchedPage.result.url,
-        matchBasis: hostnameOf(pub.website) ? "osm-website-domain" : "name-domain-and-title",
+        matchBasis: "osm-website-domain",
         priceCount: matchedPage.extracted.length,
         observedAt,
       });

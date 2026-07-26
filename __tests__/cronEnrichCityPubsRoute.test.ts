@@ -105,4 +105,42 @@ describe("GET /api/cron/enrich-city-pubs", () => {
       typeof message === "string" && message.includes("[city-enrichment][ALERT]"),
     )).toBe(true);
   });
+
+  it("preserves partial-run truth in logs when Tavily fails mid-batch", async () => {
+    vi.stubEnv("TAVILY_API_KEY", "test-tavily-key");
+    let calls = 0;
+    const fetchImpl = vi.fn(async (request: RequestInfo | URL, init?: RequestInit) => {
+      calls += 1;
+      if (calls > 2) return { ok: false, status: 503, json: async () => ({}) };
+      return tavilyOk(request, init);
+    });
+    vi.stubGlobal("fetch", fetchImpl);
+    const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+    const response = await GET(req("Bearer test-secret"));
+
+    expect(response.status).toBe(502);
+
+    const progressLines = logSpy.mock.calls.filter(([message]) =>
+      typeof message === "string" && message.includes("[city-enrichment][progress]"),
+    );
+    expect(progressLines.length).toBeGreaterThan(0);
+    const lastProgress = JSON.parse(String(progressLines.at(-1)?.[1]));
+    expect(lastProgress.queriesSpent).toBe(2);
+    expect(lastProgress.creditsSpent).toBe(2);
+
+    const partialCall = errorSpy.mock.calls.find(([message]) =>
+      typeof message === "string" && message.includes("[city-enrichment][partial]"),
+    );
+    expect(partialCall).toBeDefined();
+    const partial = JSON.parse(String(partialCall?.[1]));
+    expect(partial).toMatchObject({
+      city: "edinburgh",
+      queriesSpent: 2,
+      creditsSpent: 2,
+    });
+    expect(partial.matchedPubs).toBeGreaterThan(0);
+    expect(partial.pricesExtracted).toBeGreaterThan(0);
+  });
 });

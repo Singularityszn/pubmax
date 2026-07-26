@@ -32,11 +32,22 @@ export type ScheduledCityEnrichment = TavilyEnrichmentResult & {
   startIndex: number;
 };
 
+export type ScheduledEnrichmentProgress = {
+  city: string;
+  nextIndex: number;
+  queriesSpent: number;
+  creditsSpent: number;
+  prices: TavilyEnrichmentResult["prices"];
+  pages: TavilyEnrichmentResult["pages"];
+  delegatedChains: TavilyEnrichmentResult["delegatedChains"];
+};
+
 export async function runScheduledCityEnrichment(options: {
   apiKey: string;
   fetchImpl?: typeof fetch;
   now?: number;
   maxQueries?: number;
+  onProgress?: (progress: ScheduledEnrichmentProgress) => void | Promise<void>;
 }): Promise<ScheduledCityEnrichment> {
   const now = options.now ?? Date.now();
   const maxQueries = options.maxQueries ?? TAVILY_CRON_QUERY_CAP;
@@ -55,5 +66,13 @@ export async function runScheduledCityEnrichment(options: {
     maxQueries,
     startIndex,
     observedAt: new Date(now).toISOString(),
+    onProgress: options.onProgress
+      ? async (state) => {
+          await options.onProgress?.({
+            city,
+            ...(state as Omit<ScheduledEnrichmentProgress, "city">),
+          });
+        }
+      : undefined,
   });
 }

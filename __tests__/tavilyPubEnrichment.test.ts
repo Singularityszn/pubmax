@@ -1,12 +1,15 @@
 import { describe, expect, it, vi } from "vitest";
 
+import { venueCoordsGroupingKey } from "@/lib/venues";
 import {
   classifyChainPub,
   extractPintPrices,
   isOfficialResult,
   mergeCanonicalPrices,
+  OFFICIAL_SITE_SOURCE_LICENCE,
   runCityEnrichment,
   selectCityPubs,
+  venueKeyForOsmPub,
 } from "@/scripts/lib/tavilyPubEnrichment.mjs";
 import {
   parseArgs,
@@ -56,7 +59,7 @@ describe("Tavily pub enrichment governance", () => {
       category: "beer",
       source: {
         label: "Leeds One - official site",
-        licence: "All rights reserved - first-party publisher of its own pub menu; read-only, attributed price fact.",
+        licence: OFFICIAL_SITE_SOURCE_LICENCE,
       },
     };
     const legacySameVenue = {
@@ -72,6 +75,63 @@ describe("Tavily pub enrichment governance", () => {
         new Set(["leeds|one"]),
       ),
     ).toEqual([legacySameVenue, otherCityManaged]);
+  });
+
+  it("scopes city-reset replacement to the Tavily provenance lane only", () => {
+    const tavilyRowNotReobserved = {
+      venueKey: "leeds|bundobust",
+      drinkName: "Bundobust IPA",
+      category: "beer",
+      source: {
+        label: "Bundobust - official site",
+        licence: OFFICIAL_SITE_SOURCE_LICENCE,
+      },
+    };
+    const chainHarvesterRow = {
+      venueKey: "leeds|bundobust",
+      drinkName: "Chain Lager",
+      category: "beer",
+      source: {
+        label: "The Chain - Wetherspoons",
+        licence:
+          "All rights reserved — first-party publisher of its own pub menus/prices; read-only, attributed use only.",
+      },
+    };
+    const communityBaselineRow = {
+      venueKey: "leeds|bundobust",
+      drinkName: "Baseline Bitter",
+      category: "beer",
+      source: {
+        label: "Scraped baseline",
+        licence: "First-party demo fixture for UI coverage; not a live venue price.",
+      },
+    };
+
+    expect(
+      pruneManagedCityPrices(
+        [tavilyRowNotReobserved, chainHarvesterRow, communityBaselineRow],
+        new Set(["leeds|bundobust"]),
+      ),
+    ).toEqual([chainHarvesterRow, communityBaselineRow]);
+  });
+
+  it("keeps venueKeyForOsmPub in parity with the app's venueCoordsGroupingKey", () => {
+    const messyPub = {
+      ...independentPub,
+      name: "  Independent   Arms ",
+      address: " 10  Example Street,  Manchester, M1 1AA ",
+    };
+    expect(venueKeyForOsmPub(messyPub)).toBe(
+      venueCoordsGroupingKey(messyPub.name, messyPub.address, messyPub.lat, messyPub.lng),
+    );
+    expect(venueKeyForOsmPub(independentPub)).toBe(
+      venueCoordsGroupingKey(
+        independentPub.name,
+        independentPub.address,
+        independentPub.lat,
+        independentPub.lng,
+      ),
+    );
   });
 
   it("delegates known chain pubs without spending Tavily queries", async () => {
@@ -164,6 +224,15 @@ describe("Tavily pub enrichment governance", () => {
       { drinkName: "PYTHON Premium Lager", priceGbp: 6.5, servingSize: "pint" },
       { drinkName: "Rotating Cask Collaboration", priceGbp: 5, servingSize: "pint" },
       { drinkName: "ROSÉ CIDER Hibiscus & Ginger", priceGbp: 6.3, servingSize: "pint" },
+    ]);
+  });
+
+  it("never attributes half-pint prices to a pint serving", () => {
+    expect(extractPintPrices("Half pint £2.60")).toEqual([]);
+    expect(extractPintPrices("Bitter half £2.60 / pint £4.90")).toEqual([]);
+    expect(extractPintPrices("½ pint £2.40")).toEqual([]);
+    expect(extractPintPrices("Guinness Pint £5.00, half £2.60")).toEqual([
+      { drinkName: "Guinness", priceGbp: 5, servingSize: "pint" },
     ]);
   });
 
