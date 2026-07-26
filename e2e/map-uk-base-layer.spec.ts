@@ -66,26 +66,64 @@ test("costs nothing until the camera crosses the zoom gate, then paints and take
   expect(requests.length).toBeGreaterThan(1);
   expect(requests.length).toBeLessThanOrEqual(8);
 
-  // (2) A base pin opens the unverified sheet. Its position is data-dependent,
-  // so sweep the canvas rather than hard-coding a pixel that a data refresh
-  // would move.
+  // (2) A base pin opens the unverified sheet, and moving the selection STRAIGHT
+  // from one base pub to another hands the second one a clean form. A price
+  // typed for pub A that survives into pub B's form is a wrong price one tap
+  // from being submitted, so the transition is driven here through a single
+  // mounted sheet - pub A, type, tap pub B, with no close in between - rather
+  // than asserted on a React key that would pass either way.
+  //
+  // Pin positions are data-dependent, so sweep rather than hard-coding a pixel a
+  // data refresh would move. Empty canvas clicks fall through inertly
+  // (components/map/canvas/interactions.ts), which is what lets the sweep keep
+  // hunting while the sheet stays mounted. A curated pin DOES replace the sheet;
+  // that ends the mounted chain, so the sweep escapes it and starts over.
   const sheet = page.locator(".unverifiedPub");
-  let opened = false;
-  for (let y = 200; y < 620 && !opened; y += 20) {
-    for (let x = 24; x < 366 && !opened; x += 20) {
+  const priceField = sheet.getByRole("textbox");
+  const TYPED_PRICE = "9.90";
+  let firstName: string | null = null;
+  let switched = false;
+
+  async function sheetName(): Promise<string> {
+    return ((await sheet.locator(".unverifiedPubName").textContent()) ?? "").trim();
+  }
+
+  for (let y = 200; y < 620 && !switched; y += 20) {
+    for (let x = 24; x < 366 && !switched; x += 20) {
       await page.mouse.click(x, y);
       await page.waitForTimeout(90);
-      if ((await sheet.count()) > 0) {
-        opened = true;
-        break;
+
+      // Order matters: the unverified sheet rides in the same mobile sheet
+      // portal a curated venue uses, so it must be recognised FIRST.
+      if ((await sheet.count()) === 0) {
+        if (await page.locator('.mobileSheetPortal[data-sheet-kind="venue"]').count()) {
+          // A curated pin took the sheet. The A-to-B chain is broken; forget A.
+          await page.keyboard.press("Escape");
+          await page.waitForTimeout(120);
+          firstName = null;
+        }
+        continue;
       }
-      if (await page.locator('.mobileSheetPortal[data-sheet-kind="venue"]').count()) {
-        await page.keyboard.press("Escape");
-        await page.waitForTimeout(120);
+
+      const name = await sheetName();
+      if (!name) continue;
+      if (firstName === null) {
+        firstName = name;
+        await priceField.fill(TYPED_PRICE);
+        await expect(priceField).toHaveValue(TYPED_PRICE);
+        continue;
       }
+      if (name !== firstName) switched = true;
     }
   }
+  const opened = firstName !== null;
   expect(opened, "a UK base pin should be tappable somewhere on a zoomed-in map").toBe(true);
+  expect(switched, "a second, different UK base pin should be reachable from the first").toBe(true);
+
+  // Pub B inherited nothing from pub A: no price, no receipt, no error.
+  await expect(priceField).toHaveValue("");
+  await expect(sheet.locator(".vpsubStamp")).toHaveCount(0);
+  await expect(sheet.locator(".vpsubError")).toHaveCount(0);
   await expect(sheet).toContainText("No price yet");
   // ODbL attribution travels with the pins wherever they are displayed.
   await expect(sheet).toContainText("OpenStreetMap contributors");

@@ -403,7 +403,10 @@ export const supabaseCommunityPriceStore: CommunityPriceStore = {
   async latestForVenue(venueId, now = Date.now()) {
     const key = cleanVenueId(venueId);
     if (!key) return { prices: [], degraded: false };
-    return guard({
+    // Explicit, like the write guard above: without it the result type is
+    // inferred from `run` alone (degraded: false) and the degraded branches
+    // stop type-checking.
+    return guard<CommunityPriceReadResult>({
       context: "read",
       onSchemaMiss: async () => ({
         prices: (await memoryCommunityPriceStore.latestForVenue(key, now)).prices,

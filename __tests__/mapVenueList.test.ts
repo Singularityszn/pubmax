@@ -113,7 +113,6 @@ describe("buildUkBasePubListModel", () => {
   const basePubs: UkBasePub[] = [
     {
       id: "venue-uk-n-far",
-      osmRef: "n-far",
       name: "Far Arms",
       address: "",
       lat: 53.9,
@@ -121,7 +120,6 @@ describe("buildUkBasePubListModel", () => {
     },
     {
       id: "venue-uk-n-near",
-      osmRef: "n-near",
       name: "Near Arms",
       address: "",
       lat: 53.8008,

@@ -27,7 +27,6 @@ describe("MapVenueList", () => {
           priceLabel: "Unverified · no price",
           pub: {
             id: "venue-uk-n123",
-            osmRef: "n123",
             name: "Base Arms",
             address: "",
             lat: 53.8,
