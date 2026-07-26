@@ -175,6 +175,7 @@ async function fetchOverpass(query) {
           await sleep(backoff);
           continue;
         }
+        err.fatal = true;
         throw err;
       }
       const raw = await response.json();
@@ -189,6 +190,7 @@ async function fetchOverpass(query) {
       return raw;
     } catch (err) {
       lastError = err instanceof Error ? err : new Error(String(err));
+      if (lastError.fatal) throw lastError;
       if (attempt < MAX_ATTEMPTS - 1) {
         const backoff = backoffMs(attempt, null);
         console.warn(`  fetch error, retry in ${backoff}ms: ${lastError.message}`);
@@ -321,6 +323,7 @@ async function dirSizeBytes(dir) {
   let total = 0;
   const entries = await readdir(dir, { withFileTypes: true });
   for (const entry of entries) {
+    if (entry.name.startsWith(".") && entry.name.endsWith(".tmp")) continue;
     const full = path.join(dir, entry.name);
     if (entry.isDirectory()) total += await dirSizeBytes(full);
     else total += (await stat(full)).size;
