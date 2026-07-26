@@ -11,7 +11,42 @@ vi.mock("@/lib/supabase", async (importOriginal) => {
   return { ...actual, isSupabaseConfigured: () => false };
 });
 vi.mock("@/lib/serverEnv", () => ({ assertServerEnv: () => {} }));
+const venueLookupState = vi.hoisted(() => ({ unavailable: false }));
 vi.mock("@/lib/venueIndex", () => ({
+  lookupCanonicalVenue: async (id: string) => {
+    const canonicalId = id === "legacy-venue-1" ? "venue-1" : id;
+    if (venueLookupState.unavailable) {
+      return { status: "unavailable" as const, canonicalId };
+    }
+    if (canonicalId === "venue-1") {
+      return {
+        status: "found" as const,
+        canonicalId,
+        venue: {
+          id: canonicalId,
+          name: "The Ship",
+          borough: "London",
+          lat: 51.5,
+          lng: -0.1,
+        },
+      };
+    }
+    if (canonicalId === "bar-1") {
+      return {
+        status: "found" as const,
+        canonicalId,
+        venue: {
+          id: canonicalId,
+          name: "The Cocktail Bar",
+          borough: "London",
+          lat: 51.5,
+          lng: -0.1,
+          kind: "bar" as const,
+        },
+      };
+    }
+    return { status: "unknown" as const, canonicalId };
+  },
   getVenueIndex: async () =>
     new Map([
       [
@@ -116,6 +151,7 @@ beforeEach(() => {
   // Default: store methods delegate to the real memory store (see the mock above).
   createOverride.fn = null;
   joinOverride.fn = null;
+  venueLookupState.unavailable = false;
 });
 
 describe("POST /api/rounds — create", () => {
@@ -231,6 +267,38 @@ describe("POST /api/rounds/[code] — actions", () => {
       venueName: "The Cocktail Bar",
     });
     expect(res.status).toBe(400);
+  });
+
+  it("canonicalizes a legacy pub id and stores the canonical name", async () => {
+    const { round } = await newRound("ken");
+    const res = await action(round.code, {
+      action: "addStop",
+      handle: "ken",
+      venueId: "legacy-venue-1",
+      venueName: "Stale cached name",
+    });
+
+    expect(res.status).toBe(200);
+    const state = (await res.json()) as RoundState;
+    expect(state.stops[0]).toMatchObject({
+      venueId: "venue-1",
+      venueName: "The Ship",
+    });
+  });
+
+  it("answers 503 when the requested venue city pack is unavailable", async () => {
+    venueLookupState.unavailable = true;
+    const { round } = await newRound("ken");
+    const res = await action(round.code, {
+      action: "addStop",
+      handle: "ken",
+      venueId: "venue-1",
+    });
+
+    expect(res.status).toBe(503);
+    expect(await res.json()).toEqual({
+      error: "Venue list is unavailable right now, try again shortly.",
+    });
   });
 
   it("addStop by a non-member is forbidden (403)", async () => {

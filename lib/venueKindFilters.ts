@@ -23,7 +23,7 @@ export function isPubVenue(venue: Venue): boolean {
 }
 
 export function venueKindLabel(kind: VenueKind | undefined): string {
-  if (kind === "bar") return "Cocktail bar";
+  if (kind === "bar") return "Bar";
   if (kind === "food") return "Late food";
   if (kind === "club") return "Club";
   if (kind === "restaurant") return "Restaurant";

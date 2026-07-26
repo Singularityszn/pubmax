@@ -210,7 +210,7 @@ describe("buildMapSearchSuggestions — the as-you-type popup model", () => {
     const byId = new Map(result.pubs.map((row) => [row.id, row]));
     expect(byId.get("bar")).toMatchObject({
       kind: "bar",
-      typeLabel: "Cocktail bar",
+      typeLabel: "Bar",
       priceLabel: "£25.00",
     });
     expect(byId.get("food")).toMatchObject({

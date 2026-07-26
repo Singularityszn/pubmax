@@ -310,7 +310,7 @@ export default function VenueOverviewTab({
       ) : null}
       {/* The submission loop itself: pick a drink, type tonight's price, and
           the pin, the list row and the row above restamp on the same tap.
-          Pubs only — a Pint Drop at a cocktail bar or doner counter would
+          Pubs only — a Pint Drop at a bar or late-food venue would
           feed a non-pint figure into the pint record. */}
       {isPubVenue(venue) ? (
         <VenuePriceSubmit

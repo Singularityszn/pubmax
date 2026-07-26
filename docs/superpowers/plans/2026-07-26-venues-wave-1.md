@@ -2,15 +2,15 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Ship 40 curated London bars and 30 curated late-food institutions as fully sourced, price-aware map pins with type glyphs and Tonight arc filters.
+**Goal:** Ship 40 curated London bars and 25 high-confidence late-food institutions as fully sourced, price-aware map pins with type glyphs and Tonight arc filters.
 
-**Architecture:** Hand-authored seed packs follow one strict row contract. Build script validates and merges them into existing London slim index, assigning type-relative price buckets without changing map density or collision layers. Existing slim-to-pin and GeoJSON paths carry optional venue kind to shared map layers, while controlled Tonight arc state filters source features.
+**Architecture:** Hand-authored seed packs follow one strict row contract. Build script validates and merges them into existing London slim index, assigning type-relative price buckets without changing map density or collision layers. Existing slim-to-pin and GeoJSON paths carry optional venue kind to shared map layers, while controlled Tonight arc state filters ordinary source features and always preserves the selected or deep-linked pin.
 
 **Tech Stack:** Next.js 16, React 19, TypeScript, MapLibre GL, Node ESM build scripts, Vitest, Playwright.
 
 ## Global Constraints
 
-- London only: exactly 40 bars and 30 late-food venues.
+- London only: 40 bars and 25 late-food venues, accepting the smaller food set because quality beats count.
 - Each venue clears at least two fame gates: recognition, longevity, cultural weight, distinct experience.
 - Every row includes current geometry, `sourceUrl`, `observedAt`, anchor price, and sourced story.
 - Venue type uses glyph, never colour. Pin colour retains per-type price-band meaning.
@@ -30,9 +30,9 @@
 - Consumes: fame and provenance rules from expansion plan sections 1-3.
 - Produces: rows shaped as `{id,name,address,borough,lat,lng,kind,fameGates,sourceUrl,observedAt,anchor,story}`.
 
-- [ ] Write test asserting exact counts, unique IDs, London coordinates, allowed kinds, two distinct allowed fame gates, valid current HTTPS evidence, positive anchor price, ISO observation date, and non-empty sourced story.
+- [ ] Write test asserting accepted counts, unique IDs, London coordinates, allowed kinds, two distinct allowed fame gates, valid current HTTPS evidence, positive anchor price, ISO observation date, and non-empty sourced story.
 - [ ] Run `npm test -- __tests__/famousVenuesSeed.test.ts`; expect missing-file failure.
-- [ ] Research venue-owned or award pages, verify current trading status, and author 40 bar plus 30 food rows.
+- [ ] Research venue-owned or award pages, verify current trading status, and author 40 bar plus 25 high-confidence food rows.
 - [ ] Run seed test; expect pass with no duplicate IDs or contract failures.
 
 ### Task 2: Slim build and runtime type
@@ -92,7 +92,7 @@
 - [ ] Add failing pure tests for defaults, toggling, absent-kind pub semantics, and MapLibre filter expression.
 - [ ] Run focused tests and confirm expected failures.
 - [ ] Implement pure state/filter helpers and accessible `Pints · Bars · Clubs · Food` chip row.
-- [ ] Place row in existing map chrome/layers surfaces without adding a tab. Pass state into canvas and filter both base and selected pin layers.
+- [ ] Place row in existing map chrome/layers surfaces without adding a tab. Filter ordinary source features while forcing the selected or deep-linked pin visible even when its kind chip is off.
 - [ ] Run focused UI and collision tests; expect pass.
 
 ### Task 5: Verification and visual QA

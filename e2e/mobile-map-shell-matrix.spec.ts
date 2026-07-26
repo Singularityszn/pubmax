@@ -121,7 +121,7 @@ for (const viewport of VIEWPORTS) {
       await expect(utilityCorner).toBeVisible();
       await expect(utilityCorner.getByRole("button")).toHaveCount(1);
       await expect(utilityCorner.getByRole("button", { name: /TfL live/ })).toBeVisible();
-      await expect(utilityCorner.getByRole("button", { name: "List view of pubs on the map" })).toHaveCount(0);
+      await expect(utilityCorner.getByRole("button", { name: "List view of venues on the map" })).toHaveCount(0);
 
       for (const selector of [
         ".mapStage > .mapToolbar",

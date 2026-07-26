@@ -85,7 +85,7 @@ describe("hoverCardCopy", () => {
     );
 
     expect(copy).toEqual({
-      venueTypeLabel: "Cocktail bar",
+      venueTypeLabel: "Bar",
       price: 25,
       priceSuffix: "Welcome to The Savoy",
       provenance: "Anchor · Jul · thesavoylondon.com",

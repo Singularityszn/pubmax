@@ -16,16 +16,19 @@ vi.mock("@/lib/supabase", async (importOriginal) => {
   return { ...actual, isSupabaseConfigured: () => false, requiresSupabaseStore: () => false };
 });
 
-// Lets one case simulate the slim index failing to load (getVenueIndex's
-// documented degraded mode is an empty map); every other case passes through
-// to the real index on disk.
+// Lets one case simulate the requested city pack failing to load; every other
+// case passes through to the real city-scoped canonical lookup on disk.
 const venueIndexState = vi.hoisted(() => ({ unavailable: false }));
 vi.mock("@/lib/venueIndex", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/venueIndex")>();
   return {
     ...actual,
-    getVenueIndex: async () =>
-      venueIndexState.unavailable ? new Map() : actual.getVenueIndex(),
+    lookupCanonicalVenue: async (id: string) => {
+      const canonicalId = id === "legacy-price-pub" ? "venue-xjf3n0" : id;
+      return venueIndexState.unavailable
+        ? { status: "unavailable" as const, canonicalId }
+        : actual.lookupCanonicalVenue(canonicalId);
+    },
   };
 });
 
@@ -232,6 +235,16 @@ describe("POST /api/price-submit", () => {
 
     expect(res.status).toBe(400);
     expect(await readCommunityPrices(venueId)).toEqual([]);
+  });
+
+  it("canonicalizes a legacy venue id before persistence", async () => {
+    const res = await POST(
+      post({ venueId: "legacy-price-pub", drinkCategory: "beer", priceGbp: 4.2 }),
+    );
+
+    expect(res.status).toBe(201);
+    expect(await readCommunityPrices("legacy-price-pub")).toEqual([]);
+    expect(await readCommunityPrices("venue-xjf3n0")).toHaveLength(1);
   });
 
   it("answers 503 (retryable), not 400, when the venue index is unavailable", async () => {

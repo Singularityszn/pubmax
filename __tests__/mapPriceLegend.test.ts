@@ -20,7 +20,7 @@ describe("mapPriceLegend", () => {
       "> £5.50–≤ £7 · relative middle",
       "> £7 · relative high",
     ]);
-    expect(legend.ariaLabel).toContain("cocktail bars and late food");
+    expect(legend.ariaLabel).toContain("bars and late food");
     expect(legend.hint).toContain("within their type");
   });
 });

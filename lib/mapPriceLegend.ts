@@ -32,9 +32,9 @@ export function mapPriceLegend(hasTypeRelativePrices: boolean): {
   return {
     rows: MIXED_PRICE_LEGEND,
     ariaLabel:
-      "Price colour key: pub pints use pound thresholds; cocktail bars and late food use relative low, middle, and high bands",
+      "Price colour key: pub pints use pound thresholds; bars and late food use relative low, middle, and high bands",
     title: "Pub pint thresholds and type-relative venue price bands",
     hint:
-      "Pub pins use pint thresholds. Cocktail bars and late food use low, middle, and high bands within their type.",
+      "Pub pins use pint thresholds. Bars and late food use low, middle, and high bands within their type.",
   };
 }

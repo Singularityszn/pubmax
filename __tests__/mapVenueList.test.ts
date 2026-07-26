@@ -121,7 +121,7 @@ describe("buildMapVenueListModel — selection wiring + labels", () => {
     expect(byId.get("legacy")).toMatchObject({ typeLabel: "Pub" });
     expect(byId.get("bar")).toMatchObject({
       kind: "bar",
-      typeLabel: "Cocktail bar",
+      typeLabel: "Bar",
     });
     expect(byId.get("food")).toMatchObject({
       kind: "food",

@@ -65,7 +65,7 @@ describe("venueKindFilters", () => {
   it("supplies accessible labels for each venue kind", () => {
     expect(venueKindLabel(undefined)).toBe("Pub");
     expect(venueKindLabel("pub")).toBe("Pub");
-    expect(venueKindLabel("bar")).toBe("Cocktail bar");
+    expect(venueKindLabel("bar")).toBe("Bar");
     expect(venueKindLabel("food")).toBe("Late food");
   });
 });

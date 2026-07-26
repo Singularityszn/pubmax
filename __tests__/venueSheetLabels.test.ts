@@ -29,13 +29,13 @@ describe("venueSheetLabels", () => {
     [
       "bar",
       {
-        typeLabel: "Cocktail bar",
-        summaryLabel: "Selected cocktail bar summary",
-        detailLabel: "Cocktail bar detail",
-        closeLabel: "Close cocktail bar detail",
-        loadingLabel: "Loading full cocktail bar details…",
+        typeLabel: "Bar",
+        summaryLabel: "Selected bar summary",
+        detailLabel: "Bar detail",
+        closeLabel: "Close bar detail",
+        loadingLabel: "Loading full bar details…",
         unavailableLabel:
-          "Showing fast map details. Full cocktail bar notes are unavailable right now.",
+          "Showing fast map details. Full bar notes are unavailable right now.",
       },
     ],
     [
