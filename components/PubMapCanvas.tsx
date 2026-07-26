@@ -147,6 +147,13 @@ type PubMapCanvasProps = {
    * no badges.
    */
   whatsOnByVenue?: Map<string, VenueWhatsOnSummary> | null;
+  /**
+   * Venues carrying an in-window pint report that has not earned the map yet.
+   * Paints the provisional badge and nothing else — the price a pin claims
+   * still arrives only through `venueSignals`
+   * (components/map/communityPriceSignals.ts).
+   */
+  provisionalVenueIds?: ReadonlySet<string> | null;
   /** Optional: lets PubMap render the history card in its own panel instead. */
   onLandmarkSelect?: (landmark: Landmark | null) => void;
   /** Issue #15 story bands — active band id ("" = none), synced to the URL by PubMap. */
@@ -289,6 +296,7 @@ const PUB_PIN_LAYERS = [
   "pubs-point-selected",
   "pubs-selected-glow",
   "pubs-selected",
+  "pubs-provisional-badge",
   "clusters",
   "cluster-count",
 ] as const;
@@ -309,6 +317,7 @@ export default function PubMapCanvas({
   favoritePint = null,
   drinkCategory = null,
   whatsOnByVenue = null,
+  provisionalVenueIds = null,
   onLandmarkSelect,
   activeBandId = "",
   onBandChange,
@@ -2044,6 +2053,7 @@ export default function PubMapCanvas({
       favoritePint,
       drinkCategory,
       whatsOnByVenue,
+      provisionalVenueIds,
     );
     if (!mapReady) return;
     applyToMap("pubs:data", (map) => {
@@ -2051,7 +2061,16 @@ export default function PubMapCanvas({
         pubsDataRef.current,
       );
     });
-  }, [venues, venueSignals, favoritePint, drinkCategory, whatsOnByVenue, mapReady, applyToMap]);
+  }, [
+    venues,
+    venueSignals,
+    favoritePint,
+    drinkCategory,
+    whatsOnByVenue,
+    provisionalVenueIds,
+    mapReady,
+    applyToMap,
+  ]);
 
   // UK base pubs → their own source, streamed per settled viewport and only
   // once the camera is past UK_BASE_MIN_ZOOM. Deliberately separate from the
@@ -2525,7 +2544,12 @@ export default function PubMapCanvas({
     [venues, hoveredVenueId],
   );
   const hoverSignal = hoveredVenueId ? venueSignals.get(hoveredVenueId) : undefined;
-  const hoverCopy = hoverCardCopy(hoverMapVenue, hoverSignal, hoverDetail);
+  const hoverCopy = hoverCardCopy(
+    hoverMapVenue,
+    hoverSignal,
+    hoverDetail,
+    Boolean(hoveredVenueId && provisionalVenueIds?.has(hoveredVenueId)),
+  );
   const hoverImageUrl = hoverImageUrlFor(hoverDetail, failedHoverImage, hoveredVenueId);
   const hoverCardStyle = hoveredVenue
     ? {
@@ -2855,6 +2879,15 @@ export default function PubMapCanvas({
                 : `Tap for full ${hoverCopy.detailLabel}`}
             </span>
             <span className="venueHoverProvenance">{hoverCopy.provenance}</span>
+            {/* The badge on the pin, said in words. Its dot is the same colour
+                as the one the map is drawing, so the card explains a mark the
+                reader can see rather than introducing a new one. */}
+            {hoverCopy.pendingNote ? (
+              <span className="venueHoverPending">
+                <i className="venueHoverPendingDot" />
+                {hoverCopy.pendingNote}
+              </span>
+            ) : null}
           </div>
         </aside>
       ) : null}

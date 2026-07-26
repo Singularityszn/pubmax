@@ -305,6 +305,52 @@ export function mapCandidateOf(price: CommunityPrice): CommunityPrice {
 }
 
 /**
+ * The gate applied to the figure the MAP would paint for this category - the
+ * best-corroborated in-window candidate when the store attached one, else the
+ * row itself (the same cautious fallback `mapCandidateOf` takes). Takes only the
+ * three fields the gate reads, so a sheet row and a full record can both ask it.
+ */
+export function mapCandidateDrivesMap(
+  price: Pick<CommunityPrice, "corroborations" | "submittedAt" | "mapCandidate">,
+  now: number = Date.now(),
+): boolean {
+  return drivesMap(price.mapCandidate ?? price, now);
+}
+
+/**
+ * Does this report earn the pin a PROVISIONAL mark - the small badge that says
+ * "someone reported here" without saying what the price is?
+ *
+ * Captain decision 2026-07-26: visibility is ungated, authority is not. A first
+ * report shows on the map immediately, in a state that is visibly not a price,
+ * so the drinker who logged it sees their own mark; the pin's COLOUR, the list
+ * row and the cheapest buckets still move only on `drivesMap`. This predicate is
+ * deliberately NOT consulted by `mergeCommunityPriceSignals` - it rides beside
+ * that merge, never through it.
+ *
+ * Three conditions, in the order they can disqualify a report:
+ *   - beer only. Pins are pint-priced surfaces, so a wine or cocktail report
+ *     cannot be "one away" from moving a pin and must not imply it can;
+ *   - inside the age window. An aged-out report is a record of a night, not a
+ *     claim about tonight, and nothing about it is pending;
+ *   - the category's map candidate is NOT already driving the map. A pub whose
+ *     confirmed £4.20 is on the pin is not provisional just because someone has
+ *     since logged a lone disagreeing figure - the map is stamped, and the
+ *     sheet is where that disagreement is read.
+ */
+export function marksMapProvisionally(
+  price: Pick<
+    CommunityPrice,
+    "drinkCategory" | "corroborations" | "submittedAt" | "mapCandidate"
+  >,
+  now: number = Date.now(),
+): boolean {
+  if (price.drinkCategory !== "beer") return false;
+  if (!isWithinMaxAge(price, now)) return false;
+  return !mapCandidateDrivesMap(price, now);
+}
+
+/**
  * Is THIS figure the one painting the map right now? Stricter than `drivesMap`
  * on purpose - it is the receipt's question, and the receipt must never claim
  * map presence the figure does not have:
@@ -349,7 +395,10 @@ export function communityReachNote(category: DrinkCategory): string {
  * must not imply a map move that no amount of confirmation can deliver.
  */
 export function communityTrustNote(
-  price: Pick<CommunityPrice, "corroborations" | "submittedAt" | "drinkCategory">,
+  price: Pick<
+    CommunityPrice,
+    "corroborations" | "submittedAt" | "drinkCategory" | "mapCandidate"
+  >,
   now: number = Date.now(),
 ): string {
   const pint = price.drinkCategory === "beer";
@@ -359,12 +408,23 @@ export function communityTrustNote(
       : "Over 30 days old - a record of that night, not tonight's price.";
   }
   if (!isCorroborated(price)) {
-    return pint
-      ? "Awaiting confirmation - it moves the map once someone else logs the same."
-      : "Awaiting confirmation - a second report backs it up.";
+    if (!pint) return "Awaiting confirmation - a second report backs it up.";
+    // A pint report that has earned the provisional mark says where that mark
+    // is, because the reader can go and look at it. One that has NOT - because
+    // a corroborated figure is already painting the pin - must not claim it.
+    return marksMapProvisionally(price, now)
+      ? "Marked on the map as unconfirmed - it moves the map once a second drinker logs the same."
+      : "Awaiting confirmation - the map stays on the confirmed price until a second drinker logs this one.";
   }
   return "";
 }
+
+/**
+ * The provisional mark in one short line, for surfaces with no room for the
+ * sheet's full standing note (the map hover card). Same fact, same voice.
+ */
+export const COMMUNITY_PROVISIONAL_SHORT_NOTE =
+  "One report so far - needs a second to move the map.";
 
 /**
  * The dated half of the restamp: "today" / "yesterday" / "3 Jul". Deliberately

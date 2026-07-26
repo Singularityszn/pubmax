@@ -1,4 +1,9 @@
-import { drivesMap, mapCandidateOf, type CommunityPrice } from "@/lib/communityPrice";
+import {
+  drivesMap,
+  mapCandidateOf,
+  marksMapProvisionally,
+  type CommunityPrice,
+} from "@/lib/communityPrice";
 import type { VenueSignal } from "./canvas/types";
 
 // The one seam that turns a submitted price into a restamped map.
@@ -69,4 +74,36 @@ export function mergeCommunityPriceSignals<S extends PricedVenueSignal>(
     });
   }
   return merged ?? signals;
+}
+
+/** Shared empty result, so "nothing pending" is one stable identity. */
+const NO_PROVISIONAL_VENUES: ReadonlySet<string> = new Set();
+
+/**
+ * The venues wearing a PROVISIONAL mark: at least one in-window pint report
+ * that has not yet earned the map.
+ *
+ * A SECOND, deliberately separate seam from the merge above, and the reason the
+ * two are separate is the whole policy. The merge answers "what price does this
+ * pin claim?" and stays gated; this answers "has anyone been here tonight?" and
+ * is ungated, because a first submitter seeing zero map change is what killed
+ * the contribution loop (captain decision 2026-07-26). Nothing here touches
+ * `VenueSignal`, so no price, list row or cheapest bucket can move through it -
+ * it produces ids, and the pin layer turns those into a badge and nothing else.
+ *
+ * Reads the SAME freshest-pint-per-venue map the merge reads, so the two can
+ * never disagree about which report they are talking about.
+ */
+export function provisionalCommunityPriceVenueIds(
+  communityPrices: Map<string, CommunityPrice>,
+  now: number = Date.now(),
+): ReadonlySet<string> {
+  if (communityPrices.size === 0) return NO_PROVISIONAL_VENUES;
+  let pending: Set<string> | null = null;
+  for (const [venueId, price] of communityPrices) {
+    if (!marksMapProvisionally(price, now)) continue;
+    pending ??= new Set<string>();
+    pending.add(venueId);
+  }
+  return pending ?? NO_PROVISIONAL_VENUES;
 }

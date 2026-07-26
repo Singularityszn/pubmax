@@ -146,10 +146,14 @@ test("a drinker logs tonight's price and the card restamps, dated and badged", a
   await expect(stamp).toContainText("today");
 
   // …and the receipt is honest about REACH. One device is one voice, so this
-  // tap has landed on the pub's page and NOT on the map. The old copy said "On
-  // the map" unconditionally, which was the promise the trust gate withdrew.
-  await expect(stamp).toContainText("On this pub’s page");
-  await expect(stamp).not.toContainText("On the map");
+  // tap has MARKED the map - the provisional badge on the pin - without setting
+  // any price on it. Both halves matter: "Marked on the map" is the loop
+  // closing in-session (captain decision 2026-07-26), and the hint beside it is
+  // what stops that reading as "the pin now says £4.40".
+  await expect(stamp).toContainText("Marked on the map");
+  const stampHint = submit.locator(".vpsubStampHint");
+  await expect(stampHint).toBeVisible();
+  await expect(stampHint).toContainText(/second drinker/i);
 
   // The venue card carries the same price on its own dated, badged row -
   // alongside the price on record, which is still shown.
@@ -162,7 +166,7 @@ test("a drinker logs tonight's price and the card restamps, dated and badged", a
   // shows in full, dated, and says where it stands rather than letting the
   // reader assume a pin moved with it.
   await expect(communityRow.locator(".communityPriceStanding")).toContainText(
-    /awaiting confirmation/i,
+    /marked on the map as unconfirmed/i,
   );
 
   // And the number the map gate actually reads. Every submission in this test

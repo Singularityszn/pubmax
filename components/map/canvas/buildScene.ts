@@ -101,6 +101,26 @@ export const CLUSTER_STROKE_OPACITY = 0.95;
 // to roughly the disc footprint makes the whole marker reserve its space.
 export const CLUSTER_COLLISION_PADDING = 10;
 
+// The provisional-report badge: the small dot that rides at a pin's upper right
+// when someone has logged tonight's pint price there and it is still one report
+// short of moving the map (components/map/communityPriceSignals.ts).
+//
+// Why a dot and not a colour: pin FILL is the price-band system (≤£5.50 /
+// ≤£7 / >£7 / unpriced) and a ring is already spoken for three times over
+// (scraped brass, Pint Drops river, What's-On accent). A badge is the one form
+// left that adds a fact without editing any of those - it says "someone was
+// here", never "the price is this".
+//
+// Why it costs the collision index nothing: offset + radius keep the badge
+// inside the ≤15px halo envelope `pubs-point`'s `icon-padding: 6` already
+// clears, so the badge changes what a pin LOOKS like and not which pins get
+// placed. __tests__/mapSymbolCollision.test.ts pins that.
+export const PROVISIONAL_BADGE_OFFSET_PX: [number, number] = [6.5, -8.5];
+export const PROVISIONAL_BADGE_RADIUS_MIN_PX = 3.2;
+export const PROVISIONAL_BADGE_RADIUS_MAX_PX = 4.2;
+/** The widest ring any pin wears (what's-on, at z15) — the envelope to stay in. */
+export const PIN_HALO_ENVELOPE_PX = 15;
+
 // Zoom at/above which curated landmark pictograms stop yielding to other
 // symbols. Below it a landmark icon gives way where a pub cluster or pin
 // already occupies the spot; at/above it (the landmark-inspector camera flies
@@ -942,6 +962,43 @@ export function buildPubs(ctx: SceneCtx) {
       "circle-stroke-color": tokens.brassBright,
       "circle-stroke-width": 2.2,
       "circle-stroke-opacity": 0.98,
+    },
+  });
+  // The provisional-report badge, drawn LAST of the per-pin layers so it reads
+  // over the glass silhouette, over the enlarged selected pin and over the
+  // brass selection rings — a badge that a ring can hide is not a badge.
+  //
+  // River-toned, because that is this map's community lane (the Pint Drops halo
+  // is the same family): the badge means "a drinker has been here", and it is
+  // deliberately NOT any price-band colour, so it can never be misread as this
+  // pub's price. The paper/ink rim is what keeps it legible where it lands on
+  // the glyph itself.
+  addLayerOnce({
+    id: "pubs-provisional-badge",
+    type: "circle",
+    source: "pubs",
+    minzoom: PIN_MIN_ZOOM,
+    filter: ["all", ["!", ["has", "point_count"]], ["get", "provisional"]],
+    paint: {
+      "circle-color": tokens.riverBright,
+      "circle-radius": [
+        "interpolate",
+        ["linear"],
+        ["zoom"],
+        PIN_MIN_ZOOM,
+        PROVISIONAL_BADGE_RADIUS_MIN_PX,
+        15,
+        PROVISIONAL_BADGE_RADIUS_MAX_PX,
+      ],
+      "circle-translate": PROVISIONAL_BADGE_OFFSET_PX,
+      "circle-stroke-color": dark ? tokens.inkDeep : tokens.paper,
+      "circle-stroke-width": 1.4,
+      // The badge belongs to its pin, so it dims with it — the same expression
+      // pubs-point wears. Without this a provisional dot would stay bright on a
+      // pub the favourite-pint lens filtered out, or pop out of the M1
+      // selection spotlight while its own pin receded.
+      "circle-opacity": pubIconOpacityExpr(selectedId),
+      "circle-stroke-opacity": pubIconOpacityExpr(selectedId),
     },
   });
   addLayerOnce({

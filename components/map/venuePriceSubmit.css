@@ -306,6 +306,32 @@
   color: var(--ink);
 }
 
+/* The provisional half of the receipt: the dot the map is now drawing, at the
+   same colour, so "look at your pin" is a comparison and not a promise. */
+.vpsubStampHint {
+  display: flex;
+  align-items: baseline;
+  gap: 7px;
+  margin: 8px 0 0;
+  font-size: 0.78rem;
+  line-height: 1.45;
+  color: var(--ink-soft);
+}
+
+.vpsubStampDot {
+  flex: 0 0 auto;
+  /* Sits on the FIRST line like a bullet - centring it against a three-line
+     paragraph parks the dot beside the middle of the sentence, which reads as
+     decoration rather than as the mark being named. */
+  align-self: flex-start;
+  margin-top: 4px;
+  width: 9px;
+  height: 9px;
+  border: 1.4px solid var(--panel-raised);
+  border-radius: 50%;
+  background: var(--river-bright);
+}
+
 .vpsubStampMeta {
   font-size: 0.76rem;
   font-weight: 700;

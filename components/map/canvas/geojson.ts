@@ -25,6 +25,12 @@ export function pubsToGeoJSON(
   // tonight). Feeds pin BADGES through the existing pin pipeline — a hero-kind
   // glyph property the badge layer paints. Absent map = no badges (default).
   whatsOnByVenue: Map<string, VenueWhatsOnSummary> | null = null,
+  // Venues with an in-window pint report that has NOT earned the map yet
+  // (components/map/communityPriceSignals.ts). Deliberately its own argument
+  // rather than a VenueSignal field: it must be impossible for this to reach
+  // the price stack above, which is what `bucket` and every downstream price
+  // surface read. It paints one badge layer and nothing else.
+  provisionalVenueIds: ReadonlySet<string> | null = null,
 ): GeoJSON.FeatureCollection {
   return {
     type: "FeatureCollection",
@@ -95,6 +101,10 @@ export function pubsToGeoJSON(
           bucket,
           story: venue.hasStory,
           drops: Boolean(signals?.hasPintDrops),
+          // Someone logged a pint price here and it is still one report short
+          // of moving the map. A mark, never a figure — the pin's colour is
+          // still `bucket`, derived from the price stack above.
+          provisional: Boolean(provisionalVenueIds?.has(venue.id)),
           serves,
           drinkKind,
           scraped,

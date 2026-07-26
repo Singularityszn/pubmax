@@ -90,6 +90,8 @@ describe("hoverCardCopy", () => {
       priceSuffix: "Welcome to The Savoy",
       provenance: "Anchor · Jul · thesavoylondon.com",
       detailLabel: "venue detail",
+      // A bar is not a pint surface, so it can never wear the pint-report badge.
+      pendingNote: "",
     });
     expect(copy.priceSuffix).not.toContain("pint");
   });
@@ -111,6 +113,19 @@ describe("hoverCardCopy", () => {
     expect(copy.price).toBe(15);
     expect(copy.priceSuffix).toBe("Large lamb doner");
     expect(copy.provenance).toBe("Anchor · Jul · tbtk.co.uk");
+  });
+
+  it("explains a provisional badge without touching the price line", () => {
+    const pub = { kind: "pub", cheapestPrice: 5 } as Venue;
+    const quiet = hoverCardCopy(pub, undefined, null);
+    const marked = hoverCardCopy(pub, undefined, null, true);
+
+    expect(quiet.pendingNote).toBe("");
+    expect(marked.pendingNote).toMatch(/needs a second/i);
+    // The badge is a fact about reports, not about the price - the figure and
+    // its provenance read identically whether or not the pin is marked.
+    expect(marked.price).toBe(quiet.price);
+    expect(marked.provenance).toBe(quiet.provenance);
   });
 });
 
