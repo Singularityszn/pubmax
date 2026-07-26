@@ -64,7 +64,7 @@ export const CLUSTER_MAX_ZOOM = 13;
 //     so a base pub can never displace a priced one.
 //
 // The zoom floor is what bounds the payload too: shards are only fetched once
-// the camera is at/above it (components/map/pubmap/useUkBasePubs.ts).
+// the camera is at/above it (components/map/pubmap/useUkBaseStreaming.ts).
 export const UK_BASE_MIN_ZOOM = PIN_MIN_ZOOM;
 
 // Base pins are visibly second-class: roughly half a curated pin's footprint

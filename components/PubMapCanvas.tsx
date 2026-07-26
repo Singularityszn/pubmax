@@ -117,6 +117,16 @@ type PubMapCanvasProps = {
    * unverified sheet without a lookup. Absent = base taps do nothing.
    */
   onUkBasePubClick?: (pub: UkBasePub) => void;
+  /**
+   * A restored `?sel=venue-uk-*` arrival: the base pub's id plus the `at=`
+   * location hint the selecting tap wrote alongside it. Seeds the selection
+   * camera (the id names no venue record, so nothing else knows where to fly)
+   * and asks the base stream to hand the whole record up once its cell loads,
+   * so the unverified sheet reopens like a curated ?sel= does. Null when the
+   * arrival named no base pub or the link carried no hint (older links
+   * degrade to the selection ring only).
+   */
+  ukBaseRestore?: { id: string; lat: number; lng: number } | null;
   onRouteStopClick: (id: string) => void;
   /** Speculative warm of `/api/venue/[id]` on press-start / hover intent. */
   onVenuePrefetch?: (id: string) => void;
@@ -288,6 +298,7 @@ export default function PubMapCanvas({
   selectedVenueId,
   onVenueClick,
   onUkBasePubClick,
+  ukBaseRestore = null,
   onRouteStopClick,
   onVenuePrefetch,
   venueSignals = new Map(),
@@ -482,8 +493,14 @@ export default function PubMapCanvas({
   const onUkBasePubClickRef = useRef<((pub: UkBasePub) => void) | undefined>(undefined);
   // The last base pub a tap resolved, so the selection camera has coordinates
   // for a pin that exists in no venue list. Keyed by id: a stale entry can
-  // never move the camera for a different selection.
-  const ukBaseSelectionRef = useRef<{ id: string; center: [number, number] } | null>(null);
+  // never move the camera for a different selection. Seeded from a restored
+  // ?sel= arrival's `at=` hint so the selection fly-to works before (and
+  // without) any tap.
+  const ukBaseSelectionRef = useRef<{ id: string; center: [number, number] } | null>(
+    ukBaseRestore
+      ? { id: ukBaseRestore.id, center: [ukBaseRestore.lng, ukBaseRestore.lat] }
+      : null,
+  );
   const onRouteStopClickRef = useRef(onRouteStopClick);
   const onVenuePrefetchRef = useRef(onVenuePrefetch);
   const onLandmarkSelectRef = useRef(onLandmarkSelect);
@@ -2025,7 +2042,21 @@ export default function PubMapCanvas({
   // once the camera is past UK_BASE_MIN_ZOOM. Deliberately separate from the
   // `pubs` effect above: nothing here touches the curated source, its clusters
   // or its payload.
-  const ukBase = useUkBaseStreaming({ mapRef, mapReady, applyToMap, ukBaseDataRef });
+  const handleRestoredBasePub = useCallback((pub: UkBasePub) => {
+    // Only reopen the sheet while the restored id is still the selection — a
+    // slow shard must never steal a selection the user has already moved on
+    // from.
+    if (selectedIdRef.current !== pub.id) return;
+    onUkBasePubClickRef.current?.(pub);
+  }, []);
+  const ukBase = useUkBaseStreaming({
+    mapRef,
+    mapReady,
+    applyToMap,
+    ukBaseDataRef,
+    restoreId: ukBaseRestore?.id ?? null,
+    onRestorePub: handleRestoredBasePub,
+  });
 
   // CityMCP tonight opportunities → source data + overlay visibility. Kept out
   // of the mount effect deps so live opportunity refreshes never remount MapLibre.

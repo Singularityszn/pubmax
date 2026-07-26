@@ -3,7 +3,9 @@ import { describe, it, expect } from "vitest";
 import {
   browseSelectionUrl,
   cleanMapUrl,
+  formatSelectionHint,
   isSelectionSentinel,
+  parseSelectionHint,
   PUBMAX_SELECTION_SENTINEL,
   searchHasSelection,
   selectionSentinel,
@@ -87,6 +89,44 @@ describe("browseSelectionUrl", () => {
 
   it("adds sel to a clean Map preserving other params", () => {
     expect(browseSelectionUrl("/map", "?food=1", "v9")).toBe("/map?food=1&sel=v9");
+  });
+
+  it("carries the at= hint for a base selection", () => {
+    expect(browseSelectionUrl("/map", "?food=1", "venue-uk-n1", "", "51.5003,-0.2218")).toBe(
+      "/map?food=1&sel=venue-uk-n1&at=51.5003%2C-0.2218",
+    );
+  });
+
+  it("clears a stale at= hint when switching to a hint-less selection", () => {
+    // base → curated must never leave the previous pub's coordinates behind.
+    expect(browseSelectionUrl("/map", "?sel=venue-uk-n1&at=51.5003,-0.2218", "v2")).toBe(
+      "/map?sel=v2",
+    );
+  });
+});
+
+describe("selection hint (at=)", () => {
+  it("round-trips through format and parse", () => {
+    const hint = formatSelectionHint(51.50027, -0.22176);
+    expect(hint).toBe("51.5003,-0.2218");
+    expect(parseSelectionHint(`?sel=venue-uk-n1&at=${hint}`)).toEqual({
+      lat: 51.5003,
+      lng: -0.2218,
+    });
+  });
+
+  it("is null when absent or malformed", () => {
+    expect(parseSelectionHint("?sel=venue-uk-n1")).toBeNull();
+    expect(parseSelectionHint("?at=")).toBeNull();
+    expect(parseSelectionHint("?at=fish")).toBeNull();
+    expect(parseSelectionHint("?at=51.5")).toBeNull();
+    expect(parseSelectionHint("?at=51.5,x")).toBeNull();
+    expect(parseSelectionHint("?at=91,0")).toBeNull();
+    expect(parseSelectionHint("?at=0,181")).toBeNull();
+  });
+
+  it("is stripped by cleanMapUrl with the other selection params", () => {
+    expect(cleanMapUrl("/map", "?sel=venue-uk-n1&at=51.5003,-0.2218&food=1")).toBe("/map?food=1");
   });
 });
 

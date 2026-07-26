@@ -98,7 +98,7 @@ export function parseUkBaseShard(value: unknown): UkBasePub[] {
 }
 
 /**
- * How many cell bodies stay resident. Six covers a 390x844 viewport and its
+ * How many cell bodies stay resident. Eight covers a 390x844 viewport and its
  * pan padding several times over at the zoom gate, so ordinary browsing never
  * evicts a cell it is about to need again.
  */
@@ -165,7 +165,16 @@ export function createUkBaseLoader(): UkBaseLoader {
   }
 
   function manifest(): Promise<ShardManifest | null> {
-    if (!manifestPromise) manifestPromise = fetchManifest();
+    if (!manifestPromise) {
+      // A null resolution (offline first crossing, no IndexedDB mirror yet) is
+      // NOT memoized: the next call refetches, matching how shard-body
+      // failures already retry, so a transient failure never kills the layer
+      // for the whole map session.
+      manifestPromise = fetchManifest().then((parsed) => {
+        if (!parsed) manifestPromise = null;
+        return parsed;
+      });
+    }
     return manifestPromise;
   }
 

@@ -640,7 +640,7 @@ function drawRiver(ctx: CanvasRenderingContext2D, t: IconTokens): void {
   ctx.fillRect(cx - BOX * 0.05, cy - BOX * 0.12, BOX * 0.1, BOX * 0.08);
   // White wave beneath the boat.
   ctx.strokeStyle = WHITE;
-  ctx.lineWidth = STROKE * 1.15;
+  ctx.lineWidth = STROKE * 0.9;
   ctx.lineCap = "round";
   ctx.beginPath();
   const waveY = cy + BOX * 0.12;
@@ -873,7 +873,7 @@ function drawBasePub(ctx: CanvasRenderingContext2D, t: IconTokens): void {
   ctx.fill();
   ctx.globalAlpha = 1;
   ctx.strokeStyle = ink;
-  ctx.lineWidth = STROKE * 0.9;
+  ctx.lineWidth = STROKE * 1.15;
   ctx.beginPath();
   ctx.arc(c, c, BASE_PUB_RING_RADIUS, 0, Math.PI * 2);
   ctx.stroke();

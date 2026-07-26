@@ -8,6 +8,7 @@ import {
   createUkBaseLoader,
   ukBasePubsToGeoJSON,
   type UkBaseLoader,
+  type UkBasePub,
 } from "@/lib/ukBasePubs";
 
 // Streams the UK base layer (lib/ukBasePubs.ts) into the map's `uk-base`
@@ -35,6 +36,15 @@ type Options = {
   applyToMap: (key: string, fn: (map: maplibregl.Map) => void) => void;
   /** Reseeded by buildScene after a theme setStyle wipes every source. */
   ukBaseDataRef: React.MutableRefObject<GeoJSON.FeatureCollection>;
+  /**
+   * A restored `?sel=venue-uk-*` arrival's id, one-shot: once a streamed
+   * viewport contains it, the whole record is handed to `onRestorePub` (the id
+   * alone carries no name/address/coords, so the sheet cannot open without
+   * this resolution). Pending until found — a stale id from an old link
+   * simply never resolves.
+   */
+  restoreId?: string | null;
+  onRestorePub?: (pub: UkBasePub) => void;
 };
 
 /**
@@ -51,8 +61,15 @@ export function useUkBaseStreaming({
   mapReady,
   applyToMap,
   ukBaseDataRef,
+  restoreId = null,
+  onRestorePub,
 }: Options): UkBaseStreamState {
   const loaderRef = useRef<UkBaseLoader | null>(null);
+  const restoreIdRef = useRef<string | null>(restoreId);
+  const onRestorePubRef = useRef(onRestorePub);
+  useEffect(() => {
+    onRestorePubRef.current = onRestorePub;
+  }, [onRestorePub]);
   const [count, setCount] = useState(0);
 
   const publish = useCallback(
@@ -96,6 +113,12 @@ export function useUkBaseStreaming({
         .then((pubs) => {
           if (cancelled || token !== generation) return;
           publish(ukBasePubsToGeoJSON(pubs));
+          const wanted = restoreIdRef.current;
+          if (!wanted) return;
+          const hit = pubs.find((pub) => pub.id === wanted);
+          if (!hit) return;
+          restoreIdRef.current = null;
+          onRestorePubRef.current?.(hit);
         });
     };
 

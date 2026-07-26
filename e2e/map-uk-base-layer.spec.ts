@@ -103,4 +103,16 @@ test("costs nothing until the camera crosses the zoom gate, then paints and take
   await sheet.getByRole("textbox").fill("4.20");
   await sheet.getByRole("button", { name: "Log it" }).click();
   await expect(sheet.locator(".vpsubStamp")).toContainText("£4.20", { timeout: 15_000 });
+
+  // (3) RESTORE. The tap wrote ?sel= plus its `at=` location hint; reloading
+  // that URL must stream the pub's cell, fly the camera and reopen the SAME
+  // unverified sheet - a shared base-pub link behaves like a curated one.
+  const pubName = ((await sheet.locator(".unverifiedPubName").textContent()) ?? "").trim();
+  expect(pubName.length).toBeGreaterThan(0);
+  await expect.poll(() => page.url(), { timeout: 10_000 }).toContain("sel=venue-uk-");
+  expect(page.url()).toContain("at=");
+  await page.goto(page.url());
+  const restoredSheet = page.locator(".unverifiedPub");
+  await expect(restoredSheet).toBeVisible({ timeout: 45_000 });
+  await expect(restoredSheet.locator(".unverifiedPubName")).toHaveText(pubName);
 });

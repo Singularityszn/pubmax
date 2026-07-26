@@ -180,6 +180,7 @@ import {
 } from "@/lib/cities";
 import type { ThingsToDoOpportunity } from "@/lib/citymcp/client";
 import { slimVenuesToPins } from "@/lib/slimPins";
+import { formatSelectionHint, parseSelectionHint } from "@/lib/mapSelectionHistory";
 import { isUkBaseId, type UkBasePub } from "@/lib/ukBasePubs";
 import { computeZonePintIndex } from "@/lib/zones";
 import ZonePicker from "@/components/map/ZonePicker";
@@ -425,6 +426,16 @@ export default function PubMap({
   // Freeze arrival search with the seed so fit-on-arrival does not flip when the
   // user later maps a route or the address bar syncs.
   const [arrivalSearch] = useState(() => currentSearch());
+  // A restored /map?sel=venue-uk-* arrival: the base pub's id plus the `at=`
+  // location hint the selecting tap wrote alongside sel. The id alone carries
+  // no coordinates and no shard cell, so without the hint an older link
+  // degrades honestly — selection ring only once the user zooms in, no sheet —
+  // rather than opening a guessed pub.
+  const [ukBaseRestore] = useState(() => {
+    if (!seed.selectedVenueId || !isUkBaseId(seed.selectedVenueId)) return null;
+    const hint = parseSelectionHint(currentSearch());
+    return hint ? { id: seed.selectedVenueId, ...hint } : null;
+  });
   // §4.5: did the page arrive with any crawl-shaping URL param (a shared/deep
   // link)? Captured ONCE at mount — useCrawlUrlSync starts writing mode/style back
   // to the URL after ~300ms, so re-reading location.search later would be wrong.
@@ -1083,8 +1094,12 @@ export default function PubMap({
 
   // The tapped UK base pub, held whole because it exists in no index this
   // component has: the map hands the record up with the tap. Selection itself
-  // still runs through selectedVenueId, so ?sel= deep-linking, Back/close and
-  // the selection ring all behave exactly as they do for a curated pin.
+  // still runs through selectedVenueId, so Back/close and the selection ring
+  // behave as they do for a curated pin. ?sel= deep-linking needs one extra
+  // step the curated path doesn't: the id alone carries no record, so restore
+  // rides the `at=` location hint (ukBaseRestore above) — the canvas flies
+  // there, streams the one cell, and hands the resolved pub back through this
+  // same click handler. A link without the hint gets the ring only, no sheet.
   const [selectedBasePub, setSelectedBasePub] = useState<UkBasePub | null>(null);
   const handleUkBasePubClick = useCallback(
     (pub: UkBasePub) => {
@@ -1097,6 +1112,13 @@ export default function PubMap({
   // derivation rather than by a state-sync effect: the record only ever shows
   // while it IS the selection.
   const basePubOpen = Boolean(selectedBasePub && selectedBasePub.id === selectedVenueId);
+  // The sel entry's `at=` companion: a base pub's coordinates ride in the URL
+  // because the id alone could not say which shard cell a shared/reloaded
+  // link should stream. Empty for curated selections, which clears the param.
+  const selectionHint =
+    basePubOpen && selectedBasePub
+      ? formatSelectionHint(selectedBasePub.lat, selectedBasePub.lng)
+      : "";
 
   const prefetchVenueDetail = useCallback((id: string) => {
     prefetchVenue(id);
@@ -1112,7 +1134,7 @@ export default function PubMap({
   // sheet. Owns the `sel` history entry; every close path funnels through the
   // selectedVenueId transition, so this single call covers button, Escape, and
   // fling dismissals as well as browser Back.
-  useMapSelectionHistory({ arrivalSearch, selectedVenueId, onBackClose: dismissSheet });
+  useMapSelectionHistory({ arrivalSearch, selectedVenueId, selectionHint, onBackClose: dismissSheet });
 
   // W3 cheap-round / vertical deep links: /map?src=whats-on-deal opens the
   // Tonight lane already filtered to that kind (exact allowlisted tokens only).
@@ -2142,6 +2164,7 @@ export default function PubMap({
           selectedVenueId={selectedVenueId}
           onVenueClick={handleVenueClick}
           onUkBasePubClick={handleUkBasePubClick}
+          ukBaseRestore={ukBaseRestore}
           onRouteStopClick={selectVenue}
           onVenuePrefetch={prefetchVenueDetail}
           venueSignals={venueSignals}
@@ -2569,7 +2592,7 @@ export default function PubMap({
           kind={detailOpen ? "venue" : planningOpen ? "planner" : null}
           title={
             detailOpen
-              ? selectedBasePub?.name ?? selectedVenue?.name ?? "Pub detail"
+              ? (basePubOpen ? selectedBasePub?.name : selectedVenue?.name) ?? "Pub detail"
               : "Plan tonight"
           }
           initialSnap="half"

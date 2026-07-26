@@ -34,6 +34,8 @@ import { validateCommunityPrice } from "@/lib/communityPrice";
 import { readCommunityPrices, submitCommunityPrice } from "@/lib/communityPriceStore";
 import { isLimited } from "@/lib/pintDrops";
 import { clientIp, hashActor, hashIp } from "@/lib/supabase";
+import { getUkBaseIdIndex } from "@/lib/ukBaseIndex";
+import { isUkBaseId } from "@/lib/ukBasePubs";
 import { getVenueIndex } from "@/lib/venueIndex";
 
 // Best-effort, server-derived submitter token. Never throws - if IP hashing is
@@ -74,7 +76,24 @@ export async function POST(request: Request): Promise<Response> {
     );
   }
   if (!venueIndex.has(result.value.venueId)) {
-    return jsonNoStore({ error: "Pick a venue from the map." }, { status: 400 });
+    // UK base pubs (`venue-uk-…`) live outside the curated index by design —
+    // they are still a legitimate submission target, but only when the id
+    // exists in the committed base shard pack (lib/ukBaseIndex.ts). An id in
+    // NEITHER index is rejected; shape alone is never enough, or a fabricated
+    // id could scope its own rate-limit bucket and litter the store.
+    if (!isUkBaseId(result.value.venueId)) {
+      return jsonNoStore({ error: "Pick a venue from the map." }, { status: 400 });
+    }
+    const ukBaseIndex = await getUkBaseIdIndex();
+    if (ukBaseIndex.size === 0) {
+      return jsonNoStore(
+        { error: "Venue list is unavailable right now, try again shortly." },
+        { status: 503 },
+      );
+    }
+    if (!ukBaseIndex.has(result.value.venueId)) {
+      return jsonNoStore({ error: "Pick a venue from the map." }, { status: 400 });
+    }
   }
 
   const actor = deriveActor(request);

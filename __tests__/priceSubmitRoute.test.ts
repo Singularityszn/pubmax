@@ -29,6 +29,19 @@ vi.mock("@/lib/venueIndex", async (importOriginal) => {
   };
 });
 
+// Same seam for the UK base index: its documented degraded mode is an empty
+// set, and the route must answer 503 (retryable) for a base id it cannot
+// check, exactly as it does when the curated index is unavailable.
+const ukBaseIndexState = vi.hoisted(() => ({ unavailable: false }));
+vi.mock("@/lib/ukBaseIndex", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/ukBaseIndex")>();
+  return {
+    ...actual,
+    getUkBaseIdIndex: async () =>
+      ukBaseIndexState.unavailable ? new Set<string>() : actual.getUkBaseIdIndex(),
+  };
+});
+
 // Lets the read-back race cases pin what the POST fallback answers when the
 // read-back no longer holds the submitter's own figure. The race itself (a
 // rival device's write landing between this write and the read-back) cannot be
@@ -51,6 +64,8 @@ import { GET, POST } from "@/app/api/price-submit/route";
 import { __resetCommunityPrices, readCommunityPrices } from "@/lib/communityPriceStore";
 import { COMMUNITY_PRICE_MAX_GBP } from "@/lib/communityPrice";
 import { __resetPintDrops } from "@/lib/pintDrops";
+import { getUkBaseIdIndex } from "@/lib/ukBaseIndex";
+import { UK_BASE_ID_PREFIX } from "@/lib/ukBasePubs";
 import { getVenueIndex } from "@/lib/venueIndex";
 
 type PriceBody = {
@@ -85,6 +100,7 @@ beforeEach(() => {
   delete process.env.SUPABASE_URL;
   delete process.env.SUPABASE_SERVICE_ROLE_KEY;
   venueIndexState.unavailable = false;
+  ukBaseIndexState.unavailable = false;
   readBackState.override = null;
   __resetCommunityPrices();
   __resetPintDrops();
@@ -202,6 +218,51 @@ describe("POST /api/price-submit", () => {
     const data = (await res.json()) as PriceBody;
     expect(data.error).toContain("try again");
     // Nothing was stored while the membership check could not run.
+    expect(await readCommunityPrices(venueId)).toEqual([]);
+  });
+});
+
+// UK base pubs live outside the curated venue index by design, but they ARE a
+// submission target ("No price yet - be the first"). The route checks their
+// ids against the committed base shard pack (lib/ukBaseIndex.ts) instead —
+// membership somewhere real, never shape alone.
+describe("POST /api/price-submit UK base pubs", () => {
+  async function realBaseId(): Promise<string> {
+    const first = (await getUkBaseIdIndex()).values().next().value;
+    expect(typeof first).toBe("string");
+    return first as string;
+  }
+
+  it("accepts a submission for a committed base pub (201) stamped community", async () => {
+    const venueId = await realBaseId();
+    const res = await POST(post({ venueId, drinkCategory: "beer", priceGbp: 4.2 }));
+    expect(res.status).toBe(201);
+    const data = (await res.json()) as PriceBody;
+    expect(data.ok).toBe(true);
+    expect(data.price?.source).toBe("community");
+  });
+
+  it("rejects a well-formed but non-existent venue-uk id (400) without storing", async () => {
+    const venueId = `${UK_BASE_ID_PREFIX}n0000000000`;
+    const res = await POST(post({ venueId, drinkCategory: "beer", priceGbp: 4.2 }));
+    expect(res.status).toBe(400);
+    const data = (await res.json()) as PriceBody;
+    expect(data.error).toContain("Pick a venue");
+    expect(await readCommunityPrices(venueId)).toEqual([]);
+  });
+
+  it("answers 503 (retryable) for a base id when the base index is unavailable", async () => {
+    ukBaseIndexState.unavailable = true;
+    const venueId = `${UK_BASE_ID_PREFIX}n266819667`;
+    const res = await POST(post({ venueId, drinkCategory: "beer", priceGbp: 4.2 }));
+    expect(res.status).toBe(503);
+    expect(await readCommunityPrices(venueId)).toEqual([]);
+  });
+
+  it("still rejects a curated-shaped id absent from the slim index (400), untouched by the base branch", async () => {
+    const venueId = "totally-fake-venue-xyz";
+    const res = await POST(post({ venueId, drinkCategory: "beer", priceGbp: 4.2 }));
+    expect(res.status).toBe(400);
     expect(await readCommunityPrices(venueId)).toEqual([]);
   });
 });
