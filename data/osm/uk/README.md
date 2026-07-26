@@ -30,7 +30,7 @@ warns if a refresh crosses the commit budget.
 npm run fetch:uk-pubs                       # full pull; resumes automatically
 npm run fetch:uk-pubs -- --skip-if-present # explicit alias for default resume
 npm run fetch:uk-pubs -- --refresh          # refetch every chunk from scratch
-npm run fetch:uk-pubs -- --chunk=lat51.00_lon-1.00
+npm run fetch:uk-pubs -- --chunk=lat50.80_lon-0.70  # one grid cell (--list for ids)
 npm run fetch:uk-pubs -- --from-raw         # re-normalize on-disk chunks, no network
 npm run fetch:uk-pubs -- --list             # print the grid and exit
 ```

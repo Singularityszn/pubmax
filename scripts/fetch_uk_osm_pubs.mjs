@@ -10,14 +10,14 @@
 //   npm run fetch:uk-pubs                       # full pull, resumes by default
 //   npm run fetch:uk-pubs -- --skip-if-present # explicit resume alias
 //   npm run fetch:uk-pubs -- --refresh          # refetch every chunk
-//   npm run fetch:uk-pubs -- --chunk=lat51.00_lon-1.00
+//   npm run fetch:uk-pubs -- --chunk=lat50.80_lon-0.70  # one grid cell (--list for ids)
 //   npm run fetch:uk-pubs -- --from-raw         # re-normalize, no network
 //   npm run fetch:uk-pubs -- --list             # print the grid and exit
 //
 // The country-wide query is split into a lat/lon grid so no single request has
 // to hold GB in one bbox, and every chunk's raw response is kept on disk so an
 // interrupted pull resumes where it stopped. Overpass etiquette: one request at
-// a time, a delay between chunks, exponential backoff on 429/504.
+// a time, a delay between chunks, exponential backoff on 429/502/503/504.
 //
 // OSM data is © OpenStreetMap contributors, ODbL 1.0.
 
