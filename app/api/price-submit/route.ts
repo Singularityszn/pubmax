@@ -114,12 +114,26 @@ export async function POST(request: Request): Promise<Response> {
   // the submitter a price they never typed, so we answer with their own at an
   // explicit one voice. A figure that is not even the record for its drink is
   // certainly not driving the map, and stating the 1 beats omitting it and
-  // leaving the client to infer the same thing.
-  const record = (await readCommunityPrices(result.value.venueId)).find(
-    (row) => row.drinkCategory === price.drinkCategory && row.priceGbp === price.priceGbp,
+  // leaving the client to infer the same thing. The category's mapCandidate
+  // still rides along on that fallback: dropping it would let this submitter's
+  // own map transiently un-paint an already-corroborated figure until the next
+  // read. Only when the read-back really produced a row, though - a degraded
+  // or empty read stays candidate-less rather than inventing one.
+  const categoryRow = (await readCommunityPrices(result.value.venueId)).find(
+    (row) => row.drinkCategory === price.drinkCategory,
   );
+  const record = categoryRow?.priceGbp === price.priceGbp ? categoryRow : undefined;
   return jsonNoStore(
-    { ok: true, price: record ?? { ...price, corroborations: 1 } },
+    {
+      ok: true,
+      price:
+        record ??
+        {
+          ...price,
+          corroborations: 1,
+          ...(categoryRow?.mapCandidate ? { mapCandidate: categoryRow.mapCandidate } : {}),
+        },
+    },
     { status: 201 },
   );
 }
