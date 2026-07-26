@@ -30,8 +30,7 @@ import { profileStore } from "@/lib/profileStore";
 import { assertServerEnv } from "@/lib/serverEnv";
 import { clientIp, hashActor, hashIp, requiresSupabaseStore, isSupabaseConfigured } from "@/lib/supabase";
 import { readString } from "@/lib/textClean";
-import { resolveCanonicalVenueId } from "@/lib/venueAliases";
-import { getVenueIndex, venueMapUrl } from "@/lib/venueIndex";
+import { getVenueIndex, lookupCanonicalVenue, venueMapUrl } from "@/lib/venueIndex";
 import { isPubVenueKind } from "@/lib/venueKindFilters";
 
 // Fail fast at module load: a misconfigured production deploy (no Supabase)
@@ -251,21 +250,19 @@ export async function POST(request: Request): Promise<Response> {
   if (!result.ok) {
     return jsonNoStore({ error: result.error }, { status: 400 });
   }
-  const venueIndex = await getVenueIndex();
-  if (venueIndex.size === 0) {
+  const venueLookup = await lookupCanonicalVenue(result.value.venueId);
+  if (venueLookup.status === "unavailable") {
     return jsonNoStore(
       { error: "Venue list is unavailable right now, try again shortly." },
       { status: 503 },
     );
   }
-  const canonicalVenueId = await resolveCanonicalVenueId(result.value.venueId);
-  const venue = venueIndex.get(canonicalVenueId);
-  if (!venue || !isPubVenueKind(venue.kind)) {
+  if (venueLookup.status !== "found" || !isPubVenueKind(venueLookup.venue.kind)) {
     return jsonNoStore({ error: "Pick a pub from the map." }, { status: 400 });
   }
   const canonicalDrop = {
     ...result.value,
-    venueId: canonicalVenueId,
+    venueId: venueLookup.canonicalId,
   };
 
   // JWT-linked handle wins over a self-asserted body handle when signed in.

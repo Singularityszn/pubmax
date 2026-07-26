@@ -1,8 +1,12 @@
 import { promises as fs } from "fs";
 import path from "path";
 
-import { listEnabledCities } from "@/lib/cities";
-import { unresolvedVenueLabel } from "@/lib/cityVenueIds";
+import { getCity, listEnabledCities } from "@/lib/cities";
+import {
+  cityIdFromVenueId,
+  unresolvedVenueLabel,
+  venueCityPrefix,
+} from "@/lib/cityVenueIds";
 import { resolveCanonicalVenueId } from "@/lib/venueAliases";
 import type { Venue, VenueKind } from "@/lib/venues";
 
@@ -24,6 +28,11 @@ export type VenueRef = {
   lng: number;
   kind?: VenueKind;
 };
+
+export type CanonicalVenueLookup =
+  | { status: "found"; canonicalId: string; venue: VenueRef }
+  | { status: "unknown"; canonicalId: string }
+  | { status: "unavailable"; canonicalId: string };
 
 type SlimRow = {
   id?: unknown;
@@ -90,6 +99,18 @@ async function readSlimIndex(publicPath: string): Promise<Map<string, VenueRef>>
   return buildVenueIndexFromSlim(Array.isArray(rows) ? rows : []);
 }
 
+async function getCityVenueIndex(publicPath: string): Promise<Map<string, VenueRef> | null> {
+  const existing = cityCache.get(publicPath);
+  if (existing) return existing;
+  try {
+    const index = await readSlimIndex(publicPath);
+    cityCache.set(publicPath, index);
+    return index;
+  } catch {
+    return null;
+  }
+}
+
 // Read the slim index once and memoize. Never throws: a read/parse failure
 // yields an empty index so name resolution degrades to the friendly fallback
 // rather than 500-ing a page. Prefer venues_slim.json (~400 KB) over the full
@@ -105,13 +126,7 @@ export async function getVenueIndex(): Promise<Map<string, VenueRef>> {
   const cities = listEnabledCities();
   let allLoaded = true;
   for (const city of cities) {
-    if (cityCache.has(city.slimVenuesPath)) continue;
-    try {
-      cityCache.set(city.slimVenuesPath, await readSlimIndex(city.slimVenuesPath));
-    } catch {
-      // Skip this city for now; it retries on the next call.
-      allLoaded = false;
-    }
+    if (!(await getCityVenueIndex(city.slimVenuesPath))) allLoaded = false;
   }
   const index = new Map<string, VenueRef>();
   for (const city of cities) {
@@ -123,6 +138,27 @@ export async function getVenueIndex(): Promise<Map<string, VenueRef>> {
   }
   if (allLoaded) cached = index;
   return index;
+}
+
+export async function lookupCanonicalVenue(id: string): Promise<CanonicalVenueLookup> {
+  const canonicalId = await resolveCanonicalVenueId(id);
+  const cityPrefix = venueCityPrefix(canonicalId);
+  const cityId = cityIdFromVenueId(canonicalId);
+  if (cityPrefix && !cityId) {
+    return { status: "unknown", canonicalId };
+  }
+  const city = getCity(cityId);
+  if (!city.enabled) {
+    return { status: "unknown", canonicalId };
+  }
+  const cityIndex = await getCityVenueIndex(city.slimVenuesPath);
+  if (!cityIndex) {
+    return { status: "unavailable", canonicalId };
+  }
+  const venue = cityIndex.get(canonicalId);
+  return venue
+    ? { status: "found", canonicalId, venue }
+    : { status: "unknown", canonicalId };
 }
 
 export async function resolveVenue(id: string): Promise<VenueRef | null> {

@@ -25,7 +25,7 @@ describe("map loading chrome", () => {
 
   it("does not claim first paint waits on tonight's prices", () => {
     expect(`${pubMap}\n${mapLoadingSkeleton}`).not.toContain("Fetching tonight");
-    expect(pubMap).toContain("Finding the pubs. Warming up the map.");
-    expect(mapLoadingSkeleton).toContain("Finding the pubs. Warming up the map.");
+    expect(pubMap).toContain("Finding venues. Warming up the map.");
+    expect(mapLoadingSkeleton).toContain("Finding venues. Warming up the map.");
   });
 });

@@ -2169,7 +2169,7 @@ export default function PubMap({
           Named region so AT users get a landmark for the map surface (the
           canvas pins are pointer-only; keyboard discovery is the tonight lane
           + search input inside this region). */}
-      <section className="mapStage" aria-label={`Interactive pub map of ${city.displayName}`}>
+      <section className="mapStage" aria-label={`Interactive venue map of ${city.displayName}`}>
         <TonightArcChips
           visibility={venueKindVisibility}
           onChange={setVenueKindVisibility}
@@ -2184,7 +2184,7 @@ export default function PubMap({
             role="status"
             aria-busy="true"
             aria-live="polite"
-            aria-label={`Loading the ${city.displayName} pub map. Finding the pubs. Warming up the map.`}
+            aria-label={`Loading the ${city.displayName} venue map. Finding venues. Warming up the map.`}
           >
             <div className="mapLoadingScene" aria-hidden="true">
               <span className="mapLoadingStreet mapLoadingStreet--one" />
@@ -2196,8 +2196,8 @@ export default function PubMap({
               <span className="mapLoadingPin mapLoadingPin--pint mapLoadingPin--four" />
             </div>
             <div className="mapLoadingCopy">
-              <span className="mapLoadingEyebrow">{city.displayName} pub map</span>
-              <span>Finding the pubs. Warming up the map.</span>
+              <span className="mapLoadingEyebrow">{city.displayName} venue map</span>
+              <span>Finding venues. Warming up the map.</span>
             </div>
           </div>
         ) : null}
@@ -2257,7 +2257,7 @@ export default function PubMap({
               {...sharedMapSearchProps}
               id="mapSearchInput"
               mode="toolbar"
-              placeholder={`Search ${city.displayName} pubs or areas`}
+              placeholder={`Search ${city.displayName} venues or areas`}
             />
           }
           favoritePint={favoritePint}
@@ -2435,7 +2435,7 @@ export default function PubMap({
               {...sharedMapSearchProps}
               id="mobileMapSearchInput"
               mode="overlay"
-              placeholder={`Search ${city.displayName} pubs or areas`}
+              placeholder={`Search ${city.displayName} venues or areas`}
               onClose={() => changeMapOverlay("none")}
             />
           }
@@ -2517,7 +2517,7 @@ export default function PubMap({
                     type="button"
                     variant="secondary"
                     className="w-full justify-start"
-                    aria-label="List view of pubs on the map"
+                    aria-label="List view of venues on the map"
                     aria-pressed={mapListOpen}
                     onClick={() => {
                       setMapListOpen((open) => !open);
@@ -2525,7 +2525,7 @@ export default function PubMap({
                     }}
                   >
                     <List size={18} aria-hidden="true" />
-                    {mapListOpen ? "Hide pub list" : "List view"}
+                    {mapListOpen ? "Hide venue list" : "List view"}
                   </Button>
                 </div>
                 {routeMappedActive ? <Button variant="secondary" onClick={hideMappedRoute}>Hide active route</Button> : null}

@@ -21,6 +21,31 @@ vi.mock("@/lib/venueAliases", () => ({
         : id,
 }));
 vi.mock("@/lib/venueIndex", () => ({
+  lookupCanonicalVenue: async (id: string) => {
+    const canonicalId =
+      id === "legacy-a" ? "venue-a" : id === "legacy-bar" ? "bar-a" : id;
+    if (canonicalId === "unavailable-a") {
+      return { status: "unavailable" as const, canonicalId };
+    }
+    const venue =
+      canonicalId === "bar-a"
+        ? {
+            id: canonicalId,
+            name: "Test Cocktail Bar",
+            borough: "London",
+            lat: 51.5,
+            lng: -0.12,
+            kind: "bar" as const,
+          }
+        : {
+            id: canonicalId,
+            name: "The Test Arms",
+            borough: "London",
+            lat: 51.5,
+            lng: -0.12,
+          };
+    return { status: "found" as const, canonicalId, venue };
+  },
   getVenueIndex: async () => {
     const venues = new Map([
       [
@@ -168,5 +193,13 @@ describe("POST /api/crawls", () => {
 
   it("rejects a legacy alias that resolves to a cocktail bar", async () => {
     expect((await post([{ venueId: "legacy-bar" }])).status).toBe(400);
+  });
+
+  it("returns unavailable when a stop's city pack cannot load", async () => {
+    const response = await post([{ venueId: "unavailable-a" }]);
+    expect(response.status).toBe(503);
+    expect(await response.json()).toEqual({
+      error: "Venue list is unavailable right now, try again shortly.",
+    });
   });
 });

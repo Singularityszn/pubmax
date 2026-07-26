@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, it, expect, vi } from "vitest";
 import {
   buildVenueIndex,
   getVenueIndex,
+  lookupCanonicalVenue,
   resetVenueIndexForTests,
   venueMapUrl,
   type VenueRef,
@@ -130,6 +131,35 @@ describe("getVenueIndex", () => {
       borough: "Manchester",
     });
     expect(index.get("bar-american-bar-savoy")?.kind).toBe("bar");
+  });
+});
+
+describe("lookupCanonicalVenue", () => {
+  it("distinguishes an unavailable city pack from an unknown venue", async () => {
+    const realRead = fs.readFile.bind(fs);
+    let failManchester = true;
+    vi.spyOn(fs, "readFile").mockImplementation(async (file, ...args) => {
+      if (failManchester && String(file).includes("cities/manchester/")) {
+        throw new Error("missing manchester pack");
+      }
+      return realRead(file, ...(args as [BufferEncoding]));
+    });
+
+    expect(await lookupCanonicalVenue("venue-mcr-1lwo5lo")).toEqual({
+      status: "unavailable",
+      canonicalId: "venue-mcr-1lwo5lo",
+    });
+
+    failManchester = false;
+    expect(await lookupCanonicalVenue("venue-mcr-1lwo5lo")).toMatchObject({
+      status: "found",
+      canonicalId: "venue-mcr-1lwo5lo",
+      venue: { name: "Peveril of the Peak", borough: "Manchester" },
+    });
+    expect(await lookupCanonicalVenue("venue-mcr-doesnotexist")).toEqual({
+      status: "unknown",
+      canonicalId: "venue-mcr-doesnotexist",
+    });
   });
 });
 
