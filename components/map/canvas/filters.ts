@@ -129,14 +129,19 @@ export function pinSortKeyExpr(selectedId: string): maplibregl.ExpressionSpecifi
 }
 
 /**
- * Selected pin only may overlap symbols already placed by lower map layers.
- * Other pub pins stay in the collision index and keep the density contract.
+ * Filter for the dedicated selected-pin layer (`pubs-point-selected`): exactly
+ * the selected unclustered pub, or nothing while no venue is selected. The
+ * style spec makes `icon-allow-overlap` data-constant (no feature-data
+ * expressions), so "only the selected pin may overlap" has to be its own layer
+ * with a constant `true` behind this filter — the base pubs-point layer keeps
+ * `icon-allow-overlap: false` and the density contract for every other pin.
  */
-export function pinAllowOverlapExpr(
-  selectedId: string,
-): false | maplibregl.ExpressionSpecification {
-  if (!selectedId) return false;
-  return ["case", ["==", ["get", "id"], selectedId], true, false];
+export function selectedPinFilter(selectedId: string): maplibregl.FilterSpecification {
+  return [
+    "all",
+    ["!", ["has", "point_count"]],
+    ["==", ["get", "id"], selectedId],
+  ];
 }
 
 /**

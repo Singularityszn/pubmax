@@ -22,7 +22,8 @@ import {
   transportFilter,
   TRANSPORT_ICON_MATCH,
   TUBE_LINE_OFFSET_EXPR,
-  pinAllowOverlapExpr,
+  selectedPinFilter,
+  selectedPinIconSizeExpr,
   pubIconOpacityExpr,
   pinSortKeyExpr,
   PIN_ICON_SIZE_EXPR,
@@ -774,7 +775,7 @@ export function buildPubs(ctx: SceneCtx) {
       // the other. `icon-allow-overlap: true` (the old value) is what let a
       // dense street render as a solid mass of half-hidden glyphs — and is what
       // would make a ~45k-point UK source unreadable at street zoom.
-      "icon-allow-overlap": pinAllowOverlapExpr(selectedId),
+      "icon-allow-overlap": false,
       "icon-ignore-placement": false,
       // Padding covers the widest halo ring a pin can wear (scraped / drops /
       // what's-on badges, radius ≤ 15px at z15) so those rings stay clear of
@@ -791,6 +792,29 @@ export function buildPubs(ctx: SceneCtx) {
       // opacity. Eased (not snapped) via icon-opacity-transition.
       "icon-opacity": pubIconOpacityExpr(selectedId),
       "icon-opacity-transition": { duration: 250, delay: 0 },
+    },
+  });
+  // The selected pin, drawn again on its own layer with overlap allowed —
+  // `icon-allow-overlap` is data-constant in the style spec, so the base layer
+  // above cannot exempt one feature. This layer carries exactly one feature
+  // (selectedPinFilter) and keeps `icon-ignore-placement: false`, so its box
+  // still reserves space in the collision index: neighbouring symbols yield to
+  // the selected pin, and every other pin keeps colliding as before.
+  addLayerOnce({
+    id: "pubs-point-selected",
+    type: "symbol",
+    source: "pubs",
+    minzoom: PIN_MIN_ZOOM,
+    filter: selectedPinFilter(selectedId),
+    layout: {
+      "icon-image": ["get", "icon"],
+      "icon-size": selectedPinIconSizeExpr(selectedId),
+      "icon-allow-overlap": true,
+      "icon-ignore-placement": false,
+      "icon-padding": 6,
+    },
+    paint: {
+      "icon-opacity": 1,
     },
   });
   // Selected pin: a confident double brass ring — a soft outer wash plus a

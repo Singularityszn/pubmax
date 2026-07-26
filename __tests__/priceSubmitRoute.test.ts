@@ -16,6 +16,19 @@ vi.mock("@/lib/supabase", async (importOriginal) => {
   return { ...actual, isSupabaseConfigured: () => false, requiresSupabaseStore: () => false };
 });
 
+// Lets one case simulate the slim index failing to load (getVenueIndex's
+// documented degraded mode is an empty map); every other case passes through
+// to the real index on disk.
+const venueIndexState = vi.hoisted(() => ({ unavailable: false }));
+vi.mock("@/lib/venueIndex", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/venueIndex")>();
+  return {
+    ...actual,
+    getVenueIndex: async () =>
+      venueIndexState.unavailable ? new Map() : actual.getVenueIndex(),
+  };
+});
+
 import { GET, POST } from "@/app/api/price-submit/route";
 import { __resetCommunityPrices, readCommunityPrices } from "@/lib/communityPriceStore";
 import { COMMUNITY_PRICE_MAX_GBP } from "@/lib/communityPrice";
@@ -46,6 +59,7 @@ const ORIGINAL_SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY
 beforeEach(() => {
   delete process.env.SUPABASE_URL;
   delete process.env.SUPABASE_SERVICE_ROLE_KEY;
+  venueIndexState.unavailable = false;
   __resetCommunityPrices();
   __resetPintDrops();
 });
@@ -150,6 +164,18 @@ describe("POST /api/price-submit", () => {
     const res = await POST(post({ venueId, drinkCategory: "beer", priceGbp: 4.2 }));
 
     expect(res.status).toBe(400);
+    expect(await readCommunityPrices(venueId)).toEqual([]);
+  });
+
+  it("answers 503 (retryable), not 400, when the venue index is unavailable", async () => {
+    venueIndexState.unavailable = true;
+    const venueId = "venue-xjf3n0";
+    const res = await POST(post({ venueId, drinkCategory: "beer", priceGbp: 4.2 }));
+
+    expect(res.status).toBe(503);
+    const data = (await res.json()) as PriceBody;
+    expect(data.error).toContain("try again");
+    // Nothing was stored while the membership check could not run.
     expect(await readCommunityPrices(venueId)).toEqual([]);
   });
 });

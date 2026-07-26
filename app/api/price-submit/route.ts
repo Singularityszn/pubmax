@@ -56,7 +56,17 @@ export async function POST(request: Request): Promise<Response> {
     return jsonNoStore({ error: result.error }, { status: 400 });
   }
 
+  // getVenueIndex degrades to an EMPTY map when no city pack could be read.
+  // That is a transient dependency failure, not a bad venue id — answer 503
+  // (retryable) rather than bouncing every valid submission with a 400. The
+  // membership check itself is never skipped.
   const venueIndex = await getVenueIndex();
+  if (venueIndex.size === 0) {
+    return jsonNoStore(
+      { error: "Venue list is unavailable right now, try again shortly." },
+      { status: 503 },
+    );
+  }
   if (!venueIndex.has(result.value.venueId)) {
     return jsonNoStore({ error: "Pick a venue from the map." }, { status: 400 });
   }

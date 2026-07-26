@@ -12,7 +12,11 @@ import {
   PIN_MIN_ZOOM,
   type SceneCtx,
 } from "@/components/map/canvas/buildScene";
-import { clusterEntranceProgress, pinSortKeyExpr } from "@/components/map/canvas/filters";
+import {
+  clusterEntranceProgress,
+  pinSortKeyExpr,
+  selectedPinFilter,
+} from "@/components/map/canvas/filters";
 import { landmarksToGeoJSON } from "@/components/map/canvas/geojson";
 import type { Landmark } from "@/lib/landmarks";
 import type { Tokens } from "@/components/map/canvas/tokens";
@@ -26,6 +30,7 @@ import type { Tokens } from "@/components/map/canvas/tokens";
 type BuiltLayer = maplibregl.AddLayerObject & {
   layout?: Record<string, unknown>;
   paint?: Record<string, unknown>;
+  filter?: unknown;
 };
 
 function buildScenePieces(selectedId = "") {
@@ -113,14 +118,20 @@ describe("symbol collision policy", () => {
 
   it("allows only the selected pub pin to overlap competing symbols", () => {
     const selectedLayers = buildScenePieces("venue-abc").layers;
-    const pins = (selectedLayers.get("pubs-point")?.layout ?? {}) as Record<string, unknown>;
 
-    expect(pins["icon-allow-overlap"]).toEqual([
-      "case",
-      ["==", ["get", "id"], "venue-abc"],
-      true,
-      false,
-    ]);
+    // The base layer keeps colliding even while a venue is selected —
+    // icon-allow-overlap is data-constant, so the exemption cannot live here.
+    const pins = (selectedLayers.get("pubs-point")?.layout ?? {}) as Record<string, unknown>;
+    expect(pins["icon-allow-overlap"]).toBe(false);
+
+    // The exemption is the dedicated selected-pin layer: one feature via the
+    // selected-id filter, constant overlap, still visible to the collision
+    // index so neighbours keep off it.
+    const selected = selectedLayers.get("pubs-point-selected")!;
+    const selectedLayout = (selected.layout ?? {}) as Record<string, unknown>;
+    expect(selected.filter).toEqual(selectedPinFilter("venue-abc"));
+    expect(selectedLayout["icon-allow-overlap"]).toBe(true);
+    expect(selectedLayout["icon-ignore-placement"]).toBe(false);
   });
 
   it("keeps the cluster count drawn while still reserving the disc's space", () => {

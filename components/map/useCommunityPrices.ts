@@ -52,6 +52,18 @@ export function upsertPrice(rows: CommunityPrice[], next: CommunityPrice): Commu
   return [freshest, ...others].sort((a, b) => b.submittedAt - a.submittedAt);
 }
 
+/**
+ * Unconditional replace of one category's row — for adopting the server's
+ * authoritative POST response. upsertPrice's keep-newer rule guards the GET
+ * merge against stale reads, but it would also let a device clock that ran
+ * ahead of the server keep the optimistic stamp forever; the server record
+ * for a category always wins here.
+ */
+export function replacePrice(rows: CommunityPrice[], next: CommunityPrice): CommunityPrice[] {
+  const others = rows.filter((row) => row.drinkCategory !== next.drinkCategory);
+  return [next, ...others].sort((a, b) => b.submittedAt - a.submittedAt);
+}
+
 /** Narrow an untrusted API payload to the prices we can honestly render. */
 function readPrices(value: unknown): CommunityPrice[] {
   if (!value || typeof value !== "object") return [];
@@ -180,12 +192,14 @@ export function useCommunityPrices(): CommunityPricesState {
           };
         }
         // Adopt the server's authoritative timestamp so the dated badge is the
-        // record's day, not the device's guess at it.
+        // record's day, not the device's guess at it. A forced replace, not the
+        // keep-newer merge: a device clock ahead of the server would otherwise
+        // out-rank the record and keep the optimistic stamp forever.
         const stored = data?.price;
         if (stored && typeof stored.submittedAt === "number") {
           setByVenueId((current) => {
             const next = new Map(current);
-            next.set(venueId, upsertPrice(next.get(venueId) ?? [], { ...stored, source: "community" }));
+            next.set(venueId, replacePrice(next.get(venueId) ?? [], { ...stored, source: "community" }));
             return next;
           });
         }
