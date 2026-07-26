@@ -95,16 +95,19 @@ export async function GET(request: Request): Promise<Response> {
       "[cron:enrich-city-pubs][city-enrichment][ALERT] Tavily enrichment failed:",
       error instanceof Error ? error.message : String(error),
     );
-    if (lastProgress) {
+    // TS control flow cannot see the onProgress closure assignment above and
+    // narrows lastProgress to null here; widen back to the declared type.
+    const partial = lastProgress as ScheduledEnrichmentProgress | null;
+    if (partial) {
       console.error(
         "[cron:enrich-city-pubs][city-enrichment][partial]",
         JSON.stringify({
-          city: lastProgress.city,
-          nextIndex: lastProgress.nextIndex,
-          queriesSpent: lastProgress.queriesSpent,
-          creditsSpent: lastProgress.creditsSpent,
-          matchedPubs: lastProgress.pages.length,
-          pricesExtracted: lastProgress.prices.length,
+          city: partial.city,
+          nextIndex: partial.nextIndex,
+          queriesSpent: partial.queriesSpent,
+          creditsSpent: partial.creditsSpent,
+          matchedPubs: partial.pages.length,
+          pricesExtracted: partial.prices.length,
         }),
       );
     }
