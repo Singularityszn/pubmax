@@ -7,7 +7,7 @@
 
 ## 1. Problem diagnosis
 
-At default London zoom (~9.85), MapLibre clustering (`clusterRadius: 46`, `clusterMaxZoom: 13` in `PubMapCanvas`) collapses almost every pub into large green → amber → brass density circles. Unclustered pubs **already** render drink silhouettes (pint / wine / cocktail / spirits) from `lib/mapIcons.ts`, but users rarely see them — only oversized bubbles.
+Map density constants are owned by [`components/map/canvas/buildScene.ts`](../components/map/canvas/buildScene.ts). See the density-contract entry in [`AGENTS.md`](../AGENTS.md) before changing them.
 
 On Discover, ranked lists (city rivalry, tonight, top-rated) use bold red/brass rank circles (`.leaderboardRankNum`, `.tonightRank`, `.topRatedRank`) that compete with content.
 
@@ -23,7 +23,7 @@ Champagne maps to the **wine** drink-pin kind (no separate champagne glyph).
 | **Unclustered pubs** | Keep drink silhouettes as the primary marker language; ensure icon scale stays readable without oversized pads. |
 | **Discover ranks** | Shrink rank circles (~18–20px), soften fill; number secondary to pub/city name. |
 
-Touch points: `components/PubMapCanvas.tsx` (cluster paint + source options), `lib/mapBasemapTaste.ts` (`clusterCircleColorExpr` if needed), `app/discover/discover.css`.
+Touch points: [`components/map/canvas/buildScene.ts`](../components/map/canvas/buildScene.ts) (cluster paint + source options), `lib/mapBasemapTaste.ts` (`clusterCircleColorExpr` if needed), `app/discover/discover.css`.
 
 ---
 
