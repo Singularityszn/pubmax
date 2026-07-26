@@ -4,6 +4,16 @@ import { isAnonymousAnalyticsId } from "@/lib/analyticsIdentity";
 const POSTHOG_EU_CAPTURE_URL = "https://eu.i.posthog.com/capture/";
 const POSTHOG_TIMEOUT_MS = 1_500;
 
+function posthogProjectToken(): string {
+  return process.env.POSTHOG_PROJECT_API_KEY?.trim()
+    || process.env.NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN?.trim()
+    || "";
+}
+
+export function isPosthogConfigured(): boolean {
+  return Boolean(posthogProjectToken());
+}
+
 export async function capturePosthogEvent(input: {
   event: AnalyticsEvent;
   path: string | null;
@@ -12,7 +22,7 @@ export async function capturePosthogEvent(input: {
   insertId?: string;
   occurredAt?: string;
 }): Promise<boolean> {
-  const apiKey = process.env.POSTHOG_PROJECT_API_KEY?.trim();
+  const apiKey = posthogProjectToken();
   if (!apiKey || input.analyticsConsent !== true || !isAnonymousAnalyticsId(input.anonymousId)) return false;
 
   try {

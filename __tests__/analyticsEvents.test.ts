@@ -140,6 +140,42 @@ describe("sanitizeEvent", () => {
     expect(sanitizeEvent("streak_increment", { days: 4 })).toBeNull();
   });
 
+  describe("PostHog wizard events", () => {
+    it.each(["google", "microsoft"])(
+      "keeps only fixed provider enum %s for sign-in initiation",
+      (provider) => {
+        expect(sanitizeEvent("sign_in_initiated", {
+          provider,
+          email: "person@example.com",
+          callbackUrl: "/auth/callback?code=secret",
+        })).toEqual({
+          name: "sign_in_initiated",
+          props: { provider },
+        });
+      },
+    );
+
+    it("rejects provider free text", () => {
+      expect(sanitizeEvent("sign_in_initiated", {
+        provider: "person@example.com",
+      })?.props).toEqual({});
+    });
+
+    it.each([
+      "user_signed_in",
+      "user_signed_out",
+      "check_in_created",
+      "email_subscribed",
+    ])("drops every property from %s", (name) => {
+      expect(sanitizeEvent(name, {
+        userId: "supabase-user-id",
+        handle: "private_handle",
+        email: "person@example.com",
+        areaSlug: "exact-place",
+      })).toEqual({ name, props: {} });
+    });
+  });
+
   describe("metrics funnel events (Wave M)", () => {
     it("accepts a UUID-shaped inviteId for invite_created and invite_redeemed", () => {
       const inviteId = "3fa85f64-5717-4562-b3fc-2c963f66afa6";

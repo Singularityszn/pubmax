@@ -26,6 +26,7 @@ import {
   ANALYTICS_CONSENT_STORAGE_KEY,
   isAnonymousAnalyticsId,
 } from "@/lib/analyticsIdentity";
+import { syncPosthogConsent } from "@/lib/posthogClient";
 
 const ENDPOINT = "/api/events";
 const VERIFIED_OUTBOX_KEY = "pubmaxx:analytics-verified-outbox:v1";
@@ -72,9 +73,11 @@ function handleAnalyticsStorageChange(event: StorageEvent): void {
       inMemoryConsentGranted = false;
       inMemoryAnonymousId = null;
       inMemoryVerifiedOutbox.clear();
+      syncPosthogConsent(false);
       return;
     }
     inMemoryConsentGranted = true;
+    syncPosthogConsent(analyticsCollectionAllowed());
     void flushVerifiedAnalyticsOutbox();
     return;
   }
@@ -236,6 +239,7 @@ export function setAnalyticsConsent(granted: boolean): void {
       clearVerifiedOutbox();
     }
   }
+  syncPosthogConsent(analyticsCollectionAllowed());
 }
 
 function doNotTrack(): boolean {

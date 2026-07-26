@@ -442,9 +442,11 @@ export function AuthProvider({ children }: { children: ReactNode }): React.JSX.E
         setLoading(false);
         // Wave L3: on sign-in, maybe open Claim your night (never silent overwrite).
         if (event === "SIGNED_IN" && nextSession?.user) {
+          trackEvent("user_signed_in");
           void syncIdentityAfterSignIn(nextSession.user);
         }
         if (event === "SIGNED_OUT") {
+          trackEvent("user_signed_out");
           try {
             window.sessionStorage.removeItem(SYNCED_USER_KEY);
           } catch {

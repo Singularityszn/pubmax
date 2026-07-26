@@ -10,6 +10,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 
 import SiteNav from "@/components/nav/SiteNav";
+import { trackEvent } from "@/lib/analytics";
 import { getNightAreasForCity } from "@/lib/nightAreas";
 import { normalizeHandle } from "@/lib/profiles";
 import "../feed/feed.css";
@@ -60,6 +61,7 @@ export default function WeAreOutClient() {
       });
       const data = (await res.json().catch(() => ({}))) as { error?: string };
       if (!res.ok) throw new Error(data.error ?? "Could not post that.");
+      trackEvent("check_in_created");
       setState("done");
     } catch (err) {
       setError(err instanceof Error ? err.message : "That didn't send. Give it another go.");

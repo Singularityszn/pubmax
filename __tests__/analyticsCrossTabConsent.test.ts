@@ -2,6 +2,16 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 const CONSENT_KEY = "pubmaxx:analytics-consent:v1";
 const OUTBOX_KEY = "pubmaxx:analytics-verified-outbox:v1";
+const posthogState = vi.hoisted(() => ({ initCount: 0, optedIn: false }));
+
+vi.mock("posthog-js", () => ({
+  default: {
+    init: () => { posthogState.initCount += 1; },
+    opt_in_capturing: () => { posthogState.optedIn = true; },
+    opt_out_capturing: () => { posthogState.optedIn = false; },
+    has_opted_in_capturing: () => posthogState.optedIn,
+  },
+}));
 
 type StorageListener = (event: StorageEvent) => void;
 type TestWindow = Window & {
@@ -88,9 +98,57 @@ afterEach(() => {
   vi.unstubAllGlobals();
   setGlobal("window", undefined);
   setGlobal("navigator", undefined);
+  posthogState.initCount = 0;
+  posthogState.optedIn = false;
 });
 
 describe("verified analytics cross-tab consent", () => {
+  it("loads the browser SDK only after consent is granted", async () => {
+    const previousToken = process.env.NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN;
+    process.env.NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN = "phc_test";
+
+    try {
+      vi.resetModules();
+      const posthogClient = await import("@/lib/posthogClient");
+
+      posthogClient.initializePosthog(false);
+      expect(posthogState.initCount).toBe(0);
+
+      posthogClient.syncPosthogConsent(true);
+      expect(posthogState.initCount).toBe(1);
+      expect(posthogState.optedIn).toBe(true);
+    } finally {
+      if (previousToken === undefined) delete process.env.NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN;
+      else process.env.NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN = previousToken;
+    }
+  });
+
+  it("opts the browser SDK out when another tab revokes consent", async () => {
+    const previousToken = process.env.NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN;
+    process.env.NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN = "phc_test";
+    const shared = new SharedLocalStorage();
+    const tabA = shared.createWindow();
+    const tabB = shared.createWindow();
+
+    try {
+      vi.resetModules();
+      const analytics = await inWindow(tabA, () => import("@/lib/analytics"));
+      const posthogClient = await inWindow(tabA, () => import("@/lib/posthogClient"));
+      await inWindow(tabA, () => {
+        posthogClient.initializePosthog(false);
+        analytics.setAnalyticsConsent(true);
+      });
+      expect(posthogState.optedIn).toBe(true);
+
+      await inWindow(tabB, () => tabB.localStorage.removeItem(CONSENT_KEY));
+
+      expect(posthogState.optedIn).toBe(false);
+    } finally {
+      if (previousToken === undefined) delete process.env.NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN;
+      else process.env.NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN = previousToken;
+    }
+  });
+
   it("cannot replay a tab-local verified event after another tab revokes then re-grants consent", async () => {
     const shared = new SharedLocalStorage();
     const tabA = shared.createWindow();

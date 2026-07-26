@@ -16,6 +16,10 @@ does not replace `docs/MASTER_PRD.md`.
   a second custom-event rail.
 - PostHog capture targets the EU endpoint, disables person-profile processing,
   and receives only registry-known properties plus a coarse templated path.
+- PostHog browser exception capture is separately consent-gated and strips
+  messages, stack traces, URLs, and arbitrary context before EU ingest. Its
+  SDK persistence is memory-only, so page and referrer metadata cannot enter a
+  PostHog cookie.
 - The registry contains no streak, freeze, drink-count, alcohol-quantity, or
   consumption-based progression event. Tests pin that absence.
 - Supabase remains authoritative for PNC through the service-role-only
@@ -23,16 +27,16 @@ does not replace `docs/MASTER_PRD.md`.
 
 ## Provider configuration status
 
-As of 17 July 2026, neither Vercel production project has a
-`POSTHOG_PROJECT_API_KEY`. PostHog forwarding and provider-side dashboards are
-therefore intentionally inactive. Do not invent a key or create a provider
-account from an automated release.
+As of 26 July 2026, the primary `chengdu` Vercel project has the PostHog EU
+public project token and host in Production, Preview, and Development. The
+mirror `pubmax` project remains deliberately untouched pending an owner
+decision. Provider project tokens are publishable identifiers, not secrets;
+account identity still never enters the analytics rail.
 
-To certify PostHog after the owner supplies an EU project key:
+To finish production certification:
 
-1. Add `POSTHOG_PROJECT_API_KEY` to Production, Preview, and Development for
-   both `chengdu` and `pubmax` without exposing it to the browser.
-2. Deploy one pinned commit to both projects.
+1. Deploy one pinned commit to `chengdu`.
+2. Keep `pubmax` out of scope until its disposition is decided.
 3. Grant analytics consent in a test browser and exercise the activation,
    planning, sharing, return, and Web Vital events.
 4. Prove no event is received before consent or under Do Not Track.
@@ -44,7 +48,7 @@ To certify PostHog after the owner supplies an EU project key:
 
 ## Still open
 
-- PostHog EU project/key and provider-side funnel/cohort/error dashboards.
+- PostHog EU provider-side funnel/cohort/error dashboard evidence.
 - Vercel production Web Vitals dashboard evidence for both projects.
 - Arize Phoenix projects and redacted Pub Pal trace/evaluation certification.
 - Consent-gated replay remains disabled pending a separate redaction and

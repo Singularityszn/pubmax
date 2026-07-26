@@ -24,7 +24,7 @@
 import { sanitizeEvent } from "@/lib/analyticsEvents";
 import { isAnonymousAnalyticsId } from "@/lib/analyticsIdentity";
 import { isEventsRateLimited } from "@/lib/eventsRateLimit";
-import { capturePosthogEvent } from "@/lib/posthogServer";
+import { capturePosthogEvent, isPosthogConfigured } from "@/lib/posthogServer";
 import { analyticsReceiptStore } from "@/lib/analyticsReceiptStore";
 import { analyticsDeliveryTokenDigest, verifyAnalyticsDeliveryToken } from "@/lib/verifiedAnalytics.server";
 import { isTrustedSigningKeyUnavailableError, trustedSigningKey } from "@/lib/trustedSigningKey.server";
@@ -163,7 +163,7 @@ export async function POST(req: Request): Promise<Response> {
     });
 
     if (delivery) {
-      const providerDisabled = !process.env.POSTHOG_PROJECT_API_KEY?.trim();
+      const providerDisabled = !isPosthogConfigured();
       if (!providerDisabled && !forwarded) return noContent("retry");
       if (!await analyticsReceiptStore().complete(delivery.eventId)) return noContent("retry");
       return noContent("delivered");

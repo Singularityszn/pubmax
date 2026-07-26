@@ -64,6 +64,13 @@ export const ANALYTICS_EVENTS = {
   crew_committed: ["source", "participants", "routeReady"],
   account_claimed: ["source"],
   social_account_connected: ["provider", "connectionType"],
+  // PostHog wizard adoption. Auth state and successful writes carry no account,
+  // contact, handle, area, or response data. Provider is a fixed button enum.
+  sign_in_initiated: ["provider"],
+  user_signed_in: [],
+  user_signed_out: [],
+  check_in_created: [],
+  email_subscribed: [],
   night_moment_saved: ["kind", "visibility"],
   night_memory_created: ["source"],
   night_story_published: ["contributors", "moments"],
@@ -245,6 +252,7 @@ const SAFE_STRING_VALUES = new Set([
   "tonight-lane", "whats-on-quiz", "whats-on-sport", "whats-on-deal", "whats-on-music",
   // fixed actions, states, providers, and fallbacks
   "copy", "native", "whatsapp", "sms", "x", "instagram", "tiktok", "oauth", "manual",
+  "google", "microsoft",
   "draft", "ready", "active", "ending", "completed", "abandoned",
   "arrived", "skipped", "swapped", "food_preview", "get_home_preview", "keep_going_preview",
   "food", "get_home", "keep_going", "hound", "raven", "fox",

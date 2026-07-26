@@ -29,6 +29,7 @@ beforeEach(() => {
   if (VITEST_PLAN_SIGNING_SECRET) process.env.PLAN_IDEMPOTENCY_SECRET = VITEST_PLAN_SIGNING_SECRET;
   delete process.env.RATE_LIMIT_SALT;
   delete process.env.POSTHOG_PROJECT_API_KEY;
+  delete process.env.NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN;
   __resetPintDrops();
   __resetMemoryAnalyticsReceipts();
 });
@@ -39,6 +40,7 @@ afterEach(() => {
   delete process.env.SUPABASE_SERVICE_ROLE_KEY;
   if (VITEST_PLAN_SIGNING_SECRET) process.env.PLAN_IDEMPOTENCY_SECRET = VITEST_PLAN_SIGNING_SECRET;
   delete process.env.RATE_LIMIT_SALT;
+  delete process.env.NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN;
 });
 
 describe("POST /api/events", () => {
@@ -176,6 +178,30 @@ describe("POST /api/events", () => {
     });
     expect(JSON.stringify(payload)).not.toContain("memberToken");
     expect(JSON.stringify(payload)).not.toContain("freeText");
+  });
+
+  it("uses the public PostHog project token without adding an SDK identity seam", async () => {
+    process.env.NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN = "phc_public_test_project";
+    const fetchMock = vi.fn().mockResolvedValue(new Response(null, { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+    vi.spyOn(console, "log").mockImplementation(() => {});
+
+    await POST(post(JSON.stringify({
+      name: "user_signed_in",
+      props: {
+        accountId: "supabase-user-id",
+        email: "person@example.com",
+      },
+      anonymousId: "anon_0123456789abcdef",
+      analyticsConsent: true,
+    })));
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    const payload = JSON.parse(String((fetchMock.mock.calls[0]?.[1] as RequestInit).body));
+    expect(payload.api_key).toBe("phc_public_test_project");
+    expect(payload.properties.distinct_id).toBe("anon_0123456789abcdef");
+    expect(JSON.stringify(payload)).not.toContain("supabase-user-id");
+    expect(JSON.stringify(payload)).not.toContain("person@example.com");
   });
 
   it("durably deduplicates a verified event and never forwards its token", async () => {

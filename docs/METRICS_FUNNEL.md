@@ -29,7 +29,7 @@ nights_planned_per_week = count(plan_created, window=7d)
                         + count(crew_committed WHERE source = "shared-plan", window=7d)
 ```
 
-grouped by the emitting anon/auth id (the `distinct_id` PostHog receives) to
+grouped by the anonymous id (the `distinct_id` PostHog receives) to
 get a per-planner rate.
 
 ## 2. Invites per planner (k-factor)
