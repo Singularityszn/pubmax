@@ -236,13 +236,20 @@ export type TrustedHandoffAnalyticsPropsByEvent = {
 /**
  * The drink taxonomy as the price funnel may report it. Spelled out here rather
  * than imported as a value so the registry keeps its zero-runtime-dependency
- * shape (it is loaded by both the beacon and the ingest route); the `satisfies`
- * check makes a drift from lib/drinks.ts a type error rather than a silent
- * mismatch.
+ * shape (it is loaded by both the beacon and the ingest route); the constraint
+ * on `completeDrinkTaxonomy` makes a drift from lib/drinks.ts in either
+ * direction - an unknown value or a missing category - a type error rather
+ * than a silent mismatch.
  */
-export const PRICE_SUBMIT_CATEGORIES = [
+function completeDrinkTaxonomy<const T extends readonly DrinkCategory[]>(
+  categories: T & ([DrinkCategory] extends [T[number]] ? unknown : never),
+): T {
+  return categories;
+}
+
+export const PRICE_SUBMIT_CATEGORIES = completeDrinkTaxonomy([
   "beer", "wine", "whisky", "gin", "vodka", "rum", "cocktail", "shot", "other",
-] as const satisfies readonly DrinkCategory[];
+]);
 
 /**
  * Why a submission did not land. `invalid` is the client-side envelope check
@@ -485,7 +492,7 @@ function isAllowedPriceFunnelProp(
   key: string,
   value: string | number | boolean,
 ): boolean {
-  if (!name.startsWith("price_submit") && name !== "price_submitted") return true;
+  if (!name.startsWith("price_submit")) return true;
   if (key === "category") return includesValue(PRICE_SUBMIT_CATEGORIES, value);
   if (key === "reason") return includesValue(PRICE_SUBMIT_FAILURE_REASONS, value);
   return true;
