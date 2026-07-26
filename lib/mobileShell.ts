@@ -1,5 +1,7 @@
 import type { Filters } from "@/lib/venues";
 import { parseCityId, type CityId } from "@/lib/cities";
+import { parseDrinkCategoryParam } from "@/lib/drinkBrands";
+import { parseDrinkSubtypeParam } from "@/lib/drinkSubtypes";
 import type { SheetSnap } from "@/lib/sheetSnap";
 import { NIGHT_AREA_SLUGS, type NightAreaSlug } from "@/lib/nightAreas";
 
@@ -147,7 +149,18 @@ export function validateMobileMapFilters(value: unknown): Filters | null {
     typeof raw.crawlStyle !== "string" || !CRAWL_STYLES.has(raw.crawlStyle) ||
     !FILTER_BOOLEAN_KEYS.every((key) => typeof raw[key] === "boolean")
   ) return null;
-  return raw as Filters;
+  // Drink-subtype lens fields post-date this store, so a session saved before
+  // they existed is UPGRADED (to the off state) rather than discarded — losing
+  // a user's whole saved map because the schema grew would be the wrong trade.
+  const category = parseDrinkCategoryParam(raw.drinkCategory);
+  const subtype = category
+    ? parseDrinkSubtypeParam(raw.drinkSubtype, category)
+    : null;
+  return {
+    ...(raw as Filters),
+    drinkSubtype: subtype?.id ?? "",
+    topShelfOnly: raw.topShelfOnly === true && Boolean(category),
+  };
 }
 
 export function readMobileMapSession(): MobileMapSessionV1 | null {

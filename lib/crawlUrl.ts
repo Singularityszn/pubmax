@@ -6,6 +6,7 @@ import {
   parseDrinkCategoryParam,
 } from "@/lib/drinkBrands";
 import { isDrinkCategory } from "@/lib/drinks";
+import { parseDrinkSubtypeParam } from "@/lib/drinkSubtypes";
 import { parseZoneParam } from "@/lib/zones";
 
 // Alt crawl styles (issue #31): a light "what kind of night" label that rides
@@ -125,13 +126,22 @@ export function encodeCrawl(state: CrawlUrlState): string {
   if (filters.query.trim()) params.set("q", filters.query.trim());
   // Drink lens (Wave C): round-trip ?drink= + optional ?brand=.
   const drinkCategory = filters.drinkCategory?.trim();
-  if (drinkCategory && isDrinkCategory(drinkCategory)) {
-    params.set("drink", drinkCategory);
+  const encodedCategory =
+    drinkCategory && isDrinkCategory(drinkCategory) ? drinkCategory : null;
+  if (encodedCategory) {
+    params.set("drink", encodedCategory);
   }
   const drinkBrand = normalizeBrandQuery(filters.drinkBrand);
   if (drinkBrand && findBrand(drinkBrand)) {
     params.set("brand", drinkBrand);
   }
+  // Subtype refinement (`?sub=rum-dark`). Only encoded when it agrees with the
+  // encoded category — a subtype without its parent is not a shareable lens.
+  const subtype = parseDrinkSubtypeParam(filters.drinkSubtype);
+  if (subtype && subtype.category === encodedCategory) {
+    params.set("sub", subtype.id);
+  }
+  if (filters.topShelfOnly && encodedCategory) params.set("topshelf", "1");
   // Zone lens: only a concrete 1–6 zone is encoded ("" / "all" is the default).
   const zone = parseZoneParam(filters.zone);
   if (zone !== null && zone !== "all") params.set("zone", String(zone));
@@ -165,6 +175,62 @@ export function buildCrawlMapHref(venueIds: string[]): string | null {
 
 // Returns only the keys present + valid in the URL, so callers can spread over
 // their defaults. Filters come back as a Partial too (merge onto initialFilters).
+// Discover → map drink deep-links (`?drink=` / `?brand=` from exploreHref),
+// plus the second-level `?sub=` refinement and the `?topshelf=1` lens.
+//   low-no / non-alcoholic → requireNonAlcoholic (+ mocktail alt style)
+//   cocktail → requireCocktails + drinkCategory
+//   wine/vodka/gin/… → drinkCategory (+ optional drinkBrand / drinkSubtype)
+// `cocktails=1` alone lights the cocktail lens when `drink=` is absent; an
+// explicit `drink=` category always wins. Mutates `filters` in place and
+// returns true when the link asked for the mocktail alt style.
+function decodeDrinkLens(params: URLSearchParams, filters: Partial<Filters>): boolean {
+  let mocktail = false;
+  const cocktailsFlag = params.get("cocktails") === "1";
+  if (cocktailsFlag) filters.requireCocktails = true;
+
+  const drinkRaw = params.get("drink")?.trim().toLowerCase() ?? "";
+  if (drinkRaw === "low-no" || drinkRaw === "non-alcoholic") {
+    filters.requireNonAlcoholic = true;
+    mocktail = true;
+  } else {
+    const drinkCategory = parseDrinkCategoryParam(drinkRaw);
+    if (drinkCategory) {
+      // Lens via drinkCategory only — do NOT also set filters.query to the
+      // category label. That AND'd with drinkCategory and dropped slim pins
+      // whose wine/gin hints don't appear in name/searchText (false negatives).
+      filters.drinkCategory = drinkCategory;
+      if (drinkCategory === "cocktail") filters.requireCocktails = true;
+    } else if (cocktailsFlag) {
+      filters.drinkCategory = "cocktail";
+    }
+  }
+
+  const brandRaw = normalizeBrandQuery(params.get("brand"));
+  const brandHit = brandRaw ? findBrand(brandRaw) : null;
+  if (brandHit) {
+    filters.drinkBrand = brandHit.brand.id;
+    // Brand implies its category when drink= was omitted or mismatched.
+    if (!filters.drinkCategory) filters.drinkCategory = brandHit.category;
+    if (brandHit.category === "cocktail") filters.requireCocktails = true;
+  }
+
+  // A subtype always arrives WITH its parent category — when `drink=` was
+  // omitted the subtype supplies it, so a bare `/map?sub=whisky-japanese`
+  // still lights the whisky lens rather than filtering against no family at
+  // all. A subtype that contradicts an explicit `drink=` is dropped.
+  const subtype = parseDrinkSubtypeParam(params.get("sub"));
+  if (subtype && (!filters.drinkCategory || filters.drinkCategory === subtype.category)) {
+    filters.drinkSubtype = subtype.id;
+    filters.drinkCategory = subtype.category;
+    if (subtype.category === "cocktail") filters.requireCocktails = true;
+  }
+
+  if (params.get("topshelf") === "1" && filters.drinkCategory) {
+    filters.topShelfOnly = true;
+  }
+  return mocktail;
+}
+
 export function decodeCrawl(
   params: URLSearchParams,
 ): Partial<Omit<CrawlUrlState, "filters">> & { filters?: Partial<Filters> } {
@@ -189,42 +255,7 @@ export function decodeCrawl(
   const q = params.get("q")?.trim();
   if (q) filters.query = q.slice(0, 80);
 
-  // Discover → map drink deep-links (`?drink=` / `?brand=` from exploreHref).
-  //   low-no / non-alcoholic → requireNonAlcoholic (+ mocktail alt style)
-  //   cocktail → requireCocktails + drinkCategory
-  //   wine/vodka/gin/… → drinkCategory (+ optional drinkBrand)
-  // `cocktails=1` alone lights the cocktail lens when `drink=` is absent;
-  // an explicit `drink=` category always wins.
-  const cocktailsFlag = params.get("cocktails") === "1";
-  if (cocktailsFlag) filters.requireCocktails = true;
-
-  const drinkRaw = params.get("drink")?.trim().toLowerCase() ?? "";
-  if (drinkRaw === "low-no" || drinkRaw === "non-alcoholic") {
-    filters.requireNonAlcoholic = true;
-    out.altStyle = "mocktail";
-  } else {
-    const drinkCategory = parseDrinkCategoryParam(drinkRaw);
-    if (drinkCategory) {
-      // Lens via drinkCategory only — do NOT also set filters.query to the
-      // category label. That AND'd with drinkCategory and dropped slim pins
-      // whose wine/gin hints don't appear in name/searchText (false negatives).
-      filters.drinkCategory = drinkCategory;
-      if (drinkCategory === "cocktail") filters.requireCocktails = true;
-    } else if (cocktailsFlag) {
-      filters.drinkCategory = "cocktail";
-    }
-  }
-
-  const brandRaw = normalizeBrandQuery(params.get("brand"));
-  if (brandRaw) {
-    const hit = findBrand(brandRaw);
-    if (hit) {
-      filters.drinkBrand = hit.brand.id;
-      // Brand implies its category when drink= was omitted or mismatched.
-      if (!filters.drinkCategory) filters.drinkCategory = hit.category;
-      if (hit.category === "cocktail") filters.requireCocktails = true;
-    }
-  }
+  if (decodeDrinkLens(params, filters)) out.altStyle = "mocktail";
 
   // Zone lens deep-link (?zone=3). Only a valid 1–6 zone sets the filter.
   const zone = parseZoneParam(params.get("zone"));

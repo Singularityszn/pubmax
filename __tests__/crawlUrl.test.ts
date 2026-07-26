@@ -236,6 +236,60 @@ describe("crawlUrl", () => {
     expect(decoded.filters.drinkBrand).toBe("sipsmith");
   });
 
+  it("round-trips a subtype refinement alongside its category", () => {
+    const encoded = encodeCrawl({
+      ...sample,
+      filters: {
+        ...sample.filters,
+        drinkCategory: "rum",
+        drinkSubtype: "rum-dark",
+        topShelfOnly: true,
+      },
+    });
+    expect(encoded).toContain("drink=rum");
+    expect(encoded).toContain("sub=rum-dark");
+    expect(encoded).toContain("topshelf=1");
+
+    const decoded = seedCrawlState(`?${encoded}`);
+    expect(decoded.filters.drinkCategory).toBe("rum");
+    expect(decoded.filters.drinkSubtype).toBe("rum-dark");
+    expect(decoded.filters.topShelfOnly).toBe(true);
+  });
+
+  it("a bare ?sub= deep-link supplies its own parent category", () => {
+    const seeded = seedCrawlState("?sub=whisky-japanese");
+    expect(seeded.filters.drinkCategory).toBe("whisky");
+    expect(seeded.filters.drinkSubtype).toBe("whisky-japanese");
+  });
+
+  it("drops a subtype that disagrees with the encoded category, keeping the category", () => {
+    const seeded = seedCrawlState("?drink=gin&sub=rum-dark");
+    expect(seeded.filters.drinkCategory).toBe("gin");
+    expect(seeded.filters.drinkSubtype).toBe("");
+
+    // An unknown subtype id is ignored, never obeyed.
+    const bogus = seedCrawlState("?drink=rum&sub=rum-unicorn");
+    expect(bogus.filters.drinkCategory).toBe("rum");
+    expect(bogus.filters.drinkSubtype).toBe("");
+  });
+
+  it("never encodes an orphaned subtype", () => {
+    const encoded = encodeCrawl({
+      ...sample,
+      filters: {
+        ...sample.filters,
+        drinkCategory: "",
+        drinkSubtype: "rum-dark",
+        topShelfOnly: true,
+      },
+    });
+    expect(encoded).not.toContain("sub=");
+    expect(encoded).not.toContain("topshelf=");
+
+    const decoded = seedCrawlState("?topshelf=1");
+    expect(decoded.filters.topShelfOnly).toBe(false);
+  });
+
   it("seeds Discover brand deep-links like ?drink=vodka&brand=absolut", () => {
     const seeded = seedCrawlState("?drink=vodka&brand=absolut");
     expect(seeded.filters.drinkCategory).toBe("vodka");

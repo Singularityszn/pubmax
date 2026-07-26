@@ -211,6 +211,94 @@
   white-space: nowrap;
 }
 
+/* Progressive disclosure: the subtype row only mounts once a category is
+   picked, so the resting toolbar keeps exactly one strip. Both strips scroll
+   horizontally on their own, so neither can widen the toolbar at 390px. */
+.drinkShapeChipsStack {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.drinkSubtypeChips {
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 6px;
+  overflow-x: auto;
+  padding: 0 2px 2px;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+  min-width: 0;
+  max-width: 100%;
+  /* Same gesture contract as the category strip: a horizontal drag here is
+     never claimed by the map, and its scroll never chains into it. */
+  touch-action: pan-x;
+  overscroll-behavior-x: contain;
+}
+
+.drinkSubtypeChips::-webkit-scrollbar {
+  display: none;
+}
+
+.drinkSubtypeChip {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  min-height: 28px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  border: 1px dashed color-mix(in srgb, var(--line) 60%, var(--brass) 40%);
+  background: color-mix(in srgb, var(--panel-raised) 70%, transparent);
+  color: var(--ink-soft);
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+  cursor: pointer;
+  touch-action: manipulation;
+  transition:
+    background var(--duration-base) var(--ease-out),
+    border-color var(--duration-base) var(--ease-out),
+    color var(--duration-base) var(--ease-out),
+    transform var(--duration-fast) var(--ease-out);
+}
+
+.drinkSubtypeChip:active {
+  transform: scale(0.96);
+}
+
+.drinkSubtypeChip:hover,
+.drinkSubtypeChip:focus-visible {
+  border-color: var(--brass);
+  color: var(--ink);
+}
+
+.drinkSubtypeChip:focus-visible {
+  outline: 2px solid var(--brass);
+  outline-offset: 2px;
+}
+
+.drinkSubtypeChip.isOn {
+  border-style: solid;
+  border-color: var(--brass);
+  background: color-mix(in srgb, var(--brass) 22%, var(--panel-raised));
+  color: var(--ink);
+}
+
+/* Top shelf cuts across families, so it reads as a distinct affordance
+   rather than one more subtype in the same row. */
+.drinkSubtypeChip.isTopShelf {
+  border-style: solid;
+  border-color: color-mix(in srgb, var(--brass) 55%, var(--line));
+}
+
+.drinkSubtypeChip.isTopShelf.isOn {
+  background: linear-gradient(135deg, var(--brass), var(--brass-bright));
+  color: var(--color-on-accent);
+}
+
 @media (max-width: 640px) {
   .mapToolbar {
     /* Visible so CitySwitcher dropdown can escape; clip only the search field. */
@@ -293,6 +381,15 @@
   .drinkShapeChip {
     min-height: 44px;
     padding: 4px 10px 4px 8px;
+  }
+
+  /* Refinement chips stay a secondary control but still clear the 36px
+     comfortable-touch floor; the 44px primary row above carries the WCAG
+     target for the category choice itself. */
+  .drinkSubtypeChip {
+    min-height: 36px;
+    padding: 4px 12px;
+    font-size: 0.72rem;
   }
 
   /* Sheet / onboarding / detail collision. Planner peek/half leave the

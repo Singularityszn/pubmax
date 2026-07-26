@@ -84,6 +84,8 @@ function makeFilters(overrides: Partial<Filters> = {}): Filters {
     canonicalOnly: false,
     drinkCategory: "",
     drinkBrand: "",
+    drinkSubtype: "",
+    topShelfOnly: false,
     zone: "",
     ...overrides,
   };
@@ -326,6 +328,107 @@ describe("filterVenues", () => {
       filterVenues([ginVenue], makeFilters({ drinkCategory: "gin", drinkBrand: "tanqueray" })),
     ).toHaveLength(0);
     expect(filterVenues([beerOnly], makeFilters({ drinkBrand: "guinness" }))).toHaveLength(1);
+  });
+
+  // A pub whose only drink evidence is a bare brand name — "GUINNESS" says
+  // neither "beer" nor "stout" — so the category comes from the slim-index hint
+  // and the subtype has to come from brand knowledge.
+  function beerPub(name: string, pintName: string, price: number) {
+    const [base] = groupVenuePrices([
+      makeRow({ pub_name: name, pint_name: pintName, price_gbp: price }),
+    ]);
+    return {
+      ...base,
+      filterHints: {
+        searchText: base.name.toLowerCase(),
+        amenities: {
+          food: false,
+          cocktails: false,
+          beerGarden: false,
+          liveSports: false,
+          nonAlcoholic: false,
+        },
+        curation: { nearWater: false, hasStory: false },
+        canonical: true,
+        drinkCategories: ["beer"],
+      },
+    };
+  }
+
+  it("refines a category with a subtype, and composes with the price filter", () => {
+    const stoutPub = beerPub("The Stout Arms", "GUINNESS", 5);
+    const lagerPub = beerPub("The Lager Arms", "AMSTEL", 9);
+    const pubs = [stoutPub, lagerPub];
+
+    // Category alone keeps both; the subtype narrows to the stout.
+    expect(filterVenues(pubs, makeFilters({ drinkCategory: "beer" }))).toHaveLength(2);
+    const stout = filterVenues(
+      pubs,
+      makeFilters({ drinkCategory: "beer", drinkSubtype: "beer-stout" }),
+    );
+    expect(stout.map((venue) => venue.name)).toEqual(["The Stout Arms"]);
+    expect(
+      filterVenues(pubs, makeFilters({ drinkCategory: "beer", drinkSubtype: "beer-lager" })),
+    ).toHaveLength(1);
+
+    // AND'd with the existing price filter, not replacing it.
+    expect(
+      filterVenues(
+        pubs,
+        makeFilters({ drinkCategory: "beer", drinkSubtype: "beer-stout", maxPrice: 4 }),
+      ),
+    ).toHaveLength(0);
+  });
+
+  it("recognizes every stocked subtype when a venue carries multiple known brands", () => {
+    const [mixed] = groupVenuePrices([
+      makeRow({ pub_name: "The Mixed Tap", pint_name: "GUINNESS", price_gbp: 6 }),
+      makeRow({ pub_name: "The Mixed Tap", pint_name: "AMSTEL", price_gbp: 6 }),
+    ]);
+    expect(
+      filterVenues(
+        [mixed],
+        makeFilters({ drinkCategory: "beer", drinkSubtype: "beer-stout" }),
+      ),
+    ).toHaveLength(1);
+    expect(
+      filterVenues(
+        [mixed],
+        makeFilters({ drinkCategory: "beer", drinkSubtype: "beer-lager" }),
+      ),
+    ).toHaveLength(1);
+  });
+
+  it("ignores a subtype from a different family and rejects unknown ids", () => {
+    const pub = beerPub("The Stout Arms", "GUINNESS", 5);
+    // Stale rum refinement under a beer lens: dropped, not obeyed.
+    expect(
+      filterVenues([pub], makeFilters({ drinkCategory: "beer", drinkSubtype: "rum-dark" })),
+    ).toHaveLength(1);
+    // An unknown id must not silently no-op into "everything matches".
+    expect(
+      filterVenues([pub], makeFilters({ drinkCategory: "beer", drinkSubtype: "beer-unicorn" })),
+    ).toHaveLength(0);
+  });
+
+  it("narrows to known top-shelf pours only, never guessing", () => {
+    const [premium] = groupVenuePrices([
+      makeRow({ pub_name: "The Back Bar", pint_name: "Lagavulin 16", price_gbp: 5 }),
+    ]);
+    const [ordinary] = groupVenuePrices([
+      makeRow({ pub_name: "The Local", pint_name: "CARLING", price_gbp: 5 }),
+    ]);
+    const ordinaryWithOldBuildingCopy = {
+      ...ordinary,
+      description: "A premium pub in an aged Victorian building with vintage decor.",
+    };
+    const found = filterVenues(
+      [premium, ordinaryWithOldBuildingCopy],
+      makeFilters({ topShelfOnly: true }),
+    );
+    expect(found.map((venue) => venue.name)).toEqual(["The Back Bar"]);
+    // Off is a no-op, not a hidden narrowing.
+    expect(filterVenues([premium, ordinaryWithOldBuildingCopy], makeFilters())).toHaveLength(2);
   });
 
   it("does not match drinkBrand against pub name buried in filterHints.searchText", () => {

@@ -1145,6 +1145,10 @@ export default function PubMap({
         ...current,
         drinkCategory: "",
         drinkBrand: "",
+        // A persona owns the whole drink lens, refinement included — leaving a
+        // subtype behind would keep narrowing a lens the user just cleared.
+        drinkSubtype: "",
+        topShelfOnly: false,
         requireCocktails: false,
       }));
       return;
@@ -1159,6 +1163,8 @@ export default function PubMap({
       ...current,
       drinkCategory: highlights ? persona.drinkCategory : "",
       drinkBrand: "",
+      drinkSubtype: "",
+      topShelfOnly: false,
       requireCocktails: highlights && persona.drinkCategory === "cocktail",
     }));
   }, []);
@@ -2150,6 +2156,9 @@ export default function PubMap({
               ...current,
               drinkCategory,
               drinkBrand,
+              // A category switch retires its refinement (see DrinkShapeChips).
+              drinkSubtype: drinkCategory === current.drinkCategory ? current.drinkSubtype : "",
+              topShelfOnly: drinkCategory ? current.topShelfOnly : false,
               // Keep cocktail amenity in sync with the drink lens.
               requireCocktails:
                 drinkCategory === "cocktail" ? true : drinkCategory ? false : current.requireCocktails,
@@ -2291,7 +2300,13 @@ export default function PubMap({
           tflCount={tflStatus.issueCount}
           tflStatus={tflStatus.failed ? "unavailable" : !tflStatus.payload ? "checking" : tflStatus.issueCount ? "issues" : "clear"}
           priceLabel={filters.maxPrice < 10 ? `≤£${filters.maxPrice.toFixed(2)}` : "Price"}
-          drinkFiltersActive={Boolean(filters.drinkCategory || filters.drinkBrand || filters.requireCocktails)}
+          drinkFiltersActive={Boolean(
+            filters.drinkCategory ||
+              filters.drinkBrand ||
+              filters.drinkSubtype ||
+              filters.topShelfOnly ||
+              filters.requireCocktails,
+          )}
           zoneActive={filters.zone !== "" && filters.zone !== "all"}
           priceCapActive={filters.maxPrice < 10}
           planOpen={planningOpen}
@@ -2329,6 +2344,8 @@ export default function PubMap({
                     ...current,
                     drinkCategory,
                     drinkBrand,
+                    drinkSubtype: drinkCategory === current.drinkCategory ? current.drinkSubtype : "",
+                    topShelfOnly: drinkCategory ? current.topShelfOnly : false,
                     requireCocktails: drinkCategory === "cocktail",
                   }))
                 }
@@ -2411,7 +2428,7 @@ export default function PubMap({
               </TabsContent>
               <TabsContent value="prices" className="mobileMapFilters">
                 <DrinkShapeChips filters={filters} onFiltersChange={setFilters} />
-                <FavoritePintPicker value={favoritePint} onChange={changeFavoritePint} drinkCategory={filters.drinkCategory} drinkBrand={filters.drinkBrand} onDrinkLensChange={({ drinkCategory, drinkBrand }) => setFilters((current) => ({ ...current, drinkCategory, drinkBrand, requireCocktails: drinkCategory === "cocktail" }))} />
+                <FavoritePintPicker value={favoritePint} onChange={changeFavoritePint} drinkCategory={filters.drinkCategory} drinkBrand={filters.drinkBrand} onDrinkLensChange={({ drinkCategory, drinkBrand }) => setFilters((current) => ({ ...current, drinkCategory, drinkBrand, drinkSubtype: drinkCategory === current.drinkCategory ? current.drinkSubtype : "", topShelfOnly: drinkCategory ? current.topShelfOnly : false, requireCocktails: drinkCategory === "cocktail" }))} />
                 <fieldset className="mobilePriceChoices"><legend>Maximum pint price</legend>{[10, 7, 6, 5.5].map((price) => <button type="button" key={price} className={filters.maxPrice === price ? "isActive" : ""} aria-pressed={filters.maxPrice === price} onClick={() => setFilters((current) => ({ ...current, maxPrice: price }))}>{price === 10 ? "Any" : `£${price.toFixed(2)}`}</button>)}</fieldset>
               </TabsContent>
               <TabsContent value="events">
