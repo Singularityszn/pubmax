@@ -35,6 +35,19 @@ export const FALLBACK_STYLES = {
 } as const;
 export const STYLE_LOAD_TIMEOUT_MS = 8000;
 
+// ODbL attribution for OUR OWN pub data, not the basemap's. The basemap styles
+// above ship their own credit inside the style JSON; this line exists because a
+// large share of the venues we draw on top of it are themselves OSM-derived
+// (the curated index's `outer_london_osm` venues and the whole UK base layer),
+// and the OSMF attribution guidelines expect a browsable map to credit the
+// contributors in the map corner, not only on an About page.
+// https://osmfoundation.org/wiki/Licence/Attribution_Guidelines
+//
+// Passed as MapLibre's `customAttribution` so it is present on EVERY city and
+// every style, including the fallback styles and the non-London cities that
+// skip the rail-lines source (whose own attribution is in buildScene).
+export const OSM_ATTRIBUTION = "Pub data © OpenStreetMap contributors (ODbL)";
+
 // Slightly wider opening London zoom (outer-London P0) so outer boroughs read
 // at first glance while drink icons still appear soon after a nudge in.
 export const LONDON_VIEW = {

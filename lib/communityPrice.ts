@@ -65,6 +65,14 @@ export type CommunityPriceMapCandidate = {
 
 /** One community-submitted price observation, as stored and as returned. */
 export type CommunityPrice = {
+  /**
+   * Opaque, stable id for this observation - the handle a reader needs to
+   * REPORT the row and a moderator needs to HIDE it. Absent on an optimistic
+   * client-side entry that the server has not answered for yet (nothing can be
+   * reported until it exists server-side), and on any older payload. It carries
+   * no submitter information: the actor token never leaves the store.
+   */
+  id?: string;
   venueId: string;
   drinkCategory: DrinkCategory;
   priceGbp: number;

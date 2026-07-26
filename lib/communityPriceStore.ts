@@ -21,6 +21,15 @@
 // failure comes back flagged so the route can answer 503 rather than pretend the
 // tap landed.
 //
+// MODERATION HIDES, NEVER DELETES. A row can be flagged by a reader (`report`)
+// and hidden by a moderator (`moderate`) - the observation itself is kept, with
+// its report metadata, exactly as the Pint Drop path does it. Hidden rows are
+// filtered on the ONE read path (`freshestPerCategory`'s input), so a hidden
+// price disappears from the sheet, from the corroboration count, and from the
+// map candidate in a single stroke: there is no second place to remember.
+// Reporting NEVER auto-hides here (unlike pint drops): a community price is the
+// thing the map is made of, so taking one down is a human decision.
+//
 // TRUST IS COUNTED HERE, ENFORCED ELSEWHERE. Reads attach `corroborations` -
 // how many independent submitters back the figure - derived from the per-
 // (venue, category, actor) rows already stored, with no schema change and no
@@ -28,6 +37,8 @@
 // (threshold + 30-day age) lives in the one merge seam,
 // components/map/communityPriceSignals.ts, and the policy constants it reads
 // live in lib/communityPrice.ts.
+
+import { randomUUID } from "node:crypto";
 
 import {
   agreesWithinTolerance,
@@ -69,6 +80,25 @@ export type CommunityPriceReadResult = {
   degraded: boolean;
 };
 
+/**
+ * A reported/hidden observation as the moderator queue sees it. Carries the
+ * report metadata the moderator needs to judge it and NOTHING that identifies
+ * the submitter - the actor token stays inside the store, exactly as it does on
+ * the public read path.
+ */
+export type ModeratorCommunityPrice = {
+  id: string;
+  venueId: string;
+  drinkCategory: DrinkCategory;
+  priceGbp: number;
+  submittedAt: number;
+  hidden: boolean;
+  reportCount: number;
+  reportedAt?: number;
+  reportReason?: string;
+  moderatorNote?: string;
+};
+
 export type CommunityPriceStore = {
   /**
    * Record an observation and return it as stored. NEVER throws; a durable
@@ -92,6 +122,22 @@ export type CommunityPriceStore = {
    * throws; `degraded` marks an unavailable durable read rather than a real 0.
    */
   countCorroboratedCategories(now?: number): Promise<CorroboratedCategoryCount>;
+  /**
+   * Reader flag on one observation. Records the reason and counts the report;
+   * it NEVER hides by itself. False = unknown id. NEVER throws.
+   */
+  report(id: string, reason?: string, actorHash?: string): Promise<boolean>;
+  /**
+   * Moderator decision: hide the observation from every public read, or restore
+   * it. The row is kept either way - this store has no delete. False = unknown
+   * id. NEVER throws.
+   */
+  moderate(id: string, hidden: boolean, note?: string): Promise<boolean>;
+  /**
+   * The moderation queue: reported and/or hidden observations, newest report
+   * first. NEVER throws; an unavailable durable read degrades to empty.
+   */
+  listForReview(limit?: number): Promise<ModeratorCommunityPrice[]>;
 };
 
 export type CorroboratedCategoryCount = {
@@ -125,7 +171,28 @@ const CORROBORATION_SCAN_ROWS = 20_000;
 // page's fill, keeping the flag honest regardless of the Max Rows setting.
 const CORROBORATION_SCAN_PAGE = 1_000;
 
-type StoredPrice = CommunityPrice & { actor: string | null };
+type StoredPrice = CommunityPrice & {
+  id: string;
+  actor: string | null;
+  /** Hidden by a moderator. Filtered out of every public read; never deleted. */
+  hidden: boolean;
+  /** Reader flags, for the moderation queue only - it decides nothing here. */
+  reportCount: number;
+  reportedAt?: number;
+  reportReason?: string;
+  moderatorNote?: string;
+  /** Actors that have already flagged this row - one report each, durably. */
+  reporters?: Set<string>;
+};
+
+/** Cap a free-text moderation/report reason before it is stored or shown. */
+const MAX_REASON = 280;
+
+function cleanReason(value: unknown): string | undefined {
+  if (typeof value !== "string") return undefined;
+  const cleaned = value.replace(/[\x00-\x1F\x7F]/g, " ").trim().slice(0, MAX_REASON);
+  return cleaned === "" ? undefined : cleaned;
+}
 
 function cleanVenueId(value: unknown): string {
   if (typeof value !== "string") return "";
@@ -240,7 +307,12 @@ function bestCorroboratedCandidate(
  * should trust it. Actor tokens are counted here and dropped here; they never
  * leave the store (see `published`).
  */
-function freshestPerCategory(rows: StoredPrice[], now: number): CommunityPrice[] {
+function freshestPerCategory(allRows: StoredPrice[], now: number): CommunityPrice[] {
+  // THE one place a hidden observation leaves the public world. Filtering here
+  // rather than at each call site means a hidden row cannot show on the sheet,
+  // cannot corroborate a figure, and cannot become the map candidate - the
+  // three questions this function answers all read the same filtered set.
+  const rows = allRows.filter((row) => !row.hidden);
   const byCategory = new Map<DrinkCategory, StoredPrice>();
   for (const row of rows) {
     const held = byCategory.get(row.drinkCategory);
@@ -274,7 +346,11 @@ function freshestPerCategory(rows: StoredPrice[], now: number): CommunityPrice[]
  * disagree about what counts. Grouping is by venue AND category because a pub
  * with a trusted pint and a trusted cocktail is two facts the map can paint.
  */
-function countCorroboratedIn(rows: StoredPrice[], now: number): number {
+function countCorroboratedIn(allRows: StoredPrice[], now: number): number {
+  // Same rule as freshestPerCategory: a hidden observation cannot corroborate
+  // anything, so it cannot keep a (venue, category) pair in this count either -
+  // otherwise the roll-up would report a figure the map itself refuses.
+  const rows = allRows.filter((row) => !row.hidden);
   const groups = new Map<string, StoredPrice[]>();
   for (const row of rows) {
     // NUL separator: neither a cleaned venue id (control chars are stripped)
@@ -300,6 +376,10 @@ function countCorroboratedIn(rows: StoredPrice[], now: number): number {
  */
 function published(stored: StoredPrice): CommunityPrice {
   return {
+    // The id DOES cross the boundary (unlike the actor): the sheet needs a
+    // handle to report the row with, and it identifies an observation, not a
+    // person.
+    id: stored.id,
     venueId: stored.venueId,
     drinkCategory: stored.drinkCategory,
     priceGbp: stored.priceGbp,
@@ -308,10 +388,44 @@ function published(stored: StoredPrice): CommunityPrice {
   };
 }
 
+/** Project a stored row onto the moderator DTO. Never exposes `actor`. */
+function toModeratorPrice(row: StoredPrice): ModeratorCommunityPrice {
+  return {
+    id: row.id,
+    venueId: row.venueId,
+    drinkCategory: row.drinkCategory,
+    priceGbp: row.priceGbp,
+    submittedAt: row.submittedAt,
+    hidden: row.hidden,
+    reportCount: row.reportCount,
+    ...(row.reportedAt ? { reportedAt: row.reportedAt } : {}),
+    ...(row.reportReason ? { reportReason: row.reportReason } : {}),
+    ...(row.moderatorNote ? { moderatorNote: row.moderatorNote } : {}),
+  };
+}
+
+/** Bound one moderation-queue page. Generous for a solo moderator, finite. */
+const REVIEW_LIMIT = 100;
+
 // ── In-memory implementation ─────────────────────────────────────────────────
 // One entry per venue, holding every observation for it. Module-level so it
 // persists across requests within a process; never a browser global.
 const venues = new Map<string, StoredPrice[]>();
+
+/**
+ * The stored row with this id, or null. A linear scan on purpose: moderation is
+ * a handful of calls a day against a process-memory fallback, and a second
+ * id→row index would be one more thing that can disagree with the venue map.
+ */
+function findMemoryRow(id: string): StoredPrice | null {
+  if (typeof id !== "string" || id === "") return null;
+  for (const rows of venues.values()) {
+    for (const row of rows) {
+      if (row.id === id) return row;
+    }
+  }
+  return null;
+}
 
 /** Evict the venue with the oldest newest-observation once past the cap. */
 function evictIfNeeded(): void {
@@ -334,20 +448,37 @@ export const memoryCommunityPriceStore: CommunityPriceStore = {
     if (!key) return { price: null };
     const stored: StoredPrice = {
       ...toPrice(key.venueId, key.drinkCategory, key.pennies, now),
+      id: randomUUID(),
       actor: input.actor ?? null,
+      hidden: false,
+      reportCount: 0,
     };
     const rows = venues.get(key.venueId) ?? [];
     // One live observation per (venue, category, actor): a device correcting
     // its own entry replaces it rather than stacking a second row, so one
     // person can't weight a venue's community price twice.
-    const kept = rows.filter(
-      (row) =>
-        !(
-          row.drinkCategory === stored.drinkCategory &&
-          row.actor !== null &&
-          row.actor === stored.actor
-        ),
-    );
+    const isOwnEarlier = (row: StoredPrice) =>
+      row.drinkCategory === stored.drinkCategory &&
+      row.actor !== null &&
+      row.actor === stored.actor;
+    const replaced = rows.find(isOwnEarlier);
+    const kept = rows.filter((row) => !isOwnEarlier(row));
+    // Moderation survives the correction. The durable backend's upsert writes
+    // only the price columns, so `hidden_at` and the report metadata stay put
+    // there; the memory backend has to carry them across deliberately, or a
+    // hidden submitter could wash their price simply by logging it again -
+    // and the two backends would disagree about whether that works.
+    if (replaced) {
+      stored.hidden = replaced.hidden;
+      stored.reportCount = replaced.reportCount;
+      stored.reportedAt = replaced.reportedAt;
+      stored.reportReason = replaced.reportReason;
+      stored.moderatorNote = replaced.moderatorNote;
+      stored.reporters = replaced.reporters;
+      // Keeping the id keeps a moderator's outstanding queue entry pointing at
+      // a row that still exists, exactly as the durable upsert does.
+      stored.id = replaced.id;
+    }
     kept.push(stored);
     venues.set(key.venueId, kept);
     evictIfNeeded();
@@ -372,6 +503,47 @@ export const memoryCommunityPriceStore: CommunityPriceStore = {
       truncated: rows.length > scanned.length,
       degraded: false,
     };
+  },
+
+  async report(id, reason, actorHash) {
+    const row = findMemoryRow(id);
+    if (!row) return false;
+    // One report per actor per row, mirroring the durable unique pair: a single
+    // angry reader cannot inflate the count they are asking a human to weigh.
+    // An unattributed report (no actor) still lands and still counts once.
+    const reporter = actorHash && actorHash !== "" ? actorHash : null;
+    if (reporter) {
+      row.reporters ??= new Set<string>();
+      if (row.reporters.has(reporter)) return true;
+      row.reporters.add(reporter);
+    }
+    row.reportCount += 1;
+    row.reportedAt = Date.now();
+    const cleaned = cleanReason(reason);
+    if (cleaned) row.reportReason = cleaned;
+    return true;
+  },
+
+  async moderate(id, hidden, note) {
+    const row = findMemoryRow(id);
+    if (!row) return false;
+    row.hidden = hidden;
+    const cleaned = cleanReason(note);
+    if (cleaned) row.moderatorNote = cleaned;
+    return true;
+  },
+
+  async listForReview(limit = REVIEW_LIMIT) {
+    const queue: StoredPrice[] = [];
+    for (const rows of venues.values()) {
+      for (const row of rows) {
+        if (row.hidden || row.reportCount > 0) queue.push(row);
+      }
+    }
+    return queue
+      .sort((a, b) => (b.reportedAt ?? b.submittedAt) - (a.reportedAt ?? a.submittedAt))
+      .slice(0, Math.max(0, limit))
+      .map(toModeratorPrice);
   },
 };
 
@@ -404,7 +576,22 @@ function rowsToPrices(rows: unknown, venueId: string): StoredPrice[] {
     // A non-string actor (null, or absent on an older projection) is the
     // unattributed bucket - never coerced into a distinct submitter.
     const actor = typeof row.actor === "string" && row.actor !== "" ? row.actor : null;
-    out.push({ ...toPrice(venueId, category, pennies, submittedAt), actor });
+    // A row we cannot identify cannot be reported or moderated, but it is still
+    // a real observation - it renders, it just carries no id. (Only reachable
+    // before migration 0055 adds the projection.)
+    const id = typeof row.id === "string" ? row.id : "";
+    out.push({
+      ...toPrice(venueId, category, pennies, submittedAt),
+      id,
+      actor,
+      // `hidden_at` absent (older projection) reads as VISIBLE, which is what
+      // the table meant before moderation existed.
+      hidden: typeof row.hidden_at === "string" && row.hidden_at !== "",
+      reportCount:
+        typeof row.report_count === "number" && Number.isFinite(row.report_count)
+          ? Math.max(0, Math.floor(row.report_count))
+          : 0,
+    });
   }
   return out;
 }
@@ -430,9 +617,12 @@ async function selectVenuePrices(venueId: string, now: number): Promise<Communit
   // `actor` is selected ONLY to count independent submitters in
   // freshestPerCategory; it is dropped again by `published` and never crosses
   // the store boundary. Raw tokens stay API-side (migration 0054's RLS note).
+  // Hidden rows are filtered in freshestPerCategory rather than in SQL, so the
+  // memory and durable backends can never disagree about what "hidden" removes
+  // (sheet row, corroboration count, map candidate - all three at once).
   const { data, error } = await admin()
     .from("community_prices")
-    .select("drink_category, price_pennies, submitted_at, actor")
+    .select("id, drink_category, price_pennies, submitted_at, actor, hidden_at, report_count")
     .eq("venue_id", venueId)
     .order("submitted_at", { ascending: false })
     .limit(VENUE_SCAN_ROWS);
@@ -472,13 +662,23 @@ export const supabaseCommunityPriceStore: CommunityPriceStore = {
           actor,
           submitted_at: submittedAt,
         };
-        const { error } = actor
+        // `.select("id")` so the submitter's own receipt carries the handle it
+        // would need to be reported by - and so a correction (the upsert) hands
+        // back the surviving row's id, not the replaced one's.
+        const { data, error } = actor
           ? await admin()
               .from("community_prices")
               .upsert(row, { onConflict: "venue_id,drink_category,actor" })
-          : await admin().from("community_prices").insert(row);
+              .select("id")
+          : await admin().from("community_prices").insert(row).select("id");
         if (error) throw new Error(error.message);
-        return { price: toPrice(key.venueId, key.drinkCategory, key.pennies, now) };
+        const id = Array.isArray(data) && typeof data[0]?.id === "string" ? data[0].id : undefined;
+        return {
+          price: {
+            ...toPrice(key.venueId, key.drinkCategory, key.pennies, now),
+            ...(id ? { id } : {}),
+          },
+        };
       },
     });
   },
@@ -522,7 +722,7 @@ export const supabaseCommunityPriceStore: CommunityPriceStore = {
           const pageEnd = Math.min(offset + CORROBORATION_SCAN_PAGE, CORROBORATION_SCAN_ROWS);
           const { data, error } = await admin()
             .from("community_prices")
-            .select("venue_id, drink_category, price_pennies, submitted_at, actor")
+            .select("venue_id, drink_category, price_pennies, submitted_at, actor, hidden_at")
             .gte("submitted_at", since)
             // The `id` tiebreak keeps the page windows disjoint when many rows
             // share one `submitted_at` instant.
@@ -545,7 +745,116 @@ export const supabaseCommunityPriceStore: CommunityPriceStore = {
       },
     });
   },
+
+  async report(id, reason, actorHash) {
+    if (!id) return false;
+    return guard<boolean>({
+      context: "report",
+      onSchemaMiss: () => memoryCommunityPriceStore.report(id, reason, actorHash),
+      message: "report failed",
+      onError: () => false,
+      run: async () => {
+        // Per-actor uniqueness is the DURABLE guarantee (community_price_reports'
+        // unique (community_price_id, actor_hash) in migration 0055), so a
+        // repeat that slips past the route's rate limiter is an idempotent
+        // no-op rather than a second count. The RPC does the insert-and-count
+        // in one statement; nothing here is allowed to hide the row.
+        const { data, error } = await admin().rpc("report_community_price", {
+          p_id: id,
+          p_actor_hash: actorHash ?? null,
+          p_reason: cleanReason(reason) ?? null,
+        });
+        if (error) throw new Error(error.message);
+        return data === true;
+      },
+    });
+  },
+
+  async moderate(id, hidden, note) {
+    if (!id) return false;
+    return guard<boolean>({
+      context: "moderate",
+      onSchemaMiss: () => memoryCommunityPriceStore.moderate(id, hidden, note),
+      message: "moderate failed",
+      onError: () => false,
+      run: async () => {
+        // Hide = stamp hidden_at; restore = clear it. The observation itself is
+        // never deleted, so a wrong call is always reversible. A call without a
+        // note leaves the previous moderator note in place, exactly as the
+        // memory backend does.
+        const cleaned = cleanReason(note);
+        const { data, error } = await admin()
+          .from("community_prices")
+          .update({
+            hidden_at: hidden ? new Date().toISOString() : null,
+            ...(cleaned ? { moderator_note: cleaned } : {}),
+            moderated_at: new Date().toISOString(),
+          })
+          .eq("id", id)
+          .select("id");
+        if (error) throw new Error(error.message);
+        return Array.isArray(data) && data.length > 0;
+      },
+    });
+  },
+
+  async listForReview(limit = REVIEW_LIMIT) {
+    return guard<ModeratorCommunityPrice[]>({
+      context: "listForReview",
+      onSchemaMiss: () => memoryCommunityPriceStore.listForReview(limit),
+      message: "review queue read failed - returning empty",
+      onError: () => [],
+      run: async () => {
+        const { data, error } = await admin()
+          .from("community_prices")
+          .select(
+            "id, venue_id, drink_category, price_pennies, submitted_at, hidden_at, report_count, reported_at, report_reason, moderator_note",
+          )
+          .or("report_count.gt.0,hidden_at.not.is.null")
+          .order("reported_at", { ascending: false, nullsFirst: false })
+          .limit(Math.max(0, limit));
+        if (error) throw new Error(error.message);
+        return reviewRows(data);
+      },
+    });
+  },
 };
+
+/** Narrow the untyped moderation-queue projection; a malformed row is skipped. */
+function reviewRows(rows: unknown): ModeratorCommunityPrice[] {
+  if (!Array.isArray(rows)) return [];
+  const out: ModeratorCommunityPrice[] = [];
+  for (const r of rows) {
+    if (typeof r !== "object" || r === null) continue;
+    const row = r as Record<string, unknown>;
+    const pennies = row.price_pennies;
+    if (typeof row.id !== "string" || row.id === "") continue;
+    if (typeof row.venue_id !== "string" || row.venue_id === "") continue;
+    if (!isDrinkCategory(row.drink_category)) continue;
+    if (typeof pennies !== "number" || !Number.isFinite(pennies)) continue;
+    const submittedAt = typeof row.submitted_at === "string" ? Date.parse(row.submitted_at) : NaN;
+    if (!Number.isFinite(submittedAt)) continue;
+    const reportedAt = typeof row.reported_at === "string" ? Date.parse(row.reported_at) : NaN;
+    out.push({
+      id: row.id,
+      venueId: row.venue_id,
+      drinkCategory: row.drink_category,
+      priceGbp: roundToPennies(pennies / 100),
+      submittedAt,
+      hidden: typeof row.hidden_at === "string" && row.hidden_at !== "",
+      reportCount:
+        typeof row.report_count === "number" && Number.isFinite(row.report_count)
+          ? Math.max(0, Math.floor(row.report_count))
+          : 0,
+      ...(Number.isFinite(reportedAt) ? { reportedAt } : {}),
+      ...(cleanReason(row.report_reason) ? { reportReason: cleanReason(row.report_reason) } : {}),
+      ...(cleanReason(row.moderator_note)
+        ? { moderatorNote: cleanReason(row.moderator_note) }
+        : {}),
+    });
+  }
+  return out;
+}
 
 /** The single backend selection point (mirrors the other stores). */
 export function communityPriceStore(): CommunityPriceStore {
@@ -587,6 +896,37 @@ export function readCommunityPricesWithStatus(
   now: number = Date.now(),
 ): Promise<CommunityPriceReadResult> {
   return communityPriceStore().latestForVenue(venueId, now);
+}
+
+/**
+ * Reader flag on one observation. NEVER throws; false means "no such row".
+ * Records the complaint - it never hides anything by itself.
+ */
+export function reportCommunityPrice(
+  id: string,
+  reason?: string,
+  actorHash?: string,
+): Promise<boolean> {
+  return communityPriceStore().report(id, reason, actorHash);
+}
+
+/**
+ * Moderator decision: hide one community price from every public read, or
+ * restore it. The observation is kept either way - hide, never delete.
+ */
+export function moderateCommunityPrice(
+  id: string,
+  hidden: boolean,
+  note?: string,
+): Promise<boolean> {
+  return communityPriceStore().moderate(id, hidden, note);
+}
+
+/** The moderation queue: reported and/or hidden observations. NEVER throws. */
+export function listCommunityPricesForReview(
+  limit?: number,
+): Promise<ModeratorCommunityPrice[]> {
+  return communityPriceStore().listForReview(limit);
 }
 
 /** Test-only: clear the in-memory observations between cases. */

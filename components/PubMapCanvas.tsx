@@ -54,6 +54,7 @@ import { formatPrice, type Venue } from "@/lib/venues";
 import type { VenueSignal, HoveredVenue, VenueDetailResponse, FailedHoverImage } from "@/components/map/canvas/types";
 import {
   MAP_STYLES, FALLBACK_STYLES, STYLE_LOAD_TIMEOUT_MS, LONDON_VIEW, UK_BOUNDS,
+  OSM_ATTRIBUTION,
   DASH_SEQ,
   GLOW_BASE_STROKE_OPACITY, GLOW_BASE_STROKE_WIDTH,
   PIN_ENTRANCE_BUCKETS, PIN_ENTRANCE_STAGGER_MS, PIN_ENTRANCE_RAMP_MS, PIN_ENTRANCE_TOTAL_MS,
@@ -868,6 +869,11 @@ export default function PubMapCanvas({
         style: MAP_STYLES[themeRef.current],
         ...mapViewRef.current,
         maxBounds: maxBoundsRef.current,
+        // ODbL credit for the pub layers we draw ourselves. Set on the map, not
+        // on a source, so it survives every style swap (theme toggle, fallback
+        // styles) and shows in every city - the rail-lines source's own
+        // attribution only exists in London (buildScene).
+        attributionControl: { customAttribution: OSM_ATTRIBUTION },
         // Attempt 2 drops to low-power: some drivers refuse a
         // high-performance context under load but grant the integrated GPU.
         ...(lowPower ? { canvasContextAttributes: { powerPreference: "low-power" } } : {}),

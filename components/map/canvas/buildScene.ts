@@ -15,6 +15,7 @@ import {
   registerMapIcons,
   GLOW_BASE_STROKE_OPACITY,
   GLOW_BASE_STROKE_WIDTH,
+  OSM_ATTRIBUTION,
 } from "./tokens";
 import {
   AMBIENT_CATEGORIES,
@@ -677,7 +678,14 @@ export function buildBandCorridor(ctx: SceneCtx) {
 export function buildUkBase(ctx: SceneCtx) {
   const { map, tokens, dark, addLayerOnce, ukBaseData, selectedId } = ctx;
   if (!map.getSource("uk-base")) {
-    map.addSource("uk-base", { type: "geojson", data: ukBaseData });
+    // This layer is wholly OSM-derived, so it carries the credit on the source
+    // itself as well as on the map (tokens.ts OSM_ATTRIBUTION) - MapLibre
+    // de-duplicates identical attribution strings in the corner control.
+    map.addSource("uk-base", {
+      type: "geojson",
+      data: ukBaseData,
+      attribution: OSM_ATTRIBUTION,
+    });
   }
   // The tapped base pub. A quieter ring than the curated `pubs-selected` brass
   // (this pin has nothing to be proud of yet), but a tap must always be

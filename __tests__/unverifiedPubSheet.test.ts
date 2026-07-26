@@ -23,6 +23,8 @@ function state(rows: CommunityPrice[], known = true): CommunityPricesState {
     loadVenue: () => {},
     submit: async () => ({ ok: true }),
     submitting: false,
+    reportPrice: () => {},
+    reportedIds: new Set<string>(),
   };
 }
 
