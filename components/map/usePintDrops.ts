@@ -22,6 +22,10 @@ import {
   writeOptimisticSpills,
 } from "@/lib/optimisticSpillPost";
 import { lastTrainComposeFields } from "@/lib/lastTrainBadge";
+import {
+  filterMapPintDropEntries,
+  type MapPintDropVenue,
+} from "@/lib/mapPintDropPolicy";
 import { clearPintDropDraft } from "@/lib/pintDropDraft";
 import type { PintDrop, VibeTag } from "@/lib/pintDropShared";
 import { appendWithSuffix, DEFAULT_VISIBILITY, type Visibility } from "@/lib/spill";
@@ -103,7 +107,10 @@ function groupDropsByVenueId(drops: DropWithPhotos[]): Map<string, DropWithPhoto
 // submit (multipart), report, composer form + photo slot state. API contract unchanged.
 // `cityId` scopes the unscoped map-layer fetch so Manchester demo seeds colour
 // Manchester pins without leaking into the London feed.
-export function usePintDrops(cityId: CityId = "london") {
+export function usePintDrops(
+  cityId: CityId = "london",
+  mapVenues?: readonly MapPintDropVenue[],
+) {
   const [handle, setHandle] = useState(() =>
     typeof window === "undefined" ? "" : (window.localStorage.getItem("pubmax_handle") ?? ""),
   );
@@ -530,6 +537,14 @@ export function usePintDrops(cityId: CityId = "london") {
     setComposerOpen(false);
   }, []);
 
+  const mapDropsByVenueId = useMemo(
+    () =>
+      mapVenues
+        ? filterMapPintDropEntries(mapVenues, dropsByVenueId)
+        : dropsByVenueId,
+    [dropsByVenueId, mapVenues],
+  );
+
   const venueSignals = useMemo(() => {
     const signals = new Map<
       string,
@@ -547,7 +562,7 @@ export function usePintDrops(cityId: CityId = "london") {
         latestDemoPrice: number | null;
       }
     >();
-    for (const [venueId, venueDrops] of dropsByVenueId) {
+    for (const [venueId, venueDrops] of mapDropsByVenueId) {
       // Demo seeds never feed the "latest contributor price" signal — a seeded
       // price must not read as a community log.
       const latestContributorDrop =
@@ -576,10 +591,10 @@ export function usePintDrops(cityId: CityId = "london") {
       });
     }
     return signals;
-  }, [dropsByVenueId]);
+  }, [mapDropsByVenueId]);
 
   return {
-    dropsByVenueId,
+    dropsByVenueId: mapDropsByVenueId,
     venueSignals,
     refreshVenueDrops,
     refreshAllDrops,

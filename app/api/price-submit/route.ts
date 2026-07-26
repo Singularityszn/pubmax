@@ -40,7 +40,8 @@ import { isLimited } from "@/lib/pintDrops";
 import { clientIp, hashActor, hashIp } from "@/lib/supabase";
 import { getUkBaseIdIndex } from "@/lib/ukBaseIndex";
 import { isUkBaseId } from "@/lib/ukBasePubs";
-import { getVenueIndex } from "@/lib/venueIndex";
+import { lookupCanonicalVenue } from "@/lib/venueIndex";
+import { isPubVenueKind } from "@/lib/venueKindFilters";
 
 // Best-effort, server-derived submitter token. Never throws - if IP hashing is
 // unavailable the store records the observation unattributed (it still counts,
@@ -68,6 +69,7 @@ export async function POST(request: Request): Promise<Response> {
     return jsonNoStore({ error: result.error }, { status: 400 });
   }
 
+  let submission = result.value;
   if (isUkBaseId(result.value.venueId)) {
     const ukBaseIndex = await getUkBaseIdIndex();
     if (ukBaseIndex.status === "unavailable") {
@@ -80,16 +82,20 @@ export async function POST(request: Request): Promise<Response> {
       return jsonNoStore({ error: "Pick a venue from the map." }, { status: 400 });
     }
   } else {
-    const venueIndex = await getVenueIndex();
-    if (venueIndex.size === 0) {
+    const venueLookup = await lookupCanonicalVenue(result.value.venueId);
+    if (venueLookup.status === "unavailable") {
       return jsonNoStore(
         { error: "Venue list is unavailable right now, try again shortly." },
         { status: 503 },
       );
     }
-    if (!venueIndex.has(result.value.venueId)) {
+    if (venueLookup.status !== "found" || !isPubVenueKind(venueLookup.venue.kind)) {
       return jsonNoStore({ error: "Pick a venue from the map." }, { status: 400 });
     }
+    submission = {
+      ...result.value,
+      venueId: venueLookup.canonicalId,
+    };
   }
 
   const actor = deriveActor(request);
@@ -105,14 +111,14 @@ export async function POST(request: Request): Promise<Response> {
   }
 
   // Keep the per-venue cap too, so one actor cannot churn one pub's figure.
-  const limitKey = `price-submit:${actor ?? "anon"}:${result.value.venueId}`;
+  const limitKey = `price-submit:${actor ?? "anon"}:${submission.venueId}`;
   if (await isLimited(limitKey, limitKey)) {
     return jsonNoStore({ error: "Too many price logs, slow down." }, { status: 429 });
   }
 
   // submitCommunityPrice never throws; a hard durable-write failure comes back
   // flagged so we answer 503 (degraded dependency) rather than a fake success.
-  const { price, failed } = await submitCommunityPrice({ ...result.value, actor });
+  const { price, failed } = await submitCommunityPrice({ ...submission, actor });
   if (failed || !price) {
     return jsonNoStore({ error: "Could not log that price right now." }, { status: 503 });
   }
@@ -134,7 +140,7 @@ export async function POST(request: Request): Promise<Response> {
   // own map transiently un-paint an already-corroborated figure until the next
   // read. Only when the read-back really produced a row, though - a degraded
   // or empty read stays candidate-less rather than inventing one.
-  const categoryRow = (await readCommunityPrices(result.value.venueId)).find(
+  const categoryRow = (await readCommunityPrices(submission.venueId)).find(
     (row) => row.drinkCategory === price.drinkCategory,
   );
   const record = categoryRow?.priceGbp === price.priceGbp ? categoryRow : undefined;
@@ -157,7 +163,15 @@ export async function GET(request: Request): Promise<Response> {
   try {
     const venueId = (new URL(request.url).searchParams.get("venueId") ?? "").trim();
     if (!venueId) return jsonNoStore({ prices: [] }, { status: 200 });
-    const result = await readCommunityPricesWithStatus(venueId);
+    let priceVenueId = venueId;
+    if (!isUkBaseId(venueId)) {
+      const venueLookup = await lookupCanonicalVenue(venueId);
+      if (venueLookup.status !== "found") {
+        return jsonNoStore({ prices: [] }, { status: 200 });
+      }
+      priceVenueId = venueLookup.canonicalId;
+    }
+    const result = await readCommunityPricesWithStatus(priceVenueId);
     return jsonNoStore(
       result.degraded
         ? { prices: result.prices, degraded: true }

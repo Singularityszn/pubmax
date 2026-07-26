@@ -5,6 +5,7 @@ import { shareNightObject } from "@/lib/shareSheet";
 import { venueMapUrl } from "@/lib/venueMapUrl";
 import type { ShareFeedback } from "@/lib/venueShare";
 import type { Venue } from "@/lib/venues";
+import { isPubVenue } from "@/lib/venueKindFilters";
 
 export function useVenueShare(venue: Venue) {
   const [shareFeedback, setShareFeedback] = useState<ShareFeedback | null>(null);
@@ -23,7 +24,10 @@ export function useVenueShare(venue: Venue) {
     // Native sheet first, wa.me fallback — the shared night-object flow.
     const outcome = await shareNightObject({
       title,
-      text: buildVenueShareText({ name: title, cheapestPintGbp: venue.cheapestPrice }),
+      text: buildVenueShareText({
+        name: title,
+        cheapestPintGbp: isPubVenue(venue) ? venue.cheapestPrice : null,
+      }),
       url,
     });
     if (outcome === "shared" || outcome === "cancelled") return;
@@ -43,7 +47,7 @@ export function useVenueShare(venue: Venue) {
     } catch {
       setShareStatus("error", "Couldn't copy the link. Copy it from your browser bar.");
     }
-  }, [venue.id, venue.name, venue.cheapestPrice]);
+  }, [venue]);
 
   return { currentShareFeedback, shareVenue };
 }

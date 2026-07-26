@@ -28,12 +28,17 @@ import {
   shardFileForSlug,
 } from "./lib/slimShards.mjs";
 import { loadStationZones, nearestStationZone } from "./lib/stationZones.mjs";
+import { isCurrentNightOutPlace } from "../lib/nightOutPlaceContract.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, "..");
 const RAW_PATH = path.join(ROOT, "public", "data", "pint_prices_app_dataset.json");
 const SLIM_PATH = path.join(ROOT, "public", "data", "venues_slim.json");
 const DATA_DIR = path.join(ROOT, "public", "data");
+const FAMOUS_VENUE_PATHS = [
+  path.join(ROOT, "data", "famous_venues", "bars.json"),
+  path.join(ROOT, "data", "famous_venues", "late_food.json"),
+];
 
 // First-paint budget: the eager map payload is the manifest + core shard ONLY.
 // Restored to 600 KB after #315 (which had raised it to 900 KB to fit the raw
@@ -58,6 +63,70 @@ const LON_MAX = 0.3;
 
 function inLondon(lat, lng) {
   return lat >= LAT_MIN && lat <= LAT_MAX && lng >= LON_MIN && lng <= LON_MAX;
+}
+
+function typeRelativePriceBands(rows) {
+  const bands = new Map();
+  for (const kind of ["bar", "food"]) {
+    const ranked = rows
+      .filter((row) => row.kind === kind)
+      .slice()
+      .sort((a, b) => a.anchor.price - b.anchor.price || a.id.localeCompare(b.id));
+    const lowCutoff = ranked[Math.ceil(ranked.length / 3) - 1]?.anchor.price;
+    const midCutoff = ranked[Math.ceil((ranked.length * 2) / 3) - 1]?.anchor.price;
+    for (const row of ranked) {
+      bands.set(
+        row.id,
+        row.anchor.price <= lowCutoff
+          ? 0
+          : row.anchor.price <= midCutoff
+            ? 1
+            : 2,
+      );
+    }
+  }
+  return bands;
+}
+
+function famousVenueFilterHints(row) {
+  return {
+    searchText: `${row.name} ${row.address} ${row.borough}`.toLowerCase(),
+    amenities: {
+      food: row.kind === "food",
+      cocktails: row.kind === "bar" && row.anchor.kind === "house_cocktail",
+      beerGarden: false,
+      liveSports: false,
+      nonAlcoholic: false,
+    },
+    curation: { nearWater: false, hasStory: true },
+    canonical: true,
+    ...(row.kind === "bar"
+      ? {
+          drinkCategories: [
+            row.anchor.kind === "pint"
+              ? "beer"
+              : row.anchor.kind === "wine"
+                ? "wine"
+                : "cocktail",
+          ],
+        }
+      : {}),
+    ...(row.kind === "food" ? { cuisineTags: ["kitchen"] } : {}),
+  };
+}
+
+function assertCurrentFamousVenueRows(rows, now) {
+  const invalid = rows.filter((row) => !isCurrentNightOutPlace(row, now));
+  if (invalid.length > 0) {
+    const nowMs = now instanceof Date ? now.getTime() : Number(now);
+    const checkedAt = Number.isFinite(nowMs) ? new Date(nowMs).toISOString() : String(now);
+    throw new Error(
+      `Famous venue current-trading verification failed at ${checkedAt}: ${invalid
+        .map((row) => `${row.id} (${row.observedAt} to ${row.expiresAt})`)
+        .join(", ")}`,
+    );
+  }
+  return rows;
 }
 
 // --- mirror of lib/venues.ts grouping + id logic (keep in lockstep) ----------
@@ -536,6 +605,15 @@ async function main() {
   // stamped with the zone of its nearest station — an honest approximation,
   // labelled as such in the UI. See scripts/lib/stationZones.mjs.
   const stationZones = await loadStationZones();
+  const famousRows = assertCurrentFamousVenueRows(
+    (
+      await Promise.all(
+        FAMOUS_VENUE_PATHS.map(async (file) => JSON.parse(await readFile(file, "utf8"))),
+      )
+    ).flat(),
+    new Date(),
+  );
+  const famousPriceBands = typeRelativePriceBands(famousRows);
 
   const slim = [];
   const detailLines = [];
@@ -546,10 +624,29 @@ async function main() {
     venues: {},
   };
   let detailOffset = 0;
+  const appendDetailArtifact = (id, artifact, rowCount) => {
+    const detailLine = `${JSON.stringify(artifact)}\n`;
+    const detailLength = Buffer.byteLength(detailLine);
+    detailIndex.venues[id] = {
+      offset: detailOffset,
+      length: detailLength,
+      rowCount,
+    };
+    detailOffset += detailLength;
+    detailLines.push(detailLine);
+  };
   const zoneCounts = {};
   let zoneUnknown = 0;
   for (const [key, prices] of grouped) {
     const first = prices[0];
+    const duplicateFamousVenue = famousRows.some(
+      (row) =>
+        normaliseVenueKeyPart(row.name) ===
+          normaliseVenueKeyPart(first.pub_name) &&
+        Math.abs(row.lat - Number(first.latitude)) < 0.001 &&
+        Math.abs(row.lng - Number(first.longitude)) < 0.001,
+    );
+    if (duplicateFamousVenue) continue;
     const numericPrices = prices
       .map((p) => p.price_gbp)
       .filter((p) => typeof p === "number" && Number.isFinite(p));
@@ -576,15 +673,32 @@ async function main() {
       filterHints: buildFilterHints(prices, id, scrapedIds),
     });
 
-    const detailLine = `${JSON.stringify({ id, rows: prices })}\n`;
-    const detailLength = Buffer.byteLength(detailLine);
-    detailIndex.venues[id] = {
-      offset: detailOffset,
-      length: detailLength,
-      rowCount: prices.length,
+    appendDetailArtifact(id, { id, rows: prices }, prices.length);
+  }
+
+  for (const row of famousRows) {
+    const nearest = nearestStationZone(row.lat, row.lng, stationZones);
+    const famousSlim = {
+      id: row.id,
+      name: row.name,
+      lat: row.lat,
+      lng: row.lng,
+      cheapestPrice: row.anchor.price,
+      borough: row.borough,
+      ...(nearest ? { zone: nearest.zone } : {}),
+      kind: row.kind,
+      priceBand: famousPriceBands.get(row.id),
+      anchorLabel: row.anchor.label,
+      anchorObservedAt: row.anchor.observedAt,
+      anchorSourceUrl: row.anchor.sourceUrl,
+      filterHints: famousVenueFilterHints(row),
     };
-    detailOffset += detailLength;
-    detailLines.push(detailLine);
+    slim.push(famousSlim);
+    appendDetailArtifact(
+      row.id,
+      { id: row.id, famous: { seed: row, slim: famousSlim } },
+      1,
+    );
   }
   detailIndex.count = detailLines.length;
 
@@ -680,7 +794,7 @@ async function main() {
   }
 }
 
-export { buildCurationHints };
+export { assertCurrentFamousVenueRows, buildCurationHints, typeRelativePriceBands };
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   main().catch((err) => {

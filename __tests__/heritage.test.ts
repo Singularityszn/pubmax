@@ -111,6 +111,18 @@ describe("answerHeritage (no key — grounded only)", () => {
     expect(res.answer).toContain("no fuller story on record");
     expect(res.citations).toHaveLength(0);
   });
+
+  it("uses kind-honest clarification copy for a late-food venue", async () => {
+    const res = await answerHeritage({
+      venueName: "Nowhere Kitchen",
+      venueKind: "food",
+      question: "What's the story here?",
+    });
+
+    expect(res.clarifyingQuestion).toBe(
+      "What would you like to know about this late-food venue?",
+    );
+  });
 });
 
 describe("POST /api/heritage", () => {
@@ -127,6 +139,21 @@ describe("POST /api/heritage", () => {
     expect(res.status).toBe(200);
     const body = await res.json();
     expect(body.answer).toContain("1520");
+  });
+
+  it("resolves venue name and kind server-side when an id is supplied", async () => {
+    const res = await post({
+      venueId: "food-best-turkish-kebab",
+      venueName: "Prospect of Whitby",
+      question: "What's the story here?",
+    });
+
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.answer).not.toContain("1520");
+    expect(body.clarifyingQuestion).toBe(
+      "What would you like to know about this late-food venue?",
+    );
   });
 
   it("caps an oversized venueName so a hostile client can't blow up retrieval", async () => {

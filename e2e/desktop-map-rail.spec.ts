@@ -54,6 +54,22 @@ async function mockRailData(page: Page): Promise<void> {
 }
 
 test.describe("desktop map right-rail (D3.1/D3.2)", () => {
+  test("keeps Tonight arc venue chips clickable above the desktop toolbar", async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await seedDismissedChrome(page);
+
+    const response = await page.goto("/map", { waitUntil: "domcontentloaded" });
+    expect(response?.status()).toBe(200);
+
+    const bars = page.getByRole("button", { name: "Bars", exact: true });
+    await expect(page.locator(".mapToolbar")).toBeVisible({ timeout: 20000 });
+    await expect(bars).toHaveAttribute("aria-pressed", "true");
+    await bars.click();
+    await expect(bars).toHaveAttribute("aria-pressed", "false");
+  });
+
   test("shows the rail with Conditions + Area news at 1440, and hides the toolbar's duplicate chip", async ({
     page,
   }) => {

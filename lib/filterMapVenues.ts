@@ -1,12 +1,11 @@
 // Map pin filtering for PubMap. Slim pins (prices: []) must stay visible through
-// detail-only filters until venue detail hydrates — otherwise canonicalOnly and
-// amenity toggles blank scraped/gazetteer pubs on first paint.
+// filters whose evidence exists only after detail hydrates.
 
 import { filterVenues, type Filters, type Venue } from "@/lib/venues";
 
 /**
  * Split venues into slim (no price rows yet) vs hydrated, and apply the right
- * filter cohort. Slim pins always bypass canonical/amenity gates.
+ * filter cohort. Slim pins keep filters backed by slim hints or live signals.
  */
 export function filterMapVenues(
   venues: readonly Venue[],
@@ -19,11 +18,8 @@ export function filterMapVenues(
     requireBeerGarden: false,
     requireNonAlcoholic: false,
     requireLiveSports: false,
-    requireFood: false,
-    requireCocktails: false,
     requireWater: false,
     requireHeritage: false,
-    requirePintDrops: false,
     requireStepFree: false,
     requireAccessibleToilet: false,
     requireSeatedService: false,

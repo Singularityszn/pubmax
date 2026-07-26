@@ -2,6 +2,7 @@
 // rendered as a brass symbol layer in PubMapCanvas, tapped for a history card.
 
 import { haversineKm } from "@/lib/haversine";
+import { isPubVenue } from "@/lib/venueKindFilters";
 import type { Venue } from "@/lib/venues";
 import attributionTable from "@/public/data/landmark_image_attribution.json";
 
@@ -537,7 +538,7 @@ export function nearestStoryPubs(
   limit = 3,
 ): NearbyStoryPub[] {
   return venues
-    .filter((venue) => venue.hasStory)
+    .filter((venue) => venue.hasStory && isPubVenue(venue))
     .map((venue) => ({
       venue,
       km: haversineKm(landmark.coordinates, [venue.longitude, venue.latitude]),

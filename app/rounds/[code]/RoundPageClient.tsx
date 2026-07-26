@@ -21,6 +21,7 @@ import {
 import { buildRouteLegs, formatLeg, formatRouteTotal } from "@/lib/routeLegs";
 import { loadSlimVenues, type SlimVenue } from "@/lib/venuesSlim";
 import type { Venue } from "@/lib/venues";
+import { isPubVenueKind } from "@/lib/venueKindFilters";
 import "./round.css";
 
 // How often the open Round refetches its state. Live-ness by polling — the repo
@@ -548,7 +549,12 @@ function AddStop({
     const q = query.trim().toLowerCase();
     if (q.length < 2) return [];
     return venues
-      .filter((v) => v.name.toLowerCase().includes(q) && !existingSet.has(v.id))
+      .filter(
+        (v) =>
+          isPubVenueKind(v.kind) &&
+          v.name.toLowerCase().includes(q) &&
+          !existingSet.has(v.id),
+      )
       .slice(0, 8);
   }, [query, venues, existingSet]);
 

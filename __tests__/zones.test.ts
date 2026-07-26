@@ -124,6 +124,18 @@ describe("computeZonePintIndex", () => {
     expect(zone1.pricedCount).toBe(10);
   });
 
+  it("excludes non-pub anchors from pint medians", () => {
+    const pubs = pricedVenues(1, Array.from({ length: 10 }, () => 6));
+    const index = computeZonePintIndex([
+      ...pubs,
+      { zone: 1, cheapestPrice: 25, kind: "bar" },
+      { zone: 1, cheapestPrice: 12, kind: "food" },
+    ]);
+    const zone1 = index.rows.find((row) => row.zone === 1)!;
+    expect(zone1.pricedCount).toBe(10);
+    expect(zone1.medianGbp).toBe(6);
+  });
+
   it("always returns exactly the six filterable zones in order", () => {
     const index = computeZonePintIndex([]);
     expect(index.rows.map((r) => r.zone)).toEqual([1, 2, 3, 4, 5, 6]);

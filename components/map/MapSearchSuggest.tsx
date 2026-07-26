@@ -14,6 +14,7 @@ import {
 } from "@/lib/mapSearchSuggest";
 import type { Locality } from "@/lib/localities";
 import type { Venue } from "@/lib/venues";
+import CompactVenuePrice from "@/components/map/CompactVenuePrice";
 
 import "./mapSearchSuggest.css";
 
@@ -294,9 +295,9 @@ export default function MapSearchSuggest({
             ) : null}
 
             {suggestions.pubs.length > 0 ? (
-              <div role="group" aria-label="Pubs" className="mapSearchSuggestGroup">
+              <div role="group" aria-label="Venues" className="mapSearchSuggestGroup">
                 <p className="mapSearchSuggestGroupHead">
-                  <span>Pubs</span>
+                  <span>Venues</span>
                 </p>
                 {suggestions.pubs.map((pub, offset) => {
                   const index = pubStartIndex + offset;
@@ -313,13 +314,19 @@ export default function MapSearchSuggest({
                     >
                       <span className="mapSearchSuggestRowMain">
                         <span className="mapSearchSuggestRowName">{pub.name}</span>
+                        <span className="mapSearchSuggestBorough">{pub.typeLabel}</span>
                         {pub.boroughLabel ? (
                           <span className="mapSearchSuggestBorough">{pub.boroughLabel}</span>
                         ) : null}
                       </span>
                       <span className="mapSearchSuggestMeta">
                         {pub.priceLabel ? (
-                          <span className="mapSearchSuggestPrice">{pub.priceLabel}</span>
+                          <CompactVenuePrice
+                            priceLabel={pub.priceLabel}
+                            anchor={pub.anchor}
+                            className="mapSearchSuggestPrice"
+                            provenanceClassName="mapSearchSuggestPriceProvenance"
+                          />
                         ) : null}
                         {pub.distanceLabel ? (
                           <span className="mapSearchSuggestDistance">{pub.distanceLabel}</span>

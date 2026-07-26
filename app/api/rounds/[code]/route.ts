@@ -26,6 +26,8 @@ import { assertServerEnv } from "@/lib/serverEnv";
 import { isRoundsReadLimited } from "@/lib/roundsReadRateLimit";
 import { clientIp, hashIp } from "@/lib/supabase";
 import { readString } from "@/lib/textClean";
+import { lookupCanonicalVenue } from "@/lib/venueIndex";
+import { isPubVenueKind } from "@/lib/venueKindFilters";
 
 assertServerEnv();
 
@@ -94,9 +96,20 @@ export async function POST(request: Request, ctx: Ctx): Promise<Response> {
       return result.ok ? jsonNoStore(result.state, { status: 200 }) : errorResponse(result.error);
     }
     case "addStop": {
+      const requestedVenueId = readString(body.venueId) ?? "";
+      const venueLookup = await lookupCanonicalVenue(requestedVenueId);
+      if (venueLookup.status === "unavailable") {
+        return jsonNoStore(
+          { error: "Venue list is unavailable right now, try again shortly." },
+          { status: 503 },
+        );
+      }
+      if (venueLookup.status !== "found" || !isPubVenueKind(venueLookup.venue.kind)) {
+        return jsonNoStore({ error: "Pick a pub from the map." }, { status: 400 });
+      }
       const result = await store.addStop(code, {
-        venueId: body.venueId,
-        venueName: body.venueName,
+        venueId: venueLookup.canonicalId,
+        venueName: venueLookup.venue.name,
         addedByHandle: handle,
         dropRef: body.dropRef,
       });

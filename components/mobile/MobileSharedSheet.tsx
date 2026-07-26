@@ -32,6 +32,7 @@ export default function MobileSharedSheet({
   initialSnap = "half",
   requestedSnap,
   onClose,
+  closeLabel,
   children,
 }: {
   kind: MapSheetKind | null;
@@ -39,6 +40,7 @@ export default function MobileSharedSheet({
   initialSnap?: MapSheetDetent;
   requestedSnap?: MapSheetDetent;
   onClose: () => void;
+  closeLabel?: string;
   children: React.ReactNode;
 }) {
   const titleId = useId();
@@ -93,7 +95,13 @@ export default function MobileSharedSheet({
   useFocusTrap(Boolean(kind) && sheetSnap === "full", sheetRef);
 
   if (!kind || typeof document === "undefined") return null;
-  const closeLabel = kind === "venue" ? "Close pub detail" : kind === "planner" ? "Close planner" : `Close ${title}`;
+  const closeButtonLabel =
+    closeLabel ??
+    (kind === "venue"
+      ? "Close venue detail"
+      : kind === "planner"
+        ? "Close planner"
+        : `Close ${title}`);
 
   const dragging = dragHeight !== null;
   // While dragging, pin the box height 1:1 to the finger via an inline
@@ -139,7 +147,7 @@ export default function MobileSharedSheet({
             <span className="mobileSharedSheetGrab" aria-hidden="true" />
           </button>
           <h2 id={titleId}>{title}</h2>
-          <IconButton ref={closeRef} className="mobileSharedSheetClose" aria-label={closeLabel} onClick={requestClose}>
+          <IconButton ref={closeRef} className="mobileSharedSheetClose" aria-label={closeButtonLabel} onClick={requestClose}>
             <X size={18} />
           </IconButton>
         </header>

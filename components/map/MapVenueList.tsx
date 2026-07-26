@@ -3,6 +3,7 @@
 import { useId } from "react";
 import { List, MapPin, X } from "lucide-react";
 
+import CompactVenuePrice from "@/components/map/CompactVenuePrice";
 import { formatLogNearbyDistance } from "@/lib/mapLogIntent";
 import type { MapVenueListModel, UkBasePubListModel } from "@/lib/mapVenueList";
 import type { UkBasePub } from "@/lib/ukBasePubs";
@@ -43,26 +44,26 @@ export default function MapVenueList({
   const truncated = model.truncated || ukBaseModel.truncated;
 
   return (
-    <section className={`mapVenueList${open ? " mapVenueList--open" : ""}`} aria-label={`${cityName} pub list`}>
+    <section className={`mapVenueList${open ? " mapVenueList--open" : ""}`} aria-label={`${cityName} venue list`}>
       {open ? (
-        <div className="mapVenueListPanel" id={panelId} role="group" aria-label={`${cityName} pubs on the map`}>
+        <div className="mapVenueListPanel" id={panelId} role="group" aria-label={`${cityName} venues on the map`}>
           <header className="mapVenueListHead">
             <div className="mapVenueListHeadMeta">
-              <h2 className="mapVenueListTitle">Pubs on the map</h2>
+              <h2 className="mapVenueListTitle">Venues on the map</h2>
               <span className="mapVenueListCount" role="status" aria-live="polite">
                 {!loaded && ukBaseModel.total === 0
-                  ? "Loading pubs…"
+                  ? "Loading venues…"
                   : total === 0
-                    ? "No pubs match your filters"
+                    ? "No venues match your filters"
                     : truncated
                       ? `Nearest ${shown} of ${total}`
-                      : `${total} pub${total === 1 ? "" : "s"}`}
+                      : `${total} venue${total === 1 ? "" : "s"}`}
               </span>
             </div>
             <button
               type="button"
               className="mapVenueListClose"
-              aria-label="Close pub list"
+              aria-label="Close venue list"
               onClick={() => onOpenChange(false)}
             >
               <X size={18} aria-hidden="true" />
@@ -72,15 +73,15 @@ export default function MapVenueList({
           {total === 0 ? (
             <p className="mapVenueListEmpty" role="status">
               {loaded
-                ? "No pubs match your current filters. Widen the price cap or clear a drink filter to see more on the map."
-                : "Finding the pubs…"}
+                ? "No venues match your current filters. Widen the price cap or clear a filter to see more on the map."
+                : "Finding venues…"}
             </p>
           ) : (
             <div className="mapVenueListGroups">
               {model.rows.length > 0 ? (
-                <section className="mapVenueListGroup" aria-label="Priced and curated pubs">
+                <section className="mapVenueListGroup" aria-label="Priced and curated venues">
                   <h3 className="mapVenueListGroupTitle">Priced and curated</h3>
-                  <ul className="mapVenueListItems" aria-label="Priced and curated pubs">
+                  <ul className="mapVenueListItems" aria-label="Priced and curated venues">
                     {model.rows.map((row) => (
                       <li key={row.id}>
                         <button
@@ -98,10 +99,16 @@ export default function MapVenueList({
                             {row.name}
                           </span>
                           <span className="mapVenueListItemMeta">
+                            <span>{row.typeLabel}</span>
                             {typeof row.distanceKm === "number" ? (
                               <span className="mapVenueListItemDist">{formatLogNearbyDistance(row.distanceKm)}</span>
                             ) : null}
-                            <span>{row.priceLabel}</span>
+                            <CompactVenuePrice
+                              priceLabel={row.priceLabel}
+                              anchor={row.anchor}
+                              className="mapVenueListCompactPrice"
+                              provenanceClassName="mapVenueListPriceProvenance"
+                            />
                           </span>
                         </button>
                       </li>

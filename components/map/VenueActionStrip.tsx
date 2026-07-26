@@ -23,7 +23,7 @@ type VenueActionStripProps = {
 };
 
 /**
- * Book / Menu / website CTAs for a selected pub. Renders nothing when no
+ * Book / Menu / website CTAs for a selected venue. Renders nothing when no
  * external URLs exist — never a dead button.
  */
 export default function VenueActionStrip({ venue, className }: VenueActionStripProps) {

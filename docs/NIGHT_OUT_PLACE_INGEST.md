@@ -1,22 +1,29 @@
 # Night-out place ingest
 
-This lane adds a governed offline feed for two specific planning jobs:
+This contract governs two London place-data lanes:
 
-- `near_pub_food`: restaurants close to an anchored pub or plan stop.
-- `pre_pub_attraction`: attractions close to an anchored pub or plan stop.
+- The automated offline planning feed in
+  `public/data/night_out_places/latest.json` serves `near_pub_food` and
+  `pre_pub_attraction`.
+- The hand-curated map packs in `data/famous_venues/` serve late-night bar and
+  crawl-ending food discovery.
 
-It is not a general London directory. Consumers must supply a valid Greater
-London latitude/longitude anchor to `GET /api/night-out-places` and choose one
-of those jobs. When no row survives the quality and freshness gates, the route
-returns an honest empty state.
+Neither lane is a general London directory. Consumers of
+`GET /api/night-out-places` must supply a valid Greater London
+latitude/longitude anchor and choose one of the automated feed's jobs. When no
+row survives the quality and freshness gates, the route returns an honest empty
+state.
 
 ## Trust boundary
 
 The producer registry is
-`data/night_out_place_provenance_registry.json`. Exa can discover a source URL,
-and Firecrawl can retrieve that source page. Neither provider's generated
-summary or search snippet becomes a fact. A row is eligible only when the
-source page itself exposes a matching Schema.org JSON-LD object containing:
+`data/night_out_place_provenance_registry.json`. It owns accepted producer
+roles and required row fields for both lanes.
+
+For the automated feed, Exa can discover a source URL and Firecrawl can retrieve
+that source page. Neither provider's generated summary or search snippet
+becomes a fact. A row is eligible only when the source page itself exposes a
+matching Schema.org JSON-LD object containing:
 
 - a restaurant or attraction type;
 - name and factual description;
@@ -43,14 +50,23 @@ and any returned canonical/final URL fields to have the exact same normalized
 identity. Missing identity metadata, redirects, cache markers, and stale exposed
 fetch timestamps fail closed. `observedAt` is the authenticated Firecrawl API
 response receipt time, never the Exa search time or a cached-page timestamp.
-Every accepted
-row expires after 30 days, and the runtime drops expired, future-observed, or
-over-age rows even if an old artifact is accidentally deployed.
+
+For the hand-curated packs, the `manual` producer verifies venue-owned or award
+pages directly. Each venue also carries independent fame evidence, current
+trading evidence, and separate source URLs for its displayed price anchor and
+story. The build validates those packs through
+`lib/nightOutPlaceContract.mjs`; it does not route manual facts through the
+automated JSON-LD extractor.
+
+Every accepted row expires after 30 days. The automated runtime drops expired,
+future-observed, or over-age rows even if an old artifact is accidentally
+deployed. `npm run build:slim` fails when hand-curated current-trading evidence
+is no longer current, so an expired venue cannot enter a rebuilt map index.
 
 Provider protocols follow the official [Exa Search API](https://exa.ai/docs/reference/search)
 and [Firecrawl v2 scrape API](https://docs.firecrawl.dev/api-reference/endpoint/scrape).
 
-## Owner-gated run
+## Automated feed run
 
 Required environment variables:
 
@@ -82,7 +98,20 @@ The existing and merged snapshots are fully validated before any temporary file
 is renamed. A successful refresh merges current existing rows and removes only
 expired ones; it does not replace trusted current rows with an empty search.
 
-No scheduled workflow is enabled yet. GitHub Actions runner allocation and the
-owner-funded provider keys/credits are external blockers recorded in the
-Wayfinder. Until those are ready, the committed feed intentionally contains no
-rows and the product returns the honest empty state.
+## Hand-curated map packs
+
+`scripts/build_slim_index.mjs` is the publishing boundary for
+`data/famous_venues/`. It validates provenance and freshness, merges accepted
+rows into the existing slim index, and preserves absent `kind` as the
+backward-compatible pub meaning.
+
+Bar and late-food prices remain item-specific anchors. Map colour bands are
+relative within each venue type, and compact surfaces carry the anchor label,
+observed month, and source. These venues never enter pub-only Pint Drop,
+community price, crawl-planning, or pint-specific saved-list flows.
+
+No scheduled workflow is enabled for the automated feed yet. GitHub Actions
+runner allocation and the owner-funded provider keys/credits are external
+blockers recorded in the Wayfinder. Until those are ready, its committed
+snapshot intentionally contains no rows and the route returns the honest empty
+state. The manual map packs are independent of that snapshot.

@@ -30,13 +30,13 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   if (!handle || handle === YOU_SENTINEL) {
     return {
       title: "Your profile",
-      description: "Your PUBMAXX identity: your Pint Drops, saved pubs, and crawls.",
+      description: "Your PUBMAXX identity: your Pint Drops, saved venues, and crawls.",
       robots: { index: false, follow: false },
     };
   }
 
   const title = `@${handle}`;
-  const description = `@${handle}'s pint passport on PUBMAXX. Their Pint Drops, saved pubs, and the crawls they've walked.`;
+  const description = `@${handle}'s pint passport on PUBMAXX. Their Pint Drops, saved venues, and the crawls they've walked.`;
   const url = `/u/${handle}`;
 
   return {

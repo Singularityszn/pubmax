@@ -16,6 +16,7 @@ describe("resolveMapLogIntent", () => {
         loaded: true,
         selectedVenueId: "selected",
         selectedVenueResolvable: true,
+        selectedVenueIsPub: true,
         firstRouteId: "route",
         firstFilteredVenueId: "visible",
       }),
@@ -29,6 +30,7 @@ describe("resolveMapLogIntent", () => {
         loaded: false,
         selectedVenueId: "",
         selectedVenueResolvable: false,
+        selectedVenueIsPub: false,
         firstRouteId: "",
         firstFilteredVenueId: "",
       }),
@@ -42,6 +44,7 @@ describe("resolveMapLogIntent", () => {
         loaded: true,
         selectedVenueId: "selected",
         selectedVenueResolvable: true,
+        selectedVenueIsPub: true,
         firstRouteId: "route",
         firstFilteredVenueId: "visible",
       }),
@@ -54,6 +57,7 @@ describe("resolveMapLogIntent", () => {
         loaded: true,
         selectedVenueId: "",
         selectedVenueResolvable: false,
+        selectedVenueIsPub: false,
         firstRouteId: "route",
         firstFilteredVenueId: "visible",
       }),
@@ -65,8 +69,23 @@ describe("resolveMapLogIntent", () => {
         loaded: true,
         selectedVenueId: "",
         selectedVenueResolvable: false,
+        selectedVenueIsPub: false,
         firstRouteId: "",
         firstFilteredVenueId: "visible",
+      }),
+    ).toEqual({ status: "fallback" });
+  });
+
+  it("falls back instead of opening a selected non-pub venue", () => {
+    expect(
+      resolveMapLogIntent({
+        hasLogIntent: true,
+        loaded: true,
+        selectedVenueId: "bar-selected",
+        selectedVenueResolvable: true,
+        selectedVenueIsPub: false,
+        firstRouteId: "",
+        firstFilteredVenueId: "",
       }),
     ).toEqual({ status: "fallback" });
   });
@@ -78,6 +97,7 @@ describe("resolveMapLogIntent", () => {
         loaded: true,
         selectedVenueId: "",
         selectedVenueResolvable: false,
+        selectedVenueIsPub: false,
         firstRouteId: "",
         firstFilteredVenueId: "",
       }),
@@ -91,6 +111,7 @@ describe("resolveMapLogIntent", () => {
         loaded: true,
         selectedVenueId: "bad-id",
         selectedVenueResolvable: false,
+        selectedVenueIsPub: false,
         firstRouteId: "route",
         firstFilteredVenueId: "visible",
       }),
@@ -102,6 +123,7 @@ describe("resolveMapLogIntent", () => {
         loaded: true,
         selectedVenueId: "bad-id",
         selectedVenueResolvable: false,
+        selectedVenueIsPub: false,
         firstRouteId: "",
         firstFilteredVenueId: "visible",
       }),
@@ -115,6 +137,7 @@ describe("resolveMapLogIntent", () => {
         loaded: true,
         selectedVenueId: "bad-id",
         selectedVenueResolvable: false,
+        selectedVenueIsPub: false,
         firstRouteId: "",
         firstFilteredVenueId: "",
       }),
@@ -154,11 +177,11 @@ describe("buildLogNearbyCandidates", () => {
         5,
       ),
     ).toEqual([
-      { id: "a", name: "Alpha Arms", priceLabel: "£4.50" },
-      { id: "b", name: "Beta Bar", priceLabel: "Price TBD" },
-      { id: "c", name: "Gamma", priceLabel: "£6.00" },
-      { id: "d", name: "Delta", priceLabel: "£5.00" },
-      { id: "e", name: "Echo", priceLabel: "£5.20" },
+      { id: "a", name: "Alpha Arms", typeLabel: "Pub", priceLabel: "£4.50", anchor: null },
+      { id: "b", name: "Beta Bar", typeLabel: "Pub", priceLabel: "Price TBD", anchor: null },
+      { id: "c", name: "Gamma", typeLabel: "Pub", priceLabel: "£6.00", anchor: null },
+      { id: "d", name: "Delta", typeLabel: "Pub", priceLabel: "£5.00", anchor: null },
+      { id: "e", name: "Echo", typeLabel: "Pub", priceLabel: "£5.20", anchor: null },
     ]);
   });
 

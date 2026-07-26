@@ -18,7 +18,15 @@ import type { CityId } from "@/lib/cities";
 import { haversineKm } from "@/lib/haversine";
 import type { Locality } from "@/lib/localities";
 import { getNightAreasForCity } from "@/lib/nightAreas";
-import type { Venue } from "@/lib/venues";
+import type { Venue, VenueKind } from "@/lib/venues";
+import {
+  compactVenueAnchor,
+  type CompactVenueAnchor,
+} from "@/lib/venueAnchorPresentation";
+import {
+  isPubVenue,
+  venueKindLabel,
+} from "@/lib/venueKindFilters";
 
 /** How many pub name-matches the panel shows at most. Kept tight so the popup
  *  stays scannable on a phone; the map itself already narrows to every match. */
@@ -66,10 +74,13 @@ export type MapSearchAreaOption = AreaElsewhereOption & {
 export type PubSuggestion = {
   id: string;
   name: string;
+  kind?: VenueKind;
+  typeLabel: string;
   /** The pub's borough, for a quiet second-line hint ("" when unknown). */
   boroughLabel: string;
   /** "£5.20" verified cheapest, or null when nothing is priced yet. */
   priceLabel: string | null;
+  anchor: CompactVenueAnchor | null;
   distanceKm: number;
   distanceLabel: string;
 };
@@ -138,7 +149,9 @@ function matchTier(labels: readonly string[], query: string): number | null {
  * sheet never disagree on a pub's price.
  */
 function verifiedPrice(venue: Venue): number | null {
-  const price = venue.latestContributorPrice ?? venue.cheapestPrice;
+  const price = isPubVenue(venue)
+    ? venue.latestContributorPrice ?? venue.cheapestPrice
+    : venue.cheapestPrice;
   return typeof price === "number" && Number.isFinite(price) && price > 0 ? price : null;
 }
 
@@ -220,6 +233,33 @@ function comparePub(
   const rightKm = Number.isFinite(right.suggestion.distanceKm) ? right.suggestion.distanceKm : Infinity;
   if (leftKm !== rightKm) return leftKm - rightKm;
   return left.suggestion.name.localeCompare(right.suggestion.name);
+}
+
+function buildPubSuggestion(
+  venue: Venue,
+  originPoint: [number, number],
+  origin: SuggestOrigin,
+): PubSuggestion {
+  const distanceKm = distanceKmFrom(originPoint, [
+    venue.longitude,
+    venue.latitude,
+  ]);
+  const price = verifiedPrice(venue);
+  const anchor = compactVenueAnchor(venue);
+  const canShowPrice = isPubVenue(venue) || anchor !== null;
+
+  return {
+    id: venue.id,
+    name: venue.name,
+    ...(venue.kind !== undefined ? { kind: venue.kind } : {}),
+    typeLabel: venueKindLabel(venue.kind),
+    boroughLabel: (venue.primaryBorough ?? "").trim(),
+    priceLabel:
+      price !== null && canShowPrice ? `£${price.toFixed(2)}` : null,
+    anchor,
+    distanceKm,
+    distanceLabel: formatSuggestDistance(distanceKm, origin),
+  };
 }
 
 /**
@@ -360,18 +400,9 @@ export function buildMapSearchSuggestions(input: MapSearchSuggestInput): MapSear
       const tier = matchTier([venue.name], query);
       if (tier === null) continue;
       seen.add(venue.id);
-      const distanceKm = distanceKmFrom(originPoint, [venue.longitude, venue.latitude]);
-      const price = verifiedPrice(venue);
       pubMatches.push({
         tier,
-        suggestion: {
-          id: venue.id,
-          name: venue.name,
-          boroughLabel: (venue.primaryBorough ?? "").trim(),
-          priceLabel: price !== null ? `£${price.toFixed(2)}` : null,
-          distanceKm,
-          distanceLabel: formatSuggestDistance(distanceKm, origin),
-        },
+        suggestion: buildPubSuggestion(venue, originPoint, origin),
       });
     }
   }

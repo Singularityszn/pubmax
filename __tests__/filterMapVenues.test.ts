@@ -71,6 +71,79 @@ describe("filterMapVenues", () => {
     const result = filterMapVenues([slimPin()], filters, () => false);
     expect(result).toHaveLength(0);
   });
+
+  it("keeps non-pub anchors out of the maximum pint price filter", () => {
+    const filters = { ...initialFilters, maxPrice: 8 };
+    const bar = slimPin({
+      id: "bar-house-cocktail",
+      kind: "bar",
+      cheapestPrice: 14,
+    });
+    const pub = slimPin({
+      id: "pub-pricey-pint",
+      kind: "pub",
+      cheapestPrice: 14,
+    });
+
+    expect(filterMapVenues([bar, pub], filters, () => false)).toEqual([bar]);
+  });
+
+  it("applies food and cocktail filters from slim venue hints", () => {
+    const bar = slimPin({
+      id: "bar-cocktails",
+      kind: "bar",
+      filterHints: {
+        ...slimPin().filterHints!,
+        amenities: {
+          ...slimPin().filterHints!.amenities,
+          food: false,
+          cocktails: true,
+        },
+      },
+    });
+    const food = slimPin({
+      id: "food-late",
+      kind: "food",
+      filterHints: {
+        ...slimPin().filterHints!,
+        amenities: {
+          ...slimPin().filterHints!.amenities,
+          food: true,
+          cocktails: false,
+        },
+      },
+    });
+
+    expect(
+      filterMapVenues(
+        [bar, food],
+        { ...initialFilters, requireCocktails: true },
+        () => false,
+      ),
+    ).toEqual([bar]);
+    expect(
+      filterMapVenues(
+        [bar, food],
+        { ...initialFilters, requireFood: true },
+        () => false,
+      ),
+    ).toEqual([food]);
+  });
+
+  it("keeps Pint Drops filtering pub-only even with a stale non-pub signal", () => {
+    const legacyPub = slimPin({ id: "legacy-pub" });
+    const explicitPub = slimPin({ id: "explicit-pub", kind: "pub" });
+    const bar = slimPin({ id: "bar-with-stale-drop", kind: "bar" });
+    const food = slimPin({ id: "food-with-stale-drop", kind: "food" });
+
+    expect(
+      filterMapVenues(
+        [legacyPub, explicitPub, bar, food],
+        { ...initialFilters, requirePintDrops: true },
+        () => true,
+      ),
+    ).toEqual([legacyPub, explicitPub]);
+  });
 });
 
 describe("withForcedVenue", () => {

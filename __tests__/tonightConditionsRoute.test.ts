@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
-import { GET, resolveTonightConditions } from "@/app/api/tonight-conditions/route";
+import { GET } from "@/app/api/tonight-conditions/route";
+import { resolveTonightConditions } from "@/lib/tonightConditionsRoute";
 import type { ConciergeVenue } from "@/lib/concierge/rank";
 import type { WeatherSnapshot } from "@/lib/weatherSnapshots";
 

@@ -2,22 +2,19 @@
 
 import { useCallback, useEffect, useState } from "react";
 
-import { BUILT_IN_LIST_TYPES, toggleSaveDurable } from "@/lib/savedPubs";
+import { toggleSaveDurable } from "@/lib/savedPubs";
+import {
+  eligibleBuiltInListTypes,
+  isListTypeEligibleForVenue,
+} from "@/lib/savedListPolicy";
+import type { VenueKind } from "@/lib/venues";
 
 import "./saveToList.css";
 
-// Save-a-pub-to-a-list control with CUSTOM LIST support (story 33). A small,
-// self-contained island: it shows the seven built-in lists PLUS the viewer's own
-// custom lists, lets them file a pub under any of them, and lets them create a
-// new named list inline. Decoupled from the Venue type — it takes only a venueId
-// + a name for the toast — so it can be dropped anywhere a pub is in view.
-//
-// INTEGRATOR MOUNT POINT (one line): render this next to the existing save button
-// inside the venue inspector, e.g.
-//     <SaveToListControl venueId={venue.id} venueName={venue.name} />
-// (VenueInspector is owned by another agent — this component is standalone so no
-// edit to that file is required beyond the single mount line.)
-//
+// Save-a-venue-to-a-list control with CUSTOM LIST support (story 33). A small,
+// self-contained island: it shows the eligible built-in lists PLUS the viewer's
+// own custom lists, lets them file a venue under any of them, and lets them
+// create a new named list inline.
 // Identity is the self-asserted `pubmax_handle` (no auth yet); a signed-out viewer
 // still gets the built-in localStorage save via toggleSaveDurable's fallback, but
 // custom lists need a handle to persist server-side.
@@ -32,9 +29,11 @@ function readHandle(): string {
 export default function SaveToListControl({
   venueId,
   venueName,
+  venueKind,
 }: {
   venueId: string;
   venueName?: string;
+  venueKind?: VenueKind;
 }): React.JSX.Element {
   const [handle] = useState(readHandle);
   const [open, setOpen] = useState(false);
@@ -68,23 +67,28 @@ export default function SaveToListControl({
     async (listType: string) => {
       setBusy(true);
       try {
-        await toggleSaveDurable(handle, venueId, listType);
+        await toggleSaveDurable(handle, venueId, listType, undefined, venueKind);
         setToast(`Saved to “${listType}”`);
         window.setTimeout(() => setToast(null), 2000);
       } finally {
         setBusy(false);
       }
     },
-    [handle, venueId],
+    [handle, venueId, venueKind],
   );
 
   const createAndSave = useCallback(async () => {
     const name = newName.trim();
     if (!name || busy) return;
+    if (!isListTypeEligibleForVenue(name, venueKind)) {
+      setToast("Pint lists are for pubs");
+      window.setTimeout(() => setToast(null), 2000);
+      return;
+    }
     setBusy(true);
     try {
       const h = handle.trim();
-      // Register the custom list (best-effort) then file the pub under it.
+      // Register the custom list (best-effort) then file the venue under it.
       if (h) {
         try {
           const res = await fetch("/api/saved-pubs", {
@@ -100,14 +104,14 @@ export default function SaveToListControl({
           /* the save below still works even if the registry write failed */
         }
       }
-      await toggleSaveDurable(handle, venueId, name);
+      await toggleSaveDurable(handle, venueId, name, undefined, venueKind);
       setNewName("");
       setToast(`Saved to “${name}”`);
       window.setTimeout(() => setToast(null), 2000);
     } finally {
       setBusy(false);
     }
-  }, [handle, venueId, newName, busy]);
+  }, [handle, venueId, venueKind, newName, busy]);
 
   if (!open) {
     return (
@@ -117,10 +121,10 @@ export default function SaveToListControl({
     );
   }
 
-  const allLists = [...BUILT_IN_LIST_TYPES, ...customLists];
+  const allLists = [...eligibleBuiltInListTypes(venueKind), ...customLists];
 
   return (
-    <section className="saveToList" aria-label="Save this pub to a list">
+    <section className="saveToList" aria-label="Save this venue to a list">
       <div className="saveToListChips">
         {allLists.map((name) => (
           <button

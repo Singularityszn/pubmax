@@ -184,6 +184,82 @@ describe("buildMapSearchSuggestions — the as-you-type popup model", () => {
     expect(unpriced?.priceLabel).toBeNull();
   });
 
+  it("carries venue kind labels and keeps non-pub anchors independent of Pint Drops", () => {
+    const result = buildMapSearchSuggestions({
+      cityId: "london",
+      query: "anchor",
+      venues: [
+        venue({
+          id: "bar",
+          name: "Anchor Cocktail Bar",
+          kind: "bar",
+          cheapestPrice: 25,
+          latestContributorPrice: 4.5,
+          anchorLabel: "Signature cocktail",
+          anchorObservedAt: "2025-07-26",
+          anchorSourceUrl: "https://www.example.com/cocktails",
+        }),
+        venue({
+          id: "food",
+          name: "Anchor Kebab",
+          kind: "food",
+          cheapestPrice: 15,
+          latestContributorPrice: 5,
+          anchorLabel: "Large lamb doner",
+          anchorObservedAt: "2025-06-15",
+          anchorSourceUrl: "https://menu.example.org/doner",
+        }),
+      ],
+      userLocation: null,
+      mapCenter: CENTRE,
+    });
+    const byId = new Map(result.pubs.map((row) => [row.id, row]));
+    expect(byId.get("bar")).toMatchObject({
+      kind: "bar",
+      typeLabel: "Bar",
+      priceLabel: "£25.00",
+      anchor: {
+        label: "Signature cocktail",
+        observedLabel: "Jul 2025",
+        sourceLabel: "example.com",
+        sourceUrl: "https://www.example.com/cocktails",
+      },
+    });
+    expect(byId.get("food")).toMatchObject({
+      kind: "food",
+      typeLabel: "Late food",
+      priceLabel: "£15.00",
+      anchor: {
+        label: "Large lamb doner",
+        observedLabel: "Jun 2025",
+        sourceLabel: "menu.example.org",
+        sourceUrl: "https://menu.example.org/doner",
+      },
+    });
+  });
+
+  it("omits a non-pub price when its compact provenance is incomplete", () => {
+    const result = buildMapSearchSuggestions({
+      cityId: "london",
+      query: "anchor",
+      venues: [
+        venue({
+          id: "bar",
+          name: "Anchor Cocktail Bar",
+          kind: "bar",
+          cheapestPrice: 25,
+        }),
+      ],
+      userLocation: null,
+      mapCenter: CENTRE,
+    });
+
+    expect(result.pubs[0]).toMatchObject({
+      priceLabel: null,
+      anchor: null,
+    });
+  });
+
   it("ranks pubs nearest-first within a tier", () => {
     const venues = [
       venue({ id: "far", name: "Anchor Far", latitude: 51.6, longitude: -0.3 }),

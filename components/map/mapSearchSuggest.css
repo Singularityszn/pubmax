@@ -112,6 +112,7 @@
   display: flex;
   align-items: center;
   gap: 7px;
+  flex: 1 1 auto;
   min-width: 0;
 }
 
@@ -138,13 +139,33 @@
   display: flex;
   align-items: center;
   gap: 10px;
-  flex: none;
+  flex: 0 1 auto;
+  min-width: 0;
 }
 
 .mapSearchSuggestPrice {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  max-width: 180px;
+  min-width: 0;
   font-size: 0.86rem;
   font-weight: 700;
   color: var(--color-text, var(--ink));
+}
+
+.mapSearchSuggestPrice > span,
+.mapSearchSuggestPriceProvenance {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mapSearchSuggestPriceProvenance {
+  font-size: 0.66rem;
+  font-weight: 500;
+  color: var(--color-text-muted, var(--muted));
 }
 
 .mapSearchSuggestDistance {

@@ -44,16 +44,16 @@ describe("saved-list detail metadata", () => {
 
     expect(metadata.title).toBe("@sam's my locals");
     expect(metadata.description).toBe(
-      "@sam's my locals saved list on PUBMAXXING. 2 pubs, 1 follower.",
+      "@sam's my locals saved list on PUBMAXXING. 2 venues, 1 follower.",
     );
     expect(metadata.openGraph).toMatchObject({
       title: "@sam's my locals",
-      description: "@sam's my locals saved list on PUBMAXXING. 2 pubs, 1 follower.",
+      description: "@sam's my locals saved list on PUBMAXXING. 2 venues, 1 follower.",
       type: "article",
       url: "/u/sam/lists/my%20locals",
       images: [
         {
-          url: "/api/list-card?owner=sam&list=my+locals&pubs=2&followers=1",
+          url: "/api/list-card?owner=sam&list=my+locals&venues=2&followers=1",
           width: 1200,
           height: 630,
           alt: "@sam's my locals saved list",
@@ -63,8 +63,8 @@ describe("saved-list detail metadata", () => {
     expect(metadata.twitter).toMatchObject({
       card: "summary_large_image",
       title: "@sam's my locals",
-      description: "@sam's my locals saved list on PUBMAXXING. 2 pubs, 1 follower.",
-      images: ["/api/list-card?owner=sam&list=my+locals&pubs=2&followers=1"],
+      description: "@sam's my locals saved list on PUBMAXXING. 2 venues, 1 follower.",
+      images: ["/api/list-card?owner=sam&list=my+locals&venues=2&followers=1"],
     });
   });
 });

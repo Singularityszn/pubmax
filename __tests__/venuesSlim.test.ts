@@ -29,8 +29,15 @@ const SLIM_KEYS = ["borough", "cheapestPrice", "filterHints", "id", "lat", "lng"
 
 const slim = JSON.parse(readFileSync(SLIM_PATH, "utf8")) as unknown;
 const rawRows = JSON.parse(readFileSync(RAW_PATH, "utf8")) as VenuePrice[];
+const famousIds = new Set(
+  (slim as SlimVenue[])
+    .filter((venue) => venue.kind !== undefined && venue.kind !== "pub")
+    .map((venue) => venue.id),
+);
 const fullVenuesById = new Map(
-  groupVenuePrices(rawRows).map((venue) => [venue.id, venue]),
+  groupVenuePrices(rawRows)
+    .filter((venue) => !famousIds.has(venue.id))
+    .map((venue) => [venue.id, venue]),
 );
 
 // The source dataset is London-*centred* but not London-*bounded*: ~19% of rows
@@ -43,6 +50,28 @@ const fullVenuesById = new Map(
 // can't have silently mangled the coordinate column.
 const VALID_COORDS = { minLat: -90, maxLat: 90, minLng: -180, maxLng: 180 };
 const LONDON = { lat: 51.5, lng: -0.12 };
+
+function hasValidFamousVenueFields(row: Record<string, unknown>): boolean {
+  const kind =
+    row.kind === undefined ||
+    ["pub", "bar", "club", "food", "restaurant"].includes(String(row.kind));
+  const priceBand =
+    row.priceBand === undefined ||
+    row.priceBand === 0 ||
+    row.priceBand === 1 ||
+    row.priceBand === 2;
+  const anchor =
+    row.kind !== "bar" && row.kind !== "food" ||
+    (
+      typeof row.anchorLabel === "string" &&
+      row.anchorLabel.length > 0 &&
+      typeof row.anchorObservedAt === "string" &&
+      row.anchorObservedAt.length > 0 &&
+      typeof row.anchorSourceUrl === "string" &&
+      row.anchorSourceUrl.length > 0
+    );
+  return kind && priceBand && anchor;
+}
 
 function isSlimVenue(value: unknown): value is SlimVenue {
   if (typeof value !== "object" || value === null) return false;
@@ -70,7 +99,8 @@ function isSlimVenue(value: unknown): value is SlimVenue {
     typeof amenities?.nonAlcoholic === "boolean" &&
     typeof curation?.nearWater === "boolean" &&
     typeof curation?.hasStory === "boolean" &&
-    typeof hints?.canonical === "boolean"
+    typeof hints?.canonical === "boolean" &&
+    hasValidFamousVenueFields(row)
   );
 }
 
@@ -104,6 +134,7 @@ function makeFilters(overrides: Partial<Filters> = {}): Filters {
 
 function matchingIdsFromSlim(filters: Filters): string[] {
   return (slim as SlimVenue[])
+    .filter((venue) => venue.kind === undefined)
     .filter((venue) => filterVenues([slimVenueToPin(venue)], filters).length > 0)
     .map((venue) => venue.id)
     .sort();
@@ -141,7 +172,21 @@ describe("venues_slim.json", () => {
     const badKeySets = rows
       // `zone` (nearest-station fare zone) is an optional additive field — strip
       // it before the exact-shape check so both zoned and unknown-zone rows pass.
-      .map((row) => Object.keys(row).filter((key) => key !== "zone").sort())
+      .map((row) =>
+        Object.keys(row)
+          .filter(
+            (key) =>
+              ![
+                "zone",
+                "kind",
+                "priceBand",
+                "anchorLabel",
+                "anchorObservedAt",
+                "anchorSourceUrl",
+              ].includes(key),
+          )
+          .sort(),
+      )
       .filter((keys) => JSON.stringify(keys) !== JSON.stringify(SLIM_KEYS));
     expect(badKeySets).toEqual([]);
   });
@@ -150,6 +195,18 @@ describe("venues_slim.json", () => {
     const rows = slim as unknown[];
     const bad = rows.filter((row) => !isSlimVenue(row));
     expect(bad).toEqual([]);
+  });
+
+  it("carries complete anchor provenance for famous non-pub venues", () => {
+    const famous = (slim as SlimVenue[]).filter(
+      (row) => row.kind === "bar" || row.kind === "food",
+    );
+    expect(famous.length).toBeGreaterThan(0);
+    for (const row of famous) {
+      expect(row.anchorLabel).toBeTruthy();
+      expect(row.anchorObservedAt).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+      expect(row.anchorSourceUrl).toMatch(/^https:\/\//);
+    }
   });
 
   it("every venue has finite coordinates in valid geographic range", () => {
@@ -270,10 +327,11 @@ describe("venues_slim.json", () => {
     const canonicalIds = new Set(
       rawRows.map((row) => stableVenueIdFromKey(venueGroupingKey(row))),
     );
-    // Sanity: the raw rows collapse into the same venue count as the slim file.
-    expect(canonicalIds.size).toBe((slim as SlimVenue[]).length);
-
-    const rows = slim as SlimVenue[];
+    for (const id of famousIds) canonicalIds.delete(id);
+    // Famous venue seed rows have editorial ids; legacy pub rows retain the
+    // canonical raw-dataset identity contract.
+    const rows = (slim as SlimVenue[]).filter((row) => row.kind === undefined);
+    expect(canonicalIds.size).toBe(rows.length);
     const sampleIdx = new Set<number>([
       0,
       Math.floor(rows.length / 2),
@@ -290,6 +348,16 @@ describe("venues_slim.json", () => {
     // And the whole set matches, not just the sample.
     const slimIds = new Set(rows.map((v) => v.id));
     expect(slimIds).toEqual(canonicalIds);
+  });
+
+  it("ships exactly 40 bars and 25 food venues with every type-relative band", () => {
+    const rows = slim as SlimVenue[];
+    const bars = rows.filter((row) => row.kind === "bar");
+    const food = rows.filter((row) => row.kind === "food");
+    expect(bars).toHaveLength(40);
+    expect(food).toHaveLength(25);
+    expect(new Set(bars.map((row) => row.priceBand))).toEqual(new Set([0, 1, 2]));
+    expect(new Set(food.map((row) => row.priceBand))).toEqual(new Set([0, 1, 2]));
   });
 
   it("is meaningfully smaller than the raw dataset", () => {

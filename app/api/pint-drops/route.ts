@@ -30,7 +30,8 @@ import { profileStore } from "@/lib/profileStore";
 import { assertServerEnv } from "@/lib/serverEnv";
 import { clientIp, hashActor, hashIp, requiresSupabaseStore, isSupabaseConfigured } from "@/lib/supabase";
 import { readString } from "@/lib/textClean";
-import { getVenueIndex, venueMapUrl } from "@/lib/venueIndex";
+import { getVenueIndex, lookupCanonicalVenue, venueMapUrl } from "@/lib/venueIndex";
+import { isPubVenueKind } from "@/lib/venueKindFilters";
 
 // Fail fast at module load: a misconfigured production deploy (no Supabase)
 // would silently fall back to the process-memory store and lose every write on
@@ -161,6 +162,41 @@ async function parseBody(
   }
 }
 
+async function validateCanonicalPintDrop(fields: Record<string, unknown>) {
+  const result = validatePintDrop(fields);
+  if (!result.ok) {
+    return {
+      ok: false,
+      response: jsonNoStore({ error: result.error }, { status: 400 }),
+    } as const;
+  }
+
+  const venueLookup = await lookupCanonicalVenue(result.value.venueId);
+  if (venueLookup.status === "unavailable") {
+    return {
+      ok: false,
+      response: jsonNoStore(
+        { error: "Venue list is unavailable right now, try again shortly." },
+        { status: 503 },
+      ),
+    } as const;
+  }
+  if (venueLookup.status !== "found" || !isPubVenueKind(venueLookup.venue.kind)) {
+    return {
+      ok: false,
+      response: jsonNoStore({ error: "Pick a pub from the map." }, { status: 400 }),
+    } as const;
+  }
+
+  return {
+    ok: true,
+    value: {
+      ...result.value,
+      venueId: venueLookup.canonicalId,
+    },
+  } as const;
+}
+
 export async function POST(request: Request): Promise<Response> {
   const parsed = await parseBody(request);
   if (!parsed) {
@@ -245,15 +281,14 @@ export async function POST(request: Request): Promise<Response> {
   const frozen = socialFreezeResponse();
   if (frozen) return frozen;
 
-  const result = validatePintDrop(fields);
-  if (!result.ok) {
-    return jsonNoStore({ error: result.error }, { status: 400 });
-  }
+  const canonicalResult = await validateCanonicalPintDrop(fields);
+  if (!canonicalResult.ok) return canonicalResult.response;
+  const canonicalDrop = canonicalResult.value;
 
   // JWT-linked handle wins over a self-asserted body handle when signed in.
   // Linked handles can only drop as their signed-in owner; unlinked handles keep
   // the anonymous demo path.
-  const actorHandle = await resolveMessageHandle(request, result.value.handle);
+  const actorHandle = await resolveMessageHandle(request, canonicalDrop.handle);
   if (!actorHandle) {
     return jsonNoStore({ error: "Add a handle." }, { status: 400 });
   }
@@ -261,7 +296,7 @@ export async function POST(request: Request): Promise<Response> {
   if (!ownership.allowed) {
     return jsonNoStore({ error: ownership.error }, { status: ownership.status });
   }
-  const dropPayload = { ...result.value, handle: ownership.handle };
+  const dropPayload = { ...canonicalDrop, handle: ownership.handle };
 
   // Durable key = handle + hashed IP (PRD P3.9); in-memory fallback stays
   // keyed on handle alone, exactly as before.

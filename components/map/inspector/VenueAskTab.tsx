@@ -14,6 +14,7 @@ export default function VenueAskTab({ venue, tab }: { venue: Venue; tab: TabKey 
       <LandlordPanel
         venueId={venue.id}
         venueName={venue.name}
+        venueKind={venue.kind}
         context={{
           era: venue.curation.heritageEra,
           heritageNote: venue.curation.heritageNote,

@@ -12,14 +12,87 @@ vi.mock("@/lib/supabase", async (importOriginal) => {
   return { ...actual, isSupabaseConfigured: () => false };
 });
 vi.mock("@/lib/serverEnv", () => ({ assertServerEnv: () => {} }));
+vi.mock("@/lib/venueAliases", () => ({
+  resolveCanonicalVenueId: async (id: string) =>
+    id === "legacy-a"
+      ? "venue-a"
+      : id === "legacy-bar"
+        ? "bar-a"
+        : id,
+}));
+vi.mock("@/lib/venueIndex", () => ({
+  lookupCanonicalVenue: async (id: string) => {
+    const canonicalId =
+      id === "legacy-a" ? "venue-a" : id === "legacy-bar" ? "bar-a" : id;
+    if (canonicalId === "unavailable-a") {
+      return { status: "unavailable" as const, canonicalId };
+    }
+    const venue =
+      canonicalId === "bar-a"
+        ? {
+            id: canonicalId,
+            name: "Test Cocktail Bar",
+            borough: "London",
+            lat: 51.5,
+            lng: -0.12,
+            kind: "bar" as const,
+          }
+        : {
+            id: canonicalId,
+            name: "The Test Arms",
+            borough: "London",
+            lat: 51.5,
+            lng: -0.12,
+          };
+    return { status: "found" as const, canonicalId, venue };
+  },
+  getVenueIndex: async () => {
+    const venues = new Map([
+      [
+        "venue-a",
+        {
+          id: "venue-a",
+          name: "The Test Arms",
+          borough: "London",
+          lat: 51.5,
+          lng: -0.12,
+        },
+      ],
+      [
+        "bar-a",
+        {
+          id: "bar-a",
+          name: "Test Cocktail Bar",
+          borough: "London",
+          lat: 51.5,
+          lng: -0.12,
+          kind: "bar",
+        },
+      ],
+    ]);
+    return venues;
+  },
+  resolveVenue: async (id: string) =>
+    id === "venue-a"
+      ? {
+          id,
+          name: "The Test Arms",
+          borough: "London",
+          lat: 51.5,
+          lng: -0.12,
+        }
+      : null,
+  venueMapUrl: (id: string) => `/map?sel=${encodeURIComponent(id)}`,
+}));
 
-import { GET } from "@/app/api/crawls/route";
+import { GET, POST } from "@/app/api/crawls/route";
 import {
   __resetCrawlStories,
   countStoriesByAuthor,
   createCrawlStory,
   updateCrawlStory,
 } from "@/lib/crawlStoryStore";
+import { __resetPintDrops } from "@/lib/pintDrops";
 
 const URL_BASE = "http://localhost/api/crawls";
 
@@ -37,6 +110,7 @@ beforeEach(() => {
   delete process.env.SUPABASE_URL;
   delete process.env.SUPABASE_SERVICE_ROLE_KEY;
   __resetCrawlStories();
+  __resetPintDrops();
 });
 
 describe("countStoriesByAuthor", () => {
@@ -83,5 +157,49 @@ describe("GET /api/crawls?author=", () => {
     const res = await GET(new Request(`${URL_BASE}?author=`));
     expect(res.status).toBe(200);
     expect(await res.json()).toEqual({ handle: "", count: 0 });
+  });
+});
+
+describe("POST /api/crawls", () => {
+  function post(stops: Array<{ venueId: string }>): Promise<Response> {
+    return POST(
+      new Request(URL_BASE, {
+        method: "POST",
+        body: JSON.stringify({ title: "Test crawl", stops }),
+      }),
+    );
+  }
+
+  it("accepts a legacy pub stop", async () => {
+    expect((await post([{ venueId: "venue-a" }])).status).toBe(201);
+  });
+
+  it("canonicalizes a legacy pub alias before validation and persistence", async () => {
+    const saved = await post([{ venueId: "legacy-a" }]);
+    expect(saved.status).toBe(201);
+    const { slug } = await saved.json();
+    const fetched = await GET(
+      new Request(`${URL_BASE}?slug=${encodeURIComponent(slug)}`),
+    );
+    const { story } = await fetched.json();
+    expect(story.stops[0].venueId).toBe("venue-a");
+    expect(story.stops[0].venueName).toBe("The Test Arms");
+  });
+
+  it("rejects a cocktail bar before saving the crawl", async () => {
+    expect((await post([{ venueId: "bar-a" }])).status).toBe(400);
+    expect(await countStoriesByAuthor("nobody")).toBe(0);
+  });
+
+  it("rejects a legacy alias that resolves to a cocktail bar", async () => {
+    expect((await post([{ venueId: "legacy-bar" }])).status).toBe(400);
+  });
+
+  it("returns unavailable when a stop's city pack cannot load", async () => {
+    const response = await post([{ venueId: "unavailable-a" }]);
+    expect(response.status).toBe(503);
+    expect(await response.json()).toEqual({
+      error: "Venue list is unavailable right now, try again shortly.",
+    });
   });
 });

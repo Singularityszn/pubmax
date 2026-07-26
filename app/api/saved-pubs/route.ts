@@ -19,16 +19,17 @@ import { resolveMessageHandle } from "@/lib/messageAuth";
 import { normalizeHandle } from "@/lib/profiles";
 import { gateHandleAction } from "@/lib/profileOwnership";
 import { isLimited } from "@/lib/pintDrops";
+import { isListTypeEligibleForVenue } from "@/lib/savedListPolicy";
 import { assertServerEnv } from "@/lib/serverEnv";
 import {
   cleanListType,
   cleanNote,
-  isListType,
   savedListsStore,
   savedPubsStore,
 } from "@/lib/savedPubsStore";
 import { clientIp, hashActor, hashIp } from "@/lib/supabase";
 import { readString } from "@/lib/textClean";
+import { resolveVenue } from "@/lib/venueIndex";
 
 assertServerEnv();
 
@@ -91,12 +92,16 @@ export async function POST(request: Request): Promise<Response> {
   const venueId = (readString(body.venueId) ?? "").slice(0, MAX_VENUE_ID);
   if (!venueId) return jsonNoStore({ error: "A venue is required." }, { status: 400 });
 
-  // The list type is now free text (story 33): the seven built-ins are the
-  // defaults, but a custom name is accepted too. isListType is the write gate —
-  // any value that cleans to a non-empty name is storable.
-  const listType = body.listType;
-  if (!isListType(listType)) {
+  const listType = cleanListType(body.listType);
+  if (!listType) {
     return jsonNoStore({ error: "A list name is required." }, { status: 400 });
+  }
+  const venue = await resolveVenue(venueId);
+  if (!isListTypeEligibleForVenue(listType, venue?.kind)) {
+    return jsonNoStore(
+      { error: "Choose a list that matches this venue." },
+      { status: 400 },
+    );
   }
 
   // Note is untrusted free text: strip HTML/control chars and cap length.

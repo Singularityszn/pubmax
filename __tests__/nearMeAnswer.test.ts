@@ -7,6 +7,7 @@ import {
   walkMinutesFromKm,
   type PricedPoint,
 } from "@/lib/nearMeAnswer";
+import type { VenueKind } from "@/lib/venues";
 
 // A user standing at a central London point.
 const here = { lat: 51.5074, lng: -0.1278 };
@@ -14,7 +15,14 @@ const here = { lat: 51.5074, lng: -0.1278 };
 // ~0.1 km east ≈ one street over. Longitude degrees are ~69 km at London's
 // latitude, so 0.001° ≈ 0.07 km — handy for placing fixtures at known-ish
 // distances without hand-computing haversine.
-function at(id: string, dLat: number, dLng: number, price: number | null, borough = "Camden"): PricedPoint {
+function at(
+  id: string,
+  dLat: number,
+  dLng: number,
+  price: number | null,
+  borough = "Camden",
+  kind?: VenueKind,
+): PricedPoint {
   return {
     id,
     name: `Pub ${id}`,
@@ -22,6 +30,7 @@ function at(id: string, dLat: number, dLng: number, price: number | null, boroug
     lng: here.lng + dLng,
     cheapestPrice: price,
     borough,
+    ...(kind !== undefined ? { kind } : {}),
   };
 }
 
@@ -61,6 +70,19 @@ describe("rankNearMe — walkable answer", () => {
   it("excludes pubs with no price observation (the quality bar)", () => {
     const answer = rankNearMe(here.lat, here.lng, venues);
     expect(answer.cards.some((c) => c.id === "no-price")).toBe(false);
+  });
+
+  it("excludes priced cocktail and food anchors", () => {
+    const answer = rankNearMe(here.lat, here.lng, [
+      ...venues,
+      at("cocktail", 0.0001, 0.0001, 2, "Camden", "bar"),
+      at("doner", 0.0002, 0.0002, 3, "Camden", "food"),
+    ]);
+    expect(answer.cards.map((card) => card.id)).toEqual([
+      "cheap-far",
+      "mid",
+      "dear-close",
+    ]);
   });
 
   it("excludes pubs outside the walk ring from the walkable answer", () => {
@@ -128,6 +150,18 @@ describe("rankBoroughCheapest", () => {
     expect(cards.every((c) => c.distanceKm === undefined)).toBe(true);
   });
 
+  it("does not list non-pub anchors in borough results", () => {
+    const withAnchors = [
+      ...venues,
+      at("cocktail", 0.001, 0.001, 2, "Camden", "bar"),
+      at("doner", 0.001, 0.001, 3, "Camden", "food"),
+    ];
+    expect(rankBoroughCheapest(withAnchors, "Camden").map((card) => card.id)).toEqual([
+      "cam-cheap",
+      "cam-dear",
+    ]);
+  });
+
   it("returns nothing for an empty borough string", () => {
     expect(rankBoroughCheapest(venues, "  ")).toEqual([]);
   });
@@ -140,6 +174,7 @@ describe("boroughsWithPrices", () => {
       at("b", 0, 0.002, 5, "Camden"),
       at("c", 0, 0.003, null, "Hackney"), // no price → excluded
       at("d", 0, 0.004, 5, "Camden"), // dupe borough
+      at("e", 0, 0.005, 2, "Hackney", "bar"),
     ];
     expect(boroughsWithPrices(venues)).toEqual(["Camden", "Southwark"]);
   });

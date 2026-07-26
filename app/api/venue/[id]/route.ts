@@ -1,16 +1,17 @@
-// GET /api/venue/[id] — the FULL venue detail (all prices, amenities, curation)
+// GET /api/venue/[id] - the full venue detail (prices or typed anchors,
+// amenities, and curation)
 // for a single id, loaded server-side so it never rides in the client bundle.
 //
 // This is the lazy other half of the SLIM-INDEX split: the map fetches
 // /data/venues_slim.json (~400 KB) on load to draw pins, then calls THIS route
-// only when a pub is opened. The heavy ~6 MB dataset stays on the server; a
+// only when a venue is opened. Heavy source data stays on the server; a
 // visitor downloads full detail for at most the handful of venues they open.
 //
 // Detail is built from a precomputed line-delimited per-venue artifact generated
 // alongside venues_slim.json. The route streams to the selected id, parses that
-// one line, and then runs the SAME groupVenuePrices used everywhere else on the
-// selected pub's rows. That keeps the curation/accessibility logic centralized
-// without cold-parsing/grouping the full pint dataset for the first open.
+// one line, then resolves either grouped pub-price rows or a curated venue seed
+// through the same detail boundary. That avoids cold-parsing all source data on
+// first open while keeping each venue kind's price meaning intact.
 //
 // Never throws to a 500 on a read/parse failure — it degrades to an empty index
 // so an unknown/absent id returns a friendly 404 instead. Cached hard at the

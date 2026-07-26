@@ -16,16 +16,19 @@ vi.mock("@/lib/supabase", async (importOriginal) => {
   return { ...actual, isSupabaseConfigured: () => false, requiresSupabaseStore: () => false };
 });
 
-// Lets one case simulate the slim index failing to load (getVenueIndex's
-// documented degraded mode is an empty map); every other case passes through
-// to the real index on disk.
+// Lets one case simulate the requested city pack failing to load; every other
+// case passes through to the real city-scoped canonical lookup on disk.
 const venueIndexState = vi.hoisted(() => ({ unavailable: false }));
 vi.mock("@/lib/venueIndex", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/venueIndex")>();
   return {
     ...actual,
-    getVenueIndex: async () =>
-      venueIndexState.unavailable ? new Map() : actual.getVenueIndex(),
+    lookupCanonicalVenue: async (id: string) => {
+      const canonicalId = id === "legacy-price-pub" ? "venue-xjf3n0" : id;
+      return venueIndexState.unavailable
+        ? { status: "unavailable" as const, canonicalId }
+        : actual.lookupCanonicalVenue(canonicalId);
+    },
   };
 });
 
@@ -80,6 +83,7 @@ import { __resetPintDrops } from "@/lib/pintDrops";
 import { getUkBaseIdIndex } from "@/lib/ukBaseIndex";
 import { UK_BASE_ID_PREFIX } from "@/lib/ukBasePubs";
 import { getVenueIndex } from "@/lib/venueIndex";
+import { isPubVenueKind } from "@/lib/venueKindFilters";
 
 type PriceBody = {
   ok?: boolean;
@@ -205,7 +209,10 @@ describe("POST /api/price-submit", () => {
   });
 
   it("rate-limits one actor across different venues after 30 submissions (429)", async () => {
-    const venueIds = [...(await getVenueIndex()).keys()].slice(0, 31);
+    const venueIds = [...(await getVenueIndex()).values()]
+      .filter((venue) => isPubVenueKind(venue.kind))
+      .map((venue) => venue.id)
+      .slice(0, 31);
     expect(venueIds).toHaveLength(31);
 
     for (const [index, venueId] of venueIds.entries()) {
@@ -220,6 +227,24 @@ describe("POST /api/price-submit", () => {
 
     expect(res.status).toBe(400);
     expect(await readCommunityPrices(venueId)).toEqual([]);
+  });
+
+  it("rejects non-pub anchor prices without storing them", async () => {
+    const venueId = "bar-american-bar-savoy";
+    const res = await POST(post({ venueId, drinkCategory: "beer", priceGbp: 8.5 }));
+
+    expect(res.status).toBe(400);
+    expect(await readCommunityPrices(venueId)).toEqual([]);
+  });
+
+  it("canonicalizes a legacy venue id before persistence", async () => {
+    const res = await POST(
+      post({ venueId: "legacy-price-pub", drinkCategory: "beer", priceGbp: 4.2 }),
+    );
+
+    expect(res.status).toBe(201);
+    expect(await readCommunityPrices("legacy-price-pub")).toEqual([]);
+    expect(await readCommunityPrices("venue-xjf3n0")).toHaveLength(1);
   });
 
   it("answers 503 (retryable), not 400, when the venue index is unavailable", async () => {
@@ -305,6 +330,31 @@ describe("GET /api/price-submit", () => {
     expect(data).not.toHaveProperty("degraded");
   });
 
+  it("reads a legacy venue id from its canonical storage key", async () => {
+    await POST(
+      post({ venueId: "legacy-price-pub", drinkCategory: "beer", priceGbp: 4.2 }),
+    );
+
+    const res = await GET(get("?venueId=legacy-price-pub"));
+
+    expect(res.status).toBe(200);
+    expect(await res.json()).toMatchObject({
+      prices: [{ drinkCategory: "beer", priceGbp: 4.2 }],
+    });
+  });
+
+  it("is honest-empty when canonical venue data is unavailable", async () => {
+    await POST(
+      post({ venueId: "venue-xjf3n0", drinkCategory: "beer", priceGbp: 4.2 }),
+    );
+    venueIndexState.unavailable = true;
+
+    const res = await GET(get("?venueId=venue-xjf3n0"));
+
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ prices: [] });
+  });
+
   it("is honest-empty (200) for a missing or unknown venue, never a 500", async () => {
     expect((await GET(get(""))).status).toBe(200);
     expect(await (await GET(get(""))).json()).toEqual({ prices: [] });
@@ -344,7 +394,9 @@ describe("POST /api/price-submit corroboration", () => {
   // Drawn from the far end of the index so these can never collide with the
   // cross-venue rate-limit case above, which consumes the first 31 ids.
   async function realVenueId(offset: number): Promise<string> {
-    const ids = [...(await getVenueIndex()).keys()];
+    const ids = [...(await getVenueIndex()).values()]
+      .filter((venue) => isPubVenueKind(venue.kind))
+      .map((venue) => venue.id);
     expect(ids.length).toBeGreaterThan(31 + offset);
     return ids[ids.length - 1 - offset];
   }

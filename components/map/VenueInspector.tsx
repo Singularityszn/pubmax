@@ -11,7 +11,8 @@ import { landmarks as londonLandmarks, type Landmark } from "@/lib/landmarks";
 import { STORY_BANDS, type StoryBand } from "@/lib/storyBands";
 import { type CuratedCrawl } from "@/lib/curatedCrawls";
 import { type CityId, DEFAULT_CITY_ID } from "@/lib/cities";
-import { DEFAULT_TAB, tabsForCity, type TabKey } from "@/lib/venueInspectorTabs";
+import { DEFAULT_TAB, tabsForVenue, type TabKey } from "@/lib/venueInspectorTabs";
+import { isPubVenue } from "@/lib/venueKindFilters";
 import type { JourneyPoint } from "@/lib/venueJourney";
 import type { LocationRequestStatus } from "@/components/map/VenueGettingThere";
 
@@ -105,7 +106,9 @@ export default function VenueInspector({
 }: VenueInspectorProps) {
   const { dropsByVenueId, setComposerOpen } = pintDrops;
   const drops = useMemo(() => dropsByVenueId.get(venue.id) ?? [], [dropsByVenueId, venue.id]);
-  const TABS = useMemo(() => tabsForCity(cityId), [cityId]);
+  const pubVenue = isPubVenue(venue);
+  const TABS = useMemo(() => tabsForVenue(cityId, venue.kind), [cityId, venue.kind]);
+  const safeInitialTab = pubVenue || initialTab !== "pints" ? initialTab : DEFAULT_TAB;
 
   // E3′ — the header photo prefers a chain (scraped) photo but falls back to
   // the most recent community Pint Drop photo for this venue so a pub with no
@@ -121,7 +124,7 @@ export default function VenueInspector({
 
   const { presenceState, markPresenceHere } = usePresence(venue);
   const { tab, selectTab, onTabKeyDown, tabRefs } = useInspectorTabs(
-    initialTab,
+    safeInitialTab,
     venue.id,
     TABS,
     onTabSelect,
@@ -178,6 +181,7 @@ export default function VenueInspector({
         onRequestLocation={onRequestLocation}
         onClearLocation={onClearLocation}
         onStartFirstDrop={() => {
+          if (!pubVenue) return;
           // First-drop nudge (Cycle-8 item 3): open the existing composer,
           // prefilled-for-this-venue by rendering the Pints tab with this
           // venue's id. Mirrors firstDropComposerIntent(venue.id).
@@ -187,17 +191,19 @@ export default function VenueInspector({
       />
 
       {/* Pints — the primary tab: demo note, drops list, composer / log bar. */}
-      <VenuePintsTab
-        venue={venue}
-        tab={tab}
-        pintDrops={pintDrops}
-        drops={drops}
-        lastTrainDecision={lastTrainDecision}
-        onTabSelect={onTabSelect}
-      />
+      {pubVenue ? (
+        <VenuePintsTab
+          venue={venue}
+          tab={tab}
+          pintDrops={pintDrops}
+          drops={drops}
+          lastTrainDecision={lastTrainDecision}
+          onTabSelect={onTabSelect}
+        />
+      ) : null}
 
       {/* Menu — visual hub (Drinks first) → drink list deep-dive. Food is
-          link-out only when we have a pub website / menu URL. */}
+          link-out only when we have a venue website / menu URL. */}
       <VenueMenuTab venue={venue} tab={tab} />
 
       {/* Story — description / heritage note + provenance-stamped claims. */}

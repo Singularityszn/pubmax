@@ -21,6 +21,8 @@ import { normalizeHandle } from "@/lib/profiles";
 import { gateHandleAction } from "@/lib/profileOwnership";
 import { assertServerEnv } from "@/lib/serverEnv";
 import { clientIp, hashIp } from "@/lib/supabase";
+import { lookupCanonicalVenue } from "@/lib/venueIndex";
+import { isPubVenueKind } from "@/lib/venueKindFilters";
 
 assertServerEnv();
 
@@ -99,6 +101,26 @@ export async function POST(request: Request): Promise<Response> {
   if (stops.length === 0) {
     return jsonNoStore({ error: "A crawl needs at least one stop." }, { status: 400 });
   }
+  const venueLookups = await Promise.all(
+    stops.map((stop) => lookupCanonicalVenue(stop.venueId)),
+  );
+  if (venueLookups.some((lookup) => lookup.status === "unavailable")) {
+    return jsonNoStore(
+      { error: "Venue list is unavailable right now, try again shortly." },
+      { status: 503 },
+    );
+  }
+  if (
+    venueLookups.some(
+      (lookup) => lookup.status !== "found" || !isPubVenueKind(lookup.venue.kind),
+    )
+  ) {
+    return jsonNoStore({ error: "Every crawl stop must be a pub from the map." }, { status: 400 });
+  }
+  const canonicalStops = stops.map((stop, index) => ({
+    ...stop,
+    venueId: venueLookups[index].canonicalId,
+  }));
 
   // Rate-limit by hashed IP (no handle on a crawl story). Durable when Supabase
   // is configured, in-memory fallback otherwise — fail-open, mirroring pint-drops.
@@ -129,7 +151,7 @@ export async function POST(request: Request): Promise<Response> {
     visibility: cleanVisibility(body.visibility),
     vibeTags: readVibeTags(body.vibeTags),
     ...(authorHandle ? { authorHandle } : {}),
-    stops,
+    stops: canonicalStops,
   };
 
   const result = await createCrawlStory(input);

@@ -21,6 +21,10 @@ function toVenue(value: unknown): ConciergeVenue | null {
   if (!value || typeof value !== "object" || Array.isArray(value)) return null;
   const row = value as SlimRow;
   if (typeof row.id !== "string" || !row.id || typeof row.name !== "string" || !row.name) return null;
+  // Non-pub venues carry type-specific anchor prices (a cocktail, a doner),
+  // not pint prices. Concierge/plan surfaces reason in pints, so they must
+  // never see these rows.
+  if (row.kind !== undefined && row.kind !== "pub") return null;
   if (typeof row.lat !== "number" || !Number.isFinite(row.lat) || typeof row.lng !== "number" || !Number.isFinite(row.lng)) return null;
   if (typeof row.borough !== "string") return null;
   if (row.cheapestPrice !== null && (typeof row.cheapestPrice !== "number" || !Number.isFinite(row.cheapestPrice))) return null;

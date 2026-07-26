@@ -1,22 +1,13 @@
-// Issue #35 — two-stage map load. The map paints pins from the ~400 KB slim
-// index (lib/venuesSlim.ts) BEFORE the ~5.6 MB full price dataset lands, so the
-// first interactive pin appears fast. This module is the pure bridge between the
-// two: it turns a SlimVenue into a MINIMAL, Venue-SHAPE-COMPATIBLE object that
-// PubMapCanvas's pubsToGeoJSON can render.
+// Issue #35 - staged map load. The map paints from the compact slim index before
+// any selected-venue detail request, so the first interactive pin appears fast.
+// This module is the pure bridge: it turns a SlimVenue into a minimal,
+// Venue-shape-compatible object that PubMapCanvas can render.
 //
-// pubsToGeoJSON (components/PubMapCanvas.tsx) reads exactly:
-//   id, name, longitude, latitude, cheapestPrice, hasStory, prices (only via
-//   priceForBeer when a favorite pint is chosen).
-// Everything else on a full Venue (amenities, curation detail, contributor
-// prices, filter/scoring inputs) is NOT touched to paint a pin — so the slim
-// pin degrades those features until the full dataset hydrates, rather than
-// blocking first paint:
-//   • hasStory → false: no brass heritage ring until hydration.
-//   • prices → []: with a favorite pint chosen, priceForBeer returns null, so a
-//     slim pin reads as "doesn't serve it" (dimmed) until hydration re-prices it.
-//   • all filter/scoring/saved-only inputs are absent → the slim phase MUST NOT
-//     be run through filterVenues / buildCrawlRoute / savedOnly (PubMap gates
-//     those on hydration; see PubMap.tsx).
+// The slim row carries geometry, price, venue kind, type-relative band, anchor
+// provenance, and fast filter hints. Detail-only fields use inert defaults until
+// that venue is opened. In particular, `prices: []` prevents a favourite-pint
+// lookup from inventing a beer match, while kind and anchor fields remain
+// available so bars and late food never render as pint-priced pubs.
 
 import type { Venue } from "@/lib/venues";
 import type { SlimVenue } from "@/lib/venuesSlim";
@@ -95,6 +86,15 @@ export function slimVenueToPin(slim: SlimVenue): Venue {
     sourceDatasets: [],
     curation: {},
     ...(slim.filterHints ? { filterHints: slim.filterHints } : {}),
+    ...(slim.kind !== undefined ? { kind: slim.kind } : {}),
+    ...(slim.priceBand !== undefined ? { priceBand: slim.priceBand } : {}),
+    ...(slim.anchorLabel !== undefined ? { anchorLabel: slim.anchorLabel } : {}),
+    ...(slim.anchorObservedAt !== undefined
+      ? { anchorObservedAt: slim.anchorObservedAt }
+      : {}),
+    ...(slim.anchorSourceUrl !== undefined
+      ? { anchorSourceUrl: slim.anchorSourceUrl }
+      : {}),
   };
 }
 

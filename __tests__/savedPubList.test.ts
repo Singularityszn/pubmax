@@ -6,7 +6,7 @@ import SavedPubList from "@/components/profile/SavedPubList";
 import type { FollowedSavedListDTO } from "@/lib/savedPubs";
 
 describe("SavedPubList", () => {
-  it("renders custom saved-pub groups instead of only the built-in list names", () => {
+  it("renders custom saved-venue groups instead of only the built-in list names", () => {
     const html = renderToStaticMarkup(
       createElement(SavedPubList, {
         ownerHandle: "sam",
@@ -30,6 +30,17 @@ describe("SavedPubList", () => {
     expect(html).toContain('href="/map?sel=venue-1"');
   });
 
+  it("uses neutral venue language for the empty saved-list state", () => {
+    const html = renderToStaticMarkup(
+      createElement(SavedPubList, { groups: {} }),
+    );
+
+    expect(html).toContain("Saved venues");
+    expect(html).toContain("No saved venues yet.");
+    expect(html).toContain("Save a venue from the map");
+    expect(html).not.toContain("saved pubs");
+  });
+
   it("surfaces followed authored lists with attribution, links, and counts", () => {
     const followedLists: FollowedSavedListDTO[] = [
       {
@@ -50,7 +61,7 @@ describe("SavedPubList", () => {
     expect(html).toContain("Followed lists");
     expect(html).toContain("my locals");
     expect(html).toContain("By @sam");
-    expect(html).toContain("3 pubs");
+    expect(html).toContain("3 venues");
     expect(html).toContain("12 followers");
     expect(html).toContain('href="/u/sam"');
     expect(html).toContain('href="/u/sam/lists/my%20locals"');

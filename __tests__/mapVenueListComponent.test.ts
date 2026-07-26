@@ -12,7 +12,9 @@ describe("MapVenueList", () => {
         {
           id: "venue-curated",
           name: "Curated Arms",
+          typeLabel: "Pub",
           priceLabel: "£4.50",
+          anchor: null,
         },
       ],
       total: 1,
@@ -54,7 +56,7 @@ describe("MapVenueList", () => {
       }),
     );
 
-    expect(html).toContain('aria-label="Priced and curated pubs"');
+    expect(html).toContain('aria-label="Priced and curated venues"');
     expect(html).toContain('aria-label="Unverified pubs with no price"');
     expect(html).toContain("Base Arms");
     expect(html).toContain("Unverified · no price");

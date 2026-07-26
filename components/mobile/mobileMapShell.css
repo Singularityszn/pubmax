@@ -386,6 +386,15 @@
   .mobileMapFilters .drinkSubtypeChip { min-height: 44px; }
   .mobileMapFilters .favoritePintPicker { display: grid !important; grid-template-columns: 1fr; }
   .mobileMapFilters .favoritePintControl { min-height: 44px; width: 100%; justify-content: space-between; }
+  .mobilePriceBandLegend { display: grid; gap: 8px; padding: 12px; border: 1px solid var(--color-border); border-radius: var(--radius); background: var(--color-surface-raised); }
+  .mobilePriceBandLegend > strong { color: var(--color-text); font-size: var(--text-sm); }
+  .mobilePriceBandLegend > p { margin: 0; color: var(--color-text-soft); font-size: var(--text-xs); line-height: 1.4; }
+  .mobilePriceBandLegend ul { display: grid; gap: 7px; margin: 0; padding: 0; list-style: none; }
+  .mobilePriceBandLegend li { display: flex; align-items: center; gap: 8px; color: var(--color-text); font-size: var(--text-xs); }
+  .mobilePriceBandLegend i { width: 8px; height: 8px; flex: 0 0 auto; border-radius: 50%; }
+  .mobilePriceBandLegend i[data-tone="green"] { background: var(--pint); }
+  .mobilePriceBandLegend i[data-tone="amber"] { background: var(--amber); }
+  .mobilePriceBandLegend i[data-tone="red"] { background: var(--brick); }
   .mobilePriceChoices { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; margin: 0; padding: 0; border: 0; }
   .mobilePriceChoices legend { grid-column: 1 / -1; margin-bottom: 4px; color: var(--color-text-soft); font-size: var(--text-sm); font-weight: 700; }
   .mobilePriceChoices button { min-height: 44px; border: 1px solid var(--color-border); border-radius: var(--radius); background: var(--color-surface); color: var(--color-text); font: inherit; font-size: var(--text-sm); }
@@ -461,4 +470,3 @@
   .mobileSharedSheet.mapDrawer { transition: none !important; }
   .mobilePlanActivation:active { transform: translateX(-50%); }
 }
-

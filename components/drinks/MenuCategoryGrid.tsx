@@ -4,6 +4,8 @@ import type { CSSProperties } from "react";
 import { DrinkGlyph } from "@/components/drinks/DrinkGlyph";
 import type { MenuHubTile } from "@/lib/menuHub";
 import type { DrinkCategory } from "@/lib/drinks";
+import { venueKindNoun } from "@/lib/venueKindFilters";
+import type { VenueKind } from "@/lib/venues";
 
 import "./menuCategoryGrid.css";
 
@@ -11,6 +13,7 @@ export type MenuCategoryGridProps = {
   tiles: MenuHubTile[];
   onOpenDrinks: (category?: DrinkCategory) => void;
   venueName?: string;
+  venueKind?: VenueKind;
 };
 
 /**
@@ -21,13 +24,15 @@ export default function MenuCategoryGrid({
   tiles,
   onOpenDrinks,
   venueName,
+  venueKind,
 }: MenuCategoryGridProps) {
+  const venueNoun = venueKindNoun(venueKind);
   if (tiles.length === 0) {
     return (
       <div className="menuHubEmpty" role="status">
         <p className="menuHubEmptyTitle">No menu on record yet</p>
         <p className="menuHubEmptyBody">
-          {venueName ? `${venueName} hasn't` : "This pub hasn't"} logged drinks
+          {venueName ? `${venueName} hasn't` : `This ${venueNoun} hasn't`} logged drinks
           beyond the map price, and there&apos;s no external menu link yet.
         </p>
       </div>
@@ -39,8 +44,8 @@ export default function MenuCategoryGrid({
       <header className="menuHub__head">
         <h3 className="menuHub__title">Menus</h3>
         <p className="menuHub__lede">
-          Drinks first. Tap a tile. Food opens the pub&apos;s own menu when we
-          have a link.
+          Drinks first. Tap a tile. Food opens the {venueNoun}&apos;s own menu
+          when we have a link.
         </p>
       </header>
       <ul className="menuHub__grid">

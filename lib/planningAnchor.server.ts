@@ -18,6 +18,7 @@ import { isKnownStepFree } from "@/lib/venueAccessibility";
 import { resolveCanonicalVenueId } from "@/lib/venueAliases";
 import { getVenueDetail } from "@/lib/venueDetailIndex";
 import type { Venue } from "@/lib/venues";
+import { isPubVenue } from "@/lib/venueKindFilters";
 
 /**
  * `resolvePlanningAnchor` is the single server-owned seam that turns a client's
@@ -151,6 +152,7 @@ export async function resolvePlanningAnchor(
 
   const venue = await deps.loadVenue(canonicalVenueId);
   if (!venue) return conflict("ANCHOR_VENUE_INVALID");
+  if (!isPubVenue(venue)) return conflict("ANCHOR_VENUE_INVALID");
 
   if (!deps.matchesCity(canonicalVenueId, input.cityId)) return conflict("ANCHOR_CITY_MISMATCH");
   if (deps.isPromoted(venue)) return conflict("ANCHOR_PROMOTED");

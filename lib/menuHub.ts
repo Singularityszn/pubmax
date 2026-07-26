@@ -6,6 +6,7 @@ import {
 } from "@/lib/drinks";
 import { firstHttp } from "@/lib/httpUrl";
 import type { Venue } from "@/lib/venues";
+import { venueKindNoun } from "@/lib/venueKindFilters";
 import { venueExternalActions } from "@/lib/venueExternalActions";
 
 /**
@@ -86,7 +87,7 @@ export function menuHubTiles(venue: Venue, drinks: Drink[]): MenuHubTile[] {
       id: "food-external",
       kind: "food-external",
       label: "Food menu",
-      hint: "Opens the pub site",
+      hint: `Opens the ${venueKindNoun(venue.kind)} site`,
       href: defaultFoodHref,
     });
   }

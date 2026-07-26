@@ -2,6 +2,8 @@
 
 import { useCallback, useState } from "react";
 import { BookOpen, MessageCircle, Send, Sparkles } from "lucide-react";
+import { venueKindNoun } from "@/lib/venueKindFilters";
+import type { VenueKind } from "@/lib/venues";
 
 type Context = {
   era?: string;
@@ -19,14 +21,15 @@ type HeritageResponse = {
 };
 
 const SUGGESTIONS = ["How old is it?", "Is it listed?", "What's the story?"];
-const DEFAULT_QUESTION = "What's the story of this pub?";
-
 export default function LandlordPanel(props: {
   venueId: string;
   venueName: string;
+  venueKind?: VenueKind;
   context?: Context;
 }) {
-  const { venueId, venueName, context } = props;
+  const { venueId, venueName, venueKind, context } = props;
+  const venueNoun = venueKindNoun(venueKind);
+  const defaultQuestion = `What's the story of this ${venueNoun}?`;
 
   const [question, setQuestion] = useState("");
   const [loading, setLoading] = useState(false);
@@ -34,7 +37,7 @@ export default function LandlordPanel(props: {
   const [error, setError] = useState(false);
 
   // ponytail: React's "adjust state on prop change during render" pattern —
-  // clears the previous pub's answer when venueId changes. Not an effect
+  // clears the previous venue's answer when venueId changes. Not an effect
   // (react-hooks/set-state-in-effect) and not a ref (react-hooks/refs); both
   // are errors here. https://react.dev/reference/react/useState#storing-information-from-previous-renders
   const [prevVenue, setPrevVenue] = useState(venueId);
@@ -73,16 +76,16 @@ export default function LandlordPanel(props: {
   return (
     <section className="landlord">
       <div className="inspectorTitle">
-        <MessageCircle size={14} /> Ask your Pub Pal
+        <MessageCircle size={14} /> Ask your venue guide
       </div>
 
       <button
         type="button"
         className="landlordBtn"
         disabled={loading}
-        onClick={() => ask(DEFAULT_QUESTION)}
+        onClick={() => ask(defaultQuestion)}
       >
-        <Sparkles size={16} /> Tell me about this pub
+        <Sparkles size={16} /> Tell me about this {venueNoun}
       </button>
 
       <form
@@ -93,10 +96,10 @@ export default function LandlordPanel(props: {
         }}
       >
         <input
-          aria-label="Ask about this pub"
+          aria-label={`Ask about this ${venueNoun}`}
           value={question}
           onChange={(e) => setQuestion(e.target.value)}
-          placeholder="Ask about this pub…"
+          placeholder={`Ask about this ${venueNoun}…`}
         />
         <button type="submit" aria-label="Send" disabled={loading}>
           <Send size={16} />
@@ -117,7 +120,7 @@ export default function LandlordPanel(props: {
         {loading && <div className="landlordThinking">Pulling up the records…</div>}
 
         {error && !loading && (
-          <p className="landlordMsg">Couldn&apos;t reach your Pub Pal. Try again.</p>
+          <p className="landlordMsg">Couldn&apos;t reach your venue guide. Try again.</p>
         )}
 
         {answer && !loading && (

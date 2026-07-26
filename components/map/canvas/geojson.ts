@@ -1,6 +1,6 @@
 import { priceForBeer } from "@/lib/beers";
 import { POI_CATEGORY_META, type Poi } from "@/lib/pois";
-import { drinkPinIconKey, drinkPinKindFromCategories, iconId } from "@/lib/mapIcons";
+import { drinkPinKindFromCategories, iconId, venuePinIconKey } from "@/lib/mapIcons";
 import type { Landmark } from "@/lib/landmarks";
 import { bandAnchors, type StoryBand } from "@/lib/storyBands";
 import type { Venue } from "@/lib/venues";
@@ -44,7 +44,7 @@ export function pubsToGeoJSON(
           venue.cheapestPrice ??
           signals?.latestDemoPrice ??
           null;
-      const bucket = priceBucket(price);
+      const bucket = venue.priceBand ?? priceBucket(price);
       // Active drink lens owns the glyph: beer → pint glasses, wine → wine, etc.
       // Without a lens, fall back to venue hint categories.
       const lens = drinkCategory?.trim().toLowerCase() ?? "";
@@ -60,7 +60,11 @@ export function pubsToGeoJSON(
       // paint martinis, as intended.
       const hintCategories = venue.filterHints?.drinkCategories;
       const drinkKind =
-        lens === "beer"
+        venue.kind === "bar"
+          ? "coupe"
+          : venue.kind === "food"
+            ? "skewer"
+            : lens === "beer"
           ? "pint"
           : lens && lens !== "other"
             ? drinkPinKindFromCategories(
@@ -87,13 +91,14 @@ export function pubsToGeoJSON(
         properties: {
           id: venue.id,
           name: venue.name,
+          kind: venue.kind ?? "pub",
           bucket,
           story: venue.hasStory,
           drops: Boolean(signals?.hasPintDrops),
           serves,
           drinkKind,
           scraped,
-          icon: iconId("drink", drinkPinIconKey(drinkKind, bucket)),
+          icon: iconId("drink", venuePinIconKey(drinkKind, bucket)),
           // M7 pin entrance — a stable per-pub stagger bucket (hash of id, not
           // insertion order/coordinates) so the entrance cascade reads as a
           // pleasant scatter rather than left-to-right or dataset-order.

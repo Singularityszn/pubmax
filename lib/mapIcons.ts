@@ -658,6 +658,7 @@ function drawRiver(ctx: CanvasRenderingContext2D, t: IconTokens): void {
 // ---------------------------------------------------------------------------
 
 export type DrinkPinKind = "pint" | "wine" | "cocktail" | "spirits";
+export type VenuePinKind = DrinkPinKind | "coupe" | "skewer";
 
 // Soft brass-grey for unpriced pins — never pure ink/muted black (reads as a
 // building blob on the basemap). Hex equivalent of a desaturated brass.
@@ -769,6 +770,49 @@ function drawCocktailSilhouette(
   ctx.stroke();
 }
 
+function drawCoupeSilhouette(
+  ctx: CanvasRenderingContext2D,
+  fill: string,
+  stroke: string,
+): void {
+  const cx = BOX / 2;
+  setDrinkGlassStyle(ctx, fill, stroke);
+  ctx.beginPath();
+  ctx.moveTo(cx - BOX * 0.22, BOX * 0.28);
+  ctx.quadraticCurveTo(cx, BOX * 0.48, cx + BOX * 0.22, BOX * 0.28);
+  ctx.quadraticCurveTo(cx, BOX * 0.58, cx - BOX * 0.22, BOX * 0.28);
+  ctx.closePath();
+  fillStroke(ctx);
+  ctx.beginPath();
+  ctx.moveTo(cx, BOX * 0.5);
+  ctx.lineTo(cx, BOX * 0.78);
+  ctx.moveTo(cx - BOX * 0.12, BOX * 0.78);
+  ctx.lineTo(cx + BOX * 0.12, BOX * 0.78);
+  ctx.stroke();
+}
+
+function drawSkewerSilhouette(
+  ctx: CanvasRenderingContext2D,
+  fill: string,
+  stroke: string,
+): void {
+  const cx = BOX / 2;
+  setDrinkGlassStyle(ctx, fill, stroke);
+  ctx.save();
+  ctx.translate(cx, BOX / 2);
+  ctx.rotate(-Math.PI / 5);
+  ctx.beginPath();
+  ctx.moveTo(0, -BOX * 0.34);
+  ctx.lineTo(0, BOX * 0.36);
+  ctx.stroke();
+  for (const y of [-0.2, -0.04, 0.12]) {
+    ctx.beginPath();
+    roundRectPath(ctx, -BOX * 0.12, BOX * y, BOX * 0.24, BOX * 0.13, BOX * 0.035);
+    fillStroke(ctx);
+  }
+  ctx.restore();
+}
+
 function drawSpiritsSilhouette(
   ctx: CanvasRenderingContext2D,
   fill: string,
@@ -791,7 +835,7 @@ function drawSpiritsSilhouette(
   fillStroke(ctx);
 }
 
-function makeDrinkDraw(kind: DrinkPinKind, bucket: number) {
+function makeVenuePinDraw(kind: VenuePinKind, bucket: number) {
   return (ctx: CanvasRenderingContext2D, t: IconTokens) => {
     const fill = priceFill(t, bucket);
     drawDrinkShadow(ctx, t);
@@ -800,14 +844,23 @@ function makeDrinkDraw(kind: DrinkPinKind, bucket: number) {
     if (kind === "pint") drawPintSilhouette(ctx, fill, stroke);
     else if (kind === "wine") drawWineSilhouette(ctx, fill, stroke);
     else if (kind === "cocktail") drawCocktailSilhouette(ctx, fill, stroke);
+    else if (kind === "coupe") drawCoupeSilhouette(ctx, fill, stroke);
+    else if (kind === "skewer") drawSkewerSilhouette(ctx, fill, stroke);
     else drawSpiritsSilhouette(ctx, fill, stroke);
   };
 }
 
-const DRINK_KINDS: DrinkPinKind[] = ["pint", "wine", "cocktail", "spirits"];
+const VENUE_PIN_KINDS: VenuePinKind[] = [
+  "pint",
+  "wine",
+  "cocktail",
+  "spirits",
+  "coupe",
+  "skewer",
+];
 const DRINK_BUCKETS = [0, 1, 2, 3] as const;
 
-export function drinkPinIconKey(kind: DrinkPinKind, bucket: number): string {
+export function venuePinIconKey(kind: VenuePinKind, bucket: number): string {
   const b = bucket >= 0 && bucket <= 3 ? bucket : 3;
   return `${kind}-${b}`;
 }
@@ -908,14 +961,14 @@ export const MAP_ICON_SPECS: IconSpec[] = [
   { key: "rail", ns: "tfl", size: BOX, draw: drawRail },
   { key: "bus", ns: "tfl", size: BOX, draw: drawBus },
   { key: "river", ns: "tfl", size: BOX, draw: drawRiver },
-  // Drink pins — one raster per kind × price bucket.
-  ...DRINK_KINDS.flatMap((kind) =>
+  // Venue pins: one glyph raster per kind and price bucket.
+  ...VENUE_PIN_KINDS.flatMap((kind) =>
     DRINK_BUCKETS.map(
       (bucket): IconSpec => ({
-        key: drinkPinIconKey(kind, bucket),
+        key: venuePinIconKey(kind, bucket),
         ns: "drink",
         size: BOX,
-        draw: makeDrinkDraw(kind, bucket),
+        draw: makeVenuePinDraw(kind, bucket),
       }),
     ),
   ),
@@ -939,7 +992,7 @@ export const TFL_ICON_KEYS: readonly string[] = MAP_ICON_SPECS.filter(
   (s) => s.ns === "tfl",
 ).map((s) => s.key);
 
-export const DRINK_ICON_KEYS: readonly string[] = MAP_ICON_SPECS.filter(
+export const VENUE_PIN_ICON_KEYS: readonly string[] = MAP_ICON_SPECS.filter(
   (s) => s.ns === "drink",
 ).map((s) => s.key);
 

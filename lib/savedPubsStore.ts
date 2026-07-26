@@ -20,39 +20,17 @@
 // throwing to the caller, so a saved-pubs outage can never break the profile page.
 
 import { normalizeHandle } from "@/lib/profiles";
+import { isBuiltInListType } from "@/lib/savedListPolicy";
 import { supabaseProfileStore, type ProfileStore } from "@/lib/profileStore";
 import { isSupabaseConfigured, requireSupabaseAdmin } from "@/lib/supabase";
 import { cleanText } from "@/lib/textClean";
 import { getVenueIndex, venueMapUrl } from "@/lib/venueIndex";
-
-// The default list types a pub can be filed under. Ordered — the profile renders
-// groups in this order. Kept in lockstep with lib/savedPubs.ts LIST_TYPES; this
-// module is server-only (touches fs via venueIndex), so it owns the server-side
-// copy the API validates against, avoiding a client<-server import of savedPubs.
-export const LIST_TYPES = [
-  "Want to Visit",
-  "Cheap Pint",
-  "Coding Pint",
-  "Historic",
-  "Date Night",
-  "Crawl Stop",
-  "Local Legend",
-] as const;
 
 // The list a pub is filed under is now free text (story 33): the seven built-ins
 // are the SUGGESTED defaults, but a handle can create its own named lists too.
 // `ListType` stays `string` so custom names round-trip; the seven live on as the
 // UI's default suggestions + the seed for a handle with no custom lists yet.
 export type ListType = string;
-
-const LIST_TYPE_SET: ReadonlySet<string> = new Set(LIST_TYPES);
-
-/** Is `value` one of the seven BUILT-IN list types? Kept for the UI's default
- *  suggestions and for tests; NOT the write gate any more (custom lists are
- *  allowed — see cleanListType). */
-export function isBuiltInListType(value: unknown): value is (typeof LIST_TYPES)[number] {
-  return typeof value === "string" && LIST_TYPE_SET.has(value);
-}
 
 // A custom list name is untrusted free text: strip inline HTML / control chars,
 // collapse whitespace, cap length. Mirrors cleanNote's trust boundary.
@@ -129,7 +107,7 @@ async function enrich(rows: SavedRow[]): Promise<SavedPubDTO[]> {
   return rows
     .map((row) => ({
       venueId: row.venueId,
-      venueName: index.get(row.venueId)?.name ?? "A London pub",
+      venueName: index.get(row.venueId)?.name ?? "A London venue",
       venueMapUrl: venueMapUrl(row.venueId),
       listType: row.listType,
       ...(row.note ? { note: row.note } : {}),
@@ -302,11 +280,8 @@ export function __resetMemorySavedPubs(): void {
 }
 
 // ── Custom lists registry (story 33) ─────────────────────────────────────────
-// A handle's list "menu" = the seven built-ins ALWAYS, plus any custom lists it
-// has registered (public.saved_lists — migration 0010). The registry is what lets
-// a handle create/name a list that has no saves yet, so the pick-UI can offer it.
-// Same dual-backend seam. Every method is fail-soft: an outage renders as "just
-// the built-ins", never a 500 on the save control.
+// Custom names can exist before they have saves, so the picker can offer them.
+// Every method is fail-soft: an outage leaves the built-in picker usable.
 
 const LISTS_TABLE = "saved_lists";
 
@@ -332,7 +307,7 @@ export const supabaseSavedListsStore: SavedListsStore = {
       if (error) throw new Error(error.message);
       return (data ?? [])
         .map((r) => String((r as { name?: unknown }).name ?? ""))
-        .filter((n) => n && !LIST_TYPE_SET.has(n));
+        .filter((name) => name && !isBuiltInListType(name));
     } catch {
       return [];
     }
@@ -341,7 +316,7 @@ export const supabaseSavedListsStore: SavedListsStore = {
   async createList(handle, name) {
     const clean = cleanListType(name);
     // A built-in name needs no registry row — it's always offered. Blank → no-op.
-    if (!clean || LIST_TYPE_SET.has(clean)) return this.listCustom(handle);
+    if (!clean || isBuiltInListType(clean)) return this.listCustom(handle);
     try {
       const profileId = await profileIdForHandle(supabaseProfileStore, handle, true);
       if (!profileId) return this.listCustom(handle);
@@ -364,13 +339,15 @@ export const memorySavedListsStore: SavedListsStore = {
   async listCustom(handle) {
     const key = normalizeHandle(handle);
     if (!key) return [];
-    return [...(memoryLists.get(key) ?? new Set())].filter((n) => !LIST_TYPE_SET.has(n)).reverse();
+    return [...(memoryLists.get(key) ?? new Set())]
+      .filter((name) => !isBuiltInListType(name))
+      .reverse();
   },
 
   async createList(handle, name) {
     const key = normalizeHandle(handle);
     const clean = cleanListType(name);
-    if (key && clean && !LIST_TYPE_SET.has(clean)) {
+    if (key && clean && !isBuiltInListType(clean)) {
       const set = memoryLists.get(key) ?? new Set<string>();
       set.add(clean);
       memoryLists.set(key, set);

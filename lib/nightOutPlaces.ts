@@ -31,8 +31,8 @@ export type NightOutPlace = {
   sourceName: string;
   observedAt: string;
   expiresAt: string;
-  discoveredVia: "exa" | "firecrawl";
-  extractedVia: "firecrawl";
+  discoveredVia: "exa" | "firecrawl" | "manual";
+  extractedVia: "firecrawl" | "manual";
 };
 
 export type NightOutPlaceSnapshot = {

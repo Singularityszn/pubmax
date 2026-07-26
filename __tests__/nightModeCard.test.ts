@@ -8,6 +8,7 @@ import {
   foodEndingSelection,
   getHomeEndingSelection,
   keepGoingEndingSelection,
+  rankKeepGoingExtensions,
   recommendedEndingForPlan,
   routeRevisionFromPlan,
 } from "@/components/night/NightModeCard";
@@ -70,6 +71,61 @@ describe("endingOptionsForSignals", () => {
     expect(options[0].description).toContain("2 reviewed nearby options");
     expect(options[1].description).toContain("Clapham Common");
     expect(options[2].description).toContain("2 nearby spots");
+  });
+});
+
+describe("rankKeepGoingExtensions", () => {
+  it("ranks only backward-compatible pub venues for pint extensions", () => {
+    const current = {
+      id: "current-pub",
+      name: "Current Pub",
+      lat: 51.513,
+      lng: -0.13,
+      cheapestPrice: 6,
+    };
+    const extensions = rankKeepGoingExtensions(
+      [
+        current,
+        {
+          id: "nearby-bar",
+          name: "Nearby Bar",
+          lat: 51.5131,
+          lng: -0.13,
+          cheapestPrice: 14,
+          kind: "bar",
+        },
+        {
+          id: "nearby-food",
+          name: "Nearby Food",
+          lat: 51.5132,
+          lng: -0.13,
+          cheapestPrice: 9,
+          kind: "food",
+        },
+        {
+          id: "explicit-pub",
+          name: "Explicit Pub",
+          lat: 51.514,
+          lng: -0.13,
+          cheapestPrice: 5.5,
+          kind: "pub",
+        },
+        {
+          id: "legacy-pub",
+          name: "Legacy Pub",
+          lat: 51.515,
+          lng: -0.13,
+          cheapestPrice: 5,
+        },
+      ],
+      current,
+      new Set([current.id]),
+    );
+
+    expect(extensions.map((venue) => venue.id)).toEqual([
+      "explicit-pub",
+      "legacy-pub",
+    ]);
   });
 });
 

@@ -17,7 +17,7 @@ describe("profile route metadata", () => {
     // normalizeHandle lowercases, so "Sam" → "sam".
     expect(metadata.title).toBe("@sam");
     expect(metadata.description).toBe(
-      "@sam's pint passport on PUBMAXX. Their Pint Drops, saved pubs, and the crawls they've walked.",
+      "@sam's pint passport on PUBMAXX. Their Pint Drops, saved venues, and the crawls they've walked.",
     );
     expect(metadata.alternates).toEqual({ canonical: "/u/sam" });
     expect(metadata.openGraph).toMatchObject({

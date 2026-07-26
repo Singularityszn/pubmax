@@ -1,10 +1,14 @@
 import { promises as fs } from "fs";
 import path from "path";
 
-import { listEnabledCities } from "@/lib/cities";
-import { unresolvedVenueLabel } from "@/lib/cityVenueIds";
+import { getCity, listEnabledCities } from "@/lib/cities";
+import {
+  cityIdFromVenueId,
+  unresolvedVenueLabel,
+  venueCityPrefix,
+} from "@/lib/cityVenueIds";
 import { resolveCanonicalVenueId } from "@/lib/venueAliases";
-import type { Venue } from "@/lib/venues";
+import type { Venue, VenueKind } from "@/lib/venues";
 
 // Server-only venue-name resolution (PRD §9). Social content stores raw venue
 // ids (content-hashed, e.g. "venue-1ufn31x"); no public feed/profile/permalink
@@ -22,7 +26,13 @@ export type VenueRef = {
   borough: string;
   lat: number;
   lng: number;
+  kind?: VenueKind;
 };
+
+export type CanonicalVenueLookup =
+  | { status: "found"; canonicalId: string; venue: VenueRef }
+  | { status: "unknown"; canonicalId: string }
+  | { status: "unavailable"; canonicalId: string };
 
 type SlimRow = {
   id?: unknown;
@@ -30,6 +40,7 @@ type SlimRow = {
   borough?: unknown;
   lat?: unknown;
   lng?: unknown;
+  kind?: unknown;
 };
 
 // Pure: fold venues into an id→ref lookup. Split out so it's unit-testable
@@ -43,6 +54,7 @@ export function buildVenueIndex(venues: Venue[]): Map<string, VenueRef> {
       borough: v.primaryBorough || "London",
       lat: v.latitude,
       lng: v.longitude,
+      ...(v.kind !== undefined ? { kind: v.kind } : {}),
     });
   }
   return index;
@@ -50,9 +62,16 @@ export function buildVenueIndex(venues: Venue[]): Map<string, VenueRef> {
 
 function buildVenueIndexFromSlim(rows: SlimRow[]): Map<string, VenueRef> {
   const index = new Map<string, VenueRef>();
+  const kinds = new Set<VenueKind>(["pub", "bar", "club", "food", "restaurant"]);
   for (const row of rows) {
     if (typeof row.id !== "string" || !row.id) continue;
     if (typeof row.name !== "string" || !row.name) continue;
+    if (
+      row.kind !== undefined &&
+      (typeof row.kind !== "string" || !kinds.has(row.kind as VenueKind))
+    ) {
+      continue;
+    }
     const lat = typeof row.lat === "number" ? row.lat : Number(row.lat);
     const lng = typeof row.lng === "number" ? row.lng : Number(row.lng);
     if (!Number.isFinite(lat) || !Number.isFinite(lng)) continue;
@@ -62,6 +81,7 @@ function buildVenueIndexFromSlim(rows: SlimRow[]): Map<string, VenueRef> {
       borough: typeof row.borough === "string" && row.borough ? row.borough : "London",
       lat,
       lng,
+      ...(row.kind !== undefined ? { kind: row.kind as VenueKind } : {}),
     });
   }
   return index;
@@ -79,6 +99,18 @@ async function readSlimIndex(publicPath: string): Promise<Map<string, VenueRef>>
   return buildVenueIndexFromSlim(Array.isArray(rows) ? rows : []);
 }
 
+async function getCityVenueIndex(publicPath: string): Promise<Map<string, VenueRef> | null> {
+  const existing = cityCache.get(publicPath);
+  if (existing) return existing;
+  try {
+    const index = await readSlimIndex(publicPath);
+    cityCache.set(publicPath, index);
+    return index;
+  } catch {
+    return null;
+  }
+}
+
 // Read the slim index once and memoize. Never throws: a read/parse failure
 // yields an empty index so name resolution degrades to the friendly fallback
 // rather than 500-ing a page. Prefer venues_slim.json (~400 KB) over the full
@@ -94,13 +126,7 @@ export async function getVenueIndex(): Promise<Map<string, VenueRef>> {
   const cities = listEnabledCities();
   let allLoaded = true;
   for (const city of cities) {
-    if (cityCache.has(city.slimVenuesPath)) continue;
-    try {
-      cityCache.set(city.slimVenuesPath, await readSlimIndex(city.slimVenuesPath));
-    } catch {
-      // Skip this city for now; it retries on the next call.
-      allLoaded = false;
-    }
+    if (!(await getCityVenueIndex(city.slimVenuesPath))) allLoaded = false;
   }
   const index = new Map<string, VenueRef>();
   for (const city of cities) {
@@ -112,6 +138,27 @@ export async function getVenueIndex(): Promise<Map<string, VenueRef>> {
   }
   if (allLoaded) cached = index;
   return index;
+}
+
+export async function lookupCanonicalVenue(id: string): Promise<CanonicalVenueLookup> {
+  const canonicalId = await resolveCanonicalVenueId(id);
+  const cityPrefix = venueCityPrefix(canonicalId);
+  const cityId = cityIdFromVenueId(canonicalId);
+  if (cityPrefix && !cityId) {
+    return { status: "unknown", canonicalId };
+  }
+  const city = getCity(cityId);
+  if (!city.enabled) {
+    return { status: "unknown", canonicalId };
+  }
+  const cityIndex = await getCityVenueIndex(city.slimVenuesPath);
+  if (!cityIndex) {
+    return { status: "unavailable", canonicalId };
+  }
+  const venue = cityIndex.get(canonicalId);
+  return venue
+    ? { status: "found", canonicalId, venue }
+    : { status: "unknown", canonicalId };
 }
 
 export async function resolveVenue(id: string): Promise<VenueRef | null> {

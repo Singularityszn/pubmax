@@ -5,6 +5,7 @@ import { useCallback, useMemo, useState } from "react";
 import type { CrawlMode } from "@/components/map/ControlRail";
 import { buildRouteLegs } from "@/lib/routeLegs";
 import type { NightAreaSlug } from "@/lib/nightAreas";
+import { isPubVenue } from "@/lib/venueKindFilters";
 import type { Venue } from "@/lib/venues";
 
 type InitialPlanState = {
@@ -61,8 +62,13 @@ export function useMapPlanPresentation({
   activePlanRoute: Venue[];
   venueById: ReadonlyMap<string, Venue>;
 }) {
+  // Crawl routes price stops as pints, so a bar/food id that sneaks into
+  // builtIds (old URL, stale localStorage) must never resolve into the route.
   const builtRoute = useMemo(
-    () => builtIds.map((id) => venueById.get(id)).filter((venue): venue is Venue => Boolean(venue)),
+    () =>
+      builtIds
+        .map((id) => venueById.get(id))
+        .filter((venue): venue is Venue => venue !== undefined && isPubVenue(venue)),
     [builtIds, venueById],
   );
   const route = mode === "suggest" ? suggestedRoute : builtRoute;

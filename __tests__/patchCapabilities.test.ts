@@ -77,6 +77,36 @@ describe("countPatchEvidence — hermetic counts from fixture data", () => {
     expect(out.transportAnchors).toBe(2);
   });
 
+  it("excludes non-pub anchors from all pint evidence counts", () => {
+    const out = countPatchEvidence(SOHO, {
+      venues: [
+        ...pricedAt(SOHO, 1),
+        ...pricedAt(SOHO, 1, {
+          kind: "pub",
+          filterHints: { amenities: { food: true } },
+          zone: 1,
+        }),
+        ...pricedAt(SOHO, 1, {
+          kind: "bar",
+          filterHints: { amenities: { food: true } },
+          zone: 1,
+        }),
+        ...pricedAt(SOHO, 1, {
+          kind: "food",
+          filterHints: { amenities: { food: true } },
+          zone: 1,
+        }),
+      ],
+    });
+
+    expect(out).toEqual({
+      pricedVenues: 2,
+      whatsOnRows: 0,
+      foodVenues: 1,
+      transportAnchors: 1,
+    });
+  });
+
   it("counts only coordinate-pinned listings inside the footprint (coordless never count)", () => {
     const out = countPatchEvidence(SOHO, {
       listings: [

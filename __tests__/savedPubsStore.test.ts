@@ -3,12 +3,12 @@ import { beforeEach, describe, expect, it } from "vitest";
 import { getVenueIndex } from "@/lib/venueIndex";
 import {
   __resetMemorySavedPubs,
-  isBuiltInListType,
   isListType,
   memorySavedPubsStore,
   savedPubsStore,
   type ListType,
 } from "@/lib/savedPubsStore";
+import { isBuiltInListType } from "@/lib/savedListPolicy";
 
 // FORCE the in-memory path. On Vercel, vitest runs with the project's env set —
 // if SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY are present, savedPubsStore() would
@@ -190,7 +190,7 @@ describe("DTO enrichment — venue name, not raw id", () => {
       venueId: "venue-does-not-exist",
       listType: "Local Legend",
     });
-    expect(dto.venueName).toBe("A London pub");
+    expect(dto.venueName).toBe("A London venue");
     expect(dto.venueName).not.toBe("venue-does-not-exist");
     // The map link still resolves to the id so "open on the map" works.
     expect(dto.venueMapUrl).toBe("/map?sel=venue-does-not-exist");

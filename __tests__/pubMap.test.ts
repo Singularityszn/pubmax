@@ -11,7 +11,10 @@ import {
   type VenueDetailStatus,
 } from "@/lib/pubMap";
 import { curatedCrawls, type CuratedCrawl } from "@/lib/curatedCrawls";
-import { initialFilters } from "@/components/map/ControlRail";
+import {
+  initialFilters,
+  SAVED_ONLY_ARIA_LABEL,
+} from "@/components/map/ControlRail";
 import type { Filters, Venue } from "@/lib/venues";
 
 // Reference curated crawl from the default (london) city set — buildMapSeed
@@ -26,6 +29,10 @@ function makeVenue(overrides: Partial<Venue> = {}): Venue {
     ...overrides,
   } as Venue;
 }
+
+it("describes Saved only as a venue-wide map filter", () => {
+  expect(SAVED_ONLY_ARIA_LABEL).toBe("Show only venues you have saved");
+});
 
 describe("hasCrawlArrivalParams", () => {
   it("detects crawl-shaping deep-link params", () => {

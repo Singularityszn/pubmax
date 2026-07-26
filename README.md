@@ -1,13 +1,14 @@
 # PUBMAXXING
 
-**Every pint has a story.** A **price-aware, story-led London pub-crawl planner**. Three layers on one living 3-D map: the **price** of every observed pint (colour-coded cheap → expensive), the **setting** (by the water, gardens, walkable route shape), and the **story** (pub heritage, sourced editorial picks, and community **Pint Drops** — each carrying visible provenance so history and legend never blur).
+**Every pint has a story.** A **price-aware, story-led London night-out map and pub-crawl planner**. Pubs keep observed pint prices; hand-curated bars and late-food institutions use labelled, dated anchors for the item actually priced. Three layers share one living 3-D map: **price**, **setting**, and **story**, with visible provenance so history and legend never blur.
 
 Pick a crawl style, filter, and either accept a **Suggested Crawl** or **Build your own** by tapping pubs — or load a curated **Featured route** or **Pubs near me**. Any crawl is captured in the URL and shareable. Tap a pub to open **The Landlord**, a retrieval-grounded AI that tells the pub's real history and honestly says when it doesn't know.
 
 ## Features
 
 - **Landing** — themed intro that links straight into the planner (`/map?style=heritage`).
-- **3-D map** - pitched, slowly-orbiting MapLibre view of London and supported UK cities. Curated pubs keep their price-coloured markers; unverified UK pubs appear only after street-level zoom as quieter, unpriced rings.
+- **3-D map** - pitched, slowly-orbiting MapLibre view of London and supported UK cities. Curated London venues use distinct pub, bar, and late-food glyphs. Pub colours use pint-price thresholds; bar and food colours use relative bands within their own type. Kind filters can hide ordinary pins, while selected and deep-linked venues remain visible. Unverified UK pubs appear only after street-level zoom as quieter, unpriced rings.
+- **Typed venue anchors** - bars and late food show labelled, dated, sourced cocktail or food anchors, never disguised as pint prices. Pint Drops and community price logging remain pub-only.
 - **Crawl planner** — Suggest mode (greedy nearest-good-neighbour route) or Build mode (tap to add stops); story filters by price, amenities, water, heritage.
 - **Curated routes** — named "generational" Featured crawls loaded as ordered stops.
 - **Pubs near me** — a crawl built from your geolocation (degrades gracefully if denied).
@@ -54,7 +55,7 @@ Useful scripts:
 - `public/data/venues_slim.json` — map pins (committed / shipped to the browser)
 - `data/generated/venue_detail_index.json` + `venue_details.jsonl` — server-side lazy detail for `/api/venue/[id]`
 
-Those generated detail files are gitignored (large). Local/dev falls back to the raw pint dataset when they are missing; production should run `prebuild` / `build:slim` so the index exists. See `docs/DEPLOYMENT.md`.
+Those generated detail files are gitignored (large). Local/dev falls back to the raw pint dataset and curated venue packs when they are missing; production should run `prebuild` / `build:slim` so the index exists. See `docs/DEPLOYMENT.md`.
 
 ### Map data attribution
 
@@ -74,5 +75,6 @@ The community layer ships alive: hand-written Pint Drops and Featured crawls are
 
 - **`teach.md`** — full repo tour: architecture, data model, map lifecycle, backend, trust boundaries, with `file:line` anchors.
 - **`docs/DEPLOYMENT.md`** — reproducible Vercel + Supabase + OpenRouter runbook.
+- **[`docs/NIGHT_OUT_PLACE_INGEST.md`](docs/NIGHT_OUT_PLACE_INGEST.md)** - provenance and freshness contract for automated place discovery and hand-curated venue packs.
 - **`docs/DEMO_DECK.md`** — demo script.
 - **[`data/osm/uk/README.md`](data/osm/uk/README.md)** - UK-wide OSM seed-pack refresh, provenance, dedupe, and runtime shard generation.

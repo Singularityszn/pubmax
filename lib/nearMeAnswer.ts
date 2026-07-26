@@ -1,4 +1,6 @@
 import { haversineKm } from "@/lib/haversine";
+import { isPubVenueKind } from "@/lib/venueKindFilters";
+import type { VenueKind } from "@/lib/venues";
 
 // Pure ranking core for the "Near me now" instant answer (Cycle 3, Lane 1).
 //
@@ -45,6 +47,7 @@ export type PricedPoint = {
   lng: number;
   cheapestPrice: number | null;
   borough: string;
+  kind?: VenueKind;
 };
 
 export type NearMeCard = {
@@ -86,6 +89,7 @@ export type RankNearMeOptions = {
 
 function qualifies(point: PricedPoint): boolean {
   return (
+    isPubVenueKind(point.kind) &&
     typeof point.cheapestPrice === "number" &&
     Number.isFinite(point.cheapestPrice) &&
     point.cheapestPrice > 0 &&

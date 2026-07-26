@@ -26,6 +26,8 @@ import type {
 } from "@/lib/cityCapabilities";
 import { isoDate, PINT_DATASET_OBSERVED_AT } from "@/lib/dataFreshness";
 import { haversineKm } from "@/lib/haversine";
+import { isPubVenueKind } from "@/lib/venueKindFilters";
+import type { VenueKind } from "@/lib/venues";
 import {
   NIGHT_PATCHES,
   type NightPatch,
@@ -98,6 +100,7 @@ export type PatchPricedInput = {
   lat: number;
   lng: number;
   cheapestPrice: number | null;
+  kind?: VenueKind;
   zone?: number;
   filterHints?: { amenities?: { food?: boolean } };
 };
@@ -143,6 +146,7 @@ export function countPatchEvidence(
   let whatsOnRows = 0;
 
   for (const venue of sources.venues ?? []) {
+    if (!isPubVenueKind(venue.kind)) continue;
     if (!withinFootprint(patch, venue.lat, venue.lng, footprintKm)) continue;
     if (!isPriced(venue.cheapestPrice)) continue;
     pricedVenues += 1;

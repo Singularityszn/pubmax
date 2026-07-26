@@ -20,6 +20,7 @@ import {
 } from "./lib/slimShards.mjs";
 import {
   nightOutPlaceProvenanceRegistryValidationErrors,
+  nightOutPlaceRowValidationErrors,
   nightOutPlaceSnapshotValidationErrors,
 } from "../lib/nightOutPlaceContract.mjs";
 
@@ -27,6 +28,7 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT_DIR = join(__dirname, "..");
 const DATA_DIR = join(ROOT_DIR, "public", "data");
 const GENERATED_DATA_DIR = join(ROOT_DIR, "data", "generated");
+const FAMOUS_VENUES_DIR = join(ROOT_DIR, "data", "famous_venues");
 const DRINK_PRICE_UPDATES_DIR = join(DATA_DIR, "drink_price_updates");
 const WHATS_ON_DIR = join(DATA_DIR, "whats_on");
 const WHATS_ON_KINDS = new Set(["sport", "quiz", "deal", "music"]);
@@ -192,6 +194,44 @@ function expectedVenueGroupsFromPintRows(rows) {
     byId.set(stableVenueIdFromKey(key), prices);
   }
   return byId;
+}
+
+function loadFamousVenues() {
+  return ["bars.json", "late_food.json"].flatMap((name) =>
+    JSON.parse(readFileSync(join(FAMOUS_VENUES_DIR, name), "utf8")),
+  );
+}
+
+function isReplacedByFamousVenue(first, famousRows) {
+  return famousRows.some(
+    (row) =>
+      normaliseVenueKeyPart(row.name) === normaliseVenueKeyPart(first.pub_name) &&
+      Math.abs(row.lat - Number(first.latitude)) < 0.001 &&
+      Math.abs(row.lng - Number(first.longitude)) < 0.001,
+  );
+}
+
+function famousPriceBands(rows) {
+  const bands = new Map();
+  for (const kind of ["bar", "food"]) {
+    const ranked = rows
+      .filter((row) => row.kind === kind)
+      .slice()
+      .sort((a, b) => a.anchor.price - b.anchor.price || a.id.localeCompare(b.id));
+    const lowCutoff = ranked[Math.ceil(ranked.length / 3) - 1]?.anchor.price;
+    const midCutoff = ranked[Math.ceil((ranked.length * 2) / 3) - 1]?.anchor.price;
+    for (const row of ranked) {
+      bands.set(
+        row.id,
+        row.anchor.price <= lowCutoff
+          ? 0
+          : row.anchor.price <= midCutoff
+            ? 1
+            : 2,
+      );
+    }
+  }
+  return bands;
 }
 
 // Collect errors per file so one broken row doesn't hide the rest. We cap the
@@ -462,16 +502,17 @@ function validatePintPrices() {
   return { ok, count };
 }
 
-// venues_slim.json — the map's first-paint artifact. It must stay byte-aligned
-// with the full pint dataset grouping/id seam; otherwise pins can render fast
-// but fail when opened for lazy detail. This validator rebuilds the expected
-// slim index from the full dataset using the same plain-JS mirror as
-// scripts/build_slim_index.mjs.
+// venues_slim.json - the map's first-paint artifact. Legacy pub ids must stay
+// aligned with the full pint dataset grouping seam, while curated venue ids and
+// anchors must stay aligned with their seed packs. Otherwise pins can render
+// fast but fail when opened for lazy detail. This validator rebuilds both lanes
+// using the same plain-JS rules as scripts/build_slim_index.mjs.
 function validateSlimVenues() {
   const name = "public/data/venues_slim.json";
   const errs = makeCollector();
   let slim;
   let rows;
+  let famousRows;
   try {
     slim = loadJson("venues_slim.json");
   } catch (e) {
@@ -482,6 +523,12 @@ function validateSlimVenues() {
     rows = loadJson("pint_prices_app_dataset.json");
   } catch (e) {
     console.log(`FAIL ${name}: could not read full pint dataset for parity check (${e.message})`);
+    return { ok: false, count: 0 };
+  }
+  try {
+    famousRows = loadFamousVenues();
+  } catch (e) {
+    console.log(`FAIL ${name}: could not read famous venue seeds (${e.message})`);
     return { ok: false, count: 0 };
   }
 
@@ -513,6 +560,7 @@ function validateSlimVenues() {
   const expected = new Map();
   for (const [key, prices] of grouped) {
     const first = prices[0];
+    if (isReplacedByFamousVenue(first, famousRows)) continue;
     const numericPrices = prices
       .map((p) => p.price_gbp)
       .filter((p) => typeof p === "number" && Number.isFinite(p));
@@ -522,6 +570,23 @@ function validateSlimVenues() {
       lng: Number(first.longitude),
       cheapestPrice: numericPrices.length ? Math.min(...numericPrices) : null,
       borough: String(first.primary_borough || ""),
+      kind: undefined,
+      priceBand: undefined,
+    });
+  }
+  const priceBands = famousPriceBands(famousRows);
+  for (const row of famousRows) {
+    for (const error of nightOutPlaceRowValidationErrors(row)) {
+      errs.add(`famous venue ${row.id}: ${error}`);
+    }
+    expected.set(row.id, {
+      name: row.name,
+      lat: row.lat,
+      lng: row.lng,
+      cheapestPrice: row.anchor.price,
+      borough: row.borough,
+      kind: row.kind,
+      priceBand: priceBands.get(row.id),
     });
   }
 
@@ -585,6 +650,12 @@ function validateSlimVenues() {
     }
     if (row.borough !== exp.borough) {
       errs.add(`${where} (${id}): borough "${row.borough}" does not match full dataset "${exp.borough}"`);
+    }
+    if (row.kind !== exp.kind) {
+      errs.add(`${where} (${id}): kind ${row.kind} does not match expected ${exp.kind}`);
+    }
+    if (row.priceBand !== exp.priceBand) {
+      errs.add(`${where} (${id}): priceBand ${row.priceBand} does not match expected ${exp.priceBand}`);
     }
   });
 
@@ -993,15 +1064,36 @@ function validateUkBaseShards() {
   return { ok, count: shards.length };
 }
 
-// venue_detail_index.json + venue_details.jsonl — server-side lazy detail
+function validateFamousDetailArtifact({
+  artifact,
+  famous,
+  id,
+  rowCount,
+  where,
+  errs,
+}) {
+  if (rowCount !== 1) {
+    errs.add(`${where}: famous venue rowCount must be 1`);
+  }
+  if (
+    artifact.famous?.seed?.id !== id ||
+    artifact.famous?.slim?.id !== id ||
+    JSON.stringify(artifact.famous.seed) !== JSON.stringify(famous)
+  ) {
+    errs.add(`${where}: famous venue artifact does not match seed`);
+  }
+}
+
+// venue_detail_index.json + venue_details.jsonl - server-side lazy detail
 // artifacts generated beside venues_slim.json. The manifest points each venue
-// id to a byte range in the JSONL file, so /api/venue/[id] reads only one pub's
-// rows instead of parsing/grouping the full pint dataset on cold start.
+// id to a byte range in the JSONL file, so /api/venue/[id] reads one venue's
+// pub-price rows or curated facts without loading every source on cold start.
 function validateVenueDetails() {
   const name = "data/generated/venue_details.jsonl";
   const manifestName = "data/generated/venue_detail_index.json";
   const errs = makeCollector();
   let rows;
+  let famousRows;
   try {
     rows = loadJson("pint_prices_app_dataset.json");
   } catch (e) {
@@ -1010,6 +1102,12 @@ function validateVenueDetails() {
   }
   if (!Array.isArray(rows)) {
     console.log(`FAIL ${name}: expected full pint dataset to be a top-level array`);
+    return { ok: false, count: 0 };
+  }
+  try {
+    famousRows = loadFamousVenues();
+  } catch (e) {
+    console.log(`FAIL ${name}: could not read famous venue seeds (${e.message})`);
     return { ok: false, count: 0 };
   }
 
@@ -1021,7 +1119,11 @@ function validateVenueDetails() {
   }
 
   const expectedGroups = expectedVenueGroupsFromPintRows(rows);
-  const expectedIds = new Set(expectedGroups.keys());
+  for (const [id, prices] of expectedGroups) {
+    if (isReplacedByFamousVenue(prices[0], famousRows)) expectedGroups.delete(id);
+  }
+  const famousById = new Map(famousRows.map((row) => [row.id, row]));
+  const expectedIds = new Set([...expectedGroups.keys(), ...famousById.keys()]);
   const seenIds = new Set();
   let manifest;
   let details;
@@ -1105,6 +1207,18 @@ function validateVenueDetails() {
     }
     if (artifact.id !== id) {
       errs.add(`${where}: artifact id ${artifact.id} does not match manifest id`);
+      return;
+    }
+    const famous = famousById.get(id);
+    if (famous) {
+      validateFamousDetailArtifact({
+        artifact,
+        famous,
+        id,
+        rowCount,
+        where,
+        errs,
+      });
       return;
     }
     if (!Array.isArray(artifact.rows) || artifact.rows.length === 0) {

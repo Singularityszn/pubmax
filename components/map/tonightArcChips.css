@@ -1,0 +1,83 @@
+.tonightArcChips {
+  box-sizing: border-box;
+  position: absolute;
+  z-index: var(--z-map-toolbar);
+  top: 80px;
+  left: 50%;
+  display: grid;
+  gap: 4px;
+  max-width: calc(100vw - 24px);
+  padding: 7px 9px 9px;
+  border: 1px solid color-mix(in srgb, var(--line) 72%, var(--brass) 28%);
+  border-radius: 16px;
+  background: color-mix(in srgb, var(--panel) 90%, transparent);
+  box-shadow: var(--shadow-float);
+  backdrop-filter: blur(14px);
+  transform: translateX(-50%);
+}
+
+.tonightArcLabel {
+  color: var(--brass);
+  font-size: 0.65rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.tonightArcRow {
+  display: flex;
+  gap: 5px;
+  min-width: 0;
+}
+
+.tonightArcChip {
+  min-width: 58px;
+  min-height: 38px;
+  padding: 5px 10px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--panel-raised);
+  color: var(--ink-soft);
+  font: 700 0.75rem/1 var(--font-sans);
+  cursor: pointer;
+}
+
+.tonightArcChip.isOn {
+  border-color: var(--brass);
+  background: var(--brass);
+  color: var(--color-on-accent);
+}
+
+.tonightArcChip:disabled {
+  cursor: not-allowed;
+  opacity: 0.42;
+}
+
+.tonightArcChip:focus-visible {
+  outline: 2px solid var(--brass-bright);
+  outline-offset: 2px;
+}
+
+.appShell.sheet-full .tonightArcChips,
+.appShell.detail-open .tonightArcChips,
+.appShell.onboarding-open .tonightArcChips {
+  opacity: 0;
+  pointer-events: none;
+}
+
+@media (max-width: 640px) {
+  .tonightArcChips {
+    position: fixed;
+    top: calc(var(--mobile-map-top) + var(--mobile-map-bar-h) + 58px);
+    width: 260px;
+    padding: 6px 8px 8px;
+  }
+
+  .tonightArcChip {
+    flex: 1 1 0;
+    min-width: 55px;
+    min-height: 40px;
+    padding-inline: 9px;
+  }
+}

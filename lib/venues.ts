@@ -20,6 +20,7 @@ import {
   type VenueAccessibility,
 } from "@/lib/venueAccessibility";
 import type { VenueMenuCategoryTile } from "@/lib/venueMenuEnrichment";
+import { isPubVenueKind } from "@/lib/venueKindFilters";
 import { parseZoneParam, venueMatchesZone } from "@/lib/zones";
 
 export type CrawlStyle =
@@ -75,6 +76,8 @@ export type VenuePrice = {
   is_clean_canonical_app_row: boolean;
   data_quality_notes: string;
 };
+
+export type VenueKind = "pub" | "bar" | "club" | "food" | "restaurant";
 
 export type Venue = {
   id: string;
@@ -138,6 +141,15 @@ export type Venue = {
   // Compact facts carried by the slim map index so URL/query filters can work
   // before the heavy venue detail rows are hydrated.
   filterHints?: VenueFilterHints;
+  /** Famous-venue taxonomy. Absent is a pub for legacy/cache compatibility. */
+  kind?: VenueKind;
+  /** Type-relative price band computed at build time (cheap/mid/dear). */
+  priceBand?: 0 | 1 | 2;
+  /** Provenance for non-pub anchor prices and editorial stories. */
+  anchorLabel?: string;
+  anchorObservedAt?: string;
+  anchorSourceUrl?: string;
+  storySourceUrl?: string;
   // Publicly-documented accessible-venue facts (PRD issue #28). Present ONLY for
   // the small curated seed of pubs whose access is documented (see
   // lib/venueAccessibilitySeeds.ts); for every other venue this is undefined —
@@ -621,10 +633,17 @@ export function filterVenues(
   // "" / "all" → every zone; a concrete zone narrows to that fare zone only.
   const zoneSelection = parseZoneParam(filters.zone);
   return venues.filter((venue) => {
+    // maxPrice is explicitly the maximum pint-price control. Cocktail and food
+    // anchors use their own type-relative bands and must not be compared with
+    // a pub pint's absolute price cap.
     const matchesPrice =
-      venue.cheapestPrice === null || venue.cheapestPrice <= filters.maxPrice;
+      (venue.kind !== undefined && venue.kind !== "pub") ||
+      venue.cheapestPrice === null ||
+      venue.cheapestPrice <= filters.maxPrice;
 
-    const matchesPintDrops = !filters.requirePintDrops || hasPintDrops(venue.id);
+    const matchesPintDrops =
+      !filters.requirePintDrops ||
+      (isPubVenueKind(venue.kind) && hasPintDrops(venue.id));
 
     // Accessible-venue filters: an unknown fact fails a positive filter, so
     // filtering to step-free shows only pubs KNOWN step-free (never guessed).

@@ -13,6 +13,7 @@ import {
   setVenueDetailIndexFileForTests,
   setVenueDetailRowsFileForTests,
   venueFromDetailArtifact,
+  type VenueDetailArtifact,
 } from "@/lib/venueDetailIndex";
 import {
   stableVenueIdFromKey,
@@ -25,6 +26,7 @@ const BUILD_SLIM_SCRIPT = path.join(ROOT, "scripts", "build_slim_index.mjs");
 const DETAIL_INDEX = path.join(ROOT, "data", "generated", "venue_detail_index.json");
 const RAW_PATH = path.join(ROOT, "public", "data", "pint_prices_app_dataset.json");
 const SEED_VENUE_ID = "venue-16pnwmm";
+const FAMOUS_BAR_ID = "bar-american-bar-savoy";
 
 const rows = JSON.parse(readFileSync(RAW_PATH, "utf8")) as VenuePrice[];
 const seedRows = rows.filter(
@@ -55,10 +57,47 @@ describe("venueDetailIndex", () => {
     // so a future id-generator bump doesn't need a code change here. 25 is out.
     expect(isVenueDetailId(`venue-${"a".repeat(24)}`)).toBe(true);
     expect(isVenueDetailId(`venue-${"a".repeat(25)}`)).toBe(false);
+    expect(isVenueDetailId(FAMOUS_BAR_ID)).toBe(true);
     expect(isVenueDetailId("venue-mcr-")).toBe(false);
     expect(isVenueDetailId("../venue-16pnwmm")).toBe(false);
     expect(isVenueDetailId("venue-16pnwmm.json")).toBe(false);
     await expect(getVenueDetail("../venue-16pnwmm")).resolves.toBeNull();
+  });
+
+  it("hydrates story and anchor provenance for a famous venue artifact", () => {
+    const seed = (
+      JSON.parse(
+        readFileSync(
+          path.join(ROOT, "data", "famous_venues", "bars.json"),
+          "utf8",
+        ),
+      ) as Array<
+        NonNullable<VenueDetailArtifact["famous"]>["seed"]
+      >
+    ).find((row) => row.id === FAMOUS_BAR_ID)!;
+    const slim: NonNullable<VenueDetailArtifact["famous"]>["slim"] = {
+      id: seed.id,
+      name: seed.name,
+      lat: seed.lat,
+      lng: seed.lng,
+      cheapestPrice: seed.anchor.price,
+      borough: seed.borough,
+      kind: seed.kind,
+    };
+
+    const venue = venueFromDetailArtifact(
+      { id: seed.id, famous: { seed, slim } },
+      seed.id,
+    );
+    expect(venue).toMatchObject({
+      id: FAMOUS_BAR_ID,
+      description: seed.story.text,
+      anchorLabel: seed.anchor.label,
+      anchorObservedAt: seed.anchor.observedAt,
+      anchorSourceUrl: seed.anchor.sourceUrl,
+      storySourceUrl: seed.story.sourceUrl,
+      hasStory: true,
+    });
   });
 
   it("rejects artifacts whose id or grouped rows do not match the expected id", () => {

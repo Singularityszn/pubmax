@@ -32,6 +32,7 @@ export default function VenueGettingHomeTab({
           lng={venue.longitude}
           venueName={venue.name}
           cityId={cityId}
+          venueKind={venue.kind}
           onSelectVenue={onSelectVenue}
           onDecision={onDecision}
         />

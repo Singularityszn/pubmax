@@ -2,12 +2,12 @@
 // built by scripts/build_slim_index.mjs). This is the minimum the map needs to
 // render pins + labels + price colour + filter hints: the map fetches THIS
 // (~400 KB) on load
-// instead of the ~6 MB raw price dataset, and fetches heavy per-venue detail
-// lazily via /api/venue/[id] only when a pub is opened.
+// instead of the heavier source datasets, and fetches per-venue detail lazily
+// via /api/venue/[id] only when a venue is opened.
 //
-// SlimVenue.id is byte-identical to the "venue-…" id groupVenuePrices produces
-// (the build script mirrors its FNV-1a grouping), so a slim pin deep-links and
-// fetches detail by the same id the rest of the app uses.
+// Legacy pub ids remain byte-identical to the "venue-…" ids groupVenuePrices
+// produces, while curated rows retain their governed seed ids. In both cases a
+// slim pin deep-links and fetches detail through the same canonical id.
 //
 // Mirrors lib/pois.ts#loadPois defensiveness: hand/refresh-generated JSON can
 // drift, so malformed rows are dropped rather than allowed to poison the map.
@@ -19,7 +19,7 @@
 
 import { getCity, type CityId, DEFAULT_CITY_ID } from "@/lib/cities";
 import { offlineCache } from "@/lib/offlineCache";
-import type { VenueFilterHints } from "@/lib/venues";
+import type { VenueFilterHints, VenueKind } from "@/lib/venues";
 
 const OFFLINE_KEY_PREFIX = "venues_slim:v1";
 /** London legacy path — kept for back-compat with existing caches and tests. */
@@ -44,6 +44,13 @@ export type SlimVenue = {
    */
   zone?: number;
   filterHints?: VenueFilterHints;
+  /** Absent means pub, preserving existing payloads and offline caches. */
+  kind?: VenueKind;
+  /** Type-relative price band for famous non-pub venue anchors. */
+  priceBand?: 0 | 1 | 2;
+  anchorLabel?: string;
+  anchorObservedAt?: string;
+  anchorSourceUrl?: string;
 };
 
 function isBoolean(value: unknown): value is boolean {
@@ -82,6 +89,24 @@ function isFilterHints(value: unknown): value is VenueFilterHints {
   );
 }
 
+function hasValidAnchor(row: Record<string, unknown>): boolean {
+  const hasAnyAnchor =
+    row.anchorLabel !== undefined ||
+    row.anchorObservedAt !== undefined ||
+    row.anchorSourceUrl !== undefined;
+  const hasCompleteAnchor =
+    typeof row.anchorLabel === "string" &&
+    row.anchorLabel.trim().length > 0 &&
+    typeof row.anchorObservedAt === "string" &&
+    row.anchorObservedAt.trim().length > 0 &&
+    typeof row.anchorSourceUrl === "string" &&
+    row.anchorSourceUrl.trim().length > 0;
+
+  return row.kind === "bar" || row.kind === "food"
+    ? hasCompleteAnchor
+    : !hasAnyAnchor || hasCompleteAnchor;
+}
+
 // Light runtime guard: a row must have a non-empty id + name, finite coords, a
 // borough string, and a cheapestPrice that is either a finite number or null.
 function isValidSlimVenue(value: unknown): value is SlimVenue {
@@ -99,9 +124,17 @@ function isValidSlimVenue(value: unknown): value is SlimVenue {
   const zoneOk =
     row.zone === undefined ||
     (typeof row.zone === "number" && Number.isInteger(row.zone) && row.zone > 0);
+  const kindOk =
+    row.kind === undefined ||
+    ["pub", "bar", "club", "food", "restaurant"].includes(String(row.kind));
+  const priceBandOk =
+    row.priceBand === undefined || row.priceBand === 0 || row.priceBand === 1 || row.priceBand === 2;
   return (
     priceOk &&
     zoneOk &&
+    kindOk &&
+    priceBandOk &&
+    hasValidAnchor(row) &&
     (row.filterHints === undefined || isFilterHints(row.filterHints))
   );
 }
@@ -121,6 +154,15 @@ function normalizeRows(data: unknown): SlimVenue[] {
     borough: venue.borough,
     ...(venue.zone !== undefined ? { zone: venue.zone } : {}),
     ...(venue.filterHints ? { filterHints: venue.filterHints } : {}),
+    ...(venue.kind !== undefined ? { kind: venue.kind } : {}),
+    ...(venue.priceBand !== undefined ? { priceBand: venue.priceBand } : {}),
+    ...(venue.anchorLabel !== undefined ? { anchorLabel: venue.anchorLabel } : {}),
+    ...(venue.anchorObservedAt !== undefined
+      ? { anchorObservedAt: venue.anchorObservedAt }
+      : {}),
+    ...(venue.anchorSourceUrl !== undefined
+      ? { anchorSourceUrl: venue.anchorSourceUrl }
+      : {}),
   }));
 }
 
