@@ -43,6 +43,7 @@ function weather(tempLabel: string): WeatherBrief {
     conditionLabel: "clear",
     verdictLine: "Beer garden weather. Lager or cider.",
     drinkSuggestion: "a cold lager or cider",
+    venueLens: "beer-garden",
     stale: false,
     checkedLabel: "Checked 1 hour ago",
     source: { publisher: "Open-Meteo", url: "https://open-meteo.com/" },

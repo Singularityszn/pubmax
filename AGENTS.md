@@ -9,6 +9,7 @@ PubMaxing is a single Next.js 16 (App Router, React 19, TypeScript) web app — 
 - **`npm run test:e2e`** (Playwright) needs browsers installed first: `npx playwright install --with-deps chromium`. The e2e config builds and starts the app itself.
 - **Pre-push hook** (`.githooks/pre-push`) runs `npm run verify` but is only active after `npm run setup` (sets `core.hooksPath=.githooks`); it is not enabled by default in a fresh clone.
 - **Map density is a contract, not a styling choice.** The pin/cluster zoom boundaries, supercluster radius, and the symbol-collision policy that stops labels and pins ever overlapping are the constants at the top of `components/map/canvas/buildScene.ts` (and the layers below them), asserted in `__tests__/mapSymbolCollision.test.ts`. Change them there, and keep every app symbol layer inside MapLibre's collision index.
+- **Do not commit tooling churn.** `next dev` rewrites `next-env.d.ts`'s route-types import to the dev path (`./.next/dev/types/routes.d.ts`) and `npm install-scripts approve` adds an `allowScripts` block to `package.json`. Both are local artifacts of running the app, not changes: `git checkout --` them before committing.
 - **Shared-worktree build gotcha:** a concurrent `next dev` and `next build` can clobber `.next` mid-build and leave `BUILD_ID` missing (the `prestart` guard will refuse to `next start`). For isolated production QA, build/serve with `NEXT_DIST_DIR=.next-prod` so it doesn't collide with a running dev server.
 
 ## Maintaining this file

@@ -1,10 +1,15 @@
 "use client";
 
-// The morning brief surface (/today). Four stacked cards, mobile-first, both
-// themes via role tokens. Cards 1, 2 and 4 render from server-composed props
-// (lib/todayBrief.ts); card 3 owns its own location + live TfL. Every sourced
-// claim carries its attribution, and every card has an honest empty/stale state
-// rather than filler. No em dashes in any copy.
+// The morning brief surface (/today). A personal greeting over a stack of
+// cards, mobile-first, both themes via role tokens. Most cards render from
+// server-composed props (lib/todayBrief.ts); the Tube and get-there cards own
+// their own location + live TfL. Every sourced claim carries its attribution,
+// and every card has an honest empty/stale state rather than filler.
+//
+// Anything that names a time of day (the greeting, the Tube eyebrow, the picks
+// empty state) takes its band from lib/dayGreeting.ts rather than hardcoding
+// one, so the page never greets a viewer with somebody else's hour. No em
+// dashes in any copy.
 
 import Link from "next/link";
 import {
@@ -13,13 +18,23 @@ import {
   CalendarClock,
   CloudSun,
   ExternalLink,
+  Flame,
   Landmark,
   MapPin,
+  Sun,
+  Waves,
 } from "lucide-react";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
 
 import SiteNav from "@/components/nav/SiteNav";
+import {
+  buildDayGreeting,
+  PICKS_EMPTY_LINE,
+  type DayGreeting,
+  type DaySlot,
+} from "@/lib/dayGreeting";
+import { readDeviceHandle } from "@/lib/identityClaimClient";
 import type { NightAreaSlug } from "@/lib/nightAreas";
 import { NIGHT_PATCHES, readRememberedArea } from "@/lib/nightPatches";
 import { PLAN_INTAKE_STORAGE_KEY, parsePlanIntakeDraft } from "@/lib/planIntake";
@@ -40,6 +55,10 @@ import "./today.css";
 
 type Props = {
   dateLabel: string;
+  /** The server instant this page was composed at, so the client can rebuild the
+   *  greeting after personalization without drifting to a different time band. */
+  nowIso: string;
+  greeting: DayGreeting;
   weather: WeatherBrief | null;
   weatherByArea: Partial<Record<NightAreaSlug, WeatherBrief | null>>;
   picks: TonightPickDto[];
@@ -48,12 +67,23 @@ type Props = {
   quietPint: QuietPintModule | null;
 };
 
+// The card's glyph follows the verdict's own venue lens, so the icon is saying
+// the same thing as the words beside it rather than showing a generic sky. No
+// lens (no snapshot) falls back to the neutral cloud-and-sun.
+const LENS_ICON = {
+  "beer-garden": Sun,
+  fireplace: Flame,
+  riverside: Waves,
+  any: CloudSun,
+} as const;
+
 function WeatherCard({ weather }: { weather: WeatherBrief | null }) {
+  const LensIcon = weather ? LENS_ICON[weather.venueLens] : CloudSun;
   return (
     <section className="todayCard" aria-labelledby="today-weather-title" data-testid="today-weather">
       <div className="todayCardHead">
         <span className="todayCardIcon" aria-hidden="true">
-          <CloudSun size={18} />
+          <LensIcon size={18} />
         </span>
         <div>
           <p className="todayCardEyebrow">Drink weather</p>
@@ -63,11 +93,13 @@ function WeatherCard({ weather }: { weather: WeatherBrief | null }) {
         </div>
       </div>
 
+      {/* Deliberately no body line. The greeting above carries the observation
+          ("19C and cloudy in London") and the verdict already names the drink,
+          so a "Reach for a cold lager or cider." sentence here would be the
+          third telling of the same two facts. Each said once, on the surface
+          that owns it. */}
       {weather ? (
         <>
-          <p className="todayCardBody">
-            {weather.tempLabel}, {weather.conditionLabel}. Reach for {weather.drinkSuggestion}.
-          </p>
           {weather.stale ? (
             <p className="todayStale" role="status">
               {weather.checkedLabel}. It may have moved on. We refresh this by hand right now.
@@ -99,7 +131,15 @@ function WeatherCard({ weather }: { weather: WeatherBrief | null }) {
   );
 }
 
-function PicksCard({ picks, filteredPickCount }: { picks: TonightPickDto[]; filteredPickCount: number }) {
+function PicksCard({
+  picks,
+  filteredPickCount,
+  slot,
+}: {
+  picks: TonightPickDto[];
+  filteredPickCount: number;
+  slot: DaySlot;
+}) {
   return (
     <section className="todayCard" aria-labelledby="today-picks-title" data-testid="today-picks">
       <div className="todayCardHead">
@@ -177,7 +217,7 @@ function PicksCard({ picks, filteredPickCount }: { picks: TonightPickDto[]; filt
           <p className="todayCardEmpty">
             {filteredPickCount > 0
               ? "Tonight has listings, but none match your current preferences."
-              : "Nothing confirmed for tonight yet. Listings firm up through the afternoon."}
+              : PICKS_EMPTY_LINE[slot]}
           </p>
           <p className="todayCardFootRow">
             <Link href="/map" className="todayCardFootLink">
@@ -246,8 +286,44 @@ function FactCard({ fact }: { fact: TodayFact | null }) {
   );
 }
 
-export default function TodayClient({ dateLabel, weather, weatherByArea, picks, fact, pintsIndex, quietPint }: Props) {
+function subscribeDeviceHandle(onChange: () => void): () => void {
+  if (typeof window === "undefined") return () => {};
+  window.addEventListener("storage", onChange);
+  return () => window.removeEventListener("storage", onChange);
+}
+
+export default function TodayClient({
+  dateLabel,
+  nowIso,
+  greeting,
+  weather,
+  weatherByArea,
+  picks,
+  fact,
+  pintsIndex,
+  quietPint,
+}: Props) {
   const [brief, setBrief] = useState({ weather, picks: picks.slice(0, 3), filteredPickCount: 0 });
+
+  // The viewer's claimed handle, if this device has one. Same store pattern the
+  // tab bar uses: SSR and hydration both see "", then the real handle lands
+  // after mount. Nothing about the layout depends on it, so its arrival only
+  // ever appends a name to the salutation.
+  const deviceHandle = useSyncExternalStore(subscribeDeviceHandle, readDeviceHandle, () => "");
+
+  // Rebuild the greeting whenever the resolved weather or the handle changes,
+  // always against the SERVER instant, so the time-of-day band stays exactly
+  // what was rendered. `brief.weather` is the personalized (area-resolved) read
+  // when personalization has run, and the server's city-level read before that.
+  const shownGreeting =
+    brief.weather === weather && !deviceHandle
+      ? greeting
+      : buildDayGreeting({
+          now: new Date(nowIso),
+          weather: brief.weather,
+          dateLabel,
+          name: deviceHandle,
+        });
 
   // Silent continuity (#427 seam), now resolved field-by-field. The progressive
   // intake is the only newly consumed source in this UI wave. Account and
@@ -290,19 +366,22 @@ export default function TodayClient({ dateLabel, weather, weatherByArea, picks, 
     <main className="todayPage" data-testid="today-screen">
       <SiteNav active="today" />
 
-      <header className="todayHead">
-        <p className="todayEyebrow">This morning</p>
-        <h1 className="todayTitle">Your day out, sorted.</h1>
-        <p className="todayLede">
-          <span className="todayDate">{dateLabel}</span>. The weather, tonight&rsquo;s best,
-          how you&rsquo;ll get home, and one to remember.
-        </p>
+      <header className="todayHead" data-testid="today-greeting">
+        <p className="todayEyebrow">{shownGreeting.salutation}</p>
+        <h1 className="todayTitle" data-weather-aware={shownGreeting.weatherAware}>
+          {shownGreeting.headline}
+        </h1>
+        <p className="todayLede">{shownGreeting.support}</p>
       </header>
 
       <div className="todayStack">
         <WeatherCard weather={brief.weather} />
-        <TodayTubeCard />
-        <PicksCard picks={brief.picks} filteredPickCount={brief.filteredPickCount} />
+        <TodayTubeCard slot={shownGreeting.slot} />
+        <PicksCard
+          picks={brief.picks}
+          filteredPickCount={brief.filteredPickCount}
+          slot={shownGreeting.slot}
+        />
         <TodayGetThereStrip />
         <TodayPintsCard index={pintsIndex} />
         <TodayQuietPintCard module={quietPint} />
