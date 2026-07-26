@@ -111,7 +111,7 @@ A short piece of personal or inherited knowledge about a venue — a memory from
 _Avoid_: Review, comment, caption
 
 **Provenance**:
-Where a piece of venue knowledge came from, and how much it can be trusted. Every heritage or price claim is one of: Sourced (editorial, with a source link), Contributor (a user's Pint Drop), or Anecdote (an unverifiable Passed-Down Note). Provenance is always shown; it is never flattened away.
+Where a piece of venue knowledge came from, and how much it can be trusted. Every heritage or price claim is one of: Sourced (editorial, with a source link), Contributor (a user's Pint Drop), Anecdote (an unverifiable Passed-Down Note), or Community (an anonymous dated price logged at the bar, shown on its own dated, badged row and never overwriting the price on record). Provenance is always shown; it is never flattened away.
 _Avoid_: Source (bare), reliability, trust score
 
 **Contributor Handle**:

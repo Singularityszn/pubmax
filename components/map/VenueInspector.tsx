@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 
 import { type Venue } from "@/lib/venues";
 import type { PintDropsState } from "@/components/map/usePintDrops";
+import type { CommunityPricesState } from "@/components/map/useCommunityPrices";
 import type { CrawlMode } from "@/components/map/ControlRail";
 import type { LastPintDecision } from "@/lib/tfl";
 import { landmarks as londonLandmarks, type Landmark } from "@/lib/landmarks";
@@ -46,6 +47,11 @@ type VenueInspectorProps = {
   onAcceptStop1?: () => void;
   initialTab?: TabKey;
   pintDrops: PintDropsState;
+  /**
+   * Community price layer - backs the fast "What's it tonight?" submission on
+   * the Overview tab and the restamp every other surface reads.
+   */
+  communityPrices: CommunityPricesState;
   // The mobile bottom-sheet drag gesture (GH #17) lives in PubMap.tsx (the
   // owner of the .mapDrawer seam); this component only exposes the grab
   // handle as a pointer-event surface so the drag can start from the visible
@@ -79,6 +85,7 @@ export default function VenueInspector({
   onAcceptStop1,
   initialTab = DEFAULT_TAB,
   pintDrops,
+  communityPrices,
   onGrabDragStart,
   onGrabDragMove,
   onGrabDragEnd,
@@ -157,6 +164,7 @@ export default function VenueInspector({
         mode={mode}
         inCrawl={inCrawl}
         latestContributorPrice={latestContributorPrice}
+        communityPrices={communityPrices}
         onToggleStop={onToggleStop}
         presenceState={presenceState}
         markPresenceHere={markPresenceHere}
