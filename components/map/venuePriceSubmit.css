@@ -66,23 +66,19 @@
 }
 
 /* ── Drink category ───────────────────────────────────────────────────────── */
-/* A single scrolling row so five categories fit a 390px viewport without
-   wrapping into a second line that pushes the price field below the fold. */
+/* The five categories do not fit one 390px row, so the row WRAPS - same rule
+   the quick-price chips below already use, so the card reads as one chip
+   language rather than two. The earlier single scrolling row hid the last chip
+   ("Other") behind a permanent trailing mask fade: the fade was static, so
+   scrolling to the end still left the label veiled and clipped, and a
+   scroll-position-aware mask has no cross-browser form (Safari lacks
+   scroll-driven timelines). A wrapped row costs one line of height and can
+   never clip a target. */
 .vpsubCats {
   display: flex;
+  flex-wrap: wrap;
   gap: 6px;
   margin: 11px 0 12px;
-  overflow-x: auto;
-  scrollbar-width: none;
-  -webkit-overflow-scrolling: touch;
-  /* Fade the trailing edge so a chip cut by the viewport reads as "there is
-     more, scroll" rather than as a clipped, broken label. */
-  mask-image: linear-gradient(to right, #000 calc(100% - 28px), transparent);
-  -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 28px), transparent);
-}
-
-.vpsubCats::-webkit-scrollbar {
-  display: none;
 }
 
 .vpsubCat {

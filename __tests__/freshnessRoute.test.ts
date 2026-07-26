@@ -44,4 +44,22 @@ describe("GET /api/freshness", () => {
     const body = (await res.json()) as { datasets: Array<{ id: string; status: string }> };
     expect(body.datasets.some((d) => d.status === "unknown")).toBe(false);
   });
+
+  it("exposes the corroborated community-price count", async () => {
+    const res = await GET();
+    const body = (await res.json()) as {
+      communityPrices?: {
+        corroboratedCategories: number;
+        truncated: boolean;
+        degraded: boolean;
+      };
+    };
+    // Read-only aggregation: with no submissions in this process it is an
+    // honest 0, never absent and never degraded.
+    expect(body.communityPrices).toEqual({
+      corroboratedCategories: 0,
+      truncated: false,
+      degraded: false,
+    });
+  });
 });

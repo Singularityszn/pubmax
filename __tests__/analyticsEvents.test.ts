@@ -300,3 +300,57 @@ describe("sanitizeEvent", () => {
     });
   });
 });
+
+describe("community-price funnel events", () => {
+  it("registers all three funnel steps", () => {
+    expect(isKnownEvent("price_submit_viewed")).toBe(true);
+    expect(isKnownEvent("price_submitted")).toBe(true);
+    expect(isKnownEvent("price_submit_failed")).toBe(true);
+  });
+
+  it("keeps the drink category and the failure reason", () => {
+    expect(sanitizeEvent("price_submit_viewed", { category: "beer" })).toEqual({
+      name: "price_submit_viewed",
+      props: { category: "beer" },
+    });
+    expect(sanitizeEvent("price_submitted", { category: "cocktail" })).toEqual({
+      name: "price_submitted",
+      props: { category: "cocktail" },
+    });
+    expect(
+      sanitizeEvent("price_submit_failed", { category: "wine", reason: "rejected" }),
+    ).toEqual({
+      name: "price_submit_failed",
+      props: { category: "wine", reason: "rejected" },
+    });
+  });
+
+  it("never carries the venue, the price, or the error sentence", () => {
+    const ev = sanitizeEvent("price_submitted", {
+      category: "beer",
+      venueId: "the-lamb",
+      venueName: "The Lamb",
+      priceGbp: 4.2,
+    });
+    expect(ev).toEqual({ name: "price_submitted", props: { category: "beer" } });
+  });
+
+  it("fails closed on an off-taxonomy category or an unknown reason", () => {
+    expect(sanitizeEvent("price_submitted", { category: "absinthe" })).toBeNull();
+    expect(sanitizeEvent("price_submitted", {})).toBeNull();
+    expect(
+      sanitizeEvent("price_submit_failed", { category: "beer", reason: "server_said_no" }),
+    ).toBeNull();
+  });
+
+  it("does not leak its vocabulary into the pal-memory category key", () => {
+    // Same prop NAME, a different closed set - the price check must be scoped
+    // to the funnel events, not to the key.
+    expect(
+      sanitizeEvent("pub_pal_memory_changed", { action: "create", category: "preference" }),
+    ).toEqual({
+      name: "pub_pal_memory_changed",
+      props: { action: "create", category: "preference" },
+    });
+  });
+});

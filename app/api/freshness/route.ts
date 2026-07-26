@@ -21,6 +21,7 @@ import {
   type FreshnessRegistry,
 } from "@/lib/freshness";
 import { resolveStoreObservedAt } from "@/lib/freshnessStoreOverlay";
+import { countCorroboratedCommunityCategories } from "@/lib/communityPriceStore";
 
 export const runtime = "nodejs";
 
@@ -74,6 +75,14 @@ export async function GET(): Promise<Response> {
     overlay[dataset.id] ?? resolveObservedAt(dataset.stamp, readArtifact(rootDir, dataset.artifact));
   const results = evaluateRegistry(registry, stampFor, now);
 
+  // The contribution flywheel's own number, alongside the dataset staleness:
+  // how many (venue, drink category) pairs currently carry a community price
+  // the map is allowed to paint. Derived on the read path from the same
+  // corroboration + age rules the map itself uses (lib/communityPrice.ts), so
+  // it can never claim a figure the map would refuse. Read-only and fail-soft:
+  // an unavailable store reports `degraded`, never a fabricated 0.
+  const community = await countCorroboratedCommunityCategories(now.getTime());
+
   const summary = results.reduce<Record<string, number>>((acc, r) => {
     acc[r.status] = (acc[r.status] ?? 0) + 1;
     return acc;
@@ -84,6 +93,11 @@ export async function GET(): Promise<Response> {
       version: registry.version,
       generatedAt: now.toISOString(),
       summary,
+      communityPrices: {
+        corroboratedCategories: community.count,
+        truncated: community.truncated,
+        degraded: community.degraded,
+      },
       datasets: results,
     },
     { cache: true },
