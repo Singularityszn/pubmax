@@ -140,13 +140,17 @@ export default function PrivacyPage() {
 
         <h3 className="legalH3">Location</h3>
         <p className="legalBody">
-          &ldquo;Find my pint&rdquo; asks your browser for your location. The
-          coordinates stay in your browser while it ranks nearby pubs. The map
-          and Tonight also send them to our own server in an
-          {" "}<code>/api/whats-on</code>{" "}request so it can rank what is on
-          near you. That route uses them to answer the request and does not
-          write them to our database. Say no and the app falls back to picking
-          an area.
+          &ldquo;Find my pint&rdquo; asks your browser for your location and
+          ranks nearby pubs there, so those coordinates never leave your
+          device. Sharing location on the map or Tonight sends your coordinates
+          to our own <code>/api/whats-on</code> route to rank what is on near
+          you. Tonight also rounds them to three decimal places, about 110
+          metres, before sending them to <code>/api/tonight-conditions</code>,
+          <code>/api/last-train</code> and <code>/api/tfl-disruption</code> so
+          our server can answer the nearby conditions, last train and relevant
+          transport disruption. The last-train route passes that rounded point
+          to Transport for London&rsquo;s public StopPoint API to find your
+          nearest station. Say no and the app falls back to picking an area.
         </p>
 
         <h3 className="legalH3">Analytics, only with consent</h3>
@@ -293,6 +297,15 @@ export default function PrivacyPage() {
               OpenFreeMap and CARTO serve the base map straight to your browser,
               so they see your IP address while you pan the map. Map data is
               &copy; OpenStreetMap contributors.
+            </dd>
+          </div>
+          <div className="legalRow">
+            <dt>Transport for London</dt>
+            <dd>
+              When you ask for last-train help, our server sends your coordinates
+              rounded to three decimal places to TfL&rsquo;s public StopPoint API
+              to find your nearest station. It also fetches live arrivals,
+              timetables and line-status information.
             </dd>
           </div>
           <div className="legalRow">

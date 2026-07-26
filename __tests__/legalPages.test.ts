@@ -71,9 +71,15 @@ describe("legal content pages", () => {
   });
 
   it("discloses precise location processing without overstating retention", () => {
-    expect(privacy).toMatch(/coordinates stay in your browser/);
+    expect(privacy).toMatch(/coordinates never leave your\s+device/);
     expect(privacy).toMatch(/\/api\/whats-on/);
-    expect(privacy).toMatch(/does not\s+write them to our database/);
+    expect(privacy).toMatch(/\/api\/tonight-conditions/);
+    expect(privacy).toMatch(/\/api\/last-train/);
+    expect(privacy).toMatch(/\/api\/tfl-disruption/);
+    expect(privacy).toMatch(/rounds them to three decimal places/);
+    expect(privacy).toMatch(/Transport for London/);
+    expect(privacy).toMatch(/public StopPoint API/);
+    expect(privacy).not.toMatch(/does not\s+write them to our database/);
     expect(privacy).not.toMatch(/not sent to us or stored anywhere/);
   });
 
