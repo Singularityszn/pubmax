@@ -11,6 +11,32 @@ vi.mock("@/lib/supabase", async (importOriginal) => {
   return { ...actual, isSupabaseConfigured: () => false };
 });
 vi.mock("@/lib/serverEnv", () => ({ assertServerEnv: () => {} }));
+vi.mock("@/lib/venueIndex", () => ({
+  getVenueIndex: async () =>
+    new Map([
+      [
+        "venue-1",
+        {
+          id: "venue-1",
+          name: "The Ship",
+          borough: "London",
+          lat: 51.5,
+          lng: -0.1,
+        },
+      ],
+      [
+        "bar-1",
+        {
+          id: "bar-1",
+          name: "The Cocktail Bar",
+          borough: "London",
+          lat: 51.5,
+          lng: -0.1,
+          kind: "bar",
+        },
+      ],
+    ]),
+}));
 
 const authState = vi.hoisted(() => ({ userId: null as string | null }));
 vi.mock("@/lib/authServer", async (importOriginal) => {
@@ -188,11 +214,23 @@ describe("POST /api/rounds/[code] — actions", () => {
       action: "addStop",
       handle: "ken",
       venueId: "venue-1",
-      venueName: "The Ship",
+      venueName: "Spoofed name",
     });
     expect(res.status).toBe(200);
     const state = (await res.json()) as RoundState;
     expect(state.stops).toHaveLength(1);
+    expect(state.stops[0]?.venueName).toBe("The Ship");
+  });
+
+  it("rejects a non-pub Round stop (400)", async () => {
+    const { round } = await newRound("ken");
+    const res = await action(round.code, {
+      action: "addStop",
+      handle: "ken",
+      venueId: "bar-1",
+      venueName: "The Cocktail Bar",
+    });
+    expect(res.status).toBe(400);
   });
 
   it("addStop by a non-member is forbidden (403)", async () => {

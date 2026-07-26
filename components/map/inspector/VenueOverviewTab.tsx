@@ -308,7 +308,7 @@ export default function VenueOverviewTab({
             Dataset price. Not a live tonight feed.
           </small>
         </div>
-      ) : (
+      ) : isPubVenue(venue) ? (
         /* No price on any honest source — the 658-unpriced case. Instead of a
            blank slot, invite the first Pint Drop for this venue (Cycle-8 item
            3). This else-branch is exactly isVenueUnpriced(venue, price). */
@@ -317,7 +317,7 @@ export default function VenueOverviewTab({
           venueName={venue.name}
           onStartFirstDrop={onStartFirstDrop}
         />
-      )}
+      ) : null}
       {/* The submission loop itself: pick a drink, type tonight's price, and
           the pin, the list row and the row above restamp on the same tap.
           Pubs only — a Pint Drop at a cocktail bar or doner counter would

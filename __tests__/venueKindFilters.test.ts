@@ -4,6 +4,7 @@ import {
   defaultVenueKindVisibility,
   filterVenuesByKind,
   isPubVenue,
+  isPubVenueKind,
   toggleVenueKind,
 } from "@/lib/venueKindFilters";
 import type { Venue } from "@/lib/venues";
@@ -53,5 +54,10 @@ describe("venueKindFilters", () => {
         .filter(isPubVenue)
         .map((item) => item.id),
     ).toEqual(["legacy", "pub"]);
+    const kinds: Array<Venue["kind"]> = [undefined, "pub", "bar", "food"];
+    expect(kinds.filter(isPubVenueKind)).toEqual([
+      undefined,
+      "pub",
+    ]);
   });
 });

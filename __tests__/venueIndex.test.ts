@@ -39,7 +39,7 @@ describe("buildVenueIndex", () => {
   it("maps ids to name/borough/coords and falls back to London with no borough", () => {
     const index = buildVenueIndex([
       v({ id: "venue-a", name: "The Nellie Dean", primaryBorough: "Westminster", latitude: 51.51, longitude: -0.13 }),
-      v({ id: "venue-b", name: "The Grapes" }), // no borough
+      v({ id: "venue-b", name: "The Grapes", kind: "bar" }), // no borough
     ]);
     const a = index.get("venue-a") as VenueRef;
     expect(a.name).toBe("The Nellie Dean");
@@ -47,6 +47,7 @@ describe("buildVenueIndex", () => {
     expect(a.lat).toBe(51.51);
     expect(a.lng).toBe(-0.13);
     expect(index.get("venue-b")?.borough).toBe("London");
+    expect(index.get("venue-b")?.kind).toBe("bar");
     expect(index.has("venue-unknown")).toBe(false);
   });
 });
@@ -128,6 +129,7 @@ describe("getVenueIndex", () => {
       name: "Peveril of the Peak",
       borough: "Manchester",
     });
+    expect(index.get("bar-american-bar-savoy")?.kind).toBe("bar");
   });
 });
 

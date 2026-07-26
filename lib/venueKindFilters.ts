@@ -14,8 +14,12 @@ export function toggleVenueKind(
   return { ...current, [kind]: !current[kind] };
 }
 
+export function isPubVenueKind(kind: VenueKind | undefined): boolean {
+  return kind === undefined || kind === "pub";
+}
+
 export function isPubVenue(venue: Venue): boolean {
-  return venue.kind === undefined || venue.kind === "pub";
+  return isPubVenueKind(venue.kind);
 }
 
 function waveOneKind(kind: VenueKind | undefined): WaveOneVenueKind | null {

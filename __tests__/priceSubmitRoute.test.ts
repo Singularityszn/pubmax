@@ -80,6 +80,7 @@ import { __resetPintDrops } from "@/lib/pintDrops";
 import { getUkBaseIdIndex } from "@/lib/ukBaseIndex";
 import { UK_BASE_ID_PREFIX } from "@/lib/ukBasePubs";
 import { getVenueIndex } from "@/lib/venueIndex";
+import { isPubVenueKind } from "@/lib/venueKindFilters";
 
 type PriceBody = {
   ok?: boolean;
@@ -205,7 +206,10 @@ describe("POST /api/price-submit", () => {
   });
 
   it("rate-limits one actor across different venues after 30 submissions (429)", async () => {
-    const venueIds = [...(await getVenueIndex()).keys()].slice(0, 31);
+    const venueIds = [...(await getVenueIndex()).values()]
+      .filter((venue) => isPubVenueKind(venue.kind))
+      .map((venue) => venue.id)
+      .slice(0, 31);
     expect(venueIds).toHaveLength(31);
 
     for (const [index, venueId] of venueIds.entries()) {
@@ -217,6 +221,14 @@ describe("POST /api/price-submit", () => {
   it("rejects venue ids absent from the slim index without storing them", async () => {
     const venueId = "totally-fake-venue-xyz";
     const res = await POST(post({ venueId, drinkCategory: "beer", priceGbp: 4.2 }));
+
+    expect(res.status).toBe(400);
+    expect(await readCommunityPrices(venueId)).toEqual([]);
+  });
+
+  it("rejects non-pub anchor prices without storing them", async () => {
+    const venueId = "bar-american-bar-savoy";
+    const res = await POST(post({ venueId, drinkCategory: "beer", priceGbp: 8.5 }));
 
     expect(res.status).toBe(400);
     expect(await readCommunityPrices(venueId)).toEqual([]);
@@ -344,7 +356,9 @@ describe("POST /api/price-submit corroboration", () => {
   // Drawn from the far end of the index so these can never collide with the
   // cross-venue rate-limit case above, which consumes the first 31 ids.
   async function realVenueId(offset: number): Promise<string> {
-    const ids = [...(await getVenueIndex()).keys()];
+    const ids = [...(await getVenueIndex()).values()]
+      .filter((venue) => isPubVenueKind(venue.kind))
+      .map((venue) => venue.id);
     expect(ids.length).toBeGreaterThan(31 + offset);
     return ids[ids.length - 1 - offset];
   }

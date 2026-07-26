@@ -1010,6 +1010,7 @@ export default function PubMap({
     [route, selectedVenueId, venueById],
   );
   const selectedVenueResolvable = selectedVenueId ? venueById.has(selectedVenueId) : false;
+  const selectedVenueIsPub = selectedVenue ? isPubVenue(selectedVenue) : false;
   const selectedDetailStatus = detailStatusFor(selectedVenueId, detailById, detailStatusById);
 
   const venueIdByNormalisedName = useMemo(() => {
@@ -1340,7 +1341,7 @@ export default function PubMap({
 
   const filteredVenueCount = filteredVenues.length;
   const firstRouteId = route[0]?.id ?? "";
-  const firstFilteredVenueId = filteredVenues[0]?.id ?? "";
+  const firstFilteredVenueId = filteredPubVenues[0]?.id ?? "";
 
   // --- Search fly-to / fit (map search was a dead end) --------------------
   // Typing a pub name narrowed the pin set but never moved the camera, so at
@@ -1486,6 +1487,7 @@ export default function PubMap({
     firstRouteId,
     selectedVenueId,
     selectedVenueResolvable,
+    selectedVenueIsPub,
     selectVenue,
     openComposerForLog,
     setFallbackVisible: setLogIntentFallbackVisible,
@@ -2049,7 +2051,7 @@ export default function PubMap({
             <strong>{formatPrice(selectedVenue.cheapestPrice)}</strong>
             <small>current recorded price</small>
           </span>
-        ) : (
+        ) : isPubVenue(selectedVenue) ? (
           <button
             type="button"
             className="mobileVenuePeekDrop"
@@ -2058,7 +2060,7 @@ export default function PubMap({
             <strong>No price yet.</strong>
             <small>Be the first →</small>
           </button>
-        )}
+        ) : null}
         <span>
           <strong>
             {userLocation
@@ -2098,7 +2100,7 @@ export default function PubMap({
         latestPintDropAt={dropSignals.get(selectedVenue.id)?.latestContributorAt}
         onToggleStop={toggleBuiltStop}
         onSelectVenue={selectVenue}
-        onAcceptStop1={flags.intentWrite ? acceptStop1 : undefined}
+        onAcceptStop1={flags.intentWrite && isPubVenue(selectedVenue) ? acceptStop1 : undefined}
         initialTab={venueInitialTab}
         pintDrops={pintDrops}
         communityPrices={communityPrices}

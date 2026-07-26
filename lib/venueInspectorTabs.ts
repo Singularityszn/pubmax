@@ -1,5 +1,7 @@
 import { getCity, type CityId } from "@/lib/cities";
 import { lastRideTabLabel } from "@/lib/lastRide";
+import { isPubVenueKind } from "@/lib/venueKindFilters";
+import type { VenueKind } from "@/lib/venues";
 
 // Mobile-first tabs regroup the panel's long vertical scroll into thumb-friendly
 // sections (most PUBMAXXERs are on a phone while travelling). The labels follow
@@ -27,6 +29,14 @@ export function tabsForCity(cityId: CityId): { key: TabKey; label: string; short
     ...BASE_TABS,
     { key: "getting-home", label: rideLabel, shortLabel: ride },
   ];
+}
+
+export function tabsForVenue(
+  cityId: CityId,
+  kind: VenueKind | undefined,
+): { key: TabKey; label: string; shortLabel: string }[] {
+  const tabs = tabsForCity(cityId);
+  return isPubVenueKind(kind) ? tabs : tabs.filter((tab) => tab.key !== "pints");
 }
 
 export const DEFAULT_TAB: TabKey = "overview";

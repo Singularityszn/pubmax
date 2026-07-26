@@ -5,6 +5,7 @@ type ResolveMapLogIntentInput = {
   loaded: boolean;
   selectedVenueId: string;
   selectedVenueResolvable: boolean;
+  selectedVenueIsPub: boolean;
   firstRouteId: string;
   firstFilteredVenueId: string;
 };
@@ -108,7 +109,9 @@ export function resolveMapLogIntent(input: ResolveMapLogIntentInput): MapLogInte
   if (!input.loaded) return { status: "pending" };
 
   const selectedVenueId =
-    input.selectedVenueId && input.selectedVenueResolvable ? input.selectedVenueId : "";
+    input.selectedVenueId && input.selectedVenueResolvable && input.selectedVenueIsPub
+      ? input.selectedVenueId
+      : "";
   if (selectedVenueId) return { status: "open", venueId: selectedVenueId };
   // firstRouteId / firstFilteredVenueId are intentionally ignored for auto-open.
   void input.firstRouteId;

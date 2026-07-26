@@ -137,6 +137,14 @@ describe("resolvePlanningAnchor — conflicts", () => {
       .toMatchObject({ status: "conflict", code: "ANCHOR_VENUE_INVALID" });
   });
 
+  it("ANCHOR_VENUE_INVALID for non-pub anchors before price checks", async () => {
+    const result = await resolvePlanningAnchor(
+      baseInput({ budgetPerPersonPence: 100 }),
+      deps(fakeVenue({ kind: "bar", cheapestPrice: 20 })),
+    );
+    expect(result).toMatchObject({ status: "conflict", code: "ANCHOR_VENUE_INVALID" });
+  });
+
   it("ANCHOR_CITY_MISMATCH when the Venue is not in the city", async () => {
     const result = await resolvePlanningAnchor(baseInput(), deps(fakeVenue(), { matchesCity: () => false }));
     expect(result).toMatchObject({ status: "conflict", code: "ANCHOR_CITY_MISMATCH" });

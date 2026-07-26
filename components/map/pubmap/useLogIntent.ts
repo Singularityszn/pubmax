@@ -15,6 +15,7 @@ export function useLogIntent(deps: {
   firstRouteId: string;
   selectedVenueId: string;
   selectedVenueResolvable: boolean;
+  selectedVenueIsPub: boolean;
   selectVenue: (id: string) => void;
   openComposerForLog: () => void;
   setFallbackVisible: (visible: boolean) => void;
@@ -26,6 +27,7 @@ export function useLogIntent(deps: {
     firstRouteId,
     selectedVenueId,
     selectedVenueResolvable,
+    selectedVenueIsPub,
     selectVenue,
     openComposerForLog,
     setFallbackVisible,
@@ -44,6 +46,7 @@ export function useLogIntent(deps: {
       loaded,
       selectedVenueId,
       selectedVenueResolvable,
+      selectedVenueIsPub,
       firstRouteId,
       firstFilteredVenueId,
     });
@@ -72,6 +75,7 @@ export function useLogIntent(deps: {
     openComposerForLog,
     selectVenue,
     selectedVenueId,
+    selectedVenueIsPub,
     selectedVenueResolvable,
     setFallbackVisible,
   ]);

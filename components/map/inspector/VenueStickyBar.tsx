@@ -8,6 +8,7 @@ import type { CrawlMode } from "@/components/map/ControlRail";
 import type { ShareFeedback } from "@/lib/venueShare";
 import type { TabKey } from "@/lib/venueInspectorTabs";
 import { useSheetFooterSlot } from "@/components/mobile/sheetFooterContext";
+import { isPubVenue } from "@/lib/venueKindFilters";
 
 export default function VenueStickyBar({
   venue,
@@ -36,9 +37,10 @@ export default function VenueStickyBar({
   // content and rides 1:1 with the sheet on drag/snap. Outside the sheet
   // (desktop) the context is null → render in place (CSS-hidden above 640px).
   const footerSlot = useSheetFooterSlot();
+  const pubVenue = isPubVenue(venue);
   const bar = (
     <div className="venueSheetStickyBar" role="toolbar" aria-label="Venue actions">
-      {onAcceptStop1 ? (
+      {pubVenue && onAcceptStop1 ? (
         <button
           type="button"
           className="venueSheetStickyPrimary"
@@ -49,19 +51,21 @@ export default function VenueStickyBar({
           Make it Stop 1
         </button>
       ) : null}
-      <button
-        type="button"
-        className={onAcceptStop1 ? "venueSheetStickyGhost" : "venueSheetStickyPrimary"}
-        onClick={() => {
-          selectTab("pints");
-          setComposerOpen(true);
-        }}
-        aria-label={`Log a Pint Drop at ${venue.name}`}
-      >
-        <PlusCircle size={16} aria-hidden="true" />
-        Drop
-      </button>
-      {mode === "build" ? (
+      {pubVenue ? (
+        <button
+          type="button"
+          className={onAcceptStop1 ? "venueSheetStickyGhost" : "venueSheetStickyPrimary"}
+          onClick={() => {
+            selectTab("pints");
+            setComposerOpen(true);
+          }}
+          aria-label={`Log a Pint Drop at ${venue.name}`}
+        >
+          <PlusCircle size={16} aria-hidden="true" />
+          Drop
+        </button>
+      ) : null}
+      {pubVenue && mode === "build" ? (
         <button
           type="button"
           className="venueSheetStickyGhost"

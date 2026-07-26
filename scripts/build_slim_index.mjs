@@ -28,6 +28,7 @@ import {
   shardFileForSlug,
 } from "./lib/slimShards.mjs";
 import { loadStationZones, nearestStationZone } from "./lib/stationZones.mjs";
+import { isCurrentNightOutPlace } from "../lib/nightOutPlaceContract.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, "..");
@@ -112,6 +113,20 @@ function famousVenueFilterHints(row) {
       : {}),
     ...(row.kind === "food" ? { cuisineTags: ["kitchen"] } : {}),
   };
+}
+
+function assertCurrentFamousVenueRows(rows, now) {
+  const invalid = rows.filter((row) => !isCurrentNightOutPlace(row, now));
+  if (invalid.length > 0) {
+    const nowMs = now instanceof Date ? now.getTime() : Number(now);
+    const checkedAt = Number.isFinite(nowMs) ? new Date(nowMs).toISOString() : String(now);
+    throw new Error(
+      `Famous venue current-trading verification failed at ${checkedAt}: ${invalid
+        .map((row) => `${row.id} (${row.observedAt} to ${row.expiresAt})`)
+        .join(", ")}`,
+    );
+  }
+  return rows;
 }
 
 // --- mirror of lib/venues.ts grouping + id logic (keep in lockstep) ----------
@@ -590,11 +605,14 @@ async function main() {
   // stamped with the zone of its nearest station — an honest approximation,
   // labelled as such in the UI. See scripts/lib/stationZones.mjs.
   const stationZones = await loadStationZones();
-  const famousRows = (
-    await Promise.all(
-      FAMOUS_VENUE_PATHS.map(async (file) => JSON.parse(await readFile(file, "utf8"))),
-    )
-  ).flat();
+  const famousRows = assertCurrentFamousVenueRows(
+    (
+      await Promise.all(
+        FAMOUS_VENUE_PATHS.map(async (file) => JSON.parse(await readFile(file, "utf8"))),
+      )
+    ).flat(),
+    new Date(),
+  );
   const famousPriceBands = typeRelativePriceBands(famousRows);
 
   const slim = [];
@@ -773,7 +791,7 @@ async function main() {
   }
 }
 
-export { buildCurationHints, typeRelativePriceBands };
+export { assertCurrentFamousVenueRows, buildCurationHints, typeRelativePriceBands };
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   main().catch((err) => {

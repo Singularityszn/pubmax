@@ -4,6 +4,7 @@ import path from "node:path";
 import { describe, expect, it } from "vitest";
 
 import { nightOutPlaceRowValidationErrors } from "@/lib/nightOutPlaceContract.mjs";
+import { assertCurrentFamousVenueRows } from "@/scripts/build_slim_index.mjs";
 
 const ROOT = path.resolve(__dirname, "..");
 const FAME_GATES = new Set([
@@ -121,5 +122,15 @@ describe("famous venue Wave 1 seeds", () => {
   it("keeps IDs unique across both packs", () => {
     const rows = [...loadSeed("bars.json"), ...loadSeed("late_food.json")];
     expect(new Set(rows.map((row) => row.id)).size).toBe(rows.length);
+  });
+
+  it("fails the build boundary when current-trading evidence expires", () => {
+    const rows = [...loadSeed("bars.json"), ...loadSeed("late_food.json")];
+    expect(
+      assertCurrentFamousVenueRows(rows, new Date("2026-07-26T12:00:00.000Z")),
+    ).toHaveLength(65);
+    expect(() =>
+      assertCurrentFamousVenueRows(rows, new Date("2026-08-25T00:00:00.000Z")),
+    ).toThrow(/current-trading verification failed.*bar-american-bar-savoy/);
   });
 });

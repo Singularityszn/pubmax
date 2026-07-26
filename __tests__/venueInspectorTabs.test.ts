@@ -1,7 +1,12 @@
 import { describe, expect, it } from "vitest";
 
 import { CITIES } from "@/lib/cities";
-import { BASE_TABS, DEFAULT_TAB, tabsForCity } from "@/lib/venueInspectorTabs";
+import {
+  BASE_TABS,
+  DEFAULT_TAB,
+  tabsForCity,
+  tabsForVenue,
+} from "@/lib/venueInspectorTabs";
 
 describe("venueInspectorTabs", () => {
   it("opens on the useful venue overview", () => {
@@ -49,5 +54,11 @@ describe("venueInspectorTabs", () => {
         shortLabels.length,
       );
     }
+  });
+
+  it("removes Pint Drop stories from non-pub venue tabs", () => {
+    expect(tabsForVenue("london", "bar").map((tab) => tab.key)).not.toContain("pints");
+    expect(tabsForVenue("london", "food").map((tab) => tab.key)).not.toContain("pints");
+    expect(tabsForVenue("london", undefined).map((tab) => tab.key)).toContain("pints");
   });
 });

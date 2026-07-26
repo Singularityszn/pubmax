@@ -41,6 +41,7 @@ import { clientIp, hashActor, hashIp } from "@/lib/supabase";
 import { getUkBaseIdIndex } from "@/lib/ukBaseIndex";
 import { isUkBaseId } from "@/lib/ukBasePubs";
 import { getVenueIndex } from "@/lib/venueIndex";
+import { isPubVenueKind } from "@/lib/venueKindFilters";
 
 // Best-effort, server-derived submitter token. Never throws - if IP hashing is
 // unavailable the store records the observation unattributed (it still counts,
@@ -87,7 +88,8 @@ export async function POST(request: Request): Promise<Response> {
         { status: 503 },
       );
     }
-    if (!venueIndex.has(result.value.venueId)) {
+    const venue = venueIndex.get(result.value.venueId);
+    if (!venue || !isPubVenueKind(venue.kind)) {
       return jsonNoStore({ error: "Pick a venue from the map." }, { status: 400 });
     }
   }

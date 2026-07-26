@@ -4,7 +4,7 @@ import path from "path";
 import { listEnabledCities } from "@/lib/cities";
 import { unresolvedVenueLabel } from "@/lib/cityVenueIds";
 import { resolveCanonicalVenueId } from "@/lib/venueAliases";
-import type { Venue } from "@/lib/venues";
+import type { Venue, VenueKind } from "@/lib/venues";
 
 // Server-only venue-name resolution (PRD §9). Social content stores raw venue
 // ids (content-hashed, e.g. "venue-1ufn31x"); no public feed/profile/permalink
@@ -22,6 +22,7 @@ export type VenueRef = {
   borough: string;
   lat: number;
   lng: number;
+  kind?: VenueKind;
 };
 
 type SlimRow = {
@@ -30,6 +31,7 @@ type SlimRow = {
   borough?: unknown;
   lat?: unknown;
   lng?: unknown;
+  kind?: unknown;
 };
 
 // Pure: fold venues into an id→ref lookup. Split out so it's unit-testable
@@ -43,6 +45,7 @@ export function buildVenueIndex(venues: Venue[]): Map<string, VenueRef> {
       borough: v.primaryBorough || "London",
       lat: v.latitude,
       lng: v.longitude,
+      ...(v.kind !== undefined ? { kind: v.kind } : {}),
     });
   }
   return index;
@@ -50,9 +53,16 @@ export function buildVenueIndex(venues: Venue[]): Map<string, VenueRef> {
 
 function buildVenueIndexFromSlim(rows: SlimRow[]): Map<string, VenueRef> {
   const index = new Map<string, VenueRef>();
+  const kinds = new Set<VenueKind>(["pub", "bar", "club", "food", "restaurant"]);
   for (const row of rows) {
     if (typeof row.id !== "string" || !row.id) continue;
     if (typeof row.name !== "string" || !row.name) continue;
+    if (
+      row.kind !== undefined &&
+      (typeof row.kind !== "string" || !kinds.has(row.kind as VenueKind))
+    ) {
+      continue;
+    }
     const lat = typeof row.lat === "number" ? row.lat : Number(row.lat);
     const lng = typeof row.lng === "number" ? row.lng : Number(row.lng);
     if (!Number.isFinite(lat) || !Number.isFinite(lng)) continue;
@@ -62,6 +72,7 @@ function buildVenueIndexFromSlim(rows: SlimRow[]): Map<string, VenueRef> {
       borough: typeof row.borough === "string" && row.borough ? row.borough : "London",
       lat,
       lng,
+      ...(row.kind !== undefined ? { kind: row.kind as VenueKind } : {}),
     });
   }
   return index;
