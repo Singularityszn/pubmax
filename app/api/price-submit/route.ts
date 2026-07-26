@@ -163,7 +163,15 @@ export async function GET(request: Request): Promise<Response> {
   try {
     const venueId = (new URL(request.url).searchParams.get("venueId") ?? "").trim();
     if (!venueId) return jsonNoStore({ prices: [] }, { status: 200 });
-    const result = await readCommunityPricesWithStatus(venueId);
+    let priceVenueId = venueId;
+    if (!isUkBaseId(venueId)) {
+      const venueLookup = await lookupCanonicalVenue(venueId);
+      if (venueLookup.status !== "found") {
+        return jsonNoStore({ prices: [] }, { status: 200 });
+      }
+      priceVenueId = venueLookup.canonicalId;
+    }
+    const result = await readCommunityPricesWithStatus(priceVenueId);
     return jsonNoStore(
       result.degraded
         ? { prices: result.prices, degraded: true }

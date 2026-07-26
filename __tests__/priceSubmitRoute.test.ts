@@ -330,6 +330,31 @@ describe("GET /api/price-submit", () => {
     expect(data).not.toHaveProperty("degraded");
   });
 
+  it("reads a legacy venue id from its canonical storage key", async () => {
+    await POST(
+      post({ venueId: "legacy-price-pub", drinkCategory: "beer", priceGbp: 4.2 }),
+    );
+
+    const res = await GET(get("?venueId=legacy-price-pub"));
+
+    expect(res.status).toBe(200);
+    expect(await res.json()).toMatchObject({
+      prices: [{ drinkCategory: "beer", priceGbp: 4.2 }],
+    });
+  });
+
+  it("is honest-empty when canonical venue data is unavailable", async () => {
+    await POST(
+      post({ venueId: "venue-xjf3n0", drinkCategory: "beer", priceGbp: 4.2 }),
+    );
+    venueIndexState.unavailable = true;
+
+    const res = await GET(get("?venueId=venue-xjf3n0"));
+
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ prices: [] });
+  });
+
   it("is honest-empty (200) for a missing or unknown venue, never a 500", async () => {
     expect((await GET(get(""))).status).toBe(200);
     expect(await (await GET(get(""))).json()).toEqual({ prices: [] });

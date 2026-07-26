@@ -178,7 +178,7 @@ export default function MapToolbar({
           aria-atomic="true"
         >
           <span className="mapToolbarSearchStatusCopy">
-            No pubs match ‘{trimmedQuery}’ with your current filters.
+            No venues match ‘{trimmedQuery}’ with your current filters.
           </span>
           <button
             type="button"

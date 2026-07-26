@@ -9,7 +9,7 @@ import { formatLogNearbyDistance, type LogNearbyCandidate } from "@/lib/mapLogIn
 export function LogIntentFallback({
   candidates,
   hasUserLocation,
-  filteredVenueCount,
+  filteredPubVenueCount,
   onPickVenue,
   onPrefetchVenue,
   onFocusSearch,
@@ -17,7 +17,7 @@ export function LogIntentFallback({
 }: {
   candidates: LogNearbyCandidate[];
   hasUserLocation: boolean;
-  filteredVenueCount: number;
+  filteredPubVenueCount: number;
   onPickVenue: (id: string) => void;
   onPrefetchVenue: (id: string) => void;
   onFocusSearch: () => void;
@@ -70,7 +70,7 @@ export function LogIntentFallback({
         <button type="button" className="addStopBtn" onClick={onFocusSearch}>
           Search pubs
         </button>
-        {filteredVenueCount === 0 ? (
+        {filteredPubVenueCount === 0 ? (
           <button type="button" className="addStopBtn" onClick={onResetFilters}>
             Show all pubs
           </button>

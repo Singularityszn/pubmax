@@ -1347,6 +1347,7 @@ export default function PubMap({
   }, [activeBandId]);
 
   const filteredVenueCount = filteredVenues.length;
+  const filteredPubVenueCount = filteredPubVenues.length;
   const firstRouteId = route[0]?.id ?? "";
   const firstFilteredVenueId = filteredPubVenues[0]?.id ?? "";
 
@@ -2022,7 +2023,7 @@ export default function PubMap({
         poisPath={city.poisPath}
         onRoundStarted={setActiveRoundStartedCode}
       >
-        {loaded && filteredVenues.length === 0 ? (
+        {loaded && filteredPubVenueCount === 0 ? (
           savedOnly && savedIds.size === 0 ? (
             <section className="venueInspector" style={{ textAlign: "center" }}>
               <p className="description" style={{ marginTop: 0 }}>
@@ -2288,7 +2289,7 @@ export default function PubMap({
           filters={filters}
           onFiltersChange={setFilters}
           searchSettled={loaded && loadedCityId === cityId}
-          filteredVenueCount={filteredVenues.length}
+          filteredVenueCount={filteredVenueCount}
           searchableVenueCount={venues.length}
           zoneIndex={zoneIndex}
           cityId={cityId}
@@ -2338,7 +2339,7 @@ export default function PubMap({
           <LogIntentFallback
             candidates={logNearbyCandidates}
             hasUserLocation={Boolean(userLocation)}
-            filteredVenueCount={filteredVenueCount}
+            filteredPubVenueCount={filteredPubVenueCount}
             onPickVenue={pickLogNearbyVenue}
             onPrefetchVenue={prefetchVenueDetail}
             onFocusSearch={focusMapSearch}
@@ -2383,7 +2384,7 @@ export default function PubMap({
           <PersonaLensCard
             persona={activePersona}
             matchCount={
-              personaHighlightsPubs(activePersona) ? filteredVenueCount : undefined
+              personaHighlightsPubs(activePersona) ? filteredPubVenueCount : undefined
             }
             onClose={() => selectPersona(null)}
           />
@@ -2583,7 +2584,7 @@ export default function PubMap({
             <LogIntentFallback
               candidates={logNearbyCandidates}
               hasUserLocation={Boolean(userLocation)}
-              filteredVenueCount={filteredVenueCount}
+              filteredPubVenueCount={filteredPubVenueCount}
               onPickVenue={pickLogNearbyVenue}
               onPrefetchVenue={prefetchVenueDetail}
               onFocusSearch={() => {
