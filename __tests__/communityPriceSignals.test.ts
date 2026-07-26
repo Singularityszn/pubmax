@@ -14,6 +14,7 @@ import {
   COMMUNITY_PRICE_MAX_AGE_MS,
   communityTrustNote,
   type CommunityPrice,
+  type CommunityPriceMapCandidate,
 } from "@/lib/communityPrice";
 import type { DrinkCategory } from "@/lib/drinks";
 
@@ -43,8 +44,17 @@ function price(
   submittedAt: number,
   drinkCategory: DrinkCategory = "beer",
   corroborations = 2,
+  mapCandidate?: CommunityPriceMapCandidate,
 ): CommunityPrice {
-  return { venueId, drinkCategory, priceGbp, submittedAt, source: "community", corroborations };
+  return {
+    venueId,
+    drinkCategory,
+    priceGbp,
+    submittedAt,
+    source: "community",
+    corroborations,
+    ...(mapCandidate ? { mapCandidate } : {}),
+  };
 }
 
 function signals(
@@ -235,32 +245,112 @@ describe("mergeCommunityPriceSignals trust gate", () => {
   });
 });
 
+// The best-corroborated candidate is the other half of F1's fix: a lone device
+// cannot PAINT the map (the gate above), and it cannot UN-PAINT it either. The
+// store attaches `mapCandidate` - the category's best-backed in-window figure -
+// and the merge paints that, while the sheet keeps reading the freshest row.
+describe("mergeCommunityPriceSignals map candidate", () => {
+  const baseline: PricedVenueSignal = { hasPintDrops: false, latestContributorPrice: null };
+  // Devices A+B logged £4.20 (corroborated, driving the map); device C then
+  // logged a fresh, disagreeing £9.00 - the sheet row, at one voice.
+  const contradicted = price("v1", 9, NOW - MINUTE, "beer", 1, {
+    priceGbp: 4.2,
+    submittedAt: NOW - 2 * MINUTE,
+    corroborations: 2,
+  });
+
+  it("keeps the corroborated figure when a lone fresh disagreement arrives", () => {
+    const merged = merge(signals([["v1", baseline]]), [["v1", contradicted]]);
+    // Still £4.20 - C's £9.00 is one uncorroborated voice, and it must neither
+    // take the map nor drop the venue back to the scraped baseline.
+    expect(merged.get("v1")?.latestContributorPrice).toBe(4.2);
+    expect(merged.get("v1")?.latestContributorAt).toBe(NOW - 2 * MINUTE);
+  });
+
+  it("shows the freshest row on the sheet, awaiting confirmation, while the map paints the corroborated one", () => {
+    // The split IS the design: sheet freshest-wins and honest about standing,
+    // map best-corroborated. Both facts ride on the same row.
+    expect(freshestCommunityPrice([contradicted])?.priceGbp).toBe(9);
+    expect(communityTrustNote(contradicted, NOW)).toMatch(/awaiting confirmation/i);
+    const merged = merge(signals([["v1", baseline]]), [["v1", contradicted]]);
+    expect(merged.get("v1")?.latestContributorPrice).toBe(4.2);
+  });
+
+  it("hands the map to the contradiction once it reaches the threshold itself", () => {
+    const confirmed = price("v1", 9, NOW - MINUTE, "beer", 2, {
+      priceGbp: 9,
+      submittedAt: NOW - MINUTE,
+      corroborations: 2,
+    });
+    const merged = merge(signals([["v1", baseline]]), [["v1", confirmed]]);
+    expect(merged.get("v1")?.latestContributorPrice).toBe(9);
+  });
+
+  it("cedes the map when the best-corroborated candidate has aged out", () => {
+    const input = signals([["v1", baseline]]);
+    const stale = price("v1", 9, NOW - MINUTE, "beer", 1, {
+      priceGbp: 4.2,
+      submittedAt: NOW - 31 * DAY,
+      corroborations: 2,
+    });
+    // Nothing merged: the candidate fails the age gate and the fresh sheet row
+    // never was the map's business, so the scraped baseline stands.
+    expect(merge(input, [["v1", stale]])).toBe(input);
+  });
+
+  it("still yields to a Pint Drop newer than the candidate", () => {
+    const withDrop: PricedVenueSignal = {
+      hasPintDrops: true,
+      latestContributorPrice: 5.5,
+      latestContributorAt: NOW,
+    };
+    const merged = merge(signals([["v1", withDrop]]), [["v1", contradicted]]);
+    expect(merged.get("v1")?.latestContributorPrice).toBe(5.5);
+  });
+});
+
 // The sheet is the other half of the policy: gated prices still SHOW, they just
 // say where they stand. If this copy ever goes empty for a gated price the pub
 // page would silently imply a restamp that never happened.
 describe("communityTrustNote", () => {
+  const beer = { drinkCategory: "beer" as const };
+
   it("says nothing when the price is corroborated and current", () => {
-    expect(communityTrustNote({ corroborations: 2, submittedAt: NOW - MINUTE }, NOW)).toBe("");
+    expect(communityTrustNote({ ...beer, corroborations: 2, submittedAt: NOW - MINUTE }, NOW)).toBe(
+      "",
+    );
   });
 
   it("explains a lone report is awaiting confirmation", () => {
-    expect(communityTrustNote({ corroborations: 1, submittedAt: NOW - MINUTE }, NOW)).toMatch(
-      /awaiting confirmation/i,
-    );
+    expect(
+      communityTrustNote({ ...beer, corroborations: 1, submittedAt: NOW - MINUTE }, NOW),
+    ).toMatch(/awaiting confirmation/i);
   });
 
   it("explains an aged-out price has handed the map back to the record", () => {
-    expect(communityTrustNote({ corroborations: 5, submittedAt: NOW - 31 * DAY }, NOW)).toMatch(
-      /30 days/i,
-    );
+    expect(
+      communityTrustNote({ ...beer, corroborations: 5, submittedAt: NOW - 31 * DAY }, NOW),
+    ).toMatch(/30 days/i);
   });
 
   it("leads with age when a price is both stale and uncorroborated", () => {
     // Age is the more useful fact: "confirm it" is not the advice for a price
     // that would age out again anyway.
-    expect(communityTrustNote({ corroborations: 1, submittedAt: NOW - 31 * DAY }, NOW)).toMatch(
-      /30 days/i,
-    );
+    expect(
+      communityTrustNote({ ...beer, corroborations: 1, submittedAt: NOW - 31 * DAY }, NOW),
+    ).toMatch(/30 days/i);
+  });
+
+  it("never promises the map to a drink the map does not price", () => {
+    // Pins and list rows are pint surfaces; a wine or cocktail row must state
+    // its standing without implying any amount of confirmation moves a pin.
+    const wine = { drinkCategory: "wine" as const, corroborations: 1 };
+    const waiting = communityTrustNote({ ...wine, submittedAt: NOW - MINUTE }, NOW);
+    expect(waiting).toMatch(/awaiting confirmation/i);
+    expect(waiting).not.toMatch(/map/i);
+    const aged = communityTrustNote({ ...wine, submittedAt: NOW - 31 * DAY }, NOW);
+    expect(aged).toMatch(/30 days/i);
+    expect(aged).not.toMatch(/map/i);
   });
 });
 

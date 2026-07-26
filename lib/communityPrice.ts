@@ -46,6 +46,23 @@ export const SUBMITTABLE_DRINK_CATEGORIES: readonly DrinkCategory[] = [
 /** The default category the submit surface opens on - a pub is a pint first. */
 export const DEFAULT_SUBMIT_CATEGORY: DrinkCategory = "beer";
 
+/**
+ * The MAP's candidate figure for a drink category: the best-corroborated
+ * in-window report, which is not necessarily the freshest one. The sheet shows
+ * the freshest row; the map paints this one, so a lone fresh disagreement can
+ * neither repaint the map nor un-paint an already-corroborated figure - only a
+ * contradiction that itself reaches the threshold takes the map over. Derived
+ * on the store's read path from the same per-(venue, category, actor) rows as
+ * `corroborations`; never stored, never client-supplied.
+ */
+export type CommunityPriceMapCandidate = {
+  priceGbp: number;
+  /** Epoch ms of the candidate cluster's freshest agreeing report. */
+  submittedAt: number;
+  /** Independent submitters backing the candidate figure. */
+  corroborations: number;
+};
+
 /** One community-submitted price observation, as stored and as returned. */
 export type CommunityPrice = {
   venueId: string;
@@ -63,6 +80,13 @@ export type CommunityPrice = {
    * reading: an unknown-provenance figure has not earned the map).
    */
   corroborations?: number;
+  /**
+   * The category's best-corroborated in-window figure, riding alongside the
+   * freshest (sheet) row this object is. Absent when the category has no
+   * in-window report at all - the cautious reading falls back to the row
+   * itself, which the age gate then refuses anyway.
+   */
+  mapCandidate?: CommunityPriceMapCandidate;
 };
 
 /** The normalised, trusted shape a validated submission becomes. */
@@ -251,19 +275,85 @@ export function drivesMap(
 }
 
 /**
+ * What the map would actually paint for this category: the best-corroborated
+ * in-window figure when the store attached one, else the row itself (the
+ * cautious fallback - a row with no candidate has no in-window backing, so the
+ * age gate refuses it downstream). Resolving here, in the one vocabulary, is
+ * what stops a lone fresh disagreement un-painting a corroborated price: the
+ * sheet row and the map figure are allowed to differ, and every map-side
+ * consumer must ask for the candidate rather than trusting the sheet row.
+ */
+export function mapCandidateOf(price: CommunityPrice): CommunityPrice {
+  const candidate = price.mapCandidate;
+  if (!candidate) return price;
+  return {
+    venueId: price.venueId,
+    drinkCategory: price.drinkCategory,
+    priceGbp: candidate.priceGbp,
+    submittedAt: candidate.submittedAt,
+    source: "community",
+    corroborations: candidate.corroborations,
+  };
+}
+
+/**
+ * Is THIS figure the one painting the map right now? Stricter than `drivesMap`
+ * on purpose - it is the receipt's question, and the receipt must never claim
+ * map presence the figure does not have:
+ *
+ *   - only beer can restamp (pins and list rows are pint-priced surfaces);
+ *   - the figure must BE the category's map candidate, not merely corroborated
+ *     (a corroborated £4.20 stays on the map while your £9.00 waits);
+ *   - the candidate must pass both map gates; and
+ *   - a Pint Drop we know is newer outranks it in the merge, so it outranks
+ *     the claim here too. An unknown drop age reads as "no newer drop", the
+ *     same reading mergeCommunityPriceSignals takes.
+ */
+export function paintsMap(
+  price: CommunityPrice,
+  pintDropAt?: number | null,
+  now: number = Date.now(),
+): boolean {
+  if (price.drinkCategory !== "beer") return false;
+  const candidate = mapCandidateOf(price);
+  if (pennies(candidate.priceGbp) !== pennies(price.priceGbp)) return false;
+  if (!drivesMap(candidate, now)) return false;
+  if (typeof pintDropAt === "number" && pintDropAt > candidate.submittedAt) return false;
+  return true;
+}
+
+/**
+ * The pre-submit promise about a category's REACH, kept per category so the
+ * note can never promise the map to a drink the map does not price: pins, list
+ * rows and cheapest buckets are pint surfaces, so only beer ever restamps.
+ */
+export function communityReachNote(category: DrinkCategory): string {
+  return category === "beer"
+    ? "It moves the map once a second drinker logs the same."
+    : "The map prices pints, so it stays on this pub's page.";
+}
+
+/**
  * The sheet's honest one-liner about a price that is showing but not driving
- * the map, or "" when it is driving it and needs no explanation. Sentence case
- * per the caps-are-stamps rule (DESIGN.md) - this is prose, not a stamp.
+ * the map, or "" when it needs no explanation. Sentence case per the
+ * caps-are-stamps rule (DESIGN.md) - this is prose, not a stamp. Per-category
+ * for the same honesty reason as `communityReachNote`: a wine or cocktail row
+ * must not imply a map move that no amount of confirmation can deliver.
  */
 export function communityTrustNote(
-  price: Pick<CommunityPrice, "corroborations" | "submittedAt">,
+  price: Pick<CommunityPrice, "corroborations" | "submittedAt" | "drinkCategory">,
   now: number = Date.now(),
 ): string {
+  const pint = price.drinkCategory === "beer";
   if (!isWithinMaxAge(price, now)) {
-    return "Over 30 days old, so the map is back on the price on record.";
+    return pint
+      ? "Over 30 days old, so the map is back on the price on record."
+      : "Over 30 days old - a record of that night, not tonight's price.";
   }
   if (!isCorroborated(price)) {
-    return "Awaiting confirmation - it moves the map once someone else logs the same.";
+    return pint
+      ? "Awaiting confirmation - it moves the map once someone else logs the same."
+      : "Awaiting confirmation - a second report backs it up.";
   }
   return "";
 }

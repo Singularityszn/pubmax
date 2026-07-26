@@ -2008,6 +2008,7 @@ export default function PubMap({
         // price. The community submission gets its own dated row alongside it.
         // Only the pins/list - which can show one number - take the merged one.
         latestContributorPrice={dropSignals.get(selectedVenue.id)?.latestContributorPrice}
+        latestPintDropAt={dropSignals.get(selectedVenue.id)?.latestContributorAt}
         onToggleStop={toggleBuiltStop}
         onSelectVenue={selectVenue}
         onAcceptStop1={flags.intentWrite ? acceptStop1 : undefined}

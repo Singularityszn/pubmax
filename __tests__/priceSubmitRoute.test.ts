@@ -44,6 +44,7 @@ type PriceBody = {
     source: string;
     submittedAt: number;
     corroborations?: number;
+    mapCandidate?: { priceGbp: number; submittedAt: number; corroborations: number };
   };
 };
 
@@ -223,17 +224,29 @@ describe("POST /api/price-submit corroboration", () => {
     return ((await res.json()) as PriceBody).price;
   }
 
+  // A REAL venue id per case: the route checks slim-index membership before
+  // anything else, so a made-up id would 400 and never exercise the count.
+  // Drawn from the far end of the index so these can never collide with the
+  // cross-venue rate-limit case above, which consumes the first 31 ids.
+  async function realVenueId(offset: number): Promise<string> {
+    const ids = [...(await getVenueIndex()).keys()];
+    expect(ids.length).toBeGreaterThan(31 + offset);
+    return ids[ids.length - 1 - offset];
+  }
+
   it("answers a first report with one voice - the tap landed, the map did not move", async () => {
+    const venueId = await realVenueId(0);
     const price = await priceOf(
-      await POST(postAs("1.1.1.1", { venueId: "route-c1", drinkCategory: "beer", priceGbp: 4.2 })),
+      await POST(postAs("1.1.1.1", { venueId, drinkCategory: "beer", priceGbp: 4.2 })),
     );
     expect(price?.corroborations).toBe(1);
   });
 
   it("answers the second independent agreeing report with two", async () => {
-    await POST(postAs("1.1.1.1", { venueId: "route-c2", drinkCategory: "beer", priceGbp: 4.2 }));
+    const venueId = await realVenueId(1);
+    await POST(postAs("1.1.1.1", { venueId, drinkCategory: "beer", priceGbp: 4.2 }));
     const price = await priceOf(
-      await POST(postAs("2.2.2.2", { venueId: "route-c2", drinkCategory: "beer", priceGbp: 4.5 })),
+      await POST(postAs("2.2.2.2", { venueId, drinkCategory: "beer", priceGbp: 4.5 })),
     );
     // The response is the submitter's own figure, now backed by two devices.
     expect(price?.priceGbp).toBe(4.5);
@@ -241,26 +254,29 @@ describe("POST /api/price-submit corroboration", () => {
   });
 
   it("keeps one voice when the same device logs again from the same address", async () => {
-    await POST(postAs("3.3.3.3", { venueId: "route-c3", drinkCategory: "beer", priceGbp: 4.2 }));
+    const venueId = await realVenueId(2);
+    await POST(postAs("3.3.3.3", { venueId, drinkCategory: "beer", priceGbp: 4.2 }));
     const price = await priceOf(
-      await POST(postAs("3.3.3.3", { venueId: "route-c3", drinkCategory: "beer", priceGbp: 4.3 })),
+      await POST(postAs("3.3.3.3", { venueId, drinkCategory: "beer", priceGbp: 4.3 })),
     );
     expect(price?.corroborations).toBe(1);
   });
 
   it("keeps one voice when a second device contradicts rather than agrees", async () => {
-    await POST(postAs("4.4.4.4", { venueId: "route-c4", drinkCategory: "beer", priceGbp: 4.2 }));
+    const venueId = await realVenueId(3);
+    await POST(postAs("4.4.4.4", { venueId, drinkCategory: "beer", priceGbp: 4.2 }));
     const price = await priceOf(
-      await POST(postAs("5.5.5.5", { venueId: "route-c4", drinkCategory: "beer", priceGbp: 7.5 })),
+      await POST(postAs("5.5.5.5", { venueId, drinkCategory: "beer", priceGbp: 7.5 })),
     );
     expect(price?.corroborations).toBe(1);
   });
 
   it("refuses a client-supplied corroboration count outright", async () => {
+    const venueId = await realVenueId(4);
     const price = await priceOf(
       await POST(
         postAs("6.6.6.6", {
-          venueId: "route-c5",
+          venueId,
           drinkCategory: "beer",
           priceGbp: 4.2,
           corroborations: 99,
@@ -273,12 +289,44 @@ describe("POST /api/price-submit corroboration", () => {
   });
 
   it("states the count on the read path too, so a reload agrees with the tap", async () => {
-    await POST(postAs("7.7.7.7", { venueId: "route-c6", drinkCategory: "beer", priceGbp: 4.2 }));
-    await POST(postAs("8.8.8.8", { venueId: "route-c6", drinkCategory: "beer", priceGbp: 4.2 }));
+    const venueId = await realVenueId(5);
+    await POST(postAs("7.7.7.7", { venueId, drinkCategory: "beer", priceGbp: 4.2 }));
+    await POST(postAs("8.8.8.8", { venueId, drinkCategory: "beer", priceGbp: 4.2 }));
 
-    const data = (await (await GET(get("?venueId=route-c6"))).json()) as {
+    const data = (await (await GET(get(`?venueId=${venueId}`))).json()) as {
       prices: Array<{ corroborations?: number }>;
     };
     expect(data.prices[0]?.corroborations).toBe(2);
+  });
+
+  it("keeps the corroborated figure as the map candidate when a third device disagrees", async () => {
+    // Devices A and B agree on £4.20 (driving the map); C logs a fresh £9.00.
+    const venueId = await realVenueId(6);
+    await POST(postAs("9.9.9.9", { venueId, drinkCategory: "beer", priceGbp: 4.2 }));
+    await POST(postAs("10.10.10.10", { venueId, drinkCategory: "beer", priceGbp: 4.2 }));
+    const cPrice = await priceOf(
+      await POST(postAs("11.11.11.11", { venueId, drinkCategory: "beer", priceGbp: 9 })),
+    );
+
+    // C's receipt figure is their own £9.00 at one voice - but the candidate
+    // that decides the map is still the corroborated £4.20, so a lone
+    // disagreement can neither repaint the map nor un-paint it.
+    expect(cPrice?.priceGbp).toBe(9);
+    expect(cPrice?.corroborations).toBe(1);
+    expect(cPrice?.mapCandidate?.priceGbp).toBe(4.2);
+    expect(cPrice?.mapCandidate?.corroborations).toBe(2);
+
+    // The read path agrees: sheet row freshest-wins, candidate best-backed.
+    const data = (await (await GET(get(`?venueId=${venueId}`))).json()) as {
+      prices: Array<{
+        priceGbp: number;
+        corroborations?: number;
+        mapCandidate?: { priceGbp: number; corroborations: number };
+      }>;
+    };
+    expect(data.prices[0]?.priceGbp).toBe(9);
+    expect(data.prices[0]?.corroborations).toBe(1);
+    expect(data.prices[0]?.mapCandidate?.priceGbp).toBe(4.2);
+    expect(data.prices[0]?.mapCandidate?.corroborations).toBe(2);
   });
 });

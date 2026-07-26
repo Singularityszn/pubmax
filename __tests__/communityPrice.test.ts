@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   agreesWithinTolerance,
+  communityReachNote,
   communityStampLabel,
   COMMUNITY_PRICE_CORROBORATION_THRESHOLD,
   COMMUNITY_PRICE_MAX_AGE_MS,
@@ -11,9 +12,12 @@ import {
   formatPriceDay,
   isCorroborated,
   isWithinMaxAge,
+  mapCandidateOf,
+  paintsMap,
   submitCategoryLabel,
   SUBMITTABLE_DRINK_CATEGORIES,
   validateCommunityPrice,
+  type CommunityPrice,
 } from "@/lib/communityPrice";
 
 // The shared trust boundary: the submit UI and /api/price-submit run THIS
@@ -192,5 +196,99 @@ describe("community price map gates", () => {
     expect(drivesMap({ corroborations: 2, submittedAt: now }, now)).toBe(true);
     expect(drivesMap({ corroborations: 1, submittedAt: now }, now)).toBe(false);
     expect(drivesMap({ corroborations: 9, submittedAt: now - 31 * 86_400_000 }, now)).toBe(false);
+  });
+});
+
+describe("mapCandidateOf", () => {
+  const row: CommunityPrice = {
+    venueId: "v1",
+    drinkCategory: "beer",
+    priceGbp: 9,
+    submittedAt: 5_000,
+    source: "community",
+    corroborations: 1,
+    mapCandidate: { priceGbp: 4.2, submittedAt: 3_000, corroborations: 2 },
+  };
+
+  it("resolves the candidate as a full price the map gates can read", () => {
+    expect(mapCandidateOf(row)).toEqual({
+      venueId: "v1",
+      drinkCategory: "beer",
+      priceGbp: 4.2,
+      submittedAt: 3_000,
+      source: "community",
+      corroborations: 2,
+    });
+  });
+
+  it("falls back to the row itself when no candidate was attached", () => {
+    const bare = { ...row, mapCandidate: undefined };
+    // Identity: the cautious fallback claims exactly the row's own trust.
+    expect(mapCandidateOf(bare)).toBe(bare);
+  });
+});
+
+// The receipt's stricter question: not "could a figure like this drive the
+// map" but "is THIS figure painting it right now". Every refusal here is an
+// overclaim the receipt would otherwise make.
+describe("paintsMap", () => {
+  const now = Date.parse("2026-07-26T20:00:00Z");
+  function beer(overrides: Partial<CommunityPrice> = {}): CommunityPrice {
+    return {
+      venueId: "v1",
+      drinkCategory: "beer",
+      priceGbp: 4.2,
+      submittedAt: now,
+      source: "community",
+      corroborations: 2,
+      ...overrides,
+    };
+  }
+
+  it("claims the map for a corroborated, current pint with no newer drop", () => {
+    expect(paintsMap(beer(), null, now)).toBe(true);
+    expect(paintsMap(beer(), undefined, now)).toBe(true);
+  });
+
+  it("never claims the map for a non-beer figure, however corroborated", () => {
+    // Pins and list rows are pint-priced; no amount of confirmation moves a
+    // pin for a wine or cocktail figure.
+    expect(paintsMap(beer({ drinkCategory: "wine" }), null, now)).toBe(false);
+    expect(paintsMap(beer({ drinkCategory: "cocktail", corroborations: 9 }), null, now)).toBe(
+      false,
+    );
+  });
+
+  it("does not claim the map while a newer Pint Drop outranks the figure", () => {
+    // Same reading as mergeCommunityPriceSignals: only a drop we KNOW is
+    // newer outranks; an unknown drop age yields to the dated submission.
+    expect(paintsMap(beer(), now + 1, now)).toBe(false);
+    expect(paintsMap(beer(), now - 1, now)).toBe(true);
+  });
+
+  it("does not claim the map when another figure is the category's candidate", () => {
+    const contradiction = beer({
+      priceGbp: 9,
+      corroborations: 1,
+      mapCandidate: { priceGbp: 4.2, submittedAt: now - 1, corroborations: 2 },
+    });
+    // The map is painting the corroborated £4.20, not this £9.00.
+    expect(paintsMap(contradiction, null, now)).toBe(false);
+  });
+
+  it("applies both map gates to the figure itself", () => {
+    expect(paintsMap(beer({ corroborations: 1 }), null, now)).toBe(false);
+    expect(paintsMap(beer({ submittedAt: now - 31 * 86_400_000 }), null, now)).toBe(false);
+  });
+});
+
+describe("communityReachNote", () => {
+  it("promises the map only for the pint", () => {
+    expect(communityReachNote("beer")).toMatch(/moves the map/i);
+    for (const category of SUBMITTABLE_DRINK_CATEGORIES) {
+      if (category === "beer") continue;
+      expect(communityReachNote(category)).not.toMatch(/moves the map/i);
+      expect(communityReachNote(category)).toMatch(/pub's page/i);
+    }
   });
 });

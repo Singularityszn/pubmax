@@ -31,9 +31,11 @@
 
 import {
   agreesWithinTolerance,
+  isWithinMaxAge,
   roundToPennies,
   type CommunityPrice,
   type CommunityPriceInput,
+  type CommunityPriceMapCandidate,
 } from "@/lib/communityPrice";
 import { isDrinkCategory, type DrinkCategory } from "@/lib/drinks";
 import {
@@ -159,14 +161,51 @@ function countCorroborations(rows: StoredPrice[], reference: StoredPrice): numbe
 }
 
 /**
+ * The category's MAP candidate: the agreement cluster with the most
+ * independent submitters, restricted to rows still inside the age window, ties
+ * broken by freshness. Every row anchors its own cluster (the set of rows
+ * agreeing with it within the shared tolerance), which mirrors exactly how
+ * `corroborations` is counted for the sheet row - one definition of agreement,
+ * two questions asked of it. This is what stops a lone fresh disagreement
+ * un-painting an already-corroborated figure: the sheet row stays freshest-
+ * wins, but the map follows the best-backed in-window figure until a
+ * contradiction itself reaches the threshold. Null when the category has no
+ * in-window row at all.
+ */
+function bestCorroboratedCandidate(
+  categoryRows: StoredPrice[],
+  now: number,
+): CommunityPriceMapCandidate | null {
+  let best: StoredPrice | null = null;
+  let bestCount = 0;
+  for (const row of categoryRows) {
+    if (!isWithinMaxAge(row, now)) continue;
+    const count = countCorroborations(categoryRows, row);
+    // `>=` on the freshness tie for the same reason as the freshest-wins
+    // reduction below: a same-millisecond tie prefers the later row in the scan.
+    if (
+      !best ||
+      count > bestCount ||
+      (count === bestCount && row.submittedAt >= best.submittedAt)
+    ) {
+      best = row;
+      bestCount = count;
+    }
+  }
+  if (!best) return null;
+  return { priceGbp: best.priceGbp, submittedAt: best.submittedAt, corroborations: bestCount };
+}
+
+/**
  * Reduce raw observations to ONE per drink category - the freshest wins -
  * ordered newest-first, each carrying how many independent submitters agree
- * with it. Shared by both backends so the memory store and the durable store
- * can never disagree about what "the community price" is, or about how much
- * the map should trust it. Actor tokens are counted here and dropped here;
- * they never leave the store (see `published`).
+ * with it plus the category's best-corroborated in-window `mapCandidate`.
+ * Shared by both backends so the memory store and the durable store can never
+ * disagree about what "the community price" is, or about how much the map
+ * should trust it. Actor tokens are counted here and dropped here; they never
+ * leave the store (see `published`).
  */
-function freshestPerCategory(rows: StoredPrice[]): CommunityPrice[] {
+function freshestPerCategory(rows: StoredPrice[], now: number): CommunityPrice[] {
   const byCategory = new Map<DrinkCategory, StoredPrice>();
   for (const row of rows) {
     const held = byCategory.get(row.drinkCategory);
@@ -180,8 +219,16 @@ function freshestPerCategory(rows: StoredPrice[]): CommunityPrice[] {
     // and preferring the later write is the one that matches the contract.
     if (!held || row.submittedAt >= held.submittedAt) byCategory.set(row.drinkCategory, row);
   }
-  return [...byCategory.values()]
-    .map((row) => ({ ...published(row), corroborations: countCorroborations(rows, row) }))
+  return [...byCategory.entries()]
+    .map(([category, row]) => {
+      const categoryRows = rows.filter((r) => r.drinkCategory === category);
+      const candidate = bestCorroboratedCandidate(categoryRows, now);
+      return {
+        ...published(row),
+        corroborations: countCorroborations(categoryRows, row),
+        ...(candidate ? { mapCandidate: candidate } : {}),
+      };
+    })
     .sort((a, b) => b.submittedAt - a.submittedAt);
 }
 
@@ -247,10 +294,10 @@ export const memoryCommunityPriceStore: CommunityPriceStore = {
     return { price: published(stored) };
   },
 
-  async latestForVenue(venueId) {
+  async latestForVenue(venueId, now = Date.now()) {
     const key = cleanVenueId(venueId);
     if (!key) return [];
-    return freshestPerCategory(venues.get(key) ?? []);
+    return freshestPerCategory(venues.get(key) ?? [], now);
   },
 };
 
@@ -288,7 +335,7 @@ function rowsToPrices(rows: unknown, venueId: string): StoredPrice[] {
   return out;
 }
 
-async function selectVenuePrices(venueId: string): Promise<CommunityPrice[]> {
+async function selectVenuePrices(venueId: string, now: number): Promise<CommunityPrice[]> {
   // `actor` is selected ONLY to count independent submitters in
   // freshestPerCategory; it is dropped again by `published` and never crosses
   // the store boundary. Raw tokens stay API-side (migration 0054's RLS note).
@@ -299,7 +346,7 @@ async function selectVenuePrices(venueId: string): Promise<CommunityPrice[]> {
     .order("submitted_at", { ascending: false })
     .limit(VENUE_SCAN_ROWS);
   if (error) throw new Error(error.message);
-  return freshestPerCategory(rowsToPrices(data, venueId));
+  return freshestPerCategory(rowsToPrices(data, venueId), now);
 }
 
 export const supabaseCommunityPriceStore: CommunityPriceStore = {
@@ -345,15 +392,15 @@ export const supabaseCommunityPriceStore: CommunityPriceStore = {
     });
   },
 
-  async latestForVenue(venueId) {
+  async latestForVenue(venueId, now = Date.now()) {
     const key = cleanVenueId(venueId);
     if (!key) return [];
     return guard({
       context: "read",
-      onSchemaMiss: () => memoryCommunityPriceStore.latestForVenue(key),
+      onSchemaMiss: () => memoryCommunityPriceStore.latestForVenue(key, now),
       message: "read failed - returning no community prices",
       onError: () => [],
-      run: () => selectVenuePrices(key),
+      run: () => selectVenuePrices(key, now),
     });
   },
 };
@@ -376,8 +423,11 @@ export function submitCommunityPrice(
 }
 
 /** The freshest community price per drink category at one venue. NEVER throws. */
-export function readCommunityPrices(venueId: string): Promise<CommunityPrice[]> {
-  return communityPriceStore().latestForVenue(venueId);
+export function readCommunityPrices(
+  venueId: string,
+  now: number = Date.now(),
+): Promise<CommunityPrice[]> {
+  return communityPriceStore().latestForVenue(venueId, now);
 }
 
 /** Test-only: clear the in-memory observations between cases. */

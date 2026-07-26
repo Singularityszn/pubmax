@@ -5,6 +5,7 @@ import { useCallback, useMemo, useRef, useState } from "react";
 import {
   validateCommunityPrice,
   type CommunityPrice,
+  type CommunityPriceMapCandidate,
 } from "@/lib/communityPrice";
 import type { DrinkCategory } from "@/lib/drinks";
 
@@ -74,6 +75,31 @@ export function replacePrice(rows: CommunityPrice[], next: CommunityPrice): Comm
   return [next, ...others].sort((a, b) => b.submittedAt - a.submittedAt);
 }
 
+/**
+ * Narrow an untrusted candidate object to one the map may consult. The same
+ * caution as `corroborations` below: a malformed candidate reads as absent,
+ * and an absent candidate falls back to the row itself, which cannot claim
+ * more trust than the row carries.
+ */
+function readMapCandidate(value: unknown): CommunityPriceMapCandidate | undefined {
+  if (!value || typeof value !== "object") return undefined;
+  const candidate = value as Partial<CommunityPriceMapCandidate>;
+  if (typeof candidate.priceGbp !== "number" || !Number.isFinite(candidate.priceGbp)) {
+    return undefined;
+  }
+  if (typeof candidate.submittedAt !== "number" || !Number.isFinite(candidate.submittedAt)) {
+    return undefined;
+  }
+  return {
+    priceGbp: candidate.priceGbp,
+    submittedAt: candidate.submittedAt,
+    corroborations:
+      typeof candidate.corroborations === "number" && Number.isFinite(candidate.corroborations)
+        ? Math.max(1, Math.floor(candidate.corroborations))
+        : 1,
+  };
+}
+
 /** Narrow an untrusted API payload to the prices we can honestly render. */
 function readPrices(value: unknown): CommunityPrice[] {
   if (!value || typeof value !== "object") return [];
@@ -99,6 +125,7 @@ function readPrices(value: unknown): CommunityPrice[] {
         typeof price.corroborations === "number" && Number.isFinite(price.corroborations)
           ? Math.max(1, Math.floor(price.corroborations))
           : 1,
+      mapCandidate: readMapCandidate(price.mapCandidate),
     });
   }
   return out;
@@ -166,19 +193,25 @@ export function useCommunityPrices(): CommunityPricesState {
       if (!parsed.ok) return { ok: false, error: parsed.error };
       const { venueId, drinkCategory, priceGbp } = parsed.value;
 
-      const optimistic: CommunityPrice = {
-        venueId,
-        drinkCategory,
-        priceGbp,
-        submittedAt: Date.now(),
-        source: "community",
-        // Your own report is one voice until the server says otherwise.
-        corroborations: 1,
-      };
+      const submittedAt = Date.now();
       // Snapshot for rollback: exactly what was showing before this tap.
       let previous: CommunityPrice[] | undefined;
       setByVenueId((current) => {
         previous = current.get(venueId);
+        const optimistic: CommunityPrice = {
+          venueId,
+          drinkCategory,
+          priceGbp,
+          submittedAt,
+          source: "community",
+          // Your own report is one voice until the server says otherwise.
+          corroborations: 1,
+          // Keep the category's known map candidate riding along: your lone
+          // tap must not un-paint an already-corroborated figure, not even
+          // for the round-trip until the server's own candidate replaces it.
+          mapCandidate: previous?.find((row) => row.drinkCategory === drinkCategory)
+            ?.mapCandidate,
+        };
         const next = new Map(current);
         next.set(venueId, upsertPrice(previous ?? [], optimistic));
         return next;

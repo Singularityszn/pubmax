@@ -1,4 +1,4 @@
-import { drivesMap, type CommunityPrice } from "@/lib/communityPrice";
+import { drivesMap, mapCandidateOf, type CommunityPrice } from "@/lib/communityPrice";
 import type { VenueSignal } from "./canvas/types";
 
 // The one seam that turns a submitted price into a restamped map.
@@ -48,19 +48,24 @@ export function mergeCommunityPriceSignals<S extends PricedVenueSignal>(
   if (communityPrices.size === 0) return signals;
   let merged: Map<string, S> | null = null;
   for (const [venueId, price] of communityPrices) {
+    // What the map paints is the category's best-corroborated in-window figure
+    // (mapCandidateOf), not the freshest report - so a lone fresh disagreement
+    // can neither repaint the map nor un-paint a corroborated price. The sheet
+    // keeps showing the freshest row for itself, standing note and all.
+    const candidate = mapCandidateOf(price);
     // The trust gate, before anything else: uncorroborated or stale prices
     // never reach a pin, a list row or a cheapest bucket.
-    if (!drivesMap(price, now)) continue;
+    if (!drivesMap(candidate, now)) continue;
     const existing = (merged ?? signals).get(venueId);
     const dropAt = existing?.latestContributorAt;
     // Only step aside for a Pint Drop we KNOW is newer. An unknown drop age
     // yields to the submission, which is the observation we can date.
-    if (typeof dropAt === "number" && dropAt > price.submittedAt) continue;
+    if (typeof dropAt === "number" && dropAt > candidate.submittedAt) continue;
     merged ??= new Map(signals);
     merged.set(venueId, {
       ...(existing ?? ({ hasPintDrops: false, latestContributorPrice: null } as S)),
-      latestContributorPrice: price.priceGbp,
-      latestContributorAt: price.submittedAt,
+      latestContributorPrice: candidate.priceGbp,
+      latestContributorAt: candidate.submittedAt,
     });
   }
   return merged ?? signals;

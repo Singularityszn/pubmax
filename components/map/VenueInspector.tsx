@@ -38,6 +38,9 @@ type VenueInspectorProps = {
   mode: CrawlMode;
   inCrawl: boolean;
   latestContributorPrice: number | null | undefined;
+  /** Epoch ms of the latest Pint Drop, from the unmerged drop signal - see
+   *  VenueOverviewTab, which hands it to the submit receipt. */
+  latestPintDropAt?: number | null;
   onToggleStop: (id: string) => void;
   onSelectVenue?: (id: string) => void;
   /**
@@ -80,6 +83,7 @@ export default function VenueInspector({
   mode,
   inCrawl,
   latestContributorPrice,
+  latestPintDropAt,
   onToggleStop,
   onSelectVenue,
   onAcceptStop1,
@@ -164,6 +168,7 @@ export default function VenueInspector({
         mode={mode}
         inCrawl={inCrawl}
         latestContributorPrice={latestContributorPrice}
+        latestPintDropAt={latestPintDropAt}
         communityPrices={communityPrices}
         onToggleStop={onToggleStop}
         presenceState={presenceState}

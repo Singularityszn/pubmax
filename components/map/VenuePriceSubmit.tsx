@@ -4,8 +4,9 @@ import { useEffect, useMemo, useState } from "react";
 import { Check, Tag } from "lucide-react";
 
 import {
-  drivesMap,
+  communityReachNote,
   formatPriceDay,
+  paintsMap,
   COMMUNITY_PRICE_MAX_GBP,
   DEFAULT_SUBMIT_CATEGORY,
   submitCategoryLabel,
@@ -46,6 +47,13 @@ type VenuePriceSubmitProps = {
   communityPrices: CommunityPricesState;
   /** The venue's price on record, used to lead the quick-tap chips. */
   baselinePriceGbp?: number | null;
+  /**
+   * Epoch ms of the venue's latest Pint Drop, from the SAME unmerged drop
+   * signal mergeCommunityPriceSignals consults - a drop newer than the map
+   * candidate outranks it in the merge, so the receipt must not claim the map
+   * in that case either. Null/undefined reads as "no drop we can date".
+   */
+  latestPintDropAt?: number | null;
 };
 
 /**
@@ -64,6 +72,7 @@ export default function VenuePriceSubmit({
   venueName,
   communityPrices,
   baselinePriceGbp = null,
+  latestPintDropAt = null,
 }: VenuePriceSubmitProps) {
   const [category, setCategory] = useState<DrinkCategory>(DEFAULT_SUBMIT_CATEGORY);
   const [price, setPrice] = useState("");
@@ -216,7 +225,7 @@ export default function VenuePriceSubmit({
               the price block above, so the receipt only has to say where the
               tap landed, and when. */}
           <span className="vpsubStampMeta">
-            {drivesMap(stamped) ? "On the map" : "On this pub’s page"} ·{" "}
+            {paintsMap(stamped, latestPintDropAt) ? "On the map" : "On this pub’s page"} ·{" "}
             {formatPriceDay(stamped.submittedAt)}
           </span>
         </p>
@@ -224,7 +233,7 @@ export default function VenuePriceSubmit({
         <p className="vpsubNote">
           Anyone can log a price. Yours shows on this pub&rsquo;s page straight
           away, dated and badged as community - it never replaces the price on
-          record. It moves the map once a second drinker logs the same. Up to £
+          record. {communityReachNote(category)} Up to £
           {COMMUNITY_PRICE_MAX_GBP} a drink.
         </p>
       )}

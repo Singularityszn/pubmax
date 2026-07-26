@@ -46,6 +46,7 @@ export default function VenueOverviewTab({
   mode,
   inCrawl,
   latestContributorPrice,
+  latestPintDropAt,
   communityPrices,
   onToggleStop,
   presenceState,
@@ -62,6 +63,10 @@ export default function VenueOverviewTab({
   mode: CrawlMode;
   inCrawl: boolean;
   latestContributorPrice: number | null | undefined;
+  /** Epoch ms of the latest Pint Drop (unmerged drop signal) - lets the
+   *  submit receipt refuse to claim the map when a newer drop outranks the
+   *  community figure in mergeCommunityPriceSignals. */
+  latestPintDropAt?: number | null;
   /** Community price layer - the dated submission row plus the submit card. */
   communityPrices: CommunityPricesState;
   onToggleStop: (id: string) => void;
@@ -281,6 +286,7 @@ export default function VenueOverviewTab({
         venueName={venue.name}
         communityPrices={communityPrices}
         baselinePriceGbp={latestContributorPrice ?? venue.cheapestPrice}
+        latestPintDropAt={latestPintDropAt}
       />
       {mode === "build" ? (
         <button
