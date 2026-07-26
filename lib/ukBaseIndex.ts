@@ -1,10 +1,11 @@
 import { promises as fs } from "fs";
 import path from "path";
 
-import { parseShardManifest, type ShardEntry } from "@/lib/slimShards";
+import type { ShardEntry } from "@/lib/slimShards";
 import {
   UK_BASE_MANIFEST_PATH,
   UK_BASE_SHARD_VERSION,
+  parseUkBaseManifest,
   parseUkBaseShardForEntry,
 } from "@/lib/ukBasePubs";
 
@@ -48,9 +49,9 @@ async function readShardIds(shard: ShardEntry): Promise<string[] | null> {
 
 export async function getUkBaseIdIndex(): Promise<UkBaseIdIndexResult> {
   if (cached) return cached;
-  let manifest: ReturnType<typeof parseShardManifest>;
+  let manifest: ReturnType<typeof parseUkBaseManifest>;
   try {
-    manifest = parseShardManifest(
+    manifest = parseUkBaseManifest(
       JSON.parse(await fs.readFile(publicDataPath(UK_BASE_MANIFEST_PATH), "utf8")),
     );
   } catch {

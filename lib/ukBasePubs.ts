@@ -9,7 +9,7 @@
 // as a price-submission target, and nothing else.
 //
 // DELIVERY. scripts/build_uk_base_shards.mjs emits a manifest plus one file per
-// ~28 x ~33 km cell under /data/uk_base/. This module fetches:
+// ~28 x ~17 km cell under /data/uk_base/. This module fetches:
 //   • the manifest once, the first time the camera crosses UK_BASE_MIN_ZOOM;
 //   • a cell body only when the (padded) viewport overlaps its bbox.
 // Nothing here is touched at first paint - a session that never zooms in past
@@ -20,11 +20,19 @@
 // bound. An evicted cell is simply refetched (and the service worker's
 // cache-first `/data/*.json` rule usually answers it from disk).
 
-import { bboxIntersects, type MapBounds, type ShardEntry, type ShardManifest, parseShardManifest } from "@/lib/slimShards";
+import {
+  bboxIntersects,
+  type MapBounds,
+  type ShardEntry,
+  type ShardManifest,
+  parseShardManifest,
+} from "@/lib/slimShards";
 import { offlineCache } from "@/lib/offlineCache";
 
 export const UK_BASE_MANIFEST_PATH = "/data/uk_base/manifest.json";
 export const UK_BASE_SHARD_VERSION = 1;
+const UK_BASE_URL_PREFIX =
+  /^\/data\/uk_base\/(?:packs\/[a-f0-9]{16}\/)?$/;
 
 /**
  * Base ids are salted so they can never collide with a curated `venue-…` id
@@ -120,6 +128,37 @@ export function parseUkBaseShardForEntry(
   return pubs.length === entry.count ? pubs : null;
 }
 
+export function parseUkBaseManifest(value: unknown): ShardManifest | null {
+  if (typeof value !== "object" || value === null) return null;
+  const manifest = value as Record<string, unknown>;
+  if (
+    typeof manifest.urlPrefix !== "string" ||
+    !UK_BASE_URL_PREFIX.test(manifest.urlPrefix) ||
+    !Array.isArray(manifest.shards)
+  ) {
+    return null;
+  }
+  const shards: Record<string, unknown>[] = [];
+  for (const raw of manifest.shards) {
+    if (typeof raw !== "object" || raw === null || "url" in raw) return null;
+    const shard = raw as Record<string, unknown>;
+    if (
+      typeof shard.id !== "string" ||
+      !shard.id ||
+      shard.id.includes("/") ||
+      shard.id.includes("\\") ||
+      shard.id.includes("..")
+    ) {
+      return null;
+    }
+    shards.push({
+      ...shard,
+      url: `${manifest.urlPrefix}${shard.id}.json`,
+    });
+  }
+  return parseShardManifest({ ...manifest, shards });
+}
+
 /**
  * How many cell bodies stay resident. Eight covers a 390x844 viewport and its
  * pan padding several times over at the zoom gate, so ordinary browsing never
@@ -165,7 +204,7 @@ const MANIFEST_OFFLINE_KEY = "uk_base_manifest:v1";
  *
  * Offline: the MANIFEST is mirrored to IndexedDB because without it no cell can
  * be addressed at all. Cell bodies are not mirrored - public/sw.js already
- * serves `/data/*.json` cache-first, and duplicating 2.7 MB of pins into
+ * serves `/data/*.json` cache-first, and duplicating 3.1 MB of pins into
  * IndexedDB to re-paint a layer that carries no prices is not worth the quota.
  */
 export function createUkBaseLoader(): UkBaseLoader {
@@ -179,11 +218,14 @@ export function createUkBaseLoader(): UkBaseLoader {
     try {
       const response = await fetch(UK_BASE_MANIFEST_PATH);
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
-      const parsed = parseShardManifest(await response.json());
-      if (parsed) void offlineCache.set(MANIFEST_OFFLINE_KEY, parsed);
+      const payload: unknown = await response.json();
+      const parsed = parseUkBaseManifest(payload);
+      if (parsed) void offlineCache.set(MANIFEST_OFFLINE_KEY, payload);
       return parsed;
     } catch {
-      return parseShardManifest(await offlineCache.get<unknown>(MANIFEST_OFFLINE_KEY));
+      return parseUkBaseManifest(
+        await offlineCache.get<unknown>(MANIFEST_OFFLINE_KEY),
+      );
     }
   }
 

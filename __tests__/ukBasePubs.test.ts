@@ -8,23 +8,24 @@ import {
   createUkBaseLoader,
   isUkBaseId,
   padBounds,
+  parseUkBaseManifest,
   parseUkBaseShard,
   ukBasePubsForDrawableVenues,
   ukBaseIdFor,
   ukBasePubFromFeature,
   ukBasePubsToGeoJSON,
 } from "@/lib/ukBasePubs";
-import type { ShardManifest } from "@/lib/slimShards";
 
 // A synthetic three-cell grid. The cells are disjoint so "which cells does this
 // viewport need" is exact, and one of them is deliberately far away so an
 // eviction can be observed without ambiguity.
-const MANIFEST: ShardManifest = {
+const MANIFEST = {
   version: 1,
+  urlPrefix: "/data/uk_base/",
   shards: [
-    { id: "a", core: false, url: "/data/uk_base/a.json", count: 2, bbox: [-0.2, 51.4, -0.1, 51.5] },
-    { id: "b", core: false, url: "/data/uk_base/b.json", count: 1, bbox: [-0.1, 51.4, 0.0, 51.5] },
-    { id: "far", core: false, url: "/data/uk_base/far.json", count: 1, bbox: [-2.3, 53.4, -2.2, 53.5] },
+    { id: "a", core: false, count: 2, bbox: [-0.2, 51.4, -0.1, 51.5] },
+    { id: "b", core: false, count: 1, bbox: [-0.1, 51.4, 0.0, 51.5] },
+    { id: "far", core: false, count: 1, bbox: [-2.3, 53.4, -2.2, 53.5] },
   ],
 };
 
@@ -105,6 +106,31 @@ describe("parseUkBaseShard", () => {
     expect(parseUkBaseShard(null)).toEqual([]);
     expect(parseUkBaseShard({ pubs: "nope" })).toEqual([]);
     expect(parseUkBaseShard([])).toEqual([]);
+  });
+});
+
+describe("parseUkBaseManifest", () => {
+  it("expands compact shard entries before shared manifest validation", () => {
+    expect(parseUkBaseManifest(MANIFEST)?.shards.map((shard) => shard.url)).toEqual([
+      "/data/uk_base/a.json",
+      "/data/uk_base/b.json",
+      "/data/uk_base/far.json",
+    ]);
+  });
+
+  it.each([
+    { ...MANIFEST, urlPrefix: undefined },
+    { ...MANIFEST, urlPrefix: "/data/venues_slim/" },
+    {
+      ...MANIFEST,
+      shards: [{ ...MANIFEST.shards[0], url: "/data/uk_base/wrong.json" }],
+    },
+    {
+      ...MANIFEST,
+      shards: [{ ...MANIFEST.shards[0], id: "../escape" }],
+    },
+  ])("rejects a compact manifest without safe derivable URLs", (manifest) => {
+    expect(parseUkBaseManifest(manifest)).toBeNull();
   });
 });
 

@@ -12,7 +12,7 @@ Shard JSON is generated. This README is hand-written and survives rebuilds.
 ## What is here
 
 ```
-manifest.json                         # active { version, grid, generatedFrom, shards[] }
+manifest.json                         # active { version, urlPrefix, grid, generatedFrom, shards[] }
 packs/<generation>/<lat>_<lon>.json  # immutable cell: { version, cell, pubs[] }
 ```
 
@@ -28,10 +28,10 @@ the pub's stable `venue-uk-*` id before removing its base row, or existing
 community prices become unreachable. That identity work belongs in the future
 promotion flow, not in this generator speculatively.
 
-`manifest.json` parses as the same `ShardManifest`
-[`lib/slimShards.ts`](../../../lib/slimShards.ts) already defines, so the client
-reuses that module's bbox geometry rather than shipping a second copy of the
-grid.
+`manifest.json` stores the immutable pack URL prefix once. The UK decoder
+expands each cell id to a URL before passing it to the same `ShardManifest`
+parser [`lib/slimShards.ts`](../../../lib/slimShards.ts) already defines, so
+the curated slim manifest keeps its required per-shard URLs and validation.
 
 Each build installs a new immutable generation, then atomically replaces only
 `manifest.json`. A crash before that final rename leaves the previous manifest
@@ -51,8 +51,9 @@ generation is removed so the published tree contains exactly one pack.
 Enforced by both the builder and `scripts/validate-data.mjs`, which also checks
 that every pub sits inside its own cell's bbox (a pub outside it would be
 invisible rather than loudly broken), that ids are unique, and that no base id
-collides with a `venues_slim` id. Current counts and sizes print from
-`npm run build:uk-base`.
+collides with a `venues_slim` id. Current build: 605 cells, 38,215 pubs, 43.7 KB
+manifest, 3,126.4 KB of shard bodies, and a 134.4 KB fattest cell containing
+1,501 pubs.
 
 ## Licence / attribution
 

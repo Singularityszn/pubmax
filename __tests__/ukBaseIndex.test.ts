@@ -4,19 +4,29 @@ import path from "path";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { getUkBaseIdIndex, resetUkBaseIndexForTests } from "@/lib/ukBaseIndex";
-import { UK_BASE_ID_PREFIX, ukBaseIdFor } from "@/lib/ukBasePubs";
+import {
+  UK_BASE_ID_PREFIX,
+  parseUkBaseManifest,
+  ukBaseIdFor,
+} from "@/lib/ukBasePubs";
 
 // The server-side membership index for `venue-uk-…` ids — the thing that lets
 // /api/price-submit accept a real base pub without accepting a fabricated id
 // on shape alone. Asserted against the committed shard pack, not fixtures, so
 // a pack refresh that broke the decode would fail here first.
 
-async function firstCommittedOsmRef(): Promise<string> {
+async function committedManifest() {
   const manifestRaw = await fs.readFile(
     path.join(process.cwd(), "public", "data", "uk_base", "manifest.json"),
     "utf8",
   );
-  const manifest = JSON.parse(manifestRaw) as { shards: Array<{ url: string }> };
+  const manifest = parseUkBaseManifest(JSON.parse(manifestRaw));
+  if (!manifest) throw new Error("Committed UK base manifest is malformed");
+  return manifest;
+}
+
+async function firstCommittedOsmRef(): Promise<string> {
+  const manifest = await committedManifest();
   const shardRaw = await fs.readFile(
     path.join(process.cwd(), "public", manifest.shards[0].url.replace(/^\//, "")),
     "utf8",
@@ -35,9 +45,10 @@ async function withMutatedFirstShard(
     "uk_base",
     "manifest.json",
   );
-  const manifest = JSON.parse(await fs.readFile(manifestPath, "utf8")) as {
-    shards: Array<{ url: string }>;
-  };
+  const manifest = parseUkBaseManifest(
+    JSON.parse(await fs.readFile(manifestPath, "utf8")),
+  );
+  if (!manifest) throw new Error("Committed UK base manifest is malformed");
   const shardPath = path.join(
     process.cwd(),
     "public",
@@ -107,9 +118,10 @@ describe("getUkBaseIdIndex", () => {
       "uk_base",
       "manifest.json",
     );
-    const manifest = JSON.parse(await fs.readFile(manifestPath, "utf8")) as {
-      shards: Array<{ url: string }>;
-    };
+    const manifest = parseUkBaseManifest(
+      JSON.parse(await fs.readFile(manifestPath, "utf8")),
+    );
+    if (!manifest) throw new Error("Committed UK base manifest is malformed");
     const failedPath = path.join(
       process.cwd(),
       "public",

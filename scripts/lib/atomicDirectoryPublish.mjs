@@ -37,12 +37,31 @@ export async function publishStagedDirectory({
     throw new Error("Staged manifest is malformed");
   }
 
+  const compactManifest = typeof manifest.urlPrefix === "string";
+  if (compactManifest && manifest.urlPrefix !== "/data/uk_base/") {
+    throw new Error(`Invalid staged shard URL prefix: ${manifest.urlPrefix}`);
+  }
   const shardFiles = manifest.shards.map((shard) => {
+    if (compactManifest && Object.hasOwn(shard ?? {}, "url")) {
+      throw new Error("Compact staged manifest must not repeat shard URLs");
+    }
+    const shardId = typeof shard?.id === "string" ? shard.id : "";
+    if (
+      compactManifest &&
+      (!shardId ||
+        shardId.includes("/") ||
+        shardId.includes("\\") ||
+        shardId.includes(".."))
+    ) {
+      throw new Error(`Invalid staged shard id: ${shardId}`);
+    }
     const url = typeof shard?.url === "string" ? shard.url : "";
-    const file = url.replace(/^\/data\/uk_base\//, "");
+    const file = compactManifest
+      ? `${shardId}.json`
+      : url.replace(/^\/data\/uk_base\//, "");
     if (
       !file ||
-      file === url ||
+      (!compactManifest && file === url) ||
       path.isAbsolute(file) ||
       file.includes("..") ||
       path.dirname(file) !== "."
@@ -76,13 +95,15 @@ export async function publishStagedDirectory({
   const packRoot = path.join(targetDir, "packs");
   const generationDir = path.join(packRoot, generation);
   const publicPrefix = `/data/uk_base/packs/${generation}/`;
-  const nextManifest = {
-    ...manifest,
-    shards: manifest.shards.map((shard, index) => ({
-      ...shard,
-      url: `${publicPrefix}${shardFiles[index]}`,
-    })),
-  };
+  const nextManifest = compactManifest
+    ? { ...manifest, urlPrefix: publicPrefix }
+    : {
+        ...manifest,
+        shards: manifest.shards.map((shard, index) => ({
+          ...shard,
+          url: `${publicPrefix}${shardFiles[index]}`,
+        })),
+      };
   const nextManifestText = JSON.stringify(nextManifest);
   const manifestBytes = Buffer.byteLength(nextManifestText);
   const totalBytes = manifestBytes + shardBytes;

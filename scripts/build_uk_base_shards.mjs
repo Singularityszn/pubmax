@@ -29,7 +29,6 @@ import {
   cellIndexFor,
   cellKey,
   cellBbox,
-  shardUrlForCell,
 } from "./lib/ukBaseGrid.mjs";
 import { publishStagedDirectory } from "./lib/atomicDirectoryPublish.mjs";
 import { cityVenueIdForPub } from "./build_city_slim_index.mjs";
@@ -251,7 +250,6 @@ async function main() {
       shards.push({
         id: key,
         core: false,
-        url: shardUrlForCell(key),
         count: cell.rows.length,
         bbox: cellBbox(cell.latIndex, cell.lonIndex),
       });
@@ -259,6 +257,7 @@ async function main() {
 
     const manifestBody = JSON.stringify({
       version: UK_BASE_SHARD_VERSION,
+      urlPrefix: `/data/${SHARD_DIR_NAME}/`,
       grid: UK_BASE_GRID,
       generatedFrom: { fetchedAt: pack.fetchedAt ?? null, count: pack.count ?? pubs.length },
       shards,

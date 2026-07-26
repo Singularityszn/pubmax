@@ -4,7 +4,7 @@
 // so this grid can be re-cut without shipping a second copy of it to the phone.
 //
 // Cell size is chosen against the render gate, not the data: at UK_BASE_MIN_ZOOM
-// a 390x844 phone viewport is roughly 7 x 16 km, so a ~28 x ~33 km cell means a
+// a 390x844 phone viewport is roughly 7 x 16 km, so a ~28 x ~17 km cell means a
 // pan usually needs one new file and never a wide fan-out, while keeping the
 // cell count (and therefore the manifest) small enough to fetch in one go.
 
@@ -15,9 +15,9 @@ export const UK_BASE_SHARD_VERSION = 1;
 // so cell boundaries are stable numbers and no pub lands on a negative index.
 export const UK_BASE_GRID = {
   originLat: 49.75,
-  originLon: -9.1,
+  originLon: -8.75,
   latStep: 0.25,
-  lonStep: 0.5,
+  lonStep: 0.25,
 };
 
 export function cellIndexFor(lat, lon) {
@@ -44,8 +44,4 @@ export function cellBbox(latIndex, lonIndex) {
     Number((minLon + UK_BASE_GRID.lonStep).toFixed(4)),
     Number((minLat + UK_BASE_GRID.latStep).toFixed(4)),
   ];
-}
-
-export function shardUrlForCell(key) {
-  return `/data/${SHARD_DIR_NAME}/${key}.json`;
 }

@@ -785,6 +785,12 @@ function validateUkBaseShards() {
   }
   const shards = Array.isArray(manifest.shards) ? manifest.shards : [];
   if (shards.length === 0) errs.add("manifest lists no shards");
+  const urlPrefix =
+    typeof manifest.urlPrefix === "string" &&
+    /^\/data\/uk_base\/packs\/[a-f0-9]{16}\/$/.test(manifest.urlPrefix)
+      ? manifest.urlPrefix
+      : "";
+  if (!urlPrefix) errs.add("manifest has no usable shard URL prefix");
 
   const manifestBytes = Buffer.byteLength(manifestRaw);
   if (manifestBytes >= UK_BASE_MANIFEST_BUDGET_BYTES) {
@@ -824,9 +830,21 @@ function validateUkBaseShards() {
   let pubCount = 0;
 
   for (const shard of shards) {
-    const file = String(shard.url ?? "").replace(/^\/data\/uk_base\//, "");
+    if (Object.hasOwn(shard ?? {}, "url")) {
+      errs.add(`shard "${shard?.id}": repeats a derivable URL`);
+    }
+    const shardId =
+      typeof shard?.id === "string" &&
+      shard.id.length > 0 &&
+      !shard.id.includes("/") &&
+      !shard.id.includes("\\") &&
+      !shard.id.includes("..")
+        ? shard.id
+        : "";
+    if (!shardId) errs.add(`shard "${shard?.id}": invalid id`);
+    const file = `${urlPrefix}${shardId}.json`.replace(/^\/data\/uk_base\//, "");
     if (!onDisk.delete(file)) {
-      errs.add(`shard "${shard.id}": body ${file} is missing`);
+      errs.add(`shard "${shard?.id}": body ${file} is missing`);
       continue;
     }
     let raw;

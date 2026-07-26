@@ -60,7 +60,7 @@ describe("publishStagedDirectory", () => {
     const packRoot = path.join(process.cwd(), "public", "data", "uk_base");
     const manifest = JSON.parse(
       await fs.readFile(path.join(packRoot, "manifest.json"), "utf8"),
-    ) as { shards: Array<{ url: string }> };
+    ) as { urlPrefix: string; shards: Array<Record<string, unknown>> };
     const generations = (
       await fs.readdir(path.join(packRoot, "packs"), { withFileTypes: true })
     )
@@ -73,11 +73,10 @@ describe("publishStagedDirectory", () => {
 
     expect(manifest).not.toHaveProperty("previousGenerations");
     expect(generations).toHaveLength(1);
-    expect(
-      manifest.shards.every((shard) =>
-        shard.url.startsWith(`/data/uk_base/packs/${generations[0]}/`),
-      ),
-    ).toBe(true);
+    expect(manifest.urlPrefix).toBe(
+      `/data/uk_base/packs/${generations[0]}/`,
+    );
+    expect(manifest.shards.every((shard) => !("url" in shard))).toBe(true);
     expect(files.filter((file) => path.dirname(file) === packRoot)).toEqual([
       path.join(packRoot, "manifest.json"),
     ]);
@@ -90,11 +89,11 @@ describe("publishStagedDirectory", () => {
       path.join(staged, "manifest.json"),
       JSON.stringify({
         version: 1,
+        urlPrefix: "/data/uk_base/",
         shards: [
           {
             id: "cell",
             core: false,
-            url: "/data/uk_base/cell.json",
             count: 1,
             bbox: [-1, 53, 0, 54],
           },
@@ -113,21 +112,29 @@ describe("publishStagedDirectory", () => {
     const manifest = JSON.parse(
       await fs.readFile(path.join(target, "manifest.json"), "utf8"),
     ) as {
-      shards: Array<{ url: string }>;
+      urlPrefix: string;
+      shards: Array<{ id: string; url?: string }>;
     };
-    expect(manifest.shards[0].url).toMatch(
-      /^\/data\/uk_base\/packs\/[a-f0-9]{16}\/cell\.json$/,
+    expect(manifest.urlPrefix).toMatch(
+      /^\/data\/uk_base\/packs\/[a-f0-9]{16}\/$/,
     );
+    expect(manifest.shards[0]).not.toHaveProperty("url");
     expect(manifest).not.toHaveProperty("previousGenerations");
     expect(
       await fs.readFile(
-        path.join(target, manifest.shards[0].url.replace("/data/uk_base/", "")),
+        path.join(
+          target,
+          `${manifest.urlPrefix}${manifest.shards[0].id}.json`.replace(
+            "/data/uk_base/",
+            "",
+          ),
+        ),
         "utf8",
       ),
     ).toBe("new cell");
     const generations = await fs.readdir(path.join(target, "packs"));
     expect(generations).toEqual([
-      manifest.shards[0].url.split("/")[4],
+      manifest.urlPrefix.split("/")[4],
     ]);
     await expect(fs.access(path.join(target, "legacy.json"))).rejects.toThrow();
     await expect(fs.access(staged)).rejects.toThrow();
