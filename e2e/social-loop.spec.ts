@@ -452,9 +452,9 @@ test("desktop map control rail exposes the 'Saved only' filter checkbox", async 
   // The "Saved only" checkbox: its label carries a stable accessible name; the
   // control is the checkbox inside it. Assert it exists and is unchecked by
   // default — we never click it, so no per-device saved-only state is mutated.
-  const savedOnly = rail.locator(
-    'label[aria-label="Show only pubs you have saved"] input[type="checkbox"]',
-  );
+  const savedOnly = rail.getByRole("checkbox", {
+    name: "Show only venues you have saved",
+  });
   await expect(savedOnly).toHaveCount(1);
   await expect(savedOnly).not.toBeChecked();
 });
