@@ -8,6 +8,7 @@ import {
   type CommunityPriceMapCandidate,
 } from "@/lib/communityPrice";
 import type { DrinkCategory } from "@/lib/drinks";
+import type { PriceSubmitFailureReason } from "@/lib/analyticsEvents";
 
 // Client-side owner of /api/price-submit: the freshest community price per
 // (venue, drink category), the optimistic restamp, and the submit call.
@@ -29,7 +30,12 @@ import type { DrinkCategory } from "@/lib/drinks";
 // `corroborations: 1` and the POST response supplies the real number. Claiming
 // more locally would flash a pin colour the server is about to take back.
 
-export type CommunityPriceSubmitResult = { ok: true } | { ok: false; error: string };
+export type CommunityPriceSubmitResult =
+  | { ok: true }
+  // `reason` is the coarse funnel bucket for the failure - the analytics enum,
+  // not a second copy of the sentence. `error` stays the human sentence and is
+  // never sent anywhere.
+  | { ok: false; error: string; reason: PriceSubmitFailureReason };
 
 export type CommunityPricesState = {
   /** Freshest community price per drink category, by venue id. Ungated on
@@ -243,7 +249,7 @@ export function useCommunityPrices(): CommunityPricesState {
       // Run the SAME validator the route runs, so an out-of-bounds price is
       // refused in-place with the identical sentence and never leaves the phone.
       const parsed = validateCommunityPrice(input);
-      if (!parsed.ok) return { ok: false, error: parsed.error };
+      if (!parsed.ok) return { ok: false, error: parsed.error, reason: "invalid" };
       const { venueId, drinkCategory, priceGbp } = parsed.value;
 
       const submittedAt = Date.now();
@@ -301,6 +307,7 @@ export function useCommunityPrices(): CommunityPricesState {
           return {
             ok: false,
             error: data?.error ?? "Could not log that price right now.",
+            reason: "rejected",
           };
         }
         // Adopt the server's authoritative record: its timestamp, so the dated
@@ -326,7 +333,11 @@ export function useCommunityPrices(): CommunityPricesState {
         return { ok: true };
       } catch {
         rollback();
-        return { ok: false, error: "No signal for that one. Try again in a moment." };
+        return {
+          ok: false,
+          error: "No signal for that one. Try again in a moment.",
+          reason: "offline",
+        };
       } finally {
         setSubmitting(false);
       }

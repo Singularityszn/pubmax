@@ -115,6 +115,44 @@ a2hs_install_rate (Android/Chrome) = count(pwa_install_completed) / count(pwa_in
 a2hs_installed_base (all platforms) = distinct ids with >= 1 pwa_standalone_launch
 ```
 
+## 5. Community-price contribution rate
+
+The key product metric for the price flywheel: how often opening a pub's sheet
+turns into a logged price.
+
+**Events (all new):**
+- `price_submit_viewed` — `{ category }`. Fires once per venue-sheet open in
+  `components/map/VenuePriceSubmit.tsx`. The card is keyed by venue id, so it
+  mounts once per pub; a ref guard makes the event one-per-mount even if the
+  effect re-runs. `category` is the category the card OPENS on, never the one
+  eventually chosen - the denominator must not wait for an interaction it
+  exists to measure the absence of.
+- `price_submitted` — `{ category }`. Fires only after the POST is confirmed,
+  never on the optimistic restamp.
+- `price_submit_failed` — `{ category, reason }`. `reason` is a three-value
+  enum: `invalid` (the client-side envelope check), `rejected` (a non-2xx from
+  `/api/price-submit`), `offline` (transport failure).
+
+```
+community_price_submission_rate = count(price_submitted)
+                                / count(price_submit_viewed)
+```
+
+`category` is the closed drink taxonomy (`PRICE_SUBMIT_CATEGORIES`, pinned to
+`DrinkCategory` by the `completeDrinkTaxonomy` helper, which enforces coverage
+in both directions: no unknown value, no missing category). No venue id, no venue name, no price,
+and no error sentence ever rides along - the funnel is answerable from the
+category alone, and the sanitizer drops everything else. All three events fail
+closed on a missing or off-enum prop.
+
+**Corroborated stock, not just flow.** The submission *rate* is the flow; the
+stock it builds is the count of (venue, drink category) pairs whose community
+price the map is actually allowed to paint. `GET /api/freshness` reports it as
+`communityPrices.corroboratedCategories`, derived on the read path from the
+same corroboration + age rules the map uses (`lib/communityPrice.ts`), so it
+can never claim a figure the map would refuse. `truncated` marks the bounded
+scan's cap; `degraded` marks an unavailable store rather than a real zero.
+
 ## Registry additions
 
 All six new event names were added to `ANALYTICS_EVENTS` in
@@ -127,6 +165,16 @@ activity_pulse: ["dayBucket"],
 pwa_install_prompt_available: [],
 pwa_install_completed: [],
 pwa_standalone_launch: [],
+```
+
+The community-price funnel added three more, with their own scoped validator
+(`isAllowedPriceFunnelProp`) so the shared `category` prop key keeps a
+different closed set per event:
+
+```ts
+price_submit_viewed: ["category"],
+price_submitted: ["category"],
+price_submit_failed: ["category", "reason"],
 ```
 
 ## Tests

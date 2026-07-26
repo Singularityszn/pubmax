@@ -18,6 +18,7 @@ import {
 } from "@/lib/nightAreas";
 import { ROUTE_PATTERNS, ROUTE_PATTERN_OTHER } from "@/lib/routePattern";
 import { VITAL_METRICS, VITAL_RATINGS, sanitizeVitalTarget } from "@/lib/webVitals";
+import type { DrinkCategory } from "@/lib/drinks";
 
 /** Allowed prop keys per event. An empty list means the event carries no props. */
 export const ANALYTICS_EVENTS = {
@@ -138,6 +139,16 @@ export const ANALYTICS_EVENTS = {
   plan_completed: ["ending"],
   memory_reviewed: ["source"],
   story_published: ["visibility", "contributors", "moments"],
+  // Community-price contribution funnel. The whole point is the ratio
+  // price_submitted / price_submit_viewed, so `viewed` is emitted once per
+  // venue-sheet open (the card is keyed by venue and mounts with the sheet)
+  // and gives that ratio its denominator. Props stay at the registry's usual
+  // bar: the drink category is a closed taxonomy enum and the failure reason a
+  // three-value enum - never the venue id, the venue name, the price typed, or
+  // the error sentence shown to the drinker.
+  price_submit_viewed: ["category"],
+  price_submitted: ["category"],
+  price_submit_failed: ["category", "reason"],
   // One roll-up event gives Reach a stable denominator in PostHog. Only the
   // explicit loop actions below qualify; route generation, claim steps, and
   // passive opens never do.
@@ -222,6 +233,33 @@ export type TrustedHandoffAnalyticsPropsByEvent = {
   };
 };
 
+/**
+ * The drink taxonomy as the price funnel may report it. Spelled out here rather
+ * than imported as a value so the registry keeps its zero-runtime-dependency
+ * shape (it is loaded by both the beacon and the ingest route); the constraint
+ * on `completeDrinkTaxonomy` makes a drift from lib/drinks.ts in either
+ * direction - an unknown value or a missing category - a type error rather
+ * than a silent mismatch.
+ */
+function completeDrinkTaxonomy<const T extends readonly DrinkCategory[]>(
+  categories: T & ([DrinkCategory] extends [T[number]] ? unknown : never),
+): T {
+  return categories;
+}
+
+export const PRICE_SUBMIT_CATEGORIES = completeDrinkTaxonomy([
+  "beer", "wine", "whisky", "gin", "vodka", "rum", "cocktail", "shot", "other",
+]);
+
+/**
+ * Why a submission did not land. `invalid` is the client-side envelope check
+ * (the same validator the route runs), `rejected` a non-2xx answer from the
+ * route, `offline` a transport failure. Deliberately three coarse buckets - the
+ * error sentence the drinker sees is free text and never leaves the device.
+ */
+export const PRICE_SUBMIT_FAILURE_REASONS = ["invalid", "rejected", "offline"] as const;
+export type PriceSubmitFailureReason = (typeof PRICE_SUBMIT_FAILURE_REASONS)[number];
+
 export const WEEKLY_MEANINGFUL_CORE_ACTIONS = [
   "plan_accepted",
   "plan_saved",
@@ -268,6 +306,10 @@ const SAFE_STRING_VALUES = new Set([
   // Wave 0.5 fixed loop vocabulary.
   "auth", "inline_recap", "full_recap",
   "plan_accepted", "plan_saved", "plan_completed", "memory_reviewed", "story_published",
+  // Community-price funnel vocabulary: the drink taxonomy and the three
+  // failure buckets.
+  ...PRICE_SUBMIT_CATEGORIES,
+  ...PRICE_SUBMIT_FAILURE_REASONS,
   ...NIGHT_AREA_SLUGS,
   ...COVERAGE_STATUSES,
   ...ROUTE_READY_GATE_CODES,
@@ -304,6 +346,11 @@ const TRUSTED_HANDOFF_REQUIRED_KEYS = {
   plan_accepted: ["stops", "grounded", "anchored", "routeReady", "source"],
   crew_committed: ["source", "participants", "routeReady"],
   meaningful_core_action: ["action"],
+  // The funnel is a ratio, so a step with no drink category would be an
+  // uncountable event rather than a partial one - fail closed like the rest.
+  price_submit_viewed: ["category"],
+  price_submitted: ["category"],
+  price_submit_failed: ["category", "reason"],
   // Field RUM: a vital is meaningless without which metric, its value, rating,
   // and the route it happened on. `target` (attribution selector) is optional.
   web_vital: ["metric", "value", "rating", "route"],
@@ -435,6 +482,22 @@ function isAllowedVitalProp(name: AnalyticsEventName, key: string, value: string
   return true;
 }
 
+/**
+ * Community-price funnel strictness. `category` shares its key name with
+ * pub_pal_memory_changed, whose vocabulary is a different closed set, so the
+ * check is scoped to these three events rather than to the key.
+ */
+function isAllowedPriceFunnelProp(
+  name: AnalyticsEventName,
+  key: string,
+  value: string | number | boolean,
+): boolean {
+  if (!name.startsWith("price_submit")) return true;
+  if (key === "category") return includesValue(PRICE_SUBMIT_CATEGORIES, value);
+  if (key === "reason") return includesValue(PRICE_SUBMIT_FAILURE_REASONS, value);
+  return true;
+}
+
 export function isKnownEvent(name: string): name is AnalyticsEventName {
   return Object.prototype.hasOwnProperty.call(ANALYTICS_EVENTS, name);
 }
@@ -481,7 +544,8 @@ export function sanitizeEvent(
             && isAllowedDistrictEventProp(name, key, value)
             && isAllowedLoopEventProp(name, key, value)
             && isAllowedTrustedHandoffEventProp(name, key, value)
-            && isAllowedVitalProp(name, key, value);
+            && isAllowedVitalProp(name, key, value)
+            && isAllowedPriceFunnelProp(name, key, value);
       if (valid) out[key] = value as string | number | boolean;
     }
   }

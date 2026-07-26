@@ -31,6 +31,8 @@
 
 import {
   agreesWithinTolerance,
+  COMMUNITY_PRICE_MAX_AGE_MS,
+  isCorroborated,
   isWithinMaxAge,
   roundToPennies,
   type CommunityPrice,
@@ -81,6 +83,23 @@ export type CommunityPriceStore = {
    * distinguishes an unavailable durable read from an honest empty.
    */
   latestForVenue(venueId: string, now?: number): Promise<CommunityPriceReadResult>;
+  /**
+   * How many (venue, drink category) pairs currently have a figure the map is
+   * allowed to paint - corroborated by a second independent submitter AND
+   * inside the age window. The flywheel number, read-only: it asks the SAME
+   * `bestCorroboratedCandidate` + `isCorroborated` pair the per-venue read
+   * uses, so it can never report a category the map would refuse. NEVER
+   * throws; `degraded` marks an unavailable durable read rather than a real 0.
+   */
+  countCorroboratedCategories(now?: number): Promise<CorroboratedCategoryCount>;
+};
+
+export type CorroboratedCategoryCount = {
+  /** Distinct (venue, category) pairs whose map candidate is corroborated. */
+  count: number;
+  /** True when the scan hit its row cap, so `count` is a floor, not a total. */
+  truncated: boolean;
+  degraded: boolean;
 };
 
 // Penny envelope, mirroring lib/communityPrice.ts (£1 … £30) and the DB CHECK
@@ -94,6 +113,17 @@ const MAX_VENUES = 5_000;
 // Cap how many raw rows one venue read pulls. Generous for the per-category
 // reduction below, bounded on purpose.
 const VENUE_SCAN_ROWS = 200;
+// Cap the corroboration roll-up's durable scan. Deliberately bounded: this is a
+// dashboard number on a cached route, not a report, and an unbounded table scan
+// is not something a read path should ever be able to ask for. When the cap is
+// hit the answer is reported as a floor (`truncated`), never as a total.
+const CORROBORATION_SCAN_ROWS = 20_000;
+// PostgREST silently caps any single response at the project's server-side
+// max-rows setting (hosted default 1000), so one `.limit(20_000)` request can
+// come back short without ever saying so. The durable scan therefore pages in
+// chunks no larger than that default and derives `truncated` from the last
+// page's fill, keeping the flag honest regardless of the Max Rows setting.
+const CORROBORATION_SCAN_PAGE = 1_000;
 
 type StoredPrice = CommunityPrice & { actor: string | null };
 
@@ -238,6 +268,31 @@ function freshestPerCategory(rows: StoredPrice[], now: number): CommunityPrice[]
 }
 
 /**
+ * Count the (venue, category) pairs whose MAP candidate is corroborated. Asks
+ * the same two questions the per-venue read already asks - the best in-window
+ * agreement cluster, then the threshold - so this roll-up and the map can never
+ * disagree about what counts. Grouping is by venue AND category because a pub
+ * with a trusted pint and a trusted cocktail is two facts the map can paint.
+ */
+function countCorroboratedIn(rows: StoredPrice[], now: number): number {
+  const groups = new Map<string, StoredPrice[]>();
+  for (const row of rows) {
+    // NUL separator: neither a cleaned venue id (control chars are stripped)
+    // nor a category can contain it, so two keys can never collide.
+    const key = `${row.venueId}\u0000${row.drinkCategory}`;
+    const held = groups.get(key);
+    if (held) held.push(row);
+    else groups.set(key, [row]);
+  }
+  let count = 0;
+  for (const group of groups.values()) {
+    const candidate = bestCorroboratedCandidate(group, now);
+    if (candidate && isCorroborated(candidate)) count += 1;
+  }
+  return count;
+}
+
+/**
  * Strip the actor before a stored row leaves the store. The submitter token is
  * an internal de-duplication key, never part of the price the app reads - so
  * the boundary is spelled out here rather than relying on every caller to omit
@@ -307,6 +362,17 @@ export const memoryCommunityPriceStore: CommunityPriceStore = {
       degraded: false,
     };
   },
+
+  async countCorroboratedCategories(now = Date.now()) {
+    const rows: StoredPrice[] = [];
+    for (const venueRows of venues.values()) rows.push(...venueRows);
+    const scanned = rows.slice(0, CORROBORATION_SCAN_ROWS);
+    return {
+      count: countCorroboratedIn(scanned, now),
+      truncated: rows.length > scanned.length,
+      degraded: false,
+    };
+  },
 };
 
 // ── Supabase implementation ──────────────────────────────────────────────────
@@ -339,6 +405,23 @@ function rowsToPrices(rows: unknown, venueId: string): StoredPrice[] {
     // unattributed bucket - never coerced into a distinct submitter.
     const actor = typeof row.actor === "string" && row.actor !== "" ? row.actor : null;
     out.push({ ...toPrice(venueId, category, pennies, submittedAt), actor });
+  }
+  return out;
+}
+
+/**
+ * The same guarded projection as `rowsToPrices`, but for the cross-venue
+ * roll-up, so each row carries its OWN venue id instead of an assumed one. A
+ * malformed row is skipped rather than coerced, exactly as above.
+ */
+function rowsToCountableRows(rows: unknown): StoredPrice[] {
+  if (!Array.isArray(rows)) return [];
+  const out: StoredPrice[] = [];
+  for (const row of rows) {
+    if (typeof row !== "object" || row === null) continue;
+    const venueId = cleanVenueId((row as Record<string, unknown>).venue_id);
+    if (!venueId) continue;
+    out.push(...rowsToPrices([row], venueId));
   }
   return out;
 }
@@ -420,6 +503,48 @@ export const supabaseCommunityPriceStore: CommunityPriceStore = {
       }),
     });
   },
+
+  async countCorroboratedCategories(now = Date.now()) {
+    return guard<CorroboratedCategoryCount>({
+      context: "corroborated-count",
+      // A schema miss is not "zero corroborated prices" - it is the same
+      // keyless/pre-migration world the memory store already answers for.
+      onSchemaMiss: () => memoryCommunityPriceStore.countCorroboratedCategories(now),
+      message: "corroborated count failed - reporting degraded",
+      onError: () => ({ count: 0, truncated: false, degraded: true }),
+      run: async () => {
+        // Only in-window rows can back a map candidate, so the age gate is
+        // pushed into the query rather than paid for in scanned rows.
+        const since = new Date(now - COMMUNITY_PRICE_MAX_AGE_MS).toISOString();
+        const scanned: unknown[] = [];
+        let lastPageFull = false;
+        for (let offset = 0; offset < CORROBORATION_SCAN_ROWS; ) {
+          const pageEnd = Math.min(offset + CORROBORATION_SCAN_PAGE, CORROBORATION_SCAN_ROWS);
+          const { data, error } = await admin()
+            .from("community_prices")
+            .select("venue_id, drink_category, price_pennies, submitted_at, actor")
+            .gte("submitted_at", since)
+            // The `id` tiebreak keeps the page windows disjoint when many rows
+            // share one `submitted_at` instant.
+            .order("submitted_at", { ascending: false })
+            .order("id", { ascending: true })
+            .range(offset, pageEnd - 1);
+          if (error) throw new Error(error.message);
+          const page = Array.isArray(data) ? data : [];
+          scanned.push(...page);
+          lastPageFull = page.length >= pageEnd - offset;
+          if (!lastPageFull) break;
+          offset = pageEnd;
+        }
+        const rows = rowsToCountableRows(scanned);
+        return {
+          count: countCorroboratedIn(rows, now),
+          truncated: lastPageFull,
+          degraded: false,
+        };
+      },
+    });
+  },
 };
 
 /** The single backend selection point (mirrors the other stores). */
@@ -437,6 +562,16 @@ export function submitCommunityPrice(
   now: number = Date.now(),
 ): Promise<CommunityPriceWriteResult> {
   return communityPriceStore().submit(input, now);
+}
+
+/**
+ * How many (venue, drink category) pairs the map is currently allowed to paint
+ * a community price for - the contribution flywheel's real number. NEVER throws.
+ */
+export function countCorroboratedCommunityCategories(
+  now: number = Date.now(),
+): Promise<CorroboratedCategoryCount> {
+  return communityPriceStore().countCorroboratedCategories(now);
 }
 
 /** The freshest community price per drink category at one venue. NEVER throws. */

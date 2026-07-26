@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import {
   __resetCommunityPrices,
+  countCorroboratedCommunityCategories,
   readCommunityPrices,
   submitCommunityPrice,
 } from "@/lib/communityPriceStore";
@@ -326,5 +327,78 @@ describe("communityPriceStore map candidate (memory backend)", () => {
       submittedAt: 3_000,
       corroborations: 1,
     });
+  });
+});
+
+describe("countCorroboratedCommunityCategories (memory backend)", () => {
+  beforeEach(() => {
+    delete process.env.SUPABASE_URL;
+    delete process.env.SUPABASE_SERVICE_ROLE_KEY;
+  });
+
+  afterEach(() => {
+    __resetCommunityPrices();
+    if (ORIGINAL_SUPABASE_URL === undefined) delete process.env.SUPABASE_URL;
+    else process.env.SUPABASE_URL = ORIGINAL_SUPABASE_URL;
+    if (ORIGINAL_SUPABASE_SERVICE_ROLE_KEY === undefined) {
+      delete process.env.SUPABASE_SERVICE_ROLE_KEY;
+    } else {
+      process.env.SUPABASE_SERVICE_ROLE_KEY = ORIGINAL_SUPABASE_SERVICE_ROLE_KEY;
+    }
+  });
+
+  const DAY = 24 * 60 * 60 * 1000;
+
+  async function beerAt(venueId: string, priceGbp: number, at: number, actor?: string) {
+    await submitCommunityPrice({ venueId, drinkCategory: "beer", priceGbp, actor }, at);
+  }
+
+  it("counts nothing when nothing has been logged", async () => {
+    const result = await countCorroboratedCommunityCategories(10_000);
+    expect(result).toEqual({ count: 0, truncated: false, degraded: false });
+  });
+
+  it("does not count a lone report", async () => {
+    await beerAt("v1", 4.2, 1_000, "a");
+    expect((await countCorroboratedCommunityCategories(10_000)).count).toBe(0);
+  });
+
+  it("counts a (venue, category) pair once a second submitter agrees", async () => {
+    await beerAt("v1", 4.2, 1_000, "a");
+    await beerAt("v1", 4.25, 2_000, "b");
+    const result = await countCorroboratedCommunityCategories(10_000);
+    expect(result.count).toBe(1);
+    expect(result.truncated).toBe(false);
+  });
+
+  it("counts each category and each venue separately", async () => {
+    await beerAt("v1", 4.2, 1_000, "a");
+    await beerAt("v1", 4.2, 2_000, "b");
+    await submitCommunityPrice(
+      { venueId: "v1", drinkCategory: "wine", priceGbp: 8.5, actor: "a" },
+      1_000,
+    );
+    await submitCommunityPrice(
+      { venueId: "v1", drinkCategory: "wine", priceGbp: 8.5, actor: "b" },
+      2_000,
+    );
+    await beerAt("v2", 6.5, 1_000, "a");
+    await beerAt("v2", 6.5, 2_000, "b");
+    expect((await countCorroboratedCommunityCategories(10_000)).count).toBe(3);
+  });
+
+  it("drops a pair once its corroboration ages past the window", async () => {
+    await beerAt("v1", 4.2, DAY, "a");
+    await beerAt("v1", 4.2, DAY, "b");
+    expect((await countCorroboratedCommunityCategories(2 * DAY)).count).toBe(1);
+    // Same rows, read 40 days on: outside the age window, so the map paints
+    // nothing and neither does the count.
+    expect((await countCorroboratedCommunityCategories(41 * DAY)).count).toBe(0);
+  });
+
+  it("does not count two reports that contradict each other", async () => {
+    await beerAt("v1", 4.2, 1_000, "a");
+    await beerAt("v1", 9, 2_000, "b");
+    expect((await countCorroboratedCommunityCategories(10_000)).count).toBe(0);
   });
 });

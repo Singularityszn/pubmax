@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Check, Tag } from "lucide-react";
 
 import {
@@ -18,6 +18,7 @@ import { mergePriceChips } from "@/lib/spillPreview";
 import type { DrinkCategory } from "@/lib/drinks";
 import { formatPrice } from "@/lib/venues";
 import type { CommunityPricesState } from "@/components/map/useCommunityPrices";
+import { trackEvent } from "@/lib/analytics";
 
 import "./venuePriceSubmit.css";
 
@@ -83,6 +84,22 @@ export default function VenuePriceSubmit({
   const [logged, setLogged] = useState<DrinkCategory | null>(null);
 
   const { byVenueId, loadVenue, submit, submitting } = communityPrices;
+  // The funnel's denominator. This component is keyed by venue id, so it mounts
+  // once per venue-sheet open and the ratio price_submitted / price_submit_viewed
+  // reads as "submissions per sheet open". The category is the one the card
+  // opens on, not the one eventually submitted - a viewed event must not wait
+  // for an interaction it is meant to measure the absence of. Consent-gated
+  // like every other event: trackEvent no-ops without it.
+  // The ref, not the effect body alone, is what makes it ONE event per open:
+  // an effect that re-runs (React's development double-invoke, a future
+  // dependency change) would otherwise inflate the denominator and quietly
+  // halve the reported submission rate.
+  const viewedVenueId = useRef<string | null>(null);
+  useEffect(() => {
+    if (viewedVenueId.current === venueId) return;
+    viewedVenueId.current = venueId;
+    trackEvent("price_submit_viewed", { category: DEFAULT_SUBMIT_CATEGORY });
+  }, [venueId]);
   // Community prices already on record for this pub, so the card opens showing
   // what the community last said rather than an empty slot.
   useEffect(() => {
@@ -110,9 +127,11 @@ export default function VenuePriceSubmit({
     setError(null);
     const result = await submit({ venueId, drinkCategory: category, priceGbp: price });
     if (!result.ok) {
+      trackEvent("price_submit_failed", { category, reason: result.reason });
       setError(result.error);
       return;
     }
+    trackEvent("price_submitted", { category });
     setLogged(category);
     setPrice("");
   }
