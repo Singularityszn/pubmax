@@ -2,6 +2,7 @@
 
 import { MapPin, Sparkles } from "lucide-react";
 
+import CommunityPriceReport from "@/components/map/CommunityPriceReport";
 import VenuePriceSubmit from "@/components/map/VenuePriceSubmit";
 import {
   freshestCommunityPrice,
@@ -72,6 +73,11 @@ export default function UnverifiedPubSheet({ pub, communityPrices }: UnverifiedP
               <small className="communityPriceStanding">{communityTrustStanding}</small>
             ) : null}
             <small className="communityPriceNote">{COMMUNITY_PRICE_NOTE}</small>
+            <CommunityPriceReport
+              price={communityPrice}
+              communityPrices={communityPrices}
+              venueName={pub.name}
+            />
           </div>
         </>
       ) : pricesKnown ? (

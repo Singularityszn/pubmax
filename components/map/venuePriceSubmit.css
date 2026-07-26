@@ -40,6 +40,26 @@
   font-style: italic;
 }
 
+/* The complaint affordance. Deliberately the quietest thing in the row: it
+   must be findable by someone who thinks a price is wrong, and invisible to
+   everyone else - it sits on its own line, right-aligned, below the provenance
+   note, at the same pill weight as the Pint Drop report button (.reportBtn in
+   globals.css, shared on purpose so the two never drift). */
+.contributorPrice.communityPriceRow .reportBtn {
+  margin-left: auto;
+}
+
+/* The acknowledgement that replaces it. Same footprint, no takedown promise -
+   the price is still on the row above, because a flag is not a moderation
+   decision. */
+.contributorPrice.communityPriceRow .communityPriceReported {
+  flex: 0 0 auto;
+  margin-left: auto;
+  color: var(--muted);
+  font-size: 0.68rem;
+  font-weight: 700;
+}
+
 .venuePriceSubmit {
   margin-top: 16px;
   padding: 14px;

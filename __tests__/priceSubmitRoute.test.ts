@@ -540,3 +540,52 @@ describe("POST /api/price-submit corroboration", () => {
     expect(price?.mapCandidate).toBeUndefined();
   });
 });
+
+describe("POST /api/price-submit report", () => {
+  function reportAs(ip: string, body: unknown): Request {
+    return new Request("http://localhost/api/price-submit", {
+      method: "POST",
+      headers: { "content-type": "application/json", "x-forwarded-for": ip },
+      body: JSON.stringify(body),
+    });
+  }
+
+  async function logOne(ip: string): Promise<string> {
+    const res = await POST(
+      reportAs(ip, { venueId: "venue-xjf3n0", drinkCategory: "beer", priceGbp: 4.2 }),
+    );
+    expect(res.status).toBe(201);
+    const id = (await res.json()).price?.id as string | undefined;
+    expect(id).toBeTruthy();
+    return id!;
+  }
+
+  it("flags an observation without hiding it", async () => {
+    const id = await logOne("20.0.0.1");
+    const res = await POST(reportAs("20.0.0.2", { action: "report", id, reason: "way off" }));
+    expect(res.status).toBe(200);
+    expect(res.headers.get("Cache-Control")).toBe("no-store");
+    // A flag is not a takedown - only a moderator hides (F10).
+    expect(await readCommunityPrices("venue-xjf3n0")).toHaveLength(1);
+  });
+
+  it("404s an id it does not know and 400s a missing one", async () => {
+    expect((await POST(reportAs("20.0.0.3", { action: "report", id: "nope" }))).status).toBe(404);
+    expect((await POST(reportAs("20.0.0.4", { action: "report" }))).status).toBe(400);
+  });
+
+  it("rate-limits a second report of the same row by the same device", async () => {
+    const id = await logOne("20.0.0.5");
+    expect((await POST(reportAs("20.0.0.6", { action: "report", id }))).status).toBe(200);
+    expect((await POST(reportAs("20.0.0.6", { action: "report", id }))).status).toBe(429);
+  });
+
+  it("never reads the report branch as a price submission", async () => {
+    const id = await logOne("20.0.0.7");
+    // No venueId, no price, no category: a report body that fell through to the
+    // submit path would 400 on the validator instead of landing as a flag.
+    const res = await POST(reportAs("20.0.0.8", { action: "report", id }));
+    expect(res.status).toBe(200);
+    expect((await res.json()).ok).toBe(true);
+  });
+});

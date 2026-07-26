@@ -5,7 +5,14 @@
 // is the first time a figure enters the map from the community.
 //
 //   POST { venueId, drinkCategory, priceGbp } → { ok: true, price }
+//   POST { action: "report", id, reason? }    → { ok: true }
 //   GET  ?venueId=<id>                        → { prices: CommunityPrice[] }
+//
+// The report branch is the complaint side of an otherwise open write path: it
+// FLAGS an observation for a human and hides nothing on its own (a threshold
+// auto-hide would be a one-tap eraser for any price a griefer disliked). Only a
+// moderator hides, via POST /api/admin/community-prices - and hiding keeps the
+// row, exactly like every other moderation path here.
 //
 // Both shapes carry `corroborations` - how many independent submitters back the
 // figure. It is derived server-side on every read and is never accepted from a
@@ -34,6 +41,7 @@ import { validateCommunityPrice } from "@/lib/communityPrice";
 import {
   readCommunityPrices,
   readCommunityPricesWithStatus,
+  reportCommunityPrice,
   submitCommunityPrice,
 } from "@/lib/communityPriceStore";
 import { isLimited } from "@/lib/pintDrops";
@@ -42,6 +50,7 @@ import { getUkBaseIdIndex } from "@/lib/ukBaseIndex";
 import { isUkBaseId } from "@/lib/ukBasePubs";
 import { lookupCanonicalVenue } from "@/lib/venueIndex";
 import { isPubVenueKind } from "@/lib/venueKindFilters";
+import { readString } from "@/lib/textClean";
 
 // Best-effort, server-derived submitter token. Never throws - if IP hashing is
 // unavailable the store records the observation unattributed (it still counts,
@@ -60,6 +69,33 @@ export async function POST(request: Request): Promise<Response> {
     body = (await request.json()) as Record<string, unknown>;
   } catch {
     return jsonNoStore({ error: "Malformed request body." }, { status: 400 });
+  }
+
+  // Reader flag on an existing observation. Returns before every submission
+  // concern below (venue lookup, submission rate limits): a report is not a
+  // write of a price, and a reader must be able to complain about a figure even
+  // when their own logging budget is spent.
+  if (readString(body.action) === "report") {
+    const id = readString(body.id);
+    if (!id) return jsonNoStore({ error: "Missing price id." }, { status: 400 });
+    // Flood protection only - per-actor uniqueness is durable (the
+    // community_price_reports unique pair), so a repeat that outlives this
+    // window is an idempotent no-op in the store rather than a second count.
+    const reporter = deriveActor(request) ?? "anon";
+    const REPORT_PER_ACTOR_LIMIT = 1;
+    if (
+      (await isLimited(`price-report:${id}`, `price-report:${id}`)) ||
+      (await isLimited(
+        `price-report:${id}:${reporter}`,
+        `price-report:${id}:${reporter}`,
+        REPORT_PER_ACTOR_LIMIT,
+      ))
+    ) {
+      return jsonNoStore({ error: "Too many reports, slow down." }, { status: 429 });
+    }
+    const flagged = await reportCommunityPrice(id, readString(body.reason), reporter);
+    if (!flagged) return jsonNoStore({ error: "Price not found." }, { status: 404 });
+    return jsonNoStore({ ok: true }, { status: 200 });
   }
 
   // Sanity bounds, category allowlist and venue cleaning all live in the one

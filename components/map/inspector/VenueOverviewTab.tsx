@@ -20,6 +20,7 @@ import SaveToListControl from "@/components/savedpubs/SaveToListControl";
 import NextBadgeChips from "@/components/profile/NextBadgeChips";
 import FirstDropNudge from "@/components/map/inspector/FirstDropNudge";
 import VenuePriceSubmit from "@/components/map/VenuePriceSubmit";
+import CommunityPriceReport from "@/components/map/CommunityPriceReport";
 import { communityStampLabel, communityTrustNote, submitCategoryLabel } from "@/lib/communityPrice";
 import {
   freshestCommunityPrice,
@@ -336,6 +337,14 @@ export default function VenueOverviewTab({
             <small className="communityPriceStanding">{communityTrustStanding}</small>
           ) : null}
           <small className="communityPriceNote">{COMMUNITY_PRICE_NOTE}</small>
+          {/* Anyone can log a price here, so anyone must be able to complain
+              about one. The flag is recorded for a human - it does not hide the
+              row (see CommunityPriceReport). */}
+          <CommunityPriceReport
+            price={communityPrice}
+            communityPrices={communityPrices}
+            venueName={venue.name}
+          />
         </div>
       ) : null}
       {/* Price honesty on overview: community override wins, then sourced

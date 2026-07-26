@@ -58,6 +58,16 @@ export type CommunityPricesState = {
   }) => Promise<CommunityPriceSubmitResult>;
   /** True while a submission is in flight (one at a time by construction). */
   submitting: boolean;
+  /**
+   * Flag one observation for a human to look at. Unlike the Pint Drop report,
+   * this does NOT remove the row locally: a community price is not hidden until
+   * a moderator hides it (a client-side vanish would promise a takedown that
+   * has not happened). The row is marked reported instead, so the reader can
+   * see their tap landed.
+   */
+  reportPrice: (id: string) => void;
+  /** Observation ids this device has already flagged this session. */
+  reportedIds: ReadonlySet<string>;
 };
 
 /** Freshest-wins merge of one observation into a venue's per-category list. */
@@ -119,6 +129,10 @@ function readPrices(value: unknown): CommunityPrice[] | null {
     if (typeof price.submittedAt !== "number" || !Number.isFinite(price.submittedAt)) continue;
     if (typeof price.drinkCategory !== "string" || typeof price.venueId !== "string") continue;
     out.push({
+      // Present from the server, absent on an older payload - and an absent id
+      // simply means the row carries no report affordance, never that a
+      // fabricated one is invented for it.
+      ...(typeof price.id === "string" && price.id !== "" ? { id: price.id } : {}),
       venueId: price.venueId,
       drinkCategory: price.drinkCategory as DrinkCategory,
       priceGbp: price.priceGbp,
@@ -200,6 +214,7 @@ export function freshestPintPrice(
 export function useCommunityPrices(): CommunityPricesState {
   const [byVenueId, setByVenueId] = useState<Map<string, CommunityPrice[]>>(() => new Map());
   const [submitting, setSubmitting] = useState(false);
+  const [reportedIds, setReportedIds] = useState<Set<string>>(() => new Set());
   // Venues already fetched this session - the sheet re-mounts on every
   // selection and must not re-hit the API for a venue it already read.
   const loaded = useRef<Set<string>>(new Set());
@@ -345,6 +360,30 @@ export function useCommunityPrices(): CommunityPricesState {
     [],
   );
 
+  const reportPrice = useCallback((id: string) => {
+    if (!id || reportedIds.has(id)) return;
+    // Optimistic ACKNOWLEDGEMENT, not an optimistic removal: the figure stays
+    // on the sheet, dated, until a moderator hides it. Marking it locally is
+    // what stops the same reader flagging it twice and tells them it landed.
+    setReportedIds((current) => {
+      const next = new Set(current);
+      next.add(id);
+      return next;
+    });
+    void (async () => {
+      try {
+        await fetch("/api/price-submit", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ action: "report", id }),
+        });
+      } catch {
+        // Swallow: the report is best-effort and the durable ledger de-dupes,
+        // so a retry on the next load is harmless.
+      }
+    })();
+  }, [reportedIds]);
+
   // The freshest beer observation per venue - what a pin can carry. Derived,
   // never stored, so it can't drift from the per-category lists.
   const freshestByVenueId = useMemo(() => {
@@ -356,5 +395,13 @@ export function useCommunityPrices(): CommunityPricesState {
     return freshest;
   }, [byVenueId]);
 
-  return { byVenueId, freshestByVenueId, loadVenue, submit, submitting };
+  return {
+    byVenueId,
+    freshestByVenueId,
+    loadVenue,
+    submit,
+    submitting,
+    reportPrice,
+    reportedIds,
+  };
 }

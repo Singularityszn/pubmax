@@ -6,7 +6,7 @@ reviewed surface—even when a POST is semantically read-only. The regression te
 Adding a mutating route or removing its authority/abuse boundary fails
 CI until this certification is deliberately updated.
 
-> **Inventory: 70 mutating routes.** The count grew 60 → 61 (email-capture
+> **Inventory: 71 mutating routes.** The count grew 60 → 61 (email-capture
 > `POST /api/email-subscribers`) → 62 (native `POST /api/push-tokens`) → 63 (the
 > Social Loop "we're out" `POST /api/check-ins`) → 64 (the vibe-vote
 > `POST /api/plans/[id]/vibe-votes`) → 65 (the area-demand capture
@@ -14,10 +14,12 @@ CI until this certification is deliberately updated.
 > `POST /api/visit-reports`) → 67 (author-confirmed alt text
 > `PATCH /api/night-moments/[id]/alt-text`) → 69 (the operator rail: `POST
 > /api/venue-operators/claim` and `POST /api/operator-proposals`) → 70 (the
-> community price submission `POST /api/price-submit`). Token-gated GET
+> community price submission `POST /api/price-submit`) → 71 (community-price
+> moderation `POST /api/admin/community-prices`). Token-gated GET
 > confirm/unsubscribe endpoints and read-only GETs (the Social Loop reads, the
 > vibe-vote tally read, the Visit Report per-venue summary read, the operator
-> own-claim / moderator queue reads, the community price-per-drink read) are
+> own-claim / moderator queue reads, the community price-per-drink read, the
+> community-price review queue read) are
 > deliberately excluded from the
 > mutating-verb inventory. The number is a merge-conflict coordination point
 > across in-flight branches — reconcile it (not silently overwrite) when branches
@@ -416,6 +418,44 @@ commit.
   fails soft to process-memory OUTSIDE production (`onMissingDurableWrite` refuses
   the ephemeral fallback in a deployed production instance), so keyless dev keeps
   working; a hard durable write failure answers 503, never a fake success.
+
+### `app/api/admin/community-prices` - community price moderation (route 71)
+
+- **Route / method:** `POST app/api/admin/community-prices/route.ts`
+  (`fm/trust-quickfixes`), actions `hide` and `restore` on ONE community price.
+  The receiving side of route 70: until this existed, a wrong or malicious
+  community price could be submitted by anyone and removed by nobody, and the
+  only remediation was hand-written SQL. The route also exports a read-only
+  `GET` (the reported/hidden review queue) which is NOT a mutating verb and is
+  not counted.
+- **Auth stance:** moderator-gated by `isModerator` (`lib/adminAuth.ts`) on BOTH
+  verbs - the `x-admin-token` header or the httpOnly admin session cookie, never
+  a query-string token; with `ADMIN_TOKEN` unset the gate opens only in dev/test,
+  so a preview deploy is never wide open. Same gate as the Pint Drop and comment
+  queues.
+- **Validation:** `action` restricted to `hide` | `restore` (anything else 400s,
+  and there is deliberately no `delete`), `id` required (400 when missing, 404
+  when unknown), and the free-text `note` is control-char-stripped and capped at
+  280 chars in the store.
+- **Reader-side flag (no new route):** readers complain through the existing
+  `POST /api/price-submit { action: "report", id }`, which is durably
+  one-report-per-actor (`community_price_reports`' unique pair) plus two
+  `isLimited` tiers. Reporting NEVER auto-hides - unlike Pint Drops, whose
+  threshold auto-hide is safe because a drop is one person's post; a community
+  price is the figure the map is made of, and an anonymous threshold here would
+  be a one-tap eraser for any price a griefer disliked.
+- **Hide, never delete (the honesty boundary):** `hide` stamps `hidden_at`; the
+  observation, its price, its date and its report metadata all survive, so a
+  wrong call is one `restore` away and the audit trail is intact. Hidden rows
+  are filtered in ONE place (`freshestPerCategory` in
+  `lib/communityPriceStore.ts`), so a hidden price leaves the venue sheet, the
+  corroboration count, and the map candidate together - there is no second
+  place that can remember it.
+- **Rollback / kill:** the columns and the report ledger live in migration 0055
+  (`community_prices.hidden_at` et al. + `public.community_price_reports`, RLS
+  on, no anon/authenticated policy, service_role only). Clearing `hidden_at`
+  restores everything; the store fails soft to process-memory until 0055 lands,
+  and an unavailable durable read degrades the queue to empty rather than 500.
 
 ## Certification command
 

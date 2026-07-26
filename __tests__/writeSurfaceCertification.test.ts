@@ -70,10 +70,15 @@ describe("mutating API surface certification", () => {
     // price-submission POST (app/api/price-submit/route.ts,
     // fm/price-submission): an anonymous, rate-limited, bounds-checked dated
     // price observation; its sibling GET (the freshest community price per
-    // drink at a venue) is NOT a mutating verb and is not counted. This literal
-    // is the deliberate merge-coordination point: any branch adding a mutating
-    // route bumps it in the same commit (docs/WRITE_SURFACE_CERTIFICATION.md).
-    expect(mutationRoutes).toHaveLength(70);
+    // drink at a venue) is NOT a mutating verb and is not counted. Plus the
+    // community-price moderation POST (app/api/admin/community-prices/route.ts,
+    // fm/trust-quickfixes): moderator-gated hide/restore on one community price
+    // - hide, never delete; its sibling GET (the review queue) is NOT a mutating
+    // verb and is not counted. The reader-side FLAG shares the existing
+    // price-submit POST rather than adding a route. This literal is the
+    // deliberate merge-coordination point: any branch adding a mutating route
+    // bumps it in the same commit (docs/WRITE_SURFACE_CERTIFICATION.md).
+    expect(mutationRoutes).toHaveLength(71);
   });
 
   it("gives every mutating route an abuse or authority boundary", () => {

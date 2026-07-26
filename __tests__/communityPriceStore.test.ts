@@ -43,12 +43,16 @@ describe("communityPriceStore (memory backend)", () => {
       1_000,
     );
     expect(price).toEqual({
+      // The observation's own opaque id - the handle a reader reports with and
+      // a moderator hides by. Generated per row, so it is matched by shape.
+      id: expect.any(String),
       venueId: "v1",
       drinkCategory: "beer",
       priceGbp: 4.2,
       submittedAt: 1_000,
       source: "community",
     });
+    expect(price?.id).not.toBe("");
   });
 
   it("keeps one price per drink category, freshest first", async () => {
