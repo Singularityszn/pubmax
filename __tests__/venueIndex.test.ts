@@ -79,10 +79,11 @@ describe("getVenueIndex", () => {
     expect(readFile.mock.calls.length).toBeGreaterThanOrEqual(10);
   });
 
-  it("keeps other cities when one city pack is missing", async () => {
+  it("keeps other cities when one city pack is missing and retries only that city", async () => {
     const realRead = fs.readFile.bind(fs);
+    let failManchester = true;
     const readFile = vi.spyOn(fs, "readFile").mockImplementation(async (file, ...args) => {
-      if (String(file).includes("cities/manchester/")) {
+      if (failManchester && String(file).includes("cities/manchester/")) {
         throw new Error("missing manchester pack");
       }
       return realRead(file, ...(args as [BufferEncoding]));
@@ -96,10 +97,24 @@ describe("getVenueIndex", () => {
       name: "Turf Tavern",
       borough: "Oxford",
     });
-    // Partial success is cached — second call does not re-read.
+
+    // Loaded cities stay cached — only the failed pack is re-read.
     const callsAfterFirst = readFile.mock.calls.length;
     await getVenueIndex();
-    expect(readFile.mock.calls.length).toBe(callsAfterFirst);
+    expect(readFile.mock.calls.length).toBe(callsAfterFirst + 1);
+
+    // Once the pack recovers, its venues appear without a restart.
+    failManchester = false;
+    const recovered = await getVenueIndex();
+    expect(recovered.get("venue-mcr-1lwo5lo")).toMatchObject({
+      name: "Peveril of the Peak",
+      borough: "Manchester",
+    });
+
+    // Fully loaded now — memoized, no further reads.
+    const callsAfterRecovery = readFile.mock.calls.length;
+    await getVenueIndex();
+    expect(readFile.mock.calls.length).toBe(callsAfterRecovery);
   });
 
   it("includes enabled city slim packs, not just London", async () => {

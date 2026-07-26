@@ -68,6 +68,7 @@ function buildVenueIndexFromSlim(rows: SlimRow[]): Map<string, VenueRef> {
 }
 
 let cached: Map<string, VenueRef> | null = null;
+const cityCache = new Map<string, Map<string, VenueRef>>();
 
 function publicDataPath(publicPath: string): string {
   return path.join(process.cwd(), "public", publicPath.replace(/^\//, ""));
@@ -84,25 +85,33 @@ async function readSlimIndex(publicPath: string): Promise<Map<string, VenueRef>>
 // ~6 MB price dataset — name/borough/coords are all the social DTOs need.
 //
 // Per-city try/catch: one missing/corrupt city pack must not wipe London (or
-// any other city that loaded). Only cache when at least one city succeeded so
-// a total miss can retry on the next call.
+// any other city that loaded). Each city's pack is cached individually, so a
+// transient per-city read failure is retried on the next call instead of
+// pinning a partial (or empty) index for the process lifetime; the merged map
+// is only memoized once every enabled city has loaded.
 export async function getVenueIndex(): Promise<Map<string, VenueRef>> {
   if (cached) return cached;
-  const index = new Map<string, VenueRef>();
-  let loadedAny = false;
-  for (const city of listEnabledCities()) {
+  const cities = listEnabledCities();
+  let allLoaded = true;
+  for (const city of cities) {
+    if (cityCache.has(city.slimVenuesPath)) continue;
     try {
-      for (const [id, ref] of await readSlimIndex(city.slimVenuesPath)) {
-        index.set(id, ref);
-      }
-      loadedAny = true;
+      cityCache.set(city.slimVenuesPath, await readSlimIndex(city.slimVenuesPath));
     } catch {
-      // Skip this city; keep whatever already loaded.
+      // Skip this city for now; it retries on the next call.
+      allLoaded = false;
     }
   }
-  if (!loadedAny) return new Map();
-  cached = index;
-  return cached;
+  const index = new Map<string, VenueRef>();
+  for (const city of cities) {
+    const cityIndex = cityCache.get(city.slimVenuesPath);
+    if (!cityIndex) continue;
+    for (const [id, ref] of cityIndex) {
+      index.set(id, ref);
+    }
+  }
+  if (allLoaded) cached = index;
+  return index;
 }
 
 export async function resolveVenue(id: string): Promise<VenueRef | null> {
@@ -131,6 +140,7 @@ export function resetVenueIndexForTests(): void {
     Boolean(process.env.VITEST_WORKER_ID)
   ) {
     cached = null;
+    cityCache.clear();
   }
 }
 
