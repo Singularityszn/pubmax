@@ -140,7 +140,9 @@ summary, with edge cache headers (`s-maxage=300, stale-while-revalidate=1800`,
 the house pattern; no `jsonCached` helper exists on main yet). Never 500s — a
 missing artifact is that dataset's own `unknown` status, not a route failure. The
 site can render honest freshness anywhere from this one endpoint, feeding the
-`lib/dataFreshness.ts` label idioms uniformly.
+`lib/dataFreshness.ts` label idioms uniformly. The response also carries a
+`communityPrices` block (the corroborated community-price stock) — that metric
+is owned by [`docs/METRICS_FUNNEL.md`](METRICS_FUNNEL.md) §5.
 
 **Status vocabulary:** `live` (served per request), `fresh` (within budget),
 `stale` (breach — owner-visible), `untracked` (intentionally not budgeted —
