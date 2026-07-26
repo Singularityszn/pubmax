@@ -19,29 +19,12 @@ async function exists(pathname) {
   }
 }
 
-function generationFromManifest(manifest) {
-  const url = manifest?.shards?.[0]?.url;
-  if (typeof url !== "string") return null;
-  const match = url.match(/^\/data\/uk_base\/packs\/([a-f0-9]{16})\//);
-  if (match) return match[1];
-  return /^\/data\/uk_base\/[^/]+\.json$/.test(url) ? "legacy" : null;
-}
-
-function previousGenerationsFromManifest(manifest) {
-  if (!Array.isArray(manifest?.previousGenerations)) return [];
-  return manifest.previousGenerations
-    .filter(
-      (generation) =>
-        generation === "legacy" ||
-        (typeof generation === "string" && /^[a-f0-9]{16}$/.test(generation)),
-    )
-    .slice(0, 1);
-}
-
 export async function publishStagedDirectory({
   stagedDir,
   targetDir,
   requiredFiles = [],
+  manifestBudgetBytes = Number.POSITIVE_INFINITY,
+  totalBudgetBytes = Number.POSITIVE_INFINITY,
 }) {
   for (const file of requiredFiles) {
     await access(path.join(stagedDir, file));
@@ -68,58 +51,66 @@ export async function publishStagedDirectory({
     }
     return file;
   });
-  for (const file of shardFiles) {
-    await access(path.join(stagedDir, file));
+  if (new Set(shardFiles).size !== shardFiles.length) {
+    throw new Error("Staged manifest contains duplicate shard URLs");
+  }
+  const expectedFiles = new Set(["manifest.json", ...shardFiles]);
+  const stagedEntries = await readdir(stagedDir, { withFileTypes: true });
+  const unexpectedEntry = stagedEntries.find(
+    (entry) => !entry.isFile() || !expectedFiles.has(entry.name),
+  );
+  if (unexpectedEntry) {
+    throw new Error(`Unexpected staged entry: ${unexpectedEntry.name}`);
   }
 
   const hash = createHash("sha256");
   hash.update(manifestText);
+  let shardBytes = 0;
   for (const file of [...shardFiles].sort()) {
+    const body = await readFile(path.join(stagedDir, file));
     hash.update(file);
-    hash.update(await readFile(path.join(stagedDir, file)));
+    hash.update(body);
+    shardBytes += body.byteLength;
   }
   const generation = hash.digest("hex").slice(0, 16);
   const packRoot = path.join(targetDir, "packs");
   const generationDir = path.join(packRoot, generation);
   const publicPrefix = `/data/uk_base/packs/${generation}/`;
-  let currentManifest = null;
-  try {
-    currentManifest = JSON.parse(
-      await readFile(path.join(targetDir, "manifest.json"), "utf8"),
-    );
-  } catch {
-    currentManifest = null;
-  }
-  const currentGeneration = generationFromManifest(currentManifest);
-  const priorGenerations =
-    currentGeneration === generation
-      ? previousGenerationsFromManifest(currentManifest)
-      : currentGeneration
-        ? [currentGeneration]
-        : [];
   const nextManifest = {
     ...manifest,
-    previousGenerations: priorGenerations,
     shards: manifest.shards.map((shard, index) => ({
       ...shard,
       url: `${publicPrefix}${shardFiles[index]}`,
     })),
   };
-
-  await mkdir(packRoot, { recursive: true });
-  await rm(manifestPath);
-  if (await exists(generationDir)) {
-    await rm(stagedDir, { recursive: true, force: true });
-  } else {
-    await rename(stagedDir, generationDir);
+  const nextManifestText = JSON.stringify(nextManifest);
+  const manifestBytes = Buffer.byteLength(nextManifestText);
+  const totalBytes = manifestBytes + shardBytes;
+  if (manifestBytes >= manifestBudgetBytes) {
+    throw new Error(
+      `Published manifest is ${manifestBytes} bytes, over the ${manifestBudgetBytes} byte budget`,
+    );
+  }
+  if (totalBytes >= totalBudgetBytes) {
+    throw new Error(
+      `Published tree is ${totalBytes} bytes, over the ${totalBudgetBytes} byte budget`,
+    );
   }
 
+  await mkdir(targetDir, { recursive: true });
+  await mkdir(packRoot, { recursive: true });
   const stagedManifestPath = path.join(
     targetDir,
     `.manifest-${process.pid}-${Date.now()}.json`,
   );
   try {
-    await writeFile(stagedManifestPath, JSON.stringify(nextManifest));
+    await writeFile(stagedManifestPath, nextManifestText);
+    await rm(manifestPath);
+    if (await exists(generationDir)) {
+      await rm(stagedDir, { recursive: true, force: true });
+    } else {
+      await rename(stagedDir, generationDir);
+    }
     await rename(stagedManifestPath, path.join(targetDir, "manifest.json"));
   } finally {
     await rm(stagedManifestPath, { force: true });
@@ -132,8 +123,7 @@ export async function publishStagedDirectory({
         (entry) =>
           entry.isFile() &&
           entry.name.endsWith(".json") &&
-          entry.name !== "manifest.json" &&
-          !priorGenerations.includes("legacy"),
+          entry.name !== "manifest.json",
       )
       .map((entry) => rm(path.join(targetDir, entry.name), { force: true })),
   );
@@ -142,12 +132,12 @@ export async function publishStagedDirectory({
     generations
       .filter(
         (entry) =>
-          entry.isDirectory() &&
-          entry.name !== generation &&
-          !priorGenerations.includes(entry.name),
+          entry.name !== generation,
       )
       .map((entry) =>
         rm(path.join(packRoot, entry.name), { recursive: true, force: true }),
       ),
   );
+
+  return { generation, manifestBytes, shardBytes, totalBytes };
 }

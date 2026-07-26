@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { LONDON_BOUNDS, LONDON_VIEW, UK_BOUNDS } from "@/components/map/canvas/tokens";
-import { CITIES } from "@/lib/cities";
+import { CITIES, cityMaxBounds } from "@/lib/cities";
 
 function contains(
   bounds: [[number, number], [number, number]],
@@ -36,5 +36,15 @@ describe("UK map camera bounds", () => {
       pitch: 38,
       bearing: -8,
     });
+  });
+
+  it("keeps active-city framing separate from the UK camera clamp", () => {
+    const manchesterBounds = cityMaxBounds(CITIES.manchester);
+    const leeds: [number, number] = [-1.5491, 53.8008];
+
+    expect(contains(manchesterBounds, CITIES.manchester.mapView.center)).toBe(true);
+    expect(contains(manchesterBounds, leeds)).toBe(false);
+    expect(manchesterBounds).not.toEqual(UK_BOUNDS);
+    expect(contains(UK_BOUNDS, leeds)).toBe(true);
   });
 });

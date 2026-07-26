@@ -34,8 +34,8 @@ grid.
 
 Each build installs a new immutable generation, then atomically replaces only
 `manifest.json`. A crash before that final rename leaves the previous manifest
-and all files it references available. One previous generation remains for
-clients revalidating a cached manifest; the next build retires it.
+and all files it references available. After the manifest switches, the prior
+generation is removed so the published tree contains exactly one pack.
 
 ## What is deliberately absent
 

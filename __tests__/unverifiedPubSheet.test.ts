@@ -16,9 +16,9 @@ const pub: UkBasePub = {
   lng: -1.5491,
 };
 
-function state(rows: CommunityPrice[]): CommunityPricesState {
+function state(rows: CommunityPrice[], known = true): CommunityPricesState {
   return {
-    byVenueId: new Map([[pub.id, rows]]),
+    byVenueId: known ? new Map([[pub.id, rows]]) : new Map(),
     freshestByVenueId: new Map(),
     loadVenue: () => {},
     submit: async () => ({ ok: true }),
@@ -27,6 +27,38 @@ function state(rows: CommunityPrice[]): CommunityPricesState {
 }
 
 describe("UnverifiedPubSheet", () => {
+  it("never flashes no-price framing while a stored price reloads", () => {
+    const stored: CommunityPrice = {
+      venueId: pub.id,
+      drinkCategory: "beer",
+      priceGbp: 4.6,
+      submittedAt: Date.now(),
+      source: "community",
+      corroborations: 1,
+    };
+    const frames = [
+      renderToStaticMarkup(
+        createElement(UnverifiedPubSheet, {
+          pub,
+          communityPrices: state([], false),
+        }),
+      ),
+      renderToStaticMarkup(
+        createElement(UnverifiedPubSheet, {
+          pub,
+          communityPrices: state([stored]),
+        }),
+      ),
+    ];
+
+    for (const html of frames) {
+      expect(html).not.toContain("No price yet");
+      expect(html).not.toContain("Nobody has logged");
+    }
+    expect(frames[0]).toContain("Checking community prices");
+    expect(frames[1]).toContain("£4.60");
+  });
+
   it("renders a stored dated community price without no-price framing", () => {
     const html = renderToStaticMarkup(
       createElement(UnverifiedPubSheet, {
@@ -49,5 +81,17 @@ describe("UnverifiedPubSheet", () => {
     expect(html).toContain("Logged by a Pubmaxxer");
     expect(html).not.toContain("No price yet");
     expect(html).not.toContain("Nobody has logged");
+  });
+
+  it("shows be-the-first framing only after a confirmed empty response", () => {
+    const html = renderToStaticMarkup(
+      createElement(UnverifiedPubSheet, {
+        pub,
+        communityPrices: state([]),
+      }),
+    );
+
+    expect(html).toContain("No price yet");
+    expect(html).toContain("Nobody has logged");
   });
 });

@@ -166,23 +166,14 @@ async function main() {
       generatedFrom: { fetchedAt: pack.fetchedAt ?? null, count: pack.count ?? pubs.length },
       shards,
     });
-    const manifestBytes = Buffer.byteLength(manifestBody);
-    if (manifestBytes > MANIFEST_BUDGET_BYTES) {
-      throw new Error(
-        `Manifest is ${formatBytes(manifestBytes)}, over the ${formatBytes(MANIFEST_BUDGET_BYTES)} budget.`,
-      );
-    }
-    if (totalBytes > TOTAL_BUDGET_BYTES) {
-      throw new Error(
-        `UK base shards total ${formatBytes(totalBytes)}, over the ${formatBytes(TOTAL_BUDGET_BYTES)} budget.`,
-      );
-    }
     await writeFile(path.join(stagedDir, "manifest.json"), manifestBody);
 
-    await publishStagedDirectory({
+    const publication = await publishStagedDirectory({
       stagedDir,
       targetDir: OUT_DIR,
       requiredFiles: ["manifest.json"],
+      manifestBudgetBytes: MANIFEST_BUDGET_BYTES,
+      totalBudgetBytes: TOTAL_BUDGET_BYTES,
     });
 
     console.log(
@@ -192,7 +183,7 @@ async function main() {
         `  curated (dropped) ... ${pubs.length - deduped.length}`,
         `  unusable (dropped) .. ${skipped}`,
         `  shipped ............. ${renderable.length}`,
-        `  manifest ............ ${formatBytes(manifestBytes)} (deferred until the zoom gate)`,
+        `  manifest ............ ${formatBytes(publication.manifestBytes)} (deferred until the zoom gate)`,
         `  shards total ........ ${formatBytes(totalBytes)}`,
         `  fattest shard ....... ${fattest.id} — ${formatBytes(fattest.bytes)} (${fattest.count} pubs)`,
         `  median shard ........ ${formatBytes(median(shardBytes))}`,

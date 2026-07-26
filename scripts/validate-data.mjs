@@ -8,7 +8,7 @@
 //
 // Plain Node ESM — no build step, no deps. Run: node scripts/validate-data.mjs
 
-import { readFileSync, readdirSync, existsSync } from "node:fs";
+import { readFileSync, readdirSync, existsSync, statSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 import { validateLateFoodEvidence } from "./lib/validateLateFoodEvidence.mjs";
@@ -793,25 +793,13 @@ function validateUkBaseShards() {
 
   // Files on disk must match the manifest exactly: an orphan is dead weight in
   // the repo, and a missing one is a 404 mid-pan.
-  const onDisk = new Set(
-    listUkBaseJsonFiles(UK_BASE_DIR).filter((file) => file !== "manifest.json"),
-  );
-  const rawPreviousGenerations = Array.isArray(manifest.previousGenerations)
-    ? manifest.previousGenerations
-    : [];
-  const previousGenerations = rawPreviousGenerations.filter(
-    (generation) =>
-      generation === "legacy" ||
-      (typeof generation === "string" && /^[a-f0-9]{16}$/.test(generation)),
-  );
-  if (
-    rawPreviousGenerations.length > 1 ||
-    previousGenerations.length !== rawPreviousGenerations.length
-  ) {
-    errs.add("manifest previousGenerations must contain at most one valid generation");
-  }
+  const jsonFiles = listUkBaseJsonFiles(UK_BASE_DIR);
+  const onDisk = new Set(jsonFiles.filter((file) => file !== "manifest.json"));
   const ids = new Set();
-  let totalBytes = manifestBytes;
+  const totalBytes = jsonFiles.reduce(
+    (sum, file) => sum + statSync(join(UK_BASE_DIR, file)).size,
+    0,
+  );
   let pubCount = 0;
 
   for (const shard of shards) {
@@ -830,7 +818,6 @@ function validateUkBaseShards() {
       continue;
     }
     const bytes = Buffer.byteLength(raw);
-    totalBytes += bytes;
     if (bytes >= UK_BASE_SHARD_BUDGET_BYTES) {
       errs.add(
         `shard "${shard.id}": ${(bytes / 1024).toFixed(1)} KB exceeds the ${(UK_BASE_SHARD_BUDGET_BYTES / 1024).toFixed(0)} KB per-viewport budget`,
@@ -863,12 +850,7 @@ function validateUkBaseShards() {
     }
   }
   for (const orphan of onDisk) {
-    const retained =
-      (previousGenerations.includes("legacy") && !orphan.includes("/")) ||
-      previousGenerations.some((generation) =>
-        orphan.startsWith(`packs/${generation}/`),
-      );
-    if (!retained) errs.add(`orphan shard body ${orphan} is not in the manifest`);
+    errs.add(`orphan shard body ${orphan} is not in the manifest`);
   }
 
   if (totalBytes >= UK_BASE_TOTAL_BUDGET_BYTES) {

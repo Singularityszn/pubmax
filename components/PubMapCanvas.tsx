@@ -37,7 +37,7 @@ import {
 import MapLayersControl from "@/components/map/MapLayersControl";
 import LandmarkPhotoCredit from "@/components/LandmarkPhotoCredit";
 import type { CityId } from "@/lib/cities";
-import { DEFAULT_CITY_ID, getCity } from "@/lib/cities";
+import { cityMaxBounds, DEFAULT_CITY_ID, getCity } from "@/lib/cities";
 import { resolveCompassAction } from "@/lib/mapCompass";
 import {
   createIdleOrbit,
@@ -361,16 +361,22 @@ export default function PubMapCanvas({
         : [],
     [userLocation, venues],
   );
+  const cityBounds = useMemo(
+    () => cityMaxBounds(getCity(cityId)),
+    [cityId],
+  );
   // Refs for camera/bounds + landmark seed so the MapLibre mount effect does not
   // tear down on parent re-renders that only change object identity.
   const mapViewRef = useRef(mapView);
   const maxBoundsRef = useRef(maxBounds);
+  const cityBoundsRef = useRef(cityBounds);
   const landmarksGeoJSONRef = useRef(landmarksGeoJSON);
   useEffect(() => {
     mapViewRef.current = mapView;
     maxBoundsRef.current = maxBounds;
+    cityBoundsRef.current = cityBounds;
     landmarksGeoJSONRef.current = landmarksGeoJSON;
-  }, [mapView, maxBounds, landmarksGeoJSON]);
+  }, [mapView, maxBounds, cityBounds, landmarksGeoJSON]);
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
   const [mapReady, setMapReady] = useState(false);
@@ -685,7 +691,7 @@ export default function PubMapCanvas({
     mapRef,
     reducedRef,
     mapViewRef,
-    maxBoundsRef,
+    cityBoundsRef,
     routeRef,
     venuesRef,
   })

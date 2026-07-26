@@ -11,7 +11,7 @@ type CameraRefs = {
   mapRef: MutableRefObject<maplibregl.Map | null>;
   reducedRef: MutableRefObject<boolean>;
   mapViewRef: MutableRefObject<MapView>;
-  maxBoundsRef: MutableRefObject<[[number, number], [number, number]]>;
+  cityBoundsRef: MutableRefObject<[[number, number], [number, number]]>;
   routeRef: MutableRefObject<Venue[]>;
   venuesRef: MutableRefObject<Venue[]>;
 };
@@ -21,7 +21,7 @@ type CameraRefs = {
 // helpers must always act on the latest map/route/venues without being recreated
 // (recreating them would re-fire the arrival/refit effects that consume them).
 export function useMapCamera(refs: CameraRefs) {
-  const { mapRef, reducedRef, mapViewRef, maxBoundsRef, routeRef, venuesRef } = refs;
+  const { mapRef, reducedRef, mapViewRef, cityBoundsRef, routeRef, venuesRef } = refs;
   const coordinator = useMemo(() => createCameraIntentCoordinator({
     requestFrame: (callback) => requestAnimationFrame(callback),
     cancelFrame: (id) => cancelAnimationFrame(id),
@@ -85,7 +85,7 @@ export function useMapCamera(refs: CameraRefs) {
     const view = mapViewRef.current;
     // M3: fit-London / city-switch is a "long jump" — fitBounds animates via
     // flyTo by default (linear defaults to false), so `curve` shapes its arc.
-    scheduleCamera("city", `city:${maxBoundsRef.current.flat().join(",")}`, (map) => map.fitBounds(maxBoundsRef.current, {
+    scheduleCamera("city", `city:${cityBoundsRef.current.flat().join(",")}`, (map) => map.fitBounds(cityBoundsRef.current, {
       padding: isPhone
         ? { top: 184, right: 24, bottom: 190, left: 24 }
         : 90,
@@ -95,7 +95,7 @@ export function useMapCamera(refs: CameraRefs) {
       pitch: view.pitch,
       bearing: view.bearing,
     }));
-  }, [mapViewRef, maxBoundsRef, reducedRef, scheduleCamera]);
+  }, [cityBoundsRef, mapViewRef, reducedRef, scheduleCamera]);
 
   // Borough browse arrival: frame the filtered venue set once (query owns the
   // camera). Skip if the user already tapped a pin — don't fight selectedVenue

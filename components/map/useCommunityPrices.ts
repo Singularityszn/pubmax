@@ -101,10 +101,10 @@ function readMapCandidate(value: unknown): CommunityPriceMapCandidate | undefine
 }
 
 /** Narrow an untrusted API payload to the prices we can honestly render. */
-function readPrices(value: unknown): CommunityPrice[] {
-  if (!value || typeof value !== "object") return [];
+function readPrices(value: unknown): CommunityPrice[] | null {
+  if (!value || typeof value !== "object") return null;
   const rows = (value as { prices?: unknown }).prices;
-  if (!Array.isArray(rows)) return [];
+  if (!Array.isArray(rows)) return null;
   const out: CommunityPrice[] = [];
   for (const row of rows) {
     if (!row || typeof row !== "object") continue;
@@ -128,7 +128,7 @@ function readPrices(value: unknown): CommunityPrice[] {
       mapCandidate: readMapCandidate(price.mapCandidate),
     });
   }
-  return out;
+  return rows.length > 0 && out.length === 0 ? null : out;
 }
 
 /** The freshest observation in a venue's per-category list, any drink. */
@@ -159,6 +159,7 @@ export function useCommunityPrices(): CommunityPricesState {
   // Venues already fetched this session - the sheet re-mounts on every
   // selection and must not re-hit the API for a venue it already read.
   const loaded = useRef<Set<string>>(new Set());
+  const confirmedEmpty = useRef<Set<string>>(new Set());
 
   const loadVenue = useCallback((venueId: string) => {
     if (!venueId || loaded.current.has(venueId)) return;
@@ -166,10 +167,19 @@ export function useCommunityPrices(): CommunityPricesState {
     void (async () => {
       try {
         const res = await fetch(`/api/price-submit?venueId=${encodeURIComponent(venueId)}`);
-        if (!res.ok) return;
+        if (!res.ok) {
+          loaded.current.delete(venueId);
+          return;
+        }
         const prices = readPrices(await res.json());
-        if (prices.length === 0) return;
+        if (!prices) {
+          loaded.current.delete(venueId);
+          return;
+        }
+        if (prices.length === 0) confirmedEmpty.current.add(venueId);
+        else confirmedEmpty.current.delete(venueId);
         setByVenueId((current) => {
+          if (prices.length === 0 && current.has(venueId)) return current;
           const next = new Map(current);
           // Server rows are the record; a locally-optimistic entry for a
           // category the server hasn't seen yet is kept rather than dropped.
@@ -220,7 +230,9 @@ export function useCommunityPrices(): CommunityPricesState {
       const rollback = () => {
         setByVenueId((current) => {
           const next = new Map(current);
-          if (previous === undefined) next.delete(venueId);
+          if (previous === undefined && confirmedEmpty.current.has(venueId)) {
+            next.set(venueId, []);
+          } else if (previous === undefined) next.delete(venueId);
           else next.set(venueId, previous);
           return next;
         });
@@ -251,8 +263,9 @@ export function useCommunityPrices(): CommunityPricesState {
         // replace, not the keep-newer merge: a device clock ahead of the
         // server would otherwise out-rank the record and keep the optimistic
         // stamp forever.
-        const [stored] = readPrices({ prices: [data?.price] });
+        const [stored] = readPrices({ prices: [data?.price] }) ?? [];
         if (stored) {
+          confirmedEmpty.current.delete(venueId);
           setByVenueId((current) => {
             const next = new Map(current);
             next.set(venueId, replacePrice(next.get(venueId) ?? [], stored));

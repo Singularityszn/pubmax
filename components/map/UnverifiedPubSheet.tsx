@@ -29,6 +29,7 @@ type UnverifiedPubSheetProps = {
 };
 
 export default function UnverifiedPubSheet({ pub, communityPrices }: UnverifiedPubSheetProps) {
+  const pricesKnown = communityPrices.byVenueId.has(pub.id);
   const communityPrice = freshestCommunityPrice(communityPrices.byVenueId.get(pub.id));
   const communityTrustStanding = communityPrice ? communityTrustNote(communityPrice) : "";
 
@@ -37,7 +38,11 @@ export default function UnverifiedPubSheet({ pub, communityPrices }: UnverifiedP
       <div className="unverifiedPubHead">
         <span className="unverifiedPubTag">
           <Sparkles size={12} aria-hidden="true" />
-          {communityPrice ? "Community price" : "No price yet"}
+          {communityPrice
+            ? "Community price"
+            : pricesKnown
+              ? "No price yet"
+              : "Checking community prices"}
         </span>
         <h2 className="unverifiedPubName">{pub.name}</h2>
         {pub.address ? (
@@ -69,12 +74,12 @@ export default function UnverifiedPubSheet({ pub, communityPrices }: UnverifiedP
             <small className="communityPriceNote">{COMMUNITY_PRICE_NOTE}</small>
           </div>
         </>
-      ) : (
+      ) : pricesKnown ? (
         <p className="unverifiedPubLead">
           We know this pub is here, and that is all we know. Nobody has logged what
           a drink costs - <strong>be the first</strong>.
         </p>
-      )}
+      ) : null}
 
       <VenuePriceSubmit
         venueId={pub.id}
