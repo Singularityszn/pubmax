@@ -169,6 +169,14 @@ export default function PrivacyPage() {
             options. If you then tap Maps, your browser sends the same rounded
             origin to Google Maps for directions.
           </li>
+          <li>
+            <strong>Remembered areas:</strong>{" "}Tonight can turn an area choice
+            saved in your browser into that public area&rsquo;s coarse centre and
+            send the centre to <code>/api/whats-on</code>. Today rounds the same
+            kind of centre before sending it to
+            {" "}<code>/api/tfl-disruption</code>. The saved choice itself is not
+            uploaded.
+          </li>
         </ul>
         <p className="legalBody">
           Say no and the app falls back to picking an area or lets you open a
@@ -271,9 +279,13 @@ export default function PrivacyPage() {
             exists at all; withdrawing consent removes it again.
           </li>
           <li>
-            Preferences and app state: theme, your device night profile,
-            what you&rsquo;ve already been shown once. These never leave your
-            device unless you sign in and choose to bring them to your account.
+            Preferences and app state: theme, your device night profile, your
+            remembered area, what you&rsquo;ve already been shown once. We
+            don&rsquo;t upload those stored values as a bundle. An area choice
+            can be turned in your browser into a coarse centre used for the
+            requests described under Location. Your device night profile stays
+            on your device unless you sign in and choose to bring it to your
+            account.
           </li>
         </ul>
         <p className="legalBody">
@@ -326,8 +338,8 @@ export default function PrivacyPage() {
             <dd>
               When you ask for last-train help, our server sends your coordinates
               rounded to three decimal places to TfL&rsquo;s public StopPoint API
-              to find your nearest station. It also fetches live arrivals,
-              timetables and line-status information.
+              at <code>api.tfl.gov.uk</code> to find your nearest station. It also
+              fetches live arrivals, timetables and line-status information.
             </dd>
           </div>
           <div className="legalRow">
@@ -335,16 +347,17 @@ export default function PrivacyPage() {
             <dd>
               When you share location for travel times to a pub, our server sends
               your origin rounded to three decimal places, with the selected
-              venue, to CityMCP London for journey options.
+              venue, to CityMCP London at <code>citymcp.com</code> for journey
+              options.
             </dd>
           </div>
           <div className="legalRow">
             <dt>Google Maps</dt>
             <dd>
               If you tap Maps after sharing location in a venue sheet, the
-              directions link gives Google your origin rounded to three decimal
-              places and the selected venue. Other Google map links include the
-              venue or search only, not your shared location.
+              directions link gives <code>google.com</code> your origin rounded
+              to three decimal places and the selected venue. Other Google map
+              links include the venue or search only, not your shared location.
             </dd>
           </div>
           <div className="legalRow">

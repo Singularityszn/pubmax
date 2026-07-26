@@ -1,7 +1,8 @@
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
+import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
+import { dirname, join, resolve } from "node:path";
 
 import { describe, expect, it } from "vitest";
+import ts from "typescript";
 
 import { CONTACT_EMAIL } from "@/lib/siteContact";
 
@@ -16,15 +17,194 @@ function read(path: string): string {
   return readFileSync(join(process.cwd(), path), "utf8");
 }
 
+const ROOT = process.cwd();
+
+function collectSourceFiles(dir: string, files: string[]): void {
+  for (const entry of readdirSync(dir)) {
+    const path = join(dir, entry);
+    if (statSync(path).isDirectory()) {
+      if (entry !== "__tests__") collectSourceFiles(path, files);
+    } else if (/\.tsx?$/.test(entry) && !/\.test\.tsx?$/.test(entry)) {
+      files.push(path);
+    }
+  }
+}
+
+function allSourceFiles(): string[] {
+  const files: string[] = [];
+  for (const dir of ["app", "components", "lib"]) {
+    collectSourceFiles(join(ROOT, dir), files);
+  }
+  return files;
+}
+
+function fetchWindows(source: string): string[] {
+  const windows: string[] = [];
+  for (const match of source.matchAll(/\b(?:fetch|fetchImpl)\s*\(/g)) {
+    windows.push(source.slice(Math.max(0, match.index - 300), match.index + 1_500));
+  }
+  return windows;
+}
+
+function fetchArguments(path: string, source: string): string[] {
+  const sourceFile = ts.createSourceFile(
+    path,
+    source,
+    ts.ScriptTarget.Latest,
+    true,
+    path.endsWith(".tsx") ? ts.ScriptKind.TSX : ts.ScriptKind.TS,
+  );
+  const argumentsList: string[] = [];
+  function visit(node: ts.Node): void {
+    if (ts.isCallExpression(node)) {
+      const callee = node.expression.getText(sourceFile);
+      if (callee === "fetch" || callee === "fetchImpl") {
+        argumentsList.push(node.arguments.map((argument) => argument.getText(sourceFile)).join("\n"));
+      }
+    }
+    ts.forEachChild(node, visit);
+  }
+  visit(sourceFile);
+  return argumentsList;
+}
+
+function localImportPath(from: string, specifier: string): string | null {
+  const base = specifier.startsWith("@/")
+    ? join(ROOT, specifier.slice(2))
+    : specifier.startsWith(".")
+      ? resolve(dirname(from), specifier)
+      : null;
+  if (!base) return null;
+  for (const candidate of [
+    base,
+    `${base}.ts`,
+    `${base}.tsx`,
+    join(base, "index.ts"),
+    join(base, "index.tsx"),
+  ]) {
+    if (existsSync(candidate) && statSync(candidate).isFile()) return candidate;
+  }
+  return null;
+}
+
+function importClosure(start: string): Set<string> {
+  const files = new Set<string>();
+  const queue = [start];
+  while (queue.length > 0) {
+    const path = queue.pop();
+    if (!path || files.has(path)) continue;
+    files.add(path);
+    const source = readFileSync(path, "utf8");
+    for (const match of source.matchAll(/from\s+["']([^"']+)["']/g)) {
+      const imported = localImportPath(path, match[1]);
+      if (imported) queue.push(imported);
+    }
+  }
+  return files;
+}
+
+function coordinateProviderImports(route: string): Set<string> {
+  const source = readFileSync(route, "utf8");
+  const sourceFile = ts.createSourceFile(
+    route,
+    source,
+    ts.ScriptTarget.Latest,
+    true,
+    ts.ScriptKind.TS,
+  );
+  const imports = new Map<string, string>();
+  for (const statement of sourceFile.statements) {
+    if (!ts.isImportDeclaration(statement) || !ts.isStringLiteral(statement.moduleSpecifier)) continue;
+    const imported = localImportPath(route, statement.moduleSpecifier.text);
+    const bindings = statement.importClause?.namedBindings;
+    if (!imported || !bindings || !ts.isNamedImports(bindings)) continue;
+    for (const element of bindings.elements) imports.set(element.name.text, imported);
+  }
+
+  const providers = new Set<string>();
+  const pointArgument = /\b(?:lat|lng|lon|point|from|to|near)\b/i;
+  function visit(node: ts.Node): void {
+    if (ts.isCallExpression(node) && ts.isIdentifier(node.expression)) {
+      const imported = imports.get(node.expression.text);
+      const args = node.arguments.map((argument) => argument.getText(sourceFile)).join("\n");
+      if (imported && pointArgument.test(args)) providers.add(imported);
+    }
+    ts.forEachChild(node, visit);
+  }
+  visit(sourceFile);
+  return providers;
+}
+
+function httpHosts(source: string): string[] {
+  return [...source.matchAll(/https?:\/\/([a-z0-9.-]+)/gi)].map((match) =>
+    match[1].toLowerCase(),
+  );
+}
+
+function discoverCoordinateEgress(): {
+  apiPaths: Set<string>;
+  providerHosts: Set<string>;
+} {
+  const apiPaths = new Set<string>();
+  const providerHosts = new Set<string>();
+  const pointSignal =
+    /\b(?:lat|lng|lon|latitude|longitude|near|userLocation|roundedUser|roundedPoint|origin)\b|privacyRoundedJourneyPoint|roundCoord/;
+  const strongPointFile = /privacyRoundedJourneyPoint|\broundCoord\s*\(|opts\.near/;
+
+  for (const path of allSourceFiles()) {
+    const source = readFileSync(path, "utf8");
+    const strongPointEgress = strongPointFile.test(source);
+    const relativePath = path.slice(ROOT.length + 1);
+    if (relativePath.startsWith("app/") || relativePath.startsWith("components/")) {
+      const outboundTexts = strongPointEgress
+        ? fetchWindows(source)
+        : pointSignal.test(source)
+          ? fetchArguments(path, source)
+          : [];
+      for (const window of outboundTexts) {
+        if (!pointSignal.test(window) && !strongPointEgress) continue;
+        for (const match of window.matchAll(/\/api\/[a-z0-9][a-z0-9\-/]*/gi)) {
+          apiPaths.add(match[0].replace(/\/$/, ""));
+        }
+        for (const host of httpHosts(window)) providerHosts.add(host);
+      }
+    }
+    if (strongPointEgress || /https?:\/\/[a-z0-9.-]+\/maps\//i.test(source)) {
+      for (const host of httpHosts(source)) providerHosts.add(host);
+    }
+  }
+
+  for (const apiPath of apiPaths) {
+    const route = join(ROOT, "app", apiPath.slice(1), "route.ts");
+    if (!existsSync(route)) continue;
+    const providerFiles = new Set([route]);
+    for (const imported of coordinateProviderImports(route)) {
+      for (const path of importClosure(imported)) providerFiles.add(path);
+    }
+    for (const path of providerFiles) {
+      const source = readFileSync(path, "utf8");
+      if (!/\b(?:fetch|fetchImpl)\s*\(/.test(source)) continue;
+      for (const host of httpHosts(source)) providerHosts.add(host);
+      if (/https:\/\/\$\{/.test(source)) {
+        for (const match of source.matchAll(/["'`]((?:[a-z0-9-]+\.)+[a-z]{2,})["'`]/gi)) {
+          providerHosts.add(match[1].toLowerCase());
+        }
+      }
+    }
+  }
+
+  const normalized = new Set(
+    [...providerHosts]
+      .filter((host) => !/(^|\.)pubmaxxing\.com$/.test(host))
+      .map((host) => host.replace(/^www\./, "")),
+  );
+  return { apiPaths, providerHosts: normalized };
+}
+
 const privacy = read("app/privacy/page.tsx");
 const terms = read("app/terms/page.tsx");
 const landing = read("components/landing/LandingPage.tsx");
 const sitemap = read("app/sitemap.ts");
-const lastTrainRoute = read("app/api/last-train/route.ts");
-const cityMcpClient = read("lib/citymcp/client.ts");
-const useVenueJourney = read("components/map/useVenueJourney.ts");
-const venueJourney = read("lib/venueJourney.ts");
-const venueExternalActions = read("lib/venueExternalActions.ts");
 
 describe("legal content pages", () => {
   it("reaches the reader from the site footer", () => {
@@ -90,17 +270,26 @@ describe("legal content pages", () => {
   });
 
   it("names every third party that receives a viewer point", () => {
-    expect(lastTrainRoute).toMatch(/api\.tfl\.gov\.uk/);
-    expect(cityMcpClient).toMatch(/https:\/\/citymcp\.com\/london\/mcp/);
-    expect(useVenueJourney).toMatch(/privacyRoundedJourneyPoint/);
-    expect(useVenueJourney).toMatch(/fetch\("\/api\/citymcp\/journey"/);
-    expect(venueJourney).toMatch(/https:\/\/www\.google\.com\/maps\/dir/);
-    expect(venueJourney).toMatch(/params\.set\("origin"/);
-    expect(venueExternalActions).toMatch(/https:\/\/www\.google\.com\/maps\/search/);
+    // Source-derived scan chosen because hardcoded provider assertions cannot
+    // detect a new coordinate recipient. Client seams discover their own API
+    // routes, then each route's imports reveal external fetch hosts.
+    const egress = discoverCoordinateEgress();
+    const thirdPartySection =
+      privacy.match(/aria-labelledby="third"[\s\S]*?aria-labelledby="keep"/)?.[0] ?? "";
 
-    expect(privacy).toMatch(/<dt>Transport for London<\/dt>/);
-    expect(privacy).toMatch(/<dt>CityMCP<\/dt>/);
-    expect(privacy).toMatch(/<dt>Google Maps<\/dt>/);
+    expect(egress.apiPaths.size).toBeGreaterThanOrEqual(5);
+    expect(egress.providerHosts.size).toBeGreaterThanOrEqual(3);
+    for (const host of egress.providerHosts) {
+      expect(thirdPartySection, `Missing coordinate recipient disclosure for ${host}`).toContain(host);
+    }
+  });
+
+  it("describes remembered-area request use without claiming all state stays local", () => {
+    expect(privacy).toMatch(/public area&rsquo;s coarse centre/);
+    expect(privacy).toMatch(/The saved choice itself is not\s+uploaded/);
+    expect(privacy).toMatch(/don&rsquo;t upload those stored values as a bundle/);
+    expect(privacy).toMatch(/device night profile stays\s+on your device unless you sign in/);
+    expect(privacy).not.toMatch(/These never leave your\s+device/);
   });
 
   it("describes durable rate-limit retention", () => {
