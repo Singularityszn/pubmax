@@ -7,6 +7,12 @@ import {
   haystackMatchesCategory,
   parseDrinkCategoryParam,
 } from "@/lib/drinkBrands";
+import {
+  haystackIsTopShelf,
+  haystackMatchesSubtype,
+  haystackMatchesSubtypeBrand,
+  parseDrinkSubtypeParam,
+} from "@/lib/drinkSubtypes";
 import { hasNonAlcoholic } from "@/lib/nonAlcoholicDrinks";
 import { getVenueAccessibility } from "@/lib/venueAccessibilitySeeds";
 import {
@@ -170,6 +176,20 @@ export type VenueFilterHints = {
   // pragmatically from pint names / amenity flags — not a full menu DB.
   drinkCategories?: string[];
   drinkBrands?: string[];
+  /**
+   * Normalized drink product names from the slim source rows. Keeps raw
+   * evidence available so the canonical subtype matcher remains the one owner
+   * of taxonomy classification instead of duplicating it in the build script.
+   */
+  drinkText?: string;
+  /**
+   * Second-level drink hints (`rum-dark`, `whisky-japanese`, …) from
+   * lib/drinkSubtypes. Optional and usually absent — the subtype lens falls
+   * back to the same free-text haystack the category lens uses.
+   */
+  drinkSubtypes?: string[];
+  /** True when the slim index saw a top-shelf / premium pour. */
+  topShelf?: boolean;
 };
 
 export type Filters = {
@@ -198,6 +218,15 @@ export type Filters = {
   // lib/drinkBrands. Cocktail / low-no still prefer the amenity flags above.
   drinkCategory: string;
   drinkBrand: string;
+  // Second-level refinement of drinkCategory (lib/drinkSubtypes): a subtype id
+  // like "rum-dark" or "whisky-japanese". "" = off. A subtype NEVER replaces
+  // its category — both are set together, so every category-only consumer
+  // (glyph lens, persona lens, deep-links) is unaffected. A subtype whose
+  // category disagrees with drinkCategory is ignored rather than obeyed.
+  drinkSubtype: string;
+  // Cross-category "expensive kind of booze" lens. Off = no narrowing; on
+  // narrows to venues with a KNOWN top-shelf signal (never guessed).
+  topShelfOnly: boolean;
   // Zone lens (nearest-station fare zone). "" or "all" = every zone; "1".."6"
   // narrows to venues whose assigned zone matches. A venue with an unknown zone
   // never matches a concrete zone — honest, not guessed into a bucket.
@@ -484,6 +513,15 @@ function venueDrinkHaystack(venue: Venue): string {
   return parts.join(" ");
 }
 
+function venueDrinkNamesHaystack(venue: Venue): string {
+  const slimDrinkText = venue.filterHints?.drinkText?.trim();
+  return [
+    slimDrinkText ?? "",
+    venue.cheapestPint,
+    ...venue.prices.map((price) => price.pint_name),
+  ].join(" ");
+}
+
 function matchesDrinkCategory(venue: Venue, drinkCategory: string): boolean {
   const category = parseDrinkCategoryParam(drinkCategory);
   if (!category) return true;
@@ -515,6 +553,45 @@ function matchesDrinkBrand(venue: Venue, drinkBrand: string): boolean {
   return haystackMatchesBrand(venueDrinkHaystack(venue), hit.brand);
 }
 
+function matchesDrinkSubtype(
+  venue: Venue,
+  drinkSubtype: string,
+  drinkCategory: string,
+): boolean {
+  const needle = drinkSubtype.trim();
+  if (!needle) return true;
+  // Unknown subtype ids must not no-op — treat as no match (same as brand).
+  const subtype = parseDrinkSubtypeParam(needle);
+  if (!subtype) return false;
+  // A subtype only refines its own family. When the active category disagrees
+  // (a stale chip, a hand-edited URL), the refinement is dropped rather than
+  // silently filtering against the wrong parent.
+  const category = parseDrinkCategoryParam(drinkCategory);
+  if (category && category !== subtype.category) return true;
+
+  const hinted = venue.filterHints?.drinkSubtypes;
+  if (Array.isArray(hinted) && hinted.includes(subtype.id)) return true;
+
+  // A subtype describes a drink product, not venue prose. Product names avoid
+  // treating copy such as "dark timber" or "Japanese-inspired room" as menu
+  // evidence while still covering both slim cheapest-pint and hydrated rows.
+  const haystack = venueDrinkNamesHaystack(venue);
+  if (haystackMatchesSubtype(haystack, subtype)) return true;
+  // Brand knowledge closes the gap the text can't: "GUINNESS" is a stout
+  // without ever saying so. Check every stocked brand rather than returning
+  // the first recognized one, so a Guinness + Amstel pub matches both stout
+  // and lager refinements.
+  return haystackMatchesSubtypeBrand(haystack, subtype);
+}
+
+function matchesTopShelf(venue: Venue, topShelfOnly: boolean): boolean {
+  if (!topShelfOnly) return true;
+  if (venue.filterHints?.topShelf === true) return true;
+  // "Vintage decor", an "aged building", or a "premium pub" are not premium
+  // pours. Restrict text evidence to actual drink names.
+  return haystackIsTopShelf(venueDrinkNamesHaystack(venue));
+}
+
 export function filterVenues(
   venues: Venue[],
   filters: Filters,
@@ -523,6 +600,13 @@ export function filterVenues(
   const query = filters.query.trim().toLowerCase();
   const drinkCategory = filters.drinkCategory?.trim() ?? "";
   const drinkBrand = filters.drinkBrand?.trim() ?? "";
+  const drinkSubtype = filters.drinkSubtype?.trim() ?? "";
+  const topShelfOnly = filters.topShelfOnly === true;
+  const selectedCategory = parseDrinkCategoryParam(drinkCategory);
+  const selectedSubtype = parseDrinkSubtypeParam(drinkSubtype);
+  const subtypeRefinesCategory =
+    selectedCategory !== null &&
+    selectedSubtype?.category === selectedCategory;
   // "" / "all" → every zone; a concrete zone narrows to that fare zone only.
   const zoneSelection = parseZoneParam(filters.zone);
   return venues.filter((venue) => {
@@ -538,6 +622,17 @@ export function filterVenues(
       accessibleToilet: filters.requireAccessibleToilet,
       seatedService: filters.requireSeatedService,
     });
+    const matchesSubtype = matchesDrinkSubtype(
+      venue,
+      drinkSubtype,
+      drinkCategory,
+    );
+    // Matching a valid subtype is stronger evidence for its own parent than a
+    // broad category keyword. "GUINNESS" can prove stout even though its name
+    // contains neither "beer" nor "stout".
+    const matchesCategory =
+      matchesDrinkCategory(venue, drinkCategory) ||
+      (subtypeRefinesCategory && matchesSubtype);
 
     return (
       matchesVenueQuery(venue, query) &&
@@ -547,8 +642,10 @@ export function filterVenues(
       matchesCanonicalFilter(venue, filters.canonicalOnly) &&
       matchesPintDrops &&
       matchesAccessibility &&
-      matchesDrinkCategory(venue, drinkCategory) &&
+      matchesCategory &&
       matchesDrinkBrand(venue, drinkBrand) &&
+      matchesSubtype &&
+      matchesTopShelf(venue, topShelfOnly) &&
       venueMatchesZone(venue.zone, zoneSelection)
     );
   });

@@ -96,6 +96,9 @@ export const initialFilters: Filters = {
   requireSeatedService: false,
   drinkCategory: "",
   drinkBrand: "",
+  // "" = no subtype refinement; set only alongside a drinkCategory.
+  drinkSubtype: "",
+  topShelfOnly: false,
   // "" = all zones (no narrowing). The zone picker sets "1".."6".
   zone: "",
 };

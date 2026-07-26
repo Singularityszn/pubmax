@@ -5,6 +5,12 @@
 // Tapping a glyph sets the same drinkCategory lens that /map?drink=… deep-links
 // use (see lib/crawlUrl.ts). Do NOT also set filters.query — that AND'd with
 // drinkCategory and dropped slim pins whose category isn't in name/searchText.
+//
+// PROGRESSIVE DISCLOSURE: the compact top strip never grows. The subtype row
+// (white / dark / spiced rum…) and the top-shelf
+// toggle appear only AFTER a category is picked, so a 390px phone shows one
+// scrollable strip at rest and at most two once the user has committed to a
+// family — the refinement can never crowd the resting toolbar.
 
 import { DrinkGlyph } from "@/components/drinks/DrinkGlyph";
 import {
@@ -13,7 +19,13 @@ import {
   type DrinkCategory,
   categoryLabel,
   formatAbv,
+  isDrinkCategory,
 } from "@/lib/drinks";
+import {
+  findSubtype,
+  subtypesForCategory,
+  type DrinkSubtype,
+} from "@/lib/drinkSubtypes";
 import type { Filters } from "@/lib/venues";
 
 const CHIP_CATEGORIES: DrinkCategory[] = [
@@ -32,8 +44,17 @@ type DrinkShapeChipsProps = {
 
 function activeCategory(filters: Filters): DrinkCategory | null {
   const lens = filters.drinkCategory.trim().toLowerCase();
-  if (CHIP_CATEGORIES.includes(lens as DrinkCategory)) return lens as DrinkCategory;
+  // Picker and deep links can select categories intentionally omitted from the
+  // compact chip strip. They still own a refinement row.
+  if (isDrinkCategory(lens)) return lens;
   return filters.requireCocktails ? "cocktail" : null;
+}
+
+/** The active subtype, but only while it still refines the active category. */
+function activeSubtype(filters: Filters): DrinkSubtype | null {
+  const subtype = findSubtype(filters.drinkSubtype);
+  if (!subtype) return null;
+  return subtype.category === activeCategory(filters) ? subtype : null;
 }
 
 export function nextDrinkShapeFilters(filters: Filters, cat: DrinkCategory): Filters {
@@ -44,6 +65,13 @@ export function nextDrinkShapeFilters(filters: Filters, cat: DrinkCategory): Fil
       requireCocktails: false,
       drinkCategory: "",
       drinkBrand: "",
+      // Dropping the family drops its refinement — an orphaned subtype would
+      // keep silently narrowing a lens the user just switched off.
+      drinkSubtype: "",
+      // Top shelf is disclosed inside the family refinement row. Clearing the
+      // family must clear it too, or an active filter becomes impossible to
+      // switch off from the now-hidden row.
+      topShelfOnly: false,
     };
   }
   return {
@@ -51,7 +79,31 @@ export function nextDrinkShapeFilters(filters: Filters, cat: DrinkCategory): Fil
     requireCocktails: cat === "cocktail",
     drinkCategory: cat,
     drinkBrand: "",
+    drinkSubtype: "",
   };
+}
+
+/** Toggle a subtype refinement. The parent category is set alongside it, never replaced. */
+export function nextDrinkSubtypeFilters(
+  filters: Filters,
+  subtypeId: string,
+): Filters {
+  const subtype = findSubtype(subtypeId);
+  if (!subtype) return filters;
+  const on = activeSubtype(filters)?.id === subtype.id;
+  return {
+    ...filters,
+    drinkCategory: subtype.category,
+    requireCocktails: subtype.category === "cocktail",
+    drinkSubtype: on ? "" : subtype.id,
+  };
+}
+
+export function nextTopShelfFilters(filters: Filters): Filters {
+  // Control is progressively disclosed beneath a category. Refuse orphaned
+  // state so no active filter can become inaccessible after that row unmounts.
+  if (!activeCategory(filters)) return filters;
+  return { ...filters, topShelfOnly: !filters.topShelfOnly };
 }
 
 export default function DrinkShapeChips({
@@ -59,33 +111,72 @@ export default function DrinkShapeChips({
   onFiltersChange,
 }: DrinkShapeChipsProps) {
   const active = activeCategory(filters);
-
-  function select(cat: DrinkCategory) {
-    onFiltersChange(nextDrinkShapeFilters(filters, cat));
-  }
+  const subtype = activeSubtype(filters);
+  const subtypes = active ? subtypesForCategory(active) : [];
 
   return (
-    <div className="drinkShapeChips" role="group" aria-label="Filter by drink shape">
-      {CHIP_CATEGORIES.map((cat) => {
-        const on = active === cat;
-        const defaultAbv = formatAbv(CATEGORY_DEFAULT_ABV[cat]);
-        const label = defaultAbv
-          ? `${categoryLabel(cat)} · ~${defaultAbv}`
-          : categoryLabel(cat);
-        return (
+    <div className="drinkShapeChipsStack">
+      <div className="drinkShapeChips" role="group" aria-label="Filter by drink shape">
+        {CHIP_CATEGORIES.map((cat) => {
+          const on = active === cat;
+          const defaultAbv = formatAbv(CATEGORY_DEFAULT_ABV[cat]);
+          const label = defaultAbv
+            ? `${categoryLabel(cat)} · ~${defaultAbv}`
+            : categoryLabel(cat);
+          return (
+            <button
+              key={cat}
+              type="button"
+              className={on ? "drinkShapeChip isOn" : "drinkShapeChip"}
+              aria-pressed={on}
+              aria-label={`${CATEGORY_META[cat].label}${on ? " (selected)" : ""}`}
+              onClick={() => onFiltersChange(nextDrinkShapeFilters(filters, cat))}
+            >
+              <DrinkGlyph category={cat} size={22} inheritColor={on} />
+              <span className="drinkShapeChipLabel">{label}</span>
+            </button>
+          );
+        })}
+      </div>
+
+      {active ? (
+        <div
+          className="drinkSubtypeChips"
+          role="group"
+          aria-label={`Refine ${CATEGORY_META[active].label}`}
+        >
+          {subtypes.map((option) => {
+            const on = subtype?.id === option.id;
+            return (
+              <button
+                key={option.id}
+                type="button"
+                className={on ? "drinkSubtypeChip isOn" : "drinkSubtypeChip"}
+                aria-pressed={on}
+                aria-label={`${option.longLabel}${on ? " (selected)" : ""}`}
+                onClick={() =>
+                  onFiltersChange(nextDrinkSubtypeFilters(filters, option.id))
+                }
+              >
+                {option.label}
+              </button>
+            );
+          })}
           <button
-            key={cat}
             type="button"
-            className={on ? "drinkShapeChip isOn" : "drinkShapeChip"}
-            aria-pressed={on}
-            aria-label={`${CATEGORY_META[cat].label}${on ? " (selected)" : ""}`}
-            onClick={() => select(cat)}
+            className={
+              filters.topShelfOnly
+                ? "drinkSubtypeChip isTopShelf isOn"
+                : "drinkSubtypeChip isTopShelf"
+            }
+            aria-pressed={filters.topShelfOnly}
+            aria-label={`Top shelf only${filters.topShelfOnly ? " (selected)" : ""}`}
+            onClick={() => onFiltersChange(nextTopShelfFilters(filters))}
           >
-            <DrinkGlyph category={cat} size={22} inheritColor={on} />
-            <span className="drinkShapeChipLabel">{label}</span>
+            Top shelf
           </button>
-        );
-      })}
+        </div>
+      ) : null}
     </div>
   );
 }

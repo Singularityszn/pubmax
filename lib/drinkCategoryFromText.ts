@@ -14,7 +14,17 @@
 //
 // Pure + browser-safe: no imports beyond the taxonomy type. Fully unit-tested.
 
+import {
+  drinkSubtypeFromText,
+  haystackIsTopShelf,
+} from "@/lib/drinkSubtypes";
 import type { DrinkCategory } from "@/lib/drinks";
+
+export type DrinkTextTaxonomy = {
+  category: DrinkCategory;
+  subtype: string | null;
+  topShelf: boolean;
+};
 
 // Ordered keyword table. Order matters: the first category with a hit wins, so
 // the more specific / less ambiguous families are checked before the broad
@@ -122,10 +132,7 @@ function hasKeyword(label: string, keyword: string): boolean {
  * carries no confident signal. Never guesses: an unrecognised label ("a memory",
  * "", "the usual") yields null so the caller falls back honestly.
  */
-export function drinkCategoryFromText(
-  drink: string | null | undefined,
-): DrinkCategory | null {
-  if (typeof drink !== "string") return null;
+function categoryFromKeywords(drink: string): DrinkCategory | null {
   const label = drink.trim().toLowerCase();
   if (!label) return null;
 
@@ -135,6 +142,37 @@ export function drinkCategoryFromText(
     }
   }
   return null;
+}
+
+export function drinkCategoryFromText(
+  drink: string | null | undefined,
+): DrinkCategory | null {
+  if (typeof drink !== "string") return null;
+  const category = categoryFromKeywords(drink);
+  if (category) return category;
+
+  // Preserve every ordered top-level decision above. Only labels the legacy
+  // table cannot classify fall through to subtype/brand knowledge, allowing
+  // real price strings such as "AMSTEL" and "BACARDI" to reach their family.
+  return drinkSubtypeFromText(drink)?.category ?? null;
+}
+
+/**
+ * Classify a free-text drink into its backward-compatible category plus at
+ * most one subtype and an orthogonal top-shelf signal.
+ */
+export function drinkTaxonomyFromText(
+  drink: string | null | undefined,
+): DrinkTextTaxonomy | null {
+  if (typeof drink !== "string" || !drink.trim()) return null;
+  const category = drinkCategoryFromText(drink);
+  if (!category) return null;
+  const subtype = drinkSubtypeFromText(drink, category);
+  return {
+    category,
+    subtype: subtype?.id ?? null,
+    topShelf: haystackIsTopShelf(drink),
+  };
 }
 
 export { CATEGORY_KEYWORDS };

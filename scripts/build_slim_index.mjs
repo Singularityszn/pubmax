@@ -281,6 +281,9 @@ function haystackHasCategoryToken(hay, tokens) {
 function buildDrinkHints(prices) {
   const categories = new Set();
   const brands = new Set();
+  const drinkText = normaliseDrinkHaystack(
+    prices.map((price) => price.pint_name).join(" "),
+  );
   const hay = normaliseDrinkHaystack(
     [
       ...prices.map((price) => price.pint_name),
@@ -323,6 +326,7 @@ function buildDrinkHints(prices) {
   return {
     drinkCategories: Array.from(categories).sort(),
     drinkBrands: Array.from(brands).sort(),
+    drinkText,
   };
 }
 
@@ -481,6 +485,7 @@ function buildFilterHints(prices, venueId, scrapedIds) {
     ...(scraped ? { scraped: true } : {}),
     ...(drinkCategories.length ? { drinkCategories } : {}),
     ...(drinkHints.drinkBrands.length ? { drinkBrands: drinkHints.drinkBrands } : {}),
+    ...(drinkHints.drinkText ? { drinkText: drinkHints.drinkText } : {}),
     ...(cuisineTags.length ? { cuisineTags } : {}),
   };
 }

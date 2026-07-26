@@ -80,4 +80,41 @@ describe("mobile map session adapter", () => {
     }));
     expect(readMobileMapSession()).toBeNull();
   });
+
+  it("upgrades saved filters from before subtype lenses and preserves new lenses", () => {
+    const current = seedCrawlState("").filters;
+    const legacy: Partial<typeof current> = { ...current };
+    delete legacy.drinkSubtype;
+    delete legacy.topShelfOnly;
+    expect(validateMobileMapFilters(legacy)).toMatchObject({
+      drinkSubtype: "",
+      topShelfOnly: false,
+    });
+    expect(validateMobileMapFilters({
+      ...current,
+      drinkCategory: "rum",
+      drinkSubtype: "rum-dark",
+      topShelfOnly: true,
+    })).toMatchObject({
+      drinkCategory: "rum",
+      drinkSubtype: "rum-dark",
+      topShelfOnly: true,
+    });
+    expect(validateMobileMapFilters({
+      ...current,
+      drinkCategory: "rum",
+      drinkSubtype: "whisky-japanese",
+      topShelfOnly: true,
+    })).toMatchObject({
+      drinkCategory: "rum",
+      drinkSubtype: "",
+      topShelfOnly: true,
+    });
+    expect(validateMobileMapFilters({
+      ...current,
+      drinkCategory: "",
+      drinkSubtype: "",
+      topShelfOnly: true,
+    })?.topShelfOnly).toBe(false);
+  });
 });

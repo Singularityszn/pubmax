@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 
-import { drinkCategoryFromText } from "@/lib/drinkCategoryFromText";
+import {
+  drinkCategoryFromText,
+  drinkTaxonomyFromText,
+} from "@/lib/drinkCategoryFromText";
 
 describe("drinkCategoryFromText", () => {
   it("returns null for empty / unknown / non-string input", () => {
@@ -51,5 +54,35 @@ describe("drinkCategoryFromText", () => {
     // acceptable here; the guard we care about is wine/spirits winning first.
     expect(drinkCategoryFromText("Red wine")).toBe("wine");
     expect(drinkCategoryFromText("Whisky sour")).toBe("whisky");
+  });
+
+  it("returns one-level subtype and top-shelf evidence without changing legacy category order", () => {
+    expect(drinkTaxonomyFromText("Black rum")).toEqual({
+      category: "rum",
+      subtype: "rum-dark",
+      topShelf: false,
+    });
+    expect(drinkTaxonomyFromText("Japanese whisky")).toEqual({
+      category: "whisky",
+      subtype: "whisky-japanese",
+      topShelf: false,
+    });
+    expect(drinkTaxonomyFromText("Lagavulin 16")).toEqual({
+      category: "whisky",
+      subtype: "whisky-single-malt",
+      topShelf: true,
+    });
+    // Existing ordered mapper treats Negroni as gin. Subtype enrichment must
+    // refine that category, never reorder the closed top-level behavior.
+    expect(drinkTaxonomyFromText("Negroni")).toEqual({
+      category: "gin",
+      subtype: null,
+      topShelf: false,
+    });
+  });
+
+  it("uses subtype brand knowledge as a category fallback for real dataset labels", () => {
+    expect(drinkCategoryFromText("AMSTEL")).toBe("beer");
+    expect(drinkCategoryFromText("BACARDI")).toBe("rum");
   });
 });

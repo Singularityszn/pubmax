@@ -98,7 +98,10 @@ export default function MapToolbar({
   // Drive from real drink-lens state only — free-text "beer garden" must not
   // light the Drinks control as if a drink filter were applied.
   const drinksActive =
-    filters.requireCocktails || Boolean(drinkCategory) || Boolean(favoritePint);
+    filters.requireCocktails ||
+    Boolean(drinkCategory) ||
+    filters.topShelfOnly ||
+    Boolean(favoritePint);
   const trimmedQuery = query.trim();
   const showNoSearchMatches =
     searchSettled &&

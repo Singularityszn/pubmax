@@ -66,6 +66,9 @@ function isFilterHints(value: unknown): value is VenueFilterHints {
   if (row.cuisineTags !== undefined && !isStringArray(row.cuisineTags)) return false;
   if (row.drinkCategories !== undefined && !isStringArray(row.drinkCategories)) return false;
   if (row.drinkBrands !== undefined && !isStringArray(row.drinkBrands)) return false;
+  if (row.drinkSubtypes !== undefined && !isStringArray(row.drinkSubtypes)) return false;
+  if (row.drinkText !== undefined && typeof row.drinkText !== "string") return false;
+  if (row.topShelf !== undefined && !isBoolean(row.topShelf)) return false;
   if (row.scraped !== undefined && !isBoolean(row.scraped)) return false;
   return (
     isBoolean(amenities.food) &&

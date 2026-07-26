@@ -95,6 +95,8 @@ function makeFilters(overrides: Partial<Filters> = {}): Filters {
     requireSeatedService: false,
     drinkCategory: "",
     drinkBrand: "",
+    drinkSubtype: "",
+    topShelfOnly: false,
     zone: "",
     ...overrides,
   };
@@ -199,6 +201,7 @@ describe("venues_slim.json", () => {
     expect(rows.some((row) => (row.filterHints?.drinkBrands ?? []).includes("guinness"))).toBe(
       true,
     );
+    expect(rows.some((row) => row.filterHints?.drinkText?.includes("guinness"))).toBe(true);
   });
 
   it("drink-lens filters use slim drinkCategories / drinkBrands hints", () => {
@@ -216,6 +219,17 @@ describe("venues_slim.json", () => {
       const fromText = (hints?.searchText ?? "").includes("gin");
       expect(fromHint || fromText).toBe(true);
     }
+  });
+
+  it.each([
+    ["stout", makeFilters({ drinkCategory: "beer", drinkSubtype: "beer-stout" })],
+    ["lager", makeFilters({ drinkCategory: "beer", drinkSubtype: "beer-lager" })],
+    ["IPA", makeFilters({ drinkCategory: "beer", drinkSubtype: "beer-ipa" })],
+    ["top shelf", makeFilters({ drinkCategory: "beer", topShelfOnly: true })],
+  ])("matches hydrated filtering for the %s drink refinement", (_label, filters) => {
+    const slimIds = matchingIdsFromSlim(filters);
+    expect(slimIds.length).toBeGreaterThan(0);
+    expect(slimIds).toEqual(matchingIdsFromFull(filters));
   });
 
   it("carries every curated cuisine hint from the app cuisine source", () => {
