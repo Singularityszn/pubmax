@@ -84,9 +84,10 @@ bucket against the last one recorded in `localStorage`
 day** — a repeat visit or reload within the same day never double-counts
 (`shouldRecordDailyActivity` in `lib/dailyActivity.ts`).
 
-The event carries the same anon/auth identity as every other event in the
+The event carries the same anonymous identity as every other event in the
 rail (the pseudonymous id from `lib/analyticsIdentity.ts` / `anonymousAnalyticsId()`
-in `lib/analytics.ts`) — no new identity concept, no fingerprinting.
+in `lib/analytics.ts`) — no account identity, new identity concept, or
+fingerprinting.
 
 ```
 return_rate(window=Nd) = count(distinct_ids with >= 2 distinct dayBucket values in window)

@@ -33,7 +33,9 @@ analytics content to become a shadow user profile.
 - Events are forwarded to PostHog only after explicit analytics consent. The stable
   pseudonymous browser identifier contains no account data, is deleted on revocation,
   and is never merged with account identity.
-- Session replay and new automatic capture remain disabled until a separate consent,
-  redaction, and retention review passes.
-- General browser/server errors use PostHog's supported error tracking plus Vercel
-  logs; Arize is not a general error-monitoring sink.
+- Session replay and automatic product or session capture remain disabled until a
+  separate consent, redaction, and retention review passes. Exception autocapture is
+  the sole exception: it is separately consent-gated and stripped to anonymous/device
+  identifiers plus bounded error types before transport.
+- Browser exceptions use PostHog's supported error tracking; server errors remain in
+  Vercel logs. Arize is not a general error-monitoring sink.
