@@ -3,7 +3,7 @@
 Wave 0 treats every exported `POST`, `PUT`, `PATCH`, or `DELETE` handler as a
 reviewed surface—even when a POST is semantically read-only. The regression test
 `__tests__/writeSurfaceCertification.test.ts` scans the complete `app/api` tree.
-Adding a sixty-second mutating route or removing its authority/abuse boundary fails
+Adding a mutating route or removing its authority/abuse boundary fails
 CI until this certification is deliberately updated.
 
 > **Inventory: 70 mutating routes.** The count grew 60 → 61 (email-capture
@@ -270,13 +270,14 @@ The Vercel cron freshness plane adds three scheduled routes under
 `app/api/cron/*` (`refresh-weather`, `refresh-whats-on`, `freshness-audit`). They
 are **mutating by effect** (weather writes to the durable `weather_snapshots`
 store; What's-On stamps `feed_freshness`) but are deliberately **NOT counted in
-the 69-route inventory**, for the same reason token-gated `GET`
+the mutating-route inventory** (see the count at the top of this document), for
+the same reason token-gated `GET`
 confirm/unsubscribe endpoints are excluded:
 
 - **They are `GET` handlers.** Vercel Cron dispatches `GET` (its dispatcher also
   accepts `POST`); the inventory scans for public `POST/PUT/PATCH/DELETE`
   handlers (`MUTATION_EXPORT`), which these do not export. The structural count
-  therefore stays **69** with no bump.
+  is therefore unchanged by them.
 - **They are internal, `CRON_SECRET`-gated schedulers, not a public surface.**
   Authority is `Authorization: Bearer $CRON_SECRET` enforced twice — by Vercel's
   cron dispatcher and again inside each handler (`lib/cronAuth.ts`,
