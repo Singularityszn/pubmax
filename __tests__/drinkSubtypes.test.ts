@@ -134,9 +134,26 @@ describe("top shelf", () => {
     expect(haystackIsTopShelf("Cîroc")).toBe(true);
   });
 
+  it("fires on category-scoped premium language and age statements", () => {
+    expect(haystackIsTopShelf("Vintage Champagne")).toBe(true);
+    expect(haystackIsTopShelf("Glenfiddich 12 Year Old")).toBe(true);
+    expect(haystackIsTopShelf("Redbreast 12 yr")).toBe(true);
+    expect(haystackIsTopShelf("Courvoisier XO")).toBe(true);
+    expect(haystackIsTopShelf("Aged rum")).toBe(true);
+  });
+
   it("never promotes an ordinary pour", () => {
     expect(haystackIsTopShelf("")).toBe(false);
     expect(haystackIsTopShelf("Carling")).toBe(false);
     expect(haystackIsTopShelf("House lager")).toBe(false);
+  });
+
+  it("ignores standalone marketing adjectives on ordinary pints", () => {
+    expect(haystackIsTopShelf("HENRY WESTON'S VINTAGE CIDER")).toBe(false);
+    expect(haystackIsTopShelf("HENRY WESTONS VINTAGE STILL CIDER")).toBe(false);
+    expect(haystackIsTopShelf("Appleshed Premium Cider Dark Fruit")).toBe(false);
+    expect(haystackIsTopShelf("Premium lager")).toBe(false);
+    expect(haystackIsTopShelf("Special Reserve")).toBe(false);
+    expect(haystackIsTopShelf("3 year cider")).toBe(false);
   });
 });

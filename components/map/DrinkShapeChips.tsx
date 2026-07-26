@@ -102,8 +102,17 @@ export function nextDrinkSubtypeFilters(
 export function nextTopShelfFilters(filters: Filters): Filters {
   // Control is progressively disclosed beneath a category. Refuse orphaned
   // state so no active filter can become inaccessible after that row unmounts.
-  if (!activeCategory(filters)) return filters;
-  return { ...filters, topShelfOnly: !filters.topShelfOnly };
+  const active = activeCategory(filters);
+  if (!active) return filters;
+  // Pin the category alongside the flag (mirroring nextDrinkSubtypeFilters):
+  // when the row was disclosed by requireCocktails alone, clearing that
+  // checkbox must not strand topShelfOnly behind an unmounted row, and the
+  // URL/session codecs only carry topshelf together with a category.
+  return {
+    ...filters,
+    drinkCategory: active,
+    topShelfOnly: !filters.topShelfOnly,
+  };
 }
 
 export default function DrinkShapeChips({

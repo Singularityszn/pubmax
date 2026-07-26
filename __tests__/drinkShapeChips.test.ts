@@ -148,4 +148,18 @@ describe("nextTopShelfFilters", () => {
       nextTopShelfFilters(filters({ drinkCategory: "vodka" })).topShelfOnly,
     ).toBe(true);
   });
+
+  it("pins the category when the row was disclosed by the cocktails amenity alone", () => {
+    const on = nextTopShelfFilters(filters({ requireCocktails: true }));
+    expect(on).toMatchObject({
+      drinkCategory: "cocktail",
+      requireCocktails: true,
+      topShelfOnly: true,
+    });
+    // Unchecking the ControlRail cocktails box afterwards leaves the pinned
+    // category, so the refinement row (and the toggle) stays reachable.
+    const unchecked = { ...on, requireCocktails: false };
+    expect(unchecked.drinkCategory).toBe("cocktail");
+    expect(nextTopShelfFilters(unchecked).topShelfOnly).toBe(false);
+  });
 });

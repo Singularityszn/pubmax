@@ -451,22 +451,29 @@ export const TOP_SHELF_BRAND_IDS: ReadonlySet<string> = new Set([
   "champagne",
 ]);
 
+// Standalone marketing adjectives ("premium", "vintage", "reserve") are NOT
+// signals: ordinary pints wear them too (HENRY WESTON'S VINTAGE CIDER,
+// Appleshed Premium Cider). Only category-scoped combinations qualify.
 export const TOP_SHELF_TOKENS: readonly string[] = [
   "top shelf",
   "topshelf",
-  "premium",
-  "reserve",
   "single malt",
   "cask strength",
   "small batch",
-  "vintage",
+  "vintage champagne",
+  "vintage port",
   "vsop",
   "xo",
-  "aged",
+  "aged rum",
+  "aged whisky",
   "rare",
   "limited edition",
   "back bar",
 ];
+
+// Age-statement pours ("12 year old", "18 yr") — two digits so a "3 year"
+// cider or vinegar-style label never qualifies.
+const TOP_SHELF_AGE_STATEMENT = /(^| )\d{2} (years?|yr)( old)?( |$)/;
 
 // ── Matching ─────────────────────────────────────────────────────────────────
 // One shared rule for every needle in this module: multi-word needles match as
@@ -527,6 +534,7 @@ function subtypeScore(hay: string, subtype: DrinkSubtype, pinned: boolean): numb
 export function haystackIsTopShelf(haystack: string): boolean {
   const hay = normalizeDrinkHaystack(haystack);
   if (!hay) return false;
+  if (TOP_SHELF_AGE_STATEMENT.test(hay)) return true;
   if (TOP_SHELF_TOKENS.some((token) => haystackHasNeedle(hay, token))) return true;
   for (const id of TOP_SHELF_BRAND_IDS) {
     const hit = findBrand(id);

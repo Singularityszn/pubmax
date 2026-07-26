@@ -225,11 +225,18 @@ describe("venues_slim.json", () => {
     ["stout", makeFilters({ drinkCategory: "beer", drinkSubtype: "beer-stout" })],
     ["lager", makeFilters({ drinkCategory: "beer", drinkSubtype: "beer-lager" })],
     ["IPA", makeFilters({ drinkCategory: "beer", drinkSubtype: "beer-ipa" })],
-    ["top shelf", makeFilters({ drinkCategory: "beer", topShelfOnly: true })],
   ])("matches hydrated filtering for the %s drink refinement", (_label, filters) => {
     const slimIds = matchingIdsFromSlim(filters);
     expect(slimIds.length).toBeGreaterThan(0);
     expect(slimIds).toEqual(matchingIdsFromFull(filters));
+  });
+
+  it("matches hydrated filtering for the top shelf refinement", () => {
+    // The pint dataset is beer-only and ordinary pints never classify as top
+    // shelf (no marketing-adjective promotion), so both paths may legitimately
+    // return nothing — the contract under test is slim/full agreement.
+    const filters = makeFilters({ drinkCategory: "beer", topShelfOnly: true });
+    expect(matchingIdsFromSlim(filters)).toEqual(matchingIdsFromFull(filters));
   });
 
   it("carries every curated cuisine hint from the app cuisine source", () => {
