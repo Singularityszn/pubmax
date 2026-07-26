@@ -21,7 +21,16 @@
 //
 // OSM data is © OpenStreetMap contributors, ODbL 1.0.
 
-import { access, mkdir, readFile, readdir, stat, writeFile } from "node:fs/promises";
+import {
+  access,
+  mkdir,
+  readFile,
+  readdir,
+  rename,
+  stat,
+  unlink,
+  writeFile,
+} from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -59,6 +68,8 @@ const INTER_CHUNK_DELAY_MS = 8_000;
 const MAX_ATTEMPTS = 5;
 const MAX_BACKOFF_MS = 180_000;
 const QUERY_TIMEOUT_S = 90;
+const MAX_SOURCE_AGE_MS = 48 * 60 * 60 * 1_000;
+const MAX_FUTURE_CLOCK_SKEW_MS = 5 * 60 * 1_000;
 // Guard from the wave brief: stop before committing a data drop this large.
 const COMMIT_SIZE_LIMIT_BYTES = 100 * 1024 * 1024;
 
@@ -112,6 +123,34 @@ function backoffMs(attempt, retryAfterHeader) {
   return Math.min(MAX_BACKOFF_MS, 4_000 * 2 ** attempt);
 }
 
+function isValidOverpassRaw(raw) {
+  return (
+    raw !== null &&
+    typeof raw === "object" &&
+    Array.isArray(raw.elements) &&
+    !(typeof raw.remark === "string" && raw.remark.trim().length > 0)
+  );
+}
+
+export function parseOverpassRawText(text) {
+  try {
+    const raw = JSON.parse(text);
+    return isValidOverpassRaw(raw) ? raw : null;
+  } catch {
+    return null;
+  }
+}
+
+export function isFreshOverpassSnapshot(raw, nowMs = Date.now()) {
+  if (!isValidOverpassRaw(raw)) return false;
+  const timestampMs = Date.parse(raw.osm3s?.timestamp_osm_base ?? "");
+  if (!Number.isFinite(timestampMs)) return false;
+  return (
+    timestampMs >= nowMs - MAX_SOURCE_AGE_MS &&
+    timestampMs <= nowMs + MAX_FUTURE_CLOCK_SKEW_MS
+  );
+}
+
 async function fetchOverpass(query) {
   let lastError = null;
   for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt += 1) {
@@ -138,7 +177,16 @@ async function fetchOverpass(query) {
         }
         throw err;
       }
-      return await response.json();
+      const raw = await response.json();
+      if (!isValidOverpassRaw(raw)) {
+        throw new Error(`Invalid Overpass JSON from ${endpoint}: missing elements or contains remark`);
+      }
+      if (!isFreshOverpassSnapshot(raw)) {
+        throw new Error(
+          `Stale Overpass snapshot from ${endpoint}: ${raw.osm3s?.timestamp_osm_base ?? "missing timestamp"}`,
+        );
+      }
+      return raw;
     } catch (err) {
       lastError = err instanceof Error ? err : new Error(String(err));
       if (attempt < MAX_ATTEMPTS - 1) {
@@ -155,21 +203,42 @@ async function fetchOverpass(query) {
 /** Raw chunks are written compact: the full pull is ~38k elements across 132
  * files, and pretty-printing them would roughly quadruple what the repo carries
  * for zero readability gain on a machine-generated dump. */
+async function writeJsonAtomic(filePath, content) {
+  const temporaryPath = path.join(
+    path.dirname(filePath),
+    `.${path.basename(filePath)}.tmp`,
+  );
+  try {
+    await writeFile(temporaryPath, content);
+    await rename(temporaryPath, filePath);
+  } catch (error) {
+    await unlink(temporaryPath).catch(() => {});
+    throw error;
+  }
+}
+
 async function writeCompact(filePath, value) {
-  await writeFile(filePath, `${JSON.stringify(value)}\n`);
+  await writeJsonAtomic(filePath, `${JSON.stringify(value)}\n`);
 }
 
 async function writePretty(filePath, value) {
-  await writeFile(filePath, `${JSON.stringify(value, null, 2)}\n`);
+  await writeJsonAtomic(filePath, `${JSON.stringify(value, null, 2)}\n`);
 }
 
 async function fetchChunk(chunk, { refresh }) {
   const rawPath = path.join(RAW_DIR, chunkFileName(chunk));
-  if (!refresh && (await fileExists(rawPath))) {
-    const raw = JSON.parse(await readFile(rawPath, "utf8"));
-    const count = Array.isArray(raw?.elements) ? raw.elements.length : 0;
-    console.log(`skip ${chunk.id} (raw present, ${count} elements) - use --refresh to refetch`);
-    return { raw, fetched: false };
+  if (!refresh) {
+    const raw = await readChunkRaw(chunk);
+    if (raw && isFreshOverpassSnapshot(raw)) {
+      console.log(`skip ${chunk.id} (raw present, ${raw.elements.length} elements) - use --refresh to refetch`);
+      return { raw, fetched: false };
+    }
+    if (await fileExists(rawPath)) {
+      const reason = raw
+        ? `snapshot is older than ${MAX_SOURCE_AGE_MS / 3_600_000} hours`
+        : "raw is truncated, malformed, or contains an Overpass remark";
+      console.warn(`refetch ${chunk.id} (cached ${reason})`);
+    }
   }
   console.log(`fetching ${chunk.id} bbox=${chunk.bbox.join(",")} …`);
   const raw = await fetchOverpass(buildUkOverpassQuery(chunk.bbox, { timeout: QUERY_TIMEOUT_S }));
@@ -182,7 +251,7 @@ async function fetchChunk(chunk, { refresh }) {
 async function readChunkRaw(chunk) {
   const rawPath = path.join(RAW_DIR, chunkFileName(chunk));
   if (!(await fileExists(rawPath))) return null;
-  return JSON.parse(await readFile(rawPath, "utf8"));
+  return parseOverpassRawText(await readFile(rawPath, "utf8"));
 }
 
 // --- curated / already-seeded datasets ---------------------------------------

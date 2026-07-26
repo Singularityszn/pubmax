@@ -36,9 +36,12 @@ npm run fetch:uk-pubs -- --list             # print the grid and exit
 ```
 
 A plain `npm run fetch:uk-pubs` is the one command that produces or refreshes the
-whole dataset. It **resumes by default**: any chunk that already has a raw file is
-skipped, so an interrupted or rate-limited run is restarted by rerunning it.
-`--refresh` is the opt-in that ignores what is on disk.
+whole dataset. It **resumes by default**: a valid raw snapshot less than 48 hours
+old is skipped, while missing, truncated, remarked, or stale snapshots are
+refetched. An interrupted or rate-limited run is restarted by rerunning the same
+command. Raw responses and generated artifacts are written through atomic
+renames, so interruption cannot replace a good file with a partial one.
+`--refresh` is the opt-in that ignores otherwise reusable snapshots.
 
 Overpass etiquette matches `scripts/fetch_city_osm_pubs.mjs`: one request at a
 time, a delay between chunks, endpoint rotation, and exponential backoff on

@@ -5,6 +5,10 @@ import { spawnSync } from "node:child_process";
 import { describe, expect, it } from "vitest";
 
 import { normalizeOverpass as normalizeCityOverpass } from "../scripts/fetch_city_osm_pubs.mjs";
+import {
+  isFreshOverpassSnapshot,
+  parseOverpassRawText,
+} from "../scripts/fetch_uk_osm_pubs.mjs";
 import { normalizeOsmPubElement } from "../scripts/lib/osmPubNormalizer.mjs";
 import {
   CURATED_MATCH_RADIUS_M,
@@ -122,6 +126,29 @@ describe("uk osm grid", () => {
 });
 
 describe("uk osm normalization", () => {
+  it("rejects truncated and remarked Overpass cache entries", () => {
+    expect(parseOverpassRawText('{"elements":[')).toBeNull();
+    expect(parseOverpassRawText('{"elements":[],"remark":"runtime error"}')).toBeNull();
+    expect(parseOverpassRawText('{"elements":[]}')).toEqual({ elements: [] });
+  });
+
+  it("rejects fetched snapshots older than 48 hours", () => {
+    const now = Date.parse("2026-07-26T12:00:00Z");
+    expect(
+      isFreshOverpassSnapshot(
+        { elements: [], osm3s: { timestamp_osm_base: "2026-07-25T12:00:00Z" } },
+        now,
+      ),
+    ).toBe(true);
+    expect(
+      isFreshOverpassSnapshot(
+        { elements: [], osm3s: { timestamp_osm_base: "2026-07-20T12:00:00Z" } },
+        now,
+      ),
+    ).toBe(false);
+    expect(isFreshOverpassSnapshot({ elements: [] }, now)).toBe(false);
+  });
+
   it("uses the city normalizer contract that retains raw smoking tags", () => {
     const normalized = normalizeCityOverpass(
       {
@@ -292,7 +319,15 @@ describe("committed UK seed packs", () => {
   const manifest = JSON.parse(readFileSync(MANIFEST_PATH, "utf8"));
   const report = JSON.parse(readFileSync(DEDUPE_PATH, "utf8"));
 
-  const scan = { unnamed: 0, duplicateIds: 0, outOfBounds: 0, withSmoking: 0, annotated: 0 };
+  const scan = {
+    unnamed: 0,
+    duplicateIds: 0,
+    outOfBounds: 0,
+    withSmoking: 0,
+    annotated: 0,
+    rawCountMismatches: 0,
+    oldestRawTimestampMs: Number.POSITIVE_INFINITY,
+  };
   const seen = new Set<string>();
   for (const pub of pack.pubs) {
     if (typeof pub.name !== "string" || pub.name.length === 0) scan.unnamed += 1;
@@ -303,6 +338,19 @@ describe("committed UK seed packs", () => {
     if (!inBounds) scan.outOfBounds += 1;
     if (pub.smoking) scan.withSmoking += 1;
     if (pub.curatedRef) scan.annotated += 1;
+  }
+  for (const chunk of manifest.chunkStats as Array<{
+    id: string;
+    elements: number;
+    timestamp: string;
+  }>) {
+    const rawText = readFileSync(path.join(UK_DIR, "raw", `chunk_${chunk.id}.json`), "utf8");
+    const raw = parseOverpassRawText(rawText);
+    if (!raw || raw.elements.length !== chunk.elements) scan.rawCountMismatches += 1;
+    const timestampMs = Date.parse(chunk.timestamp);
+    if (Number.isFinite(timestampMs)) {
+      scan.oldestRawTimestampMs = Math.min(scan.oldestRawTimestampMs, timestampMs);
+    }
   }
 
   it("exist as built artifacts", () => {
@@ -318,6 +366,20 @@ describe("committed UK seed packs", () => {
       (chunk) => !existsSync(path.join(UK_DIR, "raw", `chunk_${chunk.id}.json`)),
     );
     expect(missingRaw).toEqual([]);
+    expect(scan.rawCountMismatches).toBe(0);
+    expect(manifest.elements).toBe(
+      manifest.chunkStats.reduce(
+        (total: number, chunk: { elements: number }) => total + chunk.elements,
+        0,
+      ),
+    );
+  });
+
+  it("keeps committed raw snapshots within 48 hours of manifest generation", () => {
+    const maximumSkewMs = 48 * 60 * 60 * 1_000;
+    expect(Date.parse(manifest.generatedAt) - scan.oldestRawTimestampMs).toBeLessThanOrEqual(
+      maximumSkewMs,
+    );
   });
 
   it("holds tens of thousands of uniquely-identified, in-bounds, named pubs", () => {

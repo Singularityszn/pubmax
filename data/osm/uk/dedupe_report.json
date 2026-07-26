@@ -1,10 +1,10 @@
 {
-  "generatedAt": "2026-07-26T00:25:12.629Z",
-  "ukPubs": 38228,
-  "matchedTotal": 3041,
-  "uniqueToUk": 35187,
+  "generatedAt": "2026-07-26T01:07:30.747Z",
+  "ukPubs": 38215,
+  "matchedTotal": 3039,
+  "uniqueToUk": 35176,
   "byMatchType": {
-    "osm-id": 2360,
+    "osm-id": 2358,
     "name-distance": 681
   },
   "matchRadiusM": 150,
@@ -12,12 +12,12 @@
     {
       "source": "city:bath",
       "entries": 68,
-      "matched": 68
+      "matched": 67
     },
     {
       "source": "city:bristol",
       "entries": 269,
-      "matched": 268
+      "matched": 269
     },
     {
       "source": "city:cambridge",
@@ -37,7 +37,7 @@
     {
       "source": "city:liverpool",
       "entries": 406,
-      "matched": 406
+      "matched": 404
     },
     {
       "source": "city:manchester",

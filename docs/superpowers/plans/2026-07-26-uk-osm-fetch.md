@@ -146,7 +146,7 @@ Expected: `matchedTotal + uniqueToUk === ukPubs` and each existing source has an
 npm run fetch:uk-pubs -- --from-raw
 ```
 
-Expected: 132 chunks read, zero missing chunks, 38,228 named pubs written, and pack size below 100 MiB.
+Expected: 132 chunks read, zero missing chunks, 38,215 named pubs written, and pack size below 100 MiB.
 
 - [x] **Step 2: Confirm generated structure and size**
 
@@ -213,14 +213,14 @@ in this data PR; separate dependency cleanup is queued.
 
 Expected: existing `AGENTS.md` remains concise unless durable global knowledge is missing.
 
-- [ ] **Step 3: Commit remaining work**
+- [x] **Step 3: Commit remaining work**
 
 ```bash
 git add -A
 git commit -m "fix(data): align UK OSM fetch limits with city pipeline"
 ```
 
-- [ ] **Step 4: Confirm clean committed state**
+- [x] **Step 4: Confirm clean committed state**
 
 ```bash
 git status --short --branch
@@ -228,3 +228,22 @@ git log --oneline origin/main..HEAD
 ```
 
 Expected: clean `fm/uk-osm-fetch` branch with all task work committed.
+
+### Task 6: Harden resumability after independent review
+
+**Files:**
+- Modify: `scripts/fetch_uk_osm_pubs.mjs`
+- Create: `scripts/fetch_uk_osm_pubs.d.mts`
+- Modify: `__tests__/ukOsmSeedPacks.test.ts`
+- Refresh: stale files under `data/osm/uk/raw/`
+- Regenerate: `data/osm/uk/chunks.json`, `uk_osm_pubs.json`, `dedupe_report.json`
+
+- [x] Write raw and generated JSON through atomic same-directory renames.
+- [x] Reject malformed, truncated, remarked, missing-timestamp, future, and
+  older-than-48-hour Overpass responses.
+- [x] Make normal resume refetch unusable or stale cache entries while
+  preserving `--from-raw` offline rebuild behavior.
+- [x] Refresh 36 stale chunks and regenerate all derived artifacts.
+- [x] Verify 132 current packs, zero count mismatches, 38,215 pubs, 3,039
+  overlaps, 25.9 MiB total, and 24 focused tests.
+- [x] Obtain independent re-review approval with no remaining blockers.
