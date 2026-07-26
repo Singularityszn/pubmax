@@ -15,10 +15,7 @@ import type { VenueSignal } from "./canvas/types";
 // or pass the has-drops filter.
 
 /** The venue-signal fields this merge reads; usePintDrops supplies them all. */
-export type PricedVenueSignal = VenueSignal & {
-  /** Epoch ms of the venue's newest contributor Pint Drop price, when known. */
-  latestContributorAt?: number | null;
-};
+export type PricedVenueSignal = VenueSignal;
 
 /**
  * Merge community-submitted prices into the venue-signal map used for pin

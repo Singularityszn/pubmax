@@ -9,17 +9,31 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 //    the durable backend mid-suite. Pin isSupabaseConfigured() false so both
 //    stay on their process-memory paths; hashIp/clientIp/hashActor pass through
 //    via ...actual, exactly as the sibling write-route tests do.
-// 2. The rate limiter is shared, in-process and keyed by (actor, venue). Each
-//    case therefore uses its OWN venue id so one case's budget can't leak into
-//    the next and turn a 201 assertion into a surprise 429.
+// 2. The rate limiter is shared and in-process. Reset it before every case so
+//    the actor-wide and per-venue budgets stay deterministic.
 vi.mock("@/lib/supabase", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/supabase")>();
   return { ...actual, isSupabaseConfigured: () => false, requiresSupabaseStore: () => false };
 });
 
+// Lets one case simulate the slim index failing to load (getVenueIndex's
+// documented degraded mode is an empty map); every other case passes through
+// to the real index on disk.
+const venueIndexState = vi.hoisted(() => ({ unavailable: false }));
+vi.mock("@/lib/venueIndex", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/venueIndex")>();
+  return {
+    ...actual,
+    getVenueIndex: async () =>
+      venueIndexState.unavailable ? new Map() : actual.getVenueIndex(),
+  };
+});
+
 import { GET, POST } from "@/app/api/price-submit/route";
 import { __resetCommunityPrices, readCommunityPrices } from "@/lib/communityPriceStore";
 import { COMMUNITY_PRICE_MAX_GBP } from "@/lib/communityPrice";
+import { __resetPintDrops } from "@/lib/pintDrops";
+import { getVenueIndex } from "@/lib/venueIndex";
 
 type PriceBody = {
   ok?: boolean;
@@ -45,7 +59,9 @@ const ORIGINAL_SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY
 beforeEach(() => {
   delete process.env.SUPABASE_URL;
   delete process.env.SUPABASE_SERVICE_ROLE_KEY;
+  venueIndexState.unavailable = false;
   __resetCommunityPrices();
+  __resetPintDrops();
 });
 
 afterEach(() => {
@@ -61,7 +77,7 @@ afterEach(() => {
 describe("POST /api/price-submit", () => {
   it("records an anonymous submission (201) stamped community", async () => {
     const res = await POST(
-      post({ venueId: "route-ok", drinkCategory: "beer", priceGbp: 4.2 }),
+      post({ venueId: "venue-xjf3n0", drinkCategory: "beer", priceGbp: 4.2 }),
     );
     expect(res.status).toBe(201);
     const data = (await res.json()) as PriceBody;
@@ -74,7 +90,7 @@ describe("POST /api/price-submit", () => {
   it("never trusts a client-supplied timestamp or source", async () => {
     const res = await POST(
       post({
-        venueId: "route-untrusted",
+        venueId: "venue-lrz4u2",
         drinkCategory: "beer",
         priceGbp: 5,
         submittedAt: 1,
@@ -121,30 +137,56 @@ describe("POST /api/price-submit", () => {
   });
 
   it("rate-limits a device spraying prices at one venue (429)", async () => {
-    // The limiter's budget is shared per (actor, venue); keep submitting until
-    // it bites so the assertion doesn't hard-code the configured limit.
-    let sawLimit = false;
-    for (let i = 0; i < 40; i += 1) {
+    for (let i = 0; i < 9; i += 1) {
       const res = await POST(
-        post({ venueId: "route-limit", drinkCategory: "beer", priceGbp: 4 + i / 100 }),
+        post({ venueId: "venue-1f5ygjb", drinkCategory: "beer", priceGbp: 4 + i / 100 }),
       );
-      if (res.status === 429) {
-        sawLimit = true;
+      expect(res.status, `submission ${i + 1}`).toBe(i < 8 ? 201 : 429);
+      if (i === 8) {
         const data = (await res.json()) as PriceBody;
         expect(data.error).toContain("slow down");
-        break;
       }
     }
-    expect(sawLimit).toBe(true);
+  });
+
+  it("rate-limits one actor across different venues after 30 submissions (429)", async () => {
+    const venueIds = [...(await getVenueIndex()).keys()].slice(0, 31);
+    expect(venueIds).toHaveLength(31);
+
+    for (const [index, venueId] of venueIds.entries()) {
+      const res = await POST(post({ venueId, drinkCategory: "beer", priceGbp: 4.2 }));
+      expect(res.status, `submission ${index + 1}`).toBe(index < 30 ? 201 : 429);
+    }
+  });
+
+  it("rejects venue ids absent from the slim index without storing them", async () => {
+    const venueId = "totally-fake-venue-xyz";
+    const res = await POST(post({ venueId, drinkCategory: "beer", priceGbp: 4.2 }));
+
+    expect(res.status).toBe(400);
+    expect(await readCommunityPrices(venueId)).toEqual([]);
+  });
+
+  it("answers 503 (retryable), not 400, when the venue index is unavailable", async () => {
+    venueIndexState.unavailable = true;
+    const venueId = "venue-xjf3n0";
+    const res = await POST(post({ venueId, drinkCategory: "beer", priceGbp: 4.2 }));
+
+    expect(res.status).toBe(503);
+    const data = (await res.json()) as PriceBody;
+    expect(data.error).toContain("try again");
+    // Nothing was stored while the membership check could not run.
+    expect(await readCommunityPrices(venueId)).toEqual([]);
   });
 });
 
 describe("GET /api/price-submit", () => {
   it("reads back the freshest community price per drink category", async () => {
-    await POST(post({ venueId: "route-read", drinkCategory: "beer", priceGbp: 4.2 }));
-    await POST(post({ venueId: "route-read", drinkCategory: "wine", priceGbp: 8.5 }));
+    const venueId = "venue-3h52h";
+    await POST(post({ venueId, drinkCategory: "beer", priceGbp: 4.2 }));
+    await POST(post({ venueId, drinkCategory: "wine", priceGbp: 8.5 }));
 
-    const res = await GET(get("?venueId=route-read"));
+    const res = await GET(get(`?venueId=${venueId}`));
     expect(res.status).toBe(200);
     const data = (await res.json()) as { prices: Array<{ drinkCategory: string }> };
     expect(data.prices.map((row) => row.drinkCategory).sort()).toEqual(["beer", "wine"]);

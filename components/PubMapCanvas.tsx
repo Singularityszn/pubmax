@@ -67,7 +67,7 @@ import {
   AMBIENT_CATEGORIES, poiFilter, transportFilter,
   TONIGHT_OPPORTUNITY_LAYERS, pubIconOpacityExpr, glowPulsePaint,
   pinEntranceIconSizeExpr, pinEntranceIconOpacityExpr,
-  selectedPinIconSizeExpr, pinSortKeyExpr, clusterEntranceProgress,
+  selectedPinIconSizeExpr, selectedPinFilter, pinSortKeyExpr, clusterEntranceProgress,
 } from "@/components/map/canvas/filters";
 import {
   HOVER_CARD_VIEWPORT_GUTTER_PX, HOVER_CARD_WIDTH_PX, HOVER_CARD_HEIGHT_PX,
@@ -265,6 +265,7 @@ const PUB_PIN_LAYERS = [
   "pubs-whatson-badge",
   "band-members-halo",
   "pubs-point",
+  "pubs-point-selected",
   "pubs-selected-glow",
   "pubs-selected",
   "clusters",
@@ -2105,6 +2106,18 @@ export default function PubMapCanvas({
           "pubs-point",
           "symbol-sort-key",
           pinSortKeyExpr(selectedIdRef.current),
+        );
+      }
+      // The overlap exemption lives on the dedicated selected-pin layer
+      // (icon-allow-overlap is data-constant, so pubs-point itself cannot
+      // exempt one feature): re-point its filter and keep its size in step
+      // with the spotlight scale.
+      if (map.getLayer("pubs-point-selected")) {
+        map.setFilter("pubs-point-selected", selectedPinFilter(selectedIdRef.current));
+        map.setLayoutProperty(
+          "pubs-point-selected",
+          "icon-size",
+          selectedPinIconSizeExpr(selectedIdRef.current),
         );
       }
       // M2 POI-at-initiation gating — while a venue is selected the selected pub

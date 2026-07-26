@@ -22,6 +22,8 @@ import {
   transportFilter,
   TRANSPORT_ICON_MATCH,
   TUBE_LINE_OFFSET_EXPR,
+  selectedPinFilter,
+  selectedPinIconSizeExpr,
   pubIconOpacityExpr,
   pinSortKeyExpr,
   PIN_ICON_SIZE_EXPR,
@@ -790,6 +792,29 @@ export function buildPubs(ctx: SceneCtx) {
       // opacity. Eased (not snapped) via icon-opacity-transition.
       "icon-opacity": pubIconOpacityExpr(selectedId),
       "icon-opacity-transition": { duration: 250, delay: 0 },
+    },
+  });
+  // The selected pin, drawn again on its own layer with overlap allowed —
+  // `icon-allow-overlap` is data-constant in the style spec, so the base layer
+  // above cannot exempt one feature. This layer carries exactly one feature
+  // (selectedPinFilter) and keeps `icon-ignore-placement: false`, so its box
+  // still reserves space in the collision index: neighbouring symbols yield to
+  // the selected pin, and every other pin keeps colliding as before.
+  addLayerOnce({
+    id: "pubs-point-selected",
+    type: "symbol",
+    source: "pubs",
+    minzoom: PIN_MIN_ZOOM,
+    filter: selectedPinFilter(selectedId),
+    layout: {
+      "icon-image": ["get", "icon"],
+      "icon-size": selectedPinIconSizeExpr(selectedId),
+      "icon-allow-overlap": true,
+      "icon-ignore-placement": false,
+      "icon-padding": 6,
+    },
+    paint: {
+      "icon-opacity": 1,
     },
   });
   // Selected pin: a confident double brass ring — a soft outer wash plus a

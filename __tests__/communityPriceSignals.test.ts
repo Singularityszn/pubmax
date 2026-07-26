@@ -7,6 +7,8 @@ import {
 import {
   freshestCommunityPrice,
   freshestPintPrice,
+  replacePrice,
+  upsertPrice,
 } from "@/components/map/useCommunityPrices";
 import type { CommunityPrice } from "@/lib/communityPrice";
 import type { DrinkCategory } from "@/lib/drinks";
@@ -120,5 +122,33 @@ describe("mergeCommunityPriceSignals", () => {
       new Map([["v1", price("v1", 4.2, 2_000)]]),
     );
     expect(merged.get("v2")).toBe(other);
+  });
+});
+
+describe("upsertPrice", () => {
+  it("keeps a newer local observation when an older row arrives later", () => {
+    const localBeer = price("v1", 5.2, 9_000);
+    const wine = price("v1", 8.5, 2_000, "wine");
+    const staleServerBeer = price("v1", 4.2, 1_000);
+
+    expect(upsertPrice([localBeer, wine], staleServerBeer)).toEqual([
+      localBeer,
+      wine,
+    ]);
+  });
+});
+
+describe("replacePrice", () => {
+  it("adopts the server record even when the optimistic row's device stamp is newer", () => {
+    // Device clock ran ahead of the server: the optimistic stamp out-ranks the
+    // authoritative POST response, which must still replace it.
+    const optimisticBeer = price("v1", 5.2, 9_000);
+    const wine = price("v1", 8.5, 2_000, "wine");
+    const serverBeer = price("v1", 5.2, 8_000);
+
+    expect(replacePrice([optimisticBeer, wine], serverBeer)).toEqual([
+      serverBeer,
+      wine,
+    ]);
   });
 });

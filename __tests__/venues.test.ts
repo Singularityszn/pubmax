@@ -698,6 +698,12 @@ describe("formatFreshness", () => {
     expect(formatFreshness("2026-07-05T12:00:00.000Z", now)).toBe("logged 1 day ago");
     expect(formatFreshness("2026-07-03T12:00:00.000Z", now)).toBe("logged 3 days ago");
   });
+
+  it("accepts epoch milliseconds from map venue signals", () => {
+    expect(
+      formatFreshness(now.getTime() - 2 * 60_000, now),
+    ).toBe("logged 2m ago");
+  });
 });
 
 describe("formatObservedAt", () => {

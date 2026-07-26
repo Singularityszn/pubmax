@@ -12,6 +12,7 @@ type ActivePoi = { name: string; category: PoiCategory };
 // landmarks/POIs so dense central London taps open a pub sheet, not a
 // landmark card that happened to sit under the same finger.
 export const PUB_FIRST_LAYERS = [
+  "pubs-point-selected",
   "pubs-point",
   "route-stops",
   "tonight-point",
@@ -60,7 +61,7 @@ export function wireClickRouting(map: maplibregl.Map, deps: ClickDeps) {
       }
     }
 
-    const pubHit = byLayer.get("pubs-point");
+    const pubHit = byLayer.get("pubs-point-selected") ?? byLayer.get("pubs-point");
     if (pubHit) {
       const id = pubHit.properties?.id;
       if (typeof id !== "string") return;
@@ -174,14 +175,17 @@ export function wirePubHover(
     if (typeof id !== "string" || typeof name !== "string") return;
     setHoveredVenue({ id, name, x: event.point.x, y: event.point.y });
   };
-  map.on("mouseenter", "pubs-point", onPubHover);
-  map.on("mousemove", "pubs-point", onPubHover);
-  map.on("mouseleave", "pubs-point", () => setHoveredVenue(null));
+  for (const layer of ["pubs-point", "pubs-point-selected"] as const) {
+    map.on("mouseenter", layer, onPubHover);
+    map.on("mousemove", layer, onPubHover);
+    map.on("mouseleave", layer, () => setHoveredVenue(null));
+  }
 }
 
 export function wireCursor(map: maplibregl.Map) {
   for (const layer of [
     "pubs-point",
+    "pubs-point-selected",
     "clusters",
     "route-stops",
     "tonight-point",

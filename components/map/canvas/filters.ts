@@ -129,6 +129,22 @@ export function pinSortKeyExpr(selectedId: string): maplibregl.ExpressionSpecifi
 }
 
 /**
+ * Filter for the dedicated selected-pin layer (`pubs-point-selected`): exactly
+ * the selected unclustered pub, or nothing while no venue is selected. The
+ * style spec makes `icon-allow-overlap` data-constant (no feature-data
+ * expressions), so "only the selected pin may overlap" has to be its own layer
+ * with a constant `true` behind this filter — the base pubs-point layer keeps
+ * `icon-allow-overlap: false` and the density contract for every other pin.
+ */
+export function selectedPinFilter(selectedId: string): maplibregl.FilterSpecification {
+  return [
+    "all",
+    ["!", ["has", "point_count"]],
+    ["==", ["get", "id"], selectedId],
+  ];
+}
+
+/**
  * Global 0→1 ease for the cluster entrance fade. Pub PINS stagger per feature
  * (pinEntranceLocalT); cluster discs are few and large, so they share one
  * eased ramp — enough to kill the "everything pops at once" flash without

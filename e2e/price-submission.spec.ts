@@ -63,7 +63,15 @@ test("a drinker logs tonight's price and the card restamps, dated and badged", a
     const chip = submit.getByRole("radio", { name, exact: true });
     await expect(chip).toBeVisible();
     const box = await chip.boundingBox();
-    expect(box?.height ?? 0, `${name} chip height`).toBeGreaterThanOrEqual(36);
+    expect(box?.height ?? 0, `${name} chip height`).toBeGreaterThanOrEqual(44);
+  }
+  const quickPriceChips = submit.locator(".vpsubQuickChip");
+  await expect(quickPriceChips).toHaveCount(3);
+  for (let index = 0; index < 3; index += 1) {
+    const chip = quickPriceChips.nth(index);
+    await expect(chip).toBeVisible();
+    const box = await chip.boundingBox();
+    expect(box?.height ?? 0, `quick-price chip ${index + 1} height`).toBeGreaterThanOrEqual(44);
   }
 
   const priceField = submit.getByRole("textbox");
