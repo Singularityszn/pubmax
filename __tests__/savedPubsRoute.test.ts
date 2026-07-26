@@ -23,6 +23,7 @@ const URL_BASE = "http://localhost/api/saved-pubs";
 
 let REAL_VENUE_ID = "";
 let REAL_VENUE_NAME = "";
+let NON_PUB_VENUE_ID = "";
 
 function expectNoStore(res: Response): void {
   expect(res.headers.get("Cache-Control")).toBe("no-store");
@@ -33,6 +34,9 @@ beforeAll(async () => {
   const [id, ref] = [...index.entries()][0];
   REAL_VENUE_ID = id;
   REAL_VENUE_NAME = ref.name;
+  NON_PUB_VENUE_ID =
+    [...index.values()].find((venue) => venue.kind === "food")?.id ?? "";
+  if (!NON_PUB_VENUE_ID) throw new Error("venue index has no late-food venue");
 });
 
 function list(query: string): Promise<Response> {
@@ -109,8 +113,41 @@ describe("POST /api/saved-pubs (toggle)", () => {
   it("falls back to a friendly name for an unknown venue id (never surfaces the raw id)", async () => {
     const res = await post({ handle: "ale", venueId: "venue-doesnotexist", listType: "Historic" });
     const { saved } = await res.json();
-    expect(saved[0].venueName).toBe("A London pub");
+    expect(saved[0].venueName).toBe("A London venue");
     expect(saved[0].venueName).not.toContain("venue-doesnotexist");
+  });
+
+  it("rejects pint-specific built-ins for a late-food venue", async () => {
+    for (const [handle, listType] of [
+      ["latefoodreject", "Cheap Pint"],
+      ["latefoodpadded", "  Cheap Pint  "],
+    ]) {
+      const res = await post({
+        handle,
+        venueId: NON_PUB_VENUE_ID,
+        listType,
+      });
+
+      expect(res.status).toBe(400);
+      expect(await res.json()).toEqual({
+        error: "Choose a list that matches this venue.",
+      });
+    }
+    expect((await (await list("handle=latefoodreject")).json()).saved).toHaveLength(0);
+    expect((await (await list("handle=latefoodpadded")).json()).saved).toHaveLength(0);
+  });
+
+  it("accepts custom list names for a late-food venue", async () => {
+    const res = await post({
+      handle: "latefoodcustom",
+      venueId: NON_PUB_VENUE_ID,
+      listType: "Late-night food",
+    });
+
+    expect(res.status).toBe(200);
+    const { saved } = await res.json();
+    expect(saved).toHaveLength(1);
+    expect(saved[0].listType).toBe("Late-night food");
   });
 
   it("accepts a CUSTOM list name (story 33) — stored, not rejected", async () => {

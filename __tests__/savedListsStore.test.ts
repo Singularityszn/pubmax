@@ -5,10 +5,10 @@ import { beforeEach, describe, expect, it } from "vitest";
 import {
   __resetMemorySavedLists,
   cleanListType,
-  isBuiltInListType,
   memorySavedListsStore,
   savedListsStore,
 } from "@/lib/savedPubsStore";
+import { isBuiltInListType } from "@/lib/savedListPolicy";
 
 beforeEach(() => {
   delete process.env.SUPABASE_URL;

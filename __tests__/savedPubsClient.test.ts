@@ -1,6 +1,10 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { fetchFollowedListsForHandle } from "@/lib/savedPubs";
+import {
+  eligibleBuiltInListTypes,
+  isListTypeEligibleForVenue,
+} from "@/lib/savedListPolicy";
 
 afterEach(() => {
   vi.unstubAllGlobals();
@@ -69,5 +73,48 @@ describe("fetchFollowedListsForHandle", () => {
         followedAt: "2026-07-07T12:00:00.000Z",
       },
     ]);
+  });
+});
+
+describe("saved-list venue-kind policy", () => {
+  it("keeps pint-specific built-ins for backward-compatible pubs", () => {
+    expect(eligibleBuiltInListTypes(undefined)).toEqual([
+      "Want to Visit",
+      "Cheap Pint",
+      "Coding Pint",
+      "Historic",
+      "Date Night",
+      "Crawl Stop",
+      "Local Legend",
+    ]);
+    expect(eligibleBuiltInListTypes("pub")).toEqual([
+      "Want to Visit",
+      "Cheap Pint",
+      "Coding Pint",
+      "Historic",
+      "Date Night",
+      "Crawl Stop",
+      "Local Legend",
+    ]);
+  });
+
+  it("removes pint-specific built-ins from bar and late-food pickers", () => {
+    const expected = [
+      "Want to Visit",
+      "Historic",
+      "Date Night",
+      "Crawl Stop",
+      "Local Legend",
+    ];
+
+    expect(eligibleBuiltInListTypes("bar")).toEqual(expected);
+    expect(eligibleBuiltInListTypes("food")).toEqual(expected);
+  });
+
+  it("still allows arbitrary custom list names for non-pubs", () => {
+    expect(isListTypeEligibleForVenue("Cheap Pint", "food")).toBe(false);
+    expect(isListTypeEligibleForVenue("Coding Pint", "bar")).toBe(false);
+    expect(isListTypeEligibleForVenue("Post-gig cocktails", "bar")).toBe(true);
+    expect(isListTypeEligibleForVenue("Late-night food", "food")).toBe(true);
   });
 });

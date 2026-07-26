@@ -5,8 +5,8 @@ import Link from "next/link";
 import EmptyState from "@/components/EmptyState";
 import { normalizeHandle } from "@/lib/profiles";
 import { formatSavedVenueCount } from "@/lib/savedListPresentation";
+import { BUILT_IN_LIST_TYPES } from "@/lib/savedListPolicy";
 import {
-  LIST_TYPES,
   type FollowedSavedListDTO,
   type ListType,
   type SavedPubDTO,
@@ -36,8 +36,8 @@ export default function SavedPubList({
   const owner = normalizeHandle(ownerHandle);
   // Render built-ins in canonical order, then any custom list names the handle has
   // actually used. Custom lists are first-class B3 list names, not filtered out.
-  const builtIns = LIST_TYPES.filter((t) => (groups[t]?.length ?? 0) > 0);
-  const builtInSet = new Set<string>(LIST_TYPES);
+  const builtIns = BUILT_IN_LIST_TYPES.filter((t) => (groups[t]?.length ?? 0) > 0);
+  const builtInSet = new Set<string>(BUILT_IN_LIST_TYPES);
   const custom = Object.keys(groups)
     .filter((t) => !builtInSet.has(t) && (groups[t]?.length ?? 0) > 0)
     .sort((a, b) => a.localeCompare(b));

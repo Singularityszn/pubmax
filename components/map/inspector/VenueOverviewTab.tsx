@@ -333,7 +333,11 @@ export default function VenueOverviewTab({
           {inCrawl ? "Remove from crawl" : "Add to crawl"}
         </button>
       ) : null}
-      <SaveToListControl venueId={venue.id} venueName={venue.name} />
+      <SaveToListControl
+        venueId={venue.id}
+        venueName={venue.name}
+        venueKind={venue.kind}
+      />
       <div className="presenceHere">
         {presenceState === "here" ? (
           <p
