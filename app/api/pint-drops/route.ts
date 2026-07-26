@@ -166,6 +166,7 @@ async function validateCanonicalPintDrop(fields: Record<string, unknown>) {
   const result = validatePintDrop(fields);
   if (!result.ok) {
     return {
+      ok: false,
       response: jsonNoStore({ error: result.error }, { status: 400 }),
     } as const;
   }
@@ -173,6 +174,7 @@ async function validateCanonicalPintDrop(fields: Record<string, unknown>) {
   const venueLookup = await lookupCanonicalVenue(result.value.venueId);
   if (venueLookup.status === "unavailable") {
     return {
+      ok: false,
       response: jsonNoStore(
         { error: "Venue list is unavailable right now, try again shortly." },
         { status: 503 },
@@ -181,11 +183,13 @@ async function validateCanonicalPintDrop(fields: Record<string, unknown>) {
   }
   if (venueLookup.status !== "found" || !isPubVenueKind(venueLookup.venue.kind)) {
     return {
+      ok: false,
       response: jsonNoStore({ error: "Pick a pub from the map." }, { status: 400 }),
     } as const;
   }
 
   return {
+    ok: true,
     value: {
       ...result.value,
       venueId: venueLookup.canonicalId,
@@ -278,7 +282,7 @@ export async function POST(request: Request): Promise<Response> {
   if (frozen) return frozen;
 
   const canonicalResult = await validateCanonicalPintDrop(fields);
-  if ("response" in canonicalResult) return canonicalResult.response;
+  if (!canonicalResult.ok) return canonicalResult.response;
   const canonicalDrop = canonicalResult.value;
 
   // JWT-linked handle wins over a self-asserted body handle when signed in.
