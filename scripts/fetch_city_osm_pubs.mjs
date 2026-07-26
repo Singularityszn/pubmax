@@ -194,11 +194,13 @@ async function fetchOverpass(query) {
           await sleep(backoff);
           continue;
         }
+        err.fatal = true;
         throw err;
       }
       return /** @type {Record<string, unknown>} */ (await response.json());
     } catch (err) {
       lastError = err instanceof Error ? err : new Error(String(err));
+      if (lastError.fatal) throw lastError;
       if (attempt < MAX_ATTEMPTS - 1) {
         const backoff = Math.min(60_000, 2_000 * 2 ** attempt);
         console.warn(`  fetch error, retry in ${backoff}ms: ${lastError.message}`);
