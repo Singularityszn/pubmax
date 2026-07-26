@@ -347,6 +347,9 @@
 .lpFooterFacts { margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 8px 10px; list-style: none; }
 .lpFooterFacts li { padding: 6px 11px; border: 1px solid var(--line); border-radius: 999px; color: var(--ink-soft); font: 550 12px/1 var(--font-data); }
 .lpFooterFactValue { color: var(--ink); font-weight: 750; font-variant-numeric: tabular-nums; }
+.lpFooterSmallPrint { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 18px; }
+.lpFooterSmallPrint a { min-height: 40px; display: inline-flex; align-items: center; color: var(--ink-soft); font: 650 12px/1 var(--font-data); letter-spacing: .04em; text-decoration: none; }
+.lpFooterSmallPrint a:hover { color: var(--ink); }
 .lpFooterLegal { margin: 0; color: var(--muted); font: 550 12px/1.4 var(--font-data); }
 
 @media (hover: hover) and (pointer: fine) { .thamesHeroHintTouch { display: none; }.thamesHeroHintPointer { display: inline; } }

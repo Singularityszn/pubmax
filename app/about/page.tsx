@@ -3,6 +3,7 @@ import { headers } from "next/headers";
 import Link from "next/link";
 
 import { loadAboutStats, type AboutStats } from "@/lib/aboutStats";
+import { CONTACT_EMAIL } from "@/lib/siteContact";
 
 import "./about.css";
 
@@ -47,7 +48,8 @@ export const metadata: Metadata = {
   },
 };
 
-const CONTACT_EMAIL = "hello@pubmaxxing.com"; // TODO-owner: confirm/route this inbox
+// One address for the whole site (lib/siteContact.ts) — /about, /privacy and
+// /terms must never quote different inboxes, and only this one is monitored.
 
 function fmtInt(n: number): string {
   return new Intl.NumberFormat("en-GB").format(n);
