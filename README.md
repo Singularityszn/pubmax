@@ -67,3 +67,4 @@ The community layer ships alive: hand-written Pint Drops and Featured crawls are
 - **`teach.md`** — full repo tour: architecture, data model, map lifecycle, backend, trust boundaries, with `file:line` anchors.
 - **`docs/DEPLOYMENT.md`** — reproducible Vercel + Supabase + OpenRouter runbook.
 - **`docs/DEMO_DECK.md`** — demo script.
+- **[`data/osm/uk/README.md`](data/osm/uk/README.md)** - UK-wide OSM seed-pack refresh, provenance, dedupe, and queued runtime handoff.

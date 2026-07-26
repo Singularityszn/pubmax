@@ -18,6 +18,7 @@ artifacts/
 e2e/screenshots/
 data/generated/venue_detail_index.json
 data/generated/venue_details.jsonl
+data/osm/uk/**/.*.tmp
 
 # macOS Finder metadata + local co-dev scratch probes — never part of the app.
 .DS_Store
