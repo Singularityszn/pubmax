@@ -767,43 +767,46 @@ function listUkBaseJsonFiles(directory, prefix = "") {
   return files;
 }
 
-function validateUkBaseShards() {
-  const name = "public/data/uk_base shards";
-  const errs = makeCollector();
-  if (!existsSync(UK_BASE_DIR)) {
-    console.log(`FAIL ${name}: missing — run node scripts/build_uk_base_shards.mjs`);
-    return { ok: false, count: 0 };
-  }
-  let manifestRaw;
-  let manifest;
-  try {
-    manifestRaw = readFileSync(join(UK_BASE_DIR, "manifest.json"), "utf8");
-    manifest = JSON.parse(manifestRaw);
-  } catch (e) {
-    console.log(`FAIL ${name}: missing/broken manifest (${e.message})`);
-    return { ok: false, count: 0 };
-  }
+function addUkBaseErrors(errs, errors) {
+  for (const error of errors) errs.add(error);
+}
+
+function validateUkBaseManifestShape(manifest) {
+  const errors = [];
   const shards = Array.isArray(manifest.shards) ? manifest.shards : [];
-  if (shards.length === 0) errs.add("manifest lists no shards");
+  if (shards.length === 0) errors.push("manifest lists no shards");
   const urlPrefix =
     typeof manifest.urlPrefix === "string" &&
     /^\/data\/uk_base\/packs\/[a-f0-9]{16}\/$/.test(manifest.urlPrefix)
       ? manifest.urlPrefix
       : "";
-  if (!urlPrefix) errs.add("manifest has no usable shard URL prefix");
+  if (!urlPrefix) errors.push("manifest has no usable shard URL prefix");
+  return { errors, shards, urlPrefix };
+}
 
+function validateUkBasePayloadBudgets(manifestRaw, jsonFiles) {
+  const manifestErrors = [];
   const manifestBytes = Buffer.byteLength(manifestRaw);
   if (manifestBytes >= UK_BASE_MANIFEST_BUDGET_BYTES) {
-    errs.add(
+    manifestErrors.push(
       `manifest ${(manifestBytes / 1024).toFixed(1)} KB exceeds ${(UK_BASE_MANIFEST_BUDGET_BYTES / 1024).toFixed(0)} KB budget`,
     );
   }
+  const totalBytes = jsonFiles.reduce(
+    (sum, file) => sum + statSync(join(UK_BASE_DIR, file)).size,
+    0,
+  );
+  const totalErrors = [];
+  if (totalBytes >= UK_BASE_TOTAL_BUDGET_BYTES) {
+    totalErrors.push(
+      `total ${(totalBytes / 1024).toFixed(1)} KB exceeds ${(UK_BASE_TOTAL_BUDGET_BYTES / 1024).toFixed(0)} KB budget`,
+    );
+  }
+  return { manifestErrors, totalErrors, totalBytes };
+}
 
-  // Files on disk must match the manifest exactly: an orphan is dead weight in
-  // the repo, and a missing one is a 404 mid-pan.
-  const jsonFiles = listUkBaseJsonFiles(UK_BASE_DIR);
-  const onDisk = new Set(jsonFiles.filter((file) => file !== "manifest.json"));
-  const ids = new Set();
+function loadUkBaseCuratedVenueIds() {
+  const errors = [];
   const curatedVenueIds = new Set();
   try {
     const londonSlim = loadJson("venues_slim.json");
@@ -821,102 +824,170 @@ function validateUkBaseShards() {
       }
     }
   } catch (e) {
-    errs.add(`could not load curated owner ids (${e.message})`);
+    errors.push(`could not load curated owner ids (${e.message})`);
   }
-  const totalBytes = jsonFiles.reduce(
-    (sum, file) => sum + statSync(join(UK_BASE_DIR, file)).size,
-    0,
-  );
-  let pubCount = 0;
+  return { errors, curatedVenueIds };
+}
 
-  for (const shard of shards) {
-    if (Object.hasOwn(shard ?? {}, "url")) {
-      errs.add(`shard "${shard?.id}": repeats a derivable URL`);
-    }
-    const shardId =
-      typeof shard?.id === "string" &&
-      shard.id.length > 0 &&
-      !shard.id.includes("/") &&
-      !shard.id.includes("\\") &&
-      !shard.id.includes("..")
-        ? shard.id
-        : "";
-    if (!shardId) errs.add(`shard "${shard?.id}": invalid id`);
-    const file = `${urlPrefix}${shardId}.json`.replace(/^\/data\/uk_base\//, "");
-    if (!onDisk.delete(file)) {
-      errs.add(`shard "${shard?.id}": body ${file} is missing`);
-      continue;
-    }
-    let raw;
-    let body;
-    try {
-      raw = readFileSync(join(UK_BASE_DIR, file), "utf8");
-      body = JSON.parse(raw);
-    } catch (e) {
-      errs.add(`shard "${shard.id}": unreadable body (${e.message})`);
-      continue;
-    }
-    const bytes = Buffer.byteLength(raw);
-    if (bytes >= UK_BASE_SHARD_BUDGET_BYTES) {
-      errs.add(
-        `shard "${shard.id}": ${(bytes / 1024).toFixed(1)} KB exceeds the ${(UK_BASE_SHARD_BUDGET_BYTES / 1024).toFixed(0)} KB per-viewport budget`,
-      );
-    }
-    if (body.cell !== shard.id) errs.add(`shard "${shard.id}": body cell is "${body.cell}"`);
-    const rows = Array.isArray(body.pubs) ? body.pubs : null;
-    if (!rows) {
-      errs.add(`shard "${shard.id}": body has no pubs array`);
-      continue;
-    }
-    if (rows.length !== shard.count) {
-      errs.add(`shard "${shard.id}": ${rows.length} rows, manifest says ${shard.count}`);
-    }
-    const [minLng, minLat, maxLng, maxLat] = shard.bbox ?? [];
-    for (const row of rows) {
-      if (!isUkBaseRow(row)) {
-        errs.add(`shard "${shard.id}": malformed row ${JSON.stringify(row)?.slice(0, 60)}`);
-        continue;
-      }
-      const id = `${UK_BASE_ID_PREFIX}${row[0]}`;
-      if (ids.has(id)) errs.add(`duplicate base id "${id}"`);
-      ids.add(id);
-      if (row[5] && !curatedVenueIds.has(row[5])) {
-        errs.add(`shard "${shard.id}": unknown curated owner "${row[5]}"`);
-      }
-      // A pub outside its own cell means the viewport that covers it would
-      // never fetch the file it lives in — an invisible pub, not a loud bug.
-      if (row[3] < minLat || row[3] > maxLat || row[4] < minLng || row[4] > maxLng) {
-        errs.add(`shard "${shard.id}": pub "${row[1]}" at ${row[3]},${row[4]} is outside the cell bbox`);
-      }
-      pubCount += 1;
-    }
+function validateUkBaseShardBody(shard, urlPrefix, onDisk) {
+  const errors = [];
+  if (Object.hasOwn(shard ?? {}, "url")) {
+    errors.push(`shard "${shard?.id}": repeats a derivable URL`);
   }
-  for (const orphan of onDisk) {
-    errs.add(`orphan shard body ${orphan} is not in the manifest`);
+  const shardId =
+    typeof shard?.id === "string" &&
+    shard.id.length > 0 &&
+    !shard.id.includes("/") &&
+    !shard.id.includes("\\") &&
+    !shard.id.includes("..")
+      ? shard.id
+      : "";
+  if (!shardId) errors.push(`shard "${shard?.id}": invalid id`);
+  const file = `${urlPrefix}${shardId}.json`.replace(/^\/data\/uk_base\//, "");
+  if (!onDisk.delete(file)) {
+    errors.push(`shard "${shard?.id}": body ${file} is missing`);
+    return { errors, rows: null };
   }
-
-  if (totalBytes >= UK_BASE_TOTAL_BUDGET_BYTES) {
-    errs.add(
-      `total ${(totalBytes / 1024).toFixed(1)} KB exceeds ${(UK_BASE_TOTAL_BUDGET_BYTES / 1024).toFixed(0)} KB budget`,
+  let raw;
+  let body;
+  try {
+    raw = readFileSync(join(UK_BASE_DIR, file), "utf8");
+    body = JSON.parse(raw);
+  } catch (e) {
+    errors.push(`shard "${shard.id}": unreadable body (${e.message})`);
+    return { errors, rows: null };
+  }
+  const bytes = Buffer.byteLength(raw);
+  if (bytes >= UK_BASE_SHARD_BUDGET_BYTES) {
+    errors.push(
+      `shard "${shard.id}": ${(bytes / 1024).toFixed(1)} KB exceeds the ${(UK_BASE_SHARD_BUDGET_BYTES / 1024).toFixed(0)} KB per-viewport budget`,
     );
   }
+  if (body.cell !== shard.id) errors.push(`shard "${shard.id}": body cell is "${body.cell}"`);
+  const rows = Array.isArray(body.pubs) ? body.pubs : null;
+  if (!rows) {
+    errors.push(`shard "${shard.id}": body has no pubs array`);
+    return { errors, rows: null };
+  }
+  if (rows.length !== shard.count) {
+    errors.push(`shard "${shard.id}": ${rows.length} rows, manifest says ${shard.count}`);
+  }
+  return { errors, rows };
+}
 
+function validateUkBasePubIdentity(shard, row, ids, curatedVenueIds) {
+  const errors = [];
+  const id = `${UK_BASE_ID_PREFIX}${row[0]}`;
+  if (ids.has(id)) errors.push(`duplicate base id "${id}"`);
+  ids.add(id);
+  if (row[5] && !curatedVenueIds.has(row[5])) {
+    errors.push(`shard "${shard.id}": unknown curated owner "${row[5]}"`);
+  }
+  return errors;
+}
+
+function validateUkBasePubBbox(shard, row) {
+  const [minLng, minLat, maxLng, maxLat] = shard.bbox ?? [];
+  if (row[3] < minLat || row[3] > maxLat || row[4] < minLng || row[4] > maxLng) {
+    return [
+      `shard "${shard.id}": pub "${row[1]}" at ${row[3]},${row[4]} is outside the cell bbox`,
+    ];
+  }
+  return [];
+}
+
+function validateUkBaseShardRows(shard, rows, ids, curatedVenueIds) {
+  const errors = [];
+  let pubCount = 0;
+  for (const row of rows) {
+    if (!isUkBaseRow(row)) {
+      errors.push(`shard "${shard.id}": malformed row ${JSON.stringify(row)?.slice(0, 60)}`);
+      continue;
+    }
+    errors.push(...validateUkBasePubIdentity(shard, row, ids, curatedVenueIds));
+    // A pub outside its own cell means the viewport that covers it would
+    // never fetch the file it lives in — an invisible pub, not a loud bug.
+    errors.push(...validateUkBasePubBbox(shard, row));
+    pubCount += 1;
+  }
+  return { errors, pubCount };
+}
+
+function validateUkBaseOrphans(onDisk) {
+  return [...onDisk].map((orphan) => `orphan shard body ${orphan} is not in the manifest`);
+}
+
+function validateUkBaseCuratedIdCollisions(ids) {
+  const errors = [];
   // The base layer exists to fill the gaps the curated index leaves; an id in
   // both would double-pin that pub.
   try {
     const slim = loadJson("venues_slim.json");
     if (Array.isArray(slim)) {
       for (const venue of slim) {
-        if (venue && ids.has(venue.id)) errs.add(`base id "${venue.id}" also exists in venues_slim`);
+        if (venue && ids.has(venue.id)) {
+          errors.push(`base id "${venue.id}" also exists in venues_slim`);
+        }
       }
     }
   } catch {
     // venues_slim has its own check above; don't double-report its absence.
   }
+  return errors;
+}
+
+function validateUkBaseShards() {
+  const name = "public/data/uk_base shards";
+  const errs = makeCollector();
+  if (!existsSync(UK_BASE_DIR)) {
+    console.log(`FAIL ${name}: missing — run node scripts/build_uk_base_shards.mjs`);
+    return { ok: false, count: 0 };
+  }
+  let manifestRaw;
+  let manifest;
+  try {
+    manifestRaw = readFileSync(join(UK_BASE_DIR, "manifest.json"), "utf8");
+    manifest = JSON.parse(manifestRaw);
+  } catch (e) {
+    console.log(`FAIL ${name}: missing/broken manifest (${e.message})`);
+    return { ok: false, count: 0 };
+  }
+
+  const { errors: manifestErrors, shards, urlPrefix } = validateUkBaseManifestShape(manifest);
+  addUkBaseErrors(errs, manifestErrors);
+
+  // Files on disk must match the manifest exactly: an orphan is dead weight in
+  // the repo, and a missing one is a 404 mid-pan.
+  const jsonFiles = listUkBaseJsonFiles(UK_BASE_DIR);
+  const onDisk = new Set(jsonFiles.filter((file) => file !== "manifest.json"));
+  const budgets = validateUkBasePayloadBudgets(manifestRaw, jsonFiles);
+  addUkBaseErrors(errs, budgets.manifestErrors);
+
+  const { errors: curatedErrors, curatedVenueIds } = loadUkBaseCuratedVenueIds();
+  addUkBaseErrors(errs, curatedErrors);
+
+  const ids = new Set();
+  let pubCount = 0;
+  for (const shard of shards) {
+    const bodyResult = validateUkBaseShardBody(shard, urlPrefix, onDisk);
+    addUkBaseErrors(errs, bodyResult.errors);
+    if (!bodyResult.rows) continue;
+    const rowResult = validateUkBaseShardRows(
+      shard,
+      bodyResult.rows,
+      ids,
+      curatedVenueIds,
+    );
+    addUkBaseErrors(errs, rowResult.errors);
+    pubCount += rowResult.pubCount;
+  }
+  addUkBaseErrors(errs, validateUkBaseOrphans(onDisk));
+  addUkBaseErrors(errs, budgets.totalErrors);
+  addUkBaseErrors(errs, validateUkBaseCuratedIdCollisions(ids));
 
   const ok = errs.count === 0;
   console.log(
-    `${ok ? "PASS" : "FAIL"} ${name}: ${shards.length} cell(s), ${pubCount} pubs, total ${(totalBytes / 1024).toFixed(1)} KB / ${(UK_BASE_TOTAL_BUDGET_BYTES / 1024).toFixed(0)} KB, ${errs.count} error(s)`,
+    `${ok ? "PASS" : "FAIL"} ${name}: ${shards.length} cell(s), ${pubCount} pubs, total ${(budgets.totalBytes / 1024).toFixed(1)} KB / ${(UK_BASE_TOTAL_BUDGET_BYTES / 1024).toFixed(0)} KB, ${errs.count} error(s)`,
   );
   if (!ok) errs.report();
   return { ok, count: shards.length };
