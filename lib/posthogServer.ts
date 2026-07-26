@@ -1,8 +1,24 @@
+import { PostHog } from "posthog-node";
 import type { AnalyticsEvent } from "@/lib/analyticsEvents";
 import { isAnonymousAnalyticsId } from "@/lib/analyticsIdentity";
 
 const POSTHOG_EU_CAPTURE_URL = "https://eu.i.posthog.com/capture/";
 const POSTHOG_TIMEOUT_MS = 1_500;
+
+/**
+ * Create a per-request PostHog Node client. Always call `await client.shutdown()`
+ * after capturing — Next.js route handlers are short-lived and the SDK must flush
+ * before the handler returns.
+ */
+export function getPostHogNodeClient(): PostHog | null {
+  const token = process.env.NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN?.trim();
+  if (!token) return null;
+  return new PostHog(token, {
+    host: "https://eu.i.posthog.com",
+    flushAt: 1,
+    flushInterval: 0,
+  });
+}
 
 export async function capturePosthogEvent(input: {
   event: AnalyticsEvent;

@@ -25,6 +25,7 @@ import {
   type ReactNode,
 } from "react";
 import type { Session, User } from "@supabase/supabase-js";
+import posthog from "posthog-js";
 
 import "@/app/auth/auth.css";
 import { ClaimNightDialog } from "@/components/auth/ClaimNightDialog";
@@ -442,9 +443,16 @@ export function AuthProvider({ children }: { children: ReactNode }): React.JSX.E
         setLoading(false);
         // Wave L3: on sign-in, maybe open Claim your night (never silent overwrite).
         if (event === "SIGNED_IN" && nextSession?.user) {
-          void syncIdentityAfterSignIn(nextSession.user);
+          const u = nextSession.user;
+          posthog.identify(u.id, {
+            ...(u.email ? { email: u.email } : {}),
+          });
+          posthog.capture("user_signed_in");
+          void syncIdentityAfterSignIn(u);
         }
         if (event === "SIGNED_OUT") {
+          posthog.capture("user_signed_out");
+          posthog.reset();
           try {
             window.sessionStorage.removeItem(SYNCED_USER_KEY);
           } catch {
@@ -499,6 +507,9 @@ export function AuthProvider({ children }: { children: ReactNode }): React.JSX.E
           window.clearTimeout(loadingTimeout);
           setSession(exchangedSession);
           setLoading(false);
+          posthog.identify(exchangedSession.user.id, {
+            ...(exchangedSession.user.email ? { email: exchangedSession.user.email } : {}),
+          });
           void syncIdentityAfterSignIn(exchangedSession.user);
           return;
         }
@@ -510,7 +521,12 @@ export function AuthProvider({ children }: { children: ReactNode }): React.JSX.E
           setSession(data.session ?? null);
           setLoading(false);
           // Wave L3: refresh identity sync for an already-persisted session.
-          if (data.session?.user) void syncIdentityAfterSignIn(data.session.user);
+          if (data.session?.user) {
+            posthog.identify(data.session.user.id, {
+              ...(data.session.user.email ? { email: data.session.user.email } : {}),
+            });
+            void syncIdentityAfterSignIn(data.session.user);
+          }
         } catch {
           if (!active) return;
           window.clearTimeout(loadingTimeout);

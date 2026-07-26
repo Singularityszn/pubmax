@@ -43,3 +43,4 @@ skills_used_global.md
 !skills/
 !skills/**
 .codex-worktrees/
+.env.local

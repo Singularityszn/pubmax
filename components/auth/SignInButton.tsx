@@ -16,6 +16,7 @@
 
 import { useCallback, useEffect, useId, useRef, useState } from "react";
 import { LogIn } from "lucide-react";
+import posthog from "posthog-js";
 
 import { useAuth } from "@/components/auth/AuthProvider";
 import MagicLinkForm from "@/components/auth/MagicLinkForm";
@@ -185,6 +186,7 @@ export default function SignInButton({
   }, [menuOpen]);
 
   const onSignInGoogle = useCallback(async () => {
+    posthog.capture("sign_in_initiated", { provider: "google" });
     setBusy("google");
     setError(null);
     const { error: signInError } = await signInWithGoogle();
@@ -197,6 +199,7 @@ export default function SignInButton({
   }, [signInWithGoogle]);
 
   const onSignInMicrosoft = useCallback(async () => {
+    posthog.capture("sign_in_initiated", { provider: "microsoft" });
     setBusy("microsoft");
     setError(null);
     const { error: signInError } = await signInWithMicrosoft();

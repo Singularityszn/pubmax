@@ -21,6 +21,7 @@ import { gateHandleAction } from "@/lib/profileOwnership";
 import { assertServerEnv } from "@/lib/serverEnv";
 import { areaPublicCheckIns, visibleCheckInsForViewer } from "@/lib/socialFeed";
 import { isSupabaseConfigured, requiresSupabaseStore } from "@/lib/supabase";
+import { getPostHogNodeClient } from "@/lib/posthogServer";
 
 assertServerEnv();
 
@@ -133,6 +134,15 @@ export async function POST(request: Request): Promise<Response> {
 
   try {
     const checkIn = await checkInStore().create(validation.value);
+    const phClient = getPostHogNodeClient();
+    if (phClient) {
+      phClient.capture({
+        distinctId: ownership.handle,
+        event: "check_in_created",
+        properties: { area_slug: validation.value.areaSlug },
+      });
+      await phClient.shutdown();
+    }
     return jsonNoStore({ checkIn }, { status: 201 });
   } catch {
     return publicApiError("Check-in storage is unavailable.", "STORE_UNAVAILABLE", 503, {

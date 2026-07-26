@@ -26,6 +26,7 @@ import { coerceSource, parseEmail } from "@/lib/emailSubscribers";
 import { emailSubscribersStore } from "@/lib/emailSubscribersStore";
 import { isLimited } from "@/lib/pintDrops";
 import { clientIp, hashIp } from "@/lib/supabase";
+import { getPostHogNodeClient } from "@/lib/posthogServer";
 
 // Per-IP capture budget: a handful of addresses per window from one origin is
 // plenty for a genuine user (they own one email); more is abuse.
@@ -95,6 +96,21 @@ export async function POST(request: Request): Promise<Response> {
       token: outcome.unsubscribeToken,
     });
     confirmationSent = dispatch.sent;
+  }
+
+  if (outcome.status === "created") {
+    const phClient = getPostHogNodeClient();
+    if (phClient) {
+      phClient.capture({
+        distinctId: email,
+        event: "email_subscribed",
+        properties: {
+          ...(source ? { source } : {}),
+          $set: { email },
+        },
+      });
+      await phClient.shutdown();
+    }
   }
 
   // The token is deliberately NOT returned to the browser.
