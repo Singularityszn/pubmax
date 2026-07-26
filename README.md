@@ -13,7 +13,7 @@ Pick a crawl style, filter, and either accept a **Suggested Crawl** or **Build y
 - **Pubs near me** — a crawl built from your geolocation (degrades gracefully if denied).
 - **Shareable URLs** — the whole crawl state round-trips through the URL; "Copy link" shares it.
 - **Pint Drops** — community photos + the price you paid + a passed-down note, moderated.
-- **Log tonight's price** - tap a pub, pick a drink category, enter the price; the pin and card restamp instantly with a dated community badge. Anonymous, no sign-up; shown on its own dated row, never overwriting the price on record.
+- **Log tonight's price** - tap a pub, pick a drink category, enter the price; it shows on the pub's own page instantly, on its own dated row, never overwriting the price on record. The pin and card restamp with a dated community badge only once a second independent drinker logs the same figure, and a community price over 30 days old hands the map back to the price on record. Anonymous, no sign-up.
 - **The Landlord** — grounded pub-heritage Q&A that reads back only server-known facts and refuses to invent.
 - **Moderation** — reports hide a drop at a threshold; a token-gated `/admin` console reviews hidden drops.
 
