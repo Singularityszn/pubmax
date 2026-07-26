@@ -372,9 +372,12 @@ export default function PrivacyPage() {
           <div className="legalRow">
             <dt>Email and push</dt>
             <dd>
-              If you opt in to the weekly digest or to notifications, your email
-              address goes to our email provider, and a push subscription is held
-              by your own browser&rsquo;s push service.
+              If you opt in to the weekly digest, your email address goes to our
+              email provider. If you turn notifications on, PUBMAXX stores your
+              browser&rsquo;s push subscription, the endpoint plus its keys, so
+              it can send you the notification; the subscription itself belongs
+              to your own browser&rsquo;s push service. We keep that stored row
+              until the push service reports it dead or you ask us to remove it.
             </dd>
           </div>
         </dl>
@@ -414,6 +417,11 @@ export default function PrivacyPage() {
             keyed to salted hashes, never raw IP addresses. Hit timestamps
             outside that window are pruned when the hashed key is next used;
             the key row remains.
+          </li>
+          <li>
+            <strong>Push subscriptions:</strong>{" "}if you turned notifications
+            on, the stored subscription row stays until your browser&rsquo;s
+            push service reports it dead or you ask us to remove it.
           </li>
         </ul>
       </section>

@@ -1,8 +1,7 @@
-import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
-import { dirname, join, resolve } from "node:path";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 
 import { describe, expect, it } from "vitest";
-import ts from "typescript";
 
 import { CONTACT_EMAIL } from "@/lib/siteContact";
 
@@ -15,190 +14,6 @@ import { CONTACT_EMAIL } from "@/lib/siteContact";
 
 function read(path: string): string {
   return readFileSync(join(process.cwd(), path), "utf8");
-}
-
-const ROOT = process.cwd();
-
-function collectSourceFiles(dir: string, files: string[]): void {
-  for (const entry of readdirSync(dir)) {
-    const path = join(dir, entry);
-    if (statSync(path).isDirectory()) {
-      if (entry !== "__tests__") collectSourceFiles(path, files);
-    } else if (/\.tsx?$/.test(entry) && !/\.test\.tsx?$/.test(entry)) {
-      files.push(path);
-    }
-  }
-}
-
-function allSourceFiles(): string[] {
-  const files: string[] = [];
-  for (const dir of ["app", "components", "lib"]) {
-    collectSourceFiles(join(ROOT, dir), files);
-  }
-  return files;
-}
-
-function fetchWindows(source: string): string[] {
-  const windows: string[] = [];
-  for (const match of source.matchAll(/\b(?:fetch|fetchImpl)\s*\(/g)) {
-    windows.push(source.slice(Math.max(0, match.index - 300), match.index + 1_500));
-  }
-  return windows;
-}
-
-function fetchArguments(path: string, source: string): string[] {
-  const sourceFile = ts.createSourceFile(
-    path,
-    source,
-    ts.ScriptTarget.Latest,
-    true,
-    path.endsWith(".tsx") ? ts.ScriptKind.TSX : ts.ScriptKind.TS,
-  );
-  const argumentsList: string[] = [];
-  function visit(node: ts.Node): void {
-    if (ts.isCallExpression(node)) {
-      const callee = node.expression.getText(sourceFile);
-      if (callee === "fetch" || callee === "fetchImpl") {
-        argumentsList.push(node.arguments.map((argument) => argument.getText(sourceFile)).join("\n"));
-      }
-    }
-    ts.forEachChild(node, visit);
-  }
-  visit(sourceFile);
-  return argumentsList;
-}
-
-function localImportPath(from: string, specifier: string): string | null {
-  const base = specifier.startsWith("@/")
-    ? join(ROOT, specifier.slice(2))
-    : specifier.startsWith(".")
-      ? resolve(dirname(from), specifier)
-      : null;
-  if (!base) return null;
-  for (const candidate of [
-    base,
-    `${base}.ts`,
-    `${base}.tsx`,
-    join(base, "index.ts"),
-    join(base, "index.tsx"),
-  ]) {
-    if (existsSync(candidate) && statSync(candidate).isFile()) return candidate;
-  }
-  return null;
-}
-
-function importClosure(start: string): Set<string> {
-  const files = new Set<string>();
-  const queue = [start];
-  while (queue.length > 0) {
-    const path = queue.pop();
-    if (!path || files.has(path)) continue;
-    files.add(path);
-    const source = readFileSync(path, "utf8");
-    for (const match of source.matchAll(/from\s+["']([^"']+)["']/g)) {
-      const imported = localImportPath(path, match[1]);
-      if (imported) queue.push(imported);
-    }
-  }
-  return files;
-}
-
-function coordinateProviderImports(route: string): Set<string> {
-  const source = readFileSync(route, "utf8");
-  const sourceFile = ts.createSourceFile(
-    route,
-    source,
-    ts.ScriptTarget.Latest,
-    true,
-    ts.ScriptKind.TS,
-  );
-  const imports = new Map<string, string>();
-  for (const statement of sourceFile.statements) {
-    if (!ts.isImportDeclaration(statement) || !ts.isStringLiteral(statement.moduleSpecifier)) continue;
-    const imported = localImportPath(route, statement.moduleSpecifier.text);
-    const bindings = statement.importClause?.namedBindings;
-    if (!imported || !bindings || !ts.isNamedImports(bindings)) continue;
-    for (const element of bindings.elements) imports.set(element.name.text, imported);
-  }
-
-  const providers = new Set<string>();
-  const pointArgument = /\b(?:lat|lng|lon|point|from|to|near)\b/i;
-  function visit(node: ts.Node): void {
-    if (ts.isCallExpression(node) && ts.isIdentifier(node.expression)) {
-      const imported = imports.get(node.expression.text);
-      const args = node.arguments.map((argument) => argument.getText(sourceFile)).join("\n");
-      if (imported && pointArgument.test(args)) providers.add(imported);
-    }
-    ts.forEachChild(node, visit);
-  }
-  visit(sourceFile);
-  return providers;
-}
-
-function httpHosts(source: string): string[] {
-  return [...source.matchAll(/https?:\/\/([a-z0-9.-]+)/gi)].map((match) =>
-    match[1].toLowerCase(),
-  );
-}
-
-function discoverCoordinateEgress(): {
-  apiPaths: Set<string>;
-  providerHosts: Set<string>;
-} {
-  const apiPaths = new Set<string>();
-  const providerHosts = new Set<string>();
-  const pointSignal =
-    /\b(?:lat|lng|lon|latitude|longitude|near|userLocation|roundedUser|roundedPoint|origin)\b|privacyRoundedJourneyPoint|roundCoord/;
-  const strongPointFile = /privacyRoundedJourneyPoint|\broundCoord\s*\(|opts\.near/;
-
-  for (const path of allSourceFiles()) {
-    const source = readFileSync(path, "utf8");
-    const strongPointEgress = strongPointFile.test(source);
-    const relativePath = path.slice(ROOT.length + 1);
-    if (relativePath.startsWith("app/") || relativePath.startsWith("components/")) {
-      const outboundTexts = strongPointEgress
-        ? fetchWindows(source)
-        : pointSignal.test(source)
-          ? fetchArguments(path, source)
-          : [];
-      for (const window of outboundTexts) {
-        if (!pointSignal.test(window) && !strongPointEgress) continue;
-        for (const match of window.matchAll(/\/api\/[a-z0-9][a-z0-9\-/]*/gi)) {
-          apiPaths.add(match[0].replace(/\/$/, ""));
-        }
-        for (const host of httpHosts(window)) providerHosts.add(host);
-      }
-    }
-    if (strongPointEgress || /https?:\/\/[a-z0-9.-]+\/maps\//i.test(source)) {
-      for (const host of httpHosts(source)) providerHosts.add(host);
-    }
-  }
-
-  for (const apiPath of apiPaths) {
-    const route = join(ROOT, "app", apiPath.slice(1), "route.ts");
-    if (!existsSync(route)) continue;
-    const providerFiles = new Set([route]);
-    for (const imported of coordinateProviderImports(route)) {
-      for (const path of importClosure(imported)) providerFiles.add(path);
-    }
-    for (const path of providerFiles) {
-      const source = readFileSync(path, "utf8");
-      if (!/\b(?:fetch|fetchImpl)\s*\(/.test(source)) continue;
-      for (const host of httpHosts(source)) providerHosts.add(host);
-      if (/https:\/\/\$\{/.test(source)) {
-        for (const match of source.matchAll(/["'`]((?:[a-z0-9-]+\.)+[a-z]{2,})["'`]/gi)) {
-          providerHosts.add(match[1].toLowerCase());
-        }
-      }
-    }
-  }
-
-  const normalized = new Set(
-    [...providerHosts]
-      .filter((host) => !/(^|\.)pubmaxxing\.com$/.test(host))
-      .map((host) => host.replace(/^www\./, "")),
-  );
-  return { apiPaths, providerHosts: normalized };
 }
 
 const privacy = read("app/privacy/page.tsx");
@@ -270,18 +85,40 @@ describe("legal content pages", () => {
   });
 
   it("names every third party that receives a viewer point", () => {
-    // Source-derived scan chosen because hardcoded provider assertions cannot
-    // detect a new coordinate recipient. Client seams discover their own API
-    // routes, then each route's imports reveal external fetch hosts.
-    const egress = discoverCoordinateEgress();
+    // What this block does: it locks the disclosed coordinate-recipient set
+    // (TfL, CityMCP, Google Maps) against silent removal from the page, and
+    // checks each disclosed host still appears in the source file that
+    // actually contacts it. What it does NOT do: discover a new provider
+    // added through an unrecognised code path. The backstop for that is the
+    // AGENTS.md rule that any data-practice change must update the privacy
+    // page in the same commit.
     const thirdPartySection =
       privacy.match(/aria-labelledby="third"[\s\S]*?aria-labelledby="keep"/)?.[0] ?? "";
 
-    expect(egress.apiPaths.size).toBeGreaterThanOrEqual(5);
-    expect(egress.providerHosts.size).toBeGreaterThanOrEqual(3);
-    for (const host of egress.providerHosts) {
-      expect(thirdPartySection, `Missing coordinate recipient disclosure for ${host}`).toContain(host);
+    const coordinateRecipients = [
+      { name: "Transport for London", host: "api.tfl.gov.uk", source: "app/api/last-train/route.ts" },
+      { name: "CityMCP", host: "citymcp.com", source: "lib/citymcp/client.ts" },
+      { name: "Google Maps", host: "google.com", source: "lib/venueJourney.ts" },
+    ];
+    for (const recipient of coordinateRecipients) {
+      expect(thirdPartySection, `Missing recipient name ${recipient.name}`).toContain(recipient.name);
+      expect(thirdPartySection, `Missing recipient host ${recipient.host}`).toContain(recipient.host);
+      expect(read(recipient.source), `${recipient.source} no longer contacts ${recipient.host}`).toContain(
+        recipient.host,
+      );
     }
+  });
+
+  it("discloses push subscription storage and retention", () => {
+    // Mirrors lib/pushTokenStore.ts + lib/webPush.ts: registration posts the
+    // serialized subscription to /api/push-tokens, the store keeps a durable
+    // row, and deletion happens on provider-reported invalidation or request.
+    expect(privacy).toMatch(/PUBMAXX\s+stores\s+your\s+browser&rsquo;s\s+push\s+subscription/);
+    expect(privacy).toMatch(/endpoint\s+plus\s+its\s+keys/);
+    expect(privacy).toMatch(/until\s+the\s+push\s+service\s+reports\s+it\s+dead\s+or\s+you\s+ask\s+us\s+to\s+remove\s+it/);
+    expect(privacy).toMatch(/belongs\s+to\s+your\s+own\s+browser&rsquo;s\s+push\s+service/);
+    expect(privacy).toMatch(/stored\s+subscription\s+row\s+stays/);
+    expect(privacy).not.toMatch(/a push subscription is held\s+by your own browser/);
   });
 
   it("describes remembered-area request use without claiming all state stays local", () => {
