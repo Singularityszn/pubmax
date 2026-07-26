@@ -118,6 +118,12 @@ const VENUE_SCAN_ROWS = 200;
 // is not something a read path should ever be able to ask for. When the cap is
 // hit the answer is reported as a floor (`truncated`), never as a total.
 const CORROBORATION_SCAN_ROWS = 20_000;
+// PostgREST silently caps any single response at the project's server-side
+// max-rows setting (hosted default 1000), so one `.limit(20_000)` request can
+// come back short without ever saying so. The durable scan therefore pages in
+// chunks no larger than that default and derives `truncated` from the last
+// page's fill, keeping the flag honest regardless of the Max Rows setting.
+const CORROBORATION_SCAN_PAGE = 1_000;
 
 type StoredPrice = CommunityPrice & { actor: string | null };
 
@@ -510,17 +516,30 @@ export const supabaseCommunityPriceStore: CommunityPriceStore = {
         // Only in-window rows can back a map candidate, so the age gate is
         // pushed into the query rather than paid for in scanned rows.
         const since = new Date(now - COMMUNITY_PRICE_MAX_AGE_MS).toISOString();
-        const { data, error } = await admin()
-          .from("community_prices")
-          .select("venue_id, drink_category, price_pennies, submitted_at, actor")
-          .gte("submitted_at", since)
-          .order("submitted_at", { ascending: false })
-          .limit(CORROBORATION_SCAN_ROWS);
-        if (error) throw new Error(error.message);
-        const rows = rowsToCountableRows(data);
+        const scanned: unknown[] = [];
+        let lastPageFull = false;
+        for (let offset = 0; offset < CORROBORATION_SCAN_ROWS; ) {
+          const pageEnd = Math.min(offset + CORROBORATION_SCAN_PAGE, CORROBORATION_SCAN_ROWS);
+          const { data, error } = await admin()
+            .from("community_prices")
+            .select("venue_id, drink_category, price_pennies, submitted_at, actor")
+            .gte("submitted_at", since)
+            // The `id` tiebreak keeps the page windows disjoint when many rows
+            // share one `submitted_at` instant.
+            .order("submitted_at", { ascending: false })
+            .order("id", { ascending: true })
+            .range(offset, pageEnd - 1);
+          if (error) throw new Error(error.message);
+          const page = Array.isArray(data) ? data : [];
+          scanned.push(...page);
+          lastPageFull = page.length >= pageEnd - offset;
+          if (!lastPageFull) break;
+          offset = pageEnd;
+        }
+        const rows = rowsToCountableRows(scanned);
         return {
           count: countCorroboratedIn(rows, now),
-          truncated: Array.isArray(data) && data.length >= CORROBORATION_SCAN_ROWS,
+          truncated: lastPageFull,
           degraded: false,
         };
       },

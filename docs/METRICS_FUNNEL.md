@@ -139,7 +139,8 @@ community_price_submission_rate = count(price_submitted)
 ```
 
 `category` is the closed drink taxonomy (`PRICE_SUBMIT_CATEGORIES`, pinned to
-`DrinkCategory` by a `satisfies` check). No venue id, no venue name, no price,
+`DrinkCategory` by the `completeDrinkTaxonomy` helper, which enforces coverage
+in both directions: no unknown value, no missing category). No venue id, no venue name, no price,
 and no error sentence ever rides along - the funnel is answerable from the
 category alone, and the sanitizer drops everything else. All three events fail
 closed on a missing or off-enum prop.
