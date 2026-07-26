@@ -11,9 +11,6 @@ const projectRoot = path.dirname(fileURLToPath(import.meta.url));
 // env override lets CI/Vercel pin it to a commit SHA if ever desired; the
 // timestamp default needs zero extra scripts or package.json changes.
 const swVersion = process.env.NEXT_PUBLIC_SW_VERSION ?? Date.now().toString(36);
-const posthogIngestHost = process.env.NEXT_PUBLIC_POSTHOG_HOST?.trim() === "https://eu.i.posthog.com"
-  ? process.env.NEXT_PUBLIC_POSTHOG_HOST.trim()
-  : "https://eu.i.posthog.com";
 
 // Content-Security-Policy is NO LONGER served from here. It moved to proxy.ts
 // (Next.js 16's renamed `middleware` convention) so it can be built PER-REQUEST
@@ -97,22 +94,6 @@ const nextConfig = {
     NEXT_PUBLIC_SW_VERSION: swVersion,
   },
   skipTrailingSlashRedirect: true,
-  async rewrites() {
-    return [
-      {
-        source: "/ingest/static/:path*",
-        destination: "https://eu-assets.i.posthog.com/static/:path*",
-      },
-      {
-        source: "/ingest/array/:path*",
-        destination: "https://eu-assets.i.posthog.com/array/:path*",
-      },
-      {
-        source: "/ingest/:path*",
-        destination: `${posthogIngestHost}/:path*`,
-      },
-    ];
-  },
   async redirects() {
     // The Stories tab settled on /feed; the old /stories route (and any deep
     // link beneath it) is retired. A permanent (308) redirect keeps shared

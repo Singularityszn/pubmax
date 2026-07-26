@@ -97,14 +97,15 @@ export function proxy(request: NextRequest) {
 
 export const config = {
   // Apply to every request that renders an HTML document. Skip static assets
-  // (/_next/static, /_next/image, favicon) and the JSON/binary /api routes —
-  // none execute inline scripts, so a nonce'd CSP there is pointless. Skip
-  // prefetch requests (the `missing` clause) so router prefetches don't burn a
-  // nonce on a payload the browser won't execute inline. HTML documents at /,
-  // /map, /feed, /borough/*, /plan/*, /crawls, /p/* all still match.
+  // (/_next/static, /_next/image, favicon), the JSON/binary /api routes, and
+  // the owned /ingest transport — none execute inline scripts, so a nonce'd
+  // CSP there is pointless. Skip prefetch requests (the `missing` clause) so
+  // router prefetches don't burn a nonce on a payload the browser won't execute
+  // inline. HTML documents at /, /map, /feed, /borough/*, /plan/*, /crawls,
+  // /p/* all still match.
   matcher: [
     {
-      source: "/((?!api|_next/static|_next/image|favicon.ico).*)",
+      source: "/((?!api|ingest|_next/static|_next/image|favicon.ico).*)",
       missing: [
         { type: "header", key: "next-router-prefetch" },
         { type: "header", key: "purpose", value: "prefetch" },

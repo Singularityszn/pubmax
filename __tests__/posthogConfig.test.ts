@@ -9,24 +9,8 @@ import nextConfigModule from "@/next.config.mjs";
 const nextConfig = nextConfigModule as NextConfig;
 
 describe("PostHog EU reverse proxy", () => {
-  it("keeps SDK assets and capture traffic on the app origin", async () => {
-    expect(typeof nextConfig.rewrites).toBe("function");
-    const rewrites = await nextConfig.rewrites!();
-
-    expect(rewrites).toEqual([
-      {
-        source: "/ingest/static/:path*",
-        destination: "https://eu-assets.i.posthog.com/static/:path*",
-      },
-      {
-        source: "/ingest/array/:path*",
-        destination: "https://eu-assets.i.posthog.com/array/:path*",
-      },
-      {
-        source: "/ingest/:path*",
-        destination: "https://eu.i.posthog.com/:path*",
-      },
-    ]);
+  it("does not bypass the owned ingest boundary with framework rewrites", () => {
+    expect(nextConfig.rewrites).toBeUndefined();
     expect(nextConfig.skipTrailingSlashRedirect).toBe(true);
   });
 });

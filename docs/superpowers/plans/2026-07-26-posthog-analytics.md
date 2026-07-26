@@ -4,9 +4,9 @@
 
 **Goal:** Adopt useful parts of PostHog wizard PR 619 without allowing account identity, free text, location, or unconsented activity to reach PostHog.
 
-**Architecture:** Existing `trackEvent` and `/api/events` remain sole product-event rail, preserving consent, DNT, anonymous ID, and closed-registry enforcement. PostHog browser SDK handles only scrubbed anonymous exception counts through first-party `/ingest` rewrites. Wizard server SDK and direct captures are omitted because existing bounded raw-HTTP forwarder is safer and already production-tested.
+**Architecture:** Existing `trackEvent` and `/api/events` remain sole product-event rail, preserving consent, DNT, anonymous ID, and closed-registry enforcement. PostHog browser SDK handles only scrubbed anonymous exception counts through an owned first-party `/ingest` transport boundary. Wizard server SDK and direct captures are omitted because existing bounded raw-HTTP forwarder is safer and already production-tested.
 
-**Tech Stack:** Next.js 16, React 19, TypeScript, Vitest, PostHog browser SDK, Vercel rewrites.
+**Tech Stack:** Next.js 16, React 19, TypeScript, Vitest, PostHog browser SDK, Next.js route handlers.
 
 ## Global Constraints
 
@@ -96,28 +96,31 @@ Expected: PASS.
 ### Task 3: Proxy, Environment Contract, and Dependencies
 
 **Files:**
+- Add: `app/ingest/[...path]/route.ts`
 - Modify: `next.config.mjs`
+- Modify: `proxy.ts`
 - Modify: `.env.example`
 - Modify: `package.json`
 - Modify: `package-lock.json`
 - Test: `__tests__/posthogConfig.test.ts`
+- Test: `__tests__/posthogProxyRoute.test.ts`
 
 **Interfaces:**
-- Produces: same-origin `/ingest/static/:path*`, `/ingest/array/:path*`, and `/ingest/:path*` rewrites to PostHog EU.
+- Produces: same-origin `/ingest` forwarding to PostHog EU through a route that accepts only bounded bodies and explicit safe transport headers.
 
-- [x] **Step 1: Write failing rewrite test**
+- [x] **Step 1: Write failing proxy-boundary tests**
 
-Import Next config, call `rewrites()`, and assert exact three EU destinations.
+Assert Next config has no ingest rewrite bypass, capture requests drop browser credentials and request metadata, and SDK assets use the EU asset origin.
 
 - [x] **Step 2: Run test and verify RED**
 
 Run: `npm test -- __tests__/posthogConfig.test.ts`
 
-Expected: FAIL because rewrites are absent.
+Expected: FAIL because a direct rewrite still owns ingest traffic.
 
-- [x] **Step 3: Add rewrites and documented public variables**
+- [x] **Step 3: Add owned proxy and documented public variables**
 
-Add proxy rewrites and `skipTrailingSlashRedirect: true`. Document `NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN` and `NEXT_PUBLIC_POSTHOG_HOST` in `.env.example` without committing real secrets.
+Add the bounded route, keep it outside the nonce proxy, and forward only fixed safe headers to the EU origins. Keep `skipTrailingSlashRedirect: true`. Document `NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN` and `NEXT_PUBLIC_POSTHOG_HOST` in `.env.example` without committing real secrets.
 
 - [x] **Step 4: Keep minimal SDK dependency**
 
@@ -125,7 +128,7 @@ Install `posthog-js`. Do not install `posthog-node`; existing `capturePosthogEve
 
 - [x] **Step 5: Run test and verify GREEN**
 
-Run: `npm test -- __tests__/posthogConfig.test.ts`
+Run: `npm test -- __tests__/posthogConfig.test.ts __tests__/posthogProxyRoute.test.ts`
 
 Expected: PASS.
 
