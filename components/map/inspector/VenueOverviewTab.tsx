@@ -15,6 +15,7 @@ import {
   accessibilityChipLabels,
   quietHoursLabel,
 } from "@/lib/venueAccessibility";
+import { isPubVenue } from "@/lib/venueKindFilters";
 import SaveToListControl from "@/components/savedpubs/SaveToListControl";
 import NextBadgeChips from "@/components/profile/NextBadgeChips";
 import FirstDropNudge from "@/components/map/inspector/FirstDropNudge";
@@ -38,6 +39,17 @@ import type { JourneyPoint } from "@/lib/venueJourney";
 import type { CrawlMode } from "@/components/map/ControlRail";
 import type { TabKey } from "@/lib/venueInspectorTabs";
 import type { PresenceState } from "./usePresence";
+
+// "Jul" for a current-year anchor observation, "Jul 2025" otherwise — the
+// short stamp in the "Large lamb doner £15.00 · Jul" honesty row.
+function anchorMonthLabel(iso: string | undefined): string | null {
+  if (!iso) return null;
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return null;
+  const month = date.toLocaleDateString("en-GB", { month: "short", timeZone: "UTC" });
+  const year = date.getUTCFullYear();
+  return year === new Date().getUTCFullYear() ? month : `${month} ${year}`;
+}
 
 export default function VenueOverviewTab({
   venue,
@@ -113,6 +125,8 @@ export default function VenueOverviewTab({
   const sourcedPrice = (venue as PricedVenue).sourcedPrice ?? null;
   const sourcedObserved =
     sourcedPrice?.observedAt != null ? formatObservedAt(sourcedPrice.observedAt) : "";
+
+  const anchorStamp = anchorMonthLabel(venue.anchorObservedAt);
 
   return (
     <div
@@ -236,8 +250,36 @@ export default function VenueOverviewTab({
         </div>
       ) : null}
       {/* Price honesty on overview: community override wins, then sourced
-          observation, then baseline-on-record. Never imply a live feed. */}
-      {latestContributorPrice !== null && latestContributorPrice !== undefined ? (
+          observation, then baseline-on-record. Never imply a live feed.
+          Non-pub venues carry a type-specific anchor (a cocktail, a doner) —
+          it renders under its own label with date and source, never as a
+          pint figure. */}
+      {!isPubVenue(venue) && venue.anchorLabel && venue.cheapestPrice !== null && venue.cheapestPrice !== undefined ? (
+        <div className="contributorPrice">
+          <span>
+            <ClaimBadge kind="sourced" /> {venue.anchorLabel}
+          </span>
+          <strong>{formatPrice(venue.cheapestPrice)}</strong>
+          {anchorStamp || venue.anchorSourceUrl ? (
+            <small>
+              {anchorStamp}
+              {venue.anchorSourceUrl ? (
+                <>
+                  {anchorStamp ? " · " : ""}
+                  <a
+                    href={venue.anchorSourceUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    source
+                  </a>
+                </>
+              ) : null}
+            </small>
+          ) : null}
+          <small className="communityPriceNote">Not a pint price.</small>
+        </div>
+      ) : latestContributorPrice !== null && latestContributorPrice !== undefined ? (
         <div className="contributorPrice">
           <span>
             <ClaimBadge kind="contributor" /> Latest Pint Drop price
@@ -277,17 +319,21 @@ export default function VenueOverviewTab({
         />
       )}
       {/* The submission loop itself: pick a drink, type tonight's price, and
-          the pin, the list row and the row above restamp on the same tap. */}
-      <VenuePriceSubmit
-        // Keyed by venue so the chosen drink, the typed price and the receipt
-        // never leak across pubs - this instance persists between selections.
-        key={venue.id}
-        venueId={venue.id}
-        venueName={venue.name}
-        communityPrices={communityPrices}
-        baselinePriceGbp={latestContributorPrice ?? venue.cheapestPrice}
-        latestPintDropAt={latestPintDropAt}
-      />
+          the pin, the list row and the row above restamp on the same tap.
+          Pubs only — a Pint Drop at a cocktail bar or doner counter would
+          feed a non-pint figure into the pint record. */}
+      {isPubVenue(venue) ? (
+        <VenuePriceSubmit
+          // Keyed by venue so the chosen drink, the typed price and the receipt
+          // never leak across pubs - this instance persists between selections.
+          key={venue.id}
+          venueId={venue.id}
+          venueName={venue.name}
+          communityPrices={communityPrices}
+          baselinePriceGbp={latestContributorPrice ?? venue.cheapestPrice}
+          latestPintDropAt={latestPintDropAt}
+        />
+      ) : null}
       {mode === "build" ? (
         <button
           className="addStopBtn"

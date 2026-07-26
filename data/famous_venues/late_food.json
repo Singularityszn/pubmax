@@ -11,7 +11,7 @@
     "fameGates": [
       {
         "kind": "recognition",
-        "sourceUrl": "https://tbtk.co.uk/"
+        "sourceUrl": "https://www.theinfatuation.com/london/reviews/the-best-turkish-kebab"
       },
       {
         "kind": "longevity",
@@ -60,7 +60,7 @@
     "fameGates": [
       {
         "kind": "recognition",
-        "sourceUrl": "https://www.superkebab.net/"
+        "sourceUrl": "https://www.timeout.com/london/blog/a-meat-slicing-robot-has-appeared-in-a-stoke-newington-kebab-shop-082015"
       },
       {
         "kind": "distinct_experience",
@@ -105,7 +105,7 @@
     "fameGates": [
       {
         "kind": "longevity",
-        "sourceUrl": "https://mangal1.com/"
+        "sourceUrl": "https://www.timeout.com/london/restaurants/mangal-ocakbasi"
       },
       {
         "kind": "cultural_weight",
@@ -154,7 +154,7 @@
     "fameGates": [
       {
         "kind": "recognition",
-        "sourceUrl": "https://mangal2.com/"
+        "sourceUrl": "https://www.theinfatuation.com/london/reviews/mangal-ii"
       },
       {
         "kind": "longevity",
@@ -203,7 +203,7 @@
     "fameGates": [
       {
         "kind": "longevity",
-        "sourceUrl": "https://gokyuzurestaurant.co.uk/"
+        "sourceUrl": "https://www.timeout.com/london/restaurants/gokyuzu"
       },
       {
         "kind": "cultural_weight",
@@ -248,7 +248,7 @@
     "fameGates": [
       {
         "kind": "longevity",
-        "sourceUrl": "https://antepliler.co.uk/"
+        "sourceUrl": "https://www.timeout.com/london/restaurants/antepliler"
       },
       {
         "kind": "cultural_weight",
@@ -293,7 +293,7 @@
     "fameGates": [
       {
         "kind": "longevity",
-        "sourceUrl": "https://diyarbakir.co.uk/"
+        "sourceUrl": "https://www.theinfatuation.com/london/reviews/diyarbakr-restaurant"
       },
       {
         "kind": "cultural_weight",
@@ -338,7 +338,7 @@
     "fameGates": [
       {
         "kind": "recognition",
-        "sourceUrl": "https://www.brittradeawards.org/british-kebab-awards-2025-semi-finalists"
+        "sourceUrl": "https://www.theinfatuation.com/london/reviews/hala-restaurant"
       },
       {
         "kind": "cultural_weight",
@@ -383,7 +383,7 @@
     "fameGates": [
       {
         "kind": "recognition",
-        "sourceUrl": "https://selale.co.uk/"
+        "sourceUrl": "https://www.timeout.com/london/restaurants/selale"
       },
       {
         "kind": "longevity",
@@ -428,7 +428,7 @@
     "fameGates": [
       {
         "kind": "recognition",
-        "sourceUrl": "https://eatlebab.com/"
+        "sourceUrl": "https://www.timeout.com/london/restaurants/le-bab"
       },
       {
         "kind": "distinct_experience",
@@ -473,7 +473,7 @@
     "fameGates": [
       {
         "kind": "longevity",
-        "sourceUrl": "https://testirestaurant.co.uk/"
+        "sourceUrl": "https://hackneypost.co.uk/stoke-newingtons-testi-tops-british-kebab-awards/"
       },
       {
         "kind": "distinct_experience",
@@ -518,7 +518,7 @@
     "fameGates": [
       {
         "kind": "recognition",
-        "sourceUrl": "https://berenjaklondon.com/soho"
+        "sourceUrl": "https://www.timeout.com/london/restaurants/berenjak"
       },
       {
         "kind": "distinct_experience",
@@ -563,7 +563,7 @@
     "fameGates": [
       {
         "kind": "recognition",
-        "sourceUrl": "https://www.fmmangal.co.uk/"
+        "sourceUrl": "https://www.timeout.com/london/restaurants/fm-mangal"
       },
       {
         "kind": "longevity",
@@ -608,7 +608,7 @@
     "fameGates": [
       {
         "kind": "longevity",
-        "sourceUrl": "https://lahore-kebabhouse.com/"
+        "sourceUrl": "https://www.timeout.com/london/restaurants/lahore-kebab-house"
       },
       {
         "kind": "cultural_weight",
@@ -657,7 +657,7 @@
       },
       {
         "kind": "longevity",
-        "sourceUrl": "https://www.tayyabs.co.uk/"
+        "sourceUrl": "https://www.timeout.com/london/restaurants/tayyabs"
       },
       {
         "kind": "cultural_weight",
@@ -702,7 +702,7 @@
     "fameGates": [
       {
         "kind": "longevity",
-        "sourceUrl": "https://www.maroush.com/restaurants/edgware-road"
+        "sourceUrl": "https://www.timeout.com/london/restaurants/ranoush-juice-3"
       },
       {
         "kind": "cultural_weight",
@@ -747,7 +747,7 @@
     "fameGates": [
       {
         "kind": "longevity",
-        "sourceUrl": "https://www.maroush.com/restaurants"
+        "sourceUrl": "https://www.timeout.com/london/restaurants/maroush-i"
       },
       {
         "kind": "cultural_weight",
@@ -792,7 +792,7 @@
     "fameGates": [
       {
         "kind": "recognition",
-        "sourceUrl": "https://kebabkid.co.uk/"
+        "sourceUrl": "https://www.timeout.com/london/restaurants/kebab-kid"
       },
       {
         "kind": "longevity",
@@ -826,141 +826,6 @@
     "extractedVia": "manual"
   },
   {
-    "id": "food-black-axe-mangal",
-    "name": "Black Axe Mangal",
-    "address": "156 Canonbury Road, London N1 2UP",
-    "borough": "Islington",
-    "lat": 51.54326,
-    "lng": -0.10264,
-    "kind": "food",
-    "hasStory": true,
-    "fameGates": [
-      {
-        "kind": "recognition",
-        "sourceUrl": "https://www.blackaxemangal.com/"
-      },
-      {
-        "kind": "distinct_experience",
-        "sourceUrl": "https://www.blackaxemangal.com/"
-      }
-    ],
-    "sourceUrl": "https://www.blackaxemangal.com/",
-    "observedAt": "2026-07-26",
-    "anchor": {
-      "kind": "signature_item",
-      "label": "Charcoal flatbread",
-      "price": 14,
-      "observedAt": "2026-07-26",
-      "sourceUrl": "https://www.blackaxemangal.com/"
-    },
-    "story": {
-      "text": "Lee Tiernan fused an ocakbasi grill with loud metal, offal and tattoo-shop energy in a tiny Canonbury room.",
-      "sourceUrl": "https://www.blackaxemangal.com/"
-    },
-    "category": "late_food",
-    "job": "crawl_ending_food",
-    "description": "Lee Tiernan fused an ocakbasi grill with loud metal, offal and tattoo-shop energy in a tiny Canonbury room.",
-    "area": "Islington",
-    "location": {
-      "lat": 51.54326,
-      "lng": -0.10264
-    },
-    "sourceName": "blackaxemangal.com",
-    "expiresAt": "2026-08-25",
-    "discoveredVia": "manual",
-    "extractedVia": "manual"
-  },
-  {
-    "id": "food-woody-grill-shepherds-bush",
-    "name": "Woody Grill",
-    "address": "1 Uxbridge Road, London W12 8LJ",
-    "borough": "Hammersmith and Fulham",
-    "lat": 51.50401,
-    "lng": -0.21912,
-    "kind": "food",
-    "hasStory": true,
-    "fameGates": [
-      {
-        "kind": "longevity",
-        "sourceUrl": "https://woodygrill.co.uk/"
-      },
-      {
-        "kind": "distinct_experience",
-        "sourceUrl": "https://woodygrill.co.uk/"
-      }
-    ],
-    "sourceUrl": "https://woodygrill.co.uk/",
-    "observedAt": "2026-07-26",
-    "anchor": {
-      "kind": "large_doner",
-      "label": "Large lamb doner",
-      "price": 13.9,
-      "observedAt": "2026-07-26",
-      "sourceUrl": "https://woodygrill.co.uk/"
-    },
-    "story": {
-      "text": "The all-night Shepherd's Bush grill is a west-London constant for charcoal kebabs before the first Tube home.",
-      "sourceUrl": "https://woodygrill.co.uk/"
-    },
-    "category": "late_food",
-    "job": "crawl_ending_food",
-    "description": "The all-night Shepherd's Bush grill is a west-London constant for charcoal kebabs before the first Tube home.",
-    "area": "Hammersmith and Fulham",
-    "location": {
-      "lat": 51.50401,
-      "lng": -0.21912
-    },
-    "sourceName": "woodygrill.co.uk",
-    "expiresAt": "2026-08-25",
-    "discoveredVia": "manual",
-    "extractedVia": "manual"
-  },
-  {
-    "id": "food-crystal-kebab",
-    "name": "Crystal Kebab",
-    "address": "11 King's Cross Road, London WC1X 9LN",
-    "borough": "Camden",
-    "lat": 51.52632,
-    "lng": -0.1135,
-    "kind": "food",
-    "hasStory": true,
-    "fameGates": [
-      {
-        "kind": "recognition",
-        "sourceUrl": "https://crystalkebab.co.uk/"
-      },
-      {
-        "kind": "longevity",
-        "sourceUrl": "https://crystalkebab.co.uk/"
-      }
-    ],
-    "sourceUrl": "https://crystalkebab.co.uk/",
-    "observedAt": "2026-07-26",
-    "anchor": {
-      "kind": "large_doner",
-      "label": "Large lamb doner",
-      "price": 14,
-      "observedAt": "2026-07-26",
-      "sourceUrl": "https://crystalkebab.co.uk/"
-    },
-    "story": {
-      "text": "Crystal has long been the King's Cross fallback for a proper charcoal grill and doner after the last train elsewhere.",
-      "sourceUrl": "https://crystalkebab.co.uk/"
-    },
-    "category": "late_food",
-    "job": "crawl_ending_food",
-    "description": "Crystal has long been the King's Cross fallback for a proper charcoal grill and doner after the last train elsewhere.",
-    "area": "Camden",
-    "location": {
-      "lat": 51.52632,
-      "lng": -0.1135
-    },
-    "sourceName": "crystalkebab.co.uk",
-    "expiresAt": "2026-08-25",
-    "discoveredVia": "manual",
-    "extractedVia": "manual"
-  },
-  {
     "id": "food-beigel-bake",
     "name": "Beigel Bake",
     "address": "159 Brick Lane, London E1 6SB",
@@ -972,7 +837,7 @@
     "fameGates": [
       {
         "kind": "longevity",
-        "sourceUrl": "https://www.beigelbake.co.uk/"
+        "sourceUrl": "https://en.wikipedia.org/wiki/Beigel_Bake"
       },
       {
         "kind": "cultural_weight",
@@ -1021,7 +886,7 @@
     "fameGates": [
       {
         "kind": "longevity",
-        "sourceUrl": "https://www.polobar.co.uk/"
+        "sourceUrl": "https://www.timeout.com/london/things-to-do/11-unexpected-late-night-spots-worth-staying-up-for"
       },
       {
         "kind": "distinct_experience",
@@ -1066,7 +931,7 @@
     "fameGates": [
       {
         "kind": "recognition",
-        "sourceUrl": "https://duckandwaffle.com/london"
+        "sourceUrl": "https://www.timeout.com/london/news/londons-24-hour-restaurant-duck-waffle-is-open-again-for-sky-high-dining-090921"
       },
       {
         "kind": "distinct_experience",
@@ -1115,7 +980,7 @@
       },
       {
         "kind": "cultural_weight",
-        "sourceUrl": "https://wongkeilondon.com/"
+        "sourceUrl": "https://en.wikipedia.org/wiki/Wong_Kei"
       }
     ],
     "sourceUrl": "https://wongkeilondon.com/",
@@ -1160,7 +1025,7 @@
       },
       {
         "kind": "cultural_weight",
-        "sourceUrl": "https://www.instagram.com/baritaliasoho"
+        "sourceUrl": "https://en.wikipedia.org/wiki/Bar_Italia"
       },
       {
         "kind": "distinct_experience",
@@ -1194,51 +1059,6 @@
     "extractedVia": "manual"
   },
   {
-    "id": "food-balans-soho",
-    "name": "Balans No.60 Soho",
-    "address": "60-62 Old Compton Street, London W1D 4UG",
-    "borough": "Westminster",
-    "lat": 51.51291,
-    "lng": -0.13265,
-    "kind": "food",
-    "hasStory": true,
-    "fameGates": [
-      {
-        "kind": "longevity",
-        "sourceUrl": "https://balans.co.uk/locations/soho-no-60"
-      },
-      {
-        "kind": "cultural_weight",
-        "sourceUrl": "https://balans.co.uk/locations/soho-no-60"
-      }
-    ],
-    "sourceUrl": "https://balans.co.uk/locations/soho-no-60",
-    "observedAt": "2026-07-26",
-    "anchor": {
-      "kind": "signature_item",
-      "label": "Full English breakfast",
-      "price": 16.5,
-      "observedAt": "2026-07-26",
-      "sourceUrl": "https://balans.co.uk/locations/soho-no-60"
-    },
-    "story": {
-      "text": "No.60 grew from a 1987 sandwich shop into Soho's famously late refuge for performers, clubbers and breakfast at the wrong hour.",
-      "sourceUrl": "https://balans.co.uk/locations/soho-no-60"
-    },
-    "category": "late_food",
-    "job": "crawl_ending_food",
-    "description": "No.60 grew from a 1987 sandwich shop into Soho's famously late refuge for performers, clubbers and breakfast at the wrong hour.",
-    "area": "Westminster",
-    "location": {
-      "lat": 51.51291,
-      "lng": -0.13265
-    },
-    "sourceName": "balans.co.uk",
-    "expiresAt": "2026-08-25",
-    "discoveredVia": "manual",
-    "extractedVia": "manual"
-  },
-  {
     "id": "food-vq-chelsea",
     "name": "VQ Chelsea",
     "address": "325 Fulham Road, London SW10 9QL",
@@ -1250,7 +1070,7 @@
     "fameGates": [
       {
         "kind": "longevity",
-        "sourceUrl": "https://www.vqrestaurants.com/locations/chelsea"
+        "sourceUrl": "https://www.theinfatuation.com/london/reviews/vingt-quatre"
       },
       {
         "kind": "distinct_experience",
@@ -1284,51 +1104,6 @@
     "extractedVia": "manual"
   },
   {
-    "id": "food-tinseltown-farringdon",
-    "name": "Tinseltown Farringdon",
-    "address": "44-46 St John Street, London EC1M 4DF",
-    "borough": "Islington",
-    "lat": 51.5202,
-    "lng": -0.10115,
-    "kind": "food",
-    "hasStory": true,
-    "fameGates": [
-      {
-        "kind": "longevity",
-        "sourceUrl": "https://www.tinseltown.co.uk/"
-      },
-      {
-        "kind": "distinct_experience",
-        "sourceUrl": "https://www.tinseltown.co.uk/"
-      }
-    ],
-    "sourceUrl": "https://www.tinseltown.co.uk/",
-    "observedAt": "2026-07-26",
-    "anchor": {
-      "kind": "signature_item",
-      "label": "Classic beef burger",
-      "price": 13.95,
-      "observedAt": "2026-07-26",
-      "sourceUrl": "https://www.tinseltown.co.uk/"
-    },
-    "story": {
-      "text": "The Farringdon diner made alcohol-free late-night milkshakes and halal burgers a post-club institution for more than two decades.",
-      "sourceUrl": "https://www.tinseltown.co.uk/"
-    },
-    "category": "late_food",
-    "job": "crawl_ending_food",
-    "description": "The Farringdon diner made alcohol-free late-night milkshakes and halal burgers a post-club institution for more than two decades.",
-    "area": "Islington",
-    "location": {
-      "lat": 51.5202,
-      "lng": -0.10115
-    },
-    "sourceName": "tinseltown.co.uk",
-    "expiresAt": "2026-08-25",
-    "discoveredVia": "manual",
-    "extractedVia": "manual"
-  },
-  {
     "id": "food-golden-dragon",
     "name": "Golden Dragon",
     "address": "28-29 Gerrard Street, London W1D 6JW",
@@ -1340,7 +1115,7 @@
     "fameGates": [
       {
         "kind": "longevity",
-        "sourceUrl": "https://goldendragonlondon.com/"
+        "sourceUrl": "https://www.timeout.com/london/restaurants/golden-dragon"
       },
       {
         "kind": "cultural_weight",

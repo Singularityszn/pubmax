@@ -318,12 +318,12 @@ describe("venues_slim.json", () => {
     expect(slimIds).toEqual(canonicalIds);
   });
 
-  it("ships exactly 40 bars and 30 food venues with every type-relative band", () => {
+  it("ships exactly 40 bars and 25 food venues with every type-relative band", () => {
     const rows = slim as SlimVenue[];
     const bars = rows.filter((row) => row.kind === "bar");
     const food = rows.filter((row) => row.kind === "food");
     expect(bars).toHaveLength(40);
-    expect(food).toHaveLength(30);
+    expect(food).toHaveLength(25);
     expect(new Set(bars.map((row) => row.priceBand))).toEqual(new Set([0, 1, 2]));
     expect(new Set(food.map((row) => row.priceBand))).toEqual(new Set([0, 1, 2]));
   });

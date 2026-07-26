@@ -945,12 +945,8 @@ export default function PubMap({
     [mapMembershipVenues, venueKindVisibility],
   );
   const canvasVenues = useMemo(
-    () =>
-      filterVenuesByKind(
-        withForcedVenue(kindVisibleMapVenues, venueById, selectedVenueId),
-        venueKindVisibility,
-      ),
-    [kindVisibleMapVenues, venueById, selectedVenueId, venueKindVisibility],
+    () => withForcedVenue(kindVisibleMapVenues, venueById, selectedVenueId),
+    [kindVisibleMapVenues, venueById, selectedVenueId],
   );
   // A11Y finding #1 — keyboard/SR-reachable model of the venues on the map,
   // ordered nearest-first to the viewport centre. Same set the canvas paints.
@@ -2586,7 +2582,7 @@ export default function PubMap({
                 cityId={cityId}
                 onSelectVenue={selectVenue}
                 initialLocation={userLocation}
-                venues={filteredVenues.map((venue) => ({
+                venues={filteredPubVenues.map((venue) => ({
                   id: venue.id,
                   name: venue.name,
                   lat: venue.latitude,
@@ -2602,7 +2598,7 @@ export default function PubMap({
               cityId={cityId}
               area={searchAreaTarget ? (searchAreaTarget.kind === "area" ? searchAreaTarget.area : null) : centreArea}
               placeFocus={searchAreaTarget?.kind === "place" ? searchAreaTarget : null}
-              venues={venues}
+              venues={pubVenues}
               center={mapViewport.center}
               onSelectVenue={selectVenue}
               onFlyToArea={flyToArea}

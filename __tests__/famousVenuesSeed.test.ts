@@ -53,7 +53,7 @@ function loadSeed(file: string): FamousVenueRow[] {
 describe("famous venue Wave 1 seeds", () => {
   it.each([
     ["bars.json", 40, "bar"],
-    ["late_food.json", 30, "food"],
+    ["late_food.json", 25, "food"],
   ] as const)("%s contains exactly %i contract-valid venues", (file, count, kind) => {
     const rows = loadSeed(file);
     expect(rows).toHaveLength(count);
@@ -80,6 +80,15 @@ describe("famous venue Wave 1 seeds", () => {
           (gate) =>
             FAME_GATES.has(gate.kind) && /^https:\/\//.test(gate.sourceUrl),
         ),
+      ).toBe(true);
+      // Fame must not be self-attested: at least one gate has to cite a host
+      // other than the venue's own site.
+      expect(
+        row.fameGates.some(
+          (gate) =>
+            new URL(gate.sourceUrl).hostname !== new URL(row.sourceUrl).hostname,
+        ),
+        `${row.id} has no independent fame-gate source`,
       ).toBe(true);
       expect(row.sourceUrl).toMatch(/^https:\/\//);
       expect(Number.isNaN(Date.parse(row.observedAt))).toBe(false);
