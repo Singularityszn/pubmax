@@ -11,6 +11,7 @@ scripts/__pycache__/
 .vercel
 .context/
 .firecrawl/
+.tavily/
 test-results/
 playwright-report/
 artifacts/

@@ -39,6 +39,7 @@
     "gen:brand-assets": "node scripts/gen-brand-assets.mjs",
     "refresh:prices": "node scripts/refresh_prices.mjs",
     "refresh:drink-prices": "node scripts/refresh_drink_prices.mjs",
+    "enrich:city": "node scripts/enrich_city_pubs_tavily.mjs",
     "whats-on-refresh": "node scripts/refresh_whats_on.mjs",
     "ingest:night-signals": "node scripts/ingest_night_signal_candidates.mjs",
     "ingest:night-out-places": "node scripts/ingest_night_out_places.mjs",

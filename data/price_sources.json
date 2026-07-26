@@ -1,6 +1,17 @@
 {
   "$comment": "Allowlist of PERMISSIBLE first-party / open price sources for the scheduled refresh (scripts/refresh_prices.mjs). GOVERNANCE HARD RULE: only pub/brewery OFFICIAL sites and open-data feeds may appear here. NEVER add a competitor price-aggregator or any site whose terms forbid automated access. Every source must be a first-party publisher of its own prices, or an open-licensed dataset. The refresh script reads this file and (in a real run) fetches ONLY these URLs; it will refuse any URL not listed here.",
   "version": 1,
+  "$discoveryProvidersComment": "Discovery providers can locate and extract candidate official publisher pages but are NEVER price provenance. Every emitted fact must cite the official pub or chain URL, and all aggregator or review-site results must be rejected.",
+  "discoveryProviders": [
+    {
+      "id": "tavily-official-page-discovery",
+      "label": "Tavily Search API",
+      "url": "https://api.tavily.com/search",
+      "kind": "discovery-only",
+      "permissible": true,
+      "notes": "scripts/enrich_city_pubs_tavily.mjs uses bounded searches restricted to OSM-declared official pub domains. Tavily never appears in emitted source fields. Undeclared domains are never promoted to official provenance. Wetherspoons, Greene King, and Mitchells & Butlers are delegated to existing chain harvesters."
+    }
+  ],
   "sources": [
     {
       "id": "example-brewery-official",

@@ -266,8 +266,8 @@ Plan member capability and use idempotency keys or atomic store operations.
 
 ## Internal cron routes (excluded from the mutating-verb inventory)
 
-The Vercel cron freshness plane adds three scheduled routes under
-`app/api/cron/*` (`refresh-weather`, `refresh-whats-on`, `freshness-audit`). They
+The Vercel cron freshness plane schedules routes under `app/api/cron/*`
+(inventory: `vercel.json`; runbook: `docs/CRON_PLANE_RUNBOOK.md`). They
 are **mutating by effect** (weather writes to the durable `weather_snapshots`
 store; What's-On stamps `feed_freshness`) but are deliberately **NOT counted in
 the mutating-route inventory** (see the count at the top of this document), for
