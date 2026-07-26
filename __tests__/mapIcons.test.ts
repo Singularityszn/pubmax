@@ -138,7 +138,7 @@ describe("MAP_ICON_SPECS registry", () => {
 
   it("every spec has a valid namespace, a draw function, and a positive size", () => {
     for (const spec of MAP_ICON_SPECS) {
-      expect(["lm", "tfl", "drink"], `${spec.key} ns`).toContain(spec.ns);
+      expect(["lm", "tfl", "drink", "base"], `${spec.key} ns`).toContain(spec.ns);
       expect(typeof spec.draw, `${spec.key} draw`).toBe("function");
       expect(spec.size, `${spec.key} size`).toBeGreaterThan(0);
       expect(typeof spec.key, `${spec.key} key type`).toBe("string");

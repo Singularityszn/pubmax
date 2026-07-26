@@ -6,8 +6,7 @@ import path from "path";
 // scripts/canonicalize_venue_dataset.mjs), and records every losing id in
 // public/data/venue_id_aliases.json as `duplicateId -> canonicalId`. Venue ids
 // are referenced by pint drops, plans and saved lists, so a stored reference to
-// a merged id must still resolve — this module maps such an id to its canonical
-// id at every server-side lookup-by-id seam.
+// a merged id must still resolve at every server-side lookup-by-id seam.
 //
 // Reads the alias artifact with `fs`, so import ONLY from server code (route
 // handlers, server components), same rule as lib/venueIndex.ts. Never throws: a

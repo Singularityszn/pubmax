@@ -31,9 +31,15 @@
 
 import { jsonNoStore } from "@/lib/apiResponses";
 import { validateCommunityPrice } from "@/lib/communityPrice";
-import { readCommunityPrices, submitCommunityPrice } from "@/lib/communityPriceStore";
+import {
+  readCommunityPrices,
+  readCommunityPricesWithStatus,
+  submitCommunityPrice,
+} from "@/lib/communityPriceStore";
 import { isLimited } from "@/lib/pintDrops";
 import { clientIp, hashActor, hashIp } from "@/lib/supabase";
+import { getUkBaseIdIndex } from "@/lib/ukBaseIndex";
+import { isUkBaseId } from "@/lib/ukBasePubs";
 import { getVenueIndex } from "@/lib/venueIndex";
 
 // Best-effort, server-derived submitter token. Never throws - if IP hashing is
@@ -62,19 +68,28 @@ export async function POST(request: Request): Promise<Response> {
     return jsonNoStore({ error: result.error }, { status: 400 });
   }
 
-  // getVenueIndex degrades to an EMPTY map when no city pack could be read.
-  // That is a transient dependency failure, not a bad venue id — answer 503
-  // (retryable) rather than bouncing every valid submission with a 400. The
-  // membership check itself is never skipped.
-  const venueIndex = await getVenueIndex();
-  if (venueIndex.size === 0) {
-    return jsonNoStore(
-      { error: "Venue list is unavailable right now, try again shortly." },
-      { status: 503 },
-    );
-  }
-  if (!venueIndex.has(result.value.venueId)) {
-    return jsonNoStore({ error: "Pick a venue from the map." }, { status: 400 });
+  if (isUkBaseId(result.value.venueId)) {
+    const ukBaseIndex = await getUkBaseIdIndex();
+    if (ukBaseIndex.status === "unavailable") {
+      return jsonNoStore(
+        { error: "Venue list is unavailable right now, try again shortly." },
+        { status: 503 },
+      );
+    }
+    if (!ukBaseIndex.ids.has(result.value.venueId)) {
+      return jsonNoStore({ error: "Pick a venue from the map." }, { status: 400 });
+    }
+  } else {
+    const venueIndex = await getVenueIndex();
+    if (venueIndex.size === 0) {
+      return jsonNoStore(
+        { error: "Venue list is unavailable right now, try again shortly." },
+        { status: 503 },
+      );
+    }
+    if (!venueIndex.has(result.value.venueId)) {
+      return jsonNoStore({ error: "Pick a venue from the map." }, { status: 400 });
+    }
   }
 
   const actor = deriveActor(request);
@@ -142,10 +157,16 @@ export async function GET(request: Request): Promise<Response> {
   try {
     const venueId = (new URL(request.url).searchParams.get("venueId") ?? "").trim();
     if (!venueId) return jsonNoStore({ prices: [] }, { status: 200 });
-    return jsonNoStore({ prices: await readCommunityPrices(venueId) }, { status: 200 });
+    const result = await readCommunityPricesWithStatus(venueId);
+    return jsonNoStore(
+      result.degraded
+        ? { prices: result.prices, degraded: true }
+        : { prices: result.prices },
+      { status: 200 },
+    );
   } catch {
     // The reader never 500s - degrade to no community prices so the sourced
     // baseline still renders on the sheet.
-    return jsonNoStore({ prices: [] }, { status: 200 });
+    return jsonNoStore({ prices: [], degraded: true }, { status: 200 });
   }
 }

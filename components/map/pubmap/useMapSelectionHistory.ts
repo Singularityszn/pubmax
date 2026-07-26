@@ -41,6 +41,14 @@ type MapSelectionHistoryArgs = {
   arrivalSearch: string;
   /** The current inspected Venue id ("" when none). */
   selectedVenueId: string;
+  /**
+   * The `at=` location companion for the current selection
+   * (lib/mapSelectionHistory formatSelectionHint) — set for a UK base pub,
+   * "" otherwise. Written with the sel entry so a shared/reloaded base link
+   * can stream the right shard cell; read via a ref so a hint change alone
+   * never rewrites history.
+   */
+  selectionHint?: string;
   /** Close the sheet when a browser Back pops the selected entry. */
   onBackClose: () => void;
 };
@@ -48,6 +56,7 @@ type MapSelectionHistoryArgs = {
 export function useMapSelectionHistory({
   arrivalSearch,
   selectedVenueId,
+  selectionHint = "",
   onBackClose,
 }: MapSelectionHistoryArgs): void {
   // The last selectedVenueId we reconciled into history. Seeded by the arrival
@@ -55,9 +64,11 @@ export function useMapSelectionHistory({
   const prevRef = useRef<string>("");
   const checkpointedRef = useRef(false);
   const onBackCloseRef = useRef(onBackClose);
+  const selectionHintRef = useRef(selectionHint);
   useEffect(() => {
     onBackCloseRef.current = onBackClose;
-  }, [onBackClose]);
+    selectionHintRef.current = selectionHint;
+  }, [onBackClose, selectionHint]);
 
   // 1) Arrival checkpoint — once, before useCrawlUrlSync's first (debounced)
   //    write. Empty deps: the frozen arrival is all this needs.
@@ -105,14 +116,14 @@ export function useMapSelectionHistory({
         window.history.pushState(
           withSelectionSentinel(window.history.state, action.venueId),
           "",
-          browseSelectionUrl(pathname, search, action.venueId, hash),
+          browseSelectionUrl(pathname, search, action.venueId, hash, selectionHintRef.current),
         );
         break;
       case "replace":
         window.history.replaceState(
           withSelectionSentinel(window.history.state, action.venueId),
           "",
-          browseSelectionUrl(pathname, search, action.venueId, hash),
+          browseSelectionUrl(pathname, search, action.venueId, hash, selectionHintRef.current),
         );
         break;
       case "back":

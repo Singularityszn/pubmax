@@ -19,11 +19,42 @@ export type PubmaxSelectionHistory = {
 };
 
 // sel is the inspected Venue; accept=1 / src=<source> are the accepted-handoff
-// markers. All three belong to a specific selection/acceptance arrival and are
-// stripped when we build a clean Map entry. Everything else (pubs, mode, plan,
-// log, style, band, …) is owned passthrough and is preserved on every rewrite.
-const SELECTION_PARAMS = ["sel", "accept", "src"] as const;
+// markers; at=<lat>,<lng> is sel's companion location hint for a UK base pub
+// (see SELECTION_HINT_PARAM). All four belong to a specific selection/
+// acceptance arrival and are stripped when we build a clean Map entry.
+// Everything else (pubs, mode, plan, log, style, band, …) is owned passthrough
+// and is preserved on every rewrite.
+const SELECTION_PARAMS = ["sel", "accept", "src", "at"] as const;
 const ACCEPTANCE_PARAMS = ["accept", "src"] as const;
+
+/**
+ * `sel` may travel with a companion location hint (`at=<lat>,<lng>`). A UK base
+ * pub's `venue-uk-…` id names an OSM ref, not a venue record: on a shared or
+ * reloaded link the id alone cannot say which base shard cell to stream or
+ * where to fly the camera, so the selecting tap writes the pub's rounded
+ * coordinates alongside `sel`. Deliberately NOT embedded in the id itself —
+ * those ids are already written into community_prices rows, and a pack refresh
+ * nudging a pub across a cell boundary must never orphan its prices.
+ */
+export const SELECTION_HINT_PARAM = "at";
+
+/** ~11 m of precision: enough to target the cell and centre the camera. */
+export function formatSelectionHint(lat: number, lng: number): string {
+  return `${lat.toFixed(4)},${lng.toFixed(4)}`;
+}
+
+/** Parse the `at=` hint out of a search string; null when absent/malformed. */
+export function parseSelectionHint(search: string): { lat: number; lng: number } | null {
+  const raw = normalizeSearch(search).get(SELECTION_HINT_PARAM);
+  if (!raw) return null;
+  const parts = raw.split(",");
+  if (parts.length !== 2) return null;
+  const lat = Number(parts[0]);
+  const lng = Number(parts[1]);
+  if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
+  if (Math.abs(lat) > 90 || Math.abs(lng) > 180) return null;
+  return { lat, lng };
+}
 
 /** Type guard: does an unknown history.state carry our selection sentinel? */
 export function isSelectionSentinel(state: unknown): state is PubmaxSelectionHistory {
@@ -87,16 +118,23 @@ export function cleanMapUrl(pathname: string, search: string, hash = ""): string
  * A browse-selection URL for `venueId`: owned params kept, acceptance markers
  * dropped (a pin/switch selection is browse-only, §4.8), and `sel` set. Used
  * for the in-Map push (clean → selected) and replace (selected → other).
+ *
+ * `hint` is the base-pub location companion (formatSelectionHint): set for a
+ * UK base selection, and always cleared otherwise so a base → curated switch
+ * never leaves a stale `at=` pointing at the previous pub.
  */
 export function browseSelectionUrl(
   pathname: string,
   search: string,
   venueId: string,
   hash = "",
+  hint = "",
 ): string {
   const params = normalizeSearch(search);
   for (const key of ACCEPTANCE_PARAMS) params.delete(key);
   params.set("sel", venueId);
+  if (hint) params.set(SELECTION_HINT_PARAM, hint);
+  else params.delete(SELECTION_HINT_PARAM);
   return toUrl(pathname, params, hash);
 }
 

@@ -31,7 +31,7 @@ export type IconTokens = {
   muted?: string;
 };
 
-export type IconNamespace = "lm" | "tfl" | "drink";
+export type IconNamespace = "lm" | "tfl" | "drink" | "base";
 
 export type IconSpec = {
   key: string; // e.g. "clock-tower", "underground", "pint-0"
@@ -840,6 +840,51 @@ export function drinkPinKindFromCategories(
 }
 
 // ---------------------------------------------------------------------------
+// Base pub (ns: "base") — the UK-wide OSM layer. An OUTLINE, never a fill: the
+// filled drink glasses mean "we know what this costs", and a base pub is
+// precisely the pub nobody has priced yet. Drawn as an empty ring around a
+// small dot so it reads at a glance as a socket waiting for a price rather
+// than a dimmer version of a real pin.
+// ---------------------------------------------------------------------------
+
+export const UK_BASE_ICON_KEY = "pub";
+
+// Sized against the drink silhouettes, not against nothing: a curated glass is
+// ~0.64 x BOX wide, so a 0.4 x BOX ring reads as clearly the lesser mark while
+// still being a mark. Anything smaller disappeared into the basemap on a 390px
+// phone (owner-standard visual check), which is not "subordinate", it is absent.
+const BASE_PUB_RING_RADIUS = BOX * 0.2;
+
+function drawBasePub(ctx: CanvasRenderingContext2D, t: IconTokens): void {
+  const c = BOX / 2;
+  // Brass, not a neutral grey: a neutral ring reads as basemap furniture (it
+  // sat indistinguishable from the OSM POI dots in the owner-standard 390px
+  // check). The app's own accent, unfilled and small, says "we know a pub is
+  // here and there is nothing in the glass yet" without competing with the
+  // filled price glasses.
+  const ink = t.brass;
+  ctx.save();
+  // Paper-toned backing so the ring survives over dark buildings and parks
+  // without becoming a solid disc that competes with a priced pin.
+  ctx.globalAlpha = 0.72;
+  ctx.fillStyle = t.paper;
+  ctx.beginPath();
+  ctx.arc(c, c, BASE_PUB_RING_RADIUS, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.globalAlpha = 1;
+  ctx.strokeStyle = ink;
+  ctx.lineWidth = STROKE * 1.15;
+  ctx.beginPath();
+  ctx.arc(c, c, BASE_PUB_RING_RADIUS, 0, Math.PI * 2);
+  ctx.stroke();
+  ctx.fillStyle = ink;
+  ctx.beginPath();
+  ctx.arc(c, c, BOX * 0.062, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
+}
+
+// ---------------------------------------------------------------------------
 // The registry. `MAP_ICON_SPECS` is the single ordered list the caller iterates
 // to register every icon via `map.addImage(iconId(ns, key), rasterize(spec, …))`.
 // ---------------------------------------------------------------------------
@@ -874,6 +919,8 @@ export const MAP_ICON_SPECS: IconSpec[] = [
       }),
     ),
   ),
+  // The unpriced UK base layer's single glyph.
+  { key: UK_BASE_ICON_KEY, ns: "base", size: BOX, draw: drawBasePub },
 ];
 
 // Namespaced id used as the MapLibre image name: iconId("lm","clock-tower") →

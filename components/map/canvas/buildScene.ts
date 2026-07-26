@@ -7,7 +7,7 @@ import {
 } from "@/lib/mapBasemapTaste";
 import { isTransitNetworkVisible } from "@/lib/poiToggleGroups";
 import { TRANSPORT_CATEGORIES, type PoiCategory } from "@/lib/pois";
-import type { IconTokens } from "@/lib/mapIcons";
+import { iconId, UK_BASE_ICON_KEY, type IconTokens } from "@/lib/mapIcons";
 import {
   type Tokens,
   withAlpha,
@@ -42,15 +42,46 @@ import {
 // Between the two there is a deliberate mixed band (z12–z13): a dense pocket
 // stays one cluster disc while a pub with room around it resolves to its own
 // pin. That is the density rule this map now honours at every zoom — an
-// individual pin only appears where there is room for it — and it is what lets
-// the same layers carry a UK-wide (~45k point) source without the street-level
-// pile-up a hard "everything unclusters at z12" boundary produces.
+// individual pin only appears where there is room for it. This keeps the
+// curated city sources legible without the street-level pile-up a hard
+// "everything unclusters at z12" boundary produces.
 //
 // CLUSTER_MAX_ZOOM stays strictly below every camera zoom that targets a single
 // venue (selection flies to `max(zoom, 14)`), so a selected pub is always a
 // real pin and never hidden inside a cluster.
 export const PIN_MIN_ZOOM = 12;
 export const CLUSTER_MAX_ZOOM = 13;
+
+// The UK-wide unpriced base layer (lib/ukBasePubs.ts) shares PIN_MIN_ZOOM's
+// floor and nothing else. It is deliberately NOT part of the `pubs` source:
+//
+//   • it is never clustered, so no base pub can inflate a curated cluster's
+//     count or tint its donut — below the pin floor the curated overview is
+//     byte-for-byte the map it was before this layer existed;
+//   • it carries no price, so it never enters the price-bucket colour system;
+//   • it renders UNDER every curated layer, which is also what makes a curated
+//     pin win the collision (MapLibre places the topmost symbol layer first),
+//     so a base pub can never displace a priced one.
+//
+// The zoom floor is what bounds the payload too: shards are only fetched once
+// the camera is at/above it (components/map/pubmap/useUkBaseStreaming.ts).
+export const UK_BASE_MIN_ZOOM = PIN_MIN_ZOOM;
+
+// Base pins are visibly second-class: roughly half a curated pin's footprint
+// and never fully opaque, so a street with both reads as "priced pubs, plus
+// some we know nothing about" rather than as two equal pin families.
+export const UK_BASE_ICON_SIZE_EXPR: maplibregl.ExpressionSpecification = [
+  "interpolate",
+  ["linear"],
+  ["zoom"],
+  UK_BASE_MIN_ZOOM,
+  0.5,
+  15,
+  0.72,
+  17,
+  0.8,
+];
+export const UK_BASE_ICON_OPACITY = 0.85;
 
 // Supercluster grouping radius in screen pixels. Sized off the widest cluster
 // disc this scene draws (radius 16 + stroke, see the `clusters` layer) so two
@@ -92,6 +123,8 @@ export type SceneCtx = {
   bandColor: string;
   bandMemberIds: string[];
   pubsData: GeoJSON.FeatureCollection;
+  /** UK base pubs for the CURRENT viewport only — see buildUkBase. */
+  ukBaseData: GeoJSON.FeatureCollection;
   tonightData: GeoJSON.FeatureCollection;
   tonightVisible: boolean;
   selectedId: string;
@@ -631,6 +664,56 @@ export function buildBandCorridor(ctx: SceneCtx) {
   });
 }
 
+/**
+ * The current viewport's UK base pubs after render-time curated-owner
+ * suppression.
+ *
+ * One symbol layer on one un-clustered source, added BEFORE buildPubs so it
+ * sits underneath the curated pins in both paint order and collision priority.
+ * It uses the same "drop it rather than stack it" policy as every other symbol
+ * on this map, which is what keeps a dense town legible: where there is no room
+ * for a base pin, MapLibre simply does not place it.
+ */
+export function buildUkBase(ctx: SceneCtx) {
+  const { map, tokens, dark, addLayerOnce, ukBaseData, selectedId } = ctx;
+  if (!map.getSource("uk-base")) {
+    map.addSource("uk-base", { type: "geojson", data: ukBaseData });
+  }
+  // The tapped base pub. A quieter ring than the curated `pubs-selected` brass
+  // (this pin has nothing to be proud of yet), but a tap must always be
+  // answered on the map, not only in the sheet.
+  addLayerOnce({
+    id: "uk-base-selected",
+    type: "circle",
+    source: "uk-base",
+    minzoom: UK_BASE_MIN_ZOOM,
+    filter: ["==", ["get", "id"], selectedId],
+    paint: {
+      "circle-color": "rgba(0,0,0,0)",
+      "circle-radius": ["interpolate", ["linear"], ["zoom"], 12, 7, 17, 12],
+      "circle-stroke-color": tokens.brass,
+      "circle-stroke-width": 2,
+      "circle-stroke-opacity": dark ? 0.85 : 0.8,
+    },
+  });
+  addLayerOnce({
+    id: "uk-base-point",
+    type: "symbol",
+    source: "uk-base",
+    minzoom: UK_BASE_MIN_ZOOM,
+    layout: {
+      "icon-image": iconId("base", UK_BASE_ICON_KEY),
+      "icon-size": UK_BASE_ICON_SIZE_EXPR,
+      "icon-allow-overlap": false,
+      "icon-ignore-placement": false,
+      "icon-padding": 3,
+    },
+    paint: {
+      "icon-opacity": UK_BASE_ICON_OPACITY,
+    },
+  });
+}
+
 export function buildPubs(ctx: SceneCtx) {
   const { map, tokens, dark, textFont, addLayerOnce, pubsData, bandMemberIds, bandColor, selectedId } = ctx;
   // --- Pubs: clustered GeoJSON source + designed data-driven layers.
@@ -773,8 +856,8 @@ export function buildPubs(ctx: SceneCtx) {
       // Pins collide like every other symbol on this map: where two drink
       // silhouettes cannot both fit, one is dropped rather than smeared over
       // the other. `icon-allow-overlap: true` (the old value) is what let a
-      // dense street render as a solid mass of half-hidden glyphs — and is what
-      // would make a ~45k-point UK source unreadable at street zoom.
+      // dense street render as a solid mass of half-hidden glyphs and would
+      // make any large curated city source unreadable at street zoom.
       "icon-allow-overlap": false,
       "icon-ignore-placement": false,
       // Padding covers the widest halo ring a pin can wear (scraped / drops /
@@ -1053,6 +1136,7 @@ export function assembleScene(ctx: SceneCtx) {
   buildPois(ctx);
   buildRoute(ctx);
   buildBandCorridor(ctx);
+  buildUkBase(ctx);
   buildPubs(ctx);
   buildRouteStops(ctx);
   buildTonight(ctx);

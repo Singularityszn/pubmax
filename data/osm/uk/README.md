@@ -1,12 +1,13 @@
 # UK-wide OSM pub seed packs
 
 Every `amenity=pub` node/way in the United Kingdom (Great Britain + Northern
-Ireland), pulled from Overpass in grid chunks. These are **data packs only** -
-nothing here is wired into the app. The queued runtime wave consumes them (see
-[Consuming these packs](#consuming-these-packs)).
+Ireland), pulled from Overpass in grid chunks. These source packs feed the
+separate, unpriced map layer described in
+[`public/data/uk_base/README.md`](../../../public/data/uk_base/README.md); they
+never feed the curated venue index.
 
 Prices are **not** taken from OSM. Everything in these packs is venue presence
-and metadata; pint prices come from Pint Drops and the curated London datasets.
+and metadata; pint prices come from community submissions and curated datasets.
 
 ## Layout
 
@@ -96,22 +97,21 @@ without recomputing the join.
 
 ## Consuming these packs
 
-The runtime wave (slim-index sharding, CityId registry rework, map perf) is
-queued separately and touches none of this. When it lands it should:
+`scripts/build_uk_base_shards.mjs` is the one consumer: it turns this pack into
+the map's UK **base layer** under `public/data/uk_base/` (see that directory's
+README). It records the actual curated owner when one exists, salts base ids to
+`venue-uk-…`, and never invents a price. Runtime rendering suppresses a base row
+only when that owner is loaded and drawable.
 
-1. Read `uk_osm_pubs.json` - one file, already OSM-id unique and sorted
-   south→north, so a geographic shard is a slice, not a re-sort.
-2. Skip or defer every pub carrying `curatedRef`: those venues are already in
-   `public/data/venues_slim*.json` or a city pack, and re-adding them would
-   double-pin the map. `dedupe_report.json` has the totals for a sanity check.
-3. Salt ids per shard the way `data/cities/README.md` describes
-   (`venue-mcr-…`), so UK ids never collide with London `venue-…` ids.
-4. Keep `cheapestPrice: null`. OSM is not a price source.
-5. Re-read `chunks.json` if it needs the grid: `chunkStats[].bbox` bounds every
-   raw file, and `missingChunks` must be empty for the pack to be complete.
+Nothing here feeds `venues_slim*.json`. Base pubs are not venues: they carry no
+price, do not enter search or the price filters, and are not routable stops.
 
 Enrichment crons (heritage, prices, what's-on) are explicitly **not** wired to
-these packs yet.
+these packs.
+
+`chunks.json` remains the fetch grid, not the serving grid: `chunkStats[].bbox`
+bounds every raw file, and `missingChunks` must be empty for the pack to be
+complete.
 
 ## Licence / attribution
 

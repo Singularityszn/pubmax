@@ -47,6 +47,10 @@ export const LONDON_BOUNDS: [[number, number], [number, number]] = [
   [-0.55, 51.28],
   [0.35, 51.72],
 ];
+export const UK_BOUNDS: [[number, number], [number, number]] = [
+  [-8.7, 49.8],
+  [1.9, 61],
+];
 
 
 // M1 selection spotlight — non-selected pub pins ease down to this opacity so

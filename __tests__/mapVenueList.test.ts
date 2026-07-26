@@ -1,6 +1,11 @@
 import { describe, it, expect } from "vitest";
 
-import { buildMapVenueListModel, MAP_VENUE_LIST_LIMIT } from "@/lib/mapVenueList";
+import {
+  buildMapVenueListModel,
+  buildUkBasePubListModel,
+  MAP_VENUE_LIST_LIMIT,
+} from "@/lib/mapVenueList";
+import type { UkBasePub } from "@/lib/ukBasePubs";
 import type { Venue } from "@/lib/venues";
 
 // Minimal Venue factory — only the fields the list model reads matter.
@@ -101,5 +106,40 @@ describe("buildMapVenueListModel — selection wiring + labels", () => {
     const byId = new Map(model.rows.map((r) => [r.id, r.priceLabel]));
     expect(byId.get("priced")).toBe("£4.50");
     expect(byId.get("unknown")).toBe("Price TBD");
+  });
+});
+
+describe("buildUkBasePubListModel", () => {
+  const basePubs: UkBasePub[] = [
+    {
+      id: "venue-uk-n-far",
+      name: "Far Arms",
+      address: "",
+      lat: 53.9,
+      lng: -1.8,
+      curatedVenueId: "",
+    },
+    {
+      id: "venue-uk-n-near",
+      name: "Near Arms",
+      address: "",
+      lat: 53.8008,
+      lng: -1.5491,
+      curatedVenueId: "",
+    },
+  ];
+
+  it("keeps rendered base pubs separate, bounded, and nearest-first", () => {
+    const model = buildUkBasePubListModel(basePubs, [-1.5491, 53.8008], 1);
+
+    expect(model.total).toBe(2);
+    expect(model.shown).toBe(1);
+    expect(model.truncated).toBe(true);
+    expect(model.rows[0]).toMatchObject({
+      id: "venue-uk-n-near",
+      name: "Near Arms",
+      priceLabel: "Unverified · no price",
+      pub: basePubs[1],
+    });
   });
 });

@@ -7,7 +7,7 @@ Pick a crawl style, filter, and either accept a **Suggested Crawl** or **Build y
 ## Features
 
 - **Landing** — themed intro that links straight into the planner (`/map?style=heritage`).
-- **3-D map** — pitched, slowly-orbiting MapLibre view of London; every pub a price-coloured dot, story pubs ringed in brass, the crawl drawn with animated "marching ants."
+- **3-D map** - pitched, slowly-orbiting MapLibre view of London and supported UK cities. Curated pubs keep their price-coloured markers; unverified UK pubs appear only after street-level zoom as quieter, unpriced rings.
 - **Crawl planner** — Suggest mode (greedy nearest-good-neighbour route) or Build mode (tap to add stops); story filters by price, amenities, water, heritage.
 - **Curated routes** — named "generational" Featured crawls loaded as ordered stops.
 - **Pubs near me** — a crawl built from your geolocation (degrades gracefully if denied).
@@ -19,7 +19,9 @@ Pick a crawl style, filter, and either accept a **Suggested Crawl** or **Build y
 
 ## Stack
 
-Next.js 16 (App Router) · React 19 · TypeScript · MapLibre GL + CARTO basemaps · Supabase (Postgres + Storage + RLS) · OpenRouter (Claude) for The Landlord · Vitest + Playwright · deployed on Vercel.
+Next.js 16 (App Router) · React 19 · TypeScript · MapLibre GL + OpenFreeMap
+basemaps (CARTO fallback) · Supabase (Postgres + Storage + RLS) · OpenRouter
+(Claude) for The Landlord · Vitest + Playwright · deployed on Vercel.
 
 ## Quick start
 
@@ -58,6 +60,12 @@ Those generated detail files are gitignored (large). Local/dev falls back to the
 
 `public/data/london_localities.json` is the Greater London locality gazetteer that powers map search (Willesden, Cricklewood, Gospel Oak…). It is built once from OpenStreetMap place nodes by `scripts/gen_london_localities.mjs`. **OpenStreetMap data is © OpenStreetMap contributors, licensed under the Open Database Licence (ODbL) 1.0** (<https://www.openstreetmap.org/copyright>); the attribution and licence travel in the file's header fields. Regenerate with `node scripts/gen_london_localities.mjs`.
 
+The UK-wide unverified pub layer also comes from OpenStreetMap. Its pins remain
+outside the curated venue index, and its sheet displays source attribution while
+accepting community price submissions. See
+[`public/data/uk_base/README.md`](public/data/uk_base/README.md) for the runtime
+data contract.
+
 ## Demo data
 
 The community layer ships alive: hand-written Pint Drops and Featured crawls are seeded so the map has content on day one. Seeded content is tagged `demo` and stays **visibly distinct** — it never masquerades as organic contributor signal and is filtered out before it can move any price or story metric. Provenance chips (`Sourced` / `Contributor` / `Anecdote` / `Demo`) are the product's trust signal.
@@ -67,4 +75,4 @@ The community layer ships alive: hand-written Pint Drops and Featured crawls are
 - **`teach.md`** — full repo tour: architecture, data model, map lifecycle, backend, trust boundaries, with `file:line` anchors.
 - **`docs/DEPLOYMENT.md`** — reproducible Vercel + Supabase + OpenRouter runbook.
 - **`docs/DEMO_DECK.md`** — demo script.
-- **[`data/osm/uk/README.md`](data/osm/uk/README.md)** - UK-wide OSM seed-pack refresh, provenance, dedupe, and queued runtime handoff.
+- **[`data/osm/uk/README.md`](data/osm/uk/README.md)** - UK-wide OSM seed-pack refresh, provenance, dedupe, and runtime shard generation.

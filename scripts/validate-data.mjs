@@ -8,7 +8,7 @@
 //
 // Plain Node ESM — no build step, no deps. Run: node scripts/validate-data.mjs
 
-import { readFileSync, readdirSync, existsSync } from "node:fs";
+import { readFileSync, readdirSync, existsSync, statSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 import { validateLateFoodEvidence } from "./lib/validateLateFoodEvidence.mjs";
@@ -725,6 +725,272 @@ function validateSlimShards() {
   );
   if (!ok) errs.report();
   return { ok, count: shipShards.length };
+}
+
+// public/data/uk_base/** — the UK-wide unpriced base layer (built by
+// scripts/build_uk_base_shards.mjs, consumed by lib/ukBasePubs.ts). It is the
+// only dataset the map fetches WHILE PANNING, so the checks here are about the
+// two ways it can hurt: a body the client would silently drop, and a cell fat
+// enough to stall a pan. The per-cell budget mirrors the builder's own.
+const UK_BASE_DIR = join(DATA_DIR, "uk_base");
+const UK_BASE_SHARD_BUDGET_BYTES = 150 * 1024;
+const UK_BASE_TOTAL_BUDGET_BYTES = 5 * 1024 * 1024;
+const UK_BASE_MANIFEST_BUDGET_BYTES = 64 * 1024;
+const UK_BASE_ID_PREFIX = "venue-uk-";
+
+function isUkBaseRow(row) {
+  return (
+    Array.isArray(row) &&
+    row.length === 6 &&
+    typeof row[0] === "string" &&
+    row[0].length > 0 &&
+    typeof row[1] === "string" &&
+    row[1].length > 0 &&
+    typeof row[2] === "string" &&
+    Number.isFinite(row[3]) &&
+    Number.isFinite(row[4]) &&
+    typeof row[5] === "string" &&
+    (row[5] === "" || row[5].startsWith("venue-"))
+  );
+}
+
+function listUkBaseJsonFiles(directory, prefix = "") {
+  const files = [];
+  for (const entry of readdirSync(directory, { withFileTypes: true })) {
+    const relative = prefix ? `${prefix}/${entry.name}` : entry.name;
+    if (entry.isDirectory()) {
+      files.push(...listUkBaseJsonFiles(join(directory, entry.name), relative));
+    } else if (entry.isFile() && entry.name.endsWith(".json")) {
+      files.push(relative);
+    }
+  }
+  return files;
+}
+
+function addUkBaseErrors(errs, errors) {
+  for (const error of errors) errs.add(error);
+}
+
+function validateUkBaseManifestShape(manifest) {
+  const errors = [];
+  const shards = Array.isArray(manifest.shards) ? manifest.shards : [];
+  if (shards.length === 0) errors.push("manifest lists no shards");
+  const urlPrefix =
+    typeof manifest.urlPrefix === "string" &&
+    /^\/data\/uk_base\/packs\/[a-f0-9]{16}\/$/.test(manifest.urlPrefix)
+      ? manifest.urlPrefix
+      : "";
+  if (!urlPrefix) errors.push("manifest has no usable shard URL prefix");
+  return { errors, shards, urlPrefix };
+}
+
+function validateUkBasePayloadBudgets(manifestRaw, jsonFiles) {
+  const manifestErrors = [];
+  const manifestBytes = Buffer.byteLength(manifestRaw);
+  if (manifestBytes >= UK_BASE_MANIFEST_BUDGET_BYTES) {
+    manifestErrors.push(
+      `manifest ${(manifestBytes / 1024).toFixed(1)} KB exceeds ${(UK_BASE_MANIFEST_BUDGET_BYTES / 1024).toFixed(0)} KB budget`,
+    );
+  }
+  const totalBytes = jsonFiles.reduce(
+    (sum, file) => sum + statSync(join(UK_BASE_DIR, file)).size,
+    0,
+  );
+  const totalErrors = [];
+  if (totalBytes >= UK_BASE_TOTAL_BUDGET_BYTES) {
+    totalErrors.push(
+      `total ${(totalBytes / 1024).toFixed(1)} KB exceeds ${(UK_BASE_TOTAL_BUDGET_BYTES / 1024).toFixed(0)} KB budget`,
+    );
+  }
+  return { manifestErrors, totalErrors, totalBytes };
+}
+
+function loadUkBaseCuratedVenueIds() {
+  const errors = [];
+  const curatedVenueIds = new Set();
+  try {
+    const londonSlim = loadJson("venues_slim.json");
+    for (const venue of Array.isArray(londonSlim) ? londonSlim : []) {
+      if (typeof venue?.id === "string") curatedVenueIds.add(venue.id);
+    }
+    const citiesDir = join(DATA_DIR, "cities");
+    for (const entry of readdirSync(citiesDir, { withFileTypes: true })) {
+      if (!entry.isDirectory()) continue;
+      const citySlimPath = join(citiesDir, entry.name, "venues_slim.json");
+      if (!existsSync(citySlimPath)) continue;
+      const citySlim = JSON.parse(readFileSync(citySlimPath, "utf8"));
+      for (const venue of Array.isArray(citySlim) ? citySlim : []) {
+        if (typeof venue?.id === "string") curatedVenueIds.add(venue.id);
+      }
+    }
+  } catch (e) {
+    errors.push(`could not load curated owner ids (${e.message})`);
+  }
+  return { errors, curatedVenueIds };
+}
+
+function validateUkBaseShardBody(shard, urlPrefix, onDisk) {
+  const errors = [];
+  if (Object.hasOwn(shard ?? {}, "url")) {
+    errors.push(`shard "${shard?.id}": repeats a derivable URL`);
+  }
+  const shardId =
+    typeof shard?.id === "string" &&
+    shard.id.length > 0 &&
+    !shard.id.includes("/") &&
+    !shard.id.includes("\\") &&
+    !shard.id.includes("..")
+      ? shard.id
+      : "";
+  if (!shardId) errors.push(`shard "${shard?.id}": invalid id`);
+  const file = `${urlPrefix}${shardId}.json`.replace(/^\/data\/uk_base\//, "");
+  if (!onDisk.delete(file)) {
+    errors.push(`shard "${shard?.id}": body ${file} is missing`);
+    return { errors, rows: null };
+  }
+  let raw;
+  let body;
+  try {
+    raw = readFileSync(join(UK_BASE_DIR, file), "utf8");
+    body = JSON.parse(raw);
+  } catch (e) {
+    errors.push(`shard "${shard.id}": unreadable body (${e.message})`);
+    return { errors, rows: null };
+  }
+  const bytes = Buffer.byteLength(raw);
+  if (bytes >= UK_BASE_SHARD_BUDGET_BYTES) {
+    errors.push(
+      `shard "${shard.id}": ${(bytes / 1024).toFixed(1)} KB exceeds the ${(UK_BASE_SHARD_BUDGET_BYTES / 1024).toFixed(0)} KB per-viewport budget`,
+    );
+  }
+  if (body.cell !== shard.id) errors.push(`shard "${shard.id}": body cell is "${body.cell}"`);
+  const rows = Array.isArray(body.pubs) ? body.pubs : null;
+  if (!rows) {
+    errors.push(`shard "${shard.id}": body has no pubs array`);
+    return { errors, rows: null };
+  }
+  if (rows.length !== shard.count) {
+    errors.push(`shard "${shard.id}": ${rows.length} rows, manifest says ${shard.count}`);
+  }
+  return { errors, rows };
+}
+
+function validateUkBasePubIdentity(shard, row, ids, curatedVenueIds) {
+  const errors = [];
+  const id = `${UK_BASE_ID_PREFIX}${row[0]}`;
+  if (ids.has(id)) errors.push(`duplicate base id "${id}"`);
+  ids.add(id);
+  if (row[5] && !curatedVenueIds.has(row[5])) {
+    errors.push(`shard "${shard.id}": unknown curated owner "${row[5]}"`);
+  }
+  return errors;
+}
+
+function validateUkBasePubBbox(shard, row) {
+  const [minLng, minLat, maxLng, maxLat] = shard.bbox ?? [];
+  if (row[3] < minLat || row[3] > maxLat || row[4] < minLng || row[4] > maxLng) {
+    return [
+      `shard "${shard.id}": pub "${row[1]}" at ${row[3]},${row[4]} is outside the cell bbox`,
+    ];
+  }
+  return [];
+}
+
+function validateUkBaseShardRows(shard, rows, ids, curatedVenueIds) {
+  const errors = [];
+  let pubCount = 0;
+  for (const row of rows) {
+    if (!isUkBaseRow(row)) {
+      errors.push(`shard "${shard.id}": malformed row ${JSON.stringify(row)?.slice(0, 60)}`);
+      continue;
+    }
+    errors.push(...validateUkBasePubIdentity(shard, row, ids, curatedVenueIds));
+    // A pub outside its own cell means the viewport that covers it would
+    // never fetch the file it lives in — an invisible pub, not a loud bug.
+    errors.push(...validateUkBasePubBbox(shard, row));
+    pubCount += 1;
+  }
+  return { errors, pubCount };
+}
+
+function validateUkBaseOrphans(onDisk) {
+  return [...onDisk].map((orphan) => `orphan shard body ${orphan} is not in the manifest`);
+}
+
+function validateUkBaseCuratedIdCollisions(ids) {
+  const errors = [];
+  // The base layer exists to fill the gaps the curated index leaves; an id in
+  // both would double-pin that pub.
+  try {
+    const slim = loadJson("venues_slim.json");
+    if (Array.isArray(slim)) {
+      for (const venue of slim) {
+        if (venue && ids.has(venue.id)) {
+          errors.push(`base id "${venue.id}" also exists in venues_slim`);
+        }
+      }
+    }
+  } catch {
+    // venues_slim has its own check above; don't double-report its absence.
+  }
+  return errors;
+}
+
+function validateUkBaseShards() {
+  const name = "public/data/uk_base shards";
+  const errs = makeCollector();
+  if (!existsSync(UK_BASE_DIR)) {
+    console.log(`FAIL ${name}: missing — run node scripts/build_uk_base_shards.mjs`);
+    return { ok: false, count: 0 };
+  }
+  let manifestRaw;
+  let manifest;
+  try {
+    manifestRaw = readFileSync(join(UK_BASE_DIR, "manifest.json"), "utf8");
+    manifest = JSON.parse(manifestRaw);
+  } catch (e) {
+    console.log(`FAIL ${name}: missing/broken manifest (${e.message})`);
+    return { ok: false, count: 0 };
+  }
+
+  const { errors: manifestErrors, shards, urlPrefix } = validateUkBaseManifestShape(manifest);
+  addUkBaseErrors(errs, manifestErrors);
+
+  // Files on disk must match the manifest exactly: an orphan is dead weight in
+  // the repo, and a missing one is a 404 mid-pan.
+  const jsonFiles = listUkBaseJsonFiles(UK_BASE_DIR);
+  const onDisk = new Set(jsonFiles.filter((file) => file !== "manifest.json"));
+  const budgets = validateUkBasePayloadBudgets(manifestRaw, jsonFiles);
+  addUkBaseErrors(errs, budgets.manifestErrors);
+
+  const { errors: curatedErrors, curatedVenueIds } = loadUkBaseCuratedVenueIds();
+  addUkBaseErrors(errs, curatedErrors);
+
+  const ids = new Set();
+  let pubCount = 0;
+  for (const shard of shards) {
+    const bodyResult = validateUkBaseShardBody(shard, urlPrefix, onDisk);
+    addUkBaseErrors(errs, bodyResult.errors);
+    if (!bodyResult.rows) continue;
+    const rowResult = validateUkBaseShardRows(
+      shard,
+      bodyResult.rows,
+      ids,
+      curatedVenueIds,
+    );
+    addUkBaseErrors(errs, rowResult.errors);
+    pubCount += rowResult.pubCount;
+  }
+  addUkBaseErrors(errs, validateUkBaseOrphans(onDisk));
+  addUkBaseErrors(errs, budgets.totalErrors);
+  addUkBaseErrors(errs, validateUkBaseCuratedIdCollisions(ids));
+
+  const ok = errs.count === 0;
+  console.log(
+    `${ok ? "PASS" : "FAIL"} ${name}: ${shards.length} cell(s), ${pubCount} pubs, total ${(budgets.totalBytes / 1024).toFixed(1)} KB / ${(UK_BASE_TOTAL_BUDGET_BYTES / 1024).toFixed(0)} KB, ${errs.count} error(s)`,
+  );
+  if (!ok) errs.report();
+  return { ok, count: shards.length };
 }
 
 // venue_detail_index.json + venue_details.jsonl — server-side lazy detail
@@ -1494,6 +1760,7 @@ async function main() {
     validatePintPrices(),
     validateSlimVenues(),
     validateSlimShards(),
+    validateUkBaseShards(),
     validateVenueDetails(),
     validateDrinkPriceUpdates(),
     validateWhatsOnUpdates(),

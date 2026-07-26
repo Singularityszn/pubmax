@@ -59,6 +59,11 @@ function stableCityVenueId(shortPrefix, key) {
   return `venue-${shortPrefix}-${(hash >>> 0).toString(36)}`;
 }
 
+export function cityVenueIdForPub(city, pub) {
+  const key = cityVenueGroupingKey(city.id, pub);
+  return stableCityVenueId(city.shortPrefix, key);
+}
+
 function inBbox(lat, lng, bbox) {
   const [south, west, north, east] = bbox;
   return lat >= south && lat <= north && lng >= west && lng <= east;
@@ -112,8 +117,7 @@ export function buildCitySlim(city, pack) {
       continue;
     }
 
-    const key = cityVenueGroupingKey(city.id, { name, address: pub.address, lat, lng });
-    const id = stableCityVenueId(city.shortPrefix, key);
+    const id = cityVenueIdForPub(city, { name, address: pub.address, lat, lng });
     if (seenIds.has(id)) {
       droppedDup += 1;
       continue;

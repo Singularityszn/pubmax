@@ -1,4 +1,6 @@
 import { buildLogNearbyCandidates, type LogNearbyCandidate } from "@/lib/mapLogIntent";
+import { haversineKm } from "@/lib/haversine";
+import type { UkBasePub } from "@/lib/ukBasePubs";
 import type { Venue } from "@/lib/venues";
 
 // A11Y finding #1 (WCAG 2.1.1): the WebGL pins are pointer-only, so a keyboard
@@ -23,6 +25,21 @@ export type MapVenueListModel = {
   truncated: boolean;
 };
 
+export type UkBasePubListRow = {
+  id: string;
+  name: string;
+  priceLabel: "Unverified · no price";
+  distanceKm?: number;
+  pub: UkBasePub;
+};
+
+export type UkBasePubListModel = {
+  rows: UkBasePubListRow[];
+  total: number;
+  shown: number;
+  truncated: boolean;
+};
+
 /**
  * Build the keyboard/AT-reachable list of the venues currently on the map.
  *
@@ -44,4 +61,42 @@ export function buildMapVenueListModel(
       : null;
   const rows = buildLogNearbyCandidates(venues, limit, origin);
   return { rows, total, shown: rows.length, truncated: total > rows.length };
+}
+
+export function buildUkBasePubListModel(
+  pubs: UkBasePub[],
+  viewportCenter: [number, number] | null,
+  limit: number = MAP_VENUE_LIST_LIMIT,
+): UkBasePubListModel {
+  const origin =
+    viewportCenter &&
+    Number.isFinite(viewportCenter[0]) &&
+    Number.isFinite(viewportCenter[1])
+      ? { lng: viewportCenter[0], lat: viewportCenter[1] }
+      : null;
+  const rows = pubs.map<UkBasePubListRow>((pub) => ({
+    id: pub.id,
+    name: pub.name,
+    priceLabel: "Unverified · no price",
+    ...(origin
+      ? { distanceKm: haversineKm([origin.lng, origin.lat], [pub.lng, pub.lat]) }
+      : {}),
+    pub,
+  }));
+  if (origin) {
+    rows.sort(
+      (left, right) =>
+        (left.distanceKm ?? Number.POSITIVE_INFINITY) -
+          (right.distanceKm ?? Number.POSITIVE_INFINITY) ||
+        left.name.localeCompare(right.name) ||
+        left.id.localeCompare(right.id),
+    );
+  }
+  const bounded = rows.slice(0, Math.max(0, Math.floor(limit)));
+  return {
+    rows: bounded,
+    total: pubs.length,
+    shown: bounded.length,
+    truncated: pubs.length > bounded.length,
+  };
 }
