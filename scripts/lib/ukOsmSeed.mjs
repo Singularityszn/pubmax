@@ -8,6 +8,10 @@
  * OSM data is © OpenStreetMap contributors, ODbL 1.0.
  */
 
+import {
+  normalizeOsmPubElement,
+  sortOsmPubs,
+} from "./osmPubNormalizer.mjs";
 import { normalisePubName } from "./venueMatch.mjs";
 
 /** Bounding box of the United Kingdom, [south, west, north, east] (Overpass order).
@@ -18,7 +22,7 @@ export const UK_BBOX = [49.8, -8.7, 61.0, 1.9];
 /** OSM relation 62149 = United Kingdom (ISO3166-1 GB). Overpass area ids are
  * relation id + 3600000000. The area filter is what keeps the Republic of
  * Ireland, the Isle of Man and the Channel Islands out of grid cells that
- * straddle a border — a bbox alone cannot. */
+ * straddle a border - a bbox alone cannot. */
 export const UK_AREA_ID = 3_600_062_149;
 
 export const DEFAULT_LAT_STEP = 1;
@@ -50,7 +54,7 @@ function formatCoord(value) {
 /**
  * Split a bbox into a regular lat/lon grid. Cells are half-open in intent but
  * Overpass bboxes are inclusive on every edge, so elements sitting exactly on a
- * shared edge come back in both neighbours — normalizeElements dedupes by OSM id.
+ * shared edge come back in both neighbours - normalizeElements dedupes by OSM id.
  *
  * @param {{ bbox?: Bbox, latStep?: number, lonStep?: number }} [options]
  * @returns {GridChunk[]}
@@ -90,7 +94,7 @@ export function chunkFileName(chunk) {
  * @param {Bbox} bbox
  * @param {{ timeout?: number }} [options]
  */
-export function buildUkOverpassQuery(bbox, { timeout = 180 } = {}) {
+export function buildUkOverpassQuery(bbox, { timeout = 90 } = {}) {
   const box = bbox.map((n) => roundCoord(n)).join(",");
   return `
 [out:json][timeout:${timeout}];
@@ -104,67 +108,6 @@ out center tags;
 }
 
 /**
- * @param {Record<string, string> | undefined} tags
- */
-function buildAddress(tags) {
-  if (!tags) return null;
-  const parts = [];
-  if (tags["addr:housenumber"]) parts.push(tags["addr:housenumber"]);
-  if (tags["addr:street"]) parts.push(tags["addr:street"]);
-  if (tags["addr:city"]) parts.push(tags["addr:city"]);
-  if (tags["addr:postcode"]) parts.push(tags["addr:postcode"]);
-  return parts.join(", ") || null;
-}
-
-/**
- * Every `smoking` / `smoking:*` tag, verbatim. A future "can I smoke outside?"
- * filter needs the raw OSM vocabulary (yes / no / outside / isolated / separated
- * / dedicated_room), not a boolean we would have to re-derive from a fresh pull.
- * @param {Record<string, string>} tags
- */
-function collectSmokingTags(tags) {
-  const smoking = {};
-  for (const [key, value] of Object.entries(tags)) {
-    if (key === "smoking" || key.startsWith("smoking:")) smoking[key] = value;
-  }
-  return Object.keys(smoking).length > 0 ? smoking : null;
-}
-
-/**
- * @param {any} element raw Overpass element
- * @returns {Record<string, unknown> | null} null when unnamed or unlocatable
- */
-export function normalizeElement(element) {
-  const tags = element?.tags ?? {};
-  const name = typeof tags.name === "string" ? tags.name.trim() : "";
-  if (!name) return null;
-
-  const lat = Number(element.lat ?? element.center?.lat);
-  const lng = Number(element.lon ?? element.center?.lon);
-  if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
-
-  return {
-    osmId: `${element.type}/${element.id}`,
-    name,
-    amenity: typeof tags.amenity === "string" ? tags.amenity : null,
-    lat,
-    lng,
-    address: buildAddress(tags),
-    postcode: tags["addr:postcode"] || null,
-    website: tags.website || tags["contact:website"] || null,
-    phone: tags.phone || tags["contact:phone"] || null,
-    openingHours: tags.opening_hours || null,
-    brewery: tags.brewery || null,
-    operator: tags.operator || null,
-    outdoorSeating: tags.outdoor_seating === "yes",
-    smoking: collectSmokingTags(tags),
-    cuisine: tags.cuisine || null,
-    wikidata: tags.wikidata || null,
-    wikipedia: tags.wikipedia || null,
-  };
-}
-
-/**
  * Normalize raw Overpass elements from any number of chunks into one sorted,
  * OSM-id-unique pub list.
  * @param {Iterable<any>} elements
@@ -172,22 +115,13 @@ export function normalizeElement(element) {
 export function normalizeElements(elements) {
   const byOsmId = new Map();
   for (const element of elements) {
-    const pub = normalizeElement(element);
+    const pub = normalizeOsmPubElement(element);
     if (!pub) continue;
     if (byOsmId.has(pub.osmId)) continue; // shared cell edges return duplicates
     byOsmId.set(pub.osmId, pub);
   }
   const pubs = [...byOsmId.values()];
-  // Stable order: south→north then west→east, then name — same rule as the
-  // per-city packs, so diffs stay readable across refreshes.
-  pubs.sort(
-    (a, b) =>
-      a.lat - b.lat ||
-      a.lng - b.lng ||
-      String(a.name).localeCompare(String(b.name)) ||
-      String(a.osmId).localeCompare(String(b.osmId)),
-  );
-  return pubs;
+  return sortOsmPubs(pubs);
 }
 
 const EARTH_RADIUS_M = 6_371_000;

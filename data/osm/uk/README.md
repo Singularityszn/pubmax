@@ -1,7 +1,7 @@
 # UK-wide OSM pub seed packs
 
 Every `amenity=pub` node/way in the United Kingdom (Great Britain + Northern
-Ireland), pulled from Overpass in grid chunks. These are **data packs only** —
+Ireland), pulled from Overpass in grid chunks. These are **data packs only** -
 nothing here is wired into the app. The queued runtime wave consumes them (see
 [Consuming these packs](#consuming-these-packs)).
 
@@ -18,20 +18,17 @@ data/osm/uk/
   dedupe_report.json                    # overlap vs curated London + city packs
 ```
 
-`raw/` and `uk_osm_pubs.json` are written compact (no indentation) on purpose:
-the pull is ~38k elements over 132 files, and pretty-printing multiplies what
-the repo carries for no readability gain on a machine-generated dump. The two
-small summary files stay pretty-printed.
-
-Current pull: **38,228 named pubs**, 66 of 132 cells carrying data (the rest are
-sea), **26 MB** on disk — inside the 100 MB budget this wave was given. Counts
-and the collection timestamp live in `chunks.json` / `uk_osm_pubs.json`; those
-files are the source of truth, not this paragraph.
+`raw/` and `uk_osm_pubs.json` are compact because indentation would multiply
+repository size without making machine-generated dumps easier to review.
+`chunks.json`, `dedupe_report.json`, and `uk_osm_pubs.json` own current counts,
+timestamps, and overlap measurements. The fetcher prints total pack size and
+warns if a refresh crosses the commit budget.
 
 ## Refresh
 
 ```bash
 npm run fetch:uk-pubs                       # full pull; resumes automatically
+npm run fetch:uk-pubs -- --skip-if-present # explicit alias for default resume
 npm run fetch:uk-pubs -- --refresh          # refetch every chunk from scratch
 npm run fetch:uk-pubs -- --chunk=lat51.00_lon-1.00
 npm run fetch:uk-pubs -- --from-raw         # re-normalize on-disk chunks, no network
@@ -44,18 +41,18 @@ skipped, so an interrupted or rate-limited run is restarted by rerunning it.
 `--refresh` is the opt-in that ignores what is on disk.
 
 Overpass etiquette matches `scripts/fetch_city_osm_pubs.mjs`: one request at a
-time, 5s between chunks (`--delay-ms=`), two endpoints, 5 attempts with
-exponential backoff on 429/502/503/504. A full cold pull takes roughly an hour.
+time, a delay between chunks, endpoint rotation, and exponential backoff on
+transient failures. A full cold pull takes roughly an hour.
 
 ## How the query is chunked
 
-`scripts/lib/ukOsmSeed.mjs` tiles the UK bbox `[49.8, -8.7, 61.0, 1.9]` into a
-1° × 1° grid — 132 cells — so no single request carries the whole country.
-Steps are tunable (`--lat-step=`, `--lon-step=`) if a cell ever gets too heavy.
+`scripts/lib/ukOsmSeed.mjs` owns the UK bbox and 1° × 1° grid, so no single
+request carries the whole country. Keeping one fixed grid prevents raw files
+from incompatible chunk layouts being mixed during resume.
 
 Each cell's query is clipped to the UK **area** (OSM relation 62149) as well as
 the bbox. The area filter is what keeps the Republic of Ireland, the Isle of Man
-and the Channel Islands out of border cells — a bbox alone cannot separate
+and the Channel Islands out of border cells - a bbox alone cannot separate
 Armagh from Monaghan. Cells share edges, and Overpass bboxes are inclusive, so
 elements on a shared edge come back twice; normalization dedupes by OSM id.
 
@@ -67,13 +64,13 @@ not pulled here.
 
 Same shape as the per-city packs (`data/cities/{city}/osm_pubs.json`) plus:
 
-- `outdoorSeating` — `outdoor_seating=yes` (kept, as in the city packs)
-- `smoking` — every `smoking` / `smoking:*` tag **verbatim**, or `null`. A
+- `outdoorSeating` - `outdoor_seating=yes` (kept, as in the city packs)
+- `smoking` - every `smoking` / `smoking:*` tag **verbatim**, or `null`. A
   possible future smoking filter needs the raw OSM vocabulary (`outside`,
   `isolated`, `separated`, `dedicated_room`, …), not a boolean we would have to
   re-derive from a fresh country-wide pull.
-- `postcode`, `operator` — cheap to retain, useful for later matching
-- `curatedRef` — present only when the pub already exists in curated or
+- `postcode`, `operator` - cheap to retain, useful for later matching
+- `curatedRef` - present only when the pub already exists in curated or
   previously-seeded data (see below)
 
 ## Dedupe report
@@ -82,12 +79,12 @@ Same shape as the per-city packs (`data/cities/{city}/osm_pubs.json`) plus:
 
 | Source | Key |
 | --- | --- |
-| `curated-london-slim` (`public/data/venues_slim.json`) | name + distance only — curated London carries no OSM ids |
+| `curated-london-slim` (`public/data/venues_slim.json`) | name + distance only - curated London carries no OSM ids |
 | `outer-london-osm-seed` (`data/osm/outer_london_osm_pubs.json`) | OSM id, else name + distance |
 | `city:<city>` (`data/cities/{city}/osm_pubs.json`) | OSM id, else name + distance |
 
 Name matching uses `normalisePubName` from `scripts/lib/venueMatch.mjs` (the
-same normalization the price harvesters use) within 150 m — curated coordinates
+same normalization the price harvesters use) within 150 m - curated coordinates
 and OSM coordinates disagree by a building's width, not by a street.
 
 Matched pubs keep a `curatedRef: { source, id, matchType, distanceM }` in
@@ -99,7 +96,7 @@ without recomputing the join.
 The runtime wave (slim-index sharding, CityId registry rework, map perf) is
 queued separately and touches none of this. When it lands it should:
 
-1. Read `uk_osm_pubs.json` — one file, already OSM-id unique and sorted
+1. Read `uk_osm_pubs.json` - one file, already OSM-id unique and sorted
    south→north, so a geographic shard is a slice, not a re-sort.
 2. Skip or defer every pub carrying `curatedRef`: those venues are already in
    `public/data/venues_slim*.json` or a city pack, and re-adding them would

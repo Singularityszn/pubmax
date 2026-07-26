@@ -8,6 +8,7 @@
 //
 // Usage:
 //   npm run fetch:uk-pubs                       # full pull, resumes by default
+//   npm run fetch:uk-pubs -- --skip-if-present # explicit resume alias
 //   npm run fetch:uk-pubs -- --refresh          # refetch every chunk
 //   npm run fetch:uk-pubs -- --chunk=lat51.00_lon-1.00
 //   npm run fetch:uk-pubs -- --from-raw         # re-normalize, no network
@@ -54,13 +55,10 @@ const OVERPASS_ENDPOINTS = [
   "https://overpass.kumi.systems/api/interpreter",
 ];
 
-const INTER_CHUNK_DELAY_MS = 5_000;
-// A country-wide pull is ~130 requests against a shared public instance, so it
-// meets the "slot unavailable" 429/504 far more often than a single-city fetch:
-// more attempts, and a backoff ceiling above Overpass's own slot cooldown.
-const MAX_ATTEMPTS = 8;
+const INTER_CHUNK_DELAY_MS = 8_000;
+const MAX_ATTEMPTS = 5;
 const MAX_BACKOFF_MS = 180_000;
-const QUERY_TIMEOUT_S = 180;
+const QUERY_TIMEOUT_S = 90;
 // Guard from the wave brief: stop before committing a data drop this large.
 const COMMIT_SIZE_LIMIT_BYTES = 100 * 1024 * 1024;
 
@@ -70,26 +68,21 @@ function parseArgs(argv) {
     refresh: false,
     list: false,
     chunk: null,
-    latStep: DEFAULT_LAT_STEP,
-    lonStep: DEFAULT_LON_STEP,
-    delayMs: INTER_CHUNK_DELAY_MS,
   };
   for (const arg of argv) {
     if (arg === "--from-raw") options.fromRaw = true;
+    else if (arg === "--skip-if-present") {
+      // Raw chunk skipping is already the default. Accept city-fetcher syntax
+      // so existing data-pipeline commands can switch to the UK builder.
+      continue;
+    }
     else if (arg === "--refresh") options.refresh = true;
     else if (arg === "--list") options.list = true;
     else if (arg.startsWith("--chunk=")) options.chunk = arg.slice("--chunk=".length).trim();
-    else if (arg.startsWith("--lat-step=")) options.latStep = Number(arg.slice("--lat-step=".length));
-    else if (arg.startsWith("--lon-step=")) options.lonStep = Number(arg.slice("--lon-step=".length));
-    else if (arg.startsWith("--delay-ms=")) options.delayMs = Number(arg.slice("--delay-ms=".length));
     else {
       console.error(`Unknown argument "${arg}"`);
       process.exit(1);
     }
-  }
-  if (!(options.latStep > 0) || !(options.lonStep > 0) || !(options.delayMs >= 0)) {
-    console.error("--lat-step/--lon-step must be > 0 and --delay-ms >= 0");
-    process.exit(1);
   }
   return options;
 }
@@ -175,7 +168,7 @@ async function fetchChunk(chunk, { refresh }) {
   if (!refresh && (await fileExists(rawPath))) {
     const raw = JSON.parse(await readFile(rawPath, "utf8"));
     const count = Array.isArray(raw?.elements) ? raw.elements.length : 0;
-    console.log(`skip ${chunk.id} (raw present, ${count} elements) — use --refresh to refetch`);
+    console.log(`skip ${chunk.id} (raw present, ${count} elements) - use --refresh to refetch`);
     return { raw, fetched: false };
   }
   console.log(`fetching ${chunk.id} bbox=${chunk.bbox.join(",")} …`);
@@ -274,11 +267,11 @@ function formatMb(bytes) {
 
 async function main() {
   const options = parseArgs(process.argv.slice(2));
-  const grid = buildGrid({ latStep: options.latStep, lonStep: options.lonStep });
+  const grid = buildGrid();
 
   if (options.list) {
     for (const chunk of grid) console.log(`${chunk.id}\t${chunk.bbox.join(",")}`);
-    console.log(`${grid.length} chunks (${options.latStep}° × ${options.lonStep}°)`);
+    console.log(`${grid.length} chunks (${DEFAULT_LAT_STEP}° × ${DEFAULT_LON_STEP}°)`);
     return;
   }
 
@@ -305,8 +298,8 @@ async function main() {
       }
     } else {
       if (needDelay) {
-        console.log(`  waiting ${options.delayMs}ms before next chunk (Overpass etiquette)…`);
-        await sleep(options.delayMs);
+        console.log(`  waiting ${INTER_CHUNK_DELAY_MS}ms before next chunk (Overpass etiquette)…`);
+        await sleep(INTER_CHUNK_DELAY_MS);
       }
       // One chunk exhausting its retries must not throw away the other 131:
       // the raw files already on disk are the resume state, so record the
@@ -336,7 +329,7 @@ async function main() {
   // A single-chunk run refreshes one raw file only; rebuilding the UK dataset
   // from that alone would silently truncate it to one cell.
   if (options.chunk) {
-    console.log(`chunk ${options.chunk} done — rerun without --chunk (or with --from-raw) to rebuild the dataset`);
+    console.log(`chunk ${options.chunk} done - rerun without --chunk (or with --from-raw) to rebuild the dataset`);
     return;
   }
 
@@ -350,8 +343,8 @@ async function main() {
     attribution: "© OpenStreetMap contributors",
     generatedAt: new Date().toISOString(),
     bbox: UK_BBOX,
-    latStep: options.latStep,
-    lonStep: options.lonStep,
+    latStep: DEFAULT_LAT_STEP,
+    lonStep: DEFAULT_LON_STEP,
     taxonomy: UK_TAXONOMY,
     areaFilter: "OSM relation 62149 (United Kingdom)",
     chunks: grid.length,
@@ -361,11 +354,11 @@ async function main() {
     chunkStats,
   });
 
-  // A partial pull must never overwrite a complete dataset — the raw chunks are
+  // A partial pull must never overwrite a complete dataset - the raw chunks are
   // the resume state, so rerun the command and it writes the pack once the grid
   // is whole.
   if (missing.length > 0) {
-    console.error(`\n${missing.length} of ${grid.length} chunk(s) missing — dataset NOT rewritten.`);
+    console.error(`\n${missing.length} of ${grid.length} chunk(s) missing - dataset NOT rewritten.`);
     for (const failure of failures) console.error(`  ${failure.id}: ${failure.error}`);
     console.error(`Rerun \`npm run fetch:uk-pubs\` to resume: ${missing.map((chunk) => chunk.id).join(", ")}`);
     process.exitCode = 1;
@@ -384,7 +377,7 @@ async function main() {
     bbox: UK_BBOX,
     taxonomy: UK_TAXONOMY,
     areaFilter: "OSM relation 62149 (United Kingdom)",
-    grid: { latStep: options.latStep, lonStep: options.lonStep, chunks: grid.length },
+    grid: { latStep: DEFAULT_LAT_STEP, lonStep: DEFAULT_LON_STEP, chunks: grid.length },
     count: annotated.length,
     curatedOverlap: report.matchedTotal,
     pubs: annotated,
@@ -409,7 +402,7 @@ async function main() {
   console.log(`\ndata/osm/uk total: ${formatMb(bytes)}`);
   if (bytes > COMMIT_SIZE_LIMIT_BYTES) {
     console.warn(
-      `WARNING: ${formatMb(bytes)} exceeds the ${formatMb(COMMIT_SIZE_LIMIT_BYTES)} commit budget — ` +
+      `WARNING: ${formatMb(bytes)} exceeds the ${formatMb(COMMIT_SIZE_LIMIT_BYTES)} commit budget - ` +
         "do not commit these packs without a decision on where they should live.",
     );
   }

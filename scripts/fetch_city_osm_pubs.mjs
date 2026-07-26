@@ -15,6 +15,10 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { boroughNameForPoint } from "../lib/londonBoroughPoint.mjs";
+import {
+  normalizeOsmPubElement,
+  sortOsmPubs,
+} from "./lib/osmPubNormalizer.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, "..");
@@ -207,52 +211,6 @@ async function fetchOverpass(query) {
 }
 
 /**
- * @param {Record<string, string> | undefined} tags
- * @param {string} fallbackCity
- */
-function buildAddress(tags, fallbackCity) {
-  if (!tags) return fallbackCity;
-  const parts = [];
-  if (tags["addr:housenumber"]) parts.push(tags["addr:housenumber"]);
-  if (tags["addr:street"]) parts.push(tags["addr:street"]);
-  const city = tags["addr:city"] || fallbackCity;
-  if (city) parts.push(city);
-  if (tags["addr:postcode"]) parts.push(tags["addr:postcode"]);
-  return parts.join(", ") || fallbackCity;
-}
-
-/**
- * @param {any} element
- * @param {string} displayName
- */
-function normalizeElement(element, displayName) {
-  const tags = element.tags ?? {};
-  const name = typeof tags.name === "string" ? tags.name.trim() : "";
-  if (!name) return null;
-
-  const lat = Number(element.lat ?? element.center?.lat);
-  const lng = Number(element.lon ?? element.center?.lon);
-  if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
-
-  return {
-    osmId: `${element.type}/${element.id}`,
-    name,
-    amenity: typeof tags.amenity === "string" ? tags.amenity : null,
-    lat,
-    lng,
-    address: buildAddress(tags, displayName),
-    website: tags.website || tags["contact:website"] || null,
-    phone: tags.phone || tags["contact:phone"] || null,
-    openingHours: tags.opening_hours || null,
-    brewery: tags.brewery || null,
-    outdoorSeating: tags.outdoor_seating === "yes",
-    cuisine: tags.cuisine || null,
-    wikidata: tags.wikidata || null,
-    wikipedia: tags.wikipedia || null,
-  };
-}
-
-/**
  * @param {any} raw
  * @param {CityDef} city
  */
@@ -260,14 +218,10 @@ export function normalizeOverpass(raw, city) {
   const elements = Array.isArray(raw?.elements) ? raw.elements : [];
   const pubs = [];
   for (const element of elements) {
-    const pub = normalizeElement(element, city.displayName);
+    const pub = normalizeOsmPubElement(element, { fallbackCity: city.displayName });
     if (pub) pubs.push(pub);
   }
-  // Stable order: south→north then west→east, then name.
-  pubs.sort(
-    (a, b) =>
-      a.lat - b.lat || a.lng - b.lng || a.name.localeCompare(b.name) || a.osmId.localeCompare(b.osmId),
-  );
+  sortOsmPubs(pubs);
   return {
     city: city.id,
     source: "OpenStreetMap Overpass",
@@ -392,7 +346,7 @@ async function fetchLondonBoroughs(boundaries, { targets, fromRaw }) {
     const elements = Array.isArray(raw?.elements) ? raw.elements : [];
     let kept = 0;
     for (const element of elements) {
-      const pub = normalizeElement(element, boroughName);
+      const pub = normalizeOsmPubElement(element, { fallbackCity: boroughName });
       if (!pub) continue;
       // A bbox overlaps neighbouring boroughs; the polygon does not. Only keep a
       // pub whose point lands inside one of the TARGET borough polygons, and

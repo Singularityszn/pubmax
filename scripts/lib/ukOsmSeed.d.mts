@@ -2,6 +2,8 @@
 // tsc needs a declaration to typecheck the unit tests that import it). Keep in
 // lockstep with scripts/lib/ukOsmSeed.mjs.
 
+import type { OsmPub } from "./osmPubNormalizer.mjs";
+
 export type UkBbox = [number, number, number, number];
 
 export const UK_BBOX: UkBbox;
@@ -18,24 +20,7 @@ export interface GridChunk {
   col: number;
 }
 
-export interface UkOsmPub {
-  osmId: string;
-  name: string;
-  amenity: string | null;
-  lat: number;
-  lng: number;
-  address: string | null;
-  postcode: string | null;
-  website: string | null;
-  phone: string | null;
-  openingHours: string | null;
-  brewery: string | null;
-  operator: string | null;
-  outdoorSeating: boolean;
-  smoking: Record<string, string> | null;
-  cuisine: string | null;
-  wikidata: string | null;
-  wikipedia: string | null;
+export interface UkOsmPub extends OsmPub {
   curatedRef?: CuratedMatch;
 }
 
@@ -85,7 +70,6 @@ export function buildGrid(options?: {
 export function chunkId(bbox: UkBbox): string;
 export function chunkFileName(chunk: GridChunk): string;
 export function buildUkOverpassQuery(bbox: UkBbox, options?: { timeout?: number }): string;
-export function normalizeElement(element: unknown): UkOsmPub | null;
 export function normalizeElements(elements: Iterable<unknown>): UkOsmPub[];
 export function haversineMeters(aLat: number, aLng: number, bLat: number, bLng: number): number;
 export function buildCuratedIndex(entries: CuratedEntry[]): CuratedIndex;

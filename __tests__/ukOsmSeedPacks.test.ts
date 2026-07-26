@@ -1,8 +1,11 @@
 import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
+import { spawnSync } from "node:child_process";
 
 import { describe, expect, it } from "vitest";
 
+import { normalizeOverpass as normalizeCityOverpass } from "../scripts/fetch_city_osm_pubs.mjs";
+import { normalizeOsmPubElement } from "../scripts/lib/osmPubNormalizer.mjs";
 import {
   CURATED_MATCH_RADIUS_M,
   UK_BBOX,
@@ -12,7 +15,6 @@ import {
   buildUkOverpassQuery,
   chunkFileName,
   matchCurated,
-  normalizeElement,
   normalizeElements,
   type UkOsmPub,
 } from "../scripts/lib/ukOsmSeed.mjs";
@@ -22,6 +24,7 @@ const UK_DIR = path.join(ROOT, "data", "osm", "uk");
 const DATASET_PATH = path.join(UK_DIR, "uk_osm_pubs.json");
 const MANIFEST_PATH = path.join(UK_DIR, "chunks.json");
 const DEDUPE_PATH = path.join(UK_DIR, "dedupe_report.json");
+const FETCHER_PATH = path.join(ROOT, "scripts", "fetch_uk_osm_pubs.mjs");
 
 const [UK_SOUTH, UK_WEST, UK_NORTH, UK_EAST] = UK_BBOX;
 
@@ -34,6 +37,12 @@ function pubElement(overrides: Record<string, unknown> = {}) {
     tags: { amenity: "pub", name: "The Test Arms", ...(overrides.tags as object) },
     ...overrides,
   };
+}
+
+function runFetcherList(...args: string[]) {
+  return spawnSync(process.execPath, [FETCHER_PATH, "--list", ...args], {
+    encoding: "utf8",
+  });
 }
 
 describe("uk osm grid", () => {
@@ -81,19 +90,69 @@ describe("uk osm grid", () => {
     expect(grid.length).toBe(16);
   });
 
+  it("accepts the city fetcher's --skip-if-present resume flag", () => {
+    const result = runFetcherList("--skip-if-present");
+
+    expect(result.status).toBe(0);
+    expect(result.stdout).toContain("132 chunks");
+  });
+
+  it("rejects grid overrides that could mix incompatible raw chunks", () => {
+    const result = runFetcherList("--lat-step=0.5");
+
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain('Unknown argument "--lat-step=0.5"');
+  });
+
+  it("rejects delay overrides that could bypass Overpass rate limits", () => {
+    const result = runFetcherList("--delay-ms=0");
+
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain('Unknown argument "--delay-ms=0"');
+  });
+
   it("clips each chunk query to the UK area so border cells drop the Republic of Ireland", () => {
     const query = buildUkOverpassQuery([54, -8, 55, -7]);
     expect(query).toContain("area(id:3600062149)->.uk;");
     expect(query).toContain('node["amenity"="pub"](area.uk)(54,-8,55,-7);');
     expect(query).toContain('way["amenity"="pub"](area.uk)(54,-8,55,-7);');
     expect(query).toContain("out center tags;");
-    expect(query).toContain("[timeout:180]");
+    expect(query).toContain("[timeout:90]");
   });
 });
 
 describe("uk osm normalization", () => {
+  it("uses the city normalizer contract that retains raw smoking tags", () => {
+    const normalized = normalizeCityOverpass(
+      {
+        elements: [
+          pubElement({
+            tags: {
+              amenity: "pub",
+              name: "Shared Arms",
+              smoking: "outside",
+              "smoking:outside": "isolated",
+            },
+          }),
+        ],
+      },
+      {
+        id: "test",
+        displayName: "Test",
+        shortPrefix: "tst",
+        bbox: [51, -1, 52, 0],
+        enabled: true,
+      },
+    );
+
+    expect(normalized.pubs[0].smoking).toEqual({
+      smoking: "outside",
+      "smoking:outside": "isolated",
+    });
+  });
+
   it("keeps outdoor_seating and every raw smoking tag", () => {
-    const pub = normalizeElement(
+    const pub = normalizeOsmPubElement(
       pubElement({
         tags: {
           amenity: "pub",
@@ -109,13 +168,15 @@ describe("uk osm normalization", () => {
   });
 
   it("leaves smoking null when untagged and outdoorSeating false unless yes", () => {
-    const pub = normalizeElement(pubElement({ tags: { amenity: "pub", name: "Plain", outdoor_seating: "no" } }));
+    const pub = normalizeOsmPubElement(
+      pubElement({ tags: { amenity: "pub", name: "Plain", outdoor_seating: "no" } }),
+    );
     expect(pub?.smoking).toBeNull();
     expect(pub?.outdoorSeating).toBe(false);
   });
 
   it("takes a way's center point and builds an address from addr:* tags", () => {
-    const pub = normalizeElement({
+    const pub = normalizeOsmPubElement({
       type: "way",
       id: 42,
       center: { lat: 53.4, lon: -2.2 },
@@ -136,8 +197,10 @@ describe("uk osm normalization", () => {
   });
 
   it("drops unnamed and unlocatable elements", () => {
-    expect(normalizeElement(pubElement({ tags: { amenity: "pub" } }))).toBeNull();
-    expect(normalizeElement({ type: "node", id: 3, tags: { amenity: "pub", name: "Nowhere" } })).toBeNull();
+    expect(normalizeOsmPubElement(pubElement({ tags: { amenity: "pub" } }))).toBeNull();
+    expect(
+      normalizeOsmPubElement({ type: "node", id: 3, tags: { amenity: "pub", name: "Nowhere" } }),
+    ).toBeNull();
   });
 
   it("dedupes elements that two adjoining chunks both returned", () => {
@@ -152,8 +215,22 @@ describe("uk osm normalization", () => {
 
 describe("curated overlap", () => {
   const london: UkOsmPub[] = [
-    normalizeElement(pubElement({ id: 100, lat: 51.5162, lon: -0.132117, tags: { amenity: "pub", name: "Arnos Arms" } }))!,
-    normalizeElement(pubElement({ id: 101, lat: 55.9, lon: -3.2, tags: { amenity: "pub", name: "Brand New Bothy" } }))!,
+    normalizeOsmPubElement(
+      pubElement({
+        id: 100,
+        lat: 51.5162,
+        lon: -0.132117,
+        tags: { amenity: "pub", name: "Arnos Arms" },
+      }),
+    )!,
+    normalizeOsmPubElement(
+      pubElement({
+        id: 101,
+        lat: 55.9,
+        lon: -3.2,
+        tags: { amenity: "pub", name: "Brand New Bothy" },
+      }),
+    )!,
   ];
 
   it("matches an existing seed pack on OSM id", () => {
