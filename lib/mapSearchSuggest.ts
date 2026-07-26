@@ -235,6 +235,33 @@ function comparePub(
   return left.suggestion.name.localeCompare(right.suggestion.name);
 }
 
+function buildPubSuggestion(
+  venue: Venue,
+  originPoint: [number, number],
+  origin: SuggestOrigin,
+): PubSuggestion {
+  const distanceKm = distanceKmFrom(originPoint, [
+    venue.longitude,
+    venue.latitude,
+  ]);
+  const price = verifiedPrice(venue);
+  const anchor = compactVenueAnchor(venue);
+  const canShowPrice = isPubVenue(venue) || anchor !== null;
+
+  return {
+    id: venue.id,
+    name: venue.name,
+    ...(venue.kind !== undefined ? { kind: venue.kind } : {}),
+    typeLabel: venueKindLabel(venue.kind),
+    boroughLabel: (venue.primaryBorough ?? "").trim(),
+    priceLabel:
+      price !== null && canShowPrice ? `£${price.toFixed(2)}` : null,
+    anchor,
+    distanceKm,
+    distanceLabel: formatSuggestDistance(distanceKm, origin),
+  };
+}
+
 /**
  * Everything the map search popup renders, derived once and hermetically
  * testable. Matches AREAS (the modelled Night Areas, then the Greater London
@@ -373,23 +400,9 @@ export function buildMapSearchSuggestions(input: MapSearchSuggestInput): MapSear
       const tier = matchTier([venue.name], query);
       if (tier === null) continue;
       seen.add(venue.id);
-      const distanceKm = distanceKmFrom(originPoint, [venue.longitude, venue.latitude]);
-      const price = verifiedPrice(venue);
-      const anchor = compactVenueAnchor(venue);
-      const canShowPrice = isPubVenue(venue) || anchor !== null;
       pubMatches.push({
         tier,
-        suggestion: {
-          id: venue.id,
-          name: venue.name,
-          ...(venue.kind !== undefined ? { kind: venue.kind } : {}),
-          typeLabel: venueKindLabel(venue.kind),
-          boroughLabel: (venue.primaryBorough ?? "").trim(),
-          priceLabel: price !== null && canShowPrice ? `£${price.toFixed(2)}` : null,
-          anchor,
-          distanceKm,
-          distanceLabel: formatSuggestDistance(distanceKm, origin),
-        },
+        suggestion: buildPubSuggestion(venue, originPoint, origin),
       });
     }
   }

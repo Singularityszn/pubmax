@@ -41,6 +41,105 @@ import type { TabKey } from "@/lib/venueInspectorTabs";
 import type { PresenceState } from "./usePresence";
 import { anchorMonthLabel } from "@/lib/venueAnchorPresentation";
 
+function VenuePriceSummary({
+  venue,
+  latestContributorPrice,
+  sourcedPrice,
+  sourcedObserved,
+  anchorStamp,
+  onStartFirstDrop,
+}: {
+  venue: Venue;
+  latestContributorPrice: number | null | undefined;
+  sourcedPrice: PricedVenue["sourcedPrice"];
+  sourcedObserved: string;
+  anchorStamp: string | null;
+  onStartFirstDrop: () => void;
+}) {
+  if (
+    !isPubVenue(venue) &&
+    venue.anchorLabel &&
+    venue.cheapestPrice !== null &&
+    venue.cheapestPrice !== undefined
+  ) {
+    return (
+      <div className="contributorPrice">
+        <span>
+          <ClaimBadge kind="sourced" /> {venue.anchorLabel}
+        </span>
+        <strong>{formatPrice(venue.cheapestPrice)}</strong>
+        {anchorStamp || venue.anchorSourceUrl ? (
+          <small>
+            {anchorStamp}
+            {venue.anchorSourceUrl ? (
+              <>
+                {anchorStamp ? " · " : ""}
+                <a
+                  href={venue.anchorSourceUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  source
+                </a>
+              </>
+            ) : null}
+          </small>
+        ) : null}
+        <small className="communityPriceNote">Not a pint price.</small>
+      </div>
+    );
+  }
+
+  if (latestContributorPrice !== null && latestContributorPrice !== undefined) {
+    return (
+      <div className="contributorPrice">
+        <span>
+          <ClaimBadge kind="contributor" /> Latest Pint Drop price
+        </span>
+        <strong>{formatPrice(latestContributorPrice)}</strong>
+        {venue.latestContributorAt ? (
+          <small>{formatFreshness(venue.latestContributorAt)}</small>
+        ) : null}
+        <small className="communityPriceNote">{COMMUNITY_PRICE_NOTE}</small>
+      </div>
+    );
+  }
+
+  if (sourcedPrice) {
+    return (
+      <div className="contributorPrice">
+        <span>
+          <ClaimBadge kind="sourced" /> Sourced price
+        </span>
+        <strong>{formatPrice(venue.cheapestPrice)}</strong>
+        {sourcedObserved ? <small>{sourcedObserved}</small> : null}
+      </div>
+    );
+  }
+
+  if (venue.cheapestPrice !== null && venue.cheapestPrice !== undefined) {
+    return (
+      <div className="contributorPrice">
+        <span>
+          <ClaimBadge kind="baseline" /> Baseline on record
+        </span>
+        <strong>{formatPrice(venue.cheapestPrice)}</strong>
+        <small className="communityPriceNote">
+          Dataset price. Not a live tonight feed.
+        </small>
+      </div>
+    );
+  }
+
+  return isPubVenue(venue) ? (
+    <FirstDropNudge
+      venueId={venue.id}
+      venueName={venue.name}
+      onStartFirstDrop={onStartFirstDrop}
+    />
+  ) : null;
+}
+
 export default function VenueOverviewTab({
   venue,
   tab,
@@ -244,70 +343,14 @@ export default function VenueOverviewTab({
           Non-pub venues carry a type-specific anchor (a cocktail, a doner) —
           it renders under its own label with date and source, never as a
           pint figure. */}
-      {!isPubVenue(venue) && venue.anchorLabel && venue.cheapestPrice !== null && venue.cheapestPrice !== undefined ? (
-        <div className="contributorPrice">
-          <span>
-            <ClaimBadge kind="sourced" /> {venue.anchorLabel}
-          </span>
-          <strong>{formatPrice(venue.cheapestPrice)}</strong>
-          {anchorStamp || venue.anchorSourceUrl ? (
-            <small>
-              {anchorStamp}
-              {venue.anchorSourceUrl ? (
-                <>
-                  {anchorStamp ? " · " : ""}
-                  <a
-                    href={venue.anchorSourceUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                  >
-                    source
-                  </a>
-                </>
-              ) : null}
-            </small>
-          ) : null}
-          <small className="communityPriceNote">Not a pint price.</small>
-        </div>
-      ) : latestContributorPrice !== null && latestContributorPrice !== undefined ? (
-        <div className="contributorPrice">
-          <span>
-            <ClaimBadge kind="contributor" /> Latest Pint Drop price
-          </span>
-          <strong>{formatPrice(latestContributorPrice)}</strong>
-          {venue.latestContributorAt ? (
-            <small>{formatFreshness(venue.latestContributorAt)}</small>
-          ) : null}
-          <small className="communityPriceNote">{COMMUNITY_PRICE_NOTE}</small>
-        </div>
-      ) : sourcedPrice ? (
-        <div className="contributorPrice">
-          <span>
-            <ClaimBadge kind="sourced" /> Sourced price
-          </span>
-          <strong>{formatPrice(venue.cheapestPrice)}</strong>
-          {sourcedObserved ? <small>{sourcedObserved}</small> : null}
-        </div>
-      ) : venue.cheapestPrice !== null && venue.cheapestPrice !== undefined ? (
-        <div className="contributorPrice">
-          <span>
-            <ClaimBadge kind="baseline" /> Baseline on record
-          </span>
-          <strong>{formatPrice(venue.cheapestPrice)}</strong>
-          <small className="communityPriceNote">
-            Dataset price. Not a live tonight feed.
-          </small>
-        </div>
-      ) : isPubVenue(venue) ? (
-        /* No price on any honest source — the 658-unpriced case. Instead of a
-           blank slot, invite the first Pint Drop for this venue (Cycle-8 item
-           3). This else-branch is exactly isVenueUnpriced(venue, price). */
-        <FirstDropNudge
-          venueId={venue.id}
-          venueName={venue.name}
-          onStartFirstDrop={onStartFirstDrop}
-        />
-      ) : null}
+      <VenuePriceSummary
+        venue={venue}
+        latestContributorPrice={latestContributorPrice}
+        sourcedPrice={sourcedPrice}
+        sourcedObserved={sourcedObserved}
+        anchorStamp={anchorStamp}
+        onStartFirstDrop={onStartFirstDrop}
+      />
       {/* The submission loop itself: pick a drink, type tonight's price, and
           the pin, the list row and the row above restamp on the same tap.
           Pubs only — a Pint Drop at a bar or late-food venue would

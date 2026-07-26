@@ -89,6 +89,24 @@ function isFilterHints(value: unknown): value is VenueFilterHints {
   );
 }
 
+function hasValidAnchor(row: Record<string, unknown>): boolean {
+  const hasAnyAnchor =
+    row.anchorLabel !== undefined ||
+    row.anchorObservedAt !== undefined ||
+    row.anchorSourceUrl !== undefined;
+  const hasCompleteAnchor =
+    typeof row.anchorLabel === "string" &&
+    row.anchorLabel.trim().length > 0 &&
+    typeof row.anchorObservedAt === "string" &&
+    row.anchorObservedAt.trim().length > 0 &&
+    typeof row.anchorSourceUrl === "string" &&
+    row.anchorSourceUrl.trim().length > 0;
+
+  return row.kind === "bar" || row.kind === "food"
+    ? hasCompleteAnchor
+    : !hasAnyAnchor || hasCompleteAnchor;
+}
+
 // Light runtime guard: a row must have a non-empty id + name, finite coords, a
 // borough string, and a cheapestPrice that is either a finite number or null.
 function isValidSlimVenue(value: unknown): value is SlimVenue {
@@ -111,27 +129,12 @@ function isValidSlimVenue(value: unknown): value is SlimVenue {
     ["pub", "bar", "club", "food", "restaurant"].includes(String(row.kind));
   const priceBandOk =
     row.priceBand === undefined || row.priceBand === 0 || row.priceBand === 1 || row.priceBand === 2;
-  const hasAnyAnchor =
-    row.anchorLabel !== undefined ||
-    row.anchorObservedAt !== undefined ||
-    row.anchorSourceUrl !== undefined;
-  const hasCompleteAnchor =
-    typeof row.anchorLabel === "string" &&
-    row.anchorLabel.trim().length > 0 &&
-    typeof row.anchorObservedAt === "string" &&
-    row.anchorObservedAt.trim().length > 0 &&
-    typeof row.anchorSourceUrl === "string" &&
-    row.anchorSourceUrl.trim().length > 0;
-  const anchorOk =
-    row.kind === "bar" || row.kind === "food"
-      ? hasCompleteAnchor
-      : !hasAnyAnchor || hasCompleteAnchor;
   return (
     priceOk &&
     zoneOk &&
     kindOk &&
     priceBandOk &&
-    anchorOk &&
+    hasValidAnchor(row) &&
     (row.filterHints === undefined || isFilterHints(row.filterHints))
   );
 }

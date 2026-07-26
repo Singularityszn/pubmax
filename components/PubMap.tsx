@@ -2053,86 +2053,98 @@ export default function PubMap({
     </>
   ) : null;
 
-  const venuePanel = basePubOpen && selectedBasePub ? (
-    <UnverifiedPubSheet pub={selectedBasePub} communityPrices={communityPrices} />
-  ) : detailOpen && selectedVenue ? (
-    <>
-      <div className="mobileVenuePeekSummary" aria-label={selectedVenueLabels.summaryLabel}>
-        {typeof selectedVenue.cheapestPrice === "number" ? (
+  function renderVenuePanel() {
+    if (basePubOpen && selectedBasePub) {
+      return (
+        <UnverifiedPubSheet
+          pub={selectedBasePub}
+          communityPrices={communityPrices}
+        />
+      );
+    }
+    if (!detailOpen || !selectedVenue) return null;
+
+    return (
+      <>
+        <div className="mobileVenuePeekSummary" aria-label={selectedVenueLabels.summaryLabel}>
+          {typeof selectedVenue.cheapestPrice === "number" ? (
+            <span>
+              <strong>{formatPrice(selectedVenue.cheapestPrice)}</strong>
+              <small>current recorded price</small>
+            </span>
+          ) : selectedVenueIsPub ? (
+            <button
+              type="button"
+              className="mobileVenuePeekDrop"
+              onClick={openComposerForLog}
+            >
+              <strong>No price yet.</strong>
+              <small>Be the first →</small>
+            </button>
+          ) : null}
           <span>
-            <strong>{formatPrice(selectedVenue.cheapestPrice)}</strong>
-            <small>current recorded price</small>
+            <strong>
+              {userLocation
+                ? `${Math.max(1, Math.ceil(haversineKm(
+                    [userLocation.lng, userLocation.lat],
+                    [selectedVenue.longitude, selectedVenue.latitude],
+                  ) * 12.5))} min`
+                : "Near me"}
+            </strong>
+            <small>{userLocation ? "walk" : "for walk time"}</small>
           </span>
-        ) : isPubVenue(selectedVenue) ? (
-          <button
-            type="button"
-            className="mobileVenuePeekDrop"
-            onClick={openComposerForLog}
-          >
-            <strong>No price yet.</strong>
-            <small>Be the first →</small>
-          </button>
-        ) : null}
-        <span>
-          <strong>
-            {userLocation
-              ? `${Math.max(1, Math.ceil(haversineKm(
-                  [userLocation.lng, userLocation.lat],
-                  [selectedVenue.longitude, selectedVenue.latitude],
-                ) * 12.5))} min`
-              : "Near me"}
-          </strong>
-          <small>{userLocation ? "walk" : "for walk time"}</small>
-        </span>
-        {isPubVenue(selectedVenue) ? (
-          <button
-            type="button"
-            aria-pressed={builtIds.includes(selectedVenue.id)}
-            onClick={() => toggleBuiltStop(selectedVenue.id)}
-          >
-            {builtIds.includes(selectedVenue.id) ? "In plan" : "Plan stop"}
-          </button>
-        ) : null}
-      </div>
-      {selectedDetailStatus === "loading" ? (
-        <VenueSheetSkeleton loadingLabel={selectedVenueLabels.loadingLabel} />
-      ) : null}
-      {selectedDetailStatus === "unavailable" ? (
-        <div style={DETAIL_WARNING_STYLE} role="status">
-          {selectedVenueLabels.unavailableLabel}
+          {selectedVenueIsPub ? (
+            <button
+              type="button"
+              aria-pressed={builtIds.includes(selectedVenue.id)}
+              onClick={() => toggleBuiltStop(selectedVenue.id)}
+            >
+              {builtIds.includes(selectedVenue.id) ? "In plan" : "Plan stop"}
+            </button>
+          ) : null}
         </div>
-      ) : null}
-      <VenueInspector
-        venue={selectedVenue}
-        mode={mode}
-        inCrawl={builtIds.includes(selectedVenue.id)}
-        // The UNMERGED drop signal on purpose: the sheet gives every source its
-        // own row, so the "Latest Pint Drop price" line must stay the Pint Drop
-        // price. The community submission gets its own dated row alongside it.
-        // Only the pins/list - which can show one number - take the merged one.
-        latestContributorPrice={dropSignals.get(selectedVenue.id)?.latestContributorPrice}
-        latestPintDropAt={dropSignals.get(selectedVenue.id)?.latestContributorAt}
-        onToggleStop={toggleBuiltStop}
-        onSelectVenue={selectVenue}
-        onAcceptStop1={flags.intentWrite && isPubVenue(selectedVenue) ? acceptStop1 : undefined}
-        initialTab={venueInitialTab}
-        pintDrops={pintDrops}
-        communityPrices={communityPrices}
-        onGrabDragStart={mobileViewport ? undefined : onSheetDragStart}
-        onGrabDragMove={mobileViewport ? undefined : onSheetDragMove}
-        onGrabDragEnd={mobileViewport ? undefined : onSheetDragEnd}
-        onTabSelect={handleInspectorTabSelect}
-        cityLandmarks={cityLandmarks}
-        cityStoryBands={cityStoryBands}
-        cityCuratedCrawls={cityCuratedCrawls}
-        cityId={cityId}
-        userLocation={venueJourneyLocation}
-        locationRequestStatus={locationRequestStatus}
-        onRequestLocation={requestVenueLocation}
-        onClearLocation={clearVenueLocation}
-      />
-    </>
-  ) : null;
+        {selectedDetailStatus === "loading" ? (
+          <VenueSheetSkeleton loadingLabel={selectedVenueLabels.loadingLabel} />
+        ) : null}
+        {selectedDetailStatus === "unavailable" ? (
+          <div style={DETAIL_WARNING_STYLE} role="status">
+            {selectedVenueLabels.unavailableLabel}
+          </div>
+        ) : null}
+        <VenueInspector
+          venue={selectedVenue}
+          mode={mode}
+          inCrawl={builtIds.includes(selectedVenue.id)}
+          // The UNMERGED drop signal on purpose: the sheet gives every source its
+          // own row, so the "Latest Pint Drop price" line must stay the Pint Drop
+          // price. The community submission gets its own dated row alongside it.
+          // Only the pins/list - which can show one number - take the merged one.
+          latestContributorPrice={dropSignals.get(selectedVenue.id)?.latestContributorPrice}
+          latestPintDropAt={dropSignals.get(selectedVenue.id)?.latestContributorAt}
+          onToggleStop={toggleBuiltStop}
+          onSelectVenue={selectVenue}
+          onAcceptStop1={flags.intentWrite && selectedVenueIsPub ? acceptStop1 : undefined}
+          initialTab={venueInitialTab}
+          pintDrops={pintDrops}
+          communityPrices={communityPrices}
+          onGrabDragStart={mobileViewport ? undefined : onSheetDragStart}
+          onGrabDragMove={mobileViewport ? undefined : onSheetDragMove}
+          onGrabDragEnd={mobileViewport ? undefined : onSheetDragEnd}
+          onTabSelect={handleInspectorTabSelect}
+          cityLandmarks={cityLandmarks}
+          cityStoryBands={cityStoryBands}
+          cityCuratedCrawls={cityCuratedCrawls}
+          cityId={cityId}
+          userLocation={venueJourneyLocation}
+          locationRequestStatus={locationRequestStatus}
+          onRequestLocation={requestVenueLocation}
+          onClearLocation={clearVenueLocation}
+        />
+      </>
+    );
+  }
+
+  const venuePanel = renderVenuePanel();
 
   const mapLoadingActive = !mapCanvasErrored && (!mapCanvasReady || (slimPins.length === 0 && !loaded));
   const mobileShellReady = !mapLoadingActive;

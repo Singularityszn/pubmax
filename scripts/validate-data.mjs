@@ -1064,6 +1064,26 @@ function validateUkBaseShards() {
   return { ok, count: shards.length };
 }
 
+function validateFamousDetailArtifact({
+  artifact,
+  famous,
+  id,
+  rowCount,
+  where,
+  errs,
+}) {
+  if (rowCount !== 1) {
+    errs.add(`${where}: famous venue rowCount must be 1`);
+  }
+  if (
+    artifact.famous?.seed?.id !== id ||
+    artifact.famous?.slim?.id !== id ||
+    JSON.stringify(artifact.famous.seed) !== JSON.stringify(famous)
+  ) {
+    errs.add(`${where}: famous venue artifact does not match seed`);
+  }
+}
+
 // venue_detail_index.json + venue_details.jsonl - server-side lazy detail
 // artifacts generated beside venues_slim.json. The manifest points each venue
 // id to a byte range in the JSONL file, so /api/venue/[id] reads one venue's
@@ -1191,16 +1211,14 @@ function validateVenueDetails() {
     }
     const famous = famousById.get(id);
     if (famous) {
-      if (rowCount !== 1) {
-        errs.add(`${where}: famous venue rowCount must be 1`);
-      }
-      if (
-        artifact.famous?.seed?.id !== id ||
-        artifact.famous?.slim?.id !== id ||
-        JSON.stringify(artifact.famous.seed) !== JSON.stringify(famous)
-      ) {
-        errs.add(`${where}: famous venue artifact does not match seed`);
-      }
+      validateFamousDetailArtifact({
+        artifact,
+        famous,
+        id,
+        rowCount,
+        where,
+        errs,
+      });
       return;
     }
     if (!Array.isArray(artifact.rows) || artifact.rows.length === 0) {

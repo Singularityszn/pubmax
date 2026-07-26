@@ -162,6 +162,37 @@ async function parseBody(
   }
 }
 
+async function validateCanonicalPintDrop(fields: Record<string, unknown>) {
+  const result = validatePintDrop(fields);
+  if (!result.ok) {
+    return {
+      response: jsonNoStore({ error: result.error }, { status: 400 }),
+    } as const;
+  }
+
+  const venueLookup = await lookupCanonicalVenue(result.value.venueId);
+  if (venueLookup.status === "unavailable") {
+    return {
+      response: jsonNoStore(
+        { error: "Venue list is unavailable right now, try again shortly." },
+        { status: 503 },
+      ),
+    } as const;
+  }
+  if (venueLookup.status !== "found" || !isPubVenueKind(venueLookup.venue.kind)) {
+    return {
+      response: jsonNoStore({ error: "Pick a pub from the map." }, { status: 400 }),
+    } as const;
+  }
+
+  return {
+    value: {
+      ...result.value,
+      venueId: venueLookup.canonicalId,
+    },
+  } as const;
+}
+
 export async function POST(request: Request): Promise<Response> {
   const parsed = await parseBody(request);
   if (!parsed) {
@@ -246,24 +277,9 @@ export async function POST(request: Request): Promise<Response> {
   const frozen = socialFreezeResponse();
   if (frozen) return frozen;
 
-  const result = validatePintDrop(fields);
-  if (!result.ok) {
-    return jsonNoStore({ error: result.error }, { status: 400 });
-  }
-  const venueLookup = await lookupCanonicalVenue(result.value.venueId);
-  if (venueLookup.status === "unavailable") {
-    return jsonNoStore(
-      { error: "Venue list is unavailable right now, try again shortly." },
-      { status: 503 },
-    );
-  }
-  if (venueLookup.status !== "found" || !isPubVenueKind(venueLookup.venue.kind)) {
-    return jsonNoStore({ error: "Pick a pub from the map." }, { status: 400 });
-  }
-  const canonicalDrop = {
-    ...result.value,
-    venueId: venueLookup.canonicalId,
-  };
+  const canonicalResult = await validateCanonicalPintDrop(fields);
+  if ("response" in canonicalResult) return canonicalResult.response;
+  const canonicalDrop = canonicalResult.value;
 
   // JWT-linked handle wins over a self-asserted body handle when signed in.
   // Linked handles can only drop as their signed-in owner; unlinked handles keep
