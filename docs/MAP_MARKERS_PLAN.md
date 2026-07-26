@@ -23,7 +23,7 @@ Champagne maps to the **wine** drink-pin kind (no separate champagne glyph).
 | **Unclustered pubs** | Keep drink silhouettes as the primary marker language; ensure icon scale stays readable without oversized pads. |
 | **Discover ranks** | Shrink rank circles (~18–20px), soften fill; number secondary to pub/city name. |
 
-Touch points: `components/PubMapCanvas.tsx` (cluster paint + source options), `lib/mapBasemapTaste.ts` (`clusterCircleColorExpr` if needed), `app/discover/discover.css`.
+Touch points: [`components/map/canvas/buildScene.ts`](../components/map/canvas/buildScene.ts) (cluster paint + source options), `lib/mapBasemapTaste.ts` (`clusterCircleColorExpr` if needed), `app/discover/discover.css`.
 
 ---
 
