@@ -1,0 +1,13 @@
+import { chromium } from "playwright";
+const BASE = "http://localhost:3100";
+const browser = await chromium.launch();
+const page = await browser.newPage({ viewport: { width: 1280, height: 800 } });
+const errors = [];
+page.on("pageerror", (e) => errors.push(e.message));
+page.on("console", (m) => { if (m.type() === "error") errors.push("console: " + m.text()); });
+await page.goto(`${BASE}/map?sel=venue-16pnwmm`, { waitUntil: "domcontentloaded", timeout: 60000 });
+await page.waitForTimeout(15000);
+console.log("CANVAS_COUNT:", await page.locator("canvas").count());
+console.log("BODY:", (await page.locator("body").innerText()).slice(0, 400));
+console.log("ERRORS:", JSON.stringify(errors.slice(0, 5), null, 1));
+await browser.close();

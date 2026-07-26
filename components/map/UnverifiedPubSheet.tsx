@@ -35,7 +35,7 @@ export default function UnverifiedPubSheet({ pub, communityPrices }: UnverifiedP
   // Base pins are price-blind - no colour, no provisional dot - so this sheet
   // asks for page-only wording: the note may never claim a mark on the map.
   const communityTrustStanding = communityPrice
-    ? communityTrustNote(communityPrice, Date.now(), false)
+    ? communityTrustNote(communityPrice, undefined, false)
     : "";
 
   return (
