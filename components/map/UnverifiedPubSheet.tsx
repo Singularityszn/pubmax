@@ -82,6 +82,7 @@ export default function UnverifiedPubSheet({ pub, communityPrices }: UnverifiedP
       ) : null}
 
       <VenuePriceSubmit
+        key={pub.id}
         venueId={pub.id}
         venueName={pub.name}
         communityPrices={communityPrices}

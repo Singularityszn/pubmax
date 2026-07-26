@@ -1,8 +1,14 @@
-import { createElement } from "react";
+import {
+  createElement,
+  isValidElement,
+  type ReactElement,
+  type ReactNode,
+} from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 
 import UnverifiedPubSheet from "@/components/map/UnverifiedPubSheet";
+import VenuePriceSubmit from "@/components/map/VenuePriceSubmit";
 import type { CommunityPricesState } from "@/components/map/useCommunityPrices";
 import type { CommunityPrice } from "@/lib/communityPrice";
 import type { UkBasePub } from "@/lib/ukBasePubs";
@@ -26,7 +32,43 @@ function state(rows: CommunityPrice[], known = true): CommunityPricesState {
   };
 }
 
+function findPriceSubmit(node: ReactNode): ReactElement | null {
+  if (Array.isArray(node)) {
+    for (const child of node) {
+      const match = findPriceSubmit(child);
+      if (match) return match;
+    }
+  }
+  if (isValidElement(node)) {
+    if (node.type === VenuePriceSubmit) return node;
+    const match = findPriceSubmit(
+      (node.props as { children?: ReactNode }).children,
+    );
+    if (match) return match;
+  }
+  return null;
+}
+
 describe("UnverifiedPubSheet", () => {
+  it("remounts price submission state when selection moves directly between base pubs", () => {
+    const nextPub: UkBasePub = {
+      ...pub,
+      id: "venue-uk-n456",
+      osmRef: "n456",
+      name: "The Next Arms",
+    };
+    const firstSubmitter = findPriceSubmit(
+      UnverifiedPubSheet({ pub, communityPrices: state([], false) }),
+    );
+    const nextSubmitter = findPriceSubmit(
+      UnverifiedPubSheet({ pub: nextPub, communityPrices: state([], false) }),
+    );
+
+    expect(firstSubmitter?.key).toBe(pub.id);
+    expect(nextSubmitter?.key).toBe(nextPub.id);
+    expect(nextSubmitter?.key).not.toBe(firstSubmitter?.key);
+  });
+
   it("never flashes no-price framing while a stored price reloads", () => {
     const stored: CommunityPrice = {
       venueId: pub.id,
