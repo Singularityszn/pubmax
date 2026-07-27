@@ -61,11 +61,15 @@ export type ResolveSightingVenue = (venueKey: string) => SightingVenue | null;
 export const SIGHTINGS_CAP = 12;
 
 // How old an observation may be and still sit under a heading that claims
-// recency. 336h is the drink_price_updates staleness budget in
-// data/freshness_registry.json, so the feed's claim expires exactly when the
-// spine calls that feed stale: if the overlay stops refreshing, the rows drain
-// away and the heading goes with them rather than outliving its own dates.
-// __tests__/feedSightingsServer.test.ts pins the two to each other.
+// recency. The number is borrowed from the drink_price_updates staleness budget
+// in data/freshness_registry.json (336h) so the feed and the spine speak of the
+// same span, but they measure DIFFERENT clocks and can disagree: the registry
+// ages the artifact's `generatedAt`, this gate ages each row's `observedAt`, so
+// a freshly regenerated file may still carry observations too old to print here.
+// __tests__/feedSightingsServer.test.ts pins the shared number, not an
+// equivalence. What the gate buys is that the heading drains with its rows: an
+// overlay that stops refreshing empties this surface instead of leaving a
+// recency claim standing over dates that contradict it.
 export const SIGHTING_MAX_AGE_HOURS = 336;
 
 /** The www-stripped host of an absolute URL, or "" when it can't be parsed. */
@@ -84,6 +88,22 @@ export function formatSightingPrice(price: number): string {
   return `£${price.toFixed(2)}`;
 }
 
+/**
+ * "11 Jul" from an observation timestamp, on London calendar days — the DAY the
+ * price was seen, which is the claim the surface makes, rather than an age that
+ * says "2w ago" and names no date. Fixed timeZone so server and client render
+ * the same string. "" when the stamp is unparseable, so the row can drop it.
+ */
+export function formatSightingDay(observedAt: string): string {
+  const observed = Date.parse(observedAt);
+  if (!Number.isFinite(observed)) return "";
+  return new Date(observed).toLocaleDateString("en-GB", {
+    timeZone: "Europe/London",
+    day: "numeric",
+    month: "short",
+  });
+}
+
 // A newer observation wins; on an identical timestamp the cheaper price wins.
 // This is how we pick ONE representative sighting per venue (see buildSightings).
 function beatsForVenue(candidate: DrinkPriceUpdate, incumbent: DrinkPriceUpdate): boolean {
@@ -99,12 +119,16 @@ function beatsForVenue(candidate: DrinkPriceUpdate, incumbent: DrinkPriceUpdate)
  *
  *  - ONE sighting per venue — the freshest observation, cheapest on a tie — so
  *    the surface surveys many pubs instead of repeating one pub's whole menu;
- *  - only priced (> 0), attributable (parseable source domain) rows survive —
- *    a £0 promo or an unattributable row is never shown as a sighting;
- *  - only observations inside SIGHTING_MAX_AGE_HOURS survive, so the surface's
- *    recency claim can never outlive the dates printed on its own rows;
+ *  - only priced (> 0), attributable (parseable source domain), datable
+ *    (parseable observedAt) rows survive — a £0 promo, an unattributable row or
+ *    an undatable one is never shown as a sighting;
  *  - newest observation first (venue name breaks ties for a stable order);
  *  - capped at `cap` (default SIGHTINGS_CAP).
+ *
+ * Deliberately CLOCK-FREE: nothing here depends on the current time, so the
+ * result can be cached for a process lifetime. The recency window is a separate,
+ * per-read pass (`freshSightings`) precisely because a cached answer to a
+ * time-dependent question stops being true while nobody is looking.
  *
  * `resolve` maps a grouping key to venue facts; returning null drops that venue
  * (e.g. an id the venue index no longer carries).
@@ -112,12 +136,9 @@ function beatsForVenue(candidate: DrinkPriceUpdate, incumbent: DrinkPriceUpdate)
 export function buildSightings(
   updates: DrinkPriceUpdate[],
   resolve: ResolveSightingVenue,
-  opts: { cap?: number; now?: number; maxAgeHours?: number } = {},
+  opts: { cap?: number } = {},
 ): SightingDTO[] {
   const cap = opts.cap ?? SIGHTINGS_CAP;
-  const now = opts.now ?? Date.now();
-  const maxAgeHours = opts.maxAgeHours ?? SIGHTING_MAX_AGE_HOURS;
-  const oldestAllowed = now - maxAgeHours * 3_600_000;
 
   const bestByVenue = new Map<string, DrinkPriceUpdate>();
   for (const update of updates) {
@@ -129,8 +150,7 @@ export function buildSightings(
       continue;
     }
     if (sourceDomain(update.source?.url ?? "") === "") continue;
-    const observed = Date.parse(update.observedAt);
-    if (!Number.isFinite(observed) || observed < oldestAllowed) continue;
+    if (!Number.isFinite(Date.parse(update.observedAt))) continue;
     const incumbent = bestByVenue.get(update.venueKey);
     if (!incumbent || beatsForVenue(update, incumbent)) {
       bestByVenue.set(update.venueKey, update);
@@ -163,6 +183,29 @@ export function buildSightings(
   });
 
   return sightings.slice(0, cap);
+}
+
+/**
+ * The rows still inside the recency window at `now` — the gate behind the
+ * surface's "Recent" claim, kept OUT of buildSightings so it is answered against
+ * the clock of the request that renders it rather than the clock of whichever
+ * build or process first read the overlay.
+ *
+ * Safe to apply after buildSightings' cap: the list is newest-first, so the
+ * window always takes a prefix of it and no in-window row can hide behind a
+ * capped-out older one.
+ */
+export function freshSightings(
+  sightings: SightingDTO[],
+  opts: { now?: number; maxAgeHours?: number } = {},
+): SightingDTO[] {
+  const now = opts.now ?? Date.now();
+  const maxAgeHours = opts.maxAgeHours ?? SIGHTING_MAX_AGE_HOURS;
+  const oldestAllowed = now - maxAgeHours * 3_600_000;
+  return sightings.filter((sighting) => {
+    const observed = Date.parse(sighting.observedAt);
+    return Number.isFinite(observed) && observed >= oldestAllowed;
+  });
 }
 
 // ── Placement ─────────────────────────────────────────────────────────────────

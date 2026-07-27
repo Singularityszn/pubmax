@@ -6,6 +6,7 @@ import path from "path";
 import { parseDrinkPriceUpdates } from "@/lib/drinkPriceUpdates";
 import {
   buildSightings,
+  freshSightings,
   type SightingDTO,
 } from "@/lib/feedSightings";
 import { stableVenueIdFromKey } from "@/lib/venues";
@@ -28,9 +29,14 @@ import { venueMapUrl } from "@/lib/venueMapUrl";
 //
 // Fail-soft throughout: a missing/malformed overlay, or an unreadable venue
 // index, yields [] — the feed then falls back to its honest empty state, never
-// an error. Memoised per process so repeated renders don't re-read the ~2 MB
-// file; the recency window (lib/feedSightings.ts) is therefore stamped once per
-// process, which is well inside its 336h budget.
+// an error.
+//
+// ONLY THE CLOCK-FREE HALF IS MEMOISED. Reading the ~2 MB overlay and resolving
+// its venues never changes between renders, so it is cached per process; the
+// recency window is re-answered on every read, because /feed is served from a
+// build-time prerender or a long-lived lambda and the overlay only changes by
+// deploy. A window stamped once would keep saying "recent" about rows that had
+// aged out days earlier, which is the exact claim the gate exists to retire.
 
 const OVERLAY_PATH = "public/data/drink_price_updates/latest.json";
 
@@ -49,30 +55,30 @@ async function build(): Promise<SightingDTO[]> {
     if (updates.length === 0) return [];
 
     const index = await getVenueIndex();
-    return buildSightings(
-      updates,
-      (venueKey) => {
-        const venueId = stableVenueIdFromKey(venueKey);
-        const venue = index.get(venueId);
-        if (!venue) return null;
-        return {
-          venueId,
-          venueName: venue.name,
-          venueMapUrl: venueMapUrl(venueId),
-        };
-      },
-      { now: Date.now() },
-    );
+    return buildSightings(updates, (venueKey) => {
+      const venueId = stableVenueIdFromKey(venueKey);
+      const venue = index.get(venueId);
+      if (!venue) return null;
+      return {
+        venueId,
+        venueName: venue.name,
+        venueMapUrl: venueMapUrl(venueId),
+      };
+    });
   } catch {
     // Any failure (missing file, bad JSON, unreadable index) → no sightings.
     return [];
   }
 }
 
-/** The bounded ambient sightings for the feed's London tab, memoised per process. */
-export function loadFeedSightings(): Promise<SightingDTO[]> {
+/**
+ * The bounded ambient sightings for the feed's London tab: the memoised overlay
+ * read, aged against THIS request's clock so only rows inside the recency window
+ * are served.
+ */
+export async function loadFeedSightings(): Promise<SightingDTO[]> {
   cached ??= build();
-  return cached;
+  return freshSightings(await cached, { now: Date.now() });
 }
 
 /** Test seam: forget the memoised read. */

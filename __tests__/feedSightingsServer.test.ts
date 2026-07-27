@@ -117,6 +117,32 @@ describe("feed sightings server boundary", () => {
     expect(await loadFeedSightings()).toEqual([]);
   });
 
+  it("re-ages the memoised overlay on every read rather than freezing the window", async () => {
+    vi.spyOn(fs, "readFile").mockResolvedValue(JSON.stringify(MIXED_CITY_OVERLAY));
+    getVenueIndex.mockResolvedValue(
+      new Map([
+        [
+          "venue-16pnwmm",
+          {
+            id: "venue-16pnwmm",
+            name: "Prospect of Whitby",
+            borough: "Tower Hamlets",
+            lat: 51.5071,
+            lng: -0.05113,
+          },
+        ],
+      ]),
+    );
+
+    expect(await loadFeedSightings()).toHaveLength(1);
+
+    // Same process, same memoised read, a month later: the row has aged out and
+    // the surface must go quiet rather than keep claiming recency.
+    vi.setSystemTime(new Date("2026-08-27T09:00:00.000Z"));
+
+    expect(await loadFeedSightings()).toEqual([]);
+  });
+
   it("keeps the recency window equal to the overlay's own staleness budget", () => {
     const registry = JSON.parse(
       readFileSync(join(process.cwd(), "data/freshness_registry.json"), "utf8"),

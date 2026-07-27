@@ -46,8 +46,17 @@ describe("FeedSightings", () => {
     );
 
     expect(html).toMatch(
-      /aria-label="Sourced price: Hawk Ridge White IPA with a deliberately long name at £5.25, The Crown and Horseshoes\. Source greeneking\.co\.uk · [^"]+\. Open on the map\."/,
+      /aria-label="Sourced price: Hawk Ridge White IPA with a deliberately long name at £5.25, The Crown and Horseshoes\. Source greeneking\.co\.uk, seen 20 Jul\. Open on the map\."/,
     );
+  });
+
+  it("dates each row with the day it was seen, never a bare age", () => {
+    const html = renderToStaticMarkup(
+      createElement(FeedSightings, { variant: "primary", sightings: [sighting] }),
+    );
+
+    expect(html).toContain("greeneking.co.uk · 20 Jul");
+    expect(html).not.toMatch(/\d+[dwhm] ago/);
   });
 
   it("tells a cold-start reader why the rows are sourced rather than logged", () => {

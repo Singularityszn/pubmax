@@ -2,8 +2,7 @@
 
 import Link from "next/link";
 
-import type { SightingDTO } from "@/lib/feedSightings";
-import { relativeTime } from "@/lib/relativeTime";
+import { formatSightingDay, type SightingDTO } from "@/lib/feedSightings";
 
 import "./feedSightings.css";
 
@@ -17,13 +16,15 @@ import "./feedSightings.css";
 // Placement is decided upstream (lib/feedSightings.ts sightingPlacement).
 
 function SightingRow({ sighting }: { sighting: SightingDTO }) {
-  const ago = relativeTime(sighting.observedAt);
-  const dated = ago ? `${sighting.sourceDomain} · ${ago}` : sighting.sourceDomain;
+  const day = formatSightingDay(sighting.observedAt);
+  const dated = day ? `${sighting.sourceDomain} · ${day}` : sighting.sourceDomain;
   return (
     <Link
       className="feedSighting"
       href={sighting.venueMapUrl}
-      aria-label={`Sourced price: ${sighting.drink} at ${sighting.priceLabel}, ${sighting.venueName}. Source ${dated}. Open on the map.`}
+      aria-label={`Sourced price: ${sighting.drink} at ${sighting.priceLabel}, ${sighting.venueName}. Source ${sighting.sourceDomain}${
+        day ? `, seen ${day}` : ""
+      }. Open on the map.`}
     >
       <span className="feedSightingMain" aria-hidden="true">
         <span className="feedSightingDrink">{sighting.drink}</span>

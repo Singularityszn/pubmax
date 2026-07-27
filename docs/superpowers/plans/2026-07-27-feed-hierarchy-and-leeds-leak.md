@@ -171,3 +171,22 @@ Expected: data validation, lint, typecheck, coverage, and audit all exit zero.
 - [ ] **Step 6: Review diff and commit**
 
 Confirm only scoped files changed, restore local tooling churn if present, then commit with root-cause-focused message.
+
+## Expected drain of the ambient surface (call this out in the PR body)
+
+The `Recent sourced prices` heading is gated on a 336h observation window
+(`SIGHTING_MAX_AGE_HOURS`), so the surface empties as its rows age out. Against
+the shipped overlay that is a known schedule, not a surprise:
+
+- 69 venue keys in `public/data/drink_price_updates/latest.json`; one is the
+  Leeds row the city fence drops.
+- 60 carry a best observation of 2026-07-11 and are already outside the window.
+- The newest London observation is 2026-07-18T11:03:58Z, so it leaves the window
+  on **2026-08-01T11:03:58Z**. After that the London cold start shows zero
+  sightings and falls back to the plain `No pints logged yet tonight.` empty
+  state.
+
+That outcome is correct and deliberate: a fortnight-old price under a heading
+that says recent was the lie, and an honest empty surface beats a loosened
+claim. The cause of the drain is the drink-price refresh having no working
+parser (issue #635), which is fixed there, never by widening this window.

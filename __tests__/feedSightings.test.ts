@@ -7,8 +7,10 @@ import { describe, expect, it } from "vitest";
 
 import type { DrinkPriceUpdate } from "@/lib/drinkPriceUpdates";
 import {
-  buildSightings as buildSightingsAt,
+  buildSightings,
+  formatSightingDay,
   formatSightingPrice,
+  freshSightings,
   SIGHTING_MAX_AGE_HOURS,
   SIGHTINGS_CAP,
   sightingPlacement,
@@ -16,18 +18,9 @@ import {
   type ResolveSightingVenue,
 } from "@/lib/feedSightings";
 
-// Every fixture below is dated against this fixed "now", so the recency gate is
-// exercised on stated dates rather than on the wall clock the suite happens to
-// run at.
+// The recency window is answered against a stated "now" rather than the wall
+// clock the suite happens to run at.
 const NOW = Date.parse("2026-07-20T00:00:00.000Z");
-
-function buildSightings(
-  updates: DrinkPriceUpdate[],
-  resolve: ResolveSightingVenue,
-  opts: { cap?: number; now?: number; maxAgeHours?: number } = {},
-) {
-  return buildSightingsAt(updates, resolve, { now: NOW, ...opts });
-}
 
 // Minimal valid DrinkPriceUpdate; overrides customise a single field per test.
 function update(overrides: Partial<DrinkPriceUpdate> = {}): DrinkPriceUpdate {
@@ -153,29 +146,20 @@ describe("buildSightings mapping", () => {
     expect(buildSightings(many, echoResolve, { cap: 3 })).toHaveLength(3);
   });
 
-  it("drops an observation older than the recency window the heading claims", () => {
-    const insideByAnHour = new Date(
-      NOW - SIGHTING_MAX_AGE_HOURS * 3_600_000 + 3_600_000,
-    ).toISOString();
-    const outsideByAnHour = new Date(
-      NOW - SIGHTING_MAX_AGE_HOURS * 3_600_000 - 3_600_000,
-    ).toISOString();
-
+  it("drops an undatable observation, whatever the clock says", () => {
     const out = buildSightings(
       [
-        update({ venueKey: "justinside|a|1|1", observedAt: insideByAnHour }),
-        update({ venueKey: "longgone|b|2|2", observedAt: outsideByAnHour }),
-        update({ venueKey: "undated|c|3|3", observedAt: "not a date" }),
+        update({ venueKey: "dated|a|1|1" }),
+        update({ venueKey: "undated|b|2|2", observedAt: "not a date" }),
       ],
       echoResolve,
     );
-    expect(out.map((s) => s.venueName)).toEqual(["justinside"]);
+    expect(out.map((s) => s.venueName)).toEqual(["dated"]);
   });
 
-  it("empties out entirely once the overlay stops refreshing", () => {
-    const stalled = [update({ observedAt: "2026-07-15T00:00:00.000Z" })];
-    const monthLater = Date.parse("2026-08-20T00:00:00.000Z");
-    expect(buildSightings(stalled, echoResolve, { now: monthLater })).toEqual([]);
+  it("asks the clock nothing — the same updates map the same way at any time", () => {
+    const updates = [update({ venueKey: "ancient|a|1|1", observedAt: "2019-01-01T00:00:00.000Z" })];
+    expect(buildSightings(updates, echoResolve)).toHaveLength(1);
   });
 
   it("skips a venue the resolver cannot resolve (returns null)", () => {
@@ -189,6 +173,47 @@ describe("buildSightings mapping", () => {
 
   it("returns [] for no updates", () => {
     expect(buildSightings([], echoResolve)).toEqual([]);
+  });
+});
+
+describe("freshSightings", () => {
+  const sightingAt = (venueKey: string, observedAt: string) =>
+    buildSightings([update({ venueKey, observedAt })], echoResolve)[0];
+
+  it("keeps an observation inside the window and drops one just outside it", () => {
+    const inside = sightingAt(
+      "justinside|a|1|1",
+      new Date(NOW - SIGHTING_MAX_AGE_HOURS * 3_600_000 + 3_600_000).toISOString(),
+    );
+    const outside = sightingAt(
+      "longgone|b|2|2",
+      new Date(NOW - SIGHTING_MAX_AGE_HOURS * 3_600_000 - 3_600_000).toISOString(),
+    );
+
+    expect(freshSightings([inside, outside], { now: NOW }).map((s) => s.venueName)).toEqual([
+      "justinside",
+    ]);
+  });
+
+  it("empties the surface entirely once the overlay stops refreshing", () => {
+    const stalled = [sightingAt("stalled|a|1|1", "2026-07-15T00:00:00.000Z")];
+
+    expect(freshSightings(stalled, { now: NOW })).toHaveLength(1);
+    expect(
+      freshSightings(stalled, { now: Date.parse("2026-08-20T00:00:00.000Z") }),
+    ).toEqual([]);
+  });
+});
+
+describe("formatSightingDay", () => {
+  it("names the London day the price was seen, not an age", () => {
+    expect(formatSightingDay("2026-07-11T12:00:00.000Z")).toBe("11 Jul");
+    expect(formatSightingDay("2026-07-11T23:30:00.000Z")).toBe("12 Jul");
+  });
+
+  it("returns '' for an unparseable stamp so the row can drop the date", () => {
+    expect(formatSightingDay("not a date")).toBe("");
+    expect(formatSightingDay("")).toBe("");
   });
 });
 
