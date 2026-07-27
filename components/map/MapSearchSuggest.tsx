@@ -349,7 +349,7 @@ export default function MapSearchSuggest({
               >
                 <p className="mapSearchSuggestEmptyTitle">{NO_RESULTS_MESSAGE}</p>
                 <p className="mapSearchSuggestEmptyHint">
-                  Try Soho, Willesden, or The Crown. Clear search to see every Venue.
+                  Try Soho, Willesden, or The Crown. Clear search to see every venue.
                 </p>
               </div>
             ) : null}
