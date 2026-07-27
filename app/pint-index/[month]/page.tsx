@@ -9,7 +9,7 @@ import PintIndexArrival from "@/components/pintindex/PintIndexArrival";
 import PintIndexEditions from "@/components/pintindex/PintIndexEditions";
 import PintIndexLeagueTable from "@/components/pintindex/PintIndexLeagueTable";
 import { formatObservedDate, PINT_DATASET_OBSERVED_AT } from "@/lib/dataFreshness";
-import { buildLeagueTable, formatPintIndexDate, indexSummary } from "@/lib/pintIndex";
+import { buildLeagueTable, dearestFirst, formatPintIndexDate, indexSummary } from "@/lib/pintIndex";
 import {
   pintIndexMonthLabel,
   pintIndexMonthTemporalCoverage,
@@ -166,6 +166,27 @@ export default async function PintIndexEditionPage({ params }: EditionPageProps)
           Download {label} (CSV) ↓
         </a>
       </section>
+
+      {/* The expensive end of this month, frozen with the rest of it. The live
+          index's national block deliberately does NOT appear here: those
+          figures move, and an edition that promises its numbers stay put may
+          not carry one that does not. */}
+      {summary.dearestPint ? (
+        <section className="pintIndexSection" id="dearest" aria-labelledby="dearestHeading">
+          <h2 id="dearestHeading" className="pintIndexSectionTitle">The dearest end</h2>
+          <p className="pintIndexSectionDek">
+            The same table the other way up, ranked on the priciest pint each
+            borough had on record in {label}. Top of it:{" "}
+            {formatPrice(summary.dearestPint.maxGbp)} at{" "}
+            {summary.dearestPint.maxPubName}, {summary.dearestPint.name}.
+          </p>
+          <PintIndexLeagueTable
+            rows={dearestFirst(rows)}
+            caption={`London boroughs ranked by their dearest eligible observed pint price, ${label}`}
+            highlight="dearest"
+          />
+        </section>
+      ) : null}
 
       <PintIndexArrival
         areas={arrivalAreas(venues)}

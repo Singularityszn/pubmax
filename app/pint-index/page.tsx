@@ -4,12 +4,14 @@ import Link from "next/link";
 
 import SiteNav from "@/components/nav/SiteNav";
 import JsonLd from "@/components/seo/JsonLd";
+import NationalPintBenchmarks from "@/components/pintindex/NationalPintBenchmarks";
 import PintIndexArrival from "@/components/pintindex/PintIndexArrival";
 import PintIndexEditions from "@/components/pintindex/PintIndexEditions";
 import PintIndexLeagueTable from "@/components/pintindex/PintIndexLeagueTable";
 import ZonePintIndexStrip from "@/components/zones/ZonePintIndexStrip";
 import { formatObservedDate, PINT_DATASET_OBSERVED_AT } from "@/lib/dataFreshness";
-import { buildLeagueTable, formatPintIndexDate, indexSummary, type PintIndexSnapshot } from "@/lib/pintIndex";
+import { citableNationalBenchmarks, NATIONAL_PINT_BENCHMARKS } from "@/lib/nationalPintBenchmarks";
+import { buildLeagueTable, dearestFirst, formatPintIndexDate, indexSummary, type PintIndexSnapshot } from "@/lib/pintIndex";
 import { londonMonthOf, pintIndexMonthCloseDay, pintIndexMonthLabel } from "@/lib/pintIndexArchive";
 import { arrivalAreas } from "@/lib/pintIndexArrival";
 import { loadPintIndexArchive, loadPublicPintIndexSnapshot } from "@/lib/pintIndexSnapshot.server";
@@ -78,6 +80,11 @@ export default async function PintIndexPage() {
   // promise about a month that already ended. Read on the London calendar the
   // closing date beside it is printed in, not in UTC.
   const openMonth = londonMonthOf(new Date());
+  // Other people's figures, dropped unless they carry a publisher, a link and a
+  // published day. They are rendered in their own block and never merged into
+  // anything above: see the hard rule in lib/nationalPintBenchmarks.ts.
+  const national = citableNationalBenchmarks(NATIONAL_PINT_BENCHMARKS);
+  const dearestPint = summary.dearestPint;
 
   return (
     <main className="pintIndexPage">
@@ -104,6 +111,19 @@ export default async function PintIndexPage() {
           </dl>
         ) : null}
       </header>
+
+      {national.length > 0 ? (
+        <section className="pintIndexSection" aria-labelledby="nationalHeading">
+          <h2 id="nationalHeading" className="pintIndexSectionTitle">What a pint costs nationally</h2>
+          <p className="pintIndexSectionDek">
+            None of these figures are ours. They are here so the prices on this
+            page have something to sit against, and each one names who counted
+            it, when, and exactly what they counted. A national cask ale is not
+            a London pint.
+          </p>
+          <NationalPintBenchmarks rows={national} headingId="nationalHeading" />
+        </section>
+      ) : null}
 
       <section className="pintIndexSection" aria-labelledby="zoneHeading">
         <h2 id="zoneHeading" className="pintIndexSectionTitle">The Zone pint index</h2>
@@ -142,6 +162,24 @@ export default async function PintIndexPage() {
         )}
         <a className="pintIndexDownload" href="/pint-index/data.csv" download>Download the public snapshot (CSV) ↓</a>
       </section>
+
+      {dearestPint ? (
+        <section className="pintIndexSection" id="dearest" aria-labelledby="dearestHeading">
+          <h2 id="dearestHeading" className="pintIndexSectionTitle">The dearest end</h2>
+          <p className="pintIndexSectionDek">
+            Cheapest first is the default above, because that is what you want
+            on a Friday. This is the same table the other way up, ranked on the
+            priciest pint each borough has on record. Top of it right now:{" "}
+            {formatPrice(dearestPint.maxGbp)} at {dearestPint.maxPubName},{" "}
+            {dearestPint.name}.
+          </p>
+          <PintIndexLeagueTable
+            rows={dearestFirst(rows)}
+            caption="London boroughs ranked by their dearest eligible observed pint price"
+            highlight="dearest"
+          />
+        </section>
+      ) : null}
 
       <section className="pintIndexSection" aria-labelledby="editionsHeading">
         <h2 id="editionsHeading" className="pintIndexSectionTitle">Dated editions</h2>

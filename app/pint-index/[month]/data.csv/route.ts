@@ -1,9 +1,11 @@
-import { leagueTableToCsv } from "@/lib/pintIndex";
+import { publishedEditionToCsv } from "@/lib/pintIndex";
 import { loadArchivedPintIndexMonth } from "@/lib/pintIndexSnapshot.server";
 
-// The CSV of one frozen month. Same columns as the live export, and the
+// The CSV of one frozen month, in the columns it was published with, and the
 // snapshot_id column carries the edition's own id, so a spreadsheet saved from
 // here still says which window it came from long after the live index moves on.
+// The live export may grow a column; this one may not follow it without a
+// correction, or an old citation would quietly resolve to a different schema.
 
 type RouteContext = { params: Promise<{ month: string }> };
 
@@ -17,7 +19,7 @@ export async function GET(_request: Request, context: RouteContext): Promise<Res
     });
   }
   return new Response(
-    leagueTableToCsv(edition),
+    publishedEditionToCsv(edition),
     {
       status: 200,
       headers: {

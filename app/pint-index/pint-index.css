@@ -180,8 +180,15 @@
   text-decoration: underline;
 }
 
-.pintIndexAvg {
-  color: var(--brass);
+/* The column the table is ranked on: cheapest-first ranks on the average, the
+   dearest-end view ranks on the dearest pint. Weight only, and the selector
+   carries `td` so it outweighs `.pintIndexTable td` above, which had been
+   quietly winning and leaving this rule with nothing to say.
+
+   Weight rather than the page's brass on purpose: --brass is the coral
+   (#ff5a5f), which lands near 2.5:1 against the light table surface. Bold ink
+   marks the ranked column in both themes without spending contrast to do it. */
+.pintIndexTable td.pintIndexRanked {
   font-weight: 700;
 }
 

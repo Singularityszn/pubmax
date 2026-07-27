@@ -182,6 +182,8 @@ export type LeagueRow = {
   minGbp: number;
   minPubName: string;
   maxGbp: number;
+  /** The pub behind maxGbp. The dearest end is a claim about a real bar too. */
+  maxPubName: string;
 };
 
 export function buildLeagueTable(snapshot: PintIndexSnapshot): LeagueRow[] {
@@ -199,6 +201,7 @@ export function buildLeagueTable(snapshot: PintIndexSnapshot): LeagueRow[] {
   return [...grouped.entries()].map(([slug, rows]) => {
     const prices = rows.map((row) => row.pricePence);
     const min = Math.min(...prices);
+    const max = Math.max(...prices);
     return {
       slug,
       name: rows[0].boroughName,
@@ -206,32 +209,97 @@ export function buildLeagueTable(snapshot: PintIndexSnapshot): LeagueRow[] {
       averageGbp: Math.round(prices.reduce((sum, price) => sum + price, 0) / rows.length) / 100,
       minGbp: min / 100,
       minPubName: rows.find((row) => row.pricePence === min)!.pubName,
-      maxGbp: Math.max(...prices) / 100,
+      maxGbp: max / 100,
+      maxPubName: rows.find((row) => row.pricePence === max)!.pubName,
     };
   }).sort((a, b) => a.averageGbp - b.averageGbp || a.name.localeCompare(b.name));
 }
 
-export const LEAGUE_CSV_HEADER = [
-  "borough_code", "borough", "tracked_pubs", "average_pint_gbp",
-  "cheapest_pint_gbp", "cheapest_pint_pub", "dearest_pint_gbp",
-  "observation_start", "observation_end", "snapshot_id",
-] as const;
+/**
+ * The same table, read from the expensive end.
+ *
+ * A drinker wants cheap, so cheapest-first stays the default everywhere and
+ * `buildLeagueTable` is untouched. A journalist wants dear, and ranks by the
+ * single dearest pint rather than by the borough average: that is the number
+ * that puts a town in a newspaper. So this orders by `maxGbp`, descending, and
+ * returns a new array rather than sorting in place.
+ */
+export function dearestFirst(rows: readonly LeagueRow[]): LeagueRow[] {
+  return [...rows].sort((a, b) => b.maxGbp - a.maxGbp || a.name.localeCompare(b.name));
+}
 
 function csvField(value: string): string {
   return /[",\n\r]/.test(value) ? `"${value.replace(/"/g, '""')}"` : value;
 }
 
-export function leagueTableToCsv(snapshot: PintIndexSnapshot, rows = buildLeagueTable(snapshot)): string {
-  const lines = [LEAGUE_CSV_HEADER.join(",")];
+// One column table, so a header can never disagree with the cells under it.
+// The dearest column names its pub the way the cheapest one already does: a
+// reader ranking by the expensive end needs the bar, not just the figure.
+type LeagueCsvColumn = {
+  name: string;
+  cell: (row: LeagueRow, snapshot: PintIndexSnapshot) => string;
+};
+
+const LEAGUE_CSV_COLUMNS: readonly LeagueCsvColumn[] = [
+  { name: "borough_code", cell: (row) => row.slug },
+  { name: "borough", cell: (row) => csvField(row.name) },
+  { name: "tracked_pubs", cell: (row) => String(row.pubCount) },
+  { name: "average_pint_gbp", cell: (row) => row.averageGbp.toFixed(2) },
+  { name: "cheapest_pint_gbp", cell: (row) => row.minGbp.toFixed(2) },
+  { name: "cheapest_pint_pub", cell: (row) => csvField(row.minPubName) },
+  { name: "dearest_pint_gbp", cell: (row) => row.maxGbp.toFixed(2) },
+  { name: "dearest_pint_pub", cell: (row) => csvField(row.maxPubName) },
+  { name: "observation_start", cell: (_row, snapshot) => snapshot.observationWindow?.start ?? "" },
+  { name: "observation_end", cell: (_row, snapshot) => snapshot.observationWindow?.end ?? "" },
+  { name: "snapshot_id", cell: (_row, snapshot) => csvField(snapshot.snapshotId) },
+];
+
+/**
+ * Columns the LIVE export carries and a PUBLISHED edition does not.
+ *
+ * A dated edition is written once, which is the whole reason a citation to one
+ * still resolves to the same bytes next year. Widening its CSV shifts every
+ * column after the new one along for anyone parsing by position, with no figure
+ * moved and no correction note to explain the change - exactly the surprise the
+ * written-once law exists to prevent. So a new column joins the live export
+ * first and only reaches the frozen editions through a deliberate correction.
+ */
+const LIVE_ONLY_CSV_COLUMNS = new Set(["dearest_pint_pub"]);
+
+const PUBLISHED_EDITION_CSV_COLUMNS = LEAGUE_CSV_COLUMNS.filter(
+  (column) => !LIVE_ONLY_CSV_COLUMNS.has(column.name),
+);
+
+/** The live export's columns, in order. */
+export const LEAGUE_CSV_HEADER = LEAGUE_CSV_COLUMNS.map((column) => column.name);
+
+/** The columns every published edition was frozen with. */
+export const PUBLISHED_EDITION_CSV_HEADER = PUBLISHED_EDITION_CSV_COLUMNS.map(
+  (column) => column.name,
+);
+
+function toCsv(
+  columns: readonly LeagueCsvColumn[],
+  snapshot: PintIndexSnapshot,
+  rows: readonly LeagueRow[],
+): string {
+  const lines = [columns.map((column) => column.name).join(",")];
   for (const row of rows) {
-    lines.push([
-      row.slug, csvField(row.name), String(row.pubCount), row.averageGbp.toFixed(2),
-      row.minGbp.toFixed(2), csvField(row.minPubName), row.maxGbp.toFixed(2),
-      snapshot.observationWindow?.start ?? "", snapshot.observationWindow?.end ?? "",
-      csvField(snapshot.snapshotId),
-    ].join(","));
+    lines.push(columns.map((column) => column.cell(row, snapshot)).join(","));
   }
   return lines.join("\r\n") + "\r\n";
+}
+
+export function leagueTableToCsv(snapshot: PintIndexSnapshot, rows = buildLeagueTable(snapshot)): string {
+  return toCsv(LEAGUE_CSV_COLUMNS, snapshot, rows);
+}
+
+/** The CSV of a frozen month, in the shape it was published in. */
+export function publishedEditionToCsv(
+  snapshot: PintIndexSnapshot,
+  rows = buildLeagueTable(snapshot),
+): string {
+  return toCsv(PUBLISHED_EDITION_CSV_COLUMNS, snapshot, rows);
 }
 
 // en-GB, London time, so "30 June 2026" reads the same wherever the build runs.
@@ -251,5 +319,9 @@ export function indexSummary(rows: LeagueRow[]) {
     averageGbp: pubCount ? Math.round(weighted / pubCount * 100) / 100 : null,
     cheapestBorough: rows[0] ?? null,
     dearestBorough: rows.length ? rows.reduce((best, row) => row.averageGbp > best.averageGbp ? row : best) : null,
+    // The single dearest eligible pint on the table, and where it is. A borough
+    // average answers "which patch is pricey"; this answers "what is the worst
+    // of it", which is the question the expensive end is actually asked.
+    dearestPint: rows.length ? dearestFirst(rows)[0] : null,
   };
 }

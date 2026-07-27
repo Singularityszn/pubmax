@@ -50,6 +50,15 @@ than registered as `static`. It may never reach a current-price surface at all.
 Its contract is owned by
 [`public/data/price_history/README.md`](../public/data/price_history/README.md).
 
+**Not a class in this table either: national pint benchmarks.** The cited UK
+figures shown on `/pint-index` (`lib/nationalPintBenchmarks.ts`) are other
+publishers' measurements, hand-curated and carried in code with a publisher, a
+public link and a publication day each. We do not refresh them, so they have no
+cadence and no staleness budget of ours to breach, and they are deliberately
+absent from `data/freshness_registry.json`. They may never be aggregated with our
+own prices or reach a current-price surface, and they never appear on a dated
+edition. The rule lives at the top of that module.
+
 ---
 
 ## 2. Activation matrix — which owner key arms which refresh

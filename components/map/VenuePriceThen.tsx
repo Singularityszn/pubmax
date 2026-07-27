@@ -9,6 +9,7 @@ import {
   venuePriceArc,
   type PriceHistoryObservation,
 } from "@/lib/priceHistory";
+import { priceMovementLine } from "@/lib/priceMovementLine";
 import { formatPrice } from "@/lib/venues";
 
 import "./venuePriceThen.css";
@@ -50,16 +51,6 @@ function useVenueHistory(venueId: string): PriceHistoryObservation[] | null {
   return loaded && loaded.venueId === venueId ? loaded.rows : null;
 }
 
-// "Up £2.90 in 12 years." A flat price gets its own sentence rather than a
-// "+£0.00", and a gap under a year says so instead of claiming "0 years".
-function movementLine(deltaGbp: number, years: number): string {
-  const span = years >= 1 ? `in ${years} ${years === 1 ? "year" : "years"}` : "since then";
-  const pennies = Math.round(deltaGbp * 100);
-  if (pennies === 0) return `Same price ${span}.`;
-  const direction = pennies > 0 ? "Up" : "Down";
-  return `${direction} ${formatPrice(Math.abs(deltaGbp))} ${span}.`;
-}
-
 export default function VenuePriceThen({
   venueId,
   currentPriceGbp,
@@ -95,7 +86,7 @@ export default function VenuePriceThen({
         ) : null}
       </p>
       {deltaGbp !== null ? (
-        <p className="vptMovement">{movementLine(deltaGbp, years)}</p>
+        <p className="vptMovement">{priceMovementLine(deltaGbp, years)}</p>
       ) : null}
       <p className="vptSource">
         <a href={then.source.url} target="_blank" rel="noopener noreferrer">
