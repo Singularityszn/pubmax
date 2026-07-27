@@ -7,7 +7,7 @@ Pick a crawl style, filter, and either accept a **Suggested Crawl** or **Build y
 ## Features
 
 - **Landing** — themed intro that links straight into the planner (`/map?style=heritage`).
-- **3-D map** - pitched, slowly-orbiting MapLibre view of London and supported UK cities. Curated London venues use distinct pub, bar, and late-food glyphs. Pub colours use pint-price thresholds; bar and food colours use relative bands within their own type. Kind filters can hide ordinary pins, while selected and deep-linked venues remain visible. Unverified UK pubs appear only after street-level zoom as quieter, unpriced rings.
+- **3-D map** - pitched, slowly-orbiting MapLibre view of London and supported UK cities. Curated London venues use distinct pub, bar, and late-food glyphs. Pub colours use pint-price thresholds; bar and food colours use relative bands within their own type; at street zoom, pub pins with a sourced pint price also print the figure itself ("£5.40") beneath the glyph - bar and food anchor prices stay on the venue sheet, labelled, never printed as a bare figure. Kind filters can hide ordinary pins, while selected and deep-linked venues remain visible. Unverified UK pubs appear only after street-level zoom as quieter, unpriced rings.
 - **Typed venue anchors** - bars and late food show labelled, dated, sourced cocktail or food anchors, never disguised as pint prices. Pint Drops and community price logging remain pub-only.
 - **Crawl planner** — Suggest mode (greedy nearest-good-neighbour route) or Build mode (tap to add stops); story filters by price, amenities, water, heritage.
 - **Curated routes** — named "generational" Featured crawls loaded as ordered stops.

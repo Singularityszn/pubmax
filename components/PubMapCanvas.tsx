@@ -69,7 +69,8 @@ import {
   AMBIENT_CATEGORIES, poiFilter, transportFilter,
   TONIGHT_OPPORTUNITY_LAYERS, pubIconOpacityExpr, glowPulsePaint,
   pinEntranceIconSizeExpr, pinEntranceIconOpacityExpr,
-  selectedPinIconSizeExpr, selectedPinFilter, pinSortKeyExpr, clusterEntranceProgress,
+  selectedPinIconSizeExpr, selectedPinFilter, pinSortKeyExpr, pinPriceLabelExpr,
+  clusterEntranceProgress,
 } from "@/components/map/canvas/filters";
 import {
   HOVER_CARD_VIEWPORT_GUTTER_PX, HOVER_CARD_WIDTH_PX, HOVER_CARD_HEIGHT_PX,
@@ -1334,6 +1335,20 @@ export default function PubMapCanvas({
           PIN_ENTRANCE_RAMP_MS,
         ),
       );
+      // The price tag rides its own pin's stagger. Only visible when the map
+      // loads already at street zoom (a deep link), but there the alternative
+      // is a grid of numbers at full strength over glyphs still fading in.
+      map.setPaintProperty(
+        "pubs-point",
+        "text-opacity",
+        pinEntranceIconOpacityExpr(
+          elapsedMs,
+          selectedId,
+          PIN_ENTRANCE_BUCKETS,
+          PIN_ENTRANCE_STAGGER_MS,
+          PIN_ENTRANCE_RAMP_MS,
+        ),
+      );
       // City zoom shows clusters, not pins, so without this the entrance the
       // owner actually sees on a phone was no entrance at all — every disc
       // snapped in at full strength the moment the gate lifted. One shared
@@ -1360,12 +1375,17 @@ export default function PubMapCanvas({
       pinEntranceActiveRef.current = false;
       applyClusterEntranceFrame(1);
       if (!map.getLayer("pubs-point")) return;
+      map.setPaintProperty("pubs-point", "text-opacity-transition", {
+        duration: 250,
+        delay: 0,
+      });
       map.setPaintProperty("pubs-point", "icon-opacity-transition", {
         duration: 250,
         delay: 0,
       });
       map.setLayoutProperty("pubs-point", "icon-size", selectedPinIconSizeExpr(selectedIdRef.current));
       map.setPaintProperty("pubs-point", "icon-opacity", pubIconOpacityExpr(selectedIdRef.current));
+      map.setPaintProperty("pubs-point", "text-opacity", pubIconOpacityExpr(selectedIdRef.current));
     };
     // Fired once per mount, at the FIRST moment pins are actually visible:
     // either directly from settleSceneReady (tiles were already loaded, so the
@@ -1387,6 +1407,7 @@ export default function PubMapCanvas({
       pinEntranceActiveRef.current = true;
       pinEntranceStartRef.current = performance.now();
       map.setPaintProperty("pubs-point", "icon-opacity-transition", { duration: 0, delay: 0 });
+      map.setPaintProperty("pubs-point", "text-opacity-transition", { duration: 0, delay: 0 });
       // Paint t=0 synchronously so there's no one-frame flash of full-size,
       // full-opacity pins before the RAF loop's next tick picks up the ramp.
       applyPinEntranceFrame(0);
@@ -2214,6 +2235,18 @@ export default function PubMapCanvas({
           "pubs-point",
           "icon-opacity",
           pubIconOpacityExpr(selectedIdRef.current),
+        );
+        map.setPaintProperty(
+          "pubs-point",
+          "text-opacity",
+          pubIconOpacityExpr(selectedIdRef.current),
+        );
+        // …and the price tag steps aside for the selected pub, which redraws it
+        // itself on pubs-point-selected at the offset its bigger glyph needs.
+        map.setLayoutProperty(
+          "pubs-point",
+          "text-field",
+          pinPriceLabelExpr(selectedIdRef.current),
         );
         // Pins collide now, so the spotlight is only honest if the selected pin
         // also wins placement: re-key it to the front of the queue (and hand

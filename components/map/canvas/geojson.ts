@@ -4,6 +4,7 @@ import { drinkPinKindFromCategories, iconId, venuePinIconKey } from "@/lib/mapIc
 import type { Landmark } from "@/lib/landmarks";
 import { bandAnchors, type StoryBand } from "@/lib/storyBands";
 import type { Venue } from "@/lib/venues";
+import { isPubVenueKind } from "@/lib/venueKindFilters";
 import type { VenueWhatsOnSummary } from "@/lib/whatsOnBadges";
 import type { VenueSignal } from "./types";
 import { hashEntranceSeed } from "./filters";
@@ -14,6 +15,70 @@ export function priceBucket(price: number | null): number {
   if (price <= 5.5) return 0;
   if (price <= 7) return 1;
   return 2;
+}
+
+/**
+ * The pin's price tag text, or null when this pub has no figure it is allowed
+ * to say out loud.
+ *
+ * Short on purpose: a pin glyph is ~28px wide, so the label has to read in one
+ * saccade next to a dozen neighbours. Whole pounds drop the pence ("£6", not
+ * "£6.00") because two dead zeroes cost a third of the glyph's width and carry
+ * no information; anything else keeps both decimals ("£5.40") so the column of
+ * prices down a street stays comparable at a glance.
+ *
+ * Null for anything that is not a real, positive figure - a missing price is
+ * NEVER a placeholder on this map ("£?" is a worse answer than silence).
+ */
+export function formatPinPriceLabel(price: number | null | undefined): string | null {
+  if (typeof price !== "number" || !Number.isFinite(price) || price <= 0) return null;
+  const pence = Math.round(price * 100);
+  if (pence <= 0) return null;
+  return pence % 100 === 0 ? `£${pence / 100}` : `£${(pence / 100).toFixed(2)}`;
+}
+
+/**
+ * The two price reads a pin makes, from one stack, split at one point.
+ *
+ * `price` feeds the colour band: contributor price wins; then slim-index
+ * cheapestPrice; then an honest demo seed price so city packs with null
+ * cheapestPrice still colour pins. Demo never merges into venue.cheapestPrice
+ * (mergeVenueDrops ignores it).
+ *
+ * `sourcedPrice` is the price the pin is allowed to SAY, as opposed to the
+ * band it is allowed to PAINT. Same stack, minus the demo seed: a seeded
+ * figure may tint a pin (a colour band is a hint, and the seed exists so a
+ * city pack with null cheapestPrice still reads as a map) but printing
+ * "£5.40" over a pub is a claim about that pub, and we have no observation
+ * behind it. So the seed lane stops here, deliberately.
+ *
+ * The sayable lane is also PUB-ONLY (isPubVenueKind): the map's figure idiom
+ * is the pint price, and a famous bar/food venue's cheapestPrice is its anchor
+ * price - a £25 house cocktail, a £15 doner - which printed bare would read as
+ * a pint. Anchors stay labelled and dated on the venue sheet; the band (which
+ * is type-relative for those kinds anyway) still paints.
+ *
+ * A PROVISIONAL report cannot reach either read: an uncorroborated submission
+ * never becomes `latestContributorPrice` (the gate is
+ * mergeCommunityPriceSignals), so the rule the `provisional` prop states — a
+ * mark, never a figure — holds for the label too, with no second gate to keep
+ * in sync. Where such a pub ALSO carries a curated sourced price, that curated
+ * figure still shows: it is the same price the bucket is already painting, and
+ * hiding it because someone filed an unconfirmed report would be the map lying
+ * about what it knows.
+ */
+function pinPriceStack(
+  venue: Venue,
+  signals: VenueSignal | undefined,
+  favoritePint: string | null,
+  beerPrice: number | null,
+): { price: number | null; sourcedPrice: number | null } {
+  if (favoritePint) return { price: beerPrice, sourcedPrice: beerPrice };
+  const bandPrice = signals?.latestContributorPrice ?? venue.cheapestPrice ?? null;
+  return {
+    price: bandPrice ?? signals?.latestDemoPrice ?? null,
+    sourcedPrice: isPubVenueKind(venue.kind) ? bandPrice : null,
+  };
 }
 
 export function pubsToGeoJSON(
@@ -41,16 +106,10 @@ export function pubsToGeoJSON(
       // drink/brand lenses filter via filterVenues — never invent brand prices.
       const beerPrice = favoritePint ? priceForBeer(venue, favoritePint) : null;
       const serves = !favoritePint || beerPrice !== null;
-      // Contributor price wins; then slim-index cheapestPrice; then an honest
-      // demo seed price so city packs with null cheapestPrice still colour pins.
-      // Demo never merges into venue.cheapestPrice (mergeVenueDrops ignores it).
-      const price = favoritePint
-        ? beerPrice
-        : signals?.latestContributorPrice ??
-          venue.cheapestPrice ??
-          signals?.latestDemoPrice ??
-          null;
+      // Band price vs sayable price — the split is pinPriceStack's contract.
+      const { price, sourcedPrice } = pinPriceStack(venue, signals, favoritePint, beerPrice);
       const bucket = venue.priceBand ?? priceBucket(price);
+      const priceLabel = formatPinPriceLabel(sourcedPrice);
       // Active drink lens owns the glyph: beer → pint glasses, wine → wine, etc.
       // Without a lens, fall back to venue hint categories.
       const lens = drinkCategory?.trim().toLowerCase() ?? "";
@@ -119,6 +178,12 @@ export function pubsToGeoJSON(
           ...(whatsOn
             ? { whatsOn: whatsOn.heroKind, whatsOnTimed: whatsOn.timed }
             : {}),
+          // Render-ready price tag for the pin's text-field. ABSENT (not null,
+          // not "") on an unpriced pub so ["has","priceLabel"] and a coalesce
+          // to "" both read cleanly, exactly like `whatsOn` above - the ~38k
+          // UK base pubs are a different source entirely and never come near
+          // this function.
+          ...(priceLabel ? { priceLabel } : {}),
         },
         geometry: { type: "Point" as const, coordinates: [venue.longitude, venue.latitude] },
       };

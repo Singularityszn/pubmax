@@ -12,6 +12,7 @@ import {
   LANDMARK_ICON_PRIORITY_ZOOM,
   PIN_HALO_ENVELOPE_PX,
   PIN_MIN_ZOOM,
+  PIN_PRICE_LABEL_PADDING,
   PROVISIONAL_BADGE_OFFSET_PX,
   PROVISIONAL_BADGE_RADIUS_MAX_PX,
   UK_BASE_ICON_OPACITY,
@@ -22,9 +23,12 @@ import {
 import {
   clusterEntranceProgress,
   pinSortKeyExpr,
+  pinPriceLabelExpr,
   PIN_ICON_SIZE_EXPR,
+  PIN_PRICE_LABEL_MIN_ZOOM,
   pubIconOpacityExpr,
   selectedPinFilter,
+  SELECTED_PIN_PRICE_LABEL_EXPR,
 } from "@/components/map/canvas/filters";
 import { landmarksToGeoJSON } from "@/components/map/canvas/geojson";
 import type { Landmark } from "@/lib/landmarks";
@@ -310,6 +314,112 @@ describe("provisional-report badge (ungated visibility, zero authority)", () => 
   it("reads no price at all - not the bucket, not a band colour", () => {
     expect(JSON.stringify(paint)).not.toContain("bucket");
     expect(JSON.stringify(paint)).not.toContain("latestContributorPrice");
+  });
+});
+
+// The price tag is the first thing this map draws OUTSIDE a pin's icon padding,
+// so it is the first thing that can break the density contract by growing what
+// a pin occupies. The badge above bought its exemption by hiding inside that
+// padding; the tag cannot, so it takes the ordinary deal instead - and these
+// assert it actually took it.
+describe("priced-pin price tag (collides, and yields before the pin does)", () => {
+  const { layers } = buildScenePieces();
+  const layout = (id: string) => (layers.get(id)?.layout ?? {}) as Record<string, unknown>;
+  const paint = (id: string) => (layers.get(id)?.paint ?? {}) as Record<string, unknown>;
+
+  it("rides the priced-pin layer itself, not a second symbol layer", () => {
+    // A separate label layer would place independently of its own pin: a price
+    // could survive where its glyph was dropped, or drift onto a neighbour.
+    expect(layout("pubs-point")["text-field"]).toEqual(pinPriceLabelExpr(""));
+    expect(layers.get("pubs-point-price-label")).toBeUndefined();
+  });
+
+  it("participates in the same collision index the pins do", () => {
+    const pins = layout("pubs-point");
+    expect(pins["text-allow-overlap"]).toBe(false);
+    expect(pins["text-ignore-placement"]).toBe(false);
+    expect(pins["text-padding"]).toBe(PIN_PRICE_LABEL_PADDING);
+    // A labelled pin must still reserve its halo envelope, unchanged.
+    expect(pins["icon-padding"]).toBe(6);
+  });
+
+  it("yields before the icon does - the label goes, the pin stays", () => {
+    expect(layout("pubs-point")["text-optional"]).toBe(true);
+    // The mirror of that: icon-optional is never set, so a pin is never
+    // dropped merely to keep its own price on screen.
+    expect(layout("pubs-point")["icon-optional"]).toBeUndefined();
+  });
+
+  it("is zoom-gated above the pin floor and the cluster band", () => {
+    // Below the gate the text-field evaluates to "" - no glyphs, no collision
+    // box - so the overview is byte-identical to the map before labels.
+    expect(PIN_PRICE_LABEL_MIN_ZOOM).toBeGreaterThan(PIN_MIN_ZOOM);
+    expect(PIN_PRICE_LABEL_MIN_ZOOM).toBeGreaterThan(CLUSTER_MAX_ZOOM);
+    const field = layout("pubs-point")["text-field"] as unknown[];
+    expect(field.slice(0, 4)).toEqual(["step", ["zoom"], "", PIN_PRICE_LABEL_MIN_ZOOM]);
+  });
+
+  it("prints nothing for a pub with no sayable price", () => {
+    // `priceLabel` is absent on unpriced/demo-only/provisional-only pubs
+    // (see canvas-geojson.test.ts), and the coalesce turns that into "".
+    const field = layout("pubs-point")["text-field"] as unknown[];
+    expect(field[4]).toEqual(["coalesce", ["get", "priceLabel"], ""]);
+  });
+
+  it("never borrows a band colour for the figure", () => {
+    // The number IS the price; tinting it would say the same thing twice and
+    // invite reading it as a fourth signal alongside the three bands.
+    //
+    // The failable form of that rule: the tag's two colours must be CONSTANTS.
+    // A band tint can only arrive as a data expression - ["match", ["get",
+    // "bucket"], …] or a case/step over the same - which lands here as an
+    // array, never a string. (Reading `text-color` off the LAYOUT object, as
+    // an earlier version of this test did, asserts nothing: it is a paint
+    // property, so that lookup is undefined no matter what the layer does.)
+    const pins = paint("pubs-point");
+    expect(typeof pins["text-color"]).toBe("string");
+    expect(typeof pins["text-halo-color"]).toBe("string");
+    expect(JSON.stringify(pins)).not.toContain("bucket");
+  });
+
+  it("dims with its own pin instead of shouting past the spotlight", () => {
+    const selected = buildScenePieces("venue-abc").layers.get("pubs-point")!;
+    const selectedPaint = (selected.paint ?? {}) as Record<string, unknown>;
+    expect(selectedPaint["text-opacity"]).toEqual(pubIconOpacityExpr("venue-abc"));
+  });
+
+  it("draws the selected pub's figure once, on the selected-pin layer", () => {
+    const selectedLayers = buildScenePieces("venue-abc").layers;
+    const base = (selectedLayers.get("pubs-point")?.layout ?? {}) as Record<string, unknown>;
+    // The base layer leaves a hole for the selected feature…
+    expect(base["text-field"]).toEqual(pinPriceLabelExpr("venue-abc"));
+    expect((base["text-field"] as unknown[])[4]).toEqual([
+      "case",
+      ["==", ["get", "id"], "venue-abc"],
+      "",
+      ["coalesce", ["get", "priceLabel"], ""],
+    ]);
+    // …which the enlarged pin fills at its own offset.
+    const selected = (selectedLayers.get("pubs-point-selected")?.layout ??
+      {}) as Record<string, unknown>;
+    expect(selected["text-field"]).toEqual(SELECTED_PIN_PRICE_LABEL_EXPR);
+    expect(selected["text-offset"]).not.toEqual(base["text-offset"]);
+  });
+
+  it("does not extend the selected pin's overlap exemption to its figure", () => {
+    // The icon may stamp over a neighbour (it is the one thing the user is
+    // looking at); a NUMBER doing so would be printing a price on the wrong pub.
+    const selected = (buildScenePieces("venue-abc").layers.get("pubs-point-selected")
+      ?.layout ?? {}) as Record<string, unknown>;
+    expect(selected["icon-allow-overlap"]).toBe(true);
+    expect(selected["text-allow-overlap"]).toBe(false);
+    expect(selected["text-ignore-placement"]).toBe(false);
+    expect(selected["text-optional"]).toBe(true);
+  });
+
+  it("leaves the unpriced UK base pubs with no text of any kind", () => {
+    // ~38k pubs we know nothing about. Never a placeholder, never a "£?".
+    expect(layout("uk-base-point")["text-field"]).toBeUndefined();
   });
 });
 

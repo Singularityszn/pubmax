@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  formatPinPriceLabel,
   priceBucket,
   pubsToGeoJSON,
   routeToLine,
@@ -263,6 +264,131 @@ describe("pubsToGeoJSON provisional mark", () => {
     // it never edits the price-band system.
     expect(a?.properties?.bucket).toBe(priceBucket(6));
     expect(b?.properties?.bucket).toBe(priceBucket(6));
+  });
+});
+
+describe("formatPinPriceLabel", () => {
+  it("drops the pence on a whole pound and keeps both otherwise", () => {
+    // Two dead zeroes cost a third of the glyph's width and say nothing.
+    expect(formatPinPriceLabel(6)).toBe("£6");
+    expect(formatPinPriceLabel(6.0)).toBe("£6");
+    expect(formatPinPriceLabel(5.4)).toBe("£5.40");
+    expect(formatPinPriceLabel(5.45)).toBe("£5.45");
+    expect(formatPinPriceLabel(12.5)).toBe("£12.50");
+  });
+
+  it("rounds to the nearest penny rather than printing float noise", () => {
+    expect(formatPinPriceLabel(5.405)).toBe("£5.41");
+    expect(formatPinPriceLabel(6.999)).toBe("£7");
+  });
+
+  it("returns null for anything that is not a real, positive figure", () => {
+    // A missing price is silence on this map, never a placeholder.
+    for (const value of [null, undefined, 0, -1, NaN, Infinity]) {
+      expect(formatPinPriceLabel(value as number | null)).toBeNull();
+    }
+    // …including a rounding-to-zero figure, which would print "£0".
+    expect(formatPinPriceLabel(0.001)).toBeNull();
+  });
+});
+
+// The pin's figure is a CLAIM about a pub, so its input stack is narrower than
+// the colour band's: colour may be a hint, a number may not. These pin the
+// three exclusions that keeps true.
+describe("pubsToGeoJSON price label (only a sourced price gets a figure)", () => {
+  const noSignals = new Map<string, VenueSignal>();
+  const propsOf = (
+    venue: Venue,
+    signals = noSignals,
+    favoritePint: string | null = null,
+    provisional: ReadonlySet<string> | null = null,
+  ) =>
+    pubsToGeoJSON([venue], signals, favoritePint, null, null, provisional).features[0]
+      ?.properties ?? {};
+
+  it("labels a curated sourced price", () => {
+    expect(propsOf(makeVenue({ id: "curated", cheapestPrice: 5.4 })).priceLabel).toBe("£5.40");
+  });
+
+  it("prefers a contributor price, exactly as the colour band does", () => {
+    const signals = new Map<string, VenueSignal>([
+      ["logged", { hasPintDrops: true, latestContributorPrice: 4.8 }],
+    ]);
+    const props = propsOf(makeVenue({ id: "logged", cheapestPrice: 6 }), signals);
+    expect(props.priceLabel).toBe("£4.80");
+    expect(props.bucket).toBe(priceBucket(4.8));
+  });
+
+  it("labels the favourite-pint price under a beer lens", () => {
+    const venue = makeVenue({
+      id: "lensed",
+      cheapestPrice: 4,
+      prices: [{ pint_name: "Guinness", price_gbp: 7.2 }],
+    } as Partial<Venue>);
+    expect(propsOf(venue, noSignals, "guinness").priceLabel).toBe("£7.20");
+  });
+
+  it("omits the property entirely on an unpriced pub - never a placeholder", () => {
+    const props = propsOf(makeVenue({ id: "unpriced" }));
+    expect("priceLabel" in props).toBe(false);
+    expect(props.bucket).toBe(priceBucket(null));
+  });
+
+  it("never prints a demo seed, even though the seed still tints the pin", () => {
+    // The seed exists so a city pack with null cheapestPrice still reads as a
+    // map. A band is a hint; "£5.20" over a pub is a claim we cannot back.
+    const signals = new Map<string, VenueSignal>([
+      ["seeded", { hasPintDrops: true, latestContributorPrice: null, latestDemoPrice: 5.2 }],
+    ]);
+    const props = propsOf(makeVenue({ id: "seeded" }), signals);
+    expect("priceLabel" in props).toBe(false);
+    expect(props.bucket).toBe(priceBucket(5.2));
+  });
+
+  it("gives a lone provisional report a mark and no figure", () => {
+    // An uncorroborated submission never reaches latestContributorPrice (the
+    // gate is mergeCommunityPriceSignals), so there is nothing here to print.
+    const props = propsOf(makeVenue({ id: "pending" }), noSignals, null, new Set(["pending"]));
+    expect(props.provisional).toBe(true);
+    expect("priceLabel" in props).toBe(false);
+  });
+
+  it("still prints a curated price on a pub that also has a pending report", () => {
+    // The figure shown is the one the colour band is ALREADY painting. Hiding
+    // it because someone filed an unconfirmed report would be the map
+    // pretending not to know a price it does know.
+    const props = propsOf(
+      makeVenue({ id: "pending", cheapestPrice: 6.3 }),
+      noSignals,
+      null,
+      new Set(["pending"]),
+    );
+    expect(props.provisional).toBe(true);
+    expect(props.priceLabel).toBe("£6.30");
+  });
+
+  it("prints nothing where a price BAND was set without a price", () => {
+    // priceBand short-circuits the bucket for famous bars/food venues; the
+    // label has no such shortcut, because a band is not a figure.
+    const props = propsOf(makeVenue({ id: "banded", kind: "bar", priceBand: 1 }));
+    expect(props.bucket).toBe(1);
+    expect("priceLabel" in props).toBe(false);
+  });
+
+  it("never prints a bar or food anchor price - the figure idiom is the pint", () => {
+    // Famous bar/food rows carry their anchor price (a house cocktail, a dish)
+    // as cheapestPrice in the slim index; printed bare it would read as a pint
+    // price. The band still paints; the sheet still shows the labelled anchor.
+    const bar = propsOf(
+      makeVenue({ id: "anchored-bar", kind: "bar", priceBand: 2, cheapestPrice: 25 }),
+    );
+    expect(bar.bucket).toBe(2);
+    expect("priceLabel" in bar).toBe(false);
+    const food = propsOf(
+      makeVenue({ id: "anchored-food", kind: "food", priceBand: 0, cheapestPrice: 15 }),
+    );
+    expect(food.bucket).toBe(0);
+    expect("priceLabel" in food).toBe(false);
   });
 });
 
