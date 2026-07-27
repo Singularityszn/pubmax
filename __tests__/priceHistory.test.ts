@@ -186,6 +186,47 @@ describe("price archaeology: identity", () => {
   });
 });
 
+describe("price archaeology: the venue-sheet gate", () => {
+  const overviewTab = readFileSync(
+    join(ROOT, "components/map/inspector/VenueOverviewTab.tsx"),
+    "utf8",
+  );
+
+  it("withholds 'now' from a venue whose current price is not a pint", () => {
+    // A bar or food venue's cheapestPrice is an anchor price: a cocktail, a
+    // doner, a signature dish. Setting an old PINT against it would read as a
+    // pint-to-pint comparison and be a lie in the one place this feature is
+    // supposed to be evidence. Every shipped history venue happens to be a pub
+    // today, so nothing in the data exercises this branch: it is the source
+    // that has to hold it.
+    const start = overviewTab.indexOf("<VenuePriceThen");
+    expect(start, "VenueOverviewTab must render the then-and-now block").toBeGreaterThan(-1);
+    const element = overviewTab.slice(start, overviewTab.indexOf("/>", start) + 2);
+    expect(element).toMatch(/currentPriceGbp=\{[\s\S]*isPubVenue\(venue\)[\s\S]*:\s*null[\s\S]*\}/);
+  });
+
+  it("renders only the historical line when there is no price to compare against", () => {
+    // History with no current price still ships: the dated fact stands alone
+    // and the block degrades to that one sentence rather than disappearing.
+    const arc = venuePriceArc(
+      [
+        {
+          venueId: "venue-x",
+          venueName: "Hand and Shears",
+          priceGbp: 4,
+          observedOn: "2013-04-17",
+          source: { label: "beerintheevening.com", url: "https://example.com/a", licence: "l" },
+        },
+      ],
+      null,
+    );
+    expect(arc?.then.priceGbp).toBe(4);
+    expect(arc?.nowGbp).toBeNull();
+    // No movement line, so no "Up £0.00 in 13 years" against a price we do not have.
+    expect(arc?.deltaGbp).toBeNull();
+  });
+});
+
 describe("price archaeology: the import fence", () => {
   // The only two places allowed to know historical prices exist.
   const ALLOWED = new Set([

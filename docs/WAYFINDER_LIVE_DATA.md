@@ -43,6 +43,13 @@ page, official API, open data) supports.
 | **Buzz digest** | CityMCP `get_place` deep synthesis | `app/api/citymcp/buzz` per request | Live but **content is EXA-blocked upstream** — returns `{buzz:null}` when CityMCP has no digest | none locally; upstream EXA-gated | Live | live |
 | **TfL line geometry / London POIs** | Curated GeoJSON | Manual | Static | none | Rarely changes | untracked (static) |
 
+**Not a class in this table: historical pint prices.** `public/data/price_history/london.json`
+is dated evidence about the past, so it has no cadence and no staleness budget to
+breach, and it is deliberately absent from `data/freshness_registry.json` rather
+than registered as `static`. It may never reach a current-price surface at all.
+Its contract is owned by
+[`public/data/price_history/README.md`](../public/data/price_history/README.md).
+
 ---
 
 ## 2. Activation matrix — which owner key arms which refresh
