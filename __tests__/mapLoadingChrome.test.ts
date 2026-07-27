@@ -36,8 +36,15 @@ describe("map loading chrome", () => {
   // hear what is happening, not the joke, so the aria-label states the fact and
   // nothing else.
   it("keeps the held frame's accessible name literal", () => {
-    expect(pubMap).toContain("aria-label={`Loading the ${city.displayName} venue map.`}");
-    const label = pubMap.match(/aria-label=\{`Loading the \$\{city\.displayName\} venue map\.[^`]*`\}/);
-    expect(label?.[0]).toBe("aria-label={`Loading the ${city.displayName} venue map.`}");
+    // Scan EVERY aria-label in the file, not the first one that matches: a
+    // second held frame with a joke appended to its label has to fail here.
+    const labels =
+      pubMap.match(/aria-label=(?:"[^"]*"|\{`[^`]*`\}|\{[^}]*\})/g) ?? [];
+    const loadingLabels = labels.filter((label) => label.includes("Loading"));
+
+    expect(loadingLabels.length).toBeGreaterThan(0);
+    for (const label of loadingLabels) {
+      expect(label).toBe("aria-label={`Loading the ${city.displayName} venue map.`}");
+    }
   });
 });

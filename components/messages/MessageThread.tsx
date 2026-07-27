@@ -50,7 +50,7 @@ function MessageBody({ body }: { body: string }): React.JSX.Element {
   );
 }
 
-type ThreadState = "loading" | "ready" | "notfound" | "signedout";
+type ThreadState = "loading" | "ready" | "notfound" | "signedout" | "unreachable";
 
 export default function MessageThread({
   conversationId,
@@ -66,6 +66,7 @@ export default function MessageThread({
   const [sending, setSending] = useState(false);
   const [error, setError] = useState("");
   const listEndRef = useRef<HTMLDivElement | null>(null);
+  const everLoadedRef = useRef(false);
 
   useEffect(() => {
     let active = true;
@@ -82,6 +83,9 @@ export default function MessageThread({
   // Refetch the thread through the participant-gated API. A 404 = we're not a
   // participant (or the conversation is gone) → show not-found, never a leak.
   // Wave I2: 401 without sign-in → signedout; Bearer via authedFetch.
+  // A fetch that fails before the thread has ever loaded lands on "unreachable"
+  // so the loading line only ever stands for a load that is still running; once
+  // a thread HAS loaded, a failed poll keeps the messages already on screen.
   const refresh = useCallback(
     async (signal?: AbortSignal) => {
       if (!user) {
@@ -106,17 +110,24 @@ export default function MessageThread({
           setState("notfound");
           return;
         }
-        if (!res.ok) return;
+        if (!res.ok) {
+          if (!everLoadedRef.current) setState("unreachable");
+          return;
+        }
         const body = (await res.json()) as { messages?: MessageDTO[] };
         const next = Array.isArray(body.messages) ? body.messages : [];
+        everLoadedRef.current = true;
         setMessages(next);
         // Derive the other participant from the first non-mine message, else keep
         // whatever we had (a brand-new thread with only my messages shows me).
         const theirs = next.find((m) => m.senderHandle !== h);
         if (theirs) setOtherHandle(theirs.senderHandle);
         setState("ready");
-      } catch {
-        // aborted / offline — keep what we have
+      } catch (err) {
+        // An abort is our own teardown, never a failure the reader should see.
+        const aborted =
+          signal?.aborted || (err instanceof Error && err.name === "AbortError");
+        if (!aborted && !everLoadedRef.current) setState("unreachable");
       }
     },
     [conversationId, user, authHandle],
@@ -215,6 +226,24 @@ export default function MessageThread({
       <p className="conversationPreview">
         Conversation not found. <Link href="/messages">Back to inbox</Link>
       </p>
+    );
+  }
+  if (state === "unreachable") {
+    return (
+      <div className="threadFailure">
+        <p>This conversation won&rsquo;t open right now. Your messages are safe.</p>
+        <button
+          type="button"
+          className="threadRetryBtn"
+          onClick={() => {
+            setState("loading");
+            void refresh();
+          }}
+        >
+          Try again
+        </button>
+        <Link href="/messages">Back to inbox</Link>
+      </div>
     );
   }
 
