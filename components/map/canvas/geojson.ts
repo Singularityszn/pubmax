@@ -16,6 +16,26 @@ export function priceBucket(price: number | null): number {
   return 2;
 }
 
+/**
+ * The pin's price tag text, or null when this pub has no figure it is allowed
+ * to say out loud.
+ *
+ * Short on purpose: a pin glyph is ~28px wide, so the label has to read in one
+ * saccade next to a dozen neighbours. Whole pounds drop the pence ("£6", not
+ * "£6.00") because two dead zeroes cost a third of the glyph's width and carry
+ * no information; anything else keeps both decimals ("£5.40") so the column of
+ * prices down a street stays comparable at a glance.
+ *
+ * Null for anything that is not a real, positive figure - a missing price is
+ * NEVER a placeholder on this map ("£?" is a worse answer than silence).
+ */
+export function formatPinPriceLabel(price: number | null | undefined): string | null {
+  if (typeof price !== "number" || !Number.isFinite(price) || price <= 0) return null;
+  const pence = Math.round(price * 100);
+  if (pence <= 0) return null;
+  return pence % 100 === 0 ? `£${pence / 100}` : `£${(pence / 100).toFixed(2)}`;
+}
+
 export function pubsToGeoJSON(
   venues: Venue[],
   venueSignals: Map<string, VenueSignal>,
@@ -51,6 +71,25 @@ export function pubsToGeoJSON(
           signals?.latestDemoPrice ??
           null;
       const bucket = venue.priceBand ?? priceBucket(price);
+      // The price the pin is allowed to SAY, as opposed to the band it is
+      // allowed to PAINT. Same stack as `price` above, minus the demo seed:
+      // a seeded figure may tint a pin (a colour band is a hint, and the seed
+      // exists so a city pack with null cheapestPrice still reads as a map) but
+      // printing "£5.40" over a pub is a claim about that pub, and we have no
+      // observation behind it. So the seed lane stops here, deliberately.
+      //
+      // A PROVISIONAL report cannot reach this line at all: an uncorroborated
+      // submission never becomes `latestContributorPrice` (the gate is
+      // mergeCommunityPriceSignals), so the rule the `provisional` prop below
+      // states - a mark, never a figure - holds for the label too, with no
+      // second gate to keep in sync. Where such a pub ALSO carries a curated
+      // sourced price, that curated figure still shows: it is the same price
+      // `bucket` is already painting, and hiding it because someone filed an
+      // unconfirmed report would be the map lying about what it knows.
+      const sourcedPrice = favoritePint
+        ? beerPrice
+        : signals?.latestContributorPrice ?? venue.cheapestPrice ?? null;
+      const priceLabel = formatPinPriceLabel(sourcedPrice);
       // Active drink lens owns the glyph: beer → pint glasses, wine → wine, etc.
       // Without a lens, fall back to venue hint categories.
       const lens = drinkCategory?.trim().toLowerCase() ?? "";
@@ -119,6 +158,12 @@ export function pubsToGeoJSON(
           ...(whatsOn
             ? { whatsOn: whatsOn.heroKind, whatsOnTimed: whatsOn.timed }
             : {}),
+          // Render-ready price tag for the pin's text-field. ABSENT (not null,
+          // not "") on an unpriced pub so ["has","priceLabel"] and a coalesce
+          // to "" both read cleanly, exactly like `whatsOn` above - the ~38k
+          // UK base pubs are a different source entirely and never come near
+          // this function.
+          ...(priceLabel ? { priceLabel } : {}),
         },
         geometry: { type: "Point" as const, coordinates: [venue.longitude, venue.latitude] },
       };

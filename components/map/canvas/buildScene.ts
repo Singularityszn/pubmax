@@ -27,7 +27,10 @@ import {
   selectedPinIconSizeExpr,
   pubIconOpacityExpr,
   pinSortKeyExpr,
+  pinPriceLabelExpr,
   PIN_ICON_SIZE_EXPR,
+  PIN_PRICE_LABEL_MIN_ZOOM,
+  SELECTED_PIN_PRICE_LABEL_EXPR,
 } from "./filters";
 
 // The two zooms that shape pub density. They are deliberately NOT the same
@@ -120,6 +123,33 @@ export const PROVISIONAL_BADGE_RADIUS_MIN_PX = 3.2;
 export const PROVISIONAL_BADGE_RADIUS_MAX_PX = 4.2;
 /** The widest ring any pin wears (what's-on, at z15) — the envelope to stay in. */
 export const PIN_HALO_ENVELOPE_PX = 15;
+
+// The price tag: the figure a priced pin prints under its glyph from
+// PIN_PRICE_LABEL_MIN_ZOOM (see ./filters, which owns the zoom gate and the
+// text expressions). It is the one thing on a pin that is NOT free of the
+// density contract - the badge above buys its exemption by hiding inside the
+// icon's padding, but a number outside the glyph has to be a real symbol in
+// MapLibre's collision index or a dense street turns to smear. So the label
+// takes the ordinary deal every other label on this map takes: it collides, it
+// is `text-optional`, and where it cannot fit it is dropped and its pin stays.
+//
+// Sizes/offsets in ems of the label's own text-size, tuned so the tag hangs
+// just clear of the glass silhouette's foot (the glyph bottom sits at ~0.32 of
+// the icon box below centre) at every zoom the label draws at, on both the
+// standard pin and the 1.28× selected one.
+export const PIN_PRICE_LABEL_SIZE_EXPR: maplibregl.ExpressionSpecification = [
+  "interpolate",
+  ["linear"],
+  ["zoom"],
+  PIN_PRICE_LABEL_MIN_ZOOM,
+  9.5,
+  16.5,
+  11,
+];
+export const PIN_PRICE_LABEL_OFFSET_EM: [number, number] = [0, 1.2];
+export const SELECTED_PIN_PRICE_LABEL_OFFSET_EM: [number, number] = [0, 1.45];
+/** Collision padding around the tag's own box, in px. */
+export const PIN_PRICE_LABEL_PADDING = 4;
 
 // Zoom at/above which curated landmark pictograms stop yielding to other
 // symbols. Below it a landmark icon gives way where a pub cluster or pin
@@ -896,6 +926,30 @@ export function buildPubs(ctx: SceneCtx) {
       // one the user is looking at), then story pins, then priced pins, then
       // the rest. Lower sort key = placed first = survives.
       "symbol-sort-key": pinSortKeyExpr(selectedId),
+      // THE PRICE TAG. The one thing a price map has to do, and until now this
+      // map only did it in the venue sheet: a pin said "somewhere between £5.50
+      // and £7" in colour and made you tap to learn which. Empty string below
+      // PIN_PRICE_LABEL_MIN_ZOOM and on any pub with no sourced figure, so an
+      // unpriced pin (and the whole overview) is unchanged.
+      "text-field": pinPriceLabelExpr(selectedId),
+      "text-font": textFont,
+      "text-size": PIN_PRICE_LABEL_SIZE_EXPR,
+      // Hangs off the foot of the glass rather than floating beside it, so a
+      // row of pins reads as a row of price tags and never as loose labels
+      // whose pin you have to guess at.
+      "text-anchor": "top",
+      "text-offset": PIN_PRICE_LABEL_OFFSET_EM,
+      "text-letter-spacing": 0.01,
+      // The label takes the same deal every other label here takes: it collides
+      // (no allow-overlap escape hatch - that is what made a dense street a
+      // smear before pins started colliding), and `text-optional` is what makes
+      // the yielding order right: where the tag will not fit, the TAG goes and
+      // the pin stays. A pin without its price is still a pub; a price without
+      // its pin is noise.
+      "text-allow-overlap": false,
+      "text-ignore-placement": false,
+      "text-optional": true,
+      "text-padding": PIN_PRICE_LABEL_PADDING,
     },
     paint: {
       // M1 selection spotlight: non-selected pins dim to SELECTION_DIM_OPACITY
@@ -903,6 +957,21 @@ export function buildPubs(ctx: SceneCtx) {
       // opacity. Eased (not snapped) via icon-opacity-transition.
       "icon-opacity": pubIconOpacityExpr(selectedId),
       "icon-opacity-transition": { duration: 250, delay: 0 },
+      // Deliberately NOT a band colour, and never the pint/amber/brick palette:
+      // the figure IS the price, so tinting it would say the same thing twice
+      // and invite reading the number as a fourth signal. Plain ink over the
+      // map's paper/ink halo - the same idiom the route plaques and the
+      // provisional badge's rim already use - carries it over a pale Positron
+      // street, a dark night land and the pin's own silhouette alike.
+      "text-color": dark ? tokens.ink : tokens.inkDeep,
+      "text-halo-color": dark ? tokens.inkDeep : tokens.paper,
+      "text-halo-width": 1.8,
+      "text-halo-blur": 0.3,
+      // The tag belongs to its pin, so it dims with it - same expression the
+      // icon and the provisional badge wear. Without it, a pub the
+      // favourite-pint lens filtered out would still shout its price.
+      "text-opacity": pubIconOpacityExpr(selectedId),
+      "text-opacity-transition": { duration: 250, delay: 0 },
     },
   });
   // The selected pin, drawn again on its own layer with overlap allowed —
@@ -923,9 +992,32 @@ export function buildPubs(ctx: SceneCtx) {
       "icon-allow-overlap": true,
       "icon-ignore-placement": false,
       "icon-padding": 6,
+      // The selected pub's price tag. `pubs-point` leaves a hole for exactly
+      // this feature (pinPriceLabelExpr), so the figure is drawn once - here,
+      // pushed a little further down to clear the 1.28× glyph.
+      //
+      // The ICON's overlap exemption deliberately does not extend to the text:
+      // the tag still collides and is still optional, so selecting a pub can
+      // never stamp a number over a neighbour's. Selection already answers the
+      // price in full in the venue sheet; the tag is a bonus, not the source.
+      "text-field": SELECTED_PIN_PRICE_LABEL_EXPR,
+      "text-font": textFont,
+      "text-size": PIN_PRICE_LABEL_SIZE_EXPR,
+      "text-anchor": "top",
+      "text-offset": SELECTED_PIN_PRICE_LABEL_OFFSET_EM,
+      "text-letter-spacing": 0.01,
+      "text-allow-overlap": false,
+      "text-ignore-placement": false,
+      "text-optional": true,
+      "text-padding": PIN_PRICE_LABEL_PADDING,
     },
     paint: {
       "icon-opacity": 1,
+      "text-color": dark ? tokens.ink : tokens.inkDeep,
+      "text-halo-color": dark ? tokens.inkDeep : tokens.paper,
+      "text-halo-width": 1.8,
+      "text-halo-blur": 0.3,
+      "text-opacity": 1,
     },
   });
   // Selected pin: a confident double brass ring — a soft outer wash plus a

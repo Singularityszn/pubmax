@@ -128,6 +128,64 @@ export function pinSortKeyExpr(selectedId: string): maplibregl.ExpressionSpecifi
   return ["case", ["==", ["get", "id"], selectedId], 0, unselected];
 }
 
+// The zoom at/above which a priced pin prints its figure (`priceLabel`) under
+// the glyph. Deliberately ABOVE PIN_MIN_ZOOM (12) and above CLUSTER_MAX_ZOOM
+// (13), so a label only ever appears on a map that has already unclustered:
+//
+//   z12–z13  the mixed cluster band. Measured on a 390px viewport centred on
+//            Piccadilly/Soho: at z13.5 the West End is still almost entirely
+//            cluster discs - THREE individual pins in the whole viewport. A
+//            price there is a scatter of numbers over a city that is otherwise
+//            reading as colour, competing with the disc counts for the same
+//            space. Below the gate the text-field evaluates to "", so the
+//            overview is byte-identical to the map before labels existed.
+//   z14+     street reading. Same viewport at z14: 31 pins, no discs - the
+//            first zoom at which the source has actually unclustered
+//            (CLUSTER_MAX_ZOOM is 13), and the first at which the surviving
+//            pins are far enough apart for their labels to place. 18 of those
+//            31 carried a price; roughly two thirds of those labels placed and
+//            the rest yielded, which is the density contract working, not a
+//            failure.
+//
+// Placement still decides per pin - `text-optional` means a label that cannot
+// fit is dropped and its pin stays. This constant only decides when the map
+// STARTS asking.
+export const PIN_PRICE_LABEL_MIN_ZOOM = 14;
+
+/** The label text for one feature, "" where the pub has no sayable price. */
+const PRICE_LABEL_TEXT: maplibregl.ExpressionSpecification = [
+  "coalesce",
+  ["get", "priceLabel"],
+  "",
+];
+
+/**
+ * `pubs-point` `text-field`. Zoom-gated at PIN_PRICE_LABEL_MIN_ZOOM (MapLibre
+ * only accepts `zoom` as the input to a top-level step, hence the outer step
+ * wrapping the data expression), and blank for the SELECTED pub - that one is
+ * redrawn a size up on `pubs-point-selected`, which carries its own label at
+ * the offset its bigger glyph needs. Without this hole the two layers would
+ * print the same figure twice, half a glyph apart.
+ */
+export function pinPriceLabelExpr(selectedId: string): maplibregl.ExpressionSpecification {
+  const text: maplibregl.ExpressionSpecification = selectedId
+    ? ["case", ["==", ["get", "id"], selectedId], "", PRICE_LABEL_TEXT]
+    : PRICE_LABEL_TEXT;
+  return ["step", ["zoom"], "", PIN_PRICE_LABEL_MIN_ZOOM, text];
+}
+
+/**
+ * `pubs-point-selected` `text-field`. That layer's filter already narrows it to
+ * the one selected pub, so this needs no selected id and never changes.
+ */
+export const SELECTED_PIN_PRICE_LABEL_EXPR: maplibregl.ExpressionSpecification = [
+  "step",
+  ["zoom"],
+  "",
+  PIN_PRICE_LABEL_MIN_ZOOM,
+  PRICE_LABEL_TEXT,
+];
+
 /**
  * Filter for the dedicated selected-pin layer (`pubs-point-selected`): exactly
  * the selected unclustered pub, or nothing while no venue is selected. The
