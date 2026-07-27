@@ -3,6 +3,8 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import {
   __resetCommunityPrices,
   countCorroboratedCommunityCategories,
+  moderateCommunityPrice,
+  readCommunityPriceCategoryIndex,
   readCommunityPrices,
   submitCommunityPrice,
 } from "@/lib/communityPriceStore";
@@ -117,6 +119,54 @@ describe("communityPriceStore (memory backend)", () => {
   it("is honest-empty for a venue nobody has logged a price at", async () => {
     expect(await readCommunityPrices("never-logged")).toEqual([]);
     expect(await readCommunityPrices("")).toEqual([]);
+  });
+
+  it("indexes only requested categories across venues with trust metadata intact", async () => {
+    await submitCommunityPrice(
+      { venueId: "v1", drinkCategory: "soft-drink", priceGbp: 3.2, actor: "a" },
+      1_000,
+    );
+    await submitCommunityPrice(
+      { venueId: "v1", drinkCategory: "soft-drink", priceGbp: 3.3, actor: "b" },
+      2_000,
+    );
+    await submitCommunityPrice(
+      { venueId: "v2", drinkCategory: "alcohol-free", priceGbp: 5, actor: "c" },
+      3_000,
+    );
+    await submitCommunityPrice(
+      { venueId: "v3", drinkCategory: "beer", priceGbp: 6, actor: "d" },
+      4_000,
+    );
+
+    const result = await readCommunityPriceCategoryIndex(
+      ["soft-drink", "alcohol-free"],
+      10_000,
+    );
+    expect(result.degraded).toBe(false);
+    expect(result.truncated).toBe(false);
+    expect(result.prices.map((row) => [row.venueId, row.drinkCategory])).toEqual([
+      ["v2", "alcohol-free"],
+      ["v1", "soft-drink"],
+    ]);
+    expect(result.prices.find((row) => row.venueId === "v1")?.mapCandidate).toEqual({
+      priceGbp: 3.3,
+      submittedAt: 2_000,
+      corroborations: 2,
+    });
+    expect(JSON.stringify(result)).not.toContain('"actor"');
+  });
+
+  it("removes a hidden row from the category index without deleting it", async () => {
+    const { price } = await submitCommunityPrice(
+      { venueId: "v1", drinkCategory: "soft-drink", priceGbp: 3.2, actor: "a" },
+      1_000,
+    );
+    expect(price?.id).toBeTruthy();
+    await moderateCommunityPrice(price!.id!, true, "menu mismatch");
+
+    const result = await readCommunityPriceCategoryIndex(["soft-drink"], 10_000);
+    expect(result.prices).toEqual([]);
   });
 });
 

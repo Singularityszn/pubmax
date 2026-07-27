@@ -327,6 +327,47 @@ describe("pubsToGeoJSON provisional mark", () => {
   });
 });
 
+describe("pubsToGeoJSON experience-lens price isolation", () => {
+  it("prints a dedicated no-alcohol label with no pint label, band, or badge", () => {
+    const venue = makeVenue({ id: "soft", cheapestPrice: 6 });
+    const signals = new Map<string, VenueSignal>([
+      [
+        "soft",
+        {
+          hasPintDrops: true,
+          latestContributorPrice: 5,
+        },
+      ],
+    ]);
+    const lensPrices = new Map([
+      ["soft", {
+        venueId: "soft",
+        category: "soft-drink" as const,
+        categoryLabel: "Soft drink",
+        priceGbp: 3.2,
+        submittedAt: 2_000,
+        source: "community" as const,
+      }],
+    ]);
+    const props = pubsToGeoJSON(
+      [venue],
+      signals,
+      null,
+      null,
+      null,
+      new Set(["soft"]),
+      lensPrices,
+    ).features[0]?.properties ?? {};
+
+    expect(props.lensPriceLabel).toBe("£3.20");
+    expect(props.priceLabel).toBeUndefined();
+    expect(props.bucket).toBe(3);
+    expect(props.drops).toBe(false);
+    expect(props.provisional).toBe(false);
+    expect(venue.cheapestPrice).toBe(6);
+  });
+});
+
 describe("formatPinPriceLabel", () => {
   it("drops the pence on a whole pound and keeps both otherwise", () => {
     // Two dead zeroes cost a third of the glyph's width and say nothing.

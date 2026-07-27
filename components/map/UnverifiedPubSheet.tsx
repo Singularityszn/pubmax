@@ -16,6 +16,7 @@ import {
 } from "@/lib/communityPrice";
 import type { UkBasePub } from "@/lib/ukBasePubs";
 import { COMMUNITY_PRICE_NOTE, formatPrice } from "@/lib/venues";
+import type { MapExperienceLens } from "@/lib/mapExperienceLens";
 
 import "./unverifiedPubSheet.css";
 
@@ -27,11 +28,27 @@ import "./unverifiedPubSheet.css";
 type UnverifiedPubSheetProps = {
   pub: UkBasePub;
   communityPrices: CommunityPricesState;
+  experienceLens?: MapExperienceLens;
 };
 
-export default function UnverifiedPubSheet({ pub, communityPrices }: UnverifiedPubSheetProps) {
+export default function UnverifiedPubSheet({
+  pub,
+  communityPrices,
+  experienceLens = "all",
+}: UnverifiedPubSheetProps) {
   const pricesKnown = communityPrices.byVenueId.has(pub.id);
-  const communityPrice = freshestCommunityPrice(communityPrices.byVenueId.get(pub.id));
+  const rows = communityPrices.byVenueId.get(pub.id);
+  const communityPrice = freshestCommunityPrice(
+    experienceLens === "food"
+      ? undefined
+      : experienceLens === "no-alcohol"
+      ? rows?.filter(
+          (row) =>
+            row.drinkCategory === "soft-drink" ||
+            row.drinkCategory === "alcohol-free",
+        )
+      : rows,
+  );
   // Base pins are price-blind - no colour, no provisional dot - so this sheet
   // asks for page-only wording: the note may never claim a mark on the map.
   const communityTrustStanding = communityPrice
@@ -84,6 +101,14 @@ export default function UnverifiedPubSheet({ pub, communityPrices }: UnverifiedP
             />
           </div>
         </>
+      ) : pricesKnown && experienceLens === "no-alcohol" ? (
+        <p className="unverifiedPubLead">
+          No soft-drink or alcohol-free price logged here yet.
+        </p>
+      ) : pricesKnown && experienceLens === "food" ? (
+        <p className="unverifiedPubLead">
+          No sourced food price recorded here.
+        </p>
       ) : pricesKnown ? (
         <p className="unverifiedPubLead">
           We know this pub is here, and that is all we know. Nobody has logged what

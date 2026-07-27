@@ -48,6 +48,10 @@ export type CommunityPricesState = {
    *  candidate actually restamps is decided by the trust gate in
    *  mergeCommunityPriceSignals, the single seam onto the map. */
   freshestByVenueId: Map<string, CommunityPrice>;
+  /** State of the cross-venue no-alcohol price read. */
+  noAlcoholIndexStatus: "idle" | "loading" | "ready" | "degraded";
+  /** Load soft-drink and alcohol-free rows across venues once per session. */
+  loadNoAlcoholIndex: () => void;
   /** Fetch the community prices on record for one venue (fail-soft, once per id). */
   loadVenue: (venueId: string) => void;
   /** Log tonight's price. Restamps optimistically, rolls back on rejection. */
@@ -165,6 +169,26 @@ export function readVenuePriceLoad(value: unknown): VenuePriceLoad {
   return { status: "ready", prices };
 }
 
+export type CategoryPriceIndexLoad =
+  | { status: "ready"; prices: CommunityPrice[]; truncated: boolean }
+  | { status: "degraded"; prices: CommunityPrice[]; truncated: boolean }
+  | { status: "invalid"; prices: []; truncated: false };
+
+export function readCategoryPriceIndexLoad(
+  value: unknown,
+): CategoryPriceIndexLoad {
+  const prices = readPrices(value);
+  if (!prices) return { status: "invalid", prices: [], truncated: false };
+  const truncated =
+    typeof value === "object" &&
+    value !== null &&
+    (value as { truncated?: unknown }).truncated === true;
+  if ((value as { degraded?: unknown }).degraded === true) {
+    return { status: "degraded", prices, truncated };
+  }
+  return { status: "ready", prices, truncated };
+}
+
 function sameObservation(left: CommunityPrice, right: CommunityPrice): boolean {
   return (
     left.venueId === right.venueId &&
@@ -215,10 +239,14 @@ export function useCommunityPrices(): CommunityPricesState {
   const [byVenueId, setByVenueId] = useState<Map<string, CommunityPrice[]>>(() => new Map());
   const [submitting, setSubmitting] = useState(false);
   const [reportedIds, setReportedIds] = useState<Set<string>>(() => new Set());
+  const [noAlcoholIndexStatus, setNoAlcoholIndexStatus] = useState<
+    CommunityPricesState["noAlcoholIndexStatus"]
+  >("idle");
   // Venues already fetched this session - the sheet re-mounts on every
   // selection and must not re-hit the API for a venue it already read.
   const loaded = useRef<Set<string>>(new Set());
   const loadedRows = useRef<Map<string, CommunityPrice[]>>(new Map());
+  const noAlcoholIndexLoaded = useRef(false);
 
   const loadVenue = useCallback((venueId: string) => {
     if (!venueId || loaded.current.has(venueId)) return;
@@ -255,6 +283,47 @@ export function useCommunityPrices(): CommunityPricesState {
         // Fail-soft: no community prices, the sourced baseline still renders.
         // Allow a later selection to retry this venue.
         loaded.current.delete(venueId);
+      }
+    })();
+  }, []);
+
+  const loadNoAlcoholIndex = useCallback(() => {
+    if (noAlcoholIndexLoaded.current) return;
+    noAlcoholIndexLoaded.current = true;
+    setNoAlcoholIndexStatus("loading");
+    void (async () => {
+      try {
+        const response = await fetch("/api/price-submit?lens=no-alcohol");
+        if (!response.ok) throw new Error("category index unavailable");
+        const result = readCategoryPriceIndexLoad(await response.json());
+        if (result.status === "invalid") {
+          noAlcoholIndexLoaded.current = false;
+          setNoAlcoholIndexStatus("degraded");
+          return;
+        }
+        for (const row of result.prices) {
+          loadedRows.current.set(
+            row.venueId,
+            upsertPrice(loadedRows.current.get(row.venueId) ?? [], row),
+          );
+        }
+        setByVenueId((current) => {
+          if (result.prices.length === 0) return current;
+          const next = new Map(current);
+          for (const row of result.prices) {
+            next.set(
+              row.venueId,
+              upsertPrice(next.get(row.venueId) ?? [], row),
+            );
+          }
+          return next;
+        });
+        setNoAlcoholIndexStatus(
+          result.truncated ? "degraded" : result.status,
+        );
+      } catch {
+        noAlcoholIndexLoaded.current = false;
+        setNoAlcoholIndexStatus("degraded");
       }
     })();
   }, []);
@@ -398,6 +467,8 @@ export function useCommunityPrices(): CommunityPricesState {
   return {
     byVenueId,
     freshestByVenueId,
+    noAlcoholIndexStatus,
+    loadNoAlcoholIndex,
     loadVenue,
     submit,
     submitting,

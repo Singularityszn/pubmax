@@ -5,6 +5,7 @@ import {
   type CuratedVenueKind,
   type VenueKindVisibility,
 } from "@/lib/venueKindFilters";
+import type { MapExperienceLens } from "@/lib/mapExperienceLens";
 
 import "./tonightArcChips.css";
 
@@ -22,11 +23,19 @@ const CHIPS: ReadonlyArray<{
 
 export default function TonightArcChips({
   visibility,
+  experienceLens = "all",
   onChange,
 }: {
   visibility: VenueKindVisibility;
+  experienceLens?: MapExperienceLens;
   onChange: (next: VenueKindVisibility) => void;
 }) {
+  const chips =
+    experienceLens === "food"
+      ? CHIPS.filter(
+          (chip) => chip.kind === "food" || chip.kind === "restaurant",
+        )
+      : CHIPS.filter((chip) => experienceLens === "all" || chip.kind !== "club");
   return (
     <div
       className="tonightArcChips"
@@ -35,7 +44,7 @@ export default function TonightArcChips({
     >
       <span className="tonightArcLabel">Tonight arc</span>
       <div className="tonightArcRow">
-        {CHIPS.map((chip) => {
+        {chips.map((chip) => {
           const on = chip.kind === "club" ? false : visibility[chip.kind];
           return (
             <button
@@ -51,7 +60,9 @@ export default function TonightArcChips({
                 }
               }}
             >
-              {chip.label}
+              {experienceLens === "no-alcohol" && chip.kind === "pub"
+                ? "Pubs"
+                : chip.label}
             </button>
           );
         })}

@@ -318,6 +318,32 @@ describe("POST /api/price-submit UK base pubs", () => {
 });
 
 describe("GET /api/price-submit", () => {
+  it("returns the no-alcohol category index without beer rows", async () => {
+    const venueId = "venue-xjf3n0";
+    await POST(post({
+      venueId,
+      drinkCategory: "soft-drink",
+      priceGbp: 3.2,
+    }));
+    await POST(post({
+      venueId,
+      drinkCategory: "beer",
+      priceGbp: 6.2,
+    }));
+
+    const response = await GET(get("?lens=no-alcohol"));
+    expect(response.status).toBe(200);
+    const body = (await response.json()) as {
+      prices: Array<{ venueId: string; drinkCategory: string }>;
+      degraded?: boolean;
+      truncated?: boolean;
+    };
+    expect(body.prices).toEqual([
+      expect.objectContaining({ venueId, drinkCategory: "soft-drink" }),
+    ]);
+    expect(body.truncated).toBe(false);
+    expect(JSON.stringify(body)).not.toContain("actor");
+  });
   it("reads back the freshest community price per drink category", async () => {
     const venueId = "venue-3h52h";
     await POST(post({ venueId, drinkCategory: "beer", priceGbp: 4.2 }));

@@ -24,6 +24,8 @@ import {
   VodkaGlyph,
   CocktailGlyph,
   ShotGlyph,
+  AlcoholFreeGlyph,
+  SoftDrinkGlyph,
   OtherGlyph,
   type GlyphProps,
 } from "./icons";
@@ -37,6 +39,8 @@ const GLYPHS: Record<DrinkCategory, (p: GlyphProps) => ReactElement> = {
   vodka: VodkaGlyph,
   cocktail: CocktailGlyph,
   shot: ShotGlyph,
+  "alcohol-free": AlcoholFreeGlyph,
+  "soft-drink": SoftDrinkGlyph,
   other: OtherGlyph,
 };
 

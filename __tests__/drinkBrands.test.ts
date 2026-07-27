@@ -26,9 +26,11 @@ describe("drinkBrands", () => {
     }
   });
 
-  it("keeps shot/other honestly empty (thin coverage)", () => {
+  it("keeps thin categories honestly empty", () => {
     expect(brandsForCategory("shot")).toEqual([]);
     expect(brandsForCategory("other")).toEqual([]);
+    expect(brandsForCategory("soft-drink")).toEqual([]);
+    expect(brandsForCategory("alcohol-free")).toEqual([]);
     expect(categoryHasBrandCoverage("shot")).toBe(false);
     expect(categoryHasBrandCoverage("gin")).toBe(true);
   });
@@ -88,11 +90,15 @@ describe("drinkBrands", () => {
     // "g&t" must not collapse into "g t" and hit "canning town".
     expect(haystackMatchesCategory("canning town carlsberg", "gin")).toBe(false);
     expect(haystackMatchesCategory("classic g&t", "gin")).toBe(true);
+    expect(haystackMatchesCategory("Coca-Cola zero", "soft-drink")).toBe(true);
+    expect(haystackMatchesCategory("Guinness 0.0", "alcohol-free")).toBe(true);
   });
 
   it("parses drink category params defensively", () => {
     expect(parseDrinkCategoryParam("gin")).toBe("gin");
     expect(parseDrinkCategoryParam("GIN")).toBe("gin");
+    expect(parseDrinkCategoryParam("SOFT-DRINK")).toBe("soft-drink");
+    expect(parseDrinkCategoryParam("alcohol-free")).toBe("alcohol-free");
     expect(parseDrinkCategoryParam("low-no")).toBeNull();
     expect(parseDrinkCategoryParam("wizard")).toBeNull();
   });

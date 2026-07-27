@@ -23,6 +23,14 @@ describe("buildFiltersChip", () => {
     expect(
       buildFiltersChip({ drinkFiltersActive: true, priceCapActive: true, priceLabel: "≤£8.00" }).ariaLabel,
     ).toBe("Filters: drinks and ≤£8.00 active");
+    expect(
+      buildFiltersChip({
+        drinkFiltersActive: false,
+        priceCapActive: false,
+        priceLabel: "Price",
+        experienceLabel: "no-alcohol view",
+      }).ariaLabel,
+    ).toBe("Filters: no-alcohol view active");
   });
 });
 

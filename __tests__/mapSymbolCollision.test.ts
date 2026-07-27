@@ -363,7 +363,12 @@ describe("priced-pin price tag (collides, and yields before the pin does)", () =
     // `priceLabel` is absent on unpriced/demo-only/provisional-only pubs
     // (see canvas-geojson.test.ts), and the coalesce turns that into "".
     const field = layout("pubs-point")["text-field"] as unknown[];
-    expect(field[4]).toEqual(["coalesce", ["get", "priceLabel"], ""]);
+    expect(field[4]).toEqual([
+      "coalesce",
+      ["get", "lensPriceLabel"],
+      ["get", "priceLabel"],
+      "",
+    ]);
   });
 
   it("never borrows a band colour for the figure", () => {
@@ -397,7 +402,12 @@ describe("priced-pin price tag (collides, and yields before the pin does)", () =
       "case",
       ["==", ["get", "id"], "venue-abc"],
       "",
-      ["coalesce", ["get", "priceLabel"], ""],
+      [
+        "coalesce",
+        ["get", "lensPriceLabel"],
+        ["get", "priceLabel"],
+        "",
+      ],
     ]);
     // …which the enlarged pin fills at its own offset.
     const selected = (selectedLayers.get("pubs-point-selected")?.layout ??

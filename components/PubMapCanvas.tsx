@@ -51,6 +51,7 @@ import {
 import type { ThingsToDoOpportunity } from "@/lib/citymcp/client";
 import { opportunitiesToGeoJSON } from "@/lib/thingsToDoMap";
 import { formatPrice, type Venue } from "@/lib/venues";
+import type { MapLensPrice } from "@/lib/mapExperienceLens";
 import type { VenueSignal, HoveredVenue, VenueDetailResponse, FailedHoverImage } from "@/components/map/canvas/types";
 import {
   MAP_STYLES, FALLBACK_STYLES, STYLE_LOAD_TIMEOUT_MS, LONDON_VIEW, UK_BOUNDS,
@@ -155,6 +156,8 @@ type PubMapCanvasProps = {
    * (components/map/communityPriceSignals.ts).
    */
   provisionalVenueIds?: ReadonlySet<string> | null;
+  /** Dedicated no-alcohol or food figures, separate from pint signals. */
+  lensPrices?: ReadonlyMap<string, MapLensPrice> | null;
   /** Optional: lets PubMap render the history card in its own panel instead. */
   onLandmarkSelect?: (landmark: Landmark | null) => void;
   /** Issue #15 story bands — active band id ("" = none), synced to the URL by PubMap. */
@@ -319,6 +322,7 @@ export default function PubMapCanvas({
   drinkCategory = null,
   whatsOnByVenue = null,
   provisionalVenueIds = null,
+  lensPrices = null,
   onLandmarkSelect,
   activeBandId = "",
   onBandChange,
@@ -2075,6 +2079,7 @@ export default function PubMapCanvas({
       drinkCategory,
       whatsOnByVenue,
       provisionalVenueIds,
+      lensPrices,
     );
     if (!mapReady) return;
     applyToMap("pubs:data", (map) => {
@@ -2089,6 +2094,7 @@ export default function PubMapCanvas({
     drinkCategory,
     whatsOnByVenue,
     provisionalVenueIds,
+    lensPrices,
     mapReady,
     applyToMap,
   ]);
@@ -2582,6 +2588,9 @@ export default function PubMapCanvas({
     hoverSignal,
     hoverDetail,
     Boolean(hoveredVenueId && provisionalVenueIds?.has(hoveredVenueId)),
+    lensPrices === null || !hoveredVenueId
+      ? undefined
+      : lensPrices.get(hoveredVenueId) ?? null,
   );
   const hoverImageUrl = hoverImageUrlFor(hoverDetail, failedHoverImage, hoveredVenueId);
   const hoverCardStyle = hoveredVenue

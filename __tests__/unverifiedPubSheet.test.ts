@@ -5,6 +5,7 @@ import { describe, expect, it } from "vitest";
 import UnverifiedPubSheet from "@/components/map/UnverifiedPubSheet";
 import type { CommunityPricesState } from "@/components/map/useCommunityPrices";
 import type { CommunityPrice } from "@/lib/communityPrice";
+import type { MapExperienceLens } from "@/lib/mapExperienceLens";
 import type { UkBasePub } from "@/lib/ukBasePubs";
 
 const pub: UkBasePub = {
@@ -20,12 +21,27 @@ function state(rows: CommunityPrice[], known = true): CommunityPricesState {
   return {
     byVenueId: known ? new Map([[pub.id, rows]]) : new Map(),
     freshestByVenueId: new Map(),
+    noAlcoholIndexStatus: "idle",
     loadVenue: () => {},
+    loadNoAlcoholIndex: () => {},
     submit: async () => ({ ok: true }),
     submitting: false,
     reportPrice: () => {},
     reportedIds: new Set<string>(),
   };
+}
+
+function renderSheet(
+  rows: CommunityPrice[],
+  experienceLens: MapExperienceLens = "all",
+) {
+  return renderToStaticMarkup(
+    createElement(UnverifiedPubSheet, {
+      pub,
+      communityPrices: state(rows),
+      experienceLens,
+    }),
+  );
 }
 
 // NOTE ON WHAT IS *NOT* TESTED HERE. The `key={pub.id}` that resets the price
@@ -92,6 +108,52 @@ describe("UnverifiedPubSheet", () => {
     expect(html).toContain("Logged by a Pubmaxxer");
     expect(html).not.toContain("No price yet");
     expect(html).not.toContain("Nobody has logged");
+  });
+
+  it("shows only no-alcohol rows and an honest empty state in that lens", () => {
+    const beer: CommunityPrice = {
+      venueId: pub.id,
+      drinkCategory: "beer",
+      priceGbp: 5.8,
+      submittedAt: Date.now(),
+      source: "community",
+      corroborations: 2,
+    };
+    const softDrink: CommunityPrice = {
+      venueId: pub.id,
+      drinkCategory: "soft-drink",
+      priceGbp: 2.9,
+      submittedAt: Date.now() - 1,
+      source: "community",
+      corroborations: 2,
+    };
+
+    const priced = renderSheet([beer, softDrink], "no-alcohol");
+    expect(priced).toContain("£2.90");
+    expect(priced).not.toContain("£5.80");
+
+    const empty = renderSheet([beer], "no-alcohol");
+    expect(empty).toContain("No soft-drink or alcohol-free price logged here yet");
+    expect(empty).not.toContain("£5.80");
+  });
+
+  it("never shows a beer price in the food view", () => {
+    const html = renderSheet(
+      [
+        {
+          venueId: pub.id,
+          drinkCategory: "beer",
+          priceGbp: 5.8,
+          submittedAt: Date.now(),
+          source: "community",
+          corroborations: 2,
+        },
+      ],
+      "food",
+    );
+
+    expect(html).toContain("No sourced food price recorded here.");
+    expect(html).not.toContain("£5.80");
   });
 
   it("never claims a map mark for a lone pint report - base pins are price-blind", () => {

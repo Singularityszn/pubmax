@@ -24,8 +24,8 @@ describe("drink subtype taxonomy", () => {
     expect(new Set(ids).size).toBe(ids.length);
   });
 
-  it("does not widen the closed nine-category union", () => {
-    expect(DRINK_CATEGORIES).toHaveLength(9);
+  it("keeps subtypes inside the closed eleven-category union", () => {
+    expect(DRINK_CATEGORIES).toHaveLength(11);
     for (const subtype of DRINK_SUBTYPES) {
       expect(DRINK_CATEGORIES).toContain(subtype.category);
     }

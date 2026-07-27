@@ -155,6 +155,7 @@ export const PIN_PRICE_LABEL_MIN_ZOOM = 14;
 /** The label text for one feature, "" where the pub has no sayable price. */
 const PRICE_LABEL_TEXT: maplibregl.ExpressionSpecification = [
   "coalesce",
+  ["get", "lensPriceLabel"],
   ["get", "priceLabel"],
   "",
 ];

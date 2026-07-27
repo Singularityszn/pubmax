@@ -53,6 +53,10 @@ export function mergeCommunityPriceSignals<S extends PricedVenueSignal>(
   if (communityPrices.size === 0) return signals;
   let merged: Map<string, S> | null = null;
   for (const [venueId, price] of communityPrices) {
+    // Defence in depth. The normal caller already supplies its beer-only
+    // projection, but this seam itself must reject every non-pint category so
+    // a future caller cannot route a soft drink into pint colour or buckets.
+    if (price.drinkCategory !== "beer") continue;
     // What the map paints is the category's best-corroborated in-window figure
     // (mapCandidateOf), not the freshest report - so a lone fresh disagreement
     // can neither repaint the map nor un-paint a corroborated price. The sheet

@@ -55,6 +55,8 @@ describe("category taxonomy", () => {
   it("isDrinkCategory guards the closed set", () => {
     expect(isDrinkCategory("beer")).toBe(true);
     expect(isDrinkCategory("gin")).toBe(true);
+    expect(isDrinkCategory("soft-drink")).toBe(true);
+    expect(isDrinkCategory("alcohol-free")).toBe(true);
     expect(isDrinkCategory("cider")).toBe(false);
     expect(isDrinkCategory(42)).toBe(false);
     expect(isDrinkCategory(undefined)).toBe(false);
@@ -63,6 +65,8 @@ describe("category taxonomy", () => {
   it("categoryLabel returns the human label", () => {
     expect(categoryLabel("whisky")).toBe("Whisky");
     expect(categoryLabel("beer")).toBe("Beer");
+    expect(categoryLabel("soft-drink")).toBe("Soft drinks");
+    expect(categoryLabel("alcohol-free")).toBe("Alcohol-free");
   });
 });
 
@@ -80,6 +84,8 @@ describe("formatAbv / CATEGORY_DEFAULT_ABV", () => {
 
   it("ships a default ABV (or null) for every category", () => {
     expect(CATEGORY_DEFAULT_ABV.beer).toBe(4);
+    expect(CATEGORY_DEFAULT_ABV["soft-drink"]).toBe(0);
+    expect(CATEGORY_DEFAULT_ABV["alcohol-free"]).toBe(0);
     expect(CATEGORY_DEFAULT_ABV.other).toBeNull();
     for (const cat of DRINK_CATEGORIES) {
       expect(cat in CATEGORY_DEFAULT_ABV).toBe(true);

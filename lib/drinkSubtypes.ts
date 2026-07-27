@@ -1,10 +1,11 @@
 // Second-level drink taxonomy — the "any drink, not just the family" layer.
 // ---------------------------------------------------------------------------
-// lib/drinks.ts owns the CLOSED nine-category union (beer/wine/whisky/gin/
-// vodka/rum/cocktail/shot/other). That union is load-bearing: the DB CHECK
+// lib/drinks.ts owns the CLOSED eleven-category union (beer/wine/whisky/gin/
+// vodka/rum/cocktail/shot/alcohol-free/soft-drink/other). That union is
+// load-bearing: the DB CHECK
 // constraint, persona validation (lib/personaDrinks.ts) and the pin-glyph lens
-// all assume it never grows. So subtypes live HERE, in a second level that
-// REFINES a category instead of widening it:
+// must change with it. Subtypes live HERE, in a second level that REFINES a
+// category instead of widening it:
 //
 //     rum        → white / dark / spiced / aged / overproof
 //     whisky     → scotch / single malt / bourbon / irish / japanese / rye

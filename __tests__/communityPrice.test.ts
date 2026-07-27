@@ -105,6 +105,29 @@ describe("validateCommunityPrice", () => {
       expect(submitCategoryLabel(category)).toBeTruthy();
     }
   });
+
+  it("lets a person log a soft drink and an alcohol-free pint", () => {
+    expect(SUBMITTABLE_DRINK_CATEGORIES.slice(0, 3)).toEqual([
+      "beer",
+      "alcohol-free",
+      "soft-drink",
+    ]);
+    for (const drinkCategory of ["soft-drink", "alcohol-free"] as const) {
+      const result = validateCommunityPrice({
+        venueId: "venue-16pnwmm",
+        drinkCategory,
+        priceGbp: 3.2,
+      });
+      expect(result).toEqual({
+        ok: true,
+        value: {
+          venueId: "venue-16pnwmm",
+          drinkCategory,
+          priceGbp: 3.2,
+        },
+      });
+    }
+  });
 });
 
 describe("price day stamps", () => {

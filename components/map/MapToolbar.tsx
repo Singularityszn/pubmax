@@ -6,6 +6,7 @@ import { useEffect, useState, type ReactNode } from "react";
 import CitySwitcher from "@/components/map/CitySwitcher";
 import ConditionsChip from "@/components/desktop/ConditionsChip";
 import DrinkShapeChips from "@/components/map/DrinkShapeChips";
+import MapExperienceLensControl from "@/components/map/MapExperienceLens";
 import FavoritePintPicker from "@/components/map/FavoritePintPicker";
 import PersonaLensPicker from "@/components/map/PersonaLensPicker";
 import ZonePicker from "@/components/map/ZonePicker";
@@ -14,6 +15,7 @@ import { DEFAULT_CITY_ID } from "@/lib/cities";
 import type { DrinkCategory } from "@/lib/drinks";
 import type { PersonaDrink } from "@/lib/personaDrinks";
 import type { Filters } from "@/lib/venues";
+import type { MapExperienceLens } from "@/lib/mapExperienceLens";
 import type { ZonePintIndex } from "@/lib/zones";
 
 import "./mapToolbar.css";
@@ -50,6 +52,9 @@ type MapToolbarProps = {
   zoneIndex: ZonePintIndex;
   /** Active city for the map switcher (defaults to London). */
   cityId?: CityId;
+  experienceLens: MapExperienceLens;
+  experienceSummary: string;
+  onExperienceLensChange: (lens: MapExperienceLens) => void;
 };
 
 export default function MapToolbar({
@@ -73,6 +78,9 @@ export default function MapToolbar({
   searchableVenueCount,
   zoneIndex,
   cityId = DEFAULT_CITY_ID,
+  experienceLens,
+  experienceSummary,
+  onExperienceLensChange,
 }: MapToolbarProps) {
   const [drinksOpen, setDrinksOpen] = useState(false);
   const [isMobile, setIsMobile] = useState<boolean | null>(null);
@@ -108,13 +116,19 @@ export default function MapToolbar({
     searchableVenueCount > 0 &&
     Boolean(trimmedQuery) &&
     filteredVenueCount === 0;
+  const changeExperienceLens = (next: MapExperienceLens) => {
+    if (next !== "all") setDrinksOpen(false);
+    onExperienceLensChange(next);
+  };
 
   return (
     <div className="mapToolbar" role="search">
       <div className="mapToolbarRow">
         <div className="mapToolbarSearch">{searchContent}</div>
 
-        {isMobile === false ? <div className="mapToolbarDesktopExtras">{favoritePicker}</div> : null}
+        {isMobile === false && experienceLens === "all" ? (
+          <div className="mapToolbarDesktopExtras">{favoritePicker}</div>
+        ) : null}
 
         {/* Weather verdict, always visible on desktop (owner requirement). The
             map cannot host the right rail (the venue drawer owns that edge), so
@@ -122,23 +136,25 @@ export default function MapToolbar({
             nothing when the weather has no verdict. */}
         {isMobile === false ? <ConditionsChip /> : null}
 
-        <button
-          type="button"
-          className={
-            drinksOpen || drinksActive
-              ? "mapToolbarDrinksBtn isActive"
-              : "mapToolbarDrinksBtn"
-          }
-          aria-pressed={drinksOpen}
-          aria-expanded={drinksOpen}
-          aria-label={drinksOpen ? "Hide drink filters" : "Show drink filters"}
-          onClick={() => setDrinksOpen((open) => !open)}
-        >
-          <Wine size={15} aria-hidden="true" />
-          <span>Drinks</span>
-        </button>
+        {experienceLens === "all" ? (
+          <button
+            type="button"
+            className={
+              drinksOpen || drinksActive
+                ? "mapToolbarDrinksBtn isActive"
+                : "mapToolbarDrinksBtn"
+            }
+            aria-pressed={drinksOpen}
+            aria-expanded={drinksOpen}
+            aria-label={drinksOpen ? "Hide drink filters" : "Show drink filters"}
+            onClick={() => setDrinksOpen((open) => !open)}
+          >
+            <Wine size={15} aria-hidden="true" />
+            <span>Drinks</span>
+          </button>
+        ) : null}
 
-        {cityId === DEFAULT_CITY_ID ? (
+        {cityId === DEFAULT_CITY_ID && experienceLens === "all" ? (
           <ZonePicker
             zone={filters.zone}
             onZoneChange={(zone) => onFiltersChange({ ...filters, zone })}
@@ -170,6 +186,12 @@ export default function MapToolbar({
         <CitySwitcher cityId={cityId} />
       </div>
 
+      <MapExperienceLensControl
+        lens={experienceLens}
+        summary={experienceSummary}
+        onChange={changeExperienceLens}
+      />
+
       {showNoSearchMatches ? (
         <div
           className="mapToolbarSearchStatus"
@@ -190,17 +212,19 @@ export default function MapToolbar({
         </div>
       ) : null}
 
-      <div className={drinksOpen ? "mapToolbarDrinks isOpen" : "mapToolbarDrinks"}>
-        {isMobile === true ? <div className="mapToolbarDrinksLens">{favoritePicker}</div> : null}
-        <DrinkShapeChips filters={filters} onFiltersChange={onFiltersChange} />
-        <div className="mapToolbarDrinksLens">
-          <PersonaLensPicker
-            personaId={personaId}
-            onSelect={onPersonaSelect}
-            tonightCategory={personaTonightCategory}
-          />
+      {experienceLens === "all" ? (
+        <div className={drinksOpen ? "mapToolbarDrinks isOpen" : "mapToolbarDrinks"}>
+          {isMobile === true ? <div className="mapToolbarDrinksLens">{favoritePicker}</div> : null}
+          <DrinkShapeChips filters={filters} onFiltersChange={onFiltersChange} />
+          <div className="mapToolbarDrinksLens">
+            <PersonaLensPicker
+              personaId={personaId}
+              onSelect={onPersonaSelect}
+              tonightCategory={personaTonightCategory}
+            />
+          </div>
         </div>
-      </div>
+      ) : null}
     </div>
   );
 }

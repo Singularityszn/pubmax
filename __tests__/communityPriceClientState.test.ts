@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  readCategoryPriceIndexLoad,
   readVenuePriceLoad,
   rollbackOptimisticPrice,
 } from "@/components/map/useCommunityPrices";
@@ -25,6 +26,29 @@ const optimisticBeer: CommunityPrice = {
 };
 
 describe("community price client state", () => {
+  it("distinguishes an honest empty lens index from a degraded one", () => {
+    expect(readCategoryPriceIndexLoad({ prices: [], truncated: false })).toEqual({
+      status: "ready",
+      prices: [],
+      truncated: false,
+    });
+    expect(
+      readCategoryPriceIndexLoad({
+        prices: [],
+        truncated: false,
+        degraded: true,
+      }),
+    ).toEqual({
+      status: "degraded",
+      prices: [],
+      truncated: false,
+    });
+    expect(readCategoryPriceIndexLoad({ prices: "bad" })).toEqual({
+      status: "invalid",
+      prices: [],
+      truncated: false,
+    });
+  });
   it("keeps a degraded empty read unknown instead of confirming no price", () => {
     expect(readVenuePriceLoad({ prices: [], degraded: true })).toEqual({
       status: "degraded",

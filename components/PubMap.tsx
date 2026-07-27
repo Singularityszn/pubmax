@@ -58,6 +58,7 @@ const MobilePlanActivation = dynamic(
 );
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import DrinkShapeChips from "@/components/map/DrinkShapeChips";
+import MapExperienceLensControl from "@/components/map/MapExperienceLens";
 import FavoritePintPicker from "@/components/map/FavoritePintPicker";
 import MobilePriceChoices from "@/components/map/MobilePriceChoices";
 import PersonaLensPicker from "@/components/map/PersonaLensPicker";
@@ -204,6 +205,14 @@ import prefetchVenue from "@/lib/prefetchVenue";
 import { warmVenueDetail } from "@/lib/warmVenueDetail";
 import { markPubmaxTiming } from "@/lib/performanceMarks";
 import { markPalRouteActivation } from "@/lib/pubPal";
+import {
+  experienceLensSummary,
+  filtersForExperienceLens,
+  filterVenuesForExperienceLens,
+  lensPricesForVenues,
+  trustedNoAlcoholLensPrices,
+  type MapExperienceLens as MapExperienceLensValue,
+} from "@/lib/mapExperienceLens";
 import {
   bandChipDismissedKey,
   shouldShowBandOnboardingChip,
@@ -490,6 +499,9 @@ export default function PubMap({
   );
   const [venueInitialTab, setVenueInitialTab] = useState<TabKey>("overview");
   const [filters, setFilters] = useState<Filters>(restoredMobileSession?.filters ?? seed.filters);
+  const [experienceLens, setExperienceLens] =
+    useState<MapExperienceLensValue>("all");
+  const [experiencePolicyNow] = useState(() => Date.now());
   const [mapOverlay, setMapOverlay] = useState<MapOverlay>(() => {
     const restored = restoredMobileSession?.openSheet;
     return restored && !["venue", "planner"].includes(restored) ? restored : "none";
@@ -623,6 +635,15 @@ export default function PubMap({
   // `communityPrices.byVenueId` for itself, so an uncorroborated submission
   // still shows there, dated - it just doesn't move a pin.
   const communityPrices = useCommunityPrices();
+  const loadNoAlcoholPriceIndex = communityPrices.loadNoAlcoholIndex;
+  const noAlcoholLensPrices = useMemo(
+    () =>
+      trustedNoAlcoholLensPrices(
+        communityPrices.byVenueId,
+        experiencePolicyNow,
+      ),
+    [communityPrices.byVenueId, experiencePolicyNow],
+  );
   const venueSignals = useMemo(
     // The age gate reads the clock inside the merge (its `now` default) rather
     // than taking a Date.now() from here: calling it during render is impure,
@@ -942,9 +963,18 @@ export default function PubMap({
   // Base narrowing: the existing filter pipeline (story filters, price, query,
   // pint-drops). Favorite-pint re-prices inside PubMapCanvas and never changes
   // membership, so it isn't part of this set.
+  const effectiveMapFilters = useMemo(
+    () => filtersForExperienceLens(filters, experienceLens),
+    [experienceLens, filters],
+  );
   const pipelineVenues = useMemo(
-    () => filterMapVenues(venues, filters, (id) => Boolean(venueSignals.get(id)?.hasPintDrops)),
-    [venues, filters, venueSignals],
+    () =>
+      filterMapVenues(
+        venues,
+        effectiveMapFilters,
+        (id) => Boolean(venueSignals.get(id)?.hasPintDrops),
+      ),
+    [effectiveMapFilters, venues, venueSignals],
   );
   // "Saved only" composes ON TOP of the pipeline: when on, keep only venues in
   // the saved set. When off it's a no-op, so all existing behavior is preserved.
@@ -969,19 +999,64 @@ export default function PubMap({
       : filteredVenues,
     [filteredVenues, nearbyVenueIds],
   );
+  const experienceVisibleMapVenues = useMemo(
+    () =>
+      filterVenuesForExperienceLens(
+        mapMembershipVenues,
+        experienceLens,
+        noAlcoholLensPrices,
+      ),
+    [experienceLens, mapMembershipVenues, noAlcoholLensPrices],
+  );
   const kindVisibleMapVenues = useMemo(
-    () => filterVenuesByKind(mapMembershipVenues, venueKindVisibility),
-    [mapMembershipVenues, venueKindVisibility],
+    () => filterVenuesByKind(experienceVisibleMapVenues, venueKindVisibility),
+    [experienceVisibleMapVenues, venueKindVisibility],
   );
   const canvasVenues = useMemo(
     () => withForcedVenue(kindVisibleMapVenues, venueById, selectedVenueId),
     [kindVisibleMapVenues, venueById, selectedVenueId],
   );
+  const experienceLensPrices = useMemo(
+    () =>
+      experienceLens === "all"
+        ? null
+        : lensPricesForVenues(
+            canvasVenues,
+            experienceLens,
+            noAlcoholLensPrices,
+          ),
+    [canvasVenues, experienceLens, noAlcoholLensPrices],
+  );
+  const experienceSummary = useMemo(() => {
+    if (experienceLens === "all") return "";
+    let noAlcoholPriceCount = 0;
+    let sourcedFoodPriceCount = 0;
+    for (const price of experienceLensPrices?.values() ?? []) {
+      if (price.source === "community") noAlcoholPriceCount += 1;
+      if (price.source === "sourced-anchor") sourcedFoodPriceCount += 1;
+    }
+    return experienceLensSummary(
+      experienceLens,
+      noAlcoholPriceCount,
+      sourcedFoodPriceCount,
+      communityPrices.noAlcoholIndexStatus,
+    );
+  }, [
+    communityPrices.noAlcoholIndexStatus,
+    experienceLens,
+    experienceLensPrices,
+  ]);
   // A11Y finding #1 — keyboard/SR-reachable model of the venues on the map,
   // ordered nearest-first to the viewport centre. Same set the canvas paints.
   const mapVenueListModel = useMemo(
-    () => buildMapVenueListModel(kindVisibleMapVenues, mapViewport.center),
-    [kindVisibleMapVenues, mapViewport.center],
+    () =>
+      buildMapVenueListModel(
+        kindVisibleMapVenues,
+        mapViewport.center,
+        undefined,
+        experienceLensPrices,
+      ),
+    [experienceLensPrices, kindVisibleMapVenues, mapViewport.center],
   );
   const [renderedBasePubs, setRenderedBasePubs] = useState<UkBasePub[]>([]);
   const ukBasePubListModel = useMemo(
@@ -1246,13 +1321,45 @@ export default function PubMap({
     else clearFavoritePint();
   }, []);
 
+  const [personaLensId, setPersonaLensId] = useState<string | null>(null);
+  const changeExperienceLens = useCallback(
+    (next: MapExperienceLensValue) => {
+      setExperienceLens(next);
+      if (next === "all") return;
+      setFavoritePintState(null);
+      clearFavoritePint();
+      setPersonaLensId(null);
+      setMobileLayersTab("layers");
+      setFilters((current) => ({
+        ...current,
+        drinkCategory: "",
+        drinkBrand: "",
+        drinkSubtype: "",
+        topShelfOnly: false,
+        requireCocktails: false,
+      }));
+      setVenueKindVisibility((current) =>
+        next === "food"
+          ? { ...current, food: true, restaurant: true }
+          : {
+              ...current,
+              pub: true,
+              bar: true,
+              food: true,
+              restaurant: true,
+            },
+      );
+      if (next === "no-alcohol") loadNoAlcoholPriceIndex();
+    },
+    [loadNoAlcoholPriceIndex],
+  );
+
   // Persona "Drink like..." lens. The picker sets filters.drinkCategory so the
   // lens RIDES the existing drink-category filter path (filterVenues +
   // pubsToGeoJSON) instead of forking a new pin pipeline; we only track WHICH
   // persona is active so the card can render. Conditions cross-link: personas
   // whose category fits tonight sort first (useTonightLaneCue reuses the
   // shared /api/tonight-conditions verdict, no duplicated weather rules).
-  const [personaLensId, setPersonaLensId] = useState<string | null>(null);
   const tonightLaneCue = useTonightLaneCue(isLondon);
   const personaTonightCategory = tonightLaneCue.category;
 
@@ -2078,15 +2185,31 @@ export default function PubMap({
         <UnverifiedPubSheet
           pub={selectedBasePub}
           communityPrices={communityPrices}
+          experienceLens={experienceLens}
         />
       );
     }
     if (!detailOpen || !selectedVenue) return null;
+    const selectedLensPrice =
+      experienceLens === "all"
+        ? null
+        : experienceLensPrices?.get(selectedVenue.id) ?? null;
 
     return (
       <>
         <div className="mobileVenuePeekSummary" aria-label={selectedVenueLabels.summaryLabel}>
-          {typeof selectedVenue.cheapestPrice === "number" ? (
+          {experienceLens !== "all" ? (
+            <span>
+              <strong>
+                {selectedLensPrice
+                  ? formatPrice(selectedLensPrice.priceGbp)
+                  : "No price logged"}
+              </strong>
+              <small>
+                {selectedLensPrice?.categoryLabel ?? "for this view"}
+              </small>
+            </span>
+          ) : typeof selectedVenue.cheapestPrice === "number" ? (
             <span>
               <strong>{formatPrice(selectedVenue.cheapestPrice)}</strong>
               <small>current recorded price</small>
@@ -2146,6 +2269,7 @@ export default function PubMap({
           initialTab={venueInitialTab}
           pintDrops={pintDrops}
           communityPrices={communityPrices}
+          experienceLens={experienceLens}
           onGrabDragStart={mobileViewport ? undefined : onSheetDragStart}
           onGrabDragMove={mobileViewport ? undefined : onSheetDragMove}
           onGrabDragEnd={mobileViewport ? undefined : onSheetDragEnd}
@@ -2194,12 +2318,14 @@ export default function PubMap({
         <SiteNav
           active="map"
           mobileMapUtility={
-            <MapPriceControl
-              placement="header"
-              filters={filters}
-              onFiltersChange={setFilters}
-              hasTypeRelativePrices={hasTypeRelativePrices}
-            />
+            experienceLens === "all" ? (
+              <MapPriceControl
+                placement="header"
+                filters={filters}
+                onFiltersChange={setFilters}
+                hasTypeRelativePrices={hasTypeRelativePrices}
+              />
+            ) : undefined
           }
         />
       ) : null}
@@ -2211,6 +2337,7 @@ export default function PubMap({
       <section className="mapStage" aria-label={`Interactive venue map of ${city.displayName}`}>
         <TonightArcChips
           visibility={venueKindVisibility}
+          experienceLens={experienceLens}
           onChange={setVenueKindVisibility}
         />
         {/* Wave K2 / Issue #35 — keep the pitched-London loading chrome until
@@ -2257,6 +2384,7 @@ export default function PubMap({
           drinkCategory={filters.drinkCategory || null}
           whatsOnByVenue={whatsOnTonight.summary}
           provisionalVenueIds={provisionalVenueIds}
+          lensPrices={experienceLensPrices}
           activeBandId={activeBandId}
           onBandChange={setActiveBandId}
           onStartCrawl={startCrawlFromPubs}
@@ -2329,6 +2457,9 @@ export default function PubMap({
           searchableVenueCount={venues.length}
           zoneIndex={zoneIndex}
           cityId={cityId}
+          experienceLens={experienceLens}
+          experienceSummary={experienceSummary}
+          onExperienceLensChange={changeExperienceLens}
         /> : null}
         {/* D3.1/D3.2 desktop right-rail: always-on Conditions + Area news at the
             map's top-right. Mounted only at >=1024 and only while the RIGHT venue
@@ -2407,7 +2538,7 @@ export default function PubMap({
         {/* Desktop retains the expanded price filter. On phones the compact key
             lives beside the PUBMAXXING wordmark so the bottom action lane can
             breathe above primary navigation. */}
-        {!mobileViewport ? (
+        {!mobileViewport && experienceLens === "all" ? (
           <MapPriceControl
             placement="map"
             filters={filters}
@@ -2463,8 +2594,19 @@ export default function PubMap({
               filters.topShelfOnly ||
               filters.requireCocktails,
           )}
-          zoneActive={filters.zone !== "" && filters.zone !== "all"}
-          priceCapActive={filters.maxPrice < 10}
+          experienceFilterLabel={
+            experienceLens === "no-alcohol"
+              ? "no-alcohol view"
+              : experienceLens === "food"
+                ? "food view"
+                : undefined
+          }
+          zoneActive={
+            experienceLens === "all" &&
+            filters.zone !== "" &&
+            filters.zone !== "all"
+          }
+          priceCapActive={experienceLens === "all" && filters.maxPrice < 10}
           planOpen={planningOpen}
           planActive={routeMappedActive || activePlanRoute.length >= 2}
           planStopCount={routeMappedActive ? route.length : activePlanRoute.length}
@@ -2481,43 +2623,52 @@ export default function PubMap({
           }
           filtersContent={
             <div className="mobileMapFilters">
-              <DrinkShapeChips filters={filters} onFiltersChange={setFilters} />
-              {isLondon ? (
-                <ZonePicker
-                  variant="inline"
-                  zone={filters.zone}
-                  onZoneChange={(zone) => setFilters((current) => ({ ...current, zone }))}
-                  index={zoneIndex}
-                />
+              <MapExperienceLensControl
+                lens={experienceLens}
+                summary={experienceSummary}
+                onChange={changeExperienceLens}
+              />
+              {experienceLens === "all" ? (
+                <>
+                  <DrinkShapeChips filters={filters} onFiltersChange={setFilters} />
+                  {isLondon ? (
+                    <ZonePicker
+                      variant="inline"
+                      zone={filters.zone}
+                      onZoneChange={(zone) => setFilters((current) => ({ ...current, zone }))}
+                      index={zoneIndex}
+                    />
+                  ) : null}
+                  <FavoritePintPicker
+                    value={favoritePint}
+                    onChange={changeFavoritePint}
+                    drinkCategory={filters.drinkCategory}
+                    drinkBrand={filters.drinkBrand}
+                    onDrinkLensChange={({ drinkCategory, drinkBrand }) =>
+                      setFilters((current) => ({
+                        ...current,
+                        drinkCategory,
+                        drinkBrand,
+                        drinkSubtype: drinkCategory === current.drinkCategory ? current.drinkSubtype : "",
+                        topShelfOnly: drinkCategory ? current.topShelfOnly : false,
+                        requireCocktails: drinkCategory === "cocktail",
+                      }))
+                    }
+                  />
+                  <PersonaLensPicker
+                    personaId={personaLensId}
+                    onSelect={selectPersona}
+                    tonightCategory={personaTonightCategory}
+                  />
+                  <MobilePriceChoices
+                    maxPrice={filters.maxPrice}
+                    hasTypeRelativePrices={hasTypeRelativePrices}
+                    onMaxPriceChange={(maxPrice) =>
+                      setFilters((current) => ({ ...current, maxPrice }))
+                    }
+                  />
+                </>
               ) : null}
-              <FavoritePintPicker
-                value={favoritePint}
-                onChange={changeFavoritePint}
-                drinkCategory={filters.drinkCategory}
-                drinkBrand={filters.drinkBrand}
-                onDrinkLensChange={({ drinkCategory, drinkBrand }) =>
-                  setFilters((current) => ({
-                    ...current,
-                    drinkCategory,
-                    drinkBrand,
-                    drinkSubtype: drinkCategory === current.drinkCategory ? current.drinkSubtype : "",
-                    topShelfOnly: drinkCategory ? current.topShelfOnly : false,
-                    requireCocktails: drinkCategory === "cocktail",
-                  }))
-                }
-              />
-              <PersonaLensPicker
-                personaId={personaLensId}
-                onSelect={selectPersona}
-                tonightCategory={personaTonightCategory}
-              />
-              <MobilePriceChoices
-                maxPrice={filters.maxPrice}
-                hasTypeRelativePrices={hasTypeRelativePrices}
-                onMaxPriceChange={(maxPrice) =>
-                  setFilters((current) => ({ ...current, maxPrice }))
-                }
-              />
             </div>
           }
           tflContent={<MobileTflPanel status={tflStatus} />}
@@ -2543,7 +2694,9 @@ export default function PubMap({
             <Tabs className="mobileLayersPanel" value={mobileLayersTab} onValueChange={(value) => setMobileLayersTab(value as typeof mobileLayersTab)}>
               <TabsList aria-label="Layer settings sections">
                 <TabsTrigger value="layers">Layers</TabsTrigger>
-                <TabsTrigger value="prices">Prices</TabsTrigger>
+                {experienceLens === "all" ? (
+                  <TabsTrigger value="prices">Prices</TabsTrigger>
+                ) : null}
                 <TabsTrigger value="events">Events</TabsTrigger>
                 <TabsTrigger value="transit">Transit</TabsTrigger>
               </TabsList>
@@ -2575,17 +2728,19 @@ export default function PubMap({
                 </div>
                 <MapLayersControl embedded poiHidden={poiHidden} onPoiHiddenChange={setPoiHidden} activeBandId={activeBandId} onBandChange={setActiveBandId} storyBands={cityStoryBands} cityId={cityId} />
               </TabsContent>
-              <TabsContent value="prices" className="mobileMapFilters">
-                <DrinkShapeChips filters={filters} onFiltersChange={setFilters} />
-                <FavoritePintPicker value={favoritePint} onChange={changeFavoritePint} drinkCategory={filters.drinkCategory} drinkBrand={filters.drinkBrand} onDrinkLensChange={({ drinkCategory, drinkBrand }) => setFilters((current) => ({ ...current, drinkCategory, drinkBrand, drinkSubtype: drinkCategory === current.drinkCategory ? current.drinkSubtype : "", topShelfOnly: drinkCategory ? current.topShelfOnly : false, requireCocktails: drinkCategory === "cocktail" }))} />
-                <MobilePriceChoices
-                  maxPrice={filters.maxPrice}
-                  hasTypeRelativePrices={hasTypeRelativePrices}
-                  onMaxPriceChange={(maxPrice) =>
-                    setFilters((current) => ({ ...current, maxPrice }))
-                  }
-                />
-              </TabsContent>
+              {experienceLens === "all" ? (
+                <TabsContent value="prices" className="mobileMapFilters">
+                  <DrinkShapeChips filters={filters} onFiltersChange={setFilters} />
+                  <FavoritePintPicker value={favoritePint} onChange={changeFavoritePint} drinkCategory={filters.drinkCategory} drinkBrand={filters.drinkBrand} onDrinkLensChange={({ drinkCategory, drinkBrand }) => setFilters((current) => ({ ...current, drinkCategory, drinkBrand, drinkSubtype: drinkCategory === current.drinkCategory ? current.drinkSubtype : "", topShelfOnly: drinkCategory ? current.topShelfOnly : false, requireCocktails: drinkCategory === "cocktail" }))} />
+                  <MobilePriceChoices
+                    maxPrice={filters.maxPrice}
+                    hasTypeRelativePrices={hasTypeRelativePrices}
+                    onMaxPriceChange={(maxPrice) =>
+                      setFilters((current) => ({ ...current, maxPrice }))
+                    }
+                  />
+                </TabsContent>
+              ) : null}
               <TabsContent value="events">
                 <TonightLane
                   rows={whatsOnTonight.rows}

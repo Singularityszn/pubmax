@@ -42,6 +42,7 @@ import type { CrawlMode } from "@/components/map/ControlRail";
 import type { TabKey } from "@/lib/venueInspectorTabs";
 import type { PresenceState } from "./usePresence";
 import { anchorMonthLabel } from "@/lib/venueAnchorPresentation";
+import type { MapExperienceLens } from "@/lib/mapExperienceLens";
 
 function VenuePriceSummary({
   venue,
@@ -151,6 +152,7 @@ export default function VenueOverviewTab({
   latestContributorPrice,
   latestPintDropAt,
   communityPrices,
+  experienceLens,
   onToggleStop,
   presenceState,
   markPresenceHere,
@@ -172,6 +174,7 @@ export default function VenueOverviewTab({
   latestPintDropAt?: number | null;
   /** Community price layer - the dated submission row plus the submit card. */
   communityPrices: CommunityPricesState;
+  experienceLens: MapExperienceLens;
   onToggleStop: (id: string) => void;
   presenceState: PresenceState;
   markPresenceHere: () => void;
@@ -200,12 +203,23 @@ export default function VenueOverviewTab({
     [venue.id, venue.name, venue.filterHints?.searchText, venue.filterHints?.cuisineTags],
   );
 
-  // The freshest community submission at this pub, any drink category. The row
-  // names the drink, so a wine or cocktail figure can never read as the pint
-  // price - and reaching a PIN takes more still: only beer is a candidate
-  // (freshestByVenueId), and only a corroborated, under-30-days candidate
-  // actually restamps (mergeCommunityPriceSignals).
-  const communityPrice = freshestCommunityPrice(communityPrices.byVenueId.get(venue.id));
+  // The ordinary view names the freshest category; the no-alcohol view admits
+  // only its two categories, while the food view reserves this slot for the
+  // sourced menu anchor below. Sheet visibility remains independent of map
+  // authority, which still requires category-specific trust gates.
+  const communityRows = communityPrices.byVenueId.get(venue.id);
+  const noAlcoholRows = communityRows?.filter(
+    (row) =>
+      row.drinkCategory === "soft-drink" ||
+      row.drinkCategory === "alcohol-free",
+  );
+  const communityPrice = freshestCommunityPrice(
+    experienceLens === "food"
+      ? undefined
+      : experienceLens === "no-alcohol"
+        ? noAlcoholRows
+        : communityRows,
+  );
   // The sheet is deliberately UNGATED - it shows what people reported, so an
   // uncorroborated or aged-out figure still renders here in full. What changes
   // is that the row admits its standing instead of implying it moved the map.
@@ -347,34 +361,49 @@ export default function VenueOverviewTab({
             venueName={venue.name}
           />
         </div>
+      ) : experienceLens === "no-alcohol" ? (
+        <div className="contributorPrice communityPriceRow">
+          <span>
+            <ClaimBadge kind="baseline" /> No-alcohol prices
+          </span>
+          <small className="communityPriceNote">
+            No soft-drink or alcohol-free price logged here yet.
+          </small>
+        </div>
       ) : null}
       {/* Price honesty on overview: community override wins, then sourced
           observation, then baseline-on-record. Never imply a live feed.
           Non-pub venues carry a type-specific anchor (a cocktail, a doner) —
           it renders under its own label with date and source, never as a
           pint figure. */}
-      <VenuePriceSummary
-        venue={venue}
-        latestContributorPrice={latestContributorPrice}
-        sourcedPrice={sourcedPrice}
-        sourcedObserved={sourcedObserved}
-        anchorStamp={anchorStamp}
-        onStartFirstDrop={onStartFirstDrop}
-      />
+      {experienceLens !== "no-alcohol" ||
+      venue.kind === "food" ||
+      venue.kind === "restaurant" ? (
+        <VenuePriceSummary
+          venue={venue}
+          latestContributorPrice={latestContributorPrice}
+          sourcedPrice={sourcedPrice}
+          sourcedObserved={sourcedObserved}
+          anchorStamp={anchorStamp}
+          onStartFirstDrop={onStartFirstDrop}
+        />
+      ) : null}
       {/* What a pint here used to cost: one dated figure from the archives,
           against the price on record now. Sits directly under today's price
           because the comparison IS the point. History only - the old figure
           never enters bands, pins, cheapest buckets or the Pint Index
           (lib/priceHistory.ts). Renders nothing for a pub with no history. */}
-      <VenuePriceThen
-        venueId={venue.id}
+      {experienceLens === "all" ? (
+        <VenuePriceThen
+          venueId={venue.id}
         // "Now" is only offered where today's figure is a pint. A bar or food
         // venue's cheapestPrice is an anchor price (a cocktail, a dish), so it
         // is withheld rather than compared against an old pint.
-        currentPriceGbp={
-          isPubVenue(venue) ? (latestContributorPrice ?? venue.cheapestPrice) : null
-        }
-      />
+          currentPriceGbp={
+            isPubVenue(venue) ? (latestContributorPrice ?? venue.cheapestPrice) : null
+          }
+        />
+      ) : null}
       {/* The submission loop itself: pick a drink, type tonight's price, and
           the pin, the list row and the row above restamp on the same tap.
           Pubs only — a Pint Drop at a bar or late-food venue would
