@@ -29,6 +29,16 @@ export type IconTokens = {
   amber?: string;
   brick?: string;
   muted?: string;
+  /**
+   * The drink pin's rim, and the opposite-luminance casing just outside it.
+   * Both optional: a theme that omits them keeps the plain per-band rim below
+   * (see makeVenuePinDraw). The dark theme sets both because its basemap is
+   * bimodal in luminance — near-black land against near-white road strokes —
+   * so no single rim tone can edge a pin on both. See the comment on
+   * `venuePinEdgeTokens` in components/map/canvas/tokens.ts.
+   */
+  pinRim?: string;
+  pinCasing?: string;
 };
 
 export type IconNamespace = "lm" | "tfl" | "drink" | "base";
@@ -798,13 +808,27 @@ export type VenuePinKind = DrinkPinKind | "coupe" | "skewer" | "fork";
 
 // Soft brass-grey for unpriced pins — never pure ink/muted black (reads as a
 // building blob on the basemap). Hex equivalent of a desaturated brass.
-const UNPRICED_FILL = "#9a7a72";
+export const UNPRICED_PIN_FILL = "#9a7a72";
+
+/**
+ * The price-band fill system, in band order: <=£5.50, <=£7, >£7, no price. Each
+ * priced band names the theme token it is painted from, so the bands flip with
+ * the theme from one source; the unpriced band is the map-local grey above,
+ * which is deliberately not a theme accent. Exported so a test can hold the
+ * system to four bands in this order without restating the colours.
+ */
+export const VENUE_PIN_FILL_TOKEN: readonly (keyof IconTokens | null)[] = [
+  "pint",
+  "amber",
+  "brick",
+  null,
+];
 
 function priceFill(t: IconTokens, bucket: number): string {
   if (bucket === 0) return t.pint ?? t.brass;
   if (bucket === 1) return t.amber ?? t.brassBright;
   if (bucket === 2) return t.brick ?? "#d16353";
-  return UNPRICED_FILL;
+  return UNPRICED_PIN_FILL;
 }
 
 /** Soft elliptical ground shadow only — no circular pad. The pin IS the glass. */
@@ -820,14 +844,33 @@ function drawDrinkShadow(ctx: CanvasRenderingContext2D, t: IconTokens): void {
   ctx.restore();
 }
 
+/**
+ * Glass edge weights, as multiples of STROKE.
+ *
+ * `GLASS_RIM_STROKE` is the single-rim weight: with no casing behind it the rim
+ * is the whole edge, so it has to be substantial. `GLASS_CASED_RIM_STROKE` is
+ * what the rim drops to once a casing is carrying the outer edge — a hairline,
+ * which matters because the rim is centred on the path and so eats the band
+ * colour out of the thin-bodied glyphs (a coupe bowl, a skewer cube): a cased
+ * pin ends up showing MORE of its price band than an uncased one, not less.
+ * The casing survives around the finished glyph as
+ * `STROKE * (CASING - CASED_RIM) / 2` beyond the rim, well inside the BOX — so a
+ * casing changes what a pin looks like and never its collision footprint, which
+ * is the icon box and not the ink in it.
+ */
+const GLASS_RIM_STROKE = 1.15;
+const GLASS_CASED_RIM_STROKE = 0.7;
+const GLASS_CASING_STROKE = 2;
+
 function setDrinkGlassStyle(
   ctx: CanvasRenderingContext2D,
   fill: string,
   stroke: string,
+  strokeScale = GLASS_RIM_STROKE,
 ): void {
   ctx.fillStyle = fill;
   ctx.strokeStyle = stroke;
-  ctx.lineWidth = STROKE * 1.15;
+  ctx.lineWidth = STROKE * strokeScale;
   ctx.lineJoin = "round";
   ctx.lineCap = "round";
 }
@@ -839,9 +882,10 @@ function drawPintSilhouette(
   ctx: CanvasRenderingContext2D,
   fill: string,
   stroke: string,
+  strokeScale?: number,
 ): void {
   const cx = BOX / 2;
-  setDrinkGlassStyle(ctx, fill, stroke);
+  setDrinkGlassStyle(ctx, fill, stroke, strokeScale);
   ctx.beginPath();
   ctx.moveTo(cx - BOX * 0.17, BOX * 0.18);
   ctx.lineTo(cx + BOX * 0.17, BOX * 0.18);
@@ -863,9 +907,10 @@ function drawWineSilhouette(
   ctx: CanvasRenderingContext2D,
   fill: string,
   stroke: string,
+  strokeScale?: number,
 ): void {
   const cx = BOX / 2;
-  setDrinkGlassStyle(ctx, fill, stroke);
+  setDrinkGlassStyle(ctx, fill, stroke, strokeScale);
   ctx.beginPath();
   ctx.moveTo(cx - BOX * 0.18, BOX * 0.2);
   ctx.quadraticCurveTo(cx, BOX * 0.52, cx, BOX * 0.62);
@@ -884,9 +929,10 @@ function drawCocktailSilhouette(
   ctx: CanvasRenderingContext2D,
   fill: string,
   stroke: string,
+  strokeScale?: number,
 ): void {
   const cx = BOX / 2;
-  setDrinkGlassStyle(ctx, fill, stroke);
+  setDrinkGlassStyle(ctx, fill, stroke, strokeScale);
   ctx.beginPath();
   ctx.moveTo(cx - BOX * 0.2, BOX * 0.2);
   ctx.lineTo(cx + BOX * 0.2, BOX * 0.2);
@@ -910,13 +956,18 @@ function drawCoupeSilhouette(
   ctx: CanvasRenderingContext2D,
   fill: string,
   stroke: string,
+  strokeScale?: number,
 ): void {
   const cx = BOX / 2;
-  setDrinkGlassStyle(ctx, fill, stroke);
+  setDrinkGlassStyle(ctx, fill, stroke, strokeScale);
+  // The bowl is a lens between two curves, and it has to be thick enough to
+  // hold a price band: at the old 0.48/0.58 control pair it was ~1.5 units at
+  // its widest, which the rim alone consumed, so a coupe printed its band as a
+  // trace and read as an outline of a glass rather than a coloured one.
   ctx.beginPath();
   ctx.moveTo(cx - BOX * 0.22, BOX * 0.28);
-  ctx.quadraticCurveTo(cx, BOX * 0.48, cx + BOX * 0.22, BOX * 0.28);
-  ctx.quadraticCurveTo(cx, BOX * 0.58, cx - BOX * 0.22, BOX * 0.28);
+  ctx.quadraticCurveTo(cx, BOX * 0.46, cx + BOX * 0.22, BOX * 0.28);
+  ctx.quadraticCurveTo(cx, BOX * 0.72, cx - BOX * 0.22, BOX * 0.28);
   ctx.closePath();
   fillStroke(ctx);
   ctx.beginPath();
@@ -931,9 +982,10 @@ function drawSkewerSilhouette(
   ctx: CanvasRenderingContext2D,
   fill: string,
   stroke: string,
+  strokeScale?: number,
 ): void {
   const cx = BOX / 2;
-  setDrinkGlassStyle(ctx, fill, stroke);
+  setDrinkGlassStyle(ctx, fill, stroke, strokeScale);
   ctx.save();
   ctx.translate(cx, BOX / 2);
   ctx.rotate(-Math.PI / 5);
@@ -960,9 +1012,10 @@ function drawForkSilhouette(
   ctx: CanvasRenderingContext2D,
   fill: string,
   stroke: string,
+  strokeScale?: number,
 ): void {
   const cx = BOX / 2;
-  setDrinkGlassStyle(ctx, fill, stroke);
+  setDrinkGlassStyle(ctx, fill, stroke, strokeScale);
   for (const dx of [-0.125, 0, 0.125]) {
     ctx.beginPath();
     roundRectPath(
@@ -1001,9 +1054,10 @@ function drawSpiritsSilhouette(
   ctx: CanvasRenderingContext2D,
   fill: string,
   stroke: string,
+  strokeScale?: number,
 ): void {
   const cx = BOX / 2;
-  setDrinkGlassStyle(ctx, fill, stroke);
+  setDrinkGlassStyle(ctx, fill, stroke, strokeScale);
   ctx.beginPath();
   ctx.moveTo(cx - BOX * 0.085, BOX * 0.18);
   ctx.lineTo(cx + BOX * 0.085, BOX * 0.18);
@@ -1027,18 +1081,42 @@ function drawSpiritsSilhouette(
 }
 
 function makeVenuePinDraw(kind: VenuePinKind, bucket: number) {
+  const silhouette = (
+    ctx: CanvasRenderingContext2D,
+    fill: string,
+    stroke: string,
+    strokeScale?: number,
+  ) => {
+    if (kind === "pint") drawPintSilhouette(ctx, fill, stroke, strokeScale);
+    else if (kind === "wine") drawWineSilhouette(ctx, fill, stroke, strokeScale);
+    else if (kind === "cocktail")
+      drawCocktailSilhouette(ctx, fill, stroke, strokeScale);
+    else if (kind === "coupe") drawCoupeSilhouette(ctx, fill, stroke, strokeScale);
+    else if (kind === "skewer")
+      drawSkewerSilhouette(ctx, fill, stroke, strokeScale);
+    else if (kind === "fork") drawForkSilhouette(ctx, fill, stroke, strokeScale);
+    else drawSpiritsSilhouette(ctx, fill, stroke, strokeScale);
+  };
   return (ctx: CanvasRenderingContext2D, t: IconTokens) => {
     const fill = priceFill(t, bucket);
     drawDrinkShadow(ctx, t);
-    // Light rim on saturated glasses; ink rim on soft brass-grey unpriced.
-    const stroke = bucket === 3 ? t.ink : t.paper;
-    if (kind === "pint") drawPintSilhouette(ctx, fill, stroke);
-    else if (kind === "wine") drawWineSilhouette(ctx, fill, stroke);
-    else if (kind === "cocktail") drawCocktailSilhouette(ctx, fill, stroke);
-    else if (kind === "coupe") drawCoupeSilhouette(ctx, fill, stroke);
-    else if (kind === "skewer") drawSkewerSilhouette(ctx, fill, stroke);
-    else if (kind === "fork") drawForkSilhouette(ctx, fill, stroke);
-    else drawSpiritsSilhouette(ctx, fill, stroke);
+    // The rim. Light on saturated glasses, ink on the soft brass-grey unpriced
+    // one — unless the theme published a rim of its own, which the dark theme
+    // does because there `paper` resolves to a near-black and a "light rim"
+    // silently became a black one (see venuePinEdgeTokens).
+    const rim = t.pinRim ?? (bucket === 3 ? t.ink : t.paper);
+    // The casing: the same glyph, once, in the opposite luminance and a hair
+    // wider, so the pin keeps an edge where the basemap is too close in tone to
+    // the rim to show it. Same trick the price tag beside it already uses (a
+    // cream figure over an ink halo) and the route line's casing before that.
+    // Omitted when the theme publishes no casing, which keeps light mode's pins
+    // exactly as drawn before.
+    if (t.pinCasing) {
+      silhouette(ctx, t.pinCasing, t.pinCasing, GLASS_CASING_STROKE);
+      silhouette(ctx, fill, rim, GLASS_CASED_RIM_STROKE);
+      return;
+    }
+    silhouette(ctx, fill, rim);
   };
 }
 

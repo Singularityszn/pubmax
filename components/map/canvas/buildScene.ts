@@ -16,6 +16,7 @@ import {
   GLOW_BASE_STROKE_OPACITY,
   GLOW_BASE_STROKE_WIDTH,
   OSM_ATTRIBUTION,
+  venuePinEdgeTokens,
 } from "./tokens";
 import {
   AMBIENT_CATEGORIES,
@@ -430,6 +431,10 @@ export function registerSceneIcons(ctx: SceneCtx) {
     amber: tokens.amber,
     brick: tokens.brick,
     muted: tokens.muted,
+    // The drink pin's rim + casing. Dark only, and for the reason spelled out on
+    // venuePinEdgeTokens: `paper` above resolves to a near-black in dark, so the
+    // glasses' "light rim" was a black one against a near-black basemap.
+    ...venuePinEdgeTokens(tokens, dark),
   };
   registerMapIcons(map, iconTokens);
 }
