@@ -57,6 +57,13 @@ function setupScratch(files: Record<string, unknown>): string {
     join(ROOT, "lib", "nightOutPlaceContract.mjs"),
     join(scratchLib, "nightOutPlaceContract.mjs"),
   );
+  // The dated Pint Index editions are hashed over one shared canonical form,
+  // which the script imports rather than restates; without it the scratch run
+  // dies at module resolution before it validates anything.
+  cpSync(
+    join(ROOT, "lib", "pintIndexCanonical.mjs"),
+    join(scratchLib, "pintIndexCanonical.mjs"),
+  );
   for (const f of [
     "london_pois.json",
     "london_localities.json",
