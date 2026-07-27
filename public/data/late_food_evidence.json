@@ -170,6 +170,10 @@
             "kind": "official_operator",
             "publisher": "Franco Manca",
             "sourceUrl": "https://www.francomanca.co.uk/restaurants/victoria-nova/",
+            "anchorDocumentLink": {
+              "pageUrl": "https://www.francomanca.co.uk/restaurants/victoria-nova/",
+              "documentUrl": "https://www.francomanca.co.uk/wp-content/uploads/2026/06/FM-MENU-L0526P.pdf"
+            },
             "observedAt": "2026-07-16T22:30:00.000Z",
             "reviewedAt": "2026-07-16T22:30:00.000Z",
             "expiresAt": "2026-08-16T22:30:00.000Z",
@@ -257,10 +261,15 @@
             "kind": "official_operator",
             "publisher": "Balans Restaurants",
             "sourceUrl": "https://balans.co.uk/locations/soho-no-60/",
+            "anchorDocumentLink": {
+              "pageUrl": "https://balans.co.uk/menus/soho-no-60/",
+              "documentUrl": "https://balans.co.uk/wp-content/uploads/2025/07/No.60-Overnight-1.pdf"
+            },
             "observedAt": "2026-07-16T22:30:00.000Z",
             "reviewedAt": "2026-07-16T22:30:00.000Z",
             "expiresAt": "2026-08-16T22:30:00.000Z",
-            "evidenceNote": "The operator page publishes the street address, opening hours for every day, and an operator-linked mapped location."
+            "evidenceNote": "The operator page publishes the street address, opening hours for every day, and an operator-linked mapped location.",
+            "supportingUrls": ["https://balans.co.uk/menus/soho-no-60/"]
           }
         }
       ]
@@ -344,6 +353,10 @@
             "kind": "official_operator",
             "publisher": "Franco Manca",
             "sourceUrl": "https://www.francomanca.co.uk/restaurants/canary-wharf/",
+            "anchorDocumentLink": {
+              "pageUrl": "https://www.francomanca.co.uk/restaurants/canary-wharf/",
+              "documentUrl": "https://www.francomanca.co.uk/wp-content/uploads/2026/06/FM-MENU-L0526P.pdf"
+            },
             "observedAt": "2026-07-16T22:30:00.000Z",
             "reviewedAt": "2026-07-16T22:30:00.000Z",
             "expiresAt": "2026-08-16T22:30:00.000Z",
@@ -1066,6 +1079,10 @@
             "kind": "official_operator",
             "publisher": "Franco Manca",
             "sourceUrl": "https://www.francomanca.co.uk/restaurants/islington/",
+            "anchorDocumentLink": {
+              "pageUrl": "https://www.francomanca.co.uk/restaurants/islington/",
+              "documentUrl": "https://www.francomanca.co.uk/wp-content/uploads/2026/06/FM-MENU-L0526S.pdf"
+            },
             "observedAt": "2026-07-16T22:30:00.000Z",
             "reviewedAt": "2026-07-16T22:30:00.000Z",
             "expiresAt": "2026-08-16T22:30:00.000Z",
@@ -1501,6 +1518,10 @@
             "kind": "official_operator",
             "publisher": "Franco Manca",
             "sourceUrl": "https://www.francomanca.co.uk/restaurants/balham/",
+            "anchorDocumentLink": {
+              "pageUrl": "https://www.francomanca.co.uk/restaurants/balham/",
+              "documentUrl": "https://www.francomanca.co.uk/wp-content/uploads/2026/06/FM-MENU-L0526S.pdf"
+            },
             "observedAt": "2026-07-16T22:30:00.000Z",
             "reviewedAt": "2026-07-16T22:30:00.000Z",
             "expiresAt": "2026-08-16T22:30:00.000Z",
@@ -1675,6 +1696,10 @@
             "kind": "official_operator",
             "publisher": "Franco Manca",
             "sourceUrl": "https://www.francomanca.co.uk/restaurants/richmond/",
+            "anchorDocumentLink": {
+              "pageUrl": "https://www.francomanca.co.uk/restaurants/richmond/",
+              "documentUrl": "https://www.francomanca.co.uk/wp-content/uploads/2026/06/FM-MENU-L0526S.pdf"
+            },
             "observedAt": "2026-07-16T22:30:00.000Z",
             "reviewedAt": "2026-07-16T22:30:00.000Z",
             "expiresAt": "2026-08-16T22:30:00.000Z",
@@ -1762,6 +1787,10 @@
             "kind": "official_operator",
             "publisher": "Franco Manca",
             "sourceUrl": "https://www.francomanca.co.uk/restaurants/putney/",
+            "anchorDocumentLink": {
+              "pageUrl": "https://www.francomanca.co.uk/restaurants/putney/",
+              "documentUrl": "https://www.francomanca.co.uk/wp-content/uploads/2026/06/FM-MENU-L0526S.pdf"
+            },
             "observedAt": "2026-07-16T22:30:00.000Z",
             "reviewedAt": "2026-07-16T22:30:00.000Z",
             "expiresAt": "2026-08-16T22:30:00.000Z",

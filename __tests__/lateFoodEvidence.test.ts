@@ -82,6 +82,102 @@ describe("late-food evidence snapshot", () => {
     expect(validate(invalid).join(" ")).toMatch(/names waterloo/i);
   });
 
+  it("rejects an opaque PDF without branch-to-document proof", () => {
+    const invalid = structuredClone(fixture);
+    const option = invalid.areas.richmond.options[0];
+    option.anchor.sourceUrl =
+      "https://www.francomanca.co.uk/wp-content/uploads/2026/06/opaque-menu.pdf";
+    delete option.source.anchorDocumentLink;
+    expect(validate(invalid).join(" ")).toMatch(
+      /PDF anchor requires an explicit operator-page link/i,
+    );
+  });
+
+  it("rejects document proof that does not match the anchor", () => {
+    const wrongDocument = structuredClone(fixture);
+    wrongDocument.areas.richmond.options[0].source.anchorDocumentLink.documentUrl =
+      "https://www.francomanca.co.uk/wp-content/uploads/2026/06/other.pdf";
+    expect(validate(wrongDocument).join(" ")).toMatch(
+      /documentUrl must match the anchor source/i,
+    );
+  });
+
+  it("rejects document proof outside the option source chain", () => {
+    const unrelatedPage = structuredClone(fixture);
+    unrelatedPage.areas.richmond.options[0].source.anchorDocumentLink.pageUrl =
+      "https://www.francomanca.co.uk/menu/";
+    expect(validate(unrelatedPage).join(" ")).toMatch(
+      /pageUrl must be recorded in the option provenance/i,
+    );
+  });
+
+  it("rejects document proof from a different operator", () => {
+    const wrongOperator = structuredClone(fixture);
+    const source = wrongOperator.areas.richmond.options[0].source;
+    source.anchorDocumentLink.pageUrl =
+      "https://www.honestburgers.co.uk/menus/smash-and-grab-menu/";
+    source.supportingUrls = [source.anchorDocumentLink.pageUrl];
+    expect(validate(wrongOperator).join(" ")).toMatch(
+      /page and document must share an operator host/i,
+    );
+  });
+
+  it("records each Franco Manca branch page that links its exact menu PDF", () => {
+    const expected = {
+      victoria: {
+        pageUrl:
+          "https://www.francomanca.co.uk/restaurants/victoria-nova/",
+        documentUrl:
+          "https://www.francomanca.co.uk/wp-content/uploads/2026/06/FM-MENU-L0526P.pdf",
+        price: 13.95,
+      },
+      "canary-wharf": {
+        pageUrl:
+          "https://www.francomanca.co.uk/restaurants/canary-wharf/",
+        documentUrl:
+          "https://www.francomanca.co.uk/wp-content/uploads/2026/06/FM-MENU-L0526P.pdf",
+        price: 13.95,
+      },
+      islington: {
+        pageUrl: "https://www.francomanca.co.uk/restaurants/islington/",
+        documentUrl:
+          "https://www.francomanca.co.uk/wp-content/uploads/2026/06/FM-MENU-L0526S.pdf",
+        price: 13.5,
+      },
+      balham: {
+        pageUrl: "https://www.francomanca.co.uk/restaurants/balham/",
+        documentUrl:
+          "https://www.francomanca.co.uk/wp-content/uploads/2026/06/FM-MENU-L0526S.pdf",
+        price: 13.5,
+      },
+      richmond: {
+        pageUrl: "https://www.francomanca.co.uk/restaurants/richmond/",
+        documentUrl:
+          "https://www.francomanca.co.uk/wp-content/uploads/2026/06/FM-MENU-L0526S.pdf",
+        price: 13.5,
+      },
+      putney: {
+        pageUrl: "https://www.francomanca.co.uk/restaurants/putney/",
+        documentUrl:
+          "https://www.francomanca.co.uk/wp-content/uploads/2026/06/FM-MENU-L0526S.pdf",
+        price: 13.5,
+      },
+    } as const;
+
+    for (const [area, proof] of Object.entries(expected)) {
+      const option = fixture.areas[area].options[0];
+      expect(option.source.sourceUrl).toBe(proof.pageUrl);
+      expect(option.source.anchorDocumentLink).toEqual({
+        pageUrl: proof.pageUrl,
+        documentUrl: proof.documentUrl,
+      });
+      expect(option.anchor).toMatchObject({
+        sourceUrl: proof.documentUrl,
+        price: proof.price,
+      });
+    }
+  });
+
   it("accepts a chain-wide anchor document that names no branch", () => {
     expect(
       fixture.areas.clapham.options[0].anchor.sourceUrl,

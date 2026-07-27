@@ -78,6 +78,30 @@ function namesPlace(haystack, place) {
   return haystack.includes(` ${place} `);
 }
 
+function sameUrl(left, right) {
+  try {
+    return new URL(left).href === new URL(right).href;
+  } catch {
+    return false;
+  }
+}
+
+function isPdfUrl(value) {
+  try {
+    return new URL(value).pathname.toLowerCase().endsWith(".pdf");
+  } catch {
+    return false;
+  }
+}
+
+function operatorHost(value) {
+  try {
+    return new URL(value).hostname.toLowerCase().replace(/^www\./, "");
+  } catch {
+    return "";
+  }
+}
+
 function anchorDocumentCoverageError(option, localityNames) {
   let anchorPath;
   try {
@@ -224,6 +248,40 @@ export function validateLateFoodEvidence(value, localityNames) {
           errors.push(
             `${where}: anchor document names ${foreign}, which is not this venue; cite the branch's own document or drop the anchor`,
           );
+        }
+        if (isPdfUrl(option.anchor.sourceUrl)) {
+          const link = option.source.anchorDocumentLink;
+          if (
+            !isRecord(link) ||
+            !eligibleSourceUrl(link.pageUrl) ||
+            !eligibleSourceUrl(link.documentUrl)
+          ) {
+            errors.push(
+              `${where}: PDF anchor requires an explicit operator-page link`,
+            );
+          } else {
+            if (!sameUrl(link.documentUrl, option.anchor.sourceUrl)) {
+              errors.push(
+                `${where}: anchorDocumentLink documentUrl must match the anchor source`,
+              );
+            }
+            if (operatorHost(link.pageUrl) !== operatorHost(link.documentUrl)) {
+              errors.push(
+                `${where}: anchorDocumentLink page and document must share an operator host`,
+              );
+            }
+            const provenancePages = [
+              option.source.sourceUrl,
+              ...(Array.isArray(option.source.supportingUrls)
+                ? option.source.supportingUrls
+                : []),
+            ];
+            if (!provenancePages.some((url) => sameUrl(url, link.pageUrl))) {
+              errors.push(
+                `${where}: anchorDocumentLink pageUrl must be recorded in the option provenance`,
+              );
+            }
+          }
         }
       }
       if (

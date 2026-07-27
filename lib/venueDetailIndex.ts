@@ -67,7 +67,7 @@ const RAW_DATASET_FILE = path.join(process.cwd(), "public", "data", "pint_prices
 // Suffix bound is deliberately loose ({1,24}) so a future id generator that
 // bumps the entropy segment beyond today's 12 chars won't need a regex change.
 const VENUE_ID_RE =
-  /^(?:venue-(?:[a-z]{3}-)?[a-z0-9]{1,24}|(?:bar|food)-[a-z0-9-]{1,100})$/;
+  /^(?:venue-(?:[a-z]{3}-)?[a-z0-9]{1,24}|(?:bar|food|restaurant)-[a-z0-9-]{1,100})$/;
 
 const cachedDetails = new Map<string, Venue>();
 /** Successful manifests only — I/O failures stay unset so the next call can retry.
@@ -195,7 +195,7 @@ async function getFallbackIndex(): Promise<Map<string, Venue>> {
   } catch {
     // Keep development and tests friendly if generated artifacts are absent.
   }
-  for (const file of ["bars.json", "late_food.json"]) {
+  for (const file of ["bars.json", "late_food.json", "restaurants.json"]) {
     try {
       const seeds = JSON.parse(
         await fs.readFile(
