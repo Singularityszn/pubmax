@@ -184,6 +184,39 @@ export function readTokens(): Tokens {
   };
 }
 
+/**
+ * The drink pin's EDGE, per theme — the rim that separates a glass from the
+ * basemap, plus the opposite-luminance casing just outside it.
+ *
+ * Why the dark theme needs both and the light theme needs neither: a pin's FILL
+ * carries the price band, so the edge is the only thing that can make a pin
+ * findable independently of what it is standing on. The light basemap is one
+ * luminance regime (pale paper land, paler roads), so one light rim knocks the
+ * glass out of the map everywhere. The DARK basemap deliberately is NOT: Wave A
+ * (lib/mapBasemapTaste.ts) made roads the lightest strokes on a near-black
+ * canvas, so a pin's background spans ~20:1 from `ground` #0b0908 to
+ * `roadMajor` #c3bcae. No single rim tone edges a pin across that, and the tone
+ * this map had been using was the worst of the options: `paper` resolves to the
+ * near-black `--ink-deep` in dark, which sits within 1.02:1 of dark land, so
+ * the "light rim on saturated glasses" was a black rim that erased the glass's
+ * own outline, its stem and its foot, and left the lowest-luminance bands
+ * (>£7 and unpriced) carrying findability on fill alone.
+ *
+ * So dark mode pairs the two tones the price tag beside the pin already pairs -
+ * a cream `--ink` figure over an `--ink-deep` halo. Neither is a new colour and
+ * neither is a ring, so nothing here can be confused with the brass selection
+ * and scraped rings, the river Pint Drops ring and provisional badge, the
+ * what's-on accent ring, the band halo, or the base layer's brass sockets.
+ * __tests__/mapPinBandContrast.test.ts pins the contrast this buys per band.
+ */
+export function venuePinEdgeTokens(
+  tokens: Pick<Tokens, "ink" | "inkDeep">,
+  dark: boolean,
+): Pick<IconTokens, "pinRim" | "pinCasing"> {
+  if (!dark) return {};
+  return { pinRim: tokens.ink, pinCasing: tokens.inkDeep };
+}
+
 export function withAlpha(hex: string, alpha: number): string {
   const match = /^#([0-9a-f]{6})$/i.exec(hex.trim());
   if (!match) return hex;

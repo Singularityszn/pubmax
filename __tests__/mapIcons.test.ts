@@ -4,6 +4,8 @@ import {
   MAP_ICON_SPECS,
   LANDMARK_ICON_KEYS,
   TFL_ICON_KEYS,
+  UNPRICED_PIN_FILL,
+  VENUE_PIN_EDGE_WIDTH,
   VENUE_PIN_ICON_KEYS,
   drinkPinKindFromCategories,
   iconId,
@@ -58,6 +60,9 @@ type StubTallies = {
   fills: number; // fill / fillRect
   strokes: number; // stroke
   fillStyles: string[]; // the fillStyle in force at each fill, in order
+  fillWidths: number[]; // the lineWidth in force at each fill, in order
+  strokeStyles: string[]; // the strokeStyle in force at each stroke, in order
+  strokeWidths: number[]; // the lineWidth in force at each stroke, in order
 };
 
 // Build a recording stub that satisfies the subset of CanvasRenderingContext2D the
@@ -72,6 +77,9 @@ function makeStubCtx(): {
     fills: 0,
     strokes: 0,
     fillStyles: [],
+    fillWidths: [],
+    strokeStyles: [],
+    strokeWidths: [],
   };
   const bumpPath = () => {
     tallies.paths += 1;
@@ -79,9 +87,12 @@ function makeStubCtx(): {
   const bumpFill = () => {
     tallies.fills += 1;
     tallies.fillStyles.push(String(stub.fillStyle));
+    tallies.fillWidths.push(stub.lineWidth);
   };
   const bumpStroke = () => {
     tallies.strokes += 1;
+    tallies.strokeStyles.push(String(stub.strokeStyle));
+    tallies.strokeWidths.push(stub.lineWidth);
   };
 
   const stub = {
@@ -134,11 +145,21 @@ function makeStubCtx(): {
 // Run a single spec's draw against a fresh stub and return the tallies. If roundRect
 // is absent on a real target the module falls back to arcTo/lineTo, so we also cover
 // that branch by deleting roundRect from the stub in one dedicated test below.
-function exercise(spec: IconSpec): StubTallies {
+function exercise(spec: IconSpec, tokens: IconTokens = TOKENS): StubTallies {
   const { ctx, tallies } = makeStubCtx();
-  spec.draw(ctx, TOKENS);
+  spec.draw(ctx, tokens);
   return tallies;
 }
+
+// The dark theme's shape of IconTokens: a rim and an opposite-luminance casing
+// published together (see venuePinEdgeTokens). This is the ONLY drink-pin draw
+// path dark mode ships, so it needs its own coverage — the plain TOKENS above
+// exercise the uncased branch.
+const CASED_TOKENS: IconTokens = {
+  ...TOKENS,
+  pinRim: "#efe6d2",
+  pinCasing: "#0f0b07",
+};
 
 const DRINK_PIN_KINDS = [
   "pint",
@@ -243,6 +264,73 @@ describe("derived key lists", () => {
         new Set(perBand.map((fills) => fills.join("|"))).size,
         `${kind} distinct band fills`,
       ).toBe(perBand.length);
+    }
+  });
+
+  it("draws the casing pass first and the price band pass last", () => {
+    expect(VENUE_PIN_EDGE_WIDTH.casing).toBeGreaterThan(
+      VENUE_PIN_EDGE_WIDTH.casedRim,
+    );
+    // A thick-bodied glyph and a thin-bodied one, priced and unpriced.
+    for (const kind of ["pint", "coupe"] as const) {
+      for (const [bucket, band] of [
+        [0, TOKENS.pint!],
+        [3, UNPRICED_PIN_FILL],
+      ] as const) {
+        const key = venuePinIconKey(kind, bucket);
+        const spec = drinkSpec(kind, bucket);
+        const plain = exercise(spec);
+        const cased = exercise(spec, CASED_TOKENS);
+
+        // The ground shadow is painted once in t.ink before either pass.
+        expect(cased.fillStyles[0], `${key} shadow fill`).toBe(TOKENS.ink);
+        const glyphFills = cased.fillStyles.slice(1);
+        const glyphWidths = cased.fillWidths.slice(1);
+        const perPass = plain.fillStyles.length - 1;
+        expect(perPass, `${key} glyph fills`).toBeGreaterThan(0);
+        expect(glyphFills, `${key} cased glyph fills`).toHaveLength(perPass * 2);
+
+        // Pass ORDER: an inverted one would leave the near-black casing as the
+        // last thing painted over the whole glyph, i.e. a solid dark blob where
+        // the price band should be.
+        expect(glyphFills.slice(0, perPass), `${key} casing pass`).toEqual(
+          Array(perPass).fill(CASED_TOKENS.pinCasing),
+        );
+        expect(glyphFills.slice(perPass), `${key} band pass`).toEqual(
+          Array(perPass).fill(band),
+        );
+        expect(glyphFills.at(-1), `${key} final fill`).not.toBe(
+          CASED_TOKENS.pinCasing,
+        );
+
+        // Pass WEIGHT: the casing is the wider one, and the rim over it drops to
+        // the hairline so the band keeps its area.
+        expect(glyphWidths.slice(0, perPass), `${key} casing width`).toEqual(
+          Array(perPass).fill(VENUE_PIN_EDGE_WIDTH.casing),
+        );
+        expect(glyphWidths.slice(perPass), `${key} cased rim width`).toEqual(
+          Array(perPass).fill(VENUE_PIN_EDGE_WIDTH.casedRim),
+        );
+
+        // The published rim rides the band pass in EVERY bucket — including the
+        // unpriced one, whose own `t.ink` rim the theme's rim replaces.
+        const strokesPerPass = cased.strokeStyles.length / 2;
+        expect(strokesPerPass, `${key} strokes per pass`).toBeGreaterThan(0);
+        expect(
+          cased.strokeStyles.slice(0, strokesPerPass),
+          `${key} casing stroke`,
+        ).toEqual(Array(strokesPerPass).fill(CASED_TOKENS.pinCasing));
+        expect(
+          cased.strokeStyles.slice(strokesPerPass),
+          `${key} rim stroke`,
+        ).toEqual(Array(strokesPerPass).fill(CASED_TOKENS.pinRim));
+
+        // And a theme that publishes neither is drawn exactly as before: one
+        // pass, at the full single-rim weight.
+        expect(plain.fillWidths.slice(1), `${key} uncased width`).toEqual(
+          Array(perPass).fill(VENUE_PIN_EDGE_WIDTH.rim),
+        );
+      }
     }
   });
 
