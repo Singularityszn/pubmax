@@ -2,7 +2,7 @@ import { execFileSync } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
 
-import { afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
   clearVenueDetailEntriesForTests,
@@ -46,6 +46,7 @@ beforeEach(() => {
 
 afterEach(() => {
   resetVenueDetailCachesForTests();
+  vi.unstubAllEnvs();
 });
 
 describe("venueDetailIndex", () => {
@@ -114,6 +115,11 @@ describe("venueDetailIndex", () => {
   });
 
   it("loads restaurant detail from seed fallback without generated artifacts", async () => {
+    // The seed fallback is deliberately non-production only (production serves
+    // famous venues from the generated artifact). `npm run ci` runs this suite
+    // inside Vercel's build, where NODE_ENV=production, so pin the runtime the
+    // fallback belongs to instead of inheriting the ambient one.
+    vi.stubEnv("NODE_ENV", "test");
     setVenueDetailIndexFileForTests(
       path.join(ROOT, "data", "generated", "missing-venue-detail-index.json"),
     );
