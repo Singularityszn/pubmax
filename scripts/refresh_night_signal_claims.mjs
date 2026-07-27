@@ -1,6 +1,11 @@
-// Scheduled offline signal ingestion. Reads only staged candidate JSON files,
+// Human-gated offline signal publish, run by hand. There is no machine schedule
+// for the reviewed snapshot. Reads only staged candidate JSON files,
 // validates the full provenance/review contract, writes a reviewed snapshot,
 // and optionally opens a PR. It never searches third parties in a route request.
+//
+// Candidate INGESTION is separately scheduled (Vercel cron
+// app/api/cron/refresh-night-signals); it stages pending candidates and can
+// never advance this reviewed snapshot. See docs/CRON_PLANE_RUNBOOK.md.
 
 import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
 import { execFileSync } from "node:child_process";

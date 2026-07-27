@@ -1,5 +1,18 @@
 # Data-freshness burndown — root cause and owner actions (2026-07-24)
 
+> **Update 2026-07-27 (does not rewrite the report below).** The two GitHub
+> Actions named in this report — "Price refresh" (Mon 07:00) and "Night Signal
+> refresh" (daily 08:15) — have been **deleted**. Price retrieval moved onto the
+> Vercel cron plane as `GET /api/cron/refresh-prices` (Mon 07:00 UTC), which
+> stamps the new artifact-less `price_update_retrieval` feed only after valid
+> rows are retrieved; the served `price_updates` file still advances only on a
+> reviewed publish, so its staleness below is unchanged and still alerts.
+> `night_signals` is now registered as **episodic with no staleness budget**
+> (was 48h): it is human-gated, so a machine budget was claiming a cadence that
+> never existed. Its separate candidate ingestion stays scheduled on Vercel
+> (`/api/cron/refresh-night-signals`). Read the mechanism column below as
+> historical. See `docs/CRON_PLANE_RUNBOOK.md` for the live plane.
+
 Four datasets exceed their staleness budgets. This documents the root cause per
 dataset, what is fixed in-repo, and what the **owner must do** (external blockers
 this repo cannot fix).

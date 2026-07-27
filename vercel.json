@@ -5,6 +5,7 @@
   "crons": [
     { "path": "/api/cron/refresh-weather", "schedule": "0 */6 * * *" },
     { "path": "/api/cron/refresh-whats-on", "schedule": "0 14 * * *" },
+    { "path": "/api/cron/refresh-prices", "schedule": "0 7 * * 1" },
     { "path": "/api/cron/refresh-night-signals", "schedule": "15 5 * * *" },
     { "path": "/api/cron/freshness-audit", "schedule": "30 6 * * *" },
     { "path": "/api/cron/enrich-city-pubs", "schedule": "15 3 * * *" }

@@ -1,4 +1,8 @@
-// Scheduled Exa candidate ingestion for Night Signals.
+// Manual Exa candidate ingestion for Night Signals.
+//
+// The SCHEDULED sweep runs the same logic inside the Vercel cron plane
+// (app/api/cron/refresh-night-signals via lib/nightSignalIngest.server); this
+// script is the local/manual runner of that same boundary.
 //
 // This is the one place EXA_API_KEY is armed. It queries Exa for recent London
 // pub buzz (new openings, award wins, "best pint" mentions), normalises each
@@ -20,7 +24,8 @@
 //  - Nothing auto-affects route ranking: routeEffect is always "none" here.
 //
 // Safe no-op: without EXA_API_KEY the script prints a notice and exits 0, so
-// the scheduled workflow stays green until the owner arms the key.
+// both the manual run and the scheduled cron stay green until the owner arms
+// the key.
 
 import { createHash } from "node:crypto";
 import { existsSync, mkdirSync, writeFileSync } from "node:fs";

@@ -14,9 +14,10 @@ answer to "how live is X?" is one lookup, not tribal knowledge:
 - **Human labels:** [`lib/freshness.ts`](../lib/freshness.ts) statuses feed the existing `lib/dataFreshness.ts` staleness idioms
 
 A first principle runs through every class: **never present stale as live.**
-Every fact carries `{source, observedAt}`; scheduled jobs open a review PR and
-never push to a protected branch; the freshest possible cadence is bounded by
-what the *honest* source (first-party page, official API, open data) supports.
+Every fact carries `{source, observedAt}`; scheduled jobs never fabricate
+freshness, and human-reviewed artifacts still publish through a review PR. The
+freshest possible cadence is bounded by what the *honest* source (first-party
+page, official API, open data) supports.
 
 ---
 
@@ -25,12 +26,12 @@ what the *honest* source (first-party page, official API, open data) supports.
 | Data class | Current source | Refresh path (today) | Actual cadence today | Gate | Freshest honest cadence | Staleness budget |
 |---|---|---|---|---|---|---|
 | **TfL last-train / last-drink** | `api.tfl.gov.uk` (keyless) | `app/api/last-train` fetches **per request**, never disk-cached | Live | none (`TFL_APP_KEY` only raises limits) | Live (real-time arrivals) | live |
-| **Weather** | Open-Meteo (keyless) | `Weather cache refresh` workflow → `refresh:weather` → PR → `public/data/weather/latest.json` | **Daily 14:15 UTC** | none | Hourly if desired (Open-Meteo is generous) | 48 h |
-| **Night signals** | Staged candidate claims, offline-reviewed | `Night Signal refresh` workflow → `refresh:night-signals` → PR → `night_signals/latest.json` | **Daily 08:15 UTC** | `EXA_API_KEY` arms candidate ingestion; **human review always** | Daily (review-bound) | 48 h |
-| **What's-On — baseline** (sport/quiz/deals/music) | Hand-verified first-party rows in `scripts/whatson/*.json` | `refresh:whats-on` (no workflow) + CityMCP blend at request time | Episodic | none | Weekly-ish (hand-curated) | 48 h (envelope) |
+| **Weather** | Open-Meteo (keyless) | Vercel `refresh-weather` cron to durable weather store | Every 6 h | none | Every 6 h | 48 h |
+| **Night signals** | Staged candidate claims, offline-reviewed | Vercel candidate cron; manual approved publish to `night_signals/latest.json` | Candidate sweep daily; reviewed feed advances only on human publish | `EXA_API_KEY` arms candidate ingestion; **human review always** | Human-gated episodic | untracked |
+| **What's-On — baseline** (sport/quiz/deals/music) | Hand-verified first-party rows in `scripts/whatson/*.json` | Vercel slim revalidation + CityMCP blend at request time; full ingest stays manual | Daily slim window; episodic baseline | none | Daily served-window revalidation | 48 h (envelope) |
 | **What's-On — events** (Ticketmaster/Skiddle) | Official discovery APIs | `events-refresh.yml` on `feat/event-sources` — **cron commented out** | **None on main** (branch, keyless-off) | `TICKETMASTER_API_KEY` and/or `SKIDDLE_API_KEY` (Skiddle needs written commercial approval) | Daily 15:45 UTC once keyed | 48 h |
 | **Pint prices (core dataset)** | Collected July 2026 snapshot | Manual `export:data → canonicalize:venues → build:slim` | Episodic (bundled static) | none | Re-collection cadence (manual) | 90 d |
-| **Price updates (cheapest pint)** | First-party / open sources allowlist | `Price refresh` workflow → `refresh:prices` → PR | **Weekly Mon 07:00 UTC** — but **parser stubbed** (`fetchFromSource → []`), so a run is a safe no-op | none to run; needs a per-source parser | Weekly | 14 d |
+| **Price updates (cheapest pint)** | First-party / open sources allowlist | Manual reviewed publish to `price_updates/latest.json`; the weekly Vercel `refresh-prices` cron only retrieves and stamps the separate `price_update_retrieval` feed | **Weekly Mon 07:00 UTC** retrieval; parser stub makes the current run a logged no-op that stamps nothing, and the served file only advances on a reviewed publish | none to run; needs a per-source parser | Weekly retrieval, publish-bound serving | 14 d (served file) |
 | **Drink price updates** | Wetherspoons first-party (allowlist) | `Drink price refresh` workflow → `refresh:drink-prices` → PR | **Weekly Mon 07:30 UTC** — pipeline real but **emits 0 rows** (no per-drink web prices; prices live only in the Order-&-Pay app backend) | none to run; source has no permissible per-drink prices | Weekly | 14 d |
 | **Food price updates** | Menu harvest | Manual harvest (no workflow) | Episodic | `FIRECRAWL_API_KEY` for scraping | Episodic | 60 d |
 | **Pint Index (borough medians)** | Confirmed Pint Drops + official-publisher / open-data | Recomputed as eligible observations arrive | **Event-sourced** (grows with the product) | none | User-cadence — **the growth loop IS the refresh** | untracked |
@@ -52,7 +53,7 @@ sets a secret. Exact env var → mechanism mapping:
 
 | Env var / secret | Where it's set | What it arms | Effect when **absent** (today's reality) |
 |---|---|---|---|
-| `EXA_API_KEY` | GitHub Actions secret + Vercel env | Night-signal candidate ingestion (scheduled) | Snapshot publishes empty (staged candidates only); nothing in the interactive path breaks |
+| `EXA_API_KEY` | Vercel env | Night-signal candidate ingestion (scheduled) | Candidate sweep skips without changing reviewed snapshot; nothing in interactive path breaks |
 | `TICKETMASTER_API_KEY` | GH Actions secret (branch `feat/event-sources`) | What's-On **events** vertical (Ticketmaster Discovery) | Provider skipped; contributes 0 rows |
 | `SKIDDLE_API_KEY` | GH Actions secret (branch `feat/event-sources`) | What's-On events (Skiddle) — **also needs written commercial approval from dev@skiddle.com** | Provider noop-skipped |
 | `FIRECRAWL_API_KEY` | Local `.env` / CI secret | Menu scraping (food prices), Wetherspoons directory refresh, research | Those harvest scripts can't fetch; bundled data unaffected |
@@ -63,10 +64,9 @@ sets a secret. Exact env var → mechanism mapping:
 | `ELEVENLABS_API_KEY` + `ELEVENLABS_PUB_PAL_AGENT_ID` | Vercel env | Pub Pal conversational voice token | Voice session unavailable |
 | `SUPABASE_URL` / `SUPABASE_SERVICE_ROLE_KEY` | Vercel env (required in prod) | Pint Drops persistence, moderation, durable rate limiting | Pint Drop writes 503; in-memory demo store locally |
 
-**To activate a scheduled cron:** set the secret above, then (for events)
-**uncomment the `schedule:` block** in `.github/workflows/events-refresh.yml`.
-The price/drink/night-signal/weather workflows are already scheduled — they just
-no-op or publish-empty until their source/key is live.
+Vercel schedules are owned by `vercel.json` and run on production deployments.
+Provider-gated jobs activate when their Vercel secret exists. Branch-only events
+automation remains separate and is not a production schedule.
 
 **Not present on main today** (contrary to a common assumption): there is **no
 `RESEND` digest workflow** and **no `APNs` push-sender** wired in this repo.
@@ -84,12 +84,12 @@ Honest accounting of what will **not** get fresher on its own:
    official-publisher/open-data observations. **The growth loop is the refresh
    mechanism.** More users confirming drops = fresher index. Registered as
    `user-cadence`, budget `null`.
-2. **Price / drink-price parsers are stubbed or dry.** The weekly workflows run,
-   but `refresh_prices.mjs`'s `fetchFromSource` returns `[]` (no parser yet), and
-   the drink source (Wetherspoons) exposes **no per-drink web prices** (they live
-   only in the native Order-&-Pay backend). So the scheduled cadence exists but
-   produces zero rows until a permissible per-source parser lands. **Gap: real
-   first-party price parsers.**
+2. **Price / drink-price parsers are stubbed or dry.** Weekly price cron runs on
+   Vercel, but shared `fetchFromSource` returns `[]` (no parser yet), so it logs
+   a no-op and leaves freshness unchanged. Drink source (Wetherspoons) exposes
+   **no per-drink web prices**; prices live only in native Order-&-Pay backend.
+   Scheduled retrieval produces zero rows until a permissible parser lands.
+   **Gap: real first-party price parsers.**
 3. **What's-On events are branch-only + key-off.** `feat/event-sources` has the
    full Ticketmaster/Skiddle pipeline, but it isn't merged and the cron is
    commented out. **Gap: merge + provider keys (+ Skiddle approval).**
@@ -153,10 +153,23 @@ resolved). An `unknown` never counts as fresh and never counts as stale: its
 `detail` names the artifact and the way the read failed (absent from the
 deployment, present but unparseable, present but carrying no stamp field).
 
-### What the spine reports right now
-Run `npm run check:freshness`, or read `GET /api/freshness`, rather than a
-paragraph that ages. Whichever feeds are breaching, that is the feature working:
-the directive "always get live data" now has a dial that says out loud when a
-cadence has slipped. The standing per-dataset root causes and the owner actions
-they need are owned by
+### How to read what the spine reports
+Current staleness is not written down here - run `node scripts/check_freshness.mjs`
+or read `GET /api/freshness`. Two things to know when reading it:
+
+- **Store-backed feeds report the store, not the committed file.** Weather,
+  What's-On, and the artifact-less ingestion feeds (`night_signal_candidates`,
+  `price_update_retrieval`) surface the durable store's real `observedAt` via
+  `lib/freshnessStoreOverlay.ts`, because a serverless cron cannot rewrite a
+  committed artifact. An ingestion feed reports that a sweep RAN, never that
+  anything shipped.
+- **A human-gated feed is `untracked`, not `stale`.** `night_signals` advances
+  only on an approved publish, so it carries no machine budget. The served
+  `price_updates` file keeps its 336 h budget and keeps alerting until a reviewed
+  publish lands; the weekly retrieval cron can never quiet it.
+
+That is the feature working: the directive "always get live data" has a dial that
+says out loud when a cadence has slipped, and stays silent about cadences that
+were never machine-owned. The standing per-dataset root causes and the owner
+actions they need are owned by
 [`docs/FRESHNESS_BURNDOWN_2026-07-24.md`](FRESHNESS_BURNDOWN_2026-07-24.md).

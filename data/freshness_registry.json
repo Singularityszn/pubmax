@@ -1,5 +1,5 @@
 {
-  "$comment": "Machine-readable freshness registry — the single source of truth for WHEN every data class is meant to refresh and how stale it is allowed to get. Consumed by scripts/check_freshness.mjs (CI/owner check), lib/freshness.ts (the /api/freshness route and the /api/cron/freshness-audit cron), validate-data (WARN wiring), and next.config.mjs, which derives the outputFileTracingIncludes entry for every field-stamped artifact from this file so both freshness functions are deployed with the files they open at runtime. See docs/WAYFINDER_LIVE_DATA.md for the cadence table and activation matrix. Keep entries in lockstep with the workflows in .github/workflows and the refresh scripts in scripts/.",
+  "$comment": "Machine-readable freshness registry — the single source of truth for WHEN every data class is meant to refresh and how stale it is allowed to get. Consumed by scripts/check_freshness.mjs (CI/owner check), lib/freshness.ts (the /api/freshness route and the /api/cron/freshness-audit cron), validate-data (WARN wiring), and next.config.mjs, which derives the outputFileTracingIncludes entry for every field-stamped artifact from this file so both freshness functions are deployed with the files they open at runtime. See docs/WAYFINDER_LIVE_DATA.md for the cadence table and activation matrix. Keep entries in lockstep with vercel.json, app/api/cron, remaining workflows, and refresh scripts.",
   "version": 1,
   "generatedBy": "infra/live-data-wayfinder",
   "datasets": [
@@ -20,10 +20,21 @@
       "class": "cron",
       "artifact": "public/data/price_updates/latest.json",
       "stamp": { "kind": "field", "pointer": "generatedAt" },
-      "cadence": "weekly, Monday 07:00 UTC",
+      "cadence": "advances only when a reviewed publish re-commits the artifact; the weekly Vercel retrieval sweep cannot write this file",
       "stalenessBudgetHours": 336,
-      "refreshWorkflow": "Price refresh",
-      "gate": "none to run; first-party parsers are STUBBED (fetchFromSource returns []), so a run is a safe no-op until a per-source parser lands"
+      "refreshWorkflow": "manual reviewed publish via npm run refresh:prices -- --open-pr. The weekly Vercel cron GET /api/cron/refresh-prices only RETRIEVES rows and stamps the separate price_update_retrieval feed; it never advances this dataset, because a read-only serverless FS cannot rewrite the served file.",
+      "gate": "none to run; first-party parsers are STUBBED (fetchFromSource returns []), so scheduled runs remain honest no-ops and this feed stays visibly stale until a real parser retrieves valid rows AND a human publishes them"
+    },
+    {
+      "id": "price_update_retrieval",
+      "label": "Permissible-source price retrieval (scheduled sweep, unpublished)",
+      "class": "cron",
+      "artifact": null,
+      "stamp": null,
+      "cadence": "weekly, Monday 07:00 UTC via Vercel cron",
+      "stalenessBudgetHours": null,
+      "refreshWorkflow": "Vercel cron GET /api/cron/refresh-prices retrieves and validates first-party/open-data rows, then stamps feed_freshness (durable store, migration 0047 plane) only when at least one valid row was fetched; empty, invalid, or failed runs log the no-op and preserve the prior stamp. Store-only: the freshness overlay surfaces the real observedAt (visible in /api/freshness); there is no committed artifact, so the file-based check treats it as untracked. This feed reports when RETRIEVAL last succeeded, not that any price shipped.",
+      "gate": "none to run; first-party parsers are STUBBED (fetchFromSource returns []), so the sweep never stamps until a real per-source parser lands. Publishing retrieved rows to the served price_updates artifact still requires the human-reviewed script path."
     },
     {
       "id": "drink_price_updates",
@@ -50,13 +61,13 @@
     {
       "id": "night_signals",
       "label": "Night signals (offline-reviewed claims)",
-      "class": "cron",
+      "class": "episodic",
       "artifact": "public/data/night_signals/latest.json",
       "stamp": { "kind": "field", "pointer": "generatedAt" },
-      "cadence": "daily, 08:15 UTC",
-      "stalenessBudgetHours": 48,
-      "refreshWorkflow": "Night Signal refresh (human-gated reviewed publish)",
-      "gate": "EXA_API_KEY arms candidate ingestion (now via the Vercel cron GET /api/cron/refresh-night-signals — see the night_signal_candidates feed); without it the reviewed snapshot publishes empty. Every claim still passes human review before it ships, so this reviewed feed advances only on an approved publish, never automatically."
+      "cadence": "human-gated approved publish; no machine schedule",
+      "stalenessBudgetHours": null,
+      "refreshWorkflow": "manual approved publish via npm run refresh:night-signals -- --open-pr; Vercel candidate ingestion never publishes reviewed claims",
+      "gate": "Every claim passes human review before it ships, so this snapshot advances only on an approved publish. EXA_API_KEY arms the separate Vercel candidate-ingestion feed; it does not create a machine cadence for reviewed night_signals."
     },
     {
       "id": "night_signal_candidates",
@@ -67,7 +78,7 @@
       "cadence": "daily, 05:15 UTC via Vercel cron",
       "stalenessBudgetHours": null,
       "refreshWorkflow": "Vercel cron GET /api/cron/refresh-night-signals sweeps Exa for dated, attributable London pub buzz and stamps feed_freshness (durable store, migration 0047 plane). Store-only: the freshness overlay surfaces the real observedAt (visible in /api/freshness); there is no committed artifact, so the file-based check treats it as untracked. Hard staleness-budgeting an artifact-less cron feed is a registry-model follow-up. This feed reports when INGESTION last ran, not that any claim shipped.",
-      "gate": "EXA_API_KEY (present in Vercel Preview + Production). Keyless = safe no-op. Candidates stay PENDING; durable candidate persistence + a store-based human-review surface are the follow-up before the reviewed night_signals feed can advance without GitHub runners."
+      "gate": "EXA_API_KEY (present in Vercel Preview + Production). Keyless = safe no-op. Candidates stay PENDING; durable candidate persistence and a store-based review surface remain follow-up work. Reviewed night_signals still advances only through an approved human publish."
     },
     {
       "id": "weather",

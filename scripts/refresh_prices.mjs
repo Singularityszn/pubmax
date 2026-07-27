@@ -1,4 +1,11 @@
-// Scheduled permissible-source price refresh.
+// Manual reviewed permissible-source price publish.
+//
+// This script is the ONLY path that advances the served
+// public/data/price_updates/ snapshot: it is run by hand and opens a review PR.
+// The weekly Vercel cron (app/api/cron/refresh-prices) shares this script's
+// source fetchers but only RETRIEVES rows and stamps the artifact-less
+// price_update_retrieval feed, because a serverless filesystem cannot rewrite a
+// committed file. See docs/CRON_PLANE_RUNBOOK.md.
 //
 // WHAT IS REAL in this scaffold:
 //   - reads the permissible-source allowlist (data/price_sources.json) and
@@ -12,10 +19,9 @@
 //     human reviews every price change before it ships. Never pushes to main.
 //
 // WHAT IS STUBBED (documented):
-//   - fetchFromSource(): the actual network fetch + parse of each first-party
-//     page/feed. It currently returns [] (no rows) so a scheduled run is a
-//     safe no-op that opens no PR. Implement per-source parsers here, reading
-//     ONLY the allowlisted URLs.
+//   - price_source_fetchers.mjs: network fetch + parse of each first-party
+//     page/feed. It currently returns [] (no rows) so a run is a safe no-op
+//     that opens no PR. Implement parsers there, reading ONLY allowlisted URLs.
 //
 // GOVERNANCE (hard rules — do not remove):
 //   - NO scraping of competitor price sites. Only first-party official pages
@@ -31,13 +37,16 @@ import { readFileSync, writeFileSync, mkdirSync } from "node:fs";
 import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
+import {
+  fetchFromSource,
+  filterPermissiblePriceSources,
+  isHttpUrl,
+} from "./price_source_fetchers.mjs";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(__dirname, "..");
 const ALLOWLIST_PATH = join(ROOT, "data", "price_sources.json");
 const OUT_DIR = join(ROOT, "public", "data", "price_updates");
-
-const PERMISSIBLE_KINDS = new Set(["first-party-official", "open-data"]);
 
 // --- validation (mirror of lib/priceUpdates.ts isValidPriceUpdate) -----------
 
@@ -46,15 +55,6 @@ function isNonEmptyString(v) {
 }
 function isFiniteNumber(v) {
   return typeof v === "number" && Number.isFinite(v);
-}
-function isHttpUrl(v) {
-  if (!isNonEmptyString(v)) return false;
-  try {
-    const u = new URL(v);
-    return u.protocol === "http:" || u.protocol === "https:";
-  } catch {
-    return false;
-  }
 }
 function isValidPriceUpdate(row, now) {
   if (typeof row !== "object" || row === null) return false;
@@ -73,34 +73,9 @@ function isValidPriceUpdate(row, now) {
 
 function loadAllowlist() {
   const raw = JSON.parse(readFileSync(ALLOWLIST_PATH, "utf8"));
-  const sources = Array.isArray(raw.sources) ? raw.sources : [];
-  const permissible = [];
-  for (const src of sources) {
-    if (!PERMISSIBLE_KINDS.has(src.kind)) {
-      console.warn(`SKIP source "${src.id}": kind "${src.kind}" is not permissible`);
-      continue;
-    }
-    if (!isHttpUrl(src.url)) {
-      console.warn(`SKIP source "${src.id}": url is not an http(s) URL`);
-      continue;
-    }
-    permissible.push(src);
-  }
-  return permissible;
-}
-
-// --- STUB: per-source fetch ---------------------------------------------------
-//
-// Implement real parsers here. Each must:
-//   - fetch ONLY `source.url` (already allowlist-verified);
-//   - map the venue to its canonical venueKey (lib/venues.ts venueGroupingKey);
-//   - stamp { source: { label: source.label, url: source.url }, observedAt }.
-// Return [] to contribute nothing (the default below) — a safe no-op.
-async function fetchFromSource(source) {
-  void source;
-  // TODO: real first-party fetch + parse. Returning [] keeps the scheduled run
-  // a no-op until real parsers land, so it never opens an empty/garbage PR.
-  return [];
+  return filterPermissiblePriceSources(raw.sources, {
+    onSkip: (message) => console.warn(message),
+  });
 }
 
 // --- main ---------------------------------------------------------------------
