@@ -22,6 +22,7 @@ import { submitCommunityPrice } from "@/lib/communityPriceStore";
 import { resolveMessageHandle } from "@/lib/messageAuth";
 import { isLimited } from "@/lib/pintDrops";
 import { gateHandleAction } from "@/lib/profileOwnership";
+import { chargeRoundPriceLines } from "@/lib/roundPriceBudget";
 import {
   ROUND_SPEND_PRICE_LINE_MAX,
   cleanNewRoundSpend,
@@ -115,28 +116,30 @@ async function recordSpend(
   }
   const actor = deriveCommunityPriceActor(request);
 
-  // A Round with drink lines IS a price submission, so it pays the same
-  // cross-venue device budget /api/price-submit charges, one unit per line that
-  // will actually be submitted. Without it, changing door would reset the cap
-  // that stops one device spraying prices across the map. Charged BEFORE the
-  // diary write so a refusal never leaves half a Round's lines submitted; the
-  // quick total is untouched, so the night can still be recorded. A replay of a
-  // turn already on record pays nothing: it will submit nothing, and charging
-  // it would let a flaky connection lock a drinker out of a Round they have
-  // already kept.
+  // Drink lines pay the shared per-device price budget (lib/roundPriceBudget)
+  // BEFORE the diary write, so a refusal never leaves half a Round's lines
+  // submitted; the quick total is untouched, so the night can still be
+  // recorded. Two turns pay nothing: a replay of a turn already on record (it
+  // will submit nothing, and charging it would let a flaky connection lock a
+  // drinker out of a Round they have already kept), and a turn whose Round the
+  // store cannot show us, whose write is about to fail anyway.
   if (observed.length > 0) {
     const onRecord = await store.getByCode(code);
-    const alreadyKept =
-      onRecord?.spends.some((spend) => spend.clientRef === clean.clientRef) ?? false;
-    if (!alreadyKept) {
-      const actorLimitKey = `price-submit-actor:${actor ?? "anon"}`;
-      for (let charged = 0; charged < observed.length; charged += 1) {
-        if (await isLimited(actorLimitKey, actorLimitKey, 30, 3_600_000)) {
-          return jsonNoStore(
-            { error: "Too many price logs, slow down." },
-            { status: 429 },
-          );
-        }
+    const chargeable =
+      onRecord != null &&
+      !onRecord.spends.some((spend) => spend.clientRef === clean.clientRef);
+    if (chargeable) {
+      const budget = await chargeRoundPriceLines(actor, observed.length);
+      if (!budget.allowed) {
+        return jsonNoStore(
+          {
+            error:
+              budget.mode === "degraded"
+                ? "We cannot log drink prices right now. Keep this round as a total, or add the drinks again shortly."
+                : "Too many price logs, slow down.",
+          },
+          { status: 429 },
+        );
       }
     }
   }

@@ -97,6 +97,28 @@ vi.mock("@/lib/venueIndex", () => ({
     ]),
 }));
 
+// The degraded-limiter case scripts the price budget's verdict at its seam;
+// lib/roundPriceBudget's own outage behaviour is pinned in its unit test.
+const { budgetOverride } = vi.hoisted(() => ({
+  budgetOverride: {
+    fn: null as
+      | null
+      | (() => Promise<{ allowed: boolean; mode: "durable" | "degraded" | "memory" }>),
+  },
+}));
+vi.mock("@/lib/roundPriceBudget", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/roundPriceBudget")>();
+  return {
+    ...actual,
+    chargeRoundPriceLines: (
+      ...args: Parameters<typeof actual.chargeRoundPriceLines>
+    ) =>
+      budgetOverride.fn
+        ? budgetOverride.fn()
+        : actual.chargeRoundPriceLines(...args),
+  };
+});
+
 const authState = vi.hoisted(() => ({ userId: null as string | null }));
 vi.mock("@/lib/authServer", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/authServer")>();
@@ -194,6 +216,7 @@ beforeEach(() => {
   createOverride.fn = null;
   joinOverride.fn = null;
   recordSpendOverride.fn = null;
+  budgetOverride.fn = null;
   venueLookupState.unavailable = false;
   __resetCommunityPrices();
 });
@@ -576,6 +599,50 @@ describe("POST /api/rounds/[code] — actions", () => {
       "budget-2",
       "budget-3",
     ]);
+  });
+
+  it("owns a price-budget outage in its wording rather than blaming the drinker", async () => {
+    budgetOverride.fn = async () => ({ allowed: false, mode: "degraded" as const });
+    const { round } = await newRound("ken");
+    await action(round.code, {
+      action: "addStop",
+      handle: "ken",
+      venueId: "venue-1",
+    });
+
+    const res = await action(
+      round.code,
+      {
+        action: "recordSpend",
+        handle: "ken",
+        payerHandle: "ken",
+        venueId: "venue-1",
+        clientRef: "degraded-1",
+        items: priceLines(2, 1),
+      },
+      { "x-forwarded-for": "198.51.100.63" },
+    );
+    expect(res.status).toBe(429);
+    expect(await res.json()).toEqual({
+      error:
+        "We cannot log drink prices right now. Keep this round as a total, or add the drinks again shortly.",
+    });
+    expect(((await (await get(round.code)).json()) as RoundState).spends).toEqual([]);
+
+    // The quick total needs no price budget, so the night is still recordable.
+    const total = await action(
+      round.code,
+      {
+        action: "recordSpend",
+        handle: "ken",
+        payerHandle: "ken",
+        venueId: "venue-1",
+        clientRef: "degraded-2",
+        totalGbp: 26.8,
+      },
+      { "x-forwarded-for": "198.51.100.63" },
+    );
+    expect(total.status).toBe(200);
   });
 
   it("refuses more price lines in one turn than a Round may log", async () => {
