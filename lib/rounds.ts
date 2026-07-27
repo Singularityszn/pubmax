@@ -97,12 +97,30 @@ export type RoundMemberDTO = {
   joinedAt: string;
 };
 
+/**
+ * Where a drink line's figure came from. "round" is the drinker's own claim —
+ * a first-party observation, so it goes on to the community price store. "demo"
+ * is a figure lifted straight off a seeded demo menu (lib/drinkSeeds): it is a
+ * real part of the night's diary and nobody's observation, so it stops here.
+ * Provenance is the gate, never the figure itself: a drinker who genuinely paid
+ * a price a demo menu happens to quote is still observing it.
+ */
+export type RoundSpendItemSource = "round" | "demo";
+
 export type RoundSpendItemDTO = {
   drinkName: string;
   drinkCategory: DrinkCategory;
   pricePence: number;
-  source: "round";
+  source: RoundSpendItemSource;
 };
+
+/** The drink lines that are first-party observations. The one owner of that
+ *  question: the write path submits these, the page captions these. */
+export function firstPartyPriceItems(
+  items: readonly RoundSpendItemDTO[],
+): RoundSpendItemDTO[] {
+  return items.filter((item) => item.source === "round");
+}
 
 export type RoundSpendDTO = {
   id: string;
@@ -211,7 +229,9 @@ function readMoney(value: unknown): number | null {
  * Validate one immutable buying turn. Item prices use the community-price
  * validator, so category, penny rounding, and per-drink limits cannot drift.
  * A plain total is deliberately a wider Round-only figure and never represents
- * a single drink.
+ * a single drink. Each line declares its `priceSource`; only an explicit "demo"
+ * marks a figure as lifted from a seeded menu, because everything else is a
+ * drinker saying what they paid.
  */
 export function cleanNewRoundSpend(input: {
   clientRef?: unknown;
@@ -251,7 +271,7 @@ export function cleanNewRoundSpend(input: {
       drinkName,
       drinkCategory: price.value.drinkCategory,
       pricePence: Math.round(price.value.priceGbp * 100),
-      source: "round",
+      source: readString(row.priceSource) === "demo" ? "demo" : "round",
     });
   }
 

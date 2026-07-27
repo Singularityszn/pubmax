@@ -140,7 +140,7 @@ function spendItemsFromRow(value: unknown): RoundSpendItemDTO[] {
       drinkName: row.drinkName,
       drinkCategory: row.drinkCategory,
       pricePence: row.pricePence,
-      source: "round",
+      source: row.source === "demo" ? "demo" : "round",
     });
   }
   return items;

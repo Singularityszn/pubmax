@@ -31,7 +31,9 @@ import {
   isValidRoundCode,
   normalizeRoundCode,
   roundTurn,
+  firstPartyPriceItems,
   type RoundSpendDTO,
+  type RoundSpendItemSource,
   type RoundState,
 } from "@/lib/rounds";
 import {
@@ -452,6 +454,17 @@ type DraftRoundItem = {
   drinkName: string;
   drinkCategory: DrinkCategory;
   priceGbp: number;
+  priceSource: RoundSpendItemSource;
+};
+
+// What the "known prices here" picker last put in the drink row. The line keeps
+// the menu's provenance only while the figure is still the menu's: edit the
+// price and it becomes the drinker's own claim.
+type KnownDrinkPrefill = {
+  drinkName: string;
+  drinkCategory: DrinkCategory;
+  priceGbp: string;
+  priceSource: RoundSpendItemSource;
 };
 
 function draftItemId(): string {
@@ -496,6 +509,7 @@ function RoundSpendComposer({
   const [manualName, setManualName] = useState("");
   const [manualCategory, setManualCategory] = useState<DrinkCategory>("beer");
   const [manualPrice, setManualPrice] = useState("");
+  const [prefill, setPrefill] = useState<KnownDrinkPrefill | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const pendingRef = useRef<string | null>(null);
@@ -518,7 +532,6 @@ function RoundSpendComposer({
           ? venueMenuForInspector(data.venue)
               .filter(
                 (drink) =>
-                  drink.provenance.source !== "seed" &&
                   Number.isFinite(drink.priceGbp) &&
                   drink.priceGbp >= 1 &&
                   drink.priceGbp <= 30,
@@ -561,29 +574,56 @@ function RoundSpendComposer({
   function fillFromKnownDrink() {
     const drink = knownDrinks.find((candidate) => candidate.id === knownDrinkId);
     if (!drink) return;
+    const priceGbp = drink.priceGbp.toFixed(2);
     setManualName(drink.name);
     setManualCategory(drink.category);
-    setManualPrice(drink.priceGbp.toFixed(2));
+    setManualPrice(priceGbp);
+    setPrefill({
+      drinkName: drink.name,
+      drinkCategory: drink.category,
+      priceGbp,
+      priceSource: drink.provenance.source === "seed" ? "demo" : "round",
+    });
     setError(null);
   }
 
+  // A line is the drinker's own claim unless every field is still exactly what
+  // the demo menu put there.
+  function draftPriceSource(
+    drinkName: string,
+    drinkCategory: DrinkCategory,
+    priceGbp: string,
+  ): RoundSpendItemSource {
+    if (!prefill || prefill.priceSource !== "demo") return "round";
+    const untouched =
+      prefill.drinkName === drinkName &&
+      prefill.drinkCategory === drinkCategory &&
+      Number(prefill.priceGbp) === Number(priceGbp);
+    return untouched ? "demo" : "round";
+  }
+
   function addManualDrink() {
-    const price = Number(manualPrice.replace(/[£\s]/g, "").replace(",", "."));
-    if (!manualName.trim() || !Number.isFinite(price) || price < 1 || price > 30) {
+    const cleanedPrice = manualPrice.replace(/[£\s]/g, "").replace(",", ".");
+    const price = Number(cleanedPrice);
+    const drinkName = manualName.trim();
+    if (!drinkName || !Number.isFinite(price) || price < 1 || price > 30) {
       setError("Add a drink name and a price from £1 to £30.");
       return;
     }
+    const priceSource = draftPriceSource(drinkName, manualCategory, cleanedPrice);
     setItems((held) => [
       ...held,
       {
         id: draftItemId(),
-        drinkName: manualName.trim(),
+        drinkName,
         drinkCategory: manualCategory,
         priceGbp: Math.round(price * 100) / 100,
+        priceSource,
       },
     ]);
     setManualName("");
     setManualPrice("");
+    setPrefill(null);
     setError(null);
   }
 
@@ -612,11 +652,14 @@ function RoundSpendComposer({
           clientRef: pendingRef.current,
           ...(mode === "items"
             ? {
-                items: items.map(({ drinkName, drinkCategory, priceGbp }) => ({
-                  drinkName,
-                  drinkCategory,
-                  priceGbp,
-                })),
+                items: items.map(
+                  ({ drinkName, drinkCategory, priceGbp, priceSource }) => ({
+                    drinkName,
+                    drinkCategory,
+                    priceGbp,
+                    priceSource,
+                  }),
+                ),
               }
             : { totalGbp: amount }),
         }),
@@ -745,6 +788,7 @@ function RoundSpendComposer({
                     knownDrinks.map((drink) => (
                       <option key={drink.id} value={drink.id}>
                         {drink.name} · {formatPrice(drink.priceGbp)}
+                        {drink.provenance.source === "seed" ? " · demo menu" : ""}
                       </option>
                     ))
                   ) : (
@@ -767,6 +811,9 @@ function RoundSpendComposer({
             <p className="roundKnownDrinkNote">
               A known price only fills the line below. Check it against what you
               paid, then add it.
+              {prefill?.priceSource === "demo"
+                ? " That one came from our demo menu, so it goes in the diary and is not logged as a price. Change the figure to what you paid and it counts as yours."
+                : ""}
             </p>
 
             <div className="roundManualDrink">
@@ -821,7 +868,10 @@ function RoundSpendComposer({
                   <li key={item.id}>
                     <span>
                       <strong>{item.drinkName}</strong>
-                      <small>{categoryLabel(item.drinkCategory)}</small>
+                      <small>
+                        {categoryLabel(item.drinkCategory)}
+                        {item.priceSource === "demo" ? " · diary only" : ""}
+                      </small>
                     </span>
                     <span className="roundDraftItemPrice">
                       {formatPrice(item.priceGbp)}
@@ -844,8 +894,9 @@ function RoundSpendComposer({
             ) : null}
 
             <p className="roundPriceTrust">
-              Drink lines are first-party price logs. One person&apos;s log stays
-              off the price map until another drinker backs it.
+              Drink lines you type are first-party price logs. One person&apos;s
+              log stays off the price map until another drinker backs it. A line
+              marked diary only is never logged as a price.
             </p>
           </div>
         )}
@@ -880,41 +931,56 @@ function RoundSpendHistory({
         <ReceiptText size={16} aria-hidden="true" /> Rounds kept tonight
       </h2>
       <ol>
-        {[...spends].reverse().map((spend) => (
-          <li key={spend.id} className="roundSpendCard">
-            <div className="roundSpendSummary">
-              <div>
-                <strong>{spend.venueName}</strong>
-                <span>paid by @{spend.payerHandle}</span>
+        {[...spends].reverse().map((spend) => {
+          const logged = firstPartyPriceItems(spend.items);
+          const diaryOnly = spend.items.length - logged.length;
+          return (
+            <li key={spend.id} className="roundSpendCard">
+              <div className="roundSpendSummary">
+                <div>
+                  <strong>{spend.venueName}</strong>
+                  <span>paid by @{spend.payerHandle}</span>
+                </div>
+                <strong className="roundSpendTotal">
+                  {formatPrice(spend.totalPence / 100)}
+                </strong>
               </div>
-              <strong className="roundSpendTotal">
-                {formatPrice(spend.totalPence / 100)}
-              </strong>
-            </div>
-            <p className="roundSpendStamp">
-              {roundDateLabel(spend.recordedAt)} · Logged in this Round by @
-              {spend.recordedByHandle}
-            </p>
-            {spend.items.length > 0 ? (
-              <>
-                <ul className="roundSpendItems">
-                  {spend.items.map((item, index) => (
-                    <li key={`${spend.id}-${index}`}>
-                      <span>
-                        {item.drinkName} · {categoryLabel(item.drinkCategory)}
-                      </span>
-                      <strong>{formatPrice(item.pricePence / 100)}</strong>
-                    </li>
-                  ))}
-                </ul>
-                <p className="roundPriceTrust">
-                  These drink prices stay provisional until another drinker backs
-                  them.
-                </p>
-              </>
-            ) : null}
-          </li>
-        ))}
+              <p className="roundSpendStamp">
+                {roundDateLabel(spend.recordedAt)} · Logged in this Round by @
+                {spend.recordedByHandle}
+              </p>
+              {spend.items.length > 0 ? (
+                <>
+                  <ul className="roundSpendItems">
+                    {spend.items.map((item, index) => (
+                      <li key={`${spend.id}-${index}`}>
+                        <span>
+                          {item.drinkName} · {categoryLabel(item.drinkCategory)}
+                          {item.source === "demo" ? " · diary only" : ""}
+                        </span>
+                        <strong>{formatPrice(item.pricePence / 100)}</strong>
+                      </li>
+                    ))}
+                  </ul>
+                  {logged.length > 0 ? (
+                    <p className="roundPriceTrust">
+                      {logged.length === spend.items.length
+                        ? "These drink prices stay provisional until another drinker backs them."
+                        : `${logged.length} of these prices stay provisional until another drinker backs them.`}
+                    </p>
+                  ) : null}
+                  {diaryOnly > 0 ? (
+                    <p className="roundPriceTrust">
+                      {diaryOnly === 1
+                        ? "One line came off our demo menu, so it stays in this diary and was not logged as a price."
+                        : `${diaryOnly} lines came off our demo menu, so they stay in this diary and were not logged as prices.`}
+                    </p>
+                  ) : null}
+                </>
+              ) : null}
+            </li>
+          );
+        })}
       </ol>
     </section>
   );

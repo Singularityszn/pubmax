@@ -19,11 +19,14 @@
 import { jsonNoStore } from "@/lib/apiResponses";
 import { deriveCommunityPriceActor } from "@/lib/communityPriceActor";
 import { submitCommunityPrice } from "@/lib/communityPriceStore";
-import { isDemoSeedPrice } from "@/lib/drinkSeeds";
 import { resolveMessageHandle } from "@/lib/messageAuth";
 import { isLimited } from "@/lib/pintDrops";
 import { gateHandleAction } from "@/lib/profileOwnership";
-import { cleanNewRoundSpend, isValidRoundCode } from "@/lib/rounds";
+import {
+  cleanNewRoundSpend,
+  firstPartyPriceItems,
+  isValidRoundCode,
+} from "@/lib/rounds";
 import { roundsStore, type RoundWriteError } from "@/lib/roundsStore";
 import { assertServerEnv } from "@/lib/serverEnv";
 import { isRoundsReadLimited } from "@/lib/roundsReadRateLimit";
@@ -147,21 +150,17 @@ export async function POST(request: Request, ctx: Ctx): Promise<Response> {
 
       // A plain total is a diary figure, not one drink, so it stops here.
       // Itemised prices enter the existing community store and earn map
-      // authority only through its independent-submitter and age gates. A
-      // seeded demo figure is nobody's observation, so it stays in the Round
-      // diary and never reaches the community store, however it was typed.
-      if (result.created && clean.items.length > 0) {
+      // authority only through its independent-submitter and age gates. A line
+      // whose figure came off a seeded demo menu is nobody's observation, so it
+      // stays in the diary, labelled there, and is never submitted.
+      const observed = firstPartyPriceItems(clean.items);
+      if (result.created && observed.length > 0) {
         const actor = deriveCommunityPriceActor(request);
         const stored = result.state.spends.find(
           (spend) => spend.clientRef === clean.clientRef,
         );
         const recordedAt = stored ? Date.parse(stored.recordedAt) : Date.now();
-        for (const item of clean.items) {
-          if (
-            isDemoSeedPrice(clean.venueId, item.drinkCategory, item.pricePence / 100)
-          ) {
-            continue;
-          }
+        for (const item of observed) {
           await submitCommunityPrice(
             {
               venueId: clean.venueId,

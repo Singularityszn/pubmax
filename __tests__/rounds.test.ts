@@ -6,6 +6,7 @@ import {
   cleanNewRoundSpend,
   cleanNewRound,
   cleanNewStop,
+  firstPartyPriceItems,
   generateRoundCode,
   isValidRoundCode,
   normalizeRoundCode,
@@ -151,6 +152,38 @@ describe("cleanNewRoundSpend - money trust boundary", () => {
         },
       ],
     });
+  });
+
+  it("marks only an explicit demo line as lifted from a menu", () => {
+    const clean = cleanNewRoundSpend({
+      ...base,
+      clientRef: "spend-3",
+      items: [
+        {
+          drinkName: "House Malbec",
+          drinkCategory: "wine",
+          priceGbp: 7.5,
+          priceSource: "demo",
+        },
+        { drinkName: "Guinness", drinkCategory: "beer", priceGbp: 6.2 },
+        {
+          drinkName: "Talisker 10",
+          drinkCategory: "whisky",
+          priceGbp: 5.8,
+          priceSource: "made up",
+        },
+      ],
+    });
+    expect(clean?.items.map((item) => item.source)).toEqual([
+      "demo",
+      "round",
+      "round",
+    ]);
+    // The caption and the write path ask this one function what was observed.
+    expect(firstPartyPriceItems(clean!.items).map((item) => item.drinkName)).toEqual([
+      "Guinness",
+      "Talisker 10",
+    ]);
   });
 
   it("rejects missing identities, venue details, or idempotency reference", () => {

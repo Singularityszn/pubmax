@@ -444,46 +444,85 @@ describe("POST /api/rounds/[code] — actions", () => {
     expect(merged.get("venue-1")?.latestContributorPrice).toBeNull();
   });
 
-  it("keeps a seeded demo price in the diary and out of the community store", async () => {
-    // A demo pour (lib/drinkSeeds) is nobody's observation. Two independent
-    // devices echoing the same seeded figure must never corroborate it, while a
-    // real price logged beside it corroborates normally.
-    const seeded = { drinkName: "House Malbec", drinkCategory: "wine", priceGbp: 7.5 };
-    const drinkers = [
-      { handle: "ken", ip: "198.51.100.51", clientRef: "spend-seed-1" },
-      { handle: "mo", ip: "198.51.100.52", clientRef: "spend-seed-2" },
-    ];
-
-    for (const drinker of drinkers) {
-      const { round } = await newRound(drinker.handle);
-      await action(round.code, {
-        action: "addStop",
+  // Two drinkers at the same pub, so the pair of cases below can show that what
+  // decides a line's fate is where its figure came from, not what it says.
+  async function recordDrinks(
+    drinker: { handle: string; ip: string; clientRef: string },
+    items: unknown[],
+  ): Promise<RoundState> {
+    const { round } = await newRound(drinker.handle);
+    await action(round.code, {
+      action: "addStop",
+      handle: drinker.handle,
+      venueId: "venue-16pnwmm",
+    });
+    const res = await action(
+      round.code,
+      {
+        action: "recordSpend",
         handle: drinker.handle,
+        payerHandle: drinker.handle,
         venueId: "venue-16pnwmm",
-      });
-      const res = await action(
-        round.code,
+        clientRef: drinker.clientRef,
+        items,
+      },
+      { "x-forwarded-for": drinker.ip },
+    );
+    expect(res.status).toBe(200);
+    return (await res.json()) as RoundState;
+  }
+
+  const drinkers = [
+    { handle: "ken", ip: "198.51.100.51", clientRef: "spend-seed-1" },
+    { handle: "mo", ip: "198.51.100.52", clientRef: "spend-seed-2" },
+  ];
+
+  it("keeps a demo-menu line in the diary and out of the community store", async () => {
+    // A figure lifted off the seeded demo menu (lib/drinkSeeds) is nobody's
+    // observation, so two independent devices echoing it must never corroborate
+    // it, while a price each of them typed corroborates normally.
+    for (const drinker of drinkers) {
+      const state = await recordDrinks(drinker, [
         {
-          action: "recordSpend",
-          handle: drinker.handle,
-          payerHandle: drinker.handle,
-          venueId: "venue-16pnwmm",
-          clientRef: drinker.clientRef,
-          items: [seeded, { drinkName: "Guinness", drinkCategory: "beer", priceGbp: 6.2 }],
+          drinkName: "House Malbec",
+          drinkCategory: "wine",
+          priceGbp: 7.5,
+          priceSource: "demo",
         },
-        { "x-forwarded-for": drinker.ip },
-      );
-      expect(res.status).toBe(200);
-      const state = (await res.json()) as RoundState;
-      expect(state.spends.at(-1)?.items.map((item) => item.drinkName)).toEqual([
-        "House Malbec",
-        "Guinness",
+        { drinkName: "Guinness", drinkCategory: "beer", priceGbp: 6.2 },
+      ]);
+      // The refused line is kept and labelled, never silently dropped.
+      expect(state.spends.at(-1)?.items).toMatchObject([
+        { drinkName: "House Malbec", source: "demo" },
+        { drinkName: "Guinness", source: "round" },
       ]);
     }
 
     const rows = await readCommunityPrices("venue-16pnwmm");
     expect(rows.map((row) => row.drinkCategory)).toEqual(["beer"]);
     expect(rows[0]).toMatchObject({ priceGbp: 6.2, corroborations: 2 });
+  });
+
+  it("logs a typed price that happens to match a demo figure", async () => {
+    // The mirror case: the same £7.50 wine at the same pub, typed by the people
+    // who drank it. Provenance is the gate, so a coincidence is still an
+    // observation and corroborates.
+    for (const drinker of drinkers) {
+      const state = await recordDrinks(drinker, [
+        { drinkName: "Malbec", drinkCategory: "wine", priceGbp: 7.5 },
+      ]);
+      expect(state.spends.at(-1)?.items).toMatchObject([
+        { drinkName: "Malbec", source: "round" },
+      ]);
+    }
+
+    const rows = await readCommunityPrices("venue-16pnwmm");
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({
+      drinkCategory: "wine",
+      priceGbp: 7.5,
+      corroborations: 2,
+    });
   });
 
   it("rejects a payer who is not in the Round", async () => {

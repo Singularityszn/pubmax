@@ -344,35 +344,6 @@ export const demoDrinkVenueIds: string[] = Array.from(
   new Set(seeds.map((seed) => seed.venueId)),
 );
 
-// Every seeded figure, keyed by the three things a community observation claims:
-// the venue, the drink category and the price in pence.
-const seededPriceKeys: ReadonlySet<string> = new Set(
-  seeds.map((seed) => seedPriceKey(seed.venueId, seed.category, seed.priceGbp)),
-);
-
-function seedPriceKey(
-  venueId: string,
-  category: DrinkCategory,
-  priceGbp: number,
-): string {
-  return `${venueId}|${category}|${Math.round(priceGbp * 100)}`;
-}
-
-/**
- * True when a figure is one of this venue's seeded demo prices. A demo pour is
- * not a price anybody paid, so it may never be written back as a first-party
- * observation — any write path that accepts a price a reader could have picked
- * off a menu must refuse the matches this reports (see app/api/rounds/[code]).
- */
-export function isDemoSeedPrice(
-  venueId: string,
-  category: DrinkCategory,
-  priceGbp: number,
-): boolean {
-  if (!venueId || !Number.isFinite(priceGbp)) return false;
-  return seededPriceKeys.has(seedPriceKey(venueId, category, priceGbp));
-}
-
 /** The seeded demo drinks for one venue — merged after legacy beer in the read
  *  path (lib/drinkMenu.ts). Empty array for a venue with no seeded menu. */
 export function demoDrinksFor(venueId: string): Drink[] {
