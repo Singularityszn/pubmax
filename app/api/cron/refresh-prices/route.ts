@@ -7,8 +7,11 @@
 // scheduler wiring.
 //
 // HONEST SCOPE: serverless deployment cannot update committed price snapshot or
-// open human-review PR. Freshness records successful source retrieval only, and
-// never advances after empty, invalid, or failed collection.
+// open human-review PR. This run therefore stamps the artifact-less
+// `price_update_retrieval` feed, never the served `price_updates` dataset, whose
+// freshness stays measured against the committed file readers actually get. The
+// stamp records successful source retrieval only, and never advances after
+// empty, invalid, or failed collection.
 //
 // AUTH: CRON_SECRET Bearer via shared lib/cronAuth.
 
@@ -16,7 +19,7 @@ import { publicApiError } from "@/lib/apiError";
 import { jsonNoStore } from "@/lib/apiResponses";
 import { assertCronRequest } from "@/lib/cronAuth";
 import { feedFreshnessStore } from "@/lib/feedFreshnessStore";
-import { PRICE_UPDATES_FEED_KEY } from "@/lib/freshnessStoreOverlay";
+import { PRICE_UPDATE_RETRIEVAL_FEED_KEY } from "@/lib/freshnessStoreOverlay";
 import { fetchPriceUpdates } from "@/lib/priceRefresh.server";
 
 export const runtime = "nodejs";
@@ -76,7 +79,7 @@ export async function GET(request: Request): Promise<Response> {
     );
     return jsonNoStore({
       ok: true,
-      feed: PRICE_UPDATES_FEED_KEY,
+      feed: PRICE_UPDATE_RETRIEVAL_FEED_KEY,
       fetchedRows: result.fetchedRows,
       droppedRows: result.droppedRows,
       sourcesChecked: result.sourcesChecked,
@@ -94,7 +97,7 @@ export async function GET(request: Request): Promise<Response> {
     result.updates[0].observedAt,
   );
   const outcome = await feedFreshnessStore().stamp({
-    feed: PRICE_UPDATES_FEED_KEY,
+    feed: PRICE_UPDATE_RETRIEVAL_FEED_KEY,
     observedAt,
     rowsServed: result.updates.length,
     note: `${result.updates.length} valid permissible-source row(s) retrieved`,
@@ -117,7 +120,7 @@ export async function GET(request: Request): Promise<Response> {
   );
   return jsonNoStore({
     ok: true,
-    feed: PRICE_UPDATES_FEED_KEY,
+    feed: PRICE_UPDATE_RETRIEVAL_FEED_KEY,
     observedAt,
     fetchedRows: result.fetchedRows,
     droppedRows: result.droppedRows,

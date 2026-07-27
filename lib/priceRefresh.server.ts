@@ -1,13 +1,16 @@
 // Server-safe permissible-source price collection for scheduled refreshes.
 //
-// Source-specific fetchers are shared with scripts/refresh_prices.mjs. This
-// module owns server-side allowlist filtering and row validation so a Vercel
-// cron can exercise same source boundary without trying to write to its
-// read-only deployment filesystem or open a GitHub pull request.
+// Source-specific fetchers AND the allowlist filter are shared with
+// scripts/refresh_prices.mjs (scripts/price_source_fetchers.mjs owns both), so
+// the scheduled path can never accept a source the manual path would skip. This
+// module owns row validation so a Vercel cron can exercise the same source
+// boundary without trying to write to its read-only deployment filesystem or
+// open a GitHub pull request.
 
 import priceSourceRegistry from "@/data/price_sources.json";
 import {
   fetchFromSource,
+  filterPermissiblePriceSources,
   type PermissiblePriceSource,
 } from "@/scripts/price_source_fetchers.mjs";
 import { isValidPriceUpdate, type PriceUpdate } from "@/lib/priceUpdates";
@@ -35,22 +38,9 @@ export type PriceRefreshDeps = {
 };
 
 function permissibleSources(): PermissiblePriceSource[] {
-  const sources: PermissiblePriceSource[] = [];
-  for (const source of priceSourceRegistry.sources) {
-    if (
-      source.kind !== "first-party-official" &&
-      source.kind !== "open-data"
-    ) {
-      continue;
-    }
-    sources.push({
-      id: source.id,
-      label: source.label,
-      kind: source.kind,
-      url: source.url,
-    });
-  }
-  return sources;
+  return filterPermissiblePriceSources(priceSourceRegistry.sources, {
+    onSkip: (message) => console.warn(`[cron:refresh-prices] ${message}`),
+  });
 }
 
 /**

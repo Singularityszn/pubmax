@@ -31,14 +31,16 @@ import { readFileSync, writeFileSync, mkdirSync } from "node:fs";
 import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
-import { fetchFromSource } from "./price_source_fetchers.mjs";
+import {
+  fetchFromSource,
+  filterPermissiblePriceSources,
+  isHttpUrl,
+} from "./price_source_fetchers.mjs";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(__dirname, "..");
 const ALLOWLIST_PATH = join(ROOT, "data", "price_sources.json");
 const OUT_DIR = join(ROOT, "public", "data", "price_updates");
-
-const PERMISSIBLE_KINDS = new Set(["first-party-official", "open-data"]);
 
 // --- validation (mirror of lib/priceUpdates.ts isValidPriceUpdate) -----------
 
@@ -47,15 +49,6 @@ function isNonEmptyString(v) {
 }
 function isFiniteNumber(v) {
   return typeof v === "number" && Number.isFinite(v);
-}
-function isHttpUrl(v) {
-  if (!isNonEmptyString(v)) return false;
-  try {
-    const u = new URL(v);
-    return u.protocol === "http:" || u.protocol === "https:";
-  } catch {
-    return false;
-  }
 }
 function isValidPriceUpdate(row, now) {
   if (typeof row !== "object" || row === null) return false;
@@ -74,20 +67,9 @@ function isValidPriceUpdate(row, now) {
 
 function loadAllowlist() {
   const raw = JSON.parse(readFileSync(ALLOWLIST_PATH, "utf8"));
-  const sources = Array.isArray(raw.sources) ? raw.sources : [];
-  const permissible = [];
-  for (const src of sources) {
-    if (!PERMISSIBLE_KINDS.has(src.kind)) {
-      console.warn(`SKIP source "${src.id}": kind "${src.kind}" is not permissible`);
-      continue;
-    }
-    if (!isHttpUrl(src.url)) {
-      console.warn(`SKIP source "${src.id}": url is not an http(s) URL`);
-      continue;
-    }
-    permissible.push(src);
-  }
-  return permissible;
+  return filterPermissiblePriceSources(raw.sources, {
+    onSkip: (message) => console.warn(message),
+  });
 }
 
 // --- main ---------------------------------------------------------------------

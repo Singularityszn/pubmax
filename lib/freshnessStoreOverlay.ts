@@ -7,6 +7,12 @@
 // overlay returns store-observed time so /api/freshness and freshness audit
 // report the truth.
 //
+// HARD RULE: a dataset id may only appear here when the cron's write IS what
+// that dataset serves. An ingestion run that cannot update a committed artifact
+// gets its OWN artifact-less registry dataset (night_signal_candidates,
+// price_update_retrieval) so "ingestion ran" can never be read as "data
+// shipped", and so the served file's real staleness keeps alerting.
+//
 // Fail-soft and env-gated: when no durable store is configured (local/test) or a
 // store read fails, the feed is simply absent from the overlay and the caller
 // keeps the disk-derived stamp — behaviour-identical to before this plane.
@@ -18,8 +24,12 @@ import { weatherSnapshotStore } from "@/lib/weatherSnapshotStore";
 export const WHATS_ON_FEED_KEY = "whats_on";
 export const WEATHER_DATASET_ID = "weather";
 export const WHATS_ON_DATASET_ID = "whats_on";
-export const PRICE_UPDATES_FEED_KEY = "price_updates";
-export const PRICE_UPDATES_DATASET_ID = "price_updates";
+// Permissible-source price RETRIEVAL (the Vercel-cron sweep). This is the
+// artifact-less ingestion feed, distinct from the committed `price_updates`
+// snapshot the app serves — the cron cannot write that file, so it reports when
+// retrieval last succeeded, never that new prices shipped.
+export const PRICE_UPDATE_RETRIEVAL_FEED_KEY = "price_update_retrieval";
+export const PRICE_UPDATE_RETRIEVAL_DATASET_ID = "price_update_retrieval";
 // Night Signal candidate ingestion (the Vercel-cron EXA sweep). This is the
 // PENDING-candidate feed, distinct from the human-reviewed `night_signals`
 // snapshot — it reports when ingestion last ran, never that claims were shipped.
@@ -49,8 +59,10 @@ export async function resolveStoreObservedAt(): Promise<Record<string, string>> 
   }
 
   try {
-    const stamp = await feedFreshnessStore().read(PRICE_UPDATES_FEED_KEY);
-    if (stamp?.observedAt) overlay[PRICE_UPDATES_DATASET_ID] = stamp.observedAt;
+    const stamp = await feedFreshnessStore().read(PRICE_UPDATE_RETRIEVAL_FEED_KEY);
+    if (stamp?.observedAt) {
+      overlay[PRICE_UPDATE_RETRIEVAL_DATASET_ID] = stamp.observedAt;
+    }
   } catch {
     // fail-soft: keep the disk stamp
   }

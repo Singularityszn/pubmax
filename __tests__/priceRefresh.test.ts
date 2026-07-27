@@ -1,6 +1,10 @@
 import { describe, expect, it, vi } from "vitest";
 
 import { fetchPriceUpdates } from "@/lib/priceRefresh.server";
+import {
+  filterPermissiblePriceSources,
+  isHttpUrl,
+} from "@/scripts/price_source_fetchers.mjs";
 
 const NOW = Date.parse("2026-07-27T07:00:00.000Z");
 
@@ -103,5 +107,66 @@ describe("permissible-source price collection", () => {
         error: "brewery unavailable",
       },
     ]);
+  });
+});
+
+describe("permissible-source allowlist filter", () => {
+  it("drops non-http(s), malformed, and impermissible entries before any fetch", () => {
+    const skipped: string[] = [];
+
+    const permissible = filterPermissiblePriceSources(
+      [
+        {
+          id: "local-file",
+          label: "Local file",
+          kind: "first-party-official",
+          url: "file:///etc/passwd",
+        },
+        {
+          id: "credentialed",
+          label: "Credentialed endpoint",
+          kind: "open-data",
+          url: "ftp://user:secret@example.com/prices",
+        },
+        {
+          id: "no-url",
+          label: "Missing url",
+          kind: "open-data",
+          url: "",
+        },
+        {
+          id: "aggregator",
+          label: "Competitor aggregator",
+          kind: "aggregator",
+          url: "https://aggregator.example.com/prices",
+        },
+        null,
+        {
+          id: "real-official",
+          label: "Official menu",
+          kind: "first-party-official",
+          url: "https://www.example-brewery.co.uk/taproom",
+        },
+      ],
+      { onSkip: (message) => skipped.push(message) },
+    );
+
+    expect(permissible.map((source) => source.id)).toEqual(["real-official"]);
+    expect(skipped).toHaveLength(5);
+  });
+
+  it("is the same filter the scheduled collector applies", async () => {
+    const seen: string[] = [];
+    const fetchSource = vi.fn(async (source: { id: string; url: string }) => {
+      seen.push(source.url);
+      return [];
+    });
+
+    await fetchPriceUpdates({ fetchSource, now: NOW });
+
+    expect(seen.length).toBeGreaterThan(0);
+    for (const url of seen) {
+      expect(isHttpUrl(url)).toBe(true);
+    }
   });
 });

@@ -75,10 +75,18 @@ describe("GET /api/freshness", () => {
     });
   });
 
-  it("uses durable price retrieval stamp instead of frozen committed file", async () => {
+  it("reports the durable price retrieval stamp without ageing the served snapshot", async () => {
     const observedAt = "2026-07-27T07:00:00.000Z";
+
+    const before = await GET();
+    const publishedStamp = (
+      (await before.json()) as {
+        datasets: Array<{ id: string; observedAt: string | null }>;
+      }
+    ).datasets.find((dataset) => dataset.id === "price_updates")?.observedAt;
+
     await memoryFeedFreshnessStore.stamp({
-      feed: "price_updates",
+      feed: "price_update_retrieval",
       observedAt,
       rowsServed: 2,
       note: "valid permissible-source rows retrieved",
@@ -90,7 +98,13 @@ describe("GET /api/freshness", () => {
     };
 
     expect(
-      body.datasets.find((dataset) => dataset.id === "price_updates")?.observedAt,
+      body.datasets.find((dataset) => dataset.id === "price_update_retrieval")
+        ?.observedAt,
     ).toBe(observedAt);
+    // A retrieval the cron cannot publish must never freshen the served file.
+    expect(
+      body.datasets.find((dataset) => dataset.id === "price_updates")?.observedAt,
+    ).toBe(publishedStamp);
+    expect(publishedStamp).not.toBe(observedAt);
   });
 });

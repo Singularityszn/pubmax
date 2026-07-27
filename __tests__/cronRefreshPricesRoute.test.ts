@@ -12,7 +12,8 @@ import {
   memoryFeedFreshnessStore,
 } from "@/lib/feedFreshnessStore";
 
-const FEED = "price_updates";
+const FEED = "price_update_retrieval";
+const PUBLISHED_FEED = "price_updates";
 const OLD_STAMP = "2026-07-06T00:00:00.000Z";
 
 function req(auth?: string): Request {
@@ -114,6 +115,8 @@ describe("GET /api/cron/refresh-prices", () => {
     });
     expect(stamp?.observedAt).toBe(body.observedAt);
     expect(stamp?.rowsServed).toBe(1);
+    // Retrieval is not publication: the served snapshot's feed stays untouched.
+    expect(await memoryFeedFreshnessStore.read(PUBLISHED_FEED)).toBeNull();
   });
 
   it("502s and leaves freshness untouched when collection fails", async () => {
