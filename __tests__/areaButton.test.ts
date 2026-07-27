@@ -170,7 +170,7 @@ describe("cheapestDrinksInArea - ranking + fail-soft pricing", () => {
     expect(rows[0].priceLabel).toBe("Whisky · £6.00");
     expect(rows[2]).toMatchObject({
       price: null,
-      priceLabel: "no whisky price yet",
+      priceLabel: "no whisky price logged",
     });
   });
 
@@ -349,5 +349,41 @@ describe("buildAreaSheetModel — the whole sheet in one derivation", () => {
     expect(model.areaName).toBe("Piccadilly & Soho");
     expect(model.pubs).toHaveLength(1);
     expect(model.pubs[0].priceLabel).toBe("£5.10");
+  });
+});
+
+describe("area rows under an incomplete drink read", () => {
+  it("says the same thing the venue list says about the same index", () => {
+    const soho = getNightArea("piccadilly-soho");
+    const venues = [
+      venue({
+        id: "unpriced",
+        latitude: soho.centre.lat,
+        longitude: soho.centre.lng,
+      }),
+    ];
+    const centre: [number, number] = [soho.centre.lng, soho.centre.lat];
+    const degraded = cheapestDrinksInArea(
+      soho,
+      venues,
+      centre,
+      undefined,
+      new Map<string, MapLensPrice>(),
+      "Whisky",
+      "degraded",
+    );
+    expect(degraded[0].priceLabel).toBe("whisky price could not be read");
+    expect(degraded[0].priceLabel).not.toContain("logged");
+
+    const partial = cheapestDrinksInArea(
+      soho,
+      venues,
+      centre,
+      undefined,
+      new Map<string, MapLensPrice>(),
+      "Whisky",
+      "partial",
+    );
+    expect(partial[0].priceLabel).toBe("no whisky price in what we read");
   });
 });

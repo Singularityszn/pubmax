@@ -296,3 +296,11 @@
   line-height: 1.45;
   color: var(--muted);
 }
+
+.mapVenueListCoverage {
+  margin: 0;
+  padding: 0 16px 8px;
+  font-size: 0.78rem;
+  line-height: 1.45;
+  color: var(--muted);
+}

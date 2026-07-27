@@ -48,10 +48,18 @@ export function mapPriceLegend(
 } {
   if (drinkLabel) {
     const drink = drinkLabel.toLowerCase();
+    // A colour scale that currently maps to no pin is a key to nothing, so the
+    // unreadable state drops the rows rather than pairing them with a hint that
+    // says nothing is coloured.
+    const unreadable = drinkIndexStatus === "degraded";
     return {
-      rows: PINT_PRICE_LEGEND,
-      ariaLabel: `${drinkLabel} price colour key`,
-      title: `${drinkLabel} price bands`,
+      rows: unreadable ? [] : PINT_PRICE_LEGEND,
+      ariaLabel: unreadable
+        ? `${drinkLabel} price colour key, unavailable`
+        : `${drinkLabel} price colour key`,
+      title: unreadable
+        ? `${drinkLabel} prices unavailable`
+        : `${drinkLabel} price bands`,
       hint: drinkHint(drink, drinkIndexStatus),
     };
   }

@@ -98,15 +98,24 @@ export default function MapPriceControl({
         title={legend.title}
         onClick={() => setOpen((value) => !value)}
       >
-        {legend.rows.map((row) => (
-          <span key={row.label}>
-            <i className={`mapPriceDot ${row.tone}`} aria-hidden="true" />
-            <span className="mapPriceLegendFull">{row.label}</span>
+        {legend.rows.length === 0 ? (
+          <span>
+            <span className="mapPriceLegendFull">{legend.title}</span>
             <span className="mapPriceLegendCompact" aria-hidden="true">
-              {row.tone === "green" ? "£" : row.tone === "amber" ? "££" : "£££"}
+              £?
             </span>
           </span>
-        ))}
+        ) : (
+          legend.rows.map((row) => (
+            <span key={row.label}>
+              <i className={`mapPriceDot ${row.tone}`} aria-hidden="true" />
+              <span className="mapPriceLegendFull">{row.label}</span>
+              <span className="mapPriceLegendCompact" aria-hidden="true">
+                {row.tone === "green" ? "£" : row.tone === "amber" ? "££" : "£££"}
+              </span>
+            </span>
+          ))
+        )}
       </button>
 
       {placement === "map" ? (

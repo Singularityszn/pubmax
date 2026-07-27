@@ -9,7 +9,11 @@
 
 import type { CityId } from "@/lib/cities";
 import { haversineKm } from "@/lib/haversine";
-import type { MapLensPrice } from "@/lib/mapExperienceLens";
+import {
+  drinkLensUnknownRowLabel,
+  type CategoryPriceIndexStatus,
+  type MapLensPrice,
+} from "@/lib/mapExperienceLens";
 import {
   getNightAreasForCity,
   isNightAreaRouteReady,
@@ -150,6 +154,7 @@ function rankCheapestDrinks(
   limit: number,
   lensPrices: ReadonlyMap<string, MapLensPrice> | null,
   lensCategoryLabel: string,
+  lensStatus: CategoryPriceIndexStatus,
 ): AreaPubRow[] {
   const ranked = venues
     .filter((venue) => withinRadius(centre, radiusKm, venue))
@@ -186,7 +191,10 @@ function rankCheapestDrinks(
             : `${lensCategoryLabel} · £${price.toFixed(2)}`
           : lensPrices === null
             ? "no priced pints yet"
-            : `no ${lensCategoryLabel.toLowerCase()} price yet`,
+            : drinkLensUnknownRowLabel(
+                lensCategoryLabel.toLowerCase(),
+                lensStatus,
+              ),
       distanceKm,
       distanceLabel: formatAreaDistance(distanceKm),
     }));
@@ -203,6 +211,7 @@ export function cheapestDrinksInArea(
   limit: number = AREA_PUB_LIMIT,
   lensPrices: ReadonlyMap<string, MapLensPrice> | null = null,
   lensCategoryLabel: string = "Pint",
+  lensStatus: CategoryPriceIndexStatus = "ready",
 ): AreaPubRow[] {
   const [lng, lat] = center;
   const origin: [number, number] =
@@ -217,6 +226,7 @@ export function cheapestDrinksInArea(
     limit,
     lensPrices,
     lensCategoryLabel,
+    lensStatus,
   );
 }
 
@@ -234,6 +244,7 @@ export function cheapestDrinksNearPoint(
   limit: number = AREA_PUB_LIMIT,
   lensPrices: ReadonlyMap<string, MapLensPrice> | null = null,
   lensCategoryLabel: string = "Pint",
+  lensStatus: CategoryPriceIndexStatus = "ready",
 ): AreaPubRow[] {
   const [lng, lat] = center;
   if (!Number.isFinite(lng) || !Number.isFinite(lat)) return [];
@@ -245,6 +256,7 @@ export function cheapestDrinksNearPoint(
     limit,
     lensPrices,
     lensCategoryLabel,
+    lensStatus,
   );
 }
 

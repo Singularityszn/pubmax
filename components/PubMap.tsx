@@ -1178,10 +1178,12 @@ export default function PubMap({
         undefined,
         activeLensPrices,
         activeLensLabel ?? undefined,
+        drinkIndexStatus,
       ),
     [
       activeLensLabel,
       activeLensPrices,
+      drinkIndexStatus,
       kindVisibleMapVenues,
       mapViewport.center,
     ],
@@ -2439,11 +2441,15 @@ export default function PubMap({
               <strong>
                 {selectedLensPrice
                   ? formatPrice(selectedLensPrice.priceGbp)
-                  : "No price logged"}
+                  : drinkIndexStatus === "degraded"
+                    ? "Price unread"
+                    : "No price logged"}
               </strong>
               <small>
                 {selectedLensPrice?.categoryLabel ??
-                  `for ${activeLensLabel?.toLowerCase() ?? "this view"}`}
+                  (drinkIndexStatus === "degraded"
+                    ? `could not read ${activeLensLabel?.toLowerCase() ?? "these"} prices`
+                    : `for ${activeLensLabel?.toLowerCase() ?? "this view"}`)}
               </small>
             </span>
           ) : typeof selectedVenue.cheapestPrice === "number" ? (

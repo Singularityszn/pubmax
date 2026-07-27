@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   drinkLensCoverageNote,
+  drinkLensUnknownRowLabel,
   experienceLensSummary,
   filtersForDrinkPriceLens,
   filtersForExperienceLens,
@@ -348,5 +349,30 @@ describe("drinkLensCoverageNote — three findings, never merged", () => {
   it("marks an unstarted or in-flight read as unfinished", () => {
     expect(drinkLensCoverageNote("whisky", "idle")).toContain("Checking");
     expect(drinkLensCoverageNote("whisky", "loading")).toContain("Checking");
+  });
+});
+
+describe("drinkLensUnknownRowLabel — a row read on its own", () => {
+  it("gives each finding its own row wording", () => {
+    expect(drinkLensUnknownRowLabel("whisky", "ready")).toBe(
+      "no whisky price logged",
+    );
+    expect(drinkLensUnknownRowLabel("whisky", "partial")).toBe(
+      "no whisky price in what we read",
+    );
+    expect(drinkLensUnknownRowLabel("whisky", "degraded")).toBe(
+      "whisky price could not be read",
+    );
+    expect(drinkLensUnknownRowLabel("whisky", "loading")).toBe(
+      "whisky price not read yet",
+    );
+  });
+
+  it("never lets an unreadable index claim nothing was logged", () => {
+    for (const status of ["degraded", "loading", "idle"] as const) {
+      expect(drinkLensUnknownRowLabel("whisky", status)).not.toContain(
+        "logged",
+      );
+    }
   });
 });

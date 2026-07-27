@@ -119,6 +119,18 @@ export function categoryLabel(category: DrinkCategory): string {
   return CATEGORY_META[category].label;
 }
 
+// The categories a viewer may put the MAP under, and the only ones a URL, a
+// restored session or a picker may set as an active drink filter. `other` stays
+// loggable (a liqueur, a cider, an aperitif have to go somewhere) but it names
+// no drink, so it can neither label a pin figure nor be shown and cleared as a
+// lens - and a filter nobody can see or clear would narrow the map in silence.
+export const MAP_LENS_DRINK_CATEGORIES: readonly DrinkCategory[] =
+  DRINK_CATEGORIES.filter((category) => category !== "other");
+
+export function isMapLensDrinkCategory(value: unknown): value is DrinkCategory {
+  return isDrinkCategory(value) && MAP_LENS_DRINK_CATEGORIES.includes(value);
+}
+
 // Typical UK ABV (%) by category when a brand/drink has no specific value.
 // `null` means honestly unknown (e.g. "other") — never fabricate 0.
 export const CATEGORY_DEFAULT_ABV: Record<DrinkCategory, number | null> = {

@@ -158,6 +158,9 @@ export function validateMobileMapFilters(value: unknown): Filters | null {
     : null;
   return {
     ...(raw as Filters),
+    // A session saved when a category was still lensable must not restore it as
+    // an invisible filter: the picker could neither show nor clear it.
+    drinkCategory: category ?? "",
     drinkSubtype: subtype?.id ?? "",
     topShelfOnly: raw.topShelfOnly === true && Boolean(category),
   };

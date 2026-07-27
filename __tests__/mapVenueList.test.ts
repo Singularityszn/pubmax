@@ -227,3 +227,63 @@ describe("buildUkBasePubListModel", () => {
     });
   });
 });
+
+describe("buildMapVenueListModel — the accessible parallel to the pins", () => {
+  const lensPrices = new Map();
+
+  it("says nothing extra when the drink index answered in full", () => {
+    const model = buildMapVenueListModel(
+      [venue({ id: "unknown", cheapestPrice: 5.8 })],
+      null,
+      MAP_VENUE_LIST_LIMIT,
+      lensPrices,
+      "Whisky",
+      "ready",
+    );
+    expect(model.coverageNote).toBeNull();
+    expect(model.rows[0].priceLabel).toBe("No whisky price logged");
+  });
+
+  it("never tells a non-visual reader a failed read was an empty city", () => {
+    // The row is often read on its own, so BOTH it and the note have to carry
+    // the finding: sighted users get the visible note either way.
+    const model = buildMapVenueListModel(
+      [venue({ id: "unknown", cheapestPrice: 5.8 })],
+      null,
+      MAP_VENUE_LIST_LIMIT,
+      lensPrices,
+      "Whisky",
+      "degraded",
+    );
+    expect(model.coverageNote).toContain("could not read the whisky prices");
+    expect(model.rows[0].priceLabel).toBe("Whisky price could not be read");
+    expect(model.rows[0].priceLabel).not.toContain("logged");
+  });
+
+  it("keeps a truncated-but-successful read out of the failure wording", () => {
+    const model = buildMapVenueListModel(
+      [venue({ id: "unknown", cheapestPrice: 5.8 })],
+      null,
+      MAP_VENUE_LIST_LIMIT,
+      lensPrices,
+      "Whisky",
+      "partial",
+    );
+    expect(model.coverageNote).toContain("part of the whisky prices");
+    expect(model.coverageNote).not.toContain("could not");
+    expect(model.rows[0].priceLabel).toBe("No whisky price in what we read");
+  });
+
+  it("leaves the pint default with no lens wording at all", () => {
+    const model = buildMapVenueListModel(
+      [venue({ id: "priced", cheapestPrice: 4.5 })],
+      null,
+      MAP_VENUE_LIST_LIMIT,
+      null,
+      "Whisky",
+      "degraded",
+    );
+    expect(model.coverageNote).toBeNull();
+    expect(model.rows[0].priceLabel).toBe("£4.50");
+  });
+});

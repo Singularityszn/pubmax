@@ -70,6 +70,12 @@ export default function MapVenueList({
             </button>
           </header>
 
+          {model.coverageNote ? (
+            <p className="mapVenueListCoverage" role="status">
+              {model.coverageNote}
+            </p>
+          ) : null}
+
           {total === 0 ? (
             <p className="mapVenueListEmpty" role="status">
               {loaded

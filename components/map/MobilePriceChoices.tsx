@@ -28,14 +28,16 @@ export default function MobilePriceChoices({
       <section className="mobilePriceBandLegend" aria-label={legend.ariaLabel}>
         <strong>{legend.title}</strong>
         <p>{legend.hint}</p>
-        <ul>
-          {legend.rows.map((row) => (
-            <li key={row.label}>
-              <i data-tone={row.tone} aria-hidden="true" />
-              <span>{row.label}</span>
-            </li>
-          ))}
-        </ul>
+        {legend.rows.length > 0 ? (
+          <ul>
+            {legend.rows.map((row) => (
+              <li key={row.label}>
+                <i data-tone={row.tone} aria-hidden="true" />
+                <span>{row.label}</span>
+              </li>
+            ))}
+          </ul>
+        ) : null}
       </section>
       {drinkLabel ? null : (
         <fieldset className="mobilePriceChoices">

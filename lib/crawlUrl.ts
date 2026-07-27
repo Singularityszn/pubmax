@@ -5,7 +5,7 @@ import {
   normalizeBrandQuery,
   parseDrinkCategoryParam,
 } from "@/lib/drinkBrands";
-import { isDrinkCategory } from "@/lib/drinks";
+import { isMapLensDrinkCategory } from "@/lib/drinks";
 import { parseDrinkSubtypeParam } from "@/lib/drinkSubtypes";
 import { parseZoneParam } from "@/lib/zones";
 
@@ -127,7 +127,9 @@ export function encodeCrawl(state: CrawlUrlState): string {
   // Drink lens (Wave C): round-trip ?drink= + optional ?brand=.
   const drinkCategory = filters.drinkCategory?.trim();
   const encodedCategory =
-    drinkCategory && isDrinkCategory(drinkCategory) ? drinkCategory : null;
+    drinkCategory && isMapLensDrinkCategory(drinkCategory)
+      ? drinkCategory
+      : null;
   if (encodedCategory) {
     params.set("drink", encodedCategory);
   }

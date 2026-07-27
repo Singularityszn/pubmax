@@ -2,7 +2,12 @@ import { buildLogNearbyCandidates, type LogNearbyCandidate } from "@/lib/mapLogI
 import { haversineKm } from "@/lib/haversine";
 import type { UkBasePub } from "@/lib/ukBasePubs";
 import type { Venue } from "@/lib/venues";
-import type { MapLensPrice } from "@/lib/mapExperienceLens";
+import {
+  drinkLensCoverageNote,
+  drinkLensUnknownRowLabel,
+  type CategoryPriceIndexStatus,
+  type MapLensPrice,
+} from "@/lib/mapExperienceLens";
 
 // A11Y finding #1 (WCAG 2.1.1): the WebGL pins are pointer-only, so a keyboard
 // or screen-reader user can never enumerate/open an arbitrary pin. This is the
@@ -24,6 +29,13 @@ export type MapVenueListModel = {
   shown: number;
   /** True when the cap hid some of the on-map venues. */
   truncated: boolean;
+  /**
+   * What the selected drink's cross-venue read managed, or null when it
+   * answered in full. This list is the DOM parallel to the pins, so it owes a
+   * non-visual reader the same sentence the visual surfaces print: a read that
+   * FAILED may never leave rows reading as a settled "none logged here".
+   */
+  coverageNote: string | null;
 };
 
 export type UkBasePubListRow = {
@@ -54,6 +66,7 @@ export function buildMapVenueListModel(
   limit: number = MAP_VENUE_LIST_LIMIT,
   lensPrices: ReadonlyMap<string, MapLensPrice> | null = null,
   lensCategoryLabel: string = "this view",
+  lensStatus: CategoryPriceIndexStatus = "ready",
 ): MapVenueListModel {
   const total = venues.length;
   const origin =
@@ -63,6 +76,12 @@ export function buildMapVenueListModel(
       ? { lng: viewportCenter[0], lat: viewportCenter[1] }
       : null;
   const baseRows = buildLogNearbyCandidates(venues, limit, origin);
+  const drinkNoun = lensCategoryLabel.toLowerCase();
+  // A row is read on its own, so its unknown wording carries the finding too -
+  // the note below is not always heard beside it.
+  const unknownSentence = drinkLensUnknownRowLabel(drinkNoun, lensStatus);
+  const unknownLabel =
+    unknownSentence.charAt(0).toUpperCase() + unknownSentence.slice(1);
   const rows =
     lensPrices === null
       ? baseRows
@@ -72,10 +91,17 @@ export function buildMapVenueListModel(
             ...row,
             priceLabel: lensPrice
               ? `${lensPrice.categoryLabel} · £${lensPrice.priceGbp.toFixed(2)}`
-              : `No ${lensCategoryLabel.toLowerCase()} price logged`,
+              : unknownLabel,
           };
         });
-  return { rows, total, shown: rows.length, truncated: total > rows.length };
+  return {
+    rows,
+    total,
+    shown: rows.length,
+    truncated: total > rows.length,
+    coverageNote:
+      lensPrices === null ? null : drinkLensCoverageNote(drinkNoun, lensStatus),
+  };
 }
 
 export function buildUkBasePubListModel(

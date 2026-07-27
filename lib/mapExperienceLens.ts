@@ -4,12 +4,7 @@ import {
   NO_ALCOHOL_DRINK_CATEGORIES,
   type CommunityPrice,
 } from "@/lib/communityPrice";
-import {
-  CATEGORY_META,
-  DRINK_CATEGORIES,
-  isDrinkCategory,
-  type DrinkCategory,
-} from "@/lib/drinks";
+import { CATEGORY_META, type DrinkCategory } from "@/lib/drinks";
 import { compactVenueAnchor } from "@/lib/venueAnchorPresentation";
 import type { Filters, Venue } from "@/lib/venues";
 
@@ -19,21 +14,12 @@ export type NoAlcoholDrinkCategory = Extract<
   "soft-drink" | "alcohol-free"
 >;
 
-/**
- * The categories a viewer may put the MAP under. `other` stays submittable (a
- * liqueur, a cider, an aperitif have to be loggable somewhere) but it is a bag
- * of unrelated drinks rather than a name, so a pin printing "£6 Other" over a
- * pint glass would label a figure with nothing the reader can check. Submit
- * keeps it; the lens does not.
- */
-export const MAP_LENS_DRINK_CATEGORIES: readonly DrinkCategory[] =
-  DRINK_CATEGORIES.filter((category) => category !== "other");
-
-export function isMapLensDrinkCategory(
-  value: unknown,
-): value is DrinkCategory {
-  return isDrinkCategory(value) && MAP_LENS_DRINK_CATEGORIES.includes(value);
-}
+// The lensable-category list lives with the taxonomy it narrows (lib/drinks.ts)
+// so the URL and session guards can share it without importing the map.
+export {
+  isMapLensDrinkCategory,
+  MAP_LENS_DRINK_CATEGORIES,
+} from "@/lib/drinks";
 
 export type MapLensPrice = {
   venueId: string;
@@ -279,6 +265,23 @@ export function drinkLensCoverageNote(
     return `Read from part of the ${drinkNoun} prices, so some are still missing.`;
   }
   return null;
+}
+
+/**
+ * What ONE row says when it has no figure. A row is read on its own - in a
+ * screen reader it is often read without the note above it - so an index that
+ * failed may not leave the row claiming nothing was ever logged here.
+ */
+export function drinkLensUnknownRowLabel(
+  drinkNoun: string,
+  status: CategoryPriceIndexStatus,
+): string {
+  if (status === "degraded") return `${drinkNoun} price could not be read`;
+  if (status === "idle" || status === "loading") {
+    return `${drinkNoun} price not read yet`;
+  }
+  if (status === "partial") return `no ${drinkNoun} price in what we read`;
+  return `no ${drinkNoun} price logged`;
 }
 
 export function experienceLensSummary(

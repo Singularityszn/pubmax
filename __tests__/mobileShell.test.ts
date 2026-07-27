@@ -117,4 +117,15 @@ describe("mobile map session adapter", () => {
       topShelfOnly: true,
     })?.topShelfOnly).toBe(false);
   });
+
+  it("drops a restored category the picker can no longer show or clear", () => {
+    // A session saved while `other` was still offered must not come back as a
+    // filter narrowing the map with nothing on screen to turn it off.
+    const current = seedCrawlState("").filters;
+    expect(validateMobileMapFilters({
+      ...current,
+      drinkCategory: "other",
+      topShelfOnly: true,
+    })).toMatchObject({ drinkCategory: "", topShelfOnly: false });
+  });
 });

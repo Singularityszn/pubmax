@@ -65,3 +65,18 @@ describe("mapPriceLegend", () => {
     );
   });
 });
+
+describe("mapPriceLegend colour rows under a failed read", () => {
+  it("drops a colour scale that currently maps to no pin", () => {
+    const degraded = mapPriceLegend(true, "Whisky", "degraded");
+    expect(degraded.rows).toEqual([]);
+    expect(degraded.title).toBe("Whisky prices unavailable");
+    expect(degraded.ariaLabel).toContain("unavailable");
+  });
+
+  it("keeps the bands for every state that still colours pins", () => {
+    for (const status of ["ready", "partial", "loading", "idle"] as const) {
+      expect(mapPriceLegend(true, "Whisky", status).rows).toHaveLength(3);
+    }
+  });
+});

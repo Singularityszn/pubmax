@@ -94,6 +94,7 @@ export default function AreaSheet({
             undefined,
             lensPrices,
             drinkLabel,
+            lensStatus,
           )
         : area
           ? cheapestDrinksInArea(
@@ -103,9 +104,10 @@ export default function AreaSheet({
               undefined,
               lensPrices,
               drinkLabel,
+              lensStatus,
             )
           : [],
-    [placeFocus, area, venues, center, lensPrices, drinkLabel],
+    [placeFocus, area, venues, center, lensPrices, drinkLabel, lensStatus],
   );
   const focusName = placeFocus?.name ?? area?.name ?? null;
   const drinkNoun = lensPrices === null ? "pints" : drinkLabel.toLowerCase();
