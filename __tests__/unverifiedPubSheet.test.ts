@@ -22,6 +22,8 @@ function state(rows: CommunityPrice[], known = true): CommunityPricesState {
     byVenueId: known ? new Map([[pub.id, rows]]) : new Map(),
     freshestByVenueId: new Map(),
     noAlcoholIndexStatus: "idle",
+    provisionalBaseVenueIds: new Set(),
+    loadProvisionalBaseVenues: () => {},
     loadVenue: () => {},
     loadNoAlcoholIndex: () => {},
     submit: async () => ({ ok: true }),
@@ -156,7 +158,7 @@ describe("UnverifiedPubSheet", () => {
     expect(html).not.toContain("£5.80");
   });
 
-  it("never claims a map mark for a lone pint report - base pins are price-blind", () => {
+  it("names the base pin mark without claiming the price drives the map", () => {
     const html = renderToStaticMarkup(
       createElement(UnverifiedPubSheet, {
         pub,
@@ -173,10 +175,11 @@ describe("UnverifiedPubSheet", () => {
       }),
     );
 
-    // The standing note stays page-only: no badge layer reads the uk-base
-    // source, so "Marked on the map" here would name a mark that never draws.
-    expect(html).toContain("Awaiting confirmation");
-    expect(html).not.toContain("Marked on the map");
+    expect(html).toContain("Marked on the map as unconfirmed");
+    expect(html).toContain(
+      "it moves the map once a second drinker logs the same",
+    );
+    expect(html).not.toContain("On the map</span>");
   });
 
   it("shows be-the-first framing only after a confirmed empty response", () => {

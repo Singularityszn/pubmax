@@ -6,6 +6,7 @@ import {
   moderateCommunityPrice,
   readCommunityPriceCategoryIndex,
   readCommunityPrices,
+  readProvisionalCommunityPriceVenueIds,
   submitCommunityPrice,
 } from "@/lib/communityPriceStore";
 
@@ -119,6 +120,69 @@ describe("communityPriceStore (memory backend)", () => {
   it("is honest-empty for a venue nobody has logged a price at", async () => {
     expect(await readCommunityPrices("never-logged")).toEqual([]);
     expect(await readCommunityPrices("")).toEqual([]);
+  });
+
+  it("returns only requested venues whose fresh beer report is still provisional", async () => {
+    const now = 10_000;
+    await submitCommunityPrice(
+      {
+        venueId: "venue-uk-n-fresh",
+        drinkCategory: "beer",
+        priceGbp: 4.2,
+        actor: "a",
+      },
+      1_000,
+    );
+    await submitCommunityPrice(
+      {
+        venueId: "venue-uk-n-confirmed",
+        drinkCategory: "beer",
+        priceGbp: 5.2,
+        actor: "b",
+      },
+      2_000,
+    );
+    await submitCommunityPrice(
+      {
+        venueId: "venue-uk-n-confirmed",
+        drinkCategory: "beer",
+        priceGbp: 5.2,
+        actor: "c",
+      },
+      3_000,
+    );
+    await submitCommunityPrice(
+      {
+        venueId: "venue-uk-n-wine",
+        drinkCategory: "wine",
+        priceGbp: 8.5,
+        actor: "d",
+      },
+      4_000,
+    );
+    await submitCommunityPrice(
+      {
+        venueId: "venue-uk-n-offscreen",
+        drinkCategory: "beer",
+        priceGbp: 4.8,
+        actor: "e",
+      },
+      5_000,
+    );
+
+    await expect(
+      readProvisionalCommunityPriceVenueIds(
+        [
+          "venue-uk-n-fresh",
+          "venue-uk-n-confirmed",
+          "venue-uk-n-wine",
+        ],
+        now,
+      ),
+    ).resolves.toEqual({
+      venueIds: ["venue-uk-n-fresh"],
+      degraded: false,
+    });
   });
 
   it("indexes only requested categories across venues with trust metadata intact", async () => {

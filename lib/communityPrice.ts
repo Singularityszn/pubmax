@@ -403,10 +403,8 @@ export function communityReachNote(category: DrinkCategory): string {
  * must not imply a map move that no amount of confirmation can deliver.
  *
  * `canMarkMap` is the surface's answer to "can this pub's pin carry community
- * price state at all?". Curated venues can (the default); UK base pins are
- * deliberately price-blind, so their sheet passes false and every map-claiming
- * line falls back to page-only wording - the note may never name a mark the
- * pin does not draw.
+ * price state at all?". Map pins use the default. A non-map surface can pass
+ * false so every map-claiming line falls back to page-only wording.
  */
 export function communityTrustNote(
   price: Pick<

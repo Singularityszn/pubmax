@@ -45,12 +45,14 @@ import {
   COMMUNITY_PRICE_MAX_AGE_MS,
   isCorroborated,
   isWithinMaxAge,
+  marksMapProvisionally,
   roundToPennies,
   type CommunityPrice,
   type CommunityPriceInput,
   type CommunityPriceMapCandidate,
 } from "@/lib/communityPrice";
 import { isDrinkCategory, type DrinkCategory } from "@/lib/drinks";
+import { MAX_PROVISIONAL_BASE_VENUE_IDS } from "@/lib/ukBasePubs";
 import {
   admin,
   createFailSoftGuard,
@@ -83,6 +85,11 @@ export type CommunityPriceReadResult = {
 export type CommunityPriceCategoryIndexResult = {
   prices: CommunityPrice[];
   truncated: boolean;
+  degraded: boolean;
+};
+
+export type ProvisionalVenueIdReadResult = {
+  venueIds: string[];
   degraded: boolean;
 };
 
@@ -128,6 +135,15 @@ export type CommunityPriceStore = {
     categories: readonly DrinkCategory[],
     now?: number,
   ): Promise<CommunityPriceCategoryIndexResult>;
+  /**
+   * Which requested venues have a fresh beer report that has not earned price
+   * authority. Returns ids only, so viewport visibility cannot leak a figure
+   * into the map's price merge.
+   */
+  latestProvisionalVenueIds(
+    venueIds: readonly string[],
+    now?: number,
+  ): Promise<ProvisionalVenueIdReadResult>;
   /**
    * How many (venue, drink category) pairs currently have a figure the map is
    * allowed to paint - corroborated by a second independent submitter AND
@@ -180,6 +196,8 @@ const VENUE_SCAN_ROWS = 200;
 // hit the answer is reported as a floor (`truncated`), never as a total.
 const CORROBORATION_SCAN_ROWS = 20_000;
 const CATEGORY_INDEX_SCAN_ROWS = 20_000;
+const PROVISIONAL_VENUE_SCAN_ROWS =
+  MAX_PROVISIONAL_BASE_VENUE_IDS * VENUE_SCAN_ROWS;
 // PostgREST silently caps any single response at the project's server-side
 // max-rows setting (hosted default 1000), so one `.limit(20_000)` request can
 // come back short without ever saying so. The durable scan therefore pages in
@@ -405,6 +423,27 @@ function categoryIndexFromRows(
   return { prices, truncated, degraded };
 }
 
+function provisionalVenueIdsFromRows(
+  allRows: StoredPrice[],
+  venueIds: readonly string[],
+  now: number,
+): string[] {
+  const grouped = new Map<string, StoredPrice[]>();
+  for (const row of allRows) {
+    const held = grouped.get(row.venueId);
+    if (held) held.push(row);
+    else grouped.set(row.venueId, [row]);
+  }
+  const provisional: string[] = [];
+  for (const venueId of venueIds) {
+    const beer = freshestPerCategory(grouped.get(venueId) ?? [], now).find(
+      (row) => row.drinkCategory === "beer",
+    );
+    if (beer && marksMapProvisionally(beer, now)) provisional.push(venueId);
+  }
+  return provisional;
+}
+
 /**
  * Strip the actor before a stored row leaves the store. The submitter token is
  * an internal de-duplication key, never part of the price the app reads - so
@@ -556,6 +595,26 @@ export const memoryCommunityPriceStore: CommunityPriceStore = {
       truncated,
       false,
     );
+  },
+
+  async latestProvisionalVenueIds(venueIds, now = Date.now()) {
+    const wanted = [
+      ...new Set(
+        venueIds
+          .map(cleanVenueId)
+          .filter(Boolean)
+          .slice(0, MAX_PROVISIONAL_BASE_VENUE_IDS),
+      ),
+    ];
+    if (wanted.length === 0) return { venueIds: [], degraded: false };
+    return {
+      venueIds: provisionalVenueIdsFromRows(
+        wanted.flatMap((venueId) => venues.get(venueId) ?? []),
+        wanted,
+        now,
+      ),
+      degraded: false,
+    };
   },
 
   async countCorroboratedCategories(now = Date.now()) {
@@ -818,6 +877,71 @@ export const supabaseCommunityPriceStore: CommunityPriceStore = {
     });
   },
 
+  async latestProvisionalVenueIds(venueIds, now = Date.now()) {
+    const wanted = [
+      ...new Set(
+        venueIds
+          .map(cleanVenueId)
+          .filter(Boolean)
+          .slice(0, MAX_PROVISIONAL_BASE_VENUE_IDS),
+      ),
+    ];
+    if (wanted.length === 0) return { venueIds: [], degraded: false };
+    return guard<ProvisionalVenueIdReadResult>({
+      context: "provisional-venue-index",
+      onSchemaMiss: async () => ({
+        ...await memoryCommunityPriceStore.latestProvisionalVenueIds(
+          wanted,
+          now,
+        ),
+        degraded: true,
+      }),
+      message: "provisional venue read failed - returning no marks",
+      onError: () => ({ venueIds: [], degraded: true }),
+      run: async () => {
+        const since = new Date(
+          now - COMMUNITY_PRICE_MAX_AGE_MS,
+        ).toISOString();
+        const scanned: unknown[] = [];
+        let complete = false;
+        for (let offset = 0; offset < PROVISIONAL_VENUE_SCAN_ROWS; ) {
+          const pageEnd = Math.min(
+            offset + CORROBORATION_SCAN_PAGE,
+            PROVISIONAL_VENUE_SCAN_ROWS,
+          );
+          const { data, error } = await admin()
+            .from("community_prices")
+            .select(
+              "id, venue_id, drink_category, price_pennies, submitted_at, actor, hidden_at, report_count",
+            )
+            .in("venue_id", wanted)
+            .eq("drink_category", "beer")
+            .gte("submitted_at", since)
+            .order("submitted_at", { ascending: false })
+            .order("id", { ascending: true })
+            .range(offset, pageEnd - 1);
+          if (error) throw new Error(error.message);
+          const page = Array.isArray(data) ? data : [];
+          scanned.push(...page);
+          if (page.length < pageEnd - offset) {
+            complete = true;
+            break;
+          }
+          offset = pageEnd;
+        }
+        if (!complete) return { venueIds: [], degraded: true };
+        return {
+          venueIds: provisionalVenueIdsFromRows(
+            rowsToCountableRows(scanned),
+            wanted,
+            now,
+          ),
+          degraded: false,
+        };
+      },
+    });
+  },
+
   async countCorroboratedCategories(now = Date.now()) {
     return guard<CorroboratedCategoryCount>({
       context: "corroborated-count",
@@ -1012,6 +1136,13 @@ export function readCommunityPricesWithStatus(
   now: number = Date.now(),
 ): Promise<CommunityPriceReadResult> {
   return communityPriceStore().latestForVenue(venueId, now);
+}
+
+export function readProvisionalCommunityPriceVenueIds(
+  venueIds: readonly string[],
+  now: number = Date.now(),
+): Promise<ProvisionalVenueIdReadResult> {
+  return communityPriceStore().latestProvisionalVenueIds(venueIds, now);
 }
 
 // The category index is the one read here that is neither per-venue nor

@@ -22,8 +22,8 @@ import "./unverifiedPubSheet.css";
 
 // The sheet behind a UK base pin - a pub OpenStreetMap knows about but the
 // curated venue index does not. It shows existing community reports or invites
-// the first one while leaving base pins price-blind. Corroboration policy for
-// colouring a pin belongs to the price-trust lane, not this layer.
+// the first one. A lone fresh pint report can mark this pin, while corroboration
+// policy for colouring it remains in the separate price-trust lane.
 
 type UnverifiedPubSheetProps = {
   pub: UkBasePub;
@@ -49,10 +49,8 @@ export default function UnverifiedPubSheet({
         )
       : rows,
   );
-  // Base pins are price-blind - no colour, no provisional dot - so this sheet
-  // asks for page-only wording: the note may never claim a mark on the map.
   const communityTrustStanding = communityPrice
-    ? communityTrustNote(communityPrice, undefined, false)
+    ? communityTrustNote(communityPrice)
     : "";
 
   return (
@@ -121,7 +119,6 @@ export default function UnverifiedPubSheet({
         venueId={pub.id}
         venueName={pub.name}
         communityPrices={communityPrices}
-        canMarkMap={false}
       />
 
       {/* ODbL requires attribution wherever these pins are publicly displayed

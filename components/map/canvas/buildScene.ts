@@ -125,6 +125,30 @@ export const PROVISIONAL_BADGE_RADIUS_MAX_PX = 4.2;
 /** The widest ring any pin wears (what's-on, at z15) — the envelope to stay in. */
 export const PIN_HALO_ENVELOPE_PX = 15;
 
+function provisionalBadgePaint(
+  tokens: Tokens,
+  dark: boolean,
+  opacity: number | maplibregl.ExpressionSpecification,
+) {
+  return {
+    "circle-color": tokens.riverBright,
+    "circle-radius": [
+      "interpolate",
+      ["linear"],
+      ["zoom"],
+      PIN_MIN_ZOOM,
+      PROVISIONAL_BADGE_RADIUS_MIN_PX,
+      15,
+      PROVISIONAL_BADGE_RADIUS_MAX_PX,
+    ] as maplibregl.ExpressionSpecification,
+    "circle-translate": PROVISIONAL_BADGE_OFFSET_PX,
+    "circle-stroke-color": dark ? tokens.inkDeep : tokens.paper,
+    "circle-stroke-width": 1.4,
+    "circle-opacity": opacity,
+    "circle-stroke-opacity": opacity,
+  };
+}
+
 // The price tag: the figure a priced pin prints under its glyph from
 // PIN_PRICE_LABEL_MIN_ZOOM (see ./filters, which owns the zoom gate and the
 // text expressions). It is the one thing on a pin that is NOT free of the
@@ -775,6 +799,18 @@ export function buildUkBase(ctx: SceneCtx) {
       "icon-opacity": UK_BASE_ICON_OPACITY,
     },
   });
+  addLayerOnce({
+    id: "uk-base-provisional-badge",
+    type: "circle",
+    source: "uk-base",
+    minzoom: UK_BASE_MIN_ZOOM,
+    filter: ["get", "provisional"],
+    paint: provisionalBadgePaint(
+      tokens,
+      dark,
+      UK_BASE_ICON_OPACITY,
+    ),
+  });
 }
 
 export function buildPubs(ctx: SceneCtx) {
@@ -1076,27 +1112,15 @@ export function buildPubs(ctx: SceneCtx) {
     source: "pubs",
     minzoom: PIN_MIN_ZOOM,
     filter: ["all", ["!", ["has", "point_count"]], ["get", "provisional"]],
-    paint: {
-      "circle-color": tokens.riverBright,
-      "circle-radius": [
-        "interpolate",
-        ["linear"],
-        ["zoom"],
-        PIN_MIN_ZOOM,
-        PROVISIONAL_BADGE_RADIUS_MIN_PX,
-        15,
-        PROVISIONAL_BADGE_RADIUS_MAX_PX,
-      ],
-      "circle-translate": PROVISIONAL_BADGE_OFFSET_PX,
-      "circle-stroke-color": dark ? tokens.inkDeep : tokens.paper,
-      "circle-stroke-width": 1.4,
+    paint: provisionalBadgePaint(
+      tokens,
+      dark,
       // The badge belongs to its pin, so it dims with it — the same expression
       // pubs-point wears. Without this a provisional dot would stay bright on a
       // pub the favourite-pint lens filtered out, or pop out of the M1
       // selection spotlight while its own pin receded.
-      "circle-opacity": pubIconOpacityExpr(selectedId),
-      "circle-stroke-opacity": pubIconOpacityExpr(selectedId),
-    },
+      pubIconOpacityExpr(selectedId),
+    ),
   });
   addLayerOnce({
     id: "clusters",

@@ -637,6 +637,8 @@ export default function PubMap({
   // still shows there, dated - it just doesn't move a pin.
   const communityPrices = useCommunityPrices();
   const loadNoAlcoholPriceIndex = communityPrices.loadNoAlcoholIndex;
+  const loadProvisionalBaseVenues =
+    communityPrices.loadProvisionalBaseVenues;
   const noAlcoholLensPrices = useMemo(
     () =>
       trustedNoAlcoholLensPrices(
@@ -665,10 +667,24 @@ export default function PubMap({
   // badge is guaranteed for the pub you just logged - the moment this exists to
   // deliver - and fills in for others as you open them, rather than pretending
   // to a city-wide pending feed the API does not serve.
-  const provisionalVenueIds = useMemo(
-    () => provisionalCommunityPriceVenueIds(communityPrices.freshestByVenueId),
-    [communityPrices.freshestByVenueId],
-  );
+  const provisionalVenueIds = useMemo(() => {
+    const local = provisionalCommunityPriceVenueIds(
+      communityPrices.freshestByVenueId,
+    );
+    const combined = new Set(local);
+    for (const venueId of communityPrices.provisionalBaseVenueIds) {
+      // A locally loaded or optimistic row is newer than the viewport read.
+      // Its absence from `local` means it is confirmed or aged out, so it
+      // actively overrides a stale provisional id from the batch response.
+      if (!communityPrices.freshestByVenueId.has(venueId)) {
+        combined.add(venueId);
+      }
+    }
+    return combined;
+  }, [
+    communityPrices.freshestByVenueId,
+    communityPrices.provisionalBaseVenueIds,
+  ]);
   // Live map pins (issue #37): refetch the drops layer on a new-drop signal (or
   // a 30s poll when realtime is unavailable). Self-contained, signal-only.
   useLiveDrops(pintDrops.refreshAllDrops);
@@ -1060,6 +1076,29 @@ export default function PubMap({
     [experienceLensPrices, kindVisibleMapVenues, mapViewport.center],
   );
   const [renderedBasePubs, setRenderedBasePubs] = useState<UkBasePub[]>([]);
+  const provisionalRestoreResolved = useRef(!ukBaseRestore);
+  useEffect(() => {
+    if (!provisionalRestoreResolved.current) {
+      const targetVisible = renderedBasePubs.some(
+        (pub) => pub.id === ukBaseRestore?.id,
+      );
+      if (!targetVisible) return;
+      provisionalRestoreResolved.current = true;
+    }
+    // A restore fly can settle through several intermediate viewports. Wait
+    // for the last one so one arrival makes one bounded visibility read rather
+    // than billing every camera frame that briefly became "settled".
+    const timer = setTimeout(
+      () =>
+        loadProvisionalBaseVenues(renderedBasePubs.map((pub) => pub.id)),
+      1_000,
+    );
+    return () => clearTimeout(timer);
+  }, [
+    loadProvisionalBaseVenues,
+    renderedBasePubs,
+    ukBaseRestore?.id,
+  ]);
   const ukBasePubListModel = useMemo(
     () => buildUkBasePubListModel(renderedBasePubs, mapViewport.center),
     [renderedBasePubs, mapViewport.center],

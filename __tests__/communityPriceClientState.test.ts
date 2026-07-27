@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  planProvisionalBaseVenueRead,
   readCategoryPriceIndexLoad,
+  readProvisionalVenueIdsLoad,
   readVenuePriceLoad,
   rollbackOptimisticPrice,
 } from "@/components/map/useCommunityPrices";
@@ -26,6 +28,56 @@ const optimisticBeer: CommunityPrice = {
 };
 
 describe("community price client state", () => {
+  it("reads only newly visible stable base ids", () => {
+    expect(
+      planProvisionalBaseVenueRead(
+        [
+          "venue-uk-w2",
+          "venue-curated",
+          "venue-uk-n1",
+          "venue-uk-w2",
+          "venue-uk-n3",
+        ],
+        new Set(["venue-uk-n1", "venue-uk-n3"]),
+      ),
+    ).toEqual({
+      visible: ["venue-uk-n1", "venue-uk-n3", "venue-uk-w2"],
+      unread: ["venue-uk-w2"],
+    });
+  });
+
+  it("accepts only stable base ids from a provisional viewport response", () => {
+    expect(
+      readProvisionalVenueIdsLoad({
+        venueIds: [
+          "venue-uk-n123",
+          "venue-curated",
+          "",
+          "venue-uk-n456",
+          "venue-uk-n999",
+        ],
+      },
+        new Set(["venue-uk-n123", "venue-uk-n456"]),
+      ),
+    ).toEqual({
+      status: "ready",
+      venueIds: ["venue-uk-n123", "venue-uk-n456"],
+    });
+    expect(
+      readProvisionalVenueIdsLoad(
+        {
+          venueIds: [],
+          degraded: true,
+        },
+        new Set(),
+      ),
+    ).toEqual({ status: "degraded", venueIds: [] });
+    expect(readProvisionalVenueIdsLoad({ venueIds: "bad" }, new Set())).toEqual({
+      status: "invalid",
+      venueIds: [],
+    });
+  });
+
   it("distinguishes an honest empty lens index from a degraded one", () => {
     expect(readCategoryPriceIndexLoad({ prices: [], truncated: false })).toEqual({
       status: "ready",

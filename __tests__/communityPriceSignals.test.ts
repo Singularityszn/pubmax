@@ -464,8 +464,8 @@ describe("communityTrustNote", () => {
   });
 
   it("never claims a mark on a surface whose pin cannot carry one", () => {
-    // UK base pins are price-blind: no badge layer reads them, so the sheet
-    // passes canMarkMap=false and a lone pint report must read page-only.
+    // A surface with no map marker passes canMarkMap=false, so a lone pint
+    // report must read page-only.
     const waiting = communityTrustNote(
       { ...beer, corroborations: 1, submittedAt: NOW - MINUTE },
       NOW,

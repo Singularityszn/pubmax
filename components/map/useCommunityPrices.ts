@@ -10,6 +10,10 @@ import {
 import type { DrinkCategory } from "@/lib/drinks";
 import type { NoAlcoholIndexStatus } from "@/lib/mapExperienceLens";
 import type { PriceSubmitFailureReason } from "@/lib/analyticsEvents";
+import {
+  isUkBaseId,
+  MAX_PROVISIONAL_BASE_VENUE_IDS,
+} from "@/lib/ukBasePubs";
 
 // Client-side owner of /api/price-submit: the freshest community price per
 // (venue, drink category), the optimistic restamp, and the submit call.
@@ -58,6 +62,10 @@ export type CommunityPricesState = {
   noAlcoholIndexStatus: NoAlcoholIndexStatus;
   /** Load soft-drink and alcohol-free rows across venues once per session. */
   loadNoAlcoholIndex: () => void;
+  /** Visibility marks found for UK base pubs read in this session. */
+  provisionalBaseVenueIds: ReadonlySet<string>;
+  /** Read unseen IDs among these on-screen base pubs. */
+  loadProvisionalBaseVenues: (venueIds: readonly string[]) => void;
   /** Fetch the community prices on record for one venue (fail-soft, once per id). */
   loadVenue: (venueId: string) => void;
   /** Log tonight's price. Restamps optimistically, rolls back on rejection. */
@@ -195,6 +203,48 @@ export function readCategoryPriceIndexLoad(
   return { status: "ready", prices, truncated };
 }
 
+export type ProvisionalVenueIdsLoad =
+  | { status: "ready"; venueIds: string[] }
+  | { status: "degraded"; venueIds: string[] }
+  | { status: "invalid"; venueIds: [] };
+
+export function planProvisionalBaseVenueRead(
+  venueIds: readonly string[],
+  alreadyRead: ReadonlySet<string>,
+): { visible: string[]; unread: string[] } {
+  const visible = [
+    ...new Set(venueIds.filter((venueId) => isUkBaseId(venueId))),
+  ].sort();
+  return {
+    visible,
+    unread: visible.filter((venueId) => !alreadyRead.has(venueId)),
+  };
+}
+
+export function readProvisionalVenueIdsLoad(
+  value: unknown,
+  requestedVenueIds: ReadonlySet<string>,
+): ProvisionalVenueIdsLoad {
+  if (!value || typeof value !== "object") {
+    return { status: "invalid", venueIds: [] };
+  }
+  const rows = (value as { venueIds?: unknown }).venueIds;
+  if (!Array.isArray(rows)) return { status: "invalid", venueIds: [] };
+  const venueIds = [
+    ...new Set(
+      rows.filter(
+        (venueId): venueId is string =>
+          typeof venueId === "string" &&
+          isUkBaseId(venueId) &&
+          requestedVenueIds.has(venueId),
+      ),
+    ),
+  ];
+  return (value as { degraded?: unknown }).degraded === true
+    ? { status: "degraded", venueIds }
+    : { status: "ready", venueIds };
+}
+
 function sameObservation(left: CommunityPrice, right: CommunityPrice): boolean {
   return (
     left.venueId === right.venueId &&
@@ -245,6 +295,9 @@ export function useCommunityPrices(): CommunityPricesState {
   const [byVenueId, setByVenueId] = useState<Map<string, CommunityPrice[]>>(() => new Map());
   const [submitting, setSubmitting] = useState(false);
   const [reportedIds, setReportedIds] = useState<Set<string>>(() => new Set());
+  const [provisionalBaseVenueIds, setProvisionalBaseVenueIds] = useState<
+    ReadonlySet<string>
+  >(() => new Set());
   const [noAlcoholIndexStatus, setNoAlcoholIndexStatus] = useState<
     CommunityPricesState["noAlcoholIndexStatus"]
   >("idle");
@@ -253,6 +306,10 @@ export function useCommunityPrices(): CommunityPricesState {
   const loaded = useRef<Set<string>>(new Set());
   const loadedRows = useRef<Map<string, CommunityPrice[]>>(new Map());
   const noAlcoholIndexLoaded = useRef(false);
+  const provisionalBaseSignature = useRef("");
+  const provisionalBaseKnown = useRef<Set<string>>(new Set());
+  const provisionalBasePending = useRef<Set<string>>(new Set());
+  const provisionalBaseMarked = useRef<Set<string>>(new Set());
 
   const loadVenue = useCallback((venueId: string) => {
     if (!venueId || loaded.current.has(venueId)) return;
@@ -337,6 +394,85 @@ export function useCommunityPrices(): CommunityPricesState {
       }
     })();
   }, []);
+
+  const loadProvisionalBaseVenues = useCallback(
+    (venueIds: readonly string[]) => {
+      const knownOrPending = new Set([
+        ...provisionalBaseKnown.current,
+        ...provisionalBasePending.current,
+      ]);
+      const { visible, unread } = planProvisionalBaseVenueRead(
+        venueIds,
+        knownOrPending,
+      );
+      const signature = visible.join("\u0000");
+      if (signature === provisionalBaseSignature.current) return;
+      provisionalBaseSignature.current = signature;
+      if (unread.length === 0) return;
+      for (const venueId of unread) {
+        provisionalBasePending.current.add(venueId);
+      }
+      const chunks: string[][] = [];
+      for (
+        let index = 0;
+        index < unread.length;
+        index += MAX_PROVISIONAL_BASE_VENUE_IDS
+      ) {
+        chunks.push(
+          unread.slice(index, index + MAX_PROVISIONAL_BASE_VENUE_IDS),
+        );
+      }
+      void Promise.all(
+        chunks.map(async (chunk) => {
+          const query = new URLSearchParams({ scope: "provisional-base" });
+          for (const venueId of chunk) query.append("venueId", venueId);
+          const response = await fetch(`/api/price-submit?${query.toString()}`);
+          if (!response.ok) throw new Error("provisional base read unavailable");
+          return readProvisionalVenueIdsLoad(
+            await response.json(),
+            new Set(chunk),
+          );
+        }),
+      )
+        .then((loads) => {
+          for (const venueId of unread) {
+            provisionalBasePending.current.delete(venueId);
+          }
+          if (loads.some((load) => load.status !== "ready")) {
+            if (provisionalBaseSignature.current === signature) {
+              provisionalBaseSignature.current = "";
+            }
+            return;
+          }
+          for (const venueId of unread) {
+            provisionalBaseKnown.current.add(venueId);
+          }
+          let changed = false;
+          for (const load of loads) {
+            for (const venueId of load.venueIds) {
+              if (provisionalBaseMarked.current.has(venueId)) continue;
+              provisionalBaseMarked.current.add(venueId);
+              changed = true;
+            }
+          }
+          // Negative reads extend the cache without republishing the base
+          // source. An identical Set with a new identity would restart its
+          // viewport stream and turn one settled read into a feedback loop.
+          if (changed) {
+            setProvisionalBaseVenueIds(new Set(provisionalBaseMarked.current));
+          }
+        })
+        .catch(() => {
+          for (const venueId of unread) {
+            provisionalBasePending.current.delete(venueId);
+          }
+          if (provisionalBaseSignature.current === signature) {
+            provisionalBaseSignature.current = "";
+          }
+        });
+    },
+    [],
+  );
 
   const submit = useCallback<CommunityPricesState["submit"]>(
     async (input) => {
@@ -479,6 +615,8 @@ export function useCommunityPrices(): CommunityPricesState {
     freshestByVenueId,
     noAlcoholIndexStatus,
     loadNoAlcoholIndex,
+    provisionalBaseVenueIds,
+    loadProvisionalBaseVenues,
     loadVenue,
     submit,
     submitting,

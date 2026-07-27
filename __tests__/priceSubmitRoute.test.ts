@@ -81,7 +81,10 @@ import {
 import { COMMUNITY_PRICE_MAX_GBP } from "@/lib/communityPrice";
 import { __resetPintDrops } from "@/lib/pintDrops";
 import { getUkBaseIdIndex } from "@/lib/ukBaseIndex";
-import { UK_BASE_ID_PREFIX } from "@/lib/ukBasePubs";
+import {
+  MAX_PROVISIONAL_BASE_VENUE_IDS,
+  UK_BASE_ID_PREFIX,
+} from "@/lib/ukBasePubs";
 import { getVenueIndex } from "@/lib/venueIndex";
 import { isPubVenueKind } from "@/lib/venueKindFilters";
 
@@ -318,6 +321,49 @@ describe("POST /api/price-submit UK base pubs", () => {
 });
 
 describe("GET /api/price-submit", () => {
+  it("returns provisional visibility only for requested base ids", async () => {
+    const result = await getUkBaseIdIndex();
+    expect(result.status).toBe("ready");
+    if (result.status !== "ready") throw new Error("base index unavailable");
+    const [marked, empty] = [...result.ids].slice(0, 2);
+    expect(marked).toBeTruthy();
+    expect(empty).toBeTruthy();
+    await POST(
+      post({ venueId: marked, drinkCategory: "beer", priceGbp: 4.2 }),
+    );
+
+    const response = await GET(
+      get(
+        `?scope=provisional-base&venueId=${encodeURIComponent(marked)}&venueId=${encodeURIComponent(empty)}`,
+      ),
+    );
+    expect(response.status).toBe(200);
+    const body = (await response.json()) as {
+      venueIds: string[];
+      degraded?: boolean;
+    };
+    expect(body).toEqual({ venueIds: [marked] });
+    expect(JSON.stringify(body)).not.toContain("priceGbp");
+  });
+
+  it("rejects curated ids and an over-limit provisional base request", async () => {
+    expect(
+      (
+        await GET(
+          get("?scope=provisional-base&venueId=venue-xjf3n0"),
+        )
+      ).status,
+    ).toBe(400);
+
+    const query = Array.from(
+      { length: MAX_PROVISIONAL_BASE_VENUE_IDS + 1 },
+      (_, index) => `venueId=venue-uk-n${index}`,
+    ).join("&");
+    expect(
+      (await GET(get(`?scope=provisional-base&${query}`))).status,
+    ).toBe(400);
+  });
+
   it("returns the no-alcohol category index without beer rows", async () => {
     const venueId = "venue-xjf3n0";
     await POST(post({

@@ -41,6 +41,8 @@ const UK_BASE_URL_PREFIX =
  * a row is an unverified OSM pub rather than a curated venue.
  */
 export const UK_BASE_ID_PREFIX = "venue-uk-";
+/** Maximum stable base ids one viewport visibility read may carry. */
+export const MAX_PROVISIONAL_BASE_VENUE_IDS = 64;
 
 /** A pub on the base layer. No price field exists: OSM is not a price source. */
 export type UkBasePub = {
@@ -317,7 +319,10 @@ export function createUkBaseLoader(): UkBaseLoader {
  * The whole record rides in the feature so a tap can open the sheet straight
  * from what MapLibre hands back, with no second lookup.
  */
-export function ukBasePubsToGeoJSON(pubs: UkBasePub[]): GeoJSON.FeatureCollection {
+export function ukBasePubsToGeoJSON(
+  pubs: UkBasePub[],
+  provisionalVenueIds: ReadonlySet<string> | null = null,
+): GeoJSON.FeatureCollection {
   return {
     type: "FeatureCollection",
     features: pubs.map((pub) => ({
@@ -327,6 +332,7 @@ export function ukBasePubsToGeoJSON(pubs: UkBasePub[]): GeoJSON.FeatureCollectio
         name: pub.name,
         address: pub.address,
         curatedVenueId: pub.curatedVenueId,
+        provisional: Boolean(provisionalVenueIds?.has(pub.id)),
       },
       geometry: { type: "Point" as const, coordinates: [pub.lng, pub.lat] },
     })),

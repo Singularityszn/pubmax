@@ -46,12 +46,16 @@ import {
   readCommunityPriceCategoryIndex,
   readCommunityPrices,
   readCommunityPricesWithStatus,
+  readProvisionalCommunityPriceVenueIds,
   reportCommunityPrice,
   submitCommunityPrice,
 } from "@/lib/communityPriceStore";
 import { isLimited } from "@/lib/pintDrops";
 import { getUkBaseIdIndex } from "@/lib/ukBaseIndex";
-import { isUkBaseId } from "@/lib/ukBasePubs";
+import {
+  isUkBaseId,
+  MAX_PROVISIONAL_BASE_VENUE_IDS,
+} from "@/lib/ukBasePubs";
 import { lookupCanonicalVenue } from "@/lib/venueIndex";
 import { isPubVenueKind } from "@/lib/venueKindFilters";
 import { readString } from "@/lib/textClean";
@@ -195,6 +199,26 @@ export async function POST(request: Request): Promise<Response> {
 export async function GET(request: Request): Promise<Response> {
   try {
     const searchParams = new URL(request.url).searchParams;
+    if (searchParams.get("scope") === "provisional-base") {
+      const venueIds = searchParams.getAll("venueId");
+      if (
+        venueIds.length === 0 ||
+        venueIds.length > MAX_PROVISIONAL_BASE_VENUE_IDS ||
+        venueIds.some((venueId) => !isUkBaseId(venueId))
+      ) {
+        return jsonNoStore(
+          { error: "Pick pubs from the visible map." },
+          { status: 400 },
+        );
+      }
+      const result = await readProvisionalCommunityPriceVenueIds(venueIds);
+      return jsonNoStore(
+        result.degraded
+          ? { venueIds: result.venueIds, degraded: true }
+          : { venueIds: result.venueIds },
+        { status: 200 },
+      );
+    }
     if (searchParams.get("lens") === "no-alcohol") {
       const result = await readCommunityPriceCategoryIndex(
         NO_ALCOHOL_DRINK_CATEGORIES,

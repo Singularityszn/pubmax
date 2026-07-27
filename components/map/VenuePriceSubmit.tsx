@@ -58,9 +58,8 @@ type VenuePriceSubmitProps = {
   latestPintDropAt?: number | null;
   /**
    * Can this pub's pin carry community price state at all? Curated venues can
-   * (the default). UK base pins are deliberately price-blind - no colour, no
-   * provisional dot - so their sheet passes false and the receipt stays on
-   * "On this pub's page" rather than claiming a mark the map never draws.
+   * by default. A caller passes false only when its surface cannot draw either
+   * the provisional mark or an authoritative community price.
    */
   canMarkMap?: boolean;
 };
