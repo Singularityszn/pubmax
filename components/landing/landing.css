@@ -340,7 +340,7 @@
 .lpFooterNav { display: grid; grid-template-columns: 1fr 1fr; gap: 28px; }
 .lpFooterCol { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; }
 .lpFooterCol h2 { margin: 0 0 8px; color: var(--muted); font: 650 12px/1 var(--font-data); letter-spacing: .04em; }
-.lpFooterCol a { min-height: 40px; display: inline-flex; align-items: center; color: var(--ink-soft); font-size: 15px; font-weight: 600; text-decoration: none; }
+.lpFooterCol a { min-height: 44px; display: inline-flex; align-items: center; color: var(--ink-soft); font-size: 15px; font-weight: 600; text-decoration: none; }
 .lpFooterCol a:hover { color: var(--ink); }
 .lpFooterBase { width: min(var(--lp-max), 100%); margin: clamp(40px, 5vw, 60px) auto 0; padding-top: 24px; border-top: 1px solid var(--line); display: flex; flex-direction: column; gap: 14px; }
 .lpFooterProvenance { margin: 0; max-width: 640px; color: var(--ink-soft); font-size: 13px; line-height: 1.55; }
@@ -348,7 +348,7 @@
 .lpFooterFacts li { padding: 6px 11px; border: 1px solid var(--line); border-radius: 999px; color: var(--ink-soft); font: 550 12px/1 var(--font-data); }
 .lpFooterFactValue { color: var(--ink); font-weight: 750; font-variant-numeric: tabular-nums; }
 .lpFooterSmallPrint { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 18px; }
-.lpFooterSmallPrint a { min-height: 40px; display: inline-flex; align-items: center; color: var(--ink-soft); font: 650 12px/1 var(--font-data); letter-spacing: .04em; text-decoration: none; }
+.lpFooterSmallPrint a { min-height: 44px; display: inline-flex; align-items: center; color: var(--ink-soft); font: 650 12px/1 var(--font-data); letter-spacing: .04em; text-decoration: none; }
 .lpFooterSmallPrint a:hover { color: var(--ink); }
 .lpFooterLegal { margin: 0; color: var(--muted); font: 550 12px/1.4 var(--font-data); }
 
@@ -375,7 +375,13 @@
   .lpHero h1 { font-size: clamp(48px, 12.5vw, 56px); line-height: .94; }.lpHeroLede { max-width: 34ch; font-size: 16px; }.lpHeroActions { grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: stretch; }.lpHeroActions .lpButton:first-child { grid-column: 1 / -1; }.lpHeroActions .lpButton { width: 100%; padding-inline: 10px; font-size: 13px; }
   /* L19 flag-on: keep single primary stack — no equal-weight Map/Plan pair. */
   .lpHeroActions--findMyPint { width: 100%; max-width: none; grid-template-columns: 1fr; }.lpHeroActions--findMyPint .lpButton:first-child { grid-column: auto; }.lpHeroActions--findMyPint .lpButtonPrimary { width: 100%; font-size: 14px; }
-  .lpLiveReadout { align-items: flex-start; flex-direction: column; gap: 8px; }
+  /* Column on a phone. The divider that separates two stats side by side is a
+     LEFT rule + 20px indent; left in place once the row stacks it stepped each
+     stat 20px further right, so three honest counts read as a broken staircase.
+     Vertically the separator is a rule ABOVE, and every value shares one left
+     edge with the lede and the buttons over it. */
+  .lpLiveReadout { align-items: stretch; flex-direction: column; gap: 0; }
+  .lpReadoutStat + .lpReadoutStat { margin-top: 10px; padding-top: 10px; padding-left: 0; border-left: 0; border-top: 1px solid var(--line); }
   .lpHeroMap::before { inset: -7px; border-radius: 27px; }.thamesHeroPhoto { min-height: 0; aspect-ratio: 4 / 5; border-radius: 22px; }.thamesHeroImg { object-position: 52% 50%; }.thamesHeroPinGlyph { width: 46px; height: 46px; }.thamesHeroPin:nth-child(n+5) { display: none; }
   /* Keep a compact category label on phones so the glyphs are named, not a
      guessing game. Right-side pins flip the label inboard so it never clips

@@ -32,7 +32,7 @@ type FlatItem =
   | { type: "area"; item: AreaSuggestion }
   | { type: "pub"; item: PubSuggestion };
 
-const NO_RESULTS_MESSAGE = "No Venues or areas match that search.";
+const NO_RESULTS_MESSAGE = "Nothing matching that. Try a pub name or an area.";
 const NO_RESULTS_ANNOUNCE_DELAY_MS = 300;
 
 export type MapSearchSuggestProps = {
@@ -349,7 +349,7 @@ export default function MapSearchSuggest({
               >
                 <p className="mapSearchSuggestEmptyTitle">{NO_RESULTS_MESSAGE}</p>
                 <p className="mapSearchSuggestEmptyHint">
-                  Try Soho, Willesden, or The Crown. Clear search to see every Venue.
+                  Try Soho, Willesden, or The Crown. Clear search to see every venue.
                 </p>
               </div>
             ) : null}

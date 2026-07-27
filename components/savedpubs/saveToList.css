@@ -2,6 +2,11 @@
    chips mirror the vibe-tag stamp idiom used elsewhere. */
 
 .saveToListToggle {
+  /* Thumb-sized on a phone: this opens the whole save-to-list panel, and at
+     30px tall it was the smallest hit target on the venue sheet. */
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
   padding: 6px 12px;
   border-radius: 8px;
   border: 1px solid var(--line);

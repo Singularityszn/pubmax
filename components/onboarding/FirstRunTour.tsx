@@ -72,7 +72,7 @@ const STEPS: readonly TourStep[] = [
   {
     eyebrow: "Moment",
     title: "Keep the night",
-    body: "Log what you're drinking and pass down the story. It's the signature move.",
+    body: "Log what you're drinking and what it cost. Next Friday, that's somebody's tip-off.",
     target: "drop",
   },
   {
@@ -148,7 +148,7 @@ export default function FirstRunTour(): React.JSX.Element | null {
 
   // Dismiss → play exit, then persist. Idempotent via finalizedRef, with a
   // timer fallback so reduced-motion (no animationend) still finalizes.
-  // `completed` distinguishes finishing all steps (Start exploring) from an
+  // `completed` distinguishes finishing all steps (Get me to a pub) from an
   // early skip/close/backdrop/Esc dismissal, for the tour_complete event.
   const dismiss = useCallback((completed: boolean = false) => {
     if (finalizedRef.current) return;
@@ -323,7 +323,7 @@ export default function FirstRunTour(): React.JSX.Element | null {
             {step > 0 ? "Back" : "Skip"}
           </button>
           <button type="button" className="tourNext pressable" onClick={goNext}>
-            {isLast ? "Start exploring" : "Next"}
+            {isLast ? "Get me to a pub" : "Next"}
           </button>
         </div>
       </div>
