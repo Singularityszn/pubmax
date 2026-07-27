@@ -124,6 +124,10 @@ The accessible-name rule has a working example: the map's held loading frame sho
 because a joke in an accessible name is a joke at someone's expense.
 `__tests__/mapLoadingChrome.test.ts` pins both halves.
 
+The lines under **The north star** are settled. Each already carries its aside on
+a surface that allows one, so a later sweep copies their rhythm and leaves the
+lines themselves alone rather than reopening them.
+
 ## The north star (lines we already own)
 
 Copy the rhythm of these. They are the voice at its best.
