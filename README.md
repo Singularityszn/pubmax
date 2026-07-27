@@ -15,6 +15,7 @@ Pick a crawl style, filter, and either accept a **Suggested Crawl** or **Build y
 - **Shareable URLs** — the whole crawl state round-trips through the URL; "Copy link" shares it.
 - **Pint Drops** — community photos + the price you paid + a passed-down note, moderated.
 - **Log tonight's price** - tap a pub, pick a drink category, enter the price; it shows on the pub's own page instantly, on its own dated row, never overwriting the price on record. A first pint report also marks the pub's pin at once with a small unconfirmed dot, but the pin's colour and card restamp with a dated community badge only once a second independent drinker logs the same figure, and a community price over 30 days old hands the map back to the price on record. Anonymous, no sign-up.
+- **What it used to cost** - where the archives evidence it, a pub's sheet sets one dated historical pint price against the price on record now ("£3.60 in April 2014. £5.80 now."), with the source named, dated and linked. A pub with history but no current price still shows the old figure alone, and a bar or food venue never gets the comparison because its anchor price is not a pint. Historical prices are strictly second class: they never move pin colour, price bands, cheapest-pint buckets or the Pint Index.
 - **The Landlord** — grounded pub-heritage Q&A that reads back only server-known facts and refuses to invent.
 - **Moderation** — reports hide a Pint Drop at a threshold; a token-gated `/admin` console reviews hidden drops. A community price can also be reported by anyone, but never auto-hides: only a moderator hides it (hide, never delete) through the moderator-gated admin API.
 
@@ -82,3 +83,4 @@ The community layer ships alive: hand-written Pint Drops and Featured crawls are
 - **[`docs/NIGHT_OUT_PLACE_INGEST.md`](docs/NIGHT_OUT_PLACE_INGEST.md)** - provenance and freshness contract for automated place discovery and hand-curated venue packs.
 - **`docs/DEMO_DECK.md`** — demo script.
 - **[`data/osm/uk/README.md`](data/osm/uk/README.md)** - UK-wide OSM seed-pack refresh, provenance, dedupe, and runtime shard generation.
+- **[`public/data/price_history/README.md`](public/data/price_history/README.md)** - what earns a row in the hand-curated historical price file, where wave one came from, and what it yielded.

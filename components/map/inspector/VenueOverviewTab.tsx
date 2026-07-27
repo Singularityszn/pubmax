@@ -20,6 +20,7 @@ import SaveToListControl from "@/components/savedpubs/SaveToListControl";
 import NextBadgeChips from "@/components/profile/NextBadgeChips";
 import FirstDropNudge from "@/components/map/inspector/FirstDropNudge";
 import VenuePriceSubmit from "@/components/map/VenuePriceSubmit";
+import VenuePriceThen from "@/components/map/VenuePriceThen";
 import CommunityPriceReport from "@/components/map/CommunityPriceReport";
 import { communityStampLabel, communityTrustNote, submitCategoryLabel } from "@/lib/communityPrice";
 import {
@@ -359,6 +360,20 @@ export default function VenueOverviewTab({
         sourcedObserved={sourcedObserved}
         anchorStamp={anchorStamp}
         onStartFirstDrop={onStartFirstDrop}
+      />
+      {/* What a pint here used to cost: one dated figure from the archives,
+          against the price on record now. Sits directly under today's price
+          because the comparison IS the point. History only - the old figure
+          never enters bands, pins, cheapest buckets or the Pint Index
+          (lib/priceHistory.ts). Renders nothing for a pub with no history. */}
+      <VenuePriceThen
+        venueId={venue.id}
+        // "Now" is only offered where today's figure is a pint. A bar or food
+        // venue's cheapestPrice is an anchor price (a cocktail, a dish), so it
+        // is withheld rather than compared against an old pint.
+        currentPriceGbp={
+          isPubVenue(venue) ? (latestContributorPrice ?? venue.cheapestPrice) : null
+        }
       />
       {/* The submission loop itself: pick a drink, type tonight's price, and
           the pin, the list row and the row above restamp on the same tap.

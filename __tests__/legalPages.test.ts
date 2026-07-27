@@ -136,6 +136,18 @@ describe("legal content pages", () => {
     expect(privacy).not.toMatch(/Server and rate-limit records/);
   });
 
+  it("names all three price lanes and fences the historical one", () => {
+    // lib/priceHistory.ts added a THIRD price lane: dated, sourced prices from
+    // years gone by, shown on the venue sheet and barred from every
+    // current-price system. A terms page that still says prices come from two
+    // places would be describing a product that no longer exists, so the count
+    // and the "not tonight's price" fence are both pinned here.
+    expect(terms).toMatch(/Prices\s+come\s+from\s+three\s+places/);
+    expect(terms).toMatch(/never\s+a\s+price\s+for\s+tonight/);
+    expect(terms).toMatch(/dated\s+record\s+of\s+the\s+past/);
+    expect(terms).not.toMatch(/Prices\s+come\s+from\s+two\s+places/);
+  });
+
   it("states the product's own age framing on the terms page", () => {
     expect(terms).toMatch(/under 18/i);
     expect(terms).toMatch(/drinkaware\.co\.uk/);
