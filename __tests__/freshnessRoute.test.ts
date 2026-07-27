@@ -1,6 +1,18 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import { GET } from "@/app/api/freshness/route";
+import {
+  __resetFeedFreshnessStore,
+  memoryFeedFreshnessStore,
+} from "@/lib/feedFreshnessStore";
+
+beforeEach(() => {
+  __resetFeedFreshnessStore();
+});
+
+afterEach(() => {
+  __resetFeedFreshnessStore();
+});
 
 // The route reads the real registry (data/freshness_registry.json) and the real
 // bundled artifacts from process.cwd(), so it exercises the whole spine end to
@@ -61,5 +73,24 @@ describe("GET /api/freshness", () => {
       truncated: false,
       degraded: false,
     });
+  });
+
+  it("uses durable price retrieval stamp instead of frozen committed file", async () => {
+    const observedAt = "2026-07-27T07:00:00.000Z";
+    await memoryFeedFreshnessStore.stamp({
+      feed: "price_updates",
+      observedAt,
+      rowsServed: 2,
+      note: "valid permissible-source rows retrieved",
+    });
+
+    const res = await GET();
+    const body = (await res.json()) as {
+      datasets: Array<{ id: string; observedAt: string | null }>;
+    };
+
+    expect(
+      body.datasets.find((dataset) => dataset.id === "price_updates")?.observedAt,
+    ).toBe(observedAt);
   });
 });

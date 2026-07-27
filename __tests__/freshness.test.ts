@@ -361,6 +361,18 @@ describe("data/freshness_registry.json integrity", () => {
     expect(new Set(ids).size).toBe(ids.length);
   });
 
+  it("does not classify manually published feeds as cron schedules", () => {
+    const byId = new Map(registry.datasets.map((dataset) => [dataset.id, dataset]));
+
+    expect(byId.get("pint_prices")?.class).toBe("episodic");
+    expect(byId.get("night_signals")).toMatchObject({
+      class: "episodic",
+      stalenessBudgetHours: null,
+    });
+    expect(byId.get("price_updates")?.class).toBe("cron");
+    expect(byId.get("night_signal_candidates")?.class).toBe("cron");
+  });
+
   it("keeps every declared artifact path present on disk", () => {
     for (const d of registry.datasets) {
       if (!d.artifact) continue;

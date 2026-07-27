@@ -12,10 +12,10 @@
 //     human reviews every price change before it ships. Never pushes to main.
 //
 // WHAT IS STUBBED (documented):
-//   - fetchFromSource(): the actual network fetch + parse of each first-party
+//   - price_source_fetchers.mjs: network fetch + parse of each first-party
 //     page/feed. It currently returns [] (no rows) so a scheduled run is a
-//     safe no-op that opens no PR. Implement per-source parsers here, reading
-//     ONLY the allowlisted URLs.
+//     safe no-op that opens no PR. Implement parsers there, reading ONLY
+//     allowlisted URLs.
 //
 // GOVERNANCE (hard rules — do not remove):
 //   - NO scraping of competitor price sites. Only first-party official pages
@@ -31,6 +31,7 @@ import { readFileSync, writeFileSync, mkdirSync } from "node:fs";
 import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
+import { fetchFromSource } from "./price_source_fetchers.mjs";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(__dirname, "..");
@@ -87,20 +88,6 @@ function loadAllowlist() {
     permissible.push(src);
   }
   return permissible;
-}
-
-// --- STUB: per-source fetch ---------------------------------------------------
-//
-// Implement real parsers here. Each must:
-//   - fetch ONLY `source.url` (already allowlist-verified);
-//   - map the venue to its canonical venueKey (lib/venues.ts venueGroupingKey);
-//   - stamp { source: { label: source.label, url: source.url }, observedAt }.
-// Return [] to contribute nothing (the default below) — a safe no-op.
-async function fetchFromSource(source) {
-  void source;
-  // TODO: real first-party fetch + parse. Returning [] keeps the scheduled run
-  // a no-op until real parsers land, so it never opens an empty/garbage PR.
-  return [];
 }
 
 // --- main ---------------------------------------------------------------------
