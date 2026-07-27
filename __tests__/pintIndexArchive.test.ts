@@ -245,7 +245,7 @@ describe("monthly Pint Index editions", () => {
       snapshot: movedOn, month: "2026-06", publishedAt: "2027-01-20T09:00:00.000Z", sha256,
     }).observations).toEqual([]);
 
-    const amended = amendArchivedMonth({ edition: published, withdrawVenueIds: ["b"], sha256 });
+    const amended = amendArchivedMonth({ edition: published, withdraw: [{ venueId: "b" }], sha256 });
     if (!amended.ok) throw new Error(amended.reason);
     expect(amended.archive.observations.map((row) => row.venueId)).toEqual(["a"]);
 
@@ -266,20 +266,120 @@ describe("monthly Pint Index editions", () => {
   });
 
   it("refuses to withdraw a price the edition never published", () => {
-    expect(amendArchivedMonth({ edition: freeze(), withdrawVenueIds: ["nope"], sha256 })).toEqual({
+    expect(amendArchivedMonth({ edition: freeze(), withdraw: [{ venueId: "nope" }], sha256 })).toEqual({
       ok: false,
       reason: "2026-06 publishes no observation for nope, so there is nothing to withdraw",
     });
   });
 
   it("leaves a valid empty edition when every price in it is withdrawn", () => {
-    const amended = amendArchivedMonth({ edition: freeze(), withdrawVenueIds: ["a", "b"], sha256 });
+    const amended = amendArchivedMonth({
+      edition: freeze(),
+      withdraw: [{ venueId: "a" }, { venueId: "b" }],
+      sha256,
+    });
     if (!amended.ok) throw new Error(amended.reason);
     expect(amended.archive.status).toBe("empty");
     expect(amended.archive.observations).toEqual([]);
     // The source only that withdrawn price cited leaves with it.
     expect(amended.archive.sources).toEqual([]);
     expect(validateArchivedPintIndexSnapshot(amended.archive, { month: "2026-06", sha256 }).ok).toBe(true);
+  });
+
+  // One pub, two prices in the same month. The league table already keeps the
+  // latest per venue, so this is an ordinary edition, not a malformed one.
+  const twoPricesOnePub = () => freeze(live({
+    observations: [
+      { venueId: "crown-camden", pubName: "The Crown", boroughCode: "camden", boroughName: "Camden", pricePence: 520, observedAt: "2026-06-04T18:00:00.000Z", sourceId: "drop-1" },
+      { venueId: "crown-camden", pubName: "The Crown", boroughCode: "camden", boroughName: "Camden", pricePence: 560, observedAt: "2026-06-20T18:00:00.000Z", sourceId: "drop-2" },
+    ],
+  }));
+
+  it("withdraws the price a correction names, not every price the pub has", () => {
+    const edition = twoPricesOnePub();
+    const amended = amendArchivedMonth({
+      edition,
+      withdraw: [{ venueId: "crown-camden", observedAt: "2026-06-20T18:00:00.000Z" }],
+      sha256,
+    });
+    if (!amended.ok) throw new Error(amended.reason);
+    expect(amended.archive.observations).toEqual([edition.observations[0]]);
+    // The Crown keeps its 4 June price and its place in Camden's count.
+    expect(amended.archive.sources.map((source) => source.id)).toEqual(["drop-1"]);
+    expect(validateArchivedPintIndexSnapshot(amended.archive, { month: "2026-06", sha256 }).ok).toBe(true);
+  });
+
+  it("refuses a venue-wide amendment when the month holds more than one price for it", () => {
+    expect(amendArchivedMonth({ edition: twoPricesOnePub(), withdraw: [{ venueId: "crown-camden" }], sha256 })).toEqual({
+      ok: false,
+      reason: "2026-06 publishes 2 observations for crown-camden (2026-06-04T18:00:00.000Z, 2026-06-20T18:00:00.000Z), so name the one to withdraw by its observed-at date",
+    });
+  });
+
+  it("restates a mis-transcribed price rather than deleting the evidence", () => {
+    const edition = twoPricesOnePub();
+    const amended = amendArchivedMonth({
+      edition,
+      restate: [{ venueId: "crown-camden", observedAt: "2026-06-20T18:00:00.000Z", pricePence: 560 }],
+      sha256,
+    });
+    // Same figure, so nothing to correct.
+    expect(amended).toEqual({
+      ok: false,
+      reason: "crown-camden at 2026-06-20T18:00:00.000Z already publishes 560p",
+    });
+
+    const fixed = amendArchivedMonth({
+      edition,
+      restate: [{ venueId: "crown-camden", observedAt: "2026-06-20T18:00:00.000Z", pricePence: 506 }],
+      sha256,
+    });
+    if (!fixed.ok) throw new Error(fixed.reason);
+    expect(fixed.archive.observations.map((row) => row.pricePence)).toEqual([520, 506]);
+    expect(fixed.archive.observations).toHaveLength(edition.observations.length);
+    expect(fixed.archive.archive.observationsSha256).not.toBe(edition.archive.observationsSha256);
+    expect(validateArchivedPintIndexSnapshot(fixed.archive, { month: "2026-06", sha256 }).ok).toBe(true);
+
+    const corrected = planArchivePublish({
+      existing: edition,
+      rebuilt: fixed.archive,
+      correctionNote: "The Crown's 20 June price was transcribed as 5.60; the menu says 5.06.",
+      issuedAt: "2026-08-02T10:00:00.000Z",
+      sha256,
+    });
+    if (!corrected.ok) throw new Error("unreachable");
+    expect(corrected.archive.archive.revision).toBe(2);
+    expect(corrected.archive.archive.corrections[0].previousObservationsSha256)
+      .toBe(edition.archive.observationsSha256);
+  });
+
+  it("refuses an amendment that names no single observation or no real price", () => {
+    const edition = twoPricesOnePub();
+    expect(amendArchivedMonth({
+      edition,
+      restate: [{ venueId: "crown-camden", observedAt: "2026-06-11T00:00:00.000Z", pricePence: 506 }],
+      sha256,
+    })).toEqual({
+      ok: false,
+      reason: "2026-06 publishes no single observation for crown-camden at 2026-06-11T00:00:00.000Z (it holds 2026-06-04T18:00:00.000Z, 2026-06-20T18:00:00.000Z), so there is nothing to restate",
+    });
+    expect(amendArchivedMonth({
+      edition,
+      restate: [{ venueId: "crown-camden", observedAt: "2026-06-04T18:00:00.000Z", pricePence: 0 }],
+      sha256,
+    })).toEqual({
+      ok: false,
+      reason: "restating crown-camden at 2026-06-04T18:00:00.000Z needs a positive whole number of pence",
+    });
+    expect(amendArchivedMonth({
+      edition,
+      withdraw: [{ venueId: "crown-camden", observedAt: "2026-06-04T18:00:00.000Z" }],
+      restate: [{ venueId: "crown-camden", observedAt: "2026-06-04T18:00:00.000Z", pricePence: 506 }],
+      sha256,
+    })).toEqual({
+      ok: false,
+      reason: "2026-06 amends crown-camden at 2026-06-04T18:00:00.000Z twice",
+    });
   });
 
   it("rejects an edition whose observations no longer match its published hash", () => {

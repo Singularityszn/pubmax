@@ -3,8 +3,11 @@
 //
 //   node scripts/publish_pint_index_month.mjs --month 2026-06
 //   node scripts/publish_pint_index_month.mjs --month 2026-06 \
-//     --withdraw crown-camden \
-//     --correction "The Crown's 4 June price cited the wrong menu page."
+//     --withdraw crown-camden@2026-06-20T18:00:00.000Z \
+//     --correction "The Crown's 20 June price cited the wrong menu page."
+//   node scripts/publish_pint_index_month.mjs --month 2026-06 \
+//     --restate crown-camden@2026-06-20T18:00:00.000Z 560 \
+//     --correction "The Crown's 20 June price was transcribed as 5.06; the menu says 5.60."
 //
 // The rules are not in this file. They are in lib/pintIndexArchive.ts, which
 // the route and the tests read too; this is the thin CLI over them:
@@ -14,6 +17,8 @@
 //   • a FIRST publication filters what the live snapshot already published; a
 //     correction amends the PUBLISHED edition and never re-reads that
 //     snapshot, whose window has moved on by then;
+//   • an amendment names ONE observation: a venue id, and its observed-at
+//     instant wherever the month holds more than one price for that pub;
 //   • nothing here invents an observation, and it dies rather than guess.
 //
 // Run it after the live snapshot is regenerated, on or after the 1st of the
@@ -30,15 +35,33 @@ const ARCHIVE_DIR = path.join(ROOT, "public/data/pint_index");
 
 const sha256 = (input) => createHash("sha256").update(input, "utf8").digest("hex");
 
+// `crown-camden` or `crown-camden@2026-06-20T18:00:00.000Z`. The observed-at
+// half is what names a PRICE rather than a pub, and it is required whenever
+// the edition holds more than one observation for that venue.
+function parseObservationRef(token, flag) {
+  const raw = (token ?? "").trim();
+  if (!raw) die(`${flag} needs a venue id, optionally as <venueId>@<observedAt>`);
+  const at = raw.indexOf("@");
+  const venueId = at === -1 ? raw : raw.slice(0, at).trim();
+  const observedAt = at === -1 ? null : raw.slice(at + 1).trim();
+  if (!venueId) die(`${flag} needs a venue id before the @`);
+  if (at !== -1 && !observedAt) die(`${flag} needs an observed-at date after the @`);
+  return { venueId, observedAt };
+}
+
 function parseArgs(argv) {
-  const args = { month: null, correction: null, withdraw: [] };
+  const args = { month: null, correction: null, withdraw: [], restate: [] };
   for (let i = 0; i < argv.length; i += 1) {
     if (argv[i] === "--month") args.month = argv[++i] ?? null;
     else if (argv[i] === "--correction") args.correction = argv[++i] ?? null;
-    else if (argv[i] === "--withdraw") {
-      const venueId = argv[++i] ?? "";
-      if (!venueId.trim()) die("--withdraw needs the venue id of the price to withdraw");
-      args.withdraw.push(venueId.trim());
+    else if (argv[i] === "--withdraw") args.withdraw.push(parseObservationRef(argv[++i], "--withdraw"));
+    else if (argv[i] === "--restate") {
+      const ref = parseObservationRef(argv[++i], "--restate");
+      const pence = Number(argv[++i]);
+      if (!Number.isInteger(pence) || pence <= 0) {
+        die("--restate needs the corrected price in whole pence, for example: --restate crown-camden 560");
+      }
+      args.restate.push({ ...ref, pricePence: pence });
     }
     else if (argv[i] === "--help" || argv[i] === "-h") args.help = true;
     else die(`unknown argument: ${argv[i]}`);
@@ -58,7 +81,17 @@ async function readJson(file) {
 async function main() {
   const args = parseArgs(process.argv.slice(2));
   if (args.help) {
-    console.log("usage: publish_pint_index_month.mjs --month YYYY-MM [--withdraw <venueId>]... [--correction \"what changed and why\"]");
+    console.log([
+      "usage: publish_pint_index_month.mjs --month YYYY-MM",
+      "         [--withdraw <venueId>[@<observedAt>]]...",
+      "         [--restate <venueId>[@<observedAt>] <pricePence>]...",
+      "         [--correction \"what changed and why\"]",
+      "",
+      "  --withdraw  a price that should never have been in the Index leaves it",
+      "  --restate   a price that belongs is republished at the figure its source carries",
+      "  @observedAt names one observation, and is required when the month holds",
+      "              more than one price for that pub",
+    ].join("\n"));
     return;
   }
   if (!args.month) die("--month YYYY-MM is required");
@@ -108,12 +141,17 @@ async function main() {
   // its silence about an old month is absence, not evidence.
   let rebuilt;
   if (existing) {
-    const amended = amendArchivedMonth({ edition: existing, withdrawVenueIds: args.withdraw, sha256 });
+    const amended = amendArchivedMonth({
+      edition: existing,
+      withdraw: args.withdraw,
+      restate: args.restate,
+      sha256,
+    });
     if (!amended.ok) die(amended.reason);
     rebuilt = amended.archive;
   } else {
-    if (args.withdraw.length > 0) {
-      die(`${args.month} is not published yet, so there is no observation to withdraw`);
+    if (args.withdraw.length > 0 || args.restate.length > 0) {
+      die(`${args.month} is not published yet, so there is no observation to amend`);
     }
     const blocker = monthPublishBlocker(args.month, snapshot, now);
     if (blocker) die(blocker);
