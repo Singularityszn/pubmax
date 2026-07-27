@@ -28,6 +28,16 @@
   color: var(--ink);
 }
 
+/* The cold-start line: why this surface carries sourced rows and not drops.
+   Wraps freely — it explains a claim, so it is never clamped or ellipsed. */
+.feedSightingsLede {
+  margin: 0;
+  padding: 0 2px;
+  font-size: 0.88rem;
+  line-height: 1.45;
+  color: var(--ink-soft, var(--muted));
+}
+
 /* ── Strip: a quiet cluster below real user drops ────────────────────────── */
 
 .feedSightingsStrip {

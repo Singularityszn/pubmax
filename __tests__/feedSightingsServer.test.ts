@@ -1,5 +1,9 @@
-import { promises as fs } from "fs";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { promises as fs, readFileSync } from "fs";
+import { join } from "path";
+
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+
+import { SIGHTING_MAX_AGE_HOURS } from "@/lib/feedSightings";
 
 const { getVenueIndex } = vi.hoisted(() => ({
   getVenueIndex: vi.fn(),
@@ -47,7 +51,13 @@ const MIXED_CITY_OVERLAY = {
 describe("feed sightings server boundary", () => {
   beforeEach(() => {
     vi.restoreAllMocks();
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-07-27T09:00:00.000Z"));
     resetFeedSightingsForTests();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
   });
 
   it("drops an out-of-city observation while retaining a resolved London venue", async () => {
@@ -78,5 +88,43 @@ describe("feed sightings server boundary", () => {
       priceLabel: "£4.60",
     });
     expect(sightings.some((sighting) => sighting.venueId === "venue-fla5g9")).toBe(false);
+  });
+
+  it("drops a resolved London venue whose price has aged past the recency window", async () => {
+    const longGone = {
+      ...MIXED_CITY_OVERLAY,
+      updates: MIXED_CITY_OVERLAY.updates.map((row) => ({
+        ...row,
+        observedAt: "2026-06-01T12:00:00.000Z",
+      })),
+    };
+    vi.spyOn(fs, "readFile").mockResolvedValue(JSON.stringify(longGone));
+    getVenueIndex.mockResolvedValue(
+      new Map([
+        [
+          "venue-16pnwmm",
+          {
+            id: "venue-16pnwmm",
+            name: "Prospect of Whitby",
+            borough: "Tower Hamlets",
+            lat: 51.5071,
+            lng: -0.05113,
+          },
+        ],
+      ]),
+    );
+
+    expect(await loadFeedSightings()).toEqual([]);
+  });
+
+  it("keeps the recency window equal to the overlay's own staleness budget", () => {
+    const registry = JSON.parse(
+      readFileSync(join(process.cwd(), "data/freshness_registry.json"), "utf8"),
+    ) as { datasets: { id: string; stalenessBudgetHours: number | null }[] };
+    const overlay = registry.datasets.find(
+      (dataset) => dataset.id === "drink_price_updates",
+    );
+
+    expect(overlay?.stalenessBudgetHours).toBe(SIGHTING_MAX_AGE_HOURS);
   });
 });

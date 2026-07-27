@@ -35,6 +35,10 @@ function SightingRow({ sighting }: { sighting: SightingDTO }) {
   );
 }
 
+// One id: the two variants are mutually exclusive branches upstream, so the
+// section's accessible name never needs a second one.
+const TITLE_ID = "feed-sightings-title";
+
 export default function FeedSightings({
   variant,
   sightings,
@@ -44,19 +48,22 @@ export default function FeedSightings({
 }) {
   if (sightings.length === 0) return null;
 
-  const titleId =
-    variant === "primary" ? "feed-sightings-title" : "feed-sightings-strip-title";
-
   return (
     <section
       className={`feedSightings ${
         variant === "primary" ? "feedSightingsPrimary" : "feedSightingsStrip"
       }`}
-      aria-labelledby={titleId}
+      aria-labelledby={TITLE_ID}
     >
-      <h2 className="feedSightingsTitle" id={titleId}>
+      <h2 className="feedSightingsTitle" id={TITLE_ID}>
         Recent sourced prices
       </h2>
+      {variant === "primary" ? (
+        <p className="feedSightingsLede">
+          No pints logged here yet tonight, so these are the latest prices from
+          named sources, each with the day it was seen.
+        </p>
+      ) : null}
       <ul className="feedSightingsList">
         {sightings.map((sighting) => (
           <li key={sighting.id}>

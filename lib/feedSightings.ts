@@ -60,6 +60,14 @@ export type ResolveSightingVenue = (venueKey: string) => SightingVenue | null;
 /** The default cap on how many sightings the feed surfaces at once. */
 export const SIGHTINGS_CAP = 12;
 
+// How old an observation may be and still sit under a heading that claims
+// recency. 336h is the drink_price_updates staleness budget in
+// data/freshness_registry.json, so the feed's claim expires exactly when the
+// spine calls that feed stale: if the overlay stops refreshing, the rows drain
+// away and the heading goes with them rather than outliving its own dates.
+// __tests__/feedSightingsServer.test.ts pins the two to each other.
+export const SIGHTING_MAX_AGE_HOURS = 336;
+
 /** The www-stripped host of an absolute URL, or "" when it can't be parsed. */
 export function sourceDomain(url: string): string {
   if (typeof url !== "string" || url.length === 0) return "";
@@ -93,6 +101,8 @@ function beatsForVenue(candidate: DrinkPriceUpdate, incumbent: DrinkPriceUpdate)
  *    the surface surveys many pubs instead of repeating one pub's whole menu;
  *  - only priced (> 0), attributable (parseable source domain) rows survive —
  *    a £0 promo or an unattributable row is never shown as a sighting;
+ *  - only observations inside SIGHTING_MAX_AGE_HOURS survive, so the surface's
+ *    recency claim can never outlive the dates printed on its own rows;
  *  - newest observation first (venue name breaks ties for a stable order);
  *  - capped at `cap` (default SIGHTINGS_CAP).
  *
@@ -102,9 +112,12 @@ function beatsForVenue(candidate: DrinkPriceUpdate, incumbent: DrinkPriceUpdate)
 export function buildSightings(
   updates: DrinkPriceUpdate[],
   resolve: ResolveSightingVenue,
-  opts: { cap?: number } = {},
+  opts: { cap?: number; now?: number; maxAgeHours?: number } = {},
 ): SightingDTO[] {
   const cap = opts.cap ?? SIGHTINGS_CAP;
+  const now = opts.now ?? Date.now();
+  const maxAgeHours = opts.maxAgeHours ?? SIGHTING_MAX_AGE_HOURS;
+  const oldestAllowed = now - maxAgeHours * 3_600_000;
 
   const bestByVenue = new Map<string, DrinkPriceUpdate>();
   for (const update of updates) {
@@ -116,6 +129,8 @@ export function buildSightings(
       continue;
     }
     if (sourceDomain(update.source?.url ?? "") === "") continue;
+    const observed = Date.parse(update.observedAt);
+    if (!Number.isFinite(observed) || observed < oldestAllowed) continue;
     const incumbent = bestByVenue.get(update.venueKey);
     if (!incumbent || beatsForVenue(update, incumbent)) {
       bestByVenue.set(update.venueKey, update);

@@ -24,4 +24,13 @@ describe("feed sighting row hierarchy", () => {
     expect(drink).not.toMatch(/white-space:\s*nowrap/);
     expect(price).toMatch(/white-space:\s*nowrap/);
   });
+
+  it("lets the cold-start line wrap rather than clamp or ellipse", () => {
+    const lede = rule(".feedSightingsLede");
+
+    expect(lede).not.toBe("");
+    expect(lede).not.toMatch(/line-clamp/);
+    expect(lede).not.toMatch(/text-overflow:\s*ellipsis/);
+    expect(lede).not.toMatch(/white-space:\s*nowrap/);
+  });
 });

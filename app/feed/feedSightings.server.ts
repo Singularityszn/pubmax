@@ -19,9 +19,18 @@ import { venueMapUrl } from "@/lib/venueMapUrl";
 // path GET /api/pint-drops uses), and hands the /feed server page a small,
 // bounded, serialisable list.
 //
+// ONLY INDEX-RESIDENT VENUES SURVIVE. A grouping key the venue index cannot
+// resolve is DROPPED, never labelled with a generic stand-in name: the overlay
+// is national, the feed is London, and the one fallback that used to name an
+// unresolved key "A London pub" is what put a Leeds venue at the top of the
+// London feed. Resolution through the London venue index IS the city fence, so
+// never reinstate a fallback label here.
+//
 // Fail-soft throughout: a missing/malformed overlay, or an unreadable venue
 // index, yields [] — the feed then falls back to its honest empty state, never
-// an error. Memoised per process so repeated renders don't re-read the ~2 MB file.
+// an error. Memoised per process so repeated renders don't re-read the ~2 MB
+// file; the recency window (lib/feedSightings.ts) is therefore stamped once per
+// process, which is well inside its 336h budget.
 
 const OVERLAY_PATH = "public/data/drink_price_updates/latest.json";
 
@@ -40,16 +49,20 @@ async function build(): Promise<SightingDTO[]> {
     if (updates.length === 0) return [];
 
     const index = await getVenueIndex();
-    return buildSightings(updates, (venueKey) => {
-      const venueId = stableVenueIdFromKey(venueKey);
-      const venue = index.get(venueId);
-      if (!venue) return null;
-      return {
-        venueId,
-        venueName: venue.name,
-        venueMapUrl: venueMapUrl(venueId),
-      };
-    });
+    return buildSightings(
+      updates,
+      (venueKey) => {
+        const venueId = stableVenueIdFromKey(venueKey);
+        const venue = index.get(venueId);
+        if (!venue) return null;
+        return {
+          venueId,
+          venueName: venue.name,
+          venueMapUrl: venueMapUrl(venueId),
+        };
+      },
+      { now: Date.now() },
+    );
   } catch {
     // Any failure (missing file, bad JSON, unreadable index) → no sightings.
     return [];

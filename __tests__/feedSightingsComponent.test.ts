@@ -50,6 +50,31 @@ describe("FeedSightings", () => {
     );
   });
 
+  it("tells a cold-start reader why the rows are sourced rather than logged", () => {
+    const primary = renderToStaticMarkup(
+      createElement(FeedSightings, { variant: "primary", sightings: [sighting] }),
+    );
+    const strip = renderToStaticMarkup(
+      createElement(FeedSightings, { variant: "strip", sightings: [sighting] }),
+    );
+
+    expect(primary).toContain("No pints logged here yet tonight");
+    expect(primary).toContain('class="feedSightingsLede"');
+    // The strip sits below real drops, which already answer the question.
+    expect(strip).not.toContain('class="feedSightingsLede"');
+  });
+
+  it("names the section with one id in both variants", () => {
+    for (const variant of ["primary", "strip"] as const) {
+      const html = renderToStaticMarkup(
+        createElement(FeedSightings, { variant, sightings: [sighting] }),
+      );
+      expect(html).toContain('aria-labelledby="feed-sightings-title"');
+      expect(html).toContain('id="feed-sightings-title"');
+      expect(html).not.toContain("feed-sightings-strip-title");
+    }
+  });
+
   it("keeps one contribution action after primary sourced rows", () => {
     const primary = renderToStaticMarkup(
       createElement(FeedSightings, { variant: "primary", sightings: [sighting] }),
