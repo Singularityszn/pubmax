@@ -182,6 +182,8 @@ export type LeagueRow = {
   minGbp: number;
   minPubName: string;
   maxGbp: number;
+  /** The pub behind maxGbp. The dearest end is a claim about a real bar too. */
+  maxPubName: string;
 };
 
 export function buildLeagueTable(snapshot: PintIndexSnapshot): LeagueRow[] {
@@ -199,6 +201,7 @@ export function buildLeagueTable(snapshot: PintIndexSnapshot): LeagueRow[] {
   return [...grouped.entries()].map(([slug, rows]) => {
     const prices = rows.map((row) => row.pricePence);
     const min = Math.min(...prices);
+    const max = Math.max(...prices);
     return {
       slug,
       name: rows[0].boroughName,
@@ -206,14 +209,30 @@ export function buildLeagueTable(snapshot: PintIndexSnapshot): LeagueRow[] {
       averageGbp: Math.round(prices.reduce((sum, price) => sum + price, 0) / rows.length) / 100,
       minGbp: min / 100,
       minPubName: rows.find((row) => row.pricePence === min)!.pubName,
-      maxGbp: Math.max(...prices) / 100,
+      maxGbp: max / 100,
+      maxPubName: rows.find((row) => row.pricePence === max)!.pubName,
     };
   }).sort((a, b) => a.averageGbp - b.averageGbp || a.name.localeCompare(b.name));
 }
 
+/**
+ * The same table, read from the expensive end.
+ *
+ * A drinker wants cheap, so cheapest-first stays the default everywhere and
+ * `buildLeagueTable` is untouched. A journalist wants dear, and ranks by the
+ * single dearest pint rather than by the borough average: that is the number
+ * that puts a town in a newspaper. So this orders by `maxGbp`, descending, and
+ * returns a new array rather than sorting in place.
+ */
+export function dearestFirst(rows: readonly LeagueRow[]): LeagueRow[] {
+  return [...rows].sort((a, b) => b.maxGbp - a.maxGbp || a.name.localeCompare(b.name));
+}
+
+// The dearest column names its pub the way the cheapest one already does: a
+// reader ranking by the expensive end needs the bar, not just the figure.
 export const LEAGUE_CSV_HEADER = [
   "borough_code", "borough", "tracked_pubs", "average_pint_gbp",
-  "cheapest_pint_gbp", "cheapest_pint_pub", "dearest_pint_gbp",
+  "cheapest_pint_gbp", "cheapest_pint_pub", "dearest_pint_gbp", "dearest_pint_pub",
   "observation_start", "observation_end", "snapshot_id",
 ] as const;
 
@@ -226,7 +245,8 @@ export function leagueTableToCsv(snapshot: PintIndexSnapshot, rows = buildLeague
   for (const row of rows) {
     lines.push([
       row.slug, csvField(row.name), String(row.pubCount), row.averageGbp.toFixed(2),
-      row.minGbp.toFixed(2), csvField(row.minPubName), row.maxGbp.toFixed(2),
+      row.minGbp.toFixed(2), csvField(row.minPubName),
+      row.maxGbp.toFixed(2), csvField(row.maxPubName),
       snapshot.observationWindow?.start ?? "", snapshot.observationWindow?.end ?? "",
       csvField(snapshot.snapshotId),
     ].join(","));
@@ -251,5 +271,9 @@ export function indexSummary(rows: LeagueRow[]) {
     averageGbp: pubCount ? Math.round(weighted / pubCount * 100) / 100 : null,
     cheapestBorough: rows[0] ?? null,
     dearestBorough: rows.length ? rows.reduce((best, row) => row.averageGbp > best.averageGbp ? row : best) : null,
+    // The single dearest eligible pint on the table, and where it is. A borough
+    // average answers "which patch is pricey"; this answers "what is the worst
+    // of it", which is the question the expensive end is actually asked.
+    dearestPint: rows.length ? dearestFirst(rows)[0] : null,
   };
 }
