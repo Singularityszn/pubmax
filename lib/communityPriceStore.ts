@@ -984,11 +984,9 @@ export function submitCommunityPrice(
   input: CommunityPriceWrite,
   now: number = Date.now(),
 ): Promise<CommunityPriceWriteResult> {
-  // A write is the only thing that can change the category index, so it drops
-  // the memo rather than leaving a submitter's own price invisible to the lens
-  // for the rest of the window.
-  resetCommunityPriceCategoryIndexMemo();
-  return communityPriceStore().submit(input, now);
+  return droppingCategoryIndexMemo(() =>
+    communityPriceStore().submit(input, now),
+  );
 }
 
 /**
@@ -1046,21 +1044,54 @@ export function readCommunityPriceCategoryIndex(
   const key = [...new Set(categories)].sort().join(",");
   const held = categoryIndexMemo.get(key);
   if (held && now - held.at < CATEGORY_INDEX_MEMO_MS) return held.pending;
+  const drop = () => {
+    // Only ever evict OUR OWN entry: a write that landed mid-scan has already
+    // cleared the memo, and a later read may own the key by now.
+    if (categoryIndexMemo.get(key)?.pending === pending) {
+      categoryIndexMemo.delete(key);
+    }
+  };
   const pending = communityPriceStore()
     .latestForCategories(categories, now)
     .then((result) => {
-      if (result.degraded) categoryIndexMemo.delete(key);
+      if (result.degraded) drop();
       return result;
     })
     .catch((error: unknown) => {
-      categoryIndexMemo.delete(key);
+      drop();
       throw error;
     });
   categoryIndexMemo.set(key, { at: now, pending });
   return pending;
 }
 
-/** Drop the memoised category index. Test seam, and the submit path's reset. */
+/**
+ * A write is the only thing that can change the category index, so it drops the
+ * memo. The drop that MATTERS is the one after the write settles: dropping only
+ * before it starts leaves the window where a reader misses, scans the
+ * not-yet-committed state and pins that snapshot for the rest of
+ * CATEGORY_INDEX_MEMO_MS, which for a moderator hiding a price means the row
+ * stays on the no-alcohol view for a minute after it left the sheet. Dropping
+ * first as well is what keeps the eviction prompt, so both drops stay, and they
+ * live here rather than at each call site so the ordering cannot drift apart.
+ * Rejection drops too - the store's guards mean a rejection is unexpected, and
+ * a write of unknown outcome must not leave a claim about the index standing.
+ */
+function droppingCategoryIndexMemo<T>(write: () => Promise<T>): Promise<T> {
+  resetCommunityPriceCategoryIndexMemo();
+  return write().then(
+    (value) => {
+      resetCommunityPriceCategoryIndexMemo();
+      return value;
+    },
+    (error: unknown) => {
+      resetCommunityPriceCategoryIndexMemo();
+      throw error;
+    },
+  );
+}
+
+/** Drop the memoised category index. Test seam, and the write paths' reset. */
 export function resetCommunityPriceCategoryIndexMemo(): void {
   categoryIndexMemo.clear();
 }
@@ -1086,10 +1117,9 @@ export function moderateCommunityPrice(
   hidden: boolean,
   note?: string,
 ): Promise<boolean> {
-  // Hiding is the one read-path filter, so a moderated row must leave the
-  // memoised index at the same moment it leaves the sheet.
-  resetCommunityPriceCategoryIndexMemo();
-  return communityPriceStore().moderate(id, hidden, note);
+  return droppingCategoryIndexMemo(() =>
+    communityPriceStore().moderate(id, hidden, note),
+  );
 }
 
 /** The moderation queue: reported and/or hidden observations. NEVER throws. */

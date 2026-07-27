@@ -197,6 +197,44 @@ describe("communityPriceStore (memory backend)", () => {
     expect(past).not.toBe(afterWrite);
     await past;
   });
+
+  // The drop that matters is the one AFTER the write settles. Dropping only
+  // before it starts leaves a reader free to miss, scan the not-yet-committed
+  // state and pin that snapshot for the rest of the window.
+  it("does not let a read that raced a submission pin the pre-write index", async () => {
+    await submitCommunityPrice(
+      { venueId: "v1", drinkCategory: "soft-drink", priceGbp: 3.2, actor: "a" },
+      1_000,
+    );
+
+    const writing = submitCommunityPrice(
+      { venueId: "v2", drinkCategory: "soft-drink", priceGbp: 2.4, actor: "b" },
+      2_000,
+    );
+    const during = readCommunityPriceCategoryIndex(["soft-drink"], 3_000);
+    await writing;
+    await during;
+
+    const after = readCommunityPriceCategoryIndex(["soft-drink"], 3_100);
+    expect(after).not.toBe(during);
+    expect((await after).prices).toHaveLength(2);
+  });
+
+  it("does not let a read that raced a hide keep serving the hidden row", async () => {
+    const { price } = await submitCommunityPrice(
+      { venueId: "v1", drinkCategory: "soft-drink", priceGbp: 3.2, actor: "a" },
+      1_000,
+    );
+
+    const hiding = moderateCommunityPrice(price!.id!, true, "menu mismatch");
+    const during = readCommunityPriceCategoryIndex(["soft-drink"], 3_000);
+    await hiding;
+    await during;
+
+    const after = readCommunityPriceCategoryIndex(["soft-drink"], 3_100);
+    expect(after).not.toBe(during);
+    expect((await after).prices).toEqual([]);
+  });
 });
 
 // Corroboration counting: the number that decides whether a figure moves a pin.
