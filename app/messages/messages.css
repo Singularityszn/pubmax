@@ -354,6 +354,11 @@
   cursor: pointer;
 }
 
+.threadRetryBtn:disabled {
+  opacity: 0.55;
+  cursor: progress;
+}
+
 /* ── the profile "Message" control ────────────────────────────────────────── */
 .profileMessageBtn {
   display: inline-flex;

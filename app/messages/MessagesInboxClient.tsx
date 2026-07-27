@@ -34,7 +34,7 @@ export default function MessagesInboxClient({
   const [loaded, setLoaded] = useState(false);
   const [needsSignIn, setNeedsSignIn] = useState(false);
   const [failed, setFailed] = useState(false);
-  const [loadedOnce, setLoadedOnce] = useState(false);
+  const [retrying, setRetrying] = useState(false);
 
   useEffect(() => {
     let active = true;
@@ -54,7 +54,6 @@ export default function MessagesInboxClient({
         setConversations([]);
         setNeedsSignIn(true);
         setFailed(false);
-        setLoadedOnce(false);
         setLoaded(true);
         return;
       }
@@ -64,7 +63,6 @@ export default function MessagesInboxClient({
         setConversations([]);
         setNeedsSignIn(true);
         setFailed(false);
-        setLoadedOnce(false);
         setLoaded(true);
         return;
       }
@@ -76,7 +74,6 @@ export default function MessagesInboxClient({
           setNeedsSignIn(true);
           setConversations([]);
           setFailed(false);
-          setLoadedOnce(false);
           return;
         }
         if (!res.ok) {
@@ -88,7 +85,6 @@ export default function MessagesInboxClient({
         setFailed(false);
         const body = (await res.json()) as { conversations?: ConversationDTO[] };
         setConversations(Array.isArray(body.conversations) ? body.conversations : []);
-        setLoadedOnce(true);
       } catch (err) {
         const aborted =
           signal?.aborted || (err instanceof Error && err.name === "AbortError");
@@ -104,14 +100,19 @@ export default function MessagesInboxClient({
   );
 
   const retry = useCallback(() => {
-    setFailed(false);
-    if (!loadedOnce) setLoaded(false);
-    void refresh();
-  }, [loadedOnce, refresh]);
+    setRetrying(true);
+    void refresh().finally(() => setRetrying(false));
+  }, [refresh]);
 
   const retryButton = (
-    <button type="button" className="threadRetryBtn" onClick={retry}>
-      Try again
+    <button
+      type="button"
+      className="threadRetryBtn"
+      onClick={retry}
+      disabled={retrying}
+      aria-busy={retrying || undefined}
+    >
+      {retrying ? "Trying again" : "Try again"}
     </button>
   );
 
@@ -143,11 +144,17 @@ export default function MessagesInboxClient({
           body="Private messages need a signed-in account so nobody can read or send as your handle."
           action={<SignInButton />}
         />
-      ) : failed && !loadedOnce ? (
+      ) : failed && conversations.length === 0 ? (
         <EmptyState
           title="Couldn&rsquo;t load your conversations."
           role="alert"
           action={retryButton}
+        />
+      ) : conversations.length === 0 ? (
+        <EmptyState
+          title="Nobody in here yet."
+          body="Find someone worth a pint on the feed, open their profile, and tap Message. That's how a round starts."
+          action={<Link href="/feed">Find someone to message</Link>}
         />
       ) : (
         <>
@@ -157,47 +164,39 @@ export default function MessagesInboxClient({
               {retryButton}
             </p>
           ) : null}
-          {conversations.length === 0 ? (
-            <EmptyState
-              title="Nobody in here yet."
-              body="Find someone worth a pint on the feed, open their profile, and tap Message. That's how a round starts."
-              action={<Link href="/feed">Find someone to message</Link>}
-            />
-          ) : (
-            <ul className="conversationList">
-              {conversations.map((c) => {
-                const active = c.id === activeConversationId;
-                return (
-                  <li
-                    key={c.id}
-                    className={
-                      active ? "conversationItem conversationItemActive" : "conversationItem"
-                    }
+          <ul className="conversationList">
+            {conversations.map((c) => {
+              const active = c.id === activeConversationId;
+              return (
+                <li
+                  key={c.id}
+                  className={
+                    active ? "conversationItem conversationItemActive" : "conversationItem"
+                  }
+                >
+                  <Link
+                    href={`/messages/${encodeURIComponent(c.id)}`}
+                    className="conversationLink"
+                    aria-current={active ? "page" : undefined}
                   >
-                    <Link
-                      href={`/messages/${encodeURIComponent(c.id)}`}
-                      className="conversationLink"
-                      aria-current={active ? "page" : undefined}
-                    >
-                      <div className="conversationBody">
-                        <div className="conversationHandle">@{c.otherHandle}</div>
-                        <div className="conversationPreview">
-                          {c.lastBody
-                            ? `${c.lastFromMe ? "You: " : ""}${c.lastBody}`
-                            : "No messages yet"}
-                        </div>
+                    <div className="conversationBody">
+                      <div className="conversationHandle">@{c.otherHandle}</div>
+                      <div className="conversationPreview">
+                        {c.lastBody
+                          ? `${c.lastFromMe ? "You: " : ""}${c.lastBody}`
+                          : "No messages yet"}
                       </div>
-                      {c.unread > 0 ? (
-                        <span className="conversationUnread" aria-label={`${c.unread} unread`}>
-                          {c.unread > 99 ? "99+" : c.unread}
-                        </span>
-                      ) : null}
-                    </Link>
-                  </li>
-                );
-              })}
-            </ul>
-          )}
+                    </div>
+                    {c.unread > 0 ? (
+                      <span className="conversationUnread" aria-label={`${c.unread} unread`}>
+                        {c.unread > 99 ? "99+" : c.unread}
+                      </span>
+                    ) : null}
+                  </Link>
+                </li>
+              );
+            })}
+          </ul>
         </>
       )}
     </>

@@ -79,46 +79,62 @@ describe("messages friction voice", () => {
     expect(thrownResponse).toContain("setNeedsSignIn(false)");
     expect(thrownResponse).toContain("setFailed(true)");
 
-    const failureAt = source.indexOf("failed && !loadedOnce ? (");
+    // Nothing on screen and a failed request: the failure surface stands alone,
+    // and it is checked BEFORE the warm empty card, which docs/VOICE.md keeps
+    // out of sight of an error the reader has to act on.
+    const failureCondition = "failed && conversations.length === 0 ? (";
+    const failureAt = source.indexOf(failureCondition);
+    const emptyAt = source.indexOf(
+      "conversations.length === 0 ? (",
+      failureAt + failureCondition.length,
+    );
     const noticeAt = source.indexOf("{failed ? (");
-    const emptyAt = source.indexOf("conversations.length === 0 ? (");
     expect(failureAt).toBeGreaterThan(-1);
-    expect(noticeAt).toBeGreaterThan(failureAt);
-    expect(emptyAt).toBeGreaterThan(noticeAt);
+    expect(emptyAt).toBeGreaterThan(failureAt);
+    expect(noticeAt).toBeGreaterThan(emptyAt);
 
-    const failureFrame = source.slice(failureAt, noticeAt);
+    const failureFrame = source.slice(failureAt, emptyAt);
     expect(failureFrame).toContain("Couldn&rsquo;t load your conversations.");
     expect(failureFrame).toContain("retryButton");
     expect(failureFrame).not.toContain("Nobody in here yet.");
     expect(source).toContain('className="threadRetryBtn"');
     expect(source).toContain("Try again");
+
+    // The warm empty card only speaks for an inbox we know is empty.
+    const emptyFrame = source.slice(emptyAt, noticeAt);
+    expect(emptyFrame).toContain("Nobody in here yet.");
+    expect(emptyFrame).not.toContain("failed");
   });
 
   it("a failed refresh over a loaded list keeps the list and reports beside it", () => {
     const source = read(INBOX);
-    // A load that produced conversations is remembered, so the full failure
-    // surface can only stand in for a load that never did.
-    expect(source).toContain("setLoadedOnce(true)");
-    expect(source).toContain("failed && !loadedOnce ? (");
 
-    // The quiet notice sits above the list branch, not in place of it.
+    // The quiet notice sits above the list it describes, and only ever there:
+    // it claims what loaded last, so it never renders where nothing loaded.
     const noticeAt = source.indexOf("{failed ? (");
-    const notice = source.slice(noticeAt, source.indexOf("conversations.length === 0 ? ("));
+    const notice = source.slice(noticeAt, source.indexOf('<ul className="conversationList">'));
     const visible = (notice.match(/>[^<>{}]+</g) ?? [])
       .map((node) => node.slice(1, -1).trim())
       .filter(Boolean)
       .join("\n");
     expect(visible).toContain("Couldn&rsquo;t refresh this list. It shows what loaded last.");
-    for (const leak of ["fetch", "status", "500", "AbortError", "network", "error", "sorry", "—", "!"]) {
+    expect(visible).not.toContain("Nobody in here yet.");
+    const leaks = ["fetch", "status", "500", "AbortError", "network", "error", "sorry", "—", "!"];
+    for (const leak of leaks) {
       expect(visible.includes(leak), `"${leak}" leaked into the stale notice`).toBe(false);
     }
 
-    // The shared retry never blanks a list that is already on screen.
+    // A tap reads as doing something: the failure stands until the retried
+    // request resolves, and the list underneath is never cleared.
     const retryAt = source.indexOf("const retry = useCallback(");
-    const retry = source.slice(retryAt, source.indexOf("}, [loadedOnce, refresh]);", retryAt));
+    const retry = source.slice(retryAt, source.indexOf("}, [refresh]);", retryAt));
     expect(retryAt).toBeGreaterThan(-1);
-    expect(retry).toContain("if (!loadedOnce) setLoaded(false);");
+    expect(retry).toContain("setRetrying(true)");
+    expect(retry).not.toContain("setFailed(false)");
+    expect(retry).not.toContain("setLoaded(false)");
     expect(retry).not.toContain("setConversations(");
+    expect(source).toContain("disabled={retrying}");
+    expect(source).toContain('{retrying ? "Trying again" : "Try again"}');
   });
 
   it("both surfaces stay em-dash free in the copy they show", () => {
