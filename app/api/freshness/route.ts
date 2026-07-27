@@ -16,12 +16,11 @@ import { join } from "node:path";
 
 import {
   evaluateRegistry,
-  resolveStamp,
   type FreshnessDataset,
   type FreshnessRegistry,
   type StampResolution,
 } from "@/lib/freshness";
-import { readFreshnessArtifact } from "@/lib/freshnessArtifact";
+import { resolveDatasetStamp } from "@/lib/freshnessArtifact";
 import { resolveStoreObservedAt } from "@/lib/freshnessStoreOverlay";
 import { countCorroboratedCommunityCategories } from "@/lib/communityPriceStore";
 
@@ -65,7 +64,7 @@ export async function GET(): Promise<Response> {
   const stampFor = (dataset: FreshnessDataset): StampResolution => {
     const stored = overlay[dataset.id];
     if (stored) return { observedAt: stored, reason: null };
-    return resolveStamp(dataset.stamp, readFreshnessArtifact(rootDir, dataset.artifact));
+    return resolveDatasetStamp(rootDir, dataset);
   };
   const results = evaluateRegistry(registry, stampFor, now);
 

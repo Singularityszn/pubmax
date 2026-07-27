@@ -2,6 +2,8 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
+import { freshnessArtifactIncludes } from "./lib/freshnessTracing.mjs";
+
 const projectRoot = path.dirname(fileURLToPath(import.meta.url));
 
 // The freshness spine reads each dataset's artifact by a path taken from
@@ -13,10 +15,12 @@ const projectRoot = path.dirname(fileURLToPath(import.meta.url));
 // function by its `maxDuration`, shipped with no artifacts at all and reported
 // every field-stamped feed as "unknown" every day. Declaring the list here is the
 // fix, and it is derived from the registry rather than hand-copied so a new
-// dataset cannot silently go untraced. __tests__/freshnessTracing.test.ts pins it.
-const freshnessArtifacts = JSON.parse(
-  readFileSync(path.join(projectRoot, "data", "freshness_registry.json"), "utf8"),
-).datasets.flatMap((dataset) => (dataset.artifact ? [`./${dataset.artifact}`] : []));
+// dataset cannot silently go untraced. The field-stamped ones are exactly the
+// ones a reader opens (lib/freshnessTracing.mjs says why the others stay out).
+// __tests__/freshnessTracing.test.ts pins it.
+const freshnessArtifacts = freshnessArtifactIncludes(
+  JSON.parse(readFileSync(path.join(projectRoot, "data", "freshness_registry.json"), "utf8")),
+);
 
 // Per-deploy build id for the offline service worker (issue #32). Evaluated
 // once when `next build` loads this config and inlined into the client bundle

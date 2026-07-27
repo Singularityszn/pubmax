@@ -10,8 +10,13 @@
 // every field-stamped feed as "unknown" every morning for weeks.
 //
 // So next.config.mjs declares them, derived from the registry rather than
-// hand-copied. This fence pins that: add a dataset with an artifact and it is
-// traced into both functions, or this test fails.
+// hand-copied. This fence pins that: add a FIELD-stamped dataset and it is traced
+// into both functions, or this test fails.
+//
+// Field-stamped is the whole list, because it is exactly the list a reader opens:
+// a literal stamp is answered from the registry and an unstamped dataset is never
+// dated, so tracing either would ship megabytes (pint_prices alone is ~7 MB) into
+// both functions to be parsed by nobody — the bloat that ruled out a glob.
 
 import { execFileSync } from "node:child_process";
 import { join } from "node:path";
@@ -19,10 +24,17 @@ import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
 import registry from "@/data/freshness_registry.json";
+import { freshnessArtifactIncludes } from "@/lib/freshnessTracing.mjs";
 
 const FRESHNESS_ROUTES = ["/api/freshness", "/api/cron/freshness-audit"] as const;
 
-const artifacts = registry.datasets
+const readArtifacts = registry.datasets
+  .filter((d) => d.stamp?.kind === "field")
+  .map((d) => d.artifact)
+  .filter((a): a is string => typeof a === "string");
+
+const unreadArtifacts = registry.datasets
+  .filter((d) => d.stamp?.kind !== "field")
   .map((d) => d.artifact)
   .filter((a): a is string => typeof a === "string");
 
@@ -55,22 +67,47 @@ describe("freshness artifact tracing", () => {
     }
   });
 
-  it("traces every registered artifact into every freshness function", () => {
-    expect(artifacts.length).toBeGreaterThan(0);
+  it("traces every artifact a reader opens into every freshness function", () => {
+    expect(readArtifacts.length).toBeGreaterThan(0);
     for (const route of FRESHNESS_ROUTES) {
       const declared = new Set(includes?.[route] ?? []);
-      for (const artifact of artifacts) {
+      for (const artifact of readArtifacts) {
         expect(declared.has(`./${artifact}`), `${route} is missing ${artifact}`).toBe(true);
       }
     }
   });
 
-  it("traces nothing beyond the registry, so the function stays small", () => {
-    const registered = new Set(artifacts.map((a) => `./${a}`));
+  it("traces nothing a reader never opens, so the function stays small", () => {
+    const needed = new Set(readArtifacts.map((a) => `./${a}`));
+    expect(unreadArtifacts.length).toBeGreaterThan(0);
     for (const route of FRESHNESS_ROUTES) {
-      for (const declared of includes?.[route] ?? []) {
-        expect(registered.has(declared), `${route} traces unregistered ${declared}`).toBe(true);
+      const declared = includes?.[route] ?? [];
+      for (const path of declared) {
+        expect(needed.has(path), `${route} traces unread ${path}`).toBe(true);
       }
+      for (const artifact of unreadArtifacts) {
+        expect(declared.includes(`./${artifact}`), `${route} traces unread ${artifact}`).toBe(false);
+      }
+    }
+  });
+
+  it("derives the list, so a newly field-stamped dataset is traced with no edit here", () => {
+    const synthetic = {
+      datasets: [
+        { id: "brand-new", artifact: "public/data/brand_new/latest.json", stamp: { kind: "field", pointer: "generatedAt" } },
+        { id: "literal", artifact: "public/data/huge.json", stamp: { kind: "literal", value: "2026-07-01" } },
+        { id: "unstamped", artifact: "public/data/reference.json", stamp: null },
+        { id: "no-artifact", artifact: null, stamp: { kind: "field", pointer: "generatedAt" } },
+      ],
+    };
+    expect(freshnessArtifactIncludes(synthetic)).toEqual(["./public/data/brand_new/latest.json"]);
+  });
+
+  it("declares exactly what the shared derivation returns for the real registry", () => {
+    const derived = freshnessArtifactIncludes(registry);
+    expect(derived).toEqual(readArtifacts.map((a) => `./${a}`));
+    for (const route of FRESHNESS_ROUTES) {
+      expect(includes?.[route]).toEqual(derived);
     }
   });
 });

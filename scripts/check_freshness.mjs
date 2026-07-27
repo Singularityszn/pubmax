@@ -133,9 +133,12 @@ export function loadRegistry(rootDir = DEFAULT_ROOT) {
 export function evaluateFreshness({ now = new Date(), rootDir = DEFAULT_ROOT, registry } = {}) {
   const reg = registry ?? loadRegistry(rootDir);
   const results = (reg.datasets ?? []).map((dataset) => {
+    // Mirror of lib/freshnessArtifact.ts resolveDatasetStamp: only a field stamp
+    // lives inside the artifact, so only a field stamp opens one.
+    const spec = dataset.stamp ?? null;
     const { observedAt, reason } = resolveStamp(
-      dataset.stamp ?? null,
-      readArtifact(rootDir, dataset.artifact),
+      spec,
+      spec?.kind === "field" ? readArtifact(rootDir, dataset.artifact) : { kind: "absent" },
     );
     return evaluateDataset(dataset, observedAt, now, reason);
   });

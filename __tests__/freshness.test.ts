@@ -15,7 +15,7 @@ import {
   type FreshnessDataset,
   type FreshnessRegistry,
 } from "@/lib/freshness";
-import { readFreshnessArtifact } from "@/lib/freshnessArtifact";
+import { readFreshnessArtifact, resolveDatasetStamp } from "@/lib/freshnessArtifact";
 
 const NOW = new Date("2026-07-18T12:00:00Z");
 
@@ -170,6 +170,57 @@ describe("readFreshnessArtifact + resolveStamp — real files on disk", () => {
     const r = evaluateDataset(dataset(), null, NOW, resolveStamp(spec, read).reason);
     expect(r.status).toBe("unknown");
     expect(r.detail).toContain("could not be parsed");
+  });
+});
+
+describe("resolveDatasetStamp — a route opens only what it will read", () => {
+  function countingRead() {
+    const opened: (string | null)[] = [];
+    const read = (_root: string, relPath: string | null) => {
+      opened.push(relPath);
+      return relPath === null
+        ? ({ kind: "absent" } as const)
+        : ({ kind: "missing", path: relPath } as const);
+    };
+    return { opened, read };
+  }
+
+  it("opens the artifact for a field stamp", () => {
+    const { opened, read } = countingRead();
+    const { observedAt, reason } = resolveDatasetStamp("/root", dataset(), read);
+    expect(opened).toEqual(["public/data/sample.json"]);
+    expect(observedAt).toBeNull();
+    expect(reason).toContain("public/data/sample.json");
+  });
+
+  it("never opens the artifact of a literal-stamped dataset", () => {
+    const { opened, read } = countingRead();
+    const resolution = resolveDatasetStamp(
+      "/root",
+      dataset({ stamp: { kind: "literal", value: "2026-07-03T12:00:00Z" }, artifact: "public/data/huge.json" }),
+      read,
+    );
+    expect(opened).toEqual([]);
+    expect(resolution).toEqual({ observedAt: "2026-07-03T12:00:00Z", reason: null });
+  });
+
+  it("never opens the artifact of an unstamped dataset", () => {
+    const { opened, read } = countingRead();
+    const resolution = resolveDatasetStamp(
+      "/root",
+      dataset({ stamp: null, artifact: "public/data/reference.json" }),
+      read,
+    );
+    expect(opened).toEqual([]);
+    expect(resolution).toEqual({ observedAt: null, reason: null });
+  });
+
+  it("still reports a field stamp with no artifact as unresolvable", () => {
+    const { opened, read } = countingRead();
+    const { observedAt, reason } = resolveDatasetStamp("/root", dataset({ artifact: null }), read);
+    expect(opened).toEqual([null]);
+    expect(observedAt).toBeNull();
+    expect(reason).toContain("no artifact to read it from");
   });
 });
 

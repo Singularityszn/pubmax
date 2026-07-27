@@ -16,7 +16,13 @@
 import { readFileSync, existsSync } from "node:fs";
 import { join } from "node:path";
 
-import type { ArtifactRead } from "@/lib/freshness";
+import {
+  resolveStamp,
+  stampNeedsArtifact,
+  type ArtifactRead,
+  type FreshnessDataset,
+  type StampResolution,
+} from "@/lib/freshness";
 
 export function readFreshnessArtifact(rootDir: string, relPath: string | null): ArtifactRead {
   if (!relPath) return { kind: "absent" };
@@ -31,4 +37,20 @@ export function readFreshnessArtifact(rootDir: string, relPath: string | null): 
       error: err instanceof Error ? err.message : String(err),
     };
   }
+}
+
+/**
+ * The one way a route turns a dataset into its stamp. Only a field stamp lives
+ * inside the artifact, so only a field stamp opens one: a literal stamp is
+ * answered from the registry and an unstamped dataset is never dated, and
+ * parsing multi-megabyte JSON to discard it would cost every request for
+ * nothing. Both freshness readers go through here so neither can drift.
+ */
+export function resolveDatasetStamp(
+  rootDir: string,
+  dataset: Pick<FreshnessDataset, "stamp" | "artifact">,
+  read: (rootDir: string, relPath: string | null) => ArtifactRead = readFreshnessArtifact,
+): StampResolution {
+  if (!stampNeedsArtifact(dataset.stamp)) return resolveStamp(dataset.stamp, { kind: "absent" });
+  return resolveStamp(dataset.stamp, read(rootDir, dataset.artifact));
 }

@@ -24,14 +24,13 @@ import { assertCronRequest } from "@/lib/cronAuth";
 import {
   evaluateDataset,
   hasBreach,
-  resolveStamp,
   staleFeeds,
   unresolvedFeeds,
   type FreshnessDataset,
   type FreshnessRegistry,
   type FreshnessResult,
 } from "@/lib/freshness";
-import { readFreshnessArtifact } from "@/lib/freshnessArtifact";
+import { resolveDatasetStamp } from "@/lib/freshnessArtifact";
 import { resolveStoreObservedAt } from "@/lib/freshnessStoreOverlay";
 import { notifyFreshnessFindings } from "@/lib/freshnessNotify";
 
@@ -62,7 +61,7 @@ export async function GET(request: Request): Promise<Response> {
     const stored = overlay[dataset.id];
     const { observedAt, reason } = stored
       ? { observedAt: stored, reason: null }
-      : resolveStamp(dataset.stamp, readFreshnessArtifact(rootDir, dataset.artifact));
+      : resolveDatasetStamp(rootDir, dataset);
     return evaluateDataset(dataset, observedAt, now, reason);
   });
 

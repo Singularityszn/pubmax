@@ -90,6 +90,17 @@ export interface StampResolution {
 }
 
 /**
+ * Whether resolving this dataset's stamp requires opening its artifact. Only a
+ * field stamp does: a literal stamp is carried by the registry and an unstamped
+ * dataset is never dated, so both resolve without a read (see `resolveStamp`).
+ * The tracing config (lib/freshnessTracing.mjs) draws the same line, so a
+ * function ships exactly the artifacts its readers will open.
+ */
+export function stampNeedsArtifact(spec: FreshnessStampSpec): boolean {
+  return spec !== null && spec.kind === "field";
+}
+
+/**
  * Resolve the observed timestamp for one dataset from what the caller read off
  * disk, reporting the reason when it cannot. A dataset with no stamp spec
  * resolves to null with no reason: that is "nothing was promised", not a defect.
