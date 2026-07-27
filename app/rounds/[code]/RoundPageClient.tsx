@@ -518,6 +518,7 @@ function RoundSpendComposer({
           ? venueMenuForInspector(data.venue)
               .filter(
                 (drink) =>
+                  drink.provenance.source !== "seed" &&
                   Number.isFinite(drink.priceGbp) &&
                   drink.priceGbp >= 1 &&
                   drink.priceGbp <= 30,
@@ -557,18 +558,13 @@ function RoundSpendComposer({
     setOpen(true);
   }
 
-  function addKnownDrink() {
+  function fillFromKnownDrink() {
     const drink = knownDrinks.find((candidate) => candidate.id === knownDrinkId);
     if (!drink) return;
-    setItems((held) => [
-      ...held,
-      {
-        id: draftItemId(),
-        drinkName: drink.name,
-        drinkCategory: drink.category,
-        priceGbp: drink.priceGbp,
-      },
-    ]);
+    setManualName(drink.name);
+    setManualCategory(drink.category);
+    setManualPrice(drink.priceGbp.toFixed(2));
+    setError(null);
   }
 
   function addManualDrink() {
@@ -761,16 +757,21 @@ function RoundSpendComposer({
               <button
                 type="button"
                 className="roundSecondaryBtn"
-                onClick={addKnownDrink}
+                onClick={fillFromKnownDrink}
                 disabled={!knownDrinkId}
               >
-                <Plus size={16} aria-hidden="true" /> Add
+                <Plus size={16} aria-hidden="true" /> Fill in
               </button>
             </div>
 
+            <p className="roundKnownDrinkNote">
+              A known price only fills the line below. Check it against what you
+              paid, then add it.
+            </p>
+
             <div className="roundManualDrink">
               <label className="roundField roundDrinkName">
-                <span>Another drink</span>
+                <span>The drink</span>
                 <input
                   type="text"
                   value={manualName}

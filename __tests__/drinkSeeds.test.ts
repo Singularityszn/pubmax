@@ -4,6 +4,7 @@ import {
   demoDrinkVenueIds,
   demoDrinks,
   demoDrinksFor,
+  isDemoSeedPrice,
 } from "@/lib/drinkSeeds";
 import { isDrinkCategory } from "@/lib/drinks";
 import { groupVenuePrices, type VenuePrice } from "@/lib/venues";
@@ -62,6 +63,20 @@ describe("demo drink seeds", () => {
       expect(menu.every((d) => d.id.startsWith("drink-"))).toBe(true);
     }
     expect(demoDrinksFor("venue-nope")).toEqual([]);
+  });
+
+  it("isDemoSeedPrice names every seeded figure and nothing else", () => {
+    for (const venueId of demoDrinkVenueIds) {
+      for (const drink of demoDrinksFor(venueId)) {
+        expect(isDemoSeedPrice(venueId, drink.category, drink.priceGbp)).toBe(true);
+        // A seeded figure is only a seed at ITS pub, in ITS category.
+        expect(isDemoSeedPrice("venue-nope", drink.category, drink.priceGbp)).toBe(false);
+        expect(isDemoSeedPrice(venueId, "beer", drink.priceGbp)).toBe(false);
+        expect(isDemoSeedPrice(venueId, drink.category, drink.priceGbp + 0.1)).toBe(
+          false,
+        );
+      }
+    }
   });
 
   it("each curated pub gets a spread of categories beyond beer", () => {

@@ -19,6 +19,7 @@
 import { jsonNoStore } from "@/lib/apiResponses";
 import { deriveCommunityPriceActor } from "@/lib/communityPriceActor";
 import { submitCommunityPrice } from "@/lib/communityPriceStore";
+import { isDemoSeedPrice } from "@/lib/drinkSeeds";
 import { resolveMessageHandle } from "@/lib/messageAuth";
 import { isLimited } from "@/lib/pintDrops";
 import { gateHandleAction } from "@/lib/profileOwnership";
@@ -146,7 +147,9 @@ export async function POST(request: Request, ctx: Ctx): Promise<Response> {
 
       // A plain total is a diary figure, not one drink, so it stops here.
       // Itemised prices enter the existing community store and earn map
-      // authority only through its independent-submitter and age gates.
+      // authority only through its independent-submitter and age gates. A
+      // seeded demo figure is nobody's observation, so it stays in the Round
+      // diary and never reaches the community store, however it was typed.
       if (result.created && clean.items.length > 0) {
         const actor = deriveCommunityPriceActor(request);
         const stored = result.state.spends.find(
@@ -154,6 +157,11 @@ export async function POST(request: Request, ctx: Ctx): Promise<Response> {
         );
         const recordedAt = stored ? Date.parse(stored.recordedAt) : Date.now();
         for (const item of clean.items) {
+          if (
+            isDemoSeedPrice(clean.venueId, item.drinkCategory, item.pricePence / 100)
+          ) {
+            continue;
+          }
           await submitCommunityPrice(
             {
               venueId: clean.venueId,

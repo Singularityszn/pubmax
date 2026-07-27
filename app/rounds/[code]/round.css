@@ -354,6 +354,13 @@
   gap: 10px;
 }
 
+.roundKnownDrinkNote {
+  margin: 0;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
 .roundManualDrink {
   display: grid;
   grid-template-columns: minmax(0, 1.5fr) minmax(100px, 0.8fr) minmax(86px, 0.6fr);
