@@ -369,9 +369,17 @@ describe("priced-pin price tag (collides, and yields before the pin does)", () =
   it("never borrows a band colour for the figure", () => {
     // The number IS the price; tinting it would say the same thing twice and
     // invite reading it as a fourth signal alongside the three bands.
-    const pins = JSON.stringify(paint("pubs-point"));
-    expect(pins).not.toContain("bucket");
-    expect(layout("pubs-point")["text-color"]).toBeUndefined();
+    //
+    // The failable form of that rule: the tag's two colours must be CONSTANTS.
+    // A band tint can only arrive as a data expression - ["match", ["get",
+    // "bucket"], …] or a case/step over the same - which lands here as an
+    // array, never a string. (Reading `text-color` off the LAYOUT object, as
+    // an earlier version of this test did, asserts nothing: it is a paint
+    // property, so that lookup is undefined no matter what the layer does.)
+    const pins = paint("pubs-point");
+    expect(typeof pins["text-color"]).toBe("string");
+    expect(typeof pins["text-halo-color"]).toBe("string");
+    expect(JSON.stringify(pins)).not.toContain("bucket");
   });
 
   it("dims with its own pin instead of shouting past the spotlight", () => {
