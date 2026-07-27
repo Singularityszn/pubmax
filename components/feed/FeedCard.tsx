@@ -16,7 +16,6 @@ import { CHEERS_GATE_PROMPT } from "@/lib/optimisticToggle";
 import { displayHandle } from "@/lib/handleDisplay";
 import { REACTION_KEYS, type ReactionKey, type ReactionSummary } from "@/lib/reactions";
 import prefetchVenue from "@/lib/prefetchVenue";
-import { buildPintDropShareText } from "@/lib/shareArtifacts";
 // Shared chip vocabulary — seeded content always reads "Demo", never "Sample".
 import { PROVENANCE_LABEL } from "@/lib/provenanceLabels";
 import { relativeTime } from "@/lib/relativeTime";
