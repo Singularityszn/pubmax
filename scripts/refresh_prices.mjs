@@ -1,4 +1,11 @@
-// Scheduled permissible-source price refresh.
+// Manual reviewed permissible-source price publish.
+//
+// This script is the ONLY path that advances the served
+// public/data/price_updates/ snapshot: it is run by hand and opens a review PR.
+// The weekly Vercel cron (app/api/cron/refresh-prices) shares this script's
+// source fetchers but only RETRIEVES rows and stamps the artifact-less
+// price_update_retrieval feed, because a serverless filesystem cannot rewrite a
+// committed file. See docs/CRON_PLANE_RUNBOOK.md.
 //
 // WHAT IS REAL in this scaffold:
 //   - reads the permissible-source allowlist (data/price_sources.json) and
@@ -13,9 +20,8 @@
 //
 // WHAT IS STUBBED (documented):
 //   - price_source_fetchers.mjs: network fetch + parse of each first-party
-//     page/feed. It currently returns [] (no rows) so a scheduled run is a
-//     safe no-op that opens no PR. Implement parsers there, reading ONLY
-//     allowlisted URLs.
+//     page/feed. It currently returns [] (no rows) so a run is a safe no-op
+//     that opens no PR. Implement parsers there, reading ONLY allowlisted URLs.
 //
 // GOVERNANCE (hard rules — do not remove):
 //   - NO scraping of competitor price sites. Only first-party official pages

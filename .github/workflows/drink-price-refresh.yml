@@ -14,7 +14,8 @@ name: Drink price refresh
 # per-pub parse target. See data/price_sources.json drinkSources[].notes.
 on:
   schedule:
-    # 07:30 UTC every Monday (offset from the pint price-refresh cron above).
+    # 07:30 UTC every Monday (offset from the pint price retrieval cron, which
+    # now runs on the Vercel plane at 07:00. See docs/CRON_PLANE_RUNBOOK.md).
     - cron: "30 7 * * 1"
   # Allow a manual run from the Actions tab.
   workflow_dispatch:

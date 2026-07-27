@@ -3,8 +3,8 @@
 A scheduled **freshness plane on Vercel Cron** that keeps live data fresh:
 weather, the What's-On tonight window, permissible-source price retrieval,
 Night Signal candidates, and a rotating UK city pub-enrichment sweep. It is
-additive and fail-soft — every piece
-degrades loud-but-soft (log + skip) and never fabricates data.
+additive and fail-soft — every piece degrades loud-but-soft (log + skip) and
+never fabricates data.
 
 > **GitHub Actions is retired.** This plane replaces it. Do not add or suggest a
 > `.github/workflows/*` schedule — Actions billing is dead and out of scope.
@@ -97,8 +97,8 @@ scheduled runs are logged no-ops that stamp nothing at all.
 
 Night Signal candidate ingestion is separately machine-scheduled. It never
 publishes reviewed `night_signals`; approved human publication remains the only
-way that snapshot advances. For that reason reviewed feed is episodic and has no
-machine staleness budget.
+way that snapshot advances. For that reason the reviewed feed is registered as
+episodic and has no machine staleness budget.
 
 ---
 

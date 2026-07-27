@@ -15,11 +15,15 @@ not stored in committed candidates, database claims, or public snapshots.
 
 ## Exa buzz candidates (`exa-candidates.json`)
 
-`npm run ingest:night-signals` (the "Night Signal candidate ingestion"
-workflow) arms `EXA_API_KEY` to fetch recent London pub buzz — new openings,
-award wins and "best pint" features — and writes them here as **pending**
-candidates. Every candidate is `single_source`, `routeEffect: "none"`, with the
-publisher's own headline as the claim (no AI summary) and a tracking-stripped
-source URL. A reviewer must verify each one and set `reviewState` to `approved`
-with `reviewedAt` and `reviewAuthority` before the reviewed snapshot ships it.
-Without the key the ingestion is a safe no-op.
+`npm run ingest:night-signals` arms `EXA_API_KEY` to fetch recent London pub
+buzz — new openings, award wins and "best pint" features — and writes them here
+as **pending** candidates. Every candidate is `single_source`,
+`routeEffect: "none"`, with the publisher's own headline as the claim (no AI
+summary) and a tracking-stripped source URL. A reviewer must verify each one and
+set `reviewState` to `approved` with `reviewedAt` and `reviewAuthority` before
+the reviewed snapshot ships it. Without the key the ingestion is a safe no-op.
+
+The daily Vercel cron `GET /api/cron/refresh-night-signals` runs the same sweep
+on a schedule, but a serverless filesystem cannot write this directory: it
+returns pending candidates and stamps the ingestion freshness feed only. See
+`docs/CRON_PLANE_RUNBOOK.md`.

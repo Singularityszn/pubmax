@@ -153,10 +153,23 @@ resolved). An `unknown` never counts as fresh and never counts as stale: its
 `detail` names the artifact and the way the read failed (absent from the
 deployment, present but unparseable, present but carrying no stamp field).
 
-### What the spine reports right now
-Run `npm run check:freshness`, or read `GET /api/freshness`, rather than a
-paragraph that ages. Whichever feeds are breaching, that is the feature working:
-the directive "always get live data" now has a dial that says out loud when a
-cadence has slipped. The standing per-dataset root causes and the owner actions
-they need are owned by
+### How to read what the spine reports
+Current staleness is not written down here - run `node scripts/check_freshness.mjs`
+or read `GET /api/freshness`. Two things to know when reading it:
+
+- **Store-backed feeds report the store, not the committed file.** Weather,
+  What's-On, and the artifact-less ingestion feeds (`night_signal_candidates`,
+  `price_update_retrieval`) surface the durable store's real `observedAt` via
+  `lib/freshnessStoreOverlay.ts`, because a serverless cron cannot rewrite a
+  committed artifact. An ingestion feed reports that a sweep RAN, never that
+  anything shipped.
+- **A human-gated feed is `untracked`, not `stale`.** `night_signals` advances
+  only on an approved publish, so it carries no machine budget. The served
+  `price_updates` file keeps its 336 h budget and keeps alerting until a reviewed
+  publish lands; the weekly retrieval cron can never quiet it.
+
+That is the feature working: the directive "always get live data" has a dial that
+says out loud when a cadence has slipped, and stays silent about cadences that
+were never machine-owned. The standing per-dataset root causes and the owner
+actions they need are owned by
 [`docs/FRESHNESS_BURNDOWN_2026-07-24.md`](FRESHNESS_BURNDOWN_2026-07-24.md).
