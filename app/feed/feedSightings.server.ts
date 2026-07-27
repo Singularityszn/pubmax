@@ -33,10 +33,10 @@ import { venueMapUrl } from "@/lib/venueMapUrl";
 //
 // ONLY THE CLOCK-FREE HALF IS MEMOISED. Reading the ~2 MB overlay and resolving
 // its venues never changes between renders, so it is cached per process; the
-// recency window is re-answered on every read, because /feed is served from a
-// build-time prerender or a long-lived lambda and the overlay only changes by
-// deploy. A window stamped once would keep saying "recent" about rows that had
-// aged out days earlier, which is the exact claim the gate exists to retire.
+// recency window is re-answered on every read, because a lambda outlives many
+// requests and the overlay only changes by deploy. A window stamped once would
+// keep saying "recent" about rows that had aged out days earlier, which is the
+// exact claim the gate exists to retire.
 
 const OVERLAY_PATH = "public/data/drink_price_updates/latest.json";
 

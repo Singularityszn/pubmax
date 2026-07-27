@@ -27,9 +27,9 @@ const freshnessRegistry = JSON.parse(
 );
 const freshnessArtifacts = freshnessArtifactIncludes(freshnessRegistry);
 
-// /feed is force-dynamic (its ambient sourced prices carry a recency window that
-// must be answered per request), so it reads the drink-price overlay and every
-// enabled city's slim venue pack AT RUNTIME, both by paths built from config.
+// /feed renders per request (as every route does — the root layout awaits
+// headers()), so it opens the drink-price overlay and every enabled city's slim
+// venue pack AT RUNTIME, both by paths built from config.
 // Same tracing blind spot as the freshness pair, and a nastier failure: the
 // venue lookup fails soft, so an untraced pack would show as an empty ambient
 // surface — indistinguishable from the honest empty state. Both halves are

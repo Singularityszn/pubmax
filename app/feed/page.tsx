@@ -6,9 +6,12 @@ import { loadFeedSightings } from "./feedSightings.server";
 // Server shell for /feed so the route carries real metadata (the client
 // component can't export it). The Pint Feed is a public browse surface (like
 // /discover), so it is indexable with its own canonical + Open Graph.
-// Rendered per request, not baked at build: the ambient sightings below carry a
-// recency window, and a prerendered shell would keep serving rows that aged out
-// of it between deploys (feedSightings.server.ts).
+// A PIN on how this route already renders, not a change of mode: the root
+// layout awaits headers() outside any Suspense boundary and nothing enables PPR,
+// so every route in the app is dynamic today. The ambient sightings below carry
+// a recency window answered against the request clock (feedSightings.server.ts),
+// which a prerendered shell would freeze, so the directive says so out loud and
+// stops a later layout change re-baking this page by accident.
 export const dynamic = "force-dynamic";
 
 const FEED_TITLE = "The Pint Feed";
