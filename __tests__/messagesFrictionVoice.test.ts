@@ -79,15 +79,46 @@ describe("messages friction voice", () => {
     expect(thrownResponse).toContain("setNeedsSignIn(false)");
     expect(thrownResponse).toContain("setFailed(true)");
 
-    const failureAt = source.indexOf("failed ? (");
+    const failureAt = source.indexOf("failed && !loadedOnce ? (");
+    const noticeAt = source.indexOf("{failed ? (");
     const emptyAt = source.indexOf("conversations.length === 0 ? (");
     expect(failureAt).toBeGreaterThan(-1);
-    expect(emptyAt).toBeGreaterThan(failureAt);
+    expect(noticeAt).toBeGreaterThan(failureAt);
+    expect(emptyAt).toBeGreaterThan(noticeAt);
 
-    const failureFrame = source.slice(failureAt, emptyAt);
+    const failureFrame = source.slice(failureAt, noticeAt);
     expect(failureFrame).toContain("Couldn&rsquo;t load your conversations.");
-    expect(failureFrame).toContain("Try again");
+    expect(failureFrame).toContain("retryButton");
     expect(failureFrame).not.toContain("Nobody in here yet.");
+    expect(source).toContain('className="threadRetryBtn"');
+    expect(source).toContain("Try again");
+  });
+
+  it("a failed refresh over a loaded list keeps the list and reports beside it", () => {
+    const source = read(INBOX);
+    // A load that produced conversations is remembered, so the full failure
+    // surface can only stand in for a load that never did.
+    expect(source).toContain("setLoadedOnce(true)");
+    expect(source).toContain("failed && !loadedOnce ? (");
+
+    // The quiet notice sits above the list branch, not in place of it.
+    const noticeAt = source.indexOf("{failed ? (");
+    const notice = source.slice(noticeAt, source.indexOf("conversations.length === 0 ? ("));
+    const visible = (notice.match(/>[^<>{}]+</g) ?? [])
+      .map((node) => node.slice(1, -1).trim())
+      .filter(Boolean)
+      .join("\n");
+    expect(visible).toContain("Couldn&rsquo;t refresh this list. It shows what loaded last.");
+    for (const leak of ["fetch", "status", "500", "AbortError", "network", "error", "sorry", "—", "!"]) {
+      expect(visible.includes(leak), `"${leak}" leaked into the stale notice`).toBe(false);
+    }
+
+    // The shared retry never blanks a list that is already on screen.
+    const retryAt = source.indexOf("const retry = useCallback(");
+    const retry = source.slice(retryAt, source.indexOf("}, [loadedOnce, refresh]);", retryAt));
+    expect(retryAt).toBeGreaterThan(-1);
+    expect(retry).toContain("if (!loadedOnce) setLoaded(false);");
+    expect(retry).not.toContain("setConversations(");
   });
 
   it("both surfaces stay em-dash free in the copy they show", () => {
