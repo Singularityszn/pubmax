@@ -1,13 +1,25 @@
 import { describe, expect, it } from "vitest";
 
-import { summariseGetHome } from "@/lib/tonightGetHome";
+import { rankFoodHandoff, summariseGetHome } from "@/lib/tonightGetHome";
 import type { LastTrainResult } from "@/lib/tfl";
 
 const BASE: LastTrainResult = {
   station: { id: "940GZZLUOXC", name: "Oxford Circus", distanceM: 240 },
   trains: [
-    { lineId: "victoria", lineName: "Victoria", colour: "#0098D4", clock: "00:05", pastMidnight: true },
-    { lineId: "bakerloo", lineName: "Bakerloo", colour: "#B36305", clock: "23:41", pastMidnight: false },
+    {
+      lineId: "victoria",
+      lineName: "Victoria",
+      colour: "#0098D4",
+      clock: "00:05",
+      pastMidnight: true,
+    },
+    {
+      lineId: "bakerloo",
+      lineName: "Bakerloo",
+      colour: "#B36305",
+      clock: "23:41",
+      pastMidnight: false,
+    },
   ],
   generatedAt: "2026-07-17T22:30:00.000Z",
   decision: {
@@ -37,11 +49,26 @@ describe("summariseGetHome", () => {
     const result: LastTrainResult = {
       ...BASE,
       trains: [
-        { lineId: "victoria", lineName: "Victoria", colour: "#0098D4", clock: "23:58", pastMidnight: false },
-        { lineId: "central", lineName: "Central", colour: "#E32017", clock: "00:12", pastMidnight: true },
+        {
+          lineId: "victoria",
+          lineName: "Victoria",
+          colour: "#0098D4",
+          clock: "23:58",
+          pastMidnight: false,
+        },
+        {
+          lineId: "central",
+          lineName: "Central",
+          colour: "#E32017",
+          clock: "00:12",
+          pastMidnight: true,
+        },
       ],
     };
-    const summary = summariseGetHome(result, new Date("2026-07-17T20:00:00.000Z"));
+    const summary = summariseGetHome(
+      result,
+      new Date("2026-07-17T20:00:00.000Z"),
+    );
     expect(summary?.trainLine).toBe("Last train from Oxford Circus 00:12.");
   });
 
@@ -60,7 +87,10 @@ describe("summariseGetHome", () => {
       ...BASE,
       decision: { ...BASE.decision!, disruptionSummary: longNote },
     };
-    const summary = summariseGetHome(result, new Date("2026-07-17T20:00:00.000Z"));
+    const summary = summariseGetHome(
+      result,
+      new Date("2026-07-17T20:00:00.000Z"),
+    );
     expect(summary?.statusLine.length).toBeLessThanOrEqual(91);
     expect(summary?.statusLine.endsWith("…")).toBe(true);
   });
@@ -74,13 +104,41 @@ describe("summariseGetHome", () => {
       }),
     ).toBeNull();
     expect(
-      summariseGetHome({ error: "TfL unavailable" } as unknown as LastTrainResult),
+      summariseGetHome({
+        error: "TfL unavailable",
+      } as unknown as LastTrainResult),
     ).toBeNull();
   });
 
   it("falls back to the latest-running line name when no decision is present", () => {
     const result: LastTrainResult = { ...BASE, decision: undefined };
-    const summary = summariseGetHome(result, new Date("2026-07-17T20:00:00.000Z"));
+    const summary = summariseGetHome(
+      result,
+      new Date("2026-07-17T20:00:00.000Z"),
+    );
     expect(summary?.statusLine).toBe("Victoria line good service.");
+  });
+});
+
+describe("rankFoodHandoff", () => {
+  it("returns no more than three candidates ordered by walking time", () => {
+    const candidates = [
+      { id: "far", walkingDetour: { minutes: 14 } },
+      { id: "nearest", walkingDetour: { minutes: 3 } },
+      { id: "unknown", walkingDetour: { minutes: null } },
+      { id: "middle", walkingDetour: { minutes: 8 } },
+      { id: "near", walkingDetour: { minutes: 5 } },
+    ];
+
+    expect(
+      rankFoodHandoff(candidates).map((candidate) => candidate.id),
+    ).toEqual(["nearest", "near", "middle"]);
+    expect(candidates.map((candidate) => candidate.id)).toEqual([
+      "far",
+      "nearest",
+      "unknown",
+      "middle",
+      "near",
+    ]);
   });
 });

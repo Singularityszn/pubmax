@@ -104,7 +104,11 @@ function roundRectPath(
 // The soft rounded pad every icon sits on. A near-circular paper disc with a thin
 // ink ring gives the marks something to read against on ANY basemap colour — this
 // is what makes both the tinted landmarks and the brand marks legible on dark maps.
-function drawPad(ctx: CanvasRenderingContext2D, size: number, t: IconTokens): void {
+function drawPad(
+  ctx: CanvasRenderingContext2D,
+  size: number,
+  t: IconTokens,
+): void {
   const cx = size / 2;
   const cy = size / 2;
   const r = size / 2 - STROKE * 0.6;
@@ -155,7 +159,14 @@ function drawClockTower(ctx: CanvasRenderingContext2D, t: IconTokens): void {
   const bodyTop = BOX * 0.32;
   const bodyBottom = BOX * 0.82;
   // Tower shaft.
-  roundRectPath(ctx, cx - bodyW / 2, bodyTop, bodyW, bodyBottom - bodyTop, BOX * 0.03);
+  roundRectPath(
+    ctx,
+    cx - bodyW / 2,
+    bodyTop,
+    bodyW,
+    bodyBottom - bodyTop,
+    BOX * 0.03,
+  );
   fillStroke(ctx);
   // Pointed spire.
   ctx.beginPath();
@@ -187,7 +198,14 @@ function drawDome(ctx: CanvasRenderingContext2D, t: IconTokens): void {
   ctx.closePath();
   fillStroke(ctx);
   // Lantern + cross on top.
-  roundRectPath(ctx, cx - BOX * 0.05, BOX * 0.28, BOX * 0.1, BOX * 0.12, BOX * 0.02);
+  roundRectPath(
+    ctx,
+    cx - BOX * 0.05,
+    BOX * 0.28,
+    BOX * 0.1,
+    BOX * 0.12,
+    BOX * 0.02,
+  );
   fillStroke(ctx);
   ctx.beginPath();
   ctx.moveTo(cx, BOX * 0.18);
@@ -209,11 +227,25 @@ function drawTwinTowers(ctx: CanvasRenderingContext2D, t: IconTokens): void {
   const rightX = BOX * 0.74;
   // Deck between the towers.
   const deckY = BOX * 0.5;
-  roundRectPath(ctx, leftX - towerW / 2, deckY, rightX - leftX + towerW, BOX * 0.08, BOX * 0.02);
+  roundRectPath(
+    ctx,
+    leftX - towerW / 2,
+    deckY,
+    rightX - leftX + towerW,
+    BOX * 0.08,
+    BOX * 0.02,
+  );
   fillStroke(ctx);
   // Two towers with little pointed caps.
   for (const x of [leftX, rightX]) {
-    roundRectPath(ctx, x - towerW / 2, towerTop, towerW, towerBottom - towerTop, BOX * 0.02);
+    roundRectPath(
+      ctx,
+      x - towerW / 2,
+      towerTop,
+      towerW,
+      towerBottom - towerTop,
+      BOX * 0.02,
+    );
     fillStroke(ctx);
     ctx.beginPath();
     ctx.moveTo(x - towerW / 2, towerTop);
@@ -292,7 +324,14 @@ function drawGherkin(ctx: CanvasRenderingContext2D, t: IconTokens): void {
   // Bullet silhouette: rounded tip, bulging middle, tucked base.
   ctx.beginPath();
   ctx.moveTo(cx, top);
-  ctx.bezierCurveTo(cx + halfW * 1.4, BOX * 0.4, cx + halfW, bottom, cx, bottom);
+  ctx.bezierCurveTo(
+    cx + halfW * 1.4,
+    BOX * 0.4,
+    cx + halfW,
+    bottom,
+    cx,
+    bottom,
+  );
   ctx.bezierCurveTo(cx - halfW, bottom, cx - halfW * 1.4, BOX * 0.4, cx, top);
   ctx.closePath();
   fillStroke(ctx);
@@ -318,18 +357,46 @@ function drawColumn(ctx: CanvasRenderingContext2D, t: IconTokens): void {
   const cx = BOX / 2;
   const shaftW = BOX * 0.12;
   // Shaft.
-  roundRectPath(ctx, cx - shaftW / 2, BOX * 0.28, shaftW, BOX * 0.42, BOX * 0.02);
+  roundRectPath(
+    ctx,
+    cx - shaftW / 2,
+    BOX * 0.28,
+    shaftW,
+    BOX * 0.42,
+    BOX * 0.02,
+  );
   fillStroke(ctx);
   // Capital + statue cap.
-  roundRectPath(ctx, cx - shaftW * 0.9, BOX * 0.22, shaftW * 1.8, BOX * 0.07, BOX * 0.02);
+  roundRectPath(
+    ctx,
+    cx - shaftW * 0.9,
+    BOX * 0.22,
+    shaftW * 1.8,
+    BOX * 0.07,
+    BOX * 0.02,
+  );
   fillStroke(ctx);
   ctx.beginPath();
   ctx.arc(cx, BOX * 0.17, BOX * 0.05, 0, Math.PI * 2);
   fillStroke(ctx);
   // Stepped base (two widening blocks).
-  roundRectPath(ctx, cx - shaftW, BOX * 0.7, shaftW * 2, BOX * 0.06, BOX * 0.01);
+  roundRectPath(
+    ctx,
+    cx - shaftW,
+    BOX * 0.7,
+    shaftW * 2,
+    BOX * 0.06,
+    BOX * 0.01,
+  );
   fillStroke(ctx);
-  roundRectPath(ctx, cx - shaftW * 1.5, BOX * 0.76, shaftW * 3, BOX * 0.07, BOX * 0.01);
+  roundRectPath(
+    ctx,
+    cx - shaftW * 1.5,
+    BOX * 0.76,
+    shaftW * 3,
+    BOX * 0.07,
+    BOX * 0.01,
+  );
   fillStroke(ctx);
 }
 
@@ -356,12 +423,26 @@ function drawCivic(ctx: CanvasRenderingContext2D, t: IconTokens): void {
   const colBottom = BOX * 0.78;
   const colW = BOX * 0.07;
   for (let i = 0; i < 4; i += 1) {
-    const x = cx - halfW * 0.75 + i * (halfW * 1.5) / 3;
-    roundRectPath(ctx, x - colW / 2, colTop, colW, colBottom - colTop, BOX * 0.01);
+    const x = cx - halfW * 0.75 + (i * (halfW * 1.5)) / 3;
+    roundRectPath(
+      ctx,
+      x - colW / 2,
+      colTop,
+      colW,
+      colBottom - colTop,
+      BOX * 0.01,
+    );
     fillStroke(ctx);
   }
   // Ground step.
-  roundRectPath(ctx, cx - halfW * 1.05, colBottom, halfW * 2.1, BOX * 0.06, BOX * 0.01);
+  roundRectPath(
+    ctx,
+    cx - halfW * 1.05,
+    colBottom,
+    halfW * 2.1,
+    BOX * 0.06,
+    BOX * 0.01,
+  );
   fillStroke(ctx);
 }
 
@@ -374,13 +455,27 @@ function drawKeep(ctx: CanvasRenderingContext2D, t: IconTokens): void {
   const bodyTop = BOX * 0.34;
   const bodyBottom = BOX * 0.8;
   // Keep body.
-  roundRectPath(ctx, cx - bodyW / 2, bodyTop, bodyW, bodyBottom - bodyTop, BOX * 0.03);
+  roundRectPath(
+    ctx,
+    cx - bodyW / 2,
+    bodyTop,
+    bodyW,
+    bodyBottom - bodyTop,
+    BOX * 0.03,
+  );
   fillStroke(ctx);
   // Four corner turrets poking above the body.
   const turretW = BOX * 0.1;
   const turretTop = BOX * 0.24;
   for (const x of [cx - bodyW / 2, cx + bodyW / 2 - turretW]) {
-    roundRectPath(ctx, x, turretTop, turretW, bodyTop - turretTop + BOX * 0.04, BOX * 0.02);
+    roundRectPath(
+      ctx,
+      x,
+      turretTop,
+      turretW,
+      bodyTop - turretTop + BOX * 0.04,
+      BOX * 0.02,
+    );
     fillStroke(ctx);
     // Little pointed cap on each turret.
     ctx.beginPath();
@@ -391,7 +486,14 @@ function drawKeep(ctx: CanvasRenderingContext2D, t: IconTokens): void {
     fillStroke(ctx);
   }
   // Doorway hint.
-  roundRectPath(ctx, cx - BOX * 0.05, bodyBottom - BOX * 0.16, BOX * 0.1, BOX * 0.16, BOX * 0.04);
+  roundRectPath(
+    ctx,
+    cx - BOX * 0.05,
+    bodyBottom - BOX * 0.16,
+    BOX * 0.1,
+    BOX * 0.16,
+    BOX * 0.04,
+  );
   ctx.fillStyle = t.paper;
   fillStroke(ctx);
 }
@@ -412,7 +514,14 @@ function drawMarket(ctx: CanvasRenderingContext2D, t: IconTokens): void {
   ctx.closePath();
   fillStroke(ctx);
   // Walls.
-  roundRectPath(ctx, cx - halfW * 0.8, eaveY, halfW * 1.6, wallBottom - eaveY, BOX * 0.02);
+  roundRectPath(
+    ctx,
+    cx - halfW * 0.8,
+    eaveY,
+    halfW * 1.6,
+    wallBottom - eaveY,
+    BOX * 0.02,
+  );
   fillStroke(ctx);
   // Scalloped awning across the front.
   ctx.beginPath();
@@ -441,14 +550,24 @@ function drawCanal(ctx: CanvasRenderingContext2D, t: IconTokens): void {
   ctx.moveTo(cx - spanHalf, deckY);
   ctx.quadraticCurveTo(cx, deckY - BOX * 0.14, cx + spanHalf, deckY);
   ctx.lineTo(cx + spanHalf, deckY + BOX * 0.08);
-  ctx.quadraticCurveTo(cx, deckY - BOX * 0.06, cx - spanHalf, deckY + BOX * 0.08);
+  ctx.quadraticCurveTo(
+    cx,
+    deckY - BOX * 0.06,
+    cx - spanHalf,
+    deckY + BOX * 0.08,
+  );
   ctx.closePath();
   fillStroke(ctx);
   // Arch opening under the hump.
   ctx.beginPath();
   ctx.fillStyle = t.paper;
   ctx.moveTo(cx - BOX * 0.14, deckY + BOX * 0.08);
-  ctx.quadraticCurveTo(cx, deckY - BOX * 0.02, cx + BOX * 0.14, deckY + BOX * 0.08);
+  ctx.quadraticCurveTo(
+    cx,
+    deckY - BOX * 0.02,
+    cx + BOX * 0.14,
+    deckY + BOX * 0.08,
+  );
   ctx.closePath();
   fillStroke(ctx);
   // Water lines below.
@@ -503,7 +622,14 @@ function drawChimneys(ctx: CanvasRenderingContext2D, t: IconTokens): void {
   const bodyTop = BOX * 0.5;
   const bodyBottom = BOX * 0.8;
   // Main block.
-  roundRectPath(ctx, cx - bodyW / 2, bodyTop, bodyW, bodyBottom - bodyTop, BOX * 0.02);
+  roundRectPath(
+    ctx,
+    cx - bodyW / 2,
+    bodyTop,
+    bodyW,
+    bodyBottom - bodyTop,
+    BOX * 0.02,
+  );
   fillStroke(ctx);
   // Four chimneys standing on the corners of the block.
   const chW = BOX * 0.07;
@@ -548,7 +674,12 @@ function drawUnderground(ctx: CanvasRenderingContext2D, t: IconTokens): void {
   // Blue horizontal bar across the full width, height ≈ 22% of the diameter.
   const barH = rOuter * 2 * 0.22;
   ctx.fillStyle = TFL_BLUE;
-  ctx.fillRect(cx - rOuter - BOX * 0.02, cy - barH / 2, (rOuter + BOX * 0.02) * 2, barH);
+  ctx.fillRect(
+    cx - rOuter - BOX * 0.02,
+    cy - barH / 2,
+    (rOuter + BOX * 0.02) * 2,
+    barH,
+  );
   ctx.restore();
 }
 
@@ -646,7 +777,12 @@ function drawRiver(ctx: CanvasRenderingContext2D, t: IconTokens): void {
   const waveY = cy + BOX * 0.12;
   ctx.moveTo(cx - BOX * 0.18, waveY);
   ctx.quadraticCurveTo(cx - BOX * 0.09, waveY - BOX * 0.05, cx, waveY);
-  ctx.quadraticCurveTo(cx + BOX * 0.09, waveY + BOX * 0.05, cx + BOX * 0.18, waveY);
+  ctx.quadraticCurveTo(
+    cx + BOX * 0.09,
+    waveY + BOX * 0.05,
+    cx + BOX * 0.18,
+    waveY,
+  );
   ctx.stroke();
   ctx.restore();
 }
@@ -658,7 +794,7 @@ function drawRiver(ctx: CanvasRenderingContext2D, t: IconTokens): void {
 // ---------------------------------------------------------------------------
 
 export type DrinkPinKind = "pint" | "wine" | "cocktail" | "spirits";
-export type VenuePinKind = DrinkPinKind | "coupe" | "skewer";
+export type VenuePinKind = DrinkPinKind | "coupe" | "skewer" | "fork";
 
 // Soft brass-grey for unpriced pins — never pure ink/muted black (reads as a
 // building blob on the basemap). Hex equivalent of a desaturated brass.
@@ -807,10 +943,44 @@ function drawSkewerSilhouette(
   ctx.stroke();
   for (const y of [-0.2, -0.04, 0.12]) {
     ctx.beginPath();
-    roundRectPath(ctx, -BOX * 0.12, BOX * y, BOX * 0.24, BOX * 0.13, BOX * 0.035);
+    roundRectPath(
+      ctx,
+      -BOX * 0.12,
+      BOX * y,
+      BOX * 0.24,
+      BOX * 0.13,
+      BOX * 0.035,
+    );
     fillStroke(ctx);
   }
   ctx.restore();
+}
+
+function drawForkSilhouette(
+  ctx: CanvasRenderingContext2D,
+  fill: string,
+  stroke: string,
+): void {
+  const cx = BOX / 2;
+  setDrinkGlassStyle(ctx, fill, stroke);
+  ctx.beginPath();
+  ctx.moveTo(cx - BOX * 0.15, BOX * 0.16);
+  ctx.lineTo(cx - BOX * 0.15, BOX * 0.38);
+  ctx.quadraticCurveTo(cx - BOX * 0.15, BOX * 0.52, cx, BOX * 0.52);
+  ctx.quadraticCurveTo(
+    cx + BOX * 0.15,
+    BOX * 0.52,
+    cx + BOX * 0.15,
+    BOX * 0.38,
+  );
+  ctx.lineTo(cx + BOX * 0.15, BOX * 0.16);
+  ctx.moveTo(cx - BOX * 0.05, BOX * 0.16);
+  ctx.lineTo(cx - BOX * 0.05, BOX * 0.4);
+  ctx.moveTo(cx + BOX * 0.05, BOX * 0.16);
+  ctx.lineTo(cx + BOX * 0.05, BOX * 0.4);
+  ctx.moveTo(cx, BOX * 0.52);
+  ctx.lineTo(cx, BOX * 0.84);
+  ctx.stroke();
 }
 
 function drawSpiritsSilhouette(
@@ -831,7 +1001,14 @@ function drawSpiritsSilhouette(
   fillStroke(ctx);
   // Cork / neck cap
   ctx.beginPath();
-  roundRectPath(ctx, cx - BOX * 0.05, BOX * 0.1, BOX * 0.1, BOX * 0.1, BOX * 0.02);
+  roundRectPath(
+    ctx,
+    cx - BOX * 0.05,
+    BOX * 0.1,
+    BOX * 0.1,
+    BOX * 0.1,
+    BOX * 0.02,
+  );
   fillStroke(ctx);
 }
 
@@ -846,6 +1023,7 @@ function makeVenuePinDraw(kind: VenuePinKind, bucket: number) {
     else if (kind === "cocktail") drawCocktailSilhouette(ctx, fill, stroke);
     else if (kind === "coupe") drawCoupeSilhouette(ctx, fill, stroke);
     else if (kind === "skewer") drawSkewerSilhouette(ctx, fill, stroke);
+    else if (kind === "fork") drawForkSilhouette(ctx, fill, stroke);
     else drawSpiritsSilhouette(ctx, fill, stroke);
   };
 }
@@ -857,6 +1035,7 @@ const VENUE_PIN_KINDS: VenuePinKind[] = [
   "spirits",
   "coupe",
   "skewer",
+  "fork",
 ];
 const DRINK_BUCKETS = [0, 1, 2, 3] as const;
 
@@ -875,7 +1054,8 @@ export function drinkPinKindFromCategories(
   // owner audit) with a martini glyph. The amenity only decides when the venue
   // has no recorded categories at all.
   if (cats.has("cocktail")) return "cocktail";
-  if (cats.has("wine") || cats.has("champagne") || cats.has("prosecco")) return "wine";
+  if (cats.has("wine") || cats.has("champagne") || cats.has("prosecco"))
+    return "wine";
   if (
     cats.has("whisky") ||
     cats.has("gin") ||
@@ -885,7 +1065,13 @@ export function drinkPinKindFromCategories(
   ) {
     return "spirits";
   }
-  if (cats.has("beer") || cats.has("ale") || cats.has("lager") || cats.has("stout") || cats.has("cider")) {
+  if (
+    cats.has("beer") ||
+    cats.has("ale") ||
+    cats.has("lager") ||
+    cats.has("stout") ||
+    cats.has("cider")
+  ) {
     return "pint";
   }
   if (cocktailsAmenity) return "cocktail";
@@ -963,14 +1149,12 @@ export const MAP_ICON_SPECS: IconSpec[] = [
   { key: "river", ns: "tfl", size: BOX, draw: drawRiver },
   // Venue pins: one glyph raster per kind and price bucket.
   ...VENUE_PIN_KINDS.flatMap((kind) =>
-    DRINK_BUCKETS.map(
-      (bucket): IconSpec => ({
-        key: venuePinIconKey(kind, bucket),
-        ns: "drink",
-        size: BOX,
-        draw: makeVenuePinDraw(kind, bucket),
-      }),
-    ),
+    DRINK_BUCKETS.map((bucket): IconSpec => ({
+      key: venuePinIconKey(kind, bucket),
+      ns: "drink",
+      size: BOX,
+      draw: makeVenuePinDraw(kind, bucket),
+    })),
   ),
   // The unpriced UK base layer's single glyph.
   { key: UK_BASE_ICON_KEY, ns: "base", size: BOX, draw: drawBasePub },
@@ -1001,12 +1185,17 @@ export const VENUE_PIN_ICON_KEYS: readonly string[] = MAP_ICON_SPECS.filter(
 // (jsdom/node canvases return a null 2d context). The caller scales the backing
 // store by `pixelRatio` and then draws in CSS-pixel space, so `draw` stays
 // resolution-independent.
-export function rasterize(spec: IconSpec, t: IconTokens, pixelRatio = 2): ImageData {
+export function rasterize(
+  spec: IconSpec,
+  t: IconTokens,
+  pixelRatio = 2,
+): ImageData {
   const c = document.createElement("canvas");
   c.width = spec.size * pixelRatio;
   c.height = spec.size * pixelRatio;
   const ctx = c.getContext("2d");
-  if (!ctx) throw new Error("mapIcons.rasterize: 2D canvas context unavailable");
+  if (!ctx)
+    throw new Error("mapIcons.rasterize: 2D canvas context unavailable");
   ctx.scale(pixelRatio, pixelRatio);
   spec.draw(ctx, t);
   return ctx.getImageData(0, 0, c.width, c.height);

@@ -1,5 +1,6 @@
 import { NIGHT_AREA_SLUGS, type NightAreaSlug } from "@/lib/nightAreas";
 import { haversineKm } from "@/lib/haversine";
+import { rankFoodHandoff } from "@/lib/tonightGetHome";
 import evidenceSnapshot from "@/public/data/late_food_evidence.json";
 
 // Food endings are deliberately separate from the Venue Dataset: their hours,
@@ -13,15 +14,32 @@ export const LATE_FOOD_AREA_ALIASES = {
   piccadilly: "piccadilly-soho",
 } as const satisfies Record<string, LateFoodArea>;
 
-export const LATE_FOOD_CATEGORIES = ["kebab", "pizza", "cafe", "restaurant"] as const;
+export const LATE_FOOD_CATEGORIES = [
+  "kebab",
+  "pizza",
+  "cafe",
+  "restaurant",
+] as const;
 export type LateFoodCategory = (typeof LATE_FOOD_CATEGORIES)[number];
 export type LateFoodDietary = "vegan" | "vegetarian" | "gluten-free";
 export type LateFoodConfidence = "high" | "medium" | "low";
 
-const WEEKDAYS = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"] as const;
+const WEEKDAYS = [
+  "monday",
+  "tuesday",
+  "wednesday",
+  "thursday",
+  "friday",
+  "saturday",
+  "sunday",
+] as const;
 type Weekday = (typeof WEEKDAYS)[number];
 
-export type LateFoodServiceWindow = { open: string; close: string; closesNextDay: boolean };
+export type LateFoodServiceWindow = {
+  open: string;
+  close: string;
+  closesNextDay: boolean;
+};
 export type LateFoodHours = {
   service: string;
   verifyOnNight: true;
@@ -35,6 +53,13 @@ export type LateFoodProvenance = {
   observedAt: string;
   reviewedAt: string;
   expiresAt: string;
+};
+
+export type LateFoodAnchor = {
+  label: string;
+  price: number;
+  sourceUrl: string;
+  observedAt: string;
 };
 
 export type LateFoodWalkingDetour = {
@@ -56,6 +81,7 @@ export type LateFoodTerminal = {
   hours: LateFoodHours;
   walkingDetour: LateFoodWalkingDetour;
   provenance: LateFoodProvenance;
+  anchor: LateFoodAnchor;
   confidence: LateFoodConfidence;
   openAtRequestedTime: boolean | null;
 };
@@ -76,7 +102,8 @@ export type LateFoodApiErrorResponse = {
   details: { terminals: [] };
 };
 
-export type LateFoodApiResponse = LateFoodApiSuccessResponse | LateFoodApiErrorResponse;
+export type LateFoodApiResponse =
+  LateFoodApiSuccessResponse | LateFoodApiErrorResponse;
 
 type RawOption = {
   id: string;
@@ -97,6 +124,7 @@ type RawOption = {
     reviewedAt: string;
     expiresAt: string;
   };
+  anchor: LateFoodAnchor;
 };
 
 type RankingOptions = {
@@ -106,7 +134,10 @@ type RankingOptions = {
 };
 
 function rawOptions(): RawOption[] {
-  const areas = evidenceSnapshot.areas as Record<LateFoodArea, { options: RawOption[] }>;
+  const areas = evidenceSnapshot.areas as Record<
+    LateFoodArea,
+    { options: RawOption[] }
+  >;
   return NIGHT_AREA_SLUGS.flatMap((area) => areas[area]?.options ?? []);
 }
 
@@ -115,7 +146,9 @@ function clockMinutes(value: string): number {
   return hour * 60 + minute;
 }
 
-function londonClock(value: Date): { weekday: Weekday; minutes: number } | null {
+function londonClock(
+  value: Date,
+): { weekday: Weekday; minutes: number } | null {
   if (!Number.isFinite(value.getTime())) return null;
   const parts = new Intl.DateTimeFormat("en-GB", {
     timeZone: "Europe/London",
@@ -124,40 +157,84 @@ function londonClock(value: Date): { weekday: Weekday; minutes: number } | null 
     minute: "2-digit",
     hourCycle: "h23",
   }).formatToParts(value);
-  const weekday = parts.find((part) => part.type === "weekday")?.value.toLocaleLowerCase("en-GB") as Weekday | undefined;
+  const weekday = parts
+    .find((part) => part.type === "weekday")
+    ?.value.toLocaleLowerCase("en-GB") as Weekday | undefined;
   const hour = Number(parts.find((part) => part.type === "hour")?.value);
   const minute = Number(parts.find((part) => part.type === "minute")?.value);
-  return weekday && WEEKDAYS.includes(weekday) && Number.isFinite(hour) && Number.isFinite(minute)
+  return weekday &&
+    WEEKDAYS.includes(weekday) &&
+    Number.isFinite(hour) &&
+    Number.isFinite(minute)
     ? { weekday, minutes: hour * 60 + minute }
     : null;
 }
 
-export function isLateFoodOpenAt(hours: LateFoodHours, value: string | Date): boolean | null {
+export function isLateFoodOpenAt(
+  hours: LateFoodHours,
+  value: string | Date,
+): boolean | null {
   const instant = value instanceof Date ? value : new Date(value);
   const local = londonClock(instant);
   if (!local) return null;
   const dayIndex = WEEKDAYS.indexOf(local.weekday);
   const today = hours.weekly[local.weekday] ?? [];
-  if (today.some((window) => {
-    const open = clockMinutes(window.open);
-    const close = clockMinutes(window.close);
-    return local.minutes >= open && (window.closesNextDay || local.minutes < close);
-  })) return true;
-  const previousDay = WEEKDAYS[(dayIndex + WEEKDAYS.length - 1) % WEEKDAYS.length];
-  return (hours.weekly[previousDay] ?? []).some((window) =>
-    window.closesNextDay && local.minutes < clockMinutes(window.close),
+  if (
+    today.some((window) => {
+      const open = clockMinutes(window.open);
+      const close = clockMinutes(window.close);
+      return (
+        local.minutes >= open && (window.closesNextDay || local.minutes < close)
+      );
+    })
+  )
+    return true;
+  const previousDay =
+    WEEKDAYS[(dayIndex + WEEKDAYS.length - 1) % WEEKDAYS.length];
+  return (hours.weekly[previousDay] ?? []).some(
+    (window) =>
+      window.closesNextDay && local.minutes < clockMinutes(window.close),
   );
 }
 
-function terminalFromRaw(raw: RawOption, options: RankingOptions): LateFoodTerminal | null {
+function terminalFromRaw(
+  raw: RawOption,
+  options: RankingOptions,
+): LateFoodTerminal | null {
   const now = options.now ?? Date.now();
-  const at = options.at ? (options.at instanceof Date ? options.at : new Date(options.at)) : null;
-  if (Date.parse(raw.source.observedAt) > now || Date.parse(raw.source.reviewedAt) > now || Date.parse(raw.source.expiresAt) <= now) return null;
-  if (at && (!Number.isFinite(at.getTime()) || at.getTime() >= Date.parse(raw.source.expiresAt))) return null;
-  const directKm = options.from
-    ? haversineKm([options.from.lng, options.from.lat], [raw.coordinates.lng, raw.coordinates.lat])
+  const at = options.at
+    ? options.at instanceof Date
+      ? options.at
+      : new Date(options.at)
     : null;
-  const openAtRequestedTime = at ? isLateFoodOpenAt({ service: raw.serviceHoursText, verifyOnNight: true, weekly: raw.weeklyHours }, at) : null;
+  if (
+    Date.parse(raw.source.observedAt) > now ||
+    Date.parse(raw.source.reviewedAt) > now ||
+    Date.parse(raw.source.expiresAt) <= now
+  )
+    return null;
+  if (
+    at &&
+    (!Number.isFinite(at.getTime()) ||
+      at.getTime() >= Date.parse(raw.source.expiresAt))
+  )
+    return null;
+  const directKm = options.from
+    ? haversineKm(
+        [options.from.lng, options.from.lat],
+        [raw.coordinates.lng, raw.coordinates.lat],
+      )
+    : null;
+  const openAtRequestedTime = at
+    ? isLateFoodOpenAt(
+        {
+          service: raw.serviceHoursText,
+          verifyOnNight: true,
+          weekly: raw.weeklyHours,
+        },
+        at,
+      )
+    : null;
   return {
     id: raw.id,
     name: raw.name,
@@ -166,18 +243,25 @@ function terminalFromRaw(raw: RawOption, options: RankingOptions): LateFoodTermi
     dietary: [],
     address: raw.address,
     coordinates: raw.coordinates,
-    hours: { service: raw.serviceHoursText, verifyOnNight: true, weekly: raw.weeklyHours },
-    walkingDetour: directKm === null ? {
-      minutes: null,
-      distanceKm: null,
-      basis: "unavailable",
-      note: "Choose a final route stop to calculate distance.",
-    } : {
-      minutes: Math.ceil((directKm / 4.8) * 60),
-      distanceKm: Number(directKm.toFixed(2)),
-      basis: "straight-line-from-final-stop",
-      note: "Direct-distance estimate from the route's actual final stop; confirm the walking route before leaving.",
+    hours: {
+      service: raw.serviceHoursText,
+      verifyOnNight: true,
+      weekly: raw.weeklyHours,
     },
+    walkingDetour:
+      directKm === null
+        ? {
+            minutes: null,
+            distanceKm: null,
+            basis: "unavailable",
+            note: "Choose a final route stop to calculate distance.",
+          }
+        : {
+            minutes: Math.ceil((directKm / 4.8) * 60),
+            distanceKm: Number(directKm.toFixed(2)),
+            basis: "straight-line-from-final-stop",
+            note: "Direct-distance estimate from the route's actual final stop; confirm the walking route before leaving.",
+          },
     provenance: {
       kind: "official_operator",
       source: raw.source.publisher,
@@ -186,24 +270,31 @@ function terminalFromRaw(raw: RawOption, options: RankingOptions): LateFoodTermi
       reviewedAt: raw.source.reviewedAt,
       expiresAt: raw.source.expiresAt,
     },
+    anchor: raw.anchor,
     confidence: raw.confidence,
     openAtRequestedTime,
   };
 }
 
 export const LATE_FOOD_TERMINALS: readonly LateFoodTerminal[] = rawOptions()
-  .map((raw) => terminalFromRaw(raw, { now: Date.parse(evidenceSnapshot.generatedAt) }))
+  .map((raw) =>
+    terminalFromRaw(raw, { now: Date.parse(evidenceSnapshot.generatedAt) }),
+  )
   .filter((terminal): terminal is LateFoodTerminal => terminal !== null);
 
 export function isLateFoodArea(value: string): value is LateFoodArea {
   return (NIGHT_AREA_SLUGS as readonly string[]).includes(value);
 }
 
-export function normalizeLateFoodArea(value: string | null | undefined): LateFoodArea | null {
+export function normalizeLateFoodArea(
+  value: string | null | undefined,
+): LateFoodArea | null {
   const candidate = value?.trim().toLowerCase();
   if (!candidate) return null;
   if (Object.hasOwn(LATE_FOOD_AREA_ALIASES, candidate)) {
-    return LATE_FOOD_AREA_ALIASES[candidate as keyof typeof LATE_FOOD_AREA_ALIASES];
+    return LATE_FOOD_AREA_ALIASES[
+      candidate as keyof typeof LATE_FOOD_AREA_ALIASES
+    ];
   }
   return isLateFoodArea(candidate) ? candidate : null;
 }
@@ -213,20 +304,28 @@ export function getLateFoodForArea(
   tags: readonly string[] = [],
   options: RankingOptions = {},
 ): LateFoodTerminal[] {
-  const normalizedTags = tags.map((tag) => tag.trim().toLowerCase()).filter(Boolean);
-  const requestedAt = options.at ? (options.at instanceof Date ? options.at : new Date(options.at)) : null;
-  return rawOptions()
+  const normalizedTags = tags
+    .map((tag) => tag.trim().toLowerCase())
+    .filter(Boolean);
+  const requestedAt = options.at
+    ? options.at instanceof Date
+      ? options.at
+      : new Date(options.at)
+    : null;
+  const candidates = rawOptions()
     .filter((raw) => raw.area === area)
     .map((raw) => terminalFromRaw(raw, options))
     .filter((terminal): terminal is LateFoodTerminal => terminal !== null)
     .filter((terminal) => !requestedAt || terminal.openAtRequestedTime === true)
-    .filter((terminal) => normalizedTags.length === 0 || normalizedTags.some((tag) =>
-      terminal.category === tag || terminal.dietary.includes(tag as LateFoodDietary) || terminal.name.toLowerCase().includes(tag)
-    ))
-    .sort((left, right) => {
-      const open = Number(right.openAtRequestedTime === true) - Number(left.openAtRequestedTime === true);
-      const confidence = { high: 3, medium: 2, low: 1 } satisfies Record<LateFoodConfidence, number>;
-      return open || confidence[right.confidence] - confidence[left.confidence]
-        || (left.walkingDetour.distanceKm ?? Number.POSITIVE_INFINITY) - (right.walkingDetour.distanceKm ?? Number.POSITIVE_INFINITY);
-    });
+    .filter(
+      (terminal) =>
+        normalizedTags.length === 0 ||
+        normalizedTags.some(
+          (tag) =>
+            terminal.category === tag ||
+            terminal.dietary.includes(tag as LateFoodDietary) ||
+            terminal.name.toLowerCase().includes(tag),
+        ),
+    );
+  return rankFoodHandoff(candidates);
 }

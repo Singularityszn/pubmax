@@ -20,14 +20,50 @@ function applyFoodUpdatesForKeys(
   const scoped = updates.filter((u) => keySet.has(u.venueKey));
   if (scoped.length === 0) return base;
   const canonical = keys[0];
-  const remapped = scoped.map((u) => (u.venueKey === canonical ? u : { ...u, venueKey: canonical }));
+  const remapped = scoped.map((u) =>
+    u.venueKey === canonical ? u : { ...u, venueKey: canonical },
+  );
   return applyFoodPriceUpdatesToMenu(canonical, base, remapped);
 }
 
-/** Food menu for the venue inspector — sourced updates only (no seed layer yet). */
+function anchorFoodItem(venue: VenueMenuVenue): FoodItem[] {
+  if (
+    venue.kind !== "restaurant" ||
+    typeof venue.anchorLabel !== "string" ||
+    !venue.anchorLabel.trim() ||
+    typeof venue.cheapestPrice !== "number" ||
+    !Number.isFinite(venue.cheapestPrice) ||
+    typeof venue.anchorObservedAt !== "string" ||
+    !venue.anchorObservedAt.trim() ||
+    typeof venue.anchorSourceUrl !== "string" ||
+    !venue.anchorSourceUrl.startsWith("https://")
+  ) {
+    return [];
+  }
+  return [
+    {
+      id: `anchor-${venue.id}`,
+      name: venue.anchorLabel,
+      category: "mains",
+      priceGbp: venue.cheapestPrice,
+      provenance: {
+        source: "Official venue menu",
+        licence: "venue menu",
+        observedAt: venue.anchorObservedAt,
+      },
+      source: venue.anchorSourceUrl,
+    },
+  ];
+}
+
+/** Food menu for the venue inspector, seeded by a sourced restaurant anchor. */
 export function venueFoodMenuForInspector(
   venue: VenueMenuVenue,
   updates: FoodPriceUpdate[] = [],
 ): FoodItem[] {
-  return applyFoodUpdatesForKeys([], venueMenuLookupKeys(venue), updates);
+  return applyFoodUpdatesForKeys(
+    anchorFoodItem(venue),
+    venueMenuLookupKeys(venue),
+    updates,
+  );
 }

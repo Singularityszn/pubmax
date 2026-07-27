@@ -1,6 +1,10 @@
 import { priceForBeer } from "@/lib/beers";
 import { POI_CATEGORY_META, type Poi } from "@/lib/pois";
-import { drinkPinKindFromCategories, iconId, venuePinIconKey } from "@/lib/mapIcons";
+import {
+  drinkPinKindFromCategories,
+  iconId,
+  venuePinIconKey,
+} from "@/lib/mapIcons";
 import type { Landmark } from "@/lib/landmarks";
 import { bandAnchors, type StoryBand } from "@/lib/storyBands";
 import type { Venue } from "@/lib/venues";
@@ -30,8 +34,11 @@ export function priceBucket(price: number | null): number {
  * Null for anything that is not a real, positive figure - a missing price is
  * NEVER a placeholder on this map ("£?" is a worse answer than silence).
  */
-export function formatPinPriceLabel(price: number | null | undefined): string | null {
-  if (typeof price !== "number" || !Number.isFinite(price) || price <= 0) return null;
+export function formatPinPriceLabel(
+  price: number | null | undefined,
+): string | null {
+  if (typeof price !== "number" || !Number.isFinite(price) || price <= 0)
+    return null;
   const pence = Math.round(price * 100);
   if (pence <= 0) return null;
   return pence % 100 === 0 ? `£${pence / 100}` : `£${(pence / 100).toFixed(2)}`;
@@ -74,7 +81,8 @@ function pinPriceStack(
   beerPrice: number | null,
 ): { price: number | null; sourcedPrice: number | null } {
   if (favoritePint) return { price: beerPrice, sourcedPrice: beerPrice };
-  const bandPrice = signals?.latestContributorPrice ?? venue.cheapestPrice ?? null;
+  const bandPrice =
+    signals?.latestContributorPrice ?? venue.cheapestPrice ?? null;
   return {
     price: bandPrice ?? signals?.latestDemoPrice ?? null,
     sourcedPrice: isPubVenueKind(venue.kind) ? bandPrice : null,
@@ -107,7 +115,12 @@ export function pubsToGeoJSON(
       const beerPrice = favoritePint ? priceForBeer(venue, favoritePint) : null;
       const serves = !favoritePint || beerPrice !== null;
       // Band price vs sayable price — the split is pinPriceStack's contract.
-      const { price, sourcedPrice } = pinPriceStack(venue, signals, favoritePint, beerPrice);
+      const { price, sourcedPrice } = pinPriceStack(
+        venue,
+        signals,
+        favoritePint,
+        beerPrice,
+      );
       const bucket = venue.priceBand ?? priceBucket(price);
       const priceLabel = formatPinPriceLabel(sourcedPrice);
       // Active drink lens owns the glyph: beer → pint glasses, wine → wine, etc.
@@ -129,27 +142,29 @@ export function pubsToGeoJSON(
           ? "coupe"
           : venue.kind === "food"
             ? "skewer"
-            : lens === "beer"
-          ? "pint"
-          : lens && lens !== "other"
-            ? drinkPinKindFromCategories(
-                [lens],
-                lens === "cocktail" ||
-                  Boolean(venue.amenities.cocktails) ||
-                  Boolean(venue.filterHints?.amenities.cocktails),
-              )
-            : hintCategories && hintCategories.length > 0
-              ? drinkPinKindFromCategories(
-                  hintCategories,
-                  Boolean(venue.amenities.cocktails) ||
-                    Boolean(venue.filterHints?.amenities.cocktails),
-                )
-              : "pint";
+            : venue.kind === "restaurant"
+              ? "fork"
+              : lens === "beer"
+                ? "pint"
+                : lens && lens !== "other"
+                  ? drinkPinKindFromCategories(
+                      [lens],
+                      lens === "cocktail" ||
+                        Boolean(venue.amenities.cocktails) ||
+                        Boolean(venue.filterHints?.amenities.cocktails),
+                    )
+                  : hintCategories && hintCategories.length > 0
+                    ? drinkPinKindFromCategories(
+                        hintCategories,
+                        Boolean(venue.amenities.cocktails) ||
+                          Boolean(venue.filterHints?.amenities.cocktails),
+                      )
+                    : "pint";
       const scraped = Boolean(
         venue.filterHints?.scraped ||
-          venue.sourceDatasets?.some((source) =>
-            /london_chain|greene.?king|nicholson|youngs/i.test(source),
-          ),
+        venue.sourceDatasets?.some((source) =>
+          /london_chain|greene.?king|nicholson|youngs/i.test(source),
+        ),
       );
       return {
         type: "Feature" as const,
@@ -185,7 +200,10 @@ export function pubsToGeoJSON(
           // this function.
           ...(priceLabel ? { priceLabel } : {}),
         },
-        geometry: { type: "Point" as const, coordinates: [venue.longitude, venue.latitude] },
+        geometry: {
+          type: "Point" as const,
+          coordinates: [venue.longitude, venue.latitude],
+        },
       };
     }),
   };
@@ -228,7 +246,10 @@ export function routeToLine(route: Venue[]): GeoJSON.FeatureCollection {
               properties: { source: "straight" },
               geometry: {
                 type: "LineString" as const,
-                coordinates: route.map((venue) => [venue.longitude, venue.latitude]),
+                coordinates: route.map((venue) => [
+                  venue.longitude,
+                  venue.latitude,
+                ]),
               },
             },
           ]
@@ -243,7 +264,10 @@ export function routeToLine(route: Venue[]): GeoJSON.FeatureCollection {
 // we never emit "word …".
 export const ROUTE_STOP_LABEL_MAX = 18;
 
-export function truncateStopName(name: string, max = ROUTE_STOP_LABEL_MAX): string {
+export function truncateStopName(
+  name: string,
+  max = ROUTE_STOP_LABEL_MAX,
+): string {
   const trimmed = name.trim();
   if (trimmed.length <= max) return trimmed;
   // Reserve one slot for the single-glyph ellipsis.
@@ -263,7 +287,10 @@ export function routeToStops(route: Venue[]): GeoJSON.FeatureCollection {
         name: venue.name,
         stopName: truncateStopName(venue.name),
       },
-      geometry: { type: "Point" as const, coordinates: [venue.longitude, venue.latitude] },
+      geometry: {
+        type: "Point" as const,
+        coordinates: [venue.longitude, venue.latitude],
+      },
     })),
   };
 }
@@ -294,7 +321,9 @@ export function bandCorridorGeoJSON(
   };
 }
 
-export function landmarksToGeoJSON(catalog: readonly Landmark[]): GeoJSON.FeatureCollection {
+export function landmarksToGeoJSON(
+  catalog: readonly Landmark[],
+): GeoJSON.FeatureCollection {
   // Each landmark carries its own pictogram id (lib/mapIcons, ns "lm") so the
   // symbol layer draws a recognisable silhouette per feature.
   return {

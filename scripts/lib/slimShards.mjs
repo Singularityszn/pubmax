@@ -24,9 +24,10 @@
 
 // A borough is a LAZY outer shard when it is dominated by unpriced presence
 // pins (low priced ratio) AND carries enough of them to be worth deferring.
-// Today the ten #315 boroughs sit at 4–17% priced; the leanest CORE borough
-// (Richmond) is 62% — a wide, safe gap around this 40% threshold.
-export const OUTER_MAX_PRICED_RATIO = 0.4;
+// The original ten #315 boroughs sit at 4–17% priced. Richmond now sits just
+// below 60%, while the leanest remaining core borough is above 66%, leaving a
+// clear data-driven gap for the restaurant-expanded index.
+export const OUTER_MAX_PRICED_RATIO = 0.6;
 export const OUTER_MIN_VENUES = 20;
 
 export const MANIFEST_FILE = "venues_slim.manifest.json";

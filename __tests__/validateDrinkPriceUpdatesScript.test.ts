@@ -100,7 +100,7 @@ function setupScratch(files: Record<string, unknown>): string {
     join(ROOT, "data", "night_out_place_provenance_registry.json"),
     join(scratchRoot, "data", "night_out_place_provenance_registry.json"),
   );
-  for (const file of ["bars.json", "late_food.json"]) {
+  for (const file of ["bars.json", "late_food.json", "restaurants.json"]) {
     cpSync(
       join(ROOT, "data", "famous_venues", file),
       join(scratchFamousVenues, file),

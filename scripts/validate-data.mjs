@@ -48,36 +48,108 @@ const DRINK_CATEGORIES = new Set([
 // Kept dependency-free because validation tests copy this single script into a
 // scratch repository. Mirrors refresh_night_signal_claims.mjs.
 function isValidNightSignalClaim(row) {
-  const text = (value, max) => typeof value === "string" && value.trim().length > 0 && value.length <= max;
-  const iso = (value) => typeof value === "string" && Number.isFinite(Date.parse(value));
+  const text = (value, max) =>
+    typeof value === "string" && value.trim().length > 0 && value.length <= max;
+  const iso = (value) =>
+    typeof value === "string" && Number.isFinite(Date.parse(value));
   const publicUrl = (value) => {
     if (!text(value, 2_000)) return false;
     try {
       const url = new URL(value);
-      return ["http:", "https:"].includes(url.protocol)
-        && !url.username && !url.password && !url.port && !url.search && !url.hash;
-    } catch { return false; }
+      return (
+        ["http:", "https:"].includes(url.protocol) &&
+        !url.username &&
+        !url.password &&
+        !url.port &&
+        !url.search &&
+        !url.hash
+      );
+    } catch {
+      return false;
+    }
   };
-  const source = (value) => value && typeof value === "object" && publicUrl(value.sourceUrl) && text(value.publisher, 160) && iso(value.publishedAt);
-  if (!row || typeof row !== "object" || !text(row.id, 120) || !text(row.claim, 500)) return false;
-  if (!["event", "price", "access", "opening", "transport"].includes(row.kind)) return false;
-  if (!row.entity || !["venue", "night_area", "transport"].includes(row.entity.type) || !text(row.entity.id, 120)) return false;
-  if (!source(row) || !iso(row.observedAt) || !iso(row.expiresAt) || Date.parse(row.expiresAt) <= Date.parse(row.observedAt)) return false;
+  const source = (value) =>
+    value &&
+    typeof value === "object" &&
+    publicUrl(value.sourceUrl) &&
+    text(value.publisher, 160) &&
+    iso(value.publishedAt);
+  if (
+    !row ||
+    typeof row !== "object" ||
+    !text(row.id, 120) ||
+    !text(row.claim, 500)
+  )
+    return false;
+  if (!["event", "price", "access", "opening", "transport"].includes(row.kind))
+    return false;
+  if (
+    !row.entity ||
+    !["venue", "night_area", "transport"].includes(row.entity.type) ||
+    !text(row.entity.id, 120)
+  )
+    return false;
+  if (
+    !source(row) ||
+    !iso(row.observedAt) ||
+    !iso(row.expiresAt) ||
+    Date.parse(row.expiresAt) <= Date.parse(row.observedAt)
+  )
+    return false;
   if (Date.parse(row.publishedAt) > Date.parse(row.observedAt)) return false;
-  if (typeof row.confidence !== "number" || row.confidence < 0 || row.confidence > 1) return false;
-  if (!["pending", "approved", "rejected"].includes(row.reviewState) || !["single_source", "corroborated", "manual_review"].includes(row.verification) || !["none", "boost", "avoid"].includes(row.routeEffect)) return false;
-  if (!Array.isArray(row.corroboratingSources) || row.corroboratingSources.length > 5 || !row.corroboratingSources.every(source)) return false;
-  if (row.corroboratingSources.some((item) => Date.parse(item.publishedAt) > Date.parse(row.observedAt))) return false;
-  const keys = row.corroboratingSources.map((item) => `${new URL(item.sourceUrl).toString()}|${item.publisher.trim().toLocaleLowerCase("en-GB")}`);
+  if (
+    typeof row.confidence !== "number" ||
+    row.confidence < 0 ||
+    row.confidence > 1
+  )
+    return false;
+  if (
+    !["pending", "approved", "rejected"].includes(row.reviewState) ||
+    !["single_source", "corroborated", "manual_review"].includes(
+      row.verification,
+    ) ||
+    !["none", "boost", "avoid"].includes(row.routeEffect)
+  )
+    return false;
+  if (
+    !Array.isArray(row.corroboratingSources) ||
+    row.corroboratingSources.length > 5 ||
+    !row.corroboratingSources.every(source)
+  )
+    return false;
+  if (
+    row.corroboratingSources.some(
+      (item) => Date.parse(item.publishedAt) > Date.parse(row.observedAt),
+    )
+  )
+    return false;
+  const keys = row.corroboratingSources.map(
+    (item) =>
+      `${new URL(item.sourceUrl).toString()}|${item.publisher.trim().toLocaleLowerCase("en-GB")}`,
+  );
   if (new Set(keys).size !== keys.length) return false;
-  const independent = row.corroboratingSources.some((item) => new URL(item.sourceUrl).hostname !== new URL(row.sourceUrl).hostname && item.publisher.trim().toLocaleLowerCase("en-GB") !== row.publisher.trim().toLocaleLowerCase("en-GB"));
+  const independent = row.corroboratingSources.some(
+    (item) =>
+      new URL(item.sourceUrl).hostname !== new URL(row.sourceUrl).hostname &&
+      item.publisher.trim().toLocaleLowerCase("en-GB") !==
+        row.publisher.trim().toLocaleLowerCase("en-GB"),
+  );
   if (row.corroboratingSources.length > 0 && !independent) return false;
   if (row.verification === "corroborated" && !independent) return false;
-  if (row.routeEffect !== "none" && row.verification === "single_source") return false;
-  if (row.routeEffect !== "none" && row.verification === "manual_review" && !["operations", "editorial"].includes(row.reviewAuthority)) return false;
-  return row.reviewState !== "approved" || (iso(row.reviewedAt)
-    && ["operations", "editorial", "automated"].includes(row.reviewAuthority)
-    && Date.parse(row.reviewedAt) >= Date.parse(row.observedAt));
+  if (row.routeEffect !== "none" && row.verification === "single_source")
+    return false;
+  if (
+    row.routeEffect !== "none" &&
+    row.verification === "manual_review" &&
+    !["operations", "editorial"].includes(row.reviewAuthority)
+  )
+    return false;
+  return (
+    row.reviewState !== "approved" ||
+    (iso(row.reviewedAt) &&
+      ["operations", "editorial", "automated"].includes(row.reviewAuthority) &&
+      Date.parse(row.reviewedAt) >= Date.parse(row.observedAt))
+  );
 }
 
 // ---------------------------------------------------------------------------
@@ -183,7 +255,8 @@ function expectedVenueGroupsFromPintRows(rows) {
     if (typeof row !== "object" || row === null) continue;
     const lat = Number(row.latitude);
     const lng = Number(row.longitude);
-    if (!Number.isFinite(lat) || !Number.isFinite(lng) || !inLondon(lng, lat)) continue;
+    if (!Number.isFinite(lat) || !Number.isFinite(lng) || !inLondon(lng, lat))
+      continue;
     const key = venueGroupingKey(row);
     const bucket = grouped.get(key);
     if (bucket) bucket.push(row);
@@ -197,7 +270,7 @@ function expectedVenueGroupsFromPintRows(rows) {
 }
 
 function loadFamousVenues() {
-  return ["bars.json", "late_food.json"].flatMap((name) =>
+  return ["bars.json", "late_food.json", "restaurants.json"].flatMap((name) =>
     JSON.parse(readFileSync(join(FAMOUS_VENUES_DIR, name), "utf8")),
   );
 }
@@ -205,7 +278,8 @@ function loadFamousVenues() {
 function isReplacedByFamousVenue(first, famousRows) {
   return famousRows.some(
     (row) =>
-      normaliseVenueKeyPart(row.name) === normaliseVenueKeyPart(first.pub_name) &&
+      normaliseVenueKeyPart(row.name) ===
+        normaliseVenueKeyPart(first.pub_name) &&
       Math.abs(row.lat - Number(first.latitude)) < 0.001 &&
       Math.abs(row.lng - Number(first.longitude)) < 0.001,
   );
@@ -213,13 +287,16 @@ function isReplacedByFamousVenue(first, famousRows) {
 
 function famousPriceBands(rows) {
   const bands = new Map();
-  for (const kind of ["bar", "food"]) {
+  for (const kind of ["bar", "food", "restaurant"]) {
     const ranked = rows
       .filter((row) => row.kind === kind)
       .slice()
-      .sort((a, b) => a.anchor.price - b.anchor.price || a.id.localeCompare(b.id));
+      .sort(
+        (a, b) => a.anchor.price - b.anchor.price || a.id.localeCompare(b.id),
+      );
     const lowCutoff = ranked[Math.ceil(ranked.length / 3) - 1]?.anchor.price;
-    const midCutoff = ranked[Math.ceil((ranked.length * 2) / 3) - 1]?.anchor.price;
+    const midCutoff =
+      ranked[Math.ceil((ranked.length * 2) / 3) - 1]?.anchor.price;
     for (const row of ranked) {
       bands.set(
         row.id,
@@ -308,13 +385,17 @@ function validatePois() {
       if (!isFiniteNumber(lng) || !isFiniteNumber(lat)) {
         errs.add(`${where} (${id}): non-finite coordinates`);
       } else if (!inLondon(lng, lat)) {
-        errs.add(`${where} (${id}): [${lng}, ${lat}] outside Greater London bounds`);
+        errs.add(
+          `${where} (${id}): [${lng}, ${lat}] outside Greater London bounds`,
+        );
       }
     }
   });
 
   const ok = errs.count === 0;
-  console.log(`${ok ? "PASS" : "FAIL"} ${name}: ${data.length} rows, ${errs.count} error(s)`);
+  console.log(
+    `${ok ? "PASS" : "FAIL"} ${name}: ${data.length} rows, ${errs.count} error(s)`,
+  );
   if (!ok) errs.report();
   return { ok, count: data.length };
 }
@@ -335,13 +416,21 @@ function validateLondonLocalities() {
     return { ok: false, count: 0 };
   }
 
-  if (!data || typeof data !== "object" || Array.isArray(data) || !Array.isArray(data.localities)) {
+  if (
+    !data ||
+    typeof data !== "object" ||
+    Array.isArray(data) ||
+    !Array.isArray(data.localities)
+  ) {
     console.log(`FAIL ${name}: expected an object with a "localities" array`);
     return { ok: false, count: 0 };
   }
 
   // ODbL attribution must ship with the data (licence requirement).
-  if (typeof data.attribution !== "string" || !/openstreetmap/i.test(data.attribution)) {
+  if (
+    typeof data.attribution !== "string" ||
+    !/openstreetmap/i.test(data.attribution)
+  ) {
     errs.add("missing/invalid OpenStreetMap attribution header");
   }
   if (typeof data.license !== "string" || !/odbl/i.test(data.license)) {
@@ -360,7 +449,8 @@ function validateLondonLocalities() {
       errs.add(`${where}: missing/empty name`);
     } else {
       const key = row.name.trim().toLowerCase().replace(/\s+/g, " ");
-      if (seenNames.has(key)) errs.add(`${where}: duplicate name "${row.name}" (dedupe invariant)`);
+      if (seenNames.has(key))
+        errs.add(`${where}: duplicate name "${row.name}" (dedupe invariant)`);
       else seenNames.add(key);
     }
     if (typeof row.borough !== "string" || row.borough.trim().length === 0) {
@@ -370,19 +460,25 @@ function validateLondonLocalities() {
     if (!isFiniteNumber(lat) || !isFiniteNumber(lng)) {
       errs.add(`${where} (${row.name}): non-finite coordinates`);
     } else if (!inLondon(lng, lat)) {
-      errs.add(`${where} (${row.name}): [${lng}, ${lat}] outside Greater London bounds`);
+      errs.add(
+        `${where} (${row.name}): [${lng}, ${lat}] outside Greater London bounds`,
+      );
     }
   });
 
   if (rows.length < LOCALITY_FLOOR) {
-    errs.add(`only ${rows.length} localities (< floor ${LOCALITY_FLOOR}) — likely a truncated regen`);
+    errs.add(
+      `only ${rows.length} localities (< floor ${LOCALITY_FLOOR}) — likely a truncated regen`,
+    );
   }
   if (typeof data.count === "number" && data.count !== rows.length) {
     errs.add(`header count ${data.count} !== ${rows.length} rows`);
   }
 
   const ok = errs.count === 0;
-  console.log(`${ok ? "PASS" : "FAIL"} ${name}: ${rows.length} rows, ${errs.count} error(s)`);
+  console.log(
+    `${ok ? "PASS" : "FAIL"} ${name}: ${rows.length} rows, ${errs.count} error(s)`,
+  );
   if (!ok) errs.report();
   return { ok, count: rows.length };
 }
@@ -400,7 +496,11 @@ function validateTflLines() {
     return { ok: false, count: 0 };
   }
 
-  if (typeof data !== "object" || data === null || data.type !== "FeatureCollection") {
+  if (
+    typeof data !== "object" ||
+    data === null ||
+    data.type !== "FeatureCollection"
+  ) {
     console.log(`FAIL ${name}: expected a GeoJSON FeatureCollection`);
     return { ok: false, count: 0 };
   }
@@ -423,19 +523,30 @@ function validateTflLines() {
         errs.add(`${where}: missing properties.line`);
       }
       if (typeof props.color !== "string" || !HEX_COLOR.test(props.color)) {
-        errs.add(`${where}: properties.color "${props.color}" is not a #hex colour`);
+        errs.add(
+          `${where}: properties.color "${props.color}" is not a #hex colour`,
+        );
       }
     }
     const geom = f.geometry;
-    if (typeof geom !== "object" || geom === null || geom.type !== "LineString") {
+    if (
+      typeof geom !== "object" ||
+      geom === null ||
+      geom.type !== "LineString"
+    ) {
       errs.add(`${where}: geometry must be a LineString`);
-    } else if (!Array.isArray(geom.coordinates) || geom.coordinates.length === 0) {
+    } else if (
+      !Array.isArray(geom.coordinates) ||
+      geom.coordinates.length === 0
+    ) {
       errs.add(`${where}: LineString has no coordinates`);
     }
   });
 
   const ok = errs.count === 0;
-  console.log(`${ok ? "PASS" : "FAIL"} ${name}: ${data.features.length} features, ${errs.count} error(s)`);
+  console.log(
+    `${ok ? "PASS" : "FAIL"} ${name}: ${data.features.length} features, ${errs.count} error(s)`,
+  );
   if (!ok) errs.report();
   return { ok, count: data.features.length };
 }
@@ -463,7 +574,9 @@ function validatePintPrices() {
 
   // Row-count floor: the primary guard against a truncated dataset.
   if (count < PINT_ROW_FLOOR) {
-    errs.add(`row count ${count} is below the floor of ${PINT_ROW_FLOOR} — dataset looks truncated`);
+    errs.add(
+      `row count ${count} is below the floor of ${PINT_ROW_FLOOR} — dataset looks truncated`,
+    );
   }
 
   let outOfBounds = 0;
@@ -478,7 +591,9 @@ function validatePintPrices() {
     }
     const price = row.price_gbp;
     if (price !== null && !isFiniteNumber(price)) {
-      errs.add(`${where}: price_gbp must be a finite number or null (got ${JSON.stringify(price)})`);
+      errs.add(
+        `${where}: price_gbp must be a finite number or null (got ${JSON.stringify(price)})`,
+      );
     }
     if (!isFiniteNumber(row.latitude) || !isFiniteNumber(row.longitude)) {
       errs.add(`${where}: latitude/longitude must be finite numbers`);
@@ -497,7 +612,9 @@ function validatePintPrices() {
   }
 
   const ok = errs.count === 0;
-  console.log(`${ok ? "PASS" : "FAIL"} ${name}: ${count} rows (floor ${PINT_ROW_FLOOR}), ${errs.count} error(s)`);
+  console.log(
+    `${ok ? "PASS" : "FAIL"} ${name}: ${count} rows (floor ${PINT_ROW_FLOOR}), ${errs.count} error(s)`,
+  );
   if (!ok) errs.report();
   return { ok, count };
 }
@@ -522,13 +639,17 @@ function validateSlimVenues() {
   try {
     rows = loadJson("pint_prices_app_dataset.json");
   } catch (e) {
-    console.log(`FAIL ${name}: could not read full pint dataset for parity check (${e.message})`);
+    console.log(
+      `FAIL ${name}: could not read full pint dataset for parity check (${e.message})`,
+    );
     return { ok: false, count: 0 };
   }
   try {
     famousRows = loadFamousVenues();
   } catch (e) {
-    console.log(`FAIL ${name}: could not read famous venue seeds (${e.message})`);
+    console.log(
+      `FAIL ${name}: could not read famous venue seeds (${e.message})`,
+    );
     return { ok: false, count: 0 };
   }
 
@@ -537,12 +658,16 @@ function validateSlimVenues() {
     return { ok: false, count: 0 };
   }
   if (!Array.isArray(rows)) {
-    console.log(`FAIL ${name}: expected full pint dataset to be a top-level array`);
+    console.log(
+      `FAIL ${name}: expected full pint dataset to be a top-level array`,
+    );
     return { ok: false, count: 0 };
   }
 
   if (slim.length < SLIM_VENUE_FLOOR) {
-    errs.add(`venue count ${slim.length} is below the floor of ${SLIM_VENUE_FLOOR} — slim index looks truncated`);
+    errs.add(
+      `venue count ${slim.length} is below the floor of ${SLIM_VENUE_FLOOR} — slim index looks truncated`,
+    );
   }
 
   const grouped = new Map();
@@ -550,7 +675,8 @@ function validateSlimVenues() {
     if (typeof row !== "object" || row === null) continue;
     const lat = Number(row.latitude);
     const lng = Number(row.longitude);
-    if (!Number.isFinite(lat) || !Number.isFinite(lng) || !inLondon(lng, lat)) continue;
+    if (!Number.isFinite(lat) || !Number.isFinite(lng) || !inLondon(lng, lat))
+      continue;
     const key = venueGroupingKey(row);
     const bucket = grouped.get(key);
     if (bucket) bucket.push(row);
@@ -591,7 +717,9 @@ function validateSlimVenues() {
   }
 
   if (slim.length !== expected.size) {
-    errs.add(`venue count ${slim.length} does not match rebuilt expected count ${expected.size}`);
+    errs.add(
+      `venue count ${slim.length} does not match rebuilt expected count ${expected.size}`,
+    );
   }
 
   const seenIds = new Set();
@@ -617,10 +745,17 @@ function validateSlimVenues() {
     if (!isFiniteNumber(row.lat) || !isFiniteNumber(row.lng)) {
       errs.add(`${where} (${id}): lat/lng must be finite numbers`);
     } else if (!inLondon(row.lng, row.lat)) {
-      errs.add(`${where} (${id}): [${row.lng}, ${row.lat}] outside Greater London bounds`);
+      errs.add(
+        `${where} (${id}): [${row.lng}, ${row.lat}] outside Greater London bounds`,
+      );
     }
-    if (row.cheapestPrice !== null && (!isFiniteNumber(row.cheapestPrice) || row.cheapestPrice < 0)) {
-      errs.add(`${where} (${id}): cheapestPrice must be a finite number >= 0 or null`);
+    if (
+      row.cheapestPrice !== null &&
+      (!isFiniteNumber(row.cheapestPrice) || row.cheapestPrice < 0)
+    ) {
+      errs.add(
+        `${where} (${id}): cheapestPrice must be a finite number >= 0 or null`,
+      );
     }
     if (typeof row.borough !== "string") {
       errs.add(`${where} (${id}): borough must be a string`);
@@ -631,36 +766,54 @@ function validateSlimVenues() {
       row.zone !== undefined &&
       (!Number.isInteger(row.zone) || row.zone < 1 || row.zone > 9)
     ) {
-      errs.add(`${where} (${id}): zone must be an integer 1–9 when present (got ${row.zone})`);
+      errs.add(
+        `${where} (${id}): zone must be an integer 1–9 when present (got ${row.zone})`,
+      );
     }
 
     const exp = expected.get(id);
     if (!exp) {
-      errs.add(`${where} (${id}): id is not present in rebuilt full-dataset index`);
+      errs.add(
+        `${where} (${id}): id is not present in rebuilt full-dataset index`,
+      );
       return;
     }
     if (row.name !== exp.name) {
-      errs.add(`${where} (${id}): name "${row.name}" does not match full dataset "${exp.name}"`);
+      errs.add(
+        `${where} (${id}): name "${row.name}" does not match full dataset "${exp.name}"`,
+      );
     }
     if (row.lat !== exp.lat || row.lng !== exp.lng) {
-      errs.add(`${where} (${id}): coordinates [${row.lng}, ${row.lat}] do not match full dataset [${exp.lng}, ${exp.lat}]`);
+      errs.add(
+        `${where} (${id}): coordinates [${row.lng}, ${row.lat}] do not match full dataset [${exp.lng}, ${exp.lat}]`,
+      );
     }
     if (row.cheapestPrice !== exp.cheapestPrice) {
-      errs.add(`${where} (${id}): cheapestPrice ${row.cheapestPrice} does not match full dataset ${exp.cheapestPrice}`);
+      errs.add(
+        `${where} (${id}): cheapestPrice ${row.cheapestPrice} does not match full dataset ${exp.cheapestPrice}`,
+      );
     }
     if (row.borough !== exp.borough) {
-      errs.add(`${where} (${id}): borough "${row.borough}" does not match full dataset "${exp.borough}"`);
+      errs.add(
+        `${where} (${id}): borough "${row.borough}" does not match full dataset "${exp.borough}"`,
+      );
     }
     if (row.kind !== exp.kind) {
-      errs.add(`${where} (${id}): kind ${row.kind} does not match expected ${exp.kind}`);
+      errs.add(
+        `${where} (${id}): kind ${row.kind} does not match expected ${exp.kind}`,
+      );
     }
     if (row.priceBand !== exp.priceBand) {
-      errs.add(`${where} (${id}): priceBand ${row.priceBand} does not match expected ${exp.priceBand}`);
+      errs.add(
+        `${where} (${id}): priceBand ${row.priceBand} does not match expected ${exp.priceBand}`,
+      );
     }
   });
 
   const ok = errs.count === 0;
-  console.log(`${ok ? "PASS" : "FAIL"} ${name}: ${slim.length} venues (floor ${SLIM_VENUE_FLOOR}), ${errs.count} error(s)`);
+  console.log(
+    `${ok ? "PASS" : "FAIL"} ${name}: ${slim.length} venues (floor ${SLIM_VENUE_FLOOR}), ${errs.count} error(s)`,
+  );
   if (!ok) errs.report();
   return { ok, count: slim.length };
 }
@@ -678,7 +831,9 @@ function validateSlimShards() {
   try {
     full = loadJson("venues_slim.json");
   } catch (e) {
-    console.log(`FAIL ${name}: could not read/parse venues_slim.json (${e.message})`);
+    console.log(
+      `FAIL ${name}: could not read/parse venues_slim.json (${e.message})`,
+    );
     return { ok: false, count: 0 };
   }
   if (!Array.isArray(full)) {
@@ -695,16 +850,23 @@ function validateSlimShards() {
     manifest = JSON.parse(readRaw(MANIFEST_FILE));
     coreRows = JSON.parse(readRaw(CORE_FILE));
   } catch (e) {
-    console.log(`FAIL ${name}: missing/broken manifest or core shard (${e.message})`);
+    console.log(
+      `FAIL ${name}: missing/broken manifest or core shard (${e.message})`,
+    );
     return { ok: false, count: 0 };
   }
 
   // Rebuild the expected plan from the monolith and compare structurally.
   const { core: expectedCore, outer: expectedOuter } = classifySlimShards(full);
-  const expectedManifest = buildShardManifest({ core: expectedCore, outer: expectedOuter });
+  const expectedManifest = buildShardManifest({
+    core: expectedCore,
+    outer: expectedOuter,
+  });
 
   if (manifest.version !== expectedManifest.version) {
-    errs.add(`manifest version ${manifest.version} !== expected ${expectedManifest.version}`);
+    errs.add(
+      `manifest version ${manifest.version} !== expected ${expectedManifest.version}`,
+    );
   }
   const shipShards = Array.isArray(manifest.shards) ? manifest.shards : [];
   if (shipShards.length !== expectedManifest.shards.length) {
@@ -723,17 +885,23 @@ function validateSlimShards() {
       errs.add(`manifest is missing shard "${exp.id}"`);
       continue;
     }
-    if (got.url !== exp.url) errs.add(`shard "${exp.id}": url "${got.url}" !== expected "${exp.url}"`);
+    if (got.url !== exp.url)
+      errs.add(`shard "${exp.id}": url "${got.url}" !== expected "${exp.url}"`);
     if (got.count !== exp.count) {
-      errs.add(`shard "${exp.id}": count ${got.count} !== expected ${exp.count}`);
+      errs.add(
+        `shard "${exp.id}": count ${got.count} !== expected ${exp.count}`,
+      );
     }
-    if (got.core !== exp.core) errs.add(`shard "${exp.id}": core flag mismatch`);
+    if (got.core !== exp.core)
+      errs.add(`shard "${exp.id}": core flag mismatch`);
     if (
       !Array.isArray(got.bbox) ||
       got.bbox.length !== 4 ||
       got.bbox.some((n, i) => n !== exp.bbox[i])
     ) {
-      errs.add(`shard "${exp.id}": bbox ${JSON.stringify(got.bbox)} !== expected ${JSON.stringify(exp.bbox)}`);
+      errs.add(
+        `shard "${exp.id}": bbox ${JSON.stringify(got.bbox)} !== expected ${JSON.stringify(exp.bbox)}`,
+      );
     }
 
     // Read the shard body, count its bytes, and fold its ids into the union.
@@ -749,7 +917,9 @@ function validateSlimShards() {
       continue;
     }
     if (!Array.isArray(rows) || rows.length !== exp.count) {
-      errs.add(`shard "${exp.id}": body has ${rows?.length} rows, manifest says ${exp.count}`);
+      errs.add(
+        `shard "${exp.id}": body has ${rows?.length} rows, manifest says ${exp.count}`,
+      );
       continue;
     }
     for (const r of rows) {
@@ -757,7 +927,8 @@ function validateSlimShards() {
         errs.add(`shard "${exp.id}": a row is missing an id`);
         continue;
       }
-      if (allIds.has(r.id)) errs.add(`shard "${exp.id}": duplicate id "${r.id}" across shards`);
+      if (allIds.has(r.id))
+        errs.add(`shard "${exp.id}": duplicate id "${r.id}" across shards`);
       allIds.add(r.id);
     }
   }
@@ -766,7 +937,9 @@ function validateSlimShards() {
   // duplicated by the split.
   const fullIds = new Set(full.map((v) => v && v.id).filter(Boolean));
   if (allIds.size !== fullIds.size) {
-    errs.add(`shard union has ${allIds.size} ids, monolith has ${fullIds.size}`);
+    errs.add(
+      `shard union has ${allIds.size} ids, monolith has ${fullIds.size}`,
+    );
   }
   for (const id of fullIds) {
     if (!allIds.has(id)) {
@@ -775,7 +948,9 @@ function validateSlimShards() {
     }
   }
   if (coreRows.length !== expectedCore.length) {
-    errs.add(`core shard has ${coreRows.length} venues, expected ${expectedCore.length}`);
+    errs.add(
+      `core shard has ${coreRows.length} venues, expected ${expectedCore.length}`,
+    );
   }
 
   // Budgets — the whole point of this cycle.
@@ -934,14 +1109,17 @@ function validateUkBaseShardBody(shard, urlPrefix, onDisk) {
       `shard "${shard.id}": ${(bytes / 1024).toFixed(1)} KB exceeds the ${(UK_BASE_SHARD_BUDGET_BYTES / 1024).toFixed(0)} KB per-viewport budget`,
     );
   }
-  if (body.cell !== shard.id) errors.push(`shard "${shard.id}": body cell is "${body.cell}"`);
+  if (body.cell !== shard.id)
+    errors.push(`shard "${shard.id}": body cell is "${body.cell}"`);
   const rows = Array.isArray(body.pubs) ? body.pubs : null;
   if (!rows) {
     errors.push(`shard "${shard.id}": body has no pubs array`);
     return { errors, rows: null };
   }
   if (rows.length !== shard.count) {
-    errors.push(`shard "${shard.id}": ${rows.length} rows, manifest says ${shard.count}`);
+    errors.push(
+      `shard "${shard.id}": ${rows.length} rows, manifest says ${shard.count}`,
+    );
   }
   return { errors, rows };
 }
@@ -959,7 +1137,12 @@ function validateUkBasePubIdentity(shard, row, ids, curatedVenueIds) {
 
 function validateUkBasePubBbox(shard, row) {
   const [minLng, minLat, maxLng, maxLat] = shard.bbox ?? [];
-  if (row[3] < minLat || row[3] > maxLat || row[4] < minLng || row[4] > maxLng) {
+  if (
+    row[3] < minLat ||
+    row[3] > maxLat ||
+    row[4] < minLng ||
+    row[4] > maxLng
+  ) {
     return [
       `shard "${shard.id}": pub "${row[1]}" at ${row[3]},${row[4]} is outside the cell bbox`,
     ];
@@ -972,7 +1155,9 @@ function validateUkBaseShardRows(shard, rows, ids, curatedVenueIds) {
   let pubCount = 0;
   for (const row of rows) {
     if (!isUkBaseRow(row)) {
-      errors.push(`shard "${shard.id}": malformed row ${JSON.stringify(row)?.slice(0, 60)}`);
+      errors.push(
+        `shard "${shard.id}": malformed row ${JSON.stringify(row)?.slice(0, 60)}`,
+      );
       continue;
     }
     errors.push(...validateUkBasePubIdentity(shard, row, ids, curatedVenueIds));
@@ -985,7 +1170,9 @@ function validateUkBaseShardRows(shard, rows, ids, curatedVenueIds) {
 }
 
 function validateUkBaseOrphans(onDisk) {
-  return [...onDisk].map((orphan) => `orphan shard body ${orphan} is not in the manifest`);
+  return [...onDisk].map(
+    (orphan) => `orphan shard body ${orphan} is not in the manifest`,
+  );
 }
 
 function validateUkBaseCuratedIdCollisions(ids) {
@@ -1011,7 +1198,9 @@ function validateUkBaseShards() {
   const name = "public/data/uk_base shards";
   const errs = makeCollector();
   if (!existsSync(UK_BASE_DIR)) {
-    console.log(`FAIL ${name}: missing — run node scripts/build_uk_base_shards.mjs`);
+    console.log(
+      `FAIL ${name}: missing — run node scripts/build_uk_base_shards.mjs`,
+    );
     return { ok: false, count: 0 };
   }
   let manifestRaw;
@@ -1024,7 +1213,11 @@ function validateUkBaseShards() {
     return { ok: false, count: 0 };
   }
 
-  const { errors: manifestErrors, shards, urlPrefix } = validateUkBaseManifestShape(manifest);
+  const {
+    errors: manifestErrors,
+    shards,
+    urlPrefix,
+  } = validateUkBaseManifestShape(manifest);
   addUkBaseErrors(errs, manifestErrors);
 
   // Files on disk must match the manifest exactly: an orphan is dead weight in
@@ -1034,7 +1227,8 @@ function validateUkBaseShards() {
   const budgets = validateUkBasePayloadBudgets(manifestRaw, jsonFiles);
   addUkBaseErrors(errs, budgets.manifestErrors);
 
-  const { errors: curatedErrors, curatedVenueIds } = loadUkBaseCuratedVenueIds();
+  const { errors: curatedErrors, curatedVenueIds } =
+    loadUkBaseCuratedVenueIds();
   addUkBaseErrors(errs, curatedErrors);
 
   const ids = new Set();
@@ -1097,30 +1291,39 @@ function validateVenueDetails() {
   try {
     rows = loadJson("pint_prices_app_dataset.json");
   } catch (e) {
-    console.log(`FAIL ${name}: could not read full pint dataset for parity check (${e.message})`);
+    console.log(
+      `FAIL ${name}: could not read full pint dataset for parity check (${e.message})`,
+    );
     return { ok: false, count: 0 };
   }
   if (!Array.isArray(rows)) {
-    console.log(`FAIL ${name}: expected full pint dataset to be a top-level array`);
+    console.log(
+      `FAIL ${name}: expected full pint dataset to be a top-level array`,
+    );
     return { ok: false, count: 0 };
   }
   try {
     famousRows = loadFamousVenues();
   } catch (e) {
-    console.log(`FAIL ${name}: could not read famous venue seeds (${e.message})`);
+    console.log(
+      `FAIL ${name}: could not read famous venue seeds (${e.message})`,
+    );
     return { ok: false, count: 0 };
   }
 
   const manifestPath = join(GENERATED_DATA_DIR, "venue_detail_index.json");
   const detailsPath = join(GENERATED_DATA_DIR, "venue_details.jsonl");
   if (!existsSync(manifestPath) || !existsSync(detailsPath)) {
-    console.log(`FAIL ${name}: generated files are missing; run npm run build:slim`);
+    console.log(
+      `FAIL ${name}: generated files are missing; run npm run build:slim`,
+    );
     return { ok: false, count: 0 };
   }
 
   const expectedGroups = expectedVenueGroupsFromPintRows(rows);
   for (const [id, prices] of expectedGroups) {
-    if (isReplacedByFamousVenue(prices[0], famousRows)) expectedGroups.delete(id);
+    if (isReplacedByFamousVenue(prices[0], famousRows))
+      expectedGroups.delete(id);
   }
   const famousById = new Map(famousRows.map((row) => [row.id, row]));
   const expectedIds = new Set([...expectedGroups.keys(), ...famousById.keys()]);
@@ -1131,15 +1334,15 @@ function validateVenueDetails() {
     manifest = JSON.parse(readFileSync(manifestPath, "utf8"));
     details = readFileSync(detailsPath);
   } catch (e) {
-    console.log(`FAIL ${name}: could not read/parse generated files (${e.message})`);
+    console.log(
+      `FAIL ${name}: could not read/parse generated files (${e.message})`,
+    );
     return { ok: false, count: 0 };
   }
 
   const venues = manifest?.venues;
   const entries =
-    typeof venues === "object" && venues !== null
-      ? Object.entries(venues)
-      : [];
+    typeof venues === "object" && venues !== null ? Object.entries(venues) : [];
 
   if (manifest?.version !== 1) {
     errs.add(`${manifestName}: version must be 1`);
@@ -1148,14 +1351,20 @@ function validateVenueDetails() {
     errs.add(`${manifestName}: detailsFile must be "venue_details.jsonl"`);
   }
   if (manifest?.count !== entries.length) {
-    errs.add(`${manifestName}: count ${manifest?.count} does not match ${entries.length} manifest entries`);
+    errs.add(
+      `${manifestName}: count ${manifest?.count} does not match ${entries.length} manifest entries`,
+    );
   }
 
   if (entries.length < DETAIL_VENUE_FLOOR) {
-    errs.add(`venue count ${entries.length} is below the floor of ${DETAIL_VENUE_FLOOR} — detail artifact looks truncated`);
+    errs.add(
+      `venue count ${entries.length} is below the floor of ${DETAIL_VENUE_FLOOR} — detail artifact looks truncated`,
+    );
   }
   if (entries.length !== expectedIds.size) {
-    errs.add(`venue count ${entries.length} does not match rebuilt expected count ${expectedIds.size}`);
+    errs.add(
+      `venue count ${entries.length} does not match rebuilt expected count ${expectedIds.size}`,
+    );
   }
 
   const spans = [];
@@ -1186,17 +1395,26 @@ function validateVenueDetails() {
       length <= 0 ||
       rowCount <= 0
     ) {
-      errs.add(`${where}: offset, length, and rowCount must be positive safe integers`);
+      errs.add(
+        `${where}: offset, length, and rowCount must be positive safe integers`,
+      );
       return;
     }
     if (offset + length > details.length) {
-      errs.add(`${where}: byte range ${offset}-${offset + length} exceeds details file length ${details.length}`);
+      errs.add(
+        `${where}: byte range ${offset}-${offset + length} exceeds details file length ${details.length}`,
+      );
       return;
     }
     spans.push({ id, start: offset, end: offset + length });
     let artifact;
     try {
-      artifact = JSON.parse(details.subarray(offset, offset + length).toString("utf8").trim());
+      artifact = JSON.parse(
+        details
+          .subarray(offset, offset + length)
+          .toString("utf8")
+          .trim(),
+      );
     } catch (e) {
       errs.add(`${where}: invalid JSON detail row (${e.message})`);
       return;
@@ -1206,7 +1424,9 @@ function validateVenueDetails() {
       return;
     }
     if (artifact.id !== id) {
-      errs.add(`${where}: artifact id ${artifact.id} does not match manifest id`);
+      errs.add(
+        `${where}: artifact id ${artifact.id} does not match manifest id`,
+      );
       return;
     }
     const famous = famousById.get(id);
@@ -1226,11 +1446,15 @@ function validateVenueDetails() {
       return;
     }
     if (artifact.rows.length !== rowCount) {
-      errs.add(`${where}: rowCount ${rowCount} does not match ${artifact.rows.length} detail rows`);
+      errs.add(
+        `${where}: rowCount ${rowCount} does not match ${artifact.rows.length} detail rows`,
+      );
     }
     const expectedRows = expectedGroups.get(id);
     if (expectedRows && artifact.rows.length !== expectedRows.length) {
-      errs.add(`${where}: row count ${artifact.rows.length} does not match rebuilt group ${expectedRows.length}`);
+      errs.add(
+        `${where}: row count ${artifact.rows.length} does not match rebuilt group ${expectedRows.length}`,
+      );
     }
     for (const [j, price] of artifact.rows.entries()) {
       if (typeof price !== "object" || price === null) {
@@ -1241,25 +1465,36 @@ function validateVenueDetails() {
       if (priceId !== id) {
         errs.add(`${where} row ${j}: row groups to ${priceId}`);
       }
-      if (expectedRows && JSON.stringify(price) !== JSON.stringify(expectedRows[j])) {
-        errs.add(`${where} row ${j}: row content does not match the source pint dataset`);
+      if (
+        expectedRows &&
+        JSON.stringify(price) !== JSON.stringify(expectedRows[j])
+      ) {
+        errs.add(
+          `${where} row ${j}: row content does not match the source pint dataset`,
+        );
       }
     }
   });
 
   spans.sort((a, b) => a.start - b.start);
   if (spans.length > 0 && spans[0].start !== 0) {
-    errs.add(`${manifestName}: byte ranges start at ${spans[0].start}, expected 0`);
+    errs.add(
+      `${manifestName}: byte ranges start at ${spans[0].start}, expected 0`,
+    );
   }
   for (let i = 1; i < spans.length; i += 1) {
     if (spans[i].start < spans[i - 1].end) {
-      errs.add(`${manifestName}: byte range for ${spans[i].id} overlaps ${spans[i - 1].id}`);
+      errs.add(
+        `${manifestName}: byte range for ${spans[i].id} overlaps ${spans[i - 1].id}`,
+      );
     } else if (spans[i].start > spans[i - 1].end) {
       errs.add(`${manifestName}: byte range gap before ${spans[i].id}`);
     }
   }
   if (spans.length > 0 && spans[spans.length - 1].end !== details.length) {
-    errs.add(`${manifestName}: byte ranges end at ${spans[spans.length - 1].end}, details file has ${details.length} bytes`);
+    errs.add(
+      `${manifestName}: byte ranges end at ${spans[spans.length - 1].end}, details file has ${details.length} bytes`,
+    );
   }
 
   const missing = Array.from(expectedIds).filter((id) => !seenIds.has(id));
@@ -1271,7 +1506,9 @@ function validateVenueDetails() {
   }
 
   const ok = errs.count === 0;
-  console.log(`${ok ? "PASS" : "FAIL"} ${name}: ${entries.length} venues (floor ${DETAIL_VENUE_FLOOR}), ${errs.count} error(s)`);
+  console.log(
+    `${ok ? "PASS" : "FAIL"} ${name}: ${entries.length} venues (floor ${DETAIL_VENUE_FLOOR}), ${errs.count} error(s)`,
+  );
   if (!ok) errs.report();
   return { ok, count: entries.length };
 }
@@ -1314,7 +1551,9 @@ function validateOneDrinkPriceUpdateFile(fileName) {
       : null;
 
   if (rows === null) {
-    console.log(`FAIL ${name}: expected a top-level array or a { updates: [...] } envelope`);
+    console.log(
+      `FAIL ${name}: expected a top-level array or a { updates: [...] } envelope`,
+    );
     return { ok: false, count: 0 };
   }
 
@@ -1337,7 +1576,9 @@ function validateOneDrinkPriceUpdateFile(fileName) {
       errs.add(`${where}: invalid category "${row.category}"`);
     }
     if (!isFiniteNumber(row.priceGbp) || row.priceGbp < 0) {
-      errs.add(`${where}: priceGbp must be a finite number >= 0 (got ${JSON.stringify(row.priceGbp)})`);
+      errs.add(
+        `${where}: priceGbp must be a finite number >= 0 (got ${JSON.stringify(row.priceGbp)})`,
+      );
     }
     const source = row.source;
     if (typeof source !== "object" || source === null) {
@@ -1347,7 +1588,9 @@ function validateOneDrinkPriceUpdateFile(fileName) {
         errs.add(`${where}: missing/empty source.label`);
       }
       if (!isHttpUrlLocal(source.url)) {
-        errs.add(`${where}: source.url "${source.url}" is not an absolute http(s) URL`);
+        errs.add(
+          `${where}: source.url "${source.url}" is not an absolute http(s) URL`,
+        );
       }
       // Governance: every fact carries {source, licence, observedAt} — a
       // permissible source is documented with a licence string.
@@ -1360,7 +1603,9 @@ function validateOneDrinkPriceUpdateFile(fileName) {
     } else {
       const ms = Date.parse(row.observedAt);
       if (!Number.isFinite(ms)) {
-        errs.add(`${where}: observedAt "${row.observedAt}" is not a valid ISO timestamp`);
+        errs.add(
+          `${where}: observedAt "${row.observedAt}" is not a valid ISO timestamp`,
+        );
       } else if (ms > now) {
         // Never present stale as live — but also never a fabricated FUTURE
         // observation. A price cannot be "observed" before it happened.
@@ -1370,7 +1615,9 @@ function validateOneDrinkPriceUpdateFile(fileName) {
   });
 
   const ok = errs.count === 0;
-  console.log(`${ok ? "PASS" : "FAIL"} ${name}: ${rows.length} rows, ${errs.count} error(s)`);
+  console.log(
+    `${ok ? "PASS" : "FAIL"} ${name}: ${rows.length} rows, ${errs.count} error(s)`,
+  );
   if (!ok) errs.report();
   return { ok, count: rows.length };
 }
@@ -1381,12 +1628,18 @@ function validateOneDrinkPriceUpdateFile(fileName) {
 // inside it IS.
 function validateDrinkPriceUpdates() {
   if (!existsSync(DRINK_PRICE_UPDATES_DIR)) {
-    console.log("SKIP public/data/drink_price_updates/: directory does not exist");
+    console.log(
+      "SKIP public/data/drink_price_updates/: directory does not exist",
+    );
     return { ok: true, count: 0 };
   }
-  const files = readdirSync(DRINK_PRICE_UPDATES_DIR).filter((f) => f.endsWith(".json"));
+  const files = readdirSync(DRINK_PRICE_UPDATES_DIR).filter((f) =>
+    f.endsWith(".json"),
+  );
   if (files.length === 0) {
-    console.log("SKIP public/data/drink_price_updates/: no .json files present");
+    console.log(
+      "SKIP public/data/drink_price_updates/: no .json files present",
+    );
     return { ok: true, count: 0 };
   }
   const results = files.map(validateOneDrinkPriceUpdateFile);
@@ -1412,7 +1665,9 @@ function validateOneWhatsOnFile(fileName) {
   }
 
   if (data && typeof data === "object" && data.kind === "sport_attributes") {
-    console.log(`SKIP ${name}: attribute sidecar (different contract, no startsAt)`);
+    console.log(
+      `SKIP ${name}: attribute sidecar (different contract, no startsAt)`,
+    );
     return { ok: true, count: 0 };
   }
 
@@ -1423,7 +1678,9 @@ function validateOneWhatsOnFile(fileName) {
       : null;
 
   if (rows === null) {
-    console.log(`SKIP ${name}: not a rows file (no top-level array or { rows: [...] })`);
+    console.log(
+      `SKIP ${name}: not a rows file (no top-level array or { rows: [...] })`,
+    );
     return { ok: true, count: 0 };
   }
 
@@ -1436,39 +1693,59 @@ function validateOneWhatsOnFile(fileName) {
       fail("not an object");
       return;
     }
-    if (typeof row.id !== "string" || row.id.length === 0) fail("missing/empty id");
-    if (typeof row.placeName !== "string" || row.placeName.length === 0) fail("missing/empty placeName");
-    if (typeof row.kind !== "string" || !WHATS_ON_KINDS.has(row.kind)) fail(`invalid kind "${row.kind}"`);
-    if (typeof row.startsAt !== "string" || !Number.isFinite(Date.parse(row.startsAt))) {
+    if (typeof row.id !== "string" || row.id.length === 0)
+      fail("missing/empty id");
+    if (typeof row.placeName !== "string" || row.placeName.length === 0)
+      fail("missing/empty placeName");
+    if (typeof row.kind !== "string" || !WHATS_ON_KINDS.has(row.kind))
+      fail(`invalid kind "${row.kind}"`);
+    if (
+      typeof row.startsAt !== "string" ||
+      !Number.isFinite(Date.parse(row.startsAt))
+    ) {
       fail("startsAt is not a valid ISO timestamp");
     }
-    if (typeof row.title !== "string" || row.title.length === 0) fail("missing/empty title");
+    if (typeof row.title !== "string" || row.title.length === 0)
+      fail("missing/empty title");
     const source = row.source;
     if (typeof source !== "object" || source === null) {
       fail("missing source");
     } else {
-      if (typeof source.label !== "string" || source.label.length === 0) fail("missing/empty source.label");
-      if (!isHttpUrl(source.url)) fail(`source.url "${source.url}" is not an absolute http(s) URL`);
+      if (typeof source.label !== "string" || source.label.length === 0)
+        fail("missing/empty source.label");
+      if (!isHttpUrl(source.url))
+        fail(`source.url "${source.url}" is not an absolute http(s) URL`);
     }
     if (typeof row.observedAt !== "string" || row.observedAt.length === 0) {
       fail("missing/empty observedAt");
     } else {
       const ms = Date.parse(row.observedAt);
-      if (!Number.isFinite(ms)) fail(`observedAt "${row.observedAt}" is not a valid ISO timestamp`);
-      else if (ms > now) fail(`observedAt "${row.observedAt}" is in the future`);
+      if (!Number.isFinite(ms))
+        fail(`observedAt "${row.observedAt}" is not a valid ISO timestamp`);
+      else if (ms > now)
+        fail(`observedAt "${row.observedAt}" is in the future`);
     }
-    if (typeof row.confidence !== "string" || !WHATS_ON_CONFIDENCES.has(row.confidence)) {
+    if (
+      typeof row.confidence !== "string" ||
+      !WHATS_ON_CONFIDENCES.has(row.confidence)
+    ) {
       fail(`invalid confidence "${row.confidence}"`);
     }
     if (row.priceGbp !== undefined && row.priceGbp !== null) {
-      if (typeof row.priceGbp !== "number" || !Number.isFinite(row.priceGbp) || row.priceGbp < 0) {
+      if (
+        typeof row.priceGbp !== "number" ||
+        !Number.isFinite(row.priceGbp) ||
+        row.priceGbp < 0
+      ) {
         fail(`priceGbp must be a finite number >= 0`);
       }
     }
   });
 
   const ok = errors.length === 0;
-  console.log(`${ok ? "PASS" : "FAIL"} ${name}: ${rows.length} rows, ${errors.length} error(s)`);
+  console.log(
+    `${ok ? "PASS" : "FAIL"} ${name}: ${rows.length} rows, ${errors.length} error(s)`,
+  );
   if (!ok) for (const e of errors.slice(0, 20)) console.log(`  - ${e}`);
   return { ok, count: rows.length };
 }
@@ -1508,28 +1785,47 @@ function validatePubmaxxingSource(data, errs) {
   if (!data.source || !isHttpUrl(data.source.sourceRepo)) {
     errs.add("source.sourceRepo must be an http(s) URL");
   }
-  if (!data.source || typeof data.source.sourceCommit !== "string" || data.source.sourceCommit.length < 7) {
+  if (
+    !data.source ||
+    typeof data.source.sourceCommit !== "string" ||
+    data.source.sourceCommit.length < 7
+  ) {
     errs.add("source.sourceCommit must be a git commit-ish string");
   }
-  if (!data.source || typeof data.source.importedAt !== "string" || data.source.importedAt.length === 0) {
+  if (
+    !data.source ||
+    typeof data.source.importedAt !== "string" ||
+    data.source.importedAt.length === 0
+  ) {
     errs.add("source.importedAt must be a non-empty string");
   }
-  if (typeof data.sourceImportedAt !== "string" || data.sourceImportedAt.length === 0) {
+  if (
+    typeof data.sourceImportedAt !== "string" ||
+    data.sourceImportedAt.length === 0
+  ) {
     errs.add("sourceImportedAt must be a non-empty string");
-  } else if (data.source?.importedAt && data.sourceImportedAt !== data.source.importedAt) {
+  } else if (
+    data.source?.importedAt &&
+    data.sourceImportedAt !== data.source.importedAt
+  ) {
     errs.add("sourceImportedAt must match source.importedAt");
   }
 }
 
 function validatePubmaxxingSummary(data, rows, errs) {
   const { pubs, beverages, historySeeds, discountMentions } = rows;
-  const summary = data.summary && typeof data.summary === "object" ? data.summary : null;
+  const summary =
+    data.summary && typeof data.summary === "object" ? data.summary : null;
   if (!summary) {
     errs.add("summary must be an object");
   }
 
-  const alcoholicRows = beverages.filter((row) => row?.isAlcoholic === true).length;
-  const nonAlcoholicRows = beverages.filter((row) => row?.isAlcoholic === false).length;
+  const alcoholicRows = beverages.filter(
+    (row) => row?.isAlcoholic === true,
+  ).length;
+  const nonAlcoholicRows = beverages.filter(
+    (row) => row?.isAlcoholic === false,
+  ).length;
   const unknownAlcoholicRows = beverages.filter(
     (row) => row?.isAlcoholic !== true && row?.isAlcoholic !== false,
   ).length;
@@ -1542,7 +1838,10 @@ function validatePubmaxxingSummary(data, rows, errs) {
     historySeeds: historySeeds.length,
     discountMentions: discountMentions.length,
     uniquePubIds: new Set(
-      [...pubs.map((row) => row?.pubId), ...beverages.map((row) => row?.pubId)].filter(Boolean),
+      [
+        ...pubs.map((row) => row?.pubId),
+        ...beverages.map((row) => row?.pubId),
+      ].filter(Boolean),
     ).size,
   };
   for (const [field, expected] of Object.entries(expectedSummary)) {
@@ -1577,29 +1876,42 @@ function validatePubmaxxingSeed() {
 
   const pubs = Array.isArray(data.pubs) ? data.pubs : [];
   const beverages = Array.isArray(data.beverages) ? data.beverages : [];
-  const historySeeds = Array.isArray(data.historySeeds) ? data.historySeeds : [];
-  const discountMentions = Array.isArray(data.discountMentions) ? data.discountMentions : [];
+  const historySeeds = Array.isArray(data.historySeeds)
+    ? data.historySeeds
+    : [];
+  const discountMentions = Array.isArray(data.discountMentions)
+    ? data.discountMentions
+    : [];
 
   if (pubs.length < PUBMAXXING_PUB_FLOOR) {
     errs.add(`pub count ${pubs.length} is below floor ${PUBMAXXING_PUB_FLOOR}`);
   }
   if (beverages.length < PUBMAXXING_BEVERAGE_ROW_FLOOR) {
-    errs.add(`beverage row count ${beverages.length} is below floor ${PUBMAXXING_BEVERAGE_ROW_FLOOR}`);
+    errs.add(
+      `beverage row count ${beverages.length} is below floor ${PUBMAXXING_BEVERAGE_ROW_FLOOR}`,
+    );
   }
   if (historySeeds.length < PUBMAXXING_HISTORY_SEED_FLOOR) {
-    errs.add(`history seed count ${historySeeds.length} is below floor ${PUBMAXXING_HISTORY_SEED_FLOOR}`);
+    errs.add(
+      `history seed count ${historySeeds.length} is below floor ${PUBMAXXING_HISTORY_SEED_FLOOR}`,
+    );
   }
 
-  const { alcoholicRows, nonAlcoholicRows, unknownAlcoholicRows } = validatePubmaxxingSummary(
-    data,
-    { pubs, beverages, historySeeds, discountMentions },
-    errs,
-  );
+  const { alcoholicRows, nonAlcoholicRows, unknownAlcoholicRows } =
+    validatePubmaxxingSummary(
+      data,
+      { pubs, beverages, historySeeds, discountMentions },
+      errs,
+    );
   if (alcoholicRows < PUBMAXXING_ALCOHOLIC_ROW_FLOOR) {
-    errs.add(`alcoholic rows ${alcoholicRows} below floor ${PUBMAXXING_ALCOHOLIC_ROW_FLOOR}`);
+    errs.add(
+      `alcoholic rows ${alcoholicRows} below floor ${PUBMAXXING_ALCOHOLIC_ROW_FLOOR}`,
+    );
   }
   if (nonAlcoholicRows < PUBMAXXING_NON_ALCOHOLIC_ROW_FLOOR) {
-    errs.add(`non-alcoholic rows ${nonAlcoholicRows} below floor ${PUBMAXXING_NON_ALCOHOLIC_ROW_FLOOR}`);
+    errs.add(
+      `non-alcoholic rows ${nonAlcoholicRows} below floor ${PUBMAXXING_NON_ALCOHOLIC_ROW_FLOOR}`,
+    );
   }
   if (unknownAlcoholicRows > PUBMAXXING_UNKNOWN_ALCOHOLIC_ROW_CEILING) {
     errs.add(
@@ -1678,25 +1990,46 @@ function validateNightSignalSnapshot() {
   const name = "public/data/night_signals/latest.json";
   const errs = makeCollector();
   let data;
-  try { data = loadJson("night_signals/latest.json"); }
-  catch (e) {
+  try {
+    data = loadJson("night_signals/latest.json");
+  } catch (e) {
     console.log(`FAIL ${name}: could not read/parse (${e.message})`);
     return { ok: false, count: 0 };
   }
-  if (data?.version !== 1 || typeof data?.generatedAt !== "string" || !Number.isFinite(Date.parse(data.generatedAt)) || !Array.isArray(data?.claims)) {
-    console.log(`FAIL ${name}: expected a v1 snapshot with generatedAt and claims`);
+  if (
+    data?.version !== 1 ||
+    typeof data?.generatedAt !== "string" ||
+    !Number.isFinite(Date.parse(data.generatedAt)) ||
+    !Array.isArray(data?.claims)
+  ) {
+    console.log(
+      `FAIL ${name}: expected a v1 snapshot with generatedAt and claims`,
+    );
     return { ok: false, count: 0 };
   }
   const seen = new Set();
   data.claims.forEach((claim, index) => {
-    if (!isValidNightSignalClaim(claim)) errs.add(`claim ${index}: invalid provenance, review, expiry, or route-effect contract`);
-    if (claim?.reviewState !== "approved") errs.add(`claim ${index}: public snapshot may only contain approved claims`);
-    if (seen.has(claim?.id)) errs.add(`claim ${index}: duplicate id ${claim?.id}`);
-    if (claim?.reviewedAt && Date.parse(claim.reviewedAt) > Date.parse(data.generatedAt)) errs.add(`claim ${index}: review is newer than the snapshot`);
+    if (!isValidNightSignalClaim(claim))
+      errs.add(
+        `claim ${index}: invalid provenance, review, expiry, or route-effect contract`,
+      );
+    if (claim?.reviewState !== "approved")
+      errs.add(
+        `claim ${index}: public snapshot may only contain approved claims`,
+      );
+    if (seen.has(claim?.id))
+      errs.add(`claim ${index}: duplicate id ${claim?.id}`);
+    if (
+      claim?.reviewedAt &&
+      Date.parse(claim.reviewedAt) > Date.parse(data.generatedAt)
+    )
+      errs.add(`claim ${index}: review is newer than the snapshot`);
     seen.add(claim?.id);
   });
   const ok = errs.count === 0;
-  console.log(`${ok ? "PASS" : "FAIL"} ${name}: ${data.claims.length} reviewed claims, ${errs.count} error(s)`);
+  console.log(
+    `${ok ? "PASS" : "FAIL"} ${name}: ${data.claims.length} reviewed claims, ${errs.count} error(s)`,
+  );
   if (!ok) errs.report();
   return { ok, count: data.claims.length };
 }
@@ -1705,36 +2038,94 @@ function validateWeatherSnapshotData() {
   const name = "public/data/weather/latest.json";
   const errs = makeCollector();
   let data;
-  try { data = loadJson("weather/latest.json"); }
-  catch (e) {
+  try {
+    data = loadJson("weather/latest.json");
+  } catch (e) {
     console.log(`FAIL ${name}: could not read/parse (${e.message})`);
     return { ok: false, count: 0 };
   }
   const areas = new Set([
-    "clapham", "victoria", "piccadilly-soho", "canary-wharf", "barnes", "chiswick",
-    "shoreditch", "camden", "brixton", "bermondsey-london-bridge", "kings-cross", "islington",
-    "dalston", "peckham", "greenwich", "hammersmith", "balham", "marylebone", "richmond", "putney",
+    "clapham",
+    "victoria",
+    "piccadilly-soho",
+    "canary-wharf",
+    "barnes",
+    "chiswick",
+    "shoreditch",
+    "camden",
+    "brixton",
+    "bermondsey-london-bridge",
+    "kings-cross",
+    "islington",
+    "dalston",
+    "peckham",
+    "greenwich",
+    "hammersmith",
+    "balham",
+    "marylebone",
+    "richmond",
+    "putney",
   ]);
-  const iso = (value) => typeof value === "string" && Number.isFinite(Date.parse(value));
-  if (data?.version !== 1 || !iso(data?.generatedAt) || !Array.isArray(data?.observations)) {
-    console.log(`FAIL ${name}: expected a v1 snapshot with generatedAt and observations`);
+  const iso = (value) =>
+    typeof value === "string" && Number.isFinite(Date.parse(value));
+  if (
+    data?.version !== 1 ||
+    !iso(data?.generatedAt) ||
+    !Array.isArray(data?.observations)
+  ) {
+    console.log(
+      `FAIL ${name}: expected a v1 snapshot with generatedAt and observations`,
+    );
     return { ok: false, count: 0 };
   }
   const seen = new Set();
   for (const [index, row] of data.observations.entries()) {
-    if (!areas.has(row?.nightArea) || seen.has(row?.nightArea)) errs.add(`observation ${index}: invalid or duplicate Night Area`);
+    if (!areas.has(row?.nightArea) || seen.has(row?.nightArea))
+      errs.add(`observation ${index}: invalid or duplicate Night Area`);
     seen.add(row?.nightArea);
-    if (!iso(row?.observedAt) || !iso(row?.expiresAt) || Date.parse(row.expiresAt) <= Date.parse(row.observedAt)) errs.add(`observation ${index}: invalid evidence interval`);
-    if (Date.parse(row?.observedAt) > Date.parse(data.generatedAt)) errs.add(`observation ${index}: newer than snapshot`);
-    if (typeof row?.condition !== "string" || !row.condition.trim()) errs.add(`observation ${index}: condition is required`);
-    if (typeof row?.feelsLikeC !== "number" || row.feelsLikeC < -40 || row.feelsLikeC > 60) errs.add(`observation ${index}: invalid feelsLikeC`);
-    if (typeof row?.precipitationProbabilityPct !== "number" || row.precipitationProbabilityPct < 0 || row.precipitationProbabilityPct > 100) errs.add(`observation ${index}: invalid precipitation probability`);
-    if (row?.windKph !== null && (typeof row?.windKph !== "number" || row.windKph < 0 || row.windKph > 300)) errs.add(`observation ${index}: invalid windKph`);
-    if (!row?.source || !isHttpUrl(row.source.sourceUrl) || typeof row.source.publisher !== "string" || !row.source.publisher.trim() || !iso(row.source.publishedAt) || Date.parse(row.source.publishedAt) > Date.parse(row.observedAt)) errs.add(`observation ${index}: invalid source provenance`);
+    if (
+      !iso(row?.observedAt) ||
+      !iso(row?.expiresAt) ||
+      Date.parse(row.expiresAt) <= Date.parse(row.observedAt)
+    )
+      errs.add(`observation ${index}: invalid evidence interval`);
+    if (Date.parse(row?.observedAt) > Date.parse(data.generatedAt))
+      errs.add(`observation ${index}: newer than snapshot`);
+    if (typeof row?.condition !== "string" || !row.condition.trim())
+      errs.add(`observation ${index}: condition is required`);
+    if (
+      typeof row?.feelsLikeC !== "number" ||
+      row.feelsLikeC < -40 ||
+      row.feelsLikeC > 60
+    )
+      errs.add(`observation ${index}: invalid feelsLikeC`);
+    if (
+      typeof row?.precipitationProbabilityPct !== "number" ||
+      row.precipitationProbabilityPct < 0 ||
+      row.precipitationProbabilityPct > 100
+    )
+      errs.add(`observation ${index}: invalid precipitation probability`);
+    if (
+      row?.windKph !== null &&
+      (typeof row?.windKph !== "number" || row.windKph < 0 || row.windKph > 300)
+    )
+      errs.add(`observation ${index}: invalid windKph`);
+    if (
+      !row?.source ||
+      !isHttpUrl(row.source.sourceUrl) ||
+      typeof row.source.publisher !== "string" ||
+      !row.source.publisher.trim() ||
+      !iso(row.source.publishedAt) ||
+      Date.parse(row.source.publishedAt) > Date.parse(row.observedAt)
+    )
+      errs.add(`observation ${index}: invalid source provenance`);
   }
-  if (data.observations.length !== 0 && data.observations.length !== areas.size) errs.add("a non-empty refresh must be atomic across all 20 Night Areas");
+  if (data.observations.length !== 0 && data.observations.length !== areas.size)
+    errs.add("a non-empty refresh must be atomic across all 20 Night Areas");
   const ok = errs.count === 0;
-  console.log(`${ok ? "PASS" : "FAIL"} ${name}: ${data.observations.length} cached observations, ${errs.count} error(s)`);
+  console.log(
+    `${ok ? "PASS" : "FAIL"} ${name}: ${data.observations.length} cached observations, ${errs.count} error(s)`,
+  );
   if (!ok) errs.report();
   return { ok, count: data.observations.length };
 }
@@ -1743,64 +2134,155 @@ function validatePintIndexSnapshot() {
   const name = "public/data/pint_index_snapshot.json";
   const errs = makeCollector();
   let data;
-  try { data = loadJson("pint_index_snapshot.json"); }
-  catch (e) {
+  try {
+    data = loadJson("pint_index_snapshot.json");
+  } catch (e) {
     console.log(`FAIL ${name}: could not read/parse (${e.message})`);
     return { ok: false, count: 0 };
   }
-  const iso = (value) => typeof value === "string" && Number.isFinite(Date.parse(value));
+  const iso = (value) =>
+    typeof value === "string" && Number.isFinite(Date.parse(value));
   const publicUrl = (value) => {
     try {
       const url = new URL(value);
-      return ["http:", "https:"].includes(url.protocol) && !url.username && !url.password;
-    } catch { return false; }
+      return (
+        ["http:", "https:"].includes(url.protocol) &&
+        !url.username &&
+        !url.password
+      );
+    } catch {
+      return false;
+    }
   };
   const hostname = (value) => {
-    try { return new URL(value).hostname.toLowerCase().replace(/^www\./, ""); }
-    catch { return null; }
+    try {
+      return new URL(value).hostname.toLowerCase().replace(/^www\./, "");
+    } catch {
+      return null;
+    }
   };
   const boroughs = new Set([
-    "Barking and Dagenham", "Barnet", "Bexley", "Brent", "Bromley", "Camden",
-    "City of London", "Croydon", "Ealing", "Enfield", "Greenwich", "Hackney",
-    "Hammersmith and Fulham", "Haringey", "Harrow", "Havering", "Hillingdon",
-    "Hounslow", "Islington", "Kensington and Chelsea", "Kingston upon Thames",
-    "Lambeth", "Lewisham", "Merton", "Newham", "Redbridge", "Richmond upon Thames",
-    "Southwark", "Sutton", "Tower Hamlets", "Waltham Forest", "Wandsworth", "Westminster",
+    "Barking and Dagenham",
+    "Barnet",
+    "Bexley",
+    "Brent",
+    "Bromley",
+    "Camden",
+    "City of London",
+    "Croydon",
+    "Ealing",
+    "Enfield",
+    "Greenwich",
+    "Hackney",
+    "Hammersmith and Fulham",
+    "Haringey",
+    "Harrow",
+    "Havering",
+    "Hillingdon",
+    "Hounslow",
+    "Islington",
+    "Kensington and Chelsea",
+    "Kingston upon Thames",
+    "Lambeth",
+    "Lewisham",
+    "Merton",
+    "Newham",
+    "Redbridge",
+    "Richmond upon Thames",
+    "Southwark",
+    "Sutton",
+    "Tower Hamlets",
+    "Waltham Forest",
+    "Wandsworth",
+    "Westminster",
   ]);
-  const code = (value) => value.toLowerCase().replace(/&/g, " and ").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
-  if (data?.schemaVersion !== 1 || !["published", "partial", "empty"].includes(data?.status) || !iso(data?.generatedAt)) errs.add("expected a v1 snapshot with valid status and generatedAt");
-  if (data?.classification?.version !== "london-borough-point-v1" || data?.classification?.method !== "point_in_polygon" || typeof data?.classification?.licence !== "string") errs.add("invalid classification provenance");
-  if (!Array.isArray(data?.sources) || !Array.isArray(data?.observations) || !Array.isArray(data?.excluded)) errs.add("sources, observations and excluded must be arrays");
+  const code = (value) =>
+    value
+      .toLowerCase()
+      .replace(/&/g, " and ")
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-|-$/g, "");
+  if (
+    data?.schemaVersion !== 1 ||
+    !["published", "partial", "empty"].includes(data?.status) ||
+    !iso(data?.generatedAt)
+  )
+    errs.add("expected a v1 snapshot with valid status and generatedAt");
+  if (
+    data?.classification?.version !== "london-borough-point-v1" ||
+    data?.classification?.method !== "point_in_polygon" ||
+    typeof data?.classification?.licence !== "string"
+  )
+    errs.add("invalid classification provenance");
+  if (
+    !Array.isArray(data?.sources) ||
+    !Array.isArray(data?.observations) ||
+    !Array.isArray(data?.excluded)
+  )
+    errs.add("sources, observations and excluded must be arrays");
   const ids = new Set();
   for (const [index, source] of (data?.sources ?? []).entries()) {
-    if (!source?.id || ids.has(source.id)) errs.add(`source ${index}: missing or duplicate id`);
+    if (!source?.id || ids.has(source.id))
+      errs.add(`source ${index}: missing or duplicate id`);
     ids.add(source?.id);
-    if (!["confirmed_pint_drop", "official_publisher", "open_data"].includes(source?.kind)) errs.add(`source ${index}: ineligible kind`);
-    if (!publicUrl(source?.sourceUrl)) errs.add(`source ${index}: invalid public URL`);
-    if (source?.kind === "confirmed_pint_drop" &&
-        (source?.reviewState !== "confirmed" || !source?.confirmationId)) {
+    if (
+      !["confirmed_pint_drop", "official_publisher", "open_data"].includes(
+        source?.kind,
+      )
+    )
+      errs.add(`source ${index}: ineligible kind`);
+    if (!publicUrl(source?.sourceUrl))
+      errs.add(`source ${index}: invalid public URL`);
+    if (
+      source?.kind === "confirmed_pint_drop" &&
+      (source?.reviewState !== "confirmed" || !source?.confirmationId)
+    ) {
       errs.add(`source ${index}: Pint Drop requires confirmed review evidence`);
     }
     if (source?.kind === "official_publisher") {
-      const domain = typeof source?.officialDomain === "string" ? source.officialDomain.toLowerCase().replace(/^www\./, "") : "";
+      const domain =
+        typeof source?.officialDomain === "string"
+          ? source.officialDomain.toLowerCase().replace(/^www\./, "")
+          : "";
       const sourceHost = hostname(source?.sourceUrl);
-      if (!["pub", "brewery"].includes(source?.publisherType) || !domain || !sourceHost ||
-          (sourceHost !== domain && !sourceHost.endsWith(`.${domain}`))) {
-        errs.add(`source ${index}: official pub/brewery domain must match source URL`);
+      if (
+        !["pub", "brewery"].includes(source?.publisherType) ||
+        !domain ||
+        !sourceHost ||
+        (sourceHost !== domain && !sourceHost.endsWith(`.${domain}`))
+      ) {
+        errs.add(
+          `source ${index}: official pub/brewery domain must match source URL`,
+        );
       }
     }
-    if (source?.kind === "open_data" && (!source?.licence || !source?.datasetName)) errs.add(`source ${index}: open data requires a named, licensed dataset`);
+    if (
+      source?.kind === "open_data" &&
+      (!source?.licence || !source?.datasetName)
+    )
+      errs.add(`source ${index}: open data requires a named, licensed dataset`);
   }
   for (const [index, row] of (data?.observations ?? []).entries()) {
-    if (!boroughs.has(row?.boroughName) || code(row.boroughName ?? "") !== row?.boroughCode) errs.add(`observation ${index}: non-canonical borough`);
-    if (!Number.isInteger(row?.pricePence) || row.pricePence <= 0) errs.add(`observation ${index}: invalid pricePence`);
-    if (!iso(row?.observedAt)) errs.add(`observation ${index}: invalid observedAt`);
-    if (!ids.has(row?.sourceId)) errs.add(`observation ${index}: unknown source`);
+    if (
+      !boroughs.has(row?.boroughName) ||
+      code(row.boroughName ?? "") !== row?.boroughCode
+    )
+      errs.add(`observation ${index}: non-canonical borough`);
+    if (!Number.isInteger(row?.pricePence) || row.pricePence <= 0)
+      errs.add(`observation ${index}: invalid pricePence`);
+    if (!iso(row?.observedAt))
+      errs.add(`observation ${index}: invalid observedAt`);
+    if (!ids.has(row?.sourceId))
+      errs.add(`observation ${index}: unknown source`);
   }
-  if (data?.status === "empty" && (data?.observations?.length ?? 0) !== 0) errs.add("empty snapshot contains observations");
-  if (data?.status !== "empty" && (data?.observations?.length ?? 0) === 0) errs.add("non-empty snapshot has no observations");
+  if (data?.status === "empty" && (data?.observations?.length ?? 0) !== 0)
+    errs.add("empty snapshot contains observations");
+  if (data?.status !== "empty" && (data?.observations?.length ?? 0) === 0)
+    errs.add("non-empty snapshot has no observations");
   const ok = errs.count === 0;
-  console.log(`${ok ? "PASS" : "FAIL"} ${name}: ${data?.observations?.length ?? 0} public observations, ${errs.count} error(s)`);
+  console.log(
+    `${ok ? "PASS" : "FAIL"} ${name}: ${data?.observations?.length ?? 0} public observations, ${errs.count} error(s)`,
+  );
   if (!ok) errs.report();
   return { ok, count: data?.observations?.length ?? 0 };
 }
@@ -1808,19 +2290,24 @@ function validatePintIndexSnapshot() {
 function validateLateFoodEvidenceSnapshot() {
   const name = "public/data/late_food_evidence.json";
   let data;
-  try { data = loadJson("late_food_evidence.json"); }
-  catch (e) {
+  try {
+    data = loadJson("late_food_evidence.json");
+  } catch (e) {
     console.log(`FAIL ${name}: could not read/parse (${e.message})`);
     return { ok: false, count: 0 };
   }
   const errors = validateLateFoodEvidence(data);
   const count = Object.values(data?.areas ?? {}).reduce(
-    (sum, area) => sum + (Array.isArray(area?.options) ? area.options.length : 0),
+    (sum, area) =>
+      sum + (Array.isArray(area?.options) ? area.options.length : 0),
     0,
   );
   const ok = errors.length === 0;
-  console.log(`${ok ? "PASS" : "FAIL"} ${name}: ${Object.keys(data?.areas ?? {}).length} Night Areas, ${count} evidenced option(s), ${errors.length} error(s)`);
-  if (!ok) errors.slice(0, 20).forEach((error) => console.log(`    - ${error}`));
+  console.log(
+    `${ok ? "PASS" : "FAIL"} ${name}: ${Object.keys(data?.areas ?? {}).length} Night Areas, ${count} evidenced option(s), ${errors.length} error(s)`,
+  );
+  if (!ok)
+    errors.slice(0, 20).forEach((error) => console.log(`    - ${error}`));
   return { ok, count };
 }
 
@@ -1833,21 +2320,29 @@ function validateNightOutPlacesSnapshot() {
   }
   const errs = makeCollector();
   let data;
-  try { data = JSON.parse(readFileSync(path, "utf8")); }
-  catch (e) {
+  try {
+    data = JSON.parse(readFileSync(path, "utf8"));
+  } catch (e) {
     console.log(`FAIL ${name}: could not read/parse (${e.message})`);
     return { ok: false, count: 0 };
   }
   for (const error of nightOutPlaceSnapshotValidationErrors(data)) {
     errs.add(error);
   }
-  const provenancePath = join(ROOT_DIR, "data", "night_out_place_provenance_registry.json");
+  const provenancePath = join(
+    ROOT_DIR,
+    "data",
+    "night_out_place_provenance_registry.json",
+  );
   if (!existsSync(provenancePath)) {
     errs.add("required provenance registry is missing");
   } else {
     try {
       const registry = JSON.parse(readFileSync(provenancePath, "utf8"));
-      for (const error of nightOutPlaceProvenanceRegistryValidationErrors(registry, data)) {
+      for (const error of nightOutPlaceProvenanceRegistryValidationErrors(
+        registry,
+        data,
+      )) {
         errs.add(error);
       }
     } catch (e) {
@@ -1856,7 +2351,9 @@ function validateNightOutPlacesSnapshot() {
   }
   const ok = errs.count === 0;
   const count = Array.isArray(data?.places) ? data.places.length : 0;
-  console.log(`${ok ? "PASS" : "FAIL"} ${name}: ${count} sourced place(s), ${errs.count} error(s)`);
+  console.log(
+    `${ok ? "PASS" : "FAIL"} ${name}: ${count} sourced place(s), ${errs.count} error(s)`,
+  );
   if (!ok) errs.report();
   return { ok, count };
 }
@@ -1901,14 +2398,20 @@ async function main() {
     const { results: fresh, breached } = evaluateFreshness();
     const stale = fresh.filter((r) => r.status === "stale");
     const unknown = fresh.filter((r) => r.status === "unknown");
-    console.log("\nFreshness registry (advisory — see scripts/check_freshness.mjs):");
+    console.log(
+      "\nFreshness registry (advisory — see scripts/check_freshness.mjs):",
+    );
     if (breached) {
       for (const r of [...stale, ...unknown]) {
         console.log(`  WARN ${r.id}: ${r.detail}`);
       }
-      console.log(`  ${stale.length} stale, ${unknown.length} unresolved of ${fresh.length} datasets (not a build failure).`);
+      console.log(
+        `  ${stale.length} stale, ${unknown.length} unresolved of ${fresh.length} datasets (not a build failure).`,
+      );
     } else {
-      console.log(`  OK: ${fresh.length} datasets within budget (or live/untracked).`);
+      console.log(
+        `  OK: ${fresh.length} datasets within budget (or live/untracked).`,
+      );
     }
   } catch (e) {
     // A registry problem must not break the data gate — it only dims a warning.
@@ -1917,7 +2420,9 @@ async function main() {
 
   console.log("");
   if (failed > 0) {
-    console.log(`DATA VALIDATION FAILED: ${failed} of ${results.length} dataset(s) invalid.`);
+    console.log(
+      `DATA VALIDATION FAILED: ${failed} of ${results.length} dataset(s) invalid.`,
+    );
     process.exit(1);
   }
   console.log(`DATA VALIDATION PASSED: all ${results.length} datasets valid.`);

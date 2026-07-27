@@ -58,7 +58,9 @@ function isBoolean(value: unknown): value is boolean {
 }
 
 function isStringArray(value: unknown): value is string[] {
-  return Array.isArray(value) && value.every((item) => typeof item === "string");
+  return (
+    Array.isArray(value) && value.every((item) => typeof item === "string")
+  );
 }
 
 function isFilterHints(value: unknown): value is VenueFilterHints {
@@ -70,11 +72,16 @@ function isFilterHints(value: unknown): value is VenueFilterHints {
   const amenities = row.amenities as Record<string, unknown>;
   const curation = row.curation as Record<string, unknown>;
   // Optional soft arrays (Wave C drink lens + Wave E cuisine tags).
-  if (row.cuisineTags !== undefined && !isStringArray(row.cuisineTags)) return false;
-  if (row.drinkCategories !== undefined && !isStringArray(row.drinkCategories)) return false;
-  if (row.drinkBrands !== undefined && !isStringArray(row.drinkBrands)) return false;
-  if (row.drinkSubtypes !== undefined && !isStringArray(row.drinkSubtypes)) return false;
-  if (row.drinkText !== undefined && typeof row.drinkText !== "string") return false;
+  if (row.cuisineTags !== undefined && !isStringArray(row.cuisineTags))
+    return false;
+  if (row.drinkCategories !== undefined && !isStringArray(row.drinkCategories))
+    return false;
+  if (row.drinkBrands !== undefined && !isStringArray(row.drinkBrands))
+    return false;
+  if (row.drinkSubtypes !== undefined && !isStringArray(row.drinkSubtypes))
+    return false;
+  if (row.drinkText !== undefined && typeof row.drinkText !== "string")
+    return false;
   if (row.topShelf !== undefined && !isBoolean(row.topShelf)) return false;
   if (row.scraped !== undefined && !isBoolean(row.scraped)) return false;
   return (
@@ -102,7 +109,7 @@ function hasValidAnchor(row: Record<string, unknown>): boolean {
     typeof row.anchorSourceUrl === "string" &&
     row.anchorSourceUrl.trim().length > 0;
 
-  return row.kind === "bar" || row.kind === "food"
+  return row.kind === "bar" || row.kind === "food" || row.kind === "restaurant"
     ? hasCompleteAnchor
     : !hasAnyAnchor || hasCompleteAnchor;
 }
@@ -123,12 +130,17 @@ function isValidSlimVenue(value: unknown): value is SlimVenue {
   // zone, when present, must be a positive integer (fare zone). Absent is fine.
   const zoneOk =
     row.zone === undefined ||
-    (typeof row.zone === "number" && Number.isInteger(row.zone) && row.zone > 0);
+    (typeof row.zone === "number" &&
+      Number.isInteger(row.zone) &&
+      row.zone > 0);
   const kindOk =
     row.kind === undefined ||
     ["pub", "bar", "club", "food", "restaurant"].includes(String(row.kind));
   const priceBandOk =
-    row.priceBand === undefined || row.priceBand === 0 || row.priceBand === 1 || row.priceBand === 2;
+    row.priceBand === undefined ||
+    row.priceBand === 0 ||
+    row.priceBand === 1 ||
+    row.priceBand === 2;
   return (
     priceOk &&
     zoneOk &&
@@ -156,7 +168,9 @@ function normalizeRows(data: unknown): SlimVenue[] {
     ...(venue.filterHints ? { filterHints: venue.filterHints } : {}),
     ...(venue.kind !== undefined ? { kind: venue.kind } : {}),
     ...(venue.priceBand !== undefined ? { priceBand: venue.priceBand } : {}),
-    ...(venue.anchorLabel !== undefined ? { anchorLabel: venue.anchorLabel } : {}),
+    ...(venue.anchorLabel !== undefined
+      ? { anchorLabel: venue.anchorLabel }
+      : {}),
     ...(venue.anchorObservedAt !== undefined
       ? { anchorObservedAt: venue.anchorObservedAt }
       : {}),
@@ -178,7 +192,9 @@ function normalizeRows(data: unknown): SlimVenue[] {
  * propagate — preserving the pre-offline contract for callers that show a
  * load-error state.
  */
-export async function loadSlimVenuesFromPath(path: string): Promise<SlimVenue[]> {
+export async function loadSlimVenuesFromPath(
+  path: string,
+): Promise<SlimVenue[]> {
   const offlineKey = offlineKeyForPath(path);
   try {
     const response = await fetch(path);

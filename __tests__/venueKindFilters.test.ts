@@ -12,38 +12,62 @@ import {
 } from "@/lib/venueKindFilters";
 import type { Venue } from "@/lib/venues";
 
-const venue = (id: string, kind?: Venue["kind"]) =>
-  ({ id, kind }) as Venue;
+const venue = (id: string, kind?: Venue["kind"]) => ({ id, kind }) as Venue;
 
 describe("venueKindFilters", () => {
-  it("defaults every Wave 1 venue type on", () => {
-    expect(defaultVenueKindVisibility()).toEqual({ pub: true, bar: true, food: true });
+  it("defaults every curated venue type on", () => {
+    expect(defaultVenueKindVisibility()).toEqual({
+      pub: true,
+      bar: true,
+      food: true,
+      restaurant: true,
+    });
   });
 
   it("treats absent kind as a backward-compatible pub", () => {
     const visibility = toggleVenueKind(defaultVenueKindVisibility(), "pub");
-    expect(filterVenuesByKind([venue("legacy"), venue("bar", "bar")], visibility))
-      .toEqual([venue("bar", "bar")]);
+    expect(
+      filterVenuesByKind([venue("legacy"), venue("bar", "bar")], visibility),
+    ).toEqual([venue("bar", "bar")]);
   });
 
   it("toggles each kind independently", () => {
     const barsOff = toggleVenueKind(defaultVenueKindVisibility(), "bar");
-    expect(barsOff).toEqual({ pub: true, bar: false, food: true });
-    expect(filterVenuesByKind(
-      [venue("pub"), venue("bar", "bar"), venue("food", "food")],
-      barsOff,
-    ).map((item) => item.id)).toEqual(["pub", "food"]);
+    expect(barsOff).toEqual({
+      pub: true,
+      bar: false,
+      food: true,
+      restaurant: true,
+    });
+    expect(
+      filterVenuesByKind(
+        [
+          venue("pub"),
+          venue("bar", "bar"),
+          venue("food", "food"),
+          venue("restaurant", "restaurant"),
+        ],
+        barsOff,
+      ).map((item) => item.id),
+    ).toEqual(["pub", "food", "restaurant"]);
   });
 
-  it("does not leak future venue kinds into the Pints chip", () => {
-    const futureKinds = [
-      venue("club", "club"),
-      venue("restaurant", "restaurant"),
-    ];
-
-    expect(filterVenuesByKind(futureKinds, defaultVenueKindVisibility())).toEqual(
-      [],
+  it("keeps restaurants distinct from Pints and excludes future clubs", () => {
+    const restaurantsOff = toggleVenueKind(
+      defaultVenueKindVisibility(),
+      "restaurant",
     );
+
+    expect(
+      filterVenuesByKind(
+        [
+          venue("pub"),
+          venue("restaurant", "restaurant"),
+          venue("club", "club"),
+        ],
+        restaurantsOff,
+      ).map((item) => item.id),
+    ).toEqual(["pub"]);
   });
 
   it("identifies only legacy and explicit pub venues for pint-domain consumers", () => {
@@ -58,10 +82,7 @@ describe("venueKindFilters", () => {
         .map((item) => item.id),
     ).toEqual(["legacy", "pub"]);
     const kinds: Array<Venue["kind"]> = [undefined, "pub", "bar", "food"];
-    expect(kinds.filter(isPubVenueKind)).toEqual([
-      undefined,
-      "pub",
-    ]);
+    expect(kinds.filter(isPubVenueKind)).toEqual([undefined, "pub"]);
   });
 
   it("does not let saved bars or food satisfy a saved-pub workflow", () => {
@@ -81,6 +102,7 @@ describe("venueKindFilters", () => {
     expect(venueKindLabel("pub")).toBe("Pub");
     expect(venueKindLabel("bar")).toBe("Bar");
     expect(venueKindLabel("food")).toBe("Late food");
+    expect(venueKindLabel("restaurant")).toBe("Restaurant");
   });
 
   it("supplies kind-honest nouns for shared venue copy", () => {

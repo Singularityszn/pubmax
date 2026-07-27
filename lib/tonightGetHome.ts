@@ -18,6 +18,18 @@ export type GetHomeSummary = {
   trainLine: string;
 };
 
+export function rankFoodHandoff<
+  T extends { walkingDetour: { minutes: number | null } },
+>(candidates: readonly T[]): T[] {
+  return [...candidates]
+    .sort(
+      (left, right) =>
+        (left.walkingDetour.minutes ?? Number.POSITIVE_INFINITY) -
+        (right.walkingDetour.minutes ?? Number.POSITIVE_INFINITY),
+    )
+    .slice(0, 3);
+}
+
 // TfL disruption summaries can run long; the strip is one calm line, not a
 // service bulletin. Cut on a word boundary and mark the cut honestly.
 const DISRUPTION_MAX = 90;
@@ -41,7 +53,11 @@ export function summariseGetHome(
   // The route's graceful-failure shape is 200 + `error` + empty body, so both
   // station and trains must be defensively checked, not assumed.
   const stationName = result.station?.name;
-  if (!stationName || !Array.isArray(result.trains) || result.trains.length === 0) {
+  if (
+    !stationName ||
+    !Array.isArray(result.trains) ||
+    result.trains.length === 0
+  ) {
     return null;
   }
 

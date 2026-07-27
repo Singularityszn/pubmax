@@ -189,6 +189,12 @@ describe("canonical route revision completion", () => {
         reviewedAt: "2026-07-16T21:13:30.000Z",
         expiresAt: "2026-08-16T21:13:30.000Z",
       },
+      anchor: {
+        label: "Cheeseburger",
+        price: 20,
+        sourceUrl: "https://balans.co.uk/wp-content/uploads/2025/07/No.60-Overnight-1.pdf",
+        observedAt: "2026-07-16",
+      },
       confidence: "high",
       openAtRequestedTime: true,
     });
