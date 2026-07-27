@@ -76,7 +76,19 @@ async function main() {
   await mkdir(ARCHIVE_DIR, { recursive: true });
   const published = new Set(await readdir(ARCHIVE_DIR).catch(() => []));
   const file = path.join(ARCHIVE_DIR, `${args.month}.json`);
-  const existing = published.has(`${args.month}.json`) ? await readJson(file) : null;
+  // The lineage a correction records is only worth anything if the file it is
+  // taken from still holds its own contract. Reading it unchecked would let a
+  // hand-edited edition hand over a tampered digest as the hash of what was
+  // replaced, and bless it as revision 2.
+  let existing = null;
+  if (published.has(`${args.month}.json`)) {
+    const stored = await readJson(file).catch((error) => die(`could not read ${file}: ${error.message}`));
+    const current = validateArchivedPintIndexSnapshot(stored, { month: args.month, sha256 });
+    if (!current.ok) {
+      die(`refusing to correct an edition that fails its own contract:\n  ${current.errors.join("\n  ")}`);
+    }
+    existing = current.archive;
+  }
 
   const plan = planArchivePublish({
     existing,

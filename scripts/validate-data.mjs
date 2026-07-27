@@ -1821,6 +1821,15 @@ function validatePintIndexEditions() {
   // lib/pintIndexArchive.ts canonicalObservationsPayload. A published month
   // that no longer hashes to its stored digest has been rewritten, which is
   // exactly the thing a citation must be able to rule out.
+  // Which month an observation belongs to, parsed to UTC exactly as
+  // lib/pintIndexArchive.ts pintIndexMonthOf does. A raw string prefix would
+  // read "2026-06-30T23:30:00-05:00" as June while the runtime validator reads
+  // it as July, and the build would stay green while the edition, its CSV and
+  // its sitemap entry silently stopped being served.
+  const observedMonth = (value) => {
+    const parsed = Date.parse(value);
+    return Number.isFinite(parsed) ? new Date(parsed).toISOString().slice(0, 7) : null;
+  };
   const canonical = (rows) => JSON.stringify(rows
     .map((row) => [
       row?.venueId, row?.boroughCode, String(row?.pricePence),
@@ -1857,9 +1866,19 @@ function validatePintIndexEditions() {
     });
     const rows = Array.isArray(data?.observations) ? data.observations : [];
     observations += rows.length;
+    let datesParse = true;
     for (const [index, row] of rows.entries()) {
-      if (String(row?.observedAt).slice(0, 7) !== month) errs.add(`${file}: observation ${index} was not observed in ${month}`);
+      const observed = observedMonth(row?.observedAt);
+      if (observed === null) {
+        datesParse = false;
+        errs.add(`${file}: observation ${index} has no parseable observedAt`);
+      } else if (observed !== month) {
+        errs.add(`${file}: observation ${index} was not observed in ${month}`);
+      }
     }
+    // The canonical form the hash covers needs every date to parse; an
+    // unparseable one is already reported, so do not crash re-deriving it.
+    if (!datesParse) continue;
     if (!hex64.test(archive?.observationsSha256 ?? "")) errs.add(`${file}: archive.observationsSha256 must be a hex sha256`);
     else if (createHash("sha256").update(canonical(rows), "utf8").digest("hex") !== archive.observationsSha256) {
       errs.add(`${file}: observations no longer match the published integrity hash`);

@@ -10,7 +10,7 @@ import PintIndexLeagueTable from "@/components/pintindex/PintIndexLeagueTable";
 import ZonePintIndexStrip from "@/components/zones/ZonePintIndexStrip";
 import { formatObservedDate, PINT_DATASET_OBSERVED_AT } from "@/lib/dataFreshness";
 import { buildLeagueTable, formatPintIndexDate, indexSummary, type PintIndexSnapshot } from "@/lib/pintIndex";
-import { pintIndexMonthCloseDay, pintIndexMonthLabel } from "@/lib/pintIndexArchive";
+import { londonMonthOf, pintIndexMonthCloseDay, pintIndexMonthLabel } from "@/lib/pintIndexArchive";
 import { arrivalAreas } from "@/lib/pintIndexArrival";
 import { loadPintIndexArchive, loadPublicPintIndexSnapshot } from "@/lib/pintIndexSnapshot.server";
 import { loadGroupedVenues } from "@/lib/venueDataset";
@@ -75,8 +75,9 @@ export default async function PintIndexPage() {
   // The month currently filling, and the day it closes and gets its own dated
   // page. Read at render time on purpose: this is the one live claim on the
   // page, and it must move with the calendar rather than harden into a stale
-  // promise about a month that already ended.
-  const openMonth = new Date().toISOString().slice(0, 7);
+  // promise about a month that already ended. Read on the London calendar the
+  // closing date beside it is printed in, not in UTC.
+  const openMonth = londonMonthOf(new Date());
 
   return (
     <main className="pintIndexPage">

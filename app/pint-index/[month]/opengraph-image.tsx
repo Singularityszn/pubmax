@@ -15,8 +15,11 @@ export const contentType = "image/png";
 export default async function Image({ params }: { params: Promise<{ month: string }> }) {
   const { month } = await params;
   const edition = await loadArchivedPintIndexMonth(month);
-  const label = edition ? pintIndexMonthLabel(month) : "Dated edition";
-  const count = edition?.observations.length ?? 0;
+  // An unpublished month has no card, the same way it has no page and no CSV.
+  // Rendering one would answer 200 for any segment and print it back.
+  if (!edition) return new Response(null, { status: 404 });
+  const label = pintIndexMonthLabel(month);
+  const count = edition.observations.length;
 
   return new ImageResponse(
     <CardShell>

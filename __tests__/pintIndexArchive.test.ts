@@ -8,7 +8,9 @@ import { LONDON_BOROUGH_CLASSIFIER_VERSION } from "@/lib/londonBoroughPoint.mjs"
 import type { PintIndexSnapshot } from "@/lib/pintIndex";
 import {
   buildArchivedMonth,
+  londonMonthOf,
   monthPublishBlocker,
+  PINT_INDEX_PUBLIC_START_MONTH,
   pintIndexMonthLabel,
   pintIndexMonthTemporalCoverage,
   pintIndexMonthWindow,
@@ -125,6 +127,35 @@ describe("monthly Pint Index editions", () => {
       .toBe("2026-6 is not a YYYY-MM month");
   });
 
+  it("refuses a month that predates the public Index, with or without a coverage window", () => {
+    // The shipped snapshot carries no observationWindow until something
+    // qualifies, so the coverage check cannot be the floor. Without a declared
+    // start, a long-past month would freeze into a zero-observation edition
+    // that reads as a finding about a window nobody ever looked at.
+    const unassessed = live({ status: "empty", observationWindow: null, observations: [], sources: [] });
+    expect(monthPublishBlocker("2019-03", unassessed, new Date("2026-07-27T00:00:00Z")))
+      .toBe(`2019-03 is before the public Index began covering prices in ${PINT_INDEX_PUBLIC_START_MONTH}`);
+    // A genuinely assessed month with nothing qualifying in it still publishes.
+    expect(monthPublishBlocker(PINT_INDEX_PUBLIC_START_MONTH, unassessed, new Date("2026-07-27T00:00:00Z")))
+      .toBeNull();
+  });
+
+  it("refuses a month that starts after the live index stopped covering prices", () => {
+    const stale = live({
+      generatedAt: "2026-10-01T00:00:00.000Z",
+      observationWindow: { start: "2026-06-01T00:00:00.000Z", end: "2026-07-15T23:59:59.000Z" },
+    });
+    expect(monthPublishBlocker("2026-08", stale, new Date("2026-10-02T00:00:00Z")))
+      .toBe("2026-08 starts after the live index stops covering prices");
+  });
+
+  it("names the month currently filling on the London calendar, not the UTC one", () => {
+    // 00:30 on 1 August in London is still 31 July in UTC during BST.
+    expect(londonMonthOf(new Date("2026-07-31T23:30:00.000Z"))).toBe("2026-08");
+    expect(londonMonthOf(new Date("2026-08-01T00:30:00.000Z"))).toBe("2026-08");
+    expect(londonMonthOf(new Date("2026-01-31T23:30:00.000Z"))).toBe("2026-01");
+  });
+
   it("publishes a month once, then only as a named correction that changes something", () => {
     const first = planArchivePublish({ existing: null, rebuilt: freeze(), issuedAt: "2026-07-01T09:00:00.000Z", sha256 });
     expect(first).toMatchObject({ ok: true, kind: "first" });
@@ -233,6 +264,13 @@ describe("the editions actually published in this repo", () => {
     const stored = JSON.parse(readFileSync(path.join(dir, file), "utf8")) as unknown;
     const result = validateArchivedPintIndexSnapshot(stored, { month, sha256 });
     expect(result.ok ? [] : result.errors).toEqual([]);
+  });
+
+  it.each(files)("%s is a month the publisher would still allow to be frozen", (file) => {
+    const snapshot = JSON.parse(
+      readFileSync(path.join(process.cwd(), "public/data/pint_index_snapshot.json"), "utf8"),
+    ) as PintIndexSnapshot;
+    expect(monthPublishBlocker(file.slice(0, -".json".length), snapshot, new Date())).toBeNull();
   });
 
   it.each(files)("%s reads as a closed month, never a live page", (file) => {
