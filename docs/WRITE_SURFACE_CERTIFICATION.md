@@ -377,8 +377,12 @@ commit.
   shows on the venue sheet at once, and the pin/card restamp only after the
   trust gate (second independent submitter, 30-day window - policy in
   `lib/communityPrice.ts`). Sibling of `POST /api/price-confirm`, which only counts
-  vouches for an already-displayed figure; this is the first time a figure enters
-  the map from the community. The route also exports a read-only `GET` (the
+  vouches for an already-displayed figure; this is where a figure first enters
+  the map from the community. It is no longer the only door: a Round's itemised
+  drink lines (`POST /api/rounds/[code] { action: "recordSpend" }`) reach
+  `submitCommunityPrice` too, under the same device-derived identity, which both
+  routes now take from `deriveCommunityPriceActor` (`lib/communityPriceActor.ts`)
+  so the two cannot drift apart. The route also exports a read-only `GET` (the
   freshest community price per drink at a venue) which is NOT a mutating verb and
   is not counted.
 - **Validation:** `validateCommunityPrice` (`lib/communityPrice.ts`), the SAME
@@ -406,7 +410,12 @@ commit.
   spraying prices across the whole map by rotating `venueId`; then the per-venue
   key `price-submit:${actor ?? "anon"}:${venueId}` - the same key shape as
   `price-confirm` - stops one actor churning one pub's figure. Exceed either →
-  429.
+  429. The actor-wide key is SHARED, not per-route: a Round's drink lines charge
+  the same key one unit per line before the diary write (`lib/roundPriceBudget.ts`
+  owns that budget and its degraded allowance, which answers 503 with
+  `Retry-After` rather than 429, because a spent degraded allowance is our
+  limiter being unreachable, not the drinker's doing). Changing the cap or the
+  key shape here changes both doors.
 - **Provenance (the honesty boundary):** the route only ever APPENDS to
   `community_prices`. It touches NOTHING in the versioned venue dataset, the
   scraped price CSV, or `visit_reports` - a submission cannot overwrite a scraped
