@@ -374,6 +374,22 @@ describe("pubsToGeoJSON price label (only a sourced price gets a figure)", () =>
     expect(props.bucket).toBe(1);
     expect("priceLabel" in props).toBe(false);
   });
+
+  it("never prints a bar or food anchor price - the figure idiom is the pint", () => {
+    // Famous bar/food rows carry their anchor price (a house cocktail, a dish)
+    // as cheapestPrice in the slim index; printed bare it would read as a pint
+    // price. The band still paints; the sheet still shows the labelled anchor.
+    const bar = propsOf(
+      makeVenue({ id: "anchored-bar", kind: "bar", priceBand: 2, cheapestPrice: 25 }),
+    );
+    expect(bar.bucket).toBe(2);
+    expect("priceLabel" in bar).toBe(false);
+    const food = propsOf(
+      makeVenue({ id: "anchored-food", kind: "food", priceBand: 0, cheapestPrice: 15 }),
+    );
+    expect(food.bucket).toBe(0);
+    expect("priceLabel" in food).toBe(false);
+  });
 });
 
 describe("pubsToGeoJSON whats-on badge join (W1)", () => {

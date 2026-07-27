@@ -4,6 +4,7 @@ import { drinkPinKindFromCategories, iconId, venuePinIconKey } from "@/lib/mapIc
 import type { Landmark } from "@/lib/landmarks";
 import { bandAnchors, type StoryBand } from "@/lib/storyBands";
 import type { Venue } from "@/lib/venues";
+import { isPubVenueKind } from "@/lib/venueKindFilters";
 import type { VenueWhatsOnSummary } from "@/lib/whatsOnBadges";
 import type { VenueSignal } from "./types";
 import { hashEntranceSeed } from "./filters";
@@ -51,6 +52,12 @@ export function formatPinPriceLabel(price: number | null | undefined): string | 
  * "£5.40" over a pub is a claim about that pub, and we have no observation
  * behind it. So the seed lane stops here, deliberately.
  *
+ * The sayable lane is also PUB-ONLY (isPubVenueKind): the map's figure idiom
+ * is the pint price, and a famous bar/food venue's cheapestPrice is its anchor
+ * price - a £25 house cocktail, a £15 doner - which printed bare would read as
+ * a pint. Anchors stay labelled and dated on the venue sheet; the band (which
+ * is type-relative for those kinds anyway) still paints.
+ *
  * A PROVISIONAL report cannot reach either read: an uncorroborated submission
  * never becomes `latestContributorPrice` (the gate is
  * mergeCommunityPriceSignals), so the rule the `provisional` prop states — a
@@ -67,8 +74,11 @@ function pinPriceStack(
   beerPrice: number | null,
 ): { price: number | null; sourcedPrice: number | null } {
   if (favoritePint) return { price: beerPrice, sourcedPrice: beerPrice };
-  const sourcedPrice = signals?.latestContributorPrice ?? venue.cheapestPrice ?? null;
-  return { price: sourcedPrice ?? signals?.latestDemoPrice ?? null, sourcedPrice };
+  const bandPrice = signals?.latestContributorPrice ?? venue.cheapestPrice ?? null;
+  return {
+    price: bandPrice ?? signals?.latestDemoPrice ?? null,
+    sourcedPrice: isPubVenueKind(venue.kind) ? bandPrice : null,
+  };
 }
 
 export function pubsToGeoJSON(
