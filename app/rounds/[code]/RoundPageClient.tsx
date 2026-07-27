@@ -467,6 +467,12 @@ type KnownDrinkPrefill = {
   priceSource: RoundSpendItemSource;
 };
 
+// One reading of a typed money field, so the price a line is judged on and the
+// price it is added at can never come apart.
+function readMoneyInput(raw: string): string {
+  return raw.replace(/[£\s]/g, "").replace(",", ".");
+}
+
 function draftItemId(): string {
   if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
     return crypto.randomUUID();
@@ -555,7 +561,7 @@ function RoundSpendComposer({
   }, [mode, open, venueId]);
 
   const itemTotal = items.reduce((sum, item) => sum + item.priceGbp, 0);
-  const parsedTotal = Number(total.replace(/[£\s]/g, "").replace(",", "."));
+  const parsedTotal = Number(readMoneyInput(total));
   const amount =
     mode === "items"
       ? itemTotal
@@ -602,8 +608,16 @@ function RoundSpendComposer({
     return untouched ? "demo" : "round";
   }
 
+  // What the drink row would be logged as as it stands right now, so the note
+  // beside it never describes a figure the drinker has already changed.
+  const draftSource = draftPriceSource(
+    manualName.trim(),
+    manualCategory,
+    readMoneyInput(manualPrice),
+  );
+
   function addManualDrink() {
-    const cleanedPrice = manualPrice.replace(/[£\s]/g, "").replace(",", ".");
+    const cleanedPrice = readMoneyInput(manualPrice);
     const price = Number(cleanedPrice);
     const drinkName = manualName.trim();
     if (!drinkName || !Number.isFinite(price) || price < 1 || price > 30) {
@@ -811,8 +825,8 @@ function RoundSpendComposer({
             <p className="roundKnownDrinkNote">
               A known price only fills the line below. Check it against what you
               paid, then add it.
-              {prefill?.priceSource === "demo"
-                ? " That one came from our demo menu, so it goes in the diary and is not logged as a price. Change the figure to what you paid and it counts as yours."
+              {draftSource === "demo"
+                ? " This line still reads our demo menu, so it goes in the diary and is not logged as a price. Change the figure to what you paid and it counts as yours."
                 : ""}
             </p>
 
@@ -919,6 +933,25 @@ function RoundSpendComposer({
   );
 }
 
+// Both captions count what actually happened to a spend's lines, so neither
+// promises a figure is on the corroboration path when it never went near it.
+function provisionalPriceCaption(logged: number, lines: number): string {
+  if (logged === lines) {
+    return logged === 1
+      ? "This drink price stays provisional until another drinker backs it."
+      : "These drink prices stay provisional until another drinker backs them.";
+  }
+  return logged === 1
+    ? "One of these prices stays provisional until another drinker backs it."
+    : `${logged} of these prices stay provisional until another drinker backs them.`;
+}
+
+function demoLineCaption(diaryOnly: number): string {
+  return diaryOnly === 1
+    ? "One line came off our demo menu, so it stays in this diary and was not logged as a price."
+    : `${diaryOnly} lines came off our demo menu, so they stay in this diary and were not logged as prices.`;
+}
+
 function RoundSpendHistory({
   spends,
 }: {
@@ -964,17 +997,11 @@ function RoundSpendHistory({
                   </ul>
                   {logged.length > 0 ? (
                     <p className="roundPriceTrust">
-                      {logged.length === spend.items.length
-                        ? "These drink prices stay provisional until another drinker backs them."
-                        : `${logged.length} of these prices stay provisional until another drinker backs them.`}
+                      {provisionalPriceCaption(logged.length, spend.items.length)}
                     </p>
                   ) : null}
                   {diaryOnly > 0 ? (
-                    <p className="roundPriceTrust">
-                      {diaryOnly === 1
-                        ? "One line came off our demo menu, so it stays in this diary and was not logged as a price."
-                        : `${diaryOnly} lines came off our demo menu, so they stay in this diary and were not logged as prices.`}
-                    </p>
+                    <p className="roundPriceTrust">{demoLineCaption(diaryOnly)}</p>
                   ) : null}
                 </>
               ) : null}

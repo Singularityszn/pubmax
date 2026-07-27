@@ -145,17 +145,36 @@ export async function POST(request: Request, ctx: Ctx): Promise<Response> {
       const clean = cleanNewRoundSpend(spendInput);
       if (!clean) return errorResponse("invalid");
 
-      const result = await store.recordSpend(code, spendInput);
-      if (!result.ok) return errorResponse(result.error);
-
       // A plain total is a diary figure, not one drink, so it stops here.
       // Itemised prices enter the existing community store and earn map
       // authority only through its independent-submitter and age gates. A line
       // whose figure came off a seeded demo menu is nobody's observation, so it
       // stays in the diary, labelled there, and is never submitted.
       const observed = firstPartyPriceItems(clean.items);
+      const actor = deriveCommunityPriceActor(request);
+
+      // A Round with drink lines IS a price submission, so it pays the same
+      // cross-venue device budget /api/price-submit charges, one unit per line.
+      // Without it, changing door would reset the cap that stops one device
+      // spraying prices across the map. Charged BEFORE the diary write so a
+      // refusal never leaves half a Round's lines submitted; the quick total is
+      // untouched, so the night can still be recorded.
+      if (observed.length > 0) {
+        const actorLimitKey = `price-submit-actor:${actor ?? "anon"}`;
+        for (let charged = 0; charged < observed.length; charged += 1) {
+          if (await isLimited(actorLimitKey, actorLimitKey, 30, 3_600_000)) {
+            return jsonNoStore(
+              { error: "Too many price logs, slow down." },
+              { status: 429 },
+            );
+          }
+        }
+      }
+
+      const result = await store.recordSpend(code, spendInput);
+      if (!result.ok) return errorResponse(result.error);
+
       if (result.created && observed.length > 0) {
-        const actor = deriveCommunityPriceActor(request);
         const stored = result.state.spends.find(
           (spend) => spend.clientRef === clean.clientRef,
         );

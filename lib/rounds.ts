@@ -104,6 +104,14 @@ export type RoundMemberDTO = {
  * real part of the night's diary and nobody's observation, so it stops here.
  * Provenance is the gate, never the figure itself: a drinker who genuinely paid
  * a price a demo menu happens to quote is still observing it.
+ *
+ * The trust model, plainly: this is DECLARED by the client, not proved by the
+ * server, so a crafted POST can label a demo figure "round". That is not a hole
+ * a server check could close — a hand-typed price that coincides with a seed is
+ * the same request as a re-emitted seed, and policy requires accepting the
+ * first. What holds the line instead is what always held it: corroboration and
+ * age before any map surface, plus the same per-device price budget the other
+ * submission door charges (app/api/rounds/[code]).
  */
 export type RoundSpendItemSource = "round" | "demo";
 

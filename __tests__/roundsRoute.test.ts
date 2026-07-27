@@ -525,6 +525,58 @@ describe("POST /api/rounds/[code] — actions", () => {
     });
   });
 
+  it("charges drink lines the same per-device price budget as /api/price-submit", async () => {
+    // A Round with drink lines is a price submission, so it pays the same
+    // cross-venue device budget (30/hour), one unit per line. 20 then 11 lines
+    // crosses it, and the refusal lands BEFORE the diary write so no turn is
+    // half recorded.
+    const lines = (count: number, from: number) =>
+      Array.from({ length: count }, (_, index) => ({
+        drinkName: `Pint ${from + index}`,
+        drinkCategory: "beer",
+        priceGbp: 6.2,
+      }));
+    const device = { "x-forwarded-for": "198.51.100.61" };
+    const { round } = await newRound("ken");
+    await action(round.code, {
+      action: "addStop",
+      handle: "ken",
+      venueId: "venue-1",
+    });
+
+    const first = await action(
+      round.code,
+      {
+        action: "recordSpend",
+        handle: "ken",
+        payerHandle: "ken",
+        venueId: "venue-1",
+        clientRef: "budget-1",
+        items: lines(20, 1),
+      },
+      device,
+    );
+    expect(first.status).toBe(200);
+
+    const second = await action(
+      round.code,
+      {
+        action: "recordSpend",
+        handle: "ken",
+        payerHandle: "ken",
+        venueId: "venue-1",
+        clientRef: "budget-2",
+        items: lines(11, 21),
+      },
+      device,
+    );
+    expect(second.status).toBe(429);
+    expect(await second.json()).toEqual({ error: "Too many price logs, slow down." });
+
+    const state = (await (await get(round.code)).json()) as RoundState;
+    expect(state.spends.map((spend) => spend.clientRef)).toEqual(["budget-1"]);
+  });
+
   it("rejects a payer who is not in the Round", async () => {
     const { round } = await newRound("ken");
     await action(round.code, {
