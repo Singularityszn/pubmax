@@ -27,17 +27,41 @@ describe("GET /api/cron/freshness-audit", () => {
     expect(res.status).toBe(401);
   });
 
-  it("audits the registry and returns stale feeds without throwing", async () => {
+  it("audits the registry and returns its findings without throwing", async () => {
     const res = await GET(req("Bearer test-secret"));
     expect(res.status).toBe(200);
     const body = await res.json();
     expect(body.ok).toBe(true);
     expect(Array.isArray(body.stale)).toBe(true);
+    expect(Array.isArray(body.unresolved)).toBe(true);
     expect(typeof body.counts).toBe("object");
-    // Every entry it flagged carries a status the notifier reports.
+  });
+
+  it("reports stale and unresolved as two separate findings", async () => {
+    const res = await GET(req("Bearer test-secret"));
+    const body = await res.json();
+    // A stale feed has a measured age; an unresolved one has none. Merging them
+    // is what let eleven unreadable feeds bury two genuinely stale ones.
     for (const notice of body.stale) {
-      expect(["stale", "unknown"]).toContain(notice.status);
+      expect(notice.status).toBe("stale");
+      expect(typeof notice.ageHours).toBe("number");
     }
+    for (const notice of body.unresolved) {
+      expect(notice.status).toBe("unknown");
+      expect(notice.ageHours).toBeNull();
+    }
+    const ids = [...body.stale, ...body.unresolved].map((n: { id: string }) => n.id);
+    expect(new Set(ids).size).toBe(ids.length);
+  });
+
+  it("resolves a genuine age for every registered feed when the artifacts are present", async () => {
+    // The whole cause of the daily flood: the audit ran somewhere its artifacts
+    // were not. With them present it must be able to age every one, so any
+    // "unknown" left here is a real defect and not the audit's blind spot.
+    const res = await GET(req("Bearer test-secret"));
+    const body = await res.json();
+    expect(body.unresolved).toEqual([]);
+    expect(body.counts.unknown ?? 0).toBe(0);
   });
 
   it("escalates a budget breach to a loud error-level [ALERT], not an advisory warn", async () => {

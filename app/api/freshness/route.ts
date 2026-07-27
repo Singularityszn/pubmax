@@ -11,15 +11,16 @@
 // "unknown" status, not a route failure. Cacheable at the edge — the registry +
 // stamps only move when a refresh PR merges.
 
-import { readFileSync, existsSync } from "node:fs";
+import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
 import {
   evaluateRegistry,
-  resolveObservedAt,
   type FreshnessDataset,
   type FreshnessRegistry,
+  type StampResolution,
 } from "@/lib/freshness";
+import { resolveDatasetStamp } from "@/lib/freshnessArtifact";
 import { resolveStoreObservedAt } from "@/lib/freshnessStoreOverlay";
 import { countCorroboratedCommunityCategories } from "@/lib/communityPriceStore";
 
@@ -41,17 +42,6 @@ function jsonResponse(body: unknown, opts: { status?: number; cache?: boolean } 
   });
 }
 
-function readArtifact(rootDir: string, relPath: string | null): unknown {
-  if (!relPath) return undefined;
-  const abs = join(rootDir, relPath);
-  if (!existsSync(abs)) return undefined;
-  try {
-    return JSON.parse(readFileSync(abs, "utf8"));
-  } catch {
-    return undefined;
-  }
-}
-
 export async function GET(): Promise<Response> {
   const rootDir = process.cwd();
   let registry: FreshnessRegistry;
@@ -71,8 +61,11 @@ export async function GET(): Promise<Response> {
   // read-only on serverless and would report a frozen stamp); every other feed
   // keeps its disk-derived stamp. Fail-soft: no store configured → empty overlay.
   const overlay = await resolveStoreObservedAt();
-  const stampFor = (dataset: FreshnessDataset): string | null =>
-    overlay[dataset.id] ?? resolveObservedAt(dataset.stamp, readArtifact(rootDir, dataset.artifact));
+  const stampFor = (dataset: FreshnessDataset): StampResolution => {
+    const stored = overlay[dataset.id];
+    if (stored) return { observedAt: stored, reason: null };
+    return resolveDatasetStamp(rootDir, dataset);
+  };
   const results = evaluateRegistry(registry, stampFor, now);
 
   // The contribution flywheel's own number, alongside the dataset staleness:

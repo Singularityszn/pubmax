@@ -1,16 +1,21 @@
-import { readFileSync } from "node:fs";
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-import { describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import {
   evaluateDataset,
   evaluateRegistry,
   hasBreach,
   resolveObservedAt,
+  resolveStamp,
+  staleFeeds,
+  unresolvedFeeds,
   type FreshnessDataset,
   type FreshnessRegistry,
 } from "@/lib/freshness";
+import { readFreshnessArtifact, resolveDatasetStamp } from "@/lib/freshnessArtifact";
 
 const NOW = new Date("2026-07-18T12:00:00Z");
 
@@ -60,6 +65,182 @@ describe("resolveObservedAt", () => {
 
   it("returns null for an unparseable literal", () => {
     expect(resolveObservedAt({ kind: "literal", value: "nope" }, undefined)).toBeNull();
+  });
+});
+
+describe("resolveStamp — why a stamp could not be resolved", () => {
+  const spec = { kind: "field", pointer: "generatedAt" } as const;
+
+  it("resolves the field and attaches no reason", () => {
+    expect(
+      resolveStamp(spec, {
+        kind: "ok",
+        path: "public/data/sample.json",
+        json: { generatedAt: "2026-07-16T00:00:00Z" },
+      }),
+    ).toEqual({ observedAt: "2026-07-16T00:00:00Z", reason: null });
+  });
+
+  it("names the artifact that is not there, rather than blaming the data", () => {
+    const r = resolveStamp(spec, { kind: "missing", path: "public/data/sample.json" });
+    expect(r.observedAt).toBeNull();
+    expect(r.reason).toContain("public/data/sample.json");
+    expect(r.reason).toContain("not present at runtime");
+  });
+
+  it("distinguishes an unparseable file from a missing one", () => {
+    const r = resolveStamp(spec, {
+      kind: "unreadable",
+      path: "public/data/sample.json",
+      error: "Unexpected token }",
+    });
+    expect(r.reason).toContain("could not be parsed");
+    expect(r.reason).toContain("Unexpected token }");
+  });
+
+  it("distinguishes a present file missing the stamp field", () => {
+    const r = resolveStamp(spec, { kind: "ok", path: "public/data/sample.json", json: {} });
+    expect(r.reason).toContain("no parseable \"generatedAt\" field");
+  });
+
+  it("gives every failure mode a DIFFERENT sentence, so an alert is actionable", () => {
+    const reasons = [
+      resolveStamp(spec, { kind: "missing", path: "a.json" }).reason,
+      resolveStamp(spec, { kind: "unreadable", path: "a.json", error: "boom" }).reason,
+      resolveStamp(spec, { kind: "ok", path: "a.json", json: {} }).reason,
+      resolveStamp(spec, { kind: "absent" }).reason,
+      resolveStamp({ kind: "literal", value: "nope" }, { kind: "absent" }).reason,
+    ];
+    expect(new Set(reasons).size).toBe(reasons.length);
+  });
+
+  it("reports no reason for a dataset that never promised a stamp", () => {
+    expect(resolveStamp(null, { kind: "absent" })).toEqual({ observedAt: null, reason: null });
+  });
+
+  it("returns a literal stamp without touching the artifact", () => {
+    expect(
+      resolveStamp({ kind: "literal", value: "2026-07-03T12:00:00Z" }, { kind: "missing", path: "gone.json" }),
+    ).toEqual({ observedAt: "2026-07-03T12:00:00Z", reason: null });
+  });
+});
+
+describe("readFreshnessArtifact + resolveStamp — real files on disk", () => {
+  let dir: string;
+
+  beforeAll(() => {
+    dir = mkdtempSync(join(tmpdir(), "freshness-artifact-"));
+    writeFileSync(join(dir, "resolves.json"), JSON.stringify({ generatedAt: "2026-07-17T09:00:00Z" }));
+    writeFileSync(join(dir, "no-stamp.json"), JSON.stringify({ rows: [] }));
+    writeFileSync(join(dir, "broken.json"), "{ not json");
+  });
+
+  afterAll(() => {
+    rmSync(dir, { recursive: true, force: true });
+  });
+
+  const spec = { kind: "field", pointer: "generatedAt" } as const;
+
+  it("computes a genuine age for an artifact whose timestamp resolves", () => {
+    const { observedAt, reason } = resolveStamp(spec, readFreshnessArtifact(dir, "resolves.json"));
+    expect(reason).toBeNull();
+    const r = evaluateDataset(dataset(), observedAt, NOW, reason);
+    expect(r.status).toBe("fresh");
+    expect(r.ageHours).toBe(27);
+  });
+
+  it("reports unknown, never fresh, for an artifact that is not on disk", () => {
+    const { observedAt, reason } = resolveStamp(spec, readFreshnessArtifact(dir, "absent.json"));
+    const r = evaluateDataset(dataset(), observedAt, NOW, reason);
+    expect(r.status).toBe("unknown");
+    expect(r.ageHours).toBeNull();
+    expect(r.detail).toContain("absent.json");
+  });
+
+  it("reports unknown for a file that is present but carries no stamp", () => {
+    const { observedAt, reason } = resolveStamp(spec, readFreshnessArtifact(dir, "no-stamp.json"));
+    const r = evaluateDataset(dataset(), observedAt, NOW, reason);
+    expect(r.status).toBe("unknown");
+    expect(r.detail).toContain("no-stamp.json");
+  });
+
+  it("reports unknown, with the parse error, for a corrupt file", () => {
+    const read = readFreshnessArtifact(dir, "broken.json");
+    expect(read.kind).toBe("unreadable");
+    const r = evaluateDataset(dataset(), null, NOW, resolveStamp(spec, read).reason);
+    expect(r.status).toBe("unknown");
+    expect(r.detail).toContain("could not be parsed");
+  });
+});
+
+describe("resolveDatasetStamp — a route opens only what it will read", () => {
+  function countingRead() {
+    const opened: (string | null)[] = [];
+    const read = (_root: string, relPath: string | null) => {
+      opened.push(relPath);
+      return relPath === null
+        ? ({ kind: "absent" } as const)
+        : ({ kind: "missing", path: relPath } as const);
+    };
+    return { opened, read };
+  }
+
+  it("opens the artifact for a field stamp", () => {
+    const { opened, read } = countingRead();
+    const { observedAt, reason } = resolveDatasetStamp("/root", dataset(), read);
+    expect(opened).toEqual(["public/data/sample.json"]);
+    expect(observedAt).toBeNull();
+    expect(reason).toContain("public/data/sample.json");
+  });
+
+  it("never opens the artifact of a literal-stamped dataset", () => {
+    const { opened, read } = countingRead();
+    const resolution = resolveDatasetStamp(
+      "/root",
+      dataset({ stamp: { kind: "literal", value: "2026-07-03T12:00:00Z" }, artifact: "public/data/huge.json" }),
+      read,
+    );
+    expect(opened).toEqual([]);
+    expect(resolution).toEqual({ observedAt: "2026-07-03T12:00:00Z", reason: null });
+  });
+
+  it("never opens the artifact of an unstamped dataset", () => {
+    const { opened, read } = countingRead();
+    const resolution = resolveDatasetStamp(
+      "/root",
+      dataset({ stamp: null, artifact: "public/data/reference.json" }),
+      read,
+    );
+    expect(opened).toEqual([]);
+    expect(resolution).toEqual({ observedAt: null, reason: null });
+  });
+
+  it("still reports a field stamp with no artifact as unresolvable", () => {
+    const { opened, read } = countingRead();
+    const { observedAt, reason } = resolveDatasetStamp("/root", dataset({ artifact: null }), read);
+    expect(opened).toEqual([null]);
+    expect(observedAt).toBeNull();
+    expect(reason).toContain("no artifact to read it from");
+  });
+});
+
+describe("staleFeeds / unresolvedFeeds — two findings, never merged", () => {
+  const results = [
+    evaluateDataset(dataset({ id: "old" }), "2026-07-01T12:00:00Z", NOW),
+    evaluateDataset(dataset({ id: "blind" }), null, NOW, "Artifact gone.json is not present at runtime."),
+    evaluateDataset(dataset({ id: "good" }), "2026-07-18T00:00:00Z", NOW),
+  ];
+
+  it("keeps a stale feed out of the unresolved list and vice versa", () => {
+    expect(staleFeeds(results).map((r) => r.id)).toEqual(["old"]);
+    expect(unresolvedFeeds(results).map((r) => r.id)).toEqual(["blind"]);
+  });
+
+  it("never counts an unresolved feed as fresh", () => {
+    const blind = results.find((r) => r.id === "blind");
+    expect(blind?.status).toBe("unknown");
+    expect(blind?.status).not.toBe("fresh");
+    expect(hasBreach(results)).toBe(true);
   });
 });
 
@@ -140,19 +321,27 @@ describe("evaluateRegistry + hasBreach", () => {
   };
 
   it("evaluates every dataset via the injected stamp resolver", () => {
-    const results = evaluateRegistry(registry, (d) => stamps[d.id] ?? null, NOW);
+    const results = evaluateRegistry(
+      registry,
+      (d) => ({ observedAt: stamps[d.id] ?? null, reason: null }),
+      NOW,
+    );
     expect(results.map((r) => r.status)).toEqual(["fresh", "stale", "live"]);
   });
 
   it("detects a breach when any dataset is stale or unknown", () => {
-    const results = evaluateRegistry(registry, (d) => stamps[d.id] ?? null, NOW);
+    const results = evaluateRegistry(
+      registry,
+      (d) => ({ observedAt: stamps[d.id] ?? null, reason: null }),
+      NOW,
+    );
     expect(hasBreach(results)).toBe(true);
   });
 
   it("reports no breach when all datasets are fresh/live/untracked", () => {
     const results = evaluateRegistry(
       { version: 1, datasets: [dataset({ id: "fresh-one" })] },
-      () => "2026-07-18T06:00:00Z",
+      () => ({ observedAt: "2026-07-18T06:00:00Z", reason: null }),
       NOW,
     );
     expect(hasBreach(results)).toBe(false);

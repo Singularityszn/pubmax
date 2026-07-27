@@ -121,7 +121,9 @@ is derived from.
 ### `scripts/check_freshness.mjs`
 Reads the registry, resolves each artifact's real observed/generated stamp, and
 compares age against budget. Prints a status table and **exits non-zero on any
-breach** (`stale`) or broken artifact (`unknown`). This is the owner/ad-hoc gate.
+breach** (`stale`) or broken artifact (`unknown`), listing the two apart under
+their own headings: data that is over budget and data whose age could not be
+measured are different findings with different owners. This is the owner/ad-hoc gate.
 Plain Node ESM, dependency-free — it mirrors `lib/freshness.ts`'s tiny rules the
 same way `validate-data.mjs` mirrors the app's row rules.
 
@@ -146,10 +148,15 @@ is owned by [`docs/METRICS_FUNNEL.md`](METRICS_FUNNEL.md) §5.
 
 **Status vocabulary:** `live` (served per request), `fresh` (within budget),
 `stale` (breach — owner-visible), `untracked` (intentionally not budgeted —
-static/episodic/user-cadence), `unknown` (expected a stamp, artifact missing/broken).
+static/episodic/user-cadence), `unknown` (expected a stamp, none could be
+resolved). An `unknown` never counts as fresh and never counts as stale: its
+`detail` names the artifact and the way the read failed (absent from the
+deployment, present but unparseable, present but carrying no stamp field).
 
 ### What the spine reports right now
-The three daily crons (night signals, weather, What's-On) currently read
-**stale** against a 48 h budget — their last review PRs are 2.5–7 days old. That
-is the feature working: the directive "always get live data" now has a dial that
-says out loud when a cadence has slipped.
+Run `npm run check:freshness`, or read `GET /api/freshness`, rather than a
+paragraph that ages. Whichever feeds are breaching, that is the feature working:
+the directive "always get live data" now has a dial that says out loud when a
+cadence has slipped. The standing per-dataset root causes and the owner actions
+they need are owned by
+[`docs/FRESHNESS_BURNDOWN_2026-07-24.md`](FRESHNESS_BURNDOWN_2026-07-24.md).

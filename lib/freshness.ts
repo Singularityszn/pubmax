@@ -69,34 +69,115 @@ export interface FreshnessResult {
 }
 
 /**
- * Resolve the observed timestamp for one dataset from its (already-parsed)
- * artifact JSON. Returns null when the dataset carries no stamp spec, or when
- * the spec points at something that isn't a parseable date. `artifactJson` may
- * be undefined when the file is missing/unreadable.
+ * What the caller found where a dataset's artifact was meant to be. Carrying the
+ * outcome (rather than just the parsed JSON, or undefined) is what lets an
+ * unresolvable stamp say WHY it is unresolvable: "the file is not in this
+ * deployment" and "the file is here but carries no generatedAt" are different
+ * defects with different owners, and an audit that cannot tell them apart cannot
+ * be acted on. `absent` means the dataset declares no artifact path at all.
+ */
+export type ArtifactRead =
+  | { readonly kind: "absent" }
+  | { readonly kind: "missing"; readonly path: string }
+  | { readonly kind: "unreadable"; readonly path: string; readonly error: string }
+  | { readonly kind: "ok"; readonly path: string; readonly json: unknown };
+
+/** A resolved stamp, or null plus the reason nothing could be resolved. */
+export interface StampResolution {
+  readonly observedAt: string | null;
+  /** Null when observedAt resolved, or when the dataset declares no stamp. */
+  readonly reason: string | null;
+}
+
+/**
+ * Whether resolving this dataset's stamp requires opening its artifact. Only a
+ * field stamp does: a literal stamp is carried by the registry and an unstamped
+ * dataset is never dated, so both resolve without a read (see `resolveStamp`).
+ * The tracing config (lib/freshnessTracing.mjs) draws the same line, so a
+ * function ships exactly the artifacts its readers will open.
+ */
+export function stampNeedsArtifact(spec: FreshnessStampSpec): boolean {
+  return spec !== null && spec.kind === "field";
+}
+
+/**
+ * Resolve the observed timestamp for one dataset from what the caller read off
+ * disk, reporting the reason when it cannot. A dataset with no stamp spec
+ * resolves to null with no reason: that is "nothing was promised", not a defect.
+ */
+export function resolveStamp(spec: FreshnessStampSpec, read: ArtifactRead): StampResolution {
+  if (spec === null) return { observedAt: null, reason: null };
+
+  if (spec.kind === "literal") {
+    if (Number.isFinite(Date.parse(spec.value))) return { observedAt: spec.value, reason: null };
+    return {
+      observedAt: null,
+      reason: `The registry's literal stamp "${spec.value}" is not a parseable date.`,
+    };
+  }
+
+  // kind === "field": the stamp lives in the artifact, so the read decides.
+  switch (read.kind) {
+    case "absent":
+      return {
+        observedAt: null,
+        reason: `The registry declares a "${spec.pointer}" stamp but no artifact to read it from.`,
+      };
+    case "missing":
+      return {
+        observedAt: null,
+        reason: `Artifact ${read.path} is not present at runtime, so its age cannot be measured.`,
+      };
+    case "unreadable":
+      return {
+        observedAt: null,
+        reason: `Artifact ${read.path} could not be parsed: ${read.error}`,
+      };
+    case "ok": {
+      const json = read.json;
+      const value =
+        typeof json === "object" && json !== null
+          ? (json as Record<string, unknown>)[spec.pointer]
+          : undefined;
+      if (typeof value === "string" && Number.isFinite(Date.parse(value))) {
+        return { observedAt: value, reason: null };
+      }
+      return {
+        observedAt: null,
+        reason: `Artifact ${read.path} carries no parseable "${spec.pointer}" field.`,
+      };
+    }
+  }
+}
+
+/**
+ * Resolve the observed timestamp from an (already-parsed) artifact JSON, with no
+ * reason attached. The thin form for callers that hold the JSON and nothing
+ * else, chiefly lib/dataFreshness.ts reading a literal stamp. Prefer
+ * `resolveStamp` anywhere the answer might be reported to a human.
  */
 export function resolveObservedAt(
   spec: FreshnessStampSpec,
   artifactJson: unknown,
 ): string | null {
-  if (spec === null) return null;
-  if (spec.kind === "literal") {
-    return Number.isFinite(Date.parse(spec.value)) ? spec.value : null;
-  }
-  // kind === "field"
-  if (typeof artifactJson !== "object" || artifactJson === null) return null;
-  const value = (artifactJson as Record<string, unknown>)[spec.pointer];
-  if (typeof value !== "string" || !Number.isFinite(Date.parse(value))) return null;
-  return value;
+  const read: ArtifactRead =
+    artifactJson === undefined ? { kind: "absent" } : { kind: "ok", path: "", json: artifactJson };
+  return resolveStamp(spec, read).observedAt;
 }
 
 /**
  * Pure evaluation of a single dataset. `observedAt` is the already-resolved
  * stamp (or null), `now` the reference instant. No disk, no clock.
+ *
+ * `unresolvedReason` is the per-feed explanation from `resolveStamp`; pass it
+ * whenever one exists so an "unknown" says which artifact failed and how,
+ * instead of the same unactionable sentence for every feed at once.
  */
 export function evaluateDataset(
   dataset: FreshnessDataset,
   observedAt: string | null,
   now: Date,
+  unresolvedReason: string | null = null,
 ): FreshnessResult {
   const base = {
     id: dataset.id,
@@ -115,13 +196,16 @@ export function evaluateDataset(
   }
 
   // A dataset that declares a stamp but couldn't produce one has a real
-  // problem (missing/broken artifact) — surface it, never silently pass.
+  // problem (missing/broken artifact) — surface it, never silently pass. This
+  // is NOT the same finding as "stale": the data may be perfectly current and
+  // the audit simply unable to see it, so callers must report the two apart.
   if (dataset.stamp !== null && observedAt === null) {
     return {
       ...base,
       ageHours: null,
       status: "unknown",
-      detail: "Expected a timestamp but none could be resolved from the artifact.",
+      detail:
+        unresolvedReason ?? "Expected a timestamp but none could be resolved from the artifact.",
     };
   }
 
@@ -158,18 +242,34 @@ export function evaluateDataset(
 }
 
 /**
- * Evaluate a whole registry. `stampFor` returns the resolved observedAt for a
- * dataset id (the caller wires it to disk reads; tests pass a plain map). Pure
- * given its inputs.
+ * Evaluate a whole registry. `stampFor` returns the resolution for a dataset
+ * (the caller wires it to disk reads; tests pass a plain map). Pure given its
+ * inputs.
  */
 export function evaluateRegistry(
   registry: FreshnessRegistry,
-  stampFor: (dataset: FreshnessDataset) => string | null,
+  stampFor: (dataset: FreshnessDataset) => StampResolution,
   now: Date,
 ): FreshnessResult[] {
-  return registry.datasets.map((dataset) =>
-    evaluateDataset(dataset, stampFor(dataset), now),
-  );
+  return registry.datasets.map((dataset) => {
+    const { observedAt, reason } = stampFor(dataset);
+    return evaluateDataset(dataset, observedAt, now, reason);
+  });
+}
+
+/**
+ * The two findings this spine can make, kept apart on purpose. A stale feed
+ * means the DATA is old and a refresh job owes us a run; an unresolved feed
+ * means the AUDIT cannot see the data at all and says nothing about its age.
+ * Reporting them as one number is how eleven blind spots hid two real breaches.
+ */
+export function staleFeeds(results: readonly FreshnessResult[]): FreshnessResult[] {
+  return results.filter((r) => r.status === "stale");
+}
+
+/** Feeds that promised a stamp and could not produce one. Never "fresh". */
+export function unresolvedFeeds(results: readonly FreshnessResult[]): FreshnessResult[] {
+  return results.filter((r) => r.status === "unknown");
 }
 
 /** True when any result is a hard breach (stale) or a broken artifact (unknown). */
