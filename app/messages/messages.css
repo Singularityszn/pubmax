@@ -78,6 +78,23 @@
   margin: 0 0 1.25rem;
 }
 
+/* A refresh that failed over a list already on screen: it sits ABOVE the list
+   and never stands in for it. The line wraps (never ellipses) and the retry
+   keeps its 44px tap target. */
+.inboxStaleNotice {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0 0.9rem;
+  font-size: 0.85rem;
+  color: var(--muted);
+  margin: 0 0 0.75rem;
+}
+
+.inboxStaleNotice > span {
+  flex-basis: 100%;
+}
+
 /* ── inbox: conversation list ─────────────────────────────────────────────── */
 .conversationList {
   list-style: none;
@@ -335,6 +352,13 @@
   border: none;
   background: none;
   cursor: pointer;
+}
+
+/* In flight: the control stays focusable and pressable (disabling it under the
+   reader who pressed it would drop their focus), so busy is shown, not enforced. */
+.threadRetryBtn[aria-busy="true"] {
+  opacity: 0.55;
+  cursor: progress;
 }
 
 /* ── the profile "Message" control ────────────────────────────────────────── */

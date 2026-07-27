@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import EmptyState from "@/components/EmptyState";
 import { useAuth } from "@/components/auth/AuthProvider";
@@ -33,6 +33,9 @@ export default function MessagesInboxClient({
   const [conversations, setConversations] = useState<ConversationDTO[]>([]);
   const [loaded, setLoaded] = useState(false);
   const [needsSignIn, setNeedsSignIn] = useState(false);
+  const [failed, setFailed] = useState(false);
+  const [retrying, setRetrying] = useState(false);
+  const retryingRef = useRef(false);
 
   useEffect(() => {
     let active = true;
@@ -51,6 +54,7 @@ export default function MessagesInboxClient({
       if (!user) {
         setConversations([]);
         setNeedsSignIn(true);
+        setFailed(false);
         setLoaded(true);
         return;
       }
@@ -59,6 +63,7 @@ export default function MessagesInboxClient({
       if (!h) {
         setConversations([]);
         setNeedsSignIn(true);
+        setFailed(false);
         setLoaded(true);
         return;
       }
@@ -69,19 +74,51 @@ export default function MessagesInboxClient({
         if (res.status === 401) {
           setNeedsSignIn(true);
           setConversations([]);
+          setFailed(false);
           return;
         }
-        if (!res.ok) return;
+        if (!res.ok) {
+          setNeedsSignIn(false);
+          setFailed(true);
+          return;
+        }
         setNeedsSignIn(false);
+        setFailed(false);
         const body = (await res.json()) as { conversations?: ConversationDTO[] };
         setConversations(Array.isArray(body.conversations) ? body.conversations : []);
-      } catch {
-        // aborted / offline — leave the list as-is; the inbox never breaks on this.
+      } catch (err) {
+        const aborted =
+          signal?.aborted || (err instanceof Error && err.name === "AbortError");
+        if (!aborted) {
+          setNeedsSignIn(false);
+          setFailed(true);
+        }
       } finally {
         setLoaded(true);
       }
     },
     [handle, user, authHandle],
+  );
+
+  const retry = useCallback(() => {
+    if (retryingRef.current) return;
+    retryingRef.current = true;
+    setRetrying(true);
+    void refresh().finally(() => {
+      retryingRef.current = false;
+      setRetrying(false);
+    });
+  }, [refresh]);
+
+  const retryButton = (
+    <button
+      type="button"
+      className="threadRetryBtn"
+      onClick={retry}
+      aria-busy={retrying || undefined}
+    >
+      {retrying ? "Trying again" : "Try again"}
+    </button>
   );
 
   useEffect(() => {
@@ -112,6 +149,12 @@ export default function MessagesInboxClient({
           body="Private messages need a signed-in account so nobody can read or send as your handle."
           action={<SignInButton />}
         />
+      ) : failed && conversations.length === 0 ? (
+        <EmptyState
+          title="Couldn&rsquo;t load your conversations."
+          role="alert"
+          action={retryButton}
+        />
       ) : conversations.length === 0 ? (
         <EmptyState
           title="Nobody in here yet."
@@ -119,37 +162,47 @@ export default function MessagesInboxClient({
           action={<Link href="/feed">Find someone to message</Link>}
         />
       ) : (
-        <ul className="conversationList">
-          {conversations.map((c) => {
-            const active = c.id === activeConversationId;
-            return (
-              <li
-                key={c.id}
-                className={active ? "conversationItem conversationItemActive" : "conversationItem"}
-              >
-                <Link
-                  href={`/messages/${encodeURIComponent(c.id)}`}
-                  className="conversationLink"
-                  aria-current={active ? "page" : undefined}
+        <>
+          {failed ? (
+            <p className="inboxStaleNotice" role="status">
+              <span>Couldn&rsquo;t refresh this list. It shows what loaded last.</span>
+              {retryButton}
+            </p>
+          ) : null}
+          <ul className="conversationList">
+            {conversations.map((c) => {
+              const active = c.id === activeConversationId;
+              return (
+                <li
+                  key={c.id}
+                  className={
+                    active ? "conversationItem conversationItemActive" : "conversationItem"
+                  }
                 >
-                  <div className="conversationBody">
-                    <div className="conversationHandle">@{c.otherHandle}</div>
-                    <div className="conversationPreview">
-                      {c.lastBody
-                        ? `${c.lastFromMe ? "You: " : ""}${c.lastBody}`
-                        : "No messages yet"}
+                  <Link
+                    href={`/messages/${encodeURIComponent(c.id)}`}
+                    className="conversationLink"
+                    aria-current={active ? "page" : undefined}
+                  >
+                    <div className="conversationBody">
+                      <div className="conversationHandle">@{c.otherHandle}</div>
+                      <div className="conversationPreview">
+                        {c.lastBody
+                          ? `${c.lastFromMe ? "You: " : ""}${c.lastBody}`
+                          : "No messages yet"}
+                      </div>
                     </div>
-                  </div>
-                  {c.unread > 0 ? (
-                    <span className="conversationUnread" aria-label={`${c.unread} unread`}>
-                      {c.unread > 99 ? "99+" : c.unread}
-                    </span>
-                  ) : null}
-                </Link>
-              </li>
-            );
-          })}
-        </ul>
+                    {c.unread > 0 ? (
+                      <span className="conversationUnread" aria-label={`${c.unread} unread`}>
+                        {c.unread > 99 ? "99+" : c.unread}
+                      </span>
+                    ) : null}
+                  </Link>
+                </li>
+              );
+            })}
+          </ul>
+        </>
       )}
     </>
   );
