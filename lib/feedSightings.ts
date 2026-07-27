@@ -8,8 +8,8 @@
 // sightings and decides where they sit relative to real user drops.
 //
 // Taste doctrine (docs/VOICE.md): a sighting is NEVER dressed as user activity.
-// It carries its source domain + observed date and its own "Spotted" badge, so
-// the surface honestly has content without faking a single drinker.
+// It carries its source domain + observed date beneath one sourced-price section
+// heading, so the surface honestly has content without faking a single drinker.
 //
 // Every export here is a pure function (no fetch, no fs, no DOM, no serverEnv),
 // so the mapping + placement logic is covered hermetically by
@@ -18,6 +18,7 @@
 // updates.
 
 import type { DrinkPriceUpdate } from "@/lib/drinkPriceUpdates";
+import type { FeedFilter } from "@/lib/feed";
 
 // A serialisable sighting the server hands the client. Deliberately flat (no
 // nested source object beyond the resolved domain) so it crosses the
@@ -40,7 +41,7 @@ export type SightingDTO = {
   sourceLabel: string;
   /** The absolute source URL the price was attributed to. */
   sourceUrl: string;
-  /** The source host, www-stripped (e.g. "jdwetherspoon.com") — the badge line. */
+  /** The source host, www-stripped (e.g. "jdwetherspoon.com") for provenance. */
   sourceDomain: string;
   /** ISO-8601 observation date — the card shows it, never hides staleness. */
   observedAt: string;
@@ -59,6 +60,18 @@ export type ResolveSightingVenue = (venueKey: string) => SightingVenue | null;
 /** The default cap on how many sightings the feed surfaces at once. */
 export const SIGHTINGS_CAP = 12;
 
+// How old an observation may be and still sit under a heading that claims
+// recency. The number is borrowed from the drink_price_updates staleness budget
+// in data/freshness_registry.json (336h) so the feed and the spine speak of the
+// same span, but they measure DIFFERENT clocks and can disagree: the registry
+// ages the artifact's `generatedAt`, this gate ages each row's `observedAt`, so
+// a freshly regenerated file may still carry observations too old to print here.
+// __tests__/feedSightingsServer.test.ts pins the shared number, not an
+// equivalence. What the gate buys is that the heading drains with its rows: an
+// overlay that stops refreshing empties this surface instead of leaving a
+// recency claim standing over dates that contradict it.
+export const SIGHTING_MAX_AGE_HOURS = 336;
+
 /** The www-stripped host of an absolute URL, or "" when it can't be parsed. */
 export function sourceDomain(url: string): string {
   if (typeof url !== "string" || url.length === 0) return "";
@@ -73,6 +86,22 @@ export function sourceDomain(url: string): string {
 /** "£5.29" from a numeric price. */
 export function formatSightingPrice(price: number): string {
   return `£${price.toFixed(2)}`;
+}
+
+/**
+ * "11 Jul" from an observation timestamp, on London calendar days — the DAY the
+ * price was seen, which is the claim the surface makes, rather than an age that
+ * says "2w ago" and names no date. Fixed timeZone so server and client render
+ * the same string. "" when the stamp is unparseable, so the row can drop it.
+ */
+export function formatSightingDay(observedAt: string): string {
+  const observed = Date.parse(observedAt);
+  if (!Number.isFinite(observed)) return "";
+  return new Date(observed).toLocaleDateString("en-GB", {
+    timeZone: "Europe/London",
+    day: "numeric",
+    month: "short",
+  });
 }
 
 // A newer observation wins; on an identical timestamp the cheaper price wins.
@@ -90,10 +119,16 @@ function beatsForVenue(candidate: DrinkPriceUpdate, incumbent: DrinkPriceUpdate)
  *
  *  - ONE sighting per venue — the freshest observation, cheapest on a tie — so
  *    the surface surveys many pubs instead of repeating one pub's whole menu;
- *  - only priced (> 0), attributable (parseable source domain) rows survive —
- *    a £0 promo or an unattributable row is never shown as a sighting;
+ *  - only priced (> 0), attributable (parseable source domain), datable
+ *    (parseable observedAt) rows survive — a £0 promo, an unattributable row or
+ *    an undatable one is never shown as a sighting;
  *  - newest observation first (venue name breaks ties for a stable order);
  *  - capped at `cap` (default SIGHTINGS_CAP).
+ *
+ * Deliberately CLOCK-FREE: nothing here depends on the current time, so the
+ * result can be cached for a process lifetime. The recency window is a separate,
+ * per-read pass (`freshSightings`) precisely because a cached answer to a
+ * time-dependent question stops being true while nobody is looking.
  *
  * `resolve` maps a grouping key to venue facts; returning null drops that venue
  * (e.g. an id the venue index no longer carries).
@@ -115,6 +150,7 @@ export function buildSightings(
       continue;
     }
     if (sourceDomain(update.source?.url ?? "") === "") continue;
+    if (!Number.isFinite(Date.parse(update.observedAt))) continue;
     const incumbent = bestByVenue.get(update.venueKey);
     if (!incumbent || beatsForVenue(update, incumbent)) {
       bestByVenue.set(update.venueKey, update);
@@ -149,6 +185,29 @@ export function buildSightings(
   return sightings.slice(0, cap);
 }
 
+/**
+ * The rows still inside the recency window at `now` — the gate behind the
+ * surface's "Recent" claim, kept OUT of buildSightings so it is answered against
+ * the clock of the request that renders it rather than the clock of whichever
+ * build or process first read the overlay.
+ *
+ * Safe to apply after buildSightings' cap: the list is newest-first, so the
+ * window always takes a prefix of it and no in-window row can hide behind a
+ * capped-out older one.
+ */
+export function freshSightings(
+  sightings: SightingDTO[],
+  opts: { now?: number; maxAgeHours?: number } = {},
+): SightingDTO[] {
+  const now = opts.now ?? Date.now();
+  const maxAgeHours = opts.maxAgeHours ?? SIGHTING_MAX_AGE_HOURS;
+  const oldestAllowed = now - maxAgeHours * 3_600_000;
+  return sightings.filter((sighting) => {
+    const observed = Date.parse(sighting.observedAt);
+    return Number.isFinite(observed) && observed >= oldestAllowed;
+  });
+}
+
 // ── Placement ─────────────────────────────────────────────────────────────────
 
 // Where the sightings sit relative to the London tab's real user drops:
@@ -156,18 +215,28 @@ export function buildSightings(
 //    replace the dead empty state honestly);
 //  - "strip"   — there ARE user drops, so sightings collapse to a compact strip
 //    BELOW the fresh user content — real drinkers always lead;
-//  - "none"    — not the London tab, still loading, or no sightings exist.
+//  - "none" - not the London tab or Latest filter, still loading, or no
+//    sightings exist.
 export type SightingPlacement = "none" | "primary" | "strip";
 
 export function sightingPlacement(args: {
   tab: string;
+  filter: FeedFilter;
   status: "loading" | "ready" | "error";
   userItemCount: number;
   sightingCount: number;
 }): SightingPlacement {
-  const { tab, status, userItemCount, sightingCount } = args;
+  const { tab, filter, status, userItemCount, sightingCount } = args;
   // Sightings are a London-tab affordance only, once the feed has settled, and
-  // only when we actually have some. Never mask a load error or the other tabs.
-  if (tab !== "london" || status !== "ready" || sightingCount <= 0) return "none";
+  // only in Latest, where an ambient fallback matches the filter's promise.
+  // Never mask a load error, another tab, or a narrower feed filter.
+  if (
+    tab !== "london" ||
+    filter !== "latest" ||
+    status !== "ready" ||
+    sightingCount <= 0
+  ) {
+    return "none";
+  }
   return userItemCount === 0 ? "primary" : "strip";
 }

@@ -16,39 +16,108 @@
 .feedSightingsPrimary {
   display: flex;
   flex-direction: column;
-  gap: 16px;
-}
-
-.feedSightingsHead {
-  display: flex;
-  flex-direction: column;
   gap: 8px;
-  padding: 4px 2px 0;
-}
-
-.feedSightingsEyebrow {
-  margin: 0;
-  font-size: 0.72rem;
-  font-weight: 700;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  color: color-mix(in srgb, var(--brass) 82%, var(--ink));
 }
 
 .feedSightingsTitle {
   margin: 0;
-  font-family: var(--serif, Georgia, serif);
-  font-size: 1.5rem;
-  line-height: 1.15;
+  padding: 4px 2px;
+  font-size: 1rem;
+  font-weight: 650;
+  line-height: 1.3;
   color: var(--ink);
 }
 
+/* The cold-start line: why this surface carries sourced rows and not drops.
+   Wraps freely — it explains a claim, so it is never clamped or ellipsed. */
 .feedSightingsLede {
   margin: 0;
-  font-size: 0.95rem;
+  padding: 0 2px;
+  font-size: 0.88rem;
   line-height: 1.45;
   color: var(--ink-soft, var(--muted));
-  max-width: 42ch;
+}
+
+/* ── Strip: a quiet cluster below real user drops ────────────────────────── */
+
+.feedSightingsStrip {
+  margin-top: 26px;
+  padding-top: 18px;
+  border-top: 1px solid var(--feed-border, var(--line));
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* ── The list + each sighting row ────────────────────────────────────────── */
+
+.feedSightingsList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.feedSightingsList > li + li {
+  border-top: 1px solid var(--feed-border, var(--line));
+}
+
+.feedSighting {
+  display: block;
+  min-height: 44px;
+  padding: 12px 2px;
+  color: var(--ink);
+  text-decoration: none;
+}
+
+.feedSightingMain {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  column-gap: 12px;
+  row-gap: 3px;
+  min-width: 0;
+}
+
+.feedSightingDrink {
+  grid-column: 1;
+  font-weight: 600;
+  font-size: 0.95rem;
+  line-height: 1.25;
+  color: var(--ink);
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+}
+
+.feedSightingVenue {
+  grid-column: 1 / -1;
+  font-size: 0.82rem;
+  line-height: 1.3;
+  color: var(--ink-soft, var(--muted));
+  overflow-wrap: anywhere;
+}
+
+.feedSightingPrice {
+  grid-column: 2;
+  grid-row: 1;
+  align-self: start;
+  text-align: right;
+  white-space: nowrap;
+  font-family: var(--font-display, var(--serif, Georgia, serif));
+  font-weight: 700;
+  font-size: 1rem;
+  color: var(--ink);
+}
+
+.feedSightingSource {
+  grid-column: 1 / -1;
+  font-size: 0.72rem;
+  line-height: 1.3;
+  color: var(--muted, var(--ink-soft));
+  overflow-wrap: anywhere;
 }
 
 .feedSightingsCta {
@@ -67,148 +136,15 @@
   border: 1px solid color-mix(in srgb, var(--brass) 70%, var(--ink) 30%);
 }
 
-/* ── Strip: a quiet cluster below real user drops ────────────────────────── */
-
-.feedSightingsStrip {
-  margin-top: 26px;
-  padding-top: 18px;
-  border-top: 1px solid var(--feed-border, var(--line));
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.feedSightingsStripHead {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  padding: 0 2px;
-}
-
-.feedSightingsStripTitle {
-  margin: 0;
-  font-size: 0.72rem;
-  font-weight: 700;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  color: color-mix(in srgb, var(--brass) 78%, var(--ink));
-}
-
-.feedSightingsStripHint {
-  margin: 0;
-  font-size: 0.82rem;
-  line-height: 1.4;
-  color: var(--muted, var(--ink-soft));
-}
-
-/* ── The list + each sighting row ────────────────────────────────────────── */
-
-.feedSightingsList {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-.feedSightingsListCompact {
-  gap: 8px;
-}
-
-.feedSighting {
-  display: grid;
-  grid-template-columns: auto 1fr auto;
-  align-items: center;
-  gap: 12px;
-  min-height: 44px;
-  padding: 12px 14px;
-  border-radius: var(--radius, 14px);
-  border: 1px solid var(--feed-border, var(--line));
-  /* A hair off the card surface + a dashed brass hint so a sighting reads as
-     "sourced fact", not a drinker's collectible card. */
-  background: color-mix(in srgb, var(--brass) 4%, var(--panel-raised));
-  color: var(--ink);
-  text-decoration: none;
-}
-
-.feedSightingsListCompact .feedSighting {
-  padding: 10px 12px;
-}
-
-.feedSightingKicker {
-  align-self: center;
-  font-size: 0.6rem;
-  font-weight: 700;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  padding: 4px 7px;
-  border-radius: 6px;
-  color: var(--paper);
-  background: color-mix(in srgb, var(--brass) 88%, var(--ink));
-  white-space: nowrap;
-}
-
-.feedSightingMain {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  min-width: 0;
-}
-
-.feedSightingDrink {
-  font-weight: 600;
-  font-size: 0.95rem;
-  line-height: 1.2;
-  color: var(--ink);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.feedSightingVenue {
-  font-size: 0.82rem;
-  line-height: 1.2;
-  color: var(--ink-soft, var(--muted));
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.feedSightingAside {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: 2px;
-  text-align: right;
-  white-space: nowrap;
-}
-
-.feedSightingPrice {
-  font-family: var(--font-display, var(--serif, Georgia, serif));
-  font-weight: 700;
-  font-size: 1rem;
-  color: var(--ink);
-}
-
-.feedSightingSource {
-  font-size: 0.72rem;
-  line-height: 1.2;
-  color: var(--muted, var(--ink-soft));
-}
-
 /* Motion only when the reader welcomes it (reduced-motion safe by default). */
 @media (prefers-reduced-motion: no-preference) {
   .feedSighting {
-    transition:
-      border-color 140ms ease,
-      background-color 140ms ease;
+    transition: background-color 140ms ease;
   }
 }
 
 @media (hover: hover) {
   .feedSighting:hover {
-    border-color: color-mix(in srgb, var(--brass) 55%, var(--line));
     background: color-mix(in srgb, var(--brass) 8%, var(--panel-raised));
   }
 }

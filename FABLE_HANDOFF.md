@@ -148,6 +148,7 @@ Owner queue: unchanged (migrations 0038-0049, CRON_SECRET, ORS_API_KEY, #473 rul
 ## 2026-07-22 late-night close-out (waves 9-10, #532-#536)
 
 - #532 living feed: London tab seeded with real price sightings (Spotted kicker, source+date, never fake user activity), user drops always lead.
+  - SUPERSEDED 2026-07-27 (this entry stays as the record of what shipped on 2026-07-22): the visible Spotted kicker was removed. A label carried by every row distinguished nothing and was crowding out the drink name at 390px. The sourced-price distinction now lives in the section heading ("Recent sourced prices") and in each row's accessible name ("Sourced price: ..."); source and date still print on every row.
 - #533 quiet pint heritage lens: /today card gated on genuinely quiet hours, 346 cited historic pubs, /crawls heritage rail lifted; lib/quietPint ready for /tonight adoption post-#495.
 - #534 landing blue line: .lpScanline painted with --river (steel blue in dark) - repointed to --hairline. Dark sweep clean.
 - #535 map search popup: areas (20 modeled + boroughs from venue centroids) AND pubs as-you-type, distance from GPS or map centre (honestly labelled), aria-combobox, tap flies/opens. Root cause of "no results for Hackney": boroughs were not in the search space at all. VERIFIED LIVE (Hackney 5.7km + Old Ship £6.80).

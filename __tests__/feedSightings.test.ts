@@ -8,12 +8,19 @@ import { describe, expect, it } from "vitest";
 import type { DrinkPriceUpdate } from "@/lib/drinkPriceUpdates";
 import {
   buildSightings,
+  formatSightingDay,
   formatSightingPrice,
+  freshSightings,
+  SIGHTING_MAX_AGE_HOURS,
   SIGHTINGS_CAP,
   sightingPlacement,
   sourceDomain,
   type ResolveSightingVenue,
 } from "@/lib/feedSightings";
+
+// The recency window is answered against a stated "now" rather than the wall
+// clock the suite happens to run at.
+const NOW = Date.parse("2026-07-20T00:00:00.000Z");
 
 // Minimal valid DrinkPriceUpdate; overrides customise a single field per test.
 function update(overrides: Partial<DrinkPriceUpdate> = {}): DrinkPriceUpdate {
@@ -27,7 +34,7 @@ function update(overrides: Partial<DrinkPriceUpdate> = {}): DrinkPriceUpdate {
       url: "https://www.jdwetherspoon.com/pubs/the-example",
       licence: "Attributed use only.",
     },
-    observedAt: "2026-07-01T00:00:00.000Z",
+    observedAt: "2026-07-15T00:00:00.000Z",
     ...overrides,
   };
 }
@@ -73,7 +80,7 @@ describe("buildSightings mapping", () => {
       priceLabel: "£5.29",
       sourceLabel: "J D Wetherspoon — official site",
       sourceDomain: "jdwetherspoon.com",
-      observedAt: "2026-07-01T00:00:00.000Z",
+      observedAt: "2026-07-15T00:00:00.000Z",
     });
     expect(s.id).toBe("sighting-venue-thechurchillarms");
   });
@@ -81,8 +88,8 @@ describe("buildSightings mapping", () => {
   it("keeps ONE sighting per venue — the freshest observation", () => {
     const out = buildSightings(
       [
-        update({ drinkName: "Old", observedAt: "2026-07-01T00:00:00.000Z", priceGbp: 4.5 }),
-        update({ drinkName: "Fresh", observedAt: "2026-07-10T00:00:00.000Z", priceGbp: 6.2 }),
+        update({ drinkName: "Old", observedAt: "2026-07-10T00:00:00.000Z", priceGbp: 4.5 }),
+        update({ drinkName: "Fresh", observedAt: "2026-07-18T00:00:00.000Z", priceGbp: 6.2 }),
       ],
       echoResolve,
     );
@@ -119,9 +126,9 @@ describe("buildSightings mapping", () => {
   it("orders newest observation first, venue name breaking ties", () => {
     const out = buildSightings(
       [
-        update({ venueKey: "zulu|a|1|1", observedAt: "2026-07-05T00:00:00.000Z" }),
-        update({ venueKey: "alpha|b|2|2", observedAt: "2026-07-09T00:00:00.000Z" }),
-        update({ venueKey: "bravo|c|3|3", observedAt: "2026-07-09T00:00:00.000Z" }),
+        update({ venueKey: "zulu|a|1|1", observedAt: "2026-07-08T00:00:00.000Z" }),
+        update({ venueKey: "alpha|b|2|2", observedAt: "2026-07-12T00:00:00.000Z" }),
+        update({ venueKey: "bravo|c|3|3", observedAt: "2026-07-12T00:00:00.000Z" }),
       ],
       echoResolve,
     );
@@ -132,11 +139,27 @@ describe("buildSightings mapping", () => {
     const many = Array.from({ length: SIGHTINGS_CAP + 8 }, (_, i) =>
       update({
         venueKey: `pub${String(i).padStart(2, "0")}|a|1|1`,
-        observedAt: `2026-07-${String((i % 27) + 1).padStart(2, "0")}T00:00:00.000Z`,
+        observedAt: `2026-07-${String((i % 14) + 6).padStart(2, "0")}T00:00:00.000Z`,
       }),
     );
     expect(buildSightings(many, echoResolve)).toHaveLength(SIGHTINGS_CAP);
     expect(buildSightings(many, echoResolve, { cap: 3 })).toHaveLength(3);
+  });
+
+  it("drops an undatable observation, whatever the clock says", () => {
+    const out = buildSightings(
+      [
+        update({ venueKey: "dated|a|1|1" }),
+        update({ venueKey: "undated|b|2|2", observedAt: "not a date" }),
+      ],
+      echoResolve,
+    );
+    expect(out.map((s) => s.venueName)).toEqual(["dated"]);
+  });
+
+  it("asks the clock nothing — the same updates map the same way at any time", () => {
+    const updates = [update({ venueKey: "ancient|a|1|1", observedAt: "2019-01-01T00:00:00.000Z" })];
+    expect(buildSightings(updates, echoResolve)).toHaveLength(1);
   });
 
   it("skips a venue the resolver cannot resolve (returns null)", () => {
@@ -153,8 +176,55 @@ describe("buildSightings mapping", () => {
   });
 });
 
+describe("freshSightings", () => {
+  const sightingAt = (venueKey: string, observedAt: string) =>
+    buildSightings([update({ venueKey, observedAt })], echoResolve)[0];
+
+  it("keeps an observation inside the window and drops one just outside it", () => {
+    const inside = sightingAt(
+      "justinside|a|1|1",
+      new Date(NOW - SIGHTING_MAX_AGE_HOURS * 3_600_000 + 3_600_000).toISOString(),
+    );
+    const outside = sightingAt(
+      "longgone|b|2|2",
+      new Date(NOW - SIGHTING_MAX_AGE_HOURS * 3_600_000 - 3_600_000).toISOString(),
+    );
+
+    expect(freshSightings([inside, outside], { now: NOW }).map((s) => s.venueName)).toEqual([
+      "justinside",
+    ]);
+  });
+
+  it("empties the surface entirely once the overlay stops refreshing", () => {
+    const stalled = [sightingAt("stalled|a|1|1", "2026-07-15T00:00:00.000Z")];
+
+    expect(freshSightings(stalled, { now: NOW })).toHaveLength(1);
+    expect(
+      freshSightings(stalled, { now: Date.parse("2026-08-20T00:00:00.000Z") }),
+    ).toEqual([]);
+  });
+});
+
+describe("formatSightingDay", () => {
+  it("names the London day the price was seen, not an age", () => {
+    expect(formatSightingDay("2026-07-11T12:00:00.000Z")).toBe("11 Jul");
+    expect(formatSightingDay("2026-07-11T23:30:00.000Z")).toBe("12 Jul");
+  });
+
+  it("returns '' for an unparseable stamp so the row can drop the date", () => {
+    expect(formatSightingDay("not a date")).toBe("");
+    expect(formatSightingDay("")).toBe("");
+  });
+});
+
 describe("sightingPlacement", () => {
-  const base = { tab: "london", status: "ready" as const, userItemCount: 0, sightingCount: 5 };
+  const base = {
+    tab: "london",
+    filter: "latest" as const,
+    status: "ready" as const,
+    userItemCount: 0,
+    sightingCount: 5,
+  };
 
   it("is 'primary' on the London tab when ready with sightings and no user drops", () => {
     expect(sightingPlacement(base)).toBe("primary");
@@ -172,6 +242,10 @@ describe("sightingPlacement", () => {
   it("is 'none' off the London tab", () => {
     expect(sightingPlacement({ ...base, tab: "lot" })).toBe("none");
     expect(sightingPlacement({ ...base, tab: "nearby" })).toBe("none");
+  });
+
+  it("is 'none' when the London feed is filtered to Yours", () => {
+    expect(sightingPlacement({ ...base, filter: "for-you" })).toBe("none");
   });
 
   it("is 'none' while loading or errored (never masks those states)", () => {
