@@ -7,14 +7,27 @@
 import { groupVenuePrices, type Venue, type VenuePrice } from "@/lib/venues";
 import { PINT_DATASET_FILE } from "@/lib/dataFreshness";
 
+async function readGroupedVenues(): Promise<Venue[]> {
+  const { promises: fs } = await import("node:fs");
+  const path = await import("node:path");
+  const file = path.join(process.cwd(), "public", "data", PINT_DATASET_FILE);
+  const rows = JSON.parse(await fs.readFile(file, "utf8")) as VenuePrice[];
+  return groupVenuePrices(Array.isArray(rows) ? rows : []);
+}
+
+// The bundled dataset is a build artifact, so it cannot change under a running
+// process: parse it once and share it. The Pint Index and every dated edition
+// render dynamically, and re-reading several megabytes per request is the whole
+// cost of a press arrival landing at once. A failure is NOT cached, so a
+// transient read error degrades this request rather than the process.
+let pending: Promise<Venue[]> | null = null;
+
 export async function loadGroupedVenues(): Promise<Venue[]> {
+  const inflight = pending ?? (pending = readGroupedVenues());
   try {
-    const { promises: fs } = await import("node:fs");
-    const path = await import("node:path");
-    const file = path.join(process.cwd(), "public", "data", PINT_DATASET_FILE);
-    const rows = JSON.parse(await fs.readFile(file, "utf8")) as VenuePrice[];
-    return groupVenuePrices(Array.isArray(rows) ? rows : []);
+    return await inflight;
   } catch {
+    if (pending === inflight) pending = null;
     return [];
   }
 }

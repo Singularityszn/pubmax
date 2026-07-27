@@ -68,3 +68,9 @@ location success/failure states and Today title diversity:
 - `plan-location-failure-dark-390.png`
 - `today-diversity-light-390.png`
 - `today-diversity-dark-390.png`
+
+## Press arrival evidence (390×844)
+
+`press-arrival/` holds the phone capture of the Pint Index arrival: the live
+index strip (`arrival-390.png`), a dated monthly edition (`edition-390.png`),
+and the map a chip lands on (`map-390.png`).

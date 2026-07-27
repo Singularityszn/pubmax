@@ -278,6 +278,20 @@
   outline-offset: 2px;
 }
 
+/* The edition you are already reading: same shape as its siblings, no link. */
+.pintIndexEditionCurrent {
+  display: inline-flex;
+  align-items: center;
+  min-height: 38px;
+  padding: 6px 12px;
+  border: 1px solid var(--brass);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--brass) 12%, var(--panel));
+  color: var(--brass);
+  font-size: 13px;
+  font-weight: 600;
+}
+
 .pintIndexFootnote {
   margin: 40px 0 0;
   font-family: var(--font-garamond, var(--serif));

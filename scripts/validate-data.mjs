@@ -8,10 +8,12 @@
 //
 // Plain Node ESM — no build step, no deps. Run: node scripts/validate-data.mjs
 
+import { createHash } from "node:crypto";
 import { readFileSync, readdirSync, existsSync, statSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 import { validateLateFoodEvidence } from "./lib/validateLateFoodEvidence.mjs";
+import { canonicalObservationsPayload } from "../lib/pintIndexCanonical.mjs";
 import {
   CORE_FILE,
   MANIFEST_FILE,
@@ -1805,6 +1807,84 @@ function validatePintIndexSnapshot() {
   return { ok, count: data?.observations?.length ?? 0 };
 }
 
+function validatePintIndexEditions() {
+  const name = "public/data/pint_index/*.json";
+  const dir = join(DATA_DIR, "pint_index");
+  const errs = makeCollector();
+  if (!existsSync(dir)) {
+    console.log(`PASS ${name}: no dated editions published yet`);
+    return { ok: true, count: 0 };
+  }
+  const files = readdirSync(dir).filter((f) => f.endsWith(".json"));
+  const iso = (value) => typeof value === "string" && Number.isFinite(Date.parse(value));
+  const hex64 = /^[0-9a-f]{64}$/;
+  // A published month that no longer hashes to its stored digest has been
+  // rewritten, which is exactly the thing a citation must be able to rule out.
+  // The canonical form is imported, never restated here: a copy that drifts by
+  // one character would fail a correctly published edition, and the only
+  // reading of that failure is that someone rewrote a citation.
+  // Which month an observation belongs to, parsed to UTC exactly as
+  // lib/pintIndexArchive.ts pintIndexMonthOf does. A raw string prefix would
+  // read "2026-06-30T23:30:00-05:00" as June while the runtime validator reads
+  // it as July, and the build would stay green while the edition, its CSV and
+  // its sitemap entry silently stopped being served.
+  const observedMonth = (value) => {
+    const parsed = Date.parse(value);
+    return Number.isFinite(parsed) ? new Date(parsed).toISOString().slice(0, 7) : null;
+  };
+  let observations = 0;
+  for (const file of files) {
+    const month = file.slice(0, -".json".length);
+    let data;
+    try { data = JSON.parse(readFileSync(join(dir, file), "utf8")); }
+    catch (e) { errs.add(`${file}: could not read/parse (${e.message})`); continue; }
+    if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(month)) { errs.add(`${file}: not a YYYY-MM edition`); continue; }
+
+    const archive = data?.archive;
+    const start = new Date(`${month}-01T00:00:00.000Z`);
+    const end = new Date(Date.UTC(start.getUTCFullYear(), start.getUTCMonth() + 1, 1) - 1);
+    if (archive?.month !== month) errs.add(`${file}: archive.month does not match the file`);
+    if (!iso(archive?.publishedAt)) errs.add(`${file}: archive.publishedAt must be an ISO date`);
+    if (Date.parse(archive?.publishedAt) <= end.getTime()) errs.add(`${file}: published before the month closed`);
+    if (data?.observationWindow?.start !== start.toISOString() ||
+        data?.observationWindow?.end !== end.toISOString()) {
+      errs.add(`${file}: observationWindow is not exactly ${month}`);
+    }
+    const corrections = Array.isArray(archive?.corrections) ? archive.corrections : null;
+    if (!corrections) errs.add(`${file}: archive.corrections must be an array`);
+    else if (archive?.revision !== corrections.length + 1) errs.add(`${file}: revision must be corrections + 1`);
+    corrections?.forEach((correction, index) => {
+      if (!iso(correction?.issuedAt)) errs.add(`${file}: correction ${index} needs an ISO issuedAt`);
+      if (typeof correction?.note !== "string" || !correction.note.trim()) errs.add(`${file}: correction ${index} needs a note`);
+      if (correction?.previousRevision !== index + 1) errs.add(`${file}: correction ${index} must replace revision ${index + 1}`);
+      if (!hex64.test(correction?.previousObservationsSha256 ?? "")) errs.add(`${file}: correction ${index} needs the replaced hash`);
+    });
+    const rows = Array.isArray(data?.observations) ? data.observations : [];
+    observations += rows.length;
+    let datesParse = true;
+    for (const [index, row] of rows.entries()) {
+      const observed = observedMonth(row?.observedAt);
+      if (observed === null) {
+        datesParse = false;
+        errs.add(`${file}: observation ${index} has no parseable observedAt`);
+      } else if (observed !== month) {
+        errs.add(`${file}: observation ${index} was not observed in ${month}`);
+      }
+    }
+    // The canonical form the hash covers needs every date to parse; an
+    // unparseable one is already reported, so do not crash re-deriving it.
+    if (!datesParse) continue;
+    if (!hex64.test(archive?.observationsSha256 ?? "")) errs.add(`${file}: archive.observationsSha256 must be a hex sha256`);
+    else if (createHash("sha256").update(canonicalObservationsPayload(rows), "utf8").digest("hex") !== archive.observationsSha256) {
+      errs.add(`${file}: observations no longer match the published integrity hash`);
+    }
+  }
+  const ok = errs.count === 0;
+  console.log(`${ok ? "PASS" : "FAIL"} ${name}: ${files.length} dated edition(s), ${observations} frozen observation(s), ${errs.count} error(s)`);
+  if (!ok) errs.report();
+  return { ok, count: files.length };
+}
+
 function validateLateFoodEvidenceSnapshot() {
   const name = "public/data/late_food_evidence.json";
   let data;
@@ -1881,6 +1961,7 @@ async function main() {
     validateNightSignalSnapshot(),
     validateWeatherSnapshotData(),
     validatePintIndexSnapshot(),
+    validatePintIndexEditions(),
     validateLateFoodEvidenceSnapshot(),
     validateNightOutPlacesSnapshot(),
     validatePubmaxxingSeed(),

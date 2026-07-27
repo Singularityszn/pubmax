@@ -5,7 +5,7 @@ import { listBoroughs } from "@/lib/boroughs";
 import { landmarks } from "@/lib/landmarks";
 import { loadHistoricPubs } from "@/lib/historic";
 import { groupVenuePrices, type Venue, type VenuePrice } from "@/lib/venues";
-import { loadPublicPintIndexSnapshot } from "@/lib/pintIndexSnapshot.server";
+import { loadPintIndexArchive, loadPublicPintIndexSnapshot } from "@/lib/pintIndexSnapshot.server";
 
 // Wave S1.2 — dynamic sitemap. Enumerates every token-free, crawlable surface so
 // search + AI crawlers discover the whole graph (the map-first UI otherwise hides
@@ -87,13 +87,14 @@ async function dataFileModified(name: string, fallback: Date): Promise<Date> {
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const now = new Date();
-  const [venues, historicPubs, pricesModified, historicModified, pintIndexSnapshot] =
+  const [venues, historicPubs, pricesModified, historicModified, pintIndexSnapshot, pintIndexEditions] =
     await Promise.all([
       loadVenues(),
       loadHistoricPubs(),
       dataFileModified("pint_prices_app_dataset.json", now),
       dataFileModified("historic_pubs.json", now),
       loadPublicPintIndexSnapshot(),
+      loadPintIndexArchive(),
     ]);
   const pintIndexPublished = pintIndexSnapshot
     ? new Date(pintIndexSnapshot.generatedAt)
@@ -163,6 +164,17 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       lastModified: pricesModified,
       changeFrequency: "weekly",
       priority: 0.7,
+    });
+  }
+
+  // Dated Pint Index editions. Frozen by contract, so they never change again
+  // once published: "yearly" is the honest change frequency, not a hedge.
+  for (const edition of pintIndexEditions) {
+    entries.push({
+      url: `${SITE_URL}/pint-index/${edition.archive.month}`,
+      lastModified: new Date(edition.archive.publishedAt),
+      changeFrequency: "yearly",
+      priority: 0.6,
     });
   }
 

@@ -234,6 +234,14 @@ export function leagueTableToCsv(snapshot: PintIndexSnapshot, rows = buildLeague
   return lines.join("\r\n") + "\r\n";
 }
 
+// en-GB, London time, so "30 June 2026" reads the same wherever the build runs.
+const INDEX_DATE = new Intl.DateTimeFormat("en-GB", { dateStyle: "long", timeZone: "Europe/London" });
+
+/** How every date on the Index and its dated editions is written. */
+export function formatPintIndexDate(value: string): string {
+  return INDEX_DATE.format(new Date(value));
+}
+
 export function indexSummary(rows: LeagueRow[]) {
   const pubCount = rows.reduce((sum, row) => sum + row.pubCount, 0);
   const weighted = rows.reduce((sum, row) => sum + row.averageGbp * row.pubCount, 0);
