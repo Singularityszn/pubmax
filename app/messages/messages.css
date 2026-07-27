@@ -354,7 +354,9 @@
   cursor: pointer;
 }
 
-.threadRetryBtn:disabled {
+/* In flight: the control stays focusable and pressable (disabling it under the
+   reader who pressed it would drop their focus), so busy is shown, not enforced. */
+.threadRetryBtn[aria-busy="true"] {
   opacity: 0.55;
   cursor: progress;
 }

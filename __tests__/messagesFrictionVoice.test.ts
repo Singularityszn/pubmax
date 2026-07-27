@@ -133,8 +133,26 @@ describe("messages friction voice", () => {
     expect(retry).not.toContain("setFailed(false)");
     expect(retry).not.toContain("setLoaded(false)");
     expect(retry).not.toContain("setConversations(");
-    expect(source).toContain("disabled={retrying}");
     expect(source).toContain('{retrying ? "Trying again" : "Try again"}');
+  });
+
+  it("the retry stays focusable while it works, and guards the double tap itself", () => {
+    const source = read(INBOX);
+    const buttonAt = source.indexOf("const retryButton = (");
+    const button = source.slice(buttonAt, source.indexOf("</button>", buttonAt));
+    expect(buttonAt).toBeGreaterThan(-1);
+    // Disabling the control under the reader who just pressed it blurs it, so
+    // busy is announced, never enforced by taking the element away.
+    expect(button).not.toContain("disabled");
+    expect(button).toContain("aria-busy={retrying || undefined}");
+
+    // The double submit is stopped in the handler instead, on a ref so a second
+    // tap in the same render cannot slip past a not-yet-committed state.
+    const retryAt = source.indexOf("const retry = useCallback(");
+    const retry = source.slice(retryAt, source.indexOf("}, [refresh]);", retryAt));
+    expect(retry).toContain("if (retryingRef.current) return;");
+    expect(retry).toContain("retryingRef.current = true;");
+    expect(retry).toContain("retryingRef.current = false;");
   });
 
   it("both surfaces stay em-dash free in the copy they show", () => {

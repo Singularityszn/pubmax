@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import EmptyState from "@/components/EmptyState";
 import { useAuth } from "@/components/auth/AuthProvider";
@@ -35,6 +35,7 @@ export default function MessagesInboxClient({
   const [needsSignIn, setNeedsSignIn] = useState(false);
   const [failed, setFailed] = useState(false);
   const [retrying, setRetrying] = useState(false);
+  const retryingRef = useRef(false);
 
   useEffect(() => {
     let active = true;
@@ -100,8 +101,13 @@ export default function MessagesInboxClient({
   );
 
   const retry = useCallback(() => {
+    if (retryingRef.current) return;
+    retryingRef.current = true;
     setRetrying(true);
-    void refresh().finally(() => setRetrying(false));
+    void refresh().finally(() => {
+      retryingRef.current = false;
+      setRetrying(false);
+    });
   }, [refresh]);
 
   const retryButton = (
@@ -109,7 +115,6 @@ export default function MessagesInboxClient({
       type="button"
       className="threadRetryBtn"
       onClick={retry}
-      disabled={retrying}
       aria-busy={retrying || undefined}
     >
       {retrying ? "Trying again" : "Try again"}
