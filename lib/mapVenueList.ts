@@ -53,6 +53,7 @@ export function buildMapVenueListModel(
   viewportCenter: [number, number] | null,
   limit: number = MAP_VENUE_LIST_LIMIT,
   lensPrices: ReadonlyMap<string, MapLensPrice> | null = null,
+  lensCategoryLabel: string = "this view",
 ): MapVenueListModel {
   const total = venues.length;
   const origin =
@@ -71,7 +72,7 @@ export function buildMapVenueListModel(
             ...row,
             priceLabel: lensPrice
               ? `${lensPrice.categoryLabel} · £${lensPrice.priceGbp.toFixed(2)}`
-              : "No price logged for this view",
+              : `No ${lensCategoryLabel.toLowerCase()} price logged`,
           };
         });
   return { rows, total, shown: rows.length, truncated: total > rows.length };

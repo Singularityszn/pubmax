@@ -52,7 +52,7 @@ export function proxy(request: NextRequest) {
   //   NB: no 'strict-dynamic' — it would make the browser ignore the 'self'
   //   source expression, blocking the parser-inserted external theme-init.js;
   //   Next's chunk loading is happy under plain 'self' + a nonce'd bootstrap.
-  const scriptSrc = `script-src 'self' 'nonce-${nonce}'${isDev ? " 'unsafe-eval'" : ""}`;
+  const scriptSrc = `script-src 'self' 'nonce-${nonce}' https://va.vercel-scripts.com${isDev ? " 'unsafe-eval'" : ""}`;
 
   // Every non-script directive below is copied VERBATIM from the previous
   // static CSP in next.config.mjs. See that file's history for the per-directive

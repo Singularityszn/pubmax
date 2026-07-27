@@ -7,13 +7,15 @@ const PRICE_CHOICES = [10, 7, 6, 5.5];
 export default function MobilePriceChoices({
   maxPrice,
   hasTypeRelativePrices,
+  drinkLabel,
   onMaxPriceChange,
 }: {
   maxPrice: number;
   hasTypeRelativePrices: boolean;
+  drinkLabel?: string;
   onMaxPriceChange: (price: number) => void;
 }) {
-  const legend = mapPriceLegend(hasTypeRelativePrices);
+  const legend = mapPriceLegend(hasTypeRelativePrices, drinkLabel);
   return (
     <>
       <section className="mobilePriceBandLegend" aria-label={legend.ariaLabel}>
@@ -28,20 +30,22 @@ export default function MobilePriceChoices({
           ))}
         </ul>
       </section>
-      <fieldset className="mobilePriceChoices">
-        <legend>Maximum pint price</legend>
-        {PRICE_CHOICES.map((price) => (
-          <button
-            type="button"
-            key={price}
-            className={maxPrice === price ? "isActive" : ""}
-            aria-pressed={maxPrice === price}
-            onClick={() => onMaxPriceChange(price)}
-          >
-            {price === 10 ? "Any" : `£${price.toFixed(2)}`}
-          </button>
-        ))}
-      </fieldset>
+      {drinkLabel ? null : (
+        <fieldset className="mobilePriceChoices">
+          <legend>Maximum pint price</legend>
+          {PRICE_CHOICES.map((price) => (
+            <button
+              type="button"
+              key={price}
+              className={maxPrice === price ? "isActive" : ""}
+              aria-pressed={maxPrice === price}
+              onClick={() => onMaxPriceChange(price)}
+            >
+              {price === 10 ? "Any" : `£${price.toFixed(2)}`}
+            </button>
+          ))}
+        </fieldset>
+      )}
     </>
   );
 }

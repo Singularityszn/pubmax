@@ -138,10 +138,7 @@ type PubMapCanvasProps = {
   venueSignals?: Map<string, VenueSignal>;
   /** Canonical beer id (lib/beers). When set, pins re-price to it; non-serving pubs dim. */
   favoritePint?: string | null;
-  /**
-   * Active drink-lens category (Wave F1). Non-beer lenses prefer that category's
-   * glyph; pin prices stay on the beer/pint path — never fake brand pricing.
-   */
+  /** Active drink category. Its trusted category lens owns pin colour and label. */
   drinkCategory?: string | null;
   /**
    * W1: venueId-joined What's-On summary per venue (quiz/sport/deal/music on

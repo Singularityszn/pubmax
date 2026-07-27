@@ -328,7 +328,7 @@ describe("pubsToGeoJSON provisional mark", () => {
 });
 
 describe("pubsToGeoJSON experience-lens price isolation", () => {
-  it("prints no figure at all: no lens label, no pint label, no band, no badge", () => {
+  it("prints a category-labelled lens figure and never borrows pint state", () => {
     const venue = makeVenue({ id: "soft", cheapestPrice: 6 });
     const signals = new Map<string, VenueSignal>([
       [
@@ -343,7 +343,7 @@ describe("pubsToGeoJSON experience-lens price isolation", () => {
       ["soft", {
         venueId: "soft",
         category: "soft-drink" as const,
-        categoryLabel: "Soft drink",
+        categoryLabel: "Soft drinks",
         priceGbp: 3.2,
         submittedAt: 2_000,
         source: "community" as const,
@@ -359,17 +359,43 @@ describe("pubsToGeoJSON experience-lens price isolation", () => {
       lensPrices,
     ).features[0]?.properties ?? {};
 
-    // The tag is the PINT lane. A soft drink printed bare over an unchanged
-    // pint glyph would read as the price of a pint, so no lens figure reaches
-    // a feature property at all - not under `priceLabel`, not under a second
-    // name the text-field could coalesce to.
-    expect(props.priceLabel).toBeUndefined();
-    expect(JSON.stringify(props)).not.toContain("3.2");
-    expect(JSON.stringify(props)).not.toContain("lensPrice");
-    expect(props.bucket).toBe(3);
+    expect(props.priceLabel).toBe("£3.20 Soft drinks");
+    expect(props.bucket).toBe(priceBucket(3.2));
     expect(props.drops).toBe(false);
     expect(props.provisional).toBe(false);
     expect(venue.cheapestPrice).toBe(6);
+  });
+
+  it("shows whisky as whisky and leaves a pint-only pub unknown", () => {
+    const known = makeVenue({ id: "known", cheapestPrice: 5 });
+    const pintOnly = makeVenue({ id: "pint-only", cheapestPrice: 4 });
+    const lensPrices = new Map([
+      ["known", {
+        venueId: "known",
+        category: "whisky" as const,
+        categoryLabel: "Whisky",
+        priceGbp: 6,
+        submittedAt: 2_000,
+        source: "community" as const,
+      }],
+    ]);
+
+    const [knownFeature, unknownFeature] = pubsToGeoJSON(
+      [known, pintOnly],
+      new Map<string, VenueSignal>(),
+      null,
+      "whisky",
+      null,
+      null,
+      lensPrices,
+    ).features;
+
+    expect(knownFeature?.properties).toMatchObject({
+      bucket: priceBucket(6),
+      priceLabel: "£6 Whisky",
+    });
+    expect(unknownFeature?.properties?.bucket).toBe(priceBucket(null));
+    expect(unknownFeature?.properties?.priceLabel).toBeUndefined();
   });
 
   it("suppresses a pub's own sourced pint figure while a view owns the map", () => {

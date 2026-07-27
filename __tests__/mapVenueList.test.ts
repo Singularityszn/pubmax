@@ -126,10 +126,11 @@ describe("buildMapVenueListModel — selection wiring + labels", () => {
           source: "community",
         }],
       ]),
+      "Whisky",
     );
     const byId = new Map(model.rows.map((row) => [row.id, row.priceLabel]));
     expect(byId.get("soft")).toBe("Soft drink · £3.20");
-    expect(byId.get("unknown")).toBe("No price logged for this view");
+    expect(byId.get("unknown")).toBe("No whisky price logged");
   });
 
   it("carries venue kind and accessible type labels", () => {

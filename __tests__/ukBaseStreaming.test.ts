@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   nextUkBaseStreamToken,
   ukBasePubsWithinBounds,
+  visibleUkBaseStreamState,
 } from "@/components/map/pubmap/useUkBaseStreaming";
 
 describe("nextUkBaseStreamToken", () => {
@@ -43,5 +44,17 @@ describe("nextUkBaseStreamToken", () => {
         north: 53.9,
       }).map((pub) => pub.id),
     ).toEqual(["venue-uk-n-inside"]);
+  });
+});
+
+describe("visibleUkBaseStreamState", () => {
+  it("returns one stable empty state while a drink lens suspends base pubs", () => {
+    const published = { scopeKey: "london", count: 2, pubs: [] };
+
+    const first = visibleUkBaseStreamState(published, "london", true);
+    const second = visibleUkBaseStreamState(published, "london", true);
+
+    expect(first).toBe(second);
+    expect(first).toEqual({ count: 0, pubs: [] });
   });
 });

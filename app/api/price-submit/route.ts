@@ -42,6 +42,7 @@ import {
   NO_ALCOHOL_DRINK_CATEGORIES,
   validateCommunityPrice,
 } from "@/lib/communityPrice";
+import { isDrinkCategory } from "@/lib/drinks";
 import {
   readCommunityPriceCategoryIndex,
   readCommunityPrices,
@@ -273,6 +274,18 @@ export async function GET(request: Request): Promise<Response> {
       const result = await readCommunityPriceCategoryIndex(
         NO_ALCOHOL_DRINK_CATEGORIES,
       );
+      return jsonNoStore(
+        {
+          prices: result.prices,
+          truncated: result.truncated,
+          ...(result.degraded ? { degraded: true } : {}),
+        },
+        { status: 200 },
+      );
+    }
+    const drinkCategory = searchParams.get("drinkCategory");
+    if (isDrinkCategory(drinkCategory)) {
+      const result = await readCommunityPriceCategoryIndex([drinkCategory]);
       return jsonNoStore(
         {
           prices: result.prices,

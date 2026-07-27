@@ -9,6 +9,7 @@
 
 import type { CityId } from "@/lib/cities";
 import { haversineKm } from "@/lib/haversine";
+import type { MapLensPrice } from "@/lib/mapExperienceLens";
 import {
   getNightAreasForCity,
   isNightAreaRouteReady,
@@ -96,8 +97,14 @@ export function formatAreaDistance(km: number): string {
  * drop overrides the baseline. Zero / non-finite / null all read as "no price"
  * so the row fails soft rather than inventing a number.
  */
-function verifiedPrice(venue: Venue): number | null {
-  const price = venue.latestContributorPrice ?? venue.cheapestPrice;
+function verifiedPrice(
+  venue: Venue,
+  lensPrices: ReadonlyMap<string, MapLensPrice> | null,
+): number | null {
+  const price =
+    lensPrices === null
+      ? venue.latestContributorPrice ?? venue.cheapestPrice
+      : lensPrices.get(venue.id)?.priceGbp ?? null;
   return typeof price === "number" && Number.isFinite(price) && price > 0
     ? price
     : null;
@@ -120,8 +127,8 @@ function withinRadius(
 export type AreaPubRow = {
   id: string;
   name: string;
-  /** Verified cheapest pint in pounds, or null when none is priced yet. */
-  cheapestPrice: number | null;
+  /** Verified price for active drink lens, or null when none is priced yet. */
+  price: number | null;
   /** "£5.20" or the honest fail-soft copy — never a fabricated number. */
   priceLabel: string;
   distanceKm: number;
@@ -129,24 +136,26 @@ export type AreaPubRow = {
 };
 
 /**
- * Rank the cheapest pints inside a ring: priced venues first, cheapest
+ * Rank active drink prices inside a ring: priced venues first, cheapest
  * ascending; venues with no verified price follow (nearest to `origin` first)
  * so a thin ring still fills the list honestly rather than hiding pubs. Ties
  * break on name for a stable, deterministic order. Shared by both the modelled
  * area sheet and the ad-hoc locality/borough ring so the two never disagree.
  */
-function rankCheapestPints(
+function rankCheapestDrinks(
   centre: { lng: number; lat: number },
   radiusKm: number,
   venues: Venue[],
   origin: [number, number],
   limit: number,
+  lensPrices: ReadonlyMap<string, MapLensPrice> | null,
+  lensCategoryLabel: string,
 ): AreaPubRow[] {
   const ranked = venues
     .filter((venue) => withinRadius(centre, radiusKm, venue))
     .map((venue) => ({
       venue,
-      price: verifiedPrice(venue),
+      price: verifiedPrice(venue, lensPrices),
       distanceKm: haversineKm([venue.longitude, venue.latitude], origin),
     }))
     .sort((left, right) => {
@@ -169,47 +178,74 @@ function rankCheapestPints(
     .map(({ venue, price, distanceKm }) => ({
       id: venue.id,
       name: venue.name,
-      cheapestPrice: price,
-      priceLabel: price !== null ? `£${price.toFixed(2)}` : "no priced pints yet",
+      price,
+      priceLabel:
+        price !== null
+          ? lensPrices === null
+            ? `£${price.toFixed(2)}`
+            : `${lensCategoryLabel} · £${price.toFixed(2)}`
+          : lensPrices === null
+            ? "no priced pints yet"
+            : `no ${lensCategoryLabel.toLowerCase()} price yet`,
       distanceKm,
       distanceLabel: formatAreaDistance(distanceKm),
     }));
 }
 
 /**
- * The modelled area's cheapest pints, measured from the live map centre (or the
+ * Modelled area's cheapest drinks, measured from live map centre (or
  * area centre before the map settles) so the distances read honestly.
  */
-export function cheapestPintsInArea(
+export function cheapestDrinksInArea(
   area: NightArea,
   venues: Venue[],
   center: [number, number],
   limit: number = AREA_PUB_LIMIT,
+  lensPrices: ReadonlyMap<string, MapLensPrice> | null = null,
+  lensCategoryLabel: string = "Pint",
 ): AreaPubRow[] {
   const [lng, lat] = center;
   const origin: [number, number] =
     Number.isFinite(lng) && Number.isFinite(lat)
       ? [lng, lat]
       : [area.centre.lng, area.centre.lat];
-  return rankCheapestPints(area.centre, area.radiusKm, venues, origin, limit);
+  return rankCheapestDrinks(
+    area.centre,
+    area.radiusKm,
+    venues,
+    origin,
+    limit,
+    lensPrices,
+    lensCategoryLabel,
+  );
 }
 
 /**
- * The cheapest pints within a walkable ring of an arbitrary place centroid — a
+ * Cheapest drinks within a walkable ring of an arbitrary place centroid - a
  * locality or borough a map search flew to that is not a modelled Night Area.
  * Distances are measured from the centroid itself (the place the camera lands
  * on). Returns [] when no priced-or-unpriced venue sits inside the ring, which
  * the sheet renders as its honest "no priced pints nearby yet" line.
  */
-export function cheapestPintsNearPoint(
+export function cheapestDrinksNearPoint(
   center: [number, number],
   venues: Venue[],
   radiusKm: number = LOCALITY_RADIUS_KM,
   limit: number = AREA_PUB_LIMIT,
+  lensPrices: ReadonlyMap<string, MapLensPrice> | null = null,
+  lensCategoryLabel: string = "Pint",
 ): AreaPubRow[] {
   const [lng, lat] = center;
   if (!Number.isFinite(lng) || !Number.isFinite(lat)) return [];
-  return rankCheapestPints({ lng, lat }, radiusKm, venues, center, limit);
+  return rankCheapestDrinks(
+    { lng, lat },
+    radiusKm,
+    venues,
+    center,
+    limit,
+    lensPrices,
+    lensCategoryLabel,
+  );
 }
 
 export type AreaCoverageTone = "review" | "capture" | "discovery" | "paused";
@@ -284,7 +320,7 @@ export function buildAreaSheetModel(
 ): AreaSheetModel {
   return {
     areaName: area ? area.name : "",
-    pubs: area ? cheapestPintsInArea(area, venues, center) : [],
+    pubs: area ? cheapestDrinksInArea(area, venues, center) : [],
     elsewhere: areaElsewhereOptions(cityId, now),
   };
 }

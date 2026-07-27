@@ -26,6 +26,7 @@ function state(rows: CommunityPrice[], known = true): CommunityPricesState {
     loadProvisionalBaseVenues: () => {},
     loadVenue: () => {},
     loadNoAlcoholIndex: () => {},
+    loadDrinkCategoryIndex: () => {},
     submit: async () => ({ ok: true }),
     submitting: false,
     reportPrice: () => {},

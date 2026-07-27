@@ -23,4 +23,17 @@ describe("mapPriceLegend", () => {
     expect(legend.ariaLabel).toContain("bars and late food");
     expect(legend.hint).toContain("within their type");
   });
+
+  it("names selected drink and explains unknown prices", () => {
+    const legend = mapPriceLegend(true, "Whisky");
+    expect(legend.rows.map((row) => row.label)).toEqual([
+      "≤ £5.50",
+      "> £5.50–≤ £7",
+      "> £7",
+    ]);
+    expect(legend.ariaLabel).toContain("Whisky price");
+    expect(legend.title).toBe("Whisky price bands");
+    expect(legend.hint).toContain("unknown");
+    expect(legend.hint).not.toContain("pint");
+  });
 });

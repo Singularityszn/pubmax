@@ -414,6 +414,24 @@ describe("GET /api/price-submit", () => {
     expect(body.truncated).toBe(false);
     expect(JSON.stringify(body)).not.toContain("actor");
   });
+
+  it("returns only the requested drink category across venues", async () => {
+    const venueId = "venue-xjf3n0";
+    await POST(post({ venueId, drinkCategory: "whisky", priceGbp: 6 }));
+    await POST(post({ venueId, drinkCategory: "wine", priceGbp: 8 }));
+
+    const response = await GET(get("?drinkCategory=whisky"));
+    expect(response.status).toBe(200);
+    const body = (await response.json()) as {
+      prices: Array<{ venueId: string; drinkCategory: string }>;
+      truncated?: boolean;
+    };
+    expect(body.prices).toEqual([
+      expect.objectContaining({ venueId, drinkCategory: "whisky" }),
+    ]);
+    expect(body.truncated).toBe(false);
+  });
+
   it("reads back the freshest community price per drink category", async () => {
     const venueId = "venue-3h52h";
     await POST(post({ venueId, drinkCategory: "beer", priceGbp: 4.2 }));

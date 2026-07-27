@@ -69,6 +69,23 @@ type Options = {
  * loaded" look identical in a screenshot.
  */
 export type UkBaseStreamState = { count: number; pubs: UkBasePub[] };
+type PublishedUkBaseStreamState = UkBaseStreamState & { scopeKey: string };
+
+const EMPTY_UK_BASE_STREAM_STATE: UkBaseStreamState = {
+  count: 0,
+  pubs: [],
+};
+
+export function visibleUkBaseStreamState(
+  published: PublishedUkBaseStreamState,
+  scopeKey: string,
+  suspended: boolean,
+): UkBaseStreamState {
+  if (suspended || published.scopeKey !== scopeKey) {
+    return EMPTY_UK_BASE_STREAM_STATE;
+  }
+  return { count: published.count, pubs: published.pubs };
+}
 
 export function ukBasePubsWithinBounds(
   pubs: UkBasePub[],
@@ -113,11 +130,7 @@ export function useUkBaseStreaming({
   useEffect(() => {
     onRestorePubRef.current = onRestorePub;
   }, [onRestorePub]);
-  const [published, setPublished] = useState<{
-    scopeKey: string;
-    count: number;
-    pubs: UkBasePub[];
-  }>(
+  const [published, setPublished] = useState<PublishedUkBaseStreamState>(
     () => ({ scopeKey, count: 0, pubs: [] }),
   );
 
@@ -217,6 +230,5 @@ export function useUkBaseStreaming({
 
   // Suspension answers zero the moment it is set, ahead of the debounce that
   // empties the source, so the list beside the map never outlives the pins.
-  if (suspended || published.scopeKey !== scopeKey) return { count: 0, pubs: [] };
-  return { count: published.count, pubs: published.pubs };
+  return visibleUkBaseStreamState(published, scopeKey, suspended);
 }

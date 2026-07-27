@@ -15,12 +15,24 @@ const MIXED_PRICE_LEGEND: MapPriceLegendRow[] = [
   { label: "> £7 · relative high", tone: "red" },
 ];
 
-export function mapPriceLegend(hasTypeRelativePrices: boolean): {
+export function mapPriceLegend(
+  hasTypeRelativePrices: boolean,
+  drinkLabel?: string,
+): {
   rows: MapPriceLegendRow[];
   ariaLabel: string;
   title: string;
   hint: string;
 } {
+  if (drinkLabel) {
+    const drink = drinkLabel.toLowerCase();
+    return {
+      rows: PINT_PRICE_LEGEND,
+      ariaLabel: `${drinkLabel} price colour key`,
+      title: `${drinkLabel} price bands`,
+      hint: `Pin colours follow trusted ${drink} prices. Pubs without one stay unknown.`,
+    };
+  }
   if (!hasTypeRelativePrices) {
     return {
       rows: PINT_PRICE_LEGEND,

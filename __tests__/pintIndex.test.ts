@@ -52,7 +52,7 @@ describe("public Pint Index snapshot", () => {
     if (!result.ok) expect(result.errors.join(" ")).toMatch(/eligible|canonical/i);
   });
 
-  it("rejects community soft-drink prices as Pint Index evidence", () => {
+  it("rejects community drink-lens prices as Pint Index evidence", () => {
     const nonPint = snapshot({
       sources: [{
         id: "soft-1",
@@ -74,6 +74,26 @@ describe("public Pint Index snapshot", () => {
     const result = validatePintIndexSnapshot(nonPint);
     expect(result.ok).toBe(false);
     if (!result.ok) expect(result.errors.join(" ")).toMatch(/eligible/i);
+
+    const whisky = snapshot({
+      sources: [{
+        id: "whisky-1",
+        kind: "community_price",
+        publisher: "PUBMAXX contributor",
+        sourceUrl: "https://pubmaxxing.com/map?drink=whisky",
+        licence: null,
+      } as unknown as PintIndexSnapshot["sources"][number]],
+      observations: [{
+        venueId: "a",
+        pubName: "Cheap A",
+        boroughCode: "hackney",
+        boroughName: "Hackney",
+        pricePence: 600,
+        observedAt: "2026-07-10T12:00:00.000Z",
+        sourceId: "whisky-1",
+      }],
+    });
+    expect(validatePintIndexSnapshot(whisky).ok).toBe(false);
   });
 
   it("rejects snapshots produced by a non-canonical borough classifier", () => {

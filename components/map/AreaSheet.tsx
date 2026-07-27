@@ -5,11 +5,12 @@ import { useCallback, useEffect, useMemo, useRef } from "react";
 import type { CityId } from "@/lib/cities";
 import {
   areaElsewhereOptions,
-  cheapestPintsInArea,
-  cheapestPintsNearPoint,
+  cheapestDrinksInArea,
+  cheapestDrinksNearPoint,
   type AreaElsewhereOption,
 } from "@/lib/areaButton";
 import type { NightArea } from "@/lib/nightAreas";
+import type { MapLensPrice } from "@/lib/mapExperienceLens";
 import type { Venue } from "@/lib/venues";
 
 import "./areaSheet.css";
@@ -40,6 +41,10 @@ type AreaSheetProps = {
   placeFocus?: AreaSheetPlaceFocus | null;
   /** Full on-map venue set (unfiltered) — the price pins the map loaded. */
   venues: Venue[];
+  /** Trusted prices for selected non-pint drink, or null for pint default. */
+  lensPrices?: ReadonlyMap<string, MapLensPrice> | null;
+  /** Human category label used beside every lens figure and unknown row. */
+  drinkLabel?: string;
   /** Live map centre [lng, lat], for area membership + row distances. */
   center: [number, number];
   /** Fly + open a pub's venue card — the same selection a pin tap drives. */
@@ -59,6 +64,8 @@ export default function AreaSheet({
   area,
   placeFocus = null,
   venues,
+  lensPrices = null,
+  drinkLabel = "Pints",
   center,
   onSelectVenue,
   onFlyToArea,
@@ -72,13 +79,28 @@ export default function AreaSheet({
   const pubs = useMemo(
     () =>
       placeFocus
-        ? cheapestPintsNearPoint(placeFocus.center, venues, placeFocus.radiusKm)
+        ? cheapestDrinksNearPoint(
+            placeFocus.center,
+            venues,
+            placeFocus.radiusKm,
+            undefined,
+            lensPrices,
+            drinkLabel,
+          )
         : area
-          ? cheapestPintsInArea(area, venues, center)
+          ? cheapestDrinksInArea(
+              area,
+              venues,
+              center,
+              undefined,
+              lensPrices,
+              drinkLabel,
+            )
           : [],
-    [placeFocus, area, venues, center],
+    [placeFocus, area, venues, center, lensPrices, drinkLabel],
   );
   const focusName = placeFocus?.name ?? area?.name ?? null;
+  const drinkNoun = lensPrices === null ? "pints" : drinkLabel.toLowerCase();
 
   const clearCloseTimer = useCallback(() => {
     if (closeTimer.current !== null) {
@@ -111,9 +133,14 @@ export default function AreaSheet({
 
   return (
     <div className="areaSheet">
-      <section className="areaSheetSection" aria-label="Cheapest pints in this area">
+      <section
+        className="areaSheetSection"
+        aria-label={`Cheapest ${drinkNoun} in this area`}
+      >
         <h3 className="areaSheetHeading">
-          {focusName ? `Cheapest pints in ${focusName}` : "Cheapest pints here"}
+          {focusName
+            ? `Cheapest ${drinkNoun} in ${focusName}`
+            : `Cheapest ${drinkNoun} here`}
         </h3>
         {focusName && pubs.length > 0 ? (
           <ul className="areaSheetList">
@@ -128,7 +155,7 @@ export default function AreaSheet({
                   <span className="areaSheetPubMeta">
                     <span
                       className={
-                        pub.cheapestPrice !== null
+                        pub.price !== null
                           ? "areaSheetPrice"
                           : "areaSheetPrice isUnpriced"
                       }
@@ -151,10 +178,10 @@ export default function AreaSheet({
         ) : (
           <p className="areaSheetEmpty">
             {placeFocus
-              ? "No priced pints nearby yet. Try somewhere else below."
+              ? `No ${drinkNoun} prices nearby yet. Try somewhere else below.`
               : area
-                ? "No priced pints in this area yet. Try somewhere else below."
-                : "Pan the map over an area to see its cheapest pints."}
+                ? `No ${drinkNoun} prices in this area yet. Try somewhere else below.`
+                : `Pan the map over an area to see its cheapest ${drinkNoun}.`}
           </p>
         )}
       </section>

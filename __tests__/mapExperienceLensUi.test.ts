@@ -49,9 +49,12 @@ describe("MapExperienceLens", () => {
       /experienceLens === "all"\s*\?\s*\([\s\S]*?<DrinkShapeChips/,
     );
     expect(pubMap).toMatch(
-      /experienceLens !== "all"\s*\?\s*\([\s\S]*?selectedLensPrice[\s\S]*?No price logged/,
+      /activeLensPrices !== null\s*\?\s*\([\s\S]*?selectedLensPrice[\s\S]*?No price logged/,
     );
     expect(pubMap).toContain("experienceLens={experienceLens}");
+    expect(pubMap).toContain(
+      'drinkCategory={experienceLens === "all" ? filters.drinkCategory || null : null}',
+    );
     expect(pubMap).toContain(
       "const mobileShellReady = !mapLoadingActive;",
     );

@@ -62,6 +62,8 @@ export type CommunityPricesState = {
   noAlcoholIndexStatus: NoAlcoholIndexStatus;
   /** Load soft-drink and alcohol-free rows across venues once per session. */
   loadNoAlcoholIndex: () => void;
+  /** Load one selected drink category across venues once per session. */
+  loadDrinkCategoryIndex: (category: DrinkCategory) => void;
   /** Visibility marks found for UK base pubs read in this session. */
   provisionalBaseVenueIds: ReadonlySet<string>;
   /** Read unseen IDs among these on-screen base pubs. */
@@ -340,6 +342,7 @@ export function useCommunityPrices(): CommunityPricesState {
   const loaded = useRef<Set<string>>(new Set());
   const loadedRows = useRef<Map<string, CommunityPrice[]>>(new Map());
   const noAlcoholIndexLoaded = useRef(false);
+  const drinkCategoryIndexesLoaded = useRef<Set<DrinkCategory>>(new Set());
   const provisionalBaseSignature = useRef("");
   const provisionalBaseKnown = useRef<Set<string>>(new Set());
   const provisionalBasePending = useRef<Set<string>>(new Set());
@@ -426,6 +429,46 @@ export function useCommunityPrices(): CommunityPricesState {
       } catch {
         noAlcoholIndexLoaded.current = false;
         setNoAlcoholIndexStatus("degraded");
+      }
+    })();
+  }, []);
+
+  const loadDrinkCategoryIndex = useCallback((category: DrinkCategory) => {
+    if (drinkCategoryIndexesLoaded.current.has(category)) return;
+    drinkCategoryIndexesLoaded.current.add(category);
+    void (async () => {
+      try {
+        const response = await fetch(
+          `/api/price-submit?drinkCategory=${encodeURIComponent(category)}`,
+        );
+        if (!response.ok) throw new Error("category index unavailable");
+        const result = readCategoryPriceIndexLoad(await response.json());
+        if (result.status === "invalid") {
+          drinkCategoryIndexesLoaded.current.delete(category);
+          return;
+        }
+        for (const row of result.prices) {
+          loadedRows.current.set(
+            row.venueId,
+            upsertPrice(loadedRows.current.get(row.venueId) ?? [], row),
+          );
+        }
+        setByVenueId((current) => {
+          if (result.prices.length === 0) return current;
+          const next = new Map(current);
+          for (const row of result.prices) {
+            next.set(
+              row.venueId,
+              upsertPrice(next.get(row.venueId) ?? [], row),
+            );
+          }
+          return next;
+        });
+        if (result.status === "degraded") {
+          drinkCategoryIndexesLoaded.current.delete(category);
+        }
+      } catch {
+        drinkCategoryIndexesLoaded.current.delete(category);
       }
     })();
   }, []);
@@ -687,6 +730,7 @@ export function useCommunityPrices(): CommunityPricesState {
     freshestByVenueId,
     noAlcoholIndexStatus,
     loadNoAlcoholIndex,
+    loadDrinkCategoryIndex,
     provisionalBaseVenueIds,
     loadProvisionalBaseVenues,
     loadVenue,

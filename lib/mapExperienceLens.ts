@@ -16,7 +16,7 @@ export type NoAlcoholDrinkCategory = Extract<
 
 export type MapLensPrice = {
   venueId: string;
-  category: NoAlcoholDrinkCategory | null;
+  category: DrinkCategory | null;
   categoryLabel: string;
   priceGbp: number;
   submittedAt?: number;
@@ -24,6 +24,52 @@ export type MapLensPrice = {
   source: "community" | "sourced-anchor";
   sourceUrl?: string;
 };
+
+/** Pint and brand refinements cannot answer a category-price lens. */
+export function filtersForDrinkPriceLens(
+  filters: Filters,
+  category: DrinkCategory | null,
+): Filters {
+  if (category === null || category === "beer") return filters;
+  return {
+    ...filters,
+    maxPrice: Number.POSITIVE_INFINITY,
+    drinkCategory: "",
+    drinkBrand: "",
+    drinkSubtype: "",
+    topShelfOnly: false,
+    requireCocktails: false,
+  };
+}
+
+/**
+ * Trusted map price for one selected drink category per venue. The map
+ * candidate, corroboration floor and max-age window are the same gates beer
+ * already uses. Keeping this outside VenueSignal prevents a whisky figure from
+ * ever becoming pint authority.
+ */
+export function trustedDrinkLensPrices(
+  rowsByVenue: ReadonlyMap<string, readonly CommunityPrice[]>,
+  category: DrinkCategory,
+  now: number = Date.now(),
+): Map<string, MapLensPrice> {
+  const out = new Map<string, MapLensPrice>();
+  for (const [venueId, rows] of rowsByVenue) {
+    const row = rows.find((candidate) => candidate.drinkCategory === category);
+    if (!row) continue;
+    const candidate = mapCandidateOf(row);
+    if (!drivesMap(candidate, now)) continue;
+    out.set(venueId, {
+      venueId,
+      category,
+      categoryLabel: CATEGORY_META[category].label,
+      priceGbp: candidate.priceGbp,
+      submittedAt: candidate.submittedAt,
+      source: "community",
+    });
+  }
+  return out;
+}
 
 /**
  * Pint and drink refinements are invisible while an experience view owns the

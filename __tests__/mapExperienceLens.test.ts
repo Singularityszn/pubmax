@@ -2,9 +2,11 @@ import { describe, expect, it } from "vitest";
 
 import {
   experienceLensSummary,
+  filtersForDrinkPriceLens,
   filtersForExperienceLens,
   filterVenuesForExperienceLens,
   lensPriceForVenue,
+  trustedDrinkLensPrices,
   trustedNoAlcoholLensPrices,
 } from "@/lib/mapExperienceLens";
 import type { CommunityPrice } from "@/lib/communityPrice";
@@ -117,6 +119,58 @@ describe("no-alcohol lens price policy", () => {
     const result = trustedNoAlcoholLensPrices(rows, 3_000);
     expect(result.get("pub-1")?.category).toBe("soft-drink");
     expect(result.get("pub-2")?.category).toBe("alcohol-free");
+  });
+});
+
+describe("selected drink lens price policy", () => {
+  it("stands the pint cap down for non-pint prices", () => {
+    const filters = {
+      maxPrice: 5.5,
+      drinkCategory: "whisky",
+      drinkBrand: "jameson",
+      drinkSubtype: "whisky-irish",
+      topShelfOnly: true,
+      requireCocktails: true,
+    } as Filters;
+
+    expect(filtersForDrinkPriceLens(filters, "whisky")).toMatchObject({
+      maxPrice: Number.POSITIVE_INFINITY,
+      drinkCategory: "",
+      drinkBrand: "",
+      drinkSubtype: "",
+      topShelfOnly: false,
+      requireCocktails: false,
+    });
+    expect(filtersForDrinkPriceLens(filters, "beer")).toBe(filters);
+    expect(filtersForDrinkPriceLens(filters, null)).toBe(filters);
+  });
+
+  it("keeps only trusted prices for the selected category", () => {
+    const rows = new Map<string, CommunityPrice[]>([
+      ["trusted", [
+        price("whisky", 6, { venueId: "trusted" }),
+        price("wine", 8, { venueId: "trusted" }),
+      ]],
+      ["uncorroborated", [
+        price("whisky", 5, {
+          venueId: "uncorroborated",
+          corroborations: 1,
+          mapCandidate: { priceGbp: 5, submittedAt: 2_000, corroborations: 1 },
+        }),
+      ]],
+      ["wine-only", [price("wine", 7, { venueId: "wine-only" })]],
+    ]);
+
+    const result = trustedDrinkLensPrices(rows, "whisky", 3_000);
+
+    expect(result.get("trusted")).toMatchObject({
+      venueId: "trusted",
+      category: "whisky",
+      categoryLabel: "Whisky",
+      priceGbp: 6,
+    });
+    expect(result.has("uncorroborated")).toBe(false);
+    expect(result.has("wine-only")).toBe(false);
   });
 });
 
