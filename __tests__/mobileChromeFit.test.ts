@@ -40,24 +40,53 @@ describe("mobile chrome fit at 390px", () => {
     expect(rule).not.toMatch(/text-overflow:\s*ellipsis/);
   });
 
-  it("fits every Tonight Arc chip inside the rail panel", () => {
+  it("fits every Tonight Arc chip inside the rail panel, clear of the TfL control", () => {
+    // The rail used to be sized against the viewport ALONE (min(100vw - 24px,
+    // 366px), centred), which is not the constraint that matters: the TfL
+    // utility control is fixed to the right map edge in the same vertical band,
+    // so a viewport-wide rail put the fifth chip ("Restaurants") under a 44px
+    // button — half the label hidden, and every tap in that strip opening TfL
+    // instead of the lane toggle. Measured at 390x844: chip 259.7..352.8 vs
+    // button 334..378. So this pins the rail against the CONTROL, not the
+    // viewport, and the lane is one shared variable so the two cannot drift.
     const chipCount = (arcChipsTsx.match(/\bkind:\s*"/g) ?? []).length;
     expect(chipCount, "chips declared in TonightArcChips").toBe(5);
 
-    const mobile =
-      arcChipsCss.split("@media (max-width: 640px)")[1] ?? "";
-    const railWidth = Number(
-      mobile.match(/\.tonightArcChips\s*{[^}]*width:\s*min\([^,]+,\s*(\d+)px\)/)?.[1],
+    const cornerInset = Number(
+      mobileMapCss.match(/--mobile-map-corner-inset:\s*max\((\d+)px/)?.[1],
     );
-    const railPadX = Number(
-      mobile.match(/\.tonightArcChips\s*{[^}]*padding:\s*\d+px\s+(\d+)px/)?.[1],
+    const cornerBtn = Number(mobileMapCss.match(/--mobile-map-corner-btn:\s*(\d+)px/)?.[1]);
+    const cornerGap = Number(
+      mobileMapCss.match(
+        /--mobile-map-corner-lane:\s*calc\([\s\S]*?--mobile-map-corner-btn\)\s*\+\s*(\d+)px/,
+      )?.[1],
     );
+    // The lane only describes the control if the control is actually laid out
+    // from the same two numbers.
+    expect(mobileMapCss).toMatch(
+      /\.mobileMapUtilityCorner\s*{[^}]*right:\s*var\(--mobile-map-corner-inset\)/,
+    );
+    expect(mobileMapCss).toMatch(
+      /\.mobileMapUtilityCorner > button\s*{[^}]*min-width:\s*var\(--mobile-map-corner-btn\)/,
+    );
+
+    const mobile = arcChipsCss.split("@media (max-width: 640px)")[1] ?? "";
+    const railRule = mobile.match(/\.tonightArcChips\s*{([^}]*)}/)?.[1] ?? "";
+    const railLeft = Number(railRule.match(/left:\s*(\d+)px/)?.[1]);
+    const laneFallback = Number(
+      railRule.match(/right:\s*var\(--mobile-map-corner-lane,\s*(\d+)px\)/)?.[1],
+    );
+    const railPadX = Number(railRule.match(/padding:\s*\d+px\s+(\d+)px/)?.[1]);
     const chipMinWidth = Number(
       mobile.match(/\.tonightArcChip\s*{[^}]*min-width:\s*(\d+)px/)?.[1],
     );
     const rowGap = Number(arcChipsCss.match(/\.tonightArcRow\s*{[^}]*gap:\s*(\d+)px/)?.[1]);
     for (const [label, value] of [
-      ["rail width cap", railWidth],
+      ["TfL corner inset", cornerInset],
+      ["TfL corner button size", cornerBtn],
+      ["TfL corner lane gap", cornerGap],
+      ["rail left inset", railLeft],
+      ["rail lane fallback", laneFallback],
       ["rail padding", railPadX],
       ["chip min-width", chipMinWidth],
       ["row gap", rowGap],
@@ -65,12 +94,32 @@ describe("mobile chrome fit at 390px", () => {
       expect(Number.isFinite(value), `${label} parsed from CSS`).toBe(true);
     }
 
-    const contentBox = railWidth - railPadX * 2 - 2;
-    const rowFloor = chipCount * chipMinWidth + (chipCount - 1) * rowGap;
-    expect(railWidth, "rail fits the 390px viewport with 12px margins").toBeLessThanOrEqual(366);
-    expect(rowFloor, "chip row floor vs rail content box").toBeLessThanOrEqual(contentBox);
-    expect(mobile).toMatch(/\.tonightArcChips\s*{[^}]*width:\s*min\(calc\(100vw - \d+px\)/);
+    // The rail anchors left and ends short of the lane, so it cannot be centred
+    // back over the control by a future width tweak.
+    expect(railRule, "rail anchors left rather than centring across the control").not.toMatch(
+      /left:\s*50%/,
+    );
+    expect(railRule).toMatch(/transform:\s*none/);
+
+    const lane = cornerInset + cornerBtn + cornerGap;
+    expect(laneFallback, "rail's lane fallback matches the shared lane").toBe(lane);
+
+    const viewport = 390;
+    const railRight = viewport - lane;
+    const tflLeft = viewport - cornerInset - cornerBtn;
+    expect(railRight, "rail right edge clears the TfL control's left edge").toBeLessThanOrEqual(
+      tflLeft,
+    );
+    expect(railLeft, "rail keeps the 12px left map inset").toBeGreaterThanOrEqual(12);
+
+    const contentBox = railRight - railLeft - railPadX * 2 - 2;
+    expect(chipMinWidth, "widest single chip vs rail content box").toBeLessThanOrEqual(contentBox);
+    // Chips wrap to a second row rather than shrink or ellipse: a lane label is
+    // read, not guessed.
     expect(mobile).toMatch(/\.tonightArcRow\s*{[^}]*flex-wrap:\s*wrap/);
+    expect(mobile).toMatch(/\.tonightArcChip\s*{[^}]*flex:\s*0 1 auto/);
+    expect(arcChipsCss, "chip labels are never truncated").not.toMatch(/text-overflow/);
+    expect(rowGap, "row gap parsed").toBeGreaterThan(0);
   });
 
   it("stacks the landing hero readout without the side-by-side divider indent", () => {

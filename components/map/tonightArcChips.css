@@ -70,8 +70,17 @@
   .tonightArcChips {
     position: fixed;
     top: calc(var(--mobile-map-top) + var(--mobile-map-bar-h) + 58px);
-    width: min(calc(100vw - 24px), 366px);
+    /* Fitting the viewport is not enough: the TfL utility control is fixed to
+       the right edge in this same band, so a rail sized only against 100vw put
+       the fifth chip under a 44px button and lost its taps. Anchor left and
+       end a full corner lane short of that control (--mobile-map-corner-lane,
+       mobileMapShell.css). Chips wrap into a second row rather than truncate. */
+    left: 12px;
+    right: var(--mobile-map-corner-lane, 68px);
+    width: auto;
+    max-width: none;
     padding: 6px 8px 8px;
+    transform: none;
   }
 
   .tonightArcRow {
