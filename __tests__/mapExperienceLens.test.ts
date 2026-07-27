@@ -1,16 +1,22 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  drinkLensCoverageNote,
   experienceLensSummary,
   filtersForDrinkPriceLens,
   filtersForExperienceLens,
   filterVenuesForExperienceLens,
   lensPriceForVenue,
+  isMapLensDrinkCategory,
+  MAP_LENS_DRINK_CATEGORIES,
   trustedDrinkLensPrices,
   trustedNoAlcoholLensPrices,
 } from "@/lib/mapExperienceLens";
-import type { CommunityPrice } from "@/lib/communityPrice";
-import { CATEGORY_META } from "@/lib/drinks";
+import {
+  SUBMITTABLE_DRINK_CATEGORIES,
+  type CommunityPrice,
+} from "@/lib/communityPrice";
+import { CATEGORY_META, DRINK_CATEGORIES } from "@/lib/drinks";
 import type { Venue } from "@/lib/venues";
 import type { Filters } from "@/lib/venues";
 
@@ -297,5 +303,50 @@ describe("experience lens filter isolation", () => {
       requireCocktails: false,
       requirePintDrops: false,
     });
+  });
+});
+
+describe("map lens drink categories", () => {
+  it("keeps `other` submittable but never lensable", () => {
+    // "Other" is a bag of unrelated drinks, so a pin labelled "£6 Other" names
+    // nothing a reader can check. Submit still has to accept it.
+    expect(MAP_LENS_DRINK_CATEGORIES).not.toContain("other");
+    expect(SUBMITTABLE_DRINK_CATEGORIES).toContain("other");
+    expect(isMapLensDrinkCategory("other")).toBe(false);
+    expect(isMapLensDrinkCategory("whisky")).toBe(true);
+    expect(isMapLensDrinkCategory("beer")).toBe(true);
+    expect(isMapLensDrinkCategory("not-a-drink")).toBe(false);
+    expect(isMapLensDrinkCategory(null)).toBe(false);
+  });
+
+  it("offers every other closed-taxonomy category", () => {
+    for (const category of DRINK_CATEGORIES) {
+      if (category === "other") continue;
+      expect(MAP_LENS_DRINK_CATEGORIES).toContain(category);
+    }
+  });
+});
+
+describe("drinkLensCoverageNote — three findings, never merged", () => {
+  it("says nothing when the index answered in full", () => {
+    expect(drinkLensCoverageNote("whisky", "ready")).toBeNull();
+  });
+
+  it("keeps a truncated-but-successful read out of the failure wording", () => {
+    const partial = drinkLensCoverageNote("whisky", "partial");
+    expect(partial).toContain("part of the whisky prices");
+    expect(partial).not.toContain("could not");
+  });
+
+  it("never lets an unreadable index pass as a complete answer", () => {
+    const degraded = drinkLensCoverageNote("whisky", "degraded");
+    expect(degraded).toContain("could not read");
+    expect(degraded).not.toBe(drinkLensCoverageNote("whisky", "partial"));
+    expect(degraded).not.toBeNull();
+  });
+
+  it("marks an unstarted or in-flight read as unfinished", () => {
+    expect(drinkLensCoverageNote("whisky", "idle")).toContain("Checking");
+    expect(drinkLensCoverageNote("whisky", "loading")).toContain("Checking");
   });
 });

@@ -213,16 +213,14 @@ import {
   filtersForDrinkPriceLens,
   filtersForExperienceLens,
   filterVenuesForExperienceLens,
+  isMapLensDrinkCategory,
   lensPricesForVenues,
   trustedDrinkLensPrices,
   trustedNoAlcoholLensPrices,
+  type CategoryPriceIndexStatus,
   type MapExperienceLens as MapExperienceLensValue,
 } from "@/lib/mapExperienceLens";
-import {
-  CATEGORY_META,
-  isDrinkCategory,
-  type DrinkCategory,
-} from "@/lib/drinks";
+import { CATEGORY_META, type DrinkCategory } from "@/lib/drinks";
 import {
   bandChipDismissedKey,
   shouldShowBandOnboardingChip,
@@ -681,7 +679,9 @@ export default function PubMap({
   const loadProvisionalBaseVenues =
     communityPrices.loadProvisionalBaseVenues;
   const loadDrinkCategoryIndex = communityPrices.loadDrinkCategoryIndex;
-  const selectedDrinkCategory: DrinkCategory | null = isDrinkCategory(
+  // `other` is submittable but never lensable, so it selects no map lens: its
+  // pins would print a figure labelled with a name that identifies no drink.
+  const selectedDrinkCategory: DrinkCategory | null = isMapLensDrinkCategory(
     filters.drinkCategory,
   )
     ? filters.drinkCategory
@@ -697,6 +697,14 @@ export default function PubMap({
       loadDrinkCategoryIndex(mapDrinkLensCategory);
     }
   }, [loadDrinkCategoryIndex, mapDrinkLensCategory]);
+  // Whichever cross-venue index is answering the map right now reports its own
+  // completeness, so the price key never claims a read it did not finish.
+  const drinkIndexStatus: CategoryPriceIndexStatus = mapDrinkLensCategory
+    ? communityPrices.drinkCategoryIndexStatus.get(mapDrinkLensCategory) ??
+      "idle"
+    : experienceLens === "no-alcohol"
+      ? communityPrices.noAlcoholIndexStatus
+      : "ready";
   const drinkLensPrices = useMemo(
     () =>
       mapDrinkLensCategory
@@ -2554,6 +2562,7 @@ export default function PubMap({
                 onFiltersChange={setFilters}
                 hasTypeRelativePrices={hasTypeRelativePrices}
                 drinkLabel={activeLensLabel ?? undefined}
+                drinkIndexStatus={drinkIndexStatus}
               />
             ) : undefined
           }
@@ -2786,6 +2795,7 @@ export default function PubMap({
             onFiltersChange={setFilters}
             hasTypeRelativePrices={hasTypeRelativePrices}
             drinkLabel={activeLensLabel ?? undefined}
+            drinkIndexStatus={drinkIndexStatus}
           />
         ) : null}
 
@@ -2916,6 +2926,7 @@ export default function PubMap({
                     maxPrice={filters.maxPrice}
                     hasTypeRelativePrices={hasTypeRelativePrices}
                     drinkLabel={activeLensLabel ?? undefined}
+                    drinkIndexStatus={drinkIndexStatus}
                     onMaxPriceChange={(maxPrice) =>
                       setFilters((current) => ({ ...current, maxPrice }))
                     }
@@ -2989,6 +3000,7 @@ export default function PubMap({
                     maxPrice={filters.maxPrice}
                     hasTypeRelativePrices={hasTypeRelativePrices}
                     drinkLabel={activeLensLabel ?? undefined}
+                    drinkIndexStatus={drinkIndexStatus}
                     onMaxPriceChange={(maxPrice) =>
                       setFilters((current) => ({ ...current, maxPrice }))
                     }
@@ -3068,6 +3080,7 @@ export default function PubMap({
                   ? CATEGORY_META[mapDrinkLensCategory].label
                   : "Pints"
               }
+              lensStatus={drinkIndexStatus}
               center={mapViewport.center}
               onSelectVenue={selectVenue}
               onFlyToArea={flyToArea}

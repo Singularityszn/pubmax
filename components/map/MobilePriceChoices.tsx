@@ -1,5 +1,6 @@
 "use client";
 
+import type { CategoryPriceIndexStatus } from "@/lib/mapExperienceLens";
 import { mapPriceLegend } from "@/lib/mapPriceLegend";
 
 const PRICE_CHOICES = [10, 7, 6, 5.5];
@@ -8,14 +9,20 @@ export default function MobilePriceChoices({
   maxPrice,
   hasTypeRelativePrices,
   drinkLabel,
+  drinkIndexStatus = "ready",
   onMaxPriceChange,
 }: {
   maxPrice: number;
   hasTypeRelativePrices: boolean;
   drinkLabel?: string;
+  drinkIndexStatus?: CategoryPriceIndexStatus;
   onMaxPriceChange: (price: number) => void;
 }) {
-  const legend = mapPriceLegend(hasTypeRelativePrices, drinkLabel);
+  const legend = mapPriceLegend(
+    hasTypeRelativePrices,
+    drinkLabel,
+    drinkIndexStatus,
+  );
   return (
     <>
       <section className="mobilePriceBandLegend" aria-label={legend.ariaLabel}>

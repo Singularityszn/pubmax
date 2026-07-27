@@ -6,15 +6,19 @@ import { Beer, GlassWater } from "lucide-react";
 import { BEERS } from "@/lib/beers";
 import {
   CATEGORY_META,
-  DRINK_CATEGORIES,
   type DrinkCategory,
   formatAbv,
-  isDrinkCategory,
 } from "@/lib/drinks";
+import {
+  isMapLensDrinkCategory,
+  MAP_LENS_DRINK_CATEGORIES,
+} from "@/lib/mapExperienceLens";
 
 // Drink lens: category prices for non-beer drinks; exact brand prices only on
 // the existing favorite-pint path. Community category rows do not name a brand,
 // so offering a whisky-brand choice here would overstate what its pin proves.
+// The offered set is the map's own lens list, so this picker cannot select a
+// category the map has no honest figure or label for.
 
 type FavoritePintPickerProps = {
   value: string | null;
@@ -25,7 +29,7 @@ type FavoritePintPickerProps = {
 };
 
 const CLEAR_VALUE = "";
-const LENS_CATEGORIES: DrinkCategory[] = [...DRINK_CATEGORIES];
+const LENS_CATEGORIES: readonly DrinkCategory[] = MAP_LENS_DRINK_CATEGORIES;
 
 const selectStyle: CSSProperties = {
   border: "none",
@@ -59,9 +63,13 @@ export default function FavoritePintPicker({
   drinkBrand,
   onDrinkLensChange,
 }: FavoritePintPickerProps) {
+  // A category the map cannot lens (today: `other`, still submittable) reads as
+  // the pint default here rather than showing a choice this control cannot make.
   const category: DrinkCategory | "" =
-    drinkCategory && isDrinkCategory(drinkCategory) ? drinkCategory : "";
-  const useBeerPintPath = category === "beer" || category === "";
+    isMapLensDrinkCategory(drinkCategory) && drinkCategory !== "beer"
+      ? drinkCategory
+      : "";
+  const useBeerPintPath = category === "";
   const categorySelectValue = category || "beer";
 
   return (
@@ -80,7 +88,7 @@ export default function FavoritePintPicker({
           className="favoritePintSelect"
           onChange={(event) => {
             const next = event.target.value;
-            if (!isDrinkCategory(next)) return;
+            if (!isMapLensDrinkCategory(next)) return;
             onDrinkLensChange({
               drinkCategory: next === "beer" ? "" : next,
               drinkBrand: "",

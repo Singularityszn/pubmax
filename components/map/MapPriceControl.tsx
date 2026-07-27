@@ -6,6 +6,7 @@
 import { Coins, X } from "lucide-react";
 import { useEffect, useId, useRef, useState } from "react";
 
+import type { CategoryPriceIndexStatus } from "@/lib/mapExperienceLens";
 import { mapPriceLegend } from "@/lib/mapPriceLegend";
 import type { Filters } from "@/lib/venues";
 
@@ -23,6 +24,7 @@ type MapPriceControlProps = {
   placement?: "map" | "header";
   hasTypeRelativePrices?: boolean;
   drinkLabel?: string;
+  drinkIndexStatus?: CategoryPriceIndexStatus;
 };
 
 function activeLabel(maxPrice: number): string {
@@ -38,6 +40,7 @@ export default function MapPriceControl({
   placement = "map",
   hasTypeRelativePrices = false,
   drinkLabel,
+  drinkIndexStatus = "ready",
 }: MapPriceControlProps) {
   const [open, setOpen] = useState(false);
   const panelId = useId();
@@ -45,7 +48,11 @@ export default function MapPriceControl({
   // Default is ≤£7; "Any" (9) is the wide/unfiltered option — neither looks "on".
   // Only a tightened band (≤£5.50) marks the FAB as actively filtered.
   const filtered = filters.maxPrice <= 5.5;
-  const legend = mapPriceLegend(hasTypeRelativePrices, drinkLabel);
+  const legend = mapPriceLegend(
+    hasTypeRelativePrices,
+    drinkLabel,
+    drinkIndexStatus,
+  );
 
   useEffect(() => {
     if (!open) return;

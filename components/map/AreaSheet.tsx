@@ -10,7 +10,11 @@ import {
   type AreaElsewhereOption,
 } from "@/lib/areaButton";
 import type { NightArea } from "@/lib/nightAreas";
-import type { MapLensPrice } from "@/lib/mapExperienceLens";
+import {
+  drinkLensCoverageNote,
+  type CategoryPriceIndexStatus,
+  type MapLensPrice,
+} from "@/lib/mapExperienceLens";
 import type { Venue } from "@/lib/venues";
 
 import "./areaSheet.css";
@@ -45,6 +49,9 @@ type AreaSheetProps = {
   lensPrices?: ReadonlyMap<string, MapLensPrice> | null;
   /** Human category label used beside every lens figure and unknown row. */
   drinkLabel?: string;
+  /** How complete the selected drink's cross-venue read was. A failed or
+   *  truncated index may never be rendered as "none here yet". */
+  lensStatus?: CategoryPriceIndexStatus;
   /** Live map centre [lng, lat], for area membership + row distances. */
   center: [number, number];
   /** Fly + open a pub's venue card — the same selection a pin tap drives. */
@@ -66,6 +73,7 @@ export default function AreaSheet({
   venues,
   lensPrices = null,
   drinkLabel = "Pints",
+  lensStatus = "ready",
   center,
   onSelectVenue,
   onFlyToArea,
@@ -101,6 +109,10 @@ export default function AreaSheet({
   );
   const focusName = placeFocus?.name ?? area?.name ?? null;
   const drinkNoun = lensPrices === null ? "pints" : drinkLabel.toLowerCase();
+  // The rows below list unpriced pubs too, so an index that failed or was cut
+  // short would otherwise read as a settled "none here". Say which it was.
+  const coverageNote =
+    lensPrices === null ? null : drinkLensCoverageNote(drinkNoun, lensStatus);
 
   const clearCloseTimer = useCallback(() => {
     if (closeTimer.current !== null) {
@@ -142,6 +154,11 @@ export default function AreaSheet({
             ? `Cheapest ${drinkNoun} in ${focusName}`
             : `Cheapest ${drinkNoun} here`}
         </h3>
+        {coverageNote ? (
+          <p className="areaSheetEmpty areaSheetCoverage" role="status">
+            {coverageNote}
+          </p>
+        ) : null}
         {focusName && pubs.length > 0 ? (
           <ul className="areaSheetList">
             {pubs.map((pub) => (
@@ -177,11 +194,13 @@ export default function AreaSheet({
           </ul>
         ) : (
           <p className="areaSheetEmpty">
-            {placeFocus
-              ? `No ${drinkNoun} prices nearby yet. Try somewhere else below.`
-              : area
-                ? `No ${drinkNoun} prices in this area yet. Try somewhere else below.`
-                : `Pan the map over an area to see its cheapest ${drinkNoun}.`}
+            {!placeFocus && !area
+              ? `Pan the map over an area to see its cheapest ${drinkNoun}.`
+              : coverageNote
+                ? "Try somewhere else below."
+                : placeFocus
+                  ? `No ${drinkNoun} prices nearby yet. Try somewhere else below.`
+                  : `No ${drinkNoun} prices in this area yet. Try somewhere else below.`}
           </p>
         )}
       </section>

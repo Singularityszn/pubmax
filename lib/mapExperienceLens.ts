@@ -4,7 +4,12 @@ import {
   NO_ALCOHOL_DRINK_CATEGORIES,
   type CommunityPrice,
 } from "@/lib/communityPrice";
-import { CATEGORY_META, type DrinkCategory } from "@/lib/drinks";
+import {
+  CATEGORY_META,
+  DRINK_CATEGORIES,
+  isDrinkCategory,
+  type DrinkCategory,
+} from "@/lib/drinks";
 import { compactVenueAnchor } from "@/lib/venueAnchorPresentation";
 import type { Filters, Venue } from "@/lib/venues";
 
@@ -13,6 +18,22 @@ export type NoAlcoholDrinkCategory = Extract<
   DrinkCategory,
   "soft-drink" | "alcohol-free"
 >;
+
+/**
+ * The categories a viewer may put the MAP under. `other` stays submittable (a
+ * liqueur, a cider, an aperitif have to be loggable somewhere) but it is a bag
+ * of unrelated drinks rather than a name, so a pin printing "£6 Other" over a
+ * pint glass would label a figure with nothing the reader can check. Submit
+ * keeps it; the lens does not.
+ */
+export const MAP_LENS_DRINK_CATEGORIES: readonly DrinkCategory[] =
+  DRINK_CATEGORIES.filter((category) => category !== "other");
+
+export function isMapLensDrinkCategory(
+  value: unknown,
+): value is DrinkCategory {
+  return isDrinkCategory(value) && MAP_LENS_DRINK_CATEGORIES.includes(value);
+}
 
 export type MapLensPrice = {
   venueId: string;
@@ -223,16 +244,42 @@ export function lensPricesForVenues(
 
 /**
  * "We could not check" and "we checked part of it" are two different findings,
- * and the summary may never merge them: a partial read has already painted
- * trusted figures, so borrowing the failure sentence would call the prices on
- * the map unchecked.
+ * and no surface may merge them: a partial read has already painted trusted
+ * figures, so borrowing the failure sentence would call the prices on the map
+ * unchecked, while a failed read painted nothing and must never read as a
+ * complete "none logged here". Every cross-venue category index reports on this
+ * one scale, so a second lens cannot invent a quieter one.
  */
-export type NoAlcoholIndexStatus =
+export type CategoryPriceIndexStatus =
   | "idle"
   | "loading"
   | "ready"
   | "partial"
   | "degraded";
+
+export type NoAlcoholIndexStatus = CategoryPriceIndexStatus;
+
+/**
+ * The one sentence a selected-drink surface adds when its index did not answer
+ * completely. `null` means the index is complete and the figures speak for
+ * themselves; anything else must be shown rather than swallowed, because an
+ * empty map under a failed read is not evidence of an empty city.
+ */
+export function drinkLensCoverageNote(
+  drinkNoun: string,
+  status: CategoryPriceIndexStatus,
+): string | null {
+  if (status === "idle" || status === "loading") {
+    return `Checking ${drinkNoun} prices across the map.`;
+  }
+  if (status === "degraded") {
+    return `We could not read the ${drinkNoun} prices just now, so none are shown yet.`;
+  }
+  if (status === "partial") {
+    return `Read from part of the ${drinkNoun} prices, so some are still missing.`;
+  }
+  return null;
+}
 
 export function experienceLensSummary(
   lens: MapExperienceLens,
