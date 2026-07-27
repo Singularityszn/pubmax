@@ -1,5 +1,8 @@
 import type { Daypart } from "@/lib/nightPlanning";
-import type { LateFoodTerminal } from "@/lib/lateFood";
+import {
+  shortlistFoodHandoffs,
+  type LateFoodTerminal,
+} from "@/lib/lateFood";
 import type { PlanEndingRecommendation, PlanEndingOption } from "@/lib/planIntelligence";
 
 export type GroundedPlanExtension = {
@@ -55,7 +58,7 @@ export function buildPlanEndingRecommendations({
   lateFood: readonly LateFoodTerminal[];
   extensions: readonly GroundedPlanExtension[];
 }): PlanEndingRecommendation[] {
-  const foodOptions = lateFood.slice(0, 4).map(foodOption);
+  const foodOptions = shortlistFoodHandoffs(lateFood).map(foodOption);
   const extensionOptions = extensions.slice(0, 2).map(extensionOption);
   const preferred = foodRequested && foodOptions.length > 0 ? "food" : "get_home";
   const urgentHome = daypart === "get_home" || daypart === "late_night";

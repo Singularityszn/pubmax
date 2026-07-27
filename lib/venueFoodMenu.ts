@@ -2,7 +2,7 @@ import {
   applyFoodPriceUpdatesToMenu,
   type FoodPriceUpdate,
 } from "@/lib/foodPriceUpdates";
-import type { FoodItem } from "@/lib/food";
+import { isFoodCategory, type FoodItem } from "@/lib/food";
 import { venueMenuLookupKeys, type VenueMenuVenue } from "@/lib/venueMenu";
 
 // Like lib/venueMenu.ts, the observed food-price updates
@@ -31,6 +31,7 @@ function anchorFoodItem(venue: VenueMenuVenue): FoodItem[] {
     venue.kind !== "restaurant" ||
     typeof venue.anchorLabel !== "string" ||
     !venue.anchorLabel.trim() ||
+    !isFoodCategory(venue.anchorCourse) ||
     typeof venue.cheapestPrice !== "number" ||
     !Number.isFinite(venue.cheapestPrice) ||
     typeof venue.anchorObservedAt !== "string" ||
@@ -44,7 +45,7 @@ function anchorFoodItem(venue: VenueMenuVenue): FoodItem[] {
     {
       id: `anchor-${venue.id}`,
       name: venue.anchorLabel,
-      category: "mains",
+      category: venue.anchorCourse,
       priceGbp: venue.cheapestPrice,
       provenance: {
         source: "Official venue menu",

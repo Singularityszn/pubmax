@@ -3,18 +3,17 @@ import { publicApiError } from "@/lib/apiError";
 import {
   getLateFoodForArea,
   LATE_FOOD_AREAS,
+  MAX_LATE_FOOD_HANDOFFS,
   normalizeLateFoodArea,
+  shortlistFoodHandoffs,
   type LateFoodApiSuccessResponse,
 } from "@/lib/lateFood";
 
-const DEFAULT_LIMIT = 3;
-const MAX_LIMIT = 3;
-
 function parseLimit(raw: string | null): number {
-  if (!raw) return DEFAULT_LIMIT;
+  if (!raw) return MAX_LATE_FOOD_HANDOFFS;
   const value = Number.parseInt(raw, 10);
-  if (!Number.isFinite(value) || value <= 0) return DEFAULT_LIMIT;
-  return Math.min(value, MAX_LIMIT);
+  if (!Number.isFinite(value) || value <= 0) return MAX_LATE_FOOD_HANDOFFS;
+  return Math.min(value, MAX_LATE_FOOD_HANDOFFS);
 }
 
 function parseTags(raw: string | null): string[] {
@@ -37,7 +36,7 @@ function coordinate(
   return Number.isFinite(value) && value >= min && value <= max ? value : null;
 }
 
-// GET /api/late-food?near=clapham&at=late_night&tags=kebab,halal&limit=6
+// GET /api/late-food?near=clapham&at=late_night&tags=kebab,halal&limit=3
 //
 // Keyless curated crawl endings. These are food terminals rather than PUBMAXX
 // Venue Dataset rows, so they are never fed into pint-price route generation.
@@ -80,10 +79,13 @@ export async function GET(request: Request): Promise<Response> {
     );
   }
 
-  const terminals = getLateFoodForArea(area, tags, {
-    at: requestedAt,
-    from: lat === null || lng === null ? null : { lat, lng },
-  }).slice(0, parseLimit(params.get("limit")));
+  const terminals = shortlistFoodHandoffs(
+    getLateFoodForArea(area, tags, {
+      at: requestedAt,
+      from: lat === null || lng === null ? null : { lat, lng },
+    }),
+    parseLimit(params.get("limit")),
+  );
 
   const body: LateFoodApiSuccessResponse = {
     area,

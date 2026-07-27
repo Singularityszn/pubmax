@@ -19,6 +19,7 @@ const read = (file: string): string => readFileSync(join(process.cwd(), file), "
 
 const mobileMapCss = read("components/mobile/mobileMapShell.css");
 const arcChipsCss = read("components/map/tonightArcChips.css");
+const arcChipsTsx = read("components/map/TonightArcChips.tsx");
 const landingCss = read("components/landing/landing.css");
 const hygieneCss = read("components/map/venueHygiene.css");
 const saveToListCss = read("components/savedpubs/saveToList.css");
@@ -37,6 +38,39 @@ describe("mobile chrome fit at 390px", () => {
     expect(rule, ".mobileVenuePeekSummary small rule present").not.toBe("");
     expect(rule).toMatch(/white-space:\s*normal/);
     expect(rule).not.toMatch(/text-overflow:\s*ellipsis/);
+  });
+
+  it("fits every Tonight Arc chip inside the rail panel", () => {
+    const chipCount = (arcChipsTsx.match(/\bkind:\s*"/g) ?? []).length;
+    expect(chipCount, "chips declared in TonightArcChips").toBe(5);
+
+    const mobile =
+      arcChipsCss.split("@media (max-width: 640px)")[1] ?? "";
+    const railWidth = Number(
+      mobile.match(/\.tonightArcChips\s*{[^}]*width:\s*min\([^,]+,\s*(\d+)px\)/)?.[1],
+    );
+    const railPadX = Number(
+      mobile.match(/\.tonightArcChips\s*{[^}]*padding:\s*\d+px\s+(\d+)px/)?.[1],
+    );
+    const chipMinWidth = Number(
+      mobile.match(/\.tonightArcChip\s*{[^}]*min-width:\s*(\d+)px/)?.[1],
+    );
+    const rowGap = Number(arcChipsCss.match(/\.tonightArcRow\s*{[^}]*gap:\s*(\d+)px/)?.[1]);
+    for (const [label, value] of [
+      ["rail width cap", railWidth],
+      ["rail padding", railPadX],
+      ["chip min-width", chipMinWidth],
+      ["row gap", rowGap],
+    ] as const) {
+      expect(Number.isFinite(value), `${label} parsed from CSS`).toBe(true);
+    }
+
+    const contentBox = railWidth - railPadX * 2 - 2;
+    const rowFloor = chipCount * chipMinWidth + (chipCount - 1) * rowGap;
+    expect(railWidth, "rail fits the 390px viewport with 12px margins").toBeLessThanOrEqual(366);
+    expect(rowFloor, "chip row floor vs rail content box").toBeLessThanOrEqual(contentBox);
+    expect(mobile).toMatch(/\.tonightArcChips\s*{[^}]*width:\s*min\(calc\(100vw - \d+px\)/);
+    expect(mobile).toMatch(/\.tonightArcRow\s*{[^}]*flex-wrap:\s*wrap/);
   });
 
   it("stacks the landing hero readout without the side-by-side divider indent", () => {

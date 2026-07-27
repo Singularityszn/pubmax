@@ -1,6 +1,5 @@
 import { NIGHT_AREA_SLUGS, type NightAreaSlug } from "@/lib/nightAreas";
 import { haversineKm } from "@/lib/haversine";
-import { rankFoodHandoff } from "@/lib/tonightGetHome";
 import evidenceSnapshot from "@/public/data/late_food_evidence.json";
 
 // Food endings are deliberately separate from the Venue Dataset: their hours,
@@ -23,6 +22,7 @@ export const LATE_FOOD_CATEGORIES = [
 export type LateFoodCategory = (typeof LATE_FOOD_CATEGORIES)[number];
 export type LateFoodDietary = "vegan" | "vegetarian" | "gluten-free";
 export type LateFoodConfidence = "high" | "medium" | "low";
+export const MAX_LATE_FOOD_HANDOFFS = 3;
 
 const WEEKDAYS = [
   "monday",
@@ -297,6 +297,26 @@ export function normalizeLateFoodArea(
     ];
   }
   return isLateFoodArea(candidate) ? candidate : null;
+}
+
+export function rankFoodHandoff<
+  T extends { walkingDetour: { minutes: number | null } },
+>(candidates: readonly T[]): T[] {
+  return [...candidates].sort(
+    (left, right) =>
+      (left.walkingDetour.minutes ?? Number.POSITIVE_INFINITY) -
+      (right.walkingDetour.minutes ?? Number.POSITIVE_INFINITY),
+  );
+}
+
+export function shortlistFoodHandoffs<T>(
+  candidates: readonly T[],
+  limit = MAX_LATE_FOOD_HANDOFFS,
+): T[] {
+  return candidates.slice(
+    0,
+    Math.min(Math.max(0, Math.floor(limit)), MAX_LATE_FOOD_HANDOFFS),
+  );
 }
 
 export function getLateFoodForArea(

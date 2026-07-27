@@ -2290,13 +2290,17 @@ function validatePintIndexSnapshot() {
 function validateLateFoodEvidenceSnapshot() {
   const name = "public/data/late_food_evidence.json";
   let data;
+  let localityNames;
   try {
     data = loadJson("late_food_evidence.json");
+    localityNames = (
+      loadJson("london_localities.json")?.localities ?? []
+    ).map((locality) => locality?.name);
   } catch (e) {
     console.log(`FAIL ${name}: could not read/parse (${e.message})`);
     return { ok: false, count: 0 };
   }
-  const errors = validateLateFoodEvidence(data);
+  const errors = validateLateFoodEvidence(data, localityNames);
   const count = Object.values(data?.areas ?? {}).reduce(
     (sum, area) =>
       sum + (Array.isArray(area?.options) ? area.options.length : 0),

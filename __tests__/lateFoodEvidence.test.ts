@@ -13,13 +13,23 @@ const fixture = JSON.parse(
   ),
 );
 
+const LOCALITY_NAMES: string[] = JSON.parse(
+  readFileSync(
+    path.join(process.cwd(), "public/data/london_localities.json"),
+    "utf8",
+  ),
+).localities.map((locality: { name: string }) => locality.name);
+
+const validate = (snapshot: unknown): string[] =>
+  validateLateFoodEvidence(snapshot, LOCALITY_NAMES);
+
 describe("late-food evidence snapshot", () => {
   it("covers all 20 canonical Night Areas and passes provenance validation", () => {
     expect(Object.keys(fixture.areas).sort()).toEqual(
       [...EXPECTED_NIGHT_AREA_SLUGS].sort(),
     );
     expect(EXPECTED_NIGHT_AREA_SLUGS).toHaveLength(20);
-    expect(validateLateFoodEvidence(fixture)).toEqual([]);
+    expect(validate(fixture)).toEqual([]);
   });
 
   it("has at least one expiring, anchor-priced first-party option for every Night Area", () => {
@@ -60,8 +70,28 @@ describe("late-food evidence snapshot", () => {
   it("rejects an option whose published anchor loses provenance", () => {
     const invalid = structuredClone(fixture);
     delete invalid.areas["piccadilly-soho"].options[0].anchor.sourceUrl;
-    expect(validateLateFoodEvidence(invalid).join(" ")).toMatch(
+    expect(validate(invalid).join(" ")).toMatch(
       /sourced anchor/i,
+    );
+  });
+
+  it("rejects an anchor document published for a different branch", () => {
+    const invalid = structuredClone(fixture);
+    invalid.areas.richmond.options[0].anchor.sourceUrl =
+      "https://www.francomanca.co.uk/wp-content/uploads/2026/02/FM-MENU-L0226NC-WATERLOO-V2.pdf";
+    expect(validate(invalid).join(" ")).toMatch(/names waterloo/i);
+  });
+
+  it("accepts a chain-wide anchor document that names no branch", () => {
+    expect(
+      fixture.areas.clapham.options[0].anchor.sourceUrl,
+    ).toBe("https://www.honestburgers.co.uk/menus/smash-and-grab-menu/");
+    expect(validate(fixture)).toEqual([]);
+  });
+
+  it("refuses to run the coverage check without a gazetteer", () => {
+    expect(validateLateFoodEvidence(fixture, []).join(" ")).toMatch(
+      /gazetteer is required/i,
     );
   });
 
@@ -69,7 +99,7 @@ describe("late-food evidence snapshot", () => {
     const invalid = structuredClone(fixture);
     invalid.areas["piccadilly-soho"].options[0].source.sourceUrl =
       "https://www.tripadvisor.co.uk/example";
-    expect(validateLateFoodEvidence(invalid).join(" ")).toMatch(
+    expect(validate(invalid).join(" ")).toMatch(
       /official-operator provenance/i,
     );
   });
@@ -79,7 +109,7 @@ describe("late-food evidence snapshot", () => {
     invalid.areas.barnes.options[0].source.supportingUrls = [
       "https://maps.example.com/barnes",
     ];
-    expect(validateLateFoodEvidence(invalid).join(" ")).toMatch(
+    expect(validate(invalid).join(" ")).toMatch(
       /supportingUrls/i,
     );
   });
@@ -91,7 +121,7 @@ describe("late-food evidence snapshot", () => {
     delete option.weeklyHours.monday;
     option.coordinates.method = "nearest_guess";
     option.source.expiresAt = option.source.observedAt;
-    const errors = validateLateFoodEvidence(invalid).join(" ");
+    const errors = validate(invalid).join(" ");
     expect(errors).toMatch(/serviceHoursText/i);
     expect(errors).toMatch(/weeklyHours/i);
     expect(errors).toMatch(/coordinates/i);

@@ -46,6 +46,7 @@ export type VenueMenuVenue = Pick<Venue, "id" | "prices"> &
       | "kind"
       | "cheapestPrice"
       | "anchorLabel"
+      | "anchorCourse"
       | "anchorObservedAt"
       | "anchorSourceUrl"
     >

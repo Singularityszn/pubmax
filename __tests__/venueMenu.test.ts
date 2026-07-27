@@ -194,6 +194,7 @@ describe("venueMenuForInspector", () => {
       prices: [],
       kind: "restaurant",
       anchorLabel: "Steak & Kidney Pudding",
+      anchorCourse: "mains",
       cheapestPrice: 26.25,
       anchorObservedAt: "2026-07-27",
       anchorSourceUrl: "https://rules.co.uk/our-menus/",
@@ -210,5 +211,47 @@ describe("venueMenuForInspector", () => {
         source: "https://rules.co.uk/our-menus/",
       }),
     ]);
+  });
+
+  it("files the anchor under the course the venue's own menu lists", () => {
+    const [dessert] = venueFoodMenuForInspector({
+      id: "restaurant-river-cafe",
+      prices: [],
+      kind: "restaurant",
+      anchorLabel: "Chocolate Nemesis",
+      anchorCourse: "desserts",
+      cheapestPrice: 15,
+      anchorObservedAt: "2026-07-27",
+      anchorSourceUrl: "https://www.rivercafe.co.uk/",
+    });
+    expect(dessert?.category).toBe("desserts");
+  });
+
+  it("keeps breakfast anchors out of mains", () => {
+    const [breakfast] = venueFoodMenuForInspector({
+      id: "restaurant-regency-cafe",
+      prices: [],
+      kind: "restaurant",
+      anchorLabel: "Set Breakfast",
+      anchorCourse: "breakfast",
+      cheapestPrice: 9.99,
+      anchorObservedAt: "2026-07-27",
+      anchorSourceUrl: "https://regencycafe.co.uk/menu",
+    });
+    expect(breakfast?.category).toBe("breakfast");
+  });
+
+  it("drops an anchor whose course is missing rather than calling it a main", () => {
+    expect(
+      venueFoodMenuForInspector({
+        id: "restaurant-river-cafe",
+        prices: [],
+        kind: "restaurant",
+        anchorLabel: "Chocolate Nemesis",
+        cheapestPrice: 15,
+        anchorObservedAt: "2026-07-27",
+        anchorSourceUrl: "https://www.rivercafe.co.uk/",
+      }),
+    ).toEqual([]);
   });
 });

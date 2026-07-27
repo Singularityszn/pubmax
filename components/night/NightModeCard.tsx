@@ -54,6 +54,7 @@ import type { CrewMemberDTO } from "@/lib/crew";
 import { lastRideFetchUrl } from "@/lib/lastRide";
 import type { NightAreaSlug } from "@/lib/nightAreas";
 import type { LateFoodApiResponse, LateFoodTerminal } from "@/lib/lateFood";
+import { anchorMonthLabel } from "@/lib/venueAnchorPresentation";
 import { haversineKm } from "@/lib/haversine";
 import RouteEndingCard, {
   type RouteEndingId,
@@ -187,6 +188,11 @@ export function completePlanPayload(
     ...(endingSelection ? { endingSelection } : {}),
     ...(finalPintDropId ? { finalPintDropId } : {}),
   };
+}
+
+function anchorObservedClause(terminal: LateFoodTerminal): string {
+  const observed = anchorMonthLabel(terminal.anchor.observedAt);
+  return observed ? ` · observed ${observed}` : "";
 }
 
 export function foodEndingSelection(
@@ -1196,8 +1202,8 @@ function FoodEndingPicker({
                 rel="noreferrer"
               >
                 Official menu
-              </a>{" "}
-              · observed {terminal.anchor.observedAt}
+              </a>
+              {anchorObservedClause(terminal)}
             </small>
           </li>
         ))}
@@ -1405,8 +1411,8 @@ function NightEndingResult({
                     rel="noreferrer"
                   >
                     Official menu
-                  </a>{" "}
-                  · observed {terminal.anchor.observedAt}
+                  </a>
+                  {anchorObservedClause(terminal)}
                 </small>
               </li>
             ))}

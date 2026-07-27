@@ -56,6 +56,30 @@ describe("slimShards pure geometry", () => {
     expect(shardForPoint(MANIFEST, 51.65, -0.08)?.id).toBe("enfield");
     expect(shardForPoint(MANIFEST, 51.5, -0.1)).toBeNull(); // central: core covers it
   });
+
+  it("excludes kind shards from point partitioning", () => {
+    const withRestaurants: ShardManifest = {
+      ...MANIFEST,
+      shards: [
+        ...MANIFEST.shards,
+        {
+          id: "restaurants",
+          core: false,
+          partition: "kind",
+          url: "/data/venues_slim.restaurants.json",
+          count: 25,
+          bbox: [-0.2, 51.45, 0.1, 51.55],
+        },
+      ],
+    };
+    expect(shardForPoint(withRestaurants, 51.5, -0.1)).toBeNull();
+    expect(shardsForBounds(withRestaurants, {
+      west: -0.2,
+      south: 51.45,
+      east: 0.1,
+      north: 51.55,
+    }).map((shard) => shard.id)).toContain("restaurants");
+  });
 });
 
 describe("parseShardManifest", () => {
@@ -66,6 +90,19 @@ describe("parseShardManifest", () => {
     expect(parseShardManifest({ version: 1, shards: [{ id: "x" }] })).toBeNull();
     expect(
       parseShardManifest({ version: 1, shards: [{ id: "x", url: "/u", count: 1, core: false, bbox: [1, 2, 3] }] }),
+    ).toBeNull();
+    expect(
+      parseShardManifest({
+        version: 1,
+        shards: [{
+          id: "x",
+          url: "/u",
+          count: 1,
+          core: false,
+          bbox: [1, 2, 3, 4],
+          partition: "district",
+        }],
+      }),
     ).toBeNull();
   });
 });

@@ -57,6 +57,7 @@ type StubTallies = {
   paths: number; // beginPath / moveTo / lineTo / arc / curves …
   fills: number; // fill / fillRect
   strokes: number; // stroke
+  fillStyles: string[]; // the fillStyle in force at each fill, in order
 };
 
 // Build a recording stub that satisfies the subset of CanvasRenderingContext2D the
@@ -66,12 +67,18 @@ function makeStubCtx(): {
   ctx: CanvasRenderingContext2D;
   tallies: StubTallies;
 } {
-  const tallies: StubTallies = { paths: 0, fills: 0, strokes: 0 };
+  const tallies: StubTallies = {
+    paths: 0,
+    fills: 0,
+    strokes: 0,
+    fillStyles: [],
+  };
   const bumpPath = () => {
     tallies.paths += 1;
   };
   const bumpFill = () => {
     tallies.fills += 1;
+    tallies.fillStyles.push(String(stub.fillStyle));
   };
   const bumpStroke = () => {
     tallies.strokes += 1;
@@ -133,6 +140,23 @@ function exercise(spec: IconSpec): StubTallies {
   return tallies;
 }
 
+const DRINK_PIN_KINDS = [
+  "pint",
+  "wine",
+  "cocktail",
+  "spirits",
+  "coupe",
+  "skewer",
+  "fork",
+] as const;
+
+function drinkSpec(kind: (typeof DRINK_PIN_KINDS)[number], bucket: number) {
+  const key = venuePinIconKey(kind, bucket);
+  const spec = MAP_ICON_SPECS.find((s) => s.ns === "drink" && s.key === key);
+  expect(spec, `spec ${key}`).toBeDefined();
+  return spec!;
+}
+
 describe("MAP_ICON_SPECS registry", () => {
   it("is a non-empty list", () => {
     expect(Array.isArray(MAP_ICON_SPECS)).toBe(true);
@@ -192,29 +216,33 @@ describe("derived key lists", () => {
   });
 
   it("drink pin draws do not throw for every kind × bucket", () => {
-    const kinds = [
-      "pint",
-      "wine",
-      "cocktail",
-      "spirits",
-      "coupe",
-      "skewer",
-      "fork",
-    ] as const;
-    for (const kind of kinds) {
+    for (const kind of DRINK_PIN_KINDS) {
       for (const bucket of [0, 1, 2, 3] as const) {
         const key = venuePinIconKey(kind, bucket);
-        const spec = MAP_ICON_SPECS.find(
-          (s) => s.ns === "drink" && s.key === key,
-        );
-        expect(spec, `spec ${key}`).toBeDefined();
-        const tallies = exercise(spec!);
+        const tallies = exercise(drinkSpec(kind, bucket));
         expect(tallies.paths, `${key} path ops`).toBeGreaterThan(0);
         expect(
           tallies.fills + tallies.strokes,
           `${key} paint ops`,
         ).toBeGreaterThan(0);
       }
+    }
+  });
+
+  it("paints the price band into every drink pin silhouette", () => {
+    for (const kind of DRINK_PIN_KINDS) {
+      const perBand = [0, 1, 2].map((bucket) =>
+        exercise(drinkSpec(kind, bucket)).fillStyles.filter(
+          (colour) => colour !== TOKENS.ink,
+        ),
+      );
+      for (const [bucket, fills] of perBand.entries()) {
+        expect(fills.length, `${kind}-${bucket} band fills`).toBeGreaterThan(0);
+      }
+      expect(
+        new Set(perBand.map((fills) => fills.join("|"))).size,
+        `${kind} distinct band fills`,
+      ).toBe(perBand.length);
     }
   });
 

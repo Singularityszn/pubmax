@@ -18,6 +18,7 @@
 // can still return the last parsed index instead of an empty map.
 
 import { getCity, type CityId, DEFAULT_CITY_ID } from "@/lib/cities";
+import { isFoodCategory, type FoodCategory } from "@/lib/food";
 import { offlineCache } from "@/lib/offlineCache";
 import type { VenueFilterHints, VenueKind } from "@/lib/venues";
 
@@ -49,6 +50,7 @@ export type SlimVenue = {
   /** Type-relative price band for famous non-pub venue anchors. */
   priceBand?: 0 | 1 | 2;
   anchorLabel?: string;
+  anchorCourse?: FoodCategory;
   anchorObservedAt?: string;
   anchorSourceUrl?: string;
 };
@@ -101,7 +103,12 @@ function hasValidAnchor(row: Record<string, unknown>): boolean {
     row.anchorLabel !== undefined ||
     row.anchorObservedAt !== undefined ||
     row.anchorSourceUrl !== undefined;
+  const courseOk =
+    row.kind === "restaurant"
+      ? isFoodCategory(row.anchorCourse)
+      : row.anchorCourse === undefined || isFoodCategory(row.anchorCourse);
   const hasCompleteAnchor =
+    courseOk &&
     typeof row.anchorLabel === "string" &&
     row.anchorLabel.trim().length > 0 &&
     typeof row.anchorObservedAt === "string" &&
@@ -170,6 +177,9 @@ function normalizeRows(data: unknown): SlimVenue[] {
     ...(venue.priceBand !== undefined ? { priceBand: venue.priceBand } : {}),
     ...(venue.anchorLabel !== undefined
       ? { anchorLabel: venue.anchorLabel }
+      : {}),
+    ...(venue.anchorCourse !== undefined
+      ? { anchorCourse: venue.anchorCourse }
       : {}),
     ...(venue.anchorObservedAt !== undefined
       ? { anchorObservedAt: venue.anchorObservedAt }

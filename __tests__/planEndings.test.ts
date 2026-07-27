@@ -38,4 +38,26 @@ describe("buildPlanEndingRecommendations", () => {
     expect(recommendations[0]?.warnings).toContain("No reviewed late-food option is available for this Night Area.");
     expect(recommendations[2]?.options).toEqual([]);
   });
+
+  it("caps food endings at three", () => {
+    const terminal = getLateFoodForArea("piccadilly-soho", [], {
+      now: Date.parse("2026-07-16T23:00:00.000Z"),
+    })[0]!;
+    const recommendations = buildPlanEndingRecommendations({
+      daypart: "late_night",
+      foodRequested: true,
+      transportAnchor: "Piccadilly Circus",
+      lateFood: Array.from({ length: 5 }, (_, index) => ({
+        ...terminal,
+        id: `food-${index}`,
+      })),
+      extensions: [],
+    });
+
+    expect(recommendations[0]?.options.map((option) => option.id)).toEqual([
+      "food-0",
+      "food-1",
+      "food-2",
+    ]);
+  });
 });

@@ -20,6 +20,7 @@
     "anchor": {
       "kind": "signature_dish",
       "label": "Steak & Kidney Pudding",
+      "course": "mains",
       "price": 26.25,
       "observedAt": "2026-07-27",
       "sourceUrl": "https://rules.co.uk/our-menus"
@@ -62,6 +63,7 @@
     "anchor": {
       "kind": "signature_dish",
       "label": "The Ivy Shepherd's Pie",
+      "course": "mains",
       "price": 18.95,
       "observedAt": "2026-07-27",
       "sourceUrl": "https://ivycollection.com/restaurants-near-me/the-ivy-london/the-ivy-west-street-covent-garden/the-original-ivy-heritage-menu"
@@ -101,6 +103,7 @@
     "anchor": {
       "kind": "signature_dish",
       "label": "Dover Sole, 16oz",
+      "course": "mains",
       "price": 54,
       "observedAt": "2026-07-27",
       "sourceUrl": "https://scotts-mayfair.com/wp-content/uploads/2025/10/ALC-01.10.2025-1.pdf"
@@ -140,6 +143,7 @@
     "anchor": {
       "kind": "signature_dish",
       "label": "J. Sheekey Fish Pie",
+      "course": "mains",
       "price": 25,
       "observedAt": "2026-07-27",
       "sourceUrl": "https://j-sheekey.co.uk/wp-content/uploads/2026/05/JSheekey_Spring-Menus_ALC-28_05_26-VW.pdf"
@@ -182,6 +186,7 @@
     "anchor": {
       "kind": "signature_dish",
       "label": "Smoked Eel Sandwich",
+      "course": "bar-snacks",
       "price": 18.5,
       "observedAt": "2026-07-27",
       "sourceUrl": "https://www.quovadissoho.co.uk/wp-content/uploads/2019/01/QV195-June-26-ALC_01.pdf"
@@ -224,6 +229,7 @@
     "anchor": {
       "kind": "signature_dish",
       "label": "Roast Bone Marrow & Parsley Salad",
+      "course": "starters",
       "price": 16.5,
       "observedAt": "2026-07-27",
       "sourceUrl": "https://stjohnrestaurant.com/a/menus/1"
@@ -266,6 +272,7 @@
     "anchor": {
       "kind": "signature_dish",
       "label": "Chocolate Nemesis",
+      "course": "desserts",
       "price": 15,
       "observedAt": "2026-07-27",
       "sourceUrl": "https://www.rivercafe.co.uk/"
@@ -308,6 +315,7 @@
     "anchor": {
       "kind": "signature_dish",
       "label": "Eggs Benedict, large",
+      "course": "breakfast",
       "price": 21.5,
       "observedAt": "2026-07-27",
       "sourceUrl": "https://www.thewolseley.com/app/uploads/2026/02/00506_WOLSELEY_Winter_2025_Breakfast_A5-12pp_Kcals29.pdf"
@@ -350,6 +358,7 @@
     "anchor": {
       "kind": "signature_dish",
       "label": "Steak Haché et Frites",
+      "course": "mains",
       "price": 16,
       "observedAt": "2026-07-27",
       "sourceUrl": "https://www.brasseriezedel.com/wp-content/uploads/2020/02/Zedel-summer-2026-Kcal-combined-wine-menu.pdf"
@@ -389,6 +398,7 @@
     "anchor": {
       "kind": "signature_dish",
       "label": "Raj Kachori",
+      "course": "starters",
       "price": 19,
       "observedAt": "2026-07-27",
       "sourceUrl": "https://www.veeraswamy.com/menu"
@@ -431,6 +441,7 @@
     "anchor": {
       "kind": "signature_dish",
       "label": "Bacon Naan Roll",
+      "course": "breakfast",
       "price": 11.7,
       "observedAt": "2026-07-27",
       "sourceUrl": "https://www.dishoom.com/menu/collection-covent-garden"
@@ -473,6 +484,7 @@
     "anchor": {
       "kind": "signature_dish",
       "label": "Shakshuka",
+      "course": "breakfast",
       "price": 15.5,
       "observedAt": "2026-07-27",
       "sourceUrl": "https://ottolenghi.co.uk/pages/restaurants/spitalfields"
@@ -512,6 +524,7 @@
     "anchor": {
       "kind": "signature_dish",
       "label": "Charcoal-grilled Lamb",
+      "course": "mains",
       "price": 38,
       "observedAt": "2026-07-27",
       "sourceUrl": "https://moro.co.uk/menu"
@@ -554,6 +567,7 @@
     "anchor": {
       "kind": "signature_dish",
       "label": "Chocolate Tart",
+      "course": "desserts",
       "price": 11,
       "observedAt": "2026-07-27",
       "sourceUrl": "https://rochellecanteen.com/menu"
@@ -596,6 +610,7 @@
     "anchor": {
       "kind": "signature_dish",
       "label": "Duck & Waffle",
+      "course": "mains",
       "price": 26,
       "observedAt": "2026-07-27",
       "sourceUrl": "https://www.duckandwaffle.com/london/menu/dinner"
@@ -638,6 +653,7 @@
     "anchor": {
       "kind": "signature_dish",
       "label": "Pici Cacio & Pepe",
+      "course": "mains",
       "price": 13.5,
       "observedAt": "2026-07-27",
       "sourceUrl": "https://www.padella.co/borough-market"
@@ -680,6 +696,7 @@
     "anchor": {
       "kind": "signature_dish",
       "label": "All In",
+      "course": "sharers",
       "price": 28,
       "observedAt": "2026-07-27",
       "sourceUrl": "https://theblacklock.com/menus"
@@ -722,6 +739,7 @@
     "anchor": {
       "kind": "signature_dish",
       "label": "Regular Haddock & Chips",
+      "course": "mains",
       "price": 20.99,
       "observedAt": "2026-07-27",
       "sourceUrl": "https://poppiesfishandchips.co.uk/menu"
@@ -761,6 +779,7 @@
     "anchor": {
       "kind": "signature_dish",
       "label": "Potted Shrimps",
+      "course": "starters",
       "price": 28,
       "observedAt": "2026-07-27",
       "sourceUrl": "https://wiltons.co.uk/s/010726-Copy.pdf"
@@ -803,6 +822,7 @@
     "anchor": {
       "kind": "signature_dish",
       "label": "Rib-eye, 350g",
+      "course": "mains",
       "price": 44,
       "observedAt": "2026-07-27",
       "sourceUrl": "https://thehawksmoor.com/locations/seven-dials/food/menu"
@@ -845,6 +865,7 @@
     "anchor": {
       "kind": "signature_dish",
       "label": "Chicken Kyiv",
+      "course": "mains",
       "price": 22,
       "observedAt": "2026-07-27",
       "sourceUrl": "https://www.bobbobricard.com/soho/menu"
@@ -887,6 +908,7 @@
     "anchor": {
       "kind": "signature_dish",
       "label": "Flat Iron Steak",
+      "course": "mains",
       "price": 15,
       "observedAt": "2026-07-27",
       "sourceUrl": "https://flatironsteak.co.uk/menu"
@@ -929,6 +951,7 @@
     "anchor": {
       "kind": "signature_dish",
       "label": "Roti Chicken",
+      "course": "mains",
       "price": 11.5,
       "observedAt": "2026-07-27",
       "sourceUrl": "https://order.toasttab.com/online/roti-king-euston"
@@ -968,6 +991,7 @@
     "anchor": {
       "kind": "signature_dish",
       "label": "Set Breakfast",
+      "course": "breakfast",
       "price": 9.99,
       "observedAt": "2026-07-27",
       "sourceUrl": "https://regencycafe.co.uk/menu"
@@ -1010,6 +1034,7 @@
     "anchor": {
       "kind": "signature_dish",
       "label": "Bone Marrow Varuval",
+      "course": "short-eats",
       "price": 13.5,
       "observedAt": "2026-07-27",
       "sourceUrl": "https://www.hopperslondon.com/wp-content/uploads/2026/06/Hoppers-Soho-Main-Menu-A3-JUNE-2026-UPDATE.pdf"

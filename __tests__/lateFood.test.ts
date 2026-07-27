@@ -7,11 +7,55 @@ import {
   getLateFoodForArea,
   isLateFoodOpenAt,
   normalizeLateFoodArea,
+  rankFoodHandoff,
+  shortlistFoodHandoffs,
   type LateFoodApiErrorResponse,
   type LateFoodApiSuccessResponse,
 } from "@/lib/lateFood";
 
 const SNAPSHOT_NOW = Date.parse("2026-07-16T23:00:00.000Z");
+
+describe("rankFoodHandoff", () => {
+  it("orders by walking time and leaves an unmeasured detour last", () => {
+    const candidates = [
+      { id: "far", walkingDetour: { minutes: 14 } },
+      { id: "nearest", walkingDetour: { minutes: 3 } },
+      { id: "unknown", walkingDetour: { minutes: null } },
+      { id: "middle", walkingDetour: { minutes: 8 } },
+      { id: "near", walkingDetour: { minutes: 5 } },
+    ];
+
+    expect(rankFoodHandoff(candidates).map((c) => c.id)).toEqual([
+      "nearest",
+      "near",
+      "middle",
+      "far",
+      "unknown",
+    ]);
+    expect(candidates.map((c) => c.id)).toEqual([
+      "far",
+      "nearest",
+      "unknown",
+      "middle",
+      "near",
+    ]);
+  });
+
+  it("keeps validation uncapped while shortlists return at most three", () => {
+    const candidates = Array.from({ length: 7 }, (_, i) => ({
+      id: `c${i}`,
+      walkingDetour: { minutes: i },
+    }));
+    const ranked = rankFoodHandoff(candidates);
+    expect(ranked).toHaveLength(7);
+    expect(shortlistFoodHandoffs(ranked).map((candidate) => candidate.id)).toEqual([
+      "c0",
+      "c1",
+      "c2",
+    ]);
+    expect(shortlistFoodHandoffs(ranked, 99)).toHaveLength(3);
+  });
+});
 
 describe("late-food evidence catalogue", () => {
   it("represents all 20 Night Areas with at least one grounded option", () => {

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  LAZY_KIND_SHARDS,
   OUTER_MAX_PRICED_RATIO,
   OUTER_MIN_VENUES,
   buildShardManifest,
@@ -68,9 +69,58 @@ describe("classifySlimShards", () => {
   });
 
   it("respects the documented thresholds", () => {
-    expect(OUTER_MAX_PRICED_RATIO).toBeGreaterThan(0.17); // above the leanest outer borough
-    expect(OUTER_MAX_PRICED_RATIO).toBeLessThan(0.62); // below the leanest core borough
+    expect(OUTER_MAX_PRICED_RATIO).toBe(0.4);
     expect(OUTER_MIN_VENUES).toBeGreaterThan(3);
+  });
+
+  it("defers a curated non-pint kind to its own lazy shard", () => {
+    expect(LAZY_KIND_SHARDS.restaurant).toBe("restaurants");
+    const slim = [
+      ...makeSlim(),
+      ...Array.from({ length: 25 }, (_, i) => ({
+        id: `rest${i}`,
+        name: `Restaurant ${i}`,
+        lat: 51.51,
+        lng: -0.12,
+        cheapestPrice: 20,
+        borough: "Westminster",
+        kind: "restaurant",
+      })),
+    ];
+    const { core, outer } = classifySlimShards(slim);
+    expect(core.some((v) => v.kind === "restaurant")).toBe(false);
+    expect(outer.get("restaurants")!.venues).toHaveLength(25);
+    expect(outer.get("restaurants")!.borough).toBeUndefined();
+    const manifest = buildShardManifest({ core, outer });
+    const entry = manifest.shards.find((s) => s.id === "restaurants");
+    expect(entry?.core).toBe(false);
+    expect(entry?.url).toBe("/data/venues_slim.restaurants.json");
+    expect(entry?.borough).toBeUndefined();
+  });
+
+  it("measures a borough's priced ratio without its curated restaurant pins", () => {
+    const slim = [
+      ...Array.from({ length: 25 }, (_, i) => ({
+        id: `grn${i}`,
+        name: `Greenwich ${i}`,
+        lat: 51.48,
+        lng: 0.01,
+        cheapestPrice: null,
+        borough: "Greenwich",
+      })),
+      ...Array.from({ length: 25 }, (_, i) => ({
+        id: `grnr${i}`,
+        name: `Greenwich restaurant ${i}`,
+        lat: 51.48,
+        lng: 0.01,
+        cheapestPrice: 20,
+        borough: "Greenwich",
+        kind: "restaurant",
+      })),
+    ];
+    const { core, outer } = classifySlimShards(slim);
+    expect(core).toHaveLength(0);
+    expect([...outer.keys()].sort()).toEqual(["greenwich", "restaurants"]);
   });
 });
 

@@ -3,13 +3,15 @@
 // observedAt}; provenance NEVER flattens.
 
 export const FOOD_CATEGORIES = [
+  "breakfast",
   "starters",
   "sharers",
   "mains",
   "burgers",
-  "desserts",
-  "sides",
+  "short-eats",
   "bar-snacks",
+  "sides",
+  "desserts",
   "other",
 ] as const;
 
@@ -44,14 +46,16 @@ export type FoodCategoryMeta = {
 };
 
 export const FOOD_CATEGORY_META: Record<FoodCategory, FoodCategoryMeta> = {
-  starters: { label: "Starters", order: 0 },
-  sharers: { label: "Sharers", order: 1 },
-  mains: { label: "Mains", order: 2 },
-  burgers: { label: "Burgers", order: 3 },
-  "bar-snacks": { label: "Bar snacks", order: 4 },
-  sides: { label: "Sides", order: 5 },
-  desserts: { label: "Desserts", order: 6 },
-  other: { label: "Other", order: 7 },
+  breakfast: { label: "Breakfast", order: 0 },
+  starters: { label: "Starters", order: 1 },
+  sharers: { label: "Sharers", order: 2 },
+  mains: { label: "Mains", order: 3 },
+  burgers: { label: "Burgers", order: 4 },
+  "short-eats": { label: "Short eats", order: 5 },
+  "bar-snacks": { label: "Bar snacks", order: 6 },
+  sides: { label: "Sides", order: 7 },
+  desserts: { label: "Desserts", order: 8 },
+  other: { label: "Other", order: 9 },
 };
 
 export type FoodCategoryGroup = {
@@ -77,12 +81,14 @@ export function groupFoodByCategory(items: FoodItem[]): FoodCategoryGroup[] {
 /** Stable accent for food sections — warm brass-adjacent, distinct per family. */
 export function foodCategoryColor(category: FoodCategory): string {
   const colors: Record<FoodCategory, string> = {
+    breakfast: "#9a6a24",
     starters: "#8a5a2b",
     sharers: "#9a6a24",
     mains: "#6b4a2e",
     burgers: "#a0452c",
     desserts: "#8a2846",
     sides: "#5c5347",
+    "short-eats": "#8a5a2b",
     "bar-snacks": "#7a5417",
     other: "#5c5347",
   };

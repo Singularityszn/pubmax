@@ -197,6 +197,7 @@ describe("venues_slim.json", () => {
                 "kind",
                 "priceBand",
                 "anchorLabel",
+                "anchorCourse",
                 "anchorObservedAt",
                 "anchorSourceUrl",
               ].includes(key),

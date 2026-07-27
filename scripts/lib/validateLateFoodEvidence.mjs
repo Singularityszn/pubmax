@@ -67,8 +67,49 @@ function eligibleSourceUrl(value) {
   }
 }
 
-export function validateLateFoodEvidence(value) {
+function words(value) {
+  return ` ${String(value ?? "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim()} `;
+}
+
+function namesPlace(haystack, place) {
+  return haystack.includes(` ${place} `);
+}
+
+function anchorDocumentCoverageError(option, localityNames) {
+  let anchorPath;
+  try {
+    anchorPath = words(new URL(option.anchor.sourceUrl).pathname);
+  } catch {
+    return null;
+  }
+  let ownPath = "";
+  try {
+    ownPath = words(new URL(option.source.sourceUrl).pathname);
+  } catch {
+    ownPath = "";
+  }
+  const identity = `${words(option.name)}${words(option.address)}${words(option.area)}${ownPath}`;
+  for (const place of localityNames) {
+    if (namesPlace(anchorPath, place) && !namesPlace(identity, place)) {
+      return place;
+    }
+  }
+  return null;
+}
+
+export function validateLateFoodEvidence(value, localityNames) {
   const errors = [];
+  const places = (Array.isArray(localityNames) ? localityNames : [])
+    .map((name) => words(name).trim())
+    .filter(Boolean);
+  if (places.length === 0) {
+    errors.push(
+      "a Greater London locality gazetteer is required to check anchor document coverage",
+    );
+  }
   if (!isRecord(value)) return ["snapshot must be an object"];
   if (value.schemaVersion !== 1) errors.push("schemaVersion must be 1");
   if (!text(value.snapshotId)) errors.push("snapshotId is required");
@@ -177,6 +218,13 @@ export function validateLateFoodEvidence(value) {
         !iso(option.anchor.observedAt)
       ) {
         errors.push(`${where}: a sourced anchor price is required`);
+      } else if (isRecord(option.source)) {
+        const foreign = anchorDocumentCoverageError(option, places);
+        if (foreign) {
+          errors.push(
+            `${where}: anchor document names ${foreign}, which is not this venue; cite the branch's own document or drop the anchor`,
+          );
+        }
       }
       if (
         !isRecord(option.source) ||

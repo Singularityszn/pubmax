@@ -3,6 +3,7 @@ import path from "node:path";
 
 import { describe, expect, it } from "vitest";
 
+import { isFoodCategory } from "@/lib/food";
 import { nightOutPlaceRowValidationErrors } from "@/lib/nightOutPlaceContract.mjs";
 import { assertCurrentFamousVenueRows } from "@/scripts/build_slim_index.mjs";
 
@@ -44,6 +45,7 @@ type FamousVenueRow = {
       | "signature_item"
       | "signature_dish";
     label: string;
+    course?: string;
     price: number;
     observedAt: string;
     sourceUrl: string;
@@ -119,6 +121,12 @@ describe("famous venue seeds", () => {
         if (kind === "restaurant") {
           expect(row.id).toMatch(/^restaurant-[a-z0-9-]+$/);
           expect(row.anchor.kind).toBe("signature_dish");
+          expect(
+            isFoodCategory(row.anchor.course),
+            `${row.id} anchor course "${row.anchor.course}"`,
+          ).toBe(true);
+        } else {
+          expect(row.anchor.course, `${row.id} is not a dish`).toBeUndefined();
         }
         expect(row.anchor.label.trim().length).toBeGreaterThan(2);
         expect(row.anchor.sourceUrl).toMatch(/^https:\/\//);

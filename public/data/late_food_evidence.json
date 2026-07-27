@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "snapshotId": "late-food-evidence-20260716-v2",
-  "generatedAt": "2026-07-16T22:30:00.000Z",
+  "snapshotId": "late-food-evidence-20260727-v3",
+  "generatedAt": "2026-07-27T12:00:00.000Z",
   "coveragePolicy": "Only current official venue or operator pages with explicit service hours, address and operator-linked location evidence are eligible. Hours are snapshots, not live availability, and every option must be verified on the night.",
   "areas": {
     "clapham": {
@@ -163,8 +163,8 @@
           "anchor": {
             "label": "Franco's OG Margherita",
             "price": 13.95,
-            "sourceUrl": "https://www.francomanca.co.uk/wp-content/uploads/2026/02/FM-MENU-L0226NC-WATERLOO-V2.pdf",
-            "observedAt": "2026-07-16"
+            "sourceUrl": "https://www.francomanca.co.uk/wp-content/uploads/2026/06/FM-MENU-L0526P.pdf",
+            "observedAt": "2026-07-27"
           },
           "source": {
             "kind": "official_operator",
@@ -337,8 +337,8 @@
           "anchor": {
             "label": "Franco's OG Margherita",
             "price": 13.95,
-            "sourceUrl": "https://www.francomanca.co.uk/wp-content/uploads/2026/02/FM-MENU-L0226NC-WATERLOO-V2.pdf",
-            "observedAt": "2026-07-16"
+            "sourceUrl": "https://www.francomanca.co.uk/wp-content/uploads/2026/06/FM-MENU-L0526P.pdf",
+            "observedAt": "2026-07-27"
           },
           "source": {
             "kind": "official_operator",
@@ -1058,9 +1058,9 @@
           "confidence": "high",
           "anchor": {
             "label": "Franco's OG Margherita",
-            "price": 13.95,
-            "sourceUrl": "https://www.francomanca.co.uk/wp-content/uploads/2026/02/FM-MENU-L0226NC-WATERLOO-V2.pdf",
-            "observedAt": "2026-07-16"
+            "price": 13.5,
+            "sourceUrl": "https://www.francomanca.co.uk/wp-content/uploads/2026/06/FM-MENU-L0526S.pdf",
+            "observedAt": "2026-07-27"
           },
           "source": {
             "kind": "official_operator",
@@ -1493,9 +1493,9 @@
           "confidence": "high",
           "anchor": {
             "label": "Franco's OG Margherita",
-            "price": 13.95,
-            "sourceUrl": "https://www.francomanca.co.uk/wp-content/uploads/2026/02/FM-MENU-L0226NC-WATERLOO-V2.pdf",
-            "observedAt": "2026-07-16"
+            "price": 13.5,
+            "sourceUrl": "https://www.francomanca.co.uk/wp-content/uploads/2026/06/FM-MENU-L0526S.pdf",
+            "observedAt": "2026-07-27"
           },
           "source": {
             "kind": "official_operator",
@@ -1667,9 +1667,9 @@
           "confidence": "high",
           "anchor": {
             "label": "Franco's OG Margherita",
-            "price": 13.95,
-            "sourceUrl": "https://www.francomanca.co.uk/wp-content/uploads/2026/02/FM-MENU-L0226NC-WATERLOO-V2.pdf",
-            "observedAt": "2026-07-16"
+            "price": 13.5,
+            "sourceUrl": "https://www.francomanca.co.uk/wp-content/uploads/2026/06/FM-MENU-L0526S.pdf",
+            "observedAt": "2026-07-27"
           },
           "source": {
             "kind": "official_operator",
@@ -1754,9 +1754,9 @@
           "confidence": "high",
           "anchor": {
             "label": "Franco's OG Margherita",
-            "price": 13.95,
-            "sourceUrl": "https://www.francomanca.co.uk/wp-content/uploads/2026/02/FM-MENU-L0226NC-WATERLOO-V2.pdf",
-            "observedAt": "2026-07-16"
+            "price": 13.5,
+            "sourceUrl": "https://www.francomanca.co.uk/wp-content/uploads/2026/06/FM-MENU-L0526S.pdf",
+            "observedAt": "2026-07-27"
           },
           "source": {
             "kind": "official_operator",

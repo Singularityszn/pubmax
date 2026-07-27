@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { rankFoodHandoff, summariseGetHome } from "@/lib/tonightGetHome";
+import { summariseGetHome } from "@/lib/tonightGetHome";
 import type { LastTrainResult } from "@/lib/tfl";
 
 const BASE: LastTrainResult = {
@@ -117,28 +117,5 @@ describe("summariseGetHome", () => {
       new Date("2026-07-17T20:00:00.000Z"),
     );
     expect(summary?.statusLine).toBe("Victoria line good service.");
-  });
-});
-
-describe("rankFoodHandoff", () => {
-  it("returns no more than three candidates ordered by walking time", () => {
-    const candidates = [
-      { id: "far", walkingDetour: { minutes: 14 } },
-      { id: "nearest", walkingDetour: { minutes: 3 } },
-      { id: "unknown", walkingDetour: { minutes: null } },
-      { id: "middle", walkingDetour: { minutes: 8 } },
-      { id: "near", walkingDetour: { minutes: 5 } },
-    ];
-
-    expect(
-      rankFoodHandoff(candidates).map((candidate) => candidate.id),
-    ).toEqual(["nearest", "near", "middle"]);
-    expect(candidates.map((candidate) => candidate.id)).toEqual([
-      "far",
-      "nearest",
-      "unknown",
-      "middle",
-      "near",
-    ]);
   });
 });

@@ -4,6 +4,7 @@
 
 export const OUTER_MAX_PRICED_RATIO: number;
 export const OUTER_MIN_VENUES: number;
+export const LAZY_KIND_SHARDS: Record<string, string>;
 export const MANIFEST_FILE: string;
 export const CORE_FILE: string;
 export const SHARD_VERSION: number;
@@ -21,7 +22,7 @@ export interface SlimShardRow {
 export type ShardBbox = [number, number, number, number];
 
 export interface OuterShard {
-  borough: string;
+  borough?: string;
   venues: SlimShardRow[];
 }
 
@@ -36,6 +37,7 @@ export interface ShardManifestEntry {
   url: string;
   count: number;
   bbox: ShardBbox;
+  partition?: "borough" | "kind";
   borough?: string;
 }
 

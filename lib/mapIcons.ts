@@ -963,24 +963,38 @@ function drawForkSilhouette(
 ): void {
   const cx = BOX / 2;
   setDrinkGlassStyle(ctx, fill, stroke);
+  for (const dx of [-0.125, 0, 0.125]) {
+    ctx.beginPath();
+    roundRectPath(
+      ctx,
+      cx + BOX * dx - BOX * 0.045,
+      BOX * 0.16,
+      BOX * 0.09,
+      BOX * 0.22,
+      BOX * 0.03,
+    );
+    fillStroke(ctx);
+  }
   ctx.beginPath();
-  ctx.moveTo(cx - BOX * 0.15, BOX * 0.16);
-  ctx.lineTo(cx - BOX * 0.15, BOX * 0.38);
-  ctx.quadraticCurveTo(cx - BOX * 0.15, BOX * 0.52, cx, BOX * 0.52);
-  ctx.quadraticCurveTo(
-    cx + BOX * 0.15,
-    BOX * 0.52,
-    cx + BOX * 0.15,
-    BOX * 0.38,
+  roundRectPath(
+    ctx,
+    cx - BOX * 0.17,
+    BOX * 0.33,
+    BOX * 0.34,
+    BOX * 0.17,
+    BOX * 0.07,
   );
-  ctx.lineTo(cx + BOX * 0.15, BOX * 0.16);
-  ctx.moveTo(cx - BOX * 0.05, BOX * 0.16);
-  ctx.lineTo(cx - BOX * 0.05, BOX * 0.4);
-  ctx.moveTo(cx + BOX * 0.05, BOX * 0.16);
-  ctx.lineTo(cx + BOX * 0.05, BOX * 0.4);
-  ctx.moveTo(cx, BOX * 0.52);
-  ctx.lineTo(cx, BOX * 0.84);
-  ctx.stroke();
+  fillStroke(ctx);
+  ctx.beginPath();
+  roundRectPath(
+    ctx,
+    cx - BOX * 0.055,
+    BOX * 0.46,
+    BOX * 0.11,
+    BOX * 0.38,
+    BOX * 0.045,
+  );
+  fillStroke(ctx);
 }
 
 function drawSpiritsSilhouette(

@@ -772,6 +772,7 @@ async function main() {
       kind: row.kind,
       priceBand: famousPriceBands.get(row.id),
       anchorLabel: row.anchor.label,
+      ...(row.anchor.course ? { anchorCourse: row.anchor.course } : {}),
       anchorObservedAt: row.anchor.observedAt,
       anchorSourceUrl: row.anchor.sourceUrl,
       filterHints: famousVenueFilterHints(row),
@@ -815,7 +816,7 @@ async function main() {
     await writeFile(path.join(DATA_DIR, shardFileForSlug(slug)), text);
     shardReport.push({
       slug,
-      borough,
+      borough: borough ?? slug,
       count: venues.length,
       bytes: Buffer.byteLength(text),
     });
