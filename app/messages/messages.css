@@ -304,6 +304,39 @@
   margin: 0.25rem 0;
 }
 
+/* The thread we could not load: the line WRAPS (never ellipses) and both exits
+   sit on a 44px tap target. */
+.threadFailure {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 0.9rem;
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+.threadFailure p {
+  flex-basis: 100%;
+  margin: 0;
+}
+
+.threadFailure a,
+.threadRetryBtn {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  color: var(--ink);
+  font: inherit;
+  text-decoration: underline;
+}
+
+.threadRetryBtn {
+  padding: 0;
+  border: none;
+  background: none;
+  cursor: pointer;
+}
+
 /* ── the profile "Message" control ────────────────────────────────────────── */
 .profileMessageBtn {
   display: inline-flex;

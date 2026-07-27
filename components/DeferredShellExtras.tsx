@@ -13,6 +13,10 @@
 
 import nextDynamic from "next/dynamic";
 
+// Console-only easter egg. Imported directly rather than lazily: it is a few
+// lines that render null, so its own chunk would cost more than it saves.
+import CellarNotice from "@/components/CellarNotice";
+
 const NightModeCard = nextDynamic(() => import("@/components/night/NightModeCard"), {
   ssr: false,
 });
@@ -53,6 +57,7 @@ export default function DeferredShellExtras() {
       <WebPushPrompt />
       <NativeSystemBars />
       <NativeDeepLinks />
+      <CellarNotice />
     </>
   );
 }

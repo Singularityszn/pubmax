@@ -61,8 +61,7 @@ export default function NotFound() {
             lineHeight: 1.6,
           }}
         >
-          This page has drunk up and gone home. The pubs are still pouring
-          elsewhere.
+          Whatever was here has drunk up and gone home. The pubs haven&rsquo;t.
         </p>
         <div
           style={{

@@ -2223,7 +2223,9 @@ export default function PubMap({
             role="status"
             aria-busy="true"
             aria-live="polite"
-            aria-label={`Loading the ${city.displayName} venue map. Finding venues. Warming up the map.`}
+            // Accessible name stays literal on purpose: the visible line below
+            // carries the dry aside, the announced one states the fact.
+            aria-label={`Loading the ${city.displayName} venue map.`}
           >
             <div className="mapLoadingScene" aria-hidden="true">
               <span className="mapLoadingStreet mapLoadingStreet--one" />
@@ -2236,7 +2238,7 @@ export default function PubMap({
             </div>
             <div className="mapLoadingCopy">
               <span className="mapLoadingEyebrow">{city.displayName} venue map</span>
-              <span>Finding venues. Warming up the map.</span>
+              <span>Rounding up the pubs. Won&rsquo;t be a minute.</span>
             </div>
           </div>
         ) : null}

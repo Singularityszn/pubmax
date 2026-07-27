@@ -387,7 +387,7 @@ function RouteList({ stops }: { stops: RoundState["stops"] }): React.JSX.Element
       <EmptyState
         eyebrow="The route"
         title="No stops yet"
-        body="The route builds itself as people drop pints. Add the first pub to get the Round going."
+        body="The route builds itself as people drop pints. There's always one person who has to name the first pub. Tonight that's you."
       />
     );
   }

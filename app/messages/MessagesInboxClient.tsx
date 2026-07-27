@@ -105,7 +105,7 @@ export default function MessagesInboxClient({
       </p>
 
       {!loaded ? (
-        <p className="conversationPreview">Loading…</p>
+        <p className="conversationPreview">With you in a sec.</p>
       ) : needsSignIn || !user ? (
         <EmptyState
           title="Sign in to message"
