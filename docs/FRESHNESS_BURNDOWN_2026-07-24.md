@@ -14,6 +14,10 @@ committed on-disk stamp (`data/freshness_registry.json`). Confirmed today:
 | `night_signals` | 2026-07-16 | ~201h | 48h | GitHub Action "Night Signal refresh" (daily 08:15) |
 | `weather` | 2026-07-18 | ~131h | 48h | Vercel cron `/api/cron/refresh-weather` (every 6h) |
 
+The two file-measured feeds with no working scheduler, `price_updates` and
+`night_signals`, are still open as **issue #635**; their ages have grown since
+the table above, and the owner actions below are unchanged.
+
 ## Root cause per dataset
 
 - **`price_updates` — pipeline is a deliberate no-op.** `fetchFromSource` is

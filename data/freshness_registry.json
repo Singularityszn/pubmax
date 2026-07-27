@@ -1,5 +1,5 @@
 {
-  "$comment": "Machine-readable freshness registry — the single source of truth for WHEN every data class is meant to refresh and how stale it is allowed to get. Consumed by scripts/check_freshness.mjs (CI/owner check), lib/freshness.ts (the /api/freshness route), and validate-data (WARN wiring). See docs/WAYFINDER_LIVE_DATA.md for the cadence table and activation matrix. Keep entries in lockstep with the workflows in .github/workflows and the refresh scripts in scripts/.",
+  "$comment": "Machine-readable freshness registry — the single source of truth for WHEN every data class is meant to refresh and how stale it is allowed to get. Consumed by scripts/check_freshness.mjs (CI/owner check), lib/freshness.ts (the /api/freshness route and the /api/cron/freshness-audit cron), validate-data (WARN wiring), and next.config.mjs, which derives the outputFileTracingIncludes entry for every field-stamped artifact from this file so both freshness functions are deployed with the files they open at runtime. See docs/WAYFINDER_LIVE_DATA.md for the cadence table and activation matrix. Keep entries in lockstep with the workflows in .github/workflows and the refresh scripts in scripts/.",
   "version": 1,
   "generatedBy": "infra/live-data-wayfinder",
   "datasets": [
