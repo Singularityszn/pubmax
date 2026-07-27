@@ -400,6 +400,8 @@ on the recessed panel** (`--panel`: `#fbf8f0` light / `#171712` dark):
 | `--cat-rum` | `#8a4a24` | 6.41 | `#cd8a5a` | 6.32 | mahogany |
 | `--cat-cocktail` | `#b5493a` | 4.97 | `#ef8a6a` | 7.29 | sunset |
 | `--cat-shot` | `#6a3fb0` | 6.71 | `#b28ae8` | 6.59 | electric violet |
+| `--cat-alcohol-free` | `#176b72` | 5.47 | `#67cbd0` | 9.30 | clear teal |
+| `--cat-soft-drink` | `#7a4f00` | 7.20 | `#f0b65a` | 9.37 | citrus |
 | `--cat-other` | `#5c5347` | 7.11 | `#a89e8c` | 6.79 | neutral bark |
 
 \* beer is pinned to the brass accent (one identity with the map's
@@ -414,9 +416,10 @@ the tokens flip automatically, no consumer changes.
 
 Per-category glyphs are **original SVG line-art** authored for this repo
 (`components/drinks/icons/*.tsx`): a pint glass, wine glass, whisky tumbler, gin
-balloon, rum snifter, vodka shooter, cocktail coupe, shot glass, and a generic
-bottle for `other`. They stroke with `currentColor` on a shared 32×32 viewBox,
-so they stay crisp from 16px to 128px and take the category colour from
+balloon, rum snifter, vodka shooter, cocktail coupe, shot glass, a zero-sealed
+pint for `alcohol-free`, a straw-and-citrus tumbler for `soft-drink`, and a
+generic bottle for `other`. They stroke with `currentColor` on a shared 32×32
+viewBox, so they stay crisp from 16px to 128px and take the category colour from
 whatever sets `color`.
 
 **Licence rule for any future raster imagery:** do NOT scrape or embed
