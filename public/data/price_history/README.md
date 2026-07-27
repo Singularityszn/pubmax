@@ -58,7 +58,12 @@ Every one of these, or the row does not ship:
   dropped, not guessed.
 
 At most one figure per venue per day, the cheapest named that day, so the
-comparison lines up with the cheapest-pint price the sheet already shows.
+comparison lines up with the price the sheet already shows.
+
+And one archived page is evidence about **one** pub: citing the same source URL
+for two venue ids ships the same dated fact twice. The only exception is a pub
+the app's own venue index holds under more than one id, which is named with its
+reason in the identity fence in `__tests__/priceHistory.test.ts`.
 
 ## Where wave one came from
 

@@ -3,9 +3,9 @@
 // Every row here is a dated, sourced historical price: a figure someone
 // published on a citable page on a known day. It is the one price layer that
 // cannot be re-scraped from a live source, so it is gathered by hand from
-// archives and press and shipped as a static file
-// (public/data/price_history/london.json, built by
-// scripts/build_price_history.mjs).
+// archives and press and shipped as a hand-curated static file
+// (public/data/price_history/london.json). There is no generator on purpose:
+// public/data/price_history/README.md owns what earns a row.
 //
 // HARD RULE — historical prices are strictly second class.
 //

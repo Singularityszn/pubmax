@@ -118,6 +118,40 @@ describe("price archaeology: identity", () => {
       seen.add(key);
     }
   });
+
+  it("attributes one archived page to one pub", () => {
+    // The inverse of the rule above, and the one an import gets wrong quietly:
+    // a source page is evidence about ONE pub, so citing it for two venue ids
+    // ships the same dated fact twice and inflates the set. The only accepted
+    // exceptions are venue ids the app's own index holds twice for a single
+    // pub, where both records can legitimately show the same history.
+    const DUPLICATE_INDEX_RECORDS: Array<{ reason: string; venueIds: string[] }> = [
+      {
+        reason: "Horniman at Hays: three index records for the one Hay's Galleria pub.",
+        venueIds: ["venue-2txloa", "venue-7qifhm", "venue-aihlwx"],
+      },
+      {
+        reason: "Eastbrook, Dagenham: two index records, 'Eastbrook' and 'The Eastbrook'.",
+        venueIds: ["venue-16nj2fe", "venue-cn9acj"],
+      },
+    ];
+    const byUrl = new Map<string, Set<string>>();
+    for (const row of shipped) {
+      const ids = byUrl.get(row.source.url) ?? new Set<string>();
+      ids.add(row.venueId);
+      byUrl.set(row.source.url, ids);
+    }
+    for (const [url, ids] of byUrl) {
+      if (ids.size === 1) continue;
+      const allowed = DUPLICATE_INDEX_RECORDS.find((entry) =>
+        [...ids].every((id) => entry.venueIds.includes(id)),
+      );
+      expect(
+        allowed,
+        `${url} is cited for ${[...ids].sort().join(", ")}: one archived page is evidence about one pub, so either the identity is wrong or these ids are a documented duplicate index record`,
+      ).toBeTruthy();
+    }
+  });
 });
 
 describe("price archaeology: the import fence", () => {

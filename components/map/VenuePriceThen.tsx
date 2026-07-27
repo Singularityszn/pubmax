@@ -105,7 +105,7 @@ export default function VenuePriceThen({
       </p>
       {nowGbp !== null ? (
         <p className="vptNote">
-          A pint someone paid for then, against the cheapest price we have on record now.
+          A pint someone paid for then, against the price this pub has on record now.
         </p>
       ) : null}
     </section>

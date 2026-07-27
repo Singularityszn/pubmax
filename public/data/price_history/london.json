@@ -460,35 +460,11 @@
    }
   },
   {
-   "venueId": "venue-1ow070n",
-   "venueName": "The Castle",
-   "priceGbp": 4.3,
-   "observedOn": "2017-05-06",
-   "quote": "It was reasonable but at £4.30 for a pint, not good value.",
-   "source": {
-    "label": "beerintheevening.com",
-    "url": "https://www.beerintheevening.com/pubs/comments.shtml/809/",
-    "licence": "User review published on beerintheevening.com; quoted with attribution for a dated price claim."
-   }
-  },
-  {
    "venueId": "venue-q92xb4",
    "venueName": "The Castle",
    "priceGbp": 4.3,
    "observedOn": "2017-05-06",
    "quote": "It was reasonable but at £4.30 for a pint, not good value.",
-   "source": {
-    "label": "beerintheevening.com",
-    "url": "https://www.beerintheevening.com/pubs/comments.shtml/809/",
-    "licence": "User review published on beerintheevening.com; quoted with attribution for a dated price claim."
-   }
-  },
-  {
-   "venueId": "venue-1ow070n",
-   "venueName": "The Castle",
-   "priceGbp": 5,
-   "observedOn": "2018-06-15",
-   "quote": "They do try to deter drinkers though with reserved cards on most tables and charging a cool £5 a pint for average lager.",
    "source": {
     "label": "beerintheevening.com",
     "url": "https://www.beerintheevening.com/pubs/comments.shtml/809/",
