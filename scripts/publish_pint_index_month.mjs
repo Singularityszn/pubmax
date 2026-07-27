@@ -17,8 +17,8 @@
 //   • a FIRST publication filters what the live snapshot already published; a
 //     correction amends the PUBLISHED edition and never re-reads that
 //     snapshot, whose window has moved on by then;
-//   • an amendment names ONE observation: a venue id, and its observed-at
-//     instant wherever the month holds more than one price for that pub;
+//   • an amendment names ONE observation, as narrowly as that month needs:
+//     <venueId>[@<observedAt>][#<sourceId>][^<ordinal>];
 //   • nothing here invents an observation, and it dies rather than guess.
 //
 // Run it after the live snapshot is regenerated, on or after the 1st of the
@@ -35,18 +35,39 @@ const ARCHIVE_DIR = path.join(ROOT, "public/data/pint_index");
 
 const sha256 = (input) => createHash("sha256").update(input, "utf8").digest("hex");
 
-// `crown-camden` or `crown-camden@2026-06-20T18:00:00.000Z`. The observed-at
-// half is what names a PRICE rather than a pub, and it is required whenever
-// the edition holds more than one observation for that venue.
+// `crown-camden`, `crown-camden@2026-06-20T18:00:00.000Z`, and if the month
+// somehow holds two prices for that pub at the same instant, `...#drop-2` and
+// then `...^2`. Each part names a PRICE more narrowly than the last, and none
+// of the three separators can occur inside an ISO instant. The archive rules
+// decide which parts are needed; this only reads them.
 function parseObservationRef(token, flag) {
   const raw = (token ?? "").trim();
-  if (!raw) die(`${flag} needs a venue id, optionally as <venueId>@<observedAt>`);
-  const at = raw.indexOf("@");
-  const venueId = at === -1 ? raw : raw.slice(0, at).trim();
-  const observedAt = at === -1 ? null : raw.slice(at + 1).trim();
-  if (!venueId) die(`${flag} needs a venue id before the @`);
+  if (!raw) die(`${flag} needs a venue id, optionally as <venueId>[@<observedAt>][#<sourceId>][^<ordinal>]`);
+
+  let rest = raw;
+  let ordinal = null;
+  const caret = rest.lastIndexOf("^");
+  if (caret !== -1) {
+    const value = Number(rest.slice(caret + 1).trim());
+    if (!Number.isInteger(value) || value < 1) die(`${flag} needs a whole ordinal of 1 or more after the ^`);
+    ordinal = value;
+    rest = rest.slice(0, caret);
+  }
+
+  let sourceId = null;
+  const hash = rest.indexOf("#");
+  if (hash !== -1) {
+    sourceId = rest.slice(hash + 1).trim();
+    if (!sourceId) die(`${flag} needs a source id after the #`);
+    rest = rest.slice(0, hash);
+  }
+
+  const at = rest.indexOf("@");
+  const venueId = (at === -1 ? rest : rest.slice(0, at)).trim();
+  const observedAt = at === -1 ? null : rest.slice(at + 1).trim();
+  if (!venueId) die(`${flag} needs a venue id`);
   if (at !== -1 && !observedAt) die(`${flag} needs an observed-at date after the @`);
-  return { venueId, observedAt };
+  return { venueId, observedAt, sourceId, ordinal };
 }
 
 function parseArgs(argv) {
@@ -83,14 +104,18 @@ async function main() {
   if (args.help) {
     console.log([
       "usage: publish_pint_index_month.mjs --month YYYY-MM",
-      "         [--withdraw <venueId>[@<observedAt>]]...",
-      "         [--restate <venueId>[@<observedAt>] <pricePence>]...",
+      "         [--withdraw <observation>]...",
+      "         [--restate <observation> <pricePence>]...",
       "         [--correction \"what changed and why\"]",
       "",
       "  --withdraw  a price that should never have been in the Index leaves it",
       "  --restate   a price that belongs is republished at the figure its source carries",
-      "  @observedAt names one observation, and is required when the month holds",
-      "              more than one price for that pub",
+      "",
+      "  <observation> is <venueId>[@<observedAt>][#<sourceId>][^<ordinal>], naming ONE",
+      "  published price. Add only as much as the month needs: the observed-at instant",
+      "  when the pub has more than one price, the source id when two share an instant,",
+      "  the ordinal (1-based, published order) when even that cannot tell them apart.",
+      "  An ambiguous reference is refused rather than resolved by guessing.",
     ].join("\n"));
     return;
   }

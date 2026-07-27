@@ -13,6 +13,7 @@ import { readFileSync, readdirSync, existsSync, statSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 import { validateLateFoodEvidence } from "./lib/validateLateFoodEvidence.mjs";
+import { canonicalObservationsPayload } from "../lib/pintIndexCanonical.mjs";
 import {
   CORE_FILE,
   MANIFEST_FILE,
@@ -1817,10 +1818,11 @@ function validatePintIndexEditions() {
   const files = readdirSync(dir).filter((f) => f.endsWith(".json"));
   const iso = (value) => typeof value === "string" && Number.isFinite(Date.parse(value));
   const hex64 = /^[0-9a-f]{64}$/;
-  // The canonical form the integrity hash covers, kept byte-identical to
-  // lib/pintIndexArchive.ts canonicalObservationsPayload. A published month
-  // that no longer hashes to its stored digest has been rewritten, which is
-  // exactly the thing a citation must be able to rule out.
+  // A published month that no longer hashes to its stored digest has been
+  // rewritten, which is exactly the thing a citation must be able to rule out.
+  // The canonical form is imported, never restated here: a copy that drifts by
+  // one character would fail a correctly published edition, and the only
+  // reading of that failure is that someone rewrote a citation.
   // Which month an observation belongs to, parsed to UTC exactly as
   // lib/pintIndexArchive.ts pintIndexMonthOf does. A raw string prefix would
   // read "2026-06-30T23:30:00-05:00" as June while the runtime validator reads
@@ -1830,13 +1832,6 @@ function validatePintIndexEditions() {
     const parsed = Date.parse(value);
     return Number.isFinite(parsed) ? new Date(parsed).toISOString().slice(0, 7) : null;
   };
-  const canonical = (rows) => JSON.stringify(rows
-    .map((row) => [
-      row?.venueId, row?.boroughCode, String(row?.pricePence),
-      new Date(row?.observedAt).toISOString(), row?.sourceId, row?.pubName,
-    ])
-    .sort((a, b) => a.join(" ").localeCompare(b.join(" "))));
-
   let observations = 0;
   for (const file of files) {
     const month = file.slice(0, -".json".length);
@@ -1880,7 +1875,7 @@ function validatePintIndexEditions() {
     // unparseable one is already reported, so do not crash re-deriving it.
     if (!datesParse) continue;
     if (!hex64.test(archive?.observationsSha256 ?? "")) errs.add(`${file}: archive.observationsSha256 must be a hex sha256`);
-    else if (createHash("sha256").update(canonical(rows), "utf8").digest("hex") !== archive.observationsSha256) {
+    else if (createHash("sha256").update(canonicalObservationsPayload(rows), "utf8").digest("hex") !== archive.observationsSha256) {
       errs.add(`${file}: observations no longer match the published integrity hash`);
     }
   }
