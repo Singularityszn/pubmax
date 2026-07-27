@@ -10,6 +10,7 @@ import {
   buildArchivedMonth,
   londonMonthOf,
   monthPublishBlocker,
+  monthPublishFloorBlocker,
   PINT_INDEX_PUBLIC_START_MONTH,
   pintIndexMonthLabel,
   pintIndexMonthTemporalCoverage,
@@ -121,10 +122,26 @@ describe("monthly Pint Index editions", () => {
       .toBe("2026-07 has not closed yet");
     expect(monthPublishBlocker("2026-08", snapshot, new Date("2026-10-01T00:00:00Z")))
       .toBe("2026-08 closes after the live index was generated");
-    expect(monthPublishBlocker("2026-04", snapshot, new Date("2026-07-27T00:00:00Z")))
-      .toBe("2026-04 ends before the live index starts covering prices");
+    expect(monthPublishBlocker("2026-06", live({
+      observationWindow: { start: "2026-07-01T00:00:00.000Z", end: "2026-07-15T23:59:59.000Z" },
+    }), new Date("2026-07-27T00:00:00Z")))
+      .toBe("2026-06 ends before the live index starts covering prices");
     expect(monthPublishBlocker("2026-6", snapshot, new Date("2026-07-27T00:00:00Z")))
       .toBe("2026-6 is not a YYYY-MM month");
+  });
+
+  it("asks the live snapshot about a first publication only, never about a correction", () => {
+    // Once the live window advances past a published month, that month can
+    // still be corrected: a frozen figure nobody can fix is worse than a
+    // correction the reader can see.
+    const advanced = live({
+      generatedAt: "2027-01-16T00:00:00.000Z",
+      observationWindow: { start: "2026-12-01T00:00:00.000Z", end: "2027-01-15T23:59:59.000Z" },
+    });
+    const now = new Date("2027-01-20T00:00:00Z");
+    expect(monthPublishBlocker("2026-06", advanced, now))
+      .toBe("2026-06 ends before the live index starts covering prices");
+    expect(monthPublishFloorBlocker("2026-06", now)).toBeNull();
   });
 
   it("refuses a month that predates the public Index, with or without a coverage window", () => {
@@ -133,11 +150,14 @@ describe("monthly Pint Index editions", () => {
     // start, a long-past month would freeze into a zero-observation edition
     // that reads as a finding about a window nobody ever looked at.
     const unassessed = live({ status: "empty", observationWindow: null, observations: [], sources: [] });
-    expect(monthPublishBlocker("2019-03", unassessed, new Date("2026-07-27T00:00:00Z")))
-      .toBe(`2019-03 is before the public Index began covering prices in ${PINT_INDEX_PUBLIC_START_MONTH}`);
+    const now = new Date("2026-07-27T00:00:00Z");
+    const refused = `2019-03 is before the public Index began covering prices in ${PINT_INDEX_PUBLIC_START_MONTH}`;
+    expect(monthPublishBlocker("2019-03", unassessed, now)).toBe(refused);
+    // And it stays refused on the floor alone, which is the only check a
+    // correction faces, so no correction can smuggle one in either.
+    expect(monthPublishFloorBlocker("2019-03", now)).toBe(refused);
     // A genuinely assessed month with nothing qualifying in it still publishes.
-    expect(monthPublishBlocker(PINT_INDEX_PUBLIC_START_MONTH, unassessed, new Date("2026-07-27T00:00:00Z")))
-      .toBeNull();
+    expect(monthPublishBlocker(PINT_INDEX_PUBLIC_START_MONTH, unassessed, now)).toBeNull();
   });
 
   it("refuses a month that starts after the live index stopped covering prices", () => {
@@ -266,11 +286,13 @@ describe("the editions actually published in this repo", () => {
     expect(result.ok ? [] : result.errors).toEqual([]);
   });
 
-  it.each(files)("%s is a month the publisher would still allow to be frozen", (file) => {
-    const snapshot = JSON.parse(
-      readFileSync(path.join(process.cwd(), "public/data/pint_index_snapshot.json"), "utf8"),
-    ) as PintIndexSnapshot;
-    expect(monthPublishBlocker(file.slice(0, -".json".length), snapshot, new Date())).toBeNull();
+  // Only the properties of a published month that can never stop being true.
+  // Asserting anything the live snapshot decides would put a moving fence
+  // around a file the write-once contract forbids rewriting or deleting.
+  it.each(files)("%s is a closed month the public Index existed to assess", (file) => {
+    const month = file.slice(0, -".json".length);
+    expect(month >= PINT_INDEX_PUBLIC_START_MONTH).toBe(true);
+    expect(monthPublishFloorBlocker(month, new Date())).toBeNull();
   });
 
   it.each(files)("%s reads as a closed month, never a live page", (file) => {

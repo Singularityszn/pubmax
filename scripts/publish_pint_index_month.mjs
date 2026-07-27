@@ -59,6 +59,7 @@ async function main() {
   const {
     buildArchivedMonth,
     monthPublishBlocker,
+    monthPublishFloorBlocker,
     planArchivePublish,
     validateArchivedPintIndexSnapshot,
   } = await import("../lib/pintIndexArchive.ts");
@@ -67,10 +68,11 @@ async function main() {
     die(`could not read ${SNAPSHOT_PATH}: ${error.message}`),
   );
 
-  const blocker = monthPublishBlocker(args.month, snapshot, new Date());
-  if (blocker) die(blocker);
+  const now = new Date();
+  const floorBlocker = monthPublishFloorBlocker(args.month, now);
+  if (floorBlocker) die(floorBlocker);
 
-  const issuedAt = new Date().toISOString();
+  const issuedAt = now.toISOString();
   const rebuilt = buildArchivedMonth({ snapshot, month: args.month, publishedAt: issuedAt, sha256 });
 
   await mkdir(ARCHIVE_DIR, { recursive: true });
@@ -88,6 +90,15 @@ async function main() {
       die(`refusing to correct an edition that fails its own contract:\n  ${current.errors.join("\n  ")}`);
     }
     existing = current.archive;
+  }
+
+  // What the live snapshot covers decides whether a month may be frozen for the
+  // FIRST time. It cannot decide whether an already-published month may be
+  // corrected: the window moves on every regeneration, and a month whose
+  // correction path closed behind it would be a figure nobody can fix.
+  if (!existing) {
+    const blocker = monthPublishBlocker(args.month, snapshot, now);
+    if (blocker) die(blocker);
   }
 
   const plan = planArchivePublish({
