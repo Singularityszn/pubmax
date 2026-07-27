@@ -25,7 +25,10 @@ import "./mapToolbar.css";
 type MapToolbarProps = {
   query: string;
   onQueryChange: (query: string) => void;
-  /** Shared gazetteer search surface, configured by PubMap for desktop mode. */
+  /**
+   * Shared gazetteer search surface, configured by PubMap for desktop mode.
+   * Null on a base-pub-only arrival, where no venue is priced to be found.
+   */
   searchContent: ReactNode;
   favoritePint: string | null;
   onFavoritePintChange: (beerId: string | null) => void;
@@ -124,7 +127,9 @@ export default function MapToolbar({
   return (
     <div className="mapToolbar" role="search">
       <div className="mapToolbarRow">
-        <div className="mapToolbarSearch">{searchContent}</div>
+        {searchContent ? (
+          <div className="mapToolbarSearch">{searchContent}</div>
+        ) : null}
 
         {isMobile === false && experienceLens === "all" ? (
           <div className="mapToolbarDesktopExtras">{favoritePicker}</div>

@@ -7,12 +7,23 @@ import { CITIES, listEnabledCities } from "@/lib/cities";
 import {
   buildCityChooserSearchResults,
 } from "@/lib/cityChooserSearch";
-import { ukPlaceMapUrl, type UkPlace } from "@/lib/ukPlaceSearch";
+import {
+  normaliseUkPlaceQuery,
+  ukPlaceMapUrl,
+  type UkPlace,
+} from "@/lib/ukPlaceSearch";
+
+const place = (row: Omit<UkPlace, "search">): UkPlace => ({
+  ...row,
+  search: normaliseUkPlaceQuery(row.name),
+});
 
 const PLACES: UkPlace[] = [
-  { name: "Sheffield", lat: 53.3800941, lng: -1.4789213, kind: "city", context: "S" },
-  { name: "Bath", lat: 51.38, lng: -2.36, kind: "city", context: "BA" },
-  { name: "Bathford", lat: 51.4, lng: -2.3, kind: "village", context: "BA" },
+  place({ name: "Sheffield", lat: 53.3800941, lng: -1.4789213, kind: "city", context: "S" }),
+  place({ name: "Bath", lat: 51.38, lng: -2.36, kind: "city", context: "BA" }),
+  place({ name: "Bathford", lat: 51.4, lng: -2.3, kind: "village", context: "BA" }),
+  place({ name: "Camden", lat: 51.5389171, lng: -0.1418712, kind: "suburb", context: "NW" }),
+  place({ name: "Didsbury", lat: 53.4181794, lng: -2.23144, kind: "suburb", context: "M" }),
 ];
 
 describe("city chooser search model", () => {
@@ -48,6 +59,31 @@ describe("city chooser search model", () => {
       href: "/map?place=Sheffield&lat=53.3800941&lng=-1.4789213",
       context: "S",
     });
+  });
+
+  it("routes a place inside a curated city to that city guide, never to uncovered copy", () => {
+    const [camden, ...rest] = buildCityChooserSearchResults(
+      "Camden",
+      listEnabledCities(),
+      PLACES,
+    );
+
+    expect(camden).toEqual({
+      kind: "curated",
+      name: "Camden",
+      description:
+        "Part of the London city guide, with prices and crawls.",
+      href: "/map",
+      cityId: "london",
+    });
+    expect(rest).toEqual([]);
+
+    const [didsbury] = buildCityChooserSearchResults(
+      "Didsbury",
+      listEnabledCities(),
+      PLACES,
+    );
+    expect(didsbury).toMatchObject({ kind: "curated", cityId: "manchester" });
   });
 
   it("does not turn idle or one-letter input into a coverage claim", () => {

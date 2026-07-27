@@ -1060,6 +1060,9 @@ function validateUkPlaceIndex() {
       (row.length === 4 || row.length === 5) &&
       typeof row[0] === "string" &&
       row[0].trim().length >= 2 &&
+      row[0].trim().length <= 100 &&
+      !/[;<>]/.test(row[0]) &&
+      /^[\p{L}\p{N}]/u.test(row[0].trim()) &&
       Number.isFinite(row[1]) &&
       row[1] >= 49.8 &&
       row[1] <= 61 &&

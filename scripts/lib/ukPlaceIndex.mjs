@@ -25,6 +25,19 @@ function normalizeName(value) {
   return String(value ?? "").trim().replace(/\s+/g, " ");
 }
 
+// Mirrors isPublishableUkPlaceName in lib/ukPlaceSearch.ts (the reader cannot
+// import this builder without pulling it into the browser bundle). Address tags
+// carry editing noise ("<different>") and multi-place lists ("Hythe;West
+// Hythe"); neither is a name, so neither may be offered as somebody's town.
+function isPublishableName(name) {
+  return (
+    name.length >= 2 &&
+    name.length <= 100 &&
+    !/[;<>]/.test(name) &&
+    /^[\p{L}\p{N}]/u.test(name)
+  );
+}
+
 function searchKey(value) {
   return normalizeName(value)
     .normalize("NFKD")
@@ -134,7 +147,7 @@ export function buildUkPlaceIndex(elements, options = {}) {
     const elementKey = `${element.type ?? ""}/${element.id ?? ""}`;
     for (const [tag, kind] of LOCALITY_TAGS) {
       const name = normalizeName(element.tags[tag]);
-      if (name.length < 2 || name.length > 100) continue;
+      if (!isPublishableName(name)) continue;
       const key = searchKey(name);
       const observationKey = `${elementKey}\0${tag}\0${key}`;
       if (seen.has(observationKey)) continue;

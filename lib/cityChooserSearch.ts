@@ -1,4 +1,8 @@
-import type { CityConfig, CityId } from "@/lib/cities";
+import {
+  enabledCityContainingPoint,
+  type CityConfig,
+  type CityId,
+} from "@/lib/cities";
 import { cityMapShareUrl } from "@/lib/cityShare";
 import {
   normaliseUkPlaceQuery,
@@ -47,19 +51,40 @@ export function buildCityChooserSearchResults(
         cityId: city.id,
       }),
     );
-  const uncovered = searchUkPlaces(
+  const routedCityIds = new Set<CityId>(
+    curated.flatMap((result) =>
+      result.kind === "curated" ? [result.cityId] : [],
+    ),
+  );
+  const matched: CityChooserSearchResult[] = [];
+  for (const place of searchUkPlaces(
     query,
     places,
     cities.map((city) => city.displayName),
     Math.max(0, limit - curated.length),
-  ).map(
-    (place): CityChooserSearchResult => ({
-      kind: "uncovered",
+  )) {
+    // A locality inside a curated city (Camden, Didsbury, Headingley) is that
+    // city. It keeps the rich guide rather than being offered as uncovered.
+    const city = enabledCityContainingPoint(place.lat, place.lng);
+    if (!city) {
+      matched.push({
+        kind: "uncovered",
+        name: place.name,
+        description: UNCOVERED_DESCRIPTION,
+        href: ukPlaceMapUrl(place),
+        context: place.context,
+      });
+      continue;
+    }
+    if (routedCityIds.has(city.id)) continue;
+    routedCityIds.add(city.id);
+    matched.push({
+      kind: "curated",
       name: place.name,
-      description: UNCOVERED_DESCRIPTION,
-      href: ukPlaceMapUrl(place),
-      context: place.context,
-    }),
-  );
-  return [...curated, ...uncovered].slice(0, limit);
+      description: `Part of the ${city.displayName} city guide, with prices and crawls.`,
+      href: cityMapShareUrl(city.id),
+      cityId: city.id,
+    });
+  }
+  return [...curated, ...matched].slice(0, limit);
 }

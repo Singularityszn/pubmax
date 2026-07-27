@@ -263,8 +263,8 @@ import {
 } from "@/lib/pubMap";
 import { explicitMapIntent } from "@/lib/explicitMapIntent";
 import {
-  parseUkPlaceMapArrival,
   ukPlaceMapView,
+  type UkPlaceMapArrival,
 } from "@/lib/ukPlaceSearch";
 import {
   readPlanningIntent,
@@ -408,14 +408,21 @@ function readBandChipDismissed(bandId: string): boolean {
 export default function PubMap({
   cityId = DEFAULT_CITY_ID,
   flags = TRUSTED_HANDOFF_FLAGS_OFF,
+  placeArrival = null,
 }: {
   cityId?: CityId;
   flags?: TrustedHandoffFlagsDTO;
+  /**
+   * Server-resolved uncovered-place arrival. Frozen at mount like every other
+   * arrival read. It arrives as a prop rather than being parsed out of
+   * location.search here because the name is printed as our own copy, so it
+   * must come from our own place index, and because a soft navigation can hand
+   * this component an empty search string at mount.
+   */
+  placeArrival?: UkPlaceMapArrival | null;
 }) {
   const city = getCity(cityId);
-  const [ukPlaceArrival] = useState(() =>
-    parseUkPlaceMapArrival(currentSearch()),
-  );
+  const [ukPlaceArrival] = useState(() => placeArrival);
   const [initialMapView] = useState<MapViewportSnapshot>(() =>
     ukPlaceArrival ? ukPlaceMapView(ukPlaceArrival, city.mapView) : city.mapView,
   );
@@ -2100,6 +2107,10 @@ export default function PubMap({
   }, [clearAreaSheetTimer, closeComposer, setPlanningOpen]);
 
   useEffect(() => {
+    // An uncovered-place arrival is a one-off destination, not a city session:
+    // persisting its viewport under cityId reopened the town under full London
+    // chrome, with no arrival banner, on the next clean /map visit.
+    if (ukPlaceArrival) return;
     writeMobileMapSession({
       viewport: mapViewport,
       filters,
@@ -2114,7 +2125,7 @@ export default function PubMap({
             ? mapOverlay
             : null,
     });
-  }, [activeNightArea?.slug, cityId, detailOpen, filters, mapOverlay, mapViewport, planningOpen, selectedVenueId]);
+  }, [activeNightArea?.slug, cityId, detailOpen, filters, mapOverlay, mapViewport, planningOpen, selectedVenueId, ukPlaceArrival]);
 
   // #215 a11y — the sheet's close button is the natural first stop for a
   // keyboard/AT user landing in a freshly-opened panel; on close (button,
@@ -2518,12 +2529,16 @@ export default function PubMap({
           query={filters.query}
           onQueryChange={changeMapSearchQuery}
           searchContent={
-            <MapSearchSuggest
-              {...sharedMapSearchProps}
-              id="mapSearchInput"
-              mode="toolbar"
-              placeholder={mapSearchPlaceholder}
-            />
+            // Nothing here is priced, so venue search can never answer. The
+            // mobile shell drops it for the same reason.
+            ukPlaceArrival ? null : (
+              <MapSearchSuggest
+                {...sharedMapSearchProps}
+                id="mapSearchInput"
+                mode="toolbar"
+                placeholder={mapSearchPlaceholder}
+              />
+            )
           }
           favoritePint={favoritePint}
           onFavoritePintChange={changeFavoritePint}

@@ -37,6 +37,41 @@ describe("UK place map arrival", () => {
     expect(
       parseUkPlaceMapArrival("?place=%00bad&lat=53.38&lng=-1.47"),
     ).toBeNull();
+    expect(
+      parseUkPlaceMapArrival("?place=Hythe%3BWest+Hythe&lat=51.07&lng=1.08"),
+    ).toBeNull();
+  });
+
+  it("refuses a point inside a curated city, which is that city", () => {
+    expect(
+      parseUkPlaceMapArrival("?place=Camden&lat=51.5389171&lng=-0.1418712"),
+    ).toBeNull();
+    expect(
+      parseUkPlaceMapArrival("?place=Didsbury&lat=53.4181794&lng=-2.23144"),
+    ).toBeNull();
+    expect(
+      parseUkPlaceMapArrival("?place=Headingley&lat=53.8209584&lng=-1.5788089"),
+    ).not.toBeNull();
+  });
+
+  it("resolves the printed name from our own index, never from the query string", async () => {
+    const { resolveUkPlaceMapArrival } = await import(
+      "@/lib/ukPlaceIndex.server"
+    );
+
+    expect(
+      resolveUkPlaceMapArrival(
+        "?place=Sheffield&lat=53.3800941&lng=-1.4789213",
+      ),
+    ).toEqual({ name: "Sheffield", lat: 53.3800941, lng: -1.4789213 });
+    expect(
+      resolveUkPlaceMapArrival(
+        "?place=Free+pints+all+night&lat=53.38&lng=-1.47",
+      ),
+    ).toBeNull();
+    expect(
+      resolveUkPlaceMapArrival("?place=Camden&lat=51.5389171&lng=-0.1418712"),
+    ).toBeNull();
   });
 
   it("opens beyond the base-pub streaming gate with city camera attitude", () => {
@@ -103,6 +138,7 @@ describe("UK place map arrival", () => {
     );
 
     expect(pubMap).toContain("limitedCoverage={Boolean(ukPlaceArrival)}");
+    expect(pubMap).toContain("ukPlaceArrival ? null : (");
     expect(pubMap).toContain(
       "cityLabel={ukPlaceArrival?.name ?? centreArea?.name ?? activeNightArea?.name ?? mapContextName}",
     );

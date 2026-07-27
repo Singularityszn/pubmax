@@ -1,3 +1,5 @@
+import { enabledCityContainingPoint } from "@/lib/cities";
+
 export const UK_PLACE_INDEX_PATH = "/data/uk_base/places.json";
 
 export type UkPlaceKind = "city" | "town" | "village" | "place" | "suburb";
@@ -9,6 +11,13 @@ export type UkPlace = {
   kind: UkPlaceKind;
   /** Postcode area where the source supplies one, used only to disambiguate. */
   context: string;
+  /**
+   * `normaliseUkPlaceQuery(name)`, derived once when the index is parsed.
+   * Every keystroke filters and sorts 7.5k rows, so re-deriving it per compare
+   * put hundreds of milliseconds of NFKD normalisation on the phone's main
+   * thread for the first two characters typed.
+   */
+  search: string;
 };
 
 export type UkPlaceMapArrival = {
@@ -50,6 +59,22 @@ export function normaliseUkPlaceQuery(value: string): string {
     .toLocaleLowerCase("en-GB");
 }
 
+/**
+ * Whether a raw locality tag is a place name we may offer as somebody's town.
+ * OSM address tags carry editing noise (`<different>`) and multi-place lists
+ * (`Hythe;West Hythe`); neither is a name, so neither earns a search row.
+ */
+export function isPublishableUkPlaceName(value: string): boolean {
+  const name = value.trim();
+  return (
+    name.length >= 2 &&
+    name.length <= 100 &&
+    !/[;<>]/.test(name) &&
+    /^[\p{L}\p{N}]/u.test(name) &&
+    !/[\u0000-\u001f\u007f]/u.test(name)
+  );
+}
+
 export function parseUkPlaceIndex(raw: unknown): UkPlace[] {
   if (!raw || typeof raw !== "object") return [];
   const rows = (raw as { places?: unknown }).places;
@@ -61,7 +86,7 @@ export function parseUkPlaceIndex(raw: unknown): UkPlace[] {
     const [rawName, rawLat, rawLng, rawKind, rawContext = ""] = value;
     if (
       typeof rawName !== "string" ||
-      rawName.trim().length < 2 ||
+      !isPublishableUkPlaceName(rawName) ||
       typeof rawLat !== "number" ||
       !Number.isFinite(rawLat) ||
       typeof rawLng !== "number" ||
@@ -75,7 +100,8 @@ export function parseUkPlaceIndex(raw: unknown): UkPlace[] {
     }
     const name = rawName.trim().replace(/\s+/g, " ");
     const context = rawContext.trim().slice(0, 8);
-    const key = `${normaliseUkPlaceQuery(name)}\0${rawLat}\0${rawLng}`;
+    const search = normaliseUkPlaceQuery(name);
+    const key = `${search}\0${rawLat}\0${rawLng}`;
     if (seen.has(key)) continue;
     seen.add(key);
     places.push({
@@ -84,6 +110,7 @@ export function parseUkPlaceIndex(raw: unknown): UkPlace[] {
       lng: rawLng,
       kind: rawKind as UkPlaceKind,
       context,
+      search,
     });
   }
   return places;
@@ -106,15 +133,14 @@ export function searchUkPlaces(
   if (normalizedQuery.length < 2 || limit <= 0) return [];
   const excluded = new Set(excludedNames.map(normaliseUkPlaceQuery));
   return places
-    .filter((place) => {
-      const name = normaliseUkPlaceQuery(place.name);
-      return !excluded.has(name) && name.includes(normalizedQuery);
-    })
+    .filter(
+      (place) =>
+        !excluded.has(place.search) && place.search.includes(normalizedQuery),
+    )
     .sort((left, right) => {
-      const leftName = normaliseUkPlaceQuery(left.name);
-      const rightName = normaliseUkPlaceQuery(right.name);
       return (
-        matchRank(leftName, normalizedQuery) - matchRank(rightName, normalizedQuery) ||
+        matchRank(left.search, normalizedQuery) -
+          matchRank(right.search, normalizedQuery) ||
         KIND_RANK[left.kind] - KIND_RANK[right.kind] ||
         left.name.localeCompare(right.name, "en-GB") ||
         left.context.localeCompare(right.context, "en-GB") ||
@@ -138,16 +164,18 @@ export function parseUkPlaceMapArrival(
   const lat = Number(rawLat);
   const lng = Number(rawLng);
   if (
-    name.length < 2 ||
-    name.length > 100 ||
-    /[\u0000-\u001f\u007f]/u.test(name) ||
+    !isPublishableUkPlaceName(name) ||
     rawLat === null ||
     rawLng === null ||
     rawLat.trim() === "" ||
     rawLng.trim() === "" ||
     !Number.isFinite(lat) ||
     !Number.isFinite(lng) ||
-    !inUkBounds(lat, lng)
+    !inUkBounds(lat, lng) ||
+    // A point inside a curated city IS that city: answering it as an uncovered
+    // place prints "no prices logged here yet" over live priced pins and
+    // strips the chrome that does answer there.
+    enabledCityContainingPoint(lat, lng) !== null
   ) {
     return null;
   }

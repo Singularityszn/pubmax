@@ -55,6 +55,17 @@ describe("UK place index builder", () => {
     expect(newtons[1]?.[1]).toBeGreaterThan(56);
   });
 
+  it("refuses tag noise that is not a place name", () => {
+    const index = buildUkPlaceIndex([
+      node(1, 54.96, -1.6, { "addr:place": "<different>" }),
+      node(2, 51.07, 1.08, { "addr:town": "Hythe;West Hythe" }),
+      node(3, 52.7, -1.2, { "addr:town": "- Loughborough" }),
+      node(4, 53.38, -1.47, { "addr:city": "Sheffield" }),
+    ]);
+
+    expect(index.places.map((place: unknown[]) => place[0])).toEqual(["Sheffield"]);
+  });
+
   it("ignores blank locality tags and elements without usable coordinates", () => {
     const index = buildUkPlaceIndex([
       node(1, 53.38, -1.47, { "addr:city": " " }),
