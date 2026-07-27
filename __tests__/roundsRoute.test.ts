@@ -525,17 +525,19 @@ describe("POST /api/rounds/[code] — actions", () => {
     });
   });
 
-  it("charges drink lines the same per-device price budget as /api/price-submit", async () => {
+  // Drink lines for a spend, cheap enough to stay inside the round envelope.
+  const priceLines = (count: number, from: number) =>
+    Array.from({ length: count }, (_, index) => ({
+      drinkName: `Pint ${from + index}`,
+      drinkCategory: "beer",
+      priceGbp: 6.2,
+    }));
+
+  it("charges the per-device price budget per line, and a replay nothing", async () => {
     // A Round with drink lines is a price submission, so it pays the same
-    // cross-venue device budget (30/hour), one unit per line. 20 then 11 lines
-    // crosses it, and the refusal lands BEFORE the diary write so no turn is
-    // half recorded.
-    const lines = (count: number, from: number) =>
-      Array.from({ length: count }, (_, index) => ({
-        drinkName: `Pint ${from + index}`,
-        drinkCategory: "beer",
-        priceGbp: 6.2,
-      }));
+    // cross-venue device budget (30/hour) one unit per submitted line. A retry
+    // of a turn already on record submits nothing, so it must cost nothing:
+    // three full turns still fit the hour after one of them is replayed.
     const device = { "x-forwarded-for": "198.51.100.61" };
     const { round } = await newRound("ken");
     await action(round.code, {
@@ -543,38 +545,85 @@ describe("POST /api/rounds/[code] — actions", () => {
       handle: "ken",
       venueId: "venue-1",
     });
+    const keep = (clientRef: string, count: number, from: number) =>
+      action(
+        round.code,
+        {
+          action: "recordSpend",
+          handle: "ken",
+          payerHandle: "ken",
+          venueId: "venue-1",
+          clientRef,
+          items: priceLines(count, from),
+        },
+        device,
+      );
 
-    const first = await action(
-      round.code,
-      {
-        action: "recordSpend",
-        handle: "ken",
-        payerHandle: "ken",
-        venueId: "venue-1",
-        clientRef: "budget-1",
-        items: lines(20, 1),
-      },
-      device,
-    );
-    expect(first.status).toBe(200);
+    expect((await keep("budget-1", 10, 1)).status).toBe(200);
+    // The same turn again after a lost response: idempotent, and free.
+    expect((await keep("budget-1", 10, 1)).status).toBe(200);
+    expect((await keep("budget-2", 10, 11)).status).toBe(200);
+    expect((await keep("budget-3", 10, 21)).status).toBe(200);
 
-    const second = await action(
-      round.code,
-      {
-        action: "recordSpend",
-        handle: "ken",
-        payerHandle: "ken",
-        venueId: "venue-1",
-        clientRef: "budget-2",
-        items: lines(11, 21),
-      },
-      device,
-    );
-    expect(second.status).toBe(429);
-    expect(await second.json()).toEqual({ error: "Too many price logs, slow down." });
+    // Thirty lines spent, so the next one is refused before the diary write.
+    const overBudget = await keep("budget-4", 1, 31);
+    expect(overBudget.status).toBe(429);
+    expect(await overBudget.json()).toEqual({ error: "Too many price logs, slow down." });
 
     const state = (await (await get(round.code)).json()) as RoundState;
-    expect(state.spends.map((spend) => spend.clientRef)).toEqual(["budget-1"]);
+    expect(state.spends.map((spend) => spend.clientRef)).toEqual([
+      "budget-1",
+      "budget-2",
+      "budget-3",
+    ]);
+  });
+
+  it("refuses more price lines in one turn than a Round may log", async () => {
+    const device = { "x-forwarded-for": "198.51.100.62" };
+    const { round } = await newRound("ken");
+    await action(round.code, {
+      action: "addStop",
+      handle: "ken",
+      venueId: "venue-1",
+    });
+
+    const tooMany = await action(
+      round.code,
+      {
+        action: "recordSpend",
+        handle: "ken",
+        payerHandle: "ken",
+        venueId: "venue-1",
+        clientRef: "ceiling-1",
+        items: priceLines(11, 1),
+      },
+      device,
+    );
+    expect(tooMany.status).toBe(400);
+    expect(await tooMany.json()).toEqual({
+      error: "Log up to 10 drink prices in one round. Keep this one, then start another.",
+    });
+    expect(((await (await get(round.code)).json()) as RoundState).spends).toEqual([]);
+
+    // Demo lines are never submitted, so they cost nothing and do not count
+    // towards the ceiling: ten observations plus five diary lines is fine.
+    const withDemo = await action(
+      round.code,
+      {
+        action: "recordSpend",
+        handle: "ken",
+        payerHandle: "ken",
+        venueId: "venue-1",
+        clientRef: "ceiling-2",
+        items: [
+          ...priceLines(10, 1),
+          ...priceLines(5, 20).map((line) => ({ ...line, priceSource: "demo" })),
+        ],
+      },
+      device,
+    );
+    expect(withDemo.status).toBe(200);
+    expect(((await withDemo.json()) as RoundState).spends[0]?.items).toHaveLength(15);
   });
 
   it("rejects a payer who is not in the Round", async () => {

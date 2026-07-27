@@ -28,6 +28,7 @@ import {
 } from "@/lib/drinks";
 import { normalizeHandle } from "@/lib/profiles";
 import {
+  ROUND_SPEND_PRICE_LINE_MAX,
   isValidRoundCode,
   normalizeRoundCode,
   roundTurn,
@@ -608,6 +609,8 @@ function RoundSpendComposer({
     return untouched ? "demo" : "round";
   }
 
+  const firstPartyDrafts = items.filter((item) => item.priceSource === "round");
+
   // What the drink row would be logged as as it stands right now, so the note
   // beside it never describes a figure the drinker has already changed.
   const draftSource = draftPriceSource(
@@ -625,6 +628,15 @@ function RoundSpendComposer({
       return;
     }
     const priceSource = draftPriceSource(drinkName, manualCategory, cleanedPrice);
+    if (
+      priceSource === "round" &&
+      firstPartyDrafts.length >= ROUND_SPEND_PRICE_LINE_MAX
+    ) {
+      setError(
+        `You can log ${ROUND_SPEND_PRICE_LINE_MAX} drink prices in one round. Keep this one, then start another.`,
+      );
+      return;
+    }
     setItems((held) => [
       ...held,
       {

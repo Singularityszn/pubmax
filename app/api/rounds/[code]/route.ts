@@ -23,6 +23,7 @@ import { resolveMessageHandle } from "@/lib/messageAuth";
 import { isLimited } from "@/lib/pintDrops";
 import { gateHandleAction } from "@/lib/profileOwnership";
 import {
+  ROUND_SPEND_PRICE_LINE_MAX,
   cleanNewRoundSpend,
   firstPartyPriceItems,
   isValidRoundCode,
@@ -65,6 +66,102 @@ export async function GET(request: Request, ctx: Ctx): Promise<Response> {
   const state = await roundsStore().getByCode(code);
   if (!state) return jsonNoStore({ error: "That Round doesn't exist." }, { status: 404 });
   return jsonNoStore(state, { status: 200 });
+}
+
+// One immutable buying turn, plus the price submissions its drink lines earn.
+async function recordSpend(
+  request: Request,
+  code: string,
+  handle: string,
+  body: Record<string, unknown>,
+): Promise<Response> {
+  const store = roundsStore();
+  const requestedVenueId = readString(body.venueId) ?? "";
+  const venueLookup = await lookupCanonicalVenue(requestedVenueId);
+  if (venueLookup.status === "unavailable") {
+    return jsonNoStore(
+      { error: "Venue list is unavailable right now, try again shortly." },
+      { status: 503 },
+    );
+  }
+  if (venueLookup.status !== "found" || !isPubVenueKind(venueLookup.venue.kind)) {
+    return jsonNoStore({ error: "Pick a pub from this Round." }, { status: 400 });
+  }
+  const spendInput = {
+    clientRef: body.clientRef,
+    payerHandle: body.payerHandle,
+    recordedByHandle: handle,
+    venueId: venueLookup.canonicalId,
+    venueName: venueLookup.venue.name,
+    totalGbp: body.totalGbp,
+    items: body.items,
+  };
+  const clean = cleanNewRoundSpend(spendInput);
+  if (!clean) return errorResponse("invalid");
+
+  // A plain total is a diary figure, not one drink, so it stops here. Itemised
+  // prices enter the existing community store and earn map authority only
+  // through its independent-submitter and age gates. A line whose figure came
+  // off a seeded demo menu is nobody's observation, so it stays in the diary,
+  // labelled there, and is never submitted.
+  const observed = firstPartyPriceItems(clean.items);
+  if (observed.length > ROUND_SPEND_PRICE_LINE_MAX) {
+    return jsonNoStore(
+      {
+        error: `Log up to ${ROUND_SPEND_PRICE_LINE_MAX} drink prices in one round. Keep this one, then start another.`,
+      },
+      { status: 400 },
+    );
+  }
+  const actor = deriveCommunityPriceActor(request);
+
+  // A Round with drink lines IS a price submission, so it pays the same
+  // cross-venue device budget /api/price-submit charges, one unit per line that
+  // will actually be submitted. Without it, changing door would reset the cap
+  // that stops one device spraying prices across the map. Charged BEFORE the
+  // diary write so a refusal never leaves half a Round's lines submitted; the
+  // quick total is untouched, so the night can still be recorded. A replay of a
+  // turn already on record pays nothing: it will submit nothing, and charging
+  // it would let a flaky connection lock a drinker out of a Round they have
+  // already kept.
+  if (observed.length > 0) {
+    const onRecord = await store.getByCode(code);
+    const alreadyKept =
+      onRecord?.spends.some((spend) => spend.clientRef === clean.clientRef) ?? false;
+    if (!alreadyKept) {
+      const actorLimitKey = `price-submit-actor:${actor ?? "anon"}`;
+      for (let charged = 0; charged < observed.length; charged += 1) {
+        if (await isLimited(actorLimitKey, actorLimitKey, 30, 3_600_000)) {
+          return jsonNoStore(
+            { error: "Too many price logs, slow down." },
+            { status: 429 },
+          );
+        }
+      }
+    }
+  }
+
+  const result = await store.recordSpend(code, spendInput);
+  if (!result.ok) return errorResponse(result.error);
+
+  if (result.created && observed.length > 0) {
+    const stored = result.state.spends.find(
+      (spend) => spend.clientRef === clean.clientRef,
+    );
+    const recordedAt = stored ? Date.parse(stored.recordedAt) : Date.now();
+    for (const item of observed) {
+      await submitCommunityPrice(
+        {
+          venueId: clean.venueId,
+          drinkCategory: item.drinkCategory,
+          priceGbp: item.pricePence / 100,
+          actor,
+        },
+        recordedAt,
+      );
+    }
+  }
+  return jsonNoStore(result.state, { status: 200 });
 }
 
 export async function POST(request: Request, ctx: Ctx): Promise<Response> {
@@ -121,78 +218,8 @@ export async function POST(request: Request, ctx: Ctx): Promise<Response> {
       });
       return result.ok ? jsonNoStore(result.state, { status: 200 }) : errorResponse(result.error);
     }
-    case "recordSpend": {
-      const requestedVenueId = readString(body.venueId) ?? "";
-      const venueLookup = await lookupCanonicalVenue(requestedVenueId);
-      if (venueLookup.status === "unavailable") {
-        return jsonNoStore(
-          { error: "Venue list is unavailable right now, try again shortly." },
-          { status: 503 },
-        );
-      }
-      if (venueLookup.status !== "found" || !isPubVenueKind(venueLookup.venue.kind)) {
-        return jsonNoStore({ error: "Pick a pub from this Round." }, { status: 400 });
-      }
-      const spendInput = {
-        clientRef: body.clientRef,
-        payerHandle: body.payerHandle,
-        recordedByHandle: handle,
-        venueId: venueLookup.canonicalId,
-        venueName: venueLookup.venue.name,
-        totalGbp: body.totalGbp,
-        items: body.items,
-      };
-      const clean = cleanNewRoundSpend(spendInput);
-      if (!clean) return errorResponse("invalid");
-
-      // A plain total is a diary figure, not one drink, so it stops here.
-      // Itemised prices enter the existing community store and earn map
-      // authority only through its independent-submitter and age gates. A line
-      // whose figure came off a seeded demo menu is nobody's observation, so it
-      // stays in the diary, labelled there, and is never submitted.
-      const observed = firstPartyPriceItems(clean.items);
-      const actor = deriveCommunityPriceActor(request);
-
-      // A Round with drink lines IS a price submission, so it pays the same
-      // cross-venue device budget /api/price-submit charges, one unit per line.
-      // Without it, changing door would reset the cap that stops one device
-      // spraying prices across the map. Charged BEFORE the diary write so a
-      // refusal never leaves half a Round's lines submitted; the quick total is
-      // untouched, so the night can still be recorded.
-      if (observed.length > 0) {
-        const actorLimitKey = `price-submit-actor:${actor ?? "anon"}`;
-        for (let charged = 0; charged < observed.length; charged += 1) {
-          if (await isLimited(actorLimitKey, actorLimitKey, 30, 3_600_000)) {
-            return jsonNoStore(
-              { error: "Too many price logs, slow down." },
-              { status: 429 },
-            );
-          }
-        }
-      }
-
-      const result = await store.recordSpend(code, spendInput);
-      if (!result.ok) return errorResponse(result.error);
-
-      if (result.created && observed.length > 0) {
-        const stored = result.state.spends.find(
-          (spend) => spend.clientRef === clean.clientRef,
-        );
-        const recordedAt = stored ? Date.parse(stored.recordedAt) : Date.now();
-        for (const item of observed) {
-          await submitCommunityPrice(
-            {
-              venueId: clean.venueId,
-              drinkCategory: item.drinkCategory,
-              priceGbp: item.pricePence / 100,
-              actor,
-            },
-            recordedAt,
-          );
-        }
-      }
-      return jsonNoStore(result.state, { status: 200 });
-    }
+    case "recordSpend":
+      return recordSpend(request, code, handle, body);
     case "close": {
       const result = await store.close(code, handle);
       return result.ok ? jsonNoStore(result.state, { status: 200 }) : errorResponse(result.error);
