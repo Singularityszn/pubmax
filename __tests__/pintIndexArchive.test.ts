@@ -7,6 +7,7 @@ import { describe, expect, it } from "vitest";
 import { LONDON_BOROUGH_CLASSIFIER_VERSION } from "@/lib/londonBoroughPoint.mjs";
 import type { PintIndexSnapshot } from "@/lib/pintIndex";
 import {
+  amendArchivedMonth,
   buildArchivedMonth,
   londonMonthOf,
   monthPublishBlocker,
@@ -223,6 +224,62 @@ describe("monthly Pint Index editions", () => {
       previousObservationsSha256: published.archive.observationsSha256,
     }]);
     expect(validateArchivedPintIndexSnapshot(corrected.archive, { month: "2026-06", sha256 }).ok).toBe(true);
+  });
+
+  it("corrects a published month out of its own edition, never out of a snapshot that moved on", () => {
+    const published = freeze();
+    expect(published.observations.map((row) => row.venueId)).toEqual(["a", "b"]);
+
+    // Months later the live index covers a different window entirely, so a
+    // rebuild would hand back nothing at all. That silence is absence, not a
+    // finding about June, and a note about one wrong price must never be the
+    // thing that withdraws every price in the edition.
+    const movedOn = live({
+      status: "empty",
+      generatedAt: "2027-01-16T00:00:00.000Z",
+      observationWindow: { start: "2026-12-01T00:00:00.000Z", end: "2027-01-15T23:59:59.000Z" },
+      observations: [],
+      sources: [],
+    });
+    expect(buildArchivedMonth({
+      snapshot: movedOn, month: "2026-06", publishedAt: "2027-01-20T09:00:00.000Z", sha256,
+    }).observations).toEqual([]);
+
+    const amended = amendArchivedMonth({ edition: published, withdrawVenueIds: ["b"], sha256 });
+    if (!amended.ok) throw new Error(amended.reason);
+    expect(amended.archive.observations.map((row) => row.venueId)).toEqual(["a"]);
+
+    const corrected = planArchivePublish({
+      existing: published,
+      rebuilt: amended.archive,
+      correctionNote: "Also June cited a menu page that never carried that price.",
+      issuedAt: "2027-01-20T09:00:00.000Z",
+      sha256,
+    });
+    expect(corrected.ok).toBe(true);
+    if (!corrected.ok) throw new Error("unreachable");
+    expect(corrected.archive.observations.map((row) => row.venueId)).toEqual(["a"]);
+    expect(corrected.archive.archive.revision).toBe(2);
+    expect(corrected.archive.archive.corrections[0].previousObservationsSha256)
+      .toBe(published.archive.observationsSha256);
+    expect(validateArchivedPintIndexSnapshot(corrected.archive, { month: "2026-06", sha256 }).ok).toBe(true);
+  });
+
+  it("refuses to withdraw a price the edition never published", () => {
+    expect(amendArchivedMonth({ edition: freeze(), withdrawVenueIds: ["nope"], sha256 })).toEqual({
+      ok: false,
+      reason: "2026-06 publishes no observation for nope, so there is nothing to withdraw",
+    });
+  });
+
+  it("leaves a valid empty edition when every price in it is withdrawn", () => {
+    const amended = amendArchivedMonth({ edition: freeze(), withdrawVenueIds: ["a", "b"], sha256 });
+    if (!amended.ok) throw new Error(amended.reason);
+    expect(amended.archive.status).toBe("empty");
+    expect(amended.archive.observations).toEqual([]);
+    // The source only that withdrawn price cited leaves with it.
+    expect(amended.archive.sources).toEqual([]);
+    expect(validateArchivedPintIndexSnapshot(amended.archive, { month: "2026-06", sha256 }).ok).toBe(true);
   });
 
   it("rejects an edition whose observations no longer match its published hash", () => {
