@@ -32,12 +32,18 @@ import { isCurrentNightOutPlace } from "../lib/nightOutPlaceContract.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, "..");
-const RAW_PATH = path.join(ROOT, "public", "data", "pint_prices_app_dataset.json");
+const RAW_PATH = path.join(
+  ROOT,
+  "public",
+  "data",
+  "pint_prices_app_dataset.json",
+);
 const SLIM_PATH = path.join(ROOT, "public", "data", "venues_slim.json");
 const DATA_DIR = path.join(ROOT, "public", "data");
 const FAMOUS_VENUE_PATHS = [
   path.join(ROOT, "data", "famous_venues", "bars.json"),
   path.join(ROOT, "data", "famous_venues", "late_food.json"),
+  path.join(ROOT, "data", "famous_venues", "restaurants.json"),
 ];
 
 // First-paint budget: the eager map payload is the manifest + core shard ONLY.
@@ -67,13 +73,16 @@ function inLondon(lat, lng) {
 
 function typeRelativePriceBands(rows) {
   const bands = new Map();
-  for (const kind of ["bar", "food"]) {
+  for (const kind of ["bar", "food", "restaurant"]) {
     const ranked = rows
       .filter((row) => row.kind === kind)
       .slice()
-      .sort((a, b) => a.anchor.price - b.anchor.price || a.id.localeCompare(b.id));
+      .sort(
+        (a, b) => a.anchor.price - b.anchor.price || a.id.localeCompare(b.id),
+      );
     const lowCutoff = ranked[Math.ceil(ranked.length / 3) - 1]?.anchor.price;
-    const midCutoff = ranked[Math.ceil((ranked.length * 2) / 3) - 1]?.anchor.price;
+    const midCutoff =
+      ranked[Math.ceil((ranked.length * 2) / 3) - 1]?.anchor.price;
     for (const row of ranked) {
       bands.set(
         row.id,
@@ -92,7 +101,7 @@ function famousVenueFilterHints(row) {
   return {
     searchText: `${row.name} ${row.address} ${row.borough}`.toLowerCase(),
     amenities: {
-      food: row.kind === "food",
+      food: row.kind === "food" || row.kind === "restaurant",
       cocktails: row.kind === "bar" && row.anchor.kind === "house_cocktail",
       beerGarden: false,
       liveSports: false,
@@ -111,7 +120,9 @@ function famousVenueFilterHints(row) {
           ],
         }
       : {}),
-    ...(row.kind === "food" ? { cuisineTags: ["kitchen"] } : {}),
+    ...(row.kind === "food" || row.kind === "restaurant"
+      ? { cuisineTags: ["kitchen"] }
+      : {}),
   };
 }
 
@@ -119,7 +130,9 @@ function assertCurrentFamousVenueRows(rows, now) {
   const invalid = rows.filter((row) => !isCurrentNightOutPlace(row, now));
   if (invalid.length > 0) {
     const nowMs = now instanceof Date ? now.getTime() : Number(now);
-    const checkedAt = Number.isFinite(nowMs) ? new Date(nowMs).toISOString() : String(now);
+    const checkedAt = Number.isFinite(nowMs)
+      ? new Date(nowMs).toISOString()
+      : String(now);
     throw new Error(
       `Famous venue current-trading verification failed at ${checkedAt}: ${invalid
         .map((row) => `${row.id} (${row.observedAt} to ${row.expiresAt})`)
@@ -156,7 +169,11 @@ function stableVenueIdFromKey(key) {
 // --- filter hint helpers ------------------------------------------------------
 
 function truthyFlag(value) {
-  return ["yes", "true", "y", "1"].includes(String(value ?? "").trim().toLowerCase());
+  return ["yes", "true", "y", "1"].includes(
+    String(value ?? "")
+      .trim()
+      .toLowerCase(),
+  );
 }
 
 const NA_BRANDS = [
@@ -227,13 +244,25 @@ const HERITAGE_TERMS = [
 // the slim index only needs soft drink-lens hints, not a full menu DB.
 const DRINK_BRAND_HINTS = [
   { id: "guinness", category: "beer", needles: ["guinness"] },
-  { id: "neck-oil", category: "beer", needles: ["neck oil", "beavertown", "bevertown"] },
+  {
+    id: "neck-oil",
+    category: "beer",
+    needles: ["neck oil", "beavertown", "bevertown"],
+  },
   { id: "estrella", category: "beer", needles: ["estrella"] },
   { id: "peroni", category: "beer", needles: ["peroni"] },
   { id: "amstel", category: "beer", needles: ["amstel"] },
   { id: "madri", category: "beer", needles: ["madri", "madrí"] },
-  { id: "camden-hells", category: "beer", needles: ["camden hell", "hells lager", "camden hells"] },
-  { id: "birra-moretti", category: "beer", needles: ["moretti", "birra moretti"] },
+  {
+    id: "camden-hells",
+    category: "beer",
+    needles: ["camden hell", "hells lager", "camden hells"],
+  },
+  {
+    id: "birra-moretti",
+    category: "beer",
+    needles: ["moretti", "birra moretti"],
+  },
   { id: "sipsmith", category: "gin", needles: ["sipsmith"] },
   { id: "tanqueray", category: "gin", needles: ["tanqueray"] },
   { id: "bombay-sapphire", category: "gin", needles: ["bombay"] },
@@ -242,12 +271,24 @@ const DRINK_BRAND_HINTS = [
   { id: "beefeater", category: "gin", needles: ["beefeater"] },
   { id: "absolut", category: "vodka", needles: ["absolut"] },
   { id: "smirnoff", category: "vodka", needles: ["smirnoff"] },
-  { id: "grey-goose", category: "vodka", needles: ["grey goose", "gray goose"] },
+  {
+    id: "grey-goose",
+    category: "vodka",
+    needles: ["grey goose", "gray goose"],
+  },
   { id: "belvedere", category: "vodka", needles: ["belvedere"] },
   { id: "ketel-one", category: "vodka", needles: ["ketel one"] },
   { id: "jameson", category: "whisky", needles: ["jameson"] },
-  { id: "jack-daniels", category: "whisky", needles: ["jack daniel", "jack daniels"] },
-  { id: "johnnie-walker", category: "whisky", needles: ["johnnie walker", "johnny walker"] },
+  {
+    id: "jack-daniels",
+    category: "whisky",
+    needles: ["jack daniel", "jack daniels"],
+  },
+  {
+    id: "johnnie-walker",
+    category: "whisky",
+    needles: ["johnnie walker", "johnny walker"],
+  },
   { id: "bacardi", category: "rum", needles: ["bacardi"] },
   { id: "captain-morgan", category: "rum", needles: ["captain morgan"] },
   { id: "havana-club", category: "rum", needles: ["havana club"] },
@@ -256,7 +297,11 @@ const DRINK_BRAND_HINTS = [
   { id: "malbec", category: "wine", needles: ["malbec"] },
   { id: "chardonnay", category: "wine", needles: ["chardonnay"] },
   { id: "negroni", category: "cocktail", needles: ["negroni"] },
-  { id: "espresso-martini", category: "cocktail", needles: ["espresso martini"] },
+  {
+    id: "espresso-martini",
+    category: "cocktail",
+    needles: ["espresso martini"],
+  },
   { id: "aperol-spritz", category: "cocktail", needles: ["aperol"] },
   { id: "mojito", category: "cocktail", needles: ["mojito"] },
 ];
@@ -267,7 +312,10 @@ const CATEGORY_HINT_TOKENS = [
   ["gin", ["gin"]],
   ["vodka", ["vodka"]],
   ["rum", ["rum"]],
-  ["cocktail", ["cocktail", "spritz", "negroni", "martini", "margarita", "mojito"]],
+  [
+    "cocktail",
+    ["cocktail", "spritz", "negroni", "martini", "margarita", "mojito"],
+  ],
   ["shot", ["shot", "shots", "tequila", "sambuca"]],
 ];
 
@@ -445,7 +493,10 @@ const CURATED_VENUES = {
 };
 
 function normaliseVenueName(value) {
-  return String(value ?? "").trim().toLowerCase().replace(/\s+/g, " ");
+  return String(value ?? "")
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, " ");
 }
 
 function lookupCuratedVenue(pubName, address = "") {
@@ -478,7 +529,8 @@ function buildCurationHints(prices) {
     .join(" ")
     .toLowerCase();
   const inferredHeritage =
-    explicit.hasHeritage !== true && HERITAGE_TERMS.some((term) => haystack.includes(term));
+    explicit.hasHeritage !== true &&
+    HERITAGE_TERMS.some((term) => haystack.includes(term));
   // Wikipedia "List of pubs in London" venues carry a sourced heritage note in
   // curation (getVenueCuration). Mirror that here so the build-time slim
   // `hasStory` flag matches the runtime heritage filter — otherwise the map's
@@ -493,13 +545,16 @@ function buildCurationHints(prices) {
     String(price.source_datasets ?? "").includes("wikipedia_london_list"),
   );
   const wikipediaUrl =
-    wikipediaRow?.comment?.match(/https:\/\/en\.wikipedia\.org\/wiki\/\S+/)?.[0] ??
-    wikipediaRow?.comment?.replace(/^Wikipedia:\s*/i, "").trim();
+    wikipediaRow?.comment?.match(
+      /https:\/\/en\.wikipedia\.org\/wiki\/\S+/,
+    )?.[0] ?? wikipediaRow?.comment?.replace(/^Wikipedia:\s*/i, "").trim();
   const wikipediaListed = Boolean(wikipediaRow && wikipediaUrl);
 
   return {
-    nearWater: explicit.nearWater ?? WATER_TERMS.some((term) => haystack.includes(term)),
-    hasStory: explicit.hasHeritage === true || inferredHeritage || wikipediaListed,
+    nearWater:
+      explicit.nearWater ?? WATER_TERMS.some((term) => haystack.includes(term)),
+    hasStory:
+      explicit.hasHeritage === true || inferredHeritage || wikipediaListed,
   };
 }
 
@@ -513,7 +568,11 @@ function buildFilterHints(prices, venueId, scrapedIds) {
       first.boroughs_visible,
       ...prices.map((price) => price.pint_name),
     ]
-      .map((part) => String(part ?? "").trim().toLowerCase())
+      .map((part) =>
+        String(part ?? "")
+          .trim()
+          .toLowerCase(),
+      )
       .filter(Boolean),
   );
   const curation = buildCurationHints(prices);
@@ -529,7 +588,16 @@ function buildFilterHints(prices, venueId, scrapedIds) {
 
   // Stable drink accent for scraped pubs that have no pint-name categories yet,
   // so map pins match the /pubs gallery drink pictures.
-  const ACCENT_POOL = ["beer", "wine", "cocktail", "whisky", "gin", "rum", "vodka", "shot"];
+  const ACCENT_POOL = [
+    "beer",
+    "wine",
+    "cocktail",
+    "whisky",
+    "gin",
+    "rum",
+    "vodka",
+    "shot",
+  ];
   let drinkCategories = drinkHints.drinkCategories;
   if (scraped && (!drinkCategories || drinkCategories.length === 0)) {
     let hash = 2166136261;
@@ -547,13 +615,19 @@ function buildFilterHints(prices, venueId, scrapedIds) {
       cocktails: prices.some((price) => truthyFlag(price.cocktails)),
       beerGarden: prices.some((price) => truthyFlag(price.beer_garden)),
       liveSports: prices.some((price) => truthyFlag(price.live_sports)),
-      nonAlcoholic: prices.some((price) => isNonAlcoholicDrinkName(price.pint_name)),
+      nonAlcoholic: prices.some((price) =>
+        isNonAlcoholicDrinkName(price.pint_name),
+      ),
     },
     curation,
-    canonical: prices.some((price) => price.is_clean_canonical_app_row === true),
+    canonical: prices.some(
+      (price) => price.is_clean_canonical_app_row === true,
+    ),
     ...(scraped ? { scraped: true } : {}),
     ...(drinkCategories.length ? { drinkCategories } : {}),
-    ...(drinkHints.drinkBrands.length ? { drinkBrands: drinkHints.drinkBrands } : {}),
+    ...(drinkHints.drinkBrands.length
+      ? { drinkBrands: drinkHints.drinkBrands }
+      : {}),
     ...(drinkHints.drinkText ? { drinkText: drinkHints.drinkText } : {}),
     ...(cuisineTags.length ? { cuisineTags } : {}),
   };
@@ -572,7 +646,12 @@ async function main() {
   // + drink accents even when the underlying pint row is already canonical.
   const scrapedIds = new Set();
   try {
-    const enrichmentPath = path.join(ROOT, "public", "data", "venue_menu_enrichment.json");
+    const enrichmentPath = path.join(
+      ROOT,
+      "public",
+      "data",
+      "venue_menu_enrichment.json",
+    );
     const enrichment = JSON.parse(await readFile(enrichmentPath, "utf8"));
     for (const id of Object.keys(enrichment?.venues ?? {})) scrapedIds.add(id);
   } catch {
@@ -608,7 +687,9 @@ async function main() {
   const famousRows = assertCurrentFamousVenueRows(
     (
       await Promise.all(
-        FAMOUS_VENUE_PATHS.map(async (file) => JSON.parse(await readFile(file, "utf8"))),
+        FAMOUS_VENUE_PATHS.map(async (file) =>
+          JSON.parse(await readFile(file, "utf8")),
+        ),
       )
     ).flat(),
     new Date(),
@@ -650,7 +731,9 @@ async function main() {
     const numericPrices = prices
       .map((p) => p.price_gbp)
       .filter((p) => typeof p === "number" && Number.isFinite(p));
-    const cheapestPrice = numericPrices.length ? Math.min(...numericPrices) : null;
+    const cheapestPrice = numericPrices.length
+      ? Math.min(...numericPrices)
+      : null;
     const id = stableVenueIdFromKey(key);
 
     const lat = Number(first.latitude);
@@ -689,6 +772,7 @@ async function main() {
       kind: row.kind,
       priceBand: famousPriceBands.get(row.id),
       anchorLabel: row.anchor.label,
+      ...(row.anchor.course ? { anchorCourse: row.anchor.course } : {}),
       anchorObservedAt: row.anchor.observedAt,
       anchorSourceUrl: row.anchor.sourceUrl,
       filterHints: famousVenueFilterHints(row),
@@ -730,7 +814,12 @@ async function main() {
     const text = JSON.stringify(venues);
     outerBytesTotal += Buffer.byteLength(text);
     await writeFile(path.join(DATA_DIR, shardFileForSlug(slug)), text);
-    shardReport.push({ slug, borough, count: venues.length, bytes: Buffer.byteLength(text) });
+    shardReport.push({
+      slug,
+      borough: borough ?? slug,
+      count: venues.length,
+      bytes: Buffer.byteLength(text),
+    });
   }
 
   const manifestBytes = Buffer.byteLength(manifestText);
@@ -744,13 +833,19 @@ async function main() {
   const kb = (bytes) => (bytes / 1024).toFixed(1);
   const mb = (bytes) => (bytes / (1024 * 1024)).toFixed(2);
 
-  console.log(`raw:   ${rows.length} price rows   ${mb(rawBytes)} MB (${rawBytes} bytes)`);
-  console.log(`slim:  ${slim.length} venues       ${kb(slimBytes)} KB (${slimBytes} bytes)`);
+  console.log(
+    `raw:   ${rows.length} price rows   ${mb(rawBytes)} MB (${rawBytes} bytes)`,
+  );
+  console.log(
+    `slim:  ${slim.length} venues       ${kb(slimBytes)} KB (${slimBytes} bytes)`,
+  );
   console.log(
     `saved: ${mb(rawBytes - slimBytes)} MB   (slim is ${(100 - (slimBytes / rawBytes) * 100).toFixed(1)}% smaller)`,
   );
   console.log(`wrote: ${path.relative(ROOT, SLIM_PATH)}`);
-  console.log(`detail rows: ${slim.length} venues ${mb(detailBytes)} MB (${detailBytes} bytes)`);
+  console.log(
+    `detail rows: ${slim.length} venues ${mb(detailBytes)} MB (${detailBytes} bytes)`,
+  );
   console.log(`wrote: ${path.relative(ROOT, DETAIL_ROWS_PATH)}`);
   console.log(`wrote: ${path.relative(ROOT, DETAIL_INDEX_PATH)}`);
 
@@ -762,7 +857,9 @@ async function main() {
     .sort((a, b) => a - b)
     .map((z) => `z${z}:${zoneCounts[z]}`)
     .join(" ");
-  console.log(`zones: ${zoneSummary}${zoneUnknown ? ` unknown:${zoneUnknown}` : ""} (nearest-station)`);
+  console.log(
+    `zones: ${zoneSummary}${zoneUnknown ? ` unknown:${zoneUnknown}` : ""} (nearest-station)`,
+  );
 
   console.log("");
   console.log(`shards: ${outer.size} lazy outer shard(s) + core`);
@@ -770,7 +867,9 @@ async function main() {
     `  core (eager):  ${core.length} venues   ${kb(coreBytes)} KB   (+ manifest ${kb(manifestBytes)} KB)`,
   );
   for (const { slug, count, bytes } of shardReport) {
-    console.log(`  ${slug.padEnd(24)} ${String(count).padStart(4)} venues   ${kb(bytes)} KB`);
+    console.log(
+      `  ${slug.padEnd(24)} ${String(count).padStart(4)} venues   ${kb(bytes)} KB`,
+    );
   }
   console.log(
     `  EAGER first-paint: ${kb(eagerBytes)} KB / ${kb(EAGER_BUDGET_BYTES)} KB budget`,
@@ -794,9 +893,16 @@ async function main() {
   }
 }
 
-export { assertCurrentFamousVenueRows, buildCurationHints, typeRelativePriceBands };
+export {
+  assertCurrentFamousVenueRows,
+  buildCurationHints,
+  typeRelativePriceBands,
+};
 
-if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+if (
+  process.argv[1] &&
+  path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)
+) {
   main().catch((err) => {
     console.error(err);
     process.exit(1);

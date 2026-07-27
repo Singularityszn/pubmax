@@ -7,9 +7,7 @@ export type SlimCurationInput = {
   source_datasets?: unknown;
 };
 
-export function buildCurationHints(
-  prices: readonly SlimCurationInput[],
-): {
+export function buildCurationHints(prices: readonly SlimCurationInput[]): {
   nearWater: boolean;
   hasStory: boolean;
 };
@@ -25,7 +23,7 @@ export function assertCurrentFamousVenueRows<
 export function typeRelativePriceBands<
   T extends {
     id: string;
-    kind: "bar" | "food";
+    kind: "bar" | "food" | "restaurant";
     anchor: { price: number };
   },
 >(rows: readonly T[]): Map<string, 0 | 1 | 2>;

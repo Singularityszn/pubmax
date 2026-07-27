@@ -3,31 +3,40 @@ import { publicApiError } from "@/lib/apiError";
 import {
   getLateFoodForArea,
   LATE_FOOD_AREAS,
+  MAX_LATE_FOOD_HANDOFFS,
   normalizeLateFoodArea,
+  shortlistFoodHandoffs,
   type LateFoodApiSuccessResponse,
 } from "@/lib/lateFood";
 
-const DEFAULT_LIMIT = 6;
-const MAX_LIMIT = 12;
-
 function parseLimit(raw: string | null): number {
-  if (!raw) return DEFAULT_LIMIT;
+  if (!raw) return MAX_LATE_FOOD_HANDOFFS;
   const value = Number.parseInt(raw, 10);
-  if (!Number.isFinite(value) || value <= 0) return DEFAULT_LIMIT;
-  return Math.min(value, MAX_LIMIT);
+  if (!Number.isFinite(value) || value <= 0) return MAX_LATE_FOOD_HANDOFFS;
+  return Math.min(value, MAX_LATE_FOOD_HANDOFFS);
 }
 
 function parseTags(raw: string | null): string[] {
-  return raw?.split(",").map((tag) => tag.trim().toLowerCase()).filter(Boolean).slice(0, 8) ?? [];
+  return (
+    raw
+      ?.split(",")
+      .map((tag) => tag.trim().toLowerCase())
+      .filter(Boolean)
+      .slice(0, 8) ?? []
+  );
 }
 
-function coordinate(raw: string | null, min: number, max: number): number | null {
+function coordinate(
+  raw: string | null,
+  min: number,
+  max: number,
+): number | null {
   if (raw === null || raw.trim() === "") return null;
   const value = Number(raw);
   return Number.isFinite(value) && value >= min && value <= max ? value : null;
 }
 
-// GET /api/late-food?near=clapham&at=late_night&tags=kebab,halal&limit=6
+// GET /api/late-food?near=clapham&at=late_night&tags=kebab,halal&limit=3
 //
 // Keyless curated crawl endings. These are food terminals rather than PUBMAXX
 // Venue Dataset rows, so they are never fed into pint-price route generation.
@@ -45,22 +54,38 @@ export async function GET(request: Request): Promise<Response> {
   }
 
   const rawAt = params.get("at");
-  const requestedAt = rawAt && Number.isFinite(Date.parse(rawAt)) ? new Date(rawAt).toISOString() : null;
+  const requestedAt =
+    rawAt && Number.isFinite(Date.parse(rawAt))
+      ? new Date(rawAt).toISOString()
+      : null;
   if (rawAt && !requestedAt) {
-    return publicApiError("at must be an ISO date and time.", "LATE_FOOD_TIME_INVALID", 400, { details: { terminals: [] }, compatibilityFields: { terminals: [] } });
+    return publicApiError(
+      "at must be an ISO date and time.",
+      "LATE_FOOD_TIME_INVALID",
+      400,
+      { details: { terminals: [] }, compatibilityFields: { terminals: [] } },
+    );
   }
   const rawLat = params.get("fromLat");
   const rawLng = params.get("fromLng");
   const lat = coordinate(rawLat, -90, 90);
   const lng = coordinate(rawLng, -180, 180);
   if ((rawLat !== null || rawLng !== null) && (lat === null || lng === null)) {
-    return publicApiError("fromLat and fromLng must be valid coordinates.", "LATE_FOOD_ORIGIN_INVALID", 400, { details: { terminals: [] }, compatibilityFields: { terminals: [] } });
+    return publicApiError(
+      "fromLat and fromLng must be valid coordinates.",
+      "LATE_FOOD_ORIGIN_INVALID",
+      400,
+      { details: { terminals: [] }, compatibilityFields: { terminals: [] } },
+    );
   }
 
-  const terminals = getLateFoodForArea(area, tags, {
-    at: requestedAt,
-    from: lat === null || lng === null ? null : { lat, lng },
-  }).slice(0, parseLimit(params.get("limit")));
+  const terminals = shortlistFoodHandoffs(
+    getLateFoodForArea(area, tags, {
+      at: requestedAt,
+      from: lat === null || lng === null ? null : { lat, lng },
+    }),
+    parseLimit(params.get("limit")),
+  );
 
   const body: LateFoodApiSuccessResponse = {
     area,

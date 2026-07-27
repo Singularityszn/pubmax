@@ -13,7 +13,8 @@
 //     inner-London index) — shipped eagerly on first paint;
 //   • one LAZY shard per hollow outer borough — fetched on demand when the map
 //     viewport intersects its bbox, near-me geolocates into it, or a consumer
-//     asks for the whole index.
+//     asks for the whole index;
+//   • one LAZY shard per curated non-pint wave.
 // A tiny manifest (shard -> bbox + url) ships eagerly alongside core.
 //
 // The classification is OBJECTIVE and data-driven (priced-venue ratio), not a
@@ -24,10 +25,11 @@
 
 // A borough is a LAZY outer shard when it is dominated by unpriced presence
 // pins (low priced ratio) AND carries enough of them to be worth deferring.
-// Today the ten #315 boroughs sit at 4–17% priced; the leanest CORE borough
-// (Richmond) is 62% — a wide, safe gap around this 40% threshold.
+// The original ten #315 boroughs sit at 4–17% priced, below this threshold.
 export const OUTER_MAX_PRICED_RATIO = 0.4;
 export const OUTER_MIN_VENUES = 20;
+
+export const LAZY_KIND_SHARDS = { restaurant: "restaurants" };
 
 export const MANIFEST_FILE = "venues_slim.manifest.json";
 export const CORE_FILE = "venues_slim.core.json";
@@ -79,17 +81,20 @@ export function computeBbox(venues) {
 }
 
 /**
- * Partition slim rows into a core list + one outer shard per hollow borough.
+ * Partition slim rows into a core list and lazy shards.
  * A borough qualifies as outer iff it has >= OUTER_MIN_VENUES rows AND its
  * priced ratio is < OUTER_MAX_PRICED_RATIO. Every other row (including tiny /
  * ambiguous borough labels) stays in core, where it is always available.
  *
- * Returns { core, outer } where outer is a Map<slug, { borough, venues }>
+ * Returns { core, outer } where outer is a Map<slug, { borough?, venues }>
  * ordered by descending venue count (stable, deterministic output).
  */
 export function classifySlimShards(slim) {
+  const kindShardFor = (v) => LAZY_KIND_SHARDS[String(v.kind ?? "")] ?? null;
+  const boroughRows = slim.filter((v) => kindShardFor(v) === null);
+
   const byBorough = new Map();
-  for (const v of slim) {
+  for (const v of boroughRows) {
     const borough = String(v.borough ?? "");
     const bucket = byBorough.get(borough);
     if (bucket) bucket.push(v);
@@ -112,15 +117,16 @@ export function classifySlimShards(slim) {
 
   // Preserve original slim order within each shard so ids stay comparable.
   for (const v of slim) {
+    const kindSlug = kindShardFor(v);
     const borough = String(v.borough ?? "");
-    if (outerBoroughs.has(borough)) {
-      const slug = slugifyBorough(borough);
-      const bucket = outer.get(slug);
-      if (bucket) bucket.venues.push(v);
-      else outer.set(slug, { borough, venues: [v] });
-    } else {
+    const slug = kindSlug ?? (outerBoroughs.has(borough) ? slugifyBorough(borough) : null);
+    if (slug === null) {
       core.push(v);
+      continue;
     }
+    const bucket = outer.get(slug);
+    if (bucket) bucket.venues.push(v);
+    else outer.set(slug, { ...(kindSlug ? {} : { borough }), venues: [v] });
   }
 
   // Deterministic shard order: descending venue count, then slug.
@@ -154,7 +160,8 @@ export function buildShardManifest({ core, outer }) {
     shards.push({
       id: slug,
       core: false,
-      borough,
+      partition: borough ? "borough" : "kind",
+      ...(borough ? { borough } : {}),
       url: dataUrl(shardFileForSlug(slug)),
       count: venues.length,
       bbox: computeBbox(venues),

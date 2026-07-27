@@ -3,6 +3,7 @@ import path from "path";
 
 import { listEnabledCities } from "@/lib/cities";
 import { cityIdFromVenueId } from "@/lib/cityVenueIds";
+import type { FoodCategory } from "@/lib/food";
 import { resolveCanonicalVenueId } from "@/lib/venueAliases";
 import { slimVenueToPin } from "@/lib/slimPins";
 import { enrichVenueForDetail } from "@/lib/venueMenuEnrichment";
@@ -38,14 +39,21 @@ type FamousVenueSeed = {
   borough: string;
   lat: number;
   lng: number;
-  kind: "bar" | "food";
+  kind: "bar" | "food" | "restaurant";
   sourceUrl: string;
   anchor: {
     label: string;
     price: number;
     observedAt: string;
     sourceUrl: string;
-    kind: "house_cocktail" | "pint" | "wine" | "large_doner" | "signature_item";
+    course?: FoodCategory;
+    kind:
+      | "house_cocktail"
+      | "pint"
+      | "wine"
+      | "large_doner"
+      | "signature_item"
+      | "signature_dish";
   };
   story: { text: string; sourceUrl: string };
 };
@@ -59,7 +67,7 @@ const RAW_DATASET_FILE = path.join(process.cwd(), "public", "data", "pint_prices
 // Suffix bound is deliberately loose ({1,24}) so a future id generator that
 // bumps the entropy segment beyond today's 12 chars won't need a regex change.
 const VENUE_ID_RE =
-  /^(?:venue-(?:[a-z]{3}-)?[a-z0-9]{1,24}|(?:bar|food)-[a-z0-9-]{1,100})$/;
+  /^(?:venue-(?:[a-z]{3}-)?[a-z0-9]{1,24}|(?:bar|food|restaurant)-[a-z0-9-]{1,100})$/;
 
 const cachedDetails = new Map<string, Venue>();
 /** Successful manifests only — I/O failures stay unset so the next call can retry.
@@ -100,7 +108,7 @@ export function venueFromDetailArtifact(
       hasStory: true,
       amenities: {
         ...venue.amenities,
-        food: seed.kind === "food",
+        food: seed.kind === "food" || seed.kind === "restaurant",
         cocktails:
           seed.kind === "bar" && seed.anchor.kind === "house_cocktail",
       },
@@ -108,6 +116,7 @@ export function venueFromDetailArtifact(
       description: seed.story.text,
       sourceDatasets: ["famous_venues"],
       anchorLabel: seed.anchor.label,
+      ...(seed.anchor.course ? { anchorCourse: seed.anchor.course } : {}),
       anchorObservedAt: seed.anchor.observedAt,
       anchorSourceUrl: seed.anchor.sourceUrl,
       storySourceUrl: seed.story.sourceUrl,
@@ -186,7 +195,7 @@ async function getFallbackIndex(): Promise<Map<string, Venue>> {
   } catch {
     // Keep development and tests friendly if generated artifacts are absent.
   }
-  for (const file of ["bars.json", "late_food.json"]) {
+  for (const file of ["bars.json", "late_food.json", "restaurants.json"]) {
     try {
       const seeds = JSON.parse(
         await fs.readFile(

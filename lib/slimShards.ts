@@ -4,10 +4,10 @@
 // scripts/build_slim_index.mjs now emits, alongside the monolithic file:
 //   • venues_slim.manifest.json — shard -> { url, bbox, count } (tiny, eager)
 //   • venues_slim.core.json     — the priced inner-London index (eager)
-//   • venues_slim.{borough}.json — one lazy shard per hollow outer borough
+//   • venues_slim.{shard}.json - lazy borough and curated-kind shards
 //
 // The MAP is the only true first-paint surface, so it loads CORE eagerly and
-// pulls an outer shard only when it actually needs it:
+// pulls a lazy shard only when it actually needs it:
 //   (a) the viewport intersects that borough's bbox,
 //   (b) near-me geolocates into it.
 // Everything is one code path: consumers hold a loader from
@@ -33,6 +33,7 @@ export type ShardEntry = {
   url: string;
   count: number;
   bbox: ShardBbox;
+  partition?: "borough" | "kind";
   borough?: string;
 };
 
@@ -74,12 +75,24 @@ export function parseShardManifest(value: unknown): ShardManifest | null {
     if (typeof s.count !== "number") return null;
     if (typeof s.core !== "boolean") return null;
     if (!isBbox(s.bbox)) return null;
+    if (
+      s.partition !== undefined &&
+      s.partition !== "borough" &&
+      s.partition !== "kind"
+    ) {
+      return null;
+    }
+    if (s.partition === "borough" && typeof s.borough !== "string") return null;
+    if (s.partition === "kind" && s.borough !== undefined) return null;
     shards.push({
       id: s.id,
       core: s.core,
       url: s.url,
       count: s.count,
       bbox: s.bbox,
+      ...(s.partition !== undefined
+        ? { partition: s.partition as "borough" | "kind" }
+        : {}),
       ...(typeof s.borough === "string" ? { borough: s.borough } : {}),
     });
   }
@@ -119,7 +132,9 @@ export function shardForPoint(
   lat: number,
   lng: number,
 ): ShardEntry | null {
-  const outer = manifest.shards.filter((s) => !s.core);
+  const outer = manifest.shards.filter(
+    (s) => !s.core && s.partition !== "kind",
+  );
   const containing = outer.filter((s) => bboxContainsPoint(s.bbox, lat, lng));
   const pool = containing.length > 0 ? containing : [];
   if (pool.length === 0) return null;

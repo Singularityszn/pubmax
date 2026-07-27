@@ -70,15 +70,29 @@
   .tonightArcChips {
     position: fixed;
     top: calc(var(--mobile-map-top) + var(--mobile-map-bar-h) + 58px);
-    width: 260px;
+    /* Fitting the viewport is not enough: the TfL utility control is fixed to
+       the right edge in this same band, so a rail sized only against 100vw put
+       the fifth chip under a 44px button and lost its taps. Anchor left and
+       end a full corner lane short of that control (--mobile-map-corner-lane,
+       mobileMapShell.css). Chips wrap into a second row rather than truncate. */
+    left: 12px;
+    right: var(--mobile-map-corner-lane, 68px);
+    width: auto;
+    max-width: none;
     padding: 6px 8px 8px;
+    transform: none;
   }
 
-  /* 44px is the floor on a phone: these four sit over a live map, so a near
-     miss lands on the canvas and pans it instead of toggling the lane. */
+  .tonightArcRow {
+    flex-wrap: wrap;
+    justify-content: center;
+    row-gap: 5px;
+  }
+
+  /* 44px tap floor for all five map chips. */
   .tonightArcChip {
-    flex: 1 1 0;
-    min-width: 55px;
+    flex: 0 1 auto;
+    min-width: 44px;
     min-height: 44px;
     padding-inline: 9px;
   }

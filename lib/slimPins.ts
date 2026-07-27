@@ -89,6 +89,9 @@ export function slimVenueToPin(slim: SlimVenue): Venue {
     ...(slim.kind !== undefined ? { kind: slim.kind } : {}),
     ...(slim.priceBand !== undefined ? { priceBand: slim.priceBand } : {}),
     ...(slim.anchorLabel !== undefined ? { anchorLabel: slim.anchorLabel } : {}),
+    ...(slim.anchorCourse !== undefined
+      ? { anchorCourse: slim.anchorCourse }
+      : {}),
     ...(slim.anchorObservedAt !== undefined
       ? { anchorObservedAt: slim.anchorObservedAt }
       : {}),

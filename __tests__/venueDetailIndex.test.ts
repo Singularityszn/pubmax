@@ -2,7 +2,7 @@ import { execFileSync } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
 
-import { afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
   clearVenueDetailEntriesForTests,
@@ -27,6 +27,7 @@ const DETAIL_INDEX = path.join(ROOT, "data", "generated", "venue_detail_index.js
 const RAW_PATH = path.join(ROOT, "public", "data", "pint_prices_app_dataset.json");
 const SEED_VENUE_ID = "venue-16pnwmm";
 const FAMOUS_BAR_ID = "bar-american-bar-savoy";
+const FAMOUS_RESTAURANT_ID = "restaurant-rules";
 
 const rows = JSON.parse(readFileSync(RAW_PATH, "utf8")) as VenuePrice[];
 const seedRows = rows.filter(
@@ -45,6 +46,7 @@ beforeEach(() => {
 
 afterEach(() => {
   resetVenueDetailCachesForTests();
+  vi.unstubAllEnvs();
 });
 
 describe("venueDetailIndex", () => {
@@ -110,6 +112,27 @@ describe("venueDetailIndex", () => {
     expect(venue?.id).toBe(SEED_VENUE_ID);
     expect(venue?.prices.length).toBe(seedRows.length);
     expect(venue?.name).toBe(seedRows[0]?.pub_name);
+  });
+
+  it("loads restaurant detail from seed fallback without generated artifacts", async () => {
+    // The seed fallback is deliberately non-production only (production serves
+    // famous venues from the generated artifact). `npm run ci` runs this suite
+    // inside Vercel's build, where NODE_ENV=production, so pin the runtime the
+    // fallback belongs to instead of inheriting the ambient one.
+    vi.stubEnv("NODE_ENV", "test");
+    setVenueDetailIndexFileForTests(
+      path.join(ROOT, "data", "generated", "missing-venue-detail-index.json"),
+    );
+
+    await expect(getVenueDetail(FAMOUS_RESTAURANT_ID)).resolves.toMatchObject({
+      id: FAMOUS_RESTAURANT_ID,
+      name: "Rules",
+      kind: "restaurant",
+      anchorLabel: "Steak & Kidney Pudding",
+      anchorCourse: "mains",
+      anchorSourceUrl: "https://rules.co.uk/our-menus",
+      hasStory: true,
+    });
   });
 
   it("merges curated menu enrichment onto Prospect of Whitby detail", async () => {

@@ -13,7 +13,9 @@ import rawFoodPriceUpdates from "../public/data/food_price_updates/latest.json";
 // fetched at runtime by lib/priceUpdatesLoader.ts); tests parse the same files
 // directly and pass them in, keeping the behavioural assertions identical.
 function fileGeneratedAt(raw: unknown): number {
-  const stamp = Date.parse(String((raw as { generatedAt?: unknown })?.generatedAt ?? ""));
+  const stamp = Date.parse(
+    String((raw as { generatedAt?: unknown })?.generatedAt ?? ""),
+  );
   return Number.isFinite(stamp) ? stamp : Date.now();
 }
 const drinkUpdates = parseDrinkPriceUpdates(
@@ -33,7 +35,11 @@ beforeEach(() => {
 // A seeded heritage venue id (Prospect of Whitby) — see __tests__/drinkSeeds.test.ts.
 const SEEDED_VENUE_ID = "venue-16pnwmm";
 
-function fabricatedPrice(id: string, name: string, priceGbp: number | null): VenuePrice {
+function fabricatedPrice(
+  id: string,
+  name: string,
+  priceGbp: number | null,
+): VenuePrice {
   return {
     app_price_id: id,
     pub_name: "Test Pub",
@@ -60,7 +66,11 @@ function fabricatedPrice(id: string, name: string, priceGbp: number | null): Ven
   } as VenuePrice;
 }
 
-function prospectPrice(id: string, name: string, priceGbp: number | null): VenuePrice {
+function prospectPrice(
+  id: string,
+  name: string,
+  priceGbp: number | null,
+): VenuePrice {
   return {
     ...fabricatedPrice(id, name, priceGbp),
     pub_name: "Prospect of Whitby",
@@ -104,7 +114,10 @@ describe("venueMenuForInspector", () => {
   });
 
   it("returns an empty menu for null-priced rows with no seeds", () => {
-    const prices = [fabricatedPrice("p1", "Unknown", null), fabricatedPrice("p2", "Unknown 2", null)];
+    const prices = [
+      fabricatedPrice("p1", "Unknown", null),
+      fabricatedPrice("p2", "Unknown 2", null),
+    ];
     const menu = venueMenuForInspector({ id: "venue-not-seeded", prices });
 
     expect(menu).toEqual([]);
@@ -126,10 +139,14 @@ describe("venueMenuForInspector", () => {
     expect(luckySaint!.alcoholType).toBe("low-no");
     expect(luckySaint!.provenance.source).toBe("PUBMAXXING demo menu fixture");
 
-    const oldFashioned = menu.find((drink) => drink.name === "Wapping Old Fashioned");
+    const oldFashioned = menu.find(
+      (drink) => drink.name === "Wapping Old Fashioned",
+    );
     expect(oldFashioned).toBeDefined();
     expect(oldFashioned!.priceGbp).toBe(10.95);
-    expect(oldFashioned!.provenance.source).toBe("PUBMAXXING demo menu fixture");
+    expect(oldFashioned!.provenance.source).toBe(
+      "PUBMAXXING demo menu fixture",
+    );
 
     // Scraped Greene King Prospect drink rows land alongside the demo rows,
     // carrying honest attribution (never presented as community/organic).
@@ -169,5 +186,72 @@ describe("venueMenuForInspector", () => {
     expect(chips?.priceGbp).toBe(19.95);
     expect(chips?.category).toBe("mains");
     expect(chips?.provenance.source).toBe("Greene King — official site");
+  });
+
+  it("turns a restaurant signature-dish anchor into a sourced food row", () => {
+    const food = venueFoodMenuForInspector({
+      id: "restaurant-rules",
+      prices: [],
+      kind: "restaurant",
+      anchorLabel: "Steak & Kidney Pudding",
+      anchorCourse: "mains",
+      cheapestPrice: 26.25,
+      anchorObservedAt: "2026-07-27",
+      anchorSourceUrl: "https://rules.co.uk/our-menus/",
+    });
+
+    expect(food).toEqual([
+      expect.objectContaining({
+        name: "Steak & Kidney Pudding",
+        category: "mains",
+        priceGbp: 26.25,
+        provenance: expect.objectContaining({
+          observedAt: "2026-07-27",
+        }),
+        source: "https://rules.co.uk/our-menus/",
+      }),
+    ]);
+  });
+
+  it("files the anchor under the course the venue's own menu lists", () => {
+    const [dessert] = venueFoodMenuForInspector({
+      id: "restaurant-river-cafe",
+      prices: [],
+      kind: "restaurant",
+      anchorLabel: "Chocolate Nemesis",
+      anchorCourse: "desserts",
+      cheapestPrice: 15,
+      anchorObservedAt: "2026-07-27",
+      anchorSourceUrl: "https://www.rivercafe.co.uk/",
+    });
+    expect(dessert?.category).toBe("desserts");
+  });
+
+  it("keeps breakfast anchors out of mains", () => {
+    const [breakfast] = venueFoodMenuForInspector({
+      id: "restaurant-regency-cafe",
+      prices: [],
+      kind: "restaurant",
+      anchorLabel: "Set Breakfast",
+      anchorCourse: "breakfast",
+      cheapestPrice: 9.99,
+      anchorObservedAt: "2026-07-27",
+      anchorSourceUrl: "https://regencycafe.co.uk/menu",
+    });
+    expect(breakfast?.category).toBe("breakfast");
+  });
+
+  it("drops an anchor whose course is missing rather than calling it a main", () => {
+    expect(
+      venueFoodMenuForInspector({
+        id: "restaurant-river-cafe",
+        prices: [],
+        kind: "restaurant",
+        anchorLabel: "Chocolate Nemesis",
+        cheapestPrice: 15,
+        anchorObservedAt: "2026-07-27",
+        anchorSourceUrl: "https://www.rivercafe.co.uk/",
+      }),
+    ).toEqual([]);
   });
 });

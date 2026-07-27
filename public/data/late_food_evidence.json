@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "snapshotId": "late-food-evidence-20260716-v2",
-  "generatedAt": "2026-07-16T22:30:00.000Z",
+  "snapshotId": "late-food-evidence-20260727-v3",
+  "generatedAt": "2026-07-27T12:00:00.000Z",
   "coveragePolicy": "Only current official venue or operator pages with explicit service hours, address and operator-linked location evidence are eligible. Hours are snapshots, not live availability, and every option must be verified on the night.",
   "areas": {
     "clapham": {
@@ -73,6 +73,12 @@
           },
           "verifyOnNight": true,
           "confidence": "high",
+          "anchor": {
+            "label": "The Honest burger, large",
+            "price": 14.5,
+            "sourceUrl": "https://www.honestburgers.co.uk/menus/smash-and-grab-menu/",
+            "observedAt": "2026-07-16"
+          },
           "source": {
             "kind": "official_operator",
             "publisher": "Honest Burgers",
@@ -154,10 +160,20 @@
           },
           "verifyOnNight": true,
           "confidence": "high",
+          "anchor": {
+            "label": "Franco's OG Margherita",
+            "price": 13.95,
+            "sourceUrl": "https://www.francomanca.co.uk/wp-content/uploads/2026/06/FM-MENU-L0526P.pdf",
+            "observedAt": "2026-07-27"
+          },
           "source": {
             "kind": "official_operator",
             "publisher": "Franco Manca",
             "sourceUrl": "https://www.francomanca.co.uk/restaurants/victoria-nova/",
+            "anchorDocumentLink": {
+              "pageUrl": "https://www.francomanca.co.uk/restaurants/victoria-nova/",
+              "documentUrl": "https://www.francomanca.co.uk/wp-content/uploads/2026/06/FM-MENU-L0526P.pdf"
+            },
             "observedAt": "2026-07-16T22:30:00.000Z",
             "reviewedAt": "2026-07-16T22:30:00.000Z",
             "expiresAt": "2026-08-16T22:30:00.000Z",
@@ -235,14 +251,25 @@
           },
           "verifyOnNight": true,
           "confidence": "high",
+          "anchor": {
+            "label": "Cheeseburger",
+            "price": 20,
+            "sourceUrl": "https://balans.co.uk/wp-content/uploads/2025/07/No.60-Overnight-1.pdf",
+            "observedAt": "2026-07-16"
+          },
           "source": {
             "kind": "official_operator",
             "publisher": "Balans Restaurants",
             "sourceUrl": "https://balans.co.uk/locations/soho-no-60/",
+            "anchorDocumentLink": {
+              "pageUrl": "https://balans.co.uk/menus/soho-no-60/",
+              "documentUrl": "https://balans.co.uk/wp-content/uploads/2025/07/No.60-Overnight-1.pdf"
+            },
             "observedAt": "2026-07-16T22:30:00.000Z",
             "reviewedAt": "2026-07-16T22:30:00.000Z",
             "expiresAt": "2026-08-16T22:30:00.000Z",
-            "evidenceNote": "The operator page publishes the street address, opening hours for every day, and an operator-linked mapped location."
+            "evidenceNote": "The operator page publishes the street address, opening hours for every day, and an operator-linked mapped location.",
+            "supportingUrls": ["https://balans.co.uk/menus/soho-no-60/"]
           }
         }
       ]
@@ -316,10 +343,20 @@
           },
           "verifyOnNight": true,
           "confidence": "high",
+          "anchor": {
+            "label": "Franco's OG Margherita",
+            "price": 13.95,
+            "sourceUrl": "https://www.francomanca.co.uk/wp-content/uploads/2026/06/FM-MENU-L0526P.pdf",
+            "observedAt": "2026-07-27"
+          },
           "source": {
             "kind": "official_operator",
             "publisher": "Franco Manca",
             "sourceUrl": "https://www.francomanca.co.uk/restaurants/canary-wharf/",
+            "anchorDocumentLink": {
+              "pageUrl": "https://www.francomanca.co.uk/restaurants/canary-wharf/",
+              "documentUrl": "https://www.francomanca.co.uk/wp-content/uploads/2026/06/FM-MENU-L0526P.pdf"
+            },
             "observedAt": "2026-07-16T22:30:00.000Z",
             "reviewedAt": "2026-07-16T22:30:00.000Z",
             "expiresAt": "2026-08-16T22:30:00.000Z",
@@ -422,6 +459,12 @@
           },
           "verifyOnNight": true,
           "confidence": "high",
+          "anchor": {
+            "label": "Fish & Chips",
+            "price": 22,
+            "sourceUrl": "https://rickstein.com/restaurants/rick-stein-barnes/",
+            "observedAt": "2026-07-16"
+          },
           "source": {
             "kind": "official_operator",
             "publisher": "Rick Stein",
@@ -430,9 +473,7 @@
             "reviewedAt": "2026-07-16T22:30:00.000Z",
             "expiresAt": "2026-08-16T22:30:00.000Z",
             "evidenceNote": "The operator restaurant page publishes daily service hours and its directions link supplies the mapped point; the operator return-booking page publishes the full street address.",
-            "supportingUrls": [
-              "https://rickstein.com/return-booking-barnes/"
-            ]
+            "supportingUrls": ["https://rickstein.com/return-booking-barnes/"]
           }
         }
       ]
@@ -506,6 +547,12 @@
           },
           "verifyOnNight": true,
           "confidence": "high",
+          "anchor": {
+            "label": "The Honest burger, large",
+            "price": 14.5,
+            "sourceUrl": "https://www.honestburgers.co.uk/menus/smash-and-grab-menu/",
+            "observedAt": "2026-07-16"
+          },
           "source": {
             "kind": "official_operator",
             "publisher": "Honest Burgers",
@@ -587,6 +634,12 @@
           },
           "verifyOnNight": true,
           "confidence": "high",
+          "anchor": {
+            "label": "The Honest burger, large",
+            "price": 14.5,
+            "sourceUrl": "https://www.honestburgers.co.uk/menus/smash-and-grab-menu/",
+            "observedAt": "2026-07-16"
+          },
           "source": {
             "kind": "official_operator",
             "publisher": "Honest Burgers",
@@ -668,6 +721,12 @@
           },
           "verifyOnNight": true,
           "confidence": "high",
+          "anchor": {
+            "label": "The Honest burger, large",
+            "price": 14.5,
+            "sourceUrl": "https://www.honestburgers.co.uk/menus/smash-and-grab-menu/",
+            "observedAt": "2026-07-16"
+          },
           "source": {
             "kind": "official_operator",
             "publisher": "Honest Burgers",
@@ -749,6 +808,12 @@
           },
           "verifyOnNight": true,
           "confidence": "high",
+          "anchor": {
+            "label": "The Honest burger, large",
+            "price": 14.5,
+            "sourceUrl": "https://www.honestburgers.co.uk/menus/smash-and-grab-menu/",
+            "observedAt": "2026-07-16"
+          },
           "source": {
             "kind": "official_operator",
             "publisher": "Honest Burgers",
@@ -830,6 +895,12 @@
           },
           "verifyOnNight": true,
           "confidence": "high",
+          "anchor": {
+            "label": "Margherita",
+            "price": 12.5,
+            "sourceUrl": "https://www.pizzapilgrims.co.uk/menu/",
+            "observedAt": "2026-07-16"
+          },
           "source": {
             "kind": "official_operator",
             "publisher": "Pizza Pilgrims",
@@ -911,6 +982,12 @@
           },
           "verifyOnNight": true,
           "confidence": "high",
+          "anchor": {
+            "label": "The Honest burger, large",
+            "price": 14.5,
+            "sourceUrl": "https://www.honestburgers.co.uk/menus/smash-and-grab-menu/",
+            "observedAt": "2026-07-16"
+          },
           "source": {
             "kind": "official_operator",
             "publisher": "Honest Burgers",
@@ -992,10 +1069,20 @@
           },
           "verifyOnNight": true,
           "confidence": "high",
+          "anchor": {
+            "label": "Franco's OG Margherita",
+            "price": 13.5,
+            "sourceUrl": "https://www.francomanca.co.uk/wp-content/uploads/2026/06/FM-MENU-L0526S.pdf",
+            "observedAt": "2026-07-27"
+          },
           "source": {
             "kind": "official_operator",
             "publisher": "Franco Manca",
             "sourceUrl": "https://www.francomanca.co.uk/restaurants/islington/",
+            "anchorDocumentLink": {
+              "pageUrl": "https://www.francomanca.co.uk/restaurants/islington/",
+              "documentUrl": "https://www.francomanca.co.uk/wp-content/uploads/2026/06/FM-MENU-L0526S.pdf"
+            },
             "observedAt": "2026-07-16T22:30:00.000Z",
             "reviewedAt": "2026-07-16T22:30:00.000Z",
             "expiresAt": "2026-08-16T22:30:00.000Z",
@@ -1073,6 +1160,12 @@
           },
           "verifyOnNight": true,
           "confidence": "high",
+          "anchor": {
+            "label": "The Honest burger, large",
+            "price": 14.5,
+            "sourceUrl": "https://www.honestburgers.co.uk/menus/smash-and-grab-menu/",
+            "observedAt": "2026-07-16"
+          },
           "source": {
             "kind": "official_operator",
             "publisher": "Honest Burgers",
@@ -1154,6 +1247,12 @@
           },
           "verifyOnNight": true,
           "confidence": "high",
+          "anchor": {
+            "label": "The Honest burger, large",
+            "price": 14.5,
+            "sourceUrl": "https://www.honestburgers.co.uk/menus/smash-and-grab-menu/",
+            "observedAt": "2026-07-16"
+          },
           "source": {
             "kind": "official_operator",
             "publisher": "Honest Burgers",
@@ -1235,6 +1334,12 @@
           },
           "verifyOnNight": true,
           "confidence": "high",
+          "anchor": {
+            "label": "The Honest burger, large",
+            "price": 14.5,
+            "sourceUrl": "https://www.honestburgers.co.uk/menus/smash-and-grab-menu/",
+            "observedAt": "2026-07-16"
+          },
           "source": {
             "kind": "official_operator",
             "publisher": "Honest Burgers",
@@ -1316,6 +1421,12 @@
           },
           "verifyOnNight": true,
           "confidence": "high",
+          "anchor": {
+            "label": "The Honest burger, large",
+            "price": 14.5,
+            "sourceUrl": "https://www.honestburgers.co.uk/menus/smash-and-grab-menu/",
+            "observedAt": "2026-07-16"
+          },
           "source": {
             "kind": "official_operator",
             "publisher": "Honest Burgers",
@@ -1397,10 +1508,20 @@
           },
           "verifyOnNight": true,
           "confidence": "high",
+          "anchor": {
+            "label": "Franco's OG Margherita",
+            "price": 13.5,
+            "sourceUrl": "https://www.francomanca.co.uk/wp-content/uploads/2026/06/FM-MENU-L0526S.pdf",
+            "observedAt": "2026-07-27"
+          },
           "source": {
             "kind": "official_operator",
             "publisher": "Franco Manca",
             "sourceUrl": "https://www.francomanca.co.uk/restaurants/balham/",
+            "anchorDocumentLink": {
+              "pageUrl": "https://www.francomanca.co.uk/restaurants/balham/",
+              "documentUrl": "https://www.francomanca.co.uk/wp-content/uploads/2026/06/FM-MENU-L0526S.pdf"
+            },
             "observedAt": "2026-07-16T22:30:00.000Z",
             "reviewedAt": "2026-07-16T22:30:00.000Z",
             "expiresAt": "2026-08-16T22:30:00.000Z",
@@ -1478,6 +1599,12 @@
           },
           "verifyOnNight": true,
           "confidence": "high",
+          "anchor": {
+            "label": "The Honest burger, large",
+            "price": 14.5,
+            "sourceUrl": "https://www.honestburgers.co.uk/menus/smash-and-grab-menu/",
+            "observedAt": "2026-07-16"
+          },
           "source": {
             "kind": "official_operator",
             "publisher": "Honest Burgers",
@@ -1559,10 +1686,20 @@
           },
           "verifyOnNight": true,
           "confidence": "high",
+          "anchor": {
+            "label": "Franco's OG Margherita",
+            "price": 13.5,
+            "sourceUrl": "https://www.francomanca.co.uk/wp-content/uploads/2026/06/FM-MENU-L0526S.pdf",
+            "observedAt": "2026-07-27"
+          },
           "source": {
             "kind": "official_operator",
             "publisher": "Franco Manca",
             "sourceUrl": "https://www.francomanca.co.uk/restaurants/richmond/",
+            "anchorDocumentLink": {
+              "pageUrl": "https://www.francomanca.co.uk/restaurants/richmond/",
+              "documentUrl": "https://www.francomanca.co.uk/wp-content/uploads/2026/06/FM-MENU-L0526S.pdf"
+            },
             "observedAt": "2026-07-16T22:30:00.000Z",
             "reviewedAt": "2026-07-16T22:30:00.000Z",
             "expiresAt": "2026-08-16T22:30:00.000Z",
@@ -1640,10 +1777,20 @@
           },
           "verifyOnNight": true,
           "confidence": "high",
+          "anchor": {
+            "label": "Franco's OG Margherita",
+            "price": 13.5,
+            "sourceUrl": "https://www.francomanca.co.uk/wp-content/uploads/2026/06/FM-MENU-L0526S.pdf",
+            "observedAt": "2026-07-27"
+          },
           "source": {
             "kind": "official_operator",
             "publisher": "Franco Manca",
             "sourceUrl": "https://www.francomanca.co.uk/restaurants/putney/",
+            "anchorDocumentLink": {
+              "pageUrl": "https://www.francomanca.co.uk/restaurants/putney/",
+              "documentUrl": "https://www.francomanca.co.uk/wp-content/uploads/2026/06/FM-MENU-L0526S.pdf"
+            },
             "observedAt": "2026-07-16T22:30:00.000Z",
             "reviewedAt": "2026-07-16T22:30:00.000Z",
             "expiresAt": "2026-08-16T22:30:00.000Z",

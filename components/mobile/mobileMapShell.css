@@ -13,6 +13,15 @@
     --mobile-map-bar-h: 52px;
     --mobile-map-rail-h: 52px;
     --mobile-map-dock-clearance: calc(var(--tabbar-h) + env(safe-area-inset-bottom, 0px) + 12px);
+    /* The TfL utility control is fixed to the right map edge (tier 3 below).
+       Publish its footprint as a LANE so any full-width overlay in the same
+       band (the Tonight Arc rail) can stop short of it instead of sliding
+       under a 44px button that would swallow its taps. */
+    --mobile-map-corner-inset: max(12px, env(safe-area-inset-right));
+    --mobile-map-corner-btn: 44px;
+    --mobile-map-corner-lane: calc(
+      var(--mobile-map-corner-inset) + var(--mobile-map-corner-btn) + 12px
+    );
   }
 
   .mobileMapChrome {
@@ -212,7 +221,7 @@
      button column again. */
   .mobileMapUtilityCorner {
     position: fixed;
-    right: max(12px, env(safe-area-inset-right));
+    right: var(--mobile-map-corner-inset);
     top: calc(var(--mobile-map-chrome-h, 118px) + env(safe-area-inset-top) + 14px);
     bottom: calc(var(--mobile-map-dock-clearance) + 72px);
     z-index: var(--z-map-toolbar);
@@ -224,7 +233,7 @@
   }
   .mobileMapUtilityCorner > button {
     position: relative;
-    min-width: 44px;
+    min-width: var(--mobile-map-corner-btn);
     min-height: 44px;
     pointer-events: auto;
     box-shadow: 0 2px 8px color-mix(in srgb, var(--ink-deep) 12%, transparent);

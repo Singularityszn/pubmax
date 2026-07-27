@@ -22,7 +22,16 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { BookOpen, ChevronRight, MapPin, MonitorSmartphone, PlusCircle, TrainFront, Trash2, X } from "lucide-react";
+import {
+  BookOpen,
+  ChevronRight,
+  MapPin,
+  MonitorSmartphone,
+  PlusCircle,
+  TrainFront,
+  Trash2,
+  X,
+} from "lucide-react";
 
 import {
   setActivePlanStopIndex,
@@ -34,18 +43,31 @@ import {
 import { trackEvent, trackMeaningfulCoreAction } from "@/lib/analytics";
 import { authedFetch } from "@/lib/authedFetch";
 import type { PlanGetInReportDTO, PlanGetInStopDTO } from "@/lib/planGetIn";
-import type { CrawlEnding, EndingSelection, PlanCompletionDTO, PlanState, PlanStopDTO } from "@/lib/plan";
+import type {
+  CrawlEnding,
+  EndingSelection,
+  PlanCompletionDTO,
+  PlanState,
+  PlanStopDTO,
+} from "@/lib/plan";
 import type { CrewMemberDTO } from "@/lib/crew";
 import { lastRideFetchUrl } from "@/lib/lastRide";
 import type { NightAreaSlug } from "@/lib/nightAreas";
 import type { LateFoodApiResponse, LateFoodTerminal } from "@/lib/lateFood";
+import { anchorMonthLabel } from "@/lib/venueAnchorPresentation";
 import { haversineKm } from "@/lib/haversine";
-import RouteEndingCard, { type RouteEndingId, type RouteEndingOptions } from "@/components/night/RouteEndingCard";
+import RouteEndingCard, {
+  type RouteEndingId,
+  type RouteEndingOptions,
+} from "@/components/night/RouteEndingCard";
 import { NightCalmLine } from "@/components/night/NightCalmLine";
 import { SafeNightStrip } from "@/components/night/SafeNightStrip";
 import { useScreenWakeLock } from "@/components/night/useScreenWakeLock";
 import { useActivePlan } from "@/components/night/useActivePlan";
-import { recordCompletedNight, MORNING_REENTRY_VERSION } from "@/lib/morningReentry";
+import {
+  recordCompletedNight,
+  MORNING_REENTRY_VERSION,
+} from "@/lib/morningReentry";
 import {
   ensurePendingPlanRecap,
   readPendingPlanRecap,
@@ -54,7 +76,11 @@ import {
   writePendingPlanRecap,
   type PendingPlanRecap,
 } from "@/lib/planRecap";
-import { parsePlanCapabilitySnapshot, readPlanCapabilitySnapshot, restorePlanCapability } from "@/lib/planSessionCapability";
+import {
+  parsePlanCapabilitySnapshot,
+  readPlanCapabilitySnapshot,
+  restorePlanCapability,
+} from "@/lib/planSessionCapability";
 import { isPubVenueKind } from "@/lib/venueKindFilters";
 import type { VenueKind } from "@/lib/venues";
 import "./nightMode.css";
@@ -78,7 +104,10 @@ type LastTrainSlim = {
 
 // Crew statuses that mean "physically arriving/arrived" — the honest read of the
 // presence enum for a during-the-night "who's here" line.
-const ARRIVED: ReadonlySet<CrewMemberDTO["status"]> = new Set(["here", "on_the_way"]);
+const ARRIVED: ReadonlySet<CrewMemberDTO["status"]> = new Set([
+  "here",
+  "on_the_way",
+]);
 const SWIPE_DISMISS_PX = 72;
 
 function readMemberToken(planId: string): string {
@@ -94,12 +123,33 @@ export function completionTelemetryFromBody(value: unknown): {
 } | null {
   if (!value || typeof value !== "object") return null;
   const row = value as { completion?: unknown; eventTokens?: unknown };
-  if (!row.completion || typeof row.completion !== "object" || !row.eventTokens || typeof row.eventTokens !== "object") return null;
+  if (
+    !row.completion ||
+    typeof row.completion !== "object" ||
+    !row.eventTokens ||
+    typeof row.eventTokens !== "object"
+  )
+    return null;
   const ending = (row.completion as { ending?: unknown }).ending;
-  const tokens = row.eventTokens as { planCompleted?: unknown; meaningfulCoreAction?: unknown };
-  if (!(["food", "get_home", "keep_going"] as const).includes(ending as CrawlEnding)) return null;
-  if (typeof tokens.planCompleted !== "string" || !tokens.planCompleted || tokens.planCompleted.length > 2_000
-    || typeof tokens.meaningfulCoreAction !== "string" || !tokens.meaningfulCoreAction || tokens.meaningfulCoreAction.length > 2_000) return null;
+  const tokens = row.eventTokens as {
+    planCompleted?: unknown;
+    meaningfulCoreAction?: unknown;
+  };
+  if (
+    !(["food", "get_home", "keep_going"] as const).includes(
+      ending as CrawlEnding,
+    )
+  )
+    return null;
+  if (
+    typeof tokens.planCompleted !== "string" ||
+    !tokens.planCompleted ||
+    tokens.planCompleted.length > 2_000 ||
+    typeof tokens.meaningfulCoreAction !== "string" ||
+    !tokens.meaningfulCoreAction ||
+    tokens.meaningfulCoreAction.length > 2_000
+  )
+    return null;
   return {
     ending: ending as CrawlEnding,
     planCompletedToken: tokens.planCompleted,
@@ -107,14 +157,20 @@ export function completionTelemetryFromBody(value: unknown): {
   };
 }
 
-export function routeRevisionFromPlan(value: PlanState | null): PlanRouteRevision | null {
+export function routeRevisionFromPlan(
+  value: PlanState | null,
+): PlanRouteRevision | null {
   if (!value) return null;
-  const direct = (value as PlanState & { routeRevision?: unknown }).routeRevision;
+  const direct = (value as PlanState & { routeRevision?: unknown })
+    .routeRevision;
   if (typeof direct === "string" && direct.trim()) return direct.trim();
-  if (typeof direct === "number" && Number.isInteger(direct) && direct >= 0) return direct;
-  const nested = (value.plan as PlanState["plan"] & { routeRevision?: unknown }).routeRevision;
+  if (typeof direct === "number" && Number.isInteger(direct) && direct >= 0)
+    return direct;
+  const nested = (value.plan as PlanState["plan"] & { routeRevision?: unknown })
+    .routeRevision;
   if (typeof nested === "string" && nested.trim()) return nested.trim();
-  if (typeof nested === "number" && Number.isInteger(nested) && nested >= 0) return nested;
+  if (typeof nested === "number" && Number.isInteger(nested) && nested >= 0)
+    return nested;
   return null;
 }
 
@@ -134,7 +190,14 @@ export function completePlanPayload(
   };
 }
 
-export function foodEndingSelection(terminal: LateFoodTerminal): Extract<EndingSelection, { kind: "food" }> {
+function anchorObservedClause(terminal: LateFoodTerminal): string {
+  const observed = anchorMonthLabel(terminal.anchor.observedAt);
+  return observed ? ` · observed ${observed}` : "";
+}
+
+export function foodEndingSelection(
+  terminal: LateFoodTerminal,
+): Extract<EndingSelection, { kind: "food" }> {
   return {
     kind: "food",
     optionId: terminal.id,
@@ -149,21 +212,39 @@ export function foodEndingSelection(terminal: LateFoodTerminal): Extract<EndingS
   };
 }
 
-export function getHomeEndingSelection(stationName: string | null, leaveByIso: string | null): Extract<EndingSelection, { kind: "get_home" }> {
+export function getHomeEndingSelection(
+  stationName: string | null,
+  leaveByIso: string | null,
+): Extract<EndingSelection, { kind: "get_home" }> {
   const label = stationName?.trim() || "Nearest transport anchor";
   return {
     kind: "get_home",
-    optionId: `transport:${label.toLocaleLowerCase().replaceAll(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "nearest"}`,
+    optionId: `transport:${
+      label
+        .toLocaleLowerCase()
+        .replaceAll(/[^a-z0-9]+/g, "-")
+        .replace(/^-|-$/g, "") || "nearest"
+    }`,
     evidenceSnapshot: {
       label,
       confidence: leaveByIso ? "medium" : "unknown",
-      source: leaveByIso ? "TfL journey and last-service signal" : "PUBMAXX transport anchor",
-      ...(!leaveByIso ? { warnings: ["Live leave-by evidence was unavailable when this ending was confirmed."] } : {}),
+      source: leaveByIso
+        ? "TfL journey and last-service signal"
+        : "PUBMAXX transport anchor",
+      ...(!leaveByIso
+        ? {
+            warnings: [
+              "Live leave-by evidence was unavailable when this ending was confirmed.",
+            ],
+          }
+        : {}),
     },
   };
 }
 
-export function keepGoingEndingSelection(extension: KeepGoingExtension): Extract<EndingSelection, { kind: "keep_going" }> {
+export function keepGoingEndingSelection(
+  extension: KeepGoingExtension,
+): Extract<EndingSelection, { kind: "keep_going" }> {
   return {
     kind: "keep_going",
     optionId: extension.id,
@@ -172,15 +253,20 @@ export function keepGoingEndingSelection(extension: KeepGoingExtension): Extract
       label: extension.name,
       confidence: "low",
       source: "PUBMAXX venue index",
-      warnings: ["Closing time was unverified when this extension was confirmed."],
+      warnings: [
+        "Closing time was unverified when this extension was confirmed.",
+      ],
     },
   };
 }
 
-export function canonicalPlanFromCompleteBody(value: unknown): PlanState | null {
+export function canonicalPlanFromCompleteBody(
+  value: unknown,
+): PlanState | null {
   if (!value || typeof value !== "object") return null;
   const row = value as { stops?: unknown; plan?: unknown; state?: unknown };
-  if (Array.isArray(row.stops) && row.plan && typeof row.plan === "object") return value as PlanState;
+  if (Array.isArray(row.stops) && row.plan && typeof row.plan === "object")
+    return value as PlanState;
   if (row.plan && typeof row.plan === "object") {
     const plan = row.plan as { stops?: unknown };
     if (Array.isArray(plan.stops)) return row.plan as PlanState;
@@ -196,9 +282,11 @@ export function recommendedEndingForPlan(
   plan: PlanState | null,
   lateFoodCount: number,
 ): CrawlEnding {
-  if ((plan?.context?.foodNeeds?.length ?? 0) > 0 && lateFoodCount > 0) return "food";
+  if ((plan?.context?.foodNeeds?.length ?? 0) > 0 && lateFoodCount > 0)
+    return "food";
   if (plan?.context?.daypart === "get_home") return "get_home";
-  if (plan?.context?.daypart === "late_night" && lateFoodCount > 0) return "food";
+  if (plan?.context?.daypart === "late_night" && lateFoodCount > 0)
+    return "food";
   return "get_home";
 }
 
@@ -217,9 +305,10 @@ export function endingOptionsForSignals({
     {
       id: "food",
       title: "Find food",
-      description: lateFoodCount > 0
-        ? `${lateFoodCount} reviewed nearby option${lateFoodCount === 1 ? "" : "s"}. Check tonight's hours.`
-        : "No late food worth flagging here yet.",
+      description:
+        lateFoodCount > 0
+          ? `${lateFoodCount} reviewed nearby option${lateFoodCount === 1 ? "" : "s"}. Check tonight's hours.`
+          : "No late food worth flagging here yet.",
       actionLabel: "See the food",
     },
     {
@@ -234,9 +323,10 @@ export function endingOptionsForSignals({
     {
       id: "keep_going",
       title: "Keep going",
-      description: extensionCount > 0
-        ? `${extensionCount} nearby spot${extensionCount === 1 ? "" : "s"} for one more. Hours not checked.`
-        : "Nowhere close enough for one more yet.",
+      description:
+        extensionCount > 0
+          ? `${extensionCount} nearby spot${extensionCount === 1 ? "" : "s"} for one more. Hours not checked.`
+          : "Nowhere close enough for one more yet.",
       actionLabel: "See what's near",
     },
   ];
@@ -259,8 +349,7 @@ export function rankKeepGoingExtensions(
 ): KeepGoingExtension[] {
   return coords
     .filter(
-      (venue) =>
-        isPubVenueKind(venue.kind) && !routeVenueIds.has(venue.id),
+      (venue) => isPubVenueKind(venue.kind) && !routeVenueIds.has(venue.id),
     )
     .map((venue) => ({
       ...venue,
@@ -307,13 +396,20 @@ function NightModeSurface({ entry }: { entry: ActivePlanRef }) {
     setRestoreFocus(true);
     setExpanded(false);
   };
-  if (!expanded) return <NightModePill onOpen={open} restoreFocus={restoreFocus} />;
+  if (!expanded)
+    return <NightModePill onOpen={open} restoreFocus={restoreFocus} />;
   // Key by plan id so a plan switch remounts the sheet fresh — React otherwise
   // preserves the prior plan's route/crew/last-train state until refetch lands.
   return <NightModeSheet entry={entry} onCollapse={collapse} />;
 }
 
-function NightModePill({ onOpen, restoreFocus }: { onOpen: () => void; restoreFocus: boolean }) {
+function NightModePill({
+  onOpen,
+  restoreFocus,
+}: {
+  onOpen: () => void;
+  restoreFocus: boolean;
+}) {
   return (
     <button
       type="button"
@@ -328,18 +424,27 @@ function NightModePill({ onOpen, restoreFocus }: { onOpen: () => void; restoreFo
   );
 }
 
-function NightModeSheet({ entry, onCollapse }: { entry: ActivePlanRef; onCollapse: () => void }) {
+function NightModeSheet({
+  entry,
+  onCollapse,
+}: {
+  entry: ActivePlanRef;
+  onCollapse: () => void;
+}) {
   const { id, stopIndex } = entry;
   const [plan, setPlan] = useState<PlanState | null>(null);
   const [report, setReport] = useState<PlanGetInReportDTO | null>(null);
   const [coords, setCoords] = useState<VenueCoord[] | null>(null);
   const [lateFood, setLateFood] = useState<LateFoodTerminal[]>([]);
   const chosenEnding = entry.endingPreview ?? null;
-  const [chosenExtension, setChosenExtension] = useState<KeepGoingExtension | null>(null);
+  const [chosenExtension, setChosenExtension] =
+    useState<KeepGoingExtension | null>(null);
   const [endingSaving, setEndingSaving] = useState(false);
   const endingSavingRef = useRef(false);
   const [endingError, setEndingError] = useState("");
-  const [recap, setRecap] = useState<PendingPlanRecap | null>(() => readPendingPlanRecap(id));
+  const [recap, setRecap] = useState<PendingPlanRecap | null>(() =>
+    readPendingPlanRecap(id),
+  );
   // True only while we are fetching a completed plan's recap seed on re-entry —
   // the honest "hold on, it's coming" state so a finished night never shows a
   // blank gap between the ending result and its recap invitation.
@@ -352,7 +457,10 @@ function NightModeSheet({ entry, onCollapse }: { entry: ActivePlanRef; onCollaps
   // Store the last-train result tagged with the venue it belongs to, so a result
   // from a previous stop is never rendered against the current one (the tag is
   // checked at read time — cheaper and lint-cleaner than a clear-in-effect).
-  const [lastTrain, setLastTrain] = useState<{ venueId: string; data: LastTrainSlim } | null>(null);
+  const [lastTrain, setLastTrain] = useState<{
+    venueId: string;
+    data: LastTrainSlim;
+  } | null>(null);
   const [dragY, setDragY] = useState(0);
   const dragStart = useRef<number | null>(null);
   // Track the live drag distance in a ref too: a fast pointer-up can fire before
@@ -393,9 +501,13 @@ function NightModeSheet({ entry, onCollapse }: { entry: ActivePlanRef; onCollaps
     };
   }, [id]);
 
-  useEffect(() => subscribePendingPlanRecap(id, () => {
-    setRecap(readPendingPlanRecap(id));
-  }), [id]);
+  useEffect(
+    () =>
+      subscribePendingPlanRecap(id, () => {
+        setRecap(readPendingPlanRecap(id));
+      }),
+    [id],
+  );
 
   useEffect(() => {
     if (plan?.plan.status !== "completed" && !plan?.ending) return;
@@ -409,15 +521,28 @@ function NightModeSheet({ entry, onCollapse }: { entry: ActivePlanRef; onCollaps
     void (async () => {
       setRecapSeeding(true);
       try {
-        const response = await fetch(`/api/plans/${id}/complete`, { cache: "no-store", signal: controller.signal });
-        const body = response.ok ? (await response.json()) as { completion?: PlanCompletionDTO | null } : null;
+        const response = await fetch(`/api/plans/${id}/complete`, {
+          cache: "no-store",
+          signal: controller.signal,
+        });
+        const body = response.ok
+          ? ((await response.json()) as {
+              completion?: PlanCompletionDTO | null;
+            })
+          : null;
         if (controller.signal.aborted || !body?.completion) return;
         const existing = readPendingPlanRecap(id);
-        if (!existing || existing.completionId !== body.completion.id) setRecap(ensurePendingPlanRecap(body.completion, title));
+        if (!existing || existing.completionId !== body.completion.id)
+          setRecap(ensurePendingPlanRecap(body.completion, title));
         // Arm the morning-after card. This is a fresh open (not the session the
         // night was completed in), so it is eligible to show now / next open.
         recordCompletedNight(
-          { version: MORNING_REENTRY_VERSION, planId: id, title, completedAt: body.completion.completedAt },
+          {
+            version: MORNING_REENTRY_VERSION,
+            planId: id,
+            title,
+            completedAt: body.completion.completedAt,
+          },
           { suppressThisSession: false },
         );
       } catch {
@@ -452,7 +577,9 @@ function NightModeSheet({ entry, onCollapse }: { entry: ActivePlanRef; onCollaps
     () => new Map((report?.stops ?? []).map((s) => [s.venueId, s])),
     [report],
   );
-  const currentSignal = currentStop ? signals.get(currentStop.venueId) ?? null : null;
+  const currentSignal = currentStop
+    ? (signals.get(currentStop.venueId) ?? null)
+    : null;
 
   const currentCoord = useMemo(() => {
     if (!currentStop || !coords) return null;
@@ -465,17 +592,25 @@ function NightModeSheet({ entry, onCollapse }: { entry: ActivePlanRef; onCollaps
       void Promise.resolve().then(() => setLateFood([]));
       return;
     }
-    const params = new URLSearchParams({ area, limit: "3", at: new Date().toISOString() });
+    const params = new URLSearchParams({
+      area,
+      limit: "3",
+      at: new Date().toISOString(),
+    });
     if (currentCoord) {
       params.set("fromLat", String(currentCoord.lat));
       params.set("fromLng", String(currentCoord.lng));
     }
     let active = true;
     const controller = new AbortController();
-    fetch(`/api/late-food?${params}`, { cache: "no-store", signal: controller.signal })
+    fetch(`/api/late-food?${params}`, {
+      cache: "no-store",
+      signal: controller.signal,
+    })
       .then((r) => (r.ok ? r.json() : null))
       .then((body: LateFoodApiResponse | null) => {
-        if (active) setLateFood(Array.isArray(body?.terminals) ? body.terminals : []);
+        if (active)
+          setLateFood(Array.isArray(body?.terminals) ? body.terminals : []);
       })
       .catch(() => {
         if (active) setLateFood([]);
@@ -504,7 +639,8 @@ function NightModeSheet({ entry, onCollapse }: { entry: ActivePlanRef; onCollaps
     fetch(url, { signal: controller.signal })
       .then((r) => (r.ok ? r.json() : null))
       .then((body: LastTrainSlim | null) => {
-        if (active) setLastTrain(body && body.station ? { venueId, data: body } : null);
+        if (active)
+          setLastTrain(body && body.station ? { venueId, data: body } : null);
       })
       .catch(() => undefined);
     return () => {
@@ -518,7 +654,10 @@ function NightModeSheet({ entry, onCollapse }: { entry: ActivePlanRef; onCollaps
   useEffect(() => {
     if (!plan) return;
     if (!markNightModeActiveFired(id)) return;
-    trackEvent("night_mode_active", { stops: stops.length, crew: plan.crew.length });
+    trackEvent("night_mode_active", {
+      stops: stops.length,
+      crew: plan.crew.length,
+    });
   }, [plan, id, stops.length]);
 
   const arrived = (plan?.crew ?? []).filter((m) => ARRIVED.has(m.status));
@@ -527,76 +666,118 @@ function NightModeSheet({ entry, onCollapse }: { entry: ActivePlanRef; onCollaps
     setActivePlanStopIndex(clampStopIndex(cursor + 1, stops.length));
   }, [cursor, stops.length]);
 
-  const completeEnding = useCallback(async (ending: CrawlEnding, terminalVenueId: string, endingSelection: EndingSelection) => {
-    if (!plan || endingSavingRef.current) return;
-    endingSavingRef.current = true;
-    setEndingSaving(true);
-    setEndingError("");
-    try {
-      let memberToken = readMemberToken(id);
-      if (!memberToken) {
-        await restorePlanCapability(id);
-        memberToken = readMemberToken(id);
-      }
-      const expectedRouteRevision = routeRevisionFromPlan(plan);
-      if (!memberToken) {
-        setEndingError("Join this plan before saving its ending.");
-        return;
-      }
-      if (expectedRouteRevision === null) {
-        setEndingError("This route has no active revision. Nothing was completed; refresh the plan and try again.");
-        return;
-      }
-      const response = await fetch(`/api/plans/${id}/complete`, {
-        method: "POST",
-        headers: {
-          "content-type": "application/json",
-          authorization: `Bearer ${memberToken}`,
-        },
-        body: JSON.stringify(completePlanPayload(ending, terminalVenueId, expectedRouteRevision, endingSelection)),
-      });
-      const body = await response.json().catch(() => null);
-      if (!response.ok) {
-        throw new Error(response.status === 409 || response.status === 412
-          ? "This route changed before the ending was saved. Nothing was completed; refresh the plan and try again."
-          : body?.error || "Could not save that ending.");
-      }
-      let canonical = canonicalPlanFromCompleteBody(body);
-      if (!canonical) {
-        const refreshed = await fetch(`/api/plans/${id}`, { cache: "no-store" });
-        canonical = refreshed.ok ? canonicalPlanFromCompleteBody(await refreshed.json()) : null;
-      }
-      if (!canonical || (!canonical.ending && canonical.plan.status !== "completed")) {
-        throw new Error("The ending response was not canonical. Nothing was marked complete in this view.");
-      }
-      setPlan(canonical);
-      const completionTelemetry = completionTelemetryFromBody(body);
-      if (completionTelemetry) {
-        trackEvent("plan_completed", { ending: completionTelemetry.ending }, { deliveryToken: completionTelemetry.planCompletedToken });
-        trackMeaningfulCoreAction("plan_completed", completionTelemetry.meaningfulCoreActionToken);
-      }
-      const completed = body && typeof body === "object" && "completion" in body
-        ? (body as { completion?: PlanCompletionDTO }).completion ?? null
-        : null;
-      if (completed) {
-        setRecap(ensurePendingPlanRecap(completed, canonical.plan.title));
-        // Arm the morning-after card, suppressed for THIS session so it greets
-        // the next open (the morning after), not the moment the night ends.
-        recordCompletedNight(
-          { version: MORNING_REENTRY_VERSION, planId: id, title: canonical.plan.title, completedAt: completed.completedAt },
-          { suppressThisSession: true },
+  const completeEnding = useCallback(
+    async (
+      ending: CrawlEnding,
+      terminalVenueId: string,
+      endingSelection: EndingSelection,
+    ) => {
+      if (!plan || endingSavingRef.current) return;
+      endingSavingRef.current = true;
+      setEndingSaving(true);
+      setEndingError("");
+      try {
+        let memberToken = readMemberToken(id);
+        if (!memberToken) {
+          await restorePlanCapability(id);
+          memberToken = readMemberToken(id);
+        }
+        const expectedRouteRevision = routeRevisionFromPlan(plan);
+        if (!memberToken) {
+          setEndingError("Join this plan before saving its ending.");
+          return;
+        }
+        if (expectedRouteRevision === null) {
+          setEndingError(
+            "This route has no active revision. Nothing was completed; refresh the plan and try again.",
+          );
+          return;
+        }
+        const response = await fetch(`/api/plans/${id}/complete`, {
+          method: "POST",
+          headers: {
+            "content-type": "application/json",
+            authorization: `Bearer ${memberToken}`,
+          },
+          body: JSON.stringify(
+            completePlanPayload(
+              ending,
+              terminalVenueId,
+              expectedRouteRevision,
+              endingSelection,
+            ),
+          ),
+        });
+        const body = await response.json().catch(() => null);
+        if (!response.ok) {
+          throw new Error(
+            response.status === 409 || response.status === 412
+              ? "This route changed before the ending was saved. Nothing was completed; refresh the plan and try again."
+              : body?.error || "Could not save that ending.",
+          );
+        }
+        let canonical = canonicalPlanFromCompleteBody(body);
+        if (!canonical) {
+          const refreshed = await fetch(`/api/plans/${id}`, {
+            cache: "no-store",
+          });
+          canonical = refreshed.ok
+            ? canonicalPlanFromCompleteBody(await refreshed.json())
+            : null;
+        }
+        if (
+          !canonical ||
+          (!canonical.ending && canonical.plan.status !== "completed")
+        ) {
+          throw new Error(
+            "The ending response was not canonical. Nothing was marked complete in this view.",
+          );
+        }
+        setPlan(canonical);
+        const completionTelemetry = completionTelemetryFromBody(body);
+        if (completionTelemetry) {
+          trackEvent(
+            "plan_completed",
+            { ending: completionTelemetry.ending },
+            { deliveryToken: completionTelemetry.planCompletedToken },
+          );
+          trackMeaningfulCoreAction(
+            "plan_completed",
+            completionTelemetry.meaningfulCoreActionToken,
+          );
+        }
+        const completed =
+          body && typeof body === "object" && "completion" in body
+            ? ((body as { completion?: PlanCompletionDTO }).completion ?? null)
+            : null;
+        if (completed) {
+          setRecap(ensurePendingPlanRecap(completed, canonical.plan.title));
+          // Arm the morning-after card, suppressed for THIS session so it greets
+          // the next open (the morning after), not the moment the night ends.
+          recordCompletedNight(
+            {
+              version: MORNING_REENTRY_VERSION,
+              planId: id,
+              title: canonical.plan.title,
+              completedAt: completed.completedAt,
+            },
+            { suppressThisSession: true },
+          );
+        }
+        setActivePlanEndingPreview(id, null);
+      } catch (caught) {
+        setEndingError(
+          caught instanceof Error
+            ? `${caught.message} Nothing was completed in this view.`
+            : "Could not save that ending. Nothing was completed in this view.",
         );
+      } finally {
+        endingSavingRef.current = false;
+        setEndingSaving(false);
       }
-      setActivePlanEndingPreview(id, null);
-    } catch (caught) {
-      setEndingError(caught instanceof Error
-        ? `${caught.message} Nothing was completed in this view.`
-        : "Could not save that ending. Nothing was completed in this view.");
-    } finally {
-      endingSavingRef.current = false;
-      setEndingSaving(false);
-    }
-  }, [id, plan]);
+    },
+    [id, plan],
+  );
 
   const savePrivateRecap = useCallback(async () => {
     if (!recap || recapSavingRef.current) return;
@@ -610,7 +791,9 @@ function NightModeSheet({ entry, onCollapse }: { entry: ActivePlanRef; onCollaps
         memberToken = readMemberToken(id);
       }
       if (!memberToken) {
-        setRecapMessage("Open the Plan in this browser before saving. Your recap remains private on this device.");
+        setRecapMessage(
+          "Open the Plan in this browser before saving. Your recap remains private on this device.",
+        );
         return;
       }
       const response = await authedFetch(`/api/plans/${id}/recap`, {
@@ -618,11 +801,17 @@ function NightModeSheet({ entry, onCollapse }: { entry: ActivePlanRef; onCollaps
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ memberToken, recap }),
       });
-      const body = await response.json().catch(() => ({})) as { memory?: { id: string }; error?: string; code?: string };
+      const body = (await response.json().catch(() => ({}))) as {
+        memory?: { id: string };
+        error?: string;
+        code?: string;
+      };
       if (!response.ok || !body.memory) {
-        throw new Error(response.status === 401
-          ? "Sign in to move this local recap into your private Memories."
-          : body.error ?? "Could not save this private Memory.");
+        throw new Error(
+          response.status === 401
+            ? "Sign in to move this local recap into your private Memories."
+            : (body.error ?? "Could not save this private Memory."),
+        );
       }
       resolvePendingPlanRecap(recap, "saved");
       setRecap(null);
@@ -630,19 +819,26 @@ function NightModeSheet({ entry, onCollapse }: { entry: ActivePlanRef; onCollaps
       setRecapMessage("Private Memory saved. Nothing was published.");
       trackEvent("night_memory_created", { source: "completed_plan" });
     } catch (caught) {
-      setRecapMessage(caught instanceof Error ? caught.message : "Could not save this private Memory. Your local recap is safe.");
+      setRecapMessage(
+        caught instanceof Error
+          ? caught.message
+          : "Could not save this private Memory. Your local recap is safe.",
+      );
     } finally {
       recapSavingRef.current = false;
       setRecapSaving(false);
     }
   }, [id, recap]);
 
-  const chooseEnding = useCallback((ending: RouteEndingId) => {
-    if (!plan || endingSaving) return;
-    setActivePlanEndingPreview(id, ending);
-    setEndingError("");
-    trackEvent("planned_night_action", { type: `${ending}_preview` });
-  }, [endingSaving, id, plan]);
+  const chooseEnding = useCallback(
+    (ending: RouteEndingId) => {
+      if (!plan || endingSaving) return;
+      setActivePlanEndingPreview(id, ending);
+      setEndingError("");
+      trackEvent("planned_night_action", { type: `${ending}_preview` });
+    },
+    [endingSaving, id, plan],
+  );
 
   // Lightweight swipe-down-to-dismiss on the grabber (Apple sheet idiom) — kept
   // local so we don't couple to the map-only useSheetDrag host.
@@ -664,7 +860,8 @@ function NightModeSheet({ entry, onCollapse }: { entry: ActivePlanRef; onCollaps
   };
   const onPointerUp = () => {
     // Read the ref, not dragY state: a fast release can precede the state commit.
-    if (dragStart.current !== null && dragYRef.current > SWIPE_DISMISS_PX) onCollapse();
+    if (dragStart.current !== null && dragYRef.current > SWIPE_DISMISS_PX)
+      onCollapse();
     resetDrag();
   };
   const onPointerCancel = () => resetDrag();
@@ -673,7 +870,9 @@ function NightModeSheet({ entry, onCollapse }: { entry: ActivePlanRef; onCollaps
   // with a previous stop (or held while we advance to a venue we couldn't
   // locate) is ignored, so nothing stale lingers between venue changes.
   const currentTrain =
-    currentCoord && lastTrain?.venueId === currentCoord.id ? lastTrain.data : null;
+    currentCoord && lastTrain?.venueId === currentCoord.id
+      ? lastTrain.data
+      : null;
   const lastTrainLeaveBy = currentTrain?.decision?.leaveByIso ?? null;
   const activeEnding = confirmedEndingForPlan(plan, chosenEnding);
   const recommendedEnding = recommendedEndingForPlan(plan, lateFood.length);
@@ -690,7 +889,11 @@ function NightModeSheet({ entry, onCollapse }: { entry: ActivePlanRef; onCollaps
       aria-label="Tonight's plan"
       role="dialog"
       aria-modal="false"
-      style={dragY ? ({ "--night-drag-y": `${dragY}px` } as React.CSSProperties) : undefined}
+      style={
+        dragY
+          ? ({ "--night-drag-y": `${dragY}px` } as React.CSSProperties)
+          : undefined
+      }
     >
       <div
         className="nightCard__grab"
@@ -704,7 +907,10 @@ function NightModeSheet({ entry, onCollapse }: { entry: ActivePlanRef; onCollaps
       </div>
 
       <div className="nightCard__head">
-        <p className="nightCard__eyebrow">{activeEnding ? "Night complete" : "On tonight"}{plan?.plan.title ? ` · ${plan.plan.title}` : ""}</p>
+        <p className="nightCard__eyebrow">
+          {activeEnding ? "Night complete" : "On tonight"}
+          {plan?.plan.title ? ` · ${plan.plan.title}` : ""}
+        </p>
         <button
           ref={closeRef}
           type="button"
@@ -736,7 +942,10 @@ function NightModeSheet({ entry, onCollapse }: { entry: ActivePlanRef; onCollaps
       )}
 
       {lastTrainLeaveBy ? (
-        <LastTrainLine leaveByIso={lastTrainLeaveBy} stationName={currentTrain?.station?.name ?? null} />
+        <LastTrainLine
+          leaveByIso={lastTrainLeaveBy}
+          stationName={currentTrain?.station?.name ?? null}
+        />
       ) : null}
 
       {nextStop ? (
@@ -759,20 +968,43 @@ function NightModeSheet({ entry, onCollapse }: { entry: ActivePlanRef; onCollaps
             onChoose={chooseEnding}
           />
           {endingSaving ? (
-            <p className="nightCard__endingStatus" role="status">Saving the ending…</p>
+            <p className="nightCard__endingStatus" role="status">
+              Saving the ending…
+            </p>
           ) : null}
           {endingError ? (
-            <p className="nightCard__endingError" role="alert">{endingError}</p>
+            <p className="nightCard__endingError" role="alert">
+              {endingError}
+            </p>
           ) : null}
           {chosenEnding === "food" && !activeEnding ? (
-            <FoodEndingPicker terminals={lateFood} saving={endingSaving} onChoose={(terminal) => completeEnding("food", currentStop.venueId, foodEndingSelection(terminal))} />
+            <FoodEndingPicker
+              terminals={lateFood}
+              saving={endingSaving}
+              onChoose={(terminal) =>
+                completeEnding(
+                  "food",
+                  currentStop.venueId,
+                  foodEndingSelection(terminal),
+                )
+              }
+            />
           ) : null}
           {chosenEnding === "get_home" && !activeEnding ? (
             <GetHomeEndingConfirmation
               saving={endingSaving}
               stationName={currentTrain?.station?.name ?? null}
               leaveByIso={lastTrainLeaveBy}
-              onConfirm={() => completeEnding("get_home", currentStop.venueId, getHomeEndingSelection(currentTrain?.station?.name ?? null, lastTrainLeaveBy))}
+              onConfirm={() =>
+                completeEnding(
+                  "get_home",
+                  currentStop.venueId,
+                  getHomeEndingSelection(
+                    currentTrain?.station?.name ?? null,
+                    lastTrainLeaveBy,
+                  ),
+                )
+              }
             />
           ) : null}
           {chosenEnding === "keep_going" && !activeEnding ? (
@@ -781,7 +1013,11 @@ function NightModeSheet({ entry, onCollapse }: { entry: ActivePlanRef; onCollaps
               saving={endingSaving}
               onChoose={(extension) => {
                 setChosenExtension(extension);
-                void completeEnding("keep_going", currentStop.venueId, keepGoingEndingSelection(extension));
+                void completeEnding(
+                  "keep_going",
+                  currentStop.venueId,
+                  keepGoingEndingSelection(extension),
+                );
               }}
             />
           ) : null}
@@ -798,35 +1034,76 @@ function NightModeSheet({ entry, onCollapse }: { entry: ActivePlanRef; onCollaps
               />
               {recap ? (
                 <div className="nightCard__recapInvite">
-                  <p className="nightCard__recapLede">That&rsquo;s the night. Keep it as a private Memory. The route and any words you add, nothing posted.</p>
+                  <p className="nightCard__recapLede">
+                    That&rsquo;s the night. Keep it as a private Memory. The
+                    route and any words you add, nothing posted.
+                  </p>
                   <div className="nightCard__recapActions">
-                    <button type="button" className="nightCard__endingLink" onClick={() => {
-                      const opening = !recapOpen;
-                      setRecapOpen(opening);
-                      if (opening && !recapReviewed) {
-                        setRecapReviewed(true);
-                        trackEvent("memory_reviewed", { source: "inline_recap" });
-                        trackMeaningfulCoreAction("memory_reviewed");
-                      }
-                    }} aria-expanded={recapOpen}>
-                      <BookOpen size={16} aria-hidden="true" /> {recapOpen ? "Hide recap" : "Review private recap"}
+                    <button
+                      type="button"
+                      className="nightCard__endingLink"
+                      onClick={() => {
+                        const opening = !recapOpen;
+                        setRecapOpen(opening);
+                        if (opening && !recapReviewed) {
+                          setRecapReviewed(true);
+                          trackEvent("memory_reviewed", {
+                            source: "inline_recap",
+                          });
+                          trackMeaningfulCoreAction("memory_reviewed");
+                        }
+                      }}
+                      aria-expanded={recapOpen}
+                    >
+                      <BookOpen size={16} aria-hidden="true" />{" "}
+                      {recapOpen ? "Hide recap" : "Review private recap"}
                     </button>
-                    <button type="button" className="nightCard__quietButton" onClick={() => { resolvePendingPlanRecap(recap, "discarded"); setRecap(null); setRecapOpen(false); }}>
-                      <Trash2 size={15} aria-hidden="true" /> Discard local recap
+                    <button
+                      type="button"
+                      className="nightCard__quietButton"
+                      onClick={() => {
+                        resolvePendingPlanRecap(recap, "discarded");
+                        setRecap(null);
+                        setRecapOpen(false);
+                      }}
+                    >
+                      <Trash2 size={15} aria-hidden="true" /> Discard local
+                      recap
                     </button>
                     {/* The crafted morning-after recap page — the full memory, laid out. */}
-                    <Link className="nightCard__endingLink" href={`/plan/${id}/recap`}>
-                      <BookOpen size={16} aria-hidden="true" /> See the full recap
+                    <Link
+                      className="nightCard__endingLink"
+                      href={`/plan/${id}/recap`}
+                    >
+                      <BookOpen size={16} aria-hidden="true" /> See the full
+                      recap
                     </Link>
                   </div>
                 </div>
               ) : recapSeeding ? (
-                <p className="nightCard__endingStatus" role="status">Pulling your private recap together…</p>
+                <p className="nightCard__endingStatus" role="status">
+                  Pulling your private recap together…
+                </p>
               ) : null}
               {recapOpen && recap ? (
-                <PlanRecapEditor recap={recap} saving={recapSaving} onChange={(next) => { setRecap(next); writePendingPlanRecap(next); }} onSave={() => void savePrivateRecap()} />
+                <PlanRecapEditor
+                  recap={recap}
+                  saving={recapSaving}
+                  onChange={(next) => {
+                    setRecap(next);
+                    writePendingPlanRecap(next);
+                  }}
+                  onSave={() => void savePrivateRecap()}
+                />
               ) : null}
-              {recapMessage ? <p className="nightCard__endingStatus" role="status">{recapMessage} {recapMessage.startsWith("Private Memory saved") ? <Link href="/u/you#night-memories">Open Memories</Link> : null}</p> : null}
+              {recapMessage ? (
+                <p className="nightCard__endingStatus" role="status">
+                  {recapMessage}{" "}
+                  {recapMessage.startsWith("Private Memory saved") ? (
+                    <Link href="/u/you#night-memories">Open Memories</Link>
+                  ) : null}
+                </p>
+              ) : null}
             </>
           ) : null}
         </div>
@@ -846,7 +1123,10 @@ function NightModeSheet({ entry, onCollapse }: { entry: ActivePlanRef; onCollaps
             <MonitorSmartphone size={15} aria-hidden="true" />
             Keep screen awake
           </span>
-          <span className="nightCard__awakeState" data-on={keepAwake ? "" : undefined}>
+          <span
+            className="nightCard__awakeState"
+            data-on={keepAwake ? "" : undefined}
+          >
             {keepAwake ? "On" : "Off"}
           </span>
         </button>
@@ -854,7 +1134,9 @@ function NightModeSheet({ entry, onCollapse }: { entry: ActivePlanRef; onCollaps
 
       {arrived.length > 0 ? (
         <div className="nightCard__crew">
-          <span className="nightCard__crewCount">{arrived.length} arriving</span>
+          <span className="nightCard__crewCount">
+            {arrived.length} arriving
+          </span>
           <ul className="nightCard__crewList">
             {arrived.map((m) => (
               <li key={m.id} data-status={m.status}>
@@ -878,7 +1160,11 @@ function FoodEndingPicker({
   onChoose: (terminal: LateFoodTerminal) => void;
 }) {
   if (terminals.length === 0) {
-    return <p className="nightCard__endingHint">No late food worth pointing you to round here yet.</p>;
+    return (
+      <p className="nightCard__endingHint">
+        No late food worth pointing you to round here yet.
+      </p>
+    );
   }
   return (
     <div className="nightCard__foodPicker" aria-label="Choose a food ending">
@@ -889,14 +1175,36 @@ function FoodEndingPicker({
             <button
               type="button"
               className="nightCard__endingLink"
-              style={{ width: "100%", justifyContent: "space-between", border: 0, font: "inherit", textAlign: "left", cursor: saving ? "wait" : "pointer" }}
+              style={{
+                width: "100%",
+                justifyContent: "space-between",
+                border: 0,
+                font: "inherit",
+                textAlign: "left",
+                cursor: saving ? "wait" : "pointer",
+              }}
               onClick={() => onChoose(terminal)}
               disabled={saving}
               aria-label={`Choose Food ending; ${terminal.name} is a nearby recommendation`}
             >
               <span>{terminal.name}</span>
-              <small>{terminal.walkingDetour.minutes === null ? "distance pending" : `${terminal.walkingDetour.minutes} min direct-distance estimate`} · {terminal.confidence} confidence · recommendation only</small>
+              <small>
+                {terminal.walkingDetour.minutes === null
+                  ? "distance pending"
+                  : `${terminal.walkingDetour.minutes} min direct-distance estimate`}{" "}
+                · {terminal.anchor.label} £{terminal.anchor.price.toFixed(2)}
+              </small>
             </button>
+            <small>
+              <a
+                href={terminal.anchor.sourceUrl}
+                target="_blank"
+                rel="noreferrer"
+              >
+                Official menu
+              </a>
+              {anchorObservedClause(terminal)}
+            </small>
           </li>
         ))}
       </ul>
@@ -918,11 +1226,27 @@ function GetHomeEndingConfirmation({
   return (
     <div className="nightCard__foodPicker" aria-label="Confirm Get home ending">
       <strong>Getting home</strong>
-      <p>{leaveByIso ? `We've got a live last-train time for ${stationName ?? "the nearest station"}.` : `Check the last trains from ${stationName ?? "the nearest station"} before you head off.`}</p>
-      <button type="button" className="nightCard__endingLink" disabled={saving} onClick={onConfirm}>
+      <p>
+        {leaveByIso
+          ? `We've got a live last-train time for ${stationName ?? "the nearest station"}.`
+          : `Check the last trains from ${stationName ?? "the nearest station"} before you head off.`}
+      </p>
+      <button
+        type="button"
+        className="nightCard__endingLink"
+        disabled={saving}
+        onClick={onConfirm}
+      >
         That&apos;s my way home
       </button>
-      <a className="nightCard__endingLink" href="https://tfl.gov.uk/plan-a-journey/" target="_blank" rel="noreferrer">Open TfL journey planner</a>
+      <a
+        className="nightCard__endingLink"
+        href="https://tfl.gov.uk/plan-a-journey/"
+        target="_blank"
+        rel="noreferrer"
+      >
+        Open TfL journey planner
+      </a>
     </div>
   );
 }
@@ -937,17 +1261,35 @@ function KeepGoingPicker({
   onChoose: (extension: KeepGoingExtension) => void;
 }) {
   if (extensions.length === 0) {
-    return <p className="nightCard__endingHint">Nothing close enough to add without dragging the night out.</p>;
+    return (
+      <p className="nightCard__endingHint">
+        Nothing close enough to add without dragging the night out.
+      </p>
+    );
   }
   return (
-    <div className="nightCard__foodPicker" aria-label="Choose a Keep going extension">
+    <div
+      className="nightCard__foodPicker"
+      aria-label="Choose a Keep going extension"
+    >
       <strong>One more nearby</strong>
       <ul>
         {extensions.map((extension) => (
           <li key={extension.id}>
-            <button type="button" className="nightCard__endingLink" disabled={saving} onClick={() => onChoose(extension)}>
+            <button
+              type="button"
+              className="nightCard__endingLink"
+              disabled={saving}
+              onClick={() => onChoose(extension)}
+            >
               <span>{extension.name}</span>
-              <small>{extension.distanceKm.toFixed(1)} km away · {extension.cheapestPrice === null ? "no price yet" : `about £${extension.cheapestPrice.toFixed(2)} a pint`} · hours not checked</small>
+              <small>
+                {extension.distanceKm.toFixed(1)} km away ·{" "}
+                {extension.cheapestPrice === null
+                  ? "no price yet"
+                  : `about £${extension.cheapestPrice.toFixed(2)} a pint`}{" "}
+                · hours not checked
+              </small>
             </button>
           </li>
         ))}
@@ -970,14 +1312,25 @@ function PlanRecapEditor({
   const updateStopCaption = (position: number, caption: string) => {
     onChange({
       ...recap,
-      stops: recap.stops.map((stop) => stop.position === position ? { ...stop, caption } : stop),
+      stops: recap.stops.map((stop) =>
+        stop.position === position ? { ...stop, caption } : stop,
+      ),
     });
   };
   return (
-    <form className="nightCard__recap" onSubmit={(event) => { event.preventDefault(); onSave(); }}>
+    <form
+      className="nightCard__recap"
+      onSubmit={(event) => {
+        event.preventDefault();
+        onSave();
+      }}
+    >
       <div>
         <strong>Private recap preview</strong>
-        <p>Only the route and words you approve are saved. Nothing is posted as a Story.</p>
+        <p>
+          Only the route and words you approve are saved. Nothing is posted as a
+          Story.
+        </p>
       </div>
       <label>
         <span>Name this Memory</span>
@@ -985,7 +1338,9 @@ function PlanRecapEditor({
           value={recap.title}
           maxLength={120}
           required
-          onChange={(event) => onChange({ ...recap, title: event.target.value })}
+          onChange={(event) =>
+            onChange({ ...recap, title: event.target.value })
+          }
         />
       </label>
       <ol>
@@ -998,12 +1353,18 @@ function PlanRecapEditor({
               rows={2}
               placeholder="Add an optional private caption"
               aria-label={`Private caption for ${stop.venueName}`}
-              onChange={(event) => updateStopCaption(stop.position, event.target.value)}
+              onChange={(event) =>
+                updateStopCaption(stop.position, event.target.value)
+              }
             />
           </li>
         ))}
       </ol>
-      <button type="submit" className="nightCard__endingLink" disabled={saving || !recap.title.trim()}>
+      <button
+        type="submit"
+        className="nightCard__endingLink"
+        disabled={saving || !recap.title.trim()}
+      >
         {saving ? "Saving privately…" : "Save private Memory"}
       </button>
     </form>
@@ -1037,17 +1398,33 @@ function NightEndingResult({
               <li key={terminal.id}>
                 <span>{terminal.name}</span>
                 <small>
-                  {terminal.category} · {terminal.walkingDetour.minutes === null ? "distance pending" : `${terminal.walkingDetour.minutes} min direct-distance estimate`} ·{" "}
-                  {terminal.confidence} confidence
+                  {terminal.category} ·{" "}
+                  {terminal.walkingDetour.minutes === null
+                    ? "distance pending"
+                    : `${terminal.walkingDetour.minutes} min direct-distance estimate`}{" "}
+                  · {terminal.anchor.label} £{terminal.anchor.price.toFixed(2)}
+                </small>
+                <small>
+                  <a
+                    href={terminal.anchor.sourceUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    Official menu
+                  </a>
+                  {anchorObservedClause(terminal)}
                 </small>
               </li>
             ))}
           </ul>
         ) : (
-          <p>No late food flagged round here yet. Check the map before you walk.</p>
+          <p>
+            No late food flagged round here yet. Check the map before you walk.
+          </p>
         )}
         <p className="nightCard__endingFineprint">
-          Kitchens can shut early. Check tonight&apos;s hours before you leave the last pub.
+          Kitchens can shut early. Check tonight&apos;s hours before you leave
+          the last pub.
         </p>
       </div>
     );
@@ -1058,14 +1435,18 @@ function NightEndingResult({
       <div className="nightCard__endingResult" data-ending="keep_going">
         <strong>Keep it sensible</strong>
         <p>
-          {keepGoingExtension ? `${keepGoingExtension.name} is your next stop from ${currentStop.venueName}.` : `Open the map around ${currentStop.venueName} and pick somewhere genuinely close.`}
-          {" "}We won&apos;t push you to drink more. This is just what&apos;s nearby.
+          {keepGoingExtension
+            ? `${keepGoingExtension.name} is your next stop from ${currentStop.venueName}.`
+            : `Open the map around ${currentStop.venueName} and pick somewhere genuinely close.`}{" "}
+          We won&apos;t push you to drink more. This is just what&apos;s nearby.
         </p>
         <Link
           className="nightCard__endingLink"
           href={`/map?venue=${encodeURIComponent(keepGoingExtension?.id ?? currentStop.venueId)}`}
         >
-          {keepGoingExtension ? `Open ${keepGoingExtension.name} on the map` : "Find nearby pubs"}
+          {keepGoingExtension
+            ? `Open ${keepGoingExtension.name} on the map`
+            : "Find nearby pubs"}
         </Link>
       </div>
     );
@@ -1075,7 +1456,9 @@ function NightEndingResult({
     <div className="nightCard__endingResult" data-ending="get_home">
       <strong>Get home safe</strong>
       <p>
-        {leaveByIso ? "Use the leave-by time above and start moving now." : "Check TfL or your preferred route home before leaving the group."}
+        {leaveByIso
+          ? "Use the leave-by time above and start moving now."
+          : "Check TfL or your preferred route home before leaving the group."}
         {stationName ? ` Nearest station: ${stationName}.` : ""}
       </p>
       <NightCalmLine area={nightArea} />
@@ -1088,13 +1471,23 @@ function NightStopSignal({ signal }: { signal: PlanGetInStopDTO | null }) {
   const closed = signal.busyness.isOpen === false;
   return (
     <span className="nightCard__busy">
-      <span className="nightCard__dot" data-level={signal.busyness.level} aria-hidden="true" />
+      <span
+        className="nightCard__dot"
+        data-level={signal.busyness.level}
+        aria-hidden="true"
+      />
       {closed ? "Likely closed now" : signal.busyness.label}
     </span>
   );
 }
 
-function LastTrainLine({ leaveByIso, stationName }: { leaveByIso: string; stationName: string | null }) {
+function LastTrainLine({
+  leaveByIso,
+  stationName,
+}: {
+  leaveByIso: string;
+  stationName: string | null;
+}) {
   // Tick a live "minutes left" off the leave-by instant the last-ride feed
   // computed. Honest: we only ever show the leave-by clock the feed gave us.
   const [now, setNow] = useState(() => Date.now());
@@ -1125,7 +1518,9 @@ function LastTrainLine({ leaveByIso, stationName }: { leaveByIso: string; statio
         ) : (
           <>Last train window has passed. Check TfL</>
         )}
-        {stationName ? <span className="nightCard__station"> · {stationName}</span> : null}
+        {stationName ? (
+          <span className="nightCard__station"> · {stationName}</span>
+        ) : null}
       </span>
     </div>
   );

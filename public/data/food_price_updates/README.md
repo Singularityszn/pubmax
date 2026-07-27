@@ -19,7 +19,7 @@ Versioned, provenance-stamped price files for food dishes on the venue Menu tab
     {
       "venueKey": "prospect of whitby|57 wapping wall, e1w 3sh|51.50710|-0.05113",
       "itemName": "Fish & Chips",
-      "category": "mains", // starters|sharers|mains|burgers|desserts|sides|bar-snacks|other
+      "category": "mains", // one of FOOD_CATEGORIES in lib/food.ts
       "priceGbp": 19.95,
       "source": {
         "label": "Greene King — official site",

@@ -2,14 +2,14 @@
 
 import {
   toggleVenueKind,
+  type CuratedVenueKind,
   type VenueKindVisibility,
-  type WaveOneVenueKind,
 } from "@/lib/venueKindFilters";
 
 import "./tonightArcChips.css";
 
 const CHIPS: ReadonlyArray<{
-  kind: WaveOneVenueKind | "club";
+  kind: CuratedVenueKind | "club";
   label: string;
   disabled?: boolean;
 }> = [
@@ -17,6 +17,7 @@ const CHIPS: ReadonlyArray<{
   { kind: "bar", label: "Bars" },
   { kind: "club", label: "Clubs", disabled: true },
   { kind: "food", label: "Food" },
+  { kind: "restaurant", label: "Restaurants" },
 ];
 
 export default function TonightArcChips({
@@ -27,7 +28,11 @@ export default function TonightArcChips({
   onChange: (next: VenueKindVisibility) => void;
 }) {
   return (
-    <div className="tonightArcChips" role="group" aria-label="Tonight arc venue types">
+    <div
+      className="tonightArcChips"
+      role="group"
+      aria-label="Tonight arc venue types"
+    >
       <span className="tonightArcLabel">Tonight arc</span>
       <div className="tonightArcRow">
         {CHIPS.map((chip) => {

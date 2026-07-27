@@ -11,7 +11,10 @@ import {
   type Filters,
   type VenuePrice,
 } from "@/lib/venues";
-import { CURATED_CUISINE_BY_VENUE_ID, normaliseCuisineTags } from "@/lib/cuisineTags";
+import {
+  CURATED_CUISINE_BY_VENUE_ID,
+  normaliseCuisineTags,
+} from "@/lib/cuisineTags";
 import { slimVenueToPin } from "@/lib/slimPins";
 import { CITIES } from "@/lib/cities";
 import { SLIM_VENUES_PATH, type SlimVenue } from "@/lib/venuesSlim";
@@ -24,8 +27,21 @@ import { SLIM_VENUES_PATH, type SlimVenue } from "@/lib/venuesSlim";
 
 const ROOT = path.resolve(__dirname, "..");
 const SLIM_PATH = path.join(ROOT, "public", "data", "venues_slim.json");
-const RAW_PATH = path.join(ROOT, "public", "data", "pint_prices_app_dataset.json");
-const SLIM_KEYS = ["borough", "cheapestPrice", "filterHints", "id", "lat", "lng", "name"];
+const RAW_PATH = path.join(
+  ROOT,
+  "public",
+  "data",
+  "pint_prices_app_dataset.json",
+);
+const SLIM_KEYS = [
+  "borough",
+  "cheapestPrice",
+  "filterHints",
+  "id",
+  "lat",
+  "lng",
+  "name",
+];
 
 const slim = JSON.parse(readFileSync(SLIM_PATH, "utf8")) as unknown;
 const rawRows = JSON.parse(readFileSync(RAW_PATH, "utf8")) as VenuePrice[];
@@ -61,15 +77,13 @@ function hasValidFamousVenueFields(row: Record<string, unknown>): boolean {
     row.priceBand === 1 ||
     row.priceBand === 2;
   const anchor =
-    row.kind !== "bar" && row.kind !== "food" ||
-    (
-      typeof row.anchorLabel === "string" &&
+    (row.kind !== "bar" && row.kind !== "food" && row.kind !== "restaurant") ||
+    (typeof row.anchorLabel === "string" &&
       row.anchorLabel.length > 0 &&
       typeof row.anchorObservedAt === "string" &&
       row.anchorObservedAt.length > 0 &&
       typeof row.anchorSourceUrl === "string" &&
-      row.anchorSourceUrl.length > 0
-    );
+      row.anchorSourceUrl.length > 0);
   return kind && priceBand && anchor;
 }
 
@@ -135,7 +149,9 @@ function makeFilters(overrides: Partial<Filters> = {}): Filters {
 function matchingIdsFromSlim(filters: Filters): string[] {
   return (slim as SlimVenue[])
     .filter((venue) => venue.kind === undefined)
-    .filter((venue) => filterVenues([slimVenueToPin(venue)], filters).length > 0)
+    .filter(
+      (venue) => filterVenues([slimVenueToPin(venue)], filters).length > 0,
+    )
     .map((venue) => venue.id)
     .sort();
 }
@@ -181,6 +197,7 @@ describe("venues_slim.json", () => {
                 "kind",
                 "priceBand",
                 "anchorLabel",
+                "anchorCourse",
                 "anchorObservedAt",
                 "anchorSourceUrl",
               ].includes(key),
@@ -227,7 +244,9 @@ describe("venues_slim.json", () => {
     // majority within ~0.5° of central London proves the column survived intact.
     const rows = slim as SlimVenue[];
     const nearLondon = rows.filter(
-      (v) => Math.abs(v.lat - LONDON.lat) < 0.5 && Math.abs(v.lng - LONDON.lng) < 0.5,
+      (v) =>
+        Math.abs(v.lat - LONDON.lat) < 0.5 &&
+        Math.abs(v.lng - LONDON.lng) < 0.5,
     );
     expect(nearLondon.length).toBeGreaterThan(rows.length * 0.5);
   });
@@ -249,21 +268,33 @@ describe("venues_slim.json", () => {
 
   it("carries compact filter hints for the fast map path", () => {
     const rows = slim as SlimVenue[];
-    expect(rows.some((row) => row.filterHints?.searchText.includes("wine"))).toBe(true);
+    expect(
+      rows.some((row) => row.filterHints?.searchText.includes("wine")),
+    ).toBe(true);
     expect(rows.some((row) => row.filterHints?.amenities.cocktails)).toBe(true);
-    expect(rows.some((row) => row.filterHints?.amenities.nonAlcoholic)).toBe(true);
-    expect(rows.some((row) => (row.filterHints?.drinkCategories ?? []).includes("beer"))).toBe(
+    expect(rows.some((row) => row.filterHints?.amenities.nonAlcoholic)).toBe(
       true,
     );
-    expect(rows.some((row) => (row.filterHints?.drinkBrands ?? []).includes("guinness"))).toBe(
-      true,
-    );
-    expect(rows.some((row) => row.filterHints?.drinkText?.includes("guinness"))).toBe(true);
+    expect(
+      rows.some((row) =>
+        (row.filterHints?.drinkCategories ?? []).includes("beer"),
+      ),
+    ).toBe(true);
+    expect(
+      rows.some((row) =>
+        (row.filterHints?.drinkBrands ?? []).includes("guinness"),
+      ),
+    ).toBe(true);
+    expect(
+      rows.some((row) => row.filterHints?.drinkText?.includes("guinness")),
+    ).toBe(true);
   });
 
   it("drink-lens filters use slim drinkCategories / drinkBrands hints", () => {
     const ginIds = matchingIdsFromSlim(makeFilters({ drinkCategory: "gin" }));
-    const guinnessIds = matchingIdsFromSlim(makeFilters({ drinkBrand: "guinness" }));
+    const guinnessIds = matchingIdsFromSlim(
+      makeFilters({ drinkBrand: "guinness" }),
+    );
     expect(ginIds.length).toBeGreaterThan(0);
     expect(guinnessIds.length).toBeGreaterThan(0);
     // Hints are the fast path — every gin hit should carry a gin category hint
@@ -279,14 +310,23 @@ describe("venues_slim.json", () => {
   });
 
   it.each([
-    ["stout", makeFilters({ drinkCategory: "beer", drinkSubtype: "beer-stout" })],
-    ["lager", makeFilters({ drinkCategory: "beer", drinkSubtype: "beer-lager" })],
+    [
+      "stout",
+      makeFilters({ drinkCategory: "beer", drinkSubtype: "beer-stout" }),
+    ],
+    [
+      "lager",
+      makeFilters({ drinkCategory: "beer", drinkSubtype: "beer-lager" }),
+    ],
     ["IPA", makeFilters({ drinkCategory: "beer", drinkSubtype: "beer-ipa" })],
-  ])("matches hydrated filtering for the %s drink refinement", (_label, filters) => {
-    const slimIds = matchingIdsFromSlim(filters);
-    expect(slimIds.length).toBeGreaterThan(0);
-    expect(slimIds).toEqual(matchingIdsFromFull(filters));
-  });
+  ])(
+    "matches hydrated filtering for the %s drink refinement",
+    (_label, filters) => {
+      const slimIds = matchingIdsFromSlim(filters);
+      expect(slimIds.length).toBeGreaterThan(0);
+      expect(slimIds).toEqual(matchingIdsFromFull(filters));
+    },
+  );
 
   it("matches hydrated filtering for the top shelf refinement", () => {
     // The pint dataset is beer-only and ordinary pints never classify as top
@@ -300,7 +340,10 @@ describe("venues_slim.json", () => {
     const byId = new Map((slim as SlimVenue[]).map((row) => [row.id, row]));
     for (const [id, rawTags] of Object.entries(CURATED_CUISINE_BY_VENUE_ID)) {
       const venue = byId.get(id);
-      expect(venue, `${id} is curated but missing from venues_slim.json`).toBeDefined();
+      expect(
+        venue,
+        `${id} is curated but missing from venues_slim.json`,
+      ).toBeDefined();
       const expectedTags = normaliseCuisineTags(rawTags);
       const shippedTags = venue?.filterHints?.cuisineTags ?? [];
       for (const tag of expectedTags) {
@@ -350,14 +393,23 @@ describe("venues_slim.json", () => {
     expect(slimIds).toEqual(canonicalIds);
   });
 
-  it("ships exactly 40 bars and 25 food venues with every type-relative band", () => {
+  it("ships exact curated pack counts with every type-relative band", () => {
     const rows = slim as SlimVenue[];
     const bars = rows.filter((row) => row.kind === "bar");
     const food = rows.filter((row) => row.kind === "food");
+    const restaurants = rows.filter((row) => row.kind === "restaurant");
     expect(bars).toHaveLength(40);
     expect(food).toHaveLength(25);
-    expect(new Set(bars.map((row) => row.priceBand))).toEqual(new Set([0, 1, 2]));
-    expect(new Set(food.map((row) => row.priceBand))).toEqual(new Set([0, 1, 2]));
+    expect(restaurants).toHaveLength(25);
+    expect(new Set(bars.map((row) => row.priceBand))).toEqual(
+      new Set([0, 1, 2]),
+    );
+    expect(new Set(food.map((row) => row.priceBand))).toEqual(
+      new Set([0, 1, 2]),
+    );
+    expect(new Set(restaurants.map((row) => row.priceBand))).toEqual(
+      new Set([0, 1, 2]),
+    );
   });
 
   it("is meaningfully smaller than the raw dataset", () => {
@@ -385,7 +437,10 @@ describe("venues_slim.json", () => {
 
   it("keeps the all-in shard payload (core + every outer shard) under 1.2 MB", () => {
     const manifest = JSON.parse(
-      readFileSync(path.join(ROOT, "public", "data", "venues_slim.manifest.json"), "utf8"),
+      readFileSync(
+        path.join(ROOT, "public", "data", "venues_slim.manifest.json"),
+        "utf8",
+      ),
     ) as { shards: { url: string }[] };
     let total = statSync(
       path.join(ROOT, "public", "data", "venues_slim.manifest.json"),

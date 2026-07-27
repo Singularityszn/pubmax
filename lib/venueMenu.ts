@@ -28,11 +28,29 @@ export function venueMenuForInspector(
   const base = venueDrinkMenu(venue.id, venue.prices);
   const firstPrice = venue.prices[0];
   if (!firstPrice) return base;
-  return applyDrinkPriceUpdatesToMenu(venueGroupingKey(firstPrice), base, updates);
+  return applyDrinkPriceUpdatesToMenu(
+    venueGroupingKey(firstPrice),
+    base,
+    updates,
+  );
 }
 
 export type VenueMenuVenue = Pick<Venue, "id" | "prices"> &
-  Partial<Pick<Venue, "name" | "address" | "latitude" | "longitude">>;
+  Partial<
+    Pick<
+      Venue,
+      | "name"
+      | "address"
+      | "latitude"
+      | "longitude"
+      | "kind"
+      | "cheapestPrice"
+      | "anchorLabel"
+      | "anchorCourse"
+      | "anchorObservedAt"
+      | "anchorSourceUrl"
+    >
+  >;
 
 /**
  * Keys a drink/food price update may target for this venue:

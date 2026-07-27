@@ -110,7 +110,9 @@ describe("truncateStopName", () => {
   it("drops a trailing space before the ellipsis (no 'word …')", () => {
     // The 17-char cut lands right after a space; it must not survive next to
     // the ellipsis.
-    expect(truncateStopName("The Crown Anchor Tavern")).toBe("The Crown Anchor…");
+    expect(truncateStopName("The Crown Anchor Tavern")).toBe(
+      "The Crown Anchor…",
+    );
   });
 
   it("honours a custom max", () => {
@@ -124,7 +126,11 @@ describe("routeToStops", () => {
     const b = makeVenue({ id: "b" });
     const c = makeVenue({ id: "c" });
     const fc = routeToStops([a, b, c]);
-    expect(fc.features.map((f) => f.properties?.label)).toEqual(["1", "2", "3"]);
+    expect(fc.features.map((f) => f.properties?.label)).toEqual([
+      "1",
+      "2",
+      "3",
+    ]);
     expect(fc.features.map((f) => f.properties?.id)).toEqual(["a", "b", "c"]);
   });
 
@@ -145,8 +151,18 @@ describe("routeToStops", () => {
 
 describe("bandCorridorGeoJSON", () => {
   const catalog: Landmark[] = [
-    { id: "lm-1", name: "One", icon: "tower", coordinates: [-0.1, 51.5] } as Landmark,
-    { id: "lm-2", name: "Two", icon: "tower", coordinates: [-0.2, 51.6] } as Landmark,
+    {
+      id: "lm-1",
+      name: "One",
+      icon: "tower",
+      coordinates: [-0.1, 51.5],
+    } as Landmark,
+    {
+      id: "lm-2",
+      name: "Two",
+      icon: "tower",
+      coordinates: [-0.2, 51.6],
+    } as Landmark,
   ];
 
   it("is empty when the band is undefined", () => {
@@ -154,12 +170,20 @@ describe("bandCorridorGeoJSON", () => {
   });
 
   it("is empty when the band resolves to <2 anchors", () => {
-    const band = { id: "b", name: "B", anchorLandmarkIds: ["lm-1"] } as unknown as StoryBand;
+    const band = {
+      id: "b",
+      name: "B",
+      anchorLandmarkIds: ["lm-1"],
+    } as unknown as StoryBand;
     expect(bandCorridorGeoJSON(band, catalog).features).toHaveLength(0);
   });
 
   it("draws a LineString when the band resolves to >=2 anchors", () => {
-    const band = { id: "b", name: "B", anchorLandmarkIds: ["lm-1", "lm-2"] } as unknown as StoryBand;
+    const band = {
+      id: "b",
+      name: "B",
+      anchorLandmarkIds: ["lm-1", "lm-2"],
+    } as unknown as StoryBand;
     const fc = bandCorridorGeoJSON(band, catalog);
     expect(fc.features).toHaveLength(1);
     expect(fc.features[0]?.geometry.type).toBe("LineString");
@@ -223,14 +247,49 @@ describe("pubsToGeoJSON", () => {
     expect(props?.drinkKind).toBe("pint");
   });
 
-  it("uses venue-type glyphs and type-relative bands for famous bars and food", () => {
-    const bar = makeVenue({ id: "bar", kind: "bar", priceBand: 1, cheapestPrice: 18 });
-    const food = makeVenue({ id: "food", kind: "food", priceBand: 0, cheapestPrice: 12 });
-    const [barFeature, foodFeature] = pubsToGeoJSON([bar, food], signals, null).features;
-    expect(barFeature?.properties).toMatchObject({ kind: "bar", drinkKind: "coupe", bucket: 1 });
-    expect(foodFeature?.properties).toMatchObject({ kind: "food", drinkKind: "skewer", bucket: 0 });
+  it("uses venue-type glyphs and type-relative bands for curated non-pubs", () => {
+    const bar = makeVenue({
+      id: "bar",
+      kind: "bar",
+      priceBand: 1,
+      cheapestPrice: 18,
+    });
+    const food = makeVenue({
+      id: "food",
+      kind: "food",
+      priceBand: 0,
+      cheapestPrice: 12,
+    });
+    const restaurant = makeVenue({
+      id: "restaurant",
+      kind: "restaurant",
+      priceBand: 2,
+      cheapestPrice: 35,
+    });
+    const [barFeature, foodFeature, restaurantFeature] = pubsToGeoJSON(
+      [bar, food, restaurant],
+      signals,
+      null,
+    ).features;
+    expect(barFeature?.properties).toMatchObject({
+      kind: "bar",
+      drinkKind: "coupe",
+      bucket: 1,
+    });
+    expect(foodFeature?.properties).toMatchObject({
+      kind: "food",
+      drinkKind: "skewer",
+      bucket: 0,
+    });
     expect(String(barFeature?.properties?.icon)).toContain("coupe-1");
     expect(String(foodFeature?.properties?.icon)).toContain("skewer-0");
+    expect(restaurantFeature?.properties).toMatchObject({
+      kind: "restaurant",
+      drinkKind: "fork",
+      bucket: 2,
+    });
+    expect(String(restaurantFeature?.properties?.icon)).toContain("fork-2");
+    expect("priceLabel" in (restaurantFeature?.properties ?? {})).toBe(false);
   });
 });
 
@@ -242,9 +301,10 @@ describe("pubsToGeoJSON provisional mark", () => {
 
   it("is false for every pin when nothing is pending", () => {
     const venue = makeVenue({ id: "quiet", cheapestPrice: 6 });
-    expect(pubsToGeoJSON([venue], signals, null).features[0]?.properties?.provisional).toBe(
-      false,
-    );
+    expect(
+      pubsToGeoJSON([venue], signals, null).features[0]?.properties
+        ?.provisional,
+    ).toBe(false);
   });
 
   it("marks only the reported pub, and leaves its price band alone", () => {
@@ -303,18 +363,23 @@ describe("pubsToGeoJSON price label (only a sourced price gets a figure)", () =>
     favoritePint: string | null = null,
     provisional: ReadonlySet<string> | null = null,
   ) =>
-    pubsToGeoJSON([venue], signals, favoritePint, null, null, provisional).features[0]
-      ?.properties ?? {};
+    pubsToGeoJSON([venue], signals, favoritePint, null, null, provisional)
+      .features[0]?.properties ?? {};
 
   it("labels a curated sourced price", () => {
-    expect(propsOf(makeVenue({ id: "curated", cheapestPrice: 5.4 })).priceLabel).toBe("£5.40");
+    expect(
+      propsOf(makeVenue({ id: "curated", cheapestPrice: 5.4 })).priceLabel,
+    ).toBe("£5.40");
   });
 
   it("prefers a contributor price, exactly as the colour band does", () => {
     const signals = new Map<string, VenueSignal>([
       ["logged", { hasPintDrops: true, latestContributorPrice: 4.8 }],
     ]);
-    const props = propsOf(makeVenue({ id: "logged", cheapestPrice: 6 }), signals);
+    const props = propsOf(
+      makeVenue({ id: "logged", cheapestPrice: 6 }),
+      signals,
+    );
     expect(props.priceLabel).toBe("£4.80");
     expect(props.bucket).toBe(priceBucket(4.8));
   });
@@ -338,7 +403,14 @@ describe("pubsToGeoJSON price label (only a sourced price gets a figure)", () =>
     // The seed exists so a city pack with null cheapestPrice still reads as a
     // map. A band is a hint; "£5.20" over a pub is a claim we cannot back.
     const signals = new Map<string, VenueSignal>([
-      ["seeded", { hasPintDrops: true, latestContributorPrice: null, latestDemoPrice: 5.2 }],
+      [
+        "seeded",
+        {
+          hasPintDrops: true,
+          latestContributorPrice: null,
+          latestDemoPrice: 5.2,
+        },
+      ],
     ]);
     const props = propsOf(makeVenue({ id: "seeded" }), signals);
     expect("priceLabel" in props).toBe(false);
@@ -348,7 +420,12 @@ describe("pubsToGeoJSON price label (only a sourced price gets a figure)", () =>
   it("gives a lone provisional report a mark and no figure", () => {
     // An uncorroborated submission never reaches latestContributorPrice (the
     // gate is mergeCommunityPriceSignals), so there is nothing here to print.
-    const props = propsOf(makeVenue({ id: "pending" }), noSignals, null, new Set(["pending"]));
+    const props = propsOf(
+      makeVenue({ id: "pending" }),
+      noSignals,
+      null,
+      new Set(["pending"]),
+    );
     expect(props.provisional).toBe(true);
     expect("priceLabel" in props).toBe(false);
   });
@@ -370,25 +447,47 @@ describe("pubsToGeoJSON price label (only a sourced price gets a figure)", () =>
   it("prints nothing where a price BAND was set without a price", () => {
     // priceBand short-circuits the bucket for famous bars/food venues; the
     // label has no such shortcut, because a band is not a figure.
-    const props = propsOf(makeVenue({ id: "banded", kind: "bar", priceBand: 1 }));
+    const props = propsOf(
+      makeVenue({ id: "banded", kind: "bar", priceBand: 1 }),
+    );
     expect(props.bucket).toBe(1);
     expect("priceLabel" in props).toBe(false);
   });
 
-  it("never prints a bar or food anchor price - the figure idiom is the pint", () => {
+  it("never prints a non-pub anchor price - the figure idiom is the pint", () => {
     // Famous bar/food rows carry their anchor price (a house cocktail, a dish)
     // as cheapestPrice in the slim index; printed bare it would read as a pint
     // price. The band still paints; the sheet still shows the labelled anchor.
     const bar = propsOf(
-      makeVenue({ id: "anchored-bar", kind: "bar", priceBand: 2, cheapestPrice: 25 }),
+      makeVenue({
+        id: "anchored-bar",
+        kind: "bar",
+        priceBand: 2,
+        cheapestPrice: 25,
+      }),
     );
     expect(bar.bucket).toBe(2);
     expect("priceLabel" in bar).toBe(false);
     const food = propsOf(
-      makeVenue({ id: "anchored-food", kind: "food", priceBand: 0, cheapestPrice: 15 }),
+      makeVenue({
+        id: "anchored-food",
+        kind: "food",
+        priceBand: 0,
+        cheapestPrice: 15,
+      }),
     );
     expect(food.bucket).toBe(0);
     expect("priceLabel" in food).toBe(false);
+    const restaurant = propsOf(
+      makeVenue({
+        id: "anchored-restaurant",
+        kind: "restaurant",
+        priceBand: 1,
+        cheapestPrice: 32,
+      }),
+    );
+    expect(restaurant.bucket).toBe(1);
+    expect("priceLabel" in restaurant).toBe(false);
   });
 });
 

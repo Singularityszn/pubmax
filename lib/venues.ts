@@ -13,6 +13,7 @@ import {
   haystackMatchesSubtypeBrand,
   parseDrinkSubtypeParam,
 } from "@/lib/drinkSubtypes";
+import type { FoodCategory } from "@/lib/food";
 import { hasNonAlcoholic } from "@/lib/nonAlcoholicDrinks";
 import { getVenueAccessibility } from "@/lib/venueAccessibilitySeeds";
 import {
@@ -147,6 +148,7 @@ export type Venue = {
   priceBand?: 0 | 1 | 2;
   /** Provenance for non-pub anchor prices and editorial stories. */
   anchorLabel?: string;
+  anchorCourse?: FoodCategory;
   anchorObservedAt?: string;
   anchorSourceUrl?: string;
   storySourceUrl?: string;

@@ -41,7 +41,11 @@ export function summariseGetHome(
   // The route's graceful-failure shape is 200 + `error` + empty body, so both
   // station and trains must be defensively checked, not assumed.
   const stationName = result.station?.name;
-  if (!stationName || !Array.isArray(result.trains) || result.trains.length === 0) {
+  if (
+    !stationName ||
+    !Array.isArray(result.trains) ||
+    result.trains.length === 0
+  ) {
     return null;
   }
 

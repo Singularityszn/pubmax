@@ -515,7 +515,7 @@ GET /api/late-food?near=<area>&at=<iso>&fromLat=<lat>&fromLng=<lng>&tags=<csv>&l
 ```
 - `near` (or `area`): normalized via `normalizeLateFoodArea` (aliases `soho`/`piccadilly` → `piccadilly-soho`). Required. All 20 canonical Night Areas are accepted; areas without eligible evidence return zero terminals.
 - `tags`: CSV, max 8, matched against `category` / `dietary` / name substring.
-- `limit`: default 6, max 12.
+- `limit`: default and hard maximum `MAX_LATE_FOOD_HANDOFFS` (3, `lib/lateFood.ts`). A crawl ending offers a shortlist, not a directory; larger values clamp down rather than widen.
 - `at`: optional ISO instant used to rank operator-evidenced weekly hours.
 - `fromLat` and `fromLng`: optional pair for an estimate from the actual final route stop.
 
@@ -529,12 +529,13 @@ type LateFoodTerminal = {
   hours: { service: string; verifyOnNight: true; weekly: Record<string, unknown[]> };
   walkingDetour: { minutes: number | null; distanceKm: number | null; basis: string; note: string };
   provenance: { kind: "official_operator"; source: string; sourceUrl: string; observedAt: string; reviewedAt: string; expiresAt: string };
+  anchor: { label: string; price: number; sourceUrl: string; observedAt: string };
   confidence: "high" | "medium" | "low";
   openAtRequestedTime: boolean | null;
 };
 type LateFoodApiSuccessResponse = {
   area: LateFoodArea;                 // canonical slug
-  terminals: LateFoodTerminal[];      // ranked: confidence desc, then walkingDetour asc
+  terminals: LateFoodTerminal[];      // ranked by walkingDetour.minutes asc (unknown last), capped at 3
   rankingSignals: string[];
   missingEvidence: string[];
 };
@@ -546,7 +547,7 @@ type LateFoodApiSuccessResponse = {
 
 ### Invariants (#252, honoured)
 
-- Records returned by `/api/late-food` remain modelled **separately** from the Venue Dataset: no `venueId`, pint prices, or pub amenities. Hand-curated `kind: food` map pins are a separate discovery lane governed by [`NIGHT_OUT_PLACE_INGEST.md`](NIGHT_OUT_PLACE_INGEST.md); their sourced item anchors are not pint prices, and they are excluded from Pint Drops.
+- Records returned by `/api/late-food` remain modelled **separately** from the Venue Dataset: no `venueId`, pint prices, or pub amenities. `anchor` is one named, dated, operator-sourced dish price, never a pint price and never a menu. Hand-curated `kind: food` and `kind: restaurant` map pins are a separate discovery lane governed by [`NIGHT_OUT_PLACE_INGEST.md`](NIGHT_OUT_PLACE_INGEST.md); their sourced item anchors are not pint prices, and they are excluded from Pint Drops.
 - Unknown opening hours are **labelled** (`verifyOnNight: true`, `missingEvidence`), never assumed open.
 
 ### Rate limit
