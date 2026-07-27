@@ -1,0 +1,43 @@
+// Runtime loader for the price-archaeology file.
+//
+// Mirrors lib/priceUpdatesLoader.ts: the file is already a public asset, so the
+// browser fetches it as data once per session (module-level promise cache,
+// shared by every venue sheet open) instead of it being bundled into the map's
+// client JS. Fails soft to an empty map — a missing file renders the sheet
+// exactly as it did before this layer existed, never an error.
+//
+// This module is the ONLY runtime path to historical prices, and it feeds the
+// venue sheet alone. See the hard rule at the top of lib/priceHistory.ts.
+
+import {
+  groupPriceHistoryByVenue,
+  parsePriceHistory,
+  type PriceHistoryObservation,
+} from "@/lib/priceHistory";
+
+export const PRICE_HISTORY_PATH = "/data/price_history/london.json";
+
+async function fetchJson(path: string): Promise<unknown | null> {
+  if (typeof window === "undefined") return null;
+  try {
+    const res = await fetch(path, { headers: { accept: "application/json" } });
+    if (!res.ok) return null;
+    return (await res.json()) as unknown;
+  } catch {
+    return null;
+  }
+}
+
+let historyPromise: Promise<Map<string, PriceHistoryObservation[]>> | null = null;
+
+export function loadPriceHistory(): Promise<Map<string, PriceHistoryObservation[]>> {
+  historyPromise ??= fetchJson(PRICE_HISTORY_PATH).then((raw) =>
+    groupPriceHistoryByVenue(raw === null ? [] : parsePriceHistory(raw)),
+  );
+  return historyPromise;
+}
+
+/** Test seam: forget the cached fetch. */
+export function resetPriceHistoryLoader(): void {
+  historyPromise = null;
+}
