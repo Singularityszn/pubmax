@@ -209,6 +209,7 @@ import { warmVenueDetail } from "@/lib/warmVenueDetail";
 import { markPubmaxTiming } from "@/lib/performanceMarks";
 import { markPalRouteActivation } from "@/lib/pubPal";
 import {
+  drinkLensUnknownRowLabel,
   experienceLensSummary,
   filtersForDrinkPriceLens,
   filtersForExperienceLens,
@@ -2441,15 +2442,14 @@ export default function PubMap({
               <strong>
                 {selectedLensPrice
                   ? formatPrice(selectedLensPrice.priceGbp)
-                  : drinkIndexStatus === "degraded"
-                    ? "Price unread"
-                    : "No price logged"}
+                  : "Unknown"}
               </strong>
               <small>
                 {selectedLensPrice?.categoryLabel ??
-                  (drinkIndexStatus === "degraded"
-                    ? `could not read ${activeLensLabel?.toLowerCase() ?? "these"} prices`
-                    : `for ${activeLensLabel?.toLowerCase() ?? "this view"}`)}
+                  drinkLensUnknownRowLabel(
+                    activeLensLabel?.toLowerCase() ?? "this view",
+                    drinkIndexStatus,
+                  )}
               </small>
             </span>
           ) : typeof selectedVenue.cheapestPrice === "number" ? (

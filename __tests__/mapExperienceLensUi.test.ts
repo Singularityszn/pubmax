@@ -49,8 +49,15 @@ describe("MapExperienceLens", () => {
       /experienceLens === "all"\s*\?\s*\([\s\S]*?<DrinkShapeChips/,
     );
     expect(pubMap).toMatch(
-      /activeLensPrices !== null\s*\?\s*\([\s\S]*?selectedLensPrice[\s\S]*?No price logged/,
+      /activeLensPrices !== null\s*\?\s*\([\s\S]*?selectedLensPrice[\s\S]*?Unknown/,
     );
+    // The peek is a single-row read of the same index the list and the sheet
+    // report on, so it uses their helper rather than a fifth sentence that
+    // could settle a partial or unread index as "none logged".
+    expect(pubMap).toMatch(
+      /selectedLensPrice\?\.categoryLabel \?\?\s*\n?\s*drinkLensUnknownRowLabel\(/,
+    );
+    expect(pubMap).not.toContain("No price logged");
     expect(pubMap).toContain("experienceLens={experienceLens}");
     expect(pubMap).toContain(
       'drinkCategory={experienceLens === "all" ? filters.drinkCategory || null : null}',

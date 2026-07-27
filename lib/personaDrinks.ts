@@ -19,6 +19,7 @@ import personaData from "@/data/persona_drinks.json";
 import {
   DRINK_CATEGORIES,
   isDrinkCategory,
+  MAP_LENS_DRINK_CATEGORIES,
   type DrinkCategory,
 } from "@/lib/drinks";
 import {
@@ -191,13 +192,15 @@ export function personaDrinkCategories(
   return DRINK_CATEGORIES.filter((c) => present.has(c));
 }
 
-// Categories the pub drink-category filter can meaningfully match against.
-// "other" is the uncovered-order bucket with no clean per-pub menu signal, so
-// a persona in it must NOT push the map to an empty filtered state. Such a
-// persona still shows its card, just without pub highlighting. Every named
-// category, including soft drinks and alcohol-free drinks, rides the filter.
+// Categories the pub drink-category filter can meaningfully match against -
+// the map's own lens list, so a persona can never set a filter the picker
+// cannot show or clear. "other" is the uncovered-order bucket with no clean
+// per-pub menu signal, so a persona in it must NOT push the map to an empty
+// filtered state. Such a persona still shows its card, just without pub
+// highlighting. Every named category, including soft drinks and alcohol-free
+// drinks, rides the filter.
 const PUB_MATCHABLE_CATEGORIES: ReadonlySet<DrinkCategory> = new Set(
-  DRINK_CATEGORIES.filter((category) => category !== "other"),
+  MAP_LENS_DRINK_CATEGORIES,
 );
 
 /**
