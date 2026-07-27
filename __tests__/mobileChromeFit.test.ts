@@ -23,6 +23,7 @@ const landingCss = read("components/landing/landing.css");
 const hygieneCss = read("components/map/venueHygiene.css");
 const saveToListCss = read("components/savedpubs/saveToList.css");
 const buzzCss = read("components/map/venueBuzz.css");
+const pintArrivalCss = read("components/pintindex/pintIndexArrival.css");
 
 describe("mobile chrome fit at 390px", () => {
   it("tightens the map control rail so all three chips clear the viewport", () => {
@@ -74,6 +75,20 @@ describe("mobile tap-target floors", () => {
     // the superscript just gets a padded hit box.
     expect(buzzCss).toMatch(/\.venueBuzzMention a\s*{[^}]*min-height:\s*44px/);
     expect(buzzCss).toMatch(/\.venueBuzzCite a\s*{[^}]*padding:\s*7px 5px/);
+  });
+
+  it("keeps the Pint Index arrival chips thumb-sized, and never clips an area name", () => {
+    // A press arrival's whole next step is one of these. A chip under the
+    // floor, or a borough name cut to "Kensington and Ch...", loses the tap
+    // and the destination with it.
+    const chip = pintArrivalCss.match(/\.pintArrivalArea\s*{([^}]*)}/)?.[1] ?? "";
+    expect(chip, ".pintArrivalArea rule present").not.toBe("");
+    expect(chip).toMatch(/min-height:\s*56px/);
+    expect(chip).not.toMatch(/text-overflow:\s*ellipsis/);
+    expect(pintArrivalCss).toMatch(/\.pintArrivalAreaName\s*{[^}]*overflow-wrap:\s*break-word/);
+    expect(pintArrivalCss).toMatch(
+      /@media \(max-width: 420px\)[\s\S]*?\.pintArrivalAreas\s*{[^}]*grid-template-columns:\s*repeat\(2, minmax\(0, 1fr\)\)/,
+    );
   });
 
   it("floors the landing footer links to 44px", () => {

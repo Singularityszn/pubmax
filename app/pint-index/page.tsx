@@ -4,9 +4,16 @@ import Link from "next/link";
 
 import SiteNav from "@/components/nav/SiteNav";
 import JsonLd from "@/components/seo/JsonLd";
+import PintIndexArrival from "@/components/pintindex/PintIndexArrival";
+import PintIndexEditions from "@/components/pintindex/PintIndexEditions";
+import PintIndexLeagueTable from "@/components/pintindex/PintIndexLeagueTable";
 import ZonePintIndexStrip from "@/components/zones/ZonePintIndexStrip";
-import { buildLeagueTable, indexSummary, type PintIndexSnapshot } from "@/lib/pintIndex";
-import { loadPublicPintIndexSnapshot } from "@/lib/pintIndexSnapshot.server";
+import { formatObservedDate, PINT_DATASET_OBSERVED_AT } from "@/lib/dataFreshness";
+import { buildLeagueTable, formatPintIndexDate, indexSummary, type PintIndexSnapshot } from "@/lib/pintIndex";
+import { pintIndexMonthCloseDay, pintIndexMonthLabel } from "@/lib/pintIndexArchive";
+import { arrivalAreas } from "@/lib/pintIndexArrival";
+import { loadPintIndexArchive, loadPublicPintIndexSnapshot } from "@/lib/pintIndexSnapshot.server";
+import { loadGroupedVenues } from "@/lib/venueDataset";
 import { formatPrice } from "@/lib/venues";
 import { loadZonePintIndex } from "@/lib/zonePintIndex.server";
 
@@ -52,20 +59,24 @@ function datasetJsonLd(snapshot: PintIndexSnapshot, boroughCount: number, pubCou
     }],
   };
 }
-function formatDate(value: string): string {
-  return new Intl.DateTimeFormat("en-GB", { dateStyle: "long", timeZone: "Europe/London" }).format(new Date(value));
-}
 
 export default async function PintIndexPage() {
-  const [snapshot, zoneIndex] = await Promise.all([
+  const [snapshot, zoneIndex, editions, venues] = await Promise.all([
     loadPublicPintIndexSnapshot(),
     loadZonePintIndex(),
+    loadPintIndexArchive(),
+    loadGroupedVenues(),
   ]);
   const rows = snapshot ? buildLeagueTable(snapshot) : [];
   const summary = indexSummary(rows);
   const jsonLd = snapshot ? datasetJsonLd(snapshot, summary.boroughCount, summary.pubCount) : null;
   const nonce = jsonLd ? (await headers()).get("x-nonce") ?? undefined : undefined;
   const window = snapshot?.observationWindow;
+  // The month currently filling, and the day it closes and gets its own dated
+  // page. Read at render time on purpose: this is the one live claim on the
+  // page, and it must move with the calendar rather than harden into a stale
+  // promise about a month that already ended.
+  const openMonth = new Date().toISOString().slice(0, 7);
 
   return (
     <main className="pintIndexPage">
@@ -79,7 +90,7 @@ export default async function PintIndexPage() {
         </h1>
         {window ? (
           <p className="pintIndexStamp">
-            {`Observation window: ${formatDate(window.start)} to ${formatDate(window.end)}.`}
+            {`Observation window: ${formatPintIndexDate(window.start)} to ${formatPintIndexDate(window.end)}.`}
           </p>
         ) : null}
 
@@ -104,6 +115,12 @@ export default async function PintIndexPage() {
         <ZonePintIndexStrip index={zoneIndex} />
       </section>
 
+      <PintIndexArrival
+        areas={arrivalAreas(venues)}
+        surface="index"
+        collectedLabel={`collected ${formatObservedDate(PINT_DATASET_OBSERVED_AT)}`}
+      />
+
       <section className="pintIndexSection" aria-labelledby="leagueHeading">
         <h2 id="leagueHeading" className="pintIndexSectionTitle">Borough league table</h2>
         {rows.length === 0 ? (
@@ -117,24 +134,25 @@ export default async function PintIndexPage() {
             counts as a price date, and no excluded price is ever swapped in.
           </p>
         ) : (
-          <div className="pintIndexTableWrap">
-            <table className="pintIndexTable">
-              <caption className="srOnly">London boroughs ranked by average eligible observed pint price</caption>
-              <thead><tr><th scope="col" className="pintIndexNum">#</th><th scope="col">Borough</th><th scope="col" className="pintIndexNum">Average</th><th scope="col" className="pintIndexNum">Cheapest</th><th scope="col" className="pintIndexNum">Dearest</th><th scope="col" className="pintIndexNum">Eligible pubs</th></tr></thead>
-              <tbody>{rows.map((row, index) => (
-                <tr key={row.slug}>
-                  <td className="pintIndexNum pintIndexRank">{index + 1}</td>
-                  <th scope="row"><Link href={`/borough/${row.slug}`} className="pintIndexBoroughLink">{row.name}</Link></th>
-                  <td className="pintIndexNum pintIndexAvg">{formatPrice(row.averageGbp)}</td>
-                  <td className="pintIndexNum">{formatPrice(row.minGbp)}</td>
-                  <td className="pintIndexNum">{formatPrice(row.maxGbp)}</td>
-                  <td className="pintIndexNum">{row.pubCount}</td>
-                </tr>
-              ))}</tbody>
-            </table>
-          </div>
+          <PintIndexLeagueTable
+            rows={rows}
+            caption="London boroughs ranked by average eligible observed pint price"
+          />
         )}
         <a className="pintIndexDownload" href="/pint-index/data.csv" download>Download the public snapshot (CSV) ↓</a>
+      </section>
+
+      <section className="pintIndexSection" aria-labelledby="editionsHeading">
+        <h2 id="editionsHeading" className="pintIndexSectionTitle">Dated editions</h2>
+        <p className="pintIndexSectionDek">
+          This page moves as prices land, which is no use to anyone quoting it.
+          So every closed month also gets its own page, frozen the day it goes
+          up. {pintIndexMonthLabel(openMonth)} closes on{" "}
+          {formatPintIndexDate(pintIndexMonthCloseDay(openMonth))} and gets
+          one next. Anything logged with a public source and the day it was seen
+          before then lands in it.
+        </p>
+        <PintIndexEditions editions={editions} />
       </section>
 
       <section className="pintIndexSection" aria-labelledby="methodHeading">

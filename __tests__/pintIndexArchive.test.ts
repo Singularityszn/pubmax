@@ -1,0 +1,243 @@
+import { createHash } from "node:crypto";
+import { readdirSync, readFileSync } from "node:fs";
+import path from "node:path";
+
+import { describe, expect, it } from "vitest";
+
+import { LONDON_BOROUGH_CLASSIFIER_VERSION } from "@/lib/londonBoroughPoint.mjs";
+import type { PintIndexSnapshot } from "@/lib/pintIndex";
+import {
+  buildArchivedMonth,
+  monthPublishBlocker,
+  pintIndexMonthLabel,
+  pintIndexMonthTemporalCoverage,
+  pintIndexMonthWindow,
+  planArchivePublish,
+  validateArchivedPintIndexSnapshot,
+  type ArchivedPintIndexSnapshot,
+} from "@/lib/pintIndexArchive";
+
+const sha256 = (input: string) => createHash("sha256").update(input, "utf8").digest("hex");
+
+const live = (over: Partial<PintIndexSnapshot> = {}): PintIndexSnapshot => ({
+  schemaVersion: 1,
+  snapshotId: "london-pint-index-public-v1",
+  status: "published",
+  generatedAt: "2026-07-16T00:00:00.000Z",
+  observationWindow: { start: "2026-06-01T00:00:00.000Z", end: "2026-07-15T23:59:59.000Z" },
+  classification: {
+    version: LONDON_BOROUGH_CLASSIFIER_VERSION,
+    method: "point_in_polygon",
+    sourceArtifact: "data/london_boroughs_simplified.json",
+    licence: "Open Government Licence v3.0",
+  },
+  sources: [
+    {
+      id: "drop-1",
+      kind: "confirmed_pint_drop",
+      publisher: "PUBMAXX contributor",
+      sourceUrl: "https://pubmaxxing.com/evidence/1",
+      licence: null,
+      confirmationId: "confirmation-1",
+      reviewState: "confirmed",
+    },
+    {
+      id: "drop-2",
+      kind: "confirmed_pint_drop",
+      publisher: "PUBMAXX contributor",
+      sourceUrl: "https://pubmaxxing.com/evidence/2",
+      licence: null,
+      confirmationId: "confirmation-2",
+      reviewState: "confirmed",
+    },
+  ],
+  observations: [
+    { venueId: "a", pubName: "June Pub", boroughCode: "hackney", boroughName: "Hackney", pricePence: 520, observedAt: "2026-06-10T18:00:00.000Z", sourceId: "drop-1" },
+    { venueId: "b", pubName: "Also June", boroughCode: "camden", boroughName: "Camden", pricePence: 640, observedAt: "2026-06-30T23:59:00.000Z", sourceId: "drop-1" },
+    { venueId: "c", pubName: "July Pub", boroughCode: "camden", boroughName: "Camden", pricePence: 700, observedAt: "2026-07-02T12:00:00.000Z", sourceId: "drop-2" },
+  ],
+  excluded: [{ reason: "source_not_eligible_for_public_index", observationCount: 2796, note: "Legacy baseline quarantined." }],
+  ...over,
+});
+
+const freeze = (snapshot = live(), month = "2026-06", publishedAt = "2026-07-01T09:00:00.000Z") =>
+  buildArchivedMonth({ snapshot, month, publishedAt, sha256 });
+
+describe("monthly Pint Index editions", () => {
+  it("frames a month as its own exact, citable window", () => {
+    expect(pintIndexMonthWindow("2026-06")).toEqual({
+      start: "2026-06-01T00:00:00.000Z",
+      end: "2026-06-30T23:59:59.999Z",
+    });
+    expect(pintIndexMonthTemporalCoverage("2026-06")).toBe("2026-06-01/2026-06-30");
+    expect(pintIndexMonthLabel("2026-06")).toBe("June 2026");
+    // February and the year boundary are where naive month maths breaks.
+    expect(pintIndexMonthWindow("2028-02").end).toBe("2028-02-29T23:59:59.999Z");
+    expect(pintIndexMonthWindow("2026-12").end).toBe("2026-12-31T23:59:59.999Z");
+  });
+
+  it("freezes only the observations valid in that window, and the sources they cite", () => {
+    const edition = freeze();
+    expect(edition.observations.map((row) => row.venueId)).toEqual(["a", "b"]);
+    expect(edition.sources.map((source) => source.id)).toEqual(["drop-1"]);
+    expect(edition.snapshotId).toBe("london-pint-index-2026-06");
+    expect(edition.observationWindow).toEqual(pintIndexMonthWindow("2026-06"));
+    expect(edition.archive.sourceSnapshotId).toBe("london-pint-index-public-v1");
+    expect(validateArchivedPintIndexSnapshot(edition, { month: "2026-06", sha256 }).ok).toBe(true);
+  });
+
+  it("does not change when the live index changes around it", () => {
+    const before = freeze();
+    const after = freeze(live({
+      snapshotId: "london-pint-index-public-v2",
+      generatedAt: "2026-08-01T00:00:00.000Z",
+      observations: [
+        ...live().observations,
+        { venueId: "d", pubName: "New July Pub", boroughCode: "brent", boroughName: "Brent", pricePence: 480, observedAt: "2026-07-20T12:00:00.000Z", sourceId: "drop-2" },
+      ],
+    }));
+    expect(after.observations).toEqual(before.observations);
+    expect(after.archive.observationsSha256).toBe(before.archive.observationsSha256);
+  });
+
+  it("hashes what an observation MEANS, not how the file is arranged", () => {
+    const edition = freeze();
+    const reordered = freeze(live({ observations: [...live().observations].reverse() }));
+    expect(reordered.archive.observationsSha256).toBe(edition.archive.observationsSha256);
+
+    const repriced = freeze(live({
+      observations: live().observations.map((row) =>
+        row.venueId === "a" ? { ...row, pricePence: 521 } : row),
+    }));
+    expect(repriced.archive.observationsSha256).not.toBe(edition.archive.observationsSha256);
+  });
+
+  it("refuses to freeze a month that is still filling, or one the index never saw", () => {
+    const snapshot = live();
+    expect(monthPublishBlocker("2026-06", snapshot, new Date("2026-07-27T00:00:00Z"))).toBeNull();
+    expect(monthPublishBlocker("2026-07", snapshot, new Date("2026-07-27T00:00:00Z")))
+      .toBe("2026-07 has not closed yet");
+    expect(monthPublishBlocker("2026-08", snapshot, new Date("2026-10-01T00:00:00Z")))
+      .toBe("2026-08 closes after the live index was generated");
+    expect(monthPublishBlocker("2026-04", snapshot, new Date("2026-07-27T00:00:00Z")))
+      .toBe("2026-04 ends before the live index starts covering prices");
+    expect(monthPublishBlocker("2026-6", snapshot, new Date("2026-07-27T00:00:00Z")))
+      .toBe("2026-6 is not a YYYY-MM month");
+  });
+
+  it("publishes a month once, then only as a named correction that changes something", () => {
+    const first = planArchivePublish({ existing: null, rebuilt: freeze(), issuedAt: "2026-07-01T09:00:00.000Z", sha256 });
+    expect(first).toMatchObject({ ok: true, kind: "first" });
+    if (!first.ok) throw new Error("unreachable");
+
+    const silent = planArchivePublish({
+      existing: first.archive,
+      rebuilt: freeze(live({ observations: live().observations.slice(1) })),
+      issuedAt: "2026-08-01T09:00:00.000Z",
+      sha256,
+    });
+    expect(silent).toEqual({
+      ok: false,
+      reason: "2026-06 is already published. A published month only changes as a named correction.",
+    });
+
+    const noop = planArchivePublish({
+      existing: first.archive,
+      rebuilt: freeze(),
+      correctionNote: "Tidying.",
+      issuedAt: "2026-08-01T09:00:00.000Z",
+      sha256,
+    });
+    expect(noop).toEqual({ ok: false, reason: "2026-06 would not change, so there is nothing to correct" });
+  });
+
+  it("records a correction as an append, carrying the hash of what it replaced", () => {
+    const published = freeze();
+    const corrected = planArchivePublish({
+      existing: published,
+      rebuilt: freeze(live({
+        observations: live().observations.filter((row) => row.venueId !== "b"),
+      })),
+      correctionNote: "Also June cited a menu page that never carried that price.",
+      issuedAt: "2026-08-02T10:00:00.000Z",
+      sha256,
+    });
+    expect(corrected.ok).toBe(true);
+    if (!corrected.ok) throw new Error("unreachable");
+    expect(corrected.archive.archive.revision).toBe(2);
+    expect(corrected.archive.archive.corrections).toEqual([{
+      issuedAt: "2026-08-02T10:00:00.000Z",
+      note: "Also June cited a menu page that never carried that price.",
+      previousRevision: 1,
+      previousObservationsSha256: published.archive.observationsSha256,
+    }]);
+    expect(validateArchivedPintIndexSnapshot(corrected.archive, { month: "2026-06", sha256 }).ok).toBe(true);
+  });
+
+  it("rejects an edition whose observations no longer match its published hash", () => {
+    const edition = freeze();
+    const rewritten = {
+      ...edition,
+      observations: edition.observations.map((row) =>
+        row.venueId === "a" ? { ...row, pricePence: 399 } : row),
+    };
+    const result = validateArchivedPintIndexSnapshot(rewritten, { month: "2026-06", sha256 });
+    expect(result.ok).toBe(false);
+    if (result.ok) throw new Error("unreachable");
+    expect(result.errors).toContain("archive.observationsSha256 does not match the published observations");
+  });
+
+  it("rejects an edition that drifts from the window, the month, or its correction chain", () => {
+    const edition = freeze();
+    const errorsFor = (value: unknown, month = "2026-06") => {
+      const result = validateArchivedPintIndexSnapshot(value, { month, sha256 });
+      return result.ok ? [] : result.errors;
+    };
+
+    expect(errorsFor(edition, "2026-05")).toContain(
+      "archive.month 2026-06 does not match the edition it is stored as (2026-05)",
+    );
+    expect(errorsFor({
+      ...edition,
+      observationWindow: { start: "2026-06-01T00:00:00.000Z", end: "2026-07-31T23:59:59.999Z" },
+    })).toContain("observationWindow must be exactly the archived month");
+    expect(errorsFor({
+      ...edition,
+      archive: { ...edition.archive, revision: 2 },
+    })).toContain("archive.revision must equal the number of corrections plus one");
+    expect(errorsFor({
+      ...edition,
+      archive: {
+        ...edition.archive,
+        revision: 2,
+        corrections: [{ issuedAt: "2026-08-02T10:00:00.000Z", note: "  ", previousRevision: 1, previousObservationsSha256: "nope" }],
+      },
+    })).toEqual(expect.arrayContaining([
+      "correction 0 needs a note",
+      "correction 0 must carry the replaced revision's observations hash",
+    ]));
+    expect(errorsFor({ ...edition, archive: undefined })).toContain("archive metadata is missing");
+  });
+});
+
+describe("the editions actually published in this repo", () => {
+  const dir = path.join(process.cwd(), "public/data/pint_index");
+  const files = readdirSync(dir).filter((name) => name.endsWith(".json"));
+
+  it("publishes at least one dated edition", () => {
+    expect(files.length).toBeGreaterThan(0);
+  });
+
+  it.each(files)("%s holds its own contract and its integrity hash", (file) => {
+    const month = file.slice(0, -".json".length);
+    const stored = JSON.parse(readFileSync(path.join(dir, file), "utf8")) as unknown;
+    const result = validateArchivedPintIndexSnapshot(stored, { month, sha256 });
+    expect(result.ok ? [] : result.errors).toEqual([]);
+  });
+
+  it.each(files)("%s reads as a closed month, never a live page", (file) => {
+    const stored = JSON.parse(readFileSync(path.join(dir, file), "utf8")) as ArchivedPintIndexSnapshot;
+    const month = file.slice(0, -".json".length);
+    expect(Date.parse(pintIndexMonthWindow(month).end)).toBeLessThan(Date.parse(stored.archive.publishedAt));
+  });
+});

@@ -153,6 +153,49 @@ same corroboration + age rules the map uses (`lib/communityPrice.ts`), so it
 can never claim a figure the map would refuse. `truncated` marks the bounded
 scan's cap; `degraded` marks an unavailable store rather than a real zero.
 
+## 6. Press arrival (the London Pint Index)
+
+One press hit is meant to convert above 2% to a second session. That claim is
+only checkable if three numbers are separable: how many ARRIVED, how many
+reached a MAP VIEW of an area they care about, and how many CAME BACK.
+
+**Events (all new):**
+- `pint_index_viewed` - `{ surface, visit }`. Fires once per Pint Index page
+  view from `components/pintindex/PintIndexArrival.tsx` (a ref guard keeps a
+  re-running effect from inflating the denominator). `surface` is `index` (the
+  live page) or `archive` (a dated monthly edition), because a press link to a
+  frozen edition and one to the live page convert differently. `visit` is
+  `first` or `repeat`, from a one-key local marker
+  (`pubmaxx:pint-index-seen:v1`) that is only read or written once analytics
+  consent exists, exactly like the daily activity pulse.
+- `pint_index_area_opened` - `{ surface, area }`. The tap on an area chip.
+  `area` is a London borough code from the closed list the Index itself is
+  built on (`PINT_INDEX_AREA_CODES`), never a venue id, a coordinate, or
+  anything typed.
+- `pint_index_map_reached` - no props. Fires from
+  `components/pintindex/PintIndexMapArrival.tsx` when the map route actually
+  loads carrying the arrival marker, so an abandoned navigation cannot inflate
+  reach. That component then strips the marker out of the URL, so a shared map
+  link can never report strangers as Index arrivals.
+
+```
+arrivals            = count(pint_index_viewed)
+map_reach_rate      = count(pint_index_map_reached) / count(pint_index_area_opened)
+arrival_to_map_rate = count(pint_index_map_reached) / count(pint_index_viewed)
+index_return_rate   = count(pint_index_viewed where visit = "repeat") / arrivals
+```
+
+**Second session** reuses the existing return-rate rail rather than inventing a
+new one: an identity that fired `pint_index_viewed` on day D and any
+`activity_pulse` with a later `dayBucket` came back to the product, not just to
+the page.
+
+```
+second_session_rate = count(distinct ids with pint_index_viewed on day D
+                            and activity_pulse on any day > D)
+                    / count(distinct ids with pint_index_viewed)
+```
+
 ## Registry additions
 
 All six new event names were added to `ANALYTICS_EVENTS` in
@@ -177,8 +220,23 @@ price_submitted: ["category"],
 price_submit_failed: ["category", "reason"],
 ```
 
+The press-arrival funnel added three more, with the same treatment
+(`isAllowedPintIndexArrivalProp`) so `surface`, `visit` and `area` each keep
+their own closed vocabulary:
+
+```ts
+pint_index_viewed: ["surface", "visit"],
+pint_index_area_opened: ["surface", "area"],
+pint_index_map_reached: [],
+```
+
 ## Tests
 
+- `__tests__/pintIndexArrival.test.ts` — the arrival strip's area selection and
+  the three press-arrival events: a step with a missing `surface`/`visit`/`area`
+  is rejected outright, a venue id or an off-list area never survives, and the
+  borough vocabulary the chips emit is pinned to the one the sanitiser allows
+  (a drift there would silently drop every area tap).
 - `__tests__/analyticsEvents.test.ts` — registry completeness + sanitizer
   behavior for all six new events (UUID inviteId accepted, non-UUID/free-text
   rejected; bounded numeric dayBucket accepted, `NaN`/negative rejected;

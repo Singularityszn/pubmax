@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 
+import PintIndexMapArrival from "@/components/pintindex/PintIndexMapArrival";
 import PubMaxingShell from "@/components/PubMaxingShell";
 import { readTrustedHandoffFlags } from "@/lib/trustedHandoffFlags.server";
 import {
@@ -52,5 +53,12 @@ export async function generateMetadata({
 }
 
 export default function MapPage() {
-  return <PubMaxingShell cityId="london" flags={readTrustedHandoffFlags()} />;
+  return (
+    <>
+      <PubMaxingShell cityId="london" flags={readTrustedHandoffFlags()} />
+      {/* Records that a Pint Index arrival reached the map. Renders nothing and
+          owns no map state; it only reads its own arrival marker off the URL. */}
+      <PintIndexMapArrival />
+    </>
+  );
 }

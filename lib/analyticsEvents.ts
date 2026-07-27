@@ -16,6 +16,7 @@ import {
   ROUTE_READY_GATE_CODES,
   ROUTE_READY_GATE_VERSION,
 } from "@/lib/nightAreas";
+import { boroughCode, LONDON_BOROUGH_NAMES } from "@/lib/pintIndex";
 import { ROUTE_PATTERNS, ROUTE_PATTERN_OTHER } from "@/lib/routePattern";
 import { VITAL_METRICS, VITAL_RATINGS, sanitizeVitalTarget } from "@/lib/webVitals";
 import type { DrinkCategory } from "@/lib/drinks";
@@ -149,6 +150,23 @@ export const ANALYTICS_EVENTS = {
   price_submit_viewed: ["category"],
   price_submitted: ["category"],
   price_submit_failed: ["category", "reason"],
+  // Press-arrival funnel (the London Pint Index). Three questions, and these
+  // events exist to answer exactly those: how many ARRIVED on the Index or one
+  // of its dated editions (pint_index_viewed, once per page view), how many
+  // REACHED A MAP VIEW of an area from there (pint_index_area_opened is the
+  // tap, pint_index_map_reached is the map actually loading with the arrival
+  // marker, so an abandoned navigation cannot inflate the reach), and how many
+  // CAME BACK (`visit`, plus the existing activity_pulse day rail for the
+  // second session; see docs/METRICS_FUNNEL.md).
+  //
+  // Props stay at the registry's usual bar. `surface` is a two-value enum,
+  // `visit` a two-value enum from a consent-gated local marker (no timestamp,
+  // no session length, no fingerprint), and `area` a borough code from the
+  // closed London list the Index itself is built on - never a coordinate, a
+  // postcode, or anything the visitor typed.
+  pint_index_viewed: ["surface", "visit"],
+  pint_index_area_opened: ["surface", "area"],
+  pint_index_map_reached: [],
   // One roll-up event gives Reach a stable denominator in PostHog. Only the
   // explicit loop actions below qualify; route generation, claim steps, and
   // passive opens never do.
@@ -260,6 +278,21 @@ export const PRICE_SUBMIT_CATEGORIES = completeDrinkTaxonomy([
 export const PRICE_SUBMIT_FAILURE_REASONS = ["invalid", "rejected", "offline"] as const;
 export type PriceSubmitFailureReason = (typeof PRICE_SUBMIT_FAILURE_REASONS)[number];
 
+/**
+ * Which Pint Index page the arrival happened on: the live index, or one of its
+ * dated monthly editions. Kept apart because a press link to a frozen edition
+ * and a link to the live page convert differently, and we want to know which.
+ */
+export const PINT_INDEX_SURFACES = ["index", "archive"] as const;
+export type PintIndexSurface = (typeof PINT_INDEX_SURFACES)[number];
+
+/** First time this browser has opened a Pint Index page, or a return. */
+export const PINT_INDEX_VISITS = ["first", "repeat"] as const;
+export type PintIndexVisit = (typeof PINT_INDEX_VISITS)[number];
+
+/** The closed set of area codes a Pint Index arrival tap may report. */
+export const PINT_INDEX_AREA_CODES = LONDON_BOROUGH_NAMES.map(boroughCode);
+
 export const WEEKLY_MEANINGFUL_CORE_ACTIONS = [
   "plan_accepted",
   "plan_saved",
@@ -310,6 +343,11 @@ const SAFE_STRING_VALUES = new Set([
   // failure buckets.
   ...PRICE_SUBMIT_CATEGORIES,
   ...PRICE_SUBMIT_FAILURE_REASONS,
+  // Press-arrival vocabulary: the two Pint Index surfaces, the two visit
+  // kinds, and the London borough codes an arrival tap may name.
+  ...PINT_INDEX_SURFACES,
+  ...PINT_INDEX_VISITS,
+  ...PINT_INDEX_AREA_CODES,
   ...NIGHT_AREA_SLUGS,
   ...COVERAGE_STATUSES,
   ...ROUTE_READY_GATE_CODES,
@@ -351,6 +389,10 @@ const TRUSTED_HANDOFF_REQUIRED_KEYS = {
   price_submit_viewed: ["category"],
   price_submitted: ["category"],
   price_submit_failed: ["category", "reason"],
+  // An arrival with no surface, or a tap with no area, is an uncountable step
+  // in a funnel whose whole value is the ratio between its steps.
+  pint_index_viewed: ["surface", "visit"],
+  pint_index_area_opened: ["surface", "area"],
   // Field RUM: a vital is meaningless without which metric, its value, rating,
   // and the route it happened on. `target` (attribution selector) is optional.
   web_vital: ["metric", "value", "rating", "route"],
@@ -498,6 +540,23 @@ function isAllowedPriceFunnelProp(
   return true;
 }
 
+/**
+ * Press-arrival strictness. `surface`, `visit` and `area` each have their own
+ * closed vocabulary, and `area` shares no key name with another event, so the
+ * check is scoped to the three arrival events rather than to the keys.
+ */
+function isAllowedPintIndexArrivalProp(
+  name: AnalyticsEventName,
+  key: string,
+  value: string | number | boolean,
+): boolean {
+  if (!name.startsWith("pint_index_")) return true;
+  if (key === "surface") return includesValue(PINT_INDEX_SURFACES, value);
+  if (key === "visit") return includesValue(PINT_INDEX_VISITS, value);
+  if (key === "area") return includesValue(PINT_INDEX_AREA_CODES, value);
+  return true;
+}
+
 export function isKnownEvent(name: string): name is AnalyticsEventName {
   return Object.prototype.hasOwnProperty.call(ANALYTICS_EVENTS, name);
 }
@@ -545,7 +604,8 @@ export function sanitizeEvent(
             && isAllowedLoopEventProp(name, key, value)
             && isAllowedTrustedHandoffEventProp(name, key, value)
             && isAllowedVitalProp(name, key, value)
-            && isAllowedPriceFunnelProp(name, key, value);
+            && isAllowedPriceFunnelProp(name, key, value)
+            && isAllowedPintIndexArrivalProp(name, key, value);
       if (valid) out[key] = value as string | number | boolean;
     }
   }

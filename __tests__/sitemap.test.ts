@@ -7,6 +7,7 @@ import { listEnabledCities } from "@/lib/cities";
 import { listBoroughs } from "@/lib/boroughs";
 import { landmarks } from "@/lib/landmarks";
 import { loadHistoricPubs } from "@/lib/historic";
+import { loadPintIndexArchive } from "@/lib/pintIndexSnapshot.server";
 import { groupVenuePrices, type VenuePrice } from "@/lib/venues";
 import type { MetadataRoute } from "next";
 
@@ -49,6 +50,7 @@ type ExpectedCounts = {
   landmarks: number;
   historic: number;
   venues: number;
+  editions: number;
   total: number;
 };
 
@@ -64,12 +66,15 @@ async function expectedCounts(): Promise<ExpectedCounts> {
   const cities = listEnabledCities().filter((c) => c.id !== "london").length;
   const boroughs = listBoroughs(venues).length;
   const historic = (await loadHistoricPubs()).length;
+  // One URL per dated Pint Index edition actually published.
+  const editions = (await loadPintIndexArchive()).length;
   const counts = {
     cities,
     boroughs,
     landmarks: landmarks.length,
     historic,
     venues: venues.length,
+    editions,
   };
   return {
     ...counts,
@@ -79,7 +84,8 @@ async function expectedCounts(): Promise<ExpectedCounts> {
       counts.boroughs +
       counts.landmarks +
       counts.historic +
-      counts.venues,
+      counts.venues +
+      counts.editions,
   };
 }
 
@@ -99,6 +105,12 @@ describe("sitemap()", () => {
 
   it("emits exactly the dataset-derived total (no silent coverage loss)", () => {
     expect(entries.length).toBe(expected.total);
+  });
+
+  it("lists every dated Pint Index edition, and the live index too", () => {
+    expect(urls).toContain(`${SITE}/pint-index`);
+    expect(familyCount("/pint-index/")).toBe(expected.editions);
+    expect(expected.editions).toBeGreaterThan(0);
   });
 
   it("includes the core static hubs", () => {
