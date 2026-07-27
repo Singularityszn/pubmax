@@ -8,6 +8,7 @@ import {
   type CommunityPriceMapCandidate,
 } from "@/lib/communityPrice";
 import type { DrinkCategory } from "@/lib/drinks";
+import type { NoAlcoholIndexStatus } from "@/lib/mapExperienceLens";
 import type { PriceSubmitFailureReason } from "@/lib/analyticsEvents";
 
 // Client-side owner of /api/price-submit: the freshest community price per
@@ -48,8 +49,13 @@ export type CommunityPricesState = {
    *  candidate actually restamps is decided by the trust gate in
    *  mergeCommunityPriceSignals, the single seam onto the map. */
   freshestByVenueId: Map<string, CommunityPrice>;
-  /** State of the cross-venue no-alcohol price read. */
-  noAlcoholIndexStatus: "idle" | "loading" | "ready" | "degraded";
+  /**
+   * State of the cross-venue no-alcohol price read. "partial" and "degraded"
+   * are two different findings and must never be merged: a truncated scan
+   * ANSWERED, with trusted rows already painted, so telling the reader we could
+   * not check would contradict the figures in front of them.
+   */
+  noAlcoholIndexStatus: NoAlcoholIndexStatus;
   /** Load soft-drink and alcohol-free rows across venues once per session. */
   loadNoAlcoholIndex: () => void;
   /** Fetch the community prices on record for one venue (fail-soft, once per id). */
@@ -319,7 +325,11 @@ export function useCommunityPrices(): CommunityPricesState {
           return next;
         });
         setNoAlcoholIndexStatus(
-          result.truncated ? "degraded" : result.status,
+          result.status === "degraded"
+            ? "degraded"
+            : result.truncated
+              ? "partial"
+              : "ready",
         );
       } catch {
         noAlcoholIndexLoaded.current = false;

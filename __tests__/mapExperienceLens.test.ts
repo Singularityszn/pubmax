@@ -8,6 +8,7 @@ import {
   trustedNoAlcoholLensPrices,
 } from "@/lib/mapExperienceLens";
 import type { CommunityPrice } from "@/lib/communityPrice";
+import { CATEGORY_META } from "@/lib/drinks";
 import type { Venue } from "@/lib/venues";
 import type { Filters } from "@/lib/venues";
 
@@ -145,7 +146,7 @@ describe("experience lens venue membership and presentation", () => {
     ["pub-1", {
       venueId: "pub-1",
       category: "soft-drink" as const,
-      categoryLabel: "Soft drink",
+      categoryLabel: "Soft drinks",
       priceGbp: 3.2,
       submittedAt: 2_000,
       source: "community" as const,
@@ -165,7 +166,7 @@ describe("experience lens venue membership and presentation", () => {
   it("shows no-alcohol community prices and only complete sourced food anchors", () => {
     expect(lensPriceForVenue(pub, "no-alcohol", lensPrices)).toMatchObject({
       priceGbp: 3.2,
-      categoryLabel: "Soft drink",
+      categoryLabel: "Soft drinks",
       source: "community",
     });
     expect(lensPriceForVenue(food, "food", lensPrices)).toMatchObject({
@@ -174,6 +175,15 @@ describe("experience lens venue membership and presentation", () => {
       source: "sourced-anchor",
     });
     expect(lensPriceForVenue(restaurantUnknown, "food", lensPrices)).toBeNull();
+  });
+
+  it("names the community category exactly as the submit chips do", () => {
+    // Logging under "Soft drinks" and reading back "Soft drink" is the same
+    // category wearing two names on surfaces a user sees side by side.
+    expect(CATEGORY_META["soft-drink"].label).toBe("Soft drinks");
+    expect(
+      lensPriceForVenue(pub, "no-alcohol", lensPrices)?.categoryLabel,
+    ).toBe(CATEGORY_META["soft-drink"].label);
   });
 
   it("states honest empty and degraded results", () => {
@@ -185,6 +195,21 @@ describe("experience lens venue membership and presentation", () => {
     );
     expect(experienceLensSummary("food", 0, 0, "ready")).toBe(
       "Food venues shown. No sourced menu prices in this view yet.",
+    );
+  });
+
+  it("never calls a partial read a failed one", () => {
+    // A truncated scan ANSWERED, and its rows are already painted. Borrowing
+    // the "could not check" sentence would call those figures unchecked.
+    const partial = experienceLensSummary("no-alcohol", 4, 1, "partial");
+    expect(partial).toContain("4 no-alcohol prices shown");
+    expect(partial).toContain("part of the list");
+    expect(partial).not.toContain("Could not check");
+    expect(experienceLensSummary("no-alcohol", 0, 1, "partial")).not.toBe(
+      experienceLensSummary("no-alcohol", 0, 1, "degraded"),
+    );
+    expect(experienceLensSummary("no-alcohol", 0, 1, "partial")).not.toBe(
+      experienceLensSummary("no-alcohol", 0, 1, "ready"),
     );
   });
 });

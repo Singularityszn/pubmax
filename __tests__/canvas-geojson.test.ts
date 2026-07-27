@@ -328,7 +328,7 @@ describe("pubsToGeoJSON provisional mark", () => {
 });
 
 describe("pubsToGeoJSON experience-lens price isolation", () => {
-  it("prints a dedicated no-alcohol label with no pint label, band, or badge", () => {
+  it("prints no figure at all: no lens label, no pint label, no band, no badge", () => {
     const venue = makeVenue({ id: "soft", cheapestPrice: 6 });
     const signals = new Map<string, VenueSignal>([
       [
@@ -359,12 +359,39 @@ describe("pubsToGeoJSON experience-lens price isolation", () => {
       lensPrices,
     ).features[0]?.properties ?? {};
 
-    expect(props.lensPriceLabel).toBe("£3.20");
+    // The tag is the PINT lane. A soft drink printed bare over an unchanged
+    // pint glyph would read as the price of a pint, so no lens figure reaches
+    // a feature property at all - not under `priceLabel`, not under a second
+    // name the text-field could coalesce to.
     expect(props.priceLabel).toBeUndefined();
+    expect(JSON.stringify(props)).not.toContain("3.2");
+    expect(JSON.stringify(props)).not.toContain("lensPrice");
     expect(props.bucket).toBe(3);
     expect(props.drops).toBe(false);
     expect(props.provisional).toBe(false);
     expect(venue.cheapestPrice).toBe(6);
+  });
+
+  it("suppresses a pub's own sourced pint figure while a view owns the map", () => {
+    const venue = makeVenue({ id: "pub", cheapestPrice: 5.4 });
+    const withoutLens = pubsToGeoJSON(
+      [venue],
+      new Map<string, VenueSignal>(),
+      null,
+    ).features[0]?.properties ?? {};
+    expect(withoutLens.priceLabel).toBe("£5.40");
+    // An empty lens map still means a view owns the map, and the honest answer
+    // for a pub with no figure in that view is silence, not last night's pint.
+    const withLens = pubsToGeoJSON(
+      [venue],
+      new Map<string, VenueSignal>(),
+      null,
+      null,
+      null,
+      null,
+      new Map(),
+    ).features[0]?.properties ?? {};
+    expect(withLens.priceLabel).toBeUndefined();
   });
 });
 

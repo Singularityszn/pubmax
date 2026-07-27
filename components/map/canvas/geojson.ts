@@ -105,9 +105,12 @@ export function pubsToGeoJSON(
   // the price stack above, which is what `bucket` and every downstream price
   // surface read. It paints one badge layer and nothing else.
   provisionalVenueIds: ReadonlySet<string> | null = null,
-  // Dedicated experience-lens figures. Presence means a non-pint lens is
-  // active, even when the map is empty. These values never enter pinPriceStack
-  // or bucket, and publish under lensPriceLabel rather than priceLabel.
+  // Dedicated experience-lens figures. Only their PRESENCE is read here: a
+  // non-null map means a non-pint lens owns the view, even when it is empty.
+  // The figures themselves never reach a feature property, because the pin's
+  // text-field is a pint claim and a soft drink or a food anchor printed there
+  // would masquerade as one. They are carried to the hover card, the venue list
+  // and the sheet instead, where they can say which drink they are.
   lensPrices: ReadonlyMap<string, MapLensPrice> | null = null,
 ): GeoJSON.FeatureCollection {
   return {
@@ -133,8 +136,6 @@ export function pubsToGeoJSON(
         ? 3
         : venue.priceBand ?? priceBucket(price);
       const priceLabel = formatPinPriceLabel(sourcedPrice);
-      const lensPrice = lensPrices?.get(venue.id) ?? null;
-      const lensPriceLabel = formatPinPriceLabel(lensPrice?.priceGbp);
       // Active drink lens owns the glyph: beer → pint glasses, wine → wine, etc.
       // Without a lens, fall back to venue hint categories.
       const lens = drinkCategory?.trim().toLowerCase() ?? "";
@@ -213,16 +214,12 @@ export function pubsToGeoJSON(
           // to "" both read cleanly, exactly like `whatsOn` above - the ~38k
           // UK base pubs are a different source entirely and never come near
           // this function.
-          ...(lensPriceLabel
-            ? {
-                lensPriceLabel,
-                lensPriceCategory: lensPrice?.category ?? "food",
-                lensPriceName: lensPrice?.categoryLabel ?? "",
-              }
-            : {}),
-          // An active experience lens suppresses the ordinary pint figure even
-          // when that venue has no lens price. Empty is the honest answer.
-          ...(lensPrices === null && priceLabel ? { priceLabel } : {}),
+          //
+          // An active experience lens suppresses the pint figure and puts
+          // nothing of its own in its place: the tag is the pint lane, and a
+          // no-alcohol or food figure printed bare over an unchanged pint glyph
+          // would read as the price of a pint. Empty is the honest answer.
+          ...(!experienceLensActive && priceLabel ? { priceLabel } : {}),
         },
         geometry: {
           type: "Point" as const,

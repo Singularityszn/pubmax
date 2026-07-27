@@ -39,6 +39,14 @@ type Options = {
   /** Reseeded by buildScene after a theme setStyle wipes every source. */
   ukBaseDataRef: React.MutableRefObject<GeoJSON.FeatureCollection>;
   drawableVenueIds: ReadonlySet<string>;
+  /**
+   * An experience view owns the map. The base layer is UK-wide unpriced pubs,
+   * so it answers neither "where can I drink without alcohol" nor "where can I
+   * eat" - leaving it on would drown the curated set the view narrowed to.
+   * Suspended behaves exactly like being below the zoom gate: the source is
+   * emptied and nothing is fetched, so the view costs no payload either.
+   */
+  suspended?: boolean;
   scopeKey?: string;
   /**
    * A restored `?sel=venue-uk-*` arrival's id, one-shot: once a streamed
@@ -91,6 +99,7 @@ export function useUkBaseStreaming({
   applyToMap,
   ukBaseDataRef,
   drawableVenueIds,
+  suspended = false,
   scopeKey = "",
   restoreId = null,
   onRestorePub,
@@ -151,7 +160,7 @@ export function useUkBaseStreaming({
         current.getZoom(),
         UK_BASE_MIN_ZOOM,
       );
-      if (token === null) {
+      if (token === null || suspended) {
         if (ukBaseDataRef.current.features.length > 0) publish([]);
         return;
       }
@@ -193,8 +202,10 @@ export function useUkBaseStreaming({
       map.off("moveend", schedule);
       map.off("zoomend", schedule);
     };
-  }, [mapReady, mapRef, publish, ukBaseDataRef]);
+  }, [mapReady, mapRef, publish, suspended, ukBaseDataRef]);
 
-  if (published.scopeKey !== scopeKey) return { count: 0, pubs: [] };
+  // Suspension answers zero the moment it is set, ahead of the debounce that
+  // empties the source, so the list beside the map never outlives the pins.
+  if (suspended || published.scopeKey !== scopeKey) return { count: 0, pubs: [] };
   return { count: published.count, pubs: published.pubs };
 }

@@ -168,6 +168,35 @@ describe("communityPriceStore (memory backend)", () => {
     const result = await readCommunityPriceCategoryIndex(["soft-drink"], 10_000);
     expect(result.prices).toEqual([]);
   });
+
+  // The index is the one read here that is neither per-venue nor per-actor, and
+  // it costs a paged scan. An unauthenticated GET must not be able to bill that
+  // scan once per visitor, so the answer is held briefly and a burst collapses
+  // onto one read. A WRITE is the only thing that can change it, and drops it.
+  it("answers a repeated index read from one scan, and a write drops it", async () => {
+    await submitCommunityPrice(
+      { venueId: "v1", drinkCategory: "soft-drink", priceGbp: 3.2, actor: "a" },
+      1_000,
+    );
+    const first = readCommunityPriceCategoryIndex(["soft-drink"], 10_000);
+    const concurrent = readCommunityPriceCategoryIndex(["soft-drink"], 10_000);
+    expect(concurrent).toBe(first);
+    expect(readCommunityPriceCategoryIndex(["soft-drink"], 10_500)).toBe(first);
+    expect((await first).prices).toHaveLength(1);
+
+    await submitCommunityPrice(
+      { venueId: "v2", drinkCategory: "soft-drink", priceGbp: 2.4, actor: "b" },
+      11_000,
+    );
+    const afterWrite = readCommunityPriceCategoryIndex(["soft-drink"], 12_000);
+    expect(afterWrite).not.toBe(first);
+    expect((await afterWrite).prices).toHaveLength(2);
+
+    // A read past the window is a fresh scan even with no write in between.
+    const past = readCommunityPriceCategoryIndex(["soft-drink"], 72_001);
+    expect(past).not.toBe(afterWrite);
+    await past;
+  });
 });
 
 // Corroboration counting: the number that decides whether a figure moves a pin.

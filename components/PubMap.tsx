@@ -239,6 +239,7 @@ import {
   filterVenuesByKind,
   hasSavedPubVenue,
   isPubVenue,
+  type VenueKindVisibility,
 } from "@/lib/venueKindFilters";
 import { venueSheetLabels } from "@/lib/venueSheetLabels";
 import {
@@ -1322,10 +1323,82 @@ export default function PubMap({
   }, []);
 
   const [personaLensId, setPersonaLensId] = useState<string | null>(null);
+  // What the drinker had set before an experience view took the map. The view
+  // has to stand the pint refinements down (they are invisible while it owns
+  // the map, so they must also be inert), but standing something down is not
+  // the same as throwing it away: coming back to All puts every one of them
+  // back, exactly as filtersForExperienceLens already does for zone and the
+  // price cap. Captured once, on the way OUT of All, so All → food → All is the
+  // same round trip as All → no-alcohol → All.
+  type ExperienceLensRestore = {
+    drinkCategory: string;
+    drinkBrand: string;
+    drinkSubtype: string;
+    topShelfOnly: boolean;
+    requireCocktails: boolean;
+    favoritePint: string | null;
+    personaLensId: string | null;
+    venueKindVisibility: VenueKindVisibility;
+  };
+  const experienceLensRestoreRef = useRef<ExperienceLensRestore | null>(null);
+  const experienceLensLiveRef = useRef<ExperienceLensRestore>({
+    drinkCategory: filters.drinkCategory,
+    drinkBrand: filters.drinkBrand,
+    drinkSubtype: filters.drinkSubtype,
+    topShelfOnly: filters.topShelfOnly,
+    requireCocktails: filters.requireCocktails,
+    favoritePint,
+    personaLensId,
+    venueKindVisibility,
+  });
+  useEffect(() => {
+    experienceLensLiveRef.current = {
+      drinkCategory: filters.drinkCategory,
+      drinkBrand: filters.drinkBrand,
+      drinkSubtype: filters.drinkSubtype,
+      topShelfOnly: filters.topShelfOnly,
+      requireCocktails: filters.requireCocktails,
+      favoritePint,
+      personaLensId,
+      venueKindVisibility,
+    };
+  }, [
+    favoritePint,
+    filters.drinkBrand,
+    filters.drinkCategory,
+    filters.drinkSubtype,
+    filters.requireCocktails,
+    filters.topShelfOnly,
+    personaLensId,
+    venueKindVisibility,
+  ]);
   const changeExperienceLens = useCallback(
     (next: MapExperienceLensValue) => {
       setExperienceLens(next);
-      if (next === "all") return;
+      if (next === "all") {
+        const saved = experienceLensRestoreRef.current;
+        experienceLensRestoreRef.current = null;
+        if (!saved) return;
+        setFilters((current) => ({
+          ...current,
+          drinkCategory: saved.drinkCategory,
+          drinkBrand: saved.drinkBrand,
+          drinkSubtype: saved.drinkSubtype,
+          topShelfOnly: saved.topShelfOnly,
+          requireCocktails: saved.requireCocktails,
+        }));
+        setVenueKindVisibility(saved.venueKindVisibility);
+        setPersonaLensId(saved.personaLensId);
+        setFavoritePintState(saved.favoritePint);
+        if (saved.favoritePint) persistFavoritePint(saved.favoritePint);
+        else clearFavoritePint();
+        return;
+      }
+      // Only the first step out of All captures: hopping between two views must
+      // not overwrite the snapshot with the stood-down state.
+      if (!experienceLensRestoreRef.current) {
+        experienceLensRestoreRef.current = experienceLensLiveRef.current;
+      }
       setFavoritePintState(null);
       clearFavoritePint();
       setPersonaLensId(null);

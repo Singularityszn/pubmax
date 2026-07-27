@@ -4,7 +4,7 @@ import {
   NO_ALCOHOL_DRINK_CATEGORIES,
   type CommunityPrice,
 } from "@/lib/communityPrice";
-import type { DrinkCategory } from "@/lib/drinks";
+import { CATEGORY_META, type DrinkCategory } from "@/lib/drinks";
 import { compactVenueAnchor } from "@/lib/venueAnchorPresentation";
 import type { Filters, Venue } from "@/lib/venues";
 
@@ -55,8 +55,12 @@ function noAlcoholCategory(
   );
 }
 
+/**
+ * One name per category, taken from the same table the submit chips read, so a
+ * price logged under "Soft drinks" comes back saying "Soft drinks" everywhere.
+ */
 function noAlcoholLabel(category: NoAlcoholDrinkCategory): string {
-  return category === "soft-drink" ? "Soft drink" : "Alcohol-free";
+  return CATEGORY_META[category].label;
 }
 
 /**
@@ -171,11 +175,24 @@ export function lensPricesForVenues(
   return prices;
 }
 
+/**
+ * "We could not check" and "we checked part of it" are two different findings,
+ * and the summary may never merge them: a partial read has already painted
+ * trusted figures, so borrowing the failure sentence would call the prices on
+ * the map unchecked.
+ */
+export type NoAlcoholIndexStatus =
+  | "idle"
+  | "loading"
+  | "ready"
+  | "partial"
+  | "degraded";
+
 export function experienceLensSummary(
   lens: MapExperienceLens,
   noAlcoholPriceCount: number,
   sourcedFoodPriceCount: number,
-  indexStatus: "idle" | "loading" | "ready" | "degraded",
+  indexStatus: NoAlcoholIndexStatus,
 ): string {
   if (lens === "all") return "";
   if (lens === "food") {
@@ -192,10 +209,15 @@ export function experienceLensSummary(
   if (indexStatus === "degraded") {
     return "Could not check no-alcohol prices right now. Food venues still show sourced menu prices.";
   }
+  const plural = noAlcoholPriceCount === 1 ? "" : "s";
+  if (indexStatus === "partial") {
+    if (noAlcoholPriceCount === 0) {
+      return "We read part of the no-alcohol prices and none of them are here. Food venues still show sourced menu prices.";
+    }
+    return `${noAlcoholPriceCount} no-alcohol price${plural} shown, read from part of the list. Food venues also show sourced menu prices.`;
+  }
   if (noAlcoholPriceCount === 0) {
     return "No soft-drink or alcohol-free prices logged here yet. Food venues still show sourced menu prices.";
   }
-  return `${noAlcoholPriceCount} no-alcohol price${
-    noAlcoholPriceCount === 1 ? "" : "s"
-  } shown. Food venues also show sourced menu prices.`;
+  return `${noAlcoholPriceCount} no-alcohol price${plural} shown. Food venues also show sourced menu prices.`;
 }

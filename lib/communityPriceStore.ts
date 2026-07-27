@@ -984,6 +984,10 @@ export function submitCommunityPrice(
   input: CommunityPriceWrite,
   now: number = Date.now(),
 ): Promise<CommunityPriceWriteResult> {
+  // A write is the only thing that can change the category index, so it drops
+  // the memo rather than leaving a submitter's own price invisible to the lens
+  // for the rest of the window.
+  resetCommunityPriceCategoryIndexMemo();
   return communityPriceStore().submit(input, now);
 }
 
@@ -1012,12 +1016,53 @@ export function readCommunityPricesWithStatus(
   return communityPriceStore().latestForVenue(venueId, now);
 }
 
+// The category index is the one read here that is neither per-venue nor
+// per-actor: every caller asks the same question and gets byte-identical rows,
+// and answering it costs up to CATEGORY_INDEX_SCAN_ROWS / CORROBORATION_SCAN_PAGE
+// sequential durable reads. Unmemoised, an anonymous GET could bill that scan
+// once per visitor and once per retry, which is a cost and an availability
+// hazard rather than a correctness one.
+//
+// So the answer is held per category set for CATEGORY_INDEX_MEMO_MS, and the
+// PROMISE is what is held, not the result: a burst of concurrent activations
+// collapses onto one scan instead of racing N of them. The window is orders of
+// magnitude shorter than COMMUNITY_PRICE_MAX_AGE_MS, so nothing a reader sees
+// gets older than the trust policy already allows. A degraded read is never
+// held: a hiccup must not pin "no prices" over the map for a minute.
+const CATEGORY_INDEX_MEMO_MS = 60_000;
+
+type CategoryIndexMemo = {
+  at: number;
+  pending: Promise<CommunityPriceCategoryIndexResult>;
+};
+
+const categoryIndexMemo = new Map<string, CategoryIndexMemo>();
+
 /** Current rows for selected categories across venues. NEVER throws. */
 export function readCommunityPriceCategoryIndex(
   categories: readonly DrinkCategory[],
   now: number = Date.now(),
 ): Promise<CommunityPriceCategoryIndexResult> {
-  return communityPriceStore().latestForCategories(categories, now);
+  const key = [...new Set(categories)].sort().join(",");
+  const held = categoryIndexMemo.get(key);
+  if (held && now - held.at < CATEGORY_INDEX_MEMO_MS) return held.pending;
+  const pending = communityPriceStore()
+    .latestForCategories(categories, now)
+    .then((result) => {
+      if (result.degraded) categoryIndexMemo.delete(key);
+      return result;
+    })
+    .catch((error: unknown) => {
+      categoryIndexMemo.delete(key);
+      throw error;
+    });
+  categoryIndexMemo.set(key, { at: now, pending });
+  return pending;
+}
+
+/** Drop the memoised category index. Test seam, and the submit path's reset. */
+export function resetCommunityPriceCategoryIndexMemo(): void {
+  categoryIndexMemo.clear();
 }
 
 /**
@@ -1041,6 +1086,9 @@ export function moderateCommunityPrice(
   hidden: boolean,
   note?: string,
 ): Promise<boolean> {
+  // Hiding is the one read-path filter, so a moderated row must leave the
+  // memoised index at the same moment it leaves the sheet.
+  resetCommunityPriceCategoryIndexMemo();
   return communityPriceStore().moderate(id, hidden, note);
 }
 
@@ -1054,5 +1102,6 @@ export function listCommunityPricesForReview(
 /** Test-only: clear the in-memory observations between cases. */
 export function __resetCommunityPrices(): void {
   venues.clear();
+  resetCommunityPriceCategoryIndexMemo();
   resetSchemaMissWarnings();
 }
