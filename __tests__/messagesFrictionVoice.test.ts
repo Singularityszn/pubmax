@@ -6,13 +6,18 @@ import { describe, expect, it } from "vitest";
 // keyless run can never paint the thread's loading or failure frame — this
 // reads their SOURCE instead, the way the map's loading fence does.
 //
-// Two rules are pinned here:
+// Three rules are pinned here:
 //   1. The loading line is a dry aside and both panes carry the SAME one; the
 //      inbox and thread sit side by side, so a split would read as a jump.
 //   2. A thread that will not open is a failure the reader has to act on, so
 //      it gets the plain sentence and two exits (docs/VOICE.md: no joke beside
 //      an error), and it is a state of its own — never the loading line
 //      standing in for a load that already stopped.
+//   3. The inbox tells a failed load apart from a genuinely empty one. A
+//      non-ok or thrown request never reaches the warm empty card: with
+//      nothing loaded it shows the failure alone, and over a list that did
+//      load it reports beside that list rather than erasing it. Both carry
+//      the same retry, which stays focusable while it works.
 
 const THREAD = "components/messages/MessageThread.tsx";
 const INBOX = "app/messages/MessagesInboxClient.tsx";
