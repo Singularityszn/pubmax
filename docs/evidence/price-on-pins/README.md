@@ -19,7 +19,7 @@ else was still a cluster disc); at z14 it resolved **31** with no discs at all.
 
 Only pubs get a figure. In the dense viewport above, `queryRenderedFeatures`
 returns 33 pins, and every one carrying a `priceLabel` has `kind: "pub"` —
-`isPubVenueKind` in `components/map/canvas/geojson.ts` is what keeps a £25
+the `isPubVenueKind` gate in `components/map/canvas/geojson.ts` is what keeps a £25
 house cocktail or a £15 doner from printing bare on a map whose figure idiom
 is the pint price. Those venues keep their type-relative band colour, and
 their anchor stays labelled and dated on the venue sheet.
