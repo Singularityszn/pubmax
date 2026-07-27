@@ -154,6 +154,14 @@ const nextConfig = {
     return [
       { source: "/:path*", headers: securityHeaders },
       {
+        // Easter egg, deliberately kept out of `securityHeaders` so that list
+        // stays purely load-bearing. Nothing reads this header and nothing
+        // should ever start: it is a nod to anyone poking about in the Network
+        // tab, in the tradition of X-Clacks-Overhead. Safe to delete.
+        source: "/:path*",
+        headers: [{ key: "x-last-orders", value: "23:00" }],
+      },
+      {
         // Apple universal-links manifest (Capacitor iOS wrap). The file lives
         // in public/ with NO extension, so Next would otherwise serve it as
         // application/octet-stream — Apple's CDN requires application/json.

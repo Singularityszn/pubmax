@@ -536,8 +536,8 @@ export default function ControlRail({
 
       {filteredVenues.length === 0 ? (
         <section className="emptyState">
-          <strong>No venues match</strong>
-          <p>Try widening the pint price or clearing story and amenity filters.</p>
+          <strong>Nothing fits that</strong>
+          <p>You&rsquo;ve asked for something this patch hasn&rsquo;t got. Widen the pint price, or clear a story or amenity filter.</p>
           <button onClick={() => onFiltersChange(initialFilters)}>Reset filters</button>
         </section>
       ) : null}

@@ -230,7 +230,7 @@ export default function MessageThread({
       </div>
 
       {state === "loading" ? (
-        <p className="conversationPreview">Loading…</p>
+        <p className="conversationPreview">With you in a sec.</p>
       ) : (
         <ul className="threadMessages">
           {messages.map((m) => {

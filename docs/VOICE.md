@@ -98,6 +98,32 @@ Some of these are lines we already own and should copy the rhythm of. Others are
 | 12 | After a hard day's work you want a cheap pint nearby — without bouncing between Google Maps, other maps, and ChatGPT. | You finish work, you want a good pint nearby. So you open Google Maps, then another map, then reviews, then you're asking ChatGPT, and an hour later you're back at the same place as last time. | `/about` lede |
 | 13 | Karan Manoharan &mdash; X | Karan Manoharan · X | `/about` press-kit founder line (no dash construction) |
 
+## Where the jokes live
+
+Rule 6 says one dry aside, not a pile. This is where an aside is allowed to be an
+actual joke, because nothing is at stake on the screen: **the 404, empty states,
+loading lines, and a couple of easter eggs.** Everywhere else the aside stays a
+pinch.
+
+The bar a candidate has to clear, in order:
+
+1. It lands for a 22-year-old and a 45-year-old at once. One voice, no youth mode.
+2. It survives the hundredth viewing. Funny once and grating twice is worse than nothing.
+3. It does not date inside six months. No current news, no format of the moment.
+4. A British drinker recognises it. Pub language, not internet-comedy cosplay.
+5. You could defend it to a stranger. If you cannot, cut it.
+
+**Never within sight of** a price, a date, a source, an attribution, a
+corroboration status, a legal term, an error the reader has to act on, or an
+accessible name. The whole product rests on prices reading as honest, and a witty
+line beside a figure cheapens the figure.
+
+The accessible-name rule has a working example: the map's held loading frame shows
+`Rounding up the pubs. Won't be a minute.` while its `aria-label` says only
+`Loading the London venue map.` A screen-reader user gets the fact, not the gag,
+because a joke in an accessible name is a joke at someone's expense.
+`__tests__/mapLoadingChrome.test.ts` pins both halves.
+
 ## The north star (lines we already own)
 
 Copy the rhythm of these. They are the voice at its best.

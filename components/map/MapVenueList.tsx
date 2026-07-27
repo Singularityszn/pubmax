@@ -73,7 +73,7 @@ export default function MapVenueList({
           {total === 0 ? (
             <p className="mapVenueListEmpty" role="status">
               {loaded
-                ? "Nothing in view fits that. Push the price cap up or drop a filter and the pubs come back."
+                ? "Nothing in view fits that, which takes some doing round here. Push the price cap up or drop a filter and the pubs come back."
                 : "Counting them up…"}
             </p>
           ) : (
