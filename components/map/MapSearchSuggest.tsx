@@ -32,7 +32,7 @@ type FlatItem =
   | { type: "area"; item: AreaSuggestion }
   | { type: "pub"; item: PubSuggestion };
 
-const NO_RESULTS_MESSAGE = "No Venues or areas match that search.";
+const NO_RESULTS_MESSAGE = "Nothing matching that. Try a pub name or an area.";
 const NO_RESULTS_ANNOUNCE_DELAY_MS = 300;
 
 export type MapSearchSuggestProps = {

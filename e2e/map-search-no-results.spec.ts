@@ -102,13 +102,13 @@ for (const viewport of VIEWPORTS) {
     await expect(listbox).toBeVisible();
     await expect(listbox.getByRole("option")).toHaveCount(0);
     await expect(empty).toBeVisible();
-    await expect(empty).toContainText("No Venues or areas match that search.");
+    await expect(empty).toContainText("Nothing matching that. Try a pub name or an area.");
     await expect(empty).toContainText("Soho, Willesden, or The Crown");
     await expect(search).toHaveAttribute("aria-expanded", "true");
     const emptyId = await empty.getAttribute("id");
     expect(emptyId).toBeTruthy();
     await expect(search).toHaveAttribute("aria-describedby", emptyId!);
-    await expect(live).toHaveText("No Venues or areas match that search.");
+    await expect(live).toHaveText("Nothing matching that. Try a pub name or an area.");
 
     await expect.poll(() => events.filter((event) => event.name === "map_search_no_results").length).toBe(1);
     await page.waitForTimeout(450);

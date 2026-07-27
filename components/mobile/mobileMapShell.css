@@ -97,7 +97,9 @@
     pointer-events: auto;
   }
 
-  .mobileMapBrand { min-width: 0; overflow: hidden; color: var(--color-text); font-size: .7rem; text-decoration: none; }
+  /* The wordmark is a real link home, so it gets a real hit target: the text is
+     14px tall, the tappable box is the full 44px bar row. */
+  .mobileMapBrand { display: inline-flex; align-items: center; min-width: 0; min-height: 44px; overflow: hidden; color: var(--color-text); font-size: .7rem; text-decoration: none; }
   .mobileMapBrand .pubmaxxWordmark { max-width: 100%; font-size: inherit; }
   /* Area button — the live Night Area under the map centre. Evolves the old
      static, truncated city label into a first-class 44px control that opens the
@@ -172,6 +174,16 @@
     scroll-snap-type: x proximity;
   }
   .mobileMapRail::-webkit-scrollbar { display: none; }
+  /* At 390px the three chips measured 391px against 370px of rail, so Filters
+     was cut clean through its refinement badge - the one glyph that says the
+     map is filtered. The rail stays a scroller (a fourth chip would still
+     scroll); this just buys back the ~21px so the shipped set of three sits
+     inside the viewport at the narrowest common phone. 430px keeps the roomier
+     chips. */
+  @media (max-width: 420px) {
+    .mobileMapRail { gap: 5px; }
+    .mobileMapRail > button { gap: 6px; padding-inline: 9px; }
+  }
   /* Owner ruling (2026-07-23): the map-chrome control chips (Near me / Tonight /
      Filters) move off the shared Chip pill onto the 14px rectangle button
      language. Scoped to the rail so the shared Chip component elsewhere is
@@ -442,7 +454,11 @@
   .mobileVenuePeekSummary { display: grid; grid-template-columns: 1fr 1fr auto; align-items: center; gap: 10px; margin-bottom: 10px; padding: 10px; border: 1px solid var(--color-border); border-radius: var(--radius); background: var(--color-surface); }
   .mobileVenuePeekSummary > span { min-width: 0; display: grid; gap: 2px; }
   .mobileVenuePeekSummary strong { white-space: nowrap; font-family: var(--font-data); font-size: var(--text-md); }
-  .mobileVenuePeekSummary small { overflow: hidden; color: var(--color-text-muted); font-size: .68rem; text-overflow: ellipsis; white-space: nowrap; }
+  /* Never ellipsis the caption. This line is what the number above it MEANS
+     ("current recorded price"), and at 390px the nowrap+ellipsis cut it to
+     "current recorded pri…" - a price with its own label truncated reads as a
+     price you cannot check. It wraps to a second line instead. */
+  .mobileVenuePeekSummary small { color: var(--color-text-muted); font-size: .68rem; line-height: 1.25; white-space: normal; overflow-wrap: break-word; }
   .mobileVenuePeekSummary button { min-height: 44px; padding: 0 12px; border: 0; border-radius: var(--radius); background: var(--color-accent); color: var(--color-on-accent); font: inherit; font-size: var(--text-sm); font-weight: 800; }
   /* Empty-price cell doubles as the drop CTA: a quiet accent-tinted button that
      keeps the price column's stacked look but reads as tappable. */

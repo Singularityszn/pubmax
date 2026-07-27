@@ -55,8 +55,8 @@ export default function Error({
           Spilled.
         </h1>
         <p style={{ margin: "0 0 28px", color: "var(--ink-soft)", lineHeight: 1.6 }}>
-          The map lost its footing for a moment. Try again, or head back to the
-          landing and start the crawl afresh.
+          Something on our end fell over, not anything you did. Have another go,
+          or head back to the front page.
         </p>
         <div
           style={{ display: "flex", gap: "12px", justifyContent: "center", flexWrap: "wrap" }}
@@ -91,7 +91,7 @@ export default function Error({
               fontWeight: 600,
             }}
           >
-            Back to the guide
+            Back to the front page
           </Link>
         </div>
         {error.digest ? (

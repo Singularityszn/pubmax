@@ -74,10 +74,12 @@
     padding: 6px 8px 8px;
   }
 
+  /* 44px is the floor on a phone: these four sit over a live map, so a near
+     miss lands on the canvas and pans it instead of toggling the lane. */
   .tonightArcChip {
     flex: 1 1 0;
     min-width: 55px;
-    min-height: 40px;
+    min-height: 44px;
     padding-inline: 9px;
   }
 }

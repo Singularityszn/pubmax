@@ -52,9 +52,9 @@ export default function MapVenueList({
               <h2 className="mapVenueListTitle">Venues on the map</h2>
               <span className="mapVenueListCount" role="status" aria-live="polite">
                 {!loaded && ukBaseModel.total === 0
-                  ? "Loading venues…"
+                  ? "Counting them up…"
                   : total === 0
-                    ? "No venues match your filters"
+                    ? "Nothing matches"
                     : truncated
                       ? `Nearest ${shown} of ${total}`
                       : `${total} venue${total === 1 ? "" : "s"}`}
@@ -73,8 +73,8 @@ export default function MapVenueList({
           {total === 0 ? (
             <p className="mapVenueListEmpty" role="status">
               {loaded
-                ? "No venues match your current filters. Widen the price cap or clear a filter to see more on the map."
-                : "Finding venues…"}
+                ? "Nothing in view fits that. Push the price cap up or drop a filter and the pubs come back."
+                : "Counting them up…"}
             </p>
           ) : (
             <div className="mapVenueListGroups">

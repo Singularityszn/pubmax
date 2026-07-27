@@ -57,7 +57,7 @@ const PRODUCT_SIGNALS = [
   },
   {
     icon: CalendarClock,
-    title: "The city, when it's useful",
+    title: "Right pub, right hour",
     body: "A quiet one at lunch, a cheap round after work, whatever's on late. It turns up when you need it, not all in a heap.",
   },
   {
@@ -291,7 +291,7 @@ export default function LandingPage({
               <p>Your night stays private until you say otherwise. When the crew&rsquo;s ready, turn the moments everyone likes into a story worth keeping.</p>
               <div className="lpMemoryActions">
                 <Link href="/plan" className="lpButton lpButtonPrimary">Start a plan</Link>
-              <Link href="/feed" className="lpTextLink">Explore stories <ArrowRight size={16} aria-hidden="true" /></Link>
+              <Link href="/feed" className="lpTextLink">Read the stories <ArrowRight size={16} aria-hidden="true" /></Link>
               </div>
             </div>
             <ol className="lpMemorySteps">
