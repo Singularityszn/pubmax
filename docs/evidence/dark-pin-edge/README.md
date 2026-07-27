@@ -3,8 +3,9 @@
 Captured on a real Chrome at iPhone-class 390x844 (DPR 3) against `npm run dev`,
 camera jumped to fixed coordinates so each before/after pair is the same view
 twice, and the default `<=£8.00` price cap cleared so every band paints. The
-`clean` shots hide the app's own overlays so the whole viewport is map and the
-pins can be measured; `chrome-dark-*` is the same view as the product ships it.
+`dense-dark-*`, `city-dark-*` and `dense-light-*` shots hide the app's own
+overlays so the whole viewport is map and the pins can be measured;
+`chrome-dark-*` is the same view with the overlays on, as the product ships it.
 
 Band fills, band thresholds, pin sizes, the price tag and every ring are
 unchanged. The only difference is the glass's EDGE: in dark mode the rim was

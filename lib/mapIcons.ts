@@ -862,6 +862,18 @@ const GLASS_RIM_STROKE = 1.15;
 const GLASS_CASED_RIM_STROKE = 0.7;
 const GLASS_CASING_STROKE = 2;
 
+/**
+ * The same three weights in canvas units, exported so a draw-level test can
+ * hold each pass to the weight it is supposed to use rather than restate the
+ * numbers: `casing` is the widest, and `casedRim` is the hairline the rim drops
+ * to once a casing is behind it.
+ */
+export const VENUE_PIN_EDGE_WIDTH = {
+  rim: STROKE * GLASS_RIM_STROKE,
+  casedRim: STROKE * GLASS_CASED_RIM_STROKE,
+  casing: STROKE * GLASS_CASING_STROKE,
+} as const;
+
 function setDrinkGlassStyle(
   ctx: CanvasRenderingContext2D,
   fill: string,

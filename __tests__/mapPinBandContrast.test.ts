@@ -63,21 +63,25 @@ function contrast(a: string, b: string): number {
 // Every opaque tone the dark basemap paints UNDER a pin. The dark palette is
 // deliberately bimodal (Wave A made roads the lightest strokes on a near-black
 // canvas), which is exactly why one rim tone cannot edge a pin on all of them.
+// `buildPalette` ignores `tokens` on its dark branch (lib/mapBasemapTaste.ts
+// returns the hardcoded DARK constants there), so every key below is an inert
+// placeholder that satisfies the type and feeds nothing under test.
+const IGNORED_ON_DARK = "#000000";
 const palette = buildPalette(
   {
-    paper: DARK.paper,
-    panelRaised: DARK.paper,
-    ink: DARK.ink,
-    inkDeep: DARK.inkDeep,
-    line: DARK.inkDeep,
-    muted: DARK.ink,
-    pint: DARK.pint,
-    amber: DARK.amber,
-    brass: DARK.brick,
-    river: DARK.inkDeep,
-    riverBright: DARK.ink,
-    buildingEmissive: DARK.buildingEmissive,
-    parkTint: DARK.parkTint,
+    paper: IGNORED_ON_DARK,
+    panelRaised: IGNORED_ON_DARK,
+    ink: IGNORED_ON_DARK,
+    inkDeep: IGNORED_ON_DARK,
+    line: IGNORED_ON_DARK,
+    muted: IGNORED_ON_DARK,
+    pint: IGNORED_ON_DARK,
+    amber: IGNORED_ON_DARK,
+    brass: IGNORED_ON_DARK,
+    river: IGNORED_ON_DARK,
+    riverBright: IGNORED_ON_DARK,
+    buildingEmissive: IGNORED_ON_DARK,
+    parkTint: IGNORED_ON_DARK,
   },
   true,
 );
@@ -120,8 +124,11 @@ describe("dark-mode pin band contrast", () => {
 
   it("publishes a rim and a casing in dark, and neither in light", () => {
     expect(edge).toEqual({ pinRim: DARK.ink, pinCasing: DARK.inkDeep });
-    // Light mode keeps the per-band rim the glasses have always had, so this
-    // change cannot move a single light-theme pixel.
+    // Light mode keeps the per-band rim the glasses have always had, so these
+    // edge tokens move no light-theme pixel. (The coupe's bowl is deeper in
+    // both themes now — a separate, deliberate geometry change, recorded in
+    // docs/evidence/dark-pin-edge/README.md as the one visible light-mode
+    // difference.)
     expect(venuePinEdgeTokens({ ink: DARK.ink, inkDeep: DARK.inkDeep }, false)).toEqual({});
   });
 
@@ -172,23 +179,12 @@ describe("dark-mode pin band contrast", () => {
     }
   });
 
-  it("reports each band's fill contrast against its worst dark background", () => {
-    // Not a bar the fill has to clear on its own any more - that is the point of
-    // the edge above - but the figures are the record of why it could not: on a
-    // 3-D massed building the two lowest-luminance bands sit at ~3.1:1 and
-    // ~2.4:1, so a pin whose edge is invisible there is a pin you cannot find.
-    const worst = Object.fromEntries(
-      Object.entries(BAND_FILL).map(([band, fill]) => [
-        band,
-        Math.min(...Object.values(BACKGROUNDS).map((bg) => contrast(fill, bg))),
-      ]),
-    );
-    for (const [band, ratio] of Object.entries(worst)) {
-      expect(ratio, `${band} fill vs worst background`).toBeGreaterThan(1);
-      expect(ratio).toBeLessThan(EDGE_MIN);
-    }
-    // And on the "dark buildings" the report named, the >GBP7 band really is the
-    // weakest of the three priced ones — the diagnosis, kept honest in code.
+  it("keeps the >GBP7 band the weakest fill on the buildings the report named", () => {
+    // No band's fill has to clear a bar on its own any more - that is what the
+    // edge above is for - but the ORDERING is the diagnosis, so it stays pinned.
+    // Measured on the 3-D massed building tone, the two lowest-luminance bands
+    // sit at ~3.1:1 and ~2.4:1, which is why a pin whose edge is invisible there
+    // is a pin you cannot find.
     expect(contrast(DARK.brick, massedBuilding)).toBeLessThan(
       contrast(DARK.pint, massedBuilding),
     );
