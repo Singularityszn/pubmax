@@ -3,6 +3,7 @@ import {
   nationalPintArc,
   type NationalPintBenchmark,
 } from "@/lib/nationalPintBenchmarks";
+import { priceMovementLine } from "@/lib/priceMovementLine";
 import { formatPrice } from "@/lib/venues";
 
 import "./nationalPintBenchmarks.css";
@@ -17,15 +18,8 @@ import "./nationalPintBenchmarks.css";
 //
 // The two-figure row reuses the venue sheet's then-and-now idiom exactly (see
 // components/map/VenuePriceThen.tsx): the old price, the newer price, then one
-// short movement line. Same shape, same reason.
-
-/** "Up £3.61 in 35 years." Mirrors the venue sheet's movement line. */
-function movementLine(deltaGbp: number, years: number): string {
-  const span = years >= 1 ? `in ${years} ${years === 1 ? "year" : "years"}` : "since then";
-  const pennies = Math.round(deltaGbp * 100);
-  if (pennies === 0) return `Same price ${span}.`;
-  return `${pennies > 0 ? "Up" : "Down"} ${formatPrice(Math.abs(deltaGbp))} ${span}.`;
-}
+// short movement line from the shared lib/priceMovementLine.ts, so the two
+// surfaces cannot drift into two wordings. Same shape, same reason.
 
 function BenchmarkFigures({ row }: { row: NationalPintBenchmark }) {
   const arc = nationalPintArc(row);
@@ -53,7 +47,7 @@ function BenchmarkFigures({ row }: { row: NationalPintBenchmark }) {
           {arc.latest.period}.
         </span>
       </p>
-      <p className="nationalPintMovement">{movementLine(arc.deltaGbp, arc.years)}</p>
+      <p className="nationalPintMovement">{priceMovementLine(arc.deltaGbp, arc.years)}</p>
     </>
   );
 }

@@ -105,13 +105,22 @@ export function isValidNationalPintBenchmark(
   if (!isPublishedDay(row.publishedOn, now)) return false;
   const figures = row.figures;
   if (!Array.isArray(figures) || figures.length < 1 || figures.length > 2) return false;
-  return figures.every((figure) => {
+  const wellFormed = figures.every((figure) => {
     if (typeof figure !== "object" || figure === null) return false;
     const f = figure as Record<string, unknown>;
     return typeof f.priceGbp === "number" && Number.isFinite(f.priceGbp) && f.priceGbp > 0 &&
       isNonEmptyString(f.period) &&
       typeof f.year === "number" && Number.isInteger(f.year) && f.year >= 1900;
   });
+  if (!wellFormed) return false;
+  // Oldest first, on the fence rather than on a reviewer. A row entered the
+  // other way round reads as a fall that never happened, printed next to a real
+  // citation, so it is dropped instead.
+  if (figures.length === 2) {
+    const [then, latest] = figures as NationalPintFigure[];
+    if (latest.year < then.year) return false;
+  }
+  return true;
 }
 
 /** Keep only rows that carry a publisher, a link, a day and a stated measure. */

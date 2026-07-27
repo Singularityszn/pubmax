@@ -275,6 +275,31 @@ describe("national yardstick: the module", () => {
     expect(isValidNationalPintBenchmark({ ...row, figures: [{ priceGbp: 5, period: "x", year: 2026 }, { priceGbp: 6, period: "y", year: 2027 }, { priceGbp: 7, period: "z", year: 2028 }] })).toBe(false);
   });
 
+  it("refuses a two-figure row entered newest first", () => {
+    // The type says oldest first and the arc trusts it, so a reversed pair
+    // would print "Down £3.61 since then." beside a real citation. The guard
+    // drops the row rather than letting the page make that claim.
+    const reversed = {
+      ...row,
+      figures: [
+        { priceGbp: 4.83, period: "January 2025", year: 2025 },
+        { priceGbp: 1.22, period: "1990", year: 1990 },
+      ],
+    };
+    expect(isValidNationalPintBenchmark(reversed)).toBe(false);
+    expect(citableNationalBenchmarks([reversed])).toEqual([]);
+    expect(isValidNationalPintBenchmark({ ...row, figures: [...reversed.figures].reverse() })).toBe(true);
+    // The same year twice is a pair, not a reversal: two figures published for
+    // one year stay legal.
+    expect(isValidNationalPintBenchmark({
+      ...row,
+      figures: [
+        { priceGbp: 5, period: "January 2026", year: 2026 },
+        { priceGbp: 5.2, period: "May 2026", year: 2026 },
+      ],
+    })).toBe(true);
+  });
+
   it("refuses a publication day in the future", () => {
     const now = Date.parse("2026-07-27T00:00:00.000Z");
     expect(isPublishedDay("2026-07-27", now)).toBe(true);
