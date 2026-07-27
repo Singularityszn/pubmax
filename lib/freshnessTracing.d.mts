@@ -4,3 +4,13 @@ export function freshnessArtifactIncludes(registry: {
     readonly stamp?: { readonly kind?: string } | null;
   }[];
 }): string[];
+
+export function freshnessArtifactIncludeById(
+  registry: {
+    datasets?: readonly {
+      readonly id?: string;
+      readonly artifact?: string | null;
+    }[];
+  },
+  id: string,
+): string[];

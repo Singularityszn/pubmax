@@ -2,6 +2,12 @@
 // London stays the default flagship. Every city with a shipped OSM slim pack is
 // enabled for browse; Manchester, Glasgow, Oxford, Liverpool, Cambridge,
 // Durham, and Bristol also ship editorial landmarks/crawls/POIs.
+//
+// Which pack a city ships (and so whether it browses at all) comes from
+// lib/cityVenuePacks.mjs, because the deployment config has to read the same
+// list and cannot import TypeScript.
+
+import { CITY_VENUE_PACKS } from "@/lib/cityVenuePacks.mjs";
 
 export type CityId =
   | "london"
@@ -63,14 +69,17 @@ const DEFAULT_PITCH = 42;
 const DEFAULT_BEARING = -12;
 
 function city(
-  partial: Omit<CityConfig, "mapView"> & {
+  partial: Omit<CityConfig, "mapView" | "slimVenuesPath" | "enabled"> & {
     mapView: Pick<CityMapView, "center" | "zoom"> &
       Partial<Pick<CityMapView, "pitch" | "bearing">>;
   },
 ): CityConfig {
   const { mapView, ...rest } = partial;
+  const pack = CITY_VENUE_PACKS[partial.id];
   return {
     ...rest,
+    slimVenuesPath: pack?.slimVenuesPath ?? "",
+    enabled: Boolean(pack?.enabled),
     mapView: {
       center: mapView.center,
       zoom: mapView.zoom,
@@ -90,11 +99,9 @@ export const CITIES: Record<CityId, CityConfig> = {
     // Start at useful street-level context. The London button still exposes the
     // full-city overview, while granted location refines this to the local pub cloud.
     mapView: { center: [-0.12, 51.52], zoom: 11.5, pitch: 38, bearing: -8 },
-    slimVenuesPath: "/data/venues_slim.json",
     poisPath: "/data/london_pois.json",
     transitLinesPath: "/data/tfl_lines.json",
     lastRideLabel: "Last Pint",
-    enabled: true,
   }),
   manchester: city({
     id: "manchester",
@@ -103,11 +110,9 @@ export const CITIES: Record<CityId, CityConfig> = {
     country: "england",
     bounds: { latMin: 53.38, latMax: 53.55, lonMin: -2.35, lonMax: -2.1 },
     mapView: { center: [-2.24, 53.48], zoom: 11.2 },
-    slimVenuesPath: "/data/cities/manchester/venues_slim.json",
     poisPath: "/data/cities/manchester/pois.json",
     transitLinesPath: null,
     lastRideLabel: "Last Tram",
-    enabled: true,
   }),
   liverpool: city({
     id: "liverpool",
@@ -116,11 +121,9 @@ export const CITIES: Record<CityId, CityConfig> = {
     country: "england",
     bounds: { latMin: 53.35, latMax: 53.48, lonMin: -3.05, lonMax: -2.85 },
     mapView: { center: [-2.98, 53.41], zoom: 11.4 },
-    slimVenuesPath: "/data/cities/liverpool/venues_slim.json",
     poisPath: "/data/cities/liverpool/pois.json",
     transitLinesPath: null,
     lastRideLabel: "Last Train",
-    enabled: true,
   }),
   oxford: city({
     id: "oxford",
@@ -129,11 +132,9 @@ export const CITIES: Record<CityId, CityConfig> = {
     country: "england",
     bounds: { latMin: 51.72, latMax: 51.8, lonMin: -1.3, lonMax: -1.2 },
     mapView: { center: [-1.26, 51.75], zoom: 12.2 },
-    slimVenuesPath: "/data/cities/oxford/venues_slim.json",
     poisPath: "/data/cities/oxford/pois.json",
     transitLinesPath: null,
     lastRideLabel: "Last Train",
-    enabled: true,
   }),
   durham: city({
     id: "durham",
@@ -142,11 +143,9 @@ export const CITIES: Record<CityId, CityConfig> = {
     country: "england",
     bounds: { latMin: 54.76, latMax: 54.8, lonMin: -1.6, lonMax: -1.54 },
     mapView: { center: [-1.575, 54.78], zoom: 13 },
-    slimVenuesPath: "/data/cities/durham/venues_slim.json",
     poisPath: "/data/cities/durham/pois.json",
     transitLinesPath: null,
     lastRideLabel: "Last Train",
-    enabled: true,
   }),
   glasgow: city({
     id: "glasgow",
@@ -155,11 +154,9 @@ export const CITIES: Record<CityId, CityConfig> = {
     country: "scotland",
     bounds: { latMin: 55.82, latMax: 55.9, lonMin: -4.35, lonMax: -4.15 },
     mapView: { center: [-4.25, 55.86], zoom: 11.5 },
-    slimVenuesPath: "/data/cities/glasgow/venues_slim.json",
     poisPath: "/data/cities/glasgow/pois.json",
     transitLinesPath: null,
     lastRideLabel: "Last Subway",
-    enabled: true,
   }),
   bristol: city({
     id: "bristol",
@@ -168,11 +165,9 @@ export const CITIES: Record<CityId, CityConfig> = {
     country: "england",
     bounds: { latMin: 51.42, latMax: 51.5, lonMin: -2.65, lonMax: -2.52 },
     mapView: { center: [-2.59, 51.45], zoom: 11.8 },
-    slimVenuesPath: "/data/cities/bristol/venues_slim.json",
     poisPath: "/data/cities/bristol/pois.json",
     transitLinesPath: null,
     lastRideLabel: "Last Train",
-    enabled: true,
   }),
   cambridge: city({
     id: "cambridge",
@@ -181,11 +176,9 @@ export const CITIES: Record<CityId, CityConfig> = {
     country: "england",
     bounds: { latMin: 52.18, latMax: 52.24, lonMin: 0.08, lonMax: 0.16 },
     mapView: { center: [0.12, 52.205], zoom: 12.4 },
-    slimVenuesPath: "/data/cities/cambridge/venues_slim.json",
     poisPath: "/data/cities/cambridge/pois.json",
     transitLinesPath: null,
     lastRideLabel: "Last Train",
-    enabled: true,
   }),
   bath: city({
     id: "bath",
@@ -194,11 +187,9 @@ export const CITIES: Record<CityId, CityConfig> = {
     country: "england",
     bounds: { latMin: 51.36, latMax: 51.4, lonMin: -2.4, lonMax: -2.32 },
     mapView: { center: [-2.36, 51.38], zoom: 12.8 },
-    slimVenuesPath: "/data/cities/bath/venues_slim.json",
     poisPath: null,
     transitLinesPath: null,
     lastRideLabel: "Last Train",
-    enabled: true,
   }),
 };
 

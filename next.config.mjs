@@ -2,7 +2,11 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { freshnessArtifactIncludes } from "./lib/freshnessTracing.mjs";
+import { enabledVenuePackIncludes } from "./lib/cityVenuePacks.mjs";
+import {
+  freshnessArtifactIncludeById,
+  freshnessArtifactIncludes,
+} from "./lib/freshnessTracing.mjs";
 
 const projectRoot = path.dirname(fileURLToPath(import.meta.url));
 
@@ -18,9 +22,23 @@ const projectRoot = path.dirname(fileURLToPath(import.meta.url));
 // dataset cannot silently go untraced. The field-stamped ones are exactly the
 // ones a reader opens (lib/freshnessTracing.mjs says why the others stay out).
 // __tests__/freshnessTracing.test.ts pins it.
-const freshnessArtifacts = freshnessArtifactIncludes(
-  JSON.parse(readFileSync(path.join(projectRoot, "data", "freshness_registry.json"), "utf8")),
+const freshnessRegistry = JSON.parse(
+  readFileSync(path.join(projectRoot, "data", "freshness_registry.json"), "utf8"),
 );
+const freshnessArtifacts = freshnessArtifactIncludes(freshnessRegistry);
+
+// /feed is force-dynamic (its ambient sourced prices carry a recency window that
+// must be answered per request), so it reads the drink-price overlay and every
+// enabled city's slim venue pack AT RUNTIME, both by paths built from config.
+// Same tracing blind spot as the freshness pair, and a nastier failure: the
+// venue lookup fails soft, so an untraced pack would show as an empty ambient
+// surface — indistinguishable from the honest empty state. Both halves are
+// derived (registry by dataset id, packs from lib/cityVenuePacks.mjs, which
+// lib/cities.ts reads too). __tests__/feedTracing.test.ts pins it.
+const feedDataFiles = [
+  ...freshnessArtifactIncludeById(freshnessRegistry, "drink_price_updates"),
+  ...enabledVenuePackIncludes(),
+];
 
 // Per-deploy build id for the offline service worker (issue #32). Evaluated
 // once when `next build` loads this config and inlined into the client bundle
@@ -94,6 +112,8 @@ const nextConfig = {
     // Both freshness readers need every registered artifact (see above).
     "/api/freshness": freshnessArtifacts,
     "/api/cron/freshness-audit": freshnessArtifacts,
+    // The dynamic feed opens its overlay + venue packs per request (see above).
+    "/feed": feedDataFiles,
   },
   turbopack: {
     root: projectRoot,
