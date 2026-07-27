@@ -26,6 +26,14 @@ export const ROUND_PRICE_ACTOR_LIMIT = 30;
 export const ROUND_PRICE_WINDOW_MS = 3_600_000;
 
 /**
+ * How long to tell a caller to wait when the degraded allowance is spent. The
+ * house retry hint for a temporarily unavailable dependency (see
+ * lib/planSigningHttp.server): short, because what the caller is waiting on is
+ * the durable limiter coming back, not the hour-long budget window.
+ */
+export const ROUND_PRICE_DEGRADED_RETRY_SECONDS = 60;
+
+/**
  * How the verdict was reached. "durable" is the shared hourly cap answering,
  * "memory" the keyless local budget, and "degraded" the bounded one-round
  * allowance that stands in while the durable limiter is unreachable — a

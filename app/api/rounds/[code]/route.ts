@@ -22,7 +22,10 @@ import { submitCommunityPrice } from "@/lib/communityPriceStore";
 import { resolveMessageHandle } from "@/lib/messageAuth";
 import { isLimited } from "@/lib/pintDrops";
 import { gateHandleAction } from "@/lib/profileOwnership";
-import { chargeRoundPriceLines } from "@/lib/roundPriceBudget";
+import {
+  ROUND_PRICE_DEGRADED_RETRY_SECONDS,
+  chargeRoundPriceLines,
+} from "@/lib/roundPriceBudget";
 import {
   ROUND_SPEND_PRICE_LINE_MAX,
   cleanNewRoundSpend,
@@ -130,14 +133,26 @@ async function recordSpend(
       !onRecord.spends.some((spend) => spend.clientRef === clean.clientRef);
     if (chargeable) {
       const budget = await chargeRoundPriceLines(actor, observed.length);
-      if (!budget.allowed) {
+      // Two different refusals, and the status has to tell them apart: a spent
+      // degraded allowance is OUR limiter being unreachable, so it answers 503
+      // fail-soft with a retry hint (the contract errorResponse states above),
+      // while 429 stays what it means everywhere else here - this device really
+      // has logged its hour's worth of prices.
+      if (!budget.allowed && budget.mode === "degraded") {
         return jsonNoStore(
           {
             error:
-              budget.mode === "degraded"
-                ? "We cannot log drink prices right now. Keep this round as a total, or add the drinks again shortly."
-                : "Too many price logs, slow down.",
+              "We cannot log drink prices for a moment. Keep this round as a total, or add the drinks again shortly.",
           },
+          {
+            status: 503,
+            headers: { "Retry-After": String(ROUND_PRICE_DEGRADED_RETRY_SECONDS) },
+          },
+        );
+      }
+      if (!budget.allowed) {
+        return jsonNoStore(
+          { error: "Too many price logs, slow down." },
           { status: 429 },
         );
       }

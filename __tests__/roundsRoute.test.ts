@@ -589,8 +589,11 @@ describe("POST /api/rounds/[code] — actions", () => {
     expect((await keep("budget-3", 10, 21)).status).toBe(200);
 
     // Thirty lines spent, so the next one is refused before the diary write.
+    // A real per-device cap under a healthy limiter is the drinker's budget, so
+    // it stays a 429 and carries no retry hint.
     const overBudget = await keep("budget-4", 1, 31);
     expect(overBudget.status).toBe(429);
+    expect(overBudget.headers.get("Retry-After")).toBeNull();
     expect(await overBudget.json()).toEqual({ error: "Too many price logs, slow down." });
 
     const state = (await (await get(round.code)).json()) as RoundState;
@@ -601,7 +604,7 @@ describe("POST /api/rounds/[code] — actions", () => {
     ]);
   });
 
-  it("owns a price-budget outage in its wording rather than blaming the drinker", async () => {
+  it("answers a price-limiter outage as ours: 503, a retry hint, and no blame", async () => {
     budgetOverride.fn = async () => ({ allowed: false, mode: "degraded" as const });
     const { round } = await newRound("ken");
     await action(round.code, {
@@ -622,10 +625,11 @@ describe("POST /api/rounds/[code] — actions", () => {
       },
       { "x-forwarded-for": "198.51.100.63" },
     );
-    expect(res.status).toBe(429);
+    expect(res.status).toBe(503);
+    expect(res.headers.get("Retry-After")).toBe("60");
     expect(await res.json()).toEqual({
       error:
-        "We cannot log drink prices right now. Keep this round as a total, or add the drinks again shortly.",
+        "We cannot log drink prices for a moment. Keep this round as a total, or add the drinks again shortly.",
     });
     expect(((await (await get(round.code)).json()) as RoundState).spends).toEqual([]);
 
