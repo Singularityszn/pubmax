@@ -27,12 +27,17 @@ test.beforeEach(async ({ page }) => {
 test("no-alcohol and food views own the 390px map without pint controls", async ({
   page,
 }) => {
+  test.setTimeout(90_000);
   const errors = watchPageErrors(page);
   const response = await page.goto("/map");
   expect(response?.status()).toBe(200);
 
+  // The phone chrome mounts with the SCENE, not with the document, and warming
+  // the map up regularly outlasts the 10s expect budget on a cold server. That
+  // is a wait on the map, not a finding about this view, so it gets the same
+  // generous first-paint budget every other mobile map spec takes.
   const filtersButton = page.getByRole("button", { name: /^Filters/ });
-  await expect(filtersButton).toBeVisible();
+  await expect(filtersButton).toBeVisible({ timeout: 45_000 });
   await filtersButton.click();
 
   const sheet = page.locator('.mobileSheetPortal[data-sheet-kind="filters"]');
