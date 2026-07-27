@@ -21,7 +21,7 @@ JSON and cannot carry inline comments.
 |---|---|---|---|---|
 | `GET /api/cron/refresh-weather` | `0 */6 * * *` | 01:00·07:00·13:00·19:00 / 00:00·06:00·12:00·18:00 | Fetch Open-Meteo for every night area → durable `weather_snapshots` store | 60s |
 | `GET /api/cron/refresh-whats-on` | `0 14 * * *` | **15:00** / 14:00 | SLIM: revalidate the servable tonight window + stamp `feed_freshness` (pre-evening) | 60s |
-| `GET /api/cron/freshness-audit` | `30 6 * * *` | 07:30 / 06:30 | Read the freshness spine, log any stale/unknown feed (console only) | 30s |
+| `GET /api/cron/freshness-audit` | `30 6 * * *` | 07:30 / 06:30 | Read the freshness spine, report stale feeds and unresolvable feeds as two separate findings (console only) | 30s |
 | `GET /api/cron/refresh-night-signals` | `15 5 * * *` | 06:15 / 05:15 | Exa sweep for PENDING Night Signal candidates + freshness stamp — never publishes; human review still gates the feed | 60s |
 | `GET /api/cron/enrich-city-pubs` | `15 3 * * *` | 04:15 / 03:15 | Rotating Tavily official-page discovery for one UK city batch (`lib/tavilyPubEnrichment.server.ts`) — structured observations to logs only; a function cannot commit repository files | 120s |
 
@@ -131,7 +131,14 @@ would only duplicate the live path. Same for `/api/last-train` and friends
   `[cron:refresh-night-signals]`, `[cron:enrich-city-pubs]`.
   - Weather success: `wrote N observations at <iso> (skipped M)`.
   - What's-On success: `revalidated tonight window: N rows at <iso>`.
-  - Audit: `all tracked feeds within budget.` or a `breaching freshness` list.
+  - Audit: `all tracked feeds within budget.`, or one or both of two DIFFERENT
+    alerts. `N feed(s) breaching freshness budget` means the data is old and a
+    refresh job owes us a run. `N feed(s) whose age could not be determined`
+    means the audit could not read the artifact at all and says nothing about
+    whether the data is good; each line names the artifact and how it failed.
+    A run of unresolvable feeds usually means the function shipped without its
+    data files, so check `outputFileTracingIncludes` in `next.config.mjs` before
+    suspecting the feeds.
   - Night Signals success: `swept N pending candidate(s) at <iso>`.
   - City enrichment success: a `[city-enrichment]` JSON line with city, cursor,
     queries/credits spent, matched pubs, and extracted prices.

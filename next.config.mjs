@@ -1,7 +1,22 @@
+import { readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 const projectRoot = path.dirname(fileURLToPath(import.meta.url));
+
+// The freshness spine reads each dataset's artifact by a path taken from
+// data/freshness_registry.json AT RUNTIME (join(process.cwd(), dataset.artifact)).
+// Next's file tracing only follows paths it can see statically, so it traces NONE
+// of them, and whether an artifact lands in a given function is then incidental —
+// it depends on which other routes Vercel happens to co-bundle into that lambda.
+// /api/freshness got lucky; /api/cron/freshness-audit, isolated into its own
+// function by its `maxDuration`, shipped with no artifacts at all and reported
+// every field-stamped feed as "unknown" every day. Declaring the list here is the
+// fix, and it is derived from the registry rather than hand-copied so a new
+// dataset cannot silently go untraced. __tests__/freshnessTracing.test.ts pins it.
+const freshnessArtifacts = JSON.parse(
+  readFileSync(path.join(projectRoot, "data", "freshness_registry.json"), "utf8"),
+).datasets.flatMap((dataset) => (dataset.artifact ? [`./${dataset.artifact}`] : []));
 
 // Per-deploy build id for the offline service worker (issue #32). Evaluated
 // once when `next build` loads this config and inlined into the client bundle
@@ -72,6 +87,9 @@ const nextConfig = {
       "./data/generated/venue_detail_index.json",
       "./data/generated/venue_details.jsonl",
     ],
+    // Both freshness readers need every registered artifact (see above).
+    "/api/freshness": freshnessArtifacts,
+    "/api/cron/freshness-audit": freshnessArtifacts,
   },
   turbopack: {
     root: projectRoot,

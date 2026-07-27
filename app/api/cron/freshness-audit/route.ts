@@ -2,14 +2,21 @@
 //
 // Reads the freshness spine (data/freshness_registry.json resolved against each
 // artifact's on-disk stamp, PLUS the store-backed honest observedAt overlay for
-// cron-plane feeds), then logs every stale/unknown feed. Console-only alerting
+// cron-plane feeds), then reports two SEPARATE findings: feeds whose data is
+// stale, and feeds whose age it could not determine at all. Console-only alerting
 // today via lib/freshnessNotify — a deliberate seam so a later push/alert
 // integration (Sol's push lane) hangs off ONE place. This route sends NO pushes.
+//
+// The artifacts are reached by a path taken from the registry at request time, so
+// Next cannot trace them; next.config.mjs declares them for this route (and for
+// /api/freshness) under outputFileTracingIncludes. Without that they reached this
+// function only by accident of Vercel's lambda grouping, and every field-stamped
+// feed reported "unknown" daily.
 //
 // AUTH: CRON_SECRET Bearer. Never 500s on a bad artifact — a broken file surfaces
 // as that dataset's own "unknown" status, exactly like /api/freshness.
 
-import { readFileSync, existsSync } from "node:fs";
+import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
 import { jsonNoStore } from "@/lib/apiResponses";
@@ -17,28 +24,20 @@ import { assertCronRequest } from "@/lib/cronAuth";
 import {
   evaluateDataset,
   hasBreach,
-  resolveObservedAt,
+  resolveStamp,
+  staleFeeds,
+  unresolvedFeeds,
   type FreshnessDataset,
   type FreshnessRegistry,
   type FreshnessResult,
 } from "@/lib/freshness";
+import { readFreshnessArtifact } from "@/lib/freshnessArtifact";
 import { resolveStoreObservedAt } from "@/lib/freshnessStoreOverlay";
-import { notifyStaleFeeds } from "@/lib/freshnessNotify";
+import { notifyFreshnessFindings } from "@/lib/freshnessNotify";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 export const maxDuration = 30;
-
-function readArtifact(rootDir: string, relPath: string | null): unknown {
-  if (!relPath) return undefined;
-  const abs = join(rootDir, relPath);
-  if (!existsSync(abs)) return undefined;
-  try {
-    return JSON.parse(readFileSync(abs, "utf8"));
-  } catch {
-    return undefined;
-  }
-}
 
 export async function GET(request: Request): Promise<Response> {
   const denied = assertCronRequest(request);
@@ -60,12 +59,16 @@ export async function GET(request: Request): Promise<Response> {
   const overlay = await resolveStoreObservedAt();
   const now = new Date();
   const results: FreshnessResult[] = registry.datasets.map((dataset: FreshnessDataset) => {
-    const observedAt = overlay[dataset.id] ?? resolveObservedAt(dataset.stamp, readArtifact(rootDir, dataset.artifact));
-    return evaluateDataset(dataset, observedAt, now);
+    const stored = overlay[dataset.id];
+    const { observedAt, reason } = stored
+      ? { observedAt: stored, reason: null }
+      : resolveStamp(dataset.stamp, readFreshnessArtifact(rootDir, dataset.artifact));
+    return evaluateDataset(dataset, observedAt, now, reason);
   });
 
-  const stale = results.filter((r) => r.status === "stale" || r.status === "unknown");
-  const notices = notifyStaleFeeds(stale);
+  // Two findings, never merged: stale means the data is old, unresolved means we
+  // could not measure it. Only the first one says the data is bad.
+  const findings = notifyFreshnessFindings(staleFeeds(results), unresolvedFeeds(results));
 
   return jsonNoStore({
     ok: true,
@@ -75,6 +78,7 @@ export async function GET(request: Request): Promise<Response> {
       acc[r.status] = (acc[r.status] ?? 0) + 1;
       return acc;
     }, {}),
-    stale: notices,
+    stale: findings.stale,
+    unresolved: findings.unresolved,
   });
 }
