@@ -2,8 +2,8 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useCallback, useId, useState, useTransition } from "react";
-import { Beer, LocateFixed } from "lucide-react";
+import { useCallback, useId, useMemo, useRef, useState, useTransition } from "react";
+import { Beer, LocateFixed, MapPin, Search } from "lucide-react";
 import PubmaxxWordmark from "@/components/brand/PubmaxxWordmark";
 
 import {
@@ -11,9 +11,16 @@ import {
   listEnabledCities,
   type CityId,
 } from "@/lib/cities";
+import { buildCityChooserSearchResults } from "@/lib/cityChooserSearch";
 import { writePreferredCity } from "@/lib/cityPreference";
 import { cityMapShareUrl } from "@/lib/cityShare";
 import { nearestEnabledCity } from "@/lib/nearestCity";
+import {
+  normaliseUkPlaceQuery,
+  parseUkPlaceIndex,
+  UK_PLACE_INDEX_PATH,
+  type UkPlace,
+} from "@/lib/ukPlaceSearch";
 
 import "./cityChooser.css";
 
@@ -23,6 +30,10 @@ export type CityChooserProps = {
 };
 
 type LocateState = "idle" | "pending" | "error";
+type PlaceIndexState =
+  | { status: "idle" | "loading"; places: UkPlace[] }
+  | { status: "ready"; places: UkPlace[] }
+  | { status: "error"; places: UkPlace[] };
 
 /**
  * Full-bleed city picker: enabled cities as map links, optional geolocation,
@@ -37,7 +48,18 @@ export default function CityChooser({
   const router = useRouter();
   const [locateState, setLocateState] = useState<LocateState>("idle");
   const [locateMessage, setLocateMessage] = useState<string | null>(null);
+  const [query, setQuery] = useState("");
+  const [placeIndex, setPlaceIndex] = useState<PlaceIndexState>({
+    status: "idle",
+    places: [],
+  });
+  const placeIndexRequested = useRef(false);
   const [, startTransition] = useTransition();
+  const normalizedQuery = normaliseUkPlaceQuery(query);
+  const results = useMemo(
+    () => buildCityChooserSearchResults(query, cities, placeIndex.places),
+    [cities, placeIndex.places, query],
+  );
 
   const selectCity = useCallback(
     (cityId: CityId) => {
@@ -84,6 +106,30 @@ export default function CityChooser({
     );
   }, [router, selectCity, startTransition]);
 
+  const loadPlaceIndex = useCallback(() => {
+    if (placeIndexRequested.current) return;
+    placeIndexRequested.current = true;
+    setPlaceIndex({ status: "loading", places: [] });
+    void fetch(UK_PLACE_INDEX_PATH)
+      .then(async (response) => {
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        const raw: unknown = await response.json();
+        setPlaceIndex({ status: "ready", places: parseUkPlaceIndex(raw) });
+      })
+      .catch(() => {
+        placeIndexRequested.current = false;
+        setPlaceIndex({ status: "error", places: [] });
+      });
+  }, []);
+
+  const changeQuery = useCallback(
+    (value: string) => {
+      setQuery(value);
+      if (normaliseUkPlaceQuery(value).length >= 2) loadPlaceIndex();
+    },
+    [loadPlaceIndex],
+  );
+
   const rootClass =
     variant === "section"
       ? "cityChooser cityChooser--section"
@@ -127,6 +173,31 @@ export default function CityChooser({
           </p>
         </header>
 
+        <div className="cityChooserSearch">
+          <label htmlFor={`${listId}-search`} className="cityChooserSearchLabel">
+            Find your town
+          </label>
+          <div className="cityChooserSearchField">
+            <Search size={18} strokeWidth={1.75} aria-hidden="true" />
+            <input
+              id={`${listId}-search`}
+              className="cityChooserSearchInput"
+              type="search"
+              value={query}
+              onChange={(event) => changeQuery(event.target.value)}
+              placeholder="Try Sheffield or your town"
+              autoComplete="off"
+              spellCheck="false"
+              aria-controls={`${listId}-search-results`}
+              aria-describedby={`${listId}-search-help`}
+            />
+          </div>
+          <p id={`${listId}-search-help`} className="cityChooserSearchHelp">
+            The nine city guides have prices and crawls. Other UK places open
+            the pub map without prices.
+          </p>
+        </div>
+
         <div className="cityChooserToolbar">
           <button
             type="button"
@@ -150,6 +221,88 @@ export default function CityChooser({
             </p>
           ) : null}
         </div>
+
+        {normalizedQuery.length >= 2 ? (
+          <section
+            id={`${listId}-search-results`}
+            className="cityChooserSearchPanel"
+            aria-label="Place search results"
+            aria-live="polite"
+          >
+            <p className="cityChooserResultsLabel">Matches</p>
+            {results.length > 0 ? (
+              <ul className="cityChooserResults">
+                {results.map((result) => (
+                  <li
+                    key={`${result.kind}-${result.name}-${result.href}`}
+                    className="cityChooserResult"
+                  >
+                    <Link
+                      href={result.href}
+                      className="cityChooserResultLink"
+                      onClick={
+                        result.kind === "curated"
+                          ? () => selectCity(result.cityId)
+                          : undefined
+                      }
+                    >
+                      <MapPin size={18} strokeWidth={1.65} aria-hidden="true" />
+                      <span className="cityChooserResultCopy">
+                        <span className="cityChooserResultTopline">
+                          <strong className="cityChooserResultName">
+                            {result.name}
+                          </strong>
+                          {result.kind === "uncovered" && result.context ? (
+                            <span className="cityChooserResultContext">
+                              {result.context}
+                            </span>
+                          ) : null}
+                          <span
+                            className="cityChooserResultBadge"
+                            data-kind={result.kind}
+                          >
+                            {result.kind === "curated"
+                              ? "City guide"
+                              : "No prices yet"}
+                          </span>
+                        </span>
+                        <span className="cityChooserResultDescription">
+                          {result.description}
+                        </span>
+                      </span>
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            ) : placeIndex.status === "loading" ? (
+              <p className="cityChooserSearchStatus" role="status">
+                Looking across the UK pub map…
+              </p>
+            ) : placeIndex.status === "error" ? (
+              <p className="cityChooserSearchStatus" role="status">
+                Town search isn’t available right now. The nine city maps are
+                below.
+              </p>
+            ) : (
+              <p className="cityChooserSearchStatus">
+                Can’t find that name yet. Try a nearby town.
+              </p>
+            )}
+            {placeIndex.status === "ready" ? (
+              <p className="cityChooserSearchSource">
+                Place names from{" "}
+                <a
+                  href="https://www.openstreetmap.org/copyright"
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  OpenStreetMap contributors
+                </a>
+                , ODbL.
+              </p>
+            ) : null}
+          </section>
+        ) : null}
 
         <nav aria-label="City maps">
           <ul id={listId} className="cityChooserList">

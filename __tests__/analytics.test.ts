@@ -9,7 +9,10 @@ import {
   trackEvent,
   trackMeaningfulCoreAction,
 } from "@/lib/analytics";
-import { consentAwareBeforeSend } from "@/components/ConsentAwareVercelAnalytics";
+import {
+  consentAwareBeforeSend,
+  shouldMountVercelAnalytics,
+} from "@/components/ConsentAwareVercelAnalytics";
 
 type FakeNavigator = Partial<Navigator> & {
   sendBeacon?: (url: string, data?: BodyInit | null) => boolean;
@@ -235,6 +238,12 @@ describe("trackEvent", () => {
     (globalThis as { navigator: FakeNavigator }).navigator.doNotTrack = "1";
     expect(analyticsCollectionAllowed()).toBe(false);
     expect(consentAwareBeforeSend(event)).toBeNull();
+  });
+
+  it("does not load Vercel's remote debug script during local development", () => {
+    expect(shouldMountVercelAnalytics("development")).toBe(false);
+    expect(shouldMountVercelAnalytics("test")).toBe(false);
+    expect(shouldMountVercelAnalytics("production")).toBe(true);
   });
 });
 

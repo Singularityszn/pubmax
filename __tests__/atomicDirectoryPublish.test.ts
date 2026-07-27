@@ -79,6 +79,7 @@ describe("publishStagedDirectory", () => {
     expect(manifest.shards.every((shard) => !("url" in shard))).toBe(true);
     expect(files.filter((file) => path.dirname(file) === packRoot)).toEqual([
       path.join(packRoot, "manifest.json"),
+      path.join(packRoot, "places.json"),
     ]);
     expect(totalBytes).toBeLessThan(WHOLE_LAYER_BUDGET_BYTES);
   });

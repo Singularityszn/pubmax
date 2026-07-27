@@ -12,6 +12,10 @@ import {
   firstSearchParam,
   stopCountFromPubsParam,
 } from "@/lib/cityShare";
+import {
+  parseUkPlaceMapArrival,
+  ukPlaceMapUrl,
+} from "@/lib/ukPlaceSearch";
 
 // /map stays London for back-compat bookmarks. Other cities live at /map/[city].
 
@@ -23,6 +27,35 @@ export async function generateMetadata({
   searchParams,
 }: MapPageProps): Promise<Metadata> {
   const sp = searchParams ? await searchParams : undefined;
+  const placeArrival = parseUkPlaceMapArrival(
+    new URLSearchParams({
+      place: firstSearchParam(sp?.place) ?? "",
+      lat: firstSearchParam(sp?.lat) ?? "",
+      lng: firstSearchParam(sp?.lng) ?? "",
+    }),
+  );
+  if (placeArrival) {
+    const title = `${placeArrival.name} pub map`;
+    const description =
+      `Browse pubs mapped in ${placeArrival.name}. ` +
+      "No prices have been logged here yet.";
+    const url = ukPlaceMapUrl(placeArrival);
+    return {
+      title,
+      description,
+      openGraph: {
+        title,
+        description,
+        type: "website",
+        url,
+      },
+      twitter: {
+        card: "summary",
+        title,
+        description,
+      },
+    };
+  }
   const band = firstSearchParam(sp?.band);
   const crawl = firstSearchParam(sp?.crawl);
   const stopCount = stopCountFromPubsParam(firstSearchParam(sp?.pubs));

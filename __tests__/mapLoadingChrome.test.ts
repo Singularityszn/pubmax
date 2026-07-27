@@ -44,7 +44,7 @@ describe("map loading chrome", () => {
 
     expect(loadingLabels.length).toBeGreaterThan(0);
     for (const label of loadingLabels) {
-      expect(label).toBe("aria-label={`Loading the ${city.displayName} venue map.`}");
+      expect(label).toBe("aria-label={`Loading the ${mapDisplayName} pub map.`}");
     }
   });
 });

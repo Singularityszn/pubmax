@@ -51,6 +51,7 @@ describe("searchHasExplicitMapIntent", () => {
     ["?log=1", "log=1"],
     ["?food=1", "existing filter deep link"],
     ["?band=river-history", "band deep link"],
+    ["?place=Sheffield&lat=53.38&lng=-1.47", "UK place deep link"],
   ])("recognises the existing explicit arrival param %s (%s)", (search) => {
     expect(searchHasExplicitMapIntent(search)).toBe(true);
   });
@@ -69,6 +70,13 @@ describe("searchHasExplicitMapIntent", () => {
     expect(searchHasExplicitMapIntent("?replant=1")).toBe(false);
     expect(searchHasExplicitMapIntent("?accepted=yes")).toBe(false);
     expect(searchHasExplicitMapIntent("?source=news")).toBe(false);
+  });
+
+  it("does not treat an incomplete place query as map intent", () => {
+    expect(searchHasExplicitMapIntent("?place=Sheffield")).toBe(false);
+    expect(
+      searchHasExplicitMapIntent("?place=Paris&lat=48.8566&lng=2.3522"),
+    ).toBe(false);
   });
 });
 

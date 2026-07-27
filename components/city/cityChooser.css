@@ -171,6 +171,83 @@
   animation: ccIn var(--duration-slow, 0.28s) var(--ease-out, ease) 0.06s both;
 }
 
+.cityChooserSearch {
+  min-width: 0;
+  margin: 0 0 14px;
+  animation: ccIn var(--duration-slow, 0.28s) var(--ease-out, ease) 0.08s both;
+}
+
+.cityChooserSearchLabel,
+.cityChooserResultsLabel {
+  display: block;
+  margin: 0 0 7px;
+  color: var(--brass-bright, var(--brass));
+  font-size: 0.74rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.cityChooser--section .cityChooserSearchLabel,
+.cityChooser--section .cityChooserResultsLabel {
+  color: var(--brass);
+}
+
+.cityChooserSearchField {
+  display: grid;
+  grid-template-columns: 22px minmax(0, 1fr);
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  max-width: 620px;
+  padding-inline: 14px;
+  border: 1px solid color-mix(in srgb, var(--brass) 48%, transparent);
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--panel-raised, #1e1a30) 78%, transparent);
+  color: var(--brass-bright, var(--brass));
+  box-shadow: 0 12px 28px color-mix(in srgb, var(--ink-deep) 18%, transparent);
+}
+
+.cityChooser--section .cityChooserSearchField {
+  border-color: color-mix(in srgb, var(--line) 65%, var(--brass) 35%);
+  background: var(--panel-raised);
+  color: var(--brass);
+}
+
+.cityChooserSearchField:focus-within {
+  border-color: var(--brass-bright, var(--brass));
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--brass) 22%, transparent);
+}
+
+.cityChooserSearchInput {
+  min-height: 48px;
+  width: 100%;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: inherit;
+  font: 650 1rem/1.2 var(--font-body, var(--font-geist, Inter), sans-serif);
+}
+
+.cityChooserSearchInput::placeholder {
+  color: color-mix(in srgb, currentcolor 64%, transparent);
+  opacity: 1;
+}
+
+.cityChooserSearchHelp {
+  margin: 7px 0 0;
+  max-width: 68ch;
+  color: color-mix(in srgb, var(--color-on-photo, #fdfaf2) 68%, transparent);
+  font-size: 0.78rem;
+  line-height: 1.45;
+}
+
+.cityChooser--section .cityChooserSearchHelp {
+  color: var(--ink-soft);
+}
+
 .cityChooserToolbar {
   display: flex;
   flex-wrap: wrap;
@@ -240,6 +317,141 @@
 
 .cityChooser--section .cityChooserLocateStatus[data-tone="error"] {
   color: var(--brass);
+}
+
+.cityChooserSearchPanel {
+  min-width: 0;
+  margin: 0 0 var(--cc-gap);
+  padding: 14px;
+  border: 1px solid color-mix(in srgb, var(--brass) 30%, transparent);
+  border-radius: 16px;
+  background: color-mix(in srgb, var(--panel-raised, #1e1a30) 48%, transparent);
+}
+
+.cityChooser--section .cityChooserSearchPanel {
+  border-color: color-mix(in srgb, var(--line) 78%, var(--brass) 22%);
+  background: color-mix(in srgb, var(--panel-raised) 94%, var(--brass) 6%);
+}
+
+.cityChooserResults {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.cityChooserResult {
+  min-width: 0;
+}
+
+.cityChooserResultLink {
+  display: grid;
+  grid-template-columns: 22px minmax(0, 1fr);
+  align-items: start;
+  gap: 9px;
+  min-height: 64px;
+  min-width: 0;
+  padding: 12px;
+  border: 1px solid color-mix(in srgb, var(--color-on-photo, #fdfaf2) 15%, transparent);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--panel-raised, #1e1a30) 65%, transparent);
+  color: inherit;
+  text-decoration: none;
+}
+
+.cityChooser--section .cityChooserResultLink {
+  border-color: var(--line);
+  background: var(--panel);
+}
+
+.cityChooserResultLink:hover,
+.cityChooserResultLink:focus-visible {
+  border-color: var(--brass-bright, var(--brass));
+  background: color-mix(in srgb, var(--brass) 14%, transparent);
+}
+
+.cityChooserResultLink:focus-visible {
+  outline: 2px solid var(--brass-bright, var(--brass));
+  outline-offset: 2px;
+}
+
+.cityChooserResultCopy {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.cityChooserResultTopline {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.cityChooserResultName {
+  overflow-wrap: anywhere;
+  font-family: var(--font-display, var(--serif));
+  font-size: 1rem;
+}
+
+.cityChooserResultContext {
+  color: color-mix(in srgb, var(--color-on-photo, #fdfaf2) 58%, transparent);
+  font-size: 0.68rem;
+  font-weight: 750;
+  letter-spacing: 0.04em;
+}
+
+.cityChooser--section .cityChooserResultContext {
+  color: var(--ink-soft);
+}
+
+.cityChooserResultBadge {
+  padding: 3px 7px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--brass) 18%, transparent);
+  color: var(--brass-bright, var(--brass));
+  font-size: 0.66rem;
+  font-weight: 800;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
+.cityChooser--section .cityChooserResultBadge {
+  color: var(--brass);
+}
+
+.cityChooserResultDescription,
+.cityChooserSearchStatus,
+.cityChooserSearchSource {
+  color: color-mix(in srgb, var(--color-on-photo, #fdfaf2) 72%, transparent);
+  font-size: 0.78rem;
+  line-height: 1.42;
+}
+
+.cityChooser--section .cityChooserResultDescription,
+.cityChooser--section .cityChooserSearchStatus,
+.cityChooser--section .cityChooserSearchSource {
+  color: var(--ink-soft);
+}
+
+.cityChooserSearchStatus {
+  margin: 0;
+}
+
+.cityChooserSearchSource {
+  margin: 10px 0 0;
+}
+
+.cityChooserSearchSource a {
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  color: inherit;
+  text-underline-offset: 3px;
 }
 
 /* ── City list (interaction containers, not marketing cards) ─────────── */
@@ -364,6 +576,10 @@
 }
 
 @media (max-width: 560px) {
+  .cityChooserResults {
+    grid-template-columns: 1fr;
+  }
+
   .cityChooserList {
     grid-template-columns: 1fr;
   }

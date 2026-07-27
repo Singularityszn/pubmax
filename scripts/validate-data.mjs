@@ -986,6 +986,8 @@ const UK_BASE_DIR = join(DATA_DIR, "uk_base");
 const UK_BASE_SHARD_BUDGET_BYTES = 150 * 1024;
 const UK_BASE_TOTAL_BUDGET_BYTES = 5 * 1024 * 1024;
 const UK_BASE_MANIFEST_BUDGET_BYTES = 64 * 1024;
+const UK_PLACE_INDEX_FILE = "places.json";
+const UK_PLACE_INDEX_BUDGET_BYTES = 512 * 1024;
 const UK_BASE_ID_PREFIX = "venue-uk-";
 
 function isUkBaseRow(row) {
@@ -1019,6 +1021,68 @@ function listUkBaseJsonFiles(directory, prefix = "") {
 
 function addUkBaseErrors(errs, errors) {
   for (const error of errors) errs.add(error);
+}
+
+function validateUkPlaceIndex() {
+  const errors = [];
+  const file = join(UK_BASE_DIR, UK_PLACE_INDEX_FILE);
+  if (!existsSync(file)) return [`missing ${UK_PLACE_INDEX_FILE}`];
+  let raw;
+  let index;
+  try {
+    raw = readFileSync(file, "utf8");
+    index = JSON.parse(raw);
+  } catch (e) {
+    return [`${UK_PLACE_INDEX_FILE} is unreadable (${e.message})`];
+  }
+  const bytes = Buffer.byteLength(raw);
+  if (bytes > UK_PLACE_INDEX_BUDGET_BYTES) {
+    errors.push(
+      `${UK_PLACE_INDEX_FILE} ${(bytes / 1024).toFixed(1)} KB exceeds the ${(UK_PLACE_INDEX_BUDGET_BYTES / 1024).toFixed(0)} KB chooser-search budget`,
+    );
+  }
+  if (index?.source !== "OpenStreetMap via Overpass API") {
+    errors.push(`${UK_PLACE_INDEX_FILE} has no recognised source`);
+  }
+  if (index?.license !== "ODbL 1.0") {
+    errors.push(`${UK_PLACE_INDEX_FILE} has no ODbL 1.0 licence`);
+  }
+  if (!Array.isArray(index?.places) || index.places.length === 0) {
+    errors.push(`${UK_PLACE_INDEX_FILE} has no place rows`);
+    return errors;
+  }
+  const kinds = new Set(["city", "town", "village", "place", "suburb"]);
+  const seen = new Set();
+  let hasSheffield = false;
+  for (const row of index.places) {
+    const valid =
+      Array.isArray(row) &&
+      (row.length === 4 || row.length === 5) &&
+      typeof row[0] === "string" &&
+      row[0].trim().length >= 2 &&
+      Number.isFinite(row[1]) &&
+      row[1] >= 49.8 &&
+      row[1] <= 61 &&
+      Number.isFinite(row[2]) &&
+      row[2] >= -8.7 &&
+      row[2] <= 1.9 &&
+      kinds.has(row[3]) &&
+      (row.length === 4 || typeof row[4] === "string");
+    if (!valid) {
+      errors.push(
+        `${UK_PLACE_INDEX_FILE} has malformed row ${JSON.stringify(row)?.slice(0, 80)}`,
+      );
+      continue;
+    }
+    const key = `${row[0]}\0${row[1]}\0${row[2]}`;
+    if (seen.has(key)) {
+      errors.push(`${UK_PLACE_INDEX_FILE} repeats navigation target "${row[0]}"`);
+    }
+    seen.add(key);
+    if (row[0] === "Sheffield") hasSheffield = true;
+  }
+  if (!hasSheffield) errors.push(`${UK_PLACE_INDEX_FILE} has no Sheffield result`);
+  return errors;
 }
 
 function validateUkBaseManifestShape(manifest) {
@@ -1227,9 +1291,13 @@ function validateUkBaseShards() {
   // Files on disk must match the manifest exactly: an orphan is dead weight in
   // the repo, and a missing one is a 404 mid-pan.
   const jsonFiles = listUkBaseJsonFiles(UK_BASE_DIR);
-  const onDisk = new Set(jsonFiles.filter((file) => file !== "manifest.json"));
-  const budgets = validateUkBasePayloadBudgets(manifestRaw, jsonFiles);
+  const shardJsonFiles = jsonFiles.filter((file) => file !== UK_PLACE_INDEX_FILE);
+  const onDisk = new Set(
+    shardJsonFiles.filter((file) => file !== "manifest.json"),
+  );
+  const budgets = validateUkBasePayloadBudgets(manifestRaw, shardJsonFiles);
   addUkBaseErrors(errs, budgets.manifestErrors);
+  addUkBaseErrors(errs, validateUkPlaceIndex());
 
   const { errors: curatedErrors, curatedVenueIds } =
     loadUkBaseCuratedVenueIds();

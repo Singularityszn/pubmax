@@ -106,6 +106,10 @@
     pointer-events: auto;
   }
 
+  .mobileMapTopbar.mobileMapTopbarLimited {
+    grid-template-columns: minmax(64px, 1fr) minmax(0, auto);
+  }
+
   /* The wordmark is a real link home, so it gets a real hit target: the text is
      14px tall, the tappable box is the full 44px bar row. */
   .mobileMapBrand { display: inline-flex; align-items: center; min-width: 0; min-height: 44px; overflow: hidden; color: var(--color-text); font-size: .7rem; text-decoration: none; }
@@ -119,6 +123,7 @@
   .mobileMapAreaLabel { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: .72rem; font-weight: 700; }
   .mobileMapArea:hover, .mobileMapArea:focus-visible { color: var(--color-text); }
   .mobileMapArea[aria-expanded="true"] { color: var(--color-text); background: var(--state-active-surface); }
+  .mobileMapAreaStatic { cursor: default; }
   .mobileMapArea:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 2px; }
   .mobileMapTopbar > button { border: 0; background: transparent; }
   .mobileMapPalButton { color: var(--color-accent); }
