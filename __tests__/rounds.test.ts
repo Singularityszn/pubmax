@@ -3,11 +3,15 @@ import { describe, expect, it } from "vitest";
 import {
   ROUND_CODE_ALPHABET,
   ROUND_CODE_LENGTH,
+  cleanNewRoundSpend,
   cleanNewRound,
   cleanNewStop,
   generateRoundCode,
   isValidRoundCode,
   normalizeRoundCode,
+  roundTurn,
+  type RoundMemberDTO,
+  type RoundSpendDTO,
 } from "@/lib/rounds";
 
 describe("generateRoundCode — shape + alphabet", () => {
@@ -95,5 +99,158 @@ describe("cleanNewStop — validation", () => {
       dropRef: "drop-42",
     });
     expect(stop!.dropRef).toBe("drop-42");
+  });
+});
+
+describe("cleanNewRoundSpend - money trust boundary", () => {
+  const base = {
+    payerHandle: "@Ken",
+    recordedByHandle: "ale",
+    venueId: "venue-1",
+    venueName: "The Ship",
+    clientRef: "spend-1",
+  };
+
+  it("keeps a plain total as integer pence", () => {
+    expect(cleanNewRoundSpend({ ...base, totalGbp: "£26.80" })).toEqual({
+      payerHandle: "ken",
+      recordedByHandle: "ale",
+      venueId: "venue-1",
+      venueName: "The Ship",
+      clientRef: "spend-1",
+      totalPence: 2680,
+      items: [],
+    });
+  });
+
+  it("derives an itemised total from drink lines validated by the shared price rules", () => {
+    expect(
+      cleanNewRoundSpend({
+        ...base,
+        clientRef: "spend-2",
+        totalGbp: "99.99",
+        items: [
+          { drinkName: "Guinness", drinkCategory: "beer", priceGbp: 6.2 },
+          { drinkName: "Lime and soda", drinkCategory: "soft-drink", priceGbp: "2.40" },
+        ],
+      }),
+    ).toEqual({
+      payerHandle: "ken",
+      recordedByHandle: "ale",
+      venueId: "venue-1",
+      venueName: "The Ship",
+      clientRef: "spend-2",
+      totalPence: 860,
+      items: [
+        { drinkName: "Guinness", drinkCategory: "beer", pricePence: 620, source: "round" },
+        {
+          drinkName: "Lime and soda",
+          drinkCategory: "soft-drink",
+          pricePence: 240,
+          source: "round",
+        },
+      ],
+    });
+  });
+
+  it("rejects missing identities, venue details, or idempotency reference", () => {
+    expect(cleanNewRoundSpend({ ...base, payerHandle: "", totalGbp: 20 })).toBeNull();
+    expect(cleanNewRoundSpend({ ...base, recordedByHandle: "", totalGbp: 20 })).toBeNull();
+    expect(cleanNewRoundSpend({ ...base, venueId: "", totalGbp: 20 })).toBeNull();
+    expect(cleanNewRoundSpend({ ...base, venueName: "", totalGbp: 20 })).toBeNull();
+    expect(cleanNewRoundSpend({ ...base, clientRef: "", totalGbp: 20 })).toBeNull();
+  });
+
+  it("rejects plain totals outside a real round envelope", () => {
+    for (const totalGbp of [0, 0.99, -4, 1000.01, "not money"]) {
+      expect(cleanNewRoundSpend({ ...base, totalGbp })).toBeNull();
+    }
+    expect(cleanNewRoundSpend({ ...base, totalGbp: 1 })).not.toBeNull();
+    expect(cleanNewRoundSpend({ ...base, totalGbp: 1000 })).not.toBeNull();
+  });
+
+  it("rejects malformed drink lines instead of falling back to the supplied total", () => {
+    expect(
+      cleanNewRoundSpend({
+        ...base,
+        totalGbp: 20,
+        items: [{ drinkName: "Mystery", drinkCategory: "mead", priceGbp: 6 }],
+      }),
+    ).toBeNull();
+    expect(
+      cleanNewRoundSpend({
+        ...base,
+        totalGbp: 20,
+        items: [{ drinkName: "", drinkCategory: "beer", priceGbp: 6 }],
+      }),
+    ).toBeNull();
+    expect(
+      cleanNewRoundSpend({
+        ...base,
+        totalGbp: 20,
+        items: [{ drinkName: "Pint", drinkCategory: "beer", priceGbp: 31 }],
+      }),
+    ).toBeNull();
+  });
+
+  it("caps itemisation at twenty drinks", () => {
+    const items = Array.from({ length: 21 }, (_, index) => ({
+      drinkName: `Drink ${index + 1}`,
+      drinkCategory: "beer",
+      priceGbp: 5,
+    }));
+    expect(cleanNewRoundSpend({ ...base, items })).toBeNull();
+  });
+});
+
+describe("roundTurn - buying rotation", () => {
+  const members: RoundMemberDTO[] = [
+    { handle: "ken", joinedAt: "2026-07-27T18:00:00.000Z" },
+    { handle: "ale", joinedAt: "2026-07-27T18:05:00.000Z" },
+    { handle: "jo", joinedAt: "2026-07-27T18:10:00.000Z" },
+  ];
+  const spend = (payerHandle: string, recordedAt: string): RoundSpendDTO => ({
+    id: `spend-${recordedAt}`,
+    clientRef: `ref-${recordedAt}`,
+    payerHandle,
+    recordedByHandle: payerHandle,
+    venueId: "venue-1",
+    venueName: "The Ship",
+    totalPence: 2000,
+    items: [],
+    recordedAt,
+  });
+
+  it("starts with the first member when nobody has bought yet", () => {
+    expect(roundTurn(members, [])).toEqual({
+      currentHandle: "ken",
+      lastPayerHandle: null,
+    });
+  });
+
+  it("moves to the member after the latest payer", () => {
+    expect(
+      roundTurn(members, [
+        spend("ken", "2026-07-27T18:15:00.000Z"),
+        spend("ale", "2026-07-27T18:30:00.000Z"),
+      ]),
+    ).toEqual({
+      currentHandle: "jo",
+      lastPayerHandle: "ale",
+    });
+  });
+
+  it("wraps back to the first member after the last member pays", () => {
+    expect(roundTurn(members, [spend("jo", "2026-07-27T19:00:00.000Z")])).toEqual({
+      currentHandle: "ken",
+      lastPayerHandle: "jo",
+    });
+  });
+
+  it("returns an empty rotation for an empty crew", () => {
+    expect(roundTurn([], [])).toEqual({
+      currentHandle: null,
+      lastPayerHandle: null,
+    });
   });
 });

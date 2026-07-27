@@ -172,6 +172,137 @@ describe("addStop", () => {
   });
 });
 
+describe("recordSpend", () => {
+  async function roundAtPub() {
+    const state = await makeRound("ken");
+    await store.addStop(state.round.code, {
+      venueId: "venue-1",
+      venueName: "The Ship",
+      addedByHandle: "ken",
+    });
+    return state.round.code;
+  }
+
+  const spend = {
+    clientRef: "spend-1",
+    payerHandle: "ken",
+    recordedByHandle: "ken",
+    venueId: "venue-1",
+    venueName: "The Ship",
+    totalGbp: 26.8,
+  };
+
+  it("keeps a member's plain-total round with payer, pub, and date", async () => {
+    const code = await roundAtPub();
+    const res = await store.recordSpend(code, spend);
+    expect(res.ok).toBe(true);
+    if (res.ok) {
+      expect(res.state.spends).toHaveLength(1);
+      expect(res.state.spends[0]).toMatchObject({
+        clientRef: "spend-1",
+        payerHandle: "ken",
+        recordedByHandle: "ken",
+        venueId: "venue-1",
+        venueName: "The Ship",
+        totalPence: 2680,
+        items: [],
+      });
+      expect(Number.isNaN(Date.parse(res.state.spends[0].recordedAt))).toBe(false);
+    }
+  });
+
+  it("derives an itemised total and keeps each dated first-party line", async () => {
+    const code = await roundAtPub();
+    const res = await store.recordSpend(code, {
+      ...spend,
+      items: [
+        { drinkName: "Guinness", drinkCategory: "beer", priceGbp: 6.2 },
+        { drinkName: "Lime and soda", drinkCategory: "soft-drink", priceGbp: 2.4 },
+      ],
+    });
+    expect(res.ok).toBe(true);
+    if (res.ok) {
+      expect(res.state.spends[0].totalPence).toBe(860);
+      expect(res.state.spends[0].items).toEqual([
+        { drinkName: "Guinness", drinkCategory: "beer", pricePence: 620, source: "round" },
+        {
+          drinkName: "Lime and soda",
+          drinkCategory: "soft-drink",
+          pricePence: 240,
+          source: "round",
+        },
+      ]);
+    }
+  });
+
+  it("allows one member to record the named payer's turn", async () => {
+    const code = await roundAtPub();
+    await store.join(code, "ale");
+    const res = await store.recordSpend(code, {
+      ...spend,
+      payerHandle: "ale",
+      recordedByHandle: "ken",
+    });
+    expect(res.ok).toBe(true);
+    if (res.ok) expect(res.state.spends[0].payerHandle).toBe("ale");
+  });
+
+  it("rejects a recorder or payer who is not in the Round", async () => {
+    const code = await roundAtPub();
+    const outsiderRecorder = await store.recordSpend(code, {
+      ...spend,
+      recordedByHandle: "stranger",
+    });
+    expect(outsiderRecorder).toEqual({ ok: false, error: "forbidden" });
+
+    const outsiderPayer = await store.recordSpend(code, {
+      ...spend,
+      payerHandle: "stranger",
+    });
+    expect(outsiderPayer).toEqual({ ok: false, error: "forbidden" });
+  });
+
+  it("rejects a spend at a pub not already in the Round", async () => {
+    const { round } = await makeRound("ken");
+    const res = await store.recordSpend(round.code, spend);
+    expect(res).toEqual({ ok: false, error: "invalid" });
+  });
+
+  it("is idempotent on clientRef so a retry cannot rotate twice", async () => {
+    const code = await roundAtPub();
+    await store.recordSpend(code, spend);
+    const res = await store.recordSpend(code, { ...spend, totalGbp: 30 });
+    expect(res.ok).toBe(true);
+    if (res.ok) {
+      expect(res.state.spends).toHaveLength(1);
+      expect(res.state.spends[0].totalPence).toBe(2680);
+    }
+  });
+
+  it("keeps spend history in recorded order", async () => {
+    const code = await roundAtPub();
+    await store.join(code, "ale");
+    await store.recordSpend(code, spend);
+    const res = await store.recordSpend(code, {
+      ...spend,
+      clientRef: "spend-2",
+      payerHandle: "ale",
+      totalGbp: 24,
+    });
+    expect(res.ok).toBe(true);
+    if (res.ok) {
+      expect(res.state.spends.map((row) => row.clientRef)).toEqual(["spend-1", "spend-2"]);
+    }
+  });
+
+  it("cannot record spending after the Round is closed", async () => {
+    const code = await roundAtPub();
+    await store.close(code, "ken");
+    const res = await store.recordSpend(code, spend);
+    expect(res).toEqual({ ok: false, error: "closed" });
+  });
+});
+
 describe("close", () => {
   it("only the creator can close", async () => {
     const { round } = await makeRound("ken");

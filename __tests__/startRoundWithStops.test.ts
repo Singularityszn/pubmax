@@ -15,6 +15,7 @@ function mockRoundState(code: string): RoundState {
     },
     members: [{ handle: "ken", joinedAt: "2026-07-11T00:00:00.000Z" }],
     stops: [],
+    spends: [],
   };
 }
 

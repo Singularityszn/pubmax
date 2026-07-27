@@ -87,9 +87,10 @@ vi.mock("@/lib/authServer", async (importOriginal) => {
 // override create()/join() to return the store-failure variant. When null (the
 // default), each delegates to the real memory store so every other case is
 // unchanged.
-const { createOverride, joinOverride } = vi.hoisted(() => ({
+const { createOverride, joinOverride, recordSpendOverride } = vi.hoisted(() => ({
   createOverride: { fn: null as null | ((...args: unknown[]) => Promise<unknown>) },
   joinOverride: { fn: null as null | ((...args: unknown[]) => Promise<unknown>) },
+  recordSpendOverride: { fn: null as null | ((...args: unknown[]) => Promise<unknown>) },
 }));
 vi.mock("@/lib/roundsStore", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/roundsStore")>();
@@ -103,6 +104,10 @@ vi.mock("@/lib/roundsStore", async (importOriginal) => {
           createOverride.fn ? createOverride.fn(...args) : store.create(...args),
         join: (...args: Parameters<typeof store.join>) =>
           joinOverride.fn ? joinOverride.fn(...args) : store.join(...args),
+        recordSpend: (...args: Parameters<typeof store.recordSpend>) =>
+          recordSpendOverride.fn
+            ? recordSpendOverride.fn(...args)
+            : store.recordSpend(...args),
       };
     },
   };
@@ -114,6 +119,11 @@ import { __resetMemoryRounds } from "@/lib/roundsStore";
 import { __resetPintDrops } from "@/lib/pintDrops";
 import { memoryProfileStore, __resetMemoryProfiles } from "@/lib/profileStore";
 import type { RoundState } from "@/lib/rounds";
+import {
+  __resetCommunityPrices,
+  readCommunityPrices,
+} from "@/lib/communityPriceStore";
+import { mergeCommunityPriceSignals } from "@/components/map/communityPriceSignals";
 
 const CREATE_URL = "http://localhost/api/rounds";
 
@@ -129,9 +139,17 @@ function get(code: string): Promise<Response> {
   return GET(new Request(`http://localhost/api/rounds/${code}`), ctx(code));
 }
 
-function action(code: string, body: unknown): Promise<Response> {
+function action(
+  code: string,
+  body: unknown,
+  headers?: Record<string, string>,
+): Promise<Response> {
   return POST(
-    new Request(`http://localhost/api/rounds/${code}`, { method: "POST", body: JSON.stringify(body) }),
+    new Request(`http://localhost/api/rounds/${code}`, {
+      method: "POST",
+      body: JSON.stringify(body),
+      headers,
+    }),
     ctx(code),
   );
 }
@@ -151,7 +169,9 @@ beforeEach(() => {
   // Default: store methods delegate to the real memory store (see the mock above).
   createOverride.fn = null;
   joinOverride.fn = null;
+  recordSpendOverride.fn = null;
   venueLookupState.unavailable = false;
+  __resetCommunityPrices();
 });
 
 describe("POST /api/rounds — create", () => {
@@ -317,6 +337,137 @@ describe("POST /api/rounds/[code] — actions", () => {
     await action(round.code, { action: "join", handle: "ale" });
     const res = await action(round.code, { action: "close", handle: "ale" });
     expect(res.status).toBe(403);
+  });
+
+  it("records a canonical plain total without creating a per-drink community price", async () => {
+    const { round } = await newRound("ken");
+    await action(round.code, {
+      action: "addStop",
+      handle: "ken",
+      venueId: "venue-1",
+    });
+
+    const res = await action(round.code, {
+      action: "recordSpend",
+      handle: "ken",
+      payerHandle: "ken",
+      venueId: "legacy-venue-1",
+      venueName: "Spoofed Ship",
+      clientRef: "spend-plain-1",
+      totalGbp: "26.80",
+    });
+
+    expect(res.status).toBe(200);
+    const state = (await res.json()) as RoundState;
+    expect(state.spends[0]).toMatchObject({
+      payerHandle: "ken",
+      recordedByHandle: "ken",
+      venueId: "venue-1",
+      venueName: "The Ship",
+      totalPence: 2680,
+      items: [],
+    });
+    expect(await readCommunityPrices("venue-1")).toEqual([]);
+  });
+
+  it("routes itemised drink prices through the community store without bypassing corroboration", async () => {
+    const { round } = await newRound("ken");
+    await action(round.code, {
+      action: "addStop",
+      handle: "ken",
+      venueId: "venue-1",
+    });
+
+    const res = await action(
+      round.code,
+      {
+        action: "recordSpend",
+        handle: "ken",
+        payerHandle: "ken",
+        venueId: "venue-1",
+        clientRef: "spend-items-1",
+        items: [{ drinkName: "Guinness", drinkCategory: "beer", priceGbp: 6.2 }],
+      },
+      { "x-forwarded-for": "198.51.100.41" },
+    );
+
+    expect(res.status).toBe(200);
+    const rows = await readCommunityPrices("venue-1");
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({
+      venueId: "venue-1",
+      drinkCategory: "beer",
+      priceGbp: 6.2,
+      source: "community",
+      corroborations: 1,
+    });
+
+    const baseline = new Map([
+      [
+        "venue-1",
+        {
+          hasPintDrops: false,
+          latestContributorPrice: null,
+        },
+      ],
+    ]);
+    const merged = mergeCommunityPriceSignals(
+      baseline,
+      new Map([["venue-1", rows[0]]]),
+      rows[0].submittedAt,
+    );
+    expect(merged).toBe(baseline);
+    expect(merged.get("venue-1")?.latestContributorPrice).toBeNull();
+  });
+
+  it("rejects a payer who is not in the Round", async () => {
+    const { round } = await newRound("ken");
+    await action(round.code, {
+      action: "addStop",
+      handle: "ken",
+      venueId: "venue-1",
+    });
+    const res = await action(round.code, {
+      action: "recordSpend",
+      handle: "ken",
+      payerHandle: "stranger",
+      venueId: "venue-1",
+      clientRef: "spend-outsider-1",
+      totalGbp: 20,
+    });
+    expect(res.status).toBe(403);
+  });
+
+  it("rejects malformed spend money and items", async () => {
+    const { round } = await newRound("ken");
+    await action(round.code, {
+      action: "addStop",
+      handle: "ken",
+      venueId: "venue-1",
+    });
+    const res = await action(round.code, {
+      action: "recordSpend",
+      handle: "ken",
+      payerHandle: "ken",
+      venueId: "venue-1",
+      clientRef: "spend-bad-1",
+      totalGbp: 0,
+    });
+    expect(res.status).toBe(400);
+  });
+
+  it("answers 503 when a spend cannot be stored", async () => {
+    const { round } = await newRound("ken");
+    recordSpendOverride.fn = async () => ({ ok: false, error: "error" as const });
+    const res = await action(round.code, {
+      action: "recordSpend",
+      handle: "ken",
+      payerHandle: "ken",
+      venueId: "venue-1",
+      clientRef: "spend-outage-1",
+      totalGbp: 20,
+    });
+    expect(res.status).toBe(503);
   });
 
   it("503s when a store write fails on an action (degraded dependency, not a bug)", async () => {

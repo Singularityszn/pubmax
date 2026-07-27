@@ -20,14 +20,18 @@
 
 import {
   cleanNewRound,
+  cleanNewRoundSpend,
   cleanNewStop,
   generateRoundCode,
   normalizeRoundCode,
   type RoundDTO,
   type RoundMemberDTO,
+  type RoundSpendDTO,
+  type RoundSpendItemDTO,
   type RoundState,
   type RoundStopDTO,
 } from "@/lib/rounds";
+import { isDrinkCategory } from "@/lib/drinks";
 import { normalizeHandle } from "@/lib/profiles";
 import { admin, selectStore } from "@/lib/storeBackend";
 
@@ -56,6 +60,10 @@ export type CloseResult =
   | { ok: true; state: RoundState }
   | { ok: false; error: RoundWriteError };
 
+export type RecordSpendResult =
+  | { ok: true; state: RoundState; created: boolean }
+  | { ok: false; error: RoundWriteError };
+
 export type RoundsStore = {
   create(input: { title?: unknown; createdByHandle?: unknown }): Promise<CreateResult>;
   getByCode(code: string): Promise<RoundState | null>;
@@ -64,12 +72,25 @@ export type RoundsStore = {
     code: string,
     input: { venueId?: unknown; venueName?: unknown; addedByHandle?: unknown; dropRef?: unknown },
   ): Promise<AddStopResult>;
+  recordSpend(
+    code: string,
+    input: {
+      clientRef?: unknown;
+      payerHandle?: unknown;
+      recordedByHandle?: unknown;
+      venueId?: unknown;
+      venueName?: unknown;
+      totalGbp?: unknown;
+      items?: unknown;
+    },
+  ): Promise<RecordSpendResult>;
   close(code: string, handle: string): Promise<CloseResult>;
 };
 
 const ROUNDS = "rounds";
 const MEMBERS = "round_members";
 const STOPS = "round_stops";
+const SPENDS = "round_spends";
 
 // ── Row → DTO mappers (Supabase) ─────────────────────────────────────────────
 function roundFromRow(row: Record<string, unknown>): RoundDTO {
@@ -98,6 +119,44 @@ function stopFromRow(row: Record<string, unknown>): RoundStopDTO {
     addedByHandle: String(row.added_by_handle ?? ""),
     ...(row.drop_ref != null ? { dropRef: String(row.drop_ref) } : {}),
     createdAt: String(row.created_at ?? new Date(0).toISOString()),
+  };
+}
+
+function spendItemsFromRow(value: unknown): RoundSpendItemDTO[] {
+  if (!Array.isArray(value)) return [];
+  const items: RoundSpendItemDTO[] = [];
+  for (const item of value) {
+    if (!item || typeof item !== "object") continue;
+    const row = item as Record<string, unknown>;
+    if (
+      typeof row.drinkName !== "string" ||
+      !isDrinkCategory(row.drinkCategory) ||
+      typeof row.pricePence !== "number" ||
+      !Number.isInteger(row.pricePence)
+    ) {
+      continue;
+    }
+    items.push({
+      drinkName: row.drinkName,
+      drinkCategory: row.drinkCategory,
+      pricePence: row.pricePence,
+      source: "round",
+    });
+  }
+  return items;
+}
+
+function spendFromRow(row: Record<string, unknown>): RoundSpendDTO {
+  return {
+    id: String(row.id),
+    clientRef: String(row.client_ref ?? ""),
+    payerHandle: String(row.payer_handle ?? ""),
+    recordedByHandle: String(row.recorded_by_handle ?? ""),
+    venueId: String(row.venue_id ?? ""),
+    venueName: String(row.venue_name ?? ""),
+    totalPence: Number(row.total_pence ?? 0),
+    items: spendItemsFromRow(row.items),
+    recordedAt: String(row.recorded_at ?? new Date(0).toISOString()),
   };
 }
 
@@ -148,14 +207,22 @@ export const supabaseRoundsStore: RoundsStore = {
       if (!roundRow) return null;
       const round = roundFromRow(roundRow as Record<string, unknown>);
 
-      const [{ data: memberRows }, { data: stopRows }] = await Promise.all([
+      const [{ data: memberRows }, { data: stopRows }, { data: spendRows }] = await Promise.all([
         admin().from(MEMBERS).select("handle, joined_at").eq("round_id", round.id).order("joined_at", { ascending: true }),
         admin().from(STOPS).select("id, venue_id, venue_name, added_by_handle, drop_ref, created_at").eq("round_id", round.id).order("created_at", { ascending: true }),
+        admin()
+          .from(SPENDS)
+          .select(
+            "id, client_ref, payer_handle, recorded_by_handle, venue_id, venue_name, total_pence, items, recorded_at",
+          )
+          .eq("round_id", round.id)
+          .order("recorded_at", { ascending: true }),
       ]);
       return {
         round,
         members: (memberRows ?? []).map((r) => memberFromRow(r as Record<string, unknown>)),
         stops: (stopRows ?? []).map((r) => stopFromRow(r as Record<string, unknown>)),
+        spends: (spendRows ?? []).map((r) => spendFromRow(r as Record<string, unknown>)),
       };
     } catch (err) {
       console.error("[rounds] getByCode failed:", err instanceof Error ? err.message : err);
@@ -218,6 +285,48 @@ export const supabaseRoundsStore: RoundsStore = {
     }
   },
 
+  async recordSpend(code, input) {
+    const clean = cleanNewRoundSpend(input);
+    if (!clean) return { ok: false, error: "invalid" };
+    try {
+      const state = await this.getByCode(code);
+      if (!state) return { ok: false, error: "not_found" };
+      if (state.round.closedAt) return { ok: false, error: "closed" };
+      if (
+        !state.members.some((member) => member.handle === clean.recordedByHandle) ||
+        !state.members.some((member) => member.handle === clean.payerHandle)
+      ) {
+        return { ok: false, error: "forbidden" };
+      }
+      if (!state.stops.some((stop) => stop.venueId === clean.venueId)) {
+        return { ok: false, error: "invalid" };
+      }
+      if (state.spends.some((spend) => spend.clientRef === clean.clientRef)) {
+        return { ok: true, state, created: false };
+      }
+      const { error } = await admin().from(SPENDS).insert({
+        round_id: state.round.id,
+        client_ref: clean.clientRef,
+        payer_handle: clean.payerHandle,
+        recorded_by_handle: clean.recordedByHandle,
+        venue_id: clean.venueId,
+        venue_name: clean.venueName,
+        total_pence: clean.totalPence,
+        items: clean.items,
+      });
+      if (error && (error as { code?: string }).code !== "23505") {
+        throw new Error(error.message);
+      }
+      const next = await this.getByCode(code);
+      return next
+        ? { ok: true, state: next, created: !error }
+        : { ok: false, error: "error" };
+    } catch (err) {
+      console.error("[rounds] recordSpend failed:", err instanceof Error ? err.message : err);
+      return { ok: false, error: "error" };
+    }
+  },
+
   async close(code, handle) {
     const h = normalizeHandle(handle);
     if (!h) return { ok: false, error: "invalid" };
@@ -253,6 +362,7 @@ type MemoryRound = {
   closedAt: string | null;
   members: RoundMemberDTO[];
   stops: RoundStopDTO[];
+  spends: RoundSpendDTO[];
 };
 
 const memoryRounds = new Map<string, MemoryRound>();
@@ -276,6 +386,7 @@ function stateFrom(round: MemoryRound): RoundState {
     },
     members: round.members.slice().sort((a, b) => a.joinedAt.localeCompare(b.joinedAt)),
     stops: round.stops.slice().sort((a, b) => a.createdAt.localeCompare(b.createdAt)),
+    spends: round.spends.slice().sort((a, b) => a.recordedAt.localeCompare(b.recordedAt)),
   };
 }
 
@@ -299,6 +410,7 @@ export const memoryRoundsStore: RoundsStore = {
       // The creator is the first member of their own Round.
       members: [{ handle: clean.createdByHandle, joinedAt: stamp() }],
       stops: [],
+      spends: [],
     };
     memoryRounds.set(code, round);
     return { ok: true, state: stateFrom(round) };
@@ -346,6 +458,39 @@ export const memoryRoundsStore: RoundsStore = {
       });
     }
     return { ok: true, state: stateFrom(round) };
+  },
+
+  async recordSpend(code, input) {
+    const clean = cleanNewRoundSpend(input);
+    if (!clean) return { ok: false, error: "invalid" };
+    const round = memoryRounds.get(normalizeRoundCode(code));
+    if (!round) return { ok: false, error: "not_found" };
+    if (round.closedAt) return { ok: false, error: "closed" };
+    if (
+      !round.members.some((member) => member.handle === clean.recordedByHandle) ||
+      !round.members.some((member) => member.handle === clean.payerHandle)
+    ) {
+      return { ok: false, error: "forbidden" };
+    }
+    if (!round.stops.some((stop) => stop.venueId === clean.venueId)) {
+      return { ok: false, error: "invalid" };
+    }
+    const created = !round.spends.some((spend) => spend.clientRef === clean.clientRef);
+    if (created) {
+      memorySeq += 1;
+      round.spends.push({
+        id: `spend${memorySeq}`,
+        clientRef: clean.clientRef,
+        payerHandle: clean.payerHandle,
+        recordedByHandle: clean.recordedByHandle,
+        venueId: clean.venueId,
+        venueName: clean.venueName,
+        totalPence: clean.totalPence,
+        items: clean.items,
+        recordedAt: stamp(),
+      });
+    }
+    return { ok: true, state: stateFrom(round), created };
   },
 
   async close(code, handle) {

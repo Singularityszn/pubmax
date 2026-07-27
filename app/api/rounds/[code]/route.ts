@@ -17,10 +17,12 @@
 // rate-limited per handle + IP.
 
 import { jsonNoStore } from "@/lib/apiResponses";
+import { deriveCommunityPriceActor } from "@/lib/communityPriceActor";
+import { submitCommunityPrice } from "@/lib/communityPriceStore";
 import { resolveMessageHandle } from "@/lib/messageAuth";
 import { isLimited } from "@/lib/pintDrops";
 import { gateHandleAction } from "@/lib/profileOwnership";
-import { isValidRoundCode } from "@/lib/rounds";
+import { cleanNewRoundSpend, isValidRoundCode } from "@/lib/rounds";
 import { roundsStore, type RoundWriteError } from "@/lib/roundsStore";
 import { assertServerEnv } from "@/lib/serverEnv";
 import { isRoundsReadLimited } from "@/lib/roundsReadRateLimit";
@@ -114,6 +116,56 @@ export async function POST(request: Request, ctx: Ctx): Promise<Response> {
         dropRef: body.dropRef,
       });
       return result.ok ? jsonNoStore(result.state, { status: 200 }) : errorResponse(result.error);
+    }
+    case "recordSpend": {
+      const requestedVenueId = readString(body.venueId) ?? "";
+      const venueLookup = await lookupCanonicalVenue(requestedVenueId);
+      if (venueLookup.status === "unavailable") {
+        return jsonNoStore(
+          { error: "Venue list is unavailable right now, try again shortly." },
+          { status: 503 },
+        );
+      }
+      if (venueLookup.status !== "found" || !isPubVenueKind(venueLookup.venue.kind)) {
+        return jsonNoStore({ error: "Pick a pub from this Round." }, { status: 400 });
+      }
+      const spendInput = {
+        clientRef: body.clientRef,
+        payerHandle: body.payerHandle,
+        recordedByHandle: handle,
+        venueId: venueLookup.canonicalId,
+        venueName: venueLookup.venue.name,
+        totalGbp: body.totalGbp,
+        items: body.items,
+      };
+      const clean = cleanNewRoundSpend(spendInput);
+      if (!clean) return errorResponse("invalid");
+
+      const result = await store.recordSpend(code, spendInput);
+      if (!result.ok) return errorResponse(result.error);
+
+      // A plain total is a diary figure, not one drink, so it stops here.
+      // Itemised prices enter the existing community store and earn map
+      // authority only through its independent-submitter and age gates.
+      if (result.created && clean.items.length > 0) {
+        const actor = deriveCommunityPriceActor(request);
+        const stored = result.state.spends.find(
+          (spend) => spend.clientRef === clean.clientRef,
+        );
+        const recordedAt = stored ? Date.parse(stored.recordedAt) : Date.now();
+        for (const item of clean.items) {
+          await submitCommunityPrice(
+            {
+              venueId: clean.venueId,
+              drinkCategory: item.drinkCategory,
+              priceGbp: item.pricePence / 100,
+              actor,
+            },
+            recordedAt,
+          );
+        }
+      }
+      return jsonNoStore(result.state, { status: 200 });
     }
     case "close": {
       const result = await store.close(code, handle);
