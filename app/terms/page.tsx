@@ -14,7 +14,7 @@ import "../legal.css";
 const PAGE_TITLE = "Terms of use";
 const PAGE_DESCRIPTION =
   "The deal in plain language: what PUBMAXX is, what you can post, what prices on the map do and don't promise, and where our responsibility ends.";
-const LAST_UPDATED = "26 July 2026";
+const LAST_UPDATED = "27 July 2026";
 
 export const metadata: Metadata = {
   title: PAGE_TITLE,
@@ -57,11 +57,13 @@ export default function TermsPage() {
         <h2 id="what" className="legalH2">What PUBMAXX is</h2>
         <p className="legalBody">
           A map of pubs with prices on it, plus tools to plan a night with your
-          mates. Prices come from two places: public sources we cite with a date,
-          and observations logged by people standing in the pub. Heritage facts
-          are cited, never invented. Nothing here is a booking service, and we
-          are not the pub. We don&rsquo;t sell you drinks, take payment,
-          or hold a table for you.
+          mates. Prices come from three places: public sources we cite with a
+          date, prices logged by people standing in the pub, and old prices read
+          out of dated, sourced archives. That last lot is history. It is what a
+          pint cost years ago, never a price for tonight, and it never moves the
+          map. Heritage facts are cited, never invented. Nothing here is a
+          booking service, and we are not the pub. We don&rsquo;t sell you
+          drinks, take payment, or hold a table for you.
         </p>
       </section>
 
@@ -162,6 +164,12 @@ export default function TermsPage() {
           make mistakes. So does everyone logging prices. A figure here is a good
           steer, not a quote, and the pub is under no obligation to honour it.
           <strong> Check at the bar.</strong>
+        </p>
+        <p className="legalBody">
+          All of that is about the price a pub is charging now. Where we show
+          what a pint used to cost, that figure is a dated record of the past,
+          taken from a source we name and link. It says nothing about tonight,
+          and we never let it stand in for the current price.
         </p>
         <p className="legalBody">
           Opening hours, transport times, heritage facts and weather come from
