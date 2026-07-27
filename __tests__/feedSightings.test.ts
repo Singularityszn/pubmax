@@ -154,7 +154,13 @@ describe("buildSightings mapping", () => {
 });
 
 describe("sightingPlacement", () => {
-  const base = { tab: "london", status: "ready" as const, userItemCount: 0, sightingCount: 5 };
+  const base = {
+    tab: "london",
+    filter: "latest" as const,
+    status: "ready" as const,
+    userItemCount: 0,
+    sightingCount: 5,
+  };
 
   it("is 'primary' on the London tab when ready with sightings and no user drops", () => {
     expect(sightingPlacement(base)).toBe("primary");
@@ -172,6 +178,10 @@ describe("sightingPlacement", () => {
   it("is 'none' off the London tab", () => {
     expect(sightingPlacement({ ...base, tab: "lot" })).toBe("none");
     expect(sightingPlacement({ ...base, tab: "nearby" })).toBe("none");
+  });
+
+  it("is 'none' when the London feed is filtered to Yours", () => {
+    expect(sightingPlacement({ ...base, filter: "for-you" })).toBe("none");
   });
 
   it("is 'none' while loading or errored (never masks those states)", () => {

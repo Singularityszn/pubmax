@@ -23,10 +23,6 @@ import { venueMapUrl } from "@/lib/venueMapUrl";
 // index, yields [] — the feed then falls back to its honest empty state, never
 // an error. Memoised per process so repeated renders don't re-read the ~2 MB file.
 
-// The friendly label when a grouping key has no resolvable pub name — kept in
-// step with lib/feed.ts VENUE_FALLBACK_LABEL so server and client agree.
-const VENUE_FALLBACK_LABEL = "A London pub";
-
 const OVERLAY_PATH = "public/data/drink_price_updates/latest.json";
 
 let cached: Promise<SightingDTO[]> | null = null;
@@ -46,9 +42,11 @@ async function build(): Promise<SightingDTO[]> {
     const index = await getVenueIndex();
     return buildSightings(updates, (venueKey) => {
       const venueId = stableVenueIdFromKey(venueKey);
+      const venue = index.get(venueId);
+      if (!venue) return null;
       return {
         venueId,
-        venueName: index.get(venueId)?.name ?? VENUE_FALLBACK_LABEL,
+        venueName: venue.name,
         venueMapUrl: venueMapUrl(venueId),
       };
     });

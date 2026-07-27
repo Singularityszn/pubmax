@@ -8,8 +8,8 @@
 // sightings and decides where they sit relative to real user drops.
 //
 // Taste doctrine (docs/VOICE.md): a sighting is NEVER dressed as user activity.
-// It carries its source domain + observed date and its own "Spotted" badge, so
-// the surface honestly has content without faking a single drinker.
+// It carries its source domain + observed date beneath one sourced-price section
+// heading, so the surface honestly has content without faking a single drinker.
 //
 // Every export here is a pure function (no fetch, no fs, no DOM, no serverEnv),
 // so the mapping + placement logic is covered hermetically by
@@ -18,6 +18,7 @@
 // updates.
 
 import type { DrinkPriceUpdate } from "@/lib/drinkPriceUpdates";
+import type { FeedFilter } from "@/lib/feed";
 
 // A serialisable sighting the server hands the client. Deliberately flat (no
 // nested source object beyond the resolved domain) so it crosses the
@@ -40,7 +41,7 @@ export type SightingDTO = {
   sourceLabel: string;
   /** The absolute source URL the price was attributed to. */
   sourceUrl: string;
-  /** The source host, www-stripped (e.g. "jdwetherspoon.com") — the badge line. */
+  /** The source host, www-stripped (e.g. "jdwetherspoon.com") for provenance. */
   sourceDomain: string;
   /** ISO-8601 observation date — the card shows it, never hides staleness. */
   observedAt: string;
@@ -156,18 +157,28 @@ export function buildSightings(
 //    replace the dead empty state honestly);
 //  - "strip"   — there ARE user drops, so sightings collapse to a compact strip
 //    BELOW the fresh user content — real drinkers always lead;
-//  - "none"    — not the London tab, still loading, or no sightings exist.
+//  - "none" - not the London tab or Latest filter, still loading, or no
+//    sightings exist.
 export type SightingPlacement = "none" | "primary" | "strip";
 
 export function sightingPlacement(args: {
   tab: string;
+  filter: FeedFilter;
   status: "loading" | "ready" | "error";
   userItemCount: number;
   sightingCount: number;
 }): SightingPlacement {
-  const { tab, status, userItemCount, sightingCount } = args;
+  const { tab, filter, status, userItemCount, sightingCount } = args;
   // Sightings are a London-tab affordance only, once the feed has settled, and
-  // only when we actually have some. Never mask a load error or the other tabs.
-  if (tab !== "london" || status !== "ready" || sightingCount <= 0) return "none";
+  // only in Latest, where an ambient fallback matches the filter's promise.
+  // Never mask a load error, another tab, or a narrower feed filter.
+  if (
+    tab !== "london" ||
+    filter !== "latest" ||
+    status !== "ready" ||
+    sightingCount <= 0
+  ) {
+    return "none";
+  }
   return userItemCount === 0 ? "primary" : "strip";
 }

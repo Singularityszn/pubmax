@@ -790,15 +790,17 @@ export default function FeedPageClient({
 
   // Where ambient sightings sit on the London tab (lib/feedSightings.ts):
   //  - "primary" — no user drops, so sightings ARE the surface (they stand in
-  //    for the dead empty state, honestly badged as sourced, never as drinkers);
+  //    for the dead empty state, grouped as sourced prices, never as drinkers);
   //  - "strip"   — user drops exist, so sightings collapse to a quiet strip below
   //    the fresh content — real drinkers always lead;
-  //  - "none"    — other tabs, still loading/errored, or no sightings.
+  //  - "none" - other tabs or filters, still loading/errored, or no
+  //    sightings.
   // This is a SEPARATE data source + card type from the error/empty states, so it
   // does not touch that branch (coordination with the error-honesty work in
   // this PR's own empty/error rework).
   const sightingSpot = sightingPlacement({
     tab,
+    filter,
     status,
     userItemCount: filtered.length,
     sightingCount: sightings.length,
