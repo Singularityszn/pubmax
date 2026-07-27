@@ -61,6 +61,20 @@ function slimVenueIds(): Set<string> {
   return ids;
 }
 
+function slimVenuesWithCurrentPrice(): Set<string> {
+  const dir = join(ROOT, "public/data");
+  const ids = new Set<string>();
+  for (const file of readdirSync(dir)) {
+    if (!/^venues_slim\.(?!manifest)/.test(file) && file !== "venues_slim.json") continue;
+    const parsed = JSON.parse(readFileSync(join(dir, file), "utf8")) as unknown;
+    if (!Array.isArray(parsed)) continue;
+    for (const venue of parsed as Array<{ id?: unknown; cheapestPrice?: unknown }>) {
+      if (typeof venue.id === "string" && typeof venue.cheapestPrice === "number") ids.add(venue.id);
+    }
+  }
+  return ids;
+}
+
 function walkSource(dir: string, out: string[] = []): string[] {
   for (const entry of readdirSync(dir)) {
     if (entry === "node_modules" || entry.startsWith(".")) continue;
@@ -82,6 +96,24 @@ describe("price archaeology: identity", () => {
     expect(shipped.length).toBe(rawShipped.observations.length);
     expect(shipped.length).toBeGreaterThanOrEqual(60);
     expect(new Set(shipped.map((o) => o.venueId)).size).toBeGreaterThanOrEqual(60);
+  });
+
+  it("is described by a README that counts the shipped file", () => {
+    // The yield figures are the argument for continuing this stream, so a
+    // reader has to be able to trust them. They drifted once already, when two
+    // rows were dropped in review after the numbers had been written down, so
+    // the prose is checked against the data rather than against memory.
+    const readme = readFileSync(join(ROOT, "public/data/price_history/README.md"), "utf8");
+    const venueIds = new Set(shipped.map((o) => o.venueId));
+    const priced = slimVenuesWithCurrentPrice();
+    const withCurrentPrice = [...venueIds].filter((id) => priced.has(id)).length;
+    const years = shipped.map((o) => o.observedOn.slice(0, 4)).sort();
+
+    expect(readme).toContain(
+      `**${shipped.length} observations across ${venueIds.size} venues, ${years[0]} to ${years[years.length - 1]}**`,
+    );
+    expect(readme).toContain(`**${withCurrentPrice} of those\n  venues also carry a current price**`);
+    expect(readme).toContain(`${venueIds.size} produced usable evidence`);
   });
 
   it("names venues the app actually ships", () => {

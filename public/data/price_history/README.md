@@ -73,9 +73,36 @@ Machine (a CDX sweep of `/pubs/s/*`), matched to this app's venue index by name
 plus nearby locality, and the pub addresses used to verify identity came from
 archived captures of the same site.
 
-Every candidate figure was then read by a human before it shipped. The PR that
-introduced this file records the attempt-to-evidence ratio: it is the number that
-says whether this stream is worth continuing.
+Every candidate figure was then read by a human before it shipped.
+
+### What wave one cost, and what it yielded
+
+The attempt-to-evidence ratio is the number that says whether this stream is
+worth continuing, so it is recorded here rather than left in a commit message.
+Restate it from the shipped file whenever rows are added or dropped.
+
+- 1,919 curated venues produced 2,289 candidate venue-to-pub pairs on name plus
+  nearby locality. Identity held for 614 on an exact postcode match against the
+  archived address, plus 27 accepted on a borough-consistent street address after
+  a human read: **641 venues attempted**, of which 602 pub pages were readable.
+- 183 of those 602 pages (30%) named both a price and a pint, giving 134
+  candidate figures across 103 venues.
+- **103 observations across 90 venues, 2012 to 2023**, shipped. **50 of those
+  venues also carry a current price** and so show the full then-and-now
+  comparison; the rest show the historical fact alone.
+- So of 641 venues attempted, **90 produced usable evidence: a 14% yield.**
+
+Candidates were dropped by hand for hedges ("around £4 a pint"), promotions and
+festival weekends, food, half and bottle prices, hypotheticals, prices quoted for
+a different pub in the same sentence, and matches whose identity did not hold
+against the archived address. One venue was dropped in review after shipping,
+for a price attributed to the wrong building, which is why the comparison count
+is 50 rather than 51.
+
+Dead ends, not worth retrying: archived Nicholson's, Greene King and Young's pub
+menu pages (119 venue menu URLs) publish drinks with no prices at all; the
+Londonist and storekit "cheapest pint near every tube stop" surveys exist only
+inside a map image; `pint-prices.com` has no captures before 2024.
 
 ## Adding to it
 
