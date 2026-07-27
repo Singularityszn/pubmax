@@ -67,6 +67,29 @@ describe("messages friction voice", () => {
     }
   });
 
+  it("a failed inbox request renders failure, never genuine emptiness", () => {
+    const source = read(INBOX);
+    const failedAt = source.indexOf("if (!res.ok)");
+    const failedResponse = source.slice(failedAt, source.indexOf("return;", failedAt));
+    expect(failedResponse).toContain("setNeedsSignIn(false)");
+    expect(failedResponse).toContain("setFailed(true)");
+
+    const catchAt = source.indexOf("} catch (err)");
+    const thrownResponse = source.slice(catchAt, source.indexOf("} finally", catchAt));
+    expect(thrownResponse).toContain("setNeedsSignIn(false)");
+    expect(thrownResponse).toContain("setFailed(true)");
+
+    const failureAt = source.indexOf("failed ? (");
+    const emptyAt = source.indexOf("conversations.length === 0 ? (");
+    expect(failureAt).toBeGreaterThan(-1);
+    expect(emptyAt).toBeGreaterThan(failureAt);
+
+    const failureFrame = source.slice(failureAt, emptyAt);
+    expect(failureFrame).toContain("Couldn&rsquo;t load your conversations.");
+    expect(failureFrame).toContain("Try again");
+    expect(failureFrame).not.toContain("Nobody in here yet.");
+  });
+
   it("both surfaces stay em-dash free in the copy they show", () => {
     for (const file of [THREAD, INBOX]) {
       const literals = read(file).match(/"[^"\n]*"/g) ?? [];

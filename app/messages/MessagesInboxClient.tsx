@@ -33,6 +33,7 @@ export default function MessagesInboxClient({
   const [conversations, setConversations] = useState<ConversationDTO[]>([]);
   const [loaded, setLoaded] = useState(false);
   const [needsSignIn, setNeedsSignIn] = useState(false);
+  const [failed, setFailed] = useState(false);
 
   useEffect(() => {
     let active = true;
@@ -51,6 +52,7 @@ export default function MessagesInboxClient({
       if (!user) {
         setConversations([]);
         setNeedsSignIn(true);
+        setFailed(false);
         setLoaded(true);
         return;
       }
@@ -59,6 +61,7 @@ export default function MessagesInboxClient({
       if (!h) {
         setConversations([]);
         setNeedsSignIn(true);
+        setFailed(false);
         setLoaded(true);
         return;
       }
@@ -69,14 +72,25 @@ export default function MessagesInboxClient({
         if (res.status === 401) {
           setNeedsSignIn(true);
           setConversations([]);
+          setFailed(false);
           return;
         }
-        if (!res.ok) return;
+        if (!res.ok) {
+          setNeedsSignIn(false);
+          setFailed(true);
+          return;
+        }
         setNeedsSignIn(false);
+        setFailed(false);
         const body = (await res.json()) as { conversations?: ConversationDTO[] };
         setConversations(Array.isArray(body.conversations) ? body.conversations : []);
-      } catch {
-        // aborted / offline — leave the list as-is; the inbox never breaks on this.
+      } catch (err) {
+        const aborted =
+          signal?.aborted || (err instanceof Error && err.name === "AbortError");
+        if (!aborted) {
+          setNeedsSignIn(false);
+          setFailed(true);
+        }
       } finally {
         setLoaded(true);
       }
@@ -111,6 +125,24 @@ export default function MessagesInboxClient({
           title="Sign in to message"
           body="Private messages need a signed-in account so nobody can read or send as your handle."
           action={<SignInButton />}
+        />
+      ) : failed ? (
+        <EmptyState
+          title="Couldn&rsquo;t load your conversations."
+          role="alert"
+          action={
+            <button
+              type="button"
+              className="threadRetryBtn"
+              onClick={() => {
+                setFailed(false);
+                setLoaded(false);
+                void refresh();
+              }}
+            >
+              Try again
+            </button>
+          }
         />
       ) : conversations.length === 0 ? (
         <EmptyState
