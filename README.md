@@ -1,14 +1,14 @@
 # PUBMAXXING
 
-**Every pint has a story.** A **price-aware, story-led London night-out map and pub-crawl planner**. Pubs keep observed pint prices; hand-curated bars and late-food institutions use labelled, dated anchors for the item actually priced. Three layers share one living 3-D map: **price**, **setting**, and **story**, with visible provenance so history and legend never blur.
+**Every pint has a story.** A **price-aware, story-led London night-out map and pub-crawl planner**. Pubs keep observed pint prices; hand-curated bars, late-food institutions, and iconic restaurants use labelled, dated anchors for the item actually priced. Three layers share one living 3-D map: **price**, **setting**, and **story**, with visible provenance so history and legend never blur.
 
 Pick a crawl style, filter, and either accept a **Suggested Crawl** or **Build your own** by tapping pubs — or load a curated **Featured route** or **Pubs near me**. Any crawl is captured in the URL and shareable. Tap a pub to open **The Landlord**, a retrieval-grounded AI that tells the pub's real history and honestly says when it doesn't know.
 
 ## Features
 
 - **Landing** — themed intro that links straight into the planner (`/map?style=heritage`).
-- **3-D map** - pitched, slowly-orbiting MapLibre view of London and supported UK cities. Curated London venues use distinct pub, bar, and late-food glyphs. Pub colours use pint-price thresholds; bar and food colours use relative bands within their own type; at street zoom, pub pins with a sourced pint price also print the figure itself ("£5.40") beneath the glyph - bar and food anchor prices stay on the venue sheet, labelled, never printed as a bare figure. Kind filters can hide ordinary pins, while selected and deep-linked venues remain visible. Unverified UK pubs appear only after street-level zoom as quieter, unpriced rings.
-- **Typed venue anchors** - bars and late food show labelled, dated, sourced cocktail or food anchors, never disguised as pint prices. Pint Drops and community price logging remain pub-only.
+- **3-D map** - pitched, slowly-orbiting MapLibre view of London and supported UK cities. Curated London venues use distinct pub, bar, late-food, and restaurant glyphs. Pub colours use pint-price thresholds; bar, food, and restaurant colours use relative bands within their own type; at street zoom, pub pins with a sourced pint price also print the figure itself ("£5.40") beneath the glyph - bar, food, and restaurant anchor prices stay on the venue sheet, labelled, never printed as a bare figure. Kind filters can hide ordinary pins, while selected and deep-linked venues remain visible. Unverified UK pubs appear only after street-level zoom as quieter, unpriced rings.
+- **Typed venue anchors** - bars, late food, and restaurants show labelled, dated, sourced cocktail, food, or signature-dish anchors, never disguised as pint prices. A restaurant's signature dish also seeds its Menu tab as a sourced, dated item. Pint Drops and community price logging remain pub-only.
 - **Crawl planner** — Suggest mode (greedy nearest-good-neighbour route) or Build mode (tap to add stops); story filters by price, amenities, water, heritage.
 - **Curated routes** — named "generational" Featured crawls loaded as ordered stops.
 - **Pubs near me** — a crawl built from your geolocation (degrades gracefully if denied).

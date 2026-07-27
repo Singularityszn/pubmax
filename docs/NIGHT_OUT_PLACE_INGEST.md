@@ -5,8 +5,8 @@ This contract governs two London place-data lanes:
 - The automated offline planning feed in
   `public/data/night_out_places/latest.json` serves `near_pub_food` and
   `pre_pub_attraction`.
-- The hand-curated map packs in `data/famous_venues/` serve late-night bar and
-  crawl-ending food discovery.
+- The hand-curated map packs in `data/famous_venues/` serve late-night bar,
+  crawl-ending food, and iconic-restaurant discovery.
 
 Neither lane is a general London directory. Consumers of
 `GET /api/night-out-places` must supply a valid Greater London
@@ -105,10 +105,13 @@ expired ones; it does not replace trusted current rows with an empty search.
 rows into the existing slim index, and preserves absent `kind` as the
 backward-compatible pub meaning.
 
-Bar and late-food prices remain item-specific anchors. Map colour bands are
-relative within each venue type, and compact surfaces carry the anchor label,
-observed month, and source. These venues never enter pub-only Pint Drop,
-community price, crawl-planning, or pint-specific saved-list flows.
+Bar, late-food, and restaurant prices remain item-specific anchors: a house
+cocktail, a large doner, a signature dish. Map colour bands are relative within
+each venue type, and compact surfaces carry the anchor label, observed month,
+and source. A restaurant anchor also names its course (`anchor.course`, a
+`lib/food.ts` category) so it can seed that venue's Menu tab as one sourced,
+dated item. These venues never enter pub-only Pint Drop, community price,
+crawl-planning, or pint-specific saved-list flows.
 
 No scheduled workflow is enabled for the automated feed yet. GitHub Actions
 runner allocation and the owner-funded provider keys/credits are external
