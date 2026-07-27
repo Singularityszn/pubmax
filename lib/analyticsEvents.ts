@@ -266,7 +266,8 @@ function completeDrinkTaxonomy<const T extends readonly DrinkCategory[]>(
 }
 
 export const PRICE_SUBMIT_CATEGORIES = completeDrinkTaxonomy([
-  "beer", "wine", "whisky", "gin", "vodka", "rum", "cocktail", "shot", "other",
+  "beer", "wine", "whisky", "gin", "vodka", "rum", "cocktail", "shot",
+  "alcohol-free", "soft-drink", "other",
 ]);
 
 /**

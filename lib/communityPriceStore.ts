@@ -80,6 +80,12 @@ export type CommunityPriceReadResult = {
   degraded: boolean;
 };
 
+export type CommunityPriceCategoryIndexResult = {
+  prices: CommunityPrice[];
+  truncated: boolean;
+  degraded: boolean;
+};
+
 /**
  * A reported/hidden observation as the moderator queue sees it. Carries the
  * report metadata the moderator needs to judge it and NOTHING that identifies
@@ -113,6 +119,15 @@ export type CommunityPriceStore = {
    * distinguishes an unavailable durable read from an honest empty.
    */
   latestForVenue(venueId: string, now?: number): Promise<CommunityPriceReadResult>;
+  /**
+   * Current public rows for selected categories across venues. Used by a map
+   * lens that cannot discover a venue one sheet at a time. Actor tokens never
+   * leave this method, and the scan is finite.
+   */
+  latestForCategories(
+    categories: readonly DrinkCategory[],
+    now?: number,
+  ): Promise<CommunityPriceCategoryIndexResult>;
   /**
    * How many (venue, drink category) pairs currently have a figure the map is
    * allowed to paint - corroborated by a second independent submitter AND
@@ -164,6 +179,7 @@ const VENUE_SCAN_ROWS = 200;
 // is not something a read path should ever be able to ask for. When the cap is
 // hit the answer is reported as a floor (`truncated`), never as a total.
 const CORROBORATION_SCAN_ROWS = 20_000;
+const CATEGORY_INDEX_SCAN_ROWS = 20_000;
 // PostgREST silently caps any single response at the project's server-side
 // max-rows setting (hosted default 1000), so one `.limit(20_000)` request can
 // come back short without ever saying so. The durable scan therefore pages in
@@ -368,6 +384,27 @@ function countCorroboratedIn(allRows: StoredPrice[], now: number): number {
   return count;
 }
 
+function categoryIndexFromRows(
+  allRows: StoredPrice[],
+  categories: readonly DrinkCategory[],
+  now: number,
+  truncated: boolean,
+  degraded: boolean,
+): CommunityPriceCategoryIndexResult {
+  const wanted = new Set(categories);
+  const groups = new Map<string, StoredPrice[]>();
+  for (const row of allRows) {
+    if (!wanted.has(row.drinkCategory) || !isWithinMaxAge(row, now)) continue;
+    const held = groups.get(row.venueId);
+    if (held) held.push(row);
+    else groups.set(row.venueId, [row]);
+  }
+  const prices = [...groups.values()]
+    .flatMap((rows) => freshestPerCategory(rows, now))
+    .sort((left, right) => right.submittedAt - left.submittedAt);
+  return { prices, truncated, degraded };
+}
+
 /**
  * Strip the actor before a stored row leaves the store. The submitter token is
  * an internal de-duplication key, never part of the price the app reads - so
@@ -492,6 +529,33 @@ export const memoryCommunityPriceStore: CommunityPriceStore = {
       prices: freshestPerCategory(venues.get(key) ?? [], now),
       degraded: false,
     };
+  },
+
+  async latestForCategories(categories, now = Date.now()) {
+    const wanted = new Set(categories.filter(isDrinkCategory));
+    if (wanted.size === 0) {
+      return { prices: [], truncated: false, degraded: false };
+    }
+    const rows: StoredPrice[] = [];
+    let truncated = false;
+    for (const venueRows of venues.values()) {
+      for (const row of venueRows) {
+        if (!wanted.has(row.drinkCategory)) continue;
+        if (rows.length >= CATEGORY_INDEX_SCAN_ROWS) {
+          truncated = true;
+          break;
+        }
+        rows.push(row);
+      }
+      if (truncated) break;
+    }
+    return categoryIndexFromRows(
+      rows,
+      [...wanted],
+      now,
+      truncated,
+      false,
+    );
   },
 
   async countCorroboratedCategories(now = Date.now()) {
@@ -704,6 +768,56 @@ export const supabaseCommunityPriceStore: CommunityPriceStore = {
     });
   },
 
+  async latestForCategories(categories, now = Date.now()) {
+    const wanted = [...new Set(categories.filter(isDrinkCategory))];
+    if (wanted.length === 0) {
+      return { prices: [], truncated: false, degraded: false };
+    }
+    return guard<CommunityPriceCategoryIndexResult>({
+      context: "category-index",
+      onSchemaMiss: async () => ({
+        ...(await memoryCommunityPriceStore.latestForCategories(wanted, now)),
+        degraded: true,
+      }),
+      message: "category index read failed - returning no community prices",
+      onError: () => ({ prices: [], truncated: false, degraded: true }),
+      run: async () => {
+        const since = new Date(now - COMMUNITY_PRICE_MAX_AGE_MS).toISOString();
+        const scanned: unknown[] = [];
+        let lastPageFull = false;
+        for (let offset = 0; offset < CATEGORY_INDEX_SCAN_ROWS; ) {
+          const pageEnd = Math.min(
+            offset + CORROBORATION_SCAN_PAGE,
+            CATEGORY_INDEX_SCAN_ROWS,
+          );
+          const { data, error } = await admin()
+            .from("community_prices")
+            .select(
+              "id, venue_id, drink_category, price_pennies, submitted_at, actor, hidden_at, report_count",
+            )
+            .in("drink_category", wanted)
+            .gte("submitted_at", since)
+            .order("submitted_at", { ascending: false })
+            .order("id", { ascending: true })
+            .range(offset, pageEnd - 1);
+          if (error) throw new Error(error.message);
+          const page = Array.isArray(data) ? data : [];
+          scanned.push(...page);
+          lastPageFull = page.length >= pageEnd - offset;
+          if (!lastPageFull) break;
+          offset = pageEnd;
+        }
+        return categoryIndexFromRows(
+          rowsToCountableRows(scanned),
+          wanted,
+          now,
+          lastPageFull,
+          false,
+        );
+      },
+    });
+  },
+
   async countCorroboratedCategories(now = Date.now()) {
     return guard<CorroboratedCategoryCount>({
       context: "corroborated-count",
@@ -870,7 +984,9 @@ export function submitCommunityPrice(
   input: CommunityPriceWrite,
   now: number = Date.now(),
 ): Promise<CommunityPriceWriteResult> {
-  return communityPriceStore().submit(input, now);
+  return droppingCategoryIndexMemo(() =>
+    communityPriceStore().submit(input, now),
+  );
 }
 
 /**
@@ -898,6 +1014,88 @@ export function readCommunityPricesWithStatus(
   return communityPriceStore().latestForVenue(venueId, now);
 }
 
+// The category index is the one read here that is neither per-venue nor
+// per-actor: every caller asks the same question and gets byte-identical rows,
+// and answering it costs up to CATEGORY_INDEX_SCAN_ROWS / CORROBORATION_SCAN_PAGE
+// sequential durable reads. Unmemoised, an anonymous GET could bill that scan
+// once per visitor and once per retry, which is a cost and an availability
+// hazard rather than a correctness one.
+//
+// So the answer is held per category set for CATEGORY_INDEX_MEMO_MS, and the
+// PROMISE is what is held, not the result: a burst of concurrent activations
+// collapses onto one scan instead of racing N of them. The window is orders of
+// magnitude shorter than COMMUNITY_PRICE_MAX_AGE_MS, so nothing a reader sees
+// gets older than the trust policy already allows. A degraded read is never
+// held: a hiccup must not pin "no prices" over the map for a minute.
+const CATEGORY_INDEX_MEMO_MS = 60_000;
+
+type CategoryIndexMemo = {
+  at: number;
+  pending: Promise<CommunityPriceCategoryIndexResult>;
+};
+
+const categoryIndexMemo = new Map<string, CategoryIndexMemo>();
+
+/** Current rows for selected categories across venues. NEVER throws. */
+export function readCommunityPriceCategoryIndex(
+  categories: readonly DrinkCategory[],
+  now: number = Date.now(),
+): Promise<CommunityPriceCategoryIndexResult> {
+  const key = [...new Set(categories)].sort().join(",");
+  const held = categoryIndexMemo.get(key);
+  if (held && now - held.at < CATEGORY_INDEX_MEMO_MS) return held.pending;
+  const drop = () => {
+    // Only ever evict OUR OWN entry: a write that landed mid-scan has already
+    // cleared the memo, and a later read may own the key by now.
+    if (categoryIndexMemo.get(key)?.pending === pending) {
+      categoryIndexMemo.delete(key);
+    }
+  };
+  const pending = communityPriceStore()
+    .latestForCategories(categories, now)
+    .then((result) => {
+      if (result.degraded) drop();
+      return result;
+    })
+    .catch((error: unknown) => {
+      drop();
+      throw error;
+    });
+  categoryIndexMemo.set(key, { at: now, pending });
+  return pending;
+}
+
+/**
+ * A write is the only thing that can change the category index, so it drops the
+ * memo. The drop that MATTERS is the one after the write settles: dropping only
+ * before it starts leaves the window where a reader misses, scans the
+ * not-yet-committed state and pins that snapshot for the rest of
+ * CATEGORY_INDEX_MEMO_MS, which for a moderator hiding a price means the row
+ * stays on the no-alcohol view for a minute after it left the sheet. Dropping
+ * first as well is what keeps the eviction prompt, so both drops stay, and they
+ * live here rather than at each call site so the ordering cannot drift apart.
+ * Rejection drops too - the store's guards mean a rejection is unexpected, and
+ * a write of unknown outcome must not leave a claim about the index standing.
+ */
+function droppingCategoryIndexMemo<T>(write: () => Promise<T>): Promise<T> {
+  resetCommunityPriceCategoryIndexMemo();
+  return write().then(
+    (value) => {
+      resetCommunityPriceCategoryIndexMemo();
+      return value;
+    },
+    (error: unknown) => {
+      resetCommunityPriceCategoryIndexMemo();
+      throw error;
+    },
+  );
+}
+
+/** Drop the memoised category index. Test seam, and the write paths' reset. */
+export function resetCommunityPriceCategoryIndexMemo(): void {
+  categoryIndexMemo.clear();
+}
+
 /**
  * Reader flag on one observation. NEVER throws; false means "no such row".
  * Records the complaint - it never hides anything by itself.
@@ -919,7 +1117,9 @@ export function moderateCommunityPrice(
   hidden: boolean,
   note?: string,
 ): Promise<boolean> {
-  return communityPriceStore().moderate(id, hidden, note);
+  return droppingCategoryIndexMemo(() =>
+    communityPriceStore().moderate(id, hidden, note),
+  );
 }
 
 /** The moderation queue: reported and/or hidden observations. NEVER throws. */
@@ -932,5 +1132,6 @@ export function listCommunityPricesForReview(
 /** Test-only: clear the in-memory observations between cases. */
 export function __resetCommunityPrices(): void {
   venues.clear();
+  resetCommunityPriceCategoryIndexMemo();
   resetSchemaMissWarnings();
 }

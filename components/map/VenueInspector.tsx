@@ -15,6 +15,7 @@ import { DEFAULT_TAB, tabsForVenue, type TabKey } from "@/lib/venueInspectorTabs
 import { isPubVenue } from "@/lib/venueKindFilters";
 import type { JourneyPoint } from "@/lib/venueJourney";
 import type { LocationRequestStatus } from "@/components/map/VenueGettingThere";
+import type { MapExperienceLens } from "@/lib/mapExperienceLens";
 
 import { useInspectorTabs } from "./inspector/useInspectorTabs";
 import { usePresence } from "./inspector/usePresence";
@@ -77,6 +78,7 @@ type VenueInspectorProps = {
   locationRequestStatus: LocationRequestStatus;
   onRequestLocation: () => void;
   onClearLocation: () => void;
+  experienceLens?: MapExperienceLens;
 };
 
 export default function VenueInspector({
@@ -103,6 +105,7 @@ export default function VenueInspector({
   locationRequestStatus,
   onRequestLocation,
   onClearLocation,
+  experienceLens = "all",
 }: VenueInspectorProps) {
   const { dropsByVenueId, setComposerOpen } = pintDrops;
   const drops = useMemo(() => dropsByVenueId.get(venue.id) ?? [], [dropsByVenueId, venue.id]);
@@ -173,6 +176,7 @@ export default function VenueInspector({
         latestContributorPrice={latestContributorPrice}
         latestPintDropAt={latestPintDropAt}
         communityPrices={communityPrices}
+        experienceLens={experienceLens}
         onToggleStop={onToggleStop}
         presenceState={presenceState}
         markPresenceHere={markPresenceHere}

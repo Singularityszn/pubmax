@@ -2,6 +2,7 @@ import { COMMUNITY_PROVISIONAL_SHORT_NOTE } from "@/lib/communityPrice";
 import { formatFreshness, formatObservedAt, type Venue } from "@/lib/venues";
 import { proxiedVenueImageUrl } from "@/lib/venueImages";
 import type { PricedVenue } from "@/lib/priceUpdates";
+import type { MapLensPrice } from "@/lib/mapExperienceLens";
 import {
   anchorMonthLabel,
   anchorSourceLabel,
@@ -107,9 +108,43 @@ export function hoverCardCopy(
   // badge is about a pint report, and the price line above it is untouched
   // either way — the note explains the DOT, it never explains the price.
   provisional = false,
+  // Undefined means ordinary map. Null means an experience view with no price.
+  experiencePrice: MapLensPrice | null | undefined = undefined,
 ): HoverCardCopy {
   const kind = hoverDetail?.kind ?? mapVenue?.kind;
   const venueTypeLabel = venueKindLabel(kind);
+  if (experiencePrice !== undefined) {
+    if (experiencePrice === null) {
+      return {
+        venueTypeLabel,
+        price: null,
+        priceSuffix: "for this view",
+        provenance: "No price logged for this view",
+        detailLabel: isPubVenueKind(kind) ? "pub detail" : "venue detail",
+        pendingNote: "",
+      };
+    }
+    const provenance =
+      experiencePrice.source === "community"
+        ? ["Community", formatFreshness(experiencePrice.submittedAt)]
+            .filter(Boolean)
+            .join(" · ")
+        : [
+            "Sourced",
+            anchorMonthLabel(experiencePrice.observedAt),
+            anchorSourceLabel(experiencePrice.sourceUrl),
+          ]
+            .filter(Boolean)
+            .join(" · ");
+    return {
+      venueTypeLabel,
+      price: experiencePrice.priceGbp,
+      priceSuffix: experiencePrice.categoryLabel,
+      provenance,
+      detailLabel: isPubVenueKind(kind) ? "pub detail" : "venue detail",
+      pendingNote: "",
+    };
+  }
   if (isPubVenueKind(kind)) {
     const line = hoverPriceLine(mapVenue, signal, hoverDetail);
     return {

@@ -37,8 +37,12 @@
 // No Supabase and no env are required.
 
 import { jsonNoStore } from "@/lib/apiResponses";
-import { validateCommunityPrice } from "@/lib/communityPrice";
 import {
+  NO_ALCOHOL_DRINK_CATEGORIES,
+  validateCommunityPrice,
+} from "@/lib/communityPrice";
+import {
+  readCommunityPriceCategoryIndex,
   readCommunityPrices,
   readCommunityPricesWithStatus,
   reportCommunityPrice,
@@ -201,7 +205,21 @@ export async function POST(request: Request): Promise<Response> {
 
 export async function GET(request: Request): Promise<Response> {
   try {
-    const venueId = (new URL(request.url).searchParams.get("venueId") ?? "").trim();
+    const searchParams = new URL(request.url).searchParams;
+    if (searchParams.get("lens") === "no-alcohol") {
+      const result = await readCommunityPriceCategoryIndex(
+        NO_ALCOHOL_DRINK_CATEGORIES,
+      );
+      return jsonNoStore(
+        {
+          prices: result.prices,
+          truncated: result.truncated,
+          ...(result.degraded ? { degraded: true } : {}),
+        },
+        { status: 200 },
+      );
+    }
+    const venueId = (searchParams.get("venueId") ?? "").trim();
     if (!venueId) return jsonNoStore({ prices: [] }, { status: 200 });
     let priceVenueId = venueId;
     if (!isUkBaseId(venueId)) {

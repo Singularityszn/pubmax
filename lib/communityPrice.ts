@@ -37,10 +37,18 @@ const MAX_VENUE_ID = 64;
  */
 export const SUBMITTABLE_DRINK_CATEGORIES: readonly DrinkCategory[] = [
   "beer",
+  "alcohol-free",
+  "soft-drink",
   "wine",
   "cocktail",
   "whisky",
   "other",
+];
+
+/** Categories that answer the no-alcohol map lens, in display priority. */
+export const NO_ALCOHOL_DRINK_CATEGORIES: readonly DrinkCategory[] = [
+  "alcohol-free",
+  "soft-drink",
 ];
 
 /** The default category the submit surface opens on - a pub is a pint first. */

@@ -33,6 +33,7 @@ function watchPageErrors(page: Page): string[] {
 // A known seed venue id (lib/pintDropSeeds.ts) - the same pub the Golden
 // Thread spec drives, so the sheet reliably has content around the card.
 const SEED_VENUE_ID = "venue-16pnwmm";
+const NO_ALCOHOL_VENUE_ID = "venue-19211ib";
 const VIEWPORT = { width: 390, height: 844 };
 
 test.setTimeout(60_000);
@@ -73,7 +74,7 @@ test("a drinker logs tonight's price and the card restamps, dated and badged", a
 
   // Every control is thumb-sized at 390px - this is a card used one-handed at
   // a bar, so a cramped target is a real defect, not a nit.
-  for (const name of ["Beer", "Wine"]) {
+  for (const name of ["Beer", "Alcohol-free", "Soft drinks", "Wine"]) {
     const chip = submit.getByRole("radio", { name, exact: true });
     await expect(chip).toBeVisible();
     const box = await chip.boundingBox();
@@ -200,6 +201,54 @@ test("a drinker logs tonight's price and the card restamps, dated and badged", a
     )
     .toBeGreaterThan(0);
 
+  expect(errors).toEqual([]);
+});
+
+test("a person can log soft-drink and alcohol-free prices from the pub sheet", async ({
+  page,
+}) => {
+  const errors = watchPageErrors(page);
+  const response = await page.goto(`/map?sel=${NO_ALCOHOL_VENUE_ID}`);
+  expect(response?.status()).toBe(200);
+
+  const venueSheet = page.locator('.mobileSheetPortal[data-sheet-kind="venue"]');
+  await expect(venueSheet).toBeVisible();
+  const submit = venueSheet.locator(".venuePriceSubmit");
+  await expect(submit).toBeVisible();
+  const priceField = submit.getByRole("textbox");
+  const logButton = submit.getByRole("button", { name: "Log it" });
+  const stamp = submit.locator(".vpsubStamp");
+
+  for (const entry of [
+    { label: "Soft drinks", category: "soft-drink", price: "2.80" },
+    { label: "Alcohol-free", category: "alcohol-free", price: "4.60" },
+  ] as const) {
+    const category = submit.getByRole("radio", {
+      name: entry.label,
+      exact: true,
+    });
+    await category.click();
+    await expect(category).toHaveAttribute("aria-checked", "true");
+    await priceField.fill(entry.price);
+    await logButton.click();
+    await expect(stamp).toContainText(`£${entry.price}`);
+    await expect(stamp).toContainText("On this pub’s page");
+
+    const record = await page.request.get(
+      `/api/price-submit?venueId=${NO_ALCOHOL_VENUE_ID}`,
+    );
+    expect(record.status()).toBe(200);
+    const { prices } = (await record.json()) as {
+      prices: Array<{ drinkCategory: string; priceGbp: number }>;
+    };
+    expect(
+      prices.find((row) => row.drinkCategory === entry.category)?.priceGbp,
+    ).toBe(Number(entry.price));
+  }
+
+  const communityRow = venueSheet.locator(".communityPriceRow");
+  await expect(communityRow).toContainText("Alcohol-free");
+  await expect(communityRow).toContainText("£4.60");
   expect(errors).toEqual([]);
 });
 

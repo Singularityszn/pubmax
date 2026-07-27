@@ -9,4 +9,6 @@ export { RumGlyph } from "./RumGlyph";
 export { VodkaGlyph } from "./VodkaGlyph";
 export { CocktailGlyph } from "./CocktailGlyph";
 export { ShotGlyph } from "./ShotGlyph";
+export { AlcoholFreeGlyph } from "./AlcoholFreeGlyph";
+export { SoftDrinkGlyph } from "./SoftDrinkGlyph";
 export { OtherGlyph } from "./OtherGlyph";

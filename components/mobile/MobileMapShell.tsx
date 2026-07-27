@@ -14,7 +14,7 @@ import type { MapOverlay, MapSheetKind } from "@/lib/mobileShell";
 import "./mobileMapShell.css";
 
 const SHEET_TITLES: Partial<Record<MapOverlay, string>> = {
-  filters: "Drinks and price",
+  filters: "Prices and places",
   tfl: "TfL live",
   tonight: "Tonight",
   layers: "Map layers",
@@ -49,7 +49,7 @@ function PalSignalAvatar() {
   );
 }
 
-export default function MobileMapShell({ cityLabel, overlay, onOverlayChange, activeQuery, onClearQuery, onNearMe, nearMeStatus, nearbyCount, tonightCount, tflCount, tflStatus, priceLabel, drinkFiltersActive, priceCapActive, zoneActive, planOpen, planActive, planStopCount, planInteractive, onPlan, searchContent, filtersContent, tflContent, tonightContent, layersContent, palContent, momentContent, nearMeContent, areaContent }: {
+export default function MobileMapShell({ cityLabel, overlay, onOverlayChange, activeQuery, onClearQuery, onNearMe, nearMeStatus, nearbyCount, tonightCount, tflCount, tflStatus, priceLabel, drinkFiltersActive, experienceFilterLabel, priceCapActive, zoneActive, planOpen, planActive, planStopCount, planInteractive, onPlan, searchContent, filtersContent, tflContent, tonightContent, layersContent, palContent, momentContent, nearMeContent, areaContent }: {
   cityLabel: string;
   overlay: MapOverlay;
   onOverlayChange: (overlay: MapOverlay) => void;
@@ -65,6 +65,7 @@ export default function MobileMapShell({ cityLabel, overlay, onOverlayChange, ac
   tflStatus: "checking" | "clear" | "issues" | "unavailable";
   priceLabel: string;
   drinkFiltersActive: boolean;
+  experienceFilterLabel?: "no-alcohol view" | "food view";
   /** #329 zone lens counts as a filters refinement (its mobile home is the filters sheet). */
   zoneActive?: boolean;
   priceCapActive: boolean;
@@ -87,7 +88,13 @@ export default function MobileMapShell({ cityLabel, overlay, onOverlayChange, ac
   const set = (next: MapOverlay) => onOverlayChange(overlay === next ? "none" : next);
   const closeSheet = useCallback(() => onOverlayChange("none"), [onOverlayChange]);
   const nearMe = buildNearMeChip(nearMeStatus, nearbyCount);
-  const filtersChip = buildFiltersChip({ drinkFiltersActive, priceCapActive, priceLabel, zoneActive });
+  const filtersChip = buildFiltersChip({
+    drinkFiltersActive,
+    experienceLabel: experienceFilterLabel,
+    priceCapActive,
+    priceLabel,
+    zoneActive,
+  });
   const tflCorner = buildTflCorner(tflStatus, tflCount);
   const sheetKind = CONTEXTUAL_SHEETS.includes(overlay as MapSheetKind)
     ? (overlay as MapSheetKind)

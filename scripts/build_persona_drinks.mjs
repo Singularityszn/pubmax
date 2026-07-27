@@ -43,6 +43,8 @@ const DRINK_CATEGORIES = [
   "rum",
   "cocktail",
   "shot",
+  "alcohol-free",
+  "soft-drink",
   "other",
 ];
 const KINDS = ["person", "fictional"];

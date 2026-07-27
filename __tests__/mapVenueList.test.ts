@@ -108,6 +108,30 @@ describe("buildMapVenueListModel — selection wiring + labels", () => {
     expect(byId.get("unknown")).toBe("Price TBD");
   });
 
+  it("replaces pint figures with dedicated lens prices or honest silence", () => {
+    const model = buildMapVenueListModel(
+      [
+        venue({ id: "soft", cheapestPrice: 6.2 }),
+        venue({ id: "unknown", cheapestPrice: 5.8 }),
+      ],
+      null,
+      MAP_VENUE_LIST_LIMIT,
+      new Map([
+        ["soft", {
+          venueId: "soft",
+          category: "soft-drink",
+          categoryLabel: "Soft drink",
+          priceGbp: 3.2,
+          submittedAt: 2_000,
+          source: "community",
+        }],
+      ]),
+    );
+    const byId = new Map(model.rows.map((row) => [row.id, row.priceLabel]));
+    expect(byId.get("soft")).toBe("Soft drink · £3.20");
+    expect(byId.get("unknown")).toBe("No price logged for this view");
+  });
+
   it("carries venue kind and accessible type labels", () => {
     const model = buildMapVenueListModel(
       [

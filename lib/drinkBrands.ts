@@ -88,6 +88,8 @@ export const DRINK_BRANDS: DrinkBrandCatalog = {
     { id: "mojito", label: "Mojito", abv: 10 },
   ],
   shot: [],
+  "alcohol-free": [],
+  "soft-drink": [],
   other: [],
 };
 
@@ -102,6 +104,26 @@ export const CATEGORY_SEARCH_TOKENS: Record<DrinkCategory, string[]> = {
   rum: ["rum", "rhum"],
   cocktail: ["cocktail", "spritz", "negroni", "martini", "margarita", "mojito"],
   shot: ["shot", "shots", "tequila", "sambuca"],
+  "alcohol-free": [
+    "alcohol free",
+    "alcohol-free",
+    "low alcohol",
+    "low-alcohol",
+    "0.0",
+    "0%",
+    "zero beer",
+  ],
+  "soft-drink": [
+    "soft drink",
+    "coca cola",
+    "coca-cola",
+    "coke",
+    "pepsi",
+    "lemonade",
+    "lime and soda",
+    "tonic water",
+    "juice",
+  ],
   other: [],
 };
 

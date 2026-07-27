@@ -366,6 +366,19 @@ describe("priced-pin price tag (collides, and yields before the pin does)", () =
     expect(field[4]).toEqual(["coalesce", ["get", "priceLabel"], ""]);
   });
 
+  it("reads exactly one property, so no view can widen what a figure means", () => {
+    // `priceLabel` is the pint claim, gated to pub kinds and to a sourced
+    // price. A second coalesce arm is how a soft drink or a dish price gets to
+    // print bare over an unchanged pint glyph, which is the same masquerade
+    // the anchor-price rule already forbids.
+    for (const id of ["pubs-point", "pubs-point-selected"]) {
+      const field = JSON.stringify(layout(id)["text-field"]);
+      expect(field).toContain("priceLabel");
+      expect(field).not.toContain("lensPrice");
+      expect(field.match(/"get"/g)?.length ?? 0).toBeLessThanOrEqual(2);
+    }
+  });
+
   it("never borrows a band colour for the figure", () => {
     // The number IS the price; tinting it would say the same thing twice and
     // invite reading it as a fourth signal alongside the three bands.

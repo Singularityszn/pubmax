@@ -148,6 +148,19 @@ describe("mergeCommunityPriceSignals", () => {
     expect(freshestCommunityPrice(rows)?.drinkCategory).toBe("wine");
   });
 
+  it("refuses no-alcohol categories even if a caller bypasses the beer selector", () => {
+    for (const category of ["soft-drink", "alcohol-free"] as const) {
+      const input = signals([
+        ["v1", { hasPintDrops: false, latestContributorPrice: null }],
+      ]);
+      const merged = merge(input, [
+        ["v1", price("v1", 3.2, NOW - MINUTE, category, 9)],
+      ]);
+      expect(merged).toBe(input);
+      expect(merged.get("v1")?.latestContributorPrice).toBeNull();
+    }
+  });
+
   it("leaves untouched venues exactly as they were", () => {
     const other: PricedVenueSignal = { hasPintDrops: true, latestContributorPrice: 7 };
     const merged = merge(

@@ -44,6 +44,8 @@ const DRINK_CATEGORIES = new Set([
   "rum",
   "cocktail",
   "shot",
+  "alcohol-free",
+  "soft-drink",
   "other",
 ]);
 

@@ -52,6 +52,30 @@ describe("public Pint Index snapshot", () => {
     if (!result.ok) expect(result.errors.join(" ")).toMatch(/eligible|canonical/i);
   });
 
+  it("rejects community soft-drink prices as Pint Index evidence", () => {
+    const nonPint = snapshot({
+      sources: [{
+        id: "soft-1",
+        kind: "community_price",
+        publisher: "PUBMAXX contributor",
+        sourceUrl: "https://pubmaxxing.com/map",
+        licence: null,
+      } as unknown as PintIndexSnapshot["sources"][number]],
+      observations: [{
+        venueId: "a",
+        pubName: "Cheap A",
+        boroughCode: "hackney",
+        boroughName: "Hackney",
+        pricePence: 320,
+        observedAt: "2026-07-10T12:00:00.000Z",
+        sourceId: "soft-1",
+      }],
+    });
+    const result = validatePintIndexSnapshot(nonPint);
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.errors.join(" ")).toMatch(/eligible/i);
+  });
+
   it("rejects snapshots produced by a non-canonical borough classifier", () => {
     expect(validatePintIndexSnapshot(snapshot({
       classification: {

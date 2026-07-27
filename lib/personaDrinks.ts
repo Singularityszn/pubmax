@@ -192,18 +192,18 @@ export function personaDrinkCategories(
 }
 
 // Categories the pub drink-category filter can meaningfully match against.
-// "other" is the honest non-alcoholic / tequila / liqueur bucket with no clean
-// per-pub menu signal, so a persona in it must NOT push the map to an empty
-// filtered state. Such a persona still shows its card, just without pub
-// highlighting (no lens dead-end). Everything else rides the filter path.
+// "other" is the uncovered-order bucket with no clean per-pub menu signal, so
+// a persona in it must NOT push the map to an empty filtered state. Such a
+// persona still shows its card, just without pub highlighting. Every named
+// category, including soft drinks and alcohol-free drinks, rides the filter.
 const PUB_MATCHABLE_CATEGORIES: ReadonlySet<DrinkCategory> = new Set(
   DRINK_CATEGORIES.filter((category) => category !== "other"),
 );
 
 /**
  * True when selecting this persona should drive the map's drink-category
- * highlight. False for non-alcoholic / uncovered orders (e.g. water, a Cherry
- * Coke, a glass of milk): the card still renders, but the map stays unfiltered.
+ * highlight. False for uncovered "other" orders: the card still renders, but
+ * the map stays unfiltered.
  */
 export function personaHighlightsPubs(persona: PersonaDrink): boolean {
   return PUB_MATCHABLE_CATEGORIES.has(persona.drinkCategory);

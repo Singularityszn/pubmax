@@ -127,6 +127,46 @@ describe("hoverCardCopy", () => {
     expect(marked.price).toBe(quiet.price);
     expect(marked.provenance).toBe(quiet.provenance);
   });
+
+  it("shows a no-alcohol figure without any pint framing", () => {
+    const copy = hoverCardCopy(
+      { kind: "pub", cheapestPrice: 6 } as Venue,
+      {
+        hasPintDrops: true,
+        latestContributorPrice: 5,
+      },
+      null,
+      true,
+      {
+        venueId: "pub-1",
+        category: "soft-drink",
+        categoryLabel: "Soft drink",
+        priceGbp: 3.2,
+        submittedAt: Date.now(),
+        source: "community",
+      },
+    );
+
+    expect(copy.price).toBe(3.2);
+    expect(copy.priceSuffix).toBe("Soft drink");
+    expect(copy.provenance).toContain("Community");
+    expect(copy.pendingNote).toBe("");
+    expect(JSON.stringify(copy)).not.toContain("pint");
+  });
+
+  it("uses honest silence when an experience view has no price", () => {
+    const copy = hoverCardCopy(
+      { kind: "pub", cheapestPrice: 6 } as Venue,
+      undefined,
+      null,
+      false,
+      null,
+    );
+
+    expect(copy.price).toBeNull();
+    expect(copy.provenance).toBe("No price logged for this view");
+    expect(JSON.stringify(copy)).not.toContain("cheapest pint");
+  });
 });
 
 describe("withBoundedHoverDetailCache", () => {

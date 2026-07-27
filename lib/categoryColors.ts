@@ -45,6 +45,8 @@ export interface CategoryColor {
 //  rum        #8a4a24    6.41   #cd8a5a    6.32   mahogany
 //  cocktail   #b5493a    4.97   #ef8a6a    7.29   sunset
 //  shot       #6a3fb0    6.71   #b28ae8    6.59   electric
+//  alcohol-free #176b72  5.47   #67cbd0    9.30   clear teal
+//  soft-drink #7a4f00    7.20   #f0b65a    9.37   citrus
 //  other      #5c5347    7.11   #a89e8c    6.79   neutral bark
 //
 // All light values clear 4.5:1 (WCAG AA normal text) except beer, which is
@@ -60,6 +62,8 @@ export const CATEGORY_COLORS: Record<DrinkCategory, CategoryColor> = {
   rum: { light: "#8a4a24", dark: "#cd8a5a", label: "Rum" },
   cocktail: { light: "#b5493a", dark: "#ef8a6a", label: "Cocktail" },
   shot: { light: "#6a3fb0", dark: "#b28ae8", label: "Shot" },
+  "alcohol-free": { light: "#176b72", dark: "#67cbd0", label: "Alcohol-free" },
+  "soft-drink": { light: "#7a4f00", dark: "#f0b65a", label: "Soft drink" },
   other: { light: "#5c5347", dark: "#a89e8c", label: "Other" },
 };
 
@@ -78,6 +82,8 @@ export const CATEGORY_COLORS_LEGACY: Record<
   rum: { light: "#6e3915", dark: "#e0a074" },
   cocktail: { light: "#93362a", dark: "#ffa484" },
   shot: { light: "#522d90", dark: "#c8a6f2" },
+  "alcohol-free": { light: "#0e555b", dark: "#86e0e2" },
+  "soft-drink": { light: "#5f3c00", dark: "#ffd17f" },
   other: { light: "#463f34", dark: "#c2b8a4" },
 };
 

@@ -63,10 +63,16 @@ export function buildFiltersChip(input: {
   priceLabel: string;
   /** #329 adoption: the zone lens filter counts as a third refinement. */
   zoneActive?: boolean;
+  /** Dedicated experience view, named separately from drink filters. */
+  experienceLabel?: "no-alcohol view" | "food view";
 }): FiltersChipModel {
   const refinements =
-    (input.drinkFiltersActive ? 1 : 0) + (input.priceCapActive ? 1 : 0) + (input.zoneActive ? 1 : 0);
+    (input.drinkFiltersActive ? 1 : 0) +
+    (input.priceCapActive ? 1 : 0) +
+    (input.zoneActive ? 1 : 0) +
+    (input.experienceLabel ? 1 : 0);
   const parts: string[] = [];
+  if (input.experienceLabel) parts.push(input.experienceLabel);
   if (input.drinkFiltersActive) parts.push("drinks");
   if (input.priceCapActive) parts.push(input.priceLabel);
   if (input.zoneActive) parts.push("zone");

@@ -1,3 +1,6 @@
+import { readFileSync, readdirSync } from "node:fs";
+import { join } from "node:path";
+
 import { beforeEach, describe, expect, it } from "vitest";
 
 import {
@@ -22,6 +25,55 @@ beforeEach(() => {
 });
 
 const OBSERVED = "2026-07-01T12:00:00.000Z";
+
+// The taxonomy is closed on BOTH sides of the wire: lib/drinks.ts states it and
+// a Postgres CHECK enforces it, so a category that exists in one and not the
+// other is a row the app will happily build and the database will refuse. The
+// constraints are redefined over time (0016 → 0054 → 0056), so this reads the
+// migrations in order and holds only the LAST definition of each name to the
+// current union - exactly what a fresh database ends up with.
+function latestCheckedCategories(constraint: string): string[] | undefined {
+  const dir = join(process.cwd(), "supabase", "migrations");
+  const files = readdirSync(dir)
+    .filter((name) => name.endsWith(".sql"))
+    .sort();
+  let latest: string[] | undefined;
+  for (const file of files) {
+    const sql = readFileSync(join(dir, file), "utf8");
+    const pattern = new RegExp(
+      `add\\s+constraint\\s+${constraint}\\s+check\\s*\\([^()]*in\\s*\\(([^)]*)\\)`,
+      "gi",
+    );
+    for (const match of sql.matchAll(pattern)) {
+      latest = [...match[1].matchAll(/'([^']+)'/g)].map((value) => value[1]);
+    }
+  }
+  return latest;
+}
+
+describe("database CHECK constraints mirror the closed taxonomy", () => {
+  for (const constraint of [
+    "drinks_category_check",
+    "community_prices_category_check",
+  ]) {
+    it(`${constraint} accepts exactly DRINK_CATEGORIES`, () => {
+      const checked = latestCheckedCategories(constraint);
+      expect(checked, `no ${constraint} found in supabase/migrations`).toBeDefined();
+      expect([...(checked ?? [])].sort()).toEqual([...DRINK_CATEGORIES].sort());
+    });
+  }
+
+  it("both no-alcohol lanes are named, and never collapsed into other", () => {
+    for (const constraint of [
+      "drinks_category_check",
+      "community_prices_category_check",
+    ]) {
+      const checked = latestCheckedCategories(constraint) ?? [];
+      expect(checked).toContain("soft-drink");
+      expect(checked).toContain("alcohol-free");
+    }
+  });
+});
 
 function drink(overrides: Partial<Drink> = {}): Drink {
   return {
@@ -55,6 +107,8 @@ describe("category taxonomy", () => {
   it("isDrinkCategory guards the closed set", () => {
     expect(isDrinkCategory("beer")).toBe(true);
     expect(isDrinkCategory("gin")).toBe(true);
+    expect(isDrinkCategory("soft-drink")).toBe(true);
+    expect(isDrinkCategory("alcohol-free")).toBe(true);
     expect(isDrinkCategory("cider")).toBe(false);
     expect(isDrinkCategory(42)).toBe(false);
     expect(isDrinkCategory(undefined)).toBe(false);
@@ -63,6 +117,8 @@ describe("category taxonomy", () => {
   it("categoryLabel returns the human label", () => {
     expect(categoryLabel("whisky")).toBe("Whisky");
     expect(categoryLabel("beer")).toBe("Beer");
+    expect(categoryLabel("soft-drink")).toBe("Soft drinks");
+    expect(categoryLabel("alcohol-free")).toBe("Alcohol-free");
   });
 });
 
@@ -80,6 +136,8 @@ describe("formatAbv / CATEGORY_DEFAULT_ABV", () => {
 
   it("ships a default ABV (or null) for every category", () => {
     expect(CATEGORY_DEFAULT_ABV.beer).toBe(4);
+    expect(CATEGORY_DEFAULT_ABV["soft-drink"]).toBe(0);
+    expect(CATEGORY_DEFAULT_ABV["alcohol-free"]).toBe(0);
     expect(CATEGORY_DEFAULT_ABV.other).toBeNull();
     for (const cat of DRINK_CATEGORIES) {
       expect(cat in CATEGORY_DEFAULT_ABV).toBe(true);
