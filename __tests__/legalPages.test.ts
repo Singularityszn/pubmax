@@ -4,6 +4,10 @@ import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
 import { CONTACT_EMAIL } from "@/lib/siteContact";
+import {
+  WEATHER_RECOMMENDATION_CONDITIONS,
+  weatherRecommendationConditionLabel,
+} from "@/lib/weatherRecommendations";
 
 // The /privacy + /terms fence. These pages are the only surfaces where the site
 // makes promises about data ON THE RECORD, so the regressions that matter are
@@ -134,6 +138,30 @@ describe("legal content pages", () => {
     expect(privacy).toMatch(/Hit timestamps\s+outside that window are pruned/);
     expect(privacy).toMatch(/the key row remains/);
     expect(privacy).not.toMatch(/Server and rate-limit records/);
+  });
+
+  it("discloses the durable Recommendation row and its retention", () => {
+    // Mirrors lib/weatherRecommendationStore.ts and migration 0058: a durable
+    // row carrying a PUBLIC handle (unlike a community price, which is
+    // anonymous), the venue, one closed condition, the authored reason, a
+    // server timestamp, and the same server-derived actor hash the price route
+    // uses (lib/communityPriceActor.ts). Attribution is the point of the
+    // feature, so the page may never describe these rows as anonymous.
+    expect(privacy).toMatch(/Recommendations, and Night Memories/);
+    expect(privacy).toMatch(/public PUBMAXX\s+handle/);
+    expect(privacy).toMatch(/the same opaque device token described below/);
+    expect(privacy).toMatch(/the time our\s+server took it/);
+    expect(privacy).toMatch(/<strong>Recommendations:<\/strong>/);
+    expect(privacy).toMatch(/replaces the one you already had/);
+    // The closed vocabulary is the product's, not the page's: if a condition is
+    // added or renamed, this sentence has to be rewritten with it.
+    const privacyProse = privacy.toLowerCase().replace(/\s+/g, " ");
+    for (const condition of WEATHER_RECOMMENDATION_CONDITIONS) {
+      const label = weatherRecommendationConditionLabel(condition);
+      expect(privacyProse, `Missing condition ${label}`).toContain(
+        label.toLowerCase(),
+      );
+    }
   });
 
   it("names all three price lanes and fences the historical one", () => {

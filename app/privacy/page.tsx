@@ -13,7 +13,9 @@ import "../legal.css";
 // registry and its gates (lib/analyticsEvents.ts, app/api/events/route.ts),
 // the browser SDK config (lib/posthogClient.ts), the first-party ingest proxy
 // (app/ingest/[...path]/route.ts), the hashed-actor derivation (lib/supabase.ts
-// hashIp/hashActor) used by app/api/price-submit/route.ts, and the sign-in
+// hashIp/hashActor) used by app/api/price-submit/route.ts and
+// app/api/weather-recommendations/route.ts, the Recommendation row shape
+// (lib/weatherRecommendationStore.ts and its migration), and the sign-in
 // paths in components/auth/AuthProvider.tsx. If one of those changes, this page
 // changes in the same commit. Do NOT add practices we don't have, certifications
 // we don't hold, or a DPO we haven't appointed.
@@ -21,7 +23,7 @@ import "../legal.css";
 const PAGE_TITLE = "Privacy";
 const PAGE_DESCRIPTION =
   "What PUBMAXX collects, why, who else sees it, how long we keep it, and how to get it deleted. Written against what the app actually does.";
-const LAST_UPDATED = "26 July 2026";
+const LAST_UPDATED = "28 July 2026";
 
 export const metadata: Metadata = {
   title: PAGE_TITLE,
@@ -120,10 +122,24 @@ export default function PrivacyPage() {
         <p className="legalBody">
           Pint Drops (a price, a note, sometimes a photo), plans and crawl
           routes, presence taps (&ldquo;I&rsquo;m here tonight&rdquo;), ratings,
-          messages to other people, and Night Memories. We keep these because
-          they are the product. A price with no date and no source is worth
-          nothing. Presence is always a deliberate tap; the app never
+          messages to other people, Recommendations, and Night Memories. We keep
+          these because they are the product. A price with no date and no source
+          is worth nothing. Presence is always a deliberate tap; the app never
           tracks your location in the background.
+        </p>
+        <p className="legalBody">
+          A Recommendation is your short opinion that one pub suits one kind of
+          weather, so it is posted under a name. We store your public PUBMAXX
+          handle, the pub, the single condition you picked from warm, clear
+          skies, raining, cold and windy, the reason you wrote, the time our
+          server took it, and the same opaque device token described below. The
+          handle is stored because the opinion is attributed to you and shown
+          with your name on it, and is what a future contributor count would be
+          counted from; the token is stored only to rate-limit writes and to
+          keep one contributor to one Recommendation per pub and condition, so
+          editing yours replaces it rather than stacking another. The weather
+          never writes a Recommendation. It only decides which of the ones
+          people wrote match right now.
         </p>
 
         <h3 className="legalH3">Community price submissions</h3>
@@ -400,6 +416,14 @@ export default function PrivacyPage() {
             <strong>Community prices:</strong>{" "}the observation itself stays, so
             the price history stays honest, but it is already anonymous:
             a venue, a drink, a figure, a date and an unreversible device token.
+          </li>
+          <li>
+            <strong>Recommendations:</strong>{" "}a Recommendation keeps your
+            handle on it for as long as it is up, because an opinion with no
+            name on it is not one. Writing another for the same pub and
+            condition replaces the one you already had. There is no one-tap
+            delete for a single Recommendation yet, so ask us and we&rsquo;ll
+            take it down, the same as anything else you posted.
           </li>
           <li>
             <strong>Hidden or reported content:</strong>{" "}photos attached to a

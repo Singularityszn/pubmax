@@ -21,6 +21,7 @@ import NextBadgeChips from "@/components/profile/NextBadgeChips";
 import FirstDropNudge from "@/components/map/inspector/FirstDropNudge";
 import VenuePriceSubmit from "@/components/map/VenuePriceSubmit";
 import VenuePriceThen from "@/components/map/VenuePriceThen";
+import VenueWeatherRecommendations from "@/components/map/VenueWeatherRecommendations";
 import CommunityPriceReport from "@/components/map/CommunityPriceReport";
 import { communityStampLabel, communityTrustNote, submitCategoryLabel } from "@/lib/communityPrice";
 import {
@@ -449,6 +450,11 @@ export default function VenueOverviewTab({
           latestPintDropAt={latestPintDropAt}
         />
       ) : null}
+      <VenueWeatherRecommendations
+        key={`weather-recommendations-${venue.id}`}
+        venueId={venue.id}
+        venueName={venue.name}
+      />
       {mode === "build" && isPubVenue(venue) ? (
         <button
           className="addStopBtn"

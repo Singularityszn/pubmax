@@ -98,9 +98,13 @@ _Avoid_: Taste, drink score
 A venue feature that affects crawl choice, such as beer garden, live sports, live music, darts, pool, food, or cocktails.
 _Avoid_: Facility, feature
 
-**Trusted Recommendation**:
-A venue or crawl stop suggested through a friend, prior user preference, or app recommendation logic.
-_Avoid_: Suggestion, tip
+**Recommendation**:
+A short, attributed opinion from a Pubmaxxer that a venue suits one condition from the product's weather vocabulary. It is neither a review nor a verified fact about the venue.
+_Avoid_: Computed suggestion, review, venue fact, score
+
+**Suggested Venue**:
+A venue surfaced by product logic from current conditions, preferences, or other known signals. It has no human author and is never presented as a Recommendation.
+_Avoid_: Recommendation, user tip
 
 **Pint Drop**:
 A single community contribution attached to a venue: an optional pint photo, an optional venue photo, an observed pint price, and an optional Passed-Down Note. The concrete form a Visit Report takes in the community layer.
