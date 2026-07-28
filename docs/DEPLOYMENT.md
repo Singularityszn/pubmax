@@ -119,17 +119,19 @@ blocked until the captain applies them, requests a production magic link, and
 confirms both the canonical callback address and signed-in session.
 
 Set `NEXT_PUBLIC_SITE_URL=https://pubmaxxing.com` in every deployed Vercel
-environment, including previews. Deployed auth always requests the apex
+environment, including previews. This is a captain-owned setting and its
+presence in repository documentation is not evidence that every Vercel
+environment is configured completely. Deployed auth always requests the apex
 callback, so do not allowlist `*.vercel.app`, preview hosts, or `www`. A rejected
 `redirectTo` makes Supabase fall back to Site URL. If Site URL points at a
 deployment host, an email link lands there without the initiating origin's PKCE
 verifier and sign-in cannot complete.
 
-Vercel builds fail when that variable is missing or does not name the exact
-HTTPS apex. Runtime server paths still fall back to the apex and emit a fatal
-diagnostic if invalid configuration somehow reaches them. A sign-in opened on a
-deployment host first navigates to the same safe path on the apex; no PKCE state
-is created until the user starts sign-in there.
+Missing or invalid deployed configuration must not block a Vercel build.
+Runtime server paths still use the apex and emit a fatal diagnostic when
+`NEXT_PUBLIC_SITE_URL` is missing, malformed, insecure, or noncanonical. A
+sign-in opened on a deployment host first navigates to the same safe path on
+the apex; no PKCE state is created until the user starts sign-in there.
 
 These controls solve different problems:
 

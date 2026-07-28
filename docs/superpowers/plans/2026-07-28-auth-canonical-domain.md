@@ -4,7 +4,7 @@
 
 **Goal:** Ensure every deployed authentication attempt returns through `https://pubmaxxing.com/auth/callback`, while local development continues to use its local origin.
 
-**Architecture:** Keep the canonical production origin and its validation in one shared configuration module. Vercel production and preview builds fail when `NEXT_PUBLIC_SITE_URL` is missing, malformed, insecure, or not the exact apex. Runtime server paths still use `https://pubmaxxing.com` and emit a fatal diagnostic if invalid configuration somehow reaches them, while local development stays same-origin. Browser auth opened on a deployment host first moves to the same safe path on the apex, before browser coordination or Supabase can create origin-bound PKCE state.
+**Architecture:** Keep the canonical production origin and its validation in one shared configuration module. Vercel production and preview builds remain runnable when `NEXT_PUBLIC_SITE_URL` is missing, malformed, insecure, or not the exact apex. Runtime server paths still use `https://pubmaxxing.com` and emit a fatal diagnostic for invalid configuration, while local development stays same-origin. Browser auth opened on a deployment host first moves to the same safe path on the apex, before browser coordination or Supabase can create origin-bound PKCE state.
 
 **Tech Stack:** Next.js 16, React 19, TypeScript, Supabase Auth, Vitest, Playwright-compatible browser QA.
 
@@ -58,12 +58,12 @@ Add a test that stubs `NODE_ENV=development`, calls the same function from `http
 - Modify: `app/api/social-connections/[provider]/callback/route.ts`
 
 **Interfaces:**
-- Produces: Shared canonical-origin validation for build configuration, runtime callbacks, and browser auth startup.
+- Produces: Shared canonical-origin validation for runtime callbacks and browser auth startup, plus regression coverage that configuration cannot block deployed builds.
 - Consumes: `NEXT_PUBLIC_SITE_URL`, with `https://pubmaxxing.com` as the only deployed origin.
 
 - [x] **Step 1: Own deployed configuration in one module**
 
-Define the canonical apex and validation in `lib/siteUrlConfig.mjs`. Load that validation from `next.config.mjs` so Vercel production and preview builds fail when `NEXT_PUBLIC_SITE_URL` is missing, malformed, insecure, or not the exact `https://pubmaxxing.com` origin. Keep local builds outside this deployed validation.
+Define the canonical apex and validation in `lib/siteUrlConfig.mjs`. Keep `next.config.mjs` free of site URL assertions so Vercel production and preview builds remain runnable when `NEXT_PUBLIC_SITE_URL` is missing, malformed, insecure, or not the exact `https://pubmaxxing.com` origin.
 
 - [x] **Step 2: Preserve runtime sign-in through misconfiguration**
 
@@ -75,7 +75,7 @@ Sanitise the intended post-auth path with the existing redirect safety rules. Wh
 
 - [x] **Step 4: Cover build, runtime, and browser boundaries**
 
-Add focused coverage for pre-PKCE canonical navigation, callback credential scrubbing, deployed build rejection, loud runtime apex fallback, social OAuth callback ownership, and unchanged local behavior.
+Add focused coverage for pre-PKCE canonical navigation, callback credential scrubbing, deployed build continuity under invalid configuration, loud runtime apex fallback, social OAuth callback ownership, and unchanged local behavior.
 
 Run: `npx vitest run __tests__/siteUrl.test.ts __tests__/passwordlessAuth.test.ts __tests__/socialConnectionsRoutes.test.ts`
 

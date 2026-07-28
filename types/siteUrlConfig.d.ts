@@ -4,8 +4,4 @@ declare module "@/lib/siteUrlConfig.mjs" {
   export function productionSiteUrlError(
     configuredSiteUrl: string | undefined,
   ): string | null;
-
-  export function assertCanonicalSiteUrlForDeployedBuild(
-    environment?: Record<string, string | undefined>,
-  ): void;
 }

@@ -34,19 +34,39 @@ afterEach(() => {
 
 describe("deployed site URL configuration", () => {
   it.each([
-    ["missing", undefined],
-    ["malformed", "not a URL"],
-    ["insecure", "http://pubmaxxing.com"],
-    ["noncanonical", "https://preview-team.vercel.app"],
-  ])("fails a deployed build when NEXT_PUBLIC_SITE_URL is %s", (_label, value) => {
-    const result = loadConfig(value, "production");
+    { vercelEnv: "production", condition: "missing", siteUrl: undefined },
+    { vercelEnv: "production", condition: "malformed", siteUrl: "not a URL" },
+    {
+      vercelEnv: "production",
+      condition: "insecure",
+      siteUrl: "http://pubmaxxing.com",
+    },
+    {
+      vercelEnv: "production",
+      condition: "noncanonical",
+      siteUrl: "https://preview-team.vercel.app",
+    },
+    { vercelEnv: "preview", condition: "missing", siteUrl: undefined },
+    { vercelEnv: "preview", condition: "malformed", siteUrl: "not a URL" },
+    {
+      vercelEnv: "preview",
+      condition: "insecure",
+      siteUrl: "http://pubmaxxing.com",
+    },
+    {
+      vercelEnv: "preview",
+      condition: "noncanonical",
+      siteUrl: "https://preview-team.vercel.app",
+    },
+  ])(
+    "keeps $vercelEnv builds runnable when NEXT_PUBLIC_SITE_URL is $condition",
+    ({ vercelEnv, siteUrl }) => {
+      const result = loadConfig(siteUrl, vercelEnv);
 
-    expect(result.status).not.toBe(0);
-    expect(result.stderr).toContain("FATAL: NEXT_PUBLIC_SITE_URL");
-    expect(result.stderr).toContain(
-      "Set NEXT_PUBLIC_SITE_URL=https://pubmaxxing.com",
-    );
-  });
+      expect(result.status).toBe(0);
+      expect(result.stderr).not.toContain("FATAL:");
+    },
+  );
 
   it("accepts the canonical origin for deployed builds", () => {
     const result = loadConfig("https://pubmaxxing.com", "preview");
