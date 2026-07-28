@@ -5,7 +5,9 @@ import {
   isWeatherRecommendationCondition,
   matchingWeatherRecommendations,
   validateWeatherRecommendation,
+  weatherRecommendationErrorField,
   WEATHER_RECOMMENDATION_CONDITIONS,
+  WEATHER_RECOMMENDATION_ERRORS,
   type WeatherRecommendation,
   type WeatherRecommendationCondition,
 } from "@/lib/weatherRecommendations";
@@ -158,15 +160,7 @@ describe("conditionsForWeather", () => {
     ).toEqual(["warm", "clear", "windy"]);
   });
 
-  it("recognises rain from either probability or current condition", () => {
-    expect(
-      conditionsForWeather({
-        condition: "Cloudy",
-        feelsLikeC: 12,
-        precipitationProbabilityPct: 60,
-        windKph: 8,
-      }),
-    ).toEqual(["raining"]);
+  it("reads rain off the current condition, never a forecast probability", () => {
     expect(
       conditionsForWeather({
         condition: "Drizzle",
@@ -175,6 +169,52 @@ describe("conditionsForWeather", () => {
         windKph: null,
       }),
     ).toEqual(["raining"]);
+    expect(
+      conditionsForWeather({
+        condition: "Rain",
+        feelsLikeC: 12,
+        precipitationProbabilityPct: 0,
+        windKph: 8,
+      }),
+    ).toEqual(["raining"]);
+    expect(
+      conditionsForWeather({
+        condition: "Thunderstorm",
+        feelsLikeC: 12,
+        precipitationProbabilityPct: 0,
+        windKph: 8,
+      }),
+    ).toEqual(["raining"]);
+    expect(
+      conditionsForWeather({
+        condition: "Cloudy",
+        feelsLikeC: 12,
+        precipitationProbabilityPct: 95,
+        windKph: 8,
+      }),
+    ).toEqual([]);
+  });
+
+  it("keeps a clear sky clear whatever the next hour might do", () => {
+    expect(
+      conditionsForWeather({
+        condition: "Clear",
+        feelsLikeC: 12,
+        precipitationProbabilityPct: 80,
+        windKph: 8,
+      }),
+    ).toEqual(["clear"]);
+  });
+
+  it("does not lend rain's recommendations to snow", () => {
+    expect(
+      conditionsForWeather({
+        condition: "Snow",
+        feelsLikeC: 1,
+        precipitationProbabilityPct: 90,
+        windKph: 8,
+      }),
+    ).toEqual(["cold"]);
   });
 
   it("keeps cold and windy independent", () => {
@@ -197,6 +237,42 @@ describe("conditionsForWeather", () => {
         windKph: 2,
       }),
     ).toEqual([]);
+  });
+});
+
+describe("weatherRecommendationErrorField", () => {
+  it("routes every refusal the validator can produce to its own field", () => {
+    const refusals = [
+      validateWeatherRecommendation({
+        venueId: "venue-1",
+        condition: "warm",
+        reason: "The garden stays bright.",
+        contributorHandle: "",
+      }),
+      validateWeatherRecommendation({
+        venueId: "venue-1",
+        condition: "warm",
+        reason: "Nice.",
+        contributorHandle: "night_owl",
+      }),
+      validateWeatherRecommendation({
+        venueId: "",
+        condition: "warm",
+        reason: "The garden stays bright.",
+        contributorHandle: "night_owl",
+      }),
+    ].map((result) => (result.ok ? "" : result.error));
+
+    expect(refusals.map(weatherRecommendationErrorField)).toEqual([
+      "handle",
+      "reason",
+      null,
+    ]);
+    expect(
+      weatherRecommendationErrorField(
+        WEATHER_RECOMMENDATION_ERRORS.reasonUnclear,
+      ),
+    ).toBe("reason");
   });
 });
 

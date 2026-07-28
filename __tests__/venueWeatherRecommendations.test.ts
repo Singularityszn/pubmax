@@ -44,6 +44,22 @@ describe("WeatherRecommendationList", () => {
     expect(html).not.toContain("rank");
   });
 
+  it("names the grouping on an element assistive tech reads", () => {
+    const html = renderToStaticMarkup(
+      createElement(WeatherRecommendationList, {
+        venueName: "The Crown",
+        recommendations: [recommendation()],
+        weatherStatus: "available",
+        degraded: false,
+        truncated: false,
+      }),
+    );
+
+    expect(html).toContain(
+      '<section class="weatherRecRead" aria-label="Recommendations for The Crown">',
+    );
+  });
+
   it("states weather failure and still renders authored rows", () => {
     const html = renderToStaticMarkup(
       createElement(WeatherRecommendationList, {
@@ -58,6 +74,40 @@ describe("WeatherRecommendationList", () => {
     expect(html).toContain("We couldn’t check the weather here just now.");
     expect(html).toContain("shown without a weather match");
     expect(html).toContain("The back garden catches the evening light.");
+  });
+
+  it("never promises recommendations it has none of when weather fails", () => {
+    const html = renderToStaticMarkup(
+      createElement(WeatherRecommendationList, {
+        venueName: "The Crown",
+        recommendations: [],
+        weatherStatus: "unavailable",
+        degraded: false,
+        truncated: false,
+      }),
+    );
+
+    expect(html).toContain("We couldn’t check the weather here just now.");
+    expect(html).not.toContain("shown without a weather match");
+    expect(html).toContain("Nobody has recommended this pub yet.");
+    expect(html).not.toContain("tonight’s weather");
+  });
+
+  it("says nobody has recommended this pub for tonight rather than going silent", () => {
+    const html = renderToStaticMarkup(
+      createElement(WeatherRecommendationList, {
+        venueName: "The Crown",
+        recommendations: [],
+        weatherStatus: "available",
+        degraded: false,
+        truncated: false,
+      }),
+    );
+
+    expect(html).toContain(
+      "Nobody has recommended this pub for tonight’s weather yet. Be the first.",
+    );
+    expect(html).not.toContain("couldn’t check the weather");
   });
 
   it("keeps a degraded recommendation read distinct from no opinions", () => {
@@ -75,6 +125,7 @@ describe("WeatherRecommendationList", () => {
       "We couldn’t read every recommendation here just now.",
     );
     expect(html).not.toContain("No recommendations");
+    expect(html).not.toContain("Nobody has recommended");
   });
 });
 
@@ -125,13 +176,40 @@ describe("readWeatherRecommendationVenueLoad", () => {
     });
   });
 
-  it("rejects malformed payloads instead of rendering them as an empty venue", () => {
+  it("rejects a malformed envelope instead of rendering it as an empty venue", () => {
+    expect(
+      readWeatherRecommendationVenueLoad({
+        matchingConditions: ["warm"],
+        recommendations: [],
+      }),
+    ).toEqual({ status: "invalid" });
+    expect(
+      readWeatherRecommendationVenueLoad({
+        weatherStatus: "available",
+        matchingConditions: ["snowy"],
+        recommendations: [],
+      }),
+    ).toEqual({ status: "invalid" });
+  });
+
+  it("drops one unreadable row, keeps the rest, and says the read was partial", () => {
     expect(
       readWeatherRecommendationVenueLoad({
         weatherStatus: "available",
         matchingConditions: ["warm"],
-        recommendations: [{ condition: "snowy" }],
+        recommendations: [{ condition: "snowy" }, recommendation()],
+        degraded: false,
+        truncated: false,
       }),
-    ).toEqual({ status: "invalid" });
+    ).toEqual({
+      status: "ready",
+      value: {
+        weatherStatus: "available",
+        matchingConditions: ["warm"],
+        recommendations: [recommendation()],
+        degraded: true,
+        truncated: false,
+      },
+    });
   });
 });

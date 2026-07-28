@@ -16,10 +16,12 @@ import {
   validateWeatherRecommendation,
   weatherRecommendationConditionLabel,
   weatherRecommendationConditionSentence,
+  weatherRecommendationErrorField,
   WEATHER_RECOMMENDATION_CONDITIONS,
   WEATHER_RECOMMENDATION_REASON_MAX,
   type WeatherRecommendation,
   type WeatherRecommendationCondition,
+  type WeatherRecommendationErrorField,
 } from "@/lib/weatherRecommendations";
 
 import "./venueWeatherRecommendations.css";
@@ -27,23 +29,20 @@ import "./venueWeatherRecommendations.css";
 const HANDLE_KEY = "pubmax_handle";
 const HANDLE_MAX = 30;
 
-type RecommendationErrorField = "handle" | "reason" | null;
-
 type RecommendationFormError = {
   message: string;
-  field: RecommendationErrorField;
+  field: WeatherRecommendationErrorField;
 };
 
-function recommendationError(message: string): RecommendationFormError {
-  const field: RecommendationErrorField =
-    message === "Add your Pubmaxx handle." ||
-    message.includes("handle belongs") ||
-    message.includes("handle was just claimed")
-      ? "handle"
-      : message.startsWith("Say why") ||
-          message.startsWith("Say plainly")
-        ? "reason"
-        : null;
+// Which field a refusal belongs to is answered by the shared validator's own
+// message table, or by the route's machine code when the refusal is about who
+// owns the handle. Never by reading server prose.
+function recommendationError(
+  message: string,
+  code?: unknown,
+): RecommendationFormError {
+  const field: WeatherRecommendationErrorField =
+    code === "FORBIDDEN" ? "handle" : weatherRecommendationErrorField(message);
   return { message, field };
 }
 
@@ -105,18 +104,22 @@ export function readWeatherRecommendationVenueLoad(
   ) {
     return { status: "invalid" };
   }
-  const recommendations = body.recommendations.map(readRecommendation);
-  if (recommendations.some((row) => row === null)) {
-    return { status: "invalid" };
-  }
+  // One unreadable row is not an unreadable venue. The store drops a bad row
+  // and keeps the rest, so this half does the same and says the read was
+  // partial rather than throwing away opinions the server could read.
+  const parsed = body.recommendations.map(readRecommendation);
+  const recommendations = parsed.filter(
+    (row): row is WeatherRecommendation => row !== null,
+  );
   return {
     status: "ready",
     value: {
       weatherStatus: body.weatherStatus,
       matchingConditions:
         body.matchingConditions as WeatherRecommendationCondition[],
-      recommendations: recommendations as WeatherRecommendation[],
-      degraded: body.degraded === true,
+      recommendations,
+      degraded:
+        body.degraded === true || recommendations.length !== parsed.length,
       truncated: body.truncated === true,
     },
   };
@@ -143,25 +146,35 @@ export function WeatherRecommendationList({
   degraded: boolean;
   truncated: boolean;
 }) {
-  if (
-    recommendations.length === 0 &&
-    !degraded &&
-    weatherStatus === "available"
-  ) {
-    return null;
-  }
+  const empty = recommendations.length === 0;
 
   return (
-    <div className="weatherRecRead" aria-label={`Recommendations for ${venueName}`}>
+    <section
+      className="weatherRecRead"
+      aria-label={`Recommendations for ${venueName}`}
+    >
       {weatherStatus === "unavailable" ? (
         <p className="weatherRecAvailability" role="note">
-          We couldn&rsquo;t check the weather here just now. These are
-          Pubmaxxers&rsquo; recommendations, shown without a weather match.
+          We couldn&rsquo;t check the weather here just now.
+          {empty ? null : (
+            <>
+              {" "}
+              These are Pubmaxxers&rsquo; recommendations, shown without a
+              weather match.
+            </>
+          )}
         </p>
       ) : null}
       {degraded ? (
         <p className="weatherRecAvailability" role="note">
           We couldn&rsquo;t read every recommendation here just now.
+        </p>
+      ) : null}
+      {empty && !degraded ? (
+        <p className="weatherRecEmpty">
+          {weatherStatus === "available"
+            ? "Nobody has recommended this pub for tonight’s weather yet. Be the first."
+            : "Nobody has recommended this pub yet. Be the first."}
         </p>
       ) : null}
       {recommendations.length > 0 ? (
@@ -204,7 +217,7 @@ export function WeatherRecommendationList({
           More recommendations stay on record.
         </p>
       ) : null}
-    </div>
+    </section>
   );
 }
 
@@ -297,6 +310,7 @@ export default function VenueWeatherRecommendations({
             typeof body.error === "string"
               ? body.error
               : "Could not save that recommendation right now.",
+            body.code,
           ),
         );
         return;
@@ -349,15 +363,19 @@ export default function VenueWeatherRecommendations({
           degraded={load.degraded}
           truncated={load.truncated}
         />
-      ) : loadFailed ? (
-        <p className="weatherRecAvailability" role="note">
-          We couldn&rsquo;t read recommendations here just now.
-        </p>
-      ) : (
+      ) : loadFailed ? null : (
         <p className="weatherRecLoading" aria-live="polite">
           Checking Pubmaxxers&rsquo; recommendations for tonight.
         </p>
       )}
+
+      {loadFailed ? (
+        <p className="weatherRecAvailability" role="note">
+          {load
+            ? "We couldn’t refresh recommendations here just now, so these may be out of date."
+            : "We couldn’t read recommendations here just now."}
+        </p>
+      ) : null}
 
       <form className="weatherRecForm" onSubmit={submit}>
         <p className="weatherRecPrompt">

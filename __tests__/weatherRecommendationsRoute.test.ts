@@ -31,6 +31,7 @@ vi.mock("@/lib/venueIndex", () => ({
 
 const weatherState = vi.hoisted(() => ({
   snapshot: null as import("@/lib/weatherSnapshots").WeatherSnapshot | null,
+  reads: 0,
 }));
 
 const handleState = vi.hoisted(() => ({
@@ -42,7 +43,10 @@ const actorState = vi.hoisted(() => ({
 }));
 
 vi.mock("@/lib/weatherSnapshots.server", () => ({
-  loadWeatherSnapshot: async () => weatherState.snapshot,
+  loadWeatherSnapshot: async () => {
+    weatherState.reads += 1;
+    return weatherState.snapshot;
+  },
 }));
 
 vi.mock("@/lib/communityPriceActor", () => ({
@@ -78,6 +82,7 @@ import {
   GET,
   POST,
   WEATHER_RECOMMENDATION_RESPONSE_BUDGET_BYTES,
+  __resetWeatherSnapshotMemo,
 } from "@/app/api/weather-recommendations/route";
 import { __resetPintDrops } from "@/lib/pintDrops";
 import {
@@ -133,10 +138,12 @@ beforeEach(() => {
   venueState.unavailable = false;
   venueState.kind = "pub";
   weatherState.snapshot = snapshot();
+  weatherState.reads = 0;
   handleState.resolverUnavailable = false;
   actorState.unavailable = false;
   __resetPintDrops();
   __resetWeatherRecommendations();
+  __resetWeatherSnapshotMemo();
 });
 
 describe("POST /api/weather-recommendations", () => {
@@ -361,6 +368,21 @@ describe("GET /api/weather-recommendations", () => {
       matchingConditions: ["warm", "clear"],
       recommendations: [],
     });
+  });
+
+  it("does not re-read the durable weather snapshot on every sheet opened", async () => {
+    await seed("warm", "warm_friend", 1_000);
+
+    const first = await GET(get());
+    const second = await GET(get());
+    await GET(get());
+
+    expect(weatherState.reads).toBe(1);
+    expect(await first.json()).toEqual(await second.json());
+
+    __resetWeatherSnapshotMemo();
+    await GET(get());
+    expect(weatherState.reads).toBe(2);
   });
 
   it("keeps a maximum unavailable-weather response inside the live payload budget", async () => {

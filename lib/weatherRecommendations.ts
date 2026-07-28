@@ -33,6 +33,32 @@ export const WEATHER_RECOMMENDATION_META: Record<
 export const WEATHER_RECOMMENDATION_REASON_MIN = 8;
 export const WEATHER_RECOMMENDATION_REASON_MAX = 160;
 
+// One owner for the words a rejected write is answered with, so the authoring
+// card can mark the field that is actually wrong without reading server prose.
+export const WEATHER_RECOMMENDATION_ERRORS = {
+  missing: "Missing recommendation.",
+  venue: "A venue is required.",
+  condition: "Pick the weather this suits.",
+  handle: "Add your Pubmaxx handle.",
+  reasonTooShort: `Say why in at least ${WEATHER_RECOMMENDATION_REASON_MIN} characters.`,
+  reasonUnclear: "Say plainly why you would pick this pub.",
+} as const;
+
+export type WeatherRecommendationErrorField = "handle" | "reason" | null;
+
+export function weatherRecommendationErrorField(
+  message: string,
+): WeatherRecommendationErrorField {
+  if (message === WEATHER_RECOMMENDATION_ERRORS.handle) return "handle";
+  if (
+    message === WEATHER_RECOMMENDATION_ERRORS.reasonTooShort ||
+    message === WEATHER_RECOMMENDATION_ERRORS.reasonUnclear
+  ) {
+    return "reason";
+  }
+  return null;
+}
+
 const MAX_VENUE_ID = 64;
 
 export type WeatherRecommendationInput = {
@@ -96,25 +122,27 @@ export function validateWeatherRecommendation(
   input: unknown,
 ): WeatherRecommendationValidation {
   if (!input || typeof input !== "object" || Array.isArray(input)) {
-    return { ok: false, error: "Missing recommendation." };
+    return { ok: false, error: WEATHER_RECOMMENDATION_ERRORS.missing };
   }
   const raw = input as Record<string, unknown>;
   const venueId = clean(raw.venueId, MAX_VENUE_ID);
-  if (!venueId) return { ok: false, error: "A venue is required." };
+  if (!venueId) {
+    return { ok: false, error: WEATHER_RECOMMENDATION_ERRORS.venue };
+  }
 
   const condition =
     typeof raw.condition === "string"
       ? raw.condition.trim().toLocaleLowerCase("en-GB")
       : "";
   if (!isWeatherRecommendationCondition(condition)) {
-    return { ok: false, error: "Pick the weather this suits." };
+    return { ok: false, error: WEATHER_RECOMMENDATION_ERRORS.condition };
   }
 
   const contributorHandle = normalizeHandle(
     typeof raw.contributorHandle === "string" ? raw.contributorHandle : "",
   );
   if (!contributorHandle) {
-    return { ok: false, error: "Add your Pubmaxx handle." };
+    return { ok: false, error: WEATHER_RECOMMENDATION_ERRORS.handle };
   }
 
   const cleanedReason = clean(
@@ -124,14 +152,14 @@ export function validateWeatherRecommendation(
   if ([...cleanedReason].length < WEATHER_RECOMMENDATION_REASON_MIN) {
     return {
       ok: false,
-      error: `Say why in at least ${WEATHER_RECOMMENDATION_REASON_MIN} characters.`,
+      error: WEATHER_RECOMMENDATION_ERRORS.reasonTooShort,
     };
   }
   const reason = presentableDescription(cleanedReason);
   if (!reason) {
     return {
       ok: false,
-      error: "Say plainly why you would pick this pub.",
+      error: WEATHER_RECOMMENDATION_ERRORS.reasonUnclear,
     };
   }
 
@@ -145,6 +173,13 @@ export function validateWeatherRecommendation(
     },
   };
 }
+
+// Open-Meteo's weather codes reach us as words (`Clear`, `Drizzle`, `Rain`,
+// `Snow`, `Thunderstorm`). Rain is matched inside a compound because
+// `Thunderstorm` is one word, so a leading word boundary would quietly drop
+// every storm.
+const CLEAR_CONDITION = /\b(clear|sun|sunny)\b/i;
+const RAINING_CONDITION = /rain|drizzle|storm|shower/i;
 
 function validWeather(weather: RecommendationWeather): boolean {
   return (
@@ -161,10 +196,19 @@ function validWeather(weather: RecommendationWeather): boolean {
 /**
  * Derive every closed condition that current cached weather supports.
  *
+ * Every predicate reads an OBSERVED field: the current condition Open-Meteo
+ * reported, the apparent temperature, the wind speed. The snapshot's
+ * precipitation probability is a next-hour forecast, so it decides nothing
+ * here: a 60% chance of rain is not rain falling on the reader now, and a
+ * matched row says "recommends this when it's raining" as a statement about
+ * the present.
+ *
  * `clear` deliberately means clear skies, not sunny. Existing snapshots do not
  * carry day/night state, so calling a clear evening sunny would overstate what
- * Open-Meteo told us. Conditions may overlap because warmth and wind are
- * independent reasons to choose a venue.
+ * Open-Meteo told us. `raining` means rain, drizzle, showers or a storm.
+ * Snow is its own weather and is not part of the vocabulary, so it matches
+ * nothing rather than borrowing rain's rows. Conditions may overlap because
+ * warmth and wind are independent reasons to choose a venue.
  */
 export function conditionsForWeather(
   weather: RecommendationWeather,
@@ -172,18 +216,8 @@ export function conditionsForWeather(
   if (!validWeather(weather)) return [];
   const conditions: WeatherRecommendationCondition[] = [];
   if (weather.feelsLikeC >= 18) conditions.push("warm");
-  if (
-    /\b(clear|sun|sunny)\b/i.test(weather.condition) &&
-    weather.precipitationProbabilityPct < 30
-  ) {
-    conditions.push("clear");
-  }
-  if (
-    weather.precipitationProbabilityPct >= 60 ||
-    /\b(rain|drizzle|storm|shower|snow)\w*\b/i.test(weather.condition)
-  ) {
-    conditions.push("raining");
-  }
+  if (CLEAR_CONDITION.test(weather.condition)) conditions.push("clear");
+  if (RAINING_CONDITION.test(weather.condition)) conditions.push("raining");
   if (weather.feelsLikeC < 8) conditions.push("cold");
   if (weather.windKph !== null && weather.windKph >= 30) {
     conditions.push("windy");

@@ -15,6 +15,7 @@
 - Conditions are exactly `warm`, `clear`, `raining`, `cold`, and `windy`.
 - `clear` is used instead of `sunny` because existing snapshots do not carry day/night state. A clear night must not be called sunny.
 - Current weather comes only from `loadWeatherSnapshot` and `planningWeatherForArea`.
+- Matching reads observed fields only: the reported condition, apparent temperature and wind. The snapshot's precipitation probability is a next-hour forecast and decides nothing, and snow is not rain.
 - If current conditions cannot be checked, return and render `unavailable`, then show recommendations unconditionally with explicit copy.
 - Venue reads return at most 20 recommendation rows and stay under 8 KiB for maximum-size valid rows.
 - Contributor counts are derived by normalized handle through the store and are not shown as a venue score.
@@ -104,8 +105,8 @@ export const WEATHER_RECOMMENDATION_CONDITIONS = [
 export function conditionsForWeather(weather: RecommendationWeather): WeatherRecommendationCondition[] {
   const out: WeatherRecommendationCondition[] = [];
   if (weather.feelsLikeC >= 18) out.push("warm");
-  if (/clear|sun/i.test(weather.condition) && weather.precipitationProbabilityPct < 30) out.push("clear");
-  if (weather.precipitationProbabilityPct >= 60 || /rain|drizzle|storm|shower|snow/i.test(weather.condition)) out.push("raining");
+  if (/\b(clear|sun|sunny)\b/i.test(weather.condition)) out.push("clear");
+  if (/rain|drizzle|storm|shower/i.test(weather.condition)) out.push("raining");
   if (weather.feelsLikeC < 8) out.push("cold");
   if (weather.windKph !== null && weather.windKph >= 30) out.push("windy");
   return out;
