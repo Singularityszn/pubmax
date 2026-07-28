@@ -7,6 +7,7 @@ import path from "node:path";
 
 import { firstHttp } from "@/lib/httpUrl";
 import type { Venue } from "@/lib/venues";
+import { VENUE_MENU_ENRICHMENT_FILE } from "@/lib/venueMenuEnrichmentFile.mjs";
 
 export type VenueMenuCategoryTile = {
   id: string;
@@ -30,12 +31,7 @@ export type VenueMenuEnrichmentFile = {
   venues: Record<string, VenueMenuEnrichmentRecord>;
 };
 
-const DEFAULT_PATH = path.join(
-  process.cwd(),
-  "public",
-  "data",
-  "venue_menu_enrichment.json",
-);
+const DEFAULT_PATH = path.join(process.cwd(), VENUE_MENU_ENRICHMENT_FILE);
 
 let enrichmentPath = DEFAULT_PATH;
 let cachedIndex: ReadonlyMap<string, VenueMenuEnrichmentRecord> | undefined;

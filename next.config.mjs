@@ -2,12 +2,11 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { enabledVenuePackIncludes } from "./lib/cityVenuePacks.mjs";
 import {
   freshnessArtifactIncludeById,
   freshnessArtifactIncludes,
 } from "./lib/freshnessTracing.mjs";
-import { UK_PLACE_INDEX_TRACING_INCLUDE } from "./lib/ukPlaceIndexFile.mjs";
+import { runtimeDataPackRouteIncludes } from "./lib/venueIndexTracing.mjs";
 
 const projectRoot = path.dirname(fileURLToPath(import.meta.url));
 
@@ -28,18 +27,32 @@ const freshnessRegistry = JSON.parse(
 );
 const freshnessArtifacts = freshnessArtifactIncludes(freshnessRegistry);
 
-// /feed renders per request (as every route does — the root layout awaits
-// headers()), so it opens the drink-price overlay and every enabled city's slim
-// venue pack AT RUNTIME, both by paths built from config.
-// Same tracing blind spot as the freshness pair, and a nastier failure: the
-// venue lookup fails soft, so an untraced pack would show as an empty ambient
-// surface — indistinguishable from the honest empty state. Both halves are
-// derived (registry by dataset id, packs from lib/cityVenuePacks.mjs, which
-// lib/cities.ts reads too). __tests__/feedTracing.test.ts pins it.
-const feedDataFiles = [
-  ...freshnessArtifactIncludeById(freshnessRegistry, "drink_price_updates"),
-  ...enabledVenuePackIncludes(),
-];
+// Every App Router entry whose local import graph reaches a module that opens
+// data from a path it assembles at REQUEST time reads files Next cannot see
+// statically: the city venue packs, the venue detail manifest and rows, the id
+// alias map, the menu overlay, the UK place index. Discover the reader routes
+// from source and the file lists from the packs' own registries
+// (RUNTIME_DATA_PACKS in lib/venueIndexTracing.mjs). This makes the next reader
+// self-declaring instead of another route name somebody must remember to copy
+// here. Dynamic segment brackets are escaped by the discovery helper because
+// these keys are picomatch globs. __tests__/venueIndexTracing.test.ts pins
+// discovery, config coverage, and that no undeclared runtime-path module exists.
+const runtimeDataPackIncludes = runtimeDataPackRouteIncludes(projectRoot);
+
+// A hand-written entry for a route that ALSO reads a discovered pack must merge
+// with it, never replace it: last-write-wins here would silently drop the packs
+// that route was found to open.
+function withRuntimeDataPacks(route, files) {
+  return [...new Set([...(runtimeDataPackIncludes[route] ?? []), ...files])];
+}
+
+// /feed also opens the sourced-price overlay at request time. That file is a
+// separate dynamic path derived from the freshness registry; merge it with the
+// packs discovered above. __tests__/feedTracing.test.ts pins both.
+const feedDataFiles = withRuntimeDataPacks(
+  "/feed",
+  freshnessArtifactIncludeById(freshnessRegistry, "drink_price_updates"),
+);
 
 // Per-deploy build id for the offline service worker (issue #32). Evaluated
 // once when `next build` loads this config and inlined into the client bundle
@@ -105,19 +118,15 @@ const nextConfig = {
     formats: ["image/avif", "image/webp"],
   },
   outputFileTracingIncludes: {
-    // App Router dynamic segment — must match app/api/venue/[id]/route.ts.
-    "/api/venue/[id]": [
-      "./data/generated/venue_detail_index.json",
-      "./data/generated/venue_details.jsonl",
-    ],
+    ...runtimeDataPackIncludes,
     // Both freshness readers need every registered artifact (see above).
-    "/api/freshness": freshnessArtifacts,
-    "/api/cron/freshness-audit": freshnessArtifacts,
+    "/api/freshness": withRuntimeDataPacks("/api/freshness", freshnessArtifacts),
+    "/api/cron/freshness-audit": withRuntimeDataPacks(
+      "/api/cron/freshness-audit",
+      freshnessArtifacts,
+    ),
     // The dynamic feed opens its overlay + venue packs per request (see above).
     "/feed": feedDataFiles,
-    // /map resolves a ?place= arrival against the UK place index per request
-    // (lib/ukPlaceIndex.server.ts), which Next cannot see statically.
-    "/map": [UK_PLACE_INDEX_TRACING_INCLUDE],
   },
   turbopack: {
     root: projectRoot,
