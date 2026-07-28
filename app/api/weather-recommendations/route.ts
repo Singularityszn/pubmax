@@ -22,6 +22,7 @@ import {
   conditionsForWeather,
   matchingWeatherRecommendations,
   validateWeatherRecommendation,
+  WEATHER_RECOMMENDATION_RESPONSE_BUDGET_BYTES,
   type WeatherRecommendation,
   type WeatherRecommendationCondition,
 } from "@/lib/weatherRecommendations";
@@ -31,48 +32,11 @@ import {
 } from "@/lib/weatherRecommendationStore";
 import {
   planningWeatherForArea,
-  type WeatherSnapshot,
 } from "@/lib/weatherSnapshots";
-import { loadWeatherSnapshot } from "@/lib/weatherSnapshots.server";
+import { cachedWeatherRecommendationSnapshot } from "@/lib/weatherRecommendationSnapshotMemo.server";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
-
-export const WEATHER_RECOMMENDATION_RESPONSE_BUDGET_BYTES = 8 * 1024;
-
-// Every venue sheet opened asks this route whether tonight matches, so the
-// durable snapshot read is held briefly per process. The cron plane writes
-// hourly, and expiry is still judged against the request clock by
-// planningWeatherForArea, so a memo can only ever be a repeat of the same
-// answer, never a stale one presented as current.
-const WEATHER_SNAPSHOT_MEMO_MS = 60_000;
-
-let weatherSnapshotMemo: {
-  readAt: number;
-  snapshot: Promise<WeatherSnapshot | null>;
-} | null = null;
-
-function cachedWeatherSnapshot(now: number): Promise<WeatherSnapshot | null> {
-  const memo = weatherSnapshotMemo;
-  if (memo && now - memo.readAt < WEATHER_SNAPSHOT_MEMO_MS) return memo.snapshot;
-  const entry = {
-    readAt: now,
-    snapshot: loadWeatherSnapshot().catch((error: unknown) => {
-      if (weatherSnapshotMemo === entry) weatherSnapshotMemo = null;
-      console.error(
-        "[weather-recommendations] weather read failed:",
-        error instanceof Error ? error.message : String(error),
-      );
-      return null;
-    }),
-  };
-  weatherSnapshotMemo = entry;
-  return entry.snapshot;
-}
-
-export function __resetWeatherSnapshotMemo(): void {
-  weatherSnapshotMemo = null;
-}
 
 const ACTOR_WRITE_LIMIT = 30;
 const VENUE_WRITE_LIMIT = 5;
@@ -277,7 +241,9 @@ export async function GET(request: Request): Promise<Response> {
     venueLookup.venue.lng,
     venueLookup.venue.lat,
   ]);
-  const snapshot = area ? await cachedWeatherSnapshot(now.getTime()) : null;
+  const snapshot = area
+    ? await cachedWeatherRecommendationSnapshot(now.getTime())
+    : null;
   const weather =
     area && snapshot
       ? planningWeatherForArea(snapshot, area.slug, now.getTime())

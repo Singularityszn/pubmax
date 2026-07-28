@@ -81,15 +81,15 @@ vi.mock("@/lib/supabase", async (importOriginal) => {
 import {
   GET,
   POST,
-  WEATHER_RECOMMENDATION_RESPONSE_BUDGET_BYTES,
-  __resetWeatherSnapshotMemo,
 } from "@/app/api/weather-recommendations/route";
 import { __resetPintDrops } from "@/lib/pintDrops";
+import { __resetWeatherSnapshotMemo } from "@/lib/weatherRecommendationSnapshotMemo.server";
 import {
   __resetWeatherRecommendations,
   memoryWeatherRecommendationStore,
 } from "@/lib/weatherRecommendationStore";
 import type { WeatherSnapshot } from "@/lib/weatherSnapshots";
+import { WEATHER_RECOMMENDATION_RESPONSE_BUDGET_BYTES } from "@/lib/weatherRecommendations";
 
 function snapshot(
   overrides: Partial<WeatherSnapshot["observations"][number]> = {},

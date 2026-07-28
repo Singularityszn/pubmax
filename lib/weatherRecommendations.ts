@@ -32,6 +32,7 @@ export const WEATHER_RECOMMENDATION_META: Record<
 
 export const WEATHER_RECOMMENDATION_REASON_MIN = 8;
 export const WEATHER_RECOMMENDATION_REASON_MAX = 160;
+export const WEATHER_RECOMMENDATION_RESPONSE_BUDGET_BYTES = 8 * 1024;
 
 // One owner for the words a rejected write is answered with, so the authoring
 // card can mark the field that is actually wrong without reading server prose.
