@@ -11,6 +11,7 @@ vi.mock("@/lib/authServer", () => ({
 }));
 
 import { DELETE } from "@/app/api/profiles/[handle]/route";
+import { POST as inviteLink } from "@/app/api/referrals/invite-link/route";
 import {
   __resetNightMemoryStore,
   acceptStoryContribution,
@@ -94,5 +95,12 @@ describe("DELETE /api/profiles/[handle] triggers one-choke redaction (5.5)", () 
       attributedCount: 0,
       qualifiedCount: 0,
     });
+    const inviteResponse = await inviteLink(
+      new Request("http://localhost/api/referrals/invite-link", {
+        method: "POST",
+        headers: { authorization: "Bearer solo-user" },
+      }),
+    );
+    expect(inviteResponse.status).toBe(409);
   });
 });

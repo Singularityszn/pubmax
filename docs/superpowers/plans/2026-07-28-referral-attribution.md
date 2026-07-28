@@ -116,7 +116,10 @@ Expected: PASS.
 
 - [ ] **Step 1: Write failing route tests**
 
-Cover invalid invite redirects without a cookie, valid first-touch cookie retention, 30-day cookie attributes, authenticated invite link creation, anonymous API rejection, delayed signup claim, pre-existing account rejection, self/circle rejection, no-store responses, and identity-free status JSON.
+Cover consent handoff redirects without a cookie, consented first-touch cookie
+retention, 30-day cookie attributes, authenticated invite link creation,
+anonymous API rejection, delayed signup claim, pre-existing account rejection,
+self/circle rejection, no-store responses, and identity-free status JSON.
 
 - [ ] **Step 2: Run route tests and confirm missing-route failure**
 
@@ -126,7 +129,13 @@ Expected: FAIL because referral routes do not exist.
 
 - [ ] **Step 3: Implement route handlers**
 
-Set `pubmaxx_referral_journey` as `HttpOnly`, `SameSite=Lax`, `Path=/`, 30-day max age, and `Secure` outside local HTTP. Claim using verified JWT user ID and account creation time only. Clear invalid, expired, or consumed journey cookies. Return only viewer-owned link and aggregate milestone status.
+Redirect the public invite GET through a fragment without setting a cookie. The
+landing client may start a journey only when the existing consent choice allows
+optional collection. Set `pubmaxx_referral_journey` as `HttpOnly`,
+`SameSite=Lax`, `Path=/`, 30-day max age, and `Secure` outside local HTTP. Claim
+using verified JWT user ID and account creation time only. Clear invalid,
+expired, consumed, or consent-revoked journey cookies. Return only viewer-owned
+link and aggregate milestone status.
 
 - [ ] **Step 4: Wire post-signup claim**
 

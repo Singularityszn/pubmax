@@ -11,12 +11,14 @@ qualification events, and reward history. `lib/referrals.ts` owns milestone
 policy and closed grant gate. Public profiles and contribution leaderboards
 must not import either module.
 
-Browser attribution is first-touch and lasts for one bounded journey. It works
-when a person follows a valid link and creates an account in that browser before
-the journey expires. It genuinely fails when cookies are blocked or cleared,
-signup happens on another browser or device, the journey expires, the link is
-invalid, or account creation predates the click. These are absence of proof, so
-they never fall back to a guessed attribution.
+Browser attribution is first-touch, consent-gated, and lasts for one bounded
+journey. Following a link redirects through a fragment that the landing client
+removes immediately. Only an existing Anonymous usage analytics Allow choice
+lets that client start the private journey and receive its HttpOnly cookie. It
+genuinely fails when consent is absent, cookies are blocked or cleared, signup
+happens on another browser or device, the journey expires, the link is invalid,
+or account creation predates the click. These are absence of proof, so they
+never fall back to a guessed attribution.
 
 An account edge alone is not a qualified referral. Qualification needs a first
 accepted contribution carrying that invited account's verified auth ID. Current
@@ -66,3 +68,6 @@ Invite edges and both account IDs stay private. APIs return only the signed-in
 account's own link and aggregate counts. Ordinary edge, qualification, and
 ledger writes are append-only. Verified account erasure uses the dedicated
 database erasure function so auditability does not override deletion rights.
+Erasure also stores a one-way account-ID hash in a referral-only write block.
+Every referral write checks that block, so a still-valid session cannot recreate
+private referral data after deletion.

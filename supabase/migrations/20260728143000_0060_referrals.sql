@@ -5,6 +5,15 @@
 -- Contribution qualification is intentionally callable only by service_role
 -- and has no route until contribution rows carry authenticated user ids.
 
+create extension if not exists "pgcrypto";
+
+create table if not exists public.referral_erasure_blocks (
+  user_id_hash text primary key,
+  erased_at timestamptz not null default now(),
+  constraint referral_erasure_blocks_hash_chk
+    check (user_id_hash ~ '^[0-9a-f]{64}$')
+);
+
 create table if not exists public.referral_invite_codes (
   inviter_user_id uuid primary key,
   code_hash text not null unique,
@@ -91,12 +100,14 @@ create index if not exists referral_ledger_beneficiary_idx
   on public.pro_feature_unlock_ledger (beneficiary_user_id, created_at);
 
 alter table public.referral_invite_codes enable row level security;
+alter table public.referral_erasure_blocks enable row level security;
 alter table public.referral_attribution_journeys enable row level security;
 alter table public.referral_edges enable row level security;
 alter table public.referral_qualification_events enable row level security;
 alter table public.pro_feature_unlock_ledger enable row level security;
 
 revoke all on public.referral_invite_codes from public, anon, authenticated;
+revoke all on public.referral_erasure_blocks from public, anon, authenticated;
 revoke all on public.referral_attribution_journeys from public, anon, authenticated;
 revoke all on public.referral_edges from public, anon, authenticated;
 revoke all on public.referral_qualification_events from public, anon, authenticated;
@@ -172,6 +183,16 @@ begin
     return jsonb_build_object('ok', false, 'reason', 'invalid_user');
   end if;
 
+  perform pg_advisory_xact_lock(
+    hashtextextended(p_inviter_user_id::text, 0)
+  );
+  if exists (
+    select 1 from public.referral_erasure_blocks
+    where user_id_hash = encode(digest(p_inviter_user_id::text, 'sha256'), 'hex')
+  ) then
+    return jsonb_build_object('ok', false, 'reason', 'deleted_identity');
+  end if;
+
   insert into public.referral_invite_codes (
     inviter_user_id,
     code_hash,
@@ -228,6 +249,18 @@ begin
       and expires_at >= p_now;
 
     if found then
+      perform pg_advisory_xact_lock(
+        hashtextextended(candidate.inviter_user_id::text, 0)
+      );
+      if exists (
+        select 1 from public.referral_erasure_blocks
+        where user_id_hash = encode(
+          digest(candidate.inviter_user_id::text, 'sha256'),
+          'hex'
+        )
+      ) then
+        return jsonb_build_object('ok', false, 'reason', 'deleted_identity');
+      end if;
       return jsonb_build_object(
         'ok', true,
         'retained', true,
@@ -242,6 +275,14 @@ begin
 
   if inviter is null then
     return jsonb_build_object('ok', false, 'reason', 'unknown_code');
+  end if;
+
+  perform pg_advisory_xact_lock(hashtextextended(inviter::text, 0));
+  if exists (
+    select 1 from public.referral_erasure_blocks
+    where user_id_hash = encode(digest(inviter::text, 'sha256'), 'hex')
+  ) then
+    return jsonb_build_object('ok', false, 'reason', 'deleted_identity');
   end if;
 
   insert into public.referral_attribution_journeys (
@@ -291,6 +332,16 @@ begin
   perform pg_advisory_xact_lock(
     hashtextextended(greatest(p_inviter_user_id::text, p_invitee_user_id::text), 0)
   );
+
+  if exists (
+    select 1 from public.referral_erasure_blocks
+    where user_id_hash in (
+      encode(digest(p_inviter_user_id::text, 'sha256'), 'hex'),
+      encode(digest(p_invitee_user_id::text, 'sha256'), 'hex')
+    )
+  ) then
+    return jsonb_build_object('ok', false, 'reason', 'deleted_identity');
+  end if;
 
   select * into candidate
   from public.referral_edges
@@ -351,6 +402,25 @@ declare
   journey public.referral_attribution_journeys%rowtype;
   edge_result jsonb;
 begin
+  if p_invitee_user_id is null then
+    return jsonb_build_object('ok', false, 'reason', 'storage');
+  end if;
+
+  select * into journey
+  from public.referral_attribution_journeys
+  where token_hash = p_token_hash;
+
+  if not found then
+    return jsonb_build_object('ok', false, 'reason', 'unknown');
+  end if;
+
+  perform pg_advisory_xact_lock(
+    hashtextextended(least(journey.inviter_user_id::text, p_invitee_user_id::text), 0)
+  );
+  perform pg_advisory_xact_lock(
+    hashtextextended(greatest(journey.inviter_user_id::text, p_invitee_user_id::text), 0)
+  );
+
   select * into journey
   from public.referral_attribution_journeys
   where token_hash = p_token_hash
@@ -410,6 +480,9 @@ declare
   feature_key text;
   triggering_edge_id uuid;
 begin
+  if p_invitee_user_id is null then
+    return jsonb_build_object('ok', false, 'reason', 'storage');
+  end if;
   if p_contribution_kind not in (
     'community_price',
     'visit_report',
@@ -423,7 +496,43 @@ begin
   where invitee_user_id = p_invitee_user_id;
 
   if not found then
+    perform pg_advisory_xact_lock(
+      hashtextextended(p_invitee_user_id::text, 0)
+    );
+    if exists (
+      select 1 from public.referral_erasure_blocks
+      where user_id_hash = encode(
+        digest(p_invitee_user_id::text, 'sha256'),
+        'hex'
+      )
+    ) then
+      return jsonb_build_object('ok', false, 'reason', 'deleted_identity');
+    end if;
     return jsonb_build_object('ok', false, 'reason', 'no_edge');
+  end if;
+
+  perform pg_advisory_xact_lock(
+    hashtextextended(least(edge.inviter_user_id::text, p_invitee_user_id::text), 0)
+  );
+  perform pg_advisory_xact_lock(
+    hashtextextended(greatest(edge.inviter_user_id::text, p_invitee_user_id::text), 0)
+  );
+
+  select * into edge
+  from public.referral_edges
+  where invitee_user_id = p_invitee_user_id;
+
+  if not found then
+    return jsonb_build_object('ok', false, 'reason', 'no_edge');
+  end if;
+  if exists (
+    select 1 from public.referral_erasure_blocks
+    where user_id_hash in (
+      encode(digest(edge.inviter_user_id::text, 'sha256'), 'hex'),
+      encode(digest(p_invitee_user_id::text, 'sha256'), 'hex')
+    )
+  ) then
+    return jsonb_build_object('ok', false, 'reason', 'deleted_identity');
   end if;
 
   insert into public.referral_qualification_events (
@@ -558,6 +667,14 @@ security definer
 set search_path = public
 as $$
 begin
+  if p_user_id is null then
+    return;
+  end if;
+  perform pg_advisory_xact_lock(hashtextextended(p_user_id::text, 0));
+  insert into public.referral_erasure_blocks (user_id_hash)
+  values (encode(digest(p_user_id::text, 'sha256'), 'hex'))
+  on conflict (user_id_hash) do nothing;
+
   perform set_config('pubmaxx.referral_erasure', 'on', true);
 
   delete from public.pro_feature_unlock_ledger

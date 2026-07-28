@@ -171,4 +171,82 @@ describe("referral attribution store", () => {
       grantedFeatures: [],
     });
   });
+
+  it("refuses every referral write after an identity is erased", async () => {
+    const inviterCode = await memoryReferralStore.getOrCreateInviteCode(
+      "deleted-user",
+    );
+    const otherCode = await memoryReferralStore.getOrCreateInviteCode("other");
+    const journey = await memoryReferralStore.startJourney(
+      otherCode.code,
+      null,
+      START,
+    );
+
+    await memoryReferralStore.eraseAccount("deleted-user");
+
+    await expect(
+      memoryReferralStore.getOrCreateInviteCode("deleted-user"),
+    ).rejects.toThrow();
+    expect(
+      await memoryReferralStore.startJourney(inviterCode.code, null, START + 1),
+    ).toBeNull();
+    expect(
+      await memoryReferralStore.recordEdge(
+        "deleted-user",
+        "fresh-invitee",
+        START + 1,
+      ),
+    ).toEqual({ ok: false, reason: "deleted_identity" });
+    expect(
+      await memoryReferralStore.recordEdge(
+        "fresh-inviter",
+        "deleted-user",
+        START + 1,
+      ),
+    ).toEqual({ ok: false, reason: "deleted_identity" });
+    expect(
+      await memoryReferralStore.claimJourney({
+        token: journey!.token,
+        inviteeUserId: "deleted-user",
+        inviteeCreatedAt: new Date(START).toISOString(),
+        now: START + 1,
+      }),
+    ).toEqual({ ok: false, reason: "deleted_identity" });
+    expect(
+      await memoryReferralStore.qualify({
+        inviteeUserId: "deleted-user",
+        contributionKind: "visit_report",
+        contributionId: "visit-after-erasure",
+        acceptedAt: START + 1,
+      }),
+    ).toEqual({ ok: false, reason: "deleted_identity" });
+  });
+
+  it("records milestone three when qualifications arrive concurrently", async () => {
+    for (let index = 1; index <= 3; index += 1) {
+      await memoryReferralStore.recordEdge(
+        "inviter",
+        `concurrent-${index}`,
+        START + index,
+      );
+    }
+
+    await Promise.all(
+      [1, 2, 3].map((index) =>
+        memoryReferralStore.qualify({
+          inviteeUserId: `concurrent-${index}`,
+          contributionKind: "community_price",
+          contributionId: `price-concurrent-${index}`,
+          acceptedAt: START + DAY + index,
+        })
+      ),
+    );
+
+    expect(
+      (await memoryReferralStore.privateStatus("inviter")).earned.map(
+        ({ milestone }) => milestone,
+      ),
+    ).toEqual([1, 3]);
+  });
 });

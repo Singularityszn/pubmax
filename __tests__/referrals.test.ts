@@ -5,6 +5,7 @@ import { describe, expect, it } from "vitest";
 import {
   REFERRAL_GRANT_GATE,
   REFERRAL_MILESTONES,
+  referralCaptureDecision,
   referralFeatureForMilestone,
   referralFeaturesGrantedBy,
 } from "@/lib/referrals";
@@ -49,5 +50,42 @@ describe("referral reward policy", () => {
     expect(migration).toMatch(/referral_grant_insert_gate/);
     expect(migration).toMatch(/is distinct from 'on'/);
     expect(migration).toMatch(/referral feature grants are disabled/);
+  });
+
+  it("captures a referral fragment only after existing consent", () => {
+    expect(
+      referralCaptureDecision("#referral=opaque_code_123456789", false),
+    ).toEqual({ clearHash: true, code: null });
+    expect(
+      referralCaptureDecision("#referral=opaque_code_123456789", true),
+    ).toEqual({ clearHash: true, code: "opaque_code_123456789" });
+    expect(referralCaptureDecision("#section", true)).toEqual({
+      clearHash: false,
+      code: null,
+    });
+  });
+
+  it("serializes qualification before inserting and counting", () => {
+    const migration = readFileSync(
+      join(
+        process.cwd(),
+        "supabase/migrations/20260728143000_0060_referrals.sql",
+      ),
+      "utf8",
+    );
+    const qualification = migration.slice(
+      migration.indexOf(
+        "create or replace function public.qualify_referral_from_contribution",
+      ),
+      migration.indexOf(
+        "create or replace function public.read_private_referral_status",
+      ),
+    );
+    expect(qualification.indexOf("pg_advisory_xact_lock")).toBeGreaterThan(-1);
+    expect(qualification.indexOf("pg_advisory_xact_lock")).toBeLessThan(
+      qualification.indexOf(
+        "insert into public.referral_qualification_events",
+      ),
+    );
   });
 });

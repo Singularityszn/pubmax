@@ -65,3 +65,7 @@ export async function POST(request: Request): Promise<Response> {
     true,
   );
 }
+
+export async function DELETE(request: Request): Promise<Response> {
+  return reply(request, { revoked: true }, 200, true);
+}

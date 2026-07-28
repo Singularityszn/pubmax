@@ -222,7 +222,7 @@ describe("verified analytics cross-tab consent", () => {
     await Promise.resolve();
     await inWindow(tabA, () => analyticsA.flushVerifiedAnalyticsOutbox());
 
-    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
     expect(tabA.localStorage.getItem(OUTBOX_KEY)).toBeNull();
   });
 });

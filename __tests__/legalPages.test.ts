@@ -85,6 +85,13 @@ describe("legal content pages", () => {
     expect(terms).toMatch(/same app either way/);
   });
 
+  it("discloses referral consent and post-erasure write blocking", () => {
+    expect(privacy).toMatch(/Only after they have tapped Allow/);
+    expect(privacy).toMatch(/referral attribution[^]*consent-only/);
+    expect(privacy).toMatch(/one-way hash of the deleted account ID/);
+    expect(privacy).toMatch(/existing session cannot recreate/);
+  });
+
   it("discloses precise location processing without overstating retention", () => {
     expect(privacy).toMatch(/coordinates never leave your\s+device/);
     expect(privacy).toMatch(/\/api\/whats-on/);
@@ -223,7 +230,7 @@ describe("legal content pages", () => {
     expect(privacy).toMatch(/private referral edge/i);
     expect(privacy).toMatch(/HttpOnly/);
     expect(privacy).toMatch(/30 days/);
-    expect(privacy).toMatch(/same browser/);
+    expect(privacy).toMatch(/same\s+browser/);
     expect(privacy).toMatch(/clear or block cookies/i);
     expect(privacy).toMatch(/different\s+browser or device/i);
     expect(privacy).toMatch(/never shown on a public profile/i);

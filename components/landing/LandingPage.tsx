@@ -38,7 +38,8 @@ import {
 } from "@/lib/cityPreference";
 import { warmMapRoute } from "@/lib/mapWarmup";
 import { CONTACT_MAILTO } from "@/lib/siteContact";
-import { trackEvent } from "@/lib/analytics";
+import { analyticsCollectionAllowed, trackEvent } from "@/lib/analytics";
+import { referralCaptureDecision } from "@/lib/referrals";
 
 import PintDropStripLoading from "./PintDropStripLoading";
 import ThamesHero from "./ThamesHero";
@@ -149,6 +150,26 @@ export default function LandingPage({
   const readout = heroReadout(stats);
 
   useEffect(() => {
+    const referral = referralCaptureDecision(
+      window.location.hash,
+      analyticsCollectionAllowed(),
+    );
+    if (referral.clearHash) {
+      window.history.replaceState(
+        window.history.state,
+        "",
+        `${window.location.pathname}${window.location.search}`,
+      );
+    }
+    if (referral.code) {
+      void fetch(`/r/${encodeURIComponent(referral.code)}`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ consent: true }),
+        credentials: "same-origin",
+      }).catch(() => undefined);
+    }
+
     const hour = new Date().getHours();
     const daypart = hour < 12 ? "morning" : hour < 17 ? "afternoon" : hour < 22 ? "evening" : "night";
     trackEvent("discovery_viewed", { surface: "landing", daypart });

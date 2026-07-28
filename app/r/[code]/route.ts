@@ -18,6 +18,38 @@ export async function GET(
   context: RouteContext,
 ): Promise<Response> {
   const { code } = await context.params;
+  const destination = new URL("/", request.url);
+  destination.hash = new URLSearchParams({ referral: code }).toString();
+  const response = NextResponse.redirect(destination);
+  response.headers.set("Cache-Control", "no-store");
+  return response;
+}
+
+export async function POST(
+  request: Request,
+  context: RouteContext,
+): Promise<Response> {
+  if (!request.headers.get("content-type")?.startsWith("application/json")) {
+    return publicApiError(
+      "This referral handoff is invalid.",
+      "INVALID_REQUEST",
+      400,
+      { retryable: false },
+    );
+  }
+  const body = await request.json().catch(() => null) as
+    | { consent?: unknown }
+    | null;
+  if (body?.consent !== true) {
+    return publicApiError(
+      "Referral attribution needs your consent.",
+      "CONSENT_REQUIRED",
+      400,
+      { retryable: false },
+    );
+  }
+
+  const { code } = await context.params;
   const ipKey = `referral-journey:${hashIp(clientIp(request))}`;
   if (await isLimited(ipKey, ipKey, 120, 60 * 60 * 1_000)) {
     return publicApiError(
@@ -27,8 +59,6 @@ export async function GET(
       { retryable: true },
     );
   }
-  const destination = new URL("/", request.url);
-  const response = NextResponse.redirect(destination);
   let journey: Awaited<
     ReturnType<ReturnType<typeof referralStore>["startJourney"]>
   >;
@@ -45,9 +75,12 @@ export async function GET(
       { retryable: true },
     );
   }
+  const response = NextResponse.json(
+    { captured: Boolean(journey) },
+    { headers: { "Cache-Control": "no-store" } },
+  );
   if (journey) {
     setReferralJourneyCookie(response, request, journey.token);
   }
-  response.headers.set("Cache-Control", "no-store");
   return response;
 }

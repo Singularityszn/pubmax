@@ -1,6 +1,9 @@
 import { jsonNoStore } from "@/lib/apiResponses";
 import { callerUserId } from "@/lib/authServer";
-import { referralStore } from "@/lib/referralStore";
+import {
+  ReferralIdentityDeletedError,
+  referralStore,
+} from "@/lib/referralStore";
 import { siteOrigin } from "@/lib/siteUrl";
 
 export async function POST(request: Request): Promise<Response> {
@@ -14,7 +17,13 @@ export async function POST(request: Request): Promise<Response> {
   let code: string;
   try {
     ({ code } = await referralStore().getOrCreateInviteCode(userId));
-  } catch {
+  } catch (error) {
+    if (error instanceof ReferralIdentityDeletedError) {
+      return jsonNoStore(
+        { error: error.message },
+        { status: 409 },
+      );
+    }
     return jsonNoStore(
       { error: "Your invite link could not be made right now." },
       { status: 503 },

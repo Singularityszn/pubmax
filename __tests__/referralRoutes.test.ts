@@ -22,10 +22,16 @@ vi.mock("@/lib/authServer", async (importOriginal) => {
   };
 });
 
-import { POST as claimAttribution } from "@/app/api/referrals/claim-attribution/route";
+import {
+  DELETE as revokeAttribution,
+  POST as claimAttribution,
+} from "@/app/api/referrals/claim-attribution/route";
 import { POST as inviteLink } from "@/app/api/referrals/invite-link/route";
 import { GET as referralStatus } from "@/app/api/referrals/status/route";
-import { GET as followInvite } from "@/app/r/[code]/route";
+import {
+  GET as followInvite,
+  POST as startInviteJourney,
+} from "@/app/r/[code]/route";
 import {
   __resetMemoryReferrals,
   memoryReferralStore,
@@ -72,7 +78,7 @@ describe("referral routes", () => {
     expect(JSON.stringify(body)).not.toContain("inviter-private");
   });
 
-  it("sets a 30-day HttpOnly first-touch cookie and redirects to browsing", async () => {
+  it("redirects to a consent handoff without setting an attribution cookie", async () => {
     vi.setSystemTime(START);
     const { code } = await memoryReferralStore.getOrCreateInviteCode("inviter");
     const response = await followInvite(
@@ -81,7 +87,26 @@ describe("referral routes", () => {
     );
 
     expect(response.status).toBe(307);
-    expect(response.headers.get("location")).toBe(`${ORIGIN}/`);
+    expect(response.headers.get("location")).toBe(
+      `${ORIGIN}/#referral=${code}`,
+    );
+    expect(response.headers.get("set-cookie")).toBeNull();
+  });
+
+  it("sets the 30-day journey cookie only through the consented handoff", async () => {
+    vi.setSystemTime(START);
+    const { code } = await memoryReferralStore.getOrCreateInviteCode("inviter");
+    const response = await startInviteJourney(
+      request(`/r/${code}`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ consent: true }),
+      }),
+      { params: Promise.resolve({ code }) },
+    );
+
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({ captured: true });
     const cookie = response.headers.get("set-cookie") ?? "";
     expect(cookie).toMatch(/^pubmaxx_referral_journey=/);
     expect(cookie).toContain("HttpOnly");
@@ -91,32 +116,73 @@ describe("referral routes", () => {
     expect(cookie).toContain("Secure");
   });
 
+  it("refuses a journey handoff without consent", async () => {
+    const { code } = await memoryReferralStore.getOrCreateInviteCode("inviter");
+    const response = await startInviteJourney(
+      request(`/r/${code}`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ consent: false }),
+      }),
+      { params: Promise.resolve({ code }) },
+    );
+
+    expect(response.status).toBe(400);
+    expect(response.headers.get("set-cookie")).toBeNull();
+  });
+
   it("bounds public journey creation before writing another row", async () => {
     const { code } = await memoryReferralStore.getOrCreateInviteCode("inviter");
     limiterState.limited = true;
 
-    const response = await followInvite(
-      request(`/r/${code}`),
+    const response = await startInviteJourney(
+      request(`/r/${code}`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ consent: true }),
+      }),
       { params: Promise.resolve({ code }) },
     );
     expect(response.status).toBe(429);
     expect(response.headers.get("set-cookie")).toBeNull();
   });
 
+  it("clears the journey cookie when consent is withdrawn", async () => {
+    const response = await revokeAttribution(
+      request("/api/referrals/claim-attribution", {
+        method: "DELETE",
+        headers: { cookie: "pubmaxx_referral_journey=opaque" },
+      }),
+    );
+
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({ revoked: true });
+    expect(response.headers.get("set-cookie")).toContain("Max-Age=0");
+  });
+
   it("does not replace a valid first-touch journey after another invite link", async () => {
     vi.setSystemTime(START);
     const first = await memoryReferralStore.getOrCreateInviteCode("first");
     const second = await memoryReferralStore.getOrCreateInviteCode("second");
-    const firstResponse = await followInvite(
-      request(`/r/${first.code}`),
+    const firstResponse = await startInviteJourney(
+      request(`/r/${first.code}`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ consent: true }),
+      }),
       { params: Promise.resolve({ code: first.code }) },
     );
     const firstCookie = (firstResponse.headers.get("set-cookie") ?? "")
       .match(/pubmaxx_referral_journey=([^;]+)/)?.[1];
 
-    const secondResponse = await followInvite(
+    const secondResponse = await startInviteJourney(
       request(`/r/${second.code}`, {
-        headers: { cookie: `pubmaxx_referral_journey=${firstCookie}` },
+        method: "POST",
+        headers: {
+          cookie: `pubmaxx_referral_journey=${firstCookie}`,
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({ consent: true }),
       }),
       { params: Promise.resolve({ code: second.code }) },
     );
@@ -128,8 +194,12 @@ describe("referral routes", () => {
   it("records delayed signup attribution once and clears the journey cookie", async () => {
     vi.setSystemTime(START);
     const { code } = await memoryReferralStore.getOrCreateInviteCode("inviter");
-    const visit = await followInvite(
-      request(`/r/${code}`),
+    const visit = await startInviteJourney(
+      request(`/r/${code}`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ consent: true }),
+      }),
       { params: Promise.resolve({ code }) },
     );
     const token = (visit.headers.get("set-cookie") ?? "")
@@ -157,8 +227,12 @@ describe("referral routes", () => {
   it("does not credit an account created before the invite journey", async () => {
     vi.setSystemTime(START);
     const { code } = await memoryReferralStore.getOrCreateInviteCode("inviter");
-    const visit = await followInvite(
-      request(`/r/${code}`),
+    const visit = await startInviteJourney(
+      request(`/r/${code}`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ consent: true }),
+      }),
       { params: Promise.resolve({ code }) },
     );
     const token = (visit.headers.get("set-cookie") ?? "")

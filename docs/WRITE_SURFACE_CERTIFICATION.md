@@ -48,6 +48,8 @@ inviter from the verified JWT. `POST /api/referrals/claim-attribution` derives
 the new account and its creation time from the same verified identity, then
 combines it only with the opaque HttpOnly journey cookie. Neither route accepts
 an account ID in its body, and neither returns either side of an invite edge.
+The anonymous journey start is a separate, rate-limited write reached only
+after the landing client confirms the existing consent choice.
 
 ## Failure posture
 

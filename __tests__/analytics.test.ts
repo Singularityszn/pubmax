@@ -120,16 +120,23 @@ describe("trackEvent", () => {
       status: 204,
       headers: { "x-analytics-delivery": "delivered" },
     }));
-    await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
+    await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(3));
     await flushVerifiedAnalyticsOutbox();
 
-    const deliveredTokens = fetchMock.mock.calls.map((call) => JSON.parse(String((call[1] as RequestInit).body)).deliveryToken);
+    const deliveredTokens = fetchMock.mock.calls.flatMap((call) => {
+      const body = (call[1] as RequestInit).body;
+      return typeof body === "string"
+        ? [JSON.parse(body).deliveryToken]
+        : [];
+    });
     expect(deliveredTokens).toEqual(["revocation-token-a", "revocation-token-a"]);
     expect(deliveredTokens).not.toContain("revocation-token-b");
   });
 
   it("creates no persistent id before consent and clears it after revocation", () => {
     setWindow();
+    const fetchMock = vi.fn().mockResolvedValue(new Response(null));
+    vi.stubGlobal("fetch", fetchMock);
     expect(anonymousAnalyticsId()).toBeNull();
 
     setAnalyticsConsent(true);
@@ -142,6 +149,10 @@ describe("trackEvent", () => {
 
     setAnalyticsConsent(false);
     expect(anonymousAnalyticsId()).toBeNull();
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/referrals/claim-attribution",
+      expect.objectContaining({ method: "DELETE" }),
+    );
   });
 
   it("persists both consent answers so declining does not become a first visit again", () => {

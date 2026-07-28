@@ -48,7 +48,12 @@ export type RecordEdgeResult =
   | { ok: true; status: "recorded" | "existing"; edgeId: string }
   | {
       ok: false;
-      reason: "self" | "circular" | "already_attributed" | "storage";
+      reason:
+        | "self"
+        | "circular"
+        | "already_attributed"
+        | "deleted_identity"
+        | "storage";
     };
 
 export type ClaimJourneyResult =
@@ -64,7 +69,14 @@ export type ClaimJourneyResult =
 
 export type QualifyReferralResult =
   | { ok: true; status: "qualified" | "existing" }
-  | { ok: false; reason: "no_edge" | "storage" };
+  | { ok: false; reason: "no_edge" | "deleted_identity" | "storage" };
+
+export class ReferralIdentityDeletedError extends Error {
+  constructor() {
+    super("Referral actions are unavailable for this account.");
+    this.name = "ReferralIdentityDeletedError";
+  }
+}
 
 export type ReferralStore = {
   getOrCreateInviteCode(
@@ -130,6 +142,7 @@ const journeyByTokenHash = new Map<string, MemoryJourney>();
 const edgeByInvitee = new Map<string, MemoryEdge>();
 const edgeById = new Map<string, MemoryEdge>();
 const qualificationsByEdge = new Map<string, MemoryQualification>();
+const erasedReferralIdentities = new Set<string>();
 type MemoryLedgerRow = ReferralEarnedReward & {
   triggeringEdgeId: string;
 };
@@ -197,6 +210,9 @@ function earnedRowsFor(
 export const memoryReferralStore: ReferralStore = {
   async getOrCreateInviteCode(inviterUserId, now = Date.now()) {
     const inviter = cleanId(inviterUserId);
+    if (erasedReferralIdentities.has(inviter)) {
+      throw new ReferralIdentityDeletedError();
+    }
     const existing = inviteCodeByInviter.get(inviter);
     if (existing) return { code: existing.rawCode };
     const rawCode = opaqueToken(18);
@@ -219,7 +235,12 @@ export const memoryReferralStore: ReferralStore = {
   async startJourney(code, existingToken = null, now = Date.now()) {
     if (existingToken) {
       const existing = journeyByTokenHash.get(tokenHash(existingToken));
-      if (existing && !existing.consumedBy && existing.expiresAt >= now) {
+      if (
+        existing &&
+        !erasedReferralIdentities.has(existing.inviterUserId) &&
+        !existing.consumedBy &&
+        existing.expiresAt >= now
+      ) {
         return {
           token: existingToken,
           expiresAt: new Date(existing.expiresAt).toISOString(),
@@ -228,7 +249,9 @@ export const memoryReferralStore: ReferralStore = {
     }
 
     const inviterUserId = inviterByCodeHash.get(tokenHash(code));
-    if (!inviterUserId) return null;
+    if (!inviterUserId || erasedReferralIdentities.has(inviterUserId)) {
+      return null;
+    }
     const token = opaqueToken();
     const expiresAt = now + JOURNEY_TTL_MS;
     boundedInsert(
@@ -251,6 +274,9 @@ export const memoryReferralStore: ReferralStore = {
     inviteeCreatedAt,
     now = Date.now(),
   }) {
+    if (erasedReferralIdentities.has(cleanId(inviteeUserId))) {
+      return { ok: false, reason: "deleted_identity" };
+    }
     const journey = journeyByTokenHash.get(tokenHash(token));
     if (!journey) return { ok: false, reason: "unknown" };
     if (journey.expiresAt < now) return { ok: false, reason: "expired" };
@@ -274,6 +300,12 @@ export const memoryReferralStore: ReferralStore = {
     const inviter = cleanId(inviterUserId);
     const invitee = cleanId(inviteeUserId);
     if (!inviter || !invitee) return { ok: false, reason: "storage" };
+    if (
+      erasedReferralIdentities.has(inviter) ||
+      erasedReferralIdentities.has(invitee)
+    ) {
+      return { ok: false, reason: "deleted_identity" };
+    }
     if (inviter === invitee) return { ok: false, reason: "self" };
     const existing = edgeByInvitee.get(invitee);
     if (existing) {
@@ -305,8 +337,15 @@ export const memoryReferralStore: ReferralStore = {
     contributionId,
     acceptedAt = Date.now(),
   }) {
-    const edge = edgeByInvitee.get(cleanId(inviteeUserId));
+    const invitee = cleanId(inviteeUserId);
+    if (erasedReferralIdentities.has(invitee)) {
+      return { ok: false, reason: "deleted_identity" };
+    }
+    const edge = edgeByInvitee.get(invitee);
     if (!edge) return { ok: false, reason: "no_edge" };
+    if (erasedReferralIdentities.has(edge.inviterUserId)) {
+      return { ok: false, reason: "deleted_identity" };
+    }
     if (qualificationsByEdge.has(edge.id)) {
       return { ok: true, status: "existing" };
     }
@@ -327,7 +366,7 @@ export const memoryReferralStore: ReferralStore = {
 
   async privateStatus(inviterUserId) {
     const inviter = cleanId(inviterUserId);
-    if (!inviter) return emptyStatus();
+    if (!inviter || erasedReferralIdentities.has(inviter)) return emptyStatus();
     const edges = [...edgeByInvitee.values()].filter(
       (edge) => edge.inviterUserId === inviter,
     );
@@ -360,6 +399,7 @@ export const memoryReferralStore: ReferralStore = {
   async eraseAccount(userId) {
     const user = cleanId(userId);
     if (!user) return;
+    erasedReferralIdentities.add(user);
 
     const removedEdgeIds = new Set<string>();
     for (const edge of edgeById.values()) {
@@ -402,6 +442,7 @@ export const memoryReferralStore: ReferralStore = {
 const { guard, resetWarnings } = createFailSoftGuard({
   tag: "referrals",
   tables: [
+    "referral_erasure_blocks",
     "referral_invite_codes",
     "referral_attribution_journeys",
     "referral_edges",
@@ -441,7 +482,8 @@ function recordEdgeResult(data: unknown): RecordEdgeResult {
   if (
     reason === "self" ||
     reason === "circular" ||
-    reason === "already_attributed"
+    reason === "already_attributed" ||
+    reason === "deleted_identity"
   ) {
     return { ok: false, reason };
   }
@@ -469,6 +511,9 @@ export const supabaseReferralStore: ReferralStore = {
         );
         if (error) throw new Error(error.message);
         const row = objectRow(data);
+        if (row.reason === "deleted_identity") {
+          throw new ReferralIdentityDeletedError();
+        }
         const code = typeof row.code === "string" ? row.code : "";
         if (!code) throw new Error("Referral invite code was not returned.");
         return { code };
@@ -596,7 +641,10 @@ export const supabaseReferralStore: ReferralStore = {
         }
         return {
           ok: false,
-          reason: row.reason === "no_edge" ? "no_edge" : "storage",
+          reason:
+            row.reason === "no_edge" || row.reason === "deleted_identity"
+              ? row.reason
+              : "storage",
         };
       },
     });
@@ -667,5 +715,6 @@ export function __resetMemoryReferrals(): void {
   edgeById.clear();
   qualificationsByEdge.clear();
   ledgerByInviter.clear();
+  erasedReferralIdentities.clear();
   resetWarnings();
 }
