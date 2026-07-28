@@ -1,11 +1,14 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
+  AUTH_ATTEMPT_PARAM,
+  AUTH_CALLBACK_MARKER,
   AUTH_COORDINATION_UNAVAILABLE_MESSAGE,
   AUTH_ATTEMPT_IN_PROGRESS_MESSAGE,
   AUTH_RETURN_FRAGMENT_RESTORED_EVENT,
   AUTH_STORAGE_UNAVAILABLE_MESSAGE,
   beginAuthAttempt,
+  beginCanonicalAuthAttempt,
   beginCoordinatedAuthAttempt,
   buildAuthCallbackUrl,
   cancelAuthAttempt,
@@ -155,6 +158,7 @@ describe("passwordless magic-link auth", () => {
 describe("auth callback URL safety", () => {
   afterEach(() => {
     vi.unstubAllEnvs();
+    vi.restoreAllMocks();
   });
 
   const ATTEMPT_A = "a".repeat(32);
@@ -247,12 +251,13 @@ describe("auth callback URL safety", () => {
     );
   });
 
-  it("refuses a deployment host configured as the production site", () => {
+  it("falls back to the canonical site when production is misconfigured", () => {
     vi.stubEnv("NODE_ENV", "production");
     vi.stubEnv(
       "NEXT_PUBLIC_SITE_URL",
       "https://chengdu-pubmax69.vercel.app",
     );
+    vi.spyOn(console, "error").mockImplementation(() => {});
 
     expect(
       buildAuthCallbackUrl(
@@ -260,12 +265,15 @@ describe("auth callback URL safety", () => {
         undefined,
         ATTEMPT_A,
       ),
-    ).toBeNull();
+    ).toBe(
+      `https://pubmaxxing.com/auth/callback?next=%2Fmap&_authAttempt=${ATTEMPT_A}`,
+    );
   });
 
-  it("refuses an insecure production site URL", () => {
+  it("falls back to the canonical site from an insecure production setting", () => {
     vi.stubEnv("NODE_ENV", "production");
     vi.stubEnv("NEXT_PUBLIC_SITE_URL", "http://pubmaxxing.com");
+    vi.spyOn(console, "error").mockImplementation(() => {});
 
     expect(
       buildAuthCallbackUrl(
@@ -273,12 +281,15 @@ describe("auth callback URL safety", () => {
         undefined,
         ATTEMPT_A,
       ),
-    ).toBeNull();
+    ).toBe(
+      `https://pubmaxxing.com/auth/callback?next=%2Fmap&_authAttempt=${ATTEMPT_A}`,
+    );
   });
 
-  it("refuses any other production site", () => {
+  it("falls back to the canonical site from another production origin", () => {
     vi.stubEnv("NODE_ENV", "production");
     vi.stubEnv("NEXT_PUBLIC_SITE_URL", "https://example.com");
+    vi.spyOn(console, "error").mockImplementation(() => {});
 
     expect(
       buildAuthCallbackUrl(
@@ -286,7 +297,9 @@ describe("auth callback URL safety", () => {
         undefined,
         ATTEMPT_A,
       ),
-    ).toBeNull();
+    ).toBe(
+      `https://pubmaxxing.com/auth/callback?next=%2Fmap&_authAttempt=${ATTEMPT_A}`,
+    );
   });
 
   it("keeps auth callbacks on localhost during development", () => {
@@ -309,6 +322,61 @@ describe("auth callback URL safety", () => {
       ),
     ).toBe(
       `https://pubmaxxing.com/auth/callback?next=%2Fmap&_authAttempt=${ATTEMPT_B}`,
+    );
+  });
+
+  it("navigates to the apex before touching PKCE coordination on a preview", async () => {
+    vi.stubEnv("NODE_ENV", "production");
+    const navigation = vi.fn();
+    const storageAccess = vi.fn(() => {
+      throw new Error("PKCE state must not be touched on the preview");
+    });
+    const lockRequest = vi.fn();
+
+    const result = await beginCanonicalAuthAttempt(
+      "https://preview-team.vercel.app/plan/abc?area=soho#invite=SECRET-A",
+      undefined,
+      {
+        persistentStorage: {
+          getItem: storageAccess,
+          setItem: storageAccess,
+          removeItem: storageAccess,
+        },
+        tabStorage: {
+          getItem: storageAccess,
+          setItem: storageAccess,
+          removeItem: storageAccess,
+        },
+        lockManager: { request: lockRequest } as unknown as LockManager,
+      },
+      navigation,
+    );
+
+    expect(result).toEqual({ ok: false, navigationStarted: true });
+    expect(navigation).toHaveBeenCalledWith(
+      "https://pubmaxxing.com/plan/abc?area=soho#invite=SECRET-A",
+    );
+    expect(lockRequest).not.toHaveBeenCalled();
+    expect(storageAccess).not.toHaveBeenCalled();
+  });
+
+  it("scrubs callback credentials before canonical navigation", async () => {
+    vi.stubEnv("NODE_ENV", "production");
+    const navigation = vi.fn();
+
+    await beginCanonicalAuthAttempt(
+      `https://preview-team.vercel.app/map?area=soho&code=SECRET_CODE&${AUTH_ATTEMPT_PARAM}=${ATTEMPT_A}&${AUTH_CALLBACK_MARKER}=1#venue`,
+      undefined,
+      {
+        persistentStorage: memoryStorage().storage,
+        tabStorage: memoryStorage().storage,
+        lockManager: immediateLocks,
+      },
+      navigation,
+    );
+
+    expect(navigation).toHaveBeenCalledWith(
+      "https://pubmaxxing.com/map?area=soho#venue",
     );
   });
 

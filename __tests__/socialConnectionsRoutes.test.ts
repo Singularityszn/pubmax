@@ -36,6 +36,7 @@ beforeEach(() => {
 
 afterEach(() => {
   vi.unstubAllEnvs();
+  vi.restoreAllMocks();
 });
 
 describe("social connection APIs", () => {
@@ -108,6 +109,29 @@ describe("social connection APIs", () => {
     expect(response.status).toBe(303);
     expect(response.headers.get("location")).toBe(
       "https://pubmaxxing.com/u/you?socialConnection=x&status=cancelled",
+    );
+  });
+
+  it("falls back to the apex and logs invalid production configuration", async () => {
+    vi.stubEnv("NODE_ENV", "production");
+    vi.stubEnv("NEXT_PUBLIC_SITE_URL", "https://preview-team.vercel.app");
+    const diagnostic = vi.spyOn(console, "error").mockImplementation(() => {});
+
+    const response = await oauthCallback(
+      new Request(
+        "https://preview-team.vercel.app/api/social-connections/x/callback",
+      ),
+      { params: Promise.resolve({ provider: "x" }) },
+    );
+
+    expect(response.status).toBe(303);
+    expect(response.headers.get("location")).toBe(
+      "https://pubmaxxing.com/u/you?socialConnection=x&status=cancelled",
+    );
+    expect(diagnostic).toHaveBeenCalledWith(
+      expect.stringMatching(
+        /^FATAL: NEXT_PUBLIC_SITE_URL must be the canonical https:\/\/pubmaxxing\.com origin\./,
+      ),
     );
   });
 

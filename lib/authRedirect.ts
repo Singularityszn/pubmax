@@ -1,4 +1,4 @@
-import { siteOrigin } from "@/lib/siteUrl";
+import { canonicalAuthStartUrl, siteOrigin } from "@/lib/siteUrl";
 
 /**
  * Keep post-auth navigation on the app origin. This is shared by every auth
@@ -81,6 +81,10 @@ export type AuthCallbackCaptureOptions = Pick<
 export type AuthAttemptStart =
   | { ok: true; id: string; callbackUrl: string }
   | { ok: false; message: string };
+
+export type CanonicalAuthAttemptStart =
+  | AuthAttemptStart
+  | { ok: false; navigationStarted: true };
 
 export type AuthCallbackAttempt = {
   attemptId: string | null;
@@ -359,6 +363,30 @@ export async function beginCoordinatedAuthAttempt(
   } catch {
     return { ok: false, message: AUTH_COORDINATION_UNAVAILABLE_MESSAGE };
   }
+}
+
+export async function beginCanonicalAuthAttempt(
+  currentUrl: string,
+  requestedNext: string | undefined,
+  options: AuthAttemptOptions,
+  navigate: (url: string) => void,
+): Promise<CanonicalAuthAttemptStart> {
+  const destination = authDestination(currentUrl, requestedNext);
+  const canonicalStartUrl = destination
+    ? canonicalAuthStartUrl(destination.toString())
+    : null;
+  if (canonicalStartUrl) {
+    try {
+      navigate(canonicalStartUrl);
+      return { ok: false, navigationStarted: true };
+    } catch {
+      return {
+        ok: false,
+        message: "Sign-in must start on pubmaxxing.com. Open the site there, then try again.",
+      };
+    }
+  }
+  return beginCoordinatedAuthAttempt(currentUrl, requestedNext, options);
 }
 
 /** Release only the matching lock; another tab's attempt is never disturbed. */

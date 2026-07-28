@@ -6,7 +6,10 @@ import {
   freshnessArtifactIncludeById,
   freshnessArtifactIncludes,
 } from "./lib/freshnessTracing.mjs";
+import { assertCanonicalSiteUrlForDeployedBuild } from "./lib/siteUrlConfig.mjs";
 import { runtimeDataPackRouteIncludes } from "./lib/venueIndexTracing.mjs";
+
+assertCanonicalSiteUrlForDeployedBuild();
 
 const projectRoot = path.dirname(fileURLToPath(import.meta.url));
 

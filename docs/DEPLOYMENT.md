@@ -117,6 +117,12 @@ callback, so do not allowlist `*.vercel.app`, preview hosts, or `www`. A rejecte
 deployment host, an email link lands there without the initiating origin's PKCE
 verifier and sign-in cannot complete.
 
+Vercel builds fail when that variable is missing or does not name the exact
+HTTPS apex. Runtime server paths still fall back to the apex and emit a fatal
+diagnostic if invalid configuration somehow reaches them. A sign-in opened on a
+deployment host first navigates to the same safe path on the apex; no PKCE state
+is created until the user starts sign-in there.
+
 These controls solve different problems:
 
 - Vercel Deployment Protection is access control. The Vercel Authentication

@@ -35,11 +35,11 @@ import { ensureSupabaseBrowser, isAuthConfigured } from "@/lib/authClient";
 import { createAuthSessionTransitionTracker } from "@/lib/authSessionTransition";
 import {
   AUTH_RETURN_FRAGMENT_RESTORED_EVENT,
-  beginCoordinatedAuthAttempt,
+  beginCanonicalAuthAttempt,
   cancelAuthAttempt,
   releaseAuthAttempt,
   scrubAuthCallback,
-  type AuthAttemptStart,
+  type CanonicalAuthAttemptStart,
   type CapturedAuthCallback,
 } from "@/lib/authRedirect";
 import { authedFetch } from "@/lib/authedFetch";
@@ -141,8 +141,8 @@ function cancelBrowserAuthAttempt(): void {
 async function prepareAuthCallback(
   currentUrl: string,
   requestedNext?: string,
-): Promise<AuthAttemptStart> {
-  return beginCoordinatedAuthAttempt(
+): Promise<CanonicalAuthAttemptStart> {
+  return beginCanonicalAuthAttempt(
     currentUrl,
     requestedNext,
     {
@@ -151,6 +151,7 @@ async function prepareAuthCallback(
       cryptoProvider: globalThis.crypto,
       lockManager: browserLockManager(),
     },
+    (url) => window.location.assign(url),
   );
 }
 
@@ -539,15 +540,17 @@ export function AuthProvider({ children }: { children: ReactNode }): React.JSX.E
   }, [closeClaim, syncIdentityAfterSignIn, updateSession]);
 
   const signInWithGoogle = useCallback(async (): Promise<{ error: string | null }> => {
-    const supabase = await ensureSupabaseBrowser();
+    if (typeof window === "undefined") return { error: "Sign-in is unavailable on this page." };
+    const attempt = await prepareAuthCallback(window.location.href);
+    if ("navigationStarted" in attempt) return { error: null };
+    if (!attempt.ok) return { error: attempt.message };
+    const supabase = await ensureSupabaseBrowser().catch(() => null);
     if (!supabase) {
+      releaseBrowserAuthAttempt(attempt.id);
       return { error: "Sign-in is not configured." };
     }
     // origin is only read inside this handler (post-mount, browser-only), so it
     // is SSR-safe. redirectTo must be an allowed URL in Supabase Auth settings.
-    if (typeof window === "undefined") return { error: "Sign-in is unavailable on this page." };
-    const attempt = await prepareAuthCallback(window.location.href);
-    if (!attempt.ok) return { error: attempt.message };
     try {
       const { error } = await supabase.auth.signInWithOAuth({
         provider: "google",
@@ -562,13 +565,15 @@ export function AuthProvider({ children }: { children: ReactNode }): React.JSX.E
   }, []);
 
   const signInWithMicrosoft = useCallback(async (): Promise<{ error: string | null }> => {
-    const supabase = await ensureSupabaseBrowser();
-    if (!supabase) {
-      return { error: "Sign-in is not configured." };
-    }
     if (typeof window === "undefined") return { error: "Sign-in is unavailable on this page." };
     const attempt = await prepareAuthCallback(window.location.href);
+    if ("navigationStarted" in attempt) return { error: null };
     if (!attempt.ok) return { error: attempt.message };
+    const supabase = await ensureSupabaseBrowser().catch(() => null);
+    if (!supabase) {
+      releaseBrowserAuthAttempt(attempt.id);
+      return { error: "Sign-in is not configured." };
+    }
     // Supabase's Microsoft provider id is "azure". Request email so we can
     // derive a handle the same way as Google.
     try {
@@ -589,15 +594,22 @@ export function AuthProvider({ children }: { children: ReactNode }): React.JSX.E
 
   const signInWithEmail = useCallback(
     async (email: string, next?: string): Promise<MagicLinkResult> => {
-      const supabase = await ensureSupabaseBrowser();
-      if (!supabase) {
-        return { status: "error", message: "Sign-in is not configured." };
-      }
       if (typeof window === "undefined") {
         return { status: "error", message: "Sign-in is unavailable on this page." };
       }
       const attempt = await prepareAuthCallback(window.location.href, next);
+      if ("navigationStarted" in attempt) {
+        return {
+          status: "error",
+          message: "Continue sign-in on pubmaxxing.com.",
+        };
+      }
       if (!attempt.ok) return { status: "error", message: attempt.message };
+      const supabase = await ensureSupabaseBrowser().catch(() => null);
+      if (!supabase) {
+        releaseBrowserAuthAttempt(attempt.id);
+        return { status: "error", message: "Sign-in is not configured." };
+      }
       const result = await requestMagicLink(supabase.auth, email, attempt.callbackUrl);
       if (result.status !== "sent") {
         releaseBrowserAuthAttempt(attempt.id);
