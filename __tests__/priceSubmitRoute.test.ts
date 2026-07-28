@@ -76,6 +76,7 @@ vi.mock("@/lib/communityPriceStore", async (importOriginal) => {
 import { GET, POST } from "@/app/api/price-submit/route";
 import {
   __resetCommunityPrices,
+  memoryCommunityPriceStore,
   readCommunityPrices,
 } from "@/lib/communityPriceStore";
 import { COMMUNITY_PRICE_MAX_GBP } from "@/lib/communityPrice";
@@ -169,6 +170,35 @@ describe("POST /api/price-submit", () => {
     expect(data.price?.priceGbp).toBe(4.2);
     expect(data.price?.source).toBe("community");
     expect(typeof data.price?.submittedAt).toBe("number");
+    expect(
+      (await memoryCommunityPriceStore.listLeaderboardContributions()).records,
+    ).toEqual([]);
+  });
+
+  it("counts a price under an existing public handle without exposing actor data", async () => {
+    const res = await POST(
+      post({
+        venueId: "venue-xjf3n0",
+        drinkCategory: "beer",
+        priceGbp: 4.2,
+        contributorHandle: "@Night_Owl",
+      }),
+    );
+
+    expect(res.status).toBe(201);
+    const read =
+      await memoryCommunityPriceStore.listLeaderboardContributions();
+    expect(read).toMatchObject({
+      status: "ready",
+      records: [
+        {
+          handle: "night_owl",
+          lane: "price",
+          visible: true,
+        },
+      ],
+    });
+    expect(JSON.stringify(read)).not.toContain("actor");
   });
 
   it("never trusts a client-supplied timestamp or source", async () => {

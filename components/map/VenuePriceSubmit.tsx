@@ -31,8 +31,8 @@ import "./venuePriceSubmit.css";
 // Deliberately NOT the Pint Drop composer. That is the full social object - a
 // handle, photos, a note, a visibility lane, a destination. This is the
 // twenty-second version for the person at the bar: category, price, done. No
-// account, no handle; identity is the same server-derived anonymous actor
-// /api/price-confirm already uses.
+// account or handle is required. When this browser already has a public handle,
+// the write carries it for the contributor record; otherwise it stays anonymous.
 //
 // Provenance is first-class, not decoration: the confirmation shows the price
 // with its own dated "today · community" badge, and the scraped/sourced
@@ -295,7 +295,9 @@ export default function VenuePriceSubmit({
           Anyone can log a price. Yours shows on this pub&rsquo;s page straight
           away, dated and badged as community - it never replaces the price on
           record. {communityReachNote(category, mapReach)} Up to £
-          {COMMUNITY_PRICE_MAX_GBP} a drink.
+          {COMMUNITY_PRICE_MAX_GBP} a drink. If this browser already has a
+          public handle, the log counts under it on the contributor record.
+          Without one, the log stays anonymous and off that record.
         </p>
       )}
       <VenueCommunitySignals

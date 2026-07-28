@@ -9,6 +9,7 @@
 // human-authored rows. No aggregate count or venue rank leaves this route.
 
 import { publicApiError } from "@/lib/apiError";
+import { isModerator } from "@/lib/adminAuth";
 import { jsonNoStore } from "@/lib/apiResponses";
 import { cityIdFromVenueId } from "@/lib/cityVenueIds";
 import { DEFAULT_CITY_ID } from "@/lib/cities";
@@ -29,11 +30,13 @@ import {
 import {
   readWeatherRecommendations,
   submitWeatherRecommendation,
+  weatherRecommendationStore,
 } from "@/lib/weatherRecommendationStore";
 import {
   planningWeatherForArea,
 } from "@/lib/weatherSnapshots";
 import { cachedWeatherRecommendationSnapshot } from "@/lib/weatherRecommendationSnapshotMemo.server";
+import { readString } from "@/lib/textClean";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -94,6 +97,42 @@ export async function POST(request: Request): Promise<Response> {
       "MALFORMED_REQUEST",
       400,
     );
+  }
+
+  const action = readString(body.action);
+  if (action === "hide" || action === "restore") {
+    if (!isModerator(request)) {
+      return publicApiError("Not authorised.", "FORBIDDEN", 403);
+    }
+    const id = readString(body.id);
+    if (!id) {
+      return publicApiError(
+        "Recommendation not found.",
+        "NOT_FOUND",
+        404,
+      );
+    }
+    try {
+      const changed = await weatherRecommendationStore().moderate(
+        id,
+        action === "hide" ? "hidden" : "visible",
+        readString(body.note),
+      );
+      return changed
+        ? jsonNoStore({ ok: true }, { status: 200 })
+        : publicApiError(
+            "Recommendation not found.",
+            "NOT_FOUND",
+            404,
+          );
+    } catch {
+      return publicApiError(
+        "Could not update that recommendation right now.",
+        "STORE_UNAVAILABLE",
+        503,
+        { retryable: true },
+      );
+    }
   }
 
   const validation = validateWeatherRecommendation(body);

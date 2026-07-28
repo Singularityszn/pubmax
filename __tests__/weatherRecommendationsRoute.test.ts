@@ -295,6 +295,60 @@ describe("POST /api/weather-recommendations", () => {
       expect(response.status, `write ${index + 1}`).toBe(index < 5 ? 201 : 429);
     }
   });
+
+  it("lets a moderator pull and restore a Recommendation without deleting it", async () => {
+    const created = await POST(
+      post({
+        venueId: "venue-test",
+        condition: "warm",
+        reason: "The garden catches the evening light.",
+        contributorHandle: "night_owl",
+      }),
+    );
+    const body = (await created.json()) as {
+      recommendation: { id: string };
+    };
+    const originalToken = process.env.ADMIN_TOKEN;
+    process.env.ADMIN_TOKEN = "moderator-secret";
+    try {
+      const moderate = (action: "hide" | "restore", token: string) =>
+        POST(
+          new Request("http://localhost/api/weather-recommendations", {
+            method: "POST",
+            headers: {
+              "content-type": "application/json",
+              "x-admin-token": token,
+            },
+            body: JSON.stringify({
+              action,
+              id: body.recommendation.id,
+            }),
+          }),
+        );
+
+      expect((await moderate("hide", "wrong")).status).toBe(403);
+      expect((await moderate("hide", "moderator-secret")).status).toBe(200);
+      expect(
+        await memoryWeatherRecommendationStore.countForContributor("night_owl"),
+      ).toEqual({ status: "ready", count: 0 });
+      expect(
+        (
+          await memoryWeatherRecommendationStore.listLeaderboardContributions()
+        ).records[0],
+      ).toMatchObject({
+        visible: false,
+        quality: { moderation: "hidden" },
+      });
+
+      expect((await moderate("restore", "moderator-secret")).status).toBe(200);
+      expect(
+        await memoryWeatherRecommendationStore.countForContributor("night_owl"),
+      ).toEqual({ status: "ready", count: 1 });
+    } finally {
+      if (originalToken === undefined) delete process.env.ADMIN_TOKEN;
+      else process.env.ADMIN_TOKEN = originalToken;
+    }
+  });
 });
 
 describe("GET /api/weather-recommendations", () => {

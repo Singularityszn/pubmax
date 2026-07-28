@@ -40,6 +40,10 @@ import {
   type VisitReportReadStatus,
   type VisitReportStatus,
 } from "@/lib/visitReports";
+import type {
+  ContributionRecord,
+  ContributionRecordReadResult,
+} from "@/lib/contributorLeaderboard";
 
 const TABLE = "structured_visit_reports";
 
@@ -89,6 +93,8 @@ export type VisitReportStore = {
   /** Moderator decision: set the final status and stamp the review. False =
    *  unknown id. */
   moderate(id: string, status: VisitReportStatus, note?: string): Promise<boolean>;
+  /** Private all-time projection for contributor counting. */
+  listLeaderboardContributions(): Promise<ContributionRecordReadResult>;
 };
 
 function nightKey(venueId: string, handle: string, visitedAt: string): string {
@@ -106,6 +112,26 @@ function byNewestVisit(a: VisitReport, b: VisitReport): number {
   return (
     b.visitedAt.localeCompare(a.visitedAt) || b.createdAt.localeCompare(a.createdAt)
   );
+}
+
+function visitContributionRecord(report: VisitReport): ContributionRecord {
+  return {
+    id: report.id,
+    handle: report.handle,
+    lane: "review",
+    contributedAt: Date.parse(report.createdAt),
+    visible: report.status === "visible",
+    quality: {
+      corroborated: null,
+      moderation:
+        report.status === "hidden"
+          ? "hidden"
+          : report.moderatedAt
+            ? "kept"
+            : "unreviewed",
+      contradicted: null,
+    },
+  };
 }
 
 // ── In-memory implementation ─────────────────────────────────────────────────
@@ -207,6 +233,13 @@ export const memoryVisitReportStore: VisitReportStore = {
     hit.moderatedAt = new Date().toISOString();
     if (note) hit.moderatorNote = note;
     return true;
+  },
+
+  async listLeaderboardContributions() {
+    return {
+      status: "ready",
+      records: [...byId.values()].map(visitContributionRecord),
+    };
   },
 };
 
@@ -507,6 +540,41 @@ export const supabaseVisitReportStore: VisitReportStore = {
           .select("id");
         if (error) throw new Error(error.message);
         return (data ?? []).length > 0;
+      },
+    });
+  },
+
+  async listLeaderboardContributions() {
+    return guard<ContributionRecordReadResult>({
+      context: "leaderboard-contributions",
+      onSchemaMiss: async () => ({
+        ...(await memoryVisitReportStore.listLeaderboardContributions()),
+        status: "degraded",
+      }),
+      message: "leaderboard contribution read failed",
+      onError: () => ({ status: "degraded", records: [] }),
+      run: async () => {
+        const records: ContributionRecord[] = [];
+        const pageSize = 1_000;
+        for (let offset = 0; ; offset += pageSize) {
+          const { data, error } = await admin()
+            .from(TABLE)
+            .select("*")
+            .order("created_at", { ascending: false })
+            .order("id", { ascending: true })
+            .range(offset, offset + pageSize - 1);
+          if (error) throw new Error(error.message);
+          const page = data ?? [];
+          records.push(
+            ...page.map((row) =>
+              visitContributionRecord(
+                fromRow(row as Record<string, unknown>),
+              ),
+            ),
+          );
+          if (page.length < pageSize) break;
+        }
+        return { status: "ready", records };
       },
     });
   },

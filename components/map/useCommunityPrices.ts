@@ -23,6 +23,8 @@ import type {
   VenuePriceReadStatus,
 } from "@/lib/mapExperienceLens";
 import type { PriceSubmitFailureReason } from "@/lib/analyticsEvents";
+import { authedFetch } from "@/lib/authedFetch";
+import { normalizeHandle } from "@/lib/profiles";
 import {
   isUkBaseId,
   MAX_PROVISIONAL_BASE_VENUE_IDS,
@@ -900,10 +902,23 @@ export function useCommunityPrices(): CommunityPricesState {
 
       setSubmitting(true);
       try {
-        const res = await fetch("/api/price-submit", {
+        let contributorHandle = "";
+        try {
+          contributorHandle = normalizeHandle(
+            window.localStorage.getItem("pubmax_handle") ?? "",
+          );
+        } catch {
+          contributorHandle = "";
+        }
+        const res = await authedFetch("/api/price-submit", {
           method: "POST",
           headers: { "content-type": "application/json" },
-          body: JSON.stringify({ venueId, drinkCategory, priceGbp }),
+          body: JSON.stringify({
+            venueId,
+            drinkCategory,
+            priceGbp,
+            ...(contributorHandle ? { contributorHandle } : {}),
+          }),
         });
         const data = (await res.json().catch(() => null)) as
           | { price?: CommunityPrice; error?: string }

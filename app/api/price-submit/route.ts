@@ -58,6 +58,8 @@ import {
   submitCommunityVenueSignal,
 } from "@/lib/communityPriceStore";
 import { isLimited } from "@/lib/pintDrops";
+import { resolveMessageHandle } from "@/lib/messageAuth";
+import { gateHandleAction } from "@/lib/profileOwnership";
 import { getUkBaseIdIndex } from "@/lib/ukBaseIndex";
 import {
   isUkBaseId,
@@ -241,6 +243,25 @@ export async function POST(request: Request): Promise<Response> {
   const submission = { ...result.value, venueId: resolved.venueId };
 
   const actor = deriveCommunityPriceActor(request);
+  let contributorHandle: string | undefined;
+  const assertedHandle = readString(body.contributorHandle);
+  if (assertedHandle) {
+    const resolvedHandle = await resolveMessageHandle(request, assertedHandle);
+    if (!resolvedHandle) {
+      return jsonNoStore(
+        { error: "Profile storage is unavailable right now. Try again shortly." },
+        { status: 503 },
+      );
+    }
+    const ownership = await gateHandleAction(request, resolvedHandle);
+    if (!ownership.allowed) {
+      return jsonNoStore(
+        { error: ownership.error },
+        { status: ownership.status },
+      );
+    }
+    contributorHandle = ownership.handle;
+  }
 
   // Cap one device across every venue before applying the tighter per-venue
   // budget. Without this actor-only key, changing venueId resets the budget and
@@ -253,7 +274,11 @@ export async function POST(request: Request): Promise<Response> {
 
   // submitCommunityPrice never throws; a hard durable-write failure comes back
   // flagged so we answer 503 (degraded dependency) rather than a fake success.
-  const { price, failed } = await submitCommunityPrice({ ...submission, actor });
+  const { price, failed } = await submitCommunityPrice({
+    ...submission,
+    actor,
+    ...(contributorHandle ? { contributorHandle } : {}),
+  });
   if (failed || !price) {
     return jsonNoStore({ error: "Could not log that price right now." }, { status: 503 });
   }

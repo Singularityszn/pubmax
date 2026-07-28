@@ -177,6 +177,16 @@ describe("legal content pages", () => {
     expect(privacy).toMatch(/Community prices and venue reports:/);
   });
 
+  it("explains public contributor ranking and optional price attribution", () => {
+    expect(privacy).toMatch(/public contributor record/i);
+    expect(privacy).toMatch(
+      /prices[\s\S]*Visit Reports[\s\S]*Recommendations/i,
+    );
+    expect(privacy).toMatch(/without a public handle[\s\S]*anonymous/i);
+    expect(privacy).toMatch(/hidden[\s\S]*do not count/i);
+    expect(privacy).toMatch(/all time/i);
+  });
+
   it("names all three price lanes and fences the historical one", () => {
     // lib/priceHistory.ts added a THIRD price lane: dated, sourced prices from
     // years gone by, shown on the venue sheet and barred from every

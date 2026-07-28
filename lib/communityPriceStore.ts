@@ -66,6 +66,11 @@ import {
   type CommunityVenueSignalValue,
 } from "@/lib/communityVenueSignals";
 import { isDrinkCategory, type DrinkCategory } from "@/lib/drinks";
+import type {
+  ContributionRecord,
+  ContributionRecordReadResult,
+} from "@/lib/contributorLeaderboard";
+import { normalizeHandle } from "@/lib/profiles";
 import { MAX_PROVISIONAL_BASE_VENUE_IDS } from "@/lib/ukBasePubs";
 import {
   admin,
@@ -82,6 +87,11 @@ export type CommunityPriceWrite = CommunityPriceInput & {
    * it just can't be attributed back to a device.
    */
   actor?: string;
+  /**
+   * Existing public PUBMAXX handle, when this browser already has one. Price
+   * logging stays valid without it; anonymous rows never enter a named board.
+   */
+  contributorHandle?: string;
 };
 
 export type CommunityPriceWriteResult = {
@@ -234,6 +244,8 @@ export type CommunityPriceStore = {
   listForReview(limit?: number): Promise<ModeratorCommunityPrice[]>;
   /** Server-only roll-up seam for a future contribution leaderboard. */
   listContributorCounts(limit?: number): Promise<CommunityContributorCount[]>;
+  /** Private all-time projection for contributor counting. */
+  listLeaderboardContributions(): Promise<ContributionRecordReadResult>;
 };
 
 export type CorroboratedCategoryCount = {
@@ -284,6 +296,7 @@ type StoredModeration = {
   reportedAt?: number;
   reportReason?: string;
   moderatorNote?: string;
+  moderatedAt?: number;
   /** Actors that have already flagged this row - one report each, durably. */
   reporters?: Set<string>;
 };
@@ -291,6 +304,7 @@ type StoredModeration = {
 type StoredPrice = CommunityPrice & {
   id: string;
   actor: string | null;
+  contributorHandle: string | null;
 } & StoredModeration;
 
 type StoredVenueSignal = CommunityVenueSignal & {
@@ -780,6 +794,46 @@ function evictSignalsIfNeeded(): void {
   if (oldestKey) venueSignals.delete(oldestKey);
 }
 
+function priceContributionRecord(
+  row: StoredPrice,
+  venueRows: readonly StoredPrice[],
+): ContributionRecord {
+  const comparable = venueRows.filter(
+    (candidate) =>
+      !candidate.hidden && candidate.drinkCategory === row.drinkCategory,
+  );
+  const corroborators = new Set(
+    comparable
+      .filter((candidate) =>
+        agreesWithinTolerance(row.priceGbp, candidate.priceGbp),
+      )
+      .map((candidate) => submitterBucket(candidate.actor)),
+  );
+  const contradicted = comparable.some(
+    (candidate) =>
+      candidate.submittedAt > row.submittedAt &&
+      !agreesWithinTolerance(row.priceGbp, candidate.priceGbp),
+  );
+  return {
+    id: row.id,
+    handle: row.contributorHandle ?? "",
+    lane: "price",
+    contributedAt: row.submittedAt,
+    visible: !row.hidden,
+    quality: {
+      corroborated: isCorroborated({
+        corroborations: corroborators.size,
+      }),
+      moderation: row.hidden
+        ? "hidden"
+        : row.moderatedAt
+          ? "kept"
+          : "unreviewed",
+      contradicted,
+    },
+  };
+}
+
 export const memoryCommunityPriceStore: CommunityPriceStore = {
   async submit(input, now = Date.now()) {
     const key = normalize(input);
@@ -788,6 +842,7 @@ export const memoryCommunityPriceStore: CommunityPriceStore = {
       ...toPrice(key.venueId, key.drinkCategory, key.pennies, now),
       id: randomUUID(),
       actor: input.actor ?? null,
+      contributorHandle: normalizeHandle(input.contributorHandle) || null,
       hidden: false,
       reportCount: 0,
     };
@@ -812,6 +867,7 @@ export const memoryCommunityPriceStore: CommunityPriceStore = {
       stored.reportedAt = replaced.reportedAt;
       stored.reportReason = replaced.reportReason;
       stored.moderatorNote = replaced.moderatorNote;
+      stored.moderatedAt = replaced.moderatedAt;
       stored.reporters = replaced.reporters;
       // Keeping the id keeps a moderator's outstanding queue entry pointing at
       // a row that still exists, exactly as the durable upsert does.
@@ -958,6 +1014,7 @@ export const memoryCommunityPriceStore: CommunityPriceStore = {
     const row = findMemoryRow(id);
     if (!row) return false;
     row.hidden = hidden;
+    row.moderatedAt = Date.now();
     const cleaned = cleanReason(note);
     if (cleaned) row.moderatorNote = cleaned;
     return true;
@@ -984,6 +1041,17 @@ export const memoryCommunityPriceStore: CommunityPriceStore = {
     const prices = [...venues.values()].flat();
     const signals = [...venueSignals.values()].flat();
     return contributorCountsFromRows(prices, signals, limit);
+  },
+
+  async listLeaderboardContributions() {
+    const records: ContributionRecord[] = [];
+    for (const venueRows of venues.values()) {
+      for (const row of venueRows) {
+        if (!row.contributorHandle) continue;
+        records.push(priceContributionRecord(row, venueRows));
+      }
+    }
+    return { status: "ready", records };
   },
 };
 
@@ -1016,6 +1084,10 @@ function rowsToPrices(rows: unknown, venueId: string): StoredPrice[] {
     // A non-string actor (null, or absent on an older projection) is the
     // unattributed bucket - never coerced into a distinct submitter.
     const actor = typeof row.actor === "string" && row.actor !== "" ? row.actor : null;
+    const contributorHandle =
+      typeof row.contributor_handle === "string"
+        ? normalizeHandle(row.contributor_handle) || null
+        : null;
     // A row we cannot identify cannot be reported or moderated, but it is still
     // a real observation - it renders, it just carries no id. (Only reachable
     // before migration 0055 adds the projection.)
@@ -1024,9 +1096,14 @@ function rowsToPrices(rows: unknown, venueId: string): StoredPrice[] {
       ...toPrice(venueId, category, pennies, submittedAt),
       id,
       actor,
+      contributorHandle,
       // `hidden_at` absent (older projection) reads as VISIBLE, which is what
       // the table meant before moderation existed.
       hidden: typeof row.hidden_at === "string" && row.hidden_at !== "",
+      moderatedAt:
+        typeof row.moderated_at === "string"
+          ? Date.parse(row.moderated_at)
+          : undefined,
       reportCount:
         typeof row.report_count === "number" && Number.isFinite(row.report_count)
           ? Math.max(0, Math.floor(row.report_count))
@@ -1108,7 +1185,7 @@ async function selectVenuePrices(venueId: string, now: number): Promise<Communit
   // it yet still reads prices exactly as before.
   const { data, error } = await admin()
     .from("community_prices")
-    .select("id, drink_category, price_pennies, submitted_at, actor, hidden_at, report_count")
+    .select("id, drink_category, price_pennies, submitted_at, actor, contributor_handle, hidden_at, moderated_at, report_count")
     .eq("venue_id", venueId)
     .not("drink_category", "is", null)
     .order("submitted_at", { ascending: false })
@@ -1193,6 +1270,8 @@ export const supabaseCommunityPriceStore: CommunityPriceStore = {
           drink_category: key.drinkCategory,
           price_pennies: key.pennies,
           actor,
+          contributor_handle:
+            normalizeHandle(input.contributorHandle) || null,
           submitted_at: submittedAt,
         };
         // `.select("id")` so the submitter's own receipt carries the handle it
@@ -1500,6 +1579,54 @@ export const supabaseCommunityPriceStore: CommunityPriceStore = {
           .select("id");
         if (error) throw new Error(error.message);
         return Array.isArray(data) && data.length > 0;
+      },
+    });
+  },
+
+  async listLeaderboardContributions() {
+    return guard<ContributionRecordReadResult>({
+      context: "leaderboard-contributions",
+      onSchemaMiss: async () => ({
+        ...(await memoryCommunityPriceStore.listLeaderboardContributions()),
+        status: "degraded",
+      }),
+      message: "leaderboard contribution read failed",
+      onError: () => ({ status: "degraded", records: [] }),
+      run: async () => {
+        const raw: unknown[] = [];
+        for (let offset = 0; ; offset += CORROBORATION_SCAN_PAGE) {
+          const { data, error } = await admin()
+            .from("community_prices")
+            .select(
+              "id, venue_id, drink_category, price_pennies, submitted_at, actor, contributor_handle, hidden_at, moderated_at, report_count",
+            )
+            .not("contributor_handle", "is", null)
+            .order("submitted_at", { ascending: false })
+            .order("id", { ascending: true })
+            .range(offset, offset + CORROBORATION_SCAN_PAGE - 1);
+          if (error) throw new Error(error.message);
+          const page = Array.isArray(data) ? data : [];
+          raw.push(...page);
+          if (page.length < CORROBORATION_SCAN_PAGE) break;
+        }
+        const rows = rowsToCountableRows(raw);
+        const byVenue = new Map<string, StoredPrice[]>();
+        for (const row of rows) {
+          const held = byVenue.get(row.venueId);
+          if (held) held.push(row);
+          else byVenue.set(row.venueId, [row]);
+        }
+        return {
+          status: "ready",
+          records: rows
+            .filter((row) => row.contributorHandle !== null)
+            .map((row) =>
+              priceContributionRecord(
+                row,
+                byVenue.get(row.venueId) ?? [],
+              ),
+            ),
+        };
       },
     });
   },

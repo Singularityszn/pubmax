@@ -112,3 +112,15 @@
 .contribNudge:hover {
   text-decoration: underline;
 }
+
+.contribRecordLink {
+  display: flex;
+  align-items: center;
+  width: fit-content;
+  min-height: 44px;
+  margin-top: var(--space-2);
+  color: var(--river);
+  font-size: var(--text-sm);
+  font-weight: 700;
+  text-underline-offset: 3px;
+}

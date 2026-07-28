@@ -145,13 +145,35 @@ export default function PrivacyPage() {
         <h3 className="legalH3">Community price submissions</h3>
         <p className="legalBody">
           Anyone can log tonight&rsquo;s price without an account. We store the
-          venue, the drink category, the price and the time. We also store an
-          opaque device token derived server-side by salted SHA-256 hashing of
-          your IP address, never the address itself. That token exists so
-          one device can replace its own earlier entry instead of stacking
-          duplicates, and so a single device can&rsquo;t repaint the map on its
-          own. It can&rsquo;t be reversed back into an IP address, and we
-          don&rsquo;t use it to build a profile of you.
+          venue, the drink category, the price and the time. If your browser
+          already has a public PUBMAXX handle, the price form tells you and
+          sends that handle with the price so the log can count under your name.
+          Without a public handle, the price stays anonymous and does not enter
+          the contributor record.
+        </p>
+        <p className="legalBody">
+          Every price also carries an opaque device token derived server-side
+          by salted SHA-256 hashing of your IP address, never the address itself.
+          That token exists so one device can replace its own earlier entry
+          instead of stacking duplicates, and so a single device can&rsquo;t
+          repaint the map on its own. It can&rsquo;t be reversed back into an IP
+          address, and we don&rsquo;t use it to build a profile of you.
+        </p>
+
+        <h3 className="legalH3">Public contributor record</h3>
+        <p className="legalBody">
+          The public contributor record ranks public handles by visible prices
+          posted, Visit Reports written and Recommendations made, added
+          together across all time. It shows the combined total and each of
+          those three counts. Hidden or taken-down contributions do not count.
+          Anonymous price logs never appear under a name.
+        </p>
+        <p className="legalBody">
+          We also keep whether a price was corroborated, whether a contribution
+          survived moderation and whether a price was later contradicted. Those
+          signals are kept so the record can be made more useful later without
+          losing its history. They do not change today&rsquo;s ranking, which is
+          based only on how many visible contributions a handle has made.
         </p>
 
         <h3 className="legalH3">Community venue reports</h3>
@@ -440,7 +462,11 @@ export default function PrivacyPage() {
             itself stays, so later readers can see what people said and when.
             A row is one observation: the venue, either a drink and its price
             or one venue answer from a fixed list, the date and an unreversible
-            device token.
+            device token. A price logged without a public
+            handle stays anonymous: a venue, a drink, a figure, a date and an
+            unreversible device token. If a public handle was attached, that
+            attribution stays with the price while it is up and counts on the
+            public contributor record.
           </li>
           <li>
             <strong>Recommendations:</strong>{" "}a Recommendation keeps your
