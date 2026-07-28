@@ -2,13 +2,12 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { enabledVenuePackIncludes } from "./lib/cityVenuePacks.mjs";
 import {
   freshnessArtifactIncludeById,
   freshnessArtifactIncludes,
 } from "./lib/freshnessTracing.mjs";
 import { UK_PLACE_INDEX_TRACING_INCLUDE } from "./lib/ukPlaceIndexFile.mjs";
-import { discoverVenueIndexRouteGlobs } from "./lib/venueIndexTracing.mjs";
+import { runtimeDataPackRouteIncludes } from "./lib/venueIndexTracing.mjs";
 
 const projectRoot = path.dirname(fileURLToPath(import.meta.url));
 
@@ -29,25 +28,31 @@ const freshnessRegistry = JSON.parse(
 );
 const freshnessArtifacts = freshnessArtifactIncludes(freshnessRegistry);
 
-// Every App Router entry whose local import graph reaches lib/venueIndex.ts
-// reads enabled city packs at request time from paths assembled in that module.
-// Discover the reader routes from source and the pack paths from their shared
-// city registry. This makes the next reader self-declaring instead of another
-// route name somebody must remember to copy here. Dynamic segment brackets are
-// escaped by the discovery helper because these keys are picomatch globs.
-// __tests__/venueIndexTracing.test.ts pins discovery and config coverage.
-const venueIndexFiles = enabledVenuePackIncludes();
-const venueIndexRouteIncludes = Object.fromEntries(
-  discoverVenueIndexRouteGlobs(projectRoot).map((route) => [route, venueIndexFiles]),
-);
+// Every App Router entry whose local import graph reaches a module that opens
+// data from a path it assembles at REQUEST time (the city venue packs behind
+// lib/venueIndex.ts, the venue detail manifest and rows behind
+// lib/venueDetailIndex.ts) reads files Next cannot see statically. Discover the
+// reader routes from source and the file lists from the packs' own registries
+// (lib/venueIndexTracing.mjs). This makes the next reader self-declaring instead
+// of another route name somebody must remember to copy here. Dynamic segment
+// brackets are escaped by the discovery helper because these keys are picomatch
+// globs. __tests__/venueIndexTracing.test.ts pins discovery and config coverage.
+const runtimeDataPackIncludes = runtimeDataPackRouteIncludes(projectRoot);
+
+// A hand-written entry for a route that ALSO reads a discovered pack must merge
+// with it, never replace it: last-write-wins here would silently drop the packs
+// that route was found to open.
+function withRuntimeDataPacks(route, files) {
+  return [...new Set([...(runtimeDataPackIncludes[route] ?? []), ...files])];
+}
 
 // /feed also opens the sourced-price overlay at request time. That file is a
 // separate dynamic path derived from the freshness registry; merge it with the
-// venue-pack entry discovered above. __tests__/feedTracing.test.ts pins both.
-const feedDataFiles = [
-  ...freshnessArtifactIncludeById(freshnessRegistry, "drink_price_updates"),
-  ...(venueIndexRouteIncludes["/feed"] ?? []),
-];
+// packs discovered above. __tests__/feedTracing.test.ts pins both.
+const feedDataFiles = withRuntimeDataPacks(
+  "/feed",
+  freshnessArtifactIncludeById(freshnessRegistry, "drink_price_updates"),
+);
 
 // Per-deploy build id for the offline service worker (issue #32). Evaluated
 // once when `next build` loads this config and inlined into the client bundle
@@ -113,20 +118,18 @@ const nextConfig = {
     formats: ["image/avif", "image/webp"],
   },
   outputFileTracingIncludes: {
-    ...venueIndexRouteIncludes,
-    // App Router dynamic segment — must match app/api/venue/[id]/route.ts.
-    "/api/venue/[id]": [
-      "./data/generated/venue_detail_index.json",
-      "./data/generated/venue_details.jsonl",
-    ],
+    ...runtimeDataPackIncludes,
     // Both freshness readers need every registered artifact (see above).
-    "/api/freshness": freshnessArtifacts,
-    "/api/cron/freshness-audit": freshnessArtifacts,
+    "/api/freshness": withRuntimeDataPacks("/api/freshness", freshnessArtifacts),
+    "/api/cron/freshness-audit": withRuntimeDataPacks(
+      "/api/cron/freshness-audit",
+      freshnessArtifacts,
+    ),
     // The dynamic feed opens its overlay + venue packs per request (see above).
     "/feed": feedDataFiles,
     // /map resolves a ?place= arrival against the UK place index per request
     // (lib/ukPlaceIndex.server.ts), which Next cannot see statically.
-    "/map": [UK_PLACE_INDEX_TRACING_INCLUDE],
+    "/map": withRuntimeDataPacks("/map", [UK_PLACE_INDEX_TRACING_INCLUDE]),
   },
   turbopack: {
     root: projectRoot,

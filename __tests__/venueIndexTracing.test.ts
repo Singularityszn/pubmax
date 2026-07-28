@@ -1,13 +1,17 @@
-// EVERY REQUEST-TIME VENUE-INDEX READER MUST SHIP THE VENUE PACKS.
+// EVERY REQUEST-TIME DATA-PACK READER MUST SHIP THE FILES IT OPENS.
 //
-// lib/venueIndex.ts builds each pack path from city config at request time, so
-// Next cannot discover those files from the reader bundle. A build may still
-// contain them through incidental route grouping, but that is not a contract.
+// lib/venueIndex.ts builds each city pack path from config at request time, and
+// lib/venueDetailIndex.ts builds the detail manifest, rows and raw dataset paths
+// the same way, so Next cannot discover those files from the reader bundle. A
+// build may still contain them through incidental route grouping, but that is
+// not a contract.
 //
 // Route discovery therefore follows local imports from App Router entries to
-// lib/venueIndex.ts. This test pins both halves independently: a synthetic
-// import graph proves discovery follows helpers and converts route conventions,
-// then the real graph must be represented in evaluated Next config.
+// each pack's module (lib/venueIndexTracing.mjs RUNTIME_DATA_PACKS). This test
+// pins both halves independently: a synthetic import graph proves discovery
+// follows helpers, converts route conventions and merges two packs on one
+// route, then every reader in the real graph must be represented in evaluated
+// Next config.
 
 import { execFileSync } from "node:child_process";
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
@@ -16,8 +20,11 @@ import { dirname, join } from "node:path";
 
 import { afterEach, describe, expect, it } from "vitest";
 
-import { enabledVenuePackIncludes } from "@/lib/cityVenuePacks.mjs";
-import { discoverVenueIndexRouteGlobs } from "@/lib/venueIndexTracing.mjs";
+import {
+  RUNTIME_DATA_PACKS,
+  discoverRuntimeReaderRouteGlobs,
+  runtimeDataPackRouteIncludes,
+} from "@/lib/venueIndexTracing.mjs";
 
 const root = join(__dirname, "..");
 const temporaryRoots: string[] = [];
@@ -51,7 +58,7 @@ afterEach(() => {
   }
 });
 
-describe("venue-index runtime tracing", () => {
+describe("runtime data-pack tracing", () => {
   it("derives route globs by following local imports from App Router entries", () => {
     temporaryRoots.push(mkdtempSync(join(tmpdir(), "venue-index-tracing-")));
 
@@ -84,7 +91,7 @@ describe("venue-index runtime tracing", () => {
     writeFixture("app/cyclic/page.tsx", 'export * from "./b";\n');
     writeFixture("app/unrelated/page.tsx", "export default function Page() { return null; }\n");
 
-    expect(discoverVenueIndexRouteGlobs(temporaryRoots[0])).toEqual([
+    expect(discoverRuntimeReaderRouteGlobs(temporaryRoots[0], "lib/venueIndex.ts")).toEqual([
       "/api/direct",
       "/bar/\\[id\\]/opengraph-image",
       "/cyclic",
@@ -92,17 +99,46 @@ describe("venue-index runtime tracing", () => {
     ]);
   });
 
-  it("declares every enabled venue pack for every discovered runtime reader", () => {
-    const routes = discoverVenueIndexRouteGlobs(root);
-    const packs = enabledVenuePackIncludes();
+  it("declares each pack's own files, and merges both where one route reads both", () => {
+    temporaryRoots.push(mkdtempSync(join(tmpdir(), "venue-index-tracing-")));
+
+    const [venueIndexPack, venueDetailPack] = RUNTIME_DATA_PACKS;
+    writeFixture(venueIndexPack.module, "export async function getVenueIndex() {}");
+    writeFixture(venueDetailPack.module, "export async function getVenueDetail() {}");
+    writeFixture(
+      "app/api/packs/route.ts",
+      `import "@/${venueIndexPack.module.replace(/\.ts$/, "")}";\n` +
+        `import "@/${venueDetailPack.module.replace(/\.ts$/, "")}";\n`,
+    );
+    writeFixture(
+      "app/detail/page.tsx",
+      `import "@/${venueDetailPack.module.replace(/\.ts$/, "")}";\n` +
+        "export default function Page() { return null; }\n",
+    );
+
+    const includes = runtimeDataPackRouteIncludes(temporaryRoots[0]);
+
+    expect(new Set(Object.keys(includes))).toEqual(new Set(["/api/packs", "/detail"]));
+    expect(new Set(includes["/api/packs"])).toEqual(
+      new Set([...venueIndexPack.files, ...venueDetailPack.files]),
+    );
+    expect(new Set(includes["/detail"])).toEqual(new Set(venueDetailPack.files));
+  });
+
+  it("declares every pack file for every discovered runtime reader of that pack", () => {
     const includes = tracingIncludes();
 
-    expect(routes.length).toBeGreaterThan(0);
-    expect(packs.length).toBeGreaterThan(0);
-    for (const route of routes) {
-      expect(includes[route], `${route} must declare venue-index files`).toBeDefined();
-      for (const pack of packs) {
-        expect(includes[route], `${route} is missing ${pack}`).toContain(pack);
+    expect(RUNTIME_DATA_PACKS.length).toBeGreaterThan(0);
+    for (const pack of RUNTIME_DATA_PACKS) {
+      const routes = discoverRuntimeReaderRouteGlobs(root, pack.module);
+
+      expect(routes.length, `${pack.id} must have runtime readers`).toBeGreaterThan(0);
+      expect(pack.files.length, `${pack.id} must declare files`).toBeGreaterThan(0);
+      for (const route of routes) {
+        expect(includes[route], `${route} must declare ${pack.id} files`).toBeDefined();
+        for (const file of pack.files) {
+          expect(includes[route], `${route} is missing ${file}`).toContain(file);
+        }
       }
     }
   });
