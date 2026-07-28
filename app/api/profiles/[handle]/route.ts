@@ -19,6 +19,7 @@ import {
 } from "@/lib/profileStore";
 import { followStore } from "@/lib/followStore";
 import { markContributorsDepartedByProfileId } from "@/lib/nightMemoryStore";
+import { referralStore } from "@/lib/referralStore";
 import {
   clientIp,
   hashIp,
@@ -254,6 +255,10 @@ export async function DELETE(
     }
 
     const profile = await store.softDelete(handle);
+
+    if (existing.userId) {
+      await referralStore().eraseAccount(existing.userId);
+    }
 
     // Redaction on account deletion (Wayfinder 5.5): mark this account's Story
     // contributions "withdrawn" so the publish gate erases their content +

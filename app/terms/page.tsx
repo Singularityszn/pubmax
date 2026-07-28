@@ -158,6 +158,24 @@ export default function TermsPage() {
         </p>
       </section>
 
+      <section className="legalSection" aria-labelledby="referrals">
+        <h2 id="referrals" className="legalH2">Invites and referral milestones</h2>
+        <p className="legalBody">
+          You can share one account invite link. A referral counts only when
+          someone follows it, signs up and makes a first accepted contribution.
+          Self-referrals, second accounts made for yourself and circular
+          referrals between two accounts do not count.
+        </p>
+        <p className="legalBody">
+          Referral rewards are not active. We can record private edges and
+          milestones, but those records do not grant access to paid features
+          while we cannot reliably tie a contribution to a signed-in person and
+          stop one person using several accounts. If that changes, these terms
+          and the account surface will say what is granted before any reward
+          goes live.
+        </p>
+      </section>
+
       <section className="legalSection" aria-labelledby="prices">
         <h2 id="prices" className="legalH2">Prices are observations, not offers</h2>
         <p className="legalBody">

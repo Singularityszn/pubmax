@@ -85,6 +85,14 @@ describe("legal content pages", () => {
     expect(terms).toMatch(/same app either way/);
   });
 
+  it("discloses same-journey referral signup and post-erasure blocking", () => {
+    expect(privacy).toMatch(/same\s+sign-in journey/i);
+    expect(privacy).toMatch(/delayed return/i);
+    expect(privacy).not.toMatch(/referral attribution[^]*consent-only/);
+    expect(privacy).toMatch(/one-way hash of the deleted account ID/);
+    expect(privacy).toMatch(/existing session cannot recreate/);
+  });
+
   it("discloses precise location processing without overstating retention", () => {
     expect(privacy).toMatch(/coordinates never leave your\s+device/);
     expect(privacy).toMatch(/\/api\/whats-on/);
@@ -217,5 +225,25 @@ describe("legal content pages", () => {
   it("states the product's own age framing on the terms page", () => {
     expect(terms).toMatch(/under 18/i);
     expect(terms).toMatch(/drinkaware\.co\.uk/);
+  });
+
+  it("discloses private referral attribution and its genuine browser limits", () => {
+    expect(privacy).toMatch(/private referral edge/i);
+    expect(privacy).not.toMatch(/referral journey cookie/i);
+    expect(privacy).toMatch(/same\s+sign-in journey/i);
+    expect(privacy).toMatch(/different\s+browser or device/i);
+    expect(privacy).toMatch(/never shown on a public profile/i);
+    expect(privacy).toMatch(/first accepted contribution/i);
+    expect(privacy).toMatch(/milestone records/i);
+    expect(privacy).toMatch(/until either account is deleted/i);
+    expect(privacy).not.toMatch(/Unclaimed journeys/i);
+  });
+
+  it("states referral qualification and the closed reward gate in the terms", () => {
+    expect(terms).toMatch(/self-referrals/i);
+    expect(terms).toMatch(/circular\s+referrals/i);
+    expect(terms).toMatch(/signs up and makes a first accepted contribution/i);
+    expect(terms).toMatch(/referral rewards are not active/i);
+    expect(terms).toMatch(/do not grant access/i);
   });
 });

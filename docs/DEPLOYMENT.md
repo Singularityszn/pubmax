@@ -31,7 +31,7 @@ Set these in the Vercel project (Settings → Environment Variables).
 
 | Var | Purpose |
 |---|---|
-| `PLAN_IDEMPOTENCY_SECRET` | Optional dedicated HMAC secret of at least 32 random bytes for retry-safe Plan writes, grounding proofs, and verified loop analytics. When omitted, the required `RATE_LIMIT_SALT` is used. A configured short value fails startup/signing rather than silently falling back. |
+| `PLAN_IDEMPOTENCY_SECRET` | Optional dedicated HMAC secret of at least 32 random bytes for retry-safe Plan writes, grounding proofs, referral signup proofs, and verified loop analytics. When omitted, the required `RATE_LIMIT_SALT` is used. A configured short value fails startup/signing rather than silently falling back. |
 | `EXA_API_KEY` | Powers the scheduled signals-ingestion job (sol.md TL-6). If unset, that job is skipped; the interactive app path does not depend on it. |
 | `TAVILY_API_KEY` | **Server-only** key for the rotating UK city pub-enrichment cron (`/api/cron/enrich-city-pubs`) and `npm run enrich:city`. Set as a Vercel secret. If unset, the cron is an honest no-op (see `docs/CRON_PLANE_RUNBOOK.md`). |
 | `TFL_APP_KEY` | Optional TfL app key for every TfL read (`/api/last-train`, `/api/nearby-bus-departures`, via `lib/tflClient.server.ts`). The keyless TfL API is used by default; the key is only appended when present (higher rate limits). |

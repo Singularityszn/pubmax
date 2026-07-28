@@ -46,6 +46,10 @@ import { authedFetch } from "@/lib/authedFetch";
 import type { ClaimChoice, ClaimPreview } from "@/lib/identityClaim";
 import { readDeviceHandle } from "@/lib/identityClaimClient";
 import { normalizeHandle } from "@/lib/profiles";
+import {
+  claimSignupReferralFromAuthCallback,
+  withReferralSignupProof,
+} from "@/lib/referralClaimClient";
 import { emitIdentityHandleChanged, IDENTITY_HANDLE_CHANGED_EVENT } from "@/lib/identityClient";
 import { requestMagicLink, type MagicLinkResult } from "@/lib/passwordlessAuth";
 
@@ -142,7 +146,7 @@ async function prepareAuthCallback(
   currentUrl: string,
   requestedNext?: string,
 ): Promise<CanonicalAuthAttemptStart> {
-  return beginCanonicalAuthAttempt(
+  const attempt = await beginCanonicalAuthAttempt(
     currentUrl,
     requestedNext,
     {
@@ -153,6 +157,8 @@ async function prepareAuthCallback(
     },
     (url) => window.location.assign(url),
   );
+  if (!attempt.ok) return attempt;
+  return withReferralSignupProof(attempt, currentUrl, fetch);
 }
 
 /** Quick path: PATCH-link auth handle and stamp localStorage (no dialog). */
@@ -512,6 +518,20 @@ export function AuthProvider({ children }: { children: ReactNode }): React.JSX.E
           window.clearTimeout(loadingTimeout);
           updateSession(exchangedSession);
           setLoading(false);
+          if (callbackAttempt) {
+            void claimSignupReferralFromAuthCallback({
+              currentUrl: window.location.href,
+              callback: callbackAttempt,
+              request: authedFetch,
+              replaceUrl: (cleanUrl) => {
+                window.history.replaceState(
+                  window.history.state,
+                  "",
+                  cleanUrl,
+                );
+              },
+            });
+          }
           void syncIdentityAfterSignIn(exchangedSession.user);
           return;
         }

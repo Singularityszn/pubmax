@@ -40,13 +40,15 @@ export type CallerAuthIdentity = {
   id: string;
   /** Verified email from the JWT user, or null when absent. */
   email: string | null;
+  /** Supabase Auth account creation time, used for signup-only attribution. */
+  createdAt: string | null;
 };
 
 /**
- * Resolve the caller's verified id + email from their bearer JWT, or null when
- * anonymous / invalid / unconfigured. Same fail-closed rules as callerUserId.
- * Prefer this when a route must derive an auth handle from the account email
- * (never trust a client-supplied authHandle).
+ * Resolve the caller's verified id, email, and account creation time from their
+ * bearer JWT, or null when anonymous / invalid / unconfigured. Same fail-closed
+ * rules as callerUserId. Prefer this when a route needs JWT-owned account
+ * metadata rather than a client-supplied proxy.
  */
 export async function callerAuthIdentity(
   request: Request,
@@ -63,7 +65,9 @@ export async function callerAuthIdentity(
     const id = data.user?.id;
     if (typeof id !== "string" || !id) return null;
     const email = typeof data.user?.email === "string" ? data.user.email : null;
-    return { id, email };
+    const createdAt =
+      typeof data.user?.created_at === "string" ? data.user.created_at : null;
+    return { id, email, createdAt };
   } catch {
     return null;
   }

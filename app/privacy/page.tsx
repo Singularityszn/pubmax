@@ -119,6 +119,32 @@ export default function PrivacyPage() {
           connected and any provider tokens encrypted at rest.
         </p>
 
+        <h3 className="legalH3">If you use an invite link</h3>
+        <p className="legalBody">
+          Making an invite gives you an opaque link tied to your account. When
+          someone follows it, the opaque code stays in the page address. We set
+          no referral cookie and store no attribution record while they browse.
+          If that person starts and completes account creation in the same
+          sign-in journey, the completed callback submits the code and we record
+          one private referral edge between the two account IDs. It is recorded
+          once and is never shown on a public profile, contributor record, venue
+          page or anywhere else public.
+        </p>
+        <p className="legalBody">
+          Attribution works only during that sign-up. A delayed return, a
+          different browser or device, an invalid link, or signing into an
+          existing account is not attributed. We don&rsquo;t guess when the
+          same-journey proof is absent.
+        </p>
+        <p className="legalBody">
+          A referral is not qualified by signup alone. It needs the new account
+          to make its first accepted contribution. We keep append-only milestone
+          records so later decisions can be explained. Those milestone records
+          do not grant paid features today, because contributions are not yet
+          tied to signed-in accounts strongly enough to stop one person using
+          several accounts.
+        </p>
+
         <h3 className="legalH3">What you post</h3>
         <p className="legalBody">
           Pint Drops (a price, a note, sometimes a photo), plans and crawl
@@ -328,8 +354,7 @@ export default function PrivacyPage() {
           <li>
             <strong>Because you said yes (consent).</strong>{" "}Usage analytics,
             push notifications and the email digest are consent-only, and you
-            can withdraw consent at any time without losing the rest of the
-            app.
+            can withdraw consent at any time without losing the rest of the app.
           </li>
         </ul>
       </section>
@@ -511,6 +536,16 @@ export default function PrivacyPage() {
             <strong>Push subscriptions:</strong>{" "}if you turned notifications
             on, the stored subscription row stays until your browser&rsquo;s
             push service reports it dead or you ask us to remove it.
+          </li>
+          <li>
+            <strong>Referral records:</strong>{" "}the private invite code,
+            account-to-account edge, first accepted contribution marker and
+            milestone records stay until either account is deleted. Ordinary
+            product writes can only append that history. A verified account
+            deletion removes the private referral data tied to that account.
+            We retain only a one-way hash of the deleted account ID in the
+            referral system so an existing session cannot recreate those
+            records.
           </li>
         </ul>
       </section>

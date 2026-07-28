@@ -1269,6 +1269,11 @@
 .accountHubGrid input, .accountHubGrid button { min-height: 44px; border-radius: 12px; }
 .accountHubGrid input { width: 100%; padding: .7rem .8rem; border: 1px solid var(--line); background: var(--paper); color: var(--ink); }
 .accountHubGrid button { padding: .65rem .8rem; border: 0; background: var(--ink); color: var(--paper); font-weight: 700; }
+.accountHubReferral { min-width: 0; }
+.accountHubReferral h3, .accountHubReferral p { margin: 0; }
+.accountHubReferralProgress { color: var(--ink-muted); }
+.accountHubReferralLink { display: grid; min-width: 0; gap: .35rem; color: var(--ink-muted); font-size: .8rem; font-weight: 700; }
+.accountHubReferralLink input { min-width: 0; }
 .accountHubActions { display: flex; flex-wrap: wrap; gap: .4rem; }
 .accountHubMessage { margin-top: .75rem; }
 .accountHubMerge { display: grid; gap: .65rem; margin: 0 0 .75rem; padding: 1rem; border: 1px solid var(--line); border-radius: 18px; background: var(--panel-raised); }

@@ -6,7 +6,7 @@ reviewed surface—even when a POST is semantically read-only. The regression te
 Adding a mutating route or removing its authority/abuse boundary fails
 CI until this certification is deliberately updated.
 
-> **Inventory: 72 mutating routes.** The count grew 60 → 61 (email-capture
+> **Inventory: 74 mutating routes.** The count grew 60 → 61 (email-capture
 > `POST /api/email-subscribers`) → 62 (native `POST /api/push-tokens`) → 63 (the
 > Social Loop "we're out" `POST /api/check-ins`) → 64 (the vibe-vote
 > `POST /api/plans/[id]/vibe-votes`) → 65 (the area-demand capture
@@ -16,7 +16,8 @@ CI until this certification is deliberately updated.
 > /api/venue-operators/claim` and `POST /api/operator-proposals`) → 70 (the
 > community price submission `POST /api/price-submit`) → 71 (community-price
 > moderation `POST /api/admin/community-prices`) → 72 (authored weather
-> Recommendations `POST /api/weather-recommendations`). Token-gated GET
+> Recommendations `POST /api/weather-recommendations`) → 74 (private referral
+> invite-link creation and same-journey signup claim). Token-gated GET
 > confirm/unsubscribe endpoints and read-only GETs (the Social Loop reads, the
 > vibe-vote tally read, the Visit Report venue / contributor-count /
 > moderator-lane reads, the operator
@@ -41,6 +42,14 @@ CI until this certification is deliberately updated.
 These boundaries compose. For example, Plan creation is rate-limited and fails
 closed when durable enforcement is unavailable; later lifecycle writes require a
 Plan member capability and use idempotency keys or atomic store operations.
+
+Referral writes are account-bound. `POST /api/referrals/invite-link` derives the
+inviter from the verified JWT. `POST /api/referrals/claim-attribution` derives
+the new account and its creation time from the same verified identity, then
+resolves only an opaque invite code from its body. Neither route accepts an
+account ID in its body, and neither returns either side of an invite edge.
+Following the public invite route writes nothing. Auth callback code claims are
+accepted only for newly created accounts in the same sign-in journey.
 
 ## Failure posture
 

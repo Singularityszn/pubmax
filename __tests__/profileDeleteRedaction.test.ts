@@ -11,6 +11,7 @@ vi.mock("@/lib/authServer", () => ({
 }));
 
 import { DELETE } from "@/app/api/profiles/[handle]/route";
+import { POST as inviteLink } from "@/app/api/referrals/invite-link/route";
 import {
   __resetNightMemoryStore,
   acceptStoryContribution,
@@ -25,6 +26,10 @@ import {
   upsertStoryContributor,
 } from "@/lib/nightMemoryStore";
 import { __resetMemoryProfiles, profileStore } from "@/lib/profileStore";
+import {
+  __resetMemoryReferrals,
+  memoryReferralStore,
+} from "@/lib/referralStore";
 
 const params = (handle: string) => ({ params: Promise.resolve({ handle }) });
 const del = (handle: string, token: string) =>
@@ -37,6 +42,7 @@ describe("DELETE /api/profiles/[handle] triggers one-choke redaction (5.5)", () 
   beforeEach(() => {
     __resetNightMemoryStore();
     __resetMemoryProfiles();
+    __resetMemoryReferrals();
   });
 
   it("redacts the deleted account's Moments + identity from a published Story, keeping the rest", async () => {
@@ -82,7 +88,19 @@ describe("DELETE /api/profiles/[handle] triggers one-choke redaction (5.5)", () 
   it("still deletes (does not fail) when the account contributes to no Story", async () => {
     await profileStore().ensure("solo");
     await profileStore().linkUser("solo", "solo-user");
+    await memoryReferralStore.recordEdge("inviter", "solo-user");
     const res = await del("solo", "solo-user");
     expect(res.status).toBe(200);
+    expect(await memoryReferralStore.privateStatus("inviter")).toMatchObject({
+      attributedCount: 0,
+      qualifiedCount: 0,
+    });
+    const inviteResponse = await inviteLink(
+      new Request("http://localhost/api/referrals/invite-link", {
+        method: "POST",
+        headers: { authorization: "Bearer solo-user" },
+      }),
+    );
+    expect(inviteResponse.status).toBe(409);
   });
 });

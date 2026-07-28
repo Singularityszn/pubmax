@@ -25,7 +25,7 @@ type Boundary = "rate_limit" | "account" | "capability" | "moderator" | "confirm
 
 const BOUNDARY_PATTERNS: Record<Boundary, RegExp> = {
   rate_limit: /\b(?:isLimited|is[A-Z][A-Za-z]+Limited|is[A-Z][A-Za-z]+RateLimited)\b/,
-  account: /\bcallerUserId\b/,
+  account: /\b(?:callerUserId|callerAuthIdentity)\b/,
   capability: /\b(?:planMemberCapability|memberToken|requireRoundOwnership)\b/,
   moderator: /\b(?:isModerator|isAdminAuthorized|verifyAdminToken)\b/,
   confirmation: /\b(?:consumePublishConfirmation|confirmationToken)\b/,
@@ -80,9 +80,12 @@ describe("mutating API surface certification", () => {
     // fm/weather-recommendations): handle-attributed opinion, server-derived
     // actor, closed weather vocabulary, and two rate-limit tiers. Its sibling
     // GET is read-only and is not counted. This literal is the
-    // deliberate merge-coordination point: any branch adding a mutating route
+    // + two private referral writes: account-gated invite-link creation and
+    // signup-only attribution claim. Neither accepts an account id from the
+    // caller, and neither exposes an invite edge. The deliberate
+    // merge-coordination point: any branch adding a mutating route
     // bumps it in the same commit (docs/WRITE_SURFACE_CERTIFICATION.md).
-    expect(mutationRoutes).toHaveLength(72);
+    expect(mutationRoutes).toHaveLength(74);
   });
 
   it("gives every mutating route an abuse or authority boundary", () => {

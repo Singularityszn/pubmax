@@ -1260,11 +1260,16 @@ describe("auth callback URL safety", () => {
     });
 
     const captured = await scrubAuthCallback(
-      `https://pubmaxxing.com/map?code=pkce&_authCallback=1&_authAttempt=${ATTEMPT_A}`,
+      `https://pubmaxxing.com/map?code=pkce&_authCallback=1&_authAttempt=${ATTEMPT_A}&_referralSignupProof=signed-proof`,
       replaceUrl,
       { persistentStorage, tabStorage, lockManager: immediateLocks, now: 2_000 },
     );
-    expect(captured?.attempt).toEqual({ attemptId: ATTEMPT_A, code: "pkce", providerError: false });
+    expect(captured?.attempt).toEqual({
+      attemptId: ATTEMPT_A,
+      code: "pkce",
+      providerError: false,
+      signupProof: "signed-proof",
+    });
     releaseAuthAttempt(ATTEMPT_A, persistentStorage, tabStorage);
     expect(persistentValues.size).toBe(0);
   });
@@ -1274,9 +1279,14 @@ describe("auth callback URL safety", () => {
       .toBeNull();
     expect(
       readAuthCallbackAttempt(
-        `https://pubmaxxing.com/map?code=pkce&_authCallback=1&_authAttempt=${ATTEMPT_A}`,
+        `https://pubmaxxing.com/map?code=pkce&_authCallback=1&_authAttempt=${ATTEMPT_A}&_referralSignupProof=signed-proof`,
       ),
-    ).toEqual({ attemptId: ATTEMPT_A, code: "pkce", providerError: false });
+    ).toEqual({
+      attemptId: ATTEMPT_A,
+      code: "pkce",
+      providerError: false,
+      signupProof: "signed-proof",
+    });
     expect(readAuthCallbackAttempt("https://pubmaxxing.com/?authError=1"))
       .toEqual({ attemptId: null, code: null, providerError: true });
   });
