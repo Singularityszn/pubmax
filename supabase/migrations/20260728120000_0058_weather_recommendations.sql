@@ -15,7 +15,7 @@ create table if not exists public.weather_recommendations (
   condition           text not null,
   reason              text not null,
   contributor_handle  text not null,
-  actor_hash           text not null,
+  actor_hash           text,
   submitted_at         timestamptz not null default now(),
   constraint weather_recommendations_owner_key
     unique (venue_id, condition, contributor_handle)
@@ -34,7 +34,10 @@ begin
         and condition in ('warm', 'clear', 'raining', 'cold', 'windy')
         and char_length(reason) between 8 and 160
         and contributor_handle ~ '^[a-z0-9_]{1,30}$'
-        and char_length(actor_hash) between 1 and 160
+        and (
+          actor_hash is null
+          or char_length(actor_hash) between 1 and 160
+        )
       );
   end if;
 end $$;

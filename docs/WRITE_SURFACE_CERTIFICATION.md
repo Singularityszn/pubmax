@@ -6,7 +6,7 @@ reviewed surface—even when a POST is semantically read-only. The regression te
 Adding a mutating route or removing its authority/abuse boundary fails
 CI until this certification is deliberately updated.
 
-> **Inventory: 71 mutating routes.** The count grew 60 → 61 (email-capture
+> **Inventory: 72 mutating routes.** The count grew 60 → 61 (email-capture
 > `POST /api/email-subscribers`) → 62 (native `POST /api/push-tokens`) → 63 (the
 > Social Loop "we're out" `POST /api/check-ins`) → 64 (the vibe-vote
 > `POST /api/plans/[id]/vibe-votes`) → 65 (the area-demand capture
@@ -15,12 +15,13 @@ CI until this certification is deliberately updated.
 > `PATCH /api/night-moments/[id]/alt-text`) → 69 (the operator rail: `POST
 > /api/venue-operators/claim` and `POST /api/operator-proposals`) → 70 (the
 > community price submission `POST /api/price-submit`) → 71 (community-price
-> moderation `POST /api/admin/community-prices`). Token-gated GET
+> moderation `POST /api/admin/community-prices`) → 72 (authored weather
+> Recommendations `POST /api/weather-recommendations`). Token-gated GET
 > confirm/unsubscribe endpoints and read-only GETs (the Social Loop reads, the
 > vibe-vote tally read, the Visit Report per-venue summary read, the operator
 > own-claim / moderator queue reads, the community price-per-drink read, the
 > base-pub provisional-mark read, the
-> community-price review queue read) are
+> community-price review queue read, the weather-matched Recommendation read) are
 > deliberately excluded from the
 > mutating-verb inventory. The number is a merge-conflict coordination point
 > across in-flight branches — reconcile it (not silently overwrite) when branches
@@ -477,6 +478,49 @@ commit.
   on, no anon/authenticated policy, service_role only). Clearing `hidden_at`
   restores everything; the store fails soft to process-memory until 0055 lands,
   and an unavailable durable read degrades the queue to empty rather than 500.
+
+### `app/api/weather-recommendations` - authored weather Recommendations (route 72)
+
+- **Route / method:** `POST app/api/weather-recommendations/route.ts`
+  (`fm/weather-recommendations`) creates or updates one Pubmaxxer's opinion for
+  one venue and condition. Its `GET ?venueId=...` is read-only and is not
+  counted.
+- **Validation:** `validateWeatherRecommendation`
+  (`lib/weatherRecommendations.ts`) is shared by client and server. It requires
+  a canonical venue, normalized Pubmaxx handle, 8 to 160 character plain
+  reason, and exactly one closed condition from `warm`, `clear`, `raining`,
+  `cold`, or `windy`. The database repeats those bounds. Unknown venues and
+  off-vocabulary conditions are rejected before persistence.
+- **Identity and attribution:** a verified JWT-linked handle wins over the
+  asserted handle through `resolveMessageHandle`, then `gateHandleAction`
+  protects linked handles. Keyless development keeps the existing unlinked
+  handle path. Separately, `deriveCommunityPriceActor` derives a private actor
+  token from the hashed request IP. The handle is public authorship; the actor
+  token never leaves the store and is never accepted from the body.
+- **Rate limit (boundary):** an actor-wide durable `isLimited` budget allows 30
+  writes per hour across venues. A second per-actor, per-venue budget allows
+  five per hour. One natural row per `(venue, condition, contributor_handle)`
+  means edits replace the author's earlier reason rather than increasing their
+  contribution count.
+- **Weather and read honesty:** the GET uses only the existing store-first
+  Open-Meteo snapshot and nearest Night Area. Known current conditions filter
+  human-authored rows. Missing, future, or expired weather returns
+  `weatherStatus: "unavailable"` and surfaces authored rows unconditionally, so
+  "we could not check" never becomes "nobody recommended this". Weather never
+  authors, verifies, scores, or ranks a Recommendation.
+- **Payload and leaderboard seam:** venue reads start from at most 20 newest
+  rows and enforce an 8 KiB serialized response ceiling, reporting `truncated`
+  if the runtime ceiling removes any. `countForContributor` derives a
+  status-bearing count by normalized handle for a future contributor
+  leaderboard. No count, aggregate score, or venue ranking appears in this API
+  response or the venue UI.
+- **Rollback / kill:** durable rows live in
+  `public.weather_recommendations` (migration 0058, RLS on,
+  anon/authenticated revoked, service-role only). A missing migration falls
+  back to memory outside deployed production; production writes fail with 503.
+  Reads carry `degraded` when durable storage cannot answer. Truncating this
+  table removes only authored Recommendations and cannot change weather,
+  reviews, prices, Night Signals, or venue data.
 
 ## Certification command
 

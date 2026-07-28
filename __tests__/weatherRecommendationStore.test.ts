@@ -11,7 +11,9 @@ import type {
 } from "@/lib/weatherRecommendations";
 
 function input(
-  overrides: Partial<WeatherRecommendationInput> = {},
+  overrides: Partial<
+    WeatherRecommendationInput & { actorHash: string }
+  > = {},
 ): WeatherRecommendationInput & { actorHash: string } {
   return {
     venueId: "venue-1",
@@ -71,6 +73,19 @@ describe("memoryWeatherRecommendationStore", () => {
         "someone_else",
       ),
     ).toEqual({ status: "ready", count: 0 });
+  });
+
+  it("keeps a handle-attributed row when device hashing is unavailable", async () => {
+    const withoutActor = input();
+    delete (withoutActor as Partial<typeof withoutActor>).actorHash;
+
+    const created = await memoryWeatherRecommendationStore.create(
+      withoutActor,
+      1_000,
+    );
+
+    expect(created.contributorHandle).toBe("night_owl");
+    expect(created).not.toHaveProperty("actorHash");
   });
 
   it("bounds a venue read to the newest rows without exposing actor hashes", async () => {

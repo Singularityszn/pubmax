@@ -27,7 +27,7 @@ const TABLE = "weather_recommendations";
 export const MAX_WEATHER_RECOMMENDATIONS_PER_VENUE = 20;
 
 export type WeatherRecommendationWrite = WeatherRecommendationInput & {
-  actorHash: string;
+  actorHash?: string | null;
 };
 
 export type WeatherRecommendationReadResult = {
@@ -52,7 +52,11 @@ export type WeatherRecommendationStore = {
 };
 
 type StoredWeatherRecommendation = WeatherRecommendation & {
-  actorHash: string;
+  actorHash: string | null;
+};
+
+type NormalizedWeatherRecommendationWrite = WeatherRecommendationInput & {
+  actorHash: string | null;
 };
 
 function naturalKey(
@@ -64,16 +68,14 @@ function naturalKey(
   return `${row.venueId}::${row.condition}::${row.contributorHandle}`;
 }
 
-function validWrite(input: WeatherRecommendationWrite): WeatherRecommendationWrite {
+function validWrite(
+  input: WeatherRecommendationWrite,
+): NormalizedWeatherRecommendationWrite {
   const validation = validateWeatherRecommendation(input);
   const actorHash =
     typeof input.actorHash === "string" ? input.actorHash.trim().slice(0, 160) : "";
-  if (!validation.ok || !actorHash) {
-    throw new Error(
-      validation.ok ? "Recommendation actor is required." : validation.error,
-    );
-  }
-  return { ...validation.value, actorHash };
+  if (!validation.ok) throw new Error(validation.error);
+  return { ...validation.value, actorHash: actorHash || null };
 }
 
 function published(

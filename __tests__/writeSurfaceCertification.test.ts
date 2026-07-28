@@ -47,7 +47,7 @@ const mutationRoutes = routeFiles(API_ROOT)
 
 describe("mutating API surface certification", () => {
   it("keeps the reviewed inventory explicit", () => {
-    // 70 = the Wave 0 inventory of 60 + the email-capture POST
+    // 72 = the Wave 0 inventory of 60 + the email-capture POST
     // (app/api/email-subscribers/route.ts, merged) + push-tokens (native shell
     // registration) + the Social Loop "we're out" check-in POST
     // (app/api/check-ins/route.ts, feat/social-loop-v1) + the vibe-vote POST
@@ -75,10 +75,14 @@ describe("mutating API surface certification", () => {
     // fm/trust-quickfixes): moderator-gated hide/restore on one community price
     // - hide, never delete; its sibling GET (the review queue) is NOT a mutating
     // verb and is not counted. The reader-side FLAG shares the existing
-    // price-submit POST rather than adding a route. This literal is the
+    // price-submit POST rather than adding a route. Plus the authored weather
+    // Recommendation POST (app/api/weather-recommendations/route.ts,
+    // fm/weather-recommendations): handle-attributed opinion, server-derived
+    // actor, closed weather vocabulary, and two rate-limit tiers. Its sibling
+    // GET is read-only and is not counted. This literal is the
     // deliberate merge-coordination point: any branch adding a mutating route
     // bumps it in the same commit (docs/WRITE_SURFACE_CERTIFICATION.md).
-    expect(mutationRoutes).toHaveLength(71);
+    expect(mutationRoutes).toHaveLength(72);
   });
 
   it("gives every mutating route an abuse or authority boundary", () => {
