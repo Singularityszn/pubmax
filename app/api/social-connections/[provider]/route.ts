@@ -10,6 +10,7 @@ import {
 import { createSocialOAuthStart, socialProviderAvailability } from "@/lib/socialOAuth";
 import { isLimited } from "@/lib/pintDrops";
 import { assertServerEnv } from "@/lib/serverEnv";
+import { siteOrigin } from "@/lib/siteUrl";
 import { clientIp, hashIp } from "@/lib/supabase";
 
 assertServerEnv();
@@ -55,9 +56,8 @@ export async function POST(request: Request, context: Context): Promise<Response
     if (await isLimited(rateKey, rateKey, 10, 10 * 60_000)) {
       return publicApiError("Too many connection attempts. Try again shortly.", "SOCIAL_CONNECTION_RATE_LIMITED", 429, { retryable: true });
     }
-    const origin = process.env.NODE_ENV === "production"
-      ? new URL(process.env.NEXT_PUBLIC_SITE_URL ?? "https://pubmaxxing.com").origin
-      : new URL(request.url).origin;
+    const origin = siteOrigin(request.url);
+    if (!origin) throw new Error("Site URL is invalid.");
     return jsonNoStore(await createSocialOAuthStart({ ownerId, provider, origin }));
   } catch (error) {
     return publicApiError(error instanceof Error ? error.message : "OAuth is unavailable.", "SOCIAL_PROVIDER_UNAVAILABLE", 503, { retryable: true });

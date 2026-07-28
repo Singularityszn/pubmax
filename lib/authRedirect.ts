@@ -1,3 +1,5 @@
+import { canonicalAuthStartUrl, siteOrigin } from "@/lib/siteUrl";
+
 /**
  * Keep post-auth navigation on the app origin. This is shared by every auth
  * entry point so adding a new provider cannot accidentally add an open redirect.
@@ -79,6 +81,10 @@ export type AuthCallbackCaptureOptions = Pick<
 export type AuthAttemptStart =
   | { ok: true; id: string; callbackUrl: string }
   | { ok: false; message: string };
+
+export type CanonicalAuthAttemptStart =
+  | AuthAttemptStart
+  | { ok: false; navigationStarted: true };
 
 export type AuthCallbackAttempt = {
   attemptId: string | null;
@@ -225,7 +231,9 @@ export function buildAuthCallbackUrl(
     // Never place a fragment in redirectTo. Fragments can contain one-use
     // capabilities and become server-visible when nested inside this query.
     const next = `${destination.pathname}${destination.search}` || "/";
-    const callback = new URL("/auth/callback", current.origin);
+    const callbackOrigin = siteOrigin(currentUrl);
+    if (!callbackOrigin) return null;
+    const callback = new URL("/auth/callback", callbackOrigin);
     if (next !== "/") callback.searchParams.set("next", next);
     if (attemptId) {
       if (!isAuthAttemptId(attemptId)) return null;
@@ -355,6 +363,30 @@ export async function beginCoordinatedAuthAttempt(
   } catch {
     return { ok: false, message: AUTH_COORDINATION_UNAVAILABLE_MESSAGE };
   }
+}
+
+export async function beginCanonicalAuthAttempt(
+  currentUrl: string,
+  requestedNext: string | undefined,
+  options: AuthAttemptOptions,
+  navigate: (url: string) => void,
+): Promise<CanonicalAuthAttemptStart> {
+  const destination = authDestination(currentUrl, requestedNext);
+  const canonicalStartUrl = destination
+    ? canonicalAuthStartUrl(destination.toString())
+    : null;
+  if (canonicalStartUrl) {
+    try {
+      navigate(canonicalStartUrl);
+      return { ok: false, navigationStarted: true };
+    } catch {
+      return {
+        ok: false,
+        message: "Sign-in must start on pubmaxxing.com. Open the site there, then try again.",
+      };
+    }
+  }
+  return beginCoordinatedAuthAttempt(currentUrl, requestedNext, options);
 }
 
 /** Release only the matching lock; another tab's attempt is never disturbed. */
