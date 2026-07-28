@@ -21,7 +21,7 @@ import "../legal.css";
 const PAGE_TITLE = "Privacy";
 const PAGE_DESCRIPTION =
   "What PUBMAXX collects, why, who else sees it, how long we keep it, and how to get it deleted. Written against what the app actually does.";
-const LAST_UPDATED = "26 July 2026";
+const LAST_UPDATED = "28 July 2026";
 
 export const metadata: Metadata = {
   title: PAGE_TITLE,
@@ -168,6 +168,14 @@ export default function PrivacyPage() {
             Our server forwards that approximate origin to CityMCP for journey
             options. If you then tap Maps, your browser sends the same rounded
             origin to Google Maps for directions.
+          </li>
+          <li>
+            <strong>Buses near a pub:</strong>{" "}opening nearby bus departures
+            sends the pub&rsquo;s public map coordinates to our
+            {" "}<code>/api/nearby-bus-departures</code> route. Our server passes
+            that pub location, not your location, to Transport for
+            London&rsquo;s public StopPoint API to find nearby stops and live
+            departures.
           </li>
           <li>
             <strong>Remembered areas:</strong>{" "}Tonight can turn an area choice
@@ -340,6 +348,9 @@ export default function PrivacyPage() {
               rounded to three decimal places to TfL&rsquo;s public StopPoint API
               at <code>api.tfl.gov.uk</code> to find your nearest station. It also
               fetches live arrivals, timetables and line-status information.
+              Opening nearby buses on a pub sheet sends that pub&rsquo;s public
+              map coordinates, not your location, to find nearby stops and live
+              departures.
             </dd>
           </div>
           <div className="legalRow">
