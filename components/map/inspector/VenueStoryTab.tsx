@@ -14,6 +14,7 @@ import { nearestLandmarks, type Landmark } from "@/lib/landmarks";
 import { curatedCrawlsForBand, placeStoryMapHref, type CuratedCrawl } from "@/lib/curatedCrawls";
 import type { CityId } from "@/lib/cities";
 import type { TabKey } from "@/lib/venueInspectorTabs";
+import VisitReportPanel from "@/components/visits/VisitReportPanel";
 import {
   isPubVenueKind,
   venueKindNoun,
@@ -101,6 +102,12 @@ export default function VenueStoryTab({
       className="venueTabPanel"
       hidden={tab !== "story"}
     >
+      <VisitReportPanel
+        venueId={venue.id}
+        venueName={venue.name}
+        active={tab === "story"}
+      />
+
       {/* Passive cited heritage ("On record") — H1. Above the description so the
           facts a venue carries land the instant the tab opens. Every fact wears
           its source chip + citation; provenance-honest, server-payload only. */}

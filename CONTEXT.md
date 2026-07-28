@@ -87,8 +87,8 @@ The historical, architectural, cultural, or visual story that makes a venue inte
 _Avoid_: History, beauty
 
 **Visit Report**:
-A user-submitted account of a visit to a venue, including beer quality, amenities, price observations, and qualitative notes.
-_Avoid_: Review, check-in, pin
+A short, contributor-attributed account anchored to a dated venue visit. It records only what the contributor observed, such as crowd, noise, seating, bar wait, and one brief note. It is never a star rating, aggregate verdict, or verified venue fact.
+_Avoid_: Review, rating, score, check-in, verified fact
 
 **Beer Quality**:
 The user's judgement of how good a specific beer or pint was during a venue visit.
@@ -107,7 +107,7 @@ A venue surfaced by product logic from current conditions, preferences, or other
 _Avoid_: Recommendation, user tip
 
 **Pint Drop**:
-A single community contribution attached to a venue: an optional pint photo, an optional venue photo, an observed pint price, and an optional Passed-Down Note. The concrete form a Visit Report takes in the community layer.
+A single community contribution attached to a venue: an optional pint photo, an optional venue photo, an observed pint price, and an optional Passed-Down Note. A separate object from a Visit Report, which records observed conditions on a dated visit rather than a photo or a price.
 _Avoid_: Post, check-in, upload
 
 **Passed-Down Note**:

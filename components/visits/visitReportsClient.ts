@@ -1,38 +1,39 @@
 "use client";
 
-// Client plumbing for the Visit Report surface (Wayfinder 3.4): the venue read
-// (reports + honest summary) and the create write. Identity reuses the app-wide
+// Client plumbing for the Visit Report surface: the venue read, create write,
+// and public flag. Identity reuses the app-wide
 // self-asserted handle convention (localStorage `pubmax_handle`) via the
 // ratings client, so a user who already rated a pub never re-enters their handle.
 
-import type { VisitReportSummary } from "@/lib/visitReportSummary";
 import type {
-  Atmosphere,
   Busyness,
-  PriceSanity,
+  Noise,
+  Seating,
+  ServiceWait,
   VisitReportDTO,
-  WouldReturn,
+  VisitReportReadStatus,
 } from "@/lib/visitReports";
 
 export { storedHandle, rememberHandle } from "@/components/ratings/ratingsClient";
 
 export type VisitReportVenueRead = {
+  status: VisitReportReadStatus;
   reports: VisitReportDTO[];
-  summary: VisitReportSummary;
 };
 
 export type VisitReportDraft = {
   venueId: string;
   handle: string;
+  visitedAt: string;
   busyness?: Busyness | null;
-  atmosphere?: Atmosphere | null;
-  wouldReturn?: WouldReturn | null;
-  priceSanity?: PriceSanity | null;
+  noise?: Noise | null;
+  seating?: Seating | null;
+  serviceWait?: ServiceWait | null;
   note?: string;
 };
 
-/** Read a venue's visit reports + summary. Resolves null on any failure so the
- *  panel renders its empty state rather than throwing. */
+/** Read a venue's visit reports. A network failure becomes a degraded read so
+ * the panel never writes "nothing here" when it could not check. */
 export async function fetchVisitReports(venueId: string): Promise<VisitReportVenueRead | null> {
   try {
     const res = await fetch(`/api/visit-reports?venueId=${encodeURIComponent(venueId)}`);
@@ -40,6 +41,20 @@ export async function fetchVisitReports(venueId: string): Promise<VisitReportVen
     return (await res.json()) as VisitReportVenueRead;
   } catch {
     return null;
+  }
+}
+
+/** Queue one report for moderator review. The server derives reporter identity
+ * from the request and ignores any client identity claim. */
+export async function reportVisitReport(id: string): Promise<void> {
+  const res = await fetch("/api/visit-reports", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ action: "report", id }),
+  });
+  if (!res.ok) {
+    const body = (await res.json().catch(() => ({}))) as { error?: string };
+    throw new Error(body.error ?? "Couldn't report this visit note just now.");
   }
 }
 

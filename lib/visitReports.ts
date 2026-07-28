@@ -2,11 +2,9 @@
 //
 // A Visit Report is the honest, structured sibling of the free-text Pint Drop
 // anecdote: someone was at a pub on a given evening and taps a few fixed
-// choices (how busy, the vibe, would they go back, did the price feel fair) plus
-// an optional short note. It is deliberately narrow — no free-text tags, no star
-// score, no averages dressed up as a score. The recency-weighted SUMMARY
-// (lib/visitReportSummary.ts) turns a pile of these into plain lines like
-// "Usually steady, most would return", never a number pretending to be a rating.
+// choices about what they observed (crowd, noise, seating, and bar wait) plus an
+// optional short note. It is deliberately narrow: no free-text tags, star score,
+// recommendation proxy, or aggregate verdict.
 //
 // This module is PURE + browser-safe (no @/lib/supabase, no node builtins, no
 // React) so the capture card AND the server route share the EXACT same
@@ -15,9 +13,8 @@
 // and moderation live in lib/visitReportsStore.ts (the impure seam); id +
 // timestamps are stamped THERE, so nothing here needs crypto.
 //
-// Duty of care (kept in step with lib/ratings.ts + VenueRatingPanel): every
-// field rates the PUB and the night, never the drinker. No streaks, no points,
-// no public star score.
+// Duty of care: every field describes a visit, never the drinker. No streaks,
+// points, public star score, or claim that one account is a verified venue fact.
 
 import { londonDayKey } from "@/lib/pintContributions";
 import { presentableDescription } from "@/lib/slopFilter";
@@ -25,48 +22,56 @@ import { presentableDescription } from "@/lib/slopFilter";
 // ── Fixed vocabularies ───────────────────────────────────────────────────────
 // Small, closed sets. The client can only ever send one of these; anything else
 // is normalised to null (never stored raw), and the DB CHECK constraints in
-// migration 0046 mirror them (defence in depth).
+// migrations 0046 (busyness) and 0058 (noise, seating, bar wait) mirror them
+// (defence in depth).
 
 /** How busy the pub was. */
 export const BUSYNESS_VALUES = ["quiet", "steady", "rammed"] as const;
 export type Busyness = (typeof BUSYNESS_VALUES)[number];
 
-/** The vibe, a SINGLE pick from a fixed vocabulary — never free-text tags (that
- *  is what invites slop). Kept short and plain, on the safe register. */
-export const ATMOSPHERE_VALUES = [
-  "cosy",
-  "lively",
-  "chilled",
-  "rowdy",
-  "traditional",
-  "sporty",
-] as const;
-export type Atmosphere = (typeof ATMOSPHERE_VALUES)[number];
+/** Could people talk normally, or did they have to compete with the room? */
+export const NOISE_VALUES = ["easy-to-talk", "loud", "had-to-shout"] as const;
+export type Noise = (typeof NOISE_VALUES)[number];
 
-/** Would the reporter come back. */
-export const WOULD_RETURN_VALUES = ["yes", "no"] as const;
-export type WouldReturn = (typeof WOULD_RETURN_VALUES)[number];
+/** What finding somewhere to sit was like during this visit. */
+export const SEATING_VALUES = ["plenty", "tight", "standing"] as const;
+export type Seating = (typeof SEATING_VALUES)[number];
 
-/** Did the price feel fair on the night — a sanity read, NOT a figure. The
- *  numeric price moat stays the Pint Drop's job; this is only "fine" vs "steep". */
-export const PRICE_SANITY_VALUES = ["fine", "steep"] as const;
-export type PriceSanity = (typeof PRICE_SANITY_VALUES)[number];
+/** What the wait at the bar was like during this visit. */
+export const SERVICE_WAIT_VALUES = ["quick", "some-wait", "long"] as const;
+export type ServiceWait = (typeof SERVICE_WAIT_VALUES)[number];
 
 /** A note is a courtesy line, not an essay. 140 chars keeps it a caption. */
 export const MAX_VISIT_NOTE = 140;
+
+/**
+ * How far back a visit may be written up, in calendar days.
+ *
+ * The visited date is authority-bearing: the public lane sorts on it, so the
+ * day someone types decides what a reader sees first. An unbounded past date
+ * therefore hands one submission the top of a pub's page for as long as it
+ * likes, and a night from years ago describes a room that may no longer exist.
+ * Ninety days keeps the lane an account of the pub as it is now while still
+ * covering a visit someone writes up long after the night itself.
+ */
+export const MAX_VISIT_AGE_DAYS = 90;
+
+const DAY_MS = 24 * 60 * 60 * 1000;
 
 const MAX_VENUE_ID = 64;
 const MAX_HANDLE = 40;
 
 /**
- * The one interruptive-prompt id the capture card claims from the shared
- * per-session budget (lib/promptBudget.ts), so a visit-report prompt never
- * stacks on top of the A2HS / first-run / identity-nudge surfaces in one
- * sitting. Value-first: the SUMMARY always renders; only the ASK respects this.
+ * The visit-report id in the shared interruptive-prompt vocabulary
+ * (lib/promptBudget.ts), reserved so an unprompted ASK could never stack on top
+ * of the A2HS / first-run / identity-nudge surfaces in one sitting. The shipped
+ * panel is inline and reader-first (the accounts always render, the composer
+ * opens only on a tap), so it interrupts nobody and claims no budget.
  */
 export const VISIT_REPORT_PROMPT_SURFACE = "visit-report";
 
 export type VisitReportStatus = "visible" | "hidden";
+export type VisitReportReadStatus = "ready" | "degraded";
 
 /** The validated, normalised fields the store persists (id + timestamps + the
  *  moderation ledger are stamped by the store, keeping this module crypto-free
@@ -78,9 +83,9 @@ export type VisitReportFields = {
    *  report per handle per venue per night keys on exactly this. */
   visitedAt: string;
   busyness: Busyness | null;
-  atmosphere: Atmosphere | null;
-  wouldReturn: WouldReturn | null;
-  priceSanity: PriceSanity | null;
+  noise: Noise | null;
+  seating: Seating | null;
+  serviceWait: ServiceWait | null;
   /** "" when none — always a string, never null, so it round-trips cleanly. */
   note: string;
 };
@@ -145,14 +150,14 @@ function coerce<T extends string>(value: unknown, allowed: readonly T[]): T | nu
 export function cleanBusyness(value: unknown): Busyness | null {
   return coerce(value, BUSYNESS_VALUES);
 }
-export function cleanAtmosphere(value: unknown): Atmosphere | null {
-  return coerce(value, ATMOSPHERE_VALUES);
+export function cleanNoise(value: unknown): Noise | null {
+  return coerce(value, NOISE_VALUES);
 }
-export function cleanWouldReturn(value: unknown): WouldReturn | null {
-  return coerce(value, WOULD_RETURN_VALUES);
+export function cleanSeating(value: unknown): Seating | null {
+  return coerce(value, SEATING_VALUES);
 }
-export function cleanPriceSanity(value: unknown): PriceSanity | null {
-  return coerce(value, PRICE_SANITY_VALUES);
+export function cleanServiceWait(value: unknown): ServiceWait | null {
+  return coerce(value, SERVICE_WAIT_VALUES);
 }
 
 const DATE_ONLY = /^\d{4}-\d{2}-\d{2}$/;
@@ -171,22 +176,45 @@ export function londonEveningKey(instant: Date | number = new Date()): string {
   return londonDayKey(new Date(ms - EVENING_SHIFT_MS));
 }
 
+/** Latest calendar date the composer and server may accept. Unlike an observed
+ * timestamp, a date input never folds pre-dawn hours into the previous night. */
+export function latestVisitedAt(now: Date = new Date()): string {
+  return londonDayKey(now);
+}
+
+/**
+ * The oldest calendar date a report may be written up for, as a London day key.
+ * Calendar-day arithmetic on the day key itself (never on a wall-clock instant),
+ * so today is always in range whatever the time of day, and exactly
+ * MAX_VISIT_AGE_DAYS ago is the last day that still counts. Pure.
+ */
+export function earliestVisitedAt(now: Date = new Date()): string {
+  const today = latestVisitedAt(now);
+  const ms = Date.parse(`${today}T00:00:00Z`);
+  if (!Number.isFinite(ms)) return "";
+  return new Date(ms - MAX_VISIT_AGE_DAYS * DAY_MS).toISOString().slice(0, 10);
+}
+
 /**
  * Resolve an untrusted `visitedAt` to a London evening day key, or null when it
  * is unusable. A bare YYYY-MM-DD is taken as the evening date verbatim (the
  * capture card sends this); a full timestamp is folded through londonEveningKey.
- * A future evening is rejected (you can't report a night that hasn't happened).
- * Omitted → tonight's evening.
+ * A future calendar date is rejected (you can't report a night that hasn't happened),
+ * and so is one older than MAX_VISIT_AGE_DAYS — this is the SERVER's window, not
+ * the composer's, so a hand-rolled POST meets the same bound as the date input.
+ * Omitted → today's London calendar date.
  */
 export function resolveVisitedAt(value: unknown, now: Date = new Date()): string | null {
-  const todayEvening = londonEveningKey(now);
-  if (value === undefined || value === null || value === "") return todayEvening;
+  const today = latestVisitedAt(now);
+  if (value === undefined || value === null || value === "") return today;
   let key: string;
   if (typeof value === "string" && DATE_ONLY.test(value.trim())) {
     const trimmed = value.trim();
-    // Confirm it is a real calendar date (rejects 2026-13-40).
+    // Date.parse normalises some impossible dates (for example 30 February).
+    // Round-trip the parsed value so only a real calendar day survives.
     const parsed = Date.parse(`${trimmed}T00:00:00Z`);
     if (!Number.isFinite(parsed)) return null;
+    if (new Date(parsed).toISOString().slice(0, 10) !== trimmed) return null;
     key = trimmed;
   } else {
     const ms = typeof value === "number" ? value : Date.parse(String(value));
@@ -194,8 +222,11 @@ export function resolveVisitedAt(value: unknown, now: Date = new Date()): string
     key = londonEveningKey(ms);
   }
   if (!key) return null;
-  // No future nights.
-  if (key > todayEvening) return null;
+  // No future calendar dates.
+  if (key > today) return null;
+  // No nights older than the window (calendar days, both ends inclusive).
+  const earliest = earliestVisitedAt(now);
+  if (earliest && key < earliest) return null;
   return key;
 }
 
@@ -203,13 +234,13 @@ export function resolveVisitedAt(value: unknown, now: Date = new Date()): string
  *  meaningless and never stored (the "all optional except one" rule: at least
  *  one structured field or a note must be present). */
 export function hasSignal(
-  fields: Pick<VisitReportFields, "busyness" | "atmosphere" | "wouldReturn" | "priceSanity" | "note">,
+  fields: Pick<VisitReportFields, "busyness" | "noise" | "seating" | "serviceWait" | "note">,
 ): boolean {
   return Boolean(
     fields.busyness ||
-      fields.atmosphere ||
-      fields.wouldReturn ||
-      fields.priceSanity ||
+      fields.noise ||
+      fields.seating ||
+      fields.serviceWait ||
       (fields.note && fields.note.length > 0),
   );
 }
@@ -234,7 +265,12 @@ export function validateVisitReport(input: unknown, now: Date = new Date()): Val
   if (!handle) return { ok: false, error: "Add a contributor handle." };
 
   const visitedAt = resolveVisitedAt(raw.visitedAt, now);
-  if (!visitedAt) return { ok: false, error: "That visit date isn't valid." };
+  if (!visitedAt) {
+    return {
+      ok: false,
+      error: `Pick the day you were there, from the last ${MAX_VISIT_AGE_DAYS} days.`,
+    };
+  }
 
   // Slop-filter the note at write time (lib/slopFilter): a note that reads as
   // marketing slop renders/stores nothing, exactly like the venue-story seam.
@@ -246,9 +282,9 @@ export function validateVisitReport(input: unknown, now: Date = new Date()): Val
     handle,
     visitedAt,
     busyness: cleanBusyness(raw.busyness),
-    atmosphere: cleanAtmosphere(raw.atmosphere),
-    wouldReturn: cleanWouldReturn(raw.wouldReturn),
-    priceSanity: cleanPriceSanity(raw.priceSanity),
+    noise: cleanNoise(raw.noise),
+    seating: cleanSeating(raw.seating),
+    serviceWait: cleanServiceWait(raw.serviceWait),
     note,
   };
 
@@ -267,15 +303,14 @@ export function toVisitReportDTO(report: VisitReport): VisitReportDTO {
     handle: report.handle,
     visitedAt: report.visitedAt,
     busyness: report.busyness,
-    atmosphere: report.atmosphere,
-    wouldReturn: report.wouldReturn,
-    priceSanity: report.priceSanity,
+    noise: report.noise,
+    seating: report.seating,
+    serviceWait: report.serviceWait,
     note: report.note,
     createdAt: report.createdAt,
   };
 }
 
-// Report-abuse policy (mirrors lib/pintDrops REPORT_HIDE_THRESHOLD): one report
-// must not hide content; a report leaves public reads only once this many
-// DISTINCT actors have flagged it.
-export const VISIT_REPORT_HIDE_THRESHOLD = 2;
+// Report-abuse policy: a reader flag only ever QUEUES a row for review. There is
+// deliberately no count at which a report hides an account by itself — only a
+// moderator hides one, and hiding never deletes its provenance.

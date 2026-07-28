@@ -22,7 +22,6 @@ import DealsTonightLane from "@/components/discovery/DealsTonightLane";
 import GardenTonightCard from "@/components/discovery/GardenTonightCard";
 import ThenVsNowCard from "@/components/discovery/ThenVsNowCard";
 import SiteNav from "@/components/nav/SiteNav";
-import TopRatedPubs from "@/components/ratings/TopRatedPubs";
 import { CategoryShowcase } from "@/components/drinks/CategoryShowcase";
 import { brandsForCategory } from "@/lib/drinkBrands";
 import type { DrinkCategory } from "@/lib/drinks";
@@ -228,10 +227,6 @@ export default function DiscoverPageClient({
   // priced drops in the trailing 24h. Empty until the drops land; if the drops
   // fetch fails it simply stays empty and the board shows its friendly note.
   const [tonight, setTonight] = useState<TonightEntry[]>([]);
-  // venue id → name, for the "Top rated pubs this month" section (E3): the
-  // ratings API returns venue ids; names come from the SAME dataset fetch the
-  // leaderboard already makes (no second dataset read).
-  const [venueNames, setVenueNames] = useState<Record<string, string>>({});
   const analysisRef = useRef<HTMLElement | null>(null);
   const revealRootRef = useRef<HTMLElement | null>(null);
 
@@ -262,9 +257,6 @@ export default function DiscoverPageClient({
         },
         applyDataset: (venues: Venue[]) => {
           setEntries(cheapestPints(venues, 10));
-          setVenueNames(
-            Object.fromEntries(venues.map((venue) => [venue.id, venue.name])),
-          );
         },
         loadDrops: async () => {
           const res = await fetch("/api/pint-drops", {
@@ -596,23 +588,6 @@ export default function DiscoverPageClient({
       <MusicTonightLane />
 
       <GardenTonightCard />
-
-      <section className="discoverSection" aria-labelledby="topRated-title">
-        <h2 id="topRated-title" className="discoverSectionTitle">
-          Top rated pubs this month
-        </h2>
-        <p className="discoverSectionDek">
-          Ranked by the community&rsquo;s stars over the last thirty days. A pub
-          needs ten ratings to make the list. Honest scores, no seeded numbers.
-        </p>
-        {status === "idle" ? (
-          <p className="discoverEmpty" role="status">
-            Community ratings load with the rankings below.
-          </p>
-        ) : (
-          <TopRatedPubs venueNames={venueNames} />
-        )}
-      </section>
 
       {/* Fail-soft (journey audit P1): after load, empty data → omit the whole
           section (no permanent "Counting…" / empty shell). Loading still shows

@@ -1,12 +1,16 @@
 import { describe, expect, it } from "vitest";
 
 import {
-  cleanAtmosphere,
   cleanBusyness,
-  cleanPriceSanity,
-  cleanWouldReturn,
+  cleanNoise,
+  cleanSeating,
+  cleanServiceWait,
+  earliestVisitedAt,
   hasSignal,
+  latestVisitedAt,
   londonEveningKey,
+  MAX_VISIT_AGE_DAYS,
+  MAX_VISIT_NOTE,
   normalizeHandle,
   resolveVisitedAt,
   toVisitReportDTO,
@@ -36,12 +40,12 @@ describe("visit report vocab coercion", () => {
   it("accepts allowlist values case-insensitively, rejects the rest", () => {
     expect(cleanBusyness("RAMMED")).toBe("rammed");
     expect(cleanBusyness("packed")).toBeNull();
-    expect(cleanAtmosphere("Cosy")).toBe("cosy");
-    expect(cleanAtmosphere("turnt")).toBeNull(); // killed register never sneaks in
-    expect(cleanWouldReturn("yes")).toBe("yes");
-    expect(cleanWouldReturn("maybe")).toBeNull();
-    expect(cleanPriceSanity("steep")).toBe("steep");
-    expect(cleanPriceSanity("cheap")).toBeNull();
+    expect(cleanNoise("Easy-To-Talk")).toBe("easy-to-talk");
+    expect(cleanNoise("banging")).toBeNull();
+    expect(cleanSeating("standing")).toBe("standing");
+    expect(cleanSeating("loads")).toBeNull();
+    expect(cleanServiceWait("some-wait")).toBe("some-wait");
+    expect(cleanServiceWait("forever")).toBeNull();
   });
 
   it("normalizes a handle like the rest of the app", () => {
@@ -58,20 +62,54 @@ describe("londonEveningKey / resolveVisitedAt", () => {
     expect(londonEveningKey(new Date("2026-07-21T19:00:00Z"))).toBe("2026-07-21");
   });
 
-  it("takes a bare date verbatim and defaults to tonight", () => {
+  it("takes a bare date verbatim and defaults to today's London date", () => {
     expect(resolveVisitedAt("2026-07-19", NOW)).toBe("2026-07-19");
-    expect(resolveVisitedAt(undefined, NOW)).toBe(londonEveningKey(NOW));
+    expect(resolveVisitedAt(undefined, NOW)).toBe(latestVisitedAt(NOW));
   });
 
   it("rejects a future night and an invalid date", () => {
+    const marchNow = new Date("2026-03-10T12:00:00Z");
     expect(resolveVisitedAt("2099-01-01", NOW)).toBeNull();
     expect(resolveVisitedAt("2026-13-40", NOW)).toBeNull();
+    expect(resolveVisitedAt("2026-02-29", marchNow)).toBeNull();
+    expect(resolveVisitedAt("2026-02-30", marchNow)).toBeNull();
     expect(resolveVisitedAt("not-a-date", NOW)).toBeNull();
+  });
+
+  it("holds the 90-calendar-day window at both ends", () => {
+    // The visited date is authority-bearing (the public lane sorts on it), so
+    // the window is calendar days, both ends inclusive. NOW is the evening of
+    // 2026-07-21, so 90 days back is 2026-04-22.
+    expect(MAX_VISIT_AGE_DAYS).toBe(90);
+    expect(earliestVisitedAt(NOW)).toBe("2026-04-22");
+
+    // Today: in, whatever the time of day (a midday and a late-night NOW both
+    // accept their own evening date).
+    expect(resolveVisitedAt("2026-07-21", NOW)).toBe("2026-07-21");
+    expect(resolveVisitedAt("2026-07-21", new Date("2026-07-21T11:00:00Z"))).toBe("2026-07-21");
+    // Pre-dawn London is still the same calendar day for a date input. The
+    // evening-date fold must not make today's date look like tomorrow.
+    const preDawn = new Date("2026-07-21T01:00:00Z"); // 02:00 Europe/London
+    expect(latestVisitedAt(preDawn)).toBe("2026-07-21");
+    expect(resolveVisitedAt("2026-07-21", preDawn)).toBe("2026-07-21");
+    expect(earliestVisitedAt(preDawn)).toBe("2026-04-22");
+    // Exactly 90 days ago: the last night that still counts.
+    expect(resolveVisitedAt("2026-04-22", NOW)).toBe("2026-04-22");
+    // 91 days ago: out.
+    expect(resolveVisitedAt("2026-04-21", NOW)).toBeNull();
+    // Tomorrow: out (a night that hasn't happened).
+    expect(resolveVisitedAt("2026-07-22", NOW)).toBeNull();
   });
 });
 
 describe("hasSignal", () => {
-  const base = { busyness: null, atmosphere: null, wouldReturn: null, priceSanity: null, note: "" };
+  const base = {
+    busyness: null,
+    noise: null,
+    seating: null,
+    serviceWait: null,
+    note: "",
+  };
   it("is false with nothing and true with any one field", () => {
     expect(hasSignal(base)).toBe(false);
     expect(hasSignal({ ...base, busyness: "steady" })).toBe(true);
@@ -90,7 +128,14 @@ describe("validateVisitReport", () => {
 
   it("normalises the fields and stamps tonight's evening by default", () => {
     const result = validateVisitReport(
-      { venueId: "venue-1", handle: "@Sam", busyness: "Rammed", wouldReturn: "yes", priceSanity: "fine" },
+      {
+        venueId: "venue-1",
+        handle: "@Sam",
+        busyness: "Rammed",
+        noise: "had-to-shout",
+        seating: "standing",
+        serviceWait: "long",
+      },
       NOW,
     );
     expect(result.ok).toBe(true);
@@ -99,20 +144,47 @@ describe("validateVisitReport", () => {
       venueId: "venue-1",
       handle: "sam",
       busyness: "rammed",
-      wouldReturn: "yes",
-      priceSanity: "fine",
+      noise: "had-to-shout",
+      seating: "standing",
+      serviceWait: "long",
       visitedAt: londonEveningKey(NOW),
     });
   });
 
+  it("refuses a night outside the window whatever else the body carries", () => {
+    const base = { venueId: "v1", handle: "sam", busyness: "steady" };
+    // The bound is enforced HERE, in the domain core the route calls, so a
+    // hand-rolled POST that skips the composer meets the same window.
+    for (const visitedAt of ["2026-04-21", "2026-07-22"]) {
+      const result = validateVisitReport({ ...base, visitedAt }, NOW);
+      expect(result.ok).toBe(false);
+      if (result.ok) return;
+      expect(result.error).toContain(`last ${MAX_VISIT_AGE_DAYS} days`);
+    }
+    expect(validateVisitReport({ ...base, visitedAt: "2026-04-22" }, NOW).ok).toBe(true);
+  });
+
   it("drops an off-allowlist field to null rather than storing it raw", () => {
     const result = validateVisitReport(
-      { venueId: "v1", handle: "sam", busyness: "steady", atmosphere: "bussin" },
+      { venueId: "v1", handle: "sam", busyness: "steady", noise: "bussin" },
       NOW,
     );
     expect(result.ok).toBe(true);
     if (!result.ok) return;
-    expect(result.value.atmosphere).toBeNull();
+    expect(result.value.noise).toBeNull();
+  });
+
+  it("does not turn recommendation proxies into a visit report", () => {
+    const result = validateVisitReport(
+      {
+        venueId: "v1",
+        handle: "sam",
+        wouldReturn: "yes",
+        priceSanity: "fine",
+      },
+      NOW,
+    );
+    expect(result.ok).toBe(false);
   });
 
   it("slop-filters the note at write time", () => {
@@ -134,12 +206,12 @@ describe("validateVisitReport", () => {
     expect(real.value.note).toContain("Quiz on Tuesdays");
   });
 
-  it("caps the note at 140 chars", () => {
+  it("caps the note at the shared low ceiling", () => {
     const long = "a".repeat(300);
     const result = validateVisitReport({ venueId: "v1", handle: "sam", note: long }, NOW);
     expect(result.ok).toBe(true);
     if (!result.ok) return;
-    expect(result.value.note.length).toBeLessThanOrEqual(140);
+    expect(result.value.note).toHaveLength(MAX_VISIT_NOTE);
   });
 });
 
@@ -151,9 +223,9 @@ describe("toVisitReportDTO", () => {
       handle: "sam",
       visitedAt: "2026-07-20",
       busyness: "steady",
-      atmosphere: null,
-      wouldReturn: "yes",
-      priceSanity: "fine",
+      noise: "easy-to-talk",
+      seating: "plenty",
+      serviceWait: "quick",
       note: "good one",
       status: "visible",
       createdAt: "2026-07-21T00:00:00.000Z",

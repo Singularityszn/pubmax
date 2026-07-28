@@ -24,7 +24,6 @@ import JsonLd from "@/components/seo/JsonLd";
 import OperatorRailPanel from "@/components/operators/OperatorRailPanel";
 import ReadLedgerButton from "@/components/ledger/ReadLedgerButton";
 import ShareWithFamilyButton from "@/components/ledger/ShareWithFamilyButton";
-import VenueRatingPanel from "@/components/ratings/VenueRatingPanel";
 import VisitReportPanel from "@/components/visits/VisitReportPanel";
 
 import "./ledger.css";
@@ -330,14 +329,7 @@ export default async function LedgerPage({ params, searchParams }: PageProps) {
           <ShareWithFamilyButton venueName={venue.name} url={ledgerUrl} label="Share this ledger" />
         </div>
 
-        {/* Pub rating (E3): community stars (shown past the 10-vote floor) +
-            the viewer's own half-star vote. A client sliver; the rest of the
-            page stays a server render. */}
-        <VenueRatingPanel venueId={canonicalId} venueName={venue.name} />
-
-        {/* Structured Visit Reports (Wayfinder 3.4): recency-weighted summary
-            lines (no star score) alongside the ratings, plus the compact
-            three-tap capture card. */}
+        {/* Individual, dated Visit Reports. No score or aggregate verdict. */}
         <VisitReportPanel venueId={canonicalId} venueName={venue.name} />
       </header>
 

@@ -39,21 +39,24 @@ type ModeratorComment = {
   createdAt: string;
 };
 
-// Moderator visit-report row as returned by GET /api/visit-reports?status=hidden.
-// The full row minus nothing (report metadata rides along for the reviewer).
+// Moderator visit-report row as returned by GET /api/visit-reports?status=reported
+// and ?status=hidden. The full row minus nothing (report + decision metadata ride
+// along for the reviewer, so a hidden row carries the identity to restore it).
 type ModeratorVisitReport = {
   id: string;
   venueId: string;
   handle: string;
   visitedAt: string;
   busyness: string | null;
-  atmosphere: string | null;
-  wouldReturn: string | null;
-  priceSanity: string | null;
+  noise: string | null;
+  seating: string | null;
+  serviceWait: string | null;
   note: string;
   reportReason?: string;
   reportCount?: number;
   reportedAt?: string;
+  moderatedAt?: string;
+  moderatorNote?: string;
 };
 
 type AdminTab = "moderation" | "import" | "operators";
@@ -131,6 +134,7 @@ export default function AdminClient() {
   const [venueNames, setVenueNames] = useState<Map<string, string>>(new Map());
   const [comments, setComments] = useState<ModeratorComment[]>([]);
   const [visitReports, setVisitReports] = useState<ModeratorVisitReport[]>([]);
+  const [hiddenVisitReports, setHiddenVisitReports] = useState<ModeratorVisitReport[]>([]);
   const [message, setMessage] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [pendingId, setPendingId] = useState<string | null>(null);
@@ -257,18 +261,32 @@ export default function AdminClient() {
       } catch {
         setComments([]);
       }
-      // Load the hidden visit-report queue (Wayfinder 3.4) in the same pass.
+      // Load both Visit Report lanes in the same pass: the reported queue and
+      // the already-hidden rows (a hide has to stay reversible from here).
       // Best-effort — a failure never blocks drop/comment moderation.
       try {
-        const vRes = await fetch("/api/visit-reports?status=hidden", SESSION_FETCH);
-        if (vRes.ok) {
-          const vBody = (await vRes.json()) as { reports: ModeratorVisitReport[] };
-          setVisitReports(vBody.reports ?? []);
-        } else {
-          setVisitReports([]);
+        const [vRes, hRes] = await Promise.all([
+          fetch("/api/visit-reports?status=reported", SESSION_FETCH),
+          fetch("/api/visit-reports?status=hidden", SESSION_FETCH),
+        ]);
+        const reported = vRes.ok
+          ? ((await vRes.json()) as { reports: ModeratorVisitReport[] }).reports ?? []
+          : [];
+        const hidden = hRes.ok
+          ? ((await hRes.json()) as { reports: ModeratorVisitReport[] }).reports ?? []
+          : [];
+        setVisitReports(reported);
+        setHiddenVisitReports(hidden);
+        if (reported.length + hidden.length > 0 && venueNames.size === 0) {
+          try {
+            setVenueNames(await fetchVenueNames());
+          } catch {
+            /* names stay unresolved; rows fall back to the venueId */
+          }
         }
       } catch {
         setVisitReports([]);
+        setHiddenVisitReports([]);
       }
       if ((body.drops ?? []).length === 0) setMessage("No reported drops in the queue.");
     } catch {
@@ -307,32 +325,48 @@ export default function AdminClient() {
     }
   }, []);
 
-  const decideVisitReport = useCallback(async (id: string, action: "restore" | "keep_hidden") => {
-    setPendingId(id);
-    setMessage(null);
-    try {
-      const res = await fetch("/api/visit-reports", {
-        ...SESSION_FETCH,
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ action, id }),
-      });
-      if (res.status === 403) {
-        setMessage("Not authorised. Check the admin token.");
-        return;
+  // A decision moves the row between the two Visit Report lanes rather than
+  // dropping it: a hide lands in the hidden lane so it can be put straight back,
+  // and a restore returns it to public reads and leaves both lanes.
+  const decideVisitReport = useCallback(
+    async (report: ModeratorVisitReport, action: "restore" | "hide", lane: "reported" | "hidden") => {
+      setPendingId(report.id);
+      setMessage(null);
+      try {
+        const res = await fetch("/api/visit-reports", {
+          ...SESSION_FETCH,
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ action, id: report.id }),
+        });
+        if (res.status === 403) {
+          setMessage("Not authorised. Check the admin token.");
+          return;
+        }
+        if (!res.ok) {
+          setMessage("Action failed. Try again.");
+          return;
+        }
+        setVisitReports((current) => current.filter((v) => v.id !== report.id));
+        setHiddenVisitReports((current) => {
+          const without = current.filter((v) => v.id !== report.id);
+          return action === "hide" ? [report, ...without] : without;
+        });
+        setMessage(
+          action === "hide"
+            ? "Visit report hidden."
+            : lane === "hidden"
+              ? "Visit report restored."
+              : "Visit report kept visible.",
+        );
+      } catch {
+        setMessage("Could not reach the server.");
+      } finally {
+        setPendingId(null);
       }
-      if (!res.ok) {
-        setMessage("Action failed. Try again.");
-        return;
-      }
-      setVisitReports((current) => current.filter((v) => v.id !== id));
-      setMessage(action === "restore" ? "Visit report restored." : "Visit report kept hidden.");
-    } catch {
-      setMessage("Could not reach the server.");
-    } finally {
-      setPendingId(null);
-    }
-  }, []);
+    },
+    [],
+  );
 
   const decide = useCallback(async (id: string, action: "restore" | "keep_hidden") => {
     setPendingId(id);
@@ -781,12 +815,12 @@ export default function AdminClient() {
           {/* ── Visit report moderation queue (Wayfinder 3.4) ───────────────── */}
           <h2 className="admin-section">Reported visit reports</h2>
           <p className="admin-sub">
-            Review reported structured visit reports. Restore the good, keep the rest hidden.
+            Check reported visit accounts. Keep the good visible, hide the rest.
           </p>
           {visitReports.length === 0 ? (
             <div className="admin-empty">
               <strong>No reported visit reports</strong>
-              <span>Reported visit reports will appear here after they reach the review threshold.</span>
+              <span>Visit accounts appear here after a reader reports one.</span>
             </div>
           ) : (
             <div className="admin-list">
@@ -805,9 +839,9 @@ export default function AdminClient() {
                   {v.note ? <p className="admin-note">{v.note}</p> : null}
                   <div className="admin-meta">
                     {v.busyness ? <span>Busyness: {v.busyness}</span> : null}
-                    {v.atmosphere ? <span>Vibe: {v.atmosphere}</span> : null}
-                    {v.wouldReturn ? <span>Return: {v.wouldReturn}</span> : null}
-                    {v.priceSanity ? <span>Price: {v.priceSanity}</span> : null}
+                    {v.noise ? <span>Noise: {v.noise}</span> : null}
+                    {v.seating ? <span>Seating: {v.seating}</span> : null}
+                    {v.serviceWait ? <span>Bar wait: {v.serviceWait}</span> : null}
                     {v.reportReason ? (
                       <span className="admin-report">Reason: {v.reportReason}</span>
                     ) : null}
@@ -816,17 +850,69 @@ export default function AdminClient() {
                   <div className="admin-actions">
                     <button
                       className="admin-btn admin-restore"
-                      onClick={() => decideVisitReport(v.id, "restore")}
+                      onClick={() => decideVisitReport(v, "restore", "reported")}
                       disabled={pendingId === v.id}
                     >
-                      {pendingId === v.id ? "Working…" : "Restore"}
+                      {pendingId === v.id ? "Working…" : "Keep visible"}
                     </button>
                     <button
                       className="admin-btn admin-keep"
-                      onClick={() => decideVisitReport(v.id, "keep_hidden")}
+                      onClick={() => decideVisitReport(v, "hide", "reported")}
                       disabled={pendingId === v.id}
                     >
-                      {pendingId === v.id ? "Working…" : "Keep hidden"}
+                      {pendingId === v.id ? "Working…" : "Hide"}
+                    </button>
+                  </div>
+                </article>
+              ))}
+            </div>
+          )}
+
+          {/* ── Hidden visit reports: a hide stays reversible from here ─────── */}
+          <h2 className="admin-section">Hidden visit reports</h2>
+          <p className="admin-sub">
+            Visit accounts a moderator has hidden. Hiding never deletes one, so any
+            of these can go back on the pub&apos;s page.
+          </p>
+          {hiddenVisitReports.length === 0 ? (
+            <div className="admin-empty">
+              <strong>No hidden visit reports</strong>
+              <span>Accounts you hide from the queue above appear here.</span>
+            </div>
+          ) : (
+            <div className="admin-list">
+              {hiddenVisitReports.map((v) => (
+                <article className="admin-card" key={v.id}>
+                  <div className="admin-card-head">
+                    <span className="admin-handle">{v.handle}</span>
+                    <span className="admin-report">{v.visitedAt}</span>
+                  </div>
+                  <div className="admin-venue">
+                    <span className="admin-venue-name">{venueNames.get(v.venueId) ?? v.venueId}</span>
+                    <Link className="admin-venue-link" href={venueMapUrl(v.venueId)}>
+                      View on map
+                    </Link>
+                  </div>
+                  {v.note ? <p className="admin-note">{v.note}</p> : null}
+                  <div className="admin-meta">
+                    {v.busyness ? <span>Busyness: {v.busyness}</span> : null}
+                    {v.noise ? <span>Noise: {v.noise}</span> : null}
+                    {v.seating ? <span>Seating: {v.seating}</span> : null}
+                    {v.serviceWait ? <span>Bar wait: {v.serviceWait}</span> : null}
+                    {v.moderatedAt ? (
+                      <span>Hidden: {new Date(v.moderatedAt).toLocaleString()}</span>
+                    ) : null}
+                    {v.moderatorNote ? (
+                      <span className="admin-report">Note: {v.moderatorNote}</span>
+                    ) : null}
+                  </div>
+                  <div className="admin-actions">
+                    <button
+                      className="admin-btn admin-restore"
+                      onClick={() => decideVisitReport(v, "restore", "hidden")}
+                      disabled={pendingId === v.id}
+                    >
+                      {pendingId === v.id ? "Working…" : "Restore"}
                     </button>
                   </div>
                 </article>
