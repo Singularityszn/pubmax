@@ -219,11 +219,43 @@ describe("symbol collision policy", () => {
   });
 
   it("drops crowded landmark names rather than overprinting them", () => {
-    const landmark = layout("landmarks-icon");
-    expect(landmark["text-allow-overlap"]).toBe(false);
-    expect(landmark["text-ignore-placement"]).toBe(false);
-    // The icon survives when only the name has to go.
-    expect(landmark["text-optional"]).toBe(true);
+    const label = layout("landmarks-label");
+    expect(label["text-allow-overlap"]).toBe(false);
+    expect(label["text-ignore-placement"]).toBe(false);
+    expect(label["text-variable-anchor"]).toEqual([
+      "top",
+      "bottom",
+      "left",
+      "right",
+      "top-left",
+      "top-right",
+      "bottom-left",
+      "bottom-right",
+    ]);
+  });
+
+  it("places landmark names independently when a pub cluster owns the pictogram coordinate", () => {
+    const label = layout("landmarks-label");
+    const icon = layout("landmarks-icon");
+
+    expect(label["text-field"]).toEqual(["get", "name"]);
+    expect(icon["text-field"]).toBeUndefined();
+    expect(label["symbol-sort-key"]).toEqual([
+      "coalesce",
+      ["get", "priority"],
+      999,
+    ]);
+    expect(icon["symbol-sort-key"]).toEqual([
+      "coalesce",
+      ["get", "priority"],
+      999,
+    ]);
+  });
+
+  it("keeps both landmark candidates below priced pubs in collision priority", () => {
+    const ids = [...layers.keys()];
+    expect(ids.indexOf("landmarks-label")).toBeLessThan(ids.indexOf("pubs-point"));
+    expect(ids.indexOf("landmarks-icon")).toBeLessThan(ids.indexOf("pubs-point"));
   });
 
   it("lets landmark icons yield below the inspector band and win at/above it", () => {

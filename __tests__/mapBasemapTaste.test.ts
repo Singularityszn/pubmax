@@ -381,6 +381,7 @@ describe("M2 · POI-at-initiation selection mute", () => {
         "pois-transport-major",
         "pubs-point",
         "tube-lines-color",
+        "landmarks-label",
         "landmarks-icon",
         "route-line",
         "tonight-point",
@@ -402,7 +403,8 @@ describe("M2 · POI-at-initiation selection mute", () => {
       // Our own app layers (muted by explicit id list).
       "pois-label": { "text-opacity": 0.88 },
       "tube-lines-color": { "line-opacity": ["interpolate"] },
-      "landmarks-icon": { "icon-opacity": 1, "text-opacity": 1 },
+      "landmarks-label": { "text-opacity": 0.86 },
+      "landmarks-icon": { "icon-opacity": 1 },
     };
     const layerTypes: Record<string, string> = {
       poi_label: "symbol",
@@ -410,6 +412,7 @@ describe("M2 · POI-at-initiation selection mute", () => {
       place_city: "symbol",
       "pois-label": "symbol",
       "tube-lines-color": "line",
+      "landmarks-label": "symbol",
       "landmarks-icon": "symbol",
     };
     return {
@@ -437,6 +440,11 @@ describe("M2 · POI-at-initiation selection mute", () => {
     expect(map.paint["tube-lines-color"]["line-opacity"]).toEqual([
       "min",
       ["interpolate"],
+      SELECTION_MUTE_OPACITY,
+    ]);
+    expect(map.paint["landmarks-label"]["text-opacity"]).toEqual([
+      "min",
+      0.86,
       SELECTION_MUTE_OPACITY,
     ]);
     expect(map.paint["landmarks-icon"]["icon-opacity"]).toEqual(["min", 1, SELECTION_MUTE_OPACITY]);
