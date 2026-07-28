@@ -1,12 +1,13 @@
 import { describe, expect, it } from "vitest";
 
 import {
-  cleanAtmosphere,
   cleanBusyness,
-  cleanPriceSanity,
-  cleanWouldReturn,
+  cleanNoise,
+  cleanSeating,
+  cleanServiceWait,
   hasSignal,
   londonEveningKey,
+  MAX_VISIT_NOTE,
   normalizeHandle,
   resolveVisitedAt,
   toVisitReportDTO,
@@ -36,12 +37,12 @@ describe("visit report vocab coercion", () => {
   it("accepts allowlist values case-insensitively, rejects the rest", () => {
     expect(cleanBusyness("RAMMED")).toBe("rammed");
     expect(cleanBusyness("packed")).toBeNull();
-    expect(cleanAtmosphere("Cosy")).toBe("cosy");
-    expect(cleanAtmosphere("turnt")).toBeNull(); // killed register never sneaks in
-    expect(cleanWouldReturn("yes")).toBe("yes");
-    expect(cleanWouldReturn("maybe")).toBeNull();
-    expect(cleanPriceSanity("steep")).toBe("steep");
-    expect(cleanPriceSanity("cheap")).toBeNull();
+    expect(cleanNoise("Easy-To-Talk")).toBe("easy-to-talk");
+    expect(cleanNoise("banging")).toBeNull();
+    expect(cleanSeating("standing")).toBe("standing");
+    expect(cleanSeating("loads")).toBeNull();
+    expect(cleanServiceWait("some-wait")).toBe("some-wait");
+    expect(cleanServiceWait("forever")).toBeNull();
   });
 
   it("normalizes a handle like the rest of the app", () => {
@@ -71,7 +72,13 @@ describe("londonEveningKey / resolveVisitedAt", () => {
 });
 
 describe("hasSignal", () => {
-  const base = { busyness: null, atmosphere: null, wouldReturn: null, priceSanity: null, note: "" };
+  const base = {
+    busyness: null,
+    noise: null,
+    seating: null,
+    serviceWait: null,
+    note: "",
+  };
   it("is false with nothing and true with any one field", () => {
     expect(hasSignal(base)).toBe(false);
     expect(hasSignal({ ...base, busyness: "steady" })).toBe(true);
@@ -90,7 +97,14 @@ describe("validateVisitReport", () => {
 
   it("normalises the fields and stamps tonight's evening by default", () => {
     const result = validateVisitReport(
-      { venueId: "venue-1", handle: "@Sam", busyness: "Rammed", wouldReturn: "yes", priceSanity: "fine" },
+      {
+        venueId: "venue-1",
+        handle: "@Sam",
+        busyness: "Rammed",
+        noise: "had-to-shout",
+        seating: "standing",
+        serviceWait: "long",
+      },
       NOW,
     );
     expect(result.ok).toBe(true);
@@ -99,20 +113,34 @@ describe("validateVisitReport", () => {
       venueId: "venue-1",
       handle: "sam",
       busyness: "rammed",
-      wouldReturn: "yes",
-      priceSanity: "fine",
+      noise: "had-to-shout",
+      seating: "standing",
+      serviceWait: "long",
       visitedAt: londonEveningKey(NOW),
     });
   });
 
   it("drops an off-allowlist field to null rather than storing it raw", () => {
     const result = validateVisitReport(
-      { venueId: "v1", handle: "sam", busyness: "steady", atmosphere: "bussin" },
+      { venueId: "v1", handle: "sam", busyness: "steady", noise: "bussin" },
       NOW,
     );
     expect(result.ok).toBe(true);
     if (!result.ok) return;
-    expect(result.value.atmosphere).toBeNull();
+    expect(result.value.noise).toBeNull();
+  });
+
+  it("does not turn recommendation proxies into a visit report", () => {
+    const result = validateVisitReport(
+      {
+        venueId: "v1",
+        handle: "sam",
+        wouldReturn: "yes",
+        priceSanity: "fine",
+      },
+      NOW,
+    );
+    expect(result.ok).toBe(false);
   });
 
   it("slop-filters the note at write time", () => {
@@ -134,12 +162,12 @@ describe("validateVisitReport", () => {
     expect(real.value.note).toContain("Quiz on Tuesdays");
   });
 
-  it("caps the note at 140 chars", () => {
+  it("caps the note at the shared low ceiling", () => {
     const long = "a".repeat(300);
     const result = validateVisitReport({ venueId: "v1", handle: "sam", note: long }, NOW);
     expect(result.ok).toBe(true);
     if (!result.ok) return;
-    expect(result.value.note.length).toBeLessThanOrEqual(140);
+    expect(result.value.note).toHaveLength(MAX_VISIT_NOTE);
   });
 });
 
@@ -151,9 +179,9 @@ describe("toVisitReportDTO", () => {
       handle: "sam",
       visitedAt: "2026-07-20",
       busyness: "steady",
-      atmosphere: null,
-      wouldReturn: "yes",
-      priceSanity: "fine",
+      noise: "easy-to-talk",
+      seating: "plenty",
+      serviceWait: "quick",
       note: "good one",
       status: "visible",
       createdAt: "2026-07-21T00:00:00.000Z",

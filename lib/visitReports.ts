@@ -2,11 +2,9 @@
 //
 // A Visit Report is the honest, structured sibling of the free-text Pint Drop
 // anecdote: someone was at a pub on a given evening and taps a few fixed
-// choices (how busy, the vibe, would they go back, did the price feel fair) plus
-// an optional short note. It is deliberately narrow — no free-text tags, no star
-// score, no averages dressed up as a score. The recency-weighted SUMMARY
-// (lib/visitReportSummary.ts) turns a pile of these into plain lines like
-// "Usually steady, most would return", never a number pretending to be a rating.
+// choices about what they observed (crowd, noise, seating, and bar wait) plus an
+// optional short note. It is deliberately narrow: no free-text tags, star score,
+// recommendation proxy, or aggregate verdict.
 //
 // This module is PURE + browser-safe (no @/lib/supabase, no node builtins, no
 // React) so the capture card AND the server route share the EXACT same
@@ -15,9 +13,8 @@
 // and moderation live in lib/visitReportsStore.ts (the impure seam); id +
 // timestamps are stamped THERE, so nothing here needs crypto.
 //
-// Duty of care (kept in step with lib/ratings.ts + VenueRatingPanel): every
-// field rates the PUB and the night, never the drinker. No streaks, no points,
-// no public star score.
+// Duty of care: every field describes a visit, never the drinker. No streaks,
+// points, public star score, or claim that one account is a verified venue fact.
 
 import { londonDayKey } from "@/lib/pintContributions";
 import { presentableDescription } from "@/lib/slopFilter";
@@ -31,26 +28,17 @@ import { presentableDescription } from "@/lib/slopFilter";
 export const BUSYNESS_VALUES = ["quiet", "steady", "rammed"] as const;
 export type Busyness = (typeof BUSYNESS_VALUES)[number];
 
-/** The vibe, a SINGLE pick from a fixed vocabulary — never free-text tags (that
- *  is what invites slop). Kept short and plain, on the safe register. */
-export const ATMOSPHERE_VALUES = [
-  "cosy",
-  "lively",
-  "chilled",
-  "rowdy",
-  "traditional",
-  "sporty",
-] as const;
-export type Atmosphere = (typeof ATMOSPHERE_VALUES)[number];
+/** Could people talk normally, or did they have to compete with the room? */
+export const NOISE_VALUES = ["easy-to-talk", "loud", "had-to-shout"] as const;
+export type Noise = (typeof NOISE_VALUES)[number];
 
-/** Would the reporter come back. */
-export const WOULD_RETURN_VALUES = ["yes", "no"] as const;
-export type WouldReturn = (typeof WOULD_RETURN_VALUES)[number];
+/** What finding somewhere to sit was like during this visit. */
+export const SEATING_VALUES = ["plenty", "tight", "standing"] as const;
+export type Seating = (typeof SEATING_VALUES)[number];
 
-/** Did the price feel fair on the night — a sanity read, NOT a figure. The
- *  numeric price moat stays the Pint Drop's job; this is only "fine" vs "steep". */
-export const PRICE_SANITY_VALUES = ["fine", "steep"] as const;
-export type PriceSanity = (typeof PRICE_SANITY_VALUES)[number];
+/** What the wait at the bar was like during this visit. */
+export const SERVICE_WAIT_VALUES = ["quick", "some-wait", "long"] as const;
+export type ServiceWait = (typeof SERVICE_WAIT_VALUES)[number];
 
 /** A note is a courtesy line, not an essay. 140 chars keeps it a caption. */
 export const MAX_VISIT_NOTE = 140;
@@ -67,6 +55,7 @@ const MAX_HANDLE = 40;
 export const VISIT_REPORT_PROMPT_SURFACE = "visit-report";
 
 export type VisitReportStatus = "visible" | "hidden";
+export type VisitReportReadStatus = "ready" | "degraded";
 
 /** The validated, normalised fields the store persists (id + timestamps + the
  *  moderation ledger are stamped by the store, keeping this module crypto-free
@@ -78,9 +67,9 @@ export type VisitReportFields = {
    *  report per handle per venue per night keys on exactly this. */
   visitedAt: string;
   busyness: Busyness | null;
-  atmosphere: Atmosphere | null;
-  wouldReturn: WouldReturn | null;
-  priceSanity: PriceSanity | null;
+  noise: Noise | null;
+  seating: Seating | null;
+  serviceWait: ServiceWait | null;
   /** "" when none — always a string, never null, so it round-trips cleanly. */
   note: string;
 };
@@ -145,14 +134,14 @@ function coerce<T extends string>(value: unknown, allowed: readonly T[]): T | nu
 export function cleanBusyness(value: unknown): Busyness | null {
   return coerce(value, BUSYNESS_VALUES);
 }
-export function cleanAtmosphere(value: unknown): Atmosphere | null {
-  return coerce(value, ATMOSPHERE_VALUES);
+export function cleanNoise(value: unknown): Noise | null {
+  return coerce(value, NOISE_VALUES);
 }
-export function cleanWouldReturn(value: unknown): WouldReturn | null {
-  return coerce(value, WOULD_RETURN_VALUES);
+export function cleanSeating(value: unknown): Seating | null {
+  return coerce(value, SEATING_VALUES);
 }
-export function cleanPriceSanity(value: unknown): PriceSanity | null {
-  return coerce(value, PRICE_SANITY_VALUES);
+export function cleanServiceWait(value: unknown): ServiceWait | null {
+  return coerce(value, SERVICE_WAIT_VALUES);
 }
 
 const DATE_ONLY = /^\d{4}-\d{2}-\d{2}$/;
@@ -203,13 +192,13 @@ export function resolveVisitedAt(value: unknown, now: Date = new Date()): string
  *  meaningless and never stored (the "all optional except one" rule: at least
  *  one structured field or a note must be present). */
 export function hasSignal(
-  fields: Pick<VisitReportFields, "busyness" | "atmosphere" | "wouldReturn" | "priceSanity" | "note">,
+  fields: Pick<VisitReportFields, "busyness" | "noise" | "seating" | "serviceWait" | "note">,
 ): boolean {
   return Boolean(
     fields.busyness ||
-      fields.atmosphere ||
-      fields.wouldReturn ||
-      fields.priceSanity ||
+      fields.noise ||
+      fields.seating ||
+      fields.serviceWait ||
       (fields.note && fields.note.length > 0),
   );
 }
@@ -246,9 +235,9 @@ export function validateVisitReport(input: unknown, now: Date = new Date()): Val
     handle,
     visitedAt,
     busyness: cleanBusyness(raw.busyness),
-    atmosphere: cleanAtmosphere(raw.atmosphere),
-    wouldReturn: cleanWouldReturn(raw.wouldReturn),
-    priceSanity: cleanPriceSanity(raw.priceSanity),
+    noise: cleanNoise(raw.noise),
+    seating: cleanSeating(raw.seating),
+    serviceWait: cleanServiceWait(raw.serviceWait),
     note,
   };
 
@@ -267,9 +256,9 @@ export function toVisitReportDTO(report: VisitReport): VisitReportDTO {
     handle: report.handle,
     visitedAt: report.visitedAt,
     busyness: report.busyness,
-    atmosphere: report.atmosphere,
-    wouldReturn: report.wouldReturn,
-    priceSanity: report.priceSanity,
+    noise: report.noise,
+    seating: report.seating,
+    serviceWait: report.serviceWait,
     note: report.note,
     createdAt: report.createdAt,
   };

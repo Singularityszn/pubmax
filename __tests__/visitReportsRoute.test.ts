@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 // POST/GET /api/visit-reports — validation, the durable rate-limit boundary, the
-// public report → hide flow, and the moderator gate. The @/lib/supabase seam is
+// public report queue, contributor count, and moderator gate. The @/lib/supabase seam is
 // pinned so isSupabaseConfigured reads false: the in-memory limiter and the
 // process-memory store back the route (the house pattern for keyless write-route
 // tests), so the suite is hermetic with no network.
@@ -41,11 +41,19 @@ afterEach(() => vi.restoreAllMocks());
 
 describe("POST /api/visit-reports (create)", () => {
   it("creates a valid report (201) and stores it", async () => {
-    const res = await POST(post({ venueId: "venue-1", handle: "sam", busyness: "steady", wouldReturn: "yes" }));
+    const res = await POST(
+      post({
+        venueId: "venue-1",
+        handle: "sam",
+        visitedAt: "2026-07-20",
+        busyness: "steady",
+        noise: "easy-to-talk",
+      }),
+    );
     expect(res.status).toBe(201);
     const data = (await res.json()) as { report: { id: string; handle: string } };
     expect(data.report.handle).toBe("sam");
-    expect(await memoryVisitReportStore.listForVenue("venue-1")).toHaveLength(1);
+    expect((await memoryVisitReportStore.readForVenue("venue-1")).reports).toHaveLength(1);
   });
 
   it("returns a retryable 503 when report persistence is unavailable", async () => {
@@ -54,7 +62,7 @@ describe("POST /api/visit-reports (create)", () => {
     );
 
     const res = await POST(
-      post({ venueId: "venue-1", handle: "sam", busyness: "steady", wouldReturn: "yes" }),
+      post({ venueId: "venue-1", handle: "sam", busyness: "steady", noise: "loud" }),
     );
     expect(res.status).toBe(503);
     expect(await res.json()).toMatchObject({ code: "STORE_UNAVAILABLE", retryable: true });
@@ -90,20 +98,33 @@ describe("POST /api/visit-reports (create)", () => {
 });
 
 describe("POST /api/visit-reports (report + moderation)", () => {
-  it("hides a report only after two distinct actors flag it", async () => {
+  it("derives reporter identity from the request and leaves removal to a moderator", async () => {
     const created = await POST(post({ venueId: "venue-1", handle: "sam", busyness: "rammed" }));
     const { report } = (await created.json()) as { report: { id: string } };
 
-    const first = await POST(post({ action: "report", id: report.id, actor: "actor-a" }));
+    const first = await POST(
+      post({ action: "report", id: report.id, actor: "client-claim-a" }, "203.0.113.10"),
+    );
     expect(first.status).toBe(200);
-    // Still visible after one report.
-    expect(await memoryVisitReportStore.listForVenue("venue-1")).toHaveLength(1);
+    // Same origin cannot manufacture a second actor by changing the body.
+    const duplicate = await POST(
+      post({ action: "report", id: report.id, actor: "client-claim-b" }, "203.0.113.10"),
+    );
+    expect(duplicate.status).toBe(429);
 
-    const second = await POST(post({ action: "report", id: report.id, actor: "actor-b" }));
+    const second = await POST(
+      post({ action: "report", id: report.id, actor: "client-claim-c" }, "203.0.113.11"),
+    );
     expect(second.status).toBe(200);
-    // Two distinct actors → hidden from public reads, into the mod queue.
-    expect(await memoryVisitReportStore.listForVenue("venue-1")).toHaveLength(0);
-    expect(await memoryVisitReportStore.listForReview("hidden")).toHaveLength(1);
+    expect((await memoryVisitReportStore.readForVenue("venue-1")).reports).toHaveLength(1);
+    const queue = await memoryVisitReportStore.listForReview();
+    expect(queue).toHaveLength(1);
+    expect(queue[0].reportCount).toBe(2);
+
+    const hide = post({ action: "hide", id: report.id });
+    hide.headers.set("x-admin-token", "test-admin-secret");
+    expect((await POST(hide)).status).toBe(200);
+    expect((await memoryVisitReportStore.readForVenue("venue-1")).reports).toHaveLength(0);
   });
 
   it("404s a report against an unknown id", async () => {
@@ -112,7 +133,7 @@ describe("POST /api/visit-reports (report + moderation)", () => {
   });
 
   it("403s a moderator action without the admin token", async () => {
-    const res = await POST(post({ action: "keep_hidden", id: "whatever" }));
+    const res = await POST(post({ action: "hide", id: "whatever" }));
     expect(res.status).toBe(403);
   });
 
@@ -144,26 +165,60 @@ describe("GET /api/visit-reports", () => {
     expect((await GET(get(""))).status).toBe(400);
   });
 
-  it("returns the venue reports and an honest summary", async () => {
-    // Omit visitedAt so it defaults to tonight's evening — clock-robust (never a
-    // future date), and three distinct handles are three distinct rows.
-    for (const [i, busyness] of ["steady", "steady", "rammed"].entries()) {
-      await POST(post({ venueId: "venue-2", handle: `user${i}`, busyness }));
-    }
+  it("returns newest-first individual reports with honest read status", async () => {
+    const base = {
+      venueId: "venue-2",
+      busyness: "steady" as const,
+      noise: "easy-to-talk" as const,
+      seating: "plenty" as const,
+      serviceWait: "quick" as const,
+      note: "",
+    };
+    await memoryVisitReportStore.create(
+      { ...base, handle: "user0", visitedAt: "2026-07-19" },
+      1,
+    );
+    await memoryVisitReportStore.create(
+      { ...base, handle: "user1", visitedAt: "2026-07-20" },
+      2,
+    );
     const res = await GET(get("?venueId=venue-2"));
     expect(res.status).toBe(200);
     const data = (await res.json()) as {
-      reports: unknown[];
-      summary: { total: number; shown: boolean; headline: string | null; lines: string[] };
+      status: string;
+      reports: { visitedAt: string }[];
+      summary?: unknown;
     };
-    expect(data.reports).toHaveLength(3);
-    expect(data.summary.shown).toBe(true);
-    expect(data.summary.headline).toBe("3 recent visit reports");
-    // Plain lines, never a star score.
-    expect(JSON.stringify(data.summary).toLowerCase()).not.toContain("star");
+    expect(data.status).toBe("ready");
+    expect(data.reports.map((report) => report.visitedAt)).toEqual([
+      "2026-07-20",
+      "2026-07-19",
+    ]);
+    expect(data.summary).toBeUndefined();
+  });
+
+  it("exposes the visible count a leaderboard can read", async () => {
+    await memoryVisitReportStore.create({
+      venueId: "venue-2",
+      handle: "sam",
+      visitedAt: "2026-07-20",
+      busyness: "steady",
+      noise: null,
+      seating: null,
+      serviceWait: null,
+      note: "",
+    });
+
+    const res = await GET(get("?contributor=  SAM "));
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({
+      contributor: "sam",
+      count: 1,
+      status: "ready",
+    });
   });
 
   it("403s the moderator queue without the admin token", async () => {
-    expect((await GET(get("?status=hidden"))).status).toBe(403);
+    expect((await GET(get("?status=reported"))).status).toBe(403);
   });
 });

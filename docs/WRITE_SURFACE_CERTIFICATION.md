@@ -194,14 +194,14 @@ Plan member capability and use idempotency keys or atomic store operations.
 ### `app/api/visit-reports` — structured Visit Reports (route 66)
 
 - **Route / method:** `POST app/api/visit-reports/route.ts` (Wayfinder 3.4,
-  `lane/visit-reports`). Structured, recency-weighted reads of what a pub is like
-  on the night (busyness, atmosphere, would-return, price sanity, an optional
-  short note) — the structured sibling of the free-text Pint Drop. The route also
-  exports a read-only `GET` (the per-venue reports + the honest summary, which
-  carries NO star score) which is NOT a mutating verb and is not counted.
+  `lane/visit-reports`). An individual account of one dated visit: observed
+  busyness, noise, seating, bar wait, and an optional short note. The route also
+  exports read-only `GET` paths for newest-first venue rows and exact visible
+  counts by contributor. Neither read carries a score, average, or aggregate
+  verdict, and neither is counted as a mutating verb.
 - **Validation:** `validateVisitReport` (`lib/visitReports.ts`) — venue + handle
   required; every structured field is coerced to a fixed allowlist (unknown →
-  null, mirrored by the DB CHECK constraints in migration 0046); the note is
+  null, mirrored by the DB CHECK constraints in migrations 0046 and 0058); the note is
   cleaned, capped at 140 chars, and **slop-filtered at write time**
   (`lib/slopFilter`); `visitedAt` resolves to a London "evening date" and a
   future night is rejected; at least ONE signal must survive or the body 400s
@@ -211,12 +211,12 @@ Plan member capability and use idempotency keys or atomic store operations.
   429 `{ code: "RATE_LIMITED", retryable: true }` on exceed. The public `report`
   action carries the same two-axis flood cap as Pint Drops (per-target + a
   per-actor budget of 1). This is the certification boundary (rate_limit class).
-- **Moderation (boundary):** the `restore` / `keep_hidden` actions require the
-  admin token (`isModerator` — moderator class); a public `report` records a
-  per-actor-deduped flag and hides the row only once
-  `VISIT_REPORT_HIDE_THRESHOLD` (2) DISTINCT actors flag it (never on the first).
-  Hidden rows surface in the admin moderation queue (`GET ?status=hidden`),
-  mirroring the Pint Drop hidden-queue flow.
+- **Moderation (boundary):** the `restore` / `hide` actions require the admin
+  token (`isModerator` — moderator class). A public `report` records a
+  per-actor-deduped flag but never changes visibility; this prevents an
+  anonymous flag from becoming a one-tap eraser. Flagged, undecided rows surface
+  in the admin moderation queue (`GET ?status=reported`), where a moderator can
+  keep one visible or hide it without deleting its provenance.
 - **Auth stance:** the self-asserted handle resolved through
   `resolveMessageHandle` (JWT-linked handle wins when signed in) and gated by
   `gateHandleAction` — the same demo identity boundary as a Pint Drop, rating, or
@@ -224,15 +224,19 @@ Plan member capability and use idempotency keys or atomic store operations.
   moderation stay open. One report per handle per venue per night: the store
   upserts on `(venue_id, handle, visited_at)`.
 - **Rollback / kill:** durable rows live in `public.structured_visit_reports`
-  (migration 0046, RLS on, anon/authenticated revoked, service_role only — a NEW
-  table, distinct from the Pint Drop `visit_reports` table); `truncate` is a safe
-  reset. Until the OWNER applies 0046 the store fails soft to process-memory
+  (migrations 0046 + 0058, RLS on, anon/authenticated revoked, service_role only
+  — a NEW table, distinct from the Pint Drop `visit_reports` table); `truncate` is
+  a safe reset. Until the OWNER applies both migrations the store fails soft to process-memory
   (`lib/visitReportsStore.ts`) — capture keeps working and becomes durable the
   moment the table lands, no code change (the same soft degradation area demand
   ships with). A hard durable-store write failure answers 503
   `STORE_UNAVAILABLE` rather than a fake success. Disabling is consequence-free:
-  delete/503 the route and the venue-sheet panel fails soft to its empty state
-  while the existing star ratings still render.
+  delete/503 the route and the venue-sheet panel says it could not check rather
+  than claiming no visits exist.
+- **V1 moderation gap:** the queue is manual and reactive. It has no automated
+  text classification, appeals, bulk actions, moderator assignment, or response
+  target. The storage and public flag seam preserve all information needed to
+  add those workflows later.
 
 ### `app/api/night-moments/[id]/alt-text` — author-confirmed alt text (route 67)
 

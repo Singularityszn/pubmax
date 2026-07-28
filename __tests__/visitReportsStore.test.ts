@@ -26,10 +26,22 @@ vi.mock("@/lib/supabase", () => {
       insertRow: Row | null;
       patch: Row | null;
       filters: { col: string; value: unknown }[];
+      greaterThan: { col: string; value: number }[];
       single: boolean;
-    } = { op: null, insertRow: null, patch: null, filters: [], single: false };
+      headCount: boolean;
+    } = {
+      op: null,
+      insertRow: null,
+      patch: null,
+      filters: [],
+      greaterThan: [],
+      single: false,
+      headCount: false,
+    };
 
-    const matches = (r: Row) => state.filters.every((f) => r[f.col] === f.value);
+    const matches = (r: Row) =>
+      state.filters.every((f) => r[f.col] === f.value) &&
+      state.greaterThan.every((f) => Number(r[f.col] ?? 0) > f.value);
 
     const result = () => {
       if (db.schemaMiss) return { data: null, error: { message: TABLE_MISSING } };
@@ -50,13 +62,15 @@ vi.mock("@/lib/supabase", () => {
         rows.forEach((r) => Object.assign(r, state.patch));
         return { data: rows.map((r) => ({ id: r.id })), error: null };
       }
+      if (state.headCount) return { data: null, count: rows.length, error: null };
       if (state.single) return { data: rows[0] ?? null, error: null };
       return { data: rows, error: null };
     };
 
     const q: Record<string, unknown> = {
-      select(_cols?: string) {
+      select(_cols?: string, options?: { count?: string; head?: boolean }) {
         if (!state.op) state.op = "select";
+        state.headCount = options?.count === "exact" && options.head === true;
         return q;
       },
       insert(row: Row) {
@@ -71,6 +85,10 @@ vi.mock("@/lib/supabase", () => {
       },
       eq(col: string, value: unknown) {
         state.filters.push({ col, value });
+        return q;
+      },
+      gt(col: string, value: number) {
+        state.greaterThan.push({ col, value });
         return q;
       },
       is(col: string, value: unknown) {
@@ -105,9 +123,9 @@ const fields = (over: Partial<VisitReportFields> = {}): VisitReportFields => ({
   handle: "sam",
   visitedAt: "2026-07-20",
   busyness: "steady",
-  atmosphere: null,
-  wouldReturn: "yes",
-  priceSanity: "fine",
+  noise: "easy-to-talk",
+  seating: "plenty",
+  serviceWait: "quick",
   note: "",
   ...over,
 });
@@ -128,9 +146,10 @@ describe("memoryVisitReportStore", () => {
   it("creates a report and reads it back for the venue", async () => {
     const dto = await memoryVisitReportStore.create(fields());
     expect(dto.handle).toBe("sam");
-    const list = await memoryVisitReportStore.listForVenue("venue-1");
-    expect(list).toHaveLength(1);
-    expect(list[0].busyness).toBe("steady");
+    const read = await memoryVisitReportStore.readForVenue("venue-1");
+    expect(read.status).toBe("ready");
+    expect(read.reports).toHaveLength(1);
+    expect(read.reports[0].busyness).toBe("steady");
   });
 
   it("is idempotent: one report per handle per venue per night (upsert in place)", async () => {
@@ -138,42 +157,52 @@ describe("memoryVisitReportStore", () => {
     const second = await memoryVisitReportStore.create(fields({ busyness: "rammed" }));
     // Same night → same row id, updated fields, not a second row.
     expect(second.id).toBe(first.id);
-    const list = await memoryVisitReportStore.listForVenue("venue-1");
-    expect(list).toHaveLength(1);
-    expect(list[0].busyness).toBe("rammed");
+    const read = await memoryVisitReportStore.readForVenue("venue-1");
+    expect(read.reports).toHaveLength(1);
+    expect(read.reports[0].busyness).toBe("rammed");
   });
 
   it("a different night is a distinct report", async () => {
     await memoryVisitReportStore.create(fields({ visitedAt: "2026-07-20" }));
     await memoryVisitReportStore.create(fields({ visitedAt: "2026-07-21" }));
-    expect(await memoryVisitReportStore.listForVenue("venue-1")).toHaveLength(2);
+    expect((await memoryVisitReportStore.readForVenue("venue-1")).reports).toHaveLength(2);
   });
 
-  it("hides only after two DISTINCT actors report; a same-actor repeat is a no-op", async () => {
+  it("queues flags without letting readers erase a report", async () => {
     const dto = await memoryVisitReportStore.create(fields());
-    // Same actor twice — still visible (counter never bumps twice).
     expect(await memoryVisitReportStore.report(dto.id, "spam", "actor-a")).toBe(true);
     expect(await memoryVisitReportStore.report(dto.id, "spam", "actor-a")).toBe(true);
-    expect(await memoryVisitReportStore.listForVenue("venue-1")).toHaveLength(1);
-    // A second distinct actor crosses the threshold → hidden.
     expect(await memoryVisitReportStore.report(dto.id, "spam", "actor-b")).toBe(true);
-    expect(await memoryVisitReportStore.listForVenue("venue-1")).toHaveLength(0);
-    // Now in the moderator queue.
-    const queue = await memoryVisitReportStore.listForReview("hidden");
+    expect((await memoryVisitReportStore.readForVenue("venue-1")).reports).toHaveLength(1);
+    const queue = await memoryVisitReportStore.listForReview();
     expect(queue.map((r) => r.id)).toContain(dto.id);
+    expect(queue[0].reportCount).toBe(2);
   });
 
   it("report on an unknown id is false", async () => {
     expect(await memoryVisitReportStore.report("nope", undefined, "actor-a")).toBe(false);
   });
 
-  it("moderate restores a hidden report and clears it from the queue", async () => {
+  it("only moderator action changes visibility and clears the queue", async () => {
     const dto = await memoryVisitReportStore.create(fields());
     await memoryVisitReportStore.report(dto.id, undefined, "a");
-    await memoryVisitReportStore.report(dto.id, undefined, "b");
-    expect(await memoryVisitReportStore.moderate(dto.id, "visible", "looks fine")).toBe(true);
-    expect(await memoryVisitReportStore.listForVenue("venue-1")).toHaveLength(1);
-    expect(await memoryVisitReportStore.listForReview("hidden")).toHaveLength(0);
+    expect(await memoryVisitReportStore.moderate(dto.id, "hidden", "abuse")).toBe(true);
+    expect((await memoryVisitReportStore.readForVenue("venue-1")).reports).toHaveLength(0);
+    expect(await memoryVisitReportStore.listForReview()).toHaveLength(0);
+  });
+
+  it("counts only visible reports for one normalized contributor", async () => {
+    await memoryVisitReportStore.create(fields({ visitedAt: "2026-07-19" }));
+    const hidden = await memoryVisitReportStore.create(fields({ visitedAt: "2026-07-20" }));
+    await memoryVisitReportStore.create(
+      fields({ handle: "other", visitedAt: "2026-07-21" }),
+    );
+    await memoryVisitReportStore.moderate(hidden.id, "hidden", "abuse");
+
+    expect(await memoryVisitReportStore.countForContributor("  SAM ")).toEqual({
+      status: "ready",
+      count: 1,
+    });
   });
 });
 
@@ -185,12 +214,12 @@ describe("supabaseVisitReportStore", () => {
     const second = await supabaseVisitReportStore.create(fields({ busyness: "rammed" }));
     expect(db.rows).toHaveLength(1);
     expect(second.id).toBe(first.id);
-    const list = await supabaseVisitReportStore.listForVenue("venue-1");
-    expect(list).toHaveLength(1);
-    expect(list[0].busyness).toBe("rammed");
+    const read = await supabaseVisitReportStore.readForVenue("venue-1");
+    expect(read.reports).toHaveLength(1);
+    expect(read.reports[0].busyness).toBe("rammed");
   });
 
-  it("report dedupes per actor and hides at the threshold", async () => {
+  it("report dedupes per actor and waits for a moderator decision", async () => {
     const dto = await supabaseVisitReportStore.create(fields());
     await supabaseVisitReportStore.report(dto.id, "spam", "a");
     await supabaseVisitReportStore.report(dto.id, "spam", "a"); // dup — no-op
@@ -198,10 +227,19 @@ describe("supabaseVisitReportStore", () => {
     expect(db.rows[0].status).toBe("visible");
     await supabaseVisitReportStore.report(dto.id, "spam", "b");
     expect((db.rows[0].report_count as number)).toBe(2);
-    expect(db.rows[0].status).toBe("hidden");
-    // Public read excludes it; the moderator queue includes it.
-    expect(await supabaseVisitReportStore.listForVenue("venue-1")).toHaveLength(0);
-    expect(await supabaseVisitReportStore.listForReview("hidden")).toHaveLength(1);
+    expect(db.rows[0].status).toBe("visible");
+    expect((await supabaseVisitReportStore.readForVenue("venue-1")).reports).toHaveLength(1);
+    expect(await supabaseVisitReportStore.listForReview()).toHaveLength(1);
+  });
+
+  it("counts visible rows for a contributor", async () => {
+    await supabaseVisitReportStore.create(fields({ visitedAt: "2026-07-19" }));
+    const hidden = await supabaseVisitReportStore.create(fields({ visitedAt: "2026-07-20" }));
+    await supabaseVisitReportStore.moderate(hidden.id, "hidden");
+    expect(await supabaseVisitReportStore.countForContributor("SAM")).toEqual({
+      status: "ready",
+      count: 1,
+    });
   });
 
   it("throws on a hard write failure (route maps that to 503)", async () => {
@@ -215,9 +253,12 @@ describe("supabaseVisitReportStore", () => {
     const dto = await supabaseVisitReportStore.create(fields());
     expect(dto.handle).toBe("sam");
     // The memory fallback holds the row.
-    expect(await memoryVisitReportStore.listForVenue("venue-1")).toHaveLength(1);
+    expect((await memoryVisitReportStore.readForVenue("venue-1")).reports).toHaveLength(1);
     // A read also fails soft to memory.
-    expect(await supabaseVisitReportStore.listForVenue("venue-1")).toHaveLength(1);
+    expect(await supabaseVisitReportStore.readForVenue("venue-1")).toMatchObject({
+      status: "degraded",
+      reports: [{ handle: "sam" }],
+    });
   });
 
   it("refuses all schema-miss write fallbacks in deployed production", async () => {
@@ -227,7 +268,7 @@ describe("supabaseVisitReportStore", () => {
     await expect(supabaseVisitReportStore.create(fields())).rejects.toThrow(
       /refusing process-memory write fallback.*0046/,
     );
-    expect(await memoryVisitReportStore.listForVenue("venue-1")).toHaveLength(0);
+    expect((await memoryVisitReportStore.readForVenue("venue-1")).reports).toHaveLength(0);
 
     const seeded = await memoryVisitReportStore.create(fields());
     await expect(supabaseVisitReportStore.report(seeded.id, "spam", "actor-a")).rejects.toThrow(
@@ -236,8 +277,8 @@ describe("supabaseVisitReportStore", () => {
     await expect(supabaseVisitReportStore.moderate(seeded.id, "hidden")).rejects.toThrow(
       /refusing process-memory write fallback.*0046/,
     );
-    expect(await memoryVisitReportStore.listForVenue("venue-1")).toHaveLength(1);
-    expect(await memoryVisitReportStore.listForReview("hidden")).toHaveLength(0);
+    expect((await memoryVisitReportStore.readForVenue("venue-1")).reports).toHaveLength(1);
+    expect(await memoryVisitReportStore.listForReview()).toHaveLength(0);
   });
 
   it("keeps schema-miss reads fail-soft in deployed production", async () => {
@@ -245,6 +286,9 @@ describe("supabaseVisitReportStore", () => {
     await memoryVisitReportStore.create(fields());
     db.schemaMiss = true;
 
-    expect(await supabaseVisitReportStore.listForVenue("venue-1")).toHaveLength(1);
+    expect(await supabaseVisitReportStore.readForVenue("venue-1")).toMatchObject({
+      status: "degraded",
+      reports: [{ handle: "sam" }],
+    });
   });
 });

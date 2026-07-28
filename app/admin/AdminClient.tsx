@@ -39,7 +39,7 @@ type ModeratorComment = {
   createdAt: string;
 };
 
-// Moderator visit-report row as returned by GET /api/visit-reports?status=hidden.
+// Moderator visit-report row as returned by GET /api/visit-reports?status=reported.
 // The full row minus nothing (report metadata rides along for the reviewer).
 type ModeratorVisitReport = {
   id: string;
@@ -47,9 +47,9 @@ type ModeratorVisitReport = {
   handle: string;
   visitedAt: string;
   busyness: string | null;
-  atmosphere: string | null;
-  wouldReturn: string | null;
-  priceSanity: string | null;
+  noise: string | null;
+  seating: string | null;
+  serviceWait: string | null;
   note: string;
   reportReason?: string;
   reportCount?: number;
@@ -257,13 +257,16 @@ export default function AdminClient() {
       } catch {
         setComments([]);
       }
-      // Load the hidden visit-report queue (Wayfinder 3.4) in the same pass.
+      // Load the reported Visit Report queue in the same pass.
       // Best-effort — a failure never blocks drop/comment moderation.
       try {
-        const vRes = await fetch("/api/visit-reports?status=hidden", SESSION_FETCH);
+        const vRes = await fetch("/api/visit-reports?status=reported", SESSION_FETCH);
         if (vRes.ok) {
           const vBody = (await vRes.json()) as { reports: ModeratorVisitReport[] };
           setVisitReports(vBody.reports ?? []);
+          if ((vBody.reports ?? []).length > 0 && venueNames.size === 0) {
+            setVenueNames(await fetchVenueNames());
+          }
         } else {
           setVisitReports([]);
         }
@@ -307,7 +310,7 @@ export default function AdminClient() {
     }
   }, []);
 
-  const decideVisitReport = useCallback(async (id: string, action: "restore" | "keep_hidden") => {
+  const decideVisitReport = useCallback(async (id: string, action: "restore" | "hide") => {
     setPendingId(id);
     setMessage(null);
     try {
@@ -326,7 +329,7 @@ export default function AdminClient() {
         return;
       }
       setVisitReports((current) => current.filter((v) => v.id !== id));
-      setMessage(action === "restore" ? "Visit report restored." : "Visit report kept hidden.");
+      setMessage(action === "restore" ? "Visit report kept visible." : "Visit report hidden.");
     } catch {
       setMessage("Could not reach the server.");
     } finally {
@@ -781,12 +784,12 @@ export default function AdminClient() {
           {/* ── Visit report moderation queue (Wayfinder 3.4) ───────────────── */}
           <h2 className="admin-section">Reported visit reports</h2>
           <p className="admin-sub">
-            Review reported structured visit reports. Restore the good, keep the rest hidden.
+            Check reported visit accounts. Keep the good visible, hide the rest.
           </p>
           {visitReports.length === 0 ? (
             <div className="admin-empty">
               <strong>No reported visit reports</strong>
-              <span>Reported visit reports will appear here after they reach the review threshold.</span>
+              <span>Visit accounts appear here after a reader reports one.</span>
             </div>
           ) : (
             <div className="admin-list">
@@ -805,9 +808,9 @@ export default function AdminClient() {
                   {v.note ? <p className="admin-note">{v.note}</p> : null}
                   <div className="admin-meta">
                     {v.busyness ? <span>Busyness: {v.busyness}</span> : null}
-                    {v.atmosphere ? <span>Vibe: {v.atmosphere}</span> : null}
-                    {v.wouldReturn ? <span>Return: {v.wouldReturn}</span> : null}
-                    {v.priceSanity ? <span>Price: {v.priceSanity}</span> : null}
+                    {v.noise ? <span>Noise: {v.noise}</span> : null}
+                    {v.seating ? <span>Seating: {v.seating}</span> : null}
+                    {v.serviceWait ? <span>Bar wait: {v.serviceWait}</span> : null}
                     {v.reportReason ? (
                       <span className="admin-report">Reason: {v.reportReason}</span>
                     ) : null}
@@ -819,14 +822,14 @@ export default function AdminClient() {
                       onClick={() => decideVisitReport(v.id, "restore")}
                       disabled={pendingId === v.id}
                     >
-                      {pendingId === v.id ? "Working…" : "Restore"}
+                      {pendingId === v.id ? "Working…" : "Keep visible"}
                     </button>
                     <button
                       className="admin-btn admin-keep"
-                      onClick={() => decideVisitReport(v.id, "keep_hidden")}
+                      onClick={() => decideVisitReport(v.id, "hide")}
                       disabled={pendingId === v.id}
                     >
-                      {pendingId === v.id ? "Working…" : "Keep hidden"}
+                      {pendingId === v.id ? "Working…" : "Hide"}
                     </button>
                   </div>
                 </article>

@@ -1,20 +1,23 @@
-// Structured Visit Reports (Wayfinder 3.4) — the single write/read seam.
+// Structured Visit Reports: the single write/read seam.
 //
-//   POST { venueId, handle, visitedAt?, busyness?, atmosphere?, wouldReturn?,
-//          priceSanity?, note? }                         → 201 { report }
-//   POST { action: "report", id, reason?, actor? }        → 200 { ok } (public)
-//   POST { action: "restore" | "keep_hidden", id, note? } → 200 { ok } (moderator)
-//   GET  ?venueId=…               → 200 { reports, summary } (public, no scores)
-//   GET  ?status=hidden           → 200 { reports } (moderator review queue)
+//   POST { venueId, handle, visitedAt, busyness?, noise?, seating?,
+//          serviceWait?, note? }                  -> 201 { report }
+//   POST { action: "report", id, reason? }         -> 200 { ok } (public)
+//   POST { action: "restore" | "hide", id, note? } -> 200 { ok } (moderator)
+//   GET  ?venueId=...        -> 200 { status, reports } (public, newest first)
+//   GET  ?contributor=...    -> 200 { contributor, count, status }
+//   GET  ?status=reported    -> 200 { reports } (moderator review queue)
 //
 // One VisitReportStore interface, two implementations (lib/visitReportsStore):
 // Supabase (public.structured_visit_reports) when env keys exist, process-memory
-// otherwise, with local/preview memory degradation until migration 0046 lands.
-// Production schema misses fail closed with 503.
+// otherwise, with local/preview memory degradation until migrations 0046 and
+// 0058 land.
+// Production write schema misses fail closed with 503. Reads carry a degraded
+// status so a failed lookup is never presented as an answered empty venue.
 //
 // Boundaries (write-surface certification): PUBLIC keyless contribution path.
 // Creation and reporting are durably RATE LIMITED (rate_limit class); moderator
-// restore/keep_hidden require the admin token (moderator class). A note is
+// restore/hide require the admin token (moderator class). A note is
 // slop-filtered + capped at validation; identity is the self-asserted handle,
 // gated by gateHandleAction, the same demo posture as a Pint Drop / rating. A
 // hard durable write failure answers 503, never a fake success. Creation pauses
@@ -30,9 +33,8 @@ import { isLimited } from "@/lib/pintDrops";
 import { gateHandleAction } from "@/lib/profileOwnership";
 import { clientIp, hashActor, hashIp } from "@/lib/supabase";
 import { readString } from "@/lib/textClean";
-import { validateVisitReport, type VisitReportStatus } from "@/lib/visitReports";
+import { normalizeHandle, validateVisitReport } from "@/lib/visitReports";
 import { visitReportsStore } from "@/lib/visitReportsStore";
-import { summariseVisitReports } from "@/lib/visitReportSummary";
 
 // A genuine reporter files a handful of reports; more from one origin in the
 // window is abuse. Durable per-handle + hashed-IP, like the app's other writes.
@@ -56,13 +58,14 @@ export async function POST(request: Request): Promise<Response> {
   }
 
   // ── Public report (abuse flag) ─────────────────────────────────────────────
-  // A report records per-actor-deduped metadata; the row is hidden from public
-  // reads only once VISIT_REPORT_HIDE_THRESHOLD DISTINCT actors flag it (never
-  // on the first). Reporting stays open under the social freeze.
+  // A report records per-actor-deduped metadata for the moderator queue. It
+  // never changes public visibility. Reporting stays open under the freeze.
   if (body.action === "report") {
     const id = readString(body.id);
     if (!id) return publicApiError("Visit report not found.", "NOT_FOUND", 404);
-    const actorHash = hashActor(readString(body.actor) || `ip:${hashIp(clientIp(request))}`);
+    // The actor is derived from the request, exactly like community prices.
+    // A body-provided token would let one origin manufacture distinct reporters.
+    const actorHash = hashActor(`visit-report:${hashIp(clientIp(request))}`);
     if (
       (await isLimited(`visit-report-report:${id}`, `visit-report-report:${id}`)) ||
       (await isLimited(
@@ -88,11 +91,11 @@ export async function POST(request: Request): Promise<Response> {
   }
 
   // ── Moderator decisions ────────────────────────────────────────────────────
-  if (body.action === "restore" || body.action === "keep_hidden") {
+  if (body.action === "restore" || body.action === "hide") {
     if (!isModerator(request)) return publicApiError("Not authorised.", "FORBIDDEN", 403);
     const id = readString(body.id);
     if (!id) return publicApiError("Visit report not found.", "NOT_FOUND", 404);
-    const status: VisitReportStatus = body.action === "restore" ? "visible" : "hidden";
+    const status = body.action === "restore" ? "visible" : "hidden";
     try {
       const done = await visitReportsStore().moderate(id, status, readString(body.note));
       return done
@@ -150,12 +153,12 @@ export async function POST(request: Request): Promise<Response> {
 export async function GET(request: Request): Promise<Response> {
   const params = new URL(request.url).searchParams;
 
-  // Moderator review queue: ?status=hidden → the reported rows, WITH metadata.
+  // Moderator review queue: ?status=reported returns flagged, undecided rows.
   const status = params.get("status");
-  if (status === "hidden") {
+  if (status === "reported") {
     if (!isModerator(request)) return publicApiError("Not authorised.", "FORBIDDEN", 403);
     try {
-      const reports = await visitReportsStore().listForReview("hidden");
+      const reports = await visitReportsStore().listForReview();
       return jsonNoStore({ reports }, { status: 200 });
     } catch (err) {
       log("error", "visit_reports.list_review_failed", {
@@ -166,14 +169,19 @@ export async function GET(request: Request): Promise<Response> {
     }
   }
 
-  // Public read: a venue's visible reports + the honest recency-weighted summary
-  // (plain lines, NO star score). Fail-soft: the store returns [] on any error,
-  // so a venue sheet renders cleanly instead of 500ing.
+  const contributorParam = params.get("contributor");
+  if (contributorParam !== null) {
+    const contributor = normalizeHandle(contributorParam);
+    const result = await visitReportsStore().countForContributor(contributor);
+    return jsonNoStore({ contributor, ...result }, { status: 200 });
+  }
+
+  // Public read: individual visible reports, newest first. Read status keeps
+  // "nothing written" separate from "we could not check".
   const venueId = readString(params.get("venueId"));
   if (!venueId) {
     return publicApiError("A venueId is required.", "INVALID_REQUEST", 400);
   }
-  const reports = await visitReportsStore().listForVenue(venueId);
-  const summary = summariseVisitReports(reports);
-  return jsonNoStore({ reports, summary }, { status: 200 });
+  const result = await visitReportsStore().readForVenue(venueId);
+  return jsonNoStore(result, { status: 200 });
 }

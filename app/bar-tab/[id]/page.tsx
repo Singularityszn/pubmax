@@ -4,8 +4,8 @@ import Link from "next/link";
 
 import EmptyState from "@/components/EmptyState";
 import SiteNav from "@/components/nav/SiteNav";
-import VenueRatingPanel from "@/components/ratings/VenueRatingPanel";
 import ShareBar from "@/components/share/ShareBar";
+import VisitReportPanel from "@/components/visits/VisitReportPanel";
 import { buildBarTab, normalizePintDrop, type BarTabTile, type PintDropDTO } from "@/lib/feed";
 import { buildBarTabShareText } from "@/lib/shareArtifacts";
 import { isSupabaseConfigured } from "@/lib/supabase";
@@ -161,10 +161,7 @@ export default async function BarTabPage({ params }: PageProps) {
           />
         </div>
 
-        {/* Pub rating (E3): community stars (shown past the 10-vote floor) +
-            the viewer's own half-star vote. A client sliver; the rest of the
-            page stays a server render. */}
-        <VenueRatingPanel venueId={canonicalId} venueName={venue.name} />
+        <VisitReportPanel venueId={canonicalId} venueName={venue.name} />
       </header>
 
       {barTab.tileCount === 0 ? (
