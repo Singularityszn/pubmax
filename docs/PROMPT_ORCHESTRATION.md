@@ -42,8 +42,11 @@ The review proved two independent defects:
    - **Keep** the claim on dismiss. A shown-then-dismissed prompt DID interrupt;
      it must not release. Only release (`releasePromptBudget`) if it claimed but
      then decided not to show (a late async gate flipped).
-   - Degrade **open** when storage is unavailable (the module already does this):
-     a rare double-prompt beats a broken flow.
+   - Treat unreadable consent storage as **undecided**. Until a valid decision
+     can be read, every non-analytics surface must stand down, analytics capture
+     stays off, and `"analytics-consent"` remains eligible. Session-budget
+     storage still degrades open after consent is decided: losing
+     sessionStorage may permit two prompts, but must not break a prompt flow.
 
 2. **Priority when multiple gates open: `analytics consent > identity > push > A2HS`.**
    An undecided analytics choice reserves the prompt budget before lower-priority
@@ -88,7 +91,7 @@ accepted at runtime; keep these stable:
   - `components/onboarding/FirstRunTour.tsx` gates `active` on
     `tourHasPromptBudget()` and claims via a `useEffect` when it shows.
 - Adds `__tests__/firstRunTour.test.ts` covering the tour's budget adoption
-  (respect, claim, defer-to-sibling, block-siblings, degrade-open).
+  (respect, claim, sibling arbitration, and consent-priority stand-down).
 
 ---
 
