@@ -393,6 +393,33 @@ describe("data/freshness_registry.json integrity", () => {
     expect(byId.get("price_updates")?.stalenessBudgetHours).toBe(336);
   });
 
+  it("gives every live TfL read its own alarm", () => {
+    const byId = new Map(registry.datasets.map((dataset) => [dataset.id, dataset]));
+
+    // Three separate TfL surfaces, three separate entries. They share one HTTP
+    // client and one keyless upstream, which is exactly why merging them would
+    // be tempting and wrong: each has its own endpoint, fan-out, timeout budget
+    // and failure mode, so a healthy last-train or disruption read must never
+    // stand in for a bus card that has gone dark. Each entry names ITS route.
+    const routeByDataset = {
+      tfl_last_train: "app/api/last-train",
+      tfl_nearby_buses: "app/api/nearby-bus-departures",
+      tfl_disruption: "app/api/tfl-disruption",
+    } as const;
+
+    for (const [id, route] of Object.entries(routeByDataset)) {
+      const dataset = byId.get(id);
+      expect(dataset).toMatchObject({ class: "live", artifact: null, stamp: null });
+      expect(dataset?.refreshWorkflow).toContain(route);
+      // No entry may claim another's route, which is what a quiet recombination
+      // would look like in this file.
+      for (const [otherId, otherRoute] of Object.entries(routeByDataset)) {
+        if (otherId === id) continue;
+        expect(dataset?.refreshWorkflow).not.toContain(otherRoute);
+      }
+    }
+  });
+
   it("keeps every declared artifact path present on disk", () => {
     for (const d of registry.datasets) {
       if (!d.artifact) continue;
