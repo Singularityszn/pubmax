@@ -218,4 +218,27 @@ describe("legal content pages", () => {
     expect(terms).toMatch(/under 18/i);
     expect(terms).toMatch(/drinkaware\.co\.uk/);
   });
+
+  it("discloses private referral attribution and its genuine browser limits", () => {
+    expect(privacy).toMatch(/private referral edge/i);
+    expect(privacy).toMatch(/HttpOnly/);
+    expect(privacy).toMatch(/30 days/);
+    expect(privacy).toMatch(/same browser/);
+    expect(privacy).toMatch(/clear or block cookies/i);
+    expect(privacy).toMatch(/different\s+browser or device/i);
+    expect(privacy).toMatch(/never shown on a public profile/i);
+    expect(privacy).toMatch(/first accepted contribution/i);
+    expect(privacy).toMatch(/milestone records/i);
+    expect(privacy).toMatch(/until either account is deleted/i);
+    expect(privacy).toMatch(/eligible for pruning/i);
+    expect(privacy).toMatch(/when new invite journeys\s+begin/i);
+  });
+
+  it("states referral qualification and the closed reward gate in the terms", () => {
+    expect(terms).toMatch(/self-referrals/i);
+    expect(terms).toMatch(/circular\s+referrals/i);
+    expect(terms).toMatch(/signs up and makes a first accepted contribution/i);
+    expect(terms).toMatch(/referral rewards are not active/i);
+    expect(terms).toMatch(/do not grant access/i);
+  });
 });

@@ -15,6 +15,7 @@ import type { AnalyticsConsentDecision } from "@/lib/analyticsIdentity";
 import { authedFetch } from "@/lib/authedFetch";
 import { emitIdentityHandleChanged } from "@/lib/identityClient";
 import NightMemoryStudio from "@/components/profile/NightMemoryStudio";
+import type { ReferralPrivateStatus } from "@/lib/referralStore";
 import {
   cleanNightProfileInput,
   DEFAULT_NIGHT_PROFILE_INPUT,
@@ -122,6 +123,51 @@ export function NightProfileControls({
   );
 }
 
+export function ReferralInviteCard({
+  status,
+  busy,
+  link,
+  onInvite,
+}: {
+  status: ReferralPrivateStatus | null;
+  busy: boolean;
+  link: string | null;
+  onInvite: () => void;
+}): React.JSX.Element {
+  const qualified = status?.qualifiedCount ?? 0;
+  const referralLabel = qualified === 1 ? "qualified referral" : "qualified referrals";
+  return (
+    <div className="accountHubReferral">
+      <h3>Invite a mate</h3>
+      <p>
+        A referral counts after your mate signs up and logs their first accepted
+        contribution.
+      </p>
+      {status ? (
+        <p className="accountHubReferralProgress">
+          {qualified} {referralLabel}.{" "}
+          {status.nextMilestone
+            ? `Next milestone: ${status.nextMilestone}.`
+            : "All three milestones recorded."}
+        </p>
+      ) : null}
+      <small>
+        Rewards stay off until signed-in contributions and person-level account
+        checks can stop self-referrals.
+      </small>
+      <button type="button" disabled={busy} onClick={onInvite}>
+        {busy ? "Getting your link…" : "Invite a mate"}
+      </button>
+      {link ? (
+        <label className="accountHubReferralLink">
+          Your invite link
+          <input type="url" readOnly value={link} />
+        </label>
+      ) : null}
+    </div>
+  );
+}
+
 export default function PubmaxxAccountHub() {
   const { user, loading } = useAuth();
   const router = useRouter();
@@ -137,6 +183,9 @@ export default function PubmaxxAccountHub() {
   const [mergeDeferred, setMergeDeferred] = useState(false);
   const [message, setMessage] = useState("");
   const [analyticsConsent, setAnalyticsConsentState] = useState<AnalyticsConsentDecision | null>(null);
+  const [referralStatus, setReferralStatus] = useState<ReferralPrivateStatus | null>(null);
+  const [referralLink, setReferralLink] = useState<string | null>(null);
+  const [referralBusy, setReferralBusy] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -186,7 +235,8 @@ export default function PubmaxxAccountHub() {
       authedFetch("/api/social-connections", { signal: controller.signal }),
       authedFetch("/api/identity/handle/current", { signal: controller.signal }),
       authedFetch("/api/me/night-profile", { signal: controller.signal }),
-    ]).then(async ([social, identity, nightProfile]) => {
+      authedFetch("/api/referrals/status", { signal: controller.signal }),
+    ]).then(async ([social, identity, nightProfile, referrals]) => {
       if (controller.signal.aborted) return;
       if (social.ok) {
         const body = (await social.json()) as {
@@ -209,6 +259,9 @@ export default function PubmaxxAccountHub() {
         if (mirrored) setDeviceNightProfile(mirrored);
       } else {
         setMessage("Your account Night Profile could not be loaded.");
+      }
+      if (referrals.ok) {
+        setReferralStatus((await referrals.json()) as ReferralPrivateStatus);
       }
       setNightProfileLoaded(true);
     }).catch(() => {});
@@ -349,6 +402,49 @@ export default function PubmaxxAccountHub() {
     setInstagramUrl("");
   }
 
+  async function inviteMate() {
+    if (referralBusy) return;
+    setReferralBusy(true);
+    try {
+      const response = await authedFetch("/api/referrals/invite-link", {
+        method: "POST",
+      });
+      const body = (await response.json().catch(() => ({}))) as {
+        url?: string;
+        error?: string;
+      };
+      if (!response.ok || !body.url) {
+        setMessage(body.error ?? "Your invite link could not be made.");
+        return;
+      }
+      setReferralLink(body.url);
+      if (typeof navigator.share === "function") {
+        try {
+          await navigator.share({
+            title: "PUBMAXX",
+            text: "Real pub prices from real people.",
+            url: body.url,
+          });
+          setMessage("Invite link ready to share.");
+          return;
+        } catch {
+          setMessage("Your invite link is below.");
+          return;
+        }
+      }
+      if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(body.url);
+        setMessage("Invite link copied.");
+      } else {
+        setMessage("Your invite link is below.");
+      }
+    } catch {
+      setMessage("Your invite link could not be made.");
+    } finally {
+      setReferralBusy(false);
+    }
+  }
+
   if (loading) return <section className="accountHub" aria-busy="true"><p>Loading your account…</p></section>;
   if (!user) return <section className="accountHub"><p className="profileSectionKicker">Your PUBMAXX</p><h2>Sign in to save your nights</h2><NightProfileControls profile={deviceNightProfile ?? DEFAULT_NIGHT_PROFILE_INPUT} saveLabel="Saved on this device" onChange={editDeviceNightProfile} /><div className="accountHubSignIn"><p>Sign in to claim a handle, connect profiles, and keep private Night Memories. Your device profile is only brought to an account after you review it.</p><SignInButton /></div><div className="accountHubGrid">{analyticsControls}</div>{message ? <p role="status" className="accountHubMessage">{message}</p> : null}</section>;
 
@@ -387,6 +483,12 @@ export default function PubmaxxAccountHub() {
       <div className="accountHubGrid">
         <form onSubmit={claim}><h3>{currentHandle ? "Your @handle" : "Claim your @handle"}</h3><input value={handle} onChange={(event) => setHandle(event.target.value)} pattern="[A-Za-z0-9_]{3,30}" placeholder="night_owl" required /><button type="submit">{currentHandle ? "Rename handle" : "Claim handle"}</button>{currentHandle ? <small>Renames are limited to once every 30 days. Old links keep working.</small> : null}</form>
         <div><h3>Connected accounts</h3><SocialConnectionActions providers={providers} onConnect={(provider) => void connectOAuth(provider)} />{providers.instagram.manual ? <form onSubmit={connectInstagram}><input type="url" value={instagramUrl} onChange={(event) => setInstagramUrl(event.target.value)} placeholder="Personal Instagram URL" required /><button type="submit">Add personal link</button></form> : null}<small>{connections.length} connected</small></div>
+        <ReferralInviteCard
+          status={referralStatus}
+          busy={referralBusy}
+          link={referralLink}
+          onInvite={() => void inviteMate()}
+        />
         {analyticsControls}
       </div>
       <NightMemoryStudio key={user.id} userId={user.id} />

@@ -119,6 +119,33 @@ export default function PrivacyPage() {
           connected and any provider tokens encrypted at rest.
         </p>
 
+        <h3 className="legalH3">If you use an invite link</h3>
+        <p className="legalBody">
+          Making an invite gives you an opaque link tied to your account. When
+          someone follows it, we store a private referral journey with the
+          inviting account, the time it began and its expiry, and put an
+          HttpOnly first-party cookie in that browser for 30 days. If that
+          person then makes a new account in the same browser, we record one
+          private referral edge between the two account IDs. It is recorded
+          once and is never shown on a public profile, contributor record,
+          venue page or anywhere else public.
+        </p>
+        <p className="legalBody">
+          The link between those accounts is only as strong as that browser
+          journey. It fails if you clear or block cookies, use a different
+          browser or device to sign up, wait past 30 days, follow an invalid
+          link, or already had the account before following the link. We
+          don&rsquo;t claim an attribution in any of those cases.
+        </p>
+        <p className="legalBody">
+          A referral is not qualified by signup alone. It needs the new account
+          to make its first accepted contribution. We keep append-only milestone
+          records so later decisions can be explained. Those milestone records
+          do not grant paid features today, because contributions are not yet
+          tied to signed-in accounts strongly enough to stop one person using
+          several accounts.
+        </p>
+
         <h3 className="legalH3">What you post</h3>
         <p className="legalBody">
           Pint Drops (a price, a note, sometimes a photo), plans and crawl
@@ -347,6 +374,10 @@ export default function PrivacyPage() {
             in your browser and refreshes in the background.
           </li>
           <li>
+            A referral journey cookie, if you follow an invite link. It is
+            HttpOnly, belongs only to pubmaxxing.com, and expires after 30 days.
+          </li>
+          <li>
             Your analytics choice, either allowed or denied, so we do not ask on
             every visit. Until you tap Allow, no analytics identifier exists at
             all; withdrawing consent removes it again.
@@ -511,6 +542,16 @@ export default function PrivacyPage() {
             <strong>Push subscriptions:</strong>{" "}if you turned notifications
             on, the stored subscription row stays until your browser&rsquo;s
             push service reports it dead or you ask us to remove it.
+          </li>
+          <li>
+            <strong>Referral records:</strong>{" "}the private invite code,
+            account-to-account edge, first accepted contribution marker and
+            milestone records stay until either account is deleted. Ordinary
+            product writes can only append that history. A verified account
+            deletion removes the private referral data tied to that account.
+            Unclaimed journeys become eligible for pruning after their 30-day
+            window and are deleted in bounded batches when new invite journeys
+            begin.
           </li>
         </ul>
       </section>

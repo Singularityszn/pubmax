@@ -3,7 +3,11 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 
 import { DEFAULT_NIGHT_PROFILE_INPUT } from "@/lib/nightProfile";
-import { NightProfileControls, SocialConnectionActions } from "@/components/profile/PubmaxxAccountHub";
+import {
+  NightProfileControls,
+  ReferralInviteCard,
+  SocialConnectionActions,
+} from "@/components/profile/PubmaxxAccountHub";
 
 describe("PubmaxxAccountHub provider gating", () => {
   it("renders editable Night Profile controls with the privacy boundary", () => {
@@ -47,5 +51,49 @@ describe("PubmaxxAccountHub provider gating", () => {
       onConnect: vi.fn(),
     }));
     expect(html).toBe("");
+  });
+
+  it("offers one quiet invite action and states the contribution gate truthfully", () => {
+    const html = renderToStaticMarkup(createElement(ReferralInviteCard, {
+      status: {
+        attributedCount: 2,
+        qualifiedCount: 1,
+        earned: [],
+        grantedFeatures: [],
+        grantsEnabled: false,
+        nextMilestone: 3,
+      },
+      busy: false,
+      link: null,
+      onInvite: vi.fn(),
+    }));
+
+    expect(html).toContain("Invite a mate");
+    expect(html).toContain("first accepted contribution");
+    expect(html).toContain("1 qualified referral");
+    expect(html).toContain("Next milestone: 3");
+    expect(html).toContain("Rewards stay off");
+    expect(html).not.toMatch(/unlock/i);
+    expect(html).not.toContain("inviter");
+    expect(html).not.toContain("invitee");
+  });
+
+  it("shows a selectable link only after a deliberate invite action", () => {
+    const withoutLink = renderToStaticMarkup(createElement(ReferralInviteCard, {
+      status: null,
+      busy: false,
+      link: null,
+      onInvite: vi.fn(),
+    }));
+    const withLink = renderToStaticMarkup(createElement(ReferralInviteCard, {
+      status: null,
+      busy: false,
+      link: "https://pubmaxxing.com/r/opaque",
+      onInvite: vi.fn(),
+    }));
+
+    expect(withoutLink).not.toContain("https://pubmaxxing.com/r/opaque");
+    expect(withLink).toContain("https://pubmaxxing.com/r/opaque");
+    expect(withLink).toContain('readOnly=""');
   });
 });

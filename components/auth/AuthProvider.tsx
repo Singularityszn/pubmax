@@ -276,6 +276,13 @@ export function AuthProvider({ children }: { children: ReactNode }): React.JSX.E
 
   const syncIdentityAfterSignIn = useCallback(
     async (user: User): Promise<void> => {
+      // Referral attribution is independent of handle claiming. The server
+      // accepts only a verified JWT plus its HttpOnly journey cookie, and the
+      // call fails soft so auth and anonymous browsing never wait on it.
+      void authedFetch("/api/referrals/claim-attribution", {
+        method: "POST",
+      }).catch(() => undefined);
+
       const authHandle = handleFromUser(user);
       if (!authHandle || typeof window === "undefined") return;
 
