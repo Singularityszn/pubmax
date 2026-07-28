@@ -11,7 +11,7 @@ const CONFIG_URL = pathToFileURL(
 ).href;
 
 function loadConfig(siteUrl: string | undefined, vercelEnv?: string) {
-  const environment = {
+  const environment: NodeJS.ProcessEnv = {
     ...process.env,
     NODE_ENV: "production",
   };

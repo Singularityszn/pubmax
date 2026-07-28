@@ -8,7 +8,7 @@
 //
 // Full checklist: docs/DEPLOYMENT.md → "Browser sign-in (Google + Microsoft)".
 // IdP redirect URI is always https://<project-ref>.supabase.co/auth/v1/callback.
-// https://pubmaxxing.com/auth/callback is allowlisted in Supabase URL Configuration.
+// Canonical callback and Supabase URL allowlist are owned by that checklist.
 //
 // Until those dashboard steps are done the buttons open the IdP and then FAIL
 // the redirect — that failure is EXPECTED and is not a bug in this code.

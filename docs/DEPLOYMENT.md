@@ -101,7 +101,7 @@ Buckets are not SQL objects, so create it **out of band** (Supabase dashboard �
 
 The app calls Supabase Auth with `signInWithOtp` for passwordless email and `signInWithOAuth` for Google/Microsoft. All three finish the PKCE exchange at the canonical site's `/auth/callback`, then return to the path where sign-in started. The callback rejects absolute, protocol-relative, and backslash redirect targets; never add a client-controlled redirect that bypasses that seam. URL fragments are never copied into Supabase's `redirectTo`: the browser holds them in a TTL-limited record keyed by a cryptographically random attempt ID and restores them only for the matching return path, because Plan invite fragments contain one-use capabilities. Supabase uses one browser PKCE verifier per project, so the app atomically allows only one live attempt across tabs through the Web Locks API and gives an honest error instead of overwriting another tab's attempt. The initiating tab also records its attempt in `sessionStorage`, allowing an explicit retry after backing out of the provider without weakening cross-tab isolation. Persistent browser storage and the Web Locks API are required for this PKCE coordination; browsers that disable either fail closed with an actionable message because an in-memory verifier cannot reliably survive the provider's full-page round trip. Secrets stay in the Supabase dashboard - the Next.js app only needs the public URL + publishable key above.
 
-#### Shared Supabase URL config
+#### Captain-owned Supabase URL config
 
 Dashboard → Authentication → URL Configuration:
 
@@ -109,6 +109,14 @@ Dashboard → Authentication → URL Configuration:
 |---|---|
 | Site URL | `https://pubmaxxing.com` (canonical production apex) |
 | Redirect URLs | `https://pubmaxxing.com/auth/callback`, `http://localhost:3000/auth/callback` |
+
+These are captain-owned dashboard settings and required target values, not
+evidence that the current Supabase project is configured completely. Repository
+verification and local browser screenshots provide current evidence for the
+shipped callback contract and local same-origin flow, but cannot inspect or
+prove those remote values. Successful-session production verification remains
+blocked until the captain applies them, requests a production magic link, and
+confirms both the canonical callback address and signed-in session.
 
 Set `NEXT_PUBLIC_SITE_URL=https://pubmaxxing.com` in every deployed Vercel
 environment, including previews. Deployed auth always requests the apex
