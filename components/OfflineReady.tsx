@@ -8,8 +8,8 @@ import { useEffect } from "react";
 //
 // The ?v= query carries the per-deploy build id (inlined from next.config.mjs
 // as NEXT_PUBLIC_SW_VERSION). A new deploy changes the registration URL, the
-// browser treats it as a new worker, and its `activate` step migrates usable
-// offline entries before retiring superseded cache versions.
+// browser treats it as a new worker, and its `activate` step preserves usable
+// offline entries while retiring superseded cache versions only when safe.
 export default function OfflineReady() {
   useEffect(() => {
     // Dev builds churn assets constantly; a SW there only causes confusion.

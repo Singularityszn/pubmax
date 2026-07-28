@@ -118,9 +118,6 @@ test("target worker replaces the pre-fix controller and purges poisoned tiles", 
   });
   expect(tileUrl).not.toBeNull();
 
-  await page.locator('.mobileTabBar a[href="/today"]').click();
-  await page.waitForURL("**/today");
-
   const waitingLegacyUrl = `/sw.js?v=legacy-waiting-${Date.now()}`;
   const waitingState = await page.evaluate(async (scriptUrl) => {
     const registration = await navigator.serviceWorker.register(scriptUrl);
@@ -244,6 +241,22 @@ test("target worker replaces the pre-fix controller and purges poisoned tiles", 
       candidate.addEventListener("statechange", () => states.push(candidate.state));
     }
     await controllerChanged;
+    if (candidate && candidate.state !== "activated") {
+      await new Promise<void>((resolve, reject) => {
+        const timeout = setTimeout(
+          () => reject(new Error("target worker did not finish activating")),
+          15_000,
+        );
+        const onStateChange = () => {
+          if (candidate.state !== "activated") return;
+          clearTimeout(timeout);
+          candidate.removeEventListener("statechange", onStateChange);
+          resolve();
+        };
+        candidate.addEventListener("statechange", onStateChange);
+        onStateChange();
+      });
+    }
     return {
       controller: navigator.serviceWorker.controller?.scriptURL ?? null,
       states,

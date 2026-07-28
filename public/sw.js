@@ -5,8 +5,8 @@
  * Design rules (in order of importance):
  *  1. NEVER break a fresh deploy. Caches are keyed by a per-build VERSION
  *     (injected via the ?v= query on the registration URL — see
- *     components/OfflineReady.tsx and next.config.mjs). `activate` carries
- *     valid offline entries into the new version before retiring old caches.
+ *     components/OfflineReady.tsx and next.config.mjs). `activate` preserves
+ *     valid offline entries and retires old caches only when safely covered.
  *  2. NEVER serve stale HTML for navigations. Navigations are network-first;
  *     the cache is only a fallback when the network is genuinely down.
  *  3. NEVER cache API responses (GET or POST). Last-train times and pint
