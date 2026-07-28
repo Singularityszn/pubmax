@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
 
+// @ts-expect-error Dependency-free Node refresh helper has no declaration file.
+import { conditionForCode as scriptConditionForCode } from "@/scripts/refresh_weather_snapshots.mjs";
+import { conditionForCode } from "@/lib/weatherProvider";
 import {
   conditionsForWeather,
   isWeatherRecommendationCondition,
@@ -237,6 +240,53 @@ describe("conditionsForWeather", () => {
         windKph: 2,
       }),
     ).toEqual([]);
+  });
+});
+
+describe("the matcher against the shipped condition vocabulary", () => {
+  // Every WMO code both producers translate, run through the matcher, so a
+  // reworded condition (say WMO 85 becoming "Snow showers") fails here rather
+  // than quietly re-entering the raining set.
+  const RAIN_CODES = [
+    51, 53, 55, 56, 57, 61, 63, 65, 66, 67, 80, 81, 82, 95, 96, 99,
+  ];
+  const SNOW_CODES = [71, 73, 75, 77, 85, 86];
+  const CLEAR_CODES = [0];
+  const NEITHER_CODES = [1, 2, 3, 45, 48];
+
+  function conditionsFor(code: number): string[] {
+    expect(scriptConditionForCode(code)).toBe(conditionForCode(code));
+    return conditionsForWeather({
+      condition: conditionForCode(code),
+      feelsLikeC: 12,
+      precipitationProbabilityPct: 50,
+      windKph: 10,
+    });
+  }
+
+  it("calls every rain, drizzle and storm code raining", () => {
+    for (const code of RAIN_CODES) {
+      expect(conditionsFor(code), `code ${code}`).toEqual(["raining"]);
+    }
+  });
+
+  it("never calls a snow code raining", () => {
+    for (const code of SNOW_CODES) {
+      expect(conditionsFor(code), `code ${code}`).toEqual([]);
+    }
+  });
+
+  it("matches clear skies and leaves cloud and fog outside the vocabulary", () => {
+    for (const code of CLEAR_CODES) {
+      expect(conditionsFor(code), `code ${code}`).toEqual(["clear"]);
+    }
+    for (const code of NEITHER_CODES) {
+      expect(conditionsFor(code), `code ${code}`).toEqual([]);
+    }
+  });
+
+  it("reads an untranslated code as no condition at all", () => {
+    expect(conditionsFor(77_777)).toEqual([]);
   });
 });
 

@@ -179,7 +179,7 @@ export function validateWeatherRecommendation(
 // `Thunderstorm` is one word, so a leading word boundary would quietly drop
 // every storm.
 const CLEAR_CONDITION = /\b(clear|sun|sunny)\b/i;
-const RAINING_CONDITION = /rain|drizzle|storm|shower/i;
+const RAINING_CONDITION = /rain|drizzle|storm/i;
 
 function validWeather(weather: RecommendationWeather): boolean {
   return (

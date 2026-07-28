@@ -23,6 +23,12 @@
 - Keep review code untouched. Venue overview integration is one import and one mounted component.
 - Do not manually edit generated files or CHANGELOG.md.
 
+## Weather outside the five conditions
+
+Matching on observed fields alone leaves a common state: weather we read fine that is none of the five conditions anyone can author for. In the shipped snapshot (`public/data/weather/latest.json`, generated 2026-07-18) 8 of the 20 night areas read `Cloudy` and the other 12 read `Clear`, with apparent temperature between 15.8C and 16.8C and wind between 11.5 kph and 13.7 kph. Cloudy at that temperature and wind matches nothing, and `Fog` behaves the same way, as do the untranslated `Weather code N` strings.
+
+So the venue card treats it as its own fact and says only that we have no recommendations for today's conditions. It never reports it as an absence of contributors, and it never invites a recommendation the form cannot accept. Widening the vocabulary to cover cloud or fog is a separate product decision, deliberately not taken here.
+
 ---
 
 ### Task 1: Closed recommendation vocabulary and honest weather matching

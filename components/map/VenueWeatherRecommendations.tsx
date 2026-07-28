@@ -137,16 +137,23 @@ export function WeatherRecommendationList({
   venueName,
   recommendations,
   weatherStatus,
+  matchingConditions,
   degraded,
   truncated,
 }: {
   venueName: string;
   recommendations: WeatherRecommendation[];
   weatherStatus: WeatherRecommendationVenueLoad["weatherStatus"];
+  matchingConditions: WeatherRecommendationCondition[];
   degraded: boolean;
   truncated: boolean;
 }) {
   const empty = recommendations.length === 0;
+  // Weather we could read, but that is none of the five conditions anyone can
+  // author for. Nothing here is a fact about contributors, so nothing here
+  // invites one: the reader cannot complete an invitation the form cannot take.
+  const outsideVocabulary =
+    weatherStatus === "available" && matchingConditions.length === 0;
 
   return (
     <section
@@ -172,9 +179,11 @@ export function WeatherRecommendationList({
       ) : null}
       {empty && !degraded ? (
         <p className="weatherRecEmpty">
-          {weatherStatus === "available"
-            ? "Nobody has recommended this pub for tonight’s weather yet. Be the first."
-            : "Nobody has recommended this pub yet. Be the first."}
+          {weatherStatus === "unavailable"
+            ? "Nobody has recommended this pub yet. Be the first."
+            : outsideVocabulary
+              ? "We don’t have recommendations for today’s conditions."
+              : "Nobody has recommended this pub for tonight’s weather yet. Be the first."}
         </p>
       ) : null}
       {recommendations.length > 0 ? (
@@ -360,6 +369,7 @@ export default function VenueWeatherRecommendations({
           venueName={venueName}
           recommendations={load.recommendations}
           weatherStatus={load.weatherStatus}
+          matchingConditions={load.matchingConditions}
           degraded={load.degraded}
           truncated={load.truncated}
         />
