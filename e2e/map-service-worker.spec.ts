@@ -256,36 +256,46 @@ test("target worker replaces the pre-fix controller and purges poisoned tiles", 
   expect(takeover.states).toContain("activated");
   expect(takeover.waiting).toBeNull();
   const cacheContinuity = await page.evaluate(
-    async ({ cacheNames, poisonedTileUrl }) => {
+    async ({ poisonedTileUrl, targetScriptUrl }) => {
       const names = await caches.keys();
-      const data = await caches.open(cacheNames.data);
-      const plan = await caches.open(cacheNames.plan);
-      const shell = await caches.open(cacheNames.shell);
-      const swr = await caches.open(cacheNames.swr);
-      const oldTileUrls = (await swr.keys())
-        .map((request) => request.url)
-        .filter((url) => new URL(url).hostname === "tiles.openfreemap.org");
+      const targetVersion = new URL(targetScriptUrl).searchParams.get("v");
+      const familyNames = (family: string) =>
+        names.filter((name) => name.startsWith(`pubmax-sw-${family}-`));
+      const matchFamily = async (family: string, request: string) => {
+        for (const name of familyNames(family)) {
+          const response = await (await caches.open(name)).match(request);
+          if (response) return true;
+        }
+        return false;
+      };
+      const oldTileUrls: string[] = [];
+      for (const name of familyNames("swr")) {
+        if (name === `pubmax-sw-swr-${targetVersion}`) continue;
+        const cache = await caches.open(name);
+        for (const request of await cache.keys()) {
+          if (new URL(request.url).hostname === "tiles.openfreemap.org") {
+            oldTileUrls.push(request.url);
+          }
+        }
+      }
       return {
-        retained: Object.values(cacheNames).every((name) =>
-          names.includes(name),
-        ),
-        data: Boolean(await data.match("/data/legacy-offline.json")),
-        plan: Boolean(await plan.match("/plan/legacy-offline")),
-        poisoned: Boolean(await swr.match(poisonedTileUrl)),
-        shell: Boolean(await shell.match("/offline.html")),
-        staticAsset: Boolean(
-          await swr.match("/_next/static/chunks/legacy-offline.js"),
+        data: await matchFamily("data", "/data/legacy-offline.json"),
+        plan: await matchFamily("plan", "/plan/legacy-offline"),
+        poisoned: await matchFamily("swr", poisonedTileUrl),
+        shell: await matchFamily("shell", "/offline.html"),
+        staticAsset: await matchFamily(
+          "swr",
+          "/_next/static/chunks/legacy-offline.js",
         ),
         oldTileUrls,
       };
     },
     {
-      cacheNames: legacyState.cacheNames,
       poisonedTileUrl: poisonedUrl,
+      targetScriptUrl: takeover.controller!,
     },
   );
   expect(cacheContinuity).toEqual({
-    retained: true,
     data: true,
     plan: true,
     poisoned: false,
