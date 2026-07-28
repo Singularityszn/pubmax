@@ -32,7 +32,7 @@ FROM surface × intent → TO surface, with the exact mechanic. Deep-link params
 
 | From | Intent | To | Mechanic | Back |
 |------|--------|----|----------|------|
-| Pint stories / drink card | "show me these on the map" | Map (filtered lens) | `Link` → `/map?drink=<cat>` (or `food=1&q=<cuisine>`, `cocktails=1`, `crawl=<id>`). Map opens with that filter applied, list + pins narrowed. | back → Pint stories, scroll restored |
+| Pint stories / drink card | "show me these on the map" | Map (drink lens) | `Link` → `/map?drink=<cat>` (or `food=1&q=<cuisine>`, `cocktails=1`, `crawl=<id>`). A non-beer `drink` PRICES the map by that drink (colour, pin figure, cheapest-area list) rather than narrowing it; the other params still narrow pins + list. | back → Pint stories, scroll restored |
 | Pubs list item | "put this pub on the map" | Map pin | `Link` → `venueMapUrl(id)` = `/map?sel=<id>`. MUST open the venue sheet AND centre the camera on the pin (fly-to). | sheet closes first, then back → Pubs |
 | Venue sheet | "plan a night around this" | Plan / crawl | Sticky-bar action "Make it a stop" → seeds the pub into a plan/crawl (`?mode=build&pubs=<id>`), map stays underneath. Copy: "Like this one? Make it stop one." | back closes planning, sheet returns |
 | Feed story | "see this pub" → "on the map" | Venue → Map | Story pub `Link` → `/map?sel=<venueId>` (same sheet+centre contract as Pubs). | sheet → back → Feed |
@@ -54,8 +54,8 @@ unknown/malformed params are ignored.
 | `pubs=<id,id>` | Hand-built crawl stop ids. | yes | yes |
 | `style=<crawlStyle>` | Scoring style (heritage/balanced/…). | yes | yes |
 | `alt=<pint\|food\|coffee\|mocktail>` | "Kind of night" copy label. | yes | yes |
-| `drink=<category>` | Drink lens (the "lens" filter). | yes | yes |
-| `brand=<id>` | Brand within the drink lens. | yes | yes |
+| `drink=<category>` | Drink lens. A non-beer category PRICES the map by that drink (pin colour, labelled pin figure, cheapest-area list) and drops the narrowing drink/brand/max-price facets; `beer` keeps the old narrowing behaviour. Only lensable categories are accepted - `other` is ignored, because the picker can neither show nor clear it. | yes | yes |
+| `brand=<id>` | Brand within the drink lens. Honoured on the beer/favourite-pint path; a non-beer drink lens drops it, because community category prices name no brand. | yes | yes |
 | `cocktails=1` | Cocktail lens shortcut. | yes | yes |
 | `food=1` | Serves-food filter. | yes | yes |
 | `q=<text>` | Free query; also carries the **cuisine hint** (no dedicated `cuisine` param). | yes | yes |

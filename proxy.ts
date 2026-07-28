@@ -52,6 +52,11 @@ export function proxy(request: NextRequest) {
   //   NB: no 'strict-dynamic' — it would make the browser ignore the 'self'
   //   source expression, blocking the parser-inserted external theme-init.js;
   //   Next's chunk loading is happy under plain 'self' + a nonce'd bootstrap.
+  //   The one external host is va.vercel-scripts.com, which serves the Vercel
+  //   Analytics SDK. Vercel injects that tag itself, so it carries no nonce of
+  //   ours; the script is still consent-gated in the app (`beforeSend` cancels
+  //   pre-consent pageviews — docs/OBSERVABILITY_CERTIFICATION.md), so allowing
+  //   the origin does not widen what may be collected, only what may load.
   const scriptSrc = `script-src 'self' 'nonce-${nonce}' https://va.vercel-scripts.com${isDev ? " 'unsafe-eval'" : ""}`;
 
   // Every non-script directive below is copied VERBATIM from the previous
