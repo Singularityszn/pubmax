@@ -212,3 +212,45 @@ Expected: validate-data, lint, typecheck, coverage, and resilient audit all pass
 - [ ] **Step 5: Review and commit**
 
 Inspect `git diff --check`, `git status`, generated-artifact churn, and screenshot evidence. Restore local `next-env.d.ts` or `package.json` tooling churn if present. Commit implementation and evidence on `fm/pub-character-signals`.
+
+---
+
+### Task 6: Review follow-ups (post-implementation)
+
+**Files:**
+- Modify: `lib/communityVenueSignals.ts`, `components/map/VenueCommunitySignals.tsx`
+- Modify: `lib/communityPriceStore.ts`, `app/api/admin/community-prices/route.ts`, `app/api/price-submit/route.ts`
+- Modify: `components/map/useCommunityPrices.ts`
+- Modify: `__tests__/communityVenueSignals.test.ts`, `__tests__/venueCommunitySignals.test.ts`, `__tests__/communityPriceStore.test.ts`, `__tests__/communityPriceClientState.test.ts`, `__tests__/communityPriceModeration.test.ts`, `__tests__/priceSubmitRoute.test.ts`
+
+- [x] **Step 1: Access accuracy at every age**
+
+An uncorroborated entrance or toilet report keeps its primary line at `Unknown`
+however old it is; staleness appears only in the supporting detail. Reading
+surfaces branch on `CommunityVenueSignalTrust` (`unknown` | `reported` |
+`established`) instead of comparing copy, so a wording change cannot promote a
+pub nobody has checked.
+
+- [x] **Step 2: Durable scan and rolling-deploy fixes**
+
+Price scans narrow to `drink_category is not null` (an existing column, so an
+unapplied signals migration still reads prices), because a row cap is a window,
+not a filter. A venue payload with no `signals` key is an older deployment
+answering about prices alone, so it reads as an honest empty rather than
+discarding that venue's prices.
+
+- [x] **Step 3: Moderation through the existing path only**
+
+No new subsystem, console or API. Signal observation ids ride on the read, the
+existing `POST /api/price-submit { action: "report" }` accepts either shape, the
+existing `/api/admin/community-prices` queue lists both (each row says its
+`kind`), and the existing hide/restore action is the removal means: hiding drops
+a signal from the sheet, the corroboration count and the established answer
+together through the single `freshestVenueSignals` filter.
+
+- [x] **Step 4: PR body must state the removal means**
+
+The PR body has to say plainly that moderators use the existing
+`/api/admin/community-prices` queue plus its hide/restore action to remove a
+wrong character or step-free report, and that no separate moderation UI or API
+was added.

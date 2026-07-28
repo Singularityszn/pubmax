@@ -234,6 +234,11 @@ function readSignalCandidate(
 function readSignals(value: unknown): CommunityVenueSignal[] | null {
   if (!value || typeof value !== "object") return null;
   const rows = (value as { signals?: unknown }).signals;
+  // ABSENT is not INVALID. A deployment mid-rollout answers this venue with
+  // `prices` alone, and treating a missing key as unreadable threw away prices
+  // that were perfectly good - the sheet lost the figures over a question the
+  // older server was never asked. Present-but-unparseable is still invalid.
+  if (rows === undefined || rows === null) return [];
   if (!Array.isArray(rows)) return null;
   const signals: CommunityVenueSignal[] = [];
   for (const raw of rows) {
@@ -249,6 +254,9 @@ function readSignals(value: unknown): CommunityVenueSignal[] | null {
       continue;
     }
     signals.push({
+      // Present from the server, absent on an optimistic row: without an id the
+      // observation simply carries no report handle, never a made-up one.
+      ...(typeof row.id === "string" && row.id !== "" ? { id: row.id } : {}),
       venueId: row.venueId,
       signalKey: row.signalKey,
       signalValue: row.signalValue,

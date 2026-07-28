@@ -77,11 +77,13 @@ function accessSummary(
     rowFor(signals, "step-free-toilets"),
     now,
   );
-  if (entrance.primary === "Unknown" && toilets.primary === "Unknown") {
-    return "Access unknown";
-  }
-  if (entrance.primary === "Unknown") return "Entrance unknown";
-  if (toilets.primary === "Unknown") return "Toilets unknown";
+  // Read the trust state, never the sentence: an access question that is only
+  // one person's report stays unknown here however that report is worded.
+  const entranceUnknown = entrance.trust === "unknown";
+  const toiletsUnknown = toilets.trust === "unknown";
+  if (entranceUnknown && toiletsUnknown) return "Access unknown";
+  if (entranceUnknown) return "Entrance unknown";
+  if (toiletsUnknown) return "Toilets unknown";
   return "Access reported";
 }
 

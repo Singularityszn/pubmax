@@ -229,9 +229,29 @@ describe("community venue signal client state", () => {
       status: "degraded",
       signals: [],
     });
+    // A payload with no `signals` key is an older deployment answering about
+    // prices alone, not an unreadable one: calling it invalid dropped that
+    // venue's perfectly good prices for the whole session.
     expect(readVenueSignalLoad({ prices: [] })).toEqual({
+      status: "ready",
+      signals: [],
+    });
+    expect(readVenueSignalLoad({ signals: "soon" })).toEqual({
       status: "invalid",
       signals: [],
+    });
+    expect(readVenueSignalLoad({ signals: [{ signalKey: "music" }] })).toEqual({
+      status: "invalid",
+      signals: [],
+    });
+  });
+
+  it("keeps the observation id a reader can flag", () => {
+    expect(
+      readVenueSignalLoad({ signals: [{ ...stored, id: "obs-1" }] }),
+    ).toEqual({
+      status: "ready",
+      signals: [{ ...stored, id: "obs-1" }],
     });
   });
 

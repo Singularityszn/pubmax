@@ -3,6 +3,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 
 import VenueCommunitySignals from "@/components/map/VenueCommunitySignals";
+import { COMMUNITY_PRICE_MAX_AGE_MS } from "@/lib/communityPrice";
 import type { CommunityVenueSignal } from "@/lib/communityVenueSignals";
 
 const NOW = Date.parse("2026-07-28T20:00:00Z");
@@ -83,6 +84,32 @@ describe("VenueCommunitySignals", () => {
     ]);
     expect(html).toContain("Drinkers reported trainers can be refused.");
     expect(html).toContain("Confirmed by 2 drinkers.");
+  });
+
+  it("keeps the collapsed summary unknown when access reports have aged out", () => {
+    const stale = NOW - COMMUNITY_PRICE_MAX_AGE_MS - 1;
+    const html = render([
+      {
+        venueId: "venue-xjf3n0",
+        signalKey: "step-free-venue",
+        signalValue: "step-free",
+        submittedAt: stale,
+        source: "community",
+        corroborations: 1,
+      },
+      {
+        venueId: "venue-xjf3n0",
+        signalKey: "step-free-toilets",
+        signalValue: "step-free",
+        submittedAt: stale,
+        source: "community",
+        corroborations: 1,
+      },
+    ]);
+    expect(html).toContain("Access unknown");
+    expect(html).not.toContain("Access reported");
+    expect(html).not.toContain("Entrance unknown");
+    expect(html).toContain("Needs a fresh check.");
   });
 
   it("does not flatten a failed read into unknown access", () => {

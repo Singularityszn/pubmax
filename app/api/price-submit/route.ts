@@ -13,7 +13,9 @@
 // FLAGS an observation for a human and hides nothing on its own (a threshold
 // auto-hide would be a one-tap eraser for any price a griefer disliked). Only a
 // moderator hides, via POST /api/admin/community-prices - and hiding keeps the
-// row, exactly like every other moderation path here.
+// row, exactly like every other moderation path here. It takes an observation
+// id of EITHER shape, so a wrong character or step-free answer travels the same
+// flag-then-human route as a wrong figure; the ids ride on the read payload.
 //
 // Both observation shapes carry `corroborations` - how many independent
 // submitters back them. It is derived server-side on every read and is never
@@ -139,7 +141,7 @@ export async function POST(request: Request): Promise<Response> {
   // when their own logging budget is spent.
   if (readString(body.action) === "report") {
     const id = readString(body.id);
-    if (!id) return jsonNoStore({ error: "Missing price id." }, { status: 400 });
+    if (!id) return jsonNoStore({ error: "Missing observation id." }, { status: 400 });
     // Flood protection only - per-actor uniqueness is durable (the
     // community_price_reports unique pair), so a repeat that outlives this
     // window is an idempotent no-op in the store rather than a second count.
@@ -160,7 +162,7 @@ export async function POST(request: Request): Promise<Response> {
       return jsonNoStore({ error: "Too many reports, slow down." }, { status: 429 });
     }
     const flagged = await reportCommunityPrice(id, readString(body.reason), actor);
-    if (!flagged) return jsonNoStore({ error: "Price not found." }, { status: 404 });
+    if (!flagged) return jsonNoStore({ error: "We cannot find that report." }, { status: 404 });
     return jsonNoStore({ ok: true }, { status: 200 });
   }
 

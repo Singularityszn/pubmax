@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   COMMUNITY_VENUE_SIGNAL_OPTIONS,
   communityVenueSignalText,
+  isAccessSignalKey,
   validateCommunityVenueSignal,
   type CommunityVenueSignal,
   type CommunityVenueSignalKey,
@@ -107,12 +108,12 @@ describe("communityVenueSignalText", () => {
     expect(communityVenueSignalText("step-free-venue", undefined, NOW)).toEqual({
       primary: "Unknown",
       detail: "Nobody has confirmed step-free entrance access.",
-      established: false,
+      trust: "unknown",
     });
     expect(communityVenueSignalText("step-free-toilets", undefined, NOW)).toEqual({
       primary: "Unknown",
       detail: "Nobody has confirmed step-free toilet access.",
-      established: false,
+      trust: "unknown",
     });
   });
 
@@ -126,7 +127,7 @@ describe("communityVenueSignalText", () => {
     ).toEqual({
       primary: "Unknown",
       detail: "One drinker reported a step-free entrance.",
-      established: false,
+      trust: "unknown",
     });
   });
 
@@ -140,7 +141,56 @@ describe("communityVenueSignalText", () => {
     ).toEqual({
       primary: "Unknown",
       detail: "One drinker reported steps to the toilets.",
-      established: false,
+      trust: "unknown",
+    });
+  });
+
+  // Ageing weakens a report, so it may only ever move to the supporting line.
+  // The stale branch used to run first and promote one expired report into an
+  // affirmative "the entrance was step-free" the fresh version refused to make.
+  it("keeps a stale lone access report unknown at every age", () => {
+    for (const signalKey of ["step-free-venue", "step-free-toilets"] as const) {
+      for (const signalValue of ["step-free", "steps"] as const) {
+        const text = communityVenueSignalText(
+          signalKey,
+          signal(signalKey, signalValue, {
+            submittedAt: NOW - COMMUNITY_PRICE_MAX_AGE_MS - 1,
+          }),
+          NOW,
+        );
+        expect(text.primary).toBe("Unknown");
+        expect(text.trust).toBe("unknown");
+        expect(text.detail).toContain("Needs a fresh check.");
+      }
+    }
+    expect(
+      communityVenueSignalText(
+        "step-free-venue",
+        signal("step-free-venue", "step-free", {
+          submittedAt: NOW - COMMUNITY_PRICE_MAX_AGE_MS - 1,
+        }),
+        NOW,
+      ).detail,
+    ).toBe(
+      "Older drinker reports said the entrance was step-free. Needs a fresh check.",
+    );
+  });
+
+  it("keeps a stale corroborated access answer unknown too", () => {
+    const stale = signal("step-free-toilets", "step-free", {
+      corroborations: 3,
+      submittedAt: NOW - COMMUNITY_PRICE_MAX_AGE_MS - 1,
+      establishedCandidate: {
+        signalValue: "step-free",
+        submittedAt: NOW - COMMUNITY_PRICE_MAX_AGE_MS - 1,
+        corroborations: 3,
+      },
+    });
+    expect(communityVenueSignalText("step-free-toilets", stale, NOW)).toEqual({
+      primary: "Unknown",
+      detail:
+        "Older drinker reports said the toilets were step-free. Needs a fresh check.",
+      trust: "unknown",
     });
   });
 
@@ -154,7 +204,7 @@ describe("communityVenueSignalText", () => {
     ).toEqual({
       primary: "Step-free",
       detail: "Confirmed by 2 drinkers.",
-      established: true,
+      trust: "established",
     });
   });
 
@@ -175,7 +225,7 @@ describe("communityVenueSignalText", () => {
     ).toEqual({
       primary: "Step-free",
       detail: "Confirmed by 2 drinkers. One newer report disagrees.",
-      established: true,
+      trust: "established",
     });
   });
 
@@ -188,7 +238,7 @@ describe("communityVenueSignalText", () => {
       ),
     ).toEqual({
       primary: "One drinker called it rough.",
-      established: false,
+      trust: "reported",
     });
     expect(
       communityVenueSignalText(
@@ -199,7 +249,7 @@ describe("communityVenueSignalText", () => {
     ).toEqual({
       primary: "Drinkers called it posh.",
       detail: "2 people agreed.",
-      established: true,
+      trust: "established",
     });
   });
 
@@ -233,7 +283,15 @@ describe("communityVenueSignalText", () => {
     expect(communityVenueSignalText("door-policy", old, NOW)).toEqual({
       primary: "Older drinker reports said big groups can be refused.",
       detail: "Needs a fresh check.",
-      established: false,
+      trust: "reported",
     });
+  });
+
+  it("names access as the questions that only corroboration can answer", () => {
+    expect(isAccessSignalKey("step-free-venue")).toBe(true);
+    expect(isAccessSignalKey("step-free-toilets")).toBe(true);
+    for (const signalKey of ["character", "door-policy", "people-eating"] as const) {
+      expect(isAccessSignalKey(signalKey)).toBe(false);
+    }
   });
 });

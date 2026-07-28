@@ -29,6 +29,8 @@ export type CommunityVenueSignalCandidate = {
 };
 
 export type CommunityVenueSignal = {
+  /** Observation handle, so a wrong report can be flagged and moderated. */
+  id?: string;
   venueId: string;
   signalKey: CommunityVenueSignalKey;
   signalValue: CommunityVenueSignalValue;
@@ -149,11 +151,37 @@ export function validateCommunityVenueSignal(
   };
 }
 
+/**
+ * How much the community actually backs one question's answer. The ONE thing a
+ * reading surface may branch on: a summary that inspected the copy instead read
+ * a stronger claim out of weaker evidence the moment a sentence changed.
+ *
+ * `unknown` covers "nobody has said" AND "one person has said", because a lone
+ * report is not an answer to an access question at any age.
+ */
+export type CommunityVenueSignalTrust = "unknown" | "reported" | "established";
+
 export type CommunityVenueSignalText = {
   primary: string;
   detail?: string;
-  established: boolean;
+  trust: CommunityVenueSignalTrust;
 };
+
+const ACCESS_KEYS = new Set<CommunityVenueSignalKey>([
+  "step-free-venue",
+  "step-free-toilets",
+]);
+
+/**
+ * Access questions answer whether someone can get in and use the toilets, so
+ * they carry the stricter rule: only corroboration leaves `unknown`, and being
+ * unable to check never reads as "no".
+ */
+export function isAccessSignalKey(
+  signalKey: CommunityVenueSignalKey,
+): boolean {
+  return ACCESS_KEYS.has(signalKey);
+}
 
 function establishedSignal(
   signal: CommunityVenueSignal,
@@ -258,17 +286,17 @@ export function communityVenueSignalText(
       return {
         primary: "Unknown",
         detail: "Nobody has confirmed step-free entrance access.",
-        established: false,
+        trust: "unknown",
       };
     }
     if (signalKey === "step-free-toilets") {
       return {
         primary: "Unknown",
         detail: "Nobody has confirmed step-free toilet access.",
-        established: false,
+        trust: "unknown",
       };
     }
-    return { primary: "Not reported yet.", established: false };
+    return { primary: "Not reported yet.", trust: "unknown" };
   }
 
   const established = establishedSignal(signal, now);
@@ -285,28 +313,36 @@ export function communityVenueSignalText(
       detail: disagrees
         ? `${agreement} One newer report disagrees.`
         : agreement,
-      established: true,
+      trust: "established",
     };
   }
 
-  if (!isWithinMaxAge(signal, now)) {
+  const stale = !isWithinMaxAge(signal, now);
+
+  // An uncorroborated access report keeps the primary line at Unknown whatever
+  // its age. Ageing is a reason to trust a report LESS, so it may only ever
+  // move to the supporting line: the older wording used to be a promotion, and
+  // one expired report read as a step-free entrance nobody had confirmed.
+  if (isAccessSignalKey(signalKey)) {
+    return {
+      primary: "Unknown",
+      detail: stale
+        ? `${olderText(signalKey, signal.signalValue)} Needs a fresh check.`
+        : onePersonText(signalKey, signal.signalValue),
+      trust: "unknown",
+    };
+  }
+
+  if (stale) {
     return {
       primary: olderText(signalKey, signal.signalValue),
       detail: "Needs a fresh check.",
-      established: false,
-    };
-  }
-
-  if (signalKey === "step-free-venue" || signalKey === "step-free-toilets") {
-    return {
-      primary: "Unknown",
-      detail: onePersonText(signalKey, signal.signalValue),
-      established: false,
+      trust: "reported",
     };
   }
 
   return {
     primary: onePersonText(signalKey, signal.signalValue),
-    established: false,
+    trust: "reported",
   };
 }

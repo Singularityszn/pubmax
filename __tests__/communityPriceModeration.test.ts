@@ -37,8 +37,10 @@ import {
   listCommunityPricesForReview,
   moderateCommunityPrice,
   readCommunityPrices,
+  readCommunityVenueSignals,
   reportCommunityPrice,
   submitCommunityPrice,
+  submitCommunityVenueSignal,
 } from "@/lib/communityPriceStore";
 
 const ORIGINAL_SUPABASE_URL = process.env.SUPABASE_URL;
@@ -151,7 +153,13 @@ describe("community price moderation (memory backend)", () => {
 
     const queue = await listCommunityPricesForReview();
     expect(queue).toHaveLength(1);
-    expect(queue[0]).toMatchObject({ id, reportCount: 1, hidden: false, reportReason: "way off" });
+    expect(queue[0]).toMatchObject({
+      id,
+      kind: "price",
+      reportCount: 1,
+      hidden: false,
+      reportReason: "way off",
+    });
   });
 
   it("counts one report per actor, so a single reader cannot inflate the queue", async () => {
@@ -231,6 +239,105 @@ describe("community price moderation (memory backend)", () => {
       const body = (await res.json()) as { prices: Array<{ id: string }> };
       expect(body.prices.map((row) => row.id)).toEqual([id]);
     });
+  });
+});
+
+// Venue signals share this table, this queue and this hide/restore action -
+// there is no second console. Character and step-free claims are the most
+// reputation-sensitive thing a stranger can write about a pub, so a wrong one
+// must have the same way down a wrong figure has.
+describe("community venue signal moderation (memory backend)", () => {
+  beforeEach(() => {
+    delete process.env.SUPABASE_URL;
+    delete process.env.SUPABASE_SERVICE_ROLE_KEY;
+    delete process.env.ADMIN_TOKEN;
+    devGate.open = true;
+  });
+  afterEach(() => __resetCommunityPrices());
+
+  async function logSignal(
+    venueId: string,
+    signalValue: "step-free" | "steps",
+    at: number,
+    actor?: string,
+  ): Promise<string> {
+    const { signal } = await submitCommunityVenueSignal(
+      {
+        venueId,
+        signalKey: "step-free-venue",
+        signalValue,
+        ...(actor ? { actor } : {}),
+      },
+      at,
+    );
+    expect(signal?.id).toBeTruthy();
+    return signal!.id!;
+  }
+
+  it("publishes an id a reader can flag", async () => {
+    const id = await logSignal("v1", "step-free", 1_000, "device-a");
+    expect(await reportCommunityPrice(id, "not true", "actor-1")).toBe(true);
+
+    // A flag is evidence for a human, never a takedown.
+    expect(await readCommunityVenueSignals("v1", 1_000)).toHaveLength(1);
+    const queue = await listCommunityPricesForReview();
+    expect(queue).toHaveLength(1);
+    expect(queue[0]).toMatchObject({
+      id,
+      kind: "signal",
+      signalKey: "step-free-venue",
+      signalValue: "step-free",
+      reportCount: 1,
+      hidden: false,
+      reportReason: "not true",
+    });
+  });
+
+  it("never exposes the contributor's actor token in the queue", async () => {
+    const id = await logSignal("v1", "steps", 1_000, "secret-actor-token");
+    await reportCommunityPrice(id, "wrong", "actor-1");
+    expect(JSON.stringify(await listCommunityPricesForReview())).not.toContain(
+      "secret-actor-token",
+    );
+  });
+
+  it("removes a hidden signal from the sheet and from corroboration together", async () => {
+    await logSignal("v1", "step-free", 1_000, "device-a");
+    const second = await logSignal("v1", "step-free", 2_000, "device-b");
+
+    const corroborated = await readCommunityVenueSignals("v1", 2_000);
+    expect(corroborated[0]?.corroborations).toBe(2);
+    expect(corroborated[0]?.establishedCandidate?.corroborations).toBe(2);
+
+    expect(await moderateCommunityPrice(second, true, "wrong pub")).toBe(true);
+    const after = await readCommunityVenueSignals("v1", 2_000);
+    // Not "no report": the remaining honest observation stands, on its own.
+    expect(after).toHaveLength(1);
+    expect(after[0]?.corroborations).toBe(1);
+    expect(after[0]?.establishedCandidate?.corroborations).toBe(1);
+
+    expect(await moderateCommunityPrice(second, false)).toBe(true);
+    expect(
+      (await readCommunityVenueSignals("v1", 2_000))[0]?.corroborations,
+    ).toBe(2);
+  });
+
+  it("keeps a hidden signal hidden when the same device answers again", async () => {
+    const id = await logSignal("v9", "step-free", 1_000, "device-a");
+    await moderateCommunityPrice(id, true, "abuse");
+    expect(await readCommunityVenueSignals("v9", 1_000)).toEqual([]);
+
+    await logSignal("v9", "steps", 2_000, "device-a");
+    expect(await readCommunityVenueSignals("v9", 2_000)).toEqual([]);
+  });
+
+  it("hides a signal through the existing admin route", async () => {
+    const id = await logSignal("v1", "step-free", 1_000, "device-a");
+    expect((await adminPost({ action: "hide", id })).status).toBe(200);
+    expect(await readCommunityVenueSignals("v1", 1_000)).toEqual([]);
+
+    expect((await adminPost({ action: "restore", id })).status).toBe(200);
+    expect(await readCommunityVenueSignals("v1", 1_000)).toHaveLength(1);
   });
 });
 

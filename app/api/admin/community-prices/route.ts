@@ -1,16 +1,23 @@
-// Community-price moderation queue for the admin console.
+// Community-observation moderation queue for the admin console.
 //   GET                    → { prices: ModeratorCommunityPrice[] }
 //   POST { action, id, note? } → { ok: true }   action ∈ hide | restore
 //
-// The complaint side of the community price path: readers flag a figure via
-// POST /api/price-submit { action: "report" }, this route is where a human acts
-// on the flag. Same review-action shape and the same admin gate (x-admin-token
-// header OR httpOnly session cookie; lib/adminAuth.ts) as the Pint Drop and
-// comment queues.
+// The complaint side of the community observation path: readers flag a figure or
+// a venue signal via POST /api/price-submit { action: "report" }, this route is
+// where a human acts on the flag. Same review-action shape and the same admin
+// gate (x-admin-token header OR httpOnly session cookie; lib/adminAuth.ts) as
+// the Pint Drop and comment queues.
+//
+// ONE queue, TWO shapes. Each row says which it is (`kind`): a price carries its
+// drink and figure, a venue signal its question and categorical answer. This is
+// the removal means for a wrong character or step-free claim, so there is no
+// separate console and no second API for them.
 //
 // HIDE, NEVER DELETE. `hide` stamps the observation hidden and `restore` clears
-// the stamp; the row, its price, its date and its report metadata all survive
-// either way, so a wrong call is reversible and the audit trail is intact.
+// the stamp; the row, its answer, its date and its report metadata all survive
+// either way, so a wrong call is reversible and the audit trail is intact. A
+// hidden signal leaves the venue sheet, the corroboration count and the
+// established answer together, exactly as a hidden price leaves the map.
 //
 // A submitter is never identified here: the queue DTO carries the observation
 // and its report metadata, and the actor token stays inside the store.
@@ -55,7 +62,7 @@ export async function POST(request: Request): Promise<Response> {
   }
 
   const id = readString(body.id);
-  if (!id) return jsonNoStore({ error: "Missing price id." }, { status: 400 });
+  if (!id) return jsonNoStore({ error: "Missing observation id." }, { status: 400 });
 
   const action = readString(body.action);
   if (action !== "hide" && action !== "restore") {
@@ -64,9 +71,9 @@ export async function POST(request: Request): Promise<Response> {
 
   try {
     const ok = await moderateCommunityPrice(id, action === "hide", readString(body.note));
-    if (!ok) return jsonNoStore({ error: "Price not found." }, { status: 404 });
+    if (!ok) return jsonNoStore({ error: "Observation not found." }, { status: 404 });
     return jsonNoStore({ ok: true }, { status: 200 });
   } catch {
-    return jsonNoStore({ error: "Price moderation is unavailable." }, { status: 503 });
+    return jsonNoStore({ error: "Moderation is unavailable right now." }, { status: 503 });
   }
 }

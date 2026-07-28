@@ -113,6 +113,7 @@ type PriceBody = {
     };
   };
   signals?: Array<{
+    id?: string;
     venueId: string;
     signalKey: string;
     signalValue: string;
@@ -572,6 +573,33 @@ describe("GET /api/price-submit", () => {
         corroborations: 1,
       }),
     ]);
+    // The id rides along so a wrong answer has a flag handle, the same way a
+    // wrong figure does. Hiding it stays a moderator's call.
+    expect(body.signals?.[0]?.id).toBeTruthy();
+  });
+
+  it("takes a reader's flag on a venue signal, and hides nothing", async () => {
+    await POST(
+      post({
+        kind: "venue-signal",
+        venueId: "venue-xjf3n0",
+        signalKey: "step-free-venue",
+        signalValue: "step-free",
+      }),
+    );
+    const listed = (await (
+      await GET(get("?venueId=venue-xjf3n0"))
+    ).json()) as PriceBody;
+    const id = listed.signals?.[0]?.id;
+    expect(id).toBeTruthy();
+
+    const flagged = await POST(post({ action: "report", id, reason: "wrong" }));
+    expect(flagged.status).toBe(200);
+
+    const after = (await (
+      await GET(get("?venueId=venue-xjf3n0"))
+    ).json()) as PriceBody;
+    expect(after.signals).toHaveLength(1);
   });
 
   it("reads a legacy venue id from its canonical storage key", async () => {

@@ -333,12 +333,14 @@ describe("community venue signals in the shared observation store", () => {
     );
 
     expect(signal).toEqual({
+      id: expect.any(String),
       venueId: "v1",
       signalKey: "character",
       signalValue: "rough",
       submittedAt: 1_000,
       source: "community",
     });
+    expect(signal?.id).not.toBe("");
     expect(JSON.stringify(signal)).not.toContain("actor-a");
   });
 
@@ -364,6 +366,7 @@ describe("community venue signals in the shared observation store", () => {
 
     expect(await readCommunityVenueSignals("v1", 3_000)).toEqual([
       {
+        id: expect.any(String),
         venueId: "v1",
         signalKey: "door-policy",
         signalValue: "no-issue",
