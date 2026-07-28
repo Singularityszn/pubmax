@@ -1,6 +1,6 @@
 const REFERRAL_CAPTURE_KEY = "referral";
 const REFERRAL_CODE = /^[A-Za-z0-9_-]{20,80}$/;
-export const REFERRAL_SIGNUP_CLAIM_WINDOW_MS = 60 * 60 * 1_000;
+export const REFERRAL_SIGNUP_PROOF_TTL_MS = 60 * 60 * 1_000;
 
 export const REFERRAL_MILESTONES = [1, 3, 5] as const;
 export type ReferralMilestone = (typeof REFERRAL_MILESTONES)[number];

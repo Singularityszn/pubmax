@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { GET, safeNext } from "@/app/auth/callback/route";
+import { mintReferralSignupProof } from "@/lib/referralSignupProof.server";
 
 const ORIGIN = "https://pubmaxxing.com";
 const ATTEMPT = "a".repeat(32);
@@ -61,6 +62,19 @@ describe("auth callback flow", () => {
       .toBe(
         `${ORIGIN}/map?area=soho&code=pkce-code&_authCallback=1&_authAttempt=${ATTEMPT}`,
       );
+  });
+
+  it("forwards the signup proof with the matching callback attempt", async () => {
+    const signupProof = mintReferralSignupProof(ATTEMPT);
+    const response = await GET(
+      new Request(
+        `${ORIGIN}/auth/callback?code=pkce-code&_authAttempt=${ATTEMPT}&_referralSignupProof=${signupProof}`,
+      ),
+    );
+
+    expect(response.headers.get("location")).toBe(
+      `${ORIGIN}/?code=pkce-code&_authCallback=1&_authAttempt=${ATTEMPT}&_referralSignupProof=${signupProof}`,
+    );
   });
 
   it("drops a hostile destination while still completing the callback", async () => {

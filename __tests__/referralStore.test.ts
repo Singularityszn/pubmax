@@ -19,6 +19,7 @@ describe("referral attribution store", () => {
       code: invite.code,
       inviteeUserId: "invitee",
       inviteeCreatedAt: new Date(START - 1_000).toISOString(),
+      authAttemptStartedAt: START - 2_000,
       now: START,
     });
     expect(claimed).toMatchObject({ ok: true, status: "recorded" });
@@ -27,6 +28,7 @@ describe("referral attribution store", () => {
         code: invite.code,
         inviteeUserId: "invitee",
         inviteeCreatedAt: new Date(START - 1_000).toISOString(),
+        authAttemptStartedAt: START - 2_000,
         now: START,
       }),
     ).toMatchObject({ ok: true, status: "existing" });
@@ -43,7 +45,8 @@ describe("referral attribution store", () => {
       await memoryReferralStore.claimCode({
         code,
         inviteeUserId: "existing-user",
-        inviteeCreatedAt: new Date(START - 60 * 60 * 1_000 - 1).toISOString(),
+        inviteeCreatedAt: new Date(START - 30 * 60 * 1_000).toISOString(),
+        authAttemptStartedAt: START - 60 * 1_000,
         now: START,
       }),
     ).toEqual({ ok: false, reason: "account_not_new" });
@@ -55,6 +58,7 @@ describe("referral attribution store", () => {
         code: "unknown_code_123456789",
         inviteeUserId: "new-user",
         inviteeCreatedAt: new Date(START).toISOString(),
+        authAttemptStartedAt: START - 1_000,
         now: START,
       }),
     ).toEqual({ ok: false, reason: "unknown" });
@@ -178,6 +182,7 @@ describe("referral attribution store", () => {
         code: inviterCode.code,
         inviteeUserId: "fresh-invitee",
         inviteeCreatedAt: new Date(START + 1).toISOString(),
+        authAttemptStartedAt: START,
         now: START + 1,
       }),
     ).toEqual({ ok: false, reason: "unknown" });
@@ -200,6 +205,7 @@ describe("referral attribution store", () => {
         code: otherCode.code,
         inviteeUserId: "deleted-user",
         inviteeCreatedAt: new Date(START).toISOString(),
+        authAttemptStartedAt: START - 1,
         now: START + 1,
       }),
     ).toEqual({ ok: false, reason: "deleted_identity" });

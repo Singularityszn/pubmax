@@ -275,7 +275,7 @@ $$;
 create or replace function public.claim_referral_code(
   p_code_hash text,
   p_invitee_user_id uuid,
-  p_invitee_created_at timestamptz,
+  p_auth_attempt_started_at timestamptz,
   p_now timestamptz
 )
 returns jsonb
@@ -285,13 +285,21 @@ set search_path = public
 as $$
 declare
   inviter uuid;
+  invitee_created_at timestamptz;
 begin
   if p_invitee_user_id is null then
     return jsonb_build_object('ok', false, 'reason', 'storage');
   end if;
-  if p_invitee_created_at is null
-     or p_invitee_created_at > p_now
-     or p_invitee_created_at < p_now - interval '1 hour' then
+  select created_at into invitee_created_at
+  from auth.users
+  where id = p_invitee_user_id;
+
+  if invitee_created_at is null
+     or p_auth_attempt_started_at is null
+     or p_auth_attempt_started_at > p_now
+     or p_auth_attempt_started_at <= p_now - interval '1 hour'
+     or invitee_created_at > p_now
+     or invitee_created_at < p_auth_attempt_started_at then
     return jsonb_build_object(
       'ok', false,
       'reason', 'account_not_new'

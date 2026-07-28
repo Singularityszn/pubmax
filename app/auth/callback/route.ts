@@ -19,9 +19,11 @@ import { NextResponse } from "next/server";
 import {
   AUTH_ATTEMPT_PARAM,
   AUTH_CALLBACK_MARKER,
+  REFERRAL_SIGNUP_PROOF_PARAM,
   isAuthAttemptId,
   safeAuthNext,
 } from "@/lib/authRedirect";
+import { verifyReferralSignupProof } from "@/lib/referralSignupProof.server";
 
 /**
  * Only same-origin absolute paths are honoured.
@@ -47,6 +49,10 @@ export async function GET(request: Request): Promise<Response> {
   const next = safeNext(url.searchParams.get("next"), url.origin);
   const rawAttemptId = url.searchParams.get(AUTH_ATTEMPT_PARAM);
   const attemptId = isAuthAttemptId(rawAttemptId) ? rawAttemptId : null;
+  const rawSignupProof = url.searchParams.get(REFERRAL_SIGNUP_PROOF_PARAM);
+  const signupProof = attemptId
+    ? verifyReferralSignupProof(rawSignupProof, attemptId)
+    : null;
 
   // Google/Supabase reported a failure, or no code came back → land on the app
   // with a flag the UI renders, rather than a dead callback page. Preserve the
@@ -65,5 +71,8 @@ export async function GET(request: Request): Promise<Response> {
   dest.searchParams.set("code", code);
   dest.searchParams.set(AUTH_CALLBACK_MARKER, "1");
   dest.searchParams.set(AUTH_ATTEMPT_PARAM, attemptId);
+  if (signupProof && rawSignupProof) {
+    dest.searchParams.set(REFERRAL_SIGNUP_PROOF_PARAM, rawSignupProof);
+  }
   return NextResponse.redirect(dest);
 }

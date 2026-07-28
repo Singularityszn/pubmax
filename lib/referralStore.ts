@@ -3,7 +3,7 @@ import { createHash, randomBytes } from "node:crypto";
 import {
   REFERRAL_GRANT_GATE,
   REFERRAL_MILESTONES,
-  REFERRAL_SIGNUP_CLAIM_WINDOW_MS,
+  REFERRAL_SIGNUP_PROOF_TTL_MS,
   referralFeatureForMilestone,
   referralFeaturesGrantedBy,
   type ReferralFeature,
@@ -80,6 +80,7 @@ export type ReferralStore = {
     code: string;
     inviteeUserId: string;
     inviteeCreatedAt: string;
+    authAttemptStartedAt: number;
     now?: number;
   }): Promise<ClaimCodeResult>;
   recordEdge(
@@ -209,6 +210,7 @@ export const memoryReferralStore: ReferralStore = {
     code,
     inviteeUserId,
     inviteeCreatedAt,
+    authAttemptStartedAt,
     now = Date.now(),
   }) {
     if (erasedReferralIdentities.has(cleanId(inviteeUserId))) {
@@ -218,7 +220,10 @@ export const memoryReferralStore: ReferralStore = {
     if (
       !Number.isFinite(createdAt) ||
       createdAt > now ||
-      createdAt < now - REFERRAL_SIGNUP_CLAIM_WINDOW_MS
+      !Number.isSafeInteger(authAttemptStartedAt) ||
+      authAttemptStartedAt > now ||
+      authAttemptStartedAt <= now - REFERRAL_SIGNUP_PROOF_TTL_MS ||
+      createdAt < authAttemptStartedAt
     ) {
       return { ok: false, reason: "account_not_new" };
     }
@@ -465,7 +470,9 @@ export const supabaseReferralStore: ReferralStore = {
           {
             p_code_hash: tokenHash(input.code),
             p_invitee_user_id: input.inviteeUserId,
-            p_invitee_created_at: input.inviteeCreatedAt,
+            p_auth_attempt_started_at: new Date(
+              input.authAttemptStartedAt,
+            ).toISOString(),
             p_now: new Date(input.now ?? Date.now()).toISOString(),
           },
         );

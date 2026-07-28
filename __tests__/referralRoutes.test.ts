@@ -20,6 +20,7 @@ import { POST as claimAttribution } from "@/app/api/referrals/claim-attribution/
 import { POST as inviteLink } from "@/app/api/referrals/invite-link/route";
 import { GET as referralStatus } from "@/app/api/referrals/status/route";
 import { GET as followInvite } from "@/app/r/[code]/route";
+import { mintReferralSignupProof } from "@/lib/referralSignupProof.server";
 import {
   __resetMemoryReferrals,
   memoryReferralStore,
@@ -83,13 +84,15 @@ describe("referral routes", () => {
   it("records attribution directly from a code for a new account", async () => {
     vi.setSystemTime(START);
     const { code } = await memoryReferralStore.getOrCreateInviteCode("inviter");
+    const authAttemptId = "a".repeat(32);
+    const signupProof = mintReferralSignupProof(authAttemptId, START - 2_000);
     authState.id = "new-account";
     authState.createdAt = new Date(START - 1_000).toISOString();
     const claimed = await claimAttribution(
       request("/api/referrals/claim-attribution", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ code }),
+        body: JSON.stringify({ code, authAttemptId, signupProof }),
       }),
     );
 
@@ -105,19 +108,53 @@ describe("referral routes", () => {
   it("does not credit an existing account from an invite code", async () => {
     vi.setSystemTime(START);
     const { code } = await memoryReferralStore.getOrCreateInviteCode("inviter");
+    const authAttemptId = "a".repeat(32);
+    const signupProof = mintReferralSignupProof(
+      authAttemptId,
+      START - 60 * 1_000,
+    );
     authState.id = "old-account";
-    authState.createdAt = new Date(START - 60 * 60 * 1_000 - 1).toISOString();
+    authState.createdAt = new Date(START - 30 * 60 * 1_000).toISOString();
 
     const response = await claimAttribution(
       request("/api/referrals/claim-attribution", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ code }),
+        body: JSON.stringify({ code, authAttemptId, signupProof }),
       }),
     );
     expect(await response.json()).toEqual({
       attributed: false,
       reason: "account_not_new",
+    });
+    expect(await memoryReferralStore.privateStatus("inviter")).toMatchObject({
+      attributedCount: 0,
+    });
+  });
+
+  it("rejects a claim without the server-minted callback proof", async () => {
+    vi.setSystemTime(START);
+    const { code } = await memoryReferralStore.getOrCreateInviteCode("inviter");
+    const authAttemptId = "a".repeat(32);
+    const signupProof = mintReferralSignupProof(authAttemptId, START - 2_000);
+    authState.id = "new-account";
+    authState.createdAt = new Date(START - 1_000).toISOString();
+
+    const response = await claimAttribution(
+      request("/api/referrals/claim-attribution", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          code,
+          authAttemptId,
+          signupProof: `${signupProof}x`,
+        }),
+      }),
+    );
+
+    expect(await response.json()).toEqual({
+      attributed: false,
+      reason: "invalid_signup_proof",
     });
     expect(await memoryReferralStore.privateStatus("inviter")).toMatchObject({
       attributedCount: 0,

@@ -5,7 +5,7 @@ import { describe, expect, it } from "vitest";
 import {
   REFERRAL_GRANT_GATE,
   REFERRAL_MILESTONES,
-  REFERRAL_SIGNUP_CLAIM_WINDOW_MS,
+  REFERRAL_SIGNUP_PROOF_TTL_MS,
   referralSignupClaimFromUrl,
   referralFeatureForMilestone,
   referralFeaturesGrantedBy,
@@ -66,7 +66,7 @@ describe("referral reward policy", () => {
     expect(
       referralSignupClaimFromUrl("https://pubmaxxing.com/#referral=short"),
     ).toEqual({ code: null, cleanUrl: "/" });
-    expect(REFERRAL_SIGNUP_CLAIM_WINDOW_MS).toBe(60 * 60 * 1_000);
+    expect(REFERRAL_SIGNUP_PROOF_TTL_MS).toBe(60 * 60 * 1_000);
   });
 
   it("serializes qualification before inserting and counting", () => {
@@ -127,6 +127,10 @@ describe("referral reward policy", () => {
     expect(landing).not.toContain("referralCaptureDecision");
     expect(analytics).not.toContain("claim-attribution");
     expect(migration).toContain("claim_referral_code");
+    expect(migration).toContain("from auth.users");
+    expect(migration).toContain(
+      "invitee_created_at < p_auth_attempt_started_at",
+    );
     expect(migration).not.toContain("referral_attribution_journeys");
     expect(
       existsSync(join(process.cwd(), "lib/referralAttributionCookie.ts")),

@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 
 import { publicApiError } from "@/lib/apiError";
 import { callerAuthIdentity } from "@/lib/authServer";
+import { isAuthAttemptId } from "@/lib/authRedirect";
+import { verifyReferralSignupProof } from "@/lib/referralSignupProof.server";
 import { isReferralCode } from "@/lib/referrals";
 import { referralStore } from "@/lib/referralStore";
 
@@ -26,16 +28,31 @@ export async function POST(request: Request): Promise<Response> {
     );
   }
   const body = await request.json().catch(() => null) as
-    | { code?: unknown }
+    | {
+        code?: unknown;
+        authAttemptId?: unknown;
+        signupProof?: unknown;
+      }
     | null;
   const code = body?.code;
-  if (!isReferralCode(code)) {
+  const authAttemptId = body?.authAttemptId;
+  if (!isReferralCode(code) || !isAuthAttemptId(authAttemptId)) {
     return publicApiError(
       "This referral handoff is invalid.",
       "INVALID_REQUEST",
       400,
       { retryable: false },
     );
+  }
+  const proof = verifyReferralSignupProof(
+    body?.signupProof,
+    authAttemptId,
+  );
+  if (!proof) {
+    return reply({
+      attributed: false,
+      reason: "invalid_signup_proof",
+    });
   }
   if (!identity.createdAt) {
     return reply(
@@ -51,6 +68,7 @@ export async function POST(request: Request): Promise<Response> {
       code,
       inviteeUserId: identity.id,
       inviteeCreatedAt: identity.createdAt,
+      authAttemptStartedAt: proof.issuedAt,
     });
   } catch {
     return publicApiError(

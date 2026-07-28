@@ -30,6 +30,7 @@ const AUTH_ATTEMPT_ID_PATTERN = /^[0-9a-f]{32}$/;
 
 export const AUTH_CALLBACK_MARKER = "_authCallback";
 export const AUTH_ATTEMPT_PARAM = "_authAttempt";
+export const REFERRAL_SIGNUP_PROOF_PARAM = "_referralSignupProof";
 export const AUTH_ATTEMPT_IN_PROGRESS_MESSAGE =
   "A sign-in is already in progress in this browser. Finish that attempt before starting another.";
 export const AUTH_STORAGE_UNAVAILABLE_MESSAGE =
@@ -90,6 +91,7 @@ export type AuthCallbackAttempt = {
   attemptId: string | null;
   code: string | null;
   providerError: boolean;
+  signupProof?: string;
 };
 
 export type CapturedAuthCallback = {
@@ -129,6 +131,7 @@ function authDestination(currentUrl: string, requestedNext?: string): URL | null
       current.searchParams.delete("code");
       current.searchParams.delete(AUTH_CALLBACK_MARKER);
       current.searchParams.delete(AUTH_ATTEMPT_PARAM);
+      current.searchParams.delete(REFERRAL_SIGNUP_PROOF_PARAM);
       current.searchParams.delete("authError");
     }
     const currentPath = `${current.pathname}${current.search}${current.hash}`;
@@ -444,6 +447,7 @@ function cleanAuthCallbackUrl(currentUrl: string): string | null {
     current.searchParams.delete("code");
     current.searchParams.delete(AUTH_CALLBACK_MARKER);
     current.searchParams.delete(AUTH_ATTEMPT_PARAM);
+    current.searchParams.delete(REFERRAL_SIGNUP_PROOF_PARAM);
     current.searchParams.delete("authError");
     return `${current.pathname}${current.search}${current.hash}` || "/";
   } catch {
@@ -501,6 +505,7 @@ function claimAuthCallback(
       current.searchParams.delete("code");
       current.searchParams.delete(AUTH_CALLBACK_MARKER);
       current.searchParams.delete(AUTH_ATTEMPT_PARAM);
+      current.searchParams.delete(REFERRAL_SIGNUP_PROOF_PARAM);
       current.searchParams.delete("authError");
       const path = `${current.pathname}${current.search}`;
       if (
@@ -543,10 +548,15 @@ export function readAuthCallbackAttempt(currentUrl: string): AuthCallbackAttempt
     if (current.searchParams.get(AUTH_CALLBACK_MARKER) !== "1" && !providerError) return null;
     const rawAttemptId = current.searchParams.get(AUTH_ATTEMPT_PARAM);
     const attemptId = isAuthAttemptId(rawAttemptId) ? rawAttemptId : null;
+    const signupProof =
+      attemptId && !providerError
+        ? current.searchParams.get(REFERRAL_SIGNUP_PROOF_PARAM)
+        : null;
     return {
       attemptId,
       code: attemptId && !providerError ? current.searchParams.get("code") : null,
       providerError: providerError || !attemptId,
+      ...(signupProof ? { signupProof } : {}),
     };
   } catch {
     return null;

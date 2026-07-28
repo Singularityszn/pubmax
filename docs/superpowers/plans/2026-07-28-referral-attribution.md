@@ -131,6 +131,8 @@ Expected: FAIL because referral routes do not exist.
 Redirect the public invite GET through a fragment without setting a cookie or
 writing attribution state. Carry the code through the existing auth-attempt
 return URL and claim using verified JWT user ID and account creation time only.
+Mint a signed auth-attempt proof before sign-in starts and require the verified
+account creation time to follow that proof.
 Return only viewer-owned link and aggregate milestone status.
 
 - [ ] **Step 4: Wire post-signup claim**
