@@ -6,20 +6,42 @@ export const BUS_DEPARTURE_HORIZON_MS = 60 * 60_000;
 // ceiling above is untouched by this tolerance.
 export const BUS_PREDICTION_FUTURE_TOLERANCE_MS = 5_000;
 
-// Upstream budget. The route owns its own unavailable answer only while these
-// add up to less than its declared maxDuration.
-export const BUS_STOP_LOOKUP_TIMEOUT_MS = 4_000;
-export const BUS_STOP_LOOKUP_RETRIES = 1;
+// Latency budget. TfL's StopPoint geo query measures around 3s and runs slower
+// from a serverless region, so it keeps the 9s headroom the last-train route
+// gives the same endpoint: a slow-but-real response must not be aborted and
+// reported as a failed check. The route declares BUS_ROUTE_BUDGET_MS as its
+// maxDuration and reserves BUS_ROUTE_RESERVE_MS for its own work, so every
+// upstream deadline is whatever is left of the budget rather than a fixed slice
+// summed by hand. See docs/superpowers/plans/2026-07-28-nearby-bus-departures.md.
+export const BUS_ROUTE_BUDGET_MS = 15_000;
+export const BUS_ROUTE_RESERVE_MS = 1_000;
+export const BUS_UPSTREAM_BUDGET_MS = BUS_ROUTE_BUDGET_MS - BUS_ROUTE_RESERVE_MS;
+export const BUS_STOP_LOOKUP_TIMEOUT_MS = 9_000;
 export const BUS_ARRIVALS_TIMEOUT_MS = 5_000;
-export const BUS_UPSTREAM_BUDGET_MS =
-  BUS_STOP_LOOKUP_TIMEOUT_MS * (BUS_STOP_LOOKUP_RETRIES + 1) +
-  BUS_ARRIVALS_TIMEOUT_MS;
+// An attempt with less time than this cannot succeed, so the route stops and
+// answers rather than spending the rest of its budget proving it.
+export const BUS_MIN_ATTEMPT_MS = 1_000;
+
+/**
+ * What is left of the upstream budget for one call, never more than its own
+ * cap and never eating time another call is holding.
+ */
+export function busUpstreamTimeoutMs(
+  capMs: number,
+  elapsedMs: number,
+  reservedMs = 0,
+): number {
+  const remaining = BUS_UPSTREAM_BUDGET_MS - elapsedMs - reservedMs;
+  return Math.max(0, Math.min(capMs, remaining));
+}
 
 // Client cadence. The clock tick keeps a minute-resolution countdown true; the
 // refresh interval is what asks TfL again, and only ever while the card is on
-// screen.
+// screen. The wait is how long the card shows a spinner before it says it has
+// not heard back, which never aborts the request underneath it.
 export const BUS_DEPARTURES_TICK_MS = 15_000;
 export const BUS_DEPARTURES_REFRESH_MS = 30_000;
+export const BUS_DEPARTURES_SLOW_WAIT_MS = 6_000;
 // A check old enough to name, and the age past which a counted-down minute
 // figure stops being a claim we can stand behind.
 export const BUS_DEPARTURES_AGE_NOTE_MS = 60_000;
@@ -36,13 +58,15 @@ export type TflBusPrediction = {
   expectedArrival?: string;
 };
 
+// expectedArrival is the only time carried off this module. A relative figure
+// frozen at response time is exactly what a countdown must never be built from,
+// so none is published for anyone to render.
 export type FreshBusPrediction = {
   naptanId: string;
   lineName: string;
   destinationName: string;
   direction: BusDirection;
   expectedArrival: string;
-  dueMinutes: number;
 };
 
 export type NearbyBusDeparture = Omit<FreshBusPrediction, "naptanId">;
@@ -100,7 +124,6 @@ export function freshBusPredictions(
       destinationName,
       direction,
       expectedArrival: new Date(expectedAt).toISOString(),
-      dueMinutes: Math.ceil(dueMs / 60_000),
     });
   }
 
@@ -163,40 +186,55 @@ export function shouldPollBusDepartures(input: {
   return input.open && input.documentVisible;
 }
 
+export type BusDeparturesPoll = {
+  /** Load now unless one is already in flight. */
+  refresh: () => void;
+  stop: () => void;
+};
+
 /**
- * Run one load now, tick a clock, and re-load on the refresh cadence until the
- * returned stop is called. Stopping clears the interval and aborts whatever is
- * in flight, so a closed disclosure, a hidden document, or an unmounted sheet
- * costs nothing. Loads never overlap.
+ * Tick a clock and re-load on the refresh cadence until `stop` is called.
+ * Stopping clears the interval and aborts whatever is in flight, so a closed
+ * disclosure, a hidden document, or an unmounted sheet costs nothing.
+ *
+ * `lastLoadAt` is the floor between restarts: a poll handed a load younger than
+ * one refresh interval waits for the interval instead of asking TfL again, so
+ * opening and closing the card repeatedly cannot turn into a burst. Loads never
+ * overlap, which is also what makes an explicit retry safe.
  */
 export function startBusDeparturesPoll({
   tickMs = BUS_DEPARTURES_TICK_MS,
   refreshMs = BUS_DEPARTURES_REFRESH_MS,
   now = () => Date.now(),
+  lastLoadAt: seededLoadAt = null,
+  onLoadStart,
   onTick,
   load,
 }: {
   tickMs?: number;
   refreshMs?: number;
   now?: () => number;
+  lastLoadAt?: number | null;
+  onLoadStart?: (at: number) => void;
   onTick: (nowMs: number) => void;
   load: (signal: AbortSignal) => Promise<void>;
-}): () => void {
+}): BusDeparturesPoll {
   const controller = new AbortController();
   let inFlight = false;
-  let lastLoadAt = now();
+  let lastLoadAt = seededLoadAt ?? Number.NEGATIVE_INFINITY;
 
   const run = () => {
     if (inFlight || controller.signal.aborted) return;
     inFlight = true;
     lastLoadAt = now();
+    onLoadStart?.(lastLoadAt);
     const settle = () => {
       inFlight = false;
     };
     void load(controller.signal).then(settle, settle);
   };
 
-  run();
+  if (now() - lastLoadAt >= refreshMs) run();
   const timer = setInterval(() => {
     if (controller.signal.aborted) return;
     const at = now();
@@ -204,8 +242,11 @@ export function startBusDeparturesPoll({
     if (at - lastLoadAt >= refreshMs) run();
   }, tickMs);
 
-  return () => {
-    clearInterval(timer);
-    controller.abort();
+  return {
+    refresh: run,
+    stop: () => {
+      clearInterval(timer);
+      controller.abort();
+    },
   };
 }

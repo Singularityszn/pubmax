@@ -1,12 +1,14 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import {
+  BUS_DEPARTURES_SLOW_WAIT_MS,
   busDeparturesFreshness,
   departureDueMinutes,
   shouldPollBusDepartures,
   startBusDeparturesPoll,
+  type BusDeparturesPoll,
   type BusDirection,
   type NearbyBusDeparturesResult,
 } from "@/lib/nearbyBusDepartures";
@@ -56,6 +58,49 @@ function checkedAgo(ageMinutes: number | null): string {
   return `Checked about ${ageMinutes} minutes ago.`;
 }
 
+function count(n: number, noun: string): string {
+  return `${n} ${n === 1 ? noun : `${noun}s`}`;
+}
+
+export const BUS_DEPARTURES_UNAVAILABLE_COPY =
+  "Couldn't check nearby buses just now.";
+
+/**
+ * The one thing said out loud, and it is said about the load, not about the
+ * clock: nothing here re-words as minutes tick, so a screen reader is told once
+ * that departures arrived rather than every time a countdown changes.
+ */
+export function busDeparturesAnnouncement(input: {
+  polling: boolean;
+  result: NearbyBusDeparturesResult | null;
+  waitedTooLong: boolean;
+}): string {
+  if (input.result) {
+    if (input.result.status === "unavailable") {
+      return BUS_DEPARTURES_UNAVAILABLE_COPY;
+    }
+    const departures = input.result.stops.reduce(
+      (total, stop) => total + stop.departures.length,
+      0,
+    );
+    return `${count(input.result.stops.length, "stop")}, ${count(departures, "departure")} nearby.`;
+  }
+  if (!input.polling) return "";
+  return input.waitedTooLong
+    ? BUS_DEPARTURES_UNAVAILABLE_COPY
+    : "Checking live departures.";
+}
+
+/** A check the reader can start again is only worth offering once one failed. */
+export function shouldOfferBusRetry(input: {
+  polling: boolean;
+  result: NearbyBusDeparturesResult | null;
+  waitedTooLong: boolean;
+}): boolean {
+  if (input.result) return input.result.status === "unavailable";
+  return input.polling && input.waitedTooLong;
+}
+
 export function NearbyBusDeparturesView({
   result,
   now,
@@ -65,9 +110,9 @@ export function NearbyBusDeparturesView({
 }) {
   if (result.status === "unavailable") {
     return (
-      <p className="nearbyBusDeparturesNote" role="status">
-        Couldn&apos;t check nearby buses just now. Check TfL or the stop display
-        before you set off.
+      <p className="nearbyBusDeparturesNote">
+        {BUS_DEPARTURES_UNAVAILABLE_COPY} Check TfL or the stop display before
+        you set off.
       </p>
     );
   }
@@ -78,12 +123,12 @@ export function NearbyBusDeparturesView({
   return (
     <>
       {freshness.state === "ageing" ? (
-        <p className="nearbyBusDeparturesNote nearbyBusFreshness" role="status">
+        <p className="nearbyBusDeparturesNote nearbyBusFreshness">
           {checkedAgo(freshness.ageMinutes)}
         </p>
       ) : null}
       {outOfDate ? (
-        <p className="nearbyBusDeparturesNote nearbyBusFreshness" role="status">
+        <p className="nearbyBusDeparturesNote nearbyBusFreshness">
           These times are out of date. {checkedAgo(freshness.ageMinutes)} They
           are what was predicted then, so check the stop display before you set
           off.
@@ -173,6 +218,10 @@ export default function NearbyBusDepartures({
   const [documentVisible, setDocumentVisible] = useState(true);
   const [state, setState] = useState<LoadState>({ status: "idle" });
   const [nowMs, setNowMs] = useState(() => Date.now());
+  const [waitedTooLong, setWaitedTooLong] = useState(false);
+  const [waitAttempt, setWaitAttempt] = useState(0);
+  const lastLoadAtRef = useRef<number | null>(null);
+  const pollRef = useRef<BusDeparturesPoll | null>(null);
 
   useEffect(() => {
     const sync = () => {
@@ -192,8 +241,12 @@ export default function NearbyBusDepartures({
   useEffect(() => {
     if (!polling) return;
 
-    return startBusDeparturesPoll({
+    const poll = startBusDeparturesPoll({
       onTick: setNowMs,
+      lastLoadAt: lastLoadAtRef.current,
+      onLoadStart: (at) => {
+        lastLoadAtRef.current = at;
+      },
       load: (signal) =>
         fetch(nearbyBusDeparturesFetchUrl(lat, lng), { signal })
           .then((response) => {
@@ -224,7 +277,40 @@ export default function NearbyBusDepartures({
             );
           }),
     });
+
+    pollRef.current = poll;
+    return () => {
+      pollRef.current = null;
+      poll.stop();
+    };
   }, [lat, lng, polling]);
+
+  // The card stops promising a result long before the route's own budget runs
+  // out, but the request underneath keeps going: a slow TfL that answers still
+  // fills the card in.
+  const waitingForFirst = polling && state.status === "idle";
+  useEffect(() => {
+    if (!waitingForFirst) return;
+    const timer = setTimeout(
+      () => setWaitedTooLong(true),
+      BUS_DEPARTURES_SLOW_WAIT_MS,
+    );
+    return () => clearTimeout(timer);
+  }, [waitingForFirst, waitAttempt]);
+
+  const result = state.status === "loaded" ? state.result : null;
+  const announcement = busDeparturesAnnouncement({
+    polling,
+    result,
+    waitedTooLong,
+  });
+  const offerRetry = shouldOfferBusRetry({ polling, result, waitedTooLong });
+
+  function retry() {
+    setWaitedTooLong(false);
+    setWaitAttempt((attempt) => attempt + 1);
+    pollRef.current?.refresh();
+  }
 
   return (
     <details
@@ -242,16 +328,25 @@ export default function NearbyBusDepartures({
         </span>
       </summary>
       <div className="nearbyBusDeparturesBody">
-        {polling && state.status === "idle" ? (
-          <p className="nearbyBusDeparturesNote" role="status">
-            Checking live departures…
+        <p className="nearbyBusAnnouncement" role="status">
+          {announcement}
+        </p>
+        {waitingForFirst && !waitedTooLong ? (
+          <p className="nearbyBusDeparturesNote">Checking live departures…</p>
+        ) : null}
+        {waitingForFirst && waitedTooLong ? (
+          <p className="nearbyBusDeparturesNote">
+            {BUS_DEPARTURES_UNAVAILABLE_COPY} The check is still running, so
+            this may fill in on its own.
           </p>
         ) : null}
-        {state.status === "loaded" ? (
-          <NearbyBusDeparturesView
-            result={state.result}
-            now={new Date(nowMs)}
-          />
+        {result ? (
+          <NearbyBusDeparturesView result={result} now={new Date(nowMs)} />
+        ) : null}
+        {offerRetry ? (
+          <button type="button" className="nearbyBusRetry" onClick={retry}>
+            Check again
+          </button>
         ) : null}
       </div>
     </details>

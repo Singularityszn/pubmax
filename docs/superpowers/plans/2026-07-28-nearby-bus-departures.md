@@ -20,6 +20,17 @@
 - No animation is added, so reduced-motion users receive the same stable layout.
 - Product copy follows `docs/VOICE.md`, including British spelling and no em dash or exclamation mark.
 
+## Latency budget
+
+Measured behaviour, so nobody re-guesses it later:
+
+- TfL's `StopPoint` geo query measures around 3 seconds and runs slower again from a serverless region. `app/api/last-train/route.ts` has given that same endpoint a 9 second deadline since before this feature existed, and that number is the reason: a slow-but-real response aborted early is reported to the reader as a failed check, which is a lie about TfL.
+- The combined `Arrivals` call for up to four stop ids is the cheaper of the two and is capped at 5 seconds.
+
+The route therefore declares a 15 second budget (`BUS_ROUTE_BUDGET_MS`, which is also its `maxDuration`) and reserves 1 second of it for its own work. Every upstream deadline is `busUpstreamTimeoutMs`: whatever is left of the budget, capped by that call's own ceiling. So the stop lookup keeps its full 9 seconds, a retry only happens with time still on the clock, and the arrivals call takes what remains. The route always reaches its own `unavailable` body and `no-store` header rather than being killed mid-call and handing the browser a platform 504. 30 seconds was rejected: a night bus card that hangs for half a minute has already failed the reader.
+
+The card does not wait that long before speaking. After `BUS_DEPARTURES_SLOW_WAIT_MS` (6 seconds) it replaces the spinner with could-not-check copy and a "Check again" control, while the request underneath keeps running: if the slow answer arrives, the card fills in. Loads never overlap, so neither the retry control nor a reopened disclosure can duplicate a request in flight.
+
 ---
 
 ### Task 1: Shared TfL request client

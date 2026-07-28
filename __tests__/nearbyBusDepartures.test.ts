@@ -1,10 +1,15 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
+  BUS_ARRIVALS_TIMEOUT_MS,
   BUS_DEPARTURES_REFRESH_MS,
   BUS_DEPARTURES_TICK_MS,
+  BUS_MIN_ATTEMPT_MS,
+  BUS_ROUTE_BUDGET_MS,
+  BUS_STOP_LOOKUP_TIMEOUT_MS,
   BUS_UPSTREAM_BUDGET_MS,
   busDeparturesFreshness,
+  busUpstreamTimeoutMs,
   departureDueMinutes,
   freshBusPredictions,
   shouldPollBusDepartures,
@@ -44,7 +49,6 @@ describe("freshBusPredictions", () => {
         destinationName: "Clapham Park",
         direction: "inbound",
         expectedArrival: "2026-07-28T22:43:00.000Z",
-        dueMinutes: 3,
       },
       {
         naptanId: "490000123B",
@@ -52,7 +56,6 @@ describe("freshBusPredictions", () => {
         destinationName: "King's Cross",
         direction: "outbound",
         expectedArrival: "2026-07-28T22:46:00.000Z",
-        dueMinutes: 6,
       },
     ]);
   });
@@ -165,6 +168,42 @@ describe("shouldPollBusDepartures", () => {
   });
 });
 
+describe("busUpstreamTimeoutMs", () => {
+  it("gives the stop lookup its measured headroom on the first attempt", () => {
+    expect(
+      busUpstreamTimeoutMs(BUS_STOP_LOOKUP_TIMEOUT_MS, 0, BUS_MIN_ATTEMPT_MS),
+    ).toBe(BUS_STOP_LOOKUP_TIMEOUT_MS);
+  });
+
+  it("never lets a call outlive what is left of the route's budget", () => {
+    const stopAttempt = busUpstreamTimeoutMs(
+      BUS_STOP_LOOKUP_TIMEOUT_MS,
+      0,
+      BUS_MIN_ATTEMPT_MS,
+    );
+    const retry = busUpstreamTimeoutMs(
+      BUS_STOP_LOOKUP_TIMEOUT_MS,
+      stopAttempt,
+      BUS_MIN_ATTEMPT_MS,
+    );
+    const arrivals = busUpstreamTimeoutMs(
+      BUS_ARRIVALS_TIMEOUT_MS,
+      stopAttempt + retry,
+    );
+
+    expect(stopAttempt + retry + arrivals).toBeLessThanOrEqual(
+      BUS_UPSTREAM_BUDGET_MS,
+    );
+    expect(BUS_UPSTREAM_BUDGET_MS).toBeLessThan(BUS_ROUTE_BUDGET_MS);
+  });
+
+  it("hands back nothing once the budget is spent", () => {
+    expect(busUpstreamTimeoutMs(BUS_ARRIVALS_TIMEOUT_MS, BUS_ROUTE_BUDGET_MS)).toBe(
+      0,
+    );
+  });
+});
+
 describe("startBusDeparturesPoll", () => {
   beforeEach(() => {
     vi.useFakeTimers();
@@ -178,7 +217,7 @@ describe("startBusDeparturesPoll", () => {
   it("loads once immediately, ticks the clock, and refreshes on cadence", async () => {
     const ticks: number[] = [];
     const loads: AbortSignal[] = [];
-    const stop = startBusDeparturesPoll({
+    const poll = startBusDeparturesPoll({
       onTick: (at) => ticks.push(at),
       load: async (signal) => {
         loads.push(signal);
@@ -194,12 +233,12 @@ describe("startBusDeparturesPoll", () => {
     await vi.advanceTimersByTimeAsync(BUS_DEPARTURES_REFRESH_MS);
     expect(loads).toHaveLength(2);
 
-    stop();
+    poll.stop();
   });
 
   it("never overlaps loads", async () => {
     let started = 0;
-    const stop = startBusDeparturesPoll({
+    const poll = startBusDeparturesPoll({
       load: () =>
         new Promise<void>(() => {
           started += 1;
@@ -210,13 +249,13 @@ describe("startBusDeparturesPoll", () => {
     await vi.advanceTimersByTimeAsync(BUS_DEPARTURES_REFRESH_MS * 4);
 
     expect(started).toBe(1);
-    stop();
+    poll.stop();
   });
 
   it("stops ticking and aborts what is in flight when it is stopped", async () => {
     const ticks: number[] = [];
     const signals: AbortSignal[] = [];
-    const stop = startBusDeparturesPoll({
+    const poll = startBusDeparturesPoll({
       onTick: (at) => ticks.push(at),
       load: async (signal) => {
         signals.push(signal);
@@ -226,12 +265,72 @@ describe("startBusDeparturesPoll", () => {
       },
     });
 
-    stop();
+    poll.stop();
 
     expect(signals[0].aborted).toBe(true);
     await vi.advanceTimersByTimeAsync(BUS_DEPARTURES_REFRESH_MS * 4);
     expect(ticks).toEqual([]);
     expect(signals).toHaveLength(1);
+  });
+
+  it("keeps a floor between restarts instead of reloading data it already holds", async () => {
+    let loads = 0;
+    const load = async () => {
+      loads += 1;
+    };
+
+    const reopened = startBusDeparturesPoll({
+      lastLoadAt: Date.now() - (BUS_DEPARTURES_REFRESH_MS - 1_000),
+      onTick: () => {},
+      load,
+    });
+    expect(loads).toBe(0);
+    reopened.stop();
+
+    const stale = startBusDeparturesPoll({
+      lastLoadAt: Date.now() - BUS_DEPARTURES_REFRESH_MS,
+      onTick: () => {},
+      load,
+    });
+    expect(loads).toBe(1);
+    stale.stop();
+  });
+
+  it("reports each load's start so a restart inherits the floor", async () => {
+    const starts: number[] = [];
+    const poll = startBusDeparturesPoll({
+      onLoadStart: (at) => starts.push(at),
+      onTick: () => {},
+      load: async () => {},
+    });
+
+    expect(starts).toEqual([Date.now()]);
+    poll.stop();
+  });
+
+  it("retries on request without duplicating a load in flight", async () => {
+    let loads = 0;
+    const releases: (() => void)[] = [];
+    const poll = startBusDeparturesPoll({
+      onTick: () => {},
+      load: () =>
+        new Promise<void>((resolve) => {
+          loads += 1;
+          releases.push(resolve);
+        }),
+    });
+
+    expect(loads).toBe(1);
+    poll.refresh();
+    poll.refresh();
+    expect(loads).toBe(1);
+
+    releases[0]();
+    await vi.advanceTimersByTimeAsync(0);
+    poll.refresh();
+    expect(loads).toBe(2);
+
+    poll.stop();
   });
 });
 
@@ -375,10 +474,12 @@ describe("GET /api/nearby-bus-departures", () => {
       destinationName: "King's Cross",
       direction: "outbound",
       expectedArrival: "2026-07-28T22:43:00.000Z",
-      dueMinutes: 3,
     });
     expect(JSON.stringify(body)).not.toContain("stale");
     expect(JSON.stringify(body)).not.toContain("490000123F");
+    // A relative figure frozen at response time is the one thing a countdown
+    // must never be rebuilt from, so it is not in the payload to be found.
+    expect(JSON.stringify(body)).not.toContain("dueMinutes");
 
     const calls = vi.mocked(global.fetch).mock.calls.map(([input]) => String(input));
     const stopCall = calls.find((url) => url.includes("/StopPoint?"));
@@ -395,9 +496,54 @@ describe("GET /api/nearby-bus-departures", () => {
   it("keeps its whole upstream budget inside its own function lifetime", async () => {
     const route = await import("@/app/api/nearby-bus-departures/route");
 
-    expect(route.maxDuration * 1000).toBeGreaterThanOrEqual(
-      BUS_UPSTREAM_BUDGET_MS,
+    expect(route.maxDuration * 1000).toBe(BUS_ROUTE_BUDGET_MS);
+    expect(BUS_UPSTREAM_BUDGET_MS).toBeLessThan(route.maxDuration * 1000);
+    expect(BUS_STOP_LOOKUP_TIMEOUT_MS).toBe(9_000);
+  });
+
+  it("retries a failed stop lookup inside its own budget", async () => {
+    let stopCalls = 0;
+    global.fetch = vi.fn(async (input: RequestInfo | URL) => {
+      if (String(input).includes("/StopPoint?")) {
+        stopCalls += 1;
+        return stopCalls === 1
+          ? new Response("upstream hiccup", { status: 503 })
+          : Response.json({
+              stopPoints: [
+                {
+                  id: "490000123B",
+                  commonName: "Blackfriars Station",
+                  indicator: "Stop B",
+                  distance: 140,
+                },
+              ],
+            });
+      }
+      return Response.json([
+        {
+          naptanId: "490000123B",
+          lineName: "63",
+          destinationName: "King's Cross",
+          direction: "outbound",
+          timestamp: "2026-07-28T22:39:40.000Z",
+          expectedArrival: "2026-07-28T22:43:00.000Z",
+        },
+      ]);
+    });
+
+    const { GET } = await import("@/app/api/nearby-bus-departures/route");
+    const response = await GET(
+      new Request(
+        "http://localhost/api/nearby-bus-departures?lat=51.512&lng=-0.104",
+        { headers: { "x-forwarded-for": "198.51.100.34" } },
+      ),
     );
+    const body = await response.json();
+
+    expect(body.status).toBe("ready");
+    const calls = vi.mocked(global.fetch).mock.calls.map(([input]) => String(input));
+    expect(calls.filter((url) => url.includes("/StopPoint?"))).toHaveLength(2);
+    expect(calls.filter((url) => url.includes("/Arrivals"))).toHaveLength(1);
   });
 
   it("rejects invalid and non-London coordinates without calling TfL", async () => {

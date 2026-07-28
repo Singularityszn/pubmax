@@ -8,8 +8,10 @@ import { CITIES, pointInCityBounds } from "@/lib/cities";
 import { isLastRideLimited } from "@/lib/lastRideRateLimit";
 import {
   BUS_ARRIVALS_TIMEOUT_MS,
-  BUS_STOP_LOOKUP_RETRIES,
+  BUS_MIN_ATTEMPT_MS,
+  BUS_ROUTE_BUDGET_MS,
   BUS_STOP_LOOKUP_TIMEOUT_MS,
+  busUpstreamTimeoutMs,
   freshBusPredictions,
   type NearbyBusDeparturesResult,
   type NearbyBusStop,
@@ -18,7 +20,9 @@ import {
 import { tflGet } from "@/lib/tflClient.server";
 
 export const runtime = "nodejs";
-export const maxDuration = 15;
+// Every upstream deadline below is drawn from this budget, so the route always
+// reaches its own unavailable answer instead of being killed mid-call.
+export const maxDuration = BUS_ROUTE_BUDGET_MS / 1000;
 
 const STOP_RADIUS_M = 500;
 const STOP_CAP = 4;
@@ -87,7 +91,6 @@ function stopResult(
       destinationName: prediction.destinationName,
       direction: prediction.direction,
       expectedArrival: prediction.expectedArrival,
-      dueMinutes: prediction.dueMinutes,
     }));
   if (departures.length === 0) return null;
 
@@ -117,21 +120,37 @@ export async function GET(request: Request): Promise<Response> {
     return json({ error: "Too many requests, slow down." }, 429);
   }
 
+  const startedAt = Date.now();
+  const elapsed = () => Date.now() - startedAt;
+
   const stopPath =
     `/StopPoint?lat=${lat}&lon=${lng}` +
     `&stopTypes=${STOP_TYPES}&radius=${STOP_RADIUS_M}&modes=bus`;
-  const stops = nearbyStops(
-    await tflGet<TflBusStopResponse>(stopPath, {
-      retries: BUS_STOP_LOOKUP_RETRIES,
-      timeoutMs: BUS_STOP_LOOKUP_TIMEOUT_MS,
-    }),
-  );
+  // The arrivals call is held out of the stop lookup's deadline so a retried
+  // lookup can never spend the whole budget and leave nothing to ask with.
+  const stopLookup = (): Promise<TflBusStopResponse | null> => {
+    const timeoutMs = busUpstreamTimeoutMs(
+      BUS_STOP_LOOKUP_TIMEOUT_MS,
+      elapsed(),
+      BUS_MIN_ATTEMPT_MS,
+    );
+    if (timeoutMs < BUS_MIN_ATTEMPT_MS) return Promise.resolve(null);
+    return tflGet<TflBusStopResponse>(stopPath, { timeoutMs });
+  };
+
+  const stops = nearbyStops((await stopLookup()) ?? (await stopLookup()));
   if (stops.length === 0) return json(unavailable(now));
+
+  const arrivalsTimeoutMs = busUpstreamTimeoutMs(
+    BUS_ARRIVALS_TIMEOUT_MS,
+    elapsed(),
+  );
+  if (arrivalsTimeoutMs < BUS_MIN_ATTEMPT_MS) return json(unavailable(now));
 
   const ids = stops.map(stopId);
   const arrivals = await tflGet<TflBusPrediction[]>(
     `/StopPoint/${encodeURIComponent(ids.join(","))}/Arrivals`,
-    { timeoutMs: BUS_ARRIVALS_TIMEOUT_MS },
+    { timeoutMs: arrivalsTimeoutMs },
   );
   if (!Array.isArray(arrivals)) return json(unavailable(now));
 
