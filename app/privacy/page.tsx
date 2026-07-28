@@ -154,6 +154,18 @@ export default function PrivacyPage() {
           don&rsquo;t use it to build a profile of you.
         </p>
 
+        <h3 className="legalH3">Community venue reports</h3>
+        <p className="legalBody">
+          Anyone can also report what they saw about a pub: rough or posh
+          character, entrance and toilet access separately, door policy, and
+          whether people were eating. We store the venue, the answer and the
+          time, plus the same opaque device token used for community prices.
+          It lets your newer answer replace your older one, keeps one device
+          from confirming itself, and supplies a future contributor count. The
+          token is not shown with the report and does
+          not become a public name.
+        </p>
+
         <h3 className="legalH3">Location</h3>
         <p className="legalBody">
           &ldquo;Find my pint&rdquo; asks your browser for your location and
@@ -272,10 +284,10 @@ export default function PrivacyPage() {
           </li>
           <li>
             <strong>Because it&rsquo;s a fair thing to do (legitimate
-            interests).</strong>{" "}Keeping community prices with their dates and
-            device tokens, rate-limiting writes, and keeping server logs is how
-            the map stays honest and the site stays up. We&rsquo;ve kept it to
-            the minimum that works.
+            interests).</strong>{" "}Keeping community prices and venue reports
+            with their dates and device tokens, rate-limiting writes, and
+            keeping server logs is how the map stays honest and the site stays
+            up. We&rsquo;ve kept it to the minimum that works.
           </li>
           <li>
             <strong>Because you said yes (consent).</strong>{" "}Usage analytics,
@@ -330,7 +342,7 @@ export default function PrivacyPage() {
             <dt>Supabase</dt>
             <dd>
               Database, sign-in and file storage, on their EU region. Holds your
-              account, your posts and your community price rows.
+              account, your posts and your community observation rows.
             </dd>
           </div>
           <div className="legalRow">
@@ -424,9 +436,10 @@ export default function PrivacyPage() {
             personal content attached to it within 30 days.
           </li>
           <li>
-            <strong>Community prices:</strong>{" "}the observation itself stays, so
-            the price history stays honest, but it is already anonymous:
-            a venue, a drink, a figure, a date and an unreversible device token.
+            <strong>Community prices and venue reports:</strong>{" "}the report
+            itself stays, so later readers can see what people said and when.
+            A row holds the venue, the price or closed venue answer, the date
+            and an unreversible device token.
           </li>
           <li>
             <strong>Recommendations:</strong>{" "}a Recommendation keeps your

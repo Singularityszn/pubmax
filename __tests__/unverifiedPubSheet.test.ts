@@ -27,6 +27,7 @@ function state(
 ): CommunityPricesState {
   return {
     byVenueId: known ? new Map([[pub.id, rows]]) : new Map(),
+    signalsByVenueId: new Map(),
     freshestByVenueId: new Map(),
     noAlcoholIndexStatus: "idle",
     provisionalBaseVenueIds: new Set(),
@@ -37,6 +38,7 @@ function state(
     loadDrinkCategoryIndex: () => {},
     drinkCategoryIndexStatus: new Map(),
     submit: async () => ({ ok: true }),
+    submitVenueSignal: async () => ({ ok: true }),
     submitting: false,
     reportPrice: () => {},
     reportedIds: new Set<string>(),

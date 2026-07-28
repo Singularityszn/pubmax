@@ -26,6 +26,7 @@ const saveToListCss = read("components/savedpubs/saveToList.css");
 const buzzCss = read("components/map/venueBuzz.css");
 const pintArrivalCss = read("components/pintindex/pintIndexArrival.css");
 const venueListCss = read("components/map/mapVenueList.css");
+const venuePriceSubmitCss = read("components/map/venuePriceSubmit.css");
 
 describe("mobile chrome fit at 390px", () => {
   it("tightens the map control rail so all three chips clear the viewport", () => {
@@ -228,5 +229,23 @@ describe("mobile tap-target floors", () => {
   it("floors the landing footer links to 44px", () => {
     expect(landingCss).toMatch(/\.lpFooterCol a\s*{\s*min-height:\s*44px/);
     expect(landingCss).toMatch(/\.lpFooterSmallPrint a\s*{\s*min-height:\s*44px/);
+  });
+
+  it("keeps every community signal choice thumb-sized", () => {
+    expect(venuePriceSubmitCss).toMatch(
+      /\.vpsigQuestion\s*{[^}]*min-height:\s*44px/,
+    );
+    expect(venuePriceSubmitCss).toMatch(
+      /\.vpsigOption\s*{[^}]*min-height:\s*44px/,
+    );
+    expect(venuePriceSubmitCss).toMatch(
+      /\.vpsigSubmit\s*{[^}]*min-height:\s*44px/,
+    );
+  });
+
+  it("removes community signal motion when the phone asks for less", () => {
+    expect(venuePriceSubmitCss).toMatch(
+      /@media \(prefers-reduced-motion: reduce\)\s*{[\s\S]*?\.vpsigSummaryChevron\s*{[^}]*transition:\s*none/,
+    );
   });
 });

@@ -340,6 +340,235 @@
   color: var(--ink-soft);
 }
 
+/* ── What drinkers noticed ─────────────────────────────────────────────────
+   One disclosure inside the existing contribution card, not four more boxes.
+   Closed, it costs one 44px row and still keeps access unknown visible. */
+.venueCommunitySignals {
+  margin-top: 12px;
+  border-top: 1px solid color-mix(in srgb, var(--brass) 18%, var(--line));
+}
+
+.vpsigSummary {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  padding-top: 7px;
+  color: var(--ink);
+  cursor: pointer;
+  list-style: none;
+}
+
+.vpsigSummary::-webkit-details-marker {
+  display: none;
+}
+
+.vpsigSummaryTitle {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 7px;
+  font-size: 0.84rem;
+  font-weight: 700;
+}
+
+.vpsigSummaryTitle svg {
+  flex: 0 0 auto;
+  color: var(--brass);
+}
+
+.vpsigAccessSummary {
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: var(--ink-soft);
+}
+
+.vpsigSummaryChevron {
+  color: var(--ink-soft);
+  transition: transform 160ms ease;
+}
+
+.venueCommunitySignals[open] .vpsigSummaryChevron {
+  transform: rotate(180deg);
+}
+
+.vpsigBody {
+  padding: 2px 0 4px;
+}
+
+.vpsigIntro,
+.vpsigCharacterNote,
+.vpsigError,
+.vpsigSaved {
+  margin: 5px 0 0;
+  font-size: 0.74rem;
+  line-height: 1.4;
+  color: var(--ink-soft);
+}
+
+.vpsigReadout {
+  display: grid;
+  gap: 0;
+  margin: 9px 0 0;
+}
+
+.vpsigReadoutRow {
+  display: grid;
+  grid-template-columns: 62px minmax(0, 1fr);
+  gap: 8px;
+  padding: 6px 0;
+  border-top: 1px solid color-mix(in srgb, var(--line) 70%, transparent);
+}
+
+.vpsigReadoutRow dt {
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.vpsigReadoutRow dd {
+  min-width: 0;
+  margin: 0;
+  font-size: 0.78rem;
+  line-height: 1.35;
+  color: var(--ink);
+}
+
+.vpsigReadoutRow dd span,
+.vpsigReadoutRow dd small {
+  display: block;
+}
+
+.vpsigReadoutRow dd small {
+  margin-top: 1px;
+  font-size: 0.7rem;
+  color: var(--ink-soft);
+}
+
+.vpsigForm {
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid color-mix(in srgb, var(--line) 70%, transparent);
+}
+
+.vpsigFormTitle {
+  margin: 0 0 7px;
+  font-size: 0.8rem;
+  font-weight: 800;
+  color: var(--ink);
+}
+
+.vpsigQuestions,
+.vpsigAccessTargets,
+.vpsigOptions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.vpsigAccessTargets,
+.vpsigOptions {
+  margin-top: 7px;
+}
+
+.vpsigAccessTargets[hidden] {
+  display: none;
+}
+
+.vpsigQuestion,
+.vpsigOption {
+  position: relative;
+  display: flex;
+  align-items: stretch;
+  cursor: pointer;
+}
+
+.vpsigQuestion {
+  flex: 1 1 calc(50% - 3px);
+  min-height: 44px;
+}
+
+.vpsigOption {
+  flex: 1 1 auto;
+  min-height: 44px;
+}
+
+.vpsigQuestion input,
+.vpsigOption input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.vpsigQuestion span,
+.vpsigOption span {
+  display: flex;
+  width: 100%;
+  min-width: 0;
+  align-items: center;
+  justify-content: center;
+  padding: 7px 10px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-pill, 999px);
+  background: var(--panel-raised);
+  color: var(--ink-soft);
+  font-size: 0.76rem;
+  font-weight: 700;
+  text-align: center;
+}
+
+.vpsigQuestion input:focus-visible + span,
+.vpsigOption input:focus-visible + span {
+  outline: 3px solid color-mix(in srgb, var(--brass) 24%, transparent);
+  outline-offset: 2px;
+}
+
+.vpsigQuestion input:checked + span,
+.vpsigOption input:checked + span {
+  border-color: var(--brass);
+  background: color-mix(in srgb, var(--brass) 12%, var(--panel-raised));
+  color: var(--ink);
+}
+
+.vpsigSubmit {
+  width: 100%;
+  min-height: 44px;
+  margin-top: 9px;
+  padding: 8px 14px;
+  border: 1px solid var(--brass);
+  border-radius: var(--radius-pill, 999px);
+  background: transparent;
+  color: var(--brass);
+  font-size: 0.82rem;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.vpsigSubmit:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.vpsigError {
+  color: var(--brick);
+  font-weight: 700;
+}
+
+.vpsigSaved {
+  color: var(--pint);
+  font-weight: 700;
+}
+
 @keyframes vpsubStampIn {
   from {
     opacity: 0;
@@ -359,6 +588,10 @@
   .vpsubCat,
   .vpsubLog,
   .vpsubQuickChip {
+    transition: none;
+  }
+
+  .vpsigSummaryChevron {
     transition: none;
   }
 

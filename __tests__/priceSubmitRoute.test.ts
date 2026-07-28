@@ -99,6 +99,27 @@ type PriceBody = {
     corroborations?: number;
     mapCandidate?: { priceGbp: number; submittedAt: number; corroborations: number };
   };
+  signal?: {
+    venueId: string;
+    signalKey: string;
+    signalValue: string;
+    source: string;
+    submittedAt: number;
+    corroborations?: number;
+    establishedCandidate?: {
+      signalValue: string;
+      submittedAt: number;
+      corroborations: number;
+    };
+  };
+  signals?: Array<{
+    venueId: string;
+    signalKey: string;
+    signalValue: string;
+    source: string;
+    submittedAt: number;
+    corroborations?: number;
+  }>;
 };
 
 function post(body: unknown): Request {
@@ -260,6 +281,91 @@ describe("POST /api/price-submit", () => {
     expect(data.error).toContain("try again");
     // Nothing was stored while the membership check could not run.
     expect(await readCommunityPrices(venueId)).toEqual([]);
+  });
+});
+
+describe("POST /api/price-submit venue signals", () => {
+  function postSignal(
+    body: Record<string, unknown>,
+    forwardedFor = "203.0.113.10",
+  ): Request {
+    return new Request("http://localhost/api/price-submit", {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        "x-forwarded-for": forwardedFor,
+      },
+      body: JSON.stringify({ kind: "venue-signal", ...body }),
+    });
+  }
+
+  it("records a signal through the existing route with server metadata", async () => {
+    const response = await POST(
+      postSignal({
+        venueId: "venue-xjf3n0",
+        signalKey: "character",
+        signalValue: "rough",
+        submittedAt: 1,
+        corroborations: 99,
+        source: "editorial",
+      }),
+    );
+    expect(response.status).toBe(201);
+    const body = (await response.json()) as PriceBody;
+    expect(body.ok).toBe(true);
+    expect(body.signal).toMatchObject({
+      venueId: "venue-xjf3n0",
+      signalKey: "character",
+      signalValue: "rough",
+      source: "community",
+      corroborations: 1,
+    });
+    expect(body.signal!.submittedAt).toBeGreaterThan(1);
+  });
+
+  it("rejects a value belonging to another signal question", async () => {
+    const response = await POST(
+      postSignal({
+        venueId: "venue-xjf3n0",
+        signalKey: "character",
+        signalValue: "step-free",
+      }),
+    );
+    expect(response.status).toBe(400);
+    expect((await response.json()).error).toBe("Pick what you noticed.");
+  });
+
+  it("needs two independent actors before the response is corroborated", async () => {
+    const submission = {
+      venueId: "venue-xjf3n0",
+      signalKey: "step-free-venue",
+      signalValue: "step-free",
+    };
+    const first = (await (
+      await POST(postSignal(submission, "203.0.113.11"))
+    ).json()) as PriceBody;
+    const second = (await (
+      await POST(postSignal(submission, "203.0.113.12"))
+    ).json()) as PriceBody;
+
+    expect(first.signal?.corroborations).toBe(1);
+    expect(second.signal?.corroborations).toBe(2);
+    expect(second.signal?.establishedCandidate?.signalValue).toBe("step-free");
+  });
+
+  it("shares the existing per-venue write budget", async () => {
+    for (let index = 0; index < 9; index += 1) {
+      const response = await POST(
+        postSignal({
+          venueId: "venue-1f5ygjb",
+          signalKey: "character",
+          signalValue: index % 2 === 0 ? "rough" : "posh",
+        }),
+      );
+      expect(response.status, `submission ${index + 1}`).toBe(
+        index < 8 ? 201 : 429,
+      );
+    }
   });
 });
 
@@ -444,6 +550,30 @@ describe("GET /api/price-submit", () => {
     expect(data).not.toHaveProperty("degraded");
   });
 
+  it("reads venue signals beside prices from the same route", async () => {
+    await POST(
+      post({
+        kind: "venue-signal",
+        venueId: "venue-xjf3n0",
+        signalKey: "people-eating",
+        signalValue: "eating",
+      }),
+    );
+
+    const response = await GET(get("?venueId=venue-xjf3n0"));
+    expect(response.status).toBe(200);
+    const body = (await response.json()) as PriceBody;
+    expect(body.signals).toEqual([
+      expect.objectContaining({
+        venueId: "venue-xjf3n0",
+        signalKey: "people-eating",
+        signalValue: "eating",
+        source: "community",
+        corroborations: 1,
+      }),
+    ]);
+  });
+
   it("reads a legacy venue id from its canonical storage key", async () => {
     await POST(
       post({ venueId: "legacy-price-pub", drinkCategory: "beer", priceGbp: 4.2 }),
@@ -481,7 +611,11 @@ describe("GET /api/price-submit", () => {
     const res = await GET(get("?venueId=venue-3h52h"));
 
     expect(res.status).toBe(200);
-    expect(await res.json()).toEqual({ prices: [], degraded: true });
+    expect(await res.json()).toEqual({
+      prices: [],
+      signals: [],
+      degraded: true,
+    });
   });
 });
 

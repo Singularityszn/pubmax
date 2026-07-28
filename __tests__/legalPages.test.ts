@@ -166,6 +166,17 @@ describe("legal content pages", () => {
     }
   });
 
+  it("discloses community venue reports and their contributor count", () => {
+    expect(privacy).toMatch(/Community venue reports/);
+    expect(privacy).toMatch(/rough or posh/);
+    expect(privacy).toMatch(/entrance and toilet access separately/);
+    expect(privacy).toMatch(/door policy/);
+    expect(privacy).toMatch(/people were eating/);
+    expect(privacy).toMatch(/same opaque device token/);
+    expect(privacy).toMatch(/future contributor count/);
+    expect(privacy).toMatch(/Community prices and venue reports:/);
+  });
+
   it("names all three price lanes and fences the historical one", () => {
     // lib/priceHistory.ts added a THIRD price lane: dated, sourced prices from
     // years gone by, shown on the venue sheet and barred from every

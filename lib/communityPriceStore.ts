@@ -1,7 +1,8 @@
-// SERVER-ONLY store for community price submissions - the durable half of
-// "tap a pub, log tonight's price". Browser-safe validation/labels live in
-// lib/communityPrice.ts; this module must never be imported from a "use client"
-// component (it pulls the Supabase admin client → node:crypto).
+// SERVER-ONLY store for community price and venue-signal submissions - the
+// durable half of "tap a pub, log what you saw". Browser-safe validation and
+// labels live in lib/communityPrice.ts and lib/communityVenueSignals.ts; this
+// module must never be imported from a "use client" component because it pulls
+// the Supabase admin client.
 //
 // ONE store interface, TWO implementations (process-memory + Supabase
 // public.community_prices) - the exact dual-backend seam as priceConfirmStore /
@@ -10,16 +11,16 @@
 // schema miss) the Supabase path fails soft to memory OUTSIDE production, so
 // keyless dev keeps working and becomes durable the moment the table exists.
 //
-// APPEND-ONLY BY CONTRACT. A submission is an observation, never an edit: this
-// store writes its own rows and touches NOTHING in the venue dataset, the
-// scraped price CSV, or visit_reports. The scraped baseline and a community
-// price coexist, each read back with its own timestamp and `source` - provenance
-// is never flattened away (CONTEXT.md).
+// OBSERVATIONS, NEVER VENUE FACTS. This store writes only its own rows and
+// touches nothing in the venue dataset, scraped price CSV, or visit_reports.
+// The scraped baseline and community observations coexist, each read back with
+// its own timestamp and source. An attributed contributor can replace their own
+// earlier answer for one question, but cannot add a second corroborating voice.
 //
-// Fail-soft by contract on READS (a hiccup degrades to "no community price yet",
-// and the sourced baseline still renders). WRITES are honest: a hard durable
-// failure comes back flagged so the route can answer 503 rather than pretend the
-// tap landed.
+// Fail-soft by contract on READS. A hiccup degrades to unavailable community
+// observations while sourced venue data still renders. WRITES are honest: a
+// hard durable failure comes back flagged so the route can answer 503 rather
+// than pretend the tap landed.
 //
 // MODERATION HIDES, NEVER DELETES. A row can be flagged by a reader (`report`)
 // and hidden by a moderator (`moderate`) - the observation itself is kept, with
@@ -51,6 +52,15 @@ import {
   type CommunityPriceInput,
   type CommunityPriceMapCandidate,
 } from "@/lib/communityPrice";
+import {
+  isCommunityVenueSignalKey,
+  isCommunityVenueSignalValueFor,
+  validateCommunityVenueSignal,
+  type CommunityVenueSignal,
+  type CommunityVenueSignalCandidate,
+  type CommunityVenueSignalInput,
+  type CommunityVenueSignalKey,
+} from "@/lib/communityVenueSignals";
 import { isDrinkCategory, type DrinkCategory } from "@/lib/drinks";
 import { MAX_PROVISIONAL_BASE_VENUE_IDS } from "@/lib/ukBasePubs";
 import {
@@ -75,6 +85,29 @@ export type CommunityPriceWriteResult = {
   price: CommunityPrice | null;
   /** Set when a durable write hard-failed - the submission was NOT recorded. */
   failed?: true;
+};
+
+export type CommunityVenueSignalWrite = CommunityVenueSignalInput & {
+  /** Same server-derived opaque contributor token community prices use. */
+  actor?: string;
+};
+
+export type CommunityVenueSignalWriteResult = {
+  signal: CommunityVenueSignal | null;
+  failed?: true;
+};
+
+export type CommunityVenueSignalReadResult = {
+  signals: CommunityVenueSignal[];
+  degraded: boolean;
+};
+
+export type CommunityContributorCount = {
+  /** Opaque server-side contributor key. Never expose directly in UI. */
+  contributorKey: string;
+  priceCount: number;
+  venueSignalCount: number;
+  total: number;
 };
 
 export type CommunityPriceReadResult = {
@@ -119,6 +152,11 @@ export type CommunityPriceStore = {
    * 503 (house rule: degraded dependency, not a fake success).
    */
   submit(input: CommunityPriceWrite, now?: number): Promise<CommunityPriceWriteResult>;
+  /** Record a categorical pub observation using the same actor semantics. */
+  submitSignal(
+    input: CommunityVenueSignalWrite,
+    now?: number,
+  ): Promise<CommunityVenueSignalWriteResult>;
   /**
    * The freshest community price per drink category at one venue, newest
    * first, each carrying its independent-submitter count (`corroborations`) so
@@ -126,6 +164,11 @@ export type CommunityPriceStore = {
    * distinguishes an unavailable durable read from an honest empty.
    */
   latestForVenue(venueId: string, now?: number): Promise<CommunityPriceReadResult>;
+  /** Freshest report per venue-signal question with derived trust counts. */
+  latestSignalsForVenue(
+    venueId: string,
+    now?: number,
+  ): Promise<CommunityVenueSignalReadResult>;
   /**
    * Current public rows for selected categories across venues. Used by a map
    * lens that cannot discover a venue one sheet at a time. Actor tokens never
@@ -169,6 +212,8 @@ export type CommunityPriceStore = {
    * first. NEVER throws; an unavailable durable read degrades to empty.
    */
   listForReview(limit?: number): Promise<ModeratorCommunityPrice[]>;
+  /** Server-only roll-up seam for a future contribution leaderboard. */
+  listContributorCounts(limit?: number): Promise<CommunityContributorCount[]>;
 };
 
 export type CorroboratedCategoryCount = {
@@ -217,6 +262,11 @@ type StoredPrice = CommunityPrice & {
   moderatorNote?: string;
   /** Actors that have already flagged this row - one report each, durably. */
   reporters?: Set<string>;
+};
+
+type StoredVenueSignal = CommunityVenueSignal & {
+  id: string;
+  actor: string | null;
 };
 
 /** Cap a free-text moderation/report reason before it is stored or shown. */
@@ -278,6 +328,137 @@ function submitterBucket(actor: string | null): string {
   // The "anon:" sentinel cannot be produced by the "a:" branch, so a crafted
   // actor token can never impersonate the unattributed bucket or vice versa.
   return actor === null ? "anon:*" : `a:${actor}`;
+}
+
+function normalizeSignal(
+  input: CommunityVenueSignalWrite,
+): CommunityVenueSignalInput | null {
+  const result = validateCommunityVenueSignal(input);
+  return result.ok ? result.value : null;
+}
+
+function toVenueSignal(
+  input: CommunityVenueSignalInput,
+  submittedAt: number,
+): CommunityVenueSignal {
+  return {
+    ...input,
+    submittedAt,
+    source: "community",
+  };
+}
+
+function publishedVenueSignal(stored: StoredVenueSignal): CommunityVenueSignal {
+  return {
+    venueId: stored.venueId,
+    signalKey: stored.signalKey,
+    signalValue: stored.signalValue,
+    submittedAt: stored.submittedAt,
+    source: "community",
+  };
+}
+
+function countSignalCorroborations(
+  rows: readonly StoredVenueSignal[],
+  reference: StoredVenueSignal,
+): number {
+  const submitters = new Set<string>();
+  for (const row of rows) {
+    if (row.signalKey !== reference.signalKey) continue;
+    if (row.signalValue !== reference.signalValue) continue;
+    submitters.add(submitterBucket(row.actor));
+  }
+  return submitters.size;
+}
+
+function bestSignalCandidate(
+  rows: readonly StoredVenueSignal[],
+  now: number,
+): CommunityVenueSignalCandidate | null {
+  let best: StoredVenueSignal | null = null;
+  let bestCount = 0;
+  for (const row of rows) {
+    if (!isWithinMaxAge(row, now)) continue;
+    const count = countSignalCorroborations(rows, row);
+    if (
+      !best ||
+      count > bestCount ||
+      (count === bestCount && row.submittedAt >= best.submittedAt)
+    ) {
+      best = row;
+      bestCount = count;
+    }
+  }
+  return best
+    ? {
+        signalValue: best.signalValue,
+        submittedAt: best.submittedAt,
+        corroborations: bestCount,
+      }
+    : null;
+}
+
+function freshestVenueSignals(
+  rows: readonly StoredVenueSignal[],
+  now: number,
+): CommunityVenueSignal[] {
+  const byKey = new Map<CommunityVenueSignalKey, StoredVenueSignal>();
+  for (const row of rows) {
+    const held = byKey.get(row.signalKey);
+    if (!held || row.submittedAt >= held.submittedAt) {
+      byKey.set(row.signalKey, row);
+    }
+  }
+  return [...byKey.entries()]
+    .map(([signalKey, row]) => {
+      const questionRows = rows.filter((candidate) => candidate.signalKey === signalKey);
+      const establishedCandidate = bestSignalCandidate(questionRows, now);
+      return {
+        ...publishedVenueSignal(row),
+        corroborations: countSignalCorroborations(questionRows, row),
+        ...(establishedCandidate ? { establishedCandidate } : {}),
+      };
+    })
+    .sort((left, right) => right.submittedAt - left.submittedAt);
+}
+
+function contributorCountsFromRows(
+  priceRows: readonly StoredPrice[],
+  signalRows: readonly StoredVenueSignal[],
+  limit: number,
+): CommunityContributorCount[] {
+  const counts = new Map<string, CommunityContributorCount>();
+  const rowFor = (actor: string) => {
+    const held = counts.get(actor);
+    if (held) return held;
+    const created: CommunityContributorCount = {
+      contributorKey: actor,
+      priceCount: 0,
+      venueSignalCount: 0,
+      total: 0,
+    };
+    counts.set(actor, created);
+    return created;
+  };
+  for (const row of priceRows) {
+    if (!row.actor) continue;
+    const count = rowFor(row.actor);
+    count.priceCount += 1;
+    count.total += 1;
+  }
+  for (const row of signalRows) {
+    if (!row.actor) continue;
+    const count = rowFor(row.actor);
+    count.venueSignalCount += 1;
+    count.total += 1;
+  }
+  return [...counts.values()]
+    .sort(
+      (left, right) =>
+        right.total - left.total ||
+        left.contributorKey.localeCompare(right.contributorKey),
+    )
+    .slice(0, Math.max(0, limit));
 }
 
 /**
@@ -487,6 +668,7 @@ const REVIEW_LIMIT = 100;
 // One entry per venue, holding every observation for it. Module-level so it
 // persists across requests within a process; never a browser global.
 const venues = new Map<string, StoredPrice[]>();
+const venueSignals = new Map<string, StoredVenueSignal[]>();
 
 /**
  * The stored row with this id, or null. A linear scan on purpose: moderation is
@@ -516,6 +698,20 @@ function evictIfNeeded(): void {
     }
   }
   if (oldestKey) venues.delete(oldestKey);
+}
+
+function evictSignalsIfNeeded(): void {
+  if (venueSignals.size <= MAX_VENUES) return;
+  let oldestKey: string | null = null;
+  let oldestAt = Infinity;
+  for (const [key, rows] of venueSignals) {
+    const newest = rows.reduce((max, row) => Math.max(max, row.submittedAt), 0);
+    if (newest < oldestAt) {
+      oldestAt = newest;
+      oldestKey = key;
+    }
+  }
+  if (oldestKey) venueSignals.delete(oldestKey);
 }
 
 export const memoryCommunityPriceStore: CommunityPriceStore = {
@@ -561,11 +757,43 @@ export const memoryCommunityPriceStore: CommunityPriceStore = {
     return { price: published(stored) };
   },
 
+  async submitSignal(input, now = Date.now()) {
+    const normalised = normalizeSignal(input);
+    if (!normalised) return { signal: null };
+    const stored: StoredVenueSignal = {
+      ...toVenueSignal(normalised, now),
+      id: randomUUID(),
+      actor: input.actor ?? null,
+    };
+    const rows = venueSignals.get(normalised.venueId) ?? [];
+    const isOwnEarlier = (row: StoredVenueSignal) =>
+      row.signalKey === stored.signalKey &&
+      row.actor !== null &&
+      row.actor === stored.actor;
+    const replaced = rows.find(isOwnEarlier);
+    if (replaced) stored.id = replaced.id;
+    venueSignals.set(
+      normalised.venueId,
+      [...rows.filter((row) => !isOwnEarlier(row)), stored],
+    );
+    evictSignalsIfNeeded();
+    return { signal: publishedVenueSignal(stored) };
+  },
+
   async latestForVenue(venueId, now = Date.now()) {
     const key = cleanVenueId(venueId);
     if (!key) return { prices: [], degraded: false };
     return {
       prices: freshestPerCategory(venues.get(key) ?? [], now),
+      degraded: false,
+    };
+  },
+
+  async latestSignalsForVenue(venueId, now = Date.now()) {
+    const key = cleanVenueId(venueId);
+    if (!key) return { signals: [], degraded: false };
+    return {
+      signals: freshestVenueSignals(venueSignals.get(key) ?? [], now),
       degraded: false,
     };
   },
@@ -668,6 +896,12 @@ export const memoryCommunityPriceStore: CommunityPriceStore = {
       .slice(0, Math.max(0, limit))
       .map(toModeratorPrice);
   },
+
+  async listContributorCounts(limit = REVIEW_LIMIT) {
+    const prices = [...venues.values()].flat();
+    const signals = [...venueSignals.values()].flat();
+    return contributorCountsFromRows(prices, signals, limit);
+  },
 };
 
 // ── Supabase implementation ──────────────────────────────────────────────────
@@ -719,6 +953,37 @@ function rowsToPrices(rows: unknown, venueId: string): StoredPrice[] {
   return out;
 }
 
+function rowsToVenueSignals(
+  rows: unknown,
+  venueId: string,
+): StoredVenueSignal[] {
+  if (!Array.isArray(rows)) return [];
+  const out: StoredVenueSignal[] = [];
+  for (const raw of rows) {
+    if (typeof raw !== "object" || raw === null) continue;
+    const row = raw as Record<string, unknown>;
+    if (!isCommunityVenueSignalKey(row.signal_key)) continue;
+    if (!isCommunityVenueSignalValueFor(row.signal_key, row.signal_value)) continue;
+    if (typeof row.submitted_at !== "string" || row.submitted_at === "") continue;
+    const submittedAt = Date.parse(row.submitted_at);
+    if (!Number.isFinite(submittedAt)) continue;
+    out.push({
+      ...toVenueSignal(
+        {
+          venueId,
+          signalKey: row.signal_key,
+          signalValue: row.signal_value,
+        },
+        submittedAt,
+      ),
+      id: typeof row.id === "string" ? row.id : "",
+      actor:
+        typeof row.actor === "string" && row.actor !== "" ? row.actor : null,
+    });
+  }
+  return out;
+}
+
 /**
  * The same guarded projection as `rowsToPrices`, but for the cross-venue
  * roll-up, so each row carries its OWN venue id instead of an assumed one. A
@@ -751,6 +1016,50 @@ async function selectVenuePrices(venueId: string, now: number): Promise<Communit
     .limit(VENUE_SCAN_ROWS);
   if (error) throw new Error(error.message);
   return freshestPerCategory(rowsToPrices(data, venueId), now);
+}
+
+async function selectVenueSignals(
+  venueId: string,
+  now: number,
+): Promise<CommunityVenueSignal[]> {
+  const { data, error } = await admin()
+    .from("community_prices")
+    .select("id, signal_key, signal_value, submitted_at, actor")
+    .eq("venue_id", venueId)
+    .not("signal_key", "is", null)
+    .order("submitted_at", { ascending: false })
+    .limit(VENUE_SCAN_ROWS);
+  if (error) throw new Error(error.message);
+  return freshestVenueSignals(rowsToVenueSignals(data, venueId), now);
+}
+
+function contributorCountRows(rows: unknown): CommunityContributorCount[] {
+  if (!Array.isArray(rows)) return [];
+  const counts: CommunityContributorCount[] = [];
+  for (const raw of rows) {
+    if (typeof raw !== "object" || raw === null) continue;
+    const row = raw as Record<string, unknown>;
+    if (typeof row.contributor_key !== "string" || row.contributor_key === "") {
+      continue;
+    }
+    const priceCount = Number(row.price_count);
+    const venueSignalCount = Number(row.venue_signal_count);
+    const total = Number(row.total);
+    if (
+      !Number.isFinite(priceCount) ||
+      !Number.isFinite(venueSignalCount) ||
+      !Number.isFinite(total)
+    ) {
+      continue;
+    }
+    counts.push({
+      contributorKey: row.contributor_key,
+      priceCount: Math.max(0, Math.floor(priceCount)),
+      venueSignalCount: Math.max(0, Math.floor(venueSignalCount)),
+      total: Math.max(0, Math.floor(total)),
+    });
+  }
+  return counts;
 }
 
 export const supabaseCommunityPriceStore: CommunityPriceStore = {
@@ -806,6 +1115,41 @@ export const supabaseCommunityPriceStore: CommunityPriceStore = {
     });
   },
 
+  async submitSignal(input, now = Date.now()) {
+    const normalised = normalizeSignal(input);
+    if (!normalised) return { signal: null };
+    const actor = input.actor ?? null;
+    const submittedAt = new Date(now).toISOString();
+    return guard<CommunityVenueSignalWriteResult>({
+      context: "submit-signal",
+      onSchemaMiss: () =>
+        onMissingDurableWrite({
+          storeTag: "community-venue-signal",
+          migrationHint: "apply migration 0059",
+          fallback: () => memoryCommunityPriceStore.submitSignal(input, now),
+          onProduction: async () => ({ signal: null, failed: true as const }),
+        }),
+      message: "signal submit failed - flagging degraded write",
+      onError: () => ({ signal: null, failed: true as const }),
+      run: async () => {
+        const row = {
+          venue_id: normalised.venueId,
+          signal_key: normalised.signalKey,
+          signal_value: normalised.signalValue,
+          actor,
+          submitted_at: submittedAt,
+        };
+        const { error } = actor
+          ? await admin()
+              .from("community_prices")
+              .upsert(row, { onConflict: "venue_id,signal_key,actor" })
+          : await admin().from("community_prices").insert(row);
+        if (error) throw new Error(error.message);
+        return { signal: toVenueSignal(normalised, now) };
+      },
+    });
+  },
+
   async latestForVenue(venueId, now = Date.now()) {
     const key = cleanVenueId(venueId);
     if (!key) return { prices: [], degraded: false };
@@ -822,6 +1166,26 @@ export const supabaseCommunityPriceStore: CommunityPriceStore = {
       onError: () => ({ prices: [], degraded: true }),
       run: async () => ({
         prices: await selectVenuePrices(key, now),
+        degraded: false,
+      }),
+    });
+  },
+
+  async latestSignalsForVenue(venueId, now = Date.now()) {
+    const key = cleanVenueId(venueId);
+    if (!key) return { signals: [], degraded: false };
+    return guard<CommunityVenueSignalReadResult>({
+      context: "signal-read",
+      onSchemaMiss: async () => ({
+        signals: (
+          await memoryCommunityPriceStore.latestSignalsForVenue(key, now)
+        ).signals,
+        degraded: true,
+      }),
+      message: "signal read failed - returning no venue signals",
+      onError: () => ({ signals: [], degraded: true }),
+      run: async () => ({
+        signals: await selectVenueSignals(key, now),
         degraded: false,
       }),
     });
@@ -1056,6 +1420,28 @@ export const supabaseCommunityPriceStore: CommunityPriceStore = {
       },
     });
   },
+
+  async listContributorCounts(limit = REVIEW_LIMIT) {
+    return guard<CommunityContributorCount[]>({
+      context: "contributor-counts",
+      onSchemaMiss: () =>
+        memoryCommunityPriceStore.listContributorCounts(limit),
+      message: "contributor count read failed - returning empty",
+      onError: () => [],
+      run: async () => {
+        const { data, error } = await admin()
+          .from("community_contributor_counts")
+          .select(
+            "contributor_key, price_count, venue_signal_count, total",
+          )
+          .order("total", { ascending: false })
+          .order("contributor_key", { ascending: true })
+          .limit(Math.max(0, limit));
+        if (error) throw new Error(error.message);
+        return contributorCountRows(data);
+      },
+    });
+  },
 };
 
 /** Narrow the untyped moderation-queue projection; a malformed row is skipped. */
@@ -1113,6 +1499,13 @@ export function submitCommunityPrice(
   );
 }
 
+export function submitCommunityVenueSignal(
+  input: CommunityVenueSignalWrite,
+  now: number = Date.now(),
+): Promise<CommunityVenueSignalWriteResult> {
+  return communityPriceStore().submitSignal(input, now);
+}
+
 /**
  * How many (venue, drink category) pairs the map is currently allowed to paint
  * a community price for - the contribution flywheel's real number. NEVER throws.
@@ -1136,6 +1529,28 @@ export function readCommunityPricesWithStatus(
   now: number = Date.now(),
 ): Promise<CommunityPriceReadResult> {
   return communityPriceStore().latestForVenue(venueId, now);
+}
+
+export function readCommunityVenueSignals(
+  venueId: string,
+  now: number = Date.now(),
+): Promise<CommunityVenueSignal[]> {
+  return readCommunityVenueSignalsWithStatus(venueId, now).then(
+    (result) => result.signals,
+  );
+}
+
+export function readCommunityVenueSignalsWithStatus(
+  venueId: string,
+  now: number = Date.now(),
+): Promise<CommunityVenueSignalReadResult> {
+  return communityPriceStore().latestSignalsForVenue(venueId, now);
+}
+
+export function listCommunityContributorCounts(
+  limit?: number,
+): Promise<CommunityContributorCount[]> {
+  return communityPriceStore().listContributorCounts(limit);
 }
 
 export function readProvisionalCommunityPriceVenueIds(
@@ -1263,6 +1678,7 @@ export function listCommunityPricesForReview(
 /** Test-only: clear the in-memory observations between cases. */
 export function __resetCommunityPrices(): void {
   venues.clear();
+  venueSignals.clear();
   resetCommunityPriceCategoryIndexMemo();
   resetSchemaMissWarnings();
 }

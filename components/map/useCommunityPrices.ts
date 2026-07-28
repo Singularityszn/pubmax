@@ -7,6 +7,15 @@ import {
   type CommunityPrice,
   type CommunityPriceMapCandidate,
 } from "@/lib/communityPrice";
+import {
+  isCommunityVenueSignalKey,
+  isCommunityVenueSignalValueFor,
+  validateCommunityVenueSignal,
+  type CommunityVenueSignal,
+  type CommunityVenueSignalCandidate,
+  type CommunityVenueSignalKey,
+  type CommunityVenueSignalValue,
+} from "@/lib/communityVenueSignals";
 import type { DrinkCategory } from "@/lib/drinks";
 import type {
   CategoryPriceIndexStatus,
@@ -51,6 +60,8 @@ export type CommunityPricesState = {
    *  purpose - this is what the venue sheet renders, so every submission shows
    *  there, dated, whether or not it has earned the map. */
   byVenueId: Map<string, CommunityPrice[]>;
+  /** Community-observed pub signals loaded by the same per-venue request. */
+  signalsByVenueId: Map<string, CommunityVenueSignal[]>;
   /** The freshest BEER price at a venue - the pin's CANDIDATE, not its verdict.
    *  Pins and the list are pint-priced surfaces, so other categories never
    *  reach them; they render on the sheet's own dated rows instead. Whether a
@@ -92,6 +103,12 @@ export type CommunityPricesState = {
     venueId: string;
     drinkCategory: DrinkCategory;
     priceGbp: string | number;
+  }) => Promise<CommunityPriceSubmitResult>;
+  /** Log one categorical pub observation through the same write seam. */
+  submitVenueSignal: (input: {
+    venueId: string;
+    signalKey: CommunityVenueSignalKey;
+    signalValue: CommunityVenueSignalValue;
   }) => Promise<CommunityPriceSubmitResult>;
   /** True while a submission is in flight (one at a time by construction). */
   submitting: boolean;
@@ -188,6 +205,69 @@ function readPrices(value: unknown): CommunityPrice[] | null {
   return rows.length > 0 && out.length === 0 ? null : out;
 }
 
+function readSignalCandidate(
+  signalKey: CommunityVenueSignalKey,
+  value: unknown,
+): CommunityVenueSignalCandidate | undefined {
+  if (!value || typeof value !== "object") return undefined;
+  const candidate = value as Partial<CommunityVenueSignalCandidate>;
+  if (!isCommunityVenueSignalValueFor(signalKey, candidate.signalValue)) {
+    return undefined;
+  }
+  if (
+    typeof candidate.submittedAt !== "number" ||
+    !Number.isFinite(candidate.submittedAt)
+  ) {
+    return undefined;
+  }
+  return {
+    signalValue: candidate.signalValue,
+    submittedAt: candidate.submittedAt,
+    corroborations:
+      typeof candidate.corroborations === "number" &&
+      Number.isFinite(candidate.corroborations)
+        ? Math.max(1, Math.floor(candidate.corroborations))
+        : 1,
+  };
+}
+
+function readSignals(value: unknown): CommunityVenueSignal[] | null {
+  if (!value || typeof value !== "object") return null;
+  const rows = (value as { signals?: unknown }).signals;
+  if (!Array.isArray(rows)) return null;
+  const signals: CommunityVenueSignal[] = [];
+  for (const raw of rows) {
+    if (!raw || typeof raw !== "object") continue;
+    const row = raw as Partial<CommunityVenueSignal>;
+    if (!isCommunityVenueSignalKey(row.signalKey)) continue;
+    if (!isCommunityVenueSignalValueFor(row.signalKey, row.signalValue)) continue;
+    if (typeof row.venueId !== "string" || row.venueId === "") continue;
+    if (
+      typeof row.submittedAt !== "number" ||
+      !Number.isFinite(row.submittedAt)
+    ) {
+      continue;
+    }
+    signals.push({
+      venueId: row.venueId,
+      signalKey: row.signalKey,
+      signalValue: row.signalValue,
+      submittedAt: row.submittedAt,
+      source: "community",
+      corroborations:
+        typeof row.corroborations === "number" &&
+        Number.isFinite(row.corroborations)
+          ? Math.max(1, Math.floor(row.corroborations))
+          : 1,
+      establishedCandidate: readSignalCandidate(
+        row.signalKey,
+        row.establishedCandidate,
+      ),
+    });
+  }
+  return rows.length > 0 && signals.length === 0 ? null : signals;
+}
+
 export type VenuePriceLoad =
   | { status: "ready"; prices: CommunityPrice[] }
   | { status: "degraded"; prices: CommunityPrice[] }
@@ -200,6 +280,20 @@ export function readVenuePriceLoad(value: unknown): VenuePriceLoad {
     return { status: "degraded", prices };
   }
   return { status: "ready", prices };
+}
+
+export type VenueSignalLoad =
+  | { status: "ready"; signals: CommunityVenueSignal[] }
+  | { status: "degraded"; signals: CommunityVenueSignal[] }
+  | { status: "invalid"; signals: [] };
+
+export function readVenueSignalLoad(value: unknown): VenueSignalLoad {
+  const signals = readSignals(value);
+  if (!signals) return { status: "invalid", signals: [] };
+  if ((value as { degraded?: unknown }).degraded === true) {
+    return { status: "degraded", signals };
+  }
+  return { status: "ready", signals };
 }
 
 export type CategoryPriceIndexLoad =
@@ -322,6 +416,58 @@ export function rollbackOptimisticPrice(
   return loadedIsKnown ? [] : undefined;
 }
 
+export function upsertVenueSignal(
+  rows: CommunityVenueSignal[],
+  next: CommunityVenueSignal,
+): CommunityVenueSignal[] {
+  const current = rows.find((row) => row.signalKey === next.signalKey);
+  const freshest =
+    current && current.submittedAt > next.submittedAt ? current : next;
+  return [
+    freshest,
+    ...rows.filter((row) => row.signalKey !== next.signalKey),
+  ].sort((left, right) => right.submittedAt - left.submittedAt);
+}
+
+function replaceVenueSignal(
+  rows: CommunityVenueSignal[],
+  next: CommunityVenueSignal,
+): CommunityVenueSignal[] {
+  return [
+    next,
+    ...rows.filter((row) => row.signalKey !== next.signalKey),
+  ].sort((left, right) => right.submittedAt - left.submittedAt);
+}
+
+function sameVenueSignal(
+  left: CommunityVenueSignal,
+  right: CommunityVenueSignal,
+): boolean {
+  return (
+    left.venueId === right.venueId &&
+    left.signalKey === right.signalKey &&
+    left.signalValue === right.signalValue &&
+    left.submittedAt === right.submittedAt
+  );
+}
+
+export function rollbackOptimisticVenueSignal(
+  current: CommunityVenueSignal[] | undefined,
+  optimistic: CommunityVenueSignal,
+  loaded: CommunityVenueSignal[] | undefined,
+  loadedIsKnown: boolean,
+): CommunityVenueSignal[] | undefined {
+  const withoutOptimistic = (current ?? []).filter(
+    (row) => !sameVenueSignal(row, optimistic),
+  );
+  const restored = (loaded ?? []).reduce(
+    upsertVenueSignal,
+    withoutOptimistic,
+  );
+  if (restored.length > 0) return restored;
+  return loadedIsKnown ? [] : undefined;
+}
+
 /** The freshest observation in a venue's per-category list, any drink. */
 export function freshestCommunityPrice(
   rows: readonly CommunityPrice[] | undefined,
@@ -346,6 +492,9 @@ export function freshestPintPrice(
 
 export function useCommunityPrices(): CommunityPricesState {
   const [byVenueId, setByVenueId] = useState<Map<string, CommunityPrice[]>>(() => new Map());
+  const [signalsByVenueId, setSignalsByVenueId] = useState<
+    Map<string, CommunityVenueSignal[]>
+  >(() => new Map());
   const [submitting, setSubmitting] = useState(false);
   const [reportedIds, setReportedIds] = useState<Set<string>>(() => new Set());
   const [provisionalBaseVenueIds, setProvisionalBaseVenueIds] = useState<
@@ -358,6 +507,9 @@ export function useCommunityPrices(): CommunityPricesState {
   // selection and must not re-hit the API for a venue it already read.
   const loaded = useRef<Set<string>>(new Set());
   const loadedRows = useRef<Map<string, CommunityPrice[]>>(new Map());
+  const loadedSignalRows = useRef<Map<string, CommunityVenueSignal[]>>(
+    new Map(),
+  );
   const [venuePriceStatus, setVenuePriceStatus] = useState<
     Map<string, VenuePriceReadStatus>
   >(() => new Map());
@@ -407,19 +559,31 @@ export function useCommunityPrices(): CommunityPricesState {
             markVenueRead(venueId, "degraded");
             return;
           }
-          const result = readVenuePriceLoad(await res.json());
-          if (result.status === "invalid") {
+          const payload = await res.json();
+          const result = readVenuePriceLoad(payload);
+          const signalResult = readVenueSignalLoad(payload);
+          if (result.status === "invalid" || signalResult.status === "invalid") {
             loaded.current.delete(venueId);
             markVenueRead(venueId, "degraded");
             return;
           }
           const { prices } = result;
-          if (result.status === "degraded") loaded.current.delete(venueId);
+          const { signals } = signalResult;
+          const degraded =
+            result.status === "degraded" ||
+            signalResult.status === "degraded";
+          if (degraded) loaded.current.delete(venueId);
           markVenueRead(
             venueId,
-            result.status === "degraded" ? "degraded" : "ready",
+            degraded ? "degraded" : "ready",
           );
-          if (result.status === "degraded" && prices.length === 0) return;
+          if (
+            degraded &&
+            prices.length === 0 &&
+            signals.length === 0
+          ) {
+            return;
+          }
           loadedRows.current.set(
             venueId,
             prices.reduce(upsertPrice, loadedRows.current.get(venueId) ?? []),
@@ -431,6 +595,25 @@ export function useCommunityPrices(): CommunityPricesState {
             // category the server hasn't seen yet is kept rather than dropped.
             const merged = prices.reduce(upsertPrice, next.get(venueId) ?? []);
             next.set(venueId, merged);
+            return next;
+          });
+          loadedSignalRows.current.set(
+            venueId,
+            signals.reduce(
+              upsertVenueSignal,
+              loadedSignalRows.current.get(venueId) ?? [],
+            ),
+          );
+          setSignalsByVenueId((current) => {
+            if (signals.length === 0 && current.has(venueId)) return current;
+            const next = new Map(current);
+            next.set(
+              venueId,
+              signals.reduce(
+                upsertVenueSignal,
+                next.get(venueId) ?? [],
+              ),
+            );
             return next;
           });
         } catch {
@@ -760,6 +943,119 @@ export function useCommunityPrices(): CommunityPricesState {
     [],
   );
 
+  const submitVenueSignal = useCallback<
+    CommunityPricesState["submitVenueSignal"]
+  >(
+    async (input) => {
+      if (submitting) {
+        return {
+          ok: false,
+          error: "Finish this log first.",
+          reason: "rejected",
+        };
+      }
+      const parsed = validateCommunityVenueSignal(input);
+      if (!parsed.ok) {
+        return { ok: false, error: parsed.error, reason: "invalid" };
+      }
+      const { venueId, signalKey, signalValue } = parsed.value;
+      const submittedAt = Date.now();
+      const optimistic: CommunityVenueSignal = {
+        venueId,
+        signalKey,
+        signalValue,
+        submittedAt,
+        source: "community",
+        corroborations: 1,
+      };
+      setSignalsByVenueId((current) => {
+        const previous = current.get(venueId);
+        const question = previous?.find(
+          (row) => row.signalKey === signalKey,
+        );
+        const next = new Map(current);
+        next.set(
+          venueId,
+          upsertVenueSignal(previous ?? [], {
+            ...optimistic,
+            establishedCandidate: question?.establishedCandidate,
+          }),
+        );
+        return next;
+      });
+
+      const rollback = () => {
+        setSignalsByVenueId((current) => {
+          const next = new Map(current);
+          const restored = rollbackOptimisticVenueSignal(
+            current.get(venueId),
+            optimistic,
+            loadedSignalRows.current.get(venueId),
+            loadedSignalRows.current.has(venueId),
+          );
+          if (restored === undefined) next.delete(venueId);
+          else next.set(venueId, restored);
+          return next;
+        });
+      };
+
+      setSubmitting(true);
+      try {
+        const response = await fetch("/api/price-submit", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({
+            kind: "venue-signal",
+            venueId,
+            signalKey,
+            signalValue,
+          }),
+        });
+        const data = (await response.json().catch(() => null)) as
+          | { signal?: CommunityVenueSignal; error?: string }
+          | null;
+        if (!response.ok) {
+          rollback();
+          return {
+            ok: false,
+            error: data?.error ?? "Could not log that pub note right now.",
+            reason: "rejected",
+          };
+        }
+        const [stored] =
+          readSignals({ signals: [data?.signal] }) ?? [];
+        if (stored) {
+          loadedSignalRows.current.set(
+            venueId,
+            replaceVenueSignal(
+              loadedSignalRows.current.get(venueId) ?? [],
+              stored,
+            ),
+          );
+          setSignalsByVenueId((current) => {
+            const next = new Map(current);
+            next.set(
+              venueId,
+              replaceVenueSignal(next.get(venueId) ?? [], stored),
+            );
+            return next;
+          });
+        }
+        return { ok: true };
+      } catch {
+        rollback();
+        return {
+          ok: false,
+          error: "No signal for that one. Try again in a moment.",
+          reason: "offline",
+        };
+      } finally {
+        setSubmitting(false);
+      }
+    },
+    [submitting],
+  );
+
   const reportPrice = useCallback((id: string) => {
     if (!id || reportedIds.has(id)) return;
     // Optimistic ACKNOWLEDGEMENT, not an optimistic removal: the figure stays
@@ -797,6 +1093,7 @@ export function useCommunityPrices(): CommunityPricesState {
 
   return {
     byVenueId,
+    signalsByVenueId,
     freshestByVenueId,
     noAlcoholIndexStatus,
     loadNoAlcoholIndex,
@@ -807,6 +1104,7 @@ export function useCommunityPrices(): CommunityPricesState {
     loadVenue,
     venuePriceStatus,
     submit,
+    submitVenueSignal,
     submitting,
     reportPrice,
     reportedIds,

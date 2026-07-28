@@ -6,10 +6,13 @@ import {
   PROVISIONAL_BASE_BACKOFF_MS,
   readCategoryPriceIndexLoad,
   readProvisionalVenueIdsLoad,
+  readVenueSignalLoad,
   readVenuePriceLoad,
   rollbackOptimisticPrice,
+  rollbackOptimisticVenueSignal,
 } from "@/components/map/useCommunityPrices";
 import type { CommunityPrice } from "@/lib/communityPrice";
+import type { CommunityVenueSignal } from "@/lib/communityVenueSignals";
 
 const storedBeer: CommunityPrice = {
   venueId: "venue-uk-n123",
@@ -170,5 +173,76 @@ describe("community price client state", () => {
         true,
       ),
     ).toEqual([storedWine, storedBeer]);
+  });
+});
+
+describe("community venue signal client state", () => {
+  const stored: CommunityVenueSignal = {
+    venueId: "venue-xjf3n0",
+    signalKey: "step-free-venue",
+    signalValue: "steps",
+    submittedAt: 2_000,
+    source: "community",
+    corroborations: 1,
+    establishedCandidate: {
+      signalValue: "step-free",
+      submittedAt: 1_000,
+      corroborations: 2,
+    },
+  };
+
+  const optimistic: CommunityVenueSignal = {
+    venueId: "venue-xjf3n0",
+    signalKey: "step-free-venue",
+    signalValue: "step-free",
+    submittedAt: 3_000,
+    source: "community",
+    corroborations: 1,
+  };
+
+  it("narrows a combined venue response without trusting malformed signal rows", () => {
+    expect(
+      readVenueSignalLoad({
+        signals: [
+          stored,
+          {
+            ...stored,
+            signalKey: "music",
+            signalValue: "loud",
+          },
+        ],
+      }),
+    ).toEqual({
+      status: "ready",
+      signals: [stored],
+    });
+  });
+
+  it("distinguishes an honest empty signal read from a failed read", () => {
+    expect(readVenueSignalLoad({ signals: [] })).toEqual({
+      status: "ready",
+      signals: [],
+    });
+    expect(
+      readVenueSignalLoad({ signals: [], degraded: true }),
+    ).toEqual({
+      status: "degraded",
+      signals: [],
+    });
+    expect(readVenueSignalLoad({ prices: [] })).toEqual({
+      status: "invalid",
+      signals: [],
+    });
+  });
+
+  it("rolls back only the optimistic answer after a rejected write", () => {
+    expect(
+      rollbackOptimisticVenueSignal(
+        [optimistic],
+        optimistic,
+        [stored],
+        true,
+      ),
+    ).toEqual([stored]);
   });
 });
