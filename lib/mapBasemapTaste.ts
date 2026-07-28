@@ -534,7 +534,8 @@ type MuteTarget = { id: string; props: readonly string[] };
  *  network, and landmarks — all fade on selection, restore on deselect. Each
  *  lists the opacity paint props valid for its layer type. */
 const APP_SELECTION_MUTE_TARGETS: readonly MuteTarget[] = [
-  { id: "landmarks-icon", props: ["icon-opacity", "text-opacity"] },
+  { id: "landmarks-label", props: ["text-opacity"] },
+  { id: "landmarks-icon", props: ["icon-opacity"] },
   { id: "pois-transport-major", props: ["icon-opacity"] },
   { id: "pois-transport-minor", props: ["icon-opacity"] },
   { id: "pois-transport-label", props: ["text-opacity"] },

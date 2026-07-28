@@ -108,6 +108,7 @@ import {
   shouldRecoverPaint,
 } from "@/lib/mapPaintWatchdog";
 import {
+  areBasemapTilesLoaded as readBasemapTilesLoaded,
   classifyTileFailure,
   createBasemapTileFailureTracker,
   isCriticalBasemapFailure,
@@ -1079,19 +1080,7 @@ export default function PubMapCanvas({
     // One generation-scoped gate owns every pin reveal callback. A theme swap
     // cancels the previous generation before setStyle, so a late render/frame
     // from the old style can never mutate the new one.
-    const areBasemapTilesLoaded = () => {
-      const basemapSourceIds = Object.entries(map.getStyle().sources ?? {})
-        .filter(([, source]) => (
-          source.type === "vector" || source.type === "raster" || source.type === "raster-dem"
-        ))
-        .map(([id]) => id);
-      if (basemapSourceIds.length === 0 || !map.areTilesLoaded()) return false;
-      try {
-        return basemapSourceIds.every((id) => map.isSourceLoaded(id));
-      } catch {
-        return false;
-      }
-    };
+    const areBasemapTilesLoaded = () => readBasemapTilesLoaded(map);
     let initialBasemapPending = true;
     let tileNoticeOwner: "none" | "timeout" | "errors" = "none";
     let tileFailureStamps: number[] = [];
@@ -2247,6 +2236,7 @@ export default function PubMapCanvas({
     applyToMap("landmarks:data", (map) => {
       const source = map.getSource("landmarks") as maplibregl.GeoJSONSource | undefined;
       if (!showLandmarks) {
+        if (map.getLayer("landmarks-label")) map.removeLayer("landmarks-label");
         if (map.getLayer("landmarks-icon")) map.removeLayer("landmarks-icon");
         if (source) map.removeSource("landmarks");
         return;

@@ -9,6 +9,11 @@ import type { HoveredVenue } from "./types";
 
 type ActivePoi = { name: string; category: PoiCategory };
 
+const LANDMARK_INTERACTION_LAYERS = [
+  "landmarks-icon",
+  "landmarks-label",
+] as const;
+
 // Pub-first hit testing: a single map click queries pubs/route stops before
 // landmarks/POIs so dense central London taps open a pub sheet, not a
 // landmark card that happened to sit under the same finger.
@@ -23,7 +28,7 @@ export const PUB_FIRST_LAYERS = [
   "tonight-point",
   "clusters",
   "uk-base-point",
-  "landmarks-icon",
+  ...LANDMARK_INTERACTION_LAYERS,
   "pois-dot",
   "pois-transport-major",
   "pois-transport-minor",
@@ -127,7 +132,9 @@ export function wireClickRouting(map: maplibregl.Map, deps: ClickDeps) {
       return;
     }
 
-    const landmarkHit = byLayer.get("landmarks-icon");
+    const landmarkHit = LANDMARK_INTERACTION_LAYERS
+      .map((layer) => byLayer.get(layer))
+      .find(Boolean);
     if (landmarkHit) {
       const id = landmarkHit.properties?.id;
       const landmark = cityLandmarksRef.current.find((item) => item.id === id);
@@ -209,7 +216,7 @@ export function wireCursor(map: maplibregl.Map) {
     "route-stops",
     "tonight-point",
     "uk-base-point",
-    "landmarks-icon",
+    ...LANDMARK_INTERACTION_LAYERS,
     "pois-dot",
     "pois-transport-major",
     "pois-transport-minor",

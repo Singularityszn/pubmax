@@ -161,6 +161,44 @@
 }
 
 @media (max-width: 640px) {
+  /* Keep Westminster and the map's orientation layer visible on first open.
+     The modal stays modal, but becomes a compact dock above the real bottom
+     navigation instead of sitting across the geographic centre. */
+  .tourScrim {
+    place-items: end center;
+    padding: var(--space-3) var(--space-3)
+      calc(env(safe-area-inset-bottom, 0px) + 104px);
+  }
+
+  .tourCard {
+    width: 100%;
+    padding: var(--space-4);
+    transform-origin: bottom center;
+  }
+
+  .tourStep {
+    min-height: 0;
+    padding-right: 44px;
+  }
+
+  .tourEyebrow {
+    margin-bottom: var(--space-1);
+  }
+
+  .tourTitle {
+    margin-bottom: var(--space-1);
+    font-size: var(--text-lg);
+  }
+
+  .tourBody {
+    font-size: var(--text-sm);
+    line-height: 1.4;
+  }
+
+  .tourDots {
+    margin: var(--space-3) 0;
+  }
+
   .tourSpotlight {
     position: fixed;
     bottom: calc(env(safe-area-inset-bottom, 0px) + 6px);

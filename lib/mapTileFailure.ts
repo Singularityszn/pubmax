@@ -59,6 +59,39 @@ export type BasemapTileReference = {
   tileKey?: unknown;
 };
 
+type BasemapTileReadinessMap = {
+  getStyle: () =>
+    | { sources?: Record<string, { type?: unknown }> }
+    | null
+    | undefined;
+  areTilesLoaded: () => boolean;
+  isSourceLoaded: (id: string) => boolean;
+};
+
+/**
+ * Whether every tiled basemap source has settled for the current style.
+ *
+ * MapLibre briefly returns no style while `setStyle` swaps themes. That frame
+ * is pending, not exceptional, and must never escape as a console crash.
+ */
+export function areBasemapTilesLoaded(map: BasemapTileReadinessMap): boolean {
+  const sources = map.getStyle()?.sources;
+  if (!sources) return false;
+  const sourceIds = Object.entries(sources)
+    .filter(([, source]) => (
+      source.type === "vector" ||
+      source.type === "raster" ||
+      source.type === "raster-dem"
+    ))
+    .map(([id]) => id);
+  if (sourceIds.length === 0 || !map.areTilesLoaded()) return false;
+  try {
+    return sourceIds.every((id) => map.isSourceLoaded(id));
+  } catch {
+    return false;
+  }
+}
+
 function basemapTileReferenceKey({
   sourceId,
   sourceType,

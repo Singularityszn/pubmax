@@ -476,7 +476,68 @@ export function buildLandmarks(ctx: SceneCtx) {
   } else {
     (map.getSource("landmarks") as maplibregl.GeoJSONSource).setData(landmarksGeoJSON);
   }
-  // Landmark-inspector zoom is 15 (selectLandmark cinematic). No maxzoom —
+  // Names and pictograms are separate collision candidates. A pub cluster can
+  // own the landmark's exact coordinate while a compact name still finds room
+  // beside it via variable anchors. Both layers stay below pubs in style order,
+  // so this gains orientation without taking one pixel of price priority.
+  addLayerOnce({
+    id: "landmarks-label",
+    type: "symbol",
+    source: "landmarks",
+    layout: {
+      "symbol-sort-key": ["coalesce", ["get", "priority"], 999],
+      "text-field": ["get", "name"],
+      "text-font": textFont,
+      "text-size": [
+        "interpolate",
+        ["linear"],
+        ["zoom"],
+        9.5,
+        9.75,
+        12,
+        10.5,
+        15,
+        12.5,
+      ],
+      "text-letter-spacing": 0.06,
+      "text-variable-anchor": [
+        "top",
+        "bottom",
+        "left",
+        "right",
+        "top-left",
+        "top-right",
+        "bottom-left",
+        "bottom-right",
+      ],
+      "text-radial-offset": 1.35,
+      "text-justify": "auto",
+      "text-max-width": 8,
+      "text-allow-overlap": false,
+      "text-ignore-placement": false,
+      "text-padding": 2,
+    },
+    paint: {
+      "text-color": tokens.ink,
+      "text-halo-color": dark ? tokens.inkDeep : tokens.paper,
+      "text-halo-width": 1.7,
+      "text-halo-blur": 0.25,
+      "text-opacity": [
+        "interpolate",
+        ["linear"],
+        ["zoom"],
+        9.5,
+        0.76,
+        12,
+        0.9,
+        15,
+        1,
+      ],
+    },
+    minzoom: 9.5,
+  });
+
+  // Landmark-inspector zoom is 15 (selectLandmark cinematic). No maxzoom -
   // every curated landmark pin must stay rendered and prominent there so
   // Piccadilly Circus reads like London Eye (owner audit: icon vanished under
   // grey extrusion massing; icons also stayed too small at z15).
@@ -521,43 +582,9 @@ export function buildLandmarks(ctx: SceneCtx) {
       // every render (MapLibre's default is source order, which is not stable
       // across tiles).
       "symbol-sort-key": ["coalesce", ["get", "priority"], 999],
-      "text-field": ["get", "name"],
-      "text-font": textFont,
-      "text-size": [
-        "interpolate",
-        ["linear"],
-        ["zoom"],
-        9.5,
-        10.5,
-        13,
-        11.5,
-        15,
-        13,
-      ],
-      "text-letter-spacing": 0.04,
-      // Below the pictogram by preference, but free to flip around it when that
-      // side is taken. Trying four sides before giving up keeps far more names
-      // on screen at city zoom than a fixed anchor, which can only drop.
-      "text-variable-anchor": ["top", "bottom", "left", "right"],
-      "text-radial-offset": 1.5,
-      "text-justify": "auto",
-      "text-max-width": 9,
-      // A crowded label DROPS; it never overprints its neighbour. Central
-      // London packs ~20 curated landmarks into one phone screen, so
-      // `text-allow-overlap: true` (the old value) guaranteed the pile of
-      // half-legible names the owner reported. `text-optional` keeps the icon
-      // when only the name has to go.
-      "text-optional": true,
-      "text-allow-overlap": false,
-      "text-ignore-placement": false,
-      "text-padding": 2,
     },
     paint: {
-      "text-color": tokens.ink,
-      "text-halo-color": dark ? tokens.inkDeep : tokens.paper,
-      "text-halo-width": 1.5,
       "icon-opacity": 1,
-      "text-opacity": 1,
     },
     minzoom: 9.5,
   });

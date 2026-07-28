@@ -3,6 +3,7 @@ import {
   TILE_FAILURE_BURST,
   TILE_FAILURE_SUSTAIN_MS,
   TILE_FAILURE_WINDOW_MS,
+  areBasemapTilesLoaded,
   classifyTileFailure,
   createBasemapTileFailureTracker,
   isCriticalBasemapFailure,
@@ -10,6 +11,40 @@ import {
   tileFailureRecheckDelay,
   type TileFailureInput,
 } from "@/lib/mapTileFailure";
+
+describe("areBasemapTilesLoaded", () => {
+  it("treats the transient style-less theme-swap frame as not ready", () => {
+    const map = {
+      getStyle: () => undefined,
+      areTilesLoaded: () => {
+        throw new Error("must not inspect tiles without a style");
+      },
+      isSourceLoaded: () => {
+        throw new Error("must not inspect sources without a style");
+      },
+    };
+
+    expect(areBasemapTilesLoaded(map)).toBe(false);
+  });
+
+  it("requires every vector or raster source and ignores GeoJSON overlays", () => {
+    const map = {
+      getStyle: () => ({
+        sources: {
+          openfreemap: { type: "vector" },
+          terrain: { type: "raster-dem" },
+          landmarks: { type: "geojson" },
+        },
+      }),
+      areTilesLoaded: () => true,
+      isSourceLoaded: (id: string) => id !== "terrain",
+    };
+
+    expect(areBasemapTilesLoaded(map)).toBe(false);
+    map.isSourceLoaded = () => true;
+    expect(areBasemapTilesLoaded(map)).toBe(true);
+  });
+});
 
 describe("createBasemapTileFailureTracker", () => {
   it("requires every failed tile to recover before confirming recovery", () => {
