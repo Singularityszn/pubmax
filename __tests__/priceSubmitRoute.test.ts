@@ -16,6 +16,12 @@ vi.mock("@/lib/supabase", async (importOriginal) => {
   return { ...actual, isSupabaseConfigured: () => false, requiresSupabaseStore: () => false };
 });
 
+const authState = vi.hoisted(() => ({ userId: null as string | null }));
+vi.mock("@/lib/authServer", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/authServer")>();
+  return { ...actual, callerUserId: async () => authState.userId };
+});
+
 // Lets one case simulate the requested city pack failing to load; every other
 // case passes through to the real city-scoped canonical lookup on disk.
 const venueIndexState = vi.hoisted(() => ({ unavailable: false }));
@@ -80,6 +86,10 @@ import {
   readCommunityPrices,
 } from "@/lib/communityPriceStore";
 import { COMMUNITY_PRICE_MAX_GBP } from "@/lib/communityPrice";
+import {
+  __resetMemoryIdentityHandles,
+  memoryIdentityHandleStore,
+} from "@/lib/identityHandleStore";
 import { __resetPintDrops } from "@/lib/pintDrops";
 import {
   __resetMemoryProfiles,
@@ -150,7 +160,9 @@ beforeEach(() => {
   ukBaseIndexState.unavailable = false;
   readBackState.override = null;
   readBackState.statusOverride = null;
+  authState.userId = null;
   __resetCommunityPrices();
+  __resetMemoryIdentityHandles();
   __resetMemoryProfiles();
   __resetPintDrops();
 });
@@ -182,7 +194,8 @@ describe("POST /api/price-submit", () => {
     ).toEqual([]);
   });
 
-  it("counts a price under an existing public handle without exposing actor data", async () => {
+  it("keeps an unowned asserted handle anonymous without creating a profile", async () => {
+    authState.userId = "user-night-owl";
     const res = await POST(
       post({
         venueId: "venue-xjf3n0",
@@ -194,8 +207,40 @@ describe("POST /api/price-submit", () => {
 
     expect(res.status).toBe(201);
     expect((await res.json() as PriceBody).attribution).toEqual({
+      status: "anonymous",
+    });
+    expect(await memoryProfileStore.getByHandle("night_owl")).toBeNull();
+    expect(
+      (await memoryCommunityPriceStore.listLeaderboardContributions()).records,
+    ).toEqual([]);
+  });
+
+  it("credits a renamed handle through its immutable owned identity", async () => {
+    authState.userId = "user-night-owl";
+    expect(
+      await memoryIdentityHandleStore.claim(authState.userId, "night_owl"),
+    ).toMatchObject({ ok: true });
+    expect(
+      await memoryIdentityHandleStore.rename(authState.userId, "dawn_owl"),
+    ).toMatchObject({
+      ok: true,
+      previousHandle: "night_owl",
+      handle: "dawn_owl",
+    });
+
+    const res = await POST(
+      post({
+        venueId: "venue-xjf3n0",
+        drinkCategory: "beer",
+        priceGbp: 4.2,
+        contributorHandle: "night_owl",
+      }),
+    );
+
+    expect(res.status).toBe(201);
+    expect((await res.json() as PriceBody).attribution).toEqual({
       status: "credited",
-      handle: "night_owl",
+      handle: "dawn_owl",
     });
     const read =
       await memoryCommunityPriceStore.listLeaderboardContributions();
@@ -203,7 +248,7 @@ describe("POST /api/price-submit", () => {
       status: "ready",
       records: [
         {
-          handle: "night_owl",
+          handle: "dawn_owl",
           lane: "price",
           visible: true,
         },
@@ -235,6 +280,7 @@ describe("POST /api/price-submit", () => {
   });
 
   it("stores a submission anonymously when optional profile lookup fails", async () => {
+    authState.userId = "user-night-owl";
     vi.spyOn(memoryProfileStore, "getByHandle").mockRejectedValueOnce(
       new Error("profile store unavailable"),
     );

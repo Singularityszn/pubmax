@@ -222,7 +222,8 @@ describe("leaderboard contribution store projections", () => {
     );
     expect(sql).toMatch(/for price_group in[\s\S]*?set price_pennies = price_pennies/);
     expect(sql).toMatch(
-      /canonical_contributions[\s\S]*?profile_handle_aliases[\s\S]*?profiles/,
+      /canonical_contributions[\s\S]*?\n\s+join public\.profile_handle_aliases[\s\S]*?\n\s+join public\.profiles/,
     );
+    expect(sql).not.toMatch(/coalesce\(profile\.handle,\s*contribution\.handle\)/);
   });
 });

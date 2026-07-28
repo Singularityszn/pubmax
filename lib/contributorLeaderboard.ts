@@ -48,20 +48,34 @@ export type ContributorLeaderboardTally = Omit<
   "rank"
 >;
 
-export type ContributorLeaderboard = {
-  status: "ready" | "degraded";
-  window: {
-    kind: "all-time";
-    label: "All visible contributions, all time";
+export type ContributorLeaderboard =
+  | {
+    status: "ready";
+    window: {
+      kind: "all-time";
+      label: "All visible contributions, all time";
+    };
+    entries: ContributorLeaderboardEntry[];
+  }
+  | {
+    status: "degraded";
+    window: {
+      kind: "unavailable";
+      label: "All-time record unavailable";
+    };
+    entries: ContributorLeaderboardEntry[];
   };
-  entries: ContributorLeaderboardEntry[];
-};
 
 type MutableTally = ContributorLeaderboardTally;
 
 const ALL_TIME_WINDOW = {
   kind: "all-time",
   label: "All visible contributions, all time",
+} as const;
+
+const UNAVAILABLE_WINDOW = {
+  kind: "unavailable",
+  label: "All-time record unavailable",
 } as const;
 
 /**
@@ -100,7 +114,7 @@ export function rankContributorTallies(
   status: ContributorLeaderboard["status"],
 ): ContributorLeaderboard {
   if (status === "degraded") {
-    return { status, window: ALL_TIME_WINDOW, entries: [] };
+    return { status, window: UNAVAILABLE_WINDOW, entries: [] };
   }
 
   const sorted = [...tallies].sort(

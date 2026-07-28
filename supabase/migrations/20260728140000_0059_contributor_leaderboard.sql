@@ -153,12 +153,12 @@ as $$
      where status = 'visible'
   ),
   canonical_contributions as (
-    select coalesce(profile.handle, contribution.handle) as handle,
+    select profile.handle,
            contribution.lane
       from visible_contributions as contribution
-      left join public.profile_handle_aliases as alias
+      join public.profile_handle_aliases as alias
         on lower(alias.handle) = lower(contribution.handle)
-      left join public.profiles as profile
+      join public.profiles as profile
         on profile.id = alias.profile_id
   )
   select

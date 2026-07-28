@@ -309,10 +309,10 @@ export default function VenuePriceSubmit({
           Anyone can log a price. Yours shows on this pub&rsquo;s page straight
           away, dated and badged as community - it never replaces the price on
           record. {communityReachNote(category, mapReach)} Up to £
-          {COMMUNITY_PRICE_MAX_GBP} a drink. If this browser already has a
-          public handle the server can credit, the log counts under it on the
-          contributor record. Otherwise, the log stays anonymous and off that
-          record.
+          {COMMUNITY_PRICE_MAX_GBP} a drink. If your signed-in account owns the
+          public handle stored in this browser, the log counts under its current
+          name on the contributor record. Otherwise, the log stays anonymous
+          and off that record.
         </p>
       )}
       <VenueCommunitySignals

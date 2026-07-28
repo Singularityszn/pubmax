@@ -103,6 +103,10 @@ describe("rankContributors", () => {
 
     expect(rankContributors([record("sam", "price")], "degraded")).toMatchObject({
       status: "degraded",
+      window: {
+        kind: "unavailable",
+        label: "All-time record unavailable",
+      },
       entries: [],
     });
   });

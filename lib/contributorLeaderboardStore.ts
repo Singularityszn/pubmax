@@ -1,6 +1,5 @@
-// Server-only read seam for the public contributor record. Source stores own
-// contribution truth; this module only combines their private projections and
-// returns the small public aggregate.
+// Server-only read seam for the public contributor record. The durable store
+// owns the complete identity-backed all-time aggregate; keyless mode cannot.
 
 import {
   rankContributors,
@@ -8,14 +7,11 @@ import {
   type ContributorLeaderboard,
   type ContributorLeaderboardTally,
 } from "@/lib/contributorLeaderboard";
-import { communityPriceStore } from "@/lib/communityPriceStore";
 import { normalizeHandle } from "@/lib/profiles";
 import {
   isSupabaseConfigured,
   requireSupabaseAdmin,
 } from "@/lib/supabase";
-import { visitReportsStore } from "@/lib/visitReportsStore";
-import { weatherRecommendationStore } from "@/lib/weatherRecommendationStore";
 
 type DurableLeaderboardRow = {
   handle?: unknown;
@@ -81,24 +77,5 @@ async function readDurableBoard(): Promise<ContributorLeaderboard> {
 
 export async function readContributorLeaderboard(): Promise<ContributorLeaderboard> {
   if (isSupabaseConfigured()) return readDurableBoard();
-
-  const reads = await Promise.allSettled([
-    communityPriceStore().listLeaderboardContributions(),
-    visitReportsStore().listLeaderboardContributions(),
-    weatherRecommendationStore().listLeaderboardContributions(),
-  ]);
-  if (
-    reads.some(
-      (read) =>
-        read.status === "rejected" || read.value.status !== "ready",
-    )
-  ) {
-    return rankContributors([], "degraded");
-  }
-  return rankContributors(
-    reads.flatMap((read) =>
-      read.status === "fulfilled" ? read.value.records : [],
-    ),
-    "ready",
-  );
+  return rankContributors([], "degraded");
 }

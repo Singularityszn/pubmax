@@ -64,6 +64,10 @@ describe("durable contributor leaderboard", () => {
 
     expect(await readContributorLeaderboard()).toMatchObject({
       status: "degraded",
+      window: {
+        kind: "unavailable",
+        label: "All-time record unavailable",
+      },
       entries: [],
     });
   });

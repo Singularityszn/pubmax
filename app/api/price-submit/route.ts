@@ -39,6 +39,7 @@
 // No Supabase and no env are required.
 
 import { jsonNoStore } from "@/lib/apiResponses";
+import { callerUserId } from "@/lib/authServer";
 import { deriveCommunityPriceActor } from "@/lib/communityPriceActor";
 import {
   NO_ALCOHOL_DRINK_CATEGORIES,
@@ -58,9 +59,12 @@ import {
   submitCommunityPrice,
   submitCommunityVenueSignal,
 } from "@/lib/communityPriceStore";
+import {
+  identityHandleStore,
+} from "@/lib/identityHandleStore";
 import { isLimited } from "@/lib/pintDrops";
-import { resolveMessageHandle } from "@/lib/messageAuth";
-import { gateHandleAction } from "@/lib/profileOwnership";
+import { profileStore } from "@/lib/profileStore";
+import { normalizeHandle } from "@/lib/profiles";
 import { getUkBaseIdIndex } from "@/lib/ukBaseIndex";
 import {
   isUkBaseId,
@@ -136,11 +140,17 @@ async function resolveOptionalPriceAttribution(
 ): Promise<CommunityPriceAttribution> {
   if (!assertedHandle) return { status: "anonymous" };
   try {
-    const resolvedHandle = await resolveMessageHandle(request, assertedHandle);
-    if (!resolvedHandle) return { status: "anonymous" };
-    const ownership = await gateHandleAction(request, resolvedHandle);
-    return ownership.allowed
-      ? { status: "credited", handle: ownership.handle }
+    const presented = assertedHandle.trim().replace(/^@/, "").toLowerCase();
+    const handle = normalizeHandle(assertedHandle);
+    if (!handle || handle !== presented) return { status: "anonymous" };
+    const ownerId = await callerUserId(request);
+    if (!ownerId) return { status: "anonymous" };
+    const [resolution, ownedProfile] = await Promise.all([
+      identityHandleStore().resolve(handle),
+      profileStore().getByUserId(ownerId),
+    ]);
+    return resolution && ownedProfile?.id === resolution.profileId
+      ? { status: "credited", handle: resolution.currentHandle }
       : { status: "anonymous" };
   } catch {
     return { status: "anonymous" };

@@ -52,12 +52,13 @@ describe("ContributorRecord", () => {
     const html = render({
       status: "degraded",
       window: {
-        kind: "all-time",
-        label: "All visible contributions, all time",
+        kind: "unavailable",
+        label: "All-time record unavailable",
       },
       entries: [],
     });
 
+    expect(html).toContain("All-time record unavailable");
     expect(html).toContain("couldn&#x27;t check the full record");
     expect(html).not.toMatch(/no contributors|nobody has contributed/i);
   });

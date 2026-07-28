@@ -31,7 +31,7 @@ beforeEach(() => {
 });
 
 describe("GET /api/contributors", () => {
-  it("returns exact combined all-time counts with ties and no private quality trail", async () => {
+  it("refuses to present process-memory contributions as an all-time record", async () => {
     await memoryCommunityPriceStore.submit(
       {
         venueId: "v1",
@@ -84,55 +84,23 @@ describe("GET /api/contributors", () => {
     expect(response.headers.get("Cache-Control")).toContain("no-store");
     const body = await response.json();
     expect(body).toEqual({
-      status: "ready",
+      status: "degraded",
       window: {
-        kind: "all-time",
-        label: "All visible contributions, all time",
+        kind: "unavailable",
+        label: "All-time record unavailable",
       },
-      entries: [
-        {
-          rank: 1,
-          handle: "alex",
-          total: 2,
-          prices: 0,
-          reviews: 1,
-          recommendations: 1,
-        },
-        {
-          rank: 1,
-          handle: "sam",
-          total: 2,
-          prices: 1,
-          reviews: 1,
-          recommendations: 0,
-        },
-      ],
+      entries: [],
     });
     expect(JSON.stringify(body)).not.toMatch(/quality|actor|corroborated/i);
   });
 
-  it("returns degraded instead of an answered empty or partial board", async () => {
-    await memoryCommunityPriceStore.submit(
-      {
-        venueId: "v1",
-        drinkCategory: "beer",
-        priceGbp: 5,
-        actor: "actor-a",
-        contributorHandle: "sam",
-      },
-      1_000,
-    );
-    vi.spyOn(
-      memoryVisitReportStore,
-      "listLeaderboardContributions",
-    ).mockRejectedValueOnce(new Error("read unavailable"));
-
+  it("keeps an empty keyless record unavailable rather than implying absence", async () => {
     const response = await GET();
     expect(await response.json()).toEqual({
       status: "degraded",
       window: {
-        kind: "all-time",
-        label: "All visible contributions, all time",
+        kind: "unavailable",
+        label: "All-time record unavailable",
       },
       entries: [],
     });

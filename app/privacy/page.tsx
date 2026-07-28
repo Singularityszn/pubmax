@@ -147,10 +147,11 @@ export default function PrivacyPage() {
           Anyone can log tonight&rsquo;s price without an account. We store the
           venue, the drink category, the price and the time. If your browser
           already has a public PUBMAXX handle, the price form tells you and
-          sends that handle with the price so the server can check whether the
-          attribution can be used. When it can, the log counts under your name.
-          When it cannot, the price still lands anonymously and does not enter
-          the contributor record.
+          sends that handle with the price. When your signed-in account owns
+          that identity, the server resolves any renamed handle to its current
+          name and the log counts there. When ownership cannot be proved, the
+          price still lands anonymously and does not enter the contributor
+          record.
         </p>
         <p className="legalBody">
           Every price also carries an opaque device token derived server-side
