@@ -162,7 +162,12 @@ export async function POST(request: Request): Promise<Response> {
       return jsonNoStore({ error: "Too many reports, slow down." }, { status: 429 });
     }
     const flagged = await reportCommunityPrice(id, readString(body.reason), actor);
-    if (!flagged) return jsonNoStore({ error: "We cannot find that report." }, { status: 404 });
+    if (!flagged) {
+      return jsonNoStore(
+        { error: "We cannot find that observation." },
+        { status: 404 },
+      );
+    }
     return jsonNoStore({ ok: true }, { status: 200 });
   }
 
