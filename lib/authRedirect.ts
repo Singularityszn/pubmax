@@ -116,7 +116,7 @@ function authFragmentKey(attemptId: string): string {
   return `${AUTH_RETURN_FRAGMENT_PREFIX}${attemptId}`;
 }
 
-export function isAuthAttemptId(raw: string | null | undefined): raw is string {
+export function isAuthAttemptId(raw: unknown): raw is string {
   return typeof raw === "string" && AUTH_ATTEMPT_ID_PATTERN.test(raw);
 }
 

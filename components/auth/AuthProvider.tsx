@@ -40,6 +40,7 @@ import {
   releaseAuthAttempt,
   scrubAuthCallback,
   type CanonicalAuthAttemptStart,
+  type CapturedAuthCallback,
 } from "@/lib/authRedirect";
 import { authedFetch } from "@/lib/authedFetch";
 import type { ClaimChoice, ClaimPreview } from "@/lib/identityClaim";

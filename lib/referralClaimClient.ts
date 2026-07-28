@@ -47,7 +47,7 @@ export async function claimSignupReferral(
   request: ReferralClaimRequest,
 ): Promise<void> {
   for (let attempt = 0; attempt < MAX_CLAIM_ATTEMPTS; attempt += 1) {
-    let delayMs = FALLBACK_RETRY_DELAYS_MS[attempt] ?? 0;
+    let delayMs: number = FALLBACK_RETRY_DELAYS_MS[attempt] ?? 0;
     try {
       const response = await request("/api/referrals/claim-attribution", {
         method: "POST",
