@@ -13,13 +13,16 @@ analytics content to become a shadow user profile.
 
 ## Decision
 
-- PostHog EU is the product-interaction analytics authority. Only registry-known events and
-  allow-listed, low-cardinality properties may be forwarded. Person-profile
-  processing is disabled for keyless events.
+- PostHog EU is the product-interaction analytics authority. Product events
+  remain registry-known with allow-listed, low-cardinality properties.
+  Explicit pageviews use a separate closed route vocabulary that replaces
+  dynamic values with templates. Person-profile processing is disabled.
 - The idempotent `plan_completions` ledger is the PNC metric authority. PNC is not
   emitted by a browser; a future PostHog export requires a server outbox keyed by
   completion ID.
-- Vercel remains the deployment, runtime-log, pageview, and Web Vitals authority.
+- Vercel remains the deployment, runtime-log, Web Analytics, and Web Vitals
+  authority. Its high-level pageview counter is separate from PostHog's
+  coarse route pageviews for product funnels.
 - Arize Phoenix receives only redacted Pub Pal AI spans, tool/result categories,
   cost/latency, errors, annotations, and evaluations.
 - Voice audio, transcripts, messages, handles, names, contact details, free text,
@@ -33,9 +36,10 @@ analytics content to become a shadow user profile.
 - Events are forwarded to PostHog only after explicit analytics consent. The stable
   pseudonymous browser identifier contains no account data, is deleted on revocation,
   and is never merged with account identity.
-- Session replay and automatic product or session capture remain disabled until a
-  separate consent, redaction, and retention review passes. Exception autocapture is
-  the sole exception: it is separately consent-gated and stripped to anonymous/device
-  identifiers plus bounded error types before transport.
+- Session replay and automatic product or session capture remain disabled until
+  a separate consent, redaction, and retention review passes. Explicit
+  route-vocabulary pageviews and exception autocapture are the only browser SDK
+  signals: both are consent-gated, and exceptions are stripped to
+  anonymous/device identifiers plus bounded error types before transport.
 - Browser exceptions use PostHog's supported error tracking; server errors remain in
   Vercel logs. Arize is not a general error-monitoring sink.

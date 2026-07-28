@@ -99,7 +99,7 @@ Leave the existing exception branch equivalent. Add a `$pageview` branch that va
 
 - [x] **Step 4: Mount App Router tracker**
 
-Mount a client component under `Suspense` in `app/layout.tsx`. On each `usePathname()` change, call `capturePosthogPageview(pathname)`. Query-string-only navigation intentionally does nothing. Duplicate renders of the same route in strict mode must not duplicate the event.
+Mount a client component under `Suspense` in `app/layout.tsx`. On each `usePathname()` change, call `capturePosthogPageview(pathname, anonymousAnalyticsId())`. Query-string-only navigation intentionally does nothing. Duplicate renders of the same route in strict mode must not duplicate the event.
 
 - [x] **Step 5: Run tests and verify GREEN**
 

@@ -23,8 +23,8 @@ const CHANGE_EVENT = "pubmax:prompt-budget";
 
 /**
  * Canonical surface ids. Kept as a plain string union (not an enum) so a new
- * lane can add its own id without a cross-lane edit; these are the three known
- * today. Any non-empty string is accepted at runtime.
+ * lane can add its own id without a cross-lane edit. Any non-empty string is
+ * accepted at runtime.
  */
 export type PromptSurface =
   | "analytics-consent"

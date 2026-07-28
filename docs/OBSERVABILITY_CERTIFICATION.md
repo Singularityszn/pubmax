@@ -19,8 +19,9 @@ does not replace `docs/MASTER_PRD.md`.
   collection.
 - Vercel Analytics uses `beforeSend` to cancel pre-consent pageviews. It is not
   a second custom-event rail.
-- PostHog capture targets the EU endpoint, disables person-profile processing,
-  and receives only registry-known properties plus a coarse templated path.
+- PostHog capture targets the EU endpoint and disables person-profile
+  processing. Product events remain registry-known; explicit pageviews carry
+  only a coarse templated path.
 - PostHog browser exception capture is separately consent-gated and strips
   messages, stack traces, URLs, and arbitrary context before EU ingest. Its
   SDK persistence is memory-only, so page and referrer metadata cannot enter a

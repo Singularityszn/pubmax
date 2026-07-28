@@ -319,7 +319,7 @@ function doNotTrack(): boolean {
 }
 
 /**
- * One consent gate shared by the self-owned event rail and Vercel pageviews.
+ * One consent gate shared by product events and both pageview sinks.
  * It never creates an identifier and fails closed when browser storage is
  * unavailable unless the person explicitly granted consent in this session.
  */

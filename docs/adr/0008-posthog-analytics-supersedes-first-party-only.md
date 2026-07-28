@@ -28,10 +28,11 @@ The shipped architecture stands:
   The browser and server both reject unknown events and properties.
 - Product events cross the first-party `/api/events` boundary before the server
   forwards their sanitised form to PostHog EU.
-- The PostHog browser SDK sends only scrubbed anonymous exception counts through
-  the first-party `/ingest` proxy. That proxy forwards bounded bodies and safe
-  content types without cookies, sign-in headers, referrers, or forwarded IP
-  addresses.
+- The PostHog browser SDK sends explicit coarse pageviews and scrubbed
+  anonymous exception counts through the first-party `/ingest` proxy.
+  Pageviews use a closed route vocabulary with dynamic values replaced by
+  templates. The proxy forwards bounded bodies and safe content types without
+  cookies, sign-in headers, referrers, or forwarded IP addresses.
 - PostHog person profiles are disabled. Account identity is never joined to the
   pseudonymous analytics identifier.
 - Do Not Track is honoured in the browser and re-checked at the server event
@@ -51,5 +52,5 @@ second analytics store alongside PostHog.
 - First-party routes remain privacy and validation boundaries, not a separate
   analytics warehouse.
 - Any future sink, identity linkage, automatic capture, session recording, or
-  expansion beyond the closed registry requires a new decision and matching
-  privacy review.
+  expansion beyond the closed product-event and pageview vocabularies requires
+  a new decision and matching privacy review.
