@@ -46,6 +46,8 @@ import { authedFetch } from "@/lib/authedFetch";
 import type { ClaimChoice, ClaimPreview } from "@/lib/identityClaim";
 import { readDeviceHandle } from "@/lib/identityClaimClient";
 import { normalizeHandle } from "@/lib/profiles";
+import { claimSignupReferral } from "@/lib/referralClaimClient";
+import { referralSignupClaimFromUrl } from "@/lib/referrals";
 import { emitIdentityHandleChanged, IDENTITY_HANDLE_CHANGED_EVENT } from "@/lib/identityClient";
 import { requestMagicLink, type MagicLinkResult } from "@/lib/passwordlessAuth";
 
@@ -136,6 +138,22 @@ function releaseBrowserAuthAttempt(attemptId: string): void {
 
 function cancelBrowserAuthAttempt(): void {
   cancelAuthAttempt(browserLocalStorage(), browserSessionStorage());
+}
+
+async function claimReferralAfterAuthCallback(): Promise<void> {
+  const referral = referralSignupClaimFromUrl(window.location.href);
+  if (!referral) return;
+  try {
+    if (referral.code) {
+      await claimSignupReferral(referral.code, authedFetch);
+    }
+  } finally {
+    window.history.replaceState(
+      window.history.state,
+      "",
+      referral.cleanUrl,
+    );
+  }
 }
 
 async function prepareAuthCallback(
@@ -276,13 +294,6 @@ export function AuthProvider({ children }: { children: ReactNode }): React.JSX.E
 
   const syncIdentityAfterSignIn = useCallback(
     async (user: User): Promise<void> => {
-      // Referral attribution is independent of handle claiming. The server
-      // accepts only a verified JWT plus its HttpOnly journey cookie, and the
-      // call fails soft so auth and anonymous browsing never wait on it.
-      void authedFetch("/api/referrals/claim-attribution", {
-        method: "POST",
-      }).catch(() => undefined);
-
       const authHandle = handleFromUser(user);
       if (!authHandle || typeof window === "undefined") return;
 
@@ -519,6 +530,7 @@ export function AuthProvider({ children }: { children: ReactNode }): React.JSX.E
           window.clearTimeout(loadingTimeout);
           updateSession(exchangedSession);
           setLoading(false);
+          void claimReferralAfterAuthCallback();
           void syncIdentityAfterSignIn(exchangedSession.user);
           return;
         }

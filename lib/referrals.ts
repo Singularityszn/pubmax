@@ -1,6 +1,6 @@
-export const REFERRAL_ATTRIBUTION_DAYS = 30;
 const REFERRAL_CAPTURE_KEY = "referral";
 const REFERRAL_CODE = /^[A-Za-z0-9_-]{20,80}$/;
+export const REFERRAL_SIGNUP_CLAIM_WINDOW_MS = 60 * 60 * 1_000;
 
 export const REFERRAL_MILESTONES = [1, 3, 5] as const;
 export type ReferralMilestone = (typeof REFERRAL_MILESTONES)[number];
@@ -29,24 +29,33 @@ export type ReferralRewardEvent = {
   permanent: true;
 };
 
-export type ReferralCaptureDecision = {
-  clearHash: boolean;
+export type ReferralSignupClaim = {
   code: string | null;
+  cleanUrl: string;
 };
 
-export function referralCaptureDecision(
-  hash: string,
-  consentAllowed: boolean,
-): ReferralCaptureDecision {
-  const params = new URLSearchParams(hash.replace(/^#/, ""));
-  if (!params.has(REFERRAL_CAPTURE_KEY)) {
-    return { clearHash: false, code: null };
+export function isReferralCode(value: unknown): value is string {
+  return typeof value === "string" && REFERRAL_CODE.test(value);
+}
+
+export function referralSignupClaimFromUrl(
+  currentUrl: string,
+): ReferralSignupClaim | null {
+  try {
+    const url = new URL(currentUrl);
+    const params = new URLSearchParams(url.hash.replace(/^#/, ""));
+    if (!params.has(REFERRAL_CAPTURE_KEY)) return null;
+    const rawCode = params.get(REFERRAL_CAPTURE_KEY)?.trim() ?? "";
+    params.delete(REFERRAL_CAPTURE_KEY);
+    const remainingHash = params.toString();
+    url.hash = remainingHash ? `#${remainingHash}` : "";
+    return {
+      code: isReferralCode(rawCode) ? rawCode : null,
+      cleanUrl: `${url.pathname}${url.search}${url.hash}` || "/",
+    };
+  } catch {
+    return null;
   }
-  const code = params.get(REFERRAL_CAPTURE_KEY)?.trim() ?? "";
-  return {
-    clearHash: true,
-    code: consentAllowed && REFERRAL_CODE.test(code) ? code : null,
-  };
 }
 
 export function referralFeatureForMilestone(

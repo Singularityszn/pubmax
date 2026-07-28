@@ -13,61 +13,51 @@ beforeEach(() => {
 });
 
 describe("referral attribution store", () => {
-  it("keeps first-touch attribution through a delayed signup", async () => {
-    const first = await memoryReferralStore.getOrCreateInviteCode("inviter-a");
-    const second = await memoryReferralStore.getOrCreateInviteCode("inviter-b");
-
-    const journey = await memoryReferralStore.startJourney(first.code, null, START);
-    expect(journey).not.toBeNull();
-    const retained = await memoryReferralStore.startJourney(
-      second.code,
-      journey!.token,
-      START + DAY,
-    );
-    expect(retained?.token).toBe(journey?.token);
-
-    const claimed = await memoryReferralStore.claimJourney({
-      token: journey!.token,
+  it("records a code claim from a newly created account once", async () => {
+    const invite = await memoryReferralStore.getOrCreateInviteCode("inviter");
+    const claimed = await memoryReferralStore.claimCode({
+      code: invite.code,
       inviteeUserId: "invitee",
-      inviteeCreatedAt: new Date(START + DAY).toISOString(),
-      now: START + DAY,
+      inviteeCreatedAt: new Date(START - 1_000).toISOString(),
+      now: START,
     });
     expect(claimed).toMatchObject({ ok: true, status: "recorded" });
-    expect(await memoryReferralStore.privateStatus("inviter-a")).toMatchObject({
+    expect(
+      await memoryReferralStore.claimCode({
+        code: invite.code,
+        inviteeUserId: "invitee",
+        inviteeCreatedAt: new Date(START - 1_000).toISOString(),
+        now: START,
+      }),
+    ).toMatchObject({ ok: true, status: "existing" });
+    expect(await memoryReferralStore.privateStatus("inviter")).toMatchObject({
       attributedCount: 1,
       qualifiedCount: 0,
     });
-    expect(await memoryReferralStore.privateStatus("inviter-b")).toMatchObject({
-      attributedCount: 0,
-    });
   });
 
-  it("does not attribute when the account predates the invite click", async () => {
+  it("does not attribute an account created before the sign-up journey", async () => {
     const { code } = await memoryReferralStore.getOrCreateInviteCode("inviter");
-    const journey = await memoryReferralStore.startJourney(code, null, START);
 
     expect(
-      await memoryReferralStore.claimJourney({
-        token: journey!.token,
+      await memoryReferralStore.claimCode({
+        code,
         inviteeUserId: "existing-user",
-        inviteeCreatedAt: new Date(START - 1).toISOString(),
-        now: START + DAY,
+        inviteeCreatedAt: new Date(START - 60 * 60 * 1_000 - 1).toISOString(),
+        now: START,
       }),
-    ).toEqual({ ok: false, reason: "account_predates_journey" });
+    ).toEqual({ ok: false, reason: "account_not_new" });
   });
 
-  it("expires an unclaimed browser journey after 30 days", async () => {
-    const { code } = await memoryReferralStore.getOrCreateInviteCode("inviter");
-    const journey = await memoryReferralStore.startJourney(code, null, START);
-
+  it("rejects an unknown invite code", async () => {
     expect(
-      await memoryReferralStore.claimJourney({
-        token: journey!.token,
-        inviteeUserId: "late-user",
-        inviteeCreatedAt: new Date(START + 31 * DAY).toISOString(),
-        now: START + 31 * DAY,
+      await memoryReferralStore.claimCode({
+        code: "unknown_code_123456789",
+        inviteeUserId: "new-user",
+        inviteeCreatedAt: new Date(START).toISOString(),
+        now: START,
       }),
-    ).toEqual({ ok: false, reason: "expired" });
+    ).toEqual({ ok: false, reason: "unknown" });
   });
 
   it("rejects same-account and direct circular edges before they can qualify", async () => {
@@ -177,11 +167,6 @@ describe("referral attribution store", () => {
       "deleted-user",
     );
     const otherCode = await memoryReferralStore.getOrCreateInviteCode("other");
-    const journey = await memoryReferralStore.startJourney(
-      otherCode.code,
-      null,
-      START,
-    );
 
     await memoryReferralStore.eraseAccount("deleted-user");
 
@@ -189,8 +174,13 @@ describe("referral attribution store", () => {
       memoryReferralStore.getOrCreateInviteCode("deleted-user"),
     ).rejects.toThrow();
     expect(
-      await memoryReferralStore.startJourney(inviterCode.code, null, START + 1),
-    ).toBeNull();
+      await memoryReferralStore.claimCode({
+        code: inviterCode.code,
+        inviteeUserId: "fresh-invitee",
+        inviteeCreatedAt: new Date(START + 1).toISOString(),
+        now: START + 1,
+      }),
+    ).toEqual({ ok: false, reason: "unknown" });
     expect(
       await memoryReferralStore.recordEdge(
         "deleted-user",
@@ -206,8 +196,8 @@ describe("referral attribution store", () => {
       ),
     ).toEqual({ ok: false, reason: "deleted_identity" });
     expect(
-      await memoryReferralStore.claimJourney({
-        token: journey!.token,
+      await memoryReferralStore.claimCode({
+        code: otherCode.code,
         inviteeUserId: "deleted-user",
         inviteeCreatedAt: new Date(START).toISOString(),
         now: START + 1,

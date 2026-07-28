@@ -1,11 +1,12 @@
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
 import {
   REFERRAL_GRANT_GATE,
   REFERRAL_MILESTONES,
-  referralCaptureDecision,
+  REFERRAL_SIGNUP_CLAIM_WINDOW_MS,
+  referralSignupClaimFromUrl,
   referralFeatureForMilestone,
   referralFeaturesGrantedBy,
 } from "@/lib/referrals";
@@ -52,17 +53,20 @@ describe("referral reward policy", () => {
     expect(migration).toMatch(/referral feature grants are disabled/);
   });
 
-  it("captures a referral fragment only after existing consent", () => {
+  it("carries a valid referral fragment through the sign-up journey", () => {
     expect(
-      referralCaptureDecision("#referral=opaque_code_123456789", false),
-    ).toEqual({ clearHash: true, code: null });
-    expect(
-      referralCaptureDecision("#referral=opaque_code_123456789", true),
-    ).toEqual({ clearHash: true, code: "opaque_code_123456789" });
-    expect(referralCaptureDecision("#section", true)).toEqual({
-      clearHash: false,
-      code: null,
+      referralSignupClaimFromUrl(
+        "https://pubmaxxing.com/?city=london#referral=opaque_code_123456789&section=prices",
+      ),
+    ).toEqual({
+      code: "opaque_code_123456789",
+      cleanUrl: "/?city=london#section=prices",
     });
+    expect(referralSignupClaimFromUrl("https://pubmaxxing.com/#section")).toBeNull();
+    expect(
+      referralSignupClaimFromUrl("https://pubmaxxing.com/#referral=short"),
+    ).toEqual({ code: null, cleanUrl: "/" });
+    expect(REFERRAL_SIGNUP_CLAIM_WINDOW_MS).toBe(60 * 60 * 1_000);
   });
 
   it("serializes qualification before inserting and counting", () => {
@@ -87,5 +91,45 @@ describe("referral reward policy", () => {
         "insert into public.referral_qualification_events",
       ),
     );
+  });
+
+  it("keeps attribution inside the deliberate auth callback", () => {
+    const authProvider = readFileSync(
+      join(process.cwd(), "components/auth/AuthProvider.tsx"),
+      "utf8",
+    );
+    const identitySync = authProvider.slice(
+      authProvider.indexOf("const syncIdentityAfterSignIn"),
+      authProvider.indexOf("const onClaimConfirm"),
+    );
+    const callbackSuccess = authProvider.slice(
+      authProvider.indexOf("if (exchangedSession)"),
+      authProvider.indexOf("try {", authProvider.indexOf("if (exchangedSession)") + 1),
+    );
+    const landing = readFileSync(
+      join(process.cwd(), "components/landing/LandingPage.tsx"),
+      "utf8",
+    );
+    const analytics = readFileSync(
+      join(process.cwd(), "lib/analytics.ts"),
+      "utf8",
+    );
+    const migration = readFileSync(
+      join(
+        process.cwd(),
+        "supabase/migrations/20260728143000_0060_referrals.sql",
+      ),
+      "utf8",
+    );
+
+    expect(identitySync).not.toContain("claim-attribution");
+    expect(callbackSuccess).toContain("claimReferralAfterAuthCallback");
+    expect(landing).not.toContain("referralCaptureDecision");
+    expect(analytics).not.toContain("claim-attribution");
+    expect(migration).toContain("claim_referral_code");
+    expect(migration).not.toContain("referral_attribution_journeys");
+    expect(
+      existsSync(join(process.cwd(), "lib/referralAttributionCookie.ts")),
+    ).toBe(false);
   });
 });

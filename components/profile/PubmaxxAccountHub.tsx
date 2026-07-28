@@ -231,28 +231,42 @@ export default function PubmaxxAccountHub() {
         setMergeDeferred(false);
       }
     });
-    void Promise.all([
+    void Promise.allSettled([
       authedFetch("/api/social-connections", { signal: controller.signal }),
       authedFetch("/api/identity/handle/current", { signal: controller.signal }),
       authedFetch("/api/me/night-profile", { signal: controller.signal }),
       authedFetch("/api/referrals/status", { signal: controller.signal }),
-    ]).then(async ([social, identity, nightProfile, referrals]) => {
+    ]).then(async ([socialResult, identityResult, nightProfileResult, referralsResult]) => {
       if (controller.signal.aborted) return;
-      if (social.ok) {
-        const body = (await social.json()) as {
+      const social = socialResult.status === "fulfilled" ? socialResult.value : null;
+      const identity = identityResult.status === "fulfilled" ? identityResult.value : null;
+      const nightProfile = nightProfileResult.status === "fulfilled"
+        ? nightProfileResult.value
+        : null;
+      const referrals = referralsResult.status === "fulfilled"
+        ? referralsResult.value
+        : null;
+      if (social?.ok) {
+        const body = await social.json().catch(() => null) as {
           connections?: Connection[];
           providers?: SocialProviderAvailability;
-        };
-        setConnections(body.connections ?? []);
-        setProviders(body.providers ?? NO_SOCIAL_PROVIDERS);
+        } | null;
+        setConnections(body?.connections ?? []);
+        setProviders(body?.providers ?? NO_SOCIAL_PROVIDERS);
       }
-      if (identity.ok) {
-        const owned = ((await identity.json()) as { handle?: string | null }).handle ?? null;
+      if (identity?.ok) {
+        const body = await identity.json().catch(() => null) as
+          | { handle?: string | null }
+          | null;
+        const owned = body?.handle ?? null;
         setCurrentHandle(owned);
         if (owned) setHandle(owned);
       }
-      if (nightProfile.ok) {
-        const profile = ((await nightProfile.json()) as { profile?: NightProfile | null }).profile ?? null;
+      if (nightProfile?.ok) {
+        const body = await nightProfile.json().catch(() => null) as
+          | { profile?: NightProfile | null }
+          | null;
+        const profile = body?.profile ?? null;
         setAccountNightProfile(profile);
         setNightProfileDraft(profile ? nightProfileInput(profile) : DEFAULT_NIGHT_PROFILE_INPUT);
         const mirrored = mirrorAccountNightProfileToDevice(profile);
@@ -260,11 +274,14 @@ export default function PubmaxxAccountHub() {
       } else {
         setMessage("Your account Night Profile could not be loaded.");
       }
-      if (referrals.ok) {
-        setReferralStatus((await referrals.json()) as ReferralPrivateStatus);
+      if (referrals?.ok) {
+        const status = await referrals.json().catch(() => null) as
+          | ReferralPrivateStatus
+          | null;
+        if (status) setReferralStatus(status);
       }
-      setNightProfileLoaded(true);
-    }).catch(() => {});
+      if (!controller.signal.aborted) setNightProfileLoaded(true);
+    });
     return () => controller.abort();
   }, [user]);
 

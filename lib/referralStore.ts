@@ -1,9 +1,9 @@
 import { createHash, randomBytes } from "node:crypto";
 
 import {
-  REFERRAL_ATTRIBUTION_DAYS,
   REFERRAL_GRANT_GATE,
   REFERRAL_MILESTONES,
+  REFERRAL_SIGNUP_CLAIM_WINDOW_MS,
   referralFeatureForMilestone,
   referralFeaturesGrantedBy,
   type ReferralFeature,
@@ -17,10 +17,7 @@ import {
 } from "@/lib/storeBackend";
 import { requireSupabaseAdmin } from "@/lib/supabase";
 
-const DAY_MS = 24 * 60 * 60 * 1_000;
-const JOURNEY_TTL_MS = REFERRAL_ATTRIBUTION_DAYS * DAY_MS;
 const MAX_MEMORY_CODES = 50_000;
-const MAX_MEMORY_JOURNEYS = 100_000;
 const MAX_MEMORY_EDGES = 100_000;
 
 export type ReferralContributionKind =
@@ -56,15 +53,11 @@ export type RecordEdgeResult =
         | "storage";
     };
 
-export type ClaimJourneyResult =
+export type ClaimCodeResult =
   | RecordEdgeResult
   | {
       ok: false;
-      reason:
-        | "unknown"
-        | "expired"
-        | "consumed"
-        | "account_predates_journey";
+      reason: "unknown" | "account_not_new";
     };
 
 export type QualifyReferralResult =
@@ -83,17 +76,12 @@ export type ReferralStore = {
     inviterUserId: string,
     now?: number,
   ): Promise<{ code: string }>;
-  startJourney(
-    code: string,
-    existingToken?: string | null,
-    now?: number,
-  ): Promise<{ token: string; expiresAt: string } | null>;
-  claimJourney(input: {
-    token: string;
+  claimCode(input: {
+    code: string;
     inviteeUserId: string;
     inviteeCreatedAt: string;
     now?: number;
-  }): Promise<ClaimJourneyResult>;
+  }): Promise<ClaimCodeResult>;
   recordEdge(
     inviterUserId: string,
     inviteeUserId: string,
@@ -115,13 +103,6 @@ type MemoryInviteCode = {
   createdAt: number;
 };
 
-type MemoryJourney = {
-  inviterUserId: string;
-  startedAt: number;
-  expiresAt: number;
-  consumedBy: string | null;
-};
-
 type MemoryEdge = {
   id: string;
   inviterUserId: string;
@@ -138,7 +119,6 @@ type MemoryQualification = {
 
 const inviteCodeByInviter = new Map<string, MemoryInviteCode>();
 const inviterByCodeHash = new Map<string, string>();
-const journeyByTokenHash = new Map<string, MemoryJourney>();
 const edgeByInvitee = new Map<string, MemoryEdge>();
 const edgeById = new Map<string, MemoryEdge>();
 const qualificationsByEdge = new Map<string, MemoryQualification>();
@@ -159,13 +139,6 @@ function tokenHash(token: string): string {
 
 function cleanId(value: string): string {
   return typeof value === "string" ? value.trim() : "";
-}
-
-function boundedInsert<K, V>(map: Map<K, V>, key: K, value: V, max: number): void {
-  map.set(key, value);
-  if (map.size <= max) return;
-  const oldest = map.keys().next().value as K | undefined;
-  if (oldest !== undefined) map.delete(oldest);
 }
 
 function emptyStatus(): ReferralPrivateStatus {
@@ -232,44 +205,8 @@ export const memoryReferralStore: ReferralStore = {
     return { code: rawCode };
   },
 
-  async startJourney(code, existingToken = null, now = Date.now()) {
-    if (existingToken) {
-      const existing = journeyByTokenHash.get(tokenHash(existingToken));
-      if (
-        existing &&
-        !erasedReferralIdentities.has(existing.inviterUserId) &&
-        !existing.consumedBy &&
-        existing.expiresAt >= now
-      ) {
-        return {
-          token: existingToken,
-          expiresAt: new Date(existing.expiresAt).toISOString(),
-        };
-      }
-    }
-
-    const inviterUserId = inviterByCodeHash.get(tokenHash(code));
-    if (!inviterUserId || erasedReferralIdentities.has(inviterUserId)) {
-      return null;
-    }
-    const token = opaqueToken();
-    const expiresAt = now + JOURNEY_TTL_MS;
-    boundedInsert(
-      journeyByTokenHash,
-      tokenHash(token),
-      {
-        inviterUserId,
-        startedAt: now,
-        expiresAt,
-        consumedBy: null,
-      },
-      MAX_MEMORY_JOURNEYS,
-    );
-    return { token, expiresAt: new Date(expiresAt).toISOString() };
-  },
-
-  async claimJourney({
-    token,
+  async claimCode({
+    code,
     inviteeUserId,
     inviteeCreatedAt,
     now = Date.now(),
@@ -277,23 +214,23 @@ export const memoryReferralStore: ReferralStore = {
     if (erasedReferralIdentities.has(cleanId(inviteeUserId))) {
       return { ok: false, reason: "deleted_identity" };
     }
-    const journey = journeyByTokenHash.get(tokenHash(token));
-    if (!journey) return { ok: false, reason: "unknown" };
-    if (journey.expiresAt < now) return { ok: false, reason: "expired" };
-    if (journey.consumedBy && journey.consumedBy !== inviteeUserId) {
-      return { ok: false, reason: "consumed" };
-    }
     const createdAt = Date.parse(inviteeCreatedAt);
-    if (!Number.isFinite(createdAt) || createdAt < journey.startedAt) {
-      return { ok: false, reason: "account_predates_journey" };
+    if (
+      !Number.isFinite(createdAt) ||
+      createdAt > now ||
+      createdAt < now - REFERRAL_SIGNUP_CLAIM_WINDOW_MS
+    ) {
+      return { ok: false, reason: "account_not_new" };
     }
-    const result = await memoryReferralStore.recordEdge(
-      journey.inviterUserId,
+    const inviterUserId = inviterByCodeHash.get(tokenHash(code));
+    if (!inviterUserId || erasedReferralIdentities.has(inviterUserId)) {
+      return { ok: false, reason: "unknown" };
+    }
+    return memoryReferralStore.recordEdge(
+      inviterUserId,
       inviteeUserId,
       now,
     );
-    if (result.ok) journey.consumedBy = inviteeUserId;
-    return result;
   },
 
   async recordEdge(inviterUserId, inviteeUserId, attributedAt = Date.now()) {
@@ -426,11 +363,6 @@ export const memoryReferralStore: ReferralStore = {
       else ledgerByInviter.delete(inviter);
     }
 
-    for (const [hash, journey] of journeyByTokenHash) {
-      if (journey.inviterUserId === user || journey.consumedBy === user) {
-        journeyByTokenHash.delete(hash);
-      }
-    }
     const inviteCode = inviteCodeByInviter.get(user);
     if (inviteCode) {
       inviterByCodeHash.delete(tokenHash(inviteCode.rawCode));
@@ -444,7 +376,6 @@ const { guard, resetWarnings } = createFailSoftGuard({
   tables: [
     "referral_erasure_blocks",
     "referral_invite_codes",
-    "referral_attribution_journeys",
     "referral_edges",
     "referral_qualification_events",
     "pro_feature_unlock_ledger",
@@ -521,51 +452,18 @@ export const supabaseReferralStore: ReferralStore = {
     });
   },
 
-  async startJourney(code, existingToken = null, now = Date.now()) {
+  async claimCode(input) {
     return guard({
-      context: "start-journey",
+      context: "claim-code",
       onSchemaMiss: () =>
         missingReferralStorageFallback(() =>
-          memoryReferralStore.startJourney(code, existingToken, now)
-        ),
-      run: async () => {
-        const token = opaqueToken();
-        const { data, error } = await requireSupabaseAdmin().rpc(
-          "start_referral_journey",
-          {
-            p_code_hash: tokenHash(code),
-            p_existing_token_hash: existingToken
-              ? tokenHash(existingToken)
-              : null,
-            p_new_token_hash: tokenHash(token),
-            p_now: new Date(now).toISOString(),
-            p_expires_at: new Date(now + JOURNEY_TTL_MS).toISOString(),
-          },
-        );
-        if (error) throw new Error(error.message);
-        const row = objectRow(data);
-        if (row.ok !== true) return null;
-        const retained = row.retained === true;
-        return {
-          token: retained && existingToken ? existingToken : token,
-          expiresAt: String(row.expires_at),
-        };
-      },
-    });
-  },
-
-  async claimJourney(input) {
-    return guard({
-      context: "claim-journey",
-      onSchemaMiss: () =>
-        missingReferralStorageFallback(() =>
-          memoryReferralStore.claimJourney(input)
+          memoryReferralStore.claimCode(input)
         ),
       run: async () => {
         const { data, error } = await requireSupabaseAdmin().rpc(
-          "claim_referral_journey",
+          "claim_referral_code",
           {
-            p_token_hash: tokenHash(input.token),
+            p_code_hash: tokenHash(input.code),
             p_invitee_user_id: input.inviteeUserId,
             p_invitee_created_at: input.inviteeCreatedAt,
             p_now: new Date(input.now ?? Date.now()).toISOString(),
@@ -575,12 +473,7 @@ export const supabaseReferralStore: ReferralStore = {
         const row = objectRow(data);
         if (row.ok === true) return recordEdgeResult(row);
         const reason = row.reason;
-        if (
-          reason === "unknown" ||
-          reason === "expired" ||
-          reason === "consumed" ||
-          reason === "account_predates_journey"
-        ) {
+        if (reason === "unknown" || reason === "account_not_new") {
           return { ok: false, reason };
         }
         return recordEdgeResult(row);
@@ -710,7 +603,6 @@ export function referralStore(): ReferralStore {
 export function __resetMemoryReferrals(): void {
   inviteCodeByInviter.clear();
   inviterByCodeHash.clear();
-  journeyByTokenHash.clear();
   edgeByInvitee.clear();
   edgeById.clear();
   qualificationsByEdge.clear();

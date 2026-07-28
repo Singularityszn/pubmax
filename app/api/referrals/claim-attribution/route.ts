@@ -1,71 +1,67 @@
 import { NextResponse } from "next/server";
 
+import { publicApiError } from "@/lib/apiError";
 import { callerAuthIdentity } from "@/lib/authServer";
-import {
-  clearReferralJourneyCookie,
-  readReferralJourneyCookie,
-} from "@/lib/referralAttributionCookie";
+import { isReferralCode } from "@/lib/referrals";
 import { referralStore } from "@/lib/referralStore";
 
-function reply(
-  request: Request,
-  body: unknown,
-  status = 200,
-  clearCookie = false,
-): Response {
-  const response = NextResponse.json(body, {
+function reply(body: unknown, status = 200): Response {
+  return NextResponse.json(body, {
     status,
     headers: { "Cache-Control": "no-store" },
   });
-  if (clearCookie) clearReferralJourneyCookie(response, request);
-  return response;
 }
 
 export async function POST(request: Request): Promise<Response> {
   const identity = await callerAuthIdentity(request);
   if (!identity) {
-    return reply(request, { error: "Sign in to record an invite." }, 401);
+    return reply({ error: "Sign in to record an invite." }, 401);
   }
-  const token = readReferralJourneyCookie(request);
-  if (!token) {
-    return reply(request, { attributed: false, reason: "no_journey" });
+  if (!request.headers.get("content-type")?.startsWith("application/json")) {
+    return publicApiError(
+      "This referral handoff is invalid.",
+      "INVALID_REQUEST",
+      400,
+      { retryable: false },
+    );
+  }
+  const body = await request.json().catch(() => null) as
+    | { code?: unknown }
+    | null;
+  const code = body?.code;
+  if (!isReferralCode(code)) {
+    return publicApiError(
+      "This referral handoff is invalid.",
+      "INVALID_REQUEST",
+      400,
+      { retryable: false },
+    );
   }
   if (!identity.createdAt) {
     return reply(
-      request,
       { attributed: false, reason: "missing_account_creation_time" },
-      200,
-      true,
     );
   }
 
   let result: Awaited<
-    ReturnType<ReturnType<typeof referralStore>["claimJourney"]>
+    ReturnType<ReturnType<typeof referralStore>["claimCode"]>
   >;
   try {
-    result = await referralStore().claimJourney({
-      token,
+    result = await referralStore().claimCode({
+      code,
       inviteeUserId: identity.id,
       inviteeCreatedAt: identity.createdAt,
     });
   } catch {
-    return reply(
-      request,
-      { attributed: false, reason: "storage_unavailable" },
+    return publicApiError(
+      "This invite could not be recorded right now.",
+      "REFERRAL_STORE_UNAVAILABLE",
       503,
+      { retryable: true },
     );
   }
   if (result.ok) {
-    return reply(request, { attributed: true }, 200, true);
+    return reply({ attributed: true });
   }
-  return reply(
-    request,
-    { attributed: false, reason: result.reason },
-    200,
-    true,
-  );
-}
-
-export async function DELETE(request: Request): Promise<Response> {
-  return reply(request, { revoked: true }, 200, true);
+  return reply({ attributed: false, reason: result.reason });
 }

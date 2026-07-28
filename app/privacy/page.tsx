@@ -122,22 +122,19 @@ export default function PrivacyPage() {
         <h3 className="legalH3">If you use an invite link</h3>
         <p className="legalBody">
           Making an invite gives you an opaque link tied to your account. When
-          someone follows it, their browser checks the existing Anonymous usage
-          analytics choice. Only after they have tapped Allow do we store a
-          private referral journey with the inviting account, the time it began
-          and its expiry, and put an HttpOnly first-party cookie in that browser
-          for 30 days. If that person then makes a new account in the same
-          browser, we record one private referral edge between the two account
-          IDs. It is recorded once and is never shown on a public profile,
-          contributor record, venue page or anywhere else public.
+          someone follows it, the opaque code stays in the page address. We set
+          no referral cookie and store no attribution record while they browse.
+          If that person starts and completes account creation in the same
+          sign-in journey, the completed callback submits the code and we record
+          one private referral edge between the two account IDs. It is recorded
+          once and is never shown on a public profile, contributor record, venue
+          page or anywhere else public.
         </p>
         <p className="legalBody">
-          The link between those accounts is only as strong as that browser
-          journey. It fails if you clear or block cookies, use a different
-          browser or device to sign up, wait past 30 days, follow an invalid
-          link, leave optional data use off, or already had the account before
-          following the link. We don&rsquo;t claim an attribution in any of
-          those cases.
+          Attribution works only during that sign-up. A delayed return, a
+          different browser or device, an invalid link, or signing into an
+          existing account is not attributed. We don&rsquo;t guess when the
+          same-journey proof is absent.
         </p>
         <p className="legalBody">
           A referral is not qualified by signup alone. It needs the new account
@@ -356,9 +353,8 @@ export default function PrivacyPage() {
           </li>
           <li>
             <strong>Because you said yes (consent).</strong>{" "}Usage analytics,
-            referral attribution, push notifications and the email digest are
-            consent-only, and you can withdraw consent at any time without
-            losing the rest of the app.
+            push notifications and the email digest are consent-only, and you
+            can withdraw consent at any time without losing the rest of the app.
           </li>
         </ul>
       </section>
@@ -374,11 +370,6 @@ export default function PrivacyPage() {
           <li>
             A sign-in session, if you signed in, so you stay signed in. It lives
             in your browser and refreshes in the background.
-          </li>
-          <li>
-            A referral journey cookie, if you have tapped Allow and follow an
-            invite link. It is HttpOnly, belongs only to pubmaxxing.com, and
-            expires after 30 days.
           </li>
           <li>
             Your analytics choice, either allowed or denied, so we do not ask on
@@ -555,9 +546,6 @@ export default function PrivacyPage() {
             We retain only a one-way hash of the deleted account ID in the
             referral system so an existing session cannot recreate those
             records.
-            Unclaimed journeys become eligible for pruning after their 30-day
-            window and are deleted in bounded batches when new invite journeys
-            begin.
           </li>
         </ul>
       </section>

@@ -1,4 +1,6 @@
 import { createElement } from "react";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 
@@ -10,6 +12,15 @@ import {
 } from "@/components/profile/PubmaxxAccountHub";
 
 describe("PubmaxxAccountHub provider gating", () => {
+  it("loads optional referral status without blocking account data", () => {
+    const source = readFileSync(
+      join(process.cwd(), "components/profile/PubmaxxAccountHub.tsx"),
+      "utf8",
+    );
+    expect(source).toContain("Promise.allSettled([");
+    expect(source).not.toContain("void Promise.all([");
+  });
+
   it("renders editable Night Profile controls with the privacy boundary", () => {
     const html = renderToStaticMarkup(createElement(NightProfileControls, {
       profile: DEFAULT_NIGHT_PROFILE_INPUT,

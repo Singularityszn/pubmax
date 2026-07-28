@@ -120,7 +120,7 @@ describe("trackEvent", () => {
       status: 204,
       headers: { "x-analytics-delivery": "delivered" },
     }));
-    await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(3));
+    await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
     await flushVerifiedAnalyticsOutbox();
 
     const deliveredTokens = fetchMock.mock.calls.flatMap((call) => {
@@ -149,9 +149,9 @@ describe("trackEvent", () => {
 
     setAnalyticsConsent(false);
     expect(anonymousAnalyticsId()).toBeNull();
-    expect(fetchMock).toHaveBeenCalledWith(
+    expect(fetchMock).not.toHaveBeenCalledWith(
       "/api/referrals/claim-attribution",
-      expect.objectContaining({ method: "DELETE" }),
+      expect.anything(),
     );
   });
 

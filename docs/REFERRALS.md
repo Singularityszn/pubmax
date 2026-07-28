@@ -6,19 +6,18 @@ contribution paths can provide.
 
 ## Boundaries
 
-`lib/referralStore.ts` owns private invite journeys, immutable account edges,
+`lib/referralStore.ts` owns private invite codes, immutable account edges,
 qualification events, and reward history. `lib/referrals.ts` owns milestone
 policy and closed grant gate. Public profiles and contribution leaderboards
 must not import either module.
 
-Browser attribution is first-touch, consent-gated, and lasts for one bounded
-journey. Following a link redirects through a fragment that the landing client
-removes immediately. Only an existing Anonymous usage analytics Allow choice
-lets that client start the private journey and receive its HttpOnly cookie. It
-genuinely fails when consent is absent, cookies are blocked or cleared, signup
-happens on another browser or device, the journey expires, the link is invalid,
-or account creation predates the click. These are absence of proof, so they
-never fall back to a guessed attribution.
+Following an invite redirects with its opaque code in a URL fragment. No
+referral cookie or server-side attribution state is created while the person
+browses. Existing auth-attempt coordination carries the fragment through a
+deliberate sign-up. Only a successful callback for a newly created account can
+submit the code and record an edge. A delayed return, another browser or device,
+an invalid code, or an existing account is not attributed. These are absence of
+same-journey proof, so they never fall back to a guessed attribution.
 
 An account edge alone is not a qualified referral. Qualification needs a first
 accepted contribution carrying that invited account's verified auth ID. Current
@@ -48,9 +47,8 @@ identity would change each boundary:
 
 - invite creation and private status must translate the signed-in account to
   the canonical contributor before reading or writing referral records
-- delayed attribution must write the canonical invitee identity while keeping
-  the verified Auth account creation time as evidence that signup followed the
-  browser journey
+- same-journey attribution must write the canonical invitee identity while
+  keeping the verified Auth account creation time as evidence of new signup
 - accepted contribution writes must attach that same canonical identity on the
   server before they may call the qualification seam
 - person-level anti-self-referral checks must run before qualification and

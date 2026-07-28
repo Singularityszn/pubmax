@@ -1,7 +1,7 @@
 -- Private referral attribution and reward audit spine.
 --
 -- Account ids come only from verified Supabase Auth JWTs. Invite codes and
--- browser journey tokens are opaque. Raw journey tokens never land here.
+-- referral codes are opaque.
 -- Contribution qualification is intentionally callable only by service_role
 -- and has no route until contribution rows carry authenticated user ids.
 
@@ -24,28 +24,6 @@ create table if not exists public.referral_invite_codes (
   constraint referral_invite_codes_token_chk
     check (char_length(code_token) between 20 and 80)
 );
-
-create table if not exists public.referral_attribution_journeys (
-  token_hash text primary key,
-  inviter_user_id uuid not null,
-  started_at timestamptz not null,
-  expires_at timestamptz not null,
-  consumed_by_user_id uuid,
-  consumed_at timestamptz,
-  constraint referral_journeys_hash_chk
-    check (token_hash ~ '^[0-9a-f]{64}$'),
-  constraint referral_journeys_expiry_chk
-    check (expires_at > started_at),
-  constraint referral_journeys_consumed_chk
-    check (
-      (consumed_by_user_id is null and consumed_at is null)
-      or
-      (consumed_by_user_id is not null and consumed_at is not null)
-    )
-);
-
-create index if not exists referral_journeys_expiry_idx
-  on public.referral_attribution_journeys (expires_at);
 
 create table if not exists public.referral_edges (
   id uuid primary key default gen_random_uuid(),
@@ -101,14 +79,12 @@ create index if not exists referral_ledger_beneficiary_idx
 
 alter table public.referral_invite_codes enable row level security;
 alter table public.referral_erasure_blocks enable row level security;
-alter table public.referral_attribution_journeys enable row level security;
 alter table public.referral_edges enable row level security;
 alter table public.referral_qualification_events enable row level security;
 alter table public.pro_feature_unlock_ledger enable row level security;
 
 revoke all on public.referral_invite_codes from public, anon, authenticated;
 revoke all on public.referral_erasure_blocks from public, anon, authenticated;
-revoke all on public.referral_attribution_journeys from public, anon, authenticated;
 revoke all on public.referral_edges from public, anon, authenticated;
 revoke all on public.referral_qualification_events from public, anon, authenticated;
 revoke all on public.pro_feature_unlock_ledger from public, anon, authenticated;
@@ -215,97 +191,6 @@ begin
 end;
 $$;
 
-create or replace function public.start_referral_journey(
-  p_code_hash text,
-  p_existing_token_hash text,
-  p_new_token_hash text,
-  p_now timestamptz,
-  p_expires_at timestamptz
-)
-returns jsonb
-language plpgsql
-security definer
-set search_path = public
-as $$
-declare
-  candidate public.referral_attribution_journeys%rowtype;
-  inviter uuid;
-begin
-  delete from public.referral_attribution_journeys
-  where token_hash in (
-    select token_hash
-    from public.referral_attribution_journeys
-    where expires_at < p_now
-      and consumed_by_user_id is null
-    order by expires_at
-    limit 100
-  );
-
-  if p_existing_token_hash is not null then
-    select * into candidate
-    from public.referral_attribution_journeys
-    where token_hash = p_existing_token_hash
-      and consumed_by_user_id is null
-      and expires_at >= p_now;
-
-    if found then
-      perform pg_advisory_xact_lock(
-        hashtextextended(candidate.inviter_user_id::text, 0)
-      );
-      if exists (
-        select 1 from public.referral_erasure_blocks
-        where user_id_hash = encode(
-          digest(candidate.inviter_user_id::text, 'sha256'),
-          'hex'
-        )
-      ) then
-        return jsonb_build_object('ok', false, 'reason', 'deleted_identity');
-      end if;
-      return jsonb_build_object(
-        'ok', true,
-        'retained', true,
-        'expires_at', candidate.expires_at
-      );
-    end if;
-  end if;
-
-  select inviter_user_id into inviter
-  from public.referral_invite_codes
-  where code_hash = p_code_hash;
-
-  if inviter is null then
-    return jsonb_build_object('ok', false, 'reason', 'unknown_code');
-  end if;
-
-  perform pg_advisory_xact_lock(hashtextextended(inviter::text, 0));
-  if exists (
-    select 1 from public.referral_erasure_blocks
-    where user_id_hash = encode(digest(inviter::text, 'sha256'), 'hex')
-  ) then
-    return jsonb_build_object('ok', false, 'reason', 'deleted_identity');
-  end if;
-
-  insert into public.referral_attribution_journeys (
-    token_hash,
-    inviter_user_id,
-    started_at,
-    expires_at
-  )
-  values (
-    p_new_token_hash,
-    inviter,
-    p_now,
-    p_expires_at
-  );
-
-  return jsonb_build_object(
-    'ok', true,
-    'retained', false,
-    'expires_at', p_expires_at
-  );
-end;
-$$;
-
 create or replace function public.record_referral_edge(
   p_inviter_user_id uuid,
   p_invitee_user_id uuid,
@@ -387,8 +272,8 @@ begin
 end;
 $$;
 
-create or replace function public.claim_referral_journey(
-  p_token_hash text,
+create or replace function public.claim_referral_code(
+  p_code_hash text,
   p_invitee_user_id uuid,
   p_invitee_created_at timestamptz,
   p_now timestamptz
@@ -399,65 +284,33 @@ security definer
 set search_path = public
 as $$
 declare
-  journey public.referral_attribution_journeys%rowtype;
-  edge_result jsonb;
+  inviter uuid;
 begin
   if p_invitee_user_id is null then
     return jsonb_build_object('ok', false, 'reason', 'storage');
   end if;
-
-  select * into journey
-  from public.referral_attribution_journeys
-  where token_hash = p_token_hash;
-
-  if not found then
-    return jsonb_build_object('ok', false, 'reason', 'unknown');
-  end if;
-
-  perform pg_advisory_xact_lock(
-    hashtextextended(least(journey.inviter_user_id::text, p_invitee_user_id::text), 0)
-  );
-  perform pg_advisory_xact_lock(
-    hashtextextended(greatest(journey.inviter_user_id::text, p_invitee_user_id::text), 0)
-  );
-
-  select * into journey
-  from public.referral_attribution_journeys
-  where token_hash = p_token_hash
-  for update;
-
-  if not found then
-    return jsonb_build_object('ok', false, 'reason', 'unknown');
-  end if;
-  if journey.expires_at < p_now then
-    return jsonb_build_object('ok', false, 'reason', 'expired');
-  end if;
-  if journey.consumed_by_user_id is not null
-     and journey.consumed_by_user_id <> p_invitee_user_id then
-    return jsonb_build_object('ok', false, 'reason', 'consumed');
-  end if;
   if p_invitee_created_at is null
-     or p_invitee_created_at < journey.started_at then
+     or p_invitee_created_at > p_now
+     or p_invitee_created_at < p_now - interval '1 hour' then
     return jsonb_build_object(
       'ok', false,
-      'reason', 'account_predates_journey'
+      'reason', 'account_not_new'
     );
   end if;
 
-  edge_result := public.record_referral_edge(
-    journey.inviter_user_id,
+  select inviter_user_id into inviter
+  from public.referral_invite_codes
+  where code_hash = p_code_hash;
+
+  if inviter is null then
+    return jsonb_build_object('ok', false, 'reason', 'unknown');
+  end if;
+
+  return public.record_referral_edge(
+    inviter,
     p_invitee_user_id,
     p_now
   );
-
-  if coalesce((edge_result ->> 'ok')::boolean, false) then
-    update public.referral_attribution_journeys
-    set consumed_by_user_id = p_invitee_user_id,
-        consumed_at = p_now
-    where token_hash = p_token_hash;
-  end if;
-
-  return edge_result;
 end;
 $$;
 
@@ -693,9 +546,6 @@ begin
   delete from public.referral_edges
   where inviter_user_id = p_user_id or invitee_user_id = p_user_id;
 
-  delete from public.referral_attribution_journeys
-  where inviter_user_id = p_user_id or consumed_by_user_id = p_user_id;
-
   delete from public.referral_invite_codes
   where inviter_user_id = p_user_id;
 end;
@@ -704,13 +554,10 @@ $$;
 revoke all on function public.get_or_create_referral_invite_code(
   uuid, text, text, timestamptz
 ) from public, anon, authenticated;
-revoke all on function public.start_referral_journey(
-  text, text, text, timestamptz, timestamptz
-) from public, anon, authenticated;
 revoke all on function public.record_referral_edge(
   uuid, uuid, timestamptz
 ) from public, anon, authenticated;
-revoke all on function public.claim_referral_journey(
+revoke all on function public.claim_referral_code(
   text, uuid, timestamptz, timestamptz
 ) from public, anon, authenticated;
 revoke all on function public.qualify_referral_from_contribution(
@@ -726,13 +573,10 @@ revoke all on function public.erase_referral_account(
 grant execute on function public.get_or_create_referral_invite_code(
   uuid, text, text, timestamptz
 ) to service_role;
-grant execute on function public.start_referral_journey(
-  text, text, text, timestamptz, timestamptz
-) to service_role;
 grant execute on function public.record_referral_edge(
   uuid, uuid, timestamptz
 ) to service_role;
-grant execute on function public.claim_referral_journey(
+grant execute on function public.claim_referral_code(
   text, uuid, timestamptz, timestamptz
 ) to service_role;
 grant execute on function public.qualify_referral_from_contribution(

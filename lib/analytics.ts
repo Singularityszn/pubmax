@@ -63,21 +63,6 @@ function notifyAnalyticsConsentChange(): void {
   }
 }
 
-function revokeReferralAttribution(): void {
-  if (typeof fetch !== "function") return;
-  try {
-    void Promise.resolve(
-      fetch("/api/referrals/claim-attribution", {
-        method: "DELETE",
-        credentials: "same-origin",
-        keepalive: true,
-      }),
-    ).catch(() => undefined);
-  } catch {
-    return;
-  }
-}
-
 function replaceInMemoryVerifiedOutbox(raw: string | null): void {
   inMemoryVerifiedOutbox.clear();
   if (!raw) return;
@@ -291,7 +276,6 @@ export function subscribeAnalyticsConsent(onChange: () => void): () => void {
 export function setAnalyticsConsent(granted: boolean): void {
   if (typeof window === "undefined") return;
   ensureAnalyticsStorageListener();
-  const hadConsent = readAnalyticsConsentDecision() === "granted";
   // Every local or cross-tab consent transition invalidates snapshots captured
   // by an older flush. Epoch checks also protect against fetch implementations
   // that resolve after abort.
@@ -315,7 +299,6 @@ export function setAnalyticsConsent(granted: boolean): void {
       clearVerifiedOutbox();
     }
   }
-  if (!granted && hadConsent) revokeReferralAttribution();
   const allowed = analyticsCollectionAllowed();
   const anonymousId = allowed ? anonymousAnalyticsId() : null;
   syncPosthogConsent(allowed);

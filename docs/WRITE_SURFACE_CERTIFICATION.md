@@ -17,7 +17,7 @@ CI until this certification is deliberately updated.
 > community price submission `POST /api/price-submit`) → 71 (community-price
 > moderation `POST /api/admin/community-prices`) → 72 (authored weather
 > Recommendations `POST /api/weather-recommendations`) → 74 (private referral
-> invite-link creation and delayed attribution claim). Token-gated GET
+> invite-link creation and same-journey signup claim). Token-gated GET
 > confirm/unsubscribe endpoints and read-only GETs (the Social Loop reads, the
 > vibe-vote tally read, the Visit Report venue / contributor-count /
 > moderator-lane reads, the operator
@@ -46,10 +46,10 @@ Plan member capability and use idempotency keys or atomic store operations.
 Referral writes are account-bound. `POST /api/referrals/invite-link` derives the
 inviter from the verified JWT. `POST /api/referrals/claim-attribution` derives
 the new account and its creation time from the same verified identity, then
-combines it only with the opaque HttpOnly journey cookie. Neither route accepts
-an account ID in its body, and neither returns either side of an invite edge.
-The anonymous journey start is a separate, rate-limited write reached only
-after the landing client confirms the existing consent choice.
+resolves only an opaque invite code from its body. Neither route accepts an
+account ID in its body, and neither returns either side of an invite edge.
+Following the public invite route writes nothing. Auth callback code claims are
+accepted only for newly created accounts in the same sign-in journey.
 
 ## Failure posture
 

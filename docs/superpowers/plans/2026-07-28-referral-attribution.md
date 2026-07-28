@@ -2,9 +2,9 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Record private referral journeys and immutable account edges, qualify them only through a future authenticated contribution seam, and append blocked milestone rewards without granting pro access.
+**Goal:** Record private referral signups and immutable account edges, qualify them only through a future authenticated contribution seam, and append blocked milestone rewards without granting pro access.
 
-**Architecture:** A first-touch, opaque HttpOnly cookie points to a server-side attribution journey, so no account identity travels in the browser. A dual memory/Supabase store owns invite codes, journeys, immutable edges, qualification events, and append-only reward events. Milestone evaluation records earned feature events at 1, 3, and 5 qualified referrals, while a compile-time closed grant gate ensures no entitlement is returned or granted before contributor identity and person-level anti-self-referral checks exist.
+**Architecture:** An opaque invite code stays in the URL through one deliberate sign-up and is claimed only from the successful auth callback for a newly created account. No referral state is written before account creation. A dual memory/Supabase store owns invite codes, immutable edges, qualification events, and append-only reward events. Milestone evaluation records earned feature events at 1, 3, and 5 qualified referrals, while a compile-time closed grant gate ensures no entitlement is returned or granted before contributor identity and person-level anti-self-referral checks exist.
 
 **Tech Stack:** Next.js 16 route handlers, React 19, TypeScript, Supabase/PostgreSQL, Vitest, existing CSS.
 
@@ -15,7 +15,7 @@
 - Qualification requires completed signup plus one accepted contribution bound to authenticated identity.
 - Milestones are 1, 3, and 5 qualified referrals. Future grants are permanent.
 - Granting remains disabled until authenticated contribution identity and person-level anti-self-referral checks exist.
-- Attribution has a 30-day first-touch browser journey. Cookie clearing, blocked cookies, another browser/device, and expiry are explicit failure modes.
+- Attribution lasts only for the sign-up journey started from the invite URL. Delayed return and another browser or device are explicit failure modes.
 - Product copy follows `docs/VOICE.md`, has no em dash or exclamation mark, and does not nag.
 - Privacy and terms change with the data path.
 - Mobile UI keeps 44px tap targets, reflows at 390px, and adds no motion.
@@ -33,7 +33,7 @@
 
 **Interfaces:**
 - Produces: `REFERRAL_MILESTONES`, `REFERRAL_GRANT_GATE`, `referralFeatureForMilestone`, `ReferralStore`, `referralStore`, and `memoryReferralStore`.
-- Produces: invite creation, journey start/resolve, immutable edge recording, future qualification, private status reads, and test-only memory reset.
+- Produces: invite creation, direct code claim, immutable edge recording, future qualification, private status reads, and test-only memory reset.
 
 - [ ] **Step 1: Write failing domain tests**
 
@@ -73,7 +73,7 @@ await store.recordEdge({ inviterUserId: "a", inviteeUserId: "b" });
 expect(await store.recordEdge({ inviterUserId: "b", inviteeUserId: "a" })).toMatchObject({ ok: false, reason: "circular" });
 ```
 
-Cover first-touch journeys, expired journeys, signup-before-click rejection, one immutable inviter per invitee, first accepted contribution only, 1/3/5 earned ledger events, no feature grants, and private aggregate status.
+Cover same-journey code claims, existing-account rejection, one immutable inviter per invitee, first accepted contribution only, 1/3/5 earned ledger events, no feature grants, and private aggregate status.
 
 - [ ] **Step 6: Run store tests and confirm missing behavior**
 
@@ -83,7 +83,7 @@ Expected: FAIL because store API does not exist.
 
 - [ ] **Step 7: Implement memory and Supabase stores**
 
-Use opaque random tokens, SHA-256 hashes for browser journey tokens at rest,
+Use opaque random invite codes and SHA-256 hashes at rest,
 bounded process memory, Supabase RPCs for atomic edge and qualification checks,
 and `selectStore` for keyless fallback. Keep the reusable invite token private
 so the same account link can be returned. Store qualification and milestone
@@ -91,7 +91,7 @@ events append-only. Do not expose raw account IDs outside store methods.
 
 - [ ] **Step 8: Add migration**
 
-Create private `referral_invite_codes`, `referral_attribution_journeys`, `referral_edges`, `referral_qualification_events`, and `pro_feature_unlock_ledger` tables. Revoke client access, enforce one inviter per invitee, block ordinary edge/qualification/ledger updates and deletes, and provide service-role RPCs that reject self/circular edges and append earned milestone events without feature grants.
+Create private `referral_invite_codes`, `referral_edges`, `referral_qualification_events`, and `pro_feature_unlock_ledger` tables. Revoke client access, enforce one inviter per invitee, block ordinary edge/qualification/ledger updates and deletes, and provide service-role RPCs that reject self/circular edges and append earned milestone events without feature grants.
 
 - [ ] **Step 9: Run store tests**
 
@@ -99,7 +99,7 @@ Run: `npm test -- __tests__/referralStore.test.ts __tests__/referrals.test.ts`
 
 Expected: PASS.
 
-### Task 2: Delayed attribution and private APIs
+### Task 2: Same-journey attribution and private APIs
 
 **Files:**
 - Create: `app/r/[code]/route.ts`
@@ -116,9 +116,8 @@ Expected: PASS.
 
 - [ ] **Step 1: Write failing route tests**
 
-Cover consent handoff redirects without a cookie, consented first-touch cookie
-retention, 30-day cookie attributes, authenticated invite link creation,
-anonymous API rejection, delayed signup claim, pre-existing account rejection,
+Cover invite redirects without a cookie, authenticated invite link creation,
+anonymous API rejection, same-journey signup claim, existing-account rejection,
 self/circle rejection, no-store responses, and identity-free status JSON.
 
 - [ ] **Step 2: Run route tests and confirm missing-route failure**
@@ -129,17 +128,14 @@ Expected: FAIL because referral routes do not exist.
 
 - [ ] **Step 3: Implement route handlers**
 
-Redirect the public invite GET through a fragment without setting a cookie. The
-landing client may start a journey only when the existing consent choice allows
-optional collection. Set `pubmaxx_referral_journey` as `HttpOnly`,
-`SameSite=Lax`, `Path=/`, 30-day max age, and `Secure` outside local HTTP. Claim
-using verified JWT user ID and account creation time only. Clear invalid,
-expired, consumed, or consent-revoked journey cookies. Return only viewer-owned
-link and aggregate milestone status.
+Redirect the public invite GET through a fragment without setting a cookie or
+writing attribution state. Carry the code through the existing auth-attempt
+return URL and claim using verified JWT user ID and account creation time only.
+Return only viewer-owned link and aggregate milestone status.
 
 - [ ] **Step 4: Wire post-signup claim**
 
-After Supabase session restoration or `SIGNED_IN`, call the claim endpoint through `authedFetch`. Treat it as fail-soft and never block auth or browsing.
+After a successful Supabase callback exchange, call the claim endpoint through `authedFetch`. Treat it as fail-soft and never block auth or browsing. Session restoration alone must not claim.
 
 - [ ] **Step 5: Run route and auth regression tests**
 
@@ -188,12 +184,12 @@ Expected: PASS.
 - Create: `docs/REFERRALS.md`
 
 **Interfaces:**
-- Consumes: actual cookie, retention, private edge, qualification, and disabled-grant behavior.
+- Consumes: same-journey URL handoff, private edge, qualification, and disabled-grant behavior.
 - Produces: reader-facing disclosure and PR-body-ready failure-mode documentation.
 
 - [ ] **Step 1: Write failing legal tests**
 
-Assert privacy names the private account edge, 30-day referral cookie, genuine attribution failures, contribution qualification, private visibility, and retention. Assert terms prohibit self/circular referrals and say rewards are not live while the identity gate is closed.
+Assert privacy names the private account edge, same-journey signup, genuine attribution failures, contribution qualification, private visibility, and retention. Assert terms prohibit self/circular referrals and say rewards are not live while the identity gate is closed.
 
 - [ ] **Step 2: Run legal tests**
 
@@ -203,7 +199,7 @@ Expected: FAIL because referral disclosures are absent.
 
 - [ ] **Step 3: Update legal pages and referral documentation**
 
-Use plain British English. Document exact successful path and failures: cookies blocked/cleared, expiry, another browser/device, invalid link, account predating click, existing immutable edge, self/circular edge, and current inability to prove two OAuth accounts are different people. State that earned milestone rows do not grant access.
+Use plain British English. Document exact successful path and failures: delayed return, another browser/device, invalid link, existing account, existing immutable edge, self/circular edge, and current inability to prove two OAuth accounts are different people. State that earned milestone rows do not grant access.
 
 - [ ] **Step 4: Run legal and voice tests**
 
