@@ -15,7 +15,9 @@
 //
 // Moderation mirrors community prices: a public `report` records a
 // per-actor-deduped flag but never hides a row. `listForReview()` feeds the admin
-// queue; only `moderate` changes visibility and stamps the decision.
+// queue and `listHidden()` the lane of already-hidden rows (a hide has to stay
+// reversible from the surface that made it); only `moderate` changes visibility
+// and stamps the decision.
 
 import { randomUUID } from "crypto";
 
@@ -72,6 +74,13 @@ export type VisitReportStore = {
    * trail. Fail-soft ([] on storage error). */
   listForReview(): Promise<VisitReport[]>;
   /**
+   * Moderator hidden lane: every report a moderator has hidden, newest decision
+   * first, with the identity a reviewer needs to restore one. Hiding never
+   * deletes, so this is the list that makes the decision reversible from the
+   * admin surface rather than only over the API. Fail-soft ([] on storage error).
+   */
+  listHidden(): Promise<VisitReport[]>;
+  /**
    * Public report: record a per-actor-deduped flag for moderator review. Returns
    * false for an unknown id. A duplicate flag by the same actor is an
    * idempotent no-op. Reporting never changes visibility.
@@ -84,6 +93,19 @@ export type VisitReportStore = {
 
 function nightKey(venueId: string, handle: string, visitedAt: string): string {
   return `${venueId}::${handle}::${visitedAt}`;
+}
+
+/**
+ * Public-lane order: the NIGHT first, newest visit at the top, with the
+ * submission time as a deterministic tie-break for two accounts of the same
+ * night. A row prints its visit date and nothing else, so ordering on the
+ * submission time instead would read as out of order — an older night written up
+ * later would sit above a newer one with no visible reason.
+ */
+function byNewestVisit(a: VisitReport, b: VisitReport): number {
+  return (
+    b.visitedAt.localeCompare(a.visitedAt) || b.createdAt.localeCompare(a.createdAt)
+  );
 }
 
 // ── In-memory implementation ─────────────────────────────────────────────────
@@ -132,7 +154,7 @@ export const memoryVisitReportStore: VisitReportStore = {
   async readForVenue(venueId) {
     const reports = Array.from(byId.values())
       .filter((r) => r.venueId === venueId && r.status === "visible")
-      .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+      .sort(byNewestVisit)
       .slice(0, MAX_VENUE_REPORTS)
       .map(toVisitReportDTO);
     return { status: "ready", reports };
@@ -152,6 +174,12 @@ export const memoryVisitReportStore: VisitReportStore = {
     return Array.from(byId.values())
       .filter((r) => (r.reportCount ?? 0) > 0 && !r.moderatedAt)
       .sort((a, b) => (b.reportedAt ?? b.createdAt).localeCompare(a.reportedAt ?? a.createdAt));
+  },
+
+  async listHidden() {
+    return Array.from(byId.values())
+      .filter((r) => r.status === "hidden")
+      .sort((a, b) => (b.moderatedAt ?? b.createdAt).localeCompare(a.moderatedAt ?? a.createdAt));
   },
 
   async report(id, reason, actorHash) {
@@ -329,6 +357,9 @@ export const supabaseVisitReportStore: VisitReportStore = {
           .select("*")
           .eq("venue_id", venueId)
           .eq("status", "visible")
+          // Same two-key order as the memory store (see byNewestVisit): the
+          // night first, the submission time only to break a tie.
+          .order("visited_at", { ascending: false })
           .order("created_at", { ascending: false })
           .limit(MAX_VENUE_REPORTS);
         if (error) throw new Error(error.message);
@@ -381,6 +412,25 @@ export const supabaseVisitReportStore: VisitReportStore = {
           .gt("report_count", 0)
           .is("moderated_at", null)
           .order("reported_at", { ascending: false });
+        if (error) throw new Error(error.message);
+        return (data ?? []).map((r) => fromRow(r as Record<string, unknown>));
+      },
+    });
+  },
+
+  async listHidden() {
+    return guard<VisitReport[]>({
+      context: "listHidden",
+      onSchemaMiss: () => memoryVisitReportStore.listHidden(),
+      message: "listHidden failed — returning empty lane",
+      onError: () => [],
+      run: async () => {
+        const { data, error } = await admin()
+          .from(TABLE)
+          .select("*")
+          .eq("status", "hidden")
+          .order("moderated_at", { ascending: false })
+          .limit(MAX_VENUE_REPORTS);
         if (error) throw new Error(error.message);
         return (data ?? []).map((r) => fromRow(r as Record<string, unknown>));
       },

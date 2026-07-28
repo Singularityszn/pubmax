@@ -7,6 +7,7 @@
 //   GET  ?venueId=...        -> 200 { status, reports } (public, newest first)
 //   GET  ?contributor=...    -> 200 { contributor, count, status }
 //   GET  ?status=reported    -> 200 { reports } (moderator review queue)
+//   GET  ?status=hidden      -> 200 { reports } (moderator hidden lane)
 //
 // One VisitReportStore interface, two implementations (lib/visitReportsStore):
 // Supabase (public.structured_visit_reports) when env keys exist, process-memory
@@ -153,12 +154,17 @@ export async function POST(request: Request): Promise<Response> {
 export async function GET(request: Request): Promise<Response> {
   const params = new URL(request.url).searchParams;
 
-  // Moderator review queue: ?status=reported returns flagged, undecided rows.
+  // Moderator lanes: ?status=reported returns flagged, undecided rows;
+  // ?status=hidden returns the rows a moderator has already hidden, so a hide is
+  // reversible from the same surface that made it rather than by hand-posting an
+  // id the admin page no longer knows.
   const status = params.get("status");
-  if (status === "reported") {
+  if (status === "reported" || status === "hidden") {
     if (!isModerator(request)) return publicApiError("Not authorised.", "FORBIDDEN", 403);
+    const store = visitReportsStore();
     try {
-      const reports = await visitReportsStore().listForReview();
+      const reports =
+        status === "hidden" ? await store.listHidden() : await store.listForReview();
       return jsonNoStore({ reports }, { status: 200 });
     } catch (err) {
       log("error", "visit_reports.list_review_failed", {

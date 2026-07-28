@@ -20,6 +20,26 @@ describe("Visit Report venue surface", () => {
     expect(panel).not.toContain("summary");
   });
 
+  it("mirrors the server's visit window in the composer rather than inventing one", () => {
+    const panel = source("components/visits/VisitReportPanel.tsx");
+
+    // Both ends of the date input come from the domain core, so the card can
+    // never offer a night the route will refuse.
+    expect(panel).toContain("earliestVisitedAt");
+    expect(panel).toContain("min={earliest}");
+    expect(panel).toContain("max={tonight}");
+    expect(panel).toContain("MAX_VISIT_AGE_DAYS");
+  });
+
+  it("keeps a hidden visit report restorable from the moderator surface", () => {
+    const admin = source("app/admin/AdminClient.tsx");
+
+    // Hiding never deletes, so the surface that hides a row also lists it back.
+    expect(admin).toContain("/api/visit-reports?status=hidden");
+    expect(admin).toContain("Hidden visit reports");
+    expect(admin).toMatch(/decideVisitReport\(v, "restore", "hidden"\)/);
+  });
+
   it("mounts the shared lane in the map venue sheet", () => {
     const storyTab = source("components/map/inspector/VenueStoryTab.tsx");
 

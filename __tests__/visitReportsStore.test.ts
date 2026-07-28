@@ -27,6 +27,7 @@ vi.mock("@/lib/supabase", () => {
       patch: Row | null;
       filters: { col: string; value: unknown }[];
       greaterThan: { col: string; value: number }[];
+      orders: { col: string; ascending: boolean }[];
       single: boolean;
       headCount: boolean;
     } = {
@@ -35,6 +36,7 @@ vi.mock("@/lib/supabase", () => {
       patch: null,
       filters: [],
       greaterThan: [],
+      orders: [],
       single: false,
       headCount: false,
     };
@@ -64,7 +66,16 @@ vi.mock("@/lib/supabase", () => {
       }
       if (state.headCount) return { data: null, count: rows.length, error: null };
       if (state.single) return { data: rows[0] ?? null, error: null };
-      return { data: rows, error: null };
+      // Honour .order() the way Postgres does (each key in the order it was
+      // added) so the durable read's ordering is actually under test.
+      const ordered = [...rows].sort((a, b) => {
+        for (const { col, ascending } of state.orders) {
+          const cmp = String(a[col] ?? "").localeCompare(String(b[col] ?? ""));
+          if (cmp !== 0) return ascending ? cmp : -cmp;
+        }
+        return 0;
+      });
+      return { data: ordered, error: null };
     };
 
     const q: Record<string, unknown> = {
@@ -95,7 +106,8 @@ vi.mock("@/lib/supabase", () => {
         state.filters.push({ col, value });
         return q;
       },
-      order() {
+      order(col: string, options?: { ascending?: boolean }) {
+        state.orders.push({ col, ascending: options?.ascending !== false });
         return q;
       },
       limit() {
@@ -168,6 +180,34 @@ describe("memoryVisitReportStore", () => {
     expect((await memoryVisitReportStore.readForVenue("venue-1")).reports).toHaveLength(2);
   });
 
+  it("orders a venue read by the night, not by when it was submitted", async () => {
+    // The two keys DISAGREE: the older night is written up last. A row prints
+    // its visit date and nothing else, so submission order would read as broken.
+    await memoryVisitReportStore.create(
+      fields({ handle: "later-night", visitedAt: "2026-07-21" }),
+      1_000,
+    );
+    await memoryVisitReportStore.create(
+      fields({ handle: "older-night", visitedAt: "2026-07-19" }),
+      2_000,
+    );
+    const read = await memoryVisitReportStore.readForVenue("venue-1");
+    expect(read.reports.map((r) => r.visitedAt)).toEqual(["2026-07-21", "2026-07-19"]);
+  });
+
+  it("breaks a same-night tie on the newest submission", async () => {
+    await memoryVisitReportStore.create(
+      fields({ handle: "first", visitedAt: "2026-07-20" }),
+      1_000,
+    );
+    await memoryVisitReportStore.create(
+      fields({ handle: "second", visitedAt: "2026-07-20" }),
+      2_000,
+    );
+    const read = await memoryVisitReportStore.readForVenue("venue-1");
+    expect(read.reports.map((r) => r.handle)).toEqual(["second", "first"]);
+  });
+
   it("queues flags without letting readers erase a report", async () => {
     const dto = await memoryVisitReportStore.create(fields());
     expect(await memoryVisitReportStore.report(dto.id, "spam", "actor-a")).toBe(true);
@@ -189,6 +229,21 @@ describe("memoryVisitReportStore", () => {
     expect(await memoryVisitReportStore.moderate(dto.id, "hidden", "abuse")).toBe(true);
     expect((await memoryVisitReportStore.readForVenue("venue-1")).reports).toHaveLength(0);
     expect(await memoryVisitReportStore.listForReview()).toHaveLength(0);
+  });
+
+  it("keeps a hidden report listed so a moderator can restore it", async () => {
+    const dto = await memoryVisitReportStore.create(fields());
+    await memoryVisitReportStore.moderate(dto.id, "hidden", "abuse");
+
+    // A hide leaves the review queue but never disappears: the hidden lane
+    // carries the identity (and the decision) needed to put it back.
+    const hidden = await memoryVisitReportStore.listHidden();
+    expect(hidden.map((r) => r.id)).toEqual([dto.id]);
+    expect(hidden[0]).toMatchObject({ handle: "sam", visitedAt: "2026-07-20", moderatorNote: "abuse" });
+
+    expect(await memoryVisitReportStore.moderate(dto.id, "visible")).toBe(true);
+    expect(await memoryVisitReportStore.listHidden()).toHaveLength(0);
+    expect((await memoryVisitReportStore.readForVenue("venue-1")).reports).toHaveLength(1);
   });
 
   it("re-queues a kept report when a new reader flags it after the decision", async () => {
@@ -267,6 +322,40 @@ describe("supabaseVisitReportStore", () => {
     await supabaseVisitReportStore.moderate(kept.id, "hidden", "abuse");
     await supabaseVisitReportStore.report(kept.id, undefined, "c");
     expect(await supabaseVisitReportStore.listForReview()).toHaveLength(0);
+  });
+
+  it("reads a venue by the night, with the submission time only as a tie-break", async () => {
+    // Disagreeing keys again, this time through the durable read's ORDER BY.
+    await supabaseVisitReportStore.create(
+      fields({ handle: "later-night", visitedAt: "2026-07-21" }),
+      1_000,
+    );
+    await supabaseVisitReportStore.create(
+      fields({ handle: "older-night", visitedAt: "2026-07-19" }),
+      2_000,
+    );
+    await supabaseVisitReportStore.create(
+      fields({ handle: "same-night-newer", visitedAt: "2026-07-21" }),
+      3_000,
+    );
+    const read = await supabaseVisitReportStore.readForVenue("venue-1");
+    expect(read.reports.map((r) => r.handle)).toEqual([
+      "same-night-newer",
+      "later-night",
+      "older-night",
+    ]);
+  });
+
+  it("lists hidden rows so a moderator can restore one", async () => {
+    const dto = await supabaseVisitReportStore.create(fields());
+    await supabaseVisitReportStore.moderate(dto.id, "hidden", "abuse");
+    const hidden = await supabaseVisitReportStore.listHidden();
+    expect(hidden.map((r) => r.id)).toEqual([dto.id]);
+    expect(hidden[0].moderatorNote).toBe("abuse");
+
+    await supabaseVisitReportStore.moderate(dto.id, "visible");
+    expect(await supabaseVisitReportStore.listHidden()).toHaveLength(0);
+    expect((await supabaseVisitReportStore.readForVenue("venue-1")).reports).toHaveLength(1);
   });
 
   it("counts visible rows for a contributor", async () => {

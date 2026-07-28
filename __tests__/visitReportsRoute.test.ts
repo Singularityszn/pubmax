@@ -22,8 +22,16 @@ function post(body: unknown, ip = "203.0.113.9"): Request {
   });
 }
 
-function get(qs: string): Request {
-  return new Request(`http://localhost/api/visit-reports${qs}`, { method: "GET" });
+function get(qs: string, adminToken?: string): Request {
+  const request = new Request(`http://localhost/api/visit-reports${qs}`, { method: "GET" });
+  if (adminToken) request.headers.set("x-admin-token", adminToken);
+  return request;
+}
+
+// The route validates against the REAL clock, so a night it posts has to be
+// relative to today rather than a literal that ages out of the 90-day window.
+function dayKey(daysAgo: number): string {
+  return new Date(Date.now() - daysAgo * 86_400_000).toISOString().slice(0, 10);
 }
 
 beforeEach(() => {
@@ -45,7 +53,7 @@ describe("POST /api/visit-reports (create)", () => {
       post({
         venueId: "venue-1",
         handle: "sam",
-        visitedAt: "2026-07-20",
+        visitedAt: dayKey(2),
         busyness: "steady",
         noise: "easy-to-talk",
       }),
@@ -54,6 +62,15 @@ describe("POST /api/visit-reports (create)", () => {
     const data = (await res.json()) as { report: { id: string; handle: string } };
     expect(data.report.handle).toBe("sam");
     expect((await memoryVisitReportStore.readForVenue("venue-1")).reports).toHaveLength(1);
+  });
+
+  it("400s a night outside the 90-day window before the store is touched", async () => {
+    const res = await POST(
+      post({ venueId: "venue-1", handle: "sam", visitedAt: dayKey(200), busyness: "steady" }),
+    );
+    expect(res.status).toBe(400);
+    expect(await res.json()).toMatchObject({ code: "INVALID_REPORT" });
+    expect((await memoryVisitReportStore.readForVenue("venue-1")).reports).toHaveLength(0);
   });
 
   it("returns a retryable 503 when report persistence is unavailable", async () => {
@@ -174,12 +191,14 @@ describe("GET /api/visit-reports", () => {
       serviceWait: "quick" as const,
       note: "",
     };
+    // The two keys DISAGREE: the older night is submitted last. A row shows its
+    // visit date only, so the lane orders on the night, not on the submission.
     await memoryVisitReportStore.create(
-      { ...base, handle: "user0", visitedAt: "2026-07-19" },
+      { ...base, handle: "user1", visitedAt: "2026-07-20" },
       1,
     );
     await memoryVisitReportStore.create(
-      { ...base, handle: "user1", visitedAt: "2026-07-20" },
+      { ...base, handle: "user0", visitedAt: "2026-07-19" },
       2,
     );
     const res = await GET(get("?venueId=venue-2"));
@@ -220,5 +239,41 @@ describe("GET /api/visit-reports", () => {
 
   it("403s the moderator queue without the admin token", async () => {
     expect((await GET(get("?status=reported"))).status).toBe(403);
+    expect((await GET(get("?status=hidden"))).status).toBe(403);
+  });
+
+  it("lists hidden reports with the identity a moderator restores them by", async () => {
+    const created = await POST(post({ venueId: "venue-3", handle: "sam", busyness: "rammed" }));
+    const { report } = (await created.json()) as { report: { id: string } };
+
+    const hide = post({ action: "hide", id: report.id, note: "abuse" });
+    hide.headers.set("x-admin-token", "test-admin-secret");
+    expect((await POST(hide)).status).toBe(200);
+    expect((await memoryVisitReportStore.readForVenue("venue-3")).reports).toHaveLength(0);
+
+    // The hidden lane is the only place the id survives a hide, so this is what
+    // makes the decision reversible from the admin surface.
+    const listed = await GET(get("?status=hidden", "test-admin-secret"));
+    expect(listed.status).toBe(200);
+    const body = (await listed.json()) as {
+      reports: { id: string; venueId: string; handle: string; visitedAt: string }[];
+    };
+    expect(body.reports).toHaveLength(1);
+    expect(body.reports[0]).toMatchObject({
+      id: report.id,
+      venueId: "venue-3",
+      handle: "sam",
+    });
+    expect(body.reports[0].visitedAt).toBeTruthy();
+
+    const restore = post({ action: "restore", id: body.reports[0].id });
+    restore.headers.set("x-admin-token", "test-admin-secret");
+    expect((await POST(restore)).status).toBe(200);
+    // Restored means back on PUBLIC reads, not just out of the hidden lane.
+    expect((await memoryVisitReportStore.readForVenue("venue-3")).reports).toHaveLength(1);
+    const after = (await (await GET(get("?status=hidden", "test-admin-secret"))).json()) as {
+      reports: unknown[];
+    };
+    expect(after.reports).toHaveLength(0);
   });
 });

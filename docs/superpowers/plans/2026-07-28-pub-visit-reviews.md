@@ -346,5 +346,7 @@ State:
 - Why 140 characters is the format boundary.
 - Why the venue read shows contributor claims and visit dates, never verified facts.
 - How `GET /api/visit-reports?contributor=<handle>` exposes the visible count.
-- V1 moderation gap: one owner queue, reactive flags, no appeals, notifications, or proactive text triage.
+- Why the venue lane sorts on `visitedAt` (with `createdAt` as the deterministic tie-break): a row prints the visit date alone, so ordering on submission time would read as out of order.
+- The 90-calendar-day bound on `visitedAt` and why it exists: sorting on the visited date makes it authority-bearing, so an unbounded past date would hand one submission the top of a pub's page indefinitely, and a night from years ago describes a room that may no longer exist. Both ends are inclusive (today and exactly 90 days ago are in, tomorrow and 91 days ago are out), it is enforced server-side in `resolveVisitedAt`, and the composer's `min`/`max` only mirror it.
+- V1 moderation gap: one owner queue, reactive flags, no appeals, notifications, or proactive text triage. Hide and restore are both reachable from `/admin` — hidden rows keep their own lane (`GET ?status=hidden`) so a decision is reversible without hand-posting an id.
 - Exact 390px screenshot path and verification commands.

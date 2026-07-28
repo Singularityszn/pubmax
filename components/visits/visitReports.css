@@ -255,6 +255,12 @@
   line-height: 1.4;
 }
 
+.visitReportDate small {
+  color: var(--color-text-muted, var(--muted, #6b6b6b));
+  font-size: 0.72rem;
+  font-weight: 400;
+}
+
 .visitReportNoteWrap small {
   justify-self: end;
   color: var(--color-text-muted, var(--muted, #6b6b6b));

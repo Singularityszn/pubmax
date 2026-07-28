@@ -8,7 +8,9 @@ import { useEffect, useRef, useState } from "react";
 
 import {
   BUSYNESS_VALUES,
+  earliestVisitedAt,
   londonEveningKey,
+  MAX_VISIT_AGE_DAYS,
   MAX_VISIT_NOTE,
   NOISE_VALUES,
   SEATING_VALUES,
@@ -182,6 +184,9 @@ export default function VisitReportPanel({
 
 function VenueVisitReports({ venueId, venueName, active = true }: VisitReportPanelProps) {
   const tonight = londonEveningKey(new Date());
+  // The composer MIRRORS the server's window (lib/visitReports); it never
+  // replaces it, so a post that skips this card meets the same bound.
+  const earliest = earliestVisitedAt(new Date());
   const [read, setRead] = useState<VisitReportVenueRead | null>(null);
   const [handle, setHandle] = useState("");
   const [handleRemembered, setHandleRemembered] = useState(false);
@@ -233,6 +238,13 @@ function VenueVisitReports({ venueId, venueName, active = true }: VisitReportPan
     }
     if (!visitedAt) {
       setFeedback({ kind: "error", text: "Add the day you were there." });
+      return;
+    }
+    if (visitedAt > tonight || visitedAt < earliest) {
+      setFeedback({
+        kind: "error",
+        text: `Pick the day you were there, from the last ${MAX_VISIT_AGE_DAYS} days.`,
+      });
       return;
     }
     if (!hasDraft) {
@@ -350,9 +362,11 @@ function VenueVisitReports({ venueId, venueName, active = true }: VisitReportPan
             <input
               type="date"
               value={visitedAt}
+              min={earliest}
               max={tonight}
               onChange={(event) => setVisitedAt(event.target.value)}
             />
+            <small>Visits from the last {MAX_VISIT_AGE_DAYS} days.</small>
           </label>
 
           <ChoiceGroup

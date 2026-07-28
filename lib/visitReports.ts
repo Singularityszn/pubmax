@@ -43,6 +43,20 @@ export type ServiceWait = (typeof SERVICE_WAIT_VALUES)[number];
 /** A note is a courtesy line, not an essay. 140 chars keeps it a caption. */
 export const MAX_VISIT_NOTE = 140;
 
+/**
+ * How far back a visit may be written up, in calendar days.
+ *
+ * The visited date is authority-bearing: the public lane sorts on it, so the
+ * day someone types decides what a reader sees first. An unbounded past date
+ * therefore hands one submission the top of a pub's page for as long as it
+ * likes, and a night from years ago describes a room that may no longer exist.
+ * Ninety days keeps the lane an account of the pub as it is now while still
+ * covering a visit someone writes up long after the night itself.
+ */
+export const MAX_VISIT_AGE_DAYS = 90;
+
+const DAY_MS = 24 * 60 * 60 * 1000;
+
 const MAX_VENUE_ID = 64;
 const MAX_HANDLE = 40;
 
@@ -161,10 +175,25 @@ export function londonEveningKey(instant: Date | number = new Date()): string {
 }
 
 /**
+ * The oldest evening a report may be written up for, as a London evening key.
+ * Calendar-day arithmetic on the day key itself (never on a wall-clock instant),
+ * so today is always in range whatever the time of day, and exactly
+ * MAX_VISIT_AGE_DAYS ago is the last day that still counts. Pure.
+ */
+export function earliestVisitedAt(now: Date = new Date()): string {
+  const today = londonEveningKey(now);
+  const ms = Date.parse(`${today}T00:00:00Z`);
+  if (!Number.isFinite(ms)) return "";
+  return new Date(ms - MAX_VISIT_AGE_DAYS * DAY_MS).toISOString().slice(0, 10);
+}
+
+/**
  * Resolve an untrusted `visitedAt` to a London evening day key, or null when it
  * is unusable. A bare YYYY-MM-DD is taken as the evening date verbatim (the
  * capture card sends this); a full timestamp is folded through londonEveningKey.
- * A future evening is rejected (you can't report a night that hasn't happened).
+ * A future evening is rejected (you can't report a night that hasn't happened),
+ * and so is one older than MAX_VISIT_AGE_DAYS — this is the SERVER's window, not
+ * the composer's, so a hand-rolled POST meets the same bound as the date input.
  * Omitted → tonight's evening.
  */
 export function resolveVisitedAt(value: unknown, now: Date = new Date()): string | null {
@@ -185,6 +214,9 @@ export function resolveVisitedAt(value: unknown, now: Date = new Date()): string
   if (!key) return null;
   // No future nights.
   if (key > todayEvening) return null;
+  // No nights older than the window (calendar days, both ends inclusive).
+  const earliest = earliestVisitedAt(now);
+  if (earliest && key < earliest) return null;
   return key;
 }
 
@@ -223,7 +255,12 @@ export function validateVisitReport(input: unknown, now: Date = new Date()): Val
   if (!handle) return { ok: false, error: "Add a contributor handle." };
 
   const visitedAt = resolveVisitedAt(raw.visitedAt, now);
-  if (!visitedAt) return { ok: false, error: "That visit date isn't valid." };
+  if (!visitedAt) {
+    return {
+      ok: false,
+      error: `Pick the day you were there, from the last ${MAX_VISIT_AGE_DAYS} days.`,
+    };
+  }
 
   // Slop-filter the note at write time (lib/slopFilter): a note that reads as
   // marketing slop renders/stores nothing, exactly like the venue-story seam.

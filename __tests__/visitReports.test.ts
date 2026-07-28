@@ -5,8 +5,10 @@ import {
   cleanNoise,
   cleanSeating,
   cleanServiceWait,
+  earliestVisitedAt,
   hasSignal,
   londonEveningKey,
+  MAX_VISIT_AGE_DAYS,
   MAX_VISIT_NOTE,
   normalizeHandle,
   resolveVisitedAt,
@@ -69,6 +71,25 @@ describe("londonEveningKey / resolveVisitedAt", () => {
     expect(resolveVisitedAt("2026-13-40", NOW)).toBeNull();
     expect(resolveVisitedAt("not-a-date", NOW)).toBeNull();
   });
+
+  it("holds the 90-calendar-day window at both ends", () => {
+    // The visited date is authority-bearing (the public lane sorts on it), so
+    // the window is calendar days, both ends inclusive. NOW is the evening of
+    // 2026-07-21, so 90 days back is 2026-04-22.
+    expect(MAX_VISIT_AGE_DAYS).toBe(90);
+    expect(earliestVisitedAt(NOW)).toBe("2026-04-22");
+
+    // Today: in, whatever the time of day (a midday and a late-night NOW both
+    // accept their own evening date).
+    expect(resolveVisitedAt("2026-07-21", NOW)).toBe("2026-07-21");
+    expect(resolveVisitedAt("2026-07-21", new Date("2026-07-21T11:00:00Z"))).toBe("2026-07-21");
+    // Exactly 90 days ago: the last night that still counts.
+    expect(resolveVisitedAt("2026-04-22", NOW)).toBe("2026-04-22");
+    // 91 days ago: out.
+    expect(resolveVisitedAt("2026-04-21", NOW)).toBeNull();
+    // Tomorrow: out (a night that hasn't happened).
+    expect(resolveVisitedAt("2026-07-22", NOW)).toBeNull();
+  });
 });
 
 describe("hasSignal", () => {
@@ -118,6 +139,19 @@ describe("validateVisitReport", () => {
       serviceWait: "long",
       visitedAt: londonEveningKey(NOW),
     });
+  });
+
+  it("refuses a night outside the window whatever else the body carries", () => {
+    const base = { venueId: "v1", handle: "sam", busyness: "steady" };
+    // The bound is enforced HERE, in the domain core the route calls, so a
+    // hand-rolled POST that skips the composer meets the same window.
+    for (const visitedAt of ["2026-04-21", "2026-07-22"]) {
+      const result = validateVisitReport({ ...base, visitedAt }, NOW);
+      expect(result.ok).toBe(false);
+      if (result.ok) return;
+      expect(result.error).toContain(`last ${MAX_VISIT_AGE_DAYS} days`);
+    }
+    expect(validateVisitReport({ ...base, visitedAt: "2026-04-22" }, NOW).ok).toBe(true);
   });
 
   it("drops an off-allowlist field to null rather than storing it raw", () => {

@@ -203,8 +203,11 @@ Plan member capability and use idempotency keys or atomic store operations.
   required; every structured field is coerced to a fixed allowlist (unknown →
   null, mirrored by the DB CHECK constraints in migrations 0046 and 0058); the note is
   cleaned, capped at 140 chars, and **slop-filtered at write time**
-  (`lib/slopFilter`); `visitedAt` resolves to a London "evening date" and a
-  future night is rejected; at least ONE signal must survive or the body 400s
+  (`lib/slopFilter`); `visitedAt` resolves to a London "evening date", and a
+  future night or one older than `MAX_VISIT_AGE_DAYS` (90 calendar days, both
+  ends inclusive) is rejected — the date is authority-bearing because the public
+  lane sorts on it, so the window is enforced HERE and the composer's `min`/`max`
+  only mirror it; at least ONE signal must survive or the body 400s
   (`INVALID_REPORT`) before the limiter/store is touched.
 - **Rate limit (boundary):** durable per-handle + hashed-IP `isLimited` with key
   `visit-report:${handle}:${hashIp(clientIp(request))}` (raw IP never keyed) —
@@ -216,7 +219,10 @@ Plan member capability and use idempotency keys or atomic store operations.
   per-actor-deduped flag but never changes visibility; this prevents an
   anonymous flag from becoming a one-tap eraser. Flagged, undecided rows surface
   in the admin moderation queue (`GET ?status=reported`), where a moderator can
-  keep one visible or hide it without deleting its provenance.
+  keep one visible or hide it without deleting its provenance. A hide is
+  reversible from the same surface that made it: hidden rows keep their own
+  moderator lane (`GET ?status=hidden`), carrying the identity a `restore` needs
+  to put the account back on public reads.
 - **Auth stance:** the self-asserted handle resolved through
   `resolveMessageHandle` (JWT-linked handle wins when signed in) and gated by
   `gateHandleAction` — the same demo identity boundary as a Pint Drop, rating, or
