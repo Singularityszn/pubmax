@@ -177,12 +177,36 @@ describe("runtime data-pack tracing", () => {
         'export const read = (name: string) => readFile(path.join(process.cwd(), name), "utf8");\n',
     );
     writeFixture(
+      "lib/resolved.ts",
+      'import { readFile } from "node:fs/promises";\n' +
+        'import path from "node:path";\n' +
+        'import { FILE } from "@/lib/fileName";\n' +
+        'export const read = () => readFile(path.resolve(process.cwd(), FILE), "utf8");\n',
+    );
+    writeFixture(
+      "lib/templated.ts",
+      'import { readFile } from "node:fs/promises";\n' +
+        'import { FILE } from "@/lib/fileName";\n' +
+        "export const read = () => readFile(`${process.cwd()}/public/${FILE}`, \"utf8\");\n",
+    );
+    writeFixture(
+      "lib/templatedLiteral.ts",
+      'import { readFile } from "node:fs/promises";\n' +
+        "export const read = () =>\n" +
+        "  readFile(`${process.cwd()}/public/data/fixed.json`, \"utf8\");\n",
+    );
+    writeFixture(
       "app/reader/page.tsx",
-      'import "@/lib/assembled";\nimport "@/lib/literal";\n' +
+      'import "@/lib/assembled";\nimport "@/lib/literal";\nimport "@/lib/resolved";\n' +
+        'import "@/lib/templated";\nimport "@/lib/templatedLiteral";\n' +
         "export default function Page() { return null; }\n",
     );
 
-    expect(discoverRuntimePathModules(temporaryRoots[0])).toEqual(["lib/assembled.ts"]);
+    expect(discoverRuntimePathModules(temporaryRoots[0])).toEqual([
+      "lib/assembled.ts",
+      "lib/resolved.ts",
+      "lib/templated.ts",
+    ]);
   });
 
   it("accounts for every runtime-assembled data read a route can reach", () => {
