@@ -346,6 +346,27 @@ describe("GET /api/price-submit", () => {
     expect(JSON.stringify(body)).not.toContain("priceGbp");
   });
 
+  it("budgets the provisional base read like the paths that write (429)", async () => {
+    // The one unauthenticated read here that pages the store per request, and
+    // answers no-store so nothing is shared between callers. It gets the same
+    // per-actor plumbing every mutating branch on this route uses.
+    let limited = 0;
+    for (let index = 0; index < 62; index += 1) {
+      const response = await GET(
+        get(`?scope=provisional-base&venueId=venue-uk-n${index}`),
+      );
+      if (response.status === 429) {
+        limited += 1;
+        expect(((await response.json()) as { error: string }).error).toContain(
+          "slow down",
+        );
+      } else {
+        expect(response.status, `read ${index + 1}`).toBe(200);
+      }
+    }
+    expect(limited).toBeGreaterThan(0);
+  });
+
   it("rejects curated ids and an over-limit provisional base request", async () => {
     expect(
       (

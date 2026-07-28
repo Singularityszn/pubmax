@@ -314,4 +314,18 @@ describe("communityReachNote", () => {
       expect(communityReachNote(category)).toMatch(/pub's page/i);
     }
   });
+
+  it("promises a base pin its mark and never a map move", () => {
+    // The person this recruits is logging the first price their town has ever
+    // had. The mark is real, so promise it; the pin colour never comes, so a
+    // "second drinker moves the map" here would be a promise we cannot keep.
+    const note = communityReachNote("beer", "mark");
+    expect(note).toMatch(/marks this pub's pin/i);
+    expect(note).not.toMatch(/moves the map/i);
+    expect(communityReachNote("beer", "page")).not.toMatch(/map/i);
+    for (const category of SUBMITTABLE_DRINK_CATEGORIES) {
+      if (category === "beer") continue;
+      expect(communityReachNote(category, "mark")).not.toMatch(/moves the map/i);
+    }
+  });
 });

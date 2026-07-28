@@ -81,7 +81,30 @@ export function mergeCommunityPriceSignals<S extends PricedVenueSignal>(
 }
 
 /** Shared empty result, so "nothing pending" is one stable identity. */
-const NO_PROVISIONAL_VENUES: ReadonlySet<string> = new Set();
+export const NO_PROVISIONAL_VENUES: ReadonlySet<string> = new Set();
+
+/**
+ * Membership of a provisional id set, collapsed to one order-independent
+ * string.
+ *
+ * The set's IDENTITY is load-bearing, not just its contents: it is threaded
+ * into the UK base layer's publish callback, where a new Set identity
+ * re-resolves the viewport and re-`setData`s every base pin. A combiner that
+ * allocates per render would restream the whole base layer every time an
+ * unrelated venue sheet loaded. Keying the memo on this string instead is what
+ * makes "same members" mean "same object", with no ref read during render.
+ *
+ * NUL is the one separator no venue id can carry: every id is cleaned of
+ * control characters (lib/communityPrice.ts) before it is stored or read back.
+ */
+export function provisionalVenueIdKey(venueIds: Iterable<string>): string {
+  return [...venueIds].sort().join("\u0000");
+}
+
+/** The set a key stands for, sharing one identity for "nothing pending". */
+export function provisionalVenueIdsFromKey(key: string): ReadonlySet<string> {
+  return key === "" ? NO_PROVISIONAL_VENUES : new Set(key.split("\u0000"));
+}
 
 /**
  * The venues wearing a PROVISIONAL mark: at least one in-window pint report

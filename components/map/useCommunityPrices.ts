@@ -422,54 +422,60 @@ export function useCommunityPrices(): CommunityPricesState {
           unread.slice(index, index + MAX_PROVISIONAL_BASE_VENUE_IDS),
         );
       }
-      void Promise.all(
-        chunks.map(async (chunk) => {
-          const query = new URLSearchParams({ scope: "provisional-base" });
-          for (const venueId of chunk) query.append("venueId", venueId);
-          const response = await fetch(`/api/price-submit?${query.toString()}`);
-          if (!response.ok) throw new Error("provisional base read unavailable");
-          return readProvisionalVenueIdsLoad(
-            await response.json(),
-            new Set(chunk),
-          );
-        }),
-      )
-        .then((loads) => {
-          for (const venueId of unread) {
+      void (async () => {
+        let changed = false;
+        let incomplete = false;
+        // ONE chunk in flight at a time. A dense central viewport carries
+        // hundreds of base pubs, so firing every chunk at once turns a single
+        // settled camera into a burst against an unauthenticated read whose
+        // per-actor budget is sized for a session's browsing, not one frame of
+        // it. Sequential costs a beat on a badge and caps the burst at one.
+        for (const chunk of chunks) {
+          let load: ProvisionalVenueIdsLoad;
+          try {
+            const query = new URLSearchParams({ scope: "provisional-base" });
+            for (const venueId of chunk) query.append("venueId", venueId);
+            const response = await fetch(
+              `/api/price-submit?${query.toString()}`,
+            );
+            if (!response.ok) throw new Error("provisional base read unavailable");
+            load = readProvisionalVenueIdsLoad(
+              await response.json(),
+              new Set(chunk),
+            );
+          } catch {
+            load = { status: "invalid", venueIds: [] };
+          }
+          for (const venueId of chunk) {
             provisionalBasePending.current.delete(venueId);
           }
-          if (loads.some((load) => load.status !== "ready")) {
-            if (provisionalBaseSignature.current === signature) {
-              provisionalBaseSignature.current = "";
-            }
-            return;
+          if (load.status !== "ready") {
+            // A degraded or unreadable answer is not "no marks here". Leaving
+            // these ids unknown is what lets a later settle ask again, per
+            // chunk, rather than a single bad chunk discarding the ones that
+            // did answer.
+            incomplete = true;
+            continue;
           }
-          for (const venueId of unread) {
+          for (const venueId of chunk) {
             provisionalBaseKnown.current.add(venueId);
           }
-          let changed = false;
-          for (const load of loads) {
-            for (const venueId of load.venueIds) {
-              if (provisionalBaseMarked.current.has(venueId)) continue;
-              provisionalBaseMarked.current.add(venueId);
-              changed = true;
-            }
+          for (const venueId of load.venueIds) {
+            if (provisionalBaseMarked.current.has(venueId)) continue;
+            provisionalBaseMarked.current.add(venueId);
+            changed = true;
           }
-          // Negative reads extend the cache without republishing the base
-          // source. An identical Set with a new identity would restart its
-          // viewport stream and turn one settled read into a feedback loop.
-          if (changed) {
-            setProvisionalBaseVenueIds(new Set(provisionalBaseMarked.current));
-          }
-        })
-        .catch(() => {
-          for (const venueId of unread) {
-            provisionalBasePending.current.delete(venueId);
-          }
-          if (provisionalBaseSignature.current === signature) {
-            provisionalBaseSignature.current = "";
-          }
-        });
+        }
+        // Negative reads extend the cache without republishing the base
+        // source. An identical Set with a new identity would restart its
+        // viewport stream and turn one settled read into a feedback loop.
+        if (changed) {
+          setProvisionalBaseVenueIds(new Set(provisionalBaseMarked.current));
+        }
+        if (incomplete && provisionalBaseSignature.current === signature) {
+          provisionalBaseSignature.current = "";
+        }
+      })();
     },
     [],
   );

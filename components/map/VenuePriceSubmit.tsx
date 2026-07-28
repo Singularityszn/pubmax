@@ -13,6 +13,7 @@ import {
   submitCategoryLabel,
   SUBMITTABLE_DRINK_CATEGORIES,
   type CommunityPrice,
+  type CommunityPriceMapReach,
 } from "@/lib/communityPrice";
 import { formatPriceGbp, QUICK_ADD_PRICES_GBP } from "@/lib/spill";
 import { mergePriceChips } from "@/lib/spillPreview";
@@ -57,11 +58,12 @@ type VenuePriceSubmitProps = {
    */
   latestPintDropAt?: number | null;
   /**
-   * Can this pub's pin carry community price state at all? Curated venues can
-   * by default. A caller passes false only when its surface cannot draw either
-   * the provisional mark or an authoritative community price.
+   * How far this pub's pin can carry a community price. Curated venues paint
+   * (mark now, colour once corroborated). A UK base pin passes "mark": the dot
+   * really does draw, and no corroboration ever gives it a colour, so the
+   * receipt must claim the first and never the second.
    */
-  canMarkMap?: boolean;
+  mapReach?: CommunityPriceMapReach;
 };
 
 /**
@@ -81,7 +83,7 @@ export default function VenuePriceSubmit({
   communityPrices,
   baselinePriceGbp = null,
   latestPintDropAt = null,
-  canMarkMap = true,
+  mapReach = "paint",
 }: VenuePriceSubmitProps) {
   const [category, setCategory] = useState<DrinkCategory>(DEFAULT_SUBMIT_CATEGORY);
   const [price, setPrice] = useState("");
@@ -132,10 +134,10 @@ export default function VenuePriceSubmit({
   // itself obeys - `paintsMap` for the price, `marksMapProvisionally` for the
   // badge - so the receipt can never claim a reach the pin does not have.
   const markedProvisionally =
-    canMarkMap && stamped ? marksMapProvisionally(stamped) : false;
+    mapReach !== "page" && stamped ? marksMapProvisionally(stamped) : false;
   const stampStanding = !stamped
     ? ""
-    : canMarkMap && paintsMap(stamped, latestPintDropAt)
+    : mapReach === "paint" && paintsMap(stamped, latestPintDropAt)
       ? "On the map"
       : markedProvisionally
         ? "Marked on the map"
@@ -280,8 +282,10 @@ export default function VenuePriceSubmit({
           {markedProvisionally ? (
             <p className="vpsubStampHint">
               <i className="vpsubStampDot" aria-hidden="true" />
-              Its pin now carries this dot. A second drinker logging the same
-              price is what sets the pin&rsquo;s colour.
+              Its pin now carries this dot.{" "}
+              {mapReach === "paint"
+                ? "A second drinker logging the same price is what sets the pin’s colour."
+                : "A second drinker logging the same price confirms the figure here."}
             </p>
           ) : null}
         </div>
@@ -289,7 +293,7 @@ export default function VenuePriceSubmit({
         <p className="vpsubNote">
           Anyone can log a price. Yours shows on this pub&rsquo;s page straight
           away, dated and badged as community - it never replaces the price on
-          record. {communityReachNote(category)} Up to £
+          record. {communityReachNote(category, mapReach)} Up to £
           {COMMUNITY_PRICE_MAX_GBP} a drink.
         </p>
       )}

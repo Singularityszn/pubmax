@@ -60,6 +60,15 @@ import { lookupCanonicalVenue } from "@/lib/venueIndex";
 import { isPubVenueKind } from "@/lib/venueKindFilters";
 import { readString } from "@/lib/textClean";
 
+/**
+ * Per-actor budget for the provisional-base visibility read. One request covers
+ * up to MAX_PROVISIONAL_BASE_VENUE_IDS pubs and the client asks only for ids it
+ * has not already read, so this covers a long session of panning while still
+ * capping what one device can pull out of the store.
+ */
+const PROVISIONAL_BASE_READ_LIMIT = 60;
+const PROVISIONAL_BASE_READ_WINDOW_MS = 60_000;
+
 export async function POST(request: Request): Promise<Response> {
   let body: Record<string, unknown>;
   try {
@@ -209,6 +218,28 @@ export async function GET(request: Request): Promise<Response> {
         return jsonNoStore(
           { error: "Pick pubs from the visible map." },
           { status: 400 },
+        );
+      }
+      // Budget it like every mutating path here. This branch is
+      // unauthenticated, answers `no-store` so nothing is shared between
+      // callers, and pages the durable store per request - unlike the two GET
+      // branches below it, where a venue read is one bounded query and the
+      // lens index is process-memoised. Panning the map is the honest caller
+      // and it reads only ids it has not seen, so a minute's browsing sits
+      // well inside this; a scripted sweep of the country does not.
+      const readActor = deriveCommunityPriceActor(request);
+      const readLimitKey = `provisional-base:${readActor ?? "anon"}`;
+      if (
+        await isLimited(
+          readLimitKey,
+          readLimitKey,
+          PROVISIONAL_BASE_READ_LIMIT,
+          PROVISIONAL_BASE_READ_WINDOW_MS,
+        )
+      ) {
+        return jsonNoStore(
+          { error: "Too many map reads, slow down." },
+          { status: 429 },
         );
       }
       const result = await readProvisionalCommunityPriceVenueIds(venueIds);

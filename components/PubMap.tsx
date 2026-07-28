@@ -142,6 +142,8 @@ import { useCommunityPrices } from "@/components/map/useCommunityPrices";
 import {
   mergeCommunityPriceSignals,
   provisionalCommunityPriceVenueIds,
+  provisionalVenueIdKey,
+  provisionalVenueIdsFromKey,
 } from "@/components/map/communityPriceSignals";
 import { useLiveDrops } from "@/components/map/useLiveDrops";
 import { useSheetDrag } from "@/components/map/useSheetDrag";
@@ -343,6 +345,16 @@ const BUILT_STORAGE_KEY = "pubmax_built_ids";
 const ONBOARDING_DISMISSED_KEY = "pubmax_onboarding_dismissed";
 const TONIGHT_OVERLAY_DISMISSED_KEY = "pubmaxx.tonightOverlay.dismissed";
 const EMPTY_ROUTE: Venue[] = [];
+
+/** Camera-settle debounce before one viewport's base pubs are read for marks. */
+const PROVISIONAL_BASE_SETTLE_MS = 1_000;
+/**
+ * How long a `?sel=venue-uk-*` arrival may hold that read back while it waits
+ * for its own pin to stream in. Bounded on purpose: an id the current shards no
+ * longer carry never arrives, and an unbounded wait would mute every base mark
+ * for the rest of the session.
+ */
+const PROVISIONAL_BASE_RESTORE_WAIT_MS = 8_000;
 
 const DETAIL_STATUS_STYLE: CSSProperties = {
   margin: "0 18px 10px",
@@ -667,7 +679,14 @@ export default function PubMap({
   // badge is guaranteed for the pub you just logged - the moment this exists to
   // deliver - and fills in for others as you open them, rather than pretending
   // to a city-wide pending feed the API does not serve.
-  const provisionalVenueIds = useMemo(() => {
+  //
+  // Combined through a membership KEY rather than straight into a Set, because
+  // this set's identity is load-bearing: it reaches the base layer's `publish`,
+  // where a new Set tears the viewport stream down and re-`setData`s every base
+  // pin. `freshestByVenueId` is rebuilt on every `loadVenue` - that is, on every
+  // curated sheet open - so allocating per render would restream the whole base
+  // layer each time anyone tapped a pin.
+  const provisionalVenueIdKeyValue = useMemo(() => {
     const local = provisionalCommunityPriceVenueIds(
       communityPrices.freshestByVenueId,
     );
@@ -680,11 +699,15 @@ export default function PubMap({
         combined.add(venueId);
       }
     }
-    return combined;
+    return provisionalVenueIdKey(combined);
   }, [
     communityPrices.freshestByVenueId,
     communityPrices.provisionalBaseVenueIds,
   ]);
+  const provisionalVenueIds = useMemo(
+    () => provisionalVenueIdsFromKey(provisionalVenueIdKeyValue),
+    [provisionalVenueIdKeyValue],
+  );
   // Live map pins (issue #37): refetch the drops layer on a new-drop signal (or
   // a 30s poll when realtime is unavailable). Self-contained, signal-only.
   useLiveDrops(pintDrops.refreshAllDrops);
@@ -1078,20 +1101,29 @@ export default function PubMap({
   const [renderedBasePubs, setRenderedBasePubs] = useState<UkBasePub[]>([]);
   const provisionalRestoreResolved = useRef(!ukBaseRestore);
   useEffect(() => {
-    if (!provisionalRestoreResolved.current) {
-      const targetVisible = renderedBasePubs.some(
-        (pub) => pub.id === ukBaseRestore?.id,
-      );
-      if (!targetVisible) return;
+    if (
+      !provisionalRestoreResolved.current &&
+      renderedBasePubs.some((pub) => pub.id === ukBaseRestore?.id)
+    ) {
       provisionalRestoreResolved.current = true;
     }
     // A restore fly can settle through several intermediate viewports. Wait
     // for the last one so one arrival makes one bounded visibility read rather
     // than billing every camera frame that briefly became "settled".
+    //
+    // The wait is longer while the restore target has not appeared, and it is a
+    // WAIT rather than a skip: a `?sel=venue-uk-*` link whose pub a later OSM
+    // shard rebuild dropped never becomes visible, and refusing to read until
+    // it does would silently cost the whole session every base mark, not just
+    // that pin's.
     const timer = setTimeout(
-      () =>
-        loadProvisionalBaseVenues(renderedBasePubs.map((pub) => pub.id)),
-      1_000,
+      () => {
+        provisionalRestoreResolved.current = true;
+        loadProvisionalBaseVenues(renderedBasePubs.map((pub) => pub.id));
+      },
+      provisionalRestoreResolved.current
+        ? PROVISIONAL_BASE_SETTLE_MS
+        : PROVISIONAL_BASE_RESTORE_WAIT_MS,
     );
     return () => clearTimeout(timer);
   }, [

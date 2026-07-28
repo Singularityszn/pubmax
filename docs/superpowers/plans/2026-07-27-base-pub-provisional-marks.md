@@ -167,7 +167,7 @@ Expected: FAIL while base sheet passes `canMarkMap={false}`.
 
 - [x] **Step 3: Enable mark-only wording**
 
-Remove base-specific `canMarkMap={false}`. Keep price authority wording governed by `paintsMap`.
+Replace the `canMarkMap` boolean with `CommunityPriceMapReach` (`paint` | `mark` | `page`) and pass `mark` from the base sheet. The boolean conflated two claims, so dropping it alone let the receipt promise a pin colour a base pin can never draw; the enum keeps the mark claim (true, and the whole point) and removes every map-move clause on the base path.
 
 - [x] **Step 4: Run focused test**
 

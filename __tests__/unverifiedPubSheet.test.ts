@@ -158,7 +158,7 @@ describe("UnverifiedPubSheet", () => {
     expect(html).not.toContain("£5.80");
   });
 
-  it("names the base pin mark without claiming the price drives the map", () => {
+  it("names the base pin mark without promising the pin a colour", () => {
     const html = renderToStaticMarkup(
       createElement(UnverifiedPubSheet, {
         pub,
@@ -175,10 +175,13 @@ describe("UnverifiedPubSheet", () => {
       }),
     );
 
+    // The mark is real and the reader can go and look at it, so the sheet says
+    // so. The pin COLOUR is not: base features carry no band and no pin price
+    // label, so no wording here may offer one for a second report.
     expect(html).toContain("Marked on the map as unconfirmed");
-    expect(html).toContain(
-      "it moves the map once a second drinker logs the same",
-    );
+    expect(html).toContain("confirms the figure here");
+    expect(html).not.toContain("moves the map");
+    expect(html).not.toContain("colour");
     expect(html).not.toContain("On the map</span>");
   });
 

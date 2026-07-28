@@ -3,6 +3,8 @@ import { describe, expect, it } from "vitest";
 import {
   mergeCommunityPriceSignals,
   provisionalCommunityPriceVenueIds,
+  provisionalVenueIdKey,
+  provisionalVenueIdsFromKey,
   type PricedVenueSignal,
 } from "@/components/map/communityPriceSignals";
 import {
@@ -399,6 +401,41 @@ describe("provisionalCommunityPriceVenueIds", () => {
   });
 });
 
+// The provisional set reaches the UK base layer's publish callback, where a new
+// Set identity re-resolves the viewport and re-setData's every base pin. So
+// membership, not allocation, is what may move it - and the key is what lets a
+// memo tell those apart.
+describe("provisionalVenueIdKey", () => {
+  it("keys the same members identically however they were collected", () => {
+    expect(provisionalVenueIdKey(new Set(["venue-uk-n1", "venue-a"]))).toBe(
+      provisionalVenueIdKey(new Set(["venue-a", "venue-uk-n1"])),
+    );
+    // …which is what holds one Set identity across an unrelated venue load.
+    const key = provisionalVenueIdKey(new Set(["venue-uk-n1", "venue-a"]));
+    expect(provisionalVenueIdsFromKey(key)).toEqual(
+      new Set(["venue-a", "venue-uk-n1"]),
+    );
+  });
+
+  it("moves the key on any real membership change", () => {
+    const held = provisionalVenueIdKey(new Set(["venue-uk-n1"]));
+    expect(provisionalVenueIdKey(new Set(["venue-uk-n2"]))).not.toBe(held);
+    expect(
+      provisionalVenueIdKey(new Set(["venue-uk-n1", "venue-uk-n2"])),
+    ).not.toBe(held);
+    expect(provisionalVenueIdKey(new Set())).not.toBe(held);
+  });
+
+  it("shares one identity for nothing pending", () => {
+    const empty = provisionalVenueIdKey(new Set());
+    expect(empty).toBe("");
+    expect(provisionalVenueIdsFromKey(empty)).toBe(
+      provisionalVenueIdsFromKey(""),
+    );
+    expect(provisionalVenueIdsFromKey(empty).size).toBe(0);
+  });
+});
+
 // The sheet is the other half of the policy: gated prices still SHOW, they just
 // say where they stand. If this copy ever goes empty for a gated price the pub
 // page would silently imply a restamp that never happened.
@@ -453,23 +490,62 @@ describe("communityTrustNote", () => {
   });
 
   it("keeps naming the mark on surfaces whose pin can carry it", () => {
-    // canMarkMap defaults to true and can be passed explicitly - either way a
+    // Reach defaults to "paint" and can be passed explicitly - either way a
     // curated pub's lone pint report gets the marked-on-the-map standing.
     const note = communityTrustNote(
       { ...beer, corroborations: 1, submittedAt: NOW - MINUTE },
       NOW,
-      true,
+      "paint",
     );
     expect(note).toMatch(/marked on the map/i);
   });
 
-  it("never claims a mark on a surface whose pin cannot carry one", () => {
-    // A surface with no map marker passes canMarkMap=false, so a lone pint
-    // report must read page-only.
+  it("promises a base pin the mark it draws and never the colour it cannot", () => {
+    // A UK base pin CAN wear the provisional dot and can never wear a price:
+    // no band, no pin label, and the price merge never reaches a base id. So
+    // the note names the mark and must not offer a map move for a second
+    // report, which is the one promise this layer could never keep.
     const waiting = communityTrustNote(
       { ...beer, corroborations: 1, submittedAt: NOW - MINUTE },
       NOW,
-      false,
+      "mark",
+    );
+    expect(waiting).toMatch(/marked on the map/i);
+    expect(waiting).toMatch(/confirms the figure here/i);
+    expect(waiting).not.toMatch(/moves the map/i);
+
+    // Nor may it hand the map back to a "price on record" a base pub has not got.
+    const aged = communityTrustNote(
+      { ...beer, corroborations: 1, submittedAt: NOW - 31 * DAY },
+      NOW,
+      "mark",
+    );
+    expect(aged).toMatch(/30 days/i);
+    expect(aged).not.toMatch(/map/i);
+
+    // And a lone report at a base pub already holding a corroborated figure
+    // has no mark to point at, so it must not claim the map either way.
+    const contradicting = communityTrustNote(
+      {
+        ...beer,
+        corroborations: 1,
+        submittedAt: NOW - MINUTE,
+        mapCandidate: { priceGbp: 4.2, submittedAt: NOW - 2 * MINUTE, corroborations: 2 },
+      },
+      NOW,
+      "mark",
+    );
+    expect(contradicting).toMatch(/awaiting confirmation/i);
+    expect(contradicting).not.toMatch(/map/i);
+  });
+
+  it("never claims a mark on a surface whose pin cannot carry one", () => {
+    // A surface with no pin at all passes "page", so a lone pint report must
+    // read page-only.
+    const waiting = communityTrustNote(
+      { ...beer, corroborations: 1, submittedAt: NOW - MINUTE },
+      NOW,
+      "page",
     );
     expect(waiting).toMatch(/awaiting confirmation/i);
     expect(waiting).not.toMatch(/map/i);
@@ -477,7 +553,7 @@ describe("communityTrustNote", () => {
     const aged = communityTrustNote(
       { ...beer, corroborations: 1, submittedAt: NOW - 31 * DAY },
       NOW,
-      false,
+      "page",
     );
     expect(aged).toMatch(/30 days/i);
     expect(aged).not.toMatch(/map/i);
