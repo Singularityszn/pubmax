@@ -13,6 +13,7 @@ import {
   ANALYTICS_CONSENT_PROMPT_SURFACE,
   claimPromptBudget,
   hasPromptBudgetFor,
+  subscribePromptBudget,
 } from "@/lib/promptBudget";
 
 type AnalyticsConsentPromptContentProps = {
@@ -59,10 +60,12 @@ export default function AnalyticsConsentPrompt() {
     void Promise.resolve().then(() => {
       if (!cancelled) refresh();
     });
-    const unsubscribe = subscribeAnalyticsConsent(refresh);
+    const unsubscribeConsent = subscribeAnalyticsConsent(refresh);
+    const unsubscribeBudget = subscribePromptBudget(refresh);
     return () => {
       cancelled = true;
-      unsubscribe();
+      unsubscribeConsent();
+      unsubscribeBudget();
     };
   }, []);
 

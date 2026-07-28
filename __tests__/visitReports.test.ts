@@ -36,6 +36,12 @@ function makeMemoryStorage(): Storage {
   };
 }
 
+function makeDecidedConsentStorage(): Storage {
+  const storage = makeMemoryStorage();
+  storage.setItem("pubmaxx:analytics-consent:v1", "denied");
+  return storage;
+}
+
 describe("visit report vocab coercion", () => {
   it("accepts allowlist values case-insensitively, rejects the rest", () => {
     expect(cleanBusyness("RAMMED")).toBe("rammed");
@@ -247,19 +253,21 @@ describe("toVisitReportDTO", () => {
 describe("prompt budget respect", () => {
   it("uses a stable surface id that competes for the shared session budget", () => {
     const s = makeMemoryStorage();
+    const consent = makeDecidedConsentStorage();
     expect(VISIT_REPORT_PROMPT_SURFACE).toBe("visit-report");
     // Free budget → the visit-report ask may show and claims it.
-    expect(hasPromptBudgetFor(VISIT_REPORT_PROMPT_SURFACE, s)).toBe(true);
-    expect(claimPromptBudget(VISIT_REPORT_PROMPT_SURFACE, s)).toBe(true);
+    expect(hasPromptBudgetFor(VISIT_REPORT_PROMPT_SURFACE, s, consent)).toBe(true);
+    expect(claimPromptBudget(VISIT_REPORT_PROMPT_SURFACE, s, consent)).toBe(true);
     // Now a sibling surface is blocked this session, and vice versa.
-    expect(hasPromptBudgetFor("identity-nudge", s)).toBe(false);
+    expect(hasPromptBudgetFor("identity-nudge", s, consent)).toBe(false);
   });
 
   it("stands down when another surface already spent the budget", () => {
     const s = makeMemoryStorage();
-    expect(claimPromptBudget("first-run-tour", s)).toBe(true);
+    const consent = makeDecidedConsentStorage();
+    expect(claimPromptBudget("first-run-tour", s, consent)).toBe(true);
     // The visit-report ask must not stack on top of the first-run tour.
-    expect(hasPromptBudgetFor(VISIT_REPORT_PROMPT_SURFACE, s)).toBe(false);
-    expect(claimPromptBudget(VISIT_REPORT_PROMPT_SURFACE, s)).toBe(false);
+    expect(hasPromptBudgetFor(VISIT_REPORT_PROMPT_SURFACE, s, consent)).toBe(false);
+    expect(claimPromptBudget(VISIT_REPORT_PROMPT_SURFACE, s, consent)).toBe(false);
   });
 });

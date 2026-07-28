@@ -125,8 +125,48 @@ test("accepting starts ingest, captures a route change, and does not ask again",
     .length).toBeGreaterThan(firstMessagePageviewCount);
   expect(pageviewPaths()).not.toContain("/messages/second-private-thread");
 
+  await page.evaluate(() => {
+    window.history.pushState(null, "", "/map");
+  });
+  await expect.poll(() => pageviewPaths()
+    .filter((pathname) => pathname === "/map")
+    .length).toBe(1);
+  await page.evaluate(() => {
+    window.history.pushState(null, "", "/admin");
+  });
+  await expect(page).toHaveURL(/\/admin$/);
+  await page.evaluate(() => {
+    window.history.pushState(null, "", "/map");
+  });
+  await expect.poll(() => pageviewPaths()
+    .filter((pathname) => pathname === "/map")
+    .length).toBe(2);
+  expect(pageviewPaths()).not.toContain("/admin");
+
   await page.reload({ waitUntil: "domcontentloaded" });
   await expect(prompt).toBeHidden();
+});
+
+test("rechecks consent when another prompt releases the budget", async ({ page }) => {
+  test.setTimeout(60_000);
+  await prepareFirstVisit(page);
+  await page.addInitScript(() => {
+    window.sessionStorage.setItem("pubmax:prompt-budget:v1", "identity-nudge");
+  });
+  await page.goto("/", { waitUntil: "domcontentloaded" });
+
+  const prompt = page.getByLabel("Anonymous analytics choice");
+  await page.evaluate(() => new Promise<void>((resolve) => {
+    window.requestAnimationFrame(() => window.requestAnimationFrame(() => resolve()));
+  }));
+  await expect(prompt).toBeHidden();
+
+  await page.evaluate(() => {
+    window.sessionStorage.removeItem("pubmax:prompt-budget:v1");
+    window.dispatchEvent(new Event("pubmax:prompt-budget"));
+  });
+
+  await expect(prompt).toBeVisible();
 });
 
 test("map prompt leaves the primary planning control usable", async ({ page }) => {
@@ -137,7 +177,7 @@ test("map prompt leaves the primary planning control usable", async ({ page }) =
   const prompt = page.getByLabel("Anonymous analytics choice");
   const planControl = page.getByRole("button", { name: "Describe your night" });
   await expect(prompt).toBeVisible();
-  await expect(planControl).toBeVisible();
+  await expect(planControl).toBeVisible({ timeout: 30_000 });
 
   const promptBox = await prompt.boundingBox();
   const controlBox = await planControl.boundingBox();

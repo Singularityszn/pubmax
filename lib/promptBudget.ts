@@ -9,8 +9,12 @@
 // Scope = one browser tab session (sessionStorage), which is exactly the
 // "same session" the PRD means: a fresh tab/visit resets the budget, but a
 // single sitting only ever sees one prompt. SSR-safe and private-mode-safe:
-// when storage is unavailable the guard degrades open (a prompt may show)
-// rather than throwing — a rare double-prompt beats a broken flow.
+// when consent storage is unavailable, analytics choice keeps priority.
+
+import {
+  ANALYTICS_CONSENT_STORAGE_KEY,
+  isAnalyticsConsentDecision,
+} from "@/lib/analyticsIdentity";
 
 /** sessionStorage slot holding the surface id that has spent the budget. */
 const STORAGE_KEY = "pubmax:prompt-budget:v1";
@@ -22,11 +26,6 @@ const CHANGE_EVENT = "pubmax:prompt-budget";
  * lane can add its own id without a cross-lane edit; these are the three known
  * today. Any non-empty string is accepted at runtime.
  */
-import {
-  ANALYTICS_CONSENT_STORAGE_KEY,
-  isAnalyticsConsentDecision,
-} from "@/lib/analyticsIdentity";
-
 export type PromptSurface =
   | "analytics-consent"
   | "a2hs"
@@ -62,13 +61,13 @@ function analyticsChoiceHasPriority(
 ): boolean {
   if (surface === ANALYTICS_CONSENT_PROMPT_SURFACE) return true;
   const store = resolveConsentStorage(consentStorage);
-  if (!store) return true;
+  if (!store) return false;
   try {
     return isAnalyticsConsentDecision(
       store.getItem(ANALYTICS_CONSENT_STORAGE_KEY),
     );
   } catch {
-    return true;
+    return false;
   }
 }
 
@@ -99,8 +98,7 @@ export function promptBudgetHolder(storage?: Storage | null): PromptSurface | nu
 /**
  * Whether `surface` is allowed to show this session — true when the budget is
  * free OR already held by this same surface (so a re-render of the same prompt
- * is never blocked by its own earlier claim). Degrades open when storage is
- * unavailable.
+ * is never blocked by its own earlier claim).
  */
 export function hasPromptBudgetFor(
   surface: PromptSurface,

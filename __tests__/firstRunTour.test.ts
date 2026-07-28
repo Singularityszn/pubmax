@@ -101,6 +101,12 @@ function makeMemoryStorage(): Storage {
   };
 }
 
+function makeDecidedConsentStorage(): Storage {
+  const storage = makeMemoryStorage();
+  storage.setItem("pubmaxx:analytics-consent:v1", "denied");
+  return storage;
+}
+
 describe("first-run tour — prompt budget adoption", () => {
   it("uses the canonical 'first-run-tour' surface id", () => {
     expect(TOUR_PROMPT_SURFACE).toBe("first-run-tour");
@@ -108,53 +114,56 @@ describe("first-run tour — prompt budget adoption", () => {
 
   it("may show when the session budget is free", () => {
     const s = makeMemoryStorage();
-    expect(tourHasPromptBudget(s)).toBe(true);
+    expect(tourHasPromptBudget(s, makeDecidedConsentStorage())).toBe(true);
   });
 
   it("claims the budget at the moment it shows", () => {
     const s = makeMemoryStorage();
-    expect(claimTourPromptBudget(s)).toBe(true);
+    const consent = makeDecidedConsentStorage();
+    expect(claimTourPromptBudget(s, consent)).toBe(true);
     expect(promptBudgetHolder(s)).toBe("first-run-tour");
     // Idempotent for the tour's own re-render.
-    expect(claimTourPromptBudget(s)).toBe(true);
-    expect(tourHasPromptBudget(s)).toBe(true);
+    expect(claimTourPromptBudget(s, consent)).toBe(true);
+    expect(tourHasPromptBudget(s, consent)).toBe(true);
   });
 
   it("defers to a sibling surface that already claimed the session", () => {
     const s = makeMemoryStorage();
+    const consent = makeDecidedConsentStorage();
     // A2HS (or identity/push) got there first this session.
-    expect(claimPromptBudget("a2hs", s)).toBe(true);
+    expect(claimPromptBudget("a2hs", s, consent)).toBe(true);
     // The tour must not interrupt.
-    expect(tourHasPromptBudget(s)).toBe(false);
-    expect(claimTourPromptBudget(s)).toBe(false);
+    expect(tourHasPromptBudget(s, consent)).toBe(false);
+    expect(claimTourPromptBudget(s, consent)).toBe(false);
     // The sibling keeps the budget.
     expect(promptBudgetHolder(s)).toBe("a2hs");
   });
 
   it("blocks siblings once the tour has claimed the session", () => {
     const s = makeMemoryStorage();
-    expect(claimTourPromptBudget(s)).toBe(true);
+    const consent = makeDecidedConsentStorage();
+    expect(claimTourPromptBudget(s, consent)).toBe(true);
     // No other surface may show this session.
-    expect(hasPromptBudgetFor("a2hs", s)).toBe(false);
-    expect(hasPromptBudgetFor("identity-nudge", s)).toBe(false);
-    expect(claimPromptBudget("native-push", s)).toBe(false);
+    expect(hasPromptBudgetFor("a2hs", s, consent)).toBe(false);
+    expect(hasPromptBudgetFor("identity-nudge", s, consent)).toBe(false);
+    expect(claimPromptBudget("native-push", s, consent)).toBe(false);
   });
 
-  it("degrades open when storage is unavailable (best-effort, never blocks)", () => {
-    // No injected storage and no window → resolveStorage returns null.
-    expect(tourHasPromptBudget()).toBe(true);
-    expect(claimTourPromptBudget()).toBe(true);
+  it("defers to consent when storage is unavailable", () => {
+    expect(tourHasPromptBudget()).toBe(false);
+    expect(claimTourPromptBudget()).toBe(false);
   });
 
   it("releases only its own hold for the explicit Plan handoff", () => {
     const s = makeMemoryStorage();
-    expect(claimTourPromptBudget(s)).toBe(true);
+    const consent = makeDecidedConsentStorage();
+    expect(claimTourPromptBudget(s, consent)).toBe(true);
     releaseTourPromptBudget(s);
     expect(promptBudgetHolder(s)).toBeNull();
-    expect(claimPromptBudget("native-push", s)).toBe(true);
+    expect(claimPromptBudget("native-push", s, consent)).toBe(true);
 
     const sibling = makeMemoryStorage();
-    expect(claimPromptBudget("identity-nudge", sibling)).toBe(true);
+    expect(claimPromptBudget("identity-nudge", sibling, consent)).toBe(true);
     releaseTourPromptBudget(sibling);
     expect(promptBudgetHolder(sibling)).toBe("identity-nudge");
   });

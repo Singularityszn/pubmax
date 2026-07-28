@@ -168,10 +168,12 @@ export function resetFirstRunCompanion(storage?: Storage | null): void {
 /**
  * Whether the tour may interrupt this session — true when the shared prompt
  * budget is free or already held by the tour. Mirrors A2HS's pre-show check.
- * Degrades open (returns true) on SSR / storage failure.
  */
-export function tourHasPromptBudget(storage?: Storage | null): boolean {
-  return hasPromptBudgetFor(TOUR_PROMPT_SURFACE, storage);
+export function tourHasPromptBudget(
+  storage?: Storage | null,
+  consentStorage?: Storage | null,
+): boolean {
+  return hasPromptBudgetFor(TOUR_PROMPT_SURFACE, storage, consentStorage);
 }
 
 /**
@@ -179,8 +181,11 @@ export function tourHasPromptBudget(storage?: Storage | null): boolean {
  * Returns false when a sibling surface already claimed it this session (the
  * tour should then stay hidden). Idempotent for the tour's own re-render.
  */
-export function claimTourPromptBudget(storage?: Storage | null): boolean {
-  return claimPromptBudget(TOUR_PROMPT_SURFACE, storage);
+export function claimTourPromptBudget(
+  storage?: Storage | null,
+  consentStorage?: Storage | null,
+): boolean {
+  return claimPromptBudget(TOUR_PROMPT_SURFACE, storage, consentStorage);
 }
 
 /**

@@ -157,12 +157,21 @@ describe("explicit PostHog pageviews", () => {
       capturePosthogPageview,
       syncPosthogConsent,
     } = await import("@/lib/posthogClient");
+    const anonymousId = "anon_018f47a2-8e71-7a7a-9f18-8b953d45b2da";
 
     syncPosthogConsent(true);
-    capturePosthogPageview("/map?sel=venue-secret", "anon_018f47a2-8e71-7a7a-9f18-8b953d45b2da");
+    capturePosthogPageview("/map", anonymousId);
+    await vi.waitFor(() => expect(posthogState.captures).toHaveLength(1));
 
-    await vi.waitFor(() => expect(posthogState.initCount).toBe(1));
-    expect(posthogState.captures).toEqual([]);
+    capturePosthogPageview("/map?sel=venue-secret", anonymousId);
+    capturePosthogPageview("/map", anonymousId);
+
+    expect(posthogState.captures).toEqual([
+      ["$pageview", {
+        $pathname: "/map",
+        $pubmaxx_anonymous_id: anonymousId,
+      }],
+    ]);
   });
 
   it("excludes moderation routes from product pageviews", async () => {
@@ -180,6 +189,37 @@ describe("explicit PostHog pageviews", () => {
     await vi.waitFor(() => expect(posthogState.initCount).toBe(1));
     expect(posthogState.captures).toEqual([]);
   });
+
+  it.each(["/admin", "/unknown/private-value"])(
+    "captures a return to the same product route after excluded route %s",
+    async (excludedPath) => {
+      process.env.NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN = "phc_test";
+      const {
+        capturePosthogPageview,
+        syncPosthogConsent,
+      } = await import("@/lib/posthogClient");
+      const anonymousId = "anon_018f47a2-8e71-7a7a-9f18-8b953d45b2da";
+
+      syncPosthogConsent(true);
+      capturePosthogPageview("/map", anonymousId);
+      await vi.waitFor(() => expect(posthogState.captures).toHaveLength(1));
+
+      capturePosthogPageview(excludedPath, anonymousId);
+      capturePosthogPageview("/map", anonymousId);
+
+      expect(posthogState.captures).toEqual([
+        ["$pageview", {
+          $pathname: "/map",
+          $pubmaxx_anonymous_id: anonymousId,
+        }],
+        ["$pageview", {
+          $pathname: "/map",
+          $pubmaxx_anonymous_id: anonymousId,
+        }],
+      ]);
+      expect(JSON.stringify(posthogState.captures)).not.toContain(excludedPath);
+    },
+  );
 
   it("queues only a stable template for a dynamic route", async () => {
     process.env.NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN = "phc_test";

@@ -20,7 +20,6 @@ const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3
 type PostHogClient = (typeof import("posthog-js"))["default"];
 type PendingPageview = {
   pathname: string;
-  routeKey: string;
   anonymousId: string;
 };
 
@@ -32,7 +31,7 @@ let initialized = false;
 let consentAllowedNow = false;
 let captureEnabled = false;
 const pendingPageviews: PendingPageview[] = [];
-let lastCapturedPageviewRouteKey: string | null = null;
+let lastObservedPageviewPathname: string | null = null;
 
 function safeExceptionType(value: unknown): string {
   return typeof value === "string" && SAFE_EXCEPTION_TYPES.has(value)
@@ -171,7 +170,7 @@ export function syncPosthogConsent(consentAllowed: boolean): void {
   captureEnabled = false;
   if (!consentAllowed) {
     pendingPageviews.length = 0;
-    lastCapturedPageviewRouteKey = null;
+    lastObservedPageviewPathname = null;
     if (initialized) client?.opt_out_capturing();
     return;
   }
@@ -197,7 +196,6 @@ export function syncPosthogConsent(consentAllowed: boolean): void {
     captureEnabled = true;
     const pageviews = pendingPageviews.splice(0);
     for (const pageview of pageviews) {
-      lastCapturedPageviewRouteKey = pageview.routeKey;
       loadedClient.capture("$pageview", {
         $pathname: pageview.pathname,
         $pubmaxx_anonymous_id: pageview.anonymousId,
@@ -207,16 +205,17 @@ export function syncPosthogConsent(consentAllowed: boolean): void {
 }
 
 export function capturePosthogPageview(pathname: string, anonymousId: string | null): void {
-  const analyticsSurface = safeBrowserPageviewPath(pathname)
-    ? analyticsPageviewSurfaceFromPath(pathname)
-    : null;
   if (
-    !analyticsSurface
+    !safeBrowserPageviewPath(pathname)
     || !isAnonymousAnalyticsId(anonymousId)
     || !consentAllowedNow
-    || pathname === lastCapturedPageviewRouteKey
-    || pathname === pendingPageviews.at(-1)?.routeKey
   ) return;
+
+  if (pathname === lastObservedPageviewPathname) return;
+  lastObservedPageviewPathname = pathname;
+
+  const analyticsSurface = analyticsPageviewSurfaceFromPath(pathname);
+  if (!analyticsSurface) return;
 
   if (!initialized || !client || !captureEnabled) {
     if (pendingPageviews.length >= MAX_PENDING_PAGEVIEWS) {
@@ -224,13 +223,11 @@ export function capturePosthogPageview(pathname: string, anonymousId: string | n
     }
     pendingPageviews.push({
       pathname: analyticsSurface,
-      routeKey: pathname,
       anonymousId,
     });
     return;
   }
 
-  lastCapturedPageviewRouteKey = pathname;
   client.capture("$pageview", {
     $pathname: analyticsSurface,
     $pubmaxx_anonymous_id: anonymousId,

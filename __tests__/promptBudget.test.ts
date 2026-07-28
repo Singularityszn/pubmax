@@ -21,42 +21,52 @@ function makeMemoryStorage(): Storage {
   };
 }
 
+function makeDecidedConsentStorage(): Storage {
+  const storage = makeMemoryStorage();
+  storage.setItem("pubmaxx:analytics-consent:v1", "denied");
+  return storage;
+}
+
 describe("promptBudget (one surface per session)", () => {
   it("starts free", () => {
     const s = makeMemoryStorage();
+    const consent = makeDecidedConsentStorage();
     expect(promptBudgetHolder(s)).toBeNull();
-    expect(hasPromptBudgetFor("a2hs", s)).toBe(true);
-    expect(hasPromptBudgetFor("first-run-tour", s)).toBe(true);
+    expect(hasPromptBudgetFor("a2hs", s, consent)).toBe(true);
+    expect(hasPromptBudgetFor("first-run-tour", s, consent)).toBe(true);
   });
 
   it("first claim wins; a second surface is blocked", () => {
     const s = makeMemoryStorage();
-    expect(claimPromptBudget("first-run-tour", s)).toBe(true);
+    const consent = makeDecidedConsentStorage();
+    expect(claimPromptBudget("first-run-tour", s, consent)).toBe(true);
     expect(promptBudgetHolder(s)).toBe("first-run-tour");
     // A2HS can no longer show this session.
-    expect(hasPromptBudgetFor("a2hs", s)).toBe(false);
-    expect(claimPromptBudget("a2hs", s)).toBe(false);
+    expect(hasPromptBudgetFor("a2hs", s, consent)).toBe(false);
+    expect(claimPromptBudget("a2hs", s, consent)).toBe(false);
     // Holder unchanged.
     expect(promptBudgetHolder(s)).toBe("first-run-tour");
   });
 
   it("claim is idempotent for the holder", () => {
     const s = makeMemoryStorage();
-    expect(claimPromptBudget("a2hs", s)).toBe(true);
-    expect(claimPromptBudget("a2hs", s)).toBe(true);
-    expect(hasPromptBudgetFor("a2hs", s)).toBe(true);
+    const consent = makeDecidedConsentStorage();
+    expect(claimPromptBudget("a2hs", s, consent)).toBe(true);
+    expect(claimPromptBudget("a2hs", s, consent)).toBe(true);
+    expect(hasPromptBudgetFor("a2hs", s, consent)).toBe(true);
   });
 
   it("only the holder can release; then another surface may claim", () => {
     const s = makeMemoryStorage();
-    claimPromptBudget("a2hs", s);
+    const consent = makeDecidedConsentStorage();
+    claimPromptBudget("a2hs", s, consent);
     // A non-holder release is a no-op.
     releasePromptBudget("first-run-tour", s);
     expect(promptBudgetHolder(s)).toBe("a2hs");
     // The holder releases the wasted moment.
     releasePromptBudget("a2hs", s);
     expect(promptBudgetHolder(s)).toBeNull();
-    expect(claimPromptBudget("identity-nudge", s)).toBe(true);
+    expect(claimPromptBudget("identity-nudge", s, consent)).toBe(true);
     expect(promptBudgetHolder(s)).toBe("identity-nudge");
   });
 
@@ -66,10 +76,23 @@ describe("promptBudget (one surface per session)", () => {
     expect(promptBudgetHolder(s)).toBeNull();
   });
 
-  it("degrades open when storage is unavailable (best-effort)", () => {
-    // No injected storage and no window → resolveStorage returns null.
-    expect(hasPromptBudgetFor("a2hs")).toBe(true);
-    expect(claimPromptBudget("a2hs")).toBe(true);
+  it("keeps consent priority when consent storage is unavailable", () => {
+    expect(hasPromptBudgetFor("analytics-consent")).toBe(true);
+    expect(hasPromptBudgetFor("a2hs")).toBe(false);
+    expect(claimPromptBudget("a2hs")).toBe(false);
+  });
+
+  it("keeps consent priority when reading consent storage throws", () => {
+    const session = makeMemoryStorage();
+    const unreadable = makeMemoryStorage();
+    unreadable.getItem = () => {
+      throw new Error("storage unavailable");
+    };
+
+    expect(hasPromptBudgetFor("analytics-consent", session, unreadable)).toBe(true);
+    expect(hasPromptBudgetFor("first-run-tour", session, unreadable)).toBe(false);
+    expect(claimPromptBudget("first-run-tour", session, unreadable)).toBe(false);
+    expect(promptBudgetHolder(session)).toBeNull();
   });
 
   it("reserves the first prompt moment for an undecided analytics choice", () => {
