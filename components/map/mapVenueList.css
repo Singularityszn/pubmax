@@ -289,6 +289,45 @@
   font-weight: 500;
 }
 
+/* A pint row's caption is a figure; a drink lens's is a whole finding ("No
+   whisky price logged"). At 390px both cannot share one line: the caption wraps
+   to two and the NAME is the side that loses characters. Stack the row on a
+   phone so the name owns a full line and the caption wraps under it - neither is
+   ever ellipsed. Must stay AFTER the base row rules above (source order
+   decides). Pinned by __tests__/mobileChromeFit.test.ts. */
+@media (max-width: 640px) {
+  .mapVenueListItem {
+    flex-direction: column;
+    align-items: flex-start;
+    justify-content: center;
+    gap: 4px;
+  }
+
+  .mapVenueListItemName {
+    align-items: flex-start;
+    width: 100%;
+    overflow: visible;
+    text-overflow: clip;
+    white-space: normal;
+  }
+
+  .mapVenueListItemName svg {
+    margin-top: 2px;
+  }
+
+  .mapVenueListItemMeta {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    width: 100%;
+  }
+
+  .mapVenueListCompactPrice {
+    align-items: flex-start;
+    max-width: 100%;
+  }
+}
+
 .mapVenueListEmpty {
   margin: 0;
   padding: 16px 16px 20px;
