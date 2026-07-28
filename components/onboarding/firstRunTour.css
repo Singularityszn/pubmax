@@ -1,4 +1,5 @@
-/* First-run onboarding tour — centered modal card over a dimming scrim.
+/* First-run onboarding tour: centred card on desktop, bottom-docked on phones,
+   over a dimming scrim.
    Design rubric: one accent (--brass, coral light / amber dark) owns the CTA;
    candle-peach --panel-raised card, --radius-lg, --shadow for lift; Space
    Grotesk (--serif) title, Inter body, sentence case. Motion animates only
