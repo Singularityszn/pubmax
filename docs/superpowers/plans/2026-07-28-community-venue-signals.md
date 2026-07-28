@@ -67,7 +67,7 @@ Expected: pass with no warnings.
 
 **Files:**
 - Modify: `lib/communityPriceStore.ts`
-- Create: `supabase/migrations/20260728130000_0059_community_venue_signals.sql`
+- Create: `supabase/migrations/20260728130000_0060_community_venue_signals.sql`
 - Modify: `__tests__/communityPriceStore.test.ts`
 
 **Interfaces:**

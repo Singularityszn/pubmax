@@ -428,7 +428,7 @@ commit.
   never a 400 and never a stored row. The venue-signal shape runs the same venue
   resolution (pub kinds and `venue-uk-*` ids only, same 400/503 split) behind
   `validateCommunityVenueSignal`, whose `signalKey`/`signalValue` pairs are a
-  CLOSED vocabulary the browser and the server share and migration 0059 repeats
+  CLOSED vocabulary the browser and the server share and migration 0060 repeats
   as a CHECK, so an off-vocabulary answer cannot be stored by any door.
 - **Auth stance (deliberately anonymous):** identity is the server-derived
   `hashActor(hashIp(clientIp))` token, exactly as `price-confirm` derives it, and
@@ -470,7 +470,7 @@ commit.
   the same question, which it replaces.
 - **Rollback / kill:** durable rows live in `public.community_prices` (migration
   0054, RLS on, no anon/authenticated policy, service_role only); `truncate` is a
-  safe reset and cannot damage dataset prices. Migration 0059 widens that ONE
+  safe reset and cannot damage dataset prices. Migration 0060 widens that ONE
   table to hold venue signals too - nullable `drink_category`/`price_pennies`
   plus `signal_key`/`signal_value`, a CHECK that a row is exactly one shape, a
   unique `(venue_id, signal_key, actor)` so one device answers each question
@@ -520,7 +520,7 @@ commit.
 - **Rollback / kill:** the columns and the report ledger live in migration 0055
   (`community_prices.hidden_at` et al. + `public.community_price_reports`, RLS
   on, no anon/authenticated policy, service_role only), and cover venue signals
-  unchanged because 0059 keeps them in the same table. Clearing `hidden_at`
+  unchanged because 0060 keeps them in the same table. Clearing `hidden_at`
   restores everything; the store fails soft to process-memory until 0055 lands,
   and an unavailable durable read degrades the queue to empty rather than 500.
 

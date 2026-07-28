@@ -12,7 +12,7 @@ function readMigration(suffix: string): string {
 
 describe("Visit Report review-lane migration", () => {
   it("adds constrained observed conditions and the contributor count index", () => {
-    const sql = readMigration("0058_visit_report_review_lane");
+    const sql = readMigration("0059_visit_report_review_lane");
 
     expect(sql).toMatch(/add column if not exists noise text/);
     expect(sql).toMatch(/noise is null or noise in \('easy-to-talk', 'loud', 'had-to-shout'\)/);
@@ -24,7 +24,7 @@ describe("Visit Report review-lane migration", () => {
   });
 
   it("indexes the moderation queue the way the admin route reads it", () => {
-    const sql = readMigration("0058_visit_report_review_lane");
+    const sql = readMigration("0059_visit_report_review_lane");
 
     expect(sql).toMatch(
       /structured_visit_reports_flagged_review_idx[\s\S]*\(reported_at desc\)[\s\S]*where moderated_at is null and report_count > 0/,
@@ -32,7 +32,7 @@ describe("Visit Report review-lane migration", () => {
   });
 
   it("is additive and keeps the service-role-only posture", () => {
-    const sql = readMigration("0058_visit_report_review_lane");
+    const sql = readMigration("0059_visit_report_review_lane");
 
     expect(sql).not.toMatch(/drop table/i);
     expect(sql).not.toMatch(/drop column/i);

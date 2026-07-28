@@ -1226,7 +1226,7 @@ export const supabaseCommunityPriceStore: CommunityPriceStore = {
       onSchemaMiss: () =>
         onMissingDurableWrite({
           storeTag: "community-venue-signal",
-          migrationHint: "apply migration 0059",
+          migrationHint: "apply migration 0060",
           fallback: () => memoryCommunityPriceStore.submitSignal(input, now),
           onProduction: async () => ({ signal: null, failed: true as const }),
         }),
