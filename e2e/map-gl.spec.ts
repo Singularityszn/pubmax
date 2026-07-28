@@ -233,7 +233,7 @@ test("/map keeps the honest retry visible while basemap tiles keep failing", asy
   await expect(page.locator(".mapFallback")).toHaveCount(0);
 });
 
-test("/map surfaces a concurrent post-paint tile outage after the sustain window", async ({
+test("/map surfaces a concurrent post-paint tile outage despite one successful tile", async ({
   page,
 }) => {
   test.setTimeout(60_000);
@@ -246,12 +246,21 @@ test("/map surfaces a concurrent post-paint tile outage after the sustain window
     });
   });
   let failTiles = false;
+  let outageRequests = 0;
   await page.route(/\.pbf(?:\?|$)/, async (route) => {
     if (!failTiles) {
       await route.continue();
       return;
     }
-    await new Promise((resolve) => setTimeout(resolve, 1_000));
+    outageRequests += 1;
+    const requestNumber = outageRequests;
+    await new Promise((resolve) =>
+      setTimeout(resolve, requestNumber === 5 ? 1_250 : 1_000),
+    );
+    if (requestNumber === 5) {
+      await route.continue();
+      return;
+    }
     await route.abort("failed");
   });
 
@@ -282,6 +291,7 @@ test("/map surfaces a concurrent post-paint tile outage after the sustain window
   await zoomIn.click();
   await zoomIn.click();
   await zoomIn.click();
+  await expect.poll(() => outageRequests).toBeGreaterThanOrEqual(5);
 
   const notice = page.locator(".mapSoftRetry");
   await expect(notice).toContainText("Map background couldn't load", {

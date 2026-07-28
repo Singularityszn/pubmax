@@ -16,7 +16,7 @@ function workerHarness(input: {
   cached?: FakeResponse | null;
   putError?: Error;
   trimError?: Error;
-  activeWorker?: boolean;
+  activeWorker?: string;
   cacheNames?: string[];
 }) {
   const listeners = new Map<string, Listener>();
@@ -34,11 +34,14 @@ function workerHarness(input: {
   };
   const fakeSelf = {
     location: {
-      href: "https://pubmaxxing.com/sw.js?v=test",
+      href:
+        "https://pubmaxxing.com/sw.js?v=test&cache-policy=write-safe-v1",
       origin: "https://pubmaxxing.com",
     },
     registration: {
-      active: input.activeWorker ? {} : null,
+      active: input.activeWorker
+        ? { scriptURL: input.activeWorker }
+        : null,
       showNotification: vi.fn(async () => undefined),
     },
     skipWaiting: vi.fn(async () => undefined),
@@ -64,6 +67,131 @@ function workerHarness(input: {
   Function("self", "caches", "fetch", source)(fakeSelf, fakeCaches, doFetch);
 
   return { listeners, cache, put, doFetch, fakeCaches, fakeSelf };
+}
+
+function rolloutWorkerHarness(input: {
+  entries: Record<string, Array<[string, Response]>>;
+  rejectCurrentWrites?: boolean;
+}) {
+  const listeners = new Map<string, Listener>();
+  const records = new Map<
+    string,
+    Map<string, { request: Request; response: Response }>
+  >();
+  for (const [name, entries] of Object.entries(input.entries)) {
+    records.set(
+      name,
+      new Map(
+        entries.map(([url, response]) => {
+          const request = new Request(
+            new URL(url, "https://pubmaxxing.com"),
+          );
+          return [request.url, { request, response }];
+        }),
+      ),
+    );
+  }
+  const deletedCaches: string[] = [];
+  const fakeCaches = {
+    async open(name: string) {
+      let entries = records.get(name);
+      if (!entries) {
+        entries = new Map();
+        records.set(name, entries);
+      }
+      return {
+        async match(request: RequestInfo, options?: CacheQueryOptions) {
+          const url = new URL(
+            typeof request === "string" ? request : request.url,
+            "https://pubmaxxing.com",
+          );
+          if (!options?.ignoreSearch) return entries.get(url.href)?.response;
+          for (const entry of entries.values()) {
+            const candidate = new URL(entry.request.url);
+            if (
+              candidate.origin === url.origin &&
+              candidate.pathname === url.pathname
+            ) {
+              return entry.response;
+            }
+          }
+          return undefined;
+        },
+        async put(request: RequestInfo, response: Response) {
+          if (
+            input.rejectCurrentWrites &&
+            name.endsWith("-target")
+          ) {
+            throw new DOMException(
+              "Storage quota exceeded",
+              "QuotaExceededError",
+            );
+          }
+          const storedRequest = new Request(
+            typeof request === "string"
+              ? new URL(request, "https://pubmaxxing.com")
+              : request,
+          );
+          entries.set(storedRequest.url, {
+            request: storedRequest,
+            response,
+          });
+        },
+        async keys() {
+          return [...entries.values()].map(({ request }) => request);
+        },
+        async delete(request: RequestInfo) {
+          const url = new URL(
+            typeof request === "string" ? request : request.url,
+            "https://pubmaxxing.com",
+          );
+          return entries.delete(url.href);
+        },
+      };
+    },
+    async keys() {
+      return [...records.keys()];
+    },
+    async delete(name: string) {
+      deletedCaches.push(name);
+      return records.delete(name);
+    },
+  };
+  const fakeSelf = {
+    location: {
+      href:
+        "https://pubmaxxing.com/sw.js?v=target&cache-policy=write-safe-v1",
+      origin: "https://pubmaxxing.com",
+    },
+    registration: {
+      active: {
+        scriptURL: "https://pubmaxxing.com/sw.js?v=legacy-active",
+      },
+      showNotification: vi.fn(async () => undefined),
+    },
+    skipWaiting: vi.fn(async () => undefined),
+    clients: {
+      claim: vi.fn(async () => undefined),
+      matchAll: vi.fn(async () => []),
+      openWindow: vi.fn(async () => undefined),
+    },
+    addEventListener(type: string, listener: Listener) {
+      listeners.set(type, listener);
+    },
+  };
+  const doFetch = vi.fn(async () => {
+    throw new TypeError("network unavailable");
+  });
+  const source = readFileSync(join(process.cwd(), "public", "sw.js"), "utf8");
+  Function("self", "caches", "fetch", source)(fakeSelf, fakeCaches, doFetch);
+
+  return {
+    deletedCaches,
+    fakeCaches,
+    fakeSelf,
+    listeners,
+    records,
+  };
 }
 
 function dispatchFetch(
@@ -108,13 +236,27 @@ const TILE_URL =
   "https://tiles.openfreemap.org/planet/revision/11/1023/680.pbf";
 
 describe("service worker map cache", () => {
-  it("activates an update without leaving the broken worker in control", async () => {
-    const { fakeSelf, listeners } = workerHarness({ activeWorker: true });
+  it("activates over a pre-fix worker without leaving it in control", async () => {
+    const { fakeSelf, listeners } = workerHarness({
+      activeWorker: "https://pubmaxxing.com/sw.js?v=legacy-active",
+    });
 
     const lifetime = dispatchLifecycle(listeners.get("install")!);
     await expect(Promise.all(lifetime)).resolves.toBeDefined();
 
     expect(fakeSelf.skipWaiting).toHaveBeenCalledOnce();
+  });
+
+  it("keeps later write-safe updates on the normal waiting path", async () => {
+    const { fakeSelf, listeners } = workerHarness({
+      activeWorker:
+        "https://pubmaxxing.com/sw.js?v=previous&cache-policy=write-safe-v1",
+    });
+
+    const lifetime = dispatchLifecycle(listeners.get("install")!);
+    await expect(Promise.all(lifetime)).resolves.toBeDefined();
+
+    expect(fakeSelf.skipWaiting).not.toHaveBeenCalled();
   });
 
   it("keeps first installation on the normal activation path", async () => {
@@ -126,24 +268,117 @@ describe("service worker map cache", () => {
     expect(fakeSelf.skipWaiting).not.toHaveBeenCalled();
   });
 
-  it("deletes every cache owned by superseded workers before claiming clients", async () => {
-    const { fakeCaches, fakeSelf, listeners } = workerHarness({
-      cacheNames: [
-        "pubmax-sw-swr-broken",
-        "pubmax-sw-shell-waiting",
-        "pubmax-sw-swr-test",
-        "unrelated-cache",
-      ],
+  it("purges old tiles but preserves usable offline caches when migration writes fail", async () => {
+    const shellResponse = new Response("offline map");
+    const dataResponse = new Response("legacy data");
+    const staticResponse = new Response("legacy static");
+    const planResponse = new Response("legacy plan");
+    const { deletedCaches, fakeCaches, fakeSelf, listeners, records } =
+      rolloutWorkerHarness({
+        rejectCurrentWrites: true,
+        entries: {
+          "pubmax-sw-shell-legacy-active": [["/map", shellResponse]],
+          "pubmax-sw-data-legacy-active": [
+            ["/data/venues_slim.core.json", dataResponse],
+          ],
+          "pubmax-sw-swr-legacy-active": [
+            [TILE_URL, new Response("poisoned", { status: 503 })],
+            ["/_next/static/chunks/legacy.js", staticResponse],
+          ],
+          "pubmax-sw-plan-legacy-active": [
+            ["/plan/offline-night", planResponse],
+          ],
+          "unrelated-cache": [["/unrelated", new Response("unrelated")]],
+        },
+      });
+
+    const lifetime = dispatchLifecycle(listeners.get("activate")!);
+    await expect(Promise.all(lifetime)).resolves.toBeDefined();
+
+    expect(deletedCaches).toEqual([]);
+    expect(
+      records.get("pubmax-sw-swr-legacy-active")?.has(TILE_URL),
+    ).toBe(false);
+    expect(
+      records
+        .get("pubmax-sw-swr-legacy-active")
+        ?.has("https://pubmaxxing.com/_next/static/chunks/legacy.js"),
+    ).toBe(true);
+    expect(records.has("pubmax-sw-shell-legacy-active")).toBe(true);
+    expect(records.has("pubmax-sw-data-legacy-active")).toBe(true);
+    expect(records.has("pubmax-sw-plan-legacy-active")).toBe(true);
+    expect(records.has("unrelated-cache")).toBe(true);
+    expect(fakeSelf.clients.claim).toHaveBeenCalledOnce();
+
+    const navigation = dispatchFetch(
+      listeners.get("fetch")!,
+      {
+        method: "GET",
+        mode: "navigate",
+        url: "https://pubmaxxing.com/map",
+      } as Request,
+    );
+    await expect(navigation.response).resolves.toBe(shellResponse);
+    expect(await fakeCaches.keys()).toContain(
+      "pubmax-sw-shell-legacy-active",
+    );
+  });
+
+  it("retires superseded caches only after their entries are migrated", async () => {
+    const { deletedCaches, fakeSelf, listeners, records } =
+      rolloutWorkerHarness({
+        entries: {
+          "pubmax-sw-shell-legacy-active": [
+            ["/map", new Response("offline map")],
+          ],
+          "pubmax-sw-data-legacy-active": [
+            ["/data/venues_slim.core.json", new Response("legacy data")],
+          ],
+        },
+      });
+
+    const lifetime = dispatchLifecycle(listeners.get("activate")!);
+    await expect(Promise.all(lifetime)).resolves.toBeDefined();
+
+    expect(deletedCaches).toEqual([
+      "pubmax-sw-data-legacy-active",
+      "pubmax-sw-shell-legacy-active",
+    ]);
+    expect(
+      records
+        .get("pubmax-sw-shell-target")
+        ?.has("https://pubmaxxing.com/map"),
+    ).toBe(true);
+    expect(
+      records
+        .get("pubmax-sw-data-target")
+        ?.has("https://pubmaxxing.com/data/venues_slim.core.json"),
+    ).toBe(true);
+    expect(fakeSelf.clients.claim).toHaveBeenCalledOnce();
+  });
+
+  it("does not serve a poisoned OpenFreeMap entry retained in an old cache", async () => {
+    const poisoned = new Response("poisoned", { status: 503 });
+    const { listeners } = rolloutWorkerHarness({
+      rejectCurrentWrites: true,
+      entries: {
+        "pubmax-sw-swr-legacy-active": [
+          [TILE_URL, poisoned],
+          ["/_next/static/chunks/legacy.js", new Response("legacy static")],
+        ],
+      },
     });
 
     const lifetime = dispatchLifecycle(listeners.get("activate")!);
     await expect(Promise.all(lifetime)).resolves.toBeDefined();
 
-    expect(fakeCaches.delete.mock.calls.map(([name]) => name)).toEqual([
-      "pubmax-sw-swr-broken",
-      "pubmax-sw-shell-waiting",
-    ]);
-    expect(fakeSelf.clients.claim).toHaveBeenCalledOnce();
+    const tile = dispatchFetch(
+      listeners.get("fetch")!,
+      new Request(TILE_URL, { mode: "cors" }),
+    );
+    const response = (await tile.response) as Response;
+    expect(response.type).toBe("error");
+    expect(response).not.toBe(poisoned);
   });
 
   it("returns a successful tile when Cache Storage rejects the write", async () => {

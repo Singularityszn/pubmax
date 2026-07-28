@@ -33,11 +33,17 @@ network response now reaches MapLibre even if `cache.put()` or trimming fails.
 Opaque responses still pass through and are not cached. A genuine network
 failure plus cache miss still returns an error response.
 
-The target worker now activates as soon as its installation finishes, claims
-the open page, and removes every superseded PUBMAXX cache before serving it.
-This is deliberately narrower than forcing first-time installation: the
-accelerated path runs only when the registration already has an active worker.
-Service-worker scope and offline capability are unchanged.
+The target worker marks its cache-write policy in the registration URL. It
+activates immediately only when the active worker lacks that marker, which
+identifies the pre-fix rollout. First installation and later write-safe updates
+keep the normal waiting-worker handoff.
+
+During activation, old OpenFreeMap entries are purged so a poisoned response
+cannot survive the handoff. Valid shell, data, static-asset, and locked-plan
+entries move into the target caches. If quota pressure prevents a copy, the old
+cache remains available as an offline fallback instead of being deleted. It is
+retired only after its usable entries exist in the target cache. Service-worker
+scope and offline capability are unchanged.
 
 An already-affected open page needs one reload after takeover. Takeover fixes
 future requests but cannot make the old page's already-errored MapLibre tiles
@@ -63,10 +69,12 @@ clears a timeout-owned notice automatically. A notice caused by actual request
 errors stays until Retry because MapLibre considers errored tiles settled.
 
 After the basemap has painted, a concurrent failed viewport now owns a
-generation-scoped recheck at the five-second sustain boundary. A successful
-vector or raster tile load cancels it. Otherwise the existing bounded style
-retry runs, and a repeated failure reaches the same Retry notice instead of
-depending on another error event that may never arrive.
+generation-scoped recheck at the five-second sustain boundary. Each failed
+basemap tile is tracked by source and tile key. An unrelated successful tile
+cannot cancel the recheck; cancellation requires every tracked failure to load
+successfully in that generation. Otherwise the existing bounded style retry
+runs, and a repeated failure reaches the same Retry notice instead of depending
+on another error event that may never arrive.
 
 Container-race hypothesis was ruled out in the exact failure: canvas backing
 size was 1170 by 2532 for a 390 by 844 CSS viewport, camera and overlay

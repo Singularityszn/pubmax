@@ -109,6 +109,7 @@ import {
 } from "@/lib/mapPaintWatchdog";
 import {
   classifyTileFailure,
+  createBasemapTileFailureTracker,
   isCriticalBasemapFailure,
   pruneTileFailures,
   tileFailureRecheckDelay,
@@ -1099,6 +1100,7 @@ export default function PubMapCanvas({
     let tileRetryQueued = false;
     let tileFailureGeneration = 0;
     let tileFailureRecheckTimer: ReturnType<typeof setTimeout> | undefined;
+    const failedBasemapTiles = createBasemapTileFailureTracker();
     const clearTileFailureRecheck = () => {
       if (tileFailureRecheckTimer !== undefined) {
         clearTimeout(tileFailureRecheckTimer);
@@ -1109,10 +1111,12 @@ export default function PubMapCanvas({
       tileFailureGeneration += 1;
       clearTileFailureRecheck();
       tileFailureStamps = [];
+      failedBasemapTiles.reset();
     };
     const markBasemapRecovered = () => {
       if (!areBasemapTilesLoaded()) return;
       if (tileFailureRecheckTimer !== undefined) return;
+      if (failedBasemapTiles.hasFailures()) return;
       initialBasemapPending = false;
       tileFailureStamps = [];
       tileFailureSurfaced = false;
@@ -1128,8 +1132,12 @@ export default function PubMapCanvas({
     map.on("idle", markBasemapRecovered);
     const onBasemapTileLoaded = (event: unknown) => {
       const dataEvent = event as {
+        sourceId?: unknown;
         source?: { type?: unknown };
-        tile?: { state?: unknown };
+        tile?: {
+          state?: unknown;
+          tileID?: { key?: unknown };
+        };
       };
       if (
         dataEvent.tile?.state !== "loaded" ||
@@ -1141,9 +1149,16 @@ export default function PubMapCanvas({
       ) {
         return;
       }
+      initialBasemapPending = false;
+      const recoveredFailures = failedBasemapTiles.recordSuccess({
+        sourceId: dataEvent.sourceId,
+        sourceType: dataEvent.source?.type,
+        tileKey: dataEvent.tile.tileID?.key,
+      });
+      if (failedBasemapTiles.hasFailures()) return;
+      if (!recoveredFailures && tileFailureRecheckTimer !== undefined) return;
       clearTileFailureRecheck();
       tileFailureStamps = [];
-      initialBasemapPending = false;
       markBasemapRecovered();
     };
     map.on("sourcedata", onBasemapTileLoaded);
@@ -1684,8 +1699,9 @@ export default function PubMapCanvas({
       tileFailureStamps.push(now);
       const mapError = event as {
         error?: { message?: unknown };
+        sourceId?: unknown;
         source?: { type?: unknown };
-        tile?: unknown;
+        tile?: { tileID?: { key?: unknown } };
       };
       const message = String(mapError.error?.message ?? "");
       const documentVisible = document.visibilityState !== "hidden";
@@ -1696,6 +1712,17 @@ export default function PubMapCanvas({
         sourceType: mapError.source?.type,
         tilePresent: mapError.tile !== undefined,
       });
+      if (
+        documentVisible &&
+        !cameraInFlight &&
+        !initialBasemapPending
+      ) {
+        failedBasemapTiles.recordFailure({
+          sourceId: mapError.sourceId,
+          sourceType: mapError.source?.type,
+          tileKey: mapError.tile?.tileID?.key,
+        });
+      }
       evaluateTileFailure(
         now,
         critical,

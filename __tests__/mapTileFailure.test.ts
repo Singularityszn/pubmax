@@ -4,11 +4,82 @@ import {
   TILE_FAILURE_SUSTAIN_MS,
   TILE_FAILURE_WINDOW_MS,
   classifyTileFailure,
+  createBasemapTileFailureTracker,
   isCriticalBasemapFailure,
   pruneTileFailures,
   tileFailureRecheckDelay,
   type TileFailureInput,
 } from "@/lib/mapTileFailure";
+
+describe("createBasemapTileFailureTracker", () => {
+  it("requires every failed tile to recover before confirming recovery", () => {
+    const tracker = createBasemapTileFailureTracker();
+    tracker.recordFailure({
+      sourceId: "openfreemap",
+      sourceType: "vector",
+      tileKey: "12/2047/1360",
+    });
+    tracker.recordFailure({
+      sourceId: "openfreemap",
+      sourceType: "vector",
+      tileKey: "12/2048/1360",
+    });
+
+    expect(
+      tracker.recordSuccess({
+        sourceId: "openfreemap",
+        sourceType: "vector",
+        tileKey: "12/2049/1360",
+      }),
+    ).toBe(false);
+    expect(tracker.hasFailures()).toBe(true);
+    expect(
+      tracker.recordSuccess({
+        sourceId: "openfreemap",
+        sourceType: "vector",
+        tileKey: "12/2047/1360",
+      }),
+    ).toBe(false);
+    expect(tracker.hasFailures()).toBe(true);
+    expect(
+      tracker.recordSuccess({
+        sourceId: "openfreemap",
+        sourceType: "vector",
+        tileKey: "12/2048/1360",
+      }),
+    ).toBe(true);
+    expect(tracker.hasFailures()).toBe(false);
+  });
+
+  it("scopes failed tiles to the current generation", () => {
+    const tracker = createBasemapTileFailureTracker();
+    const tile = {
+      sourceId: "openfreemap",
+      sourceType: "vector",
+      tileKey: "12/2047/1360",
+    };
+    tracker.recordFailure(tile);
+    tracker.reset();
+
+    expect(tracker.recordSuccess(tile)).toBe(false);
+    expect(tracker.hasFailures()).toBe(false);
+  });
+
+  it("ignores non-basemap and incomplete tile references", () => {
+    const tracker = createBasemapTileFailureTracker();
+    tracker.recordFailure({
+      sourceId: "pubs",
+      sourceType: "geojson",
+      tileKey: "pubs",
+    });
+    tracker.recordFailure({
+      sourceType: "vector",
+      tileKey: "12/2047/1360",
+    });
+
+    expect(tracker.hasFailures()).toBe(false);
+  });
+});
 
 describe("isCriticalBasemapFailure", () => {
   it("treats initial vector TileJSON failure as systemic without a tile burst", () => {

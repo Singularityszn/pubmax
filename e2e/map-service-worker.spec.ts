@@ -41,17 +41,40 @@ test("target worker replaces the pre-fix controller and purges poisoned tiles", 
 }) => {
   test.setTimeout(180_000);
   await page.setViewportSize({ width: 390, height: 844 });
-  await context.route(/\/sw\.js\?v=/, (route) =>
-    route.fulfill({
-      status: 200,
-      contentType: "application/javascript",
-      body: legacyWorker,
-    }),
-  );
+  const workerRoute = /\/sw\.js\?v=/;
+  await context.route(workerRoute, (route) => {
+    const version = new URL(route.request().url()).searchParams.get("v");
+    if (version?.startsWith("legacy-")) {
+      return route.fulfill({
+        status: 200,
+        contentType: "application/javascript",
+        body: legacyWorker,
+      });
+    }
+    return route.abort("blockedbyclient");
+  });
+
+  await page.goto("/offline.html");
+  const activeLegacyUrl = `/sw.js?v=legacy-active-${Date.now()}`;
+  await page.evaluate(async (scriptUrl) => {
+    await navigator.serviceWorker.register(scriptUrl, {
+      updateViaCache: "none",
+    });
+    await navigator.serviceWorker.ready;
+  }, activeLegacyUrl);
+  await page.reload();
+  await expect
+    .poll(
+      () =>
+        page.evaluate(
+          () => navigator.serviceWorker.controller?.scriptURL ?? null,
+        ),
+      { timeout: 15_000 },
+    )
+    .toContain("legacy-active-");
 
   await page.goto("/map");
   await page.evaluate(() => navigator.serviceWorker.ready.then(() => true));
-  await page.reload();
   await expect(page.locator(".maplibreMap canvas").first()).toBeVisible({
     timeout: 30_000,
   });
@@ -78,7 +101,8 @@ test("target worker replaces the pre-fix controller and purges poisoned tiles", 
   const activeLegacyController = await page.evaluate(
     () => navigator.serviceWorker.controller?.scriptURL ?? null,
   );
-  expect(activeLegacyController).toContain("/sw.js?v=");
+  expect(activeLegacyController).toContain("legacy-active-");
+  expect(activeLegacyController).not.toContain("cache-policy");
 
   const tileUrl = await page.evaluate(async () => {
     for (const name of await caches.keys()) {
@@ -126,26 +150,56 @@ test("target worker replaces the pre-fix controller and purges poisoned tiles", 
   expect(waitingState.waiting).toContain("legacy-waiting-");
 
   const poisonedUrl = `${tileUrl}?poisoned-rollout=1`;
-  const legacyCaches = await page.evaluate(
+  const legacyState = await page.evaluate(
     async ({ activeScriptUrl, poisonedTileUrl }) => {
       const version = new URL(activeScriptUrl).searchParams.get("v");
-      const activeCacheName = `pubmax-sw-swr-${version}`;
-      const cache = await caches.open(activeCacheName);
-      await cache.put(
+      const cacheNames = {
+        data: `pubmax-sw-data-${version}`,
+        plan: `pubmax-sw-plan-${version}`,
+        shell: `pubmax-sw-shell-${version}`,
+        swr: `pubmax-sw-swr-${version}`,
+      };
+      const swr = await caches.open(cacheNames.swr);
+      await swr.put(
         poisonedTileUrl,
         new Response("poisoned", {
           status: 503,
           headers: { "Content-Type": "application/x-protobuf" },
         }),
       );
-      return (await caches.keys()).filter((name) => name.startsWith("pubmax-sw-"));
+      await swr.put(
+        "/_next/static/chunks/legacy-offline.js",
+        new Response("legacy static"),
+      );
+      await (await caches.open(cacheNames.shell)).put(
+        "/offline.html",
+        new Response("legacy shell"),
+      );
+      await (await caches.open(cacheNames.data)).put(
+        "/data/legacy-offline.json",
+        new Response('{"legacy":true}', {
+          headers: { "Content-Type": "application/json" },
+        }),
+      );
+      await (await caches.open(cacheNames.plan)).put(
+        "/plan/legacy-offline",
+        new Response("legacy plan"),
+      );
+      return {
+        all: (await caches.keys()).filter((name) =>
+          name.startsWith("pubmax-sw-"),
+        ),
+        cacheNames,
+      };
     },
     {
       activeScriptUrl: activeLegacyController!,
       poisonedTileUrl: poisonedUrl,
     },
   );
-  expect(legacyCaches.some((name) => name.includes("legacy-waiting-"))).toBe(true);
+  expect(
+    legacyState.all.some((name) => name.includes("legacy-waiting-")),
+  ).toBe(true);
 
   const cdp = await context.newCDPSession(page);
   const origin = new URL(page.url()).origin;
@@ -170,8 +224,10 @@ test("target worker replaces the pre-fix controller and purges poisoned tiles", 
     }, uncachedTileUrl),
   ).toBe("errored");
 
-  await context.unroute(/\/sw\.js\?v=/);
-  const targetWorkerUrl = `/sw.js?v=rollout-target-${Date.now()}`;
+  await context.unroute(workerRoute);
+  const targetWorkerUrl =
+    `/sw.js?v=rollout-target-${Date.now()}` +
+    "&cache-policy=write-safe-v1";
   const takeover = await page.evaluate(async (scriptUrl) => {
     const states: string[] = [];
     const controllerChanged = new Promise<void>((resolve) => {
@@ -199,15 +255,44 @@ test("target worker replaces the pre-fix controller and purges poisoned tiles", 
   expect(takeover.states).toContain("installed");
   expect(takeover.states).toContain("activated");
   expect(takeover.waiting).toBeNull();
-  await expect
-    .poll(() =>
-      page.evaluate(
-        async (superseded) =>
-          (await caches.keys()).filter((name) => superseded.includes(name)),
-        legacyCaches,
-      ),
-    )
-    .toEqual([]);
+  const cacheContinuity = await page.evaluate(
+    async ({ cacheNames, poisonedTileUrl }) => {
+      const names = await caches.keys();
+      const data = await caches.open(cacheNames.data);
+      const plan = await caches.open(cacheNames.plan);
+      const shell = await caches.open(cacheNames.shell);
+      const swr = await caches.open(cacheNames.swr);
+      const oldTileUrls = (await swr.keys())
+        .map((request) => request.url)
+        .filter((url) => new URL(url).hostname === "tiles.openfreemap.org");
+      return {
+        retained: Object.values(cacheNames).every((name) =>
+          names.includes(name),
+        ),
+        data: Boolean(await data.match("/data/legacy-offline.json")),
+        plan: Boolean(await plan.match("/plan/legacy-offline")),
+        poisoned: Boolean(await swr.match(poisonedTileUrl)),
+        shell: Boolean(await shell.match("/offline.html")),
+        staticAsset: Boolean(
+          await swr.match("/_next/static/chunks/legacy-offline.js"),
+        ),
+        oldTileUrls,
+      };
+    },
+    {
+      cacheNames: legacyState.cacheNames,
+      poisonedTileUrl: poisonedUrl,
+    },
+  );
+  expect(cacheContinuity).toEqual({
+    retained: true,
+    data: true,
+    plan: true,
+    poisoned: false,
+    shell: true,
+    staticAsset: true,
+    oldTileUrls: [],
+  });
 
   await page.reload();
   await expect

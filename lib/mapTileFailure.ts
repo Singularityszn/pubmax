@@ -53,6 +53,49 @@ export const TILE_FAILURE_SUSTAIN_MS = 5_000;
 
 export type TileFailureDecision = "ignore" | "retry" | "surface";
 
+export type BasemapTileReference = {
+  sourceId?: unknown;
+  sourceType?: unknown;
+  tileKey?: unknown;
+};
+
+function basemapTileReferenceKey({
+  sourceId,
+  sourceType,
+  tileKey,
+}: BasemapTileReference): string | null {
+  if (
+    sourceType !== "vector" &&
+    sourceType !== "raster" &&
+    sourceType !== "raster-dem"
+  ) {
+    return null;
+  }
+  if (typeof sourceId !== "string" || typeof tileKey !== "string") return null;
+  return `${sourceId}:${tileKey}`;
+}
+
+export function createBasemapTileFailureTracker() {
+  const failed = new Set<string>();
+  return {
+    reset() {
+      failed.clear();
+    },
+    recordFailure(reference: BasemapTileReference) {
+      const key = basemapTileReferenceKey(reference);
+      if (key) failed.add(key);
+    },
+    recordSuccess(reference: BasemapTileReference): boolean {
+      const key = basemapTileReferenceKey(reference);
+      if (!key || !failed.delete(key)) return false;
+      return failed.size === 0;
+    },
+    hasFailures() {
+      return failed.size > 0;
+    },
+  };
+}
+
 export type CriticalBasemapFailureInput = {
   message: string;
   initialBasemapPending: boolean;

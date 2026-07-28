@@ -20,7 +20,7 @@
  *
  * Cache identity/eviction:
  *  - The cache name is owned by sw.js (PREFIX + "plan-" + VERSION) and passed
- *    in, so it is versioned and swept by sw.js's existing activate() cleanup.
+ *    in, so it is versioned and migrated by sw.js during activate().
  *  - Keyed by pathname (like the shell cache) so a plan reopens regardless of
  *    ?vibe=/utm query, and one plan is never stored twice.
  *  - Bounded to the last MAX_PLAN_ENTRIES plans, LRU-ish: Cache.put replaces
