@@ -4,7 +4,7 @@ import { useEffect } from "react";
 
 // Registers the offline service worker (public/sw.js — issue #32, PRD § The
 // Spill). Renders nothing and nags about nothing: registration is silent,
-// updates install in the background and take over on the next visit.
+// updates install in the background and take over once installation finishes.
 //
 // The ?v= query carries the per-deploy build id (inlined from next.config.mjs
 // as NEXT_PUBLIC_SW_VERSION). A new deploy changes the registration URL, the
@@ -23,7 +23,7 @@ export default function OfflineReady() {
         .then((registration) => {
           registration.addEventListener("updatefound", () => {
             console.info(
-              "PUBMAXXING: a new offline version is installing; it takes over on your next visit.",
+              "PUBMAXXING: a new offline version is installing.",
             );
           });
         })

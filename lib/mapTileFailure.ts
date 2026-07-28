@@ -25,9 +25,9 @@
  * - Before the initial basemap has painted, a burst is systemic immediately.
  *   Initial viewport requests are concurrent, so a complete outage reports
  *   every failure quickly and may never emit another error.
- * - After a real basemap paint, a burst is systemic only if it is SUSTAINED:
- *   first-to-last error span of at least TILE_FAILURE_SUSTAIN_MS. A sub-5s
- *   self-healing blip never spans it.
+ * - After a real basemap paint, a burst is systemic only if it remains
+ *   unrecovered for TILE_FAILURE_SUSTAIN_MS. A sub-5s self-healing blip never
+ *   reaches that boundary.
  * - A critical sprite/glyph failure breaks labels/icons map-wide. An initial
  *   vector/raster source metadata failure leaves no tiles to request, so it
  *   emits only once. Both count as systemic without a sustain requirement.
@@ -46,9 +46,8 @@ export const TILE_FAILURE_WINDOW_MS = 10_000;
  */
 export const TILE_FAILURE_BURST = 4;
 /**
- * A burst must also persist this long (first to last error) before it counts
- * as systemic. Transient flight/tile-catch-up black frames self-heal faster
- * than this; a real source outage errors continuously and crosses it.
+ * A burst must remain unrecovered this long before it counts as systemic.
+ * Transient flight/tile-catch-up black frames self-heal faster than this.
  */
 export const TILE_FAILURE_SUSTAIN_MS = 5_000;
 
@@ -128,6 +127,18 @@ export function pruneTileFailures(
   return timestamps.filter((t) => now - t <= windowMs);
 }
 
+export function tileFailureRecheckDelay(
+  timestamps: readonly number[],
+  now: number,
+  burstThreshold: number = TILE_FAILURE_BURST,
+  windowMs: number = TILE_FAILURE_WINDOW_MS,
+  sustainMs: number = TILE_FAILURE_SUSTAIN_MS,
+): number | null {
+  const recent = pruneTileFailures(timestamps, now, windowMs);
+  if (recent.length < burstThreshold) return null;
+  return Math.max(0, sustainMs - (now - Math.min(...recent)));
+}
+
 /**
  * Classify the current post-style-load error state. See module doc for the
  * rules; the caller acts on the verdict exactly once per sample.
@@ -163,9 +174,9 @@ export function classifyTileFailure(input: TileFailureInput): TileFailureDecisio
   if (cameraInFlight) return "ignore";
 
   const recent = pruneTileFailures(errorTimestamps, now, windowMs);
-  const span =
-    recent.length > 1 ? Math.max(...recent) - Math.min(...recent) : 0;
-  const sustainedBurst = recent.length >= burstThreshold && span >= sustainMs;
+  const burstAge =
+    recent.length > 0 ? now - Math.min(...recent) : 0;
+  const sustainedBurst = recent.length >= burstThreshold && burstAge >= sustainMs;
   const initialBurst = initialBasemapPending && recent.length >= burstThreshold;
   const systemic = initialBurst || sustainedBurst;
   if (!systemic) return "ignore";

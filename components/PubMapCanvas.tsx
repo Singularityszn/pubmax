@@ -111,6 +111,7 @@ import {
   classifyTileFailure,
   isCriticalBasemapFailure,
   pruneTileFailures,
+  tileFailureRecheckDelay,
 } from "@/lib/mapTileFailure";
 import {
   CONTEXT_LOST_RECOVERY_MS,
@@ -1096,8 +1097,22 @@ export default function PubMapCanvas({
     let tileRetrySpent = false;
     let tileFailureSurfaced = false;
     let tileRetryQueued = false;
+    let tileFailureGeneration = 0;
+    let tileFailureRecheckTimer: ReturnType<typeof setTimeout> | undefined;
+    const clearTileFailureRecheck = () => {
+      if (tileFailureRecheckTimer !== undefined) {
+        clearTimeout(tileFailureRecheckTimer);
+      }
+      tileFailureRecheckTimer = undefined;
+    };
+    const beginTileFailureGeneration = () => {
+      tileFailureGeneration += 1;
+      clearTileFailureRecheck();
+      tileFailureStamps = [];
+    };
     const markBasemapRecovered = () => {
       if (!areBasemapTilesLoaded()) return;
+      if (tileFailureRecheckTimer !== undefined) return;
       initialBasemapPending = false;
       tileFailureStamps = [];
       tileFailureSurfaced = false;
@@ -1111,6 +1126,27 @@ export default function PubMapCanvas({
     };
     map.on("render", markBasemapRecovered);
     map.on("idle", markBasemapRecovered);
+    const onBasemapTileLoaded = (event: unknown) => {
+      const dataEvent = event as {
+        source?: { type?: unknown };
+        tile?: { state?: unknown };
+      };
+      if (
+        dataEvent.tile?.state !== "loaded" ||
+        (
+          dataEvent.source?.type !== "vector" &&
+          dataEvent.source?.type !== "raster" &&
+          dataEvent.source?.type !== "raster-dem"
+        )
+      ) {
+        return;
+      }
+      clearTileFailureRecheck();
+      tileFailureStamps = [];
+      initialBasemapPending = false;
+      markBasemapRecovered();
+    };
+    map.on("sourcedata", onBasemapTileLoaded);
 
     const pinRevealCoordinator = createPinRevealCoordinator({
       pinRevealTimeoutMs: PIN_REVEAL_TIMEOUT_MS,
@@ -1319,6 +1355,7 @@ export default function PubMapCanvas({
       // after tile readiness crosses a paint frame. The timeout deliberately
       // degrades to usable pins over the themed container when community tiles
       // are partial/offline instead of leaving the product invisible.
+      beginTileFailureGeneration();
       initialBasemapPending = true;
       pinRevealCoordinator.arm();
 
@@ -1512,6 +1549,7 @@ export default function PubMapCanvas({
       if (styleLoaded || usingFallback) return;
       usingFallback = true;
       pinRevealCoordinator.cancel();
+      beginTileFailureGeneration();
       map.setStyle(FALLBACK_STYLES[themeRef.current], { diff: false });
       hardFailTimer = setTimeout(() => {
         if (!styleLoaded) {
@@ -1543,27 +1581,12 @@ export default function PubMapCanvas({
     // Declared here so the tile-error surface path can prefer soft toast once
     // a real frame has painted (set true by the first-frame watchdog below).
     let firstFrameSeen = false;
-    map.on("error", (event) => {
-      if (!styleLoaded) {
-        swapToBasemapFallback();
-        return;
-      }
-      if (tileFailureSurfaced || mapRef.current !== map) return;
-      const now = performance.now();
-      tileFailureStamps = pruneTileFailures(tileFailureStamps, now);
-      tileFailureStamps.push(now);
-      const mapError = event as {
-        error?: { message?: unknown };
-        source?: { type?: unknown };
-        tile?: unknown;
-      };
-      const message = String(mapError.error?.message ?? "");
-      const critical = isCriticalBasemapFailure({
-        message,
-        initialBasemapPending,
-        sourceType: mapError.source?.type,
-        tilePresent: mapError.tile !== undefined,
-      });
+    const evaluateTileFailure = (
+      now: number,
+      critical: boolean,
+      message: string,
+      mayRecheck: boolean,
+    ) => {
       const decision = classifyTileFailure({
         now,
         errorTimestamps: tileFailureStamps,
@@ -1576,7 +1599,37 @@ export default function PubMapCanvas({
         recoveryBudgetLeft: PAINT_WATCHDOG_MAX_RETRIES - recoverySpent,
         initialBasemapPending,
       });
-      if (decision === "ignore") return;
+      if (decision === "ignore") {
+        const delay = initialBasemapPending
+          ? null
+          : tileFailureRecheckDelay(tileFailureStamps, now);
+        if (
+          !mayRecheck ||
+          delay === null ||
+          tileFailureRecheckTimer !== undefined
+        ) {
+          return;
+        }
+        const generation = tileFailureGeneration;
+        tileFailureRecheckTimer = setTimeout(() => {
+          tileFailureRecheckTimer = undefined;
+          if (
+            generation !== tileFailureGeneration ||
+            tileFailureSurfaced ||
+            mapRef.current !== map
+          ) {
+            return;
+          }
+          evaluateTileFailure(
+            performance.now(),
+            false,
+            message,
+            document.visibilityState !== "hidden" && !map.isMoving(),
+          );
+        }, Math.max(1, delay));
+        return;
+      }
+      clearTileFailureRecheck();
       if (decision === "retry") {
         if (tileRetryQueued) return;
         tileRetryQueued = true;
@@ -1585,7 +1638,7 @@ export default function PubMapCanvas({
           if (mapRef.current !== map || tileFailureSurfaced) return;
           tileRetrySpent = true;
           recoverySpent += 1; // shared budget with the paint watchdog
-          tileFailureStamps = [];
+          beginTileFailureGeneration();
           console.warn("[pubmap] tile failure burst, reloading style", {
             critical,
             detail: message || undefined,
@@ -1619,6 +1672,36 @@ export default function PubMapCanvas({
           detail: message || "Tile source failure after style load",
         });
       });
+    };
+    map.on("error", (event) => {
+      if (!styleLoaded) {
+        swapToBasemapFallback();
+        return;
+      }
+      if (tileFailureSurfaced || mapRef.current !== map) return;
+      const now = performance.now();
+      tileFailureStamps = pruneTileFailures(tileFailureStamps, now);
+      tileFailureStamps.push(now);
+      const mapError = event as {
+        error?: { message?: unknown };
+        source?: { type?: unknown };
+        tile?: unknown;
+      };
+      const message = String(mapError.error?.message ?? "");
+      const documentVisible = document.visibilityState !== "hidden";
+      const cameraInFlight = map.isMoving();
+      const critical = isCriticalBasemapFailure({
+        message,
+        initialBasemapPending,
+        sourceType: mapError.source?.type,
+        tilePresent: mapError.tile !== undefined,
+      });
+      evaluateTileFailure(
+        now,
+        critical,
+        message,
+        documentVisible && !cameraInFlight,
+      );
     });
 
     // --- Post-init context loss (iOS Safari P0).
@@ -2023,6 +2106,7 @@ export default function PubMapCanvas({
       // every layer with the new theme's tokens (a successful diff would keep
       // stale-themed layers and skip style.load entirely).
       pinRevealCoordinator.cancel();
+      beginTileFailureGeneration();
       map.setStyle(MAP_STYLES[next], { diff: false });
     });
     themeObserver.observe(document.documentElement, {
@@ -2050,8 +2134,10 @@ export default function PubMapCanvas({
       if (hardFailTimer) clearTimeout(hardFailTimer);
       clearTimeout(hangFailTimer);
       pinRevealCoordinator.dispose();
+      clearTileFailureRecheck();
       map.off("render", markBasemapRecovered);
       map.off("idle", markBasemapRecovered);
+      map.off("sourcedata", onBasemapTileLoaded);
       themeObserver.disconnect();
       reducedQuery.removeEventListener("change", onReducedChange);
       window.removeEventListener("blur", onBlur);

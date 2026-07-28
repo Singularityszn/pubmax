@@ -43,7 +43,7 @@ expect(cache.put).toHaveBeenCalledOnce();
 
 Also assert cross-origin OpenFreeMap requests are intercepted, opaque responses pass through without cache writes, and a true network rejection still returns an error response.
 
-Add a service-worker-enabled SwiftShader Playwright project and exact 390 by 844 regression: warm Map, return to Today, delete vector tiles only, cap origin quota at current usage plus one byte, install a waiting worker, then tap Map. Assert old worker remains controller, direct provider request returns HTTP 200, and `pubmax:pin-reveal` reports `tiles` rather than `timeout`.
+Add a service-worker-enabled SwiftShader Playwright project and exact 390 by 844 regression: activate the pre-fix worker, install a second pre-fix worker until it waits, poison the active cache, then cap origin quota at current usage plus one byte. Assert the pre-fix controller converts a direct-provider HTTP 200 into `ERR_FAILED`, install the target worker, verify immediate takeover and superseded-cache removal, reload once, and require a real `tiles` reveal.
 
 - [x] **Step 2: Run test and verify red**
 
@@ -235,7 +235,7 @@ NEXT_DIST_DIR=.next-map-blank-fixed npm run start -- --port 3218
 
 - [x] **Step 2: Verify exact service-worker reproduction is green**
 
-Repeat 390 by 844 flow: warm map, return to Today, delete cached vector tiles, cap origin quota at current usage plus one byte, register a waiting worker version, then navigate to Map. Assert old worker remains controller, direct tile request is HTTP 200, Map reveal reason is `tiles`, and no retry notice is needed because valid responses survive failed cache writes.
+Repeat the 390 by 844 active-pre-fix plus waiting-pre-fix flow under the quota cap. Assert the direct tile request is HTTP 200 while the active worker reproduces `ERR_FAILED`, then assert the target worker activates, claims the page, deletes every superseded cache, and reaches a real `tiles` reveal after the one required reload.
 
 - [x] **Step 3: Capture before and after screenshots**
 

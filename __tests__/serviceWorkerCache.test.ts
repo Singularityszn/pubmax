@@ -16,6 +16,8 @@ function workerHarness(input: {
   cached?: FakeResponse | null;
   putError?: Error;
   trimError?: Error;
+  activeWorker?: boolean;
+  cacheNames?: string[];
 }) {
   const listeners = new Map<string, Listener>();
   const put = vi.fn(async () => {
@@ -35,7 +37,11 @@ function workerHarness(input: {
       href: "https://pubmaxxing.com/sw.js?v=test",
       origin: "https://pubmaxxing.com",
     },
-    registration: { showNotification: vi.fn(async () => undefined) },
+    registration: {
+      active: input.activeWorker ? {} : null,
+      showNotification: vi.fn(async () => undefined),
+    },
+    skipWaiting: vi.fn(async () => undefined),
     clients: {
       claim: vi.fn(async () => undefined),
       matchAll: vi.fn(async () => []),
@@ -47,7 +53,7 @@ function workerHarness(input: {
   };
   const fakeCaches = {
     open: vi.fn(async () => cache),
-    keys: vi.fn(async () => []),
+    keys: vi.fn(async () => input.cacheNames ?? []),
     delete: vi.fn(async () => true),
   };
   const doFetch = vi.fn(async () => {
@@ -57,7 +63,7 @@ function workerHarness(input: {
   const source = readFileSync(join(process.cwd(), "public", "sw.js"), "utf8");
   Function("self", "caches", "fetch", source)(fakeSelf, fakeCaches, doFetch);
 
-  return { listeners, cache, put, doFetch };
+  return { listeners, cache, put, doFetch, fakeCaches, fakeSelf };
 }
 
 function dispatchFetch(
@@ -81,6 +87,16 @@ function dispatchFetch(
   return { response, lifetime };
 }
 
+function dispatchLifecycle(listener: Listener): Promise<unknown>[] {
+  const lifetime: Promise<unknown>[] = [];
+  listener({
+    waitUntil(value: Promise<unknown>) {
+      lifetime.push(Promise.resolve(value));
+    },
+  });
+  return lifetime;
+}
+
 function fakeResponse(type: FakeResponse["type"], ok = true): FakeResponse {
   const clone = vi.fn();
   const response: FakeResponse = { ok, type, clone };
@@ -92,6 +108,44 @@ const TILE_URL =
   "https://tiles.openfreemap.org/planet/revision/11/1023/680.pbf";
 
 describe("service worker map cache", () => {
+  it("activates an update without leaving the broken worker in control", async () => {
+    const { fakeSelf, listeners } = workerHarness({ activeWorker: true });
+
+    const lifetime = dispatchLifecycle(listeners.get("install")!);
+    await expect(Promise.all(lifetime)).resolves.toBeDefined();
+
+    expect(fakeSelf.skipWaiting).toHaveBeenCalledOnce();
+  });
+
+  it("keeps first installation on the normal activation path", async () => {
+    const { fakeSelf, listeners } = workerHarness({});
+
+    const lifetime = dispatchLifecycle(listeners.get("install")!);
+    await expect(Promise.all(lifetime)).resolves.toBeDefined();
+
+    expect(fakeSelf.skipWaiting).not.toHaveBeenCalled();
+  });
+
+  it("deletes every cache owned by superseded workers before claiming clients", async () => {
+    const { fakeCaches, fakeSelf, listeners } = workerHarness({
+      cacheNames: [
+        "pubmax-sw-swr-broken",
+        "pubmax-sw-shell-waiting",
+        "pubmax-sw-swr-test",
+        "unrelated-cache",
+      ],
+    });
+
+    const lifetime = dispatchLifecycle(listeners.get("activate")!);
+    await expect(Promise.all(lifetime)).resolves.toBeDefined();
+
+    expect(fakeCaches.delete.mock.calls.map(([name]) => name)).toEqual([
+      "pubmax-sw-swr-broken",
+      "pubmax-sw-shell-waiting",
+    ]);
+    expect(fakeSelf.clients.claim).toHaveBeenCalledOnce();
+  });
+
   it("returns a successful tile when Cache Storage rejects the write", async () => {
     const networkResponse = fakeResponse("cors");
     const { listeners, put } = workerHarness({

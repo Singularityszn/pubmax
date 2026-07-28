@@ -6,6 +6,7 @@ import {
   classifyTileFailure,
   isCriticalBasemapFailure,
   pruneTileFailures,
+  tileFailureRecheckDelay,
   type TileFailureInput,
 } from "@/lib/mapTileFailure";
 
@@ -107,6 +108,23 @@ describe("classifyTileFailure", () => {
     expect(
       classifyTileFailure({ ...bursting, errorTimestamps: blip }),
     ).toBe("ignore");
+  });
+
+  it("reclassifies a concurrent post-paint outage after the sustain window", () => {
+    const concurrent = Array.from(
+      { length: TILE_FAILURE_BURST },
+      (_, i) => NOW - i * 100,
+    );
+    expect(
+      classifyTileFailure({ ...bursting, errorTimestamps: concurrent }),
+    ).toBe("ignore");
+    expect(
+      classifyTileFailure({
+        ...bursting,
+        now: NOW + TILE_FAILURE_SUSTAIN_MS,
+        errorTimestamps: concurrent,
+      }),
+    ).toBe("retry");
   });
 
   it("retries a concentrated burst while the initial basemap is still pending", () => {
@@ -235,5 +253,26 @@ describe("pruneTileFailures", () => {
       NOW,
       NOW - 400,
     ]);
+  });
+});
+
+describe("tileFailureRecheckDelay", () => {
+  it("arms one sustain-window recheck for a concentrated burst", () => {
+    const concurrent = Array.from(
+      { length: TILE_FAILURE_BURST },
+      (_, i) => NOW - i * 100,
+    );
+    expect(tileFailureRecheckDelay(concurrent, NOW)).toBe(
+      TILE_FAILURE_SUSTAIN_MS - 300,
+    );
+  });
+
+  it("does not arm below the burst threshold", () => {
+    expect(
+      tileFailureRecheckDelay(
+        burst.slice(0, TILE_FAILURE_BURST - 1),
+        NOW,
+      ),
+    ).toBeNull();
   });
 });

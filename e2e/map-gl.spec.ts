@@ -233,6 +233,64 @@ test("/map keeps the honest retry visible while basemap tiles keep failing", asy
   await expect(page.locator(".mapFallback")).toHaveCount(0);
 });
 
+test("/map surfaces a concurrent post-paint tile outage after the sustain window", async ({
+  page,
+}) => {
+  test.setTimeout(60_000);
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.addInitScript(() => {
+    const trace: Array<{ reason: string; generation: number }> = [];
+    Object.defineProperty(window, "__pubmaxPinRevealTrace", { value: trace });
+    window.addEventListener("pubmax:pin-reveal", (event) => {
+      trace.push((event as CustomEvent<{ reason: string; generation: number }>).detail);
+    });
+  });
+  let failTiles = false;
+  await page.route(/\.pbf(?:\?|$)/, async (route) => {
+    if (!failTiles) {
+      await route.continue();
+      return;
+    }
+    await new Promise((resolve) => setTimeout(resolve, 1_000));
+    await route.abort("failed");
+  });
+
+  await page.goto("/map");
+  await expect(page.locator(".maplibreMap canvas").first()).toBeVisible({
+    timeout: 20_000,
+  });
+  await expect
+    .poll(
+      () =>
+        page.evaluate(
+          () =>
+            (
+              window as typeof window & {
+                __pubmaxPinRevealTrace: Array<{
+                  reason: string;
+                  generation: number;
+                }>;
+              }
+            ).__pubmaxPinRevealTrace.at(-1)?.reason ?? null,
+        ),
+      { timeout: 30_000 },
+    )
+    .toMatch(/^(tiles|idle)$/);
+
+  failTiles = true;
+  const zoomIn = page.locator(".maplibregl-ctrl-zoom-in");
+  await zoomIn.click();
+  await zoomIn.click();
+  await zoomIn.click();
+
+  const notice = page.locator(".mapSoftRetry");
+  await expect(notice).toContainText("Map background couldn't load", {
+    timeout: 20_000,
+  });
+  await expect(notice.getByRole("button", { name: "Retry" })).toBeVisible();
+  await expect(page.locator(".mapFallback")).toHaveCount(0);
+});
+
 test("/map states a TileJSON metadata failure instead of revealing a blank field", async ({
   page,
 }) => {

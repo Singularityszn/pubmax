@@ -15,27 +15,36 @@ network response into `Response.error()`. Cache writes can reject under storage
 pressure. The update state made that pressure more likely because the active
 worker and waiting worker temporarily kept two versioned shell cache sets.
 
-The browser reproduction used a 390 by 844 mobile viewport:
+The browser reproduction uses a 390 by 844 mobile viewport:
 
-1. Install and activate the current worker.
+1. Install and activate the genuinely pre-fix worker.
 2. Warm the map and its OpenFreeMap cache.
-3. Navigate to Today and delete only cached vector tiles.
-4. Cap origin quota at current usage plus one byte.
-5. Register a new worker URL and wait for it to reach `waiting`.
-6. Navigate back to Map while the old worker remained controller.
+3. Install a second pre-fix worker and leave it waiting.
+4. Seed a poisoned basemap entry in the active worker's cache.
+5. Cap origin quota at current usage plus one byte.
+6. Request an uncached tile through the active pre-fix worker.
 
 The direct tile request still returned 200 with a non-empty body. Every
-browser tile request returned `net::ERR_FAILED`, while own-origin chrome,
-landmarks, clusters, and pins remained. The result matched the captain's
-screenshot.
+browser request for that tile returned `net::ERR_FAILED`. The result matched
+the captain's screenshot.
 
 The fix separates network delivery from best-effort cache maintenance. A valid
 network response now reaches MapLibre even if `cache.put()` or trimming fails.
 Opaque responses still pass through and are not cached. A genuine network
 failure plus cache miss still returns an error response.
 
-The old worker remains controller during an update, as designed. No service
-worker scope or offline capability was removed.
+The target worker now activates as soon as its installation finishes, claims
+the open page, and removes every superseded PUBMAXX cache before serving it.
+This is deliberately narrower than forcing first-time installation: the
+accelerated path runs only when the registration already has an active worker.
+Service-worker scope and offline capability are unchanged.
+
+An already-affected open page needs one reload after takeover. Takeover fixes
+future requests but cannot make the old page's already-errored MapLibre tiles
+request themselves again, and that page may still be running the pre-fix app
+bundle without Retry. No second visit or worker-close cycle is required. The
+browser regression performs that one reload, then proves the poisoned cache is
+gone and the same valid OpenFreeMap response reaches a real `tiles` reveal.
 
 ## Silent failure guard
 
@@ -52,6 +61,12 @@ spend one bounded style retry, then show:
 The Retry action reinitialises the map. A slower successful tile stream also
 clears a timeout-owned notice automatically. A notice caused by actual request
 errors stays until Retry because MapLibre considers errored tiles settled.
+
+After the basemap has painted, a concurrent failed viewport now owns a
+generation-scoped recheck at the five-second sustain boundary. A successful
+vector or raster tile load cancels it. Otherwise the existing bounded style
+retry runs, and a repeated failure reaches the same Retry notice instead of
+depending on another error event that may never arrive.
 
 Container-race hypothesis was ruled out in the exact failure: canvas backing
 size was 1170 by 2532 for a 390 by 844 CSS viewport, camera and overlay
@@ -115,7 +130,8 @@ the delay and tapping Retry reconstructs the map and reaches a real tile reveal.
 
 ![Blank basemap reproduction](./before-reproduced-390.png)
 
-390px after, under the same quota plus waiting-update state:
+390px after one reload, following target-worker takeover under the same quota
+plus waiting-update state:
 
 ![Basemap rendered after fix](./after-quota-update-390.png)
 

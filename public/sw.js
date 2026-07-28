@@ -72,8 +72,9 @@ self.addEventListener("install", (event) => {
       ),
     ),
   );
-  // No skipWaiting(): the new worker waits for old tabs to close, so an
-  // in-flight session is never handed a half-swapped asset graph.
+  if (self.registration.active) {
+    event.waitUntil(self.skipWaiting());
+  }
 });
 
 self.addEventListener("activate", (event) => {
