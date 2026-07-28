@@ -182,9 +182,10 @@ describe("legal content pages", () => {
     expect(privacy).toMatch(
       /prices[\s\S]*Visit Reports[\s\S]*Recommendations/i,
     );
-    expect(privacy).toMatch(/without a public handle[\s\S]*anonymous/i);
+    expect(privacy).toMatch(/cannot[\s\S]*lands anonymously/i);
     expect(privacy).toMatch(/hidden[\s\S]*do not count/i);
     expect(privacy).toMatch(/all time/i);
+    expect(privacy).not.toMatch(/future contributor count/i);
   });
 
   it("names all three price lanes and fences the historical one", () => {

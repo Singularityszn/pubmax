@@ -44,6 +44,7 @@ describe("ContributorRecord", () => {
     expect(html).toContain("Prices");
     expect(html).toContain("Visit Reports");
     expect(html).toContain("Recommendations");
+    expect(html).toContain("Anonymous price logs are not ranked");
     expect(html).not.toMatch(/winner|points|score/i);
   });
 

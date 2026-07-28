@@ -23,7 +23,8 @@ export default function ContributorRecord({
         <h1 id="contributor-title">Contributor record</h1>
         <p className="contributorLede">
           Price logs, Visit Reports and weather Recommendations, added together.
-          Hidden contributions come off the count. Equal totals share a place.
+          Hidden contributions come off the count. Anonymous price logs are not
+          ranked. Equal totals share a place.
         </p>
         <p className="contributorWindow">{board.window.label}</p>
       </header>

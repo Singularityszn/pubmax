@@ -43,6 +43,7 @@ import { deriveCommunityPriceActor } from "@/lib/communityPriceActor";
 import {
   NO_ALCOHOL_DRINK_CATEGORIES,
   validateCommunityPrice,
+  type CommunityPriceAttribution,
 } from "@/lib/communityPrice";
 import { validateCommunityVenueSignal } from "@/lib/communityVenueSignals";
 import { isDrinkCategory } from "@/lib/drinks";
@@ -127,6 +128,23 @@ async function communityWriteIsLimited(
   if (await isLimited(actorLimitKey, actorLimitKey, 30, 3_600_000)) return true;
   const venueLimitKey = `price-submit:${actor ?? "anon"}:${venueId}`;
   return isLimited(venueLimitKey, venueLimitKey);
+}
+
+async function resolveOptionalPriceAttribution(
+  request: Request,
+  assertedHandle: string | undefined,
+): Promise<CommunityPriceAttribution> {
+  if (!assertedHandle) return { status: "anonymous" };
+  try {
+    const resolvedHandle = await resolveMessageHandle(request, assertedHandle);
+    if (!resolvedHandle) return { status: "anonymous" };
+    const ownership = await gateHandleAction(request, resolvedHandle);
+    return ownership.allowed
+      ? { status: "credited", handle: ownership.handle }
+      : { status: "anonymous" };
+  } catch {
+    return { status: "anonymous" };
+  }
 }
 
 export async function POST(request: Request): Promise<Response> {
@@ -243,25 +261,10 @@ export async function POST(request: Request): Promise<Response> {
   const submission = { ...result.value, venueId: resolved.venueId };
 
   const actor = deriveCommunityPriceActor(request);
-  let contributorHandle: string | undefined;
-  const assertedHandle = readString(body.contributorHandle);
-  if (assertedHandle) {
-    const resolvedHandle = await resolveMessageHandle(request, assertedHandle);
-    if (!resolvedHandle) {
-      return jsonNoStore(
-        { error: "Profile storage is unavailable right now. Try again shortly." },
-        { status: 503 },
-      );
-    }
-    const ownership = await gateHandleAction(request, resolvedHandle);
-    if (!ownership.allowed) {
-      return jsonNoStore(
-        { error: ownership.error },
-        { status: ownership.status },
-      );
-    }
-    contributorHandle = ownership.handle;
-  }
+  const attribution = await resolveOptionalPriceAttribution(
+    request,
+    readString(body.contributorHandle),
+  );
 
   // Cap one device across every venue before applying the tighter per-venue
   // budget. Without this actor-only key, changing venueId resets the budget and
@@ -277,7 +280,9 @@ export async function POST(request: Request): Promise<Response> {
   const { price, failed } = await submitCommunityPrice({
     ...submission,
     actor,
-    ...(contributorHandle ? { contributorHandle } : {}),
+    ...(attribution.status === "credited"
+      ? { contributorHandle: attribution.handle }
+      : {}),
   });
   if (failed || !price) {
     return jsonNoStore({ error: "Could not log that price right now." }, { status: 503 });
@@ -307,6 +312,7 @@ export async function POST(request: Request): Promise<Response> {
   return jsonNoStore(
     {
       ok: true,
+      attribution,
       price:
         record ??
         {

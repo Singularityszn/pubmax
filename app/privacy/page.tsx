@@ -134,12 +134,12 @@ export default function PrivacyPage() {
           skies, raining, cold and windy, the reason you wrote, the time our
           server took it, and the same opaque device token described below. The
           handle is stored because the opinion is attributed to you and shown
-          with your name on it, and is what a future contributor count would be
-          counted from; the token is stored only to rate-limit writes and to
-          keep one contributor to one Recommendation per pub and condition, so
-          editing yours replaces it rather than stacking another. The weather
-          never writes a Recommendation. It only decides which of the ones
-          people wrote match right now.
+          with your name on it, and each visible Recommendation counts on the
+          public contributor record. The token is stored only to rate-limit
+          writes and to keep one contributor to one Recommendation per pub and
+          condition, so editing yours replaces it rather than stacking another.
+          The weather never writes a Recommendation. It only decides which of
+          the ones people wrote match right now.
         </p>
 
         <h3 className="legalH3">Community price submissions</h3>
@@ -147,8 +147,9 @@ export default function PrivacyPage() {
           Anyone can log tonight&rsquo;s price without an account. We store the
           venue, the drink category, the price and the time. If your browser
           already has a public PUBMAXX handle, the price form tells you and
-          sends that handle with the price so the log can count under your name.
-          Without a public handle, the price stays anonymous and does not enter
+          sends that handle with the price so the server can check whether the
+          attribution can be used. When it can, the log counts under your name.
+          When it cannot, the price still lands anonymously and does not enter
           the contributor record.
         </p>
         <p className="legalBody">
@@ -462,11 +463,10 @@ export default function PrivacyPage() {
             itself stays, so later readers can see what people said and when.
             A row is one observation: the venue, either a drink and its price
             or one venue answer from a fixed list, the date and an unreversible
-            device token. A price logged without a public
-            handle stays anonymous: a venue, a drink, a figure, a date and an
-            unreversible device token. If a public handle was attached, that
-            attribution stays with the price while it is up and counts on the
-            public contributor record.
+            device token. A price logged without an attributed public handle
+            stays anonymous. If a public handle was attached,
+            that attribution stays with the price while it is up and counts on
+            the public contributor record.
           </li>
           <li>
             <strong>Recommendations:</strong>{" "}a Recommendation keeps your

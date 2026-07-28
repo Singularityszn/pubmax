@@ -5,6 +5,7 @@ import { useCallback, useMemo, useRef, useState } from "react";
 import {
   validateCommunityPrice,
   type CommunityPrice,
+  type CommunityPriceAttribution,
   type CommunityPriceMapCandidate,
 } from "@/lib/communityPrice";
 import {
@@ -50,12 +51,22 @@ import {
 // `corroborations: 1` and the POST response supplies the real number. Claiming
 // more locally would flash a pin colour the server is about to take back.
 
+type CommunitySubmissionFailure = {
+  ok: false;
+  error: string;
+  reason: PriceSubmitFailureReason;
+};
+
 export type CommunityPriceSubmitResult =
-  | { ok: true }
+  | { ok: true; attribution: CommunityPriceAttribution }
   // `reason` is the coarse funnel bucket for the failure - the analytics enum,
   // not a second copy of the sentence. `error` stays the human sentence and is
   // never sent anywhere.
-  | { ok: false; error: string; reason: PriceSubmitFailureReason };
+  | CommunitySubmissionFailure;
+
+export type CommunityVenueSignalSubmitResult =
+  | { ok: true }
+  | CommunitySubmissionFailure;
 
 export type CommunityPricesState = {
   /** Freshest community price per drink category, by venue id. Ungated on
@@ -111,7 +122,7 @@ export type CommunityPricesState = {
     venueId: string;
     signalKey: CommunityVenueSignalKey;
     signalValue: CommunityVenueSignalValue;
-  }) => Promise<CommunityPriceSubmitResult>;
+  }) => Promise<CommunityVenueSignalSubmitResult>;
   /** True while a submission is in flight (one at a time by construction). */
   submitting: boolean;
   /**
@@ -145,6 +156,20 @@ export function upsertPrice(rows: CommunityPrice[], next: CommunityPrice): Commu
 export function replacePrice(rows: CommunityPrice[], next: CommunityPrice): CommunityPrice[] {
   const others = rows.filter((row) => row.drinkCategory !== next.drinkCategory);
   return [next, ...others].sort((a, b) => b.submittedAt - a.submittedAt);
+}
+
+export function readCommunityPriceAttribution(
+  value: unknown,
+): CommunityPriceAttribution {
+  if (!value || typeof value !== "object") return { status: "anonymous" };
+  const attribution = value as { status?: unknown; handle?: unknown };
+  if (attribution.status !== "credited" || typeof attribution.handle !== "string") {
+    return { status: "anonymous" };
+  }
+  const handle = normalizeHandle(attribution.handle);
+  return handle
+    ? { status: "credited", handle }
+    : { status: "anonymous" };
 }
 
 /**
@@ -921,7 +946,7 @@ export function useCommunityPrices(): CommunityPricesState {
           }),
         });
         const data = (await res.json().catch(() => null)) as
-          | { price?: CommunityPrice; error?: string }
+          | { price?: CommunityPrice; attribution?: unknown; error?: string }
           | null;
         if (!res.ok) {
           rollback();
@@ -951,7 +976,10 @@ export function useCommunityPrices(): CommunityPricesState {
             return next;
           });
         }
-        return { ok: true };
+        return {
+          ok: true,
+          attribution: readCommunityPriceAttribution(data?.attribution),
+        };
       } catch {
         rollback();
         return {

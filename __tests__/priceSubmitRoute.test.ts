@@ -81,6 +81,10 @@ import {
 } from "@/lib/communityPriceStore";
 import { COMMUNITY_PRICE_MAX_GBP } from "@/lib/communityPrice";
 import { __resetPintDrops } from "@/lib/pintDrops";
+import {
+  __resetMemoryProfiles,
+  memoryProfileStore,
+} from "@/lib/profileStore";
 import { getUkBaseIdIndex } from "@/lib/ukBaseIndex";
 import {
   MAX_PROVISIONAL_BASE_VENUE_IDS,
@@ -92,6 +96,7 @@ import { isPubVenueKind } from "@/lib/venueKindFilters";
 type PriceBody = {
   ok?: boolean;
   error?: string;
+  attribution?: { status: "credited"; handle: string } | { status: "anonymous" };
   price?: {
     priceGbp: number;
     drinkCategory: string;
@@ -146,6 +151,7 @@ beforeEach(() => {
   readBackState.override = null;
   readBackState.statusOverride = null;
   __resetCommunityPrices();
+  __resetMemoryProfiles();
   __resetPintDrops();
 });
 
@@ -170,6 +176,7 @@ describe("POST /api/price-submit", () => {
     expect(data.price?.priceGbp).toBe(4.2);
     expect(data.price?.source).toBe("community");
     expect(typeof data.price?.submittedAt).toBe("number");
+    expect(data.attribution).toEqual({ status: "anonymous" });
     expect(
       (await memoryCommunityPriceStore.listLeaderboardContributions()).records,
     ).toEqual([]);
@@ -186,6 +193,10 @@ describe("POST /api/price-submit", () => {
     );
 
     expect(res.status).toBe(201);
+    expect((await res.json() as PriceBody).attribution).toEqual({
+      status: "credited",
+      handle: "night_owl",
+    });
     const read =
       await memoryCommunityPriceStore.listLeaderboardContributions();
     expect(read).toMatchObject({
@@ -199,6 +210,52 @@ describe("POST /api/price-submit", () => {
       ],
     });
     expect(JSON.stringify(read)).not.toContain("actor");
+  });
+
+  it("stores a stale linked-handle submission anonymously after sign-out", async () => {
+    await memoryProfileStore.linkUser("night_owl", "user-night-owl");
+
+    const res = await POST(
+      post({
+        venueId: "venue-xjf3n0",
+        drinkCategory: "beer",
+        priceGbp: 4.2,
+        contributorHandle: "night_owl",
+      }),
+    );
+
+    expect(res.status).toBe(201);
+    expect((await res.json() as PriceBody).attribution).toEqual({
+      status: "anonymous",
+    });
+    expect(await readCommunityPrices("venue-xjf3n0")).toHaveLength(1);
+    expect(
+      (await memoryCommunityPriceStore.listLeaderboardContributions()).records,
+    ).toEqual([]);
+  });
+
+  it("stores a submission anonymously when optional profile lookup fails", async () => {
+    vi.spyOn(memoryProfileStore, "getByHandle").mockRejectedValueOnce(
+      new Error("profile store unavailable"),
+    );
+
+    const res = await POST(
+      post({
+        venueId: "venue-xjf3n0",
+        drinkCategory: "beer",
+        priceGbp: 4.2,
+        contributorHandle: "night_owl",
+      }),
+    );
+
+    expect(res.status).toBe(201);
+    expect((await res.json() as PriceBody).attribution).toEqual({
+      status: "anonymous",
+    });
+    expect(await readCommunityPrices("venue-xjf3n0")).toHaveLength(1);
+    expect(
+      (await memoryCommunityPriceStore.listLeaderboardContributions()).records,
+    ).toEqual([]);
   });
 
   it("never trusts a client-supplied timestamp or source", async () => {

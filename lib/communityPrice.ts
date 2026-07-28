@@ -105,6 +105,10 @@ export type CommunityPrice = {
   mapCandidate?: CommunityPriceMapCandidate;
 };
 
+export type CommunityPriceAttribution =
+  | { status: "credited"; handle: string }
+  | { status: "anonymous" };
+
 /** The normalised, trusted shape a validated submission becomes. */
 export type CommunityPriceInput = {
   venueId: string;
