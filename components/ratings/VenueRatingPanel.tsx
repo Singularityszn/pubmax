@@ -1,7 +1,10 @@
 "use client";
 
-// Venue rating panel (PRD E3): the star line in a venue header (bar tab +
-// ledger). Two honest layers:
+// Venue rating panel (PRD E3): the star line a venue header used to carry.
+// NOT MOUNTED: the bar-tab and ledger headers now carry the Visit Report lane
+// instead (components/visits/VisitReportPanel.tsx), because a per-visit account
+// may not sit beside a competing pub score. `POST /api/ratings` still exists.
+// Two honest layers:
 //   • the COMMUNITY score — shown only once the vote floor is met
 //     (summary.shown); under it, the panel says so instead of flashing a
 //     2-vote average;

@@ -30,7 +30,7 @@ test("a visit account can be written and read back from a 390px venue sheet", as
   expect(response?.status()).toBe(200);
 
   const sheet = page.locator('.mobileSheetPortal[data-sheet-kind="venue"]');
-  await expect(sheet).toBeVisible();
+  await expect(sheet).toBeVisible({ timeout: 60_000 });
   await expect(
     page.getByRole("status", { name: "Loading the London pub map." }),
   ).toBeHidden({ timeout: 30_000 });

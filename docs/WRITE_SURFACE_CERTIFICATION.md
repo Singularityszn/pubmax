@@ -17,7 +17,8 @@ CI until this certification is deliberately updated.
 > community price submission `POST /api/price-submit`) → 71 (community-price
 > moderation `POST /api/admin/community-prices`). Token-gated GET
 > confirm/unsubscribe endpoints and read-only GETs (the Social Loop reads, the
-> vibe-vote tally read, the Visit Report per-venue summary read, the operator
+> vibe-vote tally read, the Visit Report venue / contributor-count /
+> moderator-lane reads, the operator
 > own-claim / moderator queue reads, the community price-per-drink read, the
 > base-pub provisional-mark read, the
 > community-price review queue read) are
@@ -203,9 +204,12 @@ Plan member capability and use idempotency keys or atomic store operations.
   required; every structured field is coerced to a fixed allowlist (unknown →
   null, mirrored by the DB CHECK constraints in migrations 0046 and 0058); the note is
   cleaned, capped at 140 chars, and **slop-filtered at write time**
-  (`lib/slopFilter`); `visitedAt` resolves to a London "evening date", and a
-  future night or one older than `MAX_VISIT_AGE_DAYS` (90 calendar days, both
-  ends inclusive) is rejected — the date is authority-bearing because the public
+  (`lib/slopFilter`); `visitedAt` resolves to a London day key (a bare
+  `YYYY-MM-DD` is taken verbatim and must be a real calendar day; a full
+  timestamp folds through the London "evening date", so pre-dawn hours belong to
+  the night before), and a date later than today in London or older than
+  `MAX_VISIT_AGE_DAYS` (90 calendar days, both ends inclusive) is rejected —
+  the date is authority-bearing because the public
   lane sorts on it, so the window is enforced HERE and the composer's `min`/`max`
   only mirror it; at least ONE signal must survive or the body 400s
   (`INVALID_REPORT`) before the limiter/store is touched.

@@ -22,7 +22,8 @@ import { presentableDescription } from "@/lib/slopFilter";
 // ── Fixed vocabularies ───────────────────────────────────────────────────────
 // Small, closed sets. The client can only ever send one of these; anything else
 // is normalised to null (never stored raw), and the DB CHECK constraints in
-// migration 0046 mirror them (defence in depth).
+// migrations 0046 (busyness) and 0058 (noise, seating, bar wait) mirror them
+// (defence in depth).
 
 /** How busy the pub was. */
 export const BUSYNESS_VALUES = ["quiet", "steady", "rammed"] as const;
@@ -61,10 +62,11 @@ const MAX_VENUE_ID = 64;
 const MAX_HANDLE = 40;
 
 /**
- * The one interruptive-prompt id the capture card claims from the shared
- * per-session budget (lib/promptBudget.ts), so a visit-report prompt never
- * stacks on top of the A2HS / first-run / identity-nudge surfaces in one
- * sitting. Value-first: the SUMMARY always renders; only the ASK respects this.
+ * The visit-report id in the shared interruptive-prompt vocabulary
+ * (lib/promptBudget.ts), reserved so an unprompted ASK could never stack on top
+ * of the A2HS / first-run / identity-nudge surfaces in one sitting. The shipped
+ * panel is inline and reader-first (the accounts always render, the composer
+ * opens only on a tap), so it interrupts nobody and claims no budget.
  */
 export const VISIT_REPORT_PROMPT_SURFACE = "visit-report";
 
@@ -174,14 +176,20 @@ export function londonEveningKey(instant: Date | number = new Date()): string {
   return londonDayKey(new Date(ms - EVENING_SHIFT_MS));
 }
 
+/** Latest calendar date the composer and server may accept. Unlike an observed
+ * timestamp, a date input never folds pre-dawn hours into the previous night. */
+export function latestVisitedAt(now: Date = new Date()): string {
+  return londonDayKey(now);
+}
+
 /**
- * The oldest evening a report may be written up for, as a London evening key.
+ * The oldest calendar date a report may be written up for, as a London day key.
  * Calendar-day arithmetic on the day key itself (never on a wall-clock instant),
  * so today is always in range whatever the time of day, and exactly
  * MAX_VISIT_AGE_DAYS ago is the last day that still counts. Pure.
  */
 export function earliestVisitedAt(now: Date = new Date()): string {
-  const today = londonEveningKey(now);
+  const today = latestVisitedAt(now);
   const ms = Date.parse(`${today}T00:00:00Z`);
   if (!Number.isFinite(ms)) return "";
   return new Date(ms - MAX_VISIT_AGE_DAYS * DAY_MS).toISOString().slice(0, 10);
@@ -191,20 +199,22 @@ export function earliestVisitedAt(now: Date = new Date()): string {
  * Resolve an untrusted `visitedAt` to a London evening day key, or null when it
  * is unusable. A bare YYYY-MM-DD is taken as the evening date verbatim (the
  * capture card sends this); a full timestamp is folded through londonEveningKey.
- * A future evening is rejected (you can't report a night that hasn't happened),
+ * A future calendar date is rejected (you can't report a night that hasn't happened),
  * and so is one older than MAX_VISIT_AGE_DAYS — this is the SERVER's window, not
  * the composer's, so a hand-rolled POST meets the same bound as the date input.
- * Omitted → tonight's evening.
+ * Omitted → today's London calendar date.
  */
 export function resolveVisitedAt(value: unknown, now: Date = new Date()): string | null {
-  const todayEvening = londonEveningKey(now);
-  if (value === undefined || value === null || value === "") return todayEvening;
+  const today = latestVisitedAt(now);
+  if (value === undefined || value === null || value === "") return today;
   let key: string;
   if (typeof value === "string" && DATE_ONLY.test(value.trim())) {
     const trimmed = value.trim();
-    // Confirm it is a real calendar date (rejects 2026-13-40).
+    // Date.parse normalises some impossible dates (for example 30 February).
+    // Round-trip the parsed value so only a real calendar day survives.
     const parsed = Date.parse(`${trimmed}T00:00:00Z`);
     if (!Number.isFinite(parsed)) return null;
+    if (new Date(parsed).toISOString().slice(0, 10) !== trimmed) return null;
     key = trimmed;
   } else {
     const ms = typeof value === "number" ? value : Date.parse(String(value));
@@ -212,8 +222,8 @@ export function resolveVisitedAt(value: unknown, now: Date = new Date()): string
     key = londonEveningKey(ms);
   }
   if (!key) return null;
-  // No future nights.
-  if (key > todayEvening) return null;
+  // No future calendar dates.
+  if (key > today) return null;
   // No nights older than the window (calendar days, both ends inclusive).
   const earliest = earliestVisitedAt(now);
   if (earliest && key < earliest) return null;

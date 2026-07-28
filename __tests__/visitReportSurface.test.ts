@@ -26,8 +26,9 @@ describe("Visit Report venue surface", () => {
     // Both ends of the date input come from the domain core, so the card can
     // never offer a night the route will refuse.
     expect(panel).toContain("earliestVisitedAt");
+    expect(panel).toContain("latestVisitedAt");
     expect(panel).toContain("min={earliest}");
-    expect(panel).toContain("max={tonight}");
+    expect(panel).toContain("max={latest}");
     expect(panel).toContain("MAX_VISIT_AGE_DAYS");
   });
 

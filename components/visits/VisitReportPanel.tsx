@@ -9,7 +9,7 @@ import { useEffect, useRef, useState } from "react";
 import {
   BUSYNESS_VALUES,
   earliestVisitedAt,
-  londonEveningKey,
+  latestVisitedAt,
   MAX_VISIT_AGE_DAYS,
   MAX_VISIT_NOTE,
   NOISE_VALUES,
@@ -183,15 +183,16 @@ export default function VisitReportPanel({
 }
 
 function VenueVisitReports({ venueId, venueName, active = true }: VisitReportPanelProps) {
-  const tonight = londonEveningKey(new Date());
+  const now = new Date();
+  const latest = latestVisitedAt(now);
   // The composer MIRRORS the server's window (lib/visitReports); it never
   // replaces it, so a post that skips this card meets the same bound.
-  const earliest = earliestVisitedAt(new Date());
+  const earliest = earliestVisitedAt(now);
   const [read, setRead] = useState<VisitReportVenueRead | null>(null);
   const [handle, setHandle] = useState("");
   const [handleRemembered, setHandleRemembered] = useState(false);
   const [open, setOpen] = useState(false);
-  const [visitedAt, setVisitedAt] = useState(tonight);
+  const [visitedAt, setVisitedAt] = useState(latest);
   const [busyness, setBusyness] = useState<Busyness | null>(null);
   const [noise, setNoise] = useState<Noise | null>(null);
   const [seating, setSeating] = useState<Seating | null>(null);
@@ -240,7 +241,7 @@ function VenueVisitReports({ venueId, venueName, active = true }: VisitReportPan
       setFeedback({ kind: "error", text: "Add the day you were there." });
       return;
     }
-    if (visitedAt > tonight || visitedAt < earliest) {
+    if (visitedAt > latest || visitedAt < earliest) {
       setFeedback({
         kind: "error",
         text: `Pick the day you were there, from the last ${MAX_VISIT_AGE_DAYS} days.`,
@@ -363,7 +364,7 @@ function VenueVisitReports({ venueId, venueName, active = true }: VisitReportPan
               type="date"
               value={visitedAt}
               min={earliest}
-              max={tonight}
+              max={latest}
               onChange={(event) => setVisitedAt(event.target.value)}
             />
             <small>Visits from the last {MAX_VISIT_AGE_DAYS} days.</small>

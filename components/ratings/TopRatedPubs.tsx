@@ -1,6 +1,8 @@
 "use client";
 
-// "Top rated pubs this month" (PRD E3), for the discover page. Reuses the
+// "Top rated pubs this month" (PRD E3). NOT MOUNTED: the discover page dropped
+// this section when the Visit Report lane replaced aggregate venue scores; the
+// ranking read below still works. Reuses the
 // leaderboard idiom: a ranked semantic list. The ranking arrives from
 // GET /api/ratings?kind=venue&top=1 — Bayesian-ranked, trailing-30-day
 // window, ≥10-vote floor applied server-side (lib/ratings.topRated), so a pub

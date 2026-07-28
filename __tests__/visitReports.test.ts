@@ -7,6 +7,7 @@ import {
   cleanServiceWait,
   earliestVisitedAt,
   hasSignal,
+  latestVisitedAt,
   londonEveningKey,
   MAX_VISIT_AGE_DAYS,
   MAX_VISIT_NOTE,
@@ -61,14 +62,17 @@ describe("londonEveningKey / resolveVisitedAt", () => {
     expect(londonEveningKey(new Date("2026-07-21T19:00:00Z"))).toBe("2026-07-21");
   });
 
-  it("takes a bare date verbatim and defaults to tonight", () => {
+  it("takes a bare date verbatim and defaults to today's London date", () => {
     expect(resolveVisitedAt("2026-07-19", NOW)).toBe("2026-07-19");
-    expect(resolveVisitedAt(undefined, NOW)).toBe(londonEveningKey(NOW));
+    expect(resolveVisitedAt(undefined, NOW)).toBe(latestVisitedAt(NOW));
   });
 
   it("rejects a future night and an invalid date", () => {
+    const marchNow = new Date("2026-03-10T12:00:00Z");
     expect(resolveVisitedAt("2099-01-01", NOW)).toBeNull();
     expect(resolveVisitedAt("2026-13-40", NOW)).toBeNull();
+    expect(resolveVisitedAt("2026-02-29", marchNow)).toBeNull();
+    expect(resolveVisitedAt("2026-02-30", marchNow)).toBeNull();
     expect(resolveVisitedAt("not-a-date", NOW)).toBeNull();
   });
 
@@ -83,6 +87,12 @@ describe("londonEveningKey / resolveVisitedAt", () => {
     // accept their own evening date).
     expect(resolveVisitedAt("2026-07-21", NOW)).toBe("2026-07-21");
     expect(resolveVisitedAt("2026-07-21", new Date("2026-07-21T11:00:00Z"))).toBe("2026-07-21");
+    // Pre-dawn London is still the same calendar day for a date input. The
+    // evening-date fold must not make today's date look like tomorrow.
+    const preDawn = new Date("2026-07-21T01:00:00Z"); // 02:00 Europe/London
+    expect(latestVisitedAt(preDawn)).toBe("2026-07-21");
+    expect(resolveVisitedAt("2026-07-21", preDawn)).toBe("2026-07-21");
+    expect(earliestVisitedAt(preDawn)).toBe("2026-04-22");
     // Exactly 90 days ago: the last night that still counts.
     expect(resolveVisitedAt("2026-04-22", NOW)).toBe("2026-04-22");
     // 91 days ago: out.

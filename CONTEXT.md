@@ -103,7 +103,7 @@ A venue or crawl stop suggested through a friend, prior user preference, or app 
 _Avoid_: Suggestion, tip
 
 **Pint Drop**:
-A single community contribution attached to a venue: an optional pint photo, an optional venue photo, an observed pint price, and an optional Passed-Down Note. The concrete form a Visit Report takes in the community layer.
+A single community contribution attached to a venue: an optional pint photo, an optional venue photo, an observed pint price, and an optional Passed-Down Note. A separate object from a Visit Report, which records observed conditions on a dated visit rather than a photo or a price.
 _Avoid_: Post, check-in, upload
 
 **Passed-Down Note**:
