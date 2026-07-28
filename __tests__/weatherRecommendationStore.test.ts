@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
   __resetWeatherRecommendations,
@@ -124,5 +124,27 @@ describe("memoryWeatherRecommendationStore", () => {
     expect(read.recommendations[0]?.reason).toBe(
       "The back garden catches the evening light.",
     );
+  });
+
+  it("keeps keyless development rows across a route module reload", async () => {
+    vi.resetModules();
+    const firstModule = await import("@/lib/weatherRecommendationStore");
+    firstModule.__resetWeatherRecommendations();
+    await firstModule.memoryWeatherRecommendationStore.create(input(), 1_000);
+
+    vi.resetModules();
+    const reloadedModule = await import("@/lib/weatherRecommendationStore");
+
+    expect(
+      await reloadedModule.memoryWeatherRecommendationStore.listForVenue(
+        "venue-1",
+      ),
+    ).toMatchObject({
+      status: "ready",
+      recommendations: [
+        expect.objectContaining({ contributorHandle: "night_owl" }),
+      ],
+    });
+    reloadedModule.__resetWeatherRecommendations();
   });
 });

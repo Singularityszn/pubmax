@@ -92,9 +92,27 @@ function published(
   };
 }
 
-// Process-level memory store for keyless development and tests.
-const memoryRows = new Map<string, StoredWeatherRecommendation>();
-const memoryIdsByNaturalKey = new Map<string, string>();
+type WeatherRecommendationMemoryState = {
+  rows: Map<string, StoredWeatherRecommendation>;
+  idsByNaturalKey: Map<string, string>;
+};
+
+const MEMORY_STATE_KEY = "__pubmaxWeatherRecommendationMemory" as const;
+const sharedProcess = globalThis as typeof globalThis & {
+  [MEMORY_STATE_KEY]?: WeatherRecommendationMemoryState;
+};
+
+// Process-level memory store for keyless development and tests. The global
+// owner matters in Next dev: webpack may reload a route module after a write,
+// but that must not make the drinker's saved recommendation disappear.
+const memoryState =
+  sharedProcess[MEMORY_STATE_KEY] ??
+  (sharedProcess[MEMORY_STATE_KEY] = {
+    rows: new Map<string, StoredWeatherRecommendation>(),
+    idsByNaturalKey: new Map<string, string>(),
+  });
+const memoryRows = memoryState.rows;
+const memoryIdsByNaturalKey = memoryState.idsByNaturalKey;
 
 export const memoryWeatherRecommendationStore: WeatherRecommendationStore = {
   async create(raw, now = Date.now()) {
