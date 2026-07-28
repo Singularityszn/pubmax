@@ -133,16 +133,23 @@ describe("NearbyBusDepartures", () => {
         polling: true,
         result: null,
         waitedTooLong: false,
+        retryPending: false,
       }),
     ).toBe("Checking live departures.");
     expect(
-      busDeparturesAnnouncement({ polling: true, result, waitedTooLong: false }),
-    ).toBe("1 stop, 1 departure nearby.");
+      busDeparturesAnnouncement({
+        polling: true,
+        result,
+        waitedTooLong: false,
+        retryPending: false,
+      }),
+    ).toBe("Nearby bus departures are ready.");
     expect(
       busDeparturesAnnouncement({
         polling: true,
         result: unavailable,
         waitedTooLong: false,
+        retryPending: false,
       }),
     ).toBe("Couldn't check nearby buses just now.");
     expect(
@@ -150,6 +157,7 @@ describe("NearbyBusDepartures", () => {
         polling: false,
         result: null,
         waitedTooLong: false,
+        retryPending: false,
       }),
     ).toBe("");
   });
@@ -159,13 +167,65 @@ describe("NearbyBusDepartures", () => {
       polling: true,
       result,
       waitedTooLong: false,
+      retryPending: false,
     });
 
     expect(render("2026-07-28T22:40:00.000Z")).toContain(">3 min<");
     expect(render("2026-07-28T22:41:10.000Z")).toContain(">2 min<");
     expect(
-      busDeparturesAnnouncement({ polling: true, result, waitedTooLong: true }),
+      busDeparturesAnnouncement({
+        polling: true,
+        result,
+        waitedTooLong: true,
+        retryPending: false,
+      }),
     ).toBe(early);
+  });
+
+  it("keeps the announcement steady when a refresh changes the counts", () => {
+    const busier: NearbyBusDeparturesResult = {
+      ...result,
+      generatedAt: "2026-07-28T22:40:30.000Z",
+      stops: [
+        result.stops[0],
+        { ...result.stops[0], id: "490000123C", name: "Ludgate Circus" },
+      ],
+    };
+
+    expect(
+      busDeparturesAnnouncement({
+        polling: true,
+        result: busier,
+        waitedTooLong: false,
+        retryPending: false,
+      }),
+    ).toBe(
+      busDeparturesAnnouncement({
+        polling: true,
+        result,
+        waitedTooLong: false,
+        retryPending: false,
+      }),
+    );
+  });
+
+  it("says a requested check is running, over any result it is replacing", () => {
+    expect(
+      busDeparturesAnnouncement({
+        polling: true,
+        result: unavailable,
+        waitedTooLong: true,
+        retryPending: true,
+      }),
+    ).toBe("Checking live departures.");
+    expect(
+      busDeparturesAnnouncement({
+        polling: true,
+        result: null,
+        waitedTooLong: true,
+        retryPending: true,
+      }),
+    ).toBe("Checking live departures.");
   });
 
   it("puts the one live region outside the text that re-words every tick", () => {
@@ -183,32 +243,65 @@ describe("NearbyBusDepartures", () => {
 
   it("offers a retry once a check has failed, and not before", () => {
     expect(
-      shouldOfferBusRetry({ polling: true, result: null, waitedTooLong: false }),
+      shouldOfferBusRetry({
+        polling: true,
+        result: null,
+        waitedTooLong: false,
+        retryPending: false,
+      }),
     ).toBe(false);
     expect(
-      shouldOfferBusRetry({ polling: true, result: null, waitedTooLong: true }),
+      shouldOfferBusRetry({
+        polling: true,
+        result: null,
+        waitedTooLong: true,
+        retryPending: false,
+      }),
     ).toBe(true);
     expect(
       shouldOfferBusRetry({
         polling: true,
         result: unavailable,
         waitedTooLong: false,
+        retryPending: false,
       }),
     ).toBe(true);
     expect(
-      shouldOfferBusRetry({ polling: true, result, waitedTooLong: true }),
+      shouldOfferBusRetry({
+        polling: true,
+        result,
+        waitedTooLong: true,
+        retryPending: false,
+      }),
     ).toBe(false);
+    // The control stays put while its own check runs, so nothing shifts under
+    // the thumb that pressed it. The component disables it for that stretch.
+    expect(
+      shouldOfferBusRetry({
+        polling: true,
+        result: unavailable,
+        waitedTooLong: false,
+        retryPending: true,
+      }),
+    ).toBe(true);
   });
 
-  it("keeps the retry control thumb-sized", () => {
+  it("keeps the retry control thumb-sized and disables it while it works", () => {
     const css = readFileSync(
       join(process.cwd(), "components/map/nearbyBusDepartures.css"),
       "utf8",
     );
     const retryRule = css.match(/\.nearbyBusRetry\s*{([^}]*)}/)?.[1] ?? "";
+    const source = readFileSync(
+      join(process.cwd(), "components/map/NearbyBusDepartures.tsx"),
+      "utf8",
+    );
 
     expect(retryRule).toMatch(/min-height:\s*44px/);
     expect(retryRule).toMatch(/min-width:\s*44px/);
+    expect(css).toContain(".nearbyBusRetry:disabled");
+    expect(source).toContain("disabled={retryPending}");
+    expect(source).toContain("setRetryPending(false)");
   });
 
   it("keeps the summary thumb-sized and adds no motion", () => {

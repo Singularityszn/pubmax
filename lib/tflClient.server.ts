@@ -13,6 +13,15 @@ type TflGetOptions = {
   timeoutMs?: number;
 };
 
+/**
+ * Why a read failed, to the only resolution a caller can act on: whether asking
+ * again could ever answer differently. A 4xx is the same answer every time, so
+ * a caller budgeting its own attempts must not spend one on it.
+ */
+export type TflOutcome<T> =
+  | { ok: true; data: T }
+  | { ok: false; retryable: boolean };
+
 function withKey(url: URL): string {
   const key = process.env.TFL_APP_KEY;
   if (!key) return url.href;
@@ -34,19 +43,19 @@ function resolveTflUrl(path: string): URL | null {
 }
 
 /**
- * Fetch and parse one TfL JSON response.
+ * Fetch and parse one TfL JSON response, reporting why a failure failed.
  *
- * Returns null for invalid hosts, timeouts, network failures, non-success
- * responses, or invalid JSON. Callers keep ownership of what unavailable means
- * for their product surface.
+ * Invalid hosts and non-429 4xx answers are settled: asking again gets the same
+ * answer. Timeouts, network failures, 429s and 5xx are not. Callers keep
+ * ownership of what unavailable means for their product surface.
  */
-export async function tflGet<T>(
+export async function tflFetch<T>(
   path: string,
   options: TflGetOptions = {},
-): Promise<T | null> {
+): Promise<TflOutcome<T>> {
   const { retries = 0, timeoutMs = DEFAULT_TIMEOUT_MS } = options;
   const url = resolveTflUrl(path);
-  if (!url) return null;
+  if (!url) return { ok: false, retryable: false };
 
   for (let attempt = 0; attempt <= retries; attempt++) {
     const controller = new AbortController();
@@ -59,8 +68,10 @@ export async function tflGet<T>(
           "user-agent": "PubMaxxing/1.0 (+https://pubmaxxing.com)",
         },
       });
-      if (response.ok) return (await response.json()) as T;
-      if (response.status !== 429 && response.status < 500) return null;
+      if (response.ok) return { ok: true, data: (await response.json()) as T };
+      if (response.status !== 429 && response.status < 500) {
+        return { ok: false, retryable: false };
+      }
     } catch {
       // Network and timeout failures retry only when the caller asked for it.
     } finally {
@@ -68,5 +79,17 @@ export async function tflGet<T>(
     }
   }
 
-  return null;
+  return { ok: false, retryable: true };
+}
+
+/**
+ * The same read for callers that only need the answer. A failure of any kind
+ * reads as null, exactly as it always has.
+ */
+export async function tflGet<T>(
+  path: string,
+  options: TflGetOptions = {},
+): Promise<T | null> {
+  const outcome = await tflFetch<T>(path, options);
+  return outcome.ok ? outcome.data : null;
 }

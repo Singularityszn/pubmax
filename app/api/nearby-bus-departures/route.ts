@@ -9,7 +9,6 @@ import { isLastRideLimited } from "@/lib/lastRideRateLimit";
 import {
   BUS_ARRIVALS_TIMEOUT_MS,
   BUS_MIN_ATTEMPT_MS,
-  BUS_ROUTE_BUDGET_MS,
   BUS_STOP_LOOKUP_TIMEOUT_MS,
   busUpstreamTimeoutMs,
   freshBusPredictions,
@@ -17,12 +16,15 @@ import {
   type NearbyBusStop,
   type TflBusPrediction,
 } from "@/lib/nearbyBusDepartures";
-import { tflGet } from "@/lib/tflClient.server";
+import { tflFetch, type TflOutcome } from "@/lib/tflClient.server";
 
 export const runtime = "nodejs";
-// Every upstream deadline below is drawn from this budget, so the route always
-// reaches its own unavailable answer instead of being killed mid-call.
-export const maxDuration = BUS_ROUTE_BUDGET_MS / 1000;
+// Seconds, and a literal because Next extracts route segment config by static
+// analysis: an expression is dropped and the platform default silently applies.
+// BUS_ROUTE_BUDGET_MS is the same figure in milliseconds and every upstream
+// deadline is drawn from it, so the route always reaches its own unavailable
+// answer instead of being killed mid-call.
+export const maxDuration = 15;
 
 const STOP_RADIUS_M = 500;
 const STOP_CAP = 4;
@@ -128,17 +130,21 @@ export async function GET(request: Request): Promise<Response> {
     `&stopTypes=${STOP_TYPES}&radius=${STOP_RADIUS_M}&modes=bus`;
   // The arrivals call is held out of the stop lookup's deadline so a retried
   // lookup can never spend the whole budget and leave nothing to ask with.
-  const stopLookup = (): Promise<TflBusStopResponse | null> => {
+  const stopLookup = (): Promise<TflOutcome<TflBusStopResponse>> => {
     const timeoutMs = busUpstreamTimeoutMs(
       BUS_STOP_LOOKUP_TIMEOUT_MS,
       elapsed(),
       BUS_MIN_ATTEMPT_MS,
     );
-    if (timeoutMs < BUS_MIN_ATTEMPT_MS) return Promise.resolve(null);
-    return tflGet<TflBusStopResponse>(stopPath, { timeoutMs });
+    if (timeoutMs < BUS_MIN_ATTEMPT_MS) {
+      return Promise.resolve({ ok: false, retryable: false });
+    }
+    return tflFetch<TflBusStopResponse>(stopPath, { timeoutMs });
   };
 
-  const stops = nearbyStops((await stopLookup()) ?? (await stopLookup()));
+  let lookup = await stopLookup();
+  if (!lookup.ok && lookup.retryable) lookup = await stopLookup();
+  const stops = nearbyStops(lookup.ok ? lookup.data : null);
   if (stops.length === 0) return json(unavailable(now));
 
   const arrivalsTimeoutMs = busUpstreamTimeoutMs(
@@ -148,22 +154,29 @@ export async function GET(request: Request): Promise<Response> {
   if (arrivalsTimeoutMs < BUS_MIN_ATTEMPT_MS) return json(unavailable(now));
 
   const ids = stops.map(stopId);
-  const arrivals = await tflGet<TflBusPrediction[]>(
+  const arrivals = await tflFetch<TflBusPrediction[]>(
     `/StopPoint/${encodeURIComponent(ids.join(","))}/Arrivals`,
     { timeoutMs: arrivalsTimeoutMs },
   );
-  if (!Array.isArray(arrivals)) return json(unavailable(now));
+  if (!arrivals.ok || !Array.isArray(arrivals.data)) {
+    return json(unavailable(now));
+  }
 
-  const fresh = freshBusPredictions(arrivals, now);
+  // The clock the predictions are judged against is read HERE, not at the top
+  // of the request: the lookups above can spend most of the route's budget, and
+  // measuring a TfL stamp against a timestamp from before those calls turns our
+  // own latency into what looks like a source clock running ahead.
+  const observedAt = new Date();
+  const fresh = freshBusPredictions(arrivals.data, observedAt);
   const stopResults = stops
     .map((stop) => stopResult(stop, fresh))
     .filter((stop): stop is NearbyBusStop => stop !== null);
-  if (stopResults.length === 0) return json(unavailable(now));
+  if (stopResults.length === 0) return json(unavailable(observedAt));
 
   const result: NearbyBusDeparturesResult = {
     status: "ready",
     stops: stopResults,
-    generatedAt: now.toISOString(),
+    generatedAt: observedAt.toISOString(),
   };
   return json(result);
 }

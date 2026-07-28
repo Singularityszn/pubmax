@@ -58,45 +58,38 @@ function checkedAgo(ageMinutes: number | null): string {
   return `Checked about ${ageMinutes} minutes ago.`;
 }
 
-function count(n: number, noun: string): string {
-  return `${n} ${n === 1 ? noun : `${noun}s`}`;
-}
-
 export const BUS_DEPARTURES_UNAVAILABLE_COPY =
   "Couldn't check nearby buses just now.";
+export const BUS_DEPARTURES_CHECKING_COPY = "Checking live departures.";
+export const BUS_DEPARTURES_READY_COPY = "Nearby bus departures are ready.";
 
-/**
- * The one thing said out loud, and it is said about the load, not about the
- * clock: nothing here re-words as minutes tick, so a screen reader is told once
- * that departures arrived rather than every time a countdown changes.
- */
-export function busDeparturesAnnouncement(input: {
+export type BusDeparturesUiState = {
   polling: boolean;
   result: NearbyBusDeparturesResult | null;
   waitedTooLong: boolean;
-}): string {
+  retryPending: boolean;
+};
+
+/**
+ * The one thing said out loud, and it names a transition rather than a tally:
+ * it carries no countdown and no counts, so neither the fifteen second tick nor
+ * a routine refresh whose departure total moved re-announces the card.
+ */
+export function busDeparturesAnnouncement(input: BusDeparturesUiState): string {
+  if (input.retryPending) return BUS_DEPARTURES_CHECKING_COPY;
   if (input.result) {
-    if (input.result.status === "unavailable") {
-      return BUS_DEPARTURES_UNAVAILABLE_COPY;
-    }
-    const departures = input.result.stops.reduce(
-      (total, stop) => total + stop.departures.length,
-      0,
-    );
-    return `${count(input.result.stops.length, "stop")}, ${count(departures, "departure")} nearby.`;
+    return input.result.status === "unavailable"
+      ? BUS_DEPARTURES_UNAVAILABLE_COPY
+      : BUS_DEPARTURES_READY_COPY;
   }
   if (!input.polling) return "";
   return input.waitedTooLong
     ? BUS_DEPARTURES_UNAVAILABLE_COPY
-    : "Checking live departures.";
+    : BUS_DEPARTURES_CHECKING_COPY;
 }
 
 /** A check the reader can start again is only worth offering once one failed. */
-export function shouldOfferBusRetry(input: {
-  polling: boolean;
-  result: NearbyBusDeparturesResult | null;
-  waitedTooLong: boolean;
-}): boolean {
+export function shouldOfferBusRetry(input: BusDeparturesUiState): boolean {
   if (input.result) return input.result.status === "unavailable";
   return input.polling && input.waitedTooLong;
 }
@@ -220,6 +213,7 @@ export default function NearbyBusDepartures({
   const [nowMs, setNowMs] = useState(() => Date.now());
   const [waitedTooLong, setWaitedTooLong] = useState(false);
   const [waitAttempt, setWaitAttempt] = useState(0);
+  const [retryPending, setRetryPending] = useState(false);
   const lastLoadAtRef = useRef<number | null>(null);
   const pollRef = useRef<BusDeparturesPoll | null>(null);
 
@@ -275,7 +269,8 @@ export default function NearbyBusDepartures({
                 ? prev
                 : { status: "loaded", result: unavailableResult() },
             );
-          }),
+          })
+          .finally(() => setRetryPending(false)),
     });
 
     pollRef.current = poll;
@@ -299,16 +294,17 @@ export default function NearbyBusDepartures({
   }, [waitingForFirst, waitAttempt]);
 
   const result = state.status === "loaded" ? state.result : null;
-  const announcement = busDeparturesAnnouncement({
-    polling,
-    result,
-    waitedTooLong,
-  });
-  const offerRetry = shouldOfferBusRetry({ polling, result, waitedTooLong });
+  const ui = { polling, result, waitedTooLong, retryPending };
+  const announcement = busDeparturesAnnouncement(ui);
+  const offerRetry = shouldOfferBusRetry(ui);
+  const showChecking = retryPending || (waitingForFirst && !waitedTooLong);
 
   function retry() {
     setWaitedTooLong(false);
     setWaitAttempt((attempt) => attempt + 1);
+    // The poll refuses to duplicate a load already in flight, so the pending
+    // state tracks "a check is running", not "this click started one".
+    setRetryPending(true);
     pollRef.current?.refresh();
   }
 
@@ -331,20 +327,25 @@ export default function NearbyBusDepartures({
         <p className="nearbyBusAnnouncement" role="status">
           {announcement}
         </p>
-        {waitingForFirst && !waitedTooLong ? (
+        {showChecking ? (
           <p className="nearbyBusDeparturesNote">Checking live departures…</p>
         ) : null}
-        {waitingForFirst && waitedTooLong ? (
+        {!retryPending && waitingForFirst && waitedTooLong ? (
           <p className="nearbyBusDeparturesNote">
             {BUS_DEPARTURES_UNAVAILABLE_COPY} The check is still running, so
             this may fill in on its own.
           </p>
         ) : null}
-        {result ? (
+        {result && !retryPending ? (
           <NearbyBusDeparturesView result={result} now={new Date(nowMs)} />
         ) : null}
         {offerRetry ? (
-          <button type="button" className="nearbyBusRetry" onClick={retry}>
+          <button
+            type="button"
+            className="nearbyBusRetry"
+            onClick={retry}
+            disabled={retryPending}
+          >
             Check again
           </button>
         ) : null}

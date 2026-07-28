@@ -1,3 +1,5 @@
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
@@ -165,6 +167,62 @@ describe("shouldPollBusDepartures", () => {
     expect(shouldPollBusDepartures({ open: false, documentVisible: true })).toBe(
       false,
     );
+  });
+});
+
+describe("tflFetch", () => {
+  const realFetch = global.fetch;
+
+  afterEach(() => {
+    global.fetch = realFetch;
+    vi.restoreAllMocks();
+  });
+
+  it("separates a settled answer from one worth asking again", async () => {
+    const { tflFetch, tflGet } = await import("@/lib/tflClient.server");
+
+    global.fetch = vi.fn(async () => new Response("nope", { status: 404 }));
+    expect(await tflFetch("/StopPoint?lat=51.5&lon=-0.1")).toEqual({
+      ok: false,
+      retryable: false,
+    });
+
+    global.fetch = vi.fn(async () => new Response("later", { status: 503 }));
+    expect(await tflFetch("/StopPoint?lat=51.5&lon=-0.1")).toEqual({
+      ok: false,
+      retryable: true,
+    });
+
+    global.fetch = vi.fn(async () => new Response("later", { status: 429 }));
+    expect(await tflFetch("/StopPoint?lat=51.5&lon=-0.1")).toEqual({
+      ok: false,
+      retryable: true,
+    });
+
+    global.fetch = vi.fn(async () => {
+      throw new Error("network down");
+    });
+    expect(await tflFetch("/StopPoint?lat=51.5&lon=-0.1")).toEqual({
+      ok: false,
+      retryable: true,
+    });
+
+    expect(await tflFetch("https://evil.example.com/StopPoint")).toEqual({
+      ok: false,
+      retryable: false,
+    });
+
+    global.fetch = vi.fn(async () => Response.json({ stopPoints: [] }));
+    expect(await tflFetch("/StopPoint?lat=51.5&lon=-0.1")).toEqual({
+      ok: true,
+      data: { stopPoints: [] },
+    });
+    // Callers that only want the answer still read a failure as null.
+    expect(await tflGet("/StopPoint?lat=51.5&lon=-0.1")).toEqual({
+      stopPoints: [],
+    });
+    global.fetch = vi.fn(async () => new Response("nope", { status: 404 }));
+    expect(await tflGet("/StopPoint?lat=51.5&lon=-0.1")).toBe(null);
   });
 });
 
@@ -496,9 +554,84 @@ describe("GET /api/nearby-bus-departures", () => {
   it("keeps its whole upstream budget inside its own function lifetime", async () => {
     const route = await import("@/app/api/nearby-bus-departures/route");
 
-    expect(route.maxDuration * 1000).toBe(BUS_ROUTE_BUDGET_MS);
+    expect(route.maxDuration).toBe(15);
+    expect(BUS_ROUTE_BUDGET_MS).toBe(route.maxDuration * 1000);
     expect(BUS_UPSTREAM_BUDGET_MS).toBeLessThan(route.maxDuration * 1000);
     expect(BUS_STOP_LOOKUP_TIMEOUT_MS).toBe(9_000);
+  });
+
+  it("declares maxDuration where the build's static analysis can read it", () => {
+    // Next extracts route segment config statically: an expression is dropped
+    // and the platform default silently replaces this budget, so the literal
+    // is the contract and reading the export back cannot prove it.
+    const source = readFileSync(
+      join(process.cwd(), "app/api/nearby-bus-departures/route.ts"),
+      "utf8",
+    );
+
+    expect(source).toMatch(/^export const maxDuration = 15;$/m);
+  });
+
+  it("judges predictions against the clock after the calls, not before them", async () => {
+    // A stop lookup that really takes six seconds is inside the measured band,
+    // and its arrivals are stamped from that later moment. Judging them against
+    // a timestamp taken before the lookup reads our own latency as a source
+    // clock running ahead and discards working data.
+    const startedAt = Date.parse("2026-07-28T22:40:00.000Z");
+    global.fetch = vi.fn(async (input: RequestInfo | URL) => {
+      if (String(input).includes("/StopPoint?")) {
+        vi.setSystemTime(new Date(startedAt + 6_000));
+        return Response.json({
+          stopPoints: [
+            {
+              id: "490000123B",
+              commonName: "Blackfriars Station",
+              indicator: "Stop B",
+              distance: 140,
+            },
+          ],
+        });
+      }
+      return Response.json([
+        {
+          naptanId: "490000123B",
+          lineName: "63",
+          destinationName: "King's Cross",
+          direction: "outbound",
+          timestamp: "2026-07-28T22:40:06.000Z",
+          expectedArrival: "2026-07-28T22:43:00.000Z",
+        },
+      ]);
+    });
+
+    const { GET } = await import("@/app/api/nearby-bus-departures/route");
+    const body = await (
+      await GET(
+        new Request(
+          "http://localhost/api/nearby-bus-departures?lat=51.512&lng=-0.104",
+          { headers: { "x-forwarded-for": "198.51.100.35" } },
+        ),
+      )
+    ).json();
+
+    expect(body.status).toBe("ready");
+    expect(body.stops[0].departures[0].lineName).toBe("63");
+    expect(body.generatedAt).toBe("2026-07-28T22:40:06.000Z");
+  });
+
+  it("does not spend a second request on a lookup that answered for good", async () => {
+    global.fetch = vi.fn(async () => new Response("nope", { status: 404 }));
+
+    const { GET } = await import("@/app/api/nearby-bus-departures/route");
+    const response = await GET(
+      new Request(
+        "http://localhost/api/nearby-bus-departures?lat=51.512&lng=-0.104",
+        { headers: { "x-forwarded-for": "198.51.100.36" } },
+      ),
+    );
+
+    expect(await response.json()).toMatchObject({ status: "unavailable" });
+    expect(global.fetch).toHaveBeenCalledTimes(1);
   });
 
   it("retries a failed stop lookup inside its own budget", async () => {

@@ -29,6 +29,11 @@ Measured behaviour, so nobody re-guesses it later:
 
 The route therefore declares a 15 second budget (`BUS_ROUTE_BUDGET_MS`, which is also its `maxDuration`) and reserves 1 second of it for its own work. Every upstream deadline is `busUpstreamTimeoutMs`: whatever is left of the budget, capped by that call's own ceiling. So the stop lookup keeps its full 9 seconds, a retry only happens with time still on the clock, and the arrivals call takes what remains. The route always reaches its own `unavailable` body and `no-store` header rather than being killed mid-call and handing the browser a platform 504. 30 seconds was rejected: a night bus card that hangs for half a minute has already failed the reader.
 
+Two consequences of spending that much time upstream, both load-bearing:
+
+- The clock that judges prediction freshness is read after the arrivals response, not at the top of the request. A lookup may legitimately burn six of those seconds, and TfL stamps its predictions from the later moment; measuring them against a pre-call timestamp reads our own latency as a source clock running ahead and discards working data.
+- The stop lookup retries only a failure that could answer differently. `tflFetch` reports whether a failure was transient, so a 4xx costs one request rather than two.
+
 The card does not wait that long before speaking. After `BUS_DEPARTURES_SLOW_WAIT_MS` (6 seconds) it replaces the spinner with could-not-check copy and a "Check again" control, while the request underneath keeps running: if the slow answer arrives, the card fills in. Loads never overlap, so neither the retry control nor a reopened disclosure can duplicate a request in flight.
 
 ---
