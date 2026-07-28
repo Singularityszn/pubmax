@@ -154,16 +154,21 @@ These controls solve different problems:
   canonicalisation does not depend on which environment built the artifact.
   Every `*.vercel.app` host redirects by default. Preview deployments remain
   reviewable only when `VERCEL_ENV=preview` and the deliberate server setting
-  `ALLOW_VERCEL_PREVIEW_HOSTS=1` are both present. Canonical, localhost, loopback,
-  and LAN hosts do not need an exception.
+  `ALLOW_VERCEL_PREVIEW_HOSTS=1` are both present and the incoming host exactly
+  matches that artifact's Vercel-provided `VERCEL_URL` or `VERCEL_BRANCH_URL`.
+  Canonical, localhost, loopback, and LAN hosts do not need an exception.
 
 Vercel's promotion API points production traffic at an existing deployment and
 [does not rebuild it](https://vercel.com/docs/rest-api/projects/point-production-traffic-to-a-given-deployment).
-The deployment's Preview runtime environment is therefore not a reliable
-production signal after promotion. The request-time rule deliberately treats
-`VERCEL_ENV=preview` as insufficient: a Preview-built artifact without the
-explicit setting still redirects when promoted. Keep the setting scoped to
-deployments used for Preview review; do not copy it to Production.
+Empirical promotion checks show that a Preview-built artifact retains
+`VERCEL_ENV=preview` and its Preview-scoped custom settings after promotion, so
+neither value identifies production traffic. Its generated deployment and
+branch host values remain bound to that artifact. The request-time rule
+therefore requires an exact match with one of those values before applying the
+Preview opt-out. A production alias hitting the promoted artifact still
+redirects even when the Preview environment and opt-out remain set. Keep the
+setting scoped to deployments used for Preview review; do not copy it to
+Production.
 
 Recommendation: retain that Vercel Authentication scope, keep `www` redirecting
 to the apex, keep all identity-provider callbacks on the apex, and keep the

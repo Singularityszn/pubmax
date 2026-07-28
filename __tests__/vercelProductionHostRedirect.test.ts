@@ -10,6 +10,8 @@ import {
 
 beforeEach(() => {
   vi.stubEnv(VERCEL_PREVIEW_HOST_SETTING, "");
+  vi.stubEnv("VERCEL_URL", "");
+  vi.stubEnv("VERCEL_BRANCH_URL", "");
 });
 
 afterEach(() => {
@@ -19,9 +21,10 @@ afterEach(() => {
 function request(
   host: string,
   path = "/u/you",
+  headers: Record<string, string> = {},
 ): NextRequest {
   return new NextRequest(`https://request-origin.invalid${path}`, {
-    headers: { host },
+    headers: { host, ...headers },
   });
 }
 
@@ -70,8 +73,17 @@ describe("Vercel production host canonicalisation", () => {
     );
   });
 
-  it("redirects a promoted Preview artifact when no preview opt-out is set", () => {
+  it("redirects a promoted Preview artifact with its Preview settings retained", () => {
     vi.stubEnv("VERCEL_ENV", "preview");
+    vi.stubEnv(VERCEL_PREVIEW_HOST_SETTING, "1");
+    vi.stubEnv(
+      "VERCEL_URL",
+      "chengdu-auth-a1b2c3-pubmax69.vercel.app",
+    );
+    vi.stubEnv(
+      "VERCEL_BRANCH_URL",
+      "chengdu-git-auth-preview-pubmax69.vercel.app",
+    );
 
     expectCanonicalRedirect(
       proxy(request("chengdu-pubmax69.vercel.app")),
@@ -91,13 +103,28 @@ describe("Vercel production host canonicalisation", () => {
     );
   });
 
-  it("allows a Preview host only through the explicit preview setting", () => {
+  it("allows an opted-in artifact's generated Preview host", () => {
     vi.stubEnv("VERCEL_ENV", "preview");
     vi.stubEnv(VERCEL_PREVIEW_HOST_SETTING, "1");
+    const deploymentHost =
+      "chengdu-auth-a1b2c3-pubmax69.vercel.app";
+    vi.stubEnv("VERCEL_URL", deploymentHost);
 
-    const response = proxy(
-      request("chengdu-git-auth-preview-pubmax69.vercel.app"),
-    );
+    const response = proxy(request(deploymentHost));
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get("location")).toBeNull();
+    expect(response.headers.get("x-middleware-next")).toBe("1");
+  });
+
+  it("allows an opted-in artifact's Vercel branch host", () => {
+    vi.stubEnv("VERCEL_ENV", "preview");
+    vi.stubEnv(VERCEL_PREVIEW_HOST_SETTING, "1");
+    const branchHost =
+      "chengdu-git-auth-preview-pubmax69.vercel.app";
+    vi.stubEnv("VERCEL_BRANCH_URL", branchHost);
+
+    const response = proxy(request(branchHost));
 
     expect(response.status).toBe(200);
     expect(response.headers.get("location")).toBeNull();

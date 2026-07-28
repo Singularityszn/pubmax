@@ -4,23 +4,38 @@ import type { NextRequest, ProxyConfig } from "next/server";
 const CANONICAL_HOST = "pubmaxxing.com";
 export const VERCEL_PREVIEW_HOST_SETTING = "ALLOW_VERCEL_PREVIEW_HOSTS";
 
-function requestHostname(request: NextRequest): string {
-  const host = request.headers.get("host")?.trim().toLowerCase();
-  if (!host) return request.nextUrl.hostname.toLowerCase();
-  if (host.startsWith("[")) {
-    const closingBracket = host.indexOf("]");
+function normalizeHostname(host: string | null | undefined): string | null {
+  const normalizedHost = host?.trim().toLowerCase();
+  if (!normalizedHost) return null;
+  if (normalizedHost.startsWith("[")) {
+    const closingBracket = normalizedHost.indexOf("]");
     return closingBracket === -1
-      ? host
-      : host.slice(1, closingBracket);
+      ? normalizedHost
+      : normalizedHost.slice(1, closingBracket);
   }
-  return host.replace(/:\d+$/, "").replace(/\.$/, "");
+  return normalizedHost.replace(/:\d+$/, "").replace(/\.$/, "");
+}
+
+function requestHostname(request: NextRequest): string {
+  return (
+    normalizeHostname(request.headers.get("host")) ??
+    request.nextUrl.hostname.toLowerCase()
+  );
+}
+
+function isArtifactPreviewHost(request: NextRequest): boolean {
+  const hostname = requestHostname(request);
+  return ["VERCEL_URL", "VERCEL_BRANCH_URL"].some(
+    (variable) => normalizeHostname(process.env[variable]) === hostname,
+  );
 }
 
 function shouldRedirectVercelHost(request: NextRequest): boolean {
   if (!requestHostname(request).endsWith(".vercel.app")) return false;
   return !(
     process.env.VERCEL_ENV === "preview" &&
-    process.env[VERCEL_PREVIEW_HOST_SETTING] === "1"
+    process.env[VERCEL_PREVIEW_HOST_SETTING] === "1" &&
+    isArtifactPreviewHost(request)
   );
 }
 
