@@ -24,12 +24,18 @@ import {
 import {
   ANONYMOUS_ANALYTICS_STORAGE_KEY,
   ANALYTICS_CONSENT_STORAGE_KEY,
+  isAnalyticsConsentDecision,
   isAnonymousAnalyticsId,
+  type AnalyticsConsentDecision,
 } from "@/lib/analyticsIdentity";
-import { syncPosthogConsent } from "@/lib/posthogClient";
+import {
+  capturePosthogPageview,
+  syncPosthogConsent,
+} from "@/lib/posthogClient";
 
 const ENDPOINT = "/api/events";
 const VERIFIED_OUTBOX_KEY = "pubmaxx:analytics-verified-outbox:v1";
+const ANALYTICS_CONSENT_CHANGE_EVENT = "pubmaxx:analytics-consent";
 let inMemoryAnonymousId: string | null = null;
 let inMemoryConsentGranted = false;
 const inMemoryVerifiedOutbox = new Map<string, string>();
@@ -45,6 +51,15 @@ function abortVerifiedFlush(): void {
   verifiedFlushAbort?.abort();
   verifiedFlushAbort = null;
   verifiedFlush = null;
+}
+
+function notifyAnalyticsConsentChange(): void {
+  if (typeof window === "undefined") return;
+  try {
+    window.dispatchEvent(new Event(ANALYTICS_CONSENT_CHANGE_EVENT));
+  } catch {
+    // Storage remains authoritative when Event is unavailable.
+  }
 }
 
 function replaceInMemoryVerifiedOutbox(raw: string | null): void {
@@ -74,11 +89,17 @@ function handleAnalyticsStorageChange(event: StorageEvent): void {
       inMemoryAnonymousId = null;
       inMemoryVerifiedOutbox.clear();
       syncPosthogConsent(false);
+      notifyAnalyticsConsentChange();
       return;
     }
     inMemoryConsentGranted = true;
-    syncPosthogConsent(analyticsCollectionAllowed());
+    const allowed = analyticsCollectionAllowed();
+    syncPosthogConsent(allowed);
+    if (allowed) {
+      capturePosthogPageview(window.location.pathname, anonymousAnalyticsId());
+    }
     void flushVerifiedAnalyticsOutbox();
+    notifyAnalyticsConsentChange();
     return;
   }
 
@@ -213,6 +234,27 @@ export function anonymousAnalyticsId(): string | null {
   }
 }
 
+export function analyticsConsentDecision(): AnalyticsConsentDecision | null {
+  if (typeof window === "undefined") return null;
+  ensureAnalyticsStorageListener();
+  try {
+    const decision = window.localStorage.getItem(ANALYTICS_CONSENT_STORAGE_KEY);
+    return isAnalyticsConsentDecision(decision) ? decision : null;
+  } catch {
+    return inMemoryConsentGranted ? "granted" : null;
+  }
+}
+
+export function subscribeAnalyticsConsent(onChange: () => void): () => void {
+  if (typeof window === "undefined") return () => {};
+  ensureAnalyticsStorageListener();
+  const handler = () => onChange();
+  window.addEventListener(ANALYTICS_CONSENT_CHANGE_EVENT, handler);
+  return () => {
+    window.removeEventListener(ANALYTICS_CONSENT_CHANGE_EVENT, handler);
+  };
+}
+
 export function setAnalyticsConsent(granted: boolean): void {
   if (typeof window === "undefined") return;
   ensureAnalyticsStorageListener();
@@ -227,10 +269,10 @@ export function setAnalyticsConsent(granted: boolean): void {
       void flushVerifiedAnalyticsOutbox();
     } else {
       inMemoryConsentGranted = false;
-      window.localStorage.removeItem(ANALYTICS_CONSENT_STORAGE_KEY);
       window.localStorage.removeItem(ANONYMOUS_ANALYTICS_STORAGE_KEY);
       inMemoryAnonymousId = null;
       clearVerifiedOutbox();
+      window.localStorage.setItem(ANALYTICS_CONSENT_STORAGE_KEY, "denied");
     }
   } catch {
     inMemoryConsentGranted = granted;
@@ -239,7 +281,13 @@ export function setAnalyticsConsent(granted: boolean): void {
       clearVerifiedOutbox();
     }
   }
-  syncPosthogConsent(analyticsCollectionAllowed());
+  const allowed = analyticsCollectionAllowed();
+  const anonymousId = allowed ? anonymousAnalyticsId() : null;
+  syncPosthogConsent(allowed);
+  if (allowed) {
+    capturePosthogPageview(window.location.pathname, anonymousId);
+  }
+  notifyAnalyticsConsentChange();
 }
 
 function doNotTrack(): boolean {

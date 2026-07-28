@@ -15,6 +15,8 @@ import JsonLd from "@/components/seo/JsonLd";
 import DailyActivityPulse from "@/components/DailyActivityPulse";
 import EntryBootStamp from "@/components/native/EntryBootStamp";
 import A2HSTracking from "@/components/A2HSTracking";
+import AnalyticsConsentPrompt from "@/components/AnalyticsConsentPrompt";
+import PosthogPageviews from "@/components/PosthogPageviews";
 
 // Site-wide structured data (Wave S1.3). WebSite + Organization only — the
 // identity graph Google reads for the brand panel and AI engines read to know
@@ -308,6 +310,10 @@ export default async function RootLayout({
             events use the separately allow-listed rail in lib/analytics.ts.
             Outside AuthProvider on purpose: it's app infra, not identity. */}
         <ConsentAwareVercelAnalytics />
+        <Suspense fallback={null}>
+          <PosthogPageviews />
+        </Suspense>
+        <AnalyticsConsentPrompt />
       </body>
     </html>
   );

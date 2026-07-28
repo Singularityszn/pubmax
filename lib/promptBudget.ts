@@ -1,7 +1,7 @@
 // Shared session "prompt budget" — one interruptive prompt surface per browser
 // session (Cycle-4 Wave-C cross-lane guard). The A2HS install prompt, the
-// first-run tour (#296), and the identity nudges lane (feat/identity-nudges)
-// all compete for the same moment of the user's attention; stacking two of them
+// first-run analytics choice, first-run tour (#296), and identity nudges all
+// compete for the same moment of the user's attention; stacking two of them
 // in one session reads as nagging. This module is the single source of truth
 // for "has some surface already interrupted the user this session?" so each
 // lane can adopt it independently without touching the others' code.
@@ -22,7 +22,19 @@ const CHANGE_EVENT = "pubmax:prompt-budget";
  * lane can add its own id without a cross-lane edit; these are the three known
  * today. Any non-empty string is accepted at runtime.
  */
-export type PromptSurface = "a2hs" | "first-run-tour" | "identity-nudge" | (string & {});
+import {
+  ANALYTICS_CONSENT_STORAGE_KEY,
+  isAnalyticsConsentDecision,
+} from "@/lib/analyticsIdentity";
+
+export type PromptSurface =
+  | "analytics-consent"
+  | "a2hs"
+  | "first-run-tour"
+  | "identity-nudge"
+  | (string & {});
+
+export const ANALYTICS_CONSENT_PROMPT_SURFACE: PromptSurface = "analytics-consent";
 
 function resolveStorage(storage?: Storage | null): Storage | null {
   if (storage) return storage;
@@ -31,6 +43,32 @@ function resolveStorage(storage?: Storage | null): Storage | null {
     return window.sessionStorage;
   } catch {
     return null;
+  }
+}
+
+function resolveConsentStorage(storage?: Storage | null): Storage | null {
+  if (storage !== undefined) return storage;
+  if (typeof window === "undefined") return null;
+  try {
+    return window.localStorage;
+  } catch {
+    return null;
+  }
+}
+
+function analyticsChoiceHasPriority(
+  surface: PromptSurface,
+  consentStorage?: Storage | null,
+): boolean {
+  if (surface === ANALYTICS_CONSENT_PROMPT_SURFACE) return true;
+  const store = resolveConsentStorage(consentStorage);
+  if (!store) return true;
+  try {
+    return isAnalyticsConsentDecision(
+      store.getItem(ANALYTICS_CONSENT_STORAGE_KEY),
+    );
+  } catch {
+    return true;
   }
 }
 
@@ -64,7 +102,12 @@ export function promptBudgetHolder(storage?: Storage | null): PromptSurface | nu
  * is never blocked by its own earlier claim). Degrades open when storage is
  * unavailable.
  */
-export function hasPromptBudgetFor(surface: PromptSurface, storage?: Storage | null): boolean {
+export function hasPromptBudgetFor(
+  surface: PromptSurface,
+  storage?: Storage | null,
+  consentStorage?: Storage | null,
+): boolean {
+  if (!analyticsChoiceHasPriority(surface, consentStorage)) return false;
   const store = resolveStorage(storage);
   if (!store) return true; // can't track — don't block the flow
   const held = promptBudgetHolder(store);
@@ -78,8 +121,13 @@ export function hasPromptBudgetFor(surface: PromptSurface, storage?: Storage | n
  * the moment a prompt actually becomes visible, not merely when it is eligible,
  * so an eligible-but-not-shown prompt never starves the others.
  */
-export function claimPromptBudget(surface: PromptSurface, storage?: Storage | null): boolean {
+export function claimPromptBudget(
+  surface: PromptSurface,
+  storage?: Storage | null,
+  consentStorage?: Storage | null,
+): boolean {
   if (!surface) return false;
+  if (!analyticsChoiceHasPriority(surface, consentStorage)) return false;
   const store = resolveStorage(storage);
   if (!store) return true; // can't track — allow, best-effort
   const held = promptBudgetHolder(store);

@@ -6,11 +6,11 @@ Source: `docs/DEEP_REVIEW_APP_2026-07-18.md` §1 (P1 ship-blocker)
 
 ## Why this exists
 
-Four interruptive prompt surfaces exist across unmerged PRs, each mounted
-globally or on `/map`:
+Interruptive prompt surfaces mount globally or on `/map`:
 
 | Surface | PR | Branch | Where it can fire |
 | --- | --- | --- | --- |
+| Analytics consent | analytics-actually-works | `fm/analytics-actually-works` | first visit on every route |
 | First-run tour | #296 | `main` (merged) | `/map` load, first visit |
 | Identity nudge | #312 | `feat/identity-nudges` | first plan create/join, first moment draft |
 | Native push prompt | #299 | `feat/native-first-run` | plan join / activation / collab confirm (native only) |
@@ -45,7 +45,10 @@ The review proved two independent defects:
    - Degrade **open** when storage is unavailable (the module already does this):
      a rare double-prompt beats a broken flow.
 
-2. **Priority when multiple gates open on the same event: `identity > push > A2HS`.**
+2. **Priority when multiple gates open: `analytics consent > identity > push > A2HS`.**
+   An undecided analytics choice reserves the prompt budget before lower-priority
+   surfaces may claim it. Accepting and declining both keep that session claim,
+   so onboarding starts in a later session instead of stacking immediately.
    The budget alone only guarantees *one* wins, decided by mount order — a race.
    Where two surfaces arm on the *same* user action, the arming site MUST encode
    the priority explicitly so the higher-priority surface deterministically wins.
@@ -66,6 +69,7 @@ Declared in `lib/promptBudget.ts` (`PromptSurface`). Any non-empty string is
 accepted at runtime; keep these stable:
 
 - `"first-run-tour"` — #296 tour (this PR)
+- `"analytics-consent"` - first-visit analytics choice
 - `"identity-nudge"` — #312
 - `"native-push"` — #299
 - `"web-push"` — installed-PWA daily London brief, after a qualifying plan action

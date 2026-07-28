@@ -5,8 +5,13 @@ import { useRouter } from "next/navigation";
 
 import SignInButton from "@/components/auth/SignInButton";
 import { useAuth } from "@/components/auth/AuthProvider";
-import { setAnalyticsConsent, trackEvent } from "@/lib/analytics";
-import { ANALYTICS_CONSENT_STORAGE_KEY } from "@/lib/analyticsIdentity";
+import {
+  analyticsConsentDecision,
+  setAnalyticsConsent,
+  subscribeAnalyticsConsent,
+  trackEvent,
+} from "@/lib/analytics";
+import type { AnalyticsConsentDecision } from "@/lib/analyticsIdentity";
 import { authedFetch } from "@/lib/authedFetch";
 import { emitIdentityHandleChanged } from "@/lib/identityClient";
 import NightMemoryStudio from "@/components/profile/NightMemoryStudio";
@@ -131,25 +136,26 @@ export default function PubmaxxAccountHub() {
   const [nightProfileDraft, setNightProfileDraft] = useState<NightProfileInput | null>(null);
   const [mergeDeferred, setMergeDeferred] = useState(false);
   const [message, setMessage] = useState("");
-  const [analyticsConsent, setAnalyticsConsentState] = useState(false);
+  const [analyticsConsent, setAnalyticsConsentState] = useState<AnalyticsConsentDecision | null>(null);
 
   useEffect(() => {
     let cancelled = false;
-    let granted = false;
-    try {
-      granted = localStorage.getItem(ANALYTICS_CONSENT_STORAGE_KEY) === "granted";
-    } catch {
-      granted = false;
-    }
+    const decision = analyticsConsentDecision();
     void Promise.resolve().then(() => {
-      if (!cancelled) setAnalyticsConsentState(granted);
+      if (!cancelled) setAnalyticsConsentState(decision);
     });
-    return () => { cancelled = true; };
+    const unsubscribe = subscribeAnalyticsConsent(() => {
+      if (!cancelled) setAnalyticsConsentState(analyticsConsentDecision());
+    });
+    return () => {
+      cancelled = true;
+      unsubscribe();
+    };
   }, []);
 
   function updateAnalyticsConsent(granted: boolean) {
     setAnalyticsConsent(granted);
-    setAnalyticsConsentState(granted);
+    setAnalyticsConsentState(granted ? "granted" : "denied");
     setMessage(granted
       ? "Anonymous usage analytics enabled. No handles, messages, voice, or precise location are sent."
       : "Anonymous usage analytics disabled and the browser analytics ID was removed.");
@@ -160,8 +166,8 @@ export default function PubmaxxAccountHub() {
       <h3>Anonymous usage analytics</h3>
       <p>Help improve journeys with allow-listed product events. This is optional and can be withdrawn here.</p>
       <div className="accountHubActions">
-        <button type="button" aria-pressed={analyticsConsent} onClick={() => updateAnalyticsConsent(true)}>Allow</button>
-        <button type="button" aria-pressed={!analyticsConsent} onClick={() => updateAnalyticsConsent(false)}>No thanks</button>
+        <button type="button" aria-pressed={analyticsConsent === "granted"} onClick={() => updateAnalyticsConsent(true)}>Allow</button>
+        <button type="button" aria-pressed={analyticsConsent === "denied"} onClick={() => updateAnalyticsConsent(false)}>No thanks</button>
       </div>
     </div>
   );

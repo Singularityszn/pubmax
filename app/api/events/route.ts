@@ -22,6 +22,7 @@
 // check.
 
 import { sanitizeEvent } from "@/lib/analyticsEvents";
+import { analyticsSurfaceFromPath } from "@/lib/analyticsPath";
 import { isAnonymousAnalyticsId } from "@/lib/analyticsIdentity";
 import { isEventsRateLimited } from "@/lib/eventsRateLimit";
 import { capturePosthogEvent, isPosthogConfigured } from "@/lib/posthogServer";
@@ -33,21 +34,6 @@ export const runtime = "nodejs";
 
 // Beacon payloads are tiny; anything larger is not one of ours.
 const MAX_BODY_BYTES = 2_000;
-
-const STATIC_ANALYTICS_SURFACES = new Set([
-  "/", "/map", "/tonight", "/moment", "/stories", "/you", "/pal", "/plan",
-]);
-
-export function analyticsSurfaceFromPath(path: unknown): string | null {
-  if (typeof path !== "string" || !path.startsWith("/") || path.length > 120) return null;
-  const pathname = path.split("?")[0];
-  if (STATIC_ANALYTICS_SURFACES.has(pathname)) return pathname;
-  if (/^\/plan\/[^/]+$/.test(pathname)) return "/plan/[id]";
-  if (/^\/u\/[^/]+$/.test(pathname)) return "/u/[handle]";
-  if (/^\/messages\/[^/]+$/.test(pathname)) return "/messages/[id]";
-  if (/^\/rounds\/[^/]+$/.test(pathname)) return "/rounds/[code]";
-  return null;
-}
 
 function noContent(delivery?: "delivered" | "retry" | "discard"): Response {
   return new Response(null, {

@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
   analyticsCollectionAllowed,
+  analyticsConsentDecision,
   anonymousAnalyticsId,
   flushVerifiedAnalyticsOutbox,
   laneSourceFromSearch,
@@ -19,7 +20,7 @@ type FakeNavigator = Partial<Navigator> & {
   doNotTrack?: string;
 };
 
-function setWindow(navigatorOverrides: FakeNavigator = {}): void {
+function setWindow(navigatorOverrides: FakeNavigator = {}): Map<string, string> {
   const values = new Map<string, string>();
   const nav: FakeNavigator = {
     sendBeacon: vi.fn().mockReturnValue(true),
@@ -34,6 +35,7 @@ function setWindow(navigatorOverrides: FakeNavigator = {}): void {
       setItem: (key: string, value: string) => values.set(key, value),
     },
   };
+  return values;
 }
 
 function makeStorageThrow(): void {
@@ -140,6 +142,18 @@ describe("trackEvent", () => {
 
     setAnalyticsConsent(false);
     expect(anonymousAnalyticsId()).toBeNull();
+  });
+
+  it("persists both consent answers so declining does not become a first visit again", () => {
+    const storage = setWindow();
+    expect(analyticsConsentDecision()).toBeNull();
+
+    setAnalyticsConsent(true);
+    expect(analyticsConsentDecision()).toBe("granted");
+
+    setAnalyticsConsent(false);
+    expect(analyticsConsentDecision()).toBe("denied");
+    expect(storage.get("pubmaxx:analytics-consent:v1")).toBe("denied");
   });
 
   it("fails closed when storage is blocked unless consent was explicitly granted in memory", () => {

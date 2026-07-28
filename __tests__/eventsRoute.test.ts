@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { analyticsSurfaceFromPath, POST } from "@/app/api/events/route";
+import { POST } from "@/app/api/events/route";
+import { analyticsSurfaceFromPath } from "@/lib/analyticsPath";
 import { __resetPintDrops } from "@/lib/pintDrops";
 import { __resetMemoryAnalyticsReceipts } from "@/lib/analyticsReceiptStore";
 import {
@@ -364,6 +365,8 @@ describe("POST /api/events", () => {
     expect(analyticsSurfaceFromPath("/u/night_owl?token=secret")).toBe("/u/[handle]");
     expect(analyticsSurfaceFromPath("/plan/6ab5ca40-836b-4970-9477-d1779fdd31ab")).toBe("/plan/[id]");
     expect(analyticsSurfaceFromPath("/messages/private-thread")).toBe("/messages/[id]");
+    expect(analyticsSurfaceFromPath("/rounds/secret-share-code")).toBe("/rounds/[code]");
+    expect(analyticsSurfaceFromPath("/privacy")).toBeNull();
     expect(analyticsSurfaceFromPath("/unknown/private-value")).toBeNull();
   });
 

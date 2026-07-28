@@ -14,7 +14,7 @@ import "../legal.css";
 const PAGE_TITLE = "Terms of use";
 const PAGE_DESCRIPTION =
   "The deal in plain language: what PUBMAXX is, what you can post, what prices on the map do and don't promise, and where our responsibility ends.";
-const LAST_UPDATED = "27 July 2026";
+const LAST_UPDATED = "28 July 2026";
 
 export const metadata: Metadata = {
   title: PAGE_TITLE,
@@ -89,10 +89,12 @@ export default function TermsPage() {
       <section className="legalSection" aria-labelledby="account">
         <h2 id="account" className="legalH2">Your account</h2>
         <p className="legalBody">
-          You don&rsquo;t need one to browse. If you make one, keep your sign-in
+          Browsing does not require an account or analytics. First visit asks
+          you to tap Allow or No thanks for optional anonymous analytics. You
+          get the same app either way. If you make an account, keep your sign-in
           to yourself, use a handle that isn&rsquo;t someone else&rsquo;s
-          identity, and don&rsquo;t hand the account to anyone else. You can stop
-          using it whenever you like, and ask us to delete it. See the{" "}
+          identity, and don&rsquo;t hand the account to anyone else. You can
+          stop using it whenever you like, and ask us to delete it. See the{" "}
           <Link href="/privacy" className="legalLink">privacy notice</Link>.
         </p>
       </section>

@@ -9,14 +9,85 @@ import {
 const UUID = "018f47a2-8e71-7a7a-9f18-8b953d45b2da";
 
 describe("PostHog browser privacy boundary", () => {
-  it("drops every browser SDK event outside exception autocapture", () => {
+  it("drops every browser SDK event outside explicit pageviews and exception autocapture", () => {
+    const event: CaptureResult = {
+      uuid: UUID,
+      event: "$autocapture",
+      properties: {
+        token: "phc_public",
+        distinct_id: UUID,
+        $current_url: "https://pubmaxxing.com/map?email=person@example.com",
+      },
+    };
+
+    expect(sanitizePosthogEvent(event)).toBeNull();
+  });
+
+  it("keeps only a coarse path and the consent-scoped anonymous id on explicit pageviews", () => {
+    const event: CaptureResult = {
+      uuid: UUID,
+      event: "$pageview",
+      timestamp: new Date("2026-07-28T12:00:00.000Z"),
+      properties: {
+        token: "phc_public",
+        distinct_id: UUID,
+        $device_id: UUID,
+        $pubmaxx_anonymous_id: `anon_${UUID}`,
+        $pathname: "/map",
+        $current_url: "https://pubmaxxing.com/map?email=person@example.com",
+        $referrer: "https://example.com/private",
+        $screen_name: "person@example.com",
+        account_id: "supabase-user-id",
+      },
+    };
+
+    expect(sanitizePosthogEvent(event)).toEqual({
+      uuid: UUID,
+      event: "$pageview",
+      timestamp: new Date("2026-07-28T12:00:00.000Z"),
+      properties: {
+        token: "phc_public",
+        distinct_id: `anon_${UUID}`,
+        $pathname: "/map",
+        $process_person_profile: false,
+      },
+    });
+  });
+
+  it.each([
+    ["/u/night_owl", "/u/[handle]"],
+    ["/messages/private-thread", "/messages/[id]"],
+    ["/rounds/secret-share-code", "/rounds/[code]"],
+    ["/plan/6ab5ca40-836b-4970-9477-d1779fdd31ab", "/plan/[id]"],
+  ])("coarsens dynamic pageview path %s before egress", (pathname, expected) => {
+    const event: CaptureResult = {
+      uuid: UUID,
+      event: "$pageview",
+      properties: {
+        token: "phc_public",
+        $pubmaxx_anonymous_id: `anon_${UUID}`,
+        $pathname: pathname,
+      },
+    };
+
+    const sanitized = sanitizePosthogEvent(event);
+    expect(sanitized?.properties.$pathname).toBe(expected);
+    expect(JSON.stringify(sanitized)).not.toContain(pathname.split("/").at(-1));
+  });
+
+  it.each([
+    "/map?sel=venue-secret#sheet",
+    "/unknown/private-value",
+    "/u/night_owl%2Fprivate",
+  ])("drops unsafe or unknown pageview path %s", (pathname) => {
     const event: CaptureResult = {
       uuid: UUID,
       event: "$pageview",
       properties: {
         token: "phc_public",
         distinct_id: UUID,
-        $current_url: "https://pubmaxxing.com/map?email=person@example.com",
+        $pubmaxx_anonymous_id: `anon_${UUID}`,
+        $pathname: pathname,
       },
     };
 

@@ -5,11 +5,12 @@ import { CONTACT_EMAIL, CONTACT_MAILTO } from "@/lib/siteContact";
 
 import "../legal.css";
 
-// /privacy — the public privacy notice. Server component, zero client JS.
+// /privacy - the public privacy notice. Server component, zero client JS.
 //
 // HOUSE RULE, same as every other surface: this page describes what the code
-// actually does, and nothing else. Every claim below is checkable in the repo —
-// the consent toggle (components/profile/PubmaxxAccountHub.tsx), the event
+// actually does, and nothing else. Every claim below is checkable in the repo -
+// the first-visit consent prompt (components/AnalyticsConsentPrompt.tsx), the
+// later control (components/profile/PubmaxxAccountHub.tsx), the event
 // registry and its gates (lib/analyticsEvents.ts, app/api/events/route.ts),
 // the browser SDK config (lib/posthogClient.ts), the first-party ingest proxy
 // (app/ingest/[...path]/route.ts), the hashed-actor derivation (lib/supabase.ts
@@ -60,9 +61,9 @@ export default function PrivacyPage() {
             We don&rsquo;t ask who you are to show you the price of a pint.
           </li>
           <li>
-            <strong>Analytics are off until you switch them on.</strong>{" "}Nothing
-            is measured about your usage unless you tap Allow in your account
-            settings, and you can turn it back off in the same place.
+            <strong>Analytics are off until you switch them on.</strong>{" "}On
+            your first visit we ask you to tap Allow or No thanks. We remember
+            that choice, and you can change it later in your account settings.
           </li>
           <li>
             <strong>PUBMAXX never stores raw IP addresses in its own
@@ -253,17 +254,20 @@ export default function PrivacyPage() {
 
         <h3 className="legalH3">Analytics, only with consent</h3>
         <p className="legalBody">
-          Usage analytics are off by default. Turning them on is an explicit tap
-          under <strong>Anonymous usage analytics</strong>{" "}in your PUBMAXX
-          account settings, and the same control turns them back off. While
-          they&rsquo;re on:
+          Usage analytics are off by default. A small prompt asks on your first
+          visit, with Allow and No thanks both one tap. The browser remembers
+          that choice so the prompt does not return on every visit.
+          If you allow analytics, you can turn them back off later under
+          <strong> Anonymous usage analytics</strong>{" "}in your PUBMAXX
+          account settings. While they&rsquo;re on:
         </p>
         <ul className="legalList">
           <li>
-            We send a closed, named list of product events (things like
-            &ldquo;a plan was accepted&rdquo;) with allow-listed simple values.
-            The server re-checks every event against the same list and drops
-            anything it doesn&rsquo;t recognise.
+            We send page visits as a coarse path with no query string, plus a
+            closed, named list of product events (things like &ldquo;a plan was
+            accepted&rdquo;) with allow-listed simple values. The server
+            re-checks product events against the same list and drops anything
+            it doesn&rsquo;t recognise.
           </li>
           <li>
             Events carry a random identifier generated in your browser and a
@@ -272,10 +276,10 @@ export default function PrivacyPage() {
             person profiles are switched off on the analytics provider.
           </li>
           <li>
-            The browser analytics SDK is limited to counting anonymous crash
-            types: the error message itself is redacted before it leaves your
-            browser. Session recording, autocapture, heatmaps, click tracking
-            and surveys are all disabled.
+            For crash reporting, the browser analytics SDK sends only anonymous
+            crash types: the error message itself is redacted before it leaves
+            your browser. Session recording, autocapture, heatmaps, click
+            tracking and surveys are all disabled.
           </li>
           <li>
             Analytics requests go through pubmaxxing.com rather than straight to
@@ -289,8 +293,8 @@ export default function PrivacyPage() {
           </li>
           <li>
             Turning consent off deletes the browser analytics identifier and
-            stops both the product events and the hosting provider&rsquo;s
-            pageview counter.
+            stops PostHog page visits, product events and the hosting
+            provider&rsquo;s pageview counter.
           </li>
         </ul>
 
@@ -343,8 +347,9 @@ export default function PrivacyPage() {
             in your browser and refreshes in the background.
           </li>
           <li>
-            Your analytics choice. Until you tap Allow, no analytics identifier
-            exists at all; withdrawing consent removes it again.
+            Your analytics choice, either allowed or denied, so we do not ask on
+            every visit. Until you tap Allow, no analytics identifier exists at
+            all; withdrawing consent removes it again.
           </li>
           <li>
             Preferences and app state: theme, your device night profile, your
@@ -357,9 +362,9 @@ export default function PrivacyPage() {
           </li>
         </ul>
         <p className="legalBody">
-          Because nothing non-essential is set before you agree to it, the
-          consent control is a normal setting in your account rather than a
-          banner in front of the map.
+          Because nothing non-essential is set before you agree to it, the first
+          visit choice is a small prompt rather than a wall in front of the map.
+          Your account keeps the later control.
         </p>
       </section>
 

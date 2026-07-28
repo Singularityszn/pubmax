@@ -71,4 +71,30 @@ describe("promptBudget (one surface per session)", () => {
     expect(hasPromptBudgetFor("a2hs")).toBe(true);
     expect(claimPromptBudget("a2hs")).toBe(true);
   });
+
+  it("reserves the first prompt moment for an undecided analytics choice", () => {
+    const session = makeMemoryStorage();
+    const local = makeMemoryStorage();
+
+    expect(hasPromptBudgetFor("analytics-consent", session, local)).toBe(true);
+    expect(hasPromptBudgetFor("first-run-tour", session, local)).toBe(false);
+    expect(claimPromptBudget("first-run-tour", session, local)).toBe(false);
+    expect(promptBudgetHolder(session)).toBeNull();
+
+    expect(claimPromptBudget("analytics-consent", session, local)).toBe(true);
+    expect(promptBudgetHolder(session)).toBe("analytics-consent");
+    expect(claimPromptBudget("first-run-tour", session, local)).toBe(false);
+  });
+
+  it.each(["granted", "denied"])(
+    "lets other prompts compete in later sessions after analytics is %s",
+    (decision) => {
+      const session = makeMemoryStorage();
+      const local = makeMemoryStorage();
+      local.setItem("pubmaxx:analytics-consent:v1", decision);
+
+      expect(hasPromptBudgetFor("first-run-tour", session, local)).toBe(true);
+      expect(claimPromptBudget("first-run-tour", session, local)).toBe(true);
+    },
+  );
 });

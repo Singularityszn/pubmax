@@ -209,7 +209,7 @@ describe("verified analytics cross-tab consent", () => {
     const analyticsB = await inWindow(tabB, () => import("@/lib/analytics"));
     await inWindow(tabB, () => analyticsB.setAnalyticsConsent(false));
 
-    expect(tabA.localStorage.getItem(CONSENT_KEY)).toBeNull();
+    expect(tabA.localStorage.getItem(CONSENT_KEY)).toBe("denied");
     expect(tabA.localStorage.getItem(OUTBOX_KEY)).toBeNull();
     const firstSignal = (fetchMock.mock.calls[0]?.[1] as RequestInit | undefined)?.signal as AbortSignal;
     expect(firstSignal.aborted).toBe(true);
