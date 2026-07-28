@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 
-import { createPinRevealCoordinator } from "@/components/map/canvas/pinRevealCoordinator";
+import {
+  basemapRetryForReveal,
+  createPinRevealCoordinator,
+} from "@/components/map/canvas/pinRevealCoordinator";
 
 function harness() {
   let tilesLoaded = false;
@@ -77,6 +80,15 @@ function harness() {
 }
 
 describe("pin reveal coordinator", () => {
+  it("turns only a basemap timeout into an honest retry notice", () => {
+    expect(basemapRetryForReveal("tiles")).toBeNull();
+    expect(basemapRetryForReveal("idle")).toBeNull();
+    expect(basemapRetryForReveal("timeout")).toEqual({
+      kind: "tiles",
+      message: "Map background couldn't load. Tap Retry to try again.",
+    });
+  });
+
   it("keeps pins gated until basemap tiles have painted", () => {
     const h = harness();
     h.coordinator.arm();

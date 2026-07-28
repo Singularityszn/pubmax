@@ -160,6 +160,7 @@ test("/map reveals pins only for the final rapid theme style generation", async 
 
 test("/map uses the bounded pin fallback when basemap tiles are delayed", async ({ page }) => {
   test.setTimeout(60_000);
+  await page.setViewportSize({ width: 390, height: 844 });
   await page.addInitScript(() => {
     const trace: Array<{ reason: string; generation: number }> = [];
     Object.defineProperty(window, "__pubmaxPinRevealTrace", { value: trace });
@@ -167,11 +168,12 @@ test("/map uses the bounded pin fallback when basemap tiles are delayed", async 
       trace.push((event as CustomEvent<{ reason: string; generation: number }>).detail);
     });
   });
+  let holdTiles = true;
   await page.route(/\.pbf(?:\?|$)/, async (route) => {
     // Hold every vector tile beyond the coordinator's 12s readiness ceiling.
     // Browser contexts are fresh and service workers are blocked for this
     // project, so the timeout path cannot be defeated by cache timing.
-    await new Promise((resolve) => setTimeout(resolve, 15_000));
+    if (holdTiles) await new Promise((resolve) => setTimeout(resolve, 15_000));
     await route.continue();
   });
 
@@ -186,6 +188,73 @@ test("/map uses the bounded pin fallback when basemap tiles are delayed", async 
   const reveal = (await trace()).at(-1)!;
   await page.waitForTimeout(1_000);
   expect((await trace()).filter(({ generation }) => generation === reveal.generation)).toHaveLength(1);
+  await expect(page.locator(".mapFallback")).toHaveCount(0);
+
+  const notice = page.locator(".mapSoftRetry");
+  await expect(notice).toContainText("Map background couldn't load");
+  const retry = notice.getByRole("button", { name: "Retry" });
+  await expect(retry).toBeVisible();
+  const [retryBox, tabBarBox] = await Promise.all([
+    retry.boundingBox(),
+    page.locator(".mobileTabBar").boundingBox(),
+  ]);
+  expect(retryBox).not.toBeNull();
+  expect(tabBarBox).not.toBeNull();
+  expect(retryBox!.height).toBeGreaterThanOrEqual(44);
+  expect(retryBox!.y + retryBox!.height).toBeLessThanOrEqual(tabBarBox!.y);
+
+  holdTiles = false;
+  await retry.click();
+  await expect(notice).toHaveCount(0);
+  await expect
+    .poll(async () => (await trace()).at(-1)?.reason, { timeout: 20_000 })
+    .toMatch(/^(tiles|idle)$/);
+});
+
+test("/map keeps the honest retry visible while basemap tiles keep failing", async ({
+  page,
+}) => {
+  test.setTimeout(45_000);
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.route(/\.pbf(?:\?|$)/, (route) => route.abort("failed"));
+
+  await page.goto("/map");
+  await expect(page.locator(".maplibreMap canvas").first()).toBeVisible({
+    timeout: 20_000,
+  });
+
+  const notice = page.locator(".mapSoftRetry");
+  await expect(notice).toContainText("Map background couldn't load", {
+    timeout: 20_000,
+  });
+  await page.waitForTimeout(2_000);
+  await expect(notice).toBeVisible();
+  await expect(notice.getByRole("button", { name: "Retry" })).toBeVisible();
+  await expect(page.locator(".mapFallback")).toHaveCount(0);
+});
+
+test("/map states a TileJSON metadata failure instead of revealing a blank field", async ({
+  page,
+}) => {
+  test.setTimeout(45_000);
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.route(
+    /tiles\.openfreemap\.org\/planet(?:\?|$)/,
+    (route) => route.abort("failed"),
+  );
+
+  await page.goto("/map");
+  await expect(page.locator(".maplibreMap canvas").first()).toBeVisible({
+    timeout: 20_000,
+  });
+
+  const notice = page.locator(".mapSoftRetry");
+  await expect(notice).toContainText("Map background couldn't load", {
+    timeout: 20_000,
+  });
+  await page.waitForTimeout(2_000);
+  await expect(notice).toBeVisible();
+  await expect(notice.getByRole("button", { name: "Retry" })).toBeVisible();
   await expect(page.locator(".mapFallback")).toHaveCount(0);
 });
 

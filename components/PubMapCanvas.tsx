@@ -86,7 +86,11 @@ import {
   CLUSTER_FILL_OPACITY, CLUSTER_STROKE_OPACITY,
 } from "@/components/map/canvas/buildScene";
 import { createDonutClusterSync, type DonutClusterSync } from "@/components/map/canvas/donutClusters";
-import { createPinRevealCoordinator } from "@/components/map/canvas/pinRevealCoordinator";
+import {
+  BASEMAP_RETRY_NOTICE,
+  basemapRetryForReveal,
+  createPinRevealCoordinator,
+} from "@/components/map/canvas/pinRevealCoordinator";
 import { applySelectionMute } from "@/lib/mapBasemapTaste";
 import {
   wireClickRouting, wireHoverPrefetch, wirePubHover, wireCursor,
@@ -103,7 +107,11 @@ import {
   PAINT_WATCHDOG_MAX_RETRIES,
   shouldRecoverPaint,
 } from "@/lib/mapPaintWatchdog";
-import { classifyTileFailure, pruneTileFailures } from "@/lib/mapTileFailure";
+import {
+  classifyTileFailure,
+  isCriticalBasemapFailure,
+  pruneTileFailures,
+} from "@/lib/mapTileFailure";
 import {
   CONTEXT_LOST_RECOVERY_MS,
   contextHealthAction,
@@ -1069,22 +1077,45 @@ export default function PubMapCanvas({
     // One generation-scoped gate owns every pin reveal callback. A theme swap
     // cancels the previous generation before setStyle, so a late render/frame
     // from the old style can never mutate the new one.
+    const areBasemapTilesLoaded = () => {
+      const basemapSourceIds = Object.entries(map.getStyle().sources ?? {})
+        .filter(([, source]) => (
+          source.type === "vector" || source.type === "raster" || source.type === "raster-dem"
+        ))
+        .map(([id]) => id);
+      if (basemapSourceIds.length === 0 || !map.areTilesLoaded()) return false;
+      try {
+        return basemapSourceIds.every((id) => map.isSourceLoaded(id));
+      } catch {
+        return false;
+      }
+    };
+    let initialBasemapPending = true;
+    let tileNoticeOwner: "none" | "timeout" | "errors" = "none";
+    let tileFailureStamps: number[] = [];
+    let tileRetrySpent = false;
+    let tileFailureSurfaced = false;
+    let tileRetryQueued = false;
+    const markBasemapRecovered = () => {
+      if (!areBasemapTilesLoaded()) return;
+      initialBasemapPending = false;
+      tileFailureStamps = [];
+      tileFailureSurfaced = false;
+      // MapLibre treats errored tiles as settled, so `areTilesLoaded()` cannot
+      // prove recovery from a real error burst. Only a timeout-owned notice
+      // may clear when a slow source eventually settles. Error-owned notices
+      // remain truthful until Retry reconstructs the map.
+      if (tileNoticeOwner !== "timeout") return;
+      tileNoticeOwner = "none";
+      setSoftRetry((current) => current?.kind === "tiles" ? null : current);
+    };
+    map.on("render", markBasemapRecovered);
+    map.on("idle", markBasemapRecovered);
+
     const pinRevealCoordinator = createPinRevealCoordinator({
       pinRevealTimeoutMs: PIN_REVEAL_TIMEOUT_MS,
       readyCeilingMs: PIN_READY_CEILING_MS,
-      areTilesLoaded: () => {
-        const basemapSourceIds = Object.entries(map.getStyle().sources ?? {})
-          .filter(([, source]) => (
-            source.type === "vector" || source.type === "raster" || source.type === "raster-dem"
-          ))
-          .map(([id]) => id);
-        if (basemapSourceIds.length === 0 || !map.areTilesLoaded()) return false;
-        try {
-          return basemapSourceIds.every((id) => map.isSourceLoaded(id));
-        } catch {
-          return false;
-        }
-      },
+      areTilesLoaded: areBasemapTilesLoaded,
       setPinsVisible: (visible) => {
         for (const id of PUB_PIN_LAYERS) {
           if (map.getLayer(id)) {
@@ -1105,6 +1136,13 @@ export default function PubMapCanvas({
       setTimer: (callback, delayMs) => window.setTimeout(callback, delayMs),
       clearTimer: (handle) => window.clearTimeout(handle),
       onReveal: (reason, generation) => {
+        const basemapRetry = basemapRetryForReveal(reason);
+        if (basemapRetry) {
+          tileNoticeOwner = "timeout";
+          setSoftRetry(basemapRetry);
+        } else {
+          markBasemapRecovered();
+        }
         // Void fix (#395 R2, #397): lift the PARENT loading chrome HERE — the
         // reveal is the first frame with the basemap actually painted (reason
         // "tiles"/"idle") or, only if that frame never arrives, an honest
@@ -1281,6 +1319,7 @@ export default function PubMapCanvas({
       // after tile readiness crosses a paint frame. The timeout deliberately
       // degrades to usable pins over the themed container when community tiles
       // are partial/offline instead of leaving the product invisible.
+      initialBasemapPending = true;
       pinRevealCoordinator.arm();
 
       // Flush any mutations that arrived while the style was mid-load (initial
@@ -1493,18 +1532,14 @@ export default function PubMapCanvas({
     // AFTER load, errors are classified (lib/mapTileFailure): the paint
     // watchdog below only sees a parked frame loop, so a source that fails
     // while frames keep presenting would otherwise paint black at 60fps with
-    // no recovery and no message. A lone tile miss stays ignored; a burst (or
-    // a sprite/glyph failure, which breaks the whole map) spends ONE style
-    // reload from the same recovery budget as the paint watchdog, and if the
-    // failure survives that reload the honest error card takes over. The retry
-    // is deferred to a microtask because MapLibre fires mutation-validation
-    // errors synchronously from inside buildScene - a setStyle re-entering
-    // mid-build would leave every remaining addLayer throwing on an unloaded
-    // style (same hazard as the flag-setter ordering above).
-    let tileFailureStamps: number[] = [];
-    let tileRetrySpent = false;
-    let tileFailureSurfaced = false;
-    let tileRetryQueued = false;
+    // no recovery and no message. A lone tile miss stays ignored; a burst,
+    // sprite/glyph failure, or initial source-metadata failure spends ONE style
+    // reload from the same recovery budget as the paint watchdog. If failure
+    // survives that reload, honest error UI takes over. The retry is deferred
+    // to a microtask because MapLibre fires mutation-validation errors
+    // synchronously from inside buildScene - a setStyle re-entering mid-build
+    // would leave every remaining addLayer throwing on an unloaded style
+    // (same hazard as the flag-setter ordering above).
     // Declared here so the tile-error surface path can prefer soft toast once
     // a real frame has painted (set true by the first-frame watchdog below).
     let firstFrameSeen = false;
@@ -1517,10 +1552,18 @@ export default function PubMapCanvas({
       const now = performance.now();
       tileFailureStamps = pruneTileFailures(tileFailureStamps, now);
       tileFailureStamps.push(now);
-      const message = String(
-        (event as { error?: { message?: unknown } })?.error?.message ?? "",
-      );
-      const critical = /sprite|glyph/i.test(message);
+      const mapError = event as {
+        error?: { message?: unknown };
+        source?: { type?: unknown };
+        tile?: unknown;
+      };
+      const message = String(mapError.error?.message ?? "");
+      const critical = isCriticalBasemapFailure({
+        message,
+        initialBasemapPending,
+        sourceType: mapError.source?.type,
+        tilePresent: mapError.tile !== undefined,
+      });
       const decision = classifyTileFailure({
         now,
         errorTimestamps: tileFailureStamps,
@@ -1531,6 +1574,7 @@ export default function PubMapCanvas({
         cameraInFlight: map.isMoving(),
         retrySpent: tileRetrySpent,
         recoveryBudgetLeft: PAINT_WATCHDOG_MAX_RETRIES - recoverySpent,
+        initialBasemapPending,
       });
       if (decision === "ignore") return;
       if (decision === "retry") {
@@ -1564,10 +1608,8 @@ export default function PubMapCanvas({
       });
       queueMicrotask(() => {
         if (firstFrameSeen) {
-          setSoftRetry({
-            kind: "tiles",
-            message: "Map tiles failed to load. Tap Retry to try again.",
-          });
+          tileNoticeOwner = "errors";
+          setSoftRetry(BASEMAP_RETRY_NOTICE);
           return;
         }
         reportMapError({
@@ -2008,6 +2050,8 @@ export default function PubMapCanvas({
       if (hardFailTimer) clearTimeout(hardFailTimer);
       clearTimeout(hangFailTimer);
       pinRevealCoordinator.dispose();
+      map.off("render", markBasemapRecovered);
+      map.off("idle", markBasemapRecovered);
       themeObserver.disconnect();
       reducedQuery.removeEventListener("change", onReducedChange);
       window.removeEventListener("blur", onBlur);

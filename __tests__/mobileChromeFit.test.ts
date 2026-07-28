@@ -27,6 +27,7 @@ const buzzCss = read("components/map/venueBuzz.css");
 const pintArrivalCss = read("components/pintindex/pintIndexArrival.css");
 const venueListCss = read("components/map/mapVenueList.css");
 const venuePriceSubmitCss = read("components/map/venuePriceSubmit.css");
+const globalCss = read("app/globals.css");
 
 describe("mobile chrome fit at 390px", () => {
   it("tightens the map control rail so all three chips clear the viewport", () => {
@@ -274,6 +275,15 @@ describe("mobile tap-target floors", () => {
   it("removes community signal motion when the phone asks for less", () => {
     expect(venuePriceSubmitCss).toMatch(
       /@media \(prefers-reduced-motion: reduce\)\s*{[\s\S]*?\.vpsigSummaryChevron\s*{[^}]*transition:\s*none/,
+    );
+  });
+
+  it("keeps basemap Retry thumb-sized and clear of phone navigation", () => {
+    expect(globalCss).toMatch(
+      /\.mapSoftRetryBtn\s*{[^}]*min-width:\s*64px;[^}]*min-height:\s*44px/,
+    );
+    expect(globalCss).toMatch(
+      /@media \(max-width: 640px\)[\s\S]*?\.mapSoftRetry\s*{[^}]*bottom:\s*calc\(var\(--mobile-tab-clearance\) \+ 10px\)/,
     );
   });
 });

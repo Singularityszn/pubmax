@@ -1,5 +1,18 @@
 export type PinRevealReason = "tiles" | "idle" | "timeout";
 
+export const BASEMAP_RETRY_NOTICE = {
+  kind: "tiles",
+  message: "Map background couldn't load. Tap Retry to try again.",
+} as const;
+
+export function basemapRetryForReveal(reason: PinRevealReason): {
+  kind: "tiles";
+  message: string;
+} | null {
+  if (reason !== "timeout") return null;
+  return BASEMAP_RETRY_NOTICE;
+}
+
 type PinRevealCoordinatorOptions = {
   /**
    * Un-gates the local GeoJSON pins if the basemap never reports painted tiles,

@@ -4,9 +4,70 @@ import {
   TILE_FAILURE_SUSTAIN_MS,
   TILE_FAILURE_WINDOW_MS,
   classifyTileFailure,
+  isCriticalBasemapFailure,
   pruneTileFailures,
   type TileFailureInput,
 } from "@/lib/mapTileFailure";
+
+describe("isCriticalBasemapFailure", () => {
+  it("treats initial vector TileJSON failure as systemic without a tile burst", () => {
+    expect(
+      isCriticalBasemapFailure({
+        message: "AJAXError: Failed to fetch",
+        initialBasemapPending: true,
+        sourceType: "vector",
+        tilePresent: false,
+      }),
+    ).toBe(true);
+  });
+
+  it("does not promote an individual vector tile miss to critical", () => {
+    expect(
+      isCriticalBasemapFailure({
+        message: "AJAXError: Failed to fetch",
+        initialBasemapPending: true,
+        sourceType: "vector",
+        tilePresent: true,
+      }),
+    ).toBe(false);
+  });
+
+  it("does not call a GeoJSON overlay or settled source critical", () => {
+    expect(
+      isCriticalBasemapFailure({
+        message: "AJAXError: Failed to fetch",
+        initialBasemapPending: true,
+        sourceType: "geojson",
+        tilePresent: false,
+      }),
+    ).toBe(false);
+    expect(
+      isCriticalBasemapFailure({
+        message: "AJAXError: Failed to fetch",
+        initialBasemapPending: false,
+        sourceType: "vector",
+        tilePresent: false,
+      }),
+    ).toBe(false);
+  });
+
+  it("keeps sprite and glyph failures critical", () => {
+    expect(
+      isCriticalBasemapFailure({
+        message: "Could not load sprite image",
+        initialBasemapPending: false,
+        tilePresent: false,
+      }),
+    ).toBe(true);
+    expect(
+      isCriticalBasemapFailure({
+        message: "Could not load glyph range",
+        initialBasemapPending: false,
+        tilePresent: false,
+      }),
+    ).toBe(true);
+  });
+});
 
 // A visible, settled-camera tab with a sustained burst and a full budget the
 // individual cases mutate. Every rule passes here, so each test flips exactly
@@ -48,7 +109,36 @@ describe("classifyTileFailure", () => {
     ).toBe("ignore");
   });
 
-  it("ignores everything while the camera is in flight", () => {
+  it("retries a concentrated burst while the initial basemap is still pending", () => {
+    const initialBurst = Array.from(
+      { length: TILE_FAILURE_BURST },
+      (_, i) => NOW - i * 100,
+    );
+    expect(
+      classifyTileFailure({
+        ...bursting,
+        errorTimestamps: initialBurst,
+        initialBasemapPending: true,
+      }),
+    ).toBe("retry");
+  });
+
+  it("surfaces a repeated initial burst after the bounded retry", () => {
+    const initialBurst = Array.from(
+      { length: TILE_FAILURE_BURST },
+      (_, i) => NOW - i * 100,
+    );
+    expect(
+      classifyTileFailure({
+        ...bursting,
+        errorTimestamps: initialBurst,
+        initialBasemapPending: true,
+        retrySpent: true,
+      }),
+    ).toBe("surface");
+  });
+
+  it("ignores tile bursts but not terminal resources while the camera is in flight", () => {
     expect(
       classifyTileFailure({ ...bursting, cameraInFlight: true }),
     ).toBe("ignore");
@@ -58,7 +148,7 @@ describe("classifyTileFailure", () => {
         cameraInFlight: true,
         criticalFailure: true,
       }),
-    ).toBe("ignore");
+    ).toBe("retry");
   });
 
   it("ignores errors that have aged out of the window", () => {
@@ -78,7 +168,7 @@ describe("classifyTileFailure", () => {
     ).toBe("retry");
   });
 
-  it("ignores everything while the tab is hidden", () => {
+  it("ignores tile bursts but not terminal resources while the tab is hidden", () => {
     expect(
       classifyTileFailure({ ...bursting, documentVisible: false }),
     ).toBe("ignore");
@@ -88,7 +178,7 @@ describe("classifyTileFailure", () => {
         documentVisible: false,
         criticalFailure: true,
       }),
-    ).toBe("ignore");
+    ).toBe("retry");
   });
 
   it("surfaces when the retry is already spent", () => {

@@ -216,6 +216,19 @@ function isCacheable(response) {
   return Boolean(response && response.ok && (response.type === "basic" || response.type === "cors"));
 }
 
+// Cache Storage is progressive enhancement. Safari may reject writes under
+// storage pressure (especially while an update temporarily keeps two
+// versioned cache sets). A valid network response must still reach its caller:
+// cache.put() failure is never a network failure.
+async function cachePutBestEffort(cache, request, response) {
+  try {
+    await cache.put(request, response.clone());
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 async function handleNavigation(event, request, url) {
   try {
     const response = await fetch(request);
@@ -258,20 +271,19 @@ async function handleNavigation(event, request, url) {
 async function cacheFirstWithRevalidate(event, request) {
   const cache = await caches.open(DATA_CACHE);
   const cached = await cache.match(request, { ignoreSearch: true });
-  const revalidate = fetch(request)
-    .then((response) => {
-      if (isCacheable(response)) {
-        return cache.put(request, response.clone()).then(() => response);
-      }
-      return response;
-    })
-    .catch(() => undefined);
+  const network = fetch(request).catch(() => undefined);
+  const update = network.then(async (response) => {
+    if (isCacheable(response)) {
+      await cachePutBestEffort(cache, request, response);
+    }
+  });
 
   if (cached) {
-    event.waitUntil(revalidate);
+    event.waitUntil(update);
     return cached;
   }
-  const fresh = await revalidate;
+  const fresh = await network;
+  event.waitUntil(update);
   if (fresh) return fresh;
   return new Response("[]", {
     status: 503,
@@ -285,7 +297,7 @@ async function networkFirstWithCache(event, request) {
   try {
     const response = await fetch(request);
     if (isCacheable(response)) {
-      event.waitUntil(cache.put(request, response.clone()));
+      event.waitUntil(cachePutBestEffort(cache, request, response));
     }
     return response;
   } catch {
@@ -301,23 +313,24 @@ async function networkFirstWithCache(event, request) {
 async function staleWhileRevalidate(event, request) {
   const cache = await caches.open(SWR_CACHE);
   const cached = await cache.match(request);
-  const network = fetch(request)
-    .then((response) => {
-      if (isCacheable(response)) {
-        return cache
-          .put(request, response.clone())
-          .then(() => trimCache(SWR_CACHE, MAX_SWR_ENTRIES))
-          .then(() => response);
-      }
-      return response;
-    })
-    .catch(() => undefined);
+  const network = fetch(request).catch(() => undefined);
+  const update = network.then(async (response) => {
+    if (!isCacheable(response)) return;
+    const stored = await cachePutBestEffort(cache, request, response);
+    if (!stored) return;
+    try {
+      await trimCache(SWR_CACHE, MAX_SWR_ENTRIES);
+    } catch {
+      // Trimming is best-effort for the same reason as the write.
+    }
+  });
 
   if (cached) {
-    event.waitUntil(network);
+    event.waitUntil(update);
     return cached;
   }
   const fresh = await network;
+  event.waitUntil(update);
   if (fresh) return fresh;
   return Response.error();
 }

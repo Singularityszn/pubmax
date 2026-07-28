@@ -2488,6 +2488,8 @@ input[type="range"] {
 }
 .mapSoftRetryBtn {
   flex-shrink: 0;
+  min-width: 64px;
+  min-height: 44px;
   padding: 5px 12px;
   border: 1px solid var(--brass, #c4a35a);
   border-radius: var(--radius-sm, 8px);
@@ -4839,6 +4841,10 @@ button:disabled {
     /* Stack FABs clearly above the compact tab bar; chips one row higher. */
     --map-bottom-fab-row: calc(var(--mobile-tab-clearance) + 28px);
     --map-bottom-chip-row: calc(var(--mobile-tab-clearance) + 62px);
+  }
+
+  .mapSoftRetry {
+    bottom: calc(var(--mobile-tab-clearance) + 10px);
   }
 
   /* Tab bar is hidden while planning/detail sheets own the bottom edge. */
