@@ -284,6 +284,22 @@ export function drinkLensUnknownRowLabel(
   return `no ${drinkNoun} price logged`;
 }
 
+/** The same finding where a sentence starts. One owner for the capital. */
+export function drinkLensUnknownSentence(
+  drinkNoun: string,
+  status: CategoryPriceIndexStatus,
+): string {
+  const label = drinkLensUnknownRowLabel(drinkNoun, status);
+  return label.charAt(0).toUpperCase() + label.slice(1);
+}
+
+/**
+ * What the no-alcohol lens is called INSIDE a sentence. Its display label is
+ * already a negative ("No-alcohol"), and "no no-alcohol price logged" buries
+ * the fact the reader wants: this pub has none on record.
+ */
+export const NO_ALCOHOL_LENS_PRICE_NOUN = "alcohol-free or soft drink";
+
 export function experienceLensSummary(
   lens: MapExperienceLens,
   noAlcoholPriceCount: number,

@@ -211,6 +211,7 @@ import { markPalRouteActivation } from "@/lib/pubPal";
 import {
   drinkLensUnknownRowLabel,
   experienceLensSummary,
+  NO_ALCOHOL_LENS_PRICE_NOUN,
   filtersForDrinkPriceLens,
   filtersForExperienceLens,
   filterVenuesForExperienceLens,
@@ -1150,6 +1151,16 @@ export default function PubMap({
       : experienceLens === "food"
         ? "Food"
         : null;
+  // The name a heading wears is not always the name a sentence wants: the
+  // no-alcohol lens is titled with a negative, and "no no-alcohol price
+  // logged" hides the one fact that is about the pub.
+  const activeLensNoun = mapDrinkLensCategory
+    ? CATEGORY_META[mapDrinkLensCategory].label
+    : experienceLens === "no-alcohol"
+      ? NO_ALCOHOL_LENS_PRICE_NOUN
+      : experienceLens === "food"
+        ? "Food"
+        : null;
   const experienceSummary = useMemo(() => {
     if (experienceLens === "all") return "";
     let noAlcoholPriceCount = 0;
@@ -1178,11 +1189,11 @@ export default function PubMap({
         mapViewport.center,
         undefined,
         activeLensPrices,
-        activeLensLabel ?? undefined,
+        activeLensNoun ?? undefined,
         drinkIndexStatus,
       ),
     [
-      activeLensLabel,
+      activeLensNoun,
       activeLensPrices,
       drinkIndexStatus,
       kindVisibleMapVenues,
@@ -2447,7 +2458,7 @@ export default function PubMap({
               <small>
                 {selectedLensPrice?.categoryLabel ??
                   drinkLensUnknownRowLabel(
-                    activeLensLabel?.toLowerCase() ?? "this view",
+                    activeLensNoun?.toLowerCase() ?? "this view",
                     drinkIndexStatus,
                   )}
               </small>
@@ -2637,6 +2648,8 @@ export default function PubMap({
           whatsOnByVenue={whatsOnTonight.summary}
           provisionalVenueIds={provisionalVenueIds}
           lensPrices={activeLensPrices}
+          lensNoun={activeLensNoun?.toLowerCase() ?? null}
+          lensIndexStatus={drinkIndexStatus}
           activeBandId={activeBandId}
           onBandChange={setActiveBandId}
           onStartCrawl={startCrawlFromPubs}

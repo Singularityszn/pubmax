@@ -51,7 +51,10 @@ import {
 import type { ThingsToDoOpportunity } from "@/lib/citymcp/client";
 import { opportunitiesToGeoJSON } from "@/lib/thingsToDoMap";
 import { formatPrice, type Venue } from "@/lib/venues";
-import type { MapLensPrice } from "@/lib/mapExperienceLens";
+import type {
+  CategoryPriceIndexStatus,
+  MapLensPrice,
+} from "@/lib/mapExperienceLens";
 import type { VenueSignal, HoveredVenue, VenueDetailResponse, FailedHoverImage } from "@/components/map/canvas/types";
 import {
   MAP_STYLES, FALLBACK_STYLES, STYLE_LOAD_TIMEOUT_MS, LONDON_VIEW, UK_BOUNDS,
@@ -155,6 +158,10 @@ type PubMapCanvasProps = {
   provisionalVenueIds?: ReadonlySet<string> | null;
   /** Dedicated no-alcohol or food figures, separate from pint signals. */
   lensPrices?: ReadonlyMap<string, MapLensPrice> | null;
+  /** What the active lens is called inside a sentence ("whisky"). */
+  lensNoun?: string | null;
+  /** How complete the lens's cross-venue read was, for the hover card's line. */
+  lensIndexStatus?: CategoryPriceIndexStatus;
   /** Optional: lets PubMap render the history card in its own panel instead. */
   onLandmarkSelect?: (landmark: Landmark | null) => void;
   /** Issue #15 story bands — active band id ("" = none), synced to the URL by PubMap. */
@@ -320,6 +327,8 @@ export default function PubMapCanvas({
   whatsOnByVenue = null,
   provisionalVenueIds = null,
   lensPrices = null,
+  lensNoun = null,
+  lensIndexStatus = "ready",
   onLandmarkSelect,
   activeBandId = "",
   onBandChange,
@@ -2592,6 +2601,8 @@ export default function PubMapCanvas({
     lensPrices === null || !hoveredVenueId
       ? undefined
       : lensPrices.get(hoveredVenueId) ?? null,
+    lensNoun,
+    lensIndexStatus,
   );
   const hoverImageUrl = hoverImageUrlFor(hoverDetail, failedHoverImage, hoveredVenueId);
   const hoverCardStyle = hoveredVenue

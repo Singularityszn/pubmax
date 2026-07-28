@@ -2,7 +2,11 @@ import { COMMUNITY_PROVISIONAL_SHORT_NOTE } from "@/lib/communityPrice";
 import { formatFreshness, formatObservedAt, type Venue } from "@/lib/venues";
 import { proxiedVenueImageUrl } from "@/lib/venueImages";
 import type { PricedVenue } from "@/lib/priceUpdates";
-import type { MapLensPrice } from "@/lib/mapExperienceLens";
+import {
+  drinkLensUnknownSentence,
+  type CategoryPriceIndexStatus,
+  type MapLensPrice,
+} from "@/lib/mapExperienceLens";
 import {
   anchorMonthLabel,
   anchorSourceLabel,
@@ -110,16 +114,25 @@ export function hoverCardCopy(
   provisional = false,
   // Undefined means ordinary map. Null means an experience view with no price.
   experiencePrice: MapLensPrice | null | undefined = undefined,
+  // What the active lens is called inside a sentence, and how complete its
+  // cross-venue read was. This card is the only per-pin price line a desktop
+  // reader gets, so it owes the same three findings every other surface tells:
+  // an unread or truncated index may not settle as "none logged here".
+  lensNoun: string | null = null,
+  lensStatus: CategoryPriceIndexStatus = "ready",
 ): HoverCardCopy {
   const kind = hoverDetail?.kind ?? mapVenue?.kind;
   const venueTypeLabel = venueKindLabel(kind);
   if (experiencePrice !== undefined) {
     if (experiencePrice === null) {
+      const noun = lensNoun?.trim() || null;
       return {
         venueTypeLabel,
         price: null,
-        priceSuffix: "for this view",
-        provenance: "No price logged for this view",
+        priceSuffix: noun ? `for ${noun}` : "for this view",
+        provenance: noun
+          ? drinkLensUnknownSentence(noun, lensStatus)
+          : "No price logged for this view",
         detailLabel: isPubVenueKind(kind) ? "pub detail" : "venue detail",
         pendingNote: "",
       };

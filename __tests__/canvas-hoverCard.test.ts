@@ -167,6 +167,80 @@ describe("hoverCardCopy", () => {
     expect(copy.provenance).toBe("No price logged for this view");
     expect(JSON.stringify(copy)).not.toContain("cheapest pint");
   });
+
+  // This card is the only per-pin price sentence a desktop reader gets
+  // (.mobileVenuePeekSummary is display:none above 641px), so it owes the
+  // same three findings the list, the sheet and the legend now tell.
+  it("names the selected drink rather than calling it this view", () => {
+    const copy = hoverCardCopy(
+      { kind: "pub", cheapestPrice: 6 } as Venue,
+      undefined,
+      null,
+      false,
+      null,
+      "whisky",
+    );
+
+    expect(copy.priceSuffix).toBe("for whisky");
+    expect(copy.provenance).toBe("No whisky price logged");
+  });
+
+  it("never settles an unread or truncated index as none logged here", () => {
+    const degraded = hoverCardCopy(
+      { kind: "pub" } as Venue,
+      undefined,
+      null,
+      false,
+      null,
+      "whisky",
+      "degraded",
+    );
+    expect(degraded.provenance).toBe("Whisky price could not be read");
+    expect(degraded.provenance).not.toContain("logged");
+
+    const partial = hoverCardCopy(
+      { kind: "pub" } as Venue,
+      undefined,
+      null,
+      false,
+      null,
+      "whisky",
+      "partial",
+    );
+    expect(partial.provenance).toBe("No whisky price in what we read");
+
+    const loading = hoverCardCopy(
+      { kind: "pub" } as Venue,
+      undefined,
+      null,
+      false,
+      null,
+      "whisky",
+      "loading",
+    );
+    expect(loading.provenance).toBe("Whisky price not read yet");
+  });
+
+  it("keeps a real figure whatever the index managed", () => {
+    const copy = hoverCardCopy(
+      { kind: "pub" } as Venue,
+      undefined,
+      null,
+      false,
+      {
+        venueId: "v",
+        category: "whisky",
+        categoryLabel: "Whisky",
+        priceGbp: 6,
+        submittedAt: Date.now(),
+        source: "community",
+      },
+      "whisky",
+      "degraded",
+    );
+    expect(copy.price).toBe(6);
+    expect(copy.provenance).toContain("Community");
+  });
 });
 
 describe("withBoundedHoverDetailCache", () => {

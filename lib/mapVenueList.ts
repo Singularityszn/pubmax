@@ -4,7 +4,7 @@ import type { UkBasePub } from "@/lib/ukBasePubs";
 import type { Venue } from "@/lib/venues";
 import {
   drinkLensCoverageNote,
-  drinkLensUnknownRowLabel,
+  drinkLensUnknownSentence,
   type CategoryPriceIndexStatus,
   type MapLensPrice,
 } from "@/lib/mapExperienceLens";
@@ -79,9 +79,7 @@ export function buildMapVenueListModel(
   const drinkNoun = lensCategoryLabel.toLowerCase();
   // A row is read on its own, so its unknown wording carries the finding too -
   // the note below is not always heard beside it.
-  const unknownSentence = drinkLensUnknownRowLabel(drinkNoun, lensStatus);
-  const unknownLabel =
-    unknownSentence.charAt(0).toUpperCase() + unknownSentence.slice(1);
+  const unknownLabel = drinkLensUnknownSentence(drinkNoun, lensStatus);
   const rows =
     lensPrices === null
       ? baseRows

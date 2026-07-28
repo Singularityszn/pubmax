@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   drinkLensCoverageNote,
   drinkLensUnknownRowLabel,
+  drinkLensUnknownSentence,
   experienceLensSummary,
   filtersForDrinkPriceLens,
   filtersForExperienceLens,
@@ -10,6 +11,7 @@ import {
   lensPriceForVenue,
   isMapLensDrinkCategory,
   MAP_LENS_DRINK_CATEGORIES,
+  NO_ALCOHOL_LENS_PRICE_NOUN,
   trustedDrinkLensPrices,
   trustedNoAlcoholLensPrices,
 } from "@/lib/mapExperienceLens";
@@ -374,5 +376,39 @@ describe("drinkLensUnknownRowLabel — a row read on its own", () => {
         "logged",
       );
     }
+  });
+});
+
+describe("the no-alcohol lens inside a sentence", () => {
+  it("does not bury the pub's own fact under a double negative", () => {
+    // "no no-alcohol price logged" reads as a negation of a negation; the
+    // reader wants to know this pub has none on record.
+    const ready = drinkLensUnknownRowLabel(
+      NO_ALCOHOL_LENS_PRICE_NOUN,
+      "ready",
+    );
+    expect(ready).toBe("no alcohol-free or soft drink price logged");
+    expect(ready).not.toContain("no no-");
+  });
+
+  it("keeps could-not-check a separate fact from the pub having none", () => {
+    const ready = drinkLensUnknownRowLabel(NO_ALCOHOL_LENS_PRICE_NOUN, "ready");
+    const degraded = drinkLensUnknownRowLabel(
+      NO_ALCOHOL_LENS_PRICE_NOUN,
+      "degraded",
+    );
+    expect(degraded).toBe(
+      "alcohol-free or soft drink price could not be read",
+    );
+    expect(degraded).not.toBe(ready);
+  });
+
+  it("owns the capital in one place", () => {
+    expect(drinkLensUnknownSentence("whisky", "ready")).toBe(
+      "No whisky price logged",
+    );
+    expect(drinkLensUnknownSentence("whisky", "degraded")).toBe(
+      "Whisky price could not be read",
+    );
   });
 });
