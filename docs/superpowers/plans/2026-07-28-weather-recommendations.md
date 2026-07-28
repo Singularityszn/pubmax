@@ -4,7 +4,7 @@
 
 **Goal:** Let a Pubmaxxer write, own, and surface a short venue recommendation tied to a closed weather condition, using existing weather snapshots for honest matching.
 
-**Architecture:** Add a browser-safe domain module for the closed condition vocabulary, validation, and pure weather matching. Persist attributed rows behind one dual-backend store with a future leaderboard count seam, expose one bounded venue API using existing Open-Meteo snapshots, and mount one focused client card in the venue overview beside the existing community contribution flow.
+**Architecture:** Add a browser-safe domain module for the closed condition vocabulary, validation, and pure weather matching. Persist attributed rows behind one dual-backend store with a visible-contributor count seam, expose one bounded venue API using existing Open-Meteo snapshots, and mount one focused client card in the venue overview beside the existing community contribution flow.
 
 **Tech Stack:** Next.js 16 App Router, React 19, TypeScript, Vitest, Supabase/PostgREST, existing Open-Meteo snapshot store, existing identity and rate-limit seams, plain CSS.
 
@@ -154,7 +154,7 @@ git commit -m "feat(recommendations): define weather recommendation vocabulary"
 - Create: `lib/weatherRecommendationStore.ts`
 - Create: `__tests__/weatherRecommendationStore.test.ts`
 - Create: `__tests__/weatherRecommendationStoreSupabase.test.ts`
-- Create: `supabase/migrations/20260728120000_0058_weather_recommendations.sql`
+- Create: `supabase/migrations/20260728121000_0058_weather_recommendations.sql`
 
 **Interfaces:**
 - Consumes: validated `WeatherRecommendationInput`
@@ -226,7 +226,7 @@ Expected: PASS with actor hashes absent from public DTOs and counts derived by h
 - [ ] **Step 5: Commit slice**
 
 ```bash
-git add lib/weatherRecommendationStore.ts __tests__/weatherRecommendationStore.test.ts supabase/migrations/20260728120000_0058_weather_recommendations.sql
+git add lib/weatherRecommendationStore.ts __tests__/weatherRecommendationStore.test.ts supabase/migrations/20260728121000_0058_weather_recommendations.sql
 git commit -m "feat(recommendations): store attributed weather recommendations"
 ```
 
@@ -555,7 +555,7 @@ git add CONTEXT.md docs/superpowers/plans/2026-07-28-weather-recommendations.md 
   __tests__/venueWeatherRecommendations.test.ts \
   __tests__/writeSurfaceCertification.test.ts \
   docs/WRITE_SURFACE_CERTIFICATION.md \
-  supabase/migrations/20260728120000_0058_weather_recommendations.sql
+  supabase/migrations/20260728121000_0058_weather_recommendations.sql
 git commit -m "feat: add authored weather recommendations"
 ```
 

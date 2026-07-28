@@ -173,7 +173,7 @@ describe("legal content pages", () => {
     expect(privacy).toMatch(/door policy/);
     expect(privacy).toMatch(/people were eating/);
     expect(privacy).toMatch(/same opaque device token/);
-    expect(privacy).toMatch(/future contributor count/);
+    expect(privacy).toMatch(/does not enter the public contributor\s+record/);
     expect(privacy).toMatch(/Community prices and venue reports:/);
   });
 

@@ -193,9 +193,9 @@ export default function PrivacyPage() {
           whether people were eating. We store the venue, the answer and the
           time, plus the same opaque device token used for community prices.
           It lets your newer answer replace your older one, keeps one device
-          from confirming itself, and supplies a future contributor count. The
-          token is not shown with the report and does
-          not become a public name.
+          from confirming itself, and does not enter the public contributor
+          record. The token is not shown with the report and does not become a
+          public name.
         </p>
 
         <h3 className="legalH3">Location</h3>

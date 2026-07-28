@@ -71,8 +71,8 @@ export type VisitReportStore = {
   /** Public read: visible reports for a venue, newest-first, capped. Status says
    * whether an empty list is an answered empty venue or a failed read. */
   readForVenue(venueId: string): Promise<VisitReportReadResult>;
-  /** Exact visible-report count for one contributor. This is the future
-   * leaderboard's read seam, without loading report bodies. */
+  /** Exact visible-report count for one contributor, without loading report
+   * bodies. */
   countForContributor(handle: string): Promise<VisitReportContributorCount>;
   /** Moderator review queue: flagged, undecided reports with the full report
    * trail. Fail-soft ([] on storage error). */

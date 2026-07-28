@@ -430,15 +430,16 @@ commit.
   `validateCommunityVenueSignal`, whose `signalKey`/`signalValue` pairs are a
   CLOSED vocabulary the browser and the server share and migration 0060 repeats
   as a CHECK, so an off-vocabulary answer cannot be stored by any door.
-- **Auth stance (deliberately anonymous):** identity is the server-derived
-  `hashActor(hashIp(clientIp))` token, exactly as `price-confirm` derives it, and
-  is NEVER trusted from the body. A body-supplied `submittedAt`/`source` is
-  ignored: the server stamps the clock and the `community` lane itself. No
-  account, no handle - a price at a bar must not require sign-up. The token is a
-  de-duplication key and, since the trust wave, the read path's way of counting
-  independent submitters (`corroborations`); it still never leaves the store -
-  the durable read selects the column only to count it, and `published()`
-  strips it.
+- **Auth stance (keyless, optionally attributed):** device identity is the
+  server-derived `hashActor(hashIp(clientIp))` token, exactly as
+  `price-confirm` derives it, and is never trusted from the body. A
+  body-supplied `submittedAt`/`source` is ignored: the server stamps the clock
+  and the `community` lane itself. No account or handle is required. When the
+  browser offers `contributorHandle`, the route credits it only if the signed-in
+  user owns the matching public profile; an alias resolves to the current
+  handle, and every failed or absent ownership check leaves the price
+  anonymous. The actor token remains the de-duplication and corroboration key
+  and never leaves the store.
 - **Rate limit (boundary):** two durable `isLimited` tiers on the POST. An actor-wide cap
   keyed `price-submit-actor:${actor ?? "anon"}` (30/hour) stops one device
   spraying prices across the whole map by rotating `venueId`; then the per-venue
@@ -469,17 +470,20 @@ commit.
   The only row a signal write can touch is this device's own earlier answer to
   the same question, which it replaces.
 - **Rollback / kill:** durable rows live in `public.community_prices` (migration
-  0054, RLS on, no anon/authenticated policy, service_role only); `truncate` is a
-  safe reset and cannot damage dataset prices. Migration 0060 widens that ONE
-  table to hold venue signals too - nullable `drink_category`/`price_pennies`
-  plus `signal_key`/`signal_value`, a CHECK that a row is exactly one shape, a
-  unique `(venue_id, signal_key, actor)` so one device answers each question
-  once, and the `public.community_contributor_counts` view (revoked from
-  `anon`/`authenticated`) that a future leaderboard would read. Dropping the two
-  columns reverts the surface without touching a price. Until 0054 is applied the store
-  fails soft to process-memory OUTSIDE production (`onMissingDurableWrite` refuses
-  the ephemeral fallback in a deployed production instance), so keyless dev keeps
-  working; a hard durable write failure answers 503, never a fake success.
+  0054, with optional contributor attribution and retained quality stamps added
+  by migration 0059; RLS on, no anon/authenticated policy, service_role only).
+  `truncate` is a safe reset and cannot damage dataset prices. Migration 0060
+  widens that one table to hold venue signals too - nullable
+  `drink_category`/`price_pennies` plus `signal_key`/`signal_value`, a CHECK that
+  a row is exactly one shape, and a unique `(venue_id, signal_key, actor)` so
+  one device answers each question once. Its revoked
+  `public.community_contributor_counts` view remains an opaque device-token
+  roll-up and does not feed the public contributor record. Dropping the two
+  signal columns reverts that surface without touching a price. Until 0054 is
+  applied the store fails soft to process-memory outside production
+  (`onMissingDurableWrite` refuses the ephemeral fallback in a deployed
+  production instance), so keyless dev keeps working; a hard durable write
+  failure answers 503, never a fake success.
 
 ### `app/api/admin/community-prices` - community observation moderation (route 71)
 
@@ -528,7 +532,8 @@ commit.
 
 - **Route / method:** `POST app/api/weather-recommendations/route.ts`
   (`fm/weather-recommendations`) creates or updates one Pubmaxxer's opinion for
-  one venue and condition. Its `GET ?venueId=...` is read-only and is not
+  one venue and condition. The same POST accepts moderator-only `hide` and
+  `restore` actions for one row. Its `GET ?venueId=...` is read-only and is not
   counted.
 - **Validation:** `validateWeatherRecommendation`
   (`lib/weatherRecommendations.ts`) is shared by client and server. It requires
@@ -549,24 +554,30 @@ commit.
   five per hour. One natural row per `(venue, condition, contributor_handle)`
   means edits replace the author's earlier reason rather than increasing their
   contribution count.
+- **Moderation (boundary):** `hide` and `restore` require `isModerator`; a
+  reader cannot hide a Recommendation. Hiding is reversible, keeps authorship
+  and moderation provenance, removes the row from venue reads and contributor
+  counts together, and never deletes it.
 - **Weather and read honesty:** the GET uses only the existing store-first
   Open-Meteo snapshot and nearest Night Area. Known current conditions filter
   human-authored rows. Missing, future, or expired weather returns
   `weatherStatus: "unavailable"` and surfaces authored rows unconditionally, so
   "we could not check" never becomes "nobody recommended this". Weather never
   authors, verifies, scores, or ranks a Recommendation.
-- **Payload and leaderboard seam:** venue reads start from at most 20 newest
+- **Payload and contributor-record seam:** venue reads start from at most 20 newest
   rows and enforce an 8 KiB serialized response ceiling, reporting `truncated`
-  if the runtime ceiling removes any. `countForContributor` derives a
-  status-bearing count by normalized handle for a future contributor
-  leaderboard. No count, aggregate score, or venue ranking appears in this API
-  response or the venue UI.
+  if the runtime ceiling removes any. `countForContributor` derives the visible
+  count for profile surfaces, while the public contributor record combines
+  visible Recommendations with its other identity-backed lanes. Neither count
+  nor any aggregate score or venue rank appears in this venue API response or
+  the venue UI.
 - **Rollback / kill:** durable rows live in
-  `public.weather_recommendations` (migration 0058, RLS on,
-  anon/authenticated revoked, service-role only). A missing migration falls
-  back to memory outside deployed production; production writes fail with 503.
-  Reads carry `degraded` when durable storage cannot answer. Truncating this
-  table removes only authored Recommendations and cannot change weather,
+  `public.weather_recommendations` (migration 0058, with moderation fields and
+  the contributor-record aggregate added by 0059; RLS on, anon/authenticated
+  revoked, service-role only). A missing migration falls back to memory outside
+  deployed production; production writes fail with 503. Reads carry `degraded`
+  when durable storage cannot answer. Truncating this table removes authored
+  Recommendations and their contributor counts, but cannot change weather,
   reviews, prices, Night Signals, or venue data.
 
 ## Certification command

@@ -4,7 +4,7 @@
 // opinion. The server-derived actor hash is a separate private field used for
 // abuse controls and audit provenance. It never crosses this module's public
 // projection. One contributor owns one row per venue and weather condition, so
-// editing a reason cannot inflate future leaderboard counts.
+// editing a reason cannot inflate contributor-record counts.
 
 import { randomUUID } from "node:crypto";
 

@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [x]`) syntax for tracking.
 
-**Goal:** Publish an all-time contributor record ranked by visible community prices, Visit Reports, and weather Recommendations.
+**Goal:** Publish an all-time contributor record ranked by identity-backed visible community prices, Visit Reports, and weather Recommendations.
 
 **Architecture:** Extend each existing contribution store with a private projection into one server-only counting layer. Community prices remain usable without a handle, but an existing public handle may be attached and counted. Ranking stays an unweighted sum while every projected contribution carries moderation, corroboration, and contradiction signals for a later weight-only policy change. A no-store API and server-rendered `/contributors` page distinguish ready, degraded, empty, and thin reads.
 
@@ -309,7 +309,7 @@ Expected: FAIL because page surface does not exist.
 
 - [x] **Step 3: Implement server-rendered record**
 
-Use restrained table-like rows, tabular numerals, app tokens, public profile links, and no motion. Heading: `Contributor record`. Window: `All visible contributions, all time`. Degraded state: `We couldn't check the full record right now.` Empty ready state describes how the record will fill without claiming nobody contributes. Thin state labels the record as early while preserving real counts.
+Use restrained table-like rows, tabular numerals, app tokens, public profile links, and no motion. Heading: `Contributor record`. Window: `All visible identity-backed contributions, all time`. Degraded state: `We couldn't check the full record right now.` Empty ready state describes how the record will fill without claiming nobody contributes. Thin state labels the record as early while preserving real counts.
 
 - [x] **Step 4: Add profile entry point**
 
@@ -348,7 +348,7 @@ Expected: FAIL because notice does not describe the public board.
 
 - [x] **Step 3: Update notice**
 
-Explain that a public handle already attached to a price, Visit Report, or Recommendation appears with all-time visible counts on the public contributor record. Explain anonymous prices stay anonymous and excluded, and hidden/taken-down contributions stop counting. Update retention language that currently calls all community price rows anonymous.
+Explain that a public handle already attached to a price, Visit Report, or Recommendation appears with all-time visible counts on the public contributor record. Explain anonymous prices stay anonymous and excluded, and hidden/taken-down contributions stop counting. Update retention language to distinguish attributed prices from anonymous rows.
 
 - [x] **Step 4: Run test and confirm GREEN**
 
