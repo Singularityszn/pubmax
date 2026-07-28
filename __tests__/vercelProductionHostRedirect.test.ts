@@ -2,14 +2,9 @@ import { NextRequest } from "next/server";
 import { unstable_doesMiddlewareMatch } from "next/experimental/testing/server";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import {
-  config,
-  proxy,
-  VERCEL_PREVIEW_HOST_SETTING,
-} from "@/proxy";
+import { config, proxy } from "@/proxy";
 
 beforeEach(() => {
-  vi.stubEnv(VERCEL_PREVIEW_HOST_SETTING, "");
   vi.stubEnv("VERCEL_URL", "");
   vi.stubEnv("VERCEL_BRANCH_URL", "");
 });
@@ -23,7 +18,7 @@ function request(
   path = "/u/you",
   headers: Record<string, string> = {},
 ): NextRequest {
-  return new NextRequest(`https://request-origin.invalid${path}`, {
+  return new NextRequest(`https://request-origin.invalid:3210${path}`, {
     headers: { host, ...headers },
   });
 }
@@ -75,7 +70,6 @@ describe("Vercel production host canonicalisation", () => {
 
   it("redirects a promoted Preview artifact with its Preview settings retained", () => {
     vi.stubEnv("VERCEL_ENV", "preview");
-    vi.stubEnv(VERCEL_PREVIEW_HOST_SETTING, "1");
     const deploymentHost =
       "chengdu-auth-a1b2c3-pubmax69.vercel.app";
     vi.stubEnv(
@@ -107,9 +101,8 @@ describe("Vercel production host canonicalisation", () => {
     );
   });
 
-  it("allows a protected Preview's generated deployment host without VERCEL_URL", () => {
+  it("allows a Preview's generated deployment host without an extra opt-in", () => {
     vi.stubEnv("VERCEL_ENV", "preview");
-    vi.stubEnv(VERCEL_PREVIEW_HOST_SETTING, "1");
     const deploymentHost =
       "chengdu-auth-a1b2c3-pubmax69.vercel.app";
 
@@ -124,9 +117,8 @@ describe("Vercel production host canonicalisation", () => {
     expect(response.headers.get("x-middleware-next")).toBe("1");
   });
 
-  it("allows an opted-in artifact's Vercel branch host", () => {
+  it("allows a Preview artifact's Vercel branch host", () => {
     vi.stubEnv("VERCEL_ENV", "preview");
-    vi.stubEnv(VERCEL_PREVIEW_HOST_SETTING, "1");
     const branchHost =
       "chengdu-git-auth-preview-pubmax69.vercel.app";
     vi.stubEnv("VERCEL_BRANCH_URL", branchHost);
@@ -138,9 +130,8 @@ describe("Vercel production host canonicalisation", () => {
     expect(response.headers.get("x-middleware-next")).toBe("1");
   });
 
-  it("ignores the preview setting outside the Preview environment", () => {
+  it("redirects a generated host outside the Preview environment", () => {
     vi.stubEnv("VERCEL_ENV", "production");
-    vi.stubEnv(VERCEL_PREVIEW_HOST_SETTING, "1");
 
     expectCanonicalRedirect(
       proxy(request("chengdu-pubmax69.vercel.app")),

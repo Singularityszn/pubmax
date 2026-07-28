@@ -2,7 +2,6 @@ import { NextResponse } from "next/server";
 import type { NextRequest, ProxyConfig } from "next/server";
 
 const CANONICAL_HOST = "pubmaxxing.com";
-export const VERCEL_PREVIEW_HOST_SETTING = "ALLOW_VERCEL_PREVIEW_HOSTS";
 
 function normalizeHostname(host: string | null | undefined): string | null {
   const normalizedHost = host?.trim().toLowerCase();
@@ -35,7 +34,6 @@ function shouldRedirectVercelHost(request: NextRequest): boolean {
   if (!requestHostname(request).endsWith(".vercel.app")) return false;
   return !(
     process.env.VERCEL_ENV === "preview" &&
-    process.env[VERCEL_PREVIEW_HOST_SETTING] === "1" &&
     isArtifactPreviewHost(request)
   );
 }
@@ -88,6 +86,7 @@ export function proxy(request: NextRequest) {
     const canonicalUrl = new URL(request.url);
     canonicalUrl.protocol = "https:";
     canonicalUrl.host = CANONICAL_HOST;
+    canonicalUrl.port = "";
     return NextResponse.redirect(canonicalUrl, 308);
   }
   if (pathname === "/ingest" || pathname.startsWith("/ingest/")) {

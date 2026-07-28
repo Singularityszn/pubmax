@@ -6,7 +6,7 @@
 // ──────────────────────────────────────────────────────────────────────────
 // OWNER MANUAL STEPS (required for either button to actually log anyone in):
 //
-// Full checklist: docs/DEPLOYMENT.md → "Browser sign-in (Google + Microsoft)".
+// Full checklist: docs/DEPLOYMENT.md → "Browser sign-in (email magic link + Google + Microsoft)".
 // IdP redirect URI is always https://<project-ref>.supabase.co/auth/v1/callback.
 // Canonical callback and Supabase URL allowlist are owned by that checklist.
 //

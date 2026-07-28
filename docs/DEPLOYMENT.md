@@ -152,12 +152,11 @@ These controls solve different problems:
   Vercel's generated production aliases to the apex stops them serving an
   independent copy. `proxy.ts` evaluates the incoming host on every request, so
   canonicalisation does not depend on which environment built the artifact.
-  Every `*.vercel.app` host redirects by default. Preview deployments remain
-  reviewable only when `VERCEL_ENV=preview` and the deliberate server setting
-  `ALLOW_VERCEL_PREVIEW_HOSTS=1` are both present and the incoming host exactly
-  matches Vercel's request-time `x-vercel-deployment-url` header or the
-  artifact's `VERCEL_BRANCH_URL`. Canonical, localhost, loopback, and LAN hosts
-  do not need an exception.
+  Every production `*.vercel.app` host redirects by default. Preview
+  deployments remain reviewable when `VERCEL_ENV=preview` and the incoming
+  host exactly matches Vercel's request-time `x-vercel-deployment-url` header
+  or the artifact's `VERCEL_BRANCH_URL`. Canonical, localhost, loopback, and
+  LAN hosts do not need an exception.
 
 Vercel documents `VERCEL_URL` as incompatible with Standard Deployment
 Protection, which this project requires. The unique deployment-host comparison
@@ -168,20 +167,18 @@ the generated branch alias.
 Vercel's promotion API points production traffic at an existing deployment and
 [does not rebuild it](https://vercel.com/docs/rest-api/projects/point-production-traffic-to-a-given-deployment).
 Empirical promotion checks show that a Preview-built artifact retains
-`VERCEL_ENV=preview` and its Preview-scoped custom settings after promotion, so
-neither value identifies production traffic. Vercel's request header still
-identifies the specific deployment while the generated branch value identifies
-its branch alias. The request-time rule therefore requires an exact host match
-with that evidence before applying the Preview opt-out. A production alias
-hitting the promoted artifact still redirects even when the Preview environment
-and opt-out remain set. Keep the setting scoped to deployments used for Preview
-review; do not copy it to Production.
+`VERCEL_ENV=preview` after promotion, so that value alone does not identify
+production traffic. Vercel's request header still identifies the specific
+deployment while the generated branch value identifies its branch alias. The
+request-time rule therefore requires an exact host match with that evidence
+before applying the Preview exemption. A production alias hitting the promoted
+artifact still redirects even when the Preview environment remains set.
 
 Recommendation: retain that Vercel Authentication scope, keep `www` redirecting
 to the apex, keep all identity-provider callbacks on the apex, and keep the
 request-time wildcard redirect for generated Vercel hosts. That combination
-blocks anonymous access and removes Vercel aliases for signed-in team members
-while keeping explicitly opted-out Preview deployments reviewable.
+blocks anonymous access and removes production Vercel aliases for signed-in
+team members while keeping Preview deployments reviewable.
 
 #### Passwordless email (magic link)
 
@@ -219,10 +216,8 @@ Supabase’s provider id is **Azure** (the app code uses `provider: "azure"` wit
 6. Token configuration → optional claims → ID token: add `email` and `xms_edov` (helps Supabase treat email as verified and avoid unsafe account linking).
 7. Supabase → Authentication → Providers → **Azure** → paste Client ID + Client Secret → Enable. Leave Tenant URL / ID as the default “common” multi-tenant endpoint unless you intentionally lock to one tenant.
 
-Until a provider is enabled in Supabase, its button stays hidden. The email
-magic-link path remains available on its own. Enabling or disabling a provider
-changes the rendered choices through the live settings read, with no app code
-or deployment change.
+Button visibility and email fallback follow the browser sign-in contract above.
+Changing provider state needs no app code or deployment.
 
 ## Build-time data artifacts
 
