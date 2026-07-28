@@ -451,7 +451,12 @@ describe("GET /api/nearby-bus-departures", () => {
         });
       }
       if (url.includes("/Arrivals")) {
-        return Response.json([
+        // TfL answers per stop point, so the fixture does too: a stop only ever
+        // sees its own predictions.
+        const asked = decodeURIComponent(
+          new URL(url).pathname.split("/")[2] ?? "",
+        );
+        const predictions = [
           {
             naptanId: "490000123B",
             lineName: "63",
@@ -500,7 +505,10 @@ describe("GET /api/nearby-bus-departures", () => {
             timestamp: "2026-07-28T22:37:00.000Z",
             expectedArrival: "2026-07-28T22:44:00.000Z",
           },
-        ]);
+        ];
+        return Response.json(
+          predictions.filter((prediction) => prediction.naptanId === asked),
+        );
       }
       return new Response("not found", { status: 404 });
     });
@@ -544,11 +552,17 @@ describe("GET /api/nearby-bus-departures", () => {
     expect(stopCall).toContain("stopTypes=NaptanPublicBusCoachTram");
     expect(stopCall).toContain("radius=500");
     expect(stopCall).toContain("modes=bus");
+    // TfL's Arrivals endpoint answers for ONE stop point: a comma-joined id
+    // list is a 404, so the capped stops are asked one request each.
     const arrivalCalls = calls.filter((url) => url.includes("/Arrivals"));
-    expect(arrivalCalls).toHaveLength(1);
-    expect(decodeURIComponent(arrivalCalls[0])).toContain(
-      "490000123B,490000123C,490000123D,490000123E",
-    );
+    expect(
+      arrivalCalls.map((url) => new URL(url).pathname).sort(),
+    ).toEqual([
+      "/StopPoint/490000123B/Arrivals",
+      "/StopPoint/490000123C/Arrivals",
+      "/StopPoint/490000123D/Arrivals",
+      "/StopPoint/490000123E/Arrivals",
+    ]);
   });
 
   it("keeps its whole upstream budget inside its own function lifetime", async () => {
@@ -743,5 +757,33 @@ describe("GET /api/nearby-bus-departures", () => {
       ),
     );
     expect(await staleOnly.json()).toMatchObject({ status: "unavailable", stops: [] });
+
+    // A stop whose own Arrivals read failed is a failed check, never a stop
+    // with no buses coming.
+    global.fetch = vi.fn(async (input: RequestInfo | URL) => {
+      if (String(input).includes("/StopPoint?")) {
+        return Response.json({
+          stopPoints: [
+            {
+              id: "490000123B",
+              commonName: "Blackfriars Station",
+              indicator: "Stop B",
+              distance: 140,
+            },
+          ],
+        });
+      }
+      return new Response("unavailable", { status: 503 });
+    });
+    const arrivalsDown = await GET(
+      new Request(
+        "http://localhost/api/nearby-bus-departures?lat=51.512&lng=-0.104",
+        { headers: { "x-forwarded-for": "198.51.100.37" } },
+      ),
+    );
+    expect(await arrivalsDown.json()).toMatchObject({
+      status: "unavailable",
+      stops: [],
+    });
   });
 });

@@ -25,7 +25,7 @@
 Measured behaviour, so nobody re-guesses it later:
 
 - TfL's `StopPoint` geo query measures around 3 seconds and runs slower again from a serverless region. `app/api/last-train/route.ts` has given that same endpoint a 9 second deadline since before this feature existed, and that number is the reason: a slow-but-real response aborted early is reported to the reader as a failed check, which is a lie about TfL.
-- The combined `Arrivals` call for up to four stop ids is the cheaper of the two and is capped at 5 seconds.
+- `Arrivals` answers for one stop point at a time (a comma-joined id list is a 404, not a batch), so the capped four stops are asked concurrently and the whole fan-out is capped at 5 seconds. Each call is the cheaper of the two.
 
 The route therefore declares a 15 second budget (`BUS_ROUTE_BUDGET_MS`, which is also its `maxDuration`) and reserves 1 second of it for its own work. Every upstream deadline is `busUpstreamTimeoutMs`: whatever is left of the budget, capped by that call's own ceiling. So the stop lookup keeps its full 9 seconds, a retry only happens with time still on the clock, and the arrivals call takes what remains. The route always reaches its own `unavailable` body and `no-store` header rather than being killed mid-call and handing the browser a platform 504. 30 seconds was rejected: a night bus card that hangs for half a minute has already failed the reader.
 
@@ -126,7 +126,7 @@ Expected: freshness tests PASS.
 
 - [ ] **Step 5: Add failing route tests**
 
-Mock one nearby-stop response and one combined arrivals response. Assert:
+Mock one nearby-stop response and a per-stop arrivals response. Assert:
 
 ```ts
 expect(body.status).toBe("ready");
@@ -141,7 +141,7 @@ expect(body.stops[0].departures[0]).toMatchObject({
 });
 ```
 
-Also assert `no-store`, London bounds, stale-only `unavailable`, upstream failure `unavailable`, four-stop cap, three-departure cap, and exactly one combined Arrivals request.
+Also assert `no-store`, London bounds, stale-only `unavailable`, upstream failure `unavailable`, four-stop cap, three-departure cap, and one Arrivals request per capped stop id.
 
 - [ ] **Step 6: Run route tests and verify RED**
 
@@ -155,7 +155,7 @@ Expected: FAIL because route does not exist.
 
 - [ ] **Step 7: Implement minimal route**
 
-Use shared `tflGet`, `pointInCityBounds`, and `isLastRideLimited`. Query `NaptanPublicBusCoachTram` stops within 500 metres with `modes=bus`, cap nearest stops at four, fetch all stop IDs through one Arrivals call, group fresh predictions by `naptanId`, and return `unavailable` when live predictions cannot be checked.
+Use shared `tflGet`, `pointInCityBounds`, and `isLastRideLimited`. Query `NaptanPublicBusCoachTram` stops within 500 metres with `modes=bus`, cap nearest stops at four, fetch each capped stop ID through its own concurrent Arrivals call, group fresh predictions by `naptanId`, and return `unavailable` when live predictions cannot be checked.
 
 - [ ] **Step 8: Run route tests and verify GREEN**
 

@@ -1,8 +1,10 @@
 // GET /api/nearby-bus-departures?lat=..&lng=..
 //
 // Pub-centred live bus departures using the same guarded TfL client as Last
-// Pint. Stops stay within a walkable 500 m straight-line radius, and one
-// combined Arrivals request keeps the keyless TfL fan-out and payload bounded.
+// Pint. Stops stay within a walkable 500 m straight-line radius, and STOP_CAP
+// keeps the keyless TfL fan-out and payload bounded: TfL's Arrivals endpoint
+// answers for ONE stop point (a comma-joined id list is a 404, not a batch), so
+// the capped stops are asked concurrently inside a single arrivals deadline.
 
 import { CITIES, pointInCityBounds } from "@/lib/cities";
 import { isLastRideLimited } from "@/lib/lastRideRateLimit";
@@ -153,23 +155,28 @@ export async function GET(request: Request): Promise<Response> {
   );
   if (arrivalsTimeoutMs < BUS_MIN_ATTEMPT_MS) return json(unavailable(now));
 
-  const ids = stops.map(stopId);
-  const arrivals = await tflFetch<TflBusPrediction[]>(
-    `/StopPoint/${encodeURIComponent(ids.join(","))}/Arrivals`,
-    { timeoutMs: arrivalsTimeoutMs },
+  const arrivals = await Promise.all(
+    stops.map((stop) =>
+      tflFetch<TflBusPrediction[]>(
+        `/StopPoint/${encodeURIComponent(stopId(stop))}/Arrivals`,
+        { timeoutMs: arrivalsTimeoutMs },
+      ),
+    ),
   );
-  if (!arrivals.ok || !Array.isArray(arrivals.data)) {
-    return json(unavailable(now));
-  }
 
   // The clock the predictions are judged against is read HERE, not at the top
   // of the request: the lookups above can spend most of the route's budget, and
   // measuring a TfL stamp against a timestamp from before those calls turns our
   // own latency into what looks like a source clock running ahead.
   const observedAt = new Date();
-  const fresh = freshBusPredictions(arrivals.data, observedAt);
   const stopResults = stops
-    .map((stop) => stopResult(stop, fresh))
+    .map((stop, index) => {
+      const outcome = arrivals[index];
+      // A stop we could not ask is dropped rather than shown empty: silence
+      // from TfL is never evidence that no bus is coming.
+      if (!outcome.ok || !Array.isArray(outcome.data)) return null;
+      return stopResult(stop, freshBusPredictions(outcome.data, observedAt));
+    })
     .filter((stop): stop is NearbyBusStop => stop !== null);
   if (stopResults.length === 0) return json(unavailable(observedAt));
 
