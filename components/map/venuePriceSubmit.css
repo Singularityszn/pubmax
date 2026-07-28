@@ -407,16 +407,24 @@
   color: var(--ink-soft);
 }
 
+/* One grid for every row, so the label column is the widest LABEL rather than a
+   guessed width: at 390px "CHARACTER" measures 72px, and the 62px column it
+   used to sit in pushed it through the 8px gutter into its own value. Rows are
+   display: contents so all five share that measured column and stay aligned. */
 .vpsigReadout {
   display: grid;
-  gap: 0;
+  grid-template-columns: max-content minmax(0, 1fr);
+  column-gap: 8px;
+  row-gap: 0;
   margin: 9px 0 0;
 }
 
 .vpsigReadoutRow {
-  display: grid;
-  grid-template-columns: 62px minmax(0, 1fr);
-  gap: 8px;
+  display: contents;
+}
+
+.vpsigReadoutRow dt,
+.vpsigReadoutRow dd {
   padding: 6px 0;
   border-top: 1px solid color-mix(in srgb, var(--line) 70%, transparent);
 }
