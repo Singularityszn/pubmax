@@ -150,16 +150,26 @@ These controls solve different problems:
   automation bypass secret.
 - A permanent host redirect is canonicalisation, not access control. Redirecting
   Vercel's generated production aliases to the apex stops them serving an
-  independent copy. `next.config.mjs` emits that wildcard host rule only when
-  Vercel builds the production environment. Preview and local builds omit the
-  rule, so their generated hosts remain usable for review without maintaining a
-  list of production aliases.
+  independent copy. `proxy.ts` evaluates the incoming host on every request, so
+  canonicalisation does not depend on which environment built the artifact.
+  Every `*.vercel.app` host redirects by default. Preview deployments remain
+  reviewable only when `VERCEL_ENV=preview` and the deliberate server setting
+  `ALLOW_VERCEL_PREVIEW_HOSTS=1` are both present. Canonical, localhost, loopback,
+  and LAN hosts do not need an exception.
+
+Vercel's promotion API points production traffic at an existing deployment and
+[does not rebuild it](https://vercel.com/docs/rest-api/projects/point-production-traffic-to-a-given-deployment).
+The deployment's Preview runtime environment is therefore not a reliable
+production signal after promotion. The request-time rule deliberately treats
+`VERCEL_ENV=preview` as insufficient: a Preview-built artifact without the
+explicit setting still redirects when promoted. Keep the setting scoped to
+deployments used for Preview review; do not copy it to Production.
 
 Recommendation: retain that Vercel Authentication scope, keep `www` redirecting
 to the apex, keep all identity-provider callbacks on the apex, and keep the
-production-build wildcard redirect for generated Vercel hosts. That combination
+request-time wildcard redirect for generated Vercel hosts. That combination
 blocks anonymous access and removes Vercel aliases for signed-in team members
-without changing preview-build routing.
+while keeping explicitly opted-out Preview deployments reviewable.
 
 #### Passwordless email (magic link)
 

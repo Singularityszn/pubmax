@@ -4,7 +4,7 @@
 
 **Goal:** Show only Supabase social providers that are currently enabled, keep email sign-in complete when none are available, and redirect Vercel production aliases to the canonical site.
 
-**Architecture:** A browser auth capability module reads Supabase's public `/auth/v1/settings` response with the publishable key and maps Supabase's `azure` provider to the product's Microsoft label. `AuthProvider` owns live capability state and rechecks the selected provider immediately before starting OAuth, while one shared social-button component renders that state across all sign-in surfaces. Next.js emits a wildcard `*.vercel.app` host redirect only in Vercel production builds, leaving local and preview builds untouched.
+**Architecture:** A browser auth capability module reads Supabase's public `/auth/v1/settings` response with the publishable key and maps Supabase's `azure` provider to the product's Microsoft label. `AuthProvider` owns live capability state and rechecks the selected provider immediately before starting OAuth, while one shared social-button component renders that state across all sign-in surfaces. The request-time Next.js proxy redirects Vercel hosts by default, while Preview review requires one explicit server setting and canonical or local hosts pass through.
 
 **Tech Stack:** Next.js 16 redirects, React 19 context and client components, Supabase Auth settings, TypeScript, Vitest, React server rendering
 
@@ -15,7 +15,7 @@
 - Email sign-in remains available when social-provider state is empty or unavailable.
 - OAuth start rechecks provider state so stale UI cannot navigate to Supabase's raw unsupported-provider page.
 - Production `*.vercel.app` hosts redirect permanently to `https://pubmaxxing.com` with path and query preserved.
-- Local development and Vercel preview builds do not receive the production-alias redirect.
+- Local development passes through; Vercel Preview review requires `ALLOW_VERCEL_PREVIEW_HOSTS=1`.
 - Do not enable Supabase providers or change provider credentials.
 
 ---
@@ -150,30 +150,24 @@ npx vitest run __tests__/authProviderAvailability.test.ts __tests__/socialSignIn
 
 Expected: PASS.
 
-### Task 3: Production Vercel alias canonicalisation
+### Task 3: Request-time Vercel alias canonicalisation
 
 **Files:**
-- Modify: `next.config.mjs`
+- Modify: `proxy.ts`
 - Create: `__tests__/vercelProductionHostRedirect.test.ts`
 
 **Interfaces:**
-- Consumes: Vercel system variable `VERCEL_ENV`
-- Produces: production-only Next.js host redirect for `*.vercel.app`
+- Consumes: incoming host, `VERCEL_ENV`, `ALLOW_VERCEL_PREVIEW_HOSTS`
+- Produces: default Next.js host redirect for `*.vercel.app`, with explicit Preview opt-out
 
 - [ ] **Step 1: Write failing redirect tests**
 
-Stub `VERCEL_ENV=production`, load redirects, and require a rule shaped as:
-
-```ts
-{
-  source: "/:path*",
-  has: [{ type: "host", value: "<regex matching any vercel.app subdomain>" }],
-  destination: "https://pubmaxxing.com/:path*",
-  permanent: true,
-}
-```
-
-Assert the regex matches `chengdu-pubmax69.vercel.app`. Stub `VERCEL_ENV=preview` and unset it for local mode, then assert neither configuration includes the wildcard Vercel host rule.
+Call `proxy()` with incoming host headers. Assert that production
+`*.vercel.app` hosts return `308` with the path and query preserved,
+`VERCEL_ENV=preview` alone still redirects as a promoted Preview artifact,
+Preview passes only with `ALLOW_VERCEL_PREVIEW_HOSTS=1`, and canonical,
+localhost, loopback, and LAN hosts pass through. Require a host matcher that
+reaches every path on `*.vercel.app`.
 
 - [ ] **Step 2: Run test to verify it fails**
 
@@ -183,11 +177,17 @@ Run:
 npx vitest run __tests__/vercelProductionHostRedirect.test.ts
 ```
 
-Expected: FAIL because no Vercel alias redirect exists.
+Expected: FAIL because canonicalisation still depends on build-time config.
 
-- [ ] **Step 3: Add the conditional redirect**
+- [ ] **Step 3: Add request-time canonicalisation**
 
-Build the redirects array with a `*.vercel.app` host rule only when `process.env.VERCEL_ENV === "production"`. Keep the existing `www` and path redirects unchanged. Next.js wildcard path substitution preserves the path, and an incoming query is copied when the destination supplies no replacement query.
+Move Vercel host canonicalisation ahead of every other proxy response. Match
+incoming hosts without maintaining aliases, preserve path and query, and
+default every Vercel host to redirect. Permit Preview pass-through only when
+`VERCEL_ENV=preview` and `ALLOW_VERCEL_PREVIEW_HOSTS=1` are both set. Send API
+and static paths through the proxy for this decision without adding CSP to
+those responses. Document that promotion points production traffic at the
+existing Preview artifact without rebuilding it.
 
 - [ ] **Step 4: Run focused redirect tests**
 
@@ -228,7 +228,11 @@ VERCEL_ENV=production NEXT_DIST_DIR=.next-prod npm run build
 
 - [ ] **Step 4: Exercise host redirects against built app**
 
-Start the isolated build. Request a nested path with a query using `Host: chengdu-pubmax69.vercel.app` and assert a 308 to the same path and query on `https://pubmaxxing.com`. Request the same URL with a preview host from a preview-mode build or verify the preview redirect set lacks the rule.
+Start the isolated build. Request a nested path with a query using
+`Host: chengdu-pubmax69.vercel.app` and assert a 308 to the same path and query
+on `https://pubmaxxing.com`. Request a Preview host first without
+`ALLOW_VERCEL_PREVIEW_HOSTS` and require the same redirect, then with
+`VERCEL_ENV=preview` and `ALLOW_VERCEL_PREVIEW_HOSTS=1` and require pass-through.
 
 - [ ] **Step 5: Inspect `/u/you`**
 
