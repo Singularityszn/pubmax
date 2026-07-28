@@ -14,6 +14,7 @@ type SuccessfulAuthAttempt = Extract<AuthAttemptStart, { ok: true }>;
 
 const MAX_CLAIM_ATTEMPTS = 3;
 const MAX_RETRY_DELAY_MS = 5_000;
+const REFERRAL_PROOF_TIMEOUT_MS = 3_000;
 const FALLBACK_RETRY_DELAYS_MS = [250, 750] as const;
 
 async function responseIsRetryable(response: Response): Promise<boolean> {
@@ -69,11 +70,23 @@ export async function withReferralSignupProof(
 ): Promise<SuccessfulAuthAttempt> {
   const referral = referralSignupClaimFromUrl(currentUrl);
   if (!referral?.code) return attempt;
+  const controller = new AbortController();
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const timeout = new Promise<null>((resolve) => {
+    timer = setTimeout(() => {
+      controller.abort();
+      resolve(null);
+    }, REFERRAL_PROOF_TIMEOUT_MS);
+  });
   try {
-    const response = await request(
-      `/api/auth/referral-signup-proof?attempt=${encodeURIComponent(attempt.id)}`,
-      { cache: "no-store" },
-    );
+    const response = await Promise.race([
+      request(
+        `/api/auth/referral-signup-proof?attempt=${encodeURIComponent(attempt.id)}`,
+        { cache: "no-store", signal: controller.signal },
+      ),
+      timeout,
+    ]);
+    if (!response) return attempt;
     const body = await response.json().catch(() => null) as
       | { proof?: unknown }
       | null;
@@ -89,6 +102,8 @@ export async function withReferralSignupProof(
     return { ...attempt, callbackUrl: callbackUrl.toString() };
   } catch {
     return attempt;
+  } finally {
+    if (timer !== undefined) clearTimeout(timer);
   }
 }
 

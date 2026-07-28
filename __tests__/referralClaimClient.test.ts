@@ -104,6 +104,34 @@ describe("same-journey referral claim", () => {
     ).resolves.toEqual(AUTH_ATTEMPT);
   });
 
+  it("abandons stalled proof issuance after a short timeout", async () => {
+    vi.useFakeTimers();
+    let signal: AbortSignal | null = null;
+    const request = (
+      _input: string,
+      init?: RequestInit,
+    ): Promise<Response> => {
+      signal = init?.signal ?? null;
+      return new Promise((_resolve, reject) => {
+        signal?.addEventListener(
+          "abort",
+          () => reject(signal?.reason),
+          { once: true },
+        );
+      });
+    };
+
+    const prepared = withReferralSignupProof(
+      AUTH_ATTEMPT,
+      "https://pubmaxxing.com/#referral=opaque_code_123456789",
+      request,
+    );
+
+    await vi.advanceTimersByTimeAsync(3_000);
+    expect(signal?.aborted).toBe(true);
+    await expect(prepared).resolves.toEqual(AUTH_ATTEMPT);
+  });
+
   it("scrubs the referral fragment before retry backoff", async () => {
     vi.useFakeTimers();
     const replacements: string[] = [];
