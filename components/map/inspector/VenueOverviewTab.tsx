@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { useMemo } from "react";
+import { useEffect, useMemo } from "react";
 import { MapPin } from "lucide-react";
 
 import { Amenity, ClaimBadge } from "@/components/map/venueInspectorBits";
@@ -220,6 +220,15 @@ export default function VenueOverviewTab({
       }),
     [venue.id, venue.name, venue.filterHints?.searchText, venue.filterHints?.cuisineTags],
   );
+
+  // This tab makes a claim about what is logged here, so it asks for the read
+  // itself rather than inheriting it from the pub-only submit card below: a
+  // bar or a restaurant belongs in the no-alcohol view and would otherwise sit
+  // for ever on a read that never started.
+  const loadVenue = communityPrices.loadVenue;
+  useEffect(() => {
+    loadVenue(venue.id);
+  }, [loadVenue, venue.id]);
 
   // The ordinary view names the freshest category; the no-alcohol view admits
   // only its two categories, while the food view reserves this slot for the

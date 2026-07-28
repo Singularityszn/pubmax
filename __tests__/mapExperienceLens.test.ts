@@ -11,6 +11,7 @@ import {
   lensPriceForVenue,
   isMapLensDrinkCategory,
   MAP_LENS_DRINK_CATEGORIES,
+  type MapLensPrice,
   NO_ALCOHOL_LENS_PRICE_NOUN,
   trustedDrinkLensPrices,
   trustedNoAlcoholLensPrices,
@@ -445,5 +446,47 @@ describe("one lens, one name", () => {
       expect(summary).not.toMatch(/soft-drink and alcohol-free/i);
       expect(summary).not.toMatch(/\bno-alcohol price/i);
     }
+  });
+});
+
+describe("who the no-alcohol view has to answer for", () => {
+  const noAlcoholPrices = new Map<string, MapLensPrice>();
+
+  it("keeps bars, food and restaurants in the view", () => {
+    // These kinds mount no pint-submit card, so the surface that names their
+    // prices is the only thing that can ask for their read.
+    const bar = venue({
+      id: "bar-1",
+      kind: "bar",
+      amenities: { ...venue().amenities, nonAlcoholic: true },
+    });
+    const food = venue({ id: "food-1", kind: "food" });
+    const restaurant = venue({ id: "restaurant-1", kind: "restaurant" });
+    const shown = filterVenuesForExperienceLens(
+      [bar, food, restaurant],
+      "no-alcohol",
+      noAlcoholPrices,
+    ).map((v) => v.id);
+
+    expect(shown).toContain("bar-1");
+    expect(shown).toContain("food-1");
+    expect(shown).toContain("restaurant-1");
+  });
+
+  it("still refuses to call a non-pub anchor a pint price", () => {
+    // Loading a non-pub venue's community rows must not move the pint lane:
+    // a food venue's own figure stays a sourced anchor, named as one.
+    const restaurant = venue({
+      id: "restaurant-1",
+      kind: "restaurant",
+      cheapestPrice: 12.5,
+      anchorLabel: "Signature plate",
+      anchorObservedAt: "2026-07-20",
+      anchorSourceUrl: "https://example.com/menu",
+    });
+    const price = lensPriceForVenue(restaurant, "no-alcohol", noAlcoholPrices);
+    expect(price?.source).toBe("sourced-anchor");
+    expect(price?.category).toBeNull();
+    expect(price?.categoryLabel).not.toMatch(/pint/i);
   });
 });

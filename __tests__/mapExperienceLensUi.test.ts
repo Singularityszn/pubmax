@@ -124,6 +124,16 @@ describe("MapExperienceLens", () => {
     );
     expect(sheet).toContain('const pricesKnown = readStatus === "ready";');
     expect(sheet).toContain('const readFailed = readStatus === "degraded";');
+
+    // The tab making the claim asks for the read itself. Inheriting it from
+    // the pub-only submit card left every bar, food and restaurant venue in
+    // the no-alcohol view sitting on a read that never started.
+    const effect =
+      "  useEffect(() => {\n    loadVenue(venue.id);\n  }, [loadVenue, venue.id]);";
+    expect(overview).toContain(effect);
+    expect(overview.indexOf(effect)).toBeLessThan(
+      overview.indexOf("{isPubVenue(venue) ? ("),
+    );
   });
 
   it("renames pubs for no-alcohol nights and keeps food view food-first", () => {
