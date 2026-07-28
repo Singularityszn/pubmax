@@ -142,6 +142,19 @@
   color: var(--ink);
 }
 
+.admin-venue {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.admin-venue-name {
+  font-weight: 600;
+  color: var(--ink);
+}
+
 .admin-price {
   color: var(--pint);
   font-weight: 600;
