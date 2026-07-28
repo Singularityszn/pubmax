@@ -123,7 +123,9 @@ describe("referral reward policy", () => {
     );
 
     expect(identitySync).not.toContain("claim-attribution");
-    expect(callbackSuccess).toContain("claimReferralAfterAuthCallback");
+    expect(callbackSuccess).toContain(
+      "claimSignupReferralFromAuthCallback",
+    );
     expect(landing).not.toContain("referralCaptureDecision");
     expect(analytics).not.toContain("claim-attribution");
     expect(migration).toContain("claim_referral_code");

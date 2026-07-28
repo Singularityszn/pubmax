@@ -1,6 +1,17 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { claimSignupReferral } from "@/lib/referralClaimClient";
+import {
+  claimSignupReferral,
+  claimSignupReferralFromAuthCallback,
+  withReferralSignupProof,
+} from "@/lib/referralClaimClient";
+
+const AUTH_ATTEMPT = {
+  ok: true,
+  id: "a".repeat(32),
+  callbackUrl:
+    "https://pubmaxxing.com/auth/callback?_authAttempt=aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+} as const;
 
 describe("same-journey referral claim", () => {
   afterEach(() => {
@@ -77,5 +88,51 @@ describe("same-journey referral claim", () => {
       request,
     );
     expect(request).toHaveBeenCalledOnce();
+  });
+
+  it("preserves auth when optional proof issuance fails", async () => {
+    const request = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({ retryable: true }), { status: 503 }),
+    );
+
+    await expect(
+      withReferralSignupProof(
+        AUTH_ATTEMPT,
+        "https://pubmaxxing.com/#referral=opaque_code_123456789",
+        request,
+      ),
+    ).resolves.toEqual(AUTH_ATTEMPT);
+  });
+
+  it("scrubs the referral fragment before retry backoff", async () => {
+    vi.useFakeTimers();
+    const replacements: string[] = [];
+    const request = vi.fn()
+      .mockResolvedValueOnce(
+        new Response(null, {
+          status: 429,
+          headers: { "Retry-After": "2" },
+        }),
+      )
+      .mockResolvedValueOnce(new Response(null, { status: 200 }));
+
+    const claim = claimSignupReferralFromAuthCallback({
+      currentUrl:
+        "https://pubmaxxing.com/?city=london#referral=opaque_code_123456789&section=prices",
+      callback: {
+        attemptId: AUTH_ATTEMPT.id,
+        code: "pkce",
+        providerError: false,
+        signupProof: "signed-proof",
+      },
+      request,
+      replaceUrl: (url) => replacements.push(url),
+    });
+
+    await vi.advanceTimersByTimeAsync(1_999);
+    expect(replacements).toEqual(["/?city=london#section=prices"]);
+    await vi.advanceTimersByTimeAsync(1);
+    await expect(claim).resolves.toBeUndefined();
+    expect(replacements).toEqual(["/?city=london#section=prices"]);
   });
 });

@@ -1,7 +1,16 @@
+import {
+  REFERRAL_SIGNUP_PROOF_PARAM,
+  type AuthAttemptStart,
+  type AuthCallbackAttempt,
+} from "@/lib/authRedirect";
+import { referralSignupClaimFromUrl } from "@/lib/referrals";
+
 type ReferralClaimRequest = (
   input: string,
-  init: RequestInit,
+  init?: RequestInit,
 ) => Promise<Response>;
+
+type SuccessfulAuthAttempt = Extract<AuthAttemptStart, { ok: true }>;
 
 const MAX_CLAIM_ATTEMPTS = 3;
 const MAX_RETRY_DELAY_MS = 5_000;
@@ -50,5 +59,62 @@ export async function claimSignupReferral(
       if (attempt === MAX_CLAIM_ATTEMPTS - 1) return;
     }
     if (attempt < MAX_CLAIM_ATTEMPTS - 1) await wait(delayMs);
+  }
+}
+
+export async function withReferralSignupProof(
+  attempt: SuccessfulAuthAttempt,
+  currentUrl: string,
+  request: ReferralClaimRequest,
+): Promise<SuccessfulAuthAttempt> {
+  const referral = referralSignupClaimFromUrl(currentUrl);
+  if (!referral?.code) return attempt;
+  try {
+    const response = await request(
+      `/api/auth/referral-signup-proof?attempt=${encodeURIComponent(attempt.id)}`,
+      { cache: "no-store" },
+    );
+    const body = await response.json().catch(() => null) as
+      | { proof?: unknown }
+      | null;
+    if (
+      !response.ok ||
+      typeof body?.proof !== "string" ||
+      !body.proof
+    ) {
+      return attempt;
+    }
+    const callbackUrl = new URL(attempt.callbackUrl);
+    callbackUrl.searchParams.set(REFERRAL_SIGNUP_PROOF_PARAM, body.proof);
+    return { ...attempt, callbackUrl: callbackUrl.toString() };
+  } catch {
+    return attempt;
+  }
+}
+
+export async function claimSignupReferralFromAuthCallback(input: {
+  currentUrl: string;
+  callback: AuthCallbackAttempt;
+  request: ReferralClaimRequest;
+  replaceUrl: (cleanUrl: string) => void;
+}): Promise<void> {
+  const referral = referralSignupClaimFromUrl(input.currentUrl);
+  if (!referral) return;
+  try {
+    input.replaceUrl(referral.cleanUrl);
+  } catch {
+    return;
+  }
+  if (
+    referral.code &&
+    input.callback.attemptId &&
+    input.callback.signupProof
+  ) {
+    await claimSignupReferral(
+      referral.code,
+      input.callback.attemptId,
+      input.callback.signupProof,
+      input.request,
+    );
   }
 }

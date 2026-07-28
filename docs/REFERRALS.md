@@ -20,7 +20,8 @@ browser auth-attempt ID and issue time. Claim verifies that proof and requires
 the verified Supabase Auth account creation time to follow it. A delayed return,
 another browser or device, an invalid code, or an existing account is not
 attributed. These are absence of same-journey proof, so they never fall back to
-a guessed attribution.
+a guessed attribution. Proof issuance and attribution claims are fail-soft:
+either may be skipped without blocking account sign-in.
 
 An account edge alone is not a qualified referral. Qualification needs a first
 accepted contribution carrying that invited account's verified auth ID. Current

@@ -35,20 +35,20 @@ import { ensureSupabaseBrowser, isAuthConfigured } from "@/lib/authClient";
 import { createAuthSessionTransitionTracker } from "@/lib/authSessionTransition";
 import {
   AUTH_RETURN_FRAGMENT_RESTORED_EVENT,
-  REFERRAL_SIGNUP_PROOF_PARAM,
   beginCanonicalAuthAttempt,
   cancelAuthAttempt,
   releaseAuthAttempt,
   scrubAuthCallback,
   type CanonicalAuthAttemptStart,
-  type CapturedAuthCallback,
 } from "@/lib/authRedirect";
 import { authedFetch } from "@/lib/authedFetch";
 import type { ClaimChoice, ClaimPreview } from "@/lib/identityClaim";
 import { readDeviceHandle } from "@/lib/identityClaimClient";
 import { normalizeHandle } from "@/lib/profiles";
-import { claimSignupReferral } from "@/lib/referralClaimClient";
-import { referralSignupClaimFromUrl } from "@/lib/referrals";
+import {
+  claimSignupReferralFromAuthCallback,
+  withReferralSignupProof,
+} from "@/lib/referralClaimClient";
 import { emitIdentityHandleChanged, IDENTITY_HANDLE_CHANGED_EVENT } from "@/lib/identityClient";
 import { requestMagicLink, type MagicLinkResult } from "@/lib/passwordlessAuth";
 
@@ -141,33 +141,6 @@ function cancelBrowserAuthAttempt(): void {
   cancelAuthAttempt(browserLocalStorage(), browserSessionStorage());
 }
 
-async function claimReferralAfterAuthCallback(
-  callback: CapturedAuthCallback["attempt"],
-): Promise<void> {
-  const referral = referralSignupClaimFromUrl(window.location.href);
-  if (!referral) return;
-  try {
-    if (
-      referral.code &&
-      callback.attemptId &&
-      callback.signupProof
-    ) {
-      await claimSignupReferral(
-        referral.code,
-        callback.attemptId,
-        callback.signupProof,
-        authedFetch,
-      );
-    }
-  } finally {
-    window.history.replaceState(
-      window.history.state,
-      "",
-      referral.cleanUrl,
-    );
-  }
-}
-
 async function prepareAuthCallback(
   currentUrl: string,
   requestedNext?: string,
@@ -184,33 +157,7 @@ async function prepareAuthCallback(
     (url) => window.location.assign(url),
   );
   if (!attempt.ok) return attempt;
-  const referral = referralSignupClaimFromUrl(currentUrl);
-  if (!referral?.code) return attempt;
-  try {
-    const response = await fetch(
-      `/api/auth/referral-signup-proof?attempt=${encodeURIComponent(attempt.id)}`,
-      { cache: "no-store" },
-    );
-    const body = await response.json().catch(() => null) as
-      | { proof?: unknown }
-      | null;
-    if (
-      !response.ok ||
-      typeof body?.proof !== "string" ||
-      !body.proof
-    ) {
-      throw new Error("Referral signup proof was not issued.");
-    }
-    const callbackUrl = new URL(attempt.callbackUrl);
-    callbackUrl.searchParams.set(REFERRAL_SIGNUP_PROOF_PARAM, body.proof);
-    return { ...attempt, callbackUrl: callbackUrl.toString() };
-  } catch {
-    releaseBrowserAuthAttempt(attempt.id);
-    return {
-      ok: false,
-      message: "Sign-up could not be prepared. Try again.",
-    };
-  }
+  return withReferralSignupProof(attempt, currentUrl, fetch);
 }
 
 /** Quick path: PATCH-link auth handle and stamp localStorage (no dialog). */
@@ -571,7 +518,18 @@ export function AuthProvider({ children }: { children: ReactNode }): React.JSX.E
           updateSession(exchangedSession);
           setLoading(false);
           if (callbackAttempt) {
-            void claimReferralAfterAuthCallback(callbackAttempt);
+            void claimSignupReferralFromAuthCallback({
+              currentUrl: window.location.href,
+              callback: callbackAttempt,
+              request: authedFetch,
+              replaceUrl: (cleanUrl) => {
+                window.history.replaceState(
+                  window.history.state,
+                  "",
+                  cleanUrl,
+                );
+              },
+            });
           }
           void syncIdentityAfterSignIn(exchangedSession.user);
           return;
