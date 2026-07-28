@@ -301,12 +301,16 @@
   font-size: 0.82rem;
 }
 
+/* --brick / --pint are tuned for price bands and pin fills, not for 0.82rem body
+   text: raw, both land near 2.9:1 on the light card. Read them the way
+   PriceBadge does — pulled 28% toward the theme's own ink — so the one line a
+   submitter has to read clears AA in both themes. */
 .visitReportError {
-  color: var(--color-negative, var(--brick, #9f2f2f));
+  color: color-mix(in srgb, var(--color-negative, var(--brick, #9f2f2f)) 72%, var(--ink, #17171a));
 }
 
 .visitReportOk {
-  color: var(--color-positive, var(--pint, #317347));
+  color: color-mix(in srgb, var(--color-positive, var(--pint, #317347)) 72%, var(--ink, #17171a));
 }
 
 @media (prefers-reduced-motion: reduce) {

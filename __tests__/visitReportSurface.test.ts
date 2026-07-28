@@ -27,6 +27,17 @@ describe("Visit Report venue surface", () => {
     expect(storyTab).toContain("<VisitReportPanel");
   });
 
+  it("defers the venue read to the opened tab without unmounting the composer", () => {
+    const storyTab = source("components/map/inspector/VenueStoryTab.tsx");
+    const panel = source("components/visits/VisitReportPanel.tsx");
+
+    // A tab gate that UNMOUNTS discards a half-written account when the viewer
+    // steps over to another tab, so the story tab passes the gate as a prop.
+    expect(storyTab).toMatch(/<VisitReportPanel[\s\S]*active=\{tab === "story"\}/);
+    expect(storyTab).not.toMatch(/tab === "story" \? \(\s*<VisitReportPanel/);
+    expect(panel).toContain("if (!active || requested.current) return;");
+  });
+
   it("keeps all interactive controls thumb-sized at phone width", () => {
     const css = source("components/visits/visitReports.css");
 

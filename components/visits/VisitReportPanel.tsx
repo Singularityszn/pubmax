@@ -4,7 +4,7 @@
 // contributor-attributed accounts newest first and opens one compact composer.
 // A row is a claim about one dated visit, never a score or verified venue fact.
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import {
   BUSYNESS_VALUES,
@@ -34,6 +34,12 @@ import "./visitReports.css";
 export type VisitReportPanelProps = {
   venueId: string;
   venueName: string;
+  /**
+   * False while the panel is mounted but out of view (a tab the viewer hasn't
+   * opened). It defers the venue read until the surface is first looked at; it
+   * never unmounts, so a half-written account survives a trip to another tab.
+   */
+  active?: boolean;
 };
 
 const BUSYNESS_LABELS: Record<Busyness, string> = {
@@ -159,11 +165,22 @@ function ChoiceGroup<T extends string>({
 // re-reads. Keying the mount means a pin switch on the map sheet drops the
 // previous pub's accounts, flags, feedback line, half-typed draft and any
 // in-flight write together, rather than showing them under the new pub's name.
-export default function VisitReportPanel({ venueId, venueName }: VisitReportPanelProps) {
-  return <VenueVisitReports key={venueId} venueId={venueId} venueName={venueName} />;
+export default function VisitReportPanel({
+  venueId,
+  venueName,
+  active = true,
+}: VisitReportPanelProps) {
+  return (
+    <VenueVisitReports
+      key={venueId}
+      venueId={venueId}
+      venueName={venueName}
+      active={active}
+    />
+  );
 }
 
-function VenueVisitReports({ venueId, venueName }: VisitReportPanelProps) {
+function VenueVisitReports({ venueId, venueName, active = true }: VisitReportPanelProps) {
   const tonight = londonEveningKey(new Date());
   const [read, setRead] = useState<VisitReportVenueRead | null>(null);
   const [handle, setHandle] = useState("");
@@ -182,7 +199,11 @@ function VenueVisitReports({ venueId, venueName }: VisitReportPanelProps) {
     null,
   );
 
+  const requested = useRef(false);
+
   useEffect(() => {
+    if (!active || requested.current) return;
+    requested.current = true;
     let cancelled = false;
     void Promise.resolve().then(async () => {
       const remembered = storedHandle();
@@ -195,7 +216,7 @@ function VenueVisitReports({ venueId, venueName }: VisitReportPanelProps) {
     return () => {
       cancelled = true;
     };
-  }, [venueId]);
+  }, [active, venueId]);
 
   const hasDraft =
     busyness !== null ||

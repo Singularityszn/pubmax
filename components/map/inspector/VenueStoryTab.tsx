@@ -102,9 +102,11 @@ export default function VenueStoryTab({
       className="venueTabPanel"
       hidden={tab !== "story"}
     >
-      {tab === "story" ? (
-        <VisitReportPanel venueId={venue.id} venueName={venue.name} />
-      ) : null}
+      <VisitReportPanel
+        venueId={venue.id}
+        venueName={venue.name}
+        active={tab === "story"}
+      />
 
       {/* Passive cited heritage ("On record") — H1. Above the description so the
           facts a venue carries land the instant the tab opens. Every fact wears
