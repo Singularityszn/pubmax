@@ -155,20 +155,27 @@ These controls solve different problems:
   Every `*.vercel.app` host redirects by default. Preview deployments remain
   reviewable only when `VERCEL_ENV=preview` and the deliberate server setting
   `ALLOW_VERCEL_PREVIEW_HOSTS=1` are both present and the incoming host exactly
-  matches that artifact's Vercel-provided `VERCEL_URL` or `VERCEL_BRANCH_URL`.
-  Canonical, localhost, loopback, and LAN hosts do not need an exception.
+  matches Vercel's request-time `x-vercel-deployment-url` header or the
+  artifact's `VERCEL_BRANCH_URL`. Canonical, localhost, loopback, and LAN hosts
+  do not need an exception.
+
+Vercel documents `VERCEL_URL` as incompatible with Standard Deployment
+Protection, which this project requires. The unique deployment-host comparison
+therefore uses `x-vercel-deployment-url`, the request header Vercel supplies for
+the specific deployment instance. `VERCEL_BRANCH_URL` remains the identity for
+the generated branch alias.
 
 Vercel's promotion API points production traffic at an existing deployment and
 [does not rebuild it](https://vercel.com/docs/rest-api/projects/point-production-traffic-to-a-given-deployment).
 Empirical promotion checks show that a Preview-built artifact retains
 `VERCEL_ENV=preview` and its Preview-scoped custom settings after promotion, so
-neither value identifies production traffic. Its generated deployment and
-branch host values remain bound to that artifact. The request-time rule
-therefore requires an exact match with one of those values before applying the
-Preview opt-out. A production alias hitting the promoted artifact still
-redirects even when the Preview environment and opt-out remain set. Keep the
-setting scoped to deployments used for Preview review; do not copy it to
-Production.
+neither value identifies production traffic. Vercel's request header still
+identifies the specific deployment while the generated branch value identifies
+its branch alias. The request-time rule therefore requires an exact host match
+with that evidence before applying the Preview opt-out. A production alias
+hitting the promoted artifact still redirects even when the Preview environment
+and opt-out remain set. Keep the setting scoped to deployments used for Preview
+review; do not copy it to Production.
 
 Recommendation: retain that Vercel Authentication scope, keep `www` redirecting
 to the apex, keep all identity-provider callbacks on the apex, and keep the

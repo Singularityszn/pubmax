@@ -25,9 +25,10 @@ function requestHostname(request: NextRequest): string {
 
 function isArtifactPreviewHost(request: NextRequest): boolean {
   const hostname = requestHostname(request);
-  return ["VERCEL_URL", "VERCEL_BRANCH_URL"].some(
-    (variable) => normalizeHostname(process.env[variable]) === hostname,
-  );
+  return [
+    request.headers.get("x-vercel-deployment-url"),
+    process.env.VERCEL_BRANCH_URL,
+  ].some((artifactHost) => normalizeHostname(artifactHost) === hostname);
 }
 
 function shouldRedirectVercelHost(request: NextRequest): boolean {

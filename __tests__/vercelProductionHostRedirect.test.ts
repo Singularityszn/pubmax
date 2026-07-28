@@ -76,18 +76,22 @@ describe("Vercel production host canonicalisation", () => {
   it("redirects a promoted Preview artifact with its Preview settings retained", () => {
     vi.stubEnv("VERCEL_ENV", "preview");
     vi.stubEnv(VERCEL_PREVIEW_HOST_SETTING, "1");
-    vi.stubEnv(
-      "VERCEL_URL",
-      "chengdu-auth-a1b2c3-pubmax69.vercel.app",
-    );
+    const deploymentHost =
+      "chengdu-auth-a1b2c3-pubmax69.vercel.app";
     vi.stubEnv(
       "VERCEL_BRANCH_URL",
       "chengdu-git-auth-preview-pubmax69.vercel.app",
     );
 
     expectCanonicalRedirect(
-      proxy(request("chengdu-pubmax69.vercel.app")),
-      "https://pubmaxxing.com/u/you",
+      proxy(
+        request(
+          "chengdu-pubmax69.vercel.app",
+          "/map/where?sel=venue-xjf3n0&next=%2Fu%2Fyou",
+          { "x-vercel-deployment-url": deploymentHost },
+        ),
+      ),
+      "https://pubmaxxing.com/map/where?sel=venue-xjf3n0&next=%2Fu%2Fyou",
     );
   });
 
@@ -103,14 +107,17 @@ describe("Vercel production host canonicalisation", () => {
     );
   });
 
-  it("allows an opted-in artifact's generated Preview host", () => {
+  it("allows a protected Preview's generated deployment host without VERCEL_URL", () => {
     vi.stubEnv("VERCEL_ENV", "preview");
     vi.stubEnv(VERCEL_PREVIEW_HOST_SETTING, "1");
     const deploymentHost =
       "chengdu-auth-a1b2c3-pubmax69.vercel.app";
-    vi.stubEnv("VERCEL_URL", deploymentHost);
 
-    const response = proxy(request(deploymentHost));
+    const response = proxy(
+      request(deploymentHost, "/u/you", {
+        "x-vercel-deployment-url": deploymentHost,
+      }),
+    );
 
     expect(response.status).toBe(200);
     expect(response.headers.get("location")).toBeNull();

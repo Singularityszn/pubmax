@@ -4,7 +4,7 @@
 
 **Goal:** Show only Supabase social providers that are currently enabled, keep email sign-in complete when none are available, and redirect Vercel production aliases to the canonical site.
 
-**Architecture:** A browser auth capability module reads Supabase's public `/auth/v1/settings` response with the publishable key and maps Supabase's `azure` provider to the product's Microsoft label. `AuthProvider` owns live capability state and rechecks the selected provider immediately before starting OAuth, while one shared social-button component renders that state across all sign-in surfaces. The request-time Next.js proxy redirects Vercel hosts by default, while Preview review requires one explicit server setting plus an exact match with the artifact's Vercel-generated host and canonical or local hosts pass through.
+**Architecture:** A browser auth capability module reads Supabase's public `/auth/v1/settings` response with the publishable key and maps Supabase's `azure` provider to the product's Microsoft label. `AuthProvider` owns live capability state and rechecks the selected provider immediately before starting OAuth, while one shared social-button component renders that state across all sign-in surfaces. The request-time Next.js proxy redirects Vercel hosts by default, while Preview review requires one explicit server setting plus an exact match with Vercel's request-time deployment host or generated branch host and canonical or local hosts pass through.
 
 **Tech Stack:** Next.js 16 redirects, React 19 context and client components, Supabase Auth settings, TypeScript, Vitest, React server rendering
 
@@ -157,7 +157,7 @@ Expected: PASS.
 - Create: `__tests__/vercelProductionHostRedirect.test.ts`
 
 **Interfaces:**
-- Consumes: incoming host, `VERCEL_ENV`, `ALLOW_VERCEL_PREVIEW_HOSTS`, `VERCEL_URL`, `VERCEL_BRANCH_URL`
+- Consumes: incoming host, `x-vercel-deployment-url`, `VERCEL_ENV`, `ALLOW_VERCEL_PREVIEW_HOSTS`, `VERCEL_BRANCH_URL`
 - Produces: default Next.js host redirect for `*.vercel.app`, with explicit Preview opt-out
 
 - [ ] **Step 1: Write failing redirect tests**
@@ -166,9 +166,11 @@ Call `proxy()` with incoming host headers. Assert that production
 `*.vercel.app` hosts return `308` with the path and query preserved,
 `VERCEL_ENV=preview` plus the Preview opt-out still redirects a production
 alias on a promoted Preview artifact, Preview passes only when the incoming
-host matches that artifact's `VERCEL_URL` or `VERCEL_BRANCH_URL`, and canonical,
-localhost, loopback, and LAN hosts pass through. Require a host matcher that
-reaches every path on `*.vercel.app`.
+host matches Vercel's request-time `x-vercel-deployment-url` header or that
+artifact's `VERCEL_BRANCH_URL`, and canonical, localhost, loopback, and LAN
+hosts pass through. Cover the unique deployment host with `VERCEL_URL` absent
+because Standard Deployment Protection is incompatible with that variable.
+Require a host matcher that reaches every path on `*.vercel.app`.
 
 - [ ] **Step 2: Run test to verify it fails**
 
@@ -186,9 +188,11 @@ Move Vercel host canonicalisation ahead of every other proxy response. Match
 incoming hosts without maintaining aliases, preserve path and query, and
 default every Vercel host to redirect. Permit Preview pass-through only when
 `VERCEL_ENV=preview` and `ALLOW_VERCEL_PREVIEW_HOSTS=1` are both set and the
-incoming host exactly matches that artifact's Vercel-provided `VERCEL_URL` or
-`VERCEL_BRANCH_URL`. Send API and static paths through the proxy for this
-decision without adding CSP to those responses. Document that promotion points
+incoming host exactly matches Vercel's request-time
+`x-vercel-deployment-url` header or that artifact's `VERCEL_BRANCH_URL`. Do not
+depend on `VERCEL_URL`, which is unavailable with Standard Deployment
+Protection. Send API and static paths through the proxy for this decision
+without adding CSP to those responses. Document that promotion points
 production traffic at the existing Preview artifact without rebuilding it and
 retains its Preview values.
 
@@ -236,8 +240,9 @@ Start the isolated build. Request a nested path with a query using
 on `https://pubmaxxing.com`. Request a Preview host first without
 `ALLOW_VERCEL_PREVIEW_HOSTS` and require the same redirect, then with
 `VERCEL_ENV=preview` and `ALLOW_VERCEL_PREVIEW_HOSTS=1`. Require a production
-alias to redirect while the artifact's exact `VERCEL_URL` and
-`VERCEL_BRANCH_URL` hosts pass through.
+alias to redirect while the artifact's exact request-time
+`x-vercel-deployment-url` and `VERCEL_BRANCH_URL` hosts pass through. Exercise
+the unique deployment host with `VERCEL_URL` absent.
 
 - [ ] **Step 5: Inspect `/u/you`**
 
