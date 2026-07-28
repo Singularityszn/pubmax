@@ -53,7 +53,7 @@ export type ContributorLeaderboard =
     status: "ready";
     window: {
       kind: "all-time";
-      label: "All visible contributions, all time";
+      label: "All visible identity-backed contributions, all time";
     };
     entries: ContributorLeaderboardEntry[];
   }
@@ -70,7 +70,7 @@ type MutableTally = ContributorLeaderboardTally;
 
 const ALL_TIME_WINDOW = {
   kind: "all-time",
-  label: "All visible contributions, all time",
+  label: "All visible identity-backed contributions, all time",
 } as const;
 
 const UNAVAILABLE_WINDOW = {

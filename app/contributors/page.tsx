@@ -12,7 +12,7 @@ export const revalidate = 0;
 export const metadata: Metadata = {
   title: "Contributor record",
   description:
-    "PUBMAXX contributors ranked by visible price logs, Visit Reports and weather Recommendations.",
+    "Existing PUBMAXX profiles ranked by identity-backed visible price logs, Visit Reports and weather Recommendations.",
   alternates: { canonical: "/contributors" },
 };
 

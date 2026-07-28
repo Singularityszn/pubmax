@@ -15,7 +15,7 @@ describe("ContributorRecord", () => {
       status: "ready",
       window: {
         kind: "all-time",
-        label: "All visible contributions, all time",
+        label: "All visible identity-backed contributions, all time",
       },
       entries: [
         {
@@ -38,13 +38,16 @@ describe("ContributorRecord", () => {
     });
 
     expect(html).toContain("Contributor record");
-    expect(html).toContain("All visible contributions, all time");
+    expect(html).toContain(
+      "All visible identity-backed contributions, all time",
+    );
     expect(html.match(/class="contributorRank"[^>]*>1</g)).toHaveLength(2);
     expect(html).toContain('href="/u/alex"');
     expect(html).toContain("Prices");
     expect(html).toContain("Visit Reports");
     expect(html).toContain("Recommendations");
     expect(html).toContain("Anonymous price logs are not ranked");
+    expect(html).toContain("Only identity-backed contributions are ranked");
     expect(html).not.toMatch(/winner|points|score/i);
   });
 
@@ -59,7 +62,10 @@ describe("ContributorRecord", () => {
     });
 
     expect(html).toContain("All-time record unavailable");
-    expect(html).toContain("couldn&#x27;t check the full record");
+    expect(html).toContain(
+      "couldn&#x27;t check the full identity-backed record",
+    );
+    expect(html).toContain("Only identity-backed contributions are ranked");
     expect(html).not.toMatch(/no contributors|nobody has contributed/i);
   });
 
@@ -68,12 +74,15 @@ describe("ContributorRecord", () => {
       status: "ready",
       window: {
         kind: "all-time",
-        label: "All visible contributions, all time",
+        label: "All visible identity-backed contributions, all time",
       },
       entries: [],
     });
 
-    expect(html).toContain("First public names land here");
+    expect(html).toContain(
+      "Visible named posts can still sit outside this identity-backed record",
+    );
+    expect(html).not.toContain("First public names land here");
     expect(html).not.toMatch(/no contributors|nobody has contributed/i);
   });
 
@@ -82,7 +91,7 @@ describe("ContributorRecord", () => {
       status: "ready",
       window: {
         kind: "all-time",
-        label: "All visible contributions, all time",
+        label: "All visible identity-backed contributions, all time",
       },
       entries: [
         {
@@ -97,6 +106,7 @@ describe("ContributorRecord", () => {
     });
 
     expect(html).toContain("Early record");
+    expect(html).not.toContain("Every visible contribution counts");
     expect(html).toContain("@sam");
     expect(html).toContain("<strong>1</strong>");
     expect(html).toContain("<span>contribution</span>");

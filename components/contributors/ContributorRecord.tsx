@@ -23,8 +23,10 @@ export default function ContributorRecord({
         <h1 id="contributor-title">Contributor record</h1>
         <p className="contributorLede">
           Price logs, Visit Reports and weather Recommendations, added together.
-          Hidden contributions come off the count. Anonymous price logs are not
-          ranked. Equal totals share a place.
+          Only identity-backed contributions are ranked. Named posts without an
+          existing public profile can stay visible elsewhere but sit outside
+          this record. Hidden contributions come off the count. Anonymous price
+          logs are not ranked. Equal totals share a place.
         </p>
         <p className="contributorWindow">{board.window.label}</p>
       </header>
@@ -33,24 +35,25 @@ export default function ContributorRecord({
         <div className="contributorState" role="status">
           <h2>Record unavailable</h2>
           <p>
-            We couldn&apos;t check the full record right now, so no partial
-            totals are shown.
+            We couldn&apos;t check the full identity-backed record right now, so
+            no partial totals are shown.
           </p>
         </div>
       ) : board.entries.length === 0 ? (
         <div className="contributorState">
-          <h2>The ledger is open</h2>
+          <h2>No identity-backed totals yet</h2>
           <p>
-            First public names land here as attributed prices, Visit Reports
-            and Recommendations are published. Anonymous price logs stay off
-            this record.
+            Visible named posts can still sit outside this identity-backed
+            record when their handle has no existing public profile. Anonymous
+            price logs stay off it too.
           </p>
         </div>
       ) : (
         <>
           {thin ? (
             <p className="contributorThin">
-              Early record. Every visible contribution counts.
+              Early record. Visible named posts without an existing public
+              profile sit outside this count.
             </p>
           ) : null}
           <ol className="contributorList">

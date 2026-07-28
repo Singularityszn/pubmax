@@ -184,7 +184,10 @@ describe("legal content pages", () => {
     );
     expect(privacy).toMatch(/cannot[\s\S]*lands anonymously/i);
     expect(privacy).toMatch(/hidden[\s\S]*do not count/i);
-    expect(privacy).toMatch(/all time/i);
+    expect(privacy).toMatch(
+      /Visit Reports and Recommendations[\s\S]*existing public profile[\s\S]*remain visible[\s\S]*excluded/i,
+    );
+    expect(privacy).toMatch(/all\s+time/i);
     expect(privacy).not.toMatch(/future contributor count/i);
   });
 
