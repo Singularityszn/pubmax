@@ -56,6 +56,8 @@ describe("parseUkPlaceIndex", () => {
           ["<different>", 54.96, -1.6, "place", "NE"],
           ["Hythe;West Hythe", 51.07, 1.08, "town", "CT"],
           ["- broken", 53.3, -1.4, "town", "S"],
+          ["retail", 52.1260312, 0.0290461, "city", "CB"],
+          ["Unknown", 53.3, -1.4, "town", "S"],
         ],
       }),
     ).toEqual([PLACES[0]]);
@@ -89,6 +91,9 @@ describe("parseUkPlaceIndex", () => {
     expect(
       shipped.filter((entry) => /[;<>]/.test(entry.name) || !/^[\p{L}\p{N}]/u.test(entry.name)),
     ).toEqual([]);
+    expect(shipped.filter((entry) => entry.search === "retail")).toEqual([]);
+    expect(shipped.filter((entry) => /^\p{Ll}/u.test(entry.name))).toEqual([]);
+    expect(shipped.map((entry) => entry.name)).toContain("Blantyre");
   });
 
   it("fails soft when the payload shape is unavailable", () => {

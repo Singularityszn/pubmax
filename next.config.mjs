@@ -7,6 +7,7 @@ import {
   freshnessArtifactIncludeById,
   freshnessArtifactIncludes,
 } from "./lib/freshnessTracing.mjs";
+import { UK_PLACE_INDEX_TRACING_INCLUDE } from "./lib/ukPlaceIndexFile.mjs";
 
 const projectRoot = path.dirname(fileURLToPath(import.meta.url));
 
@@ -116,7 +117,7 @@ const nextConfig = {
     "/feed": feedDataFiles,
     // /map resolves a ?place= arrival against the UK place index per request
     // (lib/ukPlaceIndex.server.ts), which Next cannot see statically.
-    "/map": ["./public/data/uk_base/places.json"],
+    "/map": [UK_PLACE_INDEX_TRACING_INCLUDE],
   },
   turbopack: {
     root: projectRoot,

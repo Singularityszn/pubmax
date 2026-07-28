@@ -1,4 +1,10 @@
 import { enabledCityContainingPoint } from "@/lib/cities";
+import {
+  displayUkPlaceName,
+  isPublishableUkPlaceName,
+} from "@/lib/ukPlaceName.mjs";
+
+export { isPublishableUkPlaceName };
 
 export const UK_PLACE_INDEX_PATH = "/data/uk_base/places.json";
 
@@ -59,22 +65,6 @@ export function normaliseUkPlaceQuery(value: string): string {
     .toLocaleLowerCase("en-GB");
 }
 
-/**
- * Whether a raw locality tag is a place name we may offer as somebody's town.
- * OSM address tags carry editing noise (`<different>`) and multi-place lists
- * (`Hythe;West Hythe`); neither is a name, so neither earns a search row.
- */
-export function isPublishableUkPlaceName(value: string): boolean {
-  const name = value.trim();
-  return (
-    name.length >= 2 &&
-    name.length <= 100 &&
-    !/[;<>]/.test(name) &&
-    /^[\p{L}\p{N}]/u.test(name) &&
-    !/[\u0000-\u001f\u007f]/u.test(name)
-  );
-}
-
 export function parseUkPlaceIndex(raw: unknown): UkPlace[] {
   if (!raw || typeof raw !== "object") return [];
   const rows = (raw as { places?: unknown }).places;
@@ -98,7 +88,7 @@ export function parseUkPlaceIndex(raw: unknown): UkPlace[] {
     ) {
       continue;
     }
-    const name = rawName.trim().replace(/\s+/g, " ");
+    const name = displayUkPlaceName(rawName);
     const context = rawContext.trim().slice(0, 8);
     const search = normaliseUkPlaceQuery(name);
     const key = `${search}\0${rawLat}\0${rawLng}`;
@@ -158,7 +148,7 @@ export function parseUkPlaceMapArrival(
     typeof search === "string"
       ? new URLSearchParams(search.startsWith("?") ? search.slice(1) : search)
       : search;
-  const name = (params.get("place") ?? "").trim().replace(/\s+/g, " ");
+  const name = displayUkPlaceName(params.get("place") ?? "");
   const rawLat = params.get("lat");
   const rawLng = params.get("lng");
   const lat = Number(rawLat);

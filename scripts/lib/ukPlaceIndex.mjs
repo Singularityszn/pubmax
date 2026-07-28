@@ -2,6 +2,11 @@
 // tags already attached to the committed OSM pub snapshots. A result therefore
 // means "the base-pub source names this place", never "we checked its prices".
 
+import {
+  displayUkPlaceName,
+  isPublishableUkPlaceName,
+} from "../../lib/ukPlaceName.mjs";
+
 const LOCALITY_TAGS = [
   ["addr:city", "city"],
   ["addr:town", "town"],
@@ -22,20 +27,7 @@ const CLUSTER_DISTANCE_KM = 30;
 const EARTH_RADIUS_KM = 6_371;
 
 function normalizeName(value) {
-  return String(value ?? "").trim().replace(/\s+/g, " ");
-}
-
-// Mirrors isPublishableUkPlaceName in lib/ukPlaceSearch.ts (the reader cannot
-// import this builder without pulling it into the browser bundle). Address tags
-// carry editing noise ("<different>") and multi-place lists ("Hythe;West
-// Hythe"); neither is a name, so neither may be offered as somebody's town.
-function isPublishableName(name) {
-  return (
-    name.length >= 2 &&
-    name.length <= 100 &&
-    !/[;<>]/.test(name) &&
-    /^[\p{L}\p{N}]/u.test(name)
-  );
+  return displayUkPlaceName(value);
 }
 
 function searchKey(value) {
@@ -147,7 +139,7 @@ export function buildUkPlaceIndex(elements, options = {}) {
     const elementKey = `${element.type ?? ""}/${element.id ?? ""}`;
     for (const [tag, kind] of LOCALITY_TAGS) {
       const name = normalizeName(element.tags[tag]);
-      if (!isPublishableName(name)) continue;
+      if (!isPublishableUkPlaceName(name)) continue;
       const key = searchKey(name);
       const observationKey = `${elementKey}\0${tag}\0${key}`;
       if (seen.has(observationKey)) continue;

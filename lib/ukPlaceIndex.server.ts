@@ -10,12 +10,17 @@
 // know is refused, and the map falls back to its ordinary London arrival.
 //
 // The index file is opened at request time, so next.config.mjs declares it in
-// outputFileTracingIncludes for /map.
+// outputFileTracingIncludes for /map, from the same path constant this module
+// reads (__tests__/mapPlaceTracing.test.ts pins the pair). An untraced file
+// would fail the way CLAUDE.md warns about: every town deep link would answer
+// as an ordinary London map with nothing anywhere saying why. So a failed read
+// is logged and NOT cached, and the next request tries again.
 
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
 import { enabledCityContainingPoint } from "@/lib/cities";
+import { UK_PLACE_INDEX_FILE } from "@/lib/ukPlaceIndexFile.mjs";
 import {
   normaliseUkPlaceQuery,
   parseUkPlaceIndex,
@@ -24,34 +29,37 @@ import {
   type UkPlaceMapArrival,
 } from "@/lib/ukPlaceSearch";
 
-const INDEX_FILE = join(
-  process.cwd(),
-  "public",
-  "data",
-  "uk_base",
-  "places.json",
-);
+const INDEX_FILE = join(process.cwd(), UK_PLACE_INDEX_FILE);
 
 let byName: Map<string, UkPlace[]> | null = null;
+let reported = false;
 
-function placeIndex(): Map<string, UkPlace[]> {
+function placeIndex(): Map<string, UkPlace[]> | null {
   if (byName) return byName;
-  const index = new Map<string, UkPlace[]>();
   try {
     const places = parseUkPlaceIndex(
       JSON.parse(readFileSync(INDEX_FILE, "utf8")) as unknown,
     );
+    if (places.length === 0) throw new Error("index has no usable place rows");
+    const index = new Map<string, UkPlace[]>();
     for (const place of places) {
       const rows = index.get(place.search);
       if (rows) rows.push(place);
       else index.set(place.search, [place]);
     }
-  } catch {
-    // A missing or unreadable index means no place arrival resolves, so the
-    // map answers as London rather than reflecting an unverified name.
+    byName = index;
+    reported = false;
+    return index;
+  } catch (error) {
+    if (!reported) {
+      reported = true;
+      console.error(
+        `[uk-place-index] ${UK_PLACE_INDEX_FILE} is unreadable, so every /map?place= arrival answers as London until it is back`,
+        error,
+      );
+    }
+    return null;
   }
-  byName = index;
-  return index;
 }
 
 /**
@@ -63,7 +71,7 @@ export function resolveUkPlaceMapArrival(
 ): UkPlaceMapArrival | null {
   const requested = parseUkPlaceMapArrival(search);
   if (!requested) return null;
-  const candidates = placeIndex().get(normaliseUkPlaceQuery(requested.name));
+  const candidates = placeIndex()?.get(normaliseUkPlaceQuery(requested.name));
   if (!candidates?.length) return null;
   const nearest = candidates.reduce((closest, place) => {
     const distance =

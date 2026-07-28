@@ -15,6 +15,10 @@ import { dirname, join } from "node:path";
 import { validateLateFoodEvidence } from "./lib/validateLateFoodEvidence.mjs";
 import { canonicalObservationsPayload } from "../lib/pintIndexCanonical.mjs";
 import {
+  displayUkPlaceName,
+  isPublishableUkPlaceName,
+} from "../lib/ukPlaceName.mjs";
+import {
   CORE_FILE,
   MANIFEST_FILE,
   buildShardManifest,
@@ -1059,10 +1063,8 @@ function validateUkPlaceIndex() {
       Array.isArray(row) &&
       (row.length === 4 || row.length === 5) &&
       typeof row[0] === "string" &&
-      row[0].trim().length >= 2 &&
-      row[0].trim().length <= 100 &&
-      !/[;<>]/.test(row[0]) &&
-      /^[\p{L}\p{N}]/u.test(row[0].trim()) &&
+      isPublishableUkPlaceName(row[0]) &&
+      row[0] === displayUkPlaceName(row[0]) &&
       Number.isFinite(row[1]) &&
       row[1] >= 49.8 &&
       row[1] <= 61 &&

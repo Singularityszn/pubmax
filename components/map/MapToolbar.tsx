@@ -125,7 +125,12 @@ export default function MapToolbar({
   };
 
   return (
-    <div className="mapToolbar" role="search">
+    <div
+      className="mapToolbar"
+      // No search control on a base-pub-only arrival, so no search landmark:
+      // navigating by landmark to a region with nothing to search is a dead end.
+      role={searchContent ? "search" : undefined}
+    >
       <div className="mapToolbarRow">
         {searchContent ? (
           <div className="mapToolbarSearch">{searchContent}</div>

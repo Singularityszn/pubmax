@@ -60,10 +60,20 @@ describe("UK place index builder", () => {
       node(1, 54.96, -1.6, { "addr:place": "<different>" }),
       node(2, 51.07, 1.08, { "addr:town": "Hythe;West Hythe" }),
       node(3, 52.7, -1.2, { "addr:town": "- Loughborough" }),
-      node(4, 53.38, -1.47, { "addr:city": "Sheffield" }),
+      node(4, 52.12, 0.03, { "addr:city": "retail" }),
+      node(5, 51.5, -0.9, { "addr:suburb": "Industrial" }),
+      node(6, 53.38, -1.47, { "addr:city": "Sheffield" }),
     ]);
 
     expect(index.places.map((place: unknown[]) => place[0])).toEqual(["Sheffield"]);
+  });
+
+  it("capitalises a miscased town rather than dropping a genuine place", () => {
+    const index = buildUkPlaceIndex([
+      node(1, 55.78, -4.09, { "addr:city": "blantyre", "addr:postcode": "G72 9AA" }),
+    ]);
+
+    expect(index.places).toEqual([["Blantyre", 55.78, -4.09, "city", "G"]]);
   });
 
   it("ignores blank locality tags and elements without usable coordinates", () => {
