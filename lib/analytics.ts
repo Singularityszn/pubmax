@@ -24,14 +24,21 @@ import {
 import {
   ANONYMOUS_ANALYTICS_STORAGE_KEY,
   ANALYTICS_CONSENT_STORAGE_KEY,
+  isAnalyticsConsentDecision,
   isAnonymousAnalyticsId,
+  type AnalyticsConsentDecision,
 } from "@/lib/analyticsIdentity";
-import { syncPosthogConsent } from "@/lib/posthogClient";
+import {
+  capturePosthogPageview,
+  syncPosthogConsent,
+} from "@/lib/posthogClient";
 
 const ENDPOINT = "/api/events";
 const VERIFIED_OUTBOX_KEY = "pubmaxx:analytics-verified-outbox:v1";
+const ANALYTICS_CONSENT_CHANGE_EVENT = "pubmaxx:analytics-consent";
 let inMemoryAnonymousId: string | null = null;
-let inMemoryConsentGranted = false;
+let inMemoryConsentDecision: AnalyticsConsentDecision | null = null;
+let inMemoryConsentIsFallback = false;
 const inMemoryVerifiedOutbox = new Map<string, string>();
 let verifiedFlush: Promise<void> | null = null;
 let verifiedFlushAbort: AbortController | null = null;
@@ -45,6 +52,15 @@ function abortVerifiedFlush(): void {
   verifiedFlushAbort?.abort();
   verifiedFlushAbort = null;
   verifiedFlush = null;
+}
+
+function notifyAnalyticsConsentChange(): void {
+  if (typeof window === "undefined") return;
+  try {
+    window.dispatchEvent(new Event(ANALYTICS_CONSENT_CHANGE_EVENT));
+  } catch {
+    // Storage remains authoritative when Event is unavailable.
+  }
 }
 
 function replaceInMemoryVerifiedOutbox(raw: string | null): void {
@@ -69,16 +85,24 @@ function handleAnalyticsStorageChange(event: StorageEvent): void {
   abortVerifiedFlush();
 
   if (event.key === ANALYTICS_CONSENT_STORAGE_KEY) {
-    if (event.newValue !== "granted") {
-      inMemoryConsentGranted = false;
+    inMemoryConsentDecision = isAnalyticsConsentDecision(event.newValue)
+      ? event.newValue
+      : null;
+    inMemoryConsentIsFallback = false;
+    if (inMemoryConsentDecision !== "granted") {
       inMemoryAnonymousId = null;
       inMemoryVerifiedOutbox.clear();
       syncPosthogConsent(false);
+      notifyAnalyticsConsentChange();
       return;
     }
-    inMemoryConsentGranted = true;
-    syncPosthogConsent(analyticsCollectionAllowed());
+    const allowed = analyticsCollectionAllowed();
+    syncPosthogConsent(allowed);
+    if (allowed) {
+      capturePosthogPageview(window.location.pathname, anonymousAnalyticsId());
+    }
     void flushVerifiedAnalyticsOutbox();
+    notifyAnalyticsConsentChange();
     return;
   }
 
@@ -86,7 +110,7 @@ function handleAnalyticsStorageChange(event: StorageEvent): void {
   try {
     consentGranted = window.localStorage.getItem(ANALYTICS_CONSENT_STORAGE_KEY) === "granted";
   } catch {
-    consentGranted = inMemoryConsentGranted;
+    consentGranted = inMemoryConsentDecision === "granted";
   }
   if (!consentGranted) {
     inMemoryVerifiedOutbox.clear();
@@ -198,19 +222,55 @@ function newAnonymousAnalyticsId(): string {
 export function anonymousAnalyticsId(): string | null {
   if (typeof window === "undefined") return null;
   ensureAnalyticsStorageListener();
-  try {
-    if (window.localStorage.getItem(ANALYTICS_CONSENT_STORAGE_KEY) !== "granted") return null;
-    inMemoryConsentGranted = true;
-    const existing = window.localStorage.getItem(ANONYMOUS_ANALYTICS_STORAGE_KEY);
-    if (isAnonymousAnalyticsId(existing)) return existing;
-    const created = newAnonymousAnalyticsId();
-    window.localStorage.setItem(ANONYMOUS_ANALYTICS_STORAGE_KEY, created);
-    return created;
-  } catch {
-    if (!inMemoryConsentGranted) return null;
+  if (readAnalyticsConsentDecision() !== "granted") return null;
+  if (inMemoryConsentIsFallback) {
     if (!inMemoryAnonymousId) inMemoryAnonymousId = newAnonymousAnalyticsId();
     return inMemoryAnonymousId;
   }
+  try {
+    const existing = window.localStorage.getItem(ANONYMOUS_ANALYTICS_STORAGE_KEY);
+    if (isAnonymousAnalyticsId(existing)) {
+      inMemoryAnonymousId = existing;
+      return existing;
+    }
+    const created = newAnonymousAnalyticsId();
+    window.localStorage.setItem(ANONYMOUS_ANALYTICS_STORAGE_KEY, created);
+    inMemoryAnonymousId = created;
+    return created;
+  } catch {
+    inMemoryConsentIsFallback = true;
+    if (!inMemoryAnonymousId) inMemoryAnonymousId = newAnonymousAnalyticsId();
+    return inMemoryAnonymousId;
+  }
+}
+
+function readAnalyticsConsentDecision(): AnalyticsConsentDecision | null {
+  if (typeof window === "undefined") return null;
+  if (inMemoryConsentIsFallback) return inMemoryConsentDecision;
+  try {
+    const decision = window.localStorage.getItem(ANALYTICS_CONSENT_STORAGE_KEY);
+    inMemoryConsentDecision = isAnalyticsConsentDecision(decision) ? decision : null;
+    return inMemoryConsentDecision;
+  } catch {
+    inMemoryConsentIsFallback = true;
+    return inMemoryConsentDecision;
+  }
+}
+
+export function analyticsConsentDecision(): AnalyticsConsentDecision | null {
+  if (typeof window === "undefined") return null;
+  ensureAnalyticsStorageListener();
+  return readAnalyticsConsentDecision();
+}
+
+export function subscribeAnalyticsConsent(onChange: () => void): () => void {
+  if (typeof window === "undefined") return () => {};
+  ensureAnalyticsStorageListener();
+  const handler = () => onChange();
+  window.addEventListener(ANALYTICS_CONSENT_CHANGE_EVENT, handler);
+  return () => {
+    window.removeEventListener(ANALYTICS_CONSENT_CHANGE_EVENT, handler);
+  };
 }
 
 export function setAnalyticsConsent(granted: boolean): void {
@@ -220,26 +280,32 @@ export function setAnalyticsConsent(granted: boolean): void {
   // by an older flush. Epoch checks also protect against fetch implementations
   // that resolve after abort.
   abortVerifiedFlush();
+  inMemoryConsentDecision = granted ? "granted" : "denied";
   try {
     if (granted) {
-      inMemoryConsentGranted = true;
       window.localStorage.setItem(ANALYTICS_CONSENT_STORAGE_KEY, "granted");
       void flushVerifiedAnalyticsOutbox();
     } else {
-      inMemoryConsentGranted = false;
-      window.localStorage.removeItem(ANALYTICS_CONSENT_STORAGE_KEY);
       window.localStorage.removeItem(ANONYMOUS_ANALYTICS_STORAGE_KEY);
       inMemoryAnonymousId = null;
       clearVerifiedOutbox();
+      window.localStorage.setItem(ANALYTICS_CONSENT_STORAGE_KEY, "denied");
     }
+    inMemoryConsentIsFallback = false;
   } catch {
-    inMemoryConsentGranted = granted;
+    inMemoryConsentIsFallback = true;
     if (!granted) {
       inMemoryAnonymousId = null;
       clearVerifiedOutbox();
     }
   }
-  syncPosthogConsent(analyticsCollectionAllowed());
+  const allowed = analyticsCollectionAllowed();
+  const anonymousId = allowed ? anonymousAnalyticsId() : null;
+  syncPosthogConsent(allowed);
+  if (allowed) {
+    capturePosthogPageview(window.location.pathname, anonymousId);
+  }
+  notifyAnalyticsConsentChange();
 }
 
 function doNotTrack(): boolean {
@@ -253,7 +319,7 @@ function doNotTrack(): boolean {
 }
 
 /**
- * One consent gate shared by the self-owned event rail and Vercel pageviews.
+ * One consent gate shared by product events and both pageview sinks.
  * It never creates an identifier and fails closed when browser storage is
  * unavailable unless the person explicitly granted consent in this session.
  */
@@ -261,11 +327,7 @@ export function analyticsCollectionAllowed(): boolean {
   if (typeof window === "undefined") return false;
   ensureAnalyticsStorageListener();
   if (doNotTrack()) return false;
-  try {
-    return window.localStorage.getItem(ANALYTICS_CONSENT_STORAGE_KEY) === "granted";
-  } catch {
-    return inMemoryConsentGranted;
-  }
+  return readAnalyticsConsentDecision() === "granted";
 }
 
 /**

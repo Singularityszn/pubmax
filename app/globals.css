@@ -4254,6 +4254,107 @@ input[type="range"] {
   line-height: 1.45;
 }
 
+.analyticsConsentPrompt {
+  position: fixed;
+  z-index: 1000;
+  right: max(12px, env(safe-area-inset-right));
+  bottom: max(12px, env(safe-area-inset-bottom));
+  left: max(12px, env(safe-area-inset-left));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  width: fit-content;
+  max-width: min(960px, calc(100vw - 24px));
+  margin-inline: auto;
+  padding: 8px 8px 8px 14px;
+  border: 1px solid var(--hairline, var(--line));
+  border-radius: var(--radius-md);
+  background: color-mix(in srgb, var(--panel-raised) 96%, transparent);
+  color: var(--ink);
+  box-shadow: var(--shadow-sm);
+  backdrop-filter: blur(14px) saturate(125%);
+}
+
+.analyticsConsentPrompt p {
+  min-width: 0;
+  margin: 0;
+  font-size: 0.78rem;
+  line-height: 1.35;
+}
+
+.analyticsConsentPrompt a {
+  color: inherit;
+  text-underline-offset: 3px;
+}
+
+.analyticsConsentPromptActions {
+  display: flex;
+  flex: 0 0 auto;
+  gap: 6px;
+}
+
+.analyticsConsentPromptActions button {
+  min-width: 84px;
+  min-height: 44px;
+  padding: 8px 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--control-radius, var(--radius-sm));
+  background: var(--panel);
+  color: var(--ink);
+  font: inherit;
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.analyticsConsentPromptActions button:hover,
+.analyticsConsentPromptActions button:focus-visible {
+  border-color: var(--brass);
+}
+
+@media (max-width: 640px) {
+  .analyticsConsentPrompt {
+    bottom: calc(var(--tabbar-h, 58px) + env(safe-area-inset-bottom) + 8px);
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 100px;
+    align-items: center;
+    gap: 10px;
+    width: auto;
+    padding: 10px;
+  }
+
+  .analyticsConsentPrompt p {
+    font-size: 0.72rem;
+  }
+
+  .analyticsConsentPromptActions {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .analyticsConsentPromptActions button {
+    min-width: 0;
+    padding-inline: 8px;
+  }
+
+  body:has(.mobilePlanActivation) .analyticsConsentPrompt {
+    bottom: calc(var(--mobile-map-dock-clearance) + 70px);
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .analyticsConsentPrompt {
+    animation: analytics-consent-arrive 160ms var(--ease-out, ease-out);
+  }
+}
+
+@keyframes analytics-consent-arrive {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+}
+
 .dropComposer {
   display: grid;
   gap: 9px;

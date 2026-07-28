@@ -58,12 +58,17 @@ describe("legal content pages", () => {
   });
 
   it("keeps the privacy notice honest about how analytics actually work", () => {
-    // Each of these mirrors a real gate: consent-off-by-default and the account
-    // toggle (components/profile/PubmaxxAccountHub.tsx), Do Not Track (client
-    // beacon + app/api/events/route.ts), the header-stripping first-party proxy
-    // (app/ingest/[...path]/route.ts), and hashed-never-stored IPs
-    // (lib/supabase.ts hashIp/hashActor).
+    // Each of these mirrors a real gate: the first-visit choice
+    // (components/AnalyticsConsentPrompt.tsx), later withdrawal in the account
+    // hub, Do Not Track (client beacon + app/api/events/route.ts), the
+    // header-stripping first-party proxy (app/ingest/[...path]/route.ts), and
+    // hashed-never-stored IPs (lib/supabase.ts hashIp/hashActor).
     expect(privacy).toMatch(/off by default/i);
+    expect(privacy).toMatch(/first visit/i);
+    expect(privacy).toMatch(/Allow or No thanks/i);
+    expect(privacy).toMatch(/remembers\s+that choice/i);
+    expect(privacy).toMatch(/page visits/i);
+    expect(privacy).toMatch(/account settings/i);
     expect(privacy).toMatch(/Do Not Track/);
     expect(privacy).toMatch(/no forwarded IP address/i);
     expect(privacy).toMatch(/never the address itself/i);
@@ -72,6 +77,12 @@ describe("legal content pages", () => {
     expect(privacy).toMatch(/Vercel/);
     expect(privacy).toMatch(/PUBMAXX never stores raw IP addresses in its own/);
     expect(privacy).not.toMatch(/We never store your IP address/);
+  });
+
+  it("keeps analytics optional in the terms as well as the privacy notice", () => {
+    expect(terms).toMatch(/Browsing does not require an account or analytics/);
+    expect(terms).toMatch(/Allow or No thanks/);
+    expect(terms).toMatch(/same app either way/);
   });
 
   it("discloses precise location processing without overstating retention", () => {

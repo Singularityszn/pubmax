@@ -20,6 +20,7 @@ const E2E_PLAN_SIGNING_SECRET = randomBytes(32).toString("base64url");
 // present: E2E stubs the browser subscription while exercising the real UI and
 // registration POST. NEXT_PUBLIC_* must be present at Next build time.
 const E2E_VAPID_PUBLIC_KEY = "BJVNwV9XflSMFMBkpBQ8zuzYIfru_xnE_LnqA3x8ENQl2ehKJYw_20TE1UTVr_7vQ207rjQwC1FHbbKE9QeOk4w";
+const E2E_POSTHOG_PROJECT_TOKEN = "phc_pubmaxx_e2e_public_test";
 
 export default defineConfig({
   testDir: "./e2e",
@@ -31,6 +32,19 @@ export default defineConfig({
   expect: { timeout: 10_000 },
   use: {
     baseURL: BASE_URL,
+    // Existing journeys start as returning visitors who already declined, so
+    // the first-visit prompt cannot cover controls unrelated to their test.
+    // The consent spec overrides this with an empty browser state.
+    storageState: {
+      cookies: [],
+      origins: [{
+        origin: BASE_URL,
+        localStorage: [{
+          name: "pubmaxx:analytics-consent:v1",
+          value: "denied",
+        }],
+      }],
+    },
     trace: "on-first-retry",
     video: process.env.PUBMAX_GATE_Z_VIDEO ? "on" : "off",
   },
@@ -178,7 +192,9 @@ export default defineConfig({
         // fresh process-only signing key via env so it stays out of the command argv.
         env: {
           NEXT_DIST_DIR,
+          NEXT_PUBLIC_POSTHOG_E2E_ALLOW_BOT: "1",
           NEXT_PUBLIC_VAPID_PUBLIC_KEY: E2E_VAPID_PUBLIC_KEY,
+          NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN: E2E_POSTHOG_PROJECT_TOKEN,
           PLAN_IDEMPOTENCY_SECRET: E2E_PLAN_SIGNING_SECRET,
           PUBMAX_E2E_KEYLESS: "1",
           // Pass-through for lane e2e that must exercise a flag-on server

@@ -1,10 +1,13 @@
 # Privacy-Safe PostHog Analytics Implementation Plan
 
+Historical implementation plan. Current provider and capture boundaries are
+owned by `docs/adr/0007-observability-provider-boundaries.md`.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Adopt useful parts of PostHog wizard PR 619 without allowing account identity, free text, location, or unconsented activity to reach PostHog.
 
-**Architecture:** Existing `trackEvent` and `/api/events` remain sole product-event rail, preserving consent, DNT, anonymous ID, and closed-registry enforcement. PostHog browser SDK handles only scrubbed anonymous exception counts through an owned first-party `/ingest` transport boundary. Wizard server SDK and direct captures are omitted because existing bounded raw-HTTP forwarder is safer and already production-tested.
+**Architecture:** Existing `trackEvent` and `/api/events` remain sole product-event rail, preserving consent, DNT, anonymous ID, and closed-registry enforcement. In this initial adoption, PostHog browser SDK handles only scrubbed anonymous exception counts through an owned first-party `/ingest` transport boundary. Wizard server SDK and direct captures are omitted because existing bounded raw-HTTP forwarder is safer and already production-tested.
 
 **Tech Stack:** Next.js 16, React 19, TypeScript, Vitest, PostHog browser SDK, Next.js route handlers.
 
@@ -13,7 +16,7 @@
 - Never call `posthog.identify`; no account ID, email, handle, or subscriber address reaches PostHog.
 - Product events fire only through `trackEvent` after analytics consent and with DNT off.
 - Product event names and properties remain closed in `lib/analyticsEvents.ts`.
-- Browser SDK sends only scrubbed `$exception` events, with exception messages, stack traces, URLs, and arbitrary properties removed.
+- For this task, browser SDK sends only scrubbed `$exception` events, with exception messages, stack traces, URLs, and arbitrary properties removed.
 - Keep PostHog EU reverse proxy at `/ingest`.
 - Configure only Vercel project `chengdu`; do not touch mirror project `pubmax`.
 

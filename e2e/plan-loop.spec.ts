@@ -62,6 +62,7 @@ test("concierge picks become a public Plan that a mate joins with only a name", 
   const mate = await browser.newContext();
   let joinIdempotencyKey: string | null = null;
   await mate.addInitScript(() => {
+    window.localStorage.setItem("pubmaxx:analytics-consent:v1", "denied");
     window.localStorage.setItem("pubmax-tour-v1-done", "1");
     window.localStorage.setItem("pubmax_onboarding_dismissed", "1");
     window.sessionStorage.setItem("pubmax_onboarding_dismissed", "1");

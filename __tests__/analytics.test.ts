@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
   analyticsCollectionAllowed,
+  analyticsConsentDecision,
   anonymousAnalyticsId,
   flushVerifiedAnalyticsOutbox,
   laneSourceFromSearch,
@@ -19,7 +20,7 @@ type FakeNavigator = Partial<Navigator> & {
   doNotTrack?: string;
 };
 
-function setWindow(navigatorOverrides: FakeNavigator = {}): void {
+function setWindow(navigatorOverrides: FakeNavigator = {}): Map<string, string> {
   const values = new Map<string, string>();
   const nav: FakeNavigator = {
     sendBeacon: vi.fn().mockReturnValue(true),
@@ -34,6 +35,7 @@ function setWindow(navigatorOverrides: FakeNavigator = {}): void {
       setItem: (key: string, value: string) => values.set(key, value),
     },
   };
+  return values;
 }
 
 function makeStorageThrow(): void {
@@ -142,6 +144,18 @@ describe("trackEvent", () => {
     expect(anonymousAnalyticsId()).toBeNull();
   });
 
+  it("persists both consent answers so declining does not become a first visit again", () => {
+    const storage = setWindow();
+    expect(analyticsConsentDecision()).toBeNull();
+
+    setAnalyticsConsent(true);
+    expect(analyticsConsentDecision()).toBe("granted");
+
+    setAnalyticsConsent(false);
+    expect(analyticsConsentDecision()).toBe("denied");
+    expect(storage.get("pubmaxx:analytics-consent:v1")).toBe("denied");
+  });
+
   it("fails closed when storage is blocked unless consent was explicitly granted in memory", () => {
     setWindow();
     makeStorageThrow();
@@ -149,9 +163,31 @@ describe("trackEvent", () => {
 
     setAnalyticsConsent(true);
     expect(anonymousAnalyticsId()).toMatch(/^anon_[a-f0-9-]{16,64}$/);
+    expect(analyticsConsentDecision()).toBe("granted");
 
     setAnalyticsConsent(false);
     expect(anonymousAnalyticsId()).toBeNull();
+    expect(analyticsConsentDecision()).toBe("denied");
+    expect(analyticsCollectionAllowed()).toBe(false);
+  });
+
+  it("stays undecided when a fresh session cannot read storage", async () => {
+    vi.resetModules();
+    setWindow();
+    makeStorageThrow();
+    const freshAnalytics = await import("@/lib/analytics");
+
+    expect(freshAnalytics.analyticsConsentDecision()).toBeNull();
+    expect(freshAnalytics.analyticsCollectionAllowed()).toBe(false);
+  });
+
+  it("never infers a consent decision from a missing storage record", () => {
+    const storage = setWindow();
+    setAnalyticsConsent(false);
+    storage.delete("pubmaxx:analytics-consent:v1");
+
+    expect(analyticsConsentDecision()).toBeNull();
+    expect(analyticsCollectionAllowed()).toBe(false);
   });
 
   it("forwards with empty props when none are given", () => {
