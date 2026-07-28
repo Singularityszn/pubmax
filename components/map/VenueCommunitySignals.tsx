@@ -3,7 +3,7 @@
 import { useMemo, useState, type FormEvent } from "react";
 import { ChevronDown, MessagesSquare } from "lucide-react";
 
-import type { CommunityPriceSubmitResult } from "@/components/map/useCommunityPrices";
+import type { CommunityVenueSignalSubmitResult } from "@/components/map/useCommunityPrices";
 import type { VenuePriceReadStatus } from "@/lib/mapExperienceLens";
 import {
   COMMUNITY_VENUE_SIGNAL_LABELS,
@@ -48,7 +48,7 @@ type VenueCommunitySignalsProps = {
     venueId: string;
     signalKey: CommunityVenueSignalKey;
     signalValue: CommunityVenueSignalValue;
-  }) => Promise<CommunityPriceSubmitResult>;
+  }) => Promise<CommunityVenueSignalSubmitResult>;
   /** Fixed test clock. The app leaves it undefined. */
   now?: number;
 };

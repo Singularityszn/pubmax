@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Turn the existing partial Visit Report substrate into the short, dated, contributor-attributed review lane that a future leaderboard can count.
+**Goal:** Turn the existing partial Visit Report substrate into the short, dated, contributor-attributed review lane that the contributor record can count.
 
 **Architecture:** Keep `Visit Report` as the canonical domain term and extend its existing browser-safe validator, dual memory/Supabase store, route, and moderation queue. Replace recommendation proxies and aggregate summaries with individual newest-first visit accounts containing only plan-changing observations. Mount one shared composer and reader in the map venue sheet and existing venue pages, with explicit ready/degraded read status and an exact visible-report count by contributor.
 

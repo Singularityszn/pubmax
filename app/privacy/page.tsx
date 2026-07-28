@@ -134,24 +134,56 @@ export default function PrivacyPage() {
           skies, raining, cold and windy, the reason you wrote, the time our
           server took it, and the same opaque device token described below. The
           handle is stored because the opinion is attributed to you and shown
-          with your name on it, and is what a future contributor count would be
-          counted from; the token is stored only to rate-limit writes and to
-          keep one contributor to one Recommendation per pub and condition, so
-          editing yours replaces it rather than stacking another. The weather
-          never writes a Recommendation. It only decides which of the ones
-          people wrote match right now.
+          with your name on it. A visible Recommendation counts on the public
+          contributor record only when that handle resolves to an existing
+          public profile. A self-asserted name without that profile can remain
+          visible on the Recommendation but is excluded from the ranking. The
+          token is stored only to rate-limit writes and to keep one contributor
+          to one Recommendation per pub and condition, so editing yours replaces
+          it rather than stacking another. The weather never writes a
+          Recommendation. It only decides which of the ones people wrote match
+          right now.
         </p>
 
         <h3 className="legalH3">Community price submissions</h3>
         <p className="legalBody">
           Anyone can log tonight&rsquo;s price without an account. We store the
-          venue, the drink category, the price and the time. We also store an
-          opaque device token derived server-side by salted SHA-256 hashing of
-          your IP address, never the address itself. That token exists so
-          one device can replace its own earlier entry instead of stacking
-          duplicates, and so a single device can&rsquo;t repaint the map on its
-          own. It can&rsquo;t be reversed back into an IP address, and we
-          don&rsquo;t use it to build a profile of you.
+          venue, the drink category, the price and the time. If your browser
+          already has a public PUBMAXX handle, the price form tells you and
+          sends that handle with the price. When your signed-in account owns
+          that identity, the server resolves any renamed handle to its current
+          name and the log counts there. When ownership cannot be proved, the
+          price still lands anonymously and does not enter the contributor
+          record.
+        </p>
+        <p className="legalBody">
+          Every price also carries an opaque device token derived server-side
+          by salted SHA-256 hashing of your IP address, never the address itself.
+          That token exists so one device can replace its own earlier entry
+          instead of stacking duplicates, and so a single device can&rsquo;t
+          repaint the map on its own. It can&rsquo;t be reversed back into an IP
+          address, and we don&rsquo;t use it to build a profile of you.
+        </p>
+
+        <h3 className="legalH3">Public contributor record</h3>
+        <p className="legalBody">
+          The public contributor record ranks existing public profiles by
+          contributions tied to that identity: visible prices posted, Visit
+          Reports written and Recommendations made, added together across all
+          time. Named Visit Reports and Recommendations that do not resolve to
+          an existing public profile can remain visible on their posts but are
+          excluded from this identity-backed ranking. It shows the combined
+          total and each of those three counts. Hidden or taken-down
+          contributions do not count. Anonymous price logs never appear under a
+          name.
+        </p>
+        <p className="legalBody">
+          We also keep whether a price was corroborated, whether a contribution
+          survived moderation and whether a price was later contradicted. Those
+          signals are kept so the record can be made more useful later without
+          losing its history. They do not change today&rsquo;s ranking, which is
+          based only on how many identity-backed, visible contributions a
+          profile has made.
         </p>
 
         <h3 className="legalH3">Community venue reports</h3>
@@ -161,9 +193,9 @@ export default function PrivacyPage() {
           whether people were eating. We store the venue, the answer and the
           time, plus the same opaque device token used for community prices.
           It lets your newer answer replace your older one, keeps one device
-          from confirming itself, and supplies a future contributor count. The
-          token is not shown with the report and does
-          not become a public name.
+          from confirming itself, and does not enter the public contributor
+          record. The token is not shown with the report and does not become a
+          public name.
         </p>
 
         <h3 className="legalH3">Location</h3>
@@ -440,7 +472,10 @@ export default function PrivacyPage() {
             itself stays, so later readers can see what people said and when.
             A row is one observation: the venue, either a drink and its price
             or one venue answer from a fixed list, the date and an unreversible
-            device token.
+            device token. A price logged without an attributed public handle
+            stays anonymous. If a public handle was attached,
+            that attribution stays with the price while it is up and counts on
+            the public contributor record.
           </li>
           <li>
             <strong>Recommendations:</strong>{" "}a Recommendation keeps your

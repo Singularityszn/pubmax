@@ -4,7 +4,7 @@
 // opinion. The server-derived actor hash is a separate private field used for
 // abuse controls and audit provenance. It never crosses this module's public
 // projection. One contributor owns one row per venue and weather condition, so
-// editing a reason cannot inflate future leaderboard counts.
+// editing a reason cannot inflate contributor-record counts.
 
 import { randomUUID } from "node:crypto";
 
@@ -21,6 +21,10 @@ import {
   type WeatherRecommendationInput,
 } from "@/lib/weatherRecommendations";
 import { normalizeHandle } from "@/lib/profiles";
+import type {
+  ContributionRecord,
+  ContributionRecordReadResult,
+} from "@/lib/contributorLeaderboard";
 
 const TABLE = "weather_recommendations";
 
@@ -49,10 +53,19 @@ export type WeatherRecommendationStore = {
   countForContributor(
     contributorHandle: string,
   ): Promise<WeatherRecommendationContributorCountResult>;
+  moderate(
+    id: string,
+    status: "visible" | "hidden",
+    note?: string,
+  ): Promise<boolean>;
+  listLeaderboardContributions(): Promise<ContributionRecordReadResult>;
 };
 
 type StoredWeatherRecommendation = WeatherRecommendation & {
   actorHash: string;
+  status: "visible" | "hidden";
+  moderatedAt?: number;
+  moderatorNote?: string;
 };
 
 type NormalizedWeatherRecommendationWrite = WeatherRecommendationInput & {
@@ -93,6 +106,28 @@ function published(
   };
 }
 
+function recommendationContributionRecord(
+  row: StoredWeatherRecommendation,
+): ContributionRecord {
+  return {
+    id: row.id,
+    handle: row.contributorHandle,
+    lane: "recommendation",
+    contributedAt: row.submittedAt,
+    visible: row.status === "visible",
+    quality: {
+      corroborated: null,
+      moderation:
+        row.status === "hidden"
+          ? "hidden"
+          : row.moderatedAt
+            ? "kept"
+            : "unreviewed",
+      contradicted: null,
+    },
+  };
+}
+
 type WeatherRecommendationMemoryState = {
   rows: Map<string, StoredWeatherRecommendation>;
   idsByNaturalKey: Map<string, string>;
@@ -120,6 +155,7 @@ export const memoryWeatherRecommendationStore: WeatherRecommendationStore = {
     const input = validWrite(raw);
     const key = naturalKey(input);
     const id = memoryIdsByNaturalKey.get(key) ?? randomUUID();
+    const previous = memoryRows.get(id);
     const row: StoredWeatherRecommendation = {
       id,
       venueId: input.venueId,
@@ -127,6 +163,13 @@ export const memoryWeatherRecommendationStore: WeatherRecommendationStore = {
       reason: input.reason,
       contributorHandle: input.contributorHandle,
       actorHash: input.actorHash,
+      status: previous?.status ?? "visible",
+      ...(previous?.moderatedAt
+        ? { moderatedAt: previous.moderatedAt }
+        : {}),
+      ...(previous?.moderatorNote
+        ? { moderatorNote: previous.moderatorNote }
+        : {}),
       submittedAt: now,
       source: "community",
     };
@@ -137,7 +180,7 @@ export const memoryWeatherRecommendationStore: WeatherRecommendationStore = {
 
   async listForVenue(venueId) {
     const recommendations = [...memoryRows.values()]
-      .filter((row) => row.venueId === venueId)
+      .filter((row) => row.venueId === venueId && row.status === "visible")
       .sort((left, right) => right.submittedAt - left.submittedAt)
       .slice(0, MAX_WEATHER_RECOMMENDATIONS_PER_VENUE)
       .map(published);
@@ -148,9 +191,29 @@ export const memoryWeatherRecommendationStore: WeatherRecommendationStore = {
     const handle = normalizeHandle(contributorHandle);
     if (!handle) return { status: "ready", count: 0 };
     const count = [...memoryRows.values()].filter(
-      (row) => row.contributorHandle === handle,
+      (row) =>
+        row.contributorHandle === handle && row.status === "visible",
     ).length;
     return { status: "ready", count };
+  },
+
+  async moderate(id, status, note) {
+    const row = memoryRows.get(id);
+    if (!row) return false;
+    row.status = status;
+    row.moderatedAt = Date.now();
+    const cleaned = typeof note === "string" ? note.trim().slice(0, 280) : "";
+    if (cleaned) row.moderatorNote = cleaned;
+    return true;
+  },
+
+  async listLeaderboardContributions() {
+    return {
+      status: "ready",
+      records: [...memoryRows.values()].map(
+        recommendationContributionRecord,
+      ),
+    };
   },
 };
 
@@ -161,9 +224,15 @@ type WeatherRecommendationRow = {
   reason: unknown;
   contributor_handle: unknown;
   submitted_at: unknown;
+  actor_hash?: unknown;
+  status?: unknown;
+  moderated_at?: unknown;
+  moderator_note?: unknown;
 };
 
-function fromRow(row: WeatherRecommendationRow): WeatherRecommendation | null {
+function storedFromRow(
+  row: WeatherRecommendationRow,
+): StoredWeatherRecommendation | null {
   const validation = validateWeatherRecommendation({
     venueId: row.venue_id,
     condition: row.condition,
@@ -179,7 +248,21 @@ function fromRow(row: WeatherRecommendationRow): WeatherRecommendation | null {
     ...validation.value,
     submittedAt,
     source: "community",
+    actorHash: typeof row.actor_hash === "string" ? row.actor_hash : "",
+    status: row.status === "hidden" ? "hidden" : "visible",
+    ...(typeof row.moderated_at === "string" &&
+    Number.isFinite(Date.parse(row.moderated_at))
+      ? { moderatedAt: Date.parse(row.moderated_at) }
+      : {}),
+    ...(typeof row.moderator_note === "string" && row.moderator_note
+      ? { moderatorNote: row.moderator_note }
+      : {}),
   };
+}
+
+function fromRow(row: WeatherRecommendationRow): WeatherRecommendation | null {
+  const stored = storedFromRow(row);
+  return stored ? published(stored) : null;
 }
 
 const { guard, resetWarnings } = createFailSoftGuard({
@@ -223,7 +306,7 @@ export const supabaseWeatherRecommendationStore: WeatherRecommendationStore = {
             { onConflict: "venue_id,condition,contributor_handle" },
           )
           .select(
-            "id, venue_id, condition, reason, contributor_handle, submitted_at",
+            "id, venue_id, condition, reason, contributor_handle, submitted_at, status, moderated_at, moderator_note",
           )
           .single();
         if (error) throw new Error(error.message);
@@ -249,9 +332,10 @@ export const supabaseWeatherRecommendationStore: WeatherRecommendationStore = {
         const { data, error } = await requireSupabaseAdmin()
           .from(TABLE)
           .select(
-            "id, venue_id, condition, reason, contributor_handle, submitted_at",
+            "id, venue_id, condition, reason, contributor_handle, submitted_at, status, moderated_at, moderator_note",
           )
           .eq("venue_id", venueId)
+          .eq("status", "visible")
           .order("submitted_at", { ascending: false })
           .limit(MAX_WEATHER_RECOMMENDATIONS_PER_VENUE);
         if (error) throw new Error(error.message);
@@ -280,9 +364,73 @@ export const supabaseWeatherRecommendationStore: WeatherRecommendationStore = {
         const { count, error } = await requireSupabaseAdmin()
           .from(TABLE)
           .select("id", { count: "exact", head: true })
-          .eq("contributor_handle", handle);
+          .eq("contributor_handle", handle)
+          .eq("status", "visible");
         if (error) throw new Error(error.message);
         return { status: "ready", count: count ?? 0 };
+      },
+    });
+  },
+
+  async moderate(id, status, note) {
+    if (!id) return false;
+    return guard<boolean>({
+      context: "moderate",
+      onSchemaMiss: () =>
+        onMissingDurableWrite({
+          storeTag: "weather-recommendations",
+          migrationHint: "apply migration 0059",
+          fallback: () =>
+            memoryWeatherRecommendationStore.moderate(id, status, note),
+        }),
+      run: async () => {
+        const cleaned =
+          typeof note === "string" ? note.trim().slice(0, 280) : "";
+        const { data, error } = await requireSupabaseAdmin()
+          .from(TABLE)
+          .update({
+            status,
+            moderated_at: new Date().toISOString(),
+            ...(cleaned ? { moderator_note: cleaned } : {}),
+          })
+          .eq("id", id)
+          .select("id");
+        if (error) throw new Error(error.message);
+        return (data ?? []).length > 0;
+      },
+    });
+  },
+
+  async listLeaderboardContributions() {
+    return guard<ContributionRecordReadResult>({
+      context: "leaderboard-contributions",
+      onSchemaMiss: async () => ({
+        ...(await memoryWeatherRecommendationStore.listLeaderboardContributions()),
+        status: "degraded",
+      }),
+      message: "leaderboard contribution read failed",
+      onError: () => ({ status: "degraded", records: [] }),
+      run: async () => {
+        const records: ContributionRecord[] = [];
+        const pageSize = 1_000;
+        for (let offset = 0; ; offset += pageSize) {
+          const { data, error } = await requireSupabaseAdmin()
+            .from(TABLE)
+            .select(
+              "id, venue_id, condition, reason, contributor_handle, actor_hash, submitted_at, status, moderated_at, moderator_note",
+            )
+            .order("submitted_at", { ascending: false })
+            .order("id", { ascending: true })
+            .range(offset, offset + pageSize - 1);
+          if (error) throw new Error(error.message);
+          const page = (data ?? []) as WeatherRecommendationRow[];
+          for (const row of page) {
+            const stored = storedFromRow(row);
+            if (stored) records.push(recommendationContributionRecord(stored));
+          }
+          if (page.length < pageSize) break;
+        }
+        return { status: "ready", records };
       },
     });
   },

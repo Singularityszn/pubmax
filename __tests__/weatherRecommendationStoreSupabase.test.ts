@@ -8,6 +8,9 @@ type Row = {
   contributor_handle: string;
   actor_hash: string;
   submitted_at: string;
+  status: "visible" | "hidden";
+  moderated_at?: string;
+  moderator_note?: string;
 };
 
 const db = vi.hoisted(() => ({
@@ -35,7 +38,7 @@ vi.mock("@/lib/supabase", () => {
 
     const query = {
       upsert(
-        raw: Omit<Row, "id">,
+        raw: Omit<Row, "id" | "status">,
         options: { onConflict: string },
       ) {
         db.conflictTarget = options.onConflict;
@@ -48,6 +51,13 @@ vi.mock("@/lib/supabase", () => {
         upserted = {
           ...raw,
           id: existing?.id ?? `recommendation-${db.rows.length + 1}`,
+          status: existing?.status ?? "visible",
+          ...(existing?.moderated_at
+            ? { moderated_at: existing.moderated_at }
+            : {}),
+          ...(existing?.moderator_note
+            ? { moderator_note: existing.moderator_note }
+            : {}),
         };
         if (existing) {
           db.rows.splice(db.rows.indexOf(existing), 1, upserted);
@@ -65,14 +75,24 @@ vi.mock("@/lib/supabase", () => {
       },
       eq(column: string, value: unknown) {
         filters.push({ column, value });
-        if (!countMode) return query;
-        if (db.failReads) {
+        return query;
+      },
+      then(
+        resolve: (result: {
+          count: number | null;
+          error: { message: string } | null;
+        }) => unknown,
+      ) {
+        if (countMode && db.failReads) {
           return Promise.resolve({
             count: null,
             error: { message: "database unavailable" },
-          });
+          }).then(resolve);
         }
-        return Promise.resolve({ count: filtered().length, error: null });
+        return Promise.resolve({
+          count: filtered().length,
+          error: null,
+        }).then(resolve);
       },
       order(column: keyof Row, options: { ascending: boolean }) {
         db.rows.sort((left, right) => {
@@ -205,6 +225,7 @@ describe("supabaseWeatherRecommendationStore", () => {
       contributor_handle: `person_${index}`,
       actor_hash: `server-actor-${index}`,
       submitted_at: new Date(index * 1_000).toISOString(),
+      status: "visible",
     }));
 
     const read =

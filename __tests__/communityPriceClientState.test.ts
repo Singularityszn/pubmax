@@ -5,6 +5,7 @@ import {
   provisionalBaseBackoffMs,
   PROVISIONAL_BASE_BACKOFF_MS,
   readCategoryPriceIndexLoad,
+  readCommunityPriceAttribution,
   readProvisionalVenueIdsLoad,
   readVenueSignalLoad,
   readVenuePriceLoad,
@@ -71,6 +72,24 @@ describe("provisionalBaseBackoffMs", () => {
 });
 
 describe("community price client state", () => {
+  it("trusts only a server-confirmed contributor attribution", () => {
+    expect(
+      readCommunityPriceAttribution({
+        status: "credited",
+        handle: "@Night_Owl",
+      }),
+    ).toEqual({ status: "credited", handle: "night_owl" });
+    expect(
+      readCommunityPriceAttribution({
+        status: "credited",
+        handle: "",
+      }),
+    ).toEqual({ status: "anonymous" });
+    expect(readCommunityPriceAttribution(null)).toEqual({
+      status: "anonymous",
+    });
+  });
+
   it("reads only newly visible stable base ids", () => {
     expect(
       planProvisionalBaseVenueRead(

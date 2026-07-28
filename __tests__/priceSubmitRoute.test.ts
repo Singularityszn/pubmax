@@ -16,6 +16,12 @@ vi.mock("@/lib/supabase", async (importOriginal) => {
   return { ...actual, isSupabaseConfigured: () => false, requiresSupabaseStore: () => false };
 });
 
+const authState = vi.hoisted(() => ({ userId: null as string | null }));
+vi.mock("@/lib/authServer", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/authServer")>();
+  return { ...actual, callerUserId: async () => authState.userId };
+});
+
 // Lets one case simulate the requested city pack failing to load; every other
 // case passes through to the real city-scoped canonical lookup on disk.
 const venueIndexState = vi.hoisted(() => ({ unavailable: false }));
@@ -76,10 +82,19 @@ vi.mock("@/lib/communityPriceStore", async (importOriginal) => {
 import { GET, POST } from "@/app/api/price-submit/route";
 import {
   __resetCommunityPrices,
+  memoryCommunityPriceStore,
   readCommunityPrices,
 } from "@/lib/communityPriceStore";
 import { COMMUNITY_PRICE_MAX_GBP } from "@/lib/communityPrice";
+import {
+  __resetMemoryIdentityHandles,
+  memoryIdentityHandleStore,
+} from "@/lib/identityHandleStore";
 import { __resetPintDrops } from "@/lib/pintDrops";
+import {
+  __resetMemoryProfiles,
+  memoryProfileStore,
+} from "@/lib/profileStore";
 import { getUkBaseIdIndex } from "@/lib/ukBaseIndex";
 import {
   MAX_PROVISIONAL_BASE_VENUE_IDS,
@@ -91,6 +106,7 @@ import { isPubVenueKind } from "@/lib/venueKindFilters";
 type PriceBody = {
   ok?: boolean;
   error?: string;
+  attribution?: { status: "credited"; handle: string } | { status: "anonymous" };
   price?: {
     priceGbp: number;
     drinkCategory: string;
@@ -144,7 +160,10 @@ beforeEach(() => {
   ukBaseIndexState.unavailable = false;
   readBackState.override = null;
   readBackState.statusOverride = null;
+  authState.userId = null;
   __resetCommunityPrices();
+  __resetMemoryIdentityHandles();
+  __resetMemoryProfiles();
   __resetPintDrops();
 });
 
@@ -169,6 +188,120 @@ describe("POST /api/price-submit", () => {
     expect(data.price?.priceGbp).toBe(4.2);
     expect(data.price?.source).toBe("community");
     expect(typeof data.price?.submittedAt).toBe("number");
+    expect(data.attribution).toEqual({ status: "anonymous" });
+    expect(
+      (await memoryCommunityPriceStore.listLeaderboardContributions()).records,
+    ).toEqual([]);
+  });
+
+  it("keeps an unowned asserted handle anonymous without creating a profile", async () => {
+    authState.userId = "user-night-owl";
+    const res = await POST(
+      post({
+        venueId: "venue-xjf3n0",
+        drinkCategory: "beer",
+        priceGbp: 4.2,
+        contributorHandle: "@Night_Owl",
+      }),
+    );
+
+    expect(res.status).toBe(201);
+    expect((await res.json() as PriceBody).attribution).toEqual({
+      status: "anonymous",
+    });
+    expect(await memoryProfileStore.getByHandle("night_owl")).toBeNull();
+    expect(
+      (await memoryCommunityPriceStore.listLeaderboardContributions()).records,
+    ).toEqual([]);
+  });
+
+  it("credits a renamed handle through its immutable owned identity", async () => {
+    authState.userId = "user-night-owl";
+    expect(
+      await memoryIdentityHandleStore.claim(authState.userId, "night_owl"),
+    ).toMatchObject({ ok: true });
+    expect(
+      await memoryIdentityHandleStore.rename(authState.userId, "dawn_owl"),
+    ).toMatchObject({
+      ok: true,
+      previousHandle: "night_owl",
+      handle: "dawn_owl",
+    });
+
+    const res = await POST(
+      post({
+        venueId: "venue-xjf3n0",
+        drinkCategory: "beer",
+        priceGbp: 4.2,
+        contributorHandle: "night_owl",
+      }),
+    );
+
+    expect(res.status).toBe(201);
+    expect((await res.json() as PriceBody).attribution).toEqual({
+      status: "credited",
+      handle: "dawn_owl",
+    });
+    const read =
+      await memoryCommunityPriceStore.listLeaderboardContributions();
+    expect(read).toMatchObject({
+      status: "ready",
+      records: [
+        {
+          handle: "dawn_owl",
+          lane: "price",
+          visible: true,
+        },
+      ],
+    });
+    expect(JSON.stringify(read)).not.toContain("actor");
+  });
+
+  it("stores a stale linked-handle submission anonymously after sign-out", async () => {
+    await memoryProfileStore.linkUser("night_owl", "user-night-owl");
+
+    const res = await POST(
+      post({
+        venueId: "venue-xjf3n0",
+        drinkCategory: "beer",
+        priceGbp: 4.2,
+        contributorHandle: "night_owl",
+      }),
+    );
+
+    expect(res.status).toBe(201);
+    expect((await res.json() as PriceBody).attribution).toEqual({
+      status: "anonymous",
+    });
+    expect(await readCommunityPrices("venue-xjf3n0")).toHaveLength(1);
+    expect(
+      (await memoryCommunityPriceStore.listLeaderboardContributions()).records,
+    ).toEqual([]);
+  });
+
+  it("stores a submission anonymously when optional profile lookup fails", async () => {
+    authState.userId = "user-night-owl";
+    vi.spyOn(memoryProfileStore, "getByHandle").mockRejectedValueOnce(
+      new Error("profile store unavailable"),
+    );
+
+    const res = await POST(
+      post({
+        venueId: "venue-xjf3n0",
+        drinkCategory: "beer",
+        priceGbp: 4.2,
+        contributorHandle: "night_owl",
+      }),
+    );
+
+    expect(res.status).toBe(201);
+    expect((await res.json() as PriceBody).attribution).toEqual({
+      status: "anonymous",
+    });
+    expect(await readCommunityPrices("venue-xjf3n0")).toHaveLength(1);
+    expect(
+      (await memoryCommunityPriceStore.listLeaderboardContributions()).records,
+    ).toEqual([]);
   });
 
   it("never trusts a client-supplied timestamp or source", async () => {

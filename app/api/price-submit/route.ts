@@ -39,10 +39,12 @@
 // No Supabase and no env are required.
 
 import { jsonNoStore } from "@/lib/apiResponses";
+import { callerUserId } from "@/lib/authServer";
 import { deriveCommunityPriceActor } from "@/lib/communityPriceActor";
 import {
   NO_ALCOHOL_DRINK_CATEGORIES,
   validateCommunityPrice,
+  type CommunityPriceAttribution,
 } from "@/lib/communityPrice";
 import { validateCommunityVenueSignal } from "@/lib/communityVenueSignals";
 import { isDrinkCategory } from "@/lib/drinks";
@@ -57,7 +59,12 @@ import {
   submitCommunityPrice,
   submitCommunityVenueSignal,
 } from "@/lib/communityPriceStore";
+import {
+  identityHandleStore,
+} from "@/lib/identityHandleStore";
 import { isLimited } from "@/lib/pintDrops";
+import { profileStore } from "@/lib/profileStore";
+import { normalizeHandle } from "@/lib/profiles";
 import { getUkBaseIdIndex } from "@/lib/ukBaseIndex";
 import {
   isUkBaseId,
@@ -125,6 +132,29 @@ async function communityWriteIsLimited(
   if (await isLimited(actorLimitKey, actorLimitKey, 30, 3_600_000)) return true;
   const venueLimitKey = `price-submit:${actor ?? "anon"}:${venueId}`;
   return isLimited(venueLimitKey, venueLimitKey);
+}
+
+async function resolveOptionalPriceAttribution(
+  request: Request,
+  assertedHandle: string | undefined,
+): Promise<CommunityPriceAttribution> {
+  if (!assertedHandle) return { status: "anonymous" };
+  try {
+    const presented = assertedHandle.trim().replace(/^@/, "").toLowerCase();
+    const handle = normalizeHandle(assertedHandle);
+    if (!handle || handle !== presented) return { status: "anonymous" };
+    const ownerId = await callerUserId(request);
+    if (!ownerId) return { status: "anonymous" };
+    const [resolution, ownedProfile] = await Promise.all([
+      identityHandleStore().resolve(handle),
+      profileStore().getByUserId(ownerId),
+    ]);
+    return resolution && ownedProfile?.id === resolution.profileId
+      ? { status: "credited", handle: resolution.currentHandle }
+      : { status: "anonymous" };
+  } catch {
+    return { status: "anonymous" };
+  }
 }
 
 export async function POST(request: Request): Promise<Response> {
@@ -241,6 +271,10 @@ export async function POST(request: Request): Promise<Response> {
   const submission = { ...result.value, venueId: resolved.venueId };
 
   const actor = deriveCommunityPriceActor(request);
+  const attribution = await resolveOptionalPriceAttribution(
+    request,
+    readString(body.contributorHandle),
+  );
 
   // Cap one device across every venue before applying the tighter per-venue
   // budget. Without this actor-only key, changing venueId resets the budget and
@@ -253,7 +287,13 @@ export async function POST(request: Request): Promise<Response> {
 
   // submitCommunityPrice never throws; a hard durable-write failure comes back
   // flagged so we answer 503 (degraded dependency) rather than a fake success.
-  const { price, failed } = await submitCommunityPrice({ ...submission, actor });
+  const { price, failed } = await submitCommunityPrice({
+    ...submission,
+    actor,
+    ...(attribution.status === "credited"
+      ? { contributorHandle: attribution.handle }
+      : {}),
+  });
   if (failed || !price) {
     return jsonNoStore({ error: "Could not log that price right now." }, { status: 503 });
   }
@@ -282,6 +322,7 @@ export async function POST(request: Request): Promise<Response> {
   return jsonNoStore(
     {
       ok: true,
+      attribution,
       price:
         record ??
         {

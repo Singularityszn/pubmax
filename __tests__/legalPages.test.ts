@@ -173,8 +173,22 @@ describe("legal content pages", () => {
     expect(privacy).toMatch(/door policy/);
     expect(privacy).toMatch(/people were eating/);
     expect(privacy).toMatch(/same opaque device token/);
-    expect(privacy).toMatch(/future contributor count/);
+    expect(privacy).toMatch(/does not enter the public contributor\s+record/);
     expect(privacy).toMatch(/Community prices and venue reports:/);
+  });
+
+  it("explains public contributor ranking and optional price attribution", () => {
+    expect(privacy).toMatch(/public contributor record/i);
+    expect(privacy).toMatch(
+      /prices[\s\S]*Visit Reports[\s\S]*Recommendations/i,
+    );
+    expect(privacy).toMatch(/cannot[\s\S]*lands anonymously/i);
+    expect(privacy).toMatch(/hidden[\s\S]*do not count/i);
+    expect(privacy).toMatch(
+      /Visit Reports and Recommendations[\s\S]*existing public profile[\s\S]*remain visible[\s\S]*excluded/i,
+    );
+    expect(privacy).toMatch(/all\s+time/i);
+    expect(privacy).not.toMatch(/future contributor count/i);
   });
 
   it("names all three price lanes and fences the historical one", () => {
