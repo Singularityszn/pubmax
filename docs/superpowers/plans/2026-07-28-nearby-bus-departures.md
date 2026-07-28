@@ -4,7 +4,7 @@
 
 **Goal:** Show fresh TfL bus departures from walkable stops near a London pub inside the venue sheet's existing getting-home journey.
 
-**Architecture:** Extract the existing guarded TfL request helper from the last-train route so both transport routes share one client. Add one bounded, no-store bus route that finds stops within 500 metres, fetches their arrivals in one call, rejects stale predictions, and returns destinations plus straight-line stop distances. Render it as a lazy, collapsed disclosure beneath Last Pint, so it appears only after explicit getting-home intent and adds one compact row to the closed 390px sheet.
+**Architecture:** Extract the existing guarded TfL request helper from the last-train route so both transport routes share one client. Add one bounded, no-store bus route that finds stops within 500 metres, fetches each capped stop's arrivals concurrently inside a single deadline, rejects stale predictions, and returns destinations plus straight-line stop distances. Render it as a lazy, collapsed disclosure beneath Last Pint, so it appears only after explicit getting-home intent and adds one compact row to the closed 390px sheet.
 
 **Tech Stack:** Next.js 16 App Router, React 19, TypeScript, Vitest, existing TfL Unified API access, existing venue-sheet CSS tokens.
 
@@ -46,7 +46,7 @@ The card does not wait that long before speaking. After `BUS_DEPARTURES_SLOW_WAI
 - Test: `__tests__/lastTrainRoute.test.ts`
 
 **Interfaces:**
-- Produces: `tflGet<T>(path: string, options?: { retries?: number; timeoutMs?: number }): Promise<T | null>`
+- Produces: `tflFetch<T>(path, options?: { retries?: number; timeoutMs?: number }): Promise<TflOutcome<T>>`, which reports whether a failure was retryable, plus `tflGet<T>(...): Promise<T | null>` for callers that only need the answer.
 - Preserves: HTTPS-only `api.tfl.gov.uk` allow-list, optional `TFL_APP_KEY`, timeout, retry, and User-Agent behaviour.
 
 - [ ] **Step 1: Keep the existing off-host and failure tests as the red/green safety net**
@@ -155,7 +155,7 @@ Expected: FAIL because route does not exist.
 
 - [ ] **Step 7: Implement minimal route**
 
-Use shared `tflGet`, `pointInCityBounds`, and `isLastRideLimited`. Query `NaptanPublicBusCoachTram` stops within 500 metres with `modes=bus`, cap nearest stops at four, fetch each capped stop ID through its own concurrent Arrivals call, group fresh predictions by `naptanId`, and return `unavailable` when live predictions cannot be checked.
+Use shared `tflFetch`, `pointInCityBounds`, and `isLastRideLimited`. Query `NaptanPublicBusCoachTram` stops within 500 metres with `modes=bus`, cap nearest stops at four, fetch each capped stop ID through its own concurrent Arrivals call, group fresh predictions by `naptanId`, and return `unavailable` when live predictions cannot be checked.
 
 - [ ] **Step 8: Run route tests and verify GREEN**
 

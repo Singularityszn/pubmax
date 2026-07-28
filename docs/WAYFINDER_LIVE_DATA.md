@@ -25,7 +25,7 @@ page, official API, open data) supports.
 
 | Data class | Current source | Refresh path (today) | Actual cadence today | Gate | Freshest honest cadence | Staleness budget |
 |---|---|---|---|---|---|---|
-| **TfL last-train / last-drink** | `api.tfl.gov.uk` (keyless) | `app/api/last-train` fetches **per request**, never disk-cached | Live | none (`TFL_APP_KEY` only raises limits) | Live (real-time arrivals) | live |
+| **TfL last-train / last-drink / nearby buses** | `api.tfl.gov.uk` (keyless) | `app/api/last-train` and `app/api/nearby-bus-departures` fetch **per request** through the shared `lib/tflClient.server.ts` client, never disk-cached | Live | none (`TFL_APP_KEY` only raises limits) | Live (real-time arrivals) | live |
 | **Weather** | Open-Meteo (keyless) | Vercel `refresh-weather` cron to durable weather store | Every 6 h | none | Every 6 h | 48 h |
 | **Night signals** | Staged candidate claims, offline-reviewed | Vercel candidate cron; manual approved publish to `night_signals/latest.json` | Candidate sweep daily; reviewed feed advances only on human publish | `EXA_API_KEY` arms candidate ingestion; **human review always** | Human-gated episodic | untracked |
 | **What's-On — baseline** (sport/quiz/deals/music) | Hand-verified first-party rows in `scripts/whatson/*.json` | Vercel slim revalidation + CityMCP blend at request time; full ingest stays manual | Daily slim window; episodic baseline | none | Daily served-window revalidation | 48 h (envelope) |
@@ -74,7 +74,7 @@ sets a secret. Exact env var → mechanism mapping:
 | `SKIDDLE_API_KEY` | GH Actions secret (branch `feat/event-sources`) | What's-On events (Skiddle) — **also needs written commercial approval from dev@skiddle.com** | Provider noop-skipped |
 | `FIRECRAWL_API_KEY` | Local `.env` / CI secret | Menu scraping (food prices), Wetherspoons directory refresh, research | Those harvest scripts can't fetch; bundled data unaffected |
 | `EXA_API_KEY` + `FIRECRAWL_API_KEY` | Local environment; future GitHub Actions secrets | Governed restaurant/attraction discovery plus source-page JSON-LD transport (`ingest:night-out-places`) | Script halts before write and reports `OWNER ACTION`; the committed honest-empty feed remains untouched |
-| `TFL_APP_KEY` | Vercel env | Higher TfL rate limits | Last-train works fully keyless; only limits are lower |
+| `TFL_APP_KEY` | Vercel env | Higher TfL rate limits | Every TfL surface (last-train, nearby buses) works fully keyless; only limits are lower |
 | `OPENROUTER_API_KEY` | Vercel env | The Landlord heritage narration | `/api/heritage` returns grounded, structured-only answers |
 | `NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN`, `NEXT_PUBLIC_POSTHOG_HOST` | Vercel env | Consent-gated PostHog EU product analytics and scrubbed browser exceptions | Events still logged to Vercel structured sink |
 | `ELEVENLABS_API_KEY` + `ELEVENLABS_PUB_PAL_AGENT_ID` | Vercel env | Pub Pal conversational voice token | Voice session unavailable |
