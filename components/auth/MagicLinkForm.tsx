@@ -11,10 +11,12 @@ function looksLikeEmail(value: string): boolean {
 
 export default function MagicLinkForm({
   disabled,
+  hasSocialProviders,
   signInWithEmail,
   cancelAuthAttempt,
 }: {
   disabled: boolean;
+  hasSocialProviders: boolean;
   signInWithEmail: (email: string) => Promise<MagicLinkResult>;
   cancelAuthAttempt: () => void;
 }): React.JSX.Element {
@@ -48,7 +50,7 @@ export default function MagicLinkForm({
   return (
     <form className="authMagicLink" onSubmit={submit} noValidate>
       <label className="authMagicLinkLabel" htmlFor={inputId}>
-        Or continue with email
+        {hasSocialProviders ? "Or continue with email" : "Continue with email"}
       </label>
       <div className="authMagicLinkRow">
         <input

@@ -32,6 +32,12 @@ import IdentityNudge from "@/components/identity/IdentityNudge";
 import { trackEvent } from "@/lib/analytics";
 import { exchangeAuthCallbackCode } from "@/lib/authCallbackClient";
 import { ensureSupabaseBrowser, isAuthConfigured } from "@/lib/authClient";
+import {
+  guardSocialAuthProvider,
+  loadSocialAuthProviders,
+  NO_SOCIAL_AUTH_PROVIDERS,
+  type SocialAuthProviderAvailability,
+} from "@/lib/authProviderAvailability";
 import { createAuthSessionTransitionTracker } from "@/lib/authSessionTransition";
 import {
   AUTH_RETURN_FRAGMENT_RESTORED_EVENT,
@@ -187,6 +193,8 @@ export type AuthContextValue = {
   loading: boolean;
   /** True when the public Supabase env is present (sign-in can be attempted). */
   configured: boolean;
+  /** Social providers enabled by the current Supabase Auth settings read. */
+  socialProviders: SocialAuthProviderAvailability;
   /** Start the Google OAuth redirect. No-op (returns an error) when unconfigured. */
   signInWithGoogle: () => Promise<{ error: string | null }>;
   /** Start the Microsoft (Azure) OAuth redirect. No-op when unconfigured. */
@@ -224,6 +232,8 @@ export function AuthProvider({ children }: { children: ReactNode }): React.JSX.E
   const [claimError, setClaimError] = useState<string | null>(null);
   const [canonicalHandle, setCanonicalHandle] = useState<string | null>(null);
   const [authCallbackError, setAuthCallbackError] = useState<string | null>(null);
+  const [socialProviders, setSocialProviders] =
+    useState<SocialAuthProviderAvailability>(NO_SOCIAL_AUTH_PROVIDERS);
   const configured = isAuthConfigured();
   const sessionTransitions = useRef(createAuthSessionTransitionTracker());
   const updateSession = useCallback((nextSession: Session | null, event: string | null = null) => {
@@ -241,6 +251,19 @@ export function AuthProvider({ children }: { children: ReactNode }): React.JSX.E
   const callbackExchangeInFlight = useRef<
     Promise<{ session: Session | null; failed: boolean }> | null
   >(null);
+
+  useEffect(() => {
+    if (!configured) return;
+    let active = true;
+    void loadSocialAuthProviders().then((availability) => {
+      if (active) {
+        setSocialProviders(availability ?? NO_SOCIAL_AUTH_PROVIDERS);
+      }
+    });
+    return () => {
+      active = false;
+    };
+  }, [configured]);
   const capturedCallback = useRef<Promise<CapturedAuthCallback | null> | undefined>(undefined);
 
   useEffect(() => {
@@ -559,7 +582,7 @@ export function AuthProvider({ children }: { children: ReactNode }): React.JSX.E
     };
   }, [closeClaim, syncIdentityAfterSignIn, updateSession]);
 
-  const signInWithGoogle = useCallback(async (): Promise<{ error: string | null }> => {
+  const startGoogleOAuth = useCallback(async (): Promise<{ error: string | null }> => {
     if (typeof window === "undefined") return { error: "Sign-in is unavailable on this page." };
     const attempt = await prepareAuthCallback(window.location.href);
     if ("navigationStarted" in attempt) return { error: null };
@@ -584,7 +607,7 @@ export function AuthProvider({ children }: { children: ReactNode }): React.JSX.E
     }
   }, []);
 
-  const signInWithMicrosoft = useCallback(async (): Promise<{ error: string | null }> => {
+  const startMicrosoftOAuth = useCallback(async (): Promise<{ error: string | null }> => {
     if (typeof window === "undefined") return { error: "Sign-in is unavailable on this page." };
     const attempt = await prepareAuthCallback(window.location.href);
     if ("navigationStarted" in attempt) return { error: null };
@@ -611,6 +634,18 @@ export function AuthProvider({ children }: { children: ReactNode }): React.JSX.E
       return { error: "Sign-in could not be started. Try again." };
     }
   }, []);
+
+  const signInWithGoogle = useCallback(async (): Promise<{ error: string | null }> => {
+    const guarded = await guardSocialAuthProvider("google", startGoogleOAuth);
+    setSocialProviders(guarded.availability ?? NO_SOCIAL_AUTH_PROVIDERS);
+    return guarded.result;
+  }, [startGoogleOAuth]);
+
+  const signInWithMicrosoft = useCallback(async (): Promise<{ error: string | null }> => {
+    const guarded = await guardSocialAuthProvider("microsoft", startMicrosoftOAuth);
+    setSocialProviders(guarded.availability ?? NO_SOCIAL_AUTH_PROVIDERS);
+    return guarded.result;
+  }, [startMicrosoftOAuth]);
 
   const signInWithEmail = useCallback(
     async (email: string, next?: string): Promise<MagicLinkResult> => {
@@ -653,6 +688,7 @@ export function AuthProvider({ children }: { children: ReactNode }): React.JSX.E
       user,
       loading,
       configured,
+      socialProviders,
       signInWithGoogle,
       signInWithMicrosoft,
       signInWithEmail,
@@ -660,7 +696,7 @@ export function AuthProvider({ children }: { children: ReactNode }): React.JSX.E
       signOut,
       handle: canonicalHandle ?? handleFromUser(user),
     };
-  }, [session, loading, configured, signInWithGoogle, signInWithMicrosoft, signInWithEmail, signOut, canonicalHandle]);
+  }, [session, loading, configured, socialProviders, signInWithGoogle, signInWithMicrosoft, signInWithEmail, signOut, canonicalHandle]);
 
   return (
     <AuthContext.Provider value={value}>
@@ -699,6 +735,7 @@ export function useAuth(): AuthContextValue {
     user: null,
     loading: false,
     configured: false,
+    socialProviders: NO_SOCIAL_AUTH_PROVIDERS,
     signInWithGoogle: async () => ({ error: "Sign-in is not configured." }),
     signInWithMicrosoft: async () => ({ error: "Sign-in is not configured." }),
     signInWithEmail: async () => ({ status: "error", message: "Sign-in is not configured." }),

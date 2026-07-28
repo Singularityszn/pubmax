@@ -1,5 +1,58 @@
 import { NextResponse } from "next/server";
-import type { NextRequest } from "next/server";
+import type { NextRequest, ProxyConfig } from "next/server";
+
+const CANONICAL_HOST = "pubmaxxing.com";
+
+function normalizeHostname(host: string | null | undefined): string | null {
+  const normalizedHost = host?.trim().toLowerCase();
+  if (!normalizedHost) return null;
+  if (normalizedHost.startsWith("[")) {
+    const closingBracket = normalizedHost.indexOf("]");
+    return closingBracket === -1
+      ? normalizedHost
+      : normalizedHost.slice(1, closingBracket);
+  }
+  return normalizedHost.replace(/:\d+$/, "").replace(/\.$/, "");
+}
+
+function requestHostname(request: NextRequest): string {
+  return (
+    normalizeHostname(request.headers.get("host")) ??
+    request.nextUrl.hostname.toLowerCase()
+  );
+}
+
+function isArtifactPreviewHost(request: NextRequest): boolean {
+  const hostname = requestHostname(request);
+  return [
+    request.headers.get("x-vercel-deployment-url"),
+    process.env.VERCEL_BRANCH_URL,
+  ].some((artifactHost) => normalizeHostname(artifactHost) === hostname);
+}
+
+function shouldRedirectVercelHost(request: NextRequest): boolean {
+  if (!requestHostname(request).endsWith(".vercel.app")) return false;
+  return !(
+    process.env.VERCEL_ENV === "preview" &&
+    isArtifactPreviewHost(request)
+  );
+}
+
+function shouldSkipContentSecurityPolicy(request: NextRequest): boolean {
+  const { pathname } = request.nextUrl;
+  const excludedPath =
+    pathname === "/api" ||
+    pathname.startsWith("/api/") ||
+    pathname === "/_next/static" ||
+    pathname.startsWith("/_next/static/") ||
+    pathname === "/_next/image" ||
+    pathname.startsWith("/_next/image/") ||
+    pathname === "/favicon.ico";
+  const prefetch =
+    request.headers.has("next-router-prefetch") ||
+    request.headers.get("purpose") === "prefetch";
+  return excludedPath || prefetch;
+}
 
 // Per-request Content-Security-Policy with a fresh nonce.
 //
@@ -29,6 +82,13 @@ import type { NextRequest } from "next/server";
 // can be built per-request with the live nonce.
 export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
+  if (shouldRedirectVercelHost(request)) {
+    const canonicalUrl = new URL(request.url);
+    canonicalUrl.protocol = "https:";
+    canonicalUrl.host = CANONICAL_HOST;
+    canonicalUrl.port = "";
+    return NextResponse.redirect(canonicalUrl, 308);
+  }
   if (pathname === "/ingest" || pathname.startsWith("/ingest/")) {
     return NextResponse.next();
   }
@@ -36,6 +96,9 @@ export function proxy(request: NextRequest) {
     const canonicalUrl = new URL(request.url);
     canonicalUrl.pathname = pathname.slice(0, -1);
     return NextResponse.redirect(canonicalUrl, 308);
+  }
+  if (shouldSkipContentSecurityPolicy(request)) {
+    return NextResponse.next();
   }
 
   // Crypto-random, base64-encoded nonce (a fresh UUID per request).
@@ -112,6 +175,10 @@ export function proxy(request: NextRequest) {
 
 export const config = {
   matcher: [
+    {
+      source: "/:path*",
+      has: [{ type: "host", value: ".+\\.vercel\\.app" }],
+    },
     { source: "/:path+/" },
     {
       source: "/((?!api|ingest|_next/static|_next/image|favicon.ico).*)",
@@ -121,4 +188,4 @@ export const config = {
       ],
     },
   ],
-};
+} satisfies ProxyConfig;
