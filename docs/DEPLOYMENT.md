@@ -99,7 +99,7 @@ Buckets are not SQL objects, so create it **out of band** (Supabase dashboard �
 
 ### 3. Browser sign-in (email magic link + Google + Microsoft)
 
-The app calls Supabase Auth with `signInWithOtp` for passwordless email and `signInWithOAuth` for Google/Microsoft. All three finish the PKCE exchange at `/auth/callback`, then return to the same-origin path where sign-in started. The callback rejects absolute, protocol-relative, and backslash redirect targets; never add a client-controlled redirect that bypasses that seam. URL fragments are never copied into Supabase's `redirectTo`: the browser holds them in a TTL-limited record keyed by a cryptographically random attempt ID and restores them only for the matching return path, because Plan invite fragments contain one-use capabilities. Supabase uses one browser PKCE verifier per project, so the app atomically allows only one live attempt across tabs through the Web Locks API and gives an honest error instead of overwriting another tab's attempt. The initiating tab also records its attempt in `sessionStorage`, allowing an explicit retry after backing out of the provider without weakening cross-tab isolation. Persistent browser storage and the Web Locks API are required for this PKCE coordination; browsers that disable either fail closed with an actionable message because an in-memory verifier cannot reliably survive the provider's full-page round trip. Secrets stay in the Supabase dashboard — the Next.js app only needs the public URL + publishable key above.
+The app calls Supabase Auth with `signInWithOtp` for passwordless email and `signInWithOAuth` for Google/Microsoft. All three finish the PKCE exchange at the canonical site's `/auth/callback`, then return to the path where sign-in started. The callback rejects absolute, protocol-relative, and backslash redirect targets; never add a client-controlled redirect that bypasses that seam. URL fragments are never copied into Supabase's `redirectTo`: the browser holds them in a TTL-limited record keyed by a cryptographically random attempt ID and restores them only for the matching return path, because Plan invite fragments contain one-use capabilities. Supabase uses one browser PKCE verifier per project, so the app atomically allows only one live attempt across tabs through the Web Locks API and gives an honest error instead of overwriting another tab's attempt. The initiating tab also records its attempt in `sessionStorage`, allowing an explicit retry after backing out of the provider without weakening cross-tab isolation. Persistent browser storage and the Web Locks API are required for this PKCE coordination; browsers that disable either fail closed with an actionable message because an in-memory verifier cannot reliably survive the provider's full-page round trip. Secrets stay in the Supabase dashboard - the Next.js app only needs the public URL + publishable key above.
 
 #### Shared Supabase URL config
 
@@ -108,9 +108,38 @@ Dashboard → Authentication → URL Configuration:
 | Setting | Value |
 |---|---|
 | Site URL | `https://pubmaxxing.com` (canonical production apex) |
-| Redirect URLs | `https://pubmaxxing.com/auth/callback`, `https://www.pubmaxxing.com/auth/callback`, `http://localhost:3000/auth/callback`, plus any preview hosts you use |
+| Redirect URLs | `https://pubmaxxing.com/auth/callback`, `http://localhost:3000/auth/callback` |
 
-Preview hosts must be listed explicitly (or with Supabase's narrowly scoped preview wildcard pattern); do not add a broad wildcard covering unrelated domains.
+Set `NEXT_PUBLIC_SITE_URL=https://pubmaxxing.com` in every deployed Vercel
+environment, including previews. Deployed auth always requests the apex
+callback, so do not allowlist `*.vercel.app`, preview hosts, or `www`. A rejected
+`redirectTo` makes Supabase fall back to Site URL. If Site URL points at a
+deployment host, an email link lands there without the initiating origin's PKCE
+verifier and sign-in cannot complete.
+
+These controls solve different problems:
+
+- Vercel Deployment Protection is access control. The Vercel Authentication
+  scope **Production Deployment URLs and All Preview Deployments** keeps the
+  custom production domain public while protecting deployment URLs and
+  previews. Configure it in Vercel Project Settings under Deployment
+  Protection. Signed-in team members can still open protected URLs. Other
+  reviewers need a temporary share link, and automated checks need an
+  automation bypass secret.
+- A permanent host redirect is canonicalisation, not access control. Redirecting
+  only `chengdu-pubmax69.vercel.app` to the apex stops that named host serving an
+  independent copy while leaving other preview URLs usable for review. Cost:
+  that alias can no longer show its deployed build, and it remains reachable
+  enough to issue the redirect. A wildcard redirect for every `.vercel.app`
+  hostname also makes every preview unusable because it immediately leaves for
+  production.
+
+Recommendation: retain that Vercel Authentication scope, keep `www` redirecting
+to the apex, keep all identity-provider callbacks on the apex, and add an exact
+host redirect for `chengdu-pubmax69.vercel.app`. That combination blocks
+anonymous access and removes the named alias for signed-in Vercel users without
+breaking other previews. Do not apply the redirect to all preview hosts unless
+losing preview review is an accepted trade-off.
 
 #### Passwordless email (magic link)
 

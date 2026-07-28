@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
   AUTH_COORDINATION_UNAVAILABLE_MESSAGE,
@@ -153,6 +153,10 @@ describe("passwordless magic-link auth", () => {
 });
 
 describe("auth callback URL safety", () => {
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
   const ATTEMPT_A = "a".repeat(32);
   const ATTEMPT_B = "b".repeat(32);
 
@@ -226,6 +230,74 @@ describe("auth callback URL safety", () => {
       .toBe(
         `https://pubmaxxing.com/auth/callback?next=%2Fmap%3Farea%3Dsoho&_authAttempt=${ATTEMPT_A}`,
       );
+  });
+
+  it("uses the canonical site for deployed auth callbacks", () => {
+    vi.stubEnv("NODE_ENV", "production");
+    vi.stubEnv("NEXT_PUBLIC_SITE_URL", "https://pubmaxxing.com");
+
+    expect(
+      buildAuthCallbackUrl(
+        "https://chengdu-pubmax69.vercel.app/map?area=soho",
+        undefined,
+        ATTEMPT_A,
+      ),
+    ).toBe(
+      `https://pubmaxxing.com/auth/callback?next=%2Fmap%3Farea%3Dsoho&_authAttempt=${ATTEMPT_A}`,
+    );
+  });
+
+  it("refuses a deployment host configured as the production site", () => {
+    vi.stubEnv("NODE_ENV", "production");
+    vi.stubEnv(
+      "NEXT_PUBLIC_SITE_URL",
+      "https://chengdu-pubmax69.vercel.app",
+    );
+
+    expect(
+      buildAuthCallbackUrl(
+        "https://preview-team.vercel.app/map",
+        undefined,
+        ATTEMPT_A,
+      ),
+    ).toBeNull();
+  });
+
+  it("refuses an insecure production site URL", () => {
+    vi.stubEnv("NODE_ENV", "production");
+    vi.stubEnv("NEXT_PUBLIC_SITE_URL", "http://pubmaxxing.com");
+
+    expect(
+      buildAuthCallbackUrl(
+        "https://preview-team.vercel.app/map",
+        undefined,
+        ATTEMPT_A,
+      ),
+    ).toBeNull();
+  });
+
+  it("refuses any other production site", () => {
+    vi.stubEnv("NODE_ENV", "production");
+    vi.stubEnv("NEXT_PUBLIC_SITE_URL", "https://example.com");
+
+    expect(
+      buildAuthCallbackUrl(
+        "https://pubmaxxing.com/map",
+        undefined,
+        ATTEMPT_A,
+      ),
+    ).toBeNull();
+  });
+
+  it("keeps auth callbacks on localhost during development", () => {
+    vi.stubEnv("NODE_ENV", "development");
+    vi.stubEnv("NEXT_PUBLIC_SITE_URL", "https://pubmaxxing.com");
+
+    expect(
+      buildAuthCallbackUrl("http://localhost:3000/map", undefined, ATTEMPT_A),
+    ).toBe(
+      `http://localhost:3000/auth/callback?next=%2Fmap&_authAttempt=${ATTEMPT_A}`,
+    );
   });
 
   it("never nests callback credentials into a retry when history scrubbing was blocked", () => {

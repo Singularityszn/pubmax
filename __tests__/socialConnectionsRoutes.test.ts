@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("@/lib/serverEnv", () => ({ assertServerEnv: () => {} }));
 vi.mock("@/lib/supabase", async (importOriginal) => {
@@ -32,6 +32,10 @@ const instagramParams = { params: Promise.resolve({ provider: "instagram" }) };
 beforeEach(() => {
   authState.userId = null;
   __resetMemorySocialConnections();
+});
+
+afterEach(() => {
+  vi.unstubAllEnvs();
 });
 
 describe("social connection APIs", () => {
@@ -88,5 +92,50 @@ describe("social connection APIs", () => {
     expect(location.pathname).toBe("/u/you");
     expect(location.searchParams.get("socialConnection")).toBe("x");
     expect(location.searchParams.get("status")).toBe("cancelled");
+  });
+
+  it("returns deployed OAuth outcomes through the production site", async () => {
+    vi.stubEnv("NODE_ENV", "production");
+    vi.stubEnv("NEXT_PUBLIC_SITE_URL", "https://pubmaxxing.com");
+
+    const response = await oauthCallback(
+      new Request(
+        "https://chengdu-pubmax69.vercel.app/api/social-connections/x/callback",
+      ),
+      { params: Promise.resolve({ provider: "x" }) },
+    );
+
+    expect(response.status).toBe(303);
+    expect(response.headers.get("location")).toBe(
+      "https://pubmaxxing.com/u/you?socialConnection=x&status=cancelled",
+    );
+  });
+
+  it("starts deployed OAuth with a production callback URI", async () => {
+    authState.userId = "user-1";
+    vi.stubEnv("NODE_ENV", "production");
+    vi.stubEnv("NEXT_PUBLIC_SITE_URL", "https://pubmaxxing.com");
+    vi.stubEnv("X_CLIENT_ID", "client-id");
+    vi.stubEnv("X_CLIENT_SECRET", "client-secret");
+    vi.stubEnv("SOCIAL_CONNECTION_ENCRYPTION_KEY", "x".repeat(32));
+
+    const response = await connect(
+      new Request(
+        "https://chengdu-pubmax69.vercel.app/api/social-connections/x",
+        {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ mode: "oauth" }),
+        },
+      ),
+      { params: Promise.resolve({ provider: "x" }) },
+    );
+
+    expect(response.status).toBe(200);
+    const body = await response.json();
+    const authorizeUrl = new URL(body.authorizeUrl);
+    expect(authorizeUrl.searchParams.get("redirect_uri")).toBe(
+      "https://pubmaxxing.com/api/social-connections/x/callback",
+    );
   });
 });

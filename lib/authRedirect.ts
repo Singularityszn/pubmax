@@ -1,3 +1,5 @@
+import { siteOrigin } from "@/lib/siteUrl";
+
 /**
  * Keep post-auth navigation on the app origin. This is shared by every auth
  * entry point so adding a new provider cannot accidentally add an open redirect.
@@ -225,7 +227,9 @@ export function buildAuthCallbackUrl(
     // Never place a fragment in redirectTo. Fragments can contain one-use
     // capabilities and become server-visible when nested inside this query.
     const next = `${destination.pathname}${destination.search}` || "/";
-    const callback = new URL("/auth/callback", current.origin);
+    const callbackOrigin = siteOrigin(currentUrl);
+    if (!callbackOrigin) return null;
+    const callback = new URL("/auth/callback", callbackOrigin);
     if (next !== "/") callback.searchParams.set("next", next);
     if (attemptId) {
       if (!isAuthAttemptId(attemptId)) return null;
