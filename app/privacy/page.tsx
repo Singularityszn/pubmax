@@ -186,6 +186,14 @@ export default function PrivacyPage() {
             origin to Google Maps for directions.
           </li>
           <li>
+            <strong>Buses near a pub:</strong>{" "}opening nearby bus departures
+            sends the pub&rsquo;s public map coordinates to our
+            {" "}<code>/api/nearby-bus-departures</code> route. Our server passes
+            that pub location, not your location, to Transport for
+            London&rsquo;s public StopPoint API to find nearby stops and live
+            departures.
+          </li>
+          <li>
             <strong>Remembered areas:</strong>{" "}Tonight can turn an area choice
             saved in your browser into that public area&rsquo;s coarse centre and
             send the centre to <code>/api/whats-on</code>. Today rounds the same
@@ -356,6 +364,9 @@ export default function PrivacyPage() {
               rounded to three decimal places to TfL&rsquo;s public StopPoint API
               at <code>api.tfl.gov.uk</code> to find your nearest station. It also
               fetches live arrivals, timetables and line-status information.
+              Opening nearby buses on a pub sheet sends that pub&rsquo;s public
+              map coordinates, not your location, to find nearby stops and live
+              departures.
             </dd>
           </div>
           <div className="legalRow">

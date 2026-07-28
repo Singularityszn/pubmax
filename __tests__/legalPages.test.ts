@@ -79,11 +79,13 @@ describe("legal content pages", () => {
     expect(privacy).toMatch(/\/api\/whats-on/);
     expect(privacy).toMatch(/\/api\/tonight-conditions/);
     expect(privacy).toMatch(/\/api\/last-train/);
+    expect(privacy).toMatch(/\/api\/nearby-bus-departures/);
     expect(privacy).toMatch(/\/api\/tfl-disruption/);
     expect(privacy).toMatch(/\/api\/citymcp\/journey/);
     expect(privacy).toMatch(/without\s+rounding them first/);
     expect(privacy).toMatch(/rounds your\s+point to three decimal places/);
     expect(privacy).toMatch(/public StopPoint API/);
+    expect(privacy).toMatch(/pub(?:&rsquo;|’)s public map coordinates/);
     expect(privacy).not.toMatch(/does not\s+write them to our database/);
     expect(privacy).not.toMatch(/not sent to us or stored anywhere/);
   });
@@ -100,7 +102,7 @@ describe("legal content pages", () => {
       privacy.match(/aria-labelledby="third"[\s\S]*?aria-labelledby="keep"/)?.[0] ?? "";
 
     const coordinateRecipients = [
-      { name: "Transport for London", host: "api.tfl.gov.uk", source: "app/api/last-train/route.ts" },
+      { name: "Transport for London", host: "api.tfl.gov.uk", source: "lib/tflClient.server.ts" },
       { name: "CityMCP", host: "citymcp.com", source: "lib/citymcp/client.ts" },
       { name: "Google Maps", host: "google.com", source: "lib/venueJourney.ts" },
     ];

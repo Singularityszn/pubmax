@@ -141,6 +141,20 @@ describe("shared inspector venue copy", () => {
 
     expect(html).toContain('aria-label="Last train"');
     expect(html).toContain("Checking trains");
+    expect(html).toContain("Buses nearby");
     expect(html).not.toContain("Last Pint");
+  });
+
+  it("keeps TfL buses on London getting-home sheets only", () => {
+    const html = renderToStaticMarkup(
+      createElement(VenueGettingHomeTab, {
+        venue: venue("pub"),
+        tab: "getting-home",
+        cityId: "manchester",
+        onDecision: () => {},
+      }),
+    );
+
+    expect(html).not.toContain("Buses nearby");
   });
 });

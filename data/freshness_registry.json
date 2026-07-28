@@ -191,6 +191,17 @@
       "gate": "none (keyless); TFL_APP_KEY only raises rate limits"
     },
     {
+      "id": "tfl_nearby_buses",
+      "label": "TfL nearby bus departures (live)",
+      "class": "live",
+      "artifact": null,
+      "stamp": null,
+      "cadence": "live: nearby stops and per-stop arrivals fetched per request from api.tfl.gov.uk through the shared lib/tflClient.server.ts client, never disk-cached. Bounded fan-out: bus stops inside a 500 m straight-line radius, capped at 4, each asked concurrently inside one 15 s route budget. A prediction older than 2 minutes, undated, already due, or over an hour away is dropped, and an unreachable, malformed, empty or stale-only read answers unavailable rather than reporting that no bus is coming.",
+      "stalenessBudgetHours": null,
+      "refreshWorkflow": "live-per-request (app/api/nearby-bus-departures via lib/nearbyBusDepartures)",
+      "gate": "none (keyless); TFL_APP_KEY only raises rate limits"
+    },
+    {
       "id": "tfl_disruption",
       "label": "TfL material disruption (night-shaping layer)",
       "class": "live",

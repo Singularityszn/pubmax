@@ -1,4 +1,5 @@
 import LastTrainCard from "../LastTrainCard";
+import NearbyBusDepartures from "../NearbyBusDepartures";
 import type { Venue } from "@/lib/venues";
 import type { LastPintDecision } from "@/lib/tfl";
 import type { CityId } from "@/lib/cities";
@@ -26,16 +27,25 @@ export default function VenueGettingHomeTab({
       hidden={tab !== "getting-home"}
     >
       {tab === "getting-home" ? (
-        <LastTrainCard
-          key={`${cityId}:${venue.id}:${venue.latitude}:${venue.longitude}:${venue.name}`}
-          lat={venue.latitude}
-          lng={venue.longitude}
-          venueName={venue.name}
-          cityId={cityId}
-          venueKind={venue.kind}
-          onSelectVenue={onSelectVenue}
-          onDecision={onDecision}
-        />
+        <>
+          <LastTrainCard
+            key={`${cityId}:${venue.id}:${venue.latitude}:${venue.longitude}:${venue.name}`}
+            lat={venue.latitude}
+            lng={venue.longitude}
+            venueName={venue.name}
+            cityId={cityId}
+            venueKind={venue.kind}
+            onSelectVenue={onSelectVenue}
+            onDecision={onDecision}
+          />
+          {cityId === "london" ? (
+            <NearbyBusDepartures
+              key={venue.id}
+              lat={venue.latitude}
+              lng={venue.longitude}
+            />
+          ) : null}
+        </>
       ) : null}
     </div>
   );

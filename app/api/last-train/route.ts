@@ -60,6 +60,7 @@ import { CITIES, pointInCityBounds } from "@/lib/cities";
 import { haversineKm } from "@/lib/haversine";
 import { isLastRideLimited } from "@/lib/lastRideRateLimit";
 import { nearestStaticStation } from "@/lib/staticStations";
+import { tflGet } from "@/lib/tflClient.server";
 import { getPricedVenues } from "@/lib/venuePriceIndex";
 
 export const runtime = "nodejs";
@@ -67,8 +68,6 @@ export const runtime = "nodejs";
 // several seconds from a serverless region; give the function room to finish.
 export const maxDuration = 30;
 
-const TFL_HOST = "api.tfl.gov.uk";
-const TFL_BASE = `https://${TFL_HOST}`;
 const STATION_RADIUS_M = 1500;
 // Broad coverage: metro + national-rail stations, across the modes a Londoner
 // heading home actually uses. modes narrows StopPoint results to real options.
@@ -77,62 +76,6 @@ const MODES = "tube,dlr,elizabeth-line,overground";
 // Cap the timetable fan-out so a busy interchange (many lines) can't blow the
 // keyless rate limit; four lines is plenty for a "head home" glance.
 const LINE_CAP = 4;
-// TfL's StopPoint geo query is ~3s and slower from a serverless region; give it
-// headroom so a slow-but-fine response isn't aborted as a "failure".
-const CALL_TIMEOUT_MS = 9000;
-
-// app_key is optional — the keyless API works fine. Only append it when present.
-function withKey(url: URL): string {
-  const key = process.env.TFL_APP_KEY;
-  if (!key) return url.href;
-  const keyed = new URL(url.href);
-  keyed.searchParams.set("app_key", key);
-  return keyed.href;
-}
-
-function resolveTflUrl(path: string): URL | null {
-  try {
-    const url = new URL(path, TFL_BASE);
-    if (url.protocol !== "https:" || url.hostname !== TFL_HOST) return null;
-    if (url.port && url.port !== "443") return null;
-    if (url.username || url.password) return null;
-    return url;
-  } catch {
-    return null;
-  }
-}
-
-// One TfL GET, JSON-parsed, with a hard per-call timeout. Returns null on ANY
-// failure (network, timeout, non-2xx, bad JSON) — callers decide what null means.
-// `retries` adds attempts for transient failures (timeouts, 429 rate-limit, 5xx);
-// a genuine 4xx (other than 429) is not retried. A descriptive User-Agent keeps
-// us on the right side of TfL's fair-use expectations.
-async function tflGet<T>(path: string, retries = 0): Promise<T | null> {
-  const url = resolveTflUrl(path);
-  if (!url) return null;
-  for (let attempt = 0; attempt <= retries; attempt++) {
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), CALL_TIMEOUT_MS);
-    try {
-      const res = await fetch(withKey(url), {
-        signal: controller.signal,
-        headers: {
-          accept: "application/json",
-          "user-agent": "PubMaxxing/1.0 (+https://pubmaxxing.com)",
-        },
-      });
-      if (res.ok) return (await res.json()) as T;
-      // Only transient statuses are worth another attempt.
-      if (res.status !== 429 && res.status < 500) return null;
-    } catch {
-      // network / timeout — fall through and retry if attempts remain
-    } finally {
-      clearTimeout(timer);
-    }
-  }
-  return null;
-}
-
 // --- Minimal shapes for just the fields we read off the TfL responses. ---
 
 type StopPointLine = { id?: string; name?: string };
@@ -483,7 +426,7 @@ export async function GET(request: Request): Promise<Response> {
   const stopUrl =
     `/StopPoint?lat=${lat}&lon=${lng}` +
     `&stopTypes=${STOP_TYPES}&radius=${STATION_RADIUS_M}&modes=${MODES}`;
-  const stops = await tflGet<StopPointResponse>(stopUrl, 1);
+  const stops = await tflGet<StopPointResponse>(stopUrl, { retries: 1 });
   const nearest = stops?.stopPoints?.[0];
   if (!nearest?.id) {
     const staticStation = nearestStaticStation(lat, lng);
