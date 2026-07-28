@@ -64,7 +64,7 @@ test("no-alcohol and food views own the 390px map without pint controls", async 
   await indexResponse;
   await expect(noAlcohol).toHaveAttribute("aria-pressed", "true");
   await expect(sheet.getByRole("status")).toContainText(
-    /soft-drink or alcohol-free prices|no-alcohol prices/i,
+    /alcohol-free or soft drink prices/i,
   );
   await expect(
     sheet.getByRole("button", { name: "Beer", exact: true }),

@@ -13,7 +13,7 @@ describe("MapExperienceLens", () => {
       createElement(MapExperienceLens, {
         lens: "no-alcohol",
         summary:
-          "No soft-drink or alcohol-free prices logged here yet. Food venues still show sourced menu prices.",
+          "No alcohol-free or soft drink prices logged here yet. Food venues still show sourced menu prices.",
         onChange: () => undefined,
       }),
     );
@@ -22,7 +22,7 @@ describe("MapExperienceLens", () => {
     expect(html).toContain(">No alcohol<");
     expect(html).toContain(">Food<");
     expect(html).toContain('aria-pressed="true"');
-    expect(html).toContain("No soft-drink or alcohol-free prices logged here yet.");
+    expect(html).toContain("No alcohol-free or soft drink prices logged here yet.");
   });
 
   it("ships 44px targets and wraps safely at 390px", () => {

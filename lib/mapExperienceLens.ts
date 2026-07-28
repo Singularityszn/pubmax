@@ -315,21 +315,25 @@ export function experienceLensSummary(
       sourcedFoodPriceCount === 1 ? "" : "s"
     } shown.`;
   }
+  // Every branch below names the lens with the one shared noun. The lens
+  // control sits beside the map while the venue list and its rows are open, so
+  // three orderings of the same two drinks read as three different lenses.
+  const noun = NO_ALCOHOL_LENS_PRICE_NOUN;
   if (indexStatus === "loading" || indexStatus === "idle") {
-    return "Checking soft-drink and alcohol-free prices. Food venues are already shown.";
+    return `Checking ${noun} prices. Food venues are already shown.`;
   }
   if (indexStatus === "degraded") {
-    return "Could not check no-alcohol prices right now. Food venues still show sourced menu prices.";
+    return `Could not check ${noun} prices right now. Food venues still show sourced menu prices.`;
   }
   const plural = noAlcoholPriceCount === 1 ? "" : "s";
   if (indexStatus === "partial") {
     if (noAlcoholPriceCount === 0) {
-      return "We read part of the no-alcohol prices and none of them are here. Food venues still show sourced menu prices.";
+      return `We read part of the ${noun} prices and none of them are here. Food venues still show sourced menu prices.`;
     }
-    return `${noAlcoholPriceCount} no-alcohol price${plural} shown, read from part of the list. Food venues also show sourced menu prices.`;
+    return `${noAlcoholPriceCount} ${noun} price${plural} shown, read from part of the list. Food venues also show sourced menu prices.`;
   }
   if (noAlcoholPriceCount === 0) {
-    return "No soft-drink or alcohol-free prices logged here yet. Food venues still show sourced menu prices.";
+    return `No ${noun} prices logged here yet. Food venues still show sourced menu prices.`;
   }
-  return `${noAlcoholPriceCount} no-alcohol price${plural} shown. Food venues also show sourced menu prices.`;
+  return `${noAlcoholPriceCount} ${noun} price${plural} shown. Food venues also show sourced menu prices.`;
 }

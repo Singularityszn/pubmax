@@ -16,7 +16,10 @@ import {
 } from "@/lib/communityPrice";
 import type { UkBasePub } from "@/lib/ukBasePubs";
 import { COMMUNITY_PRICE_NOTE, formatPrice } from "@/lib/venues";
-import type { MapExperienceLens } from "@/lib/mapExperienceLens";
+import {
+  NO_ALCOHOL_LENS_PRICE_NOUN,
+  type MapExperienceLens,
+} from "@/lib/mapExperienceLens";
 
 import "./unverifiedPubSheet.css";
 
@@ -105,7 +108,7 @@ export default function UnverifiedPubSheet({
         </>
       ) : pricesKnown && experienceLens === "no-alcohol" ? (
         <p className="unverifiedPubLead">
-          No soft-drink or alcohol-free price logged here yet.
+          No {NO_ALCOHOL_LENS_PRICE_NOUN} price logged here yet.
         </p>
       ) : pricesKnown && experienceLens === "food" ? (
         <p className="unverifiedPubLead">

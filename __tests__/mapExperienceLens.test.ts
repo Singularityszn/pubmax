@@ -251,10 +251,10 @@ describe("experience lens venue membership and presentation", () => {
 
   it("states honest empty and degraded results", () => {
     expect(experienceLensSummary("no-alcohol", 0, 1, "ready")).toBe(
-      "No soft-drink or alcohol-free prices logged here yet. Food venues still show sourced menu prices.",
+      "No alcohol-free or soft drink prices logged here yet. Food venues still show sourced menu prices.",
     );
     expect(experienceLensSummary("no-alcohol", 0, 1, "degraded")).toBe(
-      "Could not check no-alcohol prices right now. Food venues still show sourced menu prices.",
+      "Could not check alcohol-free or soft drink prices right now. Food venues still show sourced menu prices.",
     );
     expect(experienceLensSummary("food", 0, 0, "ready")).toBe(
       "Food venues shown. No sourced menu prices in this view yet.",
@@ -265,7 +265,7 @@ describe("experience lens venue membership and presentation", () => {
     // A truncated scan ANSWERED, and its rows are already painted. Borrowing
     // the "could not check" sentence would call those figures unchecked.
     const partial = experienceLensSummary("no-alcohol", 4, 1, "partial");
-    expect(partial).toContain("4 no-alcohol prices shown");
+    expect(partial).toContain("4 alcohol-free or soft drink prices shown");
     expect(partial).toContain("part of the list");
     expect(partial).not.toContain("Could not check");
     expect(experienceLensSummary("no-alcohol", 0, 1, "partial")).not.toBe(
@@ -410,5 +410,40 @@ describe("the no-alcohol lens inside a sentence", () => {
     expect(drinkLensUnknownSentence("whisky", "degraded")).toBe(
       "Whisky price could not be read",
     );
+  });
+});
+
+describe("one lens, one name", () => {
+  const statuses = ["idle", "loading", "ready", "partial", "degraded"] as const;
+
+  it("names the no-alcohol lens the same way in every sentence", () => {
+    // The lens control sits beside the map while the venue list and its rows
+    // are open, so a second ordering of the same two drinks reads as a second
+    // lens. Every sentence derives its noun from the one constant.
+    for (const status of statuses) {
+      for (const count of [0, 1, 4]) {
+        const summary = experienceLensSummary(
+          "no-alcohol",
+          count,
+          1,
+          status,
+        );
+        expect(summary).toContain(NO_ALCOHOL_LENS_PRICE_NOUN);
+      }
+      expect(
+        drinkLensUnknownRowLabel(NO_ALCOHOL_LENS_PRICE_NOUN, status),
+      ).toContain(NO_ALCOHOL_LENS_PRICE_NOUN);
+      const note = drinkLensCoverageNote(NO_ALCOHOL_LENS_PRICE_NOUN, status);
+      if (note !== null) expect(note).toContain(NO_ALCOHOL_LENS_PRICE_NOUN);
+    }
+  });
+
+  it("leaves no stale ordering of the same two drinks behind", () => {
+    for (const status of statuses) {
+      const summary = experienceLensSummary("no-alcohol", 2, 1, status);
+      expect(summary).not.toMatch(/soft-drink or alcohol-free/i);
+      expect(summary).not.toMatch(/soft-drink and alcohol-free/i);
+      expect(summary).not.toMatch(/\bno-alcohol price/i);
+    }
   });
 });

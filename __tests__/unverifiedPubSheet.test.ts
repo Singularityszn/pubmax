@@ -137,7 +137,7 @@ describe("UnverifiedPubSheet", () => {
     expect(priced).not.toContain("£5.80");
 
     const empty = renderSheet([beer], "no-alcohol");
-    expect(empty).toContain("No soft-drink or alcohol-free price logged here yet");
+    expect(empty).toContain("No alcohol-free or soft drink price logged here yet");
     expect(empty).not.toContain("£5.80");
   });
 

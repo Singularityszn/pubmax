@@ -42,7 +42,10 @@ import type { CrawlMode } from "@/components/map/ControlRail";
 import type { TabKey } from "@/lib/venueInspectorTabs";
 import type { PresenceState } from "./usePresence";
 import { anchorMonthLabel } from "@/lib/venueAnchorPresentation";
-import type { MapExperienceLens } from "@/lib/mapExperienceLens";
+import {
+  NO_ALCOHOL_LENS_PRICE_NOUN,
+  type MapExperienceLens,
+} from "@/lib/mapExperienceLens";
 
 function VenuePriceSummary({
   venue,
@@ -367,7 +370,7 @@ export default function VenueOverviewTab({
             <ClaimBadge kind="baseline" /> No-alcohol prices
           </span>
           <small className="communityPriceNote">
-            No soft-drink or alcohol-free price logged here yet.
+            No {NO_ALCOHOL_LENS_PRICE_NOUN} price logged here yet.
           </small>
         </div>
       ) : null}
