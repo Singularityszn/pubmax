@@ -39,6 +39,8 @@ type Options = {
   /** Reseeded by buildScene after a theme setStyle wipes every source. */
   ukBaseDataRef: React.MutableRefObject<GeoJSON.FeatureCollection>;
   drawableVenueIds: ReadonlySet<string>;
+  /** Visibility-only marks keyed by stable `venue-uk-*` ids. */
+  provisionalVenueIds?: ReadonlySet<string> | null;
   /**
    * An experience view owns the map. The base layer is UK-wide unpriced pubs,
    * so it answers neither "where can I drink without alcohol" nor "where can I
@@ -99,6 +101,7 @@ export function useUkBaseStreaming({
   applyToMap,
   ukBaseDataRef,
   drawableVenueIds,
+  provisionalVenueIds = null,
   suspended = false,
   scopeKey = "",
   restoreId = null,
@@ -125,7 +128,9 @@ export function useUkBaseStreaming({
         drawableVenueIds,
       );
       const data =
-        drawablePubs.length > 0 ? ukBasePubsToGeoJSON(drawablePubs) : EMPTY;
+        drawablePubs.length > 0
+          ? ukBasePubsToGeoJSON(drawablePubs, provisionalVenueIds)
+          : EMPTY;
       ukBaseDataRef.current = data;
       setPublished({
         scopeKey,
@@ -139,7 +144,13 @@ export function useUkBaseStreaming({
       });
       return drawablePubs;
     },
-    [applyToMap, drawableVenueIds, scopeKey, ukBaseDataRef],
+    [
+      applyToMap,
+      drawableVenueIds,
+      provisionalVenueIds,
+      scopeKey,
+      ukBaseDataRef,
+    ],
   );
 
   useEffect(() => {

@@ -19,6 +19,7 @@ CI until this certification is deliberately updated.
 > confirm/unsubscribe endpoints and read-only GETs (the Social Loop reads, the
 > vibe-vote tally read, the Visit Report per-venue summary read, the operator
 > own-claim / moderator queue reads, the community price-per-drink read, the
+> base-pub provisional-mark read, the
 > community-price review queue read) are
 > deliberately excluded from the
 > mutating-verb inventory. The number is a merge-conflict coordination point
@@ -382,9 +383,14 @@ commit.
   drink lines (`POST /api/rounds/[code] { action: "recordSpend" }`) reach
   `submitCommunityPrice` too, under the same device-derived identity, which both
   routes now take from `deriveCommunityPriceActor` (`lib/communityPriceActor.ts`)
-  so the two cannot drift apart. The route also exports a read-only `GET` (the
-  freshest community price per drink at a venue) which is NOT a mutating verb and
-  is not counted.
+  so the two cannot drift apart. The route also exports read-only `GET` branches -
+  the freshest community price per drink at a venue, the cross-venue
+  no-alcohol lens index (`?lens=no-alcohol`), and `?scope=provisional-base`,
+  which answers which of up to `MAX_PROVISIONAL_BASE_VENUE_IDS` on-screen
+  `venue-uk-*` pins carry a fresh uncorroborated pint report. Every id on that
+  branch is validated as a stable salted base id server-side and the answer
+  carries ids only, never a figure, so viewport visibility cannot reach the
+  price merge. None of the three is a mutating verb and none is counted.
 - **Validation:** `validateCommunityPrice` (`lib/communityPrice.ts`), the SAME
   browser-safe validator the submit UI runs, so client and server can never
   drift - `venueId` cleaned/capped at 64 chars, `drinkCategory` restricted to the
@@ -392,7 +398,8 @@ commit.
   £1 - £30. Out-of-envelope or malformed input 400s with reader-facing copy before
   the limiter or store is touched; the store re-checks the penny envelope and
   migration 0054 adds the same CHECK, so three layers agree. The `venueId` must
-  also exist in the slim venue index (`getVenueIndex`) - an unknown id 400s
+  also exist in the slim venue index (`getVenueIndex`), or - for a `venue-uk-*`
+  id - in the UK base id index (`lib/ukBaseIndex.ts`); an unknown id 400s
   without storing anything, and when the index itself is unavailable (its
   documented degraded mode is an empty map) the route answers 503 (retryable),
   never a 400 and never a stored row.
@@ -405,7 +412,7 @@ commit.
   independent submitters (`corroborations`); it still never leaves the store -
   the durable read selects the column only to count it, and `published()`
   strips it.
-- **Rate limit (boundary):** two durable `isLimited` tiers. An actor-wide cap
+- **Rate limit (boundary):** two durable `isLimited` tiers on the POST. An actor-wide cap
   keyed `price-submit-actor:${actor ?? "anon"}` (30/hour) stops one device
   spraying prices across the whole map by rotating `venueId`; then the per-venue
   key `price-submit:${actor ?? "anon"}:${venueId}` - the same key shape as
@@ -415,7 +422,12 @@ commit.
   owns that budget and its degraded allowance, which answers 503 with
   `Retry-After` rather than 429, because a spent degraded allowance is our
   limiter being unreachable, not the drinker's doing). Changing the cap or the
-  key shape here changes both doors.
+  key shape here changes both doors. The `?scope=provisional-base` READ carries
+  its own durable tier keyed `provisional-base:${actor ?? "anon"}` (120 per
+  minute, refused with `Retry-After`): unlike the other two GET branches it pages
+  the durable store per request, so a scripted sweep of the country is budgeted
+  while a session of panning - which asks only for ids it has not already read -
+  sits well inside it.
 - **Provenance (the honesty boundary):** the route only ever APPENDS to
   `community_prices`. It touches NOTHING in the versioned venue dataset, the
   scraped price CSV, or `visit_reports` - a submission cannot overwrite a scraped

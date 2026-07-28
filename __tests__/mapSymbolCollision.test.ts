@@ -271,6 +271,35 @@ describe("provisional-report badge (ungated visibility, zero authority)", () => 
   const badge = layers.get("pubs-provisional-badge")!;
   const paint = (badge.paint ?? {}) as Record<string, unknown>;
 
+  it("uses the same mark on base pubs without joining their price lane", () => {
+    const baseBadge = layers.get("uk-base-provisional-badge")!;
+    const basePaint = (baseBadge.paint ?? {}) as Record<string, unknown>;
+    expect((baseBadge as { source?: string }).source).toBe("uk-base");
+    expect(baseBadge.filter).toEqual(["get", "provisional"]);
+    expect((baseBadge as { minzoom?: number }).minzoom).toBe(
+      UK_BASE_MIN_ZOOM,
+    );
+    for (const property of [
+      "circle-color",
+      "circle-radius",
+      "circle-translate",
+      "circle-stroke-color",
+      "circle-stroke-width",
+    ]) {
+      expect(basePaint[property], property).toEqual(paint[property]);
+    }
+    expect(JSON.stringify(baseBadge)).not.toContain("bucket");
+    expect(JSON.stringify(baseBadge)).not.toContain("price");
+
+    const ids = [...layers.keys()];
+    expect(ids.indexOf("uk-base-point")).toBeLessThan(
+      ids.indexOf("uk-base-provisional-badge"),
+    );
+    expect(ids.indexOf("uk-base-provisional-badge")).toBeLessThan(
+      ids.indexOf("pubs-point"),
+    );
+  });
+
   it("only ever rides an unclustered pin, from the pin floor", () => {
     expect(badge.filter).toEqual([
       "all",

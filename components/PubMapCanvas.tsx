@@ -2120,6 +2120,7 @@ export default function PubMapCanvas({
     applyToMap,
     ukBaseDataRef,
     drawableVenueIds,
+    provisionalVenueIds,
     // A non-null lensPrices map is the one signal that an experience view owns
     // the map, the same one the curated pins read below.
     suspended: lensPrices !== null,

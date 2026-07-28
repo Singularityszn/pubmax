@@ -29,6 +29,11 @@ the pub's stable `venue-uk-*` id before removing its base row, or existing
 community prices become unreachable. That identity work belongs in the future
 promotion flow, not in this generator speculatively.
 
+Community-price visibility binds to that same salted id. The settled viewport
+asks for marked ids only, then `lib/ukBasePubs.ts` adds the mark to in-memory
+GeoJSON. No community state joins a shard tuple, and the mark remains separate
+from every price-authority surface.
+
 `manifest.json` stores the immutable pack URL prefix once. The UK decoder
 expands each cell id to a URL before passing it to the same `ShardManifest`
 parser [`lib/slimShards.ts`](../../../lib/slimShards.ts) already defines, so

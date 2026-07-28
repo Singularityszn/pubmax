@@ -81,7 +81,10 @@ import {
 import { COMMUNITY_PRICE_MAX_GBP } from "@/lib/communityPrice";
 import { __resetPintDrops } from "@/lib/pintDrops";
 import { getUkBaseIdIndex } from "@/lib/ukBaseIndex";
-import { UK_BASE_ID_PREFIX } from "@/lib/ukBasePubs";
+import {
+  MAX_PROVISIONAL_BASE_VENUE_IDS,
+  UK_BASE_ID_PREFIX,
+} from "@/lib/ukBasePubs";
 import { getVenueIndex } from "@/lib/venueIndex";
 import { isPubVenueKind } from "@/lib/venueKindFilters";
 
@@ -318,6 +321,73 @@ describe("POST /api/price-submit UK base pubs", () => {
 });
 
 describe("GET /api/price-submit", () => {
+  it("returns provisional visibility only for requested base ids", async () => {
+    const result = await getUkBaseIdIndex();
+    expect(result.status).toBe("ready");
+    if (result.status !== "ready") throw new Error("base index unavailable");
+    const [marked, empty] = [...result.ids].slice(0, 2);
+    expect(marked).toBeTruthy();
+    expect(empty).toBeTruthy();
+    await POST(
+      post({ venueId: marked, drinkCategory: "beer", priceGbp: 4.2 }),
+    );
+
+    const response = await GET(
+      get(
+        `?scope=provisional-base&venueId=${encodeURIComponent(marked)}&venueId=${encodeURIComponent(empty)}`,
+      ),
+    );
+    expect(response.status).toBe(200);
+    const body = (await response.json()) as {
+      venueIds: string[];
+      degraded?: boolean;
+    };
+    expect(body).toEqual({ venueIds: [marked] });
+    expect(JSON.stringify(body)).not.toContain("priceGbp");
+  });
+
+  it("budgets the provisional base read like the paths that write (429)", async () => {
+    // The one unauthenticated read here that pages the store per request, and
+    // answers no-store so nothing is shared between callers. It gets the same
+    // per-actor plumbing every mutating branch on this route uses.
+    let limited: Response | null = null;
+    for (let index = 0; index < 200 && limited === null; index += 1) {
+      const response = await GET(
+        get(`?scope=provisional-base&venueId=venue-uk-n${index}`),
+      );
+      if (response.status === 429) limited = response;
+      else expect(response.status, `read ${index + 1}`).toBe(200);
+    }
+    expect(limited).not.toBeNull();
+    if (!limited) throw new Error("budget never refused a read");
+    // And it NAMES the window. The durable limiter records a hit even when it
+    // refuses one, so a client left to guess retries into its own lockout.
+    const retryAfter = Number(limited.headers.get("Retry-After"));
+    expect(retryAfter).toBeGreaterThan(0);
+    expect(retryAfter).toBeLessThanOrEqual(300);
+    expect(((await limited.json()) as { error: string }).error).toContain(
+      "slow down",
+    );
+  });
+
+  it("rejects curated ids and an over-limit provisional base request", async () => {
+    expect(
+      (
+        await GET(
+          get("?scope=provisional-base&venueId=venue-xjf3n0"),
+        )
+      ).status,
+    ).toBe(400);
+
+    const query = Array.from(
+      { length: MAX_PROVISIONAL_BASE_VENUE_IDS + 1 },
+      (_, index) => `venueId=venue-uk-n${index}`,
+    ).join("&");
+    expect(
+      (await GET(get(`?scope=provisional-base&${query}`))).status,
+    ).toBe(400);
+  });
+
   it("returns the no-alcohol category index without beer rows", async () => {
     const venueId = "venue-xjf3n0";
     await POST(post({

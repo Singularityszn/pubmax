@@ -144,11 +144,37 @@ describe("ukBasePubsToGeoJSON", () => {
       name: "The Anchor",
       address: "1 Dock Road",
       curatedVenueId: "venue-owner",
+      provisional: false,
     });
     // No bucket / price / story: the price-colour system must find nothing here.
     expect(feature.properties).not.toHaveProperty("bucket");
     expect(feature.properties).not.toHaveProperty("cheapestPrice");
     expect(feature.geometry).toEqual({ type: "Point", coordinates: [-0.18, 51.42] });
+  });
+
+  it("binds a provisional mark by stable salted base id without adding price authority", () => {
+    const features = ukBasePubsToGeoJSON(
+      pubs,
+      new Set(["venue-uk-w2"]),
+    ).features;
+
+    expect(features[0]?.properties).toEqual({
+      id: "venue-uk-n1",
+      name: "The Anchor",
+      address: "1 Dock Road",
+      curatedVenueId: "venue-owner",
+      provisional: false,
+    });
+    expect(features[1]?.properties).toEqual({
+      id: "venue-uk-w2",
+      name: "The Bell",
+      address: "",
+      curatedVenueId: "",
+      provisional: true,
+    });
+    expect(features[1]?.properties).not.toHaveProperty("bucket");
+    expect(features[1]?.properties).not.toHaveProperty("cheapestPrice");
+    expect(features[1]?.properties).not.toHaveProperty("priceLabel");
   });
 
   it("suppresses only a base pub whose recorded curated owner is drawable", () => {

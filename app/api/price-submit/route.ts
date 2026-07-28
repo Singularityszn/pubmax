@@ -46,15 +46,36 @@ import {
   readCommunityPriceCategoryIndex,
   readCommunityPrices,
   readCommunityPricesWithStatus,
+  readProvisionalCommunityPriceVenueIds,
   reportCommunityPrice,
   submitCommunityPrice,
 } from "@/lib/communityPriceStore";
 import { isLimited } from "@/lib/pintDrops";
 import { getUkBaseIdIndex } from "@/lib/ukBaseIndex";
-import { isUkBaseId } from "@/lib/ukBasePubs";
+import {
+  isUkBaseId,
+  MAX_PROVISIONAL_BASE_VENUE_IDS,
+} from "@/lib/ukBasePubs";
 import { lookupCanonicalVenue } from "@/lib/venueIndex";
 import { isPubVenueKind } from "@/lib/venueKindFilters";
 import { readString } from "@/lib/textClean";
+
+/**
+ * Per-actor budget for the provisional-base visibility read. One request covers
+ * up to MAX_PROVISIONAL_BASE_VENUE_IDS pubs and the client asks only for ids it
+ * has not already read, so this covers a long session of panning while still
+ * capping what one device can pull out of the store.
+ *
+ * Sized ABOVE one dense viewport rather than at it: a first arrival over
+ * central London can render several hundred base pubs, which is a dozen or so
+ * chunks before the client has cached a single id, and the key is a hashed IP -
+ * so an office or carrier NAT spends one bucket between every device behind it.
+ * A budget that a legitimate arrival can exhaust is a budget that mostly refuses
+ * honest readers. The answer carries ids and no figures, so the ceiling here is
+ * about store load, not about what a caller could learn.
+ */
+const PROVISIONAL_BASE_READ_LIMIT = 120;
+const PROVISIONAL_BASE_READ_WINDOW_MS = 60_000;
 
 export async function POST(request: Request): Promise<Response> {
   let body: Record<string, unknown>;
@@ -195,6 +216,59 @@ export async function POST(request: Request): Promise<Response> {
 export async function GET(request: Request): Promise<Response> {
   try {
     const searchParams = new URL(request.url).searchParams;
+    if (searchParams.get("scope") === "provisional-base") {
+      const venueIds = searchParams.getAll("venueId");
+      if (
+        venueIds.length === 0 ||
+        venueIds.length > MAX_PROVISIONAL_BASE_VENUE_IDS ||
+        venueIds.some((venueId) => !isUkBaseId(venueId))
+      ) {
+        return jsonNoStore(
+          { error: "Pick pubs from the visible map." },
+          { status: 400 },
+        );
+      }
+      // Budget it like every mutating path here. This branch is
+      // unauthenticated, answers `no-store` so nothing is shared between
+      // callers, and pages the durable store per request - unlike the two GET
+      // branches below it, where a venue read is one bounded query and the
+      // lens index is process-memoised. Panning the map is the honest caller
+      // and it reads only ids it has not seen, so a minute's browsing sits
+      // well inside this; a scripted sweep of the country does not.
+      const readActor = deriveCommunityPriceActor(request);
+      const readLimitKey = `provisional-base:${readActor ?? "anon"}`;
+      if (
+        await isLimited(
+          readLimitKey,
+          readLimitKey,
+          PROVISIONAL_BASE_READ_LIMIT,
+          PROVISIONAL_BASE_READ_WINDOW_MS,
+        )
+      ) {
+        // Name the window rather than making the client guess it. The durable
+        // limiter records a hit even when it refuses one, so a caller that
+        // retries blind holds its own bucket shut; Retry-After is what lets a
+        // panning map stand down for exactly as long as the budget needs.
+        return jsonNoStore(
+          { error: "Too many map reads, slow down." },
+          {
+            status: 429,
+            headers: {
+              "Retry-After": String(
+                Math.ceil(PROVISIONAL_BASE_READ_WINDOW_MS / 1_000),
+              ),
+            },
+          },
+        );
+      }
+      const result = await readProvisionalCommunityPriceVenueIds(venueIds);
+      return jsonNoStore(
+        result.degraded
+          ? { venueIds: result.venueIds, degraded: true }
+          : { venueIds: result.venueIds },
+        { status: 200 },
+      );
+    }
     if (searchParams.get("lens") === "no-alcohol") {
       const result = await readCommunityPriceCategoryIndex(
         NO_ALCOHOL_DRINK_CATEGORIES,

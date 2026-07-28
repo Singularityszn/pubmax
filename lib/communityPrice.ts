@@ -385,14 +385,42 @@ export function paintsMap(
 }
 
 /**
- * The pre-submit promise about a category's REACH, kept per category so the
- * note can never promise the map to a drink the map does not price: pins, list
- * rows and cheapest buckets are pint surfaces, so only beer ever restamps.
+ * How far a community price can reach on the pin behind the surface asking.
+ * TWO claims live in here and they are not the same claim, which is why this is
+ * an enum rather than the boolean it replaced: a pin that can wear the
+ * provisional mark is not necessarily a pin that can ever print a price.
+ *
+ *   paint - a curated pin. It carries the mark now and, once the figure is
+ *           corroborated and in window, the price itself;
+ *   mark  - a UK base pin. It carries the mark and NOTHING else, ever: base
+ *           features hold no band, no cheapest price and no pin label, and
+ *           `mergeCommunityPriceSignals` never reaches a `venue-uk-*` id. A
+ *           second report here confirms the figure on the pub's page; no
+ *           amount of corroboration colours the pin;
+ *   page  - a surface with no pin at all.
  */
-export function communityReachNote(category: DrinkCategory): string {
-  return category === "beer"
-    ? "It moves the map once a second drinker logs the same."
-    : "The map prices pints, so it stays on this pub's page.";
+export type CommunityPriceMapReach = "paint" | "mark" | "page";
+
+/**
+ * The pre-submit promise about a category's REACH, kept per category and per
+ * surface so the note can never promise more than the pin behind it can pay:
+ * pins, list rows and cheapest buckets are pint surfaces, so only beer ever
+ * restamps, and only a curated pin restamps at all.
+ */
+export function communityReachNote(
+  category: DrinkCategory,
+  reach: CommunityPriceMapReach = "paint",
+): string {
+  if (category !== "beer") {
+    return "The map prices pints, so it stays on this pub's page.";
+  }
+  if (reach === "paint") {
+    return "It moves the map once a second drinker logs the same.";
+  }
+  if (reach === "mark") {
+    return "It marks this pub's pin straight away, and a second drinker logging the same price confirms the figure here.";
+  }
+  return "It stays on this pub's page.";
 }
 
 /**
@@ -402,11 +430,10 @@ export function communityReachNote(category: DrinkCategory): string {
  * for the same honesty reason as `communityReachNote`: a wine or cocktail row
  * must not imply a map move that no amount of confirmation can deliver.
  *
- * `canMarkMap` is the surface's answer to "can this pub's pin carry community
- * price state at all?". Curated venues can (the default); UK base pins are
- * deliberately price-blind, so their sheet passes false and every map-claiming
- * line falls back to page-only wording - the note may never name a mark the
- * pin does not draw.
+ * `reach` is the surface's answer to "what can this pub's pin actually do with
+ * a community price?". Curated map pins use the default. A base pin passes
+ * "mark", so the note may name the mark it really draws but never the pin
+ * colour it can never draw; a surface with no pin passes "page".
  */
 export function communityTrustNote(
   price: Pick<
@@ -414,22 +441,29 @@ export function communityTrustNote(
     "corroborations" | "submittedAt" | "drinkCategory" | "mapCandidate"
   >,
   now: number = Date.now(),
-  canMarkMap: boolean = true,
+  reach: CommunityPriceMapReach = "paint",
 ): string {
-  const pint = price.drinkCategory === "beer" && canMarkMap;
+  const beer = price.drinkCategory === "beer";
+  const paints = beer && reach === "paint";
+  const marks = beer && reach !== "page";
   if (!isWithinMaxAge(price, now)) {
-    return pint
+    // Only a pin that paints has a price on record to hand the map back to.
+    return paints
       ? "Over 30 days old, so the map is back on the price on record."
       : "Over 30 days old - a record of that night, not tonight's price.";
   }
   if (!isCorroborated(price)) {
-    if (!pint) return "Awaiting confirmation - a second report backs it up.";
     // A pint report that has earned the provisional mark says where that mark
     // is, because the reader can go and look at it. One that has NOT - because
     // a corroborated figure is already painting the pin - must not claim it.
-    return marksMapProvisionally(price, now)
+    if (!marks || !marksMapProvisionally(price, now)) {
+      return paints
+        ? "Awaiting confirmation - the map stays on the confirmed price until a second drinker logs this one."
+        : "Awaiting confirmation - a second report backs it up.";
+    }
+    return paints
       ? "Marked on the map as unconfirmed - it moves the map once a second drinker logs the same."
-      : "Awaiting confirmation - the map stays on the confirmed price until a second drinker logs this one.";
+      : "Marked on the map as unconfirmed - a second drinker logging the same price confirms the figure here.";
   }
   return "";
 }
