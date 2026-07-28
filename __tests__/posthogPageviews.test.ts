@@ -32,39 +32,80 @@ afterEach(() => {
 });
 
 describe("explicit PostHog pageviews", () => {
-  it("holds the initial route until consent initializes the SDK, then captures route changes once", async () => {
+  it("preserves post-consent route order while the SDK initializes", async () => {
     process.env.NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN = "phc_test";
     const {
       capturePosthogPageview,
       syncPosthogConsent,
     } = await import("@/lib/posthogClient");
+    const anonymousId = "anon_018f47a2-8e71-7a7a-9f18-8b953d45b2da";
 
     syncPosthogConsent(true);
-    capturePosthogPageview("/tonight", "anon_018f47a2-8e71-7a7a-9f18-8b953d45b2da");
+    capturePosthogPageview("/tonight", anonymousId);
+    capturePosthogPageview("/map", anonymousId);
+    capturePosthogPageview("/privacy", anonymousId);
     expect(posthogState.captures).toEqual([]);
 
     await vi.waitFor(() => {
       expect(posthogState.captures).toEqual([
         ["$pageview", {
           $pathname: "/tonight",
-          $pubmaxx_anonymous_id: "anon_018f47a2-8e71-7a7a-9f18-8b953d45b2da",
+          $pubmaxx_anonymous_id: anonymousId,
+        }],
+        ["$pageview", {
+          $pathname: "/map",
+          $pubmaxx_anonymous_id: anonymousId,
+        }],
+        ["$pageview", {
+          $pathname: "/privacy",
+          $pubmaxx_anonymous_id: anonymousId,
         }],
       ]);
     });
 
-    capturePosthogPageview("/tonight", "anon_018f47a2-8e71-7a7a-9f18-8b953d45b2da");
-    capturePosthogPageview("/map", "anon_018f47a2-8e71-7a7a-9f18-8b953d45b2da");
+    capturePosthogPageview("/privacy", anonymousId);
+    capturePosthogPageview("/terms", anonymousId);
 
     expect(posthogState.captures).toEqual([
       ["$pageview", {
         $pathname: "/tonight",
-        $pubmaxx_anonymous_id: "anon_018f47a2-8e71-7a7a-9f18-8b953d45b2da",
+        $pubmaxx_anonymous_id: anonymousId,
       }],
       ["$pageview", {
         $pathname: "/map",
-        $pubmaxx_anonymous_id: "anon_018f47a2-8e71-7a7a-9f18-8b953d45b2da",
+        $pubmaxx_anonymous_id: anonymousId,
+      }],
+      ["$pageview", {
+        $pathname: "/privacy",
+        $pubmaxx_anonymous_id: anonymousId,
+      }],
+      ["$pageview", {
+        $pathname: "/terms",
+        $pubmaxx_anonymous_id: anonymousId,
       }],
     ]);
+  });
+
+  it("discards pre-consent pageviews and starts with the current path at acceptance", async () => {
+    process.env.NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN = "phc_test";
+    const {
+      capturePosthogPageview,
+      syncPosthogConsent,
+    } = await import("@/lib/posthogClient");
+    const anonymousId = "anon_018f47a2-8e71-7a7a-9f18-8b953d45b2da";
+
+    capturePosthogPageview("/map", anonymousId);
+    syncPosthogConsent(true);
+    capturePosthogPageview("/tonight", anonymousId);
+
+    await vi.waitFor(() => {
+      expect(posthogState.captures).toEqual([
+        ["$pageview", {
+          $pathname: "/tonight",
+          $pubmaxx_anonymous_id: anonymousId,
+        }],
+      ]);
+    });
   });
 
   it("discards a queued pageview when consent is declined", async () => {
@@ -110,15 +151,31 @@ describe("explicit PostHog pageviews", () => {
     });
   });
 
-  it("rejects a route containing data outside the pathname", async () => {
+  it("does not count query-only navigation and never sends query data", async () => {
     process.env.NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN = "phc_test";
     const {
       capturePosthogPageview,
       syncPosthogConsent,
     } = await import("@/lib/posthogClient");
 
-    capturePosthogPageview("/map?sel=venue-secret", "anon_018f47a2-8e71-7a7a-9f18-8b953d45b2da");
     syncPosthogConsent(true);
+    capturePosthogPageview("/map?sel=venue-secret", "anon_018f47a2-8e71-7a7a-9f18-8b953d45b2da");
+
+    await vi.waitFor(() => expect(posthogState.initCount).toBe(1));
+    expect(posthogState.captures).toEqual([]);
+  });
+
+  it("excludes moderation routes from product pageviews", async () => {
+    process.env.NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN = "phc_test";
+    const {
+      capturePosthogPageview,
+      syncPosthogConsent,
+    } = await import("@/lib/posthogClient");
+    const anonymousId = "anon_018f47a2-8e71-7a7a-9f18-8b953d45b2da";
+
+    syncPosthogConsent(true);
+    capturePosthogPageview("/admin", anonymousId);
+    capturePosthogPageview("/admin/community-prices", anonymousId);
 
     await vi.waitFor(() => expect(posthogState.initCount).toBe(1));
     expect(posthogState.captures).toEqual([]);

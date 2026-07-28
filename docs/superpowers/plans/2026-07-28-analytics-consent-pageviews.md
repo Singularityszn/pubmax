@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Ask every first-time visitor for analytics consent and send explicit PostHog pageviews on initial load and App Router navigation.
+**Goal:** Ask every first-time visitor for analytics consent and send explicit PostHog pageviews on initial load and App Router pathname navigation.
 
 **Architecture:** A root client component owns the first-visit prompt and reads the existing localStorage consent key after hydration, so first paint and the map remain unblocked. `lib/analytics.ts` persists both `granted` and `denied`; the existing account control remains a withdrawal seam. Shared prompt orchestration gives undecided analytics consent first priority without stacking onboarding. A render-nothing route tracker calls the consent-gated browser client. `lib/analyticsPath.ts` keeps the existing product-event path vocabulary separate from the broader pageview vocabulary, with every allowed dynamic pageview route mapped to a stable template before `before_send` retains only that coarse path and the consent-scoped anonymous id.
 
@@ -13,6 +13,9 @@
 - No new dependency.
 - Keep `capture_pageview: false`, `autocapture: false`, `person_profiles: "never"`, `respect_dnt: true`, first-party `/ingest`, and the existing exception sanitisation.
 - No account identity, free text, query string, referrer, or precise location reaches browser PostHog pageviews.
+- Query-string-only navigation is not a pageview. Only pathname changes count.
+- `/admin` and all nested moderation routes are excluded from product pageviews.
+- Pre-consent pageview attempts are discarded and never flushed after acceptance.
 - Decline and accept use equal controls and both persist.
 - Prompt is non-modal, does not delay first paint, and honours `prefers-reduced-motion`.
 - Product copy follows `docs/VOICE.md`, uses British spelling, no exclamation mark, and no em dash.
@@ -82,7 +85,7 @@ Expected: PASS.
 
 - [x] **Step 1: Write failing pageview privacy and routing tests**
 
-Assert `$pageview` input is reduced to token, anonymous UUID fields, `$pathname`, and `$process_person_profile: false`; query strings and arbitrary SDK properties disappear. Assert capture before SDK initialisation is queued until consent initialises the client, then each distinct route calls `capture("$pageview", { $pathname: route })`.
+Assert `$pageview` input is reduced to token, anonymous UUID fields, `$pathname`, and `$process_person_profile: false`; query strings and arbitrary SDK properties disappear. Assert pre-consent attempts are discarded. After consent, preserve pathname changes in an ordered bounded queue while the SDK initialises, beginning with the current pathname at acceptance.
 
 - [x] **Step 2: Run tests and verify RED**
 
@@ -92,11 +95,11 @@ Expected: FAIL because browser pageviews are dropped and no route tracker exists
 
 - [x] **Step 3: Add pageview scrubber and explicit capture**
 
-Leave the existing exception branch equivalent. Add a `$pageview` branch that validates the consent-scoped anonymous id and maps only closed, known routes to static paths or stable templates. Reject queries, fragments, encoded values and unknown paths. Keep `capture_pageview: false`. Queue one latest coarse pathname while the dynamic SDK import is pending, then send it after `opt_in_capturing`.
+Leave the existing exception branch equivalent. Add a `$pageview` branch that validates the consent-scoped anonymous id and maps only closed, known routes to static paths or stable templates. Reject queries, fragments, encoded values, unknown paths and every `/admin` route. Keep `capture_pageview: false`. Discard all pre-consent attempts. After consent, retain coarse pathname changes in an ordered bounded queue while the dynamic SDK import is pending, then send them after `opt_in_capturing`.
 
 - [x] **Step 4: Mount App Router tracker**
 
-Mount a client component under `Suspense` in `app/layout.tsx`. On each `usePathname()` change, call `capturePosthogPageview(pathname)`. Duplicate renders of the same route in strict mode must not duplicate the event.
+Mount a client component under `Suspense` in `app/layout.tsx`. On each `usePathname()` change, call `capturePosthogPageview(pathname)`. Query-string-only navigation intentionally does nothing. Duplicate renders of the same route in strict mode must not duplicate the event.
 
 - [x] **Step 5: Run tests and verify GREEN**
 

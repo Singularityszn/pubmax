@@ -163,9 +163,31 @@ describe("trackEvent", () => {
 
     setAnalyticsConsent(true);
     expect(anonymousAnalyticsId()).toMatch(/^anon_[a-f0-9-]{16,64}$/);
+    expect(analyticsConsentDecision()).toBe("granted");
 
     setAnalyticsConsent(false);
     expect(anonymousAnalyticsId()).toBeNull();
+    expect(analyticsConsentDecision()).toBe("denied");
+    expect(analyticsCollectionAllowed()).toBe(false);
+  });
+
+  it("stays undecided when a fresh session cannot read storage", async () => {
+    vi.resetModules();
+    setWindow();
+    makeStorageThrow();
+    const freshAnalytics = await import("@/lib/analytics");
+
+    expect(freshAnalytics.analyticsConsentDecision()).toBeNull();
+    expect(freshAnalytics.analyticsCollectionAllowed()).toBe(false);
+  });
+
+  it("never infers a consent decision from a missing storage record", () => {
+    const storage = setWindow();
+    setAnalyticsConsent(false);
+    storage.delete("pubmaxx:analytics-consent:v1");
+
+    expect(analyticsConsentDecision()).toBeNull();
+    expect(analyticsCollectionAllowed()).toBe(false);
   });
 
   it("forwards with empty props when none are given", () => {

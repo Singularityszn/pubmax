@@ -77,6 +77,8 @@ describe("PostHog browser privacy boundary", () => {
 
   it.each([
     "/map?sel=venue-secret#sheet",
+    "/admin",
+    "/admin/community-prices",
     "/unknown/private-value",
     "/u/night_owl%2Fprivate",
   ])("drops unsafe or unknown pageview path %s", (pathname) => {

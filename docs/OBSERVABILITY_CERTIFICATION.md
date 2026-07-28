@@ -10,6 +10,11 @@ does not replace `docs/MASTER_PRD.md`.
   re-sanitized at `/api/events`.
 - No product event, structured analytics log, PostHog event, or Vercel
   pageview is emitted before explicit consent. Do Not Track fails closed.
+- PostHog pageview counting begins with the current pathname when consent is
+  granted, then records pathname changes in order. Query-string-only navigation
+  is not a pageview, and query strings never enter the event.
+- `/admin` and every nested moderation route are excluded from PostHog
+  pageviews so staff traffic cannot contaminate product funnels.
 - Revoking consent removes the local pseudonymous identifier and stops future
   collection.
 - Vercel Analytics uses `beforeSend` to cancel pre-consent pageviews. It is not

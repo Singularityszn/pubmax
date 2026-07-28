@@ -18,17 +18,20 @@ const SAFE_EXCEPTION_TYPES = new Set([
 ]);
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 type PostHogClient = (typeof import("posthog-js"))["default"];
+type PendingPageview = {
+  pathname: string;
+  routeKey: string;
+  anonymousId: string;
+};
+
+const MAX_PENDING_PAGEVIEWS = 32;
 let client: PostHogClient | null = null;
 let clientLoad: Promise<PostHogClient | null> | null = null;
 let consentRevision = 0;
 let initialized = false;
 let consentAllowedNow = false;
 let captureEnabled = false;
-let pendingPageview: {
-  pathname: string;
-  routeKey: string;
-  anonymousId: string;
-} | null = null;
+const pendingPageviews: PendingPageview[] = [];
 let lastCapturedPageviewRouteKey: string | null = null;
 
 function safeExceptionType(value: unknown): string {
@@ -167,7 +170,7 @@ export function syncPosthogConsent(consentAllowed: boolean): void {
   consentAllowedNow = consentAllowed;
   captureEnabled = false;
   if (!consentAllowed) {
-    pendingPageview = null;
+    pendingPageviews.length = 0;
     lastCapturedPageviewRouteKey = null;
     if (initialized) client?.opt_out_capturing();
     return;
@@ -192,9 +195,8 @@ export function syncPosthogConsent(consentAllowed: boolean): void {
       return;
     }
     captureEnabled = true;
-    const pageview = pendingPageview;
-    pendingPageview = null;
-    if (pageview) {
+    const pageviews = pendingPageviews.splice(0);
+    for (const pageview of pageviews) {
       lastCapturedPageviewRouteKey = pageview.routeKey;
       loadedClient.capture("$pageview", {
         $pathname: pageview.pathname,
@@ -213,15 +215,18 @@ export function capturePosthogPageview(pathname: string, anonymousId: string | n
     || !isAnonymousAnalyticsId(anonymousId)
     || !consentAllowedNow
     || pathname === lastCapturedPageviewRouteKey
-    || pathname === pendingPageview?.routeKey
+    || pathname === pendingPageviews.at(-1)?.routeKey
   ) return;
 
   if (!initialized || !client || !captureEnabled) {
-    pendingPageview = {
+    if (pendingPageviews.length >= MAX_PENDING_PAGEVIEWS) {
+      pendingPageviews.splice(1, 1);
+    }
+    pendingPageviews.push({
       pathname: analyticsSurface,
       routeKey: pathname,
       anonymousId,
-    };
+    });
     return;
   }
 
