@@ -265,7 +265,11 @@ export default function AdminClient() {
           const vBody = (await vRes.json()) as { reports: ModeratorVisitReport[] };
           setVisitReports(vBody.reports ?? []);
           if ((vBody.reports ?? []).length > 0 && venueNames.size === 0) {
-            setVenueNames(await fetchVenueNames());
+            try {
+              setVenueNames(await fetchVenueNames());
+            } catch {
+              /* names stay unresolved; rows fall back to the venueId */
+            }
           }
         } else {
           setVisitReports([]);

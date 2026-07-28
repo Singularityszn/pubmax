@@ -302,11 +302,11 @@
 }
 
 .visitReportError {
-  color: var(--color-danger, var(--red, #9f2f2f));
+  color: var(--color-negative, var(--brick, #9f2f2f));
 }
 
 .visitReportOk {
-  color: var(--color-success, var(--green, #317347));
+  color: var(--color-positive, var(--pint, #317347));
 }
 
 @media (prefers-reduced-motion: reduce) {

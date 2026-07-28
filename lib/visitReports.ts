@@ -264,7 +264,6 @@ export function toVisitReportDTO(report: VisitReport): VisitReportDTO {
   };
 }
 
-// Report-abuse policy (mirrors lib/pintDrops REPORT_HIDE_THRESHOLD): one report
-// must not hide content; a report leaves public reads only once this many
-// DISTINCT actors have flagged it.
-export const VISIT_REPORT_HIDE_THRESHOLD = 2;
+// Report-abuse policy: a reader flag only ever QUEUES a row for review. There is
+// deliberately no count at which a report hides an account by itself — only a
+// moderator hides one, and hiding never deletes its provenance.

@@ -155,7 +155,15 @@ function ChoiceGroup<T extends string>({
   );
 }
 
+// A panel belongs to ONE pub, so the venue is its identity, not a prop it
+// re-reads. Keying the mount means a pin switch on the map sheet drops the
+// previous pub's accounts, flags, feedback line, half-typed draft and any
+// in-flight write together, rather than showing them under the new pub's name.
 export default function VisitReportPanel({ venueId, venueName }: VisitReportPanelProps) {
+  return <VenueVisitReports key={venueId} venueId={venueId} venueName={venueName} />;
+}
+
+function VenueVisitReports({ venueId, venueName }: VisitReportPanelProps) {
   const tonight = londonEveningKey(new Date());
   const [read, setRead] = useState<VisitReportVenueRead | null>(null);
   const [handle, setHandle] = useState("");
@@ -183,10 +191,6 @@ export default function VisitReportPanel({ venueId, venueName }: VisitReportPane
       setHandle(remembered);
       setHandleRemembered(Boolean(remembered));
       setRead(nextRead ?? { status: "degraded", reports: [] });
-      setVisitedAt(londonEveningKey(new Date()));
-      setOpen(false);
-      setFeedback(null);
-      setFlaggedIds(new Set());
     });
     return () => {
       cancelled = true;

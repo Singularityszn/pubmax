@@ -23,6 +23,14 @@ describe("Visit Report review-lane migration", () => {
     expect(sql).toMatch(/structured_visit_reports_contributor_idx[\s\S]*\(handle, status\)/);
   });
 
+  it("indexes the moderation queue the way the admin route reads it", () => {
+    const sql = readMigration("0058_visit_report_review_lane");
+
+    expect(sql).toMatch(
+      /structured_visit_reports_flagged_review_idx[\s\S]*\(reported_at desc\)[\s\S]*where moderated_at is null and report_count > 0/,
+    );
+  });
+
   it("is additive and keeps the service-role-only posture", () => {
     const sql = readMigration("0058_visit_report_review_lane");
 

@@ -31,6 +31,13 @@ end $$;
 create index if not exists structured_visit_reports_contributor_idx
   on public.structured_visit_reports (handle, status);
 
+-- Moderator review queue, as the admin route actually reads it: flagged rows
+-- with no standing decision, newest flag first. 0046's review index leads on
+-- `status`, which this queue no longer filters on, so it can't serve the read.
+create index if not exists structured_visit_reports_flagged_review_idx
+  on public.structured_visit_reports (reported_at desc)
+  where moderated_at is null and report_count > 0;
+
 alter table public.structured_visit_reports enable row level security;
 revoke all on public.structured_visit_reports from anon, authenticated;
 grant all on public.structured_visit_reports to service_role;

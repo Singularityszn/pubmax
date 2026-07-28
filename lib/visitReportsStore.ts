@@ -165,6 +165,10 @@ export const memoryVisitReportStore: VisitReportStore = {
     hit.reportCount = nextActors.length;
     hit.reportedAt = new Date().toISOString();
     if (reason) hit.reportReason = reason;
+    // A flag AFTER a decision re-opens the row: a moderator who kept an account
+    // visible must still see the next reader who objects to it. Only a row that
+    // is still on public reads can be re-opened, so a hidden row stays decided.
+    if (hit.status === "visible") hit.moderatedAt = undefined;
     return true;
   },
 
@@ -397,13 +401,14 @@ export const supabaseVisitReportStore: VisitReportStore = {
       run: async () => {
         const { data, error } = await admin()
           .from(TABLE)
-          .select("id, report_count, report_actors")
+          .select("id, status, report_count, report_actors")
           .eq("id", id)
           .maybeSingle();
         if (error) throw new Error(error.message);
         if (!data) return false;
         const row = data as {
           id: unknown;
+          status: unknown;
           report_count: unknown;
           report_actors: unknown;
         };
@@ -420,6 +425,9 @@ export const supabaseVisitReportStore: VisitReportStore = {
             report_count: nextActors.length,
             reported_at: new Date().toISOString(),
             ...(reason ? { report_reason: reason } : {}),
+            // Re-open the row for review (see the memory store for the rule);
+            // the moderator note stays, so the prior decision is still on file.
+            ...(row.status === "visible" ? { moderated_at: null } : {}),
           })
           .eq("id", id);
         if (updateError) throw new Error(updateError.message);

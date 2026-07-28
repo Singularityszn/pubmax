@@ -191,6 +191,30 @@ describe("memoryVisitReportStore", () => {
     expect(await memoryVisitReportStore.listForReview()).toHaveLength(0);
   });
 
+  it("re-queues a kept report when a new reader flags it after the decision", async () => {
+    const dto = await memoryVisitReportStore.create(fields());
+    await memoryVisitReportStore.report(dto.id, undefined, "a");
+    await memoryVisitReportStore.moderate(dto.id, "visible", "kept");
+    expect(await memoryVisitReportStore.listForReview()).toHaveLength(0);
+
+    // The same actor flagging again is still a no-op, so the queue stays clear.
+    await memoryVisitReportStore.report(dto.id, undefined, "a");
+    expect(await memoryVisitReportStore.listForReview()).toHaveLength(0);
+
+    await memoryVisitReportStore.report(dto.id, "still wrong", "b");
+    const queue = await memoryVisitReportStore.listForReview();
+    expect(queue.map((r) => r.id)).toEqual([dto.id]);
+    expect(queue[0].moderatorNote).toBe("kept");
+  });
+
+  it("leaves a hidden report decided however many times it is flagged", async () => {
+    const dto = await memoryVisitReportStore.create(fields());
+    await memoryVisitReportStore.report(dto.id, undefined, "a");
+    await memoryVisitReportStore.moderate(dto.id, "hidden", "abuse");
+    await memoryVisitReportStore.report(dto.id, undefined, "b");
+    expect(await memoryVisitReportStore.listForReview()).toHaveLength(0);
+  });
+
   it("counts only visible reports for one normalized contributor", async () => {
     await memoryVisitReportStore.create(fields({ visitedAt: "2026-07-19" }));
     const hidden = await memoryVisitReportStore.create(fields({ visitedAt: "2026-07-20" }));
@@ -230,6 +254,19 @@ describe("supabaseVisitReportStore", () => {
     expect(db.rows[0].status).toBe("visible");
     expect((await supabaseVisitReportStore.readForVenue("venue-1")).reports).toHaveLength(1);
     expect(await supabaseVisitReportStore.listForReview()).toHaveLength(1);
+  });
+
+  it("re-queues a kept report on a new flag and leaves a hidden one decided", async () => {
+    const kept = await supabaseVisitReportStore.create(fields());
+    await supabaseVisitReportStore.report(kept.id, undefined, "a");
+    await supabaseVisitReportStore.moderate(kept.id, "visible", "kept");
+    expect(await supabaseVisitReportStore.listForReview()).toHaveLength(0);
+    await supabaseVisitReportStore.report(kept.id, undefined, "b");
+    expect(await supabaseVisitReportStore.listForReview()).toHaveLength(1);
+
+    await supabaseVisitReportStore.moderate(kept.id, "hidden", "abuse");
+    await supabaseVisitReportStore.report(kept.id, undefined, "c");
+    expect(await supabaseVisitReportStore.listForReview()).toHaveLength(0);
   });
 
   it("counts visible rows for a contributor", async () => {
