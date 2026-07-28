@@ -22,7 +22,11 @@ import type { LiHTMLAttributes, ReactElement } from "react";
 // D6 — in explore mode the lane also renders 44px prev/next scroll buttons
 // (shown ≥1024px via CSS) so desktop pointers can reach clipped cards; mobile
 // keeps native touch scrolling untouched (buttons are display:none there).
-import { DRINK_CATEGORIES, CATEGORY_META } from "@/lib/drinks";
+import {
+  CATEGORY_META,
+  DRINK_CATEGORIES,
+  MAP_LENS_DRINK_CATEGORIES,
+} from "@/lib/drinks";
 import type { DrinkCategory } from "@/lib/drinks";
 import { DrinkGlyph } from "./DrinkGlyph";
 import "./categoryShowcase.css";
@@ -39,7 +43,8 @@ export interface CategoryShowcaseProps {
    * When provided, each category renders as a tappable card linking to this
    * href — turning the legend into a real "Explore by drink" grid. Omit for the
    * static legend. Ignored for navigation when `onCategoryActivate` is set
-   * (parent shows brand chips + the category-only map link).
+   * (parent shows brand chips + the category-only map link). Only called for
+   * categories the map can actually lens.
    */
   hrefFor?: (category: DrinkCategory) => string;
   /** Optional sub-label under each category (explore mode), e.g. "Find a pub". */
@@ -66,6 +71,13 @@ export function CategoryShowcase({
   activeCategory = null,
 }: CategoryShowcaseProps) {
   const explore = Boolean(hrefFor) || Boolean(onCategoryActivate);
+  // Legend mode is the whole palette; explore mode is a set of promises to
+  // open a filtered view, so it can only offer categories that view honours.
+  // A card leading to an unfiltered map reads as a broken destination rather
+  // than one that was never on offer.
+  const cardCategories = explore
+    ? MAP_LENS_DRINK_CATEGORIES
+    : DRINK_CATEGORIES;
   const size = glyphSize ?? (explore ? 34 : 28);
 
   // D6 — desktop scroll affordances. The explore lane clips cards mid-tile at
@@ -120,7 +132,7 @@ export function CategoryShowcase({
   const grid = (
     <ul className="catShowcase__grid" ref={gridRef}>
       {extraItemsPosition === "start" ? extraItems : null}
-      {DRINK_CATEGORIES.map((category) => {
+      {cardCategories.map((category) => {
         const label = CATEGORY_META[category].label;
         const isActive = activeCategory === category;
         const inner = (

@@ -7,8 +7,8 @@ import {
   areaUnderCentre,
   AREA_SHEET_SETTLE_MS,
   buildAreaSheetModel,
-  cheapestPintsInArea,
-  cheapestPintsNearPoint,
+  cheapestDrinksInArea,
+  cheapestDrinksNearPoint,
   DEFAULT_AREA_FLY_ZOOM,
   formatAreaDistance,
   LOCALITY_RADIUS_KM,
@@ -16,6 +16,7 @@ import {
   type AreaElsewhereOption,
 } from "@/lib/areaButton";
 import { getNightArea } from "@/lib/nightAreas";
+import type { MapLensPrice } from "@/lib/mapExperienceLens";
 import type { Venue } from "@/lib/venues";
 
 // Minimal Venue factory — only the fields the area models read matter. Mirrors
@@ -76,7 +77,7 @@ describe("formatAreaDistance — honest, direct register", () => {
   });
 });
 
-describe("cheapestPintsInArea — ranking + fail-soft pricing", () => {
+describe("cheapestDrinksInArea - ranking + fail-soft pricing", () => {
   const soho = getNightArea("piccadilly-soho");
   const inArea = (id: string, extra: Partial<Venue> = {}) =>
     venue({
@@ -92,7 +93,7 @@ describe("cheapestPintsInArea — ranking + fail-soft pricing", () => {
       inArea("cheap", { cheapestPrice: 4.5 }),
       inArea("mid", { cheapestPrice: 5.9 }),
     ];
-    const rows = cheapestPintsInArea(soho, venues, [
+    const rows = cheapestDrinksInArea(soho, venues, [
       soho.centre.lng,
       soho.centre.lat,
     ]);
@@ -105,7 +106,7 @@ describe("cheapestPintsInArea — ranking + fail-soft pricing", () => {
       inArea("baseline", { cheapestPrice: 5.0 }),
       inArea("dropped", { cheapestPrice: 6.0, latestContributorPrice: 4.2 }),
     ];
-    const rows = cheapestPintsInArea(soho, venues, [
+    const rows = cheapestDrinksInArea(soho, venues, [
       soho.centre.lng,
       soho.centre.lat,
     ]);
@@ -118,13 +119,59 @@ describe("cheapestPintsInArea — ranking + fail-soft pricing", () => {
       inArea("unpriced", { cheapestPrice: null }),
       inArea("priced", { cheapestPrice: 5.5 }),
     ];
-    const rows = cheapestPintsInArea(soho, venues, [
+    const rows = cheapestDrinksInArea(soho, venues, [
       soho.centre.lng,
       soho.centre.lat,
     ]);
     expect(rows.map((r) => r.id)).toEqual(["priced", "unpriced"]);
     expect(rows[1].priceLabel).toBe("no priced pints yet");
-    expect(rows[1].cheapestPrice).toBeNull();
+    expect(rows[1].price).toBeNull();
+  });
+
+  it("ranks the selected drink and never borrows a pint price", () => {
+    const venues = [
+      inArea("pint-only", { cheapestPrice: 4 }),
+      inArea("whisky-dear", { cheapestPrice: 5 }),
+      inArea("whisky-cheap", { cheapestPrice: 7 }),
+    ];
+    const whiskyPrices = new Map<string, MapLensPrice>([
+      ["whisky-dear", {
+        venueId: "whisky-dear",
+        category: "whisky",
+        categoryLabel: "Whisky",
+        priceGbp: 8,
+        submittedAt: 2_000,
+        source: "community",
+      }],
+      ["whisky-cheap", {
+        venueId: "whisky-cheap",
+        category: "whisky",
+        categoryLabel: "Whisky",
+        priceGbp: 6,
+        submittedAt: 2_000,
+        source: "community",
+      }],
+    ]);
+
+    const rows = cheapestDrinksInArea(
+      soho,
+      venues,
+      [soho.centre.lng, soho.centre.lat],
+      10,
+      whiskyPrices,
+      "Whisky",
+    );
+
+    expect(rows.map((row) => row.id)).toEqual([
+      "whisky-cheap",
+      "whisky-dear",
+      "pint-only",
+    ]);
+    expect(rows[0].priceLabel).toBe("Whisky · £6.00");
+    expect(rows[2]).toMatchObject({
+      price: null,
+      priceLabel: "no whisky price logged",
+    });
   });
 
   it("excludes venues outside the area radius and caps the list", () => {
@@ -137,7 +184,7 @@ describe("cheapestPintsInArea — ranking + fail-soft pricing", () => {
       longitude: -0.02,
       cheapestPrice: 1.0,
     });
-    const rows = cheapestPintsInArea(
+    const rows = cheapestDrinksInArea(
       soho,
       [...near, faraway],
       [soho.centre.lng, soho.centre.lat],
@@ -147,14 +194,14 @@ describe("cheapestPintsInArea — ranking + fail-soft pricing", () => {
   });
 });
 
-describe("cheapestPintsNearPoint — the ad-hoc locality/borough ring", () => {
+describe("cheapestDrinksNearPoint - ad-hoc locality/borough ring", () => {
   // Willesden-ish centroid, well away from any modelled Night Area centre.
   const centre: [number, number] = [-0.23, 51.55];
   const near = (id: string, extra: Partial<Venue> = {}) =>
     venue({ id, latitude: centre[1] + 0.002, longitude: centre[0] + 0.002, ...extra });
 
   it("ranks priced pubs cheapest first, measured from the centroid", () => {
-    const rows = cheapestPintsNearPoint(
+    const rows = cheapestDrinksNearPoint(
       centre,
       [
         near("dear", { cheapestPrice: 6.5 }),
@@ -174,18 +221,18 @@ describe("cheapestPintsNearPoint — the ad-hoc locality/borough ring", () => {
     );
     // ~3km north of the centroid — outside the walkable ring.
     const outside = venue({ id: "outside", latitude: centre[1] + 0.03, longitude: centre[0], cheapestPrice: 1 });
-    const rows = cheapestPintsNearPoint(centre, [...inside, outside], LOCALITY_RADIUS_KM);
+    const rows = cheapestDrinksNearPoint(centre, [...inside, outside], LOCALITY_RADIUS_KM);
     expect(rows).toHaveLength(10);
     expect(rows.some((r) => r.id === "outside")).toBe(false);
   });
 
   it("returns [] (the honest no-priced-pints-nearby fallback) for an empty ring", () => {
     const faraway = venue({ id: "faraway", latitude: 51.9, longitude: 0.2, cheapestPrice: 5 });
-    expect(cheapestPintsNearPoint(centre, [faraway])).toEqual([]);
+    expect(cheapestDrinksNearPoint(centre, [faraway])).toEqual([]);
   });
 
   it("fails soft on a non-finite centroid rather than throwing", () => {
-    expect(cheapestPintsNearPoint([Number.NaN, 51.5], [near("x", { cheapestPrice: 4 })])).toEqual([]);
+    expect(cheapestDrinksNearPoint([Number.NaN, 51.5], [near("x", { cheapestPrice: 4 })])).toEqual([]);
   });
 });
 
@@ -302,5 +349,41 @@ describe("buildAreaSheetModel — the whole sheet in one derivation", () => {
     expect(model.areaName).toBe("Piccadilly & Soho");
     expect(model.pubs).toHaveLength(1);
     expect(model.pubs[0].priceLabel).toBe("£5.10");
+  });
+});
+
+describe("area rows under an incomplete drink read", () => {
+  it("says the same thing the venue list says about the same index", () => {
+    const soho = getNightArea("piccadilly-soho");
+    const venues = [
+      venue({
+        id: "unpriced",
+        latitude: soho.centre.lat,
+        longitude: soho.centre.lng,
+      }),
+    ];
+    const centre: [number, number] = [soho.centre.lng, soho.centre.lat];
+    const degraded = cheapestDrinksInArea(
+      soho,
+      venues,
+      centre,
+      undefined,
+      new Map<string, MapLensPrice>(),
+      "Whisky",
+      "degraded",
+    );
+    expect(degraded[0].priceLabel).toBe("whisky price could not be read");
+    expect(degraded[0].priceLabel).not.toContain("logged");
+
+    const partial = cheapestDrinksInArea(
+      soho,
+      venues,
+      centre,
+      undefined,
+      new Map<string, MapLensPrice>(),
+      "Whisky",
+      "partial",
+    );
+    expect(partial[0].priceLabel).toBe("no whisky price in what we read");
   });
 });

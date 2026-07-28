@@ -7,7 +7,7 @@
 import {
   DRINK_CATEGORIES,
   type DrinkCategory,
-  isDrinkCategory,
+  isMapLensDrinkCategory,
 } from "@/lib/drinks";
 
 export type DrinkBrand = {
@@ -221,13 +221,18 @@ export function haystackMatchesCategory(
   });
 }
 
-/** Guard for URL/query drink values that are real DrinkCategory ids. */
+/**
+ * Guard for URL/query/session drink values. It answers the LENS question, not
+ * the taxonomy one: only a category the map can show and the picker can clear
+ * may become an active drink filter, so `other` is refused here even though it
+ * stays a valid submitted category.
+ */
 export function parseDrinkCategoryParam(
   value: string | null | undefined,
 ): DrinkCategory | null {
   if (typeof value !== "string") return null;
   const trimmed = value.trim().toLowerCase();
-  return isDrinkCategory(trimmed) ? trimmed : null;
+  return isMapLensDrinkCategory(trimmed) ? trimmed : null;
 }
 
 /** Categories with at least one curated brand (for UI empty-state honesty). */

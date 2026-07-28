@@ -105,12 +105,9 @@ export function pubsToGeoJSON(
   // the price stack above, which is what `bucket` and every downstream price
   // surface read. It paints one badge layer and nothing else.
   provisionalVenueIds: ReadonlySet<string> | null = null,
-  // Dedicated experience-lens figures. Only their PRESENCE is read here: a
-  // non-null map means a non-pint lens owns the view, even when it is empty.
-  // The figures themselves never reach a feature property, because the pin's
-  // text-field is a pint claim and a soft drink or a food anchor printed there
-  // would masquerade as one. They are carried to the hover card, the venue list
-  // and the sheet instead, where they can say which drink they are.
+  // A non-null map means a selected drink or experience view owns the map.
+  // Category prices can reach category-labelled pin figures. Food anchors have
+  // no category and stay off pins.
   lensPrices: ReadonlyMap<string, MapLensPrice> | null = null,
 ): GeoJSON.FeatureCollection {
   return {
@@ -118,8 +115,8 @@ export function pubsToGeoJSON(
     features: venues.map((venue) => {
       const signals = venueSignals.get(venue.id);
       const whatsOn = whatsOnByVenue?.get(venue.id) ?? null;
-      // Beer favorite-pint path only: re-price + dim non-servers. Non-beer
-      // drink/brand lenses filter via filterVenues — never invent brand prices.
+      // Beer favorite-pint path: re-price + dim non-servers. Other selected
+      // drinks arrive through the trusted category lens below.
       const beerPrice = favoritePint ? priceForBeer(venue, favoritePint) : null;
       const serves = !favoritePint || beerPrice !== null;
       // Band price vs sayable price — the split is pinPriceStack's contract.
@@ -129,16 +126,28 @@ export function pubsToGeoJSON(
         favoritePint,
         beerPrice,
       );
-      const experienceLensActive = lensPrices !== null;
-      // Experience views never borrow pint colour and never bucket their own
-      // figures. Bucket 3 is the existing neutral/no-pint-price treatment.
-      const bucket = experienceLensActive
-        ? 3
+      const lensActive = lensPrices !== null;
+      const lensPrice = lensPrices?.get(venue.id) ?? null;
+      // A selected drink owns both colour and figure. Missing means unknown,
+      // never the pub's pint or anchor price. Food anchors have category null
+      // and remain sheet-only because their figures are not drink prices.
+      const bucket = lensActive
+        ? lensPrice?.category
+          ? priceBucket(lensPrice.priceGbp)
+          : 3
         : venue.priceBand ?? priceBucket(price);
-      const priceLabel = formatPinPriceLabel(sourcedPrice);
+      const basePriceLabel = formatPinPriceLabel(sourcedPrice);
+      const lensPriceLabel =
+        lensPrice?.category && formatPinPriceLabel(lensPrice.priceGbp)
+          ? `${formatPinPriceLabel(lensPrice.priceGbp)} ${lensPrice.categoryLabel}`
+          : null;
+      const priceLabel = lensActive ? lensPriceLabel : basePriceLabel;
       // Active drink lens owns the glyph: beer → pint glasses, wine → wine, etc.
       // Without a lens, fall back to venue hint categories.
-      const lens = drinkCategory?.trim().toLowerCase() ?? "";
+      const lens =
+        drinkCategory?.trim().toLowerCase() ??
+        lensPrice?.category ??
+        "";
       // Only REAL recorded drink categories drive the resting (lens-off) pin
       // glyph. When a venue has none (filterHints.drinkCategories absent/empty),
       // the honest default for a pub is a pint glass — never the synthetic
@@ -188,12 +197,12 @@ export function pubsToGeoJSON(
           bucket,
           story: venue.hasStory,
           drops:
-            !experienceLensActive && Boolean(signals?.hasPintDrops),
+            !lensActive && Boolean(signals?.hasPintDrops),
           // Someone logged a pint price here and it is still one report short
           // of moving the map. A mark, never a figure — the pin's colour is
           // still `bucket`, derived from the price stack above.
           provisional:
-            !experienceLensActive &&
+            !lensActive &&
             Boolean(provisionalVenueIds?.has(venue.id)),
           serves,
           drinkKind,
@@ -215,11 +224,9 @@ export function pubsToGeoJSON(
           // UK base pubs are a different source entirely and never come near
           // this function.
           //
-          // An active experience lens suppresses the pint figure and puts
-          // nothing of its own in its place: the tag is the pint lane, and a
-          // no-alcohol or food figure printed bare over an unchanged pint glyph
-          // would read as the price of a pint. Empty is the honest answer.
-          ...(!experienceLensActive && priceLabel ? { priceLabel } : {}),
+          // Non-pint figures always carry their drink name in the same string.
+          // A bare whisky or soft-drink number would masquerade as a pint.
+          ...(priceLabel ? { priceLabel } : {}),
         },
         geometry: {
           type: "Point" as const,

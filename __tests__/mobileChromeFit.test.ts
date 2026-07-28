@@ -25,6 +25,7 @@ const hygieneCss = read("components/map/venueHygiene.css");
 const saveToListCss = read("components/savedpubs/saveToList.css");
 const buzzCss = read("components/map/venueBuzz.css");
 const pintArrivalCss = read("components/pintindex/pintIndexArrival.css");
+const venueListCss = read("components/map/mapVenueList.css");
 
 describe("mobile chrome fit at 390px", () => {
   it("tightens the map control rail so all three chips clear the viewport", () => {
@@ -121,6 +122,56 @@ describe("mobile chrome fit at 390px", () => {
     expect(mobile).toMatch(/\.tonightArcChip\s*{[^}]*flex:\s*0 1 auto/);
     expect(arcChipsCss, "chip labels are never truncated").not.toMatch(/text-overflow/);
     expect(rowGap, "row gap parsed").toBeGreaterThan(0);
+  });
+
+  it("keeps a venue name whole when a drink lens puts an unknown caption in the row", () => {
+    // A pint row's caption is a figure ("£5.60"); a lens row's is a whole
+    // finding ("No whisky price logged"). Sharing one 44px line, the caption
+    // wraps to two and the NAME is what loses its characters — measured at
+    // 390x844x3, .mapVenueListItemName fell from 189px under the pint lens to
+    // 106-122px under whisky, clipping five of the visible pubs. Stack the row
+    // on a phone so the name owns a full line and the caption keeps wrapping
+    // below it: neither is ever ellipsed.
+    const phoneBlocks = venueListCss.split("@media (max-width: 640px)").slice(1);
+    const stacked = phoneBlocks.find((block) =>
+      /\.mapVenueListItem\s*{[^}]*flex-direction:\s*column/.test(block),
+    );
+    expect(stacked, "phone override stacking the venue list row").toBeTruthy();
+    const nameRule = stacked?.match(/\.mapVenueListItemName\s*{([^}]*)}/)?.[1] ?? "";
+    expect(nameRule, ".mapVenueListItemName phone override present").not.toBe("");
+    expect(nameRule).toMatch(/white-space:\s*normal/);
+    expect(nameRule).not.toMatch(/text-overflow:\s*ellipsis/);
+    // The caption wraps in place rather than holding a fixed side column.
+    expect(stacked).toMatch(/\.mapVenueListItemMeta\s*{[^}]*flex-wrap:\s*wrap/);
+    expect(stacked).toMatch(/\.mapVenueListCompactPrice\s*{[^}]*max-width:\s*100%/);
+
+    // And the full line the name now gets is wider than the remainder it used
+    // to be left with once the caption took its column.
+    const panelWidth = Number(
+      venueListCss.match(/\.mapVenueListPanel\s*{[^}]*width:\s*min\((\d+)px/)?.[1],
+    );
+    const itemsPad = Number(venueListCss.match(/\.mapVenueListItems\s*{[^}]*padding:\s*(\d+)px/)?.[1]);
+    const itemPadX = Number(
+      venueListCss.match(/\.mapVenueListItem\s*{[^}]*padding:\s*\d+px\s+(\d+)px/)?.[1],
+    );
+    const captionMax = Number(
+      venueListCss.match(/\.mapVenueListCompactPrice\s*{[^}]*max-width:\s*(\d+)px/)?.[1],
+    );
+    for (const [label, value] of [
+      ["panel width", panelWidth],
+      ["items padding", itemsPad],
+      ["item padding", itemPadX],
+      ["caption max-width", captionMax],
+    ] as const) {
+      expect(Number.isFinite(value), `${label} parsed from CSS`).toBe(true);
+    }
+    const viewport = 390;
+    const panel = Math.min(panelWidth, viewport - 24);
+    const nameLine = panel - 2 - itemsPad * 2 - itemPadX * 2;
+    expect(nameLine, "the stacked name line holds a pub name").toBeGreaterThanOrEqual(240);
+    expect(nameLine - captionMax, "the shared line it replaces was the narrow one").toBeLessThan(
+      nameLine,
+    );
   });
 
   it("stacks the landing hero readout without the side-by-side divider indent", () => {

@@ -20,6 +20,7 @@ describe("MapVenueList", () => {
       total: 1,
       shown: 1,
       truncated: false,
+      coverageNote: null,
     };
     const base: UkBasePubListModel = {
       rows: [

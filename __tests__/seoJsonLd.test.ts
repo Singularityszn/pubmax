@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
+import type { ReactElement } from "react";
 
-import { serializeJsonLd } from "@/components/seo/JsonLd";
+import JsonLd, { serializeJsonLd } from "@/components/seo/JsonLd";
 
 // Wave S1.3 — the JSON-LD serializer must be safe to inline inside an HTML
 // <script>: HTML-significant characters escape to \uXXXX, and the result stays
@@ -42,5 +43,15 @@ describe("serializeJsonLd", () => {
   it("serializes an array graph (multiple @types)", () => {
     const out = serializeJsonLd([{ "@type": "WebSite" }, { "@type": "Organization" }]);
     expect(JSON.parse(out)).toHaveLength(2);
+  });
+});
+
+describe("JsonLd nonce hydration", () => {
+  it("suppresses the client-only nonce attribute mismatch", () => {
+    const element = JsonLd({
+      data: { "@type": "WebSite" },
+      nonce: "request-nonce",
+    }) as ReactElement<{ suppressHydrationWarning?: boolean }>;
+    expect(element.props.suppressHydrationWarning).toBe(true);
   });
 });

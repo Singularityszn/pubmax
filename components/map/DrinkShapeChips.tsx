@@ -121,6 +121,15 @@ export function nextTopShelfFilters(filters: Filters): Filters {
   };
 }
 
+/**
+ * Category community prices do not carry subtype or top-shelf evidence.
+ * Keep those refinements off non-pint price lenses so controls cannot imply
+ * that a bare category price proves a more specific drink.
+ */
+export function showsDrinkRefinements(filters: Filters): boolean {
+  return activeCategory(filters) === "beer";
+}
+
 export default function DrinkShapeChips({
   filters,
   onFiltersChange,
@@ -154,7 +163,7 @@ export default function DrinkShapeChips({
         })}
       </div>
 
-      {active ? (
+      {active && showsDrinkRefinements(filters) ? (
         <div
           className="drinkSubtypeChips"
           role="group"

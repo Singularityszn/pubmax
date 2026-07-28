@@ -1,5 +1,5 @@
 // "Cheapest pints near you today" — the morning brief's on-mission module,
-// derived from the map's Area button logic (lib/areaButton cheapestPintsInArea)
+// derived from the map's Area button logic (lib/areaButton cheapestDrinksInArea)
 // so both surfaces rank the same pints the same way. /today has no map centre,
 // so we precompute the cheapest priced pints for every night patch (plus the
 // central default) on the server and hand the client a small bundled index. The
@@ -9,7 +9,7 @@
 // Fail-soft throughout: an area with no verified prices yields no module (never
 // an empty box). Pure and node-testable — no fs, no serverEnv, no DOM.
 
-import { areaUnderCentre, cheapestPintsInArea } from "@/lib/areaButton";
+import { areaUnderCentre, cheapestDrinksInArea } from "@/lib/areaButton";
 import {
   CENTRAL_PATCH,
   NIGHT_PATCHES,
@@ -64,8 +64,8 @@ export function buildTodayPintsForPatch(
   const area = areaUnderCentre("london", centre);
   if (!area) return null;
 
-  const priced = cheapestPintsInArea(area, venues, centre, venues.length)
-    .filter((row) => row.cheapestPrice !== null)
+  const priced = cheapestDrinksInArea(area, venues, centre, venues.length)
+    .filter((row) => row.price !== null)
     .slice(0, TODAY_PINTS_LIMIT);
   if (priced.length === 0) return null;
 
@@ -75,7 +75,7 @@ export function buildTodayPintsForPatch(
     rows: priced.map((row) => ({
       id: row.id,
       name: row.name,
-      price: row.cheapestPrice as number,
+      price: row.price as number,
       priceLabel: row.priceLabel,
       mapHref: venueMapHref(row.id),
     })),

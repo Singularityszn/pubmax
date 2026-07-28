@@ -13,7 +13,7 @@ describe("MapExperienceLens", () => {
       createElement(MapExperienceLens, {
         lens: "no-alcohol",
         summary:
-          "No soft-drink or alcohol-free prices logged here yet. Food venues still show sourced menu prices.",
+          "No alcohol-free or soft drink prices logged here yet. Food venues still show sourced menu prices.",
         onChange: () => undefined,
       }),
     );
@@ -22,7 +22,7 @@ describe("MapExperienceLens", () => {
     expect(html).toContain(">No alcohol<");
     expect(html).toContain(">Food<");
     expect(html).toContain('aria-pressed="true"');
-    expect(html).toContain("No soft-drink or alcohol-free prices logged here yet.");
+    expect(html).toContain("No alcohol-free or soft drink prices logged here yet.");
   });
 
   it("ships 44px targets and wraps safely at 390px", () => {
@@ -49,9 +49,19 @@ describe("MapExperienceLens", () => {
       /experienceLens === "all"\s*\?\s*\([\s\S]*?<DrinkShapeChips/,
     );
     expect(pubMap).toMatch(
-      /experienceLens !== "all"\s*\?\s*\([\s\S]*?selectedLensPrice[\s\S]*?No price logged/,
+      /activeLensPrices !== null\s*\?\s*\([\s\S]*?selectedLensPrice[\s\S]*?Unknown/,
     );
+    // The peek is a single-row read of the same index the list and the sheet
+    // report on, so it uses their helper rather than a fifth sentence that
+    // could settle a partial or unread index as "none logged".
+    expect(pubMap).toMatch(
+      /selectedLensPrice\?\.categoryLabel \?\?\s*\n?\s*drinkLensUnknownRowLabel\(/,
+    );
+    expect(pubMap).not.toContain("No price logged");
     expect(pubMap).toContain("experienceLens={experienceLens}");
+    expect(pubMap).toContain(
+      'drinkCategory={experienceLens === "all" ? filters.drinkCategory || null : null}',
+    );
     expect(pubMap).toContain(
       "const mobileShellReady = !mapLoadingActive;",
     );
@@ -82,6 +92,47 @@ describe("MapExperienceLens", () => {
     );
     expect(overview).toMatch(
       /experienceLens === "all"\s*\?\s*\([\s\S]*?<VenuePriceThen/,
+    );
+  });
+
+  it("keeps the inspector's no-alcohol empty state behind an answered read", () => {
+    // Both no-alcohol empty states say the same sentence, so both owe the same
+    // guard: "nothing logged here" is a fact about the pub and may not stand in
+    // for a read still in flight or one that failed.
+    const overview = readFileSync(
+      join(process.cwd(), "components/map/inspector/VenueOverviewTab.tsx"),
+      "utf8",
+    );
+
+    expect(overview).toContain(
+      'communityPrices.venuePriceStatus.get(venue.id) ?? "idle"',
+    );
+    expect(overview).toContain("{noAlcoholEmptyNote(venueReadStatus)}");
+    expect(overview).toMatch(
+      /status === "ready"[\s\S]*?`No \$\{NO_ALCOHOL_LENS_PRICE_NOUN\} price logged here yet\.`/,
+    );
+    expect(overview).toMatch(
+      /status === "degraded"[\s\S]*?`We could not read/,
+    );
+    expect(overview).toMatch(
+      /return `Checking \$\{NO_ALCOHOL_LENS_PRICE_NOUN\} prices logged here\.`/,
+    );
+
+    const sheet = readFileSync(
+      join(process.cwd(), "components/map/UnverifiedPubSheet.tsx"),
+      "utf8",
+    );
+    expect(sheet).toContain('const pricesKnown = readStatus === "ready";');
+    expect(sheet).toContain('const readFailed = readStatus === "degraded";');
+
+    // The tab making the claim asks for the read itself. Inheriting it from
+    // the pub-only submit card left every bar, food and restaurant venue in
+    // the no-alcohol view sitting on a read that never started.
+    const effect =
+      "  useEffect(() => {\n    loadVenue(venue.id);\n  }, [loadVenue, venue.id]);";
+    expect(overview).toContain(effect);
+    expect(overview.indexOf(effect)).toBeLessThan(
+      overview.indexOf("{isPubVenue(venue) ? ("),
     );
   });
 

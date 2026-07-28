@@ -34,3 +34,14 @@ describe("PostHog EU reverse proxy", () => {
     expect(response.headers.get("x-middleware-next")).toBe("1");
   });
 });
+
+describe("analytics Content Security Policy", () => {
+  it("allows the consent-gated Vercel Analytics SDK to load", () => {
+    const response = proxy(new NextRequest("https://pubmaxxing.com/map"));
+    const csp = response.headers.get("content-security-policy") ?? "";
+
+    expect(csp).toMatch(
+      /script-src[^;]*https:\/\/va\.vercel-scripts\.com/,
+    );
+  });
+});

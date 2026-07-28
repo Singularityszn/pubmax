@@ -5,7 +5,10 @@ import { describe, expect, it } from "vitest";
 import UnverifiedPubSheet from "@/components/map/UnverifiedPubSheet";
 import type { CommunityPricesState } from "@/components/map/useCommunityPrices";
 import type { CommunityPrice } from "@/lib/communityPrice";
-import type { MapExperienceLens } from "@/lib/mapExperienceLens";
+import type {
+  MapExperienceLens,
+  VenuePriceReadStatus,
+} from "@/lib/mapExperienceLens";
 import type { UkBasePub } from "@/lib/ukBasePubs";
 
 const pub: UkBasePub = {
@@ -17,7 +20,11 @@ const pub: UkBasePub = {
   curatedVenueId: "",
 };
 
-function state(rows: CommunityPrice[], known = true): CommunityPricesState {
+function state(
+  rows: CommunityPrice[],
+  known = true,
+  readStatus: VenuePriceReadStatus = known ? "ready" : "loading",
+): CommunityPricesState {
   return {
     byVenueId: known ? new Map([[pub.id, rows]]) : new Map(),
     freshestByVenueId: new Map(),
@@ -25,7 +32,10 @@ function state(rows: CommunityPrice[], known = true): CommunityPricesState {
     provisionalBaseVenueIds: new Set(),
     loadProvisionalBaseVenues: () => {},
     loadVenue: () => {},
+    venuePriceStatus: new Map([[pub.id, readStatus]]),
     loadNoAlcoholIndex: () => {},
+    loadDrinkCategoryIndex: () => {},
+    drinkCategoryIndexStatus: new Map(),
     submit: async () => ({ ok: true }),
     submitting: false,
     reportPrice: () => {},
@@ -36,11 +46,12 @@ function state(rows: CommunityPrice[], known = true): CommunityPricesState {
 function renderSheet(
   rows: CommunityPrice[],
   experienceLens: MapExperienceLens = "all",
+  readStatus: VenuePriceReadStatus = "ready",
 ) {
   return renderToStaticMarkup(
     createElement(UnverifiedPubSheet, {
       pub,
-      communityPrices: state(rows),
+      communityPrices: state(rows, true, readStatus),
       experienceLens,
     }),
   );
@@ -135,7 +146,7 @@ describe("UnverifiedPubSheet", () => {
     expect(priced).not.toContain("£5.80");
 
     const empty = renderSheet([beer], "no-alcohol");
-    expect(empty).toContain("No soft-drink or alcohol-free price logged here yet");
+    expect(empty).toContain("No alcohol-free or soft drink price logged here yet");
     expect(empty).not.toContain("£5.80");
   });
 
@@ -183,6 +194,32 @@ describe("UnverifiedPubSheet", () => {
     expect(html).not.toContain("moves the map");
     expect(html).not.toContain("colour");
     expect(html).not.toContain("On the map</span>");
+  });
+
+  it("never calls a failed read an empty pub", () => {
+    // "Nobody has logged a price here" is a fact about the pub. A read that
+    // could not answer is a fact about us, and the two must not share a line.
+    const html = renderToStaticMarkup(
+      createElement(UnverifiedPubSheet, {
+        pub,
+        communityPrices: state([], false, "degraded"),
+      }),
+    );
+
+    expect(html).toContain("could not read what has been logged here");
+    expect(html).toContain("Prices unread");
+    expect(html).not.toContain("Nobody has logged");
+    expect(html).not.toContain("Checking community prices");
+  });
+
+  it("keeps the no-alcohol empty state behind an answered read", () => {
+    const pending = renderSheet([], "no-alcohol", "loading");
+    expect(pending).toContain("Checking community prices");
+    expect(pending).not.toContain("price logged here yet");
+
+    const failed = renderSheet([], "no-alcohol", "degraded");
+    expect(failed).toContain("could not read what has been logged here");
+    expect(failed).not.toContain("price logged here yet");
   });
 
   it("shows be-the-first framing only after a confirmed empty response", () => {

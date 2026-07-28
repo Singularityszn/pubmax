@@ -200,6 +200,19 @@ describe("crawlUrl", () => {
     expect(gin.filters.query).toBe("");
   });
 
+  it("refuses a category the map can neither lens nor clear", () => {
+    // `other` stays a submittable category, but as a filter it would narrow the
+    // map with no lens shown, no chip pressed and no way to turn it off.
+    const other = seedCrawlState("?drink=other");
+    expect(other.filters.drinkCategory).toBe("");
+
+    const encoded = encodeCrawl({
+      ...sample,
+      filters: { ...sample.filters, drinkCategory: "other" },
+    });
+    expect(encoded).not.toContain("drink=other");
+  });
+
   it("decodes cocktails=1 into the cocktail drink lens (not amenity alone)", () => {
     const seeded = seedCrawlState("?cocktails=1");
     expect(seeded.filters.requireCocktails).toBe(true);

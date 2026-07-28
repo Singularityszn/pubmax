@@ -49,7 +49,7 @@ function PalSignalAvatar() {
   );
 }
 
-export default function MobileMapShell({ cityLabel, limitedCoverage, overlay, onOverlayChange, activeQuery, onClearQuery, onNearMe, nearMeStatus, nearbyCount, tonightCount, tflCount, tflStatus, priceLabel, drinkFiltersActive, experienceFilterLabel, priceCapActive, zoneActive, planOpen, planActive, planStopCount, planInteractive, onPlan, searchContent, filtersContent, tflContent, tonightContent, layersContent, palContent, momentContent, nearMeContent, areaContent }: {
+export default function MobileMapShell({ cityLabel, limitedCoverage, overlay, onOverlayChange, activeQuery, onClearQuery, onNearMe, nearMeStatus, nearbyCount, tonightCount, tflCount, tflStatus, priceLabel, drinkFiltersActive, experienceFilterLabel, priceCapActive, areaPriceNoun, zoneActive, planOpen, planActive, planStopCount, planInteractive, onPlan, searchContent, filtersContent, tflContent, tonightContent, layersContent, palContent, momentContent, nearMeContent, areaContent }: {
   cityLabel: string;
   /** Base-pub-only arrival: omit city-guide controls that cannot answer here. */
   limitedCoverage: boolean;
@@ -71,6 +71,7 @@ export default function MobileMapShell({ cityLabel, limitedCoverage, overlay, on
   /** #329 zone lens counts as a filters refinement (its mobile home is the filters sheet). */
   zoneActive?: boolean;
   priceCapActive: boolean;
+  areaPriceNoun: string;
   planOpen: boolean;
   planActive: boolean;
   planStopCount: number;
@@ -130,7 +131,7 @@ export default function MobileMapShell({ cityLabel, limitedCoverage, overlay, on
             className="mobileMapArea"
             aria-expanded={overlay === "area"}
             aria-haspopup="dialog"
-            aria-label={`Area: ${cityLabel}. See its cheapest pints or go somewhere else`}
+            aria-label={`Area: ${cityLabel}. See its cheapest ${areaPriceNoun} or go somewhere else`}
             onClick={() => set("area")}
           >
             <MapPin size={14} aria-hidden="true" />

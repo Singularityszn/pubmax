@@ -14,9 +14,16 @@ export type NoAlcoholDrinkCategory = Extract<
   "soft-drink" | "alcohol-free"
 >;
 
+// The lensable-category list lives with the taxonomy it narrows (lib/drinks.ts)
+// so the URL and session guards can share it without importing the map.
+export {
+  isMapLensDrinkCategory,
+  MAP_LENS_DRINK_CATEGORIES,
+} from "@/lib/drinks";
+
 export type MapLensPrice = {
   venueId: string;
-  category: NoAlcoholDrinkCategory | null;
+  category: DrinkCategory | null;
   categoryLabel: string;
   priceGbp: number;
   submittedAt?: number;
@@ -24,6 +31,52 @@ export type MapLensPrice = {
   source: "community" | "sourced-anchor";
   sourceUrl?: string;
 };
+
+/** Pint and brand refinements cannot answer a category-price lens. */
+export function filtersForDrinkPriceLens(
+  filters: Filters,
+  category: DrinkCategory | null,
+): Filters {
+  if (category === null || category === "beer") return filters;
+  return {
+    ...filters,
+    maxPrice: Number.POSITIVE_INFINITY,
+    drinkCategory: "",
+    drinkBrand: "",
+    drinkSubtype: "",
+    topShelfOnly: false,
+    requireCocktails: false,
+  };
+}
+
+/**
+ * Trusted map price for one selected drink category per venue. The map
+ * candidate, corroboration floor and max-age window are the same gates beer
+ * already uses. Keeping this outside VenueSignal prevents a whisky figure from
+ * ever becoming pint authority.
+ */
+export function trustedDrinkLensPrices(
+  rowsByVenue: ReadonlyMap<string, readonly CommunityPrice[]>,
+  category: DrinkCategory,
+  now: number = Date.now(),
+): Map<string, MapLensPrice> {
+  const out = new Map<string, MapLensPrice>();
+  for (const [venueId, rows] of rowsByVenue) {
+    const row = rows.find((candidate) => candidate.drinkCategory === category);
+    if (!row) continue;
+    const candidate = mapCandidateOf(row);
+    if (!drivesMap(candidate, now)) continue;
+    out.set(venueId, {
+      venueId,
+      category,
+      categoryLabel: CATEGORY_META[category].label,
+      priceGbp: candidate.priceGbp,
+      submittedAt: candidate.submittedAt,
+      source: "community",
+    });
+  }
+  return out;
+}
 
 /**
  * Pint and drink refinements are invisible while an experience view owns the
@@ -177,16 +230,84 @@ export function lensPricesForVenues(
 
 /**
  * "We could not check" and "we checked part of it" are two different findings,
- * and the summary may never merge them: a partial read has already painted
- * trusted figures, so borrowing the failure sentence would call the prices on
- * the map unchecked.
+ * and no surface may merge them: a partial read has already painted trusted
+ * figures, so borrowing the failure sentence would call the prices on the map
+ * unchecked, while a failed read painted nothing and must never read as a
+ * complete "none logged here". Every cross-venue category index reports on this
+ * one scale, so a second lens cannot invent a quieter one.
  */
-export type NoAlcoholIndexStatus =
+export type CategoryPriceIndexStatus =
   | "idle"
   | "loading"
   | "ready"
   | "partial"
   | "degraded";
+
+export type NoAlcoholIndexStatus = CategoryPriceIndexStatus;
+
+/**
+ * The same scale for ONE pub's own price read. It cannot be `partial` - a
+ * venue's rows arrive whole or not at all - but the other three findings are
+ * exactly as separable: a read still in flight, a read that failed, and a read
+ * that answered with nothing are three different things to tell a reader, and
+ * only the last one is a fact about the pub.
+ */
+export type VenuePriceReadStatus = Exclude<CategoryPriceIndexStatus, "partial">;
+
+/**
+ * The one sentence a selected-drink surface adds when its index did not answer
+ * completely. `null` means the index is complete and the figures speak for
+ * themselves; anything else must be shown rather than swallowed, because an
+ * empty map under a failed read is not evidence of an empty city.
+ */
+export function drinkLensCoverageNote(
+  drinkNoun: string,
+  status: CategoryPriceIndexStatus,
+): string | null {
+  if (status === "idle" || status === "loading") {
+    return `Checking ${drinkNoun} prices across the map.`;
+  }
+  if (status === "degraded") {
+    return `We could not read the ${drinkNoun} prices just now, so none are shown yet.`;
+  }
+  if (status === "partial") {
+    return `Read from part of the ${drinkNoun} prices, so some are still missing.`;
+  }
+  return null;
+}
+
+/**
+ * What ONE row says when it has no figure. A row is read on its own - in a
+ * screen reader it is often read without the note above it - so an index that
+ * failed may not leave the row claiming nothing was ever logged here.
+ */
+export function drinkLensUnknownRowLabel(
+  drinkNoun: string,
+  status: CategoryPriceIndexStatus,
+): string {
+  if (status === "degraded") return `${drinkNoun} price could not be read`;
+  if (status === "idle" || status === "loading") {
+    return `${drinkNoun} price not read yet`;
+  }
+  if (status === "partial") return `no ${drinkNoun} price in what we read`;
+  return `no ${drinkNoun} price logged`;
+}
+
+/** The same finding where a sentence starts. One owner for the capital. */
+export function drinkLensUnknownSentence(
+  drinkNoun: string,
+  status: CategoryPriceIndexStatus,
+): string {
+  const label = drinkLensUnknownRowLabel(drinkNoun, status);
+  return label.charAt(0).toUpperCase() + label.slice(1);
+}
+
+/**
+ * What the no-alcohol lens is called INSIDE a sentence. Its display label is
+ * already a negative ("No-alcohol"), and "no no-alcohol price logged" buries
+ * the fact the reader wants: this pub has none on record.
+ */
+export const NO_ALCOHOL_LENS_PRICE_NOUN = "alcohol-free or soft drink";
 
 export function experienceLensSummary(
   lens: MapExperienceLens,
@@ -203,21 +324,25 @@ export function experienceLensSummary(
       sourcedFoodPriceCount === 1 ? "" : "s"
     } shown.`;
   }
+  // Every branch below names the lens with the one shared noun. The lens
+  // control sits beside the map while the venue list and its rows are open, so
+  // three orderings of the same two drinks read as three different lenses.
+  const noun = NO_ALCOHOL_LENS_PRICE_NOUN;
   if (indexStatus === "loading" || indexStatus === "idle") {
-    return "Checking soft-drink and alcohol-free prices. Food venues are already shown.";
+    return `Checking ${noun} prices. Food venues are already shown.`;
   }
   if (indexStatus === "degraded") {
-    return "Could not check no-alcohol prices right now. Food venues still show sourced menu prices.";
+    return `Could not check ${noun} prices right now. Food venues still show sourced menu prices.`;
   }
   const plural = noAlcoholPriceCount === 1 ? "" : "s";
   if (indexStatus === "partial") {
     if (noAlcoholPriceCount === 0) {
-      return "We read part of the no-alcohol prices and none of them are here. Food venues still show sourced menu prices.";
+      return `We read part of the ${noun} prices and none of them are here. Food venues still show sourced menu prices.`;
     }
-    return `${noAlcoholPriceCount} no-alcohol price${plural} shown, read from part of the list. Food venues also show sourced menu prices.`;
+    return `${noAlcoholPriceCount} ${noun} price${plural} shown, read from part of the list. Food venues also show sourced menu prices.`;
   }
   if (noAlcoholPriceCount === 0) {
-    return "No soft-drink or alcohol-free prices logged here yet. Food venues still show sourced menu prices.";
+    return `No ${noun} prices logged here yet. Food venues still show sourced menu prices.`;
   }
-  return `${noAlcoholPriceCount} no-alcohol price${plural} shown. Food venues also show sourced menu prices.`;
+  return `${noAlcoholPriceCount} ${noun} price${plural} shown. Food venues also show sourced menu prices.`;
 }

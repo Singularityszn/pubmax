@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { useMemo } from "react";
+import { useEffect, useMemo } from "react";
 import { MapPin } from "lucide-react";
 
 import { Amenity, ClaimBadge } from "@/components/map/venueInspectorBits";
@@ -42,7 +42,11 @@ import type { CrawlMode } from "@/components/map/ControlRail";
 import type { TabKey } from "@/lib/venueInspectorTabs";
 import type { PresenceState } from "./usePresence";
 import { anchorMonthLabel } from "@/lib/venueAnchorPresentation";
-import type { MapExperienceLens } from "@/lib/mapExperienceLens";
+import {
+  NO_ALCOHOL_LENS_PRICE_NOUN,
+  type MapExperienceLens,
+  type VenuePriceReadStatus,
+} from "@/lib/mapExperienceLens";
 
 function VenuePriceSummary({
   venue,
@@ -143,6 +147,20 @@ function VenuePriceSummary({
   ) : null;
 }
 
+/**
+ * The pub has none on record, we are still looking, or we could not look. Only
+ * the first is a fact about the pub, so the three never share a sentence.
+ */
+function noAlcoholEmptyNote(status: VenuePriceReadStatus): string {
+  if (status === "ready") {
+    return `No ${NO_ALCOHOL_LENS_PRICE_NOUN} price logged here yet.`;
+  }
+  if (status === "degraded") {
+    return `We could not read this pub's ${NO_ALCOHOL_LENS_PRICE_NOUN} prices just now.`;
+  }
+  return `Checking ${NO_ALCOHOL_LENS_PRICE_NOUN} prices logged here.`;
+}
+
 export default function VenueOverviewTab({
   venue,
   tab,
@@ -203,10 +221,21 @@ export default function VenueOverviewTab({
     [venue.id, venue.name, venue.filterHints?.searchText, venue.filterHints?.cuisineTags],
   );
 
+  // This tab makes a claim about what is logged here, so it asks for the read
+  // itself rather than inheriting it from the pub-only submit card below: a
+  // bar or a restaurant belongs in the no-alcohol view and would otherwise sit
+  // for ever on a read that never started.
+  const loadVenue = communityPrices.loadVenue;
+  useEffect(() => {
+    loadVenue(venue.id);
+  }, [loadVenue, venue.id]);
+
   // The ordinary view names the freshest category; the no-alcohol view admits
   // only its two categories, while the food view reserves this slot for the
   // sourced menu anchor below. Sheet visibility remains independent of map
   // authority, which still requires category-specific trust gates.
+  const venueReadStatus =
+    communityPrices.venuePriceStatus.get(venue.id) ?? "idle";
   const communityRows = communityPrices.byVenueId.get(venue.id);
   const noAlcoholRows = communityRows?.filter(
     (row) =>
@@ -367,7 +396,7 @@ export default function VenueOverviewTab({
             <ClaimBadge kind="baseline" /> No-alcohol prices
           </span>
           <small className="communityPriceNote">
-            No soft-drink or alcohol-free price logged here yet.
+            {noAlcoholEmptyNote(venueReadStatus)}
           </small>
         </div>
       ) : null}

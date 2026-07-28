@@ -6,6 +6,7 @@
 import { Coins, X } from "lucide-react";
 import { useEffect, useId, useRef, useState } from "react";
 
+import type { CategoryPriceIndexStatus } from "@/lib/mapExperienceLens";
 import { mapPriceLegend } from "@/lib/mapPriceLegend";
 import type { Filters } from "@/lib/venues";
 
@@ -22,6 +23,8 @@ type MapPriceControlProps = {
   onFiltersChange: (filters: Filters) => void;
   placement?: "map" | "header";
   hasTypeRelativePrices?: boolean;
+  drinkLabel?: string;
+  drinkIndexStatus?: CategoryPriceIndexStatus;
 };
 
 function activeLabel(maxPrice: number): string {
@@ -36,6 +39,8 @@ export default function MapPriceControl({
   onFiltersChange,
   placement = "map",
   hasTypeRelativePrices = false,
+  drinkLabel,
+  drinkIndexStatus = "ready",
 }: MapPriceControlProps) {
   const [open, setOpen] = useState(false);
   const panelId = useId();
@@ -43,7 +48,11 @@ export default function MapPriceControl({
   // Default is ≤£7; "Any" (9) is the wide/unfiltered option — neither looks "on".
   // Only a tightened band (≤£5.50) marks the FAB as actively filtered.
   const filtered = filters.maxPrice <= 5.5;
-  const legend = mapPriceLegend(hasTypeRelativePrices);
+  const legend = mapPriceLegend(
+    hasTypeRelativePrices,
+    drinkLabel,
+    drinkIndexStatus,
+  );
 
   useEffect(() => {
     if (!open) return;
@@ -89,15 +98,24 @@ export default function MapPriceControl({
         title={legend.title}
         onClick={() => setOpen((value) => !value)}
       >
-        {legend.rows.map((row) => (
-          <span key={row.label}>
-            <i className={`mapPriceDot ${row.tone}`} aria-hidden="true" />
-            <span className="mapPriceLegendFull">{row.label}</span>
+        {legend.rows.length === 0 ? (
+          <span>
+            <span className="mapPriceLegendFull">{legend.title}</span>
             <span className="mapPriceLegendCompact" aria-hidden="true">
-              {row.tone === "green" ? "£" : row.tone === "amber" ? "££" : "£££"}
+              £?
             </span>
           </span>
-        ))}
+        ) : (
+          legend.rows.map((row) => (
+            <span key={row.label}>
+              <i className={`mapPriceDot ${row.tone}`} aria-hidden="true" />
+              <span className="mapPriceLegendFull">{row.label}</span>
+              <span className="mapPriceLegendCompact" aria-hidden="true">
+                {row.tone === "green" ? "£" : row.tone === "amber" ? "££" : "£££"}
+              </span>
+            </span>
+          ))
+        )}
       </button>
 
       {placement === "map" ? (
@@ -106,12 +124,18 @@ export default function MapPriceControl({
           className={open || filtered ? "mapPriceFab isActive" : "mapPriceFab"}
           aria-expanded={open}
           aria-controls={panelId}
-          aria-label={open ? "Close pint price filter" : "Filter pubs by pint price"}
-          title="Filter by pint price"
+          aria-label={
+            open
+              ? "Close price key"
+              : drinkLabel
+                ? `Show ${drinkLabel.toLowerCase()} price key`
+                : "Filter pubs by pint price"
+          }
+          title={drinkLabel ? `${drinkLabel} price key` : "Filter by pint price"}
           onClick={() => setOpen((value) => !value)}
         >
           <Coins size={16} aria-hidden="true" />
-          <span>{activeLabel(filters.maxPrice)}</span>
+          <span>{drinkLabel ?? activeLabel(filters.maxPrice)}</span>
         </button>
       ) : null}
 
@@ -134,6 +158,7 @@ export default function MapPriceControl({
             </button>
           </div>
           <p className="mapPriceHint">{legend.hint}</p>
+          {drinkLabel ? null : (
           <div className="mapPriceOptions" role="group" aria-label="Max pint price">
             {PRICE_OPTIONS.map((option) => {
               const on =
@@ -165,6 +190,7 @@ export default function MapPriceControl({
               );
             })}
           </div>
+          )}
         </div>
       ) : null}
     </div>

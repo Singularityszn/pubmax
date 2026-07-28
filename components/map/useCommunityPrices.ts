@@ -8,7 +8,11 @@ import {
   type CommunityPriceMapCandidate,
 } from "@/lib/communityPrice";
 import type { DrinkCategory } from "@/lib/drinks";
-import type { NoAlcoholIndexStatus } from "@/lib/mapExperienceLens";
+import type {
+  CategoryPriceIndexStatus,
+  NoAlcoholIndexStatus,
+  VenuePriceReadStatus,
+} from "@/lib/mapExperienceLens";
 import type { PriceSubmitFailureReason } from "@/lib/analyticsEvents";
 import {
   isUkBaseId,
@@ -62,12 +66,27 @@ export type CommunityPricesState = {
   noAlcoholIndexStatus: NoAlcoholIndexStatus;
   /** Load soft-drink and alcohol-free rows across venues once per session. */
   loadNoAlcoholIndex: () => void;
+  /** Load one selected drink category across venues once per session. */
+  loadDrinkCategoryIndex: (category: DrinkCategory) => void;
+  /**
+   * State of each cross-venue selected-drink read, on the same three-way scale
+   * the no-alcohol index reports: a truncated-but-successful scan is "partial"
+   * and keeps its trusted figures, a failed one is "degraded" and may never be
+   * presented as "no prices logged here".
+   */
+  drinkCategoryIndexStatus: ReadonlyMap<DrinkCategory, CategoryPriceIndexStatus>;
   /** Visibility marks found for UK base pubs read in this session. */
   provisionalBaseVenueIds: ReadonlySet<string>;
   /** Read unseen IDs among these on-screen base pubs. */
   loadProvisionalBaseVenues: (venueIds: readonly string[]) => void;
   /** Fetch the community prices on record for one venue (fail-soft, once per id). */
   loadVenue: (venueId: string) => void;
+  /**
+   * Where each per-venue read got to. A sheet may only say a pub has nothing
+   * logged once its own read ANSWERED: before that the honest line is that we
+   * are still looking, and a failed read is a fact about us, not the pub.
+   */
+  venuePriceStatus: ReadonlyMap<string, VenuePriceReadStatus>;
   /** Log tonight's price. Restamps optimistically, rolls back on rejection. */
   submit: (input: {
     venueId: string;
@@ -339,51 +358,91 @@ export function useCommunityPrices(): CommunityPricesState {
   // selection and must not re-hit the API for a venue it already read.
   const loaded = useRef<Set<string>>(new Set());
   const loadedRows = useRef<Map<string, CommunityPrice[]>>(new Map());
+  const [venuePriceStatus, setVenuePriceStatus] = useState<
+    Map<string, VenuePriceReadStatus>
+  >(() => new Map());
+  const markVenueRead = useCallback(
+    (venueId: string, status: VenuePriceReadStatus) => {
+      setVenuePriceStatus((current) => {
+        if (current.get(venueId) === status) return current;
+        const next = new Map(current);
+        next.set(venueId, status);
+        return next;
+      });
+    },
+    [],
+  );
+  const [drinkCategoryIndexStatus, setDrinkCategoryIndexStatus] = useState<
+    Map<DrinkCategory, CategoryPriceIndexStatus>
+  >(() => new Map());
   const noAlcoholIndexLoaded = useRef(false);
+  const drinkCategoryIndexesLoaded = useRef<Set<DrinkCategory>>(new Set());
+  const markDrinkCategoryIndex = useCallback(
+    (category: DrinkCategory, status: CategoryPriceIndexStatus) => {
+      setDrinkCategoryIndexStatus((current) => {
+        if (current.get(category) === status) return current;
+        const next = new Map(current);
+        next.set(category, status);
+        return next;
+      });
+    },
+    [],
+  );
   const provisionalBaseSignature = useRef("");
   const provisionalBaseKnown = useRef<Set<string>>(new Set());
   const provisionalBasePending = useRef<Set<string>>(new Set());
   const provisionalBaseMarked = useRef<Set<string>>(new Set());
   const provisionalBaseBackoffUntil = useRef(0);
 
-  const loadVenue = useCallback((venueId: string) => {
-    if (!venueId || loaded.current.has(venueId)) return;
-    loaded.current.add(venueId);
-    void (async () => {
-      try {
-        const res = await fetch(`/api/price-submit?venueId=${encodeURIComponent(venueId)}`);
-        if (!res.ok) {
+  const loadVenue = useCallback(
+    (venueId: string) => {
+      if (!venueId || loaded.current.has(venueId)) return;
+      loaded.current.add(venueId);
+      markVenueRead(venueId, "loading");
+      void (async () => {
+        try {
+          const res = await fetch(`/api/price-submit?venueId=${encodeURIComponent(venueId)}`);
+          if (!res.ok) {
+            loaded.current.delete(venueId);
+            markVenueRead(venueId, "degraded");
+            return;
+          }
+          const result = readVenuePriceLoad(await res.json());
+          if (result.status === "invalid") {
+            loaded.current.delete(venueId);
+            markVenueRead(venueId, "degraded");
+            return;
+          }
+          const { prices } = result;
+          if (result.status === "degraded") loaded.current.delete(venueId);
+          markVenueRead(
+            venueId,
+            result.status === "degraded" ? "degraded" : "ready",
+          );
+          if (result.status === "degraded" && prices.length === 0) return;
+          loadedRows.current.set(
+            venueId,
+            prices.reduce(upsertPrice, loadedRows.current.get(venueId) ?? []),
+          );
+          setByVenueId((current) => {
+            if (prices.length === 0 && current.has(venueId)) return current;
+            const next = new Map(current);
+            // Server rows are the record; a locally-optimistic entry for a
+            // category the server hasn't seen yet is kept rather than dropped.
+            const merged = prices.reduce(upsertPrice, next.get(venueId) ?? []);
+            next.set(venueId, merged);
+            return next;
+          });
+        } catch {
+          // Fail-soft: no community prices, the sourced baseline still renders.
+          // Allow a later selection to retry this venue.
           loaded.current.delete(venueId);
-          return;
+          markVenueRead(venueId, "degraded");
         }
-        const result = readVenuePriceLoad(await res.json());
-        if (result.status === "invalid") {
-          loaded.current.delete(venueId);
-          return;
-        }
-        const { prices } = result;
-        if (result.status === "degraded") loaded.current.delete(venueId);
-        if (result.status === "degraded" && prices.length === 0) return;
-        loadedRows.current.set(
-          venueId,
-          prices.reduce(upsertPrice, loadedRows.current.get(venueId) ?? []),
-        );
-        setByVenueId((current) => {
-          if (prices.length === 0 && current.has(venueId)) return current;
-          const next = new Map(current);
-          // Server rows are the record; a locally-optimistic entry for a
-          // category the server hasn't seen yet is kept rather than dropped.
-          const merged = prices.reduce(upsertPrice, next.get(venueId) ?? []);
-          next.set(venueId, merged);
-          return next;
-        });
-      } catch {
-        // Fail-soft: no community prices, the sourced baseline still renders.
-        // Allow a later selection to retry this venue.
-        loaded.current.delete(venueId);
-      }
-    })();
-  }, []);
+      })();
+    },
+    [markVenueRead],
+  );
 
   const loadNoAlcoholIndex = useCallback(() => {
     if (noAlcoholIndexLoaded.current) return;
@@ -429,6 +488,60 @@ export function useCommunityPrices(): CommunityPricesState {
       }
     })();
   }, []);
+
+  const loadDrinkCategoryIndex = useCallback(
+    (category: DrinkCategory) => {
+      if (drinkCategoryIndexesLoaded.current.has(category)) return;
+      drinkCategoryIndexesLoaded.current.add(category);
+      markDrinkCategoryIndex(category, "loading");
+      void (async () => {
+        try {
+          const response = await fetch(
+            `/api/price-submit?drinkCategory=${encodeURIComponent(category)}`,
+          );
+          if (!response.ok) throw new Error("category index unavailable");
+          const result = readCategoryPriceIndexLoad(await response.json());
+          if (result.status === "invalid") {
+            drinkCategoryIndexesLoaded.current.delete(category);
+            markDrinkCategoryIndex(category, "degraded");
+            return;
+          }
+          for (const row of result.prices) {
+            loadedRows.current.set(
+              row.venueId,
+              upsertPrice(loadedRows.current.get(row.venueId) ?? [], row),
+            );
+          }
+          setByVenueId((current) => {
+            if (result.prices.length === 0) return current;
+            const next = new Map(current);
+            for (const row of result.prices) {
+              next.set(
+                row.venueId,
+                upsertPrice(next.get(row.venueId) ?? [], row),
+              );
+            }
+            return next;
+          });
+          if (result.status === "degraded") {
+            drinkCategoryIndexesLoaded.current.delete(category);
+          }
+          markDrinkCategoryIndex(
+            category,
+            result.status === "degraded"
+              ? "degraded"
+              : result.truncated
+                ? "partial"
+                : "ready",
+          );
+        } catch {
+          drinkCategoryIndexesLoaded.current.delete(category);
+          markDrinkCategoryIndex(category, "degraded");
+        }
+      })();
+    },
+    [markDrinkCategoryIndex],
+  );
 
   const loadProvisionalBaseVenues = useCallback(
     (venueIds: readonly string[]) => {
@@ -687,9 +800,12 @@ export function useCommunityPrices(): CommunityPricesState {
     freshestByVenueId,
     noAlcoholIndexStatus,
     loadNoAlcoholIndex,
+    loadDrinkCategoryIndex,
+    drinkCategoryIndexStatus,
     provisionalBaseVenueIds,
     loadProvisionalBaseVenues,
     loadVenue,
+    venuePriceStatus,
     submit,
     submitting,
     reportPrice,

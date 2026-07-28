@@ -16,7 +16,10 @@ import {
 } from "@/lib/communityPrice";
 import type { UkBasePub } from "@/lib/ukBasePubs";
 import { COMMUNITY_PRICE_NOTE, formatPrice } from "@/lib/venues";
-import type { MapExperienceLens } from "@/lib/mapExperienceLens";
+import {
+  NO_ALCOHOL_LENS_PRICE_NOUN,
+  type MapExperienceLens,
+} from "@/lib/mapExperienceLens";
 
 import "./unverifiedPubSheet.css";
 
@@ -40,7 +43,9 @@ export default function UnverifiedPubSheet({
   communityPrices,
   experienceLens = "all",
 }: UnverifiedPubSheetProps) {
-  const pricesKnown = communityPrices.byVenueId.has(pub.id);
+  const readStatus = communityPrices.venuePriceStatus.get(pub.id) ?? "idle";
+  const pricesKnown = readStatus === "ready";
+  const readFailed = readStatus === "degraded";
   const rows = communityPrices.byVenueId.get(pub.id);
   const communityPrice = freshestCommunityPrice(
     experienceLens === "food"
@@ -66,7 +71,9 @@ export default function UnverifiedPubSheet({
             ? "Community price"
             : pricesKnown
               ? "No price yet"
-              : "Checking community prices"}
+              : readFailed
+                ? "Prices unread"
+                : "Checking community prices"}
         </span>
         <h2 className="unverifiedPubName">{pub.name}</h2>
         {pub.address ? (
@@ -105,7 +112,7 @@ export default function UnverifiedPubSheet({
         </>
       ) : pricesKnown && experienceLens === "no-alcohol" ? (
         <p className="unverifiedPubLead">
-          No soft-drink or alcohol-free price logged here yet.
+          No {NO_ALCOHOL_LENS_PRICE_NOUN} price logged here yet.
         </p>
       ) : pricesKnown && experienceLens === "food" ? (
         <p className="unverifiedPubLead">
@@ -115,6 +122,11 @@ export default function UnverifiedPubSheet({
         <p className="unverifiedPubLead">
           We know this pub is here, and that is all we know. Nobody has logged what
           a drink costs - <strong>be the first</strong>.
+        </p>
+      ) : readFailed ? (
+        <p className="unverifiedPubLead">
+          We could not read what has been logged here just now. You can still add
+          tonight&rsquo;s price below.
         </p>
       ) : null}
 

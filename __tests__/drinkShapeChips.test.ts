@@ -7,6 +7,7 @@ import {
   nextDrinkShapeFilters,
   nextDrinkSubtypeFilters,
   nextTopShelfFilters,
+  showsDrinkRefinements,
 } from "@/components/map/DrinkShapeChips";
 import type { Filters } from "@/lib/venues";
 
@@ -164,6 +165,13 @@ describe("nextTopShelfFilters", () => {
     const unchecked = { ...on, requireCocktails: false };
     expect(unchecked.drinkCategory).toBe("cocktail");
     expect(nextTopShelfFilters(unchecked).topShelfOnly).toBe(false);
+  });
+});
+
+describe("selected drink price lens controls", () => {
+  it("does not offer brandless subtype claims for non-pint price lenses", () => {
+    expect(showsDrinkRefinements(filters({ drinkCategory: "whisky" }))).toBe(false);
+    expect(showsDrinkRefinements(filters({ drinkCategory: "beer" }))).toBe(true);
   });
 });
 
