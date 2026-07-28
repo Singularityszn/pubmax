@@ -151,11 +151,29 @@ const nextConfig = {
   },
   skipTrailingSlashRedirect: true,
   async redirects() {
+    // Vercel production deployments remain reachable through one or more
+    // generated *.vercel.app aliases. Redirect that whole generated namespace
+    // from the production build instead of maintaining a list of aliases.
+    // Preview builds compile without this rule, so their generated hosts stay
+    // reviewable. Local builds have no VERCEL_ENV and also omit it.
+    const vercelProductionHostRedirects =
+      process.env.VERCEL_ENV === "production"
+        ? [
+            {
+              source: "/:path*",
+              has: [{ type: "host", value: ".+\\.vercel\\.app" }],
+              destination: "https://pubmaxxing.com/:path*",
+              permanent: true,
+            },
+          ]
+        : [];
+
     // The Stories tab settled on /feed; the old /stories route (and any deep
     // link beneath it) is retired. A permanent (308) redirect keeps shared
     // links and search-engine equity alive instead of dropping visitors on an
     // unbranded 404. __tests__/storiesRedirect.test.ts pins this.
     return [
+      ...vercelProductionHostRedirects,
       // Host canonicalisation (SEO split-brain fix, docs/SEO_CANONICAL_RUNBOOK
       // _2026-07-21.md). www.pubmaxxing.com was serving a full 200 MIRROR of the
       // app instead of redirecting to the apex, so Google indexed it as a second

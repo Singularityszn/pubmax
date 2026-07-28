@@ -8,13 +8,13 @@
 // recordMomentNudgeTrigger() (lib/identityNudge.ts) without owning this UI.
 //
 // The gate lives in lib/identityNudge.ts (shouldOfferIdentityNudge); this
-// component is presentation + the two OAuth actions + "not now". Browsing, map,
+// component is presentation + enabled OAuth actions + "not now". Browsing, map,
 // and prices are never affected — this only ever appears after the user has
 // already done something worth keeping. Reuses the ClaimNightDialog styling and
 // the SignInButton provider-button idiom (app/auth/auth.css).
 //
 // ── The LIGHTER path (Cycle-2 locked decision: "early email capture") ────────
-// Alongside the two OAuth buttons there is a second, lower-friction option:
+// Alongside any enabled OAuth buttons there is a lower-friction option:
 // leave just an email to get the weekly pint digest. Full OAuth is the only way
 // email arrives today; this gives a signed-out user a one-field alternative
 // without an account. The wording ties the capture to ONE stated purpose (the
@@ -27,6 +27,7 @@ import { useEffect, useState, useSyncExternalStore } from "react";
 
 import { useAuth } from "@/components/auth/AuthProvider";
 import MagicLinkForm from "@/components/auth/MagicLinkForm";
+import SocialSignInButtons from "@/components/auth/SocialSignInButtons";
 import { trackEvent } from "@/lib/analytics";
 import { isValidEmail } from "@/lib/emailSubscribers";
 import {
@@ -56,30 +57,6 @@ const COPY: Record<IdentityNudgeTrigger, { title: string; body: string }> = {
   },
 };
 
-// The official multi-colour Google "G" mark (kept inline; brand colours fixed).
-function GoogleMark(): React.JSX.Element {
-  return (
-    <svg className="authProviderMark" viewBox="0 0 48 48" aria-hidden="true" focusable="false">
-      <path fill="#4285F4" d="M45.12 24.5c0-1.56-.14-3.06-.4-4.5H24v8.51h11.84c-.51 2.75-2.06 5.08-4.39 6.64v5.52h7.11c4.16-3.83 6.56-9.47 6.56-16.17z" />
-      <path fill="#34A853" d="M24 46c5.94 0 10.92-1.97 14.56-5.33l-7.11-5.52c-1.97 1.32-4.49 2.1-7.45 2.1-5.73 0-10.58-3.87-12.31-9.07H4.34v5.7C7.96 41.07 15.4 46 24 46z" />
-      <path fill="#FBBC05" d="M11.69 28.18c-.44-1.32-.69-2.73-.69-4.18s.25-2.86.69-4.18v-5.7H4.34C2.85 17.09 2 20.45 2 24s.85 6.91 2.34 9.88l7.35-5.7z" />
-      <path fill="#EA4335" d="M24 10.75c3.23 0 6.13 1.11 8.41 3.29l6.31-6.31C34.91 4.18 29.93 2 24 2 15.4 2 7.96 6.93 4.34 14.12l7.35 5.7c1.73-5.2 6.58-9.07 12.31-9.07z" />
-    </svg>
-  );
-}
-
-// Microsoft four-square mark (brand colours fixed).
-function MicrosoftMark(): React.JSX.Element {
-  return (
-    <svg className="authProviderMark" viewBox="0 0 23 23" aria-hidden="true" focusable="false">
-      <path fill="#F25022" d="M1 1h10v10H1z" />
-      <path fill="#7FBA00" d="M12 1h10v10H12z" />
-      <path fill="#00A4EF" d="M1 12h10v10H1z" />
-      <path fill="#FFB900" d="M12 12h10v10H12z" />
-    </svg>
-  );
-}
-
 export default function IdentityNudge(): React.JSX.Element | null {
   const trigger = useSyncExternalStore(
     subscribeIdentityNudge,
@@ -90,6 +67,7 @@ export default function IdentityNudge(): React.JSX.Element | null {
     user,
     loading,
     configured,
+    socialProviders,
     signInWithGoogle,
     signInWithMicrosoft,
     signInWithEmail,
@@ -141,6 +119,7 @@ export default function IdentityNudge(): React.JSX.Element | null {
 
   const copy = COPY[trigger];
   const emailValid = isValidEmail(email);
+  const hasSocialProviders = socialProviders.google || socialProviders.microsoft;
 
   async function startSignIn(provider: () => Promise<{ error: string | null }>) {
     setAuthBusy(true);
@@ -226,41 +205,17 @@ export default function IdentityNudge(): React.JSX.Element | null {
           {copy.body}
         </p>
 
-        <div className="authProviders identityNudgeProviders">
-          <button
-            type="button"
-            className="authSignIn"
-            onClick={() => void startSignIn(signInWithGoogle)}
-            disabled={authBusy}
-            aria-label="Continue with Google"
-          >
-            <GoogleMark />
-            <span className="authSignInLabelFull" aria-hidden="true">
-              Continue with Google
-            </span>
-            <span className="authSignInLabelShort" aria-hidden="true">
-              Google
-            </span>
-          </button>
-          <button
-            type="button"
-            className="authSignIn"
-            onClick={() => void startSignIn(signInWithMicrosoft)}
-            disabled={authBusy}
-            aria-label="Continue with Microsoft"
-          >
-            <MicrosoftMark />
-            <span className="authSignInLabelFull" aria-hidden="true">
-              Continue with Microsoft
-            </span>
-            <span className="authSignInLabelShort" aria-hidden="true">
-              Microsoft
-            </span>
-          </button>
-        </div>
+        <SocialSignInButtons
+          availability={socialProviders}
+          disabled={authBusy}
+          onGoogle={() => startSignIn(signInWithGoogle)}
+          onMicrosoft={() => startSignIn(signInWithMicrosoft)}
+          className="identityNudgeProviders"
+        />
         {authError ? <p className="authError" role="alert">{authError}</p> : null}
         <MagicLinkForm
           disabled={authBusy}
+          hasSocialProviders={hasSocialProviders}
           signInWithEmail={signInWithEmail}
           cancelAuthAttempt={cancelAuthAttempt}
         />

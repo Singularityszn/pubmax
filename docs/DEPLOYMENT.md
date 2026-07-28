@@ -101,6 +101,12 @@ Buckets are not SQL objects, so create it **out of band** (Supabase dashboard �
 
 The app calls Supabase Auth with `signInWithOtp` for passwordless email and `signInWithOAuth` for Google/Microsoft. All three finish the PKCE exchange at the canonical site's `/auth/callback`, then return to the path where sign-in started. The callback rejects absolute, protocol-relative, and backslash redirect targets; never add a client-controlled redirect that bypasses that seam. URL fragments are never copied into Supabase's `redirectTo`: the browser holds them in a TTL-limited record keyed by a cryptographically random attempt ID and restores them only for the matching return path, because Plan invite fragments contain one-use capabilities. Supabase uses one browser PKCE verifier per project, so the app atomically allows only one live attempt across tabs through the Web Locks API and gives an honest error instead of overwriting another tab's attempt. The initiating tab also records its attempt in `sessionStorage`, allowing an explicit retry after backing out of the provider without weakening cross-tab isolation. Persistent browser storage and the Web Locks API are required for this PKCE coordination; browsers that disable either fail closed with an actionable message because an in-memory verifier cannot reliably survive the provider's full-page round trip. Secrets stay in the Supabase dashboard - the Next.js app only needs the public URL + publishable key above.
 
+Google and Microsoft buttons follow the live public provider flags from
+Supabase Auth's `/auth/v1/settings` endpoint (`google` and `azure`
+respectively). Disabled or unreadable providers stay hidden, and each provider
+is checked again before OAuth starts. Email magic-link sign-in remains the
+complete primary path when no social provider is enabled.
+
 #### Captain-owned Supabase URL config
 
 Dashboard → Authentication → URL Configuration:
@@ -143,19 +149,17 @@ These controls solve different problems:
   reviewers need a temporary share link, and automated checks need an
   automation bypass secret.
 - A permanent host redirect is canonicalisation, not access control. Redirecting
-  only `chengdu-pubmax69.vercel.app` to the apex stops that named host serving an
-  independent copy while leaving other preview URLs usable for review. Cost:
-  that alias can no longer show its deployed build, and it remains reachable
-  enough to issue the redirect. A wildcard redirect for every `.vercel.app`
-  hostname also makes every preview unusable because it immediately leaves for
-  production.
+  Vercel's generated production aliases to the apex stops them serving an
+  independent copy. `next.config.mjs` emits that wildcard host rule only when
+  Vercel builds the production environment. Preview and local builds omit the
+  rule, so their generated hosts remain usable for review without maintaining a
+  list of production aliases.
 
 Recommendation: retain that Vercel Authentication scope, keep `www` redirecting
-to the apex, keep all identity-provider callbacks on the apex, and add an exact
-host redirect for `chengdu-pubmax69.vercel.app`. That combination blocks
-anonymous access and removes the named alias for signed-in Vercel users without
-breaking other previews. Do not apply the redirect to all preview hosts unless
-losing preview review is an accepted trade-off.
+to the apex, keep all identity-provider callbacks on the apex, and keep the
+production-build wildcard redirect for generated Vercel hosts. That combination
+blocks anonymous access and removes Vercel aliases for signed-in team members
+without changing preview-build routing.
 
 #### Passwordless email (magic link)
 
@@ -193,7 +197,10 @@ Supabase’s provider id is **Azure** (the app code uses `provider: "azure"` wit
 6. Token configuration → optional claims → ID token: add `email` and `xms_edov` (helps Supabase treat email as verified and avoid unsafe account linking).
 7. Supabase → Authentication → Providers → **Azure** → paste Client ID + Client Secret → Enable. Leave Tenant URL / ID as the default “common” multi-tenant endpoint unless you intentionally lock to one tenant.
 
-Until a provider is enabled in Supabase, its button opens the IdP and then fails the redirect — that is expected dashboard setup, not an app bug. The nav shows both Google and Microsoft whenever the public Supabase env is set; enable each provider when you are ready.
+Until a provider is enabled in Supabase, its button stays hidden. The email
+magic-link path remains available on its own. Enabling or disabling a provider
+changes the rendered choices through the live settings read, with no app code
+or deployment change.
 
 ## Build-time data artifacts
 
