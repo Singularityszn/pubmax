@@ -6,7 +6,6 @@ import {
   freshnessArtifactIncludeById,
   freshnessArtifactIncludes,
 } from "./lib/freshnessTracing.mjs";
-import { UK_PLACE_INDEX_TRACING_INCLUDE } from "./lib/ukPlaceIndexFile.mjs";
 import { runtimeDataPackRouteIncludes } from "./lib/venueIndexTracing.mjs";
 
 const projectRoot = path.dirname(fileURLToPath(import.meta.url));
@@ -29,14 +28,15 @@ const freshnessRegistry = JSON.parse(
 const freshnessArtifacts = freshnessArtifactIncludes(freshnessRegistry);
 
 // Every App Router entry whose local import graph reaches a module that opens
-// data from a path it assembles at REQUEST time (the city venue packs behind
-// lib/venueIndex.ts, the venue detail manifest and rows behind
-// lib/venueDetailIndex.ts) reads files Next cannot see statically. Discover the
-// reader routes from source and the file lists from the packs' own registries
-// (lib/venueIndexTracing.mjs). This makes the next reader self-declaring instead
-// of another route name somebody must remember to copy here. Dynamic segment
-// brackets are escaped by the discovery helper because these keys are picomatch
-// globs. __tests__/venueIndexTracing.test.ts pins discovery and config coverage.
+// data from a path it assembles at REQUEST time reads files Next cannot see
+// statically: the city venue packs, the venue detail manifest and rows, the id
+// alias map, the menu overlay, the UK place index. Discover the reader routes
+// from source and the file lists from the packs' own registries
+// (RUNTIME_DATA_PACKS in lib/venueIndexTracing.mjs). This makes the next reader
+// self-declaring instead of another route name somebody must remember to copy
+// here. Dynamic segment brackets are escaped by the discovery helper because
+// these keys are picomatch globs. __tests__/venueIndexTracing.test.ts pins
+// discovery, config coverage, and that no undeclared runtime-path module exists.
 const runtimeDataPackIncludes = runtimeDataPackRouteIncludes(projectRoot);
 
 // A hand-written entry for a route that ALSO reads a discovered pack must merge
@@ -127,9 +127,6 @@ const nextConfig = {
     ),
     // The dynamic feed opens its overlay + venue packs per request (see above).
     "/feed": feedDataFiles,
-    // /map resolves a ?place= arrival against the UK place index per request
-    // (lib/ukPlaceIndex.server.ts), which Next cannot see statically.
-    "/map": withRuntimeDataPacks("/map", [UK_PLACE_INDEX_TRACING_INCLUDE]),
   },
   turbopack: {
     root: projectRoot,

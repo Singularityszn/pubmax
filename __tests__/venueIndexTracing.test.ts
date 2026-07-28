@@ -7,11 +7,12 @@
 // not a contract.
 //
 // Route discovery therefore follows local imports from App Router entries to
-// each pack's module (lib/venueIndexTracing.mjs RUNTIME_DATA_PACKS). This test
-// pins both halves independently: a synthetic import graph proves discovery
+// each pack's modules (lib/venueIndexTracing.mjs RUNTIME_DATA_PACKS). This test
+// pins three things independently: a synthetic import graph proves discovery
 // follows helpers, converts route conventions and merges two packs on one
-// route, then every reader in the real graph must be represented in evaluated
-// Next config.
+// route; every reader in the real graph must be represented in evaluated Next
+// config; and no module may assemble a data path at request time on a route's
+// import graph without being declared or carried as a named exception.
 
 import { execFileSync } from "node:child_process";
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
@@ -22,6 +23,9 @@ import { afterEach, describe, expect, it } from "vitest";
 
 import {
   RUNTIME_DATA_PACKS,
+  RUNTIME_PATH_MODULES_PENDING_DECLARATION,
+  RUNTIME_PATH_MODULES_TRACED_ELSEWHERE,
+  discoverRuntimePathModules,
   discoverRuntimeReaderRouteGlobs,
   runtimeDataPackRouteIncludes,
 } from "@/lib/venueIndexTracing.mjs";
@@ -103,16 +107,18 @@ describe("runtime data-pack tracing", () => {
     temporaryRoots.push(mkdtempSync(join(tmpdir(), "venue-index-tracing-")));
 
     const [venueIndexPack, venueDetailPack] = RUNTIME_DATA_PACKS;
-    writeFixture(venueIndexPack.module, "export async function getVenueIndex() {}");
-    writeFixture(venueDetailPack.module, "export async function getVenueDetail() {}");
+    const venueIndexModule = venueIndexPack.modules[0];
+    const venueDetailModule = venueDetailPack.modules[0];
+    writeFixture(venueIndexModule, "export async function getVenueIndex() {}");
+    writeFixture(venueDetailModule, "export async function getVenueDetail() {}");
     writeFixture(
       "app/api/packs/route.ts",
-      `import "@/${venueIndexPack.module.replace(/\.ts$/, "")}";\n` +
-        `import "@/${venueDetailPack.module.replace(/\.ts$/, "")}";\n`,
+      `import "@/${venueIndexModule.replace(/\.ts$/, "")}";\n` +
+        `import "@/${venueDetailModule.replace(/\.ts$/, "")}";\n`,
     );
     writeFixture(
       "app/detail/page.tsx",
-      `import "@/${venueDetailPack.module.replace(/\.ts$/, "")}";\n` +
+      `import "@/${venueDetailModule.replace(/\.ts$/, "")}";\n` +
         "export default function Page() { return null; }\n",
     );
 
@@ -130,16 +136,84 @@ describe("runtime data-pack tracing", () => {
 
     expect(RUNTIME_DATA_PACKS.length).toBeGreaterThan(0);
     for (const pack of RUNTIME_DATA_PACKS) {
-      const routes = discoverRuntimeReaderRouteGlobs(root, pack.module);
-
-      expect(routes.length, `${pack.id} must have runtime readers`).toBeGreaterThan(0);
+      expect(pack.modules.length, `${pack.id} must name its modules`).toBeGreaterThan(0);
       expect(pack.files.length, `${pack.id} must declare files`).toBeGreaterThan(0);
-      for (const route of routes) {
-        expect(includes[route], `${route} must declare ${pack.id} files`).toBeDefined();
-        for (const file of pack.files) {
-          expect(includes[route], `${route} is missing ${file}`).toContain(file);
+      for (const packModule of pack.modules) {
+        const routes = discoverRuntimeReaderRouteGlobs(root, packModule);
+
+        expect(routes.length, `${packModule} must have runtime readers`).toBeGreaterThan(0);
+        for (const route of routes) {
+          expect(includes[route], `${route} must declare ${pack.id} files`).toBeDefined();
+          for (const file of pack.files) {
+            expect(includes[route], `${route} is missing ${file}`).toContain(file);
+          }
         }
       }
+    }
+  });
+
+  it("flags a module that opens a path it assembled, and ignores a literal one", () => {
+    temporaryRoots.push(mkdtempSync(join(tmpdir(), "venue-index-tracing-")));
+
+    writeFixture(
+      "lib/assembled.ts",
+      'import { readFile } from "node:fs/promises";\n' +
+        'import path from "node:path";\n' +
+        'import { FILE } from "@/lib/fileName";\n' +
+        "export const read = () => readFile(path.join(process.cwd(), FILE), \"utf8\");\n",
+    );
+    writeFixture("lib/fileName.ts", 'export const FILE = "public/data/thing.json";\n');
+    writeFixture(
+      "lib/literal.ts",
+      'import { readFile } from "node:fs/promises";\n' +
+        'import path from "node:path";\n' +
+        'export const read = () =>\n' +
+        '  readFile(path.join(process.cwd(), "public", "data", "fixed.json"), "utf8");\n',
+    );
+    writeFixture(
+      "lib/unreachable.ts",
+      'import { readFile } from "node:fs/promises";\n' +
+        'import path from "node:path";\n' +
+        'export const read = (name: string) => readFile(path.join(process.cwd(), name), "utf8");\n',
+    );
+    writeFixture(
+      "app/reader/page.tsx",
+      'import "@/lib/assembled";\nimport "@/lib/literal";\n' +
+        "export default function Page() { return null; }\n",
+    );
+
+    expect(discoverRuntimePathModules(temporaryRoots[0])).toEqual(["lib/assembled.ts"]);
+  });
+
+  it("accounts for every runtime-assembled data read a route can reach", () => {
+    const modules = discoverRuntimePathModules(root);
+    const inPacks = new Set(RUNTIME_DATA_PACKS.flatMap((pack) => pack.modules));
+
+    expect(modules.length).toBeGreaterThan(0);
+    for (const found of modules) {
+      const accounted =
+        inPacks.has(found) ||
+        found in RUNTIME_PATH_MODULES_TRACED_ELSEWHERE ||
+        found in RUNTIME_PATH_MODULES_PENDING_DECLARATION;
+      expect(
+        accounted,
+        `${found} assembles a data path at request time, so it must be a RUNTIME_DATA_PACK ` +
+          "module, named in RUNTIME_PATH_MODULES_TRACED_ELSEWHERE, or carried in " +
+          "RUNTIME_PATH_MODULES_PENDING_DECLARATION with what it opens",
+      ).toBe(true);
+    }
+
+    // The two exception lists may only shrink: nothing in them may be stale, and
+    // a module that has since been declared must leave the pending list.
+    for (const excepted of [
+      ...Object.keys(RUNTIME_PATH_MODULES_TRACED_ELSEWHERE),
+      ...Object.keys(RUNTIME_PATH_MODULES_PENDING_DECLARATION),
+    ]) {
+      expect(modules, `${excepted} no longer assembles a runtime path`).toContain(excepted);
+      expect(inPacks.has(excepted), `${excepted} is declared, so drop its exception`).toBe(false);
+    }
+    for (const reason of Object.values(RUNTIME_PATH_MODULES_PENDING_DECLARATION)) {
+      expect(reason.length, "a pending module must say what it opens").toBeGreaterThan(0);
     }
   });
 });

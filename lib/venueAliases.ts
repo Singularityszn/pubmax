@@ -1,6 +1,8 @@
 import { promises as fs } from "fs";
 import path from "path";
 
+import { VENUE_ALIASES_FILE } from "@/lib/venueAliasesFile.mjs";
+
 // Duplicate-venue-identity alias resolution (D1). The bundled dataset collapses
 // the same physical pub's duplicate lineages into one canonical venue id (see
 // scripts/canonicalize_venue_dataset.mjs), and records every losing id in
@@ -16,7 +18,7 @@ import path from "path";
 type AliasDoc = { aliases?: Record<string, unknown> };
 
 let cached: Map<string, string> | null = null;
-let aliasPath = path.join(process.cwd(), "public", "data", "venue_id_aliases.json");
+let aliasPath = path.join(process.cwd(), VENUE_ALIASES_FILE);
 
 async function loadAliases(): Promise<Map<string, string>> {
   if (cached) return cached;
@@ -60,7 +62,7 @@ export function resetVenueAliasesForTests(): void {
     Boolean(process.env.VITEST_WORKER_ID)
   ) {
     cached = null;
-    aliasPath = path.join(process.cwd(), "public", "data", "venue_id_aliases.json");
+    aliasPath = path.join(process.cwd(), VENUE_ALIASES_FILE);
   }
 }
 
