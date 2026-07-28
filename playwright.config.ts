@@ -53,6 +53,7 @@ export default defineConfig({
         "**/screenshots.spec.ts",
         "**/map-gl.spec.ts",
         "**/map-fallback.spec.ts",
+        "**/map-service-worker.spec.ts",
         "**/map-uk-base-layer.spec.ts",
         // Flag-ON specs run only in the chromium-flag-on project against a
         // flag-on build (L20 zero-skip contract) — never in the default
@@ -94,6 +95,19 @@ export default defineConfig({
         // registration for this project keeps every route()-based delay/failure
         // simulation honest.
         serviceWorkers: "block",
+      },
+    },
+    {
+      // Service-worker map regression. Keeps SW interception enabled and uses
+      // SwiftShader so the quota-pressure test reaches a real MapLibre canvas.
+      name: "chromium-sw-gl",
+      testMatch: "**/map-service-worker.spec.ts",
+      use: {
+        ...devices["Desktop Chrome"],
+        launchOptions: {
+          args: ["--use-angle=swiftshader", "--enable-unsafe-swiftshader"],
+        },
+        serviceWorkers: "allow",
       },
     },
     {

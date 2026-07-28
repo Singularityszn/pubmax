@@ -5,8 +5,8 @@
  * Design rules (in order of importance):
  *  1. NEVER break a fresh deploy. Caches are keyed by a per-build VERSION
  *     (injected via the ?v= query on the registration URL — see
- *     components/OfflineReady.tsx and next.config.mjs). `activate` deletes
- *     every pubmax cache that doesn't belong to this version.
+ *     components/OfflineReady.tsx and next.config.mjs). `activate` preserves
+ *     valid offline entries and retires old caches only when safely covered.
  *  2. NEVER serve stale HTML for navigations. Navigations are network-first;
  *     the cache is only a fallback when the network is genuinely down.
  *  3. NEVER cache API responses (GET or POST). Last-train times and pint
@@ -25,8 +25,10 @@
  *         empty/error states when these fail.
  */
 
-const VERSION =
-  new URL(self.location.href).searchParams.get("v") || "dev";
+const WORKER_URL = new URL(self.location.href);
+const VERSION = WORKER_URL.searchParams.get("v") || "dev";
+const CACHE_POLICY = WORKER_URL.searchParams.get("cache-policy");
+const PRE_FIX_CACHE_POLICIES = new Set(["cache-write-coupled-v1"]);
 
 const PREFIX = "pubmax-sw-";
 const DATA_CACHE = `${PREFIX}data-${VERSION}`;
@@ -35,7 +37,17 @@ const SHELL_CACHE = `${PREFIX}shell-${VERSION}`;
 // Locked-plan pages a crew opened earlier, so they reopen offline (U18, #457
 // coordination: caching logic lives in the separate sw-plan-cache.js module).
 const PLAN_CACHE = `${PREFIX}plan-${VERSION}`;
-const CURRENT_CACHES = [DATA_CACHE, SWR_CACHE, SHELL_CACHE, PLAN_CACHE];
+const DATA_CACHE_FAMILY = {
+  current: DATA_CACHE,
+  prefix: `${PREFIX}data-`,
+  copyEntries: false,
+};
+const CACHE_FAMILIES = [
+  DATA_CACHE_FAMILY,
+  { current: SWR_CACHE, prefix: `${PREFIX}swr-`, purgeTileHost: true },
+  { current: SHELL_CACHE, prefix: `${PREFIX}shell-` },
+  { current: PLAN_CACHE, prefix: `${PREFIX}plan-` },
+];
 
 // Load the plan-navigation cache helpers (self.planCache). Version-busted like
 // every other asset, and non-fatal: if it fails to load the SW keeps its prior
@@ -72,24 +84,107 @@ self.addEventListener("install", (event) => {
       ),
     ),
   );
-  // No skipWaiting(): the new worker waits for old tabs to close, so an
-  // in-flight session is never handed a half-swapped asset graph.
+  if (isPreFixActiveWorker()) {
+    event.waitUntil(self.skipWaiting());
+  }
 });
 
 self.addEventListener("activate", (event) => {
   event.waitUntil(
-    caches
-      .keys()
-      .then((keys) =>
-        Promise.all(
-          keys
-            .filter((key) => key.startsWith(PREFIX) && !CURRENT_CACHES.includes(key))
-            .map((key) => caches.delete(key)),
-        ),
-      )
+    Promise.allSettled(CACHE_FAMILIES.map(migrateCacheFamily))
       .then(() => self.clients.claim()),
   );
 });
+
+function isPreFixActiveWorker() {
+  const activeUrl = self.registration.active?.scriptURL;
+  if (!activeUrl || !CACHE_POLICY) return false;
+  try {
+    const activePolicy = new URL(activeUrl).searchParams.get("cache-policy");
+    return (
+      activePolicy === null ||
+      PRE_FIX_CACHE_POLICIES.has(activePolicy)
+    );
+  } catch {
+    return false;
+  }
+}
+
+async function cacheFamilyNames(currentName) {
+  const family = CACHE_FAMILIES.find(({ current }) => current === currentName);
+  if (!family) return [currentName];
+  const names = await caches.keys();
+  return [
+    currentName,
+    ...names
+      .filter((name) => name.startsWith(family.prefix) && name !== currentName)
+      .reverse(),
+  ];
+}
+
+async function migrateCacheFamily({
+  current,
+  prefix,
+  purgeTileHost = false,
+  copyEntries = true,
+}) {
+  const names = await caches.keys();
+  const oldNames = names.filter(
+    (name) => name.startsWith(prefix) && name !== current,
+  ).reverse();
+  if (oldNames.length === 0) return;
+
+  const destination = await caches.open(current);
+  for (const name of oldNames) {
+    const source = await caches.open(name);
+    let covered = true;
+    for (const request of await source.keys()) {
+      if (purgeTileHost && new URL(request.url).hostname === TILE_HOST) {
+        if (!(await source.delete(request))) covered = false;
+        continue;
+      }
+      if (await destination.match(request)) continue;
+      if (!copyEntries) {
+        covered = false;
+        continue;
+      }
+      const response = await source.match(request);
+      if (!response) continue;
+      try {
+        await destination.put(request, response);
+      } catch {
+        covered = false;
+      }
+    }
+    if (covered) await caches.delete(name);
+  }
+}
+
+async function matchCacheFamily(currentName, request, options) {
+  const requestUrl = new URL(
+    typeof request === "string" ? request : request.url,
+    self.location.origin,
+  );
+  const names = await cacheFamilyNames(currentName);
+  const candidates =
+    currentName === SWR_CACHE && requestUrl.hostname === TILE_HOST
+      ? [currentName]
+      : names;
+  for (const name of candidates) {
+    const response = await (await caches.open(name)).match(request, options);
+    if (response) return response;
+  }
+  return undefined;
+}
+
+async function matchPlanNavigationAcrossCaches(url) {
+  if (!self.planCache) return undefined;
+  for (const name of await cacheFamilyNames(PLAN_CACHE)) {
+    const response = await self.planCache.matchPlanNavigation(url, name);
+    if (response) return response;
+  }
+  return undefined;
+}
 
 // Web Push payloads are always user-visible. Treat provider data as untrusted:
 // copy only short strings and reduce click-through to a same-origin path. A
@@ -216,6 +311,19 @@ function isCacheable(response) {
   return Boolean(response && response.ok && (response.type === "basic" || response.type === "cors"));
 }
 
+// Cache Storage is progressive enhancement. Safari may reject writes under
+// storage pressure (especially while an update temporarily keeps two
+// versioned cache sets). A valid network response must still reach its caller:
+// cache.put() failure is never a network failure.
+async function cachePutBestEffort(cache, request, response) {
+  try {
+    await cache.put(request, response.clone());
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 async function handleNavigation(event, request, url) {
   try {
     const response = await fetch(request);
@@ -237,16 +345,19 @@ async function handleNavigation(event, request, url) {
   } catch {
     // U18: offline, a locked plan reopens from its own cached HTML before the
     // generic shell ladder — that copy carries the night's stops/route/times.
-    if (self.planCache) {
-      const plan = await self.planCache.matchPlanNavigation(url, PLAN_CACHE);
-      if (plan) return plan;
-    }
-    const shell = await caches.open(SHELL_CACHE);
-    const exact = await shell.match(url.pathname, { ignoreSearch: true });
+    const plan = await matchPlanNavigationAcrossCaches(url);
+    if (plan) return plan;
+    const exact = await matchCacheFamily(SHELL_CACHE, url.pathname, {
+      ignoreSearch: true,
+    });
     if (exact) return exact;
-    const home = await shell.match("/", { ignoreSearch: true });
+    const home = await matchCacheFamily(SHELL_CACHE, "/", {
+      ignoreSearch: true,
+    });
     if (home) return home;
-    const offline = await shell.match(OFFLINE_URL, { ignoreSearch: true });
+    const offline = await matchCacheFamily(SHELL_CACHE, OFFLINE_URL, {
+      ignoreSearch: true,
+    });
     if (offline) return offline;
     return new Response("You're offline and nothing is cached yet.", {
       status: 503,
@@ -257,22 +368,28 @@ async function handleNavigation(event, request, url) {
 
 async function cacheFirstWithRevalidate(event, request) {
   const cache = await caches.open(DATA_CACHE);
-  const cached = await cache.match(request, { ignoreSearch: true });
-  const revalidate = fetch(request)
-    .then((response) => {
-      if (isCacheable(response)) {
-        return cache.put(request, response.clone()).then(() => response);
-      }
-      return response;
-    })
-    .catch(() => undefined);
+  const cached = await cache.match(request, {
+    ignoreSearch: true,
+  });
+  const network = fetch(request).catch(() => undefined);
+  const update = network.then(async (response) => {
+    if (isCacheable(response)) {
+      const stored = await cachePutBestEffort(cache, request, response);
+      if (stored) await migrateCacheFamily(DATA_CACHE_FAMILY);
+    }
+  });
 
   if (cached) {
-    event.waitUntil(revalidate);
+    event.waitUntil(update);
     return cached;
   }
-  const fresh = await revalidate;
+  const fresh = await network;
+  event.waitUntil(update);
   if (fresh) return fresh;
+  const fallback = await matchCacheFamily(DATA_CACHE, request, {
+    ignoreSearch: true,
+  });
+  if (fallback) return fallback;
   return new Response("[]", {
     status: 503,
     headers: { "Content-Type": "application/json" },
@@ -285,11 +402,17 @@ async function networkFirstWithCache(event, request) {
   try {
     const response = await fetch(request);
     if (isCacheable(response)) {
-      event.waitUntil(cache.put(request, response.clone()));
+      event.waitUntil(
+        cachePutBestEffort(cache, request, response).then(async (stored) => {
+          if (stored) await migrateCacheFamily(DATA_CACHE_FAMILY);
+        }),
+      );
     }
     return response;
   } catch {
-    const cached = await cache.match(request, { ignoreSearch: true });
+    const cached = await matchCacheFamily(DATA_CACHE, request, {
+      ignoreSearch: true,
+    });
     if (cached) return cached;
     return new Response("[]", {
       status: 503,
@@ -300,24 +423,25 @@ async function networkFirstWithCache(event, request) {
 
 async function staleWhileRevalidate(event, request) {
   const cache = await caches.open(SWR_CACHE);
-  const cached = await cache.match(request);
-  const network = fetch(request)
-    .then((response) => {
-      if (isCacheable(response)) {
-        return cache
-          .put(request, response.clone())
-          .then(() => trimCache(SWR_CACHE, MAX_SWR_ENTRIES))
-          .then(() => response);
-      }
-      return response;
-    })
-    .catch(() => undefined);
+  const cached = await matchCacheFamily(SWR_CACHE, request);
+  const network = fetch(request).catch(() => undefined);
+  const update = network.then(async (response) => {
+    if (!isCacheable(response)) return;
+    const stored = await cachePutBestEffort(cache, request, response);
+    if (!stored) return;
+    try {
+      await trimCache(SWR_CACHE, MAX_SWR_ENTRIES);
+    } catch {
+      // Trimming is best-effort for the same reason as the write.
+    }
+  });
 
   if (cached) {
-    event.waitUntil(network);
+    event.waitUntil(update);
     return cached;
   }
   const fresh = await network;
+  event.waitUntil(update);
   if (fresh) return fresh;
   return Response.error();
 }

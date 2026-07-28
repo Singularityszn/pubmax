@@ -4,9 +4,142 @@ import {
   TILE_FAILURE_SUSTAIN_MS,
   TILE_FAILURE_WINDOW_MS,
   classifyTileFailure,
+  createBasemapTileFailureTracker,
+  isCriticalBasemapFailure,
   pruneTileFailures,
+  tileFailureRecheckDelay,
   type TileFailureInput,
 } from "@/lib/mapTileFailure";
+
+describe("createBasemapTileFailureTracker", () => {
+  it("requires every failed tile to recover before confirming recovery", () => {
+    const tracker = createBasemapTileFailureTracker();
+    tracker.recordFailure({
+      sourceId: "openfreemap",
+      sourceType: "vector",
+      tileKey: "12/2047/1360",
+    });
+    tracker.recordFailure({
+      sourceId: "openfreemap",
+      sourceType: "vector",
+      tileKey: "12/2048/1360",
+    });
+
+    expect(
+      tracker.recordSuccess({
+        sourceId: "openfreemap",
+        sourceType: "vector",
+        tileKey: "12/2049/1360",
+      }),
+    ).toBe(false);
+    expect(tracker.hasFailures()).toBe(true);
+    expect(
+      tracker.recordSuccess({
+        sourceId: "openfreemap",
+        sourceType: "vector",
+        tileKey: "12/2047/1360",
+      }),
+    ).toBe(false);
+    expect(tracker.hasFailures()).toBe(true);
+    expect(
+      tracker.recordSuccess({
+        sourceId: "openfreemap",
+        sourceType: "vector",
+        tileKey: "12/2048/1360",
+      }),
+    ).toBe(true);
+    expect(tracker.hasFailures()).toBe(false);
+  });
+
+  it("scopes failed tiles to the current generation", () => {
+    const tracker = createBasemapTileFailureTracker();
+    const tile = {
+      sourceId: "openfreemap",
+      sourceType: "vector",
+      tileKey: "12/2047/1360",
+    };
+    tracker.recordFailure(tile);
+    tracker.reset();
+
+    expect(tracker.recordSuccess(tile)).toBe(false);
+    expect(tracker.hasFailures()).toBe(false);
+  });
+
+  it("ignores non-basemap and incomplete tile references", () => {
+    const tracker = createBasemapTileFailureTracker();
+    tracker.recordFailure({
+      sourceId: "pubs",
+      sourceType: "geojson",
+      tileKey: "pubs",
+    });
+    tracker.recordFailure({
+      sourceType: "vector",
+      tileKey: "12/2047/1360",
+    });
+
+    expect(tracker.hasFailures()).toBe(false);
+  });
+});
+
+describe("isCriticalBasemapFailure", () => {
+  it("treats initial vector TileJSON failure as systemic without a tile burst", () => {
+    expect(
+      isCriticalBasemapFailure({
+        message: "AJAXError: Failed to fetch",
+        initialBasemapPending: true,
+        sourceType: "vector",
+        tilePresent: false,
+      }),
+    ).toBe(true);
+  });
+
+  it("does not promote an individual vector tile miss to critical", () => {
+    expect(
+      isCriticalBasemapFailure({
+        message: "AJAXError: Failed to fetch",
+        initialBasemapPending: true,
+        sourceType: "vector",
+        tilePresent: true,
+      }),
+    ).toBe(false);
+  });
+
+  it("does not call a GeoJSON overlay or settled source critical", () => {
+    expect(
+      isCriticalBasemapFailure({
+        message: "AJAXError: Failed to fetch",
+        initialBasemapPending: true,
+        sourceType: "geojson",
+        tilePresent: false,
+      }),
+    ).toBe(false);
+    expect(
+      isCriticalBasemapFailure({
+        message: "AJAXError: Failed to fetch",
+        initialBasemapPending: false,
+        sourceType: "vector",
+        tilePresent: false,
+      }),
+    ).toBe(false);
+  });
+
+  it("keeps sprite and glyph failures critical", () => {
+    expect(
+      isCriticalBasemapFailure({
+        message: "Could not load sprite image",
+        initialBasemapPending: false,
+        tilePresent: false,
+      }),
+    ).toBe(true);
+    expect(
+      isCriticalBasemapFailure({
+        message: "Could not load glyph range",
+        initialBasemapPending: false,
+        tilePresent: false,
+      }),
+    ).toBe(true);
+  });
+});
 
 // A visible, settled-camera tab with a sustained burst and a full budget the
 // individual cases mutate. Every rule passes here, so each test flips exactly
@@ -48,7 +181,53 @@ describe("classifyTileFailure", () => {
     ).toBe("ignore");
   });
 
-  it("ignores everything while the camera is in flight", () => {
+  it("reclassifies a concurrent post-paint outage after the sustain window", () => {
+    const concurrent = Array.from(
+      { length: TILE_FAILURE_BURST },
+      (_, i) => NOW - i * 100,
+    );
+    expect(
+      classifyTileFailure({ ...bursting, errorTimestamps: concurrent }),
+    ).toBe("ignore");
+    expect(
+      classifyTileFailure({
+        ...bursting,
+        now: NOW + TILE_FAILURE_SUSTAIN_MS,
+        errorTimestamps: concurrent,
+      }),
+    ).toBe("retry");
+  });
+
+  it("retries a concentrated burst while the initial basemap is still pending", () => {
+    const initialBurst = Array.from(
+      { length: TILE_FAILURE_BURST },
+      (_, i) => NOW - i * 100,
+    );
+    expect(
+      classifyTileFailure({
+        ...bursting,
+        errorTimestamps: initialBurst,
+        initialBasemapPending: true,
+      }),
+    ).toBe("retry");
+  });
+
+  it("surfaces a repeated initial burst after the bounded retry", () => {
+    const initialBurst = Array.from(
+      { length: TILE_FAILURE_BURST },
+      (_, i) => NOW - i * 100,
+    );
+    expect(
+      classifyTileFailure({
+        ...bursting,
+        errorTimestamps: initialBurst,
+        initialBasemapPending: true,
+        retrySpent: true,
+      }),
+    ).toBe("surface");
+  });
+
+  it("ignores tile bursts but not terminal resources while the camera is in flight", () => {
     expect(
       classifyTileFailure({ ...bursting, cameraInFlight: true }),
     ).toBe("ignore");
@@ -58,7 +237,7 @@ describe("classifyTileFailure", () => {
         cameraInFlight: true,
         criticalFailure: true,
       }),
-    ).toBe("ignore");
+    ).toBe("retry");
   });
 
   it("ignores errors that have aged out of the window", () => {
@@ -78,7 +257,7 @@ describe("classifyTileFailure", () => {
     ).toBe("retry");
   });
 
-  it("ignores everything while the tab is hidden", () => {
+  it("ignores tile bursts but not terminal resources while the tab is hidden", () => {
     expect(
       classifyTileFailure({ ...bursting, documentVisible: false }),
     ).toBe("ignore");
@@ -88,7 +267,7 @@ describe("classifyTileFailure", () => {
         documentVisible: false,
         criticalFailure: true,
       }),
-    ).toBe("ignore");
+    ).toBe("retry");
   });
 
   it("surfaces when the retry is already spent", () => {
@@ -145,5 +324,26 @@ describe("pruneTileFailures", () => {
       NOW,
       NOW - 400,
     ]);
+  });
+});
+
+describe("tileFailureRecheckDelay", () => {
+  it("arms one sustain-window recheck for a concentrated burst", () => {
+    const concurrent = Array.from(
+      { length: TILE_FAILURE_BURST },
+      (_, i) => NOW - i * 100,
+    );
+    expect(tileFailureRecheckDelay(concurrent, NOW)).toBe(
+      TILE_FAILURE_SUSTAIN_MS - 300,
+    );
+  });
+
+  it("does not arm below the burst threshold", () => {
+    expect(
+      tileFailureRecheckDelay(
+        burst.slice(0, TILE_FAILURE_BURST - 1),
+        NOW,
+      ),
+    ).toBeNull();
   });
 });

@@ -58,9 +58,10 @@ const feedDataFiles = withRuntimeDataPacks(
 // once when `next build` loads this config and inlined into the client bundle
 // as NEXT_PUBLIC_SW_VERSION; components/OfflineReady.tsx appends it to the
 // registration URL (/sw.js?v=…). A new deploy → new URL → the browser installs
-// a fresh worker whose `activate` deletes the previous version's caches. The
-// env override lets CI/Vercel pin it to a commit SHA if ever desired; the
-// timestamp default needs zero extra scripts or package.json changes.
+// a fresh worker. Its `activate` preserves usable offline entries and retires
+// superseded caches only when safe. The env override lets CI/Vercel pin it to a
+// commit SHA if ever desired; the timestamp default needs zero extra scripts or
+// package.json changes.
 const swVersion = process.env.NEXT_PUBLIC_SW_VERSION ?? Date.now().toString(36);
 
 // Content-Security-Policy is NO LONGER served from here. It moved to proxy.ts

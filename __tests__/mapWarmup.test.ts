@@ -2,8 +2,10 @@ import { describe, expect, it, vi } from "vitest";
 
 import {
   MAP_INTENT_WARM_PATHS,
+  scheduleMapCanvasWarmup,
   shouldWarmMapIntent,
   warmMapIntentData,
+  type MapCanvasWarmState,
   type MapWarmDeps,
 } from "@/lib/mapWarmup";
 
@@ -98,6 +100,95 @@ describe("warmMapIntentData", () => {
         navigator: { connection: { effectiveType: "4g", saveData: false } },
       }),
     ).not.toThrow();
+  });
+});
+
+describe("scheduleMapCanvasWarmup", () => {
+  it("loads the canvas module once during idle on a normal connection", async () => {
+    const callbacks: Array<() => void> = [];
+    const load = vi.fn(() => Promise.resolve({}));
+    const state: MapCanvasWarmState = { status: "idle" };
+    const deps = {
+      navigator: { connection: { effectiveType: "4g", saveData: false } },
+      schedule: (callback: () => void) => callbacks.push(callback),
+      load,
+      state,
+    };
+
+    scheduleMapCanvasWarmup(deps);
+    scheduleMapCanvasWarmup(deps);
+
+    expect(callbacks).toHaveLength(1);
+    expect(load).not.toHaveBeenCalled();
+    callbacks[0]();
+    expect(load).toHaveBeenCalledTimes(1);
+    await Promise.resolve();
+    expect(state.status).toBe("loaded");
+  });
+
+  it("does not schedule the large canvas module for Save Data or 2g", () => {
+    for (const connection of [
+      { saveData: true, effectiveType: "4g" },
+      { saveData: false, effectiveType: "2g" },
+      { saveData: false, effectiveType: "slow-2g" },
+    ]) {
+      const schedule = vi.fn();
+      const load = vi.fn(() => Promise.resolve({}));
+      scheduleMapCanvasWarmup({
+        navigator: { connection },
+        schedule,
+        load,
+        state: { status: "idle" },
+      });
+      expect(schedule).not.toHaveBeenCalled();
+      expect(load).not.toHaveBeenCalled();
+    }
+  });
+
+  it("rechecks connection policy before the scheduled load starts", () => {
+    const callbacks: Array<() => void> = [];
+    const connection = { effectiveType: "4g", saveData: false };
+    const load = vi.fn(() => Promise.resolve({}));
+    const state: MapCanvasWarmState = { status: "idle" };
+
+    scheduleMapCanvasWarmup({
+      navigator: { connection },
+      schedule: (callback) => callbacks.push(callback),
+      load,
+      state,
+    });
+    connection.saveData = true;
+    callbacks[0]();
+
+    expect(load).not.toHaveBeenCalled();
+    expect(state.status).toBe("idle");
+  });
+
+  it("allows a later warmup after a module-load failure", async () => {
+    const callbacks: Array<() => void> = [];
+    const load = vi
+      .fn<() => Promise<unknown>>()
+      .mockRejectedValueOnce(new Error("chunk unavailable"))
+      .mockResolvedValueOnce({});
+    const state: MapCanvasWarmState = { status: "idle" };
+    const deps = {
+      navigator: { connection: { effectiveType: "4g" } },
+      schedule: (callback: () => void) => callbacks.push(callback),
+      load,
+      state,
+    };
+
+    scheduleMapCanvasWarmup(deps);
+    callbacks.shift()?.();
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(state.status).toBe("idle");
+
+    scheduleMapCanvasWarmup(deps);
+    callbacks.shift()?.();
+    await Promise.resolve();
+    expect(load).toHaveBeenCalledTimes(2);
+    expect(state.status).toBe("loaded");
   });
 });
 

@@ -17,6 +17,17 @@ export type MapWarmDeps = {
   seen?: Set<string>;
 };
 
+export type MapCanvasWarmState = {
+  status: "idle" | "scheduled" | "loaded";
+};
+
+export type MapCanvasWarmDeps = {
+  navigator: unknown;
+  schedule: (callback: () => void) => void;
+  load: () => Promise<unknown>;
+  state: MapCanvasWarmState;
+};
+
 export const MAP_INTENT_WARM_PATHS = [
   // Cycle-5 sharding: the map's first paint fetches the manifest + core shard,
   // NOT the monolithic venues_slim.json — warm exactly what it will request so
@@ -82,6 +93,43 @@ export function warmMapIntentData({
   }
 }
 
+/**
+ * Loads the large MapLibre canvas chunk during idle time on connections that
+ * have not asked us to conserve data. State lives outside this helper so a
+ * failed chunk request can be retried by a later map intent.
+ */
+export function scheduleMapCanvasWarmup({
+  navigator: nav,
+  schedule,
+  load,
+  state,
+}: MapCanvasWarmDeps): void {
+  if (state.status !== "idle" || !shouldWarmMapIntent(nav)) return;
+  state.status = "scheduled";
+  try {
+    schedule(() => {
+      if (!shouldWarmMapIntent(nav)) {
+        state.status = "idle";
+        return;
+      }
+      try {
+        void Promise.resolve(load()).then(
+          () => {
+            state.status = "loaded";
+          },
+          () => {
+            state.status = "idle";
+          },
+        );
+      } catch {
+        state.status = "idle";
+      }
+    });
+  } catch {
+    state.status = "idle";
+  }
+}
+
 export function warmMapIntent(): void {
   warmMapIntentData({
     fetch: (url, init) =>
@@ -95,6 +143,25 @@ export function warmMapIntent(): void {
 
 /** Session-deduped route prefetch + slim-data warm (landing CTAs + tab bar). */
 const warmedRoutes = new Set<string>();
+const mapCanvasWarmState: MapCanvasWarmState = { status: "idle" };
+
+function warmMapCanvasModule(): void {
+  if (typeof window === "undefined") return;
+  scheduleMapCanvasWarmup({
+    navigator: typeof navigator !== "undefined" ? navigator : undefined,
+    schedule: (callback) => {
+      if (typeof window.requestIdleCallback === "function") {
+        window.requestIdleCallback(callback, { timeout: 2_000 });
+        return;
+      }
+      // Browsers without requestIdleCallback still get a background window
+      // rather than competing with source-page hydration.
+      globalThis.setTimeout(callback, 2_000);
+    },
+    load: () => import("@/components/PubMapCanvas"),
+    state: mapCanvasWarmState,
+  });
+}
 
 export type MapRoutePrefetcher = {
   prefetch: (href: string) => void;
@@ -111,6 +178,8 @@ export function warmNavRoute(
   seen: Set<string> = warmedRoutes,
 ): void {
   const prefetchHref = href.split("?")[0] || href;
+  const isMapRoute = prefetchHref === "/map" || prefetchHref.startsWith("/map/");
+  if (isMapRoute) warmMapCanvasModule();
   if (!prefetchHref || seen.has(prefetchHref)) return;
   try {
     router.prefetch(prefetchHref);
@@ -124,7 +193,7 @@ export function warmNavRoute(
     return;
   }
   // Only warm slim/POI payloads for map routes (not Discover etc.).
-  if (prefetchHref === "/map" || prefetchHref.startsWith("/map/")) {
+  if (isMapRoute) {
     warmMapIntentData({
       fetch: (url, init) =>
         typeof fetch === "function"
