@@ -7,6 +7,7 @@ import {
   freshnessArtifactIncludeById,
   freshnessArtifactIncludes,
 } from "./lib/freshnessTracing.mjs";
+import { UK_PLACE_INDEX_TRACING_INCLUDE } from "./lib/ukPlaceIndexFile.mjs";
 
 const projectRoot = path.dirname(fileURLToPath(import.meta.url));
 
@@ -114,6 +115,9 @@ const nextConfig = {
     "/api/cron/freshness-audit": freshnessArtifacts,
     // The dynamic feed opens its overlay + venue packs per request (see above).
     "/feed": feedDataFiles,
+    // /map resolves a ?place= arrival against the UK place index per request
+    // (lib/ukPlaceIndex.server.ts), which Next cannot see statically.
+    "/map": [UK_PLACE_INDEX_TRACING_INCLUDE],
   },
   turbopack: {
     root: projectRoot,

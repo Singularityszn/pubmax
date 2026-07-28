@@ -10,6 +10,7 @@ import {
   TRUSTED_HANDOFF_FLAGS_OFF,
   type TrustedHandoffFlagsDTO,
 } from "@/lib/trustedHandoffFlags";
+import type { UkPlaceMapArrival } from "@/lib/ukPlaceSearch";
 
 const PubMap = dynamic(() => import("./PubMap"), {
   ssr: false,
@@ -65,11 +66,17 @@ type PubMaxingShellProps = {
   // Server-owned trusted-handoff flag DTO, read once in the RSC page and passed
   // down immutably. The client never interprets flag env vars itself.
   flags?: TrustedHandoffFlagsDTO;
+  // Server-resolved uncovered-place arrival, checked against our own place
+  // index (lib/ukPlaceIndex.server). The client never reads the place name off
+  // the query string, so no stranger's copy can be rendered as ours, and a soft
+  // navigation cannot lose the arrival to an empty location.search at mount.
+  placeArrival?: UkPlaceMapArrival | null;
 };
 
 export default function PubMaxingShell({
   cityId = DEFAULT_CITY_ID,
   flags = TRUSTED_HANDOFF_FLAGS_OFF,
+  placeArrival = null,
 }: PubMaxingShellProps) {
   // Lazy initializer = runs exactly once, before the dynamic PubMap (ssr:false)
   // can possibly have mounted and read the sessionStorage flag.
@@ -90,5 +97,12 @@ export default function PubMaxingShell({
     };
   }, []);
 
-  return <PubMap key={cityId} cityId={cityId} flags={flags} />;
+  return (
+    <PubMap
+      key={cityId}
+      cityId={cityId}
+      flags={flags}
+      placeArrival={placeArrival}
+    />
+  );
 }

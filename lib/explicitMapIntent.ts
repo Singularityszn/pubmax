@@ -24,6 +24,7 @@ import { hasMapLogIntent } from "@/lib/mapLogIntent";
 import type { MobileMapSessionV1 } from "@/lib/mobileShell";
 import type { PlanningIntentV1 } from "@/lib/planningIntent";
 import { hasCrawlArrivalParams } from "@/lib/pubMap";
+import { parseUkPlaceMapArrival } from "@/lib/ukPlaceSearch";
 
 // Trusted-handoff arrival markers not already recognised by
 // hasCrawlArrivalParams: the planner deep link (plan=1), the accepted-handoff
@@ -35,7 +36,8 @@ export function searchHasExplicitMapIntent(search: string): boolean {
   return (
     hasCrawlArrivalParams(search) ||
     hasMapLogIntent(search) ||
-    TRUSTED_HANDOFF_ARRIVAL_PARAM.test(search)
+    TRUSTED_HANDOFF_ARRIVAL_PARAM.test(search) ||
+    parseUkPlaceMapArrival(search) !== null
   );
 }
 

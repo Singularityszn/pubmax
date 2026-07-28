@@ -72,6 +72,26 @@ describe("city map generateMetadata", () => {
     });
   });
 
+  it("names an uncovered UK place without borrowing London metadata", async () => {
+    const metadata = await generateLondonMetadata({
+      searchParams: Promise.resolve({
+        place: "Sheffield",
+        lat: "53.3800941",
+        lng: "-1.4789213",
+      }),
+    });
+
+    expect(metadata.title).toBe("Sheffield pub map");
+    expect(metadata.description).toBe(
+      "Browse pubs mapped in Sheffield. No prices have been logged here yet.",
+    );
+    expect(metadata.openGraph).toMatchObject({
+      title: "Sheffield pub map",
+      url: "/map?place=Sheffield&lat=53.3800941&lng=-1.4789213",
+    });
+    expect(metadata.openGraph).not.toHaveProperty("images");
+  });
+
   it("publishes curated crawl social preview from crawl + pubs", async () => {
     const metadata = await generateLondonMetadata({
       searchParams: Promise.resolve({

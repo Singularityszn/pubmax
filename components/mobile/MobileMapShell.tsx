@@ -49,8 +49,10 @@ function PalSignalAvatar() {
   );
 }
 
-export default function MobileMapShell({ cityLabel, overlay, onOverlayChange, activeQuery, onClearQuery, onNearMe, nearMeStatus, nearbyCount, tonightCount, tflCount, tflStatus, priceLabel, drinkFiltersActive, experienceFilterLabel, priceCapActive, zoneActive, planOpen, planActive, planStopCount, planInteractive, onPlan, searchContent, filtersContent, tflContent, tonightContent, layersContent, palContent, momentContent, nearMeContent, areaContent }: {
+export default function MobileMapShell({ cityLabel, limitedCoverage, overlay, onOverlayChange, activeQuery, onClearQuery, onNearMe, nearMeStatus, nearbyCount, tonightCount, tflCount, tflStatus, priceLabel, drinkFiltersActive, experienceFilterLabel, priceCapActive, zoneActive, planOpen, planActive, planStopCount, planInteractive, onPlan, searchContent, filtersContent, tflContent, tonightContent, layersContent, palContent, momentContent, nearMeContent, areaContent }: {
   cityLabel: string;
+  /** Base-pub-only arrival: omit city-guide controls that cannot answer here. */
+  limitedCoverage: boolean;
   overlay: MapOverlay;
   onOverlayChange: (overlay: MapOverlay) => void;
   /** #395 R1: the live map search query (restored or typed), trimmed. Empty = no filter. */
@@ -85,8 +87,25 @@ export default function MobileMapShell({ cityLabel, overlay, onOverlayChange, ac
   /** The Area sheet body (cheapest pints here + go somewhere else). */
   areaContent: React.ReactNode;
 }) {
-  const set = (next: MapOverlay) => onOverlayChange(overlay === next ? "none" : next);
   const closeSheet = useCallback(() => onOverlayChange("none"), [onOverlayChange]);
+
+  if (limitedCoverage) {
+    return (
+      <div className="mobileMapChrome" aria-label="Map controls">
+        <header className="mobileMapTopbar mobileMapTopbarLimited">
+          <Link href="/" className="mobileMapBrand" aria-label="Open PUBMAXX landing page">
+            <PubmaxxWordmark />
+          </Link>
+          <span className="mobileMapArea mobileMapAreaStatic">
+            <MapPin size={14} aria-hidden="true" />
+            <span className="mobileMapAreaLabel">{cityLabel}</span>
+          </span>
+        </header>
+      </div>
+    );
+  }
+
+  const set = (next: MapOverlay) => onOverlayChange(overlay === next ? "none" : next);
   const nearMe = buildNearMeChip(nearMeStatus, nearbyCount);
   const filtersChip = buildFiltersChip({
     drinkFiltersActive,

@@ -218,6 +218,20 @@ export function pointInCityBounds(
   return lat >= latMin && lat <= latMax && lng >= lonMin && lng <= lonMax;
 }
 
+/**
+ * The enabled curated city whose bounds contain a point, or null. A place
+ * inside a curated city IS that city: it already has priced pins, crawls and
+ * the rest of the city chrome, so it may never be presented as uncovered.
+ */
+export function enabledCityContainingPoint(
+  lat: number,
+  lng: number,
+): CityConfig | null {
+  return (
+    listEnabledCities().find((city) => pointInCityBounds(lat, lng, city)) ?? null
+  );
+}
+
 /** MapLibre `maxBounds` tuple from a city's lat/lon box. */
 export function cityMaxBounds(
   cityConfig: CityConfig,

@@ -12,6 +12,7 @@ import "@/components/map/venueSheet.css";
 import "@/components/map/spillComposer.css";
 import "@/components/map/logIntentFallback.css";
 import "@/components/map/mapBannerStaging.css";
+import UkPlaceArrivalBanner from "@/components/map/UkPlaceArrivalBanner";
 
 import {
   buildCrawlRoute,
@@ -262,6 +263,10 @@ import {
 } from "@/lib/pubMap";
 import { explicitMapIntent } from "@/lib/explicitMapIntent";
 import {
+  ukPlaceMapView,
+  type UkPlaceMapArrival,
+} from "@/lib/ukPlaceSearch";
+import {
   readPlanningIntent,
   writePlanningIntent,
   type PlanningIntentSource,
@@ -403,11 +408,24 @@ function readBandChipDismissed(bandId: string): boolean {
 export default function PubMap({
   cityId = DEFAULT_CITY_ID,
   flags = TRUSTED_HANDOFF_FLAGS_OFF,
+  placeArrival = null,
 }: {
   cityId?: CityId;
   flags?: TrustedHandoffFlagsDTO;
+  /**
+   * Server-resolved uncovered-place arrival. Frozen at mount like every other
+   * arrival read. It arrives as a prop rather than being parsed out of
+   * location.search here because the name is printed as our own copy, so it
+   * must come from our own place index, and because a soft navigation can hand
+   * this component an empty search string at mount.
+   */
+  placeArrival?: UkPlaceMapArrival | null;
 }) {
   const city = getCity(cityId);
+  const [ukPlaceArrival] = useState(() => placeArrival);
+  const [initialMapView] = useState<MapViewportSnapshot>(() =>
+    ukPlaceArrival ? ukPlaceMapView(ukPlaceArrival, city.mapView) : city.mapView,
+  );
   const mobileViewport = useSyncExternalStore(
     subscribeMobileViewport,
     mobileViewportSnapshot,
@@ -418,7 +436,11 @@ export default function PubMap({
     desktopRailViewportSnapshot,
     () => false,
   );
-  const isLondon = cityId === "london";
+  const isLondon = cityId === "london" && !ukPlaceArrival;
+  const mapDisplayName = ukPlaceArrival?.name ?? city.displayName;
+  const mapSearchPlaceholder = ukPlaceArrival
+    ? "Search priced pub names"
+    : `Search ${city.displayName} venues or areas`;
   const cityLandmarks = useMemo(() => landmarksForCity(cityId), [cityId]);
   const cityStoryBands = useMemo(() => storyBandsForCity(cityId), [cityId]);
   const cityCuratedCrawls = useMemo(() => curatedCrawlsForCity(cityId), [cityId]);
@@ -510,7 +532,7 @@ export default function PubMap({
   const [mapViewport, setMapViewport] = useState<MapViewportSnapshot>(() =>
     restoredMobileSession?.viewport
       ? withCityCameraAttitude(restoredMobileSession.viewport, city.mapView)
-      : city.mapView,
+      : initialMapView,
   );
   const [poiHidden, setPoiHidden] = useState(defaultPoiHiddenForViewport);
   const [venueKindVisibility, setVenueKindVisibility] = useState(
@@ -1065,10 +1087,11 @@ export default function PubMap({
     [renderedBasePubs, mapViewport.center],
   );
   const mapContextName =
-    !mapViewport.center ||
+    ukPlaceArrival?.name ??
+    (!mapViewport.center ||
     pointInCityBounds(mapViewport.center[1], mapViewport.center[0], city)
       ? city.displayName
-      : "UK";
+      : "UK");
 
   const hasReactiveLogIntent = hasMapLogIntent(searchParams);
   const shouldBuildSuggestedRoute = !hasReactiveLogIntent || planningOpen || routeMapped;
@@ -1577,6 +1600,7 @@ export default function PubMap({
   const trimmedMapQuery = filters.query.trim();
   const didMountSearchFlyRef = useRef(false);
   useEffect(() => {
+    if (ukPlaceArrival) return;
     // Leave first paint to arrival framing; only react to user-driven typing.
     if (!didMountSearchFlyRef.current) {
       didMountSearchFlyRef.current = true;
@@ -1598,7 +1622,7 @@ export default function PubMap({
       }
     }, 320);
     return () => window.clearTimeout(handle);
-  }, [trimmedMapQuery, selectVenue]);
+  }, [trimmedMapQuery, selectVenue, ukPlaceArrival]);
 
   // #397: a query restored from the URL (?q=) must fly to its matches exactly
   // like typed search does (#371). The typed-search effect above deliberately
@@ -2031,13 +2055,13 @@ export default function PubMap({
     cityId,
     query: filters.query,
     onQueryChange: changeMapSearchQuery,
-    venues,
-    localities,
+    venues: ukPlaceArrival ? [] : venues,
+    localities: ukPlaceArrival ? [] : localities,
     userLocation,
     mapCenter: mapViewport.center,
     onSelectVenue: selectVenueFromSearch,
     onFlyToArea: selectSearchArea,
-    onSubmitQuery: selectTopSearchMatch,
+    onSubmitQuery: ukPlaceArrival ? undefined : selectTopSearchMatch,
   } satisfies Omit<MapSearchSuggestProps, "id" | "mode" | "placeholder" | "onClose">;
 
   const applyGeneratedMobilePlan = useCallback((generated: GeneratedMobilePlan) => {
@@ -2083,6 +2107,10 @@ export default function PubMap({
   }, [clearAreaSheetTimer, closeComposer, setPlanningOpen]);
 
   useEffect(() => {
+    // An uncovered-place arrival is a one-off destination, not a city session:
+    // persisting its viewport under cityId reopened the town under full London
+    // chrome, with no arrival banner, on the next clean /map visit.
+    if (ukPlaceArrival) return;
     writeMobileMapSession({
       viewport: mapViewport,
       filters,
@@ -2097,7 +2125,7 @@ export default function PubMap({
             ? mapOverlay
             : null,
     });
-  }, [activeNightArea?.slug, cityId, detailOpen, filters, mapOverlay, mapViewport, planningOpen, selectedVenueId]);
+  }, [activeNightArea?.slug, cityId, detailOpen, filters, mapOverlay, mapViewport, planningOpen, selectedVenueId, ukPlaceArrival]);
 
   // #215 a11y — the sheet's close button is the natural first stop for a
   // keyboard/AT user landing in a freshly-opened panel; on close (button,
@@ -2177,7 +2205,7 @@ export default function PubMap({
       ) : null}
       {!mobileViewport ? <button type="button" className="plannerMapButton" onClick={closePlanning}>
         <MapPinned size={16} aria-hidden="true" />
-        View {city.displayName} map
+        View {mapDisplayName} map
       </button> : null}
       <ControlRail
         mode={mode}
@@ -2407,12 +2435,17 @@ export default function PubMap({
           Named region so AT users get a landmark for the map surface (the
           canvas pins are pointer-only; keyboard discovery is the tonight lane
           + search input inside this region). */}
-      <section className="mapStage" aria-label={`Interactive venue map of ${city.displayName}`}>
-        <TonightArcChips
-          visibility={venueKindVisibility}
-          experienceLens={experienceLens}
-          onChange={setVenueKindVisibility}
-        />
+      <section className="mapStage" aria-label={`Interactive pub map of ${mapDisplayName}`}>
+        {!ukPlaceArrival ? (
+          <TonightArcChips
+            visibility={venueKindVisibility}
+            experienceLens={experienceLens}
+            onChange={setVenueKindVisibility}
+          />
+        ) : null}
+        {ukPlaceArrival ? (
+          <UkPlaceArrivalBanner arrival={ukPlaceArrival} />
+        ) : null}
         {/* Wave K2 / Issue #35 — keep the pitched-London loading chrome until
             BOTH the slim pin index and WebGL basemap scene are ready. Warmup
             can make slim pins arrive before tiles; retiring early left a blank
@@ -2425,7 +2458,7 @@ export default function PubMap({
             aria-live="polite"
             // Accessible name stays literal on purpose: the visible line below
             // carries the dry aside, the announced one states the fact.
-            aria-label={`Loading the ${city.displayName} venue map.`}
+            aria-label={`Loading the ${mapDisplayName} pub map.`}
           >
             <div className="mapLoadingScene" aria-hidden="true">
               <span className="mapLoadingStreet mapLoadingStreet--one" />
@@ -2437,7 +2470,7 @@ export default function PubMap({
               <span className="mapLoadingPin mapLoadingPin--pint mapLoadingPin--four" />
             </div>
             <div className="mapLoadingCopy">
-              <span className="mapLoadingEyebrow">{city.displayName} venue map</span>
+              <span className="mapLoadingEyebrow">{mapDisplayName} pub map</span>
               <span>Rounding up the pubs. Won&rsquo;t be a minute.</span>
             </div>
           </div>
@@ -2471,7 +2504,7 @@ export default function PubMap({
           mapView={
             restoredMobileSession?.viewport
               ? withCityCameraAttitude(restoredMobileSession.viewport, city.mapView)
-              : city.mapView
+              : initialMapView
           }
           maxBounds={UK_BOUNDS}
           fitQueryOnArrival={shouldFitQueryVenuesOnArrival(arrivalSearch)}
@@ -2496,12 +2529,16 @@ export default function PubMap({
           query={filters.query}
           onQueryChange={changeMapSearchQuery}
           searchContent={
-            <MapSearchSuggest
-              {...sharedMapSearchProps}
-              id="mapSearchInput"
-              mode="toolbar"
-              placeholder={`Search ${city.displayName} venues or areas`}
-            />
+            // Nothing here is priced, so venue search can never answer. The
+            // mobile shell drops it for the same reason.
+            ukPlaceArrival ? null : (
+              <MapSearchSuggest
+                {...sharedMapSearchProps}
+                id="mapSearchInput"
+                mode="toolbar"
+                placeholder={mapSearchPlaceholder}
+              />
+            )
           }
           favoritePint={favoritePint}
           onFavoritePintChange={changeFavoritePint}
@@ -2545,12 +2582,12 @@ export default function PubMap({
         {railViewport && !detailOpen ? (
           <MapDesktopRail area={searchAreaNewsArea ?? suggestedPlanArea?.slug ?? null} />
         ) : null}
-        {!mobileViewport ? <CitySuggestBanner cityId={cityId} onLocationFound={setUserLocation} /> : null}
+        {!mobileViewport && !ukPlaceArrival ? <CitySuggestBanner cityId={cityId} onLocationFound={setUserLocation} /> : null}
         {!mobileViewport && isLondon ? <CityStatusBanner cityId={cityId} /> : null}
         {/* F3: concierge as map home — a first-class grounded ask affordance in
             the bottom map-home lane. Rendered before the Tonight lane so its
             sibling CSS lifts the lane above the collapsed pill (no collision). */}
-        {!mobileViewport ? <MapConciergeAsk cityId={cityId} onSelectVenue={(id) => selectVenue(id)} /> : null}
+        {!mobileViewport && !ukPlaceArrival ? <MapConciergeAsk cityId={cityId} onSelectVenue={(id) => selectVenue(id)} /> : null}
         {!mobileViewport && isLondon ? (
           <TonightLane
             rows={whatsOnTonight.rows}
@@ -2650,7 +2687,8 @@ export default function PubMap({
 
         {mobileShellReady ? (
         <MobileMapShell
-          cityLabel={centreArea?.name ?? activeNightArea?.name ?? mapContextName}
+          cityLabel={ukPlaceArrival?.name ?? centreArea?.name ?? activeNightArea?.name ?? mapContextName}
+          limitedCoverage={Boolean(ukPlaceArrival)}
           overlay={mobileShellState.overlay}
           onOverlayChange={changeMapOverlay}
           activeQuery={trimmedMapQuery}
@@ -2685,14 +2723,14 @@ export default function PubMap({
           planOpen={planningOpen}
           planActive={routeMappedActive || activePlanRoute.length >= 2}
           planStopCount={routeMappedActive ? route.length : activePlanRoute.length}
-          planInteractive={mobileViewport}
+          planInteractive={mobileViewport && !ukPlaceArrival}
           onPlan={openPlanning}
           searchContent={
             <MapSearchSuggest
               {...sharedMapSearchProps}
               id="mobileMapSearchInput"
               mode="overlay"
-              placeholder={`Search ${city.displayName} venues or areas`}
+              placeholder={mapSearchPlaceholder}
               onClose={() => changeMapOverlay("none")}
             />
           }

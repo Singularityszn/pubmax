@@ -64,6 +64,12 @@ function setupScratch(files: Record<string, unknown>): string {
     join(ROOT, "lib", "pintIndexCanonical.mjs"),
     join(scratchLib, "pintIndexCanonical.mjs"),
   );
+  // The UK place index is checked against the same name rule the chooser and
+  // the builder share, which the script imports rather than restates.
+  cpSync(
+    join(ROOT, "lib", "ukPlaceName.mjs"),
+    join(scratchLib, "ukPlaceName.mjs"),
+  );
   for (const f of [
     "london_pois.json",
     "london_localities.json",
