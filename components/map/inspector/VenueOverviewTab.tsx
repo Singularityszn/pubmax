@@ -45,6 +45,7 @@ import { anchorMonthLabel } from "@/lib/venueAnchorPresentation";
 import {
   NO_ALCOHOL_LENS_PRICE_NOUN,
   type MapExperienceLens,
+  type VenuePriceReadStatus,
 } from "@/lib/mapExperienceLens";
 
 function VenuePriceSummary({
@@ -146,6 +147,20 @@ function VenuePriceSummary({
   ) : null;
 }
 
+/**
+ * The pub has none on record, we are still looking, or we could not look. Only
+ * the first is a fact about the pub, so the three never share a sentence.
+ */
+function noAlcoholEmptyNote(status: VenuePriceReadStatus): string {
+  if (status === "ready") {
+    return `No ${NO_ALCOHOL_LENS_PRICE_NOUN} price logged here yet.`;
+  }
+  if (status === "degraded") {
+    return `We could not read this pub's ${NO_ALCOHOL_LENS_PRICE_NOUN} prices just now.`;
+  }
+  return `Checking ${NO_ALCOHOL_LENS_PRICE_NOUN} prices logged here.`;
+}
+
 export default function VenueOverviewTab({
   venue,
   tab,
@@ -210,6 +225,8 @@ export default function VenueOverviewTab({
   // only its two categories, while the food view reserves this slot for the
   // sourced menu anchor below. Sheet visibility remains independent of map
   // authority, which still requires category-specific trust gates.
+  const venueReadStatus =
+    communityPrices.venuePriceStatus.get(venue.id) ?? "idle";
   const communityRows = communityPrices.byVenueId.get(venue.id);
   const noAlcoholRows = communityRows?.filter(
     (row) =>
@@ -370,7 +387,7 @@ export default function VenueOverviewTab({
             <ClaimBadge kind="baseline" /> No-alcohol prices
           </span>
           <small className="communityPriceNote">
-            No {NO_ALCOHOL_LENS_PRICE_NOUN} price logged here yet.
+            {noAlcoholEmptyNote(venueReadStatus)}
           </small>
         </div>
       ) : null}

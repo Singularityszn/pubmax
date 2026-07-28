@@ -95,6 +95,37 @@ describe("MapExperienceLens", () => {
     );
   });
 
+  it("keeps the inspector's no-alcohol empty state behind an answered read", () => {
+    // Both no-alcohol empty states say the same sentence, so both owe the same
+    // guard: "nothing logged here" is a fact about the pub and may not stand in
+    // for a read still in flight or one that failed.
+    const overview = readFileSync(
+      join(process.cwd(), "components/map/inspector/VenueOverviewTab.tsx"),
+      "utf8",
+    );
+
+    expect(overview).toContain(
+      'communityPrices.venuePriceStatus.get(venue.id) ?? "idle"',
+    );
+    expect(overview).toContain("{noAlcoholEmptyNote(venueReadStatus)}");
+    expect(overview).toMatch(
+      /status === "ready"[\s\S]*?`No \$\{NO_ALCOHOL_LENS_PRICE_NOUN\} price logged here yet\.`/,
+    );
+    expect(overview).toMatch(
+      /status === "degraded"[\s\S]*?`We could not read/,
+    );
+    expect(overview).toMatch(
+      /return `Checking \$\{NO_ALCOHOL_LENS_PRICE_NOUN\} prices logged here\.`/,
+    );
+
+    const sheet = readFileSync(
+      join(process.cwd(), "components/map/UnverifiedPubSheet.tsx"),
+      "utf8",
+    );
+    expect(sheet).toContain('const pricesKnown = readStatus === "ready";');
+    expect(sheet).toContain('const readFailed = readStatus === "degraded";');
+  });
+
   it("renames pubs for no-alcohol nights and keeps food view food-first", () => {
     const visibility = {
       pub: true,

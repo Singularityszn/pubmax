@@ -246,6 +246,15 @@ export type CategoryPriceIndexStatus =
 export type NoAlcoholIndexStatus = CategoryPriceIndexStatus;
 
 /**
+ * The same scale for ONE pub's own price read. It cannot be `partial` - a
+ * venue's rows arrive whole or not at all - but the other three findings are
+ * exactly as separable: a read still in flight, a read that failed, and a read
+ * that answered with nothing are three different things to tell a reader, and
+ * only the last one is a fact about the pub.
+ */
+export type VenuePriceReadStatus = Exclude<CategoryPriceIndexStatus, "partial">;
+
+/**
  * The one sentence a selected-drink surface adds when its index did not answer
  * completely. `null` means the index is complete and the figures speak for
  * themselves; anything else must be shown rather than swallowed, because an
