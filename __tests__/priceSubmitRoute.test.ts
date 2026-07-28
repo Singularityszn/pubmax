@@ -350,21 +350,24 @@ describe("GET /api/price-submit", () => {
     // The one unauthenticated read here that pages the store per request, and
     // answers no-store so nothing is shared between callers. It gets the same
     // per-actor plumbing every mutating branch on this route uses.
-    let limited = 0;
-    for (let index = 0; index < 62; index += 1) {
+    let limited: Response | null = null;
+    for (let index = 0; index < 200 && limited === null; index += 1) {
       const response = await GET(
         get(`?scope=provisional-base&venueId=venue-uk-n${index}`),
       );
-      if (response.status === 429) {
-        limited += 1;
-        expect(((await response.json()) as { error: string }).error).toContain(
-          "slow down",
-        );
-      } else {
-        expect(response.status, `read ${index + 1}`).toBe(200);
-      }
+      if (response.status === 429) limited = response;
+      else expect(response.status, `read ${index + 1}`).toBe(200);
     }
-    expect(limited).toBeGreaterThan(0);
+    expect(limited).not.toBeNull();
+    if (!limited) throw new Error("budget never refused a read");
+    // And it NAMES the window. The durable limiter records a hit even when it
+    // refuses one, so a client left to guess retries into its own lockout.
+    const retryAfter = Number(limited.headers.get("Retry-After"));
+    expect(retryAfter).toBeGreaterThan(0);
+    expect(retryAfter).toBeLessThanOrEqual(300);
+    expect(((await limited.json()) as { error: string }).error).toContain(
+      "slow down",
+    );
   });
 
   it("rejects curated ids and an over-limit provisional base request", async () => {

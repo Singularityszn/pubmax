@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 
 import {
   planProvisionalBaseVenueRead,
+  provisionalBaseBackoffMs,
+  PROVISIONAL_BASE_BACKOFF_MS,
   readCategoryPriceIndexLoad,
   readProvisionalVenueIdsLoad,
   readVenuePriceLoad,
@@ -26,6 +28,44 @@ const optimisticBeer: CommunityPrice = {
   source: "community",
   corroborations: 1,
 };
+
+// The durable limiter records a hit even when it refuses one, so a client that
+// cannot tell 429 from a dropped connection retries into its own lockout and
+// never gets a base mark again for the rest of the session.
+describe("provisionalBaseBackoffMs", () => {
+  it("keeps a transient failure retryable and only stands down on a refusal", () => {
+    expect(provisionalBaseBackoffMs(200, null)).toBeNull();
+    expect(provisionalBaseBackoffMs(500, null)).toBeNull();
+    expect(provisionalBaseBackoffMs(503, "30")).toBeNull();
+    expect(provisionalBaseBackoffMs(429, null)).toBe(PROVISIONAL_BASE_BACKOFF_MS);
+  });
+
+  it("respects Retry-After as seconds or as a date", () => {
+    const now = Date.UTC(2026, 6, 28, 21, 0, 0);
+    expect(provisionalBaseBackoffMs(429, "30", now)).toBe(30_000);
+    expect(
+      provisionalBaseBackoffMs(429, new Date(now + 45_000).toUTCString(), now),
+    ).toBe(45_000);
+  });
+
+  it("bounds a header it cannot use, in both directions", () => {
+    const now = Date.UTC(2026, 6, 28, 21, 0, 0);
+    // Never busy-retry: a zero or past deadline still costs a real pause.
+    expect(provisionalBaseBackoffMs(429, "0", now)).toBe(1_000);
+    expect(
+      provisionalBaseBackoffMs(429, new Date(now - 60_000).toUTCString(), now),
+    ).toBe(1_000);
+    // …and never mute the layer for the session on one server's say-so.
+    expect(provisionalBaseBackoffMs(429, "99999", now)).toBe(300_000);
+    // Unparseable falls back to the window we know the server runs.
+    expect(provisionalBaseBackoffMs(429, "soon", now)).toBe(
+      PROVISIONAL_BASE_BACKOFF_MS,
+    );
+    expect(provisionalBaseBackoffMs(429, "  ", now)).toBe(
+      PROVISIONAL_BASE_BACKOFF_MS,
+    );
+  });
+});
 
 describe("community price client state", () => {
   it("reads only newly visible stable base ids", () => {

@@ -65,8 +65,16 @@ import { readString } from "@/lib/textClean";
  * up to MAX_PROVISIONAL_BASE_VENUE_IDS pubs and the client asks only for ids it
  * has not already read, so this covers a long session of panning while still
  * capping what one device can pull out of the store.
+ *
+ * Sized ABOVE one dense viewport rather than at it: a first arrival over
+ * central London can render several hundred base pubs, which is a dozen or so
+ * chunks before the client has cached a single id, and the key is a hashed IP -
+ * so an office or carrier NAT spends one bucket between every device behind it.
+ * A budget that a legitimate arrival can exhaust is a budget that mostly refuses
+ * honest readers. The answer carries ids and no figures, so the ceiling here is
+ * about store load, not about what a caller could learn.
  */
-const PROVISIONAL_BASE_READ_LIMIT = 60;
+const PROVISIONAL_BASE_READ_LIMIT = 120;
 const PROVISIONAL_BASE_READ_WINDOW_MS = 60_000;
 
 export async function POST(request: Request): Promise<Response> {
@@ -237,9 +245,20 @@ export async function GET(request: Request): Promise<Response> {
           PROVISIONAL_BASE_READ_WINDOW_MS,
         )
       ) {
+        // Name the window rather than making the client guess it. The durable
+        // limiter records a hit even when it refuses one, so a caller that
+        // retries blind holds its own bucket shut; Retry-After is what lets a
+        // panning map stand down for exactly as long as the budget needs.
         return jsonNoStore(
           { error: "Too many map reads, slow down." },
-          { status: 429 },
+          {
+            status: 429,
+            headers: {
+              "Retry-After": String(
+                Math.ceil(PROVISIONAL_BASE_READ_WINDOW_MS / 1_000),
+              ),
+            },
+          },
         );
       }
       const result = await readProvisionalCommunityPriceVenueIds(venueIds);

@@ -208,6 +208,40 @@ export type ProvisionalVenueIdsLoad =
   | { status: "degraded"; venueIds: string[] }
   | { status: "invalid"; venueIds: [] };
 
+/**
+ * How long to stand down after the provisional-base budget refuses a read.
+ * Matches the server window (app/api/price-submit/route.ts), because the
+ * durable limiter RECORDS a hit even when it refuses one: a client that retries
+ * inside the window keeps its own bucket saturated and never gets back in.
+ */
+export const PROVISIONAL_BASE_BACKOFF_MS = 60_000;
+const PROVISIONAL_BASE_BACKOFF_MAX_MS = 300_000;
+
+/**
+ * The backoff a response earns, or null when it is not a refusal to budget.
+ * Separated from `readProvisionalVenueIdsLoad` because 429 is a fact about the
+ * transport, not the body: a limited read has no body worth parsing, and
+ * flattening it into the same "unreadable" lane as a dropped connection is what
+ * turns one refusal into a session-long lockout.
+ */
+export function provisionalBaseBackoffMs(
+  status: number,
+  retryAfter: string | null,
+  now: number = Date.now(),
+): number | null {
+  if (status !== 429) return null;
+  const header = (retryAfter ?? "").trim();
+  const bounded = (ms: number) =>
+    Math.min(Math.max(ms, 1_000), PROVISIONAL_BASE_BACKOFF_MAX_MS);
+  if (header !== "") {
+    const seconds = Number(header);
+    if (Number.isFinite(seconds) && seconds >= 0) return bounded(seconds * 1_000);
+    const retryAt = Date.parse(header);
+    if (Number.isFinite(retryAt)) return bounded(retryAt - now);
+  }
+  return PROVISIONAL_BASE_BACKOFF_MS;
+}
+
 export function planProvisionalBaseVenueRead(
   venueIds: readonly string[],
   alreadyRead: ReadonlySet<string>,
@@ -310,6 +344,7 @@ export function useCommunityPrices(): CommunityPricesState {
   const provisionalBaseKnown = useRef<Set<string>>(new Set());
   const provisionalBasePending = useRef<Set<string>>(new Set());
   const provisionalBaseMarked = useRef<Set<string>>(new Set());
+  const provisionalBaseBackoffUntil = useRef(0);
 
   const loadVenue = useCallback((venueId: string) => {
     if (!venueId || loaded.current.has(venueId)) return;
@@ -397,6 +432,17 @@ export function useCommunityPrices(): CommunityPricesState {
 
   const loadProvisionalBaseVenues = useCallback(
     (venueIds: readonly string[]) => {
+      // Standing down after a refusal is the whole point of the backoff, so it
+      // gates ahead of the viewport signature: panning is exactly what would
+      // otherwise re-fire the refused chunks and keep the window saturated.
+      // When it lapses the signature goes with it, so a camera that never moved
+      // still gets its one read rather than being deduped out of existence.
+      const startedAt = Date.now();
+      if (startedAt < provisionalBaseBackoffUntil.current) return;
+      if (provisionalBaseBackoffUntil.current !== 0) {
+        provisionalBaseBackoffUntil.current = 0;
+        provisionalBaseSignature.current = "";
+      }
       const knownOrPending = new Set([
         ...provisionalBaseKnown.current,
         ...provisionalBasePending.current,
@@ -425,6 +471,7 @@ export function useCommunityPrices(): CommunityPricesState {
       void (async () => {
         let changed = false;
         let incomplete = false;
+        let backoffMs: number | null = null;
         // ONE chunk in flight at a time. A dense central viewport carries
         // hundreds of base pubs, so firing every chunk at once turns a single
         // settled camera into a burst against an unauthenticated read whose
@@ -438,6 +485,13 @@ export function useCommunityPrices(): CommunityPricesState {
             const response = await fetch(
               `/api/price-submit?${query.toString()}`,
             );
+            backoffMs = provisionalBaseBackoffMs(
+              response.status,
+              response.headers.get("Retry-After"),
+            );
+            // The budget is spent, and the rest of this viewport's chunks would
+            // only deepen the hole. Stop, and let the backoff hold the retry.
+            if (backoffMs !== null) break;
             if (!response.ok) throw new Error("provisional base read unavailable");
             load = readProvisionalVenueIdsLoad(
               await response.json(),
@@ -466,11 +520,23 @@ export function useCommunityPrices(): CommunityPricesState {
             changed = true;
           }
         }
+        // Whatever the loop broke out of, nothing is still in flight. Ids that
+        // never got an answer stay UNKNOWN rather than pending, so a later read
+        // can still ask for them.
+        for (const venueId of unread) {
+          provisionalBasePending.current.delete(venueId);
+        }
         // Negative reads extend the cache without republishing the base
         // source. An identical Set with a new identity would restart its
         // viewport stream and turn one settled read into a feedback loop.
         if (changed) {
           setProvisionalBaseVenueIds(new Set(provisionalBaseMarked.current));
+        }
+        if (backoffMs !== null) {
+          // Keep the signature: it is the dedupe guard, and dropping it here is
+          // precisely what would let the next settle re-fire the refused chunks.
+          provisionalBaseBackoffUntil.current = Date.now() + backoffMs;
+          return;
         }
         if (incomplete && provisionalBaseSignature.current === signature) {
           provisionalBaseSignature.current = "";
