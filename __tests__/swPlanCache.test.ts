@@ -159,26 +159,3 @@ describe("sw-plan-cache: cache + fallback behaviour", () => {
     expect((await planCache.matchPlanNavigation({ pathname: "/plan/0" }, NAME))?.body).toBe("p0-again");
   });
 });
-
-describe("sw.js wiring fence (must not be silently dropped)", () => {
-  const swSrc = readFileSync(join(process.cwd(), "public/sw.js"), "utf8");
-
-  it("imports the plan-cache module, version-busted", () => {
-    expect(swSrc).toMatch(/importScripts\(\s*`\/sw-plan-cache\.js\?v=\$\{VERSION\}`\s*\)/);
-  });
-
-  it("registers the plan cache so activate() does not sweep it", () => {
-    expect(swSrc).toContain("const PLAN_CACHE = `${PREFIX}plan-${VERSION}`;");
-    expect(swSrc).toMatch(/CURRENT_CACHES\s*=\s*\[[^\]]*PLAN_CACHE[^\]]*\]/);
-  });
-
-  it("caches plan navigations on success and serves them offline", () => {
-    expect(swSrc).toContain("self.planCache.cachePlanNavigation(request");
-    expect(swSrc).toContain("self.planCache.matchPlanNavigation(url, PLAN_CACHE)");
-    expect(swSrc).toContain("self.planCache.isPlanPath(url.pathname)");
-  });
-
-  it("ships the plan-cache module file", () => {
-    expect(() => readFileSync(join(process.cwd(), "public/sw-plan-cache.js"), "utf8")).not.toThrow();
-  });
-});

@@ -160,6 +160,7 @@ function rolloutWorkerHarness(input: {
     },
   };
   const fakeSelf = {
+    caches: fakeCaches,
     location: {
       href:
         "https://pubmaxxing.com/sw.js?v=target&cache-policy=write-safe-v1",
@@ -186,12 +187,25 @@ function rolloutWorkerHarness(input: {
     throw new TypeError("network unavailable");
   });
   const source = readFileSync(join(process.cwd(), "public", "sw.js"), "utf8");
-  Function("self", "caches", "fetch", source)(fakeSelf, fakeCaches, doFetch);
+  const importScripts = vi.fn(() => {
+    const planCacheSource = readFileSync(
+      join(process.cwd(), "public", "sw-plan-cache.js"),
+      "utf8",
+    );
+    Function("self", planCacheSource)(fakeSelf);
+  });
+  Function("self", "caches", "fetch", "importScripts", source)(
+    fakeSelf,
+    fakeCaches,
+    doFetch,
+    importScripts,
+  );
 
   return {
     deletedCaches,
     fakeCaches,
     fakeSelf,
+    importScripts,
     listeners,
     records,
   };
@@ -301,7 +315,14 @@ describe("service worker map cache", () => {
     const dataResponse = new Response("legacy data");
     const staticResponse = new Response("legacy static");
     const planResponse = new Response("legacy plan");
-    const { deletedCaches, fakeCaches, fakeSelf, listeners, records } =
+    const {
+      deletedCaches,
+      fakeCaches,
+      fakeSelf,
+      importScripts,
+      listeners,
+      records,
+    } =
       rolloutWorkerHarness({
         rejectCurrentWrites: true,
         entries: {
@@ -350,6 +371,17 @@ describe("service worker map cache", () => {
     expect(await fakeCaches.keys()).toContain(
       "pubmax-sw-shell-legacy-active",
     );
+
+    const planNavigation = dispatchFetch(
+      listeners.get("fetch")!,
+      {
+        method: "GET",
+        mode: "navigate",
+        url: "https://pubmaxxing.com/plan/offline-night",
+      } as Request,
+    );
+    await expect(planNavigation.response).resolves.toBe(planResponse);
+    expect(importScripts).toHaveBeenCalledWith("/sw-plan-cache.js?v=target");
   });
 
   it("migrates shell entries without promoting old stable data", async () => {
