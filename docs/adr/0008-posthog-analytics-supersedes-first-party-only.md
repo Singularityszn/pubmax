@@ -6,14 +6,17 @@ Accepted
 
 ## Context
 
-The July PRD made an owner-locked decision that analytics would use only a
-self-owned first-party beacon, with no third-party analytics store. The shipped
-system instead uses first-party collection boundaries and PostHog EU as its
-analytics store.
+In July 2026 an owner-locked decision held that analytics would use only a
+self-owned first-party beacon, with no third-party analytics store. That
+decision was recorded in a planning document that was never committed to this
+repository, so it cannot be located here and no path is cited for it. The
+description above is the whole of what this record can show of it.
 
-On 27 July 2026, the captain confirmed that this reversal is intentional:
-"We need analytics because thats how we can measure success." This is a product
-decision, not an accidental implementation divergence from the archived PRD.
+The shipped system instead uses first-party collection boundaries and PostHog EU
+as its analytics store. On 27 July 2026, the captain confirmed that this
+architecture is intentional: "We need analytics because thats how we can measure
+success." This is a product decision, not an accidental implementation
+divergence.
 
 ## Decision
 
