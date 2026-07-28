@@ -4,7 +4,7 @@
 
 **Goal:** Ensure every deployed authentication attempt returns through `https://pubmaxxing.com/auth/callback`, while local development continues to use its local origin.
 
-**Architecture:** Add one shared site-origin resolver around the existing `NEXT_PUBLIC_SITE_URL` setting and canonical production fallback. In production, fail closed unless the resolved origin is exactly `https://pubmaxxing.com`. Auth callback construction and social OAuth routes consume that resolver, so deployed request hosts never become identity-provider redirect targets while non-production development stays same-origin.
+**Architecture:** Keep the canonical production origin and its validation in one shared configuration module. Vercel production and preview builds fail when `NEXT_PUBLIC_SITE_URL` is missing, malformed, insecure, or not the exact apex. Runtime server paths still use `https://pubmaxxing.com` and emit a fatal diagnostic if invalid configuration somehow reaches them, while local development stays same-origin. Browser auth opened on a deployment host first moves to the same safe path on the apex, before browser coordination or Supabase can create origin-bound PKCE state.
 
 **Tech Stack:** Next.js 16, React 19, TypeScript, Supabase Auth, Vitest, Playwright-compatible browser QA.
 
@@ -42,33 +42,42 @@ Expected: FAIL because callback origin is still `https://chengdu-pubmax69.vercel
 
 Add a test that stubs `NODE_ENV=development`, calls the same function from `http://localhost:3000/map`, and expects `http://localhost:3000/auth/callback`.
 
-### Task 2: Introduce and consume one site-origin resolver
+### Task 2: Enforce one canonical deployed auth origin
 
 **Files:**
+- Create: `lib/siteUrlConfig.mjs`
 - Create: `lib/siteUrl.ts`
+- Create: `types/siteUrlConfig.d.ts`
+- Create: `__tests__/siteUrl.test.ts`
+- Modify: `next.config.mjs`
 - Modify: `lib/authRedirect.ts`
+- Modify: `components/auth/AuthProvider.tsx`
+- Modify: `__tests__/passwordlessAuth.test.ts`
+- Modify: `__tests__/socialConnectionsRoutes.test.ts`
 - Modify: `app/api/social-connections/[provider]/route.ts`
 - Modify: `app/api/social-connections/[provider]/callback/route.ts`
 
 **Interfaces:**
-- Produces: `siteOrigin(currentUrl: string, environment?: string, configuredSiteUrl?: string): string | null`
-- Consumes: `NEXT_PUBLIC_SITE_URL`, with `https://pubmaxxing.com` as production fallback.
+- Produces: Shared canonical-origin validation for build configuration, runtime callbacks, and browser auth startup.
+- Consumes: `NEXT_PUBLIC_SITE_URL`, with `https://pubmaxxing.com` as the only deployed origin.
 
-- [x] **Step 1: Implement minimal resolver**
+- [x] **Step 1: Own deployed configuration in one module**
 
-Parse and validate the current HTTP(S) URL. Return its origin outside production. In production, parse `configuredSiteUrl ?? process.env.NEXT_PUBLIC_SITE_URL ?? "https://pubmaxxing.com"` and return the origin only when it is exactly `https://pubmaxxing.com`. Return `null` for malformed, insecure, or non-canonical production inputs.
+Define the canonical apex and validation in `lib/siteUrlConfig.mjs`. Load that validation from `next.config.mjs` so Vercel production and preview builds fail when `NEXT_PUBLIC_SITE_URL` is missing, malformed, insecure, or not the exact `https://pubmaxxing.com` origin. Keep local builds outside this deployed validation.
 
-- [x] **Step 2: Route auth callback construction through resolver**
+- [x] **Step 2: Preserve runtime sign-in through misconfiguration**
 
-Keep the requested post-auth path derived from the initiating page, but build `/auth/callback` against `siteOrigin(currentUrl)`.
+Return the current HTTP(S) origin outside production. In production, always return `https://pubmaxxing.com`; when configuration is invalid, emit a fatal server-side diagnostic before using that apex fallback. Route auth callback construction and both social OAuth endpoints through this resolver.
 
-- [x] **Step 3: Route both social OAuth endpoints through resolver**
+- [x] **Step 3: Canonicalise before starting PKCE**
 
-Replace duplicated `NODE_ENV` and `NEXT_PUBLIC_SITE_URL` branches with `siteOrigin(request.url)`. Preserve existing error handling if resolution fails.
+Sanitise the intended post-auth path with the existing redirect safety rules. When browser auth starts on a deployment host, navigate to that safe path on `https://pubmaxxing.com` before reading or writing auth coordination storage, acquiring the browser lock, loading a provider, or minting a Supabase PKCE verifier. Start the coordinated auth attempt only after the user is on the apex. Keep local development on its current origin.
 
-- [x] **Step 4: Run focused tests and verify green**
+- [x] **Step 4: Cover build, runtime, and browser boundaries**
 
-Run: `npx vitest run __tests__/passwordlessAuth.test.ts __tests__/socialConnectionsRoutes.test.ts`
+Add focused coverage for pre-PKCE canonical navigation, callback credential scrubbing, deployed build rejection, loud runtime apex fallback, social OAuth callback ownership, and unchanged local behavior.
+
+Run: `npx vitest run __tests__/siteUrl.test.ts __tests__/passwordlessAuth.test.ts __tests__/socialConnectionsRoutes.test.ts`
 
 Expected: PASS.
 
