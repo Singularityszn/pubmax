@@ -33,7 +33,7 @@ Touch points: [`components/map/canvas/buildScene.ts`](../components/map/canvas/b
    Rivalry row links (`CityRivalryTable` → `cityMapShareUrl`) should also persist preferred city (`lib/cityPreference`) and land the map with bounds fit for that city — not a London-centric default when the user picked Glasgow/Manchester/etc.
 
 2. **Drink chips → matching shapes**  
-   Discover category cards deep-link via `exploreHref` (`?drink=`). Brand chips under “Jump by brand” add `brand`. Verify decode → map filter shows only matching drink-pin kinds (champagne → wine silhouette). Chip landing must leave the drink lens active so filtered shapes dominate, not a sea of mixed clusters.
+   Discover category cards deep-link via `exploreHref` (`?drink=`), and chip landing must leave the drink lens active rather than a sea of mixed clusters. What `drink=` and `brand=` actually do to the map has since moved on from this plan: the live contract is `parseDrinkCategoryParam` / `MAP_LENS_DRINK_CATEGORIES` ([`lib/drinkBrands.ts`](../lib/drinkBrands.ts), [`lib/drinks.ts`](../lib/drinks.ts)), summarised in the URL-param table of [`docs/MOBILE_FLOW_SPEC.md`](./MOBILE_FLOW_SPEC.md) §3 and pinned by [`__tests__/categoryShowcaseLens.test.ts`](../__tests__/categoryShowcaseLens.test.ts). Read those, not this line.
 
 ---
 
