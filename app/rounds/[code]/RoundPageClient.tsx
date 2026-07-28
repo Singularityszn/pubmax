@@ -1,7 +1,16 @@
 "use client";
 
 import Link from "next/link";
-import { MapPin, Users, Check, Copy, DoorClosed } from "lucide-react";
+import {
+  Check,
+  Copy,
+  DoorClosed,
+  MapPin,
+  Plus,
+  ReceiptText,
+  Users,
+  X,
+} from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import EmptyState from "@/components/EmptyState";
@@ -10,8 +19,24 @@ import {
   clearActiveRoundCode,
   writeActiveRoundCode,
 } from "@/lib/activeRound";
+import {
+  CATEGORY_META,
+  DRINK_CATEGORIES,
+  categoryLabel,
+  type Drink,
+  type DrinkCategory,
+} from "@/lib/drinks";
 import { normalizeHandle } from "@/lib/profiles";
-import { isValidRoundCode, normalizeRoundCode, type RoundState } from "@/lib/rounds";
+import {
+  ROUND_SPEND_PRICE_LINE_MAX,
+  isValidRoundCode,
+  normalizeRoundCode,
+  roundTurn,
+  firstPartyPriceItems,
+  type RoundSpendDTO,
+  type RoundSpendItemSource,
+  type RoundState,
+} from "@/lib/rounds";
 import {
   currentStop,
   crewHereSummary,
@@ -19,8 +44,9 @@ import {
   type PresenceDTO,
 } from "@/lib/roundPresence";
 import { buildRouteLegs, formatLeg, formatRouteTotal } from "@/lib/routeLegs";
+import { venueMenuForInspector } from "@/lib/venueMenu";
 import { loadSlimVenues, type SlimVenue } from "@/lib/venuesSlim";
-import type { Venue } from "@/lib/venues";
+import { formatPrice, type Venue } from "@/lib/venues";
 import { isPubVenueKind } from "@/lib/venueKindFilters";
 import "./round.css";
 
@@ -262,9 +288,10 @@ function RoundBoard({
   presence: PresenceDTO[];
   onChange: (next: RoundState) => void;
 }): React.JSX.Element {
-  const { round, members, stops } = state;
+  const { round, members, stops, spends } = state;
   const closed = round.closedAt != null;
   const isCreator = myHandle !== "" && round.createdByHandle === myHandle;
+  const rotation = useMemo(() => roundTurn(members, spends), [members, spends]);
 
   // The "your crew is here" overlay (B6): the pure intersection of members ×
   // presence at the current stop. Recomputed as either the polled Round state or
@@ -292,6 +319,10 @@ function RoundBoard({
       <header className="roundHead">
         <p className="roundEyebrow">The Round · builds itself live</p>
         <h1 className="roundTitle">{round.title}</h1>
+        <RoundMoneyGlance
+          currentHandle={rotation.currentHandle}
+          latestSpend={spends.at(-1) ?? null}
+        />
         <div className="roundCodeRow">
           <span className="roundCodeLabel">Tell your mates</span>
           <button
@@ -319,6 +350,19 @@ function RoundBoard({
           </p>
         ) : null}
       </header>
+
+      {amMember && !closed && stops.length > 0 ? (
+        <RoundSpendComposer
+          code={round.code}
+          recorderHandle={myHandle}
+          currentHandle={rotation.currentHandle}
+          members={members}
+          stops={stops}
+          onRecorded={onChange}
+        />
+      ) : null}
+
+      <RoundSpendHistory spends={spends} />
 
       <section className="roundMembers" aria-label="Who's in the Round">
         <h2 className="roundSectionTitle">
@@ -354,6 +398,630 @@ function RoundBoard({
         <CloseRound code={round.code} handle={myHandle} onClosed={onChange} />
       ) : null}
     </div>
+  );
+}
+
+function roundDateLabel(iso: string): string {
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return "Date not known";
+  return new Intl.DateTimeFormat("en-GB", {
+    day: "numeric",
+    month: "short",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  }).format(date);
+}
+
+function RoundMoneyGlance({
+  currentHandle,
+  latestSpend,
+}: {
+  currentHandle: string | null;
+  latestSpend: RoundSpendDTO | null;
+}): React.JSX.Element {
+  return (
+    <section
+      className="roundMoneyGlance"
+      aria-label="Whose round and what it cost"
+    >
+      <div className="roundMoneyCell roundMoneyTurn">
+        <span className="roundMoneyLabel">Up now</span>
+        <strong>{currentHandle ? `@${currentHandle}` : "Nobody yet"}</strong>
+        <small>{latestSpend ? "Next in the rotation" : "First round"}</small>
+      </div>
+      <div className="roundMoneyCell roundMoneyLatest">
+        <span className="roundMoneyLabel">Last round</span>
+        {latestSpend ? (
+          <>
+            <strong>{formatPrice(latestSpend.totalPence / 100)}</strong>
+            <small>
+              paid by @{latestSpend.payerHandle} · {latestSpend.venueName}
+            </small>
+          </>
+        ) : (
+          <>
+            <strong className="roundMoneyEmpty">No round logged yet</strong>
+            <small>Keep the first one when it lands</small>
+          </>
+        )}
+      </div>
+    </section>
+  );
+}
+
+type DraftRoundItem = {
+  id: string;
+  drinkName: string;
+  drinkCategory: DrinkCategory;
+  priceGbp: number;
+  priceSource: RoundSpendItemSource;
+};
+
+// What the "known prices here" picker last put in the drink row. The line keeps
+// the menu's provenance only while the figure is still the menu's: edit the
+// price and it becomes the drinker's own claim.
+type KnownDrinkPrefill = {
+  drinkName: string;
+  drinkCategory: DrinkCategory;
+  priceGbp: string;
+  priceSource: RoundSpendItemSource;
+};
+
+// One reading of a typed money field, so the price a line is judged on and the
+// price it is added at can never come apart.
+function readMoneyInput(raw: string): string {
+  return raw.replace(/[£\s]/g, "").replace(",", ".");
+}
+
+function draftItemId(): string {
+  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+    return crypto.randomUUID();
+  }
+  return `item-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+}
+
+function spendClientRef(): string {
+  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+    return crypto.randomUUID();
+  }
+  return `round-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+}
+
+function RoundSpendComposer({
+  code,
+  recorderHandle,
+  currentHandle,
+  members,
+  stops,
+  onRecorded,
+}: {
+  code: string;
+  recorderHandle: string;
+  currentHandle: string | null;
+  members: RoundState["members"];
+  stops: RoundState["stops"];
+  onRecorded: (next: RoundState) => void;
+}): React.JSX.Element {
+  const latestStop = stops.at(-1)!;
+  const [open, setOpen] = useState(false);
+  const [mode, setMode] = useState<"total" | "items">("total");
+  const [payerHandle, setPayerHandle] = useState(currentHandle ?? recorderHandle);
+  const [venueId, setVenueId] = useState(latestStop.venueId);
+  const [total, setTotal] = useState("");
+  const [items, setItems] = useState<DraftRoundItem[]>([]);
+  const [knownDrinks, setKnownDrinks] = useState<Drink[]>([]);
+  const [knownDrinkId, setKnownDrinkId] = useState("");
+  const [menuLoading, setMenuLoading] = useState(false);
+  const [manualName, setManualName] = useState("");
+  const [manualCategory, setManualCategory] = useState<DrinkCategory>("beer");
+  const [manualPrice, setManualPrice] = useState("");
+  const [prefill, setPrefill] = useState<KnownDrinkPrefill | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const pendingRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (!open || mode !== "items") return;
+    let active = true;
+    async function loadKnownDrinks() {
+      setMenuLoading(true);
+      try {
+        const res = await fetch(`/api/venue/${encodeURIComponent(venueId)}`, {
+          cache: "no-store",
+        });
+        if (!res.ok) {
+          if (active) setKnownDrinks([]);
+          return;
+        }
+        const data = (await res.json()) as { venue?: Venue };
+        const menu = data.venue
+          ? venueMenuForInspector(data.venue)
+              .filter(
+                (drink) =>
+                  Number.isFinite(drink.priceGbp) &&
+                  drink.priceGbp >= 1 &&
+                  drink.priceGbp <= 30,
+              )
+              .slice(0, 40)
+          : [];
+        if (active) {
+          setKnownDrinks(menu);
+          setKnownDrinkId(menu[0]?.id ?? "");
+        }
+      } catch {
+        if (active) setKnownDrinks([]);
+      } finally {
+        if (active) setMenuLoading(false);
+      }
+    }
+    void loadKnownDrinks();
+    return () => {
+      active = false;
+    };
+  }, [mode, open, venueId]);
+
+  const itemTotal = items.reduce((sum, item) => sum + item.priceGbp, 0);
+  const parsedTotal = Number(readMoneyInput(total));
+  const amount =
+    mode === "items"
+      ? itemTotal
+      : Number.isFinite(parsedTotal) && parsedTotal > 0
+        ? parsedTotal
+        : null;
+  const keepLabel = amount ? `Keep ${formatPrice(amount)}` : "Keep this round";
+
+  function openForm() {
+    setPayerHandle(currentHandle ?? recorderHandle);
+    setVenueId(stops.at(-1)?.venueId ?? latestStop.venueId);
+    setError(null);
+    setOpen(true);
+  }
+
+  function fillFromKnownDrink() {
+    const drink = knownDrinks.find((candidate) => candidate.id === knownDrinkId);
+    if (!drink) return;
+    const priceGbp = drink.priceGbp.toFixed(2);
+    setManualName(drink.name);
+    setManualCategory(drink.category);
+    setManualPrice(priceGbp);
+    setPrefill({
+      drinkName: drink.name,
+      drinkCategory: drink.category,
+      priceGbp,
+      priceSource: drink.provenance.source === "seed" ? "demo" : "round",
+    });
+    setError(null);
+  }
+
+  // A line is the drinker's own claim unless every field is still exactly what
+  // the demo menu put there.
+  function draftPriceSource(
+    drinkName: string,
+    drinkCategory: DrinkCategory,
+    priceGbp: string,
+  ): RoundSpendItemSource {
+    if (!prefill || prefill.priceSource !== "demo") return "round";
+    const untouched =
+      prefill.drinkName === drinkName &&
+      prefill.drinkCategory === drinkCategory &&
+      Number(prefill.priceGbp) === Number(priceGbp);
+    return untouched ? "demo" : "round";
+  }
+
+  const firstPartyDrafts = items.filter((item) => item.priceSource === "round");
+
+  // What the drink row would be logged as as it stands right now, so the note
+  // beside it never describes a figure the drinker has already changed.
+  const draftSource = draftPriceSource(
+    manualName.trim(),
+    manualCategory,
+    readMoneyInput(manualPrice),
+  );
+
+  function addManualDrink() {
+    const cleanedPrice = readMoneyInput(manualPrice);
+    const price = Number(cleanedPrice);
+    const drinkName = manualName.trim();
+    if (!drinkName || !Number.isFinite(price) || price < 1 || price > 30) {
+      setError("Add a drink name and a price from £1 to £30.");
+      return;
+    }
+    const priceSource = draftPriceSource(drinkName, manualCategory, cleanedPrice);
+    if (
+      priceSource === "round" &&
+      firstPartyDrafts.length >= ROUND_SPEND_PRICE_LINE_MAX
+    ) {
+      setError(
+        `You can log ${ROUND_SPEND_PRICE_LINE_MAX} drink prices in one round. Keep this one, then start another.`,
+      );
+      return;
+    }
+    setItems((held) => [
+      ...held,
+      {
+        id: draftItemId(),
+        drinkName,
+        drinkCategory: manualCategory,
+        priceGbp: Math.round(price * 100) / 100,
+        priceSource,
+      },
+    ]);
+    setManualName("");
+    setManualPrice("");
+    setPrefill(null);
+    setError(null);
+  }
+
+  async function submit(event: React.FormEvent) {
+    event.preventDefault();
+    if (mode === "total" && (!amount || amount < 1 || amount > 1000)) {
+      setError("Type what the round came to, from £1 to £1,000.");
+      return;
+    }
+    if (mode === "items" && items.length === 0) {
+      setError("Add at least one drink, or use the quick total.");
+      return;
+    }
+    setBusy(true);
+    setError(null);
+    pendingRef.current ??= spendClientRef();
+    try {
+      const res = await fetch(`/api/rounds/${code}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "recordSpend",
+          handle: recorderHandle,
+          payerHandle,
+          venueId,
+          clientRef: pendingRef.current,
+          ...(mode === "items"
+            ? {
+                items: items.map(
+                  ({ drinkName, drinkCategory, priceGbp, priceSource }) => ({
+                    drinkName,
+                    drinkCategory,
+                    priceGbp,
+                    priceSource,
+                  }),
+                ),
+              }
+            : { totalGbp: amount }),
+        }),
+      });
+      const data = (await res.json()) as RoundState | { error: string };
+      if (!res.ok) {
+        setError((data as { error: string }).error ?? "Could not keep that round.");
+        return;
+      }
+      pendingRef.current = null;
+      setTotal("");
+      setItems([]);
+      setOpen(false);
+      onRecorded(data as RoundState);
+    } catch {
+      setError("Could not keep that round. Try again.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  if (!open) {
+    return (
+      <button
+        type="button"
+        className="roundPrimaryBtn roundRecordOpen"
+        onClick={openForm}
+      >
+        <ReceiptText size={17} aria-hidden="true" /> Put this round on the mat
+      </button>
+    );
+  }
+
+  return (
+    <section className="roundSpendPanel" aria-label="Record this round">
+      <form className="roundSpendForm" onSubmit={submit}>
+        <div className="roundSpendHead">
+          <div>
+            <p className="roundSectionTitle">Keep this round</p>
+            <p className="roundSpendIntro">
+              Record what was spent. No balances, bills or settling up.
+            </p>
+          </div>
+          <button
+            type="button"
+            className="roundIconBtn"
+            onClick={() => setOpen(false)}
+            aria-label="Close round cost form"
+          >
+            <X size={18} aria-hidden="true" />
+          </button>
+        </div>
+
+        <div className="roundSpendGrid">
+          <label className="roundField">
+            <span>Who got this one</span>
+            <select
+              value={payerHandle}
+              onChange={(event) => setPayerHandle(event.target.value)}
+            >
+              {members.map((member) => (
+                <option key={member.handle} value={member.handle}>
+                  @{member.handle}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="roundField">
+            <span>Pub</span>
+            <select value={venueId} onChange={(event) => setVenueId(event.target.value)}>
+              {stops.map((stop) => (
+                <option key={stop.id} value={stop.venueId}>
+                  {stop.venueName}
+                </option>
+              ))}
+            </select>
+          </label>
+        </div>
+
+        <div className="roundSpendModes" aria-label="How to record the round">
+          <button
+            type="button"
+            className={mode === "total" ? "isActive" : ""}
+            onClick={() => setMode("total")}
+            aria-pressed={mode === "total"}
+          >
+            Quick total
+          </button>
+          <button
+            type="button"
+            className={mode === "items" ? "isActive" : ""}
+            onClick={() => setMode("items")}
+            aria-pressed={mode === "items"}
+          >
+            Itemise drinks
+          </button>
+        </div>
+
+        {mode === "total" ? (
+          <label className="roundField roundTotalField">
+            <span>Round total</span>
+            <span className="roundMoneyInput">
+              <span aria-hidden="true">£</span>
+              <input
+                type="text"
+                inputMode="decimal"
+                value={total}
+                onChange={(event) => setTotal(event.target.value)}
+                placeholder="26.80"
+                aria-label="Round total"
+                autoComplete="off"
+              />
+            </span>
+          </label>
+        ) : (
+          <div className="roundItems">
+            <div className="roundKnownDrink">
+              <label className="roundField">
+                <span>Known prices here</span>
+                <select
+                  value={knownDrinkId}
+                  onChange={(event) => setKnownDrinkId(event.target.value)}
+                  disabled={menuLoading || knownDrinks.length === 0}
+                >
+                  {knownDrinks.length > 0 ? (
+                    knownDrinks.map((drink) => (
+                      <option key={drink.id} value={drink.id}>
+                        {drink.name} · {formatPrice(drink.priceGbp)}
+                        {drink.provenance.source === "seed" ? " · demo menu" : ""}
+                      </option>
+                    ))
+                  ) : (
+                    <option value="">
+                      {menuLoading ? "Finding known prices…" : "No known prices here"}
+                    </option>
+                  )}
+                </select>
+              </label>
+              <button
+                type="button"
+                className="roundSecondaryBtn"
+                onClick={fillFromKnownDrink}
+                disabled={!knownDrinkId}
+              >
+                <Plus size={16} aria-hidden="true" /> Fill in
+              </button>
+            </div>
+
+            <p className="roundKnownDrinkNote">
+              A known price only fills the line below. Check it against what you
+              paid, then add it.
+              {draftSource === "demo"
+                ? " This line still reads our demo menu, so it goes in the diary and is not logged as a price. Change the figure to what you paid and it counts as yours."
+                : ""}
+            </p>
+
+            <div className="roundManualDrink">
+              <label className="roundField roundDrinkName">
+                <span>The drink</span>
+                <input
+                  type="text"
+                  value={manualName}
+                  onChange={(event) => setManualName(event.target.value)}
+                  placeholder="Drink name"
+                  maxLength={80}
+                />
+              </label>
+              <label className="roundField">
+                <span>Type</span>
+                <select
+                  value={manualCategory}
+                  onChange={(event) =>
+                    setManualCategory(event.target.value as DrinkCategory)
+                  }
+                >
+                  {DRINK_CATEGORIES.map((category) => (
+                    <option key={category} value={category}>
+                      {CATEGORY_META[category].label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="roundField roundDrinkPrice">
+                <span>Price</span>
+                <input
+                  type="text"
+                  inputMode="decimal"
+                  value={manualPrice}
+                  onChange={(event) => setManualPrice(event.target.value)}
+                  placeholder="6.20"
+                  aria-label="Drink price"
+                />
+              </label>
+              <button
+                type="button"
+                className="roundSecondaryBtn roundAddDrinkBtn"
+                onClick={addManualDrink}
+              >
+                <Plus size={16} aria-hidden="true" /> Add drink
+              </button>
+            </div>
+
+            {items.length > 0 ? (
+              <ul className="roundDraftItems">
+                {items.map((item) => (
+                  <li key={item.id}>
+                    <span>
+                      <strong>{item.drinkName}</strong>
+                      <small>
+                        {categoryLabel(item.drinkCategory)}
+                        {item.priceSource === "demo" ? " · diary only" : ""}
+                      </small>
+                    </span>
+                    <span className="roundDraftItemPrice">
+                      {formatPrice(item.priceGbp)}
+                      <button
+                        type="button"
+                        className="roundIconBtn"
+                        onClick={() =>
+                          setItems((held) =>
+                            held.filter((candidate) => candidate.id !== item.id),
+                          )
+                        }
+                        aria-label={`Remove ${item.drinkName}`}
+                      >
+                        <X size={16} aria-hidden="true" />
+                      </button>
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            ) : null}
+
+            <p className="roundPriceTrust">
+              Drink lines you type are first-party price logs. One person&apos;s
+              log stays off the price map until another drinker backs it. A line
+              marked diary only is never logged as a price.
+            </p>
+          </div>
+        )}
+
+        {error ? (
+          <p className="roundError" role="alert">
+            {error}
+          </p>
+        ) : null}
+
+        <button
+          type="submit"
+          className="roundPrimaryBtn roundKeepBtn"
+          disabled={busy}
+        >
+          {busy ? "Keeping…" : keepLabel}
+        </button>
+      </form>
+    </section>
+  );
+}
+
+// Both captions count what actually happened to a spend's lines, so neither
+// promises a figure is on the corroboration path when it never went near it.
+function provisionalPriceCaption(logged: number, lines: number): string {
+  if (logged === lines) {
+    return logged === 1
+      ? "This drink price stays provisional until another drinker backs it."
+      : "These drink prices stay provisional until another drinker backs them.";
+  }
+  return logged === 1
+    ? "One of these prices stays provisional until another drinker backs it."
+    : `${logged} of these prices stay provisional until another drinker backs them.`;
+}
+
+function demoLineCaption(diaryOnly: number): string {
+  return diaryOnly === 1
+    ? "One line came off our demo menu, so it stays in this diary and was not logged as a price."
+    : `${diaryOnly} lines came off our demo menu, so they stay in this diary and were not logged as prices.`;
+}
+
+function RoundSpendHistory({
+  spends,
+}: {
+  spends: readonly RoundSpendDTO[];
+}): React.JSX.Element | null {
+  if (spends.length === 0) return null;
+  return (
+    <section className="roundSpendHistory" aria-label="Rounds kept tonight">
+      <h2 className="roundSectionTitle">
+        <ReceiptText size={16} aria-hidden="true" /> Rounds kept tonight
+      </h2>
+      <ol>
+        {[...spends].reverse().map((spend) => {
+          const logged = firstPartyPriceItems(spend.items);
+          const diaryOnly = spend.items.length - logged.length;
+          return (
+            <li key={spend.id} className="roundSpendCard">
+              <div className="roundSpendSummary">
+                <div>
+                  <strong>{spend.venueName}</strong>
+                  <span>paid by @{spend.payerHandle}</span>
+                </div>
+                <strong className="roundSpendTotal">
+                  {formatPrice(spend.totalPence / 100)}
+                </strong>
+              </div>
+              <p className="roundSpendStamp">
+                {roundDateLabel(spend.recordedAt)} · Logged in this Round by @
+                {spend.recordedByHandle}
+              </p>
+              {spend.items.length > 0 ? (
+                <>
+                  <ul className="roundSpendItems">
+                    {spend.items.map((item, index) => (
+                      <li key={`${spend.id}-${index}`}>
+                        <span>
+                          {item.drinkName} · {categoryLabel(item.drinkCategory)}
+                          {item.source === "demo" ? " · diary only" : ""}
+                        </span>
+                        <strong>{formatPrice(item.pricePence / 100)}</strong>
+                      </li>
+                    ))}
+                  </ul>
+                  {logged.length > 0 ? (
+                    <p className="roundPriceTrust">
+                      {provisionalPriceCaption(logged.length, spend.items.length)}
+                    </p>
+                  ) : null}
+                  {diaryOnly > 0 ? (
+                    <p className="roundPriceTrust">{demoLineCaption(diaryOnly)}</p>
+                  ) : null}
+                </>
+              ) : null}
+            </li>
+          );
+        })}
+      </ol>
+    </section>
   );
 }
 

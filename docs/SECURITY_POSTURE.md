@@ -39,6 +39,7 @@ Register of ACCEPTED risks and FIXED-this-wave security hardening (wave S1–S5,
 - Capacity cap on Landlord LLM (durable Supabase limiter: prevents unpaid concierge from unbounded token burn)
 - JWT-backed authorship gates for destructive actions (edit/delete crawls, modify profiles) — see `gateHandleAction` in `app/api/crawls/[slug]/route.ts`
 - Concurrent user link via `linkUser` RPC returns 409 on conflict, preventing handle land-grab races
+- A round code now also carries a price-write capability (a Round's itemised drink lines reach the community price store): those lines charge the same per-device price budget as `/api/price-submit` and still earn map authority only through the corroboration and max-age gates - boundary certified in `docs/WRITE_SURFACE_CERTIFICATION.md`
 
 **Decision:** Accepted until Supabase Auth is fully integrated. Round codes are human-manageable UUIDs for small-group coordination; unlinked handles are the MVP social identity layer. The rate-limiting backstop prevents casual abuse.
 

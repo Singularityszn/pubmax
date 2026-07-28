@@ -37,6 +37,7 @@
 // No Supabase and no env are required.
 
 import { jsonNoStore } from "@/lib/apiResponses";
+import { deriveCommunityPriceActor } from "@/lib/communityPriceActor";
 import {
   NO_ALCOHOL_DRINK_CATEGORIES,
   validateCommunityPrice,
@@ -49,23 +50,11 @@ import {
   submitCommunityPrice,
 } from "@/lib/communityPriceStore";
 import { isLimited } from "@/lib/pintDrops";
-import { clientIp, hashActor, hashIp } from "@/lib/supabase";
 import { getUkBaseIdIndex } from "@/lib/ukBaseIndex";
 import { isUkBaseId } from "@/lib/ukBasePubs";
 import { lookupCanonicalVenue } from "@/lib/venueIndex";
 import { isPubVenueKind } from "@/lib/venueKindFilters";
 import { readString } from "@/lib/textClean";
-
-// Best-effort, server-derived submitter token. Never throws - if IP hashing is
-// unavailable the store records the observation unattributed (it still counts,
-// it just can't replace that device's earlier entry for the same drink).
-function deriveActor(request: Request): string | undefined {
-  try {
-    return hashActor(`price-submit:${hashIp(clientIp(request))}`);
-  } catch {
-    return undefined;
-  }
-}
 
 export async function POST(request: Request): Promise<Response> {
   let body: Record<string, unknown>;
@@ -88,7 +77,7 @@ export async function POST(request: Request): Promise<Response> {
     // The "anon" sentinel exists ONLY for the rate-limit key; the store gets
     // the real (possibly absent) actor so unattributed reports stay insert-only
     // under the durable unique pair instead of collapsing into one shared actor.
-    const actor = deriveActor(request);
+    const actor = deriveCommunityPriceActor(request);
     const reporter = actor ?? "anon";
     const REPORT_PER_ACTOR_LIMIT = 1;
     if (
@@ -142,7 +131,7 @@ export async function POST(request: Request): Promise<Response> {
     };
   }
 
-  const actor = deriveActor(request);
+  const actor = deriveCommunityPriceActor(request);
 
   // Cap one device across every venue before applying the tighter per-venue
   // budget. Without this actor-only key, changing venueId resets the budget and

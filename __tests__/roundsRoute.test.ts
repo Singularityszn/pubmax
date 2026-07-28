@@ -45,6 +45,20 @@ vi.mock("@/lib/venueIndex", () => ({
         },
       };
     }
+    // A curated heritage pub that carries a seeded demo menu (lib/drinkSeeds).
+    if (canonicalId === "venue-16pnwmm") {
+      return {
+        status: "found" as const,
+        canonicalId,
+        venue: {
+          id: canonicalId,
+          name: "Prospect of Whitby",
+          borough: "Tower Hamlets",
+          lat: 51.5,
+          lng: -0.06,
+        },
+      };
+    }
     return { status: "unknown" as const, canonicalId };
   },
   getVenueIndex: async () =>
@@ -70,8 +84,40 @@ vi.mock("@/lib/venueIndex", () => ({
           kind: "bar",
         },
       ],
+      [
+        "venue-16pnwmm",
+        {
+          id: "venue-16pnwmm",
+          name: "Prospect of Whitby",
+          borough: "Tower Hamlets",
+          lat: 51.5,
+          lng: -0.06,
+        },
+      ],
     ]),
 }));
+
+// The degraded-limiter case scripts the price budget's verdict at its seam;
+// lib/roundPriceBudget's own outage behaviour is pinned in its unit test.
+const { budgetOverride } = vi.hoisted(() => ({
+  budgetOverride: {
+    fn: null as
+      | null
+      | (() => Promise<{ allowed: boolean; mode: "durable" | "degraded" | "memory" }>),
+  },
+}));
+vi.mock("@/lib/roundPriceBudget", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/roundPriceBudget")>();
+  return {
+    ...actual,
+    chargeRoundPriceLines: (
+      ...args: Parameters<typeof actual.chargeRoundPriceLines>
+    ) =>
+      budgetOverride.fn
+        ? budgetOverride.fn()
+        : actual.chargeRoundPriceLines(...args),
+  };
+});
 
 const authState = vi.hoisted(() => ({ userId: null as string | null }));
 vi.mock("@/lib/authServer", async (importOriginal) => {
@@ -87,9 +133,10 @@ vi.mock("@/lib/authServer", async (importOriginal) => {
 // override create()/join() to return the store-failure variant. When null (the
 // default), each delegates to the real memory store so every other case is
 // unchanged.
-const { createOverride, joinOverride } = vi.hoisted(() => ({
+const { createOverride, joinOverride, recordSpendOverride } = vi.hoisted(() => ({
   createOverride: { fn: null as null | ((...args: unknown[]) => Promise<unknown>) },
   joinOverride: { fn: null as null | ((...args: unknown[]) => Promise<unknown>) },
+  recordSpendOverride: { fn: null as null | ((...args: unknown[]) => Promise<unknown>) },
 }));
 vi.mock("@/lib/roundsStore", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/roundsStore")>();
@@ -103,6 +150,10 @@ vi.mock("@/lib/roundsStore", async (importOriginal) => {
           createOverride.fn ? createOverride.fn(...args) : store.create(...args),
         join: (...args: Parameters<typeof store.join>) =>
           joinOverride.fn ? joinOverride.fn(...args) : store.join(...args),
+        recordSpend: (...args: Parameters<typeof store.recordSpend>) =>
+          recordSpendOverride.fn
+            ? recordSpendOverride.fn(...args)
+            : store.recordSpend(...args),
       };
     },
   };
@@ -114,6 +165,11 @@ import { __resetMemoryRounds } from "@/lib/roundsStore";
 import { __resetPintDrops } from "@/lib/pintDrops";
 import { memoryProfileStore, __resetMemoryProfiles } from "@/lib/profileStore";
 import type { RoundState } from "@/lib/rounds";
+import {
+  __resetCommunityPrices,
+  readCommunityPrices,
+} from "@/lib/communityPriceStore";
+import { mergeCommunityPriceSignals } from "@/components/map/communityPriceSignals";
 
 const CREATE_URL = "http://localhost/api/rounds";
 
@@ -129,9 +185,17 @@ function get(code: string): Promise<Response> {
   return GET(new Request(`http://localhost/api/rounds/${code}`), ctx(code));
 }
 
-function action(code: string, body: unknown): Promise<Response> {
+function action(
+  code: string,
+  body: unknown,
+  headers?: Record<string, string>,
+): Promise<Response> {
   return POST(
-    new Request(`http://localhost/api/rounds/${code}`, { method: "POST", body: JSON.stringify(body) }),
+    new Request(`http://localhost/api/rounds/${code}`, {
+      method: "POST",
+      body: JSON.stringify(body),
+      headers,
+    }),
     ctx(code),
   );
 }
@@ -151,7 +215,10 @@ beforeEach(() => {
   // Default: store methods delegate to the real memory store (see the mock above).
   createOverride.fn = null;
   joinOverride.fn = null;
+  recordSpendOverride.fn = null;
+  budgetOverride.fn = null;
   venueLookupState.unavailable = false;
+  __resetCommunityPrices();
 });
 
 describe("POST /api/rounds — create", () => {
@@ -317,6 +384,367 @@ describe("POST /api/rounds/[code] — actions", () => {
     await action(round.code, { action: "join", handle: "ale" });
     const res = await action(round.code, { action: "close", handle: "ale" });
     expect(res.status).toBe(403);
+  });
+
+  it("records a canonical plain total without creating a per-drink community price", async () => {
+    const { round } = await newRound("ken");
+    await action(round.code, {
+      action: "addStop",
+      handle: "ken",
+      venueId: "venue-1",
+    });
+
+    const res = await action(round.code, {
+      action: "recordSpend",
+      handle: "ken",
+      payerHandle: "ken",
+      venueId: "legacy-venue-1",
+      venueName: "Spoofed Ship",
+      clientRef: "spend-plain-1",
+      totalGbp: "26.80",
+    });
+
+    expect(res.status).toBe(200);
+    const state = (await res.json()) as RoundState;
+    expect(state.spends[0]).toMatchObject({
+      payerHandle: "ken",
+      recordedByHandle: "ken",
+      venueId: "venue-1",
+      venueName: "The Ship",
+      totalPence: 2680,
+      items: [],
+    });
+    expect(await readCommunityPrices("venue-1")).toEqual([]);
+  });
+
+  it("routes itemised drink prices through the community store without bypassing corroboration", async () => {
+    const { round } = await newRound("ken");
+    await action(round.code, {
+      action: "addStop",
+      handle: "ken",
+      venueId: "venue-1",
+    });
+
+    const res = await action(
+      round.code,
+      {
+        action: "recordSpend",
+        handle: "ken",
+        payerHandle: "ken",
+        venueId: "venue-1",
+        clientRef: "spend-items-1",
+        items: [{ drinkName: "Guinness", drinkCategory: "beer", priceGbp: 6.2 }],
+      },
+      { "x-forwarded-for": "198.51.100.41" },
+    );
+
+    expect(res.status).toBe(200);
+    const rows = await readCommunityPrices("venue-1");
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({
+      venueId: "venue-1",
+      drinkCategory: "beer",
+      priceGbp: 6.2,
+      source: "community",
+      corroborations: 1,
+    });
+
+    const baseline = new Map([
+      [
+        "venue-1",
+        {
+          hasPintDrops: false,
+          latestContributorPrice: null,
+        },
+      ],
+    ]);
+    const merged = mergeCommunityPriceSignals(
+      baseline,
+      new Map([["venue-1", rows[0]]]),
+      rows[0].submittedAt,
+    );
+    expect(merged).toBe(baseline);
+    expect(merged.get("venue-1")?.latestContributorPrice).toBeNull();
+  });
+
+  // Two drinkers at the same pub, so the pair of cases below can show that what
+  // decides a line's fate is where its figure came from, not what it says.
+  async function recordDrinks(
+    drinker: { handle: string; ip: string; clientRef: string },
+    items: unknown[],
+  ): Promise<RoundState> {
+    const { round } = await newRound(drinker.handle);
+    await action(round.code, {
+      action: "addStop",
+      handle: drinker.handle,
+      venueId: "venue-16pnwmm",
+    });
+    const res = await action(
+      round.code,
+      {
+        action: "recordSpend",
+        handle: drinker.handle,
+        payerHandle: drinker.handle,
+        venueId: "venue-16pnwmm",
+        clientRef: drinker.clientRef,
+        items,
+      },
+      { "x-forwarded-for": drinker.ip },
+    );
+    expect(res.status).toBe(200);
+    return (await res.json()) as RoundState;
+  }
+
+  const drinkers = [
+    { handle: "ken", ip: "198.51.100.51", clientRef: "spend-seed-1" },
+    { handle: "mo", ip: "198.51.100.52", clientRef: "spend-seed-2" },
+  ];
+
+  it("keeps a demo-menu line in the diary and out of the community store", async () => {
+    // A figure lifted off the seeded demo menu (lib/drinkSeeds) is nobody's
+    // observation, so two independent devices echoing it must never corroborate
+    // it, while a price each of them typed corroborates normally.
+    for (const drinker of drinkers) {
+      const state = await recordDrinks(drinker, [
+        {
+          drinkName: "House Malbec",
+          drinkCategory: "wine",
+          priceGbp: 7.5,
+          priceSource: "demo",
+        },
+        { drinkName: "Guinness", drinkCategory: "beer", priceGbp: 6.2 },
+      ]);
+      // The refused line is kept and labelled, never silently dropped.
+      expect(state.spends.at(-1)?.items).toMatchObject([
+        { drinkName: "House Malbec", source: "demo" },
+        { drinkName: "Guinness", source: "round" },
+      ]);
+    }
+
+    const rows = await readCommunityPrices("venue-16pnwmm");
+    expect(rows.map((row) => row.drinkCategory)).toEqual(["beer"]);
+    expect(rows[0]).toMatchObject({ priceGbp: 6.2, corroborations: 2 });
+  });
+
+  it("logs a typed price that happens to match a demo figure", async () => {
+    // The mirror case: the same £7.50 wine at the same pub, typed by the people
+    // who drank it. Provenance is the gate, so a coincidence is still an
+    // observation and corroborates.
+    for (const drinker of drinkers) {
+      const state = await recordDrinks(drinker, [
+        { drinkName: "Malbec", drinkCategory: "wine", priceGbp: 7.5 },
+      ]);
+      expect(state.spends.at(-1)?.items).toMatchObject([
+        { drinkName: "Malbec", source: "round" },
+      ]);
+    }
+
+    const rows = await readCommunityPrices("venue-16pnwmm");
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({
+      drinkCategory: "wine",
+      priceGbp: 7.5,
+      corroborations: 2,
+    });
+  });
+
+  // Drink lines for a spend, cheap enough to stay inside the round envelope.
+  const priceLines = (count: number, from: number) =>
+    Array.from({ length: count }, (_, index) => ({
+      drinkName: `Pint ${from + index}`,
+      drinkCategory: "beer",
+      priceGbp: 6.2,
+    }));
+
+  it("charges the per-device price budget per line, and a replay nothing", async () => {
+    // A Round with drink lines is a price submission, so it pays the same
+    // cross-venue device budget (30/hour) one unit per submitted line. A retry
+    // of a turn already on record submits nothing, so it must cost nothing:
+    // three full turns still fit the hour after one of them is replayed.
+    const device = { "x-forwarded-for": "198.51.100.61" };
+    const { round } = await newRound("ken");
+    await action(round.code, {
+      action: "addStop",
+      handle: "ken",
+      venueId: "venue-1",
+    });
+    const keep = (clientRef: string, count: number, from: number) =>
+      action(
+        round.code,
+        {
+          action: "recordSpend",
+          handle: "ken",
+          payerHandle: "ken",
+          venueId: "venue-1",
+          clientRef,
+          items: priceLines(count, from),
+        },
+        device,
+      );
+
+    expect((await keep("budget-1", 10, 1)).status).toBe(200);
+    // The same turn again after a lost response: idempotent, and free.
+    expect((await keep("budget-1", 10, 1)).status).toBe(200);
+    expect((await keep("budget-2", 10, 11)).status).toBe(200);
+    expect((await keep("budget-3", 10, 21)).status).toBe(200);
+
+    // Thirty lines spent, so the next one is refused before the diary write.
+    // A real per-device cap under a healthy limiter is the drinker's budget, so
+    // it stays a 429 and carries no retry hint.
+    const overBudget = await keep("budget-4", 1, 31);
+    expect(overBudget.status).toBe(429);
+    expect(overBudget.headers.get("Retry-After")).toBeNull();
+    expect(await overBudget.json()).toEqual({ error: "Too many price logs, slow down." });
+
+    const state = (await (await get(round.code)).json()) as RoundState;
+    expect(state.spends.map((spend) => spend.clientRef)).toEqual([
+      "budget-1",
+      "budget-2",
+      "budget-3",
+    ]);
+  });
+
+  it("answers a price-limiter outage as ours: 503, a retry hint, and no blame", async () => {
+    budgetOverride.fn = async () => ({ allowed: false, mode: "degraded" as const });
+    const { round } = await newRound("ken");
+    await action(round.code, {
+      action: "addStop",
+      handle: "ken",
+      venueId: "venue-1",
+    });
+
+    const res = await action(
+      round.code,
+      {
+        action: "recordSpend",
+        handle: "ken",
+        payerHandle: "ken",
+        venueId: "venue-1",
+        clientRef: "degraded-1",
+        items: priceLines(2, 1),
+      },
+      { "x-forwarded-for": "198.51.100.63" },
+    );
+    expect(res.status).toBe(503);
+    expect(res.headers.get("Retry-After")).toBe("60");
+    expect(await res.json()).toEqual({
+      error:
+        "We cannot log drink prices for a moment. Keep this round as a total, or add the drinks again shortly.",
+    });
+    expect(((await (await get(round.code)).json()) as RoundState).spends).toEqual([]);
+
+    // The quick total needs no price budget, so the night is still recordable.
+    const total = await action(
+      round.code,
+      {
+        action: "recordSpend",
+        handle: "ken",
+        payerHandle: "ken",
+        venueId: "venue-1",
+        clientRef: "degraded-2",
+        totalGbp: 26.8,
+      },
+      { "x-forwarded-for": "198.51.100.63" },
+    );
+    expect(total.status).toBe(200);
+  });
+
+  it("refuses more price lines in one turn than a Round may log", async () => {
+    const device = { "x-forwarded-for": "198.51.100.62" };
+    const { round } = await newRound("ken");
+    await action(round.code, {
+      action: "addStop",
+      handle: "ken",
+      venueId: "venue-1",
+    });
+
+    const tooMany = await action(
+      round.code,
+      {
+        action: "recordSpend",
+        handle: "ken",
+        payerHandle: "ken",
+        venueId: "venue-1",
+        clientRef: "ceiling-1",
+        items: priceLines(11, 1),
+      },
+      device,
+    );
+    expect(tooMany.status).toBe(400);
+    expect(await tooMany.json()).toEqual({
+      error: "Log up to 10 drink prices in one round. Keep this one, then start another.",
+    });
+    expect(((await (await get(round.code)).json()) as RoundState).spends).toEqual([]);
+
+    // Demo lines are never submitted, so they cost nothing and do not count
+    // towards the ceiling: ten observations plus five diary lines is fine.
+    const withDemo = await action(
+      round.code,
+      {
+        action: "recordSpend",
+        handle: "ken",
+        payerHandle: "ken",
+        venueId: "venue-1",
+        clientRef: "ceiling-2",
+        items: [
+          ...priceLines(10, 1),
+          ...priceLines(5, 20).map((line) => ({ ...line, priceSource: "demo" })),
+        ],
+      },
+      device,
+    );
+    expect(withDemo.status).toBe(200);
+    expect(((await withDemo.json()) as RoundState).spends[0]?.items).toHaveLength(15);
+  });
+
+  it("rejects a payer who is not in the Round", async () => {
+    const { round } = await newRound("ken");
+    await action(round.code, {
+      action: "addStop",
+      handle: "ken",
+      venueId: "venue-1",
+    });
+    const res = await action(round.code, {
+      action: "recordSpend",
+      handle: "ken",
+      payerHandle: "stranger",
+      venueId: "venue-1",
+      clientRef: "spend-outsider-1",
+      totalGbp: 20,
+    });
+    expect(res.status).toBe(403);
+  });
+
+  it("rejects malformed spend money and items", async () => {
+    const { round } = await newRound("ken");
+    await action(round.code, {
+      action: "addStop",
+      handle: "ken",
+      venueId: "venue-1",
+    });
+    const res = await action(round.code, {
+      action: "recordSpend",
+      handle: "ken",
+      payerHandle: "ken",
+      venueId: "venue-1",
+      clientRef: "spend-bad-1",
+      totalGbp: 0,
+    });
+    expect(res.status).toBe(400);
+  });
+
+  it("answers 503 when a spend cannot be stored", async () => {
+    const { round } = await newRound("ken");
+    recordSpendOverride.fn = async () => ({ ok: false, error: "error" as const });
+    const res = await action(round.code, {
+      action: "recordSpend",
+      handle: "ken",
+      payerHandle: "ken",
+      venueId: "venue-1",
+      clientRef: "spend-outage-1",
+      totalGbp: 20,
+    });
+    expect(res.status).toBe(503);
   });
 
   it("503s when a store write fails on an action (degraded dependency, not a bug)", async () => {

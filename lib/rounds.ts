@@ -11,6 +11,8 @@
 
 import { normalizeHandle } from "@/lib/profiles";
 import { cleanText, readString } from "@/lib/textClean";
+import { validateCommunityPrice } from "@/lib/communityPrice";
+import type { DrinkCategory } from "@/lib/drinks";
 
 // ── Join code ────────────────────────────────────────────────────────────────
 // Short, human-shareable, spoken aloud ("tell your mates: JXKQ7M"). The alphabet
@@ -73,6 +75,16 @@ export const ROUND_TITLE_MAX = 80;
 export const VENUE_NAME_MAX = 120;
 export const VENUE_ID_MAX = 80;
 export const DROP_REF_MAX = 200;
+export const ROUND_SPEND_CLIENT_REF_MAX = 80;
+export const ROUND_SPEND_ITEM_NAME_MAX = 80;
+export const ROUND_SPEND_ITEM_MAX = 20;
+// How many of a turn's lines may be first-party price observations. The diary
+// takes up to ROUND_SPEND_ITEM_MAX lines; this narrower ceiling is what the
+// community store sees, and it bounds both the device budget one turn can spend
+// and the number of limiter checks a phone tap waits on.
+export const ROUND_SPEND_PRICE_LINE_MAX = 10;
+export const ROUND_SPEND_TOTAL_MIN_PENCE = 100;
+export const ROUND_SPEND_TOTAL_MAX_PENCE = 100_000;
 
 // ── DTOs ─────────────────────────────────────────────────────────────────────
 export type RoundStopDTO = {
@@ -90,6 +102,51 @@ export type RoundMemberDTO = {
   joinedAt: string;
 };
 
+/**
+ * Where a drink line's figure came from. "round" is the drinker's own claim —
+ * a first-party observation, so it goes on to the community price store. "demo"
+ * is a figure lifted straight off a seeded demo menu (lib/drinkSeeds): it is a
+ * real part of the night's diary and nobody's observation, so it stops here.
+ * Provenance is the gate, never the figure itself: a drinker who genuinely paid
+ * a price a demo menu happens to quote is still observing it.
+ *
+ * The trust model, plainly: this is DECLARED by the client, not proved by the
+ * server, so a crafted POST can label a demo figure "round". That is not a hole
+ * a server check could close — a hand-typed price that coincides with a seed is
+ * the same request as a re-emitted seed, and policy requires accepting the
+ * first. What holds the line instead is what always held it: corroboration and
+ * age before any map surface, plus the same per-device price budget the other
+ * submission door charges (app/api/rounds/[code]).
+ */
+export type RoundSpendItemSource = "round" | "demo";
+
+export type RoundSpendItemDTO = {
+  drinkName: string;
+  drinkCategory: DrinkCategory;
+  pricePence: number;
+  source: RoundSpendItemSource;
+};
+
+/** The drink lines that are first-party observations. The one owner of that
+ *  question: the write path submits these, the page captions these. */
+export function firstPartyPriceItems(
+  items: readonly RoundSpendItemDTO[],
+): RoundSpendItemDTO[] {
+  return items.filter((item) => item.source === "round");
+}
+
+export type RoundSpendDTO = {
+  id: string;
+  clientRef: string;
+  payerHandle: string;
+  recordedByHandle: string;
+  venueId: string;
+  venueName: string;
+  totalPence: number;
+  items: RoundSpendItemDTO[];
+  recordedAt: string;
+};
+
 export type RoundDTO = {
   id: string;
   code: string;
@@ -105,6 +162,7 @@ export type RoundState = {
   round: RoundDTO;
   members: RoundMemberDTO[];
   stops: RoundStopDTO[];
+  spends: RoundSpendDTO[];
 };
 
 // ── Write payloads (validated) ───────────────────────────────────────────────
@@ -118,6 +176,16 @@ export type NewStop = {
   venueName: string;
   addedByHandle: string;
   dropRef?: string;
+};
+
+export type NewRoundSpend = {
+  clientRef: string;
+  payerHandle: string;
+  recordedByHandle: string;
+  venueId: string;
+  venueName: string;
+  totalPence: number;
+  items: RoundSpendItemDTO[];
 };
 
 /**
@@ -158,5 +226,115 @@ export function cleanNewStop(input: {
     venueName,
     addedByHandle,
     ...(dropRef ? { dropRef } : {}),
+  };
+}
+
+function readMoney(value: unknown): number | null {
+  if (typeof value === "number" && Number.isFinite(value)) return value;
+  if (typeof value !== "string") return null;
+  const cleaned = value.replace(/[£\s]/g, "").replace(",", ".");
+  if (!cleaned) return null;
+  const parsed = Number(cleaned);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+/**
+ * Validate one immutable buying turn. Item prices use the community-price
+ * validator, so category, penny rounding, and per-drink limits cannot drift.
+ * A plain total is deliberately a wider Round-only figure and never represents
+ * a single drink. Each line declares its `priceSource`; only an explicit "demo"
+ * marks a figure as lifted from a seeded menu, because everything else is a
+ * drinker saying what they paid.
+ */
+export function cleanNewRoundSpend(input: {
+  clientRef?: unknown;
+  payerHandle?: unknown;
+  recordedByHandle?: unknown;
+  venueId?: unknown;
+  venueName?: unknown;
+  totalGbp?: unknown;
+  items?: unknown;
+}): NewRoundSpend | null {
+  const clientRef = cleanText(input.clientRef, ROUND_SPEND_CLIENT_REF_MAX);
+  const payerHandle = normalizeHandle(readString(input.payerHandle) ?? "");
+  const recordedByHandle = normalizeHandle(readString(input.recordedByHandle) ?? "");
+  const venueId = cleanText(input.venueId, VENUE_ID_MAX);
+  const venueName = cleanText(input.venueName, VENUE_NAME_MAX);
+  if (!clientRef || !payerHandle || !recordedByHandle || !venueId || !venueName) {
+    return null;
+  }
+
+  if (input.items !== undefined && !Array.isArray(input.items)) return null;
+  const rawItems = (input.items ?? []) as unknown[];
+  if (rawItems.length > ROUND_SPEND_ITEM_MAX) return null;
+
+  const items: RoundSpendItemDTO[] = [];
+  for (const rawItem of rawItems) {
+    if (!rawItem || typeof rawItem !== "object") return null;
+    const row = rawItem as Record<string, unknown>;
+    const drinkName = cleanText(row.drinkName, ROUND_SPEND_ITEM_NAME_MAX);
+    if (!drinkName) return null;
+    const price = validateCommunityPrice({
+      venueId,
+      drinkCategory: row.drinkCategory,
+      priceGbp: row.priceGbp,
+    });
+    if (!price.ok) return null;
+    items.push({
+      drinkName,
+      drinkCategory: price.value.drinkCategory,
+      pricePence: Math.round(price.value.priceGbp * 100),
+      source: readString(row.priceSource) === "demo" ? "demo" : "round",
+    });
+  }
+
+  let totalPence: number;
+  if (items.length > 0) {
+    totalPence = items.reduce((sum, item) => sum + item.pricePence, 0);
+  } else {
+    const totalGbp = readMoney(input.totalGbp);
+    if (totalGbp === null) return null;
+    totalPence = Math.round(totalGbp * 100);
+    if (
+      totalPence < ROUND_SPEND_TOTAL_MIN_PENCE ||
+      totalPence > ROUND_SPEND_TOTAL_MAX_PENCE
+    ) {
+      return null;
+    }
+  }
+
+  return {
+    clientRef,
+    payerHandle,
+    recordedByHandle,
+    venueId,
+    venueName,
+    totalPence,
+    items,
+  };
+}
+
+export type RoundTurn = {
+  currentHandle: string | null;
+  lastPayerHandle: string | null;
+};
+
+/** Current buyer follows the latest payer in stable member join order. */
+export function roundTurn(
+  members: readonly RoundMemberDTO[],
+  spends: readonly RoundSpendDTO[],
+): RoundTurn {
+  if (members.length === 0) {
+    return { currentHandle: null, lastPayerHandle: null };
+  }
+  const latest = spends.at(-1);
+  if (!latest) {
+    return { currentHandle: members[0].handle, lastPayerHandle: null };
+  }
+  const payerIndex = members.findIndex((member) => member.handle === latest.payerHandle);
+  const nextIndex = payerIndex >= 0 ? (payerIndex + 1) % members.length : 0;
+  return {
+    currentHandle: members[nextIndex].handle,
+    lastPayerHandle: latest.payerHandle,
   };
 }

@@ -10,6 +10,8 @@ const eslintConfig = [
       ".claude/worktrees/",
       ".context/**",
       ".firecrawl/**",
+      // Scout verification bundles contain vendored build output, not app source.
+      ".scout/**",
       ".next/**",
       ".next-*/**",
       ".vercel/**",

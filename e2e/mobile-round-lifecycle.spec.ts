@@ -52,7 +52,7 @@ test("mobile Round lifecycle: join, copy code, add a pub, and host closes", asyn
   await expect(page.getByRole("status").filter({ hasText: "Code copied." })).toBeVisible();
 
   await expect(page.getByRole("heading", { name: "Join this Round" })).toBeVisible();
-  await page.getByRole("button", { name: "I'm out too — join the Round" }).click();
+  await page.getByRole("button", { name: "I'm out too. Join the Round" }).click();
   await expect(page.getByRole("status").filter({ hasText: "2 out · still going" })).toBeVisible();
   await expect(page.getByRole("link", { name: `@${mate}` })).toBeVisible();
 
@@ -71,6 +71,39 @@ test("mobile Round lifecycle: join, copy code, add a pub, and host closes", asyn
   await expect(route).toContainText("Arnos Arms");
   await expect(route).toContainText(`added by @${mate}`);
 
+  const money = page.getByRole("region", { name: "Whose round and what it cost" });
+  await expect(money).toBeVisible();
+  await expect(money.getByText("Up now")).toBeVisible();
+  await expect(money.getByText(`@${host}`, { exact: true })).toBeVisible();
+  await expect(money).toContainText("No round logged yet");
+
+  await page.getByRole("button", { name: "Put this round on the mat" }).click();
+  const spendForm = page.getByRole("region", { name: "Record this round" });
+  const totalInput = spendForm.getByLabel("Round total");
+  const keepButton = spendForm.getByRole("button", { name: "Keep £26.80" });
+  await totalInput.fill("26.80");
+  await expect
+    .poll(async () => Math.round((await totalInput.boundingBox())?.height ?? 0))
+    .toBeGreaterThanOrEqual(44);
+  await expect
+    .poll(async () => Math.round((await keepButton.boundingBox())?.height ?? 0))
+    .toBeGreaterThanOrEqual(44);
+  await keepButton.click();
+
+  await expect(money.getByText("£26.80", { exact: true })).toBeVisible();
+  await expect(money.getByText(`@${mate}`, { exact: true })).toBeVisible();
+  await expect(money).toContainText(`paid by @${host}`);
+  await expect(page.getByRole("region", { name: "Rounds kept tonight" })).toContainText(
+    "Arnos Arms",
+  );
+
+  const overflow = await page.evaluate(() => ({
+    body: document.body.scrollWidth,
+    document: document.documentElement.scrollWidth,
+    viewport: window.innerWidth,
+  }));
+  expect(Math.max(overflow.body, overflow.document)).toBeLessThanOrEqual(overflow.viewport);
+
   const hostPage = await page.context().newPage();
   await hostPage.setViewportSize({ width: 390, height: 844 });
   await hostPage.addInitScript((hostHandle) => {
@@ -85,6 +118,10 @@ test("mobile Round lifecycle: join, copy code, add a pub, and host closes", asyn
   // Closing is a two-tap confirm (irreversible, crew-wide): arm, then commit.
   await hostPage.getByRole("button", { name: "Call the Round (close it)" }).click();
   await hostPage.getByRole("button", { name: "Yes, call it" }).click();
-  await expect(hostPage.getByRole("status").filter({ hasText: "This Round has been called — it's closed." })).toBeVisible();
+  await expect(
+    hostPage
+      .getByRole("status")
+      .filter({ hasText: "This Round has been called. It's closed." }),
+  ).toBeVisible();
   await hostPage.close();
 });
