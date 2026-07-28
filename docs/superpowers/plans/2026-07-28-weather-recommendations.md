@@ -146,6 +146,7 @@ git commit -m "feat(recommendations): define weather recommendation vocabulary"
 **Files:**
 - Create: `lib/weatherRecommendationStore.ts`
 - Create: `__tests__/weatherRecommendationStore.test.ts`
+- Create: `__tests__/weatherRecommendationStoreSupabase.test.ts`
 - Create: `supabase/migrations/20260728120000_0058_weather_recommendations.sql`
 
 **Interfaces:**
@@ -234,7 +235,7 @@ git commit -m "feat(recommendations): store attributed weather recommendations"
 - Consumes: `lookupCanonicalVenue`, `loadWeatherSnapshot`, `nearestNightAreaForViewport`, `planningWeatherForArea`, `resolveMessageHandle`, `gateHandleAction`, `deriveCommunityPriceActor`, `isLimited`
 - Produces:
   - `POST { venueId, condition, reason, contributorHandle } -> 201 { recommendation }`
-  - `GET ?venueId=<id> -> 200 { recommendations, matchStatus, matchingConditions, matchedRecommendations, degraded }`
+  - `GET ?venueId=<id> -> 200 { weatherStatus, matchingConditions, recommendations, degraded, truncated }`
 
 - [ ] **Step 1: Write failing route tests**
 
@@ -261,7 +262,7 @@ it("stores a validated attributed recommendation with server-derived identity", 
 it("matches from the existing venue-area weather snapshot", async () => {
   const response = await GET(new Request("https://pubmax.test/api/weather-recommendations?venueId=venue-1"));
   expect(await response.json()).toMatchObject({
-    matchStatus: "matched",
+    weatherStatus: "available",
     matchingConditions: ["warm", "clear"],
   });
 });
@@ -269,9 +270,8 @@ it("matches from the existing venue-area weather snapshot", async () => {
 it("distinguishes weather unavailable from no matching rows", async () => {
   const response = await GET(new Request("https://pubmax.test/api/weather-recommendations?venueId=venue-1"));
   expect(await response.json()).toMatchObject({
-    matchStatus: "unavailable",
+    weatherStatus: "unavailable",
     recommendations: expect.any(Array),
-    matchedRecommendations: expect.any(Array),
   });
 });
 
@@ -314,13 +314,13 @@ Resolve venue coordinates from the canonical venue index. Read at most 20 rows. 
 
 ```ts
 {
-  recommendations,
-  matchedRecommendations: matchStatus === "matched"
+  recommendations: weather
     ? matchingWeatherRecommendations(recommendations, matchingConditions)
     : recommendations,
   matchingConditions,
-  matchStatus: weather ? "matched" : "unavailable",
+  weatherStatus: weather ? "available" : "unavailable",
   degraded: storeRead.status === "degraded",
+  truncated,
 }
 ```
 
@@ -362,7 +362,7 @@ it("renders every recommendation as attributed opinion", () => {
   const html = renderToStaticMarkup(createElement(WeatherRecommendationList, {
     venueName: "The Crown",
     recommendations: [recommendation()],
-    matchStatus: "matched",
+    weatherStatus: "available",
   }));
   expect(html).toContain("@night_owl");
   expect(html).toContain("recommends this when it’s warm");
@@ -374,7 +374,7 @@ it("states weather read failure and still renders authored rows", () => {
   const html = renderToStaticMarkup(createElement(WeatherRecommendationList, {
     venueName: "The Crown",
     recommendations: [recommendation()],
-    matchStatus: "unavailable",
+    weatherStatus: "unavailable",
   }));
   expect(html).toContain("We couldn’t check the weather here just now");
   expect(html).toContain("The back garden catches the light");
@@ -461,12 +461,11 @@ git commit -m "feat(recommendations): add venue weather authoring card"
 ### Task 5: Integration, browser evidence, and completion checks
 
 **Files:**
-- Create: `docs/screenshots/weather-recommendations-390-dark.png`
 - Modify only files required by observed failures
 
 **Interfaces:**
 - Consumes: completed API and venue component
-- Produces: verified 390px dark-mode flow, screenshot, clean project gate, committed branch
+- Produces: verified 390px dark-mode flow, PR-body browser evidence, clean project gate, committed branch
 
 - [ ] **Step 1: Run focused integration suite**
 
@@ -476,6 +475,7 @@ Run:
 npm test -- \
   __tests__/weatherRecommendations.test.ts \
   __tests__/weatherRecommendationStore.test.ts \
+  __tests__/weatherRecommendationStoreSupabase.test.ts \
   __tests__/weatherRecommendationsRoute.test.ts \
   __tests__/venueWeatherRecommendations.test.ts \
   __tests__/writeSurfaceCertification.test.ts
@@ -506,10 +506,10 @@ Using `chrome-devtools-axi`:
 5. Submit a recommendation.
 6. Confirm POST returns 201, receipt announces success, and row reads as `@handle recommends`.
 7. Reload venue sheet and confirm persisted memory-store row returns.
-8. Inspect console and network. Require zero errors or warnings.
+8. Inspect console and network. Require zero errors and no warnings attributable to this feature.
 9. Inspect accessibility tree and keyboard focus order.
 10. Emulate reduced motion and confirm no meaningful transition or animation remains.
-11. Capture `docs/screenshots/weather-recommendations-390-dark.png`.
+11. Capture screenshots for the PR body through the no-mistakes browser-evidence step. The supervisor waived a repository screenshot artifact after `chrome-devtools-axi screenshot` twice reported a path without writing a file.
 
 - [ ] **Step 5: Run full project gate**
 
@@ -526,7 +526,7 @@ git checkout -- next-env.d.ts package.json
 git status --short
 ```
 
-Expected: only task files and screenshot remain.
+Expected: only task files remain.
 
 - [ ] **Step 7: Review diff and commit**
 
@@ -543,11 +543,11 @@ git add CONTEXT.md docs/superpowers/plans/2026-07-28-weather-recommendations.md 
   components/map/inspector/VenueOverviewTab.tsx \
   __tests__/weatherRecommendations.test.ts \
   __tests__/weatherRecommendationStore.test.ts \
+  __tests__/weatherRecommendationStoreSupabase.test.ts \
   __tests__/weatherRecommendationsRoute.test.ts \
   __tests__/venueWeatherRecommendations.test.ts \
   __tests__/writeSurfaceCertification.test.ts \
   docs/WRITE_SURFACE_CERTIFICATION.md \
-  docs/screenshots/weather-recommendations-390-dark.png \
   supabase/migrations/20260728120000_0058_weather_recommendations.sql
 git commit -m "feat: add authored weather recommendations"
 ```
@@ -557,6 +557,5 @@ git commit -m "feat: add authored weather recommendations"
 Append:
 
 ```bash
-echo "done: authored weather recommendations committed with 390px browser evidence and npm run verify green" >> '/Users/karanmanoharan/karan-agent-workspace/state/weather-recommendations.status'
+echo "done: authored weather recommendations committed and npm run verify green; no-mistakes browser evidence pending" >> '/Users/karanmanoharan/karan-agent-workspace/state/weather-recommendations.status'
 ```
-

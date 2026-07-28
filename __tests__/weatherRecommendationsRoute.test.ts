@@ -33,15 +33,28 @@ const weatherState = vi.hoisted(() => ({
   snapshot: null as import("@/lib/weatherSnapshots").WeatherSnapshot | null,
 }));
 
+const handleState = vi.hoisted(() => ({
+  resolverUnavailable: false,
+}));
+
+const actorState = vi.hoisted(() => ({
+  unavailable: false,
+}));
+
 vi.mock("@/lib/weatherSnapshots.server", () => ({
   loadWeatherSnapshot: async () => weatherState.snapshot,
+}));
+
+vi.mock("@/lib/communityPriceActor", () => ({
+  deriveCommunityPriceActor: () =>
+    actorState.unavailable ? undefined : "server-derived-actor",
 }));
 
 vi.mock("@/lib/messageAuth", () => ({
   resolveMessageHandle: async (
     _request: Request,
     assertedHandle: string,
-  ) => assertedHandle,
+  ) => handleState.resolverUnavailable ? "" : assertedHandle,
 }));
 
 vi.mock("@/lib/profileOwnership", () => ({
@@ -120,6 +133,8 @@ beforeEach(() => {
   venueState.unavailable = false;
   venueState.kind = "pub";
   weatherState.snapshot = snapshot();
+  handleState.resolverUnavailable = false;
+  actorState.unavailable = false;
   __resetPintDrops();
   __resetWeatherRecommendations();
 });
@@ -222,6 +237,42 @@ describe("POST /api/weather-recommendations", () => {
       }),
     );
     expect(response.status).toBe(503);
+  });
+
+  it("answers retryable 503 when authenticated handle resolution cannot answer", async () => {
+    handleState.resolverUnavailable = true;
+    const response = await POST(
+      post({
+        venueId: "venue-test",
+        condition: "warm",
+        reason: "The garden keeps the evening light.",
+        contributorHandle: "night_owl",
+      }),
+    );
+
+    expect(response.status).toBe(503);
+    expect(await response.json()).toMatchObject({
+      code: "PROFILE_UNAVAILABLE",
+      retryable: true,
+    });
+  });
+
+  it("answers retryable 503 when private actor provenance cannot be derived", async () => {
+    actorState.unavailable = true;
+    const response = await POST(
+      post({
+        venueId: "venue-test",
+        condition: "warm",
+        reason: "The garden keeps the evening light.",
+        contributorHandle: "night_owl",
+      }),
+    );
+
+    expect(response.status).toBe(503);
+    expect(await response.json()).toMatchObject({
+      code: "ACTOR_UNAVAILABLE",
+      retryable: true,
+    });
   });
 
   it("rate-limits one device churning recommendations at one pub", async () => {

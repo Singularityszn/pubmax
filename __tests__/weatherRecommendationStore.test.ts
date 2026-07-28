@@ -75,17 +75,13 @@ describe("memoryWeatherRecommendationStore", () => {
     ).toEqual({ status: "ready", count: 0 });
   });
 
-  it("keeps a handle-attributed row when device hashing is unavailable", async () => {
+  it("refuses a write when private actor provenance is unavailable", async () => {
     const withoutActor = input();
     delete (withoutActor as Partial<typeof withoutActor>).actorHash;
 
-    const created = await memoryWeatherRecommendationStore.create(
-      withoutActor,
-      1_000,
-    );
-
-    expect(created.contributorHandle).toBe("night_owl");
-    expect(created).not.toHaveProperty("actorHash");
+    await expect(
+      memoryWeatherRecommendationStore.create(withoutActor, 1_000),
+    ).rejects.toThrow("Actor provenance is required.");
   });
 
   it("bounds a venue read to the newest rows without exposing actor hashes", async () => {

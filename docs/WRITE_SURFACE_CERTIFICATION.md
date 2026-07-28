@@ -495,8 +495,10 @@ commit.
   asserted handle through `resolveMessageHandle`, then `gateHandleAction`
   protects linked handles. Keyless development keeps the existing unlinked
   handle path. Separately, `deriveCommunityPriceActor` derives a private actor
-  token from the hashed request IP. The handle is public authorship; the actor
-  token never leaves the store and is never accepted from the body.
+  token from the hashed request IP. A write fails with retryable 503 if that
+  token cannot be derived, and the database column is non-null. The handle is
+  public authorship; the actor token never leaves the store and is never
+  accepted from the body.
 - **Rate limit (boundary):** an actor-wide durable `isLimited` budget allows 30
   writes per hour across venues. A second per-actor, per-venue budget allows
   five per hour. One natural row per `(venue, condition, contributor_handle)`

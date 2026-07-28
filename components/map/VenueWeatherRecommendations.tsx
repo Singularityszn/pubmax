@@ -27,6 +27,26 @@ import "./venueWeatherRecommendations.css";
 const HANDLE_KEY = "pubmax_handle";
 const HANDLE_MAX = 30;
 
+type RecommendationErrorField = "handle" | "reason" | null;
+
+type RecommendationFormError = {
+  message: string;
+  field: RecommendationErrorField;
+};
+
+function recommendationError(message: string): RecommendationFormError {
+  const field: RecommendationErrorField =
+    message === "Add your Pubmaxx handle." ||
+    message.includes("handle belongs") ||
+    message.includes("handle was just claimed")
+      ? "handle"
+      : message.startsWith("Say why") ||
+          message.startsWith("Say plainly")
+        ? "reason"
+        : null;
+  return { message, field };
+}
+
 export type WeatherRecommendationVenueLoad = {
   weatherStatus: "available" | "unavailable";
   matchingConditions: WeatherRecommendationCondition[];
@@ -210,7 +230,7 @@ export default function VenueWeatherRecommendations({
   const [load, setLoad] = useState<WeatherRecommendationVenueLoad | null>(null);
   const [loadFailed, setLoadFailed] = useState(false);
   const [submitting, setSubmitting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<RecommendationFormError | null>(null);
   const [saved, setSaved] = useState<WeatherRecommendation | null>(null);
 
   const loadRecommendations = useCallback(
@@ -259,7 +279,7 @@ export default function VenueWeatherRecommendations({
       contributorHandle,
     });
     if (!validation.ok) {
-      setError(validation.error);
+      setError(recommendationError(validation.error));
       return;
     }
 
@@ -273,15 +293,19 @@ export default function VenueWeatherRecommendations({
       const body = (await response.json()) as Record<string, unknown>;
       if (!response.ok) {
         setError(
-          typeof body.error === "string"
-            ? body.error
-            : "Could not save that recommendation right now.",
+          recommendationError(
+            typeof body.error === "string"
+              ? body.error
+              : "Could not save that recommendation right now.",
+          ),
         );
         return;
       }
       const recommendation = readRecommendation(body.recommendation);
       if (!recommendation) {
-        setError("Could not read that saved recommendation.");
+        setError(
+          recommendationError("Could not read that saved recommendation."),
+        );
         return;
       }
       try {
@@ -297,7 +321,9 @@ export default function VenueWeatherRecommendations({
       setSaved(recommendation);
       await loadRecommendations();
     } catch {
-      setError("Could not save that recommendation right now.");
+      setError(
+        recommendationError("Could not save that recommendation right now."),
+      );
     } finally {
       setSubmitting(false);
     }
@@ -343,24 +369,27 @@ export default function VenueWeatherRecommendations({
           aria-label={`When does ${venueName} suit?`}
         >
           {WEATHER_RECOMMENDATION_CONDITIONS.map((option) => (
-            <button
+            <label
               key={option}
-              type="button"
-              role="radio"
-              aria-checked={condition === option}
               className={
                 condition === option
                   ? "weatherRecCondition weatherRecConditionOn"
                   : "weatherRecCondition"
               }
-              onClick={() => {
-                setCondition(option);
-                setError(null);
-                setSaved(null);
-              }}
             >
-              {weatherRecommendationConditionLabel(option)}
-            </button>
+              <input
+                type="radio"
+                name="condition"
+                value={option}
+                checked={condition === option}
+                onChange={() => {
+                  setCondition(option);
+                  setError(null);
+                  setSaved(null);
+                }}
+              />
+              <span>{weatherRecommendationConditionLabel(option)}</span>
+            </label>
           ))}
         </div>
 
@@ -368,6 +397,7 @@ export default function VenueWeatherRecommendations({
           <span>Your Pubmaxx handle</span>
           <input
             type="text"
+            name="contributorHandle"
             value={contributorHandle}
             onChange={(event) => {
               setContributorHandle(event.target.value);
@@ -380,12 +410,19 @@ export default function VenueWeatherRecommendations({
             spellCheck={false}
             maxLength={HANDLE_MAX}
             placeholder="your_handle"
+            aria-invalid={error?.field === "handle"}
+            aria-describedby={
+              error?.field === "handle"
+                ? `weatherRecError-${venueId}`
+                : undefined
+            }
           />
         </label>
 
         <label className="weatherRecField">
           <span>Why it suits {weatherRecommendationConditionLabel(condition).toLowerCase()}</span>
           <textarea
+            name="reason"
             value={reason}
             onChange={(event) => {
               setReason(event.target.value);
@@ -393,8 +430,12 @@ export default function VenueWeatherRecommendations({
               setSaved(null);
             }}
             aria-label={`Why ${venueName} suits this weather`}
-            aria-invalid={error !== null}
-            aria-describedby={error ? `weatherRecError-${venueId}` : undefined}
+            aria-invalid={error?.field === "reason"}
+            aria-describedby={
+              error?.field === "reason"
+                ? `weatherRecError-${venueId}`
+                : undefined
+            }
             maxLength={WEATHER_RECOMMENDATION_REASON_MAX}
             rows={3}
             placeholder="The garden keeps the evening light."
@@ -419,7 +460,7 @@ export default function VenueWeatherRecommendations({
             id={`weatherRecError-${venueId}`}
             role="alert"
           >
-            {error}
+            {error.message}
           </p>
         ) : null}
 

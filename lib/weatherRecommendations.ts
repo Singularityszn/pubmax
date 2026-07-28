@@ -63,12 +63,12 @@ export type RecommendationWeather = {
 
 function clean(value: unknown, cap: number): string {
   if (typeof value !== "string") return "";
-  return value
+  const normalized = value
     .replace(/[<>]/g, "")
     .replace(/[\u0000-\u001f\u007f]/g, " ")
     .replace(/\s+/g, " ")
-    .trim()
-    .slice(0, cap);
+    .trim();
+  return [...normalized].slice(0, cap).join("");
 }
 
 export function isWeatherRecommendationCondition(
@@ -76,9 +76,7 @@ export function isWeatherRecommendationCondition(
 ): value is WeatherRecommendationCondition {
   return (
     typeof value === "string" &&
-    (WEATHER_RECOMMENDATION_CONDITIONS as readonly string[]).includes(
-      value.toLocaleLowerCase("en-GB"),
-    )
+    (WEATHER_RECOMMENDATION_CONDITIONS as readonly string[]).includes(value)
   );
 }
 
@@ -123,7 +121,7 @@ export function validateWeatherRecommendation(
     raw.reason,
     WEATHER_RECOMMENDATION_REASON_MAX,
   );
-  if (cleanedReason.length < WEATHER_RECOMMENDATION_REASON_MIN) {
+  if ([...cleanedReason].length < WEATHER_RECOMMENDATION_REASON_MIN) {
     return {
       ok: false,
       error: `Say why in at least ${WEATHER_RECOMMENDATION_REASON_MIN} characters.`,

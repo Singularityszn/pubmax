@@ -62,10 +62,6 @@ async function parseBody(
   }
 }
 
-async function canonicalVenue(venueId: string) {
-  return lookupCanonicalVenue(venueId);
-}
-
 function payloadBytes(payload: VenueRecommendationPayload): number {
   return new TextEncoder().encode(JSON.stringify(payload)).byteLength;
 }
@@ -108,7 +104,7 @@ export async function POST(request: Request): Promise<Response> {
     );
   }
 
-  const venueLookup = await canonicalVenue(validation.value.venueId);
+  const venueLookup = await lookupCanonicalVenue(validation.value.venueId);
   if (venueLookup.status === "unavailable") {
     return publicApiError(
       "Venue list is unavailable right now. Try again shortly.",
@@ -131,9 +127,10 @@ export async function POST(request: Request): Promise<Response> {
   );
   if (!contributorHandle) {
     return publicApiError(
-      "Add your Pubmaxx handle.",
-      "INVALID_RECOMMENDATION",
-      400,
+      "Profile storage is unavailable right now. Try again shortly.",
+      "PROFILE_UNAVAILABLE",
+      503,
+      { retryable: true },
     );
   }
   const ownership = await gateHandleAction(request, contributorHandle);
@@ -147,7 +144,15 @@ export async function POST(request: Request): Promise<Response> {
   }
 
   const actor = deriveCommunityPriceActor(request);
-  const actorKey = actor ?? "anon";
+  if (!actor) {
+    return publicApiError(
+      "Could not establish contributor provenance right now.",
+      "ACTOR_UNAVAILABLE",
+      503,
+      { retryable: true },
+    );
+  }
+  const actorKey = actor;
   const actorLimitKey = `weather-recommendation-actor:${actorKey}`;
   if (
     await isLimited(
@@ -187,10 +192,14 @@ export async function POST(request: Request): Promise<Response> {
       ...validation.value,
       venueId: venueLookup.canonicalId,
       contributorHandle: ownership.handle,
-      ...(actor ? { actorHash: actor } : {}),
+      actorHash: actor,
     });
     return jsonNoStore({ recommendation }, { status: 201 });
-  } catch {
+  } catch (error) {
+    console.error(
+      "[weather-recommendations] durable write failed:",
+      error instanceof Error ? error.message : String(error),
+    );
     return publicApiError(
       "Could not save that recommendation right now.",
       "STORE_UNAVAILABLE",
@@ -206,7 +215,7 @@ export async function GET(request: Request): Promise<Response> {
     return publicApiError("A venue is required.", "INVALID_REQUEST", 400);
   }
 
-  const venueLookup = await canonicalVenue(venueId);
+  const venueLookup = await lookupCanonicalVenue(venueId);
   if (venueLookup.status === "unavailable") {
     return publicApiError(
       "Venue list is unavailable right now. Try again shortly.",

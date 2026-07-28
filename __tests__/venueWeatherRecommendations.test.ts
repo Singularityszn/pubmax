@@ -88,13 +88,16 @@ describe("VenueWeatherRecommendations", () => {
     );
 
     expect(html).toContain('role="radiogroup"');
-    expect((html.match(/role="radio"/g) ?? [])).toHaveLength(5);
+    expect((html.match(/type="radio"/g) ?? [])).toHaveLength(5);
+    expect((html.match(/name="condition"/g) ?? [])).toHaveLength(5);
     expect(html).toContain("Clear skies");
     expect(html).toContain('aria-label="Your Pubmaxx handle"');
+    expect(html).toContain('name="contributorHandle"');
     expect(html).toContain('maxLength="30"');
     expect(html).toContain(
       'aria-label="Why The Crown suits this weather"',
     );
+    expect(html).toContain('name="reason"');
     expect(html).toContain('maxLength="160"');
     expect(html).toContain("Recommend it");
   });

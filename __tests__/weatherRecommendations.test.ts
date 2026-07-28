@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   conditionsForWeather,
+  isWeatherRecommendationCondition,
   matchingWeatherRecommendations,
   validateWeatherRecommendation,
   WEATHER_RECOMMENDATION_CONDITIONS,
@@ -83,6 +84,32 @@ describe("validateWeatherRecommendation", () => {
     });
   });
 
+  it("counts Unicode code points exactly as the durable database does", () => {
+    expect(
+      validateWeatherRecommendation({
+        venueId: "venue-1",
+        condition: "warm",
+        reason: "🍺🍺🍺🍺",
+        contributorHandle: "night_owl",
+      }),
+    ).toEqual({
+      ok: false,
+      error: "Say why in at least 8 characters.",
+    });
+
+    const capped = validateWeatherRecommendation({
+      venueId: "venue-1",
+      condition: "warm",
+      reason: "🍺".repeat(200),
+      contributorHandle: "night_owl",
+    });
+    expect(capped.ok).toBe(true);
+    if (capped.ok) {
+      expect([...capped.value.reason]).toHaveLength(160);
+      expect(capped.value.reason).not.toContain("�");
+    }
+  });
+
   it("removes markup and control characters before storing the opinion", () => {
     const result = validateWeatherRecommendation({
       venueId: "venue-1",
@@ -99,6 +126,13 @@ describe("validateWeatherRecommendation", () => {
         contributorHandle: "night_owl",
       },
     });
+  });
+});
+
+describe("isWeatherRecommendationCondition", () => {
+  it("accepts only stored closed-set values, not unnormalised lookalikes", () => {
+    expect(isWeatherRecommendationCondition("warm")).toBe(true);
+    expect(isWeatherRecommendationCondition("WARM")).toBe(false);
   });
 });
 

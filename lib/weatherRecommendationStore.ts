@@ -27,7 +27,7 @@ const TABLE = "weather_recommendations";
 export const MAX_WEATHER_RECOMMENDATIONS_PER_VENUE = 20;
 
 export type WeatherRecommendationWrite = WeatherRecommendationInput & {
-  actorHash?: string | null;
+  actorHash: string;
 };
 
 export type WeatherRecommendationReadResult = {
@@ -52,11 +52,11 @@ export type WeatherRecommendationStore = {
 };
 
 type StoredWeatherRecommendation = WeatherRecommendation & {
-  actorHash: string | null;
+  actorHash: string;
 };
 
 type NormalizedWeatherRecommendationWrite = WeatherRecommendationInput & {
-  actorHash: string | null;
+  actorHash: string;
 };
 
 function naturalKey(
@@ -75,7 +75,8 @@ function validWrite(
   const actorHash =
     typeof input.actorHash === "string" ? input.actorHash.trim().slice(0, 160) : "";
   if (!validation.ok) throw new Error(validation.error);
-  return { ...validation.value, actorHash: actorHash || null };
+  if (!actorHash) throw new Error("Actor provenance is required.");
+  return { ...validation.value, actorHash };
 }
 
 function published(

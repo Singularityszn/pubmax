@@ -131,6 +131,9 @@
 }
 
 .weatherRecCondition {
+  position: relative;
+  display: grid;
+  place-items: center;
   min-width: 0;
   min-height: 44px;
   padding: 7px 10px;
@@ -149,6 +152,19 @@
     transform 160ms ease;
 }
 
+.weatherRecCondition input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.weatherRecCondition span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
 .weatherRecCondition:last-child {
   grid-column: 1 / -1;
 }
@@ -164,7 +180,7 @@
   transform: scale(0.97);
 }
 
-.weatherRecCondition:focus-visible,
+.weatherRecCondition:has(input:focus-visible),
 .weatherRecSubmit:focus-visible,
 .weatherRecAttribution a:focus-visible {
   outline: 2px solid var(--river-bright);
