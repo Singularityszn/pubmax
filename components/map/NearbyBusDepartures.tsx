@@ -1,17 +1,20 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 
-import type {
-  BusDirection,
-  NearbyBusDeparturesResult,
+import {
+  busDeparturesFreshness,
+  departureDueMinutes,
+  shouldPollBusDepartures,
+  startBusDeparturesPoll,
+  type BusDirection,
+  type NearbyBusDeparturesResult,
 } from "@/lib/nearbyBusDepartures";
 
 import "./nearbyBusDepartures.css";
 
 type LoadState =
   | { status: "idle" }
-  | { status: "loading" }
   | { status: "loaded"; result: NearbyBusDeparturesResult };
 
 export function nearbyBusDeparturesFetchUrl(lat: number, lng: number): string {
@@ -30,14 +33,35 @@ function directedDestination(
   return `${direction[0].toUpperCase()}${direction.slice(1)} to ${destinationName}`;
 }
 
-function dueLabel(minutes: number): string {
+function dueLabel(minutes: number | null): string {
+  if (minutes === null) return "Time not known";
+  if (minutes <= 0) return "Due";
   return `${minutes} min`;
+}
+
+function clockLabel(iso: string): string {
+  const at = new Date(iso);
+  if (Number.isNaN(at.getTime())) return "Time not known";
+  return new Intl.DateTimeFormat("en-GB", {
+    timeZone: "Europe/London",
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23",
+  }).format(at);
+}
+
+function checkedAgo(ageMinutes: number | null): string {
+  if (ageMinutes === null) return "";
+  if (ageMinutes <= 1) return "Checked about a minute ago.";
+  return `Checked about ${ageMinutes} minutes ago.`;
 }
 
 export function NearbyBusDeparturesView({
   result,
+  now,
 }: {
   result: NearbyBusDeparturesResult;
+  now: Date;
 }) {
   if (result.status === "unavailable") {
     return (
@@ -48,52 +72,75 @@ export function NearbyBusDeparturesView({
     );
   }
 
+  const freshness = busDeparturesFreshness(result.generatedAt, now);
+  const outOfDate = freshness.state === "out-of-date";
+
   return (
-    <ol className="nearbyBusStopList">
-      {result.stops.map((stop) => {
-        const stopDirection = [
-          stop.indicator,
-          stop.towards ? `towards ${stop.towards}` : null,
-        ]
-          .filter(Boolean)
-          .join(" · ");
-        return (
-          <li className="nearbyBusStop" key={stop.id}>
-            <div className="nearbyBusStopHeader">
-              <span className="nearbyBusStopIdentity">
-                <strong>{stop.name}</strong>
-                {stopDirection ? <span>{stopDirection}</span> : null}
-              </span>
-              <span className="nearbyBusDistance">
-                {stop.distanceM} m from pub, straight line
-              </span>
-            </div>
-            <ol className="nearbyBusDepartureList">
-              {stop.departures.map((departure) => (
-                <li
-                  className="nearbyBusDeparture"
-                  key={`${departure.lineName}:${departure.expectedArrival}:${departure.destinationName}`}
-                >
-                  <strong className="nearbyBusLine">{departure.lineName}</strong>
-                  <span className="nearbyBusDestination">
-                    {directedDestination(
-                      departure.direction,
-                      departure.destinationName,
-                    )}
-                  </span>
-                  <time
-                    className="nearbyBusDue"
-                    dateTime={departure.expectedArrival}
+    <>
+      {freshness.state === "ageing" ? (
+        <p className="nearbyBusDeparturesNote nearbyBusFreshness" role="status">
+          {checkedAgo(freshness.ageMinutes)}
+        </p>
+      ) : null}
+      {outOfDate ? (
+        <p className="nearbyBusDeparturesNote nearbyBusFreshness" role="status">
+          These times are out of date. {checkedAgo(freshness.ageMinutes)} They
+          are what was predicted then, so check the stop display before you set
+          off.
+        </p>
+      ) : null}
+      <ol className="nearbyBusStopList">
+        {result.stops.map((stop) => {
+          const stopDirection = [
+            stop.indicator,
+            stop.towards ? `towards ${stop.towards}` : null,
+          ]
+            .filter(Boolean)
+            .join(" · ");
+          return (
+            <li className="nearbyBusStop" key={stop.id}>
+              <div className="nearbyBusStopHeader">
+                <span className="nearbyBusStopIdentity">
+                  <strong>{stop.name}</strong>
+                  {stopDirection ? <span>{stopDirection}</span> : null}
+                </span>
+                <span className="nearbyBusDistance">
+                  {stop.distanceM} m from here, straight line
+                </span>
+              </div>
+              <ol className="nearbyBusDepartureList">
+                {stop.departures.map((departure) => (
+                  <li
+                    className="nearbyBusDeparture"
+                    key={`${departure.lineName}:${departure.expectedArrival}:${departure.destinationName}`}
                   >
-                    {dueLabel(departure.dueMinutes)}
-                  </time>
-                </li>
-              ))}
-            </ol>
-          </li>
-        );
-      })}
-    </ol>
+                    <strong className="nearbyBusLine">
+                      {departure.lineName}
+                    </strong>
+                    <span className="nearbyBusDestination">
+                      {directedDestination(
+                        departure.direction,
+                        departure.destinationName,
+                      )}
+                    </span>
+                    <time
+                      className="nearbyBusDue"
+                      dateTime={departure.expectedArrival}
+                    >
+                      {outOfDate
+                        ? clockLabel(departure.expectedArrival)
+                        : dueLabel(
+                            departureDueMinutes(departure.expectedArrival, now),
+                          )}
+                    </time>
+                  </li>
+                ))}
+              </ol>
+            </li>
+          );
+        })}
+      </ol>
+    </>
   );
 }
 
@@ -122,64 +169,89 @@ export default function NearbyBusDepartures({
   lat: number;
   lng: number;
 }) {
+  const [open, setOpen] = useState(false);
+  const [documentVisible, setDocumentVisible] = useState(true);
   const [state, setState] = useState<LoadState>({ status: "idle" });
-  const controllerRef = useRef<AbortController | null>(null);
+  const [nowMs, setNowMs] = useState(() => Date.now());
 
   useEffect(() => {
-    const controller = controllerRef;
-    return () => controller.current?.abort();
+    const sync = () => {
+      const visible = document.visibilityState === "visible";
+      // Coming back to the page means the clock we last rendered against is as
+      // old as the time away, so restart it before anything is read off it.
+      if (visible) setNowMs(Date.now());
+      setDocumentVisible(visible);
+    };
+    sync();
+    document.addEventListener("visibilitychange", sync);
+    return () => document.removeEventListener("visibilitychange", sync);
   }, []);
 
-  function loadOnOpen(event: React.SyntheticEvent<HTMLDetailsElement>) {
-    if (!event.currentTarget.open || state.status !== "idle") return;
+  const polling = shouldPollBusDepartures({ open, documentVisible });
 
-    const controller = new AbortController();
-    controllerRef.current = controller;
-    setState({ status: "loading" });
-    fetch(nearbyBusDeparturesFetchUrl(lat, lng), {
-      signal: controller.signal,
-    })
-      .then((response) => {
-        if (!response.ok) throw new Error(String(response.status));
-        return response.json() as Promise<unknown>;
-      })
-      .then((result) => {
-        if (!controller.signal.aborted) {
-          setState(
-            isResult(result)
-              ? { status: "loaded", result }
-              : { status: "loaded", result: unavailableResult() },
-          );
-        }
-      })
-      .catch((error: unknown) => {
-        if (
-          controller.signal.aborted ||
-          (error instanceof Error && error.name === "AbortError")
-        ) {
-          return;
-        }
-        setState({
-          status: "loaded",
-          result: unavailableResult(),
-        });
-      });
-  }
+  useEffect(() => {
+    if (!polling) return;
+
+    return startBusDeparturesPoll({
+      onTick: setNowMs,
+      load: (signal) =>
+        fetch(nearbyBusDeparturesFetchUrl(lat, lng), { signal })
+          .then((response) => {
+            if (!response.ok) throw new Error(String(response.status));
+            return response.json() as Promise<unknown>;
+          })
+          .then((result) => {
+            if (signal.aborted) return;
+            setNowMs(Date.now());
+            setState({
+              status: "loaded",
+              result: isResult(result) ? result : unavailableResult(),
+            });
+          })
+          .catch((error: unknown) => {
+            if (
+              signal.aborted ||
+              (error instanceof Error && error.name === "AbortError")
+            ) {
+              return;
+            }
+            // A failed refresh never erases departures we already hold: they
+            // keep ageing in view and say so, which is more use than a blank.
+            setState((prev) =>
+              prev.status === "loaded" && prev.result.status === "ready"
+                ? prev
+                : { status: "loaded", result: unavailableResult() },
+            );
+          }),
+    });
+  }, [lat, lng, polling]);
 
   return (
-    <details className="nearbyBusDepartures" onToggle={loadOnOpen}>
+    <details
+      className="nearbyBusDepartures"
+      onToggle={(event) => {
+        const nowOpen = event.currentTarget.open;
+        if (nowOpen) setNowMs(Date.now());
+        setOpen(nowOpen);
+      }}
+    >
       <summary className="nearbyBusDeparturesSummary">
         <span>
           <strong>Buses nearby</strong>
-          <small>Live TfL departures from stops near this pub</small>
+          <small>Live TfL departures from stops near here</small>
         </span>
       </summary>
-      <div className="nearbyBusDeparturesBody" aria-live="polite">
-        {state.status === "loading" ? (
-          <p className="nearbyBusDeparturesNote">Checking live departures…</p>
+      <div className="nearbyBusDeparturesBody">
+        {polling && state.status === "idle" ? (
+          <p className="nearbyBusDeparturesNote" role="status">
+            Checking live departures…
+          </p>
         ) : null}
         {state.status === "loaded" ? (
-          <NearbyBusDeparturesView result={state.result} />
+          <NearbyBusDeparturesView
+            result={state.result}
+            now={new Date(nowMs)}
+          />
         ) : null}
       </div>
     </details>

@@ -7,6 +7,9 @@
 import { CITIES, pointInCityBounds } from "@/lib/cities";
 import { isLastRideLimited } from "@/lib/lastRideRateLimit";
 import {
+  BUS_ARRIVALS_TIMEOUT_MS,
+  BUS_STOP_LOOKUP_RETRIES,
+  BUS_STOP_LOOKUP_TIMEOUT_MS,
   freshBusPredictions,
   type NearbyBusDeparturesResult,
   type NearbyBusStop,
@@ -118,13 +121,17 @@ export async function GET(request: Request): Promise<Response> {
     `/StopPoint?lat=${lat}&lon=${lng}` +
     `&stopTypes=${STOP_TYPES}&radius=${STOP_RADIUS_M}&modes=bus`;
   const stops = nearbyStops(
-    await tflGet<TflBusStopResponse>(stopPath, { retries: 1 }),
+    await tflGet<TflBusStopResponse>(stopPath, {
+      retries: BUS_STOP_LOOKUP_RETRIES,
+      timeoutMs: BUS_STOP_LOOKUP_TIMEOUT_MS,
+    }),
   );
   if (stops.length === 0) return json(unavailable(now));
 
   const ids = stops.map(stopId);
   const arrivals = await tflGet<TflBusPrediction[]>(
     `/StopPoint/${encodeURIComponent(ids.join(","))}/Arrivals`,
+    { timeoutMs: BUS_ARRIVALS_TIMEOUT_MS },
   );
   if (!Array.isArray(arrivals)) return json(unavailable(now));
 

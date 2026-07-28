@@ -1,6 +1,15 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { freshBusPredictions } from "@/lib/nearbyBusDepartures";
+import {
+  BUS_DEPARTURES_REFRESH_MS,
+  BUS_DEPARTURES_TICK_MS,
+  BUS_UPSTREAM_BUDGET_MS,
+  busDeparturesFreshness,
+  departureDueMinutes,
+  freshBusPredictions,
+  shouldPollBusDepartures,
+  startBusDeparturesPoll,
+} from "@/lib/nearbyBusDepartures";
 
 describe("freshBusPredictions", () => {
   const now = new Date("2026-07-28T22:40:00.000Z");
@@ -71,6 +80,158 @@ describe("freshBusPredictions", () => {
     );
 
     expect(result.map((prediction) => prediction.lineName)).toEqual(["63"]);
+  });
+
+  it("tolerates a small upstream clock lead without loosening the stale ceiling", () => {
+    const base = {
+      naptanId: "490000123B",
+      lineName: "63",
+      destinationName: "King's Cross",
+      direction: "outbound",
+      expectedArrival: "2026-07-28T22:44:00.000Z",
+    };
+
+    const result = freshBusPredictions(
+      [
+        { ...base, lineName: "skewed", timestamp: "2026-07-28T22:40:03.000Z" },
+        { ...base, lineName: "far-future", timestamp: "2026-07-28T22:40:30.000Z" },
+        { ...base, lineName: "stale", timestamp: "2026-07-28T22:37:30.000Z" },
+      ],
+      now,
+    );
+
+    expect(result.map((prediction) => prediction.lineName)).toEqual(["skewed"]);
+  });
+});
+
+describe("departureDueMinutes", () => {
+  const expectedArrival = "2026-07-28T22:43:00.000Z";
+
+  it("ages off the arrival's own time rather than a rendered figure", () => {
+    expect(
+      departureDueMinutes(expectedArrival, new Date("2026-07-28T22:40:00.000Z")),
+    ).toBe(3);
+    expect(
+      departureDueMinutes(expectedArrival, new Date("2026-07-28T22:42:10.000Z")),
+    ).toBe(1);
+    expect(
+      departureDueMinutes(expectedArrival, new Date("2026-07-28T22:43:30.000Z")),
+    ).toBeLessThanOrEqual(0);
+  });
+
+  it("reports an unreadable arrival as unknown rather than as a number", () => {
+    expect(departureDueMinutes("soon", new Date("2026-07-28T22:40:00.000Z"))).toBe(
+      null,
+    );
+  });
+});
+
+describe("busDeparturesFreshness", () => {
+  const generatedAt = "2026-07-28T22:40:00.000Z";
+
+  it("names a check's age once it is old enough to matter", () => {
+    expect(
+      busDeparturesFreshness(generatedAt, new Date("2026-07-28T22:40:20.000Z")),
+    ).toEqual({ state: "live", ageMinutes: 0 });
+    expect(
+      busDeparturesFreshness(generatedAt, new Date("2026-07-28T22:41:10.000Z")),
+    ).toEqual({ state: "ageing", ageMinutes: 1 });
+  });
+
+  it("stops vouching for a countdown once the check is too old", () => {
+    expect(
+      busDeparturesFreshness(generatedAt, new Date("2026-07-28T22:42:30.000Z")),
+    ).toEqual({ state: "out-of-date", ageMinutes: 2 });
+  });
+
+  it("treats an undatable check as out of date rather than as a fresh one", () => {
+    expect(
+      busDeparturesFreshness("", new Date("2026-07-28T22:40:00.000Z")),
+    ).toEqual({ state: "out-of-date", ageMinutes: null });
+  });
+});
+
+describe("shouldPollBusDepartures", () => {
+  it("asks TfL again only while the card is open and the page is on screen", () => {
+    expect(shouldPollBusDepartures({ open: true, documentVisible: true })).toBe(
+      true,
+    );
+    expect(shouldPollBusDepartures({ open: true, documentVisible: false })).toBe(
+      false,
+    );
+    expect(shouldPollBusDepartures({ open: false, documentVisible: true })).toBe(
+      false,
+    );
+  });
+});
+
+describe("startBusDeparturesPoll", () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-07-28T22:40:00.000Z"));
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("loads once immediately, ticks the clock, and refreshes on cadence", async () => {
+    const ticks: number[] = [];
+    const loads: AbortSignal[] = [];
+    const stop = startBusDeparturesPoll({
+      onTick: (at) => ticks.push(at),
+      load: async (signal) => {
+        loads.push(signal);
+      },
+    });
+
+    expect(loads).toHaveLength(1);
+
+    await vi.advanceTimersByTimeAsync(BUS_DEPARTURES_TICK_MS);
+    expect(ticks).toHaveLength(1);
+    expect(loads).toHaveLength(1);
+
+    await vi.advanceTimersByTimeAsync(BUS_DEPARTURES_REFRESH_MS);
+    expect(loads).toHaveLength(2);
+
+    stop();
+  });
+
+  it("never overlaps loads", async () => {
+    let started = 0;
+    const stop = startBusDeparturesPoll({
+      load: () =>
+        new Promise<void>(() => {
+          started += 1;
+        }),
+      onTick: () => {},
+    });
+
+    await vi.advanceTimersByTimeAsync(BUS_DEPARTURES_REFRESH_MS * 4);
+
+    expect(started).toBe(1);
+    stop();
+  });
+
+  it("stops ticking and aborts what is in flight when it is stopped", async () => {
+    const ticks: number[] = [];
+    const signals: AbortSignal[] = [];
+    const stop = startBusDeparturesPoll({
+      onTick: (at) => ticks.push(at),
+      load: async (signal) => {
+        signals.push(signal);
+        await new Promise<void>((resolve) => {
+          signal.addEventListener("abort", () => resolve());
+        });
+      },
+    });
+
+    stop();
+
+    expect(signals[0].aborted).toBe(true);
+    await vi.advanceTimersByTimeAsync(BUS_DEPARTURES_REFRESH_MS * 4);
+    expect(ticks).toEqual([]);
+    expect(signals).toHaveLength(1);
   });
 });
 
@@ -228,6 +389,14 @@ describe("GET /api/nearby-bus-departures", () => {
     expect(arrivalCalls).toHaveLength(1);
     expect(decodeURIComponent(arrivalCalls[0])).toContain(
       "490000123B,490000123C,490000123D,490000123E",
+    );
+  });
+
+  it("keeps its whole upstream budget inside its own function lifetime", async () => {
+    const route = await import("@/app/api/nearby-bus-departures/route");
+
+    expect(route.maxDuration * 1000).toBeGreaterThanOrEqual(
+      BUS_UPSTREAM_BUDGET_MS,
     );
   });
 
