@@ -34,16 +34,19 @@ Opaque responses still pass through and are not cached. A genuine network
 failure plus cache miss still returns an error response.
 
 The target worker marks its cache-write policy in the registration URL. It
-activates immediately only when the active worker lacks that marker, which
-identifies the pre-fix rollout. First installation and later write-safe updates
-keep the normal waiting-worker handoff.
+activates immediately only when the active worker lacks that marker or carries
+the explicitly known cache-write-coupled marker. First installation, existing
+write-safe workers, and future write-safe policy versions keep the normal
+waiting-worker handoff.
 
 During activation, old OpenFreeMap entries are purged so a poisoned response
-cannot survive the handoff. Valid shell, data, static-asset, and locked-plan
-entries move into the target caches. If quota pressure prevents a copy, the old
-cache remains available as an offline fallback instead of being deleted. It is
-retired only after its usable entries exist in the target cache. Service-worker
-scope and offline capability are unchanged.
+cannot survive the handoff. Valid shell, static-asset, and locked-plan entries
+move into the target caches. Prior stable data stays in its old cache and is
+consulted only after both the current cache and network miss, so old manifest
+or venue bytes can never pass as current. If quota pressure prevents a safe
+replacement, the old cache remains available as an offline fallback instead of
+being deleted. It is retired only after its usable entries exist in the target
+cache. Service-worker scope and offline capability are unchanged.
 
 An already-affected open page needs one reload after takeover. Takeover fixes
 future requests but cannot make the old page's already-errored MapLibre tiles
@@ -75,6 +78,10 @@ cannot cancel the recheck; cancellation requires every tracked failure to load
 successfully in that generation. Otherwise the existing bounded style retry
 runs, and a repeated failure reaches the same Retry notice instead of depending
 on another error event that may never arrive.
+
+Every automatic style reload rearms style-load protection before `setStyle`.
+If the retry's primary style and keyless fallback style both fail, the same
+honest Retry notice appears instead of leaving the already-settled canvas blank.
 
 Container-race hypothesis was ruled out in the exact failure: canvas backing
 size was 1170 by 2532 for a 390 by 844 CSS viewport, camera and overlay

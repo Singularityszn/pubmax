@@ -28,6 +28,7 @@
 const WORKER_URL = new URL(self.location.href);
 const VERSION = WORKER_URL.searchParams.get("v") || "dev";
 const CACHE_POLICY = WORKER_URL.searchParams.get("cache-policy");
+const PRE_FIX_CACHE_POLICIES = new Set(["cache-write-coupled-v1"]);
 
 const PREFIX = "pubmax-sw-";
 const DATA_CACHE = `${PREFIX}data-${VERSION}`;
@@ -36,8 +37,13 @@ const SHELL_CACHE = `${PREFIX}shell-${VERSION}`;
 // Locked-plan pages a crew opened earlier, so they reopen offline (U18, #457
 // coordination: caching logic lives in the separate sw-plan-cache.js module).
 const PLAN_CACHE = `${PREFIX}plan-${VERSION}`;
+const DATA_CACHE_FAMILY = {
+  current: DATA_CACHE,
+  prefix: `${PREFIX}data-`,
+  copyEntries: false,
+};
 const CACHE_FAMILIES = [
-  { current: DATA_CACHE, prefix: `${PREFIX}data-` },
+  DATA_CACHE_FAMILY,
   { current: SWR_CACHE, prefix: `${PREFIX}swr-`, purgeTileHost: true },
   { current: SHELL_CACHE, prefix: `${PREFIX}shell-` },
   { current: PLAN_CACHE, prefix: `${PREFIX}plan-` },
@@ -94,7 +100,11 @@ function isPreFixActiveWorker() {
   const activeUrl = self.registration.active?.scriptURL;
   if (!activeUrl || !CACHE_POLICY) return false;
   try {
-    return new URL(activeUrl).searchParams.get("cache-policy") !== CACHE_POLICY;
+    const activePolicy = new URL(activeUrl).searchParams.get("cache-policy");
+    return (
+      activePolicy === null ||
+      PRE_FIX_CACHE_POLICIES.has(activePolicy)
+    );
   } catch {
     return false;
   }
@@ -112,7 +122,12 @@ async function cacheFamilyNames(currentName) {
   ];
 }
 
-async function migrateCacheFamily({ current, prefix, purgeTileHost = false }) {
+async function migrateCacheFamily({
+  current,
+  prefix,
+  purgeTileHost = false,
+  copyEntries = true,
+}) {
   const names = await caches.keys();
   const oldNames = names.filter(
     (name) => name.startsWith(prefix) && name !== current,
@@ -129,6 +144,10 @@ async function migrateCacheFamily({ current, prefix, purgeTileHost = false }) {
         continue;
       }
       if (await destination.match(request)) continue;
+      if (!copyEntries) {
+        covered = false;
+        continue;
+      }
       const response = await source.match(request);
       if (!response) continue;
       try {
@@ -349,13 +368,14 @@ async function handleNavigation(event, request, url) {
 
 async function cacheFirstWithRevalidate(event, request) {
   const cache = await caches.open(DATA_CACHE);
-  const cached = await matchCacheFamily(DATA_CACHE, request, {
+  const cached = await cache.match(request, {
     ignoreSearch: true,
   });
   const network = fetch(request).catch(() => undefined);
   const update = network.then(async (response) => {
     if (isCacheable(response)) {
-      await cachePutBestEffort(cache, request, response);
+      const stored = await cachePutBestEffort(cache, request, response);
+      if (stored) await migrateCacheFamily(DATA_CACHE_FAMILY);
     }
   });
 
@@ -366,6 +386,10 @@ async function cacheFirstWithRevalidate(event, request) {
   const fresh = await network;
   event.waitUntil(update);
   if (fresh) return fresh;
+  const fallback = await matchCacheFamily(DATA_CACHE, request, {
+    ignoreSearch: true,
+  });
+  if (fallback) return fallback;
   return new Response("[]", {
     status: 503,
     headers: { "Content-Type": "application/json" },
@@ -378,7 +402,11 @@ async function networkFirstWithCache(event, request) {
   try {
     const response = await fetch(request);
     if (isCacheable(response)) {
-      event.waitUntil(cachePutBestEffort(cache, request, response));
+      event.waitUntil(
+        cachePutBestEffort(cache, request, response).then(async (stored) => {
+          if (stored) await migrateCacheFamily(DATA_CACHE_FAMILY);
+        }),
+      );
     }
     return response;
   } catch {

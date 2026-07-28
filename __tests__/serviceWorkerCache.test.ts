@@ -18,6 +18,7 @@ function workerHarness(input: {
   trimError?: Error;
   activeWorker?: string;
   cacheNames?: string[];
+  workerPolicy?: string;
 }) {
   const listeners = new Map<string, Listener>();
   const put = vi.fn(async () => {
@@ -35,7 +36,7 @@ function workerHarness(input: {
   const fakeSelf = {
     location: {
       href:
-        "https://pubmaxxing.com/sw.js?v=test&cache-policy=write-safe-v1",
+        `https://pubmaxxing.com/sw.js?v=test&cache-policy=${input.workerPolicy ?? "write-safe-v1"}`,
       origin: "https://pubmaxxing.com",
     },
     registration: {
@@ -72,6 +73,7 @@ function workerHarness(input: {
 function rolloutWorkerHarness(input: {
   entries: Record<string, Array<[string, Response]>>;
   rejectCurrentWrites?: boolean;
+  response?: Response;
 }) {
   const listeners = new Map<string, Listener>();
   const records = new Map<
@@ -180,6 +182,7 @@ function rolloutWorkerHarness(input: {
     },
   };
   const doFetch = vi.fn(async () => {
+    if (input.response) return input.response;
     throw new TypeError("network unavailable");
   });
   const source = readFileSync(join(process.cwd(), "public", "sw.js"), "utf8");
@@ -247,10 +250,35 @@ describe("service worker map cache", () => {
     expect(fakeSelf.skipWaiting).toHaveBeenCalledOnce();
   });
 
+  it("activates over an explicitly marked pre-fix worker", async () => {
+    const { fakeSelf, listeners } = workerHarness({
+      activeWorker:
+        "https://pubmaxxing.com/sw.js?v=legacy-active&cache-policy=cache-write-coupled-v1",
+    });
+
+    const lifetime = dispatchLifecycle(listeners.get("install")!);
+    await expect(Promise.all(lifetime)).resolves.toBeDefined();
+
+    expect(fakeSelf.skipWaiting).toHaveBeenCalledOnce();
+  });
+
   it("keeps later write-safe updates on the normal waiting path", async () => {
     const { fakeSelf, listeners } = workerHarness({
       activeWorker:
         "https://pubmaxxing.com/sw.js?v=previous&cache-policy=write-safe-v1",
+    });
+
+    const lifetime = dispatchLifecycle(listeners.get("install")!);
+    await expect(Promise.all(lifetime)).resolves.toBeDefined();
+
+    expect(fakeSelf.skipWaiting).not.toHaveBeenCalled();
+  });
+
+  it("does not force takeover for future write-safe policy changes", async () => {
+    const { fakeSelf, listeners } = workerHarness({
+      activeWorker:
+        "https://pubmaxxing.com/sw.js?v=previous&cache-policy=write-safe-v1",
+      workerPolicy: "write-safe-v2",
     });
 
     const lifetime = dispatchLifecycle(listeners.get("install")!);
@@ -324,7 +352,7 @@ describe("service worker map cache", () => {
     );
   });
 
-  it("retires superseded caches only after their entries are migrated", async () => {
+  it("migrates shell entries without promoting old stable data", async () => {
     const { deletedCaches, fakeSelf, listeners, records } =
       rolloutWorkerHarness({
         entries: {
@@ -340,10 +368,7 @@ describe("service worker map cache", () => {
     const lifetime = dispatchLifecycle(listeners.get("activate")!);
     await expect(Promise.all(lifetime)).resolves.toBeDefined();
 
-    expect(deletedCaches).toEqual([
-      "pubmax-sw-data-legacy-active",
-      "pubmax-sw-shell-legacy-active",
-    ]);
+    expect(deletedCaches).toEqual(["pubmax-sw-shell-legacy-active"]);
     expect(
       records
         .get("pubmax-sw-shell-target")
@@ -353,8 +378,64 @@ describe("service worker map cache", () => {
       records
         .get("pubmax-sw-data-target")
         ?.has("https://pubmaxxing.com/data/venues_slim.core.json"),
-    ).toBe(true);
+    ).toBe(false);
+    expect(records.has("pubmax-sw-data-legacy-active")).toBe(true);
     expect(fakeSelf.clients.claim).toHaveBeenCalledOnce();
+  });
+
+  it("uses old stable data only after current cache and network miss", async () => {
+    const oldData = new Response("legacy data");
+    const { listeners, records } = rolloutWorkerHarness({
+      entries: {
+        "pubmax-sw-data-legacy-active": [
+          ["/data/venues_slim.core.json", oldData],
+        ],
+      },
+    });
+
+    const activation = dispatchLifecycle(listeners.get("activate")!);
+    await expect(Promise.all(activation)).resolves.toBeDefined();
+    expect(
+      records
+        .get("pubmax-sw-data-target")
+        ?.has("https://pubmaxxing.com/data/venues_slim.core.json"),
+    ).toBe(false);
+
+    const data = dispatchFetch(
+      listeners.get("fetch")!,
+      new Request("https://pubmaxxing.com/data/venues_slim.core.json"),
+    );
+    await expect(data.response).resolves.toBe(oldData);
+  });
+
+  it("prefers fresh network data over an old stable-data fallback", async () => {
+    const oldData = new Response("legacy data");
+    const freshData = new Response("fresh data");
+    Object.defineProperty(freshData, "type", { value: "basic" });
+    const { listeners, records } = rolloutWorkerHarness({
+      response: freshData,
+      entries: {
+        "pubmax-sw-data-legacy-active": [
+          ["/data/venues_slim.core.json", oldData],
+        ],
+      },
+    });
+
+    const activation = dispatchLifecycle(listeners.get("activate")!);
+    await expect(Promise.all(activation)).resolves.toBeDefined();
+
+    const data = dispatchFetch(
+      listeners.get("fetch")!,
+      new Request("https://pubmaxxing.com/data/venues_slim.core.json"),
+    );
+    await expect(data.response).resolves.toBe(freshData);
+    await expect(Promise.all(data.lifetime)).resolves.toBeDefined();
+    const stored = records
+      .get("pubmax-sw-data-target")
+      ?.get("https://pubmaxxing.com/data/venues_slim.core.json")
+      ?.response;
+    expect(await stored?.text()).toBe("fresh data");
+    expect(records.has("pubmax-sw-data-legacy-active")).toBe(false);
   });
 
   it("does not serve a poisoned OpenFreeMap entry retained in an old cache", async () => {

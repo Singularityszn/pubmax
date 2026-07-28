@@ -235,7 +235,7 @@ NEXT_DIST_DIR=.next-map-blank-fixed npm run start -- --port 3218
 
 - [x] **Step 2: Verify exact service-worker reproduction is green**
 
-Repeat the 390 by 844 active-pre-fix plus waiting-pre-fix flow under the quota cap. Assert the direct tile request is HTTP 200 while the active worker reproduces `ERR_FAILED`, then assert the target worker activates, claims the page, deletes every superseded cache, and reaches a real `tiles` reveal after the one required reload.
+Repeat the 390 by 844 active-pre-fix plus waiting-pre-fix flow under the quota cap. Assert the direct tile request is HTTP 200 while the active worker reproduces `ERR_FAILED`, then assert the target worker activates, claims the page, purges old OpenFreeMap entries, preserves valid offline fallbacks, and reaches a real `tiles` reveal after the one required reload.
 
 - [x] **Step 3: Capture before and after screenshots**
 
