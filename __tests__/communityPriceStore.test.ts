@@ -3,11 +3,14 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import {
   __resetCommunityPrices,
   countCorroboratedCommunityCategories,
+  listCommunityContributorCounts,
   moderateCommunityPrice,
   readCommunityPriceCategoryIndex,
   readCommunityPrices,
+  readCommunityVenueSignals,
   readProvisionalCommunityPriceVenueIds,
   submitCommunityPrice,
+  submitCommunityVenueSignal,
 } from "@/lib/communityPriceStore";
 
 // With no Supabase env configured (the default under vitest), the store selects
@@ -298,6 +301,234 @@ describe("communityPriceStore (memory backend)", () => {
     const after = readCommunityPriceCategoryIndex(["soft-drink"], 3_100);
     expect(after).not.toBe(during);
     expect((await after).prices).toEqual([]);
+  });
+});
+
+describe("community venue signals in the shared observation store", () => {
+  beforeEach(() => {
+    delete process.env.SUPABASE_URL;
+    delete process.env.SUPABASE_SERVICE_ROLE_KEY;
+  });
+
+  afterEach(() => {
+    __resetCommunityPrices();
+    if (ORIGINAL_SUPABASE_URL === undefined) delete process.env.SUPABASE_URL;
+    else process.env.SUPABASE_URL = ORIGINAL_SUPABASE_URL;
+    if (ORIGINAL_SUPABASE_SERVICE_ROLE_KEY === undefined) {
+      delete process.env.SUPABASE_SERVICE_ROLE_KEY;
+    } else {
+      process.env.SUPABASE_SERVICE_ROLE_KEY = ORIGINAL_SUPABASE_SERVICE_ROLE_KEY;
+    }
+  });
+
+  it("stores a dated community signal without exposing its actor", async () => {
+    const { signal } = await submitCommunityVenueSignal(
+      {
+        venueId: "v1",
+        signalKey: "character",
+        signalValue: "rough",
+        actor: "actor-a",
+      },
+      1_000,
+    );
+
+    expect(signal).toEqual({
+      id: expect.any(String),
+      venueId: "v1",
+      signalKey: "character",
+      signalValue: "rough",
+      submittedAt: 1_000,
+      source: "community",
+    });
+    expect(signal?.id).not.toBe("");
+    expect(JSON.stringify(signal)).not.toContain("actor-a");
+  });
+
+  it("lets one contributor correct the same question without stacking a voice", async () => {
+    await submitCommunityVenueSignal(
+      {
+        venueId: "v1",
+        signalKey: "door-policy",
+        signalValue: "trainers",
+        actor: "actor-a",
+      },
+      1_000,
+    );
+    await submitCommunityVenueSignal(
+      {
+        venueId: "v1",
+        signalKey: "door-policy",
+        signalValue: "no-issue",
+        actor: "actor-a",
+      },
+      2_000,
+    );
+
+    expect(await readCommunityVenueSignals("v1", 3_000)).toEqual([
+      {
+        id: expect.any(String),
+        venueId: "v1",
+        signalKey: "door-policy",
+        signalValue: "no-issue",
+        submittedAt: 2_000,
+        source: "community",
+        corroborations: 1,
+        establishedCandidate: {
+          signalValue: "no-issue",
+          submittedAt: 2_000,
+          corroborations: 1,
+        },
+      },
+    ]);
+  });
+
+  it("uses the existing independent-contributor threshold for agreement", async () => {
+    await submitCommunityVenueSignal(
+      {
+        venueId: "v1",
+        signalKey: "step-free-venue",
+        signalValue: "step-free",
+        actor: "actor-a",
+      },
+      1_000,
+    );
+    await submitCommunityVenueSignal(
+      {
+        venueId: "v1",
+        signalKey: "step-free-venue",
+        signalValue: "step-free",
+        actor: "actor-b",
+      },
+      2_000,
+    );
+
+    const [row] = await readCommunityVenueSignals("v1", 3_000);
+    expect(row.corroborations).toBe(2);
+    expect(row.establishedCandidate).toEqual({
+      signalValue: "step-free",
+      submittedAt: 2_000,
+      corroborations: 2,
+    });
+  });
+
+  it("keeps a best-backed answer established through one fresh contradiction", async () => {
+    for (const [actor, at] of [
+      ["actor-a", 1_000],
+      ["actor-b", 2_000],
+    ] as const) {
+      await submitCommunityVenueSignal(
+        {
+          venueId: "v1",
+          signalKey: "step-free-toilets",
+          signalValue: "step-free",
+          actor,
+        },
+        at,
+      );
+    }
+    await submitCommunityVenueSignal(
+      {
+        venueId: "v1",
+        signalKey: "step-free-toilets",
+        signalValue: "steps",
+        actor: "actor-c",
+      },
+      3_000,
+    );
+
+    const [row] = await readCommunityVenueSignals("v1", 4_000);
+    expect(row.signalValue).toBe("steps");
+    expect(row.corroborations).toBe(1);
+    expect(row.establishedCandidate).toEqual({
+      signalValue: "step-free",
+      submittedAt: 2_000,
+      corroborations: 2,
+    });
+  });
+
+  it("never assumes two unattributed reports are independent people", async () => {
+    await submitCommunityVenueSignal(
+      {
+        venueId: "v1",
+        signalKey: "people-eating",
+        signalValue: "eating",
+      },
+      1_000,
+    );
+    await submitCommunityVenueSignal(
+      {
+        venueId: "v1",
+        signalKey: "people-eating",
+        signalValue: "eating",
+      },
+      2_000,
+    );
+
+    const [row] = await readCommunityVenueSignals("v1", 3_000);
+    expect(row.corroborations).toBe(1);
+    expect(row.establishedCandidate?.corroborations).toBe(1);
+  });
+
+  it("exposes per-contributor totals for a future leaderboard", async () => {
+    await submitCommunityPrice(
+      {
+        venueId: "v1",
+        drinkCategory: "beer",
+        priceGbp: 5,
+        actor: "actor-a",
+      },
+      1_000,
+    );
+    await submitCommunityVenueSignal(
+      {
+        venueId: "v1",
+        signalKey: "character",
+        signalValue: "rough",
+        actor: "actor-a",
+      },
+      2_000,
+    );
+    await submitCommunityVenueSignal(
+      {
+        venueId: "v1",
+        signalKey: "door-policy",
+        signalValue: "trainers",
+        actor: "actor-a",
+      },
+      3_000,
+    );
+    await submitCommunityVenueSignal(
+      {
+        venueId: "v2",
+        signalKey: "people-eating",
+        signalValue: "eating",
+        actor: "actor-b",
+      },
+      4_000,
+    );
+    await submitCommunityVenueSignal(
+      {
+        venueId: "v2",
+        signalKey: "character",
+        signalValue: "posh",
+      },
+      5_000,
+    );
+
+    expect(await listCommunityContributorCounts()).toEqual([
+      {
+        contributorKey: "actor-a",
+        priceCount: 1,
+        venueSignalCount: 2,
+        total: 3,
+      },
+      {
+        contributorKey: "actor-b",
+        priceCount: 0,
+        venueSignalCount: 1,
+        total: 1,
+      },
+    ]);
   });
 });
 

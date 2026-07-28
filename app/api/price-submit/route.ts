@@ -4,21 +4,23 @@
 // vouches for a price that is already displayed. The two are siblings; this one
 // is the first time a figure enters the map from the community.
 //
-//   POST { venueId, drinkCategory, priceGbp } → { ok: true, price }
-//   POST { action: "report", id, reason? }    → { ok: true }
-//   GET  ?venueId=<id>                        → { prices: CommunityPrice[] }
+//   POST { venueId, drinkCategory, priceGbp }              → { ok, price }
+//   POST { kind: "venue-signal", venueId, signalKey, ... } → { ok, signal }
+//   POST { action: "report", id, reason? }                 → { ok }
+//   GET  ?venueId=<id>                                     → { prices, signals }
 //
 // The report branch is the complaint side of an otherwise open write path: it
 // FLAGS an observation for a human and hides nothing on its own (a threshold
 // auto-hide would be a one-tap eraser for any price a griefer disliked). Only a
 // moderator hides, via POST /api/admin/community-prices - and hiding keeps the
-// row, exactly like every other moderation path here.
+// row, exactly like every other moderation path here. It takes an observation
+// id of EITHER shape, so a wrong character or step-free answer travels the same
+// flag-then-human route as a wrong figure; the ids ride on the read payload.
 //
-// Both shapes carry `corroborations` - how many independent submitters back the
-// figure. It is derived server-side on every read and is never accepted from a
-// body: it is the number that decides whether a price moves a pin, so a client
-// that could set it could repaint the map alone, which is exactly the hole the
-// trust wave closed.
+// Both observation shapes carry `corroborations` - how many independent
+// submitters back them. It is derived server-side on every read and is never
+// accepted from a body. A client that could set it could turn one person's
+// report into an established community signal.
 //
 // Identity is server-derived (hashActor of the hashed client IP), never trusted
 // from the body - exactly as price-confirm does it, so an anonymous drinker can
@@ -31,9 +33,9 @@
 // price, and the sourced baseline still renders); a durable WRITE failure
 // answers 503 per the house rule, so the client knows the tap didn't land.
 //
-// PROVENANCE: this route only ever APPENDS to community_prices. It never edits
-// the venue dataset, the scraped price CSV, or visit_reports - the scraped
-// baseline survives every submission and keeps its own dated badge.
+// PROVENANCE: this route writes only community observations. It never edits the
+// venue dataset, the scraped price CSV, or visit_reports - the scraped baseline
+// survives every submission and keeps its own dated badge.
 // No Supabase and no env are required.
 
 import { jsonNoStore } from "@/lib/apiResponses";
@@ -42,14 +44,18 @@ import {
   NO_ALCOHOL_DRINK_CATEGORIES,
   validateCommunityPrice,
 } from "@/lib/communityPrice";
+import { validateCommunityVenueSignal } from "@/lib/communityVenueSignals";
 import { isDrinkCategory } from "@/lib/drinks";
 import {
   readCommunityPriceCategoryIndex,
   readCommunityPrices,
   readCommunityPricesWithStatus,
+  readCommunityVenueSignals,
+  readCommunityVenueSignalsWithStatus,
   readProvisionalCommunityPriceVenueIds,
   reportCommunityPrice,
   submitCommunityPrice,
+  submitCommunityVenueSignal,
 } from "@/lib/communityPriceStore";
 import { isLimited } from "@/lib/pintDrops";
 import { getUkBaseIdIndex } from "@/lib/ukBaseIndex";
@@ -78,6 +84,49 @@ import { readString } from "@/lib/textClean";
 const PROVISIONAL_BASE_READ_LIMIT = 120;
 const PROVISIONAL_BASE_READ_WINDOW_MS = 60_000;
 
+type VenueResolution =
+  | { ok: true; venueId: string }
+  | { ok: false; status: 400 | 503; error: string };
+
+async function resolvePubVenueId(venueId: string): Promise<VenueResolution> {
+  if (isUkBaseId(venueId)) {
+    const ukBaseIndex = await getUkBaseIdIndex();
+    if (ukBaseIndex.status === "unavailable") {
+      return {
+        ok: false,
+        status: 503,
+        error: "Venue list is unavailable right now, try again shortly.",
+      };
+    }
+    return ukBaseIndex.ids.has(venueId)
+      ? { ok: true, venueId }
+      : { ok: false, status: 400, error: "Pick a venue from the map." };
+  }
+
+  const venueLookup = await lookupCanonicalVenue(venueId);
+  if (venueLookup.status === "unavailable") {
+    return {
+      ok: false,
+      status: 503,
+      error: "Venue list is unavailable right now, try again shortly.",
+    };
+  }
+  if (venueLookup.status !== "found" || !isPubVenueKind(venueLookup.venue.kind)) {
+    return { ok: false, status: 400, error: "Pick a venue from the map." };
+  }
+  return { ok: true, venueId: venueLookup.canonicalId };
+}
+
+async function communityWriteIsLimited(
+  actor: string | undefined,
+  venueId: string,
+): Promise<boolean> {
+  const actorLimitKey = `price-submit-actor:${actor ?? "anon"}`;
+  if (await isLimited(actorLimitKey, actorLimitKey, 30, 3_600_000)) return true;
+  const venueLimitKey = `price-submit:${actor ?? "anon"}:${venueId}`;
+  return isLimited(venueLimitKey, venueLimitKey);
+}
+
 export async function POST(request: Request): Promise<Response> {
   let body: Record<string, unknown>;
   try {
@@ -92,7 +141,7 @@ export async function POST(request: Request): Promise<Response> {
   // when their own logging budget is spent.
   if (readString(body.action) === "report") {
     const id = readString(body.id);
-    if (!id) return jsonNoStore({ error: "Missing price id." }, { status: 400 });
+    if (!id) return jsonNoStore({ error: "Missing observation id." }, { status: 400 });
     // Flood protection only - per-actor uniqueness is durable (the
     // community_price_reports unique pair), so a repeat that outlives this
     // window is an idempotent no-op in the store rather than a second count.
@@ -113,8 +162,66 @@ export async function POST(request: Request): Promise<Response> {
       return jsonNoStore({ error: "Too many reports, slow down." }, { status: 429 });
     }
     const flagged = await reportCommunityPrice(id, readString(body.reason), actor);
-    if (!flagged) return jsonNoStore({ error: "Price not found." }, { status: 404 });
+    if (!flagged) {
+      return jsonNoStore(
+        { error: "We cannot find that observation." },
+        { status: 404 },
+      );
+    }
     return jsonNoStore({ ok: true }, { status: 200 });
+  }
+
+  if (readString(body.kind) === "venue-signal") {
+    const parsed = validateCommunityVenueSignal(body);
+    if (!parsed.ok) {
+      return jsonNoStore({ error: parsed.error }, { status: 400 });
+    }
+    const resolved = await resolvePubVenueId(parsed.value.venueId);
+    if (!resolved.ok) {
+      return jsonNoStore(
+        { error: resolved.error },
+        { status: resolved.status },
+      );
+    }
+    const actor = deriveCommunityPriceActor(request);
+    if (await communityWriteIsLimited(actor, resolved.venueId)) {
+      return jsonNoStore({ error: "Too many logs, slow down." }, { status: 429 });
+    }
+    const { signal, failed } = await submitCommunityVenueSignal({
+      ...parsed.value,
+      venueId: resolved.venueId,
+      actor,
+    });
+    if (failed || !signal) {
+      return jsonNoStore(
+        { error: "Could not log that pub note right now." },
+        { status: 503 },
+      );
+    }
+    const rows = await readCommunityVenueSignals(resolved.venueId);
+    const record = rows.find(
+      (row) =>
+        row.signalKey === signal.signalKey &&
+        row.signalValue === signal.signalValue,
+    );
+    const questionRow = rows.find(
+      (row) => row.signalKey === signal.signalKey,
+    );
+    return jsonNoStore(
+      {
+        ok: true,
+        signal:
+          record ??
+          {
+            ...signal,
+            corroborations: 1,
+            ...(questionRow?.establishedCandidate
+              ? { establishedCandidate: questionRow.establishedCandidate }
+              : {}),
+          },
+      },
+      { status: 201 },
+    );
   }
 
   // Sanity bounds, category allowlist and venue cleaning all live in the one
@@ -124,34 +231,14 @@ export async function POST(request: Request): Promise<Response> {
     return jsonNoStore({ error: result.error }, { status: 400 });
   }
 
-  let submission = result.value;
-  if (isUkBaseId(result.value.venueId)) {
-    const ukBaseIndex = await getUkBaseIdIndex();
-    if (ukBaseIndex.status === "unavailable") {
-      return jsonNoStore(
-        { error: "Venue list is unavailable right now, try again shortly." },
-        { status: 503 },
-      );
-    }
-    if (!ukBaseIndex.ids.has(result.value.venueId)) {
-      return jsonNoStore({ error: "Pick a venue from the map." }, { status: 400 });
-    }
-  } else {
-    const venueLookup = await lookupCanonicalVenue(result.value.venueId);
-    if (venueLookup.status === "unavailable") {
-      return jsonNoStore(
-        { error: "Venue list is unavailable right now, try again shortly." },
-        { status: 503 },
-      );
-    }
-    if (venueLookup.status !== "found" || !isPubVenueKind(venueLookup.venue.kind)) {
-      return jsonNoStore({ error: "Pick a venue from the map." }, { status: 400 });
-    }
-    submission = {
-      ...result.value,
-      venueId: venueLookup.canonicalId,
-    };
+  const resolved = await resolvePubVenueId(result.value.venueId);
+  if (!resolved.ok) {
+    return jsonNoStore(
+      { error: resolved.error },
+      { status: resolved.status },
+    );
   }
+  const submission = { ...result.value, venueId: resolved.venueId };
 
   const actor = deriveCommunityPriceActor(request);
 
@@ -160,14 +247,7 @@ export async function POST(request: Request): Promise<Response> {
   // lets one device spray a price across the whole map. Deliberate: the key is
   // the hashed IP, so devices behind one NAT share the 30/hour budget - a
   // client-minted id would be cleared-storage-evadable and defeat the cap.
-  const actorLimitKey = `price-submit-actor:${actor ?? "anon"}`;
-  if (await isLimited(actorLimitKey, actorLimitKey, 30, 3_600_000)) {
-    return jsonNoStore({ error: "Too many price logs, slow down." }, { status: 429 });
-  }
-
-  // Keep the per-venue cap too, so one actor cannot churn one pub's figure.
-  const limitKey = `price-submit:${actor ?? "anon"}:${submission.venueId}`;
-  if (await isLimited(limitKey, limitKey)) {
+  if (await communityWriteIsLimited(actor, submission.venueId)) {
     return jsonNoStore({ error: "Too many price logs, slow down." }, { status: 429 });
   }
 
@@ -305,16 +385,27 @@ export async function GET(request: Request): Promise<Response> {
       }
       priceVenueId = venueLookup.canonicalId;
     }
-    const result = await readCommunityPricesWithStatus(priceVenueId);
+    const [result, signalResult] = await Promise.all([
+      readCommunityPricesWithStatus(priceVenueId),
+      readCommunityVenueSignalsWithStatus(priceVenueId),
+    ]);
+    const degraded = result.degraded || signalResult.degraded;
     return jsonNoStore(
-      result.degraded
-        ? { prices: result.prices, degraded: true }
-        : { prices: result.prices },
+      degraded
+        ? {
+            prices: result.prices,
+            signals: signalResult.signals,
+            degraded: true,
+          }
+        : { prices: result.prices, signals: signalResult.signals },
       { status: 200 },
     );
   } catch {
-    // The reader never 500s - degrade to no community prices so the sourced
-    // baseline still renders on the sheet.
-    return jsonNoStore({ prices: [], degraded: true }, { status: 200 });
+    // The reader never 500s. Mark observations unavailable so sourced venue
+    // data can still render without turning "could not check" into "none".
+    return jsonNoStore(
+      { prices: [], signals: [], degraded: true },
+      { status: 200 },
+    );
   }
 }

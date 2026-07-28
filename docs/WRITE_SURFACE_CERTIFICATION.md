@@ -20,9 +20,9 @@ CI until this certification is deliberately updated.
 > confirm/unsubscribe endpoints and read-only GETs (the Social Loop reads, the
 > vibe-vote tally read, the Visit Report venue / contributor-count /
 > moderator-lane reads, the operator
-> own-claim / moderator queue reads, the community price-per-drink read, the
-> base-pub provisional-mark read, the
-> community-price review queue read, the weather-matched Recommendation read) are
+> own-claim / moderator queue reads, the per-venue community price and venue
+> signal read, the base-pub provisional-mark read, the community-observation
+> review queue read, the weather-matched Recommendation read) are
 > deliberately excluded from the
 > mutating-verb inventory. The number is a merge-conflict coordination point
 > across in-flight branches — reconcile it (not silently overwrite) when branches
@@ -386,7 +386,7 @@ commit.
   safe reset. Fails soft to process-memory until 0048 lands
   (`lib/operatorProposalsStore.ts`); a hard write failure answers 503.
 
-### `app/api/price-submit` - community price submissions (route 70)
+### `app/api/price-submit` - community price and venue-signal submissions (route 70)
 
 - **Route / method:** `POST app/api/price-submit/route.ts` (`fm/price-submission`).
   A drinker standing in the pub logs tonight's price for one drink category; it
@@ -398,9 +398,17 @@ commit.
   drink lines (`POST /api/rounds/[code] { action: "recordSpend" }`) reach
   `submitCommunityPrice` too, under the same device-derived identity, which both
   routes now take from `deriveCommunityPriceActor` (`lib/communityPriceActor.ts`)
-  so the two cannot drift apart. The route also exports read-only `GET` branches -
-  the freshest community price per drink at a venue, the cross-venue
-  no-alcohol lens index (`?lens=no-alcohol`), and `?scope=provisional-base`,
+  so the two cannot drift apart. The same POST also carries the community VENUE
+  SIGNAL shape (`{ kind: "venue-signal", venueId, signalKey, signalValue }` →
+  201 `{ ok, signal }`): a categorical observation of character, step-free
+  entrance, step-free toilets, door policy or whether people are eating
+  (`lib/communityVenueSignals.ts`). It is a second shape, not a second route -
+  deliberately, so it inherits this route's identity, limiter and moderation
+  boundaries rather than growing a parallel set. The route also exports read-only
+  `GET` branches - the freshest community prices AND venue signals for a venue
+  (`?venueId=` answers `{ prices, signals }`, with `degraded: true` when either
+  read could not be trusted, so "could not check" never reads as "none"), the
+  cross-venue no-alcohol lens index (`?lens=no-alcohol`), and `?scope=provisional-base`,
   which answers which of up to `MAX_PROVISIONAL_BASE_VENUE_IDS` on-screen
   `venue-uk-*` pins carry a fresh uncorroborated pint report. Every id on that
   branch is validated as a stable salted base id server-side and the answer
@@ -417,7 +425,11 @@ commit.
   id - in the UK base id index (`lib/ukBaseIndex.ts`); an unknown id 400s
   without storing anything, and when the index itself is unavailable (its
   documented degraded mode is an empty map) the route answers 503 (retryable),
-  never a 400 and never a stored row.
+  never a 400 and never a stored row. The venue-signal shape runs the same venue
+  resolution (pub kinds and `venue-uk-*` ids only, same 400/503 split) behind
+  `validateCommunityVenueSignal`, whose `signalKey`/`signalValue` pairs are a
+  CLOSED vocabulary the browser and the server share and migration 0060 repeats
+  as a CHECK, so an off-vocabulary answer cannot be stored by any door.
 - **Auth stance (deliberately anonymous):** identity is the server-derived
   `hashActor(hashIp(clientIp))` token, exactly as `price-confirm` derives it, and
   is NEVER trusted from the body. A body-supplied `submittedAt`/`source` is
@@ -432,7 +444,9 @@ commit.
   spraying prices across the whole map by rotating `venueId`; then the per-venue
   key `price-submit:${actor ?? "anon"}:${venueId}` - the same key shape as
   `price-confirm` - stops one actor churning one pub's figure. Exceed either →
-  429. The actor-wide key is SHARED, not per-route: a Round's drink lines charge
+  429. Both tiers are one helper (`communityWriteIsLimited`) and a venue-signal
+  write charges the SAME two keys, so signals cannot be used to buy extra budget
+  or to spray one pub. The actor-wide key is SHARED, not per-route: a Round's drink lines charge
   the same key one unit per line before the diary write (`lib/roundPriceBudget.ts`
   owns that budget and its degraded allowance, which answers 503 with
   `Retry-After` rather than 429, because a spent degraded allowance is our
@@ -447,23 +461,37 @@ commit.
   `community_prices`. It touches NOTHING in the versioned venue dataset, the
   scraped price CSV, or `visit_reports` - a submission cannot overwrite a scraped
   or sourced price. The venue sheet renders the community price on its own dated,
-  badged row ABOVE the price on record, which still renders untouched.
+  badged row ABOVE the price on record, which still renders untouched. A venue
+  signal is held to the same line: it is an OBSERVATION, never a venue fact, so
+  it never edits the dataset's amenity, access or character fields and the sheet
+  words it as drinkers' reports (`lib/communityVenueSignals.ts` owns that copy
+  and the `unknown` | `reported` | `established` trust states a surface may read).
+  The only row a signal write can touch is this device's own earlier answer to
+  the same question, which it replaces.
 - **Rollback / kill:** durable rows live in `public.community_prices` (migration
   0054, RLS on, no anon/authenticated policy, service_role only); `truncate` is a
-  safe reset and cannot damage dataset prices. Until 0054 is applied the store
+  safe reset and cannot damage dataset prices. Migration 0060 widens that ONE
+  table to hold venue signals too - nullable `drink_category`/`price_pennies`
+  plus `signal_key`/`signal_value`, a CHECK that a row is exactly one shape, a
+  unique `(venue_id, signal_key, actor)` so one device answers each question
+  once, and the `public.community_contributor_counts` view (revoked from
+  `anon`/`authenticated`) that a future leaderboard would read. Dropping the two
+  columns reverts the surface without touching a price. Until 0054 is applied the store
   fails soft to process-memory OUTSIDE production (`onMissingDurableWrite` refuses
   the ephemeral fallback in a deployed production instance), so keyless dev keeps
   working; a hard durable write failure answers 503, never a fake success.
 
-### `app/api/admin/community-prices` - community price moderation (route 71)
+### `app/api/admin/community-prices` - community observation moderation (route 71)
 
 - **Route / method:** `POST app/api/admin/community-prices/route.ts`
-  (`fm/trust-quickfixes`), actions `hide` and `restore` on ONE community price.
-  The receiving side of route 70: until this existed, a wrong or malicious
-  community price could be submitted by anyone and removed by nobody, and the
-  only remediation was hand-written SQL. The route also exports a read-only
-  `GET` (the reported/hidden review queue) which is NOT a mutating verb and is
-  not counted.
+  (`fm/trust-quickfixes`), actions `hide` and `restore` on ONE community
+  observation. The receiving side of route 70: until this existed, a wrong or
+  malicious community price could be submitted by anyone and removed by nobody,
+  and the only remediation was hand-written SQL. The route also exports a
+  read-only `GET` (the reported/hidden review queue) which is NOT a mutating verb
+  and is not counted. ONE queue, TWO shapes: each queue row says which it is
+  (`kind`), so a wrong character or step-free claim is removed here rather than
+  through a second console or a second API.
 - **Auth stance:** moderator-gated by `isModerator` (`lib/adminAuth.ts`) on BOTH
   verbs - the `x-admin-token` header or the httpOnly admin session cookie, never
   a query-string token; with `ADMIN_TOKEN` unset the gate opens only in dev/test,
@@ -474,22 +502,25 @@ commit.
   when unknown), and the free-text `note` is control-char-stripped and capped at
   280 chars in the store.
 - **Reader-side flag (no new route):** readers complain through the existing
-  `POST /api/price-submit { action: "report", id }`, which is durably
+  `POST /api/price-submit { action: "report", id }` - the id of EITHER shape,
+  carried on the venue read - which is durably
   one-report-per-actor (`community_price_reports`' unique pair) plus two
   `isLimited` tiers. Reporting NEVER auto-hides - unlike Pint Drops, whose
   threshold auto-hide is safe because a drop is one person's post; a community
   price is the figure the map is made of, and an anonymous threshold here would
   be a one-tap eraser for any price a griefer disliked.
 - **Hide, never delete (the honesty boundary):** `hide` stamps `hidden_at`; the
-  observation, its price, its date and its report metadata all survive, so a
-  wrong call is one `restore` away and the audit trail is intact. Hidden rows
-  are filtered in ONE place (`freshestPerCategory` in
-  `lib/communityPriceStore.ts`), so a hidden price leaves the venue sheet, the
-  corroboration count, and the map candidate together - there is no second
-  place that can remember it.
+  observation, its answer, its date and its report metadata all survive, so a
+  wrong call is one `restore` away and the audit trail is intact. Each shape is
+  filtered in ONE place in `lib/communityPriceStore.ts` (`freshestPerCategory`
+  for prices, `freshestVenueSignals` for venue signals), so a hidden price leaves
+  the venue sheet, the corroboration count, and the map candidate together, and a
+  hidden signal leaves the sheet, the corroboration count and the established
+  answer together - there is no second place that can remember either.
 - **Rollback / kill:** the columns and the report ledger live in migration 0055
   (`community_prices.hidden_at` et al. + `public.community_price_reports`, RLS
-  on, no anon/authenticated policy, service_role only). Clearing `hidden_at`
+  on, no anon/authenticated policy, service_role only), and cover venue signals
+  unchanged because 0060 keeps them in the same table. Clearing `hidden_at`
   restores everything; the store fails soft to process-memory until 0055 lands,
   and an unavailable durable read degrades the queue to empty rather than 500.
 

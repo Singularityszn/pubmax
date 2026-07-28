@@ -20,6 +20,7 @@ import { mergePriceChips } from "@/lib/spillPreview";
 import type { DrinkCategory } from "@/lib/drinks";
 import { formatPrice } from "@/lib/venues";
 import type { CommunityPricesState } from "@/components/map/useCommunityPrices";
+import VenueCommunitySignals from "@/components/map/VenueCommunitySignals";
 import { trackEvent } from "@/lib/analytics";
 
 import "./venuePriceSubmit.css";
@@ -297,6 +298,14 @@ export default function VenuePriceSubmit({
           {COMMUNITY_PRICE_MAX_GBP} a drink.
         </p>
       )}
+      <VenueCommunitySignals
+        venueId={venueId}
+        venueName={venueName}
+        signals={communityPrices.signalsByVenueId.get(venueId) ?? []}
+        readStatus={communityPrices.venuePriceStatus.get(venueId) ?? "idle"}
+        submitting={submitting}
+        onSubmit={communityPrices.submitVenueSignal}
+      />
     </section>
   );
 }

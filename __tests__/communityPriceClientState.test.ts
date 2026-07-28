@@ -6,10 +6,13 @@ import {
   PROVISIONAL_BASE_BACKOFF_MS,
   readCategoryPriceIndexLoad,
   readProvisionalVenueIdsLoad,
+  readVenueSignalLoad,
   readVenuePriceLoad,
   rollbackOptimisticPrice,
+  rollbackOptimisticVenueSignal,
 } from "@/components/map/useCommunityPrices";
 import type { CommunityPrice } from "@/lib/communityPrice";
+import type { CommunityVenueSignal } from "@/lib/communityVenueSignals";
 
 const storedBeer: CommunityPrice = {
   venueId: "venue-uk-n123",
@@ -170,5 +173,96 @@ describe("community price client state", () => {
         true,
       ),
     ).toEqual([storedWine, storedBeer]);
+  });
+});
+
+describe("community venue signal client state", () => {
+  const stored: CommunityVenueSignal = {
+    venueId: "venue-xjf3n0",
+    signalKey: "step-free-venue",
+    signalValue: "steps",
+    submittedAt: 2_000,
+    source: "community",
+    corroborations: 1,
+    establishedCandidate: {
+      signalValue: "step-free",
+      submittedAt: 1_000,
+      corroborations: 2,
+    },
+  };
+
+  const optimistic: CommunityVenueSignal = {
+    venueId: "venue-xjf3n0",
+    signalKey: "step-free-venue",
+    signalValue: "step-free",
+    submittedAt: 3_000,
+    source: "community",
+    corroborations: 1,
+  };
+
+  it("narrows a combined venue response without trusting malformed signal rows", () => {
+    expect(
+      readVenueSignalLoad({
+        signals: [
+          stored,
+          {
+            ...stored,
+            signalKey: "music",
+            signalValue: "loud",
+          },
+        ],
+      }),
+    ).toEqual({
+      status: "ready",
+      signals: [stored],
+    });
+  });
+
+  it("distinguishes an honest empty signal read from a failed read", () => {
+    expect(readVenueSignalLoad({ signals: [] })).toEqual({
+      status: "ready",
+      signals: [],
+    });
+    expect(
+      readVenueSignalLoad({ signals: [], degraded: true }),
+    ).toEqual({
+      status: "degraded",
+      signals: [],
+    });
+    // A payload with no `signals` key is an older deployment answering about
+    // prices alone, not an unreadable one: calling it invalid dropped that
+    // venue's perfectly good prices for the whole session.
+    expect(readVenueSignalLoad({ prices: [] })).toEqual({
+      status: "ready",
+      signals: [],
+    });
+    expect(readVenueSignalLoad({ signals: "soon" })).toEqual({
+      status: "invalid",
+      signals: [],
+    });
+    expect(readVenueSignalLoad({ signals: [{ signalKey: "music" }] })).toEqual({
+      status: "invalid",
+      signals: [],
+    });
+  });
+
+  it("keeps the observation id a reader can flag", () => {
+    expect(
+      readVenueSignalLoad({ signals: [{ ...stored, id: "obs-1" }] }),
+    ).toEqual({
+      status: "ready",
+      signals: [{ ...stored, id: "obs-1" }],
+    });
+  });
+
+  it("rolls back only the optimistic answer after a rejected write", () => {
+    expect(
+      rollbackOptimisticVenueSignal(
+        [optimistic],
+        optimistic,
+        [stored],
+        true,
+      ),
+    ).toEqual([stored]);
   });
 });

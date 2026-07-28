@@ -1,4 +1,4 @@
--- Visit Report review lane (0058). Adds only observed visit conditions and the
+-- Visit Report review lane (0059). Adds only observed visit conditions and the
 -- index used by exact per-contributor counts. Legacy recommendation columns stay
 -- nullable so applying this migration never discards an older row.
 

@@ -26,6 +26,7 @@ const saveToListCss = read("components/savedpubs/saveToList.css");
 const buzzCss = read("components/map/venueBuzz.css");
 const pintArrivalCss = read("components/pintindex/pintIndexArrival.css");
 const venueListCss = read("components/map/mapVenueList.css");
+const venuePriceSubmitCss = read("components/map/venuePriceSubmit.css");
 
 describe("mobile chrome fit at 390px", () => {
   it("tightens the map control rail so all three chips clear the viewport", () => {
@@ -228,5 +229,51 @@ describe("mobile tap-target floors", () => {
   it("floors the landing footer links to 44px", () => {
     expect(landingCss).toMatch(/\.lpFooterCol a\s*{\s*min-height:\s*44px/);
     expect(landingCss).toMatch(/\.lpFooterSmallPrint a\s*{\s*min-height:\s*44px/);
+  });
+
+  it("keeps every community signal choice thumb-sized", () => {
+    expect(venuePriceSubmitCss).toMatch(
+      /\.vpsigQuestion\s*{[^}]*min-height:\s*44px/,
+    );
+    expect(venuePriceSubmitCss).toMatch(
+      /\.vpsigOption\s*{[^}]*min-height:\s*44px/,
+    );
+    expect(venuePriceSubmitCss).toMatch(
+      /\.vpsigSubmit\s*{[^}]*min-height:\s*44px/,
+    );
+  });
+
+  it("sizes the signal readout label column by the widest label, never a guess", () => {
+    // Measured at 390x844x3: "CHARACTER" renders 72px and "ENTRANCE" 64px, so
+    // the fixed 62px column this used to declare pushed both labels through the
+    // 8px gutter and into their own values ("CHARACTERDrinkers called it
+    // rough."). A row is a label plus a reading, so the label may not be
+    // clipped and the reading may not be reached early. The five rows share ONE
+    // grid whose first track is content-sized, which is the only form that
+    // cannot go stale when the label copy changes.
+    const readout = venuePriceSubmitCss.match(/\.vpsigReadout\s*{([^}]*)}/)?.[1] ?? "";
+    expect(readout, ".vpsigReadout rule present").not.toBe("");
+    const track = readout.match(/grid-template-columns:\s*([^;]+);/)?.[1]?.trim() ?? "";
+    expect(track, ".vpsigReadout declares its columns").not.toBe("");
+    expect(track).toMatch(/^(max-content|min-content|auto|fit-content\()/);
+    expect(track, "label column is not a fixed length").not.toMatch(/^\d/);
+    expect(readout).toMatch(/column-gap:\s*\d/);
+
+    // display: contents is what makes that one track govern all five rows.
+    expect(venuePriceSubmitCss).toMatch(
+      /\.vpsigReadoutRow\s*{[^}]*display:\s*contents/,
+    );
+    const labelRule =
+      venuePriceSubmitCss.match(/\.vpsigReadoutRow dt\s*{([^}]*)}/)?.[1] ?? "";
+    expect(labelRule, ".vpsigReadoutRow dt rule present").not.toBe("");
+    expect(labelRule).not.toMatch(/text-overflow:\s*ellipsis/);
+    expect(labelRule).not.toMatch(/overflow:\s*hidden/);
+    expect(labelRule).not.toMatch(/width:/);
+  });
+
+  it("removes community signal motion when the phone asks for less", () => {
+    expect(venuePriceSubmitCss).toMatch(
+      /@media \(prefers-reduced-motion: reduce\)\s*{[\s\S]*?\.vpsigSummaryChevron\s*{[^}]*transition:\s*none/,
+    );
   });
 });
