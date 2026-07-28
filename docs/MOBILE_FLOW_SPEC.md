@@ -63,6 +63,7 @@ unknown/malformed params are ignored.
 | `landmark=<id>` | Landmark chapter fly-to. | yes | yes |
 | `max`,`stops`,`win` | Planner sliders (clamped). | yes | yes |
 | `log=1` | Open the Pint Drop composer. | yes | no (write-only intent flag) |
+| `place=<name>` + `lat`,`lng` | Uncovered UK place arrival: frame the map there and stand the city chrome down. Resolved server-side in `app/map/page.tsx` against the place index, never read from the URL by the client. | server only | preserved (passthrough) |
 
 Gaps to flag: **cuisine has no first-class param** (rides `food=1&q=`); **`log`
 never round-trips**; there is **no `lens=` alias** — the lens is `drink`/`cocktails`.

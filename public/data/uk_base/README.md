@@ -5,9 +5,9 @@ stream the layer a viewport at a time. Rows retain any matched curated owner so
 the client can deduplicate against what is actually loaded.
 
 Shard JSON is generated. This README is hand-written and survives rebuilds.
-`npm run build:uk-base` rebuilds the pack from
-`data/osm/uk/uk_osm_pubs.json`; it also runs inside `prebuild` and
-`prevalidate-data`.
+`npm run build:uk-base` rebuilds the shards from
+`data/osm/uk/uk_osm_pubs.json` and then `places.json` from the raw Overpass
+chunks beside it; it also runs inside `prebuild` and `prevalidate-data`.
 
 ## What is here
 
@@ -60,8 +60,10 @@ generation is removed so the published tree contains exactly one pack.
 Enforced by both the builder and `scripts/validate-data.mjs`, which also checks
 that every pub sits inside its own cell's bbox (a pub outside it would be
 invisible rather than loudly broken), that ids are unique, and that no base id
-collides with a `venues_slim` id. The manifest and generated shard files own
-current counts and sizes; `npm run build:uk-base` prints the payload summary.
+collides with a `venues_slim` id. `places.json` is held to its own smaller
+budget in the same two places, because the chooser fetches it whole. The
+manifest and generated files own current counts and sizes;
+`npm run build:uk-base` prints the payload summary.
 
 ## Licence / attribution
 

@@ -97,11 +97,19 @@ without recomputing the join.
 
 ## Consuming these packs
 
-`scripts/build_uk_base_shards.mjs` is the one consumer: it turns this pack into
-the map's UK **base layer** under `public/data/uk_base/` (see that directory's
-README). It records the actual curated owner when one exists, salts base ids to
-`venue-uk-…`, and never invents a price. Runtime rendering suppresses a base row
-only when that owner is loaded and drawable.
+`scripts/build_uk_base_shards.mjs` is the pack's consumer: it turns
+`uk_osm_pubs.json` into the map's UK **base layer** under `public/data/uk_base/`
+(see that directory's README). It records the actual curated owner when one
+exists, salts base ids to `venue-uk-…`, and never invents a price. Runtime
+rendering suppresses a base row only when that owner is loaded and drawable.
+
+`scripts/build_uk_place_index.mjs` reads `raw/chunk_*.json` directly, because
+the chooser's place index is built from the `addr:city` / `addr:town` /
+`addr:village` / `addr:place` / `addr:suburb` tags, which normalization folds
+into one address string rather than retaining as separate fields. It writes only
+place names and coordinates, never a pub count or a price, and adds no second
+geography source. Both run under `npm run build:uk-base`;
+`public/data/uk_base/README.md` owns the index's shape and budget.
 
 Nothing here feeds `venues_slim*.json`. Base pubs are not venues: they carry no
 price, do not enter search or the price filters, and are not routable stops.

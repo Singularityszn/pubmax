@@ -120,7 +120,7 @@ line beside a figure cheapens the figure.
 
 The accessible-name rule has a working example: the map's held loading frame shows
 `Rounding up the pubs. Won't be a minute.` while its `aria-label` says only
-`Loading the London venue map.` A screen-reader user gets the fact, not the gag,
+`Loading the London pub map.` A screen-reader user gets the fact, not the gag,
 because a joke in an accessible name is a joke at someone's expense.
 `__tests__/mapLoadingChrome.test.ts` pins both halves.
 

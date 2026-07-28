@@ -16,6 +16,8 @@ import { resolveUkPlaceMapArrival } from "@/lib/ukPlaceIndex.server";
 import { ukPlaceMapUrl } from "@/lib/ukPlaceSearch";
 
 // /map stays London for back-compat bookmarks. Other cities live at /map/[city].
+// An uncovered UK town is not a city route: it rides /map as a `?place=` arrival
+// resolved server-side against the place index, so no curated pack is implied.
 
 type MapPageProps = {
   searchParams?: Promise<Record<string, string | string[] | undefined>>;
