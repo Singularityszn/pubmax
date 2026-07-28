@@ -438,8 +438,9 @@ export default function PrivacyPage() {
           <li>
             <strong>Community prices and venue reports:</strong>{" "}the report
             itself stays, so later readers can see what people said and when.
-            A row holds the venue, the price or closed venue answer, the date
-            and an unreversible device token.
+            A row is one observation: the venue, either a drink and its price
+            or one venue answer from a fixed list, the date and an unreversible
+            device token.
           </li>
           <li>
             <strong>Recommendations:</strong>{" "}a Recommendation keeps your
