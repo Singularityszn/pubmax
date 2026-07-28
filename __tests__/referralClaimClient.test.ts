@@ -128,7 +128,7 @@ describe("same-journey referral claim", () => {
     );
 
     await vi.advanceTimersByTimeAsync(3_000);
-    expect(signal?.aborted).toBe(true);
+    expect((signal as AbortSignal | null)?.aborted).toBe(true);
     await expect(prepared).resolves.toEqual(AUTH_ATTEMPT);
   });
 
