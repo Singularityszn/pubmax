@@ -6,6 +6,7 @@ import { describe, expect, it } from "vitest";
 
 import NearbyBusDepartures, {
   busDeparturesAnnouncement,
+  busDeparturesStaleness,
   NearbyBusDeparturesView,
   nearbyBusDeparturesFetchUrl,
   shouldOfferBusRetry,
@@ -182,6 +183,46 @@ describe("NearbyBusDepartures", () => {
     ).toBe(early);
   });
 
+  it("says once that the times stopped being vouched for", () => {
+    const at = (iso: string) =>
+      busDeparturesAnnouncement({
+        polling: true,
+        result,
+        waitedTooLong: false,
+        retryPending: false,
+        staleness: busDeparturesStaleness(result, new Date(iso)),
+      });
+
+    // Live and ageing are the same sentence, so a card left open through the
+    // fifteen second tick and the "checked a minute ago" note stays quiet.
+    expect(at("2026-07-28T22:40:20.000Z")).toBe("Nearby bus departures are ready.");
+    expect(at("2026-07-28T22:41:10.000Z")).toBe("Nearby bus departures are ready.");
+
+    // Going out of date is the one transition worth interrupting for, and it
+    // carries no age in minutes, so it is said once and not once a minute.
+    const stale = "These bus times are out of date. Check the stop display before you set off.";
+    expect(at("2026-07-28T22:42:30.000Z")).toBe(stale);
+    expect(at("2026-07-28T22:45:30.000Z")).toBe(stale);
+    expect(at("2026-07-28T22:59:30.000Z")).toBe(stale);
+  });
+
+  it("reads staleness only off departures that are actually on screen", () => {
+    const now = new Date("2026-07-28T22:45:00.000Z");
+
+    expect(busDeparturesStaleness(null, now)).toBe(null);
+    expect(busDeparturesStaleness(unavailable, now)).toBe(null);
+    expect(busDeparturesStaleness(result, now)).toBe("out-of-date");
+    expect(
+      busDeparturesAnnouncement({
+        polling: true,
+        result: unavailable,
+        waitedTooLong: false,
+        retryPending: false,
+        staleness: null,
+      }),
+    ).toBe("Couldn't check nearby buses just now.");
+  });
+
   it("keeps the announcement steady when a refresh changes the counts", () => {
     const busier: NearbyBusDeparturesResult = {
       ...result,
@@ -286,7 +327,7 @@ describe("NearbyBusDepartures", () => {
     ).toBe(true);
   });
 
-  it("keeps the retry control thumb-sized and disables it while it works", () => {
+  it("keeps the retry control thumb-sized, and refuses without taking focus", () => {
     const css = readFileSync(
       join(process.cwd(), "components/map/nearbyBusDepartures.css"),
       "utf8",
@@ -299,8 +340,14 @@ describe("NearbyBusDepartures", () => {
 
     expect(retryRule).toMatch(/min-height:\s*44px/);
     expect(retryRule).toMatch(/min-width:\s*44px/);
-    expect(css).toContain(".nearbyBusRetry:disabled");
-    expect(source).toContain("disabled={retryPending}");
+    // A `disabled` button loses the focus the reader put on it, and nothing
+    // gives it back. aria-disabled keeps the control and its name, so the
+    // refusal has to live in the handler.
+    expect(source).toContain("aria-disabled={retryPending}");
+    expect(source).not.toMatch(/[^-]disabled=\{retryPending\}/);
+    expect(source).toMatch(/function retry\(\) \{[\s\S]*?if \(retryPending\) return;/);
+    expect(css).toContain('.nearbyBusRetry[aria-disabled="true"]');
+    expect(css).not.toContain(".nearbyBusRetry:disabled");
     expect(source).toContain("setRetryPending(false)");
   });
 

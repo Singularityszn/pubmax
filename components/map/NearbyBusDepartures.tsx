@@ -8,6 +8,7 @@ import {
   departureDueMinutes,
   shouldPollBusDepartures,
   startBusDeparturesPoll,
+  type BusDeparturesFreshness,
   type BusDeparturesPoll,
   type BusDirection,
   type NearbyBusDeparturesResult,
@@ -62,24 +63,45 @@ export const BUS_DEPARTURES_UNAVAILABLE_COPY =
   "Couldn't check nearby buses just now.";
 export const BUS_DEPARTURES_CHECKING_COPY = "Checking live departures.";
 export const BUS_DEPARTURES_READY_COPY = "Nearby bus departures are ready.";
+export const BUS_DEPARTURES_OUT_OF_DATE_COPY =
+  "These bus times are out of date. Check the stop display before you set off.";
 
 export type BusDeparturesUiState = {
   polling: boolean;
   result: NearbyBusDeparturesResult | null;
   waitedTooLong: boolean;
   retryPending: boolean;
+  staleness?: BusDeparturesFreshness["state"] | null;
 };
 
 /**
+ * How stale the departures on screen are, or null when there are none to be
+ * stale. One derivation feeds the sentence said out loud; the view derives its
+ * own visible wording from the same predicate.
+ */
+export function busDeparturesStaleness(
+  result: NearbyBusDeparturesResult | null,
+  now: Date,
+): BusDeparturesFreshness["state"] | null {
+  if (!result || result.status !== "ready") return null;
+  return busDeparturesFreshness(result.generatedAt, now).state;
+}
+
+/**
  * The one thing said out loud, and it names a transition rather than a tally:
- * it carries no countdown and no counts, so neither the fifteen second tick nor
- * a routine refresh whose departure total moved re-announces the card.
+ * it carries no countdown, no counts and no age in minutes, so neither the
+ * fifteen second tick nor a routine refresh whose departure total moved
+ * re-announces the card. Going out of date is the exception, because that is
+ * the moment the figures stop being ones we vouch for, and it says so once.
  */
 export function busDeparturesAnnouncement(input: BusDeparturesUiState): string {
   if (input.retryPending) return BUS_DEPARTURES_CHECKING_COPY;
   if (input.result) {
-    return input.result.status === "unavailable"
-      ? BUS_DEPARTURES_UNAVAILABLE_COPY
+    if (input.result.status === "unavailable") {
+      return BUS_DEPARTURES_UNAVAILABLE_COPY;
+    }
+    return input.staleness === "out-of-date"
+      ? BUS_DEPARTURES_OUT_OF_DATE_COPY
       : BUS_DEPARTURES_READY_COPY;
   }
   if (!input.polling) return "";
@@ -294,12 +316,21 @@ export default function NearbyBusDepartures({
   }, [waitingForFirst, waitAttempt]);
 
   const result = state.status === "loaded" ? state.result : null;
-  const ui = { polling, result, waitedTooLong, retryPending };
+  const ui = {
+    polling,
+    result,
+    waitedTooLong,
+    retryPending,
+    staleness: busDeparturesStaleness(result, new Date(nowMs)),
+  };
   const announcement = busDeparturesAnnouncement(ui);
   const offerRetry = shouldOfferBusRetry(ui);
   const showChecking = retryPending || (waitingForFirst && !waitedTooLong);
 
   function retry() {
+    // aria-disabled leaves the control clickable so it keeps the focus the
+    // reader put on it, which makes refusing the click this side's job.
+    if (retryPending) return;
     setWaitedTooLong(false);
     setWaitAttempt((attempt) => attempt + 1);
     // The poll refuses to duplicate a load already in flight, so the pending
@@ -344,7 +375,7 @@ export default function NearbyBusDepartures({
             type="button"
             className="nearbyBusRetry"
             onClick={retry}
-            disabled={retryPending}
+            aria-disabled={retryPending}
           >
             Check again
           </button>

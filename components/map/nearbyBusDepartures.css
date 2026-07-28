@@ -102,7 +102,7 @@
   cursor: pointer;
 }
 
-.nearbyBusRetry:disabled {
+.nearbyBusRetry[aria-disabled="true"] {
   color: var(--muted);
   cursor: default;
 }
