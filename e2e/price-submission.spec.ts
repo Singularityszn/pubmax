@@ -54,6 +54,41 @@ test.beforeEach(async ({ page }) => {
   });
 });
 
+test("an over-limit drink price is blocked before any network attempt", async ({
+  page,
+}) => {
+  let writes = 0;
+  page.on("request", (request) => {
+    if (
+      request.method() === "POST" &&
+      new URL(request.url()).pathname === "/api/price-submit"
+    ) {
+      writes += 1;
+    }
+  });
+
+  const response = await page.goto(`/map?sel=${SEED_VENUE_ID}`);
+  expect(response?.status()).toBe(200);
+
+  const venueSheet = page.locator('.mobileSheetPortal[data-sheet-kind="venue"]');
+  const submit = venueSheet.locator(".venuePriceSubmit");
+  await expect(submit).toBeVisible();
+
+  const priceField = submit.getByRole("textbox");
+  const logButton = submit.getByRole("button", { name: "Log it" });
+  await priceField.fill("31.00");
+
+  await expect(priceField).toHaveAttribute("aria-invalid", "true");
+  await expect(submit.getByRole("alert")).toContainText(
+    "£30 is our ceiling for one drink",
+  );
+  await expect(logButton).toBeDisabled();
+
+  await priceField.press("Enter");
+  await page.waitForTimeout(100);
+  expect(writes).toBe(0);
+});
+
 test("a drinker logs tonight's price and the card restamps, dated and badged", async ({
   page,
 }) => {

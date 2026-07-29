@@ -75,7 +75,7 @@ test.describe("mobile bottom-tab navigation", () => {
     await stories.click();
 
     await expect(page).toHaveURL(/\/feed$/);
-    await expect(page.getByRole("heading", { name: "The Pint Feed", exact: true })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Stories", exact: true })).toBeVisible();
     // Active-state contract: landing on /feed must light Stories (aria-current
     // + isActive), not leave the bar with no current tab.
     await expect(stories).toHaveAttribute("aria-current", "page");

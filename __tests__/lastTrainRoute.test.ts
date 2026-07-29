@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { GET } from "@/app/api/last-train/route";
+import { __resetLastTrainStableCache } from "@/lib/lastTrainStableCache.server";
 
 const realFetch = global.fetch;
 const ORIGINAL_SUPABASE_URL = process.env.SUPABASE_URL;
@@ -8,6 +9,7 @@ const ORIGINAL_SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY
 
 beforeEach(() => {
   vi.restoreAllMocks();
+  __resetLastTrainStableCache();
   delete process.env.SUPABASE_URL;
   delete process.env.SUPABASE_SERVICE_ROLE_KEY;
 });
@@ -253,5 +255,13 @@ describe("GET /api/last-train", () => {
     expect(body.trains[0].pastMidnight).toBe(true);
     expect(body.decision.decision).not.toBe("live_data_unavailable");
     expect(body.decision.leaveByIso).toBeTruthy();
+
+    const second = await GET(
+      new Request("http://localhost/api/last-train?lat=51.5&lng=-0.12"),
+    );
+    expect(second.status).toBe(200);
+    const calls = vi.mocked(global.fetch).mock.calls.map(([input]) => String(input));
+    expect(calls.filter((url) => url.includes("/StopPoint?"))).toHaveLength(1);
+    expect(calls.filter((url) => url.includes("/Line/victoria/Timetable/"))).toHaveLength(1);
   });
 });

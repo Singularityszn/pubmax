@@ -53,8 +53,8 @@ describe("modeEnablesLegacy", () => {
 });
 
 describe("MODE_DEFAULT_LANE", () => {
-  it("opens Lock-In on the energetic lane and Ledger on the calm read", () => {
-    expect(MODE_DEFAULT_LANE["lock-in"]).toBe("for-you");
+  it("opens both modes on the complete chronological lane", () => {
+    expect(MODE_DEFAULT_LANE["lock-in"]).toBe("latest");
     expect(MODE_DEFAULT_LANE.ledger).toBe("latest");
   });
 });

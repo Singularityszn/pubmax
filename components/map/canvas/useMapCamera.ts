@@ -49,7 +49,7 @@ export function useMapCamera(refs: CameraRefs) {
 
   useEffect(() => () => coordinator.dispose(), [coordinator]);
 
-  // Cinematic camera move that suspends the orbit for its duration + resume gap.
+  // Explicit camera move for venue, route, and city navigation.
   const cinematic = useCallback((options: maplibregl.EaseToOptions, kind: CameraIntentKind = "venue") => {
     const duration = reducedRef.current ? 0 : (options.duration ?? 1000);
     const center = Array.isArray(options.center)

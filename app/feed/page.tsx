@@ -4,7 +4,7 @@ import FeedPageClient from "./FeedPageClient";
 import { loadFeedSightings } from "./feedSightings.server";
 
 // Server shell for /feed so the route carries real metadata (the client
-// component can't export it). The Pint Feed is a public browse surface (like
+// component can't export it). Stories is a public browse surface (like
 // /discover), so it is indexable with its own canonical + Open Graph.
 // A PIN on how this route already renders, not a change of mode: the root
 // layout awaits headers() outside any Suspense boundary and nothing enables PPR,
@@ -14,7 +14,7 @@ import { loadFeedSightings } from "./feedSightings.server";
 // stops a later layout change re-baking this page by accident.
 export const dynamic = "force-dynamic";
 
-const FEED_TITLE = "The Pint Feed";
+const FEED_TITLE = "Stories";
 const FEED_DESCRIPTION =
   "Live Pint Drops from across London: real prices, real pubs, and the stories passed down with them. See what's being poured tonight.";
 

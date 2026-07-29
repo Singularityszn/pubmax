@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import { type Venue } from "@/lib/venues";
 import type { PintDropsState } from "@/components/map/usePintDrops";
@@ -16,6 +16,7 @@ import { isPubVenue } from "@/lib/venueKindFilters";
 import type { JourneyPoint } from "@/lib/venueJourney";
 import type { LocationRequestStatus } from "@/components/map/VenueGettingThere";
 import type { MapExperienceLens } from "@/lib/mapExperienceLens";
+import { prefetchLastRide } from "@/lib/lastRideClient";
 
 import { useInspectorTabs } from "./inspector/useInspectorTabs";
 import { usePresence } from "./inspector/usePresence";
@@ -134,14 +135,21 @@ export default function VenueInspector({
   );
   const { currentShareFeedback, shareVenue } = useVenueShare(venue);
 
+  // Start transport work with the sheet, not several taps later when the Train
+  // tab mounts. LastTrainCard shares this bounded request and still owns all
+  // visible loading, success, and fallback states.
+  useEffect(() => {
+    prefetchLastRide(cityId, venue.latitude, venue.longitude);
+  }, [cityId, venue.latitude, venue.longitude]);
+
   // The venue's live Last Pint decision, lifted up from LastTrainCard so the
   // Pints tab can stamp each drop with an honest transport-context badge (IDEAS
   // A5). HONESTY CONSTRAINT: this stays null until the user opens the
-  // Getting-home tab and LastTrainCard's fetch resolves — the decision simply
-  // doesn't exist before then. So if they never open that tab, no badges render.
+  // Getting-home tab and LastTrainCard publishes the prefetched answer. So if
+  // they never open that tab, no badges render.
   // That's correct: a badge without a live decision behind it would be a guess.
-  // LastTrainCard still owns the fetch; it only publishes the result via the
-  // onDecision callback below. Reset on venue change (same adjust-state-during-
+  // LastTrainCard still owns the visible result; it only publishes that result
+  // via the onDecision callback below. Reset on venue change (same adjust-state-during-
   // render pattern as tab/presence — never an effect) so a stale decision from
   // the previous pub can't leak onto this one's drops.
   const [lastTrainDecision, setLastTrainDecision] = useState<LastPintDecision | null>(null);

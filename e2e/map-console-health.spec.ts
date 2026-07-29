@@ -1,4 +1,4 @@
-import { test, expect, type ConsoleMessage } from "@playwright/test";
+import { test, expect, type ConsoleMessage, type Route } from "@playwright/test";
 
 // Map console-health regression (review issue #5). Runs under the `chromium-gl`
 // project (SwiftShader software WebGL2) so a real GL context exists and the map
@@ -48,6 +48,7 @@ const BENIGN_PATTERNS: RegExp[] = [
   // serves the 404 HTML page and Chromium logs a strict-MIME refusal. Pure
   // local-serve noise, unrelated to the map scene this spec guards.
   /_vercel\/insights/i,
+  /was preloaded using link preload but not used/i,
 ];
 
 // Errors we must NEVER tolerate regardless of the allow-list above.
@@ -59,6 +60,7 @@ const CRITICAL_PATTERNS: RegExp[] = [
   /pubs-point.*icon-size/i,
   /icon-size.*zoom/i,
   /"zoom" expression may only be used as input to a top-level/i,
+  /Cannot read properties of undefined.*sources/i,
 ];
 
 function isCritical(text: string): boolean {
@@ -70,7 +72,7 @@ test("/map stays console-healthy across repeated /map↔/feed navigation", async
   page,
 }) => {
   // Two full round-trips plus tile settling exceeds the 30s project default.
-  test.setTimeout(90_000);
+  test.setTimeout(150_000);
 
   const critical: string[] = [];
   const primaryStyleRequests: string[] = [];
@@ -98,6 +100,59 @@ test("/map stays console-healthy across repeated /map↔/feed navigation", async
       fallbackStyleRequests.push(request.url());
     }
   });
+  await page.addInitScript(() => {
+    window.localStorage.setItem("pubmax-tour-v1-done", "1");
+    window.localStorage.setItem("pubmax_onboarding_dismissed", "1");
+    window.sessionStorage.setItem("pubmax_onboarding_dismissed", "1");
+  });
+  const emptyVectorTile = (route: Route) =>
+    route.fulfill({
+      status: 200,
+      contentType: "application/x-protobuf",
+      body: Buffer.alloc(0),
+    });
+  await page.route("**/*.mvt*", emptyVectorTile);
+  await page.route("**/*.pbf*", emptyVectorTile);
+  await page.route("**/__empty/**/*.png", (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: "image/png",
+      body: Buffer.from(
+        "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=",
+        "base64",
+      ),
+    }),
+  );
+  const emptyStyle = JSON.stringify({
+    version: 8,
+    sources: {
+      basemap: {
+        type: "raster",
+        tiles: ["https://tiles.openfreemap.org/__empty/{z}/{x}/{y}.png"],
+        tileSize: 256,
+      },
+    },
+    layers: [
+      { id: "background", type: "background", paint: { "background-color": "#111111" } },
+      { id: "basemap", type: "raster", source: "basemap" },
+    ],
+  });
+  await page.route(/^https:\/\/tiles\.openfreemap\.org\/styles\/(?:dark|positron)\/?$/, (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: emptyStyle,
+    }),
+  );
+  await page.route(
+    /^https:\/\/basemaps\.cartocdn\.com\/gl\/(?:dark-matter|positron)-gl-style\/style\.json$/,
+    (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: emptyStyle,
+      }),
+  );
 
   // Initial load: the map must construct and paint a real canvas.
   const first = await page.goto("/map");
@@ -113,6 +168,37 @@ test("/map stays console-healthy across repeated /map↔/feed navigation", async
   // Let the style settle (buildScene runs on style.load) so a mutation racing
   // the initial load would already have thrown by now.
   await page.waitForTimeout(2_000);
+
+  const builtInCompass = page.locator(".maplibregl-ctrl-compass");
+  await expect(builtInCompass).toHaveCount(1);
+  await expect(page.locator(".mapCompassBtn")).toHaveCount(0);
+  const compassNeedle = builtInCompass.locator(".maplibregl-ctrl-icon");
+  const bearingBeforeIdle = await compassNeedle.evaluate(
+    (element) => getComputedStyle(element).transform,
+  );
+  await page.waitForTimeout(7_500);
+  const bearingAfterIdle = await compassNeedle.evaluate(
+    (element) => getComputedStyle(element).transform,
+  );
+  expect(
+    bearingAfterIdle,
+    "interactive map bearing must stay still without a gesture",
+  ).toBe(bearingBeforeIdle);
+
+  // Exercise the normal theme path in both directions. Page errors are
+  // recorded above, so the historical MapLibre `sources` exception fails this
+  // test even when the canvas remains superficially usable.
+  for (let index = 0; index < 2; index += 1) {
+    const themeToggle = page.locator(".themeToggle:visible").first();
+    await expect(themeToggle).toBeVisible();
+    await themeToggle.click();
+    await expect(page.locator(".maplibreMap canvas").first()).toBeVisible();
+    await page.waitForTimeout(2_000);
+  }
+  await page.setViewportSize({ width: 390, height: 844 });
+  await expect(builtInCompass).toBeVisible();
+  await expect(page.locator(".maplibregl-ctrl-zoom-in")).toBeHidden();
+  await expect(page.locator(".maplibregl-ctrl-zoom-out")).toBeHidden();
 
   // Two full round-trips. Each remount reconstructs the map and re-runs the
   // style-load → buildScene path; the unmount aborts tiles and tears down
@@ -141,15 +227,15 @@ test("/map stays console-healthy across repeated /map↔/feed navigation", async
     `Critical map console errors:\n${critical.join("\n")}`,
   ).toEqual([]);
 
-  // Three map mounts above may each fetch the primary style once. More than
-  // that means a renderer error called setStyle on an already-loaded mount.
+  // Three map mounts plus the two deliberate theme replacements may each fetch
+  // the primary style once. More means recovery churn replaced a healthy style.
   expect(primaryStyleRequests.length).toBeGreaterThan(0);
   expect(
     primaryStyleRequests.length,
     `Primary style entrypoint fetched too often:\n${primaryStyleRequests.join("\n")}`,
-  ).toBeLessThanOrEqual(3);
+  ).toBeLessThanOrEqual(5);
   expect(
     fallbackStyleRequests.length,
     `Fallback style entrypoint fetched too often:\n${fallbackStyleRequests.join("\n")}`,
-  ).toBeLessThanOrEqual(3);
+  ).toBeLessThanOrEqual(5);
 });

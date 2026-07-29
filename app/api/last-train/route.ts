@@ -62,6 +62,7 @@ import { isLastRideLimited } from "@/lib/lastRideRateLimit";
 import { nearestStaticStation } from "@/lib/staticStations";
 import { tflGet } from "@/lib/tflClient.server";
 import { getPricedVenues } from "@/lib/venuePriceIndex";
+import { cachedLastTrainValue } from "@/lib/lastTrainStableCache.server";
 
 export const runtime = "nodejs";
 // The nearest-station geo query plus the concurrent timetable fan-out can take
@@ -98,6 +99,26 @@ type TimetableResponse = {
   timetable?: { routes?: Route[] };
   disambiguation?: { disambiguationOptions?: DisambiguationOption[] };
 };
+
+const STATION_CACHE_TTL_MS = 30 * 60_000;
+const TIMETABLE_CACHE_TTL_MS = 6 * 60 * 60_000;
+
+async function nearestStation(lat: number, lng: number): Promise<StopPoint | null> {
+  const key = `${lat.toFixed(4)}:${lng.toFixed(4)}`;
+  return cachedLastTrainValue(
+    "stations",
+    key,
+    STATION_CACHE_TTL_MS,
+    async () => {
+      const stopUrl =
+        `/StopPoint?lat=${lat}&lon=${lng}` +
+        `&stopTypes=${STOP_TYPES}&radius=${STATION_RADIUS_M}&modes=${MODES}`;
+      const stops = await tflGet<StopPointResponse>(stopUrl, { retries: 1 });
+      return stops?.stopPoints?.[0] ?? null;
+    },
+    (station) => Boolean(station?.id),
+  );
+}
 
 // TfL Arrivals: one entry per vehicle currently predicted for this stop.
 type ArrivalPrediction = {
@@ -136,28 +157,37 @@ function journeyRank(j: KnownJourney): number | null {
 // merge the schedules it yields. Bounded: at most the options TfL lists (2 for a
 // two-terminus line).
 async function collectSchedules(lineId: string, stationId: string): Promise<Schedule[]> {
-  const direct = await tflGet<TimetableResponse>(
-    `/Line/${encodeURIComponent(lineId)}/Timetable/${encodeURIComponent(stationId)}`,
+  const key = `${lineId}:${stationId}`;
+  return cachedLastTrainValue(
+    "timetables",
+    key,
+    TIMETABLE_CACHE_TTL_MS,
+    async () => {
+      const direct = await tflGet<TimetableResponse>(
+        `/Line/${encodeURIComponent(lineId)}/Timetable/${encodeURIComponent(stationId)}`,
+      );
+      if (!direct) return [];
+
+      const routes = direct.timetable?.routes ?? [];
+      if (routes.length > 0) {
+        return routes.flatMap((r) => r.schedules ?? []);
+      }
+
+      // Disambiguation branch: follow the direction URIs (they already carry
+      // the query TfL wants) and merge whatever schedules come back.
+      const options = direct.disambiguation?.disambiguationOptions ?? [];
+      const schedules: Schedule[] = [];
+      for (const opt of options) {
+        if (!opt.uri) continue;
+        const resolved = await tflGet<TimetableResponse>(opt.uri);
+        for (const route of resolved?.timetable?.routes ?? []) {
+          schedules.push(...(route.schedules ?? []));
+        }
+      }
+      return schedules;
+    },
+    (schedules) => schedules.length > 0,
   );
-  if (!direct) return [];
-
-  const routes = direct.timetable?.routes ?? [];
-  if (routes.length > 0) {
-    return routes.flatMap((r) => r.schedules ?? []);
-  }
-
-  // Disambiguation branch: follow the direction URIs (they already carry the
-  // ?direction=.. query TfL wants) and merge whatever schedules come back.
-  const options = direct.disambiguation?.disambiguationOptions ?? [];
-  const schedules: Schedule[] = [];
-  for (const opt of options) {
-    if (!opt.uri) continue;
-    const resolved = await tflGet<TimetableResponse>(opt.uri);
-    for (const route of resolved?.timetable?.routes ?? []) {
-      schedules.push(...(route.schedules ?? []));
-    }
-  }
-  return schedules;
 }
 
 // The latest lastJourney for one line at one station on today's day-type, formatted
@@ -423,11 +453,7 @@ export async function GET(request: Request): Promise<Response> {
 
   // 1) Nearest station. Retried once for transient failures; any failure here is
   // graceful (200 + error, NOT cached), never a 500 — degrade per user story 24.
-  const stopUrl =
-    `/StopPoint?lat=${lat}&lon=${lng}` +
-    `&stopTypes=${STOP_TYPES}&radius=${STATION_RADIUS_M}&modes=${MODES}`;
-  const stops = await tflGet<StopPointResponse>(stopUrl, { retries: 1 });
-  const nearest = stops?.stopPoints?.[0];
+  const nearest = await nearestStation(lat, lng);
   if (!nearest?.id) {
     const staticStation = nearestStaticStation(lat, lng);
     if (staticStation) {

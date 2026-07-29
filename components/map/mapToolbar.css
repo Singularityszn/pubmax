@@ -299,6 +299,51 @@
   color: var(--color-on-accent);
 }
 
+/* Tablet and narrow desktop are their own map-chrome state. At this width the
+   full desktop accessory row cannot coexist with search, Plan, and city. Keep
+   those primary controls, let search take the remaining lane, and reserve a
+   real gap below the independently-positioned Tonight Arc. */
+@media (min-width: 641px) and (max-width: 900px) {
+  .appShell {
+    --map-top-clearance: calc(171px + env(safe-area-inset-top, 0px));
+    --map-overlay-top: calc(var(--map-top-clearance) + 58px);
+  }
+
+  .mapToolbar {
+    width: calc(100vw - 32px);
+    max-width: none;
+    box-sizing: border-box;
+    overflow: visible;
+  }
+
+  .mapToolbarRow {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .mapToolbarSearch {
+    flex: 1 1 8rem;
+    min-width: 0;
+    overflow: hidden;
+  }
+
+  .mapToolbarSearch input {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .mapToolbarDesktopExtras,
+  .mapToolbar > .mapToolbarRow > .conditionsChip,
+  .mapToolbar > .mapToolbarRow > .zonePicker {
+    display: none;
+  }
+
+  .planBtn {
+    flex: 0 0 auto;
+    padding-inline: 11px;
+  }
+}
+
 @media (max-width: 640px) {
   .mapToolbar {
     /* Visible so CitySwitcher dropdown can escape; clip only the search field. */

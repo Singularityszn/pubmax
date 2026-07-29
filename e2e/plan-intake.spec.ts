@@ -29,6 +29,34 @@ test.beforeEach(async ({ page }) => {
   });
 });
 
+test("blank Plan uses one progressive entry before showing the full composer", async ({
+  page,
+}) => {
+  await page.goto("/plan");
+
+  await expect(
+    page.getByRole("heading", { name: "Where should the night happen?" }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("heading", {
+      name: "Say what you need. Get three useful stops.",
+    }),
+  ).toHaveCount(0);
+  await expect(page.getByLabel("Venue name")).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Lock it in" })).toHaveCount(0);
+
+  await page.waitForLoadState("networkidle");
+  await page.getByRole("button", { name: "Describe instead" }).click();
+
+  await expect(
+    page.getByRole("heading", {
+      name: "Say what you need. Get three useful stops.",
+    }),
+  ).toBeVisible();
+  await expect(page.getByLabel("Venue name")).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Lock it in" })).toBeDisabled();
+});
+
 test("reloading a recovered draft does not extend its near expiry", async ({ page }) => {
   await page.clock.setFixedTime(new Date("2026-07-21T10:00:00.000Z"));
   await page.goto("/plan");

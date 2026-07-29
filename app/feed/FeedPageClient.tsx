@@ -141,12 +141,9 @@ export default function FeedPageClient({
   // Bump this to retrigger the main feed fetch (used by the error-state retry
   // button). Incrementing the counter re-runs the fetch effect below.
   const [fetchTick, setFetchTick] = useState(0);
-  // The active lane. Server-renders the SSR-stable "latest" so hydration never
-  // mismatches; a mount effect then steers the *initial* lane by view mode
-  // (Lock-In opens on the energetic "for-you" lane, Ledger on the calm "latest"
-  // read) — but ONLY until the viewer picks a lane themselves (laneTouched),
-  // after which their choice is sticky. This keeps the mode a light view layer:
-  // it seeds a sensible default lane, it doesn't hijack the switcher.
+  // The active lane. Server-renders the SSR-stable public "latest" lane so a
+  // signed-out arrival never lands in a reranked empty state. The mount effect
+  // applies the same view-mode default only until the viewer picks a lane.
   const [filter, setFilter] = useState<FeedFilter>("latest");
   const laneTouched = useRef(false);
   // The Social Loop top-level tab (Cycle 15 Lane C). "london" is the SSR-stable
@@ -440,13 +437,13 @@ export default function FeedPageClient({
     return () => controller.abort();
   }, [tab, myHandle]);
 
-  // Seed the initial lane by view mode (Lock-In → for-you, Ledger → latest).
+  // Seed the initial lane by view mode. Both modes start on Latest so a
+  // signed-out reader sees the complete public destination on first arrival.
   // Runs once on mount, after the pre-hydration script has set html[data-mode],
   // and only while the viewer hasn't picked a lane themselves. setState fires
   // from an async microtask (never the sync effect body) per
   // react-hooks/set-state-in-effect — mirroring the isMobile effect below. If
-  // the mode is Lock-In the SSR-rendered "latest" is corrected to "for-you";
-  // Ledger already matches "latest" so this is a no-op there.
+  // The SSR-rendered lane already matches both current mode defaults.
   useEffect(() => {
     void Promise.resolve().then(() => {
       if (laneTouched.current) return;
@@ -819,7 +816,7 @@ export default function FeedPageClient({
           pre-content header so the feed starts within a single viewport — the
           old eyebrow + lede stack pushed real content below the fold. */}
       <header className="feedHeader">
-        <h1 className="feedTitle">The Pint Feed</h1>
+        <h1 className="feedTitle">Stories</h1>
         {showComposeActions ? (
           <div className="feedComposeActions" aria-label="Create">
             <Link href="/moment" className="feedMomentCta">Capture a Moment</Link>

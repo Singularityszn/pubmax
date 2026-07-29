@@ -238,10 +238,10 @@ export type FeedFilterDef = {
 // composes over them internally); only the chip is gone.
 export const FEED_FILTERS: FeedFilterDef[] = [
   { id: "latest", label: "Latest", demo: false },
-  // Label "Yours", never "For You": the voice spec (rule 3) names "For You"
-  // as a banned Apple-ism; ownership words do the same job in house register.
-  // The id stays "for-you" — it is a stored filter key, not user-facing.
-  { id: "for-you", label: "Yours", demo: false },
+  // This lane keeps the same public set and ranks stronger recent contributions
+  // first. Name that behaviour instead of implying the viewer owns the rows.
+  // The id stays "for-you" because it is a stored filter key, not visible copy.
+  { id: "for-you", label: "Top picks", demo: false },
   { id: "tonight", label: "Tonight", demo: false },
   // Label "Cheap pints", not "Cheap Legends": the long label clipped mid-word
   // at the 390px strip edge (judge-w2 polish 2) and the voice spec's own

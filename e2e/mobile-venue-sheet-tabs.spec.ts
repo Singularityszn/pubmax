@@ -148,6 +148,13 @@ test("mobile venue sheet tabs remain tappable and keep primary controls reachabl
   await expectNoPageHorizontalOverflow(page);
 
   await expect(tablist.getByRole("tab")).toHaveCount(TABS.length);
+  const overviewMore = portal.locator("details.venueOverviewMore");
+  await expect(overviewMore).not.toHaveAttribute("open", "");
+  await expect(
+    overviewMore.getByText("Details and practical info", { exact: true }),
+  ).toBeVisible();
+  await expect(overviewMore.locator(".venueOverviewMoreBody")).toBeHidden();
+  await expect(portal.locator(".venuePriceSubmit")).toBeVisible();
 
   for (const { label, panelId } of TABS) {
     const tab = tablist.getByRole("tab", { name: label, exact: true });

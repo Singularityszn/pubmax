@@ -7,11 +7,11 @@
 // for a final pint by the platform. Wired into the venue panel by the
 // orchestrator (VenueInspector) — this file does NOT render itself anywhere.
 //
-// React 19 rules: the fetch fires in an effect but setState only ever runs
-// inside the async resolution/catch (never the effect body). AbortController
-// cancels the request on unmount. Provenance-honest: live copy is scoped to
-// live departures only, while the Last Pint decision stays timetable-based; TfL
-// failures get a warm fallback instead of a broken or blank card.
+// React 19 rules: the shared sheet-open prefetch resolves in an effect, and
+// setState only ever runs inside the async resolution/catch. Unmounted readers
+// ignore the shared result without cancelling it for the next consumer.
+// Provenance-honest: live copy is scoped to live departures only, while the
+// Last Pint decision stays timetable-based; failures get a warm fallback.
 //
 // Styling: inline style objects, matching the rest of components/map/** (no
 // CSS module/import convention exists in this codebase — see styles below).
@@ -19,7 +19,8 @@
 import { useEffect, useId, useState } from "react";
 
 import { getCity, type CityId, DEFAULT_CITY_ID } from "@/lib/cities";
-import { lastRideFetchUrl, lastRideProviderForCity, type LastRideResult } from "@/lib/lastRide";
+import { lastRideProviderForCity, type LastRideResult } from "@/lib/lastRide";
+import { loadLastRide } from "@/lib/lastRideClient";
 import {
   readLastTrainDestination,
   writeLastTrainDestination,
@@ -51,10 +52,9 @@ type LastTrainCardProps = {
   onSelectVenue?: (venueId: string) => void;
   // Optional: lifts the live Last Pint decision up to the orchestrator so the
   // Pints tab can stamp each drop with an honest "before/after the last train"
-  // badge (IDEAS A5). This card KEEPS ownership of the fetch — it just publishes
-  // the resolved decision (or null while loading / on TfL failure). Because the
-  // fetch only fires from this card's effect, the decision is unknown until the
-  // user opens the Getting-home tab; no badges render before then, by design.
+  // badge (IDEAS A5). This card owns the visible result and publishes the
+  // resolved decision (or null while loading / on failure). The request may
+  // already be warm, but no decision is published before this tab opens.
   onDecision?: (decision: LastPintDecision | null) => void;
 };
 
@@ -345,30 +345,26 @@ export default function LastTrainCard({
   }
 
   useEffect(() => {
-    const fetchUrl = lastRideFetchUrl(cityId, lat, lng);
-    if (!fetchUrl) {
+    const request = loadLastRide(cityId, lat, lng);
+    if (!request) {
       void Promise.resolve().then(() => setState({ status: "empty", requestKey }));
       return;
     }
-    const controller = new AbortController();
+    let active = true;
     // React 19: never setState synchronously in the effect body. The initial
-    // state is already "loading"; when lat/lng change we let the resolving fetch
+    // state is already "loading"; when lat/lng change we let the shared request
     // move us straight to the fresh ready/empty state below. Destination is
     // session-only UI and is never sent to the API (privacy / user story 23).
-    fetch(fetchUrl, { signal: controller.signal })
-      .then((res) => (res.ok ? res.json() : Promise.reject(new Error(String(res.status)))))
+    request
       .then((data: Partial<LastRideResult> & { error?: string }) => {
-        setState(toState(data, requestKey));
+        if (active) setState(toState(data, requestKey));
       })
-      .catch((err: unknown) => {
-        // Abort on unmount is expected — not an error surface. Anything else falls
-        // through to the friendly empty/error state.
-        if (controller.signal.aborted || (err instanceof Error && err.name === "AbortError")) {
-          return;
-        }
-        setState({ status: "empty", requestKey });
+      .catch(() => {
+        if (active) setState({ status: "empty", requestKey });
       });
-    return () => controller.abort();
+    return () => {
+      active = false;
+    };
   }, [lat, lng, venueName, cityId, requestKey]);
 
   const decision = displayState.status === "ready" ? displayState.data.decision : undefined;
@@ -389,6 +385,7 @@ export default function LastTrainCard({
   const readyData =
     displayState.status === "ready" ? (displayState.data as LastRideResult) : undefined;
   const mode = modeWord(readyData, cityId);
+  const staticStation = staticStationLine(cityId, lat, lng);
 
   // Tick the live countdown every 30s while there's an active leave-by time.
   // Calm, not chatty: 30s is fine for a minute-resolution phrase, and we stop
@@ -498,13 +495,18 @@ export default function LastTrainCard({
       </div>
 
       {displayState.status === "loading" ? (
-        <p style={styles.note}>Checking {mode}s from near {venueName ?? "here"}…</p>
+        <>
+          {staticStation ? (
+            <p style={styles.note}>{staticStation}</p>
+          ) : null}
+          <p style={styles.note}>Checking live {mode}s from near {venueName ?? "here"}…</p>
+        </>
       ) : null}
 
       {displayState.status === "empty" ? (
         <>
-          {staticStationLine(cityId, lat, lng) ? (
-            <p style={styles.note}>{staticStationLine(cityId, lat, lng)}</p>
+          {staticStation ? (
+            <p style={styles.note}>{staticStation}</p>
           ) : null}
           <p style={styles.note}>{emptyNoteForCity(cityId)}</p>
         </>
