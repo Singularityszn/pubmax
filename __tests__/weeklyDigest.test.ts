@@ -197,6 +197,16 @@ describe("pickGuardianTip", () => {
   it("returns a tip from the list", () => {
     expect(GUARDIAN_TIPS).toContain(pickGuardianTip(NOW));
   });
+
+  it("keeps static tips to advice the product can support", () => {
+    const copy = GUARDIAN_TIPS.join(" ");
+
+    expect(copy).not.toContain("usually 20 minutes before close");
+    expect(copy).not.toContain("Weeknights are quietly the best value");
+    expect(copy).not.toContain("Zones 1–2 keep running late");
+    expect(copy).toContain("Closing times can change");
+    expect(copy).toContain("Night Tube service varies by line and night");
+  });
 });
 
 describe("opt-in gating + recipient resolution (privacy-first)", () => {
