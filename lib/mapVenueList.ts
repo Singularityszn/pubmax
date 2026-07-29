@@ -1,6 +1,6 @@
 import { buildLogNearbyCandidates, type LogNearbyCandidate } from "@/lib/mapLogIntent";
 import { haversineKm } from "@/lib/haversine";
-import type { MapBounds } from "@/lib/slimShards";
+import { pointInMapBounds, type MapBounds } from "@/lib/slimShards";
 import type { UkBasePub } from "@/lib/ukBasePubs";
 import type { Venue } from "@/lib/venues";
 import {
@@ -60,20 +60,8 @@ export function venuesWithinMapBounds(
   bounds: MapBounds | null,
 ): Venue[] {
   if (!bounds) return [];
-  const longitudeInside =
-    bounds.west <= bounds.east
-      ? (longitude: number) =>
-          longitude >= bounds.west && longitude <= bounds.east
-      : (longitude: number) =>
-          longitude >= bounds.west || longitude <= bounds.east;
-
-  return venues.filter(
-    (venue) =>
-      Number.isFinite(venue.latitude) &&
-      Number.isFinite(venue.longitude) &&
-      venue.latitude >= bounds.south &&
-      venue.latitude <= bounds.north &&
-      longitudeInside(venue.longitude),
+  return venues.filter((venue) =>
+    pointInMapBounds(venue.latitude, venue.longitude, bounds),
   );
 }
 

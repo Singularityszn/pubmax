@@ -11,7 +11,7 @@ import {
   type UkBaseLoader,
   type UkBasePub,
 } from "@/lib/ukBasePubs";
-import type { MapBounds } from "@/lib/slimShards";
+import { pointInMapBounds, type MapBounds } from "@/lib/slimShards";
 
 // Streams the UK base layer (lib/ukBasePubs.ts) into the map's `uk-base`
 // source, one viewport at a time.
@@ -91,16 +91,7 @@ export function ukBasePubsWithinBounds(
   pubs: UkBasePub[],
   bounds: MapBounds,
 ): UkBasePub[] {
-  const containsLongitude =
-    bounds.west <= bounds.east
-      ? (lng: number) => lng >= bounds.west && lng <= bounds.east
-      : (lng: number) => lng >= bounds.west || lng <= bounds.east;
-  return pubs.filter(
-    (pub) =>
-      pub.lat >= bounds.south &&
-      pub.lat <= bounds.north &&
-      containsLongitude(pub.lng),
-  );
+  return pubs.filter((pub) => pointInMapBounds(pub.lat, pub.lng, bounds));
 }
 
 export function nextUkBaseStreamToken(

@@ -50,6 +50,24 @@ export type MapBounds = {
   north: number;
 };
 
+/** Inclusive point membership for ordinary and longitude-wrapped viewports. */
+export function pointInMapBounds(
+  latitude: number,
+  longitude: number,
+  bounds: MapBounds,
+): boolean {
+  if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) return false;
+  const longitudeInside =
+    bounds.west <= bounds.east
+      ? longitude >= bounds.west && longitude <= bounds.east
+      : longitude >= bounds.west || longitude <= bounds.east;
+  return (
+    latitude >= bounds.south &&
+    latitude <= bounds.north &&
+    longitudeInside
+  );
+}
+
 // --- pure geometry + manifest validation (unit-tested) -----------------------
 
 function isBbox(value: unknown): value is ShardBbox {
