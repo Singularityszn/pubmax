@@ -14,6 +14,18 @@ type WindowLike = {
   sessionStorage: Storage;
   localStorage: Storage;
   navigator?: Navigator;
+  location?: {
+    pathname: string;
+    search: string;
+  };
+  matchMedia?: (query: string) => {
+    matches: boolean;
+    addEventListener: () => void;
+    removeEventListener: () => void;
+  };
+  addEventListener?: (type: string, listener: EventListener) => void;
+  removeEventListener?: (type: string, listener: EventListener) => void;
+  dispatchEvent?: (event: Event) => boolean;
 };
 
 function makeMemoryStorage(): Storage {
@@ -90,5 +102,45 @@ describe("CitySuggestBanner opt-in geo", () => {
     expect(a).toBe(b);
     expect(a.geoAvailable).toBe(true);
     expect(a.saveData).toBe(false);
+  });
+
+  it("releases prompt priority after dismiss when sessionStorage rejects writes", async () => {
+    const session = makeMemoryStorage();
+    session.setItem = () => {
+      throw new Error("storage unavailable");
+    };
+    const events = new EventTarget();
+    (globalThis as { window?: WindowLike }).window = {
+      sessionStorage: session,
+      localStorage: makeMemoryStorage(),
+      location: { pathname: "/map", search: "" },
+      matchMedia: () => ({
+        matches: true,
+        addEventListener: () => {},
+        removeEventListener: () => {},
+      }),
+      addEventListener: events.addEventListener.bind(events),
+      removeEventListener: events.removeEventListener.bind(events),
+      dispatchEvent: events.dispatchEvent.bind(events),
+    };
+    vi.stubGlobal("navigator", {
+      geolocation: { getCurrentPosition: vi.fn() },
+    });
+
+    const {
+      dismissCitySuggest,
+      getMapLocationControlAvailable,
+    } = await import("@/lib/mapLocationPrompt");
+    const { locationAllowsInterruptivePrompt } = await import(
+      "@/lib/promptBudget"
+    );
+
+    expect(getMapLocationControlAvailable()).toBe(true);
+    expect(locationAllowsInterruptivePrompt()).toBe(false);
+
+    dismissCitySuggest();
+
+    expect(getMapLocationControlAvailable()).toBe(false);
+    expect(locationAllowsInterruptivePrompt()).toBe(true);
   });
 });

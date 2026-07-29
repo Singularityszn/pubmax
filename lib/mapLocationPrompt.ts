@@ -16,6 +16,7 @@ export const CITY_SUGGEST_SERVER_FLAGS: CitySuggestClientFlags = {
 };
 
 let cachedClientFlags: CitySuggestClientFlags | null = null;
+let citySuggestDismissedInMemory = false;
 
 export function saveDataPreferred(): boolean {
   if (typeof navigator === "undefined") return false;
@@ -42,6 +43,7 @@ export function readCitySuggestClientFlags(): CitySuggestClientFlags {
 }
 
 function readCitySuggestDismissed(): boolean {
+  if (citySuggestDismissedInMemory) return true;
   if (typeof window === "undefined") return false;
   try {
     return window.sessionStorage.getItem(CITY_SUGGEST_DISMISS_KEY) === "1";
@@ -52,6 +54,7 @@ function readCitySuggestDismissed(): boolean {
 
 export function dismissCitySuggest(): void {
   if (typeof window === "undefined") return;
+  citySuggestDismissedInMemory = true;
   try {
     window.sessionStorage.setItem(CITY_SUGGEST_DISMISS_KEY, "1");
   } catch {
