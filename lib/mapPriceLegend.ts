@@ -385,7 +385,7 @@ export function mapPriceLegend(
           priceBuckets.length === 0 ? null : FOOD_CLUSTER_NOTE,
         shapes: MAP_SHAPES,
         marks: mapMarks(
-          "One recent pint report. It does not set a food pin's colour. A UK base pub keeps only the dot.",
+          "A recent pint report. It does not set a food pin's colour. A UK base pub keeps only the dot.",
           storyColour,
         ),
         routeMarks: routeMarks(storyColour),
@@ -418,7 +418,7 @@ export function mapPriceLegend(
         ),
         shapes: MAP_SHAPES,
         marks: mapMarks(
-          "One recent pint report. It does not set the selected drink band. A UK base pub keeps only the dot.",
+          "A recent pint report. It does not set the selected drink band. A UK base pub keeps only the dot.",
           storyColour,
         ),
         routeMarks: routeMarks(storyColour),
@@ -445,7 +445,7 @@ export function mapPriceLegend(
         clusterNote: defaultClusterNote(priceBuckets),
         shapes: MAP_SHAPES,
         marks: mapMarks(
-          "One recent pint report. On a curated pub in the standard pint view, a second independent drinker agreeing can set the pin's band. A UK base pub keeps only the dot.",
+          "A recent pint report. On a listed pub in the standard pint view, a second independent drinker reporting a similar price can set the pin's band. A UK base pub keeps only the dot.",
           storyColour,
         ),
         routeMarks: routeMarks(storyColour),
@@ -469,7 +469,7 @@ export function mapPriceLegend(
         clusterNote: defaultClusterNote(priceBuckets),
         shapes: MAP_SHAPES,
         marks: mapMarks(
-          "One recent pint report. It does not set a non-pub venue's band. A UK base pub keeps only the dot.",
+          "A recent pint report. It does not set a non-pub venue's band. A UK base pub keeps only the dot.",
           storyColour,
         ),
         routeMarks: routeMarks(storyColour),
@@ -489,7 +489,7 @@ export function mapPriceLegend(
         clusterNote: null,
         shapes: MAP_SHAPES,
         marks: mapMarks(
-          "One recent pint report. A UK base pub keeps only the dot.",
+          "A recent pint report. A UK base pub keeps only the dot.",
           storyColour,
         ),
         routeMarks: routeMarks(storyColour),
@@ -510,7 +510,7 @@ export function mapPriceLegend(
       clusterNote: defaultClusterNote(priceBuckets),
       shapes: MAP_SHAPES,
       marks: mapMarks(
-        "One recent pint report. On a curated pub in the standard pint view, a second independent drinker agreeing can set the pin's band. A UK base pub keeps only the dot.",
+        "A recent pint report. On a listed pub in the standard pint view, a second independent drinker reporting a similar price can set the pin's band. A UK base pub keeps only the dot.",
         storyColour,
       ),
       routeMarks: routeMarks(storyColour),

@@ -52,7 +52,7 @@ describe("MapKey", () => {
   it("keeps decorative colour and shape samples out of the accessibility tree", () => {
     expect(html).toContain('class="mapKeyPriceSwatch');
     expect(html).toContain('aria-hidden="true"');
-    expect(html).toContain("One recent pint report");
+    expect(html).toContain("A recent pint report");
     expect(html).toContain("This pub has a visible Pint Drop");
   });
 

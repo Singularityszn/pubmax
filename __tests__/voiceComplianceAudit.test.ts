@@ -39,4 +39,36 @@ describe("VOICE.md compliance audit", () => {
     expect(accountHub).not.toContain("Anonymous usage analytics");
     expect(accountHub).not.toContain("person-level account checks");
   });
+
+  it("keeps map trust and failure copy exact without exposing map plumbing", () => {
+    const legend = read("lib/mapPriceLegend.ts");
+    const priceSubmit = read("components/map/VenuePriceSubmit.tsx");
+    const communityPrice = read("lib/communityPrice.ts");
+    const mapCanvas = read("components/PubMapCanvas.tsx");
+
+    expect(legend).not.toContain("One recent pint report");
+    expect(legend).not.toContain("curated pub");
+    expect(legend).toContain("A recent pint report");
+    expect(legend).toContain(
+      "a second independent drinker reporting a similar price can set the pin's band",
+    );
+
+    for (const source of [priceSubmit, communityPrice]) {
+      expect(source).not.toContain("logging the same price");
+      expect(source).not.toContain("logs the same");
+    }
+    expect(priceSubmit).not.toContain("badged as community -");
+    expect(communityPrice).not.toMatch(
+      /(?:old|confirmation|unconfirmed) - /i,
+    );
+    expect(priceSubmit).not.toContain("account-owned");
+
+    expect(mapCanvas).not.toContain("The map couldn't start its renderer.");
+    expect(mapCanvas).not.toContain(
+      "The map's renderer started but never drew a frame.",
+    );
+    expect(mapCanvas).not.toContain("Map renderer unavailable");
+    expect(mapCanvas).not.toContain("can't paint the map");
+    expect(mapCanvas).toContain("This browser or device cannot show the map right now.");
+  });
 });
