@@ -242,8 +242,9 @@ test.describe("map keyboard and screen-reader venue path", () => {
     const search = page.locator("#mapSearchInput");
     await expect(search).toBeVisible({ timeout: 30_000 });
     await search.fill("Dolphin Tavern");
+    const listbox = page.getByRole("listbox", { name: "Search suggestions" });
     await expect(
-      page.getByRole("listbox", { name: "Search suggestions" }),
+      listbox.getByRole("option", { name: /Dolphin Tavern/i }),
     ).toBeVisible();
 
     await search.press("ArrowDown");
@@ -251,8 +252,14 @@ test.describe("map keyboard and screen-reader venue path", () => {
 
     const drawer = page.locator(".mapDrawer.right.open");
     await expect(drawer).toBeVisible();
+    await expect(
+      drawer.getByRole("button", { name: /Close/ }),
+    ).toBeFocused();
     await page.keyboard.press("Escape");
     await expect(drawer).toBeHidden();
+    await expect
+      .poll(() => new URL(page.url()).searchParams.get("sel"))
+      .toBeNull();
     await expect(search).toBeFocused();
   });
 

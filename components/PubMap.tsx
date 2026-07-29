@@ -2331,7 +2331,7 @@ export default function PubMap({
   // Esc, or a fresh ?sel= navigating away) we hand focus back to whatever
   // triggered the open rather than dropping it to <body>.
   const drawerCloseButtonRef = useRef<HTMLButtonElement | null>(null);
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (detailOpen) {
       if (preSheetFocusRef.current === null) {
         const active = document.activeElement;
@@ -2345,10 +2345,36 @@ export default function PubMap({
       }
       drawerCloseButtonRef.current?.focus();
     } else if (preSheetFocusRef.current) {
-      // The trigger may have unmounted (e.g. a pin re-rendered away) — guard
-      // with isConnected so we never call .focus() on a detached node.
-      if (preSheetFocusRef.current.isConnected) preSheetFocusRef.current.focus();
+      const target = preSheetFocusRef.current;
+      const targetId = target.id;
+      const restoreFocus = () => {
+        const currentTarget =
+          target.isConnected
+            ? target
+            : targetId
+              ? document.getElementById(targetId)
+              : null;
+        currentTarget?.focus();
+      };
+      // Restore in the close commit, then once more after selection history has
+      // popped its URL checkpoint. Browser history traversal can otherwise
+      // move focus back to the document after this layout effect.
+      restoreFocus();
       preSheetFocusRef.current = null;
+      const frame = requestAnimationFrame(restoreFocus);
+      // Local close pops the selection sentinel after this commit. Restore
+      // once more on that exact history settlement so traversal cannot strand
+      // focus on the document. Browser-Back close has already popped, and the
+      // animation-frame restore above covers that path.
+      window.addEventListener("popstate", restoreFocus, { once: true });
+      const listenerCeiling = window.setTimeout(() => {
+        window.removeEventListener("popstate", restoreFocus);
+      }, 1_000);
+      return () => {
+        cancelAnimationFrame(frame);
+        window.clearTimeout(listenerCeiling);
+        window.removeEventListener("popstate", restoreFocus);
+      };
     }
   }, [detailOpen]);
 
