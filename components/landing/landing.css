@@ -316,7 +316,7 @@
 .dropStripCard { min-height: 210px; padding: 20px; display: flex; flex-direction: column; scroll-snap-align: start; border: 1px solid var(--line); border-radius: 18px; background: var(--panel-raised); }
 .dropStripTop { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
 .dropStripWho { color: var(--ink-soft); font: 600 11px/1 var(--font-data); }
-.dropStripPrice { font: 750 24px/1 var(--font-data); }
+.dropStripPrice { flex: 0 0 auto; }
 .dropStripNote { margin: 25px 0 18px; color: var(--ink); font-size: 14px; line-height: 1.55; }
 .dropStripMeta { margin-top: auto; display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .dropStripEra, .provChip { color: var(--ink-soft); font: 600 9px/1 var(--font-data); }

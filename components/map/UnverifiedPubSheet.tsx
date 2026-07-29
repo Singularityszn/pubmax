@@ -3,6 +3,7 @@
 import { MapPin, Sparkles } from "lucide-react";
 
 import { useAuth } from "@/components/auth/AuthProvider";
+import PriceBadge from "@/components/PriceBadge";
 import CommunityPriceReport from "@/components/map/CommunityPriceReport";
 import VenuePriceEntryPanel from "@/components/map/inspector/VenuePriceEntryPanel";
 import {
@@ -96,7 +97,9 @@ export default function UnverifiedPubSheet({
             <span>
               <ClaimBadge kind="contributor" /> Logged by a Pubmaxxer
             </span>
-            <strong>{formatPrice(communityPrice.priceGbp)}</strong>
+            <PriceBadge variant="current">
+              {formatPrice(communityPrice.priceGbp)}
+            </PriceBadge>
             <small className="communityPriceStamp">
               {submitCategoryLabel(communityPrice.drinkCategory)} ·{" "}
               {communityStampLabel(communityPrice.submittedAt)}

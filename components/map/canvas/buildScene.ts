@@ -1013,6 +1013,8 @@ export function buildPubs(ctx: SceneCtx) {
       "text-anchor": "top",
       "text-offset": PIN_PRICE_LABEL_OFFSET_EM,
       "text-letter-spacing": 0.01,
+      "text-rotate": tokens.priceStampTiltDeg,
+      "text-rotation-alignment": "viewport",
       // The label takes the same deal every other label here takes: it collides
       // (no allow-overlap escape hatch - that is what made a dense street a
       // smear before pins started colliding), and `text-optional` is what makes
@@ -1030,16 +1032,13 @@ export function buildPubs(ctx: SceneCtx) {
       // opacity. Eased (not snapped) via icon-opacity-transition.
       "icon-opacity": pubIconOpacityExpr(selectedId),
       "icon-opacity-transition": { duration: 250, delay: 0 },
-      // Deliberately NOT a band colour, and never the pint/amber/brick palette:
-      // the figure IS the price, so tinting it would say the same thing twice
-      // and invite reading the number as a fourth signal. Plain ink over the
-      // map's paper/ink halo - the same idiom the route plaques and the
-      // provisional badge's rim already use - carries it over a pale Positron
-      // street, a dark night land and the pin's own silhouette alike.
-      "text-color": dark ? tokens.ink : tokens.inkDeep,
-      "text-halo-color": dark ? tokens.inkDeep : tokens.paper,
-      "text-halo-width": 1.8,
-      "text-halo-blur": 0.3,
+      // Same brass-plaque ink, surface, and press tilt as PriceBadge. The halo
+      // is MapLibre's compact plaque surface, preserving collision behaviour
+      // without introducing a second free-floating layer.
+      "text-color": tokens.pricePlaqueInk,
+      "text-halo-color": tokens.pricePlaqueSurface,
+      "text-halo-width": 2.1,
+      "text-halo-blur": 0.2,
       // The tag belongs to its pin, so it dims with it - same expression the
       // icon and the provisional badge wear. Without it, a pub the
       // favourite-pint lens filtered out would still shout its price.
@@ -1079,6 +1078,8 @@ export function buildPubs(ctx: SceneCtx) {
       "text-anchor": "top",
       "text-offset": SELECTED_PIN_PRICE_LABEL_OFFSET_EM,
       "text-letter-spacing": 0.01,
+      "text-rotate": tokens.priceStampTiltDeg,
+      "text-rotation-alignment": "viewport",
       "text-allow-overlap": false,
       "text-ignore-placement": false,
       "text-optional": true,
@@ -1086,10 +1087,10 @@ export function buildPubs(ctx: SceneCtx) {
     },
     paint: {
       "icon-opacity": 1,
-      "text-color": dark ? tokens.ink : tokens.inkDeep,
-      "text-halo-color": dark ? tokens.inkDeep : tokens.paper,
-      "text-halo-width": 1.8,
-      "text-halo-blur": 0.3,
+      "text-color": tokens.pricePlaqueInk,
+      "text-halo-color": tokens.pricePlaqueSurface,
+      "text-halo-width": 2.1,
+      "text-halo-blur": 0.2,
       "text-opacity": 1,
     },
   });

@@ -60,7 +60,13 @@ function buildScenePieces(selectedId = "") {
 
   const ctx = {
     map,
-    tokens: new Proxy({}, { get: () => "#000000" }) as unknown as Tokens,
+    tokens: new Proxy(
+      {},
+      {
+        get: (_target, key) =>
+          key === "priceStampTiltDeg" ? -1.5 : "#000000",
+      },
+    ) as unknown as Tokens,
     dark: false,
     textFont: ["Noto Sans Regular"],
     addLayerOnce: ((layer: BuiltLayer) => layers.set(layer.id, layer)) as SceneCtx["addLayerOnce"],

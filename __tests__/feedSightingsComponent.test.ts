@@ -31,7 +31,7 @@ describe("FeedSightings", () => {
     expect(html).toContain("greeneking.co.uk");
 
     const drink = html.indexOf('class="feedSightingDrink"');
-    const price = html.indexOf('class="feedSightingPrice"');
+    const price = html.indexOf("feedSightingPrice");
     const venue = html.indexOf('class="feedSightingVenue"');
     const source = html.indexOf('class="feedSightingSource"');
     expect(drink).toBeGreaterThan(-1);

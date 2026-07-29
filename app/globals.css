@@ -364,8 +364,8 @@
 
 /* ── Pressed-ink / bar-mat utility ──────────────────────────────────────────
    One shared treatment for anything that should read as "stamped" rather
-   than merely styled: passport seals, logged-pint artifacts, provenance chips,
-   and achievements. Do not use this on numeric data badges or menu prices.
+   than merely styled: the repeated price signature, passport seals,
+   provenance chips, and achievements. Generic numeric badges stay plain.
    Apply `.ink-stamp` alongside a component's existing class — it only adds
    the shared border/shadow/tilt/type, it never resets layout (display,
    padding, colour stay owned by the component's own class).
@@ -373,9 +373,8 @@
    API for other agents/components to adopt:
      .ink-stamp        — base treatment: brass hairline border, inset
                           "pressed" shadow, data face, tabular numerals.
-     .ink-stamp--tilt   — adds the signature -1.5deg press tilt. Reserve this
-                          for collectible seals/logged artifacts only, so the
-                          tilt stays rare and intentional.
+     .ink-stamp--tilt   — adds the signature -1.5deg press tilt. Reserved for
+                          prices, so only the figure leans.
      .ink-stamp--flat   — same border/shadow, no data face (for chips whose
                           copy is words, not numbers, e.g. provenance/vibe).
    Existing .provChip / .vibeChip classes are untouched; this is additive so
@@ -442,7 +441,7 @@ html:not([data-theme="dark"]) body {
    hairline and a hair of top shine — instead of borrowing the coral action
    colour. This is the ONE place the amber/brass metal treatment lives, so a
    price never reads as a coral alert. Opt in with class="price-plaque"; the
-   PriceBadge "current" variant already resolves to these tokens. */
+   PriceBadge resolves every price variant to these tokens. */
 .price-plaque {
   font-family: var(--font-data);
   font-variant-numeric: tabular-nums;
@@ -452,8 +451,8 @@ html:not([data-theme="dark"]) body {
   color: var(--accent-price-ink);
   background: var(--price-plaque-surface);
   border: 1px solid var(--price-plaque-border);
-  border-radius: var(--radius-sm);
-  box-shadow: var(--price-plaque-shine);
+  border-radius: var(--ink-stamp-radius);
+  box-shadow: var(--price-plaque-shine), var(--ink-stamp-shadow);
 }
 
 /* ── Typographic hierarchy (3 levels) ──────────────────────────────────────
@@ -3327,7 +3326,7 @@ input[type="range"] {
   background: rgba(47, 143, 91, 0.08);
 }
 
-.contributorPrice span {
+.contributorPrice span:not(.priceBadge) {
   display: inline-flex;
   align-items: center;
   gap: 6px;

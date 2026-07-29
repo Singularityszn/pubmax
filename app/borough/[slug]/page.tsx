@@ -6,6 +6,7 @@ import { notFound } from "next/navigation";
 import JsonLd from "@/components/seo/JsonLd";
 import FactBlock from "@/components/seo/FactBlock";
 import FaqBlock from "@/components/seo/FaqBlock";
+import PriceBadge from "@/components/PriceBadge";
 import { getVenueIndex, venueMapUrl } from "@/lib/venueIndex";
 import { pintFactStats, faqItems, faqPageJsonLd } from "@/lib/pintFacts";
 import {
@@ -316,7 +317,9 @@ export default async function BoroughPage({ params }: PageProps) {
                 </td>
                 <td className="boroughPriceCell">
                   {typeof pub.cheapestPrice === "number" ? (
-                    <span className="priceStamp">{formatPrice(pub.cheapestPrice)}</span>
+                    <PriceBadge variant="current">
+                      {formatPrice(pub.cheapestPrice)}
+                    </PriceBadge>
                   ) : (
                     <span className="boroughNoPrice">No price</span>
                   )}

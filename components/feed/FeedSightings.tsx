@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 
+import PriceBadge from "@/components/PriceBadge";
 import { formatSightingDay, type SightingDTO } from "@/lib/feedSightings";
 
 import "./feedSightings.css";
@@ -28,7 +29,9 @@ function SightingRow({ sighting }: { sighting: SightingDTO }) {
     >
       <span className="feedSightingMain" aria-hidden="true">
         <span className="feedSightingDrink">{sighting.drink}</span>
-        <span className="feedSightingPrice">{sighting.priceLabel}</span>
+        <PriceBadge variant="current" className="feedSightingPrice">
+          {sighting.priceLabel}
+        </PriceBadge>
         <span className="feedSightingVenue">{sighting.venueName}</span>
         <span className="feedSightingSource">{dated}</span>
       </span>

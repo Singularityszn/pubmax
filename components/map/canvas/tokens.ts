@@ -124,6 +124,9 @@ export type Tokens = {
   brick: string;
   brass: string;
   brassBright: string;
+  pricePlaqueInk: string;
+  pricePlaqueSurface: string;
+  priceStampTiltDeg: number;
   river: string;
   riverBright: string;
   // Crawl walk-route line colour — dark crimson (light) / bright coral-ember
@@ -152,6 +155,19 @@ export function readTokens(): Tokens {
   const styles = getComputedStyle(document.documentElement);
   const token = (name: string, fallback: string) =>
     styles.getPropertyValue(name).trim() || fallback;
+  // Custom properties preserve their color-mix() source text. MapLibre needs a
+  // resolved CSS colour, so briefly ask the browser to compute the two plaque
+  // roles instead of duplicating theme hex values in the map.
+  const colourProbe = document.createElement("span");
+  colourProbe.hidden = true;
+  document.documentElement.appendChild(colourProbe);
+  const resolvedColour = (name: string, fallback: string) => {
+    colourProbe.style.color = `var(${name}, ${fallback})`;
+    return getComputedStyle(colourProbe).color || fallback;
+  };
+  const pricePlaqueInk = resolvedColour("--accent-price-ink", "#8f671f");
+  const pricePlaqueSurface = resolvedColour("--price-plaque-surface", "#f4ead5");
+  colourProbe.remove();
   // Additive `--cat-*` read: one entry per drink family, resolved from the live
   // computed vars (with the canonical light hex as a fallback) so map consumers
   // never re-hardcode a category palette.
@@ -174,6 +190,10 @@ export function readTokens(): Tokens {
     brick: token("--brick", "#d16353"),
     brass: token("--brass", "#b0813a"),
     brassBright: token("--brass-bright", "#d3a44a"),
+    pricePlaqueInk,
+    pricePlaqueSurface,
+    priceStampTiltDeg:
+      Number.parseFloat(token("--ink-stamp-tilt", "-1.5deg")) || -1.5,
     river: token("--river", "#2f6f8f"),
     riverBright: token("--river-bright", "#4f9ec4"),
     routeLine: token("--route-line", "#8b1a2b"),
