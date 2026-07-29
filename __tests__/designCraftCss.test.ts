@@ -70,3 +70,26 @@ describe("surface and type hierarchy", () => {
     );
   });
 });
+
+describe("pointer-down feedback", () => {
+  it("removes tap delay from shared controls and responds while sheet handles are held", () => {
+    expect(globalCss).toMatch(
+      /button,[\s\S]*?a\[data-pressable\],[\s\S]*?\.pressable\s*{[^}]*touch-action:\s*manipulation/,
+    );
+    expect(venueCss).toMatch(
+      /\.venueSheetGrabZone:active \.venueSheetGrab,[\s\S]*?\.sheet-dragging \.venueSheetGrab\s*{[^}]*background:/,
+    );
+    expect(mobileCss).toMatch(
+      /\.mobileSharedSheetDetent:active \.mobileSharedSheetGrab,[\s\S]*?\.sheet-dragging \.mobileSharedSheetGrab\s*{[^}]*background:/,
+    );
+  });
+
+  it("gates handle compression behind reduced-motion preference", () => {
+    expect(venueCss).toMatch(
+      /@media \(prefers-reduced-motion: no-preference\)\s*{[\s\S]*?\.venueSheetGrabZone:active \.venueSheetGrab,[\s\S]*?transform:\s*scaleX\(/,
+    );
+    expect(mobileCss).toMatch(
+      /@media \(max-width: 640px\) and \(prefers-reduced-motion: no-preference\)\s*{[\s\S]*?\.mobileSharedSheetDetent:active \.mobileSharedSheetGrab,[\s\S]*?scaleX\(/,
+    );
+  });
+});

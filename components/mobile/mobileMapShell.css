@@ -354,6 +354,8 @@
   }
   .mobileSharedSheetDetent { position: absolute; top: 0; left: 50%; z-index: 1; width: 52px; height: 44px; border: 0; background: transparent; transform: translateX(-50%); }
   .mobileSharedSheetGrab { position: absolute; top: 7px; left: 50%; width: 44px; height: 5px; border-radius: 999px; background: color-mix(in srgb, var(--color-text-muted) 55%, transparent); transform: translateX(-50%); }
+  .mobileSharedSheetDetent:active .mobileSharedSheetGrab,
+  .mobileSharedSheet.sheet-dragging .mobileSharedSheetGrab { background: color-mix(in srgb, var(--color-accent) 68%, var(--color-border)); }
   .mobileSharedSheetDetent:focus-visible { outline: 2px solid var(--color-accent); outline-offset: -6px; border-radius: var(--radius); }
   .mobileSharedSheetClose { grid-column: 3; }
   .mobileSharedSheetBody {
@@ -497,6 +499,18 @@
    Friar). Hide it wherever its styles do not apply. */
 @media (min-width: 641px) {
   .mobileVenuePeekSummary { display: none; }
+}
+
+@media (max-width: 640px) and (prefers-reduced-motion: no-preference) {
+  .mobileSharedSheetGrab {
+    transition:
+      transform var(--duration-press) var(--ease-out-strong),
+      background-color var(--duration-press) var(--ease-out);
+  }
+  .mobileSharedSheetDetent:active .mobileSharedSheetGrab,
+  .mobileSharedSheet.sheet-dragging .mobileSharedSheetGrab {
+    transform: translateX(-50%) scaleX(.78);
+  }
 }
 
 @media (max-width: 640px) and (prefers-reduced-transparency: reduce) {

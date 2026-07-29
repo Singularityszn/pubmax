@@ -656,6 +656,24 @@ html[data-theme="dark"] .trainBadge[data-tone="risk"] {
   background: color-mix(in srgb, var(--river) 34%, var(--line));
 }
 
+.venueSheetGrabZone:active .venueSheetGrab,
+.mapDrawer.sheet-dragging .venueSheetGrab {
+  background: color-mix(in srgb, var(--brass) 68%, var(--line));
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .venueSheetGrab {
+    transition:
+      transform var(--duration-press) var(--ease-out-strong),
+      background-color var(--duration-press) var(--ease-out);
+  }
+
+  .venueSheetGrabZone:active .venueSheetGrab,
+  .mapDrawer.sheet-dragging .venueSheetGrab {
+    transform: scaleX(0.78);
+  }
+}
+
 .venueTabs {
   gap: 4px;
   margin: 12px 0 10px;

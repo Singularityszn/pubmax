@@ -511,6 +511,14 @@ button {
    overrides this for free — this is a floor, not a ceiling. Gated behind
    no-preference so reduced-motion users get zero movement. Opt out per element
    with [data-no-press]; opt IN a link/label/row with class="pressable". */
+button,
+[role="button"]:not([aria-disabled="true"]),
+.planBtn,
+a[data-pressable],
+.pressable {
+  touch-action: manipulation;
+}
+
 @media (prefers-reduced-motion: no-preference) {
   button:not([data-no-press]):not(:disabled),
   [role="button"]:not([data-no-press]):not([aria-disabled="true"]),
