@@ -5,16 +5,20 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 
 import MapKey from "@/components/map/MapKey";
-import { mapTokenCssVar } from "@/components/map/canvas/tokens";
 import type { MapPriceLegendModel } from "@/lib/mapPriceLegend";
 import { mapPriceLegend } from "@/lib/mapPriceLegend";
 
 describe("MapKey", () => {
+  const renderedState = {
+    priceBuckets: [0, 1, 2, 3] as const,
+    storyColour: null,
+  };
   const html = renderToStaticMarkup(
     createElement(MapKey, {
       legend: mapPriceLegend({
         kind: "default",
         hasTypeRelativePrices: false,
+        renderedState,
       }),
     }),
   );
@@ -23,7 +27,10 @@ describe("MapKey", () => {
       legend: mapPriceLegend({
         kind: "default",
         hasTypeRelativePrices: false,
-        storyColour: mapTokenCssVar("amber"),
+        renderedState: {
+          ...renderedState,
+          storyColour: "#d99f45",
+        },
       }),
     }),
   );
@@ -75,7 +82,7 @@ describe("MapKey", () => {
       2,
     );
     expect(storyHtml).toContain(
-      'mapKeyMarker--story-corridor" style="--map-key-marker-colour:var(--amber)',
+      'mapKeyMarker--story-corridor" style="--map-key-marker-colour:#d99f45',
     );
     expect(css).toMatch(
       /\.mapKeyMarker--story-corridor::before\s*{[^}]*background:\s*var\(--map-key-marker-colour\)/,

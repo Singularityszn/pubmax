@@ -201,14 +201,6 @@ const MAP_THEME_TOKEN_PROPERTIES = {
   parkTint: "--map-park-tint",
 } as const satisfies Record<MapThemeToken, `--${string}`>;
 
-export function mapTokenCssVar(tokenName: string): string {
-  const property =
-    MAP_THEME_TOKEN_PROPERTIES[
-      tokenName as keyof typeof MAP_THEME_TOKEN_PROPERTIES
-    ] ?? MAP_THEME_TOKEN_PROPERTIES.brass;
-  return `var(${property})`;
-}
-
 // Every map colour derives from the app's theme tokens so both modes
 // (candle-lit night / positron day guidebook) flip from one system.
 export function readTokens(): Tokens {

@@ -1,4 +1,8 @@
 import type { CategoryPriceIndexStatus } from "@/lib/mapExperienceLens";
+import type {
+  MapRenderedPriceBucket,
+  MapRenderedState,
+} from "@/lib/mapRenderedState";
 
 export type MapPriceLegendRow = {
   label: string;
@@ -26,7 +30,7 @@ export type MapPriceLegendModel = {
 };
 
 type MapPriceLegendMapState = {
-  storyColour?: string | null;
+  renderedState: MapRenderedState;
 };
 
 export type MapPriceLegendContext = (
@@ -146,6 +150,16 @@ function priceRows(noun: string): MapPriceLegendRow[] {
   ];
 }
 
+function renderedRows(
+  rows: MapPriceLegendRow[],
+  buckets: readonly MapRenderedPriceBucket[],
+): MapPriceLegendRow[] {
+  const renderedBuckets = new Set(buckets);
+  return rows.filter((_, bucket) =>
+    renderedBuckets.has(bucket as MapRenderedPriceBucket),
+  );
+}
+
 function mixedPriceRows(): MapPriceLegendRow[] {
   return [
     {
@@ -239,11 +253,21 @@ function routeMarks(storyColour: string | null): MapKeyEntry[] {
  * figures and keeps the "trusted prices" sentence, while a failed read says so
  * rather than letting an all-unknown map read as a city with no prices in it.
  */
-function drinkHint(drink: string, status: CategoryPriceIndexStatus): string {
+function drinkHint(
+  drink: string,
+  status: CategoryPriceIndexStatus,
+  hasKnownBand: boolean,
+): string {
   if (status === "idle" || status === "loading") {
+    if (hasKnownBand) {
+      return `Checking for more ${drink} prices. Pin colours show trusted prices already loaded; pubs without one stay unknown.`;
+    }
     return `Checking ${drink} prices. Pubs without a trusted one stay unknown.`;
   }
   if (status === "degraded") {
+    if (hasKnownBand) {
+      return `We could not refresh the ${drink} prices just now. Pin colours still show trusted prices already loaded; pubs without one stay unknown.`;
+    }
     return `We could not read the ${drink} prices just now, so no pub is coloured by one yet.`;
   }
   if (status === "partial") {
@@ -255,34 +279,48 @@ function drinkHint(drink: string, status: CategoryPriceIndexStatus): string {
 function drinkClusterNote(
   drink: string,
   status: CategoryPriceIndexStatus,
-): string {
+  buckets: readonly MapRenderedPriceBucket[],
+): string | null {
+  if (buckets.length === 0) return null;
+  if (buckets.some((bucket) => bucket !== 3)) return PRICE_CLUSTER_NOTE;
   if (status === "degraded") {
     return `Clusters stay grey because ${drink} prices could not be read just now. The number is every venue in the cluster.`;
   }
-  return PRICE_CLUSTER_NOTE;
+  return `Clusters stay grey because no current venue has a trusted ${drink} price. The number is every venue in the cluster.`;
+}
+
+function defaultClusterNote(
+  buckets: readonly MapRenderedPriceBucket[],
+): string | null {
+  if (buckets.length === 0) return null;
+  if (buckets.some((bucket) => bucket !== 3)) return PRICE_CLUSTER_NOTE;
+  return "Clusters stay grey because no current venue has a known map price. The number is every venue in the cluster.";
 }
 
 export function mapPriceLegend(
   context: MapPriceLegendContext,
 ): MapPriceLegendModel {
-  const storyColour = context.storyColour ?? null;
+  const { priceBuckets, storyColour } = context.renderedState;
   if (context.kind === "food") {
     return declaredLegend(
       {
-        rows: [
-          {
-            label: "Food pins and clusters stay grey",
-            symbol: "?",
-            tone: "grey",
-          },
-        ],
+        rows: priceBuckets.includes(3)
+          ? [
+              {
+                label: "Food pins and clusters stay grey",
+                symbol: "?" as const,
+                tone: "grey" as const,
+              },
+            ]
+          : [],
         ariaLabel: "Food map key: pins and clusters do not show prices",
         title: "Food view",
         hint:
           "Pins and clusters stay grey. Any sourced menu prices stay on venue cards and sheets.",
       },
       {
-        clusterNote: FOOD_CLUSTER_NOTE,
+        clusterNote:
+          priceBuckets.length === 0 ? null : FOOD_CLUSTER_NOTE,
         shapes: MAP_SHAPES,
         marks: mapMarks(
           "One recent pint report. It does not set a food pin's colour. A UK base pub keeps only the dot.",
@@ -295,12 +333,12 @@ export function mapPriceLegend(
   }
   if (context.kind === "drink") {
     const drink = context.noun.toLowerCase();
-    const unreadable = context.status === "degraded";
-    const rows = priceRows(drink);
+    const hasKnownBand = priceBuckets.some((bucket) => bucket !== 3);
+    const unreadable =
+      context.status === "degraded" && !hasKnownBand;
+    const rows = renderedRows(priceRows(drink), priceBuckets);
     return declaredLegend(
       {
-        // A failed category read leaves every pin in the unknown band, so keep
-        // that row and drop only the bands no pin can currently wear.
         rows: unreadable ? rows.slice(-1) : rows,
         ariaLabel: unreadable
           ? `${context.label} price colour key, unavailable`
@@ -308,10 +346,14 @@ export function mapPriceLegend(
         title: unreadable
           ? `${context.label} prices unavailable`
           : `${context.label} price bands`,
-        hint: drinkHint(drink, context.status),
+        hint: drinkHint(drink, context.status, hasKnownBand),
       },
       {
-        clusterNote: drinkClusterNote(drink, context.status),
+        clusterNote: drinkClusterNote(
+          drink,
+          context.status,
+          priceBuckets,
+        ),
         shapes: MAP_SHAPES,
         marks: mapMarks(
           "One recent pint report. It does not set the selected drink band. A UK base pub keeps only the dot.",
@@ -326,13 +368,13 @@ export function mapPriceLegend(
   if (!context.hasTypeRelativePrices) {
     return declaredLegend(
       {
-        rows: priceRows("pint"),
+        rows: renderedRows(priceRows("pint"), priceBuckets),
         ariaLabel: "Pint price key and filters",
         title: "Pint price key and filters",
         hint: "Show pubs at or under this pint price.",
       },
       {
-        clusterNote: PRICE_CLUSTER_NOTE,
+        clusterNote: defaultClusterNote(priceBuckets),
         shapes: MAP_SHAPES,
         marks: mapMarks(
           "One recent pint report. On a curated pub in the standard pint view, a second independent drinker agreeing can set the pin's band. A UK base pub keeps only the dot.",
@@ -345,7 +387,7 @@ export function mapPriceLegend(
   }
   return declaredLegend(
     {
-      rows: mixedPriceRows(),
+      rows: renderedRows(mixedPriceRows(), priceBuckets),
       ariaLabel:
         "Price colour key: pub pints use pound thresholds; other venue types use relative low, middle, and high bands",
       title: "Pint prices and other venue price bands",
@@ -353,7 +395,7 @@ export function mapPriceLegend(
         "Pub pins use pint thresholds. Each other venue pin is low, middle, or high within its own type.",
     },
     {
-      clusterNote: PRICE_CLUSTER_NOTE,
+      clusterNote: defaultClusterNote(priceBuckets),
       shapes: MAP_SHAPES,
       marks: mapMarks(
         "One recent pint report. On a curated pub in the standard pint view, a second independent drinker agreeing can set the pin's band. A UK base pub keeps only the dot.",

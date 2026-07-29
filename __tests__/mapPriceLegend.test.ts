@@ -3,11 +3,22 @@ import { describe, expect, it } from "vitest";
 import { NO_ALCOHOL_LENS_PRICE_NOUN } from "@/lib/mapExperienceLens";
 import { mapPriceLegend } from "@/lib/mapPriceLegend";
 
+const ALL_RENDERED_STATE = {
+  priceBuckets: [0, 1, 2, 3] as const,
+  storyColour: null,
+};
+
+const UNKNOWN_RENDERED_STATE = {
+  priceBuckets: [3] as const,
+  storyColour: null,
+};
+
 describe("mapPriceLegend", () => {
   it("keeps absolute pint thresholds for pub-only maps", () => {
     const legend = mapPriceLegend({
       kind: "default",
       hasTypeRelativePrices: false,
+      renderedState: ALL_RENDERED_STATE,
     });
     expect(legend.rows.map((row) => row.label)).toEqual([
       "£5.50 or less",
@@ -28,6 +39,7 @@ describe("mapPriceLegend", () => {
     const legend = mapPriceLegend({
       kind: "default",
       hasTypeRelativePrices: true,
+      renderedState: ALL_RENDERED_STATE,
     });
     expect(legend.rows.map((row) => row.label)).toEqual([
       "£5.50 or less; low for its venue type",
@@ -45,6 +57,7 @@ describe("mapPriceLegend", () => {
       label: "Whisky",
       noun: "Whisky",
       status: "ready",
+      renderedState: ALL_RENDERED_STATE,
     });
     expect(legend.rows.map((row) => row.label)).toEqual([
       "£5.50 or less",
@@ -65,6 +78,7 @@ describe("mapPriceLegend", () => {
         label: "No-alcohol",
         noun: NO_ALCOHOL_LENS_PRICE_NOUN,
         status: "ready",
+        renderedState: ALL_RENDERED_STATE,
       },
     );
 
@@ -84,6 +98,7 @@ describe("mapPriceLegend", () => {
       label: "Whisky",
       noun: "Whisky",
       status: "partial",
+      renderedState: ALL_RENDERED_STATE,
     });
     expect(partial.hint).toContain("trusted whisky prices");
     expect(partial.hint).toContain("part of the list");
@@ -96,6 +111,7 @@ describe("mapPriceLegend", () => {
       label: "Whisky",
       noun: "Whisky",
       status: "degraded",
+      renderedState: UNKNOWN_RENDERED_STATE,
     });
     expect(degraded.hint).toContain("could not read");
     expect(degraded.hint).not.toContain("trusted whisky prices");
@@ -109,6 +125,7 @@ describe("mapPriceLegend", () => {
         label: "Whisky",
         noun: "Whisky",
         status: "ready",
+        renderedState: ALL_RENDERED_STATE,
       }).hint,
     );
     expect(degraded.hint).not.toBe(
@@ -117,6 +134,7 @@ describe("mapPriceLegend", () => {
         label: "Whisky",
         noun: "Whisky",
         status: "partial",
+        renderedState: ALL_RENDERED_STATE,
       }).hint,
     );
   });
@@ -129,13 +147,17 @@ describe("mapPriceLegend", () => {
           label: "Whisky",
           noun: "Whisky",
           status,
+          renderedState: ALL_RENDERED_STATE,
         }).hint,
-      ).toContain("Checking whisky prices");
+      ).toContain("Checking");
     }
   });
 
   it("shows only the grey state food pins and clusters can render", () => {
-    const legend = mapPriceLegend({ kind: "food" });
+    const legend = mapPriceLegend({
+      kind: "food",
+      renderedState: UNKNOWN_RENDERED_STATE,
+    });
 
     expect(legend.title).toBe("Food view");
     expect(legend.rows).toEqual([
@@ -157,12 +179,31 @@ describe("mapPriceLegend", () => {
 });
 
 describe("mapPriceLegend colour rows under a failed read", () => {
+  it("describes cached bands the scene still renders after a failed refresh", () => {
+    const degraded = mapPriceLegend({
+      kind: "drink",
+      label: "Whisky",
+      noun: "Whisky",
+      status: "degraded",
+      renderedState: {
+        priceBuckets: [1, 3],
+        storyColour: null,
+      },
+    });
+
+    expect(degraded.rows.map((row) => row.tone)).toEqual(["amber", "grey"]);
+    expect(degraded.hint).toContain("already loaded");
+    expect(degraded.hint).not.toContain("no pub is coloured");
+    expect(degraded.clusterNote).toContain("most common known price band");
+  });
+
   it("keeps only the unknown band when no category price could be read", () => {
     const degraded = mapPriceLegend({
       kind: "drink",
       label: "Whisky",
       noun: "Whisky",
       status: "degraded",
+      renderedState: UNKNOWN_RENDERED_STATE,
     });
     expect(degraded.rows.map((row) => row.tone)).toEqual(["grey"]);
     expect(degraded.title).toBe("Whisky prices unavailable");
@@ -177,6 +218,7 @@ describe("mapPriceLegend colour rows under a failed read", () => {
           label: "Whisky",
           noun: "Whisky",
           status,
+          renderedState: ALL_RENDERED_STATE,
         }).rows,
       ).toHaveLength(4);
     }
@@ -188,7 +230,10 @@ describe("map key inventory", () => {
     const legend = mapPriceLegend({
       kind: "default",
       hasTypeRelativePrices: false,
-      storyColour: "var(--amber)",
+      renderedState: {
+        priceBuckets: ALL_RENDERED_STATE.priceBuckets,
+        storyColour: "#d99f45",
+      },
     });
 
     expect(legend.clusterNote).toContain("number is every venue");
@@ -237,7 +282,7 @@ describe("map key inventory", () => {
       "var(--route-line)",
     );
     expect(legend.routeMarks.find((row) => row.id === "story-corridor")?.colour).toBe(
-      "var(--amber)",
+      "#d99f45",
     );
     expect(legend.noAlcoholNote).toContain("no separate pin");
   });
@@ -246,6 +291,7 @@ describe("map key inventory", () => {
     const legend = mapPriceLegend({
       kind: "default",
       hasTypeRelativePrices: false,
+      renderedState: ALL_RENDERED_STATE,
     });
 
     expect(legend.marks.map((row) => row.id)).not.toContain("story-band");
@@ -260,8 +306,12 @@ describe("map key inventory", () => {
       label: "No-alcohol",
       noun: NO_ALCOHOL_LENS_PRICE_NOUN,
       status: "ready",
+      renderedState: ALL_RENDERED_STATE,
     });
-    const food = mapPriceLegend({ kind: "food" });
+    const food = mapPriceLegend({
+      kind: "food",
+      renderedState: UNKNOWN_RENDERED_STATE,
+    });
 
     expect(
       drink.marks.find((row) => row.id === "provisional")?.detail,

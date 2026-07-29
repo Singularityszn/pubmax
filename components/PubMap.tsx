@@ -29,10 +29,7 @@ import {
   buildMapVenueListModel,
   buildUkBasePubListModel,
 } from "@/lib/mapVenueList";
-import {
-  mapTokenCssVar,
-  UK_BOUNDS,
-} from "@/components/map/canvas/tokens";
+import { UK_BOUNDS } from "@/components/map/canvas/tokens";
 import { useFocusTrap } from "@/lib/useFocusTrap";
 import { MOBILE_MEDIA_QUERY } from "@/lib/breakpoints";
 import SpringDrawer from "@/components/map/SpringDrawer";
@@ -150,6 +147,11 @@ import { writePreferredCity } from "@/lib/cityPreference";
 import { usePintDrops } from "@/components/map/usePintDrops";
 import { useCommunityPrices } from "@/components/map/useCommunityPrices";
 import { mapPriceLegend } from "@/lib/mapPriceLegend";
+import {
+  EMPTY_MAP_RENDERED_STATE,
+  sameMapRenderedState,
+  type MapRenderedState,
+} from "@/lib/mapRenderedState";
 import {
   mergeCommunityPriceSignals,
   provisionalCommunityPriceVenueIds,
@@ -666,6 +668,16 @@ export default function PubMap({
     curatedVenueIds: string[];
     ukBasePubIds: string[];
   } | null>(null);
+  const [renderedMapState, setRenderedMapState] =
+    useState<MapRenderedState>(EMPTY_MAP_RENDERED_STATE);
+  const handleRenderedMapStateChange = useCallback(
+    (next: MapRenderedState) => {
+      setRenderedMapState((current) =>
+        sameMapRenderedState(current, next) ? current : next,
+      );
+    },
+    [],
+  );
   const baseVenues = useMemo(
     () => mergeLazyDetailPins(slimPins, detailById),
     [slimPins, detailById],
@@ -1191,24 +1203,21 @@ export default function PubMap({
     () => bandByIdForCity(cityId, activeBandId),
     [cityId, activeBandId],
   );
-  const activeStoryColour = activeBand
-    ? mapTokenCssVar(activeBand.colourToken)
-    : null;
   const activePriceLegend = mapPriceLegend(
     experienceLens === "food"
-      ? { kind: "food", storyColour: activeStoryColour }
+      ? { kind: "food", renderedState: renderedMapState }
       : activeLensLabel && activeLensNoun
         ? {
             kind: "drink",
             label: activeLensLabel,
             noun: activeLensNoun,
             status: drinkIndexStatus,
-            storyColour: activeStoryColour,
+            renderedState: renderedMapState,
           }
         : {
             kind: "default",
             hasTypeRelativePrices,
-            storyColour: activeStoryColour,
+            renderedState: renderedMapState,
           },
   );
   const experienceSummary = useMemo(() => {
@@ -2754,6 +2763,7 @@ export default function PubMap({
           onUkBasePubClick={handleUkBasePubClick}
           onUkBasePubsChange={setRenderedBasePubs}
           onVisibleVenueIdsChange={handleVisibleVenueIdsChange}
+          onRenderedStateChange={handleRenderedMapStateChange}
           venueListOpen={mapListOpen}
           ukBaseRestore={ukBaseRestore}
           onRouteStopClick={selectVenue}
@@ -3068,6 +3078,7 @@ export default function PubMap({
                     drinkLabel={activeLensLabel ?? undefined}
                     drinkNoun={activeLensNoun ?? undefined}
                     drinkIndexStatus={drinkIndexStatus}
+                    renderedState={renderedMapState}
                     onMaxPriceChange={(maxPrice) =>
                       setFilters((current) => ({ ...current, maxPrice }))
                     }
@@ -3150,6 +3161,7 @@ export default function PubMap({
                     drinkLabel={activeLensLabel ?? undefined}
                     drinkNoun={activeLensNoun ?? undefined}
                     drinkIndexStatus={drinkIndexStatus}
+                    renderedState={renderedMapState}
                     onMaxPriceChange={(maxPrice) =>
                       setFilters((current) => ({ ...current, maxPrice }))
                     }

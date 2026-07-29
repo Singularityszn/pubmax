@@ -8,6 +8,8 @@ Desktop keeps a small Key control on the map. Phone puts Key first in the existi
 
 The desktop cluster donut already showed its known price mix at zoom 11.2. Individual pins begin at zoom 12, 0.8 above the landing view. Phones and large cluster sets used solid circles whose colour meant cluster size. They now use the most common known price band inside each cluster. Grey means that cluster has no known price. Cluster radius, count, zoom limits and collision rules did not change.
 
+The key derives from rendered scene state. `PubMapCanvas` is the single decision point: it publishes the exact GeoJSON price buckets and resolved story token used by each scene rebuild, so failed refreshes and theme changes cannot create a parallel legend answer.
+
 ## Current map language
 
 - Green fill: pub pint is £5.50 or less. Other venues are low within their type.
@@ -75,4 +77,4 @@ After, unobscured phone map at the same landing zoom:
 
 The after phone captures measure 390 CSS pixels wide with a 390-pixel document width. All five sheet tabs fit between x=4 and x=388. Tabs and disclosure controls have 44-pixel touch targets. Accessibility snapshots expose Map controls as a dialog, Key as the selected tab, price bands as text, and Pin shapes, Dots and rings, and Routes as disclosures. The desktop Key is a native button; Escape closes it and Enter reopens it with focus retained.
 
-Code authorities: `components/map/canvas/buildScene.ts`, `components/map/canvas/filters.ts`, `components/map/canvas/geojson.ts`, `components/map/canvas/donutClusters.ts`, `lib/mapIcons.ts`, `lib/mapPriceLegend.ts`, `lib/communityPrice.ts`, `components/map/communityPriceSignals.ts`, and `lib/cities.ts`.
+Code authorities: `components/map/canvas/buildScene.ts`, `components/map/canvas/filters.ts`, `components/map/canvas/geojson.ts`, `components/map/canvas/donutClusters.ts`, `lib/mapIcons.ts`, `lib/mapRenderedState.ts`, `lib/mapPriceLegend.ts`, `lib/communityPrice.ts`, `components/map/communityPriceSignals.ts`, and `lib/cities.ts`.
