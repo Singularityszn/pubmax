@@ -12,7 +12,7 @@ import "./menuCategoryGrid.css";
 export type MenuCategoryGridProps = {
   tiles: MenuHubTile[];
   onOpenDrinks: (category?: DrinkCategory) => void;
-  venueName?: string;
+  onAddDrink?: () => void;
   venueKind?: VenueKind;
 };
 
@@ -23,18 +23,21 @@ export type MenuCategoryGridProps = {
 export default function MenuCategoryGrid({
   tiles,
   onOpenDrinks,
-  venueName,
+  onAddDrink,
   venueKind,
 }: MenuCategoryGridProps) {
   const venueNoun = venueKindNoun(venueKind);
   if (tiles.length === 0) {
     return (
-      <div className="menuHubEmpty" role="status">
-        <p className="menuHubEmptyTitle">No menu on record yet</p>
-        <p className="menuHubEmptyBody">
-          {venueName ? `${venueName} hasn't` : `This ${venueNoun} hasn't`} logged drinks
-          beyond the map price, and there&apos;s no external menu link yet.
+      <div className="menuHubEmpty">
+        <p className="menuHubEmptyTitle" role="status">
+          We don&rsquo;t have this {venueNoun}&rsquo;s drinks yet.
         </p>
+        {onAddDrink ? (
+          <button type="button" className="menuHubEmptyAction" onClick={onAddDrink}>
+            Add what you’re drinking
+          </button>
+        ) : null}
       </div>
     );
   }

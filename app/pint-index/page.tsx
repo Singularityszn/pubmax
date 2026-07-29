@@ -146,13 +146,12 @@ export default async function PintIndexPage() {
         <h2 id="leagueHeading" className="pintIndexSectionTitle">Borough league table</h2>
         {rows.length === 0 ? (
           <p className="pintIndexNote">
-            <strong>No price logged here yet.</strong> Yours to set. The zone
-            strip above rolls up every price on the map; this league is stricter
-            and only counts prices that carry a public source and an observed-at
-            date, so an area can post a zone median above and still sit empty
-            here. We&rsquo;d rather show nothing than a guess, so the league
-            table opens the moment real, cited prices land. No file timestamp
-            counts as a price date, and no excluded price is ever swapped in.
+            <strong>No borough league yet.</strong> The zone strip shows the
+            wider price picture by fare zone. The league only ranks boroughs
+            using dated prices with a public source.{" "}
+            <Link className="pintIndexEmptyAction" href="/map">
+              Find a pub and log a price.
+            </Link>
           </p>
         ) : (
           <PintIndexLeagueTable

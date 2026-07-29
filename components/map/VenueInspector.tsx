@@ -135,6 +135,12 @@ export default function VenueInspector({
   );
   const { currentShareFeedback, shareVenue } = useVenueShare(venue);
 
+  function startPintDrop() {
+    if (!pubVenue) return;
+    selectTab("pints");
+    setComposerOpen(true);
+  }
+
   // Start transport work with the sheet, not several taps later when the Train
   // tab mounts. LastTrainCard shares this bounded request and still owns all
   // visible loading, success, and fallback states.
@@ -192,14 +198,7 @@ export default function VenueInspector({
         locationRequestStatus={locationRequestStatus}
         onRequestLocation={onRequestLocation}
         onClearLocation={onClearLocation}
-        onStartFirstDrop={() => {
-          if (!pubVenue) return;
-          // First-drop nudge (Cycle-8 item 3): open the existing composer,
-          // prefilled-for-this-venue by rendering the Pints tab with this
-          // venue's id. Mirrors firstDropComposerIntent(venue.id).
-          selectTab("pints");
-          setComposerOpen(true);
-        }}
+        onStartFirstDrop={startPintDrop}
       />
 
       {/* Pints — the primary tab: demo note, drops list, composer / log bar. */}
@@ -216,7 +215,11 @@ export default function VenueInspector({
 
       {/* Menu — visual hub (Drinks first) → drink list deep-dive. Food is
           link-out only when we have a venue website / menu URL. */}
-      <VenueMenuTab venue={venue} tab={tab} />
+      <VenueMenuTab
+        venue={venue}
+        tab={tab}
+        onAddDrink={pubVenue ? startPintDrop : undefined}
+      />
 
       {/* Story — description / heritage note + provenance-stamped claims. */}
       <VenueStoryTab

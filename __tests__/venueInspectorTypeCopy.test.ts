@@ -102,7 +102,6 @@ describe("shared inspector venue copy", () => {
             href: "https://food.example/menu",
           },
         ],
-        venueName: "Fixture Venue",
         venueKind: "food",
         onOpenDrinks: () => {},
       }),
