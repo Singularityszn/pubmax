@@ -483,6 +483,63 @@ test("/map reuses granted location after an explicit Near me action", async ({ p
   await expect(page.locator(".mapUserLocationMarker")).toBeVisible({ timeout: 20_000 });
 });
 
+test("/map keeps Manchester cluster markers mounted after granted location settles", async ({
+  page,
+  context,
+}) => {
+  test.setTimeout(90_000);
+  await page.setViewportSize({ width: 1600, height: 1000 });
+  await context.grantPermissions(["geolocation"]);
+  await context.setGeolocation({ latitude: 53.4808, longitude: -2.2426 });
+
+  // Load Manchester with permission already granted, then invoke the attached
+  // control directly. Banner staging may hide it, but HTMLElement.click still
+  // exercises the same checkNearby/onLocationFound path as a painted control.
+  await page.goto("/map/manchester");
+  const nearMe = page.locator("button.citySuggestBannerSwitch");
+  await expect(nearMe).toBeAttached({ timeout: 20_000 });
+  await expect(nearMe).toBeEnabled({ timeout: 20_000 });
+  await nearMe.evaluate((button: HTMLButtonElement) => button.click());
+  await expect(page.locator(".mapUserLocationMarker")).toBeVisible({
+    timeout: 20_000,
+  });
+  await page.waitForTimeout(2_000);
+  const showAll = page.getByRole("button", {
+    name: "Show all of Manchester",
+  });
+  await expect(showAll).toBeVisible({ timeout: 20_000 });
+  await showAll.click();
+
+  const donuts = page.locator(".donut-cluster-marker");
+  // fitCityBounds runs an 800 ms cinematic. Let that intentional transition
+  // finish, then require a stable non-empty cluster count before observing for
+  // the ongoing empty/non-empty loop this regression targets.
+  await page.waitForTimeout(1_000);
+  await expect
+    .poll(
+      async () => {
+        const counts = [await donuts.count()];
+        for (let sample = 0; sample < 4; sample += 1) {
+          await page.waitForTimeout(150);
+          counts.push(await donuts.count());
+        }
+        return counts[0] > 0 && counts.every((count) => count === counts[0]);
+      },
+      { timeout: 20_000 },
+    )
+    .toBe(true);
+
+  // Once the city camera has settled, transient source snapshots must not
+  // unmount every donut and hand the same clusters back to the GL fallback.
+  // That DOM-empty/GL-visible alternation is the reported desktop flicker.
+  const counts: number[] = [];
+  for (let sample = 0; sample < 30; sample += 1) {
+    counts.push(await donuts.count());
+    await page.waitForTimeout(75);
+  }
+  expect(counts, `cluster marker counts after settle: ${counts.join(",")}`).not.toContain(0);
+});
+
 // Issue #35 — optimistic-pins perf guard. The map paints pins from the ~116 KB
 // slim index BEFORE the ~5.6 MB full dataset lands; PubMap drops a
 // `pubmax:first-pins` performance.mark the instant those slim pins are set.
