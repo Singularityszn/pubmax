@@ -4,6 +4,7 @@ import {
   buildMapVenueListModel,
   buildUkBasePubListModel,
   MAP_VENUE_LIST_LIMIT,
+  venuesWithinMapBounds,
 } from "@/lib/mapVenueList";
 import type { UkBasePub } from "@/lib/ukBasePubs";
 import type { Venue } from "@/lib/venues";
@@ -36,15 +37,15 @@ describe("buildMapVenueListModel — the list-toggle gate", () => {
     expect(model.truncated).toBe(false);
   });
 
-  it("caps the list and flags truncation past the limit", () => {
+  it("keeps every in-view venue keyboard-reachable by default", () => {
     const venues = Array.from({ length: MAP_VENUE_LIST_LIMIT + 5 }, (_, i) =>
       venue({ id: `v${i}` }),
     );
     const model = buildMapVenueListModel(venues, [-0.12, 51.5]);
     expect(model.total).toBe(MAP_VENUE_LIST_LIMIT + 5);
-    expect(model.shown).toBe(MAP_VENUE_LIST_LIMIT);
-    expect(model.rows).toHaveLength(MAP_VENUE_LIST_LIMIT);
-    expect(model.truncated).toBe(true);
+    expect(model.shown).toBe(MAP_VENUE_LIST_LIMIT + 5);
+    expect(model.rows).toHaveLength(MAP_VENUE_LIST_LIMIT + 5);
+    expect(model.truncated).toBe(false);
   });
 
   it("honours a custom limit", () => {
@@ -52,6 +53,51 @@ describe("buildMapVenueListModel — the list-toggle gate", () => {
     const model = buildMapVenueListModel(venues, null, 2);
     expect(model.shown).toBe(2);
     expect(model.truncated).toBe(true);
+  });
+});
+
+describe("venuesWithinMapBounds", () => {
+  const bounds = {
+    west: -0.2,
+    south: 51.4,
+    east: -0.1,
+    north: 51.6,
+  };
+
+  it("keeps only finite venues inside or on settled viewport edges", () => {
+    const rows = [
+      venue({ id: "inside", latitude: 51.5, longitude: -0.15 }),
+      venue({ id: "edge", latitude: 51.6, longitude: -0.1 }),
+      venue({ id: "north", latitude: 51.61, longitude: -0.15 }),
+      venue({ id: "east", latitude: 51.5, longitude: -0.09 }),
+      venue({ id: "bad", latitude: Number.NaN, longitude: -0.15 }),
+    ];
+
+    expect(venuesWithinMapBounds(rows, bounds).map((row) => row.id)).toEqual([
+      "inside",
+      "edge",
+    ]);
+  });
+
+  it("returns no venues before the map publishes its first settled bounds", () => {
+    expect(venuesWithinMapBounds([venue({ id: "inside" })], null)).toEqual([]);
+  });
+
+  it("supports a viewport crossing the longitude wrap", () => {
+    const rows = [
+      venue({ id: "east", latitude: 0, longitude: 179 }),
+      venue({ id: "west", latitude: 0, longitude: -179 }),
+      venue({ id: "middle", latitude: 0, longitude: 0 }),
+    ];
+
+    expect(
+      venuesWithinMapBounds(rows, {
+        west: 170,
+        south: -10,
+        east: -170,
+        north: 10,
+      }).map((row) => row.id),
+    ).toEqual(["east", "west"]);
   });
 });
 

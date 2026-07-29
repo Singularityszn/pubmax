@@ -1,5 +1,6 @@
 import { buildLogNearbyCandidates, type LogNearbyCandidate } from "@/lib/mapLogIntent";
 import { haversineKm } from "@/lib/haversine";
+import type { MapBounds } from "@/lib/slimShards";
 import type { UkBasePub } from "@/lib/ukBasePubs";
 import type { Venue } from "@/lib/venues";
 import {
@@ -16,8 +17,8 @@ import {
 // the SAME shape (name + price + optional distance) the log-drop picker uses,
 // and selection from a row drives the SAME select handler a pin tap does.
 
-// Keep the list scannable — the map can hold hundreds of pins, but an
-// unbounded DOM list is neither usable nor performant to render.
+// Explicit limit available to deliberately bounded secondary views. Main map
+// list does not apply it because every venue in view must remain operable.
 export const MAP_VENUE_LIST_LIMIT = 60;
 
 export type MapVenueListModel = {
@@ -53,6 +54,29 @@ export type UkBasePubListModel = {
   truncated: boolean;
 };
 
+/** Keep only venues inside map's latest settled geographic viewport. */
+export function venuesWithinMapBounds(
+  venues: Venue[],
+  bounds: MapBounds | null,
+): Venue[] {
+  if (!bounds) return [];
+  const longitudeInside =
+    bounds.west <= bounds.east
+      ? (longitude: number) =>
+          longitude >= bounds.west && longitude <= bounds.east
+      : (longitude: number) =>
+          longitude >= bounds.west || longitude <= bounds.east;
+
+  return venues.filter(
+    (venue) =>
+      Number.isFinite(venue.latitude) &&
+      Number.isFinite(venue.longitude) &&
+      venue.latitude >= bounds.south &&
+      venue.latitude <= bounds.north &&
+      longitudeInside(venue.longitude),
+  );
+}
+
 /**
  * Build the keyboard/AT-reachable list of the venues currently on the map.
  *
@@ -63,7 +87,7 @@ export type UkBasePubListModel = {
 export function buildMapVenueListModel(
   venues: Venue[],
   viewportCenter: [number, number] | null,
-  limit: number = MAP_VENUE_LIST_LIMIT,
+  limit: number = venues.length,
   lensPrices: ReadonlyMap<string, MapLensPrice> | null = null,
   lensCategoryLabel: string = "this view",
   lensStatus: CategoryPriceIndexStatus = "ready",
@@ -105,7 +129,7 @@ export function buildMapVenueListModel(
 export function buildUkBasePubListModel(
   pubs: UkBasePub[],
   viewportCenter: [number, number] | null,
-  limit: number = MAP_VENUE_LIST_LIMIT,
+  limit: number = pubs.length,
 ): UkBasePubListModel {
   const origin =
     viewportCenter &&
