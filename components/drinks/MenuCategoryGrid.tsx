@@ -16,10 +16,6 @@ export type MenuCategoryGridProps = {
   venueKind?: VenueKind;
 };
 
-/**
- * Greene King–inspired Menus hub: 2-column visual tiles.
- * Drinks first; food is an external link when we have a URL.
- */
 export default function MenuCategoryGrid({
   tiles,
   onOpenDrinks,

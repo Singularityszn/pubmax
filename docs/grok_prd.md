@@ -108,8 +108,8 @@ Pages: `/`, `/map`, venue sheet (The Old Bell), `/pint-index`, `/privacy`, `/cho
 | Severity | Finding | Wave |
 |---|---|---|
 | None | No P0 breakage; map paints; pins band by price; privacy honest; sources dated | None |
-| P1 | Venue Drinks empty: “No menu on record yet” with no contribute CTA | 1 |
-| P1 | Pint Index league empty copy is long/technical (zone vs league) | 1 |
+| P1 | Venue Drinks empty: “No menu on record yet” with no contribute CTA; resolved by W1.1 | 1 |
+| P1 | Pint Index league empty copy was long/technical (zone vs league); resolved by W1.2 | 1 |
 | P2 | Primary nav “More” hides Plan / Near / Pubs / Historic / Pal | 1 |
 | P2 | Map load line is fine; progress could be clearer | 1 |
 | Verify | Dark theme not deeply exercised; mobile sheet price-caption wrap; submit entry points | 1 |
@@ -173,8 +173,8 @@ Wave 6  Memory / store / expansion (gated)
 
 | ID | Ticket | Severity | Done when |
 |---|---|---|---|
-| W1.1 | Venue Drinks empty state: short honest line + path to contribute / log a price (not a fake menu) | P1 | Empty state offers a real next action; voice fence holds |
-| W1.2 | Pint Index league empty: shorter copy that still separates zone strip vs sourced league | P1 | Empty state readable at 390px; no plumbing words |
+| W1.1 | Venue Drinks empty state: short honest line + path to contribute / log a price (not a fake menu) | P1 | **Complete:** unavailable drinks are stated plainly and the action opens the existing Pint Drop contribution flow |
+| W1.2 | Pint Index league empty: shorter copy that still separates zone strip vs sourced league | P1 | **Complete:** short copy keeps the wider fare-zone picture separate from the dated public-source league |
 | W1.3 | Mobile venue sheet: price captions wrap, never ellipsis | Verify | Passes `__tests__/mobileChromeFit.test.ts` spirit on real 390×844 device viewport |
 | W1.4 | Dark mode pass: landing, map, venue sheet vs Night Out tokens | Verify | Both themes screenshot-read; no black-on-black pin rims |
 | W1.5 | Nav discoverability for Plan / Near (P2) | P2 | Primary journeys findable without hunting “More” alone |

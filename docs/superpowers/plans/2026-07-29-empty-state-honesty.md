@@ -4,7 +4,7 @@
 
 **Goal:** Give drinkers a working contribution action from an empty Drinks tab and replace the live Pint Index league's technical empty copy with a short, honest explanation.
 
-**Architecture:** Keep tab ownership in `VenueInspector`, pass one existing Pint Drop composer action through `VenueMenuTab` to `MenuCategoryGrid`, and render it only when the menu hub is empty. Keep Pint Index logic unchanged and replace only its empty-state markup and copy.
+**Architecture:** Keep tab ownership in `VenueInspector`, pass one existing Pint Drop composer action through `VenueMenuTab` to `MenuCategoryGrid`, and render it only when the pub has no drinks data. Keep Pint Index logic unchanged and replace only its empty-state markup and copy.
 
 **Tech Stack:** Next.js 16 App Router, React 19, TypeScript, CSS, Vitest, Chrome DevTools browser QA
 
@@ -33,7 +33,7 @@
 
 - [x] **Step 1: Write failing render regression**
 
-Render `MenuCategoryGrid` with no tiles and an `onAddDrink` callback. Assert that the contribution button renders.
+Render `MenuCategoryGrid` with only a food link and an `onAddDrink` callback. Assert that the unavailable-drinks line and contribution button render beside the working food link.
 
 - [x] **Step 2: Run test to verify it fails**
 

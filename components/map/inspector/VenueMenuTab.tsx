@@ -56,8 +56,7 @@ export default function VenueMenuTab({
     [venue, foodUpdates],
   );
   const hubTiles = useMemo(() => menuHubTiles(venue, menuDrinks), [venue, menuDrinks]);
-  // Menu hub → drinks deep-dive (Greene King–style Menus grid, alcohol-first).
-  // Reset when the venue changes so a drill-in never leaks across venues.
+  // Reset when the venue changes so a drinks drill-in never leaks across venues.
   type MenuView =
     | { mode: "hub" }
     | { mode: "drinks"; category?: DrinkCategory };
