@@ -37,7 +37,9 @@ The desktop cluster donut already showed its known price mix at zoom 11.2. Indiv
 - Numbered dark circle: crawl stop.
 - Solid route line: walking route along roads.
 - Dashed route line: straight estimate while a road route is unavailable.
+- Broad translucent line: corridor joining the landmarks in the selected place story.
 - No-alcohol view: no separate pin shape. Alcohol-free or soft-drink price sets the band; missing price stays grey.
+- Food view: sourced menu prices stay on venue cards and sheets. Food pins and clusters stay grey.
 - Confirmed community price: no separate map badge. Two independent drinkers must agree within the policy window before the figure can affect map colour. Its dated badge lives on the pub sheet.
 
 ## Similar marks with different meanings
@@ -46,6 +48,7 @@ The desktop cluster donut already showed its known price mix at zoom 11.2. Indiv
 - Amber point with a blue halo means an Events overlay suggestion. Amber ring means quiz tonight.
 - Thin brass ring means a public-listing source. Single brass selection ring means a selected UK base pub. Double brass ring means a selected curated pub.
 - Desktop split clusters show price mix. Solid fallback clusters show one dominant known band.
+- A crisp solid route follows roads. A broad translucent corridor joins place-story landmarks.
 - A confirmed community figure changes the ordinary price band. It does not add a confirmed badge to the map.
 - No-alcohol view changes price meaning but adds no distinct pin shape.
 
@@ -54,7 +57,9 @@ The desktop cluster donut already showed its known price mix at zoom 11.2. Indiv
 Before:
 
 - [Desktop dark, 1440 by 900](before-desktop-dark.png)
+- [Desktop light, 1440 by 900](before-desktop-light.png)
 - [Phone dark, 390 by 844 at 3x](before-mobile-dark.png)
+- [Phone light, 390 by 844 at 3x](before-mobile-light.png)
 
 After, map key open:
 

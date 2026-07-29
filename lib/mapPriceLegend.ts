@@ -24,8 +24,23 @@ export type MapPriceLegendModel = {
   noAlcoholNote: string;
 };
 
+export type MapPriceLegendContext =
+  | {
+      kind: "default";
+      hasTypeRelativePrices: boolean;
+    }
+  | {
+      kind: "drink";
+      label: string;
+      noun: string;
+      status: CategoryPriceIndexStatus;
+    }
+  | {
+      kind: "food";
+    };
+
 const CLUSTER_NOTE =
-  "A split cluster ring shows the mix of price bands inside it. A solid cluster uses the most common known price band. The number is every pub in the cluster.";
+  "A split cluster ring shows the mix of price bands inside it. A solid cluster uses the most common known price band. Grey means none has a known map price. The number is every pub in the cluster.";
 
 const MAP_SHAPES: MapKeyEntry[] = [
   {
@@ -111,6 +126,11 @@ const ROUTE_MARKS: MapKeyEntry[] = [
     label: "Dashed line",
     detail: "Straight estimate while a road route is unavailable.",
   },
+  {
+    id: "story-corridor",
+    label: "Broad translucent line",
+    detail: "Corridor joining the landmarks in the place story you chose.",
+  },
 ];
 
 const NO_ALCOHOL_NOTE =
@@ -187,29 +207,41 @@ function drinkHint(drink: string, status: CategoryPriceIndexStatus): string {
 }
 
 export function mapPriceLegend(
-  hasTypeRelativePrices: boolean,
-  drinkLabel?: string,
-  drinkIndexStatus: CategoryPriceIndexStatus = "ready",
-  drinkNoun?: string,
+  context: MapPriceLegendContext,
 ): MapPriceLegendModel {
-  if (drinkLabel) {
-    const drink = (drinkNoun ?? drinkLabel).toLowerCase();
-    const unreadable = drinkIndexStatus === "degraded";
+  if (context.kind === "food") {
+    return withMapKey({
+      rows: [
+        {
+          label: "Food pins and clusters stay grey",
+          symbol: "?",
+          tone: "grey",
+        },
+      ],
+      ariaLabel: "Food map key: pins and clusters do not show prices",
+      title: "Food view",
+      hint:
+        "Pins and clusters stay grey. Any sourced menu prices stay on venue cards and sheets.",
+    });
+  }
+  if (context.kind === "drink") {
+    const drink = context.noun.toLowerCase();
+    const unreadable = context.status === "degraded";
     const rows = priceRows(drink);
     return withMapKey({
       // A failed category read leaves every pin in the unknown band, so keep
       // that row and drop only the bands no pin can currently wear.
       rows: unreadable ? rows.slice(-1) : rows,
       ariaLabel: unreadable
-        ? `${drinkLabel} price colour key, unavailable`
-        : `${drinkLabel} price colour key`,
+        ? `${context.label} price colour key, unavailable`
+        : `${context.label} price colour key`,
       title: unreadable
-        ? `${drinkLabel} prices unavailable`
-        : `${drinkLabel} price bands`,
-      hint: drinkHint(drink, drinkIndexStatus),
+        ? `${context.label} prices unavailable`
+        : `${context.label} price bands`,
+      hint: drinkHint(drink, context.status),
     });
   }
-  if (!hasTypeRelativePrices) {
+  if (!context.hasTypeRelativePrices) {
     return withMapKey({
       rows: priceRows("pint"),
       ariaLabel: "Pint price key and filters",

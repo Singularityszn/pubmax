@@ -21,10 +21,17 @@ export default function MobilePriceChoices({
   onMaxPriceChange: (price: number) => void;
 }) {
   const legend = mapPriceLegend(
-    hasTypeRelativePrices,
-    drinkLabel,
-    drinkIndexStatus,
-    drinkNoun,
+    drinkLabel
+      ? {
+          kind: "drink",
+          label: drinkLabel,
+          noun: drinkNoun ?? drinkLabel,
+          status: drinkIndexStatus,
+        }
+      : {
+          kind: "default",
+          hasTypeRelativePrices,
+        },
   );
   return (
     <>

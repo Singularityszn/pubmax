@@ -1184,6 +1184,21 @@ export default function PubMap({
       : experienceLens === "food"
         ? "Food"
         : null;
+  const activePriceLegend = mapPriceLegend(
+    experienceLens === "food"
+      ? { kind: "food" }
+      : activeLensLabel && activeLensNoun
+        ? {
+            kind: "drink",
+            label: activeLensLabel,
+            noun: activeLensNoun,
+            status: drinkIndexStatus,
+          }
+        : {
+            kind: "default",
+            hasTypeRelativePrices,
+          },
+  );
   const experienceSummary = useMemo(() => {
     if (experienceLens === "all") return "";
     let noAlcoholPriceCount = 0;
@@ -2663,17 +2678,16 @@ export default function PubMap({
         <SiteNav
           active="map"
           mobileMapUtility={
-            experienceLens === "all" ? (
-              <MapPriceControl
-                placement="header"
-                filters={filters}
-                onFiltersChange={setFilters}
-                hasTypeRelativePrices={hasTypeRelativePrices}
-                drinkLabel={activeLensLabel ?? undefined}
-                drinkNoun={activeLensNoun ?? undefined}
-                drinkIndexStatus={drinkIndexStatus}
-              />
-            ) : undefined
+            <MapPriceControl
+              placement="header"
+              filters={filters}
+              onFiltersChange={setFilters}
+              legend={activePriceLegend}
+              lensLabel={activeLensLabel ?? undefined}
+              priceFiltersEnabled={
+                experienceLens === "all" && activeLensLabel === null
+              }
+            />
           }
         />
       ) : null}
@@ -2900,15 +2914,16 @@ export default function PubMap({
         ) : null}
         {/* Desktop keeps price controls at bottom left. Phones use the existing
             More sheet, leaving top chrome unchanged. */}
-        {!mobileViewport && experienceLens === "all" ? (
+        {!mobileViewport ? (
           <MapPriceControl
             placement="map"
             filters={filters}
             onFiltersChange={setFilters}
-            hasTypeRelativePrices={hasTypeRelativePrices}
-            drinkLabel={activeLensLabel ?? undefined}
-            drinkNoun={activeLensNoun ?? undefined}
-            drinkIndexStatus={drinkIndexStatus}
+            legend={activePriceLegend}
+            lensLabel={activeLensLabel ?? undefined}
+            priceFiltersEnabled={
+              experienceLens === "all" && activeLensLabel === null
+            }
           />
         ) : null}
 
@@ -3087,14 +3102,7 @@ export default function PubMap({
                 <TabsTrigger value="transit">Transit</TabsTrigger>
               </TabsList>
               <TabsContent value="key" className="mobileLayersPanel">
-                <MapKey
-                  legend={mapPriceLegend(
-                    hasTypeRelativePrices,
-                    activeLensLabel ?? undefined,
-                    drinkIndexStatus,
-                    activeLensNoun ?? undefined,
-                  )}
-                />
+                <MapKey legend={activePriceLegend} />
               </TabsContent>
               <TabsContent value="layers" className="mobileLayersPanel">
                 <div className="mobileLayerShortcuts">

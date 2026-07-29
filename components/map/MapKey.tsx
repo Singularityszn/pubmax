@@ -4,7 +4,6 @@ import {
   ForkKnife,
   Landmark,
   Martini,
-  Route,
   Utensils,
 } from "lucide-react";
 
@@ -41,8 +40,8 @@ function EntryList({
           >
             {markerKind === "shape" ? (
               <ShapeIcon id={entry.id} />
-            ) : markerKind === "route" ? (
-              <Route size={18} />
+            ) : markerKind === "route" && entry.id === "crawl-stop" ? (
+              <span className="mapKeyRouteStopNumber">1</span>
             ) : null}
           </span>
           <span>

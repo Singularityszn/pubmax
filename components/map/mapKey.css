@@ -250,6 +250,32 @@
   color: var(--brass-bright);
 }
 
+.mapKeyMarker--walking-route::before {
+  width: 24px;
+  height: 3px;
+  border-radius: 999px;
+  background: var(--brass-bright);
+  box-shadow: 0 0 0 1px var(--panel-raised);
+  content: "";
+}
+
+.mapKeyMarker--straight-route::before {
+  width: 24px;
+  height: 0;
+  border-top: 3px dashed var(--brass-bright);
+  content: "";
+}
+
+.mapKeyMarker--story-corridor::before {
+  width: 24px;
+  height: 12px;
+  border-radius: 999px;
+  background: var(--brass);
+  content: "";
+  filter: blur(2px);
+  opacity: 0.38;
+}
+
 html[data-theme="dark"] .mapKeyPriceSwatch--grey {
   background: color-mix(in srgb, var(--muted) 78%, transparent);
 }
@@ -260,8 +286,11 @@ html[data-theme="dark"] .mapKeyPriceSwatch--grey {
   background: var(--ink-deep);
 }
 
-.mapKeyMarker--straight-route {
-  opacity: 0.64;
+.mapKeyRouteStopNumber {
+  color: var(--paper);
+  font-size: 0.64rem;
+  font-weight: 850;
+  line-height: 1;
 }
 
 .mapKeyNote {

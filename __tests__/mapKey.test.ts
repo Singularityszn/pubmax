@@ -1,4 +1,6 @@
 import { createElement } from "react";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 
@@ -7,7 +9,12 @@ import { mapPriceLegend } from "@/lib/mapPriceLegend";
 
 describe("MapKey", () => {
   const html = renderToStaticMarkup(
-    createElement(MapKey, { legend: mapPriceLegend(false) }),
+    createElement(MapKey, {
+      legend: mapPriceLegend({
+        kind: "default",
+        hasTypeRelativePrices: false,
+      }),
+    }),
   );
 
   it("pairs every colour band with a symbol and visible price text", () => {
@@ -34,5 +41,24 @@ describe("MapKey", () => {
     expect(html).toContain("<summary>Pin shapes</summary>");
     expect(html).toContain("<summary>Dots and rings</summary>");
     expect(html).toContain("<summary>Routes</summary>");
+    expect(html).toContain("Broad translucent line");
+    expect(html).toContain("place story you chose");
+  });
+
+  it("draws routed, estimated, and story lines as different marks", () => {
+    const css = readFileSync(
+      join(process.cwd(), "components/map/mapKey.css"),
+      "utf8",
+    );
+
+    expect(css).toMatch(
+      /\.mapKeyMarker--walking-route::before\s*{[^}]*height:\s*3px/,
+    );
+    expect(css).toMatch(
+      /\.mapKeyMarker--straight-route::before\s*{[^}]*border-top:\s*3px dashed/,
+    );
+    expect(css).toMatch(
+      /\.mapKeyMarker--story-corridor::before\s*{[^}]*height:\s*12px[^}]*filter:\s*blur\(2px\)/,
+    );
   });
 });
