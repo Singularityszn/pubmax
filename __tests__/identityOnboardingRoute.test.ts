@@ -57,22 +57,20 @@ describe("/api/identity/onboarding", () => {
     expect(await response.json()).toEqual({ complete: false });
   });
 
-  it("requires a valid date of birth to finish signup", async () => {
+  it("finishes signup with handle alone", async () => {
     authState.userId = "user-1";
-    const response = await POST(
-      request("POST", { handle: "night_owl", dateOfBirth: "" }),
-    );
-    expect(response.status).toBe(400);
-    expect(await response.json()).toMatchObject({
-      code: "invalid",
-      error: "Add a valid date of birth.",
+    const response = await POST(request("POST", { handle: "night_owl" }));
+    expect(response.status).toBe(201);
+    expect(await response.json()).toEqual({
+      complete: true,
+      handle: "night_owl",
     });
   });
 
   it("distinguishes reserved handles from taken handles", async () => {
     authState.userId = "user-1";
     let response = await POST(
-      request("POST", { handle: "karan", dateOfBirth: "1990-01-01" }),
+      request("POST", { handle: "karan" }),
     );
     expect(response.status).toBe(400);
     expect(await response.json()).toMatchObject({
@@ -82,7 +80,7 @@ describe("/api/identity/onboarding", () => {
 
     await memoryProfileStore.linkUser("night_owl", "user-other");
     response = await POST(
-      request("POST", { handle: "night_owl", dateOfBirth: "1990-01-01" }),
+      request("POST", { handle: "night_owl" }),
     );
     expect(response.status).toBe(409);
     expect(await response.json()).toMatchObject({
@@ -130,7 +128,6 @@ describe("/api/identity/onboarding", () => {
     const response = await POST(
       request("POST", {
         handle: "old_timer",
-        dateOfBirth: "2010-07-29",
         fullName: "Nina Example",
         sex: "female",
       }),
@@ -139,7 +136,6 @@ describe("/api/identity/onboarding", () => {
     expect(await response.json()).toEqual({
       complete: true,
       handle: "old_timer",
-      dateOfBirth: "2010-07-29",
       fullName: "Nina Example",
       sex: "female",
     });
@@ -151,7 +147,6 @@ describe("/api/identity/onboarding", () => {
     expect(await status.json()).toEqual({
       complete: true,
       handle: "old_timer",
-      dateOfBirth: "2010-07-29",
       fullName: "Nina Example",
       sex: "female",
     });
@@ -162,7 +157,6 @@ describe("/api/identity/onboarding", () => {
     await POST(
       request("POST", {
         handle: "night_person",
-        dateOfBirth: "1990-01-01",
         fullName: "Old Name",
         sex: "female",
       }),
@@ -170,7 +164,6 @@ describe("/api/identity/onboarding", () => {
 
     const response = await PATCH(
       request("PATCH", {
-        dateOfBirth: "1991-02-03",
         fullName: "New Name",
         sex: "",
       }),
@@ -179,7 +172,6 @@ describe("/api/identity/onboarding", () => {
     expect(await response.json()).toEqual({
       complete: true,
       handle: "night_person",
-      dateOfBirth: "1991-02-03",
       fullName: "New Name",
     });
   });

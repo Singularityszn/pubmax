@@ -318,6 +318,9 @@ const MAX_STRING_LEN = 40;
 const CONTRIBUTION_GATE_STEPS = [
   "sign_in_required",
   "onboarding_required",
+  "age_assessment_required",
+  "age_assessment_passed",
+  "age_restricted",
 ] as const;
 
 const SAFE_STRING_VALUES = new Set([

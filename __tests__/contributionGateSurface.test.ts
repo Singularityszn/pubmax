@@ -22,11 +22,24 @@ describe("contribution identity gate", () => {
     expect(render("sign_in_required")).toContain("Sign in to contribute");
   });
 
-  it("routes incomplete accounts back to profile setup without age blocking", () => {
+  it("routes incomplete accounts back to handle setup", () => {
     const html = render("onboarding_required");
     expect(html).toContain("Finish account setup");
-    expect(html).toContain("private date of birth");
-    expect(html).not.toContain("18 or over");
+    expect(html).toContain("public handle");
+    expect(html).not.toContain("date of birth");
+  });
+
+  it("asks for date of birth only at first contribution", () => {
+    const html = render("age_assessment_required");
+    expect(html).toContain("Confirm you’re 18 or over");
+    expect(html).toContain('type="date"');
+    expect(html).toContain("discard");
+  });
+
+  it("explains under-18 blocking plainly", () => {
+    const html = render("age_restricted");
+    expect(html).toContain("You can’t contribute yet");
+    expect(html).toContain("under 18");
     expect(html).not.toContain('type="date"');
   });
 });

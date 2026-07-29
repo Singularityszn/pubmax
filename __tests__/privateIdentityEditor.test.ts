@@ -6,31 +6,27 @@ import { PrivateIdentityEditorForm } from "@/components/identity/PrivateIdentity
 import { loadPrivateIdentity } from "@/lib/privateIdentityClient";
 
 describe("private identity editor", () => {
-  it("keeps date of birth required and optional fields private", () => {
+  it("keeps optional identity fields private", () => {
     const html = renderToStaticMarkup(
       createElement(PrivateIdentityEditorForm, {
         fullName: "",
-        dateOfBirth: "2000-01-02",
         sex: "",
         saving: false,
         saveEnabled: true,
         message: "",
         onRetryLoad: null,
         onFullNameChange: () => {},
-        onDateOfBirthChange: () => {},
         onSexChange: () => {},
         onSubmit: () => {},
       }),
     );
 
     expect(html).toContain("Full name");
-    expect(html).toContain("Date of birth");
-    expect(html).toContain('type="date"');
-    expect(html).toContain("required");
+    expect(html).not.toContain("Date of birth");
     expect(html).toContain("Sex");
     expect(html.match(/Optional/g)).toHaveLength(2);
     expect(html).toContain("Only your handle is public");
-    expect(html).toContain("product analytics and social features");
+    expect(html).toContain("optional details stay private");
   });
 
   it("keeps save disabled and offers retry after a failed load", async () => {
@@ -51,14 +47,12 @@ describe("private identity editor", () => {
     const html = renderToStaticMarkup(
       createElement(PrivateIdentityEditorForm, {
         fullName: "",
-        dateOfBirth: "",
         sex: "",
         saving: false,
         saveEnabled: false,
         message: result.error,
         onRetryLoad: () => {},
         onFullNameChange: () => {},
-        onDateOfBirthChange: () => {},
         onSexChange: () => {},
         onSubmit: () => {},
       }),

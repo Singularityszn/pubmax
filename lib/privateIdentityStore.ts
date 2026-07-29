@@ -1,6 +1,6 @@
 import { identityHandleStore } from "@/lib/identityHandleStore";
 import {
-  cleanDateOfBirth,
+  assessContributionAge,
   PRIVATE_IDENTITY_SEX_VALUES,
   type PrivateIdentitySex,
 } from "@/lib/privateIdentity";
@@ -16,7 +16,8 @@ export {
 } from "@/lib/privateIdentity";
 
 export type PrivateIdentityRecord = {
-  dateOfBirth: string;
+  adultConfirmed?: true;
+  contributionEligibleFrom?: string;
   fullName?: string;
   sex?: PrivateIdentitySex;
   createdAt: string;
@@ -26,7 +27,6 @@ export type PrivateIdentityRecord = {
 export type CompleteOnboardingInput = {
   userId: string;
   handle: string;
-  dateOfBirth: unknown;
   fullName?: unknown;
   sex?: unknown;
 };
@@ -54,8 +54,18 @@ export type PrivateIdentityStore = {
   erase(userId: string): Promise<void>;
   updateDetails(
     userId: string,
-    details: { dateOfBirth?: unknown; fullName?: unknown; sex?: unknown },
+    details: { fullName?: unknown; sex?: unknown },
   ): Promise<PrivateIdentityRecord | null>;
+  assessContributionAge(
+    userId: string,
+    dateOfBirth: unknown,
+    now?: number,
+  ): Promise<
+    | { status: "adult" }
+    | { status: "underage"; eligibleFrom: string }
+    | { status: "invalid" }
+    | { status: "missing" }
+  >;
   completeOnboarding(
     input: CompleteOnboardingInput,
   ): Promise<CompleteOnboardingResult>;
@@ -82,7 +92,10 @@ function cleanSex(value: unknown): PrivateIdentitySex | undefined {
 
 function fromRow(row: Record<string, unknown>): PrivateIdentityRecord {
   return {
-    dateOfBirth: String(row.date_of_birth ?? ""),
+    ...(row.adult_confirmed === true ? { adultConfirmed: true as const } : {}),
+    ...(typeof row.contribution_eligible_from === "string"
+      ? { contributionEligibleFrom: row.contribution_eligible_from }
+      : {}),
     ...(typeof row.full_name === "string" && row.full_name
       ? { fullName: row.full_name }
       : {}),
@@ -135,14 +148,8 @@ export const memoryPrivateIdentityStore: PrivateIdentityStore = {
     const profile = key ? await profileStore().getByUserId(key) : null;
     const previous = key ? memoryPrivateIdentities.get(key) : null;
     if (!profile || !previous) return null;
-    const dateOfBirth =
-      "dateOfBirth" in details
-        ? cleanDateOfBirth(details.dateOfBirth)
-        : previous.dateOfBirth;
-    if (!dateOfBirth) return null;
     const record: PrivateIdentityRecord = {
       ...previous,
-      dateOfBirth,
       updatedAt: new Date().toISOString(),
     };
     if ("fullName" in details) {
@@ -159,14 +166,39 @@ export const memoryPrivateIdentityStore: PrivateIdentityStore = {
     return record;
   },
 
+  async assessContributionAge(userId, dateOfBirth, now = Date.now()) {
+    const key = cleanUserId(userId);
+    const previous = key ? memoryPrivateIdentities.get(key) : null;
+    if (!previous) return { status: "missing" };
+    if (previous.adultConfirmed) return { status: "adult" };
+    if (previous.contributionEligibleFrom) {
+      return {
+        status: "underage",
+        eligibleFrom: previous.contributionEligibleFrom,
+      };
+    }
+    const assessment = assessContributionAge(dateOfBirth, now);
+    if (assessment.status === "invalid") return assessment;
+    const updated: PrivateIdentityRecord = {
+      ...previous,
+      ...(assessment.status === "adult"
+        ? { adultConfirmed: true as const }
+        : { contributionEligibleFrom: assessment.eligibleFrom }),
+      updatedAt: new Date(now).toISOString(),
+    };
+    if (assessment.status === "adult") {
+      delete updated.contributionEligibleFrom;
+    } else {
+      delete updated.adultConfirmed;
+    }
+    memoryPrivateIdentities.set(key, updated);
+    return assessment;
+  },
+
   async completeOnboarding(input) {
     const userId = cleanUserId(input.userId);
     const assessment = assessPubmaxxHandle(input.handle);
-    const dateOfBirth = cleanDateOfBirth(input.dateOfBirth);
     if (!userId) return claimError("storage", null);
-    if (!dateOfBirth) {
-      return claimError("invalid", "Add a valid date of birth.");
-    }
     if (!assessment.ok) return claimError(assessment.reason, assessment.error);
     const claimed = await identityHandleStore().claim(userId, assessment.handle);
     if (!claimed.ok) return claimError(claimed.code, claimed.error);
@@ -175,7 +207,6 @@ export const memoryPrivateIdentityStore: PrivateIdentityStore = {
     const previous = memoryPrivateIdentities.get(userId);
     const privateIdentity: PrivateIdentityRecord = {
       ...(previous ?? {}),
-      dateOfBirth,
       ...(cleanFullName(input.fullName)
         ? { fullName: cleanFullName(input.fullName) }
         : {}),
@@ -227,14 +258,10 @@ export const supabasePrivateIdentityStore: PrivateIdentityStore = {
     if (!current) return null;
     const row: Record<string, unknown> = {
       user_id: key,
-      date_of_birth: current.dateOfBirth,
+      adult_confirmed: current.adultConfirmed ?? null,
+      contribution_eligible_from: current.contributionEligibleFrom ?? null,
       updated_at: new Date().toISOString(),
     };
-    if ("dateOfBirth" in details) {
-      const dateOfBirth = cleanDateOfBirth(details.dateOfBirth);
-      if (!dateOfBirth) return null;
-      row.date_of_birth = dateOfBirth;
-    }
     if ("fullName" in details) {
       row.full_name = cleanFullName(details.fullName) ?? null;
     }
@@ -251,21 +278,43 @@ export const supabasePrivateIdentityStore: PrivateIdentityStore = {
     return updated ? fromRow(updated as Record<string, unknown>) : null;
   },
 
+  async assessContributionAge(userId, dateOfBirth, now = Date.now()) {
+    const key = cleanUserId(userId);
+    const current = key ? await this.read(key) : null;
+    if (!current) return { status: "missing" };
+    if (current.adultConfirmed) return { status: "adult" };
+    if (current.contributionEligibleFrom) {
+      return {
+        status: "underage",
+        eligibleFrom: current.contributionEligibleFrom,
+      };
+    }
+    const assessment = assessContributionAge(dateOfBirth, now);
+    if (assessment.status === "invalid") return assessment;
+    const row = {
+      user_id: key,
+      adult_confirmed: assessment.status === "adult" ? true : null,
+      contribution_eligible_from:
+        assessment.status === "underage" ? assessment.eligibleFrom : null,
+      updated_at: new Date(now).toISOString(),
+    };
+    const { error } = await requireSupabaseAdmin()
+      .from(TABLE)
+      .upsert(row, { onConflict: "user_id" });
+    if (error) throw new Error(error.message);
+    return assessment;
+  },
+
   async completeOnboarding(input) {
     const userId = cleanUserId(input.userId);
     const assessment = assessPubmaxxHandle(input.handle);
-    const dateOfBirth = cleanDateOfBirth(input.dateOfBirth);
     if (!userId) return claimError("storage", null);
-    if (!dateOfBirth) {
-      return claimError("invalid", "Add a valid date of birth.");
-    }
     if (!assessment.ok) return claimError(assessment.reason, assessment.error);
     const { data, error } = await requireSupabaseAdmin().rpc(
       "complete_contributor_onboarding",
       {
         p_user_id: userId,
         p_handle: assessment.handle,
-        p_date_of_birth: dateOfBirth,
         p_full_name: cleanFullName(input.fullName) ?? null,
         p_sex: cleanSex(input.sex) ?? null,
       },

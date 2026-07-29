@@ -595,17 +595,18 @@ commit.
 
 - **Routes / methods:** `POST` and `PATCH` on
   `app/api/identity/onboarding/route.ts` claim an account-owned handle and edit
-  the required private date of birth plus optional private full name and sex.
-  Its sibling GET is read-only.
+  the public handle plus optional private full name and sex. Its sibling GET is
+  read-only. `POST /api/identity/contribution-age` performs the one-time age
+  assessment immediately before the first gated contribution.
 - **Authority:** every method derives the account from a verified Supabase JWT
   through `callerUserId`. Missing authority returns 401 before any read or
   write. Handle ownership is enforced transactionally by
   `complete_contributor_onboarding`; reserved handles are rejected by shared
   code policy.
-- **Privacy:** date of birth, full name and sex stay in the private account
-  table and are not returned by public profile routes. Date of birth is
-  required at signup; full name and sex are optional. None of these fields
-  blocks contribution at any age.
+- **Privacy:** full name, sex and derived contribution eligibility stay in the
+  private account table and are not returned by public profile routes. Date of
+  birth is discarded after assessment. The store retains only adult
+  confirmation or the date an under-18 account becomes eligible.
 
 ## Certification command
 

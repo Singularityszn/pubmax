@@ -70,9 +70,10 @@ export default function TermsPage() {
       <section className="legalSection" aria-labelledby="age">
         <h2 id="age" className="legalH2">Age and alcohol</h2>
         <p className="legalBody">
-          PUBMAXX does not block accounts or contributions based on age. Pubs
-          decide who they serve. Nothing in the app is designed to encourage
-          you to drink more. Know your limits, and know the facts at{" "}
+          Anyone can browse and make an account. People under 18 cannot
+          contribute prices or venue signals. Pubs decide who they serve.
+          Nothing in the app is designed to encourage you to drink more. Know
+          your limits, and know the facts at{" "}
           <a
             href="https://www.drinkaware.co.uk"
             target="_blank"
@@ -96,15 +97,17 @@ export default function TermsPage() {
           screen size, referrer and campaign details, plus app performance and
           the closed product events described in our privacy notice. PostHog
           deletes analytics events 12 months after collection and pseudonymous
-          person and device records 12 months after their last activity. If you
-          make an account, you must provide a date of birth and may provide a
-          full name and sex. We keep these private, use them for product
-          retain date of birth until you delete your profile. Optional full name
-          and sex stay until you edit or clear them. Deleting your profile
-          removes all three private identity fields and clears its editable
-          public details, while keeping your authentication account, public
-          handle and handle-keyed contribution history. They do not block any
-          feature at any age. Only your handle is public.
+          person and device records 12 months after their last activity. Handle
+          alone is required to finish signup. Full name and sex are optional
+          private details. We ask for date of birth only immediately before your
+          first price or venue-signal contribution, assess it, then discard the
+          date of birth. We retain only an adult confirmation or the date an
+          under-18 account becomes eligible. Optional full name and sex stay
+          until you edit or clear them. Deleting your profile removes these
+          private identity fields and clears its editable public details, while
+          keeping your authentication account, public handle and handle-keyed
+          contribution history. People under 18 cannot contribute. Only your
+          handle is public.
           Keep your sign-in to yourself, use a handle that isn&rsquo;t someone
           else&rsquo;s identity, and don&rsquo;t hand the account to anyone
           else. You can stop using it whenever you like, and ask us to delete

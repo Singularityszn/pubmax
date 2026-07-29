@@ -89,6 +89,32 @@ describe("community price client state", () => {
       error: "Could not log.",
       reason: "rejected",
     });
+    expect(
+      rejectedCommunitySubmission(
+        409,
+        "Confirm age.",
+        "Could not log.",
+        "age_assessment_required",
+      ),
+    ).toEqual({
+      ok: false,
+      error: "Confirm age.",
+      reason: "rejected",
+      status: "age_assessment_required",
+    });
+    expect(
+      rejectedCommunitySubmission(
+        403,
+        "Not yet.",
+        "Could not log.",
+        "age_restricted",
+      ),
+    ).toEqual({
+      ok: false,
+      error: "Not yet.",
+      reason: "rejected",
+      status: "age_restricted",
+    });
   });
 
   it("trusts only a server-confirmed contributor attribution", () => {

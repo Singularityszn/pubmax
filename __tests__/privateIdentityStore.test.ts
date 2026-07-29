@@ -17,19 +17,10 @@ beforeEach(() => {
 });
 
 describe("private identity store", () => {
-  it("requires and stores a private date of birth at onboarding", async () => {
-    await expect(
-      memoryPrivateIdentityStore.completeOnboarding({
-        userId: "user-1",
-        handle: "night_owl",
-        dateOfBirth: "",
-      }),
-    ).resolves.toMatchObject({ ok: false, code: "invalid" });
-
+  it("finishes onboarding with handle alone and optional private details", async () => {
     const result = await memoryPrivateIdentityStore.completeOnboarding({
       userId: "user-1",
       handle: "night_owl",
-      dateOfBirth: "2015-07-29",
       fullName: "Night Owl",
       sex: "prefer_not_to_say",
     });
@@ -38,25 +29,76 @@ describe("private identity store", () => {
       ok: true,
       handle: "night_owl",
       privateIdentity: {
-        dateOfBirth: "2015-07-29",
         fullName: "Night Owl",
         sex: "prefer_not_to_say",
       },
     });
+    expect(JSON.stringify(result)).not.toContain("dateOfBirth");
   });
 
-  it("accepts every valid age and keeps only the handle public", async () => {
-    const result = await memoryPrivateIdentityStore.completeOnboarding({
+  it("discards an adult date of birth after retaining eligibility", async () => {
+    await memoryPrivateIdentityStore.completeOnboarding({
+      userId: "user-adult",
+      handle: "adult_person",
+    });
+    await expect(
+      memoryPrivateIdentityStore.assessContributionAge(
+        "user-adult",
+        "1990-01-01",
+        Date.UTC(2026, 6, 29),
+      ),
+    ).resolves.toEqual({ status: "adult" });
+    const stored = await memoryPrivateIdentityStore.read("user-adult");
+    expect(stored).toMatchObject({ adultConfirmed: true });
+    expect(JSON.stringify(stored)).not.toContain("1990-01-01");
+    expect(JSON.stringify(stored)).not.toContain("dateOfBirth");
+  });
+
+  it("retains only the date an under-18 account becomes eligible", async () => {
+    await memoryPrivateIdentityStore.completeOnboarding({
       userId: "user-young",
       handle: "young_person",
-      dateOfBirth: "2020-01-01",
     });
-    expect(result).toMatchObject({ ok: true });
-    await expect(memoryPrivateIdentityStore.read("user-young")).resolves.toMatchObject({
-      dateOfBirth: "2020-01-01",
+    await expect(
+      memoryPrivateIdentityStore.assessContributionAge(
+        "user-young",
+        "2020-01-01",
+        Date.UTC(2026, 6, 29),
+      ),
+    ).resolves.toEqual({
+      status: "underage",
+      eligibleFrom: "2038-01-01",
     });
+    const stored = await memoryPrivateIdentityStore.read("user-young");
+    expect(stored).toMatchObject({ contributionEligibleFrom: "2038-01-01" });
+    expect(JSON.stringify(stored)).not.toContain("2020-01-01");
     await expect(memoryIdentityHandleStore.resolve("young_person")).resolves.toMatchObject({
       currentHandle: "young_person",
+    });
+  });
+
+  it("does not replace a completed age assessment", async () => {
+    await memoryPrivateIdentityStore.completeOnboarding({
+      userId: "user-locked",
+      handle: "locked_person",
+    });
+    await memoryPrivateIdentityStore.assessContributionAge(
+      "user-locked",
+      "2020-01-01",
+      Date.UTC(2026, 6, 29),
+    );
+    await expect(
+      memoryPrivateIdentityStore.assessContributionAge(
+        "user-locked",
+        "1990-01-01",
+        Date.UTC(2026, 6, 29),
+      ),
+    ).resolves.toEqual({
+      status: "underage",
+      eligibleFrom: "2038-01-01",
+    });
+    await expect(memoryPrivateIdentityStore.read("user-locked")).resolves.toMatchObject({
+      contributionEligibleFrom: "2038-01-01",
     });
   });
 
@@ -64,16 +106,13 @@ describe("private identity store", () => {
     await memoryPrivateIdentityStore.completeOnboarding({
       userId: "user-1",
       handle: "night_owl",
-      dateOfBirth: "1990-01-01",
     });
     await expect(
       memoryPrivateIdentityStore.updateDetails("user-1", {
-        dateOfBirth: "1991-02-03",
         fullName: "Night Owl",
         sex: "female",
       }),
     ).resolves.toMatchObject({
-      dateOfBirth: "1991-02-03",
       fullName: "Night Owl",
       sex: "female",
     });

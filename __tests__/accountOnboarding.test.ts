@@ -22,14 +22,12 @@ function render(
   return renderToStaticMarkup(
     createElement(AccountOnboardingForm, {
       handle: "night_owl",
-      dateOfBirth: "2000-01-02",
       fullName: "",
       sex: "",
       availability,
       busy: false,
       error: null,
       onHandleChange: noop,
-      onDateOfBirthChange: noop,
       onFullNameChange: noop,
       onSexChange: noop,
       onSubmit: noop,
@@ -39,15 +37,11 @@ function render(
 }
 
 describe("account onboarding surface", () => {
-  it("puts required handle and date of birth before optional details", () => {
+  it("requires only a public handle and keeps private details optional", () => {
     const html = render("idle");
-    expect(html.indexOf("Public handle")).toBeLessThan(
-      html.indexOf("Date of birth"),
-    );
-    expect(html.indexOf("Date of birth")).toBeLessThan(
-      html.indexOf("Full name"),
-    );
+    expect(html.indexOf("Public handle")).toBeLessThan(html.indexOf("Full name"));
     expect(html.indexOf("Full name")).toBeLessThan(html.indexOf("Sex"));
+    expect(html).not.toContain("Date of birth");
     expect(html).toContain("Optional");
     expect(html).toContain("Skip optional details");
     expect(html).toContain("Only your handle is public");
@@ -66,6 +60,13 @@ describe("account onboarding surface", () => {
     );
     expect(render("checking")).toContain("Checking");
     expect(render("checking")).toContain("disabled");
+  });
+
+  it("enables handle claim without collecting a date of birth", () => {
+    const html = render("available");
+    expect(html).toContain(">Claim handle</button>");
+    expect(html).not.toContain('disabled="">Claim handle');
+    expect(html).not.toContain('type="date"');
   });
 
   it("uses different copy for a taken handle and a reserved handle", () => {

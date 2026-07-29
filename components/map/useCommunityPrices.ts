@@ -57,7 +57,11 @@ export type CommunitySubmissionFailure = {
   ok: false;
   error: string;
   reason: PriceSubmitFailureReason;
-  status?: "sign_in_required" | "onboarding_required";
+  status?:
+    | "sign_in_required"
+    | "onboarding_required"
+    | "age_assessment_required"
+    | "age_restricted";
 };
 
 export type CommunityPriceSubmitResult =
@@ -75,16 +79,26 @@ export function rejectedCommunitySubmission(
   status: number,
   error: string | undefined,
   fallback: string,
+  gateStatus?: string,
 ): CommunitySubmissionFailure {
+  const contributionStatus =
+    gateStatus === "sign_in_required" ||
+    gateStatus === "onboarding_required" ||
+    gateStatus === "age_assessment_required" ||
+    gateStatus === "age_restricted"
+      ? gateStatus
+      : status === 401
+        ? "sign_in_required"
+        : status === 409
+          ? "onboarding_required"
+          : status === 403
+            ? "age_restricted"
+            : null;
   return {
     ok: false,
     error: error ?? fallback,
     reason: "rejected",
-    ...(status === 401
-      ? { status: "sign_in_required" as const }
-      : status === 409
-        ? { status: "onboarding_required" as const }
-        : {}),
+    ...(contributionStatus ? { status: contributionStatus } : {}),
   };
 }
 
@@ -953,7 +967,12 @@ export function useCommunityPrices(): CommunityPricesState {
           priceGbp,
         });
         const data = (await res.json().catch(() => null)) as
-          | { price?: CommunityPrice; attribution?: unknown; error?: string }
+          | {
+              price?: CommunityPrice;
+              attribution?: unknown;
+              error?: string;
+              status?: string;
+            }
           | null;
         if (!res.ok) {
           rollback();
@@ -961,6 +980,7 @@ export function useCommunityPrices(): CommunityPricesState {
             res.status,
             data?.error,
             "Could not log that price right now.",
+            data?.status,
           );
         }
         // Adopt the server's authoritative record: its timestamp, so the dated
@@ -1066,7 +1086,7 @@ export function useCommunityPrices(): CommunityPricesState {
           signalValue,
         });
         const data = (await response.json().catch(() => null)) as
-          | { signal?: CommunityVenueSignal; error?: string }
+          | { signal?: CommunityVenueSignal; error?: string; status?: string }
           | null;
         if (!response.ok) {
           rollback();
@@ -1074,6 +1094,7 @@ export function useCommunityPrices(): CommunityPricesState {
             response.status,
             data?.error,
             "Could not log that pub note right now.",
+            data?.status,
           );
         }
         const [stored] =

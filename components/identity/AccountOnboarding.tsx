@@ -32,14 +32,12 @@ type Availability =
 
 type AccountOnboardingFormProps = {
   handle: string;
-  dateOfBirth: string;
   fullName: string;
   sex: "" | PrivateIdentitySex;
   availability: Availability;
   busy: boolean;
   error: string | null;
   onHandleChange: (value: string) => void;
-  onDateOfBirthChange: (value: string) => void;
   onFullNameChange: (value: string) => void;
   onSexChange: (value: "" | PrivateIdentitySex) => void;
   onSubmit: () => void;
@@ -74,14 +72,12 @@ function availabilityCopy(availability: Availability): string | null {
 
 export function AccountOnboardingForm({
   handle,
-  dateOfBirth,
   fullName,
   sex,
   availability,
   busy,
   error,
   onHandleChange,
-  onDateOfBirthChange,
   onFullNameChange,
   onSexChange,
   onSubmit,
@@ -91,7 +87,6 @@ export function AccountOnboardingForm({
   const canSubmit =
     availability === "available" &&
     handle.trim().length > 0 &&
-    dateOfBirth.length > 0 &&
     !busy;
   return (
     <div className="accountOnboardingBackdrop" role="presentation">
@@ -135,18 +130,6 @@ export function AccountOnboardingForm({
           {status ?? "Letters, numbers and underscores."}
         </p>
 
-        <label className="accountOnboardingField">
-          <span>
-            Date of birth <strong>Required</strong>
-          </span>
-          <input
-            type="date"
-            value={dateOfBirth}
-            onChange={(event) => onDateOfBirthChange(event.target.value)}
-            autoComplete="bday"
-          />
-        </label>
-
         <div className="accountOnboardingOptional">
           <p>Optional private details</p>
           <label className="accountOnboardingField">
@@ -181,8 +164,8 @@ export function AccountOnboardingForm({
         </div>
 
         <p id="account-onboarding-privacy" className="accountOnboardingPrivacy">
-          Only your handle is public. Date of birth, full name and sex stay
-          private. We use them for product analytics and social features.
+          Only your handle is public. Full name and sex stay private and
+          optional. We use them for product analytics and social features.
         </p>
         {error ? (
           <p className="accountOnboardingError" role="alert">
@@ -272,7 +255,6 @@ function AccountOnboardingForUser({
     attempt: 0,
   }));
   const [handle, setHandle] = useState(suggestedHandle);
-  const [dateOfBirth, setDateOfBirth] = useState("");
   const [fullName, setFullName] = useState("");
   const [sex, setSex] = useState<"" | PrivateIdentitySex>("");
   const [availability, setAvailability] =
@@ -376,7 +358,6 @@ function AccountOnboardingForUser({
     async (includeOptional: boolean) => {
       if (
         !canSubmitCheckedHandle(handle, checkedHandle, availability) ||
-        !dateOfBirth ||
         busy
       ) {
         return;
@@ -392,7 +373,6 @@ function AccountOnboardingForUser({
             headers: { "content-type": "application/json" },
             body: JSON.stringify({
               handle,
-              dateOfBirth,
               ...(includeOptional && fullName.trim() ? { fullName } : {}),
               ...(includeOptional && sex ? { sex } : {}),
             }),
@@ -433,7 +413,7 @@ function AccountOnboardingForUser({
         if (active.current) setBusy(false);
       }
     },
-    [auth, availability, busy, checkedHandle, dateOfBirth, fullName, handle, sex],
+    [auth, availability, busy, checkedHandle, fullName, handle, sex],
   );
 
   if (status === "loading" || status === "complete") return null;
@@ -454,14 +434,12 @@ function AccountOnboardingForUser({
   return (
     <AccountOnboardingForm
       handle={handle}
-      dateOfBirth={dateOfBirth}
       fullName={fullName}
       sex={sex}
       availability={availability}
       busy={busy}
       error={error}
       onHandleChange={changeHandle}
-      onDateOfBirthChange={setDateOfBirth}
       onFullNameChange={setFullName}
       onSexChange={setSex}
       onSubmit={() => void submit(true)}

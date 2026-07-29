@@ -11,7 +11,6 @@ import {
 export type PrivateIdentityLoadResult =
   | {
       status: "ready";
-      dateOfBirth: string;
       fullName: string;
       sex: "" | PrivateIdentitySex;
     }
@@ -31,7 +30,6 @@ export async function loadPrivateIdentity(
     );
     const body = (await response.json().catch(() => ({}))) as {
       fullName?: unknown;
-      dateOfBirth?: unknown;
       sex?: unknown;
       error?: unknown;
     };
@@ -46,8 +44,6 @@ export async function loadPrivateIdentity(
     }
     return {
       status: "ready",
-      dateOfBirth:
-        typeof body.dateOfBirth === "string" ? body.dateOfBirth : "",
       fullName: typeof body.fullName === "string" ? body.fullName : "",
       sex:
         typeof body.sex === "string" &&

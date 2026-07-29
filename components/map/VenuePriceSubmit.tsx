@@ -34,8 +34,8 @@ import "./venuePriceSubmit.css";
 // Deliberately NOT the Pint Drop composer. That is the full social object - a
 // handle, photos, a note, a visibility lane, a destination. This is the
 // twenty-second version for the person at the bar: category, price, done. The
-// contribution gate asks for the signed account and public handle. Private date
-// of birth is already stored during signup, and no age gate follows this tap.
+// contribution gate asks for the signed account and public handle. On the first
+// gated write it also performs the one-time age assessment.
 //
 // Provenance is first-class, not decoration: the confirmation shows the price
 // with its own dated "today · community" badge, and the scraped/sourced

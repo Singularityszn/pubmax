@@ -263,7 +263,6 @@ async function authorizeContributor(userId: string, handle: string): Promise<voi
   const onboarding = await memoryPrivateIdentityStore.completeOnboarding({
     userId,
     handle,
-    dateOfBirth: "2010-07-29",
   });
   expect(onboarding).toMatchObject({ ok: true });
 }
@@ -1140,12 +1139,11 @@ describe("POST /api/rounds/[code] — actions", () => {
     });
   });
 
-  it("allows a young signed-in account to share a Round price", async () => {
+  it("allows a signed-in account to share a Round price", async () => {
     authState.userId = "user-young";
     const onboarding = await memoryPrivateIdentityStore.completeOnboarding({
       userId: authState.userId,
       handle: "young_person",
-      dateOfBirth: "2015-07-29",
     });
     expect(onboarding).toMatchObject({ ok: true });
     const { round } = await newRound("young_person");
