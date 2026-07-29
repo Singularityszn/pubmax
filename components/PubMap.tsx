@@ -24,7 +24,11 @@ import {
 import { filterMapVenues, withForcedVenue } from "@/lib/filterMapVenues";
 import { mergePriceUpdates, parsePriceUpdates, type PriceUpdate } from "@/lib/priceUpdates";
 import { nearestVenueIds, nearbyVenuesForMap } from "@/lib/nearby";
-import { buildMapVenueListModel, buildUkBasePubListModel } from "@/lib/mapVenueList";
+import {
+  buildMapVenueListModel,
+  buildUkBasePubListModel,
+  venuesWithinMapBounds,
+} from "@/lib/mapVenueList";
 import { UK_BOUNDS } from "@/components/map/canvas/tokens";
 import { useFocusTrap } from "@/lib/useFocusTrap";
 import { MOBILE_MEDIA_QUERY } from "@/lib/breakpoints";
@@ -651,6 +655,10 @@ export default function PubMap({
   /** Once the viewer collapses a deep-linked lane, don't keep forcing it open. */
   const [dismissedTonightSrc, setDismissedTonightSrc] = useState<string | null>(null);
   const [mapListOpen, setMapListOpen] = useState(false);
+  const [mapBoundsState, setMapBoundsState] = useState<{
+    cityId: CityId;
+    bounds: MapBounds;
+  } | null>(null);
   const baseVenues = useMemo(
     () => mergeLazyDetailPins(slimPins, detailById),
     [slimPins, detailById],
@@ -934,6 +942,7 @@ export default function PubMap({
   // it — the map keeps working with whatever loaded.
   const handleMapBoundsChange = useCallback(
     (bounds: MapBounds) => {
+      setMapBoundsState({ cityId, bounds });
       const loader = slimLoaderRef.current;
       if (!loader) return;
       void loader
@@ -943,7 +952,7 @@ export default function PubMap({
           // Keep loaded shards; a later moveend retries this one.
         });
     },
-    [mergeSlimVenues],
+    [cityId, mergeSlimVenues],
   );
 
   // Near-me: geolocating into a hollow outer borough loads that borough's shard
@@ -1180,12 +1189,21 @@ export default function PubMap({
     experienceLens,
     experienceLensPrices,
   ]);
-  // A11Y finding #1 — keyboard/SR-reachable model of the venues on the map,
-  // ordered nearest-first to the viewport centre. Same set the canvas paints.
+  // A11Y finding #1: derive list membership from MapLibre's settled viewport,
+  // after every product filter that controls canvas membership. Before first
+  // bounds event, empty is only honest answer.
+  const mapVenueListVenues = useMemo(
+    () =>
+      venuesWithinMapBounds(
+        kindVisibleMapVenues,
+        mapBoundsState?.cityId === cityId ? mapBoundsState.bounds : null,
+      ),
+    [cityId, kindVisibleMapVenues, mapBoundsState],
+  );
   const mapVenueListModel = useMemo(
     () =>
       buildMapVenueListModel(
-        kindVisibleMapVenues,
+        mapVenueListVenues,
         mapViewport.center,
         undefined,
         activeLensPrices,
@@ -1196,7 +1214,7 @@ export default function PubMap({
       activeLensNoun,
       activeLensPrices,
       drinkIndexStatus,
-      kindVisibleMapVenues,
+      mapVenueListVenues,
       mapViewport.center,
     ],
   );
@@ -2838,7 +2856,11 @@ export default function PubMap({
           cityName={mapContextName}
           open={mapListOpen}
           onOpenChange={setMapListOpen}
-          loaded={loaded && loadedCityId === cityId}
+          loaded={
+            loaded &&
+            loadedCityId === cityId &&
+            mapBoundsState?.cityId === cityId
+          }
           onSelectVenue={selectVenue}
           onSelectUkBasePub={handleUkBasePubClick}
           onPrefetchVenue={prefetchVenueDetail}

@@ -1,6 +1,6 @@
 "use client";
 
-import { useId } from "react";
+import { useEffect, useId, useRef } from "react";
 import { List, MapPin, X } from "lucide-react";
 
 import CompactVenuePrice from "@/components/map/CompactVenuePrice";
@@ -42,6 +42,18 @@ export default function MapVenueList({
   const total = model.total + ukBaseModel.total;
   const shown = model.shown + ukBaseModel.shown;
   const truncated = model.truncated || ukBaseModel.truncated;
+  const firstVenueRef = useRef<HTMLButtonElement>(null);
+  const closeButtonRef = useRef<HTMLButtonElement>(null);
+  const firstCuratedId = model.rows[0]?.id;
+  const firstBaseId = firstCuratedId ? undefined : ukBaseModel.rows[0]?.id;
+
+  useEffect(() => {
+    if (!open) return;
+    const frame = requestAnimationFrame(() => {
+      (firstVenueRef.current ?? closeButtonRef.current)?.focus();
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [open]);
 
   return (
     <section className={`mapVenueList${open ? " mapVenueList--open" : ""}`} aria-label={`${cityName} venue list`}>
@@ -61,6 +73,7 @@ export default function MapVenueList({
               </span>
             </div>
             <button
+              ref={closeButtonRef}
               type="button"
               className="mapVenueListClose"
               aria-label="Close venue list"
@@ -91,11 +104,11 @@ export default function MapVenueList({
                     {model.rows.map((row) => (
                       <li key={row.id}>
                         <button
+                          ref={row.id === firstCuratedId ? firstVenueRef : undefined}
                           type="button"
                           className="mapVenueListItem"
                           onClick={() => {
                             onSelectVenue(row.id);
-                            onOpenChange(false);
                           }}
                           onPointerEnter={() => onPrefetchVenue(row.id)}
                           onFocus={() => onPrefetchVenue(row.id)}
@@ -129,11 +142,11 @@ export default function MapVenueList({
                     {ukBaseModel.rows.map((row) => (
                       <li key={row.id}>
                         <button
+                          ref={row.id === firstBaseId ? firstVenueRef : undefined}
                           type="button"
                           className="mapVenueListItem"
                           onClick={() => {
                             onSelectUkBasePub(row.pub);
-                            onOpenChange(false);
                           }}
                         >
                           <span className="mapVenueListItemName">
