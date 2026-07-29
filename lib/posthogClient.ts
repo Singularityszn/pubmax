@@ -8,6 +8,7 @@ import {
 } from "@/lib/analyticsIdentity";
 import {
   analyticsPageviewSurfaceFromPath,
+  analyticsReferrerFromUrl,
   analyticsUrlWithoutQuery,
 } from "@/lib/analyticsPath";
 
@@ -127,9 +128,9 @@ function standardBrowserProperties(
       rating: event.rating,
     };
   }
+  const currentUrl = analyticsUrlWithoutQuery(properties.$current_url);
   if (pathname) {
     standard.$pathname = pathname;
-    const currentUrl = analyticsUrlWithoutQuery(properties.$current_url);
     if (currentUrl) {
       standard.$current_url = new URL(pathname, currentUrl).toString();
     } else {
@@ -137,7 +138,7 @@ function standardBrowserProperties(
     }
   }
   for (const name of ["$referrer", "$initial_referrer"] as const) {
-    const url = analyticsUrlWithoutQuery(properties[name]);
+    const url = analyticsReferrerFromUrl(properties[name], currentUrl);
     if (url) standard[name] = url;
     else delete standard[name];
   }

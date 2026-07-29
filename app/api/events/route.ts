@@ -26,8 +26,8 @@
 import { isIP } from "node:net";
 import { sanitizeEvent } from "@/lib/analyticsEvents";
 import {
+  analyticsReferrerFromUrl,
   analyticsSurfaceFromPath,
-  analyticsUrlWithoutQuery,
 } from "@/lib/analyticsPath";
 import { isAnonymousAnalyticsId } from "@/lib/analyticsIdentity";
 import { isEventsRateLimited } from "@/lib/eventsRateLimit";
@@ -76,8 +76,8 @@ function safeUserAgent(value: string | null): string | undefined {
   return value;
 }
 
-function safeReferrer(value: unknown): string | undefined {
-  return analyticsUrlWithoutQuery(value) ?? undefined;
+function safeReferrer(value: unknown, currentUrl: string): string | undefined {
+  return analyticsReferrerFromUrl(value, currentUrl) ?? undefined;
 }
 
 function safeClientIp(request: Request): string | undefined {
@@ -182,7 +182,7 @@ export async function POST(req: Request): Promise<Response> {
       analyticsConsent,
       clientIp: safeClientIp(req),
       userAgent: safeUserAgent(req.headers.get("user-agent")),
-      referrer: safeReferrer(browserContext.referrer),
+      referrer: safeReferrer(browserContext.referrer, req.url),
       screenWidth: safeDimension(browserContext.screenWidth),
       screenHeight: safeDimension(browserContext.screenHeight),
       viewportWidth: safeDimension(browserContext.viewportWidth),
