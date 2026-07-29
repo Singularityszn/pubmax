@@ -17,6 +17,7 @@ import "./citySuggestBanner.css";
 type CitySuggestBannerProps = {
   cityId: CityId;
   onLocationFound?: (location: { lat: number; lng: number }) => void;
+  onVisibilityChange?: (visible: boolean) => void;
 };
 
 const DISMISS_KEY = "pubmax:citySuggestDismiss:v1";
@@ -101,7 +102,11 @@ function subscribeClientFlags(onStoreChange: () => void): () => void {
  * Fail-soft (permission denied / timeout / no geo) → no switch offer.
  * Kept below the CitySwitcher dropdown in z-order so city picks stay tappable.
  */
-export default function CitySuggestBanner({ cityId, onLocationFound }: CitySuggestBannerProps) {
+export default function CitySuggestBanner({
+  cityId,
+  onLocationFound,
+  onVisibilityChange,
+}: CitySuggestBannerProps) {
   const dismissed = useSyncExternalStore(
     subscribeDismiss,
     readDismissed,
@@ -117,7 +122,21 @@ export default function CitySuggestBanner({ cityId, onLocationFound }: CitySugge
   const [checking, setChecking] = useState(false);
   const [locatedHere, setLocatedHere] = useState(false);
   const [sessionDismissed, setSessionDismissed] = useState(false);
+  const [hydrated, setHydrated] = useState(false);
   const checkGen = useRef(0);
+  const visible =
+    !dismissed &&
+    !sessionDismissed &&
+    !flags.saveData &&
+    flags.geoAvailable;
+
+  useEffect(() => {
+    void Promise.resolve().then(() => setHydrated(true));
+  }, []);
+
+  useEffect(() => {
+    if (hydrated) onVisibilityChange?.(visible);
+  }, [hydrated, onVisibilityChange, visible]);
 
   const dismiss = useCallback(() => {
     writeDismissed();
@@ -182,7 +201,7 @@ export default function CitySuggestBanner({ cityId, onLocationFound }: CitySugge
     };
   }, [checkNearby]);
 
-  if (dismissed || sessionDismissed || flags.saveData || !flags.geoAvailable) {
+  if (!visible) {
     return null;
   }
 

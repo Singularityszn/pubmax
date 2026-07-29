@@ -124,15 +124,19 @@ computed CSS says visible.
 
 - `mapBannerStaging.css` keeps location independent of status while both
   continue to defer the lower Tonight card.
+- Curated onboarding waits while the location control is available, including
+  when Tonight settles empty or degraded, and becomes eligible only when
+  location is unavailable or dismissed.
 - `mapToolbar.css` publishes the closed desktop toolbar height: 145px from
   641 through 900, and 181px above 900.
 - `citySuggestBanner.css` places location 12px below that block.
 - `cityStatusBanner.css` places status 8px below location and keeps its detail
-  sheet on the same anchor.
+  sheet on the same anchor and inside the remaining viewport height.
 - `e2e/map-near-me.spec.ts` supplies deterministic severe city status with
-  fresh storage at 800 and 1600, then checks attachment, accessible name,
-  trial-click actionability, permission `prompt`, 44px height, viewport bounds,
-  and banner separation.
+  separate fresh browser contexts at 800 and 1600, forces empty and degraded
+  Tonight results, then checks attachment, accessible name, trial-click
+  actionability, permission `prompt`, 44px height, viewport bounds, banner
+  separation, and the expanded status-sheet viewport budget.
 
 No copy, map density, clustering, collision, pin renderer, venue-list keyboard
 path, drawer focus, or call-to-action colour changed.

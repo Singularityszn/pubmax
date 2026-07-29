@@ -15,17 +15,16 @@
    mobile map shell and its own Tonight pill are never affected.
 
    Policy:
-   1. While the onboarding overlay is open (.appShell.onboarding-open) none of
-      the three ambient banners render.
+   1. Location owns first paint while available, so onboarding eligibility
+      defers to it. While onboarding is open, status and Tonight do not render.
    2. Otherwise closure/safety and city-suggest may occupy their existing
       separate vertical slots together. Tonight-nearby yields to either one.
       Each banner renders its root only when eligible and UNMOUNTS it on
       dismissal, so removing both higher siblings releases Tonight normally. */
 
 @media (min-width: 641px) {
-  /* 1. Onboarding open — suppress all three ambient banners. */
+  /* 1. Onboarding open — suppress ambient status and Tonight. */
   .appShell.onboarding-open .cityStatusBanner,
-  .appShell.onboarding-open .citySuggestBanner,
   .appShell.onboarding-open .tonightLaneCollapsed {
     display: none;
   }

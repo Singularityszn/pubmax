@@ -639,6 +639,7 @@ export default function PubMap({
   // §4.5 onboarding: has the viewer dismissed (or acted on) the "Start with a
   // story" overlay this session? Lazy init reads sessionStorage once, SSR-safe.
   const [onboardingDismissed, setOnboardingDismissed] = useState<boolean>(readOnboardingDismissed);
+  const [citySuggestVisible, setCitySuggestVisible] = useState(true);
   // G3: per-band dismiss set for the Place story deep-link chip. Seeded from the
   // arrival band; grows when the viewer dismisses or switches to an already-
   // dismissed band this session.
@@ -2428,6 +2429,7 @@ export default function PubMap({
     curatedCrawlCount: cityCuratedCrawls.length,
     tonightLaneHasRows,
     tonightLanePending,
+    locationControlVisible: citySuggestVisible,
   });
   // Show the first four curated crawls as the onboarding picks.
   const onboardingCrawls = cityCuratedCrawls.slice(0, 4);
@@ -2830,7 +2832,13 @@ export default function PubMap({
         {railViewport && !detailOpen ? (
           <MapDesktopRail area={searchAreaNewsArea ?? suggestedPlanArea?.slug ?? null} />
         ) : null}
-        {!mobileViewport && !ukPlaceArrival ? <CitySuggestBanner cityId={cityId} onLocationFound={setUserLocation} /> : null}
+        {!mobileViewport && !ukPlaceArrival ? (
+          <CitySuggestBanner
+            cityId={cityId}
+            onLocationFound={setUserLocation}
+            onVisibilityChange={setCitySuggestVisible}
+          />
+        ) : null}
         {!mobileViewport && isLondon ? <CityStatusBanner cityId={cityId} /> : null}
         {/* F3: concierge as map home — a first-class grounded ask affordance in
             the bottom map-home lane. Rendered before the Tonight lane so its

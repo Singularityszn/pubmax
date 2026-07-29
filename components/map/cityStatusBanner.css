@@ -1,17 +1,21 @@
 /* CityMCP London status strip — sits beside CitySuggestBanner, below the
    CitySwitcher dropdown (z-index 560) so city picks stay tappable. */
 
+.appShell {
+  --city-status-desktop-top: calc(
+    var(--map-top-clearance, 0px) +
+    var(--map-toolbar-resting-height, 181px) +
+    82px
+  );
+}
+
 .cityStatusBanner {
   position: absolute;
   /* Sits below the full closed toolbar and the location banner. The 82px
      stack offset is location's 12px toolbar gap, 62px height, and 8px between
      banners. Below the CitySwitcher dropdown in z-order so picks stay
      tappable. */
-  top: calc(
-    var(--map-top-clearance, 0px) +
-    var(--map-toolbar-resting-height, 181px) +
-    82px
-  );
+  top: var(--city-status-desktop-top);
   left: 50%;
   z-index: var(--z-map-banner);
   display: flex;
@@ -145,17 +149,16 @@ a.cityStatusBannerLink:hover {
 .cityStatusSignalSheet {
   position: absolute;
   /* Mirrors .cityStatusBanner's desktop anchor; margin clears the pill. */
-  top: calc(
-    var(--map-top-clearance, 0px) +
-    var(--map-toolbar-resting-height, 181px) +
-    82px
-  );
+  top: var(--city-status-desktop-top);
   left: 50%;
   transform: translateX(-50%);
   z-index: var(--z-map-banner);
   margin-top: 46px; /* clears the pill's own height */
   width: min(360px, calc(100vw - 24px));
-  max-height: min(420px, calc(100vh - 220px));
+  max-height: min(
+    420px,
+    calc(100dvh - var(--city-status-desktop-top) - 46px - 16px)
+  );
   overflow-y: auto;
   padding: 12px;
   border: 1px solid color-mix(in srgb, var(--brass) 32%, var(--line));
