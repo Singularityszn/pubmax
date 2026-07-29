@@ -213,7 +213,13 @@ export function createDonutClusterSync(
   // tiles that have nothing to do with the `pubs` cluster tree — gate on the
   // event actually being our source finishing a load.
   const onSourceData = (e: maplibregl.MapSourceDataEvent) => {
-    if (e.sourceId !== "pubs" || !e.isSourceLoaded) return;
+    if (
+      e.sourceId !== "pubs" ||
+      e.sourceDataType !== "content" ||
+      !e.isSourceLoaded
+    ) {
+      return;
+    }
     sync(true);
   };
   // A theme/style swap (setStyle) recreates the `pubs` source and its

@@ -179,7 +179,7 @@ describe("createDonutClusterSync (M5 donut — listener lifecycle)", () => {
     expect(map.setLayoutProperty).not.toHaveBeenCalled();
   });
 
-  it("retains active donuts across an empty render snapshot, then clears them when the pubs source revision loads empty", () => {
+  it("retains active donuts for transient and non-content emptiness, then clears them when loaded content is empty", () => {
     markerHarness.instances.length = 0;
     vi.stubGlobal("document", {
       documentElement: { dataset: { theme: "dark" } },
@@ -213,8 +213,7 @@ describe("createDonutClusterSync (M5 donut — listener lifecycle)", () => {
     map.querySourceFeatures = vi
       .fn()
       .mockReturnValueOnce([cluster])
-      .mockReturnValueOnce([])
-      .mockReturnValueOnce([]);
+      .mockReturnValue([]);
 
     const sync = createDonutClusterSync(
       map as unknown as maplibregl.Map,
@@ -243,7 +242,38 @@ describe("createDonutClusterSync (M5 donut — listener lifecycle)", () => {
       "none",
     );
 
-    sourcedata({ sourceId: "pubs", isSourceLoaded: true });
+    sourcedata({
+      sourceId: "basemap",
+      sourceDataType: "content",
+      isSourceLoaded: true,
+    });
+    sourcedata({
+      sourceId: "pubs",
+      sourceDataType: "visibility",
+      isSourceLoaded: true,
+    });
+    sourcedata({
+      sourceId: "pubs",
+      sourceDataType: "idle",
+      isSourceLoaded: true,
+    });
+    sourcedata({
+      sourceId: "pubs",
+      sourceDataType: "content",
+      isSourceLoaded: false,
+    });
+    expect(markerHarness.instances[0].remove).not.toHaveBeenCalled();
+    expect(map.setLayoutProperty).toHaveBeenLastCalledWith(
+      "cluster-count",
+      "visibility",
+      "none",
+    );
+
+    sourcedata({
+      sourceId: "pubs",
+      sourceDataType: "content",
+      isSourceLoaded: true,
+    });
     expect(markerHarness.instances[0].remove).toHaveBeenCalledOnce();
     expect(map.setLayoutProperty).toHaveBeenLastCalledWith(
       "cluster-count",
