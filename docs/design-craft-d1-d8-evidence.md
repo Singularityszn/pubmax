@@ -93,5 +93,5 @@ prototype surface was added.
 - Focused unit suites for spring motion, sheet snaps, materials, map hierarchy,
   price stamps, MapLibre colour normalisation, and collision policy: pass.
 - Browser console after final dark and light captures: no MapLibre style errors.
-- `npm run verify`: pending final closeout run.
-- `NEXT_DIST_DIR=.next-prod npm run build`: pending final closeout run.
+- `npm run verify`: pass, including 698 test files and 7,068 tests.
+- `NEXT_DIST_DIR=.next-prod npm run build`: pass.
