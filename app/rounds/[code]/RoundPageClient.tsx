@@ -74,6 +74,25 @@ export function roundComposerOwnerKey(
   return auth?.userId ?? "anonymous";
 }
 
+export function roundViewerHandle(
+  viewerMemberHandle: string | undefined,
+  viewerOwnerKey: string | null,
+  identity: RoundRequestIdentity | null,
+  accountHandle: string | null,
+  storedHandle: string,
+): string {
+  if (!identity) return "";
+  if (
+    viewerOwnerKey === roundRequestIdentityOwnerKey(identity) &&
+    viewerMemberHandle
+  ) {
+    return viewerMemberHandle;
+  }
+  return identity.kind === "account"
+    ? (accountHandle ?? "")
+    : storedHandle;
+}
+
 // A minimal Venue shape for buildRouteLegs (read-only): the leg math only reads
 // longitude/latitude/id/name off each stop, so we adapt SlimVenue → that shape.
 function slimToVenue(slim: SlimVenue): Venue {
@@ -120,6 +139,7 @@ export default function RoundPageClient({ params }: { params: Promise<{ code: st
   }, [params]);
 
   const [state, setState] = useState<RoundViewState | null>(null);
+  const [stateOwnerKey, setStateOwnerKey] = useState<string | null>(null);
   const [loaded, setLoaded] = useState(false);
   const [myHandle, setMyHandle] = useState<string>("");
   // Presence rows at the Round's CURRENT stop — the "your crew is here" overlay
@@ -169,8 +189,10 @@ export default function RoundPageClient({ params }: { params: Promise<{ code: st
       const { res, state: next } = completion.value;
       if (res.ok && next) {
         setState(next);
+        setStateOwnerKey(roundRequestIdentityOwnerKey(roundIdentity));
       } else if (res.status === 404) {
         setState(null);
+        setStateOwnerKey(null);
       }
     } catch {
       // Network blip — keep the last-known state.
@@ -289,8 +311,13 @@ export default function RoundPageClient({ params }: { params: Promise<{ code: st
     };
   }, [isOpen, currentStopVenueId, refetchPresence]);
 
-  const effectiveHandle =
-    state?.viewerMemberHandle ?? accountHandle ?? myHandle;
+  const effectiveHandle = roundViewerHandle(
+    state?.viewerMemberHandle,
+    stateOwnerKey,
+    roundIdentity,
+    accountHandle,
+    myHandle,
+  );
   const amMember = useMemo(
     () =>
       state && effectiveHandle
@@ -348,7 +375,10 @@ export default function RoundPageClient({ params }: { params: Promise<{ code: st
         currentRoundIdentity={currentRoundIdentity}
         amMember={amMember}
         presence={presence}
-        onChange={setState}
+        onChange={(next) => {
+          setState(next);
+          setStateOwnerKey(roundRequestIdentityOwnerKey(roundIdentity));
+        }}
       />
     </main>
   );

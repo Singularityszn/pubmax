@@ -72,7 +72,10 @@ import type {
 } from "@/lib/contributorLeaderboard";
 import { normalizeHandle } from "@/lib/profiles";
 import type { RoundPriceSource } from "@/lib/rounds";
-import { markRoundPriceSourceSuperseded } from "@/lib/roundsStore";
+import {
+  markRoundPriceSourcePromoted,
+  markRoundPriceSourceSuperseded,
+} from "@/lib/roundsStore";
 import { MAX_PROVISIONAL_BASE_VENUE_IDS } from "@/lib/ukBasePubs";
 import {
   admin,
@@ -889,16 +892,20 @@ export const memoryCommunityPriceStore: CommunityPriceStore = {
       row.actor === stored.actor;
     const replaced = rows.find(isOwnEarlier);
     if (replaced && replaced.submittedAt > stored.submittedAt) {
+      const sourceBecameOwner = sameRoundPriceSource(
+        replaced.roundSource,
+        roundSource,
+      );
+      if (roundSource && stored.actor) {
+        if (sourceBecameOwner) {
+          markRoundPriceSourcePromoted(roundSource, stored.actor);
+        } else {
+          markRoundPriceSourceSuperseded(roundSource, stored.actor);
+        }
+      }
       return {
         price: published(replaced),
-        ...(roundSource
-          ? {
-              sourceBecameOwner: sameRoundPriceSource(
-                replaced.roundSource,
-                roundSource,
-              ),
-            }
-          : {}),
+        ...(roundSource ? { sourceBecameOwner } : {}),
       };
     }
     const kept = rows.filter((row) => !isOwnEarlier(row));
@@ -931,6 +938,9 @@ export const memoryCommunityPriceStore: CommunityPriceStore = {
     }
     kept.push(stored);
     venues.set(key.venueId, kept);
+    if (roundSource && stored.actor) {
+      markRoundPriceSourcePromoted(roundSource, stored.actor);
+    }
     evictIfNeeded();
     return {
       price: published(stored),

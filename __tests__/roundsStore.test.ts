@@ -400,6 +400,9 @@ describe("Round price key ownership migration", () => {
     expect(sql).toMatch(/transition_round_price_lines/);
     expect(sql).toMatch(/source_became_owner/);
     expect(sql).toMatch(
+      /p_round_spend_id[\s\S]*promotionStatus[\s\S]*promoted/,
+    );
+    expect(sql).toMatch(
       /community_prices\.submitted_at <= excluded\.submitted_at/,
     );
   });

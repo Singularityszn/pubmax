@@ -794,12 +794,34 @@ export function markRoundPriceSourceSuperseded(
   source: RoundPriceSource,
   actor: string,
 ): void {
+  markRoundPriceSourceStatus(source, actor, "superseded");
+}
+
+export function markRoundPriceSourcePromoted(
+  source: RoundPriceSource,
+  actor: string,
+): void {
+  markRoundPriceSourceStatus(source, actor, "promoted");
+}
+
+function markRoundPriceSourceStatus(
+  source: RoundPriceSource,
+  actor: string,
+  status: "promoted" | "superseded",
+): void {
   for (const round of memoryRounds.values()) {
     const spend = round.spends.find((candidate) => candidate.id === source.spendId);
     if (!spend) continue;
     if (round.promotionOwners.get(spend.clientRef) !== actor) return;
     const item = spend.items[source.lineIndex];
-    if (item?.source === "round") item.promotionStatus = "superseded";
+    if (
+      item?.source === "round" &&
+      (status === "superseded" ||
+        item.promotionStatus === "ready" ||
+        item.promotionStatus === "promoted")
+    ) {
+      item.promotionStatus = status;
+    }
     return;
   }
 }

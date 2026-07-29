@@ -405,6 +405,32 @@ begin
        and spend.items->v_old_line_index->>'source' = 'round';
   end if;
 
+  if p_round_spend_id is not null then
+    update public.round_spends spend
+       set items = jsonb_set(
+         spend.items,
+         array[p_round_line_index::text, 'promotionStatus'],
+         to_jsonb(
+           (
+             case
+               when
+                 v_current_spend_id is not distinct from p_round_spend_id
+                 and v_current_line_index is not distinct from p_round_line_index
+               then 'promoted'
+               else 'superseded'
+             end
+           )::text
+         ),
+         false
+       )
+     where spend.id = p_round_spend_id
+       and spend.promotion_actor = p_actor
+       and jsonb_array_length(spend.items) > p_round_line_index
+       and spend.items->p_round_line_index->>'source' = 'round'
+       and spend.items->p_round_line_index->>'promotionStatus'
+         in ('ready', 'promoted');
+  end if;
+
   return query
   select
     v_current_id,

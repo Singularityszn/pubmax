@@ -153,10 +153,16 @@ vi.mock("@/lib/authServer", async (importOriginal) => {
 // override create()/join() to return the store-failure variant. When null (the
 // default), each delegates to the real memory store so every other case is
 // unchanged.
-const { createOverride, joinOverride, recordSpendOverride } = vi.hoisted(() => ({
+const {
+  createOverride,
+  joinOverride,
+  recordSpendOverride,
+  transitionOverride,
+} = vi.hoisted(() => ({
   createOverride: { fn: null as null | ((...args: unknown[]) => Promise<unknown>) },
   joinOverride: { fn: null as null | ((...args: unknown[]) => Promise<unknown>) },
   recordSpendOverride: { fn: null as null | ((...args: unknown[]) => Promise<unknown>) },
+  transitionOverride: { failCompleted: false },
 }));
 vi.mock("@/lib/roundsStore", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/roundsStore")>();
@@ -174,6 +180,13 @@ vi.mock("@/lib/roundsStore", async (importOriginal) => {
           recordSpendOverride.fn
             ? recordSpendOverride.fn(...args)
             : store.recordSpend(...args),
+        transitionSpendPromotions: (
+          ...args: Parameters<typeof store.transitionSpendPromotions>
+        ) =>
+          transitionOverride.failCompleted &&
+          args[3].some(({ status }) => status === "promoted")
+            ? Promise.resolve({ ok: false as const, error: "error" as const })
+            : store.transitionSpendPromotions(...args),
       };
     },
   };
@@ -260,6 +273,7 @@ beforeEach(() => {
   createOverride.fn = null;
   joinOverride.fn = null;
   recordSpendOverride.fn = null;
+  transitionOverride.failCompleted = false;
   budgetOverride.fn = null;
   priceWriteState.failuresRemaining = 0;
   venueLookupState.unavailable = false;
@@ -818,6 +832,39 @@ describe("POST /api/rounds/[code] — actions", () => {
     ).toEqual(["promoted", "ready"]);
     expect(await readCommunityPrices("venue-1")).toMatchObject([
       { priceGbp: 6.1 },
+    ]);
+  });
+
+  it("persists promotion with the community-price ownership transaction", async () => {
+    await authorizeContributor("user-ken", "ken");
+    const { round } = await newRound("ken");
+    await action(round.code, {
+      action: "addStop",
+      handle: "ken",
+      venueId: "venue-1",
+    });
+    transitionOverride.failCompleted = true;
+
+    const response = await action(round.code, {
+      action: "recordSpend",
+      handle: "ken",
+      payerHandle: "ken",
+      venueId: "venue-1",
+      clientRef: "atomic-promotion",
+      items: [
+        {
+          drinkName: "Guinness",
+          drinkCategory: "beer",
+          priceGbp: 6.4,
+        },
+      ],
+    });
+
+    expect(response.status).toBe(200);
+    const state = (await response.json()) as RoundState;
+    expect(state.spends[0]?.items[0]?.promotionStatus).toBe("promoted");
+    expect(await readCommunityPrices("venue-1")).toMatchObject([
+      { priceGbp: 6.4 },
     ]);
   });
 

@@ -178,20 +178,14 @@ async function preparePendingRoundPrices(input: {
 async function promoteReadyRoundPrices(input: {
   store: RoundsStore;
   code: string;
-  clientRef: string;
-  state: RoundState;
   stored: RoundSpendDTO;
   contributor: ResolvedContributor;
-  promotionOwner: string;
   request: Request;
 }): Promise<Response> {
   const ready = input.stored.items
     .map((item, index) => ({ item, index }))
     .filter(({ item }) => item.promotionStatus === "ready");
-  const completed: Array<{
-    index: number;
-    status: "promoted" | "superseded";
-  }> = [];
+  let completed = 0;
   const recordedAt = Date.parse(input.stored.recordedAt);
   for (const { item, index } of ready) {
     const write = await submitCommunityPrice(
@@ -205,34 +199,23 @@ async function promoteReadyRoundPrices(input: {
       },
       recordedAt,
     );
-    if (!write.failed && write.price && write.sourceBecameOwner === true) {
-      completed.push({ index, status: "promoted" });
-    } else if (
+    if (
       !write.failed &&
       write.price &&
-      write.sourceBecameOwner === false
+      typeof write.sourceBecameOwner === "boolean"
     ) {
-      completed.push({ index, status: "superseded" });
+      completed += 1;
     }
   }
 
-  let state = input.state;
-  if (completed.length > 0) {
-    const marked = await input.store.transitionSpendPromotions(
-      input.code,
-      input.clientRef,
-      input.promotionOwner,
-      completed,
-    );
-    if (!marked.ok) return errorResponse(marked.error);
-    state = marked.state;
-  }
-  if (completed.length !== ready.length) {
+  if (completed !== ready.length) {
     return jsonNoStore(
       { error: "Your round is kept, but some prices need another try." },
       { status: 503 },
     );
   }
+  const state = await input.store.getByCode(input.code);
+  if (!state) return errorResponse("error");
   return roundStateResponse(input.request, state);
 }
 
@@ -347,11 +330,8 @@ async function recordSpend(
   return promoteReadyRoundPrices({
     store,
     code,
-    clientRef: clean.clientRef,
-    state: prepared.state,
     stored: prepared.stored,
     contributor,
-    promotionOwner,
     request,
   });
 }
