@@ -2670,6 +2670,7 @@ export default function PubMap({
                 onFiltersChange={setFilters}
                 hasTypeRelativePrices={hasTypeRelativePrices}
                 drinkLabel={activeLensLabel ?? undefined}
+                drinkNoun={activeLensNoun ?? undefined}
                 drinkIndexStatus={drinkIndexStatus}
               />
             ) : undefined
@@ -2897,9 +2898,8 @@ export default function PubMap({
             onDismiss={dismissBandChip}
           />
         ) : null}
-        {/* Desktop retains the expanded price filter. On phones the compact key
-            lives beside the PUBMAXXING wordmark so the bottom action lane can
-            breathe above primary navigation. */}
+        {/* Desktop keeps price controls at bottom left. Phones use the existing
+            More sheet, leaving top chrome unchanged. */}
         {!mobileViewport && experienceLens === "all" ? (
           <MapPriceControl
             placement="map"
@@ -2907,6 +2907,7 @@ export default function PubMap({
             onFiltersChange={setFilters}
             hasTypeRelativePrices={hasTypeRelativePrices}
             drinkLabel={activeLensLabel ?? undefined}
+            drinkNoun={activeLensNoun ?? undefined}
             drinkIndexStatus={drinkIndexStatus}
           />
         ) : null}
@@ -3042,6 +3043,7 @@ export default function PubMap({
                     maxPrice={filters.maxPrice}
                     hasTypeRelativePrices={hasTypeRelativePrices}
                     drinkLabel={activeLensLabel ?? undefined}
+                    drinkNoun={activeLensNoun ?? undefined}
                     drinkIndexStatus={drinkIndexStatus}
                     onMaxPriceChange={(maxPrice) =>
                       setFilters((current) => ({ ...current, maxPrice }))
@@ -3090,6 +3092,7 @@ export default function PubMap({
                     hasTypeRelativePrices,
                     activeLensLabel ?? undefined,
                     drinkIndexStatus,
+                    activeLensNoun ?? undefined,
                   )}
                 />
               </TabsContent>
@@ -3129,6 +3132,7 @@ export default function PubMap({
                     maxPrice={filters.maxPrice}
                     hasTypeRelativePrices={hasTypeRelativePrices}
                     drinkLabel={activeLensLabel ?? undefined}
+                    drinkNoun={activeLensNoun ?? undefined}
                     drinkIndexStatus={drinkIndexStatus}
                     onMaxPriceChange={(maxPrice) =>
                       setFilters((current) => ({ ...current, maxPrice }))

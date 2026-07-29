@@ -1,7 +1,6 @@
 "use client";
 
-// Compact bottom-left price chrome — always-visible colour key (plan: ≤£5.50 /
-// >£5.50–≤£7 / >£7) plus an optional filter popover. No heritage/writer rows.
+// Compact desktop price key plus optional filter popover.
 
 import { Coins, X } from "lucide-react";
 import { useEffect, useId, useRef, useState } from "react";
@@ -25,6 +24,7 @@ type MapPriceControlProps = {
   placement?: "map" | "header";
   hasTypeRelativePrices?: boolean;
   drinkLabel?: string;
+  drinkNoun?: string;
   drinkIndexStatus?: CategoryPriceIndexStatus;
 };
 
@@ -41,6 +41,7 @@ export default function MapPriceControl({
   placement = "map",
   hasTypeRelativePrices = false,
   drinkLabel,
+  drinkNoun,
   drinkIndexStatus = "ready",
 }: MapPriceControlProps) {
   const [open, setOpen] = useState(false);
@@ -53,6 +54,7 @@ export default function MapPriceControl({
     hasTypeRelativePrices,
     drinkLabel,
     drinkIndexStatus,
+    drinkNoun,
   );
 
   useEffect(() => {

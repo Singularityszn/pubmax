@@ -9,12 +9,14 @@ export default function MobilePriceChoices({
   maxPrice,
   hasTypeRelativePrices,
   drinkLabel,
+  drinkNoun,
   drinkIndexStatus = "ready",
   onMaxPriceChange,
 }: {
   maxPrice: number;
   hasTypeRelativePrices: boolean;
   drinkLabel?: string;
+  drinkNoun?: string;
   drinkIndexStatus?: CategoryPriceIndexStatus;
   onMaxPriceChange: (price: number) => void;
 }) {
@@ -22,6 +24,7 @@ export default function MobilePriceChoices({
     hasTypeRelativePrices,
     drinkLabel,
     drinkIndexStatus,
+    drinkNoun,
   );
   return (
     <>

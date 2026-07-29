@@ -16,6 +16,7 @@ describe("MapKey", () => {
     expect(html).toContain("Over £7");
     expect(html).toContain("No pint price on the map");
     expect(html).toContain("mapKeyPriceCode");
+    expect(html).toContain("Your approximate location");
   });
 
   it("keeps decorative colour and shape samples out of the accessibility tree", () => {

@@ -50,8 +50,13 @@ const MAP_SHAPES: MapKeyEntry[] = [
 
 const MAP_MARKS: MapKeyEntry[] = [
   {
+    id: "your-location",
+    label: "Blue centre with a pulse",
+    detail: "Your approximate location.",
+  },
+  {
     id: "provisional",
-    label: "Blue dot",
+    label: "Small blue dot beside a pin",
     detail: "One recent pint report. A second independent drinker agreeing can set the pin's band.",
   },
   {
@@ -114,6 +119,31 @@ function priceRows(noun: string): MapPriceLegendRow[] {
   ];
 }
 
+function mixedPriceRows(): MapPriceLegendRow[] {
+  return [
+    {
+      label: "£5.50 or less; low for its venue type",
+      symbol: "£",
+      tone: "green",
+    },
+    {
+      label: "Over £5.50, up to £7; middle for its venue type",
+      symbol: "££",
+      tone: "amber",
+    },
+    {
+      label: "Over £7; high for its venue type",
+      symbol: "£££",
+      tone: "red",
+    },
+    {
+      label: "No pint or venue price on the map",
+      symbol: "?",
+      tone: "grey",
+    },
+  ];
+}
+
 function withMapKey(
   legend: Pick<MapPriceLegendModel, "rows" | "ariaLabel" | "title" | "hint">,
 ): MapPriceLegendModel {
@@ -150,9 +180,10 @@ export function mapPriceLegend(
   hasTypeRelativePrices: boolean,
   drinkLabel?: string,
   drinkIndexStatus: CategoryPriceIndexStatus = "ready",
+  drinkNoun?: string,
 ): MapPriceLegendModel {
   if (drinkLabel) {
-    const drink = drinkLabel.toLowerCase();
+    const drink = (drinkNoun ?? drinkLabel).toLowerCase();
     const unreadable = drinkIndexStatus === "degraded";
     const rows = priceRows(drink);
     return withMapKey({
@@ -177,7 +208,7 @@ export function mapPriceLegend(
     });
   }
   return withMapKey({
-    rows: priceRows("pint or venue"),
+    rows: mixedPriceRows(),
     ariaLabel:
       "Price colour key: pub pints use pound thresholds; other venue types use relative low, middle, and high bands",
     title: "Pint prices and other venue price bands",

@@ -10,10 +10,10 @@ The desktop cluster donut already showed its known price mix at zoom 11.2. Indiv
 
 ## Current map language
 
-- Green fill: price on the map is £5.50 or less.
-- Amber fill: price on the map is over £5.50 and no more than £7.
-- Red fill: price on the map is over £7.
-- Grey fill: no price for the current drink view is on the map.
+- Green fill: pub pint is £5.50 or less. Other venues are low within their type.
+- Amber fill: pub pint is over £5.50 and no more than £7. Other venues are middle within their type.
+- Red fill: pub pint is over £7. Other venues are high within their type.
+- Grey fill: no price that the current view can show is on the map.
 - Split cluster ring: mix of known price bands inside a desktop cluster. Centre number counts every pub, including pubs without a known price.
 - Solid cluster: most common known price band inside a fallback cluster. Centre number counts every pub. Grey means none has a known price.
 - Pint, wine, cocktail or spirit glass: pub. Glass follows its recorded drinks or selected drink view.
@@ -22,7 +22,8 @@ The desktop cluster donut already showed its known price mix at zoom 11.2. Indiv
 - Fork: restaurant.
 - Hollow brass circle and dot: UK base pub. It never gets a map price, band or price label.
 - Brass pictogram: landmark, not a pub.
-- Blue dot: one recent pint report. A second independent drinker agreeing can let that figure set the pin band.
+- Blue centre with a pulse: your approximate location.
+- Small blue dot beside a pin: one recent pint report. A second independent drinker agreeing can let that figure set the pin band.
 - Blue ring: visible Pint Drop at that pub.
 - Amber ring: quiz tonight.
 - Bright blue ring: live sport tonight.
@@ -39,7 +40,7 @@ The desktop cluster donut already showed its known price mix at zoom 11.2. Indiv
 
 ## Similar marks with different meanings
 
-- Blue dot means one recent, unconfirmed pint report. Blue ring means a visible Pint Drop.
+- Blue centre with a pulse means your location. Small blue dot beside a pin means one recent, unconfirmed pint report. Blue ring means a visible Pint Drop.
 - Thin brass ring means a public-listing source. Double brass ring means selection.
 - Desktop split clusters show price mix. Solid fallback clusters show one dominant known band.
 - A confirmed community figure changes the ordinary price band. It does not add a confirmed badge to the map.
@@ -64,6 +65,6 @@ After, unobscured phone map at the same landing zoom:
 - [Phone dark, 390 by 844 at 3x](after-mobile-dark-map.png)
 - [Phone light, 390 by 844 at 3x](after-mobile-light-map.png)
 
-The after phone captures measure 390 CSS pixels wide with a 390-pixel document width. All five sheet tabs fit between x=4 and x=388. Accessibility snapshots expose Map controls as a dialog, Key as the selected tab, price bands as text, and Pin shapes, Dots and rings, and Routes as disclosures. The desktop Key is a native button; Escape closes it and Enter reopens it with focus retained.
+The after phone captures measure 390 CSS pixels wide with a 390-pixel document width. All five sheet tabs fit between x=4 and x=388. Tabs and disclosure controls have 44-pixel touch targets. Accessibility snapshots expose Map controls as a dialog, Key as the selected tab, price bands as text, and Pin shapes, Dots and rings, and Routes as disclosures. The desktop Key is a native button; Escape closes it and Enter reopens it with focus retained.
 
 Code authorities: `components/map/canvas/buildScene.ts`, `components/map/canvas/filters.ts`, `components/map/canvas/geojson.ts`, `components/map/canvas/donutClusters.ts`, `lib/mapIcons.ts`, `lib/mapPriceLegend.ts`, `lib/communityPrice.ts`, `components/map/communityPriceSignals.ts`, and `lib/cities.ts`.

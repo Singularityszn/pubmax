@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 
+import { NO_ALCOHOL_LENS_PRICE_NOUN } from "@/lib/mapExperienceLens";
 import { mapPriceLegend } from "@/lib/mapPriceLegend";
 
 describe("mapPriceLegend", () => {
@@ -22,7 +23,12 @@ describe("mapPriceLegend", () => {
 
   it("explains shared colours as type-relative for bars and late food", () => {
     const legend = mapPriceLegend(true);
-    expect(legend.rows).toHaveLength(4);
+    expect(legend.rows.map((row) => row.label)).toEqual([
+      "£5.50 or less; low for its venue type",
+      "Over £5.50, up to £7; middle for its venue type",
+      "Over £7; high for its venue type",
+      "No pint or venue price on the map",
+    ]);
     expect(legend.ariaLabel).toContain("other venue types");
     expect(legend.hint).toContain("within its own type");
   });
@@ -39,6 +45,22 @@ describe("mapPriceLegend", () => {
     expect(legend.title).toBe("Whisky price bands");
     expect(legend.hint).toContain("unknown");
     expect(legend.hint).not.toContain("pint");
+  });
+
+  it("keeps the no-alcohol title while using a positive sentence noun", () => {
+    const legend = mapPriceLegend(
+      true,
+      "No-alcohol",
+      "ready",
+      NO_ALCOHOL_LENS_PRICE_NOUN,
+    );
+
+    expect(legend.title).toBe("No-alcohol price bands");
+    expect(legend.rows.at(-1)?.label).toBe(
+      "No alcohol-free or soft drink price on the map",
+    );
+    expect(legend.hint).toContain("alcohol-free or soft drink prices");
+    expect(legend.rows.at(-1)?.label).not.toContain("No no-alcohol");
   });
 
   it("keeps a truncated read painting trusted prices, saying so", () => {
@@ -106,6 +128,7 @@ describe("map key inventory", () => {
       "landmark",
     ]);
     expect(legend.marks?.map((row) => row.id)).toEqual([
+      "your-location",
       "provisional",
       "pint-drop",
       "quiz",
@@ -116,7 +139,12 @@ describe("map key inventory", () => {
       "selected",
       "story-band",
     ]);
-    expect(legend.marks?.[0]?.detail).toBe(
+    expect(legend.marks?.[0]).toEqual({
+      id: "your-location",
+      label: "Blue centre with a pulse",
+      detail: "Your approximate location.",
+    });
+    expect(legend.marks?.[1]?.detail).toBe(
       "One recent pint report. A second independent drinker agreeing can set the pin's band.",
     );
     expect(legend.routeMarks?.map((row) => row.id)).toEqual([

@@ -1,5 +1,5 @@
-/* Corner price chrome — always-visible colour key + optional filter FAB.
-   Bottom-left on all viewports (Wave J declutter). No heritage/writer rows. */
+/* Corner price chrome: always-visible desktop colour key + optional filter FAB.
+   Phone access lives in the existing More sheet. No heritage/writer rows. */
 
 .mapPriceControl {
   /* Shared with .mapHeroCard so the story teaser clears this stack on desktop. */
@@ -20,9 +20,8 @@
   pointer-events: auto;
 }
 
-/* Compact colour key — plan: ≤£5.50 / >£5.50–≤£7 / >£7 bottom-left.
-   Legend stays pointer-events: none (inherits from .mapPriceControl) so map
-   pans/zooms pass through the non-interactive colour key. */
+/* Compact desktop colour key: ≤£5.50 / >£5.50–≤£7 / >£7.
+   Its button opens the full key; empty stack space still passes map gestures. */
 .mapPriceLegend {
   display: flex;
   flex-wrap: wrap;
@@ -221,11 +220,15 @@
 }
 
 .mapPriceDot.grey {
-  background: #9a7a72;
+  background: color-mix(in srgb, var(--muted) 84%, transparent);
 }
 
 .mapPriceDot.any {
   background: color-mix(in srgb, var(--muted) 55%, transparent);
+}
+
+html[data-theme="dark"] .mapPriceDot.grey {
+  background: color-mix(in srgb, var(--muted) 78%, transparent);
 }
 
 .appShell.sheet-full .mapPriceControl,

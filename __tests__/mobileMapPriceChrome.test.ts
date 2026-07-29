@@ -11,6 +11,10 @@ const mobileCss = readFileSync(
   join(process.cwd(), "components/mobile/mobileMapShell.css"),
   "utf8",
 );
+const keyCss = readFileSync(
+  join(process.cwd(), "components/map/mapKey.css"),
+  "utf8",
+);
 const priceCss = readFileSync(
   join(process.cwd(), "components/map/mapPriceControl.css"),
   "utf8",
@@ -29,7 +33,13 @@ describe("mobile map price chrome", () => {
     expect(mobileShell).toContain('layers: "Map controls"');
     expect(pubMap).toContain('className="mobileMapControlTabs"');
     expect(mobileCss).toMatch(
-      /\.mobileMapControlTabs\s*>\s*\[role="tab"\]\s*{[\s\S]*?flex:\s*1[\s\S]*?min-width:\s*0/,
+      /\.mobileMapControlTabs\s*>\s*\[role="tab"\]\s*{[\s\S]*?flex:\s*1[\s\S]*?min-width:\s*0[\s\S]*?min-height:\s*44px/,
+    );
+    expect(keyCss).toMatch(
+      /\.mapKeyDetails summary\s*{[\s\S]*?min-height:\s*44px/,
+    );
+    expect(mobileCss).toMatch(
+      /body:has\(\.mobileSheetPortal\)[\s\S]*?\.maplibregl-ctrl-top-right\s*{[\s\S]*?visibility:\s*hidden/,
     );
   });
 

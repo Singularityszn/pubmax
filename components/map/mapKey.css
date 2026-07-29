@@ -64,7 +64,7 @@
 }
 
 .mapKeyPriceSwatch--grey {
-  background: #9a7a72;
+  background: color-mix(in srgb, var(--muted) 84%, transparent);
 }
 
 .mapKeyPriceCode {
@@ -106,7 +106,9 @@
 }
 
 .mapKeyDetails summary {
-  min-height: 32px;
+  display: flex;
+  align-items: center;
+  min-height: 44px;
   cursor: pointer;
 }
 
@@ -169,8 +171,18 @@
 .mapKeyMarker--provisional::before {
   width: 9px;
   height: 9px;
+  right: 2px;
+  bottom: 3px;
   background: var(--river-bright);
   box-shadow: 0 0 0 1.5px var(--panel-raised);
+}
+
+.mapKeyMarker--your-location::before {
+  width: 12px;
+  height: 12px;
+  border: 2px solid var(--paper);
+  background: var(--color-accent);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--color-accent) 22%, transparent);
 }
 
 .mapKeyMarker--pint-drop::before,
@@ -223,6 +235,10 @@
 
 .mapKeyMarker--route {
   color: var(--brass-bright);
+}
+
+html[data-theme="dark"] .mapKeyPriceSwatch--grey {
+  background: color-mix(in srgb, var(--muted) 78%, transparent);
 }
 
 .mapKeyMarker--crawl-stop {
