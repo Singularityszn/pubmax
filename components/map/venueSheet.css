@@ -462,11 +462,9 @@
 
 .venuePriceSignInGate {
   scroll-margin-top: 12px;
-  margin-top: 16px;
-  padding: 16px;
-  border: 1px solid color-mix(in srgb, var(--brass) 30%, var(--line));
-  border-radius: var(--radius-lg);
-  background: color-mix(in srgb, var(--brass) 6%, var(--panel-raised));
+  margin: 0;
+  padding: 0;
+  border: 0;
 }
 
 .venuePriceSignInGate h3,

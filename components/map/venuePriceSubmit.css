@@ -1,5 +1,5 @@
 /* "What's it tonight?" - the fast community price-submission card on the venue
-   sheet. Scoped to .venuePriceSubmit only; reuses the shared app tokens
+   sheet. Scoped to .venuePriceEntryPanel only; reuses the shared app tokens
    (--brass, --brass-bright, --ink, --ink-soft, --line, --panel, --panel-raised,
    --pint, --font-data, --radius-sm, --radius-pill) so it inherits Candle Coral
    by day and Night Out by night without forking a single hex. Mobile-first:
@@ -60,7 +60,7 @@
   font-weight: 700;
 }
 
-.venuePriceSubmit {
+.venuePriceEntryPanel {
   scroll-margin-top: 12px;
   margin-top: 16px;
   padding: 14px;
@@ -68,6 +68,11 @@
   border-radius: var(--radius-lg, 18px);
   background: color-mix(in srgb, var(--brass) 5%, var(--panel-raised));
   box-shadow: inset 0 1px 0 color-mix(in srgb, var(--panel-raised) 80%, transparent);
+}
+
+.venuePriceEntryPanel > .venueCommunitySignals:first-child {
+  margin-top: 0;
+  border-top: 0;
 }
 
 .vpsubHead {
@@ -401,7 +406,8 @@
 .vpsigIntro,
 .vpsigCharacterNote,
 .vpsigError,
-.vpsigSaved {
+.vpsigSaved,
+.vpsigSignIn {
   margin: 5px 0 0;
   font-size: 0.74rem;
   line-height: 1.4;

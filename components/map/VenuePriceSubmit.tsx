@@ -22,11 +22,8 @@ import { mergePriceChips } from "@/lib/spillPreview";
 import type { DrinkCategory } from "@/lib/drinks";
 import { formatPrice } from "@/lib/venues";
 import type { CommunityPricesState } from "@/components/map/useCommunityPrices";
-import VenueCommunitySignals from "@/components/map/VenueCommunitySignals";
 import { useContributionGate } from "@/components/identity/ContributionGateDialog";
 import { trackEvent } from "@/lib/analytics";
-
-import "./venuePriceSubmit.css";
 
 // The word-of-mouth moment: you're standing in the pub, you tap what you're
 // drinking, you type what it cost, and the map restamps under your thumb.
@@ -107,28 +104,7 @@ export default function VenuePriceSubmit({
   const { requestContribution, contributionGateDialog } =
     useContributionGate();
 
-  const { byVenueId, loadVenue, submit, submitting } = communityPrices;
-  // The funnel's denominator. This component is keyed by venue id, so it mounts
-  // once per venue-sheet open and the ratio price_submitted / price_submit_viewed
-  // reads as "submissions per sheet open". The category is the one the card
-  // opens on, not the one eventually submitted - a viewed event must not wait
-  // for an interaction it is meant to measure the absence of. Consent-gated
-  // like every other event: trackEvent no-ops without it.
-  // The ref, not the effect body alone, is what makes it ONE event per open:
-  // an effect that re-runs (React's development double-invoke, a future
-  // dependency change) would otherwise inflate the denominator and quietly
-  // halve the reported submission rate.
-  const viewedVenueId = useRef<string | null>(null);
-  useEffect(() => {
-    if (viewedVenueId.current === venueId) return;
-    viewedVenueId.current = venueId;
-    trackEvent("price_submit_viewed", { category: DEFAULT_SUBMIT_CATEGORY });
-  }, [venueId]);
-  // Community prices already on record for this pub, so the card opens showing
-  // what the community last said rather than an empty slot.
-  useEffect(() => {
-    loadVenue(venueId);
-  }, [loadVenue, venueId]);
+  const { byVenueId, submit, submitting } = communityPrices;
 
   useEffect(() => {
     if (focusRequest <= 0) return;
@@ -355,22 +331,13 @@ export default function VenuePriceSubmit({
         </div>
       ) : (
         <p className="vpsubNote">
-          Sign in to log a price under your public handle. Yours shows on this
-          pub&rsquo;s page straight away, dated and badged as community - it
-          never replaces the price on record.{" "}
+          Your price shows on this pub&rsquo;s page straight away, dated and
+          badged as community - it never replaces the price on record.{" "}
           {communityReachNote(category, mapReach)} Up to £
-          {COMMUNITY_PRICE_MAX_GBP} a drink.
+          {COMMUNITY_PRICE_MAX_GBP} a drink. It counts under your account-owned
+          public handle on the contributor record.
         </p>
       )}
-      <VenueCommunitySignals
-        venueId={venueId}
-        venueName={venueName}
-        signals={communityPrices.signalsByVenueId.get(venueId) ?? []}
-        readStatus={communityPrices.venuePriceStatus.get(venueId) ?? "idle"}
-        submitting={submitting}
-        onSubmit={communityPrices.submitVenueSignal}
-        requestContribution={requestContribution}
-      />
       {contributionGateDialog}
     </section>
   );

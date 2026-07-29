@@ -142,11 +142,11 @@ export const ANALYTICS_EVENTS = {
   story_published: ["visibility", "contributors", "moments"],
   // Community-price contribution funnel. The whole point is the ratio
   // price_submitted / price_submit_viewed, so `viewed` is emitted once per
-  // venue-sheet open (the card is keyed by venue and mounts with the sheet)
-  // and gives that ratio its denominator. Props stay at the registry's usual
-  // bar: the drink category is a closed taxonomy enum and the failure reason a
-  // three-value enum - never the venue id, the venue name, the price typed, or
-  // the error sentence shown to the drinker.
+  // venue-sheet open from the account-independent entry panel and gives that
+  // ratio its denominator. Props stay at the registry's usual bar: the drink
+  // category is a closed taxonomy enum and the failure reason a three-value
+  // enum - never the venue id, the venue name, the price typed, or the error
+  // sentence shown to the drinker.
   price_submit_viewed: ["category"],
   price_submitted: ["category"],
   price_submit_failed: ["category", "reason"],

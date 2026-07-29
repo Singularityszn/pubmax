@@ -15,9 +15,23 @@ vi.mock("@/components/auth/AuthProvider", () => ({
 
 const communityPrices = {
   byVenueId: new Map(),
-  signalsByVenueId: new Map(),
+  signalsByVenueId: new Map([
+    [
+      "venue-fixture",
+      [
+        {
+          venueId: "venue-fixture",
+          signalKey: "character",
+          signalValue: "rough",
+          submittedAt: Date.parse("2026-07-29T20:00:00Z"),
+          source: "community",
+          corroborations: 1,
+        },
+      ],
+    ],
+  ]),
   freshestByVenueId: new Map(),
-  venuePriceStatus: new Map(),
+  venuePriceStatus: new Map([["venue-fixture", "ready"]]),
   loadVenue: vi.fn(),
   submit: vi.fn(),
   submitVenueSignal: vi.fn(),
@@ -67,6 +81,10 @@ describe("price contribution auth destination", () => {
     expect(html).toContain("You need an account to add a price.");
     expect(html).toContain("Email me a link");
     expect(html).not.toContain("venuePriceSubmit");
+    expect(html).toContain("What drinkers noticed");
+    expect(html).toContain("One drinker called it rough.");
+    expect(html).toContain("Sign in to add what you noticed.");
+    expect(html).not.toContain("Add what you noticed");
   });
 
   it("takes an injected signed-in state to the existing price form", () => {
@@ -85,15 +103,22 @@ describe("price contribution auth destination", () => {
     expect(html).toContain(
       'aria-label="Price of a beer at Fixture Arms, in pounds"',
     );
+    expect(html).toContain("What drinkers noticed");
+    expect(html).toContain("Add what you noticed");
     expect(html).not.toContain("Sign in to add a price");
+    expect(html).not.toContain("Sign in to add what you noticed.");
   });
 
-  it("adds no Overview content before a signed-out drinker asks to contribute", () => {
-    expect(
-      renderEntry({
-        canSubmitPrice: false,
-        showSignInGate: false,
-      }),
-    ).toBe("");
+  it("keeps public signal reads but no composer before price contribution", () => {
+    const html = renderEntry({
+      canSubmitPrice: false,
+      showSignInGate: false,
+    });
+
+    expect(html).toContain("What drinkers noticed");
+    expect(html).toContain("One drinker called it rough.");
+    expect(html).not.toContain("venuePriceSubmit");
+    expect(html).not.toContain("Sign in to add a price");
+    expect(html).not.toContain("Add what you noticed");
   });
 });
