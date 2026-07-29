@@ -25,11 +25,11 @@ import {
 import { createPortal } from "react-dom";
 
 export const SITE_NAV_MORE_LINKS = [
-  { href: "/plan", label: "Plan" },
-  { href: "/near", label: "Near" },
-  { href: "/pubs", label: "Pubs" },
-  { href: "/historic", label: "Historic" },
-  { href: "/pal", label: "Pal" },
+  { href: "/plan", label: "Plan", description: "Build a three-stop night out" },
+  { href: "/near", label: "Near", description: "Find priced pubs close to you" },
+  { href: "/pubs", label: "Pubs", description: "Browse every listed pub" },
+  { href: "/historic", label: "Historic", description: "Read the stories behind old pubs" },
+  { href: "/pal", label: "Pal", description: "Ask for a pub that fits tonight" },
 ] as const;
 
 function pathMatches(pathname: string, href: string): boolean {
@@ -158,7 +158,8 @@ export default function SiteNavMore(): React.JSX.Element {
                   aria-current={active ? "page" : undefined}
                   onClick={close}
                 >
-                  {link.label}
+                  <span className="siteNavMoreLabel">{link.label}</span>
+                  <span className="siteNavMoreDescription">{link.description}</span>
                 </Link>
               );
             })}

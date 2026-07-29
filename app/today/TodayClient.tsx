@@ -393,6 +393,10 @@ export default function TodayClient({
           Jump to tonight
           <ArrowUpRight size={14} aria-hidden="true" />
         </Link>
+        <Link href="/plan" className="todayCardFootLink">
+          Plan tonight
+          <ArrowUpRight size={14} aria-hidden="true" />
+        </Link>
         <Link href="/map" className="todayCardFootLink">
           <Beer size={14} aria-hidden="true" />
           Open the map

@@ -79,6 +79,17 @@ describe("SiteNav More overflow (Wave D2.2)", () => {
     ]);
   });
 
+  it("explains what every More destination is for", async () => {
+    const { SITE_NAV_MORE_LINKS } = await import("@/components/nav/SiteNavMore");
+    expect(SITE_NAV_MORE_LINKS.map((link) => link.description)).toEqual([
+      "Build a three-stop night out",
+      "Find priced pubs close to you",
+      "Browse every listed pub",
+      "Read the stories behind old pubs",
+      "Ask for a pub that fits tonight",
+    ]);
+  });
+
   it("keeps More markup free of em dashes", async () => {
     const markup = await renderSiteNav();
     expect(markup).not.toContain("—");

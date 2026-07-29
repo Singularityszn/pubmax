@@ -13,6 +13,7 @@
 // cancels on unmount or origin change. Honest states throughout: a prompt before
 // sharing, a calm line when TfL has nothing, never a fabricated time.
 
+import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { LocateFixed, TrainFront, X } from "lucide-react";
 
@@ -147,6 +148,12 @@ export default function TodayGetThereStrip() {
           </span>
         </div>
       )}
+      <p className="todayCardFootRow">
+        <Link href="/near" className="todayCardFootLink">
+          <LocateFixed size={14} aria-hidden="true" />
+          Find pubs near you
+        </Link>
+      </p>
     </section>
   );
 }
