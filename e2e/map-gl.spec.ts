@@ -483,6 +483,43 @@ test("/map reuses granted location after an explicit Near me action", async ({ p
   await expect(page.locator(".mapUserLocationMarker")).toBeVisible({ timeout: 20_000 });
 });
 
+test("/map keeps Manchester cluster markers mounted after granted location settles", async ({
+  page,
+  context,
+}) => {
+  test.setTimeout(60_000);
+  await page.setViewportSize({ width: 1600, height: 1000 });
+  await context.grantPermissions(["geolocation"]);
+  await context.setGeolocation({ latitude: 53.4808, longitude: -2.2426 });
+
+  // Load Manchester with permission already granted. CitySuggestBanner reuses
+  // that position automatically and calls the same onLocationFound callback as
+  // its explicit Near me control, without depending on that control rendering.
+  await page.goto("/map/manchester");
+  await expect(page.locator(".mapUserLocationMarker")).toBeVisible({
+    timeout: 20_000,
+  });
+  await page.waitForTimeout(2_000);
+  const showAll = page.getByRole("button", {
+    name: "Show all of Manchester",
+  });
+  await expect(showAll).toBeVisible({ timeout: 20_000 });
+  await showAll.click();
+
+  const donuts = page.locator(".donut-cluster-marker");
+  await expect.poll(() => donuts.count(), { timeout: 20_000 }).toBeGreaterThan(0);
+
+  // Once the city camera has settled, transient source snapshots must not
+  // unmount every donut and hand the same clusters back to the GL fallback.
+  // That DOM-empty/GL-visible alternation is the reported desktop flicker.
+  const counts: number[] = [];
+  for (let sample = 0; sample < 30; sample += 1) {
+    counts.push(await donuts.count());
+    await page.waitForTimeout(75);
+  }
+  expect(counts, `cluster marker counts after settle: ${counts.join(",")}`).not.toContain(0);
+});
+
 // Issue #35 — optimistic-pins perf guard. The map paints pins from the ~116 KB
 // slim index BEFORE the ~5.6 MB full dataset lands; PubMap drops a
 // `pubmax:first-pins` performance.mark the instant those slim pins are set.

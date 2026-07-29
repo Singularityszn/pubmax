@@ -1,6 +1,42 @@
 import type * as maplibregl from "maplibre-gl";
 import { describe, expect, it, vi } from "vitest";
 
+const markerHarness = vi.hoisted(() => ({
+  instances: [] as Array<{
+    remove: ReturnType<typeof vi.fn>;
+  }>,
+}));
+
+vi.mock("maplibre-gl", () => ({
+  Marker: class {
+    remove = vi.fn();
+
+    constructor() {
+      markerHarness.instances.push(this);
+    }
+
+    setLngLat() {
+      return this;
+    }
+
+    addTo() {
+      return this;
+    }
+  },
+}));
+
+vi.mock("@/components/map/canvas/tokens", () => ({
+  readTokens: () => ({
+    pint: "#0a0",
+    amber: "#fa0",
+    brick: "#a00",
+    muted: "#777",
+    ink: "#fff",
+    inkDeep: "#111",
+    panelRaised: "#222",
+  }),
+}));
+
 import {
   createDonutClusterSync,
   readCounts,
@@ -143,5 +179,83 @@ describe("createDonutClusterSync (M5 donut — listener lifecycle)", () => {
 
     expect(map.on).not.toHaveBeenCalled();
     expect(map.setLayoutProperty).not.toHaveBeenCalled();
+  });
+
+  it("retains active donuts across an empty render snapshot, then clears them on an empty moveend", () => {
+    markerHarness.instances.length = 0;
+    vi.stubGlobal("document", {
+      documentElement: { dataset: { theme: "dark" } },
+      createElement: () => ({
+        className: "",
+        style: {},
+        innerHTML: "",
+        setAttribute: vi.fn(),
+        addEventListener: vi.fn(),
+      }),
+    });
+    vi.spyOn(performance, "now").mockReturnValue(500);
+
+    const { map, handlers } = makeFakeMap();
+    const cluster = {
+      properties: {
+        cluster_id: 17,
+        point_count: 4,
+        b0: 1,
+        b1: 1,
+        b2: 1,
+        b3: 1,
+      },
+      geometry: {
+        type: "Point",
+        coordinates: [-2.2426, 53.4808],
+      },
+    };
+    map.getSource = () => ({}) as never;
+    map.getLayer = () => ({}) as never;
+    map.querySourceFeatures = vi
+      .fn()
+      .mockReturnValueOnce([cluster])
+      .mockReturnValueOnce([])
+      .mockReturnValueOnce([]);
+
+    const sync = createDonutClusterSync(
+      map as unknown as maplibregl.Map,
+      () => {},
+    );
+    const [moveend] = [...(handlers.get("moveend") ?? [])];
+    const [render] = [...(handlers.get("render") ?? [])];
+
+    moveend();
+    expect(markerHarness.instances).toHaveLength(1);
+    expect(map.setLayoutProperty).toHaveBeenLastCalledWith(
+      "cluster-count",
+      "visibility",
+      "none",
+    );
+
+    // MapLibre 6 can transiently return no source features during render even
+    // though the settled camera still has clusters. That snapshot cannot hand
+    // ownership back to the GL fallback or remove every active DOM marker.
+    render();
+    expect(markerHarness.instances[0].remove).not.toHaveBeenCalled();
+    expect(map.setLayoutProperty).toHaveBeenLastCalledWith(
+      "cluster-count",
+      "visibility",
+      "none",
+    );
+
+    // A settled moveend query is authoritative: a genuinely empty viewport
+    // must still clear stale markers and restore the GL fallback.
+    moveend();
+    expect(markerHarness.instances[0].remove).toHaveBeenCalledOnce();
+    expect(map.setLayoutProperty).toHaveBeenLastCalledWith(
+      "cluster-count",
+      "visibility",
+      "visible",
+    );
+
+    sync.destroy();
+    vi.unstubAllGlobals();
+    vi.restoreAllMocks();
   });
 });
