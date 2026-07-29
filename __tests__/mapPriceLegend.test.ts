@@ -130,12 +130,14 @@ describe("map key inventory", () => {
     expect(legend.marks?.map((row) => row.id)).toEqual([
       "your-location",
       "provisional",
+      "tonight-opportunity",
       "pint-drop",
       "quiz",
       "sport",
       "deal",
       "music",
       "public-listing",
+      "base-selected",
       "selected",
       "story-band",
     ]);

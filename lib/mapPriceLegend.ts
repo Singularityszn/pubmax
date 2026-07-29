@@ -60,6 +60,11 @@ const MAP_MARKS: MapKeyEntry[] = [
     detail: "One recent pint report. A second independent drinker agreeing can set the pin's band.",
   },
   {
+    id: "tonight-opportunity",
+    label: "Amber point with a blue halo",
+    detail: "Place in the Events overlay for tonight.",
+  },
+  {
     id: "pint-drop",
     label: "Blue ring",
     detail: "This pub has a visible Pint Drop.",
@@ -72,6 +77,11 @@ const MAP_MARKS: MapKeyEntry[] = [
     id: "public-listing",
     label: "Thin brass ring",
     detail: "Pub added from a public listing.",
+  },
+  {
+    id: "base-selected",
+    label: "Single brass selection ring",
+    detail: "UK base pub you selected.",
   },
   {
     id: "selected",

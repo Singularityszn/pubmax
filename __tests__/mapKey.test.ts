@@ -17,6 +17,8 @@ describe("MapKey", () => {
     expect(html).toContain("No pint price on the map");
     expect(html).toContain("mapKeyPriceCode");
     expect(html).toContain("Your approximate location");
+    expect(html).toContain("Place in the Events overlay for tonight");
+    expect(html).toContain("UK base pub you selected");
   });
 
   it("keeps decorative colour and shape samples out of the accessibility tree", () => {

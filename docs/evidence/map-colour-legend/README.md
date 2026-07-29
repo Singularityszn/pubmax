@@ -24,13 +24,15 @@ The desktop cluster donut already showed its known price mix at zoom 11.2. Indiv
 - Brass pictogram: landmark, not a pub.
 - Blue centre with a pulse: your approximate location.
 - Small blue dot beside a pin: one recent pint report. A second independent drinker agreeing can let that figure set the pin band.
+- Amber point with a blue halo: place in the Events overlay for tonight.
 - Blue ring: visible Pint Drop at that pub.
 - Amber ring: quiz tonight.
 - Bright blue ring: live sport tonight.
 - Bright brass ring: deal tonight.
 - Dark blue ring: live music tonight.
 - Thin brass ring: pub added from a public listing.
-- Double brass ring: selected pub. A selected UK base pub uses its quieter single-ring treatment.
+- Single brass selection ring: selected UK base pub.
+- Double brass ring: selected curated pub.
 - Coloured outer ring: pub inside the selected place story.
 - Numbered dark circle: crawl stop.
 - Solid route line: walking route along roads.
@@ -41,7 +43,8 @@ The desktop cluster donut already showed its known price mix at zoom 11.2. Indiv
 ## Similar marks with different meanings
 
 - Blue centre with a pulse means your location. Small blue dot beside a pin means one recent, unconfirmed pint report. Blue ring means a visible Pint Drop.
-- Thin brass ring means a public-listing source. Double brass ring means selection.
+- Amber point with a blue halo means an Events overlay suggestion. Amber ring means quiz tonight.
+- Thin brass ring means a public-listing source. Single brass selection ring means a selected UK base pub. Double brass ring means a selected curated pub.
 - Desktop split clusters show price mix. Solid fallback clusters show one dominant known band.
 - A confirmed community figure changes the ordinary price band. It does not add a confirmed badge to the map.
 - No-alcohol view changes price meaning but adds no distinct pin shape.

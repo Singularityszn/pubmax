@@ -185,6 +185,13 @@
   box-shadow: 0 0 0 4px color-mix(in srgb, var(--color-accent) 22%, transparent);
 }
 
+.mapKeyMarker--tonight-opportunity::before {
+  width: 10px;
+  height: 10px;
+  background: var(--amber);
+  box-shadow: 0 0 0 5px color-mix(in srgb, var(--river-bright) 35%, transparent);
+}
+
 .mapKeyMarker--pint-drop::before,
 .mapKeyMarker--quiz::before,
 .mapKeyMarker--sport::before,
@@ -217,6 +224,12 @@
 .mapKeyMarker--public-listing::before {
   border-width: 1px;
   border-color: var(--brass);
+}
+
+.mapKeyMarker--base-selected::before {
+  width: 19px;
+  height: 19px;
+  border: 2px solid var(--brass);
 }
 
 .mapKeyMarker--selected::before {
