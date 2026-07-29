@@ -82,16 +82,16 @@ never reached zero. Neither occurred in the counterfactual or after the fix.
 
 Render and source-data queries may now update active donuts from non-empty
 snapshots, but cannot deactivate them from a transient empty snapshot. A
-settled `moveend` remains authoritative, so a genuinely empty viewport still
-clears stale markers and restores the GL layers. Crossing the existing cluster
-zoom boundary still deactivates immediately. Density, clustering, and collision
-contracts are unchanged.
+completed `pubs` source revision and a settled `moveend` remain authoritative,
+so a genuinely empty result still clears stale markers and restores the GL
+layers. Crossing the existing cluster zoom boundary still deactivates
+immediately. Density, clustering, and collision contracts are unchanged.
 
 After the fix, 40 samples taken 100 ms apart all retained the same 29 DOM
 markers. That time series, rather than a single still frame, is the evidence
 that alternation stopped. The Playwright journey and focused unit regression
-cover both sides: transient render emptiness retains markers, while settled
-moveend emptiness clears them.
+cover both sides: transient render emptiness retains markers, while a completed
+empty `pubs` source revision clears them.
 
 These loaded-basemap frames are 1.5 seconds apart at the same settled desktop
 Manchester viewport after granted location. Cluster symbols remain in the same
@@ -108,15 +108,15 @@ For comparison, MapLibre 5.24.0 remained stable on the legacy renderer:
 ## Missing location control
 
 The missing control is a separate defect. Across eight fresh desktop contexts
-with no prior permission, its DOM appeared in all eight after hydration, but it
-had a painted box in only one by 7.75 seconds. In the other seven,
+with no prior permission, its DOM appeared in all eight after hydration. The
+control paint rate was 1 in 8 by 7.75 seconds. In the other seven,
 `mapBannerStaging.css` hid `CitySuggestBanner` because an asynchronously loaded
 `cityStatusBanner` has higher presentation priority. This is banner staging,
 not MapLibre source reconciliation. The deterministic pre-fix journey clicked
 the attached control through the DOM whether or not CSS painted it, and the
-renderer loop then persisted independently at cluster zoom. No correlation was
-observed, but the eight-context paint survey did not run the full flicker
-journey in every context. Treat the 7-of-8 control defect as separate work.
+renderer loop then persisted independently at cluster zoom. Correlation with
+the flicker was not measured because the full journey did not run in every
+context. Treat the 7-of-8 control defect as separate work.
 
 ## Design craft observation
 

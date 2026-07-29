@@ -179,7 +179,7 @@ describe("createDonutClusterSync (M5 donut — listener lifecycle)", () => {
     expect(map.setLayoutProperty).not.toHaveBeenCalled();
   });
 
-  it("retains active donuts across an empty render snapshot, then clears them on an empty moveend", () => {
+  it("retains active donuts across an empty render snapshot, then clears them when the pubs source revision loads empty", () => {
     markerHarness.instances.length = 0;
     vi.stubGlobal("document", {
       documentElement: { dataset: { theme: "dark" } },
@@ -222,6 +222,7 @@ describe("createDonutClusterSync (M5 donut — listener lifecycle)", () => {
     );
     const [moveend] = [...(handlers.get("moveend") ?? [])];
     const [render] = [...(handlers.get("render") ?? [])];
+    const [sourcedata] = [...(handlers.get("sourcedata") ?? [])];
 
     moveend();
     expect(markerHarness.instances).toHaveLength(1);
@@ -242,9 +243,7 @@ describe("createDonutClusterSync (M5 donut — listener lifecycle)", () => {
       "none",
     );
 
-    // A settled moveend query is authoritative: a genuinely empty viewport
-    // must still clear stale markers and restore the GL fallback.
-    moveend();
+    sourcedata({ sourceId: "pubs", isSourceLoaded: true });
     expect(markerHarness.instances[0].remove).toHaveBeenCalledOnce();
     expect(map.setLayoutProperty).toHaveBeenLastCalledWith(
       "cluster-count",

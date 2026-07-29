@@ -211,12 +211,10 @@ export function createDonutClusterSync(
   };
   // `sourcedata` fires for every tile/source on the map, including basemap
   // tiles that have nothing to do with the `pubs` cluster tree — gate on the
-  // event actually being our source finishing a load, and route through the
-  // same throttle as `render` so a burst of tile loads can't re-run the
-  // querySourceFeatures + marker diff pass more than ~8x/sec.
+  // event actually being our source finishing a load.
   const onSourceData = (e: maplibregl.MapSourceDataEvent) => {
     if (e.sourceId !== "pubs" || !e.isSourceLoaded) return;
-    throttledSync();
+    sync(true);
   };
   // A theme/style swap (setStyle) recreates the `pubs` source and its
   // supercluster tree — old marker els carry stale-themed SVG and cluster
