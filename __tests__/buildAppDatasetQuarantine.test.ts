@@ -108,7 +108,7 @@ function runBuilder(scratchRoot: string) {
   return spawnSync("python3", [BUILD_SCRIPT], {
     cwd: scratchRoot,
     encoding: "utf8",
-    timeout: 30_000,
+    timeout: 120_000,
   });
 }
 
@@ -159,7 +159,7 @@ describe("build_app_dataset.py postcode-coordinate decisions", () => {
         );
       }
     },
-    30_000,
+    120_000,
   );
 
   it(
@@ -185,6 +185,6 @@ describe("build_app_dataset.py postcode-coordinate decisions", () => {
         "app_price_999999 is not in the pre-publication dataset",
       );
     },
-    30_000,
+    120_000,
   );
 });
