@@ -386,6 +386,7 @@ The full release matrix includes:
 | `FABLE_PRODUCTION_AND_BROAD_APPEAL_PRD.md` | Absorbed | Broad-appeal and production defects |
 | `CYCLE15_PRD.md` | Authoritative appendix | Living London layer: fresh-facts dataset, Tonight Conditions, Social Loop v1, native readiness, anti-slop enforcement |
 | `PERSONA_DRINKS_AND_DESKTOP_PRD.md` | Authoritative appendix | Desktop parity lanes + sourced persona-drinks discovery lens with endorsement guardrails |
+| `grok_prd.md` | Execution rationale | Reasoning behind Firstmate backlog items; not a second queue |
 | `IOS_APP_PRD.md` | Authoritative appendix | iPhone-app build/activation contract; native shell over this PRD's web product |
 | `FIRST_PRINCIPLES_MAP_SOCIAL_PRD.md` | Absorbed | Map/social first-principles framing |
 | `MASTER_FEATURES_ROADMAP_PRD.md` | Superseded | Feature inventory reconciled into waves |
