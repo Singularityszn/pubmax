@@ -69,6 +69,17 @@ const PAGEVIEW_DYNAMIC_SURFACES: readonly [RegExp, string][] = [
   [/^\/u\/[^/]+\/lists\/[^/]+$/, "/u/[handle]/lists/[listType]"],
 ];
 
+export function analyticsUrlWithoutQuery(value: unknown): string | null {
+  if (typeof value !== "string" || value.length === 0 || value.length > 2_048) return null;
+  try {
+    const url = new URL(value);
+    if (url.protocol !== "http:" && url.protocol !== "https:") return null;
+    return `${url.origin}${url.pathname}`;
+  } catch {
+    return null;
+  }
+}
+
 /**
  * Validate the path shape shared by analytics sinks. Unknown encoded values
  * fail closed before either purpose-specific vocabulary is applied.

@@ -29,7 +29,7 @@ function setWindow(navigatorOverrides: FakeNavigator = {}): Map<string, string> 
   (globalThis as { navigator?: unknown }).navigator = nav;
   (globalThis as { window?: unknown }).window = {
     location: { pathname: "/tonight" },
-    document: { referrer: "https://example.com/london-pubs" },
+    document: { referrer: "https://example.com/london-pubs?ask=free-text#results" },
     screen: { width: 1512, height: 982 },
     innerWidth: 1280,
     innerHeight: 820,

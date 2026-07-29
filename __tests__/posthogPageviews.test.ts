@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 const posthogState = vi.hoisted(() => ({
   captures: [] as Array<[string, Record<string, unknown>]>,
+  initConfig: null as Record<string, unknown> | null,
   initCount: 0,
   moduleLoads: 0,
   optedOut: true,
@@ -15,7 +16,10 @@ vi.mock("posthog-js", () => {
       capture: (name: string, properties: Record<string, unknown>) => {
         if (!posthogState.optedOut) posthogState.captures.push([name, properties]);
       },
-      init: () => { posthogState.initCount += 1; },
+      init: (_token: string, config: Record<string, unknown>) => {
+        posthogState.initCount += 1;
+        posthogState.initConfig = config;
+      },
       opt_in_capturing: () => { posthogState.optedOut = false; },
       opt_out_capturing: () => { posthogState.optedOut = true; },
       reset: (resetDeviceId?: boolean) => {
@@ -28,15 +32,56 @@ vi.mock("posthog-js", () => {
 afterEach(() => {
   vi.resetModules();
   vi.restoreAllMocks();
+  vi.unstubAllGlobals();
   posthogState.captures = [];
+  posthogState.initConfig = null;
   posthogState.initCount = 0;
   posthogState.moduleLoads = 0;
   posthogState.optedOut = true;
   posthogState.resetCalls = [];
   delete process.env.NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN;
+  delete (globalThis as { window?: unknown }).window;
+  delete (globalThis as { navigator?: unknown }).navigator;
 });
 
 describe("explicit PostHog pageviews", () => {
+  it("boots a returning consented session with its persisted device identity", async () => {
+    process.env.NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN = "phc_test";
+    const anonymousId = "anon_018f47a2-8e71-7a7a-9f18-8b953d45b2da";
+    const values = new Map([
+      ["pubmaxx:analytics-consent:v1", "granted"],
+      ["pubmaxx:analytics-id:v1", anonymousId],
+    ]);
+    vi.stubGlobal("navigator", { doNotTrack: "0" });
+    vi.stubGlobal("window", {
+      addEventListener: () => undefined,
+      location: { pathname: "/map" },
+      localStorage: {
+        getItem: (key: string) => values.get(key) ?? null,
+      },
+    });
+
+    await import("@/instrumentation-client");
+    const { anonymousAnalyticsId } = await import("@/lib/analytics");
+    const { capturePosthogPageview } = await import("@/lib/posthogClient");
+    const returningId = anonymousAnalyticsId();
+    capturePosthogPageview("/map", returningId);
+
+    await vi.waitFor(() => {
+      expect(posthogState.captures).toEqual([
+        ["$pageview", {
+          $pathname: "/map",
+          $pubmaxx_anonymous_id: anonymousId,
+        }],
+      ]);
+    });
+    expect(posthogState.initCount).toBe(1);
+    const getDeviceId = posthogState.initConfig?.get_device_id as
+      | ((generatedId: string) => string)
+      | undefined;
+    expect(getDeviceId?.("generated-after-reload")).toBe(anonymousId);
+  });
+
   it("preserves post-consent route order while the SDK initializes", async () => {
     process.env.NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN = "phc_test";
     const {

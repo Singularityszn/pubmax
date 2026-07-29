@@ -6,7 +6,10 @@ import {
   ANONYMOUS_ANALYTICS_STORAGE_KEY,
   isAnonymousAnalyticsId,
 } from "@/lib/analyticsIdentity";
-import { analyticsPageviewSurfaceFromPath } from "@/lib/analyticsPath";
+import {
+  analyticsPageviewSurfaceFromPath,
+  analyticsUrlWithoutQuery,
+} from "@/lib/analyticsPath";
 
 const SAFE_EXCEPTION_TYPES = new Set([
   "AggregateError",
@@ -70,6 +73,8 @@ const STANDARD_BROWSER_PROPERTIES = new Set([
   "mc_cid",
   "igshid",
 ]);
+const WEB_VITAL_METRICS = ["CLS", "FCP", "INP", "LCP"] as const;
+const WEB_VITAL_RATINGS = new Set(["good", "needs-improvement", "poor"]);
 type PostHogClient = (typeof import("posthog-js"))["default"];
 type PendingPageview = {
   pathname: string;
@@ -98,23 +103,43 @@ function standardBrowserProperties(
 ): CaptureResult["properties"] {
   const standard = Object.fromEntries(
     Object.entries(properties).filter(([name]) =>
-      STANDARD_BROWSER_PROPERTIES.has(name) || name.startsWith("$web_vitals_")),
+      STANDARD_BROWSER_PROPERTIES.has(name)),
   );
+  for (const metric of WEB_VITAL_METRICS) {
+    const valueKey = `$web_vitals_${metric}_value`;
+    const eventKey = `$web_vitals_${metric}_event`;
+    const value = properties[valueKey];
+    if (typeof value !== "number" || !Number.isFinite(value) || value < 0) continue;
+    standard[valueKey] = value;
+
+    const rawEvent = properties[eventKey];
+    if (!rawEvent || typeof rawEvent !== "object" || Array.isArray(rawEvent)) continue;
+    const event = rawEvent as Record<string, unknown>;
+    if (
+      event.name !== metric
+      || event.value !== value
+      || typeof event.rating !== "string"
+      || !WEB_VITAL_RATINGS.has(event.rating)
+    ) continue;
+    standard[eventKey] = {
+      name: metric,
+      value,
+      rating: event.rating,
+    };
+  }
   if (pathname) {
     standard.$pathname = pathname;
-    const currentUrl = properties.$current_url;
-    if (typeof currentUrl === "string") {
-      try {
-        const url = new URL(currentUrl);
-        if (url.protocol === "http:" || url.protocol === "https:") {
-          standard.$current_url = `${url.origin}${pathname}`;
-        } else {
-          delete standard.$current_url;
-        }
-      } catch {
-        delete standard.$current_url;
-      }
+    const currentUrl = analyticsUrlWithoutQuery(properties.$current_url);
+    if (currentUrl) {
+      standard.$current_url = new URL(pathname, currentUrl).toString();
+    } else {
+      delete standard.$current_url;
     }
+  }
+  for (const name of ["$referrer", "$initial_referrer"] as const) {
+    const url = analyticsUrlWithoutQuery(properties[name]);
+    if (url) standard[name] = url;
+    else delete standard[name];
   }
   return standard;
 }

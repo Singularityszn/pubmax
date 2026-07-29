@@ -208,7 +208,7 @@ describe("PostHog browser privacy boundary", () => {
     expect(sanitizePosthogEvent(event)).toBeNull();
   });
 
-  it("allows web vitals with standard device context", () => {
+  it("keeps only closed web vital fields and strips query-bearing URLs", () => {
     const anonymousId = `anon_${UUID}`;
     const event: CaptureResult = {
       uuid: UUID,
@@ -224,20 +224,46 @@ describe("PostHog browser privacy boundary", () => {
         $screen_height: 900,
         $pathname: "/map",
         $current_url: "https://pubmaxxing.com/map?memberToken=secret",
+        $referrer: "https://search.example/pubs?ask=free-text",
+        $initial_referrer: "https://social.example/post?member=secret",
+        $web_vitals_LCP_value: 1234,
+        $web_vitals_LCP_event: {
+          name: "LCP",
+          value: 1234,
+          rating: "good",
+          $current_url: "https://pubmaxxing.com/pal?ask=free-text",
+          attribution: {
+            interactionTarget: "main[data-member='secret']",
+          },
+        },
+        $web_vitals_secret_event: {
+          freeText: "do not forward",
+        },
+      },
+    };
+
+    expect(sanitizePosthogEvent(event)).toEqual({
+      uuid: UUID,
+      event: "$web_vitals",
+      properties: {
+        token: "phc_public",
+        distinct_id: anonymousId,
+        $device_id: anonymousId,
+        $browser: "Firefox",
+        $os: "Linux",
+        $device_type: "Desktop",
+        $screen_width: 1440,
+        $screen_height: 900,
+        $pathname: "/map",
+        $current_url: "https://pubmaxxing.com/map",
+        $referrer: "https://search.example/pubs",
+        $initial_referrer: "https://social.example/post",
         $web_vitals_LCP_value: 1234,
         $web_vitals_LCP_event: {
           name: "LCP",
           value: 1234,
           rating: "good",
         },
-      },
-    };
-
-    expect(sanitizePosthogEvent(event)).toEqual({
-      ...event,
-      properties: {
-        ...event.properties,
-        $current_url: "https://pubmaxxing.com/map",
       },
     });
   });

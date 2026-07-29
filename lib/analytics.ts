@@ -32,6 +32,7 @@ import {
   capturePosthogPageview,
   syncPosthogConsent,
 } from "@/lib/posthogClient";
+import { analyticsUrlWithoutQuery } from "@/lib/analyticsPath";
 
 const ENDPOINT = "/api/events";
 const VERIFIED_OUTBOX_KEY = "pubmaxx:analytics-verified-outbox:v1";
@@ -349,9 +350,8 @@ function analyticsBrowserContext(): AnalyticsBrowserContext {
   if (Number.isFinite(screenHeight)) context.screenHeight = screenHeight;
   if (Number.isFinite(viewportWidth)) context.viewportWidth = viewportWidth;
   if (Number.isFinite(viewportHeight)) context.viewportHeight = viewportHeight;
-  if (typeof referrer === "string" && referrer.length > 0) {
-    context.referrer = referrer.slice(0, 2_048);
-  }
+  const safeReferrer = analyticsUrlWithoutQuery(referrer);
+  if (safeReferrer) context.referrer = safeReferrer;
   return context;
 }
 

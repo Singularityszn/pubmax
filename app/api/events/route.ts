@@ -25,7 +25,10 @@
 
 import { isIP } from "node:net";
 import { sanitizeEvent } from "@/lib/analyticsEvents";
-import { analyticsSurfaceFromPath } from "@/lib/analyticsPath";
+import {
+  analyticsSurfaceFromPath,
+  analyticsUrlWithoutQuery,
+} from "@/lib/analyticsPath";
 import { isAnonymousAnalyticsId } from "@/lib/analyticsIdentity";
 import { isEventsRateLimited } from "@/lib/eventsRateLimit";
 import { capturePosthogEvent, isPosthogConfigured } from "@/lib/posthogServer";
@@ -40,7 +43,6 @@ export const runtime = "nodejs";
 const MAX_BODY_BYTES = 6_000;
 const MAX_BROWSER_DIMENSION = 32_768;
 const MAX_USER_AGENT_LENGTH = 1_000;
-const MAX_REFERRER_LENGTH = 2_048;
 
 function noContent(delivery?: "delivered" | "retry" | "discard"): Response {
   return new Response(null, {
@@ -75,15 +77,7 @@ function safeUserAgent(value: string | null): string | undefined {
 }
 
 function safeReferrer(value: unknown): string | undefined {
-  if (typeof value !== "string" || value.length === 0 || value.length > MAX_REFERRER_LENGTH) {
-    return undefined;
-  }
-  try {
-    const url = new URL(value);
-    return url.protocol === "http:" || url.protocol === "https:" ? url.toString() : undefined;
-  } catch {
-    return undefined;
-  }
+  return analyticsUrlWithoutQuery(value) ?? undefined;
 }
 
 function safeClientIp(request: Request): string | undefined {

@@ -159,7 +159,7 @@ describe("POST /api/events", () => {
           screenHeight: 982,
           viewportWidth: 1280,
           viewportHeight: 820,
-          referrer: "https://example.com/london-pubs",
+          referrer: "https://example.com/london-pubs?ask=free-text#results",
         },
         ts: 123,
       }),
@@ -200,6 +200,7 @@ describe("POST /api/events", () => {
     expect(payload.properties).not.toHaveProperty("$process_person_profile");
     expect(JSON.stringify(payload)).not.toContain("memberToken");
     expect(JSON.stringify(payload)).not.toContain("freeText");
+    expect(JSON.stringify(payload)).not.toContain("ask=");
     expect(JSON.stringify(log.mock.calls)).not.toContain("203.0.113.24");
     expect(JSON.stringify(log.mock.calls)).not.toContain("Mozilla/5.0");
   });
