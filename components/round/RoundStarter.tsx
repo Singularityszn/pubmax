@@ -10,7 +10,7 @@ import { writeActiveRoundCode } from "@/lib/activeRound";
 import { normalizeHandle } from "@/lib/profiles";
 import {
   captureRoundRequestIdentity,
-  readRoundAnonymousHandle,
+  roundHandleForIdentity,
   roundRequestIdentityOwnerKey,
   runRoundMutationForCurrentOwner,
   writeRoundAnonymousHandle,
@@ -71,7 +71,6 @@ export default function RoundStarter({
     [authLoading, session, user?.id],
   );
   const roundIdentityRef = useRef<RoundRequestIdentity | null>(roundIdentity);
-  roundIdentityRef.current = roundIdentity;
   const roundOwnerKey = roundRequestIdentityOwnerKey(roundIdentity);
   const stateOwnerRef = useRef<string | null>(null);
   const stay = stayOnMap ?? compact;
@@ -80,6 +79,10 @@ export default function RoundStarter({
   const [error, setError] = useState<string | null>(null);
   const [startedCode, setStartedCode] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+
+  useEffect(() => {
+    roundIdentityRef.current = roundIdentity;
+  }, [roundIdentity]);
 
   useEffect(() => {
     const ownerChanged = stateOwnerRef.current !== roundOwnerKey;
@@ -94,17 +97,17 @@ export default function RoundStarter({
         setCopied(false);
       }
       setHandle(
-        roundIdentity?.kind === "account"
-          ? (accountHandle ?? "")
-          : roundIdentity?.kind === "anonymous"
-            ? readRoundAnonymousHandle(localStorageSafe())
-            : "",
+        roundHandleForIdentity(
+          roundIdentity,
+          accountHandle,
+          localStorageSafe(),
+        ),
       );
     });
     return () => {
       active = false;
     };
-  }, [accountHandle, roundIdentity?.kind, roundOwnerKey]);
+  }, [accountHandle, roundIdentity, roundOwnerKey]);
 
   const hasSeeds = Boolean(seedStops && seedStops.length > 0);
 

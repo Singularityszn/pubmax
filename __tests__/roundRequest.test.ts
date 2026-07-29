@@ -1,11 +1,17 @@
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
+
 import { describe, expect, it, vi } from "vitest";
 
 import {
   captureRoundRequestIdentity,
+  roundHandleForIdentity,
   roundJsonRequest,
   runRoundMutationForCurrentOwner,
   type RoundRequestIdentity,
 } from "@/lib/roundRequest";
+
+const ROOT = process.cwd();
 
 describe("Round request client", () => {
   it("binds every signed-in Round write to the captured bearer token", async () => {
@@ -98,5 +104,48 @@ describe("Round request client", () => {
     };
 
     expect(await completion).toEqual({ current: true, value: "saved" });
+  });
+
+  it("resolves account and anonymous Round handles through separate owners", () => {
+    const storage = {
+      getItem: (key: string) =>
+        key === "pubmax_round_anonymous_identity_v1"
+          ? JSON.stringify({ owner: "anonymous", handle: "night_owl" })
+          : key === "pubmax_handle"
+            ? "stale_account"
+            : null,
+    };
+
+    expect(
+      roundHandleForIdentity(
+        {
+          kind: "account",
+          auth: { userId: "user-a", accessToken: "token-a" },
+        },
+        "alice",
+        storage,
+      ),
+    ).toBe("alice");
+    expect(
+      roundHandleForIdentity({ kind: "anonymous" }, "stale_account", storage),
+    ).toBe("night_owl");
+    expect(roundHandleForIdentity(null, "alice", storage)).toBe("");
+  });
+
+  it("binds Pint Drop Round append to captured Round identity", () => {
+    const source = readFileSync(
+      join(ROOT, "components/map/usePintDrops.ts"),
+      "utf8",
+    );
+
+    expect(source).toMatch(
+      /const submittedRoundHandle = roundHandleForIdentity\(/,
+    );
+    expect(source).toMatch(
+      /appendPintDropStopToActiveRound\(\{[\s\S]*?handle: submittedRoundHandle,/,
+    );
+    expect(source).not.toMatch(
+      /activeRound && submittedHandle && submittedRoundIdentity/,
+    );
   });
 });

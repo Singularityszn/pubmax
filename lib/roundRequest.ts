@@ -49,6 +49,32 @@ export function writeRoundAnonymousHandle(
   }
 }
 
+export function clearClaimedRoundAnonymousHandle(
+  handle: string,
+  storage: Pick<Storage, "getItem" | "removeItem"> | null,
+): boolean {
+  if (!storage) return false;
+  const claimed = normalizeHandle(handle);
+  if (!claimed || readRoundAnonymousHandle(storage) !== claimed) return false;
+  try {
+    storage.removeItem(ROUND_ANONYMOUS_IDENTITY_KEY);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+export function roundHandleForIdentity(
+  identity: RoundRequestIdentity | null,
+  accountHandle: string | null,
+  storage: Pick<Storage, "getItem"> | null,
+): string {
+  if (!identity) return "";
+  return identity.kind === "account"
+    ? normalizeHandle(accountHandle ?? "")
+    : readRoundAnonymousHandle(storage);
+}
+
 export function roundRequestIdentityOwnerKey(
   identity: RoundRequestIdentity | null,
 ): string | null {

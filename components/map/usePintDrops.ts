@@ -31,6 +31,7 @@ import { clearPintDropDraft } from "@/lib/pintDropDraft";
 import type { PintDrop, VibeTag } from "@/lib/pintDropShared";
 import {
   captureRoundRequestIdentity,
+  roundHandleForIdentity,
   roundJsonRequest,
   runRoundMutationForCurrentOwner,
   type RoundRequestIdentity,
@@ -60,6 +61,14 @@ export type DropMsg = {
 const MAX_PHOTO_BYTES = 5 * 1024 * 1024; // 5MB — server re-validates.
 const ACCEPTED_PHOTO_TYPES = ["image/jpeg", "image/png", "image/webp"];
 const MAX_VIBE_TAGS = 4; // mirrors the server cap in lib/pintDrops.ts.
+
+function localStorageSafe(): Storage | null {
+  try {
+    return window.localStorage;
+  } catch {
+    return null;
+  }
+}
 
 /**
  * Best-effort: append this venue as a stop on the open Round. Fail-soft — a
@@ -103,6 +112,39 @@ async function appendStopToActiveRound(input: {
   }
 }
 
+function pintDropId(value: unknown): string | undefined {
+  if (!value || typeof value !== "object") return undefined;
+  const id = (value as { id?: unknown }).id;
+  return typeof id === "string" ? id : undefined;
+}
+
+async function appendPintDropStopToActiveRound(input: {
+  identity: RoundRequestIdentity | null;
+  currentIdentity: () => RoundRequestIdentity | null;
+  handle: string;
+  venueId: string;
+  venueName: string;
+  dropRef?: string;
+}): Promise<boolean> {
+  const code = readActiveRoundCode();
+  const identity = input.identity;
+  if (!code || !input.handle || !identity) return false;
+  const completion = await runRoundMutationForCurrentOwner(
+    identity,
+    input.currentIdentity,
+    () =>
+      appendStopToActiveRound({
+        identity,
+        code,
+        handle: input.handle,
+        venueId: input.venueId,
+        venueName: input.venueName,
+        dropRef: input.dropRef,
+      }),
+  );
+  return completion.current && completion.value;
+}
+
 function groupDropsByVenueId(drops: DropWithPhotos[]): Map<string, DropWithPhotos[]> {
   const grouped = new Map<string, DropWithPhotos[]>();
   for (const drop of drops) {
@@ -119,7 +161,12 @@ export function usePintDrops(
   cityId: CityId = "london",
   mapVenues?: readonly MapPintDropVenue[],
 ) {
-  const { user, session, loading: authLoading } = useAuth();
+  const {
+    user,
+    session,
+    loading: authLoading,
+    handle: accountHandle,
+  } = useAuth();
   const roundIdentity = useMemo(
     () =>
       authLoading
@@ -128,7 +175,6 @@ export function usePintDrops(
     [authLoading, session, user?.id],
   );
   const roundIdentityRef = useRef<RoundRequestIdentity | null>(roundIdentity);
-  roundIdentityRef.current = roundIdentity;
   const [handle, setHandle] = useState(() =>
     typeof window === "undefined" ? "" : (window.localStorage.getItem("pubmax_handle") ?? ""),
   );
@@ -155,6 +201,10 @@ export function usePintDrops(
   // Abort in-flight city-scoped list fetches when city changes or a newer
   // refresh supersedes an older one (avoids stale London drops painting Manchester).
   const cityListAbortRef = useRef<AbortController | null>(null);
+
+  useEffect(() => {
+    roundIdentityRef.current = roundIdentity;
+  }, [roundIdentity]);
 
   // Refresh the WHOLE drops layer from the public list (city-scoped). This is
   // the same read the initial load uses — so #29 visibility filtering re-applies —
@@ -309,6 +359,11 @@ export function usePintDrops(
   ) {
     event.preventDefault();
     const submittedRoundIdentity = roundIdentity;
+    const submittedRoundHandle = roundHandleForIdentity(
+      submittedRoundIdentity,
+      accountHandle,
+      localStorageSafe(),
+    );
     setSubmitting(true);
     setDropMsg(null);
     const clientRequestId = newOptimisticSpillClientId();
@@ -481,28 +536,14 @@ export function usePintDrops(
 
       // Loop 2: if a Round is open, append this pub as a stop (existing
       // addStop API). Fail-soft — the drop already landed.
-      const activeRound = readActiveRoundCode();
-      const dropId =
-        data.drop && typeof data.drop === "object" && typeof (data.drop as { id?: unknown }).id === "string"
-          ? (data.drop as { id: string }).id
-          : undefined;
-      let addedToNight = false;
-      if (activeRound && submittedHandle && submittedRoundIdentity) {
-        const completion = await runRoundMutationForCurrentOwner(
-          submittedRoundIdentity,
-          () => roundIdentityRef.current,
-          () =>
-            appendStopToActiveRound({
-              identity: submittedRoundIdentity,
-              code: activeRound,
-              handle: submittedHandle,
-              venueId,
-              venueName: options?.venueName ?? unresolvedVenueLabel(venueId),
-              dropRef: dropId,
-            }),
-        );
-        addedToNight = completion.current && completion.value;
-      }
+      const addedToNight = await appendPintDropStopToActiveRound({
+        identity: submittedRoundIdentity,
+        currentIdentity: () => roundIdentityRef.current,
+        handle: submittedRoundHandle,
+        venueId,
+        venueName: options?.venueName ?? unresolvedVenueLabel(venueId),
+        dropRef: pintDropId(data.drop),
+      });
 
       const links: NonNullable<DropMsg["links"]> = [
         { href: "/feed", label: "See the feed" },
@@ -512,7 +553,7 @@ export function usePintDrops(
           href: `/bar-tab/${encodeURIComponent(venueId)}`,
           label: "Bar tab",
         });
-        const cleanHandle = submittedHandle.replace(/^@+/, "");
+        const cleanHandle = submittedRoundHandle.replace(/^@+/, "");
         if (cleanHandle) {
           links.push({ href: `/u/${encodeURIComponent(cleanHandle)}`, label: "Your profile" });
         }

@@ -56,6 +56,7 @@ import {
 import {
   IDENTITY_HANDLE_CHANGED_EVENT,
   identityHandleForOwner,
+  type IdentityHandleChangedDetail,
 } from "@/lib/identityClient";
 import { requestMagicLink, type MagicLinkResult } from "@/lib/passwordlessAuth";
 
@@ -143,7 +144,8 @@ const AuthContext = createContext<AuthContextValue | null>(null);
 export function AuthProvider({ children }: { children: ReactNode }): React.JSX.Element {
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
-  const [canonicalHandle, setCanonicalHandle] = useState<string | null>(null);
+  const [canonicalIdentity, setCanonicalIdentity] =
+    useState<IdentityHandleChangedDetail | null>(null);
   const [authCallbackError, setAuthCallbackError] = useState<string | null>(null);
   const [socialProviders, setSocialProviders] =
     useState<SocialAuthProviderAvailability>(NO_SOCIAL_AUTH_PROVIDERS);
@@ -185,18 +187,27 @@ export function AuthProvider({ children }: { children: ReactNode }): React.JSX.E
         (event as CustomEvent<unknown>).detail,
         user?.id ?? null,
       );
-      if (handle !== null) setCanonicalHandle(normalizeHandle(handle));
+      if (handle !== null && user) {
+        setCanonicalIdentity({
+          ownerId: user.id,
+          handle: normalizeHandle(handle),
+        });
+      }
     };
     window.addEventListener(IDENTITY_HANDLE_CHANGED_EVENT, onChanged);
     async function loadCanonicalHandle() {
       if (!user) {
-        if (active) setCanonicalHandle(null);
+        if (active) setCanonicalIdentity(null);
         return;
       }
       const response = await authedFetch("/api/identity/handle/current").catch(() => null);
       if (!active || !response?.ok) return;
       const body = await response.json() as { handle?: string | null };
-      setCanonicalHandle(body.handle ? normalizeHandle(body.handle) : null);
+      setCanonicalIdentity(
+        body.handle
+          ? { ownerId: user.id, handle: normalizeHandle(body.handle) }
+          : null,
+      );
     }
     void loadCanonicalHandle();
     return () => {
@@ -463,9 +474,12 @@ export function AuthProvider({ children }: { children: ReactNode }): React.JSX.E
       signInWithEmail,
       cancelAuthAttempt: cancelBrowserAuthAttempt,
       signOut,
-      handle: canonicalHandle,
+      handle: identityHandleForOwner(
+        canonicalIdentity,
+        user?.id ?? null,
+      ),
     };
-  }, [session, loading, configured, socialProviders, signInWithGoogle, signInWithApple, signInWithEmail, signOut, canonicalHandle]);
+  }, [session, loading, configured, socialProviders, signInWithGoogle, signInWithApple, signInWithEmail, signOut, canonicalIdentity]);
 
   return (
     <AuthContext.Provider value={value}>

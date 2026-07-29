@@ -1,3 +1,5 @@
+import { clearClaimedRoundAnonymousHandle } from "@/lib/roundRequest";
+
 export const IDENTITY_HANDLE_CHANGED_EVENT = "pubmaxx:identity-handle-changed";
 
 export type IdentityHandleChangedDetail = Readonly<{
@@ -20,6 +22,11 @@ export function emitIdentityHandleChanged(
   detail: IdentityHandleChangedDetail,
 ): void {
   if (typeof window === "undefined") return;
+  let storage: Storage | null = null;
+  try {
+    storage = window.localStorage;
+  } catch {}
+  clearClaimedRoundAnonymousHandle(detail.handle, storage);
   window.dispatchEvent(
     new CustomEvent(IDENTITY_HANDLE_CHANGED_EVENT, { detail }),
   );
