@@ -1,6 +1,8 @@
 import type { CategoryPriceIndexStatus } from "@/lib/mapExperienceLens";
 import type {
+  MapRenderedPriceBand,
   MapRenderedPriceBucket,
+  MapRenderedPriceMeaning,
   MapRenderedState,
 } from "@/lib/mapRenderedState";
 
@@ -151,9 +153,14 @@ function priceRows(noun: string): MapPriceLegendRow[] {
 
 function renderedRows(
   rows: MapPriceLegendRow[],
-  buckets: readonly MapRenderedPriceBucket[],
+  bands: readonly MapRenderedPriceBand[],
+  meaning?: MapRenderedPriceMeaning,
 ): MapPriceLegendRow[] {
-  const renderedBuckets = new Set(buckets);
+  const renderedBuckets = new Set(
+    bands
+      .filter((band) => meaning === undefined || band.meaning === meaning)
+      .map((band) => band.bucket),
+  );
   return rows.filter((_, bucket) =>
     renderedBuckets.has(bucket as MapRenderedPriceBucket),
   );
@@ -207,6 +214,36 @@ function typeRelativePriceRows(): MapPriceLegendRow[] {
       tone: "grey",
     },
   ];
+}
+
+function mixedRenderedRows(
+  bands: readonly MapRenderedPriceBand[],
+): MapPriceLegendRow[] {
+  const pintRows = priceRows("pint");
+  const typeRelativeRows = typeRelativePriceRows();
+  const mixedRows = mixedPriceRows();
+  const pairs = new Set(
+    bands.map((band) => `${band.meaning}:${band.bucket}`),
+  );
+
+  return ([0, 1, 2, 3] as const).flatMap((bucket) => {
+    const hasPintMeaning = pairs.has(`pint:${bucket}`);
+    const hasTypeRelativeMeaning = pairs.has(`type-relative:${bucket}`);
+    if (hasPintMeaning && hasTypeRelativeMeaning) {
+      return [mixedRows[bucket]];
+    }
+    if (hasPintMeaning) return [pintRows[bucket]];
+    if (hasTypeRelativeMeaning) return [typeRelativeRows[bucket]];
+    return [];
+  });
+}
+
+function renderedBuckets(
+  bands: readonly MapRenderedPriceBand[],
+): MapRenderedPriceBucket[] {
+  return Array.from(new Set(bands.map((band) => band.bucket))).sort(
+    (left, right) => left - right,
+  );
 }
 
 type MapKeyDeclarations = Pick<
@@ -324,8 +361,8 @@ function defaultClusterNote(
 export function mapPriceLegend(
   context: MapPriceLegendContext,
 ): MapPriceLegendModel {
-  const { priceBuckets, priceMeanings, storyColour } =
-    context.renderedState;
+  const { priceBands, storyColour } = context.renderedState;
+  const priceBuckets = renderedBuckets(priceBands);
   if (context.kind === "food") {
     return declaredLegend(
       {
@@ -361,7 +398,7 @@ export function mapPriceLegend(
     const hasKnownBand = priceBuckets.some((bucket) => bucket !== 3);
     const unreadable =
       context.status === "degraded" && !hasKnownBand;
-    const rows = renderedRows(priceRows(drink), priceBuckets);
+    const rows = renderedRows(priceRows(drink), priceBands);
     return declaredLegend(
       {
         rows: unreadable ? rows.slice(-1) : rows,
@@ -390,12 +427,16 @@ export function mapPriceLegend(
       },
     );
   }
-  const hasPintPrices = priceMeanings.includes("pint");
-  const usesTypeRelativeMeaning = priceMeanings.includes("type-relative");
+  const hasPintPrices = priceBands.some(
+    (band) => band.meaning === "pint",
+  );
+  const usesTypeRelativeMeaning = priceBands.some(
+    (band) => band.meaning === "type-relative",
+  );
   if (hasPintPrices && !usesTypeRelativeMeaning) {
     return declaredLegend(
       {
-        rows: renderedRows(priceRows("pint"), priceBuckets),
+        rows: renderedRows(priceRows("pint"), priceBands, "pint"),
         ariaLabel: "Pint price key and filters",
         title: "Pint price key and filters",
         hint: "Show pubs at or under this pint price.",
@@ -415,7 +456,11 @@ export function mapPriceLegend(
   if (usesTypeRelativeMeaning && !hasPintPrices) {
     return declaredLegend(
       {
-        rows: renderedRows(typeRelativePriceRows(), priceBuckets),
+        rows: renderedRows(
+          typeRelativePriceRows(),
+          priceBands,
+          "type-relative",
+        ),
         ariaLabel: "Venue type price colour key",
         title: "Venue price bands",
         hint: "Each venue pin is low, middle, or high within its own type.",
@@ -454,7 +499,7 @@ export function mapPriceLegend(
   }
   return declaredLegend(
     {
-      rows: renderedRows(mixedPriceRows(), priceBuckets),
+      rows: mixedRenderedRows(priceBands),
       ariaLabel:
         "Price colour key: pub pints use pound thresholds; other venue types use relative low, middle, and high bands",
       title: "Pint prices and other venue price bands",

@@ -4,14 +4,17 @@ import { NO_ALCOHOL_LENS_PRICE_NOUN } from "@/lib/mapExperienceLens";
 import { mapPriceLegend } from "@/lib/mapPriceLegend";
 
 const ALL_RENDERED_STATE = {
-  priceBuckets: [0, 1, 2, 3] as const,
-  priceMeanings: ["pint"] as const,
+  priceBands: [
+    { meaning: "pint", bucket: 0 },
+    { meaning: "pint", bucket: 1 },
+    { meaning: "pint", bucket: 2 },
+    { meaning: "pint", bucket: 3 },
+  ] as const,
   storyColour: null,
 };
 
 const UNKNOWN_RENDERED_STATE = {
-  priceBuckets: [3] as const,
-  priceMeanings: ["pint"] as const,
+  priceBands: [{ meaning: "pint", bucket: 3 }] as const,
   storyColour: null,
 };
 
@@ -20,8 +23,16 @@ describe("mapPriceLegend", () => {
     const legend = mapPriceLegend({
       kind: "default",
       renderedState: {
-        priceBuckets: [0, 1, 2, 3],
-        priceMeanings: ["pint", "type-relative"],
+        priceBands: [
+          { meaning: "pint", bucket: 0 },
+          { meaning: "pint", bucket: 1 },
+          { meaning: "pint", bucket: 2 },
+          { meaning: "pint", bucket: 3 },
+          { meaning: "type-relative", bucket: 0 },
+          { meaning: "type-relative", bucket: 1 },
+          { meaning: "type-relative", bucket: 2 },
+          { meaning: "type-relative", bucket: 3 },
+        ],
         storyColour: null,
       },
     });
@@ -54,8 +65,14 @@ describe("mapPriceLegend", () => {
     const legend = mapPriceLegend({
       kind: "default",
       renderedState: {
-        ...ALL_RENDERED_STATE,
-        priceMeanings: ["pint", "type-relative"],
+        priceBands: [
+          ...ALL_RENDERED_STATE.priceBands,
+          { meaning: "type-relative", bucket: 0 },
+          { meaning: "type-relative", bucket: 1 },
+          { meaning: "type-relative", bucket: 2 },
+          { meaning: "type-relative", bucket: 3 },
+        ],
+        storyColour: null,
       },
     });
     expect(legend.rows.map((row) => row.label)).toEqual([
@@ -68,12 +85,35 @@ describe("mapPriceLegend", () => {
     expect(legend.hint).toContain("within its own type");
   });
 
+  it("does not assign a type-relative bucket to pint copy", () => {
+    const legend = mapPriceLegend({
+      kind: "default",
+      renderedState: {
+        priceBands: [
+          { meaning: "pint", bucket: 3 },
+          { meaning: "type-relative", bucket: 0 },
+        ],
+        storyColour: null,
+      },
+    });
+
+    expect(legend.rows.map((row) => row.label)).toEqual([
+      "Low for its venue type",
+      "No pint price on the map",
+    ]);
+  });
+
   it("uses only type-relative copy when the scene has no pubs", () => {
     const legend = mapPriceLegend({
       kind: "default",
       renderedState: {
-        ...ALL_RENDERED_STATE,
-        priceMeanings: ["type-relative"],
+        priceBands: [
+          { meaning: "type-relative", bucket: 0 },
+          { meaning: "type-relative", bucket: 1 },
+          { meaning: "type-relative", bucket: 2 },
+          { meaning: "type-relative", bucket: 3 },
+        ],
+        storyColour: null,
       },
     });
 
@@ -222,8 +262,10 @@ describe("mapPriceLegend colour rows under a failed read", () => {
       noun: "Whisky",
       status: "degraded",
       renderedState: {
-        priceBuckets: [1, 3],
-        priceMeanings: ["pint"],
+        priceBands: [
+          { meaning: "pint", bucket: 1 },
+          { meaning: "pint", bucket: 3 },
+        ],
         storyColour: null,
       },
     });
@@ -267,8 +309,7 @@ describe("map key inventory", () => {
     const legend = mapPriceLegend({
       kind: "default",
       renderedState: {
-        priceBuckets: ALL_RENDERED_STATE.priceBuckets,
-        priceMeanings: ALL_RENDERED_STATE.priceMeanings,
+        priceBands: ALL_RENDERED_STATE.priceBands,
         storyColour: "#d99f45",
       },
     });

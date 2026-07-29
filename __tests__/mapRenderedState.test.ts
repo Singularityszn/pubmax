@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 
-import { deriveMapRenderedState } from "@/lib/mapRenderedState";
+import {
+  deriveMapRenderedState,
+  sameMapRenderedState,
+} from "@/lib/mapRenderedState";
 
 function feature(bucket: number, kind = "pub"): GeoJSON.Feature {
   return {
@@ -27,13 +30,15 @@ describe("deriveMapRenderedState", () => {
         "amber",
       ),
     ).toEqual({
-      priceBuckets: [1, 3],
-      priceMeanings: ["pint"],
+      priceBands: [
+        { meaning: "pint", bucket: 1 },
+        { meaning: "pint", bucket: 3 },
+      ],
       storyColour: "#d99f45",
     });
   });
 
-  it("derives price meanings from only the features in the scene", () => {
+  it("derives price pairs from only the features in the scene", () => {
     const pubOnly: GeoJSON.FeatureCollection = {
       type: "FeatureCollection",
       features: [feature(0), feature(2)],
@@ -45,12 +50,54 @@ describe("deriveMapRenderedState", () => {
 
     expect(
       deriveMapRenderedState(pubOnly, { brass: "#b0813a" }, null)
-        .priceMeanings,
-    ).toEqual(["pint"]);
+        .priceBands,
+    ).toEqual([
+      { meaning: "pint", bucket: 0 },
+      { meaning: "pint", bucket: 2 },
+    ]);
     expect(
       deriveMapRenderedState(mixed, { brass: "#b0813a" }, null)
-        .priceMeanings,
-    ).toEqual(["pint", "type-relative"]);
+        .priceBands,
+    ).toEqual([
+      { meaning: "pint", bucket: 0 },
+      { meaning: "type-relative", bucket: 1 },
+    ]);
+  });
+
+  it("preserves the meaning that owns each rendered bucket", () => {
+    const pubsData: GeoJSON.FeatureCollection = {
+      type: "FeatureCollection",
+      features: [feature(3), feature(0, "restaurant")],
+    };
+
+    expect(
+      deriveMapRenderedState(pubsData, { brass: "#b0813a" }, null)
+        .priceBands,
+    ).toEqual([
+      { meaning: "pint", bucket: 3 },
+      { meaning: "type-relative", bucket: 0 },
+    ]);
+  });
+
+  it("detects a rendered bucket moving between price meanings", () => {
+    expect(
+      sameMapRenderedState(
+        {
+          priceBands: [
+            { meaning: "pint", bucket: 0 },
+            { meaning: "type-relative", bucket: 3 },
+          ],
+          storyColour: null,
+        },
+        {
+          priceBands: [
+            { meaning: "pint", bucket: 3 },
+            { meaning: "type-relative", bucket: 0 },
+          ],
+          storyColour: null,
+        },
+      ),
+    ).toBe(false);
   });
 
   it("resolves the story token again when scene theme tokens change", () => {

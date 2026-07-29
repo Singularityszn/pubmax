@@ -10,8 +10,12 @@ import { mapPriceLegend } from "@/lib/mapPriceLegend";
 
 describe("MapKey", () => {
   const renderedState = {
-    priceBuckets: [0, 1, 2, 3] as const,
-    priceMeanings: ["pint"] as const,
+    priceBands: [
+      { meaning: "pint", bucket: 0 },
+      { meaning: "pint", bucket: 1 },
+      { meaning: "pint", bucket: 2 },
+      { meaning: "pint", bucket: 3 },
+    ] as const,
     storyColour: null,
   };
   const html = renderToStaticMarkup(
