@@ -43,14 +43,22 @@ function makeMemoryStorage(): Storage {
 }
 
 function installWindow(session: Storage, local = makeMemoryStorage()): void {
-  (globalThis as { window?: WindowLike }).window = {
+  setWindow({
     sessionStorage: session,
     localStorage: local,
-  };
+  });
+}
+
+function setWindow(window: WindowLike): void {
+  Object.defineProperty(globalThis, "window", {
+    configurable: true,
+    writable: true,
+    value: window,
+  });
 }
 
 function clearWindow(): void {
-  delete (globalThis as { window?: WindowLike }).window;
+  Reflect.deleteProperty(globalThis, "window");
 }
 
 afterEach(() => {
@@ -110,7 +118,7 @@ describe("CitySuggestBanner opt-in geo", () => {
       throw new Error("storage unavailable");
     };
     const events = new EventTarget();
-    (globalThis as { window?: WindowLike }).window = {
+    setWindow({
       sessionStorage: session,
       localStorage: makeMemoryStorage(),
       location: { pathname: "/map", search: "" },
@@ -122,7 +130,7 @@ describe("CitySuggestBanner opt-in geo", () => {
       addEventListener: events.addEventListener.bind(events),
       removeEventListener: events.removeEventListener.bind(events),
       dispatchEvent: events.dispatchEvent.bind(events),
-    };
+    });
     vi.stubGlobal("navigator", {
       geolocation: { getCurrentPosition: vi.fn() },
     });
