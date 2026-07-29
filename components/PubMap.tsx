@@ -31,6 +31,7 @@ import {
 import { UK_BOUNDS } from "@/components/map/canvas/tokens";
 import { useFocusTrap } from "@/lib/useFocusTrap";
 import { MOBILE_MEDIA_QUERY } from "@/lib/breakpoints";
+import { useDrawerSpring } from "@/components/map/useDrawerSpring";
 // Perf (mobile /map cold-open): MapLibre (~327 KB) lives only in PubMapCanvas
 // and its canvas helpers (donutClusters / useMapCamera). Keep it out of the
 // PubMap shell chunk so first paint is shell + skeleton; MapLibre parses after
@@ -2153,6 +2154,16 @@ export default function PubMap({
   // The venue sheet is open for a curated venue OR for a tapped base pub; both
   // fill the same drawer/sheet, so every open/close/snap path stays one path.
   const detailOpen = Boolean(selectedVenueId && selectedVenue) || basePubOpen;
+  const plannerDrawerSpringStyle = useDrawerSpring(
+    planningOpen,
+    "left",
+    railViewport,
+  );
+  const detailDrawerSpringStyle = useDrawerSpring(
+    detailOpen,
+    "right",
+    railViewport,
+  );
   const activeNightArea = useMemo(() => nightAreaForMapQuery(cityId, filters.query) ??
     (!filters.query.trim() && plannedNightArea ? getNightArea(plannedNightArea) : null),
   [cityId, filters.query, plannedNightArea]);
@@ -3254,7 +3265,7 @@ export default function PubMap({
                 transform: `translateY(${Math.max(0, sheetTranslateY(plannerSheetSnap, typeof window === "undefined" ? 0 : window.innerHeight) + plannerSheetDragY)}px)`,
                 transition: "none",
               }
-            : undefined
+            : plannerDrawerSpringStyle
         }
       >
         <div
@@ -3296,7 +3307,7 @@ export default function PubMap({
                 transform: `translateY(${Math.max(0, sheetTranslateY(sheetSnap, typeof window === "undefined" ? 0 : window.innerHeight) + sheetDragY)}px)`,
                 transition: "none",
               }
-            : undefined
+            : detailDrawerSpringStyle
         }
       >
         <div

@@ -188,6 +188,9 @@ test("mobile drag-sheet supports non-modal half and focus-contained full states 
   // gates on the map's `loaded` flag, so wait web-first for the open class.)
   const sheet = page.locator(".mapDrawer.right.open");
   await expect(sheet).toBeVisible({ timeout: 30_000 });
+  expect(
+    await sheet.evaluate((node) => getComputedStyle(node).transitionProperty),
+  ).not.toContain("max-height");
 
   // A fresh pick rests at the "half" snap on open (the class drives the CSS
   // transform). We assert the mounted-snap class the sheet actually opens with.
@@ -229,6 +232,14 @@ test("mobile drag-sheet supports non-modal half and focus-contained full states 
   await expect(sheet).toHaveClass(/sheet-half/);
   await expect(sheet).not.toHaveAttribute("aria-modal", "true");
   await expect(page.locator("body > [inert]")).toHaveCount(0);
+
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await sheet.getByRole("button", { name: "Expand sheet" }).click();
+  await expect(sheet).toHaveClass(/sheet-full/);
+  const reducedMotionHeight = await sheet.evaluate((node) =>
+    Number.parseFloat((node as HTMLElement).style.maxHeight),
+  );
+  expect(reducedMotionHeight).toBeCloseTo(844 * 0.92, 0);
 
   expect(errors).toEqual([]);
 });

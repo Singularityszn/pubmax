@@ -117,15 +117,15 @@ describe("resolveSheetSnap — no-velocity (nearest neighbour)", () => {
   });
 });
 
-describe("resolveSheetSnap — flick (velocity-driven overshoot)", () => {
-  it("a fast upward flick from peek jumps to half, not full, in one step", () => {
+describe("resolveSheetSnap — projected momentum", () => {
+  it("a fast upward flick from peek can project through half to full", () => {
     const result = resolveSheetSnap({
       currentSnap: "peek",
       viewportHeight: VH,
       dragDeltaY: -10, // barely moved
       velocity: -1.2, // fast upward flick (negative = up)
     });
-    expect(result).toEqual({ snap: "half", dismissed: false });
+    expect(result).toEqual({ snap: "full", dismissed: false });
   });
 
   it("a fast upward flick from half jumps to full", () => {
@@ -292,10 +292,10 @@ describe("resolveSheetHeightSnap — no-velocity (nearest neighbour on height)",
   });
 });
 
-describe("resolveSheetHeightSnap — flick (velocity-driven overshoot)", () => {
+describe("resolveSheetHeightSnap — projected momentum", () => {
   const caps = sheetSnapCaps(800, 0);
 
-  it("a fast upward flick from peek jumps to half, not full, in one step", () => {
+  it("a fast upward flick from peek can project through half to full", () => {
     const result = resolveSheetHeightSnap({
       startSnap: "peek",
       startHeightPx: caps.peek,
@@ -303,7 +303,7 @@ describe("resolveSheetHeightSnap — flick (velocity-driven overshoot)", () => {
       velocity: 1.2, // fast growth (positive = up)
       caps,
     });
-    expect(result).toEqual({ snap: "half", dismissed: false });
+    expect(result).toEqual({ snap: "full", dismissed: false });
   });
 
   it("a fast upward flick from half jumps to full", () => {

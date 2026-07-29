@@ -329,15 +329,15 @@
        isn't .left/.right, so the legacy `.open` transform reset never matches it)
        would inherit the off-screen translate. */
     transform: none;
-    will-change: max-height;
-    transition: max-height var(--duration-slow) var(--ease-out);
+    will-change: auto;
   }
   .mobileSharedSheet.open.sheet-peek:not(.sheet-dragging) { --sheet-cap: 22dvh; }
   .mobileSharedSheet.open.sheet-half:not(.sheet-dragging) { --sheet-cap: 55dvh; }
   .mobileSharedSheet.open.sheet-full:not(.sheet-dragging) { --sheet-cap: 92dvh; }
-  /* Mid-drag: the hook writes an inline max-height (px) for 1:1 finger tracking;
-     kill the transition so it tracks live, not eased. */
-  .mobileSharedSheet.sheet-dragging { transition: none; }
+  /* JS owns both 1:1 tracking and spring travel. No CSS transition competes
+     with an interrupted gesture. Promote only while presentation value moves. */
+  .mobileSharedSheet.sheet-dragging,
+  .mobileSharedSheet.sheet-settling { will-change: max-height; }
   .mobileSharedSheetHeader { position: relative; flex: 0 0 auto; min-height: 64px; display: grid; grid-template-columns: 44px 1fr 44px; align-items: center; padding: 10px 12px 4px; touch-action: none; }
   .mobileSharedSheetHeader h2 { grid-column: 2; margin: 0; text-align: center; font-family: var(--font-display); font-size: var(--text-lg); letter-spacing: var(--tracking-tight); }
   .mobileSharedSheetDetent { position: absolute; top: 0; left: 50%; z-index: 1; width: 52px; height: 44px; border: 0; background: transparent; transform: translateX(-50%); }
@@ -495,6 +495,5 @@
 }
 
 @media (max-width: 640px) and (prefers-reduced-motion: reduce) {
-  .mobileSharedSheet.mapDrawer { transition: none !important; }
   .mobilePlanActivation:active { transform: translateX(-50%); }
 }
