@@ -17,7 +17,7 @@
 // rate-limited per handle + IP.
 
 import { jsonNoStore } from "@/lib/apiResponses";
-import { deriveCommunityPriceActor } from "@/lib/communityPriceActor";
+import { resolveContributionIdentity } from "@/lib/contributionIdentity.server";
 import { submitCommunityPrice } from "@/lib/communityPriceStore";
 import { resolveMessageHandle } from "@/lib/messageAuth";
 import { isLimited } from "@/lib/pintDrops";
@@ -103,13 +103,14 @@ async function recordSpend(
   const clean = cleanNewRoundSpend(spendInput);
   if (!clean) return errorResponse("invalid");
 
-  // A plain total is a diary figure, not one drink, so it stops here. Itemised
-  // prices enter the existing community store and earn map authority only
-  // through its independent-submitter and age gates. A line whose figure came
-  // off a seeded demo menu is nobody's observation, so it stays in the diary,
-  // labelled there, and is never submitted.
+  // A plain total is a diary figure, not one drink, so it stops here. Eligible
+  // account prices enter the existing community store and earn map authority
+  // only through its independent-submitter and age gates. Anonymous, ineligible,
+  // and demo-menu lines stay in the diary.
   const observed = firstPartyPriceItems(clean.items);
-  if (observed.length > ROUND_SPEND_PRICE_LINE_MAX) {
+  const contributor =
+    observed.length > 0 ? await resolveContributionIdentity(request) : null;
+  if (contributor?.ok && observed.length > ROUND_SPEND_PRICE_LINE_MAX) {
     return jsonNoStore(
       {
         error: `Log up to ${ROUND_SPEND_PRICE_LINE_MAX} drink prices in one round. Keep this one, then start another.`,
@@ -117,26 +118,29 @@ async function recordSpend(
       { status: 400 },
     );
   }
-  const actor = deriveCommunityPriceActor(request);
 
-  // Drink lines pay the shared per-device price budget (lib/roundPriceBudget)
+  // Eligible drink lines pay the shared account price budget
+  // (lib/roundPriceBudget)
   // BEFORE the diary write, so a refusal never leaves half a Round's lines
   // submitted; the quick total is untouched, so the night can still be
   // recorded. Two turns pay nothing: a replay of a turn already on record (it
   // will submit nothing, and charging it would let a flaky connection lock a
   // drinker out of a Round they have already kept), and a turn whose Round the
   // store cannot show us, whose write is about to fail anyway.
-  if (observed.length > 0) {
+  if (contributor?.ok && observed.length > 0) {
     const onRecord = await store.getByCode(code);
     const chargeable =
       onRecord != null &&
       !onRecord.spends.some((spend) => spend.clientRef === clean.clientRef);
     if (chargeable) {
-      const budget = await chargeRoundPriceLines(actor, observed.length);
+      const budget = await chargeRoundPriceLines(
+        contributor.actor,
+        observed.length,
+      );
       // Two different refusals, and the status has to tell them apart: a spent
       // degraded allowance is OUR limiter being unreachable, so it answers 503
       // fail-soft with a retry hint (the contract errorResponse states above),
-      // while 429 stays what it means everywhere else here - this device really
+      // while 429 stays what it means everywhere else here - this account really
       // has logged its hour's worth of prices.
       if (!budget.allowed && budget.mode === "degraded") {
         return jsonNoStore(
@@ -162,7 +166,7 @@ async function recordSpend(
   const result = await store.recordSpend(code, spendInput);
   if (!result.ok) return errorResponse(result.error);
 
-  if (result.created && observed.length > 0) {
+  if (result.created && contributor?.ok && observed.length > 0) {
     const stored = result.state.spends.find(
       (spend) => spend.clientRef === clean.clientRef,
     );
@@ -173,7 +177,8 @@ async function recordSpend(
           venueId: clean.venueId,
           drinkCategory: item.drinkCategory,
           priceGbp: item.pricePence / 100,
-          actor,
+          actor: contributor.actor,
+          contributorHandle: contributor.handle,
         },
         recordedAt,
       );

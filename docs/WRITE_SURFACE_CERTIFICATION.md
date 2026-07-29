@@ -407,12 +407,13 @@ commit.
   vouches for an already-displayed figure; this is where a figure first enters
   the map from the community. It is no longer the only door: a Round's itemised
   drink lines (`POST /api/rounds/[code] { action: "recordSpend" }`) reach
-  `submitCommunityPrice` too, under the Round route's device-derived actor.
-  Current direct price and venue-signal writes instead use the authenticated
-  account's stable profile actor. The same POST also carries the community
-  VENUE SIGNAL shape (`{ kind: "venue-signal", venueId, signalKey, signalValue
-  }` → 201 `{ ok, signal }`): a categorical observation of character, step-free
-  entrance, step-free toilets, door policy or whether people are eating
+  `submitCommunityPrice` only when the writer passes the same authenticated
+  account, public-handle, and adult-eligibility boundary. Anonymous and
+  ineligible lines remain in the private Round diary. Direct and Round price
+  writes use the account's stable profile actor. The same POST also carries the
+  community VENUE SIGNAL shape (`{ kind: "venue-signal", venueId, signalKey,
+  signalValue }` → 201 `{ ok, signal }`): a categorical observation of
+  character, step-free entrance, step-free toilets, door policy or whether people are eating
   (`lib/communityVenueSignals.ts`). It is a second shape, not a second route -
   deliberately, so it inherits this route's identity, limiter and moderation
   boundaries rather than growing a parallel set. The route also exports
@@ -456,9 +457,9 @@ commit.
   `venueId`; then `price-submit:profile:<profile-id>:${venueId}` stops the same
   account churning one pub's figure. Exceed either → 429. Both tiers are one
   helper (`communityWriteIsLimited`) and a venue-signal write charges the SAME
-  two keys, so signals cannot buy extra budget or spray one pub. A Round's
-  drink lines use the same key namespace and cap but a separate device-derived
-  actor, charged one unit per line before the diary write
+  two keys, so signals cannot buy extra budget or spray one pub. An eligible
+  Round's drink lines use the same account-actor key namespace and cap, charged
+  one unit per line before the diary write
   (`lib/roundPriceBudget.ts` owns that budget and its degraded allowance, which
   answers 503 with `Retry-After` rather than 429, because a spent degraded
   allowance is our limiter being unreachable, not the drinker's doing). The

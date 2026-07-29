@@ -1,6 +1,6 @@
 import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
 
-// The device budget a Round's drink lines pay before they may become community
+// The account budget a Round's drink lines pay before they may become community
 // observations. supabase-js is mocked so the check_rate_limit RPC outcome is
 // fully controllable offline (the house pattern — see rateLimitFailOpen.test).
 //
@@ -92,12 +92,12 @@ describe("chargeRoundPriceLines", () => {
       allowed: true,
     });
 
-    // The allowance is one round, so a device cannot spray during the outage.
+    // The allowance is one round, so an account cannot spray during the outage.
     const second = await chargeRoundPriceLines("actor-c", ROUND_SPEND_PRICE_LINE_MAX);
     expect(second).toEqual({ allowed: false, mode: "degraded" });
     expect(failOpenRecords(logSpy)).toHaveLength(2);
 
-    // Another drinker's device still gets its own round.
+    // Another account still gets its own round.
     expect(await chargeRoundPriceLines("actor-d", ROUND_SPEND_PRICE_LINE_MAX)).toEqual({
       allowed: true,
       mode: "degraded",

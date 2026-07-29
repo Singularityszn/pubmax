@@ -38,12 +38,12 @@
 // No Supabase and no env are required.
 
 import { jsonNoStore } from "@/lib/apiResponses";
-import { callerUserId } from "@/lib/authServer";
 import { deriveCommunityPriceActor } from "@/lib/communityPriceActor";
 import {
   NO_ALCOHOL_DRINK_CATEGORIES,
   validateCommunityPrice,
 } from "@/lib/communityPrice";
+import { resolveContributionIdentity } from "@/lib/contributionIdentity.server";
 import { validateCommunityVenueSignal } from "@/lib/communityVenueSignals";
 import { isDrinkCategory } from "@/lib/drinks";
 import {
@@ -57,10 +57,7 @@ import {
   submitCommunityPrice,
   submitCommunityVenueSignal,
 } from "@/lib/communityPriceStore";
-import { identityHandleStore } from "@/lib/identityHandleStore";
 import { isLimited } from "@/lib/pintDrops";
-import { privateIdentityStore } from "@/lib/privateIdentityStore";
-import { profileStore } from "@/lib/profileStore";
 import { getUkBaseIdIndex } from "@/lib/ukBaseIndex";
 import {
   isUkBaseId,
@@ -121,101 +118,13 @@ async function resolvePubVenueId(venueId: string): Promise<VenueResolution> {
 }
 
 async function communityWriteIsLimited(
-  actor: string | undefined,
+  actor: string,
   venueId: string,
 ): Promise<boolean> {
-  const actorLimitKey = `price-submit-actor:${actor ?? "anon"}`;
+  const actorLimitKey = `price-submit-actor:${actor}`;
   if (await isLimited(actorLimitKey, actorLimitKey, 30, 3_600_000)) return true;
-  const venueLimitKey = `price-submit:${actor ?? "anon"}:${venueId}`;
+  const venueLimitKey = `price-submit:${actor}:${venueId}`;
   return isLimited(venueLimitKey, venueLimitKey);
-}
-
-type ContributorResolution =
-  | {
-      ok: true;
-      actor: string;
-      handle: string;
-    }
-  | {
-      ok: false;
-      response: Response;
-    };
-
-async function resolveContributor(
-  request: Request,
-): Promise<ContributorResolution> {
-  const userId = await callerUserId(request);
-  if (!userId) {
-    return {
-      ok: false,
-      response: jsonNoStore(
-        { status: "sign_in_required", error: "Sign in to contribute." },
-        { status: 401 },
-      ),
-    };
-  }
-  try {
-    const [profile, gate] = await Promise.all([
-      profileStore().getByUserId(userId),
-      privateIdentityStore().contributionGate(userId),
-    ]);
-    if (!profile || gate.status === "onboarding_required") {
-      return {
-        ok: false,
-        response: jsonNoStore(
-          {
-            status: "onboarding_required",
-            error: "Choose your public handle before contributing.",
-          },
-          { status: 409 },
-        ),
-      };
-    }
-    if (gate.status === "age_required") {
-      return {
-        ok: false,
-        response: jsonNoStore(
-          {
-            status: gate.status,
-            error:
-              "Confirm you are 18 or over before your first gated contribution.",
-          },
-          { status: 403 },
-        ),
-      };
-    }
-    if (gate.status === "underage") {
-      return {
-        ok: false,
-        response: jsonNoStore(
-          {
-            ...gate,
-            error:
-              "You must be 18 or over to contribute. PUBMAXX is about buying alcohol.",
-          },
-          { status: 403 },
-        ),
-      };
-    }
-    const handleResolution = await identityHandleStore().resolve(profile.handle);
-    const handle =
-      handleResolution?.profileId === profile.id
-        ? handleResolution.currentHandle
-        : profile.handle;
-    return {
-      ok: true,
-      actor: `profile:${profile.id}`,
-      handle,
-    };
-  } catch {
-    return {
-      ok: false,
-      response: jsonNoStore(
-        { error: "Contribution eligibility is unavailable right now." },
-        { status: 503 },
-      ),
-    };
-  }
 }
 
 export async function POST(request: Request): Promise<Response> {
@@ -262,8 +171,10 @@ export async function POST(request: Request): Promise<Response> {
     return jsonNoStore({ ok: true }, { status: 200 });
   }
 
-  const contributor = await resolveContributor(request);
-  if (!contributor.ok) return contributor.response;
+  const contributor = await resolveContributionIdentity(request);
+  if (!contributor.ok) {
+    return jsonNoStore(contributor.body, { status: contributor.httpStatus });
+  }
 
   if (readString(body.kind) === "venue-signal") {
     const parsed = validateCommunityVenueSignal(body);

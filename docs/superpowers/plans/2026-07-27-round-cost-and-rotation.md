@@ -4,7 +4,7 @@
 
 **Goal:** Let a live Round keep each buying turn's payer, pub, total, optional drink lines, and timestamp while making current rotation obvious on a 390px phone.
 
-**Architecture:** Add immutable spend records to `RoundState`, with rotation derived from member join order and latest payer. Store total money as integer pence and optional drink lines as a bounded JSON snapshot; line validation delegates to `validateCommunityPrice`, while a plain total stays Round-only. The Round API publishes validated drink lines through the existing community-price store under the same device-derived actor identity as `/api/price-submit`, leaving map authority entirely behind `mergeCommunityPriceSignals`.
+**Architecture:** Add immutable spend records to `RoundState`, with rotation derived from member join order and latest payer. Store total money as integer pence and optional drink lines as a bounded JSON snapshot; line validation delegates to `validateCommunityPrice`, while a plain total stays Round-only. The Round API publishes eligible account-owned drink lines through the existing community-price store under the same stable profile actor identity as `/api/price-submit`, leaving anonymous lines in the diary and map authority entirely behind `mergeCommunityPriceSignals`.
 
 **Tech Stack:** Next.js 16 App Router, React 19, TypeScript, Vitest, Playwright, Supabase/Postgres, existing CSS tokens.
 
@@ -116,7 +116,7 @@ Expected: pass.
 
 - [x] **Step 5: Write failing API and map-gate tests**
 
-Add handler cases for canonical venue resolution, actor/payer membership, invalid totals/items, closed Round, and store outage. Record one itemised Round from one device, read its community price, call `mergeCommunityPriceSignals`, and assert returned signals are unchanged with `corroborations: 1`. Also prove a plain total creates no community observation.
+Add handler cases for canonical venue resolution, actor/payer membership, invalid totals/items, closed Round, and store outage. Record one itemised Round from one eligible account, read its community price, call `mergeCommunityPriceSignals`, and assert returned signals are unchanged with `corroborations: 1`. Also prove a plain total and an anonymous itemised Round create no community observation.
 
 - [x] **Step 6: Run route tests and confirm expected red**
 
@@ -126,7 +126,7 @@ Expected: fail because action `recordSpend` is unknown.
 
 - [x] **Step 7: Implement API composition**
 
-Extract device-derived community actor hashing into `deriveCommunityPriceActor(request)` and use it from both price routes. Resolve venue canonically, call `recordSpend`, then submit each validated drink line through `submitCommunityPrice` with that actor and recorded timestamp. Never send total-only records to community store. Keep the Round record even if map-side publication degrades.
+Resolve the same authenticated contributor identity used by `/api/price-submit`. Resolve venue canonically, call `recordSpend`, then submit each validated drink line through `submitCommunityPrice` with that stable profile actor, public handle, and recorded timestamp. Never send anonymous, ineligible, demo-sourced, or total-only records to community store; keep those lines in the Round diary.
 
 - [x] **Step 8: Run API and price-policy tests green**
 

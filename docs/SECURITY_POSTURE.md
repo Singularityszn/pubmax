@@ -34,16 +34,17 @@ Register of ACCEPTED risks and FIXED-this-wave security hardening (wave S1–S5,
 
 **Risk:** Round creation/share codes (6-char human-readable or 28-symbol
 URL-safe alphanumeric) remain the Round trust boundary. Anyone with a round
-code can join that group and record itemised price lines under the route's
-device-derived actor. Legacy unlinked handles retain only the existing demo
-paths; they cannot authorize current community price or venue-signal writes.
+code can join that group and record itemised diary lines, but only a verified,
+eligible account can promote its own lines to community prices. Legacy unlinked
+handles retain only the existing demo paths; they cannot authorize current
+community price or venue-signal writes.
 
 **Backstopped By:**
 - Rate limits on round creation (S1–S3 phase): plan-card, citymcp+whats-on, rounds-GET, import-notes each have per-IP/per-actor limits
 - Capacity cap on Landlord LLM (durable Supabase limiter: prevents unpaid concierge from unbounded token burn)
 - JWT-backed authorship gates for destructive actions (edit/delete crawls, modify profiles) — see `gateHandleAction` in `app/api/crawls/[slug]/route.ts`
 - Concurrent user link via `linkUser` RPC returns 409 on conflict, preventing handle land-grab races
-- A round code now also carries a price-write capability (a Round's itemised drink lines reach the community price store): those lines charge a per-device price budget, while `/api/price-submit` is account-gated and budgets the stable profile actor. Both still earn map authority only through the corroboration and max-age gates - boundary certified in `docs/WRITE_SURFACE_CERTIFICATION.md`
+- A Round code carries diary-write capability, not community-price identity. Itemised lines reach the community price store only for a verified account with a claimed public handle and adult eligibility, then charge that stable profile actor's account budget. Anonymous and ineligible lines stay in the Round diary. Map authority remains behind corroboration and max-age gates - boundary certified in `docs/WRITE_SURFACE_CERTIFICATION.md`
 
 **Decision:** Accepted for foundation-first staging. Direct community price and
 venue-signal writes now require Supabase Auth and an account-owned handle.

@@ -25,7 +25,7 @@ type Boundary = "rate_limit" | "account" | "capability" | "moderator" | "confirm
 
 const BOUNDARY_PATTERNS: Record<Boundary, RegExp> = {
   rate_limit: /\b(?:isLimited|is[A-Z][A-Za-z]+Limited|is[A-Z][A-Za-z]+RateLimited)\b/,
-  account: /\b(?:callerUserId|callerAuthIdentity)\b/,
+  account: /\b(?:callerUserId|callerAuthIdentity|resolveContributionIdentity)\b/,
   capability: /\b(?:planMemberCapability|memberToken|requireRoundOwnership)\b/,
   moderator: /\b(?:isModerator|isAdminAuthorized|verifyAdminToken)\b/,
   confirmation: /\b(?:consumePublishConfirmation|confirmationToken)\b/,

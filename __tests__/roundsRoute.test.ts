@@ -167,9 +167,15 @@ import { memoryProfileStore, __resetMemoryProfiles } from "@/lib/profileStore";
 import type { RoundState } from "@/lib/rounds";
 import {
   __resetCommunityPrices,
+  memoryCommunityPriceStore,
   readCommunityPrices,
 } from "@/lib/communityPriceStore";
 import { mergeCommunityPriceSignals } from "@/components/map/communityPriceSignals";
+import { __resetMemoryIdentityHandles } from "@/lib/identityHandleStore";
+import {
+  __resetMemoryPrivateIdentities,
+  memoryPrivateIdentityStore,
+} from "@/lib/privateIdentityStore";
 
 const CREATE_URL = "http://localhost/api/rounds";
 
@@ -205,9 +211,24 @@ async function newRound(handle = "ken"): Promise<RoundState> {
   return (await res.json()) as RoundState;
 }
 
+async function authorizeContributor(userId: string, handle: string): Promise<void> {
+  authState.userId = userId;
+  const onboarding = await memoryPrivateIdentityStore.completeOnboarding({
+    userId,
+    handle,
+  });
+  expect(onboarding).toMatchObject({ ok: true });
+  await memoryPrivateIdentityStore.recordAgeAssessment(userId, {
+    ok: true,
+    status: "adult",
+  });
+}
+
 beforeEach(() => {
   __resetMemoryRounds();
+  __resetMemoryIdentityHandles();
   __resetMemoryProfiles();
+  __resetMemoryPrivateIdentities();
   authState.userId = null;
   // Clear the shared in-memory rate-limit window so per-handle create/action
   // budgets don't leak across cases (the limiter keys on handle + hashed IP).
@@ -417,7 +438,8 @@ describe("POST /api/rounds/[code] — actions", () => {
     expect(await readCommunityPrices("venue-1")).toEqual([]);
   });
 
-  it("routes itemised drink prices through the community store without bypassing corroboration", async () => {
+  it("keeps an anonymous itemised Round in the diary and out of community prices", async () => {
+    budgetOverride.fn = async () => ({ allowed: false, mode: "degraded" as const });
     const { round } = await newRound("ken");
     await action(round.code, {
       action: "addStop",
@@ -439,6 +461,41 @@ describe("POST /api/rounds/[code] — actions", () => {
     );
 
     expect(res.status).toBe(200);
+    const state = (await res.json()) as RoundState;
+    expect(state.spends[0]).toMatchObject({
+      venueId: "venue-1",
+      recordedByHandle: "ken",
+      items: [
+        {
+          drinkName: "Guinness",
+          drinkCategory: "beer",
+          pricePence: 620,
+          source: "round",
+        },
+      ],
+    });
+    expect(await readCommunityPrices("venue-1")).toEqual([]);
+  });
+
+  it("attributes an eligible account's itemised Round price to its public handle", async () => {
+    await authorizeContributor("user-ken", "ken");
+    const { round } = await newRound("ken");
+    await action(round.code, {
+      action: "addStop",
+      handle: "ken",
+      venueId: "venue-1",
+    });
+
+    const res = await action(round.code, {
+      action: "recordSpend",
+      handle: "spoofed",
+      payerHandle: "ken",
+      venueId: "venue-1",
+      clientRef: "spend-account-1",
+      items: [{ drinkName: "Guinness", drinkCategory: "beer", priceGbp: 6.2 }],
+    });
+
+    expect(res.status).toBe(200);
     const rows = await readCommunityPrices("venue-1");
     expect(rows).toHaveLength(1);
     expect(rows[0]).toMatchObject({
@@ -448,6 +505,15 @@ describe("POST /api/rounds/[code] — actions", () => {
       source: "community",
       corroborations: 1,
     });
+    expect(
+      (await memoryCommunityPriceStore.listLeaderboardContributions()).records,
+    ).toMatchObject([
+      {
+        handle: "ken",
+        lane: "price",
+        visible: true,
+      },
+    ]);
 
     const baseline = new Map([
       [
@@ -467,12 +533,77 @@ describe("POST /api/rounds/[code] — actions", () => {
     expect(merged.get("venue-1")?.latestContributorPrice).toBeNull();
   });
 
+  it("keeps one account actor across Round requests from different addresses", async () => {
+    await authorizeContributor("user-ken", "ken");
+    const { round } = await newRound("ken");
+    await action(round.code, {
+      action: "addStop",
+      handle: "ken",
+      venueId: "venue-1",
+    });
+
+    for (const [clientRef, priceGbp, address] of [
+      ["spend-address-1", 6.2, "198.51.100.71"],
+      ["spend-address-2", 6.4, "198.51.100.72"],
+    ] as const) {
+      const res = await action(
+        round.code,
+        {
+          action: "recordSpend",
+          handle: "ken",
+          payerHandle: "ken",
+          venueId: "venue-1",
+          clientRef,
+          items: [{ drinkName: "Guinness", drinkCategory: "beer", priceGbp }],
+        },
+        { "x-forwarded-for": address },
+      );
+      expect(res.status).toBe(200);
+    }
+
+    const rows = await readCommunityPrices("venue-1");
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({
+      priceGbp: 6.4,
+      corroborations: 1,
+    });
+  });
+
+  it("keeps a signed-in but ineligible itemised Round out of community prices", async () => {
+    authState.userId = "user-age-unknown";
+    const onboarding = await memoryPrivateIdentityStore.completeOnboarding({
+      userId: authState.userId,
+      handle: "age_unknown",
+    });
+    expect(onboarding).toMatchObject({ ok: true });
+    const { round } = await newRound("age_unknown");
+    await action(round.code, {
+      action: "addStop",
+      handle: "age_unknown",
+      venueId: "venue-1",
+    });
+
+    const res = await action(round.code, {
+      action: "recordSpend",
+      handle: "age_unknown",
+      payerHandle: "age_unknown",
+      venueId: "venue-1",
+      clientRef: "spend-ineligible-1",
+      items: [{ drinkName: "Guinness", drinkCategory: "beer", priceGbp: 6.2 }],
+    });
+
+    expect(res.status).toBe(200);
+    expect(((await res.json()) as RoundState).spends).toHaveLength(1);
+    expect(await readCommunityPrices("venue-1")).toEqual([]);
+  });
+
   // Two drinkers at the same pub, so the pair of cases below can show that what
   // decides a line's fate is where its figure came from, not what it says.
   async function recordDrinks(
     drinker: { handle: string; ip: string; clientRef: string },
     items: unknown[],
   ): Promise<RoundState> {
+    await authorizeContributor(`user-${drinker.handle}`, drinker.handle);
     const { round } = await newRound(drinker.handle);
     await action(round.code, {
       action: "addStop",
@@ -497,12 +628,12 @@ describe("POST /api/rounds/[code] — actions", () => {
 
   const drinkers = [
     { handle: "ken", ip: "198.51.100.51", clientRef: "spend-seed-1" },
-    { handle: "mo", ip: "198.51.100.52", clientRef: "spend-seed-2" },
+    { handle: "molly", ip: "198.51.100.52", clientRef: "spend-seed-2" },
   ];
 
   it("keeps a demo-menu line in the diary and out of the community store", async () => {
     // A figure lifted off the seeded demo menu (lib/drinkSeeds) is nobody's
-    // observation, so two independent devices echoing it must never corroborate
+    // observation, so two independent accounts echoing it must never corroborate
     // it, while a price each of them typed corroborates normally.
     for (const drinker of drinkers) {
       const state = await recordDrinks(drinker, [
@@ -556,12 +687,12 @@ describe("POST /api/rounds/[code] — actions", () => {
       priceGbp: 6.2,
     }));
 
-  it("charges the per-device price budget per line, and a replay nothing", async () => {
+  it("charges the account price budget per line, and a replay nothing", async () => {
     // A Round with drink lines is a price submission, so it pays the same
-    // cross-venue device budget (30/hour) one unit per submitted line. A retry
+    // cross-venue account budget (30/hour) one unit per submitted line. A retry
     // of a turn already on record submits nothing, so it must cost nothing:
     // three full turns still fit the hour after one of them is replayed.
-    const device = { "x-forwarded-for": "198.51.100.61" };
+    await authorizeContributor("user-ken", "ken");
     const { round } = await newRound("ken");
     await action(round.code, {
       action: "addStop",
@@ -579,7 +710,6 @@ describe("POST /api/rounds/[code] — actions", () => {
           clientRef,
           items: priceLines(count, from),
         },
-        device,
       );
 
     expect((await keep("budget-1", 10, 1)).status).toBe(200);
@@ -589,7 +719,7 @@ describe("POST /api/rounds/[code] — actions", () => {
     expect((await keep("budget-3", 10, 21)).status).toBe(200);
 
     // Thirty lines spent, so the next one is refused before the diary write.
-    // A real per-device cap under a healthy limiter is the drinker's budget, so
+    // A real per-account cap under a healthy limiter is the drinker's budget, so
     // it stays a 429 and carries no retry hint.
     const overBudget = await keep("budget-4", 1, 31);
     expect(overBudget.status).toBe(429);
@@ -606,6 +736,7 @@ describe("POST /api/rounds/[code] — actions", () => {
 
   it("answers a price-limiter outage as ours: 503, a retry hint, and no blame", async () => {
     budgetOverride.fn = async () => ({ allowed: false, mode: "degraded" as const });
+    await authorizeContributor("user-ken", "ken");
     const { round } = await newRound("ken");
     await action(round.code, {
       action: "addStop",
@@ -650,7 +781,7 @@ describe("POST /api/rounds/[code] — actions", () => {
   });
 
   it("refuses more price lines in one turn than a Round may log", async () => {
-    const device = { "x-forwarded-for": "198.51.100.62" };
+    await authorizeContributor("user-ken", "ken");
     const { round } = await newRound("ken");
     await action(round.code, {
       action: "addStop",
@@ -668,7 +799,6 @@ describe("POST /api/rounds/[code] — actions", () => {
         clientRef: "ceiling-1",
         items: priceLines(11, 1),
       },
-      device,
     );
     expect(tooMany.status).toBe(400);
     expect(await tooMany.json()).toEqual({
@@ -691,7 +821,6 @@ describe("POST /api/rounds/[code] — actions", () => {
           ...priceLines(5, 20).map((line) => ({ ...line, priceSource: "demo" })),
         ],
       },
-      device,
     );
     expect(withDemo.status).toBe(200);
     expect(((await withDemo.json()) as RoundState).spends[0]?.items).toHaveLength(15);

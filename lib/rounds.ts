@@ -103,10 +103,10 @@ export type RoundMemberDTO = {
 };
 
 /**
- * Where a drink line's figure came from. "round" is the drinker's own claim —
- * a first-party observation, so it goes on to the community price store. "demo"
- * is a figure lifted straight off a seeded demo menu (lib/drinkSeeds): it is a
- * real part of the night's diary and nobody's observation, so it stops here.
+ * Where a drink line's figure came from. "round" is the drinker's own claim,
+ * so an eligible account may send it to the community price store. "demo" is a
+ * figure lifted straight off a seeded demo menu (lib/drinkSeeds): it is a real
+ * part of the night's diary and nobody's observation, so it stops here.
  * Provenance is the gate, never the figure itself: a drinker who genuinely paid
  * a price a demo menu happens to quote is still observing it.
  *
@@ -114,9 +114,9 @@ export type RoundMemberDTO = {
  * server, so a crafted POST can label a demo figure "round". That is not a hole
  * a server check could close — a hand-typed price that coincides with a seed is
  * the same request as a re-emitted seed, and policy requires accepting the
- * first. What holds the line instead is what always held it: corroboration and
- * age before any map surface, plus the Round route's per-device price budget
- * (app/api/rounds/[code]).
+ * first. What holds the line instead is what always held it: authenticated
+ * account identity, corroboration and age before any map surface, plus the
+ * Round route's account price budget (app/api/rounds/[code]).
  */
 export type RoundSpendItemSource = "round" | "demo";
 
@@ -127,8 +127,8 @@ export type RoundSpendItemDTO = {
   source: RoundSpendItemSource;
 };
 
-/** The drink lines that are first-party observations. The one owner of that
- *  question: the write path submits these, the page captions these. */
+/** The drink lines that claim first-party provenance. The one owner of that
+ *  question: the eligible write path considers these, the page captions these. */
 export function firstPartyPriceItems(
   items: readonly RoundSpendItemDTO[],
 ): RoundSpendItemDTO[] {

@@ -1,11 +1,11 @@
-// The device budget a Round's drink lines pay before they may enter the
+// The account budget a Round's drink lines pay before they may enter the
 // community price store (app/api/rounds/[code]).
 //
 // A Round with drink lines IS a price submission, so it uses the same
 // cross-venue key namespace and hourly cap as /api/price-submit. The Round
-// route's actor remains device-derived, while direct price submissions use an
-// authenticated profile actor. It charges ONE UNIT PER LINE, because a turn
-// carrying ten observations costs the map ten times what a single tap does.
+// route and direct price submissions both use the authenticated profile actor.
+// It charges ONE UNIT PER LINE, because a turn carrying ten observations costs
+// the map ten times what a single tap does.
 //
 // Per-line charging is why the durable limiter's own fallback is wrong here: it
 // tightens to a handful of calls, which one honest itemised round would exhaust
@@ -13,7 +13,7 @@
 // So when the durable check cannot answer, this does not fail open or closed —
 // it charges a per-instance allowance sized at exactly one genuine round
 // (ROUND_SPEND_PRICE_LINE_MAX lines per actor per window): one full turn lands,
-// a device cannot spray, and the degraded decision is logged once per turn on
+// an account cannot spray, and the degraded decision is logged once per turn on
 // the same `rate_limit.fail_open` event an operator already alerts on.
 
 import { log } from "@/lib/log";
@@ -46,8 +46,8 @@ export type RoundPriceBudget = {
   mode: RoundPriceBudgetMode;
 };
 
-export function roundPriceActorKey(actor: string | undefined): string {
-  return `price-submit-actor:${actor ?? "anon"}`;
+export function roundPriceActorKey(actor: string): string {
+  return `price-submit-actor:${actor}`;
 }
 
 function chargeInMemory(key: string, lines: number, limit: number): boolean {
@@ -85,7 +85,7 @@ function degradedAllowance(
  * the caller gets a verdict and the mode that produced it.
  */
 export async function chargeRoundPriceLines(
-  actor: string | undefined,
+  actor: string,
   lines: number,
 ): Promise<RoundPriceBudget> {
   const key = roundPriceActorKey(actor);
