@@ -79,9 +79,11 @@ test.describe("map keyboard and screen-reader venue path", () => {
 
     const firstVenue = await openVenueListWithKeyboard(page);
     const venueName = (await firstVenue.locator(".mapVenueListItemName").innerText()).trim();
+    const venueId = await firstVenue.getAttribute("data-venue-id");
     const accessibleName = await firstVenue.getAttribute("aria-label");
 
     expect(venueName.length).toBeGreaterThan(0);
+    expect(venueId).toBeTruthy();
     expect(accessibleName).toBeNull();
     await expect(firstVenue).toContainText(/Pub|Bar|Late food|Restaurant/);
     await expect(firstVenue).toContainText(/£|Price|no price/i);
@@ -90,7 +92,9 @@ test.describe("map keyboard and screen-reader venue path", () => {
 
     const drawer = page.locator(".mapDrawer.right.open");
     await expect(drawer).toBeVisible();
-    await expect(drawer).toContainText(venueName);
+    await expect
+      .poll(() => new URL(page.url()).searchParams.get("sel"))
+      .toBe(venueId);
   });
 
   test("updates open venue list after map movement and a venue-kind filter", async ({
@@ -102,7 +106,11 @@ test.describe("map keyboard and screen-reader venue path", () => {
 
     const rows = page.locator(".mapVenueListItem");
     const beforeMove = await rows.count();
+    const beforeMoveIds = await rows.evaluateAll((items) =>
+      items.map((item) => item.getAttribute("data-venue-id")),
+    );
     expect(beforeMove).toBeGreaterThan(0);
+    expect(beforeMoveIds.every(Boolean)).toBe(true);
 
     const zoomIn = page.getByRole("button", { name: "Zoom in" });
     await zoomIn.click();
@@ -112,6 +120,15 @@ test.describe("map keyboard and screen-reader venue path", () => {
     await expect
       .poll(() => rows.count(), { timeout: 20_000 })
       .toBeLessThan(beforeMove);
+    await expect
+      .poll(
+        () =>
+          rows.evaluateAll((items) =>
+            items.map((item) => item.getAttribute("data-venue-id")),
+          ),
+        { timeout: 20_000 },
+      )
+      .not.toEqual(beforeMoveIds);
 
     const beforeFilter = await rows.count();
     const bars = page.getByRole("button", { name: "Bars", exact: true });
@@ -119,6 +136,58 @@ test.describe("map keyboard and screen-reader venue path", () => {
     await bars.click();
     await expect(bars).toHaveAttribute("aria-pressed", "false");
     await expect.poll(() => rows.count()).toBeLessThan(beforeFilter);
+  });
+
+  test("drops old base-pub rows during a disjoint pan before the next shard fetch", async ({
+    page,
+  }) => {
+    test.setTimeout(120_000);
+    await page.goto("/map");
+
+    const canvas = page.locator(".maplibregl-canvas").first();
+    const wrap = page.locator(".mapCanvasWrap");
+    await expect(canvas).toBeVisible({ timeout: 30_000 });
+    await canvas.focus();
+    for (let press = 0; press < 3; press += 1) {
+      await page.keyboard.press("Equal");
+      await page.waitForTimeout(1_400);
+    }
+    await expect
+      .poll(
+        async () => Number(await wrap.getAttribute("data-uk-base-count")),
+        { timeout: 30_000 },
+      )
+      .toBeGreaterThan(0);
+
+    await page.locator(".mapVenueListToggle").click();
+    const baseRows = page.locator(
+      '.mapVenueListItem[data-venue-id^="venue-uk-"]',
+    );
+    await expect.poll(() => baseRows.count(), { timeout: 20_000 }).toBeGreaterThan(0);
+    const oldIds = new Set(
+      await baseRows.evaluateAll((items) =>
+        items.map((item) => item.getAttribute("data-venue-id") ?? ""),
+      ),
+    );
+
+    // One quick multi-screen drag leaves the next 180 ms shard request
+    // pending. DOM membership must still follow camera projection immediately.
+    for (let drag = 0; drag < 3; drag += 1) {
+      await page.mouse.move(1_300, 500);
+      await page.mouse.down();
+      await page.mouse.move(400, 500);
+      await page.mouse.up();
+    }
+    await page.waitForTimeout(50);
+
+    const overlappingOldIds = await baseRows.evaluateAll(
+      (items, ids) =>
+        items
+          .map((item) => item.getAttribute("data-venue-id") ?? "")
+          .filter((id) => ids.includes(id)),
+      [...oldIds],
+    );
+    expect(overlappingOldIds).toEqual([]);
   });
 
   test("keeps desktop drawer focus inside and restores chosen venue on Escape", async ({
@@ -150,6 +219,29 @@ test.describe("map keyboard and screen-reader venue path", () => {
     await page.keyboard.press("Escape");
     await expect(drawer).toBeHidden();
     await expect(chosenVenue).toBeFocused();
+  });
+
+  test("returns Escape focus to a keyboard-selected search result", async ({
+    page,
+  }) => {
+    test.setTimeout(90_000);
+    await page.goto("/map");
+
+    const search = page.locator("#mapSearchInput");
+    await expect(search).toBeVisible({ timeout: 30_000 });
+    await search.fill("Dolphin Tavern");
+    await expect(
+      page.getByRole("listbox", { name: "Search suggestions" }),
+    ).toBeVisible();
+
+    await search.press("ArrowDown");
+    await search.press("Enter");
+
+    const drawer = page.locator(".mapDrawer.right.open");
+    await expect(drawer).toBeVisible();
+    await page.keyboard.press("Escape");
+    await expect(drawer).toBeHidden();
+    await expect(search).toBeFocused();
   });
 
   test("keeps locked coral Plan CTA above normal-text AA contrast", async ({

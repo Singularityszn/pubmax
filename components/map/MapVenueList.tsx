@@ -117,6 +117,7 @@ export default function MapVenueList({
                           ref={row.id === firstCuratedId ? firstVenueRef : undefined}
                           type="button"
                           className="mapVenueListItem"
+                          data-venue-id={row.id}
                           onClick={() => {
                             onSelectVenue(row.id);
                           }}
@@ -155,6 +156,7 @@ export default function MapVenueList({
                           ref={row.id === firstBaseId ? firstVenueRef : undefined}
                           type="button"
                           className="mapVenueListItem"
+                          data-venue-id={row.id}
                           onClick={() => {
                             onSelectUkBasePub(row.pub);
                           }}

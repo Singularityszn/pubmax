@@ -27,7 +27,6 @@ import { nearestVenueIds, nearbyVenuesForMap } from "@/lib/nearby";
 import {
   buildMapVenueListModel,
   buildUkBasePubListModel,
-  venuesWithinMapBounds,
 } from "@/lib/mapVenueList";
 import { UK_BOUNDS } from "@/components/map/canvas/tokens";
 import { useFocusTrap } from "@/lib/useFocusTrap";
@@ -543,6 +542,7 @@ export default function PubMap({
   const [selectedVenueId, setSelectedVenueId] = useState<string>(
     seed.selectedVenueId || restoredMobileSession?.selectedVenueId || "",
   );
+  const preSheetFocusRef = useRef<HTMLElement | null>(null);
   const [venueInitialTab, setVenueInitialTab] = useState<TabKey>("overview");
   const [filters, setFilters] = useState<Filters>(restoredMobileSession?.filters ?? seed.filters);
   const [experienceLens, setExperienceLens] =
@@ -655,9 +655,10 @@ export default function PubMap({
   /** Once the viewer collapses a deep-linked lane, don't keep forcing it open. */
   const [dismissedTonightSrc, setDismissedTonightSrc] = useState<string | null>(null);
   const [mapListOpen, setMapListOpen] = useState(false);
-  const [mapBoundsState, setMapBoundsState] = useState<{
+  const [visibleVenueState, setVisibleVenueState] = useState<{
     cityId: CityId;
-    bounds: MapBounds;
+    curatedVenueIds: string[];
+    ukBasePubIds: string[];
   } | null>(null);
   const baseVenues = useMemo(
     () => mergeLazyDetailPins(slimPins, detailById),
@@ -942,7 +943,6 @@ export default function PubMap({
   // it — the map keeps working with whatever loaded.
   const handleMapBoundsChange = useCallback(
     (bounds: MapBounds) => {
-      setMapBoundsState({ cityId, bounds });
       const loader = slimLoaderRef.current;
       if (!loader) return;
       void loader
@@ -952,7 +952,16 @@ export default function PubMap({
           // Keep loaded shards; a later moveend retries this one.
         });
     },
-    [cityId, mergeSlimVenues],
+    [mergeSlimVenues],
+  );
+  const handleVisibleVenueIdsChange = useCallback(
+    (membership: {
+      curatedVenueIds: string[];
+      ukBasePubIds: string[];
+    }) => {
+      setVisibleVenueState({ cityId, ...membership });
+    },
+    [cityId],
   );
 
   // Near-me: geolocating into a hollow outer borough loads that borough's shard
@@ -1189,16 +1198,16 @@ export default function PubMap({
     experienceLens,
     experienceLensPrices,
   ]);
-  // A11Y finding #1: derive list membership from MapLibre's settled viewport,
-  // after every product filter that controls canvas membership. Before first
-  // bounds event, empty is only honest answer.
+  // A11Y finding #1: derive list membership from MapLibre's exact coordinate
+  // projection after every product filter that controls canvas membership.
+  // Before the first projection, empty is the only honest answer.
   const mapVenueListVenues = useMemo(
-    () =>
-      venuesWithinMapBounds(
-        kindVisibleMapVenues,
-        mapBoundsState?.cityId === cityId ? mapBoundsState.bounds : null,
-      ),
-    [cityId, kindVisibleMapVenues, mapBoundsState],
+    () => {
+      if (visibleVenueState?.cityId !== cityId) return [];
+      const visibleIds = new Set(visibleVenueState.curatedVenueIds);
+      return kindVisibleMapVenues.filter((venue) => visibleIds.has(venue.id));
+    },
+    [cityId, kindVisibleMapVenues, visibleVenueState],
   );
   const mapVenueListModel = useMemo(
     () =>
@@ -1252,8 +1261,17 @@ export default function PubMap({
     ukBaseRestore?.id,
   ]);
   const ukBasePubListModel = useMemo(
-    () => buildUkBasePubListModel(renderedBasePubs, mapViewport.center),
-    [renderedBasePubs, mapViewport.center],
+    () => {
+      if (visibleVenueState?.cityId !== cityId) {
+        return buildUkBasePubListModel([], mapViewport.center);
+      }
+      const visibleIds = new Set(visibleVenueState.ukBasePubIds);
+      return buildUkBasePubListModel(
+        renderedBasePubs.filter((pub) => visibleIds.has(pub.id)),
+        mapViewport.center,
+      );
+    },
+    [cityId, mapViewport.center, renderedBasePubs, visibleVenueState],
   );
   const mapContextName =
     ukPlaceArrival?.name ??
@@ -1379,6 +1397,18 @@ export default function PubMap({
       origin: PlanningIntentSource | null = null,
     ) => {
       if (!id) return;
+      if (preSheetFocusRef.current === null && typeof document !== "undefined") {
+        const active = document.activeElement;
+        if (
+          active instanceof HTMLElement &&
+          active !== document.body &&
+          active !== document.documentElement
+        ) {
+          // Capture synchronously. Search closes and blurs its combobox in the
+          // same event before React opens the drawer.
+          preSheetFocusRef.current = active;
+        }
+      }
       selectionOriginRef.current = origin;
       // Base pubs have no /api/venue record; prefetching one is a certain 404.
       if (!isUkBaseId(id)) prefetchVenue(id);
@@ -2301,11 +2331,18 @@ export default function PubMap({
   // Esc, or a fresh ?sel= navigating away) we hand focus back to whatever
   // triggered the open rather than dropping it to <body>.
   const drawerCloseButtonRef = useRef<HTMLButtonElement | null>(null);
-  const preSheetFocusRef = useRef<HTMLElement | null>(null);
   useEffect(() => {
     if (detailOpen) {
-      preSheetFocusRef.current =
-        document.activeElement instanceof HTMLElement ? document.activeElement : null;
+      if (preSheetFocusRef.current === null) {
+        const active = document.activeElement;
+        if (
+          active instanceof HTMLElement &&
+          active !== document.body &&
+          active !== document.documentElement
+        ) {
+          preSheetFocusRef.current = active;
+        }
+      }
       drawerCloseButtonRef.current?.focus();
     } else if (preSheetFocusRef.current) {
       // The trigger may have unmounted (e.g. a pin re-rendered away) — guard
@@ -2656,6 +2693,7 @@ export default function PubMap({
           onVenueClick={handleVenueClick}
           onUkBasePubClick={handleUkBasePubClick}
           onUkBasePubsChange={setRenderedBasePubs}
+          onVisibleVenueIdsChange={handleVisibleVenueIdsChange}
           ukBaseRestore={ukBaseRestore}
           onRouteStopClick={selectVenue}
           onVenuePrefetch={prefetchVenueDetail}
@@ -2858,7 +2896,7 @@ export default function PubMap({
           loaded={
             loaded &&
             loadedCityId === cityId &&
-            mapBoundsState?.cityId === cityId
+            visibleVenueState?.cityId === cityId
           }
           onSelectVenue={selectVenue}
           onSelectUkBasePub={handleUkBasePubClick}

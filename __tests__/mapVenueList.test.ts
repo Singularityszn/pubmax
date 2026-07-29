@@ -3,8 +3,8 @@ import { describe, it, expect } from "vitest";
 import {
   buildMapVenueListModel,
   buildUkBasePubListModel,
+  projectedItemIdsInViewport,
   MAP_VENUE_LIST_LIMIT,
-  venuesWithinMapBounds,
 } from "@/lib/mapVenueList";
 import type { UkBasePub } from "@/lib/ukBasePubs";
 import type { Venue } from "@/lib/venues";
@@ -56,48 +56,64 @@ describe("buildMapVenueListModel — the list-toggle gate", () => {
   });
 });
 
-describe("venuesWithinMapBounds", () => {
-  const bounds = {
-    west: -0.2,
-    south: 51.4,
-    east: -0.1,
-    north: 51.6,
-  };
-
-  it("keeps only finite venues inside or on settled viewport edges", () => {
+describe("projectedItemIdsInViewport", () => {
+  it("excludes a geographic bounds corner projected off a pitched, rotated map", () => {
     const rows = [
-      venue({ id: "inside", latitude: 51.5, longitude: -0.15 }),
-      venue({ id: "edge", latitude: 51.6, longitude: -0.1 }),
-      venue({ id: "north", latitude: 51.61, longitude: -0.15 }),
-      venue({ id: "east", latitude: 51.5, longitude: -0.09 }),
-      venue({ id: "bad", latitude: Number.NaN, longitude: -0.15 }),
-    ];
-
-    expect(venuesWithinMapBounds(rows, bounds).map((row) => row.id)).toEqual([
-      "inside",
-      "edge",
-    ]);
-  });
-
-  it("returns no venues before the map publishes its first settled bounds", () => {
-    expect(venuesWithinMapBounds([venue({ id: "inside" })], null)).toEqual([]);
-  });
-
-  it("supports a viewport crossing the longitude wrap", () => {
-    const rows = [
-      venue({ id: "east", latitude: 0, longitude: 179 }),
-      venue({ id: "west", latitude: 0, longitude: -179 }),
-      venue({ id: "middle", latitude: 0, longitude: 0 }),
+      { id: "centre", screen: { x: 500, y: 300 } },
+      // Inside map.getBounds(), but outside the rendered quadrilateral once
+      // pitch and bearing project this north-east corner past the canvas edge.
+      { id: "bbox-corner", screen: { x: 1040, y: -35 } },
+      { id: "edge", screen: { x: 1000, y: 600 } },
     ];
 
     expect(
-      venuesWithinMapBounds(rows, {
-        west: 170,
-        south: -10,
-        east: -170,
-        north: 10,
-      }).map((row) => row.id),
-    ).toEqual(["east", "west"]);
+      projectedItemIdsInViewport(
+        rows,
+        (row) => row.screen,
+        { width: 1000, height: 600 },
+      ),
+    ).toEqual(["centre", "edge"]);
+  });
+
+  it("rejects non-finite projection results", () => {
+    expect(
+      projectedItemIdsInViewport(
+        [
+          { id: "valid", screen: { x: 1, y: 1 } },
+          { id: "invalid", screen: { x: Number.NaN, y: 1 } },
+        ],
+        (row) => row.screen,
+        { width: 10, height: 10 },
+      ),
+    ).toEqual(["valid"]);
+  });
+
+  it("recomputes loaded base-pub membership immediately after a disjoint pan", () => {
+    const pubs = [{ id: "old-view" }, { id: "new-view" }];
+    const oldProjection = new Map([
+      ["old-view", { x: 30, y: 30 }],
+      ["new-view", { x: 900, y: 30 }],
+    ]);
+    const newProjection = new Map([
+      ["old-view", { x: -900, y: 30 }],
+      ["new-view", { x: 30, y: 30 }],
+    ]);
+    const viewport = { width: 100, height: 100 };
+
+    expect(
+      projectedItemIdsInViewport(
+        pubs,
+        (pub) => oldProjection.get(pub.id)!,
+        viewport,
+      ),
+    ).toEqual(["old-view"]);
+    expect(
+      projectedItemIdsInViewport(
+        pubs,
+        (pub) => newProjection.get(pub.id)!,
+        viewport,
+      ),
+    ).toEqual(["new-view"]);
   });
 });
 

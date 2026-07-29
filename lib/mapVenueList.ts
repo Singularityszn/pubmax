@@ -1,6 +1,5 @@
 import { buildLogNearbyCandidates, type LogNearbyCandidate } from "@/lib/mapLogIntent";
 import { haversineKm } from "@/lib/haversine";
-import { pointInMapBounds, type MapBounds } from "@/lib/slimShards";
 import type { UkBasePub } from "@/lib/ukBasePubs";
 import type { Venue } from "@/lib/venues";
 import {
@@ -54,15 +53,46 @@ export type UkBasePubListModel = {
   truncated: boolean;
 };
 
-/** Keep only venues inside map's latest settled geographic viewport. */
-export function venuesWithinMapBounds(
-  venues: Venue[],
-  bounds: MapBounds | null,
-): Venue[] {
-  if (!bounds) return [];
-  return venues.filter((venue) =>
-    pointInMapBounds(venue.latitude, venue.longitude, bounds),
-  );
+/**
+ * Exact rendered membership for pitched and rotated maps.
+ *
+ * MapLibre's geographic bounds are the axis-aligned box around the rendered
+ * quadrilateral, so its corners can name pubs that are actually off canvas.
+ * The map supplies its own projection here instead. This reads coordinates
+ * only and never queries rendered features or performs canvas hit-testing.
+ */
+export function projectedItemIdsInViewport<T extends { id: string }>(
+  items: readonly T[],
+  project: (item: T) => { x: number; y: number },
+  viewport: { width: number; height: number },
+): string[] {
+  if (
+    !Number.isFinite(viewport.width) ||
+    !Number.isFinite(viewport.height) ||
+    viewport.width <= 0 ||
+    viewport.height <= 0
+  ) {
+    return [];
+  }
+  return items.flatMap((item) => {
+    let point: { x: number; y: number };
+    try {
+      point = project(item);
+    } catch {
+      return [];
+    }
+    if (
+      !Number.isFinite(point.x) ||
+      !Number.isFinite(point.y) ||
+      point.x < 0 ||
+      point.x > viewport.width ||
+      point.y < 0 ||
+      point.y > viewport.height
+    ) {
+      return [];
+    }
+    return [item.id];
+  });
 }
 
 /**
