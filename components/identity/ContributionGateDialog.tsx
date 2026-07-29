@@ -1,12 +1,13 @@
 "use client";
 
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import SignInButton from "@/components/auth/SignInButton";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { trackEvent } from "@/lib/analytics";
 import {
   checkContributionGate,
+  dateOfBirthAfterAssessment,
   submitContributionAge,
 } from "@/lib/contributionGateClient";
 
@@ -141,15 +142,42 @@ export function useContributionGate(): {
   contributionGateDialog: React.JSX.Element | null;
 } {
   const { user } = useAuth();
+  const userId = user?.id ?? null;
   const [mode, setMode] = useState<ContributionGateDialogMode | null>(null);
   const [eligibleOn, setEligibleOn] = useState<string | undefined>();
   const [dateOfBirth, setDateOfBirth] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [gateUserId, setGateUserId] = useState(userId);
   const pending = useRef<PendingContribution | null>(null);
+  const stateUserId = useRef(userId);
+
+  const resetGate = useCallback((nextUserId: string | null) => {
+    pending.current = null;
+    setMode(null);
+    setEligibleOn(undefined);
+    setDateOfBirth("");
+    setBusy(false);
+    setError(null);
+    setGateUserId(nextUserId);
+    stateUserId.current = nextUserId;
+  }, []);
+
+  useEffect(() => {
+    let active = true;
+    queueMicrotask(() => {
+      if (active) resetGate(userId);
+    });
+    return () => {
+      active = false;
+      pending.current = null;
+      stateUserId.current = null;
+    };
+  }, [resetGate, userId]);
 
   const requestContribution = useCallback(
     async (action: PendingContribution) => {
+      if (stateUserId.current !== userId) return;
       pending.current = action;
       setError(null);
       if (!user) {
@@ -159,6 +187,7 @@ export function useContributionGate(): {
       }
       setBusy(true);
       const gate = await checkContributionGate();
+      if (stateUserId.current !== userId) return;
       setBusy(false);
       if (gate.status === "eligible") {
         pending.current = null;
@@ -185,18 +214,25 @@ export function useContributionGate(): {
       pending.current = null;
       setError(gate.error ?? "Could not check contribution eligibility.");
     },
-    [user],
+    [user, userId],
   );
 
   const confirmAge = useCallback(async () => {
-    if (!dateOfBirth || busy) return;
+    if (
+      !dateOfBirth ||
+      busy ||
+      stateUserId.current !== userId
+    ) {
+      return;
+    }
     setBusy(true);
     setError(null);
     const gate = await submitContributionAge(dateOfBirth);
+    if (stateUserId.current !== userId) return;
     setBusy(false);
+    setDateOfBirth(dateOfBirthAfterAssessment(dateOfBirth, gate));
     if (gate.status === "eligible") {
       setMode(null);
-      setDateOfBirth("");
       const action = pending.current;
       pending.current = null;
       if (action) {
@@ -213,11 +249,11 @@ export function useContributionGate(): {
       return;
     }
     setError(gate.error ?? "Could not confirm contribution eligibility.");
-  }, [busy, dateOfBirth]);
+  }, [busy, dateOfBirth, userId]);
 
   return {
     requestContribution,
-    contributionGateDialog: mode ? (
+    contributionGateDialog: mode && gateUserId === userId ? (
       <ContributionGateDialog
         mode={mode}
         eligibleOn={eligibleOn}
@@ -226,11 +262,7 @@ export function useContributionGate(): {
         error={error}
         onDateOfBirthChange={setDateOfBirth}
         onConfirmAge={() => void confirmAge()}
-        onClose={() => {
-          pending.current = null;
-          setMode(null);
-          setError(null);
-        }}
+        onClose={() => resetGate(userId)}
       />
     ) : null,
   };

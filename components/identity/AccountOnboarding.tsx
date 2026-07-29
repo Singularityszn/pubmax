@@ -5,6 +5,10 @@ import { useCallback, useEffect, useState } from "react";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { trackEvent } from "@/lib/analytics";
 import { authedFetch } from "@/lib/authedFetch";
+import {
+  checkAccountHandleAvailability,
+  loadAccountOnboardingStatus,
+} from "@/lib/accountOnboardingClient";
 import { emitIdentityHandleChanged } from "@/lib/identityClient";
 import {
   PRIVATE_IDENTITY_SEX_VALUES,
@@ -184,6 +188,40 @@ export function AccountOnboardingForm({
   );
 }
 
+export function AccountOnboardingLoadError({
+  error,
+  onRetry,
+}: {
+  error: string;
+  onRetry: () => void;
+}): React.JSX.Element {
+  return (
+    <div className="accountOnboardingBackdrop" role="presentation">
+      <section
+        className="accountOnboarding"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="account-onboarding-error-title"
+      >
+        <header className="accountOnboardingHead">
+          <p className="accountOnboardingEyebrow">Your PUBMAXX identity</p>
+          <h2 id="account-onboarding-error-title">Account setup paused</h2>
+          <p className="accountOnboardingError" role="alert">
+            {error}
+          </p>
+        </header>
+        <button
+          type="button"
+          className="accountOnboardingPrimary accountOnboardingRetry"
+          onClick={onRetry}
+        >
+          Try again
+        </button>
+      </section>
+    </div>
+  );
+}
+
 function suggestedHandle(): string {
   try {
     const stored = window.localStorage.getItem("pubmax_handle") ?? "";
@@ -194,9 +232,14 @@ function suggestedHandle(): string {
   }
 }
 
-export default function AccountOnboarding(): React.JSX.Element | null {
-  const { user, loading } = useAuth();
-  const [needed, setNeeded] = useState(false);
+function AccountOnboardingForUser(): React.JSX.Element | null {
+  const [status, setStatus] = useState<
+    "loading" | "needed" | "complete" | "unavailable"
+  >("loading");
+  const [statusError, setStatusError] = useState(
+    "Account setup is unavailable right now.",
+  );
+  const [statusRequest, setStatusRequest] = useState(0);
   const [handle, setHandle] = useState(suggestedHandle);
   const [fullName, setFullName] = useState("");
   const [sex, setSex] = useState<"" | PrivateIdentitySex>("");
@@ -207,67 +250,66 @@ export default function AccountOnboarding(): React.JSX.Element | null {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!user) return;
     let active = true;
-    void authedFetch("/api/identity/onboarding")
-      .then(async (response) => {
-        const body = (await response.json().catch(() => ({}))) as {
-          complete?: unknown;
-        };
-        if (active) {
-          const incomplete = response.ok && body.complete !== true;
-          setNeeded(incomplete);
-          if (incomplete) {
-            const suggestion = suggestedHandle();
-            setHandle(suggestion);
-            setAvailability(suggestion ? "checking" : "idle");
-          }
+    const controller = new AbortController();
+    void loadAccountOnboardingStatus(authedFetch, controller.signal).then(
+      (result) => {
+        if (!active) return;
+        if (result.status === "complete") {
+          setStatus("complete");
+          return;
         }
-      })
-      .catch(() => {
-        if (active) setError("Account setup is unavailable right now.");
-      });
+        if (result.status === "unavailable") {
+          setStatusError(result.error);
+          setStatus("unavailable");
+          return;
+        }
+        const suggestion = suggestedHandle();
+        setHandle(suggestion);
+        setAvailability(suggestion ? "checking" : "idle");
+        setStatus("needed");
+      },
+    );
     return () => {
       active = false;
+      controller.abort();
     };
-  }, [user]);
+  }, [statusRequest]);
 
   useEffect(() => {
-    if (!user || availability !== "checking") return;
+    if (availability !== "checking") return;
     const assessment = assessPubmaxxHandle(handle);
     if (!assessment.ok) return;
+    let active = true;
     const controller = new AbortController();
     const timer = window.setTimeout(() => {
-      const query = new URLSearchParams({ handle: assessment.handle });
-      void fetch(`/api/identity/handle/availability?${query.toString()}`, {
-        cache: "no-store",
-        signal: controller.signal,
-      })
-        .then(async (response) => {
-          const body = (await response.json().catch(() => ({}))) as {
-            available?: unknown;
-            reason?: unknown;
-          };
-          if (body.available === true) {
-            setCheckedHandle(assessment.handle);
-            setAvailability("available");
-            return;
-          }
+      void checkAccountHandleAvailability(
+        assessment.handle,
+        fetch,
+        controller.signal,
+      ).then((result) => {
+        if (!active) return;
+        if (result.status === "available") {
+          setCheckedHandle(assessment.handle);
+          setAvailability("available");
+          return;
+        }
+        if (result.status === "taken") {
           setCheckedHandle(null);
-          setAvailability(body.reason === "reserved" ? "reserved" : "taken");
-        })
-        .catch((requestError: unknown) => {
-          if ((requestError as { name?: unknown })?.name === "AbortError") return;
-          setCheckedHandle(null);
-          setAvailability("idle");
-          setError("Could not check that handle. Try again.");
-        });
+          setAvailability("taken");
+          return;
+        }
+        setCheckedHandle(null);
+        setAvailability("idle");
+        if (!controller.signal.aborted) setError(result.error);
+      });
     }, 300);
     return () => {
+      active = false;
       window.clearTimeout(timer);
       controller.abort();
     };
-  }, [availability, handle, user]);
+  }, [availability, handle]);
 
   const changeHandle = useCallback((value: string) => {
     const presented = value.trim().replace(/^@/, "").toLowerCase();
@@ -331,7 +373,7 @@ export default function AccountOnboarding(): React.JSX.Element | null {
         }
         emitIdentityHandleChanged(claimed);
         trackEvent("account_claimed", { source: "auth" });
-        setNeeded(false);
+        setStatus("complete");
       } catch {
         setError("Could not claim that handle. Check your connection.");
       } finally {
@@ -341,7 +383,18 @@ export default function AccountOnboarding(): React.JSX.Element | null {
     [availability, busy, checkedHandle, fullName, handle, sex],
   );
 
-  if (loading || !user || !needed) return null;
+  if (status === "loading" || status === "complete") return null;
+  if (status === "unavailable") {
+    return (
+      <AccountOnboardingLoadError
+        error={statusError}
+        onRetry={() => {
+          setStatus("loading");
+          setStatusRequest((value) => value + 1);
+        }}
+      />
+    );
+  }
   return (
     <AccountOnboardingForm
       handle={handle}
@@ -357,4 +410,10 @@ export default function AccountOnboarding(): React.JSX.Element | null {
       onSkipOptional={() => void submit(false)}
     />
   );
+}
+
+export default function AccountOnboarding(): React.JSX.Element | null {
+  const { user, loading } = useAuth();
+  if (loading || !user) return null;
+  return <AccountOnboardingForUser key={user.id} />;
 }

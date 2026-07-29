@@ -187,6 +187,16 @@
   color: var(--ink);
 }
 
+.accountOnboardingRetry {
+  min-height: 46px;
+  border: 1px solid var(--brass);
+  border-radius: 0.85rem;
+  font: inherit;
+  font-size: 0.84rem;
+  font-weight: 780;
+  cursor: pointer;
+}
+
 @media (max-width: 520px) {
   .accountOnboardingBackdrop {
     align-items: end;

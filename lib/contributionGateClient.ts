@@ -13,6 +13,15 @@ export type ContributionGateRequest = (
   init?: RequestInit,
 ) => Promise<Response>;
 
+export function dateOfBirthAfterAssessment(
+  dateOfBirth: string,
+  state: ContributionGateClientState,
+): string {
+  return state.status === "eligible" || state.status === "underage"
+    ? ""
+    : dateOfBirth;
+}
+
 async function readGateResponse(
   response: Response,
 ): Promise<ContributionGateClientState> {

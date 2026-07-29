@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import {
   checkContributionGate,
+  dateOfBirthAfterAssessment,
   submitContributionAge,
 } from "@/lib/contributionGateClient";
 
@@ -54,5 +55,23 @@ describe("contribution gate client", () => {
         body: JSON.stringify({ dateOfBirth: "2000-01-01" }),
       }),
     );
+  });
+
+  it("discards date of birth after either derived age decision", () => {
+    expect(
+      dateOfBirthAfterAssessment("2000-01-01", { status: "eligible" }),
+    ).toBe("");
+    expect(
+      dateOfBirthAfterAssessment("2010-07-30", {
+        status: "underage",
+        eligibleOn: "2028-07-30",
+      }),
+    ).toBe("");
+    expect(
+      dateOfBirthAfterAssessment("2000-01-01", {
+        status: "unavailable",
+        error: "Try again.",
+      }),
+    ).toBe("2000-01-01");
   });
 });

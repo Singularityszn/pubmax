@@ -1,5 +1,6 @@
 import { jsonNoStore } from "@/lib/apiResponses";
 import { callerUserId } from "@/lib/authServer";
+import { isHandleClaimLimited } from "@/lib/identityHandleClaimRateLimit";
 import { privateIdentityStore } from "@/lib/privateIdentityStore";
 import { profileStore } from "@/lib/profileStore";
 import { assertServerEnv } from "@/lib/serverEnv";
@@ -42,6 +43,12 @@ export async function POST(request: Request): Promise<Response> {
     return jsonNoStore(
       { error: "Sign in to finish setting up your account." },
       { status: 401 },
+    );
+  }
+  if (await isHandleClaimLimited(request, userId)) {
+    return jsonNoStore(
+      { error: "Too many handle attempts. Try again shortly." },
+      { status: 429 },
     );
   }
   let body: Record<string, unknown>;

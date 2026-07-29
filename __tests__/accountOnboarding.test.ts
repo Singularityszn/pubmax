@@ -6,8 +6,13 @@ import { describe, expect, it } from "vitest";
 
 import {
   AccountOnboardingForm,
+  AccountOnboardingLoadError,
   canSubmitCheckedHandle,
 } from "@/components/identity/AccountOnboarding";
+import {
+  checkAccountHandleAvailability,
+  loadAccountOnboardingStatus,
+} from "@/lib/accountOnboardingClient";
 
 const noop = () => {};
 
@@ -61,6 +66,43 @@ describe("account onboarding surface", () => {
     expect(render("taken")).toContain("That handle is already taken.");
     expect(render("reserved")).toContain("That handle is not available.");
     expect(render("available")).toContain("Handle available.");
+  });
+
+  it("keeps failed availability checks distinct from taken handles", async () => {
+    for (const status of [429, 503]) {
+      const request = async () =>
+        new Response(
+          JSON.stringify({ error: "Handle availability is unavailable." }),
+          { status },
+        );
+      await expect(
+        checkAccountHandleAvailability("night_owl", request),
+      ).resolves.toEqual({
+        status: "unavailable",
+        error: "Handle availability is unavailable.",
+      });
+    }
+  });
+
+  it("offers a retry when account status cannot be loaded", async () => {
+    const request = async () =>
+      new Response(
+        JSON.stringify({ error: "Account details are unavailable right now." }),
+        { status: 503 },
+      );
+    await expect(loadAccountOnboardingStatus(request)).resolves.toEqual({
+      status: "unavailable",
+      error: "Account details are unavailable right now.",
+    });
+
+    const html = renderToStaticMarkup(
+      createElement(AccountOnboardingLoadError, {
+        error: "Account details are unavailable right now.",
+        onRetry: noop,
+      }),
+    );
+    expect(html).toContain("Account details are unavailable right now.");
+    expect(html).toContain("Try again");
   });
 
   it("ships a one-column phone sheet with full tap targets", () => {

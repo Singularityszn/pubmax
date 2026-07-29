@@ -1,9 +1,9 @@
 import { jsonNoStore } from "@/lib/apiResponses";
 import { callerUserId } from "@/lib/authServer";
+import { isHandleClaimLimited } from "@/lib/identityHandleClaimRateLimit";
 import { identityHandleStore, validateHandleForStore } from "@/lib/identityHandleStore";
-import { isLimited } from "@/lib/pintDrops";
 import { assertServerEnv } from "@/lib/serverEnv";
-import { clientIp, hashIp, isSupabaseConfigured, requiresSupabaseStore } from "@/lib/supabase";
+import { isSupabaseConfigured, requiresSupabaseStore } from "@/lib/supabase";
 
 assertServerEnv();
 
@@ -13,8 +13,7 @@ export async function POST(request: Request): Promise<Response> {
   if (requiresSupabaseStore() && !isSupabaseConfigured()) {
     return jsonNoStore({ error: "Profile storage is not configured." }, { status: 503 });
   }
-  const rateKey = `handle-claim:${ownerId}:${hashIp(clientIp(request))}`;
-  if (await isLimited(rateKey, rateKey, 20)) {
+  if (await isHandleClaimLimited(request, ownerId)) {
     return jsonNoStore({ error: "Too many handle attempts. Try again shortly." }, { status: 429 });
   }
   let body: Record<string, unknown>;

@@ -21,6 +21,7 @@ vi.mock("@/lib/authServer", async (importOriginal) => {
 
 import { GET, PATCH, POST } from "@/app/api/identity/onboarding/route";
 import { __resetMemoryIdentityHandles } from "@/lib/identityHandleStore";
+import { __resetPintDrops } from "@/lib/pintDrops";
 import { __resetMemoryPrivateIdentities } from "@/lib/privateIdentityStore";
 import {
   __resetMemoryProfiles,
@@ -40,6 +41,7 @@ beforeEach(() => {
   __resetMemoryProfiles();
   __resetMemoryIdentityHandles();
   __resetMemoryPrivateIdentities();
+  __resetPintDrops();
 });
 
 describe("/api/identity/onboarding", () => {
@@ -70,6 +72,38 @@ describe("/api/identity/onboarding", () => {
     expect(await response.json()).toMatchObject({
       code: "taken",
       error: "That handle is already taken.",
+    });
+  });
+
+  it("limits the canonical handle claim mutation to 20 attempts", async () => {
+    authState.userId = "user-1";
+    for (let attempt = 0; attempt < 20; attempt += 1) {
+      const response = await POST(
+        new Request("http://localhost/api/identity/onboarding", {
+          method: "POST",
+          headers: {
+            "content-type": "application/json",
+            "x-forwarded-for": "198.51.100.4",
+          },
+          body: "{",
+        }),
+      );
+      expect(response.status).toBe(400);
+    }
+
+    const response = await POST(
+      new Request("http://localhost/api/identity/onboarding", {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          "x-forwarded-for": "198.51.100.4",
+        },
+        body: "{",
+      }),
+    );
+    expect(response.status).toBe(429);
+    expect(await response.json()).toEqual({
+      error: "Too many handle attempts. Try again shortly.",
     });
   });
 
