@@ -139,6 +139,30 @@ describe("surface and type hierarchy", () => {
 });
 
 describe("pointer-down feedback", () => {
+  it("keeps shared press feedback below utility and component owners", () => {
+    const pressStart = globalCss.indexOf("/* ── Global press feedback");
+    const pressEnd = globalCss.indexOf("\n.loadingShell", pressStart);
+    const pressFeedback = globalCss.slice(pressStart, pressEnd);
+    const layerStart = pressFeedback.indexOf("@layer base");
+    const bodyStart = pressFeedback.indexOf("{", layerStart);
+    let depth = 0;
+    let layerEnd = -1;
+    for (let index = bodyStart; index < pressFeedback.length; index += 1) {
+      if (pressFeedback[index] === "{") depth += 1;
+      if (pressFeedback[index] === "}") depth -= 1;
+      if (depth === 0) {
+        layerEnd = index + 1;
+        break;
+      }
+    }
+    const baseLayer = pressFeedback.slice(layerStart, layerEnd);
+
+    expect(baseLayer).toMatch(
+      /@layer base\s*{[\s\S]*touch-action:\s*manipulation;[\s\S]*transition:\s*scale[\s\S]*scale:\s*var\(--shared-press-scale,\s*var\(--press-scale\)\)/,
+    );
+    expect(pressFeedback.slice(layerEnd).trim()).toBe("");
+  });
+
   it("removes tap delay from shared controls and responds while sheet handles are held", () => {
     expect(globalCss).toMatch(
       /button,[\s\S]*?a\[data-pressable\],[\s\S]*?\.pressable\s*{[^}]*touch-action:\s*manipulation/,

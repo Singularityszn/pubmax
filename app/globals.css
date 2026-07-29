@@ -508,30 +508,32 @@ button {
    ceiling, and composes with positioning transforms. Gated behind no-preference
    so reduced-motion users get zero movement. Opt out per element with
    [data-no-press]; opt IN a link/label/row with class="pressable". */
-button,
-[role="button"]:not([aria-disabled="true"]),
-.planBtn,
-a[data-pressable],
-.pressable {
-  touch-action: manipulation;
-}
-
-@media (prefers-reduced-motion: no-preference) {
-  :where(
-    button:not([data-no-press]):not(:disabled),
-    [role="button"]:not([data-no-press]):not([aria-disabled="true"]),
-    .planBtn:not([data-no-press]),
-    a[data-pressable],
-    .pressable
-  ) {
-    transition: scale var(--duration-press) var(--ease-out-strong);
+@layer base {
+  button,
+  [role="button"]:not([aria-disabled="true"]),
+  .planBtn,
+  a[data-pressable],
+  .pressable {
+    touch-action: manipulation;
   }
-  button:not([data-no-press]):not(:disabled):active,
-  [role="button"]:not([data-no-press]):not([aria-disabled="true"]):active,
-  .planBtn:not([data-no-press]):active,
-  a[data-pressable]:active,
-  .pressable:active {
-    scale: var(--shared-press-scale, var(--press-scale));
+
+  @media (prefers-reduced-motion: no-preference) {
+    :where(
+      button:not([data-no-press]):not(:disabled),
+      [role="button"]:not([data-no-press]):not([aria-disabled="true"]),
+      .planBtn:not([data-no-press]),
+      a[data-pressable],
+      .pressable
+    ) {
+      transition: scale var(--duration-press) var(--ease-out-strong);
+    }
+    button:not([data-no-press]):not(:disabled):active,
+    [role="button"]:not([data-no-press]):not([aria-disabled="true"]):active,
+    .planBtn:not([data-no-press]):active,
+    a[data-pressable]:active,
+    .pressable:active {
+      scale: var(--shared-press-scale, var(--press-scale));
+    }
   }
 }
 
