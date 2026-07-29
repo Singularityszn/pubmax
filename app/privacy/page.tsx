@@ -24,7 +24,7 @@ import "../legal.css";
 const PAGE_TITLE = "Privacy";
 const PAGE_DESCRIPTION =
   "What PUBMAXX collects, why, who else sees it, how long we keep it, and how to get it deleted. Written against what the app actually does.";
-const LAST_UPDATED = "28 July 2026";
+const LAST_UPDATED = "29 July 2026";
 
 export const metadata: Metadata = {
   title: PAGE_TITLE,
@@ -537,11 +537,12 @@ export default function PrivacyPage() {
             removed post are purged from storage when the post is taken down.
           </li>
           <li>
-            <strong>Analytics events:</strong>{" "}held by PostHog under their EU
-            project retention. They carry no account identity, so they
-            can&rsquo;t be traced back to you after the fact, which also
-            means we can&rsquo;t pick your events out to delete them
-            individually.
+            <strong>Analytics events:</strong>{" "}PostHog deletes analytics
+            events 12 months after collection. It deletes pseudonymous person
+            and device records 12 months after their last activity. These
+            records carry no account identity, so they can&rsquo;t be traced
+            back to you after the fact, which also means we can&rsquo;t pick
+            your events out to delete them individually.
           </li>
           <li>
             <strong>Rate-limit records:</strong>{" "}durable limiter rows are

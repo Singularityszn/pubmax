@@ -102,6 +102,15 @@ describe("legal content pages", () => {
     expect(terms).toMatch(/performance/i);
   });
 
+  it("states both 12-month analytics retention clocks on both legal pages", () => {
+    for (const page of [privacy, terms]) {
+      expect(page).toMatch(/analytics\s+events\s+12 months after collection/i);
+      expect(page).toMatch(
+        /person\s+and\s+device\s+records\s+12 months after their last activity/i,
+      );
+    }
+  });
+
   it("discloses same-journey referral signup and post-erasure blocking", () => {
     expect(privacy).toMatch(/same\s+sign-in journey/i);
     expect(privacy).toMatch(/delayed return/i);
