@@ -240,6 +240,10 @@ import {
   shouldShowCuratedOnboarding,
 } from "@/lib/bandOnboardingChip";
 import {
+  locationAllowsInterruptivePrompt,
+  subscribePromptBudget,
+} from "@/lib/promptBudget";
+import {
   shouldOpenPlanningInitially,
   shouldFitQueryVenuesOnArrival,
   resolveQueryRestoreFit,
@@ -459,6 +463,11 @@ export default function PubMap({
   const mobileViewport = useSyncExternalStore(
     subscribeMobileViewport,
     mobileViewportSnapshot,
+    () => false,
+  );
+  const locationAllowsOnboarding = useSyncExternalStore(
+    subscribePromptBudget,
+    locationAllowsInterruptivePrompt,
     () => false,
   );
   const railViewport = useSyncExternalStore(
@@ -2448,19 +2457,21 @@ export default function PubMap({
   const tonightLaneHasRows =
     isLondon && whatsOnTonight.status === "ready" && whatsOnTonight.rows.length > 0;
   const tonightLanePending = isLondon && whatsOnTonight.status === "idle";
-  const showOnboarding = shouldShowCuratedOnboarding({
-    loaded,
-    onboardingDismissed,
-    arrivedWithCrawlParams: explicitArrivalIntent,
-    mode,
-    builtIdsCount: builtIds.length,
-    hasActiveCrawl: Boolean(activeCrawl),
-    selectedVenueId,
-    showBandChip,
-    curatedCrawlCount: cityCuratedCrawls.length,
-    tonightLaneHasRows,
-    tonightLanePending,
-  });
+  const showOnboarding =
+    locationAllowsOnboarding &&
+    shouldShowCuratedOnboarding({
+      loaded,
+      onboardingDismissed,
+      arrivedWithCrawlParams: explicitArrivalIntent,
+      mode,
+      builtIdsCount: builtIds.length,
+      hasActiveCrawl: Boolean(activeCrawl),
+      selectedVenueId,
+      showBandChip,
+      curatedCrawlCount: cityCuratedCrawls.length,
+      tonightLaneHasRows,
+      tonightLanePending,
+    });
   // Show the first four curated crawls as the onboarding picks.
   const onboardingCrawls = cityCuratedCrawls.slice(0, 4);
 
@@ -2863,7 +2874,12 @@ export default function PubMap({
         {railViewport && !detailOpen ? (
           <MapDesktopRail area={searchAreaNewsArea ?? suggestedPlanArea?.slug ?? null} />
         ) : null}
-        {!mobileViewport && !ukPlaceArrival ? <CitySuggestBanner cityId={cityId} onLocationFound={setUserLocation} /> : null}
+        {!mobileViewport && !ukPlaceArrival ? (
+          <CitySuggestBanner
+            cityId={cityId}
+            onLocationFound={setUserLocation}
+          />
+        ) : null}
         {!mobileViewport && isLondon ? <CityStatusBanner cityId={cityId} /> : null}
         {/* F3: concierge as map home — a first-class grounded ask affordance in
             the bottom map-home lane. Rendered before the Tonight lane so its

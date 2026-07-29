@@ -10,6 +10,13 @@ import {
 } from "@/lib/cities";
 import { writePreferredCity } from "@/lib/cityPreference";
 import { cityMapShareUrl } from "@/lib/cityShare";
+import {
+  dismissCitySuggest,
+  getMapLocationControlAvailable,
+  getMapLocationControlServerSnapshot,
+  saveDataPreferred,
+  subscribeMapLocationControl,
+} from "@/lib/mapLocationPrompt";
 import { nearestEnabledCity } from "@/lib/nearestCity";
 
 import "./citySuggestBanner.css";
@@ -19,109 +26,28 @@ type CitySuggestBannerProps = {
   onLocationFound?: (location: { lat: number; lng: number }) => void;
 };
 
-const DISMISS_KEY = "pubmax:citySuggestDismiss:v1";
-const DISMISS_EVENT = "pubmax:city-suggest-dismiss";
-
-function readDismissed(): boolean {
-  if (typeof window === "undefined" || !window.sessionStorage) return false;
-  try {
-    return window.sessionStorage.getItem(DISMISS_KEY) === "1";
-  } catch {
-    return false;
-  }
-}
-
-function writeDismissed(): void {
-  if (typeof window === "undefined" || !window.sessionStorage) return;
-  try {
-    window.sessionStorage.setItem(DISMISS_KEY, "1");
-    window.dispatchEvent(new Event(DISMISS_EVENT));
-  } catch {
-    try {
-      window.dispatchEvent(new Event(DISMISS_EVENT));
-    } catch {
-      // ignore
-    }
-  }
-}
-
-function subscribeDismiss(onStoreChange: () => void): () => void {
-  if (typeof window === "undefined") return () => {};
-  const handler = () => onStoreChange();
-  window.addEventListener(DISMISS_EVENT, handler);
-  return () => window.removeEventListener(DISMISS_EVENT, handler);
-}
-
-function saveDataPreferred(): boolean {
-  if (typeof navigator === "undefined") return false;
-  const nav = navigator as Navigator & {
-    connection?: { saveData?: boolean };
-    mozConnection?: { saveData?: boolean };
-    webkitConnection?: { saveData?: boolean };
-  };
-  const conn = nav.connection ?? nav.mozConnection ?? nav.webkitConnection;
-  return Boolean(conn?.saveData);
-}
-
-type ClientFlags = { geoAvailable: boolean; saveData: boolean };
-
-/** Stable SSR/getServerSnapshot — a fresh object each call would trip React #185. */
-const SSR_CLIENT_FLAGS: ClientFlags = { geoAvailable: false, saveData: true };
-
-/**
- * Cached client snapshot for useSyncExternalStore.
- * getSnapshot must return the same reference when data is unchanged; returning
- * a new `{…}` every read caused infinite re-renders (React #185) and crashed /map.
- */
-let cachedClientFlags: ClientFlags | null = null;
-
-/** @internal Exported for regression tests — prefer the hook path in app code. */
-export function readClientFlags(): ClientFlags {
-  if (cachedClientFlags) return cachedClientFlags;
-  if (typeof navigator === "undefined") {
-    cachedClientFlags = SSR_CLIENT_FLAGS;
-    return cachedClientFlags;
-  }
-  cachedClientFlags = {
-    geoAvailable: Boolean(navigator.geolocation),
-    saveData: saveDataPreferred(),
-  };
-  return cachedClientFlags;
-}
-
-/** One-shot client snapshot — navigator flags do not change mid-session. */
-function subscribeClientFlags(onStoreChange: () => void): () => void {
-  void onStoreChange;
-  return () => {};
-}
-
 /**
  * Opt-in geolocation city nudge. Does NOT call getCurrentPosition on mount —
  * the viewer taps "Near me?" first. Honours Save-Data and a session dismiss.
  * Fail-soft (permission denied / timeout / no geo) → no switch offer.
  * Kept below the CitySwitcher dropdown in z-order so city picks stay tappable.
  */
-export default function CitySuggestBanner({ cityId, onLocationFound }: CitySuggestBannerProps) {
-  const dismissed = useSyncExternalStore(
-    subscribeDismiss,
-    readDismissed,
-    () => true, // SSR: hide until client can read sessionStorage
+export default function CitySuggestBanner({
+  cityId,
+  onLocationFound,
+}: CitySuggestBannerProps) {
+  const visible = useSyncExternalStore(
+    subscribeMapLocationControl,
+    getMapLocationControlAvailable,
+    getMapLocationControlServerSnapshot,
   );
-  const flags = useSyncExternalStore(
-    subscribeClientFlags,
-    readClientFlags,
-    () => SSR_CLIENT_FLAGS,
-  );
-
   const [suggested, setSuggested] = useState<CityId | null>(null);
   const [checking, setChecking] = useState(false);
   const [locatedHere, setLocatedHere] = useState(false);
-  const [sessionDismissed, setSessionDismissed] = useState(false);
   const checkGen = useRef(0);
 
   const dismiss = useCallback(() => {
-    writeDismissed();
-    setSessionDismissed(true);
+    dismissCitySuggest();
     setSuggested(null);
   }, []);
 
@@ -182,7 +108,7 @@ export default function CitySuggestBanner({ cityId, onLocationFound }: CitySugge
     };
   }, [checkNearby]);
 
-  if (dismissed || sessionDismissed || flags.saveData || !flags.geoAvailable) {
+  if (!visible) {
     return null;
   }
 

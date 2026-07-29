@@ -34,6 +34,9 @@ The review proved two independent defects:
 
 1. **At most one interruptive surface per browser-tab session.** Enforced by
    `lib/promptBudget.ts` (sessionStorage-scoped). Every surface MUST:
+   - Stand down while the desktop Map location control is available. Location
+     owns the first prompt moment, before consent or session-budget priority,
+     and both budget checks and claims enforce this shared boundary.
    - **Respect** the budget before it interrupts:
      `if (!hasPromptBudgetFor(SURFACE)) return;` (early-return / gate off it).
    - **Claim** the budget *at the moment it actually shows*, not when merely
@@ -48,7 +51,7 @@ The review proved two independent defects:
      storage still degrades open after consent is decided: losing
      sessionStorage may permit two prompts, but must not break a prompt flow.
 
-2. **Priority when multiple gates open: `analytics consent > identity > push > A2HS`.**
+2. **Priority when multiple gates open: `location > analytics consent > identity > push > A2HS`.**
    An undecided analytics choice reserves the prompt budget before lower-priority
    surfaces may claim it. Accepting and declining both keep that session claim,
    so onboarding starts in a later session instead of stacking immediately.

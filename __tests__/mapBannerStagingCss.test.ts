@@ -9,22 +9,21 @@ import { describe, expect, it } from "vitest";
 // fresh-profile + post-dismissal Playwright screenshots.
 const css = readFileSync(join(process.cwd(), "components/map/mapBannerStaging.css"), "utf8");
 
-const AMBIENT = [".cityStatusBanner", ".citySuggestBanner", ".tonightLaneCollapsed"] as const;
-
 describe("map banner staging CSS", () => {
-  it("suppresses every ambient banner while the onboarding overlay is open", () => {
-    for (const sel of AMBIENT) {
+  it("keeps location independent while onboarding suppresses ambient status and Tonight", () => {
+    for (const sel of [".cityStatusBanner", ".tonightLaneCollapsed"]) {
       const escaped = sel.replace(/\./g, "\\.");
       expect(css).toMatch(new RegExp(`\\.appShell\\.onboarding-open\\s+${escaped}`));
     }
+    expect(css).not.toMatch(/\.appShell\.onboarding-open\s+\.citySuggestBanner/);
   });
 
-  it("gives the closure/safety band top priority (it hides city-suggest and tonight)", () => {
-    expect(css).toMatch(/\.mapStage:has\(\.cityStatusBanner\)\s+\.citySuggestBanner/);
+  it("keeps the location control available alongside closure/safety status", () => {
+    expect(css).not.toMatch(/\.mapStage:has\(\.cityStatusBanner\)\s+\.citySuggestBanner/);
+  });
+
+  it("defers the tonight-nearby card to either status or location", () => {
     expect(css).toMatch(/\.mapStage:has\(\.cityStatusBanner\)\s+\.tonightLaneCollapsed/);
-  });
-
-  it("gives city-suggest priority over the tonight-nearby card", () => {
     expect(css).toMatch(/\.mapStage:has\(\.citySuggestBanner\)\s+\.tonightLaneCollapsed/);
   });
 

@@ -1,5 +1,12 @@
 /* Compact map toolbar — map-first on phones; drink filters opt-in. */
 
+.appShell {
+  /* Closed desktop toolbar block, including the always-visible experience
+     lens. Sibling chrome uses this to clear the toolbar instead of assuming
+     the older single-row height. */
+  --map-toolbar-resting-height: 181px;
+}
+
 .mapToolbar {
   flex-direction: column;
   align-items: stretch;
@@ -309,6 +316,7 @@
   .appShell {
     --map-top-clearance: calc(171px + env(safe-area-inset-top, 0px));
     --map-overlay-top: calc(var(--map-top-clearance) + 58px);
+    --map-toolbar-resting-height: 145px;
   }
 
   .mapToolbar {

@@ -14,6 +14,18 @@ type WindowLike = {
   sessionStorage: Storage;
   localStorage: Storage;
   navigator?: Navigator;
+  location?: {
+    pathname: string;
+    search: string;
+  };
+  matchMedia?: (query: string) => {
+    matches: boolean;
+    addEventListener: () => void;
+    removeEventListener: () => void;
+  };
+  addEventListener?: (type: string, listener: EventListener) => void;
+  removeEventListener?: (type: string, listener: EventListener) => void;
+  dispatchEvent?: (event: Event) => boolean;
 };
 
 function makeMemoryStorage(): Storage {
@@ -31,14 +43,22 @@ function makeMemoryStorage(): Storage {
 }
 
 function installWindow(session: Storage, local = makeMemoryStorage()): void {
-  (globalThis as { window?: WindowLike }).window = {
+  setWindow({
     sessionStorage: session,
     localStorage: local,
-  };
+  });
+}
+
+function setWindow(window: WindowLike): void {
+  Object.defineProperty(globalThis, "window", {
+    configurable: true,
+    writable: true,
+    value: window,
+  });
 }
 
 function clearWindow(): void {
-  delete (globalThis as { window?: WindowLike }).window;
+  Reflect.deleteProperty(globalThis, "window");
 }
 
 afterEach(() => {
@@ -80,15 +100,55 @@ describe("CitySuggestBanner opt-in geo", () => {
     expect(session.getItem(DISMISS_KEY)).toBe("1");
   });
 
-  it("readClientFlags returns a stable reference (React #185 / useSyncExternalStore)", async () => {
+  it("readCitySuggestClientFlags returns a stable reference", async () => {
     vi.stubGlobal("navigator", {
       geolocation: { getCurrentPosition: vi.fn() },
     });
-    const { readClientFlags } = await import("@/components/map/CitySuggestBanner");
-    const a = readClientFlags();
-    const b = readClientFlags();
+    const { readCitySuggestClientFlags } = await import("@/lib/mapLocationPrompt");
+    const a = readCitySuggestClientFlags();
+    const b = readCitySuggestClientFlags();
     expect(a).toBe(b);
     expect(a.geoAvailable).toBe(true);
     expect(a.saveData).toBe(false);
+  });
+
+  it("releases prompt priority after dismiss when sessionStorage rejects writes", async () => {
+    const session = makeMemoryStorage();
+    session.setItem = () => {
+      throw new Error("storage unavailable");
+    };
+    const events = new EventTarget();
+    setWindow({
+      sessionStorage: session,
+      localStorage: makeMemoryStorage(),
+      location: { pathname: "/map", search: "" },
+      matchMedia: () => ({
+        matches: true,
+        addEventListener: () => {},
+        removeEventListener: () => {},
+      }),
+      addEventListener: events.addEventListener.bind(events),
+      removeEventListener: events.removeEventListener.bind(events),
+      dispatchEvent: events.dispatchEvent.bind(events),
+    });
+    vi.stubGlobal("navigator", {
+      geolocation: { getCurrentPosition: vi.fn() },
+    });
+
+    const {
+      dismissCitySuggest,
+      getMapLocationControlAvailable,
+    } = await import("@/lib/mapLocationPrompt");
+    const { locationAllowsInterruptivePrompt } = await import(
+      "@/lib/promptBudget"
+    );
+
+    expect(getMapLocationControlAvailable()).toBe(true);
+    expect(locationAllowsInterruptivePrompt()).toBe(false);
+
+    dismissCitySuggest();
+
+    expect(getMapLocationControlAvailable()).toBe(false);
+    expect(locationAllowsInterruptivePrompt()).toBe(true);
   });
 });
