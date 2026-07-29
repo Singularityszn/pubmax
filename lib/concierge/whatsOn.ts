@@ -117,7 +117,8 @@ export function filterRowsByArea(rows: WhatsOnRow[], area: string): WhatsOnRow[]
 }
 
 // London weekday (0=Sun..6=Sat) of an ISO instant.
-export function londonWeekday(iso: string): number | null {
+export function londonWeekday(iso: string | undefined): number | null {
+  if (!iso) return null;
   const ms = Date.parse(iso);
   if (!Number.isFinite(ms)) return null;
   const label = new Intl.DateTimeFormat("en-GB", {
@@ -141,8 +142,9 @@ export type WhatsOnListingDto = {
   title: string;
   venue: string;
   venueId?: string;
-  startsAt: string;
+  startsAt?: string;
   endsAt?: string;
+  timeEvidence?: string;
   detail?: string;
   priceGbp?: number;
   confidence: WhatsOnRow["confidence"];
@@ -165,12 +167,13 @@ function toDto(row: WhatsOnRow): WhatsOnListingDto {
     kind: row.kind,
     title: row.title,
     venue: row.placeName,
-    startsAt: row.startsAt,
     confidence: row.confidence,
     source: { label: row.source.label, url: row.source.url },
   };
+  if (row.startsAt) dto.startsAt = row.startsAt;
   if (row.venueId) dto.venueId = row.venueId;
   if (row.endsAt) dto.endsAt = row.endsAt;
+  if (row.timeEvidence) dto.timeEvidence = row.timeEvidence;
   if (row.detail) dto.detail = row.detail;
   if (typeof row.priceGbp === "number") dto.priceGbp = row.priceGbp;
   return dto;

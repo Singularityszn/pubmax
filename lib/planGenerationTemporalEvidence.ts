@@ -51,6 +51,7 @@ function whatsOnForWindow(
 ): WhatsOnRow[] {
   if (!routeWindow) return filterTonight(rows, requestNow);
   return rows.filter((row) => {
+    if (!row.startsAt) return false;
     const observedAt = Date.parse(row.observedAt);
     return observedAt <= requestNow
       && coversWindow(Date.parse(row.startsAt), rowEffectiveEnd(row), routeWindow);

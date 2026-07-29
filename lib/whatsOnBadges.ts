@@ -133,7 +133,7 @@ export function formatWhatsOnTime(iso: string | undefined): string | null {
 /** Time label to show on a card: timed kinds get a clock; sport stays untimed. */
 export function laneTimeLabel(row: WhatsOnRow): string | null {
   if (!WHATS_ON_KIND_META[row.kind].timed) return null;
-  return formatWhatsOnTime(row.startsAt);
+  return formatWhatsOnTime(row.startsAt) ?? row.timeEvidence ?? null;
 }
 
 /** Rows for the active kind, or all when no kind is selected. */
@@ -229,6 +229,7 @@ export type ListingUrgency = {
  */
 export function listingUrgency(row: WhatsOnRow, now: Date = new Date()): ListingUrgency | null {
   if (!WHATS_ON_KIND_META[row.kind].timed) return null;
+  if (!row.startsAt) return null;
   const startMs = Date.parse(row.startsAt);
   if (!Number.isFinite(startMs)) return null;
   const nowMs = now.getTime();

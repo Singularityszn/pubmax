@@ -51,7 +51,7 @@ export function planStartsThisTonight(planStartTimeIso: string, now: number = Da
  */
 export function isEventRelevantToPlanStart(row: WhatsOnRow, planStartMs: number): boolean {
   if (!WHATS_ON_KIND_META[row.kind].timed) return true;
-  const endMs = Date.parse(row.endsAt ?? row.startsAt);
+  const endMs = Date.parse(row.endsAt ?? row.startsAt ?? "");
   return Number.isFinite(endMs) && endMs >= planStartMs;
 }
 
@@ -109,7 +109,7 @@ export function stopEventChips(
     const hero = venueRows.slice().sort((a, b) => {
       const priorityDiff = WHATS_ON_KIND_META[a.kind].priority - WHATS_ON_KIND_META[b.kind].priority;
       if (priorityDiff !== 0) return priorityDiff;
-      return Date.parse(a.startsAt) - Date.parse(b.startsAt);
+      return Date.parse(a.startsAt ?? "") - Date.parse(b.startsAt ?? "");
     })[0];
     chips.set(venueId, toChip(hero));
   }

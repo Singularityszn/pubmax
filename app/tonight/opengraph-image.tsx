@@ -86,7 +86,7 @@ export default async function Image() {
           </div>
         ) : (
           <div style={{ fontSize: 36, color: CREAM_DIM }}>
-            A grounded read of what&rsquo;s on near you, right now.
+            A sourced read of what&rsquo;s on across London tonight.
           </div>
         )}
 

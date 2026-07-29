@@ -67,7 +67,7 @@ function venueIdentity(row: WhatsOnRow): string {
 }
 
 function startMs(row: WhatsOnRow): number {
-  const ms = Date.parse(row.startsAt);
+  const ms = Date.parse(row.startsAt ?? "");
   return Number.isFinite(ms) ? ms : Number.POSITIVE_INFINITY;
 }
 

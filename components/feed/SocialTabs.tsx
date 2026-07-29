@@ -1,17 +1,15 @@
 "use client";
 
-// The Social Loop's top-level feed axis (Cycle 15 Lane C). Three chronological
-// tabs — "Your lot" (mutual friends' drops + check-ins), "Nearby" (area-level
-// activity), "London" (the city-wide public feed). This is a re-composition over
-// the SAME feed cards, not a new surface: it swaps the data source, the feed list
-// underneath is unchanged. Presentational + controlled — the /feed page owns the
-// active tab and does the fetching.
+// The Social Loop's top-level feed axis (Cycle 15 Lane C). "Your lot" shows
+// mutual friends' drops + check-ins; "London" is the city-wide public feed.
+// Nearby stays hidden until the feed has a real locality to apply. This is a
+// re-composition over the same feed cards, not a new surface: it swaps the data
+// source, while /feed owns the active tab and fetching.
 
 export type SocialTab = "lot" | "nearby" | "london";
 
 const TABS: { id: SocialTab; label: string; hint: string }[] = [
   { id: "lot", label: "Your lot", hint: "Friends' nights, chronological" },
-  { id: "nearby", label: "Nearby", hint: "Area-level activity" },
   { id: "london", label: "London", hint: "The whole city" },
 ];
 

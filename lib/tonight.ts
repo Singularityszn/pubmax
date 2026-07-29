@@ -21,6 +21,12 @@ export type TonightOpportunity = ThingsToDoOpportunity;
 // Re-export the shared helpers so the screen imports one module.
 export { labelForKind, opportunityMapHref };
 
+export function tonightHeading(basis: TonightLocalityBasis): string {
+  return basis === "london-default"
+    ? "What’s on across London tonight."
+    : "What’s on near you tonight.";
+}
+
 const OTHER_KIND = "other";
 
 export type KindFacet = { kind: string; label: string; count: number };

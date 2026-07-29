@@ -38,7 +38,13 @@ import { nearestNightAreaForViewport } from "@/lib/nightAreas";
 import TonightShareButton from "./TonightShareButton";
 import { trackEvent } from "@/lib/analytics";
 import { firstHttp } from "@/lib/httpUrl";
-import { resolveTonightNear, tonightLocalityBasis, walkLabel, walkMinutes } from "@/lib/tonight";
+import {
+  resolveTonightNear,
+  tonightHeading,
+  tonightLocalityBasis,
+  walkLabel,
+  walkMinutes,
+} from "@/lib/tonight";
 import { acceptTonightVenue } from "@/lib/tonightAcceptance";
 import { readRememberedArea, type RememberedArea } from "@/lib/nightPatches";
 import { palChatHref, VIBE_CHIPS } from "@/lib/vibeChips";
@@ -110,7 +116,7 @@ const QUIET_ALTERNATIVES: QuietAlternative[] = [
   {
     href: "/map",
     icon: Beer,
-    title: "Cheapest pints near you",
+    title: "Cheapest pints in London",
     sub: "Every venue on the map, priced",
   },
   {
@@ -268,7 +274,7 @@ export default function TonightClient({ flags }: { flags: TrustedHandoffFlagsDTO
           <p className="tonightEyebrow">Tonight in London</p>
           <TonightShareButton />
         </div>
-        <h1 className="tonightTitle">What&rsquo;s on near you, right now.</h1>
+        <h1 className="tonightTitle">{tonightHeading(localityBasis)}</h1>
         <p className="tonightLede">
           Quiz, sport, deals, and live music from sourced listings. The same
           spine as the map.

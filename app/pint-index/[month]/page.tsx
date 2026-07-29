@@ -5,23 +5,19 @@ import { notFound } from "next/navigation";
 
 import SiteNav from "@/components/nav/SiteNav";
 import JsonLd from "@/components/seo/JsonLd";
-import PintIndexArrival from "@/components/pintindex/PintIndexArrival";
 import PintIndexEditions from "@/components/pintindex/PintIndexEditions";
 import PintIndexLeagueTable from "@/components/pintindex/PintIndexLeagueTable";
-import { formatObservedDate, PINT_DATASET_OBSERVED_AT } from "@/lib/dataFreshness";
 import { buildLeagueTable, dearestFirst, formatPintIndexDate, indexSummary } from "@/lib/pintIndex";
 import {
   pintIndexMonthLabel,
   pintIndexMonthTemporalCoverage,
   type ArchivedPintIndexSnapshot,
 } from "@/lib/pintIndexArchive";
-import { arrivalAreas } from "@/lib/pintIndexArrival";
 import {
   listPintIndexArchiveMonths,
   loadArchivedPintIndexMonth,
   loadPintIndexArchive,
 } from "@/lib/pintIndexSnapshot.server";
-import { loadGroupedVenues } from "@/lib/venueDataset";
 import { formatPrice } from "@/lib/venues";
 
 import "../pint-index.css";
@@ -94,7 +90,7 @@ export default async function PintIndexEditionPage({ params }: EditionPageProps)
   const edition = await loadArchivedPintIndexMonth(month);
   if (!edition) notFound();
 
-  const [editions, venues] = await Promise.all([loadPintIndexArchive(), loadGroupedVenues()]);
+  const editions = await loadPintIndexArchive();
   const rows = buildLeagueTable(edition);
   const summary = indexSummary(rows);
   const jsonLd = datasetJsonLd(edition, summary.boroughCount, summary.pubCount);
@@ -187,12 +183,6 @@ export default async function PintIndexEditionPage({ params }: EditionPageProps)
           />
         </section>
       ) : null}
-
-      <PintIndexArrival
-        areas={arrivalAreas(venues)}
-        surface="archive"
-        collectedLabel={`collected ${formatObservedDate(PINT_DATASET_OBSERVED_AT)}`}
-      />
 
       <section className="pintIndexSection" aria-labelledby="editionsHeading">
         <h2 id="editionsHeading" className="pintIndexSectionTitle">Every dated edition</h2>

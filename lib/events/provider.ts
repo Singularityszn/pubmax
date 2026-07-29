@@ -85,7 +85,9 @@ export async function aggregateTonightEvents(
   // Stable report order (Promise.all resolves out of order under concurrency).
   reports.sort((a, b) => a.name.localeCompare(b.name));
   const rows = dedupeRows(collected).sort(
-    (a, b) => a.startsAt.localeCompare(b.startsAt) || a.id.localeCompare(b.id),
+    (a, b) =>
+      (a.startsAt ?? "").localeCompare(b.startsAt ?? "") ||
+      a.id.localeCompare(b.id),
   );
   return { rows, providers: reports };
 }

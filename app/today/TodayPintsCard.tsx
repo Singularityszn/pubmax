@@ -24,13 +24,25 @@ import {
 
 type Props = { index: TodayPintsIndex };
 
-function moduleFor(index: TodayPintsIndex, remembered: Parameters<typeof resolveTodayPintsPatchId>[0]): TodayPintsModule | null {
+type TodayPintsView = {
+  pints: TodayPintsModule | null;
+  hasRememberedLocality: boolean;
+};
+
+function viewFor(
+  index: TodayPintsIndex,
+  remembered: Parameters<typeof resolveTodayPintsPatchId>[0],
+): TodayPintsView {
   const id = resolveTodayPintsPatchId(remembered, index);
-  return id ? index[id] : null;
+  return {
+    pints: id ? index[id] : null,
+    hasRememberedLocality:
+      remembered?.kind === "patch" && id === remembered.id,
+  };
 }
 
 export default function TodayPintsCard({ index }: Props) {
-  const [pints, setPints] = useState<TodayPintsModule | null>(() => moduleFor(index, null));
+  const [view, setView] = useState<TodayPintsView>(() => viewFor(index, null));
 
   useEffect(() => {
     // Deferred read (matches PicksCard): localStorage is the external sync, so the
@@ -39,14 +51,15 @@ export default function TodayPintsCard({ index }: Props) {
     let cancelled = false;
     void Promise.resolve().then(() => {
       if (cancelled) return;
-      setPints(moduleFor(index, readRememberedArea()));
+      setView(viewFor(index, readRememberedArea()));
     });
     return () => {
       cancelled = true;
     };
   }, [index]);
 
-  if (!pints) return null;
+  if (!view.pints) return null;
+  const { pints, hasRememberedLocality } = view;
 
   return (
     <section className="todayCard" aria-labelledby="today-pints-title" data-testid="today-pints">
@@ -55,7 +68,11 @@ export default function TodayPintsCard({ index }: Props) {
           <Beer size={18} />
         </span>
         <div>
-          <p className="todayCardEyebrow">Cheapest pints near you today</p>
+          <p className="todayCardEyebrow">
+            {hasRememberedLocality
+              ? "Cheapest pints near you today"
+              : "Cheapest pints in central London today"}
+          </p>
           <h2 className="todayCardTitle" id="today-pints-title">
             The cheap ones in {pints.areaName}.
           </h2>

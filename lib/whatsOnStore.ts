@@ -11,7 +11,6 @@ import {
   filterByKind,
   filterNotPast,
   filterTonight,
-  londonServiceDayBounds,
   mapThingsToDoToRows,
   parseWhatsOnRows,
   type WhatsOnKind,
@@ -173,9 +172,8 @@ export const defaultFetchLive: FetchLive = async ({ now, area }) => {
   } catch {
     startsAtByTitle = undefined;
   }
-  const windowStart = londonServiceDayBounds(now).start;
   return {
-    rows: mapThingsToDoToRows(result, { now, windowStart, startsAtByTitle }),
+    rows: mapThingsToDoToRows(result, { now, startsAtByTitle }),
     sourceObservedAt: canonicalPastIso(result.asOf, now),
   };
 };
