@@ -124,11 +124,15 @@ export function resolveSheetSnap({
     : effectiveY;
 
   // Dismiss when dragged down well past peek's resting position (more than
-  // half of peek's own revealed height further down) without enough velocity
-  // to count as a flick, or when projected momentum passes the same line.
+  // half of peek's own revealed height further down). Momentum may dismiss
+  // only when the gesture started at peek; a flick from a higher detent first
+  // lands at peek instead of skipping the final recovery point.
   const peekY = snapToY("peek", viewportHeight);
   const dismissThreshold = peekY + viewportHeight * SHEET_SNAP_FRACTIONS.peek * 0.5;
-  if (releaseY > dismissThreshold) {
+  if (
+    effectiveY > dismissThreshold ||
+    (currentSnap === "peek" && releaseY > dismissThreshold)
+  ) {
     return { snap: "peek", dismissed: true };
   }
 
@@ -231,9 +235,13 @@ export function resolveSheetHeightSnap({
     ? projectMomentum(releaseHeightPx, velocity)
     : releaseHeightPx;
 
-  // Slow collapse well below peek → dismiss (mirror of resolveSheetSnap's
-  // half-a-peek dismiss threshold, in height space).
-  if (projectedHeight < caps.peek * 0.5) {
+  // A physical collapse well below peek dismisses. Projected momentum may
+  // dismiss only from peek so a flick from half still has a recoverable stop.
+  const dismissThreshold = caps.peek * 0.5;
+  if (
+    releaseHeightPx < dismissThreshold ||
+    (startSnap === "peek" && projectedHeight < dismissThreshold)
+  ) {
     return { snap: "peek", dismissed: true };
   }
 

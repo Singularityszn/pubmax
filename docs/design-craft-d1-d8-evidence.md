@@ -50,8 +50,7 @@ PR-ready evidence for the Wave 2 surface-craft work.
 ## Visual evidence
 
 Mobile captures use a 390 by 844 CSS-pixel viewport at device pixel ratio 3.
-Desktop captures use 1440 by 900 at device pixel ratio 1. Captures were written
-under `/tmp`, moved into the repository, and verified for dimensions.
+Desktop captures use 1440 by 900 at device pixel ratio 1.
 
 | Surface | Theme | Before | After |
 | --- | --- | --- | --- |

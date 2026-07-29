@@ -170,6 +170,16 @@ describe("resolveSheetSnap — projected momentum", () => {
     expect(result).toEqual({ snap: "half", dismissed: false });
   });
 
+  it("a fast downward flick from half lands at peek instead of dismissing", () => {
+    const result = resolveSheetSnap({
+      currentSnap: "half",
+      viewportHeight: VH,
+      dragDeltaY: 10,
+      velocity: 0.8,
+    });
+    expect(result).toEqual({ snap: "peek", dismissed: false });
+  });
+
   it("a fast downward flick from peek dismisses the sheet", () => {
     const result = resolveSheetSnap({
       currentSnap: "peek",
@@ -349,6 +359,17 @@ describe("resolveSheetHeightSnap — projected momentum", () => {
       caps,
     });
     expect(result).toEqual({ snap: "half", dismissed: false });
+  });
+
+  it("a fast downward drag from half lands at peek instead of dismissing", () => {
+    const result = resolveSheetHeightSnap({
+      startSnap: "half",
+      startHeightPx: caps.half,
+      releaseHeightPx: caps.half - 260,
+      velocity: -0.8,
+      caps,
+    });
+    expect(result).toEqual({ snap: "peek", dismissed: false });
   });
 
   it("a fast downward flick from peek dismisses the sheet", () => {

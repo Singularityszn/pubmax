@@ -427,7 +427,7 @@
   flex: 1.2 1 0;
   border: 1px solid var(--brass);
   background: linear-gradient(135deg, var(--brass), var(--brass-bright));
-  color: var(--color-on-accent);
+  color: var(--color-on-accent-strong);
   box-shadow: 0 8px 18px color-mix(in srgb, var(--brass) 22%, transparent);
 }
 
