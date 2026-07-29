@@ -103,7 +103,10 @@ const { budgetOverride } = vi.hoisted(() => ({
   budgetOverride: {
     fn: null as
       | null
-      | (() => Promise<{ allowed: boolean; mode: "durable" | "degraded" | "memory" }>),
+      | (() => Promise<{
+          allowed: boolean;
+          mode: "durable" | "degraded" | "memory" | "rejected";
+        }>),
   },
 }));
 vi.mock("@/lib/roundPriceBudget", async (importOriginal) => {

@@ -19,7 +19,10 @@
 import { log } from "@/lib/log";
 import { isRateLimited } from "@/lib/pintDrops";
 import { ROUND_SPEND_PRICE_LINE_MAX } from "@/lib/rounds";
-import { checkRateLimitDurableDetailed, isSupabaseConfigured } from "@/lib/supabase";
+import {
+  isSupabaseConfigured,
+  requireSupabaseAdmin,
+} from "@/lib/supabase";
 
 /** Same cap and window /api/price-submit applies to its account actor key. */
 export const ROUND_PRICE_ACTOR_LIMIT = 30;
@@ -39,45 +42,115 @@ export const ROUND_PRICE_DEGRADED_RETRY_SECONDS = 60;
  * allowance that stands in while the durable limiter is unreachable — a
  * refusal there is our outage, not the drinker's doing, so the caller says so.
  */
-export type RoundPriceBudgetMode = "durable" | "degraded" | "memory";
+export type RoundPriceBudgetMode =
+  | "durable"
+  | "degraded"
+  | "memory"
+  | "rejected";
 
 export type RoundPriceBudget = {
   allowed: boolean;
   mode: RoundPriceBudgetMode;
 };
 
+export type RoundPriceLineCharge = Readonly<{
+  clientRef: string;
+  spendId: string;
+  lineIndex: number;
+}>;
+
+const chargedLines = new Set<string>();
+
 export function roundPriceActorKey(actor: string): string {
   return `price-submit-actor:${actor}`;
 }
 
-function chargeInMemory(key: string, lines: number, limit: number): boolean {
+function chargeId(owner: string, line: RoundPriceLineCharge): string {
+  return `${owner}:${line.spendId}:${line.clientRef}:${line.lineIndex}`;
+}
+
+function chargeInMemory(
+  key: string,
+  owner: string,
+  lines: readonly RoundPriceLineCharge[],
+  limit: number,
+): boolean {
   const now = Date.now();
   let allowed = true;
-  for (let charged = 0; charged < lines; charged += 1) {
-    if (isRateLimited(key, now, limit, ROUND_PRICE_WINDOW_MS)) allowed = false;
+  for (const line of lines) {
+    const id = chargeId(owner, line);
+    if (chargedLines.has(id)) continue;
+    if (isRateLimited(key, now, limit, ROUND_PRICE_WINDOW_MS)) {
+      allowed = false;
+    } else {
+      chargedLines.add(id);
+    }
   }
   return allowed;
 }
 
 function degradedAllowance(
   key: string,
-  lines: number,
+  owner: string,
+  lines: readonly RoundPriceLineCharge[],
   reason: string,
 ): RoundPriceBudget {
   const strict = process.env.RATE_LIMIT_STRICT === "1";
   const allowed = strict
     ? false
-    : chargeInMemory(`${key}:degraded`, lines, ROUND_SPEND_PRICE_LINE_MAX);
+    : chargeInMemory(
+        `${key}:degraded`,
+        owner,
+        lines,
+        ROUND_SPEND_PRICE_LINE_MAX,
+      );
   log("warn", "rate_limit.fail_open", {
     reason,
     mode: "degraded",
     surface: "round.price_lines",
     effectiveLimit: strict ? 0 : ROUND_SPEND_PRICE_LINE_MAX,
     windowMs: ROUND_PRICE_WINDOW_MS,
-    lines,
+    lines: lines.length,
     allowed,
   });
   return { allowed, mode: "degraded" };
+}
+
+async function chargeDurably(
+  key: string,
+  owner: string,
+  line: RoundPriceLineCharge,
+): Promise<"charged" | "limited" | "rejected" | "unavailable"> {
+  try {
+    const { data, error } = await requireSupabaseAdmin().rpc(
+      "charge_round_price_line",
+      {
+        p_actor: owner,
+        p_key: key,
+        p_limit: ROUND_PRICE_ACTOR_LIMIT,
+        p_line_index: line.lineIndex,
+        p_spend_id: line.spendId,
+        p_window_ms: ROUND_PRICE_WINDOW_MS,
+      },
+    );
+    if (error) {
+      console.error(
+        "[round-price-budget] durable charge unavailable:",
+        error.message,
+      );
+      return "unavailable";
+    }
+    if (data === "charged" || data === "already_charged") return "charged";
+    if (data === "limited") return "limited";
+    if (data === "forbidden") return "rejected";
+    return "unavailable";
+  } catch (err) {
+    console.error(
+      "[round-price-budget] durable charge unavailable:",
+      err instanceof Error ? err.message : err,
+    );
+    return "unavailable";
+  }
 }
 
 /**
@@ -85,28 +158,39 @@ function degradedAllowance(
  * the caller gets a verdict and the mode that produced it.
  */
 export async function chargeRoundPriceLines(
-  actor: string,
-  lines: number,
+  profileActor: string,
+  promotionOwner: string,
+  lines: readonly RoundPriceLineCharge[],
 ): Promise<RoundPriceBudget> {
-  const key = roundPriceActorKey(actor);
-  if (lines <= 0) return { allowed: true, mode: "durable" };
+  const key = roundPriceActorKey(profileActor);
+  if (lines.length === 0) return { allowed: true, mode: "durable" };
 
   if (!isSupabaseConfigured()) {
     return {
-      allowed: chargeInMemory(key, lines, ROUND_PRICE_ACTOR_LIMIT),
+      allowed: chargeInMemory(
+        key,
+        promotionOwner,
+        lines,
+        ROUND_PRICE_ACTOR_LIMIT,
+      ),
       mode: "memory",
     };
   }
 
-  for (let charged = 0; charged < lines; charged += 1) {
-    const { verdict, reason } = await checkRateLimitDurableDetailed(
-      key,
-      ROUND_PRICE_ACTOR_LIMIT,
-      ROUND_PRICE_WINDOW_MS,
-    );
-    if (verdict === true) return { allowed: false, mode: "durable" };
-    if (verdict === false) continue;
-    return degradedAllowance(key, lines, reason ?? "unknown");
+  for (const line of lines) {
+    const id = chargeId(promotionOwner, line);
+    if (chargedLines.has(id)) continue;
+    const verdict = await chargeDurably(key, promotionOwner, line);
+    if (verdict === "limited") {
+      return { allowed: false, mode: "durable" };
+    }
+    if (verdict === "rejected") {
+      return { allowed: false, mode: "rejected" };
+    }
+    if (verdict === "unavailable") {
+      return degradedAllowance(key, promotionOwner, lines, "error");
+    }
+    chargedLines.add(id);
   }
   return { allowed: true, mode: "durable" };
 }

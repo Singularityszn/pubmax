@@ -9,12 +9,9 @@
 // whether the write may proceed.
 //
 // Rules:
-//   • Unlinked handle (rowUserId == null): allowed for ANYONE — this preserves
-//     the demo/anonymous self-asserted-handle behaviour. An anonymous caller can
-//     still edit an unclaimed handle exactly as before. Production private
-//     actions (messages, notifications, crawl edits, comments on linked
-//     handles) still require JWT via gateHandleAction / requireLinkedActor —
-//     the anonymous path is the documented demo boundary, not a privacy model.
+//   • Unlinked, non-reserved handle (rowUserId == null): allowed for anyone.
+//     This preserves the demo/anonymous self-asserted-handle behaviour without
+//     allowing a reserved public identity to become account-owned.
 //   • Linked handle (rowUserId set): allowed ONLY when the caller is
 //     authenticated AND their uid matches. A non-owner — anonymous OR a different
 //     signed-in user — is rejected. This is the security win: once a handle is
@@ -91,9 +88,9 @@ export function shouldLinkUser(
  * On the first authenticated touch of a still-unlinked handle, stamps the link
  * (account migration) so subsequent anonymous claims of that handle fail closed.
  *
- * Unlinked handles keep the demo path (anyone may act). Linked handles require
- * the matching signed-in owner. Fail-closed on store errors so an outage cannot
- * open a linked handle to anonymous writes.
+ * Unlinked, non-reserved handles keep the demo path. Linked handles require the
+ * matching signed-in owner. Fail-closed on store errors so an outage cannot open
+ * a linked handle to anonymous writes.
  */
 export async function gateHandleAction(
   request: Request,
@@ -142,6 +139,13 @@ export async function gateHandleAction(
             allowed: false,
             status: 409,
             error: "This handle was just claimed by another account. Sign in as its owner, or pick a different handle.",
+          };
+        }
+        if (/not available/i.test(message)) {
+          return {
+            allowed: false,
+            status: 409,
+            error: "That handle is not available.",
           };
         }
         throw err;

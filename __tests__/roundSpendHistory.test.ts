@@ -3,9 +3,13 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 
 import { RoundSpendHistory } from "@/app/rounds/[code]/RoundPageClient";
-import type { RoundSpendDTO } from "@/lib/rounds";
+import {
+  resolveRoundPromotionStatus,
+  type RoundPromotionStatus,
+  type RoundSpendDTO,
+} from "@/lib/rounds";
 
-function spend(promotionStatus: "diary_only" | "promoted"): RoundSpendDTO {
+function spend(promotionStatus: RoundPromotionStatus): RoundSpendDTO {
   return {
     id: `spend-${promotionStatus}`,
     clientRef: `ref-${promotionStatus}`,
@@ -40,5 +44,21 @@ describe("Round spend history", () => {
     );
     expect(promoted).toContain("stays provisional");
     expect(promoted).not.toContain("diary only");
+  });
+
+  it("keeps legacy promotion outcomes neutral", () => {
+    const legacy = renderToStaticMarkup(
+      createElement(RoundSpendHistory, {
+        spends: [spend("legacy_unknown")],
+      }),
+    );
+
+    expect(legacy).toContain("sharing status unknown");
+    expect(legacy).not.toContain("diary only");
+    expect(legacy).not.toContain("stays provisional");
+    expect(resolveRoundPromotionStatus("round", undefined)).toBe(
+      "legacy_unknown",
+    );
+    expect(resolveRoundPromotionStatus("demo", undefined)).toBe("diary_only");
   });
 });

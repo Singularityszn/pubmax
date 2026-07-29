@@ -1,3 +1,5 @@
+import { readFileSync } from "node:fs";
+
 import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 // The account budget a Round's drink lines pay before they may become community
@@ -30,6 +32,14 @@ function failOpenRecords(spy: { mock: { calls: unknown[][] } }): Record<string, 
     .filter((r): r is Record<string, unknown> => r != null && r.event === "rate_limit.fail_open");
 }
 
+function priceLines(spendId: string, count: number) {
+  return Array.from({ length: count }, (_, lineIndex) => ({
+    clientRef: spendId,
+    spendId,
+    lineIndex,
+  }));
+}
+
 beforeEach(() => {
   rpc.mockReset();
   process.env.SUPABASE_URL = "https://stub.supabase.co";
@@ -46,22 +56,40 @@ afterAll(() => {
 describe("chargeRoundPriceLines", () => {
   it("charges one durable unit per line while the limiter answers", async () => {
     const { chargeRoundPriceLines } = await loadBudget();
-    rpc.mockResolvedValue({ data: false, error: null });
+    rpc.mockResolvedValue({ data: "charged", error: null });
     const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
 
-    const verdict = await chargeRoundPriceLines("actor-a", 6);
+    const verdict = await chargeRoundPriceLines(
+      "actor-a",
+      "account-a",
+      priceLines("spend-a", 6),
+    );
 
     expect(verdict).toEqual({ allowed: true, mode: "durable" });
     expect(rpc).toHaveBeenCalledTimes(6);
+    expect(rpc).toHaveBeenNthCalledWith(1, "charge_round_price_line", {
+      p_actor: "account-a",
+      p_key: "price-submit-actor:actor-a",
+      p_limit: 30,
+      p_line_index: 0,
+      p_spend_id: "spend-a",
+      p_window_ms: 3_600_000,
+    });
     expect(failOpenRecords(logSpy)).toHaveLength(0);
     logSpy.mockRestore();
   });
 
   it("refuses on the limiter's own verdict, blaming nobody's outage", async () => {
     const { chargeRoundPriceLines } = await loadBudget();
-    rpc.mockResolvedValue({ data: true, error: null });
+    rpc.mockResolvedValue({ data: "limited", error: null });
 
-    expect(await chargeRoundPriceLines("actor-b", 3)).toEqual({
+    expect(
+      await chargeRoundPriceLines(
+        "actor-b",
+        "account-b",
+        priceLines("spend-b", 3),
+      ),
+    ).toEqual({
       allowed: false,
       mode: "durable",
     });
@@ -74,7 +102,11 @@ describe("chargeRoundPriceLines", () => {
     const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
 
     // A full itemised round lands rather than dying on its fourth drink.
-    const first = await chargeRoundPriceLines("actor-c", ROUND_SPEND_PRICE_LINE_MAX);
+    const first = await chargeRoundPriceLines(
+      "actor-c",
+      "account-c",
+      priceLines("spend-c-1", ROUND_SPEND_PRICE_LINE_MAX),
+    );
     expect(first).toEqual({ allowed: true, mode: "degraded" });
 
     // ONE warn per turn, not one per line, so the log drain stays readable
@@ -93,15 +125,22 @@ describe("chargeRoundPriceLines", () => {
     });
 
     // The allowance is one round, so an account cannot spray during the outage.
-    const second = await chargeRoundPriceLines("actor-c", ROUND_SPEND_PRICE_LINE_MAX);
+    const second = await chargeRoundPriceLines(
+      "actor-c",
+      "account-c",
+      priceLines("spend-c-2", ROUND_SPEND_PRICE_LINE_MAX),
+    );
     expect(second).toEqual({ allowed: false, mode: "degraded" });
     expect(failOpenRecords(logSpy)).toHaveLength(2);
 
     // Another account still gets its own round.
-    expect(await chargeRoundPriceLines("actor-d", ROUND_SPEND_PRICE_LINE_MAX)).toEqual({
-      allowed: true,
-      mode: "degraded",
-    });
+    expect(
+      await chargeRoundPriceLines(
+        "actor-d",
+        "account-d",
+        priceLines("spend-d", ROUND_SPEND_PRICE_LINE_MAX),
+      ),
+    ).toEqual({ allowed: true, mode: "degraded" });
     logSpy.mockRestore();
   });
 
@@ -111,7 +150,13 @@ describe("chargeRoundPriceLines", () => {
     process.env.RATE_LIMIT_STRICT = "1";
     const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
 
-    expect(await chargeRoundPriceLines("actor-e", 2)).toEqual({
+    expect(
+      await chargeRoundPriceLines(
+        "actor-e",
+        "account-e",
+        priceLines("spend-e", 2),
+      ),
+    ).toEqual({
       allowed: false,
       mode: "degraded",
     });
@@ -124,14 +169,78 @@ describe("chargeRoundPriceLines", () => {
     delete process.env.SUPABASE_SERVICE_ROLE_KEY;
     const { chargeRoundPriceLines, ROUND_PRICE_ACTOR_LIMIT } = await loadBudget();
 
-    expect(await chargeRoundPriceLines("actor-f", ROUND_PRICE_ACTOR_LIMIT)).toEqual({
+    expect(
+      await chargeRoundPriceLines(
+        "actor-f",
+        "account-f",
+        priceLines("spend-f-1", ROUND_PRICE_ACTOR_LIMIT),
+      ),
+    ).toEqual({ allowed: true, mode: "memory" });
+    expect(
+      await chargeRoundPriceLines(
+        "actor-f",
+        "account-f",
+        priceLines("spend-f-2", 1),
+      ),
+    ).toEqual({ allowed: false, mode: "memory" });
+    expect(rpc).not.toHaveBeenCalled();
+  });
+
+  it("charges a saved line once across retries", async () => {
+    delete process.env.SUPABASE_URL;
+    delete process.env.SUPABASE_SERVICE_ROLE_KEY;
+    const { chargeRoundPriceLines, ROUND_PRICE_ACTOR_LIMIT } =
+      await loadBudget();
+    const savedLine = priceLines("spend-g-1", 1);
+
+    expect(
+      await chargeRoundPriceLines("actor-g", "account-g", savedLine),
+    ).toEqual({
       allowed: true,
       mode: "memory",
     });
-    expect(await chargeRoundPriceLines("actor-f", 1)).toEqual({
-      allowed: false,
+    expect(
+      await chargeRoundPriceLines("actor-g", "account-g", savedLine),
+    ).toEqual({
+      allowed: true,
       mode: "memory",
     });
-    expect(rpc).not.toHaveBeenCalled();
+    expect(
+      await chargeRoundPriceLines(
+        "actor-g",
+        "account-g",
+        priceLines("spend-g-2", ROUND_PRICE_ACTOR_LIMIT - 1),
+      ),
+    ).toEqual({ allowed: true, mode: "memory" });
+    expect(
+      await chargeRoundPriceLines(
+        "actor-g",
+        "account-g",
+        priceLines("spend-g-3", 1),
+      ),
+    ).toEqual({ allowed: false, mode: "memory" });
+  });
+});
+
+describe("Round price line charge migration", () => {
+  it("serialises spend charges and records each line once", () => {
+    const sql = readFileSync(
+      new URL(
+        "../supabase/migrations/20260729133000_0063_round_price_line_charges.sql",
+        import.meta.url,
+      ),
+      "utf8",
+    );
+
+    expect(sql).toMatch(/primary key \(spend_id, line_index\)/);
+    expect(sql).toMatch(
+      /from public\.round_spends[\s\S]*where id = p_spend_id[\s\S]*for update/,
+    );
+    expect(sql).toMatch(
+      /v_owner is distinct from p_actor[\s\S]*return 'forbidden'/,
+    );
+    expect(sql).toMatch(
+      /from public\.round_price_line_charges[\s\S]*return case[\s\S]*'already_charged'/,
+    );
   });
 });

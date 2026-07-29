@@ -61,6 +61,12 @@ import "./round.css";
 // on focus so switching back to the tab shows the latest route immediately.
 const POLL_MS = 10_000;
 
+export function roundComposerOwnerKey(
+  auth: AccountAuthSnapshot | null,
+): string {
+  return auth?.userId ?? "anonymous";
+}
+
 // A minimal Venue shape for buildRouteLegs (read-only): the leg math only reads
 // longitude/latitude/id/name off each stop, so we adapt SlimVenue → that shape.
 function slimToVenue(slim: SlimVenue): Venue {
@@ -368,6 +374,7 @@ function RoundBoard({
 
       {amMember && !closed && stops.length > 0 ? (
         <RoundSpendComposer
+          key={roundComposerOwnerKey(roundAuth)}
           code={round.code}
           recorderHandle={myHandle}
           roundAuth={roundAuth}
@@ -691,23 +698,23 @@ function RoundSpendComposer({
     pendingRef.current ??= spendClientRef();
     try {
       const res = await submitRoundSpendRequest(code, roundAuth, {
-          action: "recordSpend",
-          handle: recorderHandle,
-          payerHandle,
-          venueId,
-          clientRef: pendingRef.current,
-          ...(mode === "items"
-            ? {
-                items: items.map(
-                  ({ drinkName, drinkCategory, priceGbp, priceSource }) => ({
-                    drinkName,
-                    drinkCategory,
-                    priceGbp,
-                    priceSource,
-                  }),
-                ),
-              }
-            : { totalGbp: amount }),
+        action: "recordSpend",
+        handle: recorderHandle,
+        payerHandle,
+        venueId,
+        clientRef: pendingRef.current,
+        ...(mode === "items"
+          ? {
+              items: items.map(
+                ({ drinkName, drinkCategory, priceGbp, priceSource }) => ({
+                  drinkName,
+                  drinkCategory,
+                  priceGbp,
+                  priceSource,
+                }),
+              ),
+            }
+          : { totalGbp: amount }),
       });
       const data = (await res.json()) as RoundState | { error: string };
       if (!res.ok) {
@@ -995,7 +1002,11 @@ export function RoundSpendHistory({
       <ol>
         {[...spends].reverse().map((spend) => {
           const logged = promotedPriceItems(spend.items);
-          const diaryOnly = spend.items.length - logged.length;
+          const legacyUnknown = spend.items.filter(
+            (item) => item.promotionStatus === "legacy_unknown",
+          ).length;
+          const diaryOnly =
+            spend.items.length - logged.length - legacyUnknown;
           return (
             <li key={spend.id} className="roundSpendCard">
               <div className="roundSpendSummary">
@@ -1018,9 +1029,11 @@ export function RoundSpendHistory({
                       <li key={`${spend.id}-${index}`}>
                         <span>
                           {item.drinkName} · {categoryLabel(item.drinkCategory)}
-                          {item.promotionStatus !== "promoted"
-                            ? " · diary only"
-                            : ""}
+                          {item.promotionStatus === "legacy_unknown"
+                            ? " · sharing status unknown"
+                            : item.promotionStatus !== "promoted"
+                              ? " · diary only"
+                              : ""}
                         </span>
                         <strong>{formatPrice(item.pricePence / 100)}</strong>
                       </li>
@@ -1033,6 +1046,13 @@ export function RoundSpendHistory({
                   ) : null}
                   {diaryOnly > 0 ? (
                     <p className="roundPriceTrust">{diaryOnlyCaption(diaryOnly)}</p>
+                  ) : null}
+                  {legacyUnknown > 0 ? (
+                    <p className="roundPriceTrust">
+                      {legacyUnknown === 1
+                        ? "Sharing status for one older line is unknown."
+                        : `Sharing status for ${legacyUnknown} older lines is unknown.`}
+                    </p>
                   ) : null}
                 </>
               ) : null}

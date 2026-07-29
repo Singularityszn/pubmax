@@ -17,7 +17,10 @@
 // rate-limited per handle + IP.
 
 import { jsonNoStore } from "@/lib/apiResponses";
-import { resolveContributionIdentity } from "@/lib/contributionIdentity.server";
+import {
+  resolveContributionIdentity,
+  type ContributionIdentityResolution,
+} from "@/lib/contributionIdentity.server";
 import { submitCommunityPrice } from "@/lib/communityPriceStore";
 import { resolveMessageHandle } from "@/lib/messageAuth";
 import { isLimited } from "@/lib/pintDrops";
@@ -25,14 +28,21 @@ import { gateHandleAction } from "@/lib/profileOwnership";
 import {
   ROUND_PRICE_DEGRADED_RETRY_SECONDS,
   chargeRoundPriceLines,
+  type RoundPriceBudget,
 } from "@/lib/roundPriceBudget";
 import {
   ROUND_SPEND_PRICE_LINE_MAX,
   cleanNewRoundSpend,
   firstPartyPriceItems,
   isValidRoundCode,
+  type RoundSpendDTO,
+  type RoundState,
 } from "@/lib/rounds";
-import { roundsStore, type RoundWriteError } from "@/lib/roundsStore";
+import {
+  roundsStore,
+  type RoundsStore,
+  type RoundWriteError,
+} from "@/lib/roundsStore";
 import { assertServerEnv } from "@/lib/serverEnv";
 import { isRoundsReadLimited } from "@/lib/roundsReadRateLimit";
 import { clientIp, hashIp } from "@/lib/supabase";
@@ -69,6 +79,137 @@ export async function GET(request: Request, ctx: Ctx): Promise<Response> {
   }
   const state = await roundsStore().getByCode(code);
   if (!state) return jsonNoStore({ error: "That Round doesn't exist." }, { status: 404 });
+  return jsonNoStore(state, { status: 200 });
+}
+
+type ResolvedContributor = Extract<
+  ContributionIdentityResolution,
+  { ok: true }
+>;
+
+function roundBudgetFailure(budget: RoundPriceBudget): Response | null {
+  if (budget.allowed) return null;
+  if (budget.mode === "degraded") {
+    return jsonNoStore(
+      {
+        error:
+          "Your round is kept, but price sharing is unavailable. Try again shortly.",
+      },
+      {
+        status: 503,
+        headers: { "Retry-After": String(ROUND_PRICE_DEGRADED_RETRY_SECONDS) },
+      },
+    );
+  }
+  if (budget.mode === "rejected") {
+    return jsonNoStore(
+      {
+        error: "Your round is kept, but price sharing could not be verified.",
+      },
+      { status: 503 },
+    );
+  }
+  return jsonNoStore(
+    { error: "Your round is kept. Too many price logs, try again later." },
+    { status: 429 },
+  );
+}
+
+async function preparePendingRoundPrices(input: {
+  store: RoundsStore;
+  code: string;
+  clientRef: string;
+  state: RoundState;
+  contributor: ResolvedContributor;
+  promotionOwner: string;
+}): Promise<
+  | { ok: true; state: RoundState; stored: RoundSpendDTO }
+  | { ok: false; response: Response }
+> {
+  let state = input.state;
+  let stored = state.spends.find(
+    (spend) => spend.clientRef === input.clientRef,
+  );
+  if (!stored) return { ok: false, response: errorResponse("error") };
+  const pending = stored.items
+    .map((item, index) => ({ item, index }))
+    .filter(({ item }) => item.promotionStatus === "pending");
+  if (pending.length === 0) return { ok: true, state, stored };
+
+  const budget = await chargeRoundPriceLines(
+    input.contributor.actor,
+    input.promotionOwner,
+    pending.map(({ index }) => ({
+      clientRef: stored.clientRef,
+      spendId: stored.id,
+      lineIndex: index,
+    })),
+  );
+  const failure = roundBudgetFailure(budget);
+  if (failure) return { ok: false, response: failure };
+
+  const marked = await input.store.updateSpendPromotions(
+    input.code,
+    input.clientRef,
+    pending.map(({ index }) => ({ index, status: "ready" as const })),
+  );
+  if (!marked.ok) {
+    return { ok: false, response: errorResponse(marked.error) };
+  }
+  state = marked.state;
+  stored = state.spends.find(
+    (spend) => spend.clientRef === input.clientRef,
+  );
+  return stored
+    ? { ok: true, state, stored }
+    : { ok: false, response: errorResponse("error") };
+}
+
+async function promoteReadyRoundPrices(input: {
+  store: RoundsStore;
+  code: string;
+  clientRef: string;
+  state: RoundState;
+  stored: RoundSpendDTO;
+  contributor: ResolvedContributor;
+}): Promise<Response> {
+  const ready = input.stored.items
+    .map((item, index) => ({ item, index }))
+    .filter(({ item }) => item.promotionStatus === "ready");
+  const promoted: Array<{ index: number; status: "promoted" }> = [];
+  const recordedAt = Date.parse(input.stored.recordedAt);
+  for (const { item, index } of ready) {
+    const write = await submitCommunityPrice(
+      {
+        venueId: input.stored.venueId,
+        drinkCategory: item.drinkCategory,
+        priceGbp: item.pricePence / 100,
+        actor: input.contributor.actor,
+        contributorHandle: input.contributor.handle,
+      },
+      recordedAt,
+    );
+    if (!write.failed && write.price) {
+      promoted.push({ index, status: "promoted" });
+    }
+  }
+
+  let state = input.state;
+  if (promoted.length > 0) {
+    const marked = await input.store.updateSpendPromotions(
+      input.code,
+      input.clientRef,
+      promoted,
+    );
+    if (!marked.ok) return errorResponse(marked.error);
+    state = marked.state;
+  }
+  if (promoted.length !== ready.length) {
+    return jsonNoStore(
+      { error: "Your round is kept, but some prices need another try." },
+      { status: 503 },
+    );
+  }
   return jsonNoStore(state, { status: 200 });
 }
 
@@ -144,10 +285,11 @@ async function recordSpend(
   if (!contributor?.ok) {
     return jsonNoStore(contributor.body, { status: contributor.httpStatus });
   }
+  if (!promotionOwner) return errorResponse("error");
   const owner = await store.claimSpendPromotionOwner(
     code,
     clean.clientRef,
-    promotionOwner!,
+    promotionOwner,
   );
   if (!owner.ok) {
     return owner.error === "forbidden"
@@ -158,78 +300,23 @@ async function recordSpend(
       : errorResponse(owner.error);
   }
 
-  let state = result.state;
-  let stored = state.spends.find((spend) => spend.clientRef === clean.clientRef);
-  if (!stored) return errorResponse("error");
-  const pending = stored.items
-    .map((item, index) => ({ item, index }))
-    .filter(({ item }) => item.promotionStatus === "pending");
-
-  if (pending.length > 0) {
-    const budget = await chargeRoundPriceLines(contributor.actor, pending.length);
-    if (!budget.allowed && budget.mode === "degraded") {
-      return jsonNoStore(
-        {
-          error:
-            "Your round is kept, but price sharing is unavailable. Try again shortly.",
-        },
-        {
-          status: 503,
-          headers: { "Retry-After": String(ROUND_PRICE_DEGRADED_RETRY_SECONDS) },
-        },
-      );
-    }
-    if (!budget.allowed) {
-      return jsonNoStore(
-        { error: "Your round is kept. Too many price logs, try again later." },
-        { status: 429 },
-      );
-    }
-    const marked = await store.updateSpendPromotions(
-      code,
-      clean.clientRef,
-      pending.map(({ index }) => ({ index, status: "ready" as const })),
-    );
-    if (!marked.ok) return errorResponse(marked.error);
-    state = marked.state;
-    stored = state.spends.find((spend) => spend.clientRef === clean.clientRef);
-    if (!stored) return errorResponse("error");
-  }
-
-  const ready = stored.items
-    .map((item, index) => ({ item, index }))
-    .filter(({ item }) => item.promotionStatus === "ready");
-  const promoted: Array<{ index: number; status: "promoted" }> = [];
-  const recordedAt = Date.parse(stored.recordedAt);
-  for (const { item, index } of ready) {
-    const write = await submitCommunityPrice(
-      {
-        venueId: stored.venueId,
-        drinkCategory: item.drinkCategory,
-        priceGbp: item.pricePence / 100,
-        actor: contributor.actor,
-        contributorHandle: contributor.handle,
-      },
-      recordedAt,
-    );
-    if (!write.failed && write.price) promoted.push({ index, status: "promoted" });
-  }
-  if (promoted.length > 0) {
-    const marked = await store.updateSpendPromotions(
-      code,
-      clean.clientRef,
-      promoted,
-    );
-    if (!marked.ok) return errorResponse(marked.error);
-    state = marked.state;
-  }
-  if (promoted.length !== ready.length) {
-    return jsonNoStore(
-      { error: "Your round is kept, but some prices need another try." },
-      { status: 503 },
-    );
-  }
-  return jsonNoStore(state, { status: 200 });
+  const prepared = await preparePendingRoundPrices({
+    store,
+    code,
+    clientRef: clean.clientRef,
+    state: result.state,
+    contributor,
+    promotionOwner,
+  });
+  if (!prepared.ok) return prepared.response;
+  return promoteReadyRoundPrices({
+    store,
+    code,
+    clientRef: clean.clientRef,
+    state: prepared.state,
+    stored: prepared.stored,
+    contributor,
+  });
 }
 
 export async function POST(request: Request, ctx: Ctx): Promise<Response> {

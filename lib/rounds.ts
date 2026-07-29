@@ -2,12 +2,9 @@
 // the short join-code generator. Types + pure helpers live here (no store import)
 // so a route can validate inputs without pulling the storage backend into scope.
 //
-// A Round is a group crawl session friends join by a short code — no accounts, the
-// same self-asserted `handle` identity as the rest of the social layer (GH #26,
-// docs/PRD_FOR_FABLE.md § The Spill). As members log Pint Drops through the night,
-// the Round's route builds itself: each member's drop at a NEW pub appends a stop.
-// See supabase/migrations/0011_rounds.sql for the honest trust-boundary note (the
-// code IS the capability).
+// A Round is a group crawl session friends join by a short code. Diary membership
+// uses the Round capability and self-asserted handles; drink lines reach community
+// price authority only through a separately authenticated account profile.
 
 import { normalizeHandle } from "@/lib/profiles";
 import { cleanText, readString } from "@/lib/textClean";
@@ -122,6 +119,7 @@ export type RoundMemberDTO = {
 export type RoundSpendItemSource = "round" | "demo";
 export type RoundPromotionStatus =
   | "diary_only"
+  | "legacy_unknown"
   | "pending"
   | "ready"
   | "promoted";
@@ -135,6 +133,22 @@ export type RoundSpendItemDTO = {
 };
 
 export type NewRoundSpendItem = Omit<RoundSpendItemDTO, "promotionStatus">;
+
+export function resolveRoundPromotionStatus(
+  source: RoundSpendItemSource,
+  value: unknown,
+): RoundPromotionStatus {
+  if (
+    value === "diary_only" ||
+    value === "legacy_unknown" ||
+    value === "pending" ||
+    value === "ready" ||
+    value === "promoted"
+  ) {
+    return value;
+  }
+  return source === "demo" ? "diary_only" : "legacy_unknown";
+}
 
 /** The drink lines that claim first-party provenance. */
 export function firstPartyPriceItems(

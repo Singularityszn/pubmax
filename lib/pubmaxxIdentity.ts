@@ -34,6 +34,13 @@ export type HandleAssessment =
   | { ok: true; handle: string }
   | { ok: false; reason: "invalid" | "reserved"; error: string };
 
+export function isReservedContributorHandle(raw: unknown): boolean {
+  if (typeof raw !== "string") return false;
+  return RESERVED_CONTRIBUTOR_HANDLE_SET.has(
+    raw.trim().replace(/^@/, "").toLowerCase(),
+  );
+}
+
 /**
  * Validate a user-facing handle without silently accepting punctuation.
  * A leading @, surrounding whitespace, and letter casing are presentation
@@ -54,7 +61,7 @@ export function assessPubmaxxHandle(raw: unknown): HandleAssessment {
     };
   }
   const pieces = handle.split("_").filter(Boolean);
-  if (RESERVED_CONTRIBUTOR_HANDLE_SET.has(handle)) {
+  if (isReservedContributorHandle(handle)) {
     return {
       ok: false,
       reason: "reserved",

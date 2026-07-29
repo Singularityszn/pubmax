@@ -24,6 +24,7 @@ import {
   cleanNewStop,
   generateRoundCode,
   normalizeRoundCode,
+  resolveRoundPromotionStatus,
   type RoundDTO,
   type RoundMemberDTO,
   type RoundSpendDTO,
@@ -157,17 +158,16 @@ function spendItemsFromRow(value: unknown): RoundSpendItemDTO[] {
     ) {
       continue;
     }
+    const source = row.source === "demo" ? "demo" : "round";
     items.push({
       drinkName: row.drinkName,
       drinkCategory: row.drinkCategory,
       pricePence: row.pricePence,
-      source: row.source === "demo" ? "demo" : "round",
-      promotionStatus:
-        row.promotionStatus === "pending" ||
-        row.promotionStatus === "ready" ||
-        row.promotionStatus === "promoted"
-          ? row.promotionStatus
-          : "diary_only",
+      source,
+      promotionStatus: resolveRoundPromotionStatus(
+        source,
+        row.promotionStatus,
+      ),
     });
   }
   return items;

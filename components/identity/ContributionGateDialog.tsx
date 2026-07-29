@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useReducer } from "react";
 
 import { useAuth } from "@/components/auth/AuthProvider";
 import SignInButton from "@/components/auth/SignInButton";
@@ -83,60 +83,95 @@ type PendingContribution = (
   auth: AccountAuthSnapshot,
 ) => ContributionActionResult | Promise<ContributionActionResult>;
 
+export type ContributionGateState = {
+  userId: string | null;
+  mode: ContributionGateDialogMode | null;
+  error: string | null;
+};
+
+type ContributionGateStateAction =
+  | { type: "account_changed"; userId: string | null }
+  | { type: "clear"; userId: string | null }
+  | {
+      type: "show";
+      userId: string | null;
+      mode: ContributionGateDialogMode;
+      error: string | null;
+    };
+
+export function contributionGateReducer(
+  state: ContributionGateState,
+  action: ContributionGateStateAction,
+): ContributionGateState {
+  if (action.type === "account_changed" || action.type === "clear") {
+    return { userId: action.userId, mode: null, error: null };
+  }
+  if (action.userId !== state.userId) return state;
+  return {
+    userId: action.userId,
+    mode: action.mode,
+    error: action.error,
+  };
+}
+
 export function useContributionGate(): {
   requestContribution: (action: PendingContribution) => Promise<void>;
   contributionGateDialog: React.JSX.Element | null;
 } {
   const { user, session } = useAuth();
   const userId = user?.id ?? null;
-  const [mode, setMode] = useState<ContributionGateDialogMode | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const stateUserId = useRef(userId);
+  const [gate, dispatch] = useReducer(contributionGateReducer, {
+    userId,
+    mode: null,
+    error: null,
+  });
+  if (gate.userId !== userId) {
+    dispatch({ type: "account_changed", userId });
+  }
 
   const resetGate = useCallback((nextUserId: string | null) => {
-    setMode(null);
-    setError(null);
-    stateUserId.current = nextUserId;
+    dispatch({ type: "clear", userId: nextUserId });
   }, []);
-
-  useEffect(() => {
-    stateUserId.current = userId;
-    return () => {
-      stateUserId.current = null;
-    };
-  }, [userId]);
 
   const requestContribution = useCallback(
     async (action: PendingContribution) => {
-      if (stateUserId.current !== userId) return;
-      setError(null);
+      dispatch({ type: "clear", userId });
       const auth = captureAccountAuth(userId, session);
       if (!user || !auth) {
         trackEvent("contribution_gate", { step: "sign_in_required" });
-        setMode("sign_in_required");
+        dispatch({
+          type: "show",
+          userId,
+          mode: "sign_in_required",
+          error: null,
+        });
         return;
       }
       const result = await action(auth);
-      if (stateUserId.current !== userId || !result) return;
+      if (!result) return;
       trackEvent("contribution_gate", { step: result.status });
-      setError(
-        result.status === "sign_in_required" && user
-          ? "Your sign-in expired. Sign out, then sign in again."
-          : result.error ?? null,
-      );
-      setMode(result.status);
+      dispatch({
+        type: "show",
+        userId,
+        mode: result.status,
+        error:
+          result.status === "sign_in_required" && user
+            ? "Your sign-in expired. Sign out, then sign in again."
+            : result.error ?? null,
+      });
     },
     [session, user, userId],
   );
 
   return {
     requestContribution,
-    contributionGateDialog: mode ? (
-      <ContributionGateDialog
-        mode={mode}
-        error={error}
-        onClose={() => resetGate(userId)}
-      />
-    ) : null,
+    contributionGateDialog:
+      gate.userId === userId && gate.mode ? (
+        <ContributionGateDialog
+          mode={gate.mode}
+          error={gate.error}
+          onClose={() => resetGate(userId)}
+        />
+      ) : null,
   };
 }

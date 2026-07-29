@@ -12,6 +12,7 @@
 // only path that changes existing columns.
 
 import { normalizeHandle } from "@/lib/profiles";
+import { isReservedContributorHandle } from "@/lib/pubmaxxIdentity";
 import { requireSupabaseAdmin } from "@/lib/supabase";
 import { selectStore } from "@/lib/storeBackend";
 import { cleanText, isHttpUrl } from "@/lib/textClean";
@@ -245,6 +246,9 @@ export const supabaseProfileStore: ProfileStore = {
     const key = normalizeHandle(handle);
     if (!key) throw new Error("A profile needs a non-empty handle.");
     if (!userId) throw new Error("A user id is required to link a profile.");
+    if (isReservedContributorHandle(key)) {
+      throw new Error("That handle is not available.");
+    }
     const existing = await this.ensure(key);
     // Already linked to this user → nothing to do (idempotent).
     if (existing.userId === userId) return existing;
@@ -346,6 +350,9 @@ export const memoryProfileStore: ProfileStore = {
     const key = normalizeHandle(handle);
     if (!key) throw new Error("A profile needs a non-empty handle.");
     if (!userId) throw new Error("A user id is required to link a profile.");
+    if (isReservedContributorHandle(key)) {
+      throw new Error("That handle is not available.");
+    }
     const existing = await this.ensure(key);
     if (existing.userId === userId) return existing;
     if (existing.userId && existing.userId !== userId) {
