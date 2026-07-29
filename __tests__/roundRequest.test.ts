@@ -1,17 +1,12 @@
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
-
 import { describe, expect, it, vi } from "vitest";
 
 import {
+  captureRoundAppendSnapshot,
   captureRoundRequestIdentity,
   roundHandleForIdentity,
   roundJsonRequest,
-  runRoundMutationForCurrentOwner,
-  type RoundRequestIdentity,
+  runRoundMutationForCurrentUser,
 } from "@/lib/roundRequest";
-
-const ROOT = process.cwd();
 
 describe("Round request client", () => {
   it("binds every signed-in Round write to the captured bearer token", async () => {
@@ -64,44 +59,36 @@ describe("Round request client", () => {
     ).toBeNull();
   });
 
-  it("drops mutation completion after the authenticated owner changes", async () => {
-    let currentIdentity: RoundRequestIdentity = {
-      kind: "account" as const,
-      auth: { userId: "user-a", accessToken: "token-a" },
-    };
-    let finish!: (value: string) => void;
-    const response = new Promise<string>((resolve) => {
-      finish = resolve;
+  it("drops mutation failure after the authenticated owner changes", async () => {
+    let currentUserId: string | null = "user-a";
+    let fail!: (error: Error) => void;
+    const response = new Promise<string>((_resolve, reject) => {
+      fail = reject;
     });
-    const completion = runRoundMutationForCurrentOwner(
-      currentIdentity,
-      () => currentIdentity,
+    const completion = runRoundMutationForCurrentUser(
+      {
+        kind: "account",
+        auth: { userId: "user-a", accessToken: "token-a" },
+      },
+      () => currentUserId,
       () => response,
     );
 
-    currentIdentity = {
-      kind: "account",
-      auth: { userId: "user-b", accessToken: "token-b" },
-    };
-    finish("account-a response");
+    currentUserId = "user-b";
+    fail(new Error("account-a failure"));
 
     expect(await completion).toEqual({ current: false });
   });
 
   it("keeps completion when one account refreshes its token", async () => {
-    let currentIdentity: RoundRequestIdentity = {
-      kind: "account",
-      auth: { userId: "user-a", accessToken: "token-old" },
-    };
-    const completion = runRoundMutationForCurrentOwner(
-      currentIdentity,
-      () => currentIdentity,
+    const completion = runRoundMutationForCurrentUser(
+      {
+        kind: "account",
+        auth: { userId: "user-a", accessToken: "token-old" },
+      },
+      () => "user-a",
       async () => "saved",
     );
-    currentIdentity = {
-      kind: "account",
-      auth: { userId: "user-a", accessToken: "token-new" },
-    };
 
     expect(await completion).toEqual({ current: true, value: "saved" });
   });
@@ -132,20 +119,48 @@ describe("Round request client", () => {
     expect(roundHandleForIdentity(null, "alice", storage)).toBe("");
   });
 
-  it("binds Pint Drop Round append to captured Round identity", () => {
-    const source = readFileSync(
-      join(ROOT, "components/map/usePintDrops.ts"),
-      "utf8",
+  it("captures Round code with identity and handle before an async append", () => {
+    let activeCode = "ROUNDX";
+    const snapshot = captureRoundAppendSnapshot(
+      {
+        kind: "account",
+        auth: { userId: "user-a", accessToken: "token-a" },
+      },
+      "alice",
+      activeCode,
+      null,
+    );
+    activeCode = "ROUNDY";
+
+    expect(snapshot).toEqual({
+      identity: {
+        kind: "account",
+        auth: { userId: "user-a", accessToken: "token-a" },
+      },
+      handle: "alice",
+      code: "ROUNDX",
+    });
+    expect(snapshot?.code).not.toBe(activeCode);
+  });
+
+  it("drops completion using auth owner updated before rerender effects", async () => {
+    let currentUserId: string | null = "user-a";
+    let finish!: (value: string) => void;
+    const response = new Promise<string>((resolve) => {
+      finish = resolve;
+    });
+    const completion = runRoundMutationForCurrentUser(
+      {
+        kind: "account",
+        auth: { userId: "user-a", accessToken: "token-a" },
+      },
+      () => currentUserId,
+      () => response,
     );
 
-    expect(source).toMatch(
-      /const submittedRoundHandle = roundHandleForIdentity\(/,
-    );
-    expect(source).toMatch(
-      /appendPintDropStopToActiveRound\(\{[\s\S]*?handle: submittedRoundHandle,/,
-    );
-    expect(source).not.toMatch(
-      /activeRound && submittedHandle && submittedRoundIdentity/,
-    );
+    currentUserId = "user-b";
+    finish("account-a response");
+
+    expect(await completion).toEqual({ current: false });
   });
 });

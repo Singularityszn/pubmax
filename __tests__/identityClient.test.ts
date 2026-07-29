@@ -1,14 +1,10 @@
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
-
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
   emitIdentityHandleChanged,
   identityHandleForOwner,
+  resolveCanonicalIdentity,
 } from "@/lib/identityClient";
-
-const ROOT = process.cwd();
 
 describe("identity handle events", () => {
   afterEach(() => {
@@ -25,21 +21,6 @@ describe("identity handle events", () => {
 
   it("rejects legacy unscoped handle events", () => {
     expect(identityHandleForOwner({ handle: "alice" }, "user-a")).toBeNull();
-  });
-
-  it("keeps AuthProvider handles scoped to their owning account", () => {
-    const source = readFileSync(
-      join(ROOT, "components/auth/AuthProvider.tsx"),
-      "utf8",
-    );
-
-    expect(source).toMatch(
-      /useState<IdentityHandleChangedDetail \| null>\(null\)/,
-    );
-    expect(source).toMatch(
-      /handle:\s*identityHandleForOwner\(\s*canonicalIdentity,\s*user\?\.id \?\? null,\s*\)/,
-    );
-    expect(source).not.toContain("handle: canonicalHandle");
   });
 
   it("invalidates matching anonymous Round identity when claimed", () => {
@@ -84,5 +65,41 @@ describe("identity handle events", () => {
     emitIdentityHandleChanged({ ownerId: "user-bob", handle: "bob" });
 
     expect(values.get("pubmax_round_anonymous_identity_v1")).toBe(stored);
+  });
+
+  it("resolves canonical identity with captured auth and clears its anonymous marker", async () => {
+    const values = new Map<string, string>([
+      [
+        "pubmax_round_anonymous_identity_v1",
+        JSON.stringify({ owner: "anonymous", handle: "bob" }),
+      ],
+    ]);
+    const storage = {
+      getItem: (key: string) => values.get(key) ?? null,
+      removeItem: (key: string) => {
+        values.delete(key);
+      },
+    };
+    const request = vi.fn(
+      async (_input: RequestInfo | URL, init?: RequestInit) => {
+        expect(new Headers(init?.headers).get("authorization")).toBe(
+          "Bearer token-a",
+        );
+        return Response.json({ handle: "Bob" });
+      },
+    );
+
+    const result = await resolveCanonicalIdentity(
+      "user-a",
+      { access_token: "token-a", user: { id: "user-a" } } as never,
+      storage,
+      request,
+    );
+
+    expect(result).toEqual({
+      ok: true,
+      identity: { ownerId: "user-a", handle: "bob" },
+    });
+    expect(values.has("pubmax_round_anonymous_identity_v1")).toBe(false);
   });
 });

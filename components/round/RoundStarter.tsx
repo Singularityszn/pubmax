@@ -12,9 +12,8 @@ import {
   captureRoundRequestIdentity,
   roundHandleForIdentity,
   roundRequestIdentityOwnerKey,
-  runRoundMutationForCurrentOwner,
+  runRoundMutationForCurrentUser,
   writeRoundAnonymousHandle,
-  type RoundRequestIdentity,
 } from "@/lib/roundRequest";
 import { startRoundWithStops, type SeedStop } from "@/lib/startRoundWithStops";
 
@@ -62,6 +61,7 @@ export default function RoundStarter({
     session,
     loading: authLoading,
     handle: accountHandle,
+    getCurrentUserId,
   } = useAuth();
   const roundIdentity = useMemo(
     () =>
@@ -70,7 +70,6 @@ export default function RoundStarter({
         : captureRoundRequestIdentity(user?.id ?? null, session),
     [authLoading, session, user?.id],
   );
-  const roundIdentityRef = useRef<RoundRequestIdentity | null>(roundIdentity);
   const roundOwnerKey = roundRequestIdentityOwnerKey(roundIdentity);
   const stateOwnerRef = useRef<string | null>(null);
   const stay = stayOnMap ?? compact;
@@ -79,10 +78,6 @@ export default function RoundStarter({
   const [error, setError] = useState<string | null>(null);
   const [startedCode, setStartedCode] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
-
-  useEffect(() => {
-    roundIdentityRef.current = roundIdentity;
-  }, [roundIdentity]);
 
   useEffect(() => {
     const ownerChanged = stateOwnerRef.current !== roundOwnerKey;
@@ -134,9 +129,9 @@ export default function RoundStarter({
     }
     setBusy(true);
     setError(null);
-    const completion = await runRoundMutationForCurrentOwner(
+    const completion = await runRoundMutationForCurrentUser(
       roundIdentity,
-      () => roundIdentityRef.current,
+      getCurrentUserId,
       () =>
         startRoundWithStops({
           handle: clean,

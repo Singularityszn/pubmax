@@ -12,6 +12,12 @@ export type RoundRequestIdentity =
   | Readonly<{ kind: "anonymous" }>
   | Readonly<{ kind: "account"; auth: AccountAuthSnapshot }>;
 
+export type RoundAppendSnapshot = Readonly<{
+  identity: RoundRequestIdentity;
+  handle: string;
+  code: string;
+}>;
+
 const ROUND_ANONYMOUS_IDENTITY_KEY = "pubmax_round_anonymous_identity_v1";
 
 export function readRoundAnonymousHandle(
@@ -75,6 +81,17 @@ export function roundHandleForIdentity(
     : readRoundAnonymousHandle(storage);
 }
 
+export function captureRoundAppendSnapshot(
+  identity: RoundRequestIdentity | null,
+  accountHandle: string | null,
+  code: string,
+  storage: Pick<Storage, "getItem"> | null,
+): RoundAppendSnapshot | null {
+  const handle = roundHandleForIdentity(identity, accountHandle, storage);
+  if (!identity || !handle || !code) return null;
+  return { identity, handle, code };
+}
+
 export function roundRequestIdentityOwnerKey(
   identity: RoundRequestIdentity | null,
 ): string | null {
@@ -100,6 +117,26 @@ export async function runRoundMutationForCurrentOwner<T>(
       roundRequestIdentityOwnerKey(captured) !==
       roundRequestIdentityOwnerKey(current())
     ) {
+      return { current: false };
+    }
+    throw error;
+  }
+}
+
+export async function runRoundMutationForCurrentUser<T>(
+  captured: RoundRequestIdentity,
+  currentUserId: () => string | null,
+  operation: () => Promise<T>,
+): Promise<{ current: false } | { current: true; value: T }> {
+  const capturedUserId =
+    captured.kind === "account" ? captured.auth.userId : null;
+  try {
+    const value = await operation();
+    return capturedUserId === currentUserId()
+      ? { current: true, value }
+      : { current: false };
+  } catch (error) {
+    if (capturedUserId !== currentUserId()) {
       return { current: false };
     }
     throw error;

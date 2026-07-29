@@ -1,5 +1,6 @@
 export type AuthSessionTransitionTracker = {
   update: (event: string | null, nextUserId: string | null) => boolean;
+  currentUserId: () => string | null;
 };
 
 export function createAuthSessionTransitionTracker(): AuthSessionTransitionTracker {
@@ -12,6 +13,9 @@ export function createAuthSessionTransitionTracker(): AuthSessionTransitionTrack
         && nextUserId !== null;
       currentUserId = nextUserId;
       return signedIn;
+    },
+    currentUserId() {
+      return currentUserId;
     },
   };
 }

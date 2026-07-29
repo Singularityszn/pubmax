@@ -30,10 +30,11 @@ import {
 import { clearPintDropDraft } from "@/lib/pintDropDraft";
 import type { PintDrop, VibeTag } from "@/lib/pintDropShared";
 import {
+  captureRoundAppendSnapshot,
   captureRoundRequestIdentity,
-  roundHandleForIdentity,
   roundJsonRequest,
-  runRoundMutationForCurrentOwner,
+  runRoundMutationForCurrentUser,
+  type RoundAppendSnapshot,
   type RoundRequestIdentity,
 } from "@/lib/roundRequest";
 import { appendWithSuffix, DEFAULT_VISIBILITY, type Visibility } from "@/lib/spill";
@@ -119,24 +120,22 @@ function pintDropId(value: unknown): string | undefined {
 }
 
 async function appendPintDropStopToActiveRound(input: {
-  identity: RoundRequestIdentity | null;
-  currentIdentity: () => RoundRequestIdentity | null;
-  handle: string;
+  round: RoundAppendSnapshot | null;
+  currentUserId: () => string | null;
   venueId: string;
   venueName: string;
   dropRef?: string;
 }): Promise<boolean> {
-  const code = readActiveRoundCode();
-  const identity = input.identity;
-  if (!code || !input.handle || !identity) return false;
-  const completion = await runRoundMutationForCurrentOwner(
-    identity,
-    input.currentIdentity,
+  const round = input.round;
+  if (!round) return false;
+  const completion = await runRoundMutationForCurrentUser(
+    round.identity,
+    input.currentUserId,
     () =>
       appendStopToActiveRound({
-        identity,
-        code,
-        handle: input.handle,
+        identity: round.identity,
+        code: round.code,
+        handle: round.handle,
         venueId: input.venueId,
         venueName: input.venueName,
         dropRef: input.dropRef,
@@ -166,6 +165,7 @@ export function usePintDrops(
     session,
     loading: authLoading,
     handle: accountHandle,
+    getCurrentUserId,
   } = useAuth();
   const roundIdentity = useMemo(
     () =>
@@ -174,7 +174,6 @@ export function usePintDrops(
         : captureRoundRequestIdentity(user?.id ?? null, session),
     [authLoading, session, user?.id],
   );
-  const roundIdentityRef = useRef<RoundRequestIdentity | null>(roundIdentity);
   const [handle, setHandle] = useState(() =>
     typeof window === "undefined" ? "" : (window.localStorage.getItem("pubmax_handle") ?? ""),
   );
@@ -201,10 +200,6 @@ export function usePintDrops(
   // Abort in-flight city-scoped list fetches when city changes or a newer
   // refresh supersedes an older one (avoids stale London drops painting Manchester).
   const cityListAbortRef = useRef<AbortController | null>(null);
-
-  useEffect(() => {
-    roundIdentityRef.current = roundIdentity;
-  }, [roundIdentity]);
 
   // Refresh the WHOLE drops layer from the public list (city-scoped). This is
   // the same read the initial load uses — so #29 visibility filtering re-applies —
@@ -358,10 +353,10 @@ export function usePintDrops(
     options?: { venueName?: string; lastTrainDecision?: LastPintDecision | null },
   ) {
     event.preventDefault();
-    const submittedRoundIdentity = roundIdentity;
-    const submittedRoundHandle = roundHandleForIdentity(
-      submittedRoundIdentity,
+    const submittedRound = captureRoundAppendSnapshot(
+      roundIdentity,
       accountHandle,
+      readActiveRoundCode(),
       localStorageSafe(),
     );
     setSubmitting(true);
@@ -537,9 +532,8 @@ export function usePintDrops(
       // Loop 2: if a Round is open, append this pub as a stop (existing
       // addStop API). Fail-soft — the drop already landed.
       const addedToNight = await appendPintDropStopToActiveRound({
-        identity: submittedRoundIdentity,
-        currentIdentity: () => roundIdentityRef.current,
-        handle: submittedRoundHandle,
+        round: submittedRound,
+        currentUserId: getCurrentUserId,
         venueId,
         venueName: options?.venueName ?? unresolvedVenueLabel(venueId),
         dropRef: pintDropId(data.drop),
@@ -553,7 +547,7 @@ export function usePintDrops(
           href: `/bar-tab/${encodeURIComponent(venueId)}`,
           label: "Bar tab",
         });
-        const cleanHandle = submittedRoundHandle.replace(/^@+/, "");
+        const cleanHandle = submittedRound?.handle.replace(/^@+/, "") ?? "";
         if (cleanHandle) {
           links.push({ href: `/u/${encodeURIComponent(cleanHandle)}`, label: "Your profile" });
         }

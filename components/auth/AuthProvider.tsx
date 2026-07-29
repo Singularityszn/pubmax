@@ -56,6 +56,7 @@ import {
 import {
   IDENTITY_HANDLE_CHANGED_EVENT,
   identityHandleForOwner,
+  resolveCanonicalIdentity,
   type IdentityHandleChangedDetail,
 } from "@/lib/identityClient";
 import { requestMagicLink, type MagicLinkResult } from "@/lib/passwordlessAuth";
@@ -137,6 +138,7 @@ export type AuthContextValue = {
   signOut: () => Promise<void>;
   /** Account-owned public handle, or null before onboarding or when signed out. */
   handle: string | null;
+  getCurrentUserId: () => string | null;
 };
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -159,6 +161,10 @@ export function AuthProvider({ children }: { children: ReactNode }): React.JSX.E
     setSession(nextSession);
     return signedIn;
   }, []);
+  const getCurrentUserId = useCallback(
+    () => sessionTransitions.current.currentUserId(),
+    [],
+  );
   // React Strict Mode replays effects in development. Reuse one exchange so a
   // one-time PKCE code is never redeemed twice by the replayed mount effect.
   const callbackExchangeInFlight = useRef<
@@ -200,21 +206,20 @@ export function AuthProvider({ children }: { children: ReactNode }): React.JSX.E
         if (active) setCanonicalIdentity(null);
         return;
       }
-      const response = await authedFetch("/api/identity/handle/current").catch(() => null);
-      if (!active || !response?.ok) return;
-      const body = await response.json() as { handle?: string | null };
-      setCanonicalIdentity(
-        body.handle
-          ? { ownerId: user.id, handle: normalizeHandle(body.handle) }
-          : null,
-      );
+      const resolution = await resolveCanonicalIdentity(
+        user.id,
+        session,
+        browserLocalStorage(),
+      ).catch(() => null);
+      if (!active || !resolution?.ok) return;
+      setCanonicalIdentity(resolution.identity);
     }
     void loadCanonicalHandle();
     return () => {
       active = false;
       window.removeEventListener(IDENTITY_HANDLE_CHANGED_EVENT, onChanged);
     };
-  }, [session?.user]);
+  }, [session]);
 
   useEffect(() => {
     // Capture callback inputs once across React Strict Mode's effect replay and
@@ -478,8 +483,9 @@ export function AuthProvider({ children }: { children: ReactNode }): React.JSX.E
         canonicalIdentity,
         user?.id ?? null,
       ),
+      getCurrentUserId,
     };
-  }, [session, loading, configured, socialProviders, signInWithGoogle, signInWithApple, signInWithEmail, signOut, canonicalIdentity]);
+  }, [session, loading, configured, socialProviders, signInWithGoogle, signInWithApple, signInWithEmail, signOut, canonicalIdentity, getCurrentUserId]);
 
   return (
     <AuthContext.Provider value={value}>
@@ -517,5 +523,6 @@ export function useAuth(): AuthContextValue {
     cancelAuthAttempt: () => {},
     signOut: async () => {},
     handle: null,
+    getCurrentUserId: () => null,
   };
 }
