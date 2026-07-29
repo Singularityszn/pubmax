@@ -100,5 +100,8 @@ describe("locality and recency claims", () => {
     expect(source).toContain("Cheapest listed around");
     expect(source).not.toContain("Finding the cheapest");
     expect(source).not.toContain("Pulling up the cheapest");
+    expect(source).not.toContain("Prices collected");
+    expect(source).not.toContain("formatMonthYear(PINT_DATASET_OBSERVED_AT)");
+    expect(source).toContain("Keeps this pub for tonight");
   });
 });

@@ -380,12 +380,11 @@ export default function NearMeNow({
     [patch, borough, cityId, router],
   );
 
-  const collectedLabel = `Prices collected ${formatMonthYear(PINT_DATASET_OBSERVED_AT)}`;
   const areaLabel = borough ?? patch?.label ?? null;
   // Evidence receipt (§L06): what "Use this pub" carries into the plan. Shown
   // only when acceptance is live, so the browse-only surface stays uncluttered.
   const acceptReceipt = intentWrite
-    ? `Keeps ${areaLabel ?? "this pub"}, tonight, and the ${formatMonthYear(PINT_DATASET_OBSERVED_AT)} price in your plan.`
+    ? `Keeps this pub for tonight${areaLabel ? ` in ${areaLabel}` : ""}.`
     : null;
   const patchMessage =
     areaLabel && patchReason
@@ -489,7 +488,6 @@ export default function NearMeNow({
               <RotateCw size={15} aria-hidden="true" /> Update location
             </button>
           </footer>
-          <p className="nmnFresh">{collectedLabel}</p>
         </>
       ) : null}
 
@@ -539,7 +537,6 @@ export default function NearMeNow({
               <LocateFixed size={15} aria-hidden="true" /> Try my location again
             </button>
           </footer>
-          <p className="nmnFresh">{collectedLabel}</p>
         </>
       ) : null}
     </section>
