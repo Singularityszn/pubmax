@@ -15,6 +15,10 @@ import {
   ANALYTICS_CONSENT_STORAGE_KEY,
   isAnalyticsConsentDecision,
 } from "@/lib/analyticsIdentity";
+import {
+  getMapLocationControlAvailable,
+  subscribeMapLocationControl,
+} from "@/lib/mapLocationPrompt";
 
 /** sessionStorage slot holding the surface id that has spent the budget. */
 const STORAGE_KEY = "pubmax:prompt-budget:v1";
@@ -34,6 +38,10 @@ export type PromptSurface =
   | (string & {});
 
 export const ANALYTICS_CONSENT_PROMPT_SURFACE: PromptSurface = "analytics-consent";
+
+export function locationAllowsInterruptivePrompt(): boolean {
+  return !getMapLocationControlAvailable();
+}
 
 function resolveStorage(storage?: Storage | null): Storage | null {
   if (storage) return storage;
@@ -105,6 +113,7 @@ export function hasPromptBudgetFor(
   storage?: Storage | null,
   consentStorage?: Storage | null,
 ): boolean {
+  if (!locationAllowsInterruptivePrompt()) return false;
   if (!analyticsChoiceHasPriority(surface, consentStorage)) return false;
   const store = resolveStorage(storage);
   if (!store) return true; // can't track — don't block the flow
@@ -125,6 +134,7 @@ export function claimPromptBudget(
   consentStorage?: Storage | null,
 ): boolean {
   if (!surface) return false;
+  if (!locationAllowsInterruptivePrompt()) return false;
   if (!analyticsChoiceHasPriority(surface, consentStorage)) return false;
   const store = resolveStorage(storage);
   if (!store) return true; // can't track — allow, best-effort
@@ -166,9 +176,11 @@ export function releasePromptBudget(surface: PromptSurface, storage?: Storage | 
 export function subscribePromptBudget(onChange: () => void): () => void {
   if (typeof window === "undefined") return () => {};
   const handler = () => onChange();
+  const unsubscribeLocation = subscribeMapLocationControl(handler);
   window.addEventListener(CHANGE_EVENT, handler);
   window.addEventListener("storage", handler);
   return () => {
+    unsubscribeLocation();
     window.removeEventListener(CHANGE_EVENT, handler);
     window.removeEventListener("storage", handler);
   };

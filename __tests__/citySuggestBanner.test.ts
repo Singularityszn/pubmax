@@ -80,13 +80,13 @@ describe("CitySuggestBanner opt-in geo", () => {
     expect(session.getItem(DISMISS_KEY)).toBe("1");
   });
 
-  it("readClientFlags returns a stable reference (React #185 / useSyncExternalStore)", async () => {
+  it("readCitySuggestClientFlags returns a stable reference", async () => {
     vi.stubGlobal("navigator", {
       geolocation: { getCurrentPosition: vi.fn() },
     });
-    const { readClientFlags } = await import("@/components/map/CitySuggestBanner");
-    const a = readClientFlags();
-    const b = readClientFlags();
+    const { readCitySuggestClientFlags } = await import("@/lib/mapLocationPrompt");
+    const a = readCitySuggestClientFlags();
+    const b = readCitySuggestClientFlags();
     expect(a).toBe(b);
     expect(a.geoAvailable).toBe(true);
     expect(a.saveData).toBe(false);

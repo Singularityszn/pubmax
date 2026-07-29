@@ -42,6 +42,7 @@ import {
 } from "@/lib/explicitMapIntent";
 import { readMobileMapSession } from "@/lib/mobileShell";
 import { trackEvent } from "@/lib/analytics";
+import { subscribePromptBudget } from "@/lib/promptBudget";
 import "./firstRunTour.css";
 
 type TabTarget = "map" | "drop" | "discover" | null;
@@ -103,6 +104,11 @@ export default function FirstRunTour(): React.JSX.Element | null {
     getTourSeenSnapshot,
     getTourSeenServerSnapshot,
   );
+  const hasPromptBudget = useSyncExternalStore(
+    subscribePromptBudget,
+    tourHasPromptBudget,
+    () => false,
+  );
 
   // Mount guard: first client render returns null (matching the SSR "seen"
   // snapshot) so there is never a hydration mismatch.
@@ -138,7 +144,8 @@ export default function FirstRunTour(): React.JSX.Element | null {
   // one-prompt-per-session budget: don't open if a sibling surface (A2HS /
   // identity / push) already holds it. See docs/PROMPT_ORCHESTRATION.md.
   const active =
-    shouldShowFirstRunTour({ mounted, seen, pathname, explicitIntent }) && tourHasPromptBudget();
+    shouldShowFirstRunTour({ mounted, seen, pathname, explicitIntent }) &&
+    hasPromptBudget;
 
   // Claim the shared budget at the moment the tour actually shows, so an
   // eligible-but-hidden tour never starves a sibling. Idempotent for the tour.

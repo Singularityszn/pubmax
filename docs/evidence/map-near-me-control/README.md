@@ -65,7 +65,8 @@ closed toolbar shape determine the settled result.
 The following did not explain the rate:
 
 - geolocation permission, which remained `prompt`;
-- first-run overlay, which was absent with fresh storage;
+- first-run tour, which fresh storage suppressed by leaving analytics consent
+  undecided; that matrix did not exercise consent-decided, tour-unseen state;
 - fonts, which were loaded in the reversible probe;
 - viewport width, because every tested desktop width failed;
 - React conditional rendering, because the button remained attached.
@@ -116,7 +117,7 @@ either:
 - location left the viewport;
 - status overlapped location.
 
-No such observation occurred in the post-fix matrices. Final Playwright
+No such observation occurred in the post-fix matrices. Playwright regression
 coverage also performs a real trial click, so a future occluder fails even when
 computed CSS says visible.
 
@@ -124,9 +125,9 @@ computed CSS says visible.
 
 - `mapBannerStaging.css` keeps location independent of status while both
   continue to defer the lower Tonight card.
-- Curated onboarding waits while the location control is available, including
-  when Tonight settles empty or degraded, and becomes eligible only when
-  location is unavailable or dismissed.
+- Shared prompt eligibility reserves the desktop Map prompt moment for location,
+  so curated onboarding, the tour, consent, and other budgeted prompts stand
+  down until location is unavailable or dismissed.
 - `mapToolbar.css` publishes the closed desktop toolbar height: 145px from
   641 through 900, and 181px above 900.
 - `citySuggestBanner.css` places location 12px below that block.
@@ -134,9 +135,10 @@ computed CSS says visible.
   sheet on the same anchor and inside the remaining viewport height.
 - `e2e/map-near-me.spec.ts` supplies deterministic severe city status with
   separate fresh browser contexts at 800 and 1600, forces empty and degraded
-  Tonight results, then checks attachment, accessible name, trial-click
-  actionability, permission `prompt`, 44px height, viewport bounds, banner
-  separation, and the expanded status-sheet viewport budget.
+  Tonight results, sets consent-decided and tour-unseen state, then checks
+  attachment, accessible name, trial-click actionability, absence of prompt
+  overlays, permission `prompt`, 44px height, viewport bounds, banner separation,
+  and the expanded status-sheet viewport budget.
 
 No copy, map density, clustering, collision, pin renderer, venue-list keyboard
 path, drawer focus, or call-to-action colour changed.
@@ -155,13 +157,16 @@ at a fixed 10 seconds:
 | **Total** | **50/50** | **`prompt` 50/50** | **control 50/50** |
 
 Visual QA then moved only city status farther away from the already-actionable
-control. Exact final code ran another 20 times:
+control. Exact final layout ran another 20 times:
 
 | Viewport | Actionable | 8px status gap |
 | --- | ---: | ---: |
 | 800x900 | 10/10 | 10/10 |
 | 1600x1000 | 10/10 | 10/10 |
 | **Total** | **20/20** | **20/20** |
+
+Later onboarding-eligibility and CitySuggest state transitions were not part of
+this measured matrix. Regression coverage exercises those states separately.
 
 | 800px final | 1280px final |
 | --- | --- |

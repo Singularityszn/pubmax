@@ -64,10 +64,8 @@ export function shouldShowCuratedOnboarding(input: {
   tonightLaneHasRows?: boolean;
   /** Tonight lane is still resolving; it also wins first paint while pending. */
   tonightLanePending?: boolean;
-  locationControlVisible?: boolean;
 }): boolean {
   if (input.showBandChip) return false;
-  if (input.locationControlVisible) return false;
   if ((input.curatedCrawlCount ?? 0) <= 0) return false;
   if (input.tonightLaneHasRows || input.tonightLanePending) return false;
   return (

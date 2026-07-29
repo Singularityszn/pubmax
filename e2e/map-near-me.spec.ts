@@ -16,9 +16,16 @@ const desktopCases = [
 ] as const;
 
 for (const { width, tonightState, tonightBody } of desktopCases) {
-  test(`keeps Near me actionable at ${width}px when Tonight is ${tonightState}`, async ({
+  test(`keeps Near me actionable at ${width}px with consent decided and tour unseen when Tonight is ${tonightState}`, async ({
     page,
   }) => {
+    await page.addInitScript(() => {
+      window.localStorage.setItem(
+        "pubmaxx:analytics-consent:v1",
+        "denied",
+      );
+      window.localStorage.removeItem("pubmax-tour-v1-done");
+    });
     await page.route("**/api/whats-on**", (route) =>
       route.fulfill({
         status: 200,
@@ -40,32 +47,30 @@ for (const { width, tonightState, tonightBody } of desktopCases) {
     );
 
     await page.setViewportSize({ width, height: 800 });
+    const coreVenuesReady = page.waitForResponse(
+      (candidate) =>
+        candidate.url().endsWith("/data/venues_slim.core.json") &&
+        candidate.ok(),
+    );
     const response = await page.goto(`/map?near-me-regression=${width}`, {
       waitUntil: "domcontentloaded",
     });
     expect(response?.status()).toBe(200);
 
-    await expect
-      .poll(
-        () =>
-          page.evaluate(
-            () =>
-              performance.getEntriesByName("pubmax:slim-venues-ready").length,
-          ),
-        { timeout: 20_000 },
-      )
-      .toBeGreaterThan(0);
+    await coreVenuesReady;
     await page.evaluate(
       () =>
         new Promise<void>((resolve) =>
           requestAnimationFrame(() => requestAnimationFrame(() => resolve())),
         ),
     );
+    await page.waitForTimeout(1_000);
     await expect(page.locator(".cityStatusBanner")).toBeVisible({
       timeout: 20_000,
     });
     await expect(page.locator(".appShell")).not.toHaveClass(/onboarding-open/);
     await expect(page.locator(".mapOnboarding")).toHaveCount(0);
+    await expect(page.locator(".tourScrim")).toHaveCount(0);
 
     const nearMe = page.locator("button.citySuggestBannerSwitch", {
       hasText: "Near me?",

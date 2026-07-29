@@ -233,6 +233,10 @@ import {
   shouldShowCuratedOnboarding,
 } from "@/lib/bandOnboardingChip";
 import {
+  locationAllowsInterruptivePrompt,
+  subscribePromptBudget,
+} from "@/lib/promptBudget";
+import {
   shouldOpenPlanningInitially,
   shouldFitQueryVenuesOnArrival,
   resolveQueryRestoreFit,
@@ -454,6 +458,11 @@ export default function PubMap({
     mobileViewportSnapshot,
     () => false,
   );
+  const locationAllowsOnboarding = useSyncExternalStore(
+    subscribePromptBudget,
+    locationAllowsInterruptivePrompt,
+    () => false,
+  );
   const railViewport = useSyncExternalStore(
     subscribeDesktopRailViewport,
     desktopRailViewportSnapshot,
@@ -639,7 +648,6 @@ export default function PubMap({
   // §4.5 onboarding: has the viewer dismissed (or acted on) the "Start with a
   // story" overlay this session? Lazy init reads sessionStorage once, SSR-safe.
   const [onboardingDismissed, setOnboardingDismissed] = useState<boolean>(readOnboardingDismissed);
-  const [citySuggestVisible, setCitySuggestVisible] = useState(true);
   // G3: per-band dismiss set for the Place story deep-link chip. Seeded from the
   // arrival band; grows when the viewer dismisses or switches to an already-
   // dismissed band this session.
@@ -2417,20 +2425,21 @@ export default function PubMap({
   const tonightLaneHasRows =
     isLondon && whatsOnTonight.status === "ready" && whatsOnTonight.rows.length > 0;
   const tonightLanePending = isLondon && whatsOnTonight.status === "idle";
-  const showOnboarding = shouldShowCuratedOnboarding({
-    loaded,
-    onboardingDismissed,
-    arrivedWithCrawlParams: explicitArrivalIntent,
-    mode,
-    builtIdsCount: builtIds.length,
-    hasActiveCrawl: Boolean(activeCrawl),
-    selectedVenueId,
-    showBandChip,
-    curatedCrawlCount: cityCuratedCrawls.length,
-    tonightLaneHasRows,
-    tonightLanePending,
-    locationControlVisible: citySuggestVisible,
-  });
+  const showOnboarding =
+    locationAllowsOnboarding &&
+    shouldShowCuratedOnboarding({
+      loaded,
+      onboardingDismissed,
+      arrivedWithCrawlParams: explicitArrivalIntent,
+      mode,
+      builtIdsCount: builtIds.length,
+      hasActiveCrawl: Boolean(activeCrawl),
+      selectedVenueId,
+      showBandChip,
+      curatedCrawlCount: cityCuratedCrawls.length,
+      tonightLaneHasRows,
+      tonightLanePending,
+    });
   // Show the first four curated crawls as the onboarding picks.
   const onboardingCrawls = cityCuratedCrawls.slice(0, 4);
 
@@ -2836,7 +2845,6 @@ export default function PubMap({
           <CitySuggestBanner
             cityId={cityId}
             onLocationFound={setUserLocation}
-            onVisibilityChange={setCitySuggestVisible}
           />
         ) : null}
         {!mobileViewport && isLondon ? <CityStatusBanner cityId={cityId} /> : null}
