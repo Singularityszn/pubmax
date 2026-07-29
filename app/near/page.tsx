@@ -8,9 +8,9 @@ import { readTrustedHandoffFlags } from "@/lib/trustedHandoffFlags.server";
 // answer. noindex — this is a per-user, location-dependent view, not a
 // crawlable page (the borough pages carry the indexable price content).
 export const metadata: Metadata = {
-  title: "Find my pint. Cheapest pints near you now",
+  title: "Find my pint. Nearby London pint prices",
   description:
-    "The cheapest good pints within a short walk, right now. Use your location or pick a London patch, and the nearest priced pubs line up cheapest first.",
+    "Find the cheapest good pints within a short walk using dated prices. Use your location or pick a London patch, and the nearest priced pubs line up cheapest first.",
   robots: { index: false, follow: true },
   alternates: { canonical: "/near" },
 };

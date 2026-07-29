@@ -22,7 +22,7 @@ The owner's "date + weather + what to drink" surface. Uses the existing cached w
 
 ### Lane C: The Social Loop v1 (NOW, flagship)
 X/Instagram-feel feed without forced login. V1 scope:
-- Feed merges: friends' moments/nights, area news (Lane A), drops nearby, buzz signals. Tabs: "Your lot" (friends), "Nearby", "London".
+- Feed merges: friends' moments/nights, area news (Lane A), drops nearby, buzz signals. Tabs: "Your lot" (friends) and "London"; "Nearby" appears only when a real locality or applied area filter can scope it.
 - Friends v1: mutual follow via handle share or QR at the table (progressive identity already exists; no email/password). Follow, unfollow, private by default posture per existing privacy choke points.
 - Post types v1: moment (exists), drop (exists), "we're out" check-in (new, lightweight, area-level location only).
 Explicitly NOT v1: DMs, comments, algorithmic ranking (chronological within tabs), public profiles beyond handle+avatar.

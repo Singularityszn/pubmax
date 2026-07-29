@@ -67,7 +67,7 @@ function venueIdentity(row: WhatsOnRow): string {
 }
 
 function startMs(row: WhatsOnRow): number {
-  const ms = Date.parse(row.startsAt);
+  const ms = Date.parse(row.startsAt ?? "");
   return Number.isFinite(ms) ? ms : Number.POSITIVE_INFINITY;
 }
 
@@ -125,14 +125,17 @@ export type DealDigest = {
  */
 export function groupIdenticalDeals(
   rows: readonly WhatsOnRow[],
-  opts: { near?: NearPoint | null } = {},
+  opts: {
+    near?: NearPoint | null;
+    key?: (row: WhatsOnRow) => string;
+  } = {},
 ): DealDigest[] {
   const near = opts.near ?? null;
 
   const groups = new Map<string, { row: WhatsOnRow; index: number }[]>();
   rows.forEach((row, index) => {
     if (!isUsableRow(row)) return;
-    const key = dealDigestKey(row);
+    const key = opts.key?.(row) ?? dealDigestKey(row);
     const bucket = groups.get(key);
     if (bucket) bucket.push({ row, index });
     else groups.set(key, [{ row, index }]);

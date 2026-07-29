@@ -1,14 +1,7 @@
-// Pure, client-safe logic for the first-class /tonight screen (Wave A · A2).
-// Kept free of Node- and React-only imports so both the client screen and
-// vitest can exercise it directly.
-//
-// Data source: CityMCP London `things_to_do` (via /api/citymcp/things-to-do) —
-// the same live layer the Discover "Tonight nearby" lane already consumes. The
-// PRD's "sport / quiz / deal / music" kinds belong to the not-yet-built
-// WHATS_ON pub-event spine; the live source instead returns gig / comedy /
-// theatre / exhibition / food_drink / market / nightlife / … so filter facets
-// are DERIVED from whatever kinds the upstream actually returns, never a fixed
-// taxonomy we might not be able to populate.
+// Pure, client-safe helper logic for the first-class /tonight screen. Kept free
+// of Node- and React-only imports so both the client screen and tests can use it.
+// The primary page reads the shared What's-On spine; opportunity helpers remain
+// for the secondary CityMCP overlay and derive its facets from returned kinds.
 
 import type { TonightLocalityBasis } from "@/lib/analyticsEvents";
 import { haversineKm } from "@/lib/haversine";
@@ -20,6 +13,12 @@ export type TonightOpportunity = ThingsToDoOpportunity;
 
 // Re-export the shared helpers so the screen imports one module.
 export { labelForKind, opportunityMapHref };
+
+export function tonightHeading(basis: TonightLocalityBasis): string {
+  return basis === "london-default"
+    ? "What’s on across London tonight."
+    : "What’s on near you tonight.";
+}
 
 const OTHER_KIND = "other";
 

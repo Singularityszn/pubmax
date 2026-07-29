@@ -88,6 +88,10 @@ export type NearMeNowProps = {
 
 const GEO_OPTS: PositionOptions = { enableHighAccuracy: false, timeout: 7000, maximumAge: 60_000 };
 
+function nearIntroLede(observedAt: Date): string {
+  return `Find the cheapest good pints within a short walk, using prices collected ${formatMonthYear(observedAt)}.`;
+}
+
 /** The active browse area as an acceptance area, or null for a located answer. */
 function rawAcceptArea(patch: NightPatch | null, borough: string | null): RawAcceptedArea {
   if (patch) return { kind: "night-patch", id: patch.id };
@@ -401,10 +405,10 @@ export default function NearMeNow({
   const patchLimited = Boolean(patch && patchProfile && patchIsLimited(patchProfile));
 
   return (
-    <section className="nmn" aria-label="Cheapest pints near you now">
+    <section className="nmn" aria-label="Find nearby cheap pints">
       {state === "idle" ? (
         <div className="nmnIntro">
-          <p className="nmnLede">The cheapest good pints within a short walk, right now.</p>
+          <p className="nmnLede">{nearIntroLede(PINT_DATASET_OBSERVED_AT)}</p>
           <button type="button" className="nmnLocate" onClick={locate}>
             <LocateFixed size={18} aria-hidden="true" /> Find my pint
           </button>

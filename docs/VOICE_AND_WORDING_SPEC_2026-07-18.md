@@ -119,7 +119,6 @@ Every finding quoted from live copy (or source where the string is a hidden stat
 | `Nothing confirmed in London tonight yet — we only show what the upstream actually returns. Check back later.` | "the upstream" engineering jargon | `Quiet one in London tonight — we only list what's really on, and right now that's nothing. Try later.` |
 | `No invented nights; thin nights stay thin.` (lede) | "thin nights" internal metaphor | `We only show what's really on. A quiet night looks quiet — no filler.` |
 | `1 listing tonight` / `Quiet night` | "listing" slightly SaaS | `1 thing on tonight` / `Quiet night` (keep) |
-| _(keep)_ `What's on near you, right now.` | on-voice | — |
 
 ### `/pal`
 

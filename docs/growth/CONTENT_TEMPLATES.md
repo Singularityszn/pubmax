@@ -47,12 +47,14 @@ Each template lists the exact data source lib to pull the fact from.
 ## 3. Quiz night picks
 
 - Hook: "Three quiz nights worth leaving the house for this week."
-- Format: three quick cards, day and start time on each.
-- On screen: venue, night, start time, quiz badge.
+- Format: three quick cards with source-listed time evidence on each.
+- On screen: venue, night, quiz badge, and the exact start only when the source
+  supplies one; otherwise use its human-readable listed time.
 - Data source: `lib/whatsOn.ts` (`WHATS_ON_KINDS`, the quiz kind) via
   `lib/whatsOnStore.ts`; badge copy from `lib/whatsOnBadges.ts`.
-- CTA: "What is on tonight near you is in the app."
-- Provenance: only list rows that carry a real source; skip anything unsourced.
+- CTA: "What is on across London tonight is in the app."
+- Provenance: only list rows that carry a real source and usable time evidence;
+  skip anything unsourced or untimed.
 
 ## 4. Drink-weather verdict
 

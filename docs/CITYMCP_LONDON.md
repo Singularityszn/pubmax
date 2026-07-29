@@ -57,9 +57,10 @@ leak into the client.
     in tests.
   - `fetchThingsToDo({ window, area?, kinds?, price?, limit? })` — cached
     (~5 min) wrapper around `things_to_do`. `window` must be one of
-    `tonight | tomorrow_night | this_weekend`. Opportunities are trimmed to
-    `{ title, kind, areas, price, availability, timeEvidence, place, source }`
-    with a title guard. Use `resetThingsToDoCache()` in tests.
+    `tonight | tomorrow_night | this_weekend`. The trimmed opportunity contract
+    lives in `lib/citymcp/client.ts`; it preserves a firm upstream `startsAt`
+    and human-readable `timeEvidence` independently, without inferring one from
+    the requested window. Use `resetThingsToDoCache()` in tests.
 - **`GET /api/citymcp/status`** — returns `{ asOf, weather?, tubeLines?, signals[] }`
   trimmed for UI: tube "Good Service" lines are dropped, and signals are capped
   to the top 6 by severity (major > notable > info). Always fail-soft: any

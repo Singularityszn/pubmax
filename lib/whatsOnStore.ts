@@ -7,11 +7,9 @@ import { haversineKm } from "@/lib/haversine";
 import { groupTonightListings } from "@/lib/tonightListGrouping";
 import {
   dedupeKey,
-  fetchRawThingsToDoStartsAt,
   filterByKind,
   filterNotPast,
   filterTonight,
-  londonServiceDayBounds,
   mapThingsToDoToRows,
   parseWhatsOnRows,
   type WhatsOnKind,
@@ -158,24 +156,16 @@ export type LoadWhatsOnDeps = {
   tonightGroupingV2?: boolean;
 };
 
-// Default live layer: CityMCP things_to_do mapped to whats-on rows, with
-// best-effort raw starts. Final user limits are deliberately NOT forwarded to
-// either provider call: the complete inventory must survive through grouping
-// before the response limit is applied.
+// Default live layer: CityMCP things_to_do mapped to whats-on rows. Final user
+// limits are deliberately NOT forwarded to the provider call: the complete
+// inventory must survive through grouping before the response limit is applied.
 export const defaultFetchLive: FetchLive = async ({ now, area }) => {
   const result: ThingsToDoResult = await fetchThingsToDo({
     window: "tonight",
     ...(area ? { area } : {}),
   });
-  let startsAtByTitle: Map<string, string> | undefined;
-  try {
-    startsAtByTitle = await fetchRawThingsToDoStartsAt({ window: "tonight", area });
-  } catch {
-    startsAtByTitle = undefined;
-  }
-  const windowStart = londonServiceDayBounds(now).start;
   return {
-    rows: mapThingsToDoToRows(result, { now, windowStart, startsAtByTitle }),
+    rows: mapThingsToDoToRows(result, { now }),
     sourceObservedAt: canonicalPastIso(result.asOf, now),
   };
 };

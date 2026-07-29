@@ -1,10 +1,10 @@
-// "Cheapest pints near you today" — the morning brief's on-mission module,
-// derived from the map's Area button logic (lib/areaButton cheapestDrinksInArea)
-// so both surfaces rank the same pints the same way. /today has no map centre,
-// so we precompute the cheapest priced pints for every night patch (plus the
-// central default) on the server and hand the client a small bundled index. The
-// client then answers the viewer's remembered area from that index with no
-// request-time work and no full venue set shipped to the browser.
+// Morning brief pint module, derived from the map's Area button logic
+// (lib/areaButton cheapestDrinksInArea) so both surfaces rank the same pints the
+// same way. /today has no map centre, so we precompute the cheapest priced pints
+// for every night patch (plus the central default) on the server and hand the
+// client a small bundled index. The client then answers the viewer's resolved
+// remembered area from that index, otherwise naming the central default, with
+// no request-time work and no full venue set shipped to the browser.
 //
 // Fail-soft throughout: an area with no verified prices yields no module (never
 // an empty box). Pure and node-testable — no fs, no serverEnv, no DOM.

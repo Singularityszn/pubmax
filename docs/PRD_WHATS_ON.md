@@ -55,11 +55,12 @@ Each its own PR through the gate (bots + architect review). Live-probed field na
 ## Wave B — What's-On fusion core
 
 - **B1 · Data model + store** (T4 → Opus 4.8 / GPT-5.6): `whats_on` rows
-  `{venueId?, placeName, kind: sport|quiz|deal|music, startsAt, endsAt?, title,
-  detail (fixture/entry fee/deal terms), price?, source: {label,url}, observedAt,
-  confidence}`; dual-backend store seam; weekly refresh script on the PR-gated rail
-  (same governance as prices); reconcile CityMCP `things_to_do` live rows (keep the
-  currently-discarded `startsAt`, `tags[]`, `price.minGbp`, `availability._tag`).
+  `{venueId?, placeName, kind: sport|quiz|deal|music, startsAt?, endsAt?,
+  timeEvidence?, listedWindow?, title, detail (fixture/entry fee/deal terms),
+  price?, source: {label,url}, observedAt, confidence}`; dual-backend store seam;
+  weekly refresh script on the PR-gated rail (same governance as prices).
+  CityMCP live rows preserve a firm `startsAt` when supplied and keep listed-time
+  wording separately; a requested window never becomes an invented exact start.
 - **B2 · Sport vertical** (T3 → GPT-5.6): fixture → pubs-screening-it. Sources:
   Greene King live-sport finder (900+ pubs, public), chain what's-on pages; fixture
   calendar from a permissible feed. UI: team picker → map badges + lane.

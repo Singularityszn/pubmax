@@ -16,11 +16,11 @@ import {
   normaliseEventTitle,
   normaliseSourceLabel,
   mapThingsToDoToRows,
-  fetchRawThingsToDoStartsAt,
   THINGS_TO_DO_KIND_MAP,
   type WhatsOnRow,
 } from "@/lib/whatsOn";
 import type { ThingsToDoResult, ThingsToDoOpportunity } from "@/lib/citymcp/client";
+import { laneTimeLabel, listingUrgency } from "@/lib/whatsOnBadges";
 
 const NOW = Date.parse("2026-07-11T20:00:00.000Z");
 
@@ -120,6 +120,30 @@ describe("parseWhatsOnRows + dedupe", () => {
   it("treats different kinds at the same place/time as independent", () => {
     const parsed = dedupeRows([makeRow({ kind: "quiz" }), makeRow({ kind: "music", id: "m" })]);
     expect(parsed).toHaveLength(2);
+  });
+
+  it("keeps distinct untimed listings with the same listed time", () => {
+    const shared = {
+      startsAt: undefined,
+      timeEvidence: "8pm",
+      listedWindow: "tonight" as const,
+    };
+    const rows = dedupeRows([
+      makeRow({
+        ...shared,
+        id: "jazz",
+        title: "Jazz night",
+        source: { label: "Venue diary", url: "https://venue.example/jazz" },
+      }),
+      makeRow({
+        ...shared,
+        id: "comedy",
+        title: "Comedy night",
+        source: { label: "Comedy guide", url: "https://guide.example/comedy" },
+      }),
+    ]);
+
+    expect(rows.map((row) => row.id)).toEqual(["jazz", "comedy"]);
   });
 });
 
@@ -364,20 +388,18 @@ describe("filterByKind + matchVenueId", () => {
 });
 
 describe("mapThingsToDoToRows", () => {
-  const windowStart = "2026-07-11T15:00:00.000Z";
-
   function result(opps: ThingsToDoOpportunity[]): ThingsToDoResult {
     return { window: "tonight", opportunities: opps };
   }
 
-  it("maps gig/nightlife to music and food_drink to deal", () => {
+  it("keeps listed time evidence without inventing an exact start or urgency", () => {
     expect(THINGS_TO_DO_KIND_MAP).toMatchObject({ gig: "music", nightlife: "music", food_drink: "deal" });
     const rows = mapThingsToDoToRows(
       result([
         {
           title: "Jazz night",
           kind: "gig",
-          timeEvidence: "8pm",
+          timeEvidence: "Tuesdays 6:00pm-9:45pm",
           place: { name: "Blue Post", location: { lat: 51.52, lng: -0.08 } },
           source: { label: "Time Out", url: "https://timeout.com/x" },
         },
@@ -388,14 +410,19 @@ describe("mapThingsToDoToRows", () => {
           source: { label: "Time Out", url: "https://timeout.com/y" },
         },
       ]),
-      { now: NOW, windowStart },
+      { now: NOW },
     );
     expect(rows.map((r) => r.kind).sort()).toEqual(["deal", "music"]);
     const music = rows.find((r) => r.kind === "music")!;
     expect(music.confidence).toBe("listed");
-    expect(music.startsAt).toBe(windowStart);
+    expect(music.startsAt).toBeUndefined();
+    expect(music.timeEvidence).toBe("Tuesdays 6:00pm-9:45pm");
+    expect(laneTimeLabel(music)).toBe("Tuesdays 6:00pm-9:45pm");
+    expect(
+      listingUrgency(music, new Date("2026-07-11T14:23:00.000Z")),
+    ).toBeNull();
     expect(music.lat).toBe(51.52);
-    expect(music.detail).toContain("Listed time: 8pm");
+    expect(music.detail).toContain("Listed time: Tuesdays 6:00pm-9:45pm");
   });
 
   it("uses a valid provider asOf for live-row observedAt", () => {
@@ -411,7 +438,7 @@ describe("mapThingsToDoToRows", () => {
         ]),
         asOf: "2026-07-11T18:30:00.000Z",
       },
-      { now: NOW, windowStart },
+      { now: NOW },
     );
     expect(rows[0].observedAt).toBe("2026-07-11T18:30:00.000Z");
   });
@@ -424,55 +451,35 @@ describe("mapThingsToDoToRows", () => {
         { title: "No url", kind: "gig", place: { name: "X" }, source: { label: "T" } },
         { title: "Bad url", kind: "gig", place: { name: "X" }, source: { label: "T", url: "ftp://t.com" } },
       ]),
-      { now: NOW, windowStart },
+      { now: NOW },
     );
     expect(rows).toHaveLength(0);
   });
 
-  it("prefers a raw ISO start from startsAtByTitle when valid", () => {
+  it("keeps each opportunity's exact start with duplicate titles", () => {
     const rows = mapThingsToDoToRows(
       result([
         {
           title: "Timed gig",
           kind: "gig",
-          place: { name: "Venue" },
-          source: { label: "T", url: "https://t.com" },
+          startsAt: "2026-07-11T20:00:00+01:00",
+          place: { name: "Venue A" },
+          source: { label: "T", url: "https://t.com/a" },
+        },
+        {
+          title: "Timed gig",
+          kind: "gig",
+          startsAt: "2026-07-11T22:00:00+01:00",
+          place: { name: "Venue B" },
+          source: { label: "T", url: "https://t.com/b" },
         },
       ]),
-      { now: NOW, windowStart, startsAtByTitle: new Map([["Timed gig", "2026-07-11T21:00:00+01:00"]]) },
+      { now: NOW },
     );
-    expect(rows[0].startsAt).toBe("2026-07-11T21:00:00+01:00");
-  });
-});
-
-describe("fetchRawThingsToDoStartsAt", () => {
-  function sseFrame(payload: unknown): string {
-    return `event: message\ndata: ${JSON.stringify(payload)}\n\n`;
-  }
-
-  it("returns a title-to-ISO map when upstream carries raw startsAt", async () => {
-    const fetchImpl = (async () =>
-      new Response(
-        sseFrame({
-          jsonrpc: "2.0",
-          id: 1,
-          result: {
-            structuredContent: {
-              opportunities: [
-                { title: "A", startsAt: "2026-07-11T20:00:00+01:00" },
-                { title: "B" },
-                { title: "C", startsAt: "nope" },
-              ],
-            },
-          },
-        }),
-        { status: 200 },
-      )) as unknown as typeof fetch;
-
-    const map = await fetchRawThingsToDoStartsAt({ window: "tonight", fetchImpl });
-    expect(map.get("A")).toBe("2026-07-11T20:00:00+01:00");
-    expect(map.has("B")).toBe(false);
-    expect(map.has("C")).toBe(false);
+    expect(rows.map((row) => [row.placeName, row.startsAt])).toEqual([
+      ["Venue A", "2026-07-11T20:00:00+01:00"],
+      ["Venue B", "2026-07-11T22:00:00+01:00"],
+    ]);
   });
 });
 
@@ -519,7 +526,6 @@ describe("normaliseEventTitle", () => {
     };
     const rows = mapThingsToDoToRows(result, {
       now: NOW,
-      windowStart: "2026-07-11T19:00:00+01:00",
     });
     expect(rows).toHaveLength(1);
     expect(rows[0].title).not.toMatch(/[\u2013\u2014]/);
@@ -564,7 +570,6 @@ describe("normaliseSourceLabel", () => {
     };
     const rows = mapThingsToDoToRows(result, {
       now: NOW,
-      windowStart: "2026-07-11T19:00:00+01:00",
     });
     expect(rows).toHaveLength(1);
     expect(rows[0].source.label).not.toMatch(/[\u2013\u2014]/);

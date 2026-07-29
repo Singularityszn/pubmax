@@ -204,10 +204,10 @@ Screenshots already exist in `docs/screenshots` from the Gate Z set (`docs/scree
 
 **Order (first three carry the listing, most installs decide on those):**
 
-1. **Map, nearest pubs**: `map-clean-*-430.png` or `map-sheet-*-430.png`. Caption: "The nearest pubs, right now." This is the core promise, lead with it.
+1. **Map, nearest pubs**: `map-clean-*-430.png` or `map-sheet-*-430.png`. Caption: "London pubs on the map." This is the core promise, lead with it.
 2. **Pint price on a venue**: `venue-desktop` equivalent at 430, or `map-sheet` with a price visible. Caption: "What a pint actually costs."
 3. **Crawl route**: `crawls-*-430.png` or `mobile-suggested-crawl.png`. Caption: "A crawl you can actually walk."
-4. **Tonight / what is on**: `tonight-*-430.png` or `w1-tonight-sheet-*.png`. Caption: "What is on near you tonight."
+4. **Tonight / what is on**: `tonight-*-430.png` or `w1-tonight-sheet-*.png`. Caption: "What is on across London tonight."
 5. **Activity / feed**: `activity-*-430.png` or `feed-*-430.png`. Caption: "Your night, logged."
 6. **Profile / private log**: `profile-you-*-430.png`. Caption: "Private. Yours. Not a feed."
 

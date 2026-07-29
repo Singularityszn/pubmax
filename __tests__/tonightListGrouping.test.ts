@@ -151,6 +151,26 @@ describe("groupTonightListings V2 (PUBMAX_TONIGHT_GROUPING canonical model)", ()
     expect(groupTonightListings(rows, null, v2)).toHaveLength(2);
   });
 
+  it("keeps different listed-time evidence separate in both grouping modes", () => {
+    const rows = [
+      makeRow({
+        placeName: "Early",
+        startsAt: undefined,
+        timeEvidence: "Doors 6pm",
+        listedWindow: "tonight",
+      }),
+      makeRow({
+        placeName: "Late",
+        startsAt: undefined,
+        timeEvidence: "Doors 9pm",
+        listedWindow: "tonight",
+      }),
+    ];
+
+    expect(groupTonightListings(rows, null, { v2: false })).toHaveLength(2);
+    expect(groupTonightListings(rows, null, v2)).toHaveLength(2);
+  });
+
   it("still collapses a 60-pub syndicated chain (identical schedule) to one card", () => {
     const curry = Array.from({ length: 60 }, (_, i) => makeRow({ placeName: `Curry ${i}` }));
     const grouped = groupTonightListings(curry, null, v2);

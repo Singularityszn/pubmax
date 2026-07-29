@@ -812,6 +812,7 @@ export type ThingsToDoPrice = "any" | "cheap" | "free";
 export type ThingsToDoOpportunity = {
   title: string;
   kind?: ThingsToDoKind | string;
+  startsAt?: string;
   areas?: string[];
   price?: string;
   availability?: string;
@@ -864,6 +865,8 @@ function trimOpportunity(raw: unknown): ThingsToDoOpportunity | null {
   const out: ThingsToDoOpportunity = { title };
   const kind = pickString(o.kind);
   if (kind) out.kind = kind;
+  const startsAt = pickString(o.startsAt);
+  if (startsAt) out.startsAt = startsAt;
   const areas = pickStringArray(o.areas, 3);
   if (areas) out.areas = areas;
   const price = pickLabelOrString(o.price);

@@ -1,19 +1,24 @@
 "use client";
 
-// "Cheapest pints near you today" — the map's Area-button derivation surfaced on
-// the morning brief. The server precomputes a tight five for every area, so this
-// only reads the viewer's remembered area and swaps to the matching precomputed
-// list (no venue data ships to the browser, the swap is instant, and the first
-// paint always matches SSR: the central default).
+// The map's Area-button derivation surfaced on the morning brief. The server
+// precomputes a tight five for every area, so this reads the viewer's remembered
+// area and swaps to the matching precomputed list (no venue data ships to the
+// browser, the swap is instant, and the first paint always matches SSR: the
+// central default).
 //
-// We always SAY which area these pints are from and link to change it on the map,
-// and every row deep-links to its venue on the map. Fail-soft: an area with no
-// verified prices renders nothing, never an empty box.
+// Copy claims "near you" only for a resolved remembered patch and "today" only
+// when the dataset date matches today; otherwise it names central London and the
+// collection date. Every row deep-links to its venue on the map. Fail-soft: an
+// area with no verified prices renders nothing, never an empty box.
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { ArrowUpRight, Beer } from "lucide-react";
 
+import {
+  formatObservedDate,
+  PINT_DATASET_OBSERVED_AT,
+} from "@/lib/dataFreshness";
 import { readRememberedArea } from "@/lib/nightPatches";
 
 import {
@@ -22,15 +27,43 @@ import {
   type TodayPintsModule,
 } from "./todayPints";
 
-type Props = { index: TodayPintsIndex };
+type Props = {
+  index: TodayPintsIndex;
+  nowIso: string;
+};
 
-function moduleFor(index: TodayPintsIndex, remembered: Parameters<typeof resolveTodayPintsPatchId>[0]): TodayPintsModule | null {
+type TodayPintsView = {
+  pints: TodayPintsModule | null;
+  hasRememberedLocality: boolean;
+};
+
+function viewFor(
+  index: TodayPintsIndex,
+  remembered: Parameters<typeof resolveTodayPintsPatchId>[0],
+): TodayPintsView {
   const id = resolveTodayPintsPatchId(remembered, index);
-  return id ? index[id] : null;
+  return {
+    pints: id ? index[id] : null,
+    hasRememberedLocality:
+      remembered?.kind === "patch" && id === remembered.id,
+  };
 }
 
-export default function TodayPintsCard({ index }: Props) {
-  const [pints, setPints] = useState<TodayPintsModule | null>(() => moduleFor(index, null));
+function eyebrow(hasRememberedLocality: boolean, nowIso: string): string {
+  const scope = hasRememberedLocality
+    ? "Cheapest pints near you"
+    : "Cheapest pints in central London";
+  const now = new Date(nowIso);
+  const collectedToday =
+    Number.isFinite(now.getTime()) &&
+    formatObservedDate(now) === formatObservedDate(PINT_DATASET_OBSERVED_AT);
+  return collectedToday
+    ? `${scope} today`
+    : `${scope}, collected ${formatObservedDate(PINT_DATASET_OBSERVED_AT)}`;
+}
+
+export default function TodayPintsCard({ index, nowIso }: Props) {
+  const [view, setView] = useState<TodayPintsView>(() => viewFor(index, null));
 
   useEffect(() => {
     // Deferred read (matches PicksCard): localStorage is the external sync, so the
@@ -39,14 +72,15 @@ export default function TodayPintsCard({ index }: Props) {
     let cancelled = false;
     void Promise.resolve().then(() => {
       if (cancelled) return;
-      setPints(moduleFor(index, readRememberedArea()));
+      setView(viewFor(index, readRememberedArea()));
     });
     return () => {
       cancelled = true;
     };
   }, [index]);
 
-  if (!pints) return null;
+  if (!view.pints) return null;
+  const { pints, hasRememberedLocality } = view;
 
   return (
     <section className="todayCard" aria-labelledby="today-pints-title" data-testid="today-pints">
@@ -55,7 +89,9 @@ export default function TodayPintsCard({ index }: Props) {
           <Beer size={18} />
         </span>
         <div>
-          <p className="todayCardEyebrow">Cheapest pints near you today</p>
+          <p className="todayCardEyebrow">
+            {eyebrow(hasRememberedLocality, nowIso)}
+          </p>
           <h2 className="todayCardTitle" id="today-pints-title">
             The cheap ones in {pints.areaName}.
           </h2>

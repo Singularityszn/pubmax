@@ -7,11 +7,7 @@
 // Contract note: unlike drink updates, `source` here is { label, url } ONLY —
 // no licence field (per the B1 row contract).
 
-import {
-  callCityMcpTool,
-  type ThingsToDoOpportunity,
-  type ThingsToDoResult,
-} from "@/lib/citymcp/client";
+import { type ThingsToDoResult } from "@/lib/citymcp/client";
 
 export const WHATS_ON_KINDS = ["sport", "quiz", "deal", "music"] as const;
 export type WhatsOnKind = (typeof WHATS_ON_KINDS)[number];
@@ -35,8 +31,13 @@ export type WhatsOnRow = {
   lat?: number;
   lng?: number;
   kind: WhatsOnKind;
-  startsAt: string; // ISO-8601
+  /** Exact ISO start supplied by the listing source. Missing means unknown. */
+  startsAt?: string;
   endsAt?: string; // ISO-8601
+  /** Human-readable source wording when no exact instant was supplied. */
+  timeEvidence?: string;
+  /** Provider window that scoped an untimed live listing. */
+  listedWindow?: ThingsToDoResult["window"];
   title: string;
   detail?: string;
   priceGbp?: number;
@@ -108,7 +109,13 @@ export function isValidWhatsOnRow(value: unknown, now: number = Date.now()): val
   if (!isNonEmptyString(row.id)) return false;
   if (!isNonEmptyString(row.placeName)) return false;
   if (!isWhatsOnKind(row.kind)) return false;
-  if (!isValidIso(row.startsAt)) return false;
+  const hasExactStart = isValidIso(row.startsAt);
+  const hasListedTime = isNonEmptyString(row.timeEvidence);
+  const hasListedWindow =
+    row.listedWindow === "tonight" ||
+    row.listedWindow === "tomorrow_night" ||
+    row.listedWindow === "this_weekend";
+  if (!hasExactStart && !hasListedTime && !hasListedWindow) return false;
   if (!isNonEmptyString(row.title)) return false;
   if (!isValidSource(row.source)) return false; // provenance non-negotiable
   if (!isValidObservedAt(row.observedAt, now)) return false; // never future
@@ -117,7 +124,13 @@ export function isValidWhatsOnRow(value: unknown, now: number = Date.now()): val
   if (!isAbsentOr(row.venueId, isNonEmptyString)) return false;
   if (row.lat !== undefined && row.lat !== null && !isFiniteNumber(row.lat)) return false;
   if (row.lng !== undefined && row.lng !== null && !isFiniteNumber(row.lng)) return false;
-  if (row.endsAt !== undefined && row.endsAt !== null && !isValidIso(row.endsAt)) return false;
+  if (row.endsAt !== undefined && row.endsAt !== null) {
+    if (!hasExactStart || !isValidIso(row.endsAt)) return false;
+  }
+  if (!isAbsentOr(row.timeEvidence, isNonEmptyString)) return false;
+  if (row.listedWindow !== undefined && !hasListedWindow) {
+    return false;
+  }
   if (!isAbsentOr(row.detail, isNonEmptyString)) return false;
   if (row.priceGbp !== undefined && row.priceGbp !== null) {
     if (!isFiniteNumber(row.priceGbp) || row.priceGbp < 0) return false;
@@ -160,30 +173,42 @@ function normaliseRow(row: WhatsOnRow): WhatsOnRow {
     id: row.id,
     placeName: row.placeName,
     kind: row.kind,
-    startsAt: row.startsAt,
     title: normaliseEventTitle(row.title),
     source: { label: normaliseSourceLabel(row.source.label), url: row.source.url },
     observedAt: row.observedAt,
     confidence: row.confidence,
   };
   if (isNonEmptyString(row.venueId)) out.venueId = row.venueId;
+  if (isValidIso(row.startsAt)) out.startsAt = row.startsAt;
   if (isFiniteNumber(row.lat)) out.lat = row.lat;
   if (isFiniteNumber(row.lng)) out.lng = row.lng;
   if (isValidIso(row.endsAt)) out.endsAt = row.endsAt;
+  if (isNonEmptyString(row.timeEvidence)) out.timeEvidence = row.timeEvidence;
+  if (
+    row.listedWindow === "tonight" ||
+    row.listedWindow === "tomorrow_night" ||
+    row.listedWindow === "this_weekend"
+  ) {
+    out.listedWindow = row.listedWindow;
+  }
   if (isNonEmptyString(row.detail)) out.detail = row.detail;
   if (isFiniteNumber(row.priceGbp)) out.priceGbp = row.priceGbp;
   return out;
 }
 
-// Two rows collide when they describe the same (place, kind, startsAt). A row
-// with a resolved venueId keys off it; otherwise it keys off the lowercased
-// placeName (so a scraped-by-name row and its later venue-matched twin still
-// collapse when the name is identical). The "|" separator is safe because ids
-// and startsAt never contain it and a "|" in a pub name cannot create a
-// collision across the three joined fields in practice.
+// Exact-start rows collide on place, kind, and start. Without an exact start,
+// listed-time wording is not enough to identify an event, so title and source
+// remain part of the identity.
 export function dedupeKey(row: WhatsOnRow): string {
   const place = isNonEmptyString(row.venueId) ? row.venueId : row.placeName.toLowerCase();
-  return `${place}|${row.kind}|${row.startsAt}`;
+  const when =
+    row.startsAt ??
+    [
+      row.timeEvidence ?? row.listedWindow ?? "",
+      normaliseEventTitle(row.title).toLocaleLowerCase("en-GB"),
+      row.source.url,
+    ].join("|");
+  return `${place}|${row.kind}|${when}`;
 }
 
 // Keep the freshest observedAt on collision (append-only supersede).
@@ -349,6 +374,7 @@ const POINT_ROW_GRACE_MS: Record<WhatsOnKind, number> = {
 // quiz or match still overlaps the window and tonight windowing never disagrees
 // with the past-dated guard (#417).
 export function isOnTonight(row: WhatsOnRow, now: number = Date.now()): boolean {
+  if (!row.startsAt) return row.listedWindow === "tonight";
   const { start, end } = londonServiceDayBounds(now);
   const startsAt = Date.parse(row.startsAt);
   if (!Number.isFinite(startsAt)) return false;
@@ -371,7 +397,7 @@ export function filterTonight(rows: WhatsOnRow[], now: number = Date.now()): Wha
 // point rows gain grace. Returns NaN only when startsAt itself is unparseable (a
 // row that would already fail isValidWhatsOnRow).
 export function rowEffectiveEnd(row: WhatsOnRow): number {
-  const startsAt = Date.parse(row.startsAt);
+  const startsAt = row.startsAt ? Date.parse(row.startsAt) : Number.NaN;
   const parsedEnd = row.endsAt ? Date.parse(row.endsAt) : NaN;
   if (Number.isFinite(parsedEnd)) return parsedEnd; // interval row: exact endsAt
   if (!Number.isFinite(startsAt)) return startsAt; // unparseable start -> NaN
@@ -433,12 +459,6 @@ function stableId(prefix: string, input: string): string {
 
 export type MapThingsToDoOpts = {
   now: number;
-  // Best-effort ISO start for the requested window's London evening (used when
-  // an opportunity carries no firm ISO start of its own).
-  windowStart: string;
-  // Optional per-title raw ISO starts (from fetchRawThingsToDoStartsAt) when the
-  // upstream ever provides them.
-  startsAtByTitle?: Map<string, string>;
 };
 
 // Map trimmed CityMCP opportunities to WhatsOnRow[] with confidence "listed".
@@ -463,23 +483,31 @@ export function mapThingsToDoToRows(result: ThingsToDoResult, opts: MapThingsToD
     const url = opp.source?.url;
     if (!isNonEmptyString(label) || !isHttpUrl(url)) continue;
 
-    const rawStart = opts.startsAtByTitle?.get(opp.title);
-    const startsAt = isValidIso(rawStart) ? (rawStart as string) : opts.windowStart;
+    const rawStart = opp.startsAt;
+    const startsAt = isValidIso(rawStart) ? (rawStart as string) : undefined;
+    const timeEvidence = isNonEmptyString(opp.timeEvidence)
+      ? opp.timeEvidence
+      : undefined;
 
     const detailBits: string[] = [];
-    if (isNonEmptyString(opp.timeEvidence)) detailBits.push(`Listed time: ${opp.timeEvidence}`);
+    if (timeEvidence) detailBits.push(`Listed time: ${timeEvidence}`);
     if (isNonEmptyString(opp.price)) detailBits.push(opp.price);
 
     const row: WhatsOnRow = {
-      id: stableId("whats-live", `${placeName}|${kind}|${startsAt}|${opp.title}`),
+      id: stableId(
+        "whats-live",
+        `${placeName}|${kind}|${startsAt ?? timeEvidence ?? opp.title}|${opp.title}`,
+      ),
       placeName,
       kind,
-      startsAt,
       title: normaliseEventTitle(opp.title),
       source: { label: normaliseSourceLabel(label), url: url as string },
       observedAt,
       confidence: "listed",
+      listedWindow: result.window,
     };
+    if (startsAt) row.startsAt = startsAt;
+    if (timeEvidence) row.timeEvidence = timeEvidence;
     if (opp.place?.location) {
       row.lat = opp.place.location.lat;
       row.lng = opp.place.location.lng;
@@ -489,43 +517,4 @@ export function mapThingsToDoToRows(result: ThingsToDoResult, opts: MapThingsToD
     if (isValidWhatsOnRow(row, opts.now)) rows.push(row);
   }
   return dedupeRows(rows);
-}
-
-// A raw things_to_do call that PRESERVES any upstream startsAt the trimmed
-// fetchThingsToDo drops. Used by the store's live merge. Does NOT edit
-// client.ts — it calls callCityMcpTool directly. Returns a title→ISO-start
-// map; empty when the upstream provides no firm starts (today's reality).
-export type FetchRawStartsOpts = {
-  window: "tonight" | "tomorrow_night" | "this_weekend";
-  area?: string;
-  limit?: number;
-  timeoutMs?: number;
-  endpoint?: string;
-  fetchImpl?: typeof fetch;
-};
-
-export async function fetchRawThingsToDoStartsAt(
-  opts: FetchRawStartsOpts,
-): Promise<Map<string, string>> {
-  const args: Record<string, unknown> = { window: opts.window };
-  if (opts.area) args.area = opts.area;
-  if (typeof opts.limit === "number" && opts.limit > 0) args.limit = opts.limit;
-
-  const result = await callCityMcpTool<Record<string, unknown>>("things_to_do", args, {
-    timeoutMs: opts.timeoutMs,
-    endpoint: opts.endpoint,
-    fetchImpl: opts.fetchImpl,
-  });
-  const structured = result.structuredContent ?? {};
-  const rawOpps = Array.isArray(structured.opportunities) ? structured.opportunities : [];
-
-  const out = new Map<string, string>();
-  for (const item of rawOpps) {
-    if (!item || typeof item !== "object") continue;
-    const o = item as ThingsToDoOpportunity & { startsAt?: unknown };
-    const title = typeof o.title === "string" ? o.title : "";
-    const startsAt = (o as { startsAt?: unknown }).startsAt;
-    if (title && isValidIso(startsAt)) out.set(title, startsAt as string);
-  }
-  return out;
 }

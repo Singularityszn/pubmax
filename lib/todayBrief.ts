@@ -155,7 +155,8 @@ export function rankTonightPicks(rows: readonly WhatsOnRow[], limit = 3): WhatsO
     .sort((a, b) => {
       const byConfidence = CONFIDENCE_RANK[b.row.confidence] - CONFIDENCE_RANK[a.row.confidence];
       if (byConfidence !== 0) return byConfidence;
-      const byStart = Date.parse(a.row.startsAt) - Date.parse(b.row.startsAt);
+      const byStart =
+        Date.parse(a.row.startsAt ?? "") - Date.parse(b.row.startsAt ?? "");
       if (Number.isFinite(byStart) && byStart !== 0) return byStart;
       return a.index - b.index;
     });
