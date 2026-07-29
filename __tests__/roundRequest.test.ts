@@ -5,6 +5,7 @@ import {
   captureRoundRequestIdentity,
   roundHandleForIdentity,
   roundJsonRequest,
+  runRoundMutationForCurrentOwner,
   runRoundMutationForCurrentUser,
 } from "@/lib/roundRequest";
 
@@ -78,6 +79,54 @@ describe("Round request client", () => {
     fail(new Error("account-a failure"));
 
     expect(await completion).toEqual({ current: false });
+  });
+
+  it("does not invoke a Round mutation after the account owner changes", async () => {
+    const operation = vi.fn(async () => "mutated");
+
+    const completion = await runRoundMutationForCurrentUser(
+      {
+        kind: "account",
+        auth: { userId: "user-a", accessToken: "token-a" },
+      },
+      () => "user-b",
+      operation,
+    );
+
+    expect(completion).toEqual({ current: false });
+    expect(operation).not.toHaveBeenCalled();
+  });
+
+  it("does not invoke a Round mutation after its identity owner changes", async () => {
+    const operation = vi.fn(async () => "mutated");
+
+    const completion = await runRoundMutationForCurrentOwner(
+      {
+        kind: "account",
+        auth: { userId: "user-a", accessToken: "token-a" },
+      },
+      () => ({
+        kind: "account",
+        auth: { userId: "user-b", accessToken: "token-b" },
+      }),
+      operation,
+    );
+
+    expect(completion).toEqual({ current: false });
+    expect(operation).not.toHaveBeenCalled();
+  });
+
+  it("keeps explicit anonymous Round mutations while signed out", async () => {
+    const operation = vi.fn(async () => "saved");
+
+    const completion = await runRoundMutationForCurrentUser(
+      { kind: "anonymous" },
+      () => null,
+      operation,
+    );
+
+    expect(completion).toEqual({ current: true, value: "saved" });
+    expect(operation).toHaveBeenCalledOnce();
   });
 
   it("keeps completion when one account refreshes its token", async () => {

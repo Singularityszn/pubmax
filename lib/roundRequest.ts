@@ -101,26 +101,37 @@ export function roundRequestIdentityOwnerKey(
     : "anonymous";
 }
 
-export async function runRoundMutationForCurrentOwner<T>(
-  captured: RoundRequestIdentity,
-  current: () => RoundRequestIdentity | null,
+async function runRoundMutationWhileCurrent<T>(
+  capturedOwner: string | null,
+  currentOwner: () => string | null,
   operation: () => Promise<T>,
 ): Promise<{ current: false } | { current: true; value: T }> {
+  if (capturedOwner !== currentOwner()) {
+    return { current: false };
+  }
   try {
     const value = await operation();
-    return roundRequestIdentityOwnerKey(captured) ===
-      roundRequestIdentityOwnerKey(current())
+    return capturedOwner === currentOwner()
       ? { current: true, value }
       : { current: false };
   } catch (error) {
-    if (
-      roundRequestIdentityOwnerKey(captured) !==
-      roundRequestIdentityOwnerKey(current())
-    ) {
+    if (capturedOwner !== currentOwner()) {
       return { current: false };
     }
     throw error;
   }
+}
+
+export function runRoundMutationForCurrentOwner<T>(
+  captured: RoundRequestIdentity,
+  current: () => RoundRequestIdentity | null,
+  operation: () => Promise<T>,
+): Promise<{ current: false } | { current: true; value: T }> {
+  return runRoundMutationWhileCurrent(
+    roundRequestIdentityOwnerKey(captured),
+    () => roundRequestIdentityOwnerKey(current()),
+    operation,
+  );
 }
 
 export async function runRoundMutationForCurrentUser<T>(
@@ -130,17 +141,11 @@ export async function runRoundMutationForCurrentUser<T>(
 ): Promise<{ current: false } | { current: true; value: T }> {
   const capturedUserId =
     captured.kind === "account" ? captured.auth.userId : null;
-  try {
-    const value = await operation();
-    return capturedUserId === currentUserId()
-      ? { current: true, value }
-      : { current: false };
-  } catch (error) {
-    if (capturedUserId !== currentUserId()) {
-      return { current: false };
-    }
-    throw error;
-  }
+  return runRoundMutationWhileCurrent(
+    capturedUserId,
+    currentUserId,
+    operation,
+  );
 }
 
 export function captureRoundRequestIdentity(
