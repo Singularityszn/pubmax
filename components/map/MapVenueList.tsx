@@ -44,16 +44,26 @@ export default function MapVenueList({
   const truncated = model.truncated || ukBaseModel.truncated;
   const firstVenueRef = useRef<HTMLButtonElement>(null);
   const closeButtonRef = useRef<HTMLButtonElement>(null);
+  const venueFocusAssignedRef = useRef(false);
   const firstCuratedId = model.rows[0]?.id;
   const firstBaseId = firstCuratedId ? undefined : ukBaseModel.rows[0]?.id;
 
   useEffect(() => {
-    if (!open) return;
+    if (!open) {
+      venueFocusAssignedRef.current = false;
+      return;
+    }
     const frame = requestAnimationFrame(() => {
-      (firstVenueRef.current ?? closeButtonRef.current)?.focus();
+      if (venueFocusAssignedRef.current) return;
+      if (firstVenueRef.current) {
+        firstVenueRef.current.focus();
+        venueFocusAssignedRef.current = true;
+      } else {
+        closeButtonRef.current?.focus();
+      }
     });
     return () => cancelAnimationFrame(frame);
-  }, [open]);
+  }, [firstBaseId, firstCuratedId, open]);
 
   return (
     <section className={`mapVenueList${open ? " mapVenueList--open" : ""}`} aria-label={`${cityName} venue list`}>
