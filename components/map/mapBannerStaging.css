@@ -3,13 +3,11 @@
    closure / safety status band (.cityStatusBanner), the city-suggest banner
    (.citySuggestBanner), and the Tonight-nearby card (.tonightLaneCollapsed).
 
-   This coordinates them WITHOUT changing when any is eligible or how it
-   dismisses — each banner still self-gates on its own data and persists its own
-   dismissal exactly as before. It governs only which siblings may render
-   CONCURRENTLY. No banner component internals are touched: the staging lives
-   entirely here because "which self-gating sibling may show" is a pure
-   presentation concern, and keying on element presence avoids lifting each
-   banner's private eligibility.
+   Each banner still self-gates on its own data and persists its own dismissal.
+   This stylesheet governs which eligible sibling banners may render
+   CONCURRENTLY; prompt eligibility is owned by lib/mapLocationPrompt.ts and
+   lib/promptBudget.ts. Keying CSS staging on element presence avoids lifting
+   each banner's private data eligibility.
 
    Desktop only (min-width:641px), matching where these banners mount, so the
    mobile map shell and its own Tonight pill are never affected.
