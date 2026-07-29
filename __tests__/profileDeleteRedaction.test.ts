@@ -30,6 +30,10 @@ import {
   __resetMemoryReferrals,
   memoryReferralStore,
 } from "@/lib/referralStore";
+import {
+  __resetMemoryPrivateIdentities,
+  memoryPrivateIdentityStore,
+} from "@/lib/privateIdentityStore";
 
 const params = (handle: string) => ({ params: Promise.resolve({ handle }) });
 const del = (handle: string, token: string) =>
@@ -43,6 +47,7 @@ describe("DELETE /api/profiles/[handle] triggers one-choke redaction (5.5)", () 
     __resetNightMemoryStore();
     __resetMemoryProfiles();
     __resetMemoryReferrals();
+    __resetMemoryPrivateIdentities();
   });
 
   it("redacts the deleted account's Moments + identity from a published Story, keeping the rest", async () => {
@@ -102,5 +107,28 @@ describe("DELETE /api/profiles/[handle] triggers one-choke redaction (5.5)", () 
       }),
     );
     expect(inviteResponse.status).toBe(409);
+  });
+
+  it("deletes private identity fields at the existing profile deletion boundary", async () => {
+    await profileStore().ensure("private_person");
+    await profileStore().linkUser("private_person", "private-user");
+    expect(
+      await memoryPrivateIdentityStore.completeOnboarding({
+        userId: "private-user",
+        handle: "private_person",
+        dateOfBirth: "1990-01-02",
+        fullName: "Private Person",
+        sex: "female",
+      }),
+    ).toMatchObject({ ok: true });
+
+    const res = await del("private_person", "private-user");
+
+    expect(res.status).toBe(200);
+    expect(await memoryPrivateIdentityStore.read("private-user")).toBeNull();
+    expect(await profileStore().getByUserId("private-user")).toMatchObject({
+      handle: "private_person",
+      userId: "private-user",
+    });
   });
 });

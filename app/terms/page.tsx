@@ -99,10 +99,12 @@ export default function TermsPage() {
           person and device records 12 months after their last activity. If you
           make an account, you must provide a date of birth and may provide a
           full name and sex. We keep these private, use them for product
-          analytics and social features, and retain date of birth while your
-          account exists. Optional full name and sex stay until you edit or
-          clear them. All three are removed when your account is deleted. They
-          do not block any feature at any age. Only your handle is public.
+          retain date of birth until you delete your profile. Optional full name
+          and sex stay until you edit or clear them. Deleting your profile
+          removes all three private identity fields and clears its editable
+          public details, while keeping your authentication account, public
+          handle and handle-keyed contribution history. They do not block any
+          feature at any age. Only your handle is public.
           Keep your sign-in to yourself, use a handle that isn&rsquo;t someone
           else&rsquo;s identity, and don&rsquo;t hand the account to anyone
           else. You can stop using it whenever you like, and ask us to delete

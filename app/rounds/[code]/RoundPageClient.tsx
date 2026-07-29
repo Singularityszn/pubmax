@@ -17,6 +17,7 @@ import EmptyState from "@/components/EmptyState";
 import { useAuth } from "@/components/auth/AuthProvider";
 import SiteNav from "@/components/nav/SiteNav";
 import {
+  accountBoundFetch,
   captureAccountAuth,
   type AccountAuthSnapshot,
 } from "@/lib/accountBoundFetch";
@@ -41,6 +42,7 @@ import {
   type RoundSpendDTO,
   type RoundSpendItemSource,
   type RoundState,
+  type RoundViewState,
 } from "@/lib/rounds";
 import {
   currentStop,
@@ -80,7 +82,12 @@ function slimToVenue(slim: SlimVenue): Venue {
 
 export default function RoundPageClient({ params }: { params: Promise<{ code: string }> }): React.JSX.Element {
   const { user, session, handle: accountHandle } = useAuth();
-  const roundAuth = captureAccountAuth(user?.id ?? null, session);
+  const roundAuth = useMemo(
+    () => captureAccountAuth(user?.id ?? null, session),
+    [session, user?.id],
+  );
+  const roundOwnerRef = useRef(roundAuth?.userId ?? null);
+  roundOwnerRef.current = roundAuth?.userId ?? null;
   // Route param resolved after mount (Next 15 async params).
   const [code, setCode] = useState<string>("");
   useEffect(() => {
@@ -93,7 +100,7 @@ export default function RoundPageClient({ params }: { params: Promise<{ code: st
     };
   }, [params]);
 
-  const [state, setState] = useState<RoundState | null>(null);
+  const [state, setState] = useState<RoundViewState | null>(null);
   const [loaded, setLoaded] = useState(false);
   const [myHandle, setMyHandle] = useState<string>("");
   // Presence rows at the Round's CURRENT stop — the "your crew is here" overlay
@@ -123,11 +130,19 @@ export default function RoundPageClient({ params }: { params: Promise<{ code: st
   // the last-known state up rather than blanking the page.
   const refetch = useCallback(async () => {
     if (!code) return;
+    const requestOwner = roundAuth?.userId ?? null;
     try {
-      const res = await fetch(`/api/rounds/${code}`, { cache: "no-store" });
+      const res = roundAuth
+        ? await accountBoundFetch(roundAuth, `/api/rounds/${code}`, {
+            cache: "no-store",
+          })
+        : await fetch(`/api/rounds/${code}`, { cache: "no-store" });
       if (res.ok) {
-        setState((await res.json()) as RoundState);
+        const next = (await res.json()) as RoundViewState;
+        if (roundOwnerRef.current !== requestOwner) return;
+        setState(next);
       } else if (res.status === 404) {
+        if (roundOwnerRef.current !== requestOwner) return;
         setState(null);
       }
     } catch {
@@ -135,7 +150,7 @@ export default function RoundPageClient({ params }: { params: Promise<{ code: st
     } finally {
       setLoaded(true);
     }
-  }, [code]);
+  }, [code, roundAuth]);
 
   useEffect(() => {
     if (!code) return;
@@ -242,7 +257,8 @@ export default function RoundPageClient({ params }: { params: Promise<{ code: st
     };
   }, [isOpen, currentStopVenueId, refetchPresence]);
 
-  const effectiveHandle = accountHandle ?? myHandle;
+  const effectiveHandle =
+    state?.viewerMemberHandle ?? accountHandle ?? myHandle;
   const amMember = useMemo(
     () =>
       state && effectiveHandle
@@ -988,6 +1004,12 @@ function diaryOnlyCaption(diaryOnly: number): string {
     : `${diaryOnly} lines stay in this diary and were not shared as community prices.`;
 }
 
+function supersededCaption(superseded: number): string {
+  return superseded === 1
+    ? "One earlier line was superseded by a later price from this account."
+    : `${superseded} earlier lines were superseded by later prices from this account.`;
+}
+
 export function RoundSpendHistory({
   spends,
 }: {
@@ -1005,8 +1027,11 @@ export function RoundSpendHistory({
           const legacyUnknown = spend.items.filter(
             (item) => item.promotionStatus === "legacy_unknown",
           ).length;
+          const superseded = spend.items.filter(
+            (item) => item.promotionStatus === "superseded",
+          ).length;
           const diaryOnly =
-            spend.items.length - logged.length - legacyUnknown;
+            spend.items.length - logged.length - legacyUnknown - superseded;
           return (
             <li key={spend.id} className="roundSpendCard">
               <div className="roundSpendSummary">
@@ -1031,6 +1056,8 @@ export function RoundSpendHistory({
                           {item.drinkName} · {categoryLabel(item.drinkCategory)}
                           {item.promotionStatus === "legacy_unknown"
                             ? " · sharing status unknown"
+                            : item.promotionStatus === "superseded"
+                              ? " · superseded by a later price"
                             : item.promotionStatus !== "promoted"
                               ? " · diary only"
                               : ""}
@@ -1052,6 +1079,11 @@ export function RoundSpendHistory({
                       {legacyUnknown === 1
                         ? "Sharing status for one older line is unknown."
                         : `Sharing status for ${legacyUnknown} older lines is unknown.`}
+                    </p>
+                  ) : null}
+                  {superseded > 0 ? (
+                    <p className="roundPriceTrust">
+                      {supersededCaption(superseded)}
                     </p>
                   ) : null}
                 </>

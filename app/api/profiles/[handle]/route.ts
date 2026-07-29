@@ -19,6 +19,7 @@ import {
 } from "@/lib/profileStore";
 import { followStore } from "@/lib/followStore";
 import { markContributorsDepartedByProfileId } from "@/lib/nightMemoryStore";
+import { privateIdentityStore } from "@/lib/privateIdentityStore";
 import { referralStore } from "@/lib/referralStore";
 import {
   clientIp,
@@ -254,6 +255,9 @@ export async function DELETE(
       );
     }
 
+    if (existing.userId) {
+      await privateIdentityStore().erase(existing.userId);
+    }
     const profile = await store.softDelete(handle);
 
     if (existing.userId) {

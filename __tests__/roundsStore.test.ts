@@ -1,3 +1,5 @@
+import { readFileSync } from "node:fs";
+
 import { beforeEach, describe, expect, it } from "vitest";
 
 // Exercise the in-memory Round store directly — no live Supabase, no env keys. It
@@ -352,5 +354,27 @@ describe("close", () => {
     if (first.ok && second.ok) {
       expect(second.state.round.closedAt).toBe(first.state.round.closedAt);
     }
+  });
+});
+
+describe("Round price key ownership migration", () => {
+  it("serialises one latest owner per account, venue, and drink category", () => {
+    const sql = readFileSync(
+      new URL(
+        "../supabase/migrations/20260729140000_0064_round_price_key_owners.sql",
+        import.meta.url,
+      ),
+      "utf8",
+    );
+
+    expect(sql).toMatch(/pg_advisory_xact_lock/);
+    expect(sql).toMatch(
+      /partition by spend\.venue_id, expanded\.item->>'drinkCategory'/,
+    );
+    expect(sql).toMatch(/expanded\.ordinality desc/);
+    expect(sql).toMatch(/ownership_rank > 1[\s\S]*superseded/);
+    expect(sql).toMatch(
+      /community_prices\.submitted_at <= excluded\.submitted_at/,
+    );
   });
 });

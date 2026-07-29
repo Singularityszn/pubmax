@@ -74,6 +74,10 @@ export type ClaimSpendPromotionOwnerResult =
   | { ok: true }
   | { ok: false; error: "not_found" | "forbidden" | "error" };
 
+export type ReconcilePromotionKeysResult =
+  | { ok: true; state: RoundState }
+  | { ok: false; error: "not_found" | "forbidden" | "error" };
+
 export type RoundsStore = {
   create(input: { title?: unknown; createdByHandle?: unknown }): Promise<CreateResult>;
   getByCode(code: string): Promise<RoundState | null>;
@@ -101,6 +105,11 @@ export type RoundsStore = {
     clientRef: string,
     actor: string,
   ): Promise<ClaimSpendPromotionOwnerResult>;
+  reconcilePromotionKeys(
+    code: string,
+    clientRef: string,
+    actor: string,
+  ): Promise<ReconcilePromotionKeysResult>;
   updateSpendPromotions(
     code: string,
     clientRef: string,
@@ -412,6 +421,37 @@ export const supabaseRoundsStore: RoundsStore = {
     }
   },
 
+  async reconcilePromotionKeys(code, clientRef, actor) {
+    try {
+      const state = await this.getByCode(code);
+      if (!state) return { ok: false, error: "not_found" };
+      const spend = state.spends.find(
+        (candidate) => candidate.clientRef === clientRef,
+      );
+      if (!spend) return { ok: false, error: "not_found" };
+      const { data, error } = await admin().rpc(
+        "reconcile_round_price_keys",
+        {
+          p_actor: actor,
+          p_spend_id: spend.id,
+        },
+      );
+      if (error) throw new Error(error.message);
+      if (data === "forbidden") return { ok: false, error: "forbidden" };
+      if (data !== "ok") return { ok: false, error: "error" };
+      const next = await this.getByCode(code);
+      return next
+        ? { ok: true, state: next }
+        : { ok: false, error: "error" };
+    } catch (err) {
+      console.error(
+        "[rounds] reconcilePromotionKeys failed:",
+        err instanceof Error ? err.message : err,
+      );
+      return { ok: false, error: "error" };
+    }
+  },
+
   async updateSpendPromotions(code, clientRef, updates) {
     try {
       const state = await this.getByCode(code);
@@ -420,7 +460,16 @@ export const supabaseRoundsStore: RoundsStore = {
       if (!spend) return { ok: false, error: "not_found" };
       const items = spend.items.map((item) => ({ ...item }));
       for (const update of updates) {
-        if (items[update.index]) items[update.index].promotionStatus = update.status;
+        const item = items[update.index];
+        if (
+          item &&
+          ((update.status === "ready" &&
+            item.promotionStatus === "pending") ||
+            (update.status === "promoted" &&
+              item.promotionStatus === "ready"))
+        ) {
+          item.promotionStatus = update.status;
+        }
       }
       const { error } = await admin()
         .from(SPENDS)
@@ -648,14 +697,53 @@ export const memoryRoundsStore: RoundsStore = {
     return { ok: true };
   },
 
+  async reconcilePromotionKeys(code, clientRef, actor) {
+    const round = memoryRounds.get(normalizeRoundCode(code));
+    if (!round) return { ok: false, error: "not_found" };
+    if (!round.spends.some((spend) => spend.clientRef === clientRef)) {
+      return { ok: false, error: "not_found" };
+    }
+    if (round.promotionOwners.get(clientRef) !== actor) {
+      return { ok: false, error: "forbidden" };
+    }
+
+    const owners = new Map<
+      string,
+      { spend: RoundSpendDTO; index: number }
+    >();
+    for (const spend of round.spends) {
+      if (round.promotionOwners.get(spend.clientRef) !== actor) continue;
+      spend.items.forEach((item, index) => {
+        if (item.source !== "round") return;
+        owners.set(`${spend.venueId}:${item.drinkCategory}`, { spend, index });
+      });
+    }
+    for (const spend of round.spends) {
+      if (round.promotionOwners.get(spend.clientRef) !== actor) continue;
+      spend.items.forEach((item, index) => {
+        if (item.source !== "round") return;
+        const owner = owners.get(`${spend.venueId}:${item.drinkCategory}`);
+        if (owner?.spend !== spend || owner.index !== index) {
+          item.promotionStatus = "superseded";
+        }
+      });
+    }
+    return { ok: true, state: stateFrom(round) };
+  },
+
   async updateSpendPromotions(code, clientRef, updates) {
     const round = memoryRounds.get(normalizeRoundCode(code));
     if (!round) return { ok: false, error: "not_found" };
     const spend = round.spends.find((candidate) => candidate.clientRef === clientRef);
     if (!spend) return { ok: false, error: "not_found" };
     for (const update of updates) {
-      if (spend.items[update.index]) {
-        spend.items[update.index].promotionStatus = update.status;
+      const item = spend.items[update.index];
+      if (
+        item &&
+        ((update.status === "ready" && item.promotionStatus === "pending") ||
+          (update.status === "promoted" && item.promotionStatus === "ready"))
+      ) {
+        item.promotionStatus = update.status;
       }
     }
     return { ok: true, state: stateFrom(round) };

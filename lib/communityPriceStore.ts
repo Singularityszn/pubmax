@@ -854,6 +854,9 @@ export const memoryCommunityPriceStore: CommunityPriceStore = {
       row.actor !== null &&
       row.actor === stored.actor;
     const replaced = rows.find(isOwnEarlier);
+    if (replaced && replaced.submittedAt > stored.submittedAt) {
+      return { price: published(replaced) };
+    }
     const kept = rows.filter((row) => !isOwnEarlier(row));
     // Moderation survives the correction. The durable backend's upsert writes
     // only the price columns, so `hidden_at` and the report metadata stay put
@@ -1277,16 +1280,37 @@ export const supabaseCommunityPriceStore: CommunityPriceStore = {
         // would need to be reported by - and so a correction (the upsert) hands
         // back the surviving row's id, not the replaced one's.
         const { data, error } = actor
-          ? await admin()
-              .from("community_prices")
-              .upsert(row, { onConflict: "venue_id,drink_category,actor" })
-              .select("id")
+          ? await admin().rpc(
+              "upsert_attributed_community_price_if_newer",
+              {
+                p_actor: actor,
+                p_contributor_handle: row.contributor_handle,
+                p_drink_category: row.drink_category,
+                p_price_pennies: row.price_pennies,
+                p_submitted_at: row.submitted_at,
+                p_venue_id: row.venue_id,
+              },
+            )
           : await admin().from("community_prices").insert(row).select("id");
         if (error) throw new Error(error.message);
-        const id = Array.isArray(data) && typeof data[0]?.id === "string" ? data[0].id : undefined;
+        const saved =
+          Array.isArray(data) && data[0] && typeof data[0] === "object"
+            ? (data[0] as Record<string, unknown>)
+            : {};
+        const id = typeof saved.id === "string" ? saved.id : undefined;
+        const savedPennies = Number(saved.price_pennies);
+        const savedAt =
+          typeof saved.submitted_at === "string"
+            ? Date.parse(saved.submitted_at)
+            : now;
         return {
           price: {
-            ...toPrice(key.venueId, key.drinkCategory, key.pennies, now),
+            ...toPrice(
+              key.venueId,
+              key.drinkCategory,
+              Number.isInteger(savedPennies) ? savedPennies : key.pennies,
+              Number.isFinite(savedAt) ? savedAt : now,
+            ),
             ...(id ? { id } : {}),
           },
         };

@@ -61,4 +61,19 @@ describe("Round spend history", () => {
     );
     expect(resolveRoundPromotionStatus("demo", undefined)).toBe("diary_only");
   });
+
+  it("labels an overwritten Round line as superseded, not diary only", () => {
+    const superseded = renderToStaticMarkup(
+      createElement(RoundSpendHistory, {
+        spends: [spend("superseded")],
+      }),
+    );
+
+    expect(superseded).toContain("superseded by a later price");
+    expect(superseded).not.toContain("diary only");
+    expect(superseded).not.toContain("stays provisional");
+    expect(resolveRoundPromotionStatus("round", "superseded")).toBe(
+      "superseded",
+    );
+  });
 });

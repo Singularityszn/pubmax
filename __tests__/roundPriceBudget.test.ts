@@ -79,6 +79,22 @@ describe("chargeRoundPriceLines", () => {
     logSpy.mockRestore();
   });
 
+  it("asks the durable receipt owner again when a saved line retries", async () => {
+    const { chargeRoundPriceLines } = await loadBudget();
+    rpc
+      .mockResolvedValueOnce({ data: "charged", error: null })
+      .mockResolvedValueOnce({ data: "already_charged", error: null });
+    const savedLine = priceLines("spend-durable-retry", 1);
+
+    expect(
+      await chargeRoundPriceLines("actor-retry", "account-retry", savedLine),
+    ).toEqual({ allowed: true, mode: "durable" });
+    expect(
+      await chargeRoundPriceLines("actor-retry", "account-retry", savedLine),
+    ).toEqual({ allowed: true, mode: "durable" });
+    expect(rpc).toHaveBeenCalledTimes(2);
+  });
+
   it("refuses on the limiter's own verdict, blaming nobody's outage", async () => {
     const { chargeRoundPriceLines } = await loadBudget();
     rpc.mockResolvedValue({ data: "limited", error: null });
@@ -219,6 +235,53 @@ describe("chargeRoundPriceLines", () => {
         priceLines("spend-g-3", 1),
       ),
     ).toEqual({ allowed: false, mode: "memory" });
+  });
+
+  it("expires local receipts with their rate-limit window", async () => {
+    vi.useFakeTimers();
+    try {
+      delete process.env.SUPABASE_URL;
+      delete process.env.SUPABASE_SERVICE_ROLE_KEY;
+      vi.setSystemTime(new Date("2026-07-29T10:00:00.000Z"));
+      const {
+        chargeRoundPriceLines,
+        ROUND_PRICE_ACTOR_LIMIT,
+        ROUND_PRICE_WINDOW_MS,
+      } = await loadBudget();
+      const savedLine = priceLines("spend-expiring", 1);
+
+      expect(
+        await chargeRoundPriceLines(
+          "actor-expiring",
+          "account-expiring",
+          savedLine,
+        ),
+      ).toEqual({ allowed: true, mode: "memory" });
+      vi.advanceTimersByTime(ROUND_PRICE_WINDOW_MS + 1);
+      expect(
+        await chargeRoundPriceLines(
+          "actor-expiring",
+          "account-expiring",
+          savedLine,
+        ),
+      ).toEqual({ allowed: true, mode: "memory" });
+      expect(
+        await chargeRoundPriceLines(
+          "actor-expiring",
+          "account-expiring",
+          priceLines("spend-window-fill", ROUND_PRICE_ACTOR_LIMIT - 1),
+        ),
+      ).toEqual({ allowed: true, mode: "memory" });
+      expect(
+        await chargeRoundPriceLines(
+          "actor-expiring",
+          "account-expiring",
+          priceLines("spend-window-over", 1),
+        ),
+      ).toEqual({ allowed: false, mode: "memory" });
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });
 

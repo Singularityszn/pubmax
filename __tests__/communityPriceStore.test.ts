@@ -86,6 +86,22 @@ describe("communityPriceStore (memory backend)", () => {
     expect(rows[0].submittedAt).toBe(2_000);
   });
 
+  it("does not let a delayed older write replace the contributor's newer price", async () => {
+    await submitCommunityPrice(
+      { venueId: "v1", drinkCategory: "beer", priceGbp: 4.6, actor: "a" },
+      2_000,
+    );
+    await submitCommunityPrice(
+      { venueId: "v1", drinkCategory: "beer", priceGbp: 4.2, actor: "a" },
+      1_000,
+    );
+
+    const rows = await readCommunityPrices("v1");
+    expect(rows).toMatchObject([
+      { priceGbp: 4.6, submittedAt: 2_000 },
+    ]);
+  });
+
   it("keeps two contributors' observations distinct, freshest winning the read", async () => {
     await submitCommunityPrice(
       { venueId: "v1", drinkCategory: "beer", priceGbp: 4.2, actor: "a" },

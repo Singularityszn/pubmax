@@ -4,10 +4,9 @@
 // A Round with drink lines IS a price submission, so it uses the same
 // cross-venue key namespace and hourly cap as /api/price-submit. The Round
 // route and direct price submissions both use the authenticated profile actor.
-// It charges ONE UNIT PER LINE, because a turn carrying ten observations costs
-// the map ten times what a single tap does.
+// It charges one unit per reconciled venue-and-category store key.
 //
-// Per-line charging is why the durable limiter's own fallback is wrong here: it
+// Per-key charging is why the durable limiter's own fallback is wrong here: it
 // tightens to a handful of calls, which one honest itemised round would exhaust
 // on its fourth drink, turning a limiter outage into "you cannot log a round".
 // So when the durable check cannot answer, this does not fail open or closed —
@@ -59,7 +58,7 @@ export type RoundPriceLineCharge = Readonly<{
   lineIndex: number;
 }>;
 
-const chargedLines = new Set<string>();
+const chargedLines = new Map<string, number>();
 
 export function roundPriceActorKey(actor: string): string {
   return `price-submit-actor:${actor}`;
@@ -76,14 +75,18 @@ function chargeInMemory(
   limit: number,
 ): boolean {
   const now = Date.now();
+  const cutoff = now - ROUND_PRICE_WINDOW_MS;
+  for (const [id, chargedAt] of chargedLines) {
+    if (chargedAt <= cutoff) chargedLines.delete(id);
+  }
   let allowed = true;
   for (const line of lines) {
     const id = chargeId(owner, line);
-    if (chargedLines.has(id)) continue;
+    if ((chargedLines.get(id) ?? 0) > cutoff) continue;
     if (isRateLimited(key, now, limit, ROUND_PRICE_WINDOW_MS)) {
       allowed = false;
     } else {
-      chargedLines.add(id);
+      chargedLines.set(id, now);
     }
   }
   return allowed;
@@ -177,9 +180,8 @@ export async function chargeRoundPriceLines(
     };
   }
 
-  for (const line of lines) {
-    const id = chargeId(promotionOwner, line);
-    if (chargedLines.has(id)) continue;
+  for (let index = 0; index < lines.length; index += 1) {
+    const line = lines[index]!;
     const verdict = await chargeDurably(key, promotionOwner, line);
     if (verdict === "limited") {
       return { allowed: false, mode: "durable" };
@@ -188,9 +190,13 @@ export async function chargeRoundPriceLines(
       return { allowed: false, mode: "rejected" };
     }
     if (verdict === "unavailable") {
-      return degradedAllowance(key, promotionOwner, lines, "error");
+      return degradedAllowance(
+        key,
+        promotionOwner,
+        lines.slice(index),
+        "error",
+      );
     }
-    chargedLines.add(id);
   }
   return { allowed: true, mode: "durable" };
 }

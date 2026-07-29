@@ -51,6 +51,7 @@ export type CompleteOnboardingResult =
 
 export type PrivateIdentityStore = {
   read(userId: string, now?: number): Promise<PrivateIdentityRecord | null>;
+  erase(userId: string): Promise<void>;
   updateDetails(
     userId: string,
     details: { dateOfBirth?: unknown; fullName?: unknown; sex?: unknown },
@@ -122,6 +123,11 @@ export const memoryPrivateIdentityStore: PrivateIdentityStore = {
   async read(userId) {
     const key = cleanUserId(userId);
     return memoryPrivateIdentities.get(key) ?? null;
+  },
+
+  async erase(userId) {
+    const key = cleanUserId(userId);
+    if (key) memoryPrivateIdentities.delete(key);
   },
 
   async updateDetails(userId, details) {
@@ -200,6 +206,16 @@ export const supabasePrivateIdentityStore: PrivateIdentityStore = {
     if (error) throw new Error(error.message);
     const row = (data ?? [])[0];
     return row ? fromRow(row as Record<string, unknown>) : null;
+  },
+
+  async erase(userId) {
+    const key = cleanUserId(userId);
+    if (!key) return;
+    const { error } = await requireSupabaseAdmin()
+      .from(TABLE)
+      .delete()
+      .eq("user_id", key);
+    if (error) throw new Error(error.message);
   },
 
   async updateDetails(userId, details) {

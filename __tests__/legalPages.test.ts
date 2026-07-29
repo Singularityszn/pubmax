@@ -248,10 +248,21 @@ describe("legal content pages", () => {
     expect(privacy).toMatch(/Full name and sex are optional/);
     expect(privacy).toMatch(/only identity shown with contributions/);
     expect(privacy).toMatch(/product analytics and\s+social features/);
-    expect(privacy).toMatch(/keep date of birth while your account exists/);
-    expect(privacy).toMatch(/does not block signup, contribution or any other feature at\s+any age/);
-    expect(terms).toMatch(/retain date of birth while your account exists/);
-    expect(terms).toMatch(/do not block any feature at any age/);
+    expect(privacy).toMatch(/keep date of birth until you delete your profile/);
+    expect(privacy).toMatch(
+      /Deleting your profile[\s\S]*removes all three private identity fields/,
+    );
+    expect(privacy).toMatch(
+      /keeps your authentication account, public\s+handle and handle-keyed contribution history/,
+    );
+    expect(privacy).toMatch(
+      /does not block signup, contribution\s+or any other feature at\s+any age/,
+    );
+    expect(terms).toMatch(/retain date of birth until you delete your profile/);
+    expect(terms).toMatch(
+      /Deleting your profile[\s\S]*removes all three private identity fields/,
+    );
+    expect(terms).toMatch(/do not block any\s+feature at any age/);
     expect(terms).toMatch(/Only your handle is public/);
   });
 

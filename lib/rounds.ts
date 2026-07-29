@@ -122,7 +122,8 @@ export type RoundPromotionStatus =
   | "legacy_unknown"
   | "pending"
   | "ready"
-  | "promoted";
+  | "promoted"
+  | "superseded";
 
 export type RoundSpendItemDTO = {
   drinkName: string;
@@ -143,7 +144,8 @@ export function resolveRoundPromotionStatus(
     value === "legacy_unknown" ||
     value === "pending" ||
     value === "ready" ||
-    value === "promoted"
+    value === "promoted" ||
+    value === "superseded"
   ) {
     return value;
   }
@@ -191,6 +193,10 @@ export type RoundState = {
   members: RoundMemberDTO[];
   stops: RoundStopDTO[];
   spends: RoundSpendDTO[];
+};
+
+export type RoundViewState = RoundState & {
+  viewerMemberHandle?: string;
 };
 
 // ── Write payloads (validated) ───────────────────────────────────────────────

@@ -120,11 +120,13 @@ export default function PrivacyPage() {
           Recommendations, leaderboards or the public contributor record.
         </p>
         <p className="legalBody">
-          We keep date of birth while your account exists. Optional full name
-          and sex stay until you edit or clear them. We remove all three when
-          you delete your account or ask us to delete your account data. Date
-          of birth does not block signup, contribution or any other feature at
-          any age.
+          We keep date of birth until you delete your profile. Optional full name
+          and sex stay until you edit or clear them. Deleting your profile
+          removes all three private identity fields and clears its editable
+          public details. That action keeps your authentication account, public
+          handle and handle-keyed contribution history. You can ask us to delete
+          other account data. Date of birth does not block signup, contribution
+          or any other feature at any age.
         </p>
         <p className="legalBody">
           Your public profile may also contain a display name, avatar, home

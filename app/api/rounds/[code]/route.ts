@@ -17,11 +17,13 @@
 // rate-limited per handle + IP.
 
 import { jsonNoStore } from "@/lib/apiResponses";
+import { callerUserId } from "@/lib/authServer";
 import {
   resolveContributionIdentity,
   type ContributionIdentityResolution,
 } from "@/lib/contributionIdentity.server";
 import { submitCommunityPrice } from "@/lib/communityPriceStore";
+import { identityHandleStore } from "@/lib/identityHandleStore";
 import { resolveMessageHandle } from "@/lib/messageAuth";
 import { isLimited } from "@/lib/pintDrops";
 import { gateHandleAction } from "@/lib/profileOwnership";
@@ -37,6 +39,7 @@ import {
   isValidRoundCode,
   type RoundSpendDTO,
   type RoundState,
+  type RoundViewState,
 } from "@/lib/rounds";
 import {
   roundsStore,
@@ -53,6 +56,22 @@ import { isPubVenueKind } from "@/lib/venueKindFilters";
 assertServerEnv();
 
 type Ctx = { params: Promise<{ code: string }> };
+
+async function ownedRoundMemberHandle(
+  request: Request,
+  state: RoundState,
+): Promise<string | null> {
+  try {
+    const userId = await callerUserId(request);
+    if (!userId) return null;
+    return identityHandleStore().ownedHandle(
+      userId,
+      state.members.map((member) => member.handle),
+    );
+  } catch {
+    return null;
+  }
+}
 
 // Map a store write-error to an HTTP status + a grounded message.
 function errorResponse(error: RoundWriteError): Response {
@@ -79,7 +98,12 @@ export async function GET(request: Request, ctx: Ctx): Promise<Response> {
   }
   const state = await roundsStore().getByCode(code);
   if (!state) return jsonNoStore({ error: "That Round doesn't exist." }, { status: 404 });
-  return jsonNoStore(state, { status: 200 });
+  const viewerMemberHandle = await ownedRoundMemberHandle(request, state);
+  const view: RoundViewState = {
+    ...state,
+    ...(viewerMemberHandle ? { viewerMemberHandle } : {}),
+  };
+  return jsonNoStore(view, { status: 200 });
 }
 
 type ResolvedContributor = Extract<
@@ -299,12 +323,25 @@ async function recordSpend(
         )
       : errorResponse(owner.error);
   }
+  const reconciled = await store.reconcilePromotionKeys(
+    code,
+    clean.clientRef,
+    promotionOwner,
+  );
+  if (!reconciled.ok) {
+    return reconciled.error === "forbidden"
+      ? jsonNoStore(
+          { error: "This saved round belongs to another account." },
+          { status: 403 },
+        )
+      : errorResponse(reconciled.error);
+  }
 
   const prepared = await preparePendingRoundPrices({
     store,
     code,
     clientRef: clean.clientRef,
-    state: result.state,
+    state: reconciled.state,
     contributor,
     promotionOwner,
   });
@@ -348,9 +385,13 @@ export async function POST(request: Request, ctx: Ctx): Promise<Response> {
   }
 
   const store = roundsStore();
+  const state = await store.getByCode(code);
+  const memberHandle = state
+    ? (await ownedRoundMemberHandle(request, state)) ?? handle
+    : handle;
   switch (action) {
     case "join": {
-      const result = await store.join(code, handle);
+      const result = await store.join(code, memberHandle);
       return result.ok ? jsonNoStore(result.state, { status: 200 }) : errorResponse(result.error);
     }
     case "addStop": {
@@ -368,15 +409,15 @@ export async function POST(request: Request, ctx: Ctx): Promise<Response> {
       const result = await store.addStop(code, {
         venueId: venueLookup.canonicalId,
         venueName: venueLookup.venue.name,
-        addedByHandle: handle,
+        addedByHandle: memberHandle,
         dropRef: body.dropRef,
       });
       return result.ok ? jsonNoStore(result.state, { status: 200 }) : errorResponse(result.error);
     }
     case "recordSpend":
-      return recordSpend(request, code, handle, body);
+      return recordSpend(request, code, memberHandle, body);
     case "close": {
-      const result = await store.close(code, handle);
+      const result = await store.close(code, memberHandle);
       return result.ok ? jsonNoStore(result.state, { status: 200 }) : errorResponse(result.error);
     }
     default:
