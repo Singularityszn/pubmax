@@ -120,11 +120,11 @@ git commit -m "feat: make price contribution obvious"
 
 Discard screenshots made with a fabricated Supabase browser session. Do not use them in the PR.
 
-- [ ] **Step 2: Check both themes at 390×844**
+- [x] **Step 2: Check both themes at 390×844**
 
 Use the real keyless browser path to inspect the persistent action and existing form in light and dark themes. Use the injectable render test, not a browser auth fake, for the account gate and signed-in branch.
 
-- [ ] **Step 3: Check Overview height and landing**
+- [x] **Step 3: Check Overview height and landing**
 
 Measure Overview scroll height signed in against the pre-change structure. Confirm no new landing-page content and no horizontal overflow at 390×844.
 
