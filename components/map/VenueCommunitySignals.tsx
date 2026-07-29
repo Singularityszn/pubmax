@@ -3,7 +3,7 @@
 import { useMemo, useState, type FormEvent } from "react";
 import { ChevronDown, MessagesSquare } from "lucide-react";
 
-import type { ContributionActionResult } from "@/components/identity/ContributionGateDialog";
+import { useContributionGate } from "@/components/identity/ContributionGateDialog";
 import type { CommunityVenueSignalSubmitResult } from "@/components/map/useCommunityPrices";
 import type { AccountAuthSnapshot } from "@/lib/accountBoundFetch";
 import type { VenuePriceReadStatus } from "@/lib/mapExperienceLens";
@@ -51,11 +51,7 @@ type VenueCommunitySignalsProps = {
     signalKey: CommunityVenueSignalKey;
     signalValue: CommunityVenueSignalValue;
   }, auth: AccountAuthSnapshot) => Promise<CommunityVenueSignalSubmitResult>;
-  requestContribution: (
-    action: (
-      auth: AccountAuthSnapshot,
-    ) => ContributionActionResult | Promise<ContributionActionResult>,
-  ) => Promise<void>;
+  canSubmit: boolean;
   /** Fixed test clock. The app leaves it undefined. */
   now?: number;
 };
@@ -101,9 +97,11 @@ export default function VenueCommunitySignals({
   readStatus,
   submitting,
   onSubmit,
-  requestContribution,
+  canSubmit,
   now,
 }: VenueCommunitySignalsProps) {
+  const { requestContribution, contributionGateDialog } =
+    useContributionGate();
   const [mountedAt] = useState(() => Date.now());
   const observationNow = now ?? mountedAt;
   const [question, setQuestion] = useState<AuthorQuestion>("character");
@@ -210,91 +208,96 @@ export default function VenueCommunitySignals({
           ))}
         </dl>
 
-        <form className="vpsigForm" onSubmit={(event) => void submit(event)}>
-          <p className="vpsigFormTitle">Add what you noticed</p>
-          <fieldset
-            className="vpsigQuestions"
-            aria-label="What did you notice?"
-          >
-            {AUTHOR_QUESTIONS.map((item) => (
-              <label className="vpsigQuestion" key={item.value}>
-                <input
-                  type="radio"
-                  name={`signal-question-${venueId}`}
-                  value={item.value}
-                  checked={question === item.value}
-                  onChange={() => chooseQuestion(item.value)}
-                />
-                <span>{item.label}</span>
-              </label>
-            ))}
-          </fieldset>
-
-          <fieldset
-            className="vpsigAccessTargets"
-            aria-label="Which access did you check?"
-            hidden={question !== "access"}
-          >
-            {(["step-free-venue", "step-free-toilets"] as const).map(
-              (key) => (
-                <label className="vpsigQuestion" key={key}>
+        {canSubmit ? (
+          <form className="vpsigForm" onSubmit={(event) => void submit(event)}>
+            <p className="vpsigFormTitle">Add what you noticed</p>
+            <fieldset
+              className="vpsigQuestions"
+              aria-label="What did you notice?"
+            >
+              {AUTHOR_QUESTIONS.map((item) => (
+                <label className="vpsigQuestion" key={item.value}>
                   <input
                     type="radio"
-                    name={`signal-access-${venueId}`}
-                    value={key}
-                    checked={accessKey === key}
-                    onChange={() => chooseAccess(key)}
+                    name={`signal-question-${venueId}`}
+                    value={item.value}
+                    checked={question === item.value}
+                    onChange={() => chooseQuestion(item.value)}
                   />
-                  <span>
-                    {key === "step-free-venue" ? "Entrance" : "Toilets"}
-                  </span>
+                  <span>{item.label}</span>
                 </label>
-              ),
-            )}
-          </fieldset>
+              ))}
+            </fieldset>
 
-          <fieldset
-            className="vpsigOptions"
-            aria-label={`What did you notice about ${COMMUNITY_VENUE_SIGNAL_LABELS[signalKey].toLowerCase()} at ${venueName}?`}
-          >
-            {options.map((option) => (
-              <label className="vpsigOption" key={option.value}>
-                <input
-                  type="radio"
-                  name={`signal-value-${venueId}`}
-                  value={option.value}
-                  checked={signalValue === option.value}
-                  onChange={() => {
-                    setSelectedValue(option.value);
-                    setError(null);
-                    setSaved(false);
-                  }}
-                />
-                <span>{option.label}</span>
-              </label>
-            ))}
-          </fieldset>
+            <fieldset
+              className="vpsigAccessTargets"
+              aria-label="Which access did you check?"
+              hidden={question !== "access"}
+            >
+              {(["step-free-venue", "step-free-toilets"] as const).map(
+                (key) => (
+                  <label className="vpsigQuestion" key={key}>
+                    <input
+                      type="radio"
+                      name={`signal-access-${venueId}`}
+                      value={key}
+                      checked={accessKey === key}
+                      onChange={() => chooseAccess(key)}
+                    />
+                    <span>
+                      {key === "step-free-venue" ? "Entrance" : "Toilets"}
+                    </span>
+                  </label>
+                ),
+              )}
+            </fieldset>
 
-          {question === "character" ? (
-            <p className="vpsigCharacterNote">
-              Neither character answer is a score. It is your judgement.
-            </p>
-          ) : null}
+            <fieldset
+              className="vpsigOptions"
+              aria-label={`What did you notice about ${COMMUNITY_VENUE_SIGNAL_LABELS[signalKey].toLowerCase()} at ${venueName}?`}
+            >
+              {options.map((option) => (
+                <label className="vpsigOption" key={option.value}>
+                  <input
+                    type="radio"
+                    name={`signal-value-${venueId}`}
+                    value={option.value}
+                    checked={signalValue === option.value}
+                    onChange={() => {
+                      setSelectedValue(option.value);
+                      setError(null);
+                      setSaved(false);
+                    }}
+                  />
+                  <span>{option.label}</span>
+                </label>
+              ))}
+            </fieldset>
 
-          <button className="vpsigSubmit" type="submit" disabled={submitting}>
-            {submitting ? "Logging…" : "Log what you saw"}
-          </button>
-          {error ? (
-            <p className="vpsigError" role="alert">
-              {error}
-            </p>
-          ) : null}
-          {saved ? (
-            <p className="vpsigSaved" role="status">
-              Logged as your report. A second drinker can confirm it.
-            </p>
-          ) : null}
-        </form>
+            {question === "character" ? (
+              <p className="vpsigCharacterNote">
+                Neither character answer is a score. It is your judgement.
+              </p>
+            ) : null}
+
+            <button className="vpsigSubmit" type="submit" disabled={submitting}>
+              {submitting ? "Logging…" : "Log what you saw"}
+            </button>
+            {error ? (
+              <p className="vpsigError" role="alert">
+                {error}
+              </p>
+            ) : null}
+            {saved ? (
+              <p className="vpsigSaved" role="status">
+                Logged as your report. A second drinker can confirm it.
+              </p>
+            ) : null}
+          </form>
+        ) : (
+          <p className="vpsigSignIn">Sign in to add what you noticed.</p>
+        )}
+        {contributionGateDialog}
       </div>
     </details>
   );

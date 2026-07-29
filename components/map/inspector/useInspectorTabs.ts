@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 
 import type { TabKey } from "@/lib/venueInspectorTabs";
 
@@ -34,11 +34,14 @@ export function useInspectorTabs(
     "getting-home": null,
   });
 
-  function selectTab(next: TabKey) {
-    setTab(next);
-    onTabSelect?.(next);
-    tabRefs.current[next]?.focus();
-  }
+  const selectTab = useCallback(
+    (next: TabKey) => {
+      setTab(next);
+      onTabSelect?.(next);
+      tabRefs.current[next]?.focus();
+    },
+    [onTabSelect],
+  );
 
   function onTabKeyDown(event: React.KeyboardEvent<HTMLButtonElement>, current: TabKey) {
     if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return;

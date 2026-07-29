@@ -2,8 +2,9 @@
 
 import { MapPin, Sparkles } from "lucide-react";
 
+import { useAuth } from "@/components/auth/AuthProvider";
 import CommunityPriceReport from "@/components/map/CommunityPriceReport";
-import VenuePriceSubmit from "@/components/map/VenuePriceSubmit";
+import VenuePriceEntryPanel from "@/components/map/inspector/VenuePriceEntryPanel";
 import {
   freshestCommunityPrice,
   type CommunityPricesState,
@@ -43,6 +44,7 @@ export default function UnverifiedPubSheet({
   communityPrices,
   experienceLens = "all",
 }: UnverifiedPubSheetProps) {
+  const { user, loading: authLoading, configured: authConfigured } = useAuth();
   const readStatus = communityPrices.venuePriceStatus.get(pub.id) ?? "idle";
   const pricesKnown = readStatus === "ready";
   const readFailed = readStatus === "degraded";
@@ -130,11 +132,14 @@ export default function UnverifiedPubSheet({
         </p>
       ) : null}
 
-      <VenuePriceSubmit
+      <VenuePriceEntryPanel
         key={pub.id}
         venueId={pub.id}
         venueName={pub.name}
         communityPrices={communityPrices}
+        canSubmitPrice={!authConfigured || Boolean(user)}
+        showSignInGate
+        authLoading={authLoading}
         mapReach="mark"
       />
 

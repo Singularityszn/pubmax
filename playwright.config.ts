@@ -1,16 +1,20 @@
 import { randomBytes } from "node:crypto";
 import { defineConfig, devices } from "@playwright/test";
 
-// P3.11 browser smoke suite. One chromium project, one webServer that builds and
-// serves a production build on a fixed port (kept off 3000 so it won't collide
+// P3.11 browser smoke suite. Chromium projects use production builds on
+// fixed ports (kept off 3000 so they won't collide
 // with a hand-run `next dev`). Assertions are WebGL-agnostic so headless boxes
 // with no GPU don't false-fail — see e2e/smoke.spec.ts.
 const PORT = Number(process.env.PW_PORT ?? 3100);
 const BASE_URL = `http://localhost:${PORT}`;
+const KEYLESS_PORT = Number(process.env.PW_KEYLESS_PORT ?? PORT + 1);
+const KEYLESS_BASE_URL = `http://localhost:${KEYLESS_PORT}`;
 const SCREENSHOT_RUN = !!process.env.PW_SCREENSHOTS;
 const SKIP_WEBSERVER = process.env.PW_SKIP_WEBSERVER === "1";
 const NEXT_DIST_DIR =
   process.env.PW_NEXT_DIST_DIR ?? (SCREENSHOT_RUN ? ".next" : ".next-e2e");
+const KEYLESS_NEXT_DIST_DIR =
+  process.env.PW_KEYLESS_NEXT_DIST_DIR ?? `${NEXT_DIST_DIR}-keyless`;
 // Production-style browser tests retain the keyless in-memory stores, but
 // trusted Plan claims never use that storage escape hatch. Give each Playwright
 // invocation a fresh process-only signing key shared by its build/start shell.
@@ -23,6 +27,10 @@ const E2E_VAPID_PUBLIC_KEY = "BJVNwV9XflSMFMBkpBQ8zuzYIfru_xnE_LnqA3x8ENQl2ehKJY
 const E2E_POSTHOG_PROJECT_TOKEN = "phc_pubmaxx_e2e_public_test";
 const E2E_SUPABASE_URL = "https://pubmaxx-e2e.supabase.co";
 const E2E_SUPABASE_PUBLISHABLE_KEY = "pubmaxx-e2e-publishable-key";
+const REAL_AUTH_CONFIGURED = Boolean(
+  process.env.NEXT_PUBLIC_SUPABASE_URL &&
+    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY,
+);
 
 export default defineConfig({
   testDir: "./e2e",
@@ -67,6 +75,8 @@ export default defineConfig({
       // here would false-fail. Screenshots are design-QA artifacts, excluded too.
       testIgnore: [
         "**/screenshots.spec.ts",
+        "**/price-contribution-auth.spec.ts",
+        "**/price-contribution-entry.spec.ts",
         "**/map-gl.spec.ts",
         "**/map-fallback.spec.ts",
         "**/map-service-worker.spec.ts",
@@ -77,6 +87,31 @@ export default defineConfig({
         "**/*.flag-on.spec.ts",
       ],
     },
+    {
+      name: "chromium-keyless",
+      testMatch: "**/price-contribution-entry.spec.ts",
+      use: {
+        ...devices["Desktop Chrome"],
+        baseURL: KEYLESS_BASE_URL,
+        storageState: {
+          cookies: [],
+          origins: [{
+            origin: KEYLESS_BASE_URL,
+            localStorage: [{
+              name: "pubmaxx:analytics-consent:v1",
+              value: "denied",
+            }],
+          }],
+        },
+      },
+    },
+    ...(REAL_AUTH_CONFIGURED
+      ? [{
+          name: "chromium-real-auth",
+          testMatch: "**/price-contribution-auth.spec.ts",
+          use: { ...devices["Desktop Chrome"] },
+        }]
+      : []),
     {
       // GPU-present project: SwiftShader gives Chromium a real software WebGL2
       // context even on a GPU-less box, so map-gl.spec can assert the canvas
@@ -186,7 +221,8 @@ export default defineConfig({
   ],
   webServer: SKIP_WEBSERVER
     ? undefined
-    : {
+    : [
+      {
         command: SCREENSHOT_RUN
           ? `npm run start -- --port ${PORT}`
           : `node scripts/run-with-restored-next-env.mjs npm run build && npm run start -- --port ${PORT}`,
@@ -205,6 +241,21 @@ export default defineConfig({
             E2E_SUPABASE_PUBLISHABLE_KEY,
           PLAN_IDEMPOTENCY_SECRET: E2E_PLAN_SIGNING_SECRET,
           PUBMAX_E2E_KEYLESS: "1",
+          // Auth regressions may opt into the real public Supabase project.
+          // Keep these as pass-throughs: browser tests must not fake auth over
+          // the wire, and ordinary keyless runs remain network-independent.
+          ...(process.env.NEXT_PUBLIC_SUPABASE_URL
+            ? {
+                NEXT_PUBLIC_SUPABASE_URL:
+                  process.env.NEXT_PUBLIC_SUPABASE_URL,
+              }
+            : {}),
+          ...(process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY
+            ? {
+                NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY:
+                  process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY,
+              }
+            : {}),
           // Pass-through for lane e2e that must exercise a flag-on server
           // (L19 landing hierarchy). Unknown/absent stays off (strict 0|1).
           ...(process.env.PUBMAX_LANDING_FIND_MY_PINT
@@ -245,4 +296,27 @@ export default defineConfig({
         stdout: "pipe",
         stderr: "pipe",
       },
+      ...(!SCREENSHOT_RUN
+        ? [{
+            command:
+              `node scripts/run-with-restored-next-env.mjs npm run build && npm run start -- --port ${KEYLESS_PORT}`,
+            env: {
+              NEXT_DIST_DIR: KEYLESS_NEXT_DIST_DIR,
+              NEXT_PUBLIC_POSTHOG_E2E_ALLOW_BOT: "1",
+              NEXT_PUBLIC_VAPID_PUBLIC_KEY: E2E_VAPID_PUBLIC_KEY,
+              NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN:
+                E2E_POSTHOG_PROJECT_TOKEN,
+              NEXT_PUBLIC_SUPABASE_URL: "",
+              NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: "",
+              PLAN_IDEMPOTENCY_SECRET: E2E_PLAN_SIGNING_SECRET,
+              PUBMAX_E2E_KEYLESS: "1",
+            },
+            url: KEYLESS_BASE_URL,
+            reuseExistingServer: !process.env.CI,
+            timeout: 600_000,
+            stdout: "pipe" as const,
+            stderr: "pipe" as const,
+          }]
+        : []),
+    ],
 });

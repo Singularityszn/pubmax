@@ -2,8 +2,8 @@ import { test, expect, type Page } from "@playwright/test";
 
 // Camera-first Spill composer E2E (PRD "For-You map" priority 2). WebGL-agnostic:
 // the composer is a DOM panel inside VenueInspector, opened by deep-linking to a
-// seed pub's detail sheet (?sel=<id>) and clicking the sticky "Log a Pint Drop"
-// button — never a canvas pin click. Mirrors e2e/social-loop.spec.ts / e2e/
+// seed pub's detail sheet (?sel=<id>) and clicking the Stories panel's
+// "Log a Pint Drop" button - never a canvas pin click. Mirrors e2e/social-loop.spec.ts / e2e/
 // map-story.spec.ts: watchPageErrors, web-first assertions, .count()-guards so an
 // empty/altered seed is never a hard failure, no waitForTimeout.
 
@@ -48,11 +48,8 @@ async function openComposer(page: Page) {
   const pintsPanel = venueSheet.locator("#venuePanel-pints");
   await venueSheet.getByRole("tab", { name: "Stories", exact: true }).click();
   await expect(venueSheet.locator(".mobileSharedSheet")).toHaveClass(/sheet-full/);
-  await venueSheet
-    .getByRole("toolbar", { name: "Venue actions" })
-    .getByRole("button", { name: /log a pint drop/i })
-    .click();
   await expect(pintsPanel).toBeVisible();
+  await pintsPanel.getByRole("button", { name: /log a pint drop/i }).click();
   const form = page.locator("form.dropComposer");
   await expect(form).toBeVisible();
   return { pintsPanel, form };

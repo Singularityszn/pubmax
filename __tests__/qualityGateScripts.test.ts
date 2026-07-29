@@ -93,6 +93,10 @@ describe("Playwright isolated build configuration", () => {
     );
     expect(source).toContain("SKIP_WEBSERVER = process.env.PW_SKIP_WEBSERVER === \"1\"");
     expect(source).toContain("webServer: SKIP_WEBSERVER");
+    expect(source).toContain('name: "chromium-keyless"');
+    expect(source).toContain("baseURL: KEYLESS_BASE_URL");
+    expect(source).toContain('NEXT_PUBLIC_SUPABASE_URL: ""');
+    expect(source).toContain('NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ""');
     expect(source).toContain(
       "node scripts/run-with-restored-next-env.mjs npm run build && npm run start",
     );

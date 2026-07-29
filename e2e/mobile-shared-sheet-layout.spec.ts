@@ -104,11 +104,11 @@ test("mobile venue footer stays pinned and actionable at every sheet detent", as
   const sheet = portal.locator(".mobileSharedSheet");
   const footer = portal.locator(".mobileSharedSheetFooter");
   const body = portal.locator(".mobileSharedSheetBody");
-  const pintDrop = portal.getByRole("button", { name: "Log a Pint Drop at Arnos Arms" });
+  const addPrice = portal.getByRole("button", { name: "Add a price at Arnos Arms" });
 
   await expect(sheet).toHaveClass(/sheet-half/);
   await expectSheetInsideViewport(page, sheet, footer);
-  await expect(pintDrop).toBeInViewport();
+  await expect(addPrice).toBeInViewport();
 
   const footerBeforeScroll = await footer.boundingBox();
   await body.evaluate((element) => {
@@ -121,7 +121,7 @@ test("mobile venue footer stays pinned and actionable at every sheet detent", as
   await sheet.getByRole("button", { name: "Expand sheet" }).click();
   await expect(sheet).toHaveClass(/sheet-full/);
   await expectSheetInsideViewport(page, sheet, footer);
-  await expect(pintDrop).toBeInViewport();
+  await expect(addPrice).toBeInViewport();
 
   await sheet.getByRole("button", { name: "Collapse sheet" }).click();
   await expect(sheet).toHaveClass(/sheet-half/);
@@ -138,9 +138,9 @@ test("mobile venue footer stays pinned and actionable at every sheet detent", as
 
   await expect(sheet).toHaveClass(/sheet-peek/);
   await expectSheetInsideViewport(page, sheet, footer);
-  await expect(pintDrop).toBeInViewport();
-  await pintDrop.click();
-  await expect(page.getByRole("form", { name: "Pint Drop composer" })).toBeVisible();
+  await expect(addPrice).toBeInViewport();
+  await addPrice.click();
+  await expect(page.locator(".venuePriceSubmit")).toBeVisible();
 
   expect(browserErrors).toEqual([]);
 });

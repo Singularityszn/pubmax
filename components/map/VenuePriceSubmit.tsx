@@ -22,11 +22,8 @@ import { mergePriceChips } from "@/lib/spillPreview";
 import type { DrinkCategory } from "@/lib/drinks";
 import { formatPrice } from "@/lib/venues";
 import type { CommunityPricesState } from "@/components/map/useCommunityPrices";
-import VenueCommunitySignals from "@/components/map/VenueCommunitySignals";
 import { useContributionGate } from "@/components/identity/ContributionGateDialog";
 import { trackEvent } from "@/lib/analytics";
-
-import "./venuePriceSubmit.css";
 
 // The word-of-mouth moment: you're standing in the pub, you tap what you're
 // drinking, you type what it cost, and the map restamps under your thumb.
@@ -34,7 +31,8 @@ import "./venuePriceSubmit.css";
 // Deliberately NOT the Pint Drop composer. That is the full social object - a
 // handle, photos, a note, a visibility lane, a destination. This is the
 // twenty-second version for the person at the bar: category, price, done. The
-// contribution gate asks for the signed account and completed private profile.
+// Price-entry surfaces check account state before mounting it, so nobody
+// types a price and only then learns they need to sign in.
 //
 // Provenance is first-class, not decoration: the confirmation shows the price
 // with its own dated "today · community" badge, and the scraped/sourced
@@ -67,6 +65,8 @@ type VenuePriceSubmitProps = {
    * receipt must claim the first and never the second.
    */
   mapReach?: CommunityPriceMapReach;
+  /** Increment to bring this existing form under the drinker's thumb. */
+  focusRequest?: number;
 };
 
 /**
@@ -87,7 +87,10 @@ export default function VenuePriceSubmit({
   baselinePriceGbp = null,
   latestPintDropAt = null,
   mapReach = "paint",
+  focusRequest = 0,
 }: VenuePriceSubmitProps) {
+  const titleId = `vpsubTitle-${venueId}`;
+  const priceInputRef = useRef<HTMLInputElement>(null);
   const [category, setCategory] = useState<DrinkCategory>(DEFAULT_SUBMIT_CATEGORY);
   const [price, setPrice] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -101,28 +104,25 @@ export default function VenuePriceSubmit({
   const { requestContribution, contributionGateDialog } =
     useContributionGate();
 
-  const { byVenueId, loadVenue, submit, submitting } = communityPrices;
-  // The funnel's denominator. This component is keyed by venue id, so it mounts
-  // once per venue-sheet open and the ratio price_submitted / price_submit_viewed
-  // reads as "submissions per sheet open". The category is the one the card
-  // opens on, not the one eventually submitted - a viewed event must not wait
-  // for an interaction it is meant to measure the absence of. Consent-gated
-  // like every other event: trackEvent no-ops without it.
-  // The ref, not the effect body alone, is what makes it ONE event per open:
-  // an effect that re-runs (React's development double-invoke, a future
-  // dependency change) would otherwise inflate the denominator and quietly
-  // halve the reported submission rate.
-  const viewedVenueId = useRef<string | null>(null);
+  const { byVenueId, submit, submitting } = communityPrices;
+
   useEffect(() => {
-    if (viewedVenueId.current === venueId) return;
-    viewedVenueId.current = venueId;
-    trackEvent("price_submit_viewed", { category: DEFAULT_SUBMIT_CATEGORY });
-  }, [venueId]);
-  // Community prices already on record for this pub, so the card opens showing
-  // what the community last said rather than an empty slot.
-  useEffect(() => {
-    loadVenue(venueId);
-  }, [loadVenue, venueId]);
+    if (focusRequest <= 0) return;
+    let focusFrame = 0;
+    const focusTimer = window.setTimeout(() => {
+      focusFrame = window.requestAnimationFrame(() => {
+        priceInputRef.current?.scrollIntoView({
+          block: "center",
+          behavior: "smooth",
+        });
+        priceInputRef.current?.focus();
+      });
+    }, 120);
+    return () => {
+      window.clearTimeout(focusTimer);
+      window.cancelAnimationFrame(focusFrame);
+    };
+  }, [focusRequest]);
 
   // The receipt: the freshest community price for the chosen drink. The
   // optimistic submit writes into this same layer, so it appears the instant
@@ -187,10 +187,14 @@ export default function VenuePriceSubmit({
   }
 
   return (
-    <section className="venuePriceSubmit" aria-labelledby="vpsubTitle">
+    <section
+      id={`venue-price-submit-${venueId}`}
+      className="venuePriceSubmit"
+      aria-labelledby={titleId}
+    >
       <div className="vpsubHead">
         <Tag size={15} aria-hidden="true" />
-        <h3 id="vpsubTitle" className="vpsubTitle">
+        <h3 id={titleId} className="vpsubTitle">
           What&rsquo;s it tonight?
         </h3>
       </div>
@@ -225,6 +229,7 @@ export default function VenuePriceSubmit({
             £
           </span>
           <input
+            ref={priceInputRef}
             className="vpsubInput"
             type="text"
             inputMode="decimal"
@@ -326,22 +331,13 @@ export default function VenuePriceSubmit({
         </div>
       ) : (
         <p className="vpsubNote">
-          Sign in to log a price under your public handle. Yours shows on this
-          pub&rsquo;s page straight away, dated and badged as community - it
-          never replaces the price on record.{" "}
+          Your price shows on this pub&rsquo;s page straight away, dated and
+          badged as community - it never replaces the price on record.{" "}
           {communityReachNote(category, mapReach)} Up to £
-          {COMMUNITY_PRICE_MAX_GBP} a drink.
+          {COMMUNITY_PRICE_MAX_GBP} a drink. It counts under your account-owned
+          public handle on the contributor record.
         </p>
       )}
-      <VenueCommunitySignals
-        venueId={venueId}
-        venueName={venueName}
-        signals={communityPrices.signalsByVenueId.get(venueId) ?? []}
-        readStatus={communityPrices.venuePriceStatus.get(venueId) ?? "idle"}
-        submitting={submitting}
-        onSubmit={communityPrices.submitVenueSignal}
-        requestContribution={requestContribution}
-      />
       {contributionGateDialog}
     </section>
   );

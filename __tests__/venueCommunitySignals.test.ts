@@ -20,9 +20,7 @@ function render(
       readStatus,
       submitting: false,
       onSubmit: async () => ({ ok: true as const }),
-      requestContribution: async (action) => {
-        await action({ userId: "user-a", accessToken: "token-a" });
-      },
+      canSubmit: true,
       now: NOW,
     }),
   );
@@ -132,5 +130,26 @@ describe("VenueCommunitySignals", () => {
     expect(html).toContain('value="step-free-venue"');
     expect(html).toContain('value="step-free-toilets"');
     expect(html).toContain('type="submit"');
+  });
+
+  it("keeps readings public while withholding the signed-out composer", () => {
+    const html = renderToStaticMarkup(
+      createElement(VenueCommunitySignals, {
+        venueId: "venue-xjf3n0",
+        venueName: "Arnos Arms",
+        signals: [],
+        readStatus: "ready",
+        submitting: false,
+        onSubmit: async () => ({ ok: true as const }),
+        canSubmit: false,
+        now: NOW,
+      }),
+    );
+
+    expect(html).toContain("What drinkers noticed");
+    expect(html).toContain("Nobody has confirmed step-free entrance access.");
+    expect(html).toContain("Sign in to add what you noticed.");
+    expect(html).not.toContain("Add what you noticed");
+    expect(html).not.toContain('type="submit"');
   });
 });

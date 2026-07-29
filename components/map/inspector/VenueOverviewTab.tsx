@@ -19,7 +19,7 @@ import { isPubVenue } from "@/lib/venueKindFilters";
 import SaveToListControl from "@/components/savedpubs/SaveToListControl";
 import NextBadgeChips from "@/components/profile/NextBadgeChips";
 import FirstDropNudge from "@/components/map/inspector/FirstDropNudge";
-import VenuePriceSubmit from "@/components/map/VenuePriceSubmit";
+import VenuePriceEntryPanel from "./VenuePriceEntryPanel";
 import VenuePriceThen from "@/components/map/VenuePriceThen";
 import VenueWeatherRecommendations from "@/components/map/VenueWeatherRecommendations";
 import CommunityPriceReport from "@/components/map/CommunityPriceReport";
@@ -180,6 +180,10 @@ export default function VenueOverviewTab({
   onRequestLocation,
   onClearLocation,
   onStartFirstDrop,
+  priceEntryAllowed,
+  priceSignInRequested,
+  priceAuthLoading,
+  priceFocusRequest,
 }: {
   venue: Venue;
   tab: TabKey;
@@ -204,6 +208,10 @@ export default function VenueOverviewTab({
   /** Opens the existing Pint Drop composer prefilled for this venue (Pints
    *  tab + composer open). Fired by the first-drop nudge on unpriced venues. */
   onStartFirstDrop: () => void;
+  priceEntryAllowed: boolean;
+  priceSignInRequested: boolean;
+  priceAuthLoading: boolean;
+  priceFocusRequest: number;
 }) {
   // Known-true accessibility facts only (PRD issue #28). Unknown/known-false
   // facets render nothing — never a "No" — per the provenance-honesty rule.
@@ -453,15 +461,19 @@ export default function VenueOverviewTab({
           Pubs only — a Pint Drop at a bar or late-food venue would
           feed a non-pint figure into the pint record. */}
       {isPubVenue(venue) ? (
-        <VenuePriceSubmit
+        <VenuePriceEntryPanel
           // Keyed by venue so the chosen drink, the typed price and the receipt
           // never leak across pubs - this instance persists between selections.
           key={venue.id}
           venueId={venue.id}
           venueName={venue.name}
           communityPrices={communityPrices}
+          canSubmitPrice={priceEntryAllowed}
+          showSignInGate={priceSignInRequested}
+          authLoading={priceAuthLoading}
           baselinePriceGbp={latestContributorPrice ?? venue.cheapestPrice}
           latestPintDropAt={latestPintDropAt}
+          focusRequest={priceFocusRequest}
         />
       ) : null}
       {mode === "build" && isPubVenue(venue) ? (

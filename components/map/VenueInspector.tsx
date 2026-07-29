@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
+import { useAuth } from "@/components/auth/AuthProvider";
 import { type Venue } from "@/lib/venues";
 import type { PintDropsState } from "@/components/map/usePintDrops";
 import type { CommunityPricesState } from "@/components/map/useCommunityPrices";
@@ -17,6 +18,10 @@ import type { JourneyPoint } from "@/lib/venueJourney";
 import type { LocationRequestStatus } from "@/components/map/VenueGettingThere";
 import type { MapExperienceLens } from "@/lib/mapExperienceLens";
 import { prefetchLastRide } from "@/lib/lastRideClient";
+import {
+  runPriceContributionRequest,
+  runPriceContributionReturn,
+} from "@/lib/priceContributionIntent";
 
 import { useInspectorTabs } from "./inspector/useInspectorTabs";
 import { usePresence } from "./inspector/usePresence";
@@ -82,6 +87,24 @@ type VenueInspectorProps = {
   experienceLens?: MapExperienceLens;
 };
 
+function focusPriceDestination(id: string): void {
+  window.setTimeout(() => {
+    window.requestAnimationFrame(() => {
+      const destination = document.getElementById(id);
+      destination?.focus({ preventScroll: true });
+      destination?.scrollIntoView({ block: "start", behavior: "smooth" });
+    });
+  }, 120);
+}
+
+function browserStorage(): Storage | null {
+  try {
+    return window.localStorage;
+  } catch {
+    return null;
+  }
+}
+
 export default function VenueInspector({
   venue,
   mode,
@@ -109,6 +132,14 @@ export default function VenueInspector({
   experienceLens = "all",
 }: VenueInspectorProps) {
   const { dropsByVenueId, setComposerOpen } = pintDrops;
+  const { user, loading: authLoading, configured: authConfigured } = useAuth();
+  const [priceSignInVenueId, setPriceSignInVenueId] = useState<string | null>(
+    null,
+  );
+  const [priceFocusRequest, setPriceFocusRequest] = useState<{
+    venueId: string | null;
+    count: number;
+  }>({ venueId: null, count: 0 });
   const drops = useMemo(() => dropsByVenueId.get(venue.id) ?? [], [dropsByVenueId, venue.id]);
   const pubVenue = isPubVenue(venue);
   const TABS = useMemo(() => tabsForVenue(cityId, venue.kind), [cityId, venue.kind]);
@@ -140,6 +171,71 @@ export default function VenueInspector({
     selectTab("pints");
     setComposerOpen(true);
   }
+
+  const openPriceForm = useCallback((): void => {
+    selectTab("overview");
+    setPriceSignInVenueId(null);
+    setPriceFocusRequest((current) => ({
+      venueId: venue.id,
+      count: current.venueId === venue.id ? current.count + 1 : 1,
+    }));
+  }, [selectTab, venue.id]);
+
+  function requestPriceEntry(): void {
+    runPriceContributionRequest({
+      authConfigured,
+      userPresent: Boolean(user),
+      venueId: venue.id,
+      currentUrl: window.location.href,
+      storage: browserStorage(),
+      actions: {
+        replaceUrl: (url) => {
+          window.history.replaceState(window.history.state, "", url);
+        },
+        showSignIn: () => {
+          selectTab("overview");
+          setPriceSignInVenueId(venue.id);
+          focusPriceDestination("venuePriceSignInTitle");
+        },
+        openForm: openPriceForm,
+      },
+    });
+  }
+
+  useEffect(() => {
+    const frame = window.requestAnimationFrame(() => {
+      runPriceContributionReturn({
+        authConfigured,
+        authLoading,
+        userPresent: Boolean(user),
+        venueId: venue.id,
+        requestedVenueId: priceSignInVenueId,
+        currentUrl: window.location.href,
+        storage: browserStorage(),
+        actions: {
+          replaceUrl: (url) => {
+            window.history.replaceState(window.history.state, "", url);
+          },
+          showSignIn: () => {
+            selectTab("overview");
+            setPriceSignInVenueId(venue.id);
+            focusPriceDestination("venuePriceSignInTitle");
+          },
+          openForm: openPriceForm,
+          abandon: () => setPriceSignInVenueId(null),
+        },
+      });
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [
+    authConfigured,
+    authLoading,
+    openPriceForm,
+    priceSignInVenueId,
+    selectTab,
+    user,
+    venue.id,
+  ]);
 
   // Start transport work with the sheet, not several taps later when the Train
   // tab mounts. LastTrainCard shares this bounded request and still owns all
@@ -199,6 +295,14 @@ export default function VenueInspector({
         onRequestLocation={onRequestLocation}
         onClearLocation={onClearLocation}
         onStartFirstDrop={startPintDrop}
+        priceEntryAllowed={!authConfigured || Boolean(user)}
+        priceSignInRequested={priceSignInVenueId === venue.id}
+        priceAuthLoading={authLoading}
+        priceFocusRequest={
+          priceFocusRequest.venueId === venue.id
+            ? priceFocusRequest.count
+            : 0
+        }
       />
 
       {/* Pints — the primary tab: demo note, drops list, composer / log bar. */}
@@ -243,16 +347,15 @@ export default function VenueInspector({
         onDecision={setLastTrainDecision}
       />
 
-      {/* Wave K1 — mobile sticky command bar (Drop / crawl / share / train).
-          Desktop keeps actions in-tab; this bar is CSS-hidden above 640px. */}
+      {/* Venue command bar. On phones it moves into the shared sheet footer;
+          on desktop it stays pinned at the bottom of this inspector. */}
       <VenueStickyBar
         venue={venue}
         mode={mode}
         inCrawl={inCrawl}
         onToggleStop={onToggleStop}
         onAcceptStop1={onAcceptStop1}
-        selectTab={selectTab}
-        setComposerOpen={setComposerOpen}
+        onAddPrice={requestPriceEntry}
         shareVenue={shareVenue}
         currentShareFeedback={currentShareFeedback}
       />
