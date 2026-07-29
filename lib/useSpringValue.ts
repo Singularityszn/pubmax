@@ -47,7 +47,9 @@ export function useSpringValue(
   const reducedMotionRef = useRef(false);
   const mountedRef = useRef(true);
 
-  responseRef.current = response;
+  useEffect(() => {
+    responseRef.current = response;
+  }, [response]);
 
   const cancelFrame = useCallback(() => {
     if (frameRef.current !== null) {
@@ -70,42 +72,40 @@ export function useSpringValue(
     onRest?.();
   }, [cancelFrame]);
 
-  const runFrameRef = useRef<(timestamp: number) => void>(() => undefined);
-  runFrameRef.current = (timestamp: number) => {
-    const lastTimestamp = lastTimestampRef.current;
-    lastTimestampRef.current = timestamp;
+  const runFrame = useCallback(
+    function tick(timestamp: number) {
+      const lastTimestamp = lastTimestampRef.current;
+      lastTimestampRef.current = timestamp;
 
-    if (lastTimestamp !== null) {
-      const next = stepSpring(
-        stateRef.current,
-        targetRef.current,
-        (timestamp - lastTimestamp) / 1000,
-        {
-          response: responseRef.current,
-          dampingRatio: dampingRef.current,
-        },
-      );
-      stateRef.current = next;
-      if (mountedRef.current) setValue(next.value);
+      if (lastTimestamp !== null) {
+        const next = stepSpring(
+          stateRef.current,
+          targetRef.current,
+          (timestamp - lastTimestamp) / 1000,
+          {
+            response: responseRef.current,
+            dampingRatio: dampingRef.current,
+          },
+        );
+        stateRef.current = next;
+        if (mountedRef.current) setValue(next.value);
 
-      if (isSpringSettled(next, targetRef.current)) {
-        finishAtTarget();
-        return;
+        if (isSpringSettled(next, targetRef.current)) {
+          finishAtTarget();
+          return;
+        }
       }
-    }
 
-    frameRef.current = requestAnimationFrame((nextTimestamp) => {
-      runFrameRef.current(nextTimestamp);
-    });
-  };
+      frameRef.current = requestAnimationFrame(tick);
+    },
+    [finishAtTarget],
+  );
 
   const startFrame = useCallback(() => {
     if (frameRef.current !== null) return;
     lastTimestampRef.current = null;
-    frameRef.current = requestAnimationFrame((timestamp) => {
-      runFrameRef.current(timestamp);
-    });
-  }, []);
+    frameRef.current = requestAnimationFrame(runFrame);
+  }, [runFrame]);
 
   const animateTo = useCallback(
     (target: number, options: SpringAnimationOptions = {}) => {
