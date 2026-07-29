@@ -39,9 +39,12 @@ PR-ready evidence for the Wave 2 surface-craft work.
   selected venue: pass.
 - Mobile full-sheet focus containment and reduced-motion snap: pass.
 - Spring animation frames are bounded, cancel on unmount and retarget, and drop
-  `will-change` at rest. Desktop drawers stay transform-only. Phone sheet height
-  animation is contained with `contain: layout paint` because actual height is
-  required to preserve sticky-footer geometry at every snap.
+  `will-change` at rest. Drawer animation is isolated from the map render tree,
+  stays vertical from 641 to 768 pixels, switches to horizontal above 768
+  pixels, and retains its content until the closing spring rests. Tablet drag
+  release velocity carries into the spring. Phone sheet height animation is
+  contained with `contain: layout paint` because actual height is required to
+  preserve sticky-footer geometry at every snap.
 
 ## Visual evidence
 
@@ -88,10 +91,12 @@ prototype surface was added.
 
 ## Verification
 
-- Focused accessibility Playwright: 3 passed with one worker.
-- Mobile sheet reduced-motion and focus Playwright: 1 passed with one worker.
+- Focused Playwright: 5 passed with one worker, covering keyboard venue
+  selection, desktop focus trapping, mobile sheet focus containment and reduced
+  motion, locked call-to-action contrast, and responsive drawer orientation at
+  700 and 900 pixels.
 - Focused unit suites for spring motion, sheet snaps, materials, map hierarchy,
   price stamps, MapLibre colour normalisation, and collision policy: pass.
 - Browser console after final dark and light captures: no MapLibre style errors.
-- `npm run verify`: pass, including 698 test files and 7,068 tests.
+- `npm run verify`: pass, including the full coverage suite.
 - `NEXT_DIST_DIR=.next-prod npm run build`: pass.
