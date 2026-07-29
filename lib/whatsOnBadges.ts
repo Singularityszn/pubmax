@@ -100,7 +100,7 @@ export type WhatsOnLaneCard = {
   badgeLabel: string;
   title: string;
   placeName: string;
-  /** London start-time label for timed kinds; null for untimed (sport). */
+  /** Exact London clock or source-listed time wording; null when unavailable. */
   timeLabel: string | null;
   priceGbp?: number;
   /** Straight-line "~N min walk" when the viewer shared a location. */
@@ -130,7 +130,7 @@ export function formatWhatsOnTime(iso: string | undefined): string | null {
   }
 }
 
-/** Time label to show on a card: timed kinds get a clock; sport stays untimed. */
+/** Time label to show on a card: exact clock first, then source-listed wording. */
 export function laneTimeLabel(row: WhatsOnRow): string | null {
   if (!WHATS_ON_KIND_META[row.kind].timed) return null;
   return formatWhatsOnTime(row.startsAt) ?? row.timeEvidence ?? null;

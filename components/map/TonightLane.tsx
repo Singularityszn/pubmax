@@ -6,8 +6,9 @@
 // horizontally scrollable row of 3–5 nearby cards with kind filter chips.
 // Cards deep-link into the venue sheet (onSelectVenue) and carry a plan
 // affordance (/plan?src=tonight-lane) so lane→plan conversions are attributable.
-// Provenance ("Screens live sport" / a start time + "Checked <date>" + source
-// label) rides every card — no invented times.
+// Provenance ("Screens live sport" / source-listed time evidence + "Checked
+// <date>" + source label) rides every card. Exact clocks and urgency appear
+// only when the source supplied a firm start.
 //
 // Prop-driven: PubMap owns the fetch (useWhatsOnTonight) and the map wiring;
 // this component is pure presentation over rows it is handed. Renders nothing

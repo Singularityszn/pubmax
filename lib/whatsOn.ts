@@ -7,10 +7,7 @@
 // Contract note: unlike drink updates, `source` here is { label, url } ONLY —
 // no licence field (per the B1 row contract).
 
-import {
-  type ThingsToDoOpportunity,
-  type ThingsToDoResult,
-} from "@/lib/citymcp/client";
+import { type ThingsToDoResult } from "@/lib/citymcp/client";
 
 export const WHATS_ON_KINDS = ["sport", "quiz", "deal", "music"] as const;
 export type WhatsOnKind = (typeof WHATS_ON_KINDS)[number];

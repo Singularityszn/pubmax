@@ -1,14 +1,15 @@
 "use client";
 
-// "Cheapest pints near you today" — the map's Area-button derivation surfaced on
-// the morning brief. The server precomputes a tight five for every area, so this
-// only reads the viewer's remembered area and swaps to the matching precomputed
-// list (no venue data ships to the browser, the swap is instant, and the first
-// paint always matches SSR: the central default).
+// The map's Area-button derivation surfaced on the morning brief. The server
+// precomputes a tight five for every area, so this reads the viewer's remembered
+// area and swaps to the matching precomputed list (no venue data ships to the
+// browser, the swap is instant, and the first paint always matches SSR: the
+// central default).
 //
-// We always SAY which area these pints are from and link to change it on the map,
-// and every row deep-links to its venue on the map. Fail-soft: an area with no
-// verified prices renders nothing, never an empty box.
+// Copy claims "near you" only for a resolved remembered patch and "today" only
+// when the dataset date matches today; otherwise it names central London and the
+// collection date. Every row deep-links to its venue on the map. Fail-soft: an
+// area with no verified prices renders nothing, never an empty box.
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
