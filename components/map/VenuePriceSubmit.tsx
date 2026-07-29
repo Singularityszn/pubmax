@@ -164,12 +164,12 @@ export default function VenuePriceSubmit({
     // submission at a time keeps the optimistic rollback snapshots coherent.
     if (submitting || !priceValidation.ok) return;
     setError(null);
-    await requestContribution(async () => {
+    await requestContribution(async (auth) => {
       const result = await submit({
         venueId,
         drinkCategory: category,
         priceGbp: price,
-      });
+      }, auth);
       if (!result.ok) {
         trackEvent("price_submit_failed", { category, reason: result.reason });
         setError(result.error);

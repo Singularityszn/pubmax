@@ -4,7 +4,10 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 import SignInButton from "@/components/auth/SignInButton";
 import { useAuth } from "@/components/auth/AuthProvider";
-import { captureAccountAuth } from "@/lib/accountBoundFetch";
+import {
+  captureAccountAuth,
+  type AccountAuthSnapshot,
+} from "@/lib/accountBoundFetch";
 import { trackEvent } from "@/lib/analytics";
 import {
   checkContributionGate,
@@ -136,7 +139,14 @@ export function ContributionGateDialog({
   );
 }
 
-type PendingContribution = () => void | Promise<void>;
+type PendingContribution = (
+  auth: AccountAuthSnapshot,
+) => void | Promise<void>;
+
+type CapturedContribution = Readonly<{
+  action: PendingContribution;
+  auth: AccountAuthSnapshot;
+}>;
 
 export function useContributionGate(): {
   requestContribution: (action: PendingContribution) => Promise<void>;
@@ -150,7 +160,7 @@ export function useContributionGate(): {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [gateUserId, setGateUserId] = useState(userId);
-  const pending = useRef<PendingContribution | null>(null);
+  const pending = useRef<CapturedContribution | null>(null);
   const stateUserId = useRef(userId);
 
   const resetGate = useCallback((nextUserId: string | null) => {
@@ -179,20 +189,28 @@ export function useContributionGate(): {
   const requestContribution = useCallback(
     async (action: PendingContribution) => {
       if (stateUserId.current !== userId) return;
-      pending.current = action;
       setError(null);
-      if (!user) {
+      const auth = captureAccountAuth(userId, session);
+      if (!user || !auth) {
+        pending.current = null;
         trackEvent("contribution_gate", { step: "sign_in_required" });
         setMode("sign_in_required");
         return;
       }
+      const contribution = { action, auth };
+      pending.current = contribution;
       setBusy(true);
-      const gate = await checkContributionGate();
-      if (stateUserId.current !== userId) return;
+      const gate = await checkContributionGate(auth);
+      if (
+        stateUserId.current !== userId ||
+        pending.current !== contribution
+      ) {
+        return;
+      }
       setBusy(false);
       if (gate.status === "eligible") {
         pending.current = null;
-        await action();
+        await action(auth);
         return;
       }
       if (gate.status === "age_required") {
@@ -202,6 +220,7 @@ export function useContributionGate(): {
       }
       if (gate.status === "underage") {
         trackEvent("contribution_gate", { step: "underage" });
+        pending.current = null;
         setEligibleOn(gate.eligibleOn);
         setMode("underage");
         return;
@@ -215,33 +234,39 @@ export function useContributionGate(): {
       pending.current = null;
       setError(gate.error ?? "Could not check contribution eligibility.");
     },
-    [user, userId],
+    [session, user, userId],
   );
 
   const confirmAge = useCallback(async () => {
-    const auth = captureAccountAuth(userId, session);
+    const contribution = pending.current;
     if (
       !dateOfBirth ||
       busy ||
       stateUserId.current !== userId ||
-      !auth
+      !contribution ||
+      contribution.auth.userId !== userId
     ) {
       return;
     }
     setBusy(true);
     setError(null);
-    const gate = await submitContributionAge(dateOfBirth, auth);
-    if (stateUserId.current !== userId) return;
+    const gate = await submitContributionAge(
+      dateOfBirth,
+      contribution.auth,
+    );
+    if (
+      stateUserId.current !== userId ||
+      pending.current !== contribution
+    ) {
+      return;
+    }
     setBusy(false);
     setDateOfBirth(dateOfBirthAfterAssessment(dateOfBirth, gate));
     if (gate.status === "eligible") {
       setMode(null);
-      const action = pending.current;
       pending.current = null;
-      if (action) {
-        trackEvent("contribution_gate", { step: "resumed" });
-        await action();
-      }
+      trackEvent("contribution_gate", { step: "resumed" });
+      await contribution.action(contribution.auth);
       return;
     }
     if (gate.status === "underage") {
@@ -252,7 +277,7 @@ export function useContributionGate(): {
       return;
     }
     setError(gate.error ?? "Could not confirm contribution eligibility.");
-  }, [busy, dateOfBirth, session, userId]);
+  }, [busy, dateOfBirth, userId]);
 
   return {
     requestContribution,

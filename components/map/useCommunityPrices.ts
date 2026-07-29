@@ -24,7 +24,9 @@ import type {
   VenuePriceReadStatus,
 } from "@/lib/mapExperienceLens";
 import type { PriceSubmitFailureReason } from "@/lib/analyticsEvents";
+import type { AccountAuthSnapshot } from "@/lib/accountBoundFetch";
 import { authedFetch } from "@/lib/authedFetch";
+import { postCommunityContribution } from "@/lib/communityContributionClient";
 import { normalizeHandle } from "@/lib/profiles";
 import {
   isUkBaseId,
@@ -116,13 +118,13 @@ export type CommunityPricesState = {
     venueId: string;
     drinkCategory: DrinkCategory;
     priceGbp: string | number;
-  }) => Promise<CommunityPriceSubmitResult>;
+  }, auth: AccountAuthSnapshot) => Promise<CommunityPriceSubmitResult>;
   /** Log one categorical pub observation through the same write seam. */
   submitVenueSignal: (input: {
     venueId: string;
     signalKey: CommunityVenueSignalKey;
     signalValue: CommunityVenueSignalValue;
-  }) => Promise<CommunityVenueSignalSubmitResult>;
+  }, auth: AccountAuthSnapshot) => Promise<CommunityVenueSignalSubmitResult>;
   /** True while a submission is in flight (one at a time by construction). */
   submitting: boolean;
   /**
@@ -878,7 +880,7 @@ export function useCommunityPrices(): CommunityPricesState {
   );
 
   const submit = useCallback<CommunityPricesState["submit"]>(
-    async (input) => {
+    async (input, auth) => {
       // Run the SAME validator the route runs, so an out-of-bounds price is
       // refused in-place with the identical sentence and never leaves the phone.
       const parsed = validateCommunityPrice(input);
@@ -927,14 +929,10 @@ export function useCommunityPrices(): CommunityPricesState {
 
       setSubmitting(true);
       try {
-        const res = await authedFetch("/api/price-submit", {
-          method: "POST",
-          headers: { "content-type": "application/json" },
-          body: JSON.stringify({
-            venueId,
-            drinkCategory,
-            priceGbp,
-          }),
+        const res = await postCommunityContribution(auth, {
+          venueId,
+          drinkCategory,
+          priceGbp,
         });
         const data = (await res.json().catch(() => null)) as
           | { price?: CommunityPrice; attribution?: unknown; error?: string }
@@ -988,7 +986,7 @@ export function useCommunityPrices(): CommunityPricesState {
   const submitVenueSignal = useCallback<
     CommunityPricesState["submitVenueSignal"]
   >(
-    async (input) => {
+    async (input, auth) => {
       if (submitting) {
         return {
           ok: false,
@@ -1043,15 +1041,11 @@ export function useCommunityPrices(): CommunityPricesState {
 
       setSubmitting(true);
       try {
-        const response = await authedFetch("/api/price-submit", {
-          method: "POST",
-          headers: { "content-type": "application/json" },
-          body: JSON.stringify({
-            kind: "venue-signal",
-            venueId,
-            signalKey,
-            signalValue,
-          }),
+        const response = await postCommunityContribution(auth, {
+          kind: "venue-signal",
+          venueId,
+          signalKey,
+          signalValue,
         });
         const data = (await response.json().catch(() => null)) as
           | { signal?: CommunityVenueSignal; error?: string }

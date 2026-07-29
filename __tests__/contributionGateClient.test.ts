@@ -7,6 +7,8 @@ import {
 } from "@/lib/contributionGateClient";
 
 describe("contribution gate client", () => {
+  const auth = { userId: "user-a", accessToken: "token-a" };
+
   it("reads each server-owned gate state without inferring from copy", async () => {
     for (const status of [
       "eligible",
@@ -25,7 +27,7 @@ describe("contribution gate client", () => {
           { status: status === "eligible" ? 200 : 403 },
         ),
       );
-      await expect(checkContributionGate(request)).resolves.toMatchObject({
+      await expect(checkContributionGate(auth, request)).resolves.toMatchObject({
         status,
       });
     }
@@ -35,14 +37,13 @@ describe("contribution gate client", () => {
     const request = vi.fn().mockResolvedValue(
       new Response(JSON.stringify({ error: "Sign in." }), { status: 401 }),
     );
-    await expect(checkContributionGate(request)).resolves.toEqual({
+    await expect(checkContributionGate(auth, request)).resolves.toEqual({
       status: "sign_in_required",
       error: "Sign in.",
     });
   });
 
   it("submits date of birth once and returns only derived eligibility", async () => {
-    const auth = { userId: "user-a", accessToken: "token-a" };
     const request = vi.fn(
       async (input: RequestInfo | URL, init?: RequestInit) => {
         void input;
@@ -63,6 +64,17 @@ describe("contribution gate client", () => {
         headers: expect.any(Headers),
       }),
     );
+    const headers = new Headers(request.mock.calls[0]?.[1]?.headers);
+    expect(headers.get("authorization")).toBe("Bearer token-a");
+  });
+
+  it("checks eligibility with the account captured at contribution start", async () => {
+    const request = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({ status: "eligible" }), { status: 200 }),
+    );
+
+    await checkContributionGate(auth, request);
+
     const headers = new Headers(request.mock.calls[0]?.[1]?.headers);
     expect(headers.get("authorization")).toBe("Bearer token-a");
   });

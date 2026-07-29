@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import { useAuth } from "@/components/auth/AuthProvider";
 import {
@@ -259,6 +259,14 @@ function AccountOnboardingForUser({
   const [checkedHandle, setCheckedHandle] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const active = useRef(true);
+
+  useEffect(() => {
+    active.current = true;
+    return () => {
+      active.current = false;
+    };
+  }, []);
 
   useEffect(() => {
     let active = true;
@@ -371,6 +379,7 @@ function AccountOnboardingForUser({
           code?: unknown;
           error?: unknown;
         };
+        if (!active.current) return;
         if (!response.ok) {
           if (body.code === "taken") setAvailability("taken");
           if (body.code === "reserved") setAvailability("reserved");
@@ -389,13 +398,15 @@ function AccountOnboardingForUser({
         } catch {
           // Account ownership is durable even when browser storage is blocked.
         }
-        emitIdentityHandleChanged(claimed);
+        emitIdentityHandleChanged({ ownerId: auth.userId, handle: claimed });
         trackEvent("account_claimed", { source: "auth" });
         setStatus("complete");
       } catch {
-        setError("Could not claim that handle. Check your connection.");
+        if (active.current) {
+          setError("Could not claim that handle. Check your connection.");
+        }
       } finally {
-        setBusy(false);
+        if (active.current) setBusy(false);
       }
     },
     [auth, availability, busy, checkedHandle, fullName, handle, sex],

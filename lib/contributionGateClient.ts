@@ -1,4 +1,3 @@
-import { authedFetch } from "@/lib/authedFetch";
 import {
   accountBoundFetch,
   type AccountAuthSnapshot,
@@ -12,11 +11,6 @@ export type ContributionGateClientState =
   | { status: "underage"; eligibleOn?: string; error?: string }
   | { status: "eligible" }
   | { status: "unavailable"; error: string };
-
-export type ContributionGateRequest = (
-  input: string,
-  init?: RequestInit,
-) => Promise<Response>;
 
 export function dateOfBirthAfterAssessment(
   dateOfBirth: string,
@@ -70,13 +64,17 @@ async function readGateResponse(
 }
 
 export async function checkContributionGate(
-  request: ContributionGateRequest = authedFetch,
+  auth: AccountAuthSnapshot,
+  request: AccountBoundRequest = fetch,
 ): Promise<ContributionGateClientState> {
   try {
     return readGateResponse(
-      await request("/api/identity/contribution-gate", {
-        cache: "no-store",
-      }),
+      await accountBoundFetch(
+        auth,
+        "/api/identity/contribution-gate",
+        { cache: "no-store" },
+        request,
+      ),
     );
   } catch {
     return {

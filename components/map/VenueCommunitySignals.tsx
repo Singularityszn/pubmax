@@ -4,6 +4,7 @@ import { useMemo, useState, type FormEvent } from "react";
 import { ChevronDown, MessagesSquare } from "lucide-react";
 
 import type { CommunityVenueSignalSubmitResult } from "@/components/map/useCommunityPrices";
+import type { AccountAuthSnapshot } from "@/lib/accountBoundFetch";
 import type { VenuePriceReadStatus } from "@/lib/mapExperienceLens";
 import {
   COMMUNITY_VENUE_SIGNAL_LABELS,
@@ -48,9 +49,9 @@ type VenueCommunitySignalsProps = {
     venueId: string;
     signalKey: CommunityVenueSignalKey;
     signalValue: CommunityVenueSignalValue;
-  }) => Promise<CommunityVenueSignalSubmitResult>;
+  }, auth: AccountAuthSnapshot) => Promise<CommunityVenueSignalSubmitResult>;
   requestContribution: (
-    action: () => void | Promise<void>,
+    action: (auth: AccountAuthSnapshot) => void | Promise<void>,
   ) => Promise<void>;
   /** Fixed test clock. The app leaves it undefined. */
   now?: number;
@@ -153,12 +154,12 @@ export default function VenueCommunitySignals({
     if (submitting) return;
     setError(null);
     setSaved(false);
-    await requestContribution(async () => {
+    await requestContribution(async (auth) => {
       const result = await onSubmit({
         venueId,
         signalKey,
         signalValue,
-      });
+      }, auth);
       if (!result.ok) {
         setError(result.error);
         return;

@@ -53,7 +53,10 @@ import {
   claimSignupReferralFromAuthCallback,
   withReferralSignupProof,
 } from "@/lib/referralClaimClient";
-import { IDENTITY_HANDLE_CHANGED_EVENT } from "@/lib/identityClient";
+import {
+  IDENTITY_HANDLE_CHANGED_EVENT,
+  identityHandleForOwner,
+} from "@/lib/identityClient";
 import { requestMagicLink, type MagicLinkResult } from "@/lib/passwordlessAuth";
 
 const AUTH_CALLBACK_ERROR_MESSAGE =
@@ -178,8 +181,11 @@ export function AuthProvider({ children }: { children: ReactNode }): React.JSX.E
     const user = session?.user ?? null;
     let active = true;
     const onChanged = (event: Event) => {
-      const detail = (event as CustomEvent<{ handle?: unknown }>).detail;
-      if (typeof detail?.handle === "string") setCanonicalHandle(normalizeHandle(detail.handle));
+      const handle = identityHandleForOwner(
+        (event as CustomEvent<unknown>).detail,
+        user?.id ?? null,
+      );
+      if (handle !== null) setCanonicalHandle(normalizeHandle(handle));
     };
     window.addEventListener(IDENTITY_HANDLE_CHANGED_EVENT, onChanged);
     async function loadCanonicalHandle() {
