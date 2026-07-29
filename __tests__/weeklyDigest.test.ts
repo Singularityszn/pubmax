@@ -284,11 +284,18 @@ describe("rendering — honest, email-safe", () => {
   });
 
   it("text alternative mirrors the HTML content", () => {
+    const html = renderWeeklyDigestHtml(rich);
     const text = renderWeeklyDigestText(rich);
     expect(text).toContain("£4.50");
     expect(text).toContain("The Oak");
     expect(text).toContain("Quiz Night");
     expect(text).toContain("Unsubscribe");
+    expect(html).toContain("New prices logged");
+    expect(text).toContain("NEW PRICES LOGGED");
+    for (const rendered of [html, text]) {
+      expect(rendered).not.toContain("data moat");
+      expect(rendered).not.toContain("We never invent");
+    }
   });
 
   it("toEmailMessage bundles subject/html/text and substitutes the unsubscribe URL", () => {

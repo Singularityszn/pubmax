@@ -406,8 +406,8 @@ export function renderWeeklyDigestHtml(digest: WeeklyDigest): string {
   if (s.dropsLogged && s.dropsLogged > 0) {
     const noun = s.dropsLogged === 1 ? "price was" : "prices were";
     rows.push(sectionBlock(
-      "The data moat grew",
-      `<p style="margin:0;font-size:15px;color:${BRAND.ink};"><strong>${s.dropsLogged}</strong> new pint ${noun} logged ${esc(digest.scopeLabel)} this week. That's the map getting more honest, one drop at a time.</p>`,
+      "New prices logged",
+      `<p style="margin:0;font-size:15px;color:${BRAND.ink};"><strong>${s.dropsLogged}</strong> new pint ${noun} logged ${esc(digest.scopeLabel)} this week.</p>`,
     ));
   }
 
@@ -444,7 +444,7 @@ ${empty}${rows.join("\n")}
 </td></tr>
 <tr><td style="padding:16px 24px 24px;border-top:1px solid ${BRAND.line};">
   <p style="margin:0;font-size:12px;color:${BRAND.muted};line-height:1.5;">
-    You're getting this because you asked us to keep you posted. Prices and events are shown only when real, sourced data exists. We never invent a pint.
+    You're getting this because you asked us to keep you posted. Every price and event names where it came from.
     <br><a href="{{unsubscribe_url}}" style="color:${BRAND.muted};text-decoration:underline;">Unsubscribe</a> any time.
   </p>
 </td></tr>
@@ -491,7 +491,7 @@ export function renderWeeklyDigestText(digest: WeeklyDigest): string {
 
   if (s.dropsLogged && s.dropsLogged > 0) {
     const noun = s.dropsLogged === 1 ? "price was" : "prices were";
-    lines.push("THE DATA MOAT GREW");
+    lines.push("NEW PRICES LOGGED");
     lines.push(`  ${s.dropsLogged} new pint ${noun} logged ${digest.scopeLabel} this week.`);
     lines.push("");
   }
@@ -509,7 +509,7 @@ export function renderWeeklyDigestText(digest: WeeklyDigest): string {
   lines.push("");
   lines.push("---");
   lines.push(
-    "You're getting this because you asked us to keep you posted. We only show real, sourced data. We never invent a pint.",
+    "You're getting this because you asked us to keep you posted. Every price and event names where it came from.",
   );
   lines.push("Unsubscribe: {{unsubscribe_url}}");
   return lines.join("\n");

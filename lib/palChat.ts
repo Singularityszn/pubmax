@@ -186,8 +186,8 @@ export function palAnswerFromBody(body: unknown): PalAnswer {
     const message =
       str(record.message) ||
       (cards.length
-        ? `${cards.length} verified ${cards.length === 1 ? "listing" : "listings"}, each with its source.`
-        : "Nothing verified for that yet, so I won't make anything up.");
+        ? `${cards.length} ${cards.length === 1 ? "listing from a named source" : "listings from named sources"}.`
+        : "No sourced listings for that yet.");
     return { status: cards.length ? "answered" : "empty", message, cards };
   }
 

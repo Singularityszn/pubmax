@@ -144,6 +144,22 @@ describe("palAnswerFromBody — What's-On", () => {
     assertNoEmDash(answer.message);
   });
 
+  it("uses named-source copy when the route omits a listing message", () => {
+    const answer = palAnswerFromBody({
+      ...WHATS_ON_BODY,
+      message: undefined,
+    });
+    expect(answer.message).toBe("1 listing from a named source.");
+  });
+
+  it("uses a plain empty response when the route omits its message", () => {
+    const answer = palAnswerFromBody({
+      mode: "whats-on",
+      listings: [],
+    });
+    expect(answer.message).toBe("No sourced listings for that yet.");
+  });
+
   it("drops a listing with no source label — provenance is non-negotiable", () => {
     const answer = palAnswerFromBody({
       mode: "whats-on",

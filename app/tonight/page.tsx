@@ -10,7 +10,7 @@ import TonightClient from "./TonightClient";
 export const metadata: Metadata = {
   title: "Tonight in London · PUBMAXXING",
   description:
-    "What's on in London tonight. Quiz, sport, deals, and live music from sourced listings. Same spine as the map.",
+    "What's on in London tonight. Quiz, sport, deals, and live music from sourced listings. Open a listed venue on the map.",
   alternates: { canonical: "/tonight" },
 };
 

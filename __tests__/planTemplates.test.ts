@@ -14,6 +14,9 @@ describe("planTemplates", () => {
 
   it("looks up by id", () => {
     expect(planTemplateById("quiz-night")?.label).toBe("Quiz night");
+    expect(planTemplateById("quiz-night")?.blurb).toBe(
+      "Quiz listings with start times.",
+    );
     expect(planTemplateById("missing")).toBeNull();
   });
 });

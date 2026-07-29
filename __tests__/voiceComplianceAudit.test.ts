@@ -87,12 +87,14 @@ describe("VOICE.md compliance audit", () => {
     const feedCard = read("components/feed/FeedCard.tsx");
     const today = read("app/today/TodayClient.tsx");
     const tonight = read("app/tonight/TonightClient.tsx");
+    const tonightPage = read("app/tonight/page.tsx");
     const near = read("components/nearme/NearMeNow.tsx");
     const tonightNearby = read("components/discovery/TonightNearbyLane.tsx");
     const deals = read("components/discovery/DealsTonightLane.tsx");
     const rivalry = read("components/discovery/CityRivalryTable.tsx");
     const borough = read("app/borough/[slug]/page.tsx");
     const memories = read("components/profile/NightMemoryStudio.tsx");
+    const planTemplates = read("lib/planTemplates.ts");
 
     for (const source of [plan, planPage]) {
       expect(source).not.toMatch(
@@ -111,6 +113,10 @@ describe("VOICE.md compliance audit", () => {
     expect(today).not.toContain("refresh this by hand right now");
     expect(today).not.toContain("catch up shortly");
     expect(tonight).not.toContain("same spine as the map");
+    expect(tonightPage).not.toContain("Same spine as the map");
+    expect(tonightPage).toContain("Open a listed venue on the map.");
+    expect(planTemplates).not.toContain("What's-On spine");
+    expect(planTemplates).toContain("Quiz listings with start times.");
 
     expect(near).toContain("Cheapest listed near you");
     expect(near).not.toContain("Finding the cheapest");
@@ -202,6 +208,7 @@ describe("VOICE.md compliance audit", () => {
     const weatherRoute = read("app/api/weather-recommendations/route.ts");
     const planRoute = read("app/api/plans/[id]/route.ts");
     const planComplete = read("app/api/plans/[id]/complete/route.ts");
+    const operatorProposals = read("app/api/operator-proposals/route.ts");
     const admin = read("app/admin/AdminClient.tsx");
 
     expect(nightAreas).not.toMatch(
@@ -240,6 +247,12 @@ describe("VOICE.md compliance audit", () => {
     expect(weatherRoute).not.toContain("contributor provenance");
     expect(planRoute).not.toContain("Crawl Route");
     expect(planComplete).not.toContain("Crawl Route");
+    expect(operatorProposals).toContain(
+      "Only an approved operator of this venue can propose an update.",
+    );
+    expect(operatorProposals).not.toContain(
+      "Only a verified operator of this venue can propose an update.",
+    );
     expect(admin).toContain(
       "Proposals from approved pub operators land here for review before they show.",
     );
@@ -270,6 +283,7 @@ describe("VOICE.md compliance audit", () => {
     const pintDropsRoute = read("app/api/pint-drops/route.ts");
     const pintDropsStore = read("lib/pintDropsStore.ts");
     const whatsOn = read("lib/concierge/whatsOn.ts");
+    const palChat = read("lib/palChat.ts");
 
     expect(palPortrait).not.toMatch(
       /(?:collar|bell) beacon|crew-band harness/iu,
@@ -294,6 +308,10 @@ describe("VOICE.md compliance audit", () => {
     expect(stories).toContain("Recently logged cheap pints");
     expect(digest).not.toContain("Cheapest isn't just Wetherspoons:");
     expect(digest).not.toMatch(/independent pubs[^"]*undercut/iu);
+    expect(digest).not.toContain("data moat");
+    expect(digest).not.toContain("We never invent");
+    expect(palChat).not.toContain("Nothing verified for that yet");
+    expect(palChat).not.toContain("I won't make anything up");
     expect(landing).not.toContain("Cheap pints near you, live");
     expect(landing).not.toContain("No endless listings. Just");
     expect(crew).not.toContain("No account. Just your name.");

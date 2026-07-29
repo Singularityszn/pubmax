@@ -127,7 +127,7 @@ export async function POST(request: Request): Promise<Response> {
   );
   if (!verified) {
     return publicApiError(
-      "Only a verified operator of this venue can propose an update.",
+      "Only an approved operator of this venue can propose an update.",
       "NOT_VERIFIED_OPERATOR",
       403,
     );

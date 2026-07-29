@@ -71,8 +71,11 @@ describe("POST /api/operator-proposals (create)", () => {
     auth.identity = { id: "acct-1", email: null };
     const res = await POST(req(correction));
     expect(res.status).toBe(403);
-    const data = (await res.json()) as { code: string };
+    const data = (await res.json()) as { code: string; error: string };
     expect(data.code).toBe("NOT_VERIFIED_OPERATOR");
+    expect(data.error).toBe(
+      "Only an approved operator of this venue can propose an update.",
+    );
     // Nothing was written.
     expect(await memoryOperatorProposalStore.listForReview("pending")).toHaveLength(0);
   });
