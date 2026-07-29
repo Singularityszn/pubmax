@@ -22,6 +22,47 @@
 
 ---
 
+### Task 0: Restore Product Hierarchy on the Desktop Map
+
+**Files:**
+- Modify: `lib/mapBasemapTaste.ts`
+- Modify: `lib/donutClusterGeometry.ts`
+- Modify: `components/map/canvas/buildScene.ts`
+- Modify: `__tests__/mapBasemapTaste.test.ts`
+- Modify: `__tests__/donutClusterGeometry.test.ts`
+- Modify: `__tests__/mapSymbolCollision.test.ts`
+
+**Interfaces:**
+- Consumes: existing dark basemap palette, product tokens, and clustered pub source.
+- Produces: subordinate road geometry and labels plus stronger clustered pub marks, without changing zoom gates or collision policy.
+
+- [ ] **Step 1: Add failing hierarchy assertions**
+
+Assert dark major roads stay below muted UI text luminance, road labels are quieter than place labels, and the largest cluster footprint still fits within the existing supercluster grouping radius.
+
+- [ ] **Step 2: Run focused tests and verify RED**
+
+Run: `npm test -- __tests__/mapBasemapTaste.test.ts __tests__/mapSymbolCollision.test.ts`
+
+Expected: FAIL because roads and labels currently carry near-primary visual weight.
+
+- [ ] **Step 3: Rebalance map context and product marks**
+
+Keep three warm road tiers but pull every tier below product marks. Reduce dark road-label opacity independently from place labels. Increase cluster radius, count size, stroke, and resting opacity while keeping the existing source, zoom gates, sort order, and collision-index reservation.
+
+- [ ] **Step 4: Verify with focused tests and one-browser screenshot review**
+
+Run: `npm test -- __tests__/mapBasemapTaste.test.ts __tests__/mapSymbolCollision.test.ts __tests__/mapPinBandContrast.test.ts`
+
+Expected: PASS. At 1440 by 900 in dark mode, pub clusters read before road geometry while the street network remains usable.
+
+- [ ] **Step 5: Commit**
+
+```bash
+git add lib/mapBasemapTaste.ts lib/donutClusterGeometry.ts components/map/canvas/buildScene.ts __tests__/mapBasemapTaste.test.ts __tests__/donutClusterGeometry.test.ts __tests__/mapSymbolCollision.test.ts docs/screenshots/design-craft/before-map-1440-dark.png docs/superpowers/plans/2026-07-29-design-craft-d1-d8.md
+git commit -m "feat: restore pub hierarchy on desktop map"
+```
+
 ### Task 1: Interruptible Spring Motion Primitive
 
 **Files:**

@@ -96,22 +96,18 @@ describe("mapBasemapTaste (Wave A / dark basemap overhaul)", () => {
     expect(light.land).toBe(tokens.paper);
   });
 
-  it("Wave A — dark roads are the LIGHTEST strokes, brighter than ground, in 3 tiers", () => {
+  it("keeps dark roads legible but subordinate to product marks", () => {
     const dark = buildPalette(darkTokens, true);
-    // Root-cause fix: roads used to derive from --line (#2c2c30, a near-black
-    // DOM divider) and sat DARKER than buildings. Now every road tier is a warm
-    // light-gray, painted SOLID, and clearly lighter than both ground and
-    // buildings — the inversion working dark maps rely on.
-    expect(dark.roadMajor).toBe("#c3bcae");
-    expect(dark.road).toBe("#7e786d");
-    expect(dark.roadMinor).toBe("#514c44");
+    expect(dark.roadMajor).toBe("#756f65");
+    expect(dark.road).toBe("#544f48");
+    expect(dark.roadMinor).toBe("#38342f");
     // Strict luminance hierarchy: major > secondary > minor > building > ground.
     expect(lumSum(dark.roadMajor)).toBeGreaterThan(lumSum(dark.road));
     expect(lumSum(dark.road)).toBeGreaterThan(lumSum(dark.roadMinor));
     expect(lumSum(dark.roadMinor)).toBeGreaterThan(lumSum(dark.building));
     expect(lumSum(dark.building)).toBeGreaterThan(lumSum(dark.land));
-    // Never amber/coral road soup.
-    expect(dark.roadMajor).not.toContain("240, 160, 26");
+    // Roads provide context. They never compete with even muted interface text.
+    expect(lumSum(dark.roadMajor)).toBeLessThan(lumSum(darkTokens.muted));
   });
 
   it("Wave A — dark buildings are a clear step above ground, warm, never a coral wash", () => {
@@ -225,6 +221,30 @@ describe("mapBasemapTaste (Wave A / dark basemap overhaul)", () => {
     expect(
       paints.some(([id, prop]) => id === "landuse_residential" && prop === "fill-color"),
     ).toBe(true);
+  });
+
+  it("makes dark road labels quieter than place labels", () => {
+    const paints: Array<[string, string, unknown]> = [];
+    const layers = [
+      { id: "road_label", type: "symbol" },
+      { id: "place_city", type: "symbol" },
+    ];
+    const map = {
+      getLayer: (id: string) => layers.find((layer) => layer.id === id),
+      setPaintProperty: (layerId: string, name: string, value: unknown) => {
+        paints.push([layerId, name, value]);
+      },
+      getStyle: () => ({ layers }),
+    };
+
+    applyBasemapTaste(map, darkTokens, true);
+
+    expect(
+      paints.find(([id, prop]) => id === "road_label" && prop === "text-opacity")?.[2],
+    ).toBe(0.52);
+    expect(
+      paints.find(([id, prop]) => id === "place_city" && prop === "text-opacity")?.[2],
+    ).toBe(0.78);
   });
 
   it("skips missing layers without throwing", () => {

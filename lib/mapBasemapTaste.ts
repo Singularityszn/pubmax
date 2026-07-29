@@ -2,7 +2,7 @@
 // Pure helpers: apply after style.load. Never invents a new tile host.
 //
 // Dark-mode contract: land must stay night-dark (`inkDeep` / `paper`), never the
-// cream `--ink` text token. Roads must stay bright so streets remain readable.
+// cream `--ink` text token. Roads stay readable without outranking pub marks.
 
 export type BasemapTasteTokens = {
   paper: string;
@@ -57,7 +57,7 @@ type TastePalette = {
   roadMinor: string;
   /** Secondary + tertiary roads — the medium road tier. */
   road: string;
-  /** A-roads / motorways / trunks — the BRIGHTEST stroke on the dark map. */
+  /** A-roads / motorways / trunks — strongest contextual road tier. */
   roadMajor: string;
 };
 
@@ -133,13 +133,8 @@ export function tameNumericShieldFilters(map: Pick<
 }
 
 // ── Wave A · DARK basemap palette (owner: "fix the map in dark mode") ────────
-// Working dark maps (Apple/Google night) INVERT the light-map relationship:
-// roads are the LIGHTEST strokes on a near-black canvas, buildings a clear
-// step above ground, water an unmistakable deep slate-blue. The pre-Wave-A
-// dark palette derived roads from `--line` (#2c2c30 — a near-black DOM divider
-// #500 deliberately keeps dark for card/nav hairlines) and buildings from a
-// low-alpha emissive, so streets sat DARKER than buildings and vanished, and
-// footprints read as low-contrast mud with no luminance hierarchy.
+// Dark roads keep an ordered luminance ladder over the ground while remaining
+// contextual. Product marks, not the street network, own first glance.
 //
 // These NAMED CONSTANTS are the dark map's own palette, deliberately decoupled
 // from the DOM token scale (which #500 remaps under <body> and which the map
@@ -170,14 +165,12 @@ const DARK = {
   // Water: deep slate-blue, painted SOLID (not an alpha wash that near-black
   // ground would drown) so it reads as water at a glance.
   water: "#16344e",
-  // Roads — the lightest strokes on the map, in three warm-gray tiers, all
-  // painted SOLID so near-black ground can't dim them. Majors brightest →
-  // secondary medium → side streets subtle-but-visible.
-  roadMajor: "#c3bcae",
-  road: "#7e786d",
-  roadMinor: "#514c44",
-  // Near-black casing so the bright inners read as raised streets, not flat
-  // fills. Deeper than the ground so majors especially pop.
+  // Roads — three warm-gray tiers, all solid so they remain legible. Even a
+  // major road stays below muted interface text and saturated pub markers.
+  roadMajor: "#756f65",
+  road: "#544f48",
+  roadMinor: "#38342f",
+  // Near-black casing separates adjacent land without making roads luminous.
   roadCasing: "#050403",
 } as const;
 
@@ -185,8 +178,8 @@ const DARK = {
 export function buildPalette(tokens: BasemapTasteTokens, dark: boolean): TastePalette {
   if (dark) {
     // Wave A — see the DARK constant block above for the full rationale. Land
-    // stays a warm near-black (never cream `--ink`); roads are the brightest
-    // strokes; buildings a clear step up; water an unmistakable slate-blue.
+    // stays a warm near-black (never cream `--ink`); roads remain contextual;
+    // buildings step up from ground; water stays unmistakably slate-blue.
     return {
       land: DARK.ground,
       landSoft: DARK.landSoft,
@@ -428,10 +421,13 @@ function paintDiscoveredSymbol(
   const halo = dark ? tokens.inkDeep || tokens.paper : tokens.paper;
   tryPaint(map, layerId, "text-color", text);
   tryPaint(map, layerId, "text-halo-color", halo);
-  // Wave A — brighter dark labels with a firm near-black halo so place/road
-  // names stay crisp against the new near-black ground (was 0.76, washed out).
-  tryPaint(map, layerId, "text-halo-width", dark ? 1.5 : 1.1);
-  tryPaint(map, layerId, "text-opacity", dark ? 0.92 : 0.88);
+  const isRoadLabel =
+    id.includes("road") ||
+    id.includes("street") ||
+    id.includes("highway") ||
+    id.includes("motorway");
+  tryPaint(map, layerId, "text-halo-width", dark ? (isRoadLabel ? 1.1 : 1.35) : 1.1);
+  tryPaint(map, layerId, "text-opacity", dark ? (isRoadLabel ? 0.52 : 0.78) : 0.88);
 }
 
 /** All layer IDs handled explicitly by paintKnownLayers — skip these in the
@@ -619,12 +615,12 @@ export function clusterCircleColorExpr(tokens: BasemapTasteTokens, dark: boolean
   return [
     "step",
     ["get", "point_count"],
-    withAlpha(tokens.pint, dark ? 0.82 : 0.88),
+    withAlpha(tokens.pint, dark ? 0.96 : 0.9),
     15,
-    withAlpha(tokens.amber, dark ? 0.85 : 0.9),
+    withAlpha(tokens.amber, dark ? 0.96 : 0.92),
     40,
-    withAlpha(tokens.brass, dark ? 0.78 : 0.85),
+    withAlpha(tokens.brass, dark ? 0.94 : 0.88),
     100,
-    withAlpha(tokens.brass, dark ? 0.92 : 0.95),
+    withAlpha(tokens.brass, dark ? 1 : 0.96),
   ];
 }

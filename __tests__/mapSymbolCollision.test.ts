@@ -7,6 +7,7 @@ import {
   buildPubs,
   buildUkBase,
   CLUSTER_COLLISION_PADDING,
+  CLUSTER_MAX_RADIUS_PX,
   CLUSTER_MAX_ZOOM,
   CLUSTER_RADIUS_PX,
   LANDMARK_ICON_PRIORITY_ZOOM,
@@ -111,9 +112,10 @@ describe("pub clustering density (scales to a UK-wide source)", () => {
   });
 
   it("groups wider than the widest cluster disc so two discs cannot touch", () => {
-    // `clusters` circle-radius tops out at 16px (+ stroke) — a grouping radius
+    // `clusters` circle-radius tops out at the exported maximum (+ stroke) — a grouping radius
     // under that diameter would let neighbouring discs overlap.
-    expect(CLUSTER_RADIUS_PX).toBeGreaterThan(2 * 16);
+    expect(CLUSTER_MAX_RADIUS_PX).toBe(20);
+    expect(CLUSTER_RADIUS_PX).toBeGreaterThan(2 * CLUSTER_MAX_RADIUS_PX);
   });
 });
 
@@ -216,6 +218,7 @@ describe("symbol collision policy", () => {
     // count's padded box is what keeps other labels off the disc.
     expect(count["text-ignore-placement"]).toBe(false);
     expect(count["text-padding"]).toBe(CLUSTER_COLLISION_PADDING);
+    expect(CLUSTER_COLLISION_PADDING).toBeGreaterThanOrEqual(12);
   });
 
   it("drops crowded landmark names rather than overprinting them", () => {

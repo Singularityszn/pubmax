@@ -88,21 +88,22 @@ export const UK_BASE_ICON_SIZE_EXPR: maplibregl.ExpressionSpecification = [
 export const UK_BASE_ICON_OPACITY = 0.85;
 
 // Supercluster grouping radius in screen pixels. Sized off the widest cluster
-// disc this scene draws (radius 16 + stroke, see the `clusters` layer) so two
+// disc this scene draws (radius 20 + stroke, see the `clusters` layer) so two
 // discs can never touch on a 390px-wide phone, with margin for the count label.
 export const CLUSTER_RADIUS_PX = 56;
+export const CLUSTER_MAX_RADIUS_PX = 20;
 
 // `clusters` / `cluster-count` resting paint. Named because the entrance ramp
 // (PubMapCanvas) fades from 0 up to exactly these values and must restore them.
-export const CLUSTER_FILL_OPACITY = 0.94;
-export const CLUSTER_STROKE_OPACITY = 0.95;
+export const CLUSTER_FILL_OPACITY = 0.98;
+export const CLUSTER_STROKE_OPACITY = 1;
 
 // Collision padding, in pixels, added around the cluster count's text box. A
 // circle layer contributes NOTHING to MapLibre's collision index, so without
 // this the disc is invisible to placement and neighbouring labels (landmark
 // names, basemap POIs) happily land on top of it. Padding the count's box out
 // to roughly the disc footprint makes the whole marker reserve its space.
-export const CLUSTER_COLLISION_PADDING = 10;
+export const CLUSTER_COLLISION_PADDING = 12;
 
 // The provisional-report badge: the small dot that rides at a pin's upper right
 // when someone has logged tonight's pint price there and it is still one report
@@ -1162,9 +1163,17 @@ export function buildPubs(ctx: SceneCtx) {
       // Wave J1 — pint → amber → brass by density (not ink-black discs).
       "circle-color": clusterCircleColorExpr(tokens, dark) as maplibregl.ExpressionSpecification,
       "circle-stroke-color": tokens.panelRaised,
-      "circle-stroke-width": ["step", ["get", "point_count"], 1.25, 40, 1.5, 100, 1.75],
+      "circle-stroke-width": ["step", ["get", "point_count"], 1.75, 40, 2, 100, 2.25],
       "circle-stroke-opacity": CLUSTER_STROKE_OPACITY,
-      "circle-radius": ["step", ["get", "point_count"], 9, 25, 12, 100, 16],
+      "circle-radius": [
+        "step",
+        ["get", "point_count"],
+        11,
+        25,
+        15,
+        100,
+        CLUSTER_MAX_RADIUS_PX,
+      ],
       "circle-blur": ["step", ["get", "point_count"], 0.02, 40, 0.05, 100, 0.08],
       "circle-opacity": CLUSTER_FILL_OPACITY,
       // The entrance ramp fades these in from 0 (PubMapCanvas); a transition
@@ -1181,7 +1190,7 @@ export function buildPubs(ctx: SceneCtx) {
     layout: {
       "text-field": ["get", "point_count_abbreviated"],
       "text-font": textFont,
-      "text-size": ["step", ["get", "point_count"], 9, 25, 10, 100, 11],
+      "text-size": ["step", ["get", "point_count"], 10, 25, 11, 100, 12],
       "text-letter-spacing": 0.02,
       // A disc without its number is worse than a tight fit, so the count
       // always draws — but it is NOT invisible to placement: its padded box
