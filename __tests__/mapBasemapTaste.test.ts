@@ -23,6 +23,7 @@ const tokens = {
   muted: "#6b726a",
   pint: "#2f8f5b",
   amber: "#d99f45",
+  brick: "#d16353",
   brass: "#b0813a",
   river: "#2f6f8f",
   riverBright: "#4f9ec4",
@@ -310,13 +311,19 @@ describe("mapBasemapTaste (Wave A / dark basemap overhaul)", () => {
     expect(paints.some(([id]) => id === "custom_road_layer")).toBe(true);
   });
 
-  it("builds a step expression for cluster colors using pint/amber/brass", () => {
+  it("colours fallback clusters by their most common known pint-price band", () => {
     const expr = clusterCircleColorExpr(tokens, false) as unknown[];
-    expect(expr[0]).toBe("step");
     const serialized = JSON.stringify(expr);
+
+    expect(expr[0]).toBe("case");
+    expect(serialized).toContain('"b0"');
+    expect(serialized).toContain('"b1"');
+    expect(serialized).toContain('"b2"');
+    expect(serialized).not.toContain('"point_count"');
     expect(serialized).toContain("47, 143, 91"); // pint rgb
     expect(serialized).toContain("217, 159, 69"); // amber
-    expect(serialized).toContain("176, 129, 58"); // brass
+    expect(serialized).toContain("209, 99, 83"); // brick
+    expect(serialized).toContain("107, 114, 106"); // no known price
   });
 });
 

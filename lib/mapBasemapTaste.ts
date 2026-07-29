@@ -610,17 +610,41 @@ export function applySelectionMute(
   store.clear();
 }
 
-/** Cluster fill by point_count — pint (cheap density) → amber → brass. */
-export function clusterCircleColorExpr(tokens: BasemapTasteTokens, dark: boolean): unknown {
+type ClusterPriceTokens = Pick<
+  BasemapTasteTokens,
+  "pint" | "amber" | "muted"
+> & {
+  brick: string;
+};
+
+/**
+ * Fallback cluster fill by the most common KNOWN price band inside it.
+ *
+ * Desktop normally replaces this circle with a segmented donut. Phones and
+ * large cluster sets keep the GL circle, so its fill must answer the same
+ * price question rather than changing meaning to venue density. Unknown pubs
+ * do not outvote known prices; grey means the cluster has no known price.
+ */
+export function clusterCircleColorExpr(
+  tokens: ClusterPriceTokens,
+  dark: boolean,
+): unknown {
+  const count = (key: "b0" | "b1" | "b2") => [
+    "coalesce",
+    ["get", key],
+    0,
+  ];
+  const cheap = count("b0");
+  const middle = count("b1");
+  const dear = count("b2");
   return [
-    "step",
-    ["get", "point_count"],
+    "case",
+    ["all", [">", cheap, 0], [">=", cheap, middle], [">=", cheap, dear]],
     withAlpha(tokens.pint, dark ? 0.96 : 0.9),
-    15,
+    ["all", [">", middle, 0], [">", middle, cheap], [">=", middle, dear]],
     withAlpha(tokens.amber, dark ? 0.96 : 0.92),
-    40,
-    withAlpha(tokens.brass, dark ? 0.94 : 0.88),
-    100,
-    withAlpha(tokens.brass, dark ? 1 : 0.96),
+    ["all", [">", dear, 0], [">", dear, cheap], [">", dear, middle]],
+    withAlpha(tokens.brick, dark ? 0.94 : 0.88),
+    withAlpha(tokens.muted, dark ? 0.78 : 0.84),
   ];
 }
