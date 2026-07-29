@@ -8,8 +8,9 @@ import "../legal.css";
 // /terms — plain-language terms of use. Server component, zero client JS.
 // Sibling of /privacy: that page says what we do with data, this one says what
 // each side is agreeing to. Same rule applies — describe the real product (free,
-// no ads, over-18s, community-sourced prices that are observations rather than
-// offers), never invent guarantees or a company that doesn't exist yet.
+// no ads, an adult contribution boundary, and community-sourced prices that are
+// observations rather than offers), never invent guarantees or a company that
+// doesn't exist yet.
 
 const PAGE_TITLE = "Terms of use";
 const PAGE_DESCRIPTION =
@@ -100,14 +101,13 @@ export default function TermsPage() {
           person and device records 12 months after their last activity. Handle
           alone is required to finish signup. Full name and sex are optional
           private details. We ask for date of birth only immediately before your
-          first price or venue-signal contribution, assess it, then discard the
-          date of birth. We retain only an adult confirmation or the date an
-          under-18 account becomes eligible. Optional full name and sex stay
-          until you edit or clear them. Deleting your profile removes these
-          private identity fields and clears its editable public details, while
-          keeping your authentication account, public handle and handle-keyed
-          contribution history. People under 18 cannot contribute. Only your
-          handle is public.
+          first price or venue-signal contribution, assess it, then discard the date of birth. We retain
+          only an adult confirmation or the date an under-18 account becomes
+          eligible. Optional full name and sex stay until you edit or clear
+          them. Deleting your profile removes these private identity fields and
+          clears its editable public details, while keeping your authentication
+          account, public handle and handle-keyed contribution history. People
+          under 18 cannot contribute. Only your handle is public.
           Keep your sign-in to yourself, use a handle that isn&rsquo;t someone
           else&rsquo;s identity, and don&rsquo;t hand the account to anyone
           else. You can stop using it whenever you like, and ask us to delete

@@ -207,8 +207,8 @@ The **map decomposition wave pauses side agents** on `components/PubMap*.tsx` + 
 - **Busyness data:** no free real-time API — v1 = estimate + community reports; partners (Popular
   Times-style / foot-traffic) later. Confirm which booking partner to integrate first
   (OpenTable / DesignMyNight / SevenRooms) — drives the "can N get in" fidelity.
-- **Auth:** Google/Microsoft OAuth is wired but needs the owner's IdP dashboard config to actually
-  log in — required before the "account after value" capture works end-to-end.
+- **Auth:** [`DEPLOYMENT.md`](./DEPLOYMENT.md#3-browser-sign-in-email-magic-link--google--apple)
+  owns current sign-in capability and provider activation state.
 - **Realtime scale:** the signal-only Supabase pattern holds for crews; validate at party-size fan-out.
 - **Both-growth-engines bet:** owner chose to run plan-invite AND public feed as core; revisit at
   the first metrics read — if weekly-active-crews is driven ~entirely by invites, demote the feed.

@@ -5,12 +5,12 @@ type AccountOnboardingRequest = (
   init?: RequestInit,
 ) => Promise<Response>;
 
-export type AccountOnboardingStatus =
+type AccountOnboardingStatus =
   | { status: "complete" }
   | { status: "incomplete"; handle?: string }
   | { status: "unavailable"; error: string };
 
-export type AccountHandleAvailability =
+type AccountHandleAvailability =
   | { status: "available" }
   | { status: "taken" }
   | { status: "unavailable"; error: string };

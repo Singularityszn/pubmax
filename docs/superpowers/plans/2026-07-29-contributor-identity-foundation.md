@@ -13,7 +13,8 @@ only adult confirmation or an under-18 eligibility date.
 
 - Preserve magic-link sign-in.
 - Keep Google and Apple behind provider availability.
-- Reserve `karan`, `sarah`, `carol`, and `erin` through one code list.
+- Keep reserved contributor handles in the single
+  `RESERVED_CONTRIBUTOR_HANDLES` code list.
 - Let the first verified claimant take an unlinked legacy handle and its history.
 - Keep handle, optional full name and optional sex on one compact 390px
   onboarding screen.

@@ -25,7 +25,6 @@ import type {
 } from "@/lib/mapExperienceLens";
 import type { PriceSubmitFailureReason } from "@/lib/analyticsEvents";
 import type { AccountAuthSnapshot } from "@/lib/accountBoundFetch";
-import { authedFetch } from "@/lib/authedFetch";
 import { postCommunityContribution } from "@/lib/communityContributionClient";
 import { normalizeHandle } from "@/lib/profiles";
 import {

@@ -107,6 +107,10 @@ respectively). Disabled or unreadable providers stay hidden, and each provider
 is checked again before OAuth starts. Email magic-link sign-in remains the
 complete primary path when no social provider is enabled.
 
+As of 29 July 2026, neither Google nor Apple is enabled in production. Their
+buttons therefore stay hidden there. This is provider configuration state, not
+an application deployment blocker; email magic link remains complete.
+
 #### Captain-owned Supabase URL config
 
 Dashboard → Authentication → URL Configuration:

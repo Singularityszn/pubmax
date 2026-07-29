@@ -20,7 +20,7 @@ export function londonCalendarDate(now: number): string {
   return `${read("year")}-${read("month")}-${read("day")}`;
 }
 
-export type ContributionAgeAssessment =
+type ContributionAgeAssessment =
   | { status: "adult" }
   | { status: "underage"; eligibleFrom: string }
   | { status: "invalid" };
@@ -39,7 +39,7 @@ export function assessContributionAge(
     : { status: "underage", eligibleFrom };
 }
 
-export function cleanDateOfBirth(
+function cleanDateOfBirth(
   value: unknown,
   now: number = Date.now(),
 ): string | null {

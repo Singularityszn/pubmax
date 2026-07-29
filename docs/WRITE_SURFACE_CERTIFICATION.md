@@ -445,13 +445,13 @@ commit.
   CLOSED vocabulary the browser and the server share and migration 0060 repeats
   as a CHECK, so an off-vocabulary answer cannot be stored by any door.
 - **Auth stance:** price and venue-signal writes require a verified account,
-  account-owned public handle. Both public
-  attribution and the private `profile:<profile-id>` actor are derived on the
-  server. Body-supplied handles, actors, `submittedAt`, and `source` are
-  ignored. This stable profile actor is the de-duplication and corroboration
-  key and never leaves the store. The reader-report branch stays public and
-  uses its separate abuse-controlled actor because reporting an existing row is
-  not a contribution.
+  account-owned public handle, completed private profile, and adult
+  contribution eligibility. Both public attribution and the private
+  `profile:<profile-id>` actor are derived on the server. Body-supplied handles,
+  actors, `submittedAt`, and `source` are ignored. This stable profile actor is
+  the de-duplication and corroboration key and never leaves the store. The
+  reader-report branch stays public and uses its separate abuse-controlled
+  actor because reporting an existing row is not a contribution.
 - **Rate limit (boundary):** two durable `isLimited` tiers on the POST. An
   account-wide cap keyed `price-submit-actor:profile:<profile-id>` (30/hour)
   stops one account spraying observations across the whole map by rotating
@@ -502,8 +502,8 @@ commit.
 - **Route / method:** `POST app/api/admin/community-prices/route.ts`
   (`fm/trust-quickfixes`), actions `hide` and `restore` on ONE community
   observation. The receiving side of route 70: until this existed, a wrong or
-  malicious community price could be submitted by anyone and removed by nobody,
-  and the only remediation was hand-written SQL. The route also exports a
+  malicious community price had no moderator removal path, and the only
+  remediation was hand-written SQL. The route also exports a
   read-only `GET` (the reported/hidden review queue) which is NOT a mutating verb
   and is not counted. ONE queue, TWO shapes: each queue row says which it is
   (`kind`), so a wrong character or step-free claim is removed here rather than

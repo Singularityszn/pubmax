@@ -395,9 +395,10 @@ export default function VenueOverviewTab({
             <small className="communityPriceStanding">{communityTrustStanding}</small>
           ) : null}
           <small className="communityPriceNote">{COMMUNITY_PRICE_NOTE}</small>
-          {/* Anyone can log a price here, so anyone must be able to complain
-              about one. The flag is recorded for a human - it does not hide the
-              row (see CommunityPriceReport). */}
+          {/* Reporting stays public because a reader must be able to challenge
+              a displayed observation without becoming a contributor. The flag
+              is recorded for a human - it does not hide the row (see
+              CommunityPriceReport). */}
           <CommunityPriceReport
             price={communityPrice}
             communityPrices={communityPrices}

@@ -43,6 +43,9 @@ describe("private identity editor", () => {
       status: "unavailable",
       error: "Private details are unavailable.",
     });
+    if (result.status !== "unavailable") {
+      throw new Error("Expected unavailable private identity state.");
+    }
 
     const html = renderToStaticMarkup(
       createElement(PrivateIdentityEditorForm, {

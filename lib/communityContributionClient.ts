@@ -9,7 +9,7 @@ import type {
   CommunityVenueSignalValue,
 } from "@/lib/communityVenueSignals";
 
-export type CommunityContributionPayload =
+type CommunityContributionPayload =
   | Readonly<{
       venueId: string;
       drinkCategory: DrinkCategory;

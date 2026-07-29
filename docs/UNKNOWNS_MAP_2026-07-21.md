@@ -43,7 +43,11 @@ Launch is July. The product's imagery, drink-weather table, and outdoor-crawl as
 
 ## Tier 3: named so they stop being unknowns (watch, cheap probes only)
 
-- **U12. OAuth dashboards still unconfigured** (claim flow gated on it; owner item). The activation gate has a hole until done. Also the new 60-min auth lockout defect (review finding 1) sits exactly there.
+- **U12. Social OAuth dashboards still unconfigured** (owner item). Email magic
+  link and account onboarding are complete, so social setup no longer blocks
+  account activation. Google and Apple remain disabled in production; Apple
+  activation needs a paid developer account. `docs/DEPLOYMENT.md` owns current
+  provider state and setup.
 - **U13. Membership price anchor**: annual-only for social features has few UK comparables. WTP research (6.2) is planned; add one question on annual-vs-monthly aversion.
 - **U14. Multi-party consent friction** (Wave 5): loop-depth metric may flatline on friction, not disinterest. Instrument consent-step drop-off separately so the two are distinguishable.
 - **U15. Moderation load at small scale**: one owner, no moderators; risk-tiered queues (6.10) assume staffing that does not exist. Define the solo-operator emergency path (freeze surface, not review queue).

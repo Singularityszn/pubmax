@@ -10,12 +10,7 @@ import { requireSupabaseAdmin } from "@/lib/supabase";
 import { selectStore } from "@/lib/storeBackend";
 import { cleanText } from "@/lib/textClean";
 
-export {
-  PRIVATE_IDENTITY_SEX_VALUES,
-  type PrivateIdentitySex,
-} from "@/lib/privateIdentity";
-
-export type PrivateIdentityRecord = {
+type PrivateIdentityRecord = {
   adultConfirmed?: true;
   contributionEligibleFrom?: string;
   fullName?: string;
@@ -24,14 +19,14 @@ export type PrivateIdentityRecord = {
   updatedAt: string;
 };
 
-export type CompleteOnboardingInput = {
+type CompleteOnboardingInput = {
   userId: string;
   handle: string;
   fullName?: unknown;
   sex?: unknown;
 };
 
-export type CompleteOnboardingResult =
+type CompleteOnboardingResult =
   | {
       ok: true;
       profileId: string;
@@ -49,7 +44,7 @@ export type CompleteOnboardingResult =
       error: string;
     };
 
-export type PrivateIdentityStore = {
+type PrivateIdentityStore = {
   read(userId: string, now?: number): Promise<PrivateIdentityRecord | null>;
   erase(userId: string): Promise<void>;
   updateDetails(

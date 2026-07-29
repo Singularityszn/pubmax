@@ -8,7 +8,7 @@ import {
   type PrivateIdentitySex,
 } from "@/lib/privateIdentity";
 
-export type PrivateIdentityLoadResult =
+type PrivateIdentityLoadResult =
   | {
       status: "ready";
       fullName: string;

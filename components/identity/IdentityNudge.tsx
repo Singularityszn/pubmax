@@ -14,11 +14,11 @@
 // provider-button idiom (app/auth/auth.css).
 //
 // ── The LIGHTER path (Cycle-2 locked decision: "early email capture") ────────
-// Alongside any enabled OAuth buttons there is a lower-friction option:
-// leave just an email to get the weekly pint digest. Full OAuth is the only way
-// email arrives today; this gives a signed-out user a one-field alternative
-// without an account. The wording ties the capture to ONE stated purpose (the
-// digest) — honest purpose limitation, GDPR-sane. The address is stored
+// Alongside account sign-in there is a lower-friction option: leave just an
+// email to get the weekly pint digest. This gives a signed-out user a one-field
+// alternative without an account. The wording ties the capture to ONE stated
+// purpose (the digest) - honest purpose limitation, GDPR-sane. The address is
+// stored
 // UNCONFIRMED via /api/email-subscribers (double-opt-in); the success copy here
 // is derived from the server's honest response (never a fake "check your inbox"
 // when nothing was sent). Validation matches the server (lib/emailSubscribers).

@@ -1,6 +1,6 @@
 # Metrics funnel (Wave M)
 
-Four first-class product metrics, computed entirely from the existing
+First-class product metrics, computed entirely from the existing
 consent-gated analytics rail (`lib/analytics.ts` → `POST /api/events` →
 `lib/posthogServer.ts`). No new PII, no fingerprinting, no third-party
 additions. Every event below is in the closed registry
@@ -133,8 +133,10 @@ turns into a logged price.
   enum: `invalid` (the client-side envelope check), `rejected` (a non-2xx from
   `/api/price-submit`), `offline` (transport failure).
 - `contribution_gate` - `{ step }`. Fires when required identity adds
-  friction: `sign_in_required` or `onboarding_required`. No handle, account id,
-  birth date, venue or price is sent.
+  friction or resolves the age check. The closed steps are
+  `sign_in_required`, `onboarding_required`, `age_assessment_required`,
+  `age_assessment_passed`, and `age_restricted`. No handle, account id, birth
+  date, venue or price is sent.
 - `sign_in_initiated` - `{ provider }`. Its fixed provider values are `google`,
   `apple`, and `email`, so magic-link dependence remains measurable while
   social providers are disabled.
@@ -148,6 +150,12 @@ required_sign_in_cost = count(contribution_gate where step = sign_in_required)
 
 onboarding_cost = count(contribution_gate where step = onboarding_required)
                 / count(price_submit_viewed)
+
+age_assessment_cost = count(contribution_gate where step = age_assessment_required)
+                    / count(price_submit_viewed)
+
+age_restriction_rate = count(contribution_gate where step = age_restricted)
+                     / count(contribution_gate where step = age_assessment_required)
 ```
 
 `category` is the closed drink taxonomy (`PRICE_SUBMIT_CATEGORIES`, pinned to
@@ -222,9 +230,9 @@ pwa_install_completed: [],
 pwa_standalone_launch: [],
 ```
 
-The community-price funnel added three more, with their own scoped validator
-(`isAllowedPriceFunnelProp`) so the shared `category` prop key keeps a
-different closed set per event:
+The community-price funnel added four more, with scoped validators
+(`isAllowedPriceFunnelProp` and `isAllowedContributionGateProp`) so shared prop
+keys keep the right closed set per event:
 
 ```ts
 price_submit_viewed: ["category"],

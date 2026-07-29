@@ -120,7 +120,9 @@ export default function RoundPageClient({ params }: { params: Promise<{ code: st
     roundIdentity?.kind === "account" ? roundIdentity.auth : null;
   const roundIdentityOwnerKey = roundRequestIdentityOwnerKey(roundIdentity);
   const roundIdentityRef = useRef<RoundRequestIdentity | null>(roundIdentity);
-  roundIdentityRef.current = roundIdentity;
+  useEffect(() => {
+    roundIdentityRef.current = roundIdentity;
+  }, [roundIdentity]);
   const currentRoundIdentity = useCallback(
     () => roundIdentityRef.current,
     [],
