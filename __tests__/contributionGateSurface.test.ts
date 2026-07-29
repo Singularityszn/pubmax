@@ -25,7 +25,9 @@ describe("contribution identity gate", () => {
   it("routes incomplete accounts back to handle setup", () => {
     const html = render("onboarding_required");
     expect(html).toContain("Finish account setup");
-    expect(html).toContain("public handle and private profile");
+    expect(html).toContain(
+      "Choose a public handle and add your date of birth before contributing.",
+    );
   });
 
   it("contains no age collection or age restriction state", () => {

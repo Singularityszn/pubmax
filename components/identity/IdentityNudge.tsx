@@ -234,7 +234,7 @@ export default function IdentityNudge(): React.JSX.Element | null {
             </div>
             <form className="identityNudgeEmail" onSubmit={submitEmail} noValidate>
               <label className="identityNudgeEmailLabel" htmlFor="identity-nudge-email">
-                Just leave your email. We&apos;ll send the weekly pint digest.
+                Leave your email. We&apos;ll send the weekly pint digest.
               </label>
               <div className="identityNudgeEmailRow">
                 <input

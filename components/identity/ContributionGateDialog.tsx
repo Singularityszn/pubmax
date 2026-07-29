@@ -40,8 +40,9 @@ export function ContributionGateDialog({
             <p className="contributionGateEyebrow">Account required</p>
             <h2 id="contribution-gate-title">Sign in to contribute</h2>
             <p>
-              Your contribution needs an account-owned public handle. Email
-              sign-in works even when Google and Apple are unavailable.
+              Contributions show your public handle, so you need an account
+              first. Email sign-in works even when Google and Apple are
+              unavailable.
             </p>
             <SignInButton />
           </>
@@ -50,7 +51,8 @@ export function ContributionGateDialog({
             <p className="contributionGateEyebrow">Profile required</p>
             <h2 id="contribution-gate-title">Finish account setup</h2>
             <p>
-              Finish your public handle and private profile before contributing.
+              Choose a public handle and add your date of birth before
+              contributing.
             </p>
           </>
         )}

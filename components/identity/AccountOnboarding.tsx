@@ -107,7 +107,7 @@ export function AccountOnboardingForm({
           <p className="accountOnboardingEyebrow">Your PUBMAXX identity</p>
           <h2 id="account-onboarding-title">Choose how people know you</h2>
           <p id="account-onboarding-lead">
-            Your handle owns every contribution you make.
+            Your public handle appears on every contribution you make.
           </p>
         </header>
 
