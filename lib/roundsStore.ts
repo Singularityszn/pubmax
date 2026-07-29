@@ -804,12 +804,12 @@ export function markRoundPriceSourcePromoted(
   markRoundPriceSourceStatus(source, actor, "promoted");
 }
 
-export function isCurrentReadyRoundPriceSource(
+export function roundPriceSourceStatus(
   source: RoundPriceSource,
   actor: string,
   venueId: string,
   drinkCategory: string,
-): boolean {
+): "ready" | "promoted" | null {
   for (const round of memoryRounds.values()) {
     const sourceSpend = round.spends.find(
       (candidate) => candidate.id === source.spendId,
@@ -820,11 +820,12 @@ export function isCurrentReadyRoundPriceSource(
       round.promotionOwners.get(sourceSpend.clientRef) !== actor ||
       sourceSpend.venueId !== venueId ||
       sourceItem?.source !== "round" ||
-      sourceItem.drinkCategory !== drinkCategory ||
-      sourceItem.promotionStatus !== "ready"
+      sourceItem.drinkCategory !== drinkCategory
     ) {
-      return false;
+      return null;
     }
+    if (sourceItem.promotionStatus === "promoted") return "promoted";
+    if (sourceItem.promotionStatus !== "ready") return null;
 
     let current:
       | { spend: RoundSpendDTO; lineIndex: number }
@@ -847,9 +848,12 @@ export function isCurrentReadyRoundPriceSource(
         }
       });
     }
-    return current?.spend === sourceSpend && current.lineIndex === source.lineIndex;
+    return current?.spend === sourceSpend &&
+      current?.lineIndex === source.lineIndex
+      ? "ready"
+      : null;
   }
-  return false;
+  return null;
 }
 
 function markRoundPriceSourceStatus(

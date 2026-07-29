@@ -73,9 +73,9 @@ import type {
 import { normalizeHandle } from "@/lib/profiles";
 import type { RoundPriceSource } from "@/lib/rounds";
 import {
-  isCurrentReadyRoundPriceSource,
   markRoundPriceSourcePromoted,
   markRoundPriceSourceSuperseded,
+  roundPriceSourceStatus,
 } from "@/lib/roundsStore";
 import { MAX_PROVISIONAL_BASE_VENUE_IDS } from "@/lib/ukBasePubs";
 import {
@@ -883,19 +883,28 @@ export const memoryCommunityPriceStore: CommunityPriceStore = {
       hidden: false,
       reportCount: 0,
     };
-    if (
-      roundSource &&
-      (!stored.actor ||
-        !isCurrentReadyRoundPriceSource(
-          roundSource,
-          stored.actor,
-          stored.venueId,
-          stored.drinkCategory,
-        ))
-    ) {
-      return { price: null };
-    }
     const rows = venues.get(key.venueId) ?? [];
+    if (roundSource) {
+      if (!stored.actor) return { price: null };
+      const sourceStatus = roundPriceSourceStatus(
+        roundSource,
+        stored.actor,
+        stored.venueId,
+        stored.drinkCategory,
+      );
+      if (sourceStatus === "promoted") {
+        const owned = rows.find(
+          (row) =>
+            row.actor === stored.actor &&
+            row.drinkCategory === stored.drinkCategory &&
+            sameRoundPriceSource(row.roundSource, roundSource),
+        );
+        return owned
+          ? { price: published(owned), sourceBecameOwner: true }
+          : { price: null };
+      }
+      if (sourceStatus !== "ready") return { price: null };
+    }
     // One live observation per (venue, category, actor): a contributor correcting
     // its own entry replaces it rather than stacking a second row, so one
     // person can't weight a venue's community price twice.

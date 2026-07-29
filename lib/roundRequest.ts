@@ -6,10 +6,48 @@ import {
   type AccountAuthSnapshot,
   type AccountBoundRequest,
 } from "@/lib/accountBoundFetch";
+import { normalizeHandle } from "@/lib/profiles";
 
 export type RoundRequestIdentity =
   | Readonly<{ kind: "anonymous" }>
   | Readonly<{ kind: "account"; auth: AccountAuthSnapshot }>;
+
+const ROUND_ANONYMOUS_IDENTITY_KEY = "pubmax_round_anonymous_identity_v1";
+
+export function readRoundAnonymousHandle(
+  storage: Pick<Storage, "getItem"> | null,
+): string {
+  if (!storage) return "";
+  try {
+    const raw = JSON.parse(
+      storage.getItem(ROUND_ANONYMOUS_IDENTITY_KEY) ?? "null",
+    ) as { owner?: unknown; handle?: unknown } | null;
+    return raw?.owner === "anonymous" && typeof raw.handle === "string"
+      ? normalizeHandle(raw.handle)
+      : "";
+  } catch {
+    return "";
+  }
+}
+
+export function writeRoundAnonymousHandle(
+  identity: RoundRequestIdentity,
+  handle: string,
+  storage: Pick<Storage, "setItem"> | null,
+): string {
+  if (identity.kind !== "anonymous" || !storage) return "";
+  const clean = normalizeHandle(handle);
+  if (!clean) return "";
+  try {
+    storage.setItem(
+      ROUND_ANONYMOUS_IDENTITY_KEY,
+      JSON.stringify({ owner: "anonymous", handle: clean }),
+    );
+    return clean;
+  } catch {
+    return "";
+  }
+}
 
 export function roundRequestIdentityOwnerKey(
   identity: RoundRequestIdentity | null,

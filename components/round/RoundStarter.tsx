@@ -10,13 +10,23 @@ import { writeActiveRoundCode } from "@/lib/activeRound";
 import { normalizeHandle } from "@/lib/profiles";
 import {
   captureRoundRequestIdentity,
+  readRoundAnonymousHandle,
   roundRequestIdentityOwnerKey,
   runRoundMutationForCurrentOwner,
+  writeRoundAnonymousHandle,
   type RoundRequestIdentity,
 } from "@/lib/roundRequest";
 import { startRoundWithStops, type SeedStop } from "@/lib/startRoundWithStops";
 
 import "./roundStarter.css";
+
+function localStorageSafe(): Storage | null {
+  try {
+    return window.localStorage;
+  } catch {
+    return null;
+  }
+}
 
 export type RoundStarterProps = {
   defaultTitle?: string;
@@ -37,7 +47,6 @@ export type RoundStarterProps = {
  * Start a Round: group-crawl entry (GH #26). Mints a Round, optionally seeds
  * stops from a Plan route, stamps the active Round key, and either navigates
  * to the live Round page or (Plan drawer / stayOnMap) keeps the user on the map.
- * Handle UX matches the rest of the social layer (`pubmax_handle` in localStorage).
  */
 export default function RoundStarter({
   defaultTitle,
@@ -48,7 +57,12 @@ export default function RoundStarter({
   className,
 }: RoundStarterProps): React.JSX.Element {
   const router = useRouter();
-  const { user, session, loading: authLoading } = useAuth();
+  const {
+    user,
+    session,
+    loading: authLoading,
+    handle: accountHandle,
+  } = useAuth();
   const roundIdentity = useMemo(
     () =>
       authLoading
@@ -59,45 +73,38 @@ export default function RoundStarter({
   const roundIdentityRef = useRef<RoundRequestIdentity | null>(roundIdentity);
   roundIdentityRef.current = roundIdentity;
   const roundOwnerKey = roundRequestIdentityOwnerKey(roundIdentity);
-  const stateOwnerRef = useRef(roundOwnerKey);
+  const stateOwnerRef = useRef<string | null>(null);
   const stay = stayOnMap ?? compact;
-  const [handle, setHandle] = useState<string>(() => {
-    if (typeof window === "undefined") return "";
-    try {
-      return normalizeHandle(window.localStorage.getItem("pubmax_handle") ?? "");
-    } catch {
-      return "";
-    }
-  });
+  const [handle, setHandle] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [startedCode, setStartedCode] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
 
   useEffect(() => {
-    if (stateOwnerRef.current === roundOwnerKey) return;
+    const ownerChanged = stateOwnerRef.current !== roundOwnerKey;
     stateOwnerRef.current = roundOwnerKey;
     let active = true;
     void Promise.resolve().then(() => {
       if (!active) return;
-      setBusy(false);
-      setError(null);
-      setStartedCode(null);
-      setCopied(false);
-      try {
-        setHandle(
-          normalizeHandle(
-            window.localStorage.getItem("pubmax_handle") ?? "",
-          ),
-        );
-      } catch {
-        setHandle("");
+      if (ownerChanged) {
+        setBusy(false);
+        setError(null);
+        setStartedCode(null);
+        setCopied(false);
       }
+      setHandle(
+        roundIdentity?.kind === "account"
+          ? (accountHandle ?? "")
+          : roundIdentity?.kind === "anonymous"
+            ? readRoundAnonymousHandle(localStorageSafe())
+            : "",
+      );
     });
     return () => {
       active = false;
     };
-  }, [roundOwnerKey]);
+  }, [accountHandle, roundIdentity?.kind, roundOwnerKey]);
 
   const hasSeeds = Boolean(seedStops && seedStops.length > 0);
 
@@ -144,11 +151,7 @@ export default function RoundStarter({
       return;
     }
 
-    try {
-      window.localStorage.setItem("pubmax_handle", clean);
-    } catch {
-      // storage disabled — the Round still starts, handle just isn't remembered
-    }
+    writeRoundAnonymousHandle(roundIdentity, clean, localStorageSafe());
     writeActiveRoundCode(result.code);
 
     if (stay) {

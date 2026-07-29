@@ -41,6 +41,7 @@ describe("Round composer ownership", () => {
         "account:user-a",
         accountB,
         "account-a-handle",
+        "account:user-a",
       ),
     ).toBe("");
     expect(
@@ -49,6 +50,7 @@ describe("Round composer ownership", () => {
         "account:user-a",
         accountB,
         "account-a-handle",
+        "account:user-a",
       ),
     ).toBe("");
   });
@@ -65,7 +67,31 @@ describe("Round composer ownership", () => {
         "account:user-b",
         accountB,
         "stored-anonymous-handle",
+        "anonymous",
       ),
     ).toBe("round-member-b");
+  });
+
+  it("does not restore an account handle after sign-out", () => {
+    const signedOut: RoundRequestIdentity = { kind: "anonymous" };
+
+    expect(
+      roundViewerHandle(
+        undefined,
+        null,
+        signedOut,
+        "former-account-handle",
+        "account:user-a",
+      ),
+    ).toBe("");
+    expect(
+      roundViewerHandle(
+        undefined,
+        null,
+        signedOut,
+        "anonymous-diary-handle",
+        "anonymous",
+      ),
+    ).toBe("anonymous-diary-handle");
   });
 });

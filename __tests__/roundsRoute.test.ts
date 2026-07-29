@@ -911,6 +911,59 @@ describe("POST /api/rounds/[code] — actions", () => {
     expect(await readCommunityPrices("venue-1")).toEqual([]);
   });
 
+  it("treats concurrent replay of the same promoted source as success", async () => {
+    await authorizeContributor("user-ken", "ken");
+    const { round } = await newRound("ken");
+    await action(round.code, {
+      action: "addStop",
+      handle: "ken",
+      venueId: "venue-1",
+    });
+    const body = {
+      action: "recordSpend",
+      handle: "ken",
+      payerHandle: "ken",
+      venueId: "venue-1",
+      clientRef: "concurrent-source-replay",
+      items: [
+        {
+          drinkName: "Guinness",
+          drinkCategory: "beer",
+          priceGbp: 6.2,
+        },
+      ],
+    };
+
+    priceWriteState.failuresRemaining = 1;
+    expect((await action(round.code, body)).status).toBe(503);
+
+    let releaseWrite = (): void => {};
+    let signalWriteStarted = (): void => {};
+    const writeStarted = new Promise<void>((resolve) => {
+      signalWriteStarted = resolve;
+    });
+    const writeReleased = new Promise<void>((resolve) => {
+      releaseWrite = resolve;
+    });
+    priceWriteState.beforeWrite = async () => {
+      signalWriteStarted();
+      await writeReleased;
+    };
+
+    const firstReplay = action(round.code, body);
+    await writeStarted;
+    const secondReplay = await action(round.code, body);
+    releaseWrite();
+
+    expect(secondReplay.status).toBe(200);
+    expect((await firstReplay).status).toBe(200);
+    expect(await readCommunityPrices("venue-1")).toMatchObject([
+      { priceGbp: 6.2 },
+    ]);
+    const state = (await (await get(round.code)).json()) as RoundState;
+    expect(state.spends[0]?.items[0]?.promotionStatus).toBe("promoted");
+  });
+
   it("persists promotion with the community-price ownership transaction", async () => {
     await authorizeContributor("user-ken", "ken");
     const { round } = await newRound("ken");

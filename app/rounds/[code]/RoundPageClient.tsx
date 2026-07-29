@@ -50,10 +50,12 @@ import {
 } from "@/lib/roundPresence";
 import {
   captureRoundRequestIdentity,
+  readRoundAnonymousHandle,
   roundJsonRequest,
   roundRequest,
   roundRequestIdentityOwnerKey,
   runRoundMutationForCurrentOwner,
+  writeRoundAnonymousHandle,
   type RoundRequestIdentity,
 } from "@/lib/roundRequest";
 import { buildRouteLegs, formatLeg, formatRouteTotal } from "@/lib/routeLegs";
@@ -79,6 +81,7 @@ export function roundViewerHandle(
   viewerOwnerKey: string | null,
   identity: RoundRequestIdentity | null,
   storedHandle: string,
+  storedHandleOwnerKey: string | null,
 ): string {
   if (!identity) return "";
   if (
@@ -87,7 +90,10 @@ export function roundViewerHandle(
   ) {
     return viewerMemberHandle;
   }
-  return identity.kind === "anonymous" ? storedHandle : "";
+  return identity.kind === "anonymous" &&
+    storedHandleOwnerKey === roundRequestIdentityOwnerKey(identity)
+    ? storedHandle
+    : "";
 }
 
 // A minimal Venue shape for buildRouteLegs (read-only): the leg math only reads
@@ -112,6 +118,7 @@ export default function RoundPageClient({ params }: { params: Promise<{ code: st
   );
   const roundAuth =
     roundIdentity?.kind === "account" ? roundIdentity.auth : null;
+  const roundIdentityOwnerKey = roundRequestIdentityOwnerKey(roundIdentity);
   const roundIdentityRef = useRef<RoundRequestIdentity | null>(roundIdentity);
   roundIdentityRef.current = roundIdentity;
   const currentRoundIdentity = useCallback(
@@ -133,29 +140,33 @@ export default function RoundPageClient({ params }: { params: Promise<{ code: st
   const [state, setState] = useState<RoundViewState | null>(null);
   const [stateOwnerKey, setStateOwnerKey] = useState<string | null>(null);
   const [loaded, setLoaded] = useState(false);
-  const [myHandle, setMyHandle] = useState<string>("");
+  const [anonymousHandle, setAnonymousHandle] = useState<{
+    ownerKey: string | null;
+    handle: string;
+  }>({ ownerKey: null, handle: "" });
   // Presence rows at the Round's CURRENT stop — the "your crew is here" overlay
   // (B6). Fetched from the EXISTING GET /api/presence?venueId=…; the intersection
   // with members happens in the pure lib/roundPresence lens. Fail-soft to [].
   const [presence, setPresence] = useState<PresenceDTO[]>([]);
 
-  // Read the viewer's own handle after mount (the server can't know localStorage),
-  // mirroring the feed / profile pages so the whole social layer shares one handle.
   useEffect(() => {
     let active = true;
-    async function loadHandle() {
-      try {
-        const handle = normalizeHandle(window.localStorage.getItem("pubmax_handle") ?? "");
-        if (active) setMyHandle(handle);
-      } catch {
-        // Storage disabled → stays anonymous; the join form shows a handle field.
+    void Promise.resolve().then(() => {
+      if (!active) return;
+      let handle = "";
+      if (roundIdentity?.kind === "anonymous") {
+        try {
+          handle = readRoundAnonymousHandle(window.localStorage);
+        } catch {
+          handle = "";
+        }
       }
-    }
-    void loadHandle();
+      setAnonymousHandle({ ownerKey: roundIdentityOwnerKey, handle });
+    });
     return () => {
       active = false;
     };
-  }, []);
+  }, [roundIdentity?.kind, roundIdentityOwnerKey]);
 
   // Fetch + poll the Round state while it's open. Fail-soft: a fetch miss leaves
   // the last-known state up rather than blanking the page.
@@ -307,7 +318,8 @@ export default function RoundPageClient({ params }: { params: Promise<{ code: st
     state?.viewerMemberHandle,
     stateOwnerKey,
     roundIdentity,
-    myHandle,
+    anonymousHandle.handle,
+    anonymousHandle.ownerKey,
   );
   const amMember = useMemo(
     () =>
@@ -370,6 +382,9 @@ export default function RoundPageClient({ params }: { params: Promise<{ code: st
           setState(next);
           setStateOwnerKey(roundRequestIdentityOwnerKey(roundIdentity));
         }}
+        onAnonymousHandle={(handle) => {
+          setAnonymousHandle({ ownerKey: "anonymous", handle });
+        }}
       />
     </main>
   );
@@ -384,6 +399,7 @@ function RoundBoard({
   amMember,
   presence,
   onChange,
+  onAnonymousHandle,
 }: {
   state: RoundState;
   myHandle: string;
@@ -393,6 +409,7 @@ function RoundBoard({
   amMember: boolean;
   presence: PresenceDTO[];
   onChange: (next: RoundState) => void;
+  onAnonymousHandle: (handle: string) => void;
 }): React.JSX.Element {
   const { round, members, stops, spends } = state;
   const closed = round.closedAt != null;
@@ -502,7 +519,10 @@ function RoundBoard({
           identity={roundIdentity}
           currentIdentity={currentRoundIdentity}
           initialHandle={myHandle}
-          onJoined={onChange}
+          onJoined={(next, handle) => {
+            onAnonymousHandle(handle);
+            onChange(next);
+          }}
         />
       ) : null}
 
@@ -1297,7 +1317,7 @@ function JoinForm({
   identity: RoundRequestIdentity;
   currentIdentity: () => RoundRequestIdentity | null;
   initialHandle: string;
-  onJoined: (next: RoundState) => void;
+  onJoined: (next: RoundState, anonymousHandle: string) => void;
 }): React.JSX.Element {
   const [handle, setHandle] = useState(initialHandle);
   const [busy, setBusy] = useState(false);
@@ -1330,12 +1350,19 @@ function JoinForm({
       if (!completion.current) return;
       const { res, data } = completion.value;
       if (res.ok) {
-        try {
-          window.localStorage.setItem("pubmax_handle", clean);
-        } catch {
-          // storage disabled — join still succeeded server-side
+        let anonymousHandle = "";
+        if (identity.kind === "anonymous") {
+          try {
+            anonymousHandle = writeRoundAnonymousHandle(
+              identity,
+              clean,
+              window.localStorage,
+            );
+          } catch {
+            anonymousHandle = "";
+          }
         }
-        onJoined(data as RoundState);
+        onJoined(data as RoundState, anonymousHandle);
       } else {
         setError((data as { error: string }).error ?? "Could not join.");
       }

@@ -342,8 +342,49 @@ begin
       or v_source_venue_id is distinct from p_venue_id
       or v_source_item->>'source' is distinct from 'round'
       or v_source_item->>'drinkCategory' is distinct from p_drink_category
-      or v_source_item->>'promotionStatus' is distinct from 'ready'
     then
+      return;
+    end if;
+
+    if v_source_item->>'promotionStatus' = 'promoted' then
+      select
+        existing.id,
+        existing.price_pennies,
+        existing.submitted_at,
+        existing.round_spend_id,
+        existing.round_line_index
+      into
+        v_current_id,
+        v_current_pennies,
+        v_current_submitted_at,
+        v_current_spend_id,
+        v_current_line_index
+      from public.community_prices existing
+      where existing.venue_id = p_venue_id
+        and existing.drink_category = p_drink_category
+        and existing.actor = p_actor
+      for update;
+
+      if
+        not found
+        or v_current_spend_id is distinct from p_round_spend_id
+        or v_current_line_index is distinct from p_round_line_index
+      then
+        return;
+      end if;
+
+      return query
+      select
+        v_current_id,
+        v_current_pennies,
+        v_current_submitted_at,
+        v_current_spend_id,
+        v_current_line_index,
+        true as source_became_owner;
+      return;
+    end if;
+
+    if v_source_item->>'promotionStatus' is distinct from 'ready' then
       return;
     end if;
 

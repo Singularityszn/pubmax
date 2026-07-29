@@ -441,5 +441,8 @@ describe("Round price key ownership migration", () => {
     expect(atomicUpsert).toMatch(
       /v_candidate_spend_id is distinct from p_round_spend_id[\s\S]*return;/,
     );
+    expect(atomicUpsert).toMatch(
+      /promotionStatus' = 'promoted'[\s\S]*from public\.community_prices existing[\s\S]*for update;[\s\S]*v_current_spend_id is distinct from p_round_spend_id[\s\S]*true as source_became_owner/,
+    );
   });
 });
