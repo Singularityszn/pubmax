@@ -210,17 +210,14 @@ export function createDonutClusterSync(
     sync(false);
   };
   // `sourcedata` fires for every tile/source on the map, including basemap
-  // tiles that have nothing to do with the `pubs` cluster tree — gate on the
-  // event actually being our source finishing a load.
+  // tiles that have nothing to do with the `pubs` cluster tree, so only the
+  // app-owned source may drive this reconciliation.
   const onSourceData = (e: maplibregl.MapSourceDataEvent) => {
-    if (
-      e.sourceId !== "pubs" ||
-      e.sourceDataType !== "content" ||
-      !e.isSourceLoaded
-    ) {
-      return;
-    }
-    sync(true);
+    if (e.sourceId !== "pubs") return;
+    // Every pubs event may expose the first non-empty cluster snapshot, even
+    // when it is not authoritative evidence that an empty source is settled.
+    // This keeps activation independent from unrelated basemap render churn.
+    sync(e.sourceDataType === "content" && e.isSourceLoaded);
   };
   // A theme/style swap (setStyle) recreates the `pubs` source and its
   // supercluster tree — old marker els carry stale-themed SVG and cluster
@@ -230,17 +227,19 @@ export function createDonutClusterSync(
     clearMarkers();
     donutsActive = false;
   };
-  const onMoveEnd = () => sync(true);
+  const onSettledMap = () => sync(true);
 
   map.on("render", throttledSync);
-  map.on("moveend", onMoveEnd);
+  map.on("moveend", onSettledMap);
+  map.on("idle", onSettledMap);
   map.on("sourcedata", onSourceData);
   map.on("style.load", onStyleLoad);
 
   return {
     destroy: () => {
       map.off("render", throttledSync);
-      map.off("moveend", onMoveEnd);
+      map.off("moveend", onSettledMap);
+      map.off("idle", onSettledMap);
       map.off("sourcedata", onSourceData);
       map.off("style.load", onStyleLoad);
       clearMarkers();

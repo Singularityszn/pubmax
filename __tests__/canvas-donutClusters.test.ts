@@ -105,10 +105,24 @@ describe("createDonutClusterSync (M5 donut — listener lifecycle)", () => {
       getSource: () => undefined,
       getLayer: () => undefined,
       getZoom: () => 10,
-      querySourceFeatures: () => [],
+      querySourceFeatures: (): unknown[] => [],
       setLayoutProperty: vi.fn(),
     };
     return { map, handlers };
+  }
+
+  function stubMarkerDocument() {
+    markerHarness.instances.length = 0;
+    vi.stubGlobal("document", {
+      documentElement: { dataset: { theme: "dark" } },
+      createElement: () => ({
+        className: "",
+        style: {},
+        innerHTML: "",
+        setAttribute: vi.fn(),
+        addEventListener: vi.fn(),
+      }),
+    });
   }
 
   it("registers the render / moveend / sourcedata / style.load listeners", () => {
@@ -180,17 +194,7 @@ describe("createDonutClusterSync (M5 donut — listener lifecycle)", () => {
   });
 
   it("retains active donuts for transient and non-content emptiness, then clears them when loaded content is empty", () => {
-    markerHarness.instances.length = 0;
-    vi.stubGlobal("document", {
-      documentElement: { dataset: { theme: "dark" } },
-      createElement: () => ({
-        className: "",
-        style: {},
-        innerHTML: "",
-        setAttribute: vi.fn(),
-        addEventListener: vi.fn(),
-      }),
-    });
+    stubMarkerDocument();
     vi.spyOn(performance, "now").mockReturnValue(500);
 
     const { map, handlers } = makeFakeMap();
@@ -280,6 +284,95 @@ describe("createDonutClusterSync (M5 donut — listener lifecycle)", () => {
       "visibility",
       "visible",
     );
+
+    sync.destroy();
+    vi.unstubAllGlobals();
+    vi.restoreAllMocks();
+  });
+
+  it("activates from a later non-empty pubs source event even when that event is not authoritative for emptiness", () => {
+    stubMarkerDocument();
+    vi.spyOn(performance, "now").mockReturnValue(500);
+
+    const { map, handlers } = makeFakeMap();
+    const cluster = {
+      properties: {
+        cluster_id: 18,
+        point_count: 3,
+        b0: 1,
+        b1: 1,
+        b2: 1,
+        b3: 0,
+      },
+      geometry: {
+        type: "Point",
+        coordinates: [-2.2426, 53.4808],
+      },
+    };
+    map.getSource = () => ({}) as never;
+    map.getLayer = () => ({}) as never;
+    map.querySourceFeatures = vi
+      .fn()
+      .mockReturnValueOnce([])
+      .mockReturnValueOnce([cluster]);
+
+    const sync = createDonutClusterSync(
+      map as unknown as maplibregl.Map,
+      () => {},
+    );
+    const [render] = [...(handlers.get("render") ?? [])];
+    const [sourcedata] = [...(handlers.get("sourcedata") ?? [])];
+
+    render();
+    expect(markerHarness.instances).toHaveLength(0);
+
+    sourcedata({
+      sourceId: "pubs",
+      sourceDataType: "idle",
+      isSourceLoaded: true,
+    });
+    expect(markerHarness.instances).toHaveLength(1);
+    expect(map.setLayoutProperty).toHaveBeenLastCalledWith(
+      "cluster-count",
+      "visibility",
+      "none",
+    );
+
+    sync.destroy();
+    vi.unstubAllGlobals();
+    vi.restoreAllMocks();
+  });
+
+  it("reconciles once more when the map becomes idle and source queries are settled", () => {
+    stubMarkerDocument();
+
+    const { map, handlers } = makeFakeMap();
+    map.getSource = () => ({}) as never;
+    map.getLayer = () => ({}) as never;
+    map.querySourceFeatures = vi.fn(() => [{
+      properties: {
+        cluster_id: 19,
+        point_count: 2,
+        b0: 1,
+        b1: 1,
+        b2: 0,
+        b3: 0,
+      },
+      geometry: {
+        type: "Point",
+        coordinates: [-2.2426, 53.4808],
+      },
+    }]);
+
+    const sync = createDonutClusterSync(
+      map as unknown as maplibregl.Map,
+      () => {},
+    );
+    const [idle] = [...(handlers.get("idle") ?? [])];
+
+    expect(idle).toBeTypeOf("function");
+    idle();
+    expect(markerHarness.instances).toHaveLength(1);
 
     sync.destroy();
     vi.unstubAllGlobals();
