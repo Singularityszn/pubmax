@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   resolveSheetSnap,
   resolveSheetHeightSnap,
+  sheetClosedTranslateY,
   sheetSnapCaps,
   sheetTranslateY,
   sheetTranslateYFraction,
@@ -41,6 +42,17 @@ describe("sheetTranslateY", () => {
     expect(sheetTranslateY("full", VH)).toBeCloseTo(VH * SHEET_SNAP_TRANSLATE_FRACTIONS.full);
     expect(sheetTranslateY("half", VH)).toBeCloseTo(VH * SHEET_SNAP_TRANSLATE_FRACTIONS.half);
     expect(sheetTranslateY("peek", VH)).toBeCloseTo(VH * SHEET_SNAP_TRANSLATE_FRACTIONS.peek);
+  });
+});
+
+describe("sheetClosedTranslateY", () => {
+  it("moves a bottom-offset tablet drawer fully below the viewport", () => {
+    expect(sheetClosedTranslateY(800, 58)).toBe(858);
+  });
+
+  it("ignores invalid and negative bottom clearances", () => {
+    expect(sheetClosedTranslateY(800, -20)).toBe(800);
+    expect(sheetClosedTranslateY(800, Number.NaN)).toBe(800);
   });
 });
 
@@ -117,15 +129,15 @@ describe("resolveSheetSnap — no-velocity (nearest neighbour)", () => {
   });
 });
 
-describe("resolveSheetSnap — flick (velocity-driven overshoot)", () => {
-  it("a fast upward flick from peek jumps to half, not full, in one step", () => {
+describe("resolveSheetSnap — projected momentum", () => {
+  it("a fast upward flick from peek can project through half to full", () => {
     const result = resolveSheetSnap({
       currentSnap: "peek",
       viewportHeight: VH,
       dragDeltaY: -10, // barely moved
       velocity: -1.2, // fast upward flick (negative = up)
     });
-    expect(result).toEqual({ snap: "half", dismissed: false });
+    expect(result).toEqual({ snap: "full", dismissed: false });
   });
 
   it("a fast upward flick from half jumps to full", () => {
@@ -156,6 +168,16 @@ describe("resolveSheetSnap — flick (velocity-driven overshoot)", () => {
       velocity: 0.8,
     });
     expect(result).toEqual({ snap: "half", dismissed: false });
+  });
+
+  it("a fast downward flick from half lands at peek instead of dismissing", () => {
+    const result = resolveSheetSnap({
+      currentSnap: "half",
+      viewportHeight: VH,
+      dragDeltaY: 10,
+      velocity: 0.8,
+    });
+    expect(result).toEqual({ snap: "peek", dismissed: false });
   });
 
   it("a fast downward flick from peek dismisses the sheet", () => {
@@ -292,10 +314,10 @@ describe("resolveSheetHeightSnap — no-velocity (nearest neighbour on height)",
   });
 });
 
-describe("resolveSheetHeightSnap — flick (velocity-driven overshoot)", () => {
+describe("resolveSheetHeightSnap — projected momentum", () => {
   const caps = sheetSnapCaps(800, 0);
 
-  it("a fast upward flick from peek jumps to half, not full, in one step", () => {
+  it("a fast upward flick from peek can project through half to full", () => {
     const result = resolveSheetHeightSnap({
       startSnap: "peek",
       startHeightPx: caps.peek,
@@ -303,7 +325,7 @@ describe("resolveSheetHeightSnap — flick (velocity-driven overshoot)", () => {
       velocity: 1.2, // fast growth (positive = up)
       caps,
     });
-    expect(result).toEqual({ snap: "half", dismissed: false });
+    expect(result).toEqual({ snap: "full", dismissed: false });
   });
 
   it("a fast upward flick from half jumps to full", () => {
@@ -337,6 +359,17 @@ describe("resolveSheetHeightSnap — flick (velocity-driven overshoot)", () => {
       caps,
     });
     expect(result).toEqual({ snap: "half", dismissed: false });
+  });
+
+  it("a fast downward drag from half lands at peek instead of dismissing", () => {
+    const result = resolveSheetHeightSnap({
+      startSnap: "half",
+      startHeightPx: caps.half,
+      releaseHeightPx: caps.half - 260,
+      velocity: -0.8,
+      caps,
+    });
+    expect(result).toEqual({ snap: "peek", dismissed: false });
   });
 
   it("a fast downward flick from peek dismisses the sheet", () => {

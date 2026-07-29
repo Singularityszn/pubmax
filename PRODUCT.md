@@ -82,4 +82,7 @@ What this must not look like:
 
 ## Accessibility & Inclusion
 
-Respect `prefers-reduced-motion` for ambient pulses and decorative tilt. Keep CTA and price-stamp contrast readable on both candle paper and night ink. Do not rely on color alone for price bands — pair hue with label or stamp pattern where space allows.
+Respect `prefers-reduced-motion` for ambient pulses and interface travel. Static
+price-stamp tilt remains a shape, not an animation. Keep CTA and price-stamp
+contrast readable on both candle paper and night ink. Do not rely on color alone
+for price bands - pair hue with label or stamp pattern where space allows.

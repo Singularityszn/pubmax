@@ -11,6 +11,10 @@ Research: 8 live references studied via Firecrawl `branding` extraction (colours
 radii, button/shadow treatments) + the local `apple-design` skill as the physics baseline.
 Firecrawl credits used this pass: ~18.
 
+**Implementation status:** Wave 2 now implements D1-D8. Current acceptance
+evidence lives in [`design-craft-d1-d8-evidence.md`](./design-craft-d1-d8-evidence.md);
+the gap analysis below remains the dated baseline that defined the work.
+
 ---
 
 ## 1. The thesis (one paragraph)

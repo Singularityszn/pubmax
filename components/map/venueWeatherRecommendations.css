@@ -187,6 +187,7 @@
 .weatherRecCondition:active,
 .weatherRecSubmit:active {
   transform: scale(0.97);
+  --shared-press-scale: 1;
 }
 
 .weatherRecCondition:has(input:focus-visible),

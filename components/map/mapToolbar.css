@@ -186,6 +186,7 @@
 
 .drinkShapeChip:active {
   transform: scale(0.96);
+  --shared-press-scale: 1;
 }
 
 .drinkShapeChip:hover,
@@ -267,6 +268,7 @@
 
 .drinkSubtypeChip:active {
   transform: scale(0.96);
+  --shared-press-scale: 1;
 }
 
 .drinkSubtypeChip:hover,

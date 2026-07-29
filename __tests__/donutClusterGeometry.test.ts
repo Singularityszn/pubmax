@@ -12,13 +12,13 @@ import {
 const COLORS = ["#2f8f5b", "#d99f45", "#d16353", "#6b726a"];
 
 describe("donutOuterRadius", () => {
-  it("mirrors the legacy cluster-circle step expression", () => {
-    expect(donutOuterRadius(1)).toBe(9);
-    expect(donutOuterRadius(24)).toBe(9);
-    expect(donutOuterRadius(25)).toBe(12);
-    expect(donutOuterRadius(99)).toBe(12);
-    expect(donutOuterRadius(100)).toBe(16);
-    expect(donutOuterRadius(1000)).toBe(16);
+  it("mirrors the product-weight cluster-circle step expression", () => {
+    expect(donutOuterRadius(1)).toBe(11);
+    expect(donutOuterRadius(24)).toBe(11);
+    expect(donutOuterRadius(25)).toBe(15);
+    expect(donutOuterRadius(99)).toBe(15);
+    expect(donutOuterRadius(100)).toBe(20);
+    expect(donutOuterRadius(1000)).toBe(20);
   });
 });
 

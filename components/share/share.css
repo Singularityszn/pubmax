@@ -52,6 +52,7 @@
 /* A stamp being pressed — a hair of travel on click. */
 .shareBar__btn:active {
   transform: scale(0.97);
+  --shared-press-scale: 1;
 }
 
 /* Compact mode (feed card single action row) — the channel buttons only exist

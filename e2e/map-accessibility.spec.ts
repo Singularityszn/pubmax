@@ -1,6 +1,8 @@
 import { expect, test, type Locator, type Page } from "@playwright/test";
 
 const DESKTOP = { width: 1440, height: 900 };
+const MOBILE = { width: 390, height: 844 };
+const ARNOS_ARMS_ID = "venue-xjf3n0";
 const LOCKED_DARK_INK = [22, 18, 42] as const;
 const LOCKED_CORAL = [255, 90, 95] as const;
 const LOCKED_CORAL_BRIGHT = [255, 122, 85] as const;
@@ -36,6 +38,28 @@ function rgbChannels(cssColour: string): [number, number, number] {
     throw new Error(`Could not parse computed colour: ${cssColour}`);
   }
   return [channels[0], channels[1], channels[2]];
+}
+
+async function expectLockedCoralContrast(control: Locator): Promise<void> {
+  const computed = await control.evaluate((node) => {
+    const style = getComputedStyle(node);
+    return {
+      colour: style.color,
+      backgroundColour: style.backgroundColor,
+      backgroundImage: style.backgroundImage,
+    };
+  });
+  const foreground = rgbChannels(computed.colour);
+  expect(foreground).toEqual(LOCKED_DARK_INK);
+  expect(
+    `${computed.backgroundColour} ${computed.backgroundImage}`,
+  ).toContain("255, 90, 95");
+  expect(
+    Math.min(
+      contrastRatio(foreground, LOCKED_CORAL),
+      contrastRatio(foreground, LOCKED_CORAL_BRIGHT),
+    ),
+  ).toBeGreaterThanOrEqual(5.96);
 }
 
 function dismissFirstRunChrome(page: Page): Promise<void> {
@@ -338,24 +362,25 @@ test.describe("map keyboard and screen-reader venue path", () => {
         document.documentElement.dataset.theme = nextTheme;
       }, theme);
       await expect(page.locator("html")).toHaveAttribute("data-theme", theme);
+      await expectLockedCoralContrast(planButton);
+    }
 
-      const computed = await planButton.evaluate((node) => {
-        const style = getComputedStyle(node);
-        return {
-          colour: style.color,
-          backgroundImage: style.backgroundImage,
-        };
-      });
-      const foreground = rgbChannels(computed.colour);
-      expect(foreground).toEqual(LOCKED_DARK_INK);
-      expect(computed.backgroundImage).toContain("255, 90, 95");
-      expect(computed.backgroundImage).toContain("255, 122, 85");
-      expect(
-        Math.min(
-          contrastRatio(foreground, LOCKED_CORAL),
-          contrastRatio(foreground, LOCKED_CORAL_BRIGHT),
-        ),
-      ).toBeGreaterThanOrEqual(5.96);
+    await page.setViewportSize(MOBILE);
+    await page.goto(`/map?sel=${ARNOS_ARMS_ID}&mode=build`);
+    const planStop = page.getByRole("button", { name: "Plan stop" });
+    const logDrop = page.getByRole("button", {
+      name: "Log a Pint Drop at Arnos Arms",
+    });
+    await expect(planStop).toBeVisible();
+    await expect(logDrop).toBeVisible();
+
+    for (const theme of ["light", "dark"] as const) {
+      await page.evaluate((nextTheme) => {
+        window.localStorage.setItem("pubmax-theme", nextTheme);
+        document.documentElement.dataset.theme = nextTheme;
+      }, theme);
+      await expectLockedCoralContrast(planStop);
+      await expectLockedCoralContrast(logDrop);
     }
   });
 });

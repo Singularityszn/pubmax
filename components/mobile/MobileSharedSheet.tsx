@@ -52,25 +52,30 @@ export default function MobileSharedSheet({
   useEffect(() => {
     onCloseRef.current = onClose;
   }, [onClose]);
-  const requestClose = useCallback(() => onCloseRef.current(), []);
+  const finishClose = useCallback(() => onCloseRef.current(), []);
 
   const {
     sheetSnap,
     setSheetSnap,
-    dragHeight,
-    setDragHeight,
+    openAtSnap,
+    requestDismiss,
+    sheetHeight,
+    dragging,
+    settling,
     onSheetDragStart,
     onSheetDragMove,
     onSheetDragEnd,
-  } = useSheetHeightDrag(requestClose);
+  } = useSheetHeightDrag(finishClose);
+  const requestClose = useCallback(() => {
+    requestDismiss(sheetRef.current?.getBoundingClientRect().height);
+  }, [requestDismiss]);
 
   // On open: capture focus origin, reset to the requested opening snap, focus
   // the close button, and wire Escape-to-close.
   useEffect(() => {
     if (!kind) return;
     previousFocus.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
-    setSheetSnap(initialSnap);
-    setDragHeight(null);
+    openAtSnap(initialSnap);
     const frame = requestAnimationFrame(() => closeRef.current?.focus());
     const onKey = (event: KeyboardEvent) => {
       if (event.key === "Escape") requestClose();
@@ -81,15 +86,14 @@ export default function MobileSharedSheet({
       window.removeEventListener("keydown", onKey);
       previousFocus.current?.focus({ preventScroll: true });
     };
-  }, [initialSnap, kind, requestClose, setDragHeight, setSheetSnap]);
+  }, [initialSnap, kind, openAtSnap, requestClose]);
 
   // PubMap/MobileMapShell can request a snap change (e.g. a content-tab tap
   // expands the venue sheet to full). Only re-applies on change.
   useEffect(() => {
     if (!kind || !requestedSnap) return;
-    setDragHeight(null);
     setSheetSnap(requestedSnap);
-  }, [kind, requestedSnap, setDragHeight, setSheetSnap]);
+  }, [kind, requestedSnap, setSheetSnap]);
 
   // Modal focus trap only at the `full` detent (near-fullscreen).
   useFocusTrap(Boolean(kind) && sheetSnap === "full", sheetRef);
@@ -103,11 +107,13 @@ export default function MobileSharedSheet({
         ? "Close planner"
         : `Close ${title}`);
 
-  const dragging = dragHeight !== null;
-  // While dragging, pin the box height 1:1 to the finger via an inline
-  // max-height (overriding the snap-class cap); the `.sheet-dragging` class kills
-  // the transition so it tracks live.
-  const sectionStyle: React.CSSProperties | undefined = dragging ? { maxHeight: `${dragHeight}px` } : undefined;
+  const sectionStyle: React.CSSProperties = {
+    maxHeight: `${Math.max(0, sheetHeight)}px`,
+    // Phone snaps change real geometry so the footer stays at the visible
+    // bottom at peek, half, and full. Fence that layout work to this sheet and
+    // drop compositor hints as soon as the spring rests.
+    willChange: dragging || settling ? "max-height" : "auto",
+  };
 
   return createPortal(
     <div className="mobileSheetPortal" data-sheet-kind={kind}>
@@ -120,7 +126,7 @@ export default function MobileSharedSheet({
       />
       <section
         ref={sheetRef}
-        className={`mapDrawer mobileSharedSheet ${kind === "venue" ? "right" : kind === "planner" ? "left" : "contextual"} open sheet-${sheetSnap}${dragging ? " sheet-dragging" : ""}`}
+        className={`mapDrawer mobileSharedSheet ${kind === "venue" ? "right" : kind === "planner" ? "left" : "contextual"} open sheet-${sheetSnap}${dragging ? " sheet-dragging" : ""}${settling ? " sheet-settling" : ""}`}
         role={sheetSnap === "full" ? "dialog" : undefined}
         aria-modal={sheetSnap === "full" ? "true" : undefined}
         aria-labelledby={titleId}

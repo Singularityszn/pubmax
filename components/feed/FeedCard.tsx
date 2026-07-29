@@ -4,6 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 
+import PriceBadge from "@/components/PriceBadge";
 import { DrinkGlyph } from "@/components/drinks/DrinkGlyph";
 import CommentThread from "@/components/pintdrop/CommentThread";
 import ShareBar from "@/components/share/ShareBar";
@@ -329,12 +330,13 @@ export default function FeedCard({
 
           {/* Price stamp — top-right, the pressed-ink signature. */}
           {typeof item.priceGbp === "number" ? (
-            <span
+            <PriceBadge
+              variant="current"
               className="feedSpillPrice"
               style={{ viewTransitionName: `feed-price-${item.id}` }}
             >
               {formatGbp(item.priceGbp)}
-            </span>
+            </PriceBadge>
           ) : null}
 
           {/* Bottom scrim + overlaid content. The scrim is a FIXED dark gradient
@@ -431,7 +433,9 @@ export default function FeedCard({
             </span>
             <span className="feedReceiptEyebrow">Pint Drop</span>
             {typeof item.priceGbp === "number" ? (
-              <span className="feedReceiptPrice">{formatGbp(item.priceGbp)}</span>
+              <PriceBadge variant="current" className="feedReceiptPrice">
+                {formatGbp(item.priceGbp)}
+              </PriceBadge>
             ) : (
               <span className="feedReceiptPrice feedReceiptPriceMuted">A memory</span>
             )}

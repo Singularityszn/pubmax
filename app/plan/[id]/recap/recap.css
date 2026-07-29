@@ -1,67 +1,5 @@
-/* The recap page — the product's beauty moment. 390-first, both themes,
-   restrained motion. Built on the #328 accent-role token system (plaques,
-   elevation, type ladder) rather than raw --brass.
-
-   ── Role tokens (#328 preview) — DEDUPE-ON-MERGE with design/token-system-v2 ──
-   #328 deprecates coral-for-everything: raw --brass is licensed only as the
-   action accent; prices wear the brass-plaque heritage in amber. These are
-   byte-identical to #328's definitions; when that branch merges, DELETE this
-   block (and the .price-plaque / .type-* rules below) and keep #328's canonical
-   ones — no consumer change, page.tsx already uses the final class names. */
-:root {
-  --accent-action: var(--brass);
-  --accent-action-strong: var(--brass-bright);
-  --accent-price: var(--amber);
-  --accent-price-ink: color-mix(in srgb, var(--amber) 66%, var(--ink));
-  --price-plaque-surface: color-mix(in srgb, var(--amber) 11%, var(--panel-raised));
-  --price-plaque-border: color-mix(in srgb, var(--amber) 46%, var(--line));
-  --price-plaque-shine: inset 0 1px 0 color-mix(in srgb, #ffffff 42%, transparent);
-  --state-active-surface: color-mix(in srgb, var(--brass) 9%, var(--panel-raised));
-  --state-active-border: color-mix(in srgb, var(--brass) 36%, var(--line));
-  --hairline: var(--line);
-  --hairline-strong: color-mix(in srgb, var(--line) 68%, var(--ink-soft) 32%);
-}
-html[data-theme="dark"] {
-  --accent-price-ink: color-mix(in srgb, var(--amber) 80%, var(--ink));
-  --price-plaque-surface: color-mix(in srgb, var(--amber) 16%, var(--panel-raised));
-  --price-plaque-border: color-mix(in srgb, var(--amber) 42%, var(--line));
-  --price-plaque-shine: inset 0 1px 0 rgba(255, 255, 255, 0.06);
-  --hairline-strong: color-mix(in srgb, var(--line) 55%, var(--ink-soft) 45%);
-}
-
-/* Plaque + type-ladder classes — DEDUPE-ON-MERGE with #328 (same note as above). */
-.price-plaque {
-  font-family: var(--font-data);
-  font-variant-numeric: tabular-nums;
-  font-feature-settings: "tnum";
-  font-weight: 700;
-  letter-spacing: 0.01em;
-  color: var(--accent-price-ink);
-  background: var(--price-plaque-surface);
-  border: 1px solid var(--price-plaque-border);
-  border-radius: var(--radius-sm);
-  box-shadow: var(--price-plaque-shine);
-}
-.type-section-title {
-  font-family: var(--font-display);
-  font-weight: 700;
-  font-size: var(--text-xl);
-  line-height: var(--leading-tight);
-  letter-spacing: var(--tracking-tight);
-}
-.type-card-title {
-  font-family: var(--font-display);
-  font-weight: 600;
-  font-size: var(--text-md);
-  line-height: var(--leading-snug);
-}
-.type-meta {
-  font-family: var(--font-body, var(--font-display));
-  font-weight: 500;
-  font-size: var(--text-xs);
-  letter-spacing: var(--tracking-wide);
-  color: var(--muted);
-}
+/* Recap is 390-first in both themes. Shared plaque, elevation, and type roles
+   live in globals.css so recap cannot drift from the rest of the product. */
 
 /* ── Page shell ─────────────────────────────────────────────────────────── */
 .recapPage {
@@ -142,8 +80,7 @@ html[data-theme="dark"] {
   color: var(--ink);
 }
 .recapStat--price {
-  padding: 3px 9px;
-  font-size: var(--text-sm);
+  align-self: center;
 }
 
 /* ── Section scaffold ───────────────────────────────────────────────────── */
@@ -254,8 +191,6 @@ html[data-theme="dark"] {
 }
 .recapPint__price {
   flex: 0 0 auto;
-  padding: 5px 11px;
-  font-size: var(--text-md);
 }
 
 /* ── Approved photos (public recap only) ────────────────────────────────── */

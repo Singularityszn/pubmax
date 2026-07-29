@@ -52,6 +52,9 @@ describe("mobile chrome fit at 390px", () => {
     expect(rule, ".mobileVenuePeekSummary small rule present").not.toBe("");
     expect(rule).toMatch(/white-space:\s*normal/);
     expect(rule).not.toMatch(/text-overflow:\s*ellipsis/);
+    expect(mobileMapCss).toMatch(
+      /\.mobileVenuePeekSummary \.mobileVenuePeekDrop strong\s*{[^}]*white-space:\s*normal/,
+    );
   });
 
   it("fits every Tonight Arc chip inside the rail panel, clear of the TfL control", () => {

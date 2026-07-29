@@ -36,37 +36,32 @@ same **name** (values may retune within the A/B decision).
 |---|---|
 | `PRODUCT.md` | Strategic brief: vocabulary, A/B lock, taste dials, anti-refs |
 | `DESIGN.md` | Impeccable visual spec (colors, type, components, do/don't) |
-| `app/globals.css` | `:root` token definitions (light/default values), resets, most component classes, the pressed-ink utility |
-| `app/theme.css` | `html[data-theme="dark"]` token overrides, Plan CTA contrast, theme-toggle |
+| `app/globals.css` | `:root` token definitions (light/default values), sheet material, resets, shared press feedback, and the pressed-ink utility |
+| `app/theme.css` | `html[data-theme="dark"]` token overrides, dark-first sheet material, Plan CTA contrast, theme-toggle |
 | `app/layout.tsx` | `next/font` wiring — loads the three type-trio fonts as CSS variables on `<html>` |
-| `components/PubMapCanvas.tsx` | Reads tokens at runtime via `readTokens()` to paint the MapLibre style — the map is a *consumer* of these tokens, never a second source of truth |
+| `lib/springMotion.ts` + `lib/useSpringValue.ts` | Interruptible spring integration, reduced-motion jumps, and React animation ownership |
+| `components/map/canvas/` | Reads live tokens for MapLibre paint; the map is a consumer, never a second colour source |
 
 If you're adding a new component: reach for a token below before writing a
-literal value. If the token you need doesn't exist, add it here first.
+literal value. If the token you need does not exist, add it to the theme source
+first, then document its non-obvious role here.
 
 ## Colour
 
-### Palette (the literal values)
+### Palette roles
 
-| Token | Light (A Candle Coral) | Dark (B Night Out) | Role |
-|---|---|---|---|
-| `--ink` | `#1c1412` | `#eef3ef` | primary text |
-| `--ink-soft` | `#4a3632` | `#c5d0c9` | secondary text |
-| `--muted` | `#7a5c55` | `#8fa399` | tertiary/label text |
-| `--line` | `#efcfc4` | `#24302b` | hairline borders |
-| `--line-soft` | `#f5e0d6` | `#1a2420` | faint dividers |
-| `--paper` | `#fff1e6` | `#070b0a` | page base |
-| `--panel` | `#fffaf6` | `#0e1613` | recessed panel |
-| `--panel-raised` | `#ffffff` | `#141c19` | cards, inputs |
-| `--ink-deep` | `#16122a` | `#040606` | brand-mark / stamp-dark chrome |
-| `--pint` | `#18a76d` | `#3dff9a` | cheap pint / positive / neon-go |
-| `--amber` | `#f2a71b` | `#f0a01a` | mid price / caution |
-| `--brick` | `#ff5a5f` | `#ff6b7a` | expensive / destructive |
-| `--brass` | `#ff5a5f` | `#ff5a5f` | **Plan CTA / accent** |
-| `--brass-bright` | `#ff7a55` | `#ff7a55` | accent hover / bright lift |
-| `--night-amber` | aliases `--brass` | `#f0a01a` | Night Out route / price accent |
-| `--river` | `#2864d8` | `#64b5ff` | heritage / by-water |
-| `--river-bright` | `#29b6f6` | `#7dd3fc` | heritage on dark chrome |
+Literal values and the deliberate map/root versus DOM/body split live in
+`app/globals.css` and `app/theme.css`. The stable roles are:
+
+| Token family | Role |
+|---|---|
+| `--ink`, `--ink-soft`, `--muted` | primary, secondary, and tertiary text |
+| `--line`, `--line-soft`, `--hairline` | map-aware and DOM structural edges |
+| `--paper`, `--panel`, `--panel-raised`, `--panel-overlay` | page-to-overlay elevation ladder |
+| `--ink-deep` | inverse and stamp-dark chrome |
+| `--brass`, `--brass-bright` | Plan CTA and identity accent |
+| `--pint`, `--amber`, `--brick` | price and status semantics |
+| `--river`, `--river-bright` | heritage and by-water information |
 
 **One accent owns the CTA in both themes.** Coral (`--brass`) carries actions;
 amber (`--night-amber`) stays a route and price signal. Every other hue (`pint` / `amber` /
@@ -180,9 +175,10 @@ as a stamp, it may keep caps.
 --tracking-wider  0.08em   legacy (all-caps titles are retired — see caps policy)
 ```
 
-Existing components keep their literal `font-size` values (this pass doesn't
-rewrite 35+ components); the scale exists so **new** type decisions have a
-system to land on instead of another one-off rem value.
+Shared type-role utilities live in `app/globals.css`. High-impact surfaces use
+those roles or a local responsive clamp where the layout needs one; new type
+decisions should extend the same hierarchy rather than add another peer-sized
+heading.
 
 ### Data/tabular utility
 
@@ -203,8 +199,8 @@ adding the class is optional, additive polish.
 
 ```
 --space-1 … --space-12   4px base scale (4/8/12/16/20/24/32/40/48)
---radius       10px      default corner (cards, inputs)
---radius-sm     7px      tight corner (chips, small controls)
+--radius        8px      default corner (cards, inputs)
+--radius-sm     6px      tight corner (chips, small controls)
 --radius-lg    18px      sheets / bottom-drawer corners
 --radius-pill 999px      pills, avatar-style chips
 ```
@@ -225,22 +221,30 @@ for the pressed-ink utility (see below) — it flips its highlight edge (cream
 in light, amber in dark) so the letterpress effect reads correctly against
 either surface.
 
+### Sheet material
+
+Sheets and drawers use one translucent neutral material over the map, with
+layered micro-shadows and a solid fallback for reduced transparency, increased
+contrast, or missing backdrop-filter support. `app/globals.css` and
+`app/theme.css` own the material roles; map and mobile sheet styles only consume
+them. This is a functional depth cue for movable overlays, not permission to
+add decorative glass elsewhere.
+
 ## Motion
 
-```
---duration-fast     0.12s   press/tap feedback
---duration-base     0.15s   hover/focus colour transitions
---duration-slow     0.28s   drawer/sheet slide
---duration-ambient  1.4s    ambient pulses (loading dots, thinking indicator)
---duration-press    0.13s   button press-in / release
---ease-standard     ease
---ease-out          cubic-bezier(0.4, 0, 0.2, 1)
---ease-out-strong   cubic-bezier(0.23, 1, 0.32, 1)    entrances / UI feedback — starts fast
---ease-drawer       cubic-bezier(0.32, 0.72, 0, 1)    iOS-like sheet / drawer travel
---ease-spring       cubic-bezier(0.34, 1.56, 0.64, 1) subtle overshoot — momentum entrances only
---press-scale       0.97    default pressed scale — subtle, "the UI heard you"
---press-scale-firm  0.94    small icon buttons can press a touch firmer
-```
+CSS duration and easing tokens in `app/globals.css` own hover, focus, ambient,
+and pointer-down feedback. They do not own sheet travel.
+
+`lib/springMotion.ts` owns bounded spring integration and momentum projection.
+`lib/useSpringValue.ts` owns animation frames, interruption, retargeting,
+cleanup, and reduced-motion jumps. Phone sheets animate real height to preserve
+sticky-footer geometry; tablet drawers use vertical translation; wider desktop
+drawers use horizontal translation. Direct drag remains one-to-one and release
+velocity carries into the settling spring.
+
+Shared non-map press feedback is a low-specificity base layer. Components with
+their own positioning transform keep local ownership and neutralise the shared
+scale through the documented custom-property seam in `app/globals.css`.
 
 ## Stacking (z-index)
 
@@ -254,66 +258,32 @@ stacking-order change. If two overlays must NOT tie, they get separate tokens
 512 under `--z-map-banner` 515). Component-internal stacking (0–20, local
 stacking contexts) stays as literals.
 
-**Rule: every animated property lives behind
-`@media (prefers-reduced-motion: no-preference)`**, or is cut to `0.01ms` by
-the existing global
-`@media (prefers-reduced-motion: reduce) { * { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; } }`
-rule at the bottom of `globals.css`. This was already true before this pass
-(map orbit, drawer transitions, hero-card reveal, pulse dots); the new
-`.ink-stamp--tilt` press-tilt utility follows the same rule — the tilt is
-purely visual, so it's skipped entirely for reduced-motion users rather than
-just made instant.
+**Rule:** CSS animation belongs behind the reduced-motion media contract in
+`app/globals.css`; JavaScript animation must read the same preference and jump
+to its target. Static price-stamp tilt is a shape, not travel, and remains
+visible in reduced motion.
 
 ## Pressed-ink / bar-mat tactility
 
 The price stamp, provenance chips, and vibe tags should feel like something
-**physically stamped** — pressed ink on a bar mat — not a generic rounded
-badge. One shared utility, defined once in `app/globals.css`:
+**physically stamped** - pressed ink on a bar mat - not a generic rounded
+badge. `app/globals.css` owns the utility and plaque roles.
 
-```css
-.ink-stamp {
-  border: var(--ink-stamp-border);       /* 1.5px solid brass */
-  border-radius: var(--ink-stamp-radius); /* 6px */
-  box-shadow: var(--ink-stamp-shadow);    /* inset letterpress shadow */
-  font-family: var(--font-data);
-  font-weight: 700;
-  letter-spacing: 0.02em;
-  font-variant-numeric: tabular-nums;
-}
+`components/PriceBadge.tsx` owns the DOM price signature. Feed, borough,
+venue, mobile peek, and recap surfaces compose that component instead of
+restating its border, surface, type, or tilt. MapLibre cannot render the DOM
+component, so `components/map/canvas/tokens.ts` resolves the same plaque roles
+and `buildScene.ts` applies them inside the existing collision-indexed symbol
+layers.
 
-.ink-stamp--flat  /* same border/shadow, body face instead of data face — for word chips */
-.ink-stamp--tilt  /* adds the -1.5deg press tilt, behind prefers-reduced-motion */
-```
-
-**API for other components to adopt** (additive — existing `.priceStamp`,
-`.provChip`, `.vibeChip` classes are untouched and keep working; add
-`.ink-stamp` alongside them):
-
-- `.ink-stamp` — base treatment for anything numeric (prices, stamped
-  figures).
-- `.ink-stamp--flat` — same border/shadow, but body-face type for
-  word-based chips (provenance labels, vibe tags).
-- `.ink-stamp--tilt` — the signature `-1.5deg` press tilt. **Reserve this for
-  the one signature element** (the brass price stamp) — provenance chips and
-  vibe tags should use `.ink-stamp`/`.ink-stamp--flat` *without* the tilt, so
-  the tilt itself stays rare and memorable rather than becoming "how all
-  chips look."
-
-Example adoption (not applied in this pass — components are owned by other
-in-flight work):
-
-```tsx
-<span className="priceStamp ink-stamp ink-stamp--tilt">£4.20</span>
-<span className="provChip sourced ink-stamp--flat">Sourced</span>
-<span className="vibeChip small ink-stamp--flat">rowdy</span>
-```
+Word-based provenance and vibe chips may use the flat pressed treatment, but
+the tilt remains price-only.
 
 ## The signature element
 
 **One thing held with restraint: the brass price stamp.** It's the only
 place the press-tilt (`.ink-stamp--tilt`) treatment should appear. The
-candle-lit map is the second memory hook (already built — see
-`components/PubMapCanvas.tsx`'s `readTokens()`/scene build), but it is a
+candle-lit map is the second memory hook (see `components/map/canvas/`), but it is a
 *mode*, not a stampable UI element, so it doesn't compete with the price
 stamp for the "one signature" slot.
 
@@ -325,9 +295,9 @@ second signature gesture.
 
 Both themes flip from the same token names — `app/theme.css` only
 overrides values inside `html[data-theme="dark"]`, never introduces new
-variable names. The map (`components/PubMapCanvas.tsx`) reads the *current*
-computed values via `readTokens()` at scene-build time and re-triggers on
-theme change, so it never hardcodes a light or dark palette of its own.
+variable names. The map token reader in `components/map/canvas/tokens.ts`
+reads current computed values and re-triggers on theme change, so MapLibre
+never owns a second light or dark palette.
 
 This pass audited `app/globals.css` and `app/theme.css` for literals that
 bypassed this: it found six repeated instances of hardcoded cream/dark text
@@ -353,8 +323,9 @@ its text should not flip dark.
 - Use `--font-display`/`--serif` for headlines and brand marks,
   `--font-body` for everything else, `--font-data` for prices/stats.
    the `--ink-stamp-*` tokens for the pressed-ink utility.
-- Gate any new animation behind `prefers-reduced-motion: no-preference`.
-- Add a new token here (and to `:root`) before inventing a one-off value.
+- Route new CSS and JavaScript animation through the reduced-motion owners
+  described above.
+- Add a new token to the theme source before inventing a one-off value.
 
 **Don't**
 
@@ -367,9 +338,8 @@ its text should not flip dark.
   chrome, glass, or hologram depth inside the character portrait only. It must
   use one Signal affinity plus semantic surface tokens and must never become a
   page, card, button, or navigation background.
-- Don't add glassmorphism beyond the existing, narrow `backdrop-filter: blur()`
-  uses on floating chrome (toolbar, legend, onboarding scrim) — those are
-  functional (legibility over the map), not aesthetic.
+- Don't add decorative glassmorphism. Translucency is limited to movable
+  sheets/overlays and narrow functional floating chrome.
 - Don't add a second tilted/stamped signature element — restraint is the
   point.
 - Don't hardcode a hex value in a component that already has a token for that

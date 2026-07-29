@@ -60,9 +60,9 @@ function contrast(a: string, b: string): number {
   return (hi + 0.05) / (lo + 0.05);
 }
 
-// Every opaque tone the dark basemap paints UNDER a pin. The dark palette is
-// deliberately bimodal (Wave A made roads the lightest strokes on a near-black
-// canvas), which is exactly why one rim tone cannot edge a pin on all of them.
+// Every opaque tone the dark basemap paints UNDER a pin. Roads now sit behind
+// product marks, but the two-tone edge remains a robust boundary over every
+// land, water, building, and road tier.
 // `buildPalette` ignores `tokens` on its dark branch (lib/mapBasemapTaste.ts
 // returns the hardcoded DARK constants there), so every key below is an inert
 // placeholder that satisfies the type and feeds nothing under test.
@@ -165,18 +165,11 @@ describe("dark-mode pin band contrast", () => {
     expect(failures).toEqual([]);
   });
 
-  it("documents why one rim tone is not enough (the defect this replaced)", () => {
+  it("keeps the historical near-black rim defect impossible", () => {
     // Before the fix the rim was `paper`, which buildScene resolves to
-    // `--ink-deep` in dark: a black rim, within 1.1:1 of dark land. And no single
-    // tone can do the job either, which is why the fix is a pair and not a
-    // brighter tone.
+    // `--ink-deep` in dark: a black rim, within 1.1:1 of dark land.
     expect(contrast(DARK.inkDeep, palette.land)).toBeLessThan(1.2);
-    for (const tone of [edge.pinRim!, edge.pinCasing!]) {
-      const worst = Math.min(
-        ...Object.values(BACKGROUNDS).map((bg) => contrast(tone, bg)),
-      );
-      expect(worst).toBeLessThan(EDGE_MIN);
-    }
+    expect(contrast(edge.pinRim!, palette.land)).toBeGreaterThanOrEqual(EDGE_MIN);
   });
 
   it("keeps the >GBP7 band the weakest fill on the buildings the report named", () => {

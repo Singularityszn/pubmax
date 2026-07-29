@@ -127,6 +127,7 @@
 
 .vpsubCat:active {
   transform: scale(0.96);
+  --shared-press-scale: 1;
 }
 
 .vpsubCatOn {
@@ -223,6 +224,7 @@
 
 .vpsubLog:active {
   transform: scale(0.96);
+  --shared-press-scale: 1;
 }
 
 .vpsubLog:disabled {
@@ -260,6 +262,7 @@
 
 .vpsubQuickChip:active {
   transform: scale(0.94);
+  --shared-press-scale: 1;
 }
 
 .vpsubQuickChip:hover {

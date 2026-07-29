@@ -88,14 +88,15 @@ export const UK_BASE_ICON_SIZE_EXPR: maplibregl.ExpressionSpecification = [
 export const UK_BASE_ICON_OPACITY = 0.85;
 
 // Supercluster grouping radius in screen pixels. Sized off the widest cluster
-// disc this scene draws (radius 16 + stroke, see the `clusters` layer) so two
+// disc this scene draws (radius 20 + stroke, see the `clusters` layer) so two
 // discs can never touch on a 390px-wide phone, with margin for the count label.
 export const CLUSTER_RADIUS_PX = 56;
+export const CLUSTER_MAX_RADIUS_PX = 20;
 
 // `clusters` / `cluster-count` resting paint. Named because the entrance ramp
 // (PubMapCanvas) fades from 0 up to exactly these values and must restore them.
-export const CLUSTER_FILL_OPACITY = 0.94;
-export const CLUSTER_STROKE_OPACITY = 0.95;
+export const CLUSTER_FILL_OPACITY = 0.98;
+export const CLUSTER_STROKE_OPACITY = 1;
 
 // Collision padding, in pixels, added around the cluster count's text box. A
 // circle layer contributes NOTHING to MapLibre's collision index, so without
@@ -1012,6 +1013,8 @@ export function buildPubs(ctx: SceneCtx) {
       "text-anchor": "top",
       "text-offset": PIN_PRICE_LABEL_OFFSET_EM,
       "text-letter-spacing": 0.01,
+      "text-rotate": tokens.priceStampTiltDeg,
+      "text-rotation-alignment": "viewport",
       // The label takes the same deal every other label here takes: it collides
       // (no allow-overlap escape hatch - that is what made a dense street a
       // smear before pins started colliding), and `text-optional` is what makes
@@ -1029,16 +1032,13 @@ export function buildPubs(ctx: SceneCtx) {
       // opacity. Eased (not snapped) via icon-opacity-transition.
       "icon-opacity": pubIconOpacityExpr(selectedId),
       "icon-opacity-transition": { duration: 250, delay: 0 },
-      // Deliberately NOT a band colour, and never the pint/amber/brick palette:
-      // the figure IS the price, so tinting it would say the same thing twice
-      // and invite reading the number as a fourth signal. Plain ink over the
-      // map's paper/ink halo - the same idiom the route plaques and the
-      // provisional badge's rim already use - carries it over a pale Positron
-      // street, a dark night land and the pin's own silhouette alike.
-      "text-color": dark ? tokens.ink : tokens.inkDeep,
-      "text-halo-color": dark ? tokens.inkDeep : tokens.paper,
-      "text-halo-width": 1.8,
-      "text-halo-blur": 0.3,
+      // Same brass-plaque ink, surface, and press tilt as PriceBadge. The halo
+      // is MapLibre's compact plaque surface, preserving collision behaviour
+      // without introducing a second free-floating layer.
+      "text-color": tokens.pricePlaqueInk,
+      "text-halo-color": tokens.pricePlaqueSurface,
+      "text-halo-width": 2.1,
+      "text-halo-blur": 0.2,
       // The tag belongs to its pin, so it dims with it - same expression the
       // icon and the provisional badge wear. Without it, a pub the
       // favourite-pint lens filtered out would still shout its price.
@@ -1078,6 +1078,8 @@ export function buildPubs(ctx: SceneCtx) {
       "text-anchor": "top",
       "text-offset": SELECTED_PIN_PRICE_LABEL_OFFSET_EM,
       "text-letter-spacing": 0.01,
+      "text-rotate": tokens.priceStampTiltDeg,
+      "text-rotation-alignment": "viewport",
       "text-allow-overlap": false,
       "text-ignore-placement": false,
       "text-optional": true,
@@ -1085,10 +1087,10 @@ export function buildPubs(ctx: SceneCtx) {
     },
     paint: {
       "icon-opacity": 1,
-      "text-color": dark ? tokens.ink : tokens.inkDeep,
-      "text-halo-color": dark ? tokens.inkDeep : tokens.paper,
-      "text-halo-width": 1.8,
-      "text-halo-blur": 0.3,
+      "text-color": tokens.pricePlaqueInk,
+      "text-halo-color": tokens.pricePlaqueSurface,
+      "text-halo-width": 2.1,
+      "text-halo-blur": 0.2,
       "text-opacity": 1,
     },
   });
@@ -1162,9 +1164,17 @@ export function buildPubs(ctx: SceneCtx) {
       // Wave J1 — pint → amber → brass by density (not ink-black discs).
       "circle-color": clusterCircleColorExpr(tokens, dark) as maplibregl.ExpressionSpecification,
       "circle-stroke-color": tokens.panelRaised,
-      "circle-stroke-width": ["step", ["get", "point_count"], 1.25, 40, 1.5, 100, 1.75],
+      "circle-stroke-width": ["step", ["get", "point_count"], 1.75, 40, 2, 100, 2.25],
       "circle-stroke-opacity": CLUSTER_STROKE_OPACITY,
-      "circle-radius": ["step", ["get", "point_count"], 9, 25, 12, 100, 16],
+      "circle-radius": [
+        "step",
+        ["get", "point_count"],
+        11,
+        25,
+        15,
+        100,
+        CLUSTER_MAX_RADIUS_PX,
+      ],
       "circle-blur": ["step", ["get", "point_count"], 0.02, 40, 0.05, 100, 0.08],
       "circle-opacity": CLUSTER_FILL_OPACITY,
       // The entrance ramp fades these in from 0 (PubMapCanvas); a transition
@@ -1181,7 +1191,7 @@ export function buildPubs(ctx: SceneCtx) {
     layout: {
       "text-field": ["get", "point_count_abbreviated"],
       "text-font": textFont,
-      "text-size": ["step", ["get", "point_count"], 9, 25, 10, 100, 11],
+      "text-size": ["step", ["get", "point_count"], 10, 25, 11, 100, 12],
       "text-letter-spacing": 0.02,
       // A disc without its number is worse than a tight fit, so the count
       // always draws — but it is NOT invisible to placement: its padded box

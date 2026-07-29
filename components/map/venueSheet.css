@@ -26,6 +26,17 @@
   background: color-mix(in srgb, var(--brass) 55%, var(--line));
 }
 
+.venueInspector > h3 {
+  max-width: 18ch;
+  margin: 0 0 16px;
+  color: var(--ink);
+  font-size: clamp(1.7rem, 3vw, 2.35rem);
+  font-weight: 740;
+  line-height: 0.98;
+  letter-spacing: -0.04em;
+  text-wrap: balance;
+}
+
 /* Venue detail hydration skeleton — keeps sheet geometry stable while the
    lazy /api/venue/[id] payload arrives (Loop 1 perceived-speed pass). */
 .venueSheetSkeleton {
@@ -210,16 +221,12 @@
 
 .venueTabPanel {
   position: relative;
-  isolation: isolate;
   margin-top: 12px;
-  padding: 14px;
-  border: 1px solid color-mix(in srgb, var(--line) 72%, var(--panel-raised));
-  border-radius: var(--radius-lg);
-  background: var(--panel-raised);
-  /* Theme-aware elevation token — the old ink-derived shadow painted a WHITE
-     halo in dark (where --ink is near-white). --shadow-sm suits a panel nested
-     inside the already-raised drawer. */
-  box-shadow: var(--shadow-sm);
+  padding: 14px 2px 24px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
 }
 
 .venueBaselinePhoto {
@@ -420,7 +427,7 @@
   flex: 1.2 1 0;
   border: 1px solid var(--brass);
   background: linear-gradient(135deg, var(--brass), var(--brass-bright));
-  color: var(--color-on-accent);
+  color: var(--color-on-accent-strong);
   box-shadow: 0 8px 18px color-mix(in srgb, var(--brass) 22%, transparent);
 }
 
@@ -639,67 +646,6 @@ html[data-theme="dark"] .trainBadge[data-tone="risk"] {
   --rust: #e0885c;
 }
 
-/* ── Paper/linen texture on the raised sheet panel (D3) ───────────────────────
-   The venue sheet is a raised guidebook page, so it earns the same ~4% linen
-   weave the design system ships as `.textured-panel` (globals.css). We can't add
-   that className to VenueInspector.tsx (codex-hot — CSS-only surface here), so
-   the texture is laid on `.venueTabPanel`, a surface venueSheet.css already owns.
-   Same technique as `.textured-panel`: a ::before pseudo, pointer-events off,
-   never touching the panel's own content/background. Static → reduced-motion is
-   a non-issue. Self-disables under Legacy Mode / forced-colors so it never
-   competes with legibility.
-
-   INTEGRATOR NOTE: if VenueInspector.tsx becomes editable, prefer dropping
-   `className="… textured-panel"` on the outer `.venueInspector` and deleting
-   this block — the shared utility centralises the ::before + z-index lift +
-   Legacy/forced-colors opt-out. Kept scoped here only while the component is
-   off-limits. */
-.venueTabPanel > * {
-  position: relative;
-  z-index: 1;
-}
-
-.venueTabPanel::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  z-index: 0;
-  pointer-events: none;
-  border-radius: inherit;
-  background-image:
-    repeating-linear-gradient(
-      45deg,
-      color-mix(in srgb, var(--brass) 5%, transparent) 0,
-      color-mix(in srgb, var(--brass) 5%, transparent) 1px,
-      transparent 1px,
-      transparent 4px
-    ),
-    repeating-linear-gradient(
-      -45deg,
-      color-mix(in srgb, var(--ink) 4%, transparent) 0,
-      color-mix(in srgb, var(--ink) 4%, transparent) 1px,
-      transparent 1px,
-      transparent 5px
-    );
-  opacity: 0.55;
-  mix-blend-mode: multiply;
-}
-
-html[data-theme="dark"] .venueTabPanel::before {
-  mix-blend-mode: screen;
-  opacity: 0.45;
-}
-
-html[data-legacy="1"] .venueTabPanel::before {
-  display: none;
-}
-
-@media (forced-colors: active) {
-  .venueTabPanel::before {
-    display: none;
-  }
-}
-
 /* ── Focused visual polish: brighter sheet, stronger listings, clear accents ── */
 .venueSheetGrabZone {
   margin: -2px 0 8px;
@@ -708,6 +654,24 @@ html[data-legacy="1"] .venueTabPanel::before {
 .venueSheetGrab {
   width: 44px;
   background: color-mix(in srgb, var(--river) 34%, var(--line));
+}
+
+.venueSheetGrabZone:active .venueSheetGrab,
+.mapDrawer.sheet-dragging .venueSheetGrab {
+  background: color-mix(in srgb, var(--brass) 68%, var(--line));
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .venueSheetGrab {
+    transition:
+      transform var(--duration-press) var(--ease-out-strong),
+      background-color var(--duration-press) var(--ease-out);
+  }
+
+  .venueSheetGrabZone:active .venueSheetGrab,
+  .mapDrawer.sheet-dragging .venueSheetGrab {
+    transform: scaleX(0.78);
+  }
 }
 
 .venueTabs {
@@ -803,9 +767,19 @@ html[data-legacy="1"] .venueTabPanel::before {
 }
 
 .venueTabPanel .contributorPrice {
+  padding-inline: 0;
+  border-inline: 0;
+  border-radius: 0;
   border-color: color-mix(in srgb, var(--pint) 34%, var(--line));
-  background: color-mix(in srgb, var(--pint) 8%, var(--panel-raised));
-  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--panel-raised) 82%, transparent);
+  background: transparent;
+  box-shadow: none;
+}
+
+.venueTabPanel .priceList {
+  border-inline: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
 }
 
 .venueTabPanel .addStopBtn,
@@ -838,24 +812,25 @@ html[data-legacy="1"] .venueTabPanel::before {
 }
 
 .venueTabPanel .dropCard,
-.venueTabPanel .claimCard,
 .venueTabPanel .saveToList,
-.venueTabPanel .priceList {
+.venueTabPanel .claimCard {
   border-color: color-mix(in srgb, var(--line) 74%, var(--panel-raised));
-  background: var(--panel-raised);
-  /* Theme-aware token, not an ink-derived shade (white-halo in dark). */
-  box-shadow: var(--shadow-sm);
 }
 
 .venueTabPanel .dropCard,
 .venueTabPanel .claimCard {
-  border-radius: 14px;
+  border-inline: 0;
+  border-top: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
 }
 
 .venueTabPanel .dropCard:hover,
 .venueTabPanel .claimCard:hover {
-  border-color: color-mix(in srgb, var(--brass) 54%, var(--line));
-  box-shadow: 0 14px 28px color-mix(in srgb, var(--brass) 12%, transparent);
+  border-color: color-mix(in srgb, var(--brass) 42%, var(--line));
+  background: color-mix(in srgb, var(--brass) 5%, transparent);
+  box-shadow: none;
 }
 
 .venueTabPanel .instaFrame {

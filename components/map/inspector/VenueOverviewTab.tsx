@@ -2,6 +2,7 @@ import Link from "next/link";
 import { useEffect, useMemo } from "react";
 import { MapPin } from "lucide-react";
 
+import PriceBadge from "@/components/PriceBadge";
 import { Amenity, ClaimBadge } from "@/components/map/venueInspectorBits";
 import {
   COMMUNITY_PRICE_NOTE,
@@ -75,7 +76,9 @@ function VenuePriceSummary({
         <span>
           <ClaimBadge kind="sourced" /> {venue.anchorLabel}
         </span>
-        <strong>{formatPrice(venue.cheapestPrice)}</strong>
+        <PriceBadge variant="current">
+          {formatPrice(venue.cheapestPrice)}
+        </PriceBadge>
         {anchorStamp || venue.anchorSourceUrl ? (
           <small>
             {anchorStamp}
@@ -104,7 +107,9 @@ function VenuePriceSummary({
         <span>
           <ClaimBadge kind="contributor" /> Latest Pint Drop price
         </span>
-        <strong>{formatPrice(latestContributorPrice)}</strong>
+        <PriceBadge variant="current">
+          {formatPrice(latestContributorPrice)}
+        </PriceBadge>
         {venue.latestContributorAt ? (
           <small>{formatFreshness(venue.latestContributorAt)}</small>
         ) : null}
@@ -119,7 +124,9 @@ function VenuePriceSummary({
         <span>
           <ClaimBadge kind="sourced" /> Sourced price
         </span>
-        <strong>{formatPrice(venue.cheapestPrice)}</strong>
+        <PriceBadge variant="current">
+          {formatPrice(venue.cheapestPrice)}
+        </PriceBadge>
         {sourcedObserved ? <small>{sourcedObserved}</small> : null}
       </div>
     );
@@ -131,7 +138,9 @@ function VenuePriceSummary({
         <span>
           <ClaimBadge kind="baseline" /> Baseline on record
         </span>
-        <strong>{formatPrice(venue.cheapestPrice)}</strong>
+        <PriceBadge variant="baseline">
+          {formatPrice(venue.cheapestPrice)}
+        </PriceBadge>
         <small className="communityPriceNote">
           Dataset price. Not a live tonight feed.
         </small>
@@ -390,7 +399,9 @@ export default function VenueOverviewTab({
           <span>
             <ClaimBadge kind="contributor" /> Logged by a Pubmaxxer
           </span>
-          <strong>{formatPrice(communityPrice.priceGbp)}</strong>
+          <PriceBadge variant="current">
+            {formatPrice(communityPrice.priceGbp)}
+          </PriceBadge>
           <small className="communityPriceStamp">
             {submitCategoryLabel(communityPrice.drinkCategory)} ·{" "}
             {communityStampLabel(communityPrice.submittedAt)}

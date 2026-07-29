@@ -124,6 +124,9 @@ export type Tokens = {
   brick: string;
   brass: string;
   brassBright: string;
+  pricePlaqueInk: string;
+  pricePlaqueSurface: string;
+  priceStampTiltDeg: number;
   river: string;
   riverBright: string;
   // Crawl walk-route line colour — dark crimson (light) / bright coral-ember
@@ -146,12 +149,51 @@ export type Tokens = {
   cat: Record<DrinkCategory, string>;
 };
 
+const CSS_SRGB =
+  /^color\(\s*srgb\s+([+-]?(?:\d+(?:\.\d*)?|\.\d+))\s+([+-]?(?:\d+(?:\.\d*)?|\.\d+))\s+([+-]?(?:\d+(?:\.\d*)?|\.\d+))(?:\s*\/\s*([+-]?(?:\d+(?:\.\d*)?|\.\d+)))?\s*\)$/i;
+const MAPLIBRE_COLOR = /^(?:#[0-9a-f]{3,8}|rgba?\(|hsla?\()/i;
+
+/**
+ * MapLibre's colour parser does not accept CSS Color 4 `color(srgb …)`,
+ * which Chromium returns for computed color-mix() values. Convert that one
+ * browser-native form without re-owning any theme colour in map code.
+ */
+export function toMapLibreColor(colour: string, fallback: string): string {
+  const source = colour.trim();
+  const srgb = CSS_SRGB.exec(source);
+  if (srgb) {
+    const channel = (value: string) =>
+      Math.round(Math.min(Math.max(Number(value), 0), 1) * 255);
+    const [red, green, blue] = srgb.slice(1, 4).map(channel);
+    const alpha = srgb[4] === undefined
+      ? 1
+      : Math.min(Math.max(Number(srgb[4]), 0), 1);
+    return alpha < 1
+      ? `rgba(${red}, ${green}, ${blue}, ${alpha})`
+      : `rgb(${red}, ${green}, ${blue})`;
+  }
+  return MAPLIBRE_COLOR.test(source) ? source : fallback;
+}
+
 // Every map colour derives from the app's theme tokens so both modes
 // (candle-lit night / positron day guidebook) flip from one system.
 export function readTokens(): Tokens {
   const styles = getComputedStyle(document.documentElement);
   const token = (name: string, fallback: string) =>
     styles.getPropertyValue(name).trim() || fallback;
+  // Custom properties preserve their color-mix() source text. MapLibre needs a
+  // resolved CSS colour, so briefly ask the browser to compute the two plaque
+  // roles instead of duplicating theme hex values in the map.
+  const colourProbe = document.createElement("span");
+  colourProbe.hidden = true;
+  document.documentElement.appendChild(colourProbe);
+  const resolvedColour = (name: string, fallback: string) => {
+    colourProbe.style.color = `var(${name}, ${fallback})`;
+    return toMapLibreColor(getComputedStyle(colourProbe).color, fallback);
+  };
+  const pricePlaqueInk = resolvedColour("--accent-price-ink", "#8f671f");
+  const pricePlaqueSurface = resolvedColour("--price-plaque-surface", "#f4ead5");
+  colourProbe.remove();
   // Additive `--cat-*` read: one entry per drink family, resolved from the live
   // computed vars (with the canonical light hex as a fallback) so map consumers
   // never re-hardcode a category palette.
@@ -174,6 +216,10 @@ export function readTokens(): Tokens {
     brick: token("--brick", "#d16353"),
     brass: token("--brass", "#b0813a"),
     brassBright: token("--brass-bright", "#d3a44a"),
+    pricePlaqueInk,
+    pricePlaqueSurface,
+    priceStampTiltDeg:
+      Number.parseFloat(token("--ink-stamp-tilt", "-1.5deg")) || -1.5,
     river: token("--river", "#2f6f8f"),
     riverBright: token("--river-bright", "#4f9ec4"),
     routeLine: token("--route-line", "#8b1a2b"),
@@ -192,15 +238,14 @@ export function readTokens(): Tokens {
  * carries the price band, so the edge is the only thing that can make a pin
  * findable independently of what it is standing on. The light basemap is one
  * luminance regime (pale paper land, paler roads), so one light rim knocks the
- * glass out of the map everywhere. The DARK basemap deliberately is NOT: Wave A
- * (lib/mapBasemapTaste.ts) made roads the lightest strokes on a near-black
- * canvas, so a pin's background spans ~20:1 from `ground` #0b0908 to
- * `roadMajor` #c3bcae. No single rim tone edges a pin across that, and the tone
- * this map had been using was the worst of the options: `paper` resolves to the
- * near-black `--ink-deep` in dark, which sits within 1.02:1 of dark land, so
- * the "light rim on saturated glasses" was a black rim that erased the glass's
- * own outline, its stem and its foot, and left the lowest-luminance bands
- * (>£7 and unpriced) carrying findability on fill alone.
+ * glass out of the map everywhere. The DARK basemap deliberately is not:
+ * night ground, water, buildings, and the now-subordinate warm road tiers still
+ * span distinct tones. No single rim reliably edges every price band across
+ * that range. The tone this map had been using was the worst option: `paper`
+ * resolves to the near-black `--ink-deep` in dark, which sits within 1.02:1 of
+ * dark land, so the "light rim on saturated glasses" was a black rim that
+ * erased the glass's own outline, its stem and its foot, and left the
+ * lowest-luminance bands (>£7 and unpriced) carrying findability on fill alone.
  *
  * So dark mode pairs the two tones the price tag beside the pin already pairs -
  * a cream `--ink` figure over an `--ink-deep` halo. Neither is a new colour and

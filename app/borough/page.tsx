@@ -6,6 +6,7 @@ import { groupVenuePrices, formatPrice, type VenuePrice } from "@/lib/venues";
 import { listBoroughs } from "@/lib/boroughs";
 import { allBoroughHeritageCounts } from "@/lib/boroughHeritage";
 import { loadHistoricPubs } from "@/lib/historic";
+import PriceBadge from "@/components/PriceBadge";
 import SiteNav from "@/components/nav/SiteNav";
 
 import "./[slug]/borough.css";
@@ -97,7 +98,10 @@ export default async function BoroughIndexPage() {
                     <span className="boroughNoPrice">No price yet</span>
                   ) : (
                     <>
-                      from <span className="priceStamp">{formatPrice(borough.cheapestGbp)}</span>
+                      from{" "}
+                      <PriceBadge variant="current">
+                        {formatPrice(borough.cheapestGbp)}
+                      </PriceBadge>
                     </>
                   )}
                 </span>

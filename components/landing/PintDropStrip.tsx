@@ -3,6 +3,8 @@
 import { useEffect, useState } from "react";
 import { HandCoins } from "lucide-react";
 
+import PriceBadge from "@/components/PriceBadge";
+
 // Live community Pint Drops strip for the landing page. Fetches the PUBLIC
 // GET /api/pint-drops (no venueId → all visible drops), takes the newest few,
 // and renders a horizontal scrollable rail of cards.
@@ -169,7 +171,9 @@ export default function PintDropStrip() {
             <li className="dropStripCard" key={d.id}>
               <div className="dropStripTop">
                 <span className="dropStripWho">{d.handle}</span>
-                <span className="dropStripPrice">{formatPrice(d.priceGbp)}</span>
+                <PriceBadge variant="current" className="dropStripPrice">
+                  {formatPrice(d.priceGbp)}
+                </PriceBadge>
               </div>
               <p className="dropStripNote">{excerpt(d.passedDownNote)}</p>
               <div className="dropStripMeta">

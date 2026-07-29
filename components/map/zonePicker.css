@@ -42,6 +42,7 @@
 
 .zonePickerBtn:active {
   transform: scale(0.97);
+  --shared-press-scale: 1;
 }
 
 /* Selected: "you are here" whisper, not the CTA shout. */
@@ -121,6 +122,7 @@
 
 .zoneChip:active {
   transform: scale(0.97);
+  --shared-press-scale: 1;
 }
 
 /* Selected chip: quiet active tint, reserving the loud fill for the Plan CTA. */

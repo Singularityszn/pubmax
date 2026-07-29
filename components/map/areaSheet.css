@@ -67,6 +67,7 @@
 
 .areaSheetPub:active {
   transform: scale(0.99);
+  --shared-press-scale: 1;
 }
 
 .areaSheetPubName {
@@ -183,6 +184,7 @@
 
 .areaSheetChip:active {
   transform: scale(0.98);
+  --shared-press-scale: 1;
 }
 
 .areaSheetChip.isCurrent {

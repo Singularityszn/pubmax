@@ -101,6 +101,7 @@
 
 .roundCode:active {
   transform: scale(0.97);
+  --shared-press-scale: 1;
 }
 
 .roundCopyFeedback {
@@ -808,6 +809,7 @@
 
 .roundSearchResults button:active {
   transform: scale(0.99);
+  --shared-press-scale: 1;
 }
 
 .roundSearchResults button span {
@@ -851,6 +853,7 @@
 .roundSecondaryBtn:not(:disabled):active,
 .roundCloseBtn:not(:disabled):active {
   transform: scale(0.97);
+  --shared-press-scale: 1;
 }
 
 .roundPrimaryBtn {

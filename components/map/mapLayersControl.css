@@ -56,6 +56,7 @@
 
 .mapLayersFab:active {
   transform: scale(0.97);
+  --shared-press-scale: 1;
 }
 
 .mapLayersFab.isActive {
@@ -170,6 +171,7 @@
 
 .mapLayersChip:active {
   transform: scale(0.96);
+  --shared-press-scale: 1;
 }
 
 .mapLayersChip.isOn {

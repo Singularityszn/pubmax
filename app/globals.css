@@ -33,6 +33,15 @@
   --panel-raised: #fffdf9; /* KEEP at :root for the light map (donut rings). DOM card = #fdf9f4 via body remap — candle-warm near-white, never pure #fff. */
   --panel-overlay: #ffffff; /* overlay/popover/sheet — top of the ladder, pure white + shadow (DOM-only, not map-read) */
   --ink-deep: #0b0b0d;
+  /* Sheet material is one composited surface, not a stack of opaque cards.
+     Values derive from the locked neutral ladder; no new brand colour. */
+  --sheet-material: color-mix(in srgb, var(--panel-overlay) 88%, transparent);
+  --sheet-material-solid: var(--panel-overlay);
+  --sheet-material-border: color-mix(in srgb, var(--ink) 14%, transparent);
+  --sheet-material-shadow:
+    inset 0 1px 0 color-mix(in srgb, #ffffff 58%, transparent),
+    0 1px 2px color-mix(in srgb, var(--ink-deep) 12%, transparent),
+    0 20px 56px color-mix(in srgb, var(--ink-deep) 22%, transparent);
 
   --pint: #18a76d; /* cheap pint / positive — Field Guide semantic */
   --amber: #f2a71b; /* mid price / lager-gold */
@@ -355,8 +364,8 @@
 
 /* ── Pressed-ink / bar-mat utility ──────────────────────────────────────────
    One shared treatment for anything that should read as "stamped" rather
-   than merely styled: passport seals, logged-pint artifacts, provenance chips,
-   and achievements. Do not use this on numeric data badges or menu prices.
+   than merely styled: the repeated price signature, passport seals,
+   provenance chips, and achievements. Generic numeric badges stay plain.
    Apply `.ink-stamp` alongside a component's existing class — it only adds
    the shared border/shadow/tilt/type, it never resets layout (display,
    padding, colour stay owned by the component's own class).
@@ -364,9 +373,8 @@
    API for other agents/components to adopt:
      .ink-stamp        — base treatment: brass hairline border, inset
                           "pressed" shadow, data face, tabular numerals.
-     .ink-stamp--tilt   — adds the signature -1.5deg press tilt. Reserve this
-                          for collectible seals/logged artifacts only, so the
-                          tilt stays rare and intentional.
+     .ink-stamp--tilt   — adds the signature -1.5deg press tilt. Reserved for
+                          prices, so only the figure leans.
      .ink-stamp--flat   — same border/shadow, no data face (for chips whose
                           copy is words, not numbers, e.g. provenance/vibe).
    Existing .provChip / .vibeChip classes are untouched; this is additive so
@@ -386,10 +394,8 @@
   font-variant-numeric: normal;
 }
 
-@media (prefers-reduced-motion: no-preference) {
-  .ink-stamp--tilt {
-    transform: rotate(var(--ink-stamp-tilt));
-  }
+.ink-stamp--tilt {
+  transform: rotate(var(--ink-stamp-tilt));
 }
 
 body {
@@ -433,7 +439,7 @@ html:not([data-theme="dark"]) body {
    hairline and a hair of top shine — instead of borrowing the coral action
    colour. This is the ONE place the amber/brass metal treatment lives, so a
    price never reads as a coral alert. Opt in with class="price-plaque"; the
-   PriceBadge "current" variant already resolves to these tokens. */
+   PriceBadge resolves every price variant to these tokens. */
 .price-plaque {
   font-family: var(--font-data);
   font-variant-numeric: tabular-nums;
@@ -443,8 +449,8 @@ html:not([data-theme="dark"]) body {
   color: var(--accent-price-ink);
   background: var(--price-plaque-surface);
   border: 1px solid var(--price-plaque-border);
-  border-radius: var(--radius-sm);
-  box-shadow: var(--price-plaque-shine);
+  border-radius: var(--ink-stamp-radius);
+  box-shadow: var(--price-plaque-shine), var(--ink-stamp-shadow);
 }
 
 /* ── Typographic hierarchy (3 levels) ──────────────────────────────────────
@@ -498,25 +504,36 @@ button {
 /* ── Global press feedback ────────────────────────────────────────────────
    "The interface heard you." Every pressable primitive dips a hair on press
    and springs back on release (Emil Kowalski: buttons must feel responsive;
-   Apple: respond on pointer-down, not on release). Deliberately LOW specificity
-   (bare element / single class) so any component that manages its own transform
-   overrides this for free — this is a floor, not a ceiling. Gated behind
-   no-preference so reduced-motion users get zero movement. Opt out per element
-   with [data-no-press]; opt IN a link/label/row with class="pressable". */
-@media (prefers-reduced-motion: no-preference) {
-  button:not([data-no-press]):not(:disabled),
-  [role="button"]:not([data-no-press]):not([aria-disabled="true"]),
-  .planBtn:not([data-no-press]),
+   Apple: respond on pointer-down, not on release). Scale is a floor, not a
+   ceiling, and composes with positioning transforms. Gated behind no-preference
+   so reduced-motion users get zero movement. Opt out per element with
+   [data-no-press]; opt IN a link/label/row with class="pressable". */
+@layer base {
+  button,
+  [role="button"]:not([aria-disabled="true"]),
+  .planBtn,
   a[data-pressable],
   .pressable {
-    transition: transform var(--duration-press) var(--ease-out-strong);
+    touch-action: manipulation;
   }
-  button:not([data-no-press]):not(:disabled):active,
-  [role="button"]:not([data-no-press]):not([aria-disabled="true"]):active,
-  .planBtn:not([data-no-press]):active,
-  a[data-pressable]:active,
-  .pressable:active {
-    transform: scale(var(--press-scale));
+
+  @media (prefers-reduced-motion: no-preference) {
+    :where(
+      button:not([data-no-press]):not(:disabled),
+      [role="button"]:not([data-no-press]):not([aria-disabled="true"]),
+      .planBtn:not([data-no-press]),
+      a[data-pressable],
+      .pressable
+    ) {
+      transition: scale var(--duration-press) var(--ease-out-strong);
+    }
+    button:not([data-no-press]):not(:disabled):active,
+    [role="button"]:not([data-no-press]):not([aria-disabled="true"]):active,
+    .planBtn:not([data-no-press]):active,
+    a[data-pressable]:active,
+    .pressable:active {
+      scale: var(--shared-press-scale, var(--press-scale));
+    }
   }
 }
 
@@ -1286,6 +1303,7 @@ input[type="range"] {
   }
   .mapToolbarClear:active {
     transform: scale(0.97);
+    --shared-press-scale: 1;
   }
 }
 
@@ -1324,6 +1342,7 @@ input[type="range"] {
   }
   .planBtn:active {
     transform: scale(0.97);
+    --shared-press-scale: 1;
   }
 }
 
@@ -1340,9 +1359,10 @@ input[type="range"] {
   z-index: var(--z-map-panel);
   width: 376px;
   max-width: 92vw;
-  background:
-    linear-gradient(180deg, color-mix(in srgb, var(--surface-tint-river) 28%, var(--panel) 72%) 0%, var(--panel) 30%),
-    var(--panel);
+  background: var(--sheet-material);
+  box-shadow: var(--sheet-material-shadow);
+  backdrop-filter: blur(20px) saturate(1.08);
+  -webkit-backdrop-filter: blur(20px) saturate(1.08);
   overflow-y: auto;
   scrollbar-width: thin;
   /* iOS-like drawer travel — a sheet sliding in from the edge reads best on the
@@ -1353,15 +1373,13 @@ input[type="range"] {
 
 .mapDrawer.left {
   left: 0;
-  border-right: 1px solid color-mix(in srgb, var(--line) 76%, var(--brass) 24%);
-  box-shadow: 10px 0 30px rgba(44, 30, 62, 0.16);
+  border-right: 1px solid var(--sheet-material-border);
   transform: translateX(-100%);
 }
 
 .mapDrawer.right {
   right: 0;
-  border-left: 1px solid color-mix(in srgb, var(--line) 76%, var(--river) 24%);
-  box-shadow: -10px 0 30px rgba(44, 30, 62, 0.16);
+  border-left: 1px solid var(--sheet-material-border);
   transform: translateX(100%);
 }
 
@@ -1369,6 +1387,14 @@ input[type="range"] {
 .mapDrawer.right.open {
   transform: translateX(0);
   will-change: transform;
+}
+
+/* React owns spring presentation through this variable. The tablet sheet rules
+   below use !important for their legacy dvh snaps, so the variable is repeated
+   in that band with equal authority. */
+.mapDrawer.springDrawer {
+  transform: var(--drawer-spring-transform);
+  transition: none;
 }
 
 .mapDrawer[aria-hidden="true"] {
@@ -1383,6 +1409,7 @@ input[type="range"] {
 .mapDrawer .controlRail,
 .mapDrawer .routePanel {
   border: 0;
+  background: transparent;
   box-shadow: none;
   max-height: none;
   overflow: visible;
@@ -1395,7 +1422,24 @@ input[type="range"] {
   display: flex;
   justify-content: flex-end;
   padding: 10px 12px 0;
-  background: linear-gradient(var(--panel), color-mix(in srgb, var(--panel) 60%, transparent));
+  background: linear-gradient(
+    var(--sheet-material),
+    color-mix(in srgb, var(--sheet-material-solid) 38%, transparent)
+  );
+}
+
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .mapDrawer {
+    background: var(--sheet-material-solid);
+  }
+}
+
+@media (prefers-reduced-transparency: reduce), (prefers-contrast: more) {
+  .mapDrawer {
+    background: var(--sheet-material-solid);
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
 }
 
 .drawerClose {
@@ -1425,6 +1469,7 @@ input[type="range"] {
   }
   .drawerClose:active {
     transform: scale(0.97);
+    --shared-press-scale: 1;
   }
 }
 
@@ -3301,7 +3346,7 @@ input[type="range"] {
   background: rgba(47, 143, 91, 0.08);
 }
 
-.contributorPrice span {
+.contributorPrice span:not(.priceBadge) {
   display: inline-flex;
   align-items: center;
   gap: 6px;
@@ -4775,6 +4820,11 @@ button:disabled {
     transform: translateY(calc(100% + var(--mobile-tab-clearance)));
   }
 
+  .mapDrawer.springDrawer {
+    transform: var(--drawer-spring-transform) !important;
+    transition: none;
+  }
+
   .mapDrawer.left:not(.open):not(.sheet-dragging),
   .mapDrawer.right:not(.open):not(.sheet-dragging) {
     /* Production CSS bundling can place the desktop side-drawer transform after
@@ -4828,15 +4878,25 @@ button:disabled {
     max-height: none;
   }
 
-  .appShell.planning-open .mapDrawer.left.open {
+  /* SpringDrawer must outrank the legacy snap declarations above, including
+     their !important fence. The extra spring class and axis attribute make
+     ownership explicit without weakening the legacy fallback. */
+  .mapDrawer.springDrawer.left.open.sheet-full[data-spring-axis="vertical"]:not(.mobileSharedSheet),
+  .mapDrawer.springDrawer.left.open.sheet-half[data-spring-axis="vertical"]:not(.mobileSharedSheet),
+  .mapDrawer.springDrawer.left.open.sheet-peek[data-spring-axis="vertical"]:not(.mobileSharedSheet),
+  .mapDrawer.springDrawer.right.open.sheet-full[data-spring-axis="vertical"]:not(.mobileSharedSheet),
+  .mapDrawer.springDrawer.right.open.sheet-half[data-spring-axis="vertical"]:not(.mobileSharedSheet),
+  .mapDrawer.springDrawer.right.open.sheet-peek[data-spring-axis="vertical"]:not(.mobileSharedSheet),
+  .mapDrawer.springDrawer.left[data-spring-axis="vertical"]:not(.open),
+  .mapDrawer.springDrawer.right[data-spring-axis="vertical"]:not(.open) {
+    transform: var(--drawer-spring-transform) !important;
+  }
+
+  .mapDrawer.springDrawer.left.open[data-spring-axis="vertical"] {
     z-index: var(--z-nav);
   }
 
-  .appShell.detail-open .mapDrawer.right.open {
-    /* When planning + venue detail are both open on phones, both drawers become
-       bottom sheets. The venue sheet owns the visible sticky actions, so it must
-       sit above the planner sheet instead of letting planner content intercept
-       taps on Share/Crawl/Drop/Train. */
+  .mapDrawer.springDrawer.right.open[data-spring-axis="vertical"] {
     z-index: calc(var(--z-nav) + 1);
   }
 

@@ -1,3 +1,5 @@
+import { projectMomentum } from "@/lib/springMotion";
+
 // Pure snap-point resolver for the mobile venue bottom-sheet (GH #17).
 //
 // The sheet only has three resting states — never a continuous free-float —
@@ -101,12 +103,10 @@ function snapToY(snap: SheetSnap, viewportHeight: number): number {
  * Algorithm:
  *  1. Compute the sheet's current effective Y (px from the top of viewport)
  *     as currentSnap's resting Y plus the net drag delta.
- *  2. If the release velocity exceeds the flick threshold, move one snap
- *     step in the flick's direction from the CURRENT snap (a fast flick
- *     overshoots past the nearest snap, matching native bottom-sheet feel)
- *     — dragging down past peek at flick speed dismisses the sheet entirely.
- *  3. Otherwise resolve to whichever snap's resting Y is nearest the
- *     effective Y (plain nearest-neighbour, no velocity factored in).
+ *  2. If release velocity exceeds the flick threshold, project its natural
+ *     deceleration endpoint. Strong intent can cross more than one detent.
+ *  3. Resolve to whichever snap's resting Y is nearest the effective or
+ *     projected Y.
  */
 export function resolveSheetSnap({
   currentSnap,
@@ -118,32 +118,28 @@ export function resolveSheetSnap({
 
   const isFlick = Math.abs(velocity) >= VELOCITY_FLICK_THRESHOLD;
 
-  if (isFlick) {
-    const currentIndex = SHEET_SNAP_ORDER.indexOf(currentSnap);
-    const draggingDown = velocity > 0;
-    if (draggingDown) {
-      if (currentIndex <= 0) return { snap: "peek", dismissed: true };
-      return { snap: SHEET_SNAP_ORDER[currentIndex - 1], dismissed: false };
-    }
-    const nextIndex = Math.min(currentIndex + 1, SHEET_SNAP_ORDER.length - 1);
-    return { snap: SHEET_SNAP_ORDER[nextIndex], dismissed: false };
-  }
-
   const effectiveY = snapToY(currentSnap, viewportHeight) + dragDeltaY;
+  const releaseY = isFlick
+    ? projectMomentum(effectiveY, velocity)
+    : effectiveY;
 
   // Dismiss when dragged down well past peek's resting position (more than
-  // half of peek's own revealed height further down) without enough velocity
-  // to count as a flick — a slow, deliberate drag off the bottom.
+  // half of peek's own revealed height further down). Momentum may dismiss
+  // only when the gesture started at peek; a flick from a higher detent first
+  // lands at peek instead of skipping the final recovery point.
   const peekY = snapToY("peek", viewportHeight);
   const dismissThreshold = peekY + viewportHeight * SHEET_SNAP_FRACTIONS.peek * 0.5;
-  if (effectiveY > dismissThreshold) {
+  if (
+    effectiveY > dismissThreshold ||
+    (currentSnap === "peek" && releaseY > dismissThreshold)
+  ) {
     return { snap: "peek", dismissed: true };
   }
 
   let nearest: SheetSnap = "peek";
   let nearestDist = Infinity;
   for (const snap of SHEET_SNAP_ORDER) {
-    const dist = Math.abs(snapToY(snap, viewportHeight) - effectiveY);
+    const dist = Math.abs(snapToY(snap, viewportHeight) - releaseY);
     if (dist < nearestDist) {
       nearestDist = dist;
       nearest = snap;
@@ -158,6 +154,19 @@ export function resolveSheetSnap({
  *  translateY snap model — see the height resolver below. */
 export function sheetTranslateY(snap: SheetSnap, viewportHeight: number): number {
   return snapToY(snap, viewportHeight);
+}
+
+export function sheetClosedTranslateY(
+  viewportHeight: number,
+  bottomClearance: number,
+): number {
+  const height =
+    Number.isFinite(viewportHeight) && viewportHeight > 0 ? viewportHeight : 0;
+  const clearance =
+    Number.isFinite(bottomClearance) && bottomClearance > 0
+      ? bottomClearance
+      : 0;
+  return height + clearance;
 }
 
 // ── Height-driven snap resolver (bottom-anchored content-fit sheet model) ─────
@@ -207,8 +216,8 @@ export type ResolveHeightSnapInput = {
 
 /**
  * Resolve a height-drag release to a snap. Mirrors resolveSheetSnap:
- *  • A flick (|velocity| ≥ threshold) steps one snap in the flick direction from
- *    the current snap; a downward flick from peek dismisses.
+ *  • A flick (|velocity| ≥ threshold) projects a deceleration endpoint, so
+ *    strong intent may cross more than one detent.
  *  • Otherwise nearest-neighbour on the released height, where the START snap's
  *    reference is its rendered start height and every other snap uses its cap.
  *  • A slow collapse below half of peek's cap dismisses.
@@ -222,20 +231,17 @@ export function resolveSheetHeightSnap({
   caps,
 }: ResolveHeightSnapInput): ResolveSnapResult {
   const isFlick = Math.abs(velocity) >= VELOCITY_FLICK_THRESHOLD;
-  if (isFlick) {
-    const index = SHEET_SNAP_ORDER.indexOf(startSnap);
-    if (velocity < 0) {
-      // Shrinking fast (dragged down): step one snap down; below peek dismisses.
-      if (index <= 0) return { snap: "peek", dismissed: true };
-      return { snap: SHEET_SNAP_ORDER[index - 1], dismissed: false };
-    }
-    const nextIndex = Math.min(index + 1, SHEET_SNAP_ORDER.length - 1);
-    return { snap: SHEET_SNAP_ORDER[nextIndex], dismissed: false };
-  }
+  const projectedHeight = isFlick
+    ? projectMomentum(releaseHeightPx, velocity)
+    : releaseHeightPx;
 
-  // Slow collapse well below peek → dismiss (mirror of resolveSheetSnap's
-  // half-a-peek dismiss threshold, in height space).
-  if (releaseHeightPx < caps.peek * 0.5) {
+  // A physical collapse well below peek dismisses. Projected momentum may
+  // dismiss only from peek so a flick from half still has a recoverable stop.
+  const dismissThreshold = caps.peek * 0.5;
+  if (
+    releaseHeightPx < dismissThreshold ||
+    (startSnap === "peek" && projectedHeight < dismissThreshold)
+  ) {
     return { snap: "peek", dismissed: true };
   }
 
@@ -243,7 +249,7 @@ export function resolveSheetHeightSnap({
   let nearest: SheetSnap = SHEET_SNAP_ORDER[0];
   let nearestDist = Infinity;
   for (const snap of SHEET_SNAP_ORDER) {
-    const dist = Math.abs(ref(snap) - releaseHeightPx);
+    const dist = Math.abs(ref(snap) - projectedHeight);
     if (dist < nearestDist) {
       nearestDist = dist;
       nearest = snap;

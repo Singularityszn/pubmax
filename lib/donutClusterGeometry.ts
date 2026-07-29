@@ -9,14 +9,14 @@
  *  MapPriceControl.tsx: green / amber / red / muted). */
 export type DonutCounts = readonly [number, number, number, number];
 
-/** Mirrors the existing `["step", point_count, 9, 25, 12, 100, 16]` circle
+/** Mirrors the existing `["step", point_count, 11, 25, 15, 100, 20]` circle
  *  radius expression used for the plain cluster-circle layer, so a donut
  *  marker is the same visual size as the bubble it replaces at any given
  *  cluster density. */
 export function donutOuterRadius(totalCount: number): number {
-  if (totalCount >= 100) return 16;
-  if (totalCount >= 25) return 12;
-  return 9;
+  if (totalCount >= 100) return 20;
+  if (totalCount >= 25) return 15;
+  return 11;
 }
 
 export type DonutStrokeSegment = {

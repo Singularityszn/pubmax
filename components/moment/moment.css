@@ -198,7 +198,7 @@
   font-weight: 800;
 }
 .momentSave:disabled { cursor: not-allowed; opacity: .48; }
-.momentSave:not(:disabled):active { transform: scale(.985); }
+.momentSave:not(:disabled):active { transform: scale(.985); --shared-press-scale: 1; }
 .momentSignIn { margin-top: 10px; padding-top: 18px; border-top: 1px solid var(--line-soft); }
 .momentSignIn p { margin: 0 0 12px; color: var(--ink-soft); font-size: 14px; }
 

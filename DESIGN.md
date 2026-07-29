@@ -2,15 +2,15 @@
 name: PUBMAXX
 description: Nights-out-with-friends crawl planner — Candle Coral light, Night Out dark
 colors:
-  ink: "#1c1412"
-  ink-soft: "#4a3632"
-  muted: "#7a5c55"
-  line: "#efcfc4"
-  line-soft: "#f5e0d6"
-  paper: "#fff1e6"
-  panel: "#fffaf6"
-  panel-raised: "#ffffff"
-  ink-deep: "#16122a"
+  ink: "#17171a"
+  ink-soft: "#3f3f46"
+  muted: "#666670"
+  line: "#e2e0e3"
+  line-soft: "#ece9eb"
+  paper: "#f8f2ec"
+  panel: "#eee7df"
+  panel-raised: "#fdf9f4"
+  ink-deep: "#0b0b0d"
   brass: "#ff5a5f"
   brass-bright: "#ff7a55"
   pint: "#18a76d"
@@ -18,11 +18,11 @@ colors:
   brick: "#ff5a5f"
   river: "#2864d8"
   river-bright: "#29b6f6"
-  night-paper: "#070b0a"
-  night-panel: "#0e1613"
-  night-panel-raised: "#141c19"
+  night-paper: "#0a0a0b"
+  night-panel: "#141416"
+  night-panel-raised: "#202024"
   night-amber: "#f0a01a"
-  night-pint: "#3dff9a"
+  night-pint: "#5fb389"
 typography:
   display:
     fontFamily: "Space Grotesk"
@@ -36,8 +36,8 @@ typography:
     fontFamily: "JetBrains Mono"
     fontWeight: 700
 rounded:
-  sm: "7px"
-  md: "10px"
+  sm: "6px"
+  md: "8px"
   lg: "18px"
   pill: "999px"
 spacing:
@@ -91,13 +91,13 @@ Candle Coral neutrals by day; Night Out ink by night. Coral stays primary in bot
 
 ### Neutral
 
-- **Candle Paper** (`#fff1e6` / `--paper`): Light page base — peach candle tint, not flat cream `#F4F1EA`.
-- **Candle Panel** (`#fffaf6` / `--panel`): Recessed panel.
-- **Raised** (`#ffffff` / `--panel-raised`): Cards, inputs.
-- **Warm Ink** (`#1c1412` / `--ink`): Primary text on paper.
-- **Coral Line** (`#efcfc4` / `--line`): Hairlines warmed toward coral, not lilac.
-- **Night Ink Paper** (`#070b0a` / `--paper` dark): Deep nightlife base.
-- **Night Chrome** (`#0e1613` / `#141c19`): Dark panel / raised.
+- **Candle Paper** (`#f8f2ec` / `--paper`): Light page base with a candle tint, not flat cream `#F4F1EA`.
+- **Candle Panel** (`#eee7df` / `--panel`): Recessed panel.
+- **Raised** (`#fdf9f4` / `--panel-raised`): Cards, inputs.
+- **Neutral Ink** (`#17171a` / `--ink`): Primary text on paper.
+- **Neutral Line** (`#e2e0e3` / DOM `--line`): Quiet structural hairline.
+- **Night Ink Paper** (`#0a0a0b` / `--paper` dark): Deep nightlife base.
+- **Night Chrome** (`#141416` / `#202024`): Dark panel / raised.
 
 ### Named Rules
 
@@ -143,13 +143,17 @@ Hybrid: light theme uses soft paper-lift shadows; dark theme uses deeper drop pl
 
 **The Flat-Chrome-On-Map Rule.** Floating map controls are solid `--panel-raised`, not glassmorphism.
 
+**The Sheet-Material Exception.** Movable sheets and drawers may use the shared
+neutral translucent material because it communicates depth over the map. They
+must use the solid reduced-transparency and increased-contrast fallback.
+
 ## 5. Components
 
 Tactile and decisive — Plan actions read louder than chrome.
 
 ### Buttons
 
-- **Shape:** Pill (`--radius-pill` / 999px) for Plan; default radius 10px for standard controls.
+- **Shape:** Pill (`--radius-pill` / 999px) for Plan; default radius 8px for standard controls.
 - **Primary (`.planBtn`):** Coral gradient `var(--brass)` → `var(--brass-bright)` in both themes, with fixed dark label ink for AA contrast.
 - **Hover / Focus:** Accent border or glow ring; focus-visible outline 2px accent.
 - **Active Plan:** Ink-deep treatment for “planning” state (existing `.planBtn.active`).
@@ -157,17 +161,17 @@ Tactile and decisive — Plan actions read louder than chrome.
 ### Chips
 
 - **Style:** Hairline border, optional brass/pint/river tint by job.
-- **Stamps:** `.ink-stamp` pressed border + inset shadow; tilt rare and opt-in.
+- **Stamps:** `.ink-stamp` pressed border + inset shadow; tilt is price-only.
 
 ### Cards / Containers
 
-- **Corner Style:** 10px default; 18px sheets.
+- **Corner Style:** 8px default; 18px sheets.
 - **Background:** `--panel` / `--panel-raised` — cards only when they contain interaction (stop list, controls). No decorative card grids in the hero.
 - **Border:** `--line` hairlines.
 
 ### Inputs / Fields
 
-- **Style:** Raised surface, soft line border, 10px radius.
+- **Style:** Raised surface, soft line border, 8px radius.
 - **Focus:** Coral accent ring (`--brass`).
 
 ### Navigation
@@ -176,7 +180,7 @@ Quiet accent hover on icons; floating theme toggle as raised pill on map. Mobile
 
 ### Map (signature)
 
-Full-bleed map plane with colored pins (pint / amber / brick / river by semantics) and route stroke in theme accent. `readTokens()` in `PubMapCanvas` consumes the same CSS variables — do not fork hexes in TS.
+Full-bleed map plane with colored pins (pint / amber / brick / river by semantics) and route stroke in theme accent. `readTokens()` in `components/map/canvas/tokens.ts` consumes the same CSS variables. Do not fork hexes in TS.
 
 ## 6. Do's and Don'ts
 

@@ -137,7 +137,7 @@ This order records original dependencies and parallel-safety reasoning. Agents t
 Wave 0  ✅ Complete in #656
    ↓
 Wave 1  Live-site UI honesty          ⎫
-Wave 2  Design craft (D1–D8)          ⎬ may overlap if file ownership is split
+Wave 2  ✅ Design craft (D1–D8)        ⎬ complete; evidence linked below
    ↓                                  ⎭
 Wave 3  Open + unblocked: MapLibre 6 + regression smoke
    ↓
@@ -183,22 +183,25 @@ Wave 6  Memory / store / expansion (gated)
 
 ---
 
-### Wave 2 - Design craft (Design Direction D1–D8)
+### Wave 2 - Design craft (Design Direction D1-D8, complete)
 
 **Goal:** Perceived quality jump on sheets and tokens. Source: [`docs/DESIGN_DIRECTION_2026-07-18.md`](./DESIGN_DIRECTION_2026-07-18.md).
 
-| ID | Item | Priority | Anchors |
+| ID | Item | Priority | Status |
 |---|---|---|---|
-| W2.1 | **D1** Spring-physics sheet/drawer (interruptible) | P0 | `components/ui/sheet.tsx`, venue sheet, route panel |
-| W2.2 | **D8** Translucent sheet material (dark-first) | P0 | sheet + `venueSheet.css` / theme panels |
-| W2.3 | **D3 / D6 / D2** Layered micro-shadow, commit radius, type hierarchy | P1 | `app/globals.css`, `app/theme.css`, landing hero type |
-| W2.4 | **D7** Price-stamp signature consistency | P1 | `PriceBadge`, feed, borough, pins, recap |
-| W2.5 | **D5** Pointer-down feedback on core loop (non-map first) | P2 | chips, CTAs, sheet handles |
+| W2.1 | **D1** Spring-physics sheet/drawer (interruptible) | P0 | Complete |
+| W2.2 | **D8** Translucent sheet material (dark-first) | P0 | Complete |
+| W2.3 | **D3 / D6 / D2** Layered micro-shadow, commit radius, type hierarchy | P1 | Complete |
+| W2.4 | **D7** Price-stamp signature consistency | P1 | Complete |
+| W2.5 | **D5** Pointer-down feedback on core loop (non-map first) | P2 | Complete |
 | W2.6 | Plan CTA AA contrast resolved; remaining accent findings stay in the accessibility matrix | Done | [`docs/A11Y_MATRIX_2026-07-18.md`](./A11Y_MATRIX_2026-07-18.md) |
 
-D4 warm `--panel-raised` is treated as already present. Verify, do not redo.
+D4 warm `--panel-raised` was verified without retuning. Implementation,
+contrast measurements, box-hierarchy accounting, and both-theme screenshots
+live in [`design-craft-d1-d8-evidence.md`](./design-craft-d1-d8-evidence.md).
 
-**Collision:** #656 is on `main`; later sheet work must preserve its venue-signal density and trust contracts.
+The completed sheet work preserves #656's venue-signal density and trust
+contracts.
 
 ---
 

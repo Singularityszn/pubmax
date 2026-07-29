@@ -9,6 +9,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 
+import PriceBadge from "@/components/PriceBadge";
 import PubmaxxNightSeal from "@/components/brand/PubmaxxNightSeal";
 import RecapShareButton from "@/components/plan/RecapShareButton";
 import type { RecapView } from "@/lib/recapView";
@@ -108,7 +109,9 @@ export default function RecapDetail({ planId }: { planId: string }) {
             </span>
           ) : null}
           {view.stats.totalGbp !== null ? (
-            <span className="recapStat recapStat--price price-plaque">£{view.stats.totalGbp.toFixed(2)}</span>
+            <PriceBadge variant="current" className="recapStat--price">
+              £{view.stats.totalGbp.toFixed(2)}
+            </PriceBadge>
           ) : null}
         </div>
       </header>
@@ -147,7 +150,11 @@ export default function RecapDetail({ planId }: { planId: string }) {
                   {pint.venueName ? <span className="recapPint__venue type-meta">{pint.venueName}</span> : null}
                   {pint.note ? <p className="recapPint__note">{pint.note}</p> : null}
                 </div>
-                {pint.priceLabel ? <span className="recapPint__price price-plaque">{pint.priceLabel}</span> : null}
+                {pint.priceLabel ? (
+                  <PriceBadge variant="current" className="recapPint__price">
+                    {pint.priceLabel}
+                  </PriceBadge>
+                ) : null}
               </li>
             ))}
           </ul>
