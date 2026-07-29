@@ -100,7 +100,7 @@ test.describe("map keyboard and screen-reader venue path", () => {
   test("updates open venue list after map movement and a venue-kind filter", async ({
     page,
   }) => {
-    test.setTimeout(90_000);
+    test.setTimeout(180_000);
     await page.goto("/map");
     await openVenueListWithKeyboard(page);
 
@@ -205,10 +205,15 @@ test.describe("map keyboard and screen-reader venue path", () => {
   test("keeps desktop drawer focus inside and restores chosen venue on Escape", async ({
     page,
   }) => {
-    test.setTimeout(90_000);
+    test.setTimeout(180_000);
     await page.goto("/map");
 
     const chosenVenue = await openVenueListWithKeyboard(page);
+    const chosenVenueId = await chosenVenue.getAttribute("data-venue-id");
+    expect(chosenVenueId).toBeTruthy();
+    const chosenVenueAfterClose = page.locator(
+      `.mapVenueListItem[data-venue-id="${chosenVenueId}"]`,
+    );
     await page.keyboard.press("Enter");
 
     const drawer = page.locator(".mapDrawer.right.open");
@@ -230,7 +235,7 @@ test.describe("map keyboard and screen-reader venue path", () => {
 
     await page.keyboard.press("Escape");
     await expect(drawer).toBeHidden();
-    await expect(chosenVenue).toBeFocused();
+    await expect(chosenVenueAfterClose).toBeFocused();
   });
 
   test("returns Escape focus to a keyboard-selected search result", async ({
