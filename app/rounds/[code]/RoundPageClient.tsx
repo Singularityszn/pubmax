@@ -78,7 +78,6 @@ export function roundViewerHandle(
   viewerMemberHandle: string | undefined,
   viewerOwnerKey: string | null,
   identity: RoundRequestIdentity | null,
-  accountHandle: string | null,
   storedHandle: string,
 ): string {
   if (!identity) return "";
@@ -88,9 +87,7 @@ export function roundViewerHandle(
   ) {
     return viewerMemberHandle;
   }
-  return identity.kind === "account"
-    ? (accountHandle ?? "")
-    : storedHandle;
+  return identity.kind === "anonymous" ? storedHandle : "";
 }
 
 // A minimal Venue shape for buildRouteLegs (read-only): the leg math only reads
@@ -105,12 +102,7 @@ function slimToVenue(slim: SlimVenue): Venue {
 }
 
 export default function RoundPageClient({ params }: { params: Promise<{ code: string }> }): React.JSX.Element {
-  const {
-    user,
-    session,
-    loading: authLoading,
-    handle: accountHandle,
-  } = useAuth();
+  const { user, session, loading: authLoading } = useAuth();
   const roundIdentity = useMemo(
     () =>
       authLoading
@@ -315,7 +307,6 @@ export default function RoundPageClient({ params }: { params: Promise<{ code: st
     state?.viewerMemberHandle,
     stateOwnerKey,
     roundIdentity,
-    accountHandle,
     myHandle,
   );
   const amMember = useMemo(

@@ -122,17 +122,25 @@ vi.mock("@/lib/roundPriceBudget", async (importOriginal) => {
   };
 });
 
-const priceWriteState = vi.hoisted(() => ({ failuresRemaining: 0 }));
+const priceWriteState = vi.hoisted(() => ({
+  failuresRemaining: 0,
+  beforeWrite: null as null | (() => Promise<void>),
+}));
 vi.mock("@/lib/communityPriceStore", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/communityPriceStore")>();
   return {
     ...actual,
-    submitCommunityPrice: (
+    submitCommunityPrice: async (
       ...args: Parameters<typeof actual.submitCommunityPrice>
     ) => {
       if (priceWriteState.failuresRemaining > 0) {
         priceWriteState.failuresRemaining -= 1;
-        return Promise.resolve({ price: null, failed: true as const });
+        return { price: null, failed: true as const };
+      }
+      if (priceWriteState.beforeWrite) {
+        const beforeWrite = priceWriteState.beforeWrite;
+        priceWriteState.beforeWrite = null;
+        await beforeWrite();
       }
       return actual.submitCommunityPrice(...args);
     },
@@ -276,6 +284,7 @@ beforeEach(() => {
   transitionOverride.failCompleted = false;
   budgetOverride.fn = null;
   priceWriteState.failuresRemaining = 0;
+  priceWriteState.beforeWrite = null;
   venueLookupState.unavailable = false;
   __resetCommunityPrices();
 });
@@ -833,6 +842,73 @@ describe("POST /api/rounds/[code] — actions", () => {
     expect(await readCommunityPrices("venue-1")).toMatchObject([
       { priceGbp: 6.1 },
     ]);
+  });
+
+  it("rejects a ready source superseded while its price write is waiting", async () => {
+    await authorizeContributor("user-ken", "ken");
+    const { round } = await newRound("ken");
+    await action(round.code, {
+      action: "addStop",
+      handle: "ken",
+      venueId: "venue-1",
+    });
+    const staleBody = {
+      action: "recordSpend",
+      handle: "ken",
+      payerHandle: "ken",
+      venueId: "venue-1",
+      clientRef: "stale-ready-source",
+      items: [
+        {
+          drinkName: "Earlier Guinness",
+          drinkCategory: "beer",
+          priceGbp: 6.1,
+        },
+      ],
+    };
+
+    priceWriteState.failuresRemaining = 1;
+    expect((await action(round.code, staleBody)).status).toBe(503);
+
+    let releaseWrite = (): void => {};
+    let signalWriteStarted = (): void => {};
+    const writeStarted = new Promise<void>((resolve) => {
+      signalWriteStarted = resolve;
+    });
+    const writeReleased = new Promise<void>((resolve) => {
+      releaseWrite = resolve;
+    });
+    priceWriteState.beforeWrite = async () => {
+      signalWriteStarted();
+      await writeReleased;
+    };
+
+    const staleRetry = action(round.code, staleBody);
+    await writeStarted;
+    budgetOverride.fn = async () => ({
+      allowed: false,
+      mode: "memory" as const,
+    });
+    const newer = await action(round.code, {
+      ...staleBody,
+      clientRef: "newer-pending-source",
+      items: [
+        {
+          drinkName: "Later Guinness",
+          drinkCategory: "beer",
+          priceGbp: 6.4,
+        },
+      ],
+    });
+    expect(newer.status).toBe(429);
+
+    releaseWrite();
+    expect((await staleRetry).status).toBe(503);
+    const held = (await (await get(round.code)).json()) as RoundState;
+    expect(
+      held.spends.map((spend) => spend.items[0]?.promotionStatus),
+    ).toEqual(["superseded", "pending"]);
+    expect(await readCommunityPrices("venue-1")).toEqual([]);
   });
 
   it("persists promotion with the community-price ownership transaction", async () => {

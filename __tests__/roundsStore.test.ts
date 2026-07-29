@@ -406,4 +406,40 @@ describe("Round price key ownership migration", () => {
       /community_prices\.submitted_at <= excluded\.submitted_at/,
     );
   });
+
+  it("validates the current ready Round source before changing shared ownership", () => {
+    const sql = readFileSync(
+      new URL(
+        "../supabase/migrations/20260729140000_0064_round_price_key_owners.sql",
+        import.meta.url,
+      ),
+      "utf8",
+    );
+    const atomicUpsert = sql.slice(
+      sql.indexOf(
+        "create or replace function public.upsert_attributed_community_price_if_newer",
+      ),
+    );
+    const sharedWrite = atomicUpsert.indexOf(
+      "insert into public.community_prices",
+    );
+
+    expect(sharedWrite).toBeGreaterThan(0);
+    expect(
+      atomicUpsert.indexOf(
+        "v_source_item->>'promotionStatus' is distinct from 'ready'",
+      ),
+    ).toBeGreaterThan(0);
+    expect(
+      atomicUpsert.indexOf(
+        "v_source_item->>'promotionStatus' is distinct from 'ready'",
+      ),
+    ).toBeLessThan(sharedWrite);
+    expect(atomicUpsert).toMatch(
+      /order by\s+candidate\.recorded_at desc,[\s\S]*candidate\.id::text desc,[\s\S]*expanded\.ordinality desc/,
+    );
+    expect(atomicUpsert).toMatch(
+      /v_candidate_spend_id is distinct from p_round_spend_id[\s\S]*return;/,
+    );
+  });
 });

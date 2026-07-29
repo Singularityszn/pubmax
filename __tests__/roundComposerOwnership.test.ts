@@ -29,7 +29,7 @@ describe("Round composer ownership", () => {
     ).not.toBe(roundComposerOwnerKey(null));
   });
 
-  it("ignores another account's viewer projection and stored handle", () => {
+  it("fails closed while the current account viewer projection is unavailable", () => {
     const accountB: RoundRequestIdentity = {
       kind: "account",
       auth: { userId: "user-b", accessToken: "token-b" },
@@ -40,18 +40,32 @@ describe("Round composer ownership", () => {
         "account-a-handle",
         "account:user-a",
         accountB,
-        "account-b-handle",
         "account-a-handle",
       ),
-    ).toBe("account-b-handle");
+    ).toBe("");
     expect(
       roundViewerHandle(
         "account-a-handle",
         "account:user-a",
         accountB,
-        null,
         "account-a-handle",
       ),
     ).toBe("");
+  });
+
+  it("uses only a viewer projection tagged to the current account", () => {
+    const accountB: RoundRequestIdentity = {
+      kind: "account",
+      auth: { userId: "user-b", accessToken: "token-b" },
+    };
+
+    expect(
+      roundViewerHandle(
+        "round-member-b",
+        "account:user-b",
+        accountB,
+        "stored-anonymous-handle",
+      ),
+    ).toBe("round-member-b");
   });
 });

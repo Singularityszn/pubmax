@@ -301,6 +301,11 @@ declare
   v_current_submitted_at timestamptz;
   v_current_spend_id uuid;
   v_current_line_index integer;
+  v_source_round_id uuid;
+  v_source_venue_id text;
+  v_source_item jsonb;
+  v_candidate_spend_id uuid;
+  v_candidate_line_index integer;
 begin
   if
     nullif(trim(p_actor), '') is null
@@ -316,6 +321,66 @@ begin
   perform pg_advisory_xact_lock(
     hashtextextended('round-price-actor:' || p_actor, 0)
   );
+
+  if p_round_spend_id is not null then
+    select
+      source.round_id,
+      source.venue_id,
+      source.items->p_round_line_index
+    into
+      v_source_round_id,
+      v_source_venue_id,
+      v_source_item
+    from public.round_spends source
+    where source.id = p_round_spend_id
+      and source.promotion_actor = p_actor
+      and jsonb_array_length(source.items) > p_round_line_index
+    for update;
+
+    if
+      not found
+      or v_source_venue_id is distinct from p_venue_id
+      or v_source_item->>'source' is distinct from 'round'
+      or v_source_item->>'drinkCategory' is distinct from p_drink_category
+      or v_source_item->>'promotionStatus' is distinct from 'ready'
+    then
+      return;
+    end if;
+
+    perform 1
+      from public.round_spends candidate
+     where candidate.round_id = v_source_round_id
+       and candidate.promotion_actor = p_actor
+     for update;
+
+    select
+      candidate.id,
+      (expanded.ordinality - 1)::integer
+    into
+      v_candidate_spend_id,
+      v_candidate_line_index
+    from public.round_spends candidate
+    cross join lateral jsonb_array_elements(candidate.items)
+      with ordinality as expanded(item, ordinality)
+    where candidate.round_id = v_source_round_id
+      and candidate.promotion_actor = p_actor
+      and candidate.venue_id = p_venue_id
+      and expanded.item->>'source' = 'round'
+      and expanded.item->>'drinkCategory' = p_drink_category
+      and expanded.item->>'promotionStatus' in ('pending', 'ready')
+    order by
+      candidate.recorded_at desc,
+      candidate.id::text desc,
+      expanded.ordinality desc
+    limit 1;
+
+    if
+      v_candidate_spend_id is distinct from p_round_spend_id
+      or v_candidate_line_index is distinct from p_round_line_index
+    then
+      return;
+    end if;
+  end if;
 
   select existing.round_spend_id, existing.round_line_index
     into v_old_spend_id, v_old_line_index

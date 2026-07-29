@@ -73,6 +73,7 @@ import type {
 import { normalizeHandle } from "@/lib/profiles";
 import type { RoundPriceSource } from "@/lib/rounds";
 import {
+  isCurrentReadyRoundPriceSource,
   markRoundPriceSourcePromoted,
   markRoundPriceSourceSuperseded,
 } from "@/lib/roundsStore";
@@ -882,6 +883,18 @@ export const memoryCommunityPriceStore: CommunityPriceStore = {
       hidden: false,
       reportCount: 0,
     };
+    if (
+      roundSource &&
+      (!stored.actor ||
+        !isCurrentReadyRoundPriceSource(
+          roundSource,
+          stored.actor,
+          stored.venueId,
+          stored.drinkCategory,
+        ))
+    ) {
+      return { price: null };
+    }
     const rows = venues.get(key.venueId) ?? [];
     // One live observation per (venue, category, actor): a contributor correcting
     // its own entry replaces it rather than stacking a second row, so one
@@ -1380,6 +1393,9 @@ export const supabaseCommunityPriceStore: CommunityPriceStore = {
           typeof saved.source_became_owner === "boolean"
             ? saved.source_became_owner
             : undefined;
+        if (roundSource && sourceBecameOwner === undefined) {
+          return { price: null };
+        }
         return {
           price: {
             ...toPrice(
