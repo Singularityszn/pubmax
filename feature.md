@@ -290,9 +290,8 @@ The application is one Next.js 16 App Router service using React 19 and TypeScri
 ### 9.9 Pub Pal
 
 - User-owned Pub Pal domain replacing the earlier presentation-only assumption.
-- Handle-only signup, with date of birth assessed and discarded immediately
-  before the first gated contribution; under-18 accounts retain only their
-  eligibility date and cannot contribute.
+- Account signup with a public handle, required private date of birth, and
+  optional private full name and sex. Contributions are not blocked by age.
 - Hound, raven, and fox species foundations.
 - Name, material, accessory, Signal affinity, relationship style, personality, and voice settings.
 - Pal onboarding experience.
