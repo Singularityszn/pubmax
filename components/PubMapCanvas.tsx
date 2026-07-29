@@ -75,6 +75,7 @@ import {
 import {
   assembleScene, buildTransitLines,
   CLUSTER_FILL_OPACITY, CLUSTER_STROKE_OPACITY,
+  UK_BASE_MIN_ZOOM,
 } from "@/components/map/canvas/buildScene";
 import { createDonutClusterSync, type DonutClusterSync } from "@/components/map/canvas/donutClusters";
 import {
@@ -2338,9 +2339,10 @@ export default function PubMapCanvas({
 
   // Project coordinates through MapLibre rather than using getBounds(): at a
   // pitch or bearing, getBounds() is the enclosing rectangle and includes
-  // off-canvas corners. Re-publish on every camera frame and every data/filter
-  // change. This is coordinate projection only, never rendered-feature or
-  // canvas hit-testing.
+  // off-canvas corners. Re-publish when the camera settles and whenever
+  // data/filters change. Per-frame projection would put thousands of
+  // map.project calls and live-region count changes into every pan. This is
+  // coordinate projection only, never rendered-feature or canvas hit-testing.
   useEffect(() => {
     const map = mapRef.current;
     if (!mapReady || !map) return;
@@ -2359,11 +2361,14 @@ export default function PubMapCanvas({
         (venue) => map.project([venue.longitude, venue.latitude]),
         viewport,
       );
-      const ukBasePubIds = projectedItemIdsInViewport(
-        ukBase.pubs,
-        (pub) => map.project([pub.lng, pub.lat]),
-        viewport,
-      );
+      const ukBasePubIds =
+        map.getZoom() >= UK_BASE_MIN_ZOOM
+          ? projectedItemIdsInViewport(
+              ukBase.pubs,
+              (pub) => map.project([pub.lng, pub.lat]),
+              viewport,
+            )
+          : [];
       const membershipKey =
         `${curatedVenueIds.join("\u0000")}\u0001${ukBasePubIds.join("\u0000")}`;
       if (membershipKey === lastMembershipKey) return;
@@ -2380,12 +2385,12 @@ export default function PubMapCanvas({
       frame = requestAnimationFrame(publishVisibleMembership);
     };
 
-    map.on("move", scheduleVisibleMembership);
+    map.on("moveend", scheduleVisibleMembership);
     map.on("resize", scheduleVisibleMembership);
     scheduleVisibleMembership();
     return () => {
       if (frame !== null) cancelAnimationFrame(frame);
-      map.off("move", scheduleVisibleMembership);
+      map.off("moveend", scheduleVisibleMembership);
       map.off("resize", scheduleVisibleMembership);
     };
   }, [

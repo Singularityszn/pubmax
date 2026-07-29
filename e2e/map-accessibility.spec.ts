@@ -188,6 +188,18 @@ test.describe("map keyboard and screen-reader venue path", () => {
       [...oldIds],
     );
     expect(overlappingOldIds).toEqual([]);
+
+    await expect.poll(() => baseRows.count(), { timeout: 20_000 }).toBeGreaterThan(0);
+    await canvas.focus();
+    await page.keyboard.press("Minus");
+    await page.waitForTimeout(400);
+    await page.keyboard.press("Minus");
+    await page.waitForTimeout(400);
+    await page.keyboard.press("Minus");
+    // MapLibre has settled below the layer floor, but the base stream's 180 ms
+    // clear is still pending. The DOM list must follow layer visibility now.
+    await page.waitForTimeout(400);
+    await expect(baseRows).toHaveCount(0, { timeout: 100 });
   });
 
   test("keeps desktop drawer focus inside and restores chosen venue on Escape", async ({
