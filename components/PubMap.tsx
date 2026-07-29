@@ -2315,12 +2315,11 @@ export default function PubMap({
     }
   }, [detailOpen]);
 
-  // A11Y finding #2 — desktop venue drawer focus-trap parity. The desktop right
-  // drawer already claims dialog/aria-modal at `full` and owns focus-in/restore
-  // (above) + Esc (useMapKeyboardShortcuts); the missing piece was trapping Tab
-  // and inert-ing the background. Reuse the SAME trap the mobile sheet uses.
+  // A11Y finding #2: desktop drawer is modal for its full open lifetime. Desktop
+  // never changes detent, so gating trap on mobile-oriented `sheetSnap` left it
+  // inactive at its permanent `half` state.
   const detailDrawerRef = useRef<HTMLDivElement | null>(null);
-  useFocusTrap(!mobileViewport && detailOpen && sheetSnap === "full", detailDrawerRef);
+  useFocusTrap(!mobileViewport && detailOpen, detailDrawerRef);
 
   // G3: Place story deep-link chip when `?band=` resolves. Takes priority over
   // curated onboarding so the two never fight.
@@ -3217,13 +3216,9 @@ export default function PubMap({
           (sheetDragY !== null ? " sheet-dragging" : "")
         }
         aria-hidden={!detailOpen}
-        // The sheet only claims modal semantics at its "full" snap, where it
-        // visually covers virtually the whole viewport (92vh) — at peek/half
-        // enough of the map stays visible/reachable that a true modal trap
-        // would be wrong (the user can still see and return to the map).
-        aria-modal={detailOpen && sheetSnap === "full" ? true : undefined}
-        role={detailOpen && sheetSnap === "full" ? "dialog" : undefined}
-        aria-label={detailOpen && sheetSnap === "full" ? selectedVenueLabels.detailLabel : undefined}
+        aria-modal={detailOpen ? true : undefined}
+        role={detailOpen ? "dialog" : undefined}
+        aria-label={detailOpen ? selectedVenueLabels.detailLabel : undefined}
         style={
           sheetDragY !== null
             ? {

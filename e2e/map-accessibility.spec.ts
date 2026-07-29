@@ -85,4 +85,35 @@ test.describe("map keyboard and screen-reader venue path", () => {
     await expect(bars).toHaveAttribute("aria-pressed", "false");
     await expect.poll(() => rows.count()).toBeLessThan(beforeFilter);
   });
+
+  test("keeps desktop drawer focus inside and restores chosen venue on Escape", async ({
+    page,
+  }) => {
+    test.setTimeout(90_000);
+    await page.goto("/map");
+
+    const chosenVenue = await openVenueListWithKeyboard(page);
+    await page.keyboard.press("Enter");
+
+    const drawer = page.locator(".mapDrawer.right.open");
+    const closeButton = drawer.getByRole("button", { name: /Close/ });
+    await expect(drawer).toBeVisible();
+    await expect(drawer).toHaveAttribute("role", "dialog");
+    await expect(drawer).toHaveAttribute("aria-modal", "true");
+    await expect(closeButton).toBeFocused();
+
+    const lastFocusable = drawer.locator(
+      'a[href]:visible, button:not([disabled]):visible, input:not([disabled]):visible, select:not([disabled]):visible, textarea:not([disabled]):visible, [tabindex]:not([tabindex="-1"]):visible',
+    ).last();
+    await lastFocusable.focus();
+    await page.keyboard.press("Tab");
+    await expect(closeButton).toBeFocused();
+
+    await page.keyboard.press("Shift+Tab");
+    await expect(lastFocusable).toBeFocused();
+
+    await page.keyboard.press("Escape");
+    await expect(drawer).toBeHidden();
+    await expect(chosenVenue).toBeFocused();
+  });
 });
