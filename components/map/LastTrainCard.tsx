@@ -20,7 +20,11 @@ import { useEffect, useId, useState } from "react";
 
 import { getCity, type CityId, DEFAULT_CITY_ID } from "@/lib/cities";
 import { lastRideProviderForCity, type LastRideResult } from "@/lib/lastRide";
-import { loadLastRide } from "@/lib/lastRideClient";
+import {
+  loadLastRide,
+  loadStableLastRide,
+  type LastRidePayload,
+} from "@/lib/lastRideClient";
 import {
   readLastTrainDestination,
   writeLastTrainDestination,
@@ -345,23 +349,52 @@ export default function LastTrainCard({
   }
 
   useEffect(() => {
-    const request = loadLastRide(cityId, lat, lng);
-    if (!request) {
-      void Promise.resolve().then(() => setState({ status: "empty", requestKey }));
-      return;
-    }
+    const stableRequest = loadStableLastRide(cityId, lat, lng);
+    const liveRequest = loadLastRide(cityId, lat, lng);
     let active = true;
-    // React 19: never setState synchronously in the effect body. The initial
-    // state is already "loading"; when lat/lng change we let the shared request
-    // move us straight to the fresh ready/empty state below. Destination is
-    // session-only UI and is never sent to the API (privacy / user story 23).
-    request
-      .then((data: Partial<LastRideResult> & { error?: string }) => {
-        if (active) setState(toState(data, requestKey));
-      })
-      .catch(() => {
-        if (active) setState({ status: "empty", requestKey });
-      });
+    let stableSettled = stableRequest === null;
+    let liveSettled = liveRequest === null;
+    let hasReadyState = false;
+    let hasLiveReadyState = false;
+
+    const settleEmpty = () => {
+      if (active && stableSettled && liveSettled && !hasReadyState) {
+        setState({ status: "empty", requestKey });
+      }
+    };
+
+    stableRequest?.then(
+      (data: LastRidePayload) => {
+        stableSettled = true;
+        const next = toState(data, requestKey);
+        if (next.status === "ready") {
+          hasReadyState = true;
+          if (active && !hasLiveReadyState) setState(next);
+        }
+        settleEmpty();
+      },
+      () => {
+        stableSettled = true;
+        settleEmpty();
+      },
+    );
+    liveRequest?.then(
+      (data: LastRidePayload) => {
+        liveSettled = true;
+        const next = toState(data, requestKey);
+        if (next.status === "ready") {
+          hasReadyState = true;
+          hasLiveReadyState = true;
+          if (active) setState(next);
+        }
+        settleEmpty();
+      },
+      () => {
+        liveSettled = true;
+        settleEmpty();
+      },
+    );
+    void Promise.resolve().then(settleEmpty);
     return () => {
       active = false;
     };

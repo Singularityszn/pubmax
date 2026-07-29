@@ -31,12 +31,6 @@
 //  6. Nearest pubs: haversine (lib/haversine.ts) against the bundled venue index,
 //     sorted by distance to the station, top 3 with id/name/price.
 //
-// Caching: timetables/last-train barely change, so that half of the answer can
-// sit at the CDN edge for an hour. Arrivals are genuinely live (vehicles change
-// minute to minute) and are never cached here — see `json()` below, which forces
-// `no-store` whenever the departures/decision use live data so a stale "next
-// train in 2 min" can never be served from a shared cache.
-//
 // Robustness: every TfL call is wrapped in try/catch with a short per-call
 // AbortController timeout. This route NEVER throws and NEVER 500s the user — if the
 // nearest-station lookup fails or finds nothing, it returns 200 with an `error`
@@ -319,6 +313,16 @@ async function departuresForLine(
       live: true,
     };
   }
+  return scheduledDeparturesForLine(lineId, lineName, stationId, dayType, nowMinutes);
+}
+
+async function scheduledDeparturesForLine(
+  lineId: string,
+  lineName: string,
+  stationId: string,
+  dayType: DayType,
+  nowMinutes: number,
+): Promise<NextDepartures> {
   const schedules = await collectSchedules(lineId, stationId);
   const fallback = nextFromSchedulesAfter(schedules, dayType, nowMinutes);
   return {
@@ -398,11 +402,6 @@ function londonNow(): Date {
   );
 }
 
-// Cache policy (see file header): only a fully-resolved, all-timetable answer
-// (no live arrivals/decision involved) is cacheable at the edge for an hour —
-// timetables barely move. Anything touching live Arrivals or the decision (which
-// is itself time-sensitive, "leave by" ticks every minute) is `no-store`, and any
-// error/empty result is `no-store` too so a transient TfL hiccup never sticks.
 function json(body: unknown, opts: { status?: number; cache?: boolean } = {}): Response {
   const { status = 200, cache = false } = opts;
   return new Response(JSON.stringify(body), {
@@ -418,6 +417,7 @@ function json(body: unknown, opts: { status?: number; cache?: boolean } = {}): R
 
 export async function GET(request: Request): Promise<Response> {
   const params = new URL(request.url).searchParams;
+  const stableOnly = params.get("scope") === "stable";
   const lat = Number.parseFloat(params.get("lat") ?? "");
   const lng = Number.parseFloat(params.get("lng") ?? "");
   if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
@@ -438,12 +438,12 @@ export async function GET(request: Request): Promise<Response> {
       station: null,
       trains: [],
       departures: [],
-      decision,
+      ...(stableOnly ? {} : { decision }),
       nearestPubs: [],
       generatedAt: new Date().toISOString(),
     });
   }
-  if (await isLastRideLimited(request, "last-train")) {
+  if (await isLastRideLimited(request, stableOnly ? "last-train-stable" : "last-train")) {
     return json({ error: "Too many requests, slow down." }, { status: 429 });
   }
   // Destination is client-only (user story 23): the card keeps the label in
@@ -478,7 +478,7 @@ export async function GET(request: Request): Promise<Response> {
         },
         trains: [],
         departures: [],
-        decision,
+        ...(stableOnly ? {} : { decision }),
         nearestPubs,
         generatedAt: new Date().toISOString(),
         staticFallback: true,
@@ -499,7 +499,7 @@ export async function GET(request: Request): Promise<Response> {
       station: null,
       trains: [],
       departures: [],
-      decision,
+      ...(stableOnly ? {} : { decision }),
       nearestPubs: [],
       generatedAt: new Date().toISOString(),
     });
@@ -532,16 +532,26 @@ export async function GET(request: Request): Promise<Response> {
     ),
     Promise.all(
       lines.map((line) =>
-        departuresForLine(
-          line.id as string,
-          line.name ?? (line.id as string),
-          nearest.id as string,
-          dayType,
-          nowMinutes,
-        ),
+        stableOnly
+          ? scheduledDeparturesForLine(
+              line.id as string,
+              line.name ?? (line.id as string),
+              nearest.id as string,
+              dayType,
+              nowMinutes,
+            )
+          : departuresForLine(
+              line.id as string,
+              line.name ?? (line.id as string),
+              nearest.id as string,
+              dayType,
+              nowMinutes,
+            ),
       ),
     ),
-    lineDisruptions(lineIds),
+    stableOnly
+      ? Promise.resolve({ summary: null, affectedLineIds: new Set<string>() })
+      : lineDisruptions(lineIds),
     typeof nearest.lat === "number" && typeof nearest.lon === "number"
       ? nearestPubsToStation(nearest.lat, nearest.lon)
       : Promise.resolve<NearestPub[]>([]),
@@ -554,7 +564,23 @@ export async function GET(request: Request): Promise<Response> {
     .sort((a, b) => a.clock.localeCompare(b.clock));
 
   const departures: NextDepartures[] = departureResults.filter((d) => d.times.length > 0);
-  const anyLiveDepartures = departures.some((d) => d.live);
+
+  if (stableOnly) {
+    return json(
+      {
+        station: {
+          id: nearest.id,
+          name: nearest.commonName ?? "Nearest station",
+          distanceM: Math.round(nearest.distance ?? 0),
+        },
+        trains,
+        departures,
+        nearestPubs,
+        generatedAt: new Date().toISOString(),
+      },
+      { cache: trains.length > 0 },
+    );
+  }
 
   // Walk estimate: venue (the point the card was called with) → station,
   // straight-line haversine at a brisk walking pace. Labeled as straight-line in
@@ -589,8 +615,8 @@ export async function GET(request: Request): Promise<Response> {
     // `live` here means "TfL was reachable" (drives live_data_unavailable), and
     // it is — we resolved a station and a last-train time. The card's "Live from
     // TfL" provenance label is a SEPARATE, honest signal driven by whether any
-    // departures are genuinely live Arrivals (anyLiveDepartures), carried on the
-    // response's `departures[].live` and read by the card (H5).
+    // departures are genuinely live Arrivals, carried on the response's
+    // `departures[].live` and read by the card (H5).
     live: true,
     now: new Date(),
   });
@@ -607,8 +633,5 @@ export async function GET(request: Request): Promise<Response> {
     nearestPubs,
     generatedAt: new Date().toISOString(),
   };
-  // Cache only when nothing live was involved (no live Arrivals resolved) and we
-  // have at least one timetable train — a live-touched or empty answer must
-  // never be pinned at the shared edge cache (see file header + json() above).
-  return json(result, { cache: trains.length > 0 && !anyLiveDepartures });
+  return json(result);
 }

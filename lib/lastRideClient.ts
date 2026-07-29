@@ -4,23 +4,73 @@ import {
   type LastRideResult,
 } from "@/lib/lastRide";
 
-const CLIENT_CACHE_TTL_MS = 60_000;
+const STABLE_CACHE_TTL_MS = 60_000;
 const CLIENT_CACHE_LIMIT = 32;
 
-type LastRidePayload = Partial<LastRideResult> & { error?: string };
+export type LastRidePayload = Partial<LastRideResult> & { error?: string };
 type CacheEntry = {
   expiresAt: number;
   promise: Promise<LastRidePayload>;
 };
 
-const resultCache = new Map<string, CacheEntry>();
+const stableResultCache = new Map<string, CacheEntry>();
+const liveRequests = new Map<string, Promise<LastRidePayload>>();
 
 function trimCache(): void {
-  while (resultCache.size > CLIENT_CACHE_LIMIT) {
-    const oldestKey = resultCache.keys().next().value as string | undefined;
+  while (stableResultCache.size > CLIENT_CACHE_LIMIT) {
+    const oldestKey = stableResultCache.keys().next().value as string | undefined;
     if (!oldestKey) return;
-    resultCache.delete(oldestKey);
+    stableResultCache.delete(oldestKey);
   }
+}
+
+function fetchLastRide(url: string): Promise<LastRidePayload> {
+  return fetch(url)
+    .then((response) =>
+      response.ok
+        ? response.json()
+        : Promise.reject(new Error(String(response.status))),
+    )
+    .then((data: LastRidePayload) => data);
+}
+
+function stablePayload(data: LastRidePayload): LastRidePayload {
+  const stable = { ...data };
+  delete stable.decision;
+  stable.departures = data.departures?.map((departure) => ({
+    ...departure,
+    live: false,
+  }));
+  return stable;
+}
+
+export function loadStableLastRide(
+  cityId: CityId,
+  lat: number,
+  lng: number,
+): Promise<LastRidePayload> | null {
+  if (cityId !== "london") return null;
+  const liveUrl = lastRideFetchUrl(cityId, lat, lng);
+  if (!liveUrl) return null;
+  const url = `${liveUrl}&scope=stable`;
+  const now = Date.now();
+  const cached = stableResultCache.get(url);
+  if (cached && cached.expiresAt > now) {
+    stableResultCache.delete(url);
+    stableResultCache.set(url, cached);
+    return cached.promise;
+  }
+  if (cached) stableResultCache.delete(url);
+
+  const promise = fetchLastRide(url)
+    .then(stablePayload)
+    .catch((error: unknown) => {
+      stableResultCache.delete(url);
+      throw error;
+    });
+  stableResultCache.set(url, { expiresAt: now + STABLE_CACHE_TTL_MS, promise });
+  trimCache();
+  return promise;
 }
 
 export function loadLastRide(
@@ -30,38 +80,30 @@ export function loadLastRide(
 ): Promise<LastRidePayload> | null {
   const url = lastRideFetchUrl(cityId, lat, lng);
   if (!url) return null;
+  const pending = liveRequests.get(url);
+  if (pending) return pending;
 
-  const now = Date.now();
-  const cached = resultCache.get(url);
-  if (cached && cached.expiresAt > now) {
-    resultCache.delete(url);
-    resultCache.set(url, cached);
-    return cached.promise;
-  }
-  if (cached) resultCache.delete(url);
-
-  const promise = fetch(url)
-    .then((response) =>
-      response.ok
-        ? response.json()
-        : Promise.reject(new Error(String(response.status))),
-    )
-    .then((data: LastRidePayload) => data)
-    .catch((error: unknown) => {
-      resultCache.delete(url);
+  const promise = fetchLastRide(url).then(
+    (data) => {
+      if (liveRequests.get(url) === promise) liveRequests.delete(url);
+      return data;
+    },
+    (error: unknown) => {
+      if (liveRequests.get(url) === promise) liveRequests.delete(url);
       throw error;
-    });
-  resultCache.set(url, { expiresAt: now + CLIENT_CACHE_TTL_MS, promise });
-  trimCache();
+    },
+  );
+  liveRequests.set(url, promise);
   return promise;
 }
 
 export function prefetchLastRide(cityId: CityId, lat: number, lng: number): void {
-  void loadLastRide(cityId, lat, lng)?.catch(() => {
+  void loadStableLastRide(cityId, lat, lng)?.catch(() => {
     // Prefetch is opportunistic. LastTrainCard owns the visible fallback.
   });
 }
 
 export function __resetLastRideClientCache(): void {
-  resultCache.clear();
+  stableResultCache.clear();
+  liveRequests.clear();
 }

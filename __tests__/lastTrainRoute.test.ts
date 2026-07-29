@@ -187,6 +187,26 @@ describe("GET /api/last-train", () => {
     expect(await responses[20].json()).toEqual({ error: "Too many requests, slow down." });
   });
 
+  it("does not spend the live-request budget on stable prefetches", async () => {
+    global.fetch = vi.fn(async () => new Response("service unavailable", { status: 503 }));
+
+    for (let i = 0; i < 20; i++) {
+      const response = await GET(
+        new Request("http://localhost/api/last-train?lat=51.5&lng=-0.12&scope=stable", {
+          headers: { "x-forwarded-for": "198.51.100.21" },
+        }),
+      );
+      expect(response.status).toBe(200);
+    }
+
+    const liveResponse = await GET(
+      new Request("http://localhost/api/last-train?lat=51.5&lng=-0.12", {
+        headers: { "x-forwarded-for": "198.51.100.21" },
+      }),
+    );
+    expect(liveResponse.status).toBe(200);
+  });
+
   it("resolves a post-midnight last train against the prior service day", async () => {
     vi.useFakeTimers();
     // Saturday 00:15 Europe/London (BST): still Friday night's service window.
@@ -246,6 +266,21 @@ describe("GET /api/last-train", () => {
       return new Response("not found", { status: 404 });
     });
 
+    const prefetched = await GET(
+      new Request("http://localhost/api/last-train?lat=51.5&lng=-0.12&scope=stable"),
+    );
+    expect(prefetched.status).toBe(200);
+    const prefetchedBody = await prefetched.json();
+    expect(prefetchedBody.station?.name).toBe("Oxford Circus");
+    expect(prefetchedBody.departures).toEqual([
+      expect.objectContaining({ lineId: "victoria", live: false }),
+    ]);
+    expect(prefetchedBody.decision).toBeUndefined();
+    expect(prefetched.headers.get("cache-control")).toContain("s-maxage=3600");
+    let calls = vi.mocked(global.fetch).mock.calls.map(([input]) => String(input));
+    expect(calls.some((url) => url.includes("/Arrivals"))).toBe(false);
+    expect(calls.some((url) => url.includes("/Status"))).toBe(false);
+
     const res = await GET(new Request("http://localhost/api/last-train?lat=51.5&lng=-0.12"));
     expect(res.status).toBe(200);
     const body = await res.json();
@@ -255,13 +290,12 @@ describe("GET /api/last-train", () => {
     expect(body.trains[0].pastMidnight).toBe(true);
     expect(body.decision.decision).not.toBe("live_data_unavailable");
     expect(body.decision.leaveByIso).toBeTruthy();
+    expect(res.headers.get("cache-control")).toBe("no-store");
 
-    const second = await GET(
-      new Request("http://localhost/api/last-train?lat=51.5&lng=-0.12"),
-    );
-    expect(second.status).toBe(200);
-    const calls = vi.mocked(global.fetch).mock.calls.map(([input]) => String(input));
+    calls = vi.mocked(global.fetch).mock.calls.map(([input]) => String(input));
     expect(calls.filter((url) => url.includes("/StopPoint?"))).toHaveLength(1);
     expect(calls.filter((url) => url.includes("/Line/victoria/Timetable/"))).toHaveLength(1);
+    expect(calls.filter((url) => url.includes("/Arrivals"))).toHaveLength(1);
+    expect(calls.filter((url) => url.includes("/Status"))).toHaveLength(1);
   });
 });
