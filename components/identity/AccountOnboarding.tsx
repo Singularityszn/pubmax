@@ -3,8 +3,12 @@
 import { useCallback, useEffect, useState } from "react";
 
 import { useAuth } from "@/components/auth/AuthProvider";
+import {
+  accountBoundFetch,
+  captureAccountAuth,
+  type AccountAuthSnapshot,
+} from "@/lib/accountBoundFetch";
 import { trackEvent } from "@/lib/analytics";
-import { authedFetch } from "@/lib/authedFetch";
 import {
   checkAccountHandleAvailability,
   loadAccountOnboardingStatus,
@@ -232,14 +236,21 @@ function suggestedHandle(): string {
   }
 }
 
-function AccountOnboardingForUser(): React.JSX.Element | null {
+function AccountOnboardingForUser({
+  auth,
+}: {
+  auth: AccountAuthSnapshot;
+}): React.JSX.Element | null {
   const [status, setStatus] = useState<
     "loading" | "needed" | "complete" | "unavailable"
   >("loading");
   const [statusError, setStatusError] = useState(
     "Account setup is unavailable right now.",
   );
-  const [statusRequest, setStatusRequest] = useState(0);
+  const [statusRequest, setStatusRequest] = useState(() => ({
+    auth,
+    attempt: 0,
+  }));
   const [handle, setHandle] = useState(suggestedHandle);
   const [fullName, setFullName] = useState("");
   const [sex, setSex] = useState<"" | PrivateIdentitySex>("");
@@ -252,7 +263,10 @@ function AccountOnboardingForUser(): React.JSX.Element | null {
   useEffect(() => {
     let active = true;
     const controller = new AbortController();
-    void loadAccountOnboardingStatus(authedFetch, controller.signal).then(
+    void loadAccountOnboardingStatus(
+      (input, init) => accountBoundFetch(statusRequest.auth, input, init),
+      controller.signal,
+    ).then(
       (result) => {
         if (!active) return;
         if (result.status === "complete") {
@@ -339,15 +353,19 @@ function AccountOnboardingForUser(): React.JSX.Element | null {
       setBusy(true);
       setError(null);
       try {
-        const response = await authedFetch("/api/identity/onboarding", {
-          method: "POST",
-          headers: { "content-type": "application/json" },
-          body: JSON.stringify({
-            handle,
-            ...(includeOptional && fullName.trim() ? { fullName } : {}),
-            ...(includeOptional && sex ? { sex } : {}),
-          }),
-        });
+        const response = await accountBoundFetch(
+          auth,
+          "/api/identity/onboarding",
+          {
+            method: "POST",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify({
+              handle,
+              ...(includeOptional && fullName.trim() ? { fullName } : {}),
+              ...(includeOptional && sex ? { sex } : {}),
+            }),
+          },
+        );
         const body = (await response.json().catch(() => ({}))) as {
           handle?: unknown;
           code?: unknown;
@@ -380,7 +398,7 @@ function AccountOnboardingForUser(): React.JSX.Element | null {
         setBusy(false);
       }
     },
-    [availability, busy, checkedHandle, fullName, handle, sex],
+    [auth, availability, busy, checkedHandle, fullName, handle, sex],
   );
 
   if (status === "loading" || status === "complete") return null;
@@ -390,7 +408,10 @@ function AccountOnboardingForUser(): React.JSX.Element | null {
         error={statusError}
         onRetry={() => {
           setStatus("loading");
-          setStatusRequest((value) => value + 1);
+          setStatusRequest((current) => ({
+            auth,
+            attempt: current.attempt + 1,
+          }));
         }}
       />
     );
@@ -413,7 +434,8 @@ function AccountOnboardingForUser(): React.JSX.Element | null {
 }
 
 export default function AccountOnboarding(): React.JSX.Element | null {
-  const { user, loading } = useAuth();
-  if (loading || !user) return null;
-  return <AccountOnboardingForUser key={user.id} />;
+  const { user, loading, session } = useAuth();
+  const auth = captureAccountAuth(user?.id ?? null, session);
+  if (loading || !user || !auth) return null;
+  return <AccountOnboardingForUser key={user.id} auth={auth} />;
 }

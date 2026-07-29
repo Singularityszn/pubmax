@@ -42,19 +42,29 @@ describe("contribution gate client", () => {
   });
 
   it("submits date of birth once and returns only derived eligibility", async () => {
-    const request = vi.fn().mockResolvedValue(
-      new Response(JSON.stringify({ status: "eligible" }), { status: 200 }),
+    const auth = { userId: "user-a", accessToken: "token-a" };
+    const request = vi.fn(
+      async (input: RequestInfo | URL, init?: RequestInit) => {
+        void input;
+        void init;
+        return new Response(JSON.stringify({ status: "eligible" }), {
+          status: 200,
+        });
+      },
     );
     await expect(
-      submitContributionAge("2000-01-01", request),
+      submitContributionAge("2000-01-01", auth, request),
     ).resolves.toEqual({ status: "eligible" });
     expect(request).toHaveBeenCalledWith(
       "/api/identity/contribution-gate",
       expect.objectContaining({
         method: "POST",
         body: JSON.stringify({ dateOfBirth: "2000-01-01" }),
+        headers: expect.any(Headers),
       }),
     );
+    const headers = new Headers(request.mock.calls[0]?.[1]?.headers);
+    expect(headers.get("authorization")).toBe("Bearer token-a");
   });
 
   it("discards date of birth after either derived age decision", () => {

@@ -2,11 +2,17 @@
 
 import { useEffect, useState, type FormEvent } from "react";
 
-import { authedFetch } from "@/lib/authedFetch";
+import { useAuth } from "@/components/auth/AuthProvider";
+import {
+  accountBoundFetch,
+  captureAccountAuth,
+  type AccountAuthSnapshot,
+} from "@/lib/accountBoundFetch";
 import {
   PRIVATE_IDENTITY_SEX_VALUES,
   type PrivateIdentitySex,
 } from "@/lib/privateIdentity";
+import { loadPrivateIdentity } from "@/lib/privateIdentityClient";
 
 const SEX_LABELS: Record<PrivateIdentitySex, string> = {
   female: "Female",
@@ -18,8 +24,10 @@ const SEX_LABELS: Record<PrivateIdentitySex, string> = {
 type PrivateIdentityEditorFormProps = {
   fullName: string;
   sex: "" | PrivateIdentitySex;
-  busy: boolean;
+  saving: boolean;
+  saveEnabled: boolean;
   message: string;
+  onRetryLoad: (() => void) | null;
   onFullNameChange: (value: string) => void;
   onSexChange: (value: "" | PrivateIdentitySex) => void;
   onSubmit: (event: FormEvent<HTMLFormElement>) => void;
@@ -28,8 +36,10 @@ type PrivateIdentityEditorFormProps = {
 export function PrivateIdentityEditorForm({
   fullName,
   sex,
-  busy,
+  saving,
+  saveEnabled,
   message,
+  onRetryLoad,
   onFullNameChange,
   onSexChange,
   onSubmit,
@@ -63,73 +73,72 @@ export function PrivateIdentityEditorForm({
         </select>
       </label>
       <small>Only your handle is public. These details stay private.</small>
-      <button type="submit" disabled={busy}>
-        {busy ? "Saving…" : "Save private details"}
+      <button type="submit" disabled={!saveEnabled || saving}>
+        {saving ? "Saving…" : "Save private details"}
       </button>
+      {onRetryLoad ? (
+        <button type="button" onClick={onRetryLoad}>
+          Try again
+        </button>
+      ) : null}
       {message ? <small role="status">{message}</small> : null}
     </form>
   );
 }
 
-export default function PrivateIdentityEditor(): React.JSX.Element {
+function PrivateIdentityEditorForAccount({
+  auth,
+}: {
+  auth: AccountAuthSnapshot;
+}): React.JSX.Element {
   const [fullName, setFullName] = useState("");
   const [sex, setSex] = useState<"" | PrivateIdentitySex>("");
-  const [busy, setBusy] = useState(true);
+  const [loadStatus, setLoadStatus] = useState<
+    "loading" | "ready" | "unavailable"
+  >("loading");
+  const [loadRequest, setLoadRequest] = useState(() => ({
+    auth,
+    attempt: 0,
+  }));
+  const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
 
   useEffect(() => {
     const controller = new AbortController();
-    void authedFetch("/api/identity/onboarding", {
-      cache: "no-store",
-      signal: controller.signal,
-    })
-      .then(async (response) => {
-        const body = (await response.json().catch(() => ({}))) as {
-          fullName?: unknown;
-          sex?: unknown;
-          error?: unknown;
-        };
-        if (controller.signal.aborted) return;
-        if (!response.ok) {
-          setMessage(
-            typeof body.error === "string"
-              ? body.error
-              : "Private details could not be loaded.",
-          );
-          return;
-        }
-        setFullName(typeof body.fullName === "string" ? body.fullName : "");
-        setSex(
-          typeof body.sex === "string" &&
-            PRIVATE_IDENTITY_SEX_VALUES.includes(
-              body.sex as PrivateIdentitySex,
-            )
-            ? (body.sex as PrivateIdentitySex)
-            : "",
-        );
-      })
-      .catch((error: unknown) => {
-        if ((error as { name?: unknown })?.name !== "AbortError") {
-          setMessage("Private details could not be loaded.");
-        }
-      })
-      .finally(() => {
-        if (!controller.signal.aborted) setBusy(false);
-      });
+    void loadPrivateIdentity(
+      loadRequest.auth,
+      fetch,
+      controller.signal,
+    ).then((result) => {
+      if (controller.signal.aborted) return;
+      if (result.status === "unavailable") {
+        setLoadStatus("unavailable");
+        setMessage(result.error);
+        return;
+      }
+      setFullName(result.fullName);
+      setSex(result.sex);
+      setMessage("");
+      setLoadStatus("ready");
+    });
     return () => controller.abort();
-  }, []);
+  }, [loadRequest]);
 
   async function save(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (busy) return;
-    setBusy(true);
+    if (loadStatus !== "ready" || saving) return;
+    setSaving(true);
     setMessage("");
     try {
-      const response = await authedFetch("/api/identity/onboarding", {
-        method: "PATCH",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ fullName, sex }),
-      });
+      const response = await accountBoundFetch(
+        auth,
+        "/api/identity/onboarding",
+        {
+          method: "PATCH",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ fullName, sex }),
+        },
+      );
       const body = (await response.json().catch(() => ({}))) as {
         error?: unknown;
       };
@@ -143,7 +152,7 @@ export default function PrivateIdentityEditor(): React.JSX.Element {
     } catch {
       setMessage("Private details could not be saved.");
     } finally {
-      setBusy(false);
+      setSaving(false);
     }
   }
 
@@ -151,11 +160,45 @@ export default function PrivateIdentityEditor(): React.JSX.Element {
     <PrivateIdentityEditorForm
       fullName={fullName}
       sex={sex}
-      busy={busy}
+      saving={saving}
+      saveEnabled={loadStatus === "ready"}
       message={message}
+      onRetryLoad={
+        loadStatus === "unavailable"
+          ? () => {
+              setLoadStatus("loading");
+              setMessage("");
+              setLoadRequest((current) => ({
+                auth,
+                attempt: current.attempt + 1,
+              }));
+            }
+          : null
+      }
       onFullNameChange={setFullName}
       onSexChange={setSex}
       onSubmit={(event) => void save(event)}
     />
   );
+}
+
+export default function PrivateIdentityEditor(): React.JSX.Element {
+  const { user, session } = useAuth();
+  const auth = captureAccountAuth(user?.id ?? null, session);
+  if (!auth) {
+    return (
+      <PrivateIdentityEditorForm
+        fullName=""
+        sex=""
+        saving={false}
+        saveEnabled={false}
+        message="Private details are unavailable. Sign in again."
+        onRetryLoad={null}
+        onFullNameChange={() => {}}
+        onSexChange={() => {}}
+        onSubmit={(event) => event.preventDefault()}
+      />
+    );
+  }
+  return <PrivateIdentityEditorForAccount key={auth.userId} auth={auth} />;
 }

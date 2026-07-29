@@ -1,4 +1,9 @@
 import { authedFetch } from "@/lib/authedFetch";
+import {
+  accountBoundFetch,
+  type AccountAuthSnapshot,
+  type AccountBoundRequest,
+} from "@/lib/accountBoundFetch";
 
 export type ContributionGateClientState =
   | { status: "sign_in_required"; error?: string }
@@ -83,15 +88,21 @@ export async function checkContributionGate(
 
 export async function submitContributionAge(
   dateOfBirth: string,
-  request: ContributionGateRequest = authedFetch,
+  auth: AccountAuthSnapshot,
+  request: AccountBoundRequest = fetch,
 ): Promise<ContributionGateClientState> {
   try {
     return readGateResponse(
-      await request("/api/identity/contribution-gate", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ dateOfBirth }),
-      }),
+      await accountBoundFetch(
+        auth,
+        "/api/identity/contribution-gate",
+        {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ dateOfBirth }),
+        },
+        request,
+      ),
     );
   } catch {
     return {

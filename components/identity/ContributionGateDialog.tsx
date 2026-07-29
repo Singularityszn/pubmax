@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 import SignInButton from "@/components/auth/SignInButton";
 import { useAuth } from "@/components/auth/AuthProvider";
+import { captureAccountAuth } from "@/lib/accountBoundFetch";
 import { trackEvent } from "@/lib/analytics";
 import {
   checkContributionGate,
@@ -141,7 +142,7 @@ export function useContributionGate(): {
   requestContribution: (action: PendingContribution) => Promise<void>;
   contributionGateDialog: React.JSX.Element | null;
 } {
-  const { user } = useAuth();
+  const { user, session } = useAuth();
   const userId = user?.id ?? null;
   const [mode, setMode] = useState<ContributionGateDialogMode | null>(null);
   const [eligibleOn, setEligibleOn] = useState<string | undefined>();
@@ -218,16 +219,18 @@ export function useContributionGate(): {
   );
 
   const confirmAge = useCallback(async () => {
+    const auth = captureAccountAuth(userId, session);
     if (
       !dateOfBirth ||
       busy ||
-      stateUserId.current !== userId
+      stateUserId.current !== userId ||
+      !auth
     ) {
       return;
     }
     setBusy(true);
     setError(null);
-    const gate = await submitContributionAge(dateOfBirth);
+    const gate = await submitContributionAge(dateOfBirth, auth);
     if (stateUserId.current !== userId) return;
     setBusy(false);
     setDateOfBirth(dateOfBirthAfterAssessment(dateOfBirth, gate));
@@ -249,7 +252,7 @@ export function useContributionGate(): {
       return;
     }
     setError(gate.error ?? "Could not confirm contribution eligibility.");
-  }, [busy, dateOfBirth, userId]);
+  }, [busy, dateOfBirth, session, userId]);
 
   return {
     requestContribution,
