@@ -1,6 +1,6 @@
 # Voice audit evidence
 
-This file records evidence for the copy audit against `docs/VOICE.md`. It covers claim-shaped copy changed between `c1b5566df425a84a3fc90f76bd7220e301ee54d1` and this branch, plus indirect user-facing string owners inspected during the audit.
+This file records evidence for a partial copy pass against `docs/VOICE.md`. It covers claim-shaped copy changed between `c1b5566df425a84a3fc90f76bd7220e301ee54d1` and this branch, plus indirect user-facing string owners inspected so far. It does not claim product-wide coverage.
 
 ## Claim guarantees
 
@@ -82,147 +82,783 @@ Repeated variants are grouped only when they make the same claim and read from t
 
 ## Indirect-source inventory
 
-Every file listed below was inspected in this audit. Counts are unique files within each category. A file may belong to more than one category when it owns and consumes indirect copy.
+This branch is a partial voice pass. It does not establish that every user-facing string has been audited. Each total below comes from current source using the shown command. “Inspected” records files read during this pass. “Not inspected” names the remaining conservative candidates; some broad candidates may contain no rendered copy, but none is silently treated as reviewed.
 
-### Verbatim-rendered API errors
+The earlier metadata inventory overstated its coverage. It listed 19 files, but one was an Open Graph image rather than a page or layout metadata owner. The source-derived set contains 45 metadata owners. 18 were inspected and 27 were not.
 
-Count: 45 files. Inspection confirmed: every listed file was inspected.
+### API route modules that may own verbatim errors
 
-- `app/api/admin/community-prices/route.ts`
-- `app/api/admin/import-notes/route.ts`
-- `app/api/area-demand/route.ts`
-- `app/api/check-ins/route.ts`
-- `app/api/city-map-card/route.tsx`
-- `app/api/citymcp/area/route.ts`
-- `app/api/citymcp/buzz/route.ts`
-- `app/api/citymcp/journey/route.ts`
-- `app/api/citymcp/place/route.ts`
-- `app/api/citymcp/places/route.ts`
-- `app/api/concierge/route.ts`
-- `app/api/crawls/route.ts`
-- `app/api/email-subscribers/confirm/route.ts`
-- `app/api/email-subscribers/unsubscribe/route.ts`
-- `app/api/heritage/route.ts`
-- `app/api/last-merseyrail/route.ts`
-- `app/api/last-subway/route.ts`
-- `app/api/last-train/route.ts`
-- `app/api/last-tram/route.ts`
-- `app/api/nearby-bus-departures/route.ts`
-- `app/api/night-areas/route.ts`
-- `app/api/night-out-places/route.ts`
-- `app/api/operator-proposals/route.ts`
-- `app/api/pint-drops/route.ts`
-- `app/api/pint-drops/stats/route.ts`
-- `app/api/plans/[id]/complete/route.ts`
-- `app/api/plans/[id]/route.ts`
-- `app/api/plans/[id]/session/route.ts`
-- `app/api/plans/generate/route.ts`
-- `app/api/plans/route.ts`
-- `app/api/presence/route.ts`
-- `app/api/price-confirm/route.ts`
-- `app/api/price-submit/route.ts`
-- `app/api/profiles/[handle]/follow/route.ts`
-- `app/api/pub-pal/mastery/route.ts`
-- `app/api/pub-pal/route.ts`
-- `app/api/pub-pal/voice-token/route.ts`
-- `app/api/rounds/[code]/route.ts`
-- `app/api/saved-pubs/list-follows/route.ts`
-- `app/api/saved-pubs/route.ts`
-- `app/api/social-connections/[provider]/route.ts`
-- `app/api/tfl-disruption/route.ts`
-- `app/api/venue-operators/claim/route.ts`
-- `app/api/visit-reports/route.ts`
-- `app/api/weather-recommendations/route.ts`
+Total: 131. Inspected: 45. Not inspected: 86.
 
-### Shared fallback helpers
+Command:
 
-Count: 42 files. Inspection confirmed: every listed file was inspected.
+```sh
+rg --files app/api -g 'route.ts' -g 'route.tsx' | sort
+```
 
-- `lib/checkIn.ts`
-- `lib/cities/glasgow/curatedCrawls.ts`
-- `lib/cities/glasgow/storyBands.ts`
-- `lib/cityCapabilities.ts`
-- `lib/communityPrice.ts`
-- `lib/communityVenueSignals.ts`
-- `lib/concierge/whatsOn.ts`
-- `lib/conciergeAskClient.ts`
-- `lib/contributionIdentity.server.ts`
-- `lib/curation.ts`
-- `lib/dayGreeting.ts`
-- `lib/emailConfirmation.ts`
-- `lib/heritageCrawls.ts`
-- `lib/importNotesStore.ts`
-- `lib/mapPriceLegend.ts`
-- `lib/mapVenueList.ts`
-- `lib/nightAreas.ts`
-- `lib/nightPlanning.ts`
-- `lib/operatorProposals.ts`
-- `lib/palChat.ts`
-- `lib/pintDrops.ts`
-- `lib/pintDropsStore.ts`
-- `lib/planComposerHandoff.ts`
-- `lib/planDraftArbitration.ts`
-- `lib/planEndingSelection.server.ts`
-- `lib/planEndings.ts`
-- `lib/planGenerationRanking.ts`
-- `lib/planRouteEvidence.ts`
-- `lib/planRouteOptimizer.ts`
-- `lib/planSigningHttp.server.ts`
-- `lib/planTemplates.ts`
-- `lib/profileStore.ts`
-- `lib/pubPal.ts`
-- `lib/pushTokenStore.ts`
-- `lib/recapView.ts`
-- `lib/shareArtifacts.ts`
-- `lib/venueOperators.ts`
-- `lib/vibeTally.ts`
-- `lib/visitReports.ts`
-- `lib/weatherRecommendationStore.ts`
-- `lib/weatherRecommendations.ts`
-- `lib/weeklyDigest.ts`
+This deliberately treats every API route as a candidate because client code can surface response text. Not inspected:
 
-### Route and page metadata
-
-Count: 19 files. Inspection confirmed: every listed file was inspected.
-
-- `app/about/page.tsx`
-- `app/borough/[slug]/page.tsx`
-- `app/choose-city/page.tsx`
-- `app/crawls/[slug]/page.tsx`
-- `app/feed/page.tsx`
-- `app/historic/[slug]/opengraph-image.tsx`
-- `app/historic/page.tsx`
-- `app/landmark/[id]/page.tsx`
-- `app/layout.tsx`
-- `app/ledger/[id]/page.tsx`
-- `app/moment/page.tsx`
-- `app/near/page.tsx`
-- `app/pal/chat/page.tsx`
-- `app/pint-index/[month]/page.tsx`
-- `app/pint-index/page.tsx`
-- `app/plan/page.tsx`
-- `app/privacy/page.tsx`
-- `app/terms/page.tsx`
-- `app/tonight/page.tsx`
-
-### Template and tooltip blurbs copied into other surfaces
-
-Count: 5 files. Inspection confirmed: every listed file was inspected.
-
-- `lib/planTemplates.ts`
-- `components/plan/PlanComposer.tsx`
-- `components/nav/SiteNavMore.tsx`
-- `lib/routePacks.ts`
-- `app/crawls/CrawlsPageClient.tsx`
-
-### Notification and email copy
-
-Count: 7 files. Inspection confirmed: every listed file was inspected.
-
-- `lib/emailConfirmation.ts`
-- `lib/weeklyDigest.ts`
-- `lib/pushSender.ts`
-- `app/api/email-subscribers/confirm/route.ts`
-- `app/api/email-subscribers/unsubscribe/route.ts`
+- `app/api/admin/comments/route.ts`
+- `app/api/admin/session/route.ts`
+- `app/api/area-news/route.ts`
+- `app/api/auth/referral-signup-proof/route.ts`
+- `app/api/chaos-card/route.tsx`
+- `app/api/citymcp/status/route.ts`
+- `app/api/citymcp/things-to-do/route.ts`
+- `app/api/contributors/route.ts`
+- `app/api/crawl-card/route.tsx`
+- `app/api/crawls/[slug]/route.ts`
+- `app/api/cron/enrich-city-pubs/route.ts`
+- `app/api/cron/freshness-audit/route.ts`
+- `app/api/cron/refresh-night-signals/route.ts`
+- `app/api/cron/refresh-prices/route.ts`
+- `app/api/cron/refresh-weather/route.ts`
+- `app/api/cron/refresh-whats-on/route.ts`
+- `app/api/email-subscribers/route.ts`
+- `app/api/events/route.ts`
+- `app/api/events/tonight/route.ts`
+- `app/api/freshness/route.ts`
+- `app/api/hygiene/route.ts`
+- `app/api/identity/handle/availability/route.ts`
+- `app/api/identity/handle/claim/route.ts`
+- `app/api/identity/handle/current/route.ts`
+- `app/api/identity/handle/rename/route.ts`
+- `app/api/identity/handle/resolve/route.ts`
+- `app/api/identity/onboarding/route.ts`
+- `app/api/image-proxy/route.ts`
+- `app/api/late-food/route.ts`
+- `app/api/list-card/route.tsx`
+- `app/api/me/night-profile/route.ts`
+- `app/api/messages/[id]/route.ts`
+- `app/api/messages/route.ts`
+- `app/api/night-areas/[slug]/route.ts`
+- `app/api/night-calm/route.ts`
+- `app/api/night-memories/[id]/moments/route.ts`
+- `app/api/night-memories/route.ts`
+- `app/api/night-moments/[id]/alt-text/route.ts`
 - `app/api/night-signals/route.ts`
+- `app/api/night-stories/[id]/consents/route.ts`
+- `app/api/night-stories/[id]/contributors/route.ts`
+- `app/api/night-stories/[id]/moments/route.ts`
+- `app/api/night-stories/[id]/publish-confirmations/route.ts`
+- `app/api/night-stories/[id]/publish-proposals/route.ts`
+- `app/api/night-stories/[id]/route.ts`
+- `app/api/night-stories/[id]/workspace/route.ts`
+- `app/api/night-stories/route.ts`
+- `app/api/notifications/route.ts`
+- `app/api/pint-drops/[id]/route.ts`
+- `app/api/pint-drops/comments/route.ts`
+- `app/api/pint-drops/reactions/route.ts`
+- `app/api/plan-card/route.tsx`
+- `app/api/plans/[id]/actions/route.ts`
+- `app/api/plans/[id]/collaboration/route.ts`
+- `app/api/plans/[id]/constraints/[constraintId]/resolve/route.ts`
+- `app/api/plans/[id]/constraints/route.ts`
+- `app/api/plans/[id]/getin/route.ts`
+- `app/api/plans/[id]/invites/[inviteId]/route.ts`
+- `app/api/plans/[id]/invites/redeem/route.ts`
+- `app/api/plans/[id]/invites/route.ts`
+- `app/api/plans/[id]/join/route.ts`
+- `app/api/plans/[id]/presence/route.ts`
+- `app/api/plans/[id]/proposals/[proposalId]/decision/route.ts`
+- `app/api/plans/[id]/proposals/[proposalId]/votes/route.ts`
+- `app/api/plans/[id]/proposals/route.ts`
+- `app/api/plans/[id]/recap/route.ts`
+- `app/api/plans/[id]/vibe-votes/route.ts`
+- `app/api/plans/anchor/route.ts`
+- `app/api/profiles/[handle]/following/route.ts`
+- `app/api/profiles/[handle]/lot/route.ts`
+- `app/api/profiles/[handle]/route.ts`
+- `app/api/pub-pal/memories/[memoryId]/route.ts`
+- `app/api/pub-pal/memories/export/route.ts`
+- `app/api/pub-pal/memories/route.ts`
 - `app/api/push-tokens/route.ts`
+- `app/api/ratings/route.ts`
+- `app/api/referrals/claim-attribution/route.ts`
+- `app/api/referrals/invite-link/route.ts`
+- `app/api/referrals/status/route.ts`
+- `app/api/rounds/route.ts`
+- `app/api/social-connections/[provider]/callback/route.ts`
+- `app/api/social-connections/route.ts`
+- `app/api/tonight-conditions/route.ts`
+- `app/api/venue/[id]/route.ts`
+- `app/api/walk-route/route.ts`
+- `app/api/whats-on/route.ts`
+
+### Shared helper candidates
+
+Total: 519. Inspected: 42. Not inspected: 477.
+
+Command:
+
+```sh
+rg --files lib -g '*.ts' -g '*.tsx' | sort
+```
+
+This deliberately treats every TypeScript helper as a candidate because rendered fallbacks can be exported from otherwise non-visual modules. Not inspected:
+
+- `lib/a2hsPrompt.ts`
+- `lib/aboutStats.ts`
+- `lib/accountBoundFetch.ts`
+- `lib/accountOnboardingClient.ts`
+- `lib/activePlan.ts`
+- `lib/activePlanRoute.ts`
+- `lib/activeRound.ts`
+- `lib/adminAuth.ts`
+- `lib/ambientPresence.ts`
+- `lib/analytics.ts`
+- `lib/analyticsEvents.ts`
+- `lib/analyticsIdentity.ts`
+- `lib/analyticsPath.ts`
+- `lib/analyticsReceiptStore.ts`
+- `lib/anonId.ts`
+- `lib/apiError.ts`
+- `lib/apiResponses.ts`
+- `lib/areaButton.ts`
+- `lib/areaDemand.ts`
+- `lib/areaDemandStore.ts`
+- `lib/areaNews.server.ts`
+- `lib/areaNews.ts`
+- `lib/authCallbackClient.ts`
+- `lib/authClient.ts`
+- `lib/authFetch.ts`
+- `lib/authFocus.ts`
+- `lib/authProviderAvailability.ts`
+- `lib/authRedirect.ts`
+- `lib/authServer.ts`
+- `lib/authSessionTransition.ts`
+- `lib/authedFetch.ts`
+- `lib/badgeEventOptIn.ts`
+- `lib/badgeEvents.ts`
+- `lib/bandOnboardingChip.ts`
+- `lib/beers.ts`
+- `lib/boroughHeritage.ts`
+- `lib/boroughs.ts`
+- `lib/breakpoints.ts`
+- `lib/busyness.ts`
+- `lib/cameraIntent.ts`
+- `lib/categoryColors.ts`
+- `lib/chaosCardParams.ts`
+- `lib/chaosScore.ts`
+- `lib/checkInRateLimit.ts`
+- `lib/checkInStore.ts`
+- `lib/cities.ts`
+- `lib/cities/bristol/curatedCrawls.ts`
+- `lib/cities/bristol/landmarks.ts`
+- `lib/cities/bristol/storyBands.ts`
+- `lib/cities/cambridge/curatedCrawls.ts`
+- `lib/cities/cambridge/landmarks.ts`
+- `lib/cities/cambridge/storyBands.ts`
+- `lib/cities/durham/curatedCrawls.ts`
+- `lib/cities/durham/landmarks.ts`
+- `lib/cities/durham/storyBands.ts`
+- `lib/cities/glasgow/landmarks.ts`
+- `lib/cities/liverpool/curatedCrawls.ts`
+- `lib/cities/liverpool/landmarks.ts`
+- `lib/cities/liverpool/storyBands.ts`
+- `lib/cities/manchester/curatedCrawls.ts`
+- `lib/cities/manchester/landmarks.ts`
+- `lib/cities/manchester/pintDropSeeds.ts`
+- `lib/cities/manchester/storyBands.ts`
+- `lib/cities/oxford/curatedCrawls.ts`
+- `lib/cities/oxford/landmarks.ts`
+- `lib/cities/oxford/storyBands.ts`
+- `lib/cityChooserSearch.ts`
+- `lib/cityCuratedCrawls.ts`
+- `lib/cityLandmarks.ts`
+- `lib/cityMapCoverage.ts`
+- `lib/cityPreference.ts`
+- `lib/cityRivalry.ts`
+- `lib/cityShare.ts`
+- `lib/cityStoryBands.ts`
+- `lib/cityVenueIds.ts`
+- `lib/citymcp/area.ts`
+- `lib/citymcp/buzz.ts`
+- `lib/citymcp/client.ts`
+- `lib/citymcp/enrichOpportunityLocations.ts`
+- `lib/citymcpRateLimit.ts`
+- `lib/commentsStore.ts`
+- `lib/communityContributionClient.ts`
+- `lib/communityPriceActor.ts`
+- `lib/communityPriceStore.ts`
+- `lib/concierge/context.ts`
+- `lib/concierge/intent.ts`
+- `lib/concierge/rank.ts`
+- `lib/concierge/venues.server.ts`
+- `lib/conditionsFormat.ts`
+- `lib/contributorLeaderboard.ts`
+- `lib/contributorLeaderboardStore.ts`
+- `lib/convex/contracts.ts`
+- `lib/convex/migration.ts`
+- `lib/convex/migrationTransitions.ts`
+- `lib/crawlCompletion.ts`
+- `lib/crawlStory.ts`
+- `lib/crawlStoryStore.ts`
+- `lib/crawlUrl.ts`
+- `lib/crew.ts`
+- `lib/crewRealtime.ts`
+- `lib/cronAuth.ts`
+- `lib/cuisineTags.ts`
+- `lib/curatedCrawls.ts`
+- `lib/dailyActivity.ts`
+- `lib/dailyBriefPush.ts`
+- `lib/dataFreshness.ts`
+- `lib/dealsDigest.ts`
+- `lib/demoContent.ts`
+- `lib/deploymentEnv.ts`
+- `lib/discoverLazy.ts`
+- `lib/donutClusterGeometry.ts`
+- `lib/drinkBrands.ts`
+- `lib/drinkCategoryFromText.ts`
+- `lib/drinkMenu.ts`
+- `lib/drinkPriceUpdates.ts`
+- `lib/drinkSeeds.ts`
+- `lib/drinkSubtypes.ts`
+- `lib/drinkWeather.ts`
+- `lib/drinks.ts`
+- `lib/emailProvider.ts`
+- `lib/emailSubscribers.ts`
+- `lib/emailSubscribersStore.ts`
+- `lib/entryDecision.ts`
+- `lib/events/eventbrite.ts`
+- `lib/events/provider.ts`
+- `lib/eventsLiveRateLimit.ts`
+- `lib/eventsRateLimit.ts`
+- `lib/explicitMapIntent.ts`
+- `lib/factClaims.ts`
+- `lib/favoritePint.ts`
+- `lib/feed.ts`
+- `lib/feedFreshnessStore.ts`
+- `lib/feedSightings.ts`
+- `lib/filterMapVenues.ts`
+- `lib/firstDropNudge.ts`
+- `lib/firstRunTour.ts`
+- `lib/followStore.ts`
+- `lib/food.ts`
+- `lib/foodHygiene.ts`
+- `lib/foodHygieneRateLimit.ts`
+- `lib/foodPriceUpdates.ts`
+- `lib/forYou.ts`
+- `lib/formatJourney.ts`
+- `lib/freshness.ts`
+- `lib/freshnessArtifact.ts`
+- `lib/freshnessNotify.ts`
+- `lib/freshnessStoreOverlay.ts`
+- `lib/gardenWeather.ts`
+- `lib/geo.ts`
+- `lib/greeneKingMenuParser.ts`
+- `lib/groupPrefs.ts`
+- `lib/handleDisplay.ts`
+- `lib/haversine.ts`
+- `lib/heritage.ts`
+- `lib/heritageFacts.ts`
+- `lib/heritageListings.ts`
+- `lib/historic.ts`
+- `lib/historicFilter.ts`
+- `lib/httpUrl.ts`
+- `lib/icsExport.ts`
+- `lib/identityClaimClient.ts`
+- `lib/identityClient.ts`
+- `lib/identityHandleClaimRateLimit.ts`
+- `lib/identityHandleStore.ts`
+- `lib/identityNudge.ts`
+- `lib/imageSafety.ts`
+- `lib/importNotesRateLimit.ts`
+- `lib/inviteExpiry.ts`
+- `lib/invitePrivacyPreview.ts`
+- `lib/inviteShare.ts`
+- `lib/ipRateLimit.ts`
+- `lib/landmarkCredit.ts`
+- `lib/landmarks.ts`
+- `lib/lastCrew.ts`
+- `lib/lastRide.ts`
+- `lib/lastRideClient.ts`
+- `lib/lastRideRateLimit.ts`
+- `lib/lastTrainBadge.ts`
+- `lib/lastTrainDestination.ts`
+- `lib/lastTrainStableCache.server.ts`
+- `lib/lateFood.ts`
+- `lib/lazyVenueDetail.ts`
+- `lib/leaderboard.ts`
+- `lib/ledger.ts`
+- `lib/localities.ts`
+- `lib/log.ts`
+- `lib/londonBoroughClassifier.ts`
+- `lib/mapAcceptance.ts`
+- `lib/mapArrival.ts`
+- `lib/mapBasemapTaste.ts`
+- `lib/mapChromeTiers.ts`
+- `lib/mapExperienceLens.ts`
+- `lib/mapFallbackVenues.ts`
+- `lib/mapIcons.ts`
+- `lib/mapLocationPrompt.ts`
+- `lib/mapLogIntent.ts`
+- `lib/mapPaintWatchdog.ts`
+- `lib/mapPintDropPolicy.ts`
+- `lib/mapRenderedState.ts`
+- `lib/mapRouteTransfer.ts`
+- `lib/mapSearchSuggest.ts`
+- `lib/mapSelectionHistory.ts`
+- `lib/mapTileFailure.ts`
+- `lib/mapWarmup.ts`
+- `lib/mbplcMenuParser.ts`
+- `lib/menuHub.ts`
+- `lib/merseyrail.ts`
+- `lib/messageAuth.ts`
+- `lib/messages.ts`
+- `lib/messagesRealtime.ts`
+- `lib/messagesStore.ts`
+- `lib/metrolink.ts`
+- `lib/mobileShell.ts`
+- `lib/momentDraft.ts`
+- `lib/morningReentry.ts`
+- `lib/nationalPintBenchmarks.ts`
+- `lib/nativeCamera.ts`
+- `lib/nativeDeepLinks.ts`
+- `lib/nativeFirstRun.ts`
+- `lib/nativePlatform.ts`
+- `lib/nativePush.ts`
+- `lib/nativePushPrompt.ts`
+- `lib/nativeSystemBars.ts`
+- `lib/nearMeAnswer.ts`
+- `lib/nearby.ts`
+- `lib/nearbyBusDepartures.ts`
+- `lib/nearestCity.ts`
+- `lib/nicholsons.ts`
+- `lib/nightCalm.ts`
+- `lib/nightCalmRateLimit.ts`
+- `lib/nightCalmSource.ts`
+- `lib/nightCrawl.ts`
+- `lib/nightMemory.ts`
+- `lib/nightMemoryStore.ts`
+- `lib/nightMomentMedia.ts`
+- `lib/nightOutPlaces.server.ts`
+- `lib/nightOutPlaces.ts`
+- `lib/nightPatches.ts`
+- `lib/nightProfile.ts`
+- `lib/nightProfileClient.ts`
+- `lib/nightProfileStore.ts`
+- `lib/nightSignalClaims.ts`
+- `lib/nightSignalIngest.server.ts`
+- `lib/nonAlcoholicDrinks.ts`
+- `lib/notifications.ts`
+- `lib/notificationsStore.ts`
+- `lib/offlineCache.ts`
+- `lib/ogBrand.tsx`
+- `lib/ogCardRateLimit.ts`
+- `lib/operatorProposalsStore.ts`
+- `lib/opsFreeze.ts`
+- `lib/optimisticSpillPost.ts`
+- `lib/optimisticToggle.ts`
+- `lib/palChatClient.ts`
+- `lib/palGlance.ts`
+- `lib/palLocality.ts`
+- `lib/passport.ts`
+- `lib/passwordlessAuth.ts`
+- `lib/patchCapabilities.ts`
+- `lib/performanceMarks.ts`
+- `lib/personaDrinks.ts`
+- `lib/pintContributions.ts`
+- `lib/pintDropComposerConfig.ts`
+- `lib/pintDropDraft.ts`
+- `lib/pintDropLookup.ts`
+- `lib/pintDropSeeds.ts`
+- `lib/pintDropShared.ts`
+- `lib/pintDropSpeech.ts`
+- `lib/pintDropViewer.ts`
+- `lib/pintFacts.ts`
+- `lib/pintIndex.ts`
+- `lib/pintIndexArchive.ts`
+- `lib/pintIndexArrival.ts`
+- `lib/pintIndexSnapshot.server.ts`
+- `lib/plan.ts`
+- `lib/planCollaborationHttp.ts`
+- `lib/planCollaborationStore.ts`
+- `lib/planContinuity.ts`
+- `lib/planDraft.ts`
+- `lib/planGenerationContext.ts`
+- `lib/planGenerationDto.ts`
+- `lib/planGenerationEndings.server.ts`
+- `lib/planGenerationIntake.ts`
+- `lib/planGenerationRequest.ts`
+- `lib/planGenerationSelection.server.ts`
+- `lib/planGenerationTemporalEvidence.ts`
+- `lib/planGetIn.ts`
+- `lib/planGrounding.server.ts`
+- `lib/planIntake.ts`
+- `lib/planIntelligence.ts`
+- `lib/planInviteUi.ts`
+- `lib/planMemberCapability.ts`
+- `lib/planMutationHttp.ts`
+- `lib/planMutationKey.ts`
+- `lib/planPrivacy.ts`
+- `lib/planPrivacyBoundary.server.ts`
+- `lib/planRecap.ts`
+- `lib/planRecapView.server.ts`
+- `lib/planRoute.ts`
+- `lib/planRouteDraft.ts`
+- `lib/planRouteEvidence.server.ts`
+- `lib/planRouteTotalsClient.ts`
+- `lib/planSessionCapability.ts`
+- `lib/planStore.ts`
+- `lib/planVenueOptions.ts`
+- `lib/planWhatsOn.ts`
+- `lib/planningAnchor.server.ts`
+- `lib/planningAnchor.ts`
+- `lib/planningIntent.ts`
+- `lib/poiToggleGroups.ts`
+- `lib/pois.ts`
+- `lib/posthogClient.ts`
+- `lib/posthogServer.ts`
+- `lib/prefetchVenue.ts`
+- `lib/presence.ts`
+- `lib/presenceStore.ts`
+- `lib/priceConfidence.ts`
+- `lib/priceConfirmStore.ts`
+- `lib/priceContributionIntent.ts`
+- `lib/priceFactClaims.ts`
+- `lib/priceHistory.ts`
+- `lib/priceHistoryLoader.ts`
+- `lib/priceMovementLine.ts`
+- `lib/priceRefresh.server.ts`
+- `lib/priceUpdates.ts`
+- `lib/priceUpdatesLoader.ts`
+- `lib/privateIdentity.ts`
+- `lib/privateIdentityClient.ts`
+- `lib/privateIdentityStore.ts`
+- `lib/profileBadgeEventGate.ts`
+- `lib/profileOwnership.ts`
+- `lib/profiles.ts`
+- `lib/promptBudget.ts`
+- `lib/provenanceLabels.ts`
+- `lib/pubMap.ts`
+- `lib/pubPalStore.ts`
+- `lib/pubmaxxIdentity.ts`
+- `lib/pushProvider.ts`
+- `lib/pushSender.ts`
+- `lib/quietPint.ts`
+- `lib/ratings.ts`
+- `lib/ratingsStore.ts`
+- `lib/reactions.ts`
+- `lib/reactionsStore.ts`
+- `lib/realtime.ts`
+- `lib/recapCard.ts`
+- `lib/recapCardStats.server.ts`
+- `lib/referralClaimClient.ts`
+- `lib/referralSignupProof.server.ts`
+- `lib/referralStore.ts`
+- `lib/referrals.ts`
+- `lib/relativeTime.ts`
+- `lib/roundPresence.ts`
+- `lib/roundPriceBudget.ts`
+- `lib/roundRequest.ts`
+- `lib/roundView.server.ts`
+- `lib/rounds.ts`
+- `lib/roundsReadRateLimit.ts`
+- `lib/roundsStore.ts`
+- `lib/routeLegs.ts`
+- `lib/routeMiniMap.ts`
+- `lib/routeObservability.ts`
+- `lib/routePacks.ts`
+- `lib/routePanelIcs.ts`
+- `lib/routePattern.ts`
+- `lib/savedListPolicy.ts`
+- `lib/savedListPresentation.ts`
+- `lib/savedPubs.ts`
+- `lib/savedPubsStore.ts`
+- `lib/scrapedPubs.server.ts`
+- `lib/scrapedPubs.ts`
+- `lib/serverEnv.ts`
+- `lib/shareSheet.ts`
+- `lib/sheetSnap.ts`
+- `lib/siteContact.ts`
+- `lib/siteUrl.ts`
+- `lib/slimPins.ts`
+- `lib/slimShards.ts`
+- `lib/slopFilter.ts`
+- `lib/socialConnectionStore.ts`
+- `lib/socialConnections.ts`
+- `lib/socialDrafts.ts`
+- `lib/socialFeed.ts`
+- `lib/socialOAuth.ts`
+- `lib/spill.ts`
+- `lib/spillPreview.ts`
+- `lib/sponsorship.ts`
+- `lib/springMotion.ts`
+- `lib/sptSubway.ts`
+- `lib/startRoundWithStops.ts`
+- `lib/staticStations.ts`
+- `lib/storeBackend.ts`
+- `lib/storyBands.ts`
+- `lib/storyRedaction.ts`
+- `lib/supabase.ts`
+- `lib/surfaceAccent.ts`
+- `lib/surpriseDrink.ts`
+- `lib/tavilyPubEnrichment.server.ts`
+- `lib/textClean.ts`
+- `lib/tfl.ts`
+- `lib/tflClient.server.ts`
+- `lib/tflDisruption.ts`
+- `lib/thenVsNow.ts`
+- `lib/thingsToDoMap.ts`
+- `lib/todayBrief.ts`
+- `lib/todayPersonalization.ts`
+- `lib/tonight.ts`
+- `lib/tonightAcceptance.ts`
+- `lib/tonightConditions.ts`
+- `lib/tonightConditionsRoute.ts`
+- `lib/tonightGetHome.ts`
+- `lib/tonightListGrouping.ts`
+- `lib/tonightPoster.ts`
+- `lib/trustedHandoffFlags.server.ts`
+- `lib/trustedHandoffFlags.ts`
+- `lib/trustedSigningKey.server.ts`
+- `lib/tubeOffsets.ts`
+- `lib/ukBaseIndex.ts`
+- `lib/ukBasePubs.ts`
+- `lib/ukPlaceIndex.server.ts`
+- `lib/ukPlaceSearch.ts`
+- `lib/useFocusTrap.ts`
+- `lib/useSpringValue.ts`
+- `lib/utils.ts`
+- `lib/venueAcceptance.ts`
+- `lib/venueAccessibility.ts`
+- `lib/venueAccessibilitySeeds.ts`
+- `lib/venueAliases.ts`
+- `lib/venueAnchorPresentation.ts`
+- `lib/venueDataset.ts`
+- `lib/venueDetailIndex.ts`
+- `lib/venueExternalActions.ts`
+- `lib/venueFoodMenu.ts`
+- `lib/venueImageHosts.server.ts`
+- `lib/venueImages.ts`
+- `lib/venueIndex.ts`
+- `lib/venueInspectorTabs.ts`
+- `lib/venueJourney.ts`
+- `lib/venueKindFilters.ts`
+- `lib/venueMapUrl.ts`
+- `lib/venueMenu.ts`
+- `lib/venueMenuEnrichment.ts`
+- `lib/venueOperatorsStore.ts`
+- `lib/venuePriceIndex.ts`
+- `lib/venueShare.ts`
+- `lib/venueSheetLabels.ts`
+- `lib/venues.ts`
+- `lib/venuesSlim.ts`
+- `lib/verifiedAnalytics.server.ts`
+- `lib/vibeChips.ts`
+- `lib/viewMode.ts`
+- `lib/visitReportsStore.ts`
+- `lib/walkRoute.ts`
+- `lib/walkRouteBudget.ts`
+- `lib/walkRouteLegs.ts`
+- `lib/walkRouteProvider.ts`
+- `lib/walkRouteStore.ts`
+- `lib/warmVenueDetail.ts`
+- `lib/weatherFreshness.server.ts`
+- `lib/weatherProvider.ts`
+- `lib/weatherRecommendationSnapshotMemo.server.ts`
+- `lib/weatherSnapshotStore.ts`
+- `lib/weatherSnapshots.server.ts`
+- `lib/weatherSnapshots.ts`
+- `lib/webPush.ts`
+- `lib/webPushPrompt.ts`
+- `lib/webPushSubscription.ts`
+- `lib/webVitals.ts`
+- `lib/wetherspoons.ts`
+- `lib/wetherspoonsDirectory.ts`
+- `lib/whatsOn.ts`
+- `lib/whatsOnBadges.ts`
+- `lib/whatsOnHandler.ts`
+- `lib/whatsOnStore.ts`
+- `lib/youngs.ts`
+- `lib/zonePintIndex.server.ts`
+- `lib/zones.ts`
+
+### Route and page metadata owners
+
+Total: 45. Inspected: 18. Not inspected: 27.
+
+Command:
+
+```sh
+rg -l --glob 'page.tsx' --glob 'layout.tsx' \
+  'export (const metadata|async function generateMetadata|function generateMetadata)' app | sort
+```
+
+Not inspected:
+
+- `app/activity/page.tsx`
+- `app/add/[handle]/page.tsx`
+- `app/admin/page.tsx`
+- `app/bar-tab/[id]/page.tsx`
+- `app/borough/page.tsx`
+- `app/contributors/page.tsx`
+- `app/crawls/page.tsx`
+- `app/discover/page.tsx`
+- `app/historic/[slug]/page.tsx`
+- `app/map/[city]/page.tsx`
+- `app/map/page.tsx`
+- `app/messages/[id]/page.tsx`
+- `app/messages/page.tsx`
+- `app/onboarding/page.tsx`
+- `app/p/[id]/page.tsx`
+- `app/page.tsx`
+- `app/pal/page.tsx`
+- `app/plan/[id]/page.tsx`
+- `app/plan/[id]/recap/page.tsx`
+- `app/pubs/page.tsx`
+- `app/recap/[storyId]/page.tsx`
+- `app/rounds/[code]/page.tsx`
+- `app/rounds/page.tsx`
+- `app/today/page.tsx`
+- `app/u/[handle]/lists/[listType]/page.tsx`
+- `app/u/[handle]/page.tsx`
+- `app/we-are-out/page.tsx`
+
+The previous 19-file list also named `app/historic/[slug]/opengraph-image.tsx`. That file was inspected, but the command above correctly does not count it as a page or layout metadata owner.
+
+### Template and tooltip candidates
+
+Total: 93. Inspected: 5. Not inspected: 88.
+
+Command:
+
+```sh
+{ rg -l -i --glob '*.{ts,tsx}' '(tooltip|blurb|template|\btitle=)' app components lib
+  printf '%s\n' components/nav/SiteNavMore.tsx
+} | sort -u
+```
+
+The explicit navigation owner covers menu blurbs that do not use a tooltip-named symbol. Not inspected:
+
+- `app/activity/ActivityClient.tsx`
+- `app/bar-tab/[id]/page.tsx`
+- `app/borough/[slug]/page.tsx`
+- `app/crawls/[slug]/not-found.tsx`
+- `app/crawls/[slug]/page.tsx`
+- `app/discover/DiscoverPageClient.tsx`
+- `app/feed/FeedPageClient.tsx`
+- `app/historic/[slug]/page.tsx`
+- `app/layout.tsx`
+- `app/messages/MessagesInboxClient.tsx`
+- `app/p/[id]/page.tsx`
+- `app/plan/[id]/not-found.tsx`
+- `app/plan/[id]/page.tsx`
+- `app/recap/[storyId]/page.tsx`
+- `app/rounds/[code]/RoundPageClient.tsx`
+- `app/rounds/page.tsx`
+- `app/tonight/TonightClient.tsx`
+- `components/PerformanceVitals.tsx`
+- `components/PubMap.tsx`
+- `components/PubMapCanvas.tsx`
+- `components/ThemeToggle.tsx`
+- `components/areanews/AreaNewsList.tsx`
+- `components/desktop/ConditionsChip.tsx`
+- `components/drinks/DrinkGlyph.tsx`
+- `components/drinks/DrinkMenu.tsx`
+- `components/feed/FeedCard.tsx`
+- `components/feed/FeedFilters.tsx`
+- `components/feed/PresenceStrip.tsx`
+- `components/feed/SocialTabs.tsx`
+- `components/food/FoodMenu.tsx`
+- `components/map/CityPlaceStrip.tsx`
+- `components/map/CityStatusBanner.tsx`
+- `components/map/ControlRail.tsx`
+- `components/map/MapLayersControl.tsx`
+- `components/map/MapPriceControl.tsx`
+- `components/map/RoutePanel.tsx`
+- `components/map/TonightArcChips.tsx`
+- `components/map/VenueBuzz.tsx`
+- `components/map/VenueHygiene.tsx`
+- `components/map/composer/ComposerFields.tsx`
+- `components/map/pubmap/MapOnboardingOverlay.tsx`
+- `components/map/pubmap/MappedRouteChip.tsx`
+- `components/map/route/RouteHeader.tsx`
+- `components/map/route/RouteList.tsx`
+- `components/map/route/RouteMetrics.tsx`
+- `components/mobile/MobileMapShell.tsx`
+- `components/nav/MessagesLink.tsx`
+- `components/nav/NotificationBell.tsx`
+- `components/nav/SiteNav.tsx`
+- `components/nearme/NearMeNow.tsx`
+- `components/night/NightModeCard.tsx`
+- `components/pal/PalExperience.tsx`
+- `components/plan/PlanCollaborationPanel.tsx`
+- `components/plan/PlanRoute.tsx`
+- `components/plan/PlanVibe.tsx`
+- `components/plan/RecapDetail.tsx`
+- `components/plan/planPresentation.ts`
+- `components/profile/PintPassport.tsx`
+- `components/profile/ProfileHeader.tsx`
+- `components/profile/SavedListDetail.tsx`
+- `components/profile/SavedPubList.tsx`
+- `components/pubs/PubsGallery.tsx`
+- `components/ratings/TopRatedPubs.tsx`
+- `components/round/RoundStarter.tsx`
+- `components/share/ShareBar.tsx`
+- `components/zones/ZonePintIndexStrip.tsx`
+- `lib/analyticsEvents.ts`
+- `lib/analyticsPath.ts`
+- `lib/cities/bristol/curatedCrawls.ts`
+- `lib/cities/cambridge/curatedCrawls.ts`
+- `lib/cities/durham/curatedCrawls.ts`
+- `lib/cities/glasgow/curatedCrawls.ts`
+- `lib/cities/liverpool/curatedCrawls.ts`
+- `lib/cities/manchester/curatedCrawls.ts`
+- `lib/cities/oxford/curatedCrawls.ts`
+- `lib/cityShare.ts`
+- `lib/curatedCrawls.ts`
+- `lib/curation.ts`
+- `lib/firstDropNudge.ts`
+- `lib/heritageCrawls.ts`
+- `lib/icsExport.ts`
+- `lib/pintDropSeeds.ts`
+- `lib/planComposerHandoff.ts`
+- `lib/planDraft.ts`
+- `lib/planInviteUi.ts`
+- `lib/pubMap.ts`
+- `lib/routePattern.ts`
+- `lib/weeklyDigest.ts`
+
+### Notification and email candidates
+
+Total: 27. Inspected: 7. Not inspected: 20.
+
+Command:
+
+```sh
+rg --files app components lib |
+  rg -i '(email|digest|push|notification|subscribe|unsubscribe|night-signals)' |
+  rg '\.(ts|tsx)$' |
+  sort
+```
+
+Not inspected:
+
+- `app/api/cron/refresh-night-signals/route.ts`
+- `app/api/email-subscribers/route.ts`
+- `app/api/notifications/route.ts`
+- `components/native/NativePushPrompt.tsx`
+- `components/nav/NotificationBell.tsx`
+- `components/pwa/WebPushPrompt.tsx`
+- `lib/dailyBriefPush.ts`
+- `lib/dealsDigest.ts`
+- `lib/emailProvider.ts`
+- `lib/emailSubscribers.ts`
+- `lib/emailSubscribersStore.ts`
+- `lib/nativePush.ts`
+- `lib/nativePushPrompt.ts`
+- `lib/notifications.ts`
+- `lib/notificationsStore.ts`
+- `lib/pushProvider.ts`
+- `lib/pushTokenStore.ts`
+- `lib/webPush.ts`
+- `lib/webPushPrompt.ts`
+- `lib/webPushSubscription.ts`
+
+## Outstanding audit scope
+
+The files above remain for the follow-up audit. In particular, this pass did not audit `app/page.tsx`, `app/map/page.tsx`, or most unchanged API routes and shared helpers. Review findings on those files should be recorded against that follow-up rather than used to widen this branch.
+
+No additional product-character judgement call was decided during this closeout. The branch applies rule-bound fixes only.
