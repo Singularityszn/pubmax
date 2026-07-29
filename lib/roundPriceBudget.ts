@@ -1,11 +1,11 @@
 // The device budget a Round's drink lines pay before they may enter the
 // community price store (app/api/rounds/[code]).
 //
-// A Round with drink lines IS a price submission, so it shares /api/price-submit's
-// cross-venue key and hourly cap: without it, changing door would reset the cap
-// that stops one device spraying prices across the map. It charges ONE UNIT PER
-// LINE, because a turn carrying ten observations costs the map ten times what a
-// single tap does.
+// A Round with drink lines IS a price submission, so it uses the same
+// cross-venue key namespace and hourly cap as /api/price-submit. The Round
+// route's actor remains device-derived, while direct price submissions use an
+// authenticated profile actor. It charges ONE UNIT PER LINE, because a turn
+// carrying ten observations costs the map ten times what a single tap does.
 //
 // Per-line charging is why the durable limiter's own fallback is wrong here: it
 // tightens to a handful of calls, which one honest itemised round would exhaust
@@ -21,7 +21,7 @@ import { isRateLimited } from "@/lib/pintDrops";
 import { ROUND_SPEND_PRICE_LINE_MAX } from "@/lib/rounds";
 import { checkRateLimitDurableDetailed, isSupabaseConfigured } from "@/lib/supabase";
 
-/** Same cap and window /api/price-submit applies to its cross-venue key. */
+/** Same cap and window /api/price-submit applies to its account actor key. */
 export const ROUND_PRICE_ACTOR_LIMIT = 30;
 export const ROUND_PRICE_WINDOW_MS = 3_600_000;
 
@@ -34,7 +34,7 @@ export const ROUND_PRICE_WINDOW_MS = 3_600_000;
 export const ROUND_PRICE_DEGRADED_RETRY_SECONDS = 60;
 
 /**
- * How the verdict was reached. "durable" is the shared hourly cap answering,
+ * How the verdict was reached. "durable" is the Round hourly cap answering,
  * "memory" the keyless local budget, and "degraded" the bounded one-round
  * allowance that stands in while the durable limiter is unreachable — a
  * refusal there is our outage, not the drinker's doing, so the caller says so.

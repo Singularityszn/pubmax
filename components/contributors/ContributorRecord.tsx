@@ -25,8 +25,8 @@ export default function ContributorRecord({
           Price logs, Visit Reports and weather Recommendations, added together.
           Only identity-backed contributions are ranked. Named posts without an
           existing public profile can stay visible elsewhere but sit outside
-          this record. Hidden contributions come off the count. Anonymous price
-          logs are not ranked. Equal totals share a place.
+          this record. Hidden contributions come off the count. Legacy price
+          logs without a handle are not ranked. Equal totals share a place.
         </p>
         <p className="contributorWindow">{board.window.label}</p>
       </header>

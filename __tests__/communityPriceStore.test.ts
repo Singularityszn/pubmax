@@ -70,7 +70,7 @@ describe("communityPriceStore (memory backend)", () => {
     expect(rows.map((row) => row.priceGbp)).toEqual([8.5, 4.2]);
   });
 
-  it("lets one device correct its own price instead of stacking a second row", async () => {
+  it("lets one contributor correct their price instead of stacking a second row", async () => {
     await submitCommunityPrice(
       { venueId: "v1", drinkCategory: "beer", priceGbp: 4.2, actor: "a" },
       1_000,
@@ -86,7 +86,7 @@ describe("communityPriceStore (memory backend)", () => {
     expect(rows[0].submittedAt).toBe(2_000);
   });
 
-  it("keeps two devices' observations distinct, freshest winning the read", async () => {
+  it("keeps two contributors' observations distinct, freshest winning the read", async () => {
     await submitCommunityPrice(
       { venueId: "v1", drinkCategory: "beer", priceGbp: 4.2, actor: "a" },
       1_000,
@@ -564,7 +564,7 @@ describe("communityPriceStore corroboration counting (memory backend)", () => {
     expect((await readCommunityPrices("v1"))[0].corroborations).toBe(1);
   });
 
-  it("counts two devices agreeing within tolerance as two", async () => {
+  it("counts two contributors agreeing within tolerance as two", async () => {
     await beerAt("v1", 4.2, 1_000, "a");
     await beerAt("v1", 4.5, 2_000, "b");
 
@@ -575,7 +575,7 @@ describe("communityPriceStore corroboration counting (memory backend)", () => {
     expect(row.corroborations).toBe(2);
   });
 
-  it("does not count a device that reported a different figure", async () => {
+  it("does not count a contributor who reported a different figure", async () => {
     await beerAt("v1", 4.2, 1_000, "a");
     await beerAt("v1", 6.5, 2_000, "b");
 
@@ -585,20 +585,20 @@ describe("communityPriceStore corroboration counting (memory backend)", () => {
     expect(row.corroborations).toBe(1);
   });
 
-  it("never lets one device corroborate itself by resubmitting", async () => {
+  it("never lets one contributor corroborate themselves by resubmitting", async () => {
     await beerAt("v1", 4.2, 1_000, "a");
     await beerAt("v1", 4.25, 2_000, "a");
     await beerAt("v1", 4.3, 3_000, "a");
 
     const rows = await readCommunityPrices("v1");
-    // The store already collapses a device's own corrections to one row; this
+    // The store already collapses a contributor's own corrections to one row; this
     // asserts the trust count agrees, which is the whole spray defence.
     expect(rows).toHaveLength(1);
     expect(rows[0].corroborations).toBe(1);
   });
 
   it("counts all unattributed reports as at most one voice", async () => {
-    // Anonymous rows (IP hashing unavailable) stack in storage - NULLs never
+    // Legacy or imported rows without an actor stack in storage - NULLs never
     // collide under the unique constraint - but they cannot be shown to come
     // from different people, and the threshold is about INDEPENDENCE.
     await beerAt("v1", 4.2, 1_000);
@@ -606,7 +606,7 @@ describe("communityPriceStore corroboration counting (memory backend)", () => {
     await beerAt("v1", 4.3, 3_000);
     expect((await readCommunityPrices("v1"))[0].corroborations).toBe(1);
 
-    // One attributed device agreeing alongside them does make it two.
+    // One attributed contributor agreeing alongside them does make it two.
     await beerAt("v1", 4.3, 4_000, "a");
     expect((await readCommunityPrices("v1"))[0].corroborations).toBe(2);
   });
@@ -627,15 +627,15 @@ describe("communityPriceStore corroboration counting (memory backend)", () => {
   });
 
   it("never leaks the actor token that the count is derived from", async () => {
-    await beerAt("v1", 4.2, 1_000, "secret-device-token");
+    await beerAt("v1", 4.2, 1_000, "secret-actor-token");
     const [row] = await readCommunityPrices("v1");
-    expect(JSON.stringify(row)).not.toContain("secret-device-token");
+    expect(JSON.stringify(row)).not.toContain("secret-actor-token");
     expect(row).not.toHaveProperty("actor");
   });
 });
 
 // The map candidate: the best-corroborated IN-WINDOW figure per category,
-// riding alongside the freshest (sheet) row. This is what stops one device
+// riding alongside the freshest (sheet) row. This is what stops one contributor
 // un-painting a corroborated price with a single disagreeing tap - the sheet
 // stays freshest-wins, the map follows the best-backed figure until a
 // contradiction itself reaches the threshold (mergeCommunityPriceSignals
@@ -664,7 +664,7 @@ describe("communityPriceStore map candidate (memory backend)", () => {
   }
 
   it("hands the candidate to the corroborated cluster, not a lone fresh disagreement", async () => {
-    // Devices A and B agree on £4.20; C's fresh £9.00 becomes the sheet row.
+    // Contributors A and B agree; C's fresh £9.00 becomes the sheet row.
     await beerAt("v1", 4.2, 1_000, "a");
     await beerAt("v1", 4.2, 2_000, "b");
     await beerAt("v1", 9, 3_000, "c");

@@ -192,11 +192,10 @@ describe("legal content pages", () => {
 
   it("discloses the durable Recommendation row and its retention", () => {
     // Mirrors lib/weatherRecommendationStore.ts and migration 0058: a durable
-    // row carrying a PUBLIC handle (unlike a community price, which is
-    // anonymous), the venue, one closed condition, the authored reason, a
-    // server timestamp, and the same server-derived actor hash the price route
-    // uses (lib/communityPriceActor.ts). Attribution is the point of the
-    // feature, so the page may never describe these rows as anonymous.
+    // row carrying a public handle, the venue, one closed condition, the
+    // authored reason, a server timestamp, and a server-derived actor token.
+    // Current community prices also carry an account-owned public handle;
+    // anonymity is reserved for legacy price rows without one.
     expect(privacy).toMatch(/Recommendations, and Night Memories/);
     expect(privacy).toMatch(/public PUBMAXX\s+handle/);
     expect(privacy).toMatch(/the same opaque device token described below/);

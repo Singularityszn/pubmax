@@ -358,12 +358,12 @@ function toPrice(
 
 /**
  * The bucket a row counts as ONE submitter under. An attributed row is its own
- * device. Unattributed rows (actor null - IP hashing was unavailable) all share
- * a single bucket: we cannot prove two of them came from different people, and
- * the whole point of the threshold is INDEPENDENCE, so the honest reading is
- * "at most one unattributed voice". Note this is stricter than the durable
- * table's unique constraint, which lets NULL-actor rows stack - deliberately:
- * storage keeps every observation, the trust count refuses to assume they are
+ * contributor. Legacy or imported rows without an actor all share a single
+ * bucket: we cannot prove two of them came from different people, and the whole
+ * point of the threshold is INDEPENDENCE, so the honest reading is "at most one
+ * unattributed voice". Note this is stricter than the durable table's unique
+ * constraint, which lets NULL-actor rows stack - deliberately: storage keeps
+ * every observation, while the trust count refuses to assume they are
  * different drinkers.
  */
 function submitterBucket(actor: string | null): string {
@@ -514,7 +514,7 @@ function contributorCountsFromRows(
 /**
  * How many INDEPENDENT submitters back `reference`, counting whoever logged it.
  * Only rows for the same drink category that agree within the shared tolerance
- * count; a device that reported a different figure is not corroborating this
+ * count; a contributor who reported a different figure is not corroborating this
  * one, it is contradicting it.
  */
 function countCorroborations(rows: StoredPrice[], reference: StoredPrice): number {
@@ -581,7 +581,7 @@ function freshestPerCategory(allRows: StoredPrice[], now: number): CommunityPric
   const byCategory = new Map<DrinkCategory, StoredPrice>();
   for (const row of rows) {
     const held = byCategory.get(row.drinkCategory);
-    // `>=`, not `>`: two devices CAN land in the same millisecond, and a strict
+    // `>=`, not `>`: two submissions CAN land in the same millisecond, and a strict
     // comparison silently made "freshest wins" mean "first of the tie wins" -
     // so the second drinker's price was dropped from the read and their tap
     // never showed. On a tie the later row in the scan wins, which is the later
@@ -846,7 +846,7 @@ export const memoryCommunityPriceStore: CommunityPriceStore = {
       reportCount: 0,
     };
     const rows = venues.get(key.venueId) ?? [];
-    // One live observation per (venue, category, actor): a device correcting
+    // One live observation per (venue, category, actor): a contributor correcting
     // its own entry replaces it rather than stacking a second row, so one
     // person can't weight a venue's community price twice.
     const isOwnEarlier = (row: StoredPrice) =>
@@ -1244,8 +1244,8 @@ export const supabaseCommunityPriceStore: CommunityPriceStore = {
     const key = normalize(input);
     if (!key) return { price: null };
     const submittedAt = new Date(now).toISOString();
-    // Anonymous submissions have no actor to conflict on, so they insert;
-    // attributed ones upsert over this device's own earlier entry for the
+    // Legacy or imported submissions without an actor insert independently;
+    // attributed ones upsert over that contributor's own earlier entry for the
     // same drink. Matches the memory store's replace-your-own rule.
     const actor = input.actor ?? null;
     // Pinned to the store's public result type: `run` returns a stored price on

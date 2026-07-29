@@ -115,8 +115,8 @@ export type RoundMemberDTO = {
  * a server check could close — a hand-typed price that coincides with a seed is
  * the same request as a re-emitted seed, and policy requires accepting the
  * first. What holds the line instead is what always held it: corroboration and
- * age before any map surface, plus the same per-device price budget the other
- * submission door charges (app/api/rounds/[code]).
+ * age before any map surface, plus the Round route's per-device price budget
+ * (app/api/rounds/[code]).
  */
 export type RoundSpendItemSource = "round" | "demo";
 

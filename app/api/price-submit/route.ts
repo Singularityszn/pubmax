@@ -353,12 +353,12 @@ export async function POST(request: Request): Promise<Response> {
   // Read the venue back so the response carries this figure's authoritative
   // `corroborations` - the number that decides whether the submitter's tap
   // moves a pin or only lands on the pub's sheet. The client cannot derive it
-  // (it never sees other devices' rows), and counting it in the store's one
+  // (it never sees other contributors' rows), and counting it in the store's one
   // read path rather than a second time on write keeps a single definition of
   // "how much the community backs this price".
   //
   // Adopted only when the read-back is still THIS submission's figure. When it
-  // is not - another device holds the freshest row for this drink at a
+  // is not - another contributor holds the freshest row for this drink at a
   // different price, or the read degraded - answering with that row would show
   // the submitter a price they never typed, so we answer with their own at an
   // explicit one voice. A figure that is not even the record for its drink is

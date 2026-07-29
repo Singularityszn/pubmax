@@ -288,7 +288,12 @@ Before pushing a branch:
 
 ## Identity boundary (demo vs production private actions)
 
-Linked handles are JWT-gated via `gateHandleAction` / `requireLinkedActor`. Unlinked handles still allow the **demo / anonymous self-asserted** path for map drops and similar public writes — that is intentional product behaviour, not a privacy model.
+Linked handles are JWT-gated via `gateHandleAction` / `requireLinkedActor`.
+Unlinked handles still allow the **demo / anonymous self-asserted** path for
+Pint Drops and legacy social writes. Community price and venue-signal writes
+instead require a signed-in account and derive their stable profile actor and
+public handle on the server. The remaining demo path is intentional product
+behaviour, not a privacy model.
 
 Production private actions that must not be forgeable:
 

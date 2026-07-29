@@ -54,7 +54,7 @@ vi.mock("@/lib/ukBaseIndex", async (importOriginal) => {
 
 // Lets the read-back race cases pin what the POST fallback answers when the
 // read-back no longer holds the submitter's own figure. The race itself (a
-// rival device's write landing between this write and the read-back) cannot be
+// rival contributor's write landing between this write and the read-back) cannot be
 // produced deterministically through the real store from a sequential test, so
 // the override stands in for the read-back's result; every other case passes
 // through untouched.
@@ -416,7 +416,7 @@ describe("POST /api/price-submit", () => {
     expect((await POST(malformed)).status).toBe(400);
   });
 
-  it("rate-limits a device spraying prices at one venue (429)", async () => {
+  it("rate-limits an account spraying prices at one venue (429)", async () => {
     for (let i = 0; i < 9; i += 1) {
       const res = await POST(
         post({ venueId: "venue-1f5ygjb", drinkCategory: "beer", priceGbp: 4 + i / 100 }),
@@ -890,7 +890,7 @@ describe("POST /api/price-submit corroboration", () => {
     expect(price?.corroborations).toBe(2);
   });
 
-  it("keeps one voice when the same device logs again from the same address", async () => {
+  it("keeps one voice when the same account logs again", async () => {
     const venueId = await realVenueId(2);
     await submitAs("three_a", { venueId, drinkCategory: "beer", priceGbp: 4.2 });
     const price = await priceOf(
@@ -899,7 +899,7 @@ describe("POST /api/price-submit corroboration", () => {
     expect(price?.corroborations).toBe(1);
   });
 
-  it("keeps one voice when a second device contradicts rather than agrees", async () => {
+  it("keeps one voice when a second contributor contradicts rather than agrees", async () => {
     const venueId = await realVenueId(3);
     await submitAs("four_a", { venueId, drinkCategory: "beer", priceGbp: 4.2 });
     const price = await priceOf(
@@ -920,7 +920,7 @@ describe("POST /api/price-submit corroboration", () => {
         }),
       ),
     );
-    // A body that could set this could repaint the map from one device, which
+    // A body that could set this could repaint the map from one account, which
     // is exactly the hole the threshold closes.
     expect(price?.corroborations).toBe(1);
   });
@@ -936,8 +936,8 @@ describe("POST /api/price-submit corroboration", () => {
     expect(data.prices[0]?.corroborations).toBe(2);
   });
 
-  it("keeps the corroborated figure as the map candidate when a third device disagrees", async () => {
-    // Devices A and B agree on £4.20 (driving the map); C logs a fresh £9.00.
+  it("keeps the corroborated figure when a third contributor disagrees", async () => {
+    // Contributors A and B agree on £4.20; C logs a fresh £9.00.
     const venueId = await realVenueId(6);
     await submitAs("nine_a", { venueId, drinkCategory: "beer", priceGbp: 4.2 });
     await submitAs("nine_b", { venueId, drinkCategory: "beer", priceGbp: 4.2 });
@@ -968,7 +968,7 @@ describe("POST /api/price-submit corroboration", () => {
   });
 
   it("carries the corroborated candidate through a lost read-back race", async () => {
-    // A rival device's £9.00 became the category's freshest row between this
+    // A rival contributor's £9.00 became the freshest row between this
     // write and the read-back. The fallback must still answer the submitter's
     // OWN figure at one cautious voice - never the rival's price - but the
     // corroborated candidate rides along so this client's map does not

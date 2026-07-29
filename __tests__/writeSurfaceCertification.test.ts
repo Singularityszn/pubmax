@@ -68,9 +68,10 @@ describe("mutating API surface certification", () => {
     // endpoints and the Social Loop's read-only GETs (/check-ins GET,
     // /profiles/[handle]/lot) are intentionally NOT counted. Plus the community
     // price-submission POST (app/api/price-submit/route.ts,
-    // fm/price-submission): an anonymous, rate-limited, bounds-checked dated
-    // price observation; its sibling GET (the freshest community price per
-    // drink at a venue) is NOT a mutating verb and is not counted. Plus the
+    // fm/price-submission): an account-gated, handle-attributed, rate-limited,
+    // bounds-checked dated price observation; its sibling GET (the freshest
+    // community price per drink at a venue) is NOT a mutating verb and is not
+    // counted. Plus the
     // community-price moderation POST (app/api/admin/community-prices/route.ts,
     // fm/trust-quickfixes): moderator-gated hide/restore on one community price
     // - hide, never delete; its sibling GET (the review queue) is NOT a mutating

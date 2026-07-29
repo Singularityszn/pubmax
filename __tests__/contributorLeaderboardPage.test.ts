@@ -46,7 +46,7 @@ describe("ContributorRecord", () => {
     expect(html).toContain("Prices");
     expect(html).toContain("Visit Reports");
     expect(html).toContain("Recommendations");
-    expect(html).toContain("Anonymous price logs are not ranked");
+    expect(html).toContain("Legacy price logs without a handle are not ranked");
     expect(html).toContain("Only identity-backed contributions are ranked");
     expect(html).not.toMatch(/winner|points|score/i);
   });

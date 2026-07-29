@@ -30,18 +30,27 @@ Register of ACCEPTED risks and FIXED-this-wave security hardening (wave S1–S5,
 
 ---
 
-### Code-is-Capability: Round Codes + Unlinked Handles
+### Code-is-Capability: Round Codes + Legacy Unlinked Handles
 
-**Risk:** Before Supabase Auth integration, round creation/share codes (6-char human-readable or 28-symbol URL-safe alphanumeric) and unlinked handles are the documented trust boundary. Anyone with a round code can join a group; anyone can claim a handle and act on behalf of that handle's drops/crawls.
+**Risk:** Round creation/share codes (6-char human-readable or 28-symbol
+URL-safe alphanumeric) remain the Round trust boundary. Anyone with a round
+code can join that group and record itemised price lines under the route's
+device-derived actor. Legacy unlinked handles retain only the existing demo
+paths; they cannot authorize current community price or venue-signal writes.
 
 **Backstopped By:**
 - Rate limits on round creation (S1–S3 phase): plan-card, citymcp+whats-on, rounds-GET, import-notes each have per-IP/per-actor limits
 - Capacity cap on Landlord LLM (durable Supabase limiter: prevents unpaid concierge from unbounded token burn)
 - JWT-backed authorship gates for destructive actions (edit/delete crawls, modify profiles) — see `gateHandleAction` in `app/api/crawls/[slug]/route.ts`
 - Concurrent user link via `linkUser` RPC returns 409 on conflict, preventing handle land-grab races
-- A round code now also carries a price-write capability (a Round's itemised drink lines reach the community price store): those lines charge the same per-device price budget as `/api/price-submit` and still earn map authority only through the corroboration and max-age gates - boundary certified in `docs/WRITE_SURFACE_CERTIFICATION.md`
+- A round code now also carries a price-write capability (a Round's itemised drink lines reach the community price store): those lines charge a per-device price budget, while `/api/price-submit` is account-gated and budgets the stable profile actor. Both still earn map authority only through the corroboration and max-age gates - boundary certified in `docs/WRITE_SURFACE_CERTIFICATION.md`
 
-**Decision:** Accepted until Supabase Auth is fully integrated. Round codes are human-manageable UUIDs for small-group coordination; unlinked handles are the MVP social identity layer. The rate-limiting backstop prevents casual abuse.
+**Decision:** Accepted for foundation-first staging. Direct community price and
+venue-signal writes now require Supabase Auth and an account-owned handle.
+Round codes remain human-manageable capabilities for small-group coordination;
+Visit Reports and Recommendations remain explicit identity follow-up. The
+rate-limiting backstop prevents casual abuse on the remaining device-scoped
+paths.
 
 ---
 
@@ -139,4 +148,3 @@ Supabase remote ledger recorded three migrations twice due to CLI/MCP re-run on 
 - **Recommendation:** Retain canonical version. Re-application version is for preview-branch integration only.
 
 **Note:** See `docs/RUNBOOK_SUPABASE_PREVIEW.md` for full ledger-collapse procedure if re-applications are removed from remote.
-
