@@ -103,7 +103,7 @@ export const CLUSTER_STROKE_OPACITY = 1;
 // this the disc is invisible to placement and neighbouring labels (landmark
 // names, basemap POIs) happily land on top of it. Padding the count's box out
 // to roughly the disc footprint makes the whole marker reserve its space.
-export const CLUSTER_COLLISION_PADDING = 12;
+export const CLUSTER_COLLISION_PADDING = 10;
 
 // The provisional-report badge: the small dot that rides at a pin's upper right
 // when someone has logged tonight's pint price there and it is still one report

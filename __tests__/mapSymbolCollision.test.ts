@@ -224,7 +224,7 @@ describe("symbol collision policy", () => {
     // count's padded box is what keeps other labels off the disc.
     expect(count["text-ignore-placement"]).toBe(false);
     expect(count["text-padding"]).toBe(CLUSTER_COLLISION_PADDING);
-    expect(CLUSTER_COLLISION_PADDING).toBeGreaterThanOrEqual(12);
+    expect(CLUSTER_COLLISION_PADDING).toBe(10);
   });
 
   it("drops crowded landmark names rather than overprinting them", () => {

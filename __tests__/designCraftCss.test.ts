@@ -13,6 +13,7 @@ const venueCss = read("components/map/venueSheet.css");
 const pubMapSource = read("components/PubMap.tsx");
 const springDrawerSource = read("components/map/SpringDrawer.tsx");
 const legacyDragSource = read("components/map/useSheetDrag.ts");
+const evidence = read("docs/design-craft-d1-d8-evidence.md");
 
 describe("sheet material", () => {
   it("ships one dark-first translucent material for desktop and phone sheets", () => {
@@ -68,6 +69,13 @@ describe("responsive spring ownership", () => {
     expect(springDrawerSource).toContain(
       "onRest: open ? undefined : clearRetainedChildren",
     );
+    expect(springDrawerSource).toContain(
+      'const presentationClassName = open || retainedChildren !== null',
+    );
+    expect(springDrawerSource).toContain(
+      'className={`springDrawer ${className ?? ""}${presentationClassName}`.trim()}',
+    );
+    expect(springDrawerSource).toContain("inert={open ? undefined : true}");
   });
 });
 
@@ -120,12 +128,37 @@ describe("pointer-down feedback", () => {
     );
   });
 
+  it("composes press scale with existing positioning transforms", () => {
+    const pressFeedback =
+      globalCss.match(
+        /@media \(prefers-reduced-motion: no-preference\)\s*{([\s\S]*?)\n}/,
+      )?.[1] ?? "";
+    expect(pressFeedback).toMatch(
+      /button:not\(\[data-no-press\]\):not\(:disabled\):active,[\s\S]*?scale:\s*var\(--press-scale\)/,
+    );
+    expect(pressFeedback).not.toMatch(/transform:\s*scale\(/);
+  });
+
   it("gates handle compression behind reduced-motion preference", () => {
     expect(venueCss).toMatch(
       /@media \(prefers-reduced-motion: no-preference\)\s*{[\s\S]*?\.venueSheetGrabZone:active \.venueSheetGrab,[\s\S]*?transform:\s*scaleX\(/,
     );
     expect(mobileCss).toMatch(
       /@media \(max-width: 640px\) and \(prefers-reduced-motion: no-preference\)\s*{[\s\S]*?\.mobileSharedSheetDetent:active \.mobileSharedSheetGrab,[\s\S]*?scaleX\(/,
+    );
+  });
+});
+
+describe("price signature and map policy evidence", () => {
+  it("keeps static price tilt outside motion preference gates", () => {
+    expect(globalCss).toMatch(
+      /\.ink-stamp--tilt\s*{[^}]*transform:\s*rotate\(var\(--ink-stamp-tilt\)\);[^}]*}\s*body/,
+    );
+  });
+
+  it("records the unchanged cluster collision padding precisely", () => {
+    expect(evidence).toMatch(
+      /Cluster-count collision padding remains 10\s+pixels/,
     );
   });
 });

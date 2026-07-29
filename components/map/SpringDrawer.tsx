@@ -96,7 +96,7 @@ const SpringDrawer = forwardRef<HTMLDivElement, SpringDrawerProps>(
     });
     const [ready, setReady] = useState(false);
     const [retainedChildren, setRetainedChildren] =
-      useState<ReactNode>(children);
+      useState<ReactNode>(open ? children : null);
     const modeRef = useRef<"horizontal" | "vertical" | null>(null);
     const wasDraggingRef = useRef(false);
 
@@ -173,6 +173,9 @@ const SpringDrawer = forwardRef<HTMLDivElement, SpringDrawerProps>(
       ? `translate3d(0, ${verticalValue}px, 0)`
       : `translate3d(${horizontalValue}%, 0, 0)`;
     const running = tabletSheet ? verticalRunning : horizontalRunning;
+    const presentationClassName = open || retainedChildren !== null
+      ? ` open sheet-${snap}`
+      : "";
     const style: SpringDrawerStyle = ready
       ? {
           "--drawer-spring-transform": transform,
@@ -187,9 +190,10 @@ const SpringDrawer = forwardRef<HTMLDivElement, SpringDrawerProps>(
       <div
         {...divProps}
         ref={forwardedRef}
-        className={`springDrawer ${className ?? ""}`.trim()}
+        className={`springDrawer ${className ?? ""}${presentationClassName}`.trim()}
         data-spring-axis={tabletSheet ? "vertical" : "horizontal"}
         style={style}
+        inert={open ? undefined : true}
       >
         {open ? children : retainedChildren}
       </div>

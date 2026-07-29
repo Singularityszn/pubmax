@@ -3248,8 +3248,7 @@ export default function PubMap({
         dragOffsetY={plannerSheetDragY}
         releaseVelocityY={plannerSheetReleaseVelocity}
         className={
-          (planningOpen ? "mapDrawer left open" : "mapDrawer left") +
-          (planningOpen ? ` sheet-${plannerSheetSnap}` : "") +
+          "mapDrawer left" +
           (plannerSheetDragY !== null ? " sheet-dragging" : "")
         }
         aria-hidden={!planningOpen}
@@ -3287,8 +3286,7 @@ export default function PubMap({
         dragOffsetY={sheetDragY}
         releaseVelocityY={sheetReleaseVelocity}
         className={
-          (detailOpen ? "mapDrawer right open" : "mapDrawer right") +
-          (detailOpen ? ` sheet-${sheetSnap}` : "") +
+          "mapDrawer right" +
           (sheetDragY !== null ? " sheet-dragging" : "")
         }
         aria-hidden={!detailOpen}

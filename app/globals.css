@@ -394,10 +394,8 @@
   font-variant-numeric: normal;
 }
 
-@media (prefers-reduced-motion: no-preference) {
-  .ink-stamp--tilt {
-    transform: rotate(var(--ink-stamp-tilt));
-  }
+.ink-stamp--tilt {
+  transform: rotate(var(--ink-stamp-tilt));
 }
 
 body {
@@ -506,11 +504,10 @@ button {
 /* ── Global press feedback ────────────────────────────────────────────────
    "The interface heard you." Every pressable primitive dips a hair on press
    and springs back on release (Emil Kowalski: buttons must feel responsive;
-   Apple: respond on pointer-down, not on release). Deliberately LOW specificity
-   (bare element / single class) so any component that manages its own transform
-   overrides this for free — this is a floor, not a ceiling. Gated behind
-   no-preference so reduced-motion users get zero movement. Opt out per element
-   with [data-no-press]; opt IN a link/label/row with class="pressable". */
+   Apple: respond on pointer-down, not on release). Scale is a floor, not a
+   ceiling, and composes with positioning transforms. Gated behind no-preference
+   so reduced-motion users get zero movement. Opt out per element with
+   [data-no-press]; opt IN a link/label/row with class="pressable". */
 button,
 [role="button"]:not([aria-disabled="true"]),
 .planBtn,
@@ -525,14 +522,14 @@ a[data-pressable],
   .planBtn:not([data-no-press]),
   a[data-pressable],
   .pressable {
-    transition: transform var(--duration-press) var(--ease-out-strong);
+    transition: scale var(--duration-press) var(--ease-out-strong);
   }
   button:not([data-no-press]):not(:disabled):active,
   [role="button"]:not([data-no-press]):not([aria-disabled="true"]):active,
   .planBtn:not([data-no-press]):active,
   a[data-pressable]:active,
   .pressable:active {
-    transform: scale(var(--press-scale));
+    scale: var(--press-scale);
   }
 }
 

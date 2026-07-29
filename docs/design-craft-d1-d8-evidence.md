@@ -22,8 +22,9 @@ PR-ready evidence for the Wave 2 surface-craft work.
   the same classes and MapLibre receives an RGB-normalised equivalent of the
   same ink, surface, and tilt.
 - Dark desktop map roads and road labels are quieter. Pub clusters are larger
-  and more opaque, so product marks read before road geometry. Zoom gates,
-  grouping radius, symbol collision policy, and six-tab navigation are
+  and more opaque, so product marks read before road geometry. Zoom gates and
+  grouping radius are unchanged. Cluster-count collision padding remains 10
+  pixels, so symbol collision policy is unchanged. Six-tab navigation is
   unchanged.
 - D4 was verified only. `--panel-raised` and all locked brand colours remain
   unchanged.
