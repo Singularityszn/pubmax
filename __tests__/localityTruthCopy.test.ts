@@ -1,5 +1,7 @@
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { describe, expect, it, vi } from "vitest";
 
 vi.mock("next/navigation", async (importOriginal) => {
@@ -82,5 +84,18 @@ describe("locality and recency claims", () => {
     );
     expect(html).toContain("prices collected July 2026");
     expect(html).not.toContain("right now");
+  });
+
+  it("describes Near results as the cheapest listed prices", () => {
+    const source = readFileSync(
+      join(process.cwd(), "components/nearme/NearMeNow.tsx"),
+      "utf8",
+    );
+
+    expect(source).toContain("Cheapest listed near you");
+    expect(source).toContain("Cheapest listed in");
+    expect(source).toContain("Cheapest listed around");
+    expect(source).not.toContain("Finding the cheapest");
+    expect(source).not.toContain("Pulling up the cheapest");
   });
 });

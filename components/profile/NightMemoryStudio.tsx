@@ -464,17 +464,17 @@ export default function NightMemoryStudio({ userId }: { userId: string }) {
           <h3 id="memory-studio-title">Keep the parts you will tell people about.</h3>
         </div>
         <p>Everything starts private. A Story is a separate draft, never an automatic post.</p>
-        <Link className="memoryCaptureLink" href="/moment">Capture a Moment</Link>
+        <Link className="memoryCaptureLink" href="/moment">Save a Moment</Link>
       </div>
 
       {studioLoaded && memories.length === 0 && stories.length === 0 ? (
         <div className="memoryStudioFirstRun" role="status">
           <p className="memoryStudioFirstRunTitle">Your Memory studio is empty.</p>
           <p className="memoryStudioFirstRunBody">
-            A Memory is a private night out in your words. Add the Moments worth keeping, then shape a Story you decide whether to share. Start below, or capture tonight from the map.
+            A Memory is a private night out in your words. Add the Moments worth keeping, then shape a Story you decide whether to share. Start below, or save tonight from the map.
           </p>
           <div className="memoryStudioFirstRunActions">
-            <Link href="/moment" className="memoryStudioFirstRunPrimary">Capture a Moment now</Link>
+            <Link href="/moment" className="memoryStudioFirstRunPrimary">Save a Moment now</Link>
             <Link href="/map?log=1" className="memoryStudioFirstRunSecondary">Log a pint first</Link>
           </div>
         </div>

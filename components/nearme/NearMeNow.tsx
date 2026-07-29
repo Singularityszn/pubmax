@@ -436,8 +436,8 @@ export default function NearMeNow({
         <div className="nmnStatus" role="status">
           <span className="nmnSpinner" aria-hidden="true" />
           {patch
-            ? `Finding the cheapest pints around ${patch.label}…`
-            : "Finding the cheapest pints near you…"}
+            ? `Checking listed pint prices around ${patch.label}…`
+            : "Checking listed pint prices near you…"}
         </div>
       ) : null}
 
@@ -446,7 +446,7 @@ export default function NearMeNow({
         // for the beat the slim index takes to arrive.
         <div className="nmnStatus" role="status">
           <span className="nmnSpinner" aria-hidden="true" />
-          Pulling up the cheapest pints in town…
+          Checking listed pint prices in town…
         </div>
       ) : null}
 
@@ -468,7 +468,7 @@ export default function NearMeNow({
       {state === "ready" && !outsideCoverage && !borough && !patch ? (
         <>
           <header className="nmnHead">
-            <h2>{scope === "widened" ? "Nearest priced pubs" : "Cheapest pints near you"}</h2>
+            <h2>{scope === "widened" ? "Nearest priced pubs" : "Cheapest listed near you"}</h2>
             {scope === "widened" ? (
               <p className="nmnWiden">Not many priced pubs on your doorstep. These are the nearest, a bit further out.</p>
             ) : (
@@ -497,7 +497,7 @@ export default function NearMeNow({
       {state === "ready" && areaLabel ? (
         <>
           <header className="nmnHead">
-            <h2>{borough ? `Cheapest in ${borough}` : `Cheapest around ${patch?.label}`}</h2>
+            <h2>{borough ? `Cheapest listed in ${borough}` : `Cheapest listed around ${patch?.label}`}</h2>
             {patchMessage ? <p className="nmnSub">{patchMessage}</p> : null}
             {patchEvidenceNote ? <p className="nmnPatchTier">{patchEvidenceNote}</p> : null}
           </header>

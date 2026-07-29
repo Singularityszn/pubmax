@@ -34,13 +34,13 @@ describe("PlanComposer Night Area coverage states", () => {
     expect(nightAreaOptionLabel(ready!.areas[0], false)).toBe("Clapham");
   });
 
-  it("keeps lower-confidence areas available with an evidence label", () => {
+  it("keeps lower-confidence areas available with a warning label", () => {
     const notReady = groups.find((group) => group.label === "Plan with warnings");
     const barnes = notReady?.areas.find((area) => area.slug === "barnes");
 
     expect(notReady).toMatchObject({ disabled: false });
     expect(barnes).toBeDefined();
-    expect(nightAreaOptionLabel(barnes!, false)).toBe("Barnes - plan with evidence gaps");
+    expect(nightAreaOptionLabel(barnes!, false)).toBe("Barnes - plan with warnings");
   });
 
   it("turns the structured route gate response into useful error copy", () => {
@@ -74,7 +74,7 @@ describe("PlanComposer Night Area coverage states", () => {
       "Last checked 13 Jul 2026 · review through 1 Jan 2027.",
     );
     expect(nightAreaCoverageMeta(getNightArea("shoreditch"), now)).toBe(
-      "No reviewed snapshot yet.",
+      "Not checked yet.",
     );
     expect(nightAreaCoverageMeta(getNightArea("richmond"), now)).toBe(
       "Last checked 1 Jan 2026 · review expired 1 Jun 2026.",
@@ -90,17 +90,17 @@ describe("PlanComposer Night Area coverage states", () => {
     });
     expect(nightAreaCoverageSummary(getNightArea("shoreditch"), now)).toMatchObject({
       label: "Plan with warnings",
-      detail: "Captured coverage, missing opening hours and route feasibility + 2 more.",
+      detail: "Some checks complete. Missing opening hours and route feasibility + 2 more.",
       tone: "capture",
     });
     expect(nightAreaCoverageSummary(getNightArea("barnes"), now)).toMatchObject({
       label: "Plan with warnings",
-      detail: "Reviewed coverage, missing opening hours and the route home.",
+      detail: "Checked with gaps. Missing opening hours and the route home.",
       tone: "review",
     });
     expect(nightAreaCoverageSummary(getNightArea("dalston"), now)).toMatchObject({
       label: "Low confidence",
-      detail: "Evidence capture has not started. The route stays editable.",
+      detail: "We have not checked this area yet. The route stays editable.",
       tone: "discovery",
     });
   });

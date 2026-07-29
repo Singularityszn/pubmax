@@ -357,10 +357,10 @@ export default async function BoroughPage({ params }: PageProps) {
             Crawls through {name}
           </h2>
           <p className="boroughSectionDek">
-            A curated route with at least one stop here. Plan the whole walk, not just this
+            A listed route with at least one stop here. Plan the whole walk, not just this
             borough&rsquo;s corner of it.
           </p>
-          <ul className="boroughCrawlList" aria-label={`Curated crawls through ${name}`}>
+          <ul className="boroughCrawlList" aria-label={`Crawls through ${name}`}>
             {touchingCrawls.map((crawl) => (
               <li key={crawl.id} className="boroughCrawlCard">
                 <div>

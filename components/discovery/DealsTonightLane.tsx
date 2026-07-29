@@ -67,7 +67,7 @@ export default function DealsTonightLane({ rows: providedRows, asOf: providedAsO
         <span className="dealsTonightChecked">{checkedLabel(asOf)}</span>
       </div>
       <p className="dealsTonightLead">
-        Listed offers and experience deals, {meta.badgeLabel.toLowerCase()}.
+        Listed offers and other deals, {meta.badgeLabel.toLowerCase()}.
         Prices and inclusions vary; check the source.
       </p>
       <ul className="dealsTonightList">

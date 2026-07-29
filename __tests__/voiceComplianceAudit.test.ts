@@ -71,4 +71,51 @@ describe("VOICE.md compliance audit", () => {
     expect(mapCanvas).not.toContain("can't paint the map");
     expect(mapCanvas).toContain("This browser or device cannot show the map right now.");
   });
+
+  it("keeps journeys, empty states, and locality copy plain and supportable", () => {
+    const plan = read("components/plan/PlanComposer.tsx");
+    const planPage = read("app/plan/page.tsx");
+    const feed = read("app/feed/FeedPageClient.tsx");
+    const feedCard = read("components/feed/FeedCard.tsx");
+    const today = read("app/today/TodayClient.tsx");
+    const tonight = read("app/tonight/TonightClient.tsx");
+    const near = read("components/nearme/NearMeNow.tsx");
+    const tonightNearby = read("components/discovery/TonightNearbyLane.tsx");
+    const deals = read("components/discovery/DealsTonightLane.tsx");
+    const rivalry = read("components/discovery/CityRivalryTable.tsx");
+    const borough = read("app/borough/[slug]/page.tsx");
+    const memories = read("components/profile/NightMemoryStudio.tsx");
+
+    for (const source of [plan, planPage]) {
+      expect(source).not.toMatch(
+        /capture state|captured coverage|evidence capture|evidence gate|evidence gaps|snapshot/iu,
+      );
+    }
+    expect(planPage).not.toContain("group-chat archaeology");
+    expect(planPage).not.toContain("actually make sense");
+
+    expect(feed).toContain('title="Couldn\'t load Stories."');
+    expect(feed).not.toContain("Couldn't pour the feed.");
+    expect(feed).not.toContain("reach the bar");
+    expect(feed).not.toContain("Capture a Moment");
+    expect(feedCard).not.toContain("Provenance:");
+
+    expect(today).not.toContain("refresh this by hand right now");
+    expect(today).not.toContain("catch up shortly");
+    expect(tonight).not.toContain("same spine as the map");
+
+    expect(near).toContain("Cheapest listed near you");
+    expect(near).not.toContain("Finding the cheapest");
+    expect(near).not.toContain("Pulling up the cheapest");
+
+    expect(tonightNearby).not.toContain("Curated things to do");
+    expect(tonightNearby).not.toContain("Grounded,");
+    expect(tonightNearby).not.toContain("upstream-sourced");
+    expect(deals).not.toContain("experience deals");
+    expect(rivalry).not.toContain(
+      'caption = "UK city energy. Demo Pint Drops, curated crawls',
+    );
+    expect(borough).not.toMatch(/curated (?:route|crawls)/iu);
+    expect(memories).not.toContain("Capture a Moment");
+  });
 });

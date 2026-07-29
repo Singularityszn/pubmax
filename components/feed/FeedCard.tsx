@@ -321,8 +321,8 @@ export default function FeedCard({
               prominence the brief calls for. */}
           <span
             className={`feedSpillProv feedProv-${item.provenance}`}
-            title={`Provenance: ${provLabel}`}
-            aria-label={`Provenance: ${provLabel}`}
+            title={`Source: ${provLabel}`}
+            aria-label={`Source: ${provLabel}`}
           >
             <ProvenanceCheck />
             <span className="feedSpillProvLabel">{provLabel}</span>

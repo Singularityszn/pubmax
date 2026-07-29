@@ -102,7 +102,7 @@ function WeatherCard({ weather }: { weather: WeatherBrief | null }) {
         <>
           {weather.stale ? (
             <p className="todayStale" role="status">
-              {weather.checkedLabel}. It may have moved on. We refresh this by hand right now.
+              {weather.checkedLabel}. It may have moved on. We refresh this by hand.
             </p>
           ) : null}
           <div className="todayCardFootRow">
@@ -123,8 +123,7 @@ function WeatherCard({ weather }: { weather: WeatherBrief | null }) {
         </>
       ) : (
         <p className="todayCardEmpty">
-          No fresh read on the sky just now. Have a look out the window, we&apos;ll
-          catch up shortly.
+          No fresh read on the sky just now. Have a look out the window for this one.
         </p>
       )}
     </section>

@@ -819,7 +819,7 @@ export default function FeedPageClient({
         <h1 className="feedTitle">Stories</h1>
         {showComposeActions ? (
           <div className="feedComposeActions" aria-label="Create">
-            <Link href="/moment" className="feedMomentCta">Capture a Moment</Link>
+            <Link href="/moment" className="feedMomentCta">Share a Moment</Link>
             <Link href="/map?log=1" className="feedDropCta">Log a Pint Drop</Link>
             <Link href="/we-are-out" className="feedMomentCta">We&rsquo;re out</Link>
           </div>
@@ -878,8 +878,8 @@ export default function FeedPageClient({
       ) : isError ? (
         <EmptyState
           className="feedEmpty"
-          title="Couldn't pour the feed."
-          body="We can't reach the bar right now. Check your signal, then give it another go."
+          title="Couldn't load Stories."
+          body="Check your connection, then try again."
           role="alert"
           action={
             <button
@@ -916,7 +916,7 @@ export default function FeedPageClient({
                 Find a pub and drop a pint
               </Link>
               <Link href="/moment" className="feedEmptySecondary">
-                Capture a Moment instead
+                Share a Moment instead
               </Link>
             </div>
           }
