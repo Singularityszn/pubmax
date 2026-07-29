@@ -11,10 +11,6 @@ const mobileCss = readFileSync(
   join(process.cwd(), "components/mobile/mobileMapShell.css"),
   "utf8",
 );
-const priceControl = readFileSync(
-  join(process.cwd(), "components/map/MapPriceControl.tsx"),
-  "utf8",
-);
 const priceCss = readFileSync(
   join(process.cwd(), "components/map/mapPriceControl.css"),
   "utf8",
