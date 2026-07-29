@@ -29,6 +29,10 @@ function setWindow(navigatorOverrides: FakeNavigator = {}): Map<string, string> 
   (globalThis as { navigator?: unknown }).navigator = nav;
   (globalThis as { window?: unknown }).window = {
     location: { pathname: "/tonight" },
+    document: { referrer: "https://example.com/london-pubs" },
+    screen: { width: 1512, height: 982 },
+    innerWidth: 1280,
+    innerHeight: 820,
     localStorage: {
       getItem: (key: string) => values.get(key) ?? null,
       removeItem: (key: string) => values.delete(key),
@@ -69,6 +73,28 @@ describe("trackEvent", () => {
     const [url, blob] = beacon.mock.calls[0];
     expect(url).toBe("/api/events");
     expect(blob).toBeInstanceOf(Blob);
+  });
+
+  it("adds bounded screen, viewport, and original referrer context to a known event", async () => {
+    setWindow();
+    setAnalyticsConsent(true);
+
+    trackEvent("booking_click", { venueId: "venue-1", tier: "direct" });
+
+    const beacon = (globalThis as { navigator: FakeNavigator }).navigator
+      .sendBeacon as ReturnType<typeof vi.fn>;
+    const blob = beacon.mock.calls[0]?.[1] as Blob;
+    const payload = JSON.parse(await blob.text()) as Record<string, unknown>;
+    expect(payload).toMatchObject({
+      name: "booking_click",
+      context: {
+        screenWidth: 1512,
+        screenHeight: 982,
+        viewportWidth: 1280,
+        viewportHeight: 820,
+        referrer: "https://example.com/london-pubs",
+      },
+    });
   });
 
   it("retains a verified event after lost delivery and retries without a beacon", async () => {

@@ -206,14 +206,14 @@ export default function PubmaxxAccountHub() {
     setAnalyticsConsent(granted);
     setAnalyticsConsentState(granted ? "granted" : "denied");
     setMessage(granted
-      ? "Anonymous usage analytics enabled. No handles, messages, voice, or precise location are sent."
-      : "Anonymous usage analytics disabled and the browser analytics ID was removed.");
+      ? "Usage analytics enabled. A persistent device ID and standard browser details are sent, but no handles, messages, voice, or precise location."
+      : "Usage analytics disabled and the persistent browser analytics ID was removed.");
   }
 
   const analyticsControls = (
     <div>
       <h3>Anonymous usage analytics</h3>
-      <p>Help improve journeys with allow-listed product events. This is optional and can be withdrawn here.</p>
+      <p>Help improve journeys with a persistent device ID, standard browser details and allow-listed product events. This is optional and can be withdrawn here.</p>
       <div className="accountHubActions">
         <button type="button" aria-pressed={analyticsConsent === "granted"} onClick={() => updateAnalyticsConsent(true)}>Allow</button>
         <button type="button" aria-pressed={analyticsConsent === "denied"} onClick={() => updateAnalyticsConsent(false)}>No thanks</button>

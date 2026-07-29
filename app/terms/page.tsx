@@ -91,10 +91,14 @@ export default function TermsPage() {
         <p className="legalBody">
           Browsing does not require an account or analytics. First visit asks
           you to tap Allow or No thanks for optional anonymous analytics. You
-          get the same app either way. If you make an account, keep your sign-in
-          to yourself, use a handle that isn&rsquo;t someone else&rsquo;s
-          identity, and don&rsquo;t hand the account to anyone else. You can
-          stop using it whenever you like, and ask us to delete it. See the{" "}
+          get the same app either way. If you allow them, we use a persistent
+          device identifier and collect browser, operating system and device type,
+          screen size, referrer and campaign details, plus app performance and
+          the closed product events described in our privacy notice. If you make
+          an account, keep your sign-in to yourself, use a handle that
+          isn&rsquo;t someone else&rsquo;s identity, and don&rsquo;t hand the
+          account to anyone else. You can stop using it whenever you like, and
+          ask us to delete it. See the{" "}
           <Link href="/privacy" className="legalLink">privacy notice</Link>.
         </p>
       </section>

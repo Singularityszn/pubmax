@@ -2,7 +2,10 @@ import type {
   CaptureResult,
   PostHogConfig,
 } from "posthog-js";
-import { isAnonymousAnalyticsId } from "@/lib/analyticsIdentity";
+import {
+  ANONYMOUS_ANALYTICS_STORAGE_KEY,
+  isAnonymousAnalyticsId,
+} from "@/lib/analyticsIdentity";
 import { analyticsPageviewSurfaceFromPath } from "@/lib/analyticsPath";
 
 const SAFE_EXCEPTION_TYPES = new Set([
@@ -16,7 +19,57 @@ const SAFE_EXCEPTION_TYPES = new Set([
   "TypeError",
   "URIError",
 ]);
-const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const STANDARD_BROWSER_PROPERTIES = new Set([
+  "token",
+  "distinct_id",
+  "$device_id",
+  "$browser",
+  "$browser_version",
+  "$browser_language",
+  "$browser_language_prefix",
+  "$os",
+  "$os_version",
+  "$device",
+  "$device_type",
+  "$raw_user_agent",
+  "$screen_height",
+  "$screen_width",
+  "$viewport_height",
+  "$viewport_width",
+  "$timezone",
+  "$timezone_offset",
+  "$current_url",
+  "$host",
+  "$pathname",
+  "$referrer",
+  "$referring_domain",
+  "$initial_referrer",
+  "$initial_referring_domain",
+  "$lib",
+  "$lib_version",
+  "$insert_id",
+  "$time",
+  "$session_id",
+  "$window_id",
+  "utm_source",
+  "utm_medium",
+  "utm_campaign",
+  "utm_content",
+  "utm_term",
+  "utm_id",
+  "dclid",
+  "gclid",
+  "gad_source",
+  "gbraid",
+  "wbraid",
+  "msclkid",
+  "fbclid",
+  "ttclid",
+  "twclid",
+  "li_fat_id",
+  "mc_cid",
+  "igshid",
+]);
 type PostHogClient = (typeof import("posthog-js"))["default"];
 type PendingPageview = {
   pathname: string;
@@ -39,8 +92,48 @@ function safeExceptionType(value: unknown): string {
     : "Error";
 }
 
+function standardBrowserProperties(
+  properties: CaptureResult["properties"],
+  pathname?: string,
+): CaptureResult["properties"] {
+  const standard = Object.fromEntries(
+    Object.entries(properties).filter(([name]) =>
+      STANDARD_BROWSER_PROPERTIES.has(name) || name.startsWith("$web_vitals_")),
+  );
+  if (pathname) {
+    standard.$pathname = pathname;
+    const currentUrl = properties.$current_url;
+    if (typeof currentUrl === "string") {
+      try {
+        const url = new URL(currentUrl);
+        if (url.protocol === "http:" || url.protocol === "https:") {
+          standard.$current_url = `${url.origin}${pathname}`;
+        } else {
+          delete standard.$current_url;
+        }
+      } catch {
+        delete standard.$current_url;
+      }
+    }
+  }
+  return standard;
+}
+
+function resolvePosthogDeviceId(generatedId: string): string {
+  if (typeof window === "undefined") return generatedId;
+  try {
+    const storedId = window.localStorage.getItem(ANONYMOUS_ANALYTICS_STORAGE_KEY);
+    return isAnonymousAnalyticsId(storedId) ? storedId : generatedId;
+  } catch {
+    return generatedId;
+  }
+}
+
 /**
- * Browser SDK owns explicit anonymous pageviews and anonymous exception counts.
+ * Browser SDK owns explicit pageviews, standard web vitals, and scrubbed
+ * exception counts. Its before-send hook is a closed system-event registry:
+ * DOM autocapture and custom product events are rejected here.
+ *
  * Product events stay on trackEvent -> /api/events, where registry, consent,
  * and DNT are rechecked.
  */
@@ -54,25 +147,38 @@ export function sanitizePosthogEvent(event: CaptureResult | null): CaptureResult
       ? analyticsPageviewSurfaceFromPath(rawPathname)
       : null;
     if (!isAnonymousAnalyticsId(distinctId) || !pathname) return null;
+    if (event.properties.distinct_id !== distinctId) return null;
 
-    const token = event.properties.token;
     return {
       uuid: event.uuid,
       event: "$pageview",
       ...(event.timestamp ? { timestamp: event.timestamp } : {}),
       properties: {
-        ...(typeof token === "string" ? { token } : {}),
+        ...standardBrowserProperties(event.properties, pathname),
         distinct_id: distinctId,
+        $device_id: distinctId,
         $pathname: pathname,
-        $process_person_profile: false,
       },
+    };
+  }
+
+  if (event.event === "$web_vitals") {
+    const distinctId = event.properties.distinct_id;
+    const rawPathname = event.properties.$pathname;
+    const pathname = typeof rawPathname === "string"
+      ? analyticsPageviewSurfaceFromPath(rawPathname)
+      : null;
+    if (!isAnonymousAnalyticsId(distinctId) || !pathname) return null;
+    return {
+      ...event,
+      properties: standardBrowserProperties(event.properties, pathname),
     };
   }
 
   if (event.event !== "$exception") return null;
 
   const distinctId = event.properties.distinct_id;
-  if (typeof distinctId !== "string" || !UUID_PATTERN.test(distinctId)) return null;
+  if (!isAnonymousAnalyticsId(distinctId)) return null;
 
   const rawExceptions = event.properties.$exception_list;
   if (!Array.isArray(rawExceptions) || rawExceptions.length === 0) return null;
@@ -85,21 +191,21 @@ export function sanitizePosthogEvent(event: CaptureResult | null): CaptureResult
     ),
     value: "Redacted",
   }));
-  const token = event.properties.token;
-  const deviceId = event.properties.$device_id;
+  const properties = standardBrowserProperties(event.properties);
+  delete properties.$current_url;
+  delete properties.$pathname;
+  delete properties.$referrer;
+  delete properties.$initial_referrer;
 
   return {
     uuid: event.uuid,
     event: "$exception",
     ...(event.timestamp ? { timestamp: event.timestamp } : {}),
     properties: {
-      ...(typeof token === "string" ? { token } : {}),
+      ...properties,
       distinct_id: distinctId,
-      ...(typeof deviceId === "string" && UUID_PATTERN.test(deviceId)
-        ? { $device_id: deviceId }
-        : {}),
+      $device_id: distinctId,
       $exception_list: exceptionList,
-      $process_person_profile: false,
     },
   };
 }
@@ -121,7 +227,7 @@ export const posthogBrowserConfig = {
   rageclick: false,
   capture_pageview: false,
   capture_pageleave: false,
-  capture_performance: false,
+  capture_performance: true,
   capture_heatmaps: false,
   capture_dead_clicks: false,
   disable_session_recording: true,
@@ -130,11 +236,12 @@ export const posthogBrowserConfig = {
   disable_conversations: true,
   disable_external_dependency_loading: false,
   request_batching: false,
-  persistence: "memory",
-  save_campaign_params: false,
-  save_referrer: false,
+  persistence: "localStorage+cookie",
+  save_campaign_params: true,
+  save_referrer: true,
+  get_device_id: resolvePosthogDeviceId,
   opt_in_site_apps: false,
-  person_profiles: "never",
+  person_profiles: "always",
   advanced_disable_flags: true,
   opt_out_capturing_by_default: true,
   opt_out_persistence_by_default: true,
@@ -183,6 +290,11 @@ export function syncPosthogConsent(consentAllowed: boolean): void {
     if (!initialized) {
       loadedClient.init(token, posthogBrowserConfig);
       initialized = true;
+    } else {
+      // opt-out clears PostHog persistence. Re-seed from the newly created
+      // consent-scoped ID before capture resumes so SDK Web Vitals and named
+      // events keep one device identity after a later opt-in.
+      loadedClient.reset(true);
     }
     if (revision !== consentRevision) {
       loadedClient.opt_out_capturing();

@@ -4,6 +4,11 @@ This is the operational status of the provider boundaries defined by
 `docs/adr/0007-observability-provider-boundaries.md`. It records evidence; it
 does not replace `docs/MASTER_PRD.md`.
 
+The privacy-minimal PostHog assertions certified on 26 July 2026 were
+superseded by ADR 0009. The current standard product analytics implementation
+requires fresh provider-side retention verification before production
+certification.
+
 ## Certified in code
 
 - Product events pass through the closed `ANALYTICS_EVENTS` registry and are
@@ -19,13 +24,15 @@ does not replace `docs/MASTER_PRD.md`.
   collection.
 - Vercel Analytics uses `beforeSend` to cancel pre-consent pageviews. It is not
   a second custom-event rail.
-- PostHog capture targets the EU endpoint and disables person-profile
-  processing. Product events remain registry-known; explicit pageviews carry
-  only a coarse templated path.
+- PostHog capture targets the EU endpoint and enables pseudonymous
+  person/device profiles. Product events remain registry-known; explicit
+  pageviews carry a coarse templated path plus standard browser and device
+  context.
 - PostHog browser exception capture is separately consent-gated and strips
   messages, stack traces, URLs, and arbitrary context before EU ingest. Its
-  SDK persistence is memory-only, so page and referrer metadata cannot enter a
-  PostHog cookie.
+  pseudonymous device identifier persists across page loads and sessions after
+  consent, alongside bounded standard browser context, referrer and campaign
+  attribution, and Web Vitals.
 - The registry contains no streak, freeze, drink-count, alcohol-quantity, or
   consumption-based progression event. Tests pin that absence.
 - Supabase remains authoritative for PNC through the service-role-only
@@ -48,7 +55,9 @@ To finish production certification:
 4. Prove no event is received before consent or under Do Not Track.
 5. Create funnels/cohorts from registry event names only. Never capture free
    text, handles, messages, voice content, or coordinates.
-6. Record dashboard URLs, retention settings, deletion procedure, project
+6. Configure and verify event deletion 12 months after collection and
+   person/device profile deletion 12 months after last activity.
+7. Record dashboard URLs, retention settings, deletion procedure, project
    region, exact deployment IDs, and a redacted event sample in the Wave 0
    Wayfinder issue.
 

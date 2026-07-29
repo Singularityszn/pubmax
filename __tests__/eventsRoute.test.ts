@@ -144,17 +144,31 @@ describe("POST /api/events", () => {
     process.env.POSTHOG_PROJECT_API_KEY = "phc_test_project";
     const fetchMock = vi.fn().mockResolvedValue(new Response(null, { status: 200 }));
     vi.stubGlobal("fetch", fetchMock);
-    vi.spyOn(console, "log").mockImplementation(() => {});
+    const log = vi.spyOn(console, "log").mockImplementation(() => {});
 
     const before = Date.now();
-    const res = await POST(post(JSON.stringify({
-      name: "plan_created",
-      props: { count: 3, freeText: "do not forward" },
-      path: "/plan?memberToken=secret",
-      anonymousId: "anon_0123456789abcdef",
-      analyticsConsent: true,
-      ts: 123,
-    })));
+    const res = await POST(post(
+      JSON.stringify({
+        name: "plan_created",
+        props: { count: 3, freeText: "do not forward" },
+        path: "/plan?memberToken=secret",
+        anonymousId: "anon_0123456789abcdef",
+        analyticsConsent: true,
+        context: {
+          screenWidth: 1512,
+          screenHeight: 982,
+          viewportWidth: 1280,
+          viewportHeight: 820,
+          referrer: "https://example.com/london-pubs",
+        },
+        ts: 123,
+      }),
+      {
+        "x-forwarded-for": "203.0.113.24",
+        "user-agent": "Mozilla/5.0 PubmaxxBrowser/18.0",
+        referer: "https://pubmaxxing.com/plan?memberToken=secret",
+      },
+    ));
     const after = Date.now();
 
     expect(res.status).toBe(204);
@@ -175,10 +189,49 @@ describe("POST /api/events", () => {
       count: 3,
       path: "/plan",
       distinct_id: "anon_0123456789abcdef",
-      $process_person_profile: false,
+      $ip: "203.0.113.24",
+      $raw_user_agent: "Mozilla/5.0 PubmaxxBrowser/18.0",
+      $referrer: "https://example.com/london-pubs",
+      $screen_width: 1512,
+      $screen_height: 982,
+      $viewport_width: 1280,
+      $viewport_height: 820,
     });
+    expect(payload.properties).not.toHaveProperty("$process_person_profile");
     expect(JSON.stringify(payload)).not.toContain("memberToken");
     expect(JSON.stringify(payload)).not.toContain("freeText");
+    expect(JSON.stringify(log.mock.calls)).not.toContain("203.0.113.24");
+    expect(JSON.stringify(log.mock.calls)).not.toContain("Mozilla/5.0");
+  });
+
+  it("drops malformed client context before forwarding", async () => {
+    process.env.POSTHOG_PROJECT_API_KEY = "phc_test_project";
+    const fetchMock = vi.fn().mockResolvedValue(new Response(null, { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+    vi.spyOn(console, "log").mockImplementation(() => {});
+
+    await POST(post(JSON.stringify({
+      name: "tonight_screen_view",
+      anonymousId: "anon_0123456789abcdef",
+      analyticsConsent: true,
+      context: {
+        screenWidth: -1,
+        screenHeight: 1_000_000,
+        viewportWidth: "1280",
+        viewportHeight: Number.NaN,
+        referrer: "javascript:alert(document.cookie)",
+        accountId: "supabase-user-id",
+      },
+    })));
+
+    const payload = JSON.parse(String((fetchMock.mock.calls[0]?.[1] as RequestInit).body));
+    expect(payload.properties).not.toHaveProperty("$screen_width");
+    expect(payload.properties).not.toHaveProperty("$screen_height");
+    expect(payload.properties).not.toHaveProperty("$viewport_width");
+    expect(payload.properties).not.toHaveProperty("$viewport_height");
+    expect(payload.properties).not.toHaveProperty("$referrer");
+    expect(JSON.stringify(payload)).not.toContain("supabase-user-id");
+    expect(JSON.stringify(payload)).not.toContain("javascript:");
   });
 
   it("uses the public PostHog project token without adding an SDK identity seam", async () => {

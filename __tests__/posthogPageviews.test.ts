@@ -5,6 +5,7 @@ const posthogState = vi.hoisted(() => ({
   initCount: 0,
   moduleLoads: 0,
   optedOut: true,
+  resetCalls: [] as boolean[],
 }));
 
 vi.mock("posthog-js", () => {
@@ -17,6 +18,9 @@ vi.mock("posthog-js", () => {
       init: () => { posthogState.initCount += 1; },
       opt_in_capturing: () => { posthogState.optedOut = false; },
       opt_out_capturing: () => { posthogState.optedOut = true; },
+      reset: (resetDeviceId?: boolean) => {
+        posthogState.resetCalls.push(resetDeviceId === true);
+      },
     },
   };
 });
@@ -28,6 +32,7 @@ afterEach(() => {
   posthogState.initCount = 0;
   posthogState.moduleLoads = 0;
   posthogState.optedOut = true;
+  posthogState.resetCalls = [];
   delete process.env.NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN;
 });
 
@@ -149,6 +154,7 @@ describe("explicit PostHog pageviews", () => {
         },
       ]);
     });
+    expect(posthogState.resetCalls).toEqual([true]);
   });
 
   it("does not count query-only navigation and never sends query data", async () => {

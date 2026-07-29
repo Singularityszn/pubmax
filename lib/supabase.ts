@@ -158,8 +158,10 @@ export async function checkRateLimitDurable(
 }
 
 /**
- * Client IP for rate-limit keying only — always sha256-hashed (hashIp) before
- * it is stored or logged; raw IPs never leave the request handler.
+ * Client IP for request-boundary use. Most callers immediately sha256-hash it
+ * with hashIp for rate limits, so raw IPs are never stored or logged. The
+ * consent-gated analytics route is the narrow exception: it validates the
+ * address and forwards it to PostHog without writing it to PUBMAXX storage.
  *
  * M1 trust boundary: `x-forwarded-for` is client-suppliable. On Vercel the
  * edge normalises it (left-most entry = real client), which this deployment

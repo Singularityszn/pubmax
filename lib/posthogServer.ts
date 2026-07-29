@@ -19,6 +19,13 @@ export async function capturePosthogEvent(input: {
   path: string | null;
   anonymousId: unknown;
   analyticsConsent: unknown;
+  clientIp?: string;
+  userAgent?: string;
+  referrer?: string;
+  screenWidth?: number;
+  screenHeight?: number;
+  viewportWidth?: number;
+  viewportHeight?: number;
   insertId?: string;
   occurredAt?: string;
 }): Promise<boolean> {
@@ -36,7 +43,13 @@ export async function capturePosthogEvent(input: {
           ...input.event.props,
           path: input.path,
           distinct_id: input.anonymousId,
-          $process_person_profile: false,
+          ...(input.clientIp ? { $ip: input.clientIp } : {}),
+          ...(input.userAgent ? { $raw_user_agent: input.userAgent } : {}),
+          ...(input.referrer ? { $referrer: input.referrer } : {}),
+          ...(input.screenWidth ? { $screen_width: input.screenWidth } : {}),
+          ...(input.screenHeight ? { $screen_height: input.screenHeight } : {}),
+          ...(input.viewportWidth ? { $viewport_width: input.viewportWidth } : {}),
+          ...(input.viewportHeight ? { $viewport_height: input.viewportHeight } : {}),
           ...(input.insertId ? { $insert_id: input.insertId } : {}),
         },
         timestamp: input.occurredAt ?? new Date().toISOString(),

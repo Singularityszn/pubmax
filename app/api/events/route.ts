@@ -1,31 +1,35 @@
-// POST /api/events — self-owned, privacy-first analytics ingest (Wave D · D0).
+// POST /api/events - self-owned, consent-gated product analytics ingest.
 //
 // The client beacon (lib/analytics.ts) posts a single registry-known event with
-// allow-listed primitive props. This route re-validates against the SAME
-// registry (never trust the client), drops anything unknown or unsafe, and
-// records the event. When POSTHOG_PROJECT_API_KEY is configured, the same
-// sanitized event is forwarded to PostHog's EU ingest with a pseudonymous
-// browser-generated id and person-profile processing disabled. No IP, account,
-// handle, free text, query string, or precise location is added by this route.
+// allow-listed primitive props plus bounded screen, viewport, and original
+// referrer context. This route re-validates both shapes (never trust the
+// client), drops anything unknown or unsafe, and records the named event. When
+// PostHog is configured, the provider receives the persistent consent-created
+// device id, browser screen context, original referrer, request user agent, and
+// client IP so standard browser/OS/device analytics and person-level retention
+// work. Account identity, handles, free text, query-bearing app paths, and
+// precise location are never attached.
 //
 // Events are also emitted as a structured server log line
-// (`[pubmax-analytics] …`) for release diagnosis. Both sinks fail soft:
+// (`[pubmax-analytics] ...`) for release diagnosis. That owned log deliberately
+// excludes the IP, user agent, and referrer. Both sinks fail soft:
 // malformed input or a provider outage returns 204 and never breaks a journey.
 // Verified loop outcomes add a response header so the bounded client outbox can
 // retry without exposing transport failures to the product UI.
 //
 // This is a public, unauthenticated endpoint, so it also carries its own
 // abuse guards: a per-hashed-IP rate limit (isEventsRateLimited) and a
-// server-side DNT check, both below. Neither ever stores or logs the raw IP —
-// see lib/eventsRateLimit.ts — so the "no identifier is stored" guarantee
-// above still holds; the hash exists only for the lifetime of the counter
-// check.
+// server-side DNT check, both below. PUBMAXX never stores or logs the raw IP:
+// the limiter stores only its hash, while this consented request passes the raw
+// value straight through to PostHog.
 
+import { isIP } from "node:net";
 import { sanitizeEvent } from "@/lib/analyticsEvents";
 import { analyticsSurfaceFromPath } from "@/lib/analyticsPath";
 import { isAnonymousAnalyticsId } from "@/lib/analyticsIdentity";
 import { isEventsRateLimited } from "@/lib/eventsRateLimit";
 import { capturePosthogEvent, isPosthogConfigured } from "@/lib/posthogServer";
+import { clientIp } from "@/lib/supabase";
 import { analyticsReceiptStore } from "@/lib/analyticsReceiptStore";
 import { analyticsDeliveryTokenDigest, verifyAnalyticsDeliveryToken } from "@/lib/verifiedAnalytics.server";
 import { isTrustedSigningKeyUnavailableError, trustedSigningKey } from "@/lib/trustedSigningKey.server";
@@ -33,7 +37,10 @@ import { isTrustedSigningKeyUnavailableError, trustedSigningKey } from "@/lib/tr
 export const runtime = "nodejs";
 
 // Beacon payloads are tiny; anything larger is not one of ours.
-const MAX_BODY_BYTES = 2_000;
+const MAX_BODY_BYTES = 6_000;
+const MAX_BROWSER_DIMENSION = 32_768;
+const MAX_USER_AGENT_LENGTH = 1_000;
+const MAX_REFERRER_LENGTH = 2_048;
 
 function noContent(delivery?: "delivered" | "retry" | "discard"): Response {
   return new Response(null, {
@@ -51,6 +58,37 @@ function requiresVerifiedDelivery(name: string, props: Record<string, string | n
     || name === "crew_committed"
     || name === "plan_completed"
     || (name === "meaningful_core_action" && ["plan_accepted", "plan_completed"].includes(String(props.action)));
+}
+
+function safeDimension(value: unknown): number | undefined {
+  return typeof value === "number"
+    && Number.isInteger(value)
+    && value > 0
+    && value <= MAX_BROWSER_DIMENSION
+    ? value
+    : undefined;
+}
+
+function safeUserAgent(value: string | null): string | undefined {
+  if (!value || value.length > MAX_USER_AGENT_LENGTH || /[\r\n]/.test(value)) return undefined;
+  return value;
+}
+
+function safeReferrer(value: unknown): string | undefined {
+  if (typeof value !== "string" || value.length === 0 || value.length > MAX_REFERRER_LENGTH) {
+    return undefined;
+  }
+  try {
+    const url = new URL(value);
+    return url.protocol === "http:" || url.protocol === "https:" ? url.toString() : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+function safeClientIp(request: Request): string | undefined {
+  const value = clientIp(request);
+  return isIP(value) ? value : undefined;
 }
 
 export async function POST(req: Request): Promise<Response> {
@@ -79,13 +117,14 @@ export async function POST(req: Request): Promise<Response> {
     }
     if (!body || typeof body !== "object") return noContent();
 
-    const { name, props, path, anonymousId, analyticsConsent, deliveryToken } = body as {
+    const { name, props, path, anonymousId, analyticsConsent, deliveryToken, context } = body as {
       name?: unknown;
       props?: unknown;
       path?: unknown;
       anonymousId?: unknown;
       analyticsConsent?: unknown;
       deliveryToken?: unknown;
+      context?: unknown;
     };
     if (typeof name !== "string") return noContent();
 
@@ -100,9 +139,12 @@ export async function POST(req: Request): Promise<Response> {
       return noContent();
     }
 
-    // Coarse path only (own-origin pathname), no query, capped — never a URL
+    // Coarse path only (own-origin pathname), no query, capped - never a URL
     // that could carry a token.
     const safePath = analyticsSurfaceFromPath(path);
+    const browserContext = context && typeof context === "object"
+      ? context as Record<string, unknown>
+      : {};
     const verified = requiresVerifiedDelivery(event.name, event.props);
     if (verified) {
       try {
@@ -144,6 +186,13 @@ export async function POST(req: Request): Promise<Response> {
       path: safePath,
       anonymousId,
       analyticsConsent,
+      clientIp: safeClientIp(req),
+      userAgent: safeUserAgent(req.headers.get("user-agent")),
+      referrer: safeReferrer(browserContext.referrer),
+      screenWidth: safeDimension(browserContext.screenWidth),
+      screenHeight: safeDimension(browserContext.screenHeight),
+      viewportWidth: safeDimension(browserContext.viewportWidth),
+      viewportHeight: safeDimension(browserContext.viewportHeight),
       ...(delivery ? { insertId: delivery.eventId } : {}),
       ...(delivery ? { occurredAt: new Date(delivery.issuedAt).toISOString() } : {}),
     });
