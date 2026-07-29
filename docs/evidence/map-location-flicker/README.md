@@ -5,10 +5,10 @@
 Setup: Chromium at 1600 by 1000, dark theme, no stored location permission,
 Manchester coordinates (`53.4808, -2.2426`), and tours suppressed so they could
 not cover the map. Geolocation was granted at browser-context level before page
-load. Loading `/map/manchester` then exercised `CitySuggestBanner`'s granted
-permission reuse, which calls the same `onLocationFound` callback as its
-explicit control. Returning the settled camera to the full Manchester view
-exposed the cluster renderer.
+load. After loading `/map/manchester`, the attached location control was clicked
+programmatically so banner CSS could not prevent the test from exercising its
+exact `checkNearby` and `onLocationFound` path. Returning the settled camera to
+the full Manchester view exposed the cluster renderer.
 
 - **Initiating trigger:** Permission grant was not sufficient by itself.
   Position arrival created the location camera transition, but nearby pin zoom
@@ -88,11 +88,18 @@ zoom boundary still deactivates immediately. Density, clustering, and collision
 contracts are unchanged.
 
 After the fix, 40 samples taken 100 ms apart all retained the same 29 DOM
-markers. The Playwright journey and focused unit regression cover both sides:
-transient render emptiness retains markers, while settled moveend emptiness
-clears them.
+markers. That time series, rather than a single still frame, is the evidence
+that alternation stopped. The Playwright journey and focused unit regression
+cover both sides: transient render emptiness retains markers, while settled
+moveend emptiness clears them.
 
-![Stable Manchester clusters after granted location](after-stable-dom-donuts.png)
+These loaded-basemap frames are 1.5 seconds apart at the same settled desktop
+Manchester viewport after granted location. Cluster symbols remain in the same
+renderer state and positions.
+
+| Stable after frame A | Stable after frame B |
+| --- | --- |
+| ![Stable Manchester clusters after granted location](after-stable-clusters-a.png) | ![Same stable Manchester clusters 1.5 seconds later](after-stable-clusters-b.png) |
 
 For comparison, MapLibre 5.24.0 remained stable on the legacy renderer:
 
@@ -105,9 +112,11 @@ with no prior permission, its DOM appeared in all eight after hydration, but it
 had a painted box in only one by 7.75 seconds. In the other seven,
 `mapBannerStaging.css` hid `CitySuggestBanner` because an asynchronously loaded
 `cityStatusBanner` has higher presentation priority. This is banner staging,
-not MapLibre source reconciliation. Flicker reproduced with permission
-pre-granted and the control entirely bypassed, so control visibility did not
-correlate with the renderer loop.
+not MapLibre source reconciliation. The deterministic pre-fix journey clicked
+the attached control through the DOM whether or not CSS painted it, and the
+renderer loop then persisted independently at cluster zoom. No correlation was
+observed, but the eight-context paint survey did not run the full flicker
+journey in every context. Treat the 7-of-8 control defect as separate work.
 
 ## Design craft observation
 

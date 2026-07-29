@@ -492,10 +492,14 @@ test("/map keeps Manchester cluster markers mounted after granted location settl
   await context.grantPermissions(["geolocation"]);
   await context.setGeolocation({ latitude: 53.4808, longitude: -2.2426 });
 
-  // Load Manchester with permission already granted. CitySuggestBanner reuses
-  // that position automatically and calls the same onLocationFound callback as
-  // its explicit Near me control, without depending on that control rendering.
+  // Load Manchester with permission already granted, then invoke the attached
+  // control directly. Banner staging may hide it, but HTMLElement.click still
+  // exercises the same checkNearby/onLocationFound path as a painted control.
   await page.goto("/map/manchester");
+  const nearMe = page.locator("button.citySuggestBannerSwitch");
+  await expect(nearMe).toBeAttached({ timeout: 20_000 });
+  await expect(nearMe).toBeEnabled({ timeout: 20_000 });
+  await nearMe.evaluate((button: HTMLButtonElement) => button.click());
   await expect(page.locator(".mapUserLocationMarker")).toBeVisible({
     timeout: 20_000,
   });
