@@ -71,6 +71,12 @@ import type {
   ContributionRecordReadResult,
 } from "@/lib/contributorLeaderboard";
 import { normalizeHandle } from "@/lib/profiles";
+import type { RoundPriceSource } from "@/lib/rounds";
+import {
+  markRoundPriceSourcePromoted,
+  markRoundPriceSourceSuperseded,
+  roundPriceSourceStatus,
+} from "@/lib/roundsStore";
 import { MAX_PROVISIONAL_BASE_VENUE_IDS } from "@/lib/ukBasePubs";
 import {
   admin,
@@ -81,17 +87,17 @@ import {
 
 export type CommunityPriceWrite = CommunityPriceInput & {
   /**
-   * Stable, opaque token for the submitter (server-derived hashed IP in the
-   * route). Lets one device replace its OWN earlier observation for the same
-   * drink instead of stacking duplicates. When omitted the write still lands,
-   * it just can't be attributed back to a device.
+   * Stable, opaque contributor key. Public contribution routes derive it from
+   * the authenticated profile id. Lets one account replace its OWN earlier
+   * observation for the same drink instead of stacking duplicates.
    */
   actor?: string;
   /**
-   * Existing public PUBMAXX handle, when this browser already has one. Price
-   * logging stays valid without it; anonymous rows never enter a named board.
+   * Server-derived public PUBMAXX handle. Optional here for legacy rows and
+   * internal imports; public contribution routes require account ownership.
    */
   contributorHandle?: string;
+  roundSource?: RoundPriceSource;
 };
 
 export type CommunityPriceWriteResult = {
@@ -99,10 +105,11 @@ export type CommunityPriceWriteResult = {
   price: CommunityPrice | null;
   /** Set when a durable write hard-failed - the submission was NOT recorded. */
   failed?: true;
+  sourceBecameOwner?: boolean;
 };
 
 export type CommunityVenueSignalWrite = CommunityVenueSignalInput & {
-  /** Same server-derived opaque contributor token community prices use. */
+  /** Same server-derived opaque contributor key community prices use. */
   actor?: string;
 };
 
@@ -305,6 +312,7 @@ type StoredPrice = CommunityPrice & {
   id: string;
   actor: string | null;
   contributorHandle: string | null;
+  roundSource: RoundPriceSource | null;
 } & StoredModeration;
 
 type StoredVenueSignal = CommunityVenueSignal & {
@@ -342,6 +350,33 @@ function normalize(
   return { venueId, drinkCategory: input.drinkCategory, pennies };
 }
 
+function cleanRoundPriceSource(
+  value: RoundPriceSource | undefined,
+): RoundPriceSource | null {
+  if (
+    !value ||
+    typeof value.spendId !== "string" ||
+    value.spendId.trim() === "" ||
+    !Number.isInteger(value.lineIndex) ||
+    value.lineIndex < 0
+  ) {
+    return null;
+  }
+  return { spendId: value.spendId, lineIndex: value.lineIndex };
+}
+
+function sameRoundPriceSource(
+  left: RoundPriceSource | null,
+  right: RoundPriceSource | null,
+): boolean {
+  return (
+    left !== null &&
+    right !== null &&
+    left?.spendId === right?.spendId &&
+    left?.lineIndex === right?.lineIndex
+  );
+}
+
 function toPrice(
   venueId: string,
   drinkCategory: DrinkCategory,
@@ -359,12 +394,12 @@ function toPrice(
 
 /**
  * The bucket a row counts as ONE submitter under. An attributed row is its own
- * device. Unattributed rows (actor null - IP hashing was unavailable) all share
- * a single bucket: we cannot prove two of them came from different people, and
- * the whole point of the threshold is INDEPENDENCE, so the honest reading is
- * "at most one unattributed voice". Note this is stricter than the durable
- * table's unique constraint, which lets NULL-actor rows stack - deliberately:
- * storage keeps every observation, the trust count refuses to assume they are
+ * contributor. Legacy or imported rows without an actor all share a single
+ * bucket: we cannot prove two of them came from different people, and the whole
+ * point of the threshold is INDEPENDENCE, so the honest reading is "at most one
+ * unattributed voice". Note this is stricter than the durable table's unique
+ * constraint, which lets NULL-actor rows stack - deliberately: storage keeps
+ * every observation, while the trust count refuses to assume they are
  * different drinkers.
  */
 function submitterBucket(actor: string | null): string {
@@ -515,7 +550,7 @@ function contributorCountsFromRows(
 /**
  * How many INDEPENDENT submitters back `reference`, counting whoever logged it.
  * Only rows for the same drink category that agree within the shared tolerance
- * count; a device that reported a different figure is not corroborating this
+ * count; a contributor who reported a different figure is not corroborating this
  * one, it is contradicting it.
  */
 function countCorroborations(rows: StoredPrice[], reference: StoredPrice): number {
@@ -582,7 +617,7 @@ function freshestPerCategory(allRows: StoredPrice[], now: number): CommunityPric
   const byCategory = new Map<DrinkCategory, StoredPrice>();
   for (const row of rows) {
     const held = byCategory.get(row.drinkCategory);
-    // `>=`, not `>`: two devices CAN land in the same millisecond, and a strict
+    // `>=`, not `>`: two submissions CAN land in the same millisecond, and a strict
     // comparison silently made "freshest wins" mean "first of the tie wins" -
     // so the second drinker's price was dropped from the read and their tap
     // never showed. On a tie the later row in the scan wins, which is the later
@@ -838,16 +873,39 @@ export const memoryCommunityPriceStore: CommunityPriceStore = {
   async submit(input, now = Date.now()) {
     const key = normalize(input);
     if (!key) return { price: null };
+    const roundSource = cleanRoundPriceSource(input.roundSource);
     const stored: StoredPrice = {
       ...toPrice(key.venueId, key.drinkCategory, key.pennies, now),
       id: randomUUID(),
       actor: input.actor ?? null,
       contributorHandle: normalizeHandle(input.contributorHandle) || null,
+      roundSource,
       hidden: false,
       reportCount: 0,
     };
     const rows = venues.get(key.venueId) ?? [];
-    // One live observation per (venue, category, actor): a device correcting
+    if (roundSource) {
+      if (!stored.actor) return { price: null };
+      const sourceStatus = roundPriceSourceStatus(
+        roundSource,
+        stored.actor,
+        stored.venueId,
+        stored.drinkCategory,
+      );
+      if (sourceStatus === "promoted") {
+        const owned = rows.find(
+          (row) =>
+            row.actor === stored.actor &&
+            row.drinkCategory === stored.drinkCategory &&
+            sameRoundPriceSource(row.roundSource, roundSource),
+        );
+        return owned
+          ? { price: published(owned), sourceBecameOwner: true }
+          : { price: null };
+      }
+      if (sourceStatus !== "ready") return { price: null };
+    }
+    // One live observation per (venue, category, actor): a contributor correcting
     // its own entry replaces it rather than stacking a second row, so one
     // person can't weight a venue's community price twice.
     const isOwnEarlier = (row: StoredPrice) =>
@@ -855,6 +913,23 @@ export const memoryCommunityPriceStore: CommunityPriceStore = {
       row.actor !== null &&
       row.actor === stored.actor;
     const replaced = rows.find(isOwnEarlier);
+    if (replaced && replaced.submittedAt > stored.submittedAt) {
+      const sourceBecameOwner = sameRoundPriceSource(
+        replaced.roundSource,
+        roundSource,
+      );
+      if (roundSource && stored.actor) {
+        if (sourceBecameOwner) {
+          markRoundPriceSourcePromoted(roundSource, stored.actor);
+        } else {
+          markRoundPriceSourceSuperseded(roundSource, stored.actor);
+        }
+      }
+      return {
+        price: published(replaced),
+        ...(roundSource ? { sourceBecameOwner } : {}),
+      };
+    }
     const kept = rows.filter((row) => !isOwnEarlier(row));
     // Moderation survives the correction. The durable backend's upsert writes
     // only the price columns, so `hidden_at` and the report metadata stay put
@@ -862,6 +937,16 @@ export const memoryCommunityPriceStore: CommunityPriceStore = {
     // hidden submitter could wash their price simply by logging it again -
     // and the two backends would disagree about whether that works.
     if (replaced) {
+      if (
+        replaced.roundSource &&
+        !sameRoundPriceSource(replaced.roundSource, roundSource) &&
+        replaced.actor
+      ) {
+        markRoundPriceSourceSuperseded(
+          replaced.roundSource,
+          replaced.actor,
+        );
+      }
       stored.hidden = replaced.hidden;
       stored.reportCount = replaced.reportCount;
       stored.reportedAt = replaced.reportedAt;
@@ -875,8 +960,14 @@ export const memoryCommunityPriceStore: CommunityPriceStore = {
     }
     kept.push(stored);
     venues.set(key.venueId, kept);
+    if (roundSource && stored.actor) {
+      markRoundPriceSourcePromoted(roundSource, stored.actor);
+    }
     evictIfNeeded();
-    return { price: published(stored) };
+    return {
+      price: published(stored),
+      ...(roundSource ? { sourceBecameOwner: true } : {}),
+    };
   },
 
   async submitSignal(input, now = Date.now()) {
@@ -1097,6 +1188,7 @@ function rowsToPrices(rows: unknown, venueId: string): StoredPrice[] {
       id,
       actor,
       contributorHandle,
+      roundSource: null,
       // `hidden_at` absent (older projection) reads as VISIBLE, which is what
       // the table meant before moderation existed.
       hidden: typeof row.hidden_at === "string" && row.hidden_at !== "",
@@ -1245,10 +1337,11 @@ export const supabaseCommunityPriceStore: CommunityPriceStore = {
     const key = normalize(input);
     if (!key) return { price: null };
     const submittedAt = new Date(now).toISOString();
-    // Anonymous submissions have no actor to conflict on, so they insert;
-    // attributed ones upsert over this device's own earlier entry for the
+    // Legacy or imported submissions without an actor insert independently;
+    // attributed ones upsert over that contributor's own earlier entry for the
     // same drink. Matches the memory store's replace-your-own rule.
     const actor = input.actor ?? null;
+    const roundSource = cleanRoundPriceSource(input.roundSource);
     // Pinned to the store's public result type: `run` returns a stored price on
     // the happy path, but the schema-miss and error paths legitimately resolve
     // to `{ price: null, failed: true }`, and inference off `run` alone would
@@ -1272,24 +1365,59 @@ export const supabaseCommunityPriceStore: CommunityPriceStore = {
           actor,
           contributor_handle:
             normalizeHandle(input.contributorHandle) || null,
+          round_spend_id: roundSource?.spendId ?? null,
+          round_line_index: roundSource?.lineIndex ?? null,
           submitted_at: submittedAt,
         };
         // `.select("id")` so the submitter's own receipt carries the handle it
         // would need to be reported by - and so a correction (the upsert) hands
         // back the surviving row's id, not the replaced one's.
         const { data, error } = actor
-          ? await admin()
-              .from("community_prices")
-              .upsert(row, { onConflict: "venue_id,drink_category,actor" })
-              .select("id")
+          ? await admin().rpc(
+              "upsert_attributed_community_price_if_newer",
+              {
+                p_actor: actor,
+                p_contributor_handle: row.contributor_handle,
+                p_drink_category: row.drink_category,
+                p_price_pennies: row.price_pennies,
+                p_round_line_index: row.round_line_index,
+                p_round_spend_id: row.round_spend_id,
+                p_submitted_at: row.submitted_at,
+                p_venue_id: row.venue_id,
+              },
+            )
           : await admin().from("community_prices").insert(row).select("id");
         if (error) throw new Error(error.message);
-        const id = Array.isArray(data) && typeof data[0]?.id === "string" ? data[0].id : undefined;
+        const saved =
+          Array.isArray(data) && data[0] && typeof data[0] === "object"
+            ? (data[0] as Record<string, unknown>)
+            : {};
+        const id = typeof saved.id === "string" ? saved.id : undefined;
+        const savedPennies = Number(saved.price_pennies);
+        const savedAt =
+          typeof saved.submitted_at === "string"
+            ? Date.parse(saved.submitted_at)
+            : now;
+        const sourceBecameOwner =
+          typeof saved.source_became_owner === "boolean"
+            ? saved.source_became_owner
+            : undefined;
+        if (roundSource && sourceBecameOwner === undefined) {
+          return { price: null };
+        }
         return {
           price: {
-            ...toPrice(key.venueId, key.drinkCategory, key.pennies, now),
+            ...toPrice(
+              key.venueId,
+              key.drinkCategory,
+              Number.isInteger(savedPennies) ? savedPennies : key.pennies,
+              Number.isFinite(savedAt) ? savedAt : now,
+            ),
             ...(id ? { id } : {}),
           },
+          ...(roundSource && sourceBecameOwner !== undefined
+            ? { sourceBecameOwner }
+            : {}),
         };
       },
     });

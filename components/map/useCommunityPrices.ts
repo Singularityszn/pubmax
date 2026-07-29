@@ -24,7 +24,8 @@ import type {
   VenuePriceReadStatus,
 } from "@/lib/mapExperienceLens";
 import type { PriceSubmitFailureReason } from "@/lib/analyticsEvents";
-import { authedFetch } from "@/lib/authedFetch";
+import type { AccountAuthSnapshot } from "@/lib/accountBoundFetch";
+import { postCommunityContribution } from "@/lib/communityContributionClient";
 import { normalizeHandle } from "@/lib/profiles";
 import {
   isUkBaseId,
@@ -51,10 +52,11 @@ import {
 // `corroborations: 1` and the POST response supplies the real number. Claiming
 // more locally would flash a pin colour the server is about to take back.
 
-type CommunitySubmissionFailure = {
+export type CommunitySubmissionFailure = {
   ok: false;
   error: string;
   reason: PriceSubmitFailureReason;
+  status?: "sign_in_required" | "onboarding_required";
 };
 
 export type CommunityPriceSubmitResult =
@@ -67,6 +69,29 @@ export type CommunityPriceSubmitResult =
 export type CommunityVenueSignalSubmitResult =
   | { ok: true }
   | CommunitySubmissionFailure;
+
+export function rejectedCommunitySubmission(
+  status: number,
+  error: string | undefined,
+  fallback: string,
+  gateStatus?: string,
+): CommunitySubmissionFailure {
+  const contributionStatus =
+    gateStatus === "sign_in_required" ||
+    gateStatus === "onboarding_required"
+      ? gateStatus
+      : status === 401
+        ? "sign_in_required"
+        : status === 409
+          ? "onboarding_required"
+          : null;
+  return {
+    ok: false,
+    error: error ?? fallback,
+    reason: "rejected",
+    ...(contributionStatus ? { status: contributionStatus } : {}),
+  };
+}
 
 export type CommunityPricesState = {
   /** Freshest community price per drink category, by venue id. Ungated on
@@ -116,13 +141,13 @@ export type CommunityPricesState = {
     venueId: string;
     drinkCategory: DrinkCategory;
     priceGbp: string | number;
-  }) => Promise<CommunityPriceSubmitResult>;
+  }, auth: AccountAuthSnapshot) => Promise<CommunityPriceSubmitResult>;
   /** Log one categorical pub observation through the same write seam. */
   submitVenueSignal: (input: {
     venueId: string;
     signalKey: CommunityVenueSignalKey;
     signalValue: CommunityVenueSignalValue;
-  }) => Promise<CommunityVenueSignalSubmitResult>;
+  }, auth: AccountAuthSnapshot) => Promise<CommunityVenueSignalSubmitResult>;
   /** True while a submission is in flight (one at a time by construction). */
   submitting: boolean;
   /**
@@ -878,7 +903,7 @@ export function useCommunityPrices(): CommunityPricesState {
   );
 
   const submit = useCallback<CommunityPricesState["submit"]>(
-    async (input) => {
+    async (input, auth) => {
       // Run the SAME validator the route runs, so an out-of-bounds price is
       // refused in-place with the identical sentence and never leaves the phone.
       const parsed = validateCommunityPrice(input);
@@ -927,34 +952,27 @@ export function useCommunityPrices(): CommunityPricesState {
 
       setSubmitting(true);
       try {
-        let contributorHandle = "";
-        try {
-          contributorHandle = normalizeHandle(
-            window.localStorage.getItem("pubmax_handle") ?? "",
-          );
-        } catch {
-          contributorHandle = "";
-        }
-        const res = await authedFetch("/api/price-submit", {
-          method: "POST",
-          headers: { "content-type": "application/json" },
-          body: JSON.stringify({
-            venueId,
-            drinkCategory,
-            priceGbp,
-            ...(contributorHandle ? { contributorHandle } : {}),
-          }),
+        const res = await postCommunityContribution(auth, {
+          venueId,
+          drinkCategory,
+          priceGbp,
         });
         const data = (await res.json().catch(() => null)) as
-          | { price?: CommunityPrice; attribution?: unknown; error?: string }
+          | {
+              price?: CommunityPrice;
+              attribution?: unknown;
+              error?: string;
+              status?: string;
+            }
           | null;
         if (!res.ok) {
           rollback();
-          return {
-            ok: false,
-            error: data?.error ?? "Could not log that price right now.",
-            reason: "rejected",
-          };
+          return rejectedCommunitySubmission(
+            res.status,
+            data?.error,
+            "Could not log that price right now.",
+            data?.status,
+          );
         }
         // Adopt the server's authoritative record: its timestamp, so the dated
         // badge is the record's day rather than the device's guess at it, and
@@ -997,7 +1015,7 @@ export function useCommunityPrices(): CommunityPricesState {
   const submitVenueSignal = useCallback<
     CommunityPricesState["submitVenueSignal"]
   >(
-    async (input) => {
+    async (input, auth) => {
       if (submitting) {
         return {
           ok: false,
@@ -1052,26 +1070,23 @@ export function useCommunityPrices(): CommunityPricesState {
 
       setSubmitting(true);
       try {
-        const response = await fetch("/api/price-submit", {
-          method: "POST",
-          headers: { "content-type": "application/json" },
-          body: JSON.stringify({
-            kind: "venue-signal",
-            venueId,
-            signalKey,
-            signalValue,
-          }),
+        const response = await postCommunityContribution(auth, {
+          kind: "venue-signal",
+          venueId,
+          signalKey,
+          signalValue,
         });
         const data = (await response.json().catch(() => null)) as
-          | { signal?: CommunityVenueSignal; error?: string }
+          | { signal?: CommunityVenueSignal; error?: string; status?: string }
           | null;
         if (!response.ok) {
           rollback();
-          return {
-            ok: false,
-            error: data?.error ?? "Could not log that pub note right now.",
-            reason: "rejected",
-          };
+          return rejectedCommunitySubmission(
+            response.status,
+            data?.error,
+            "Could not log that pub note right now.",
+            data?.status,
+          );
         }
         const [stored] =
           readSignals({ signals: [data?.signal] }) ?? [];

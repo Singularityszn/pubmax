@@ -3,22 +3,22 @@
 // Identity nudge sheet — the WEB account prompt shown after a high-intent
 // action for a signed-out user (Cycle-2 locked owner decision: push identity
 // harder after the FIRST PLAN ACTION and the FIRST MOMENT CAPTURE). Mounted
-// once at the app root (inside AuthProvider, next to ClaimNightDialog) so any
+// once at the app root inside AuthProvider so any
 // plan/moment success path can arm it via recordPlanNudgeTrigger() /
 // recordMomentNudgeTrigger() (lib/identityNudge.ts) without owning this UI.
 //
 // The gate lives in lib/identityNudge.ts (shouldOfferIdentityNudge); this
-// component is presentation + enabled OAuth actions + "not now". Browsing, map,
-// and prices are never affected — this only ever appears after the user has
-// already done something worth keeping. Reuses the ClaimNightDialog styling and
-// the SignInButton provider-button idiom (app/auth/auth.css).
+// component is presentation + enabled sign-in actions + "not now". Browsing and
+// map reads are unaffected. Contribution writes own their separate required
+// identity gate. Reuses the shared auth-sheet styling and the SignInButton
+// provider-button idiom (app/auth/auth.css).
 //
 // ── The LIGHTER path (Cycle-2 locked decision: "early email capture") ────────
-// Alongside any enabled OAuth buttons there is a lower-friction option:
-// leave just an email to get the weekly pint digest. Full OAuth is the only way
-// email arrives today; this gives a signed-out user a one-field alternative
-// without an account. The wording ties the capture to ONE stated purpose (the
-// digest) — honest purpose limitation, GDPR-sane. The address is stored
+// Alongside account sign-in there is a lower-friction option: leave just an
+// email to get the weekly pint digest. This gives a signed-out user a one-field
+// alternative without an account. The wording ties the capture to ONE stated
+// purpose (the digest) - honest purpose limitation, GDPR-sane. The address is
+// stored
 // UNCONFIRMED via /api/email-subscribers (double-opt-in); the success copy here
 // is derived from the server's honest response (never a fake "check your inbox"
 // when nothing was sent). Validation matches the server (lib/emailSubscribers).
@@ -69,7 +69,7 @@ export default function IdentityNudge(): React.JSX.Element | null {
     configured,
     socialProviders,
     signInWithGoogle,
-    signInWithMicrosoft,
+    signInWithApple,
     signInWithEmail,
     cancelAuthAttempt,
   } = useAuth();
@@ -119,7 +119,7 @@ export default function IdentityNudge(): React.JSX.Element | null {
 
   const copy = COPY[trigger];
   const emailValid = isValidEmail(email);
-  const hasSocialProviders = socialProviders.google || socialProviders.microsoft;
+  const hasSocialProviders = socialProviders.google || socialProviders.apple;
 
   async function startSignIn(provider: () => Promise<{ error: string | null }>) {
     setAuthBusy(true);
@@ -209,7 +209,7 @@ export default function IdentityNudge(): React.JSX.Element | null {
           availability={socialProviders}
           disabled={authBusy}
           onGoogle={() => startSignIn(signInWithGoogle)}
-          onMicrosoft={() => startSignIn(signInWithMicrosoft)}
+          onApple={() => startSignIn(signInWithApple)}
           className="identityNudgeProviders"
         />
         {authError ? <p className="authError" role="alert">{authError}</p> : null}

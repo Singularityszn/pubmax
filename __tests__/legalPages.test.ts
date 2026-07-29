@@ -192,11 +192,10 @@ describe("legal content pages", () => {
 
   it("discloses the durable Recommendation row and its retention", () => {
     // Mirrors lib/weatherRecommendationStore.ts and migration 0058: a durable
-    // row carrying a PUBLIC handle (unlike a community price, which is
-    // anonymous), the venue, one closed condition, the authored reason, a
-    // server timestamp, and the same server-derived actor hash the price route
-    // uses (lib/communityPriceActor.ts). Attribution is the point of the
-    // feature, so the page may never describe these rows as anonymous.
+    // row carrying a public handle, the venue, one closed condition, the
+    // authored reason, a server timestamp, and a server-derived actor token.
+    // Current community prices also carry an account-owned public handle;
+    // anonymity is reserved for legacy price rows without one.
     expect(privacy).toMatch(/Recommendations, and Night Memories/);
     expect(privacy).toMatch(/public PUBMAXX\s+handle/);
     expect(privacy).toMatch(/the same opaque device token described below/);
@@ -216,27 +215,70 @@ describe("legal content pages", () => {
 
   it("discloses community venue reports and their contributor count", () => {
     expect(privacy).toMatch(/Community venue reports/);
-    expect(privacy).toMatch(/rough or posh/);
-    expect(privacy).toMatch(/entrance and toilet access separately/);
+    expect(privacy).toMatch(/rough or\s+posh/);
+    expect(privacy).toMatch(/entrance and toilet access\s+separately/);
     expect(privacy).toMatch(/door policy/);
     expect(privacy).toMatch(/people were eating/);
-    expect(privacy).toMatch(/same opaque device token/);
-    expect(privacy).toMatch(/does not enter the public contributor\s+record/);
+    expect(privacy).toMatch(/same stable private profile key/);
+    expect(privacy).toMatch(/Venue reports do not enter the public\s+contributor record/);
     expect(privacy).toMatch(/Community prices and venue reports:/);
   });
 
-  it("explains public contributor ranking and optional price attribution", () => {
+  it("explains account-bound price attribution and public contributor ranking", () => {
     expect(privacy).toMatch(/public contributor record/i);
     expect(privacy).toMatch(
       /prices[\s\S]*Visit Reports[\s\S]*Recommendations/i,
     );
-    expect(privacy).toMatch(/cannot[\s\S]*lands anonymously/i);
+    expect(privacy).toMatch(/requires a signed-in account/);
+    expect(privacy).toMatch(
+      /server\s+derives both contribution\s+identifiers from the authenticated account/,
+    );
+    expect(privacy).toMatch(/Older rows that had no handle remain\s+anonymous/);
     expect(privacy).toMatch(/hidden[\s\S]*do not count/i);
     expect(privacy).toMatch(
       /Visit Reports and Recommendations[\s\S]*existing public profile[\s\S]*remain visible[\s\S]*excluded/i,
     );
     expect(privacy).toMatch(/all\s+time/i);
     expect(privacy).not.toMatch(/future contributor count/i);
+  });
+
+  it("states exactly what private profile data is retained", () => {
+    expect(privacy).toMatch(/Google or Apple sign-in/);
+    expect(privacy).toMatch(/date of birth is required to finish signup/i);
+    expect(privacy).toMatch(/Full name and sex are optional/);
+    expect(privacy).toMatch(/only identity shown with contributions/);
+    expect(privacy).toMatch(
+      /date of birth[\s\S]*full name[\s\S]*sex[\s\S]*product analytics[\s\S]*social features/i,
+    );
+    expect(privacy).toMatch(
+      /date of birth[\s\S]*until you delete your profile/i,
+    );
+    expect(privacy).toMatch(
+      /Full name and sex[\s\S]*until you edit or clear them[\s\S]*delete your profile/i,
+    );
+    expect(privacy).toMatch(
+      /Deleting your profile[\s\S]*removes these\s+private identity fields/,
+    );
+    expect(privacy).toMatch(
+      /keeps your authentication account,\s+public\s+handle and\s+handle-keyed contribution history/,
+    );
+    expect(terms).toMatch(
+      /date of birth is required to finish signup/i,
+    );
+    expect(terms).toMatch(
+      /date of birth[\s\S]*full name[\s\S]*sex[\s\S]*product analytics[\s\S]*social features/i,
+    );
+    expect(terms).toMatch(/date of birth[\s\S]*until you delete your profile/i);
+    expect(terms).toMatch(
+      /Deleting your profile[\s\S]*removes these\s+private identity fields/,
+    );
+    expect(terms).toMatch(/Only your handle is public/);
+    for (const page of [privacy, terms]) {
+      expect(page).not.toMatch(
+        /discard the date of birth|adult confirmation|date you become eligible/i,
+      );
+      expect(page).not.toMatch(/under 18[\s\S]*cannot contribute/i);
+    }
   });
 
   it("names all three price lanes and fences the historical one", () => {
@@ -251,8 +293,11 @@ describe("legal content pages", () => {
     expect(terms).not.toMatch(/Prices\s+come\s+from\s+two\s+places/);
   });
 
-  it("states the product's own age framing on the terms page", () => {
-    expect(terms).toMatch(/under 18/i);
+  it("states that account and contribution access are not age-gated", () => {
+    expect(terms).toMatch(
+      /does not block accounts or contributions based on age/i,
+    );
+    expect(terms).toMatch(/Pubs\s+decide who they serve/i);
     expect(terms).toMatch(/drinkaware\.co\.uk/);
   });
 

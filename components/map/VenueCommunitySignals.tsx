@@ -3,7 +3,9 @@
 import { useMemo, useState, type FormEvent } from "react";
 import { ChevronDown, MessagesSquare } from "lucide-react";
 
+import type { ContributionActionResult } from "@/components/identity/ContributionGateDialog";
 import type { CommunityVenueSignalSubmitResult } from "@/components/map/useCommunityPrices";
+import type { AccountAuthSnapshot } from "@/lib/accountBoundFetch";
 import type { VenuePriceReadStatus } from "@/lib/mapExperienceLens";
 import {
   COMMUNITY_VENUE_SIGNAL_LABELS,
@@ -48,7 +50,12 @@ type VenueCommunitySignalsProps = {
     venueId: string;
     signalKey: CommunityVenueSignalKey;
     signalValue: CommunityVenueSignalValue;
-  }) => Promise<CommunityVenueSignalSubmitResult>;
+  }, auth: AccountAuthSnapshot) => Promise<CommunityVenueSignalSubmitResult>;
+  requestContribution: (
+    action: (
+      auth: AccountAuthSnapshot,
+    ) => ContributionActionResult | Promise<ContributionActionResult>,
+  ) => Promise<void>;
   /** Fixed test clock. The app leaves it undefined. */
   now?: number;
 };
@@ -94,6 +101,7 @@ export default function VenueCommunitySignals({
   readStatus,
   submitting,
   onSubmit,
+  requestContribution,
   now,
 }: VenueCommunitySignalsProps) {
   const [mountedAt] = useState(() => Date.now());
@@ -149,16 +157,24 @@ export default function VenueCommunitySignals({
     if (submitting) return;
     setError(null);
     setSaved(false);
-    const result = await onSubmit({
-      venueId,
-      signalKey,
-      signalValue,
+    await requestContribution(async (auth) => {
+      const result = await onSubmit({
+        venueId,
+        signalKey,
+        signalValue,
+      }, auth);
+      if (!result.ok) {
+        if (result.status) {
+          return {
+            status: result.status,
+            error: result.error,
+          };
+        }
+        setError(result.error);
+        return;
+      }
+      setSaved(true);
     });
-    if (!result.ok) {
-      setError(result.error);
-      return;
-    }
-    setSaved(true);
   }
 
   return (

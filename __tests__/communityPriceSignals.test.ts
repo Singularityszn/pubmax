@@ -29,7 +29,7 @@ import type { DrinkCategory } from "@/lib/drinks";
 //   • "a logged price is not a Pint Drop"
 //   • "only beer restamps a pin" - pin colours are pint buckets, so a cocktail
 //     price must stay on the sheet and never recolour the map
-//   • THE TRUST GATE: a lone anonymous report, and an aged-out one, must not
+//   • THE TRUST GATE: a lone uncorroborated report, and an aged-out one, must not
 //     reach a pin at all - while still rendering on the pub's own sheet.
 
 const NOW = Date.UTC(2026, 6, 26, 20, 0, 0);
@@ -177,7 +177,7 @@ describe("mergeCommunityPriceSignals", () => {
 });
 
 // The trust gate (captain decision 2026-07-26, review findings F1/F4). These
-// are the assertions that stop one anonymous device repainting London.
+// are the assertions that stop one account repainting London.
 describe("mergeCommunityPriceSignals trust gate", () => {
   const baseline: PricedVenueSignal = { hasPintDrops: false, latestContributorPrice: null };
 
@@ -261,13 +261,13 @@ describe("mergeCommunityPriceSignals trust gate", () => {
   });
 });
 
-// The best-corroborated candidate is the other half of F1's fix: a lone device
+// The best-corroborated candidate is the other half of F1's fix: one contributor
 // cannot PAINT the map (the gate above), and it cannot UN-PAINT it either. The
 // store attaches `mapCandidate` - the category's best-backed in-window figure -
 // and the merge paints that, while the sheet keeps reading the freshest row.
 describe("mergeCommunityPriceSignals map candidate", () => {
   const baseline: PricedVenueSignal = { hasPintDrops: false, latestContributorPrice: null };
-  // Devices A+B logged £4.20 (corroborated, driving the map); device C then
+  // Contributors A+B logged £4.20 (corroborated, driving the map); C then
   // logged a fresh, disagreeing £9.00 - the sheet row, at one voice.
   const contradicted = price("v1", 9, NOW - MINUTE, "beer", 1, {
     priceGbp: 4.2,
@@ -391,7 +391,7 @@ describe("provisionalCommunityPriceVenueIds", () => {
   });
 
   // THE separation. Same input, both seams: the badge appears, the price does
-  // not. If this ever fails, one anonymous report is repainting pins again.
+  // not. If this ever fails, one uncorroborated report is repainting pins again.
   it("marks the map without moving any price the merge owns", () => {
     const lone = price("v1", 4.2, NOW - MINUTE, "beer", 1);
     const input = signals([["v1", { hasPintDrops: false, latestContributorPrice: null }]]);

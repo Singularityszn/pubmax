@@ -14,7 +14,7 @@ import "../legal.css";
 // registry and its gates (lib/analyticsEvents.ts, app/api/events/route.ts),
 // the browser SDK config (lib/posthogClient.ts), the first-party ingest proxy
 // (app/ingest/[...path]/route.ts), the hashed-actor derivation (lib/supabase.ts
-// hashIp/hashActor) used by app/api/price-submit/route.ts and
+// hashIp/hashActor) used for price-report abuse controls and
 // app/api/weather-recommendations/route.ts, the Recommendation row shape
 // (lib/weatherRecommendationStore.ts and its migration), and the sign-in
 // paths in components/auth/AuthProvider.tsx. If one of those changes, this page
@@ -67,9 +67,8 @@ export default function PrivacyPage() {
           </li>
           <li>
             <strong>PUBMAXX never stores raw IP addresses in its own
-            database.</strong>{" "}Where we need to tell one device from another
-            (rate limits, stopping one person logging the same price twice) we
-            store a salted hash of it, never the address itself.
+            database.</strong>{" "}Where an unauthenticated action needs abuse
+            controls or deduplication, we store a salted hash of it, never the address itself.
           </li>
           <li>
             <strong>We don&rsquo;t sell anything to anyone.</strong>{" "}No ads, no
@@ -112,11 +111,30 @@ export default function PrivacyPage() {
         <h3 className="legalH3">If you make an account</h3>
         <p className="legalBody">
           Sign-in is handled by Supabase, using either an emailed magic link or
-          Google or Microsoft sign-in. That means we hold your email address,
-          plus whatever you choose to put on your profile: a handle, a display
-          name, an avatar, a home city, a short bio. If you connect an external
-          social profile (X, Instagram, TikTok) we store the account details you
-          connected and any provider tokens encrypted at rest.
+          Google or Apple sign-in. That means we hold your email address. You
+          must choose one public handle, which is linked to your authenticated
+          account and is the only identity shown with contributions. Handle
+          is required to finish signup. Date of birth is required to finish signup
+          too. Full name and sex are optional. We collect and store date of
+          birth, full name and sex as private account details for product analytics and
+          social features. They are never shown on prices,
+          reports, signals, Recommendations, leaderboards or the public
+          contributor record.
+        </p>
+        <p className="legalBody">
+          We keep date of birth until you delete your profile. Full name and sex
+          stay until you edit or clear them, or delete your profile.
+          Deleting your profile removes these private identity fields and clears its
+          editable public details. That action keeps your authentication account,
+          public handle and handle-keyed contribution history. You can
+          ask us to delete other account data. We do not use date of birth to
+          block an account or contribution.
+        </p>
+        <p className="legalBody">
+          Your public profile may also contain a display name, avatar, home
+          city and short bio. If you connect an external social profile (X,
+          Instagram, TikTok) we store the account details you connected and any
+          provider tokens encrypted at rest.
         </p>
 
         <h3 className="legalH3">If you use an invite link</h3>
@@ -140,9 +158,8 @@ export default function PrivacyPage() {
           A referral is not qualified by signup alone. It needs the new account
           to make its first accepted contribution. We keep append-only milestone
           records so later decisions can be explained. Those milestone records
-          do not grant paid features today, because contributions are not yet
-          tied to signed-in accounts strongly enough to stop one person using
-          several accounts.
+          do not grant paid features today, because sign-in does not prove that
+          one person has only one account.
         </p>
 
         <h3 className="legalH3">What you post</h3>
@@ -174,22 +191,23 @@ export default function PrivacyPage() {
 
         <h3 className="legalH3">Community price submissions</h3>
         <p className="legalBody">
-          Anyone can log tonight&rsquo;s price without an account. We store the
-          venue, the drink category, the price and the time. If your browser
-          already has a public PUBMAXX handle, the price form tells you and
-          sends that handle with the price. When your signed-in account owns
-          that identity, the server resolves any renamed handle to its current
-          name and the log counts there. When ownership cannot be proved, the
-          price still lands anonymously and does not enter the contributor
+          Logging tonight&rsquo;s price requires a signed-in account, a claimed
+          handle and completed private profile. We store the venue, drink
+          category, price and time, plus the account&rsquo;s stable private
+          profile key and current public handle. The server derives both contribution
+          identifiers from the authenticated account and ignores
+          any handle sent by the browser. A newly accepted price therefore
+          counts under that account&rsquo;s handle on the public contributor
           record.
         </p>
         <p className="legalBody">
-          Every price also carries an opaque device token derived server-side
-          by salted SHA-256 hashing of your IP address, never the address itself.
-          That token exists so one device can replace its own earlier entry
-          instead of stacking duplicates, and so a single device can&rsquo;t
-          repaint the map on its own. It can&rsquo;t be reversed back into an IP
-          address, and we don&rsquo;t use it to build a profile of you.
+          The private profile key exists so one account can replace its own
+          earlier entry instead of stacking duplicates, and cannot confirm
+          itself by changing devices or handles. Legacy contributions made
+          under a self-declared handle stay with that profile when the first
+          authenticated account claims it. Older rows that had no handle remain
+          anonymous. Reader reports about a price still use a salted hash for
+          abuse controls; we never store the raw IP address.
         </p>
 
         <h3 className="legalH3">Public contributor record</h3>
@@ -201,8 +219,8 @@ export default function PrivacyPage() {
           an existing public profile can remain visible on their posts but are
           excluded from this identity-backed ranking. It shows the combined
           total and each of those three counts. Hidden or taken-down
-          contributions do not count. Anonymous price logs never appear under a
-          name.
+          contributions do not count. Older price logs with no handle never
+          appear under a name.
         </p>
         <p className="legalBody">
           We also keep whether a price was corroborated, whether a contribution
@@ -215,14 +233,14 @@ export default function PrivacyPage() {
 
         <h3 className="legalH3">Community venue reports</h3>
         <p className="legalBody">
-          Anyone can also report what they saw about a pub: rough or posh
-          character, entrance and toilet access separately, door policy, and
-          whether people were eating. We store the venue, the answer and the
-          time, plus the same opaque device token used for community prices.
-          It lets your newer answer replace your older one, keeps one device
-          from confirming itself, and does not enter the public contributor
-          record. The token is not shown with the report and does not become a
-          public name.
+          A signed-in account with a claimed handle can also report what they
+          saw about a pub: rough or posh character, entrance and toilet access
+          separately, door policy, and whether people were eating. We store the
+          venue, answer and time, plus the same stable private profile key used
+          for community prices. It lets your newer answer replace your older
+          one and keeps one account from confirming itself.
+          Venue reports do not enter the public contributor record, and the
+          private key is never shown.
         </p>
 
         <h3 className="legalH3">Location</h3>
@@ -359,9 +377,10 @@ export default function PrivacyPage() {
           <li>
             <strong>Because it&rsquo;s a fair thing to do (legitimate
             interests).</strong>{" "}Keeping community prices and venue reports
-            with their dates and device tokens, rate-limiting writes, and
-            keeping server logs is how the map stays honest and the site stays
-            up. We&rsquo;ve kept it to the minimum that works.
+            with their dates, private profile keys or legacy device tokens,
+            rate-limiting writes, and keeping server logs is how the map stays
+            honest and the site stays up. We&rsquo;ve kept it to the minimum
+            that works.
           </li>
           <li>
             <strong>Because you said yes (consent).</strong>{" "}Usage analytics,
@@ -518,11 +537,10 @@ export default function PrivacyPage() {
             <strong>Community prices and venue reports:</strong>{" "}the report
             itself stays, so later readers can see what people said and when.
             A row is one observation: the venue, either a drink and its price
-            or one venue answer from a fixed list, the date and an unreversible
-            device token. A price logged without an attributed public handle
-            stays anonymous. If a public handle was attached,
-            that attribution stays with the price while it is up and counts on
-            the public contributor record.
+            or one venue answer from a fixed list, the date and the private
+            profile key. Price attribution stays with the row while it is up
+            and counts on the public contributor record. Legacy rows may
+            instead contain an unreversible device token or no public handle.
           </li>
           <li>
             <strong>Recommendations:</strong>{" "}a Recommendation keeps your
@@ -599,10 +617,10 @@ export default function PrivacyPage() {
       </section>
 
       <section className="legalSection" aria-labelledby="age">
-        <h2 id="age" className="legalH2">Age</h2>
+        <h2 id="age" className="legalH2">Age and access</h2>
         <p className="legalBody">
-          PUBMAXX is for over-18s. We don&rsquo;t knowingly hold data about
-          anyone younger, and if you tell us we have, we&rsquo;ll delete it.
+          PUBMAXX does not block accounts or contributions based on age. Pubs
+          remain responsible for deciding who they serve.
         </p>
       </section>
 

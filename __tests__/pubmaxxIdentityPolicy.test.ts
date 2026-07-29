@@ -4,6 +4,7 @@ import {
   assessPubmaxxHandle,
   evaluateHandleRename,
   HANDLE_RENAME_COOLDOWN_MS,
+  RESERVED_CONTRIBUTOR_HANDLES,
 } from "@/lib/pubmaxxIdentity";
 
 describe("PUBMAXX handle policy", () => {
@@ -19,6 +20,12 @@ describe("PUBMAXX handle policy", () => {
     expect(assessPubmaxxHandle("night-owl")).toMatchObject({ ok: false, reason: "invalid" });
     expect(assessPubmaxxHandle("PUBMAXX")).toMatchObject({ ok: false, reason: "reserved" });
     expect(assessPubmaxxHandle("pubmaxx_support")).toMatchObject({ ok: false, reason: "reserved" });
+    for (const handle of RESERVED_CONTRIBUTOR_HANDLES) {
+      expect(assessPubmaxxHandle(handle)).toMatchObject({
+        ok: false,
+        reason: "reserved",
+      });
+    }
   });
 
   it("enforces a thirty-day rename cooldown and reports the exact retry time", () => {

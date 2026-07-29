@@ -1,4 +1,4 @@
-/* Identity nudge sheet. Inherits the ClaimNightDialog look (auth.css) and only
+/* Identity nudge sheet. Inherits the shared auth-sheet look (auth.css) and only
    adds the provider-button stack + spacing specific to this prompt. */
 
 .identityNudgeProviders {
@@ -15,7 +15,7 @@
 }
 
 /* This sheet always has room for the full provider labels; never fall back to
-   the short "Google" / "Microsoft" labels the crowded nav needs. */
+   the short "Google" / "Apple" labels the crowded nav needs. */
 .identityNudgeProviders .authSignInLabelShort {
   display: none;
 }
@@ -106,7 +106,7 @@
   cursor: not-allowed;
 }
 
-/* Reuse the ClaimNightDialog primary-button look; just guarantee a touch
+/* Reuse the shared auth primary-button look; guarantee a touch
    target and let it sit beside the input (or full-width when wrapped). */
 .identityNudgeEmailCta {
   flex: 0 0 auto;

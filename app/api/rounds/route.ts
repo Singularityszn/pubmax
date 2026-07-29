@@ -15,6 +15,7 @@ import { resolveMessageHandle } from "@/lib/messageAuth";
 import { isLimited } from "@/lib/pintDrops";
 import { gateHandleAction } from "@/lib/profileOwnership";
 import { roundsStore } from "@/lib/roundsStore";
+import { projectRoundView } from "@/lib/roundView.server";
 import { assertServerEnv } from "@/lib/serverEnv";
 import { clientIp, hashIp } from "@/lib/supabase";
 import { readString } from "@/lib/textClean";
@@ -49,5 +50,7 @@ export async function POST(request: Request): Promise<Response> {
     const status = result.error === "invalid" ? 400 : 503;
     return jsonNoStore({ error: "Could not start the Round." }, { status });
   }
-  return jsonNoStore(result.state, { status: 201 });
+  return jsonNoStore(await projectRoundView(request, result.state), {
+    status: 201,
+  });
 }

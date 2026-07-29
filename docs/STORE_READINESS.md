@@ -1,6 +1,6 @@
 # PUBMAXX Store Readiness Pack
 
-**Status:** Everything on this page is pre-writable now, without an Apple or Google developer account. It is the copy, metadata, and answer sheet the owner pastes into App Store Connect and the Google Play Console once enrolment clears. The only work that genuinely needs a paid account is enrolment, certificates, and the first binary upload, listed as the owner checklist in the last section.
+**Status:** Everything on this page is pre-writable now, without an Apple or Google developer account. It is the copy, metadata, and answer sheet the owner pastes into App Store Connect and the Google Play Console once enrolment clears. Paid-account work includes enrolment, certificates, Sign in with Apple activation, and the first binary upload, listed as the owner checklist in the last section.
 
 **App:** PUBMAXX. London pub finder, crawl planner, and night log, wrapped in a Capacitor shell over `https://pubmaxxing.com` (see `docs/IOS_APP_PRD.md`, `docs/CAPACITOR_WRAP.md`).
 
@@ -274,6 +274,7 @@ Everything above is done or ready to paste. The steps below need a real account,
 ### Apple App Store
 
 - [ ] **Enrol** in the Apple Developer Program, 99 USD per year, at developer.apple.com. Individual or Organization. Note the **Team ID** once issued.
+- [ ] **Activate Sign in with Apple when wanted:** create the App ID, Services ID, return URL, and provider key, then enable Apple in Supabase. [`DEPLOYMENT.md`](./DEPLOYMENT.md#apple) owns the detailed provider setup. Email magic link remains complete while Apple is disabled.
 - [ ] **Install full Xcode** from the Mac App Store (not just Command Line Tools). Confirm `xcode-select -p` points at `…/Xcode.app`.
 - [ ] `npm ci` then `npx cap sync ios`, then `npx cap open ios` to open the project in Xcode.
 - [ ] **Signing:** App target > Signing & Capabilities, select the team, confirm bundle id `com.pubmaxx.app`. Let Xcode manage signing.
@@ -282,7 +283,7 @@ Everything above is done or ready to paste. The steps below need a real account,
 - [ ] **Universal links (optional for v1):** add the Associated Domains capability `applinks:pubmaxxing.com`, and replace the `TEAMID` placeholder in `public/.well-known/apple-app-site-association` with the real Team ID.
 - [ ] **Create the app record** in App Store Connect: name PUBMAXX, bundle id `com.pubmaxx.app`, primary language English (UK), category Food & Drink.
 - [ ] **Paste metadata** from sections 1 to 5 of this doc. Upload screenshots from section 6.
-- [ ] **Archive and upload** the first build: Xcode > Product > Archive > Distribute App > App Store Connect. This is the first step that needs the paid account.
+- [ ] **Archive and upload** the first build: Xcode > Product > Archive > Distribute App > App Store Connect.
 - [ ] **TestFlight** internal test on your own device before submitting for review.
 - [ ] **Submit for review.** Do not submit until the three native superpowers are demonstrably live (real camera, push delivery, universal links), or expect a thin-wrapper rejection. See `docs/IOS_APP_PRD.md` section 4 step 9.
 

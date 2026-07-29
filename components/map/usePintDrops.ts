@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 
+import { useAuth } from "@/components/auth/AuthProvider";
 import { readActiveRoundCode } from "@/lib/activeRound";
 import { getAnonId } from "@/lib/anonId";
 import { authedFetch } from "@/lib/authedFetch";
@@ -28,6 +29,14 @@ import {
 } from "@/lib/mapPintDropPolicy";
 import { clearPintDropDraft } from "@/lib/pintDropDraft";
 import type { PintDrop, VibeTag } from "@/lib/pintDropShared";
+import {
+  captureRoundAppendSnapshot,
+  captureRoundRequestIdentity,
+  roundJsonRequest,
+  runRoundMutationForCurrentUser,
+  type RoundAppendSnapshot,
+  type RoundRequestIdentity,
+} from "@/lib/roundRequest";
 import { appendWithSuffix, DEFAULT_VISIBILITY, type Visibility } from "@/lib/spill";
 import type { LastPintDecision } from "@/lib/tfl";
 import { venueMapUrl } from "@/lib/venueMapUrl";
@@ -54,6 +63,14 @@ const MAX_PHOTO_BYTES = 5 * 1024 * 1024; // 5MB — server re-validates.
 const ACCEPTED_PHOTO_TYPES = ["image/jpeg", "image/png", "image/webp"];
 const MAX_VIBE_TAGS = 4; // mirrors the server cap in lib/pintDrops.ts.
 
+function localStorageSafe(): Storage | null {
+  try {
+    return window.localStorage;
+  } catch {
+    return null;
+  }
+}
+
 /**
  * Best-effort: append this venue as a stop on the open Round. Fail-soft — a
  * miss (closed / network) must never undo a successful drop. Joins first so a
@@ -61,6 +78,7 @@ const MAX_VIBE_TAGS = 4; // mirrors the server cap in lib/pintDrops.ts.
  * join step, then uses the existing `addStop` action.
  */
 async function appendStopToActiveRound(input: {
+  identity: RoundRequestIdentity;
   code: string;
   handle: string;
   venueId: string;
@@ -68,31 +86,62 @@ async function appendStopToActiveRound(input: {
   dropRef?: string;
 }): Promise<boolean> {
   try {
-    const joinRes = await fetch(`/api/rounds/${encodeURIComponent(input.code)}`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action: "join", handle: input.handle }),
+    const path = `/api/rounds/${encodeURIComponent(input.code)}`;
+    const joinRes = await roundJsonRequest(path, input.identity, {
+      action: "join",
+      handle: input.handle,
     });
     // Join may 409 if already a member — still attempt addStop (idempotent join).
     // Other join failures must not call addStop or pretend the stop landed.
     if (!joinRes.ok && joinRes.status !== 409) {
       return false;
     }
-    const res = await fetch(`/api/rounds/${encodeURIComponent(input.code)}`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
+    const res = await roundJsonRequest(
+      path,
+      input.identity,
+      {
         action: "addStop",
         handle: input.handle,
         venueId: input.venueId,
         venueName: input.venueName,
         ...(input.dropRef ? { dropRef: input.dropRef } : {}),
-      }),
-    });
+      },
+    );
     return res.ok;
   } catch {
     return false;
   }
+}
+
+function pintDropId(value: unknown): string | undefined {
+  if (!value || typeof value !== "object") return undefined;
+  const id = (value as { id?: unknown }).id;
+  return typeof id === "string" ? id : undefined;
+}
+
+async function appendPintDropStopToActiveRound(input: {
+  round: RoundAppendSnapshot | null;
+  currentUserId: () => string | null;
+  venueId: string;
+  venueName: string;
+  dropRef?: string;
+}): Promise<boolean> {
+  const round = input.round;
+  if (!round) return false;
+  const completion = await runRoundMutationForCurrentUser(
+    round.identity,
+    input.currentUserId,
+    () =>
+      appendStopToActiveRound({
+        identity: round.identity,
+        code: round.code,
+        handle: round.handle,
+        venueId: input.venueId,
+        venueName: input.venueName,
+        dropRef: input.dropRef,
+      }),
+  );
+  return completion.current && completion.value;
 }
 
 function groupDropsByVenueId(drops: DropWithPhotos[]): Map<string, DropWithPhotos[]> {
@@ -111,6 +160,20 @@ export function usePintDrops(
   cityId: CityId = "london",
   mapVenues?: readonly MapPintDropVenue[],
 ) {
+  const {
+    user,
+    session,
+    loading: authLoading,
+    handle: accountHandle,
+    getCurrentUserId,
+  } = useAuth();
+  const roundIdentity = useMemo(
+    () =>
+      authLoading
+        ? null
+        : captureRoundRequestIdentity(user?.id ?? null, session),
+    [authLoading, session, user?.id],
+  );
   const [handle, setHandle] = useState(() =>
     typeof window === "undefined" ? "" : (window.localStorage.getItem("pubmax_handle") ?? ""),
   );
@@ -290,6 +353,12 @@ export function usePintDrops(
     options?: { venueName?: string; lastTrainDecision?: LastPintDecision | null },
   ) {
     event.preventDefault();
+    const submittedRound = captureRoundAppendSnapshot(
+      roundIdentity,
+      accountHandle,
+      readActiveRoundCode(),
+      localStorageSafe(),
+    );
     setSubmitting(true);
     setDropMsg(null);
     const clientRequestId = newOptimisticSpillClientId();
@@ -462,21 +531,13 @@ export function usePintDrops(
 
       // Loop 2: if a Round is open, append this pub as a stop (existing
       // addStop API). Fail-soft — the drop already landed.
-      const activeRound = readActiveRoundCode();
-      const dropId =
-        data.drop && typeof data.drop === "object" && typeof (data.drop as { id?: unknown }).id === "string"
-          ? (data.drop as { id: string }).id
-          : undefined;
-      let addedToNight = false;
-      if (activeRound && submittedHandle) {
-        addedToNight = await appendStopToActiveRound({
-          code: activeRound,
-          handle: submittedHandle,
-          venueId,
-          venueName: options?.venueName ?? unresolvedVenueLabel(venueId),
-          dropRef: dropId,
-        });
-      }
+      const addedToNight = await appendPintDropStopToActiveRound({
+        round: submittedRound,
+        currentUserId: getCurrentUserId,
+        venueId,
+        venueName: options?.venueName ?? unresolvedVenueLabel(venueId),
+        dropRef: pintDropId(data.drop),
+      });
 
       const links: NonNullable<DropMsg["links"]> = [
         { href: "/feed", label: "See the feed" },
@@ -486,7 +547,7 @@ export function usePintDrops(
           href: `/bar-tab/${encodeURIComponent(venueId)}`,
           label: "Bar tab",
         });
-        const cleanHandle = submittedHandle.replace(/^@+/, "");
+        const cleanHandle = submittedRound?.handle.replace(/^@+/, "") ?? "";
         if (cleanHandle) {
           links.push({ href: `/u/${encodeURIComponent(cleanHandle)}`, label: "Your profile" });
         }

@@ -23,6 +23,7 @@ import type { DrinkCategory } from "@/lib/drinks";
 import { formatPrice } from "@/lib/venues";
 import type { CommunityPricesState } from "@/components/map/useCommunityPrices";
 import VenueCommunitySignals from "@/components/map/VenueCommunitySignals";
+import { useContributionGate } from "@/components/identity/ContributionGateDialog";
 import { trackEvent } from "@/lib/analytics";
 
 import "./venuePriceSubmit.css";
@@ -32,9 +33,8 @@ import "./venuePriceSubmit.css";
 //
 // Deliberately NOT the Pint Drop composer. That is the full social object - a
 // handle, photos, a note, a visibility lane, a destination. This is the
-// twenty-second version for the person at the bar: category, price, done. No
-// account or handle is required. A server-accepted public handle reaches the
-// contributor record; otherwise the price still lands anonymously.
+// twenty-second version for the person at the bar: category, price, done. The
+// contribution gate asks for the signed account and completed private profile.
 //
 // Provenance is first-class, not decoration: the confirmation shows the price
 // with its own dated "today · community" badge, and the scraped/sourced
@@ -98,6 +98,8 @@ export default function VenuePriceSubmit({
     category: DrinkCategory;
     attribution: CommunityPriceAttribution;
   } | null>(null);
+  const { requestContribution, contributionGateDialog } =
+    useContributionGate();
 
   const { byVenueId, loadVenue, submit, submitting } = communityPrices;
   // The funnel's denominator. This component is keyed by venue id, so it mounts
@@ -161,15 +163,27 @@ export default function VenuePriceSubmit({
     // submission at a time keeps the optimistic rollback snapshots coherent.
     if (submitting || !priceValidation.ok) return;
     setError(null);
-    const result = await submit({ venueId, drinkCategory: category, priceGbp: price });
-    if (!result.ok) {
-      trackEvent("price_submit_failed", { category, reason: result.reason });
-      setError(result.error);
-      return;
-    }
-    trackEvent("price_submitted", { category });
-    setLogged({ category, attribution: result.attribution });
-    setPrice("");
+    await requestContribution(async (auth) => {
+      const result = await submit({
+        venueId,
+        drinkCategory: category,
+        priceGbp: price,
+      }, auth);
+      if (!result.ok) {
+        trackEvent("price_submit_failed", { category, reason: result.reason });
+        if (result.status) {
+          return {
+            status: result.status,
+            error: result.error,
+          };
+        }
+        setError(result.error);
+        return;
+      }
+      trackEvent("price_submitted", { category });
+      setLogged({ category, attribution: result.attribution });
+      setPrice("");
+    });
   }
 
   return (
@@ -295,9 +309,7 @@ export default function VenuePriceSubmit({
                 Counted under <strong>@{logged.attribution.handle}</strong> on
                 the contributor record.
               </>
-            ) : (
-              "Logged anonymously. It does not count on the contributor record."
-            )}
+            ) : null}
           </p>
           {/* Close the loop in-session: the mark the map just gained, named and
               coloured exactly as the map draws it, so the submitter can look up
@@ -314,13 +326,11 @@ export default function VenuePriceSubmit({
         </div>
       ) : (
         <p className="vpsubNote">
-          Anyone can log a price. Yours shows on this pub&rsquo;s page straight
-          away, dated and badged as community - it never replaces the price on
-          record. {communityReachNote(category, mapReach)} Up to £
-          {COMMUNITY_PRICE_MAX_GBP} a drink. If your signed-in account owns the
-          public handle stored in this browser, the log counts under its current
-          name on the contributor record. Otherwise, the log stays anonymous
-          and off that record.
+          Sign in to log a price under your public handle. Yours shows on this
+          pub&rsquo;s page straight away, dated and badged as community - it
+          never replaces the price on record.{" "}
+          {communityReachNote(category, mapReach)} Up to £
+          {COMMUNITY_PRICE_MAX_GBP} a drink.
         </p>
       )}
       <VenueCommunitySignals
@@ -330,7 +340,9 @@ export default function VenuePriceSubmit({
         readStatus={communityPrices.venuePriceStatus.get(venueId) ?? "idle"}
         submitting={submitting}
         onSubmit={communityPrices.submitVenueSignal}
+        requestContribution={requestContribution}
       />
+      {contributionGateDialog}
     </section>
   );
 }

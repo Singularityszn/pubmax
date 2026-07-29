@@ -9,7 +9,7 @@
 //   POST { action: "report", id, reason? }                 → { ok }
 //   GET  ?venueId=<id>                                     → { prices, signals }
 //
-// The report branch is the complaint side of an otherwise open write path: it
+// The report branch is the public complaint side of the contribution path: it
 // FLAGS an observation for a human and hides nothing on its own (a threshold
 // auto-hide would be a one-tap eraser for any price a griefer disliked). Only a
 // moderator hides, via POST /api/admin/community-prices - and hiding keeps the
@@ -22,10 +22,9 @@
 // accepted from a body. A client that could set it could turn one person's
 // report into an established community signal.
 //
-// Identity is server-derived (hashActor of the hashed client IP), never trusted
-// from the body - exactly as price-confirm does it, so an anonymous drinker can
-// contribute with no account and one device still can't stack duplicate
-// observations for the same drink. Rate-limited on the same isLimited plumbing.
+// Identity is server-derived from the authenticated account's immutable
+// profile id. A body handle is ignored. This binds every new contribution to
+// one claimed public handle and stops one account stacking corroborations.
 //
 // Bounds are checked by the SHARED validator (lib/communityPrice.ts) that the
 // submit UI also runs, so a rejection reads the same friendly sentence on both
@@ -36,16 +35,16 @@
 // PROVENANCE: this route writes only community observations. It never edits the
 // venue dataset, the scraped price CSV, or visit_reports - the scraped baseline
 // survives every submission and keeps its own dated badge.
-// No Supabase and no env are required.
+// Reads and reader reports remain keyless. New contributions require configured
+// authentication plus a completed account profile.
 
 import { jsonNoStore } from "@/lib/apiResponses";
-import { callerUserId } from "@/lib/authServer";
 import { deriveCommunityPriceActor } from "@/lib/communityPriceActor";
 import {
   NO_ALCOHOL_DRINK_CATEGORIES,
   validateCommunityPrice,
-  type CommunityPriceAttribution,
 } from "@/lib/communityPrice";
+import { resolveContributionIdentity } from "@/lib/contributionIdentity.server";
 import { validateCommunityVenueSignal } from "@/lib/communityVenueSignals";
 import { isDrinkCategory } from "@/lib/drinks";
 import {
@@ -59,12 +58,7 @@ import {
   submitCommunityPrice,
   submitCommunityVenueSignal,
 } from "@/lib/communityPriceStore";
-import {
-  identityHandleStore,
-} from "@/lib/identityHandleStore";
 import { isLimited } from "@/lib/pintDrops";
-import { profileStore } from "@/lib/profileStore";
-import { normalizeHandle } from "@/lib/profiles";
 import { getUkBaseIdIndex } from "@/lib/ukBaseIndex";
 import {
   isUkBaseId,
@@ -125,36 +119,13 @@ async function resolvePubVenueId(venueId: string): Promise<VenueResolution> {
 }
 
 async function communityWriteIsLimited(
-  actor: string | undefined,
+  actor: string,
   venueId: string,
 ): Promise<boolean> {
-  const actorLimitKey = `price-submit-actor:${actor ?? "anon"}`;
+  const actorLimitKey = `price-submit-actor:${actor}`;
   if (await isLimited(actorLimitKey, actorLimitKey, 30, 3_600_000)) return true;
-  const venueLimitKey = `price-submit:${actor ?? "anon"}:${venueId}`;
+  const venueLimitKey = `price-submit:${actor}:${venueId}`;
   return isLimited(venueLimitKey, venueLimitKey);
-}
-
-async function resolveOptionalPriceAttribution(
-  request: Request,
-  assertedHandle: string | undefined,
-): Promise<CommunityPriceAttribution> {
-  if (!assertedHandle) return { status: "anonymous" };
-  try {
-    const presented = assertedHandle.trim().replace(/^@/, "").toLowerCase();
-    const handle = normalizeHandle(assertedHandle);
-    if (!handle || handle !== presented) return { status: "anonymous" };
-    const ownerId = await callerUserId(request);
-    if (!ownerId) return { status: "anonymous" };
-    const [resolution, ownedProfile] = await Promise.all([
-      identityHandleStore().resolve(handle),
-      profileStore().getByUserId(ownerId),
-    ]);
-    return resolution && ownedProfile?.id === resolution.profileId
-      ? { status: "credited", handle: resolution.currentHandle }
-      : { status: "anonymous" };
-  } catch {
-    return { status: "anonymous" };
-  }
 }
 
 export async function POST(request: Request): Promise<Response> {
@@ -201,6 +172,11 @@ export async function POST(request: Request): Promise<Response> {
     return jsonNoStore({ ok: true }, { status: 200 });
   }
 
+  const contributor = await resolveContributionIdentity(request);
+  if (!contributor.ok) {
+    return jsonNoStore(contributor.body, { status: contributor.httpStatus });
+  }
+
   if (readString(body.kind) === "venue-signal") {
     const parsed = validateCommunityVenueSignal(body);
     if (!parsed.ok) {
@@ -213,14 +189,13 @@ export async function POST(request: Request): Promise<Response> {
         { status: resolved.status },
       );
     }
-    const actor = deriveCommunityPriceActor(request);
-    if (await communityWriteIsLimited(actor, resolved.venueId)) {
+    if (await communityWriteIsLimited(contributor.actor, resolved.venueId)) {
       return jsonNoStore({ error: "Too many logs, slow down." }, { status: 429 });
     }
     const { signal, failed } = await submitCommunityVenueSignal({
       ...parsed.value,
       venueId: resolved.venueId,
-      actor,
+      actor: contributor.actor,
     });
     if (failed || !signal) {
       return jsonNoStore(
@@ -270,18 +245,10 @@ export async function POST(request: Request): Promise<Response> {
   }
   const submission = { ...result.value, venueId: resolved.venueId };
 
-  const actor = deriveCommunityPriceActor(request);
-  const attribution = await resolveOptionalPriceAttribution(
-    request,
-    readString(body.contributorHandle),
-  );
-
-  // Cap one device across every venue before applying the tighter per-venue
-  // budget. Without this actor-only key, changing venueId resets the budget and
-  // lets one device spray a price across the whole map. Deliberate: the key is
-  // the hashed IP, so devices behind one NAT share the 30/hour budget - a
-  // client-minted id would be cleared-storage-evadable and defeat the cap.
-  if (await communityWriteIsLimited(actor, submission.venueId)) {
+  // Cap one account across every venue before applying the tighter per-venue
+  // budget. The immutable profile id is stable across handle changes and
+  // devices, and cannot be reset by clearing browser storage.
+  if (await communityWriteIsLimited(contributor.actor, submission.venueId)) {
     return jsonNoStore({ error: "Too many price logs, slow down." }, { status: 429 });
   }
 
@@ -289,10 +256,8 @@ export async function POST(request: Request): Promise<Response> {
   // flagged so we answer 503 (degraded dependency) rather than a fake success.
   const { price, failed } = await submitCommunityPrice({
     ...submission,
-    actor,
-    ...(attribution.status === "credited"
-      ? { contributorHandle: attribution.handle }
-      : {}),
+    actor: contributor.actor,
+    contributorHandle: contributor.handle,
   });
   if (failed || !price) {
     return jsonNoStore({ error: "Could not log that price right now." }, { status: 503 });
@@ -300,12 +265,12 @@ export async function POST(request: Request): Promise<Response> {
   // Read the venue back so the response carries this figure's authoritative
   // `corroborations` - the number that decides whether the submitter's tap
   // moves a pin or only lands on the pub's sheet. The client cannot derive it
-  // (it never sees other devices' rows), and counting it in the store's one
+  // (it never sees other contributors' rows), and counting it in the store's one
   // read path rather than a second time on write keeps a single definition of
   // "how much the community backs this price".
   //
   // Adopted only when the read-back is still THIS submission's figure. When it
-  // is not - another device holds the freshest row for this drink at a
+  // is not - another contributor holds the freshest row for this drink at a
   // different price, or the read degraded - answering with that row would show
   // the submitter a price they never typed, so we answer with their own at an
   // explicit one voice. A figure that is not even the record for its drink is
@@ -322,7 +287,10 @@ export async function POST(request: Request): Promise<Response> {
   return jsonNoStore(
     {
       ok: true,
-      attribution,
+      attribution: {
+        status: "credited",
+        handle: contributor.handle,
+      },
       price:
         record ??
         {

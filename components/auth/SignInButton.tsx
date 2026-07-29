@@ -1,12 +1,12 @@
 "use client";
 
-// Google, Microsoft, and passwordless email sign-in — and, once signed in, the user's avatar/name + a
+// Google, Apple, and passwordless email sign-in, plus signed-in account controls.
 // sign-out control.
 //
 // ──────────────────────────────────────────────────────────────────────────
 // OWNER MANUAL STEPS (required for either button to actually log anyone in):
 //
-// Full checklist: docs/DEPLOYMENT.md → "Browser sign-in (email magic link + Google + Microsoft)".
+// Full checklist: docs/DEPLOYMENT.md, "Browser sign-in".
 // IdP redirect URI is always https://<project-ref>.supabase.co/auth/v1/callback.
 // Canonical callback and Supabase URL allowlist are owned by that checklist.
 //
@@ -56,12 +56,12 @@ export default function SignInButton({
     configured,
     socialProviders,
     signInWithGoogle,
-    signInWithMicrosoft,
+    signInWithApple,
     signInWithEmail,
     cancelAuthAttempt,
     signOut,
   } = useAuth();
-  const [busy, setBusy] = useState<"google" | "microsoft" | "out" | null>(null);
+  const [busy, setBusy] = useState<"google" | "apple" | "out" | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
@@ -164,16 +164,16 @@ export default function SignInButton({
     }
   }, [signInWithGoogle]);
 
-  const onSignInMicrosoft = useCallback(async () => {
-    trackEvent("sign_in_initiated", { provider: "microsoft" });
-    setBusy("microsoft");
+  const onSignInApple = useCallback(async () => {
+    trackEvent("sign_in_initiated", { provider: "apple" });
+    setBusy("apple");
     setError(null);
-    const { error: signInError } = await signInWithMicrosoft();
+    const { error: signInError } = await signInWithApple();
     if (signInError) {
       setError(signInError);
       setBusy(null);
     }
-  }, [signInWithMicrosoft]);
+  }, [signInWithApple]);
 
   const onSignOut = useCallback(async () => {
     setBusy("out");
@@ -222,14 +222,14 @@ export default function SignInButton({
     );
   }
 
-  const hasSocialProviders = socialProviders.google || socialProviders.microsoft;
+  const hasSocialProviders = socialProviders.google || socialProviders.apple;
   const options = (
     <div className="authOptions">
       <SocialSignInButtons
         availability={socialProviders}
         disabled={busy !== null}
         onGoogle={onSignInGoogle}
-        onMicrosoft={onSignInMicrosoft}
+        onApple={onSignInApple}
       />
       <MagicLinkForm
         disabled={busy !== null}
@@ -281,7 +281,7 @@ export default function SignInButton({
               availability={socialProviders}
               disabled={busy !== null}
               onGoogle={onSignInGoogle}
-              onMicrosoft={onSignInMicrosoft}
+              onApple={onSignInApple}
               fullLabels
             />
             <MagicLinkForm

@@ -187,6 +187,16 @@ describe("profileStore.update — empty patch is a read", () => {
 });
 
 describe("profileStore.softDelete + getHandleByUserId", () => {
+  it.each(["karan", "sarah", "carol", "erin"])(
+    "refuses to link reserved handle %s at the store boundary",
+    async (handle) => {
+      await expect(
+        memoryProfileStore.linkUser(handle, "user-abc"),
+      ).rejects.toThrow("That handle is not available.");
+      expect(await memoryProfileStore.getByHandle(handle)).toBeNull();
+    },
+  );
+
   it("clears editable fields but keeps the handle row", async () => {
     await seed("ken");
     await memoryProfileStore.update("ken", {

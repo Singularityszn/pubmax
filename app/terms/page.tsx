@@ -8,8 +8,9 @@ import "../legal.css";
 // /terms — plain-language terms of use. Server component, zero client JS.
 // Sibling of /privacy: that page says what we do with data, this one says what
 // each side is agreeing to. Same rule applies — describe the real product (free,
-// no ads, over-18s, community-sourced prices that are observations rather than
-// offers), never invent guarantees or a company that doesn't exist yet.
+// no ads, private profile data, and community-sourced prices that are
+// observations rather than offers), never invent guarantees or a company that
+// doesn't exist yet.
 
 const PAGE_TITLE = "Terms of use";
 const PAGE_DESCRIPTION =
@@ -68,11 +69,11 @@ export default function TermsPage() {
       </section>
 
       <section className="legalSection" aria-labelledby="age">
-        <h2 id="age" className="legalH2">Over-18s</h2>
+        <h2 id="age" className="legalH2">Age and alcohol</h2>
         <p className="legalBody">
-          The pub-crawl side of PUBMAXX is for adults. Don&rsquo;t use it if
-          you&rsquo;re under 18. Nothing in the app is designed to encourage you
-          to drink more. Know your limits, and know the facts at{" "}
+          PUBMAXX does not block accounts or contributions based on age. Pubs
+          decide who they serve. Nothing in the app is designed to encourage
+          you to drink more. Know your limits, and know the facts at{" "}
           <a
             href="https://www.drinkaware.co.uk"
             target="_blank"
@@ -96,11 +97,20 @@ export default function TermsPage() {
           screen size, referrer and campaign details, plus app performance and
           the closed product events described in our privacy notice. PostHog
           deletes analytics events 12 months after collection and pseudonymous
-          person and device records 12 months after their last activity. If you
-          make an account, keep your sign-in to yourself, use a handle that
-          isn&rsquo;t someone else&rsquo;s identity, and don&rsquo;t hand the
-          account to anyone else. You can stop using it whenever you like, and
-          ask us to delete it. See the{" "}
+          person and device records 12 months after their last activity. Handle
+          is required to finish signup. Date of birth is required to finish signup
+          too. Full name and sex are optional. We collect and store date of
+          birth, full name and sex as private details for product analytics and social features.
+          Date of birth stays until you delete your profile.
+          Full name and sex stay until you edit or clear them, or delete your
+          profile. Deleting your profile removes these private identity fields and clears
+          its editable public details, while keeping your
+          authentication account, public handle and handle-keyed contribution
+          history. Only your handle is public.
+          Keep your sign-in to yourself, use a handle that isn&rsquo;t someone
+          else&rsquo;s identity, and don&rsquo;t hand the account to anyone
+          else. You can stop using it whenever you like, and ask us to delete
+          your account and its private profile data. See the{" "}
           <Link href="/privacy" className="legalLink">privacy notice</Link>.
         </p>
       </section>
@@ -175,10 +185,10 @@ export default function TermsPage() {
         <p className="legalBody">
           Referral rewards are not active. We can record private edges and
           milestones, but those records do not grant access to paid features
-          while we cannot reliably tie a contribution to a signed-in person and
-          stop one person using several accounts. If that changes, these terms
-          and the account surface will say what is granted before any reward
-          goes live.
+          while sign-in cannot prove one person has only one account and not
+          every qualifying contribution uses the account identity boundary. If
+          that changes, these terms and the account surface will say what is
+          granted before any reward goes live.
         </p>
       </section>
 

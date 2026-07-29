@@ -1,9 +1,10 @@
 # Early email capture (identity nudge)
 
-The Cycle-2 locked owner decision — *"push identity harder … early email
-capture"* — gives a signed-out user a **lightweight** alternative to full OAuth:
-leave just an email to receive the weekly pint digest. Full OAuth remains the
-richer path; this is the one-field option next to it on the identity nudge sheet.
+The Cycle-2 locked owner decision - *"push identity harder … early email
+capture"* - gives a signed-out user a **lightweight** alternative to account
+sign-in: leave just an email to receive the weekly pint digest. Email magic link
+and any enabled social provider remain the account paths; this is the one-field
+option next to them on the identity nudge sheet.
 
 Privacy-first, GDPR-sane: **one purpose, stated at capture** (the weekly digest),
 and **double opt-in** — a captured address is stored *unconfirmed* and is never

@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useEffect, useState } from "react";
+import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 
 import SignInButton from "@/components/auth/SignInButton";
@@ -12,8 +12,14 @@ import {
   trackEvent,
 } from "@/lib/analytics";
 import type { AnalyticsConsentDecision } from "@/lib/analyticsIdentity";
+import {
+  accountBoundFetch,
+  captureAccountAuth,
+  type AccountAuthSnapshot,
+} from "@/lib/accountBoundFetch";
 import { authedFetch } from "@/lib/authedFetch";
 import { emitIdentityHandleChanged } from "@/lib/identityClient";
+import PrivateIdentityEditor from "@/components/identity/PrivateIdentityEditor";
 import NightMemoryStudio from "@/components/profile/NightMemoryStudio";
 import type { ReferralPrivateStatus } from "@/lib/referralStore";
 import {
@@ -168,11 +174,111 @@ export function ReferralInviteCard({
   );
 }
 
-export default function PubmaxxAccountHub() {
-  const { user, loading } = useAuth();
+function AccountHandleEditor({
+  auth,
+}: {
+  auth: AccountAuthSnapshot;
+}): React.JSX.Element {
   const router = useRouter();
   const [handle, setHandle] = useState("");
   const [currentHandle, setCurrentHandle] = useState<string | null>(null);
+  const [message, setMessage] = useState("");
+  const active = useRef(true);
+
+  useEffect(() => {
+    active.current = true;
+    const controller = new AbortController();
+    void accountBoundFetch(
+      auth,
+      "/api/identity/handle/current",
+      { signal: controller.signal },
+    ).then(async (response) => {
+      const body = await response.json().catch(() => null) as
+        | { handle?: string | null; error?: string }
+        | null;
+      if (controller.signal.aborted) return;
+      if (!response.ok) {
+        setMessage(body?.error ?? "Your handle could not be loaded.");
+        return;
+      }
+      const owned = body?.handle ?? null;
+      setCurrentHandle(owned);
+      setHandle(owned ?? "");
+    }).catch(() => {
+      if (!controller.signal.aborted) {
+        setMessage("Your handle could not be loaded.");
+      }
+    });
+    return () => {
+      active.current = false;
+      controller.abort();
+    };
+  }, [auth]);
+
+  async function claim(event: FormEvent) {
+    event.preventDefault();
+    setMessage("");
+    try {
+      const response = await accountBoundFetch(
+        auth,
+        currentHandle
+          ? "/api/identity/handle/rename"
+          : "/api/identity/handle/claim",
+        {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ handle }),
+        },
+      );
+      const body = await response.json().catch(() => ({})) as {
+        handle?: string;
+        error?: string;
+      };
+      if (!active.current) return;
+      if (!response.ok || !body.handle) {
+        setMessage(body.error ?? "That handle is unavailable.");
+        return;
+      }
+      try {
+        localStorage.setItem("pubmax_handle", body.handle);
+      } catch {}
+      emitIdentityHandleChanged({ ownerId: auth.userId, handle: body.handle });
+      if (!currentHandle) {
+        trackEvent("account_claimed", { source: "you" });
+      }
+      router.push(`/u/${encodeURIComponent(body.handle)}`);
+    } catch {
+      if (active.current) setMessage("That handle could not be saved.");
+    }
+  }
+
+  return (
+    <form onSubmit={claim}>
+      <h3>{currentHandle ? "Your @handle" : "Claim your @handle"}</h3>
+      <input
+        value={handle}
+        onChange={(event) => setHandle(event.target.value)}
+        pattern="[A-Za-z0-9_]{3,30}"
+        placeholder="night_owl"
+        required
+      />
+      <button type="submit">
+        {currentHandle ? "Rename handle" : "Claim handle"}
+      </button>
+      {currentHandle ? (
+        <small>Renames are limited to once every 30 days. Old links keep working.</small>
+      ) : null}
+      {message ? <small role="status">{message}</small> : null}
+    </form>
+  );
+}
+
+export default function PubmaxxAccountHub() {
+  const { user, loading, session } = useAuth();
+  const accountAuth = useMemo(
+    () => captureAccountAuth(user?.id ?? null, session),
+    [session, user?.id],
+  );
   const [instagramUrl, setInstagramUrl] = useState("");
   const [connections, setConnections] = useState<Connection[]>([]);
   const [providers, setProviders] = useState<SocialProviderAvailability>(NO_SOCIAL_PROVIDERS);
@@ -233,13 +339,11 @@ export default function PubmaxxAccountHub() {
     });
     void Promise.allSettled([
       authedFetch("/api/social-connections", { signal: controller.signal }),
-      authedFetch("/api/identity/handle/current", { signal: controller.signal }),
       authedFetch("/api/me/night-profile", { signal: controller.signal }),
       authedFetch("/api/referrals/status", { signal: controller.signal }),
-    ]).then(async ([socialResult, identityResult, nightProfileResult, referralsResult]) => {
+    ]).then(async ([socialResult, nightProfileResult, referralsResult]) => {
       if (controller.signal.aborted) return;
       const social = socialResult.status === "fulfilled" ? socialResult.value : null;
-      const identity = identityResult.status === "fulfilled" ? identityResult.value : null;
       const nightProfile = nightProfileResult.status === "fulfilled"
         ? nightProfileResult.value
         : null;
@@ -253,14 +357,6 @@ export default function PubmaxxAccountHub() {
         } | null;
         setConnections(body?.connections ?? []);
         setProviders(body?.providers ?? NO_SOCIAL_PROVIDERS);
-      }
-      if (identity?.ok) {
-        const body = await identity.json().catch(() => null) as
-          | { handle?: string | null }
-          | null;
-        const owned = body?.handle ?? null;
-        setCurrentHandle(owned);
-        if (owned) setHandle(owned);
       }
       if (nightProfile?.ok) {
         const body = await nightProfile.json().catch(() => null) as
@@ -298,21 +394,6 @@ export default function PubmaxxAccountHub() {
       trackEvent("social_account_connected", { provider, connectionType: "oauth" });
     }
   }, []);
-
-  async function claim(event: FormEvent) {
-    event.preventDefault();
-    const response = await authedFetch(currentHandle ? "/api/identity/handle/rename" : "/api/identity/handle/claim", {
-      method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ handle }),
-    });
-    const body = await response.json().catch(() => ({})) as { handle?: string; error?: string };
-    if (!response.ok || !body.handle) return setMessage(body.error ?? "That handle is unavailable.");
-    try { localStorage.setItem("pubmax_handle", body.handle); } catch { /* account ownership still persists */ }
-    emitIdentityHandleChanged(body.handle);
-    if (!currentHandle) {
-      trackEvent("account_claimed", { source: "you" });
-    }
-    router.push(`/u/${encodeURIComponent(body.handle)}`);
-  }
 
   async function connectOAuth(provider: SocialProvider) {
     const response = await authedFetch(`/api/social-connections/${provider}`, {
@@ -498,7 +579,16 @@ export default function PubmaxxAccountHub() {
         onSave={() => void saveAccountNightProfile()}
       />
       <div className="accountHubGrid">
-        <form onSubmit={claim}><h3>{currentHandle ? "Your @handle" : "Claim your @handle"}</h3><input value={handle} onChange={(event) => setHandle(event.target.value)} pattern="[A-Za-z0-9_]{3,30}" placeholder="night_owl" required /><button type="submit">{currentHandle ? "Rename handle" : "Claim handle"}</button>{currentHandle ? <small>Renames are limited to once every 30 days. Old links keep working.</small> : null}</form>
+        {accountAuth ? (
+          <AccountHandleEditor key={accountAuth.userId} auth={accountAuth} />
+        ) : (
+          <div>
+            <h3>Your @handle</h3>
+            <p>Sign in again to change your handle.</p>
+            <SignInButton />
+          </div>
+        )}
+        <PrivateIdentityEditor />
         <div><h3>Connected accounts</h3><SocialConnectionActions providers={providers} onConnect={(provider) => void connectOAuth(provider)} />{providers.instagram.manual ? <form onSubmit={connectInstagram}><input type="url" value={instagramUrl} onChange={(event) => setInstagramUrl(event.target.value)} placeholder="Personal Instagram URL" required /><button type="submit">Add personal link</button></form> : null}<small>{connections.length} connected</small></div>
         <ReferralInviteCard
           status={referralStatus}

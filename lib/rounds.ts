@@ -2,12 +2,9 @@
 // the short join-code generator. Types + pure helpers live here (no store import)
 // so a route can validate inputs without pulling the storage backend into scope.
 //
-// A Round is a group crawl session friends join by a short code — no accounts, the
-// same self-asserted `handle` identity as the rest of the social layer (GH #26,
-// docs/PRD_FOR_FABLE.md § The Spill). As members log Pint Drops through the night,
-// the Round's route builds itself: each member's drop at a NEW pub appends a stop.
-// See supabase/migrations/0011_rounds.sql for the honest trust-boundary note (the
-// code IS the capability).
+// A Round is a group crawl session friends join by a short code. Diary membership
+// uses the Round capability and self-asserted handles; drink lines reach community
+// price authority only through a separately authenticated account profile.
 
 import { normalizeHandle } from "@/lib/profiles";
 import { cleanText, readString } from "@/lib/textClean";
@@ -80,7 +77,7 @@ export const ROUND_SPEND_ITEM_NAME_MAX = 80;
 export const ROUND_SPEND_ITEM_MAX = 20;
 // How many of a turn's lines may be first-party price observations. The diary
 // takes up to ROUND_SPEND_ITEM_MAX lines; this narrower ceiling is what the
-// community store sees, and it bounds both the device budget one turn can spend
+// community store sees, and it bounds both the account budget one turn can spend
 // and the number of limiter checks a phone tap waits on.
 export const ROUND_SPEND_PRICE_LINE_MAX = 10;
 export const ROUND_SPEND_TOTAL_MIN_PENCE = 100;
@@ -103,10 +100,10 @@ export type RoundMemberDTO = {
 };
 
 /**
- * Where a drink line's figure came from. "round" is the drinker's own claim —
- * a first-party observation, so it goes on to the community price store. "demo"
- * is a figure lifted straight off a seeded demo menu (lib/drinkSeeds): it is a
- * real part of the night's diary and nobody's observation, so it stops here.
+ * Where a drink line's figure came from. "round" is the drinker's own claim,
+ * so a signed-in account may send it to the community price store. "demo" is a
+ * figure lifted straight off a seeded demo menu (lib/drinkSeeds): it is a real
+ * part of the night's diary and nobody's observation, so it stops here.
  * Provenance is the gate, never the figure itself: a drinker who genuinely paid
  * a price a demo menu happens to quote is still observing it.
  *
@@ -114,25 +111,63 @@ export type RoundMemberDTO = {
  * server, so a crafted POST can label a demo figure "round". That is not a hole
  * a server check could close — a hand-typed price that coincides with a seed is
  * the same request as a re-emitted seed, and policy requires accepting the
- * first. What holds the line instead is what always held it: corroboration and
- * age before any map surface, plus the same per-device price budget the other
- * submission door charges (app/api/rounds/[code]).
+ * first. What holds the line instead is what always held it: authenticated
+ * account identity, corroboration and observation freshness before any map
+ * surface, plus the Round route's account price budget
+ * (app/api/rounds/[code]).
  */
 export type RoundSpendItemSource = "round" | "demo";
+export type RoundPromotionStatus =
+  | "diary_only"
+  | "legacy_unknown"
+  | "pending"
+  | "ready"
+  | "promoted"
+  | "superseded";
+
+export type RoundPriceSource = Readonly<{
+  spendId: string;
+  lineIndex: number;
+}>;
 
 export type RoundSpendItemDTO = {
   drinkName: string;
   drinkCategory: DrinkCategory;
   pricePence: number;
   source: RoundSpendItemSource;
+  promotionStatus: RoundPromotionStatus;
 };
 
-/** The drink lines that are first-party observations. The one owner of that
- *  question: the write path submits these, the page captions these. */
+export type NewRoundSpendItem = Omit<RoundSpendItemDTO, "promotionStatus">;
+
+export function resolveRoundPromotionStatus(
+  source: RoundSpendItemSource,
+  value: unknown,
+): RoundPromotionStatus {
+  if (
+    value === "diary_only" ||
+    value === "legacy_unknown" ||
+    value === "pending" ||
+    value === "ready" ||
+    value === "promoted" ||
+    value === "superseded"
+  ) {
+    return value;
+  }
+  return source === "demo" ? "diary_only" : "legacy_unknown";
+}
+
+/** The drink lines that claim first-party provenance. */
 export function firstPartyPriceItems(
+  items: readonly NewRoundSpendItem[],
+): NewRoundSpendItem[] {
+  return items.filter((item) => item.source === "round");
+}
+
+export function promotedPriceItems(
   items: readonly RoundSpendItemDTO[],
 ): RoundSpendItemDTO[] {
-  return items.filter((item) => item.source === "round");
+  return items.filter((item) => item.promotionStatus === "promoted");
 }
 
 export type RoundSpendDTO = {
@@ -165,6 +200,10 @@ export type RoundState = {
   spends: RoundSpendDTO[];
 };
 
+export type RoundViewState = RoundState & {
+  viewerMemberHandle?: string;
+};
+
 // ── Write payloads (validated) ───────────────────────────────────────────────
 export type NewRound = {
   title: string;
@@ -185,7 +224,7 @@ export type NewRoundSpend = {
   venueId: string;
   venueName: string;
   totalPence: number;
-  items: RoundSpendItemDTO[];
+  items: NewRoundSpendItem[];
 };
 
 /**
@@ -268,7 +307,7 @@ export function cleanNewRoundSpend(input: {
   const rawItems = (input.items ?? []) as unknown[];
   if (rawItems.length > ROUND_SPEND_ITEM_MAX) return null;
 
-  const items: RoundSpendItemDTO[] = [];
+  const items: NewRoundSpendItem[] = [];
   for (const rawItem of rawItems) {
     if (!rawItem || typeof rawItem !== "object") return null;
     const row = rawItem as Record<string, unknown>;

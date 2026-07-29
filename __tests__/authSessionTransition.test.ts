@@ -20,4 +20,17 @@ describe("auth session transition telemetry", () => {
     expect(tracker.update(null, "user-a")).toBe(false);
     expect(tracker.update("SIGNED_IN", "user-a")).toBe(false);
   });
+
+  it("exposes the latest auth owner synchronously with each transition", () => {
+    const tracker = createAuthSessionTransitionTracker();
+
+    tracker.update("SIGNED_IN", "user-a");
+    expect(tracker.currentUserId()).toBe("user-a");
+
+    tracker.update("SIGNED_IN", "user-b");
+    expect(tracker.currentUserId()).toBe("user-b");
+
+    tracker.update("SIGNED_OUT", null);
+    expect(tracker.currentUserId()).toBeNull();
+  });
 });

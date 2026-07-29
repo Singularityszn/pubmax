@@ -141,7 +141,7 @@ describe("sanitizeEvent", () => {
   });
 
   describe("PostHog wizard events", () => {
-    it.each(["google", "microsoft"])(
+    it.each(["google", "apple", "email"])(
       "keeps only fixed provider enum %s for sign-in initiation",
       (provider) => {
         expect(sanitizeEvent("sign_in_initiated", {
@@ -155,7 +155,7 @@ describe("sanitizeEvent", () => {
       },
     );
 
-    it.each(["oauth", "private", "person@example.com"])(
+    it.each(["microsoft", "oauth", "private", "person@example.com"])(
       "rejects provider value %s outside the sign-in button enum",
       (provider) => {
         expect(sanitizeEvent("sign_in_initiated", { provider })?.props).toEqual({});
@@ -302,10 +302,11 @@ describe("sanitizeEvent", () => {
 });
 
 describe("community-price funnel events", () => {
-  it("registers all three funnel steps", () => {
+  it("registers submission and required-identity funnel steps", () => {
     expect(isKnownEvent("price_submit_viewed")).toBe(true);
     expect(isKnownEvent("price_submitted")).toBe(true);
     expect(isKnownEvent("price_submit_failed")).toBe(true);
+    expect(isKnownEvent("contribution_gate")).toBe(true);
   });
 
   it("keeps the drink category and the failure reason", () => {
@@ -352,5 +353,23 @@ describe("community-price funnel events", () => {
       name: "pub_pal_memory_changed",
       props: { action: "create", category: "preference" },
     });
+  });
+
+  it("keeps only closed, identity-free contribution gate states", () => {
+    for (const step of ["sign_in_required", "onboarding_required"]) {
+      expect(sanitizeEvent("contribution_gate", { step })).toEqual({
+        name: "contribution_gate",
+        props: { step },
+      });
+    }
+    for (const step of [
+      "age_assessment_required",
+      "age_assessment_passed",
+      "age_restricted",
+    ]) {
+      expect(sanitizeEvent("contribution_gate", { step })).toBeNull();
+    }
+    expect(sanitizeEvent("contribution_gate", { step: "user@example.com" })).toBeNull();
+    expect(sanitizeEvent("contribution_gate", {})).toBeNull();
   });
 });

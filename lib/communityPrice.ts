@@ -200,14 +200,14 @@ export function validateCommunityPrice(input: unknown): CommunityPriceValidation
 
 const DAY_MS = 86_400_000;
 
-// ── Trust policy: what an anonymous figure has to earn before it moves the map ─
+// ── Trust policy: what a community figure has to earn before it moves the map ─
 //
 // Captain decision 2026-07-26 (community-price-trust-model / -max-age), closing
 // review findings F1 (product half) and F4. TWO gates, both pure read-side
 // policy over rows the store already keeps - nothing new is written, and the
 // pub's own sheet is never gated: a submission ALWAYS shows there, dated, from
 // the first tap. What the gates protect is the MAP - pin colour, list rows and
-// the cheapest buckets - where one anonymous device could otherwise repaint
+// the cheapest buckets - where one account could otherwise repaint
 // every pub in London permanently (F1) with a figure that never ages out (F4).
 //
 // The whole policy lives here, browser-safe, so the store that counts it, the
@@ -216,7 +216,7 @@ const DAY_MS = 86_400_000;
 /**
  * Independent submitters needed before a community price drives the map. Two
  * is the smallest number that is not "one stranger's word": it takes a second
- * device, in the same pub, agreeing about the same drink.
+ * independent contributor, in the same pub, agreeing about the same drink.
  */
 export const COMMUNITY_PRICE_CORROBORATION_THRESHOLD = 2;
 

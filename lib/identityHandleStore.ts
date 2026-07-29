@@ -1,5 +1,9 @@
 import { profileStore } from "@/lib/profileStore";
-import { assessPubmaxxHandle, evaluateHandleRename } from "@/lib/pubmaxxIdentity";
+import {
+  assessPubmaxxHandle,
+  evaluateHandleRename,
+  isReservedContributorHandle,
+} from "@/lib/pubmaxxIdentity";
 import { requireSupabaseAdmin } from "@/lib/supabase";
 import { selectStore } from "@/lib/storeBackend";
 
@@ -29,6 +33,10 @@ export type IdentityHandleStore = {
   claim(ownerId: string, handle: string): Promise<HandleClaimResult>;
   rename(ownerId: string, handle: string): Promise<HandleRenameResult>;
   resolve(handle: string): Promise<HandleResolution | null>;
+  ownedHandle(
+    ownerId: string,
+    handles: readonly string[],
+  ): Promise<string | null>;
 };
 
 type MemoryAlias = {
@@ -63,14 +71,20 @@ function rpcClaim(row: Record<string, unknown>): HandleClaimResult {
 
 export const memoryIdentityHandleStore: IdentityHandleStore = {
   async availability(handle) {
+    if (isReservedContributorHandle(handle)) {
+      return { handle, available: false, reason: "taken" };
+    }
     if (memoryAliases.has(handle)) return { handle, available: false, reason: "taken" };
     const legacy = await profileStore().getByHandle(handle);
-    return legacy
+    return legacy?.userId
       ? { handle, available: false, reason: "taken" }
       : { handle, available: true };
   },
 
   async claim(ownerId, handle) {
+    if (isReservedContributorHandle(handle)) {
+      return { ok: false, code: "taken", error: "That handle is not available." };
+    }
     const owned = currentByOwner.get(ownerId);
     if (owned) {
       if (owned.currentHandle === handle) {
@@ -126,6 +140,9 @@ export const memoryIdentityHandleStore: IdentityHandleStore = {
   },
 
   async rename(ownerId, handle) {
+    if (isReservedContributorHandle(handle)) {
+      return { ok: false, code: "taken", error: "That handle is not available." };
+    }
     let owned = currentByOwner.get(ownerId);
     if (!owned) {
       const profile = await profileStore().getByUserId(ownerId);
@@ -186,22 +203,62 @@ export const memoryIdentityHandleStore: IdentityHandleStore = {
       ? { profileId: profile.id, requestedHandle: handle, currentHandle: profile.handle, redirect: false }
       : null;
   },
+
+  async ownedHandle(ownerId, handles) {
+    const candidates = new Set(handles);
+    if (candidates.size === 0) return null;
+    const owned = currentByOwner.get(ownerId);
+    if (owned) {
+      for (const handle of candidates) {
+        if (memoryAliases.get(handle)?.profileId === owned.profileId) {
+          return handle;
+        }
+      }
+    }
+    const profile = await profileStore().getByUserId(ownerId);
+    if (!profile) return null;
+    if (candidates.has(profile.handle)) return profile.handle;
+    for (const handle of candidates) {
+      if (memoryAliases.get(handle)?.profileId === profile.id) return handle;
+    }
+    return null;
+  },
 };
 
 export const supabaseIdentityHandleStore: IdentityHandleStore = {
   async availability(handle) {
+    if (isReservedContributorHandle(handle)) {
+      return { handle, available: false, reason: "taken" };
+    }
     const { data, error } = await requireSupabaseAdmin()
       .from("profile_handle_aliases")
-      .select("profile_id")
+      .select("profile_id,is_current")
       .eq("handle", handle)
       .limit(1);
     if (error) throw new Error(error.message);
-    return (data ?? []).length
+    const alias = (data ?? [])[0] as
+      | { profile_id?: unknown; is_current?: unknown }
+      | undefined;
+    if (!alias?.profile_id) return { handle, available: true };
+    if (alias.is_current !== true) {
+      return { handle, available: false, reason: "taken" };
+    }
+    const { data: profiles, error: profileError } = await requireSupabaseAdmin()
+      .from("profiles")
+      .select("user_id")
+      .eq("id", String(alias.profile_id))
+      .limit(1);
+    if (profileError) throw new Error(profileError.message);
+    const profile = (profiles ?? [])[0] as { user_id?: unknown } | undefined;
+    return profile?.user_id
       ? { handle, available: false, reason: "taken" }
       : { handle, available: true };
   },
 
   async claim(ownerId, handle) {
+    if (isReservedContributorHandle(handle)) {
+      return { ok: false, code: "taken", error: "That handle is not available." };
+    }
     const { data, error } = await requireSupabaseAdmin().rpc("claim_pubmaxx_handle", {
       p_user_id: ownerId,
       p_handle: handle,
@@ -211,6 +268,9 @@ export const supabaseIdentityHandleStore: IdentityHandleStore = {
   },
 
   async rename(ownerId, handle) {
+    if (isReservedContributorHandle(handle)) {
+      return { ok: false, code: "taken", error: "That handle is not available." };
+    }
     const { data, error } = await requireSupabaseAdmin().rpc("rename_pubmaxx_handle", {
       p_user_id: ownerId,
       p_handle: handle,
@@ -257,6 +317,34 @@ export const supabaseIdentityHandleStore: IdentityHandleStore = {
       currentHandle: String(current.handle),
       redirect: handle !== String(current.handle),
     };
+  },
+
+  async ownedHandle(ownerId, handles) {
+    const candidates = [...new Set(handles)];
+    if (!ownerId || candidates.length === 0) return null;
+    const { data: profiles, error: profileError } =
+      await requireSupabaseAdmin()
+        .from("profiles")
+        .select("id,handle")
+        .eq("user_id", ownerId)
+        .limit(1);
+    if (profileError) throw new Error(profileError.message);
+    const profile = (profiles ?? [])[0] as
+      | { id?: unknown; handle?: unknown }
+      | undefined;
+    if (!profile?.id) return null;
+    const current =
+      typeof profile.handle === "string" ? profile.handle : "";
+    if (current && candidates.includes(current)) return current;
+    const { data: aliases, error } = await requireSupabaseAdmin()
+      .from("profile_handle_aliases")
+      .select("handle")
+      .eq("profile_id", String(profile.id))
+      .in("handle", candidates)
+      .limit(1);
+    if (error) throw new Error(error.message);
+    const alias = (aliases ?? [])[0] as { handle?: unknown } | undefined;
+    return typeof alias?.handle === "string" ? alias.handle : null;
   },
 };
 

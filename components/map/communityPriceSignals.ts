@@ -20,7 +20,7 @@ import type { VenueSignal } from "./canvas/types";
 // or pass the has-drops filter.
 //
 // AND IT IS THE TRUST GATE. Because this is the only door onto the map, it is
-// also where an anonymous figure has to earn the map: `drivesMap` (see
+// also where a community figure has to earn the map: `drivesMap` (see
 // lib/communityPrice.ts) requires a second independent submitter agreeing about
 // the same drink, and drops the price back to the scraped baseline once it is
 // over 30 days old. Captain decision 2026-07-26, closing review findings F1

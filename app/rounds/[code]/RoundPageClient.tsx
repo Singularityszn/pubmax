@@ -14,7 +14,11 @@ import {
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import EmptyState from "@/components/EmptyState";
+import { useAuth } from "@/components/auth/AuthProvider";
 import SiteNav from "@/components/nav/SiteNav";
+import {
+  type AccountAuthSnapshot,
+} from "@/lib/accountBoundFetch";
 import {
   clearActiveRoundCode,
   writeActiveRoundCode,
@@ -31,11 +35,12 @@ import {
   ROUND_SPEND_PRICE_LINE_MAX,
   isValidRoundCode,
   normalizeRoundCode,
+  promotedPriceItems,
   roundTurn,
-  firstPartyPriceItems,
   type RoundSpendDTO,
   type RoundSpendItemSource,
   type RoundState,
+  type RoundViewState,
 } from "@/lib/rounds";
 import {
   currentStop,
@@ -43,6 +48,16 @@ import {
   roundPresence,
   type PresenceDTO,
 } from "@/lib/roundPresence";
+import {
+  captureRoundRequestIdentity,
+  readRoundAnonymousHandle,
+  roundJsonRequest,
+  roundRequest,
+  roundRequestIdentityOwnerKey,
+  runRoundMutationForCurrentOwner,
+  writeRoundAnonymousHandle,
+  type RoundRequestIdentity,
+} from "@/lib/roundRequest";
 import { buildRouteLegs, formatLeg, formatRouteTotal } from "@/lib/routeLegs";
 import { venueMenuForInspector } from "@/lib/venueMenu";
 import { loadSlimVenues, type SlimVenue } from "@/lib/venuesSlim";
@@ -54,6 +69,32 @@ import "./round.css";
 // convention (the notifications bell polls; no websockets). The page also refetches
 // on focus so switching back to the tab shows the latest route immediately.
 const POLL_MS = 10_000;
+
+export function roundComposerOwnerKey(
+  auth: AccountAuthSnapshot | null,
+): string {
+  return auth?.userId ?? "anonymous";
+}
+
+export function roundViewerHandle(
+  viewerMemberHandle: string | undefined,
+  viewerOwnerKey: string | null,
+  identity: RoundRequestIdentity | null,
+  storedHandle: string,
+  storedHandleOwnerKey: string | null,
+): string {
+  if (!identity) return "";
+  if (
+    viewerOwnerKey === roundRequestIdentityOwnerKey(identity) &&
+    viewerMemberHandle
+  ) {
+    return viewerMemberHandle;
+  }
+  return identity.kind === "anonymous" &&
+    storedHandleOwnerKey === roundRequestIdentityOwnerKey(identity)
+    ? storedHandle
+    : "";
+}
 
 // A minimal Venue shape for buildRouteLegs (read-only): the leg math only reads
 // longitude/latitude/id/name off each stop, so we adapt SlimVenue → that shape.
@@ -67,6 +108,25 @@ function slimToVenue(slim: SlimVenue): Venue {
 }
 
 export default function RoundPageClient({ params }: { params: Promise<{ code: string }> }): React.JSX.Element {
+  const { user, session, loading: authLoading } = useAuth();
+  const roundIdentity = useMemo(
+    () =>
+      authLoading
+        ? null
+        : captureRoundRequestIdentity(user?.id ?? null, session),
+    [authLoading, session, user?.id],
+  );
+  const roundAuth =
+    roundIdentity?.kind === "account" ? roundIdentity.auth : null;
+  const roundIdentityOwnerKey = roundRequestIdentityOwnerKey(roundIdentity);
+  const roundIdentityRef = useRef<RoundRequestIdentity | null>(roundIdentity);
+  useEffect(() => {
+    roundIdentityRef.current = roundIdentity;
+  }, [roundIdentity]);
+  const currentRoundIdentity = useCallback(
+    () => roundIdentityRef.current,
+    [],
+  );
   // Route param resolved after mount (Next 15 async params).
   const [code, setCode] = useState<string>("");
   useEffect(() => {
@@ -79,49 +139,77 @@ export default function RoundPageClient({ params }: { params: Promise<{ code: st
     };
   }, [params]);
 
-  const [state, setState] = useState<RoundState | null>(null);
+  const [state, setState] = useState<RoundViewState | null>(null);
+  const [stateOwnerKey, setStateOwnerKey] = useState<string | null>(null);
   const [loaded, setLoaded] = useState(false);
-  const [myHandle, setMyHandle] = useState<string>("");
+  const [anonymousHandle, setAnonymousHandle] = useState<{
+    ownerKey: string | null;
+    handle: string;
+  }>({ ownerKey: null, handle: "" });
   // Presence rows at the Round's CURRENT stop — the "your crew is here" overlay
   // (B6). Fetched from the EXISTING GET /api/presence?venueId=…; the intersection
   // with members happens in the pure lib/roundPresence lens. Fail-soft to [].
   const [presence, setPresence] = useState<PresenceDTO[]>([]);
 
-  // Read the viewer's own handle after mount (the server can't know localStorage),
-  // mirroring the feed / profile pages so the whole social layer shares one handle.
   useEffect(() => {
     let active = true;
-    async function loadHandle() {
-      try {
-        const handle = normalizeHandle(window.localStorage.getItem("pubmax_handle") ?? "");
-        if (active) setMyHandle(handle);
-      } catch {
-        // Storage disabled → stays anonymous; the join form shows a handle field.
+    void Promise.resolve().then(() => {
+      if (!active) return;
+      let handle = "";
+      if (roundIdentity?.kind === "anonymous") {
+        try {
+          handle = readRoundAnonymousHandle(window.localStorage);
+        } catch {
+          handle = "";
+        }
       }
-    }
-    void loadHandle();
+      setAnonymousHandle({ ownerKey: roundIdentityOwnerKey, handle });
+    });
     return () => {
       active = false;
     };
-  }, []);
+  }, [roundIdentity?.kind, roundIdentityOwnerKey]);
 
   // Fetch + poll the Round state while it's open. Fail-soft: a fetch miss leaves
   // the last-known state up rather than blanking the page.
   const refetch = useCallback(async () => {
-    if (!code) return;
+    if (!code || !roundIdentity) return;
     try {
-      const res = await fetch(`/api/rounds/${code}`, { cache: "no-store" });
-      if (res.ok) {
-        setState((await res.json()) as RoundState);
+      const completion = await runRoundMutationForCurrentOwner(
+        roundIdentity,
+        currentRoundIdentity,
+        async () => {
+          const res = await roundRequest(
+            `/api/rounds/${code}`,
+            roundIdentity,
+            { cache: "no-store" },
+          );
+          return {
+            res,
+            state: res.ok ? ((await res.json()) as RoundViewState) : null,
+          };
+        },
+      );
+      if (!completion.current) return;
+      const { res, state: next } = completion.value;
+      if (res.ok && next) {
+        setState(next);
+        setStateOwnerKey(roundRequestIdentityOwnerKey(roundIdentity));
       } else if (res.status === 404) {
         setState(null);
+        setStateOwnerKey(null);
       }
     } catch {
       // Network blip — keep the last-known state.
     } finally {
-      setLoaded(true);
+      if (
+        roundRequestIdentityOwnerKey(roundIdentity) ===
+        roundRequestIdentityOwnerKey(currentRoundIdentity())
+      ) {
+        setLoaded(true);
+      }
     }
-  }, [code]);
+  }, [code, currentRoundIdentity, roundIdentity]);
 
   useEffect(() => {
     if (!code) return;
@@ -228,9 +316,19 @@ export default function RoundPageClient({ params }: { params: Promise<{ code: st
     };
   }, [isOpen, currentStopVenueId, refetchPresence]);
 
+  const effectiveHandle = roundViewerHandle(
+    state?.viewerMemberHandle,
+    stateOwnerKey,
+    roundIdentity,
+    anonymousHandle.handle,
+    anonymousHandle.ownerKey,
+  );
   const amMember = useMemo(
-    () => (state && myHandle ? state.members.some((m) => m.handle === myHandle) : false),
-    [state, myHandle],
+    () =>
+      state && effectiveHandle
+        ? state.members.some((m) => m.handle === effectiveHandle)
+        : false,
+    [effectiveHandle, state],
   );
 
   // Invalid code / not found → an honest empty state (never a crash).
@@ -261,15 +359,34 @@ export default function RoundPageClient({ params }: { params: Promise<{ code: st
     );
   }
 
+  if (!roundIdentity) {
+    return (
+      <main className="roundShell">
+        <SiteNav active="crawls" />
+        <p className="roundLoading">Refreshing your sign-in…</p>
+      </main>
+    );
+  }
+
   return (
     <main className="roundShell">
       <SiteNav active="crawls" />
       <RoundBoard
+        key={roundRequestIdentityOwnerKey(roundIdentity) ?? "transitioning"}
         state={state}
-        myHandle={myHandle}
+        myHandle={effectiveHandle}
+        roundAuth={roundAuth}
+        roundIdentity={roundIdentity}
+        currentRoundIdentity={currentRoundIdentity}
         amMember={amMember}
         presence={presence}
-        onChange={setState}
+        onChange={(next) => {
+          setState(next);
+          setStateOwnerKey(roundRequestIdentityOwnerKey(roundIdentity));
+        }}
+        onAnonymousHandle={(handle) => {
+          setAnonymousHandle({ ownerKey: "anonymous", handle });
+        }}
       />
     </main>
   );
@@ -278,15 +395,23 @@ export default function RoundPageClient({ params }: { params: Promise<{ code: st
 function RoundBoard({
   state,
   myHandle,
+  roundAuth,
+  roundIdentity,
+  currentRoundIdentity,
   amMember,
   presence,
   onChange,
+  onAnonymousHandle,
 }: {
   state: RoundState;
   myHandle: string;
+  roundAuth: AccountAuthSnapshot | null;
+  roundIdentity: RoundRequestIdentity;
+  currentRoundIdentity: () => RoundRequestIdentity | null;
   amMember: boolean;
   presence: PresenceDTO[];
   onChange: (next: RoundState) => void;
+  onAnonymousHandle: (handle: string) => void;
 }): React.JSX.Element {
   const { round, members, stops, spends } = state;
   const closed = round.closedAt != null;
@@ -353,8 +478,12 @@ function RoundBoard({
 
       {amMember && !closed && stops.length > 0 ? (
         <RoundSpendComposer
+          key={roundComposerOwnerKey(roundAuth)}
           code={round.code}
           recorderHandle={myHandle}
+          roundAuth={roundAuth}
+          roundIdentity={roundIdentity}
+          currentRoundIdentity={currentRoundIdentity}
           currentHandle={rotation.currentHandle}
           members={members}
           stops={stops}
@@ -387,15 +516,37 @@ function RoundBoard({
       <RouteList stops={stops} />
 
       {!amMember && !closed ? (
-        <JoinForm code={round.code} initialHandle={myHandle} onJoined={onChange} />
+        <JoinForm
+          code={round.code}
+          identity={roundIdentity}
+          currentIdentity={currentRoundIdentity}
+          initialHandle={myHandle}
+          onJoined={(next, handle) => {
+            onAnonymousHandle(handle);
+            onChange(next);
+          }}
+        />
       ) : null}
 
       {amMember && !closed ? (
-        <AddStop code={round.code} handle={myHandle} onAdded={onChange} existing={stops.map((s) => s.venueId)} />
+        <AddStop
+          code={round.code}
+          identity={roundIdentity}
+          currentIdentity={currentRoundIdentity}
+          handle={myHandle}
+          onAdded={onChange}
+          existing={stops.map((s) => s.venueId)}
+        />
       ) : null}
 
       {isCreator && !closed ? (
-        <CloseRound code={round.code} handle={myHandle} onClosed={onChange} />
+        <CloseRound
+          code={round.code}
+          identity={roundIdentity}
+          currentIdentity={currentRoundIdentity}
+          handle={myHandle}
+          onClosed={onChange}
+        />
       ) : null}
     </div>
   );
@@ -491,6 +642,9 @@ function spendClientRef(): string {
 function RoundSpendComposer({
   code,
   recorderHandle,
+  roundAuth,
+  roundIdentity,
+  currentRoundIdentity,
   currentHandle,
   members,
   stops,
@@ -498,6 +652,9 @@ function RoundSpendComposer({
 }: {
   code: string;
   recorderHandle: string;
+  roundAuth: AccountAuthSnapshot | null;
+  roundIdentity: RoundRequestIdentity;
+  currentRoundIdentity: () => RoundRequestIdentity | null;
   currentHandle: string | null;
   members: RoundState["members"];
   stops: RoundState["stops"];
@@ -520,6 +677,7 @@ function RoundSpendComposer({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const pendingRef = useRef<string | null>(null);
+  const { user } = useAuth();
 
   useEffect(() => {
     if (!open || mode !== "items") return;
@@ -663,34 +821,54 @@ function RoundSpendComposer({
       setError("Add at least one drink, or use the quick total.");
       return;
     }
+    if (user && !roundAuth) {
+      setError("Your sign-in changed. Try again.");
+      return;
+    }
     setBusy(true);
     setError(null);
     pendingRef.current ??= spendClientRef();
     try {
-      const res = await fetch(`/api/rounds/${code}`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          action: "recordSpend",
-          handle: recorderHandle,
-          payerHandle,
-          venueId,
-          clientRef: pendingRef.current,
-          ...(mode === "items"
-            ? {
-                items: items.map(
-                  ({ drinkName, drinkCategory, priceGbp, priceSource }) => ({
-                    drinkName,
-                    drinkCategory,
-                    priceGbp,
-                    priceSource,
-                  }),
-                ),
-              }
-            : { totalGbp: amount }),
-        }),
-      });
-      const data = (await res.json()) as RoundState | { error: string };
+      const completion = await runRoundMutationForCurrentOwner(
+        roundIdentity,
+        currentRoundIdentity,
+        async () => {
+          const res = await roundJsonRequest(
+            `/api/rounds/${code}`,
+            roundIdentity,
+            {
+              action: "recordSpend",
+              handle: recorderHandle,
+              payerHandle,
+              venueId,
+              clientRef: pendingRef.current,
+              ...(mode === "items"
+                ? {
+                    items: items.map(
+                      ({
+                        drinkName,
+                        drinkCategory,
+                        priceGbp,
+                        priceSource,
+                      }) => ({
+                        drinkName,
+                        drinkCategory,
+                        priceGbp,
+                        priceSource,
+                      }),
+                    ),
+                  }
+                : { totalGbp: amount }),
+            },
+          );
+          return {
+            res,
+            data: (await res.json()) as RoundState | { error: string },
+          };
+        },
+      );
+      if (!completion.current) return;
+      const { res, data } = completion.value;
       if (!res.ok) {
         setError((data as { error: string }).error ?? "Could not keep that round.");
         return;
@@ -703,7 +881,12 @@ function RoundSpendComposer({
     } catch {
       setError("Could not keep that round. Try again.");
     } finally {
-      setBusy(false);
+      if (
+        roundRequestIdentityOwnerKey(roundIdentity) ===
+        roundRequestIdentityOwnerKey(currentRoundIdentity())
+      ) {
+        setBusy(false);
+      }
     }
   }
 
@@ -945,8 +1128,6 @@ function RoundSpendComposer({
   );
 }
 
-// Both captions count what actually happened to a spend's lines, so neither
-// promises a figure is on the corroboration path when it never went near it.
 function provisionalPriceCaption(logged: number, lines: number): string {
   if (logged === lines) {
     return logged === 1
@@ -958,13 +1139,19 @@ function provisionalPriceCaption(logged: number, lines: number): string {
     : `${logged} of these prices stay provisional until another drinker backs them.`;
 }
 
-function demoLineCaption(diaryOnly: number): string {
+function diaryOnlyCaption(diaryOnly: number): string {
   return diaryOnly === 1
-    ? "One line came off our demo menu, so it stays in this diary and was not logged as a price."
-    : `${diaryOnly} lines came off our demo menu, so they stay in this diary and were not logged as prices.`;
+    ? "One line stays in this diary and was not shared as a community price."
+    : `${diaryOnly} lines stay in this diary and were not shared as community prices.`;
 }
 
-function RoundSpendHistory({
+function supersededCaption(superseded: number): string {
+  return superseded === 1
+    ? "One earlier line was superseded by a later price from this account."
+    : `${superseded} earlier lines were superseded by later prices from this account.`;
+}
+
+export function RoundSpendHistory({
   spends,
 }: {
   spends: readonly RoundSpendDTO[];
@@ -977,8 +1164,15 @@ function RoundSpendHistory({
       </h2>
       <ol>
         {[...spends].reverse().map((spend) => {
-          const logged = firstPartyPriceItems(spend.items);
-          const diaryOnly = spend.items.length - logged.length;
+          const logged = promotedPriceItems(spend.items);
+          const legacyUnknown = spend.items.filter(
+            (item) => item.promotionStatus === "legacy_unknown",
+          ).length;
+          const superseded = spend.items.filter(
+            (item) => item.promotionStatus === "superseded",
+          ).length;
+          const diaryOnly =
+            spend.items.length - logged.length - legacyUnknown - superseded;
           return (
             <li key={spend.id} className="roundSpendCard">
               <div className="roundSpendSummary">
@@ -1001,7 +1195,13 @@ function RoundSpendHistory({
                       <li key={`${spend.id}-${index}`}>
                         <span>
                           {item.drinkName} · {categoryLabel(item.drinkCategory)}
-                          {item.source === "demo" ? " · diary only" : ""}
+                          {item.promotionStatus === "legacy_unknown"
+                            ? " · sharing status unknown"
+                            : item.promotionStatus === "superseded"
+                              ? " · superseded by a later price"
+                            : item.promotionStatus !== "promoted"
+                              ? " · diary only"
+                              : ""}
                         </span>
                         <strong>{formatPrice(item.pricePence / 100)}</strong>
                       </li>
@@ -1013,7 +1213,19 @@ function RoundSpendHistory({
                     </p>
                   ) : null}
                   {diaryOnly > 0 ? (
-                    <p className="roundPriceTrust">{demoLineCaption(diaryOnly)}</p>
+                    <p className="roundPriceTrust">{diaryOnlyCaption(diaryOnly)}</p>
+                  ) : null}
+                  {legacyUnknown > 0 ? (
+                    <p className="roundPriceTrust">
+                      {legacyUnknown === 1
+                        ? "Sharing status for one older line is unknown."
+                        : `Sharing status for ${legacyUnknown} older lines is unknown.`}
+                    </p>
+                  ) : null}
+                  {superseded > 0 ? (
+                    <p className="roundPriceTrust">
+                      {supersededCaption(superseded)}
+                    </p>
                   ) : null}
                 </>
               ) : null}
@@ -1098,12 +1310,16 @@ function RouteList({ stops }: { stops: RoundState["stops"] }): React.JSX.Element
 
 function JoinForm({
   code,
+  identity,
+  currentIdentity,
   initialHandle,
   onJoined,
 }: {
   code: string;
+  identity: RoundRequestIdentity;
+  currentIdentity: () => RoundRequestIdentity | null;
   initialHandle: string;
-  onJoined: (next: RoundState) => void;
+  onJoined: (next: RoundState, anonymousHandle: string) => void;
 }): React.JSX.Element {
   const [handle, setHandle] = useState(initialHandle);
   const [busy, setBusy] = useState(false);
@@ -1119,26 +1335,48 @@ function JoinForm({
     setBusy(true);
     setError(null);
     try {
-      const res = await fetch(`/api/rounds/${code}`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "join", handle: clean }),
-      });
-      const data = (await res.json()) as RoundState | { error: string };
+      const completion = await runRoundMutationForCurrentOwner(
+        identity,
+        currentIdentity,
+        async () => {
+          const res = await roundJsonRequest(`/api/rounds/${code}`, identity, {
+            action: "join",
+            handle: clean,
+          });
+          return {
+            res,
+            data: (await res.json()) as RoundState | { error: string },
+          };
+        },
+      );
+      if (!completion.current) return;
+      const { res, data } = completion.value;
       if (res.ok) {
-        try {
-          window.localStorage.setItem("pubmax_handle", clean);
-        } catch {
-          // storage disabled — join still succeeded server-side
+        let anonymousHandle = "";
+        if (identity.kind === "anonymous") {
+          try {
+            anonymousHandle = writeRoundAnonymousHandle(
+              identity,
+              clean,
+              window.localStorage,
+            );
+          } catch {
+            anonymousHandle = "";
+          }
         }
-        onJoined(data as RoundState);
+        onJoined(data as RoundState, anonymousHandle);
       } else {
         setError((data as { error: string }).error ?? "Could not join.");
       }
     } catch {
       setError("Could not join. Try again.");
     } finally {
-      setBusy(false);
+      if (
+        roundRequestIdentityOwnerKey(identity) ===
+        roundRequestIdentityOwnerKey(currentIdentity())
+      ) {
+        setBusy(false);
+      }
     }
   }
 
@@ -1181,11 +1419,15 @@ function JoinForm({
 //     a drop_ref for when it does. See the store header + issue #26.
 function AddStop({
   code,
+  identity,
+  currentIdentity,
   handle,
   existing,
   onAdded,
 }: {
   code: string;
+  identity: RoundRequestIdentity;
+  currentIdentity: () => RoundRequestIdentity | null;
   handle: string;
   existing: string[];
   onAdded: (next: RoundState) => void;
@@ -1230,17 +1472,28 @@ function AddStop({
     setBusy(true);
     setError(null);
     try {
-      const res = await fetch(`/api/rounds/${code}`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          action: "addStop",
-          handle,
-          venueId: venue.id,
-          venueName: venue.name,
-        }),
-      });
-      const data = (await res.json()) as RoundState | { error: string };
+      const completion = await runRoundMutationForCurrentOwner(
+        identity,
+        currentIdentity,
+        async () => {
+          const res = await roundJsonRequest(
+            `/api/rounds/${code}`,
+            identity,
+            {
+              action: "addStop",
+              handle,
+              venueId: venue.id,
+              venueName: venue.name,
+            },
+          );
+          return {
+            res,
+            data: (await res.json()) as RoundState | { error: string },
+          };
+        },
+      );
+      if (!completion.current) return;
+      const { res, data } = completion.value;
       if (res.ok) {
         setQuery("");
         onAdded(data as RoundState);
@@ -1250,7 +1503,12 @@ function AddStop({
     } catch {
       setError("Could not add that pub. Try again.");
     } finally {
-      setBusy(false);
+      if (
+        roundRequestIdentityOwnerKey(identity) ===
+        roundRequestIdentityOwnerKey(currentIdentity())
+      ) {
+        setBusy(false);
+      }
     }
   }
 
@@ -1304,10 +1562,14 @@ function AddStop({
 
 function CloseRound({
   code,
+  identity,
+  currentIdentity,
   handle,
   onClosed,
 }: {
   code: string;
+  identity: RoundRequestIdentity;
+  currentIdentity: () => RoundRequestIdentity | null;
   handle: string;
   onClosed: (next: RoundState) => void;
 }): React.JSX.Element {
@@ -1334,16 +1596,32 @@ function CloseRound({
   async function close() {
     setBusy(true);
     try {
-      const res = await fetch(`/api/rounds/${code}`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "close", handle }),
-      });
-      if (res.ok) onClosed((await res.json()) as RoundState);
+      const completion = await runRoundMutationForCurrentOwner(
+        identity,
+        currentIdentity,
+        async () => {
+          const res = await roundJsonRequest(`/api/rounds/${code}`, identity, {
+            action: "close",
+            handle,
+          });
+          return {
+            res,
+            data: res.ok ? ((await res.json()) as RoundState) : null,
+          };
+        },
+      );
+      if (!completion.current) return;
+      const { res, data } = completion.value;
+      if (res.ok && data) onClosed(data);
     } catch {
       // fail-soft — the poll will catch up
     } finally {
-      setBusy(false);
+      if (
+        roundRequestIdentityOwnerKey(identity) ===
+        roundRequestIdentityOwnerKey(currentIdentity())
+      ) {
+        setBusy(false);
+      }
     }
   }
 

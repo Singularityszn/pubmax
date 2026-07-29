@@ -3,13 +3,29 @@
 import { Copy, Users } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
+import { useAuth } from "@/components/auth/AuthProvider";
 import { writeActiveRoundCode } from "@/lib/activeRound";
 import { normalizeHandle } from "@/lib/profiles";
+import {
+  captureRoundRequestIdentity,
+  roundHandleForIdentity,
+  roundRequestIdentityOwnerKey,
+  runRoundMutationForCurrentUser,
+  writeRoundAnonymousHandle,
+} from "@/lib/roundRequest";
 import { startRoundWithStops, type SeedStop } from "@/lib/startRoundWithStops";
 
 import "./roundStarter.css";
+
+function localStorageSafe(): Storage | null {
+  try {
+    return window.localStorage;
+  } catch {
+    return null;
+  }
+}
 
 export type RoundStarterProps = {
   defaultTitle?: string;
@@ -30,7 +46,6 @@ export type RoundStarterProps = {
  * Start a Round: group-crawl entry (GH #26). Mints a Round, optionally seeds
  * stops from a Plan route, stamps the active Round key, and either navigates
  * to the live Round page or (Plan drawer / stayOnMap) keeps the user on the map.
- * Handle UX matches the rest of the social layer (`pubmax_handle` in localStorage).
  */
 export default function RoundStarter({
   defaultTitle,
@@ -41,19 +56,53 @@ export default function RoundStarter({
   className,
 }: RoundStarterProps): React.JSX.Element {
   const router = useRouter();
+  const {
+    user,
+    session,
+    loading: authLoading,
+    handle: accountHandle,
+    getCurrentUserId,
+  } = useAuth();
+  const roundIdentity = useMemo(
+    () =>
+      authLoading
+        ? null
+        : captureRoundRequestIdentity(user?.id ?? null, session),
+    [authLoading, session, user?.id],
+  );
+  const roundOwnerKey = roundRequestIdentityOwnerKey(roundIdentity);
+  const stateOwnerRef = useRef<string | null>(null);
   const stay = stayOnMap ?? compact;
-  const [handle, setHandle] = useState<string>(() => {
-    if (typeof window === "undefined") return "";
-    try {
-      return normalizeHandle(window.localStorage.getItem("pubmax_handle") ?? "");
-    } catch {
-      return "";
-    }
-  });
+  const [handle, setHandle] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [startedCode, setStartedCode] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+
+  useEffect(() => {
+    const ownerChanged = stateOwnerRef.current !== roundOwnerKey;
+    stateOwnerRef.current = roundOwnerKey;
+    let active = true;
+    void Promise.resolve().then(() => {
+      if (!active) return;
+      if (ownerChanged) {
+        setBusy(false);
+        setError(null);
+        setStartedCode(null);
+        setCopied(false);
+      }
+      setHandle(
+        roundHandleForIdentity(
+          roundIdentity,
+          accountHandle,
+          localStorageSafe(),
+        ),
+      );
+    });
+    return () => {
+      active = false;
+    };
+  }, [accountHandle, roundIdentity, roundOwnerKey]);
 
   const hasSeeds = Boolean(seedStops && seedStops.length > 0);
 
@@ -74,19 +123,25 @@ export default function RoundStarter({
       setError("Pick a handle to start a Round.");
       return;
     }
+    if (!roundIdentity) {
+      setError("Your sign-in changed. Try again.");
+      return;
+    }
     setBusy(true);
     setError(null);
-    try {
-      window.localStorage.setItem("pubmax_handle", clean);
-    } catch {
-      // storage disabled — the Round still starts, handle just isn't remembered
-    }
-
-    const result = await startRoundWithStops({
-      handle: clean,
-      title: defaultTitle,
-      seedStops,
-    });
+    const completion = await runRoundMutationForCurrentUser(
+      roundIdentity,
+      getCurrentUserId,
+      () =>
+        startRoundWithStops({
+          handle: clean,
+          identity: roundIdentity,
+          title: defaultTitle,
+          seedStops,
+        }),
+    );
+    if (!completion.current) return;
+    const result = completion.value;
 
     if (!result.ok) {
       setError(result.error);
@@ -94,6 +149,7 @@ export default function RoundStarter({
       return;
     }
 
+    writeRoundAnonymousHandle(roundIdentity, clean, localStorageSafe());
     writeActiveRoundCode(result.code);
 
     if (stay) {
@@ -166,7 +222,11 @@ export default function RoundStarter({
           enterKeyHint="go"
           maxLength={30}
         />
-        <button type="submit" className="crawlPrimaryBtn" disabled={busy}>
+        <button
+          type="submit"
+          className="crawlPrimaryBtn"
+          disabled={busy || authLoading}
+        >
           <Users size={16} aria-hidden="true" />{" "}
           {busy ? "Starting…" : hasSeeds ? "Start Round" : "Start a Round"}
         </button>

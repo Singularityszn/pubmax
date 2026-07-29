@@ -115,12 +115,20 @@ A short piece of personal or inherited knowledge about a venue — a memory from
 _Avoid_: Review, comment, caption
 
 **Provenance**:
-Where a piece of venue knowledge came from, and how much it can be trusted. Every heritage or price claim is one of: Sourced (editorial, with a source link), Contributor (a user's Pint Drop), Anecdote (an unverifiable Passed-Down Note), or Community (an anonymous dated price logged at the bar, shown on its own dated, badged row and never overwriting the price on record). Provenance is always shown; it is never flattened away.
+Where a piece of venue knowledge came from, and how much it can be trusted. Every heritage or price claim is one of: Sourced (editorial, with a source link), Contributor (a user's Pint Drop), Anecdote (an unverifiable Passed-Down Note), or Community (a signed-in, handle-attributed dated price logged at the bar, shown on its own dated, badged row and never overwriting the price on record). Only legacy rows without a handle remain anonymous. Provenance is always shown; it is never flattened away.
 _Avoid_: Source (bare), reliability, trust score
 
 **Contributor Handle**:
-The lightweight identity a Pint Drop is attributed to, without requiring a full account in v1. A person, not a profile.
-_Avoid_: User, account, username
+The public PUBMAXX Handle attached to an authenticated account and its immutable PUBMAXX User ID. Contributions use account ownership as their identity boundary; a handle is never accepted as authorship merely because a client typed it.
+_Avoid_: Self-declared name, email address, session token presented as contributor identity
+
+**Private Account Identity**:
+The required date of birth and optional full name and sex attached to an authenticated account at signup. PUBMAXX stores all three privately for product analytics and social features, does not derive contribution eligibility from them, and does not block accounts or contributions by age. The Handle remains the only public identity. Visit Reports and Recommendations remain identity follow-up work.
+_Avoid_: Public age, public date of birth, age eligibility
+
+**Superseded Round Line**:
+An earlier Round price line whose community-price ownership was successfully replaced by a later line from the same account for the same venue and drink category. It stays in the Round diary but no longer claims current status; a failed replacement leaves the existing owner unchanged.
+_Avoid_: Diary-only line, promoted line
 
 **Production Store**:
 The durable Supabase database and Storage bucket used for production Pint Drops, photos, and heritage cache data. Distinct from the in-memory demo store used when local credentials are absent.

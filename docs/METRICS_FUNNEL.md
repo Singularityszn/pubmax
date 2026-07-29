@@ -1,6 +1,6 @@
 # Metrics funnel (Wave M)
 
-Four first-class product metrics, computed entirely from the existing
+First-class product metrics, computed entirely from the existing
 consent-gated analytics rail (`lib/analytics.ts` → `POST /api/events` →
 `lib/posthogServer.ts`). No new PII, no fingerprinting, no third-party
 additions. Every event below is in the closed registry
@@ -132,10 +132,23 @@ turns into a logged price.
 - `price_submit_failed` — `{ category, reason }`. `reason` is a three-value
   enum: `invalid` (the client-side envelope check), `rejected` (a non-2xx from
   `/api/price-submit`), `offline` (transport failure).
+- `contribution_gate` - `{ step }`. Fires when required identity adds
+  friction. The closed steps are `sign_in_required` and
+  `onboarding_required`. No handle, account id, birth date, venue or price is
+  sent.
+- `sign_in_initiated` - `{ provider }`. Its fixed provider values are `google`,
+  `apple`, and `email`, so magic-link dependence remains measurable while
+  social providers are disabled.
 
 ```
 community_price_submission_rate = count(price_submitted)
                                 / count(price_submit_viewed)
+
+required_sign_in_cost = count(contribution_gate where step = sign_in_required)
+                      / count(price_submit_viewed)
+
+onboarding_cost = count(contribution_gate where step = onboarding_required)
+                / count(price_submit_viewed)
 ```
 
 `category` is the closed drink taxonomy (`PRICE_SUBMIT_CATEGORIES`, pinned to
@@ -210,14 +223,15 @@ pwa_install_completed: [],
 pwa_standalone_launch: [],
 ```
 
-The community-price funnel added three more, with their own scoped validator
-(`isAllowedPriceFunnelProp`) so the shared `category` prop key keeps a
-different closed set per event:
+The community-price funnel added four more, with scoped validators
+(`isAllowedPriceFunnelProp` and `isAllowedContributionGateProp`) so shared prop
+keys keep the right closed set per event:
 
 ```ts
 price_submit_viewed: ["category"],
 price_submitted: ["category"],
 price_submit_failed: ["category", "reason"],
+contribution_gate: ["step"],
 ```
 
 The press-arrival funnel added three more, with the same treatment
@@ -261,11 +275,13 @@ user content.
 | `plan_generated` | A non-empty grounded route returns from `/api/plans/generate` | `stops`, `grounded` |
 | `plan_accepted` | First server-verified transition to a grounded, Route-ready three-Stop Plan; original and replay responses return the same signed delivery token, while ingest records/forwards it once | `stops` (`3`), `grounded` (`true`), `anchored`, `routeReady` (`true`), `source` |
 | `plan_saved` | The created Plan and its route metadata finish saving | `stops`, `grounded` |
-| `claim_started` | The AuthProvider account-preservation claim is submitted to `/api/identity/claim`, excluding handle creation and renames | `source` (`auth`) |
-| `claim_completed` | That account-preservation claim succeeds | `source` (`auth`) |
 | `plan_completed` | The completion response is checked against canonical completed Plan state | `ending` |
 | `memory_reviewed` | The completed Plan's inline editor or full private recap is explicitly opened | `source` (`inline_recap` or `full_recap`) |
 | `story_published` | The separate Story publication confirmation succeeds | `visibility`, `contributors`, `moments` |
+
+`claim_started` and `claim_completed` remain accepted only for historical
+schema compatibility. Account onboarding replaced `/api/identity/claim`, so no
+current surface emits either event.
 
 Activation is the elapsed time from `plan_generated` to the first verified
 `plan_accepted` with `stops = 3`, `grounded = true`, `routeReady = true` for the

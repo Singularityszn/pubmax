@@ -25,7 +25,7 @@ type Boundary = "rate_limit" | "account" | "capability" | "moderator" | "confirm
 
 const BOUNDARY_PATTERNS: Record<Boundary, RegExp> = {
   rate_limit: /\b(?:isLimited|is[A-Z][A-Za-z]+Limited|is[A-Z][A-Za-z]+RateLimited)\b/,
-  account: /\b(?:callerUserId|callerAuthIdentity)\b/,
+  account: /\b(?:callerUserId|callerAuthIdentity|resolveContributionIdentity)\b/,
   capability: /\b(?:planMemberCapability|memberToken|requireRoundOwnership)\b/,
   moderator: /\b(?:isModerator|isAdminAuthorized|verifyAdminToken)\b/,
   confirmation: /\b(?:consumePublishConfirmation|confirmationToken)\b/,
@@ -68,9 +68,10 @@ describe("mutating API surface certification", () => {
     // endpoints and the Social Loop's read-only GETs (/check-ins GET,
     // /profiles/[handle]/lot) are intentionally NOT counted. Plus the community
     // price-submission POST (app/api/price-submit/route.ts,
-    // fm/price-submission): an anonymous, rate-limited, bounds-checked dated
-    // price observation; its sibling GET (the freshest community price per
-    // drink at a venue) is NOT a mutating verb and is not counted. Plus the
+    // fm/price-submission): an account-gated, handle-attributed, rate-limited,
+    // bounds-checked dated price observation; its sibling GET (the freshest
+    // community price per drink at a venue) is NOT a mutating verb and is not
+    // counted. Plus the
     // community-price moderation POST (app/api/admin/community-prices/route.ts,
     // fm/trust-quickfixes): moderator-gated hide/restore on one community price
     // - hide, never delete; its sibling GET (the review queue) is NOT a mutating
@@ -82,8 +83,10 @@ describe("mutating API surface certification", () => {
     // GET is read-only and is not counted. This literal is the
     // + two private referral writes: account-gated invite-link creation and
     // signup-only attribution claim. Neither accepts an account id from the
-    // caller, and neither exposes an invite edge. The deliberate
-    // merge-coordination point: any branch adding a mutating route
+    // caller, and neither exposes an invite edge. Account onboarding replaces
+    // the earlier identity claim POST, so removing the superseded
+    // contribution-age route returns the inventory to 74. The
+    // deliberate merge-coordination point: any branch adding a mutating route
     // bumps it in the same commit (docs/WRITE_SURFACE_CERTIFICATION.md).
     expect(mutationRoutes).toHaveLength(74);
   });

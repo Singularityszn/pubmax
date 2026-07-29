@@ -21,6 +21,8 @@ const E2E_PLAN_SIGNING_SECRET = randomBytes(32).toString("base64url");
 // registration POST. NEXT_PUBLIC_* must be present at Next build time.
 const E2E_VAPID_PUBLIC_KEY = "BJVNwV9XflSMFMBkpBQ8zuzYIfru_xnE_LnqA3x8ENQl2ehKJYw_20TE1UTVr_7vQ207rjQwC1FHbbKE9QeOk4w";
 const E2E_POSTHOG_PROJECT_TOKEN = "phc_pubmaxx_e2e_public_test";
+const E2E_SUPABASE_URL = "https://pubmaxx-e2e.supabase.co";
+const E2E_SUPABASE_PUBLISHABLE_KEY = "pubmaxx-e2e-publishable-key";
 
 export default defineConfig({
   testDir: "./e2e",
@@ -195,6 +197,12 @@ export default defineConfig({
           NEXT_PUBLIC_POSTHOG_E2E_ALLOW_BOT: "1",
           NEXT_PUBLIC_VAPID_PUBLIC_KEY: E2E_VAPID_PUBLIC_KEY,
           NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN: E2E_POSTHOG_PROJECT_TOKEN,
+          // Browser auth stays provider-shaped in keyless E2E. Identity specs
+          // seed a Supabase session and intercept this non-routable boundary;
+          // server stores remain keyless and in memory.
+          NEXT_PUBLIC_SUPABASE_URL: E2E_SUPABASE_URL,
+          NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY:
+            E2E_SUPABASE_PUBLISHABLE_KEY,
           PLAN_IDEMPOTENCY_SECRET: E2E_PLAN_SIGNING_SECRET,
           PUBMAX_E2E_KEYLESS: "1",
           // Pass-through for lane e2e that must exercise a flag-on server

@@ -64,6 +64,22 @@ describe("gateHandleAction", () => {
     expect(row?.userId).toBe("user-new");
   });
 
+  it.each(["karan", "sarah", "carol", "erin"])(
+    "never links reserved handle %s on authenticated write",
+    async (handle) => {
+      mockedCaller.mockResolvedValue("user-new");
+
+      const gate = await gateHandleAction(req({ method: "POST" }), handle);
+
+      expect(gate).toMatchObject({
+        allowed: false,
+        status: 409,
+        error: "That handle is not available.",
+      });
+      expect((await memoryProfileStore.getByHandle(handle))?.userId).toBeUndefined();
+    },
+  );
+
   it("REJECTS a different signed-in user on a linked handle", async () => {
     await memoryProfileStore.linkUser("ken", "user-abc");
     mockedCaller.mockResolvedValue("user-xyz");

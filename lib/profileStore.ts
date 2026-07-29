@@ -3,15 +3,14 @@
 // single seam by the API route (isSupabaseConfigured), exactly like
 // lib/pintDropsStore.ts.
 //
-// Identity is still the self-asserted `handle` (no auth yet — profiles.user_id
-// is reserved for a future Supabase Auth link, see migration 0006). A profile
-// row is created lazily the first time a handle drops a pint (ensure), and the
-// public /u/[handle] page overlays any stored display_name/bio/etc on top of the
-// stats it derives from that handle's drops. Nothing here overwrites a
-// user-edited field on a repeat drop — ensure only fills a row in, update is the
-// only path that changes existing columns.
+// A profile handle becomes account-owned when `userId` is set; older demo
+// profiles may remain unlinked until an authenticated account claims them.
+// `ensure` can still create those lightweight rows for legacy social paths, but
+// it never overwrites user-edited fields. Only `update` changes existing public
+// profile columns.
 
 import { normalizeHandle } from "@/lib/profiles";
+import { isReservedContributorHandle } from "@/lib/pubmaxxIdentity";
 import { requireSupabaseAdmin } from "@/lib/supabase";
 import { selectStore } from "@/lib/storeBackend";
 import { cleanText, isHttpUrl } from "@/lib/textClean";
@@ -19,11 +18,10 @@ import { cleanText, isHttpUrl } from "@/lib/textClean";
 export type ProfileRecord = {
   id: string;
   handle: string;
-  // The linked Supabase Auth user id, or undefined when the handle is still an
-  // unlinked (demo / anonymous) identity. Set once on first authenticated touch
-  // (see linkUser) — this is what makes a handle un-hijackable (see
-  // lib/profileOwnership.ts + migration 0009). NEVER serialized to the public
-  // /u/[handle] read — it is an internal ownership key only.
+  // The linked Supabase Auth user id, or undefined while a legacy/demo profile
+  // remains unlinked. Contributor onboarding claims an exact unlinked handle in
+  // place; legacy account-link paths use linkUser. NEVER serialized to the
+  // public /u/[handle] read - it is an internal ownership key only.
   userId?: string;
   displayName?: string;
   avatarUrl?: string;
@@ -245,6 +243,9 @@ export const supabaseProfileStore: ProfileStore = {
     const key = normalizeHandle(handle);
     if (!key) throw new Error("A profile needs a non-empty handle.");
     if (!userId) throw new Error("A user id is required to link a profile.");
+    if (isReservedContributorHandle(key)) {
+      throw new Error("That handle is not available.");
+    }
     const existing = await this.ensure(key);
     // Already linked to this user → nothing to do (idempotent).
     if (existing.userId === userId) return existing;
@@ -346,6 +347,9 @@ export const memoryProfileStore: ProfileStore = {
     const key = normalizeHandle(handle);
     if (!key) throw new Error("A profile needs a non-empty handle.");
     if (!userId) throw new Error("A user id is required to link a profile.");
+    if (isReservedContributorHandle(key)) {
+      throw new Error("That handle is not available.");
+    }
     const existing = await this.ensure(key);
     if (existing.userId === userId) return existing;
     if (existing.userId && existing.userId !== userId) {

@@ -25,11 +25,15 @@ afterEach(() => {
 
 describe("startRoundWithStops", () => {
   it("creates a Round then sequentially POSTs addStop for each seed stop", async () => {
-    const calls: Array<{ url: string; body: unknown }> = [];
+    const calls: Array<{ url: string; body: unknown; authorization: string | null }> = [];
     const fetchImpl = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
       const url = String(input);
       const body = init?.body ? JSON.parse(String(init.body)) : null;
-      calls.push({ url, body });
+      calls.push({
+        url,
+        body,
+        authorization: new Headers(init?.headers).get("authorization"),
+      });
 
       if (url === "/api/rounds") {
         return new Response(JSON.stringify(mockRoundState("ABCD23")), {
@@ -53,6 +57,10 @@ describe("startRoundWithStops", () => {
         { id: "v1", name: "The Anchor" },
         { id: "v2", name: "The Crown" },
       ],
+      identity: {
+        kind: "account",
+        auth: { userId: "user-ken", accessToken: "token-ken" },
+      },
       fetchImpl: fetchImpl as unknown as typeof fetch,
     });
 
@@ -61,6 +69,7 @@ describe("startRoundWithStops", () => {
     expect(calls[0]).toEqual({
       url: "/api/rounds",
       body: { handle: "ken", title: "River walk" },
+      authorization: "Bearer token-ken",
     });
     expect(calls[1]).toEqual({
       url: "/api/rounds/ABCD23",
@@ -70,6 +79,7 @@ describe("startRoundWithStops", () => {
         venueId: "v1",
         venueName: "The Anchor",
       },
+      authorization: "Bearer token-ken",
     });
     expect(calls[2]).toEqual({
       url: "/api/rounds/ABCD23",
@@ -79,6 +89,7 @@ describe("startRoundWithStops", () => {
         venueId: "v2",
         venueName: "The Crown",
       },
+      authorization: "Bearer token-ken",
     });
     // Sequential: each call awaited before the next (order above is enough;
     // also assert fetch was not fire-and-forget parallel).
@@ -101,6 +112,7 @@ describe("startRoundWithStops", () => {
     const result = await startRoundWithStops({
       handle: "ken",
       seedStops: [],
+      identity: { kind: "anonymous" },
       fetchImpl: fetchImpl as unknown as typeof fetch,
     });
 
@@ -118,6 +130,7 @@ describe("startRoundWithStops", () => {
 
     const result = await startRoundWithStops({
       handle: "",
+      identity: { kind: "anonymous" },
       fetchImpl: fetchImpl as unknown as typeof fetch,
     });
 

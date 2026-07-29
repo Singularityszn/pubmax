@@ -1,3 +1,5 @@
+import { readFileSync } from "node:fs";
+
 import { beforeEach, describe, expect, it } from "vitest";
 
 // Exercise the in-memory Round store directly — no live Supabase, no env keys. It
@@ -224,14 +226,43 @@ describe("recordSpend", () => {
     if (res.ok) {
       expect(res.state.spends[0].totalPence).toBe(860);
       expect(res.state.spends[0].items).toEqual([
-        { drinkName: "Guinness", drinkCategory: "beer", pricePence: 620, source: "round" },
+        {
+          drinkName: "Guinness",
+          drinkCategory: "beer",
+          pricePence: 620,
+          source: "round",
+          promotionStatus: "diary_only",
+        },
         {
           drinkName: "Lime and soda",
           drinkCategory: "soft-drink",
           pricePence: 240,
           source: "round",
+          promotionStatus: "diary_only",
         },
       ]);
+    }
+  });
+
+  it("persists per-line promotion transitions", async () => {
+    const code = await roundAtPub();
+    const recorded = await store.recordSpend(code, {
+      ...spend,
+      items: [{ drinkName: "Guinness", drinkCategory: "beer", priceGbp: 6.2 }],
+      initialPromotionStatus: "pending",
+    });
+    expect(recorded.ok).toBe(true);
+
+    await store.claimSpendPromotionOwner(code, spend.clientRef, "profile:ken");
+    const ready = await store.transitionSpendPromotions(
+      code,
+      spend.clientRef,
+      "profile:ken",
+      [{ index: 0, status: "ready" }],
+    );
+    expect(ready.ok).toBe(true);
+    if (ready.ok) {
+      expect(ready.state.spends[0]?.items[0]?.promotionStatus).toBe("ready");
     }
   });
 
@@ -327,5 +358,91 @@ describe("close", () => {
     if (first.ok && second.ok) {
       expect(second.state.round.closedAt).toBe(first.state.round.closedAt);
     }
+  });
+});
+
+describe("Round price key ownership migration", () => {
+  it("preserves every diary line while reconciling first-party owners", () => {
+    const sql = readFileSync(
+      new URL(
+        "../supabase/migrations/20260729140000_0064_round_price_key_owners.sql",
+        import.meta.url,
+      ),
+      "utf8",
+    );
+
+    expect(sql).toMatch(/pg_advisory_xact_lock/);
+    expect(sql).toMatch(
+      /partition by spend\.venue_id, expanded\.item->>'drinkCategory'/,
+    );
+    expect(sql).toMatch(/expanded\.ordinality desc/);
+    expect(sql).toMatch(
+      /ranked_round[\s\S]*promotionStatus' in \('pending', 'ready'\)/,
+    );
+    expect(sql).toMatch(/ownership_rank > 1[\s\S]*superseded/);
+    expect(sql).toMatch(/all_items[\s\S]*left join ranked_round/);
+    expect(sql).toMatch(/jsonb_agg[\s\S]*order by all_items\.ordinality/);
+  });
+
+  it("serialises source ownership and promotion transitions under one actor lock", () => {
+    const sql = readFileSync(
+      new URL(
+        "../supabase/migrations/20260729140000_0064_round_price_key_owners.sql",
+        import.meta.url,
+      ),
+      "utf8",
+    );
+
+    expect(sql).toMatch(/round_spend_id/);
+    expect(sql).toMatch(/round_line_index/);
+    expect(sql).toMatch(/community_prices_round_source_owner_idx/);
+    expect(sql).toMatch(/round-price-actor:/);
+    expect(sql).toMatch(/transition_round_price_lines/);
+    expect(sql).toMatch(/source_became_owner/);
+    expect(sql).toMatch(
+      /p_round_spend_id[\s\S]*promotionStatus[\s\S]*promoted/,
+    );
+    expect(sql).toMatch(
+      /community_prices\.submitted_at <= excluded\.submitted_at/,
+    );
+  });
+
+  it("validates the current ready Round source before changing shared ownership", () => {
+    const sql = readFileSync(
+      new URL(
+        "../supabase/migrations/20260729140000_0064_round_price_key_owners.sql",
+        import.meta.url,
+      ),
+      "utf8",
+    );
+    const atomicUpsert = sql.slice(
+      sql.indexOf(
+        "create or replace function public.upsert_attributed_community_price_if_newer",
+      ),
+    );
+    const sharedWrite = atomicUpsert.indexOf(
+      "insert into public.community_prices",
+    );
+
+    expect(sharedWrite).toBeGreaterThan(0);
+    expect(
+      atomicUpsert.indexOf(
+        "v_source_item->>'promotionStatus' is distinct from 'ready'",
+      ),
+    ).toBeGreaterThan(0);
+    expect(
+      atomicUpsert.indexOf(
+        "v_source_item->>'promotionStatus' is distinct from 'ready'",
+      ),
+    ).toBeLessThan(sharedWrite);
+    expect(atomicUpsert).toMatch(
+      /order by\s+candidate\.recorded_at desc,[\s\S]*candidate\.id::text desc,[\s\S]*expanded\.ordinality desc/,
+    );
+    expect(atomicUpsert).toMatch(
+      /v_candidate_spend_id is distinct from p_round_spend_id[\s\S]*return;/,
+    );
+    expect(atomicUpsert).toMatch(
+      /promotionStatus' = 'promoted'[\s\S]*from public\.community_prices existing[\s\S]*for update;[\s\S]*v_current_spend_id is distinct from p_round_spend_id[\s\S]*true as source_became_owner/,
+    );
   });
 });

@@ -17,7 +17,10 @@ CI until this certification is deliberately updated.
 > community price submission `POST /api/price-submit`) → 71 (community-price
 > moderation `POST /api/admin/community-prices`) → 72 (authored weather
 > Recommendations `POST /api/weather-recommendations`) → 74 (private referral
-> invite-link creation and same-journey signup claim). Token-gated GET
+> invite-link creation and same-journey signup claim). Account onboarding
+> replaces the earlier identity claim POST, so its route does not change the
+> count.
+> Token-gated GET
 > confirm/unsubscribe endpoints and read-only GETs (the Social Loop reads, the
 > vibe-vote tally read, the Visit Report venue / contributor-count /
 > moderator-lane reads, the operator
@@ -405,24 +408,26 @@ commit.
   vouches for an already-displayed figure; this is where a figure first enters
   the map from the community. It is no longer the only door: a Round's itemised
   drink lines (`POST /api/rounds/[code] { action: "recordSpend" }`) reach
-  `submitCommunityPrice` too, under the same device-derived identity, which both
-  routes now take from `deriveCommunityPriceActor` (`lib/communityPriceActor.ts`)
-  so the two cannot drift apart. The same POST also carries the community VENUE
-  SIGNAL shape (`{ kind: "venue-signal", venueId, signalKey, signalValue }` →
-  201 `{ ok, signal }`): a categorical observation of character, step-free
-  entrance, step-free toilets, door policy or whether people are eating
+  `submitCommunityPrice` only when the writer passes the same authenticated
+  account and public-handle boundary. Anonymous lines remain in the private
+  Round diary. Direct and Round price
+  writes use the account's stable profile actor. The same POST also carries the
+  community VENUE SIGNAL shape (`{ kind: "venue-signal", venueId, signalKey,
+  signalValue }` → 201 `{ ok, signal }`): a categorical observation of
+  character, step-free entrance, step-free toilets, door policy or whether people are eating
   (`lib/communityVenueSignals.ts`). It is a second shape, not a second route -
   deliberately, so it inherits this route's identity, limiter and moderation
-  boundaries rather than growing a parallel set. The route also exports read-only
-  `GET` branches - the freshest community prices AND venue signals for a venue
-  (`?venueId=` answers `{ prices, signals }`, with `degraded: true` when either
-  read could not be trusted, so "could not check" never reads as "none"), the
-  cross-venue no-alcohol lens index (`?lens=no-alcohol`), and `?scope=provisional-base`,
-  which answers which of up to `MAX_PROVISIONAL_BASE_VENUE_IDS` on-screen
-  `venue-uk-*` pins carry a fresh uncorroborated pint report. Every id on that
-  branch is validated as a stable salted base id server-side and the answer
-  carries ids only, never a figure, so viewport visibility cannot reach the
-  price merge. None of the three is a mutating verb and none is counted.
+  boundaries rather than growing a parallel set. The route also exports
+  read-only `GET` branches - the freshest community prices AND venue signals
+  for a venue (`?venueId=` answers `{ prices, signals }`, with `degraded: true`
+  when either read could not be trusted, so "could not check" never reads as
+  "none"), the cross-venue no-alcohol lens index (`?lens=no-alcohol`), and
+  `?scope=provisional-base`, which answers which of up to
+  `MAX_PROVISIONAL_BASE_VENUE_IDS` on-screen `venue-uk-*` pins carry a fresh
+  uncorroborated pint report. Every id on that branch is validated as a stable
+  salted base id server-side and the answer carries ids only, never a figure,
+  so viewport visibility cannot reach the price merge. None of the three is a
+  mutating verb and none is counted.
 - **Validation:** `validateCommunityPrice` (`lib/communityPrice.ts`), the SAME
   browser-safe validator the submit UI runs, so client and server can never
   drift - `venueId` cleaned/capped at 64 chars, `drinkCategory` restricted to the
@@ -439,34 +444,32 @@ commit.
   `validateCommunityVenueSignal`, whose `signalKey`/`signalValue` pairs are a
   CLOSED vocabulary the browser and the server share and migration 0060 repeats
   as a CHECK, so an off-vocabulary answer cannot be stored by any door.
-- **Auth stance (keyless, optionally attributed):** device identity is the
-  server-derived `hashActor(hashIp(clientIp))` token, exactly as
-  `price-confirm` derives it, and is never trusted from the body. A
-  body-supplied `submittedAt`/`source` is ignored: the server stamps the clock
-  and the `community` lane itself. No account or handle is required. When the
-  browser offers `contributorHandle`, the route credits it only if the signed-in
-  user owns the matching public profile; an alias resolves to the current
-  handle, and every failed or absent ownership check leaves the price
-  anonymous. The actor token remains the de-duplication and corroboration key
-  and never leaves the store.
-- **Rate limit (boundary):** two durable `isLimited` tiers on the POST. An actor-wide cap
-  keyed `price-submit-actor:${actor ?? "anon"}` (30/hour) stops one device
-  spraying prices across the whole map by rotating `venueId`; then the per-venue
-  key `price-submit:${actor ?? "anon"}:${venueId}` - the same key shape as
-  `price-confirm` - stops one actor churning one pub's figure. Exceed either →
-  429. Both tiers are one helper (`communityWriteIsLimited`) and a venue-signal
-  write charges the SAME two keys, so signals cannot be used to buy extra budget
-  or to spray one pub. The actor-wide key is SHARED, not per-route: a Round's drink lines charge
-  the same key one unit per line before the diary write (`lib/roundPriceBudget.ts`
-  owns that budget and its degraded allowance, which answers 503 with
-  `Retry-After` rather than 429, because a spent degraded allowance is our
-  limiter being unreachable, not the drinker's doing). Changing the cap or the
-  key shape here changes both doors. The `?scope=provisional-base` READ carries
-  its own durable tier keyed `provisional-base:${actor ?? "anon"}` (120 per
-  minute, refused with `Retry-After`): unlike the other two GET branches it pages
-  the durable store per request, so a scripted sweep of the country is budgeted
-  while a session of panning - which asks only for ids it has not already read -
-  sits well inside it.
+- **Auth stance:** price and venue-signal writes require a verified account,
+  account-owned public handle, and completed private profile. Both public
+  attribution and the private `profile:<profile-id>` actor are derived on the
+  server. Body-supplied handles, actors, `submittedAt`, and `source` are
+  ignored. This stable profile actor is the de-duplication and corroboration
+  key and never leaves the store. The reader-report branch stays public and
+  uses its separate abuse-controlled actor because reporting an existing row
+  is not a contribution.
+- **Rate limit (boundary):** two durable `isLimited` tiers on the POST. An
+  account-wide cap keyed `price-submit-actor:profile:<profile-id>` (30/hour)
+  stops one account spraying observations across the whole map by rotating
+  `venueId`; then `price-submit:profile:<profile-id>:${venueId}` stops the same
+  account churning one pub's figure. Exceed either → 429. Both tiers are one
+  helper (`communityWriteIsLimited`) and a venue-signal write charges the SAME
+  two keys, so signals cannot buy extra budget or spray one pub. An authorised
+  Round's drink lines use the same account-actor key namespace and cap, charged
+  one unit per line before a saved pending line becomes ready for promotion
+  (`lib/roundPriceBudget.ts` owns that budget and its degraded allowance, which
+  answers 503 with `Retry-After` rather than 429, because a spent degraded
+  allowance is our limiter being unreachable, not the drinker's doing). The
+  `?scope=provisional-base` READ carries its own durable tier keyed
+  `provisional-base:${actor ?? "anon"}` (120 per minute, refused with
+  `Retry-After`): unlike the other two GET branches it pages the durable store
+  per request, so a scripted sweep of the country is budgeted while a session
+  of panning - which asks only for ids it has not already read - sits well
+  inside it.
 - **Provenance (the honesty boundary):** the route only ever APPENDS to
   `community_prices`. It touches NOTHING in the versioned venue dataset, the
   scraped price CSV, or `visit_reports` - a submission cannot overwrite a scraped
@@ -476,7 +479,7 @@ commit.
   it never edits the dataset's amenity, access or character fields and the sheet
   words it as drinkers' reports (`lib/communityVenueSignals.ts` owns that copy
   and the `unknown` | `reported` | `established` trust states a surface may read).
-  The only row a signal write can touch is this device's own earlier answer to
+  The only row a signal write can touch is this account's own earlier answer to
   the same question, which it replaces.
 - **Rollback / kill:** durable rows live in `public.community_prices` (migration
   0054, with optional contributor attribution and retained quality stamps added
@@ -485,8 +488,8 @@ commit.
   widens that one table to hold venue signals too - nullable
   `drink_category`/`price_pennies` plus `signal_key`/`signal_value`, a CHECK that
   a row is exactly one shape, and a unique `(venue_id, signal_key, actor)` so
-  one device answers each question once. Its revoked
-  `public.community_contributor_counts` view remains an opaque device-token
+  one actor answers each question once. Its revoked
+  `public.community_contributor_counts` view remains an internal actor-key
   roll-up and does not feed the public contributor record. Dropping the two
   signal columns reverts that surface without touching a price. Until 0054 is
   applied the store fails soft to process-memory outside production
@@ -499,8 +502,8 @@ commit.
 - **Route / method:** `POST app/api/admin/community-prices/route.ts`
   (`fm/trust-quickfixes`), actions `hide` and `restore` on ONE community
   observation. The receiving side of route 70: until this existed, a wrong or
-  malicious community price could be submitted by anyone and removed by nobody,
-  and the only remediation was hand-written SQL. The route also exports a
+  malicious community price had no moderator removal path, and the only
+  remediation was hand-written SQL. The route also exports a
   read-only `GET` (the reported/hidden review queue) which is NOT a mutating verb
   and is not counted. ONE queue, TWO shapes: each queue row says which it is
   (`kind`), so a wrong character or step-free claim is removed here rather than
@@ -588,6 +591,22 @@ commit.
   when durable storage cannot answer. Truncating this table removes authored
   Recommendations and their contributor counts, but cannot change weather,
   reviews, prices, Night Signals, or venue data.
+
+### Contributor identity onboarding
+
+- **Routes / methods:** `POST` and `PATCH` on
+  `app/api/identity/onboarding/route.ts` claim an account-owned handle and edit
+  optional private full name and sex. Date of birth is required on the signup
+  POST. Its sibling GET is read-only.
+- **Authority:** every method derives the account from a verified Supabase JWT
+  through `callerUserId`. Missing authority returns 401 before any read or
+  write. Handle ownership is enforced transactionally by
+  `complete_contributor_onboarding`; reserved handles are rejected by shared
+  code policy.
+- **Privacy:** date of birth, optional full name and optional sex stay in the
+  private account table and are not returned by public profile routes. Date of
+  birth stays until profile deletion; full name and sex stay until edited,
+  cleared or profile deletion. No contribution eligibility is derived.
 
 ## Certification command
 
