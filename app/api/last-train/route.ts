@@ -1,4 +1,5 @@
-// GET /api/last-train?lat=..&lng=..  →  LastTrainResult
+// GET /api/last-train?lat=..&lng=..  ->  LastTrainResult
+// GET /api/last-train?lat=..&lng=..&scope=stable  ->  stable timetable result
 //
 // "Last Pint": given a point (a pub), find the nearest Tube/rail station, when the
 // last train of the night leaves each serving line, what's due next right now, a
@@ -16,11 +17,14 @@
 //       timetable; when it does we follow the offered direction URIs and merge
 //       their schedules. Hours roll past 24 for after-midnight / Night Tube
 //       services — formatLastJourney handles that.
-//     - Next departures: `GET /StopPoint/{id}/Arrivals` filtered to the line,
+//     - Next departures: the normal request uses
+//       `GET /StopPoint/{id}/Arrivals` filtered to the line,
 //       which is genuinely live (vehicles in service right now). When Arrivals
 //       comes back empty for a line (last train of the night has gone, or the
 //       line just isn't running), we fall back to the same timetable's *next*
-//       scheduled entry after "now" so the card still shows something.
+//       scheduled entry after "now" so the card still shows something. The
+//       stable scope skips Arrivals and line status, omits the decision, and
+//       returns only timetable-safe data that can be prefetched and cached.
 //  3. Pick the LATEST lastJourney across all matching schedules/routes for the line
 //     (a station can host several branches; the drinker cares about the last one).
 //  4. Disruption: `GET /Line/{ids}/Status` for the served lines feeds both the
@@ -32,7 +36,7 @@
 //     sorted by distance to the station, top 3 with id/name/price.
 //
 // Robustness: every TfL call is wrapped in try/catch with a short per-call
-// AbortController timeout. This route NEVER throws and NEVER 500s the user — if the
+// AbortController timeout. This route NEVER throws and NEVER 500s the user - if the
 // nearest-station lookup fails or finds nothing, it returns 200 with an `error`
 // string and an empty body the card can show gracefully (user story 24).
 

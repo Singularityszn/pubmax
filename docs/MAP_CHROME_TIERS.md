@@ -14,6 +14,15 @@ truth; the shell renders its descriptors.
 The Tonight lane, plan pill, and tab bar are unchanged — they are lanes/docks,
 not chips, and sit outside this hierarchy.
 
+## Narrow desktop state
+
+Tablet and narrow-desktop widths use a contained toolbar rather than squeezing
+the complete desktop accessory row. City, search, and Plan remain available;
+conditions, zone, and the other desktop extras stand down so the toolbar stays
+inside the viewport and clear of the Tonight Arc. The media queries in
+`components/map/mapToolbar.css` and `components/map/citySwitcher.css` own the
+exact boundary and layout.
+
 ## Adoption notes for in-flight branches (mechanical rebases)
 
 - **#309 near-me sheet** (`feat/instant-answer`): its Near-me chip behavior

@@ -162,7 +162,7 @@ This is the pure, framework-free core of PubMaxing: it turns a flat ~3,097-row p
 
 ### Overview
 
-The map is PubMaxing's centerpiece: a pitched, slowly-rotating 3-D view of
+The map is PubMaxing's centerpiece: a pitched, reader-controlled 3-D view of
 London and supported UK cities. Curated venues use price-aware markers, while
 UK-wide OpenStreetMap pubs form a quieter unverified layer with no price fields.
 The crawl route is drawn with animated brass "marching ants." Rendering uses
@@ -171,7 +171,7 @@ fallback. Three deliberate choices run through `components/PubMapCanvas.tsx`:
 
 1. **Client-only.** `"use client"`; everything happens inside one mount effect (`:271`). WebGL has no server story.
 2. **Token-driven.** `readTokens()` (`:79`) reads the app's CSS custom properties; `buildScene` derives every paint value from them, so one theme toggle repaints UI and map in lockstep.
-3. **Perf via GeoJSON layers, not React markers.** Every pub/cluster/route/landmark is a GeoJSON source + data-driven style layer. Updating = `source.setData(...)`, rendered on the GPU; the idle orbit animates with zero React churn.
+3. **Perf via GeoJSON layers, not React markers.** Every pub/cluster/route/landmark is a GeoJSON source + data-driven style layer. Updating = `source.setData(...)`, rendered on the GPU; route and entrance animation runs without React churn.
 
 ### Key pieces
 
@@ -189,7 +189,7 @@ fallback. Three deliberate choices run through `components/PubMapCanvas.tsx`:
 | `pubs-drops-halo` (`:445`) | River-toned ring around pubs with Pint Drops. |
 | `clusters`+`cluster-count` (`:530`,`:553`) | Brass-tinted wells that deepen with count. |
 | `route-line`+`route-line-dash` (`:409`,`:420`) | Solid brass underlay + the animated "marching ants." |
-| Idle-orbit RAF (`:669`) | One `requestAnimationFrame` loop drifting the bearing + stepping the dash. |
+| Shared animation RAF | One `requestAnimationFrame` loop advances route dashes, pin entrances, and active pulses without moving the camera. |
 
 ### How it works
 
@@ -210,7 +210,7 @@ that accepts a community price without adding the pub to the curated index.
 
 **Why `addLayerOnce` guards exist.** `buildScene` runs on *every* `style.load` — first paint and after every theme flip. A bare `map.addLayer` on a live style throws `"Layer with id X already exists"` inside MapLibre's event dispatch, aborting the scene and half-building the map. `addLayerOnce` (`:319`) checks `getLayer` first; sources get `if (!map.getSource(...))` guards.
 
-**Why the orbit RAF checks `isStyleLoaded()`.** During a theme `setStyle({diff:false})` the style is *transiently null*, and calling `getLayer` on a null style throws (the classic "#418 / getLayer-on-null"). The loop checks `!map.isStyleLoaded()` — null-safe, `false` mid-swap — **before** any `getLayer`. It also skips work under `prefers-reduced-motion` and when `document.hidden`.
+**Why animation checks `isStyleLoaded()`.** During a theme `setStyle({diff:false})` the style is *transiently null*, and calling `getLayer` on a null style throws (the classic "#418 / getLayer-on-null"). The loop checks `!map.isStyleLoaded()` first because it is null-safe and returns `false` mid-swap. It also skips work under `prefers-reduced-motion` and when `document.hidden`.
 
 **Theme flip.** A `MutationObserver` on `html[data-theme]` (`:696`) calls `setStyle(MAP_STYLES[next], { diff: false })`. `diff: false` is deliberate: it forces a full swap so `style.load` re-fires and `buildScene` re-reads the (already-flipped) tokens. A diff'd swap would keep stale-themed layers.
 

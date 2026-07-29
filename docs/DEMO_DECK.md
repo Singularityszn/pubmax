@@ -89,8 +89,8 @@ The unglamorous layer that makes public contributions safe:
 
 ## 8. Close — where Fable comes in
 
-The engine is built: the rotating map, the community write-path, the grounded narrator, the moderation and rate limits. What it needs now is **craft** — pin design, landmark glyphs, the fly-to feel, the two-mood palette — the difference between a working map and an unforgettable one.
+The engine is built: the interactive map, the community write-path, the grounded narrator, the moderation and rate limits. What it needs now is **craft**: pin design, landmark glyphs, the fly-to feel, the two-mood palette - the difference between a working map and an unforgettable one.
 
-> "Open the map: London turns under you, the old riverside pubs glow, and tapping one tells you why it's still standing."
+> "Open the map: London is ready to read, the old riverside pubs glow, and tapping one tells you why it's still standing."
 
 *End on the map again — the ask is design partnership on a product that already works.*
