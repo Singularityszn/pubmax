@@ -111,7 +111,7 @@ export function createDonutClusterSync(
       });
   };
 
-  const sync = () => {
+  const sync = (emptyIsAuthoritative: boolean) => {
     if (!map.getSource("pubs") || !map.getLayer("clusters")) return;
     // D2 contract: cluster features exist while floor(zoom) <= CLUSTER_MAX_ZOOM
     // (MapLibre serves cluster tiles through the whole 13.x band and dissolves
@@ -133,7 +133,13 @@ export function createDonutClusterSync(
       if (typeof id === "number" && !byId.has(id)) byId.set(id, feature);
     }
     if (byId.size === 0) {
-      deactivate();
+      // MapLibre 6 can briefly expose an empty querySourceFeatures snapshot
+      // between render/source-data passes while the settled viewport still has
+      // clusters. Active DOM donuts are already projected by Marker, so retain
+      // them until moveend gives us an authoritative empty viewport. Clearing
+      // on a transient render hands ownership to the GL underlay; hiding that
+      // underlay again on the next non-empty render creates a perpetual swap.
+      if (emptyIsAuthoritative) deactivate();
       return;
     }
     if (byId.size > DONUT_CAP) {
@@ -201,7 +207,7 @@ export function createDonutClusterSync(
     const now = performance.now();
     if (now - lastRenderAt < RENDER_THROTTLE_MS) return;
     lastRenderAt = now;
-    sync();
+    sync(false);
   };
   // `sourcedata` fires for every tile/source on the map, including basemap
   // tiles that have nothing to do with the `pubs` cluster tree — gate on the
@@ -220,16 +226,17 @@ export function createDonutClusterSync(
     clearMarkers();
     donutsActive = false;
   };
+  const onMoveEnd = () => sync(true);
 
   map.on("render", throttledSync);
-  map.on("moveend", sync);
+  map.on("moveend", onMoveEnd);
   map.on("sourcedata", onSourceData);
   map.on("style.load", onStyleLoad);
 
   return {
     destroy: () => {
       map.off("render", throttledSync);
-      map.off("moveend", sync);
+      map.off("moveend", onMoveEnd);
       map.off("sourcedata", onSourceData);
       map.off("style.load", onStyleLoad);
       clearMarkers();
