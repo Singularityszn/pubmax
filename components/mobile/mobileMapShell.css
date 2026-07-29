@@ -325,6 +325,7 @@
     backdrop-filter: blur(20px) saturate(1.08);
     -webkit-backdrop-filter: blur(20px) saturate(1.08);
     overflow: hidden;
+    contain: layout paint;
     /* Override the legacy .mapDrawer bottom-sheet transform (globals.css @768:
        translateY(100% + tab-clearance)). This box is positioned by bottom:0 +
        max-height, never a transform — without this, a contextual portal (which

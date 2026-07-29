@@ -109,6 +109,10 @@ export default function MobileSharedSheet({
 
   const sectionStyle: React.CSSProperties = {
     maxHeight: `${Math.max(0, sheetHeight)}px`,
+    // Phone snaps change real geometry so the footer stays at the visible
+    // bottom at peek, half, and full. Fence that layout work to this sheet and
+    // drop compositor hints as soon as the spring rests.
+    willChange: dragging || settling ? "max-height" : "auto",
   };
 
   return createPortal(
