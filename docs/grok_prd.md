@@ -225,8 +225,8 @@ D4 warm `--panel-raised` is treated as already present. Verify, do not redo.
 
 | ID | Ticket | Source | Done when |
 |---|---|---|---|
-| W4.1 | Keyboard/AT-operable venue list parallel to pins | A11Y matrix #1 | WCAG 2.1.1 path exists without requiring canvas hit-testing |
-| W4.2 | Desktop venue drawer focus trap | A11Y matrix #2 | Focus stays in drawer while open; Esc returns sensibly |
+| W4.1 | Keyboard/AT-operable venue list parallel to pins | [`docs/A11Y_MATRIX_2026-07-18.md`](./A11Y_MATRIX_2026-07-18.md) | **Complete** |
+| W4.2 | Desktop venue drawer focus trap | [`docs/A11Y_MATRIX_2026-07-18.md`](./A11Y_MATRIX_2026-07-18.md) | **Complete** |
 | W4.3 | Mid-crawl Night Mode surface | Unknowns U7 / Wayfinder | Giant tap targets, next-stop glance, composes existing TfL / last-train / bus; **not** a second app |
 | W4.4 | Verify Plan drawer → Round bridge E2E | `RouteActions` + `RoundStarter` | Drinker can start a Round from an active Plan without a dead end |
 

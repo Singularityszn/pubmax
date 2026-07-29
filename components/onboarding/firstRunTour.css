@@ -1,6 +1,6 @@
 /* First-run onboarding tour: centred card on desktop, bottom-docked on phones,
    over a dimming scrim.
-   Design rubric: one accent (--brass, coral light / amber dark) owns the CTA;
+   Design rubric: one coral accent (--brass) owns the CTA in both themes;
    candle-peach --panel-raised card, --radius-lg, --shadow for lift; Space
    Grotesk (--serif) title, Inter body, sentence case. Motion animates only
    transform/opacity, never ease-in, all gated behind prefers-reduced-motion

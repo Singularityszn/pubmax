@@ -22,10 +22,10 @@ peach candle paper, not SaaS white; a coral that reads like a pub sign, not a br
 gradient. *Data honesty* is the structure — every price is a physically-stamped brass
 plaque with provenance, because the moat is real observed pints and the UI should look
 like it costs something to earn a number. *Night energy* is the mode-flip — dark isn't a
-dimmed light theme, it's a different room: deep ink, a single amber that behaves like the
-one warm bulb over the bar, pint-neon reserved for "go". The craft bar is Apple's physics
+dimmed light theme, it's a different room: deep ink, coral action, amber route light,
+pint-neon reserved for "go". The craft bar is Apple's physics
 (gesture-driven, interruptible, spring-settled) applied to one honest map and a stack of
-sheets — **one accent per theme, one signature gesture (the tilted price stamp), and
+sheets - **one action accent across themes, one signature gesture (the tilted price stamp), and
 nothing on screen that a 9-to-5 leaving the office at 6pm can't turn into a cheap pint in
 two taps.** We are not a dashboard, not a cream DTC brand, and not purple-glow dark.
 
@@ -268,8 +268,9 @@ seam (`lib/useDragSheet.ts` + `sheet.tsx`) can land additively today, migrations
 - **DICE/Vercel monochrome.** Their black/white restraint suits ticketing/dev-tools; our
   warmth (candle paper, pub coral) *is* the brand. We borrow the *confidence* (one big move,
   quiet chrome), not the greyscale.
-- **Arc's saturated blue / any second brand accent.** One accent per theme (coral/amber) is
-  locked. `pint`/`river`/`brick`/`cat-*` stay semantic. No new hero hue.
+- **Arc's saturated blue / any second brand accent.** Coral is the one branded
+  action accent in both themes; amber stays semantic. `pint`/`river`/`brick`/`cat-*`
+  stay semantic. No new hero hue.
 - **Airbnb/Family soft 16–32px radius *everywhere*.** We keep pills for CTAs only; the rest
   commits to crisp (D6). No universal bubbly rounding.
 - **Marketing-illustration warmth.** Warmth comes from paper tone, letterforms, and the

@@ -64,7 +64,7 @@
        components reach for "what this means" rather than re-picking a raw
        colour. These are pure aliases — change the palette above, everything
        here (and everything built on it) follows. */
-  --color-accent: var(--brass); /* Plan CTA accent — coral light / amber dark */
+  --color-accent: var(--brass); /* Plan CTA accent - coral in both themes */
   --color-accent-strong: var(--brass-bright);
   --color-positive: var(--pint); /* cheap pint */
   --color-caution: var(--amber); /* mid price */
@@ -97,7 +97,7 @@
        --badge-*        → neutral-strong. Counts + metadata, not accent.
        --hairline*      → one divider vocabulary. */
 
-  /* Primary action — coral (light) / amber (dark). This is the only place the
+  /* Primary action - coral in both themes. This is the only place the
      loud accent is licensed to appear at full strength. */
   --accent-action: var(--brass);
   --accent-action-strong: var(--brass-bright);
@@ -137,13 +137,13 @@
   --hairline: #e2e0e3;
   --hairline-strong: color-mix(in srgb, var(--hairline) 68%, var(--ink-soft) 32%);
 
-  /* Fixed-contrast text: for content sitting on a solid brass/ink-deep FILL
+  /* Fixed-contrast text: for content sitting on an accent fill or gradient
      (buttons, chips, photo captions), not a theme-flipping surface. These
      intentionally do NOT change between themes — the fill they sit on
      already carries the theme's contrast logic. */
-  --color-on-accent: #fdfaf2; /* cream text on solid brass */
+  --color-on-accent: #fdfaf2; /* cream text for qualifying dark accent fills */
   --color-on-inverse: #fdfaf2; /* cream text on solid ink-deep */
-  --color-on-accent-strong: #16122a; /* dark text on bright accent */
+  --color-on-accent-strong: #16122a; /* dark text on coral or bright accent */
   --color-on-photo: #ffffff; /* white text on a photo-scrim overlay */
 
   /* Role tokens (#328 preview) — DEDUPE-ON-MERGE with design/token-system-v2.
@@ -5531,7 +5531,7 @@ html[data-theme="dark"][data-legacy="1"] {
    surfaces (.planBtn family); --shadow-btn-hover deepens it a hair on hover.
    Both are tuned per theme — light keeps a warm brass glow as the bottom layer
    so the coral CTA still reads lifted off candle paper; dark uses a TIGHTER,
-   DARKER black-based stack per #328's neutral elevation ladder (the amber CTA
+   DARKER black-based stack per #328's neutral elevation ladder (the coral CTA
    sits over near-black, so the contact layers are near-opaque black, not glow).
    New tokens only; nothing above is modified. Announced to token-lane (#328).
    The pressed state keeps the existing scale-down press (see the reduced-motion

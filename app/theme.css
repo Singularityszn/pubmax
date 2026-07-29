@@ -1,4 +1,4 @@
-/* Dark theme: Direction B Night Out — deep ink, amber route/CTA energy,
+/* Dark theme: Direction B Night Out - deep ink, coral CTA, amber route energy,
    pint neon go. No purple mesh/glow. See DESIGN.md + PRODUCT.md.
    Overrides the same tokens :root sets in globals.css. Do NOT edit globals.css here. */
 
@@ -317,7 +317,7 @@ html[data-theme="dark"] .planBtn.active {
       (D1 pass) but several dark --cat-* values (e.g. --cat-wine #e07a97) read
       as an off-brand pink/coral leak against the near-black dark shell, and
       others (--cat-other) land as a dull off-brass tan — neither is the
-      single brass/amber accent family the dark chrome owns. Pin every route's
+      single coral action accent the dark chrome owns. Pin every route's
       active pill back to brass in dark only; light keeps its category tints.
    2) Olive "dusk kitsch": the shared --paper/--panel/--panel-raised/--line
       tokens carry the M4 sage/green bias the map itself needs (see the
@@ -328,7 +328,7 @@ html[data-theme="dark"] .planBtn.active {
       every descendant that reads var(--panel-raised) etc., so this is a
       three-rule fix rather than a chase through every consumer line. ═══════ */
 
-/* 1) Nav active pill — always brass/amber in dark, regardless of data-cat. */
+/* 1) Nav active pill - always coral in dark, regardless of data-cat. */
 html[data-theme="dark"] .siteNavLink.isActive[data-cat] {
   background: var(--brass);
   color: var(--color-on-accent);

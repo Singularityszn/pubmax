@@ -37,7 +37,7 @@ same **name** (values may retune within the A/B decision).
 | `PRODUCT.md` | Strategic brief: vocabulary, A/B lock, taste dials, anti-refs |
 | `DESIGN.md` | Impeccable visual spec (colors, type, components, do/don't) |
 | `app/globals.css` | `:root` token definitions (light/default values), resets, most component classes, the pressed-ink utility |
-| `app/theme.css` | `html[data-theme="dark"]` token overrides, Plan CTA amber override, theme-toggle |
+| `app/theme.css` | `html[data-theme="dark"]` token overrides, Plan CTA contrast, theme-toggle |
 | `app/layout.tsx` | `next/font` wiring — loads the three type-trio fonts as CSS variables on `<html>` |
 | `components/PubMapCanvas.tsx` | Reads tokens at runtime via `readTokens()` to paint the MapLibre style — the map is a *consumer* of these tokens, never a second source of truth |
 
@@ -108,7 +108,7 @@ fill already carries the theme's contrast logic. Use these instead of a raw
 hex:
 
 ```
---color-on-accent          #fdfaf2   cream text on solid brass
+--color-on-accent          #fdfaf2   cream text for qualifying dark accent fills
 --color-on-inverse         #fdfaf2   cream text on solid ink-deep
 --color-on-accent-strong   #16122a   dark text on coral or brass-bright
 --color-on-photo           #ffffff   white text on a photo-scrim overlay

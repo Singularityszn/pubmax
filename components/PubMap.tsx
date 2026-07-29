@@ -2674,8 +2674,8 @@ export default function PubMap({
 
       {/* Full-bleed map is the base layer; every panel slides in over it.
           Named region so AT users get a landmark for the map surface (the
-          canvas pins are pointer-only; keyboard discovery is the tonight lane
-          + search input inside this region). */}
+          canvas pins are pointer-only; List view provides their operable DOM
+          parallel alongside search and the tonight lane). */}
       <section className="mapStage" aria-label={`Interactive pub map of ${mapDisplayName}`}>
         {!ukPlaceArrival ? (
           <TonightArcChips

@@ -45,8 +45,8 @@ Warm, decisive, local — like a friend who already knows the good pint streets.
 Explored in `docs/design-explorations/`. **Ship A for light, B for dark — not a blend.**
 
 - **Light default — Direction A Candle Coral:** warm paper with a candle/peach tint + coral primary CTA (`--brass` family). Hierarchy lives in coral on Plan actions and selection, not in sand-beige body alone.
-- **Dark theme — Direction B Night Out:** deep ink paper + amber route/CTA energy + pint neon for go/cheap. Explicitly **no purple mesh or glow**.
-- **Field Guide semantics retained:** `--river` / `--pint` / `--brick` keep their jobs for pins, prices, and heritage. Coral (light) or amber (dark) owns the primary CTA by theme.
+- **Dark theme - Direction B Night Out:** deep ink paper + coral CTA + amber route energy + pint neon for go/cheap. Explicitly **no purple mesh or glow**.
+- **Field Guide semantics retained:** `--river` / `--pint` / `--brick` keep their jobs for pins, prices, and heritage. Coral owns the primary CTA in both themes; amber remains a route and price signal.
 
 Token source of truth: `app/globals.css` (light) and `app/theme.css` (dark). Visual detail: `DESIGN.md`.
 
@@ -76,7 +76,7 @@ What this must not look like:
 
 1. **Plan first.** Every primary surface answers “what are we doing tonight?” before it teaches heritage or settings.
 2. **Map is the product.** Discovery lives on the map plane; sheets and drawers support the Plan, they don’t replace the map with a feed.
-3. **One accent owns the CTA.** Coral by day, amber by night — never compete with pint/river/brick for “what do I tap next?”
+3. **One accent owns the CTA.** Coral in both themes - never compete with pint/river/brick for “what do I tap next?”
 4. **Semantic color earns its job.** Pint = go/cheap, brick = dear/destructive, river = heritage/by-water. Don’t decorate with them.
 5. **Friends are first-class.** Invitees and attendees appear where the Plan is decided, not buried in a separate social silo.
 
