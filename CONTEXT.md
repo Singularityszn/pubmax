@@ -123,8 +123,8 @@ The public PUBMAXX Handle attached to an authenticated account and its immutable
 _Avoid_: Self-declared name, email address, session token presented as contributor identity
 
 **Private Account Identity**:
-The optional full name and sex plus derived contribution eligibility attached to an authenticated account. Date of birth is asked only before the first gated contribution and discarded after assessment; the account retains only adult confirmation or an under-18 eligibility date. None of these fields becomes public identity. Visit Reports and Recommendations remain identity follow-up work.
-_Avoid_: Public age, stored date of birth
+The required date of birth and optional full name and sex attached to an authenticated account at signup. PUBMAXX stores all three privately for product analytics and social features, does not derive contribution eligibility from them, and does not block accounts or contributions by age. The Handle remains the only public identity. Visit Reports and Recommendations remain identity follow-up work.
+_Avoid_: Public age, public date of birth, age eligibility
 
 **Superseded Round Line**:
 An earlier Round price line whose community-price ownership was successfully replaced by a later line from the same account for the same venue and drink category. It stays in the Round diary but no longer claims current status; a failed replacement leaves the existing owner unchanged.
