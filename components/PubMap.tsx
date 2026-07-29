@@ -3072,7 +3072,10 @@ export default function PubMap({
           }
           layersContent={
             <Tabs className="mobileLayersPanel" value={mobileLayersTab} onValueChange={(value) => setMobileLayersTab(value as typeof mobileLayersTab)}>
-              <TabsList aria-label="Map control sections">
+              <TabsList
+                className="mobileMapControlTabs"
+                aria-label="Map control sections"
+              >
                 <TabsTrigger value="key">Key</TabsTrigger>
                 <TabsTrigger value="layers">Layers</TabsTrigger>
                 {experienceLens === "all" ? (

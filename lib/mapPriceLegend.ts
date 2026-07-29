@@ -52,7 +52,7 @@ const MAP_MARKS: MapKeyEntry[] = [
   {
     id: "provisional",
     label: "Blue dot",
-    detail: "One recent pint report. A second drinker logging the same price can set the pin's band.",
+    detail: "One recent pint report. A second independent drinker agreeing can set the pin's band.",
   },
   {
     id: "pint-drop",

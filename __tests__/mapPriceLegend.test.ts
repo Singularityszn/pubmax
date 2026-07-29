@@ -90,7 +90,7 @@ describe("map key inventory", () => {
     const legend = mapPriceLegend(false) as ReturnType<typeof mapPriceLegend> & {
       clusterNote?: string;
       shapes?: Array<{ id: string }>;
-      marks?: Array<{ id: string }>;
+      marks?: Array<{ id: string; detail: string }>;
       routeMarks?: Array<{ id: string }>;
       noAlcoholNote?: string;
     };
@@ -116,6 +116,9 @@ describe("map key inventory", () => {
       "selected",
       "story-band",
     ]);
+    expect(legend.marks?.[0]?.detail).toBe(
+      "One recent pint report. A second independent drinker agreeing can set the pin's band.",
+    );
     expect(legend.routeMarks?.map((row) => row.id)).toEqual([
       "crawl-stop",
       "walking-route",

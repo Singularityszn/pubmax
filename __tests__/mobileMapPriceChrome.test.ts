@@ -7,6 +7,10 @@ const mobileShell = readFileSync(
   join(process.cwd(), "components/mobile/MobileMapShell.tsx"),
   "utf8",
 );
+const mobileCss = readFileSync(
+  join(process.cwd(), "components/mobile/mobileMapShell.css"),
+  "utf8",
+);
 const priceControl = readFileSync(
   join(process.cwd(), "components/map/MapPriceControl.tsx"),
   "utf8",
@@ -27,6 +31,10 @@ describe("mobile map price chrome", () => {
     expect(pubMap).toContain('<TabsContent value="key"');
     expect(pubMap).toContain("<MapKey");
     expect(mobileShell).toContain('layers: "Map controls"');
+    expect(pubMap).toContain('className="mobileMapControlTabs"');
+    expect(mobileCss).toMatch(
+      /\.mobileMapControlTabs\s*>\s*\[role="tab"\]\s*{[\s\S]*?flex:\s*1[\s\S]*?min-width:\s*0/,
+    );
   });
 
   it("adds no phone top-chrome control for the key", () => {
