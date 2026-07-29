@@ -905,7 +905,7 @@ export async function uploadPhoto(
       contentType: file.type,
       error: err instanceof Error ? err.message : String(err),
     });
-    throw new Error("Photo could not be processed. Please try a different image.");
+    throw new Error("Photo could not be processed. Choose a different image and try again.");
   }
 
   const key = `${venueId}/${dropId}/${slot}.${NORMALIZED_EXT}`;

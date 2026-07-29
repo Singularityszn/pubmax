@@ -72,7 +72,7 @@ describe("POST /api/concierge — What's-On intents", () => {
     expect(body.mode).toBe("whats-on");
     expect(body.count).toBe(0);
     expect(body.listings).toEqual([]);
-    expect(body.message).toMatch(/no verified/i);
+    expect(body.message).toMatch(/no sourced/i);
   });
 
   it("leaves plain venue-mood queries on the ranking path", async () => {

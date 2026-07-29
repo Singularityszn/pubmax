@@ -111,13 +111,13 @@ describe("guardianView", () => {
 describe("dryLondonClosingLine", () => {
   it("is deterministic and keyed to the guardian tone", () => {
     const safe = dryLondonClosingLine({ ending: null, guardian: { label: "x", tone: "safe" }, stats: { stopCount: 3, pintCount: 0, totalGbp: null, cheapestPintGbp: null } });
-    expect(safe).toContain("Home before the last train");
+    expect(safe).toBe("The night ended before the last train.");
     expect(dryLondonClosingLine({ ending: null, guardian: { label: "x", tone: "safe" }, stats: { stopCount: 3, pintCount: 0, totalGbp: null, cheapestPintGbp: null } })).toBe(safe);
   });
 
   it("has a line for each ending", () => {
     expect(dryLondonClosingLine({ ending: { kind: "food", label: "" }, guardian: null, stats: { stopCount: 2, pintCount: 0, totalGbp: null, cheapestPintGbp: null } })).toContain("food");
-    expect(dryLondonClosingLine({ ending: { kind: "keep_going", label: "" }, guardian: null, stats: { stopCount: 2, pintCount: 0, totalGbp: null, cheapestPintGbp: null } })).toContain("ended anyway");
+    expect(dryLondonClosingLine({ ending: { kind: "keep_going", label: "" }, guardian: null, stats: { stopCount: 2, pintCount: 0, totalGbp: null, cheapestPintGbp: null } })).toBe("The night continued after this route ended.");
   });
 });
 
@@ -171,7 +171,7 @@ describe("composeRecapFromCompletion", () => {
       lastTrain: { dropCreatedAt: "2026-07-17T23:30:00.000Z", leaveByIso: "2026-07-17T23:42:00.000Z", decision: "settle_up_now" },
     });
     expect(view.guardian).toEqual({ label: "Home before the last train", tone: "safe" });
-    expect(view.closingLine).toContain("behaved");
+    expect(view.closingLine).toBe("The night ended before the last train.");
   });
 });
 
@@ -256,16 +256,16 @@ describe("composeRecapFromPublishedStory", () => {
 });
 
 describe("buildRecapShareText", () => {
-  it("matches the shareArtifacts builder shape and closes with the story line", () => {
+  it("matches the shareArtifacts builder shape and names where it was logged", () => {
     expect(buildRecapShareText({ title: "Big Friday", stopCount: 3, totalGbp: 18.4 })).toBe(
-      "Big Friday. 3 stops, £18.40 across the night. Every pint has a story.",
+      "Big Friday. 3 stops, £18.40 across the night. Night logged on PUBMAXX.",
     );
   });
 
   it("omits missing data honestly", () => {
-    expect(buildRecapShareText({ title: "", stopCount: 0 })).toBe("Our night out. Every pint has a story.");
+    expect(buildRecapShareText({ title: "", stopCount: 0 })).toBe("Our night out. Night logged on PUBMAXX.");
     expect(buildRecapShareText({ title: "Solo one", stopCount: 1, totalGbp: null })).toBe(
-      "Solo one. 1 stop. Every pint has a story.",
+      "Solo one. 1 stop. Night logged on PUBMAXX.",
     );
   });
 });

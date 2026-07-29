@@ -105,7 +105,7 @@ async function getHandler(request: Request): Promise<Response> {
   const params = new URL(request.url).searchParams;
   const q = params.get("q")?.trim() ?? "";
   if (q.length === 0) {
-    return jsonResponse({ error: "q is required." }, 400);
+    return jsonResponse({ error: "Add a search term." }, 400);
   }
   if (q.length > MAX_QUERY_LEN) {
     return jsonResponse({ error: "q is too long." }, 400);

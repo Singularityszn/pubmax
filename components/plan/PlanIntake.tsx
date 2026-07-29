@@ -30,7 +30,7 @@ const STEP_COPY: Record<PlanIntakeStep, { short: string; eyebrow: string; title:
     short: "Area",
     eyebrow: "Start nearby",
     title: "Where should the night happen?",
-    note: "Pick an area people actually say. We will remember it on this device.",
+    note: "Pick the area name your group uses. We'll remember it on this device.",
   },
   "time-window": {
     short: "Time",
@@ -54,7 +54,7 @@ const STEP_COPY: Record<PlanIntakeStep, { short: string; eyebrow: string; title:
     short: "Access",
     eyebrow: "Plan for everyone",
     title: "Any access needs to protect?",
-    note: "Choose every need that matters. Unverified details must stay visible in the route.",
+    note: "Choose every need that matters. We keep unchecked details visible in the route.",
   },
 };
 
@@ -191,7 +191,7 @@ export default function PlanIntake({
           <h2 id="plan-intake-summary-title">{summary.length ? summary.join(" · ") : "Start in your own words"}</h2>
           <p>{summary.length
             ? "Saved for later on this device. Lock it in below when you want a share link for the crew."
-            : "No choices required. Describe what matters and we will work from that."}</p>
+            : "No choices needed. Describe what matters and we will work from that."}</p>
           {summary.length ? (
             <div className="planIntake__summaryChips" aria-label="Saved planning details">
               {PLAN_INTAKE_STEPS.filter((step) => draft.settledSteps.includes(step) && !draft.skippedSteps.includes(step)).map((step) => (

@@ -62,7 +62,7 @@ export async function POST(request: Request): Promise<Response> {
   }
 
   const id = readString(body.id);
-  if (!id) return jsonNoStore({ error: "Missing observation id." }, { status: 400 });
+  if (!id) return jsonNoStore({ error: "Missing report id." }, { status: 400 });
 
   const action = readString(body.action);
   if (action !== "hide" && action !== "restore") {
@@ -71,7 +71,7 @@ export async function POST(request: Request): Promise<Response> {
 
   try {
     const ok = await moderateCommunityPrice(id, action === "hide", readString(body.note));
-    if (!ok) return jsonNoStore({ error: "Observation not found." }, { status: 404 });
+    if (!ok) return jsonNoStore({ error: "Report not found." }, { status: 404 });
     return jsonNoStore({ ok: true }, { status: 200 });
   } catch {
     return jsonNoStore({ error: "Moderation is unavailable right now." }, { status: 503 });

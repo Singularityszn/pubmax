@@ -337,7 +337,7 @@ export default async function BoroughPage({ params }: PageProps) {
           </h2>
           <p className="boroughSectionDek">
             {storyPubs.length} {storyPubs.length === 1 ? "pub" : "pubs"} here carry a heritage
-            note or a passed-down story, the ones worth a detour, not just a cheap pint.
+            note or a passed-down story. Each offers a reason to detour beyond price.
           </p>
           <ul className="boroughChipList" aria-label={`Story pubs in ${name}`}>
             {storyPubs.map((pub) => (
@@ -357,8 +357,7 @@ export default async function BoroughPage({ params }: PageProps) {
             Crawls through {name}
           </h2>
           <p className="boroughSectionDek">
-            A listed route with at least one stop here. Plan the whole walk, not just this
-            borough&rsquo;s corner of it.
+            A listed route with at least one stop here. Plan it from its first stop to its last.
           </p>
           <ul className="boroughCrawlList" aria-label={`Crawls through ${name}`}>
             {touchingCrawls.map((crawl) => (
@@ -470,7 +469,7 @@ export default async function BoroughPage({ params }: PageProps) {
       </nav>
 
       <p className="boroughFootnote">
-        Every pint has a story. <Link href="/borough">See every borough →</Link>
+        Pubs, prices and stories by area. <Link href="/borough">See every borough →</Link>
       </p>
     </main>
   );

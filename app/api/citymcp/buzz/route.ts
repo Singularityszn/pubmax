@@ -47,7 +47,7 @@ async function getHandler(request: Request): Promise<Response> {
   const params = new URL(request.url).searchParams;
   const id = params.get("id")?.trim() ?? "";
   if (id.length === 0) {
-    return jsonResponse({ error: "id is required.", buzz: null }, { status: 400 });
+    return jsonResponse({ error: "Place id is missing.", buzz: null }, { status: 400 });
   }
   if (id.length > MAX_ID_LEN) {
     return jsonResponse({ error: "id is too long.", buzz: null }, { status: 400 });

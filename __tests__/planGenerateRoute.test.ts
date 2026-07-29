@@ -190,7 +190,7 @@ describe("POST /api/plans/generate", () => {
     expect(response.status).toBe(503);
     expect(response.headers.get("retry-after")).toBe("60");
     expect(await response.json()).toEqual({
-      error: "Verified Plan signing is temporarily unavailable. Try again shortly.",
+      error: "Plan saving is temporarily unavailable. Try again.",
       code: "PLAN_SIGNING_UNAVAILABLE",
       retryable: true,
     });
@@ -454,7 +454,7 @@ describe("POST /api/plans/generate", () => {
 
     expect(food.preselected).toBe(false);
     expect(food.options).toEqual([]);
-    expect(food.warnings).toContain("No reviewed late-food option is available for this Night Area.");
+    expect(food.warnings).toContain("No late food worth pointing you to round here yet.");
   });
 
   it("calculates evidenced food distance from the actual final route stop", async () => {
@@ -574,7 +574,7 @@ describe("POST /api/plans/generate", () => {
 		expect(response.status).toBe(200);
 		expect(body.constraintReport.softRelaxations).toContainEqual({
 			code: "group_fit_unverified",
-			message: "The requested group size could not shape ranking because venue capacity is not evidenced in the dataset.",
+			message: "Group size did not shape the order because we do not have checked capacity details.",
 		});
 	});
 

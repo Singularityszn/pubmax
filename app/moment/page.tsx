@@ -5,7 +5,7 @@ import MomentCapture from "@/components/moment/MomentCapture";
 import "@/components/moment/moment.css";
 
 export const metadata: Metadata = {
-  title: "Capture a Moment",
+  title: "Save a Moment",
   description: "Keep a private PUBMAXX Moment, then decide if it belongs in a Story.",
 };
 

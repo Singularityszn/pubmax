@@ -37,7 +37,7 @@ describe("GET /api/citymcp/area", () => {
     expect(res.status).toBe(200);
     const body = await res.json();
     expect(body.averagePintGbp).toBeNull();
-    expect(body.error).toMatch(/required/i);
+    expect(body.error).toBe("Add a borough.");
   });
 
   it("returns the trimmed average pint price on success", async () => {

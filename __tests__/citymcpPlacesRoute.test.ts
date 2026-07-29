@@ -34,7 +34,7 @@ describe("GET /api/citymcp/places", () => {
     const res = await GET(new Request("http://localhost/api/citymcp/places"));
     expect(res.status).toBe(400);
     const body = await res.json();
-    expect(body.error).toMatch(/q is required/i);
+    expect(body.error).toBe("Add a search term.");
   });
 
   it("400s when q is absurdly long", async () => {

@@ -293,7 +293,7 @@ export default function A2HSInstallPrompt(): React.JSX.Element | null {
         {surface === "android" ? (
           <>
             <p id="a2hsBody" className="a2hsBody">
-              One tap to tonight&apos;s cheapest pints. No app store, no download.
+              One tap to listed pint prices near you.
             </p>
             <div className="a2hsActions">
               <button type="button" className="a2hsSecondary pressable" onClick={() => close(true)}>

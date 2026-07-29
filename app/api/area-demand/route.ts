@@ -70,7 +70,7 @@ export async function POST(request: Request): Promise<Response> {
   const outcome = await areaDemandStore().record(parsed.value);
   if (outcome.failed) {
     return publicApiError(
-      "Could not note that right now. Try again in a moment.",
+      "Could not save that area. Try again.",
       "STORE_UNAVAILABLE",
       503,
       { retryable: true },

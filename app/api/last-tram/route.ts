@@ -100,7 +100,7 @@ export async function GET(request: Request): Promise<Response> {
     const lat = Number.parseFloat(params.get("lat") ?? "");
     const lng = Number.parseFloat(params.get("lng") ?? "");
     if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
-      return json({ error: "lat and lng are required numbers." }, { status: 400 });
+      return json({ error: "Add valid lat and lng coordinates." }, { status: 400 });
     }
     if (await isLastRideLimited(request, "last-tram")) {
       return json({ error: "Too many requests, slow down." }, { status: 429 });

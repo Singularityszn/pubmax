@@ -64,7 +64,7 @@ function atmosphereFit(
       reasons.push(`beer garden on record; cached weather is ${weather.kind}`);
     } else {
       score += 0.75;
-      reasons.push("beer garden on record; weather evidence is unavailable or inconclusive");
+      reasons.push("beer garden on record; weather details are missing or unclear");
     }
   }
   if (context.atmosphere.includes("sports") && venue.amenities.liveSports) {

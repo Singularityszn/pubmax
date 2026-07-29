@@ -37,7 +37,7 @@ export function ContributionGateDialog({
       >
         {mode === "sign_in_required" ? (
           <>
-            <p className="contributionGateEyebrow">Account required</p>
+            <p className="contributionGateEyebrow">Account needed</p>
             <h2 id="contribution-gate-title">Sign in to contribute</h2>
             <p>
               Contributions show your public handle, so you need an account
@@ -48,7 +48,7 @@ export function ContributionGateDialog({
           </>
         ) : (
           <>
-            <p className="contributionGateEyebrow">Profile required</p>
+            <p className="contributionGateEyebrow">Profile needed</p>
             <h2 id="contribution-gate-title">Finish account setup</h2>
             <p>
               Choose a public handle and add your date of birth before

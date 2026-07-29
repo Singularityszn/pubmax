@@ -105,7 +105,7 @@ describe("buildWhatsOnAnswer", () => {
       priceGbp: 2,
       source: { label: "Question One", url: "https://questionone.com/x" },
     });
-    expect(answer.message).toContain("verified");
+    expect(answer.message).toContain("sourced");
     expect(answer.message).toContain("Soho");
   });
 
@@ -113,8 +113,8 @@ describe("buildWhatsOnAnswer", () => {
     const answer = buildWhatsOnAnswer({ kind: "quiz", area: "Shoreditch", window: "tonight" }, []);
     expect(answer.count).toBe(0);
     expect(answer.listings).toEqual([]);
-    expect(answer.message).toMatch(/no verified/i);
+    expect(answer.message).toMatch(/no sourced/i);
     expect(answer.message).toContain("Shoreditch");
-    expect(answer.message).toMatch(/won't make (any|anything) up/i);
+    expect(answer.message).toContain("listings I can check");
   });
 });

@@ -134,7 +134,7 @@ export function validateCommunityVenueSignal(
   }
   const raw = input as Record<string, unknown>;
   const venueId = cleanVenueId(raw.venueId);
-  if (!venueId) return { ok: false, error: "A venue is required." };
+  if (!venueId) return { ok: false, error: "Choose a venue." };
   if (!isCommunityVenueSignalKey(raw.signalKey)) {
     return { ok: false, error: "Pick what you noticed." };
   }

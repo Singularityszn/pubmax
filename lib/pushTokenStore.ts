@@ -34,7 +34,7 @@ export function validatePushToken(raw: {
   platform?: unknown;
 }): PushTokenValidation {
   const token = typeof raw.token === "string" ? raw.token.trim() : "";
-  if (!token) return { ok: false, error: "A device token is required." };
+  if (!token) return { ok: false, error: "Device token is missing." };
   if (token.length > MAX_TOKEN_LENGTH) {
     return { ok: false, error: `Token is too long (max ${MAX_TOKEN_LENGTH} characters).` };
   }

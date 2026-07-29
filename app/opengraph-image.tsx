@@ -25,7 +25,7 @@ import {
 // Grotesk fonts are read from public/fonts, both edge-incompatible.
 
 export const runtime = "nodejs";
-export const alt = "PUBMAXX. Make tonight worth remembering: real pint prices across London and beyond";
+export const alt = "PUBMAXX. Listed pint prices across London and beyond";
 export const size = OG_SIZE;
 export const contentType = "image/png";
 
@@ -55,7 +55,7 @@ export default async function Image() {
   const otherCities = Math.max(0, listEnabledCities().length - 1);
 
   const coverageBits = [
-    "Real pint prices",
+    "Listed pint prices",
     pubCount ? `${pubCount.toLocaleString("en-GB")} pubs tracked` : null,
     otherCities > 0 ? `London + ${otherCities} cities` : "London",
   ].filter(Boolean) as string[];
@@ -143,7 +143,7 @@ export default async function Image() {
               maxWidth: 860,
             }}
           >
-            Real pint prices on one map. Find the right place, plan the crawl,
+            Listed pint prices on one map. Find the right place, plan the crawl,
             and turn a good night into one worth keeping.
           </div>
         </div>

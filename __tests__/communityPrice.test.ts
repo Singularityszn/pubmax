@@ -75,7 +75,7 @@ describe("validateCommunityPrice", () => {
   it("requires a venue, a known drink category, and a numeric price", () => {
     expect(validateCommunityPrice({ ...base, venueId: "  ", priceGbp: 4.2 })).toEqual({
       ok: false,
-      error: "A venue is required.",
+      error: "Choose a venue.",
     });
     expect(validateCommunityPrice({ ...base, drinkCategory: "mead", priceGbp: 4.2 })).toEqual({
       ok: false,

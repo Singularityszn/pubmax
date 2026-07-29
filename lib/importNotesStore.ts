@@ -94,14 +94,14 @@ export function validateImportNote(raw: {
   provenance?: unknown;
 }): ImportNoteValidation {
   const body = typeof raw.body === "string" ? raw.body.trim() : "";
-  if (!body) return { ok: false, error: "URL or note text is required." };
+  if (!body) return { ok: false, error: "Add a URL or note." };
   if (body.length > MAX_BODY) {
     return { ok: false, error: `Note is too long (max ${MAX_BODY} characters).` };
   }
 
   const provenance = raw.provenance;
   if (provenance !== "sourced" && provenance !== "contributor") {
-    return { ok: false, error: "Provenance must be sourced or contributor." };
+    return { ok: false, error: "Source type must be sourced or contributor." };
   }
 
   const venueId =

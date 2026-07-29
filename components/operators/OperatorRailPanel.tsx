@@ -98,7 +98,7 @@ export default function OperatorRailPanel({ venueId, venueName }: OperatorRailPa
   const submitClaim = async () => {
     const note = evidenceNote.trim();
     if (!note) {
-      setClaimFeedback({ kind: "error", text: "Add a short note on how we can verify you." });
+      setClaimFeedback({ kind: "error", text: "Add a short note so we can check your claim." });
       return;
     }
     setSavingClaim(true);
@@ -116,7 +116,7 @@ export default function OperatorRailPanel({ venueId, venueName }: OperatorRailPa
       }
       if (data.claim) setClaim(data.claim);
       setEvidenceNote("");
-      setClaimFeedback({ kind: "ok", text: "Thanks. We'll verify you run this pub and be in touch." });
+      setClaimFeedback({ kind: "ok", text: "Claim sent. We'll check it and be in touch." });
     } catch {
       setClaimFeedback({ kind: "error", text: "Could not reach the server." });
     } finally {
@@ -189,19 +189,19 @@ export default function OperatorRailPanel({ venueId, venueName }: OperatorRailPa
             <p className="operatorRailBody">One moment…</p>
           ) : !signedIn ? (
             <p className="operatorRailBody">
-              Sign in with the account that runs {venueName}, then verify it here. Verified
-              operators can propose corrections, events, and offers. We review each one.
+              Sign in with the account that runs {venueName}, then send a claim.
+              Approved operators can propose corrections, events, and offers. We review each one.
             </p>
           ) : !checked ? (
             <p className="operatorRailBody">Checking your status…</p>
           ) : state === "pending" ? (
             <p className="operatorRailBody" role="status">
-              {`Verification pending. We're checking that you run ${venueName} and will open the propose tools once you're verified.`}
+              {`Claim under review. We're checking that you run ${venueName} and will open the proposal tools once it is approved.`}
             </p>
           ) : state === "verified" ? (
             <div className="operatorRailForm">
               <p className="operatorRailBody">
-                {`You're verified for ${venueName}. Propose an update and we'll review it before it shows. Your submissions never overwrite existing notes.`}
+                {`Your claim for ${venueName} is approved. Propose an update and we'll review it before it shows. Your submissions never overwrite existing notes.`}
               </p>
               <label className="operatorRailField">
                 <span>What kind</span>
@@ -297,11 +297,11 @@ export default function OperatorRailPanel({ venueId, venueName }: OperatorRailPa
                 </p>
               ) : (
                 <p className="operatorRailBody">
-                  Tell us how we can verify you run {venueName}. We check every claim by hand.
+                  Tell us how we can check that you run {venueName}. We review every claim by hand.
                 </p>
               )}
               <label className="operatorRailField">
-                <span>How can we verify you</span>
+                <span>How should we check</span>
                 <select
                   value={evidenceKind}
                   onChange={(e) => setEvidenceKind(e.target.value as OperatorEvidenceKind)}
@@ -328,7 +328,7 @@ export default function OperatorRailPanel({ venueId, venueName }: OperatorRailPa
                 onClick={() => void submitClaim()}
                 disabled={savingClaim || !canReclaim}
               >
-                {savingClaim ? "Sending…" : "Verify I run this pub"}
+                {savingClaim ? "Sending…" : "Send claim"}
               </button>
               {claimFeedback ? (
                 <span

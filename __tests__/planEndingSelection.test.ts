@@ -67,7 +67,7 @@ describe("canonical ending selections", () => {
         label: "Nearest station",
         confidence: "unknown",
         source: "PUBMAXX transport choice",
-        warnings: ["Live transport evidence was not verified or persisted when the host confirmed this ending."],
+        warnings: ["Live transport details were not checked or saved when the host confirmed this ending."],
       },
     });
   });

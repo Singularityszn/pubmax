@@ -29,13 +29,13 @@ export type CityCapabilityProfile = Readonly<{
 const MAP_AVAILABLE: CityCapabilityEvidence = {
   availability: "available",
   asOf: null,
-  explanation: "A city-scoped slim venue pack is available for browse and search.",
+  explanation: "Listed pubs are available to browse and search in this city.",
 };
 
 const PRICES_NOT_YET_COLLECTED: CityCapabilityEvidence = {
   availability: "unavailable",
   asOf: null,
-  explanation: "Observed pint prices have not yet been collected for this city.",
+  explanation: "We haven't yet collected pint prices for this city.",
 };
 
 const EVENTS_LONDON_ONLY: CityCapabilityEvidence = {
@@ -59,13 +59,13 @@ const HERITAGE_AVAILABLE: CityCapabilityEvidence = {
 const TRANSPORT_LIMITED: CityCapabilityEvidence = {
   availability: "limited",
   asOf: null,
-  explanation: "Static transport anchors are available; live disruption and journey evidence are not yet certified.",
+  explanation: "Stations are listed, but live disruption and travel help are not ready for this city.",
 };
 
 const TRANSPORT_NOT_YET_AVAILABLE: CityCapabilityEvidence = {
   availability: "unavailable",
   asOf: null,
-  explanation: "City-specific transport evidence is not yet available.",
+  explanation: "Transport help is not ready for this city.",
 };
 
 const EDITORIAL_NOT_YET_AVAILABLE: CityCapabilityEvidence = {
@@ -98,12 +98,12 @@ export const CITY_CAPABILITY_PROFILES = {
     prices: {
       availability: "available",
       asOf: isoDate(PINT_DATASET_OBSERVED_AT),
-      explanation: "The tracked London pint-price snapshot is available with visible collection dates.",
+      explanation: "London pint prices are available with visible collection dates.",
     },
     events: {
       availability: "available",
       asOf: null,
-      explanation: "Reviewed London deals, music, quiz, and sport feeds are available with per-item provenance.",
+      explanation: "London deals, music, quiz and sport listings name their sources.",
     },
     routes: ROUTES_AVAILABLE,
     transport: {

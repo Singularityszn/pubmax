@@ -524,7 +524,7 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
               actions={headerActions}
             />
             <p className="profileEmpty">
-              Couldn&apos;t load pints right now. Please try again in a moment.
+              Couldn&apos;t load pints right now. Try again.
             </p>
           </div>
         ) : (

@@ -35,10 +35,10 @@ export default function ThenVsNowCard({ item }: ThenVsNowCardProps) {
   // A screen-reader sentence that reads the movement plainly, out of context.
   const movementLabel =
     dir === "flat"
-      ? `No change from the ${formatPrice(item.thenGbp)} baseline.`
+      ? `No change from the earlier ${formatPrice(item.thenGbp)} price.`
       : `${dir === "up" ? "Up" : "Down"} ${formatPrice(abs)} (${pctAbs.toFixed(
           0,
-        )}%) from the ${formatPrice(item.thenGbp)} baseline, community-reported.`;
+        )}%) from the earlier ${formatPrice(item.thenGbp)} price, community-reported.`;
 
   const DirIcon = dir === "up" ? ArrowUpRight : dir === "down" ? ArrowDownRight : Minus;
 

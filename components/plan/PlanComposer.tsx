@@ -302,10 +302,7 @@ export function errorMessageFromBody(body: unknown, fallback: string): string {
       const areaId = payload.nightArea?.id ?? payload.district?.id;
       const area = NIGHT_AREAS.find((candidate) => candidate.slug === areaId);
       const areaName = area?.name ?? "This area";
-      const serverMessage = typeof message === "string" && message.trim()
-        ? message.trim()
-        : "We're still checking this area before a crawl can be planned.";
-      return `${areaName} is not ready for route planning yet. ${serverMessage} Choose a ready area to continue.`;
+      return `${areaName} is not ready for route planning yet. We're still checking this area before planning a crawl. Choose another area to continue.`;
     }
     if (typeof message === "string" && message.trim()) return message;
   }
@@ -388,13 +385,13 @@ export function nightAreaCoverageSummary(
   const remaining = area.missingEvidence.length - missing.length;
   const missingEvidenceDetail = missing.length > 0
     ? `missing ${missing.join(" and ")}${remaining > 0 ? ` + ${remaining} more` : ""}.`
-    : "We are still checking this area before route planning opens.";
+    : "We're still checking this area before route planning opens.";
 
   switch (area.coverageStatus) {
     case "captured":
       return { label: "Plan with warnings", detail: `Some checks complete. ${missingEvidenceDetail[0]?.toUpperCase()}${missingEvidenceDetail.slice(1)}`, tone: "capture" };
     case "discovered":
-      return { label: "Low confidence", detail: "We have not checked this area yet. The route stays editable.", tone: "discovery" };
+      return { label: "Low confidence", detail: "We haven't checked this area yet. The route stays editable.", tone: "discovery" };
     case "reviewed":
       return { label: "Plan with warnings", detail: `Checked with gaps. ${missingEvidenceDetail[0]?.toUpperCase()}${missingEvidenceDetail.slice(1)}`, tone: "review" };
     case "paused":
@@ -885,7 +882,7 @@ function PlanComposerForm({
         throw new Error(mapped || body?.error || "The plan could not be created.");
       }
       const attribution = serverPlanCreationAttribution(body);
-      if (!attribution) throw new Error("The plan was created without verifiable route attribution. Please reload it before continuing.");
+      if (!attribution) throw new Error("We could not check the route details. Reload the plan before continuing.");
       const { grounded } = attribution;
       const acceptanceTelemetry = planAcceptanceTelemetry(body, completeStops.length);
       const acceptedToken = responseEventToken(body, "planAccepted");
@@ -919,7 +916,7 @@ function PlanComposerForm({
           },
           body: JSON.stringify({ status: "ready", ...(nightContext ? { context: nightContext } : {}) }),
         });
-        if (!metadataResponse.ok) throw new Error("The route was created, but its Night Context could not be saved. Please try again.");
+        if (!metadataResponse.ok) throw new Error("The route was created, but its details could not be saved. Try again.");
       }
       trackEvent("plan_saved", { stops: completeStops.length, grounded });
       trackMeaningfulCoreAction("plan_saved");

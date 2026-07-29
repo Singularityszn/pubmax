@@ -82,7 +82,7 @@ function tractionStats(s: AboutStats): Stat[] {
     {
       value: fmtInt(s.historicPubsCited),
       label: "historic pubs cited",
-      note: "one sourced fact each, never invented",
+      note: "one sourced fact each",
     },
     {
       value: fmtInt(s.citiesCovered),
@@ -119,7 +119,7 @@ export default async function AboutPage() {
       url: "https://pubmaxxing.com",
       logo: "https://pubmaxxing.com/icon-512.png",
       description:
-        "Real pint prices from real people, mapped, with the heritage that makes each pub worth the walk. A pub-crawl planner for the UK that's free, carries no ads, and never lets anyone pay to rank.",
+        "Listed pint prices with named sources, mapped with cited pub heritage. A free pub-crawl planner for the UK that never lets anyone pay to rank.",
       email: CONTACT_EMAIL,
       sameAs: ["https://x.com/karansznx"],
     },
@@ -190,8 +190,7 @@ export default async function AboutPage() {
           archaeology at half six.
         </p>
         <p className="aboutBody">
-          One more thing, and it&rsquo;s the important one. Nobody pays to rank.
-          Not ever. There&rsquo;s a wall in the code between anyone&rsquo;s money
+          Nobody pays to rank. Not ever. There&rsquo;s a wall in the code between anyone&rsquo;s money
           and the prices you see. A sponsored thing says so and sits in its own
           slot. The order of pubs on your map is never for sale.
         </p>
@@ -204,8 +203,7 @@ export default async function AboutPage() {
           cheap round before the last train. The quiet-pint person who just
           wants a good one and a seat by the window. The birthday mob who need
           somewhere that&rsquo;ll take twelve of them on a Friday. We&rsquo;re
-          not building this for the few who can drop eight quid on a lager
-          without noticing. We&rsquo;re building it for everyone else.
+          building this for people who notice an eight-quid lager.
         </p>
       </section>
 
@@ -213,14 +211,13 @@ export default async function AboutPage() {
         <h2 id="ethos" className="aboutH2">What we stand for</h2>
         <ul className="aboutEthos">
           <li>
-            <strong>Real prices, or nothing.</strong> Every price and every fact
+            <strong>Prices with named sources.</strong> Every price and every fact
             shows where it came from. If we can&rsquo;t stand a number up, we
             leave it blank. No filler, no guess dressed up as data.
           </li>
           <li>
-            <strong>The night, not the units.</strong> A good one is measured by
-            who you were with, not how many you had. Nothing in here nudges you
-            to drink more.
+            <strong>Good nights count people and memories.</strong> Nothing in
+            here nudges you to drink more.
           </li>
           <li>
             <strong>Your nights are yours.</strong> Nothing&rsquo;s public unless
@@ -228,8 +225,8 @@ export default async function AboutPage() {
             account.
           </li>
           <li>
-            <strong>No ads. No paywall.</strong> This is a response to getting
-            mugged for a lager, not another thing trying to sell you one.
+            <strong>Free to browse.</strong> Nobody pays to rank, and sponsored
+            items sit in their own labelled slots.
           </li>
         </ul>
       </section>
@@ -274,7 +271,7 @@ export default async function AboutPage() {
           <div className="aboutPressRow">
             <dt>One line</dt>
             <dd>
-              Real pint prices from real people, one map, and the whole night in
+              Listed pint prices with named sources, one map, and the whole night in
               a single plan. Free, and nobody pays to rank.
             </dd>
           </div>

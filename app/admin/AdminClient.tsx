@@ -546,7 +546,7 @@ export default function AdminClient() {
           return;
         }
         setOperatorClaims((current) => current.filter((c) => c.id !== id));
-        setOperatorMsg(`Claim ${action === "verify" ? "verified" : action === "reject" ? "rejected" : "revoked"}.`);
+        setOperatorMsg(`Claim ${action === "verify" ? "approved" : action === "reject" ? "rejected" : "revoked"}.`);
       } catch {
         setOperatorMsg("Could not reach the server.");
       } finally {
@@ -594,10 +594,10 @@ export default function AdminClient() {
 
       <h1>Admin</h1>
       <p className="admin-sub">
-        Review reported community drops, or queue a research note for moderated import.
+        Review reports, claims and notes before publication.
       </p>
       <Link className="adminMapCallout" href="/map">
-        Back to the live map
+        Back to the map
       </Link>
 
       <div className="admin-tabs" role="tablist" aria-label="Admin sections">
@@ -939,7 +939,7 @@ export default function AdminClient() {
                 importMsg.startsWith("Could not") ||
                 importMsg.includes("required") ||
                 importMsg.includes("too long") ||
-                importMsg.includes("Provenance") ||
+                importMsg.includes("Source type") ||
                 importMsg.includes("failed")
                   ? "alert"
                   : "status"
@@ -988,13 +988,13 @@ export default function AdminClient() {
               />
             </label>
             <label className="admin-field">
-              <span>Provenance</span>
+              <span>Source type</span>
               <select
                 value={importProvenance}
                 onChange={(e) =>
                   setImportProvenance(e.target.value as "sourced" | "contributor")
                 }
-                aria-label="Provenance"
+                aria-label="Source type"
               >
                 <option value="sourced">sourced</option>
                 <option value="contributor">contributor</option>
@@ -1090,8 +1090,8 @@ export default function AdminClient() {
             Operator rail
           </h2>
           <p className="admin-sub">
-            Verify the people who run each pub, then review the updates they propose. Accepting a
-            proposal records it as attributed operator evidence. It never overwrites existing notes.
+            Check claims from people who run each pub, then review their proposed updates. Accepting a
+            proposal records who sent it. It never overwrites existing notes.
           </p>
 
           {operatorMsg ? (
@@ -1123,7 +1123,7 @@ export default function AdminClient() {
           {operatorClaims.length === 0 ? (
             <div className="admin-empty">
               <strong>No pending claims</strong>
-              <span>Verify claims out of band (check the email domain, ring the bar, read the document).</span>
+              <span>Check claims outside PUBMAXX by checking the email domain, ringing the bar or reading the document.</span>
             </div>
           ) : (
             <div className="admin-list">
@@ -1146,7 +1146,7 @@ export default function AdminClient() {
                       onClick={() => void decideOperatorClaim(c.id, "verify")}
                       disabled={operatorActionId === c.id}
                     >
-                      {operatorActionId === c.id ? "Working…" : "Verify"}
+                      {operatorActionId === c.id ? "Working…" : "Approve"}
                     </button>
                     <button
                       className="admin-btn admin-keep"
@@ -1165,7 +1165,7 @@ export default function AdminClient() {
           {operatorProposals.length === 0 ? (
             <div className="admin-empty">
               <strong>No pending proposals</strong>
-              <span>Proposals from verified operators land here for review before they show.</span>
+              <span>Claims from approved pub operators land here for review before they show.</span>
             </div>
           ) : (
             <div className="admin-list">

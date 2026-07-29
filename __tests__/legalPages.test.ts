@@ -94,7 +94,7 @@ describe("legal content pages", () => {
   });
 
   it("keeps analytics optional in the terms as well as the privacy notice", () => {
-    expect(terms).toMatch(/Browsing does not require an account or analytics/);
+    expect(terms).toMatch(/Browsing doesn&rsquo;t need an account or analytics/);
     expect(terms).toMatch(/Allow or No thanks/);
     expect(terms).toMatch(/same app either way/);
     expect(terms).toMatch(/persistent\s+device\s+identifier/i);
@@ -122,7 +122,7 @@ describe("legal content pages", () => {
     expect(privacy).toMatch(/delayed return/i);
     expect(privacy).not.toMatch(/referral attribution[^]*consent-only/);
     expect(privacy).toMatch(/one-way hash of the deleted account ID/);
-    expect(privacy).toMatch(/existing session cannot recreate/);
+    expect(privacy).toMatch(/existing session can&rsquo;t recreate/);
   });
 
   it("discloses precise location processing without overstating retention", () => {
@@ -180,7 +180,7 @@ describe("legal content pages", () => {
 
   it("describes remembered-area request use without claiming all state stays local", () => {
     expect(privacy).toMatch(/public area&rsquo;s coarse centre/);
-    expect(privacy).toMatch(/The saved choice itself is not\s+uploaded/);
+    expect(privacy).toMatch(/The saved choice itself isn&rsquo;t\s+uploaded/);
     expect(privacy).toMatch(/don&rsquo;t upload those stored values as a bundle/);
     expect(privacy).toMatch(/device night profile stays\s+on your device unless you sign in/);
     expect(privacy).not.toMatch(/These never leave your\s+device/);
@@ -223,7 +223,7 @@ describe("legal content pages", () => {
     expect(privacy).toMatch(/door policy/);
     expect(privacy).toMatch(/people were eating/);
     expect(privacy).toMatch(/same stable private profile key/);
-    expect(privacy).toMatch(/Venue reports do not enter the public\s+contributor record/);
+    expect(privacy).toMatch(/Venue reports don&rsquo;t enter the public\s+contributor record/);
     expect(privacy).toMatch(/Community prices and venue reports:/);
   });
 
@@ -232,12 +232,12 @@ describe("legal content pages", () => {
     expect(privacy).toMatch(
       /prices[\s\S]*Visit Reports[\s\S]*Recommendations/i,
     );
-    expect(privacy).toMatch(/requires a signed-in account/);
+    expect(privacy).toMatch(/needs a signed-in account/);
     expect(privacy).toMatch(
       /server\s+derives both contribution\s+identifiers from the authenticated account/,
     );
     expect(privacy).toMatch(/Older rows that had no handle remain\s+anonymous/);
-    expect(privacy).toMatch(/hidden[\s\S]*do not count/i);
+    expect(privacy).toMatch(/hidden[\s\S]*don&rsquo;t count/i);
     expect(privacy).toMatch(
       /Visit Reports and Recommendations[\s\S]*existing public profile[\s\S]*remain visible[\s\S]*excluded/i,
     );
@@ -247,7 +247,7 @@ describe("legal content pages", () => {
 
   it("states exactly what private profile data is retained", () => {
     expect(privacy).toMatch(/Google or Apple sign-in/);
-    expect(privacy).toMatch(/date of birth is required to finish signup/i);
+    expect(privacy).toMatch(/date of birth is needed to finish signup/i);
     expect(privacy).toMatch(/Full name and sex are optional/);
     expect(privacy).toMatch(/only identity shown with contributions/);
     expect(privacy).toMatch(
@@ -266,7 +266,7 @@ describe("legal content pages", () => {
       /keeps your authentication account,\s+public\s+handle and\s+handle-keyed contribution history/,
     );
     expect(terms).toMatch(
-      /date of birth is required to finish signup/i,
+      /date of birth is needed to finish signup/i,
     );
     expect(terms).toMatch(
       /date of birth[\s\S]*full name[\s\S]*sex[\s\S]*product analytics[\s\S]*social features/i,
@@ -302,7 +302,7 @@ describe("legal content pages", () => {
 
   it("states that account and contribution access are not age-gated", () => {
     expect(terms).toMatch(
-      /does not block accounts or contributions based on age/i,
+      /doesn&rsquo;t block accounts or contributions based on age/i,
     );
     expect(terms).toMatch(/Pubs\s+decide who they serve/i);
     expect(terms).toMatch(/drinkaware\.co\.uk/);
@@ -324,7 +324,7 @@ describe("legal content pages", () => {
     expect(terms).toMatch(/self-referrals/i);
     expect(terms).toMatch(/circular\s+referrals/i);
     expect(terms).toMatch(/signs up and makes a first accepted contribution/i);
-    expect(terms).toMatch(/referral rewards are not active/i);
-    expect(terms).toMatch(/do not grant access/i);
+    expect(terms).toMatch(/referral rewards aren&rsquo;t active/i);
+    expect(terms).toMatch(/don&rsquo;t grant access/i);
   });
 });

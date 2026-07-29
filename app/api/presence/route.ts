@@ -36,7 +36,7 @@ export async function POST(request: Request): Promise<Response> {
   const handle = await resolveMessageHandle(request, readString(body.handle));
   const venueId = readString(body.venueId).trim();
   if (!handle) return jsonNoStore({ error: "Add a handle first." }, { status: 400 });
-  if (!venueId) return jsonNoStore({ error: "A venue is required." }, { status: 400 });
+  if (!venueId) return jsonNoStore({ error: "Choose a venue." }, { status: 400 });
 
   const ownership = await gateHandleAction(request, handle);
   if (!ownership.allowed) {

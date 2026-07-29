@@ -81,7 +81,7 @@ describe("memoryWeatherRecommendationStore", () => {
 
     await expect(
       memoryWeatherRecommendationStore.create(withoutActor, 1_000),
-    ).rejects.toThrow("Actor provenance is required.");
+    ).rejects.toThrow("Account key is missing.");
   });
 
   it("bounds a venue read to the newest rows without exposing actor hashes", async () => {

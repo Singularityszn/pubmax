@@ -24,7 +24,7 @@ export function SpillDesktopCapture({
   return (
     <div className="photoRow instaPintRow spillDesktopCapture">
       <div className="spillCaptureIntro">
-        <span className="spillFieldLabel">Capture</span>
+        <span className="spillFieldLabel">Photos</span>
         <span>Shot first, story second</span>
       </div>
       <div className="photoField">

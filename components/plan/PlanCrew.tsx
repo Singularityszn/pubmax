@@ -118,7 +118,7 @@ export default function PlanCrew({ planId, hostName }: { planId: string; hostNam
     })
       .then(async (response) => ({ response, body: await response.json().catch(() => null) }))
       .then(({ response, body }) => {
-        if (!response.ok) throw new Error(typeof body?.error === "string" ? body.error : "Could not unlock crew decisions.");
+        if (!response.ok) throw new Error(typeof body?.error === "string" ? body.error : "Could not load crew decisions.");
         writePlanCapability(planId, { token: memberToken, collaborationAuthorized: true, role: "guest" });
         // body.inviteId is the invite's own row id (see upgradeMemberInvite in
         // lib/planCollaborationStore.ts) — links back to invite_created for
@@ -130,7 +130,7 @@ export default function PlanCrew({ planId, hostName }: { planId: string; hostNam
         history.replaceState(null, "", `${window.location.pathname}${window.location.search}`);
       })
       .catch((caught) => {
-        if (!controller.signal.aborted) setError(caught instanceof Error ? caught.message : "Could not unlock crew decisions.");
+        if (!controller.signal.aborted) setError(caught instanceof Error ? caught.message : "Could not load crew decisions.");
       });
     return () => controller.abort();
   }, [collaborationAuthorized, memberToken, planId, restoredHashVersion, role]);
@@ -249,7 +249,7 @@ export default function PlanCrew({ planId, hostName }: { planId: string; hostNam
         </p>
       ) : !memberToken ? (
         <form className="planCrew__join" onSubmit={join}>
-          <label htmlFor="join-name">No account. Just your name.</label>
+          <label htmlFor="join-name">Your name is enough.</label>
           <div><input id="join-name" autoComplete="name" maxLength={CREW_NAME_MAX} value={name} onChange={(event) => setName(event.target.value)} placeholder="Your name" required /><button type="submit" disabled={pending}>I&rsquo;m in</button></div>
         </form>
       ) : (

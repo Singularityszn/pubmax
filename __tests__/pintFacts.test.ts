@@ -102,12 +102,10 @@ describe("factBlockSentences", () => {
     expect(sentences.some((s) => s.includes("range from £5.00 to £7.00"))).toBe(
       true,
     );
-    // Provenance stamp, never "live".
+    // Source and collection date stay explicit.
     const last = sentences[sentences.length - 1];
     expect(last).toContain("Prices last collected 16 July 2026");
-    // Never claims a live feed — the only "live" mention is the "never a live
-    // feed" disclaimer in the provenance stamp.
-    expect(last).toContain("Never a live feed");
+    expect(last).not.toContain("live feed");
     const joined = sentences.join(" ");
     expect(joined).not.toMatch(/\bprices are live\b|\blive prices\b/i);
   });

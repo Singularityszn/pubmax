@@ -51,8 +51,8 @@ function viewFor(
 
 function eyebrow(hasRememberedLocality: boolean, nowIso: string): string {
   const scope = hasRememberedLocality
-    ? "Cheapest pints near you"
-    : "Cheapest pints in central London";
+    ? "Lowest listed prices near you"
+    : "Lowest listed prices in central London";
   const now = new Date(nowIso);
   const collectedToday =
     Number.isFinite(now.getTime()) &&
@@ -110,7 +110,7 @@ export default function TodayPintsCard({ index, nowIso }: Props) {
       </ul>
 
       <p className="todayCardFootRow">
-        <span className="todayProvenance">The cheapest we&rsquo;ve got in {pints.areaName}.</span>
+        <span className="todayProvenance">Lowest listed prices in {pints.areaName}.</span>
         <Link href="/map" className="todayTextButton">
           Change area
           <ArrowUpRight size={14} aria-hidden="true" />

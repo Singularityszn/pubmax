@@ -27,7 +27,7 @@ export type AskResult =
   | { status: "answered"; message: string; cards: AskCard[] }
   | { status: "error"; message: string };
 
-export const ASK_FALLBACK_MESSAGE = "The landlord couldn't sort that one just now.";
+export const ASK_FALLBACK_MESSAGE = "Couldn't answer that. Try again.";
 
 // A hung request must end "Asking…" honestly rather than spin forever.
 export const ASK_TIMEOUT_MS = 10_000;

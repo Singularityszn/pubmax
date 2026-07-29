@@ -249,7 +249,7 @@ export default function NightSignals() {
             </Link>
             <Link className="nightSignalSecondary" href="/pal">Set up a Pub Pal</Link>
           </div>
-          <small>Choosing Brandy or Vodka changes this page’s mood only. It does not create a hidden map filter.</small>
+          <small>Choosing Brandy or Vodka changes this page’s mood only. It doesn’t create a hidden map filter.</small>
         </article>
       </div>
 

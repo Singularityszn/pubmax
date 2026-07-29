@@ -142,7 +142,7 @@ export async function POST(request: Request): Promise<Response> {
   // when their own logging budget is spent.
   if (readString(body.action) === "report") {
     const id = readString(body.id);
-    if (!id) return jsonNoStore({ error: "Missing observation id." }, { status: 400 });
+    if (!id) return jsonNoStore({ error: "Missing report id." }, { status: 400 });
     // Flood protection only - per-actor uniqueness is durable (the
     // community_price_reports unique pair), so a repeat that outlives this
     // window is an idempotent no-op in the store rather than a second count.
@@ -165,7 +165,7 @@ export async function POST(request: Request): Promise<Response> {
     const flagged = await reportCommunityPrice(id, readString(body.reason), actor);
     if (!flagged) {
       return jsonNoStore(
-        { error: "We cannot find that observation." },
+        { error: "We cannot find that report." },
         { status: 404 },
       );
     }

@@ -50,7 +50,7 @@ export function inferNightContext(rawQuery: unknown, now = new Date()): Inferred
   const lower = query.toLocaleLowerCase();
   const reasons: ContextReason[] = [];
   const areaMatch = AREA_LABELS.find(({ label }) => lower.includes(label.toLocaleLowerCase()));
-  if (areaMatch) reasons.push({ field: "nightArea", evidence: areaMatch.label, explanation: "Matched a Night Area." });
+  if (areaMatch) reasons.push({ field: "nightArea", evidence: areaMatch.label, explanation: "Matched the requested area." });
 
   let daypart = defaultDaypart(now);
   const daypartMatchers: Array<[Daypart, RegExp, string]> = [

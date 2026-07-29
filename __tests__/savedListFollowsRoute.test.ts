@@ -135,7 +135,7 @@ describe("POST /api/saved-pubs/list-follows", () => {
     const missingFollower = await post({ owner: "sam", listType: "Date Night" });
     expect(missingFollower.status).toBe(400);
     expect(await missingFollower.json()).toEqual({
-      error: "Set a handle first. Drop a pint to claim one.",
+      error: "Choose a handle in your account first.",
     });
 
     const missingOwner = await post({ follower: "ken", listType: "Date Night" });
@@ -144,7 +144,7 @@ describe("POST /api/saved-pubs/list-follows", () => {
 
     const missingList = await post({ follower: "ken", owner: "sam", listType: "   " });
     expect(missingList.status).toBe(400);
-    expect(await missingList.json()).toEqual({ error: "A list name is required." });
+    expect(await missingList.json()).toEqual({ error: "Add a list name." });
   });
 
   it("429s once one follower floods list-follow changes", async () => {

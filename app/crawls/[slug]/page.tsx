@@ -135,7 +135,7 @@ export default async function CrawlStoryPage({ params }: PageProps) {
       <nav className="storyNav" aria-label="Site navigation">
         <Link href="/">Home</Link>
         <Link href="/map">Map</Link>
-        <Link href="/discover">Discover</Link>
+        <Link href="/discover">Explore</Link>
       </nav>
 
       <article className="storyPoster">
@@ -233,7 +233,7 @@ export default async function CrawlStoryPage({ params }: PageProps) {
           <ShareBar url={`/crawls/${slug}`} title={story.title} text={shareText} />
         </div>
 
-        <p className="storyFootnote">Every pint has a story.</p>
+        <p className="storyFootnote">Pubs, prices and the route between them.</p>
       </article>
 
     </main>

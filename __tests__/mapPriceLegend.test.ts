@@ -393,12 +393,12 @@ describe("map key inventory", () => {
     expect(
       drink.marks.find((row) => row.id === "provisional")?.detail,
     ).toBe(
-      "A recent pint report. It does not set the selected drink band. A UK base pub keeps only the dot.",
+      "A recent pint report. It doesn't set the selected drink band. A UK base pub keeps only the dot.",
     );
     expect(
       food.marks.find((row) => row.id === "provisional")?.detail,
     ).toBe(
-      "A recent pint report. It does not set a food pin's colour. A UK base pub keeps only the dot.",
+      "A recent pint report. It doesn't set a food pin's colour. A UK base pub keeps only the dot.",
     );
   });
 });

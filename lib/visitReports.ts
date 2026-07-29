@@ -259,7 +259,7 @@ export function validateVisitReport(input: unknown, now: Date = new Date()): Val
   const raw = input as Record<string, unknown>;
 
   const venueId = clean(raw.venueId, MAX_VENUE_ID);
-  if (!venueId) return { ok: false, error: "A venue is required." };
+  if (!venueId) return { ok: false, error: "Choose a venue." };
 
   const handle = normalizeHandle(raw.handle);
   if (!handle) return { ok: false, error: "Add a contributor handle." };

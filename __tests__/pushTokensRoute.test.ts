@@ -88,7 +88,7 @@ describe("POST /api/push-tokens", () => {
     const res = await post({ platform: "ios" });
     expect(res.status).toBe(400);
     expect(await res.json()).toEqual({
-      error: "A device token is required.",
+      error: "Device token is missing.",
       code: "INVALID_REQUEST",
       retryable: false,
     });

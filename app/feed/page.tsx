@@ -16,7 +16,7 @@ export const dynamic = "force-dynamic";
 
 const FEED_TITLE = "Stories";
 const FEED_DESCRIPTION =
-  "Live Pint Drops from across London: real prices, real pubs, and the stories passed down with them. See what's being poured tonight.";
+  "Recent Pint Drops from across London: logged prices, mapped pubs, and the notes passed down with them.";
 
 export const metadata: Metadata = {
   title: FEED_TITLE,

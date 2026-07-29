@@ -226,10 +226,10 @@ export function buildWhatsOnAnswer(
   let message: string;
   if (listings.length === 0) {
     // Honest refusal — no verified rows, so state that plainly and stop.
-    message = `No verified ${kindNoun(query.kind, true)}${where}${when} in the data I can see, so I won't make any up.`;
+    message = `No sourced ${kindNoun(query.kind, true)}${where}${when} in the listings I can check.`;
   } else {
     const noun = kindNoun(query.kind, listings.length !== 1);
-    message = `Found ${listings.length} verified ${noun}${where}${when}, each with its source.`;
+    message = `Found ${listings.length} sourced ${noun}${where}${when}.`;
   }
 
   return {

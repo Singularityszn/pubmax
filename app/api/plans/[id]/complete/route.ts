@@ -63,8 +63,8 @@ export async function POST(request: Request, context: Context): Promise<Response
   const endingSelection = ending ? cleanEndingSelection(body.endingSelection, ending) : null;
   if (body.finalPintDropId !== undefined) return publicApiError("A final Pint Drop cannot be attached until Plan member ownership is verifiable.", "FINAL_PINT_DROP_FORBIDDEN", 400);
   const expectedRouteRevision = typeof body.expectedRouteRevision === "number" && Number.isInteger(body.expectedRouteRevision) && body.expectedRouteRevision > 0 ? body.expectedRouteRevision : null;
-  if (!ending || !memberToken || !expectedRouteRevision) return publicApiError("Add a valid Crawl Ending, member capability, and canonical route revision.", "PLAN_COMPLETION_INVALID", 400);
-  if (!endingSelection) return publicApiError("Choose a valid grounded ending option.", "PLAN_ENDING_SELECTION_INVALID", 400);
+  if (!ending || !memberToken || !expectedRouteRevision) return publicApiError("Choose an ending and use the latest Plan link.", "PLAN_COMPLETION_INVALID", 400);
+  if (!endingSelection) return publicApiError("Choose an ending from this route.", "PLAN_ENDING_SELECTION_INVALID", 400);
   if (ending === "food" && !terminalVenueId) return publicApiError("Include the current route stop before completing this Plan with food.", "PLAN_FOOD_TERMINAL_REQUIRED", 400);
   const signingUnavailable = planSigningPreflightResponse();
   if (signingUnavailable) return signingUnavailable;
@@ -77,12 +77,12 @@ export async function POST(request: Request, context: Context): Promise<Response
   if (completionLookup.completion) {
     const identityLookup = await planMemberIdentityResult(id, memberToken);
     if (!identityLookup.ok) return publicApiError("Plan completion data is temporarily unavailable.", "PLAN_COMPLETION_UNAVAILABLE", 503, { retryable: true });
-    if (identityLookup.identity?.role !== "host") return publicApiError("That member capability cannot complete this Plan.", "PLAN_COMPLETION_FORBIDDEN", 403);
+    if (identityLookup.identity?.role !== "host") return publicApiError("Only the Plan host can complete this Plan.", "PLAN_COMPLETION_FORBIDDEN", 403);
     return verifiedCompletionResponse(planLookup.plan, completionLookup.completion, false);
   }
   const canonicalSelection = await canonicalEndingSelection(planLookup.plan, endingSelection, terminalVenueId);
   if (!canonicalSelection) {
-    return publicApiError("That ending option is no longer supported by current evidence.", "PLAN_ENDING_EVIDENCE_STALE", 409);
+    return publicApiError("That ending is no longer available. Choose another.", "PLAN_ENDING_EVIDENCE_STALE", 409);
   }
   const result = await planStore().complete(id, memberToken, {
     expectedRouteRevision,
@@ -91,7 +91,7 @@ export async function POST(request: Request, context: Context): Promise<Response
     endingSelection: canonicalSelection,
   });
   if (!result.ok) return publicApiError(
-    result.error === "forbidden" ? "That member capability cannot complete this Plan." : result.error === "conflict" ? "That Crawl Route has changed. Refresh and try again." : result.error === "arrival_required" ? "Mark at least one route stop as arrived before completing this Plan." : result.error === "error" ? "Plan completion data is temporarily unavailable." : "Could not complete this Plan.",
+    result.error === "forbidden" ? "Only the Plan host can complete this Plan." : result.error === "conflict" ? "That route has changed. Refresh and try again." : result.error === "arrival_required" ? "Mark at least one route stop as arrived before completing this Plan." : result.error === "error" ? "Plan completion is temporarily unavailable." : "Could not complete this Plan.",
     result.error === "error" ? "PLAN_COMPLETION_UNAVAILABLE" : result.error === "forbidden" ? "PLAN_COMPLETION_FORBIDDEN" : result.error === "not_found" ? "PLAN_NOT_FOUND" : result.error === "conflict" ? "PLAN_ROUTE_CONFLICT" : result.error === "arrival_required" ? "PLAN_ARRIVAL_REQUIRED" : "PLAN_COMPLETION_INVALID",
     result.error === "forbidden" ? 403 : result.error === "not_found" ? 404 : result.error === "conflict" ? 409 : result.error === "error" ? 503 : 400,
     { retryable: result.error === "error" || result.error === "conflict" },

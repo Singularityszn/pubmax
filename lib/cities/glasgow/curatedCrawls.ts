@@ -9,7 +9,7 @@ export const glasgowCuratedCrawls: CuratedCrawl[] = [
     id: "subcrawl-starter",
     name: "Subcrawl starter",
     blurb:
-      "A short, honest taste of Subcrawl folklore. One pub near each of six Subway stops (Hillhead, Kelvinbridge, St George's Cross, Buchanan Street, St Enoch, Bridge Street). Not the full fifteen; drink responsibly and know when to hop off the Clockwork Orange.",
+      "A six-stop take on Subcrawl folklore, with one pub near Hillhead, Kelvinbridge, St George's Cross, Buchanan Street, St Enoch and Bridge Street. Drink responsibly and know when to hop off the Clockwork Orange.",
     crawlStyle: "balanced",
     venueIds: [
       "venue-glw-dsoj3p", // The Curler's Rest — Hillhead

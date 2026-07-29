@@ -117,7 +117,7 @@ const QUIET_ALTERNATIVES: QuietAlternative[] = [
     href: "/map",
     icon: Beer,
     title: "Cheapest pints in London",
-    sub: "Every venue on the map, priced",
+    sub: "Listed pint prices on the map",
   },
   {
     href: "/map",

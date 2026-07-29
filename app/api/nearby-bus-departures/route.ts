@@ -113,7 +113,7 @@ export async function GET(request: Request): Promise<Response> {
   const lat = Number.parseFloat(params.get("lat") ?? "");
   const lng = Number.parseFloat(params.get("lng") ?? "");
   if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
-    return json({ error: "lat and lng are required numbers." }, 400);
+    return json({ error: "Add valid lat and lng coordinates." }, 400);
   }
 
   const now = new Date();

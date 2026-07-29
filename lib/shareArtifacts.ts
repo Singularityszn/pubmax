@@ -69,7 +69,7 @@ export type PintDropShareInput = {
   venueName: string;
   priceGbp?: number | null;
   // Display handle ("@old_ken" already resolved by the call site). Omitted on
-  // the drinker's own permalink where "Found a proper pint…" reads first-person.
+  // the drinker's own permalink where "Logged a pint…" reads first-person.
   handle?: string | null;
 };
 
@@ -77,9 +77,9 @@ export function buildPintDropShareText(input: PintDropShareInput): string {
   const { venueName, handle } = input;
   const price = gbp(input.priceGbp);
   const opener = handle
-    ? `${handle} found a proper pint at ${venueName}`
-    : `Found a proper pint at ${venueName}`;
-  return `${opener}${price ? `, ${price}` : ""}. Every pint has a story.`;
+    ? `${handle} logged a pint at ${venueName}`
+    : `Logged a pint at ${venueName}`;
+  return `${opener}${price ? `, ${price}` : ""}. Logged on PUBMAXX.`;
 }
 
 // ── Crawl story ──────────────────────────────────────────────────────────────
@@ -96,7 +96,7 @@ export function buildCrawlShareText(input: CrawlShareInput): string {
   const total = gbp(input.totalGbp);
   return `${title}. ${countNoun(stopCount, "stop")}${
     total ? `, ${total} a round` : ""
-  }. Every pint has a story.`;
+  }. Listed on PUBMAXX.`;
 }
 
 // ── Venue (map inspector share) ──────────────────────────────────────────────
@@ -121,7 +121,7 @@ export type BarTabShareInput = {
 };
 
 export function buildBarTabShareText(input: BarTabShareInput): string {
-  return `Recent pints at ${input.venueName}. Every pint has a story.`;
+  return `Recent pints logged at ${input.venueName} on PUBMAXX.`;
 }
 
 // ── Pint Passport (profile recap) ────────────────────────────────────────────

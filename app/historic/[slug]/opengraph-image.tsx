@@ -75,7 +75,7 @@ export default async function Image({
   const hook = clampText(
     pub?.hook,
     180,
-    "Cited, provenance-honest heritage for London's oldest pubs.",
+    "Cited history from London's oldest pubs.",
   );
 
   // Chips: only present, cited facts. Omit anything the pub doesn't have.

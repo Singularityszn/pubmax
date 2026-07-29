@@ -172,7 +172,7 @@ export function AccountOnboardingForm({
                 onSexChange(event.target.value as "" | PrivateIdentitySex)
               }
             >
-              <option value="">Not provided</option>
+              <option value="">Not added</option>
               {PRIVATE_IDENTITY_SEX_VALUES.map((value) => (
                 <option value={value} key={value}>
                   {SEX_LABELS[value]}

@@ -32,7 +32,7 @@ export async function GET(request: Request): Promise<Response> {
   const params = new URL(request.url).searchParams;
   const handle = normalizeViewerHandle(params.get("handle") ?? params.get("author"));
   if (!handle) {
-    return publicApiError("A handle is required.", "handle_required", 400);
+    return publicApiError("Add a handle.", "handle_required", 400);
   }
 
   // Two-axis rate limit (mirrors the report path): per-IP flood control plus a

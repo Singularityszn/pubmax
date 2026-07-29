@@ -360,19 +360,19 @@ export default function VenuePriceStory({ venue, drops, onPriceChanged }: VenueP
           <DirIcon size={15} aria-hidden="true" />
           <span aria-hidden="true">
             {dir === "flat"
-              ? "No change from the baseline"
+              ? "No change from the earlier price"
               : `${dir === "up" ? "+" : "−"}${formatPrice(Math.abs(deltaGbp))} (${Math.abs(
                   pct,
-                ).toFixed(0)}%) vs baseline`}
+                ).toFixed(0)}%) vs earlier price`}
           </span>
           <span className="srOnly">
             {dir === "flat"
-              ? `The community price matches the ${formatPrice(baseline!.gbp)} baseline on record.`
+              ? `The community price matches the earlier ${formatPrice(baseline!.gbp)} price on record.`
               : `${dir === "up" ? "Up" : "Down"} ${formatPrice(Math.abs(deltaGbp))} (${Math.abs(
                   pct,
                 ).toFixed(0)}%) from the ${formatPrice(
                   baseline!.gbp,
-                )} baseline, community-reported.`}
+                )} earlier price, community-reported.`}
           </span>
         </p>
       ) : null}

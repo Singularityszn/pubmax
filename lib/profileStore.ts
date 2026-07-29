@@ -242,7 +242,7 @@ export const supabaseProfileStore: ProfileStore = {
   async linkUser(handle, userId) {
     const key = normalizeHandle(handle);
     if (!key) throw new Error("A profile needs a non-empty handle.");
-    if (!userId) throw new Error("A user id is required to link a profile.");
+    if (!userId) throw new Error("User id is missing.");
     if (isReservedContributorHandle(key)) {
       throw new Error("That handle is not available.");
     }
@@ -346,7 +346,7 @@ export const memoryProfileStore: ProfileStore = {
   async linkUser(handle, userId) {
     const key = normalizeHandle(handle);
     if (!key) throw new Error("A profile needs a non-empty handle.");
-    if (!userId) throw new Error("A user id is required to link a profile.");
+    if (!userId) throw new Error("User id is missing.");
     if (isReservedContributorHandle(key)) {
       throw new Error("That handle is not available.");
     }

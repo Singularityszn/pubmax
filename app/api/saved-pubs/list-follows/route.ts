@@ -67,7 +67,7 @@ export async function POST(request: Request): Promise<Response> {
   const follower = await resolveMessageHandle(request, readString(body.follower));
   if (!follower) {
     return jsonNoStore(
-      { error: "Set a handle first. Drop a pint to claim one." },
+      { error: "Choose a handle in your account first." },
       { status: 400 },
     );
   }
@@ -76,7 +76,7 @@ export async function POST(request: Request): Promise<Response> {
   if (!owner) return jsonNoStore({ error: "Missing list author." }, { status: 400 });
 
   const listType = cleanListType(body.listType);
-  if (!listType) return jsonNoStore({ error: "A list name is required." }, { status: 400 });
+  if (!listType) return jsonNoStore({ error: "Add a list name." }, { status: 400 });
 
   if (isSelfListFollow(follower, owner)) {
     return jsonNoStore({ error: "You can't follow your own list." }, { status: 400 });

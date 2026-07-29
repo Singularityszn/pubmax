@@ -158,7 +158,7 @@ export async function GET(request: Request): Promise<Response> {
   const params = new URL(request.url).searchParams;
   const status = params.get("status");
   if (!status) {
-    return publicApiError("A status is required.", "INVALID_REQUEST", 400);
+    return publicApiError("Choose a status.", "INVALID_REQUEST", 400);
   }
   if (!isModerator(request)) return publicApiError("Not authorised.", "FORBIDDEN", 403);
   if (!isOperatorProposalStatus(status)) {

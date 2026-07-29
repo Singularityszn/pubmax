@@ -63,7 +63,7 @@ export const DIRECTORY_PROVENANCE_LABEL = "On record";
 
 // Curated, house-voice fallback when even the request itself fails. Reused by
 // the chat session so no raw JS error text ever reaches the UI.
-export const PAL_ERROR_FALLBACK = "The landlord couldn't sort that one just now.";
+export const PAL_ERROR_FALLBACK = "Couldn't answer that. Try again.";
 
 // Honest empty-state line for a grounded venue ask with zero matches. No
 // apology slop, no invented venues — a plain "nothing sourced" and a next step.

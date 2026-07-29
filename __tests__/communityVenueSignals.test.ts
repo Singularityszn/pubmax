@@ -73,7 +73,7 @@ describe("validateCommunityVenueSignal", () => {
         signalKey: "character",
         signalValue: "rough",
       }),
-    ).toEqual({ ok: false, error: "A venue is required." });
+    ).toEqual({ ok: false, error: "Choose a venue." });
     expect(
       validateCommunityVenueSignal({
         venueId: "venue-xjf3n0",

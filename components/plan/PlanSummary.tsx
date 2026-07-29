@@ -363,7 +363,7 @@ function PlanSummaryMember({ planId, state, vibeTally }: { planId: string; state
       return;
     }
     if (!validRouteDraft(draftStops) || !hasRouteChanged) {
-      setError("Save requires exactly three distinct stops and a real route change.");
+      setError("Choose three different stops and make a route change before saving.");
       return;
     }
     if (routeRevision === null) {

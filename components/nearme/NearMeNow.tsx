@@ -415,7 +415,7 @@ export default function NearMeNow({
           <p className="nmnHint">We only use your location to rank pubs nearby. Nothing is stored.</p>
           <div className="nmnQuickPatches">
             <p className="nmnQuickPatchesLabel">Or pick a patch</p>
-            <ul className="nmnAreaChips" aria-label="Pick a night area">
+            <ul className="nmnAreaChips" aria-label="Pick an area">
               {NIGHT_PATCHES.map((entry) => (
                 <li key={entry.id}>
                   <button
@@ -688,7 +688,7 @@ function AreaPicker({
         <ChevronDown size={14} aria-hidden="true" className={open ? "nmnAreaCaretOpen" : undefined} />
       </button>
       <div className={`nmnAreaPanel${open ? " nmnAreaPanelOpen" : ""}`} aria-hidden={!open}>
-        <ul className="nmnAreaChips" aria-label="Pick a night area">
+        <ul className="nmnAreaChips" aria-label="Pick an area">
           {NIGHT_PATCHES.map((entry) => {
             const profile = patchProfiles?.[entry.id];
             const lightly = profile ? patchIsLimited(profile) : false;

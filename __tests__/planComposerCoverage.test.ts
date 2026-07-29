@@ -47,11 +47,11 @@ describe("PlanComposer Night Area coverage states", () => {
     expect(errorMessageFromBody({
       error: {
         code: "NIGHT_AREA_ROUTE_NOT_READY",
-        message: "We're still checking this Night Area before planning a Crawl Route.",
+        message: "We're still checking this area before planning a crawl.",
       },
       nightArea: { id: "barnes" },
     }, "fallback")).toBe(
-      "Barnes is not ready for route planning yet. We're still checking this Night Area before planning a Crawl Route. Choose a ready area to continue.",
+      "Barnes is not ready for route planning yet. We're still checking this area before planning a crawl. Choose another area to continue.",
     );
   });
 
@@ -59,11 +59,11 @@ describe("PlanComposer Night Area coverage states", () => {
     expect(errorMessageFromBody({
       error: {
         code: "DISTRICT_ROUTE_NOT_READY",
-        message: "We're still checking this Night Area before planning a Crawl Route.",
+        message: "We're still checking this area before planning a crawl.",
       },
       district: { id: "chiswick" },
     }, "fallback")).toBe(
-      "Chiswick is not ready for route planning yet. We're still checking this Night Area before planning a Crawl Route. Choose a ready area to continue.",
+      "Chiswick is not ready for route planning yet. We're still checking this area before planning a crawl. Choose another area to continue.",
     );
   });
 
@@ -100,7 +100,7 @@ describe("PlanComposer Night Area coverage states", () => {
     });
     expect(nightAreaCoverageSummary(getNightArea("dalston"), now)).toMatchObject({
       label: "Low confidence",
-      detail: "We have not checked this area yet. The route stays editable.",
+      detail: "We haven't checked this area yet. The route stays editable.",
       tone: "discovery",
     });
   });

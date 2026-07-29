@@ -53,7 +53,7 @@ const COPY: Record<IdentityNudgeTrigger, { title: string; body: string }> = {
   },
   moment: {
     title: "Own your memories",
-    body: "Sign in and your Moments save to your account, not just this device.",
+    body: "Sign in and save your Moments to your account across devices.",
   },
 };
 

@@ -34,7 +34,7 @@ const SITE_JSON_LD = [
     alternateName: "PUBMAXX",
     url: "https://pubmaxxing.com",
     description:
-      "A price-aware, provenance-first London pub map and crawl planner. Real observed pint prices and cited historic pubs.",
+      "A London pub map and crawl planner with listed pint prices, named sources and cited pub history.",
   },
   {
     "@context": "https://schema.org",
@@ -112,11 +112,11 @@ export const metadata: Metadata = {
     },
   },
   title: {
-    default: "PUBMAXX: real pint prices on a live map",
+    default: "PUBMAXX: listed pint prices on an interactive map",
     template: "%s | PUBMAXX",
   },
   description:
-    "PUBMAXX is a price-aware nightlife map. Real pint prices, what's on tonight, and a crawl your mates will actually walk.",
+    "PUBMAXX is a price-aware nightlife map. Listed pint prices, what's on tonight, and crawl plans.",
   manifest: "/manifest.webmanifest",
   appleWebApp: {
     capable: true,
@@ -124,9 +124,9 @@ export const metadata: Metadata = {
     statusBarStyle: "black-translucent",
   },
   openGraph: {
-    title: "PUBMAXX: real pint prices on a live map",
+    title: "PUBMAXX: listed pint prices on an interactive map",
     description:
-      "Real pint prices on a live map. Plan a crawl your mates will actually walk.",
+      "Listed pint prices on an interactive map. Plan a crawl with your mates.",
     url: "https://pubmaxxing.com",
     siteName: "PUBMAXX",
     type: "website",
@@ -141,9 +141,9 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: "summary_large_image",
-    title: "PUBMAXX: real pint prices on a live map",
+    title: "PUBMAXX: listed pint prices on an interactive map",
     description:
-      "Real pint prices on a live map. Plan a crawl your mates will actually walk.",
+      "Listed pint prices on an interactive map. Plan a crawl with your mates.",
     images: ["/og.png?v=20260715-coral"],
   },
   icons: {

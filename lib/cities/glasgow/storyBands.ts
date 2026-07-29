@@ -62,7 +62,7 @@ export const glasgowStoryBands: StoryBand[] = [
     id: "merchant-city-high-street",
     title: "Merchant City / High Street",
     copy:
-      "East of the High Street, the Merchant City's restored warehouses and market streets frame a compact bar quarter, Babbity Bowster, Blackfriars, and the walk up toward Glasgow Cathedral. It is the historic mercantile core, not the Subway loop, but a natural first-night alternative to the West End.",
+      "East of the High Street, the Merchant City's restored warehouses and market streets frame a compact bar quarter, Babbity Bowster, Blackfriars, and the walk up toward Glasgow Cathedral. The historic mercantile core makes a compact first-night route.",
     kind: "civic",
     anchorLandmarkIds: [
       "merchant-city",

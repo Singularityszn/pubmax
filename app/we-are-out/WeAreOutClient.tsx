@@ -42,7 +42,7 @@ export default function WeAreOutClient() {
 
   async function post() {
     if (!handle) {
-      setError("Set a handle first. Drop a pint to claim one.");
+      setError("Choose a handle in your account first.");
       setState("error");
       return;
     }

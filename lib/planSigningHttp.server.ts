@@ -4,7 +4,7 @@ import { isTrustedSigningKeyUnavailableError, trustedSigningKey } from "@/lib/tr
 export function planSigningUnavailableResponse(error: unknown): Response | null {
   if (!isTrustedSigningKeyUnavailableError(error)) return null;
   return publicApiError(
-    "Verified Plan signing is temporarily unavailable. Try again shortly.",
+    "Plan saving is temporarily unavailable. Try again.",
     "PLAN_SIGNING_UNAVAILABLE",
     503,
     { retryable: true, headers: { "Retry-After": "60" } },

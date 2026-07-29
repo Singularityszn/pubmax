@@ -74,6 +74,6 @@ export function vibeTallyLine(tally: VibeTally): string | null {
   const dissent = ranked.slice(1);
   const dissentTotal = dissent.reduce((sum, entry) => sum + entry.count, 0);
   // Exactly one dissenting vote (a single member out of step) earns the jab.
-  if (dissentTotal === 1) return `${line}, 1 coward voted ${labelOf(dissent[0].vibe)}`;
+  if (dissentTotal === 1) return `${line}, 1 person voted ${labelOf(dissent[0].vibe)}`;
   return line;
 }

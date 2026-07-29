@@ -82,7 +82,7 @@ function readString(value: unknown): string {
 export function validateCheckInInput(raw: CheckInInputRaw): CheckInValidation {
   const handle = normalizeHandle(readString(raw.handle));
   if (!handle) {
-    return { ok: false, error: "Set a handle first. Drop a pint to claim one." };
+    return { ok: false, error: "Choose a handle in your account first." };
   }
 
   const areaSlug = readString(raw.areaSlug).trim();

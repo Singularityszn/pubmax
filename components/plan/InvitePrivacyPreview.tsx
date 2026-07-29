@@ -14,7 +14,7 @@ export default function InvitePrivacyPreview({ preview }: { preview: InvitePriva
 
   return (
     <div className="invitePreview" aria-labelledby="invite-preview-title">
-      <p className="planPage__eyebrow">You have been invited</p>
+      <p className="planPage__eyebrow">You&rsquo;ve been invited</p>
       <h2 id="invite-preview-title">
         {hostName} is planning a night out
       </h2>

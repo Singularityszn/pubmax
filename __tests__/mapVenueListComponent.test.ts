@@ -6,7 +6,7 @@ import MapVenueList from "@/components/map/MapVenueList";
 import type { MapVenueListModel, UkBasePubListModel } from "@/lib/mapVenueList";
 
 describe("MapVenueList", () => {
-  it("announces rendered base pubs as a distinct unverified group", () => {
+  it("announces rendered base pubs as a distinct group without a listed price", () => {
     const curated: MapVenueListModel = {
       rows: [
         {
@@ -27,7 +27,7 @@ describe("MapVenueList", () => {
         {
           id: "venue-uk-n123",
           name: "Base Arms",
-          priceLabel: "Unverified · no price",
+          priceLabel: "Other pub · no listed price",
           pub: {
             id: "venue-uk-n123",
             name: "Base Arms",
@@ -57,9 +57,9 @@ describe("MapVenueList", () => {
       }),
     );
 
-    expect(html).toContain('aria-label="Priced and curated venues"');
-    expect(html).toContain('aria-label="Unverified pubs with no price"');
+    expect(html).toContain('aria-label="Listed pubs and venues"');
+    expect(html).toContain('aria-label="Other pubs with no listed price"');
     expect(html).toContain("Base Arms");
-    expect(html).toContain("Unverified · no price");
+    expect(html).toContain("Other pub · no listed price");
   });
 });

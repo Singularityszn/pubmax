@@ -24,7 +24,7 @@ import "./historic.css";
 const HISTORIC_TITLE =
   "London's Historic Pubs: cited from Wikipedia & Wikidata · PUBMAXXING";
 const HISTORIC_DESCRIPTION =
-  "A browsable index of London's notable, historic pubs. Dates, listed-building grades, and one cited sentence each, sourced from Wikipedia and Wikidata. Never invented. Filter by borough, jump straight onto the map.";
+  "A browsable index of London's notable, historic pubs. Dates, listed-building grades, and one cited sentence each, sourced from Wikipedia and Wikidata. Filter by borough, jump straight onto the map.";
 
 export const metadata: Metadata = {
   title: HISTORIC_TITLE,

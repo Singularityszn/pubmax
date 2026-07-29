@@ -461,7 +461,7 @@ export default async function LedgerPage({ params, searchParams }: PageProps) {
       <OperatorRailPanel venueId={canonicalId} venueName={venue.name} />
 
       <p className="ledgerFootnote">
-        Every pint has a story. <Link href={venueMapUrl(canonicalId)}>See {venue.name} on the map →</Link>
+        Sources, reports and price history. <Link href={venueMapUrl(canonicalId)}>See {venue.name} on the map →</Link>
       </p>
     </main>
   );

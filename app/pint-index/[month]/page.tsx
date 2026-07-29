@@ -63,7 +63,7 @@ function datasetJsonLd(edition: ArchivedPintIndexSnapshot, boroughCount: number,
     "@type": "Dataset",
     name: `The London Pint Index, ${label}`,
     description: edition.observations.length === 0
-      ? `The ${label} edition of the London Pint Index. No pint price met the public evidence bar in this window, so the edition publishes none.`
+      ? `The ${label} edition of the London Pint Index. No pint price met the publication rules in this window, so the edition publishes none.`
       : `A frozen ${label} edition covering ${pubCount} pubs across ${boroughCount} London boroughs.`,
     url: `${SITE_URL}/pint-index/${month}`,
     identifier: edition.snapshotId,
@@ -145,7 +145,7 @@ export default async function PintIndexEditionPage({ params }: EditionPageProps)
         <h2 id="leagueHeading" className="pintIndexSectionTitle">Borough league table</h2>
         {rows.length === 0 ? (
           <p className="pintIndexNote">
-            <strong>Nothing cleared the bar in {label}.</strong> A price only
+            <strong>No eligible prices in {label}.</strong> A price only
             gets into this league if it names a public source and the day it was
             seen. None did in this window, so this edition publishes none rather
             than fill the gap with the legacy prices the map still carries. It
@@ -155,7 +155,7 @@ export default async function PintIndexEditionPage({ params }: EditionPageProps)
         ) : (
           <PintIndexLeagueTable
             rows={rows}
-            caption={`London boroughs ranked by average eligible observed pint price, ${label}`}
+            caption={`London boroughs ranked by average published pint price, ${label}`}
           />
         )}
         <a className="pintIndexDownload" href={`/pint-index/${month}/data.csv`} download>
@@ -178,7 +178,7 @@ export default async function PintIndexEditionPage({ params }: EditionPageProps)
           </p>
           <PintIndexLeagueTable
             rows={dearestFirst(rows)}
-            caption={`London boroughs ranked by their dearest eligible observed pint price, ${label}`}
+            caption={`London boroughs ranked by their dearest published pint price, ${label}`}
             highlight="dearest"
           />
         </section>

@@ -61,13 +61,13 @@ const STEPS: readonly TourStep[] = [
   {
     eyebrow: "Welcome",
     title: "PUBMAXXING",
-    body: "Real pint prices on a live map, and the stories behind every round.",
+    body: "Pint prices on an interactive map, with pub stories and crawl plans.",
     target: null,
   },
   {
     eyebrow: "The map",
     title: "Find pints near you",
-    body: "See who pours cheap tonight, then plan a crawl worth the walk.",
+    body: "See listed pint prices, then plan a crawl worth the walk.",
     target: "map",
   },
   {
@@ -78,8 +78,8 @@ const STEPS: readonly TourStep[] = [
   },
   {
     eyebrow: "Stories",
-    title: "Cheapest tonight",
-    body: "Browse drinks, compare prices, and steal a crawl someone already ran.",
+    title: "Compare listed prices",
+    body: "Browse drinks, compare prices, and open a listed crawl.",
     target: "discover",
   },
 ];

@@ -33,7 +33,7 @@ function anchorProofError(reason: PlanGroundingRejectionV2): { message: string; 
     case "operation-mismatch":
       return { message: "The grounding proof was issued for a different operation.", code: "PLAN_ANCHOR_PROOF_OPERATION_MISMATCH" };
     default:
-      return { message: "The grounding proof could not be verified.", code: "PLAN_ANCHOR_PROOF_INVALID" };
+      return { message: "That saved route could not be checked.", code: "PLAN_ANCHOR_PROOF_INVALID" };
   }
 }
 
@@ -54,7 +54,7 @@ export async function POST(request: Request): Promise<Response> {
   }
   const rawCity = typeof body.cityId === "string" ? body.cityId : undefined;
   const cityId = rawCity ? parseCityId(rawCity) : DEFAULT_CITY_ID;
-  if (!cityId) return publicApiError("cityId is invalid.", "CITY_INVALID", 400);
+  if (!cityId) return publicApiError("Choose a listed city.", "CITY_INVALID", 400);
   const submittedStops = Array.isArray(body.stops) ? body.stops : [];
   const venues = await loadConciergeVenues(cityId);
   const venuesById = new Map(venues.map((venue) => [venue.id, venue]));
@@ -64,7 +64,7 @@ export async function POST(request: Request): Promise<Response> {
     return venue ? { venueId: venue.id, venueName: venue.name } : null;
   });
   if (stops.some((stop) => stop === null)) {
-    return publicApiError("Choose venues from the Venue Dataset.", "PLAN_VENUES_INVALID", 400);
+    return publicApiError("Choose listed venues.", "PLAN_VENUES_INVALID", 400);
   }
   const acceptedVenueIds = stops.flatMap((stop) => stop ? [stop.venueId] : []);
   const groundingProofDigest = typeof body.groundingProof === "string" && body.groundingProof
@@ -83,7 +83,7 @@ export async function POST(request: Request): Promise<Response> {
       return publicApiError(mapped.message, mapped.code, 422);
     }
     if (verdict.outcome !== anchor.outcome) {
-      return publicApiError("The grounding proof outcome does not match the submitted Plan.", "PLAN_ANCHOR_OUTCOME_MISMATCH", 422);
+      return publicApiError("That saved route does not match this plan.", "PLAN_ANCHOR_OUTCOME_MISMATCH", 422);
     }
     anchorAnchored = verdict.anchored;
   }

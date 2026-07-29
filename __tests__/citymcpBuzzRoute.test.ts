@@ -44,7 +44,7 @@ describe("GET /api/citymcp/buzz", () => {
     const res = await GET(new Request("http://localhost/api/citymcp/buzz"));
     expect(res.status).toBe(400);
     const body = await res.json();
-    expect(body.error).toMatch(/id is required/i);
+    expect(body.error).toBe("Place id is missing.");
     expect(body.buzz).toBeNull();
   });
 

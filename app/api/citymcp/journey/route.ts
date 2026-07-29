@@ -104,7 +104,7 @@ async function respondWithJourney(
   ) {
     return jsonResponse(
       {
-        error: "fromLat, fromLng, toLat, and toLng are required.",
+        error: "Add valid start and end coordinates.",
         from: null,
         to: null,
         journeys: [],
@@ -184,7 +184,7 @@ async function postHandler(request: Request): Promise<Response> {
     input = body as JourneyInput;
   } catch {
     return jsonResponse(
-      { error: "A JSON journey request is required.", journeys: [] },
+      { error: "Add a JSON travel request.", journeys: [] },
       { status: 400 },
     );
   }

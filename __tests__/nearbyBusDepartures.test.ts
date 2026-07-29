@@ -706,7 +706,7 @@ describe("GET /api/nearby-bus-departures", () => {
 
     expect(invalid.status).toBe(400);
     expect(await invalid.json()).toEqual({
-      error: "lat and lng are required numbers.",
+      error: "Add valid lat and lng coordinates.",
     });
     expect(outside.status).toBe(200);
     expect(await outside.json()).toMatchObject({ status: "unavailable", stops: [] });

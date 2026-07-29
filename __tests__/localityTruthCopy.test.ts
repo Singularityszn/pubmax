@@ -46,8 +46,8 @@ describe("locality and recency claims", () => {
       }),
     );
 
-    expect(html).toContain("Cheapest pints in central London, collected 3 July 2026");
-    expect(html).not.toContain("Cheapest pints near you today");
+    expect(html).toContain("Lowest listed prices in central London, collected 3 July 2026");
+    expect(html).not.toContain("Lowest listed prices near you today");
   });
 
   it("uses today only when the pint dataset was collected today", () => {
@@ -70,7 +70,7 @@ describe("locality and recency claims", () => {
       }),
     );
 
-    expect(html).toContain("Cheapest pints in central London today");
+    expect(html).toContain("Lowest listed prices in central London today");
   });
 
   it("names London's scope when Tonight has no locality", () => {

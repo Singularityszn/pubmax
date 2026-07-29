@@ -63,7 +63,7 @@ export default function TermsPage() {
           out of dated, sourced archives. That last lot is history. It is what a
           pint cost years ago, never a price for tonight, and it never moves the
           map. Heritage facts are cited, never invented. Nothing here is a
-          booking service, and we are not the pub. We don&rsquo;t sell you
+          booking service, and we&rsquo;re not the pub. We don&rsquo;t sell you
           drinks, take payment, or hold a table for you.
         </p>
       </section>
@@ -71,7 +71,7 @@ export default function TermsPage() {
       <section className="legalSection" aria-labelledby="age">
         <h2 id="age" className="legalH2">Age and alcohol</h2>
         <p className="legalBody">
-          PUBMAXX does not block accounts or contributions based on age. Pubs
+          PUBMAXX doesn&rsquo;t block accounts or contributions based on age. Pubs
           decide who they serve. Nothing in the app is designed to encourage
           you to drink more. Know your limits, and know the facts at{" "}
           <a
@@ -90,7 +90,7 @@ export default function TermsPage() {
       <section className="legalSection" aria-labelledby="account">
         <h2 id="account" className="legalH2">Your account</h2>
         <p className="legalBody">
-          Browsing does not require an account or analytics. First visit asks
+          Browsing doesn&rsquo;t need an account or analytics. First visit asks
           you to tap Allow or No thanks for optional usage analytics. You
           get the same app either way. If you allow them, we use a persistent
           device identifier and collect browser, operating system and device type,
@@ -98,7 +98,7 @@ export default function TermsPage() {
           the closed product events described in our privacy notice. PostHog
           deletes analytics events 12 months after collection and pseudonymous
           person and device records 12 months after their last activity. Handle
-          is required to finish signup. Date of birth is required to finish signup
+          is needed to finish signup. Date of birth is needed to finish signup
           too. Full name and sex are optional. We collect and store date of
           birth, full name and sex as private details for product analytics and social features.
           Date of birth stays until you delete your profile.
@@ -180,12 +180,12 @@ export default function TermsPage() {
           You can share one account invite link. A referral counts only when
           someone follows it, signs up and makes a first accepted contribution.
           Self-referrals, second accounts made for yourself and circular
-          referrals between two accounts do not count.
+          referrals between two accounts don&rsquo;t count.
         </p>
         <p className="legalBody">
-          Referral rewards are not active. We can record private edges and
-          milestones, but those records do not grant access to paid features
-          because sign-in cannot prove that one person has only one account.
+          Referral rewards aren&rsquo;t active. We can record private edges and
+          milestones, but those records don&rsquo;t grant access to paid features
+          because sign-in can&rsquo;t prove that one person has only one account.
           If rewards go live, these terms and the account page will explain
           what counts before anyone earns one.
         </p>
@@ -216,9 +216,9 @@ export default function TermsPage() {
       </section>
 
       <section className="legalSection" aria-labelledby="asis">
-        <h2 id="asis" className="legalH2">The app is provided as-is</h2>
+        <h2 id="asis" className="legalH2">The app comes as it is</h2>
         <p className="legalBody">
-          PUBMAXX is free and is provided as-is. We work on it constantly, which
+          PUBMAXX is free and comes as it is. We work on it constantly, which
           means features change, move, or disappear, and the site will sometimes
           be down. We don&rsquo;t promise it will be available, uninterrupted,
           error-free, or that any particular pub, price or feature will still be

@@ -70,7 +70,7 @@ export async function PATCH(request: Request): Promise<Response> {
 
   const id = typeof body.id === "string" ? body.id.trim() : "";
   const action = body.action;
-  if (!id) return jsonNoStore({ error: "Note id is required." }, { status: 400 });
+  if (!id) return jsonNoStore({ error: "Note id is missing." }, { status: 400 });
   if (action !== "dismiss" && action !== "restore") {
     return jsonNoStore({ error: "Action must be dismiss or restore." }, { status: 400 });
   }

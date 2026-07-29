@@ -159,4 +159,134 @@ describe("VOICE.md compliance audit", () => {
     expect(pintIndex).toContain("Method and sources");
     expect(pintIndex).toContain("Prices seen:");
   });
+
+  it("keeps route, photo, operator, navigation, and API copy out of the plumbing", () => {
+    const nightAreas = read("lib/nightAreas.ts");
+    const coverage = read("components/night/NightAreaCoverage.tsx");
+    const cityCapabilities = read("lib/cityCapabilities.ts");
+    const planEndings = read("lib/planEndings.ts");
+    const planOptimizer = read("lib/planRouteOptimizer.ts");
+    const planCollaboration = read(
+      "components/plan/PlanCollaborationPanel.tsx",
+    );
+    const operatorRail = read("components/operators/OperatorRailPanel.tsx");
+    const operatorValidation = read("lib/venueOperators.ts");
+    const mapList = read("components/map/MapVenueList.tsx");
+    const mapOnboarding = read(
+      "components/map/pubmap/MapOnboardingOverlay.tsx",
+    );
+    const controlRail = read("components/map/ControlRail.tsx");
+    const momentPage = read("app/moment/page.tsx");
+    const moment = read("components/moment/MomentCapture.tsx");
+    const desktopPhoto = read(
+      "components/map/composer/SpillDesktopCapture.tsx",
+    );
+    const layout = read("app/layout.tsx");
+    const historicCard = read("app/historic/[slug]/opengraph-image.tsx");
+    const crawlPage = read("app/crawls/[slug]/page.tsx");
+    const crawlMissing = read("app/crawls/[slug]/not-found.tsx");
+    const priceRoute = read("app/api/price-submit/route.ts");
+    const weatherRoute = read("app/api/weather-recommendations/route.ts");
+    const planRoute = read("app/api/plans/[id]/route.ts");
+    const planComplete = read("app/api/plans/[id]/complete/route.ts");
+
+    expect(nightAreas).not.toMatch(
+      /"[^"]*(?:capture district|Capture evidence|reviewed snapshot|evidence to verify|Crawl Route)[^"]*"/u,
+    );
+    expect(coverage).not.toMatch(/label: "(?:Captured|Discovered)"/u);
+    expect(cityCapabilities).not.toContain("pint-price snapshot");
+    expect(cityCapabilities).not.toContain("per-item provenance");
+    expect(planEndings).not.toMatch(
+      /"[^"]*(?:Night Area|late-food evidence|verify tonight)[^"]*"/u,
+    );
+    expect(planOptimizer).not.toContain("mapped Night Area radius");
+
+    expect(planCollaboration).not.toContain("Could not verify that evidence");
+    expect(planCollaboration).not.toContain("Route proposal to verify");
+    expect(planCollaboration).not.toContain("Verify this proposal");
+    for (const source of [operatorRail, operatorValidation]) {
+      expect(source).not.toMatch(/"[^"]*verify you[^"]*"/iu);
+    }
+
+    expect(mapList).not.toContain("Priced and curated");
+    expect(mapOnboarding).not.toContain("Curated crawls");
+    expect(controlRail).not.toContain("Curated crawls");
+    expect(momentPage).not.toContain('title: "Capture a Moment"');
+    expect(moment).not.toContain('aria-label="Choose what to capture"');
+    expect(desktopPhoto).not.toContain(">Capture<");
+
+    expect(layout).not.toContain("provenance-first");
+    expect(historicCard).not.toContain("provenance-honest");
+    for (const source of [crawlPage, crawlMissing]) {
+      expect(source).not.toContain(">Discover</");
+    }
+
+    expect(priceRoute).not.toContain('"Missing observation id."');
+    expect(priceRoute).not.toContain('"We cannot find that observation."');
+    expect(weatherRoute).not.toContain("contributor provenance");
+    expect(planRoute).not.toContain("Crawl Route");
+    expect(planComplete).not.toContain("Crawl Route");
+  });
+
+  it("keeps remaining public copy free of hard bans, AI contrasts, jokes in errors, and live-price overclaims", () => {
+    const palPortrait = read("components/pal/PalPortrait.tsx");
+    const palManifest = read("lib/pubPal.ts");
+    const near = read("components/nearme/NearMeNow.tsx");
+    const privacy = read("app/privacy/page.tsx");
+    const terms = read("app/terms/page.tsx");
+    const recap = read("lib/recapView.ts");
+    const tour = read("components/onboarding/FirstRunTour.tsx");
+    const stories = read("app/discover/DiscoverPageClient.tsx");
+    const digest = read("lib/weeklyDigest.ts");
+    const landing = read("components/landing/LandingPage.tsx");
+    const crew = read("components/plan/PlanCrew.tsx");
+    const plan = read("components/plan/PlanComposer.tsx");
+    const activity = read("app/activity/ActivityClient.tsx");
+    const profile = read("app/u/[handle]/ProfilePageClient.tsx");
+    const unsupportedArea = read(
+      "components/coverage/UnsupportedAreaPreview.tsx",
+    );
+    const areaDemandRoute = read("app/api/area-demand/route.ts");
+    const pintDropsRoute = read("app/api/pint-drops/route.ts");
+    const pintDropsStore = read("lib/pintDropsStore.ts");
+    const whatsOn = read("lib/concierge/whatsOn.ts");
+
+    expect(palPortrait).not.toMatch(
+      /(?:collar|bell) beacon|crew-band harness/iu,
+    );
+    expect(palManifest).not.toMatch(
+      /signatureProp: "(?:brass bell beacon|crew-band harness)"/iu,
+    );
+    expect(near).not.toContain('aria-label="Pick a night area"');
+    expect(privacy).not.toContain("law doesn&rsquo;t require one");
+    expect(terms).not.toMatch(/\b(?:does not require|required to finish)\b/iu);
+    expect(recap).not.toContain("ancient bylaws require");
+
+    expect(tour).not.toContain("See who pours cheap tonight");
+    expect(tour).not.toContain('title: "Cheapest tonight"');
+    expect(tour).toContain('title: "Compare listed prices"');
+    expect(stories).not.toContain("There is a story behind every pint.");
+    expect(stories).not.toContain("Cheapest Pints Tonight");
+    expect(stories).not.toContain("not gospel");
+    expect(stories).toContain(
+      "Latest community-reported pint against the earlier price",
+    );
+    expect(stories).toContain("Recently logged cheap pints");
+    expect(digest).not.toContain("Cheapest isn't just Wetherspoons:");
+    expect(landing).not.toContain("Cheap pints near you, live");
+    expect(landing).not.toContain("No endless listings. Just");
+    expect(crew).not.toContain("No account. Just your name.");
+
+    expect(activity).not.toContain("reach the bar");
+    expect(profile).not.toContain("Please try again");
+    expect(unsupportedArea).not.toContain("Could not note that just now");
+    expect(areaDemandRoute).not.toContain("Could not note that right now");
+    expect(pintDropsRoute).not.toContain("Thanks!");
+    expect(pintDropsStore).not.toContain("Please try a different image");
+    expect(whatsOn).not.toContain("No verified");
+    expect(whatsOn).not.toMatch(/Found .* verified /u);
+    expect(plan).not.toContain(
+      "Night Context could not be saved. Please try again.",
+    );
+  });
 });

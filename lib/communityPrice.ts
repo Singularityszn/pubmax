@@ -164,7 +164,7 @@ export function validateCommunityPrice(input: unknown): CommunityPriceValidation
   const raw = input as Record<string, unknown>;
 
   const venueId = cleanVenueId(raw.venueId);
-  if (!venueId) return { ok: false, error: "A venue is required." };
+  if (!venueId) return { ok: false, error: "Choose a venue." };
 
   const category = typeof raw.drinkCategory === "string" ? raw.drinkCategory.trim().toLowerCase() : "";
   if (!isDrinkCategory(category)) {

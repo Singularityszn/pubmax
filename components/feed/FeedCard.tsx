@@ -533,7 +533,7 @@ export default function FeedCard({
               title={`${shownHandle}'s pint at ${item.venueName}`}
               text={`${shownHandle} found a pint at ${item.venueName}${
                 typeof item.priceGbp === "number" ? `, ${formatGbp(item.priceGbp)}` : ""
-              }. Every pint has a story.`}
+              }. Logged on PUBMAXX.`}
             />
 
             <CommentThread dropId={item.id} variant="compact" />

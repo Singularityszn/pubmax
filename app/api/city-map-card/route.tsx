@@ -251,7 +251,7 @@ export async function GET(request: Request) {
               fontStyle: "italic",
             }}
           >
-            Every pint has a story.
+            Listed prices on PUBMAXX.
           </div>
           <div
             style={{

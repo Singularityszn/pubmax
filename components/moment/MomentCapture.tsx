@@ -248,7 +248,7 @@ export default function MomentCapture(): React.JSX.Element {
     }
     incoming.forEach((item) => { if (item.objectUrl) previewUrls.current.add(item.objectUrl); });
     update({ media: selection.media, kind: "photo" });
-    setMessage(selection.media.length === 1 ? "Photo added. It is still private." : `${selection.media.length} photos added. They are still private.`);
+    setMessage(selection.media.length === 1 ? "Photo added. It's still private." : `${selection.media.length} photos added. They're still private.`);
   }
 
   const pickerPrimary = draft.media.length
@@ -378,7 +378,7 @@ export default function MomentCapture(): React.JSX.Element {
           </p>
         </header>
 
-        <section className="momentIntent" aria-label="Choose what to capture">
+        <section className="momentIntent" aria-label="Choose what to save">
           <div className="momentIntentCurrent">
             {isPhone ? <Camera size={21} aria-hidden="true" /> : <Upload size={21} aria-hidden="true" />}
             <div>
@@ -392,7 +392,7 @@ export default function MomentCapture(): React.JSX.Element {
           </div>
           <Link href="/map?log=1" className="momentIntentLink">
             <MapPin size={21} aria-hidden="true" />
-            <div><strong>Log a Pint Drop</strong><span>Verified pub, drink and price</span></div>
+            <div><strong>Log a Pint Drop</strong><span>Pub, drink and price</span></div>
             <ArrowRight size={18} aria-hidden="true" />
           </Link>
         </section>

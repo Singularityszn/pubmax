@@ -107,7 +107,7 @@ export function resolveComposerHydration(input: ResolveComposerHydrationInput): 
  */
 export function composerLockErrorFromResponse(status: number): string | null {
   if (status === 422) {
-    return "Your grounded route needs a refresh before you can lock it in. Regenerate the route and try again.";
+    return "Your route needs a refresh before you can lock it in. Rebuild the route and try again.";
   }
   if (status === 409) {
     return "This plan was already locked in from another tab. Reload it to keep going.";

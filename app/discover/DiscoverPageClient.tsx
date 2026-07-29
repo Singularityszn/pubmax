@@ -121,7 +121,7 @@ function buildEditorial(): EditorialCardData[] {
       id: "golden-days",
       eyebrow: "Golden days",
       title: "The old guard, still standing",
-      dek: "Victorian gin palaces, listed snugs, and the bar Dickens actually leaned on. A walk through the London that refuses to close.",
+      dek: "Victorian gin palaces, listed snugs, and the bar Dickens leaned on.",
       href: crawlMapHref("victorian-soho", DEFAULT_CITY_ID),
       cta: "Walk the heritage route",
     },
@@ -129,7 +129,7 @@ function buildEditorial(): EditorialCardData[] {
       id: "coding-pint",
       eyebrow: "Coding pint",
       title: "A quiet table and a slow pint",
-      dek: "Sockets, decent Wi-Fi, and a late-afternoon lull. The pubs that double as the best co-working room in the city.",
+      dek: "Pubs with sockets, listed Wi-Fi and quieter afternoon notes.",
       href: crawlMapHref("barbican-coding-pint", DEFAULT_CITY_ID),
       cta: "Find a working pint",
     },
@@ -137,7 +137,7 @@ function buildEditorial(): EditorialCardData[] {
       id: "then-vs-now",
       eyebrow: "Then vs now",
       title: "What a pint used to cost",
-      dek: "The cheapest taps in town, ranked. Proof the good £4 pint isn't extinct. You just have to know where to walk.",
+      dek: "Listed pints around £4, mapped into a walk.",
       href: packMapHref("cheap-chaos", DEFAULT_CITY_ID),
       cta: "Build a cheap crawl",
     },
@@ -145,7 +145,7 @@ function buildEditorial(): EditorialCardData[] {
       id: "tonights-crawl",
       eyebrow: "Tonight",
       title: "Tonight's crawl, sorted",
-      dek: "Pick a borough, set your price, and let the river do the routing. Every pin is a pint worth knowing about.",
+      dek: "Pick a borough and set your price before opening the route on the map.",
       href: packMapHref("late-train", DEFAULT_CITY_ID),
       cta: "Plan tonight",
     },
@@ -393,11 +393,10 @@ export default function DiscoverPageClient({
 
       <header className="discoverHead">
         <p className="discoverEyebrow">Pint stories</p>
-        <h1 className="discoverTitle">There is a story behind every pint.</h1>
+        <h1 className="discoverTitle">Pint prices, pub stories and routes worth walking.</h1>
         <p className="discoverLede">
-          Pick your poison, your nectar, or your 0.0. PUBMAXXING follows every
-          kind of round. Beer, wine, gin, vodka, rum, cocktails, shots, and the
-          soft drinks that keep the night moving.
+          Browse beer, wine, gin, vodka, rum, cocktails, shots, alcohol-free
+          drinks and soft drinks.
         </p>
         {/* Hub rule (docs/MOBILE_FLOW_SPEC.md §1): Tonight, Feed, and Crawls have no tab
             of their own on mobile, so this page is their hub — every surface
@@ -422,7 +421,7 @@ export default function DiscoverPageClient({
           Choose your drink
         </h2>
         <p className="discoverSectionDek">
-          Every drink has a colour. Pick the family you want in hand. A cheap
+          Each drink family has a map colour. Pick the family you want in hand. A cheap
           pint, a house red, a gin and tonic, or the low/no option for one more
           stop before the last train.
         </p>
@@ -524,12 +523,12 @@ export default function DiscoverPageClient({
           UK city energy
         </h2>
         <p className="discoverSectionDek">
-          City pride, minus the made-up numbers. Cities ranked on Pint Drops,
-          crawl packs, and how much ground we cover. Open a map and add to your
+          Cities ranked on Pint Drops, crawl packs, and how much ground we
+          cover. Open a map and add to your
           city&rsquo;s tally.
         </p>
         <p className="discoverSectionNote">
-          Seeded only where we&rsquo;ve got demo data. Nothing invented to pad it out.
+          Seeded only where we&rsquo;ve got demo data.
         </p>
         <CityRivalryTable entries={rivalry} />
       </section>
@@ -544,11 +543,10 @@ export default function DiscoverPageClient({
           aria-labelledby="tonight-title"
         >
           <h2 id="tonight-title" className="discoverSectionTitle">
-            Cheapest Pints Tonight
+            Recently logged cheap pints
           </h2>
           <p className="discoverSectionDek">
-            Live from the community. The cheapest pints logged in the last 24
-            hours, cheapest first. Community-reported, not gospel.
+            Community prices logged in the last 24 hours, cheapest first.
           </p>
           {status === "idle" ? (
             <p className="discoverEmpty" role="status">
@@ -598,8 +596,8 @@ export default function DiscoverPageClient({
             Cheap Pint Leaderboard
           </h2>
           <p className="discoverSectionDek">
-            The cheapest pints we&rsquo;ve got on record, not tonight&rsquo;s live
-            prices. Open a pub to see how fresh its number is.
+            Lowest listed pint prices, separate from the recently logged
+            prices above. Open a pub to see how fresh its number is.
           </p>
           {status === "idle" ? (
             <p className="discoverEmpty" role="status">
@@ -627,8 +625,8 @@ export default function DiscoverPageClient({
             Then vs Now
           </h2>
           <p className="discoverSectionDek">
-            Today&rsquo;s community-reported pint against the baseline price on
-            record. The biggest movers first. Community numbers, not gospel.
+            Latest community-reported pint against the earlier price on
+            record. The biggest movers first.
           </p>
           <p className="discoverSectionNote">
             Then is the price on record. Now is the latest one someone logged.
@@ -639,7 +637,7 @@ export default function DiscoverPageClient({
             </p>
           ) : status === "loading" ? (
             <p className="discoverEmpty" role="status">
-              Comparing baseline prices…
+              Comparing earlier prices…
             </p>
           ) : status === "error" ? (
             <p className="discoverEmpty" role="status">
@@ -678,7 +676,7 @@ export default function DiscoverPageClient({
             Oldest first, the riverside taverns, and the highly listed classics.
           </p>
           <p className="discoverSectionNote">
-            Cited from Wikipedia. Never invented.
+            Cited from Wikipedia.
           </p>
           <div className="editorialGrid">
             {heritageCards.map((card) => (

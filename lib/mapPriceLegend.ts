@@ -385,7 +385,7 @@ export function mapPriceLegend(
           priceBuckets.length === 0 ? null : FOOD_CLUSTER_NOTE,
         shapes: MAP_SHAPES,
         marks: mapMarks(
-          "A recent pint report. It does not set a food pin's colour. A UK base pub keeps only the dot.",
+          "A recent pint report. It doesn't set a food pin's colour. A UK base pub keeps only the dot.",
           storyColour,
         ),
         routeMarks: routeMarks(storyColour),
@@ -418,7 +418,7 @@ export function mapPriceLegend(
         ),
         shapes: MAP_SHAPES,
         marks: mapMarks(
-          "A recent pint report. It does not set the selected drink band. A UK base pub keeps only the dot.",
+          "A recent pint report. It doesn't set the selected drink band. A UK base pub keeps only the dot.",
           storyColour,
         ),
         routeMarks: routeMarks(storyColour),
@@ -469,7 +469,7 @@ export function mapPriceLegend(
         clusterNote: defaultClusterNote(priceBuckets),
         shapes: MAP_SHAPES,
         marks: mapMarks(
-          "A recent pint report. It does not set a non-pub venue's band. A UK base pub keeps only the dot.",
+          "A recent pint report. It doesn't set a non-pub venue's band. A UK base pub keeps only the dot.",
           storyColour,
         ),
         routeMarks: routeMarks(storyColour),
