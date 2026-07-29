@@ -26,16 +26,24 @@ export type BasemapTasteTokens = {
   parkTint: string;
 };
 
+// NOTE: setPaintProperty/getPaintProperty are declared with method syntax
+// (not arrow-property syntax) so their parameters are checked bivariantly.
+// MapLibre 6 made Map.setPaintProperty generic (`name: K extends keyof
+// AllPaintProperties`); a real Map is only assignable to this structural
+// subset under bivariant method-param checking, since we call these helpers
+// with arbitrary `string` property names.
 type PaintMap = {
-  setPaintProperty: (layerId: string, name: string, value: unknown) => void;
+  setPaintProperty(layerId: string, name: string, value: unknown): void;
+  setFilter?(layerId: string, filter: unknown): void;
   getLayer: (layerId: string) => unknown;
+  getFilter?: (layerId: string) => unknown;
   getStyle: () => { layers?: Array<{ id: string; type?: string }> };
 };
 
 /** Superset of PaintMap that can also read a layer's current paint value —
  *  needed by the selection-mute machinery to snapshot originals before muting. */
 type MuteMap = PaintMap & {
-  getPaintProperty: (layerId: string, name: string) => unknown;
+  getPaintProperty(layerId: string, name: string): unknown;
 };
 
 type TastePalette = {
@@ -83,37 +91,44 @@ export function mixHex(hexA: string, hexB: string, t: number): string {
   return `#${[r, g, bch].map((c) => c.toString(16).padStart(2, "0")).join("")}`;
 }
 
-// M6 (interim, pre-6.x-bump) — two-stop `fill-extrusion-color` massing
-// gradient for `buildings-3d` (components/map/canvas/buildScene.ts): squat
-// buildings sit at a darkened variant of the theme's massing base, tall ones
-// settle back to the base tone unchanged, so "keep each theme's current
-// overall tone" holds at the top of the gradient and only the low end reads
-// darker. Darkens toward `inkDeep` specifically (not `ink`) because `ink`
-// flips brightness between themes — cream/bright in dark mode, near-black in
-// light mode — while `inkDeep` is the one token that reads as a near-black
-// "ink" pigment in BOTH themes (see its own doc comment on BasemapTasteTokens).
-// Pure + unit-tested; height source matches buildSkyAndBuildings' own
-// fill-extrusion-height coalesce so both paint properties key off the same
-// per-building height value.
-export function buildingMassingColorExpr(base: string, inkDeep: string): unknown {
-  const darkStop = mixHex(base, inkDeep, 0.55);
-  return [
-    "interpolate",
-    ["linear"],
-    ["coalesce", ["get", "render_height"], ["get", "height"], 14],
-    0,
-    darkStop,
-    60,
-    base,
-  ];
-}
-
 function tryPaint(map: PaintMap, layerId: string, prop: string, value: unknown): void {
   if (!map.getLayer(layerId)) return;
   try {
     map.setPaintProperty(layerId, prop, value);
   } catch {
     // Layer exists but property unsupported for its type — skip.
+  }
+}
+
+const NUMERIC_SHIELD_FILTER_LAYERS = [
+  "highway-shield-non-us",
+  "highway-shield-us-interstate",
+] as const;
+
+function guardRefLengthGet(value: unknown): unknown {
+  if (!Array.isArray(value)) return value;
+  if (value[0] === "number") return value;
+  if (value[0] === "get" && value[1] === "ref_length") {
+    return ["number", value, 0];
+  }
+  return value.map(guardRefLengthGet);
+}
+
+/**
+ * MapLibre 6 validates numeric filter operands per feature. OpenFreeMap's
+ * light style compares a sometimes-missing ref_length directly, which logs on
+ * every affected road shield. Preserve its filter and add a numeric fallback.
+ */
+export function tameNumericShieldFilters(map: Pick<
+  PaintMap,
+  "getLayer" | "getFilter" | "setFilter"
+>): void {
+  if (!map.getFilter || !map.setFilter) return;
+  for (const id of NUMERIC_SHIELD_FILTER_LAYERS) {
+    if (!map.getLayer(id)) continue;
+    const filter = map.getFilter(id);
+    if (!filter) continue;
+    map.setFilter(id, guardRefLengthGet(filter));
   }
 }
 
@@ -460,6 +475,7 @@ export function applyBasemapTaste(
   tokens: BasemapTasteTokens,
   dark: boolean,
 ): void {
+  tameNumericShieldFilters(map);
   const palette = buildPalette(tokens, dark);
   paintKnownLayers(map, palette, dark);
   paintDiscoveredLayers(map, palette, tokens, dark);

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo } from "react";
 import type { MutableRefObject } from "react";
-import maplibregl from "maplibre-gl";
+import * as maplibregl from "maplibre-gl";
 import type { Venue } from "@/lib/venues";
 import { LONG_JUMP_CURVE } from "./easing";
 import { createCameraIntentCoordinator, type CameraIntentKind } from "@/lib/cameraIntent";

@@ -18,6 +18,8 @@ const eslintConfig = [
       "node_modules/**",
       "coverage/**",
       "public/data/**",
+      // Copied from the pinned MapLibre package by predev/prebuild.
+      "public/vendor/maplibre/**",
       "data/**",
       // Vendored agent/design skill packs — not app source; upstream uses require() etc.
       "skills/**",

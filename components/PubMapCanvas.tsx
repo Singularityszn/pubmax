@@ -4,7 +4,7 @@ import "maplibre-gl/dist/maplibre-gl.css";
 import "./map/mapColor.css";
 
 import Link from "next/link";
-import maplibregl from "maplibre-gl";
+import * as maplibregl from "maplibre-gl";
 import {
   Crosshair,
   ExternalLink,
@@ -113,6 +113,10 @@ import {
   type MapCameraSnapshot,
 } from "@/components/map/canvas/webglRecovery";
 
+// MapLibre 6 is ESM-only. Its worker imports a sibling shared module, which
+// Next's asset URL transform does not emit beside the worker. The predev and
+// prebuild copy step preserves that pair under one same-origin public path.
+maplibregl.setWorkerUrl("/vendor/maplibre/maplibre-gl-worker.mjs");
 
 type PubMapCanvasProps = {
   venues: Venue[];
@@ -309,6 +313,26 @@ const PUB_PIN_LAYERS = [
   "clusters",
   "cluster-count",
 ] as const;
+
+function probeWebGl2(): { hasContext: boolean; status: string } {
+  let status = "";
+  try {
+    const canvas = document.createElement("canvas");
+    canvas.addEventListener(
+      "webglcontextcreationerror",
+      (event) => {
+        status = (event as WebGLContextEvent).statusMessage || status;
+      },
+      { once: true },
+    );
+    const context = canvas.getContext("webgl2");
+    const hasContext = Boolean(context);
+    context?.getExtension("WEBGL_lose_context")?.loseContext();
+    return { hasContext, status };
+  } catch {
+    return { hasContext: false, status };
+  }
+}
 
 
 
@@ -641,6 +665,11 @@ export default function PubMapCanvas({
   // queue only needs to carry post-build mutations (filters/paint/visibility)
   // and any setData that raced an in-flight swap.
   const pendingUpdatesRef = useRef<Map<string, (map: maplibregl.Map) => void>>(new Map());
+  // Structural style readiness owned by this component. MapLibre's public
+  // style.load event fires after the style graph is ready for source/layer
+  // mutations, while isStyleLoaded() also waits for source tiles and images.
+  // Every app-owned setStyle clears this first; the accepted style.load sets it.
+  const styleStructureReadyRef = useRef(false);
   const applyToMap = useCallback(
     (key: string, fn: (map: maplibregl.Map) => void) => {
       const map = mapRef.current;
@@ -663,8 +692,7 @@ export default function PubMapCanvas({
   // one the tiles have loaded). The active-plan route is set ONCE and never
   // re-triggered, so a single write that landed mid-tiles got queued for a
   // `style.load` that may never come again — and the overlay silently never
-  // painted. Gate on `style._loaded` (the exact flag MapLibre's _checkLoaded
-  // throws on, and the same one buildScene's stale-event guard uses) so a
+  // painted. Gate on our style.load lifecycle state so a
   // set-once route paints as soon as the style is structurally ready; queue for
   // the next style.load only while the style itself is still swapping (buildScene
   // re-seeds these sources from the refs on that load, so nothing is lost).
@@ -679,8 +707,7 @@ export default function PubMapCanvas({
         routeStopsRef.current,
       );
     };
-    const styleLoaded = (map.style as unknown as { _loaded?: boolean } | undefined)?._loaded;
-    if (styleLoaded && map.getSource("route-stops")) {
+    if (styleStructureReadyRef.current && map.getSource("route-stops")) {
       run(map);
     } else {
       // Style still swapping: the imminent style.load re-seeds these sources from
@@ -780,6 +807,7 @@ export default function PubMapCanvas({
   useEffect(() => {
     if (!containerRef.current || mapRef.current) return;
 
+    styleStructureReadyRef.current = false;
     themeRef.current = document.documentElement.dataset.theme === "dark" ? "dark" : "light";
 
     // R3 — .maplibreMap's CSS background (app/globals.css) is a flat
@@ -869,15 +897,17 @@ export default function PubMapCanvas({
       if (didConstruct) return;
       didConstruct = true;
 
-    // No-WebGL environments (locked-down browsers, headless boxes) throw
-    // synchronously from the constructor. MapLibre 5 already asks for
-    // `webgl2withfallback` + `failIfMajorPerformanceCaveat: false` +
-    // high-performance, so a throw means the browser returned NO context
-    // (transient GPU crash, context-slot exhaustion, policy-disabled) — hence
-    // the auto-retry below rather than an immediate dead end.
+    // MapLibre 6 emits GPUInitializationError instead of throwing when WebGL2
+    // context creation fails. That event fires inside the constructor, before
+    // callers can attach a listener, so use a supported browser capability
+    // probe first and route failure through the existing bounded retry.
     const lowPower = initAttempt >= 1;
     let map: maplibregl.Map;
     try {
+      const webgl2 = probeWebGl2();
+      if (!webgl2.hasContext) {
+        throw new Error(webgl2.status || "WebGL2 context unavailable");
+      }
       map = new maplibregl.Map({
         container,
         style: MAP_STYLES[themeRef.current],
@@ -913,27 +943,9 @@ export default function PubMapCanvas({
       // This distinguishes a truly WebGL-less browser (honest dead end, no
       // Retry) from a transient failure (worth retrying). We capture the
       // browser's own statusMessage via the webglcontextcreationerror event.
-      let probeStatus = "";
-      let probeHasContext = false;
-      try {
-        const probe = document.createElement("canvas");
-        probe.addEventListener(
-          "webglcontextcreationerror",
-          (event) => {
-            probeStatus = (event as WebGLContextEvent).statusMessage || probeStatus;
-          },
-          { once: true },
-        );
-        const gl =
-          probe.getContext("webgl2") ||
-          probe.getContext("webgl") ||
-          (probe.getContext("experimental-webgl") as WebGLRenderingContext | null);
-        probeHasContext = Boolean(gl);
-        gl?.getExtension("WEBGL_lose_context")?.loseContext();
-      } catch {
-        // Probe itself may throw in the same locked-down browser; treat as no
-        // context — the message below stays honest.
-      }
+      const probe = probeWebGl2();
+      const probeStatus = probe.status;
+      const probeHasContext = probe.hasContext;
 
       // MapLibre embeds the browser's statusMessage as JSON in error.message.
       let embedded = "";
@@ -1041,13 +1053,13 @@ export default function PubMapCanvas({
     // Outer-London borough that core doesn't cover).
     map.once("idle", emitBounds);
 
-    // The upstream OpenFreeMap styles reference sprite images we never render
-    // at our zoom/layers (liberty's "wood-pattern"), and MapLibre warns on
-    // every miss. Feed any missing id a 1x1 transparent pixel so the console
-    // stays quiet without shipping the real texture.
-    map.on("styleimagemissing", (event: { id: string }) => {
-      if (!map.hasImage(event.id)) {
-        map.addImage(event.id, { width: 1, height: 1, data: new Uint8Array(4) });
+    // MapLibre 6 resolves missing images before firing styleimagemissing, so
+    // use its supported resolver. OpenFreeMap references sprite images we
+    // never render at our zoom/layers; a transparent pixel keeps those misses
+    // quiet without shipping the real texture.
+    map.setMissingStyleImageResolver((id) => {
+      if (!map.hasImage(id)) {
+        map.addImage(id, { width: 1, height: 1, data: new Uint8Array(4) });
       }
     });
 
@@ -1186,18 +1198,11 @@ export default function PubMapCanvas({
       },
     });
     const buildScene = () => {
-      // Stale-event guard. A style.load can arrive from a style that a rapid
-      // setStyle() just superseded (e.g. two theme flips inside one style-fetch
-      // window): the event fires from the OLD style object, but map.addLayer
-      // targets map.style — the NEW, not-yet-loaded one — and every mutation
-      // would throw "Style is not done loading". `_loaded` is the exact flag
-      // MapLibre's _checkLoaded() throws on (isStyleLoaded() is too strict here:
-      // it also waits for tiles/sprite, which are legitimately still in flight
-      // at style.load). Dropping the stale event is lossless — the new style's
-      // own style.load re-runs buildScene, and pendingUpdatesRef carries any
-      // queued data writes across to that build.
-      const currentStyle = map.style as unknown as { _loaded?: boolean } | undefined;
-      if (!currentStyle || currentStyle._loaded === false) return;
+      // This listener runs after the readiness listener below. MapLibre 6
+      // detaches a replaced Style from the Map before loading its replacement,
+      // so an old Style cannot bubble a stale style.load to this map listener.
+      // Keep the app-owned guard for teardown and app-owned setStyle windows.
+      if (!styleStructureReadyRef.current) return;
 
       // Wave K2: style.load already flipped `styleLoaded`, so the tile hard-fail
       // timer will never fire. Any throw below must still lift the parent
@@ -1576,6 +1581,7 @@ export default function PubMapCanvas({
       protectedStyleInFlight = true;
       usingFallback = fallback;
       armStyleLoadProtection();
+      styleStructureReadyRef.current = false;
       try {
         map.setStyle(style, { diff: false });
       } catch (error) {
@@ -1601,15 +1607,12 @@ export default function PubMapCanvas({
     // MapLibre fires style validation/source problems as synchronous `error`
     // events from inside mutation calls, so if buildScene ran first (flag still
     // false) any such error would re-enter the error handler mid-build, call
-    // swapToBasemapFallback → setStyle, and synchronously replace map.style
+    // swapToBasemapFallback → setStyle, and synchronously replace the active style
     // with a fresh UNLOADED style — every remaining addLayer in buildScene then
     // throws "Style is not done loading". With the flag set first, the error
     // handler knows the style did load and never swaps mid-build.
     map.on("style.load", () => {
-      const currentStyle = map.style as unknown as {
-        _loaded?: boolean;
-      } | undefined;
-      if (!currentStyle || currentStyle._loaded === false) return;
+      styleStructureReadyRef.current = true;
       styleLoaded = true;
       clearStyleLoadProtection();
       if (!protectedStyleInFlight) return;
@@ -2096,19 +2099,16 @@ export default function PubMapCanvas({
       // toggle also finishes instantly rather than leaving pins stuck
       // half-visible forever.
       //
-      // Style guard: `_loaded` (the exact flag buildScene's stale-event guard
-      // keys on), NOT isStyleLoaded() — isStyleLoaded() also waits for
+      // Style guard: app-owned style.load state, NOT isStyleLoaded(), which also waits for
       // tiles/sprite and reports false for seconds after style.load on a slow
       // connection (and again during every zoom-triggered tile load), which
       // starved this block entirely: startPinEntrance's t=0 write (opacity 0)
       // then sat un-progressed until the map fully quiesced — pins invisible
-      // for the whole window. `_loaded` only goes false across a genuine
-      // setStyle swap, which is the case this guard exists for.
-      const frameStyle = map.style as unknown as { _loaded?: boolean } | undefined;
+      // for the whole window. The app-owned state only goes false across a
+      // genuine setStyle swap or teardown, which is the case this guard exists for.
       if (
         pinEntranceActiveRef.current &&
-        frameStyle &&
-        frameStyle._loaded !== false &&
+        styleStructureReadyRef.current &&
         map.getLayer("pubs-point")
       ) {
         if (reducedRef.current) {
@@ -2209,6 +2209,7 @@ export default function PubMapCanvas({
       }
       map.remove();
       mapRef.current = null;
+      styleStructureReadyRef.current = false;
       publishMapReady(false);
     };
     } // end construct()

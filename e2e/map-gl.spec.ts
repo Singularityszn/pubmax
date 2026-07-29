@@ -1,5 +1,7 @@
-import { test, expect } from "@playwright/test";
+import { test, expect, type Page } from "@playwright/test";
 import sharp from "sharp";
+
+import { installDeterministicMapBasemap } from "./helpers/mapNetworkFixtures";
 
 test.describe.configure({ mode: "serial" });
 
@@ -28,6 +30,16 @@ async function changedPixelRatio(first: Buffer, second: Buffer): Promise<number>
     if (delta > 24) changed += 1;
   }
   return changed / pixels;
+}
+
+async function zoomThroughHiddenMobileControl(page: Page, steps = 3): Promise<void> {
+  const zoomIn = page.locator(".maplibregl-ctrl-zoom-in");
+  for (let step = 0; step < steps; step += 1) {
+    await zoomIn.evaluate((button: HTMLButtonElement) => button.click());
+    // MapLibre animates zoomIn. Let each level settle so rapid synthetic
+    // clicks cannot coalesce into one camera transition and only three tiles.
+    await page.waitForTimeout(600);
+  }
 }
 
 // GPU-present contract. Runs only under the `chromium-gl` project, which launches
@@ -122,6 +134,19 @@ test("/map stays visually stable for a reduced-motion viewer while idle", async 
 
 test("/map reveals pins only for the final rapid theme style generation", async ({ page }) => {
   test.setTimeout(60_000);
+  const sourcesErrors: string[] = [];
+  const recordSourcesError = (text: string) => {
+    if (/Cannot read properties of undefined.*sources/i.test(text)) {
+      sourcesErrors.push(text);
+    }
+  };
+  page.on("console", (message) => {
+    if (message.type() === "error" || message.type() === "warning") {
+      recordSourcesError(message.text());
+    }
+  });
+  page.on("pageerror", (error) => recordSourcesError(error.message));
+  await installDeterministicMapBasemap(page, { styleDelayMs: 150 });
   await page.addInitScript(() => {
     const trace: Array<{ reason: string; generation: number }> = [];
     Object.defineProperty(window, "__pubmaxPinRevealTrace", { value: trace });
@@ -156,6 +181,10 @@ test("/map reveals pins only for the final rapid theme style generation", async 
   await page.waitForTimeout(500);
   expect((await readTrace()).filter(({ generation }) => generation > initialGeneration)).toHaveLength(1);
   await expect(page.locator(".mapFallback")).toHaveCount(0);
+  expect(
+    sourcesErrors,
+    `Rapid style replacement raised the historical sources exception:\n${sourcesErrors.join("\n")}`,
+  ).toEqual([]);
 });
 
 test("/map uses the bounded pin fallback when basemap tiles are delayed", async ({ page }) => {
@@ -287,10 +316,10 @@ test("/map surfaces a concurrent post-paint tile outage despite one successful t
     .toMatch(/^(tiles|idle)$/);
 
   failTiles = true;
-  const zoomIn = page.locator(".maplibregl-ctrl-zoom-in");
-  await zoomIn.click();
-  await zoomIn.click();
-  await zoomIn.click();
+  // Mobile CSS deliberately hides MapLibre's built-in control group. Invoke
+  // its real button handler in place so this outage test can force fresh tile
+  // requests without weakening the phone chrome contract.
+  await zoomThroughHiddenMobileControl(page);
   await expect.poll(() => outageRequests).toBeGreaterThanOrEqual(5);
 
   const notice = page.locator(".mapSoftRetry");
@@ -360,10 +389,7 @@ test("/map surfaces Retry when the automatic style reload also fails", async ({
 
   failTiles = true;
   failStyles = true;
-  const zoomIn = page.locator(".maplibregl-ctrl-zoom-in");
-  await zoomIn.click();
-  await zoomIn.click();
-  await zoomIn.click();
+  await zoomThroughHiddenMobileControl(page);
 
   const notice = page.locator(".mapSoftRetry");
   await expect(notice).toContainText("Map background couldn't load", {

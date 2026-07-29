@@ -17,6 +17,7 @@ playwright-report/
 artifacts/
 /coverage/
 e2e/screenshots/
+public/vendor/maplibre/
 data/generated/venue_detail_index.json
 data/generated/venue_details.jsonl
 data/osm/uk/**/.*.tmp

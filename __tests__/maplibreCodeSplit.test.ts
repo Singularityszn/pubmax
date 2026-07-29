@@ -9,6 +9,11 @@ import { describe, expect, it } from "vitest";
 const pubMap = readFileSync(join(process.cwd(), "components/PubMap.tsx"), "utf8");
 const canvas = readFileSync(join(process.cwd(), "components/PubMapCanvas.tsx"), "utf8");
 const globalsCss = readFileSync(join(process.cwd(), "app/globals.css"), "utf8");
+const packageJson = JSON.parse(readFileSync(join(process.cwd(), "package.json"), "utf8"));
+const workerCopy = readFileSync(
+  join(process.cwd(), "scripts/copy_maplibre_worker.mjs"),
+  "utf8",
+);
 
 describe("maplibre cold-open code split", () => {
   it("loads PubMapCanvas via next/dynamic (ssr:false), not a static value import", () => {
@@ -49,8 +54,23 @@ describe("maplibre cold-open code split", () => {
       join(process.cwd(), "components/map/canvas/useMapCamera.ts"),
       "utf8",
     );
-    expect(canvas).toMatch(/import maplibregl from ["']maplibre-gl["']/);
+    expect(canvas).toMatch(/import \* as maplibregl from ["']maplibre-gl["']/);
     expect(donut).toMatch(/from ["']maplibre-gl["']/);
     expect(camera).toMatch(/from ["']maplibre-gl["']/);
+  });
+
+  it("configures the MapLibre 6 module worker for webpack", () => {
+    expect(canvas).toMatch(
+      /maplibregl\.setWorkerUrl\(["']\/vendor\/maplibre\/maplibre-gl-worker\.mjs["']\)/,
+    );
+    expect(packageJson.scripts.predev).toBe("npm run prepare:maplibre-worker");
+    expect(packageJson.scripts.prebuild).toContain("npm run prepare:maplibre-worker");
+    expect(workerCopy).toContain('"maplibre-gl-worker.mjs"');
+    expect(workerCopy).toContain('"maplibre-gl-shared.mjs"');
+  });
+
+  it("uses the MapLibre 6 missing-image resolver", () => {
+    expect(canvas).toMatch(/map\.setMissingStyleImageResolver\(/);
+    expect(canvas).not.toMatch(/map\.on\(["']styleimagemissing["']/);
   });
 });

@@ -1,4 +1,6 @@
-import { test, expect, type ConsoleMessage, type Route } from "@playwright/test";
+import { test, expect, type ConsoleMessage } from "@playwright/test";
+
+import { installDeterministicMapBasemap } from "./helpers/mapNetworkFixtures";
 
 // Map console-health regression (review issue #5). Runs under the `chromium-gl`
 // project (SwiftShader software WebGL2) so a real GL context exists and the map
@@ -105,54 +107,7 @@ test("/map stays console-healthy across repeated /map↔/feed navigation", async
     window.localStorage.setItem("pubmax_onboarding_dismissed", "1");
     window.sessionStorage.setItem("pubmax_onboarding_dismissed", "1");
   });
-  const emptyVectorTile = (route: Route) =>
-    route.fulfill({
-      status: 200,
-      contentType: "application/x-protobuf",
-      body: Buffer.alloc(0),
-    });
-  await page.route("**/*.mvt*", emptyVectorTile);
-  await page.route("**/*.pbf*", emptyVectorTile);
-  await page.route("**/__empty/**/*.png", (route) =>
-    route.fulfill({
-      status: 200,
-      contentType: "image/png",
-      body: Buffer.from(
-        "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=",
-        "base64",
-      ),
-    }),
-  );
-  const emptyStyle = JSON.stringify({
-    version: 8,
-    sources: {
-      basemap: {
-        type: "raster",
-        tiles: ["https://tiles.openfreemap.org/__empty/{z}/{x}/{y}.png"],
-        tileSize: 256,
-      },
-    },
-    layers: [
-      { id: "background", type: "background", paint: { "background-color": "#111111" } },
-      { id: "basemap", type: "raster", source: "basemap" },
-    ],
-  });
-  await page.route(/^https:\/\/tiles\.openfreemap\.org\/styles\/(?:dark|positron)\/?$/, (route) =>
-    route.fulfill({
-      status: 200,
-      contentType: "application/json",
-      body: emptyStyle,
-    }),
-  );
-  await page.route(
-    /^https:\/\/basemaps\.cartocdn\.com\/gl\/(?:dark-matter|positron)-gl-style\/style\.json$/,
-    (route) =>
-      route.fulfill({
-        status: 200,
-        contentType: "application/json",
-        body: emptyStyle,
-      }),
-  );
+  await installDeterministicMapBasemap(page);
 
   // Initial load: the map must construct and paint a real canvas.
   const first = await page.goto("/map");

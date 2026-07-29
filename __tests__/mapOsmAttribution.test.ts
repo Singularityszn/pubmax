@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import path from "node:path";
 
-import type maplibregl from "maplibre-gl";
+import type * as maplibregl from "maplibre-gl";
 import { describe, expect, it } from "vitest";
 
 import { buildUkBase, type SceneCtx } from "@/components/map/canvas/buildScene";
