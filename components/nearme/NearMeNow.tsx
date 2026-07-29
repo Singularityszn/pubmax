@@ -7,6 +7,7 @@ import { ChevronDown, Footprints, LocateFixed, MapPin, RotateCw } from "lucide-r
 import { trackEvent } from "@/lib/analytics";
 import { CITIES, DEFAULT_CITY_ID, type CityId } from "@/lib/cities";
 import { mapHrefForCity } from "@/lib/cityPreference";
+import { PINT_DATASET_OBSERVED_AT } from "@/lib/dataFreshness";
 import { formatPrice } from "@/lib/venues";
 import { acceptNearVenue, type RawAcceptedArea } from "@/lib/venueAcceptance";
 import { venueMapUrl } from "@/lib/venueMapUrl";
