@@ -213,6 +213,7 @@ describe("PostHog browser privacy boundary", () => {
     const event: CaptureResult = {
       uuid: UUID,
       event: "$web_vitals",
+      timestamp: new Date("2026-07-29T12:00:00.000Z"),
       properties: {
         token: "phc_public",
         distinct_id: anonymousId,
@@ -240,11 +241,19 @@ describe("PostHog browser privacy boundary", () => {
           freeText: "do not forward",
         },
       },
+      $set: {
+        $current_url: "https://pubmaxxing.com/pal?ask=free-text",
+      },
+      $set_once: {
+        $initial_current_url: "https://pubmaxxing.com/map?memberToken=secret",
+      },
+      $unset: ["private_profile_field"],
     };
 
     expect(sanitizePosthogEvent(event)).toEqual({
       uuid: UUID,
       event: "$web_vitals",
+      timestamp: new Date("2026-07-29T12:00:00.000Z"),
       properties: {
         token: "phc_public",
         distinct_id: anonymousId,

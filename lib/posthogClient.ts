@@ -195,7 +195,9 @@ export function sanitizePosthogEvent(event: CaptureResult | null): CaptureResult
       : null;
     if (!isAnonymousAnalyticsId(distinctId) || !pathname) return null;
     return {
-      ...event,
+      uuid: event.uuid,
+      event: "$web_vitals",
+      ...(event.timestamp ? { timestamp: event.timestamp } : {}),
       properties: standardBrowserProperties(event.properties, pathname),
     };
   }
