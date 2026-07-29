@@ -59,6 +59,13 @@ html[data-theme="dark"] {
   --panel-raised: #202024; /* raised cards — clear step up from panel (was #1c1c1f) */
   --panel-overlay: #2b2b30; /* 4th step — menus / popovers / sheets (was #242427) */
   --ink-deep: #060607; /* deepest well — neutral near-black (was cyan-ish #040606) */
+  --sheet-material: color-mix(in srgb, var(--panel-overlay) 82%, transparent);
+  --sheet-material-solid: var(--panel-overlay);
+  --sheet-material-border: color-mix(in srgb, var(--ink) 10%, transparent);
+  --sheet-material-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.07),
+    0 1px 2px rgba(0, 0, 0, 0.46),
+    0 22px 58px rgba(0, 0, 0, 0.58);
 
   /* Hairline (dark-mode-v1) — a DEDICATED divider token, tuned to x.com's
      structural-edge contrast. Their reference is #2f3336 on #000 (~1.6:1); this
