@@ -127,7 +127,7 @@ The stored date of birth and optional full name and sex attached to an authentic
 _Avoid_: Public age, adult gate, contributor eligibility
 
 **Superseded Round Line**:
-An earlier Round price line replaced by a later line from the same account for the same venue and drink category. It stays in the Round diary but no longer claims current community-price status.
+An earlier Round price line whose community-price ownership was successfully replaced by a later line from the same account for the same venue and drink category. It stays in the Round diary but no longer claims current status; a failed replacement leaves the existing owner unchanged.
 _Avoid_: Diary-only line, promoted line
 
 **Production Store**:

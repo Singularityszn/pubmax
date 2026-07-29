@@ -3,6 +3,8 @@ import { describe, expect, it, vi } from "vitest";
 import {
   captureRoundRequestIdentity,
   roundJsonRequest,
+  runRoundMutationForCurrentOwner,
+  type RoundRequestIdentity,
 } from "@/lib/roundRequest";
 
 describe("Round request client", () => {
@@ -54,5 +56,47 @@ describe("Round request client", () => {
         user: { id: "user-a" },
       } as never),
     ).toBeNull();
+  });
+
+  it("drops mutation completion after the authenticated owner changes", async () => {
+    let currentIdentity: RoundRequestIdentity = {
+      kind: "account" as const,
+      auth: { userId: "user-a", accessToken: "token-a" },
+    };
+    let finish!: (value: string) => void;
+    const response = new Promise<string>((resolve) => {
+      finish = resolve;
+    });
+    const completion = runRoundMutationForCurrentOwner(
+      currentIdentity,
+      () => currentIdentity,
+      () => response,
+    );
+
+    currentIdentity = {
+      kind: "account",
+      auth: { userId: "user-b", accessToken: "token-b" },
+    };
+    finish("account-a response");
+
+    expect(await completion).toEqual({ current: false });
+  });
+
+  it("keeps completion when one account refreshes its token", async () => {
+    let currentIdentity: RoundRequestIdentity = {
+      kind: "account",
+      auth: { userId: "user-a", accessToken: "token-old" },
+    };
+    const completion = runRoundMutationForCurrentOwner(
+      currentIdentity,
+      () => currentIdentity,
+      async () => "saved",
+    );
+    currentIdentity = {
+      kind: "account",
+      auth: { userId: "user-a", accessToken: "token-new" },
+    };
+
+    expect(await completion).toEqual({ current: true, value: "saved" });
   });
 });

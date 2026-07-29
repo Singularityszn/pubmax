@@ -32,6 +32,7 @@ import type { PintDrop, VibeTag } from "@/lib/pintDropShared";
 import {
   captureRoundRequestIdentity,
   roundJsonRequest,
+  runRoundMutationForCurrentOwner,
   type RoundRequestIdentity,
 } from "@/lib/roundRequest";
 import { appendWithSuffix, DEFAULT_VISIBILITY, type Visibility } from "@/lib/spill";
@@ -119,6 +120,15 @@ export function usePintDrops(
   mapVenues?: readonly MapPintDropVenue[],
 ) {
   const { user, session, loading: authLoading } = useAuth();
+  const roundIdentity = useMemo(
+    () =>
+      authLoading
+        ? null
+        : captureRoundRequestIdentity(user?.id ?? null, session),
+    [authLoading, session, user?.id],
+  );
+  const roundIdentityRef = useRef<RoundRequestIdentity | null>(roundIdentity);
+  roundIdentityRef.current = roundIdentity;
   const [handle, setHandle] = useState(() =>
     typeof window === "undefined" ? "" : (window.localStorage.getItem("pubmax_handle") ?? ""),
   );
@@ -298,9 +308,7 @@ export function usePintDrops(
     options?: { venueName?: string; lastTrainDecision?: LastPintDecision | null },
   ) {
     event.preventDefault();
-    const submittedRoundIdentity = authLoading
-      ? null
-      : captureRoundRequestIdentity(user?.id ?? null, session);
+    const submittedRoundIdentity = roundIdentity;
     setSubmitting(true);
     setDropMsg(null);
     const clientRequestId = newOptimisticSpillClientId();
@@ -480,14 +488,20 @@ export function usePintDrops(
           : undefined;
       let addedToNight = false;
       if (activeRound && submittedHandle && submittedRoundIdentity) {
-        addedToNight = await appendStopToActiveRound({
-          identity: submittedRoundIdentity,
-          code: activeRound,
-          handle: submittedHandle,
-          venueId,
-          venueName: options?.venueName ?? unresolvedVenueLabel(venueId),
-          dropRef: dropId,
-        });
+        const completion = await runRoundMutationForCurrentOwner(
+          submittedRoundIdentity,
+          () => roundIdentityRef.current,
+          () =>
+            appendStopToActiveRound({
+              identity: submittedRoundIdentity,
+              code: activeRound,
+              handle: submittedHandle,
+              venueId,
+              venueName: options?.venueName ?? unresolvedVenueLabel(venueId),
+              dropRef: dropId,
+            }),
+        );
+        addedToNight = completion.current && completion.value;
       }
 
       const links: NonNullable<DropMsg["links"]> = [

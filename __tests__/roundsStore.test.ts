@@ -376,6 +376,9 @@ describe("Round price key ownership migration", () => {
       /partition by spend\.venue_id, expanded\.item->>'drinkCategory'/,
     );
     expect(sql).toMatch(/expanded\.ordinality desc/);
+    expect(sql).toMatch(
+      /ranked_round[\s\S]*promotionStatus' in \('pending', 'ready'\)/,
+    );
     expect(sql).toMatch(/ownership_rank > 1[\s\S]*superseded/);
     expect(sql).toMatch(/all_items[\s\S]*left join ranked_round/);
     expect(sql).toMatch(/jsonb_agg[\s\S]*order by all_items\.ordinality/);

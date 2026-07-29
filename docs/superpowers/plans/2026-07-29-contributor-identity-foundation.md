@@ -55,8 +55,9 @@ contribution age-gate design.
   line.
 - Bind pending promotion privately to its authenticated account owner.
 - Charge the account budget before moving `pending` to `ready`.
-- Let the latest line for each account, venue and drink category own the
-  community row, and mark any displaced source line `superseded`.
+- Let the latest successful line for each account, venue and drink category own
+  the community row, and mark its displaced source line `superseded` only when
+  ownership transfers.
 - Retry only `pending` or `ready` lines and show community-price copy only for
   `promoted` lines.
 

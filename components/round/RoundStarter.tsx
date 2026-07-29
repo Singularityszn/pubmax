@@ -3,12 +3,17 @@
 import { Copy, Users } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import { useAuth } from "@/components/auth/AuthProvider";
 import { writeActiveRoundCode } from "@/lib/activeRound";
 import { normalizeHandle } from "@/lib/profiles";
-import { captureRoundRequestIdentity } from "@/lib/roundRequest";
+import {
+  captureRoundRequestIdentity,
+  roundRequestIdentityOwnerKey,
+  runRoundMutationForCurrentOwner,
+  type RoundRequestIdentity,
+} from "@/lib/roundRequest";
 import { startRoundWithStops, type SeedStop } from "@/lib/startRoundWithStops";
 
 import "./roundStarter.css";
@@ -51,6 +56,10 @@ export default function RoundStarter({
         : captureRoundRequestIdentity(user?.id ?? null, session),
     [authLoading, session, user?.id],
   );
+  const roundIdentityRef = useRef<RoundRequestIdentity | null>(roundIdentity);
+  roundIdentityRef.current = roundIdentity;
+  const roundOwnerKey = roundRequestIdentityOwnerKey(roundIdentity);
+  const stateOwnerRef = useRef(roundOwnerKey);
   const stay = stayOnMap ?? compact;
   const [handle, setHandle] = useState<string>(() => {
     if (typeof window === "undefined") return "";
@@ -64,6 +73,31 @@ export default function RoundStarter({
   const [error, setError] = useState<string | null>(null);
   const [startedCode, setStartedCode] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+
+  useEffect(() => {
+    if (stateOwnerRef.current === roundOwnerKey) return;
+    stateOwnerRef.current = roundOwnerKey;
+    let active = true;
+    void Promise.resolve().then(() => {
+      if (!active) return;
+      setBusy(false);
+      setError(null);
+      setStartedCode(null);
+      setCopied(false);
+      try {
+        setHandle(
+          normalizeHandle(
+            window.localStorage.getItem("pubmax_handle") ?? "",
+          ),
+        );
+      } catch {
+        setHandle("");
+      }
+    });
+    return () => {
+      active = false;
+    };
+  }, [roundOwnerKey]);
 
   const hasSeeds = Boolean(seedStops && seedStops.length > 0);
 
@@ -90,18 +124,19 @@ export default function RoundStarter({
     }
     setBusy(true);
     setError(null);
-    try {
-      window.localStorage.setItem("pubmax_handle", clean);
-    } catch {
-      // storage disabled — the Round still starts, handle just isn't remembered
-    }
-
-    const result = await startRoundWithStops({
-      handle: clean,
-      identity: roundIdentity,
-      title: defaultTitle,
-      seedStops,
-    });
+    const completion = await runRoundMutationForCurrentOwner(
+      roundIdentity,
+      () => roundIdentityRef.current,
+      () =>
+        startRoundWithStops({
+          handle: clean,
+          identity: roundIdentity,
+          title: defaultTitle,
+          seedStops,
+        }),
+    );
+    if (!completion.current) return;
+    const result = completion.value;
 
     if (!result.ok) {
       setError(result.error);
@@ -109,6 +144,11 @@ export default function RoundStarter({
       return;
     }
 
+    try {
+      window.localStorage.setItem("pubmax_handle", clean);
+    } catch {
+      // storage disabled — the Round still starts, handle just isn't remembered
+    }
     writeActiveRoundCode(result.code);
 
     if (stay) {

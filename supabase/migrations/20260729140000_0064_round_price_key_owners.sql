@@ -94,6 +94,7 @@ begin
     where spend.round_id = v_round_id
       and spend.promotion_actor = p_actor
       and expanded.item->>'source' = 'round'
+      and expanded.item->>'promotionStatus' in ('pending', 'ready')
   ),
   rebuilt as (
     select

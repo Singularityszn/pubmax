@@ -52,6 +52,8 @@ import {
   captureRoundRequestIdentity,
   roundJsonRequest,
   roundRequest,
+  roundRequestIdentityOwnerKey,
+  runRoundMutationForCurrentOwner,
   type RoundRequestIdentity,
 } from "@/lib/roundRequest";
 import { buildRouteLegs, formatLeg, formatRouteTotal } from "@/lib/routeLegs";
@@ -99,8 +101,12 @@ export default function RoundPageClient({ params }: { params: Promise<{ code: st
   );
   const roundAuth =
     roundIdentity?.kind === "account" ? roundIdentity.auth : null;
-  const roundOwnerRef = useRef(roundAuth?.userId ?? null);
-  roundOwnerRef.current = roundAuth?.userId ?? null;
+  const roundIdentityRef = useRef<RoundRequestIdentity | null>(roundIdentity);
+  roundIdentityRef.current = roundIdentity;
+  const currentRoundIdentity = useCallback(
+    () => roundIdentityRef.current,
+    [],
+  );
   // Route param resolved after mount (Next 15 async params).
   const [code, setCode] = useState<string>("");
   useEffect(() => {
@@ -143,27 +149,40 @@ export default function RoundPageClient({ params }: { params: Promise<{ code: st
   // the last-known state up rather than blanking the page.
   const refetch = useCallback(async () => {
     if (!code || !roundIdentity) return;
-    const requestOwner = roundAuth?.userId ?? null;
     try {
-      const res = await roundRequest(
-        `/api/rounds/${code}`,
+      const completion = await runRoundMutationForCurrentOwner(
         roundIdentity,
-        { cache: "no-store" },
+        currentRoundIdentity,
+        async () => {
+          const res = await roundRequest(
+            `/api/rounds/${code}`,
+            roundIdentity,
+            { cache: "no-store" },
+          );
+          return {
+            res,
+            state: res.ok ? ((await res.json()) as RoundViewState) : null,
+          };
+        },
       );
-      if (res.ok) {
-        const next = (await res.json()) as RoundViewState;
-        if (roundOwnerRef.current !== requestOwner) return;
+      if (!completion.current) return;
+      const { res, state: next } = completion.value;
+      if (res.ok && next) {
         setState(next);
       } else if (res.status === 404) {
-        if (roundOwnerRef.current !== requestOwner) return;
         setState(null);
       }
     } catch {
       // Network blip — keep the last-known state.
     } finally {
-      setLoaded(true);
+      if (
+        roundRequestIdentityOwnerKey(roundIdentity) ===
+        roundRequestIdentityOwnerKey(currentRoundIdentity())
+      ) {
+        setLoaded(true);
+      }
     }
-  }, [code, roundAuth?.userId, roundIdentity]);
+  }, [code, currentRoundIdentity, roundIdentity]);
 
   useEffect(() => {
     if (!code) return;
@@ -321,10 +340,12 @@ export default function RoundPageClient({ params }: { params: Promise<{ code: st
     <main className="roundShell">
       <SiteNav active="crawls" />
       <RoundBoard
+        key={roundRequestIdentityOwnerKey(roundIdentity) ?? "transitioning"}
         state={state}
         myHandle={effectiveHandle}
         roundAuth={roundAuth}
         roundIdentity={roundIdentity}
+        currentRoundIdentity={currentRoundIdentity}
         amMember={amMember}
         presence={presence}
         onChange={setState}
@@ -338,6 +359,7 @@ function RoundBoard({
   myHandle,
   roundAuth,
   roundIdentity,
+  currentRoundIdentity,
   amMember,
   presence,
   onChange,
@@ -346,6 +368,7 @@ function RoundBoard({
   myHandle: string;
   roundAuth: AccountAuthSnapshot | null;
   roundIdentity: RoundRequestIdentity;
+  currentRoundIdentity: () => RoundRequestIdentity | null;
   amMember: boolean;
   presence: PresenceDTO[];
   onChange: (next: RoundState) => void;
@@ -420,6 +443,7 @@ function RoundBoard({
           recorderHandle={myHandle}
           roundAuth={roundAuth}
           roundIdentity={roundIdentity}
+          currentRoundIdentity={currentRoundIdentity}
           currentHandle={rotation.currentHandle}
           members={members}
           stops={stops}
@@ -455,6 +479,7 @@ function RoundBoard({
         <JoinForm
           code={round.code}
           identity={roundIdentity}
+          currentIdentity={currentRoundIdentity}
           initialHandle={myHandle}
           onJoined={onChange}
         />
@@ -464,6 +489,7 @@ function RoundBoard({
         <AddStop
           code={round.code}
           identity={roundIdentity}
+          currentIdentity={currentRoundIdentity}
           handle={myHandle}
           onAdded={onChange}
           existing={stops.map((s) => s.venueId)}
@@ -474,6 +500,7 @@ function RoundBoard({
         <CloseRound
           code={round.code}
           identity={roundIdentity}
+          currentIdentity={currentRoundIdentity}
           handle={myHandle}
           onClosed={onChange}
         />
@@ -574,6 +601,7 @@ function RoundSpendComposer({
   recorderHandle,
   roundAuth,
   roundIdentity,
+  currentRoundIdentity,
   currentHandle,
   members,
   stops,
@@ -583,6 +611,7 @@ function RoundSpendComposer({
   recorderHandle: string;
   roundAuth: AccountAuthSnapshot | null;
   roundIdentity: RoundRequestIdentity;
+  currentRoundIdentity: () => RoundRequestIdentity | null;
   currentHandle: string | null;
   members: RoundState["members"];
   stops: RoundState["stops"];
@@ -757,30 +786,46 @@ function RoundSpendComposer({
     setError(null);
     pendingRef.current ??= spendClientRef();
     try {
-      const res = await roundJsonRequest(
-        `/api/rounds/${code}`,
+      const completion = await runRoundMutationForCurrentOwner(
         roundIdentity,
-        {
-          action: "recordSpend",
-          handle: recorderHandle,
-          payerHandle,
-          venueId,
-          clientRef: pendingRef.current,
-          ...(mode === "items"
-            ? {
-                items: items.map(
-                  ({ drinkName, drinkCategory, priceGbp, priceSource }) => ({
-                    drinkName,
-                    drinkCategory,
-                    priceGbp,
-                    priceSource,
-                  }),
-                ),
-              }
-            : { totalGbp: amount }),
+        currentRoundIdentity,
+        async () => {
+          const res = await roundJsonRequest(
+            `/api/rounds/${code}`,
+            roundIdentity,
+            {
+              action: "recordSpend",
+              handle: recorderHandle,
+              payerHandle,
+              venueId,
+              clientRef: pendingRef.current,
+              ...(mode === "items"
+                ? {
+                    items: items.map(
+                      ({
+                        drinkName,
+                        drinkCategory,
+                        priceGbp,
+                        priceSource,
+                      }) => ({
+                        drinkName,
+                        drinkCategory,
+                        priceGbp,
+                        priceSource,
+                      }),
+                    ),
+                  }
+                : { totalGbp: amount }),
+            },
+          );
+          return {
+            res,
+            data: (await res.json()) as RoundState | { error: string },
+          };
         },
       );
-      const data = (await res.json()) as RoundState | { error: string };
+      if (!completion.current) return;
+      const { res, data } = completion.value;
       if (!res.ok) {
         setError((data as { error: string }).error ?? "Could not keep that round.");
         return;
@@ -793,7 +838,12 @@ function RoundSpendComposer({
     } catch {
       setError("Could not keep that round. Try again.");
     } finally {
-      setBusy(false);
+      if (
+        roundRequestIdentityOwnerKey(roundIdentity) ===
+        roundRequestIdentityOwnerKey(currentRoundIdentity())
+      ) {
+        setBusy(false);
+      }
     }
   }
 
@@ -1218,11 +1268,13 @@ function RouteList({ stops }: { stops: RoundState["stops"] }): React.JSX.Element
 function JoinForm({
   code,
   identity,
+  currentIdentity,
   initialHandle,
   onJoined,
 }: {
   code: string;
   identity: RoundRequestIdentity;
+  currentIdentity: () => RoundRequestIdentity | null;
   initialHandle: string;
   onJoined: (next: RoundState) => void;
 }): React.JSX.Element {
@@ -1240,11 +1292,22 @@ function JoinForm({
     setBusy(true);
     setError(null);
     try {
-      const res = await roundJsonRequest(`/api/rounds/${code}`, identity, {
-        action: "join",
-        handle: clean,
-      });
-      const data = (await res.json()) as RoundState | { error: string };
+      const completion = await runRoundMutationForCurrentOwner(
+        identity,
+        currentIdentity,
+        async () => {
+          const res = await roundJsonRequest(`/api/rounds/${code}`, identity, {
+            action: "join",
+            handle: clean,
+          });
+          return {
+            res,
+            data: (await res.json()) as RoundState | { error: string },
+          };
+        },
+      );
+      if (!completion.current) return;
+      const { res, data } = completion.value;
       if (res.ok) {
         try {
           window.localStorage.setItem("pubmax_handle", clean);
@@ -1258,7 +1321,12 @@ function JoinForm({
     } catch {
       setError("Could not join. Try again.");
     } finally {
-      setBusy(false);
+      if (
+        roundRequestIdentityOwnerKey(identity) ===
+        roundRequestIdentityOwnerKey(currentIdentity())
+      ) {
+        setBusy(false);
+      }
     }
   }
 
@@ -1302,12 +1370,14 @@ function JoinForm({
 function AddStop({
   code,
   identity,
+  currentIdentity,
   handle,
   existing,
   onAdded,
 }: {
   code: string;
   identity: RoundRequestIdentity;
+  currentIdentity: () => RoundRequestIdentity | null;
   handle: string;
   existing: string[];
   onAdded: (next: RoundState) => void;
@@ -1352,17 +1422,28 @@ function AddStop({
     setBusy(true);
     setError(null);
     try {
-      const res = await roundJsonRequest(
-        `/api/rounds/${code}`,
+      const completion = await runRoundMutationForCurrentOwner(
         identity,
-        {
-          action: "addStop",
-          handle,
-          venueId: venue.id,
-          venueName: venue.name,
+        currentIdentity,
+        async () => {
+          const res = await roundJsonRequest(
+            `/api/rounds/${code}`,
+            identity,
+            {
+              action: "addStop",
+              handle,
+              venueId: venue.id,
+              venueName: venue.name,
+            },
+          );
+          return {
+            res,
+            data: (await res.json()) as RoundState | { error: string },
+          };
         },
       );
-      const data = (await res.json()) as RoundState | { error: string };
+      if (!completion.current) return;
+      const { res, data } = completion.value;
       if (res.ok) {
         setQuery("");
         onAdded(data as RoundState);
@@ -1372,7 +1453,12 @@ function AddStop({
     } catch {
       setError("Could not add that pub. Try again.");
     } finally {
-      setBusy(false);
+      if (
+        roundRequestIdentityOwnerKey(identity) ===
+        roundRequestIdentityOwnerKey(currentIdentity())
+      ) {
+        setBusy(false);
+      }
     }
   }
 
@@ -1427,11 +1513,13 @@ function AddStop({
 function CloseRound({
   code,
   identity,
+  currentIdentity,
   handle,
   onClosed,
 }: {
   code: string;
   identity: RoundRequestIdentity;
+  currentIdentity: () => RoundRequestIdentity | null;
   handle: string;
   onClosed: (next: RoundState) => void;
 }): React.JSX.Element {
@@ -1458,15 +1546,32 @@ function CloseRound({
   async function close() {
     setBusy(true);
     try {
-      const res = await roundJsonRequest(`/api/rounds/${code}`, identity, {
-        action: "close",
-        handle,
-      });
-      if (res.ok) onClosed((await res.json()) as RoundState);
+      const completion = await runRoundMutationForCurrentOwner(
+        identity,
+        currentIdentity,
+        async () => {
+          const res = await roundJsonRequest(`/api/rounds/${code}`, identity, {
+            action: "close",
+            handle,
+          });
+          return {
+            res,
+            data: res.ok ? ((await res.json()) as RoundState) : null,
+          };
+        },
+      );
+      if (!completion.current) return;
+      const { res, data } = completion.value;
+      if (res.ok && data) onClosed(data);
     } catch {
       // fail-soft — the poll will catch up
     } finally {
-      setBusy(false);
+      if (
+        roundRequestIdentityOwnerKey(identity) ===
+        roundRequestIdentityOwnerKey(currentIdentity())
+      ) {
+        setBusy(false);
+      }
     }
   }
 

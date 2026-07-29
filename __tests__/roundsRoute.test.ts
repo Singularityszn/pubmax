@@ -755,6 +755,72 @@ describe("POST /api/rounds/[code] — actions", () => {
     ]);
   });
 
+  it("keeps the promoted owner while its replacement is rate-limited or unavailable", async () => {
+    await authorizeContributor("user-ken", "ken");
+    const { round } = await newRound("ken");
+    await action(round.code, {
+      action: "addStop",
+      handle: "ken",
+      venueId: "venue-1",
+    });
+    expect(
+      (
+        await action(round.code, {
+          action: "recordSpend",
+          handle: "ken",
+          payerHandle: "ken",
+          venueId: "venue-1",
+          clientRef: "current-owner",
+          items: [
+            {
+              drinkName: "Current Guinness",
+              drinkCategory: "beer",
+              priceGbp: 6.1,
+            },
+          ],
+        })
+      ).status,
+    ).toBe(200);
+    const replacement = {
+      action: "recordSpend",
+      handle: "ken",
+      payerHandle: "ken",
+      venueId: "venue-1",
+      clientRef: "failed-replacement",
+      items: [
+        {
+          drinkName: "Replacement Guinness",
+          drinkCategory: "beer",
+          priceGbp: 6.4,
+        },
+      ],
+    };
+
+    budgetOverride.fn = async () => ({
+      allowed: false,
+      mode: "memory" as const,
+    });
+    expect((await action(round.code, replacement)).status).toBe(429);
+    let held = (await (await get(round.code)).json()) as RoundState;
+    expect(
+      held.spends.map((spend) => spend.items[0]?.promotionStatus),
+    ).toEqual(["promoted", "pending"]);
+    expect(await readCommunityPrices("venue-1")).toMatchObject([
+      { priceGbp: 6.1 },
+    ]);
+
+    budgetOverride.fn = null;
+    priceWriteState.failuresRemaining = 1;
+    expect((await action(round.code, replacement)).status).toBe(503);
+    held = (await (await get(round.code)).json()) as RoundState;
+    expect(
+      held.spends.map((spend) => spend.items[0]?.promotionStatus),
+    ).toEqual(["promoted", "ready"]);
+    expect(await readCommunityPrices("venue-1")).toMatchObject([
+      { priceGbp: 6.1 },
+    ]);
+  });
+
   it("supersedes a promoted Round line when a later direct price owns its key", async () => {
     await authorizeContributor("user-ken", "ken");
     const { round } = await newRound("ken");

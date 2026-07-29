@@ -710,14 +710,26 @@ export const memoryRoundsStore: RoundsStore = {
     for (const spend of round.spends) {
       if (round.promotionOwners.get(spend.clientRef) !== actor) continue;
       spend.items.forEach((item, index) => {
-        if (item.source !== "round") return;
+        if (
+          item.source !== "round" ||
+          (item.promotionStatus !== "pending" &&
+            item.promotionStatus !== "ready")
+        ) {
+          return;
+        }
         owners.set(`${spend.venueId}:${item.drinkCategory}`, { spend, index });
       });
     }
     for (const spend of round.spends) {
       if (round.promotionOwners.get(spend.clientRef) !== actor) continue;
       spend.items.forEach((item, index) => {
-        if (item.source !== "round") return;
+        if (
+          item.source !== "round" ||
+          (item.promotionStatus !== "pending" &&
+            item.promotionStatus !== "ready")
+        ) {
+          return;
+        }
         const owner = owners.get(`${spend.venueId}:${item.drinkCategory}`);
         if (owner?.spend !== spend || owner.index !== index) {
           item.promotionStatus = "superseded";

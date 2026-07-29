@@ -11,6 +11,37 @@ export type RoundRequestIdentity =
   | Readonly<{ kind: "anonymous" }>
   | Readonly<{ kind: "account"; auth: AccountAuthSnapshot }>;
 
+export function roundRequestIdentityOwnerKey(
+  identity: RoundRequestIdentity | null,
+): string | null {
+  if (!identity) return null;
+  return identity.kind === "account"
+    ? `account:${identity.auth.userId}`
+    : "anonymous";
+}
+
+export async function runRoundMutationForCurrentOwner<T>(
+  captured: RoundRequestIdentity,
+  current: () => RoundRequestIdentity | null,
+  operation: () => Promise<T>,
+): Promise<{ current: false } | { current: true; value: T }> {
+  try {
+    const value = await operation();
+    return roundRequestIdentityOwnerKey(captured) ===
+      roundRequestIdentityOwnerKey(current())
+      ? { current: true, value }
+      : { current: false };
+  } catch (error) {
+    if (
+      roundRequestIdentityOwnerKey(captured) !==
+      roundRequestIdentityOwnerKey(current())
+    ) {
+      return { current: false };
+    }
+    throw error;
+  }
+}
+
 export function captureRoundRequestIdentity(
   expectedUserId: string | null,
   session: Pick<Session, "access_token" | "user"> | null,
