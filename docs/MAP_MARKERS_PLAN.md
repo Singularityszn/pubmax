@@ -19,7 +19,7 @@ Champagne maps to the **wine** drink-pin kind (no separate champagne glyph).
 
 | Surface | Change |
 |--------|--------|
-| **Clusters** | Shrink `circle-radius` / text size; mute opacity/blur so clusters read as small density hints, not price traffic lights. Prefer tighter `clusterRadius` and/or lower `clusterMaxZoom` so drink icons appear earlier when zooming. |
+| **Clusters** | Keep radius and text compact so density stays visible without oversized discs. Fill meaning belongs to the live Map key and `clusterCircleColorExpr`; density must not change that colour meaning. |
 | **Unclustered pubs** | Keep drink silhouettes as the primary marker language; ensure icon scale stays readable without oversized pads. |
 | **Discover ranks** | Shrink rank circles (~18–20px), soften fill; number secondary to pub/city name. |
 
@@ -54,7 +54,7 @@ Transport layers stay wayfinding chrome; they must not outshine drink pins.
 
 ## 5. QA flows (browser)
 
-1. Open `/map` at London default zoom — clusters are compact; zoom in until drink silhouettes dominate.  
+1. Open `/map` at the default city zoom - clusters are compact and their price meaning is available in the Map key; zoom in until drink silhouettes dominate.
 2. Apply beer / wine / cocktail / spirits filter — pins match silhouettes; champagne venues show wine.  
 3. Discover → city rivalry row (non-London) → map opens that city, preferred city set, camera fits bounds.  
 4. Discover → drink chip → map with drink filter on and matching shapes visible.  
@@ -65,7 +65,7 @@ Transport layers stay wayfinding chrome; they must not outshine drink pins.
 
 ## 6. Success criteria
 
-- At city overview zoom, user is not confronted by oversized green/red/orange cluster discs.  
+- At city overview zoom, price-coded clusters stay compact while radius and the centre count carry density.
 - Drink silhouettes are the memorable map language once zoomed or filtered.  
 - Discover ranks are quiet ordinals, not big red badges.  
 - Rivalry and drink chips land on the right city + filter with shapes that match intent.  
