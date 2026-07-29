@@ -1,6 +1,41 @@
 import { expect, test, type Locator, type Page } from "@playwright/test";
 
 const DESKTOP = { width: 1440, height: 900 };
+const LOCKED_CORAL = [255, 90, 95] as const;
+const LOCKED_CORAL_BRIGHT = [255, 122, 85] as const;
+
+function relativeLuminance([red, green, blue]: readonly number[]): number {
+  const [r, g, b] = [red, green, blue].map((channel) => {
+    const value = channel / 255;
+    return value <= 0.04045
+      ? value / 12.92
+      : ((value + 0.055) / 1.055) ** 2.4;
+  });
+  return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+}
+
+function contrastRatio(
+  foreground: readonly number[],
+  background: readonly number[],
+): number {
+  const lighter = Math.max(
+    relativeLuminance(foreground),
+    relativeLuminance(background),
+  );
+  const darker = Math.min(
+    relativeLuminance(foreground),
+    relativeLuminance(background),
+  );
+  return (lighter + 0.05) / (darker + 0.05);
+}
+
+function rgbChannels(cssColour: string): [number, number, number] {
+  const channels = cssColour.match(/\d+(?:\.\d+)?/g)?.map(Number);
+  if (!channels || channels.length < 3) {
+    throw new Error(`Could not parse computed colour: ${cssColour}`);
+  }
+  return [channels[0], channels[1], channels[2]];
+}
 
 function dismissFirstRunChrome(page: Page): Promise<void> {
   return page.addInitScript(() => {
@@ -115,5 +150,38 @@ test.describe("map keyboard and screen-reader venue path", () => {
     await page.keyboard.press("Escape");
     await expect(drawer).toBeHidden();
     await expect(chosenVenue).toBeFocused();
+  });
+
+  test("keeps locked coral Plan CTA above normal-text AA contrast", async ({
+    page,
+  }) => {
+    await page.goto("/map");
+    const planButton = page.getByRole("button", { name: "Plan tonight" }).first();
+    await expect(planButton).toBeVisible({ timeout: 30_000 });
+
+    for (const theme of ["light", "dark"] as const) {
+      await page.evaluate((nextTheme) => {
+        window.localStorage.setItem("pubmax-theme", nextTheme);
+        document.documentElement.dataset.theme = nextTheme;
+      }, theme);
+      await expect(page.locator("html")).toHaveAttribute("data-theme", theme);
+
+      const computed = await planButton.evaluate((node) => {
+        const style = getComputedStyle(node);
+        return {
+          colour: style.color,
+          backgroundImage: style.backgroundImage,
+        };
+      });
+      const foreground = rgbChannels(computed.colour);
+      expect(computed.backgroundImage).toContain("255, 90, 95");
+      expect(computed.backgroundImage).toContain("255, 122, 85");
+      expect(
+        Math.min(
+          contrastRatio(foreground, LOCKED_CORAL),
+          contrastRatio(foreground, LOCKED_CORAL_BRIGHT),
+        ),
+      ).toBeGreaterThanOrEqual(4.5);
+    }
   });
 });
