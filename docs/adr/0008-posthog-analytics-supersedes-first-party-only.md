@@ -2,7 +2,8 @@
 
 ## Status
 
-Superseded by ADR 0009
+Superseded by ADR 0009. This record preserves the former decision for context;
+ADR 0009 owns the current analytics contract.
 
 ## Context
 
