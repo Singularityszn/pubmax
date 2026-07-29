@@ -164,11 +164,21 @@
   color: var(--ink);
 }
 
-.menuHubEmptyBody {
-  margin: 0;
-  font-size: 0.88rem;
-  line-height: 1.45;
-  color: var(--ink-soft, var(--muted));
+.menuHubEmptyAction {
+  min-height: 44px;
+  margin-top: 6px;
+  padding: 9px 16px;
+  border: 1px solid var(--brass);
+  border-radius: var(--radius-pill, 999px);
+  background: var(--brass);
+  color: var(--color-on-accent-strong);
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.menuHubEmptyAction:active {
+  transform: scale(0.98);
 }
 
 @media (prefers-reduced-motion: reduce) {

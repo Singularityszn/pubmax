@@ -250,6 +250,12 @@
   line-height: 1.5;
 }
 
+.pintIndexEmptyAction {
+  color: var(--brass);
+  font-weight: 700;
+  text-underline-offset: 2px;
+}
+
 /* --- borough index links -------------------------------------------------- */
 
 .pintIndexBoroughLinks {

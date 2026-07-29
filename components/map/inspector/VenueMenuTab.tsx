@@ -17,7 +17,15 @@ import { menuHubTiles } from "@/lib/menuHub";
 import type { DrinkCategory } from "@/lib/drinks";
 import type { TabKey } from "@/lib/venueInspectorTabs";
 
-export default function VenueMenuTab({ venue, tab }: { venue: Venue; tab: TabKey }) {
+export default function VenueMenuTab({
+  venue,
+  tab,
+  onAddDrink,
+}: {
+  venue: Venue;
+  tab: TabKey;
+  onAddDrink?: () => void;
+}) {
   // Observed price-update overlays, fetched once per session as data instead of
   // being bundled into the map chunk (~3 MB of JSON — see priceUpdatesLoader).
   // The menu renders its seed/app-dataset rows immediately; the overlay applies
@@ -48,8 +56,7 @@ export default function VenueMenuTab({ venue, tab }: { venue: Venue; tab: TabKey
     [venue, foodUpdates],
   );
   const hubTiles = useMemo(() => menuHubTiles(venue, menuDrinks), [venue, menuDrinks]);
-  // Menu hub → drinks deep-dive (Greene King–style Menus grid, alcohol-first).
-  // Reset when the venue changes so a drill-in never leaks across venues.
+  // Reset when the venue changes so a drinks drill-in never leaks across venues.
   type MenuView =
     | { mode: "hub" }
     | { mode: "drinks"; category?: DrinkCategory };
@@ -73,8 +80,8 @@ export default function VenueMenuTab({ venue, tab }: { venue: Venue; tab: TabKey
           <VenueActionStrip venue={venue} />
           <MenuCategoryGrid
             tiles={hubTiles}
-            venueName={venue.name}
             venueKind={venue.kind}
+            onAddDrink={onAddDrink}
             onOpenDrinks={(category) =>
               setMenuView(
                 category ? { mode: "drinks", category } : { mode: "drinks" },

@@ -58,6 +58,7 @@ const ARNOS_ARMS_ID = stableVenueIdFromKey(
     (-0.132117).toFixed(5),
   ].join("|"),
 );
+const OLD_BELL_ID = "venue-1tu6vof";
 
 // ---------------------------------------------------------------------------
 // Place stories live in MapLayersControl after Wave J declutter (was mid-map
@@ -112,6 +113,26 @@ test.describe("map / story bands (#15)", () => {
 // straight to a known seed venue (mirrors smoke.spec's sel= precedent) so this
 // never depends on a canvas pin click.
 test.describe("map / venue sheet tabs", () => {
+  test("empty Drinks action opens the Pint Drop composer on Stories", async ({
+    page,
+  }) => {
+    await page.goto(`/map?sel=${OLD_BELL_ID}`);
+
+    const tablist = page.getByRole("tablist", { name: "Venue detail sections" });
+    const drinksTab = tablist.getByRole("tab", { name: "Drinks", exact: true });
+    await drinksTab.click();
+
+    await page
+      .locator("#venuePanel-menu")
+      .getByRole("button", { name: "Add what you’re drinking" })
+      .click();
+
+    const storiesTab = tablist.getByRole("tab", { name: "Stories", exact: true });
+    await expect(storiesTab).toHaveAttribute("aria-selected", "true");
+    await expect(page.locator("#venuePanel-pints")).toBeVisible();
+    await expect(page.getByRole("form", { name: "Pint Drop composer" })).toBeVisible();
+  });
+
   test("all six tabs render; each switches its panel; Stories shows the price block", async ({
     page,
   }) => {
