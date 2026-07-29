@@ -123,7 +123,7 @@ The public PUBMAXX Handle attached to an authenticated account and its immutable
 _Avoid_: Self-declared name, email address, session token presented as contributor identity
 
 **Contribution Eligibility**:
-The private adult gate an account must pass before its first price, Visit Report, Recommendation, or community venue signal. Date of birth is assessed once and discarded; PUBMAXX keeps only when adulthood was verified or the date an under-18 becomes eligible.
+The private adult gate an account must pass before its first community price or community venue signal. Date of birth is assessed once and discarded; PUBMAXX keeps only whether adulthood was verified or the date an under-18 becomes eligible. Visit Reports and Recommendations are follow-up work and are not yet behind this gate.
 _Avoid_: Public age, stored date of birth, signup field
 
 **Production Store**:

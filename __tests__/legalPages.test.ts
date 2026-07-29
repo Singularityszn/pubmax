@@ -248,6 +248,8 @@ describe("legal content pages", () => {
     expect(privacy).toMatch(/do not store the date\s+of birth/);
     expect(privacy).toMatch(/retain only an adult gate result/);
     expect(privacy).toMatch(/calendar date when you become eligible/);
+    expect(privacy).toMatch(/next eligibility check/);
+    expect(privacy).toMatch(/authenticated identity read/);
     expect(privacy).toMatch(
       /currently exist only to block\s+community price and venue-report writes by under-18s/,
     );

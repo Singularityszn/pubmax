@@ -59,7 +59,7 @@ export type CompleteOnboardingResult =
     };
 
 export type PrivateIdentityStore = {
-  read(userId: string): Promise<PrivateIdentityRecord | null>;
+  read(userId: string, now?: number): Promise<PrivateIdentityRecord | null>;
   updateDetails(
     userId: string,
     details: { fullName?: unknown; sex?: unknown },
@@ -92,6 +92,17 @@ function cleanSex(value: unknown): PrivateIdentitySex | undefined {
   return typeof value === "string" && sexValues.has(value)
     ? (value as PrivateIdentitySex)
     : undefined;
+}
+
+function eligibilityDateHasArrived(
+  record: PrivateIdentityRecord,
+  now: number,
+): boolean {
+  return Boolean(
+    !record.adultVerified &&
+      record.contributionEligibleOn &&
+      record.contributionEligibleOn <= contributionCalendarDate(now),
+  );
 }
 
 function fromRow(row: Record<string, unknown>): PrivateIdentityRecord {
@@ -140,8 +151,15 @@ function claimError(
 const memoryPrivateIdentities = new Map<string, PrivateIdentityRecord>();
 
 export const memoryPrivateIdentityStore: PrivateIdentityStore = {
-  async read(userId) {
-    return memoryPrivateIdentities.get(cleanUserId(userId)) ?? null;
+  async read(userId, now = Date.now()) {
+    const key = cleanUserId(userId);
+    const record = memoryPrivateIdentities.get(key) ?? null;
+    if (!record || !eligibilityDateHasArrived(record, now)) return record;
+    return memoryPrivateIdentityStore.recordAgeAssessment(
+      key,
+      { ok: true, status: "adult" },
+      now,
+    );
   },
 
   async updateDetails(userId, details) {
@@ -220,7 +238,7 @@ export const memoryPrivateIdentityStore: PrivateIdentityStore = {
     const key = cleanUserId(userId);
     const profile = key ? await profileStore().getByUserId(key) : null;
     if (!profile) return { status: "onboarding_required" };
-    const record = memoryPrivateIdentities.get(key);
+    const record = await memoryPrivateIdentityStore.read(key, now);
     if (record?.adultVerified) return { status: "eligible" };
     if (!record?.contributionEligibleOn) return { status: "age_required" };
     if (record.contributionEligibleOn > contributionCalendarDate(now)) {
@@ -235,7 +253,7 @@ export const memoryPrivateIdentityStore: PrivateIdentityStore = {
 };
 
 export const supabasePrivateIdentityStore: PrivateIdentityStore = {
-  async read(userId) {
+  async read(userId, now = Date.now()) {
     const key = cleanUserId(userId);
     if (!key) return null;
     const { data, error } = await requireSupabaseAdmin()
@@ -245,7 +263,13 @@ export const supabasePrivateIdentityStore: PrivateIdentityStore = {
       .limit(1);
     if (error) throw new Error(error.message);
     const row = (data ?? [])[0];
-    return row ? fromRow(row as Record<string, unknown>) : null;
+    const record = row ? fromRow(row as Record<string, unknown>) : null;
+    if (!record || !eligibilityDateHasArrived(record, now)) return record;
+    return supabasePrivateIdentityStore.recordAgeAssessment(
+      key,
+      { ok: true, status: "adult" },
+      now,
+    );
   },
 
   async updateDetails(userId, details) {
@@ -337,7 +361,7 @@ export const supabasePrivateIdentityStore: PrivateIdentityStore = {
     const key = cleanUserId(userId);
     const profile = key ? await profileStore().getByUserId(key) : null;
     if (!profile) return { status: "onboarding_required" };
-    const record = await this.read(key);
+    const record = await supabasePrivateIdentityStore.read(key, now);
     if (record?.adultVerified) return { status: "eligible" };
     if (!record?.contributionEligibleOn) return { status: "age_required" };
     if (record.contributionEligibleOn > contributionCalendarDate(now)) {

@@ -225,6 +225,17 @@ export function useContributionGate(): {
         setMode("underage");
         return;
       }
+      if (gate.status === "sign_in_required") {
+        trackEvent("contribution_gate", { step: "sign_in_required" });
+        pending.current = null;
+        setError(
+          user
+            ? "Your sign-in expired. Sign out, then sign in again."
+            : gate.error ?? "Sign in to contribute.",
+        );
+        setMode("sign_in_required");
+        return;
+      }
       if (gate.status === "onboarding_required") {
         trackEvent("contribution_gate", { step: "onboarding_required" });
         pending.current = null;
@@ -276,8 +287,20 @@ export function useContributionGate(): {
       setMode("underage");
       return;
     }
+    if (gate.status === "sign_in_required") {
+      trackEvent("contribution_gate", { step: "sign_in_required" });
+      pending.current = null;
+      setDateOfBirth("");
+      setError(
+        user
+          ? "Your sign-in expired. Sign out, then sign in again."
+          : gate.error ?? "Sign in to contribute.",
+      );
+      setMode("sign_in_required");
+      return;
+    }
     setError(gate.error ?? "Could not confirm contribution eligibility.");
-  }, [busy, dateOfBirth, userId]);
+  }, [busy, dateOfBirth, user, userId]);
 
   return {
     requestContribution,

@@ -124,9 +124,10 @@ export default function PrivacyPage() {
           contribution. We evaluate it on our server and do not store the date
           of birth. If you are 18 or over, we retain only an adult gate result
           so we do not ask again. If you are under 18, we retain only the
-          calendar date when you become eligible; on that date it is replaced
-          by the adult gate result. These values currently exist only to block
-          community price and venue-report writes by under-18s.
+          calendar date when you become eligible. At the next eligibility check
+          on or after that date, it is replaced by the adult gate result.
+          An authenticated identity read performs the same check, so ordinary
+          account use also replaces a matured date. These values currently exist only to block community price and venue-report writes by under-18s.
         </p>
         <p className="legalBody">
           Your public profile may also contain a display name, avatar, home

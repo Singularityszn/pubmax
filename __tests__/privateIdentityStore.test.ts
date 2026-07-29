@@ -218,4 +218,26 @@ describe("private account identity", () => {
       contributionEligibleOn: undefined,
     });
   });
+
+  it("promotes matured eligibility during an authenticated identity read", async () => {
+    await memoryPrivateIdentityStore.completeOnboarding({
+      userId: "user-1",
+      handle: "returning_person",
+    });
+    await memoryPrivateIdentityStore.recordAgeAssessment("user-1", {
+      ok: true,
+      status: "underage",
+      eligibleOn: "2026-07-30",
+    });
+
+    await expect(
+      memoryPrivateIdentityStore.read(
+        "user-1",
+        Date.UTC(2026, 6, 30, 0),
+      ),
+    ).resolves.toMatchObject({
+      adultVerified: true,
+      contributionEligibleOn: undefined,
+    });
+  });
 });
