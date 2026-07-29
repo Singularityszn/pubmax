@@ -62,7 +62,8 @@ describe("legal content pages", () => {
     // (components/AnalyticsConsentPrompt.tsx), later withdrawal in the account
     // hub, Do Not Track (client beacon + app/api/events/route.ts), the
     // header-stripping first-party proxy (app/ingest/[...path]/route.ts), and
-    // hashed-never-stored IPs (lib/supabase.ts hashIp/hashActor).
+    // hashed-never-stored IP rate limits plus consent-gated PostHog request
+    // context (lib/supabase.ts clientIp/hashIp).
     expect(privacy).toMatch(/off by default/i);
     expect(privacy).toMatch(/first visit/i);
     expect(privacy).toMatch(/Allow or No thanks/i);
@@ -70,7 +71,18 @@ describe("legal content pages", () => {
     expect(privacy).toMatch(/page visits/i);
     expect(privacy).toMatch(/account settings/i);
     expect(privacy).toMatch(/Do Not Track/);
-    expect(privacy).toMatch(/no forwarded IP address/i);
+    expect(privacy).toMatch(/persistent\s+device\s+identifier/i);
+    expect(privacy).toMatch(/browser\s+and\s+version/i);
+    expect(privacy).toMatch(/operating\s+system/i);
+    expect(privacy).toMatch(/device\s+type/i);
+    expect(privacy).toMatch(/screen\s+and\s+viewport\s+size/i);
+    expect(privacy).toMatch(/referrer/i);
+    expect(privacy).toMatch(/campaign\s+parameters/i);
+    expect(privacy).toMatch(/Web\s+Vitals/i);
+    expect(privacy).toMatch(/person\s+and\s+device\s+records/i);
+    expect(privacy).toMatch(/raw\s+IP\s+address[\s\S]*PostHog/i);
+    expect(privacy).not.toMatch(/no forwarded IP address/i);
+    expect(privacy).not.toMatch(/person profiles are switched off/i);
     expect(privacy).toMatch(/never the address itself/i);
     expect(privacy).toMatch(/PostHog/);
     expect(privacy).toMatch(/Supabase/);
@@ -83,6 +95,23 @@ describe("legal content pages", () => {
     expect(terms).toMatch(/Browsing does not require an account or analytics/);
     expect(terms).toMatch(/Allow or No thanks/);
     expect(terms).toMatch(/same app either way/);
+    expect(terms).toMatch(/persistent\s+device\s+identifier/i);
+    expect(terms).toMatch(/browser,\s+operating\s+system\s+and\s+device\s+type/i);
+    expect(terms).toMatch(/screen\s+size/i);
+    expect(terms).toMatch(/referrer\s+and\s+campaign/i);
+    expect(terms).toMatch(/performance/i);
+  });
+
+  it("states both 12-month analytics retention clocks on both legal pages", () => {
+    expect(privacy).toMatch(
+      /PostHog\s+deletes\s+analytics\s+events\s+12 months after collection/i,
+    );
+    expect(privacy).toMatch(
+      /It\s+deletes\s+pseudonymous\s+person\s+and\s+device\s+records\s+12 months after their last activity/i,
+    );
+    expect(terms).toMatch(
+      /PostHog\s+deletes\s+analytics\s+events\s+12 months after collection\s+and\s+pseudonymous\s+person\s+and\s+device\s+records\s+12 months after their last activity/i,
+    );
   });
 
   it("discloses same-journey referral signup and post-erasure blocking", () => {

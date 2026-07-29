@@ -29,9 +29,10 @@ export function AnalyticsConsentPromptContent({
       aria-label="Anonymous analytics choice"
     >
       <p>
-        PUBMAXX is bootstrapped. Anonymous counts show which pages and planning
-        tools people use, so we know what to make better. Never sold or used
-        for ads. <Link href="/privacy">Privacy</Link>
+        PUBMAXX is bootstrapped. Optional analytics use a persistent device ID
+        plus browser and device details to show what people use and what people
+        return for. Never sold or used for ads.{" "}
+        <Link href="/privacy">Privacy</Link>
       </p>
       <div className="analyticsConsentPromptActions">
         <button type="button" onClick={() => onDecision(true)}>Allow</button>

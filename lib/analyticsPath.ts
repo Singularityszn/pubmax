@@ -69,6 +69,31 @@ const PAGEVIEW_DYNAMIC_SURFACES: readonly [RegExp, string][] = [
   [/^\/u\/[^/]+\/lists\/[^/]+$/, "/u/[handle]/lists/[listType]"],
 ];
 
+function analyticsHttpUrl(value: unknown): URL | null {
+  if (typeof value !== "string" || value.length === 0 || value.length > 2_048) return null;
+  try {
+    const url = new URL(value);
+    if (url.protocol !== "http:" && url.protocol !== "https:") return null;
+    return url;
+  } catch {
+    return null;
+  }
+}
+
+export function analyticsUrlWithoutQuery(value: unknown): string | null {
+  const url = analyticsHttpUrl(value);
+  return url ? `${url.origin}${url.pathname}` : null;
+}
+
+export function analyticsReferrerFromUrl(value: unknown, currentUrl: unknown): string | null {
+  const referrer = analyticsHttpUrl(value);
+  if (!referrer) return null;
+  const current = analyticsHttpUrl(currentUrl);
+  if (!current || referrer.origin !== current.origin) return referrer.origin;
+  const surface = analyticsPageviewSurfaceFromPath(referrer.pathname);
+  return surface ? `${referrer.origin}${surface}` : null;
+}
+
 /**
  * Validate the path shape shared by analytics sinks. Unknown encoded values
  * fail closed before either purpose-specific vocabulary is applied.

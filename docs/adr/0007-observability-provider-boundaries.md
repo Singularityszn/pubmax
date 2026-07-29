@@ -2,7 +2,7 @@
 
 ## Status
 
-Accepted
+Accepted, amended by ADR 0009
 
 ## Context
 
@@ -16,7 +16,8 @@ analytics content to become a shadow user profile.
 - PostHog EU is the product-interaction analytics authority. Product events
   remain registry-known with allow-listed, low-cardinality properties.
   Explicit pageviews use a separate closed route vocabulary that replaces
-  dynamic values with templates. Person-profile processing is disabled.
+  dynamic values with templates. ADR 0009 owns analytics identity, standard
+  browser context, and provider retention.
 - The idempotent `plan_completions` ledger is the PNC metric authority. PNC is not
   emitted by a browser; a future PostHog export requires a server outbox keyed by
   completion ID.
@@ -36,10 +37,10 @@ analytics content to become a shadow user profile.
 - Events are forwarded to PostHog only after explicit analytics consent. The stable
   pseudonymous browser identifier contains no account data, is deleted on revocation,
   and is never merged with account identity.
-- Session replay and automatic product or session capture remain disabled until
-  a separate consent, redaction, and retention review passes. Explicit
-  route-vocabulary pageviews and exception autocapture are the only browser SDK
-  signals: both are consent-gated, and exceptions are stripped to
-  anonymous/device identifiers plus bounded error types before transport.
+- Session replay and automatic product capture remain disabled until a separate
+  consent, redaction, and retention review passes. ADR 0009 owns the allowed
+  browser SDK event classes and context. Browser exceptions remain consent-gated
+  and are stripped to anonymous/device identifiers plus bounded error types
+  before transport.
 - Browser exceptions use PostHog's supported error tracking; server errors remain in
   Vercel logs. Arize is not a general error-monitoring sink.

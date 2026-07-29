@@ -9,7 +9,7 @@ import {
 const UUID = "018f47a2-8e71-7a7a-9f18-8b953d45b2da";
 
 describe("PostHog browser privacy boundary", () => {
-  it("drops every browser SDK event outside explicit pageviews and exception autocapture", () => {
+  it("drops browser autocapture and unregistered custom events", () => {
     const event: CaptureResult = {
       uuid: UUID,
       event: "$autocapture",
@@ -21,21 +21,39 @@ describe("PostHog browser privacy boundary", () => {
     };
 
     expect(sanitizePosthogEvent(event)).toBeNull();
+    expect(sanitizePosthogEvent({
+      ...event,
+      event: "unregistered_product_event",
+    })).toBeNull();
   });
 
-  it("keeps only a coarse path and the consent-scoped anonymous id on explicit pageviews", () => {
+  it("keeps standard device, screen, referrer, and campaign context on explicit pageviews", () => {
+    const anonymousId = `anon_${UUID}`;
     const event: CaptureResult = {
       uuid: UUID,
       event: "$pageview",
       timestamp: new Date("2026-07-28T12:00:00.000Z"),
       properties: {
         token: "phc_public",
-        distinct_id: UUID,
-        $device_id: UUID,
-        $pubmaxx_anonymous_id: `anon_${UUID}`,
+        distinct_id: anonymousId,
+        $device_id: anonymousId,
+        $pubmaxx_anonymous_id: anonymousId,
         $pathname: "/map",
-        $current_url: "https://pubmaxxing.com/map?email=person@example.com",
-        $referrer: "https://example.com/private",
+        $current_url: "https://pubmaxxing.com/map?utm_source=newsletter",
+        $referrer: "https://example.com/pub-guide?ask=free-text",
+        $referring_domain: "example.com",
+        $browser: "Safari",
+        $browser_version: 18,
+        $os: "Mac OS X",
+        $os_version: "15.5",
+        $device_type: "Desktop",
+        $screen_width: 1512,
+        $screen_height: 982,
+        $viewport_width: 1280,
+        $viewport_height: 820,
+        utm_source: "newsletter",
+        $set: { email: "person@example.com" },
+        $set_once: { account_id: "supabase-user-id" },
         $screen_name: "person@example.com",
         account_id: "supabase-user-id",
       },
@@ -47,9 +65,22 @@ describe("PostHog browser privacy boundary", () => {
       timestamp: new Date("2026-07-28T12:00:00.000Z"),
       properties: {
         token: "phc_public",
-        distinct_id: `anon_${UUID}`,
+        distinct_id: anonymousId,
+        $device_id: anonymousId,
         $pathname: "/map",
-        $process_person_profile: false,
+        $current_url: "https://pubmaxxing.com/map",
+        $referrer: "https://example.com",
+        $referring_domain: "example.com",
+        $browser: "Safari",
+        $browser_version: 18,
+        $os: "Mac OS X",
+        $os_version: "15.5",
+        $device_type: "Desktop",
+        $screen_width: 1512,
+        $screen_height: 982,
+        $viewport_width: 1280,
+        $viewport_height: 820,
+        utm_source: "newsletter",
       },
     });
   });
@@ -60,12 +91,15 @@ describe("PostHog browser privacy boundary", () => {
     ["/rounds/secret-share-code", "/rounds/[code]"],
     ["/plan/6ab5ca40-836b-4970-9477-d1779fdd31ab", "/plan/[id]"],
   ])("coarsens dynamic pageview path %s before egress", (pathname, expected) => {
+    const anonymousId = `anon_${UUID}`;
     const event: CaptureResult = {
       uuid: UUID,
       event: "$pageview",
       properties: {
         token: "phc_public",
-        $pubmaxx_anonymous_id: `anon_${UUID}`,
+        distinct_id: anonymousId,
+        $device_id: anonymousId,
+        $pubmaxx_anonymous_id: anonymousId,
         $pathname: pathname,
       },
     };
@@ -82,13 +116,15 @@ describe("PostHog browser privacy boundary", () => {
     "/unknown/private-value",
     "/u/night_owl%2Fprivate",
   ])("drops unsafe or unknown pageview path %s", (pathname) => {
+    const anonymousId = `anon_${UUID}`;
     const event: CaptureResult = {
       uuid: UUID,
       event: "$pageview",
       properties: {
         token: "phc_public",
-        distinct_id: UUID,
-        $pubmaxx_anonymous_id: `anon_${UUID}`,
+        distinct_id: anonymousId,
+        $device_id: anonymousId,
+        $pubmaxx_anonymous_id: anonymousId,
         $pathname: pathname,
       },
     };
@@ -97,14 +133,20 @@ describe("PostHog browser privacy boundary", () => {
   });
 
   it("removes exception messages, stack traces, URLs, person props, and arbitrary context", () => {
+    const anonymousId = `anon_${UUID}`;
     const event: CaptureResult = {
       uuid: UUID,
       event: "$exception",
       timestamp: new Date("2026-07-26T12:00:00.000Z"),
       properties: {
         token: "phc_public",
-        distinct_id: UUID,
-        $device_id: UUID,
+        distinct_id: anonymousId,
+        $device_id: anonymousId,
+        $browser: "Chrome",
+        $os: "Windows",
+        $device_type: "Desktop",
+        $screen_width: 1920,
+        $screen_height: 1080,
         $current_url: "https://pubmaxxing.com/map?token=secret",
         $exception_message: "Failed for person@example.com",
         $exception_list: [
@@ -137,13 +179,17 @@ describe("PostHog browser privacy boundary", () => {
       timestamp: new Date("2026-07-26T12:00:00.000Z"),
       properties: {
         token: "phc_public",
-        distinct_id: UUID,
-        $device_id: UUID,
+        distinct_id: anonymousId,
+        $device_id: anonymousId,
+        $browser: "Chrome",
+        $os: "Windows",
+        $device_type: "Desktop",
+        $screen_width: 1920,
+        $screen_height: 1080,
         $exception_list: [
           { type: "TypeError", value: "Redacted" },
           { type: "Error", value: "Redacted" },
         ],
-        $process_person_profile: false,
       },
     });
   });
@@ -162,7 +208,94 @@ describe("PostHog browser privacy boundary", () => {
     expect(sanitizePosthogEvent(event)).toBeNull();
   });
 
-  it("disables every automatic collection surface except scrubbed exceptions", () => {
+  it("keeps only closed web vital fields and strips query-bearing URLs", () => {
+    const anonymousId = `anon_${UUID}`;
+    const event: CaptureResult = {
+      uuid: UUID,
+      event: "$web_vitals",
+      timestamp: new Date("2026-07-29T12:00:00.000Z"),
+      properties: {
+        token: "phc_public",
+        distinct_id: anonymousId,
+        $device_id: anonymousId,
+        $browser: "Firefox",
+        $os: "Linux",
+        $device_type: "Desktop",
+        $screen_width: 1440,
+        $screen_height: 900,
+        $pathname: "/map",
+        $current_url: "https://pubmaxxing.com/map?memberToken=secret",
+        $referrer: "https://pubmaxxing.com/u/private-handle?ask=free-text",
+        $initial_referrer: "https://pubmaxxing.com/rounds/secret-code?member=secret",
+        $web_vitals_LCP_value: 1234,
+        $web_vitals_LCP_event: {
+          name: "LCP",
+          value: 1234,
+          rating: "good",
+          $current_url: "https://pubmaxxing.com/pal?ask=free-text",
+          attribution: {
+            interactionTarget: "main[data-member='secret']",
+          },
+        },
+        $web_vitals_secret_event: {
+          freeText: "do not forward",
+        },
+      },
+      $set: {
+        $current_url: "https://pubmaxxing.com/pal?ask=free-text",
+      },
+      $set_once: {
+        $initial_current_url: "https://pubmaxxing.com/map?memberToken=secret",
+      },
+      $unset: ["private_profile_field"],
+    };
+
+    expect(sanitizePosthogEvent(event)).toEqual({
+      uuid: UUID,
+      event: "$web_vitals",
+      timestamp: new Date("2026-07-29T12:00:00.000Z"),
+      properties: {
+        token: "phc_public",
+        distinct_id: anonymousId,
+        $device_id: anonymousId,
+        $browser: "Firefox",
+        $os: "Linux",
+        $device_type: "Desktop",
+        $screen_width: 1440,
+        $screen_height: 900,
+        $pathname: "/map",
+        $current_url: "https://pubmaxxing.com/map",
+        $referrer: "https://pubmaxxing.com/u/[handle]",
+        $initial_referrer: "https://pubmaxxing.com/rounds/[code]",
+        $web_vitals_LCP_value: 1234,
+        $web_vitals_LCP_event: {
+          name: "LCP",
+          value: 1234,
+          rating: "good",
+        },
+      },
+    });
+  });
+
+  it("seeds repeated SDK initializations from the same consent-created device id", () => {
+    const anonymousId = `anon_${UUID}`;
+    const values = new Map([["pubmaxx:analytics-id:v1", anonymousId]]);
+    Object.defineProperty(globalThis, "window", {
+      configurable: true,
+      value: {
+        localStorage: {
+          getItem: (key: string) => values.get(key) ?? null,
+        },
+      },
+    });
+
+    expect(posthogBrowserConfig.get_device_id?.("generated-first")).toBe(anonymousId);
+    expect(posthogBrowserConfig.get_device_id?.("generated-after-reload")).toBe(anonymousId);
+
+    delete (globalThis as { window?: unknown }).window;
+  });
+
+  it("enables standard product analytics while autocapture and recording stay off", () => {
     expect(posthogBrowserConfig).toMatchObject({
       api_host: "/ingest",
       ui_host: "https://eu.posthog.com",
@@ -171,7 +304,7 @@ describe("PostHog browser privacy boundary", () => {
       rageclick: false,
       capture_pageview: false,
       capture_pageleave: false,
-      capture_performance: false,
+      capture_performance: true,
       capture_heatmaps: false,
       capture_dead_clicks: false,
       disable_session_recording: true,
@@ -180,11 +313,11 @@ describe("PostHog browser privacy boundary", () => {
       disable_conversations: true,
       disable_external_dependency_loading: false,
       request_batching: false,
-      persistence: "memory",
-      save_campaign_params: false,
-      save_referrer: false,
+      persistence: "localStorage+cookie",
+      save_campaign_params: true,
+      save_referrer: true,
       opt_in_site_apps: false,
-      person_profiles: "never",
+      person_profiles: "always",
       advanced_disable_flags: true,
       opt_out_capturing_by_default: true,
       opt_out_persistence_by_default: true,

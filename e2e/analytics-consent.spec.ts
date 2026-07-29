@@ -101,7 +101,10 @@ test("accepting starts ingest, captures a route change, and does not ask again",
   const pageviewPaths = () => ingestRequests
     .filter(({ event }) => event === "$pageview")
     .map(({ pathname }) => pathname);
-  await expect.poll(pageviewPaths).toContain("/");
+  // PostHog is consent-lazy and loads its browser chunk only after this tap.
+  // A cold production server under parallel Playwright workers can take longer
+  // than the suite-wide 10s expectation budget without losing the pageview.
+  await expect.poll(pageviewPaths, { timeout: 20_000 }).toContain("/");
 
   await page.getByRole("link", { name: "Privacy", exact: true }).click();
   await expect(page).toHaveURL(/\/privacy$/);

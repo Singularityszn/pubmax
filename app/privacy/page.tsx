@@ -24,7 +24,7 @@ import "../legal.css";
 const PAGE_TITLE = "Privacy";
 const PAGE_DESCRIPTION =
   "What PUBMAXX collects, why, who else sees it, how long we keep it, and how to get it deleted. Written against what the app actually does.";
-const LAST_UPDATED = "28 July 2026";
+const LAST_UPDATED = "29 July 2026";
 
 export const metadata: Metadata = {
   title: PAGE_TITLE,
@@ -289,29 +289,41 @@ export default function PrivacyPage() {
         </p>
         <ul className="legalList">
           <li>
-            We send page visits as a coarse path with no query string, plus a
-            closed, named list of product events (things like &ldquo;a plan was
-            accepted&rdquo;) with allow-listed simple values. The server
-            re-checks product events against the same list and drops anything
-            it doesn&rsquo;t recognise.
+            We create a persistent device identifier in your browser so page
+            loads and later visits from that browser count as the same device.
+            PostHog uses it for unique-user and retention analysis and keeps
+            pseudonymous person and device records. We do not identify that
+            record with your PUBMAXX account, handle or email.
           </li>
           <li>
-            Events carry a random identifier generated in your browser and a
-            coarse page path with no query string. No account, handle, email,
-            message content, free text, or precise location is attached, and
-            person profiles are switched off on the analytics provider.
+            Page visits and events include browser and version, operating
+            system, device type, screen and viewport size, the referring page,
+            recognised campaign parameters and coarse app paths. The browser
+            SDK also sends Web Vitals so we can measure loading and interaction
+            performance. No account, handle, email, message content, free text
+            or precise location is attached.
           </li>
           <li>
-            For crash reporting, the browser analytics SDK sends only anonymous
-            crash types: the error message itself is redacted before it leaves
-            your browser. Session recording, autocapture, heatmaps, click
-            tracking and surveys are all disabled.
+            Product actions still come from a closed, named list, such as a plan
+            being accepted, with allow-listed simple values. Our server
+            re-checks every product event and its browser context against the
+            same rules and drops anything it does not recognise.
+          </li>
+          <li>
+            For crash reporting, the browser analytics SDK sends the crash type
+            with the same standard device context. Error messages and stack
+            traces are redacted before they leave your browser. Session
+            recording, autocapture, heatmaps, click tracking and surveys are
+            all disabled.
           </li>
           <li>
             Analytics requests go through pubmaxxing.com rather than straight to
-            the provider, and that proxy forwards only the request body and
-            content type: no cookies, no sign-in headers, no referrer,
-            and no forwarded IP address.
+            the provider. The first-party browser proxy does not forward
+            cookies or sign-in headers. For named product events, the server
+            passes the request user agent and raw IP address to PostHog along
+            with the validated referrer and screen context. PUBMAXX does not
+            put that raw IP address in its own logs or database; its own rate
+            limit keeps only a salted hash.
           </li>
           <li>
             If your browser sends a Do Not Track signal we skip analytics
@@ -373,8 +385,11 @@ export default function PrivacyPage() {
           </li>
           <li>
             Your analytics choice, either allowed or denied, so we do not ask on
-            every visit. Until you tap Allow, no analytics identifier exists at
-            all; withdrawing consent removes it again.
+            every visit. Until you tap Allow, no analytics identifier exists.
+            After you allow it, the persistent device identifier is kept in
+            browser storage and a first-party cookie so later visits remain one
+            device. Withdrawing consent removes that local analytics identity
+            and stops new collection.
           </li>
           <li>
             Preferences and app state: theme, your device night profile, your
@@ -418,9 +433,11 @@ export default function PrivacyPage() {
           <div className="legalRow">
             <dt>PostHog (EU)</dt>
             <dd>
-              Product analytics, EU project, consent-gated, anonymous only. No
-              person profiles, no session recordings, and no identify calls tying
-              events to your account.
+              Product analytics, EU project, consent-gated, with pseudonymous
+              person and device records for unique-user and retention analysis.
+              It receives the analytics categories listed above, including the
+              raw IP on named product events. There are no session recordings
+              and no identify calls tying events to your account.
             </dd>
           </div>
           <div className="legalRow">
@@ -520,11 +537,12 @@ export default function PrivacyPage() {
             removed post are purged from storage when the post is taken down.
           </li>
           <li>
-            <strong>Analytics events:</strong>{" "}held by PostHog under their EU
-            project retention. They carry no account identity, so they
-            can&rsquo;t be traced back to you after the fact, which also
-            means we can&rsquo;t pick your events out to delete them
-            individually.
+            <strong>Analytics events:</strong>{" "}PostHog deletes analytics
+            events 12 months after collection. It deletes pseudonymous person
+            and device records 12 months after their last activity. These
+            records carry no account identity, so they can&rsquo;t be traced
+            back to you after the fact, which also means we can&rsquo;t pick
+            your events out to delete them individually.
           </li>
           <li>
             <strong>Rate-limit records:</strong>{" "}durable limiter rows are

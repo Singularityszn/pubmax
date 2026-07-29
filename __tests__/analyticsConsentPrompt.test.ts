@@ -12,7 +12,9 @@ describe("first-visit analytics consent prompt", () => {
     const copy = markup.toLowerCase();
 
     expect(markup).toContain("PUBMAXX is bootstrapped");
-    expect(copy).toContain("which pages and planning tools people use");
+    expect(copy).toContain("persistent device id");
+    expect(copy).toContain("browser and device details");
+    expect(copy).toContain("what people return for");
     expect(copy).toContain("never sold or used for ads");
     expect(markup).toContain(">Allow<");
     expect(markup).toContain(">No thanks<");

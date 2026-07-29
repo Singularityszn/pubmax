@@ -32,6 +32,7 @@ import {
   capturePosthogPageview,
   syncPosthogConsent,
 } from "@/lib/posthogClient";
+import { analyticsReferrerFromUrl } from "@/lib/analyticsPath";
 
 const ENDPOINT = "/api/events";
 const VERIFIED_OUTBOX_KEY = "pubmaxx:analytics-verified-outbox:v1";
@@ -46,6 +47,13 @@ let analyticsConsentEpoch = 0;
 let analyticsStorageListenerWindow: Window | null = null;
 
 type TrackEventOptions = { deliveryToken?: string };
+type AnalyticsBrowserContext = {
+  screenWidth?: number;
+  screenHeight?: number;
+  viewportWidth?: number;
+  viewportHeight?: number;
+  referrer?: string;
+};
 
 function abortVerifiedFlush(): void {
   analyticsConsentEpoch += 1;
@@ -330,6 +338,23 @@ export function analyticsCollectionAllowed(): boolean {
   return readAnalyticsConsentDecision() === "granted";
 }
 
+function analyticsBrowserContext(): AnalyticsBrowserContext {
+  const context: AnalyticsBrowserContext = {};
+  const screenWidth = window.screen?.width;
+  const screenHeight = window.screen?.height;
+  const viewportWidth = window.innerWidth;
+  const viewportHeight = window.innerHeight;
+  const referrer = window.document?.referrer;
+
+  if (Number.isFinite(screenWidth)) context.screenWidth = screenWidth;
+  if (Number.isFinite(screenHeight)) context.screenHeight = screenHeight;
+  if (Number.isFinite(viewportWidth)) context.viewportWidth = viewportWidth;
+  if (Number.isFinite(viewportHeight)) context.viewportHeight = viewportHeight;
+  const safeReferrer = analyticsReferrerFromUrl(referrer, window.location.origin);
+  if (safeReferrer) context.referrer = safeReferrer;
+  return context;
+}
+
 /**
  * Record a product event. No-ops on the server, under Do-Not-Track, or for an
  * unknown/invalid event name. Never throws.
@@ -353,6 +378,7 @@ export function trackEvent(
       path: window.location?.pathname ?? null,
       anonymousId,
       analyticsConsent: true,
+      context: analyticsBrowserContext(),
       ...(options?.deliveryToken ? { deliveryToken: options.deliveryToken } : {}),
       ts: Date.now(),
     });

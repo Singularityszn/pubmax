@@ -14,7 +14,7 @@ import "../legal.css";
 const PAGE_TITLE = "Terms of use";
 const PAGE_DESCRIPTION =
   "The deal in plain language: what PUBMAXX is, what you can post, what prices on the map do and don't promise, and where our responsibility ends.";
-const LAST_UPDATED = "28 July 2026";
+const LAST_UPDATED = "29 July 2026";
 
 export const metadata: Metadata = {
   title: PAGE_TITLE,
@@ -91,10 +91,16 @@ export default function TermsPage() {
         <p className="legalBody">
           Browsing does not require an account or analytics. First visit asks
           you to tap Allow or No thanks for optional anonymous analytics. You
-          get the same app either way. If you make an account, keep your sign-in
-          to yourself, use a handle that isn&rsquo;t someone else&rsquo;s
-          identity, and don&rsquo;t hand the account to anyone else. You can
-          stop using it whenever you like, and ask us to delete it. See the{" "}
+          get the same app either way. If you allow them, we use a persistent
+          device identifier and collect browser, operating system and device type,
+          screen size, referrer and campaign details, plus app performance and
+          the closed product events described in our privacy notice. PostHog
+          deletes analytics events 12 months after collection and pseudonymous
+          person and device records 12 months after their last activity. If you
+          make an account, keep your sign-in to yourself, use a handle that
+          isn&rsquo;t someone else&rsquo;s identity, and don&rsquo;t hand the
+          account to anyone else. You can stop using it whenever you like, and
+          ask us to delete it. See the{" "}
           <Link href="/privacy" className="legalLink">privacy notice</Link>.
         </p>
       </section>
