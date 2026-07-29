@@ -150,6 +150,14 @@
   margin: 0;
 }
 
+@media (max-width: 600px) {
+  .todayNearEntry {
+    /* Keep the new journey below the first phone viewport without moving the
+       existing last-train action above it. Shorter screens need no spacer. */
+    margin-block-start: max(0px, calc(100svh - 680px));
+  }
+}
+
 .todayProvenance {
   font-size: 0.76rem;
   color: var(--ink-soft);

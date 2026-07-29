@@ -148,7 +148,7 @@ export default function TodayGetThereStrip() {
           </span>
         </div>
       )}
-      <p className="todayCardFootRow">
+      <p className="todayCardFootRow todayNearEntry">
         <Link href="/near" className="todayCardFootLink">
           <LocateFixed size={14} aria-hidden="true" />
           Find pubs near you
