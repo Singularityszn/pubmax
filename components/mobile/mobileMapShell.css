@@ -66,6 +66,13 @@
     right: 10px;
   }
 
+  /* Portal sheets sit outside .appShell. Hide map-owned controls while one is
+     open so the compass cannot paint over or intercept sheet content. */
+  body:has(.mobileSheetPortal) .appShell .mapStage .maplibregl-ctrl-top-right {
+    visibility: hidden;
+    pointer-events: none;
+  }
+
   .appShell .mapStage .maplibregl-ctrl-top-right .maplibregl-ctrl-group {
     margin: 0;
     border: 1px solid var(--line);
@@ -454,6 +461,12 @@
   .mobileSheetPortal .mapLayersPanel { border: 0; padding: 0; background: transparent; box-shadow: none; }
   .mobileSheetPortal .logIntentFallback { position: static; inset: auto; width: 100%; max-width: none; margin: 0; box-shadow: none; }
   .mobileLayersPanel { display: grid; gap: 16px; }
+  .mobileMapControlTabs > [role="tab"] {
+    flex: 1;
+    min-width: 0;
+    min-height: 44px;
+    padding-inline: 8px;
+  }
   .mobileLayerShortcuts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
   .mobileLayerShortcuts button { min-height: 48px; justify-content: flex-start; gap: 10px; }
   .mobileLayersTheme { min-height: 58px; display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 10px 12px; border: 1px solid var(--color-border); border-radius: var(--radius); background: var(--color-surface); }

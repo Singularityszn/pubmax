@@ -12,7 +12,14 @@ import {
   MapPinned,
   X,
 } from "lucide-react";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 
 import { landmarks as londonLandmarks, nearestStoryPubs, type Landmark } from "@/lib/landmarks";
 import {
@@ -54,6 +61,7 @@ import {
   GLOW_BASE_STROKE_OPACITY, GLOW_BASE_STROKE_WIDTH,
   PIN_ENTRANCE_BUCKETS, PIN_ENTRANCE_STAGGER_MS, PIN_ENTRANCE_RAMP_MS, PIN_ENTRANCE_TOTAL_MS,
   readTokens,
+  type Tokens,
 } from "@/components/map/canvas/tokens";
 import {
   pubsToGeoJSON, poisToGeoJSON, routeToLine, routeToStops,
@@ -114,6 +122,12 @@ import {
   snapshotMapCamera,
   type MapCameraSnapshot,
 } from "@/components/map/canvas/webglRecovery";
+import {
+  deriveMapRenderedState,
+  EMPTY_MAP_RENDERED_STATE,
+  sameMapRenderedState,
+  type MapRenderedState,
+} from "@/lib/mapRenderedState";
 
 // MapLibre 6 is ESM-only. Its worker imports a sibling shared module, which
 // Next's asset URL transform does not emit beside the worker. The predev and
@@ -140,6 +154,7 @@ type PubMapCanvasProps = {
     curatedVenueIds: string[];
     ukBasePubIds: string[];
   }) => void;
+  onRenderedStateChange?: (state: MapRenderedState) => void;
   /**
    * Keep exact DOM-list membership in step with each camera frame while its
    * operable list is open. Closed-list counts settle on moveend.
@@ -359,6 +374,7 @@ export default function PubMapCanvas({
   onUkBasePubClick,
   onUkBasePubsChange,
   onVisibleVenueIdsChange,
+  onRenderedStateChange,
   venueListOpen = false,
   ukBaseRestore = null,
   onRouteStopClick,
@@ -410,6 +426,10 @@ export default function PubMapCanvas({
       id ? cityStoryBands.find((band) => band.id === id) : undefined,
     [cityStoryBands],
   );
+  const activeBand = useMemo(
+    () => bandById(activeBandId),
+    [activeBandId, bandById],
+  );
   const landmarksGeoJSON = useMemo(
     () => landmarksToGeoJSON(cityLandmarks),
     [cityLandmarks],
@@ -448,10 +468,12 @@ export default function PubMapCanvas({
   // (react-hooks/refs). Build/event handlers + error paths read this when ready flips.
   const onMapReadyRef = useRef(onMapReady);
   const onMapErroredRef = useRef(onMapErrored);
+  const onRenderedStateChangeRef = useRef(onRenderedStateChange);
   useEffect(() => {
     onMapReadyRef.current = onMapReady;
     onMapErroredRef.current = onMapErrored;
-  }, [onMapReady, onMapErrored]);
+    onRenderedStateChangeRef.current = onRenderedStateChange;
+  }, [onMapReady, onMapErrored, onRenderedStateChange]);
   const publishMapReady = useCallback((ready: boolean) => {
     setMapReady(ready);
     onMapReadyRef.current?.(ready);
@@ -645,6 +667,12 @@ export default function PubMapCanvas({
   // The active band's token colour, read into the corridor + member-halo paint
   // on each build (a setStyle rebuild re-reads it from the live tokens).
   const bandColorRef = useRef<string>("#b0813a");
+  const activeBandColourTokenRef = useRef(
+    activeBand?.colourToken ?? null,
+  );
+  const renderedStateRef = useRef<MapRenderedState>(
+    EMPTY_MAP_RENDERED_STATE,
+  );
   // Member pub ids of the active band under the CURRENT filters — drives the
   // halo layer's filter. Empty = no halo (and the picker shows the honest
   // "no pubs visible" fallback).
@@ -668,6 +696,18 @@ export default function PubMapCanvas({
   // (layerId::prop → value). Owned here so it survives buildScene rebuilds; a
   // theme setStyle wipes the live layers, so buildScene clears + re-applies it.
   const selectionMuteStoreRef = useRef<Map<string, unknown>>(new Map());
+  const publishRenderedState = useCallback((tokens: Tokens) => {
+    const next = deriveMapRenderedState(
+      pubsDataRef.current,
+      tokens,
+      activeBandColourTokenRef.current,
+    );
+    bandColorRef.current = next.storyColour ?? tokens.brass;
+    if (sameMapRenderedState(renderedStateRef.current, next)) return next;
+    renderedStateRef.current = next;
+    onRenderedStateChangeRef.current?.(next);
+    return next;
+  }, []);
 
   // Style-load gate. Every source/layer mutation (setData, setFilter,
   // setPaintProperty, setLayoutProperty) throws "Style is not done loading" if
@@ -1246,6 +1286,7 @@ export default function PubMapCanvas({
     const buildSceneBody = () => {
       const tokens = readTokens();
       const dark = themeRef.current === "dark";
+      publishRenderedState(tokens);
 
       // buildScene re-runs on every style.load. After a genuine setStyle swap
       // the old style's layers are gone (getLayer → undefined) so everything
@@ -2261,6 +2302,7 @@ export default function PubMapCanvas({
     transitLinesPath,
     showLandmarks,
     publishMapReady,
+    publishRenderedState,
     reportMapError,
   ]);
 
@@ -2285,7 +2327,7 @@ export default function PubMapCanvas({
 
   // Pubs data → source. Rebuilds when the favorite pint changes so the price
   // buckets + serves flags re-derive against that beer.
-  useEffect(() => {
+  useLayoutEffect(() => {
     pubsDataRef.current = pubsToGeoJSON(
       venues,
       venueSignals,
@@ -2295,6 +2337,7 @@ export default function PubMapCanvas({
       provisionalVenueIds,
       lensPrices,
     );
+    publishRenderedState(readTokens());
     if (!mapReady) return;
     applyToMap("pubs:data", (map) => {
       (map.getSource("pubs") as maplibregl.GeoJSONSource | undefined)?.setData(
@@ -2311,6 +2354,7 @@ export default function PubMapCanvas({
     lensPrices,
     mapReady,
     applyToMap,
+    publishRenderedState,
   ]);
 
   // UK base pubs → their own source, streamed per settled viewport and only
@@ -2721,27 +2765,20 @@ export default function PubMapCanvas({
   // Resolve the active band + its member pubs under the CURRENT (filtered)
   // venue set. Member matching is a pure function (lib/storyBands); memoised so
   // it only recomputes when the band or the venue list actually changes.
-  const activeBand = useMemo(() => bandById(activeBandId), [activeBandId, bandById]);
   const bandMembers = useMemo(
     () => (activeBand ? bandMemberPubs(activeBand, venues, cityLandmarks) : []),
     [activeBand, venues, cityLandmarks],
   );
-  // Resolve the band's token colour once per band (readTokens reads the live CSS
-  // custom properties, so this re-runs on theme flips too via the dep on band).
-  const bandColour = useMemo(() => {
-    if (!activeBand || typeof window === "undefined") return null;
-    const tokens = readTokens() as unknown as Record<string, string>;
-    return tokens[activeBand.colourToken] ?? tokens.brass;
-  }, [activeBand]);
-
   // Push band state to the map: corridor source, member-halo filter, colour.
   // Debounced via requestAnimationFrame so a rapid filter churn doesn't thrash
   // setPaintProperty. Everything is guarded by getLayer so a mid-setStyle swap
   // is a no-op (buildScene re-reads the refs on the next style.load).
   useEffect(() => {
+    activeBandColourTokenRef.current =
+      activeBand?.colourToken ?? null;
+    const bandColour = publishRenderedState(readTokens()).storyColour;
     bandCorridorRef.current = bandCorridorGeoJSON(activeBand, cityLandmarks);
     bandMemberIdsRef.current = bandMembers.map((m) => m.venue.id);
-    if (bandColour) bandColorRef.current = bandColour;
     if (!mapReady) return;
     // Debounced via rAF so a rapid filter churn doesn't thrash setPaintProperty.
     // If the style is mid-swap when the frame fires, applyToMap queues the write
@@ -2767,7 +2804,14 @@ export default function PubMapCanvas({
       });
     });
     return () => cancelAnimationFrame(raf);
-  }, [activeBand, bandMembers, bandColour, mapReady, applyToMap, cityLandmarks]);
+  }, [
+    activeBand,
+    bandMembers,
+    mapReady,
+    applyToMap,
+    cityLandmarks,
+    publishRenderedState,
+  ]);
 
   // H5: a tapped landmark surfaces its nearest story pubs (straight-line
   // distance — no routing, per PRD scope), wiring the history layer into the

@@ -23,6 +23,7 @@ const tokens = {
   muted: "#6b726a",
   pint: "#2f8f5b",
   amber: "#d99f45",
+  brick: "#d16353",
   brass: "#b0813a",
   river: "#2f6f8f",
   riverBright: "#4f9ec4",
@@ -46,6 +47,31 @@ const darkTokens = {
   buildingEmissive: "#8f7d6b",
   parkTint: "#3f5c38",
 };
+
+function evaluateClusterExpression(
+  expression: unknown,
+  properties: Record<string, unknown>,
+): unknown {
+  if (!Array.isArray(expression)) return expression;
+  const [operator, ...args] = expression;
+  const value = (item: unknown) =>
+    evaluateClusterExpression(item, properties);
+
+  if (operator === "get") return properties[String(args[0])];
+  if (operator === "coalesce") {
+    return args.map(value).find((item) => item !== null && item !== undefined);
+  }
+  if (operator === ">") return Number(value(args[0])) > Number(value(args[1]));
+  if (operator === ">=") return Number(value(args[0])) >= Number(value(args[1]));
+  if (operator === "all") return args.every((item) => Boolean(value(item)));
+  if (operator === "case") {
+    for (let index = 0; index < args.length - 1; index += 2) {
+      if (value(args[index])) return value(args[index + 1]);
+    }
+    return value(args.at(-1));
+  }
+  throw new Error(`Unsupported test expression operator: ${String(operator)}`);
+}
 
 // Wave A — crude luminance proxy (sum of RGB channels) shared by the dark-map
 // hierarchy assertions. Accepts `#rrggbb`; the dark palette paints solid hex.
@@ -310,13 +336,59 @@ describe("mapBasemapTaste (Wave A / dark basemap overhaul)", () => {
     expect(paints.some(([id]) => id === "custom_road_layer")).toBe(true);
   });
 
-  it("builds a step expression for cluster colors using pint/amber/brass", () => {
+  it("colours fallback clusters by their most common known pint-price band", () => {
     const expr = clusterCircleColorExpr(tokens, false) as unknown[];
-    expect(expr[0]).toBe("step");
     const serialized = JSON.stringify(expr);
+
+    expect(expr[0]).toBe("case");
+    expect(serialized).toContain('"b0"');
+    expect(serialized).toContain('"b1"');
+    expect(serialized).toContain('"b2"');
+    expect(serialized).not.toContain('"point_count"');
     expect(serialized).toContain("47, 143, 91"); // pint rgb
     expect(serialized).toContain("217, 159, 69"); // amber
-    expect(serialized).toContain("176, 129, 58"); // brass
+    expect(serialized).toContain("209, 99, 83"); // brick
+    expect(serialized).toContain("107, 114, 106"); // no known price
+  });
+
+  it.each([
+    {
+      name: "cheap wins a three-way tie",
+      properties: { b0: 2, b1: 2, b2: 2 },
+      expected: withAlpha(tokens.pint, 0.9),
+    },
+    {
+      name: "middle wins a middle-dear tie",
+      properties: { b0: 0, b1: 3, b2: 3 },
+      expected: withAlpha(tokens.amber, 0.92),
+    },
+    {
+      name: "dear wins when it has the largest count",
+      properties: { b0: 1, b1: 2, b2: 4 },
+      expected: withAlpha(tokens.brick, 0.88),
+    },
+    {
+      name: "unknown pubs do not outvote a known band",
+      properties: { b0: 1, b1: 0, b2: 0, b3: 99 },
+      expected: withAlpha(tokens.pint, 0.9),
+    },
+    {
+      name: "all unknown is grey",
+      properties: { b0: 0, b1: 0, b2: 0, b3: 12 },
+      expected: withAlpha(tokens.muted, 0.84),
+    },
+    {
+      name: "missing counts are grey",
+      properties: {},
+      expected: withAlpha(tokens.muted, 0.84),
+    },
+  ])("$name", ({ properties, expected }) => {
+    expect(
+      evaluateClusterExpression(
+        clusterCircleColorExpr(tokens, false),
+        properties,
+      ),
+    ).toBe(expected);
   });
 });
 

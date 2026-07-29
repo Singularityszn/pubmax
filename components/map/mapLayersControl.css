@@ -210,7 +210,7 @@
   }
 
   .mapLayersPanel {
-    /* The price key now lives in the top bar, so the panel can originate from
+    /* Phone key lives in the More sheet, so this panel can originate from
        the Layers control instead of floating above a removed bottom stack. */
     bottom: calc(100% + 10px);
     max-height: min(

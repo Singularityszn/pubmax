@@ -2,26 +2,38 @@
 
 import type { CategoryPriceIndexStatus } from "@/lib/mapExperienceLens";
 import { mapPriceLegend } from "@/lib/mapPriceLegend";
+import type { MapRenderedState } from "@/lib/mapRenderedState";
 
 const PRICE_CHOICES = [10, 7, 6, 5.5];
 
 export default function MobilePriceChoices({
   maxPrice,
-  hasTypeRelativePrices,
   drinkLabel,
+  drinkNoun,
   drinkIndexStatus = "ready",
+  renderedState,
   onMaxPriceChange,
 }: {
   maxPrice: number;
-  hasTypeRelativePrices: boolean;
   drinkLabel?: string;
+  drinkNoun?: string;
   drinkIndexStatus?: CategoryPriceIndexStatus;
+  renderedState: MapRenderedState;
   onMaxPriceChange: (price: number) => void;
 }) {
   const legend = mapPriceLegend(
-    hasTypeRelativePrices,
-    drinkLabel,
-    drinkIndexStatus,
+    drinkLabel
+      ? {
+          kind: "drink",
+          label: drinkLabel,
+          noun: drinkNoun ?? drinkLabel,
+          status: drinkIndexStatus,
+          renderedState,
+        }
+      : {
+          kind: "default",
+          renderedState,
+        },
   );
   return (
     <>

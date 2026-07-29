@@ -664,9 +664,8 @@
 
   .siteNavBrand .pubmaxxWordmark { line-height: 1; }
 
-  /* The map's price key belongs with the map identity, not in the constrained
-     bottom action lane. It gets the flexible middle of the top bar while the
-     brand and utility icons keep stable touch targets. */
+  /* Reserve flexible map-utility space without shrinking brand or touch targets.
+     Phone map controls use the existing More sheet. */
   .siteNavBarFloating .siteNavMapUtility {
     display: flex;
     flex: 1 1 auto;

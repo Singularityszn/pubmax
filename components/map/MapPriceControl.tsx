@@ -1,14 +1,13 @@
 "use client";
 
-// Compact bottom-left price chrome — always-visible colour key (plan: ≤£5.50 /
-// >£5.50–≤£7 / >£7) plus an optional filter popover. No heritage/writer rows.
+// Compact desktop price key plus optional filter popover.
 
 import { Coins, X } from "lucide-react";
 import { useEffect, useId, useRef, useState } from "react";
 
-import type { CategoryPriceIndexStatus } from "@/lib/mapExperienceLens";
-import { mapPriceLegend } from "@/lib/mapPriceLegend";
+import type { MapPriceLegendModel } from "@/lib/mapPriceLegend";
 import type { Filters } from "@/lib/venues";
+import MapKey from "@/components/map/MapKey";
 
 import "./mapPriceControl.css";
 
@@ -22,9 +21,9 @@ type MapPriceControlProps = {
   filters: Filters;
   onFiltersChange: (filters: Filters) => void;
   placement?: "map" | "header";
-  hasTypeRelativePrices?: boolean;
-  drinkLabel?: string;
-  drinkIndexStatus?: CategoryPriceIndexStatus;
+  legend: MapPriceLegendModel;
+  lensLabel?: string;
+  priceFiltersEnabled: boolean;
 };
 
 function activeLabel(maxPrice: number): string {
@@ -38,21 +37,16 @@ export default function MapPriceControl({
   filters,
   onFiltersChange,
   placement = "map",
-  hasTypeRelativePrices = false,
-  drinkLabel,
-  drinkIndexStatus = "ready",
+  legend,
+  lensLabel,
+  priceFiltersEnabled,
 }: MapPriceControlProps) {
   const [open, setOpen] = useState(false);
   const panelId = useId();
   const rootRef = useRef<HTMLDivElement>(null);
   // Default is ≤£7; "Any" (9) is the wide/unfiltered option — neither looks "on".
   // Only a tightened band (≤£5.50) marks the FAB as actively filtered.
-  const filtered = filters.maxPrice <= 5.5;
-  const legend = mapPriceLegend(
-    hasTypeRelativePrices,
-    drinkLabel,
-    drinkIndexStatus,
-  );
+  const filtered = priceFiltersEnabled && filters.maxPrice <= 5.5;
 
   useEffect(() => {
     if (!open) return;
@@ -94,10 +88,11 @@ export default function MapPriceControl({
         className="mapPriceLegend"
         aria-expanded={open}
         aria-controls={panelId}
-        aria-label={open ? "Close price filters" : legend.ariaLabel}
-        title={legend.title}
+        aria-label={open ? "Close map key" : `Open map key: ${legend.ariaLabel}`}
+        title="Map key"
         onClick={() => setOpen((value) => !value)}
       >
+        <span className="mapPriceLegendTitle">Key</span>
         {legend.rows.length === 0 ? (
           <span>
             <span className="mapPriceLegendFull">{legend.title}</span>
@@ -111,7 +106,7 @@ export default function MapPriceControl({
               <i className={`mapPriceDot ${row.tone}`} aria-hidden="true" />
               <span className="mapPriceLegendFull">{row.label}</span>
               <span className="mapPriceLegendCompact" aria-hidden="true">
-                {row.tone === "green" ? "£" : row.tone === "amber" ? "££" : "£££"}
+                {row.symbol}
               </span>
             </span>
           ))
@@ -127,15 +122,15 @@ export default function MapPriceControl({
           aria-label={
             open
               ? "Close price key"
-              : drinkLabel
-                ? `Show ${drinkLabel.toLowerCase()} price key`
+              : lensLabel
+                ? `Show ${lensLabel.toLowerCase()} map key`
                 : "Filter pubs by pint price"
           }
-          title={drinkLabel ? `${drinkLabel} price key` : "Filter by pint price"}
+          title={lensLabel ? `${lensLabel} map key` : "Filter by pint price"}
           onClick={() => setOpen((value) => !value)}
         >
           <Coins size={16} aria-hidden="true" />
-          <span>{drinkLabel ?? activeLabel(filters.maxPrice)}</span>
+          <span>{lensLabel ?? activeLabel(filters.maxPrice)}</span>
         </button>
       ) : null}
 
@@ -144,53 +139,56 @@ export default function MapPriceControl({
           id={panelId}
           className="mapPricePanel"
           role="dialog"
-          aria-label="Price filters"
+          aria-label="Map key and price filters"
         >
           <div className="mapPricePanelHead">
-            <strong>Prices</strong>
+            <strong>Map key</strong>
             <button
               type="button"
               className="mapPriceClose"
-              aria-label="Close prices filter"
+              aria-label="Close map key"
               onClick={() => setOpen(false)}
             >
               <X size={16} aria-hidden="true" />
             </button>
           </div>
-          <p className="mapPriceHint">{legend.hint}</p>
-          {drinkLabel ? null : (
-          <div className="mapPriceOptions" role="group" aria-label="Max pint price">
-            {PRICE_OPTIONS.map((option) => {
-              const on =
-                option.label === "Any"
-                  ? filters.maxPrice >= 9
-                  : Math.abs(filters.maxPrice - option.maxPrice) < 0.01;
-              return (
-                <button
-                  key={option.label}
-                  type="button"
-                  className={on ? "mapPriceChip isOn" : "mapPriceChip"}
-                  aria-pressed={on}
-                  onClick={() => {
-                    onFiltersChange({ ...filters, maxPrice: option.maxPrice });
-                    setOpen(false);
-                  }}
-                >
-                  {option.label === "Any" ? (
-                    <i className="mapPriceDot any" aria-hidden="true" />
-                  ) : option.maxPrice <= 5.5 ? (
-                    <i className="mapPriceDot green" aria-hidden="true" />
-                  ) : option.maxPrice <= 7 ? (
-                    <i className="mapPriceDot amber" aria-hidden="true" />
-                  ) : (
-                    <i className="mapPriceDot red" aria-hidden="true" />
-                  )}
-                  {option.label}
-                </button>
-              );
-            })}
-          </div>
-          )}
+          <MapKey legend={legend} />
+          {priceFiltersEnabled ? (
+            <div className="mapPriceFilterBlock">
+              <strong>Maximum pint price</strong>
+              <div className="mapPriceOptions" role="group" aria-label="Max pint price">
+                {PRICE_OPTIONS.map((option) => {
+                  const on =
+                    option.label === "Any"
+                      ? filters.maxPrice >= 9
+                      : Math.abs(filters.maxPrice - option.maxPrice) < 0.01;
+                  return (
+                    <button
+                      key={option.label}
+                      type="button"
+                      className={on ? "mapPriceChip isOn" : "mapPriceChip"}
+                      aria-pressed={on}
+                      onClick={() => {
+                        onFiltersChange({ ...filters, maxPrice: option.maxPrice });
+                        setOpen(false);
+                      }}
+                    >
+                      {option.label === "Any" ? (
+                        <i className="mapPriceDot any" aria-hidden="true" />
+                      ) : option.maxPrice <= 5.5 ? (
+                        <i className="mapPriceDot green" aria-hidden="true" />
+                      ) : option.maxPrice <= 7 ? (
+                        <i className="mapPriceDot amber" aria-hidden="true" />
+                      ) : (
+                        <i className="mapPriceDot red" aria-hidden="true" />
+                      )}
+                      {option.label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          ) : null}
         </div>
       ) : null}
     </div>

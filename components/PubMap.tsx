@@ -64,6 +64,7 @@ const MobilePlanActivation = dynamic(
 );
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import DrinkShapeChips from "@/components/map/DrinkShapeChips";
+import MapKey from "@/components/map/MapKey";
 import MapExperienceLensControl from "@/components/map/MapExperienceLens";
 import FavoritePintPicker from "@/components/map/FavoritePintPicker";
 import MobilePriceChoices from "@/components/map/MobilePriceChoices";
@@ -145,6 +146,12 @@ import { trackEvent } from "@/lib/analytics";
 import { writePreferredCity } from "@/lib/cityPreference";
 import { usePintDrops } from "@/components/map/usePintDrops";
 import { useCommunityPrices } from "@/components/map/useCommunityPrices";
+import { mapPriceLegend } from "@/lib/mapPriceLegend";
+import {
+  EMPTY_MAP_RENDERED_STATE,
+  sameMapRenderedState,
+  type MapRenderedState,
+} from "@/lib/mapRenderedState";
 import {
   mergeCommunityPriceSignals,
   provisionalCommunityPriceVenueIds,
@@ -562,7 +569,7 @@ export default function PubMap({
   const [venueKindVisibility, setVenueKindVisibility] = useState(
     defaultVenueKindVisibility,
   );
-  const [mobileLayersTab, setMobileLayersTab] = useState<"layers" | "prices" | "events" | "transit">("layers");
+  const [mobileLayersTab, setMobileLayersTab] = useState<"key" | "layers" | "prices" | "events" | "transit">("key");
   const tflStatus = useMobileTflStatus();
   const [nearbyMapResult, setNearbyMapResult] = useState<NearbyMapResult | null>(null);
   const {
@@ -661,6 +668,16 @@ export default function PubMap({
     curatedVenueIds: string[];
     ukBasePubIds: string[];
   } | null>(null);
+  const [renderedMapState, setRenderedMapState] =
+    useState<MapRenderedState>(EMPTY_MAP_RENDERED_STATE);
+  const handleRenderedMapStateChange = useCallback(
+    (next: MapRenderedState) => {
+      setRenderedMapState((current) =>
+        sameMapRenderedState(current, next) ? current : next,
+      );
+    },
+    [],
+  );
   const baseVenues = useMemo(
     () => mergeLazyDetailPins(slimPins, detailById),
     [slimPins, detailById],
@@ -1086,7 +1103,6 @@ export default function PubMap({
     () => hasSavedPubVenue(pubVenues, savedIds),
     [pubVenues, savedIds],
   );
-  const hasTypeRelativePrices = pubVenues.length !== venues.length;
   const venueById = useMemo(() => new Map(venues.map((v) => [v.id, v])), [venues]);
   // Zone pint index (nearest-station fare zone medians) for the zone picker.
   // Computed off the full venue set so the strip's numbers don't shift as the
@@ -1182,6 +1198,26 @@ export default function PubMap({
       : experienceLens === "food"
         ? "Food"
         : null;
+  const activeBand = useMemo(
+    () => bandByIdForCity(cityId, activeBandId),
+    [cityId, activeBandId],
+  );
+  const activePriceLegend = mapPriceLegend(
+    experienceLens === "food"
+      ? { kind: "food", renderedState: renderedMapState }
+      : activeLensLabel && activeLensNoun
+        ? {
+            kind: "drink",
+            label: activeLensLabel,
+            noun: activeLensNoun,
+            status: drinkIndexStatus,
+            renderedState: renderedMapState,
+          }
+        : {
+            kind: "default",
+            renderedState: renderedMapState,
+          },
+  );
   const experienceSummary = useMemo(() => {
     if (experienceLens === "all") return "";
     let noAlcoholPriceCount = 0;
@@ -2395,10 +2431,6 @@ export default function PubMap({
 
   // G3: Place story deep-link chip when `?band=` resolves. Takes priority over
   // curated onboarding so the two never fight.
-  const activeBand = useMemo(
-    () => bandByIdForCity(cityId, activeBandId),
-    [cityId, activeBandId],
-  );
   const showBandChip = shouldShowBandOnboardingChip({
     loaded,
     activeBandId,
@@ -2661,16 +2693,16 @@ export default function PubMap({
         <SiteNav
           active="map"
           mobileMapUtility={
-            experienceLens === "all" ? (
-              <MapPriceControl
-                placement="header"
-                filters={filters}
-                onFiltersChange={setFilters}
-                hasTypeRelativePrices={hasTypeRelativePrices}
-                drinkLabel={activeLensLabel ?? undefined}
-                drinkIndexStatus={drinkIndexStatus}
-              />
-            ) : undefined
+            <MapPriceControl
+              placement="header"
+              filters={filters}
+              onFiltersChange={setFilters}
+              legend={activePriceLegend}
+              lensLabel={activeLensLabel ?? undefined}
+              priceFiltersEnabled={
+                experienceLens === "all" && activeLensLabel === null
+              }
+            />
           }
         />
       ) : null}
@@ -2729,6 +2761,7 @@ export default function PubMap({
           onUkBasePubClick={handleUkBasePubClick}
           onUkBasePubsChange={setRenderedBasePubs}
           onVisibleVenueIdsChange={handleVisibleVenueIdsChange}
+          onRenderedStateChange={handleRenderedMapStateChange}
           venueListOpen={mapListOpen}
           ukBaseRestore={ukBaseRestore}
           onRouteStopClick={selectVenue}
@@ -2895,17 +2928,18 @@ export default function PubMap({
             onDismiss={dismissBandChip}
           />
         ) : null}
-        {/* Desktop retains the expanded price filter. On phones the compact key
-            lives beside the PUBMAXXING wordmark so the bottom action lane can
-            breathe above primary navigation. */}
-        {!mobileViewport && experienceLens === "all" ? (
+        {/* Desktop keeps price controls at bottom left. Phones use the existing
+            More sheet, leaving top chrome unchanged. */}
+        {!mobileViewport ? (
           <MapPriceControl
             placement="map"
             filters={filters}
             onFiltersChange={setFilters}
-            hasTypeRelativePrices={hasTypeRelativePrices}
-            drinkLabel={activeLensLabel ?? undefined}
-            drinkIndexStatus={drinkIndexStatus}
+            legend={activePriceLegend}
+            lensLabel={activeLensLabel ?? undefined}
+            priceFiltersEnabled={
+              experienceLens === "all" && activeLensLabel === null
+            }
           />
         ) : null}
 
@@ -3038,9 +3072,10 @@ export default function PubMap({
                   />
                   <MobilePriceChoices
                     maxPrice={filters.maxPrice}
-                    hasTypeRelativePrices={hasTypeRelativePrices}
                     drinkLabel={activeLensLabel ?? undefined}
+                    drinkNoun={activeLensNoun ?? undefined}
                     drinkIndexStatus={drinkIndexStatus}
+                    renderedState={renderedMapState}
                     onMaxPriceChange={(maxPrice) =>
                       setFilters((current) => ({ ...current, maxPrice }))
                     }
@@ -3070,7 +3105,11 @@ export default function PubMap({
           }
           layersContent={
             <Tabs className="mobileLayersPanel" value={mobileLayersTab} onValueChange={(value) => setMobileLayersTab(value as typeof mobileLayersTab)}>
-              <TabsList aria-label="Layer settings sections">
+              <TabsList
+                className="mobileMapControlTabs"
+                aria-label="Map control sections"
+              >
+                <TabsTrigger value="key">Key</TabsTrigger>
                 <TabsTrigger value="layers">Layers</TabsTrigger>
                 {experienceLens === "all" ? (
                   <TabsTrigger value="prices">Prices</TabsTrigger>
@@ -3078,6 +3117,9 @@ export default function PubMap({
                 <TabsTrigger value="events">Events</TabsTrigger>
                 <TabsTrigger value="transit">Transit</TabsTrigger>
               </TabsList>
+              <TabsContent value="key" className="mobileLayersPanel">
+                <MapKey legend={activePriceLegend} />
+              </TabsContent>
               <TabsContent value="layers" className="mobileLayersPanel">
                 <div className="mobileLayerShortcuts">
                   <Button className="mobilePlannerLaunch w-full justify-start" onClick={openPlanning}>
@@ -3112,9 +3154,10 @@ export default function PubMap({
                   <FavoritePintPicker value={favoritePint} onChange={changeFavoritePint} drinkCategory={filters.drinkCategory} drinkBrand={filters.drinkBrand} onDrinkLensChange={({ drinkCategory, drinkBrand }) => setFilters((current) => ({ ...current, drinkCategory, drinkBrand, drinkSubtype: drinkCategory === current.drinkCategory ? current.drinkSubtype : "", topShelfOnly: drinkCategory ? current.topShelfOnly : false, requireCocktails: drinkCategory === "cocktail" }))} />
                   <MobilePriceChoices
                     maxPrice={filters.maxPrice}
-                    hasTypeRelativePrices={hasTypeRelativePrices}
                     drinkLabel={activeLensLabel ?? undefined}
+                    drinkNoun={activeLensNoun ?? undefined}
                     drinkIndexStatus={drinkIndexStatus}
+                    renderedState={renderedMapState}
                     onMaxPriceChange={(maxPrice) =>
                       setFilters((current) => ({ ...current, maxPrice }))
                     }

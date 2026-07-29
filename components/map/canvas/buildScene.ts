@@ -1161,7 +1161,10 @@ export function buildPubs(ctx: SceneCtx) {
     source: "pubs",
     filter: ["has", "point_count"],
     paint: {
-      // Wave J1 — pint → amber → brass by density (not ink-black discs).
+      // Price-aware GL fallback. Desktop normally replaces these circles with
+      // segmented donuts; phones and large cluster sets keep this layer, whose
+      // fill follows the most common known price band in b0..b2. Grey means no
+      // known price. Radius still carries density, and the count stays literal.
       "circle-color": clusterCircleColorExpr(tokens, dark) as maplibregl.ExpressionSpecification,
       "circle-stroke-color": tokens.panelRaised,
       "circle-stroke-width": ["step", ["get", "point_count"], 1.75, 40, 2, 100, 2.25],

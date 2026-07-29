@@ -4974,8 +4974,7 @@ button:disabled {
 }
 
 @media (max-width: 640px) {
-  /* Featured story teaser competes with the bottom-left price key on phones —
-     keep the mid-field + corners for map + Prices/Layers only. */
+  /* Keep phone mid-field and corners clear for map and primary controls. */
   .mapHeroCard {
     display: none !important;
   }

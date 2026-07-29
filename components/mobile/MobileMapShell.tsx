@@ -17,7 +17,7 @@ const SHEET_TITLES: Partial<Record<MapOverlay, string>> = {
   filters: "Prices and places",
   tfl: "TfL live",
   tonight: "Tonight",
-  layers: "Map layers",
+  layers: "Map controls",
   "pub-pal": "Pub Pal",
   moment: "Choose a pub",
   "near-me": "Cheapest pints near you",
