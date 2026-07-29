@@ -49,6 +49,18 @@ function setupScratch(files: Record<string, unknown>): string {
     join(ROOT, "scripts", "lib", "slimShards.mjs"),
     join(scratchScripts, "lib", "slimShards.mjs"),
   );
+  const postcodeConsistencyModule = join(
+    ROOT,
+    "scripts",
+    "lib",
+    "postcodeCoordinateConsistency.mjs",
+  );
+  if (existsSync(postcodeConsistencyModule)) {
+    cpSync(
+      postcodeConsistencyModule,
+      join(scratchScripts, "lib", "postcodeCoordinateConsistency.mjs"),
+    );
+  }
   cpSync(
     join(ROOT, "lib", "nightOutPlaceSourceUrl.mjs"),
     join(scratchLib, "nightOutPlaceSourceUrl.mjs"),
@@ -113,6 +125,27 @@ function setupScratch(files: Record<string, unknown>): string {
     join(ROOT, "data", "night_out_place_provenance_registry.json"),
     join(scratchRoot, "data", "night_out_place_provenance_registry.json"),
   );
+  const scratchOsmDir = join(scratchRoot, "data", "osm", "uk");
+  mkdirSync(scratchOsmDir, { recursive: true });
+  writeFileSync(
+    join(scratchOsmDir, "uk_osm_pubs.json"),
+    JSON.stringify({
+      pubs: [
+        {
+          name: "Bush Hill Park",
+          postcode: "EN1 1BA",
+          lat: 51.6415276,
+          lng: -0.0687715,
+        },
+      ],
+    }),
+    "utf8",
+  );
+  writeFileSync(
+    join(scratchRoot, "data", "postcode_coordinate_exceptions.json"),
+    JSON.stringify({ exceptions: [] }),
+    "utf8",
+  );
   for (const file of ["bars.json", "late_food.json", "restaurants.json"]) {
     cpSync(
       join(ROOT, "data", "famous_venues", file),
@@ -146,6 +179,48 @@ function runValidate(scriptsDir: string): { code: number; stdout: string } {
     const e = err as { status: number; stdout: string };
     return { code: e.status, stdout: e.stdout };
   }
+}
+
+function injectLincolnArmsContradiction(scriptsDir: string) {
+  const datasetPath = join(
+    scriptsDir,
+    "..",
+    "public",
+    "data",
+    "pint_prices_app_dataset.json",
+  );
+  const rows = JSON.parse(readFileSync(datasetPath, "utf8"));
+  rows[0] = {
+    ...rows[0],
+    pub_name: "The Lincoln Arms",
+    address: "EN1 1QT",
+    latitude: 51.5332,
+    longitude: -0.1222,
+  };
+  writeFileSync(datasetPath, JSON.stringify(rows), "utf8");
+  return rows[0] as {
+    app_price_id: string;
+    pub_name: string;
+    address: string;
+    latitude: number;
+    longitude: number;
+  };
+}
+
+function writePostcodeCoordinateExceptions(
+  scriptsDir: string,
+  exceptions: unknown[],
+) {
+  writeFileSync(
+    join(
+      scriptsDir,
+      "..",
+      "data",
+      "postcode_coordinate_exceptions.json",
+    ),
+    JSON.stringify({ exceptions }),
+    "utf8",
+  );
 }
 
 function writePubmaxxingSnapshotWithAlcoholBuckets(
@@ -427,6 +502,63 @@ describe("validate-data.mjs slim venue index validation", () => {
     expect(code).toBe(1);
     expect(stdout).toContain("FAIL public/data/venues_slim.json");
     expect(stdout).toContain("id is not present in rebuilt full-dataset index");
+  });
+});
+
+describe("validate-data.mjs postcode-coordinate validation", () => {
+  it("FAILS loudly on the exact Lincoln Arms Enfield and King's Cross contradiction", () => {
+    const scriptsDir = setupScratch({});
+    injectLincolnArmsContradiction(scriptsDir);
+
+    const { code, stdout } = runValidate(scriptsDir);
+
+    expect(code).toBe(1);
+    expect(stdout).toContain("postcode-coordinate contradiction");
+    expect(stdout).toContain("The Lincoln Arms");
+    expect(stdout).toContain("EN1");
+    expect(stdout).toContain("12.60 km exceeds 5 km");
+  });
+
+  it("applies only an exact documented exception", () => {
+    const scriptsDir = setupScratch({});
+    const row = injectLincolnArmsContradiction(scriptsDir);
+    writePostcodeCoordinateExceptions(scriptsDir, [
+      {
+        appPriceId: row.app_price_id,
+        pubName: row.pub_name,
+        postcode: row.address,
+        latitude: row.latitude,
+        longitude: row.longitude,
+        reason:
+          "Verified boundary-site address whose entrance and postcode district are more than 5 km apart.",
+      },
+    ]);
+
+    const { stdout } = runValidate(scriptsDir);
+
+    expect(stdout).not.toContain("postcode-coordinate contradiction");
+    expect(stdout).toContain("postcode-coordinate exceptions: 1 applied");
+  });
+
+  it("FAILS when an exception has no stated reason", () => {
+    const scriptsDir = setupScratch({});
+    const row = injectLincolnArmsContradiction(scriptsDir);
+    writePostcodeCoordinateExceptions(scriptsDir, [
+      {
+        appPriceId: row.app_price_id,
+        pubName: row.pub_name,
+        postcode: row.address,
+        latitude: row.latitude,
+        longitude: row.longitude,
+        reason: "",
+      },
+    ]);
+
+    const { code, stdout } = runValidate(scriptsDir);
+
+    expect(code).toBe(1);
+    expect(stdout).toContain("invalid postcode-coordinate exception");
+    expect(stdout).toContain("reason must contain at least 20 characters");
   });
 });
 

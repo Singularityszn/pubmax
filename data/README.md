@@ -46,6 +46,24 @@ is documentation of the raw scrape, not an independently-authored source.
 
 Use `pint_prices_app_dataset.csv` as the single app-building file and `borough_pint_prices.csv` as the strict borough truth. At scrape time, Havering, Hillingdon, and Redbridge exposed a large embedded `pubsData` object but no visible leaderboard rows, so the app dataset keeps those raw signals in `boroughs_raw_embedded_site_anomaly` and `data_quality_notes` while `boroughs_visible` and `primary_borough` remain the safer app-facing borough fields.
 
+## Postcode-coordinate gate
+
+`npm run validate-data` treats a postcode and map point that identify different
+areas as contradictory product data. The gate builds robust outward-code
+reference points from the committed UK OpenStreetMap pub extract and fails once
+a product row is more than 5 km away. That boundary came from the measured
+separation in this dataset: ordinary rows ended at 3.87 km and the first
+contradiction started at 5.44 km. A provenance or quality marker never bypasses
+the gate.
+
+Genuinely odd but verified geography belongs in
+`postcode_coordinate_exceptions.json`. An exception must exactly identify the
+app price row, name, full postcode and coordinates, and state why evidence
+establishes the row despite the distance. Stale, partial, duplicate, reasonless,
+or no-longer-contradictory exceptions fail validation. Unresolved rows belong in
+`postcode_coordinate_quarantine.json` and must be removed from product-facing
+datasets rather than silently published.
+
 Run the scraper again with:
 
 ```bash

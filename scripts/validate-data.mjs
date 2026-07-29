@@ -25,6 +25,10 @@ import {
   classifySlimShards,
 } from "./lib/slimShards.mjs";
 import {
+  POSTCODE_COORDINATE_MAX_DISTANCE_KM,
+  findPostcodeCoordinateContradictions,
+} from "./lib/postcodeCoordinateConsistency.mjs";
+import {
   nightOutPlaceProvenanceRegistryValidationErrors,
   nightOutPlaceRowValidationErrors,
   nightOutPlaceSnapshotValidationErrors,
@@ -35,6 +39,18 @@ const ROOT_DIR = join(__dirname, "..");
 const DATA_DIR = join(ROOT_DIR, "public", "data");
 const GENERATED_DATA_DIR = join(ROOT_DIR, "data", "generated");
 const FAMOUS_VENUES_DIR = join(ROOT_DIR, "data", "famous_venues");
+const UK_OSM_PUBS_FILE = join(
+  ROOT_DIR,
+  "data",
+  "osm",
+  "uk",
+  "uk_osm_pubs.json",
+);
+const POSTCODE_COORDINATE_EXCEPTIONS_FILE = join(
+  ROOT_DIR,
+  "data",
+  "postcode_coordinate_exceptions.json",
+);
 const DRINK_PRICE_UPDATES_DIR = join(DATA_DIR, "drink_price_updates");
 const WHATS_ON_DIR = join(DATA_DIR, "whats_on");
 const WHATS_ON_KINDS = new Set(["sport", "quiz", "deal", "music"]);
@@ -566,6 +582,8 @@ function validatePintPrices() {
   const name = "public/data/pint_prices_app_dataset.json";
   const errs = makeCollector();
   let data;
+  let osmPubs;
+  let postcodeCoordinateExceptions;
   try {
     data = loadJson("pint_prices_app_dataset.json");
   } catch (e) {
@@ -576,6 +594,31 @@ function validatePintPrices() {
   if (!Array.isArray(data)) {
     console.log(`FAIL ${name}: expected a top-level array`);
     return { ok: false, count: 0 };
+  }
+
+  try {
+    const osmData = JSON.parse(readFileSync(UK_OSM_PUBS_FILE, "utf8"));
+    if (!Array.isArray(osmData?.pubs)) {
+      errs.add(
+        "postcode-coordinate reference data: data/osm/uk/uk_osm_pubs.json must contain a pubs array",
+      );
+    } else {
+      osmPubs = osmData.pubs;
+    }
+  } catch (e) {
+    errs.add(
+      `postcode-coordinate reference data: could not read/parse data/osm/uk/uk_osm_pubs.json (${e.message})`,
+    );
+  }
+
+  try {
+    postcodeCoordinateExceptions = JSON.parse(
+      readFileSync(POSTCODE_COORDINATE_EXCEPTIONS_FILE, "utf8"),
+    );
+  } catch (e) {
+    errs.add(
+      `postcode-coordinate exceptions: could not read/parse data/postcode_coordinate_exceptions.json (${e.message})`,
+    );
   }
 
   const count = data.length;
@@ -617,6 +660,30 @@ function validatePintPrices() {
 
   if (outOfBounds > 0) {
     console.log(`  ${outOfBounds} row(s) outside Greater London bounds`);
+  }
+
+  if (osmPubs && postcodeCoordinateExceptions) {
+    const postcodeResult = findPostcodeCoordinateContradictions({
+      rows: data,
+      osmPubs,
+      exceptionRegistry: postcodeCoordinateExceptions,
+    });
+    for (const error of postcodeResult.invalidExceptions) {
+      errs.add(`invalid postcode-coordinate exception: ${error}`);
+    }
+    for (const contradiction of postcodeResult.contradictions) {
+      errs.add(
+        `row ${contradiction.rowIndex} (${contradiction.pubName}): postcode-coordinate contradiction: ${contradiction.postcode} (${contradiction.outwardCode}) distance ${contradiction.distanceKm.toFixed(2)} km exceeds ${POSTCODE_COORDINATE_MAX_DISTANCE_KM} km from its outward-code reference`,
+      );
+    }
+    console.log(
+      `  postcode-coordinate check: ${postcodeResult.checkedRows} row(s), ${postcodeResult.referenceCount} outward-code reference(s), ${postcodeResult.contradictions.length} contradiction(s)`,
+    );
+    if (postcodeResult.appliedExceptions.length > 0) {
+      console.log(
+        `  postcode-coordinate exceptions: ${postcodeResult.appliedExceptions.length} applied`,
+      );
+    }
   }
 
   const ok = errs.count === 0;
