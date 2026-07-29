@@ -36,7 +36,9 @@ function pathMatches(pathname: string, href: string): boolean {
   return pathname === href || pathname.startsWith(`${href}/`);
 }
 
-type MenuCoords = { top: number; right: number };
+type MenuCoords = { top: number; right: number; maxHeight: number };
+
+const MENU_VIEWPORT_GUTTER = 8;
 
 export default function SiteNavMore(): React.JSX.Element {
   const pathname = usePathname() ?? "";
@@ -53,9 +55,11 @@ export default function SiteNavMore(): React.JSX.Element {
     const btn = buttonRef.current;
     if (!btn) return;
     const rect = btn.getBoundingClientRect();
+    const top = rect.bottom + MENU_VIEWPORT_GUTTER;
     setCoords({
-      top: rect.bottom + 8,
-      right: Math.max(8, window.innerWidth - rect.right),
+      top,
+      right: Math.max(MENU_VIEWPORT_GUTTER, window.innerWidth - rect.right),
+      maxHeight: Math.max(0, window.innerHeight - top - MENU_VIEWPORT_GUTTER),
     });
   }, []);
 
@@ -127,7 +131,7 @@ export default function SiteNavMore(): React.JSX.Element {
   }
 
   const menuStyle: CSSProperties | undefined = coords
-    ? { top: coords.top, right: coords.right }
+    ? { top: coords.top, right: coords.right, maxHeight: coords.maxHeight }
     : undefined;
 
   // Portal only in the browser (document exists after hydration). Avoid a
