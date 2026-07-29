@@ -27,6 +27,7 @@ import {
   resolveRoundPromotionStatus,
   type RoundDTO,
   type RoundMemberDTO,
+  type RoundPriceSource,
   type RoundSpendDTO,
   type RoundSpendItemDTO,
   type RoundPromotionStatus,
@@ -66,7 +67,7 @@ export type RecordSpendResult =
   | { ok: true; state: RoundState; created: boolean }
   | { ok: false; error: RoundWriteError };
 
-export type UpdateSpendPromotionsResult =
+export type TransitionSpendPromotionsResult =
   | { ok: true; state: RoundState }
   | { ok: false; error: RoundWriteError };
 
@@ -110,11 +111,12 @@ export type RoundsStore = {
     clientRef: string,
     actor: string,
   ): Promise<ReconcilePromotionKeysResult>;
-  updateSpendPromotions(
+  transitionSpendPromotions(
     code: string,
     clientRef: string,
+    actor: string,
     updates: ReadonlyArray<{ index: number; status: RoundPromotionStatus }>,
-  ): Promise<UpdateSpendPromotionsResult>;
+  ): Promise<TransitionSpendPromotionsResult>;
   close(code: string, handle: string): Promise<CloseResult>;
 };
 
@@ -438,6 +440,7 @@ export const supabaseRoundsStore: RoundsStore = {
       );
       if (error) throw new Error(error.message);
       if (data === "forbidden") return { ok: false, error: "forbidden" };
+      if (data === "not_found") return { ok: false, error: "not_found" };
       if (data !== "ok") return { ok: false, error: "error" };
       const next = await this.getByCode(code);
       return next
@@ -452,36 +455,29 @@ export const supabaseRoundsStore: RoundsStore = {
     }
   },
 
-  async updateSpendPromotions(code, clientRef, updates) {
+  async transitionSpendPromotions(code, clientRef, actor, updates) {
     try {
       const state = await this.getByCode(code);
       if (!state) return { ok: false, error: "not_found" };
       const spend = state.spends.find((candidate) => candidate.clientRef === clientRef);
       if (!spend) return { ok: false, error: "not_found" };
-      const items = spend.items.map((item) => ({ ...item }));
-      for (const update of updates) {
-        const item = items[update.index];
-        if (
-          item &&
-          ((update.status === "ready" &&
-            item.promotionStatus === "pending") ||
-            (update.status === "promoted" &&
-              item.promotionStatus === "ready"))
-        ) {
-          item.promotionStatus = update.status;
-        }
-      }
-      const { error } = await admin()
-        .from(SPENDS)
-        .update({ items })
-        .eq("round_id", state.round.id)
-        .eq("client_ref", clientRef);
+      const { data, error } = await admin().rpc(
+        "transition_round_price_lines",
+        {
+          p_actor: actor,
+          p_spend_id: spend.id,
+          p_updates: updates,
+        },
+      );
       if (error) throw new Error(error.message);
+      if (data === "forbidden") return { ok: false, error: "forbidden" };
+      if (data === "not_found") return { ok: false, error: "not_found" };
+      if (data !== "ok") return { ok: false, error: "error" };
       const next = await this.getByCode(code);
       return next ? { ok: true, state: next } : { ok: false, error: "error" };
     } catch (err) {
       console.error(
-        "[rounds] updateSpendPromotions failed:",
+        "[rounds] transitionSpendPromotions failed:",
         err instanceof Error ? err.message : err,
       );
       return { ok: false, error: "error" };
@@ -731,19 +727,36 @@ export const memoryRoundsStore: RoundsStore = {
     return { ok: true, state: stateFrom(round) };
   },
 
-  async updateSpendPromotions(code, clientRef, updates) {
+  async transitionSpendPromotions(code, clientRef, actor, updates) {
     const round = memoryRounds.get(normalizeRoundCode(code));
     if (!round) return { ok: false, error: "not_found" };
     const spend = round.spends.find((candidate) => candidate.clientRef === clientRef);
     if (!spend) return { ok: false, error: "not_found" };
+    if (round.promotionOwners.get(clientRef) !== actor) {
+      return { ok: false, error: "forbidden" };
+    }
+    const reconciled = await this.reconcilePromotionKeys(code, clientRef, actor);
+    if (!reconciled.ok) return reconciled;
     for (const update of updates) {
       const item = spend.items[update.index];
+      if (!item || item.source !== "round") continue;
       if (
-        item &&
-        ((update.status === "ready" && item.promotionStatus === "pending") ||
-          (update.status === "promoted" && item.promotionStatus === "ready"))
+        update.status === "ready" &&
+        item.promotionStatus === "pending"
+      ) {
+        item.promotionStatus = "ready";
+      } else if (
+        update.status === "promoted" &&
+        item.promotionStatus === "ready"
       ) {
         item.promotionStatus = update.status;
+      } else if (
+        update.status === "superseded" &&
+        (item.promotionStatus === "pending" ||
+          item.promotionStatus === "ready" ||
+          item.promotionStatus === "promoted")
+      ) {
+        item.promotionStatus = "superseded";
       }
     }
     return { ok: true, state: stateFrom(round) };
@@ -763,6 +776,20 @@ export const memoryRoundsStore: RoundsStore = {
 /** The single backend selection point (mirrors the other stores). */
 export function roundsStore(): RoundsStore {
   return selectStore(memoryRoundsStore, supabaseRoundsStore);
+}
+
+export function markRoundPriceSourceSuperseded(
+  source: RoundPriceSource,
+  actor: string,
+): void {
+  for (const round of memoryRounds.values()) {
+    const spend = round.spends.find((candidate) => candidate.id === source.spendId);
+    if (!spend) continue;
+    if (round.promotionOwners.get(spend.clientRef) !== actor) return;
+    const item = spend.items[source.lineIndex];
+    if (item?.source === "round") item.promotionStatus = "superseded";
+    return;
+  }
 }
 
 /** Test-only: clear the in-memory Round map between cases. */

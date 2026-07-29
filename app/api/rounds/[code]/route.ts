@@ -17,13 +17,11 @@
 // rate-limited per handle + IP.
 
 import { jsonNoStore } from "@/lib/apiResponses";
-import { callerUserId } from "@/lib/authServer";
 import {
   resolveContributionIdentity,
   type ContributionIdentityResolution,
 } from "@/lib/contributionIdentity.server";
 import { submitCommunityPrice } from "@/lib/communityPriceStore";
-import { identityHandleStore } from "@/lib/identityHandleStore";
 import { resolveMessageHandle } from "@/lib/messageAuth";
 import { isLimited } from "@/lib/pintDrops";
 import { gateHandleAction } from "@/lib/profileOwnership";
@@ -39,13 +37,13 @@ import {
   isValidRoundCode,
   type RoundSpendDTO,
   type RoundState,
-  type RoundViewState,
 } from "@/lib/rounds";
 import {
   roundsStore,
   type RoundsStore,
   type RoundWriteError,
 } from "@/lib/roundsStore";
+import { projectRoundView } from "@/lib/roundView.server";
 import { assertServerEnv } from "@/lib/serverEnv";
 import { isRoundsReadLimited } from "@/lib/roundsReadRateLimit";
 import { clientIp, hashIp } from "@/lib/supabase";
@@ -57,20 +55,12 @@ assertServerEnv();
 
 type Ctx = { params: Promise<{ code: string }> };
 
-async function ownedRoundMemberHandle(
+async function roundStateResponse(
   request: Request,
   state: RoundState,
-): Promise<string | null> {
-  try {
-    const userId = await callerUserId(request);
-    if (!userId) return null;
-    return identityHandleStore().ownedHandle(
-      userId,
-      state.members.map((member) => member.handle),
-    );
-  } catch {
-    return null;
-  }
+  status = 200,
+): Promise<Response> {
+  return jsonNoStore(await projectRoundView(request, state), { status });
 }
 
 // Map a store write-error to an HTTP status + a grounded message.
@@ -98,12 +88,7 @@ export async function GET(request: Request, ctx: Ctx): Promise<Response> {
   }
   const state = await roundsStore().getByCode(code);
   if (!state) return jsonNoStore({ error: "That Round doesn't exist." }, { status: 404 });
-  const viewerMemberHandle = await ownedRoundMemberHandle(request, state);
-  const view: RoundViewState = {
-    ...state,
-    ...(viewerMemberHandle ? { viewerMemberHandle } : {}),
-  };
-  return jsonNoStore(view, { status: 200 });
+  return roundStateResponse(request, state);
 }
 
 type ResolvedContributor = Extract<
@@ -172,9 +157,10 @@ async function preparePendingRoundPrices(input: {
   const failure = roundBudgetFailure(budget);
   if (failure) return { ok: false, response: failure };
 
-  const marked = await input.store.updateSpendPromotions(
+  const marked = await input.store.transitionSpendPromotions(
     input.code,
     input.clientRef,
+    input.promotionOwner,
     pending.map(({ index }) => ({ index, status: "ready" as const })),
   );
   if (!marked.ok) {
@@ -196,11 +182,16 @@ async function promoteReadyRoundPrices(input: {
   state: RoundState;
   stored: RoundSpendDTO;
   contributor: ResolvedContributor;
+  promotionOwner: string;
+  request: Request;
 }): Promise<Response> {
   const ready = input.stored.items
     .map((item, index) => ({ item, index }))
     .filter(({ item }) => item.promotionStatus === "ready");
-  const promoted: Array<{ index: number; status: "promoted" }> = [];
+  const completed: Array<{
+    index: number;
+    status: "promoted" | "superseded";
+  }> = [];
   const recordedAt = Date.parse(input.stored.recordedAt);
   for (const { item, index } of ready) {
     const write = await submitCommunityPrice(
@@ -210,31 +201,39 @@ async function promoteReadyRoundPrices(input: {
         priceGbp: item.pricePence / 100,
         actor: input.contributor.actor,
         contributorHandle: input.contributor.handle,
+        roundSource: { spendId: input.stored.id, lineIndex: index },
       },
       recordedAt,
     );
-    if (!write.failed && write.price) {
-      promoted.push({ index, status: "promoted" });
+    if (!write.failed && write.price && write.sourceBecameOwner === true) {
+      completed.push({ index, status: "promoted" });
+    } else if (
+      !write.failed &&
+      write.price &&
+      write.sourceBecameOwner === false
+    ) {
+      completed.push({ index, status: "superseded" });
     }
   }
 
   let state = input.state;
-  if (promoted.length > 0) {
-    const marked = await input.store.updateSpendPromotions(
+  if (completed.length > 0) {
+    const marked = await input.store.transitionSpendPromotions(
       input.code,
       input.clientRef,
-      promoted,
+      input.promotionOwner,
+      completed,
     );
     if (!marked.ok) return errorResponse(marked.error);
     state = marked.state;
   }
-  if (promoted.length !== ready.length) {
+  if (completed.length !== ready.length) {
     return jsonNoStore(
       { error: "Your round is kept, but some prices need another try." },
       { status: 503 },
     );
   }
-  return jsonNoStore(state, { status: 200 });
+  return roundStateResponse(input.request, state);
 }
 
 // One immutable buying turn, plus the price submissions its drink lines earn.
@@ -293,8 +292,7 @@ async function recordSpend(
   ) {
     return jsonNoStore(contributor.body, { status: contributor.httpStatus });
   }
-  const promotionOwner =
-    contributor?.accountId ? `account:${contributor.accountId}` : null;
+  const promotionOwner = contributor?.ok ? contributor.actor : null;
   const result = await store.recordSpend(code, {
     ...spendInput,
     initialPromotionStatus:
@@ -304,7 +302,7 @@ async function recordSpend(
   if (!result.ok) return errorResponse(result.error);
 
   if (observed.length === 0 || (!hasBearer && !contributor?.ok)) {
-    return jsonNoStore(result.state, { status: 200 });
+    return roundStateResponse(request, result.state);
   }
   if (!contributor?.ok) {
     return jsonNoStore(contributor.body, { status: contributor.httpStatus });
@@ -353,6 +351,8 @@ async function recordSpend(
     state: prepared.state,
     stored: prepared.stored,
     contributor,
+    promotionOwner,
+    request,
   });
 }
 
@@ -387,12 +387,14 @@ export async function POST(request: Request, ctx: Ctx): Promise<Response> {
   const store = roundsStore();
   const state = await store.getByCode(code);
   const memberHandle = state
-    ? (await ownedRoundMemberHandle(request, state)) ?? handle
+    ? (await projectRoundView(request, state)).viewerMemberHandle ?? handle
     : handle;
   switch (action) {
     case "join": {
       const result = await store.join(code, memberHandle);
-      return result.ok ? jsonNoStore(result.state, { status: 200 }) : errorResponse(result.error);
+      return result.ok
+        ? roundStateResponse(request, result.state)
+        : errorResponse(result.error);
     }
     case "addStop": {
       const requestedVenueId = readString(body.venueId) ?? "";
@@ -412,13 +414,17 @@ export async function POST(request: Request, ctx: Ctx): Promise<Response> {
         addedByHandle: memberHandle,
         dropRef: body.dropRef,
       });
-      return result.ok ? jsonNoStore(result.state, { status: 200 }) : errorResponse(result.error);
+      return result.ok
+        ? roundStateResponse(request, result.state)
+        : errorResponse(result.error);
     }
     case "recordSpend":
       return recordSpend(request, code, memberHandle, body);
     case "close": {
       const result = await store.close(code, memberHandle);
-      return result.ok ? jsonNoStore(result.state, { status: 200 }) : errorResponse(result.error);
+      return result.ok
+        ? roundStateResponse(request, result.state)
+        : errorResponse(result.error);
     }
     default:
       return jsonNoStore({ error: "Unknown action." }, { status: 400 });

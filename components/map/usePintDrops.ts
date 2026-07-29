@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 
+import { useAuth } from "@/components/auth/AuthProvider";
 import { readActiveRoundCode } from "@/lib/activeRound";
 import { getAnonId } from "@/lib/anonId";
 import { authedFetch } from "@/lib/authedFetch";
@@ -28,6 +29,11 @@ import {
 } from "@/lib/mapPintDropPolicy";
 import { clearPintDropDraft } from "@/lib/pintDropDraft";
 import type { PintDrop, VibeTag } from "@/lib/pintDropShared";
+import {
+  captureRoundRequestIdentity,
+  roundJsonRequest,
+  type RoundRequestIdentity,
+} from "@/lib/roundRequest";
 import { appendWithSuffix, DEFAULT_VISIBILITY, type Visibility } from "@/lib/spill";
 import type { LastPintDecision } from "@/lib/tfl";
 import { venueMapUrl } from "@/lib/venueMapUrl";
@@ -61,6 +67,7 @@ const MAX_VIBE_TAGS = 4; // mirrors the server cap in lib/pintDrops.ts.
  * join step, then uses the existing `addStop` action.
  */
 async function appendStopToActiveRound(input: {
+  identity: RoundRequestIdentity;
   code: string;
   handle: string;
   venueId: string;
@@ -68,27 +75,27 @@ async function appendStopToActiveRound(input: {
   dropRef?: string;
 }): Promise<boolean> {
   try {
-    const joinRes = await fetch(`/api/rounds/${encodeURIComponent(input.code)}`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action: "join", handle: input.handle }),
+    const path = `/api/rounds/${encodeURIComponent(input.code)}`;
+    const joinRes = await roundJsonRequest(path, input.identity, {
+      action: "join",
+      handle: input.handle,
     });
     // Join may 409 if already a member — still attempt addStop (idempotent join).
     // Other join failures must not call addStop or pretend the stop landed.
     if (!joinRes.ok && joinRes.status !== 409) {
       return false;
     }
-    const res = await fetch(`/api/rounds/${encodeURIComponent(input.code)}`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
+    const res = await roundJsonRequest(
+      path,
+      input.identity,
+      {
         action: "addStop",
         handle: input.handle,
         venueId: input.venueId,
         venueName: input.venueName,
         ...(input.dropRef ? { dropRef: input.dropRef } : {}),
-      }),
-    });
+      },
+    );
     return res.ok;
   } catch {
     return false;
@@ -111,6 +118,7 @@ export function usePintDrops(
   cityId: CityId = "london",
   mapVenues?: readonly MapPintDropVenue[],
 ) {
+  const { user, session, loading: authLoading } = useAuth();
   const [handle, setHandle] = useState(() =>
     typeof window === "undefined" ? "" : (window.localStorage.getItem("pubmax_handle") ?? ""),
   );
@@ -290,6 +298,9 @@ export function usePintDrops(
     options?: { venueName?: string; lastTrainDecision?: LastPintDecision | null },
   ) {
     event.preventDefault();
+    const submittedRoundIdentity = authLoading
+      ? null
+      : captureRoundRequestIdentity(user?.id ?? null, session);
     setSubmitting(true);
     setDropMsg(null);
     const clientRequestId = newOptimisticSpillClientId();
@@ -468,8 +479,9 @@ export function usePintDrops(
           ? (data.drop as { id: string }).id
           : undefined;
       let addedToNight = false;
-      if (activeRound && submittedHandle) {
+      if (activeRound && submittedHandle && submittedRoundIdentity) {
         addedToNight = await appendStopToActiveRound({
+          identity: submittedRoundIdentity,
           code: activeRound,
           handle: submittedHandle,
           venueId,

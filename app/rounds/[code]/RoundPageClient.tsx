@@ -17,8 +17,6 @@ import EmptyState from "@/components/EmptyState";
 import { useAuth } from "@/components/auth/AuthProvider";
 import SiteNav from "@/components/nav/SiteNav";
 import {
-  accountBoundFetch,
-  captureAccountAuth,
   type AccountAuthSnapshot,
 } from "@/lib/accountBoundFetch";
 import {
@@ -50,8 +48,13 @@ import {
   roundPresence,
   type PresenceDTO,
 } from "@/lib/roundPresence";
+import {
+  captureRoundRequestIdentity,
+  roundJsonRequest,
+  roundRequest,
+  type RoundRequestIdentity,
+} from "@/lib/roundRequest";
 import { buildRouteLegs, formatLeg, formatRouteTotal } from "@/lib/routeLegs";
-import { submitRoundSpendRequest } from "@/lib/roundSpendClient";
 import { venueMenuForInspector } from "@/lib/venueMenu";
 import { loadSlimVenues, type SlimVenue } from "@/lib/venuesSlim";
 import { formatPrice, type Venue } from "@/lib/venues";
@@ -81,11 +84,21 @@ function slimToVenue(slim: SlimVenue): Venue {
 }
 
 export default function RoundPageClient({ params }: { params: Promise<{ code: string }> }): React.JSX.Element {
-  const { user, session, handle: accountHandle } = useAuth();
-  const roundAuth = useMemo(
-    () => captureAccountAuth(user?.id ?? null, session),
-    [session, user?.id],
+  const {
+    user,
+    session,
+    loading: authLoading,
+    handle: accountHandle,
+  } = useAuth();
+  const roundIdentity = useMemo(
+    () =>
+      authLoading
+        ? null
+        : captureRoundRequestIdentity(user?.id ?? null, session),
+    [authLoading, session, user?.id],
   );
+  const roundAuth =
+    roundIdentity?.kind === "account" ? roundIdentity.auth : null;
   const roundOwnerRef = useRef(roundAuth?.userId ?? null);
   roundOwnerRef.current = roundAuth?.userId ?? null;
   // Route param resolved after mount (Next 15 async params).
@@ -129,14 +142,14 @@ export default function RoundPageClient({ params }: { params: Promise<{ code: st
   // Fetch + poll the Round state while it's open. Fail-soft: a fetch miss leaves
   // the last-known state up rather than blanking the page.
   const refetch = useCallback(async () => {
-    if (!code) return;
+    if (!code || !roundIdentity) return;
     const requestOwner = roundAuth?.userId ?? null;
     try {
-      const res = roundAuth
-        ? await accountBoundFetch(roundAuth, `/api/rounds/${code}`, {
-            cache: "no-store",
-          })
-        : await fetch(`/api/rounds/${code}`, { cache: "no-store" });
+      const res = await roundRequest(
+        `/api/rounds/${code}`,
+        roundIdentity,
+        { cache: "no-store" },
+      );
       if (res.ok) {
         const next = (await res.json()) as RoundViewState;
         if (roundOwnerRef.current !== requestOwner) return;
@@ -150,7 +163,7 @@ export default function RoundPageClient({ params }: { params: Promise<{ code: st
     } finally {
       setLoaded(true);
     }
-  }, [code, roundAuth]);
+  }, [code, roundAuth?.userId, roundIdentity]);
 
   useEffect(() => {
     if (!code) return;
@@ -295,6 +308,15 @@ export default function RoundPageClient({ params }: { params: Promise<{ code: st
     );
   }
 
+  if (!roundIdentity) {
+    return (
+      <main className="roundShell">
+        <SiteNav active="crawls" />
+        <p className="roundLoading">Refreshing your sign-in…</p>
+      </main>
+    );
+  }
+
   return (
     <main className="roundShell">
       <SiteNav active="crawls" />
@@ -302,6 +324,7 @@ export default function RoundPageClient({ params }: { params: Promise<{ code: st
         state={state}
         myHandle={effectiveHandle}
         roundAuth={roundAuth}
+        roundIdentity={roundIdentity}
         amMember={amMember}
         presence={presence}
         onChange={setState}
@@ -314,6 +337,7 @@ function RoundBoard({
   state,
   myHandle,
   roundAuth,
+  roundIdentity,
   amMember,
   presence,
   onChange,
@@ -321,6 +345,7 @@ function RoundBoard({
   state: RoundState;
   myHandle: string;
   roundAuth: AccountAuthSnapshot | null;
+  roundIdentity: RoundRequestIdentity;
   amMember: boolean;
   presence: PresenceDTO[];
   onChange: (next: RoundState) => void;
@@ -394,6 +419,7 @@ function RoundBoard({
           code={round.code}
           recorderHandle={myHandle}
           roundAuth={roundAuth}
+          roundIdentity={roundIdentity}
           currentHandle={rotation.currentHandle}
           members={members}
           stops={stops}
@@ -426,15 +452,31 @@ function RoundBoard({
       <RouteList stops={stops} />
 
       {!amMember && !closed ? (
-        <JoinForm code={round.code} initialHandle={myHandle} onJoined={onChange} />
+        <JoinForm
+          code={round.code}
+          identity={roundIdentity}
+          initialHandle={myHandle}
+          onJoined={onChange}
+        />
       ) : null}
 
       {amMember && !closed ? (
-        <AddStop code={round.code} handle={myHandle} onAdded={onChange} existing={stops.map((s) => s.venueId)} />
+        <AddStop
+          code={round.code}
+          identity={roundIdentity}
+          handle={myHandle}
+          onAdded={onChange}
+          existing={stops.map((s) => s.venueId)}
+        />
       ) : null}
 
       {isCreator && !closed ? (
-        <CloseRound code={round.code} handle={myHandle} onClosed={onChange} />
+        <CloseRound
+          code={round.code}
+          identity={roundIdentity}
+          handle={myHandle}
+          onClosed={onChange}
+        />
       ) : null}
     </div>
   );
@@ -531,6 +573,7 @@ function RoundSpendComposer({
   code,
   recorderHandle,
   roundAuth,
+  roundIdentity,
   currentHandle,
   members,
   stops,
@@ -539,6 +582,7 @@ function RoundSpendComposer({
   code: string;
   recorderHandle: string;
   roundAuth: AccountAuthSnapshot | null;
+  roundIdentity: RoundRequestIdentity;
   currentHandle: string | null;
   members: RoundState["members"];
   stops: RoundState["stops"];
@@ -713,25 +757,29 @@ function RoundSpendComposer({
     setError(null);
     pendingRef.current ??= spendClientRef();
     try {
-      const res = await submitRoundSpendRequest(code, roundAuth, {
-        action: "recordSpend",
-        handle: recorderHandle,
-        payerHandle,
-        venueId,
-        clientRef: pendingRef.current,
-        ...(mode === "items"
-          ? {
-              items: items.map(
-                ({ drinkName, drinkCategory, priceGbp, priceSource }) => ({
-                  drinkName,
-                  drinkCategory,
-                  priceGbp,
-                  priceSource,
-                }),
-              ),
-            }
-          : { totalGbp: amount }),
-      });
+      const res = await roundJsonRequest(
+        `/api/rounds/${code}`,
+        roundIdentity,
+        {
+          action: "recordSpend",
+          handle: recorderHandle,
+          payerHandle,
+          venueId,
+          clientRef: pendingRef.current,
+          ...(mode === "items"
+            ? {
+                items: items.map(
+                  ({ drinkName, drinkCategory, priceGbp, priceSource }) => ({
+                    drinkName,
+                    drinkCategory,
+                    priceGbp,
+                    priceSource,
+                  }),
+                ),
+              }
+            : { totalGbp: amount }),
+        },
+      );
       const data = (await res.json()) as RoundState | { error: string };
       if (!res.ok) {
         setError((data as { error: string }).error ?? "Could not keep that round.");
@@ -1169,10 +1217,12 @@ function RouteList({ stops }: { stops: RoundState["stops"] }): React.JSX.Element
 
 function JoinForm({
   code,
+  identity,
   initialHandle,
   onJoined,
 }: {
   code: string;
+  identity: RoundRequestIdentity;
   initialHandle: string;
   onJoined: (next: RoundState) => void;
 }): React.JSX.Element {
@@ -1190,10 +1240,9 @@ function JoinForm({
     setBusy(true);
     setError(null);
     try {
-      const res = await fetch(`/api/rounds/${code}`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "join", handle: clean }),
+      const res = await roundJsonRequest(`/api/rounds/${code}`, identity, {
+        action: "join",
+        handle: clean,
       });
       const data = (await res.json()) as RoundState | { error: string };
       if (res.ok) {
@@ -1252,11 +1301,13 @@ function JoinForm({
 //     a drop_ref for when it does. See the store header + issue #26.
 function AddStop({
   code,
+  identity,
   handle,
   existing,
   onAdded,
 }: {
   code: string;
+  identity: RoundRequestIdentity;
   handle: string;
   existing: string[];
   onAdded: (next: RoundState) => void;
@@ -1301,16 +1352,16 @@ function AddStop({
     setBusy(true);
     setError(null);
     try {
-      const res = await fetch(`/api/rounds/${code}`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
+      const res = await roundJsonRequest(
+        `/api/rounds/${code}`,
+        identity,
+        {
           action: "addStop",
           handle,
           venueId: venue.id,
           venueName: venue.name,
-        }),
-      });
+        },
+      );
       const data = (await res.json()) as RoundState | { error: string };
       if (res.ok) {
         setQuery("");
@@ -1375,10 +1426,12 @@ function AddStop({
 
 function CloseRound({
   code,
+  identity,
   handle,
   onClosed,
 }: {
   code: string;
+  identity: RoundRequestIdentity;
   handle: string;
   onClosed: (next: RoundState) => void;
 }): React.JSX.Element {
@@ -1405,10 +1458,9 @@ function CloseRound({
   async function close() {
     setBusy(true);
     try {
-      const res = await fetch(`/api/rounds/${code}`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "close", handle }),
+      const res = await roundJsonRequest(`/api/rounds/${code}`, identity, {
+        action: "close",
+        handle,
       });
       if (res.ok) onClosed((await res.json()) as RoundState);
     } catch {

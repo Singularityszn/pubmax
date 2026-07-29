@@ -125,6 +125,11 @@ export type RoundPromotionStatus =
   | "promoted"
   | "superseded";
 
+export type RoundPriceSource = Readonly<{
+  spendId: string;
+  lineIndex: number;
+}>;
+
 export type RoundSpendItemDTO = {
   drinkName: string;
   drinkCategory: DrinkCategory;

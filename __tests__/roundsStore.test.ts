@@ -253,9 +253,13 @@ describe("recordSpend", () => {
     });
     expect(recorded.ok).toBe(true);
 
-    const ready = await store.updateSpendPromotions(code, spend.clientRef, [
-      { index: 0, status: "ready" },
-    ]);
+    await store.claimSpendPromotionOwner(code, spend.clientRef, "profile:ken");
+    const ready = await store.transitionSpendPromotions(
+      code,
+      spend.clientRef,
+      "profile:ken",
+      [{ index: 0, status: "ready" }],
+    );
     expect(ready.ok).toBe(true);
     if (ready.ok) {
       expect(ready.state.spends[0]?.items[0]?.promotionStatus).toBe("ready");
@@ -358,7 +362,7 @@ describe("close", () => {
 });
 
 describe("Round price key ownership migration", () => {
-  it("serialises one latest owner per account, venue, and drink category", () => {
+  it("preserves every diary line while reconciling first-party owners", () => {
     const sql = readFileSync(
       new URL(
         "../supabase/migrations/20260729140000_0064_round_price_key_owners.sql",
@@ -373,6 +377,25 @@ describe("Round price key ownership migration", () => {
     );
     expect(sql).toMatch(/expanded\.ordinality desc/);
     expect(sql).toMatch(/ownership_rank > 1[\s\S]*superseded/);
+    expect(sql).toMatch(/all_items[\s\S]*left join ranked_round/);
+    expect(sql).toMatch(/jsonb_agg[\s\S]*order by all_items\.ordinality/);
+  });
+
+  it("serialises source ownership and promotion transitions under one actor lock", () => {
+    const sql = readFileSync(
+      new URL(
+        "../supabase/migrations/20260729140000_0064_round_price_key_owners.sql",
+        import.meta.url,
+      ),
+      "utf8",
+    );
+
+    expect(sql).toMatch(/round_spend_id/);
+    expect(sql).toMatch(/round_line_index/);
+    expect(sql).toMatch(/community_prices_round_source_owner_idx/);
+    expect(sql).toMatch(/round-price-actor:/);
+    expect(sql).toMatch(/transition_round_price_lines/);
+    expect(sql).toMatch(/source_became_owner/);
     expect(sql).toMatch(
       /community_prices\.submitted_at <= excluded\.submitted_at/,
     );

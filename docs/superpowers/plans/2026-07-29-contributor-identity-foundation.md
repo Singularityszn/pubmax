@@ -51,17 +51,22 @@ contribution age-gate design.
 
 - Keep unauthenticated and demo-menu lines diary-only.
 - Send signed-in Round writes with an immutable account snapshot.
-- Persist `diary_only`, `pending`, `ready`, or `promoted` for each line.
+- Persist `diary_only`, `pending`, `ready`, `promoted`, or `superseded` for each
+  line.
 - Bind pending promotion privately to its authenticated account owner.
 - Charge the account budget before moving `pending` to `ready`.
+- Let the latest line for each account, venue and drink category own the
+  community row, and mark any displaced source line `superseded`.
 - Retry only `pending` or `ready` lines and show community-price copy only for
   `promoted` lines.
 
 ### Privacy and product language
 
 - State required date of birth, optional full name and sex, product analytics
-  and social-feature purposes, private visibility, and account-lifetime
-  retention in Privacy and Terms.
+  and social-feature purposes, private visibility, and profile-deletion
+  retention in Privacy and Terms. Profile deletion removes these private fields
+  while leaving the authentication account, public handle and contribution
+  history in place.
 - State that no age blocks signup or contribution.
 - Keep the handle as the only public identity.
 

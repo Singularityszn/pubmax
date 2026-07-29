@@ -3,6 +3,10 @@
 // so addStop stays idempotent and order matches the plan.
 
 import type { RoundState } from "@/lib/rounds";
+import {
+  roundJsonRequest,
+  type RoundRequestIdentity,
+} from "@/lib/roundRequest";
 
 export type SeedStop = { id: string; name: string };
 
@@ -29,6 +33,7 @@ function isRoundState(value: unknown): value is RoundState {
  */
 export async function startRoundWithStops(input: {
   handle: string;
+  identity: RoundRequestIdentity;
   title?: string;
   seedStops?: SeedStop[];
   fetchImpl?: FetchLike;
@@ -39,11 +44,12 @@ export async function startRoundWithStops(input: {
 
   let createRes: Response;
   try {
-    createRes = await fetchImpl("/api/rounds", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body),
-    });
+    createRes = await roundJsonRequest(
+      "/api/rounds",
+      input.identity,
+      body,
+      fetchImpl,
+    );
   } catch {
     return { ok: false, error: "Could not start the Round. Try again." };
   }
@@ -70,16 +76,17 @@ export async function startRoundWithStops(input: {
 
   for (const stop of seeds) {
     try {
-      const stopRes = await fetchImpl(`/api/rounds/${encodeURIComponent(code)}`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
+      const stopRes = await roundJsonRequest(
+        `/api/rounds/${encodeURIComponent(code)}`,
+        input.identity,
+        {
           action: "addStop",
           handle: input.handle,
           venueId: stop.id,
           venueName: stop.name,
-        }),
-      });
+        },
+        fetchImpl,
+      );
       // Idempotent addStop — soft-fail individual stops so a flaky one doesn't
       // strand the Round; the group can still walk / re-add.
       if (!stopRes.ok) {

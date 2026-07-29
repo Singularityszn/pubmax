@@ -3,10 +3,12 @@
 import { Copy, Users } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 
+import { useAuth } from "@/components/auth/AuthProvider";
 import { writeActiveRoundCode } from "@/lib/activeRound";
 import { normalizeHandle } from "@/lib/profiles";
+import { captureRoundRequestIdentity } from "@/lib/roundRequest";
 import { startRoundWithStops, type SeedStop } from "@/lib/startRoundWithStops";
 
 import "./roundStarter.css";
@@ -41,6 +43,14 @@ export default function RoundStarter({
   className,
 }: RoundStarterProps): React.JSX.Element {
   const router = useRouter();
+  const { user, session, loading: authLoading } = useAuth();
+  const roundIdentity = useMemo(
+    () =>
+      authLoading
+        ? null
+        : captureRoundRequestIdentity(user?.id ?? null, session),
+    [authLoading, session, user?.id],
+  );
   const stay = stayOnMap ?? compact;
   const [handle, setHandle] = useState<string>(() => {
     if (typeof window === "undefined") return "";
@@ -74,6 +84,10 @@ export default function RoundStarter({
       setError("Pick a handle to start a Round.");
       return;
     }
+    if (!roundIdentity) {
+      setError("Your sign-in changed. Try again.");
+      return;
+    }
     setBusy(true);
     setError(null);
     try {
@@ -84,6 +98,7 @@ export default function RoundStarter({
 
     const result = await startRoundWithStops({
       handle: clean,
+      identity: roundIdentity,
       title: defaultTitle,
       seedStops,
     });
@@ -166,7 +181,11 @@ export default function RoundStarter({
           enterKeyHint="go"
           maxLength={30}
         />
-        <button type="submit" className="crawlPrimaryBtn" disabled={busy}>
+        <button
+          type="submit"
+          className="crawlPrimaryBtn"
+          disabled={busy || authLoading}
+        >
           <Users size={16} aria-hidden="true" />{" "}
           {busy ? "Starting…" : hasSeeds ? "Start Round" : "Start a Round"}
         </button>

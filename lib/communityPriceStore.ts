@@ -71,6 +71,8 @@ import type {
   ContributionRecordReadResult,
 } from "@/lib/contributorLeaderboard";
 import { normalizeHandle } from "@/lib/profiles";
+import type { RoundPriceSource } from "@/lib/rounds";
+import { markRoundPriceSourceSuperseded } from "@/lib/roundsStore";
 import { MAX_PROVISIONAL_BASE_VENUE_IDS } from "@/lib/ukBasePubs";
 import {
   admin,
@@ -91,6 +93,7 @@ export type CommunityPriceWrite = CommunityPriceInput & {
    * internal imports; public contribution routes require account ownership.
    */
   contributorHandle?: string;
+  roundSource?: RoundPriceSource;
 };
 
 export type CommunityPriceWriteResult = {
@@ -98,6 +101,7 @@ export type CommunityPriceWriteResult = {
   price: CommunityPrice | null;
   /** Set when a durable write hard-failed - the submission was NOT recorded. */
   failed?: true;
+  sourceBecameOwner?: boolean;
 };
 
 export type CommunityVenueSignalWrite = CommunityVenueSignalInput & {
@@ -304,6 +308,7 @@ type StoredPrice = CommunityPrice & {
   id: string;
   actor: string | null;
   contributorHandle: string | null;
+  roundSource: RoundPriceSource | null;
 } & StoredModeration;
 
 type StoredVenueSignal = CommunityVenueSignal & {
@@ -339,6 +344,33 @@ function normalize(
   const pennies = Math.round(input.priceGbp * 100);
   if (pennies < MIN_PENNIES || pennies > MAX_PENNIES) return null;
   return { venueId, drinkCategory: input.drinkCategory, pennies };
+}
+
+function cleanRoundPriceSource(
+  value: RoundPriceSource | undefined,
+): RoundPriceSource | null {
+  if (
+    !value ||
+    typeof value.spendId !== "string" ||
+    value.spendId.trim() === "" ||
+    !Number.isInteger(value.lineIndex) ||
+    value.lineIndex < 0
+  ) {
+    return null;
+  }
+  return { spendId: value.spendId, lineIndex: value.lineIndex };
+}
+
+function sameRoundPriceSource(
+  left: RoundPriceSource | null,
+  right: RoundPriceSource | null,
+): boolean {
+  return (
+    left !== null &&
+    right !== null &&
+    left?.spendId === right?.spendId &&
+    left?.lineIndex === right?.lineIndex
+  );
 }
 
 function toPrice(
@@ -837,11 +869,13 @@ export const memoryCommunityPriceStore: CommunityPriceStore = {
   async submit(input, now = Date.now()) {
     const key = normalize(input);
     if (!key) return { price: null };
+    const roundSource = cleanRoundPriceSource(input.roundSource);
     const stored: StoredPrice = {
       ...toPrice(key.venueId, key.drinkCategory, key.pennies, now),
       id: randomUUID(),
       actor: input.actor ?? null,
       contributorHandle: normalizeHandle(input.contributorHandle) || null,
+      roundSource,
       hidden: false,
       reportCount: 0,
     };
@@ -855,7 +889,17 @@ export const memoryCommunityPriceStore: CommunityPriceStore = {
       row.actor === stored.actor;
     const replaced = rows.find(isOwnEarlier);
     if (replaced && replaced.submittedAt > stored.submittedAt) {
-      return { price: published(replaced) };
+      return {
+        price: published(replaced),
+        ...(roundSource
+          ? {
+              sourceBecameOwner: sameRoundPriceSource(
+                replaced.roundSource,
+                roundSource,
+              ),
+            }
+          : {}),
+      };
     }
     const kept = rows.filter((row) => !isOwnEarlier(row));
     // Moderation survives the correction. The durable backend's upsert writes
@@ -864,6 +908,16 @@ export const memoryCommunityPriceStore: CommunityPriceStore = {
     // hidden submitter could wash their price simply by logging it again -
     // and the two backends would disagree about whether that works.
     if (replaced) {
+      if (
+        replaced.roundSource &&
+        !sameRoundPriceSource(replaced.roundSource, roundSource) &&
+        replaced.actor
+      ) {
+        markRoundPriceSourceSuperseded(
+          replaced.roundSource,
+          replaced.actor,
+        );
+      }
       stored.hidden = replaced.hidden;
       stored.reportCount = replaced.reportCount;
       stored.reportedAt = replaced.reportedAt;
@@ -878,7 +932,10 @@ export const memoryCommunityPriceStore: CommunityPriceStore = {
     kept.push(stored);
     venues.set(key.venueId, kept);
     evictIfNeeded();
-    return { price: published(stored) };
+    return {
+      price: published(stored),
+      ...(roundSource ? { sourceBecameOwner: true } : {}),
+    };
   },
 
   async submitSignal(input, now = Date.now()) {
@@ -1099,6 +1156,7 @@ function rowsToPrices(rows: unknown, venueId: string): StoredPrice[] {
       id,
       actor,
       contributorHandle,
+      roundSource: null,
       // `hidden_at` absent (older projection) reads as VISIBLE, which is what
       // the table meant before moderation existed.
       hidden: typeof row.hidden_at === "string" && row.hidden_at !== "",
@@ -1251,6 +1309,7 @@ export const supabaseCommunityPriceStore: CommunityPriceStore = {
     // attributed ones upsert over that contributor's own earlier entry for the
     // same drink. Matches the memory store's replace-your-own rule.
     const actor = input.actor ?? null;
+    const roundSource = cleanRoundPriceSource(input.roundSource);
     // Pinned to the store's public result type: `run` returns a stored price on
     // the happy path, but the schema-miss and error paths legitimately resolve
     // to `{ price: null, failed: true }`, and inference off `run` alone would
@@ -1274,6 +1333,8 @@ export const supabaseCommunityPriceStore: CommunityPriceStore = {
           actor,
           contributor_handle:
             normalizeHandle(input.contributorHandle) || null,
+          round_spend_id: roundSource?.spendId ?? null,
+          round_line_index: roundSource?.lineIndex ?? null,
           submitted_at: submittedAt,
         };
         // `.select("id")` so the submitter's own receipt carries the handle it
@@ -1287,6 +1348,8 @@ export const supabaseCommunityPriceStore: CommunityPriceStore = {
                 p_contributor_handle: row.contributor_handle,
                 p_drink_category: row.drink_category,
                 p_price_pennies: row.price_pennies,
+                p_round_line_index: row.round_line_index,
+                p_round_spend_id: row.round_spend_id,
                 p_submitted_at: row.submitted_at,
                 p_venue_id: row.venue_id,
               },
@@ -1303,6 +1366,10 @@ export const supabaseCommunityPriceStore: CommunityPriceStore = {
           typeof saved.submitted_at === "string"
             ? Date.parse(saved.submitted_at)
             : now;
+        const sourceBecameOwner =
+          typeof saved.source_became_owner === "boolean"
+            ? saved.source_became_owner
+            : undefined;
         return {
           price: {
             ...toPrice(
@@ -1313,6 +1380,9 @@ export const supabaseCommunityPriceStore: CommunityPriceStore = {
             ),
             ...(id ? { id } : {}),
           },
+          ...(roundSource && sourceBecameOwner !== undefined
+            ? { sourceBecameOwner }
+            : {}),
         };
       },
     });

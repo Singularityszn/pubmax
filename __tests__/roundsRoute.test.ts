@@ -677,7 +677,10 @@ describe("POST /api/rounds/[code] — actions", () => {
       handle: "new_ken",
     });
     expect(retried.status).toBe(200);
-    const state = (await retried.json()) as RoundState;
+    const state = (await retried.json()) as RoundState & {
+      viewerMemberHandle?: string;
+    };
+    expect(state.viewerMemberHandle).toBe("ken");
     expect(state.spends).toHaveLength(1);
     expect(state.spends[0]?.items[0]?.promotionStatus).toBe("promoted");
     expect(
@@ -749,6 +752,83 @@ describe("POST /api/rounds/[code] — actions", () => {
     ).toBe(1);
     expect(await readCommunityPrices("venue-1")).toMatchObject([
       { drinkCategory: "beer", priceGbp: 6.4 },
+    ]);
+  });
+
+  it("supersedes a promoted Round line when a later direct price owns its key", async () => {
+    await authorizeContributor("user-ken", "ken");
+    const { round } = await newRound("ken");
+    await action(round.code, {
+      action: "addStop",
+      handle: "ken",
+      venueId: "venue-1",
+    });
+
+    const promoted = await action(round.code, {
+      action: "recordSpend",
+      handle: "ken",
+      payerHandle: "ken",
+      venueId: "venue-1",
+      clientRef: "round-before-direct",
+      items: [{ drinkName: "Guinness", drinkCategory: "beer", priceGbp: 6.2 }],
+    });
+    expect(promoted.status).toBe(200);
+    const promotedState = (await promoted.json()) as RoundState;
+    const roundSource = promotedState.spends[0]!;
+
+    await memoryCommunityPriceStore.submit(
+      {
+        venueId: "venue-1",
+        drinkCategory: "beer",
+        priceGbp: 6.5,
+        actor: "profile:mem-profile-ken",
+        contributorHandle: "ken",
+      },
+      Date.parse(roundSource.recordedAt) + 1,
+    );
+
+    const state = (await (await get(round.code)).json()) as RoundState;
+    expect(state.spends[0]?.items[0]?.promotionStatus).toBe("superseded");
+  });
+
+  it("does not promote an older ready line when a direct price already owns its key", async () => {
+    await authorizeContributor("user-ken", "ken");
+    const { round } = await newRound("ken");
+    await action(round.code, {
+      action: "addStop",
+      handle: "ken",
+      venueId: "venue-1",
+    });
+    const body = {
+      action: "recordSpend",
+      handle: "ken",
+      payerHandle: "ken",
+      venueId: "venue-1",
+      clientRef: "round-ready-before-direct",
+      items: [{ drinkName: "Guinness", drinkCategory: "beer", priceGbp: 6.2 }],
+    };
+
+    priceWriteState.failuresRemaining = 1;
+    expect((await action(round.code, body)).status).toBe(503);
+    const held = (await (await get(round.code)).json()) as RoundState;
+    const readySource = held.spends[0]!;
+    await memoryCommunityPriceStore.submit(
+      {
+        venueId: "venue-1",
+        drinkCategory: "beer",
+        priceGbp: 6.5,
+        actor: "profile:mem-profile-ken",
+        contributorHandle: "ken",
+      },
+      Date.parse(readySource.recordedAt) + 1,
+    );
+
+    const retried = await action(round.code, body);
+    expect(retried.status).toBe(200);
+    const state = (await retried.json()) as RoundState;
+    expect(state.spends[0]?.items[0]?.promotionStatus).toBe("superseded");
+    expect(await readCommunityPrices("venue-1")).toMatchObject([
+      { priceGbp: 6.5 },
     ]);
   });
 
