@@ -9,6 +9,7 @@ import { useEffect, useId, useRef, useState } from "react";
 import type { CategoryPriceIndexStatus } from "@/lib/mapExperienceLens";
 import { mapPriceLegend } from "@/lib/mapPriceLegend";
 import type { Filters } from "@/lib/venues";
+import MapKey from "@/components/map/MapKey";
 
 import "./mapPriceControl.css";
 
@@ -94,10 +95,11 @@ export default function MapPriceControl({
         className="mapPriceLegend"
         aria-expanded={open}
         aria-controls={panelId}
-        aria-label={open ? "Close price filters" : legend.ariaLabel}
-        title={legend.title}
+        aria-label={open ? "Close map key" : `Open map key: ${legend.ariaLabel}`}
+        title="Map key"
         onClick={() => setOpen((value) => !value)}
       >
+        <span className="mapPriceLegendTitle">Key</span>
         {legend.rows.length === 0 ? (
           <span>
             <span className="mapPriceLegendFull">{legend.title}</span>
@@ -111,7 +113,7 @@ export default function MapPriceControl({
               <i className={`mapPriceDot ${row.tone}`} aria-hidden="true" />
               <span className="mapPriceLegendFull">{row.label}</span>
               <span className="mapPriceLegendCompact" aria-hidden="true">
-                {row.tone === "green" ? "£" : row.tone === "amber" ? "££" : "£££"}
+                {row.symbol}
               </span>
             </span>
           ))
@@ -144,52 +146,55 @@ export default function MapPriceControl({
           id={panelId}
           className="mapPricePanel"
           role="dialog"
-          aria-label="Price filters"
+          aria-label="Map key and price filters"
         >
           <div className="mapPricePanelHead">
-            <strong>Prices</strong>
+            <strong>Map key</strong>
             <button
               type="button"
               className="mapPriceClose"
-              aria-label="Close prices filter"
+              aria-label="Close map key"
               onClick={() => setOpen(false)}
             >
               <X size={16} aria-hidden="true" />
             </button>
           </div>
-          <p className="mapPriceHint">{legend.hint}</p>
+          <MapKey legend={legend} />
           {drinkLabel ? null : (
-          <div className="mapPriceOptions" role="group" aria-label="Max pint price">
-            {PRICE_OPTIONS.map((option) => {
-              const on =
-                option.label === "Any"
-                  ? filters.maxPrice >= 9
-                  : Math.abs(filters.maxPrice - option.maxPrice) < 0.01;
-              return (
-                <button
-                  key={option.label}
-                  type="button"
-                  className={on ? "mapPriceChip isOn" : "mapPriceChip"}
-                  aria-pressed={on}
-                  onClick={() => {
-                    onFiltersChange({ ...filters, maxPrice: option.maxPrice });
-                    setOpen(false);
-                  }}
-                >
-                  {option.label === "Any" ? (
-                    <i className="mapPriceDot any" aria-hidden="true" />
-                  ) : option.maxPrice <= 5.5 ? (
-                    <i className="mapPriceDot green" aria-hidden="true" />
-                  ) : option.maxPrice <= 7 ? (
-                    <i className="mapPriceDot amber" aria-hidden="true" />
-                  ) : (
-                    <i className="mapPriceDot red" aria-hidden="true" />
-                  )}
-                  {option.label}
-                </button>
-              );
-            })}
-          </div>
+            <div className="mapPriceFilterBlock">
+              <strong>Maximum pint price</strong>
+              <div className="mapPriceOptions" role="group" aria-label="Max pint price">
+                {PRICE_OPTIONS.map((option) => {
+                  const on =
+                    option.label === "Any"
+                      ? filters.maxPrice >= 9
+                      : Math.abs(filters.maxPrice - option.maxPrice) < 0.01;
+                  return (
+                    <button
+                      key={option.label}
+                      type="button"
+                      className={on ? "mapPriceChip isOn" : "mapPriceChip"}
+                      aria-pressed={on}
+                      onClick={() => {
+                        onFiltersChange({ ...filters, maxPrice: option.maxPrice });
+                        setOpen(false);
+                      }}
+                    >
+                      {option.label === "Any" ? (
+                        <i className="mapPriceDot any" aria-hidden="true" />
+                      ) : option.maxPrice <= 5.5 ? (
+                        <i className="mapPriceDot green" aria-hidden="true" />
+                      ) : option.maxPrice <= 7 ? (
+                        <i className="mapPriceDot amber" aria-hidden="true" />
+                      ) : (
+                        <i className="mapPriceDot red" aria-hidden="true" />
+                      )}
+                      {option.label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
           )}
         </div>
       ) : null}

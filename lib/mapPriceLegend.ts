@@ -2,20 +2,130 @@ import type { CategoryPriceIndexStatus } from "@/lib/mapExperienceLens";
 
 export type MapPriceLegendRow = {
   label: string;
-  tone: "green" | "amber" | "red";
+  symbol: "£" | "££" | "£££" | "?";
+  tone: "green" | "amber" | "red" | "grey";
 };
 
-const PINT_PRICE_LEGEND: MapPriceLegendRow[] = [
-  { label: "≤ £5.50", tone: "green" },
-  { label: "> £5.50–≤ £7", tone: "amber" },
-  { label: "> £7", tone: "red" },
+export type MapKeyEntry = {
+  id: string;
+  label: string;
+  detail: string;
+};
+
+export type MapPriceLegendModel = {
+  rows: MapPriceLegendRow[];
+  ariaLabel: string;
+  title: string;
+  hint: string;
+  clusterNote: string;
+  shapes: MapKeyEntry[];
+  marks: MapKeyEntry[];
+  routeMarks: MapKeyEntry[];
+  noAlcoholNote: string;
+};
+
+const CLUSTER_NOTE =
+  "A split cluster ring shows the mix of price bands inside it. A solid cluster uses the most common known price band. The number is every pub in the cluster.";
+
+const MAP_SHAPES: MapKeyEntry[] = [
+  {
+    id: "pub-drink",
+    label: "Pint, wine, cocktail or spirit glass",
+    detail: "Pub. The glass follows its recorded drinks or the drink view you chose.",
+  },
+  { id: "bar", label: "Coupe glass", detail: "Bar." },
+  { id: "late-food", label: "Skewer", detail: "Late food." },
+  { id: "restaurant", label: "Fork", detail: "Restaurant." },
+  {
+    id: "base-pub",
+    label: "Hollow circle and dot",
+    detail: "Pub on the UK base map. No map price.",
+  },
+  {
+    id: "landmark",
+    label: "Brass pictogram",
+    detail: "Landmark, not a pub.",
+  },
 ];
 
-const MIXED_PRICE_LEGEND: MapPriceLegendRow[] = [
-  { label: "≤ £5.50 · relative low", tone: "green" },
-  { label: "> £5.50–≤ £7 · relative middle", tone: "amber" },
-  { label: "> £7 · relative high", tone: "red" },
+const MAP_MARKS: MapKeyEntry[] = [
+  {
+    id: "provisional",
+    label: "Blue dot",
+    detail: "One recent pint report. A second drinker logging the same price can set the pin's band.",
+  },
+  {
+    id: "pint-drop",
+    label: "Blue ring",
+    detail: "This pub has a visible Pint Drop.",
+  },
+  { id: "quiz", label: "Amber ring", detail: "Quiz on tonight." },
+  { id: "sport", label: "Bright blue ring", detail: "Live sport shown here." },
+  { id: "deal", label: "Bright brass ring", detail: "Deal on tonight." },
+  { id: "music", label: "Dark blue ring", detail: "Live music tonight." },
+  {
+    id: "public-listing",
+    label: "Thin brass ring",
+    detail: "Pub added from a public listing.",
+  },
+  {
+    id: "selected",
+    label: "Double brass ring",
+    detail: "Pub you selected.",
+  },
+  {
+    id: "story-band",
+    label: "Coloured ring",
+    detail: "Pub in the place story you chose.",
+  },
 ];
+
+const ROUTE_MARKS: MapKeyEntry[] = [
+  {
+    id: "crawl-stop",
+    label: "Numbered dark circle",
+    detail: "Stop in your crawl.",
+  },
+  {
+    id: "walking-route",
+    label: "Solid line",
+    detail: "Walking route along roads.",
+  },
+  {
+    id: "straight-route",
+    label: "Dashed line",
+    detail: "Straight estimate while a road route is unavailable.",
+  },
+];
+
+const NO_ALCOHOL_NOTE =
+  "The no-alcohol view has no separate pin shape. It uses alcohol-free and soft drink prices. Missing prices stay grey.";
+
+function priceRows(noun: string): MapPriceLegendRow[] {
+  return [
+    { label: "£5.50 or less", symbol: "£", tone: "green" },
+    { label: "Over £5.50, up to £7", symbol: "££", tone: "amber" },
+    { label: "Over £7", symbol: "£££", tone: "red" },
+    {
+      label: `No ${noun} price on the map`,
+      symbol: "?",
+      tone: "grey",
+    },
+  ];
+}
+
+function withMapKey(
+  legend: Pick<MapPriceLegendModel, "rows" | "ariaLabel" | "title" | "hint">,
+): MapPriceLegendModel {
+  return {
+    ...legend,
+    clusterNote: CLUSTER_NOTE,
+    shapes: MAP_SHAPES,
+    marks: MAP_MARKS,
+    routeMarks: ROUTE_MARKS,
+    noAlcoholNote: NO_ALCOHOL_NOTE,
+  };
+}
 
 /**
  * The key's hint is the map's own claim about how complete its colours are, so
@@ -40,20 +150,15 @@ export function mapPriceLegend(
   hasTypeRelativePrices: boolean,
   drinkLabel?: string,
   drinkIndexStatus: CategoryPriceIndexStatus = "ready",
-): {
-  rows: MapPriceLegendRow[];
-  ariaLabel: string;
-  title: string;
-  hint: string;
-} {
+): MapPriceLegendModel {
   if (drinkLabel) {
     const drink = drinkLabel.toLowerCase();
-    // A colour scale that currently maps to no pin is a key to nothing, so the
-    // unreadable state drops the rows rather than pairing them with a hint that
-    // says nothing is coloured.
     const unreadable = drinkIndexStatus === "degraded";
-    return {
-      rows: unreadable ? [] : PINT_PRICE_LEGEND,
+    const rows = priceRows(drink);
+    return withMapKey({
+      // A failed category read leaves every pin in the unknown band, so keep
+      // that row and drop only the bands no pin can currently wear.
+      rows: unreadable ? rows.slice(-1) : rows,
       ariaLabel: unreadable
         ? `${drinkLabel} price colour key, unavailable`
         : `${drinkLabel} price colour key`,
@@ -61,22 +166,22 @@ export function mapPriceLegend(
         ? `${drinkLabel} prices unavailable`
         : `${drinkLabel} price bands`,
       hint: drinkHint(drink, drinkIndexStatus),
-    };
+    });
   }
   if (!hasTypeRelativePrices) {
-    return {
-      rows: PINT_PRICE_LEGEND,
+    return withMapKey({
+      rows: priceRows("pint"),
       ariaLabel: "Pint price key and filters",
       title: "Pint price key and filters",
       hint: "Show pubs at or under this pint price.",
-    };
+    });
   }
-  return {
-    rows: MIXED_PRICE_LEGEND,
+  return withMapKey({
+    rows: priceRows("pint or venue"),
     ariaLabel:
-      "Price colour key: pub pints use pound thresholds; bars and late food use relative low, middle, and high bands",
-    title: "Pub pint thresholds and type-relative venue price bands",
+      "Price colour key: pub pints use pound thresholds; other venue types use relative low, middle, and high bands",
+    title: "Pint prices and other venue price bands",
     hint:
-      "Pub pins use pint thresholds. Bars and late food use low, middle, and high bands within their type.",
-  };
+      "Pub pins use pint thresholds. Each other venue pin is low, middle, or high within its own type.",
+  });
 }

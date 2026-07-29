@@ -49,6 +49,11 @@
   white-space: nowrap;
 }
 
+.mapPriceLegend .mapPriceLegendTitle {
+  color: var(--ink);
+  font-weight: 850;
+}
+
 .mapPriceLegend .mapPriceLegendCompact {
   display: none;
 }
@@ -97,7 +102,9 @@
   position: absolute;
   left: 0;
   bottom: calc(100% + 10px);
-  width: min(260px, calc(100vw - 24px));
+  width: min(352px, calc(100vw - 24px));
+  max-height: min(72vh, 640px);
+  overflow-y: auto;
   padding: 12px;
   border: 1px solid color-mix(in srgb, var(--pint) 28%, var(--line));
   border-radius: 16px;
@@ -143,11 +150,17 @@
   touch-action: manipulation;
 }
 
-.mapPriceHint {
-  margin: 0 0 10px;
-  color: var(--muted);
-  font-size: 0.7rem;
-  line-height: 1.35;
+.mapPriceFilterBlock {
+  display: grid;
+  gap: 7px;
+  margin-top: 2px;
+  padding-top: 11px;
+  border-top: 1px solid color-mix(in srgb, var(--line) 80%, transparent);
+}
+
+.mapPriceFilterBlock > strong {
+  color: var(--ink);
+  font-size: 0.78rem;
 }
 
 .mapPriceOptions {
@@ -205,6 +218,10 @@
 
 .mapPriceDot.red {
   background: var(--brick);
+}
+
+.mapPriceDot.grey {
+  background: #9a7a72;
 }
 
 .mapPriceDot.any {
