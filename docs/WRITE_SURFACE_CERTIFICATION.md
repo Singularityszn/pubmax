@@ -6,7 +6,7 @@ reviewed surface—even when a POST is semantically read-only. The regression te
 Adding a mutating route or removing its authority/abuse boundary fails
 CI until this certification is deliberately updated.
 
-> **Inventory: 75 mutating routes.** The count grew 60 → 61 (email-capture
+> **Inventory: 74 mutating routes.** The count grew 60 → 61 (email-capture
 > `POST /api/email-subscribers`) → 62 (native `POST /api/push-tokens`) → 63 (the
 > Social Loop "we're out" `POST /api/check-ins`) → 64 (the vibe-vote
 > `POST /api/plans/[id]/vibe-votes`) → 65 (the area-demand capture
@@ -17,9 +17,9 @@ CI until this certification is deliberately updated.
 > community price submission `POST /api/price-submit`) → 71 (community-price
 > moderation `POST /api/admin/community-prices`) → 72 (authored weather
 > Recommendations `POST /api/weather-recommendations`) → 74 (private referral
-> invite-link creation and same-journey signup claim) → 75 (account-gated
-> contribution eligibility). Account onboarding replaces the earlier identity
-> claim POST, so it does not change the count. Token-gated GET
+> invite-link creation and same-journey signup claim). Account onboarding
+> replaces the earlier identity claim POST, so it does not change the count.
+> Token-gated GET
 > confirm/unsubscribe endpoints and read-only GETs (the Social Loop reads, the
 > vibe-vote tally read, the Visit Report venue / contributor-count /
 > moderator-lane reads, the operator
@@ -408,8 +408,8 @@ commit.
   the map from the community. It is no longer the only door: a Round's itemised
   drink lines (`POST /api/rounds/[code] { action: "recordSpend" }`) reach
   `submitCommunityPrice` only when the writer passes the same authenticated
-  account, public-handle, and adult-eligibility boundary. Anonymous and
-  ineligible lines remain in the private Round diary. Direct and Round price
+  account and public-handle boundary. Anonymous lines remain in the private
+  Round diary. Direct and Round price
   writes use the account's stable profile actor. The same POST also carries the
   community VENUE SIGNAL shape (`{ kind: "venue-signal", venueId, signalKey,
   signalValue }` → 201 `{ ok, signal }`): a categorical observation of
@@ -444,7 +444,7 @@ commit.
   CLOSED vocabulary the browser and the server share and migration 0060 repeats
   as a CHECK, so an off-vocabulary answer cannot be stored by any door.
 - **Auth stance:** price and venue-signal writes require a verified account,
-  account-owned public handle, and adult contribution eligibility. Both public
+  account-owned public handle. Both public
   attribution and the private `profile:<profile-id>` actor are derived on the
   server. Body-supplied handles, actors, `submittedAt`, and `source` are
   ignored. This stable profile actor is the de-duplication and corroboration
@@ -457,9 +457,9 @@ commit.
   `venueId`; then `price-submit:profile:<profile-id>:${venueId}` stops the same
   account churning one pub's figure. Exceed either → 429. Both tiers are one
   helper (`communityWriteIsLimited`) and a venue-signal write charges the SAME
-  two keys, so signals cannot buy extra budget or spray one pub. An eligible
+  two keys, so signals cannot buy extra budget or spray one pub. An authorised
   Round's drink lines use the same account-actor key namespace and cap, charged
-  one unit per line before the diary write
+  one unit per line before a saved pending line becomes ready for promotion
   (`lib/roundPriceBudget.ts` owns that budget and its degraded allowance, which
   answers 503 with `Retry-After` rather than 429, because a spent degraded
   allowance is our limiter being unreachable, not the drinker's doing). The
@@ -591,24 +591,21 @@ commit.
   Recommendations and their contributor counts, but cannot change weather,
   reviews, prices, Night Signals, or venue data.
 
-### Contributor identity onboarding and eligibility (route 75)
+### Contributor identity onboarding (route 74)
 
 - **Routes / methods:** `POST` and `PATCH` on
   `app/api/identity/onboarding/route.ts` claim an account-owned handle and edit
-  private optional details. `POST` on
-  `app/api/identity/contribution-gate/route.ts` evaluates date of birth once
-  before the first gated community price or venue-signal contribution. Its
-  sibling GETs are read-only.
+  the required private date of birth plus optional private full name and sex.
+  Its sibling GET is read-only.
 - **Authority:** every method derives the account from a verified Supabase JWT
   through `callerUserId`. Missing authority returns 401 before any read or
   write. Handle ownership is enforced transactionally by
   `complete_contributor_onboarding`; reserved handles are rejected by shared
   code policy.
-- **Privacy:** the eligibility route passes the submitted date only to the age
-  assessor. It stores an adult-verification boolean, or for an under-18 only
-  the date they become eligible. It never stores date of birth. Full name and
-  sex stay in the private account table and are not returned by public profile
-  routes.
+- **Privacy:** date of birth, full name and sex stay in the private account
+  table and are not returned by public profile routes. Date of birth is
+  required at signup; full name and sex are optional. None of these fields
+  blocks contribution at any age.
 
 ## Certification command
 

@@ -22,12 +22,14 @@ function render(
   return renderToStaticMarkup(
     createElement(AccountOnboardingForm, {
       handle: "night_owl",
+      dateOfBirth: "2000-01-02",
       fullName: "",
       sex: "",
       availability,
       busy: false,
       error: null,
       onHandleChange: noop,
+      onDateOfBirthChange: noop,
       onFullNameChange: noop,
       onSexChange: noop,
       onSubmit: noop,
@@ -37,15 +39,19 @@ function render(
 }
 
 describe("account onboarding surface", () => {
-  it("puts required public handle before private optional details", () => {
+  it("puts required handle and date of birth before optional details", () => {
     const html = render("idle");
     expect(html.indexOf("Public handle")).toBeLessThan(
+      html.indexOf("Date of birth"),
+    );
+    expect(html.indexOf("Date of birth")).toBeLessThan(
       html.indexOf("Full name"),
     );
     expect(html.indexOf("Full name")).toBeLessThan(html.indexOf("Sex"));
     expect(html).toContain("Optional");
     expect(html).toContain("Skip optional details");
     expect(html).toContain("Only your handle is public");
+    expect(html).toContain("product analytics and social features");
   });
 
   it("keeps submit disabled until the exact handle was checked as available", () => {

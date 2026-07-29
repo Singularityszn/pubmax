@@ -224,14 +224,39 @@ describe("recordSpend", () => {
     if (res.ok) {
       expect(res.state.spends[0].totalPence).toBe(860);
       expect(res.state.spends[0].items).toEqual([
-        { drinkName: "Guinness", drinkCategory: "beer", pricePence: 620, source: "round" },
+        {
+          drinkName: "Guinness",
+          drinkCategory: "beer",
+          pricePence: 620,
+          source: "round",
+          promotionStatus: "diary_only",
+        },
         {
           drinkName: "Lime and soda",
           drinkCategory: "soft-drink",
           pricePence: 240,
           source: "round",
+          promotionStatus: "diary_only",
         },
       ]);
+    }
+  });
+
+  it("persists per-line promotion transitions", async () => {
+    const code = await roundAtPub();
+    const recorded = await store.recordSpend(code, {
+      ...spend,
+      items: [{ drinkName: "Guinness", drinkCategory: "beer", priceGbp: 6.2 }],
+      initialPromotionStatus: "pending",
+    });
+    expect(recorded.ok).toBe(true);
+
+    const ready = await store.updateSpendPromotions(code, spend.clientRef, [
+      { index: 0, status: "ready" },
+    ]);
+    expect(ready.ok).toBe(true);
+    if (ready.ok) {
+      expect(ready.state.spends[0]?.items[0]?.promotionStatus).toBe("ready");
     }
   });
 

@@ -122,9 +122,9 @@ _Avoid_: Source (bare), reliability, trust score
 The public PUBMAXX Handle attached to an authenticated account and its immutable PUBMAXX User ID. Contributions use account ownership as their identity boundary; a handle is never accepted as authorship merely because a client typed it.
 _Avoid_: Self-declared name, email address, session token presented as contributor identity
 
-**Contribution Eligibility**:
-The private adult gate an account must pass before its first community price or community venue signal. Date of birth is assessed once and discarded; PUBMAXX keeps only whether adulthood was verified or the date an under-18 becomes eligible. Visit Reports and Recommendations are follow-up work and are not yet behind this gate.
-_Avoid_: Public age, stored date of birth, signup field
+**Private Account Identity**:
+The stored date of birth and optional full name and sex attached to an authenticated account for product analytics and social features. These fields never become public identity and never determine contribution eligibility; Visit Reports and Recommendations remain identity follow-up work.
+_Avoid_: Public age, adult gate, contributor eligibility
 
 **Production Store**:
 The durable Supabase database and Storage bucket used for production Pint Drops, photos, and heritage cache data. Distinct from the in-memory demo store used when local credentials are absent.

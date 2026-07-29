@@ -1,6 +1,7 @@
 import { jsonNoStore } from "@/lib/apiResponses";
 import { callerUserId } from "@/lib/authServer";
 import { isHandleClaimLimited } from "@/lib/identityHandleClaimRateLimit";
+import { cleanDateOfBirth } from "@/lib/privateIdentity";
 import { privateIdentityStore } from "@/lib/privateIdentityStore";
 import { profileStore } from "@/lib/profileStore";
 import { assertServerEnv } from "@/lib/serverEnv";
@@ -21,9 +22,13 @@ export async function GET(request: Request): Promise<Response> {
       privateIdentityStore().read(userId),
     ]);
     if (!profile) return jsonNoStore({ complete: false });
+    if (!privateIdentity?.dateOfBirth) {
+      return jsonNoStore({ complete: false, handle: profile.handle });
+    }
     return jsonNoStore({
       complete: true,
       handle: profile.handle,
+      dateOfBirth: privateIdentity.dateOfBirth,
       ...(privateIdentity?.fullName
         ? { fullName: privateIdentity.fullName }
         : {}),
@@ -60,6 +65,7 @@ export async function POST(request: Request): Promise<Response> {
   const result = await privateIdentityStore().completeOnboarding({
     userId,
     handle: typeof body.handle === "string" ? body.handle : "",
+    dateOfBirth: body.dateOfBirth,
     fullName: body.fullName,
     sex: body.sex,
   });
@@ -79,6 +85,7 @@ export async function POST(request: Request): Promise<Response> {
     {
       complete: true,
       handle: result.handle,
+      dateOfBirth: result.privateIdentity.dateOfBirth,
       ...(result.privateIdentity.fullName
         ? { fullName: result.privateIdentity.fullName }
         : {}),
@@ -104,12 +111,19 @@ export async function PATCH(request: Request): Promise<Response> {
   } catch {
     return jsonNoStore({ error: "Malformed request body." }, { status: 400 });
   }
+  if ("dateOfBirth" in body && !cleanDateOfBirth(body.dateOfBirth)) {
+    return jsonNoStore(
+      { code: "invalid", error: "Add a valid date of birth." },
+      { status: 400 },
+    );
+  }
   try {
     const [profile, privateIdentity] = await Promise.all([
       profileStore().getByUserId(userId),
       privateIdentityStore().updateDetails(userId, {
         ...("fullName" in body ? { fullName: body.fullName } : {}),
         ...("sex" in body ? { sex: body.sex } : {}),
+        ...("dateOfBirth" in body ? { dateOfBirth: body.dateOfBirth } : {}),
       }),
     ]);
     if (!profile || !privateIdentity) {
@@ -121,6 +135,7 @@ export async function PATCH(request: Request): Promise<Response> {
     return jsonNoStore({
       complete: true,
       handle: profile.handle,
+      dateOfBirth: privateIdentity.dateOfBirth,
       ...(privateIdentity.fullName
         ? { fullName: privateIdentity.fullName }
         : {}),

@@ -216,7 +216,7 @@ describe("legal content pages", () => {
   it("discloses community venue reports and their contributor count", () => {
     expect(privacy).toMatch(/Community venue reports/);
     expect(privacy).toMatch(/rough or\s+posh/);
-    expect(privacy).toMatch(/entrance and toilet access separately/);
+    expect(privacy).toMatch(/entrance and toilet access\s+separately/);
     expect(privacy).toMatch(/door policy/);
     expect(privacy).toMatch(/people were eating/);
     expect(privacy).toMatch(/same stable private profile key/);
@@ -230,7 +230,9 @@ describe("legal content pages", () => {
       /prices[\s\S]*Visit Reports[\s\S]*Recommendations/i,
     );
     expect(privacy).toMatch(/requires a signed-in account/);
-    expect(privacy).toMatch(/server derives both from\s+the authenticated account/);
+    expect(privacy).toMatch(
+      /server derives both contribution\s+identifiers from the authenticated account/,
+    );
     expect(privacy).toMatch(/Older rows that had no handle remain\s+anonymous/);
     expect(privacy).toMatch(/hidden[\s\S]*do not count/i);
     expect(privacy).toMatch(
@@ -240,21 +242,17 @@ describe("legal content pages", () => {
     expect(privacy).not.toMatch(/future contributor count/i);
   });
 
-  it("states exactly what private identity and age-gate data is retained", () => {
+  it("states exactly what private profile data is retained", () => {
     expect(privacy).toMatch(/Google or Apple sign-in/);
-    expect(privacy).toMatch(/Full name\s+and sex are optional, private account details/);
+    expect(privacy).toMatch(/Date of\s+birth is required to finish signup/);
+    expect(privacy).toMatch(/Full name and sex are optional/);
     expect(privacy).toMatch(/only identity shown with contributions/);
-    expect(privacy).toMatch(
-      /immediately before your first gated\s+community price or venue-report contribution/,
-    );
-    expect(privacy).toMatch(/do not store the date\s+of birth/);
-    expect(privacy).toMatch(/retain only an adult gate result/);
-    expect(privacy).toMatch(/calendar date when you become eligible/);
-    expect(privacy).toMatch(/next eligibility check/);
-    expect(privacy).toMatch(/authenticated identity read/);
-    expect(privacy).toMatch(
-      /currently exist only to block\s+community price and\s+venue-report writes by under-18s/,
-    );
+    expect(privacy).toMatch(/product analytics and\s+social features/);
+    expect(privacy).toMatch(/keep date of birth while your account exists/);
+    expect(privacy).toMatch(/does not block signup, contribution or any other feature at\s+any age/);
+    expect(terms).toMatch(/retain date of birth while your account exists/);
+    expect(terms).toMatch(/do not block any feature at any age/);
+    expect(terms).toMatch(/Only your handle is public/);
   });
 
   it("names all three price lanes and fences the historical one", () => {
@@ -269,8 +267,9 @@ describe("legal content pages", () => {
     expect(terms).not.toMatch(/Prices\s+come\s+from\s+two\s+places/);
   });
 
-  it("states the product's own age framing on the terms page", () => {
-    expect(terms).toMatch(/under 18/i);
+  it("states the product's non-blocking age framing on the terms page", () => {
+    expect(terms).toMatch(/does not block accounts or contributions based on age/i);
+    expect(terms).toMatch(/Pubs\s+decide who they serve/i);
     expect(terms).toMatch(/drinkaware\.co\.uk/);
   });
 

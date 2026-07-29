@@ -4,53 +4,29 @@ import { describe, expect, it } from "vitest";
 
 import {
   ContributionGateDialog,
-  contributionActionRequiresSignIn,
+  type ContributionGateDialogMode,
 } from "@/components/identity/ContributionGateDialog";
 
-const noop = () => {};
+function render(mode: ContributionGateDialogMode): string {
+  return renderToStaticMarkup(
+    createElement(ContributionGateDialog, {
+      mode,
+      error: null,
+      onClose: () => {},
+    }),
+  );
+}
 
-describe("first-gated-contribution age surface", () => {
-  it("routes write-time authentication expiry back to sign-in", () => {
-    expect(
-      contributionActionRequiresSignIn({
-        status: "sign_in_required",
-        error: "Sign in.",
-      }),
-    ).toBe(true);
-    expect(contributionActionRequiresSignIn()).toBe(false);
+describe("contribution identity gate", () => {
+  it("offers sign-in when no account is available", () => {
+    expect(render("sign_in_required")).toContain("Sign in to contribute");
   });
 
-  it("asks for date of birth only in the age-required state", () => {
-    const age = renderToStaticMarkup(
-      createElement(ContributionGateDialog, {
-        mode: "age_required",
-        dateOfBirth: "",
-        busy: false,
-        error: null,
-        onDateOfBirthChange: noop,
-        onConfirmAge: noop,
-        onClose: noop,
-      }),
-    );
-    expect(age).toContain('type="date"');
-    expect(age).toContain(
-      "before your first gated community price or pub signal",
-    );
-
-    const underage = renderToStaticMarkup(
-      createElement(ContributionGateDialog, {
-        mode: "underage",
-        eligibleOn: "2028-07-30",
-        dateOfBirth: "",
-        busy: false,
-        error: null,
-        onDateOfBirthChange: noop,
-        onConfirmAge: noop,
-        onClose: noop,
-      }),
-    );
-    expect(underage).not.toContain('type="date"');
-    expect(underage).toContain("You must be 18 or over to contribute.");
-    expect(underage).toContain("buying alcohol");
+  it("routes incomplete accounts back to profile setup without age blocking", () => {
+    const html = render("onboarding_required");
+    expect(html).toContain("Finish account setup");
+    expect(html).toContain("private date of birth");
+    expect(html).not.toContain("18 or over");
+    expect(html).not.toContain('type="date"');
   });
 });

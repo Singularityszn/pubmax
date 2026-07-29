@@ -359,9 +359,6 @@ describe("community-price funnel events", () => {
     for (const step of [
       "sign_in_required",
       "onboarding_required",
-      "age_required",
-      "underage",
-      "resumed",
     ]) {
       expect(sanitizeEvent("contribution_gate", { step })).toEqual({
         name: "contribution_gate",

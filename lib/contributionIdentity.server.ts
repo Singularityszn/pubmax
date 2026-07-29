@@ -6,17 +6,18 @@ import { profileStore } from "@/lib/profileStore";
 export type ContributionIdentityResolution =
   | {
       ok: true;
+      accountId: string;
       actor: string;
       handle: string;
     }
   | {
       ok: false;
+      accountId?: string;
       body: {
-        status?: "sign_in_required" | "onboarding_required" | "age_required" | "underage";
-        eligibleOn?: string;
+        status?: "sign_in_required" | "onboarding_required";
         error: string;
       };
-      httpStatus: 401 | 403 | 409 | 503;
+      httpStatus: 401 | 409 | 503;
     };
 
 export async function resolveContributionIdentity(
@@ -31,40 +32,19 @@ export async function resolveContributionIdentity(
     };
   }
   try {
-    const [profile, gate] = await Promise.all([
+    const [profile, privateIdentity] = await Promise.all([
       profileStore().getByUserId(userId),
-      privateIdentityStore().contributionGate(userId),
+      privateIdentityStore().read(userId),
     ]);
-    if (!profile || gate.status === "onboarding_required") {
+    if (!profile || !privateIdentity?.dateOfBirth) {
       return {
         ok: false,
+        accountId: userId,
         body: {
           status: "onboarding_required",
           error: "Choose your public handle before contributing.",
         },
         httpStatus: 409,
-      };
-    }
-    if (gate.status === "age_required") {
-      return {
-        ok: false,
-        body: {
-          status: gate.status,
-          error:
-            "Confirm you are 18 or over before your first gated contribution.",
-        },
-        httpStatus: 403,
-      };
-    }
-    if (gate.status === "underage") {
-      return {
-        ok: false,
-        body: {
-          ...gate,
-          error:
-            "You must be 18 or over to contribute. PUBMAXX is about buying alcohol.",
-        },
-        httpStatus: 403,
       };
     }
     const handleResolution = await identityHandleStore().resolve(profile.handle);
@@ -74,13 +54,15 @@ export async function resolveContributionIdentity(
         : profile.handle;
     return {
       ok: true,
+      accountId: userId,
       actor: `profile:${profile.id}`,
       handle,
     };
   } catch {
     return {
       ok: false,
-      body: { error: "Contribution eligibility is unavailable right now." },
+      accountId: userId,
+      body: { error: "Contribution identity is unavailable right now." },
       httpStatus: 503,
     };
   }

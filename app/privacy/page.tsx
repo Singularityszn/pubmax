@@ -113,23 +113,18 @@ export default function PrivacyPage() {
           Sign-in is handled by Supabase, using either an emailed magic link or
           Google or Apple sign-in. That means we hold your email address. You
           must choose one public handle, which is linked to your authenticated
-          account and is the only identity shown with contributions. Full name
-          and sex are optional, private account details. They are never shown
-          on prices, reports, signals, Recommendations or the public contributor
-          record, and stay until you edit or clear them, delete your account, or
-          ask us to remove them.
+          account and is the only identity shown with contributions. Date of
+          birth is required to finish signup. Full name and sex are optional.
+          All three are private account details used for product analytics and
+          social features. They are never shown on prices, reports, signals,
+          Recommendations, leaderboards or the public contributor record.
         </p>
         <p className="legalBody">
-          We ask for date of birth once, immediately before your first gated
-          community price or venue-report contribution. We evaluate it on our
-          server and do not store the date of birth. If you are 18 or over, we
-          retain only an adult gate result so we do not ask again. If you are
-          under 18, we retain only the calendar date when you become eligible.
-          At the next eligibility check on or after that date, it is replaced
-          by the adult gate result. An authenticated identity read performs the
-          same check, so ordinary account use also replaces a matured date.
-          These values currently exist only to block community price and
-          venue-report writes by under-18s.
+          We keep date of birth while your account exists. Optional full name
+          and sex stay until you edit or clear them. We remove all three when
+          you delete your account or ask us to delete your account data. Date
+          of birth does not block signup, contribution or any other feature at
+          any age.
         </p>
         <p className="legalBody">
           Your public profile may also contain a display name, avatar, home
@@ -193,12 +188,13 @@ export default function PrivacyPage() {
         <h3 className="legalH3">Community price submissions</h3>
         <p className="legalBody">
           Logging tonight&rsquo;s price requires a signed-in account, a claimed
-          handle and the adult contribution gate. We store the venue, drink
+          handle and completed private profile. We store the venue, drink
           category, price and time, plus the account&rsquo;s stable private
-          profile key and current public handle. The server derives both from
-          the authenticated account and ignores any handle sent by the browser.
-          A newly accepted price therefore counts under that account&rsquo;s
-          handle on the public contributor record.
+          profile key and current public handle. Date of birth does not decide
+          whether a price is accepted. The server derives both contribution
+          identifiers from the authenticated account and ignores any handle
+          sent by the browser. A newly accepted price therefore counts under
+          that account&rsquo;s handle on the public contributor record.
         </p>
         <p className="legalBody">
           The private profile key exists so one account can replace its own
@@ -233,13 +229,14 @@ export default function PrivacyPage() {
 
         <h3 className="legalH3">Community venue reports</h3>
         <p className="legalBody">
-          A signed-in adult can also report what they saw about a pub: rough or
-          posh character, entrance and toilet access separately, door policy,
-          and whether people were eating. We store the venue, answer and time,
-          plus the same stable private profile key used for community prices.
-          It lets your newer answer replace your older one and keeps one account
-          from confirming itself. Venue reports do not enter the public
-          contributor record, and the private key is never shown.
+          A signed-in account with a claimed handle can also report what they
+          saw about a pub: rough or posh character, entrance and toilet access
+          separately, door policy, and whether people were eating. We store the
+          venue, answer and time, plus the same stable private profile key used
+          for community prices. It lets your newer answer replace your older
+          one and keeps one account from confirming itself.
+          Venue reports do not enter the public contributor record, and the
+          private key is never shown.
         </p>
 
         <h3 className="legalH3">Location</h3>
@@ -618,10 +615,10 @@ export default function PrivacyPage() {
       <section className="legalSection" aria-labelledby="age">
         <h2 id="age" className="legalH2">Age</h2>
         <p className="legalBody">
-          Anyone can browse PUBMAXX. Community price and venue-report writes are
-          for over-18s. When an under-18 tries either, we keep only the date
-          they become eligible so the block remains accurate without retaining
-          their date of birth.
+          Anyone can browse PUBMAXX. A valid date of birth is required when you
+          create an account, but PUBMAXX does not block accounts or
+          contributions based on age. Pubs remain responsible for deciding who
+          they serve.
         </p>
       </section>
 

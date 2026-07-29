@@ -119,6 +119,23 @@ vi.mock("@/lib/roundPriceBudget", async (importOriginal) => {
   };
 });
 
+const priceWriteState = vi.hoisted(() => ({ failuresRemaining: 0 }));
+vi.mock("@/lib/communityPriceStore", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/communityPriceStore")>();
+  return {
+    ...actual,
+    submitCommunityPrice: (
+      ...args: Parameters<typeof actual.submitCommunityPrice>
+    ) => {
+      if (priceWriteState.failuresRemaining > 0) {
+        priceWriteState.failuresRemaining -= 1;
+        return Promise.resolve({ price: null, failed: true as const });
+      }
+      return actual.submitCommunityPrice(...args);
+    },
+  };
+});
+
 const authState = vi.hoisted(() => ({ userId: null as string | null }));
 vi.mock("@/lib/authServer", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/authServer")>();
@@ -216,12 +233,9 @@ async function authorizeContributor(userId: string, handle: string): Promise<voi
   const onboarding = await memoryPrivateIdentityStore.completeOnboarding({
     userId,
     handle,
+    dateOfBirth: "2010-07-29",
   });
   expect(onboarding).toMatchObject({ ok: true });
-  await memoryPrivateIdentityStore.recordAgeAssessment(userId, {
-    ok: true,
-    status: "adult",
-  });
 }
 
 beforeEach(() => {
@@ -238,6 +252,7 @@ beforeEach(() => {
   joinOverride.fn = null;
   recordSpendOverride.fn = null;
   budgetOverride.fn = null;
+  priceWriteState.failuresRemaining = 0;
   venueLookupState.unavailable = false;
   __resetCommunityPrices();
 });
@@ -471,10 +486,62 @@ describe("POST /api/rounds/[code] — actions", () => {
           drinkCategory: "beer",
           pricePence: 620,
           source: "round",
+          promotionStatus: "diary_only",
         },
       ],
     });
     expect(await readCommunityPrices("venue-1")).toEqual([]);
+  });
+
+  it("never promotes an anonymous diary line after later sign-in", async () => {
+    const { round } = await newRound("ken");
+    await action(round.code, {
+      action: "addStop",
+      handle: "ken",
+      venueId: "venue-1",
+    });
+    const body = {
+      action: "recordSpend",
+      handle: "ken",
+      payerHandle: "ken",
+      venueId: "venue-1",
+      clientRef: "spend-anonymous-1",
+      items: [{ drinkName: "Guinness", drinkCategory: "beer", priceGbp: 6.2 }],
+    };
+
+    expect((await action(round.code, body)).status).toBe(200);
+    await authorizeContributor("user-ken", "ken");
+    expect((await action(round.code, body)).status).toBe(403);
+    expect(await readCommunityPrices("venue-1")).toEqual([]);
+  });
+
+  it("rejects an expired bearer before keeping a promotable line", async () => {
+    const { round } = await newRound("ken");
+    await action(round.code, {
+      action: "addStop",
+      handle: "ken",
+      venueId: "venue-1",
+    });
+
+    const response = await action(
+      round.code,
+      {
+        action: "recordSpend",
+        handle: "ken",
+        payerHandle: "ken",
+        venueId: "venue-1",
+        clientRef: "spend-expired-1",
+        items: [
+          { drinkName: "Guinness", drinkCategory: "beer", priceGbp: 6.2 },
+        ],
+      },
+      { authorization: "Bearer expired" },
+    );
+
+    expect(response.status).toBe(401);
+    expect(((await (await get(round.code)).json()) as RoundState).spends).toEqual(
+      [],
+    );
   });
 
   it("attributes an eligible account's itemised Round price to its public handle", async () => {
@@ -498,6 +565,9 @@ describe("POST /api/rounds/[code] — actions", () => {
     expect(res.status).toBe(200);
     const rows = await readCommunityPrices("venue-1");
     expect(rows).toHaveLength(1);
+    expect(
+      ((await res.clone().json()) as RoundState).spends[0]?.items[0],
+    ).toMatchObject({ promotionStatus: "promoted" });
     expect(rows[0]).toMatchObject({
       venueId: "venue-1",
       drinkCategory: "beer",
@@ -531,6 +601,68 @@ describe("POST /api/rounds/[code] — actions", () => {
     );
     expect(merged).toBe(baseline);
     expect(merged.get("venue-1")?.latestContributorPrice).toBeNull();
+  });
+
+  it("persists failed promotion and retries it without duplicating the diary", async () => {
+    await authorizeContributor("user-ken", "ken");
+    const { round } = await newRound("ken");
+    await action(round.code, {
+      action: "addStop",
+      handle: "ken",
+      venueId: "venue-1",
+    });
+    const body = {
+      action: "recordSpend",
+      handle: "ken",
+      payerHandle: "ken",
+      venueId: "venue-1",
+      clientRef: "spend-retry-1",
+      items: [{ drinkName: "Guinness", drinkCategory: "beer", priceGbp: 6.2 }],
+    };
+
+    priceWriteState.failuresRemaining = 1;
+    const failed = await action(round.code, body);
+    expect(failed.status).toBe(503);
+    const held = (await (await get(round.code)).json()) as RoundState;
+    expect(held.spends).toHaveLength(1);
+    expect(held.spends[0]?.items[0]?.promotionStatus).toBe("ready");
+
+    const retried = await action(round.code, body);
+    expect(retried.status).toBe(200);
+    const state = (await retried.json()) as RoundState;
+    expect(state.spends).toHaveLength(1);
+    expect(state.spends[0]?.items[0]?.promotionStatus).toBe("promoted");
+    expect(await readCommunityPrices("venue-1")).toHaveLength(1);
+  });
+
+  it("never lets another account promote a saved pending line", async () => {
+    await authorizeContributor("user-ken", "ken");
+    const { round } = await newRound("ken");
+    await action(round.code, { action: "join", handle: "molly" });
+    await action(round.code, {
+      action: "addStop",
+      handle: "ken",
+      venueId: "venue-1",
+    });
+    const body = {
+      action: "recordSpend",
+      handle: "ken",
+      payerHandle: "ken",
+      venueId: "venue-1",
+      clientRef: "spend-owned-1",
+      items: [{ drinkName: "Guinness", drinkCategory: "beer", priceGbp: 6.2 }],
+    };
+    priceWriteState.failuresRemaining = 1;
+    expect((await action(round.code, body)).status).toBe(503);
+
+    await authorizeContributor("user-molly", "molly");
+    const other = await action(round.code, {
+      ...body,
+      handle: "molly",
+      payerHandle: "molly",
+    });
+    expect(other.status).toBe(403);
+    expect(await readCommunityPrices("venue-1")).toEqual([]);
   });
 
   it("keeps one account actor across Round requests from different addresses", async () => {
@@ -569,32 +701,33 @@ describe("POST /api/rounds/[code] — actions", () => {
     });
   });
 
-  it("keeps a signed-in but ineligible itemised Round out of community prices", async () => {
-    authState.userId = "user-age-unknown";
+  it("allows a young signed-in account to share a Round price", async () => {
+    authState.userId = "user-young";
     const onboarding = await memoryPrivateIdentityStore.completeOnboarding({
       userId: authState.userId,
-      handle: "age_unknown",
+      handle: "young_person",
+      dateOfBirth: "2015-07-29",
     });
     expect(onboarding).toMatchObject({ ok: true });
-    const { round } = await newRound("age_unknown");
+    const { round } = await newRound("young_person");
     await action(round.code, {
       action: "addStop",
-      handle: "age_unknown",
+      handle: "young_person",
       venueId: "venue-1",
     });
 
     const res = await action(round.code, {
       action: "recordSpend",
-      handle: "age_unknown",
-      payerHandle: "age_unknown",
+      handle: "young_person",
+      payerHandle: "young_person",
       venueId: "venue-1",
-      clientRef: "spend-ineligible-1",
+      clientRef: "spend-young-1",
       items: [{ drinkName: "Guinness", drinkCategory: "beer", priceGbp: 6.2 }],
     });
 
     expect(res.status).toBe(200);
     expect(((await res.json()) as RoundState).spends).toHaveLength(1);
-    expect(await readCommunityPrices("venue-1")).toEqual([]);
+    expect(await readCommunityPrices("venue-1")).toHaveLength(1);
   });
 
   // Two drinkers at the same pub, so the pair of cases below can show that what
@@ -718,20 +851,24 @@ describe("POST /api/rounds/[code] — actions", () => {
     expect((await keep("budget-2", 10, 11)).status).toBe(200);
     expect((await keep("budget-3", 10, 21)).status).toBe(200);
 
-    // Thirty lines spent, so the next one is refused before the diary write.
-    // A real per-account cap under a healthy limiter is the drinker's budget, so
-    // it stays a 429 and carries no retry hint.
+    // Thirty lines spent, so the next one is kept in the diary but not promoted.
+    // A real per-account cap under a healthy limiter stays a 429 with no retry
+    // hint, and the pending line can retry after the budget window resets.
     const overBudget = await keep("budget-4", 1, 31);
     expect(overBudget.status).toBe(429);
     expect(overBudget.headers.get("Retry-After")).toBeNull();
-    expect(await overBudget.json()).toEqual({ error: "Too many price logs, slow down." });
+    expect(await overBudget.json()).toEqual({
+      error: "Your round is kept. Too many price logs, try again later.",
+    });
 
     const state = (await (await get(round.code)).json()) as RoundState;
     expect(state.spends.map((spend) => spend.clientRef)).toEqual([
       "budget-1",
       "budget-2",
       "budget-3",
+      "budget-4",
     ]);
+    expect(state.spends.at(-1)?.items[0]?.promotionStatus).toBe("pending");
   });
 
   it("answers a price-limiter outage as ours: 503, a retry hint, and no blame", async () => {
@@ -760,9 +897,11 @@ describe("POST /api/rounds/[code] — actions", () => {
     expect(res.headers.get("Retry-After")).toBe("60");
     expect(await res.json()).toEqual({
       error:
-        "We cannot log drink prices for a moment. Keep this round as a total, or add the drinks again shortly.",
+        "Your round is kept, but price sharing is unavailable. Try again shortly.",
     });
-    expect(((await (await get(round.code)).json()) as RoundState).spends).toEqual([]);
+    const held = (await (await get(round.code)).json()) as RoundState;
+    expect(held.spends).toHaveLength(1);
+    expect(held.spends[0]?.items[0]?.promotionStatus).toBe("pending");
 
     // The quick total needs no price budget, so the night is still recordable.
     const total = await action(

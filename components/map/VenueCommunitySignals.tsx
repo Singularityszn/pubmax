@@ -164,9 +164,9 @@ export default function VenueCommunitySignals({
         signalValue,
       }, auth);
       if (!result.ok) {
-        if (result.status === "sign_in_required") {
+        if (result.status) {
           return {
-            status: "sign_in_required" as const,
+            status: result.status,
             error: result.error,
           };
         }

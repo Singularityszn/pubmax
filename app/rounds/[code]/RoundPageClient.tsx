@@ -14,7 +14,12 @@ import {
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import EmptyState from "@/components/EmptyState";
+import { useAuth } from "@/components/auth/AuthProvider";
 import SiteNav from "@/components/nav/SiteNav";
+import {
+  captureAccountAuth,
+  type AccountAuthSnapshot,
+} from "@/lib/accountBoundFetch";
 import {
   clearActiveRoundCode,
   writeActiveRoundCode,
@@ -31,8 +36,8 @@ import {
   ROUND_SPEND_PRICE_LINE_MAX,
   isValidRoundCode,
   normalizeRoundCode,
+  promotedPriceItems,
   roundTurn,
-  firstPartyPriceItems,
   type RoundSpendDTO,
   type RoundSpendItemSource,
   type RoundState,
@@ -44,6 +49,7 @@ import {
   type PresenceDTO,
 } from "@/lib/roundPresence";
 import { buildRouteLegs, formatLeg, formatRouteTotal } from "@/lib/routeLegs";
+import { submitRoundSpendRequest } from "@/lib/roundSpendClient";
 import { venueMenuForInspector } from "@/lib/venueMenu";
 import { loadSlimVenues, type SlimVenue } from "@/lib/venuesSlim";
 import { formatPrice, type Venue } from "@/lib/venues";
@@ -67,6 +73,8 @@ function slimToVenue(slim: SlimVenue): Venue {
 }
 
 export default function RoundPageClient({ params }: { params: Promise<{ code: string }> }): React.JSX.Element {
+  const { user, session, handle: accountHandle } = useAuth();
+  const roundAuth = captureAccountAuth(user?.id ?? null, session);
   // Route param resolved after mount (Next 15 async params).
   const [code, setCode] = useState<string>("");
   useEffect(() => {
@@ -228,9 +236,13 @@ export default function RoundPageClient({ params }: { params: Promise<{ code: st
     };
   }, [isOpen, currentStopVenueId, refetchPresence]);
 
+  const effectiveHandle = accountHandle ?? myHandle;
   const amMember = useMemo(
-    () => (state && myHandle ? state.members.some((m) => m.handle === myHandle) : false),
-    [state, myHandle],
+    () =>
+      state && effectiveHandle
+        ? state.members.some((m) => m.handle === effectiveHandle)
+        : false,
+    [effectiveHandle, state],
   );
 
   // Invalid code / not found → an honest empty state (never a crash).
@@ -266,7 +278,8 @@ export default function RoundPageClient({ params }: { params: Promise<{ code: st
       <SiteNav active="crawls" />
       <RoundBoard
         state={state}
-        myHandle={myHandle}
+        myHandle={effectiveHandle}
+        roundAuth={roundAuth}
         amMember={amMember}
         presence={presence}
         onChange={setState}
@@ -278,12 +291,14 @@ export default function RoundPageClient({ params }: { params: Promise<{ code: st
 function RoundBoard({
   state,
   myHandle,
+  roundAuth,
   amMember,
   presence,
   onChange,
 }: {
   state: RoundState;
   myHandle: string;
+  roundAuth: AccountAuthSnapshot | null;
   amMember: boolean;
   presence: PresenceDTO[];
   onChange: (next: RoundState) => void;
@@ -355,6 +370,7 @@ function RoundBoard({
         <RoundSpendComposer
           code={round.code}
           recorderHandle={myHandle}
+          roundAuth={roundAuth}
           currentHandle={rotation.currentHandle}
           members={members}
           stops={stops}
@@ -491,6 +507,7 @@ function spendClientRef(): string {
 function RoundSpendComposer({
   code,
   recorderHandle,
+  roundAuth,
   currentHandle,
   members,
   stops,
@@ -498,6 +515,7 @@ function RoundSpendComposer({
 }: {
   code: string;
   recorderHandle: string;
+  roundAuth: AccountAuthSnapshot | null;
   currentHandle: string | null;
   members: RoundState["members"];
   stops: RoundState["stops"];
@@ -520,6 +538,7 @@ function RoundSpendComposer({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const pendingRef = useRef<string | null>(null);
+  const { user } = useAuth();
 
   useEffect(() => {
     if (!open || mode !== "items") return;
@@ -663,14 +682,15 @@ function RoundSpendComposer({
       setError("Add at least one drink, or use the quick total.");
       return;
     }
+    if (user && !roundAuth) {
+      setError("Your sign-in changed. Try again.");
+      return;
+    }
     setBusy(true);
     setError(null);
     pendingRef.current ??= spendClientRef();
     try {
-      const res = await fetch(`/api/rounds/${code}`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
+      const res = await submitRoundSpendRequest(code, roundAuth, {
           action: "recordSpend",
           handle: recorderHandle,
           payerHandle,
@@ -688,7 +708,6 @@ function RoundSpendComposer({
                 ),
               }
             : { totalGbp: amount }),
-        }),
       });
       const data = (await res.json()) as RoundState | { error: string };
       if (!res.ok) {
@@ -945,8 +964,6 @@ function RoundSpendComposer({
   );
 }
 
-// Both captions count what actually happened to a spend's lines, so neither
-// promises a figure is on the corroboration path when it never went near it.
 function provisionalPriceCaption(logged: number, lines: number): string {
   if (logged === lines) {
     return logged === 1
@@ -958,13 +975,13 @@ function provisionalPriceCaption(logged: number, lines: number): string {
     : `${logged} of these prices stay provisional until another drinker backs them.`;
 }
 
-function demoLineCaption(diaryOnly: number): string {
+function diaryOnlyCaption(diaryOnly: number): string {
   return diaryOnly === 1
-    ? "One line came off our demo menu, so it stays in this diary and was not logged as a price."
-    : `${diaryOnly} lines came off our demo menu, so they stay in this diary and were not logged as prices.`;
+    ? "One line stays in this diary and was not shared as a community price."
+    : `${diaryOnly} lines stay in this diary and were not shared as community prices.`;
 }
 
-function RoundSpendHistory({
+export function RoundSpendHistory({
   spends,
 }: {
   spends: readonly RoundSpendDTO[];
@@ -977,7 +994,7 @@ function RoundSpendHistory({
       </h2>
       <ol>
         {[...spends].reverse().map((spend) => {
-          const logged = firstPartyPriceItems(spend.items);
+          const logged = promotedPriceItems(spend.items);
           const diaryOnly = spend.items.length - logged.length;
           return (
             <li key={spend.id} className="roundSpendCard">
@@ -1001,7 +1018,9 @@ function RoundSpendHistory({
                       <li key={`${spend.id}-${index}`}>
                         <span>
                           {item.drinkName} · {categoryLabel(item.drinkCategory)}
-                          {item.source === "demo" ? " · diary only" : ""}
+                          {item.promotionStatus !== "promoted"
+                            ? " · diary only"
+                            : ""}
                         </span>
                         <strong>{formatPrice(item.pricePence / 100)}</strong>
                       </li>
@@ -1013,7 +1032,7 @@ function RoundSpendHistory({
                     </p>
                   ) : null}
                   {diaryOnly > 0 ? (
-                    <p className="roundPriceTrust">{demoLineCaption(diaryOnly)}</p>
+                    <p className="roundPriceTrust">{diaryOnlyCaption(diaryOnly)}</p>
                   ) : null}
                 </>
               ) : null}

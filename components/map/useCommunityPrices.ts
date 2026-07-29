@@ -57,7 +57,7 @@ export type CommunitySubmissionFailure = {
   ok: false;
   error: string;
   reason: PriceSubmitFailureReason;
-  status?: "sign_in_required";
+  status?: "sign_in_required" | "onboarding_required";
 };
 
 export type CommunityPriceSubmitResult =
@@ -80,7 +80,11 @@ export function rejectedCommunitySubmission(
     ok: false,
     error: error ?? fallback,
     reason: "rejected",
-    ...(status === 401 ? { status: "sign_in_required" as const } : {}),
+    ...(status === 401
+      ? { status: "sign_in_required" as const }
+      : status === 409
+        ? { status: "onboarding_required" as const }
+        : {}),
   };
 }
 

@@ -80,7 +80,7 @@ export const ROUND_SPEND_ITEM_NAME_MAX = 80;
 export const ROUND_SPEND_ITEM_MAX = 20;
 // How many of a turn's lines may be first-party price observations. The diary
 // takes up to ROUND_SPEND_ITEM_MAX lines; this narrower ceiling is what the
-// community store sees, and it bounds both the device budget one turn can spend
+// community store sees, and it bounds both the account budget one turn can spend
 // and the number of limiter checks a phone tap waits on.
 export const ROUND_SPEND_PRICE_LINE_MAX = 10;
 export const ROUND_SPEND_TOTAL_MIN_PENCE = 100;
@@ -104,7 +104,7 @@ export type RoundMemberDTO = {
 
 /**
  * Where a drink line's figure came from. "round" is the drinker's own claim,
- * so an eligible account may send it to the community price store. "demo" is a
+ * so a signed-in account may send it to the community price store. "demo" is a
  * figure lifted straight off a seeded demo menu (lib/drinkSeeds): it is a real
  * part of the night's diary and nobody's observation, so it stops here.
  * Provenance is the gate, never the figure itself: a drinker who genuinely paid
@@ -115,24 +115,38 @@ export type RoundMemberDTO = {
  * a server check could close — a hand-typed price that coincides with a seed is
  * the same request as a re-emitted seed, and policy requires accepting the
  * first. What holds the line instead is what always held it: authenticated
- * account identity, corroboration and age before any map surface, plus the
- * Round route's account price budget (app/api/rounds/[code]).
+ * account identity, corroboration and observation freshness before any map
+ * surface, plus the Round route's account price budget
+ * (app/api/rounds/[code]).
  */
 export type RoundSpendItemSource = "round" | "demo";
+export type RoundPromotionStatus =
+  | "diary_only"
+  | "pending"
+  | "ready"
+  | "promoted";
 
 export type RoundSpendItemDTO = {
   drinkName: string;
   drinkCategory: DrinkCategory;
   pricePence: number;
   source: RoundSpendItemSource;
+  promotionStatus: RoundPromotionStatus;
 };
 
-/** The drink lines that claim first-party provenance. The one owner of that
- *  question: the eligible write path considers these, the page captions these. */
+export type NewRoundSpendItem = Omit<RoundSpendItemDTO, "promotionStatus">;
+
+/** The drink lines that claim first-party provenance. */
 export function firstPartyPriceItems(
+  items: readonly NewRoundSpendItem[],
+): NewRoundSpendItem[] {
+  return items.filter((item) => item.source === "round");
+}
+
+export function promotedPriceItems(
   items: readonly RoundSpendItemDTO[],
 ): RoundSpendItemDTO[] {
-  return items.filter((item) => item.source === "round");
+  return items.filter((item) => item.promotionStatus === "promoted");
 }
 
 export type RoundSpendDTO = {
@@ -185,7 +199,7 @@ export type NewRoundSpend = {
   venueId: string;
   venueName: string;
   totalPence: number;
-  items: RoundSpendItemDTO[];
+  items: NewRoundSpendItem[];
 };
 
 /**
@@ -268,7 +282,7 @@ export function cleanNewRoundSpend(input: {
   const rawItems = (input.items ?? []) as unknown[];
   if (rawItems.length > ROUND_SPEND_ITEM_MAX) return null;
 
-  const items: RoundSpendItemDTO[] = [];
+  const items: NewRoundSpendItem[] = [];
   for (const rawItem of rawItems) {
     if (!rawItem || typeof rawItem !== "object") return null;
     const row = rawItem as Record<string, unknown>;

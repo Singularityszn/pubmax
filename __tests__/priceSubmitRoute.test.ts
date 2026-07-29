@@ -160,12 +160,9 @@ async function authorizeContributor(userId: string, handle: string): Promise<voi
   const onboarding = await memoryPrivateIdentityStore.completeOnboarding({
     userId,
     handle,
+    dateOfBirth: "2010-07-29",
   });
   expect(onboarding).toMatchObject({ ok: true });
-  await memoryPrivateIdentityStore.recordAgeAssessment(userId, {
-    ok: true,
-    status: "adult",
-  });
 }
 
 const ORIGINAL_SUPABASE_URL = process.env.SUPABASE_URL;
@@ -305,7 +302,7 @@ describe("POST /api/price-submit", () => {
     ).toEqual([]);
   });
 
-  it("requires account onboarding and the adult gate before storing", async () => {
+  it("requires complete account onboarding and never blocks by age", async () => {
     authState.userId = "user-not-onboarded";
     let res = await POST(
       post({ venueId: "venue-xjf3n0", drinkCategory: "beer", priceGbp: 4.2 }),
@@ -314,21 +311,15 @@ describe("POST /api/price-submit", () => {
     expect(await res.json()).toMatchObject({ status: "onboarding_required" });
 
     await memoryPrivateIdentityStore.completeOnboarding({
-      userId: "user-age-unknown",
-      handle: "age_unknown",
+      userId: "user-young",
+      handle: "young_person",
+      dateOfBirth: "2020-01-01",
     });
-    authState.userId = "user-age-unknown";
+    authState.userId = "user-young";
     res = await POST(
       post({ venueId: "venue-xjf3n0", drinkCategory: "beer", priceGbp: 4.2 }),
     );
-    expect(res.status).toBe(403);
-    expect(await res.json()).toMatchObject({ status: "age_required" });
-
-    await memoryPrivateIdentityStore.recordAgeAssessment("user-age-unknown", {
-      ok: true,
-      status: "underage",
-      eligibleOn: "2099-01-01",
-    });
+    expect(res.status).toBe(201);
     res = await POST(
       post({
         kind: "venue-signal",
@@ -337,13 +328,8 @@ describe("POST /api/price-submit", () => {
         signalValue: "rough",
       }),
     );
-    expect(res.status).toBe(403);
-    expect(await res.json()).toMatchObject({
-      status: "underage",
-      error:
-        "You must be 18 or over to contribute. PUBMAXX is about buying alcohol.",
-    });
-    expect(await readCommunityPrices("venue-xjf3n0")).toEqual([]);
+    expect(res.status).toBe(201);
+    expect(await readCommunityPrices("venue-xjf3n0")).toHaveLength(1);
   });
 
   it("refuses a contribution when account identity lookup fails", async () => {

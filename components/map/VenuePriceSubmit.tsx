@@ -172,9 +172,9 @@ export default function VenuePriceSubmit({
       }, auth);
       if (!result.ok) {
         trackEvent("price_submit_failed", { category, reason: result.reason });
-        if (result.status === "sign_in_required") {
+        if (result.status) {
           return {
-            status: "sign_in_required" as const,
+            status: result.status,
             error: result.error,
           };
         }

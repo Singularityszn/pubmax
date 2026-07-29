@@ -22,6 +22,7 @@ const SEX_LABELS: Record<PrivateIdentitySex, string> = {
 };
 
 type PrivateIdentityEditorFormProps = {
+  dateOfBirth: string;
   fullName: string;
   sex: "" | PrivateIdentitySex;
   saving: boolean;
@@ -29,11 +30,13 @@ type PrivateIdentityEditorFormProps = {
   message: string;
   onRetryLoad: (() => void) | null;
   onFullNameChange: (value: string) => void;
+  onDateOfBirthChange: (value: string) => void;
   onSexChange: (value: "" | PrivateIdentitySex) => void;
   onSubmit: (event: FormEvent<HTMLFormElement>) => void;
 };
 
 export function PrivateIdentityEditorForm({
+  dateOfBirth,
   fullName,
   sex,
   saving,
@@ -41,12 +44,23 @@ export function PrivateIdentityEditorForm({
   message,
   onRetryLoad,
   onFullNameChange,
+  onDateOfBirthChange,
   onSexChange,
   onSubmit,
 }: PrivateIdentityEditorFormProps): React.JSX.Element {
   return (
     <form onSubmit={onSubmit}>
       <h3>Private account details</h3>
+      <label>
+        Date of birth
+        <input
+          type="date"
+          value={dateOfBirth}
+          autoComplete="bday"
+          required
+          onChange={(event) => onDateOfBirthChange(event.target.value)}
+        />
+      </label>
       <label>
         Full name <small>Optional</small>
         <input
@@ -72,7 +86,10 @@ export function PrivateIdentityEditorForm({
           ))}
         </select>
       </label>
-      <small>Only your handle is public. These details stay private.</small>
+      <small>
+        Only your handle is public. These details stay private and support
+        product analytics and social features.
+      </small>
       <button type="submit" disabled={!saveEnabled || saving}>
         {saving ? "Saving…" : "Save private details"}
       </button>
@@ -92,6 +109,7 @@ function PrivateIdentityEditorForAccount({
   auth: AccountAuthSnapshot;
 }): React.JSX.Element {
   const [fullName, setFullName] = useState("");
+  const [dateOfBirth, setDateOfBirth] = useState("");
   const [sex, setSex] = useState<"" | PrivateIdentitySex>("");
   const [loadStatus, setLoadStatus] = useState<
     "loading" | "ready" | "unavailable"
@@ -117,6 +135,7 @@ function PrivateIdentityEditorForAccount({
         return;
       }
       setFullName(result.fullName);
+      setDateOfBirth(result.dateOfBirth);
       setSex(result.sex);
       setMessage("");
       setLoadStatus("ready");
@@ -136,7 +155,7 @@ function PrivateIdentityEditorForAccount({
         {
           method: "PATCH",
           headers: { "content-type": "application/json" },
-          body: JSON.stringify({ fullName, sex }),
+          body: JSON.stringify({ dateOfBirth, fullName, sex }),
         },
       );
       const body = (await response.json().catch(() => ({}))) as {
@@ -159,9 +178,10 @@ function PrivateIdentityEditorForAccount({
   return (
     <PrivateIdentityEditorForm
       fullName={fullName}
+      dateOfBirth={dateOfBirth}
       sex={sex}
       saving={saving}
-      saveEnabled={loadStatus === "ready"}
+      saveEnabled={loadStatus === "ready" && dateOfBirth.length > 0}
       message={message}
       onRetryLoad={
         loadStatus === "unavailable"
@@ -176,6 +196,7 @@ function PrivateIdentityEditorForAccount({
           : null
       }
       onFullNameChange={setFullName}
+      onDateOfBirthChange={setDateOfBirth}
       onSexChange={setSex}
       onSubmit={(event) => void save(event)}
     />
@@ -189,12 +210,14 @@ export default function PrivateIdentityEditor(): React.JSX.Element {
     return (
       <PrivateIdentityEditorForm
         fullName=""
+        dateOfBirth=""
         sex=""
         saving={false}
         saveEnabled={false}
         message="Private details are unavailable. Sign in again."
         onRetryLoad={null}
         onFullNameChange={() => {}}
+        onDateOfBirthChange={() => {}}
         onSexChange={() => {}}
         onSubmit={(event) => event.preventDefault()}
       />

@@ -132,10 +132,9 @@ turns into a logged price.
 - `price_submit_failed` — `{ category, reason }`. `reason` is a three-value
   enum: `invalid` (the client-side envelope check), `rejected` (a non-2xx from
   `/api/price-submit`), `offline` (transport failure).
-- `contribution_gate` - `{ step }`. Fires when required identity or age adds
-  friction: `sign_in_required`, `onboarding_required`, `age_required`,
-  `underage`, or `resumed`. No handle, account id, birth date, venue or price
-  is sent.
+- `contribution_gate` - `{ step }`. Fires when required identity adds
+  friction: `sign_in_required` or `onboarding_required`. No handle, account id,
+  birth date, venue or price is sent.
 - `sign_in_initiated` - `{ provider }`. Its fixed provider values are `google`,
   `apple`, and `email`, so magic-link dependence remains measurable while
   social providers are disabled.
@@ -147,8 +146,8 @@ community_price_submission_rate = count(price_submitted)
 required_sign_in_cost = count(contribution_gate where step = sign_in_required)
                       / count(price_submit_viewed)
 
-age_gate_resume_rate = count(contribution_gate where step = resumed)
-                     / count(contribution_gate where step = age_required)
+onboarding_cost = count(contribution_gate where step = onboarding_required)
+                / count(price_submit_viewed)
 ```
 
 `category` is the closed drink taxonomy (`PRICE_SUBMIT_CATEGORIES`, pinned to

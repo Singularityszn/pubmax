@@ -103,10 +103,7 @@ async function recordSpend(
   const clean = cleanNewRoundSpend(spendInput);
   if (!clean) return errorResponse("invalid");
 
-  // A plain total is a diary figure, not one drink, so it stops here. Eligible
-  // account prices enter the existing community store and earn map authority
-  // only through its independent-submitter and age gates. Anonymous, ineligible,
-  // and demo-menu lines stay in the diary.
+  // A plain total is a diary figure, not one drink, so it stops here.
   const observed = firstPartyPriceItems(clean.items);
   const contributor =
     observed.length > 0 ? await resolveContributionIdentity(request) : null;
@@ -119,72 +116,120 @@ async function recordSpend(
     );
   }
 
-  // Eligible drink lines pay the shared account price budget
-  // (lib/roundPriceBudget)
-  // BEFORE the diary write, so a refusal never leaves half a Round's lines
-  // submitted; the quick total is untouched, so the night can still be
-  // recorded. Two turns pay nothing: a replay of a turn already on record (it
-  // will submit nothing, and charging it would let a flaky connection lock a
-  // drinker out of a Round they have already kept), and a turn whose Round the
-  // store cannot show us, whose write is about to fail anyway.
-  if (contributor?.ok && observed.length > 0) {
-    const onRecord = await store.getByCode(code);
-    const chargeable =
-      onRecord != null &&
-      !onRecord.spends.some((spend) => spend.clientRef === clean.clientRef);
-    if (chargeable) {
-      const budget = await chargeRoundPriceLines(
-        contributor.actor,
-        observed.length,
-      );
-      // Two different refusals, and the status has to tell them apart: a spent
-      // degraded allowance is OUR limiter being unreachable, so it answers 503
-      // fail-soft with a retry hint (the contract errorResponse states above),
-      // while 429 stays what it means everywhere else here - this account really
-      // has logged its hour's worth of prices.
-      if (!budget.allowed && budget.mode === "degraded") {
-        return jsonNoStore(
-          {
-            error:
-              "We cannot log drink prices for a moment. Keep this round as a total, or add the drinks again shortly.",
-          },
-          {
-            status: 503,
-            headers: { "Retry-After": String(ROUND_PRICE_DEGRADED_RETRY_SECONDS) },
-          },
-        );
-      }
-      if (!budget.allowed) {
-        return jsonNoStore(
-          { error: "Too many price logs, slow down." },
-          { status: 429 },
-        );
-      }
-    }
+  const hasBearer = /^Bearer\s+\S+/i.test(
+    request.headers.get("authorization") ?? "",
+  );
+  if (
+    observed.length > 0 &&
+    hasBearer &&
+    contributor &&
+    !contributor.ok &&
+    contributor.httpStatus === 401
+  ) {
+    return jsonNoStore(contributor.body, { status: contributor.httpStatus });
   }
-
-  const result = await store.recordSpend(code, spendInput);
+  const promotionOwner =
+    contributor?.accountId ? `account:${contributor.accountId}` : null;
+  const result = await store.recordSpend(code, {
+    ...spendInput,
+    initialPromotionStatus:
+      observed.length > 0 && promotionOwner ? "pending" : "diary_only",
+    ...(promotionOwner ? { promotionActor: promotionOwner } : {}),
+  });
   if (!result.ok) return errorResponse(result.error);
 
-  if (result.created && contributor?.ok && observed.length > 0) {
-    const stored = result.state.spends.find(
-      (spend) => spend.clientRef === clean.clientRef,
-    );
-    const recordedAt = stored ? Date.parse(stored.recordedAt) : Date.now();
-    for (const item of observed) {
-      await submitCommunityPrice(
+  if (observed.length === 0 || (!hasBearer && !contributor?.ok)) {
+    return jsonNoStore(result.state, { status: 200 });
+  }
+  if (!contributor?.ok) {
+    return jsonNoStore(contributor.body, { status: contributor.httpStatus });
+  }
+  const owner = await store.claimSpendPromotionOwner(
+    code,
+    clean.clientRef,
+    promotionOwner!,
+  );
+  if (!owner.ok) {
+    return owner.error === "forbidden"
+      ? jsonNoStore(
+          { error: "This saved round belongs to another account." },
+          { status: 403 },
+        )
+      : errorResponse(owner.error);
+  }
+
+  let state = result.state;
+  let stored = state.spends.find((spend) => spend.clientRef === clean.clientRef);
+  if (!stored) return errorResponse("error");
+  const pending = stored.items
+    .map((item, index) => ({ item, index }))
+    .filter(({ item }) => item.promotionStatus === "pending");
+
+  if (pending.length > 0) {
+    const budget = await chargeRoundPriceLines(contributor.actor, pending.length);
+    if (!budget.allowed && budget.mode === "degraded") {
+      return jsonNoStore(
         {
-          venueId: clean.venueId,
-          drinkCategory: item.drinkCategory,
-          priceGbp: item.pricePence / 100,
-          actor: contributor.actor,
-          contributorHandle: contributor.handle,
+          error:
+            "Your round is kept, but price sharing is unavailable. Try again shortly.",
         },
-        recordedAt,
+        {
+          status: 503,
+          headers: { "Retry-After": String(ROUND_PRICE_DEGRADED_RETRY_SECONDS) },
+        },
       );
     }
+    if (!budget.allowed) {
+      return jsonNoStore(
+        { error: "Your round is kept. Too many price logs, try again later." },
+        { status: 429 },
+      );
+    }
+    const marked = await store.updateSpendPromotions(
+      code,
+      clean.clientRef,
+      pending.map(({ index }) => ({ index, status: "ready" as const })),
+    );
+    if (!marked.ok) return errorResponse(marked.error);
+    state = marked.state;
+    stored = state.spends.find((spend) => spend.clientRef === clean.clientRef);
+    if (!stored) return errorResponse("error");
   }
-  return jsonNoStore(result.state, { status: 200 });
+
+  const ready = stored.items
+    .map((item, index) => ({ item, index }))
+    .filter(({ item }) => item.promotionStatus === "ready");
+  const promoted: Array<{ index: number; status: "promoted" }> = [];
+  const recordedAt = Date.parse(stored.recordedAt);
+  for (const { item, index } of ready) {
+    const write = await submitCommunityPrice(
+      {
+        venueId: stored.venueId,
+        drinkCategory: item.drinkCategory,
+        priceGbp: item.pricePence / 100,
+        actor: contributor.actor,
+        contributorHandle: contributor.handle,
+      },
+      recordedAt,
+    );
+    if (!write.failed && write.price) promoted.push({ index, status: "promoted" });
+  }
+  if (promoted.length > 0) {
+    const marked = await store.updateSpendPromotions(
+      code,
+      clean.clientRef,
+      promoted,
+    );
+    if (!marked.ok) return errorResponse(marked.error);
+    state = marked.state;
+  }
+  if (promoted.length !== ready.length) {
+    return jsonNoStore(
+      { error: "Your round is kept, but some prices need another try." },
+      { status: 503 },
+    );
+  }
+  return jsonNoStore(state, { status: 200 });
 }
 
 export async function POST(request: Request, ctx: Ctx): Promise<Response> {

@@ -7,7 +7,7 @@ type AccountOnboardingRequest = (
 
 export type AccountOnboardingStatus =
   | { status: "complete" }
-  | { status: "incomplete" }
+  | { status: "incomplete"; handle?: string }
   | { status: "unavailable"; error: string };
 
 export type AccountHandleAvailability =
@@ -26,6 +26,7 @@ export async function loadAccountOnboardingStatus(
     });
     const body = (await response.json().catch(() => ({}))) as {
       complete?: unknown;
+      handle?: unknown;
       error?: unknown;
     };
     if (!response.ok) {
@@ -37,7 +38,12 @@ export async function loadAccountOnboardingStatus(
             : "Account setup is unavailable right now.",
       };
     }
-    return { status: body.complete === true ? "complete" : "incomplete" };
+    return body.complete === true
+      ? { status: "complete" }
+      : {
+          status: "incomplete",
+          ...(typeof body.handle === "string" ? { handle: body.handle } : {}),
+        };
   } catch (error) {
     if ((error as { name?: unknown })?.name === "AbortError") {
       return {

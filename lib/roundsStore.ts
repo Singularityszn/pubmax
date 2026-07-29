@@ -28,6 +28,7 @@ import {
   type RoundMemberDTO,
   type RoundSpendDTO,
   type RoundSpendItemDTO,
+  type RoundPromotionStatus,
   type RoundState,
   type RoundStopDTO,
 } from "@/lib/rounds";
@@ -64,6 +65,14 @@ export type RecordSpendResult =
   | { ok: true; state: RoundState; created: boolean }
   | { ok: false; error: RoundWriteError };
 
+export type UpdateSpendPromotionsResult =
+  | { ok: true; state: RoundState }
+  | { ok: false; error: RoundWriteError };
+
+export type ClaimSpendPromotionOwnerResult =
+  | { ok: true }
+  | { ok: false; error: "not_found" | "forbidden" | "error" };
+
 export type RoundsStore = {
   create(input: { title?: unknown; createdByHandle?: unknown }): Promise<CreateResult>;
   getByCode(code: string): Promise<RoundState | null>;
@@ -82,8 +91,20 @@ export type RoundsStore = {
       venueName?: unknown;
       totalGbp?: unknown;
       items?: unknown;
+      initialPromotionStatus?: RoundPromotionStatus;
+      promotionActor?: string;
     },
   ): Promise<RecordSpendResult>;
+  claimSpendPromotionOwner(
+    code: string,
+    clientRef: string,
+    actor: string,
+  ): Promise<ClaimSpendPromotionOwnerResult>;
+  updateSpendPromotions(
+    code: string,
+    clientRef: string,
+    updates: ReadonlyArray<{ index: number; status: RoundPromotionStatus }>,
+  ): Promise<UpdateSpendPromotionsResult>;
   close(code: string, handle: string): Promise<CloseResult>;
 };
 
@@ -141,6 +162,12 @@ function spendItemsFromRow(value: unknown): RoundSpendItemDTO[] {
       drinkCategory: row.drinkCategory,
       pricePence: row.pricePence,
       source: row.source === "demo" ? "demo" : "round",
+      promotionStatus:
+        row.promotionStatus === "pending" ||
+        row.promotionStatus === "ready" ||
+        row.promotionStatus === "promoted"
+          ? row.promotionStatus
+          : "diary_only",
     });
   }
   return items;
@@ -312,7 +339,14 @@ export const supabaseRoundsStore: RoundsStore = {
         venue_id: clean.venueId,
         venue_name: clean.venueName,
         total_pence: clean.totalPence,
-        items: clean.items,
+        items: clean.items.map((item) => ({
+          ...item,
+          promotionStatus:
+            item.source === "round"
+              ? input.initialPromotionStatus ?? "diary_only"
+              : "diary_only",
+        })),
+        promotion_actor: input.promotionActor ?? null,
       });
       if (error && (error as { code?: string }).code !== "23505") {
         throw new Error(error.message);
@@ -323,6 +357,84 @@ export const supabaseRoundsStore: RoundsStore = {
         : { ok: false, error: "error" };
     } catch (err) {
       console.error("[rounds] recordSpend failed:", err instanceof Error ? err.message : err);
+      return { ok: false, error: "error" };
+    }
+  },
+
+  async claimSpendPromotionOwner(code, clientRef, actor) {
+    try {
+      const state = await this.getByCode(code);
+      if (!state) return { ok: false, error: "not_found" };
+      const { data: current, error: readError } = await admin()
+        .from(SPENDS)
+        .select("items, promotion_actor")
+        .eq("round_id", state.round.id)
+        .eq("client_ref", clientRef)
+        .maybeSingle();
+      if (readError) throw new Error(readError.message);
+      if (!current) return { ok: false, error: "not_found" };
+      const currentOwner = (current as { promotion_actor?: unknown })
+        .promotion_actor;
+      if (currentOwner === actor) return { ok: true };
+      if (currentOwner != null) return { ok: false, error: "forbidden" };
+      const promotable = spendItemsFromRow(
+        (current as { items?: unknown }).items,
+      ).some(
+        (item) =>
+          item.promotionStatus === "pending" ||
+          item.promotionStatus === "ready",
+      );
+      if (!promotable) return { ok: false, error: "forbidden" };
+      const { error: claimError } = await admin()
+        .from(SPENDS)
+        .update({ promotion_actor: actor })
+        .eq("round_id", state.round.id)
+        .eq("client_ref", clientRef)
+        .is("promotion_actor", null);
+      if (claimError) throw new Error(claimError.message);
+      const { data, error } = await admin()
+        .from(SPENDS)
+        .select("promotion_actor")
+        .eq("round_id", state.round.id)
+        .eq("client_ref", clientRef)
+        .maybeSingle();
+      if (error) throw new Error(error.message);
+      if (!data) return { ok: false, error: "not_found" };
+      return (data as { promotion_actor?: unknown }).promotion_actor === actor
+        ? { ok: true }
+        : { ok: false, error: "forbidden" };
+    } catch (err) {
+      console.error(
+        "[rounds] claimSpendPromotionOwner failed:",
+        err instanceof Error ? err.message : err,
+      );
+      return { ok: false, error: "error" };
+    }
+  },
+
+  async updateSpendPromotions(code, clientRef, updates) {
+    try {
+      const state = await this.getByCode(code);
+      if (!state) return { ok: false, error: "not_found" };
+      const spend = state.spends.find((candidate) => candidate.clientRef === clientRef);
+      if (!spend) return { ok: false, error: "not_found" };
+      const items = spend.items.map((item) => ({ ...item }));
+      for (const update of updates) {
+        if (items[update.index]) items[update.index].promotionStatus = update.status;
+      }
+      const { error } = await admin()
+        .from(SPENDS)
+        .update({ items })
+        .eq("round_id", state.round.id)
+        .eq("client_ref", clientRef);
+      if (error) throw new Error(error.message);
+      const next = await this.getByCode(code);
+      return next ? { ok: true, state: next } : { ok: false, error: "error" };
+    } catch (err) {
+      console.error(
+        "[rounds] updateSpendPromotions failed:",
+        err instanceof Error ? err.message : err,
+      );
       return { ok: false, error: "error" };
     }
   },
@@ -363,6 +475,7 @@ type MemoryRound = {
   members: RoundMemberDTO[];
   stops: RoundStopDTO[];
   spends: RoundSpendDTO[];
+  promotionOwners: Map<string, string>;
 };
 
 const memoryRounds = new Map<string, MemoryRound>();
@@ -411,6 +524,7 @@ export const memoryRoundsStore: RoundsStore = {
       members: [{ handle: clean.createdByHandle, joinedAt: stamp() }],
       stops: [],
       spends: [],
+      promotionOwners: new Map(),
     };
     memoryRounds.set(code, round);
     return { ok: true, state: stateFrom(round) };
@@ -486,11 +600,65 @@ export const memoryRoundsStore: RoundsStore = {
         venueId: clean.venueId,
         venueName: clean.venueName,
         totalPence: clean.totalPence,
-        items: clean.items,
+        items: clean.items.map((item) => ({
+          ...item,
+          promotionStatus:
+            item.source === "round"
+              ? input.initialPromotionStatus ?? "diary_only"
+              : "diary_only",
+        })),
         recordedAt: stamp(),
       });
+      if (input.promotionActor) {
+        round.promotionOwners.set(clean.clientRef, input.promotionActor);
+      }
+    } else if (input.promotionActor) {
+      const currentOwner = round.promotionOwners.get(clean.clientRef);
+      if (currentOwner && currentOwner !== input.promotionActor) {
+        return { ok: false, error: "forbidden" };
+      }
     }
     return { ok: true, state: stateFrom(round), created };
+  },
+
+  async claimSpendPromotionOwner(code, clientRef, actor) {
+    const round = memoryRounds.get(normalizeRoundCode(code));
+    if (!round) return { ok: false, error: "not_found" };
+    if (!round.spends.some((spend) => spend.clientRef === clientRef)) {
+      return { ok: false, error: "not_found" };
+    }
+    const current = round.promotionOwners.get(clientRef);
+    if (current && current !== actor) {
+      return { ok: false, error: "forbidden" };
+    }
+    const spend = round.spends.find(
+      (candidate) => candidate.clientRef === clientRef,
+    );
+    if (
+      !current &&
+      !spend?.items.some(
+        (item) =>
+          item.promotionStatus === "pending" ||
+          item.promotionStatus === "ready",
+      )
+    ) {
+      return { ok: false, error: "forbidden" };
+    }
+    round.promotionOwners.set(clientRef, actor);
+    return { ok: true };
+  },
+
+  async updateSpendPromotions(code, clientRef, updates) {
+    const round = memoryRounds.get(normalizeRoundCode(code));
+    if (!round) return { ok: false, error: "not_found" };
+    const spend = round.spends.find((candidate) => candidate.clientRef === clientRef);
+    if (!spend) return { ok: false, error: "not_found" };
+    for (const update of updates) {
+      if (spend.items[update.index]) {
+        spend.items[update.index].promotionStatus = update.status;
+      }
+    }
+    return { ok: true, state: stateFrom(round) };
   },
 
   async close(code, handle) {

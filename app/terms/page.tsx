@@ -68,11 +68,11 @@ export default function TermsPage() {
       </section>
 
       <section className="legalSection" aria-labelledby="age">
-        <h2 id="age" className="legalH2">Over-18s</h2>
+        <h2 id="age" className="legalH2">Age and alcohol</h2>
         <p className="legalBody">
-          The pub-crawl side of PUBMAXX is for adults. Don&rsquo;t use it if
-          you&rsquo;re under 18. Nothing in the app is designed to encourage you
-          to drink more. Know your limits, and know the facts at{" "}
+          PUBMAXX does not block accounts or contributions based on age. Pubs
+          decide who they serve. Nothing in the app is designed to encourage
+          you to drink more. Know your limits, and know the facts at{" "}
           <a
             href="https://www.drinkaware.co.uk"
             target="_blank"
@@ -97,10 +97,16 @@ export default function TermsPage() {
           the closed product events described in our privacy notice. PostHog
           deletes analytics events 12 months after collection and pseudonymous
           person and device records 12 months after their last activity. If you
-          make an account, keep your sign-in to yourself, use a handle that
-          isn&rsquo;t someone else&rsquo;s identity, and don&rsquo;t hand the
-          account to anyone else. You can stop using it whenever you like, and
-          ask us to delete it. See the{" "}
+          make an account, you must provide a date of birth and may provide a
+          full name and sex. We keep these private, use them for product
+          analytics and social features, and retain date of birth while your
+          account exists. Optional full name and sex stay until you edit or
+          clear them. All three are removed when your account is deleted. They
+          do not block any feature at any age. Only your handle is public.
+          Keep your sign-in to yourself, use a handle that isn&rsquo;t someone
+          else&rsquo;s identity, and don&rsquo;t hand the account to anyone
+          else. You can stop using it whenever you like, and ask us to delete
+          your account and its private profile data. See the{" "}
           <Link href="/privacy" className="legalLink">privacy notice</Link>.
         </p>
       </section>
