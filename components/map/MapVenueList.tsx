@@ -115,6 +115,7 @@ export default function MapVenueList({
                       <li key={row.id}>
                         <button
                           ref={row.id === firstCuratedId ? firstVenueRef : undefined}
+                          id={`map-venue-list-item-${row.id}`}
                           type="button"
                           className="mapVenueListItem"
                           data-venue-id={row.id}
@@ -154,6 +155,7 @@ export default function MapVenueList({
                       <li key={row.id}>
                         <button
                           ref={row.id === firstBaseId ? firstVenueRef : undefined}
+                          id={`map-venue-list-item-${row.id}`}
                           type="button"
                           className="mapVenueListItem"
                           data-venue-id={row.id}

@@ -318,6 +318,7 @@ export default function MapSearchSuggest({
                       key={pub.id}
                       id={optionId(index)}
                       role="option"
+                      data-venue-id={pub.id}
                       aria-selected={safeActive === index}
                       className={`mapSearchSuggestRow${safeActive === index ? " isActive" : ""}`}
                       onMouseDown={(event) => event.preventDefault()}

@@ -1,6 +1,7 @@
 import { expect, test, type Locator, type Page } from "@playwright/test";
 
 const DESKTOP = { width: 1440, height: 900 };
+const LOCKED_DARK_INK = [22, 18, 42] as const;
 const LOCKED_CORAL = [255, 90, 95] as const;
 const LOCKED_CORAL_BRIGHT = [255, 122, 85] as const;
 
@@ -246,19 +247,23 @@ test.describe("map keyboard and screen-reader venue path", () => {
 
     const search = page.locator("#mapSearchInput");
     await expect(search).toBeVisible({ timeout: 30_000 });
-    await search.fill("Dolphin Tavern");
+    await search.fill("Dolphin");
     const listbox = page.getByRole("listbox", { name: "Search suggestions" });
-    const venueOption = listbox.getByRole("option", { name: /Dolphin Tavern/i });
-    await expect(venueOption).toBeVisible();
-    const venueOptionId = await venueOption.getAttribute("id");
-    expect(venueOptionId).toBeTruthy();
+    const highlightedVenue = listbox.getByRole("option").nth(2);
+    await expect(highlightedVenue).toBeVisible();
+    const highlightedVenueId = await highlightedVenue.getAttribute("data-venue-id");
+    expect(highlightedVenueId).toBeTruthy();
 
-    await search.press("ArrowDown");
-    await expect(search).toHaveAttribute("aria-activedescendant", venueOptionId!);
-    await search.press("Enter");
+    await search.evaluate((node) => {
+      for (const key of ["ArrowDown", "ArrowDown", "ArrowDown", "Enter"]) {
+        node.dispatchEvent(
+          new KeyboardEvent("keydown", { key, bubbles: true, cancelable: true }),
+        );
+      }
+    });
     await expect
       .poll(() => new URL(page.url()).searchParams.get("sel"))
-      .not.toBeNull();
+      .toBe(highlightedVenueId);
 
     const drawer = page.locator(".mapDrawer.right.open");
     await expect(drawer).toBeVisible();
@@ -273,7 +278,51 @@ test.describe("map keyboard and screen-reader venue path", () => {
     await expect(search).toBeFocused();
   });
 
-  test("keeps locked coral Plan CTA above normal-text AA contrast", async ({
+  test("keeps a rapid reselection open after close history settles", async ({
+    page,
+  }) => {
+    test.setTimeout(90_000);
+    await page.goto("/map");
+    await page.evaluate(() => {
+      const back = window.history.back.bind(window.history);
+      window.history.back = () => {
+        window.setTimeout(back, 250);
+      };
+    });
+
+    const firstVenue = await openVenueListWithKeyboard(page);
+    const firstVenueId = await firstVenue.getAttribute("data-venue-id");
+    const secondVenue = page.locator(".mapVenueListItem").nth(1);
+    const secondVenueId = await secondVenue.getAttribute("data-venue-id");
+    expect(firstVenueId).toBeTruthy();
+    expect(secondVenueId).toBeTruthy();
+    expect(secondVenueId).not.toBe(firstVenueId);
+
+    await page.keyboard.press("Enter");
+    const drawer = page.locator(".mapDrawer.right.open");
+    await expect(drawer).toBeVisible();
+    await page.keyboard.press("Escape");
+    await expect(drawer).toBeHidden();
+    await expect(firstVenue).toBeFocused();
+    await secondVenue.focus();
+    await page.keyboard.press("Enter");
+
+    await expect(drawer).toBeVisible();
+    await expect
+      .poll(() => new URL(page.url()).searchParams.get("sel"))
+      .toBe(secondVenueId);
+    await page.waitForTimeout(350);
+    await expect(drawer).toBeVisible();
+    expect(new URL(page.url()).searchParams.get("sel")).toBe(secondVenueId);
+
+    await page.keyboard.press("Escape");
+    await expect(drawer).toBeHidden();
+    await expect
+      .poll(() => page.evaluate(() => document.activeElement?.id ?? ""))
+      .toBe(`map-venue-list-item-${secondVenueId}`);
+  });
+
+  test("keeps locked coral Plan CTA above 5.96:1 contrast", async ({
     page,
   }) => {
     await page.goto("/map");
@@ -295,6 +344,7 @@ test.describe("map keyboard and screen-reader venue path", () => {
         };
       });
       const foreground = rgbChannels(computed.colour);
+      expect(foreground).toEqual(LOCKED_DARK_INK);
       expect(computed.backgroundImage).toContain("255, 90, 95");
       expect(computed.backgroundImage).toContain("255, 122, 85");
       expect(
@@ -302,7 +352,7 @@ test.describe("map keyboard and screen-reader venue path", () => {
           contrastRatio(foreground, LOCKED_CORAL),
           contrastRatio(foreground, LOCKED_CORAL_BRIGHT),
         ),
-      ).toBeGreaterThanOrEqual(4.5);
+      ).toBeGreaterThanOrEqual(5.96);
     }
   });
 });

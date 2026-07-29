@@ -1397,12 +1397,13 @@ export default function PubMap({
       origin: PlanningIntentSource | null = null,
     ) => {
       if (!id) return;
-      if (preSheetFocusRef.current === null && typeof document !== "undefined") {
+      if (typeof document !== "undefined") {
         const active = document.activeElement;
         if (
           active instanceof HTMLElement &&
           active !== document.body &&
-          active !== document.documentElement
+          active !== document.documentElement &&
+          !active.closest(".mapDrawer, .mobileSheetPortal")
         ) {
           // Capture synchronously. Search closes and blurs its combobox in the
           // same event before React opens the drawer.
@@ -2362,18 +2363,23 @@ export default function PubMap({
       restoreFocus();
       preSheetFocusRef.current = null;
       const frame = requestAnimationFrame(restoreFocus);
+      let popFrame: number | null = null;
+      const restoreAfterHistory = () => {
+        popFrame = requestAnimationFrame(restoreFocus);
+      };
       // Local close pops the selection sentinel after this commit. Restore
       // once more on that exact history settlement so traversal cannot strand
       // focus on the document. Browser-Back close has already popped, and the
       // animation-frame restore above covers that path.
-      window.addEventListener("popstate", restoreFocus, { once: true });
+      window.addEventListener("popstate", restoreAfterHistory, { once: true });
       const listenerCeiling = window.setTimeout(() => {
-        window.removeEventListener("popstate", restoreFocus);
+        window.removeEventListener("popstate", restoreAfterHistory);
       }, 1_000);
       return () => {
         cancelAnimationFrame(frame);
+        if (popFrame !== null) cancelAnimationFrame(popFrame);
         window.clearTimeout(listenerCeiling);
-        window.removeEventListener("popstate", restoreFocus);
+        window.removeEventListener("popstate", restoreAfterHistory);
       };
     }
   }, [detailOpen]);

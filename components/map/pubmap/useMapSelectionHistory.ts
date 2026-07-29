@@ -63,12 +63,15 @@ export function useMapSelectionHistory({
   // effect so the first transition run is a no-op for a seeded selection.
   const prevRef = useRef<string>("");
   const checkpointedRef = useRef(false);
+  const pendingBackRef = useRef(false);
   const onBackCloseRef = useRef(onBackClose);
+  const selectedVenueIdRef = useRef(selectedVenueId);
   const selectionHintRef = useRef(selectionHint);
-  useEffect(() => {
+  useLayoutEffect(() => {
     onBackCloseRef.current = onBackClose;
+    selectedVenueIdRef.current = selectedVenueId;
     selectionHintRef.current = selectionHint;
-  }, [onBackClose, selectionHint]);
+  }, [onBackClose, selectedVenueId, selectionHint]);
 
   // 1) Arrival checkpoint — once, before useCrawlUrlSync's first (debounced)
   //    write. Empty deps: the frozen arrival is all this needs.
@@ -101,6 +104,7 @@ export function useMapSelectionHistory({
   useLayoutEffect(() => {
     if (typeof window === "undefined") return;
     if (!checkpointedRef.current) return;
+    if (pendingBackRef.current) return;
     const prev = prevRef.current;
     const next = selectedVenueId;
     if (next === prev) return;
@@ -127,6 +131,7 @@ export function useMapSelectionHistory({
         );
         break;
       case "back":
+        pendingBackRef.current = true;
         window.history.back();
         break;
       case "strip":
@@ -150,6 +155,25 @@ export function useMapSelectionHistory({
   useEffect(() => {
     if (typeof window === "undefined") return;
     const onPop = () => {
+      if (pendingBackRef.current) {
+        pendingBackRef.current = false;
+        const queuedVenueId = selectedVenueIdRef.current;
+        if (!queuedVenueId) return;
+        const { pathname, search, hash } = window.location;
+        window.history.pushState(
+          withSelectionSentinel(window.history.state, queuedVenueId),
+          "",
+          browseSelectionUrl(
+            pathname,
+            search,
+            queuedVenueId,
+            hash,
+            selectionHintRef.current,
+          ),
+        );
+        prevRef.current = queuedVenueId;
+        return;
+      }
       if (selectionSentinelVenueId(window.history.state) !== null) return;
       if (!prevRef.current) return;
       prevRef.current = "";
