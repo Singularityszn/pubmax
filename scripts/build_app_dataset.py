@@ -3,7 +3,10 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
+import subprocess
+import sys
 from pathlib import Path
 from urllib.parse import quote
 
@@ -12,6 +15,21 @@ import pandas as pd
 
 DATA = Path("data")
 ANOMALY_BOROUGHS = {"Havering", "Hillingdon", "Redbridge"}
+LONDON_LAT_MIN, LONDON_LAT_MAX = 51.26, 51.72
+LONDON_LON_MIN, LONDON_LON_MAX = -0.55, 0.30
+DECISION_SCRIPT = Path(__file__).resolve().with_name(
+    "resolve_postcode_coordinate_decisions.mjs"
+)
+DECISION_INPUT_FILES = [
+    DATA / "pint_prices_canonical_enriched.csv",
+    DATA / "borough_embedded_pint_prices.csv",
+    DATA / "pub_page_pint_prices.csv",
+    DATA / "osm" / "uk" / "uk_osm_pubs.json",
+    DATA / "postcode_coordinate_corrections.json",
+    DATA / "postcode_coordinate_quarantine.json",
+    DATA / "postcode_coordinate_exceptions.json",
+]
+DECISION_REPORT = DATA / "postcode_coordinate_build_report.json"
 
 
 def clean(value: object) -> str:
@@ -53,6 +71,80 @@ def pub_url_from_fields(address: str, pub_name: str) -> str:
     if not address or not pub_name:
         return ""
     return f"https://www.pint-prices.com/pub/{quote(address, safe='')}/{quote(pub_name, safe='')}"
+
+
+def sha256_file(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as handle:
+        for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+def apply_postcode_coordinate_decisions(
+    app: pd.DataFrame,
+) -> tuple[pd.DataFrame, dict[str, object]]:
+    latitudes = pd.to_numeric(app["latitude"], errors="coerce")
+    longitudes = pd.to_numeric(app["longitude"], errors="coerce")
+    product_candidates = app[
+        latitudes.between(LONDON_LAT_MIN, LONDON_LAT_MAX)
+        & longitudes.between(LONDON_LON_MIN, LONDON_LON_MAX)
+    ]
+    result = subprocess.run(
+        ["node", str(DECISION_SCRIPT)],
+        input=product_candidates.to_json(orient="records"),
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+    if result.returncode != 0:
+        if result.stderr:
+            print(result.stderr.rstrip(), file=sys.stderr)
+        raise SystemExit(result.returncode)
+
+    decisions = json.loads(result.stdout)
+    for correction in decisions["appliedCorrections"]:
+        matches = app.index[app["app_price_id"].eq(correction["appPriceId"])]
+        if len(matches) != 1:
+            raise RuntimeError(
+                f"validated correction {correction['appPriceId']} no longer matches one row"
+            )
+        row_index = matches[0]
+        for field, value in correction["changes"].items():
+            if field in {"latitude", "longitude"}:
+                value = str(value)
+            app.at[row_index, field] = value
+        notes = [
+            note
+            for note in clean(app.at[row_index, "data_quality_notes"]).split("|")
+            if note
+        ]
+        if correction["dataQualityNote"] not in notes:
+            notes.append(correction["dataQualityNote"])
+        app.at[row_index, "data_quality_notes"] = "|".join(notes)
+
+    quarantined_ids: set[str] = set()
+    for quarantine in decisions["appliedQuarantines"]:
+        app_price_id = quarantine["appPriceId"]
+        quarantined_ids.add(app_price_id)
+        print(
+            "[postcode-coordinate quarantine] "
+            f"{app_price_id} {quarantine['pubName']} {quarantine['postcode']} "
+            f"@ {quarantine['latitude']},{quarantine['longitude']}: "
+            f"{quarantine['reason']}"
+        )
+
+    report = {
+        "inputs": {
+            str(path): {"sha256": sha256_file(path)} for path in DECISION_INPUT_FILES
+        },
+        "checkedRows": decisions["checkedRows"],
+        "outwardCodeReferences": decisions["referenceCount"],
+        "corrections": decisions["appliedCorrections"],
+        "quarantines": decisions["appliedQuarantines"],
+    }
+    app = app[~app["app_price_id"].isin(quarantined_ids)].copy()
+    return app, report
 
 
 def prep(df: pd.DataFrame, source: str) -> pd.DataFrame:
@@ -243,7 +335,18 @@ def main() -> None:
         ascending=[False, True, True, True, True],
     ).reset_index(drop=True)
     app["app_price_id"] = [f"app_price_{index + 1:06d}" for index in range(len(app))]
-    app.to_csv(DATA / "pint_prices_app_dataset.csv", index=False)
+    app, decision_report = apply_postcode_coordinate_decisions(app)
+    output_path = DATA / "pint_prices_app_dataset.csv"
+    app.to_csv(output_path, index=False)
+    decision_report["output"] = {
+        "path": str(output_path),
+        "sha256": sha256_file(output_path),
+        "rows": len(app),
+    }
+    DECISION_REPORT.write_text(
+        json.dumps(decision_report, ensure_ascii=False, indent=2) + "\n",
+        encoding="utf-8",
+    )
 
     summary_path = DATA / "summary.json"
     summary = json.loads(summary_path.read_text(encoding="utf-8"))
@@ -277,7 +380,7 @@ def main() -> None:
     )
     summary_path.write_text(json.dumps(summary, ensure_ascii=False, indent=2), encoding="utf-8")
 
-    print(f"wrote {DATA / 'pint_prices_app_dataset.csv'}")
+    print(f"wrote {output_path}")
     print(f"rows={len(app)} columns={len(app.columns)}")
 
 

@@ -3,13 +3,11 @@
   "rows": [
     {
       "pubName": "The Lincoln Arms",
-      "appPriceIds": [
-        "app_price_000339"
-      ],
+      "appPriceId": "app_price_000339",
       "recordedPrice": "GUINNESS £4.40",
-      "recordedAddress": "EN1 1QT",
-      "recordedLatitude": 51.5332,
-      "recordedLongitude": -0.1222,
+      "postcode": "EN1 1QT",
+      "latitude": 51.5332,
+      "longitude": -0.1222,
       "sourceUrl": "https://www.pint-prices.com/pub/EN1%201QT/The%20Lincoln%20Arms",
       "sourceRows": {
         "data/pub_locations_map_data.csv": 1,
@@ -37,13 +35,11 @@
     },
     {
       "pubName": "The Bishops Finger",
-      "appPriceIds": [
-        "app_price_000263"
-      ],
+      "appPriceId": "app_price_000263",
       "recordedPrice": "GUINNESS £6.90",
-      "recordedAddress": "CT2 8AF",
-      "recordedLatitude": 51.5185,
-      "recordedLongitude": -0.101913,
+      "postcode": "CT2 8AF",
+      "latitude": 51.5185,
+      "longitude": -0.101913,
       "sourceUrl": "https://www.pint-prices.com/pub/%20CT2%208AF/The%20Bishops%20Finger",
       "evidence": [
         {
@@ -57,13 +53,11 @@
     },
     {
       "pubName": "The Coach & Horses",
-      "appPriceIds": [
-        "app_price_000274"
-      ],
+      "appPriceId": "app_price_000274",
       "recordedPrice": "TIMOTHY TAYLOR’S LANDLORD ALE £5.10",
-      "recordedAddress": "WD3 1ER",
-      "recordedLatitude": 51.5139,
-      "recordedLongitude": -0.129688,
+      "postcode": "WD3 1ER",
+      "latitude": 51.5139,
+      "longitude": -0.129688,
       "sourceUrl": "https://www.pint-prices.com/pub/WD3%201ER/The%20Coach%20%26%20Horses",
       "evidence": [
         {
@@ -77,13 +71,11 @@
     },
     {
       "pubName": "The Globe",
-      "appPriceIds": [
-        "app_price_000719"
-      ],
+      "appPriceId": "app_price_000719",
       "recordedPrice": "JOHN SMITH'S £2.45",
-      "recordedAddress": "E9 6NA",
-      "recordedLatitude": 51.5081,
-      "recordedLongitude": -0.0971864,
+      "postcode": "E9 6NA",
+      "latitude": 51.5081,
+      "longitude": -0.0971864,
       "sourceUrl": "https://www.pint-prices.com/pub/E9%206NA/The%20Globe",
       "evidence": [
         {
@@ -97,13 +89,11 @@
     },
     {
       "pubName": "The Lounge",
-      "appPriceIds": [
-        "app_price_000977"
-      ],
+      "appPriceId": "app_price_000977",
       "recordedPrice": "PRETTY VACANT £3.90",
-      "recordedAddress": "NE24 1AX",
-      "recordedLatitude": 51.3719,
-      "recordedLongitude": -0.108514,
+      "postcode": "NE24 1AX",
+      "latitude": 51.3719,
+      "longitude": -0.108514,
       "sourceUrl": "https://www.pint-prices.com/pub/NE24%201AX/The%20Lounge",
       "evidence": [
         {
@@ -117,13 +107,11 @@
     },
     {
       "pubName": "McCafferty’s",
-      "appPriceIds": [
-        "app_price_001220"
-      ],
+      "appPriceId": "app_price_001220",
       "recordedPrice": "CARLING £4.50",
-      "recordedAddress": "KT19 8BT",
-      "recordedLatitude": 51.5838,
-      "recordedLongitude": -0.116568,
+      "postcode": "KT19 8BT",
+      "latitude": 51.5838,
+      "longitude": -0.116568,
       "sourceUrl": "https://www.pint-prices.com/pub/KT19%208BT/McCafferty%E2%80%99s",
       "evidence": [
         {
@@ -137,13 +125,11 @@
     },
     {
       "pubName": "The Crown",
-      "appPriceIds": [
-        "app_price_001614"
-      ],
+      "appPriceId": "app_price_001614",
       "recordedPrice": "PINEAPPLE AND RASPBERRY OLD MOUT £6.00",
-      "recordedAddress": "CV37 7ZY",
-      "recordedLatitude": 51.4512,
-      "recordedLongitude": -0.318682,
+      "postcode": "CV37 7ZY",
+      "latitude": 51.4512,
+      "longitude": -0.318682,
       "sourceUrl": "https://www.pint-prices.com/pub/CV37%207ZY%20/The%20Crown",
       "evidence": [
         {
@@ -157,14 +143,29 @@
     },
     {
       "pubName": "The Prince Albert",
-      "appPriceIds": [
-        "app_price_002037",
-        "app_price_002038"
+      "appPriceId": "app_price_002037",
+      "recordedPrice": "ESTRELLA £6.85",
+      "postcode": "SW13 9QQ",
+      "latitude": 51.4796,
+      "longitude": -0.16579,
+      "sourceUrl": "https://www.pint-prices.com/pub/SW13%209QQ/The%20Prince%20Albert",
+      "evidence": [
+        {
+          "source": "public/data/pint_prices_app_dataset.json",
+          "finding": "A separate app_price_002127 row already preserves the sourced Battersea Estrella observation at 85 Albert Bridge Road SW11 4PF. The caught rows merge that point with SW13 9QQ, while the Fosters source remains the SW13 page."
+        }
       ],
-      "recordedPrice": "ESTRELLA £6.85; FOSTERS £6.40",
-      "recordedAddress": "SW13 9QQ",
-      "recordedLatitude": 51.4796,
-      "recordedLongitude": -0.16579,
+      "disposition": "quarantined",
+      "reason": "Correcting would duplicate the separately preserved Battersea price and guess that the SW13 Fosters price belongs there.",
+      "quarantinedAt": "2026-07-29"
+    },
+    {
+      "pubName": "The Prince Albert",
+      "appPriceId": "app_price_002038",
+      "recordedPrice": "FOSTERS £6.40",
+      "postcode": "SW13 9QQ",
+      "latitude": 51.4796,
+      "longitude": -0.16579,
       "sourceUrl": "https://www.pint-prices.com/pub/SW13%209QQ/The%20Prince%20Albert",
       "evidence": [
         {
@@ -178,13 +179,11 @@
     },
     {
       "pubName": "Kings Lounge",
-      "appPriceIds": [
-        "app_price_002342"
-      ],
+      "appPriceId": "app_price_002312",
       "recordedPrice": "All Pints £4.95",
-      "recordedAddress": "SW17 9HP",
-      "recordedLatitude": 51.5385,
-      "recordedLongitude": 0.0793927,
+      "postcode": "SW17 9HP",
+      "latitude": 51.5385,
+      "longitude": 0.0793927,
       "sourceUrl": "https://www.pint-prices.com/pub/SW17%209HP/Kings%20Lounge",
       "evidence": [
         {
@@ -198,13 +197,11 @@
     },
     {
       "pubName": "The Barley Mow",
-      "appPriceIds": [
-        "app_price_002505"
-      ],
+      "appPriceId": "app_price_002483",
       "recordedPrice": "Guiness £4.80",
-      "recordedAddress": "LE6 6FE",
-      "recordedLatitude": 51.5197,
-      "recordedLongitude": -0.155659,
+      "postcode": "LE6 6FE",
+      "latitude": 51.5197,
+      "longitude": -0.155659,
       "sourceUrl": "https://www.pint-prices.com/pub/LE6%206FE/The%20Barley%20Mow",
       "evidence": [
         {
@@ -218,13 +215,11 @@
     },
     {
       "pubName": "The Stags Head",
-      "appPriceIds": [
-        "app_price_002917"
-      ],
+      "appPriceId": "app_price_002908",
       "recordedPrice": "Madri £7.40",
-      "recordedAddress": "W1W 6XW",
-      "recordedLatitude": 51.4658,
-      "recordedLongitude": -0.252189,
+      "postcode": "W1W 6XW",
+      "latitude": 51.4658,
+      "longitude": -0.252189,
       "sourceUrl": "https://www.pint-prices.com/pub/W1w%206xw/The%20Stags%20Head",
       "evidence": [
         {

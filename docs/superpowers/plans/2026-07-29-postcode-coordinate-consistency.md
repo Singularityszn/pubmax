@@ -107,7 +107,7 @@
 
   Run `npx vitest run __tests__/postcodeCoordinateConsistency.test.ts __tests__/validateDrinkPriceUpdatesScript.test.ts`.
 
-- [ ] **Step 8: Commit**
+- [x] **Step 8: Commit**
 
   Commit message must report measured distributions: 1,296 unique app venues checked, 99th percentile 3.65 km, last below-threshold row 3.87 km, first contradiction 5.44 km, and chosen 5 km boundary.
 
@@ -151,7 +151,56 @@
 
   Commit message must list total rows, unique venues, each venue name, and its correction or quarantine disposition.
 
-### Task 4: Closeout verification
+### Task 4: Make postcode-coordinate decisions rebuild-durable
+
+**Files:**
+
+- Modify: `scripts/build_app_dataset.py`
+- Modify: `scripts/validate-data.mjs`
+- Modify: `data/postcode_coordinate_quarantine.json`
+- Create: `data/postcode_coordinate_corrections.json`
+- Modify: `data/README.md`
+- Test: `__tests__/buildAppDatasetQuarantine.test.ts`
+- Test: `__tests__/validateDrinkPriceUpdatesScript.test.ts`
+
+**Interfaces:**
+
+- Consumes: complete pre-publication app rows after `app_price_id` assignment, exact quarantine records, exact correction records, and committed OSM outward-code reference points
+- Produces: corrected product rows, no quarantined product rows, one visible build log line per skipped row, and hard failures for invalid or stale decision records
+
+- [x] **Step 1: Reproduce raw rebuild failure**
+
+  Copy the data pipeline into a scratch directory, run `build_app_dataset.py`, export product JSON, and run `validate-data.mjs`. Record that all 12 quarantined rows and all 10 previously corrected rows return.
+
+- [x] **Step 2: Write failing build integration tests**
+
+  Run the real builder against scratch copies of committed raw inputs. Assert each exact quarantine row is absent, every skip is printed with its reason, and the Sir Michael Balcon correction survives.
+
+- [x] **Step 3: Write failing quarantine integrity tests**
+
+  Assert stale, partial, duplicate, reasonless, and no-longer-contradictory quarantine records fail. Assert one record may identify only one exact app price ID, name, postcode, latitude, and longitude.
+
+- [x] **Step 4: Implement build-time decisions**
+
+  Assign app price IDs before decisions, apply exact evidence-backed corrections, validate quarantine records against pre-publication rows and the same 5 km contradiction rule, print every skip and reason, then omit quarantined rows from product output.
+
+- [x] **Step 5: Wire quarantine integrity into validation**
+
+  Validate registry schema, exact identity, raw-source presence, duplicate IDs, stated reasons, ongoing contradiction, and absence from published product data. Fail rather than warn on every invalid state.
+
+- [x] **Step 6: Document durable rebuild behavior**
+
+  Put correction and quarantine maintenance rules beside the existing exception documentation, including why raw scrape artifacts remain untouched.
+
+- [x] **Step 7: Prove raw rebuild and stale-entry failure**
+
+  Run the data build from committed raw inputs, export product JSON, rebuild derived product packs, and run validation. Confirm all 11 quarantined venues stay absent and validation is green. In a scratch copy, deliberately stale one exact quarantine identity and confirm the builder and validation fail.
+
+- [ ] **Step 8: Commit**
+
+  Commit the durable decision path and its tests as one coherent piece.
+
+### Task 5: Closeout verification
 
 **Files:**
 
@@ -159,7 +208,7 @@
 
 **Interfaces:**
 
-- Consumes: three committed tasks
+- Consumes: four committed tasks
 - Produces: verified branch ready for firstmate review
 
 - [ ] **Step 1: Run project gate**

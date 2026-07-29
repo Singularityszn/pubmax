@@ -118,11 +118,10 @@ function validateExceptionShape(exception, index) {
   return errors;
 }
 
-export function findPostcodeCoordinateContradictions({
+function collectPostcodeCoordinateFindings({
   rows,
   osmPubs,
-  exceptionRegistry,
-  maxDistanceKm = POSTCODE_COORDINATE_MAX_DISTANCE_KM,
+  maxDistanceKm,
 }) {
   const references = buildOutwardCodeReferences(osmPubs);
   const findings = [];
@@ -163,6 +162,162 @@ export function findPostcodeCoordinateContradictions({
       reference,
     });
   });
+
+  return { checkedRows, referenceCount: references.size, findings };
+}
+
+function describeQuarantine(index, message) {
+  return `quarantine ${index}: ${message}`;
+}
+
+function validateQuarantineShape(entry, index) {
+  const errors = [];
+  if (
+    typeof entry?.appPriceId !== "string" ||
+    entry.appPriceId.trim().length === 0
+  ) {
+    errors.push(describeQuarantine(index, "appPriceId must be non-empty"));
+  }
+  if (
+    typeof entry?.pubName !== "string" ||
+    entry.pubName.trim().length === 0
+  ) {
+    errors.push(describeQuarantine(index, "pubName must be non-empty"));
+  }
+  if (!parseUkPostcode(entry?.postcode)) {
+    errors.push(
+      describeQuarantine(index, "postcode must be a complete UK postcode"),
+    );
+  }
+  if (
+    !Number.isFinite(entry?.latitude) ||
+    !Number.isFinite(entry?.longitude)
+  ) {
+    errors.push(
+      describeQuarantine(
+        index,
+        "latitude and longitude must be finite numbers",
+      ),
+    );
+  }
+  if (
+    typeof entry?.reason !== "string" ||
+    entry.reason.trim().length < 20
+  ) {
+    errors.push(
+      describeQuarantine(index, "reason must contain at least 20 characters"),
+    );
+  }
+  return errors;
+}
+
+export function validatePostcodeCoordinateQuarantine({
+  rows,
+  osmPubs,
+  quarantineRegistry,
+  maxDistanceKm = POSTCODE_COORDINATE_MAX_DISTANCE_KM,
+}) {
+  const { checkedRows, referenceCount, findings } =
+    collectPostcodeCoordinateFindings({
+      rows,
+      osmPubs,
+      maxDistanceKm,
+    });
+  const quarantineRows = quarantineRegistry?.rows;
+  const invalidQuarantines = [];
+  const appliedQuarantineIds = new Set();
+  const seenQuarantineIds = new Set();
+
+  if (!Array.isArray(quarantineRows)) {
+    invalidQuarantines.push("top-level rows must be an array");
+  } else {
+    quarantineRows.forEach((entry, index) => {
+      const shapeErrors = validateQuarantineShape(entry, index);
+      invalidQuarantines.push(...shapeErrors);
+      if (shapeErrors.length > 0) return;
+
+      if (seenQuarantineIds.has(entry.appPriceId)) {
+        invalidQuarantines.push(
+          describeQuarantine(
+            index,
+            `duplicate appPriceId ${entry.appPriceId}`,
+          ),
+        );
+        return;
+      }
+      seenQuarantineIds.add(entry.appPriceId);
+
+      const row = rows.find(
+        (candidate) => candidate?.app_price_id === entry.appPriceId,
+      );
+      if (!row) {
+        invalidQuarantines.push(
+          describeQuarantine(
+            index,
+            `${entry.appPriceId} is not in the pre-publication dataset`,
+          ),
+        );
+        return;
+      }
+
+      const rowPostcode = parseUkPostcode(row.address)?.postcode;
+      const quarantinePostcode = parseUkPostcode(entry.postcode)?.postcode;
+      if (
+        row.pub_name !== entry.pubName ||
+        rowPostcode !== quarantinePostcode ||
+        Number(row.latitude) !== entry.latitude ||
+        Number(row.longitude) !== entry.longitude
+      ) {
+        invalidQuarantines.push(
+          describeQuarantine(
+            index,
+            `identity fields do not exactly match ${entry.appPriceId}`,
+          ),
+        );
+        return;
+      }
+
+      const finding = findings.find(
+        (candidate) => candidate.appPriceId === entry.appPriceId,
+      );
+      if (!finding) {
+        invalidQuarantines.push(
+          describeQuarantine(
+            index,
+            `${entry.appPriceId} is not a postcode-coordinate contradiction`,
+          ),
+        );
+        return;
+      }
+      appliedQuarantineIds.add(entry.appPriceId);
+    });
+  }
+
+  return {
+    checkedRows,
+    referenceCount,
+    appliedQuarantines: findings.filter((finding) =>
+      appliedQuarantineIds.has(finding.appPriceId),
+    ),
+    unquarantinedContradictions: findings.filter(
+      (finding) => !appliedQuarantineIds.has(finding.appPriceId),
+    ),
+    invalidQuarantines,
+  };
+}
+
+export function findPostcodeCoordinateContradictions({
+  rows,
+  osmPubs,
+  exceptionRegistry,
+  maxDistanceKm = POSTCODE_COORDINATE_MAX_DISTANCE_KM,
+}) {
+  const { checkedRows, referenceCount, findings } =
+    collectPostcodeCoordinateFindings({
+      rows,
+      osmPubs,
+      maxDistanceKm,
+    });
 
   const exceptions = exceptionRegistry?.exceptions;
   const invalidExceptions = [];
@@ -236,7 +391,7 @@ export function findPostcodeCoordinateContradictions({
 
   return {
     checkedRows,
-    referenceCount: references.size,
+    referenceCount,
     contradictions: findings.filter(
       (finding) => !appliedExceptionIds.has(finding.appPriceId),
     ),
