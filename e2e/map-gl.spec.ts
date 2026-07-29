@@ -487,7 +487,7 @@ test("/map keeps Manchester cluster markers mounted after granted location settl
   page,
   context,
 }) => {
-  test.setTimeout(60_000);
+  test.setTimeout(90_000);
   await page.setViewportSize({ width: 1600, height: 1000 });
   await context.grantPermissions(["geolocation"]);
   await context.setGeolocation({ latitude: 53.4808, longitude: -2.2426 });
@@ -511,7 +511,23 @@ test("/map keeps Manchester cluster markers mounted after granted location settl
   await showAll.click();
 
   const donuts = page.locator(".donut-cluster-marker");
-  await expect.poll(() => donuts.count(), { timeout: 20_000 }).toBeGreaterThan(0);
+  // fitCityBounds runs an 800 ms cinematic. Let that intentional transition
+  // finish, then require a stable non-empty cluster count before observing for
+  // the ongoing empty/non-empty loop this regression targets.
+  await page.waitForTimeout(1_000);
+  await expect
+    .poll(
+      async () => {
+        const counts = [await donuts.count()];
+        for (let sample = 0; sample < 4; sample += 1) {
+          await page.waitForTimeout(150);
+          counts.push(await donuts.count());
+        }
+        return counts[0] > 0 && counts.every((count) => count === counts[0]);
+      },
+      { timeout: 20_000 },
+    )
+    .toBe(true);
 
   // Once the city camera has settled, transient source snapshots must not
   // unmount every donut and hand the same clusters back to the GL fallback.
