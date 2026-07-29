@@ -8,7 +8,6 @@ const PRICE_CHOICES = [10, 7, 6, 5.5];
 
 export default function MobilePriceChoices({
   maxPrice,
-  hasTypeRelativePrices,
   drinkLabel,
   drinkNoun,
   drinkIndexStatus = "ready",
@@ -16,7 +15,6 @@ export default function MobilePriceChoices({
   onMaxPriceChange,
 }: {
   maxPrice: number;
-  hasTypeRelativePrices: boolean;
   drinkLabel?: string;
   drinkNoun?: string;
   drinkIndexStatus?: CategoryPriceIndexStatus;
@@ -34,7 +32,6 @@ export default function MobilePriceChoices({
         }
       : {
           kind: "default",
-          hasTypeRelativePrices,
           renderedState,
         },
   );

@@ -5,19 +5,34 @@ import { mapPriceLegend } from "@/lib/mapPriceLegend";
 
 const ALL_RENDERED_STATE = {
   priceBuckets: [0, 1, 2, 3] as const,
+  priceMeanings: ["pint"] as const,
   storyColour: null,
 };
 
 const UNKNOWN_RENDERED_STATE = {
   priceBuckets: [3] as const,
+  priceMeanings: ["pint"] as const,
   storyColour: null,
 };
 
 describe("mapPriceLegend", () => {
+  it("takes default price meaning from rendered scene state", () => {
+    const legend = mapPriceLegend({
+      kind: "default",
+      renderedState: {
+        priceBuckets: [0, 1, 2, 3],
+        priceMeanings: ["pint", "type-relative"],
+        storyColour: null,
+      },
+    });
+
+    expect(legend.ariaLabel).toContain("other venue types");
+    expect(legend.hint).toContain("within its own type");
+  });
+
   it("keeps absolute pint thresholds for pub-only maps", () => {
     const legend = mapPriceLegend({
       kind: "default",
-      hasTypeRelativePrices: false,
       renderedState: ALL_RENDERED_STATE,
     });
     expect(legend.rows.map((row) => row.label)).toEqual([
@@ -38,8 +53,10 @@ describe("mapPriceLegend", () => {
   it("explains shared colours as type-relative for bars and late food", () => {
     const legend = mapPriceLegend({
       kind: "default",
-      hasTypeRelativePrices: true,
-      renderedState: ALL_RENDERED_STATE,
+      renderedState: {
+        ...ALL_RENDERED_STATE,
+        priceMeanings: ["pint", "type-relative"],
+      },
     });
     expect(legend.rows.map((row) => row.label)).toEqual([
       "£5.50 or less; low for its venue type",
@@ -49,6 +66,25 @@ describe("mapPriceLegend", () => {
     ]);
     expect(legend.ariaLabel).toContain("other venue types");
     expect(legend.hint).toContain("within its own type");
+  });
+
+  it("uses only type-relative copy when the scene has no pubs", () => {
+    const legend = mapPriceLegend({
+      kind: "default",
+      renderedState: {
+        ...ALL_RENDERED_STATE,
+        priceMeanings: ["type-relative"],
+      },
+    });
+
+    expect(legend.rows.map((row) => row.label)).toEqual([
+      "Low for its venue type",
+      "Middle for its venue type",
+      "High for its venue type",
+      "No venue price on the map",
+    ]);
+    expect(legend.hint).not.toContain("Pub");
+    expect(legend.hint).not.toContain("pint");
   });
 
   it("names selected drink and explains unknown prices", () => {
@@ -187,6 +223,7 @@ describe("mapPriceLegend colour rows under a failed read", () => {
       status: "degraded",
       renderedState: {
         priceBuckets: [1, 3],
+        priceMeanings: ["pint"],
         storyColour: null,
       },
     });
@@ -229,9 +266,9 @@ describe("map key inventory", () => {
   it("names the cluster reading, every venue shape, and every map mark", () => {
     const legend = mapPriceLegend({
       kind: "default",
-      hasTypeRelativePrices: false,
       renderedState: {
         priceBuckets: ALL_RENDERED_STATE.priceBuckets,
+        priceMeanings: ALL_RENDERED_STATE.priceMeanings,
         storyColour: "#d99f45",
       },
     });
@@ -290,7 +327,6 @@ describe("map key inventory", () => {
   it("does not declare inactive story marks", () => {
     const legend = mapPriceLegend({
       kind: "default",
-      hasTypeRelativePrices: false,
       renderedState: ALL_RENDERED_STATE,
     });
 

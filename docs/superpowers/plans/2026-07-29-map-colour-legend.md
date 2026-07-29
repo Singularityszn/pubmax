@@ -68,7 +68,7 @@ git commit -m "fix(map): colour fallback clusters by pint price"
 - Modify: `__tests__/mapPriceLegend.test.ts`
 
 **Interfaces:**
-- Consumes: `mapPriceLegend(hasTypeRelativePrices, drinkLabel, drinkIndexStatus)`.
+- Consumes: scene-derived map price semantics and active drink context.
 - Produces: `MapKey` with price rows, cluster reading, venue shapes, base-pub mark, landmark mark, provisional report dot, Pint Drop ring, tonight rings, selection ring, and route-stop mark.
 
 - [ ] **Step 1: Write failing key tests**

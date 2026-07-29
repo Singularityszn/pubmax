@@ -8,7 +8,7 @@ Desktop keeps a small Key control on the map. Phone puts Key first in the existi
 
 The desktop cluster donut already showed its known price mix at zoom 11.2. Individual pins begin at zoom 12, 0.8 above the landing view. Phones and large cluster sets used solid circles whose colour meant cluster size. They now use the most common known price band inside each cluster. Grey means that cluster has no known price. Cluster radius, count, zoom limits and collision rules did not change.
 
-The key derives from rendered scene state. `PubMapCanvas` is the single decision point: it publishes the exact GeoJSON price buckets and resolved story token used by each scene rebuild, so failed refreshes and theme changes cannot create a parallel legend answer.
+The key derives from rendered scene state. `deriveMapRenderedState` in `PubMapCanvas` is the single decision point: it publishes the exact GeoJSON price buckets, venue price meanings and resolved story token used by each scene rebuild. Filter changes, failed refreshes and theme changes therefore cannot create a parallel legend answer.
 
 ## Current map language
 

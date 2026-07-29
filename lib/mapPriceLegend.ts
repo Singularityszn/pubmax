@@ -36,7 +36,6 @@ type MapPriceLegendMapState = {
 export type MapPriceLegendContext = (
   | {
       kind: "default";
-      hasTypeRelativePrices: boolean;
     }
   | {
       kind: "drink";
@@ -185,6 +184,31 @@ function mixedPriceRows(): MapPriceLegendRow[] {
   ];
 }
 
+function typeRelativePriceRows(): MapPriceLegendRow[] {
+  return [
+    {
+      label: "Low for its venue type",
+      symbol: "£",
+      tone: "green",
+    },
+    {
+      label: "Middle for its venue type",
+      symbol: "££",
+      tone: "amber",
+    },
+    {
+      label: "High for its venue type",
+      symbol: "£££",
+      tone: "red",
+    },
+    {
+      label: "No venue price on the map",
+      symbol: "?",
+      tone: "grey",
+    },
+  ];
+}
+
 type MapKeyDeclarations = Pick<
   MapPriceLegendModel,
   "clusterNote" | "shapes" | "marks" | "routeMarks" | "noAlcoholNote"
@@ -300,7 +324,8 @@ function defaultClusterNote(
 export function mapPriceLegend(
   context: MapPriceLegendContext,
 ): MapPriceLegendModel {
-  const { priceBuckets, storyColour } = context.renderedState;
+  const { priceBuckets, priceMeanings, storyColour } =
+    context.renderedState;
   if (context.kind === "food") {
     return declaredLegend(
       {
@@ -365,7 +390,9 @@ export function mapPriceLegend(
       },
     );
   }
-  if (!context.hasTypeRelativePrices) {
+  const hasPintPrices = priceMeanings.includes("pint");
+  const usesTypeRelativeMeaning = priceMeanings.includes("type-relative");
+  if (hasPintPrices && !usesTypeRelativeMeaning) {
     return declaredLegend(
       {
         rows: renderedRows(priceRows("pint"), priceBuckets),
@@ -378,6 +405,46 @@ export function mapPriceLegend(
         shapes: MAP_SHAPES,
         marks: mapMarks(
           "One recent pint report. On a curated pub in the standard pint view, a second independent drinker agreeing can set the pin's band. A UK base pub keeps only the dot.",
+          storyColour,
+        ),
+        routeMarks: routeMarks(storyColour),
+        noAlcoholNote: NO_ALCOHOL_NOTE,
+      },
+    );
+  }
+  if (usesTypeRelativeMeaning && !hasPintPrices) {
+    return declaredLegend(
+      {
+        rows: renderedRows(typeRelativePriceRows(), priceBuckets),
+        ariaLabel: "Venue type price colour key",
+        title: "Venue price bands",
+        hint: "Each venue pin is low, middle, or high within its own type.",
+      },
+      {
+        clusterNote: defaultClusterNote(priceBuckets),
+        shapes: MAP_SHAPES,
+        marks: mapMarks(
+          "One recent pint report. It does not set a non-pub venue's band. A UK base pub keeps only the dot.",
+          storyColour,
+        ),
+        routeMarks: routeMarks(storyColour),
+        noAlcoholNote: NO_ALCOHOL_NOTE,
+      },
+    );
+  }
+  if (!hasPintPrices && !usesTypeRelativeMeaning) {
+    return declaredLegend(
+      {
+        rows: [],
+        ariaLabel: "Map price colour key",
+        title: "Map price key",
+        hint: "No venue price colours are currently drawn.",
+      },
+      {
+        clusterNote: null,
+        shapes: MAP_SHAPES,
+        marks: mapMarks(
+          "One recent pint report. A UK base pub keeps only the dot.",
           storyColour,
         ),
         routeMarks: routeMarks(storyColour),

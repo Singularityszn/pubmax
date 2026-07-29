@@ -2,10 +2,10 @@ import { describe, expect, it } from "vitest";
 
 import { deriveMapRenderedState } from "@/lib/mapRenderedState";
 
-function feature(bucket: number): GeoJSON.Feature {
+function feature(bucket: number, kind = "pub"): GeoJSON.Feature {
   return {
     type: "Feature",
-    properties: { bucket },
+    properties: { bucket, kind },
     geometry: {
       type: "Point",
       coordinates: [-2.24, 53.48],
@@ -28,8 +28,29 @@ describe("deriveMapRenderedState", () => {
       ),
     ).toEqual({
       priceBuckets: [1, 3],
+      priceMeanings: ["pint"],
       storyColour: "#d99f45",
     });
+  });
+
+  it("derives price meanings from only the features in the scene", () => {
+    const pubOnly: GeoJSON.FeatureCollection = {
+      type: "FeatureCollection",
+      features: [feature(0), feature(2)],
+    };
+    const mixed: GeoJSON.FeatureCollection = {
+      type: "FeatureCollection",
+      features: [feature(0), feature(1, "bar")],
+    };
+
+    expect(
+      deriveMapRenderedState(pubOnly, { brass: "#b0813a" }, null)
+        .priceMeanings,
+    ).toEqual(["pint"]);
+    expect(
+      deriveMapRenderedState(mixed, { brass: "#b0813a" }, null)
+        .priceMeanings,
+    ).toEqual(["pint", "type-relative"]);
   });
 
   it("resolves the story token again when scene theme tokens change", () => {

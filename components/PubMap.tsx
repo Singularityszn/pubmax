@@ -1103,7 +1103,6 @@ export default function PubMap({
     () => hasSavedPubVenue(pubVenues, savedIds),
     [pubVenues, savedIds],
   );
-  const hasTypeRelativePrices = pubVenues.length !== venues.length;
   const venueById = useMemo(() => new Map(venues.map((v) => [v.id, v])), [venues]);
   // Zone pint index (nearest-station fare zone medians) for the zone picker.
   // Computed off the full venue set so the strip's numbers don't shift as the
@@ -1216,7 +1215,6 @@ export default function PubMap({
           }
         : {
             kind: "default",
-            hasTypeRelativePrices,
             renderedState: renderedMapState,
           },
   );
@@ -3074,7 +3072,6 @@ export default function PubMap({
                   />
                   <MobilePriceChoices
                     maxPrice={filters.maxPrice}
-                    hasTypeRelativePrices={hasTypeRelativePrices}
                     drinkLabel={activeLensLabel ?? undefined}
                     drinkNoun={activeLensNoun ?? undefined}
                     drinkIndexStatus={drinkIndexStatus}
@@ -3157,7 +3154,6 @@ export default function PubMap({
                   <FavoritePintPicker value={favoritePint} onChange={changeFavoritePint} drinkCategory={filters.drinkCategory} drinkBrand={filters.drinkBrand} onDrinkLensChange={({ drinkCategory, drinkBrand }) => setFilters((current) => ({ ...current, drinkCategory, drinkBrand, drinkSubtype: drinkCategory === current.drinkCategory ? current.drinkSubtype : "", topShelfOnly: drinkCategory ? current.topShelfOnly : false, requireCocktails: drinkCategory === "cocktail" }))} />
                   <MobilePriceChoices
                     maxPrice={filters.maxPrice}
-                    hasTypeRelativePrices={hasTypeRelativePrices}
                     drinkLabel={activeLensLabel ?? undefined}
                     drinkNoun={activeLensNoun ?? undefined}
                     drinkIndexStatus={drinkIndexStatus}

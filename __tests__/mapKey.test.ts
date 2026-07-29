@@ -11,13 +11,13 @@ import { mapPriceLegend } from "@/lib/mapPriceLegend";
 describe("MapKey", () => {
   const renderedState = {
     priceBuckets: [0, 1, 2, 3] as const,
+    priceMeanings: ["pint"] as const,
     storyColour: null,
   };
   const html = renderToStaticMarkup(
     createElement(MapKey, {
       legend: mapPriceLegend({
         kind: "default",
-        hasTypeRelativePrices: false,
         renderedState,
       }),
     }),
@@ -26,7 +26,6 @@ describe("MapKey", () => {
     createElement(MapKey, {
       legend: mapPriceLegend({
         kind: "default",
-        hasTypeRelativePrices: false,
         renderedState: {
           ...renderedState,
           storyColour: "#d99f45",
