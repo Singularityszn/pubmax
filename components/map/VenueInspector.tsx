@@ -232,6 +232,7 @@ export default function VenueInspector({
     authLoading,
     openPriceForm,
     priceSignInVenueId,
+    selectTab,
     user,
     venue.id,
   ]);
