@@ -33,6 +33,7 @@ test("keeps Near me painted when desktop city status arrives", async ({ page }) 
     await expect(nearMe).toHaveCount(1);
     await expect(nearMe).toBeVisible();
     await expect(nearMe).toHaveAccessibleName("Near me?");
+    await nearMe.click({ trial: true });
     await expect
       .poll(() =>
         page.evaluate(() =>
@@ -51,5 +52,12 @@ test("keeps Near me painted when desktop city status arrives", async ({ page }) 
     expect((bounds?.x ?? width) + (bounds?.width ?? width)).toBeLessThanOrEqual(
       width,
     );
+
+    const suggestBounds = await page.locator(".citySuggestBanner").boundingBox();
+    const statusBounds = await page.locator(".cityStatusBanner").boundingBox();
+    expect(
+      (statusBounds?.y ?? 0) -
+        ((suggestBounds?.y ?? 0) + (suggestBounds?.height ?? 0)),
+    ).toBeGreaterThanOrEqual(8);
   }
 });
