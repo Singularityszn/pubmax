@@ -1198,7 +1198,7 @@ export default function PubMap({
     experienceLens,
     experienceLensPrices,
   ]);
-  // A11Y finding #1: derive list membership from MapLibre's exact coordinate
+  // Accessibility contract: derive list membership from MapLibre's exact coordinate
   // projection after every product filter that controls canvas membership.
   // Before the first projection, empty is the only honest answer.
   const mapVenueListVenues = useMemo(
@@ -2384,7 +2384,7 @@ export default function PubMap({
     }
   }, [detailOpen]);
 
-  // A11Y finding #2: desktop drawer is modal for its full open lifetime. Desktop
+  // Desktop accessibility contract: drawer is modal for its full open lifetime. Desktop
   // never changes detent, so gating trap on mobile-oriented `sheetSnap` left it
   // inactive at its permanent `half` state.
   const detailDrawerRef = useRef<HTMLDivElement | null>(null);

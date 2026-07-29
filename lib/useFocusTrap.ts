@@ -5,9 +5,9 @@ import { useEffect, type RefObject } from "react";
 const FOCUSABLE_SELECTOR =
   'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
 
-// Shared modal focus trap — extracted from the mobile bottom sheet
+// Shared modal focus trap, extracted from the mobile bottom sheet
 // (MobileSharedSheet) so the desktop venue drawer can reuse the SAME behaviour
-// (a11y finding #2 parity). While `active`:
+// for its full open lifetime. While `active`:
 //   1. Tab / Shift+Tab cycle within `containerRef`'s visible focusables.
 //   2. Everything OUTSIDE the container is marked `inert` — walking the ancestor
 //      chain to <body> and inert-ing each level's off-path siblings. This works

@@ -1,4 +1,4 @@
-/* A11Y finding #1 — "List view": the keyboard/SR-reachable DOM list of the
+/* Accessibility "List view": the keyboard/SR-reachable DOM list of the
    venues on the map. Anchored bottom-left so it clears the top toolbar / tonight
    lane and the bottom plan chip. Hidden while a venue sheet or planner owns the
    map (the user is already inside a venue / planning). Tokens + both themes come

@@ -14,10 +14,11 @@ Explored in [`docs/design-explorations/`](./design-explorations/README.md).
 | Theme | Direction | Thesis |
 |---|---|---|
 | **Light (default)** | **A Candle Coral** | Warm peach paper + coral Plan CTA (`--brass` ≈ `#ff5a5f`) |
-| **Dark** | **B Night Out** | Deep ink + amber route/CTA (`--night-amber` / dark `--brass`) + pint neon go — **no purple glow** |
+| **Dark** | **B Night Out** | Deep ink + coral CTA (`--brass`) + amber route (`--night-amber`) + pint neon go - **no purple glow** |
 
 Field Guide jobs retained: `--river` / `--pint` / `--brick` stay semantic for
-pins and prices. Coral (light) or amber (dark) owns the primary CTA.
+pins and prices. Coral owns the primary CTA in both themes; amber stays a
+transport and price signal.
 
 Pointers: [`PRODUCT.md`](../PRODUCT.md) · [`DESIGN.md`](../DESIGN.md) ·
 [`docs/design-explorations/`](./design-explorations/).
@@ -61,14 +62,14 @@ literal value. If the token you need doesn't exist, add it here first.
 | `--pint` | `#18a76d` | `#3dff9a` | cheap pint / positive / neon-go |
 | `--amber` | `#f2a71b` | `#f0a01a` | mid price / caution |
 | `--brick` | `#ff5a5f` | `#ff6b7a` | expensive / destructive |
-| `--brass` | `#ff5a5f` | `#f0a01a` | **Plan CTA / accent** (coral light → amber dark) |
-| `--brass-bright` | `#ff7a55` | `#ffb328` | accent hover / bright lift |
-| `--night-amber` | aliases `--brass` | `#f0a01a` | explicit Night Out CTA accent |
+| `--brass` | `#ff5a5f` | `#ff5a5f` | **Plan CTA / accent** |
+| `--brass-bright` | `#ff7a55` | `#ff7a55` | accent hover / bright lift |
+| `--night-amber` | aliases `--brass` | `#f0a01a` | Night Out route / price accent |
 | `--river` | `#2864d8` | `#64b5ff` | heritage / by-water |
 | `--river-bright` | `#29b6f6` | `#7dd3fc` | heritage on dark chrome |
 
-**One accent owns the CTA by theme.** Coral (`--brass`) in light; amber
-(`--brass` / `--night-amber`) in dark. Every other hue (`pint` / `amber` /
+**One accent owns the CTA in both themes.** Coral (`--brass`) carries actions;
+amber (`--night-amber`) stays a route and price signal. Every other hue (`pint` / `amber` /
 `brick`, `river`) is a semantic status/category colour — don't reach for them
 to "add colour" to something that isn't a price band or a heritage/by-water
 marker.
@@ -100,8 +101,8 @@ should prefer the semantic name so a future palette change (e.g. retuning
 
 ### Fixed-contrast text
 
-A handful of places set text colour on a **solid accent fill** (a brass
-button, an ink-deep button, a photo-caption scrim) rather than a
+A handful of places set text colour on an **accent fill** (a brass
+button or gradient, an ink-deep button, a photo-caption scrim) rather than a
 theme-flipping surface. That text must stay constant in both themes — the
 fill already carries the theme's contrast logic. Use these instead of a raw
 hex:
@@ -109,7 +110,7 @@ hex:
 ```
 --color-on-accent          #fdfaf2   cream text on solid brass
 --color-on-inverse         #fdfaf2   cream text on solid ink-deep
---color-on-accent-strong   #12100c   dark text on solid brass-bright
+--color-on-accent-strong   #16122a   dark text on coral or brass-bright
 --color-on-photo           #ffffff   white text on a photo-scrim overlay
 ```
 

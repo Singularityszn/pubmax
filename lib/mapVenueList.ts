@@ -9,9 +9,8 @@ import {
   type MapLensPrice,
 } from "@/lib/mapExperienceLens";
 
-// A11Y finding #1 (WCAG 2.1.1): the WebGL pins are pointer-only, so a keyboard
-// or screen-reader user can never enumerate/open an arbitrary pin. This is the
-// pure model behind the DOM "List view" — the keyboard-reachable parallel to
+// Accessibility contract (WCAG 2.1.1): WebGL pins are pointer-only. This is the
+// pure model behind the DOM "List view", the keyboard-reachable parallel to
 // the canvas. It reuses the existing nearby-picker builder so the list rows are
 // the SAME shape (name + price + optional distance) the log-drop picker uses,
 // and selection from a row drives the SAME select handler a pin tap does.

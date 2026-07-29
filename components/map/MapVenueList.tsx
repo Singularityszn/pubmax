@@ -10,12 +10,13 @@ import type { UkBasePub } from "@/lib/ukBasePubs";
 
 import "./mapVenueList.css";
 
-// A11Y finding #1 (WCAG 2.1.1) — the keyboard/screen-reader parallel to the
+// Accessibility contract (WCAG 2.1.1): keyboard/screen-reader parallel to
 // canvas pins. A visible, focusable "List view" toggle opens a DOM list of the
-// venues currently on the map (nearest-first to the viewport centre). Each row
-// is a real <button> that drives the SAME select handler a pin tap does, so an
-// AT user can enumerate and open any pin without touching the WebGL layer.
-// It's also just a genuinely useful feature for everyone — list view is not a
+// filtered venues projected inside the current viewport, nearest-first to its
+// centre. Each row is a real <button> that drives the SAME select handler a pin
+// tap does, so an AT user can enumerate and open any listed venue without
+// touching the WebGL layer.
+// It's also a useful feature for everyone: list view is not a
 // shim.
 export default function MapVenueList({
   model,
