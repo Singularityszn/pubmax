@@ -157,6 +157,9 @@ describe("pointer-down feedback", () => {
         /@media \(prefers-reduced-motion: no-preference\)\s*{([\s\S]*?)\n}/,
       )?.[1] ?? "";
     expect(pressFeedback).toMatch(
+      /:where\(\s*button:not\(\[data-no-press\]\):not\(:disabled\),[\s\S]*?\.pressable\s*\)\s*{[^}]*transition:\s*scale/,
+    );
+    expect(pressFeedback).toMatch(
       /button:not\(\[data-no-press\]\):not\(:disabled\):active,[\s\S]*?scale:\s*var\(--shared-press-scale,\s*var\(--press-scale\)\)/,
     );
     expect(pressFeedback).not.toMatch(/transform:\s*scale\(/);

@@ -517,11 +517,13 @@ a[data-pressable],
 }
 
 @media (prefers-reduced-motion: no-preference) {
-  button:not([data-no-press]):not(:disabled),
-  [role="button"]:not([data-no-press]):not([aria-disabled="true"]),
-  .planBtn:not([data-no-press]),
-  a[data-pressable],
-  .pressable {
+  :where(
+    button:not([data-no-press]):not(:disabled),
+    [role="button"]:not([data-no-press]):not([aria-disabled="true"]),
+    .planBtn:not([data-no-press]),
+    a[data-pressable],
+    .pressable
+  ) {
     transition: scale var(--duration-press) var(--ease-out-strong);
   }
   button:not([data-no-press]):not(:disabled):active,
