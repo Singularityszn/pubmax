@@ -4,7 +4,7 @@
 
 **Goal:** Keep desktop Near me control painted when actionable city status banner arrives.
 
-**Architecture:** Keep existing `CitySuggestBanner` lifecycle and desktop chrome positions. Add behavioural Playwright coverage that supplies deterministic severe city status data, proves location permission remains unrequested, and checks control geometry at narrow and wide desktop widths. Remove only status-to-location suppression selector while preserving onboarding suppression and Tonight banner priority.
+**Architecture:** Keep existing `CitySuggestBanner` lifecycle and desktop chrome design. Add behavioural Playwright coverage that supplies deterministic severe city status data, proves location permission remains unrequested, and checks pointer actionability at narrow and wide desktop widths. Keep location out of status suppression, publish the closed toolbar height, and stack location and status beneath it while preserving onboarding suppression and Tonight banner priority.
 
 **Tech Stack:** Next.js 16, React 19, TypeScript, CSS, Playwright, Vitest.
 
@@ -15,6 +15,17 @@
 - Do not change user-facing copy.
 - Use one local browser at a time.
 - Keep changes limited to location control staging, its tests, and diagnosis evidence.
+
+---
+
+## Plan adjustment from falsifier
+
+Selector removal made the control CSS-visible but did not make it actionable.
+Visual review and Playwright trial click proved the expanded toolbar intercepted
+its centre. Execution therefore added one responsive closed-toolbar height
+contract, moved location 12px below it, and moved status 8px below location.
+Regression coverage now checks trial-click actionability and banner separation,
+not CSS visibility alone.
 
 ---
 
