@@ -1,7 +1,7 @@
 .contributionGateBackdrop {
   position: fixed;
   inset: 0;
-  z-index: calc(var(--z-modal, 60) + 1);
+  z-index: calc(var(--z-overlay-top, 1300) + 2);
   display: grid;
   place-items: center;
   padding: 1rem;

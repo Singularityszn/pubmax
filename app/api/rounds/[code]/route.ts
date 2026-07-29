@@ -140,6 +140,7 @@ async function preparePendingRoundPrices(input: {
     (spend) => spend.clientRef === input.clientRef,
   );
   if (!stored) return { ok: false, response: errorResponse("error") };
+  const storedId = stored.id;
   const pending = stored.items
     .map((item, index) => ({ item, index }))
     .filter(({ item }) => item.promotionStatus === "pending");
@@ -149,8 +150,8 @@ async function preparePendingRoundPrices(input: {
     input.contributor.actor,
     input.promotionOwner,
     pending.map(({ index }) => ({
-      clientRef: stored.clientRef,
-      spendId: stored.id,
+      clientRef: input.clientRef,
+      spendId: storedId,
       lineIndex: index,
     })),
   );
@@ -287,7 +288,8 @@ async function recordSpend(
   if (observed.length === 0 || (!hasBearer && !contributor?.ok)) {
     return roundStateResponse(request, result.state);
   }
-  if (!contributor?.ok) {
+  if (!contributor) return errorResponse("error");
+  if (!contributor.ok) {
     return jsonNoStore(contributor.body, { status: contributor.httpStatus });
   }
   if (!promotionOwner) return errorResponse("error");

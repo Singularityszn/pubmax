@@ -127,4 +127,21 @@ describe("account onboarding surface", () => {
     expect(css).toMatch(/max-height: calc\(100dvh/);
     expect(css).toMatch(/overflow-y: auto/);
   });
+
+  it("keeps identity gates above an open mobile venue sheet", () => {
+    const onboardingCss = readFileSync(
+      join(process.cwd(), "components/identity/accountOnboarding.css"),
+      "utf8",
+    );
+    const contributionGateCss = readFileSync(
+      join(process.cwd(), "components/identity/contributionGate.css"),
+      "utf8",
+    );
+    expect(onboardingCss).toMatch(
+      /\.accountOnboardingBackdrop\s*\{[^}]*z-index: calc\(var\(--z-overlay-top, 1300\) \+ 1\)/,
+    );
+    expect(contributionGateCss).toMatch(
+      /\.contributionGateBackdrop\s*\{[^}]*z-index: calc\(var\(--z-overlay-top, 1300\) \+ 2\)/,
+    );
+  });
 });

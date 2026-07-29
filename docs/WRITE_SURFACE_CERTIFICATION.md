@@ -6,7 +6,7 @@ reviewed surface—even when a POST is semantically read-only. The regression te
 Adding a mutating route or removing its authority/abuse boundary fails
 CI until this certification is deliberately updated.
 
-> **Inventory: 74 mutating routes.** The count grew 60 → 61 (email-capture
+> **Inventory: 75 mutating routes.** The count grew 60 → 61 (email-capture
 > `POST /api/email-subscribers`) → 62 (native `POST /api/push-tokens`) → 63 (the
 > Social Loop "we're out" `POST /api/check-ins`) → 64 (the vibe-vote
 > `POST /api/plans/[id]/vibe-votes`) → 65 (the area-demand capture
@@ -17,8 +17,9 @@ CI until this certification is deliberately updated.
 > community price submission `POST /api/price-submit`) → 71 (community-price
 > moderation `POST /api/admin/community-prices`) → 72 (authored weather
 > Recommendations `POST /api/weather-recommendations`) → 74 (private referral
-> invite-link creation and same-journey signup claim). Account onboarding
-> replaces the earlier identity claim POST, so it does not change the count.
+> invite-link creation and same-journey signup claim) → 75 (one-time
+> contribution-age assessment). Account onboarding replaces the earlier
+> identity claim POST, so its route does not change the count.
 > Token-gated GET
 > confirm/unsubscribe endpoints and read-only GETs (the Social Loop reads, the
 > vibe-vote tally read, the Visit Report venue / contributor-count /
@@ -591,7 +592,7 @@ commit.
   Recommendations and their contributor counts, but cannot change weather,
   reviews, prices, Night Signals, or venue data.
 
-### Contributor identity onboarding (route 74)
+### Contributor identity onboarding and age assessment (routes 74-75)
 
 - **Routes / methods:** `POST` and `PATCH` on
   `app/api/identity/onboarding/route.ts` claim an account-owned handle and edit

@@ -265,6 +265,11 @@ async function authorizeContributor(userId: string, handle: string): Promise<voi
     handle,
   });
   expect(onboarding).toMatchObject({ ok: true });
+  const age = await memoryPrivateIdentityStore.assessContributionAge(
+    userId,
+    "1990-01-01",
+  );
+  expect(age).toMatchObject({ status: "adult" });
 }
 
 beforeEach(() => {
@@ -1139,13 +1144,8 @@ describe("POST /api/rounds/[code] — actions", () => {
     });
   });
 
-  it("allows a signed-in account to share a Round price", async () => {
-    authState.userId = "user-young";
-    const onboarding = await memoryPrivateIdentityStore.completeOnboarding({
-      userId: authState.userId,
-      handle: "young_person",
-    });
-    expect(onboarding).toMatchObject({ ok: true });
+  it("allows an eligible signed-in account to share a Round price", async () => {
+    await authorizeContributor("user-young", "young_person");
     const { round } = await newRound("young_person");
     await action(round.code, {
       action: "addStop",

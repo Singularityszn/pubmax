@@ -84,11 +84,11 @@ describe("mutating API surface certification", () => {
     // + two private referral writes: account-gated invite-link creation and
     // signup-only attribution claim. Neither accepts an account id from the
     // caller, and neither exposes an invite edge. Account onboarding replaces
-    // the earlier identity claim POST and now owns required private profile
-    // data without a separate age-gate mutation. The deliberate
-    // merge-coordination point: any branch adding a mutating route
+    // the earlier identity claim POST. The separate contribution-age POST owns
+    // the one-time, account-gated assessment before a first contribution. The
+    // deliberate merge-coordination point: any branch adding a mutating route
     // bumps it in the same commit (docs/WRITE_SURFACE_CERTIFICATION.md).
-    expect(mutationRoutes).toHaveLength(74);
+    expect(mutationRoutes).toHaveLength(75);
   });
 
   it("gives every mutating route an abuse or authority boundary", () => {
