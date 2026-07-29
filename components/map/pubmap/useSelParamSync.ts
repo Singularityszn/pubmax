@@ -18,9 +18,11 @@ type SelParamSyncArgs = {
 // already-matching selection is a no-op.
 export function useSelParamSync({ selParam, selectedVenueId, selectVenue }: SelParamSyncArgs) {
   const selectedVenueIdRef = useRef(selectedVenueId);
+  const selectVenueRef = useRef(selectVenue);
   useEffect(() => {
     selectedVenueIdRef.current = selectedVenueId;
-  }, [selectedVenueId]);
+    selectVenueRef.current = selectVenue;
+  }, [selectedVenueId, selectVenue]);
   useEffect(() => {
     if (!selParam) return;
     // Microtask defer keeps the state updates out of the effect's synchronous
@@ -28,7 +30,7 @@ export function useSelParamSync({ selParam, selectedVenueId, selectVenue }: SelP
     // (not a dep) means only URL changes fire this — local selection changes
     // never re-run it, and an already-matching selection is a no-op.
     queueMicrotask(() => {
-      if (selParam !== selectedVenueIdRef.current) selectVenue(selParam);
+      if (selParam !== selectedVenueIdRef.current) selectVenueRef.current(selParam);
     });
-  }, [selParam, selectVenue]);
+  }, [selParam]);
 }

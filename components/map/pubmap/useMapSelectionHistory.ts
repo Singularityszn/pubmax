@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useLayoutEffect, useRef } from "react";
 
 import {
   browseSelectionUrl,
@@ -98,7 +98,7 @@ export function useMapSelectionHistory({
   }, []);
 
   // 2) Transition — push / replace / back / strip as selectedVenueId changes.
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (typeof window === "undefined") return;
     if (!checkpointedRef.current) return;
     const prev = prevRef.current;

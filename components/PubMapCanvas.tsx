@@ -141,6 +141,11 @@ type PubMapCanvasProps = {
     ukBasePubIds: string[];
   }) => void;
   /**
+   * Keep exact DOM-list membership in step with each camera frame while its
+   * operable list is open. Closed-list counts settle on moveend.
+   */
+  venueListOpen?: boolean;
+  /**
    * A restored `?sel=venue-uk-*` arrival: the base pub's id plus the `at=`
    * location hint the selecting tap wrote alongside it. Seeds the selection
    * camera (the id names no venue record, so nothing else knows where to fly)
@@ -354,6 +359,7 @@ export default function PubMapCanvas({
   onUkBasePubClick,
   onUkBasePubsChange,
   onVisibleVenueIdsChange,
+  venueListOpen = false,
   ukBaseRestore = null,
   onRouteStopClick,
   onVenuePrefetch,
@@ -2339,9 +2345,10 @@ export default function PubMapCanvas({
 
   // Project coordinates through MapLibre rather than using getBounds(): at a
   // pitch or bearing, getBounds() is the enclosing rectangle and includes
-  // off-canvas corners. Re-publish when the camera settles and whenever
-  // data/filters change. Per-frame projection would put thousands of
-  // map.project calls and live-region count changes into every pan. This is
+  // off-canvas corners. While the operable DOM list is open, re-publish on
+  // camera frames so its rows never name pins from the previous view. With
+  // the list closed, settle its visible toggle count on moveend and avoid
+  // projecting thousands of points through every ordinary pan. This is
   // coordinate projection only, never rendered-feature or canvas hit-testing.
   useEffect(() => {
     const map = mapRef.current;
@@ -2385,12 +2392,12 @@ export default function PubMapCanvas({
       frame = requestAnimationFrame(publishVisibleMembership);
     };
 
-    map.on("moveend", scheduleVisibleMembership);
+    map.on(venueListOpen ? "move" : "moveend", scheduleVisibleMembership);
     map.on("resize", scheduleVisibleMembership);
     scheduleVisibleMembership();
     return () => {
       if (frame !== null) cancelAnimationFrame(frame);
-      map.off("moveend", scheduleVisibleMembership);
+      map.off(venueListOpen ? "move" : "moveend", scheduleVisibleMembership);
       map.off("resize", scheduleVisibleMembership);
     };
   }, [
@@ -2398,6 +2405,7 @@ export default function PubMapCanvas({
     onUkBasePubsChange,
     onVisibleVenueIdsChange,
     ukBase.pubs,
+    venueListOpen,
     venues,
   ]);
 

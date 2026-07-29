@@ -2720,6 +2720,7 @@ export default function PubMap({
           onUkBasePubClick={handleUkBasePubClick}
           onUkBasePubsChange={setRenderedBasePubs}
           onVisibleVenueIdsChange={handleVisibleVenueIdsChange}
+          venueListOpen={mapListOpen}
           ukBaseRestore={ukBaseRestore}
           onRouteStopClick={selectVenue}
           onVenuePrefetch={prefetchVenueDetail}
