@@ -43,8 +43,10 @@ test("keeps Near me painted when desktop city status arrives", async ({ page }) 
       )
       .toBe("prompt");
 
+    await expect
+      .poll(async () => (await nearMe.boundingBox())?.height ?? 0)
+      .toBeGreaterThanOrEqual(44);
     const bounds = await nearMe.boundingBox();
-    expect(bounds?.height).toBeGreaterThanOrEqual(44);
     expect(bounds?.x).toBeGreaterThanOrEqual(0);
     expect((bounds?.x ?? width) + (bounds?.width ?? width)).toBeLessThanOrEqual(
       width,

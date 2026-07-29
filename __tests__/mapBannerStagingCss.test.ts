@@ -19,12 +19,12 @@ describe("map banner staging CSS", () => {
     }
   });
 
-  it("gives the closure/safety band top priority (it hides city-suggest and tonight)", () => {
-    expect(css).toMatch(/\.mapStage:has\(\.cityStatusBanner\)\s+\.citySuggestBanner/);
-    expect(css).toMatch(/\.mapStage:has\(\.cityStatusBanner\)\s+\.tonightLaneCollapsed/);
+  it("keeps the location control available alongside closure/safety status", () => {
+    expect(css).not.toMatch(/\.mapStage:has\(\.cityStatusBanner\)\s+\.citySuggestBanner/);
   });
 
-  it("gives city-suggest priority over the tonight-nearby card", () => {
+  it("defers the tonight-nearby card to either status or location", () => {
+    expect(css).toMatch(/\.mapStage:has\(\.cityStatusBanner\)\s+\.tonightLaneCollapsed/);
     expect(css).toMatch(/\.mapStage:has\(\.citySuggestBanner\)\s+\.tonightLaneCollapsed/);
   });
 

@@ -5,7 +5,7 @@
 
    This coordinates them WITHOUT changing when any is eligible or how it
    dismisses — each banner still self-gates on its own data and persists its own
-   dismissal exactly as before. It governs only whether they may render
+   dismissal exactly as before. It governs only which siblings may render
    CONCURRENTLY. No banner component internals are touched: the staging lives
    entirely here because "which self-gating sibling may show" is a pure
    presentation concern, and keying on element presence avoids lifting each
@@ -17,11 +17,10 @@
    Policy:
    1. While the onboarding overlay is open (.appShell.onboarding-open) none of
       the three ambient banners render.
-   2. Otherwise at most ONE shows, priority: closure/safety > city-suggest >
-      tonight-nearby. Each banner renders its root only when eligible and
-      UNMOUNTS it on dismissal, so :has(higher) hides the lower ones; when the
-      higher one is dismissed its element leaves the DOM and the next appears —
-      normal lifecycle, no carousel/rotation. */
+   2. Otherwise closure/safety and city-suggest may occupy their existing
+      separate vertical slots together. Tonight-nearby yields to either one.
+      Each banner renders its root only when eligible and UNMOUNTS it on
+      dismissal, so removing both higher siblings releases Tonight normally. */
 
 @media (min-width: 641px) {
   /* 1. Onboarding open — suppress all three ambient banners. */
@@ -31,12 +30,10 @@
     display: none;
   }
 
-  /* 2. Priority cascade. The closure/safety band wins over city-suggest and
-     tonight; city-suggest wins over tonight. Keyed on element PRESENCE
-     (eligibility) — which display:none does not remove — so the order is stable
-     and a dismissal (which unmounts the element) releases the ones below. The
-     closure band is never suppressed here: it is the top priority. */
-  .mapStage:has(.cityStatusBanner) .citySuggestBanner,
+  /* 2. Status and location have separate vertical slots. Keep the opt-in
+     location control available while either can defer the lower Tonight card.
+     Keyed on element PRESENCE (eligibility), so dismissing both higher siblings
+     releases Tonight through its normal lifecycle. */
   .mapStage:has(.cityStatusBanner) .tonightLaneCollapsed,
   .mapStage:has(.citySuggestBanner) .tonightLaneCollapsed {
     display: none;
