@@ -106,7 +106,7 @@ async function expectPrimaryActions(page: Page): Promise<void> {
   );
 
   expect(actions.map((action) => action.name)).toEqual([
-    "Log a Pint Drop at Arnos Arms",
+    "Add a price at Arnos Arms",
     "Crawl",
     "Share Arnos Arms",
   ]);

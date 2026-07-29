@@ -344,7 +344,7 @@ test("mobile venue sheet (GH #17): opens at the peek snap with the grab handle v
   await expect(sheet).toHaveCount(0);
 });
 
-test("mobile venue sheet sticky actions switch to Train and Drop without desktop tabs", async ({
+test("mobile venue sheet sticky actions switch to Train and price form", async ({
   page,
 }) => {
   await page.setViewportSize({ width: 390, height: 844 });
@@ -380,12 +380,15 @@ test("mobile venue sheet sticky actions switch to Train and Drop without desktop
   await expect(sheet).toHaveClass(/sheet-half/);
   await expect(stickyActions).toBeInViewport();
 
-  await stickyActions.getByRole("button", { name: /log a pint drop/i }).click();
-  const dropsTab = page.getByRole("tab", { name: "Stories", exact: true });
-  await expect(dropsTab).toHaveAttribute("aria-selected", "true");
-  await expect(page.locator("#venuePanel-pints")).toBeVisible();
-  await expect(page.getByRole("form", { name: "Pint Drop composer" })).toBeVisible();
-  await expect(page.getByRole("button", { name: "Post Pint Drop" })).toBeVisible();
+  await stickyActions.getByRole("button", { name: /add a price/i }).click();
+  const overviewTab = page.getByRole("tab", { name: "Overview", exact: true });
+  await expect(overviewTab).toHaveAttribute("aria-selected", "true");
+  await expect(page.locator("#venuePanel-overview")).toBeVisible();
+  await expect(
+    page.getByRole("textbox", {
+      name: /price of a beer .* in pounds/i,
+    }),
+  ).toBeVisible();
 });
 
 test("theme toggle flips html[data-theme], persists to localStorage, survives reload", async ({

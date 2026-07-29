@@ -236,7 +236,7 @@ test.describe("map / venue sheet tabs", () => {
   });
 
   // "The Spill" composer (issue #24): visibility segmented control. Deep-link
-  // to Stories (the composer's tab), open it via the sticky "Log a Pint Drop"
+  // to Stories (the composer's tab), open it via its "Log a Pint Drop"
   // button, and assert the four-option visibility radiogroup renders with
   // Public selected by default — a cheap DOM check, no submit/network needed.
   test("opening the composer renders the visibility control, defaulted to Public", async ({

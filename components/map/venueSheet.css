@@ -365,21 +365,6 @@
   }
 }
 
-/* ── Primary-action sheet clearance (user story 15) ──────────────────────────
-   The sheet itself now sits above the fixed mobile tab bar, so internal panels
-   only need a modest breathing buffer at the sheet edge. The band matches the
-   bottom-sheet drawer band in globals.css (@media max-width: 768px), NOT the
-   ≤640 gesture band — the drawer renders as a translated bottom sheet all the
-   way to 768px, so the in-tab Drop must yield to the sheet command bar across
-   that whole band (below 640 the phone portal sheet, 641–768 the legacy
-   drawer). */
-@media (max-width: 768px) {
-  .logDropBar {
-    /* In-tab sticky Drop yields to the sheet command bar on the bottom sheet. */
-    display: none;
-  }
-}
-
 /* The portal sheet's own header (.mobileSharedSheetHeader > h2) already shows
    the venue name as the centred sheet title, so the in-panel "Venue Detail"
    eyebrow and the duplicate <h3> name are redundant there — the name rendered
@@ -393,9 +378,113 @@
   display: none;
 }
 
-/* Wave K1 — sticky venue command bar (bottom-sheet drawer only). */
+/* Venue command bar. It stays pinned in the desktop inspector and moves into
+   the shared sheet footer on phones. */
 .venueSheetStickyBar {
-  display: none;
+  position: sticky;
+  bottom: 0;
+  z-index: 6;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 12px -4px 0;
+  padding: 10px 8px;
+  border-top: 1px solid color-mix(in srgb, var(--brass) 28%, var(--line));
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--panel) 0%, transparent) 0%,
+    color-mix(in srgb, var(--panel) 96%, transparent) 14%,
+    var(--panel) 30%
+  );
+}
+
+.venueSheetStickyPrimary,
+.venueSheetStickyGhost {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  min-height: 44px;
+  padding: 8px 10px;
+  border-radius: var(--control-radius, 14px);
+  font: inherit;
+  font-size: 0.82rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.venueSheetStickyPrimary {
+  flex: 1.2 1 0;
+  border: 1px solid var(--brass);
+  background: linear-gradient(135deg, var(--brass), var(--brass-bright));
+  color: var(--color-on-accent);
+  box-shadow: 0 8px 18px color-mix(in srgb, var(--brass) 22%, transparent);
+}
+
+.venueSheetStickyGhost {
+  flex: 1 1 0;
+  border: 1px solid var(--line);
+  background: color-mix(in srgb, var(--brass) 8%, var(--panel-raised));
+  color: var(--ink);
+}
+
+.venueSheetStickyGhost[aria-pressed="true"] {
+  border-color: color-mix(in srgb, var(--brass) 55%, var(--line));
+  color: var(--brass);
+}
+
+.venueSheetShareFeedback {
+  flex: 1 0 100%;
+  min-height: 18px;
+  padding: 0 2px;
+  color: var(--ink-soft);
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-align: center;
+}
+
+.venueSheetShareFeedback.ok {
+  color: var(--pint);
+}
+
+.venueSheetShareFeedback.error {
+  color: var(--brick);
+}
+
+.venueSheetStickyPrimary:focus-visible,
+.venueSheetStickyGhost:focus-visible {
+  outline: 2px solid var(--brass);
+  outline-offset: 2px;
+}
+
+.venuePriceSignInGate {
+  scroll-margin-top: 12px;
+  margin-top: 16px;
+  padding: 16px;
+  border: 1px solid color-mix(in srgb, var(--brass) 30%, var(--line));
+  border-radius: var(--radius-lg);
+  background: color-mix(in srgb, var(--brass) 6%, var(--panel-raised));
+}
+
+.venuePriceSignInGate h3,
+.venuePriceSignInGate p {
+  margin: 0;
+}
+
+.venuePriceSignInGate h3 {
+  color: var(--ink);
+  font-family: var(--font-display, var(--serif));
+  font-size: 1.05rem;
+}
+
+.venuePriceSignInGate p {
+  margin-top: 8px;
+  color: var(--ink-soft);
+  font-size: 0.88rem;
+  line-height: 1.45;
 }
 
 /* Gated to the bottom-sheet drawer band (≤768px), the same band globals.css
@@ -432,24 +521,7 @@
   }
 
   .venueSheetStickyBar {
-    position: sticky;
-    bottom: 0;
-    z-index: 6;
-    display: flex;
-    align-items: center;
-    flex-wrap: wrap;
-    gap: 6px;
-    margin: 12px -4px 0;
     padding: 10px 8px calc(10px + env(safe-area-inset-bottom));
-    border-top: 1px solid color-mix(in srgb, var(--brass) 28%, var(--line));
-    /* Near-solid fast: content scrolling under the bar must not read through
-       the buttons (owner screenshot showed copy bleeding through the fade). */
-    background: linear-gradient(
-      180deg,
-      color-mix(in srgb, var(--panel) 0%, transparent) 0%,
-      color-mix(in srgb, var(--panel) 96%, transparent) 14%,
-      var(--panel) 30%
-    );
   }
 
   /* LEGACY viewport-tall drawer only: that sheet is translated DOWN by its
@@ -474,66 +546,6 @@
     bottom: calc(78dvh + 8px);
   }
 
-  .venueSheetStickyPrimary,
-  .venueSheetStickyGhost {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    gap: 5px;
-    min-height: 44px;
-    padding: 8px 10px;
-    border-radius: var(--control-radius, 14px);
-    font: inherit;
-    font-size: 0.82rem;
-    font-weight: 700;
-    letter-spacing: -0.01em;
-    cursor: pointer;
-    white-space: nowrap;
-  }
-
-  .venueSheetStickyPrimary {
-    flex: 1.2 1 0;
-    border: 1px solid var(--brass);
-    background: linear-gradient(135deg, var(--brass), var(--brass-bright));
-    color: var(--color-on-accent);
-    box-shadow: 0 8px 18px color-mix(in srgb, var(--brass) 22%, transparent);
-  }
-
-  .venueSheetStickyGhost {
-    flex: 1 1 0;
-    border: 1px solid var(--line);
-    background: color-mix(in srgb, var(--brass) 8%, var(--panel-raised));
-    color: var(--ink);
-  }
-
-  .venueSheetStickyGhost[aria-pressed="true"] {
-    border-color: color-mix(in srgb, var(--brass) 55%, var(--line));
-    color: var(--brass);
-  }
-
-  .venueSheetShareFeedback {
-    flex: 1 0 100%;
-    min-height: 18px;
-    padding: 0 2px;
-    color: var(--ink-soft);
-    font-size: 0.78rem;
-    font-weight: 700;
-    text-align: center;
-  }
-
-  .venueSheetShareFeedback.ok {
-    color: var(--pint);
-  }
-
-  .venueSheetShareFeedback.error {
-    color: var(--brick);
-  }
-
-  .venueSheetStickyPrimary:focus-visible,
-  .venueSheetStickyGhost:focus-visible {
-    outline: 2px solid var(--brass);
-    outline-offset: 2px;
-  }
 }
 
 /* ── Portal sheet footer slot (systemic rebuild) ─────────────────────────────

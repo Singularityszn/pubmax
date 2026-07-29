@@ -205,6 +205,21 @@ export default defineConfig({
             E2E_SUPABASE_PUBLISHABLE_KEY,
           PLAN_IDEMPOTENCY_SECRET: E2E_PLAN_SIGNING_SECRET,
           PUBMAX_E2E_KEYLESS: "1",
+          // Auth regressions may opt into the real public Supabase project.
+          // Keep these as pass-throughs: browser tests must not fake auth over
+          // the wire, and ordinary keyless runs remain network-independent.
+          ...(process.env.NEXT_PUBLIC_SUPABASE_URL
+            ? {
+                NEXT_PUBLIC_SUPABASE_URL:
+                  process.env.NEXT_PUBLIC_SUPABASE_URL,
+              }
+            : {}),
+          ...(process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY
+            ? {
+                NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY:
+                  process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY,
+              }
+            : {}),
           // Pass-through for lane e2e that must exercise a flag-on server
           // (L19 landing hierarchy). Unknown/absent stays off (strict 0|1).
           ...(process.env.PUBMAX_LANDING_FIND_MY_PINT

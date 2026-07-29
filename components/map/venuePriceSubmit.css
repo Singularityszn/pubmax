@@ -61,6 +61,7 @@
 }
 
 .venuePriceSubmit {
+  scroll-margin-top: 12px;
   margin-top: 16px;
   padding: 14px;
   border: 1px solid color-mix(in srgb, var(--brass) 22%, var(--line));

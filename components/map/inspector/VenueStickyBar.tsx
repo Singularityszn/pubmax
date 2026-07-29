@@ -6,7 +6,6 @@ import { Flag, PlusCircle, Route as RouteIcon, Share2 } from "lucide-react";
 import type { Venue } from "@/lib/venues";
 import type { CrawlMode } from "@/components/map/ControlRail";
 import type { ShareFeedback } from "@/lib/venueShare";
-import type { TabKey } from "@/lib/venueInspectorTabs";
 import { useSheetFooterSlot } from "@/components/mobile/sheetFooterContext";
 import { isPubVenue } from "@/lib/venueKindFilters";
 
@@ -16,8 +15,7 @@ export default function VenueStickyBar({
   inCrawl,
   onToggleStop,
   onAcceptStop1,
-  selectTab,
-  setComposerOpen,
+  onAddPrice,
   shareVenue,
   currentShareFeedback,
 }: {
@@ -27,15 +25,14 @@ export default function VenueStickyBar({
   onToggleStop: (id: string) => void;
   /** Trusted-handoff §4.8: accept this Venue as Stop 1. Absent when off. */
   onAcceptStop1?: () => void;
-  selectTab: (key: TabKey) => void;
-  setComposerOpen: (open: boolean) => void;
+  onAddPrice: () => void;
   shareVenue: () => Promise<void>;
   currentShareFeedback: ShareFeedback | null;
 }) {
   // Inside the mobile portal sheet, render into the footer slot (a flex child
   // OUTSIDE the scroll body) so the bar is always visible above scrolling
   // content and rides 1:1 with the sheet on drag/snap. Outside the sheet
-  // (desktop) the context is null → render in place (CSS-hidden above 640px).
+  // (desktop) the context is null, so it renders in place as a sticky footer.
   const footerSlot = useSheetFooterSlot();
   const pubVenue = isPubVenue(venue);
   const bar = (
@@ -55,14 +52,11 @@ export default function VenueStickyBar({
         <button
           type="button"
           className={onAcceptStop1 ? "venueSheetStickyGhost" : "venueSheetStickyPrimary"}
-          onClick={() => {
-            selectTab("pints");
-            setComposerOpen(true);
-          }}
-          aria-label={`Log a Pint Drop at ${venue.name}`}
+          onClick={onAddPrice}
+          aria-label={`Add a price at ${venue.name}`}
         >
           <PlusCircle size={16} aria-hidden="true" />
-          Drop
+          Add price
         </button>
       ) : null}
       {pubVenue && mode === "build" ? (

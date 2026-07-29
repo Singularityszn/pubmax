@@ -34,7 +34,8 @@ import "./venuePriceSubmit.css";
 // Deliberately NOT the Pint Drop composer. That is the full social object - a
 // handle, photos, a note, a visibility lane, a destination. This is the
 // twenty-second version for the person at the bar: category, price, done. The
-// contribution gate asks for the signed account and completed private profile.
+// Price-entry surfaces check account state before mounting it, so nobody
+// types a price and only then learns they need to sign in.
 //
 // Provenance is first-class, not decoration: the confirmation shows the price
 // with its own dated "today · community" badge, and the scraped/sourced
@@ -67,6 +68,8 @@ type VenuePriceSubmitProps = {
    * receipt must claim the first and never the second.
    */
   mapReach?: CommunityPriceMapReach;
+  /** Increment to bring this existing form under the drinker's thumb. */
+  focusRequest?: number;
 };
 
 /**
@@ -87,7 +90,10 @@ export default function VenuePriceSubmit({
   baselinePriceGbp = null,
   latestPintDropAt = null,
   mapReach = "paint",
+  focusRequest = 0,
 }: VenuePriceSubmitProps) {
+  const titleId = `vpsubTitle-${venueId}`;
+  const priceInputRef = useRef<HTMLInputElement>(null);
   const [category, setCategory] = useState<DrinkCategory>(DEFAULT_SUBMIT_CATEGORY);
   const [price, setPrice] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -123,6 +129,24 @@ export default function VenuePriceSubmit({
   useEffect(() => {
     loadVenue(venueId);
   }, [loadVenue, venueId]);
+
+  useEffect(() => {
+    if (focusRequest <= 0) return;
+    let focusFrame = 0;
+    const focusTimer = window.setTimeout(() => {
+      focusFrame = window.requestAnimationFrame(() => {
+        priceInputRef.current?.scrollIntoView({
+          block: "center",
+          behavior: "smooth",
+        });
+        priceInputRef.current?.focus();
+      });
+    }, 120);
+    return () => {
+      window.clearTimeout(focusTimer);
+      window.cancelAnimationFrame(focusFrame);
+    };
+  }, [focusRequest]);
 
   // The receipt: the freshest community price for the chosen drink. The
   // optimistic submit writes into this same layer, so it appears the instant
@@ -187,10 +211,14 @@ export default function VenuePriceSubmit({
   }
 
   return (
-    <section className="venuePriceSubmit" aria-labelledby="vpsubTitle">
+    <section
+      id={`venue-price-submit-${venueId}`}
+      className="venuePriceSubmit"
+      aria-labelledby={titleId}
+    >
       <div className="vpsubHead">
         <Tag size={15} aria-hidden="true" />
-        <h3 id="vpsubTitle" className="vpsubTitle">
+        <h3 id={titleId} className="vpsubTitle">
           What&rsquo;s it tonight?
         </h3>
       </div>
@@ -225,6 +253,7 @@ export default function VenuePriceSubmit({
             £
           </span>
           <input
+            ref={priceInputRef}
             className="vpsubInput"
             type="text"
             inputMode="decimal"
