@@ -110,7 +110,6 @@ Pages: `/`, `/map`, venue sheet (The Old Bell), `/pint-index`, `/privacy`, `/cho
 | None | No P0 breakage; map paints; pins band by price; privacy honest; sources dated | None |
 | P1 | Venue Drinks empty: “No menu on record yet” with no contribute CTA; resolved by W1.1 | 1 |
 | P1 | Pint Index league empty copy was long/technical (zone vs league); resolved by W1.2 | 1 |
-| P2 | Primary nav “More” hides Plan / Near / Pubs / Historic / Pal | 1 |
 | P2 | Map load line is fine; progress could be clearer | 1 |
 | Verify | Dark theme not deeply exercised; mobile sheet price-caption wrap; submit entry points | 1 |
 | Docs/a11y | Canvas pins lack keyboard-operable DOM list; desktop drawer focus trap; cream-on-coral CTA contrast ~2.93:1 | 4 |
@@ -177,7 +176,7 @@ Wave 6  Memory / store / expansion (gated)
 | W1.2 | Pint Index league empty: shorter copy that still separates zone strip vs sourced league | P1 | **Complete:** short copy keeps the wider fare-zone picture separate from the dated public-source league |
 | W1.3 | Mobile venue sheet: price captions wrap, never ellipsis | Verify | Passes `__tests__/mobileChromeFit.test.ts` spirit on real 390×844 device viewport |
 | W1.4 | Dark mode pass: landing, map, venue sheet vs Night Out tokens | Verify | Both themes screenshot-read; no black-on-black pin rims |
-| W1.5 | Nav discoverability for Plan / Near (P2) | P2 | Primary journeys findable without hunting “More” alone |
+| W1.5 | **Complete:** Nav discoverability for Plan / Near (P2) | P2 | Contextual entry points supplement More without changing the six-tab navigation model; placement is pinned in `__tests__/journeyEntryPoints.test.ts` and `e2e/today-journey-entry-points.spec.ts` |
 | W1.6 | Contribute / log-price entry points from sheet | Verify | First-time drinker can find price submit without docs |
 
 **Evidence:** desktop + 390px, light + dark for changed surfaces.
