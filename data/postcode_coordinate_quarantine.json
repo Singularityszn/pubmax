@@ -1,0 +1,39 @@
+{
+  "$comment": "Rows removed from product-facing venue data because postcode and coordinates contradict each other and available evidence does not settle which venue owns the recorded price. Keep each disposition explicit so quarantine is auditable, not a silent drop.",
+  "rows": [
+    {
+      "pubName": "The Lincoln Arms",
+      "appPriceIds": [
+        "app_price_000339"
+      ],
+      "recordedPrice": "GUINNESS £4.40",
+      "recordedAddress": "EN1 1QT",
+      "recordedLatitude": 51.5332,
+      "recordedLongitude": -0.1222,
+      "sourceUrl": "https://www.pint-prices.com/pub/EN1%201QT/The%20Lincoln%20Arms",
+      "sourceRows": {
+        "data/pub_locations_map_data.csv": 1,
+        "data/pint_prices_app_dataset.csv": 1,
+        "data/all_pint_prices_combined.csv": 3,
+        "public/data/pint_prices_app_dataset.json": 1
+      },
+      "evidence": [
+        {
+          "url": "https://www.pint-prices.com/pub/EN1%201QT/The%20Lincoln%20Arms",
+          "finding": "Recorded source page prints EN1 1QT while its inline map script places the marker at 51.5332, -0.1222, so the source repeats rather than resolves the contradiction."
+        },
+        {
+          "url": "https://camra.org.uk/pubs/lincoln-arms-london-124779",
+          "finding": "CAMRA identifies a Lincoln Arms by King's Cross at 52 York Way, London N1 9AB."
+        },
+        {
+          "url": "https://acp.planninginspectorate.gov.uk/ViewDocument.aspx?fileid=53814608",
+          "finding": "Planning Inspectorate evidence identifies a different Lincoln Arms at 155 Percival Road, Enfield EN1 1QT."
+        }
+      ],
+      "disposition": "quarantined",
+      "reason": "Both postcode and coordinates correspond to distinct pubs named The Lincoln Arms. Evidence does not establish which pub owns the recorded £4.40 Guinness price, so assigning the row to either venue would be a guess.",
+      "quarantinedAt": "2026-07-29"
+    }
+  ]
+}
