@@ -153,7 +153,7 @@ export type SelectionHistoryAction =
  * Decide the history action for a selectedVenueId transition.
  *
  * - prev/next are the previous and next selectedVenueId ("" = no selection).
- * - currentEntryOwnsSentinel is whether history.state is our sentinel right now.
+ * - currentSentinelVenueId is the sentinel Venue id on history.state, if any.
  *
  * Closing (next === "") pops the sentinel entry with Back when we own it, so a
  * single Back returns to the clean Map; otherwise we strip the params in place
@@ -162,13 +162,14 @@ export type SelectionHistoryAction =
 export function selectionTransition(input: {
   prev: string;
   next: string;
-  currentEntryOwnsSentinel: boolean;
+  currentSentinelVenueId: string | null;
 }): SelectionHistoryAction {
   const prev = input.prev || "";
   const next = input.next || "";
   if (next === prev) return { kind: "none" };
   if (next) {
+    if (input.currentSentinelVenueId === next) return { kind: "none" };
     return prev ? { kind: "replace", venueId: next } : { kind: "push", venueId: next };
   }
-  return input.currentEntryOwnsSentinel ? { kind: "back" } : { kind: "strip" };
+  return input.currentSentinelVenueId !== null ? { kind: "back" } : { kind: "strip" };
 }

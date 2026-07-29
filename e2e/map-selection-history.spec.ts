@@ -95,6 +95,39 @@ test.describe("§4.6 selection-history Back/close contract", () => {
     await expect(venuePortal(page)).toHaveCount(0);
   });
 
+  test("Forward restores one selected entry and one Back closes it", async ({
+    page,
+  }) => {
+    test.setTimeout(90_000);
+    await page.goto(`/map?sel=${ARNOS_ARMS_ID}`);
+
+    const portal = venuePortal(page);
+    await expect(portal).toBeVisible();
+    await portal.getByRole("button", { name: "Close pub detail" }).click();
+    await expect(portal).toHaveCount(0);
+    await expect(page).toHaveURL(/\/map$/);
+
+    await page.goForward();
+    await expect(portal).toBeVisible();
+    await expect
+      .poll(() =>
+        page.evaluate(
+          () =>
+            (
+              window.history.state as {
+                pubmaxSelection?: number;
+                venueId?: string;
+              } | null
+            )?.venueId ?? null,
+        ),
+      )
+      .toBe(ARNOS_ARMS_ID);
+
+    await page.goBack();
+    await expect(portal).toHaveCount(0);
+    await expect(page).toHaveURL(/\/map$/);
+  });
+
   test("a reload with the Venue selected retains the sheet (§4.6 reload retains)", async ({
     page,
   }) => {

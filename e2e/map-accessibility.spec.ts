@@ -292,11 +292,14 @@ test.describe("map keyboard and screen-reader venue path", () => {
 
     const firstVenue = await openVenueListWithKeyboard(page);
     const firstVenueId = await firstVenue.getAttribute("data-venue-id");
-    const secondVenue = page.locator(".mapVenueListItem").nth(1);
-    const secondVenueId = await secondVenue.getAttribute("data-venue-id");
+    const secondVenueCandidate = page.locator(".mapVenueListItem").nth(1);
+    const secondVenueId = await secondVenueCandidate.getAttribute("data-venue-id");
     expect(firstVenueId).toBeTruthy();
     expect(secondVenueId).toBeTruthy();
     expect(secondVenueId).not.toBe(firstVenueId);
+    const secondVenue = page.locator(
+      `.mapVenueListItem[data-venue-id="${secondVenueId}"]`,
+    );
 
     await page.keyboard.press("Enter");
     const drawer = page.locator(".mapDrawer.right.open");

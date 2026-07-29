@@ -5,7 +5,6 @@ import { useEffect, useLayoutEffect, useRef } from "react";
 import {
   browseSelectionUrl,
   cleanMapUrl,
-  isSelectionSentinel,
   searchHasSelection,
   selectionSentinelVenueId,
   selectionTransition,
@@ -112,7 +111,7 @@ export function useMapSelectionHistory({
     const action = selectionTransition({
       prev,
       next,
-      currentEntryOwnsSentinel: isSelectionSentinel(window.history.state),
+      currentSentinelVenueId: selectionSentinelVenueId(window.history.state),
     });
     const { pathname, search, hash } = window.location;
     switch (action.kind) {
