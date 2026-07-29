@@ -24,9 +24,34 @@ import { CENTRAL_PATCH } from "@/lib/nightPatches";
 import { tonightHeading } from "@/lib/tonight";
 
 describe("locality and recency claims", () => {
-  it("names central London before Today has a remembered locality", () => {
+  it("names central London and the actual collection date for older Today prices", () => {
     const html = renderToStaticMarkup(
       createElement(TodayPintsCard, {
+        nowIso: "2026-07-29T12:00:00.000Z",
+        index: {
+          [CENTRAL_PATCH.id]: {
+            patchId: CENTRAL_PATCH.id,
+            areaName: "Piccadilly & Soho",
+            rows: [{
+              id: "test-pub",
+              name: "The Test Arms",
+              price: 4.8,
+              priceLabel: "£4.80",
+              mapHref: "/map?venue=test-pub",
+            }],
+          },
+        },
+      }),
+    );
+
+    expect(html).toContain("Cheapest pints in central London, collected 3 July 2026");
+    expect(html).not.toContain("Cheapest pints near you today");
+  });
+
+  it("uses today only when the pint dataset was collected today", () => {
+    const html = renderToStaticMarkup(
+      createElement(TodayPintsCard, {
+        nowIso: "2026-07-03T20:00:00.000Z",
         index: {
           [CENTRAL_PATCH.id]: {
             patchId: CENTRAL_PATCH.id,
@@ -44,7 +69,6 @@ describe("locality and recency claims", () => {
     );
 
     expect(html).toContain("Cheapest pints in central London today");
-    expect(html).not.toContain("Cheapest pints near you today");
   });
 
   it("names London's scope when Tonight has no locality", () => {

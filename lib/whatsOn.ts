@@ -8,7 +8,6 @@
 // no licence field (per the B1 row contract).
 
 import {
-  callCityMcpTool,
   type ThingsToDoOpportunity,
   type ThingsToDoResult,
 } from "@/lib/citymcp/client";
@@ -200,15 +199,18 @@ function normaliseRow(row: WhatsOnRow): WhatsOnRow {
   return out;
 }
 
-// Two rows collide when they describe the same (place, kind, startsAt). A row
-// with a resolved venueId keys off it; otherwise it keys off the lowercased
-// placeName (so a scraped-by-name row and its later venue-matched twin still
-// collapse when the name is identical). The "|" separator is safe because ids
-// and startsAt never contain it and a "|" in a pub name cannot create a
-// collision across the three joined fields in practice.
+// Exact-start rows collide on place, kind, and start. Without an exact start,
+// listed-time wording is not enough to identify an event, so title and source
+// remain part of the identity.
 export function dedupeKey(row: WhatsOnRow): string {
   const place = isNonEmptyString(row.venueId) ? row.venueId : row.placeName.toLowerCase();
-  const when = row.startsAt ?? row.timeEvidence ?? row.title;
+  const when =
+    row.startsAt ??
+    [
+      row.timeEvidence ?? row.listedWindow ?? "",
+      normaliseEventTitle(row.title).toLocaleLowerCase("en-GB"),
+      row.source.url,
+    ].join("|");
   return `${place}|${row.kind}|${when}`;
 }
 
@@ -460,9 +462,6 @@ function stableId(prefix: string, input: string): string {
 
 export type MapThingsToDoOpts = {
   now: number;
-  // Optional per-title raw ISO starts (from fetchRawThingsToDoStartsAt) when the
-  // upstream ever provides them.
-  startsAtByTitle?: Map<string, string>;
 };
 
 // Map trimmed CityMCP opportunities to WhatsOnRow[] with confidence "listed".
@@ -487,7 +486,7 @@ export function mapThingsToDoToRows(result: ThingsToDoResult, opts: MapThingsToD
     const url = opp.source?.url;
     if (!isNonEmptyString(label) || !isHttpUrl(url)) continue;
 
-    const rawStart = opts.startsAtByTitle?.get(opp.title);
+    const rawStart = opp.startsAt;
     const startsAt = isValidIso(rawStart) ? (rawStart as string) : undefined;
     const timeEvidence = isNonEmptyString(opp.timeEvidence)
       ? opp.timeEvidence
@@ -521,43 +520,4 @@ export function mapThingsToDoToRows(result: ThingsToDoResult, opts: MapThingsToD
     if (isValidWhatsOnRow(row, opts.now)) rows.push(row);
   }
   return dedupeRows(rows);
-}
-
-// A raw things_to_do call that PRESERVES any upstream startsAt the trimmed
-// fetchThingsToDo drops. Used by the store's live merge. Does NOT edit
-// client.ts — it calls callCityMcpTool directly. Returns a title→ISO-start
-// map; empty when the upstream provides no firm starts (today's reality).
-export type FetchRawStartsOpts = {
-  window: "tonight" | "tomorrow_night" | "this_weekend";
-  area?: string;
-  limit?: number;
-  timeoutMs?: number;
-  endpoint?: string;
-  fetchImpl?: typeof fetch;
-};
-
-export async function fetchRawThingsToDoStartsAt(
-  opts: FetchRawStartsOpts,
-): Promise<Map<string, string>> {
-  const args: Record<string, unknown> = { window: opts.window };
-  if (opts.area) args.area = opts.area;
-  if (typeof opts.limit === "number" && opts.limit > 0) args.limit = opts.limit;
-
-  const result = await callCityMcpTool<Record<string, unknown>>("things_to_do", args, {
-    timeoutMs: opts.timeoutMs,
-    endpoint: opts.endpoint,
-    fetchImpl: opts.fetchImpl,
-  });
-  const structured = result.structuredContent ?? {};
-  const rawOpps = Array.isArray(structured.opportunities) ? structured.opportunities : [];
-
-  const out = new Map<string, string>();
-  for (const item of rawOpps) {
-    if (!item || typeof item !== "object") continue;
-    const o = item as ThingsToDoOpportunity & { startsAt?: unknown };
-    const title = typeof o.title === "string" ? o.title : "";
-    const startsAt = (o as { startsAt?: unknown }).startsAt;
-    if (title && isValidIso(startsAt)) out.set(title, startsAt as string);
-  }
-  return out;
 }

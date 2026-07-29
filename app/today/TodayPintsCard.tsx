@@ -14,6 +14,10 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { ArrowUpRight, Beer } from "lucide-react";
 
+import {
+  formatObservedDate,
+  PINT_DATASET_OBSERVED_AT,
+} from "@/lib/dataFreshness";
 import { readRememberedArea } from "@/lib/nightPatches";
 
 import {
@@ -22,7 +26,10 @@ import {
   type TodayPintsModule,
 } from "./todayPints";
 
-type Props = { index: TodayPintsIndex };
+type Props = {
+  index: TodayPintsIndex;
+  nowIso: string;
+};
 
 type TodayPintsView = {
   pints: TodayPintsModule | null;
@@ -41,7 +48,20 @@ function viewFor(
   };
 }
 
-export default function TodayPintsCard({ index }: Props) {
+function eyebrow(hasRememberedLocality: boolean, nowIso: string): string {
+  const scope = hasRememberedLocality
+    ? "Cheapest pints near you"
+    : "Cheapest pints in central London";
+  const now = new Date(nowIso);
+  const collectedToday =
+    Number.isFinite(now.getTime()) &&
+    formatObservedDate(now) === formatObservedDate(PINT_DATASET_OBSERVED_AT);
+  return collectedToday
+    ? `${scope} today`
+    : `${scope}, collected ${formatObservedDate(PINT_DATASET_OBSERVED_AT)}`;
+}
+
+export default function TodayPintsCard({ index, nowIso }: Props) {
   const [view, setView] = useState<TodayPintsView>(() => viewFor(index, null));
 
   useEffect(() => {
@@ -69,9 +89,7 @@ export default function TodayPintsCard({ index }: Props) {
         </span>
         <div>
           <p className="todayCardEyebrow">
-            {hasRememberedLocality
-              ? "Cheapest pints near you today"
-              : "Cheapest pints in central London today"}
+            {eyebrow(hasRememberedLocality, nowIso)}
           </p>
           <h2 className="todayCardTitle" id="today-pints-title">
             The cheap ones in {pints.areaName}.

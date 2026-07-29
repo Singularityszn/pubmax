@@ -383,7 +383,7 @@ export default function TodayClient({
           slot={shownGreeting.slot}
         />
         <TodayGetThereStrip />
-        <TodayPintsCard index={pintsIndex} />
+        <TodayPintsCard index={pintsIndex} nowIso={nowIso} />
         <TodayQuietPintCard module={quietPint} />
         <FactCard fact={fact} />
       </div>

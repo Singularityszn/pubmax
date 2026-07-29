@@ -16,7 +16,6 @@ import {
   normaliseEventTitle,
   normaliseSourceLabel,
   mapThingsToDoToRows,
-  fetchRawThingsToDoStartsAt,
   THINGS_TO_DO_KIND_MAP,
   type WhatsOnRow,
 } from "@/lib/whatsOn";
@@ -121,6 +120,30 @@ describe("parseWhatsOnRows + dedupe", () => {
   it("treats different kinds at the same place/time as independent", () => {
     const parsed = dedupeRows([makeRow({ kind: "quiz" }), makeRow({ kind: "music", id: "m" })]);
     expect(parsed).toHaveLength(2);
+  });
+
+  it("keeps distinct untimed listings with the same listed time", () => {
+    const shared = {
+      startsAt: undefined,
+      timeEvidence: "8pm",
+      listedWindow: "tonight" as const,
+    };
+    const rows = dedupeRows([
+      makeRow({
+        ...shared,
+        id: "jazz",
+        title: "Jazz night",
+        source: { label: "Venue diary", url: "https://venue.example/jazz" },
+      }),
+      makeRow({
+        ...shared,
+        id: "comedy",
+        title: "Comedy night",
+        source: { label: "Comedy guide", url: "https://guide.example/comedy" },
+      }),
+    ]);
+
+    expect(rows.map((row) => row.id)).toEqual(["jazz", "comedy"]);
   });
 });
 
@@ -433,55 +456,30 @@ describe("mapThingsToDoToRows", () => {
     expect(rows).toHaveLength(0);
   });
 
-  it("prefers a raw ISO start from startsAtByTitle when valid", () => {
+  it("keeps each opportunity's exact start with duplicate titles", () => {
     const rows = mapThingsToDoToRows(
       result([
         {
           title: "Timed gig",
           kind: "gig",
-          place: { name: "Venue" },
-          source: { label: "T", url: "https://t.com" },
+          startsAt: "2026-07-11T20:00:00+01:00",
+          place: { name: "Venue A" },
+          source: { label: "T", url: "https://t.com/a" },
+        },
+        {
+          title: "Timed gig",
+          kind: "gig",
+          startsAt: "2026-07-11T22:00:00+01:00",
+          place: { name: "Venue B" },
+          source: { label: "T", url: "https://t.com/b" },
         },
       ]),
-      {
-        now: NOW,
-        startsAtByTitle: new Map([
-          ["Timed gig", "2026-07-11T21:00:00+01:00"],
-        ]),
-      },
+      { now: NOW },
     );
-    expect(rows[0].startsAt).toBe("2026-07-11T21:00:00+01:00");
-  });
-});
-
-describe("fetchRawThingsToDoStartsAt", () => {
-  function sseFrame(payload: unknown): string {
-    return `event: message\ndata: ${JSON.stringify(payload)}\n\n`;
-  }
-
-  it("returns a title-to-ISO map when upstream carries raw startsAt", async () => {
-    const fetchImpl = (async () =>
-      new Response(
-        sseFrame({
-          jsonrpc: "2.0",
-          id: 1,
-          result: {
-            structuredContent: {
-              opportunities: [
-                { title: "A", startsAt: "2026-07-11T20:00:00+01:00" },
-                { title: "B" },
-                { title: "C", startsAt: "nope" },
-              ],
-            },
-          },
-        }),
-        { status: 200 },
-      )) as unknown as typeof fetch;
-
-    const map = await fetchRawThingsToDoStartsAt({ window: "tonight", fetchImpl });
-    expect(map.get("A")).toBe("2026-07-11T20:00:00+01:00");
-    expect(map.has("B")).toBe(false);
-    expect(map.has("C")).toBe(false);
+    expect(rows.map((row) => [row.placeName, row.startsAt])).toEqual([
+      ["Venue A", "2026-07-11T20:00:00+01:00"],
+      ["Venue B", "2026-07-11T22:00:00+01:00"],
+    ]);
   });
 });
 

@@ -441,7 +441,12 @@ describe("fetchThingsToDo", () => {
             structuredContent: {
               area: "Soho",
               opportunities: [
-                { title: "Show 1", kind: "gig", areas: ["Soho"] },
+                {
+                  title: "Show 1",
+                  kind: "gig",
+                  areas: ["Soho"],
+                  startsAt: "2026-07-29T20:00:00+01:00",
+                },
                 { title: "Show 2", price: "cheap" },
                 { title: "" },
                 null,
@@ -463,6 +468,7 @@ describe("fetchThingsToDo", () => {
     });
     expect(first.opportunities).toHaveLength(2);
     expect(first.opportunities.map((o) => o.title)).toEqual(["Show 1", "Show 2"]);
+    expect(first.opportunities[0].startsAt).toBe("2026-07-29T20:00:00+01:00");
 
     // Cache hit — no new upstream call.
     const second = await fetchThingsToDo({
