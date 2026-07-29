@@ -30,7 +30,7 @@
 - Consumes: `/map`, `/map/manchester`, `CitySuggestBanner` granted-permission reuse, `.donut-cluster-marker`, and `Show all of Manchester`
 - Produces: Playwright regression proving active donut clusters never disappear during a settled city-cluster observation window
 
-- [ ] **Step 1: Add failing location-to-cluster regression**
+- [x] **Step 1: Add failing location-to-cluster regression**
 
 Add a Playwright test that:
 
@@ -75,7 +75,7 @@ test("desktop clusters stay stable after granted location moves outside London",
 
 Adapt only selectors already shipped by the map if the exact container class differs.
 
-- [ ] **Step 2: Run test and verify RED**
+- [x] **Step 2: Run test and verify RED**
 
 Run:
 
@@ -85,7 +85,7 @@ npx playwright test e2e/map-gl.spec.ts --grep "desktop clusters stay stable"
 
 Expected: failure because `.donut-cluster-marker` count reaches zero after first becoming non-zero while the legacy grey cluster layers reappear.
 
-- [ ] **Step 3: Commit failing regression**
+- [x] **Step 3: Commit failing regression**
 
 ```bash
 git add e2e/map-gl.spec.ts
@@ -104,11 +104,11 @@ git commit -m "test(map): reproduce location cluster flicker"
 - Consumes: MapLibre `render`, `moveend`, and `sourcedata` events plus current cluster marker map
 - Produces: reason-aware sync where render ticks may update from non-empty snapshots but cannot authoritatively deactivate an active donut set
 
-- [ ] **Step 1: Add failing unit regression**
+- [x] **Step 1: Add failing unit regression**
 
 Extend fake-map coverage so a non-empty render creates an active set, a following empty render snapshot does not call the deactivation path, and an authoritative empty `moveend` does. Mock `maplibregl.Marker` only at its external DOM boundary, while assertions target shipped behavior: marker removal and legacy layer visibility.
 
-- [ ] **Step 2: Run unit test and verify RED**
+- [x] **Step 2: Run unit test and verify RED**
 
 Run:
 
@@ -118,7 +118,7 @@ npm test -- __tests__/canvas-donutClusters.test.ts
 
 Expected: failure because current `sync()` treats every empty render snapshot as authoritative and removes markers.
 
-- [ ] **Step 3: Implement minimal reason-aware reconciliation**
+- [x] **Step 3: Implement minimal reason-aware reconciliation**
 
 Change the sync signature to carry whether an empty result is authoritative:
 
@@ -142,7 +142,7 @@ const syncFromSettledMap = () => sync({ emptyIsAuthoritative: true });
 
 Keep render throttling. Use non-authoritative sync for `render` and qualifying `sourcedata`. Use authoritative sync for `moveend`. Zoom at `CLUSTER_MAX_ZOOM + 1` remains an immediate authoritative deactivation in every path.
 
-- [ ] **Step 4: Run focused tests and verify GREEN**
+- [x] **Step 4: Run focused tests and verify GREEN**
 
 Run:
 
@@ -153,7 +153,7 @@ npx playwright test e2e/map-gl.spec.ts --grep "desktop clusters stay stable"
 
 Expected: both pass. Donut markers remain continuously present at Manchester city zoom.
 
-- [ ] **Step 5: Commit fix**
+- [x] **Step 5: Commit fix**
 
 ```bash
 git add components/map/canvas/donutClusters.ts __tests__/canvas-donutClusters.test.ts
@@ -171,19 +171,19 @@ git commit -m "fix(map): keep desktop clusters stable"
 - Consumes: commits `cfed5e58`, `4d25088d`, `ba4b4e71`, and `7fbe9d46`
 - Produces: final diagnosis report and before/after screenshots for PR body
 
-- [ ] **Step 1: Compare pre-upgrade behavior**
+- [x] **Step 1: Compare pre-upgrade behavior**
 
 Run same deterministic browser probe at `cfed5e58^` with its locked MapLibre dependency. Record whether active donuts ever reach zero after stabilising at Manchester city zoom.
 
-- [ ] **Step 2: Rule out accessible-list feedback**
+- [x] **Step 2: Rule out accessible-list feedback**
 
 Run same probe at `4d25088d^` with MapLibre 6. Record whether flicker persists before in-view list work.
 
-- [ ] **Step 3: Capture after evidence**
+- [x] **Step 3: Capture after evidence**
 
 Capture browser screenshots to `/tmp`, move representative stable frames into local evidence storage, and confirm each file exists. Use 1600 by 1000 viewport, Manchester granted location, tours suppressed, and city-cluster zoom.
 
-- [ ] **Step 4: Run project verification**
+- [x] **Step 4: Run project verification**
 
 Run:
 
@@ -195,7 +195,6 @@ npx playwright test e2e/map-gl.spec.ts --grep "desktop clusters stay stable"
 npm run verify
 ```
 
-- [ ] **Step 5: Review final diff and commit any test hardening**
+- [x] **Step 5: Review final diff and commit any test hardening**
 
 Read changed files, confirm no density or collision constants changed, remove debug artifacts, and commit any coherent final adjustment.
-

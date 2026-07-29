@@ -44,11 +44,9 @@ import {
 } from "@/components/map/canvas/donutClusters";
 import type { DonutCounts } from "@/lib/donutClusterGeometry";
 
-// M5 donut clusters currently have ZERO tests. These cover the two pure helpers
-// that back the module's correctness + perf contracts — the per-bucket count
-// coercion and the SVG-rebuild change guard — plus the listener wiring/teardown
-// lifecycle (the DOM-marker sync body itself is covered by the map E2E suite,
-// matching this repo's "unit-test the pure surface, E2E the GL/DOM" split).
+// Pure helpers cover bucket coercion and SVG rebuilds. The fake map covers
+// listener lifecycle and source-snapshot authority, while the map E2E suite
+// proves the same ownership rule against real GL and DOM renderers.
 
 describe("readCounts (M5 donut — b0..b3 cluster-count coercion)", () => {
   it("maps b0..b3 into the DonutCounts tuple in order", () => {
