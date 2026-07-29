@@ -64,6 +64,7 @@ const MobilePlanActivation = dynamic(
 );
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import DrinkShapeChips from "@/components/map/DrinkShapeChips";
+import MapKey from "@/components/map/MapKey";
 import MapExperienceLensControl from "@/components/map/MapExperienceLens";
 import FavoritePintPicker from "@/components/map/FavoritePintPicker";
 import MobilePriceChoices from "@/components/map/MobilePriceChoices";
@@ -145,6 +146,7 @@ import { trackEvent } from "@/lib/analytics";
 import { writePreferredCity } from "@/lib/cityPreference";
 import { usePintDrops } from "@/components/map/usePintDrops";
 import { useCommunityPrices } from "@/components/map/useCommunityPrices";
+import { mapPriceLegend } from "@/lib/mapPriceLegend";
 import {
   mergeCommunityPriceSignals,
   provisionalCommunityPriceVenueIds,
@@ -562,7 +564,7 @@ export default function PubMap({
   const [venueKindVisibility, setVenueKindVisibility] = useState(
     defaultVenueKindVisibility,
   );
-  const [mobileLayersTab, setMobileLayersTab] = useState<"layers" | "prices" | "events" | "transit">("layers");
+  const [mobileLayersTab, setMobileLayersTab] = useState<"key" | "layers" | "prices" | "events" | "transit">("key");
   const tflStatus = useMobileTflStatus();
   const [nearbyMapResult, setNearbyMapResult] = useState<NearbyMapResult | null>(null);
   const {
@@ -3070,7 +3072,8 @@ export default function PubMap({
           }
           layersContent={
             <Tabs className="mobileLayersPanel" value={mobileLayersTab} onValueChange={(value) => setMobileLayersTab(value as typeof mobileLayersTab)}>
-              <TabsList aria-label="Layer settings sections">
+              <TabsList aria-label="Map control sections">
+                <TabsTrigger value="key">Key</TabsTrigger>
                 <TabsTrigger value="layers">Layers</TabsTrigger>
                 {experienceLens === "all" ? (
                   <TabsTrigger value="prices">Prices</TabsTrigger>
@@ -3078,6 +3081,15 @@ export default function PubMap({
                 <TabsTrigger value="events">Events</TabsTrigger>
                 <TabsTrigger value="transit">Transit</TabsTrigger>
               </TabsList>
+              <TabsContent value="key" className="mobileLayersPanel">
+                <MapKey
+                  legend={mapPriceLegend(
+                    hasTypeRelativePrices,
+                    activeLensLabel ?? undefined,
+                    drinkIndexStatus,
+                  )}
+                />
+              </TabsContent>
               <TabsContent value="layers" className="mobileLayersPanel">
                 <div className="mobileLayerShortcuts">
                   <Button className="mobilePlannerLaunch w-full justify-start" onClick={openPlanning}>
