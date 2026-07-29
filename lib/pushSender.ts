@@ -128,7 +128,7 @@ export async function broadcastNightSignalLive(
   const lead = highlights[0];
   const extra = highlights.length - 1;
   const payload: PushPayload = {
-    title: highlights.length === 1 ? "New tonight" : `${highlights.length} new signals tonight`,
+    title: highlights.length === 1 ? "New tonight" : `${highlights.length} updates for tonight`,
     body: extra > 0 ? `${lead.body} + ${extra} more` : lead.body,
     threadId: "night-signals",
     data: {

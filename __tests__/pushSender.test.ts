@@ -92,7 +92,7 @@ describe("broadcastNightSignalLive", () => {
     await seed("tok-a");
     await broadcastNightSignalLive([HIGHLIGHT, { ...HIGHLIGHT, id: "sig-2" }]);
     const [, payload] = sendMock.mock.calls[0];
-    expect(payload.title).toBe("2 new signals tonight");
+    expect(payload.title).toBe("2 updates for tonight");
     expect(payload.body).toContain("+ 1 more");
   });
 

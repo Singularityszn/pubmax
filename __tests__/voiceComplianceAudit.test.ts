@@ -89,6 +89,8 @@ describe("VOICE.md compliance audit", () => {
     const tonight = read("app/tonight/TonightClient.tsx");
     const tonightPage = read("app/tonight/page.tsx");
     const near = read("components/nearme/NearMeNow.tsx");
+    const nearPage = read("app/near/page.tsx");
+    const palChatPage = read("app/pal/chat/page.tsx");
     const tonightNearby = read("components/discovery/TonightNearbyLane.tsx");
     const deals = read("components/discovery/DealsTonightLane.tsx");
     const rivalry = read("components/discovery/CityRivalryTable.tsx");
@@ -121,6 +123,10 @@ describe("VOICE.md compliance audit", () => {
     expect(near).toContain("Cheapest listed near you");
     expect(near).not.toContain("Finding the cheapest");
     expect(near).not.toContain("Pulling up the cheapest");
+    expect(nearPage).not.toContain("good pints");
+    expect(nearPage).not.toContain("dated prices");
+    expect(palChatPage).not.toContain("grounded picks");
+    expect(palChatPage).not.toContain("nothing is made up");
 
     expect(tonightNearby).not.toContain("Curated things to do");
     expect(tonightNearby).not.toContain("Grounded,");
@@ -205,6 +211,7 @@ describe("VOICE.md compliance audit", () => {
     const crawlPage = read("app/crawls/[slug]/page.tsx");
     const crawlMissing = read("app/crawls/[slug]/not-found.tsx");
     const priceRoute = read("app/api/price-submit/route.ts");
+    const conciergeRoute = read("app/api/concierge/route.ts");
     const weatherRoute = read("app/api/weather-recommendations/route.ts");
     const planRoute = read("app/api/plans/[id]/route.ts");
     const planComplete = read("app/api/plans/[id]/complete/route.ts");
@@ -244,6 +251,8 @@ describe("VOICE.md compliance audit", () => {
 
     expect(priceRoute).not.toContain('"Missing observation id."');
     expect(priceRoute).not.toContain('"We cannot find that observation."');
+    expect(conciergeRoute).not.toContain('"cityId is invalid."');
+    expect(conciergeRoute).toContain('"Choose a listed city."');
     expect(weatherRoute).not.toContain("contributor provenance");
     expect(planRoute).not.toContain("Crawl Route");
     expect(planComplete).not.toContain("Crawl Route");
@@ -284,6 +293,7 @@ describe("VOICE.md compliance audit", () => {
     const pintDropsStore = read("lib/pintDropsStore.ts");
     const whatsOn = read("lib/concierge/whatsOn.ts");
     const palChat = read("lib/palChat.ts");
+    const pushSender = read("lib/pushSender.ts");
 
     expect(palPortrait).not.toMatch(
       /(?:collar|bell) beacon|crew-band harness/iu,
@@ -312,6 +322,8 @@ describe("VOICE.md compliance audit", () => {
     expect(digest).not.toContain("We never invent");
     expect(palChat).not.toContain("Nothing verified for that yet");
     expect(palChat).not.toContain("I won't make anything up");
+    expect(pushSender).not.toContain("new signals tonight");
+    expect(pushSender).toContain("updates for tonight");
     expect(landing).not.toContain("Cheap pints near you, live");
     expect(landing).not.toContain("No endless listings. Just");
     expect(crew).not.toContain("No account. Just your name.");

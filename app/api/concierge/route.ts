@@ -77,7 +77,7 @@ export async function POST(request: Request): Promise<Response> {
 
   const rawCity = typeof record.cityId === "string" ? record.cityId : undefined;
   const cityId = rawCity ? parseCityId(rawCity) : DEFAULT_CITY_ID;
-  if (!cityId) return jsonNoStore({ error: "cityId is invalid." }, { status: 400 });
+  if (!cityId) return jsonNoStore({ error: "Choose a listed city." }, { status: 400 });
 
   const limiterKey = `concierge:${hashIp(clientIp(request))}`;
   // Fail CLOSED: concierge calls a paid LLM. If the durable limiter can't

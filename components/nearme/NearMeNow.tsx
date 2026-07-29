@@ -7,7 +7,6 @@ import { ChevronDown, Footprints, LocateFixed, MapPin, RotateCw } from "lucide-r
 import { trackEvent } from "@/lib/analytics";
 import { CITIES, DEFAULT_CITY_ID, type CityId } from "@/lib/cities";
 import { mapHrefForCity } from "@/lib/cityPreference";
-import { PINT_DATASET_OBSERVED_AT, formatMonthYear } from "@/lib/dataFreshness";
 import { formatPrice } from "@/lib/venues";
 import { acceptNearVenue, type RawAcceptedArea } from "@/lib/venueAcceptance";
 import { venueMapUrl } from "@/lib/venueMapUrl";
@@ -88,8 +87,8 @@ export type NearMeNowProps = {
 
 const GEO_OPTS: PositionOptions = { enableHighAccuracy: false, timeout: 7000, maximumAge: 60_000 };
 
-function nearIntroLede(observedAt: Date): string {
-  return `Find the cheapest good pints within a short walk, using prices collected ${formatMonthYear(observedAt)}.`;
+function nearIntroLede(): string {
+  return "Compare listed pint prices near you, cheapest first.";
 }
 
 /** The active browse area as an acceptance area, or null for a located answer. */
@@ -408,7 +407,7 @@ export default function NearMeNow({
     <section className="nmn" aria-label="Find nearby cheap pints">
       {state === "idle" ? (
         <div className="nmnIntro">
-          <p className="nmnLede">{nearIntroLede(PINT_DATASET_OBSERVED_AT)}</p>
+          <p className="nmnLede">{nearIntroLede()}</p>
           <button type="button" className="nmnLocate" onClick={locate}>
             <LocateFixed size={18} aria-hidden="true" /> Find my pint
           </button>

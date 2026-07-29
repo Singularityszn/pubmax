@@ -78,12 +78,15 @@ describe("locality and recency claims", () => {
     expect(tonightHeading("remembered-patch")).toBe("What’s on near you tonight.");
   });
 
-  it("names Near's price collection month instead of claiming right now", () => {
+  it("limits Near's intro to listed price and ordering guarantees", () => {
     const html = renderToStaticMarkup(
       createElement(NearMeNow, { autoLocate: false }),
     );
-    expect(html).toContain("prices collected July 2026");
-    expect(html).not.toContain("right now");
+    expect(html).toContain(
+      "Compare listed pint prices near you, cheapest first.",
+    );
+    expect(html).not.toContain("good pints");
+    expect(html).not.toContain("prices collected");
   });
 
   it("describes Near results as the cheapest listed prices", () => {

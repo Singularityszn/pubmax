@@ -298,6 +298,33 @@ describe("rendering — honest, email-safe", () => {
     }
   });
 
+  it("limits footer source copy when a price has no source", () => {
+    const digest = generateWeeklyDigest(
+      baseInput({
+        priceObservations: [
+          {
+            venueId: "unsourced",
+            venueName: "The Local",
+            borough: "Camden",
+            priceGbp: 5,
+            observedAt: inWindow(1),
+          },
+        ],
+      }),
+    );
+    for (const rendered of [
+      renderWeeklyDigestHtml(digest),
+      renderWeeklyDigestText(digest),
+    ]) {
+      expect(rendered).toContain(
+        "Source links appear beside prices and events when available.",
+      );
+      expect(rendered).not.toContain(
+        "Every price and event names where it came from.",
+      );
+    }
+  });
+
   it("toEmailMessage bundles subject/html/text and substitutes the unsubscribe URL", () => {
     const url = "https://pubmaxxing.com/u/tok-123";
     const msg = toEmailMessage(rich, { unsubscribeUrl: url });

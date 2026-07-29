@@ -82,6 +82,17 @@ describe("POST /api/concierge — What's-On intents", () => {
     expect(body.venues).toBeDefined();
   });
 
+  it("uses product copy for an unknown city", async () => {
+    const res = await post(
+      { query: "quiet pub", cityId: "not-a-listed-city" },
+      "198.51.100.63",
+    );
+    expect(res.status).toBe(400);
+    await expect(res.json()).resolves.toEqual({
+      error: "Choose a listed city.",
+    });
+  });
+
   it("does not misdetect a generic noun phrase as an area (no false refusal)", async () => {
     const res = await post({ query: "quiz in the pub tonight" }, "198.51.100.63");
     const body = await res.json();
