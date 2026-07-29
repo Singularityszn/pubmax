@@ -54,6 +54,57 @@ async function mockRailData(page: Page): Promise<void> {
 }
 
 test.describe("desktop map right-rail (D3.1/D3.2)", () => {
+  test("contains map chrome and separates the Tonight Arc from 641 to 900px", async ({
+    page,
+  }) => {
+    await seedDismissedChrome(page);
+    await mockRailData(page);
+    await page.setViewportSize({ width: 641, height: 900 });
+    const response = await page.goto("/map", { waitUntil: "domcontentloaded" });
+    expect(response?.status()).toBe(200);
+    await expect(page.locator(".mapToolbar")).toBeVisible({ timeout: 20000 });
+
+    for (const width of [641, 800, 900]) {
+      await page.setViewportSize({ width, height: 900 });
+
+      const toolbar = page.locator(".mapToolbar");
+      const city = toolbar.locator(".citySwitcher");
+      const arc = page.locator(".tonightArcChips");
+      await expect(toolbar).toBeVisible({ timeout: 20000 });
+      await expect(city).toBeVisible();
+      await expect(arc).toBeVisible();
+
+      const bounds = await page.evaluate(() => {
+        const rect = (selector: string) =>
+          document.querySelector<HTMLElement>(selector)!.getBoundingClientRect();
+        const toolbarRect = rect(".mapToolbar");
+        const cityRect = rect(".mapToolbar .citySwitcher");
+        const arcRect = rect(".tonightArcChips");
+        return {
+          toolbarLeft: toolbarRect.left,
+          toolbarRight: toolbarRect.right,
+          cityLeft: cityRect.left,
+          cityRight: cityRect.right,
+          arcBottom: arcRect.bottom,
+          toolbarTop: toolbarRect.top,
+        };
+      });
+
+      expect(bounds.toolbarLeft, `${width}px toolbar left`).toBeGreaterThanOrEqual(15);
+      expect(bounds.toolbarRight, `${width}px toolbar right`).toBeLessThanOrEqual(width - 15);
+      expect(bounds.cityLeft, `${width}px city inside toolbar left`).toBeGreaterThanOrEqual(
+        bounds.toolbarLeft,
+      );
+      expect(bounds.cityRight, `${width}px city inside toolbar right`).toBeLessThanOrEqual(
+        bounds.toolbarRight,
+      );
+      expect(
+        bounds.toolbarTop - bounds.arcBottom,
+        `${width}px Arc-to-toolbar gap`,
+      ).toBeGreaterThanOrEqual(16);
+    }
+  });
+
   test("keeps Tonight arc venue chips clickable above the desktop toolbar", async ({
     page,
   }) => {

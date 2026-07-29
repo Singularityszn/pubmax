@@ -3,8 +3,7 @@
 // no API, no new data. It composes primitives that already exist:
 //
 //   • Lock-In — the default for new/young users. Chaos visible, standard type
-//     scale, the feed opens on a live/for-you lane. This is just "Legacy Mode
-//     OFF + the energetic lane."
+//     scale, and the feed opens on the complete chronological lane.
 //   • Ledger  — the Heritage view for older/low-vision users and anyone who
 //     wants the calm read. It turns Legacy Mode ON (reusing the EXACT same
 //     html[data-legacy] mechanism + "pubmax-legacy" storage key — we never
@@ -30,11 +29,11 @@ export const LEGACY_STORAGE_KEY = "pubmax-legacy";
 /** The default when nothing is stored: Lock-In (energetic, chaos-forward). */
 export const DEFAULT_MODE: ViewMode = "lock-in";
 
-/** The feed lane each mode opens on. Lock-In leans live/energetic; Ledger is
- *  the calm chronological read. These are existing FeedFilter ids — no new
- *  lanes are introduced. The feed page reads this to pick its initial filter. */
+/** The feed lane each mode opens on. Both start with the complete chronological
+ *  read so a signed-out first visit cannot land in a misleading personalised
+ *  or empty lane. These are existing FeedFilter ids - no new lane is added. */
 export const MODE_DEFAULT_LANE: Record<ViewMode, "for-you" | "latest"> = {
-  "lock-in": "for-you",
+  "lock-in": "latest",
   ledger: "latest",
 };
 

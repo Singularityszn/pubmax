@@ -1,6 +1,6 @@
 "use client";
 
-// W3 — Deals vertical UI ("cheap round"). Consumes /api/whats-on?kind=deal so
+// W3 - Deals vertical UI. Consumes /api/whats-on?kind=deal so
 // Discover surfaces the 384-row deals spine instead of leaving it invisible.
 
 import Link from "next/link";
@@ -62,13 +62,13 @@ export default function DealsTonightLane({ rows: providedRows, asOf: providedAsO
     <section className="dealsTonight" aria-labelledby="deals-tonight-title">
       <div className="dealsTonightHead">
         <h2 id="deals-tonight-title">
-          <PoundSterling size={18} aria-hidden="true" /> Cheap round tonight
+          <PoundSterling size={18} aria-hidden="true" /> Deals tonight
         </h2>
         <span className="dealsTonightChecked">{checkedLabel(asOf)}</span>
       </div>
       <p className="dealsTonightLead">
-        First-party chain deal days, {meta.badgeLabel.toLowerCase()}. Prices and
-        dishes vary by pub; check the source.
+        Listed offers and experience deals, {meta.badgeLabel.toLowerCase()}.
+        Prices and inclusions vary; check the source.
       </p>
       <ul className="dealsTonightList">
         {rows.map((row) => {

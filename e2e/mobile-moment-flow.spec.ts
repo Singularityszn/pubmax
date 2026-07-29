@@ -36,7 +36,10 @@ test.describe("mobile Moment journey", () => {
     await page.goto("/moment");
     await page.getByRole("link", { name: "Stories", exact: true }).click();
     await expect(page).toHaveURL(/\/feed$/);
-    await expect(page.getByRole("heading", { name: "The Pint Feed" })).toBeVisible();
-    await expect(page.getByRole("link", { name: "Capture a Moment" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Stories" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Latest", exact: true })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
   });
 });

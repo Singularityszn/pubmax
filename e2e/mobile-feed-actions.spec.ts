@@ -95,11 +95,17 @@ test.describe("mobile feed actions", () => {
 
     const response = await page.goto("/feed");
     expect(response?.status()).toBe(200);
-    await expect(page.locator(".feedTitle")).toBeVisible();
+    await expect(page.locator(".feedTitle")).toHaveText("Stories");
     await expectNoHorizontalOverflow(page);
 
     const chips = page.locator(".feedFilterChip");
     await expect(chips.first()).toBeVisible();
+    await expect(page.getByRole("button", { name: "Latest", exact: true })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+    await expect(page.getByRole("button", { name: "Top picks", exact: true })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Yours", exact: true })).toHaveCount(0);
     const visibleChipCount = await chips.count();
     for (let index = 0; index < Math.min(visibleChipCount, 6); index += 1) {
       const chip = chips.nth(index);

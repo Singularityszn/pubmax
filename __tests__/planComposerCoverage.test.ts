@@ -116,20 +116,37 @@ describe("PlanComposer Night Area coverage states", () => {
 describe("PlanComposer route preview seam", () => {
   it("uses house error copy when Lock it in is missing only a name", () => {
     expect(planLockValidationError({
+      title: "Thursday crawl",
       creatorName: " ",
       startTime: "2026-07-20T18:00",
       completeStopCount: 2,
+      visibleStopCount: 2,
     })).toEqual({ message: "Add your name.", focus: "name" });
   });
 
   it("keeps the broader Lock it in validation copy for mixed missing fields", () => {
     expect(planLockValidationError({
+      title: "Thursday crawl",
       creatorName: " ",
       startTime: "",
       completeStopCount: 0,
+      visibleStopCount: 0,
     })).toEqual({
       message: "Add your name, a start time, and choose at least one venue from the list.",
       focus: "name",
+    });
+  });
+
+  it("blocks blank visible stops before the final action", () => {
+    expect(planLockValidationError({
+      title: "Thursday crawl",
+      creatorName: "Karan",
+      startTime: "2026-07-20T18:00",
+      completeStopCount: 1,
+      visibleStopCount: 2,
+    })).toEqual({
+      message: "Choose a venue for every visible stop.",
+      focus: null,
     });
   });
 

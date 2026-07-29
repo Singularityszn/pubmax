@@ -1035,17 +1035,16 @@ input[type="range"] {
 }
 
 .mapFitLondonBtn,
-.mapRecenterBtn,
-.mapCompassBtn {
+.mapRecenterBtn {
   display: flex;
   align-items: center;
   gap: 6px;
   min-height: 34px;
   padding: 7px 10px;
-  border: 1px solid var(--brass);
+  border: 1px solid var(--line);
   border-radius: var(--radius-sm);
   background: var(--panel-raised);
-  color: var(--brass);
+  color: var(--ink-soft);
   box-shadow: var(--map-overlay-shadow-tight);
   font: inherit;
   font-size: 0.72rem;
@@ -1058,24 +1057,17 @@ input[type="range"] {
     transform var(--duration-fast) var(--ease-out);
 }
 
-/* The compass needle mirrors the live bearing (inline transform); ease its
-   settle so tapping "Point north" reads as the needle swinging home. */
-.mapCompassBtn svg {
-  transition: transform var(--duration-base) var(--ease-out);
-}
-
 .mapFitLondonBtn:hover,
-.mapRecenterBtn:not(:disabled):hover,
-.mapCompassBtn:hover {
-  background: var(--brass);
-  color: var(--paper);
+.mapRecenterBtn:not(:disabled):hover {
+  border-color: var(--ink-soft);
+  background: var(--panel);
+  color: var(--ink);
 }
 
 .mapFitLondonBtn:focus-visible,
-.mapRecenterBtn:focus-visible,
-.mapCompassBtn:focus-visible {
+.mapRecenterBtn:focus-visible {
   outline: none;
-  box-shadow: 0 0 0 2px var(--brass-bright);
+  box-shadow: 0 0 0 2px var(--river);
 }
 
 .mapRecenterBtn:disabled {
@@ -4980,7 +4972,6 @@ button:disabled {
 
   /* MapLibre's built-in zoom/compass/attribution compete with the bottom tab
      bar and corner FABs on phones. App-owned London/Recenter stay visible. */
-  .maplibregl-ctrl-top-right,
   .maplibregl-ctrl-bottom-left .maplibregl-ctrl-group,
   .maplibregl-ctrl-bottom-right {
     display: none;

@@ -19,9 +19,9 @@ import { CLUSTER_MAX_ZOOM } from "./buildScene";
 // added/removed, so there is never a frame where neither is visible.
 const DONUT_CAP = 60;
 // Sync runs off the map's own `render`/`moveend`/`sourcedata` events — no new
-// RAF loop (Single-RAF rule) — but `render` fires every animation frame
-// during the idle-orbit bearing sweep, so throttle the expensive
-// querySourceFeatures + diff pass rather than run it 60x/sec.
+// RAF loop (Single-RAF rule). `render` still fires every animation frame during
+// explicit camera moves, so throttle the expensive querySourceFeatures + diff
+// pass rather than run it 60x/sec.
 const RENDER_THROTTLE_MS = 120;
 
 const BUCKET_COLOR_KEYS = ["pint", "amber", "brick", "muted"] as const;

@@ -66,7 +66,7 @@ The activation cornerstone. An anonymous user gets a grounded, adjustable three-
 
 | # | Ticket | Status | Lane |
 |---|--------|--------|------|
-| 2.1 | Progressive intake flow: area (lib/nightPatches.ts patches, remembered-patch seam), time window, group size, budget, accessibility needs. Each step skippable; flow resumable; no form-wall (taste doctrine 1) | areas EXIST, flow MISSING | Fable fork |
+| 2.1 | Progressive intake flow: `components/plan/PlanIntake.tsx` owns the resumable, skippable questions over `lib/planIntake.ts`; `PlanComposer.tsx` reveals route controls only after intake and keeps the final action unavailable until every visible stop and required field is complete | EXISTS | Fable fork |
 | 2.2 | Grounded generation: extend app/api/plans/generate + lib/planRoute.ts to consume the intake constraints. Hard constraints (safety, accessibility, exclusions, budget ceiling, transport feasibility) are never silently violated: a stop that fails one is excluded or explicitly flagged, never quietly included. Soft-constraint relaxations disclosed on the result | generate EXISTS | Opus |
 | 2.3 | Stop cards with reasons: matching reasons, provenance chips (lib/provenanceLabels.ts), freshness/confidence (lib/priceConfidence.ts state machine, lib/nightSignalClaims.ts verification levels), transport feasibility (lib/tfl.ts), warnings, alternatives with one-tap swap (plan proposals seam) | data layers EXIST | Fable fork |
 | 2.4 | Constraint fence tests: vitest suite proving hard-constraint invariants against the generator (accessibility-required never yields an inaccessible stop, budget ceiling never exceeded without a flag, etc.). This is the roadmap's non-negotiable made executable | new | Opus |

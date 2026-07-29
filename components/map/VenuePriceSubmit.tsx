@@ -12,6 +12,7 @@ import {
   DEFAULT_SUBMIT_CATEGORY,
   submitCategoryLabel,
   SUBMITTABLE_DRINK_CATEGORIES,
+  validateCommunityPrice,
   type CommunityPrice,
   type CommunityPriceAttribution,
   type CommunityPriceMapReach,
@@ -134,6 +135,13 @@ export default function VenuePriceSubmit({
     () => mergePriceChips(QUICK_ADD_PRICES_GBP, baselinePriceGbp).slice(0, 3),
     [baselinePriceGbp],
   );
+  const priceValidation = useMemo(
+    () => validateCommunityPrice({ venueId, drinkCategory: category, priceGbp: price }),
+    [category, price, venueId],
+  );
+  const validationError =
+    price.trim() !== "" && !priceValidation.ok ? priceValidation.error : null;
+  const visibleError = error ?? validationError;
 
   // What this tap actually did to the map, asked of the same predicates the map
   // itself obeys - `paintsMap` for the price, `marksMapProvisionally` for the
@@ -151,7 +159,7 @@ export default function VenuePriceSubmit({
   async function logPrice() {
     // The Enter key reaches here even while the button is disabled; one
     // submission at a time keeps the optimistic rollback snapshots coherent.
-    if (submitting) return;
+    if (submitting || !priceValidation.ok) return;
     setError(null);
     const result = await submit({ venueId, drinkCategory: category, priceGbp: price });
     if (!result.ok) {
@@ -212,8 +220,8 @@ export default function VenuePriceSubmit({
             value={price}
             maxLength={6}
             aria-label={`Price of a ${submitCategoryLabel(category).toLowerCase()} at ${venueName}, in pounds`}
-            aria-invalid={error !== null}
-            aria-describedby={error ? "vpsubError" : undefined}
+            aria-invalid={visibleError !== null}
+            aria-describedby={visibleError ? "vpsubError" : undefined}
             onChange={(event) => {
               // Keep the field to what a price can be as you type - digits and
               // one separator - so the keypad can't produce an unparseable value.
@@ -232,7 +240,7 @@ export default function VenuePriceSubmit({
           type="button"
           className="vpsubLog"
           onClick={() => void logPrice()}
-          disabled={submitting || price.trim() === ""}
+          disabled={submitting || !priceValidation.ok}
         >
           {submitting ? "Logging…" : "Log it"}
         </button>
@@ -254,9 +262,9 @@ export default function VenuePriceSubmit({
         ))}
       </div>
 
-      {error ? (
+      {visibleError ? (
         <p id="vpsubError" className="vpsubError" role="alert">
-          {error}
+          {visibleError}
         </p>
       ) : null}
 

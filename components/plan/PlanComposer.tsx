@@ -313,16 +313,26 @@ export function errorMessageFromBody(body: unknown, fallback: string): string {
 }
 
 export type PlanLockValidationInput = {
+  title: string;
   creatorName: string;
   startTime: string;
   completeStopCount: number;
+  visibleStopCount: number;
 };
 
 export function planLockValidationError({
+  title,
   creatorName,
   startTime,
   completeStopCount,
+  visibleStopCount,
 }: PlanLockValidationInput): { message: string; focus: "name" | null } | null {
+  if (!title.trim()) {
+    return { message: "Give this plan a title before locking it in.", focus: null };
+  }
+  if (completeStopCount !== visibleStopCount) {
+    return { message: "Choose a venue for every visible stop.", focus: null };
+  }
   const missingName = !creatorName.trim();
   const missingTime = !startTime;
   const missingStops = completeStopCount === 0;
@@ -530,13 +540,14 @@ function PlanComposerForm({
   const [title, setTitle] = useState(handoff?.title ?? recoveredDraft?.title ?? "Tonight, sorted");
   const [creatorName, setCreatorName] = useState(handoff?.creatorName ?? recoveredDraft?.creatorName ?? "");
   const [startTime, setStartTime] = useState(handoff?.startsAt ?? recoveredDraft?.startTime ?? nextEvening);
-  const [stops, setStops] = useState<DraftStop[]>(recoveredRouteDraft?.stops ?? recoveredDraft?.stops.map((stop) => ({
-    ...stop,
-    alternatives: [],
-  })) ?? [
-    { key: 1, venueId: "", venueName: "", alternatives: [] },
-    { key: 2, venueId: "", venueName: "", alternatives: [] },
-  ]);
+  const [stops, setStops] = useState<DraftStop[]>(
+    recoveredRouteDraft?.stops ??
+      recoveredDraft?.stops.map((stop) => ({
+        ...stop,
+        alternatives: [],
+      })) ??
+      [],
+  );
   const [venues, setVenues] = useState<PlanVenueOption[]>([]);
   const [conciergeQuery, setConciergeQuery] = useState(recoveredDraft?.conciergeQuery ?? "");
   const [planIntake, setPlanIntake] = useState(recoveredIntake);
@@ -577,6 +588,32 @@ function PlanComposerForm({
     unsupportedIntakePatch,
   );
   const conciergeStatus = conciergeStatusText(sorting, unsupportedIntakePatch, conciergeNote);
+  const composerVisible =
+    planIntake.completed || Boolean(recoveredDraft || recoveredRouteDraft);
+  const completeStopIds = completeStops.map((stop) => stop.venueId);
+  const startTimeIsValid = Boolean(
+    resolveFutureLondonStartIso(
+      startTime,
+      planIntake.answers.exactStartIso,
+      new Date(),
+    ),
+  );
+  const lockValidation = planLockValidationError({
+    title,
+    creatorName,
+    startTime,
+    completeStopCount: completeStops.length,
+    visibleStopCount: stops.length,
+  });
+  const canLockPlan =
+    composerVisible &&
+    !submitting &&
+    !sorting &&
+    !routeStale &&
+    lockValidation === null &&
+    startTimeIsValid &&
+    new Set(completeStopIds).size === completeStopIds.length &&
+    (!nightContext || completeStops.length === 3);
 
   useEffect(() => {
     let active = true;
@@ -794,9 +831,11 @@ function PlanComposerForm({
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const validationError = planLockValidationError({
+      title,
       creatorName,
       startTime,
       completeStopCount: completeStops.length,
+      visibleStopCount: stops.length,
     });
     if (validationError) {
       setError(validationError.message);
@@ -903,6 +942,8 @@ function PlanComposerForm({
         draft={planIntake}
         onChange={updatePlanIntake}
       />
+      {composerVisible ? (
+        <>
       <section className="planComposer__concierge" aria-labelledby="plan-concierge-title" aria-busy={sorting}>
         <div>
           <span className="planPage__eyebrow">Describe your night</span>
@@ -1111,8 +1152,10 @@ function PlanComposerForm({
       </fieldset>
 
       {error ? <PlanComposerErrorNotice message={error} /> : null}
-      <button className="planComposer__submit" type="submit" disabled={submitting || sorting}>{submitting ? "Locking it in…" : "Lock it in"}</button>
+      <button className="planComposer__submit" type="submit" disabled={!canLockPlan}>{submitting ? "Locking it in…" : "Lock it in"}</button>
       <p className="planComposer__trust">Anyone with the link can see the plan. Joining only asks for a name.</p>
+        </>
+      ) : null}
     </form>
   );
 }

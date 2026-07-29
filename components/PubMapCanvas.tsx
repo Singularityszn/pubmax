@@ -10,7 +10,6 @@ import {
   ExternalLink,
   Landmark as LandmarkIcon,
   MapPinned,
-  Navigation2,
   X,
 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -38,16 +37,7 @@ import MapLayersControl from "@/components/map/MapLayersControl";
 import LandmarkPhotoCredit from "@/components/LandmarkPhotoCredit";
 import type { CityId } from "@/lib/cities";
 import { cityMaxBounds, DEFAULT_CITY_ID, getCity } from "@/lib/cities";
-import { resolveCompassAction } from "@/lib/mapCompass";
 import { selectMapFallbackPubs } from "@/lib/mapFallbackVenues";
-import {
-  createIdleOrbit,
-  ORBIT_CHUNK_MS,
-  ORBIT_DEG_PER_SEC,
-  ORBIT_FIRST_DELAY_MS,
-  ORBIT_INTERACTION_DELAY_MS,
-  type IdleOrbit,
-} from "@/lib/mapOrbit";
 import type { ThingsToDoOpportunity } from "@/lib/citymcp/client";
 import { opportunitiesToGeoJSON } from "@/lib/thingsToDoMap";
 import { formatPrice, type Venue } from "@/lib/venues";
@@ -413,13 +403,6 @@ export default function PubMapCanvas({
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
   const [mapReady, setMapReady] = useState(false);
-  // Live bearing for the compass reset — updated on rotate/move end, not per
-  // frame, so React stays out of the gesture's render path. Seeded from the
-  // opening camera so the compass is truthful before the first gesture.
-  const [mapBearing, setMapBearing] = useState(() => mapView.bearing ?? 0);
-  // Idle auto-orbit driver (lib/mapOrbit). Ref so the compass handler can note
-  // an interaction without re-rendering or re-wiring the orbit effect.
-  const orbitRef = useRef<IdleOrbit | null>(null);
   // Keep the latest parent callback without reading/writing refs during render
   // (react-hooks/refs). Build/event handlers + error paths read this when ready flips.
   const onMapReadyRef = useRef(onMapReady);
@@ -632,7 +615,7 @@ export default function PubMapCanvas({
   const selectedIdRef = useRef(selectedVenueId);
   // M7 pin entrance — armed once per mount at the first ACTUAL pin reveal
   // (settleSceneReady when the D2 tile-paint gate never armed, else that
-  // gate's revealPins), and driven off the existing orbit/dash/pulse RAF loop
+  // gate's revealPins), and driven off the shared entrance/dash/pulse RAF loop
   // below. `active` gates the per-frame work; `startedAt` anchors elapsed
   // time. Never re-armed by a theme swap or filter change — see
   // startPinEntrance's own fire-once `pinEntranceFired` guard.
@@ -825,8 +808,8 @@ export default function PubMapCanvas({
     };
     reducedQuery.addEventListener("change", onReducedChange);
 
-    // Window blur pauses the orbit (mirrors document.hidden); focus resumes
-    // normal idle behaviour. Some browsers blur without hiding the tab.
+    // Window blur pauses motivated map animation, matching document.hidden.
+    // Some browsers blur without hiding the tab.
     const onBlur = () => {
       blurredRef.current = true;
     };
@@ -1052,11 +1035,8 @@ export default function PubMapCanvas({
         pitch: map.getPitch(),
         bearing: map.getBearing(),
       });
-      setMapBearing(map.getBearing());
       emitBounds();
     });
-    // moveend does not fire for a pure two-finger rotation, so track it too.
-    map.on("rotateend", () => setMapBearing(map.getBearing()));
     // Kick the initial viewport's shards (a restored session may open on an
     // Outer-London borough that core doesn't cover).
     map.once("idle", emitBounds);
@@ -1578,19 +1558,44 @@ export default function PubMapCanvas({
         STYLE_LOAD_TIMEOUT_MS,
       );
     }
+    let protectedStyleInFlight = false;
+    let queuedProtectedStyle: { style: string; fallback: boolean } | null = null;
     function setProtectedStyle(
       style: string,
       fallback: boolean,
+      supersede = false,
     ) {
+      if (protectedStyleInFlight && !supersede) {
+        // Theme mutations can arrive faster than a remote style URL resolves.
+        // Keep only the latest request and never ask MapLibre to replace a
+        // half-created Style object with another half-created Style object.
+        queuedProtectedStyle = { style, fallback };
+        return;
+      }
+      if (supersede) queuedProtectedStyle = null;
+      protectedStyleInFlight = true;
       usingFallback = fallback;
       armStyleLoadProtection();
-      map.setStyle(style, { diff: false });
+      try {
+        map.setStyle(style, { diff: false });
+      } catch (error) {
+        protectedStyleInFlight = false;
+        const detail =
+          error instanceof Error ? error.message : "Map style replacement failed";
+        if (fallback) {
+          surfaceBasemapFailure(detail);
+          return;
+        }
+        queueMicrotask(() => {
+          if (mapRef.current === map) swapToBasemapFallback();
+        });
+      }
     }
     function swapToBasemapFallback() {
       if (styleLoaded || usingFallback) return;
       pinRevealCoordinator.cancel();
       beginTileFailureGeneration();
-      setProtectedStyle(FALLBACK_STYLES[themeRef.current], true);
+      setProtectedStyle(FALLBACK_STYLES[themeRef.current], true, true);
     }
     // ORDER MATTERS: this flag-setter must be registered BEFORE buildScene.
     // MapLibre fires style validation/source problems as synchronous `error`
@@ -1607,6 +1612,17 @@ export default function PubMapCanvas({
       if (!currentStyle || currentStyle._loaded === false) return;
       styleLoaded = true;
       clearStyleLoadProtection();
+      if (!protectedStyleInFlight) return;
+      protectedStyleInFlight = false;
+      const queued = queuedProtectedStyle;
+      queuedProtectedStyle = null;
+      if (queued) {
+        queueMicrotask(() => {
+          if (mapRef.current === map) {
+            setProtectedStyle(queued.style, queued.fallback);
+          }
+        });
+      }
     });
     map.on("style.load", buildScene);
     armStyleLoadProtection();
@@ -2587,69 +2603,6 @@ export default function PubMapCanvas({
   const selectedPresent =
     Boolean(selectedVenueId) &&
     (venues.some((item) => item.id === selectedVenueId) || isUkBaseId(selectedVenueId));
-  // Idle auto-orbit (owner call 2026-07-19, supersedes the abeb471e removal —
-  // rationale + the fixes for its three removal reasons live in lib/mapOrbit).
-  // Enabled only after the first pin REVEAL (not style.load), so boot idle
-  // frames are never consumed by camera motion. One long rotateTo per chunk;
-  // any pointer/wheel/touch/key on the canvas, any scheduled camera intent, or
-  // the compass pauses it instantly; hidden tab or off-screen canvas suspends.
-  useEffect(() => {
-    const map = mapRef.current;
-    const container = containerRef.current;
-    if (!map || !mapReady || !container) return;
-    let onScreen = true;
-    const orbit = createIdleOrbit({
-      firstDelayMs: ORBIT_FIRST_DELAY_MS,
-      interactionDelayMs: ORBIT_INTERACTION_DELAY_MS,
-      isReduced: () => reducedRef.current,
-      startChunk: () => {
-        const live = mapRef.current;
-        if (!live) return;
-        // Drift in the designed direction (London opens at -8): one GPU-driven
-        // linear animation per chunk, no per-frame JS camera writes.
-        live.rotateTo(live.getBearing() - ORBIT_DEG_PER_SEC * (ORBIT_CHUNK_MS / 1000), {
-          duration: ORBIT_CHUNK_MS,
-          easing: (t) => t,
-        });
-      },
-      stopChunk: () => mapRef.current?.stop(),
-      setTimer: (callback, ms) => window.setTimeout(callback, ms),
-      clearTimer: (id) => window.clearTimeout(id),
-    });
-    orbitRef.current = orbit;
-    const interact = () => orbit.noteInteraction();
-    const enable = () => orbit.setEnabled(true);
-    const chunkEnd = () => orbit.noteChunkEnd();
-    const syncSuspended = () => orbit.setSuspended(document.hidden || !onScreen);
-    const listenerOptions = { capture: true, passive: true } as const;
-    container.addEventListener("pointerdown", interact, listenerOptions);
-    container.addEventListener("wheel", interact, listenerOptions);
-    container.addEventListener("touchstart", interact, listenerOptions);
-    container.addEventListener("keydown", interact, listenerOptions);
-    window.addEventListener("pubmax:camera-intent", interact);
-    window.addEventListener("pubmax:pin-reveal", enable);
-    document.addEventListener("visibilitychange", syncSuspended);
-    map.on("moveend", chunkEnd);
-    const observer = new IntersectionObserver((entries) => {
-      onScreen = entries[0]?.isIntersecting ?? true;
-      syncSuspended();
-    });
-    observer.observe(container);
-    return () => {
-      container.removeEventListener("pointerdown", interact, listenerOptions);
-      container.removeEventListener("wheel", interact, listenerOptions);
-      container.removeEventListener("touchstart", interact, listenerOptions);
-      container.removeEventListener("keydown", interact, listenerOptions);
-      window.removeEventListener("pubmax:camera-intent", interact);
-      window.removeEventListener("pubmax:pin-reveal", enable);
-      document.removeEventListener("visibilitychange", syncSuspended);
-      map.off("moveend", chunkEnd);
-      observer.disconnect();
-      orbit.dispose();
-      if (orbitRef.current === orbit) orbitRef.current = null;
-    };
-  }, [mapReady]);
-
   useEffect(() => {
     if (!selectedVenueId) return;
     // Any venue selection — map pin, route stop, or the sidebar list — retires
@@ -2933,50 +2886,6 @@ export default function PubMapCanvas({
             Recenter
           </button>
         ) : null}
-        {/* Compass: always visible so rotation stays discoverable (it used to
-            render only while rotated, leaving no affordance at north). The
-            needle mirrors the live bearing. Rotated: tap settles back to north
-            without touching the pitch. At north: tap eases to the city's
-            designed attitude (e.g. London pitch 38 / bearing -8), so one tap
-            proves the map rotates on every device. Two-finger twist on phones
-            and right-drag / ctrl-drag on desktop stay available either way;
-            resolveCompassAction owns the decision (hermetic tests). */}
-        {(() => {
-          const compassAction = resolveCompassAction(mapBearing, getCity(cityId).mapView);
-          if (compassAction.kind === "none") return null;
-          const rotated = compassAction.kind === "reset-north";
-          return (
-            <button
-              type="button"
-              className="mapCompassBtn"
-              onClick={() => {
-                const map = mapRef.current;
-                if (!map) return;
-                // The compass eases directly (not via scheduleCamera), so tell
-                // the idle orbit explicitly: instant pause + fresh idle timer.
-                orbitRef.current?.noteInteraction();
-                map.easeTo(
-                  rotated
-                    ? { bearing: 0, duration: reducedRef.current ? 0 : 450 }
-                    : {
-                        bearing: compassAction.bearing,
-                        pitch: compassAction.pitch,
-                        duration: reducedRef.current ? 0 : 450,
-                      },
-                );
-              }}
-              aria-label={rotated ? "Point north" : "Tilt the city view"}
-              title={rotated ? "Point north" : "Tilt the city view"}
-            >
-              <Navigation2
-                size={14}
-                aria-hidden
-                style={{ transform: `rotate(${-mapBearing}deg)` }}
-              />
-              N
-            </button>
-          );
-        })()}
       </div>
       {activeLandmark ? (
         <aside className="landmarkCard" aria-label={`${activeLandmark.name} history`}>

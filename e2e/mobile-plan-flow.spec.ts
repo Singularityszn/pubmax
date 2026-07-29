@@ -27,6 +27,8 @@ test("mobile Plan flow stays tappable and usable at 390px", async ({ page }) => 
   expect(response?.status()).toBe(200);
 
   await expect(page.getByRole("heading", { name: "Describe the night. We’ll put it in order." })).toBeVisible();
+  await page.waitForLoadState("networkidle");
+  await page.getByRole("button", { name: "Describe instead" }).click();
   await expectTouchHeight(page.getByRole("textbox", { name: "Describe the night" }));
   await expectTouchHeight(page.getByRole("button", { name: "Plan my night" }));
   await expectNoHorizontalOverflow(page);

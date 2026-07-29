@@ -272,6 +272,10 @@ export default function VenueOverviewTab({
       hidden={tab !== "overview"}
     >
       <p className="venueAddress">{venue.address}</p>
+      <VenueActionStrip venue={venue} />
+      <details className="venueOverviewMore">
+        <summary>Details and practical info</summary>
+        <div className="venueOverviewMoreBody">
       {/* FSA food hygiene rating (FHRS), matched by postcode + fuzzy name
           server-side. Renders nothing for an unmatched pub. */}
       <VenueHygiene
@@ -287,7 +291,6 @@ export default function VenueOverviewTab({
         onRequestLocation={onRequestLocation}
         onClearLocation={onClearLocation}
       />
-      <VenueActionStrip venue={venue} />
       <CityPlaceStrip
         venueId={venue.id}
         venueName={venue.name}
@@ -360,6 +363,16 @@ export default function VenueOverviewTab({
           <strong>Quiet hours:</strong> {quietHours}
         </p>
       ) : null}
+          <VenueWeatherRecommendations
+            key={`weather-recommendations-${venue.id}`}
+            venueId={venue.id}
+            venueName={venue.name}
+          />
+          {/* Quest chips show supporting profile progress, not a primary
+              decision about this venue. Keep them with the optional detail. */}
+          <NextBadgeChips />
+        </div>
+      </details>
       {/* Tonight's community price sits ATOP the price on record, never
           instead of it: its own row, its own dated badge, and the sourced /
           baseline row below still renders untouched. A submission is an extra
@@ -450,11 +463,6 @@ export default function VenueOverviewTab({
           latestPintDropAt={latestPintDropAt}
         />
       ) : null}
-      <VenueWeatherRecommendations
-        key={`weather-recommendations-${venue.id}`}
-        venueId={venue.id}
-        venueName={venue.name}
-      />
       {mode === "build" && isPubVenue(venue) ? (
         <button
           className="addStopBtn"
@@ -514,10 +522,6 @@ export default function VenueOverviewTab({
           </p>
         ) : null}
       </div>
-      {/* Quest chips (IDEAS B2-lite): the viewer's own "next badge" progress,
-          resolved from their self-asserted handle (localStorage pubmax_handle)
-          inside the component. No handle → renders nothing. */}
-      <NextBadgeChips />
     </div>
   );
 }

@@ -326,7 +326,7 @@ export function buildSkyAndBuildings(ctx: SceneCtx) {
   // same hard opacity + flatten-by-inspector-zoom policy.
   tameFillExtrusionLayers(map);
 
-  const styleLayers = map.getStyle().layers;
+  const styleLayers = map.getStyle()?.layers ?? [];
   const firstSymbolId = styleLayers.find((layer) => layer.type === "symbol")?.id;
   const hasExtrusion = styleLayers.some((layer) => layer.type === "fill-extrusion");
   const buildingLayer = styleLayers.find(
