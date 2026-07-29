@@ -18,6 +18,7 @@ describe("price-stamp signature adoption", () => {
     "app/recap/[storyId]/page.tsx",
     "components/map/inspector/VenueOverviewTab.tsx",
     "components/map/UnverifiedPubSheet.tsx",
+    "components/PubMap.tsx",
   ])("%s renders prices through PriceBadge", (relativePath) => {
     const source = read(relativePath);
     expect(source).toContain('import PriceBadge from "@/components/PriceBadge"');

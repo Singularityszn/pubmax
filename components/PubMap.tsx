@@ -8,6 +8,7 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, use
 
 import SiteNav from "@/components/nav/SiteNav";
 import ThemeToggle from "@/components/ThemeToggle";
+import PriceBadge from "@/components/PriceBadge";
 import "@/components/map/venueSheet.css";
 import "@/components/map/spillComposer.css";
 import "@/components/map/logIntentFallback.css";
@@ -31,7 +32,7 @@ import {
 import { UK_BOUNDS } from "@/components/map/canvas/tokens";
 import { useFocusTrap } from "@/lib/useFocusTrap";
 import { MOBILE_MEDIA_QUERY } from "@/lib/breakpoints";
-import { useDrawerSpring } from "@/components/map/useDrawerSpring";
+import SpringDrawer from "@/components/map/SpringDrawer";
 // Perf (mobile /map cold-open): MapLibre (~327 KB) lives only in PubMapCanvas
 // and its canvas helpers (donutClusters / useMapCamera). Keep it out of the
 // PubMap shell chunk so first paint is shell + skeleton; MapLibre parses after
@@ -171,7 +172,6 @@ const LogIntentFallback = dynamic(
 import { useActivePlanRoute } from "@/components/map/pubmap/useActivePlanRoute";
 import { useMapPlanCoordinator, useMapPlanPresentation } from "@/components/map/pubmap/useMapPlanCoordinator";
 import { planStopsToRouteVenues } from "@/lib/activePlanRoute";
-import { sheetTranslateY } from "@/lib/sheetSnap";
 import { seedCrawlState, useCrawlUrlSync } from "@/components/map/useCrawlUrl";
 import {
   TRUSTED_HANDOFF_FLAGS_OFF,
@@ -814,6 +814,7 @@ export default function PubMap({
     setSheetSnap,
     sheetDragY,
     setSheetDragY,
+    sheetReleaseVelocity,
     onSheetDragStart,
     onSheetDragMove,
     onSheetDragEnd,
@@ -829,6 +830,7 @@ export default function PubMap({
     setSheetSnap: setPlannerSheetSnap,
     sheetDragY: plannerSheetDragY,
     setSheetDragY: setPlannerSheetDragY,
+    sheetReleaseVelocity: plannerSheetReleaseVelocity,
     onSheetDragStart: onPlannerSheetDragStart,
     onSheetDragMove: onPlannerSheetDragMove,
     onSheetDragEnd: onPlannerSheetDragEnd,
@@ -2154,16 +2156,6 @@ export default function PubMap({
   // The venue sheet is open for a curated venue OR for a tapped base pub; both
   // fill the same drawer/sheet, so every open/close/snap path stays one path.
   const detailOpen = Boolean(selectedVenueId && selectedVenue) || basePubOpen;
-  const plannerDrawerSpringStyle = useDrawerSpring(
-    planningOpen,
-    "left",
-    railViewport,
-  );
-  const detailDrawerSpringStyle = useDrawerSpring(
-    detailOpen,
-    "right",
-    railViewport,
-  );
   const activeNightArea = useMemo(() => nightAreaForMapQuery(cityId, filters.query) ??
     (!filters.query.trim() && plannedNightArea ? getNightArea(plannedNightArea) : null),
   [cityId, filters.query, plannedNightArea]);
@@ -2547,11 +2539,11 @@ export default function PubMap({
         <div className="mobileVenuePeekSummary" aria-label={selectedVenueLabels.summaryLabel}>
           {activeLensPrices !== null ? (
             <span>
-              <strong>
-                {selectedLensPrice
-                  ? formatPrice(selectedLensPrice.priceGbp)
-                  : "Unknown"}
-              </strong>
+              {selectedLensPrice ? (
+                <PriceBadge>{formatPrice(selectedLensPrice.priceGbp)}</PriceBadge>
+              ) : (
+                <strong>Unknown</strong>
+              )}
               <small>
                 {selectedLensPrice?.categoryLabel ??
                   drinkLensUnknownRowLabel(
@@ -2562,7 +2554,7 @@ export default function PubMap({
             </span>
           ) : typeof selectedVenue.cheapestPrice === "number" ? (
             <span>
-              <strong>{formatPrice(selectedVenue.cheapestPrice)}</strong>
+              <PriceBadge>{formatPrice(selectedVenue.cheapestPrice)}</PriceBadge>
               <small>current recorded price</small>
             </span>
           ) : selectedVenueIsPub ? (
@@ -3249,7 +3241,12 @@ export default function PubMap({
           points as the venue sheet (peek/half/full — lib/sheetSnap.ts). Opens
           at half so the map stays partially visible. Desktop is unchanged —
           side drawer, no gesture. */}
-      {!mobileViewport ? <div
+      {!mobileViewport ? <SpringDrawer
+        open={planningOpen}
+        side="left"
+        snap={plannerSheetSnap}
+        dragOffsetY={plannerSheetDragY}
+        releaseVelocityY={plannerSheetReleaseVelocity}
         className={
           (planningOpen ? "mapDrawer left open" : "mapDrawer left") +
           (planningOpen ? ` sheet-${plannerSheetSnap}` : "") +
@@ -3259,14 +3256,6 @@ export default function PubMap({
         aria-modal={planningOpen && plannerSheetSnap === "full" ? true : undefined}
         role={planningOpen && plannerSheetSnap === "full" ? "dialog" : undefined}
         aria-label={planningOpen && plannerSheetSnap === "full" ? "Crawl planner" : undefined}
-        style={
-          plannerSheetDragY !== null
-            ? {
-                transform: `translateY(${Math.max(0, sheetTranslateY(plannerSheetSnap, typeof window === "undefined" ? 0 : window.innerHeight) + plannerSheetDragY)}px)`,
-                transition: "none",
-              }
-            : plannerDrawerSpringStyle
-        }
       >
         <div
           className="mapDrawerHead sheetDragHandle plannerSheetHead"
@@ -3280,18 +3269,23 @@ export default function PubMap({
           </span>
         </div>
         {plannerPanel}
-      </div> : null}
+      </SpringDrawer> : null}
 
       {/* Right drawer: the selected pub's detail — opens only on an explicit pick.
           On mobile (≤640px) this is a true drag bottom-sheet with snap points
           (peek/half/full — lib/sheetSnap.ts). The snap class drives the resting
           transform in CSS; sheetDragY (a live px offset) only exists mid-drag, so
-          a release always lands back on a snap-driven CSS transition, never a
+          a release always lands back on a snap-driven spring, never a
           hand-picked pixel position. Desktop ignores both — no drag handlers
           fire above the gesture breakpoint, and the extra classes/attrs are
           no-ops there (see venueSheet.css / globals.css .mapDrawer rules). */}
-      {!mobileViewport ? <div
+      {!mobileViewport ? <SpringDrawer
         ref={detailDrawerRef}
+        open={detailOpen}
+        side="right"
+        snap={sheetSnap}
+        dragOffsetY={sheetDragY}
+        releaseVelocityY={sheetReleaseVelocity}
         className={
           (detailOpen ? "mapDrawer right open" : "mapDrawer right") +
           (detailOpen ? ` sheet-${sheetSnap}` : "") +
@@ -3301,14 +3295,6 @@ export default function PubMap({
         aria-modal={detailOpen ? true : undefined}
         role={detailOpen ? "dialog" : undefined}
         aria-label={detailOpen ? selectedVenueLabels.detailLabel : undefined}
-        style={
-          sheetDragY !== null
-            ? {
-                transform: `translateY(${Math.max(0, sheetTranslateY(sheetSnap, typeof window === "undefined" ? 0 : window.innerHeight) + sheetDragY)}px)`,
-                transition: "none",
-              }
-            : detailDrawerSpringStyle
-        }
       >
         <div
           className="mapDrawerHead sheetDragHandle"
@@ -3328,7 +3314,7 @@ export default function PubMap({
           </button>
         </div>
         {venuePanel}
-      </div> : null}
+      </SpringDrawer> : null}
     </main>
   );
 }

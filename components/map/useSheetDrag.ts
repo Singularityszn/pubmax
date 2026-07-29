@@ -13,9 +13,9 @@ import {
 // branch-heavy pointer handlers live off PubMap's ESLint complexity budget.
 // Reusable for both drawers: venue detail (right) and crawl planner (left).
 // Call once per sheet — each instance owns its own snap + mid-drag offset.
-// The gesture is active only ≤640px (matches venueSheet.css / globals.css);
-// above that width the panel is the unchanged desktop side drawer and every
-// handler bails out immediately.
+// The gesture is active only in the 641-768px legacy inline-sheet band. The
+// ≤640px portal sheet owns its own height drag; above 768px this is a side
+// drawer and every handler bails out immediately.
 //
 // PubMap owns WHICH snap is default on open (it resets to "half" there);
 // this hook owns the live drag → snap resolution and the mid-drag px offset.
@@ -34,12 +34,12 @@ import {
 //    throws the sheet forward instead of settling where the finger stopped.
 //  • Rubber-banding — dragging up past the "full" bound resists progressively
 //    (resist(x) = x·dim·0.55 / (dim + 0.55·|x|)) rather than hard-stopping.
-//  • Interruptible — because the settle is a CSS transition on .mapDrawer, a
-//    re-grab writes an inline transform:none at the live position, cancelling
-//    the transition from exactly where it was (no brick-wall reversal).
+//  • Interruptible — SpringDrawer consumes the live drag offset and release
+//    velocity. A re-grab reads its presented transform and cancels from that
+//    exact value, with no brick-wall reversal.
 
-// The drag gesture is only active ≤640px.
-const SHEET_GESTURE_MAX_WIDTH = 640;
+const SHEET_GESTURE_MIN_WIDTH = 641;
+const SHEET_GESTURE_MAX_WIDTH = 768;
 
 // Apple scroll-deceleration constant. projectedDisplacement =
 // (v_px_per_s / 1000) · decel / (1 − decel). With v tracked in px/ms this is
@@ -65,8 +65,10 @@ export interface SheetDrag {
   setSheetSnap: (snap: SheetSnap) => void;
   /** Live px offset while a drag is in progress; null when not dragging. */
   sheetDragY: number | null;
-  /** Clear the live offset (CSS owns the resting transform once cleared). */
+  /** Clear the live offset (SpringDrawer owns the resting transform). */
   setSheetDragY: (value: number | null) => void;
+  /** Last vertical release velocity in px/s, handed to SpringDrawer. */
+  sheetReleaseVelocity: number;
   onSheetDragStart: (event: React.PointerEvent<HTMLElement>) => void;
   onSheetDragMove: (event: React.PointerEvent<HTMLElement>) => void;
   onSheetDragEnd: (event: React.PointerEvent<HTMLElement>) => void;
@@ -108,8 +110,9 @@ function readLiveTranslateY(host: HTMLElement | null): number | null {
 export function useSheetDrag(onDismiss: () => void): SheetDrag {
   // "half" is the default resting snap whenever a sheet opens — PubMap
   // re-asserts that on each open; we just seed it here.
-  const [sheetSnap, setSheetSnap] = useState<SheetSnap>("half");
+  const [sheetSnap, setRestingSnap] = useState<SheetSnap>("half");
   const [sheetDragY, setSheetDragY] = useState<number | null>(null);
+  const [sheetReleaseVelocity, setSheetReleaseVelocity] = useState(0);
   const dragRef = useRef<{
     startY: number;
     // Offset (px) between the sheet's live position at grab and its resting
@@ -129,13 +132,22 @@ export function useSheetDrag(onDismiss: () => void): SheetDrag {
   } | null>(null);
 
   const gestureEnabled = useCallback(
-    () => typeof window !== "undefined" && window.innerWidth <= SHEET_GESTURE_MAX_WIDTH,
+    () =>
+      typeof window !== "undefined" &&
+      window.innerWidth >= SHEET_GESTURE_MIN_WIDTH &&
+      window.innerWidth <= SHEET_GESTURE_MAX_WIDTH,
     [],
   );
+
+  const setSheetSnap = useCallback((snap: SheetSnap) => {
+    setSheetReleaseVelocity(0);
+    setRestingSnap(snap);
+  }, []);
 
   const onSheetDragStart = useCallback(
     (event: React.PointerEvent<HTMLElement>) => {
       if (!gestureEnabled()) return;
+      setSheetReleaseVelocity(0);
       // Ignore drags that start on an interactive control inside the header
       // (e.g. the close button) — only the grab handle / header chrome itself
       // initiates the gesture, so tab/button clicks are unaffected.
@@ -213,7 +225,8 @@ export function useSheetDrag(onDismiss: () => void): SheetDrag {
 
       const viewportHeight = drag.viewportHeight;
       if (viewportHeight <= 0) {
-        setSheetSnap(drag.startSnap);
+        setSheetReleaseVelocity(0);
+        setRestingSnap(drag.startSnap);
         return;
       }
 
@@ -223,6 +236,7 @@ export function useSheetDrag(onDismiss: () => void): SheetDrag {
       // A finger that paused before lifting is a deliberate place, not a fling.
       const paused = performance.now() - drag.lastTime > RELEASE_PAUSE_MS;
       const releaseVelocity = paused ? 0 : drag.velocity; // px/ms
+      setSheetReleaseVelocity(releaseVelocity * 1000);
 
       // Apple momentum projection: throw the resting point forward by the
       // decaying momentum, then snap to whichever bound is nearest the PROJECTION
@@ -235,7 +249,7 @@ export function useSheetDrag(onDismiss: () => void): SheetDrag {
       const peekY = sheetTranslateY("peek", viewportHeight);
       const dismissThreshold = peekY + viewportHeight * SHEET_SNAP_FRACTIONS.peek * 0.5;
       if (projectedY > dismissThreshold) {
-        setSheetSnap("half");
+        setRestingSnap("half");
         onDismiss();
         return;
       }
@@ -249,7 +263,7 @@ export function useSheetDrag(onDismiss: () => void): SheetDrag {
           nearest = snap;
         }
       }
-      setSheetSnap(nearest);
+      setRestingSnap(nearest);
     },
     [onDismiss],
   );
@@ -259,6 +273,7 @@ export function useSheetDrag(onDismiss: () => void): SheetDrag {
     setSheetSnap,
     sheetDragY,
     setSheetDragY,
+    sheetReleaseVelocity,
     onSheetDragStart,
     onSheetDragMove,
     onSheetDragEnd,

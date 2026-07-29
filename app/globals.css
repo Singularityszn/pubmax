@@ -1386,6 +1386,14 @@ input[type="range"] {
   will-change: transform;
 }
 
+/* React owns spring presentation through this variable. The tablet sheet rules
+   below use !important for their legacy dvh snaps, so the variable is repeated
+   in that band with equal authority. */
+.mapDrawer.springDrawer {
+  transform: var(--drawer-spring-transform);
+  transition: none;
+}
+
 .mapDrawer[aria-hidden="true"] {
   pointer-events: none;
 }
@@ -4808,6 +4816,11 @@ button:disabled {
     transform: translateY(calc(100% + var(--mobile-tab-clearance)));
   }
 
+  .mapDrawer.springDrawer {
+    transform: var(--drawer-spring-transform) !important;
+    transition: none;
+  }
+
   .mapDrawer.left:not(.open):not(.sheet-dragging),
   .mapDrawer.right:not(.open):not(.sheet-dragging) {
     /* Production CSS bundling can place the desktop side-drawer transform after
@@ -4859,6 +4872,20 @@ button:disabled {
     height: 100vh;
     height: 100dvh;
     max-height: none;
+  }
+
+  /* SpringDrawer must outrank the legacy snap declarations above, including
+     their !important fence. The extra spring class and axis attribute make
+     ownership explicit without weakening the legacy fallback. */
+  .mapDrawer.springDrawer.left.open.sheet-full[data-spring-axis="vertical"]:not(.mobileSharedSheet),
+  .mapDrawer.springDrawer.left.open.sheet-half[data-spring-axis="vertical"]:not(.mobileSharedSheet),
+  .mapDrawer.springDrawer.left.open.sheet-peek[data-spring-axis="vertical"]:not(.mobileSharedSheet),
+  .mapDrawer.springDrawer.right.open.sheet-full[data-spring-axis="vertical"]:not(.mobileSharedSheet),
+  .mapDrawer.springDrawer.right.open.sheet-half[data-spring-axis="vertical"]:not(.mobileSharedSheet),
+  .mapDrawer.springDrawer.right.open.sheet-peek[data-spring-axis="vertical"]:not(.mobileSharedSheet),
+  .mapDrawer.springDrawer.left[data-spring-axis="vertical"]:not(.open),
+  .mapDrawer.springDrawer.right[data-spring-axis="vertical"]:not(.open) {
+    transform: var(--drawer-spring-transform) !important;
   }
 
   .appShell.planning-open .mapDrawer.left.open {
