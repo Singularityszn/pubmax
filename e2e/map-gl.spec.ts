@@ -1,4 +1,4 @@
-import { test, expect } from "@playwright/test";
+import { test, expect, type Page } from "@playwright/test";
 import sharp from "sharp";
 
 test.describe.configure({ mode: "serial" });
@@ -28,6 +28,16 @@ async function changedPixelRatio(first: Buffer, second: Buffer): Promise<number>
     if (delta > 24) changed += 1;
   }
   return changed / pixels;
+}
+
+async function zoomThroughHiddenMobileControl(page: Page, steps = 3): Promise<void> {
+  const zoomIn = page.locator(".maplibregl-ctrl-zoom-in");
+  for (let step = 0; step < steps; step += 1) {
+    await zoomIn.evaluate((button: HTMLButtonElement) => button.click());
+    // MapLibre animates zoomIn. Let each level settle so rapid synthetic
+    // clicks cannot coalesce into one camera transition and only three tiles.
+    await page.waitForTimeout(600);
+  }
 }
 
 // GPU-present contract. Runs only under the `chromium-gl` project, which launches
@@ -287,13 +297,10 @@ test("/map surfaces a concurrent post-paint tile outage despite one successful t
     .toMatch(/^(tiles|idle)$/);
 
   failTiles = true;
-  const zoomIn = page.locator(".maplibregl-ctrl-zoom-in");
   // Mobile CSS deliberately hides MapLibre's built-in control group. Invoke
   // its real button handler in place so this outage test can force fresh tile
   // requests without weakening the phone chrome contract.
-  await zoomIn.evaluate((button: HTMLButtonElement) => button.click());
-  await zoomIn.evaluate((button: HTMLButtonElement) => button.click());
-  await zoomIn.evaluate((button: HTMLButtonElement) => button.click());
+  await zoomThroughHiddenMobileControl(page);
   await expect.poll(() => outageRequests).toBeGreaterThanOrEqual(5);
 
   const notice = page.locator(".mapSoftRetry");
@@ -363,10 +370,7 @@ test("/map surfaces Retry when the automatic style reload also fails", async ({
 
   failTiles = true;
   failStyles = true;
-  const zoomIn = page.locator(".maplibregl-ctrl-zoom-in");
-  await zoomIn.click();
-  await zoomIn.click();
-  await zoomIn.click();
+  await zoomThroughHiddenMobileControl(page);
 
   const notice = page.locator(".mapSoftRetry");
   await expect(notice).toContainText("Map background couldn't load", {
