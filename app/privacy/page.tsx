@@ -44,7 +44,7 @@ export default function PrivacyPage() {
     <main className="legalPage">
       <header className="legalHead">
         <p className="legalEyebrow">Privacy</p>
-        <h1 className="legalTitle">What we collect, and what we don&rsquo;t</h1>
+        <h1 className="legalTitle">How PUBMAXX handles your data</h1>
         <p className="legalLede">
           You can browse the whole map, every price and every historic pub,
           without an account and without telling us anything about yourself.
@@ -57,8 +57,8 @@ export default function PrivacyPage() {
         <h2 id="short" className="legalH2">The short version</h2>
         <ul className="legalPanelList">
           <li>
-            <strong>No account needed to look.</strong>{" "}Browsing is anonymous.
-            We don&rsquo;t ask who you are to show you the price of a pint.
+            <strong>No account needed to look.</strong>{" "}We don&rsquo;t ask who
+            you are to show you the price of a pint.
           </li>
           <li>
             <strong>Analytics are off until you switch them on.</strong>{" "}On
@@ -89,8 +89,7 @@ export default function PrivacyPage() {
           data controller is that individual, reachable at{" "}
           <a href={CONTACT_MAILTO} className="legalLink">{CONTACT_EMAIL}</a>. We
           have not appointed a Data Protection Officer, because at this size the
-          law doesn&rsquo;t require one. Mail to that address reaches a person,
-          not a queue.
+          law doesn&rsquo;t require one.
         </p>
       </section>
 
@@ -302,7 +301,7 @@ export default function PrivacyPage() {
           visit, with Allow and No thanks both one tap. The browser remembers
           that choice so the prompt does not return on every visit.
           If you allow analytics, you can turn them back off later under
-          <strong> Anonymous usage analytics</strong>{" "}in your PUBMAXX
+          <strong> Optional usage analytics</strong>{" "}in your PUBMAXX
           account settings. While they&rsquo;re on:
         </p>
         <ul className="legalList">
@@ -438,7 +437,7 @@ export default function PrivacyPage() {
             <dt>Supabase</dt>
             <dd>
               Database, sign-in and file storage, on their EU region. Holds your
-              account, your posts and your community observation rows.
+              account, your posts and your community price and venue report rows.
             </dd>
           </div>
           <div className="legalRow">
@@ -536,9 +535,9 @@ export default function PrivacyPage() {
           <li>
             <strong>Community prices and venue reports:</strong>{" "}the report
             itself stays, so later readers can see what people said and when.
-            A row is one observation: the venue, either a drink and its price
-            or one venue answer from a fixed list, the date and the private
-            profile key. Price attribution stays with the row while it is up
+            Each row records the venue, either a drink and its price or one
+            venue answer from a fixed list, the date and the private profile
+            key. Price attribution stays with the row while it is up
             and counts on the public contributor record. Legacy rows may
             instead contain an unreversible device token or no public handle.
           </li>

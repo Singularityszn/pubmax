@@ -14,7 +14,7 @@ import "../legal.css";
 
 const PAGE_TITLE = "Terms of use";
 const PAGE_DESCRIPTION =
-  "The deal in plain language: what PUBMAXX is, what you can post, what prices on the map do and don't promise, and where our responsibility ends.";
+  "Plain-language terms covering what PUBMAXX is, what you can post, what map prices mean, and where our responsibility ends.";
 const LAST_UPDATED = "29 July 2026";
 
 export const metadata: Metadata = {
@@ -35,7 +35,7 @@ export default function TermsPage() {
     <main className="legalPage">
       <header className="legalHead">
         <p className="legalEyebrow">Terms of use</p>
-        <h1 className="legalTitle">The deal, in plain English</h1>
+        <h1 className="legalTitle">The deal in plain English</h1>
         <p className="legalLede">
           PUBMAXX is free, carries no ads, and nobody can pay to rank. In return
           we ask you to use it honestly and not to treat a price on the map as a
@@ -91,7 +91,7 @@ export default function TermsPage() {
         <h2 id="account" className="legalH2">Your account</h2>
         <p className="legalBody">
           Browsing does not require an account or analytics. First visit asks
-          you to tap Allow or No thanks for optional anonymous analytics. You
+          you to tap Allow or No thanks for optional usage analytics. You
           get the same app either way. If you allow them, we use a persistent
           device identifier and collect browser, operating system and device type,
           screen size, referrer and campaign details, plus app performance and
@@ -185,20 +185,21 @@ export default function TermsPage() {
         <p className="legalBody">
           Referral rewards are not active. We can record private edges and
           milestones, but those records do not grant access to paid features
-          while sign-in cannot prove one person has only one account and not
-          every qualifying contribution uses the account identity boundary. If
-          that changes, these terms and the account surface will say what is
-          granted before any reward goes live.
+          because sign-in cannot prove that one person has only one account.
+          If rewards go live, these terms and the account page will explain
+          what counts before anyone earns one.
         </p>
       </section>
 
       <section className="legalSection" aria-labelledby="prices">
-        <h2 id="prices" className="legalH2">Prices are observations, not offers</h2>
+        <h2 id="prices" className="legalH2">How to read prices</h2>
         <p className="legalBody">
-          Every price on PUBMAXX is what someone saw, on a date we show you. Pubs
-          change prices, run happy hours, charge differently on a match day, and
-          make mistakes. So does everyone logging prices. A figure here is a good
-          steer, not a quote, and the pub is under no obligation to honour it.
+          Every current price names where it came from. Prices logged by people
+          carry the day they were seen. Other current prices share the source
+          date for their dataset. Pubs change prices, run happy hours, charge
+          differently on a match day, and make mistakes. So does everyone
+          logging prices. A figure here is a good steer, not a quote, and the pub
+          is under no obligation to honour it.
           <strong> Check at the bar.</strong>
         </p>
         <p className="legalBody">

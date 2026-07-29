@@ -118,4 +118,45 @@ describe("VOICE.md compliance audit", () => {
     expect(borough).not.toMatch(/curated (?:route|crawls)/iu);
     expect(memories).not.toContain("Capture a Moment");
   });
+
+  it("keeps legal and Pint Index copy truthful and free of data plumbing", () => {
+    const privacy = read("app/privacy/page.tsx");
+    const terms = read("app/terms/page.tsx");
+    const pintIndex = read("app/pint-index/page.tsx");
+
+    expect(privacy).not.toContain("Browsing is anonymous");
+    expect(privacy).not.toContain("Anonymous usage analytics");
+    expect(privacy).not.toContain("not a queue");
+    expect(privacy).not.toContain("community observation rows");
+    expect(privacy).not.toContain("A row is one observation");
+
+    expect(terms).not.toContain("optional anonymous analytics");
+    expect(terms).not.toContain("account identity boundary");
+    expect(terms).not.toContain("Prices are observations, not offers");
+    expect(terms).not.toContain(
+      "Every price on PUBMAXX is what someone saw, on a date we show you",
+    );
+    expect(terms).toContain(
+      "Every current price names where it came from.",
+    );
+
+    for (const phrase of [
+      "observation-date validation",
+      "provenance-first",
+      "provenance-validated snapshot",
+      "Observation window:",
+      "Download the public snapshot",
+      "Methodology &amp; provenance",
+      "Eligible evidence.",
+      "boundary artifact",
+      "Quarantine.",
+      "product continuity",
+      "evidence record",
+      "Top of it right now:",
+    ]) {
+      expect(pintIndex).not.toContain(phrase);
+    }
+    expect(pintIndex).toContain("Method and sources");
+    expect(pintIndex).toContain("Prices seen:");
+  });
 });

@@ -89,6 +89,8 @@ describe("legal content pages", () => {
     expect(privacy).toMatch(/Vercel/);
     expect(privacy).toMatch(/PUBMAXX never stores raw IP addresses in its own/);
     expect(privacy).not.toMatch(/We never store your IP address/);
+    expect(privacy).not.toMatch(/Browsing is anonymous/);
+    expect(privacy).not.toMatch(/Anonymous usage analytics/);
   });
 
   it("keeps analytics optional in the terms as well as the privacy notice", () => {
@@ -100,6 +102,7 @@ describe("legal content pages", () => {
     expect(terms).toMatch(/screen\s+size/i);
     expect(terms).toMatch(/referrer\s+and\s+campaign/i);
     expect(terms).toMatch(/performance/i);
+    expect(terms).not.toMatch(/optional anonymous analytics/i);
   });
 
   it("states both 12-month analytics retention clocks on both legal pages", () => {
@@ -291,6 +294,10 @@ describe("legal content pages", () => {
     expect(terms).toMatch(/never\s+a\s+price\s+for\s+tonight/);
     expect(terms).toMatch(/dated\s+record\s+of\s+the\s+past/);
     expect(terms).not.toMatch(/Prices\s+come\s+from\s+two\s+places/);
+    expect(terms).toMatch(/Every current price names where it came from/);
+    expect(terms).not.toMatch(
+      /Every price on PUBMAXX is what someone saw, on a date we show you/,
+    );
   });
 
   it("states that account and contribution access are not age-gated", () => {
