@@ -132,36 +132,42 @@ describe("selection hint (at=)", () => {
 
 describe("selectionTransition", () => {
   it("no-ops when the selection is unchanged", () => {
-    expect(selectionTransition({ prev: "v1", next: "v1", currentEntryOwnsSentinel: true })).toEqual({
+    expect(selectionTransition({ prev: "v1", next: "v1", currentSentinelVenueId: "v1" })).toEqual({
       kind: "none",
     });
-    expect(selectionTransition({ prev: "", next: "", currentEntryOwnsSentinel: false })).toEqual({
+    expect(selectionTransition({ prev: "", next: "", currentSentinelVenueId: null })).toEqual({
       kind: "none",
     });
   });
 
   it("pushes on the first selection from a clean Map", () => {
-    expect(selectionTransition({ prev: "", next: "v1", currentEntryOwnsSentinel: false })).toEqual({
+    expect(selectionTransition({ prev: "", next: "v1", currentSentinelVenueId: null })).toEqual({
       kind: "push",
       venueId: "v1",
     });
   });
 
   it("replaces when switching Venue while a sentinel is active", () => {
-    expect(selectionTransition({ prev: "v1", next: "v2", currentEntryOwnsSentinel: true })).toEqual({
+    expect(selectionTransition({ prev: "v1", next: "v2", currentSentinelVenueId: "v1" })).toEqual({
       kind: "replace",
       venueId: "v2",
     });
   });
 
+  it("reconciles a matching sentinel reached through browser Forward", () => {
+    expect(selectionTransition({ prev: "", next: "v1", currentSentinelVenueId: "v1" })).toEqual({
+      kind: "none",
+    });
+  });
+
   it("pops with Back on close when the current entry owns the sentinel", () => {
-    expect(selectionTransition({ prev: "v1", next: "", currentEntryOwnsSentinel: true })).toEqual({
+    expect(selectionTransition({ prev: "v1", next: "", currentSentinelVenueId: "v1" })).toEqual({
       kind: "back",
     });
   });
 
   it("strips the URL on close when no sentinel is owned", () => {
-    expect(selectionTransition({ prev: "v1", next: "", currentEntryOwnsSentinel: false })).toEqual({
+    expect(selectionTransition({ prev: "v1", next: "", currentSentinelVenueId: null })).toEqual({
       kind: "strip",
     });
   });

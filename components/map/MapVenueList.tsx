@@ -1,6 +1,6 @@
 "use client";
 
-import { useId } from "react";
+import { useEffect, useId, useRef } from "react";
 import { List, MapPin, X } from "lucide-react";
 
 import CompactVenuePrice from "@/components/map/CompactVenuePrice";
@@ -10,12 +10,13 @@ import type { UkBasePub } from "@/lib/ukBasePubs";
 
 import "./mapVenueList.css";
 
-// A11Y finding #1 (WCAG 2.1.1) — the keyboard/screen-reader parallel to the
+// Accessibility contract (WCAG 2.1.1): keyboard/screen-reader parallel to
 // canvas pins. A visible, focusable "List view" toggle opens a DOM list of the
-// venues currently on the map (nearest-first to the viewport centre). Each row
-// is a real <button> that drives the SAME select handler a pin tap does, so an
-// AT user can enumerate and open any pin without touching the WebGL layer.
-// It's also just a genuinely useful feature for everyone — list view is not a
+// filtered venues projected inside the current viewport, nearest-first to its
+// centre. Each row is a real <button> that drives the SAME select handler a pin
+// tap does, so an AT user can enumerate and open any listed venue without
+// touching the WebGL layer.
+// It's also a useful feature for everyone: list view is not a
 // shim.
 export default function MapVenueList({
   model,
@@ -42,6 +43,28 @@ export default function MapVenueList({
   const total = model.total + ukBaseModel.total;
   const shown = model.shown + ukBaseModel.shown;
   const truncated = model.truncated || ukBaseModel.truncated;
+  const firstVenueRef = useRef<HTMLButtonElement>(null);
+  const closeButtonRef = useRef<HTMLButtonElement>(null);
+  const venueFocusAssignedRef = useRef(false);
+  const firstCuratedId = model.rows[0]?.id;
+  const firstBaseId = firstCuratedId ? undefined : ukBaseModel.rows[0]?.id;
+
+  useEffect(() => {
+    if (!open) {
+      venueFocusAssignedRef.current = false;
+      return;
+    }
+    const frame = requestAnimationFrame(() => {
+      if (venueFocusAssignedRef.current) return;
+      if (firstVenueRef.current) {
+        firstVenueRef.current.focus();
+        venueFocusAssignedRef.current = true;
+      } else {
+        closeButtonRef.current?.focus();
+      }
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [firstBaseId, firstCuratedId, open]);
 
   return (
     <section className={`mapVenueList${open ? " mapVenueList--open" : ""}`} aria-label={`${cityName} venue list`}>
@@ -61,6 +84,7 @@ export default function MapVenueList({
               </span>
             </div>
             <button
+              ref={closeButtonRef}
               type="button"
               className="mapVenueListClose"
               aria-label="Close venue list"
@@ -91,11 +115,13 @@ export default function MapVenueList({
                     {model.rows.map((row) => (
                       <li key={row.id}>
                         <button
+                          ref={row.id === firstCuratedId ? firstVenueRef : undefined}
+                          id={`map-venue-list-item-${row.id}`}
                           type="button"
                           className="mapVenueListItem"
+                          data-venue-id={row.id}
                           onClick={() => {
                             onSelectVenue(row.id);
-                            onOpenChange(false);
                           }}
                           onPointerEnter={() => onPrefetchVenue(row.id)}
                           onFocus={() => onPrefetchVenue(row.id)}
@@ -129,11 +155,13 @@ export default function MapVenueList({
                     {ukBaseModel.rows.map((row) => (
                       <li key={row.id}>
                         <button
+                          ref={row.id === firstBaseId ? firstVenueRef : undefined}
+                          id={`map-venue-list-item-${row.id}`}
                           type="button"
                           className="mapVenueListItem"
+                          data-venue-id={row.id}
                           onClick={() => {
                             onSelectUkBasePub(row.pub);
-                            onOpenChange(false);
                           }}
                         >
                           <span className="mapVenueListItemName">

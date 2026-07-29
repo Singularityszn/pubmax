@@ -45,6 +45,7 @@ import type {
   CategoryPriceIndexStatus,
   MapLensPrice,
 } from "@/lib/mapExperienceLens";
+import { projectedItemIdsInViewport } from "@/lib/mapVenueList";
 import type { VenueSignal, HoveredVenue, VenueDetailResponse, FailedHoverImage } from "@/components/map/canvas/types";
 import {
   MAP_STYLES, FALLBACK_STYLES, STYLE_LOAD_TIMEOUT_MS, LONDON_VIEW, UK_BOUNDS,
@@ -74,6 +75,7 @@ import {
 import {
   assembleScene, buildTransitLines,
   CLUSTER_FILL_OPACITY, CLUSTER_STROKE_OPACITY,
+  UK_BASE_MIN_ZOOM,
 } from "@/components/map/canvas/buildScene";
 import { createDonutClusterSync, type DonutClusterSync } from "@/components/map/canvas/donutClusters";
 import {
@@ -130,6 +132,19 @@ type PubMapCanvasProps = {
    */
   onUkBasePubClick?: (pub: UkBasePub) => void;
   onUkBasePubsChange?: (pubs: UkBasePub[]) => void;
+  /**
+   * Exact DOM-list membership, derived by projecting coordinates into the
+   * rendered canvas. Geographic bounds overstate a pitched or rotated view.
+   */
+  onVisibleVenueIdsChange?: (membership: {
+    curatedVenueIds: string[];
+    ukBasePubIds: string[];
+  }) => void;
+  /**
+   * Keep exact DOM-list membership in step with each camera frame while its
+   * operable list is open. Closed-list counts settle on moveend.
+   */
+  venueListOpen?: boolean;
   /**
    * A restored `?sel=venue-uk-*` arrival: the base pub's id plus the `at=`
    * location hint the selecting tap wrote alongside it. Seeds the selection
@@ -343,6 +358,8 @@ export default function PubMapCanvas({
   onVenueClick,
   onUkBasePubClick,
   onUkBasePubsChange,
+  onVisibleVenueIdsChange,
+  venueListOpen = false,
   ukBaseRestore = null,
   onRouteStopClick,
   onVenuePrefetch,
@@ -2325,9 +2342,72 @@ export default function PubMapCanvas({
     restoreId: ukBaseRestore?.id ?? null,
     onRestorePub: handleRestoredBasePub,
   });
+
+  // Project coordinates through MapLibre rather than using getBounds(): at a
+  // pitch or bearing, getBounds() is the enclosing rectangle and includes
+  // off-canvas corners. While the operable DOM list is open, re-publish on
+  // camera frames so its rows never name pins from the previous view. With
+  // the list closed, settle its visible toggle count on moveend and avoid
+  // projecting thousands of points through every ordinary pan. This is
+  // coordinate projection only, never rendered-feature or canvas hit-testing.
   useEffect(() => {
-    onUkBasePubsChange?.(ukBase.pubs);
-  }, [onUkBasePubsChange, ukBase.pubs]);
+    const map = mapRef.current;
+    if (!mapReady || !map) return;
+
+    let frame: number | null = null;
+    let lastMembershipKey: string | null = null;
+    const publishVisibleMembership = () => {
+      frame = null;
+      const container = map.getContainer();
+      const viewport = {
+        width: container.clientWidth,
+        height: container.clientHeight,
+      };
+      const curatedVenueIds = projectedItemIdsInViewport(
+        venues,
+        (venue) => map.project([venue.longitude, venue.latitude]),
+        viewport,
+      );
+      const ukBasePubIds =
+        map.getZoom() >= UK_BASE_MIN_ZOOM
+          ? projectedItemIdsInViewport(
+              ukBase.pubs,
+              (pub) => map.project([pub.lng, pub.lat]),
+              viewport,
+            )
+          : [];
+      const membershipKey =
+        `${curatedVenueIds.join("\u0000")}\u0001${ukBasePubIds.join("\u0000")}`;
+      if (membershipKey === lastMembershipKey) return;
+      lastMembershipKey = membershipKey;
+
+      const visibleBaseIds = new Set(ukBasePubIds);
+      onUkBasePubsChange?.(
+        ukBase.pubs.filter((pub) => visibleBaseIds.has(pub.id)),
+      );
+      onVisibleVenueIdsChange?.({ curatedVenueIds, ukBasePubIds });
+    };
+    const scheduleVisibleMembership = () => {
+      if (frame !== null) return;
+      frame = requestAnimationFrame(publishVisibleMembership);
+    };
+
+    map.on(venueListOpen ? "move" : "moveend", scheduleVisibleMembership);
+    map.on("resize", scheduleVisibleMembership);
+    scheduleVisibleMembership();
+    return () => {
+      if (frame !== null) cancelAnimationFrame(frame);
+      map.off(venueListOpen ? "move" : "moveend", scheduleVisibleMembership);
+      map.off("resize", scheduleVisibleMembership);
+    };
+  }, [
+    mapReady,
+    onUkBasePubsChange,
+    onVisibleVenueIdsChange,
+    ukBase.pubs,
+    venueListOpen,
+    venues,
+  ]);
 
   // CityMCP tonight opportunities → source data + overlay visibility. Kept out
   // of the mount effect deps so live opportunity refreshes never remount MapLibre.

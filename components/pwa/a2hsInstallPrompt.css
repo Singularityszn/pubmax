@@ -1,6 +1,6 @@
 /* Add-to-Home-Screen install sheet — a bottom sheet over a dimming scrim.
-   Design rubric matches the first-run tour: one accent (--brass, coral light /
-   amber dark) owns the CTA; candle-peach --panel-raised card, --radius-lg,
+   Design rubric matches the first-run tour: one coral accent (--brass) owns
+   the CTA in both themes; candle-peach --panel-raised card, --radius-lg,
    --shadow for lift; Space Grotesk (--serif) title, Inter body, sentence case.
    Motion animates only transform/opacity, ≤ --duration-slow, ease-out, and is
    gated behind prefers-reduced-motion with an opacity-only fallback. Works in

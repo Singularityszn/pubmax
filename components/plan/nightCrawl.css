@@ -6,9 +6,8 @@
    dusk signature is), so it defines a local dark palette rather than inheriting
    the page's per-theme tokens. The values mirror the design system's dark column
    (docs/DESIGN_SYSTEM.md — the same set the prototypes in
-   docs/design-explorations/night-crawl used). Coral is the CTA here as an
-   intentional U7 deviation from the shipped dark theme's amber CTA (see that
-   folder's README) — the brief asked for coral accents on ink dark.
+   docs/design-explorations/night-crawl used). Coral owns the CTA here and in
+   the shipped dark theme; amber remains a route and price signal.
 
    The quarantined Bungee display face is deliberately NOT adopted here, so this
    plan family never enters the party-accent budget; display type is mimicked

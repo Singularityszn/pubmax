@@ -11,7 +11,6 @@ import {
   type UkBaseLoader,
   type UkBasePub,
 } from "@/lib/ukBasePubs";
-import type { MapBounds } from "@/lib/slimShards";
 
 // Streams the UK base layer (lib/ukBasePubs.ts) into the map's `uk-base`
 // source, one viewport at a time.
@@ -62,11 +61,11 @@ type Options = {
 };
 
 /**
- * How many base pubs the current viewport is carrying. Published so the canvas
- * can expose it as a data attribute the same way it exposes the venue count -
- * the layer is otherwise invisible to any test that cannot reach the MapLibre
- * instance, and "the pins are there but too quiet to see" and "the pins never
- * loaded" look identical in a screenshot.
+ * How many base pubs the current padded map source is carrying. Published so
+ * the canvas can expose it as a data attribute the same way it exposes the
+ * venue count. PubMapCanvas projects these source rows for exact visible-list
+ * membership; keeping padding here lets that list update during a pan without
+ * waiting for the next debounced shard fetch.
  */
 export type UkBaseStreamState = { count: number; pubs: UkBasePub[] };
 type PublishedUkBaseStreamState = UkBaseStreamState & { scopeKey: string };
@@ -85,22 +84,6 @@ export function visibleUkBaseStreamState(
     return EMPTY_UK_BASE_STREAM_STATE;
   }
   return { count: published.count, pubs: published.pubs };
-}
-
-export function ukBasePubsWithinBounds(
-  pubs: UkBasePub[],
-  bounds: MapBounds,
-): UkBasePub[] {
-  const containsLongitude =
-    bounds.west <= bounds.east
-      ? (lng: number) => lng >= bounds.west && lng <= bounds.east
-      : (lng: number) => lng >= bounds.west || lng <= bounds.east;
-  return pubs.filter(
-    (pub) =>
-      pub.lat >= bounds.south &&
-      pub.lat <= bounds.north &&
-      containsLongitude(pub.lng),
-  );
 }
 
 export function nextUkBaseStreamToken(
@@ -135,7 +118,7 @@ export function useUkBaseStreaming({
   );
 
   const publish = useCallback(
-    (nextPubs: UkBasePub[], viewportBounds?: MapBounds) => {
+    (nextPubs: UkBasePub[]) => {
       const drawablePubs = ukBasePubsForDrawableVenues(
         nextPubs,
         drawableVenueIds,
@@ -148,9 +131,11 @@ export function useUkBaseStreaming({
       setPublished({
         scopeKey,
         count: drawablePubs.length,
-        pubs: viewportBounds
-          ? ukBasePubsWithinBounds(drawablePubs, viewportBounds)
-          : [],
+        // Keep the padded source rows available for immediate reprojection as
+        // the camera moves. PubMapCanvas publishes only rows actually on the
+        // rendered canvas, so stale AABB membership never reaches the DOM list
+        // or provisional-mark reader while the next shard fetch is debounced.
+        pubs: drawablePubs,
       });
       applyToMap("uk-base:data", (map) => {
         (map.getSource("uk-base") as maplibregl.GeoJSONSource | undefined)?.setData(data);
@@ -200,7 +185,7 @@ export function useUkBaseStreaming({
         .pubsForBounds(viewportBounds)
         .then((pubs) => {
           if (cancelled || token !== generation.current) return;
-          const drawablePubs = publish(pubs, viewportBounds);
+          const drawablePubs = publish(pubs);
           const wanted = restoreIdRef.current;
           if (!wanted) return;
           const hit = drawablePubs.find((pub) => pub.id === wanted);

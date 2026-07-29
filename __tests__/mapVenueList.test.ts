@@ -3,6 +3,7 @@ import { describe, it, expect } from "vitest";
 import {
   buildMapVenueListModel,
   buildUkBasePubListModel,
+  projectedItemIdsInViewport,
   MAP_VENUE_LIST_LIMIT,
 } from "@/lib/mapVenueList";
 import type { UkBasePub } from "@/lib/ukBasePubs";
@@ -36,15 +37,15 @@ describe("buildMapVenueListModel — the list-toggle gate", () => {
     expect(model.truncated).toBe(false);
   });
 
-  it("caps the list and flags truncation past the limit", () => {
+  it("keeps every in-view venue keyboard-reachable by default", () => {
     const venues = Array.from({ length: MAP_VENUE_LIST_LIMIT + 5 }, (_, i) =>
       venue({ id: `v${i}` }),
     );
     const model = buildMapVenueListModel(venues, [-0.12, 51.5]);
     expect(model.total).toBe(MAP_VENUE_LIST_LIMIT + 5);
-    expect(model.shown).toBe(MAP_VENUE_LIST_LIMIT);
-    expect(model.rows).toHaveLength(MAP_VENUE_LIST_LIMIT);
-    expect(model.truncated).toBe(true);
+    expect(model.shown).toBe(MAP_VENUE_LIST_LIMIT + 5);
+    expect(model.rows).toHaveLength(MAP_VENUE_LIST_LIMIT + 5);
+    expect(model.truncated).toBe(false);
   });
 
   it("honours a custom limit", () => {
@@ -52,6 +53,67 @@ describe("buildMapVenueListModel — the list-toggle gate", () => {
     const model = buildMapVenueListModel(venues, null, 2);
     expect(model.shown).toBe(2);
     expect(model.truncated).toBe(true);
+  });
+});
+
+describe("projectedItemIdsInViewport", () => {
+  it("excludes a geographic bounds corner projected off a pitched, rotated map", () => {
+    const rows = [
+      { id: "centre", screen: { x: 500, y: 300 } },
+      // Inside map.getBounds(), but outside the rendered quadrilateral once
+      // pitch and bearing project this north-east corner past the canvas edge.
+      { id: "bbox-corner", screen: { x: 1040, y: -35 } },
+      { id: "edge", screen: { x: 1000, y: 600 } },
+    ];
+
+    expect(
+      projectedItemIdsInViewport(
+        rows,
+        (row) => row.screen,
+        { width: 1000, height: 600 },
+      ),
+    ).toEqual(["centre", "edge"]);
+  });
+
+  it("rejects non-finite projection results", () => {
+    expect(
+      projectedItemIdsInViewport(
+        [
+          { id: "valid", screen: { x: 1, y: 1 } },
+          { id: "invalid", screen: { x: Number.NaN, y: 1 } },
+        ],
+        (row) => row.screen,
+        { width: 10, height: 10 },
+      ),
+    ).toEqual(["valid"]);
+  });
+
+  it("recomputes loaded base-pub membership immediately after a disjoint pan", () => {
+    const pubs = [{ id: "old-view" }, { id: "new-view" }];
+    const oldProjection = new Map([
+      ["old-view", { x: 30, y: 30 }],
+      ["new-view", { x: 900, y: 30 }],
+    ]);
+    const newProjection = new Map([
+      ["old-view", { x: -900, y: 30 }],
+      ["new-view", { x: 30, y: 30 }],
+    ]);
+    const viewport = { width: 100, height: 100 };
+
+    expect(
+      projectedItemIdsInViewport(
+        pubs,
+        (pub) => oldProjection.get(pub.id)!,
+        viewport,
+      ),
+    ).toEqual(["old-view"]);
+    expect(
+      projectedItemIdsInViewport(
+        pubs,
+        (pub) => newProjection.get(pub.id)!,
+        viewport,
+      ),
+    ).toEqual(["new-view"]);
   });
 });
 

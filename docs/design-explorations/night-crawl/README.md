@@ -25,12 +25,6 @@ letter-spaced, uppercase system stack. Every target is well above 44px (heroes a
 action slabs are 62-76px+). All three are fully self-contained: inline CSS, fake data,
 inline SVG only, **zero external requests** (verified by grep for `http`).
 
-> Note on accent: the shipped dark theme (B Night Out) actually drives its **CTA in
-> amber**, reserving coral for light. The U7 brief explicitly asked for "coral accents"
-> on ink dark, so these explorations run coral-forward as an intentional deviation. If
-> a direction graduates to spec, the first decision to settle is coral-CTA vs the
-> theme's amber-CTA (see recommendation).
-
 ## The three directions
 
 ### Option A - Card stack glance screen ([`option-a.html`](./option-a.html))
@@ -112,8 +106,6 @@ C's map in later as an *optional* expand ("show on map"), never the default surf
 the map-first brand promise is kept for the calm moments and dropped for the 15% ones.
 
 ### Open questions to settle before spec
-- **Coral CTA vs the theme's amber CTA.** These run coral-forward per the U7 brief;
-  the shipped dark theme puts the CTA in amber. Pick one before this becomes real UI.
 - **Arrive = whole-crew check-in or just me?** All three copy it as "checks the crew
   into stop 2" - that is a `plan.ts` action-model question (host vs guest), not a visual
   one, and it changes what the button promises.

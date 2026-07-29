@@ -9,15 +9,14 @@ import {
   type MapLensPrice,
 } from "@/lib/mapExperienceLens";
 
-// A11Y finding #1 (WCAG 2.1.1): the WebGL pins are pointer-only, so a keyboard
-// or screen-reader user can never enumerate/open an arbitrary pin. This is the
-// pure model behind the DOM "List view" — the keyboard-reachable parallel to
+// Accessibility contract (WCAG 2.1.1): WebGL pins are pointer-only. This is the
+// pure model behind the DOM "List view", the keyboard-reachable parallel to
 // the canvas. It reuses the existing nearby-picker builder so the list rows are
 // the SAME shape (name + price + optional distance) the log-drop picker uses,
 // and selection from a row drives the SAME select handler a pin tap does.
 
-// Keep the list scannable — the map can hold hundreds of pins, but an
-// unbounded DOM list is neither usable nor performant to render.
+// Explicit limit available to deliberately bounded secondary views. Main map
+// list does not apply it because every venue in view must remain operable.
 export const MAP_VENUE_LIST_LIMIT = 60;
 
 export type MapVenueListModel = {
@@ -54,6 +53,48 @@ export type UkBasePubListModel = {
 };
 
 /**
+ * Exact rendered membership for pitched and rotated maps.
+ *
+ * MapLibre's geographic bounds are the axis-aligned box around the rendered
+ * quadrilateral, so its corners can name pubs that are actually off canvas.
+ * The map supplies its own projection here instead. This reads coordinates
+ * only and never queries rendered features or performs canvas hit-testing.
+ */
+export function projectedItemIdsInViewport<T extends { id: string }>(
+  items: readonly T[],
+  project: (item: T) => { x: number; y: number },
+  viewport: { width: number; height: number },
+): string[] {
+  if (
+    !Number.isFinite(viewport.width) ||
+    !Number.isFinite(viewport.height) ||
+    viewport.width <= 0 ||
+    viewport.height <= 0
+  ) {
+    return [];
+  }
+  return items.flatMap((item) => {
+    let point: { x: number; y: number };
+    try {
+      point = project(item);
+    } catch {
+      return [];
+    }
+    if (
+      !Number.isFinite(point.x) ||
+      !Number.isFinite(point.y) ||
+      point.x < 0 ||
+      point.x > viewport.width ||
+      point.y < 0 ||
+      point.y > viewport.height
+    ) {
+      return [];
+    }
+    return [item.id];
+  });
+}
+
+/**
  * Build the keyboard/AT-reachable list of the venues currently on the map.
  *
  * Ordered nearest-first to the viewport centre so the list mirrors what the eye
@@ -63,7 +104,7 @@ export type UkBasePubListModel = {
 export function buildMapVenueListModel(
   venues: Venue[],
   viewportCenter: [number, number] | null,
-  limit: number = MAP_VENUE_LIST_LIMIT,
+  limit: number = venues.length,
   lensPrices: ReadonlyMap<string, MapLensPrice> | null = null,
   lensCategoryLabel: string = "this view",
   lensStatus: CategoryPriceIndexStatus = "ready",
@@ -105,7 +146,7 @@ export function buildMapVenueListModel(
 export function buildUkBasePubListModel(
   pubs: UkBasePub[],
   viewportCenter: [number, number] | null,
-  limit: number = MAP_VENUE_LIST_LIMIT,
+  limit: number = pubs.length,
 ): UkBasePubListModel {
   const origin =
     viewportCenter &&

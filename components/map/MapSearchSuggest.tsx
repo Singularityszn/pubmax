@@ -114,19 +114,27 @@ export default function MapSearchSuggest({
   );
 
   const [activeIndex, setActiveIndex] = useState(-1);
+  // Keyboard events can arrive before React commits the previous highlight.
+  // Keep the event-time value synchronous so ArrowDown then Enter activates
+  // the row a keyboard user just chose, not the first stale render-time row.
+  const activeIndexRef = useRef(-1);
+  const chooseActiveIndex = useCallback((next: number) => {
+    activeIndexRef.current = next;
+    setActiveIndex(next);
+  }, []);
   // The list underneath can shrink between renders (fewer matches); clamp the
   // highlight to what still exists so aria-activedescendant never dangles.
-  const safeActive = activeIndex < items.length ? activeIndex : -1;
+  const safeActive = activeIndex >= 0 && activeIndex < items.length ? activeIndex : -1;
 
   // Typing invalidates the highlight — reset it in the change handler (an event,
   // never an effect) so the list and its active row can't drift out of sync.
   const changeQuery = useCallback(
     (next: string) => {
-      setActiveIndex(-1);
+      chooseActiveIndex(-1);
       if (mode === "toolbar") setToolbarFocused(true);
       onQueryChange(next);
     },
-    [mode, onQueryChange],
+    [chooseActiveIndex, mode, onQueryChange],
   );
 
   const trimmed = query.trim();
@@ -183,20 +191,24 @@ export default function MapSearchSuggest({
 
   const handleKeyDown = useCallback(
     (event: React.KeyboardEvent<HTMLInputElement>) => {
+      const eventActive =
+        activeIndexRef.current >= 0 && activeIndexRef.current < items.length
+          ? activeIndexRef.current
+          : -1;
       if (event.key === "ArrowDown" && items.length > 0) {
         event.preventDefault();
-        setActiveIndex((current) => (current + 1) % items.length);
+        chooseActiveIndex((eventActive + 1) % items.length);
         return;
       }
       if (event.key === "ArrowUp" && items.length > 0) {
         event.preventDefault();
-        setActiveIndex((current) => (current <= 0 ? items.length - 1 : current - 1));
+        chooseActiveIndex(eventActive <= 0 ? items.length - 1 : eventActive - 1);
         return;
       }
       if (event.key === "Enter") {
         event.preventDefault();
         if (items.length > 0) {
-          activate(safeActive >= 0 ? items[safeActive] : items[0]);
+          activate(eventActive >= 0 ? items[eventActive] : items[0]);
           return;
         }
         // Zero-result miss: keep the panel + empty state open and leave focus
@@ -209,8 +221,8 @@ export default function MapSearchSuggest({
         // which would re-fire changeQuery, re-open the toolbar panel, and flash
         // the empty-query "nearby areas" prompt instead of a clean dismiss.
         event.preventDefault();
-        if (safeActive >= 0) {
-          setActiveIndex(-1);
+        if (eventActive >= 0) {
+          chooseActiveIndex(-1);
           return;
         }
         if (mode === "toolbar") {
@@ -223,7 +235,7 @@ export default function MapSearchSuggest({
         });
       }
     },
-    [activate, mode, safeActive, items, onClose],
+    [activate, chooseActiveIndex, items, mode, onClose],
   );
 
   const pubStartIndex = suggestions.areas.length;
@@ -272,7 +284,7 @@ export default function MapSearchSuggest({
                     className={`mapSearchSuggestRow${safeActive === index ? " isActive" : ""}`}
                     onMouseDown={(event) => event.preventDefault()}
                     onClick={() => activate({ type: "area", item: area })}
-                    onPointerEnter={() => setActiveIndex(index)}
+                    onPointerEnter={() => chooseActiveIndex(index)}
                   >
                     <span className="mapSearchSuggestRowMain">
                       <MapPin size={15} aria-hidden="true" className="mapSearchSuggestRowIcon" />
@@ -306,11 +318,12 @@ export default function MapSearchSuggest({
                       key={pub.id}
                       id={optionId(index)}
                       role="option"
+                      data-venue-id={pub.id}
                       aria-selected={safeActive === index}
                       className={`mapSearchSuggestRow${safeActive === index ? " isActive" : ""}`}
                       onMouseDown={(event) => event.preventDefault()}
                       onClick={() => activate({ type: "pub", item: pub })}
-                      onPointerEnter={() => setActiveIndex(index)}
+                      onPointerEnter={() => chooseActiveIndex(index)}
                     >
                       <span className="mapSearchSuggestRowMain">
                         <span className="mapSearchSuggestRowName">{pub.name}</span>

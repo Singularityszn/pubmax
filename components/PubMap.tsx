@@ -24,7 +24,10 @@ import {
 import { filterMapVenues, withForcedVenue } from "@/lib/filterMapVenues";
 import { mergePriceUpdates, parsePriceUpdates, type PriceUpdate } from "@/lib/priceUpdates";
 import { nearestVenueIds, nearbyVenuesForMap } from "@/lib/nearby";
-import { buildMapVenueListModel, buildUkBasePubListModel } from "@/lib/mapVenueList";
+import {
+  buildMapVenueListModel,
+  buildUkBasePubListModel,
+} from "@/lib/mapVenueList";
 import { UK_BOUNDS } from "@/components/map/canvas/tokens";
 import { useFocusTrap } from "@/lib/useFocusTrap";
 import { MOBILE_MEDIA_QUERY } from "@/lib/breakpoints";
@@ -539,6 +542,7 @@ export default function PubMap({
   const [selectedVenueId, setSelectedVenueId] = useState<string>(
     seed.selectedVenueId || restoredMobileSession?.selectedVenueId || "",
   );
+  const preSheetFocusRef = useRef<HTMLElement | null>(null);
   const [venueInitialTab, setVenueInitialTab] = useState<TabKey>("overview");
   const [filters, setFilters] = useState<Filters>(restoredMobileSession?.filters ?? seed.filters);
   const [experienceLens, setExperienceLens] =
@@ -651,6 +655,11 @@ export default function PubMap({
   /** Once the viewer collapses a deep-linked lane, don't keep forcing it open. */
   const [dismissedTonightSrc, setDismissedTonightSrc] = useState<string | null>(null);
   const [mapListOpen, setMapListOpen] = useState(false);
+  const [visibleVenueState, setVisibleVenueState] = useState<{
+    cityId: CityId;
+    curatedVenueIds: string[];
+    ukBasePubIds: string[];
+  } | null>(null);
   const baseVenues = useMemo(
     () => mergeLazyDetailPins(slimPins, detailById),
     [slimPins, detailById],
@@ -945,6 +954,15 @@ export default function PubMap({
     },
     [mergeSlimVenues],
   );
+  const handleVisibleVenueIdsChange = useCallback(
+    (membership: {
+      curatedVenueIds: string[];
+      ukBasePubIds: string[];
+    }) => {
+      setVisibleVenueState({ cityId, ...membership });
+    },
+    [cityId],
+  );
 
   // Near-me: geolocating into a hollow outer borough loads that borough's shard
   // (with one retry inside the loader) so the nearby pins exist. Until it lands
@@ -1180,12 +1198,21 @@ export default function PubMap({
     experienceLens,
     experienceLensPrices,
   ]);
-  // A11Y finding #1 — keyboard/SR-reachable model of the venues on the map,
-  // ordered nearest-first to the viewport centre. Same set the canvas paints.
+  // Accessibility contract: derive list membership from MapLibre's exact coordinate
+  // projection after every product filter that controls canvas membership.
+  // Before the first projection, empty is the only honest answer.
+  const mapVenueListVenues = useMemo(
+    () => {
+      if (visibleVenueState?.cityId !== cityId) return [];
+      const visibleIds = new Set(visibleVenueState.curatedVenueIds);
+      return kindVisibleMapVenues.filter((venue) => visibleIds.has(venue.id));
+    },
+    [cityId, kindVisibleMapVenues, visibleVenueState],
+  );
   const mapVenueListModel = useMemo(
     () =>
       buildMapVenueListModel(
-        kindVisibleMapVenues,
+        mapVenueListVenues,
         mapViewport.center,
         undefined,
         activeLensPrices,
@@ -1196,7 +1223,7 @@ export default function PubMap({
       activeLensNoun,
       activeLensPrices,
       drinkIndexStatus,
-      kindVisibleMapVenues,
+      mapVenueListVenues,
       mapViewport.center,
     ],
   );
@@ -1234,8 +1261,17 @@ export default function PubMap({
     ukBaseRestore?.id,
   ]);
   const ukBasePubListModel = useMemo(
-    () => buildUkBasePubListModel(renderedBasePubs, mapViewport.center),
-    [renderedBasePubs, mapViewport.center],
+    () => {
+      if (visibleVenueState?.cityId !== cityId) {
+        return buildUkBasePubListModel([], mapViewport.center);
+      }
+      const visibleIds = new Set(visibleVenueState.ukBasePubIds);
+      return buildUkBasePubListModel(
+        renderedBasePubs.filter((pub) => visibleIds.has(pub.id)),
+        mapViewport.center,
+      );
+    },
+    [cityId, mapViewport.center, renderedBasePubs, visibleVenueState],
   );
   const mapContextName =
     ukPlaceArrival?.name ??
@@ -1361,6 +1397,19 @@ export default function PubMap({
       origin: PlanningIntentSource | null = null,
     ) => {
       if (!id) return;
+      if (typeof document !== "undefined") {
+        const active = document.activeElement;
+        if (
+          active instanceof HTMLElement &&
+          active !== document.body &&
+          active !== document.documentElement &&
+          !active.closest(".mapDrawer, .mobileSheetPortal")
+        ) {
+          // Capture synchronously. Search closes and blurs its combobox in the
+          // same event before React opens the drawer.
+          preSheetFocusRef.current = active;
+        }
+      }
       selectionOriginRef.current = origin;
       // Base pubs have no /api/venue record; prefetching one is a certain 404.
       if (!isUkBaseId(id)) prefetchVenue(id);
@@ -2283,26 +2332,63 @@ export default function PubMap({
   // Esc, or a fresh ?sel= navigating away) we hand focus back to whatever
   // triggered the open rather than dropping it to <body>.
   const drawerCloseButtonRef = useRef<HTMLButtonElement | null>(null);
-  const preSheetFocusRef = useRef<HTMLElement | null>(null);
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (detailOpen) {
-      preSheetFocusRef.current =
-        document.activeElement instanceof HTMLElement ? document.activeElement : null;
+      if (preSheetFocusRef.current === null) {
+        const active = document.activeElement;
+        if (
+          active instanceof HTMLElement &&
+          active !== document.body &&
+          active !== document.documentElement
+        ) {
+          preSheetFocusRef.current = active;
+        }
+      }
       drawerCloseButtonRef.current?.focus();
     } else if (preSheetFocusRef.current) {
-      // The trigger may have unmounted (e.g. a pin re-rendered away) — guard
-      // with isConnected so we never call .focus() on a detached node.
-      if (preSheetFocusRef.current.isConnected) preSheetFocusRef.current.focus();
+      const target = preSheetFocusRef.current;
+      const targetId = target.id;
+      const restoreFocus = () => {
+        const currentTarget =
+          target.isConnected
+            ? target
+            : targetId
+              ? document.getElementById(targetId)
+              : null;
+        currentTarget?.focus();
+      };
+      // Restore in the close commit, then once more after selection history has
+      // popped its URL checkpoint. Browser history traversal can otherwise
+      // move focus back to the document after this layout effect.
+      restoreFocus();
       preSheetFocusRef.current = null;
+      const frame = requestAnimationFrame(restoreFocus);
+      let popFrame: number | null = null;
+      const restoreAfterHistory = () => {
+        popFrame = requestAnimationFrame(restoreFocus);
+      };
+      // Local close pops the selection sentinel after this commit. Restore
+      // once more on that exact history settlement so traversal cannot strand
+      // focus on the document. Browser-Back close has already popped, and the
+      // animation-frame restore above covers that path.
+      window.addEventListener("popstate", restoreAfterHistory, { once: true });
+      const listenerCeiling = window.setTimeout(() => {
+        window.removeEventListener("popstate", restoreAfterHistory);
+      }, 1_000);
+      return () => {
+        cancelAnimationFrame(frame);
+        if (popFrame !== null) cancelAnimationFrame(popFrame);
+        window.clearTimeout(listenerCeiling);
+        window.removeEventListener("popstate", restoreAfterHistory);
+      };
     }
   }, [detailOpen]);
 
-  // A11Y finding #2 — desktop venue drawer focus-trap parity. The desktop right
-  // drawer already claims dialog/aria-modal at `full` and owns focus-in/restore
-  // (above) + Esc (useMapKeyboardShortcuts); the missing piece was trapping Tab
-  // and inert-ing the background. Reuse the SAME trap the mobile sheet uses.
+  // Desktop accessibility contract: drawer is modal for its full open lifetime. Desktop
+  // never changes detent, so gating trap on mobile-oriented `sheetSnap` left it
+  // inactive at its permanent `half` state.
   const detailDrawerRef = useRef<HTMLDivElement | null>(null);
-  useFocusTrap(!mobileViewport && detailOpen && sheetSnap === "full", detailDrawerRef);
+  useFocusTrap(!mobileViewport && detailOpen, detailDrawerRef);
 
   // G3: Place story deep-link chip when `?band=` resolves. Takes priority over
   // curated onboarding so the two never fight.
@@ -2588,8 +2674,8 @@ export default function PubMap({
 
       {/* Full-bleed map is the base layer; every panel slides in over it.
           Named region so AT users get a landmark for the map surface (the
-          canvas pins are pointer-only; keyboard discovery is the tonight lane
-          + search input inside this region). */}
+          canvas pins are pointer-only; List view provides their operable DOM
+          parallel alongside search and the tonight lane). */}
       <section className="mapStage" aria-label={`Interactive pub map of ${mapDisplayName}`}>
         {!ukPlaceArrival ? (
           <TonightArcChips
@@ -2639,6 +2725,8 @@ export default function PubMap({
           onVenueClick={handleVenueClick}
           onUkBasePubClick={handleUkBasePubClick}
           onUkBasePubsChange={setRenderedBasePubs}
+          onVisibleVenueIdsChange={handleVisibleVenueIdsChange}
+          venueListOpen={mapListOpen}
           ukBaseRestore={ukBaseRestore}
           onRouteStopClick={selectVenue}
           onVenuePrefetch={prefetchVenueDetail}
@@ -2838,7 +2926,11 @@ export default function PubMap({
           cityName={mapContextName}
           open={mapListOpen}
           onOpenChange={setMapListOpen}
-          loaded={loaded && loadedCityId === cityId}
+          loaded={
+            loaded &&
+            loadedCityId === cityId &&
+            visibleVenueState?.cityId === cityId
+          }
           onSelectVenue={selectVenue}
           onSelectUkBasePub={handleUkBasePubClick}
           onPrefetchVenue={prefetchVenueDetail}
@@ -3195,13 +3287,9 @@ export default function PubMap({
           (sheetDragY !== null ? " sheet-dragging" : "")
         }
         aria-hidden={!detailOpen}
-        // The sheet only claims modal semantics at its "full" snap, where it
-        // visually covers virtually the whole viewport (92vh) — at peek/half
-        // enough of the map stays visible/reachable that a true modal trap
-        // would be wrong (the user can still see and return to the map).
-        aria-modal={detailOpen && sheetSnap === "full" ? true : undefined}
-        role={detailOpen && sheetSnap === "full" ? "dialog" : undefined}
-        aria-label={detailOpen && sheetSnap === "full" ? selectedVenueLabels.detailLabel : undefined}
+        aria-modal={detailOpen ? true : undefined}
+        role={detailOpen ? "dialog" : undefined}
+        aria-label={detailOpen ? selectedVenueLabels.detailLabel : undefined}
         style={
           sheetDragY !== null
             ? {

@@ -22,7 +22,7 @@ This document is the corrected rationale behind the **2026-07-28 execution propo
 | [`docs/DESIGN_DIRECTION_2026-07-18.md`](./DESIGN_DIRECTION_2026-07-18.md) | Craft Top-8 (D1–D8) |
 | [`docs/STORE_READINESS.md`](./STORE_READINESS.md) | Store pack + owner enrolment gate |
 | [`docs/FRESHNESS_BURNDOWN_2026-07-24.md`](./FRESHNESS_BURNDOWN_2026-07-24.md) | Stale feeds vs unmeasurable feeds |
-| [`docs/A11Y_MATRIX_2026-07-18.md`](./A11Y_MATRIX_2026-07-18.md) | Accessibility findings still open |
+| [`docs/A11Y_MATRIX_2026-07-18.md`](./A11Y_MATRIX_2026-07-18.md) | Accessibility contract and remaining accent findings |
 | [`docs/UNKNOWNS_MAP_2026-07-21.md`](./UNKNOWNS_MAP_2026-07-21.md) | Living risks (OSA, mid-crawl UX, image rights, push) |
 | [`AGENTS.md`](../AGENTS.md) | Engineering contracts (price trust, map density, phone chrome) |
 
@@ -112,7 +112,7 @@ Pages: `/`, `/map`, venue sheet (The Old Bell), `/pint-index`, `/privacy`, `/cho
 | P1 | Pint Index league empty copy was long/technical (zone vs league); resolved by W1.2 | 1 |
 | P2 | Map load line is fine; progress could be clearer | 1 |
 | Verify | Dark theme not deeply exercised; mobile sheet price-caption wrap; submit entry points | 1 |
-| Docs/a11y | Canvas pins lack keyboard-operable DOM list; desktop drawer focus trap; cream-on-coral CTA contrast ~2.93:1 | 4 |
+| Docs/a11y | Resolved; current contract and remaining accent findings live in [`docs/A11Y_MATRIX_2026-07-18.md`](./A11Y_MATRIX_2026-07-18.md) | None |
 
 Brand read: PUBMAXX·ING + coral is strong; hero photography reads stock; trust copy on landing and Pint Index is honest.
 
@@ -194,7 +194,7 @@ Wave 6  Memory / store / expansion (gated)
 | W2.3 | **D3 / D6 / D2** Layered micro-shadow, commit radius, type hierarchy | P1 | `app/globals.css`, `app/theme.css`, landing hero type |
 | W2.4 | **D7** Price-stamp signature consistency | P1 | `PriceBadge`, feed, borough, pins, recap |
 | W2.5 | **D5** Pointer-down feedback on core loop (non-map first) | P2 | chips, CTAs, sheet handles |
-| W2.6 | Re-judge Color V2 dark map + AA accent text (cream-on-coral ~2.93:1) | P2 | A11Y matrix finding #3 |
+| W2.6 | Plan CTA AA contrast resolved; remaining accent findings stay in the accessibility matrix | Done | [`docs/A11Y_MATRIX_2026-07-18.md`](./A11Y_MATRIX_2026-07-18.md) |
 
 D4 warm `--panel-raised` is treated as already present. Verify, do not redo.
 
@@ -225,8 +225,8 @@ D4 warm `--panel-raised` is treated as already present. Verify, do not redo.
 
 | ID | Ticket | Source | Done when |
 |---|---|---|---|
-| W4.1 | Keyboard/AT-operable venue list parallel to pins | A11Y matrix #1 | WCAG 2.1.1 path exists without requiring canvas hit-testing |
-| W4.2 | Desktop venue drawer focus trap | A11Y matrix #2 | Focus stays in drawer while open; Esc returns sensibly |
+| W4.1 | Keyboard/AT-operable venue list parallel to pins | [`docs/A11Y_MATRIX_2026-07-18.md`](./A11Y_MATRIX_2026-07-18.md) | **Complete** |
+| W4.2 | Desktop venue drawer focus trap | [`docs/A11Y_MATRIX_2026-07-18.md`](./A11Y_MATRIX_2026-07-18.md) | **Complete** |
 | W4.3 | Mid-crawl Night Mode surface | Unknowns U7 / Wayfinder | Giant tap targets, next-stop glance, composes existing TfL / last-train / bus; **not** a second app |
 | W4.4 | Verify Plan drawer → Round bridge E2E | `RouteActions` + `RoundStarter` | Drinker can start a Round from an active Plan without a dead end |
 
