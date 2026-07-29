@@ -1165,7 +1165,7 @@ export default function AdminClient() {
           {operatorProposals.length === 0 ? (
             <div className="admin-empty">
               <strong>No pending proposals</strong>
-              <span>Claims from approved pub operators land here for review before they show.</span>
+              <span>Proposals from approved pub operators land here for review before they show.</span>
             </div>
           ) : (
             <div className="admin-list">

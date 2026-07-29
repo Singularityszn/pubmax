@@ -78,6 +78,9 @@ describe("POST /api/check-ins", () => {
   it("400s a missing handle", async () => {
     const res = await POST(postBody({ areaSlug: "shoreditch" }));
     expect(res.status).toBe(400);
+    await expect(res.json()).resolves.toMatchObject({
+      error: "Choose a handle in your account first.",
+    });
   });
 
   it("400s an unknown area", async () => {

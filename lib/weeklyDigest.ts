@@ -131,7 +131,6 @@ export const GUARDIAN_TIPS: readonly string[] = [
   "Last orders is usually 20 minutes before close. Check the last train home before that final round, not after.",
   "A logged pint price makes the map more useful. If a pub near you has no price yet, add one.",
   "Weeknights are quietly the best value. Many happy hours run Monday to Thursday and vanish by Friday.",
-  "Independent pubs in the outer boroughs often undercut the chains. Check your area.",
   "Heading out on the night tube? Zones 1–2 keep running late on Fridays and Saturdays. Plan the last leg first.",
 ];
 

@@ -89,7 +89,7 @@ export async function POST(request: Request): Promise<Response> {
   const handle = await resolveMessageHandle(request, readString(body.handle));
   if (!handle) {
     return publicApiError(
-      "Set a handle first. Drop a pint to claim one.",
+      "Choose a handle in your account first.",
       "HANDLE_REQUIRED",
       400,
     );

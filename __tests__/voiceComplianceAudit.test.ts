@@ -15,6 +15,9 @@ describe("VOICE.md compliance audit", () => {
     );
     const identityNudge = read("components/identity/IdentityNudge.tsx");
     const accountHub = read("components/profile/PubmaxxAccountHub.tsx");
+    const checkInRoute = read("app/api/check-ins/route.ts");
+    const checkInValidation = read("lib/checkIn.ts");
+    const checkInClient = read("app/we-are-out/WeAreOutClient.tsx");
 
     expect(onboarding).toContain(
       "Your public handle appears on every contribution you make.",
@@ -38,6 +41,11 @@ describe("VOICE.md compliance audit", () => {
     expect(accountHub).toContain("<h3>Optional usage analytics</h3>");
     expect(accountHub).not.toContain("Anonymous usage analytics");
     expect(accountHub).not.toContain("person-level account checks");
+
+    for (const source of [checkInRoute, checkInValidation, checkInClient]) {
+      expect(source).toContain("Choose a handle in your account first.");
+      expect(source).not.toContain("Drop a pint to claim one.");
+    }
   });
 
   it("keeps map trust and failure copy exact without exposing map plumbing", () => {
@@ -123,6 +131,8 @@ describe("VOICE.md compliance audit", () => {
     const privacy = read("app/privacy/page.tsx");
     const terms = read("app/terms/page.tsx");
     const pintIndex = read("app/pint-index/page.tsx");
+    const pintFacts = read("lib/pintFacts.ts");
+    const leaderboard = read("components/discovery/LeaderboardTable.tsx");
 
     expect(privacy).not.toContain("Browsing is anonymous");
     expect(privacy).not.toContain("Anonymous usage analytics");
@@ -158,6 +168,9 @@ describe("VOICE.md compliance audit", () => {
     }
     expect(pintIndex).toContain("Method and sources");
     expect(pintIndex).toContain("Prices seen:");
+    expect(pintFacts).toContain("Never a live feed.");
+    expect(leaderboard).toContain("Not necessarily tonight's price.");
+    expect(leaderboard).toContain("Not a live feed.");
   });
 
   it("keeps route, photo, operator, navigation, and API copy out of the plumbing", () => {
@@ -189,6 +202,7 @@ describe("VOICE.md compliance audit", () => {
     const weatherRoute = read("app/api/weather-recommendations/route.ts");
     const planRoute = read("app/api/plans/[id]/route.ts");
     const planComplete = read("app/api/plans/[id]/complete/route.ts");
+    const admin = read("app/admin/AdminClient.tsx");
 
     expect(nightAreas).not.toMatch(
       /"[^"]*(?:capture district|Capture evidence|reviewed snapshot|evidence to verify|Crawl Route)[^"]*"/u,
@@ -226,6 +240,12 @@ describe("VOICE.md compliance audit", () => {
     expect(weatherRoute).not.toContain("contributor provenance");
     expect(planRoute).not.toContain("Crawl Route");
     expect(planComplete).not.toContain("Crawl Route");
+    expect(admin).toContain(
+      "Proposals from approved pub operators land here for review before they show.",
+    );
+    expect(admin).not.toContain(
+      "Claims from approved pub operators land here for review before they show.",
+    );
   });
 
   it("keeps remaining public copy free of hard bans, AI contrasts, jokes in errors, and live-price overclaims", () => {
@@ -273,6 +293,7 @@ describe("VOICE.md compliance audit", () => {
     );
     expect(stories).toContain("Recently logged cheap pints");
     expect(digest).not.toContain("Cheapest isn't just Wetherspoons:");
+    expect(digest).not.toMatch(/independent pubs[^"]*undercut/iu);
     expect(landing).not.toContain("Cheap pints near you, live");
     expect(landing).not.toContain("No endless listings. Just");
     expect(crew).not.toContain("No account. Just your name.");

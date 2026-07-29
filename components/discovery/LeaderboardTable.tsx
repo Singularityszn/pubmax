@@ -22,11 +22,11 @@ type LeaderboardTableProps = {
 };
 
 const LEADERBOARD_HONESTY =
-  "Lowest listed prices on record. Open a pub to see its source and any recent reports.";
+  "Lowest listed prices on record. Not necessarily tonight's price. Open a pub to see its source and any recent reports.";
 
 export default function LeaderboardTable({
   entries,
-  caption = "Listed pint prices in London, cheapest first.",
+  caption = "Listed pint prices in London, cheapest first. Not a live feed.",
 }: LeaderboardTableProps) {
   if (entries.length === 0) {
     return (

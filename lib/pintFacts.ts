@@ -137,7 +137,7 @@ export function factBlockSentences(
     );
   }
   sentences.push(
-    `Prices last collected ${opts.observedDate} for PUBMAXXING's tracked pint dataset, refreshed by community Pint Drops.`,
+    `Prices last collected ${opts.observedDate} for PUBMAXXING's tracked pint dataset, refreshed by community Pint Drops. Never a live feed.`,
   );
   return sentences;
 }
