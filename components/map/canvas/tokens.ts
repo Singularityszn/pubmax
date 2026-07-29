@@ -149,6 +149,32 @@ export type Tokens = {
   cat: Record<DrinkCategory, string>;
 };
 
+const CSS_SRGB =
+  /^color\(\s*srgb\s+([+-]?(?:\d+(?:\.\d*)?|\.\d+))\s+([+-]?(?:\d+(?:\.\d*)?|\.\d+))\s+([+-]?(?:\d+(?:\.\d*)?|\.\d+))(?:\s*\/\s*([+-]?(?:\d+(?:\.\d*)?|\.\d+)))?\s*\)$/i;
+const MAPLIBRE_COLOR = /^(?:#[0-9a-f]{3,8}|rgba?\(|hsla?\()/i;
+
+/**
+ * MapLibre's colour parser does not accept CSS Color 4 `color(srgb …)`,
+ * which Chromium returns for computed color-mix() values. Convert that one
+ * browser-native form without re-owning any theme colour in map code.
+ */
+export function toMapLibreColor(colour: string, fallback: string): string {
+  const source = colour.trim();
+  const srgb = CSS_SRGB.exec(source);
+  if (srgb) {
+    const channel = (value: string) =>
+      Math.round(Math.min(Math.max(Number(value), 0), 1) * 255);
+    const [red, green, blue] = srgb.slice(1, 4).map(channel);
+    const alpha = srgb[4] === undefined
+      ? 1
+      : Math.min(Math.max(Number(srgb[4]), 0), 1);
+    return alpha < 1
+      ? `rgba(${red}, ${green}, ${blue}, ${alpha})`
+      : `rgb(${red}, ${green}, ${blue})`;
+  }
+  return MAPLIBRE_COLOR.test(source) ? source : fallback;
+}
+
 // Every map colour derives from the app's theme tokens so both modes
 // (candle-lit night / positron day guidebook) flip from one system.
 export function readTokens(): Tokens {
@@ -163,7 +189,7 @@ export function readTokens(): Tokens {
   document.documentElement.appendChild(colourProbe);
   const resolvedColour = (name: string, fallback: string) => {
     colourProbe.style.color = `var(${name}, ${fallback})`;
-    return getComputedStyle(colourProbe).color || fallback;
+    return toMapLibreColor(getComputedStyle(colourProbe).color, fallback);
   };
   const pricePlaqueInk = resolvedColour("--accent-price-ink", "#8f671f");
   const pricePlaqueSurface = resolvedColour("--price-plaque-surface", "#f4ead5");
