@@ -346,7 +346,7 @@
   transition: transform 0.12s ease;
 }
 .nightCrawl__arrive:active,
-.nightCrawl__skip:active { transform: scale(0.97); }
+.nightCrawl__skip:active { transform: scale(0.97); --shared-press-scale: 1; }
 .nightCrawl__arrive:disabled,
 .nightCrawl__skip:disabled { opacity: 0.6; cursor: progress; }
 

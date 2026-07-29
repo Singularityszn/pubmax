@@ -85,6 +85,7 @@
 
 .routeEndingCard__choice:active {
   transform: translateY(1px) scale(var(--press-scale, 0.97));
+  --shared-press-scale: 1;
 }
 
 .routeEndingCard__choice[data-recommended="true"] {

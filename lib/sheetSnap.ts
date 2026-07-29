@@ -152,6 +152,19 @@ export function sheetTranslateY(snap: SheetSnap, viewportHeight: number): number
   return snapToY(snap, viewportHeight);
 }
 
+export function sheetClosedTranslateY(
+  viewportHeight: number,
+  bottomClearance: number,
+): number {
+  const height =
+    Number.isFinite(viewportHeight) && viewportHeight > 0 ? viewportHeight : 0;
+  const clearance =
+    Number.isFinite(bottomClearance) && bottomClearance > 0
+      ? bottomClearance
+      : 0;
+  return height + clearance;
+}
+
 // ── Height-driven snap resolver (bottom-anchored content-fit sheet model) ─────
 // The rebuilt mobile portal sheet (components/mobile/MobileSharedSheet.tsx) is a
 // bottom-anchored flex column whose rendered height is min(content, cap) — CSS

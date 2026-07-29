@@ -23,7 +23,7 @@
 .palExperience *, .palExperience *::before, .palExperience *::after { box-sizing: border-box; }
 .palExperience button, .palExperience a, .palExperience input { font: inherit; }
 .palExperience button, .palExperience a { -webkit-tap-highlight-color: transparent; }
-.palExperience button:active, .palExperience a:active { transform: scale(.98); }
+.palExperience button:active, .palExperience a:active { transform: scale(.98); --shared-press-scale: 1; }
 .palExperience button:focus-visible, .palExperience a:focus-visible, .palExperience input:focus-visible { outline: 3px solid var(--pal-mist); outline-offset: 3px; }
 .palExperience h1, .palExperience h2 { margin: 0; font-family: var(--font-display); letter-spacing: -.052em; }
 .palExperience p { margin: 0; }

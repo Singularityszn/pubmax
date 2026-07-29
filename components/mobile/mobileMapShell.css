@@ -164,7 +164,7 @@
     font-weight: 700;
     transition: transform 0.12s ease, border-color 0.12s ease;
   }
-  .mobileMapQueryChip:active { transform: scale(.98); }
+  .mobileMapQueryChip:active { transform: scale(.98); --shared-press-scale: 1; }
   .mobileMapQueryChipText {
     overflow: hidden;
     text-overflow: ellipsis;
@@ -283,7 +283,7 @@
     font: inherit;
     transform: translateX(-50%);
   }
-  .mobilePlanActivation:active { transform: translateX(-50%) scale(.98); }
+  .mobilePlanActivation:active { transform: translateX(-50%) scale(.98); --shared-press-scale: 1; }
   .mobilePlanActivation > span { display: grid; text-align: left; line-height: 1.05; }
   .mobilePlanActivation strong { font-size: var(--text-sm); font-weight: 800; white-space: nowrap; }
   .mobilePlanActivation small { margin-top: 3px; font-size: .66rem; font-weight: 700; opacity: .78; }
@@ -354,6 +354,7 @@
     text-wrap: balance;
   }
   .mobileSharedSheetDetent { position: absolute; top: 0; left: 50%; z-index: 1; width: 52px; height: 44px; border: 0; background: transparent; transform: translateX(-50%); }
+  .mobileSharedSheetDetent:active { --shared-press-scale: 1; }
   .mobileSharedSheetGrab { position: absolute; top: 7px; left: 50%; width: 44px; height: 5px; border-radius: 999px; background: color-mix(in srgb, var(--color-text-muted) 55%, transparent); transform: translateX(-50%); }
   .mobileSharedSheetDetent:active .mobileSharedSheetGrab,
   .mobileSharedSheet.sheet-dragging .mobileSharedSheetGrab { background: color-mix(in srgb, var(--color-accent) 68%, var(--color-border)); }

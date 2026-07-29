@@ -69,6 +69,7 @@
 
 .nmnLocate:active {
   transform: scale(0.97);
+  --shared-press-scale: 1;
 }
 
 /* — Requesting — */
@@ -163,6 +164,7 @@
 
 .nmnCard:active {
   transform: scale(0.97);
+  --shared-press-scale: 1;
 }
 
 .nmnCardMain {
@@ -269,6 +271,7 @@
 
 .nmnAccept:active {
   transform: scale(0.97);
+  --shared-press-scale: 1;
 }
 
 .nmnAcceptReceipt {
@@ -310,6 +313,7 @@
 .nmnRetry:active,
 .nmnBack:active {
   transform: scale(0.97);
+  --shared-press-scale: 1;
 }
 
 .nmnRetry:hover,
@@ -448,6 +452,7 @@
 
 .nmnBoroughChip:active {
   transform: scale(0.97);
+  --shared-press-scale: 1;
 }
 
 .nmnLocate:focus-visible,

@@ -231,6 +231,7 @@
 @media (prefers-reduced-motion: no-preference) {
   .siteNavLink:active {
     transform: scale(var(--press-scale));
+    --shared-press-scale: 1;
   }
 }
 

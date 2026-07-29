@@ -227,7 +227,7 @@
   white-space: nowrap;
   transition: transform 180ms ease, background 180ms ease, border-color 180ms ease;
 }
-.lpButton:active { transform: scale(.98); }
+.lpButton:active { transform: scale(.98); --shared-press-scale: 1; }
 .lpButtonPrimary { background: var(--brass); color: var(--color-on-accent); box-shadow: 0 14px 34px color-mix(in srgb, var(--brass) 24%, transparent); }
 .lpButtonPrimary:hover { background: var(--brass-bright); }
 .lpButtonQuiet { background: transparent; border-color: transparent; color: var(--ink); text-decoration: underline; text-underline-offset: 5px; }

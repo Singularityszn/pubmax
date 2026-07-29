@@ -51,6 +51,7 @@
 @media (prefers-reduced-motion: no-preference) {
   .siteNavMoment:active {
     transform: scale(var(--press-scale));
+    --shared-press-scale: 1;
   }
 }
 

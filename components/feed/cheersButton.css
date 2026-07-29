@@ -35,6 +35,7 @@
 
 .cheersBtn:active {
   transform: scale(0.97);
+  --shared-press-scale: 1;
 }
 
 .cheersBtn:focus-visible {

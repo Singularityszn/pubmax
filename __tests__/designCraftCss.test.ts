@@ -1,4 +1,4 @@
-import { readFileSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 
 import { describe, expect, it } from "vitest";
@@ -8,12 +8,25 @@ const read = (file: string): string => readFileSync(join(process.cwd(), file), "
 const globalCss = read("app/globals.css");
 const themeCss = read("app/theme.css");
 const mobileCss = read("components/mobile/mobileMapShell.css");
+const mobileNavCss = read("components/nav/mobileNav.css");
 const landingCss = read("components/landing/landing.css");
 const venueCss = read("components/map/venueSheet.css");
 const pubMapSource = read("components/PubMap.tsx");
 const springDrawerSource = read("components/map/SpringDrawer.tsx");
 const legacyDragSource = read("components/map/useSheetDrag.ts");
 const evidence = read("docs/design-craft-d1-d8-evidence.md");
+
+function cssFilesUnder(directory: string): string[] {
+  return readdirSync(join(process.cwd(), directory), { withFileTypes: true })
+    .flatMap((entry) => {
+      const relativePath = join(directory, entry.name);
+      return entry.isDirectory()
+        ? cssFilesUnder(relativePath)
+        : entry.isFile() && entry.name.endsWith(".css")
+          ? [relativePath]
+          : [];
+    });
+}
 
 describe("sheet material", () => {
   it("ships one dark-first translucent material for desktop and phone sheets", () => {
@@ -76,6 +89,16 @@ describe("responsive spring ownership", () => {
       'className={`springDrawer ${className ?? ""}${presentationClassName}`.trim()}',
     );
     expect(springDrawerSource).toContain("inert={open ? undefined : true}");
+    expect(springDrawerSource).toContain("sheetClosedTranslateY");
+    expect(springDrawerSource).toContain(
+      "window.getComputedStyle(drawerRef.current).bottom",
+    );
+    expect(globalCss).toMatch(
+      /\.mapDrawer\.springDrawer\.left\.open\[data-spring-axis="vertical"\][^{]*{[^}]*z-index:\s*var\(--z-nav\)/,
+    );
+    expect(globalCss).toMatch(
+      /\.mapDrawer\.springDrawer\.right\.open\[data-spring-axis="vertical"\][^{]*{[^}]*z-index:\s*calc\(var\(--z-nav\) \+ 1\)/,
+    );
   });
 });
 
@@ -134,9 +157,49 @@ describe("pointer-down feedback", () => {
         /@media \(prefers-reduced-motion: no-preference\)\s*{([\s\S]*?)\n}/,
       )?.[1] ?? "";
     expect(pressFeedback).toMatch(
-      /button:not\(\[data-no-press\]\):not\(:disabled\):active,[\s\S]*?scale:\s*var\(--press-scale\)/,
+      /button:not\(\[data-no-press\]\):not\(:disabled\):active,[\s\S]*?scale:\s*var\(--shared-press-scale,\s*var\(--press-scale\)\)/,
     );
     expect(pressFeedback).not.toMatch(/transform:\s*scale\(/);
+  });
+
+  it("gives every pressed control one scale owner", () => {
+    const offenders: string[] = [];
+    for (const relativePath of [
+      ...cssFilesUnder("app"),
+      ...cssFilesUnder("components"),
+    ]) {
+      const source = read(relativePath);
+      for (const match of source.matchAll(/([^{}]+)\{([^{}]*)\}/g)) {
+        const selector = match[1];
+        const declarations = match[2];
+        const ownsActiveState = selector
+          .split(",")
+          .some((branch) => {
+            const selectorBranch = branch.trim();
+            const activeIndex = selectorBranch.lastIndexOf(":active");
+            return (
+              activeIndex >= 0 &&
+              !/[ >+~]/.test(
+                selectorBranch.slice(activeIndex + ":active".length),
+              )
+            );
+          });
+        if (
+          ownsActiveState &&
+          /transform\s*:[^;]*\bscale(?:X|Y|3d)?\(/.test(declarations) &&
+          !/--shared-press-scale\s*:\s*1/.test(declarations)
+        ) {
+          offenders.push(`${relativePath}: ${selector.trim()}`);
+        }
+      }
+    }
+    expect(offenders).toEqual([]);
+    expect(mobileCss).toMatch(
+      /\.mobileSharedSheetDetent:active\s*{[^}]*--shared-press-scale:\s*1/,
+    );
+    expect(mobileNavCss).toMatch(
+      /\.mobileTabPrimary:active\s*{[^}]*--shared-press-scale:\s*1/,
+    );
   });
 
   it("gates handle compression behind reduced-motion preference", () => {

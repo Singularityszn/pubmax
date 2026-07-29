@@ -568,6 +568,7 @@
   }
   .tonightLaneCardTap:active {
     transform: scale(0.98);
+    --shared-press-scale: 1;
   }
   /* Pointer-down feedback stays visual-only (:active); activation itself is
      onClick so keyboard users and drag-scrolls on the chip rail behave. */
@@ -576,6 +577,7 @@
   }
   .tonightLaneChip:active {
     transform: scale(0.96);
+    --shared-press-scale: 1;
   }
 }
 

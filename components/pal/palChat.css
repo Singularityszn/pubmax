@@ -227,6 +227,7 @@
 
 .palChatCardBody--link:active {
   transform: scale(0.995);
+  --shared-press-scale: 1;
 }
 
 .palChatCardTop {
@@ -364,6 +365,7 @@
 
 .palChatChip:active {
   transform: scale(0.98);
+  --shared-press-scale: 1;
 }
 
 /* — Tonight at a glance (judge-w1 wave 2) —
@@ -475,6 +477,7 @@
 
 .palChatSend:active:not(:disabled) {
   transform: scale(0.94);
+  --shared-press-scale: 1;
 }
 
 .palChatSend:disabled {

@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   resolveSheetSnap,
   resolveSheetHeightSnap,
+  sheetClosedTranslateY,
   sheetSnapCaps,
   sheetTranslateY,
   sheetTranslateYFraction,
@@ -41,6 +42,17 @@ describe("sheetTranslateY", () => {
     expect(sheetTranslateY("full", VH)).toBeCloseTo(VH * SHEET_SNAP_TRANSLATE_FRACTIONS.full);
     expect(sheetTranslateY("half", VH)).toBeCloseTo(VH * SHEET_SNAP_TRANSLATE_FRACTIONS.half);
     expect(sheetTranslateY("peek", VH)).toBeCloseTo(VH * SHEET_SNAP_TRANSLATE_FRACTIONS.peek);
+  });
+});
+
+describe("sheetClosedTranslateY", () => {
+  it("moves a bottom-offset tablet drawer fully below the viewport", () => {
+    expect(sheetClosedTranslateY(800, 58)).toBe(858);
+  });
+
+  it("ignores invalid and negative bottom clearances", () => {
+    expect(sheetClosedTranslateY(800, -20)).toBe(800);
+    expect(sheetClosedTranslateY(800, Number.NaN)).toBe(800);
   });
 });
 

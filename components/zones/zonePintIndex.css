@@ -80,6 +80,7 @@ button.zonePintCell:focus-visible {
 
 button.zonePintCell:active {
   transform: scale(0.97);
+  --shared-press-scale: 1;
 }
 
 /* Selected cell: the quiet active tint wins over the plaque — "you are here". */

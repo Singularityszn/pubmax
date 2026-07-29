@@ -62,6 +62,7 @@
 
 .uapPrimary:active {
   transform: scale(0.97);
+  --shared-press-scale: 1;
 }
 
 .uapPrimary:disabled {
@@ -96,6 +97,7 @@
 
 .uapChip:active {
   transform: scale(0.97);
+  --shared-press-scale: 1;
 }
 
 .uapAsk {

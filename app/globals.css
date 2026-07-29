@@ -529,7 +529,7 @@ a[data-pressable],
   .planBtn:not([data-no-press]):active,
   a[data-pressable]:active,
   .pressable:active {
-    scale: var(--press-scale);
+    scale: var(--shared-press-scale, var(--press-scale));
   }
 }
 
@@ -1299,6 +1299,7 @@ input[type="range"] {
   }
   .mapToolbarClear:active {
     transform: scale(0.97);
+    --shared-press-scale: 1;
   }
 }
 
@@ -1337,6 +1338,7 @@ input[type="range"] {
   }
   .planBtn:active {
     transform: scale(0.97);
+    --shared-press-scale: 1;
   }
 }
 
@@ -1463,6 +1465,7 @@ input[type="range"] {
   }
   .drawerClose:active {
     transform: scale(0.97);
+    --shared-press-scale: 1;
   }
 }
 
@@ -4885,15 +4888,11 @@ button:disabled {
     transform: var(--drawer-spring-transform) !important;
   }
 
-  .appShell.planning-open .mapDrawer.left.open {
+  .mapDrawer.springDrawer.left.open[data-spring-axis="vertical"] {
     z-index: var(--z-nav);
   }
 
-  .appShell.detail-open .mapDrawer.right.open {
-    /* When planning + venue detail are both open on phones, both drawers become
-       bottom sheets. The venue sheet owns the visible sticky actions, so it must
-       sit above the planner sheet instead of letting planner content intercept
-       taps on Share/Crawl/Drop/Train. */
+  .mapDrawer.springDrawer.right.open[data-spring-axis="vertical"] {
     z-index: calc(var(--z-nav) + 1);
   }
 

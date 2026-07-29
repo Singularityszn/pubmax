@@ -37,6 +37,7 @@
 @media (prefers-reduced-motion: no-preference) {
   .venueActionStrip__btn:active {
     transform: scale(var(--press-scale, 0.97));
+    --shared-press-scale: 1;
   }
 }
 

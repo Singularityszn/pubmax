@@ -217,6 +217,7 @@
   .a2hsSecondary:active,
   .a2hsClose:active {
     transform: scale(0.97);
+    --shared-press-scale: 1;
   }
 }
 

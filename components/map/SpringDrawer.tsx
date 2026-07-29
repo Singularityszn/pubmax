@@ -13,7 +13,11 @@ import {
   type ReactNode,
 } from "react";
 
-import { sheetTranslateY, type SheetSnap } from "@/lib/sheetSnap";
+import {
+  sheetClosedTranslateY,
+  sheetTranslateY,
+  type SheetSnap,
+} from "@/lib/sheetSnap";
 import { useSpringValue } from "@/lib/useSpringValue";
 
 const TABLET_SHEET_QUERY = "(max-width: 768px)";
@@ -97,8 +101,20 @@ const SpringDrawer = forwardRef<HTMLDivElement, SpringDrawerProps>(
     const [ready, setReady] = useState(false);
     const [retainedChildren, setRetainedChildren] =
       useState<ReactNode>(open ? children : null);
+    const drawerRef = useRef<HTMLDivElement | null>(null);
     const modeRef = useRef<"horizontal" | "vertical" | null>(null);
     const wasDraggingRef = useRef(false);
+    const setDrawerRef = useCallback(
+      (node: HTMLDivElement | null) => {
+        drawerRef.current = node;
+        if (typeof forwardedRef === "function") {
+          forwardedRef(node);
+        } else if (forwardedRef) {
+          forwardedRef.current = node;
+        }
+      },
+      [forwardedRef],
+    );
 
     useEffect(() => {
       if (open) setRetainedChildren(children);
@@ -118,6 +134,15 @@ const SpringDrawer = forwardRef<HTMLDivElement, SpringDrawerProps>(
         stopHorizontal();
         const viewportHeight = window.innerHeight;
         const snapTarget = sheetTranslateY(snap, viewportHeight);
+        const bottomClearance = drawerRef.current
+          ? Number.parseFloat(
+              window.getComputedStyle(drawerRef.current).bottom,
+            )
+          : 0;
+        const closedTarget = sheetClosedTranslateY(
+          viewportHeight,
+          bottomClearance,
+        );
 
         if (dragOffsetY !== null) {
           wasDraggingRef.current = true;
@@ -125,7 +150,7 @@ const SpringDrawer = forwardRef<HTMLDivElement, SpringDrawerProps>(
         } else {
           const velocity = wasDraggingRef.current ? releaseVelocityY : 0;
           wasDraggingRef.current = false;
-          const target = open ? snapTarget : viewportHeight;
+          const target = open ? snapTarget : closedTarget;
           if (firstRun || modeChanged) {
             jumpVertical(target);
             if (!open) clearRetainedChildren();
@@ -189,7 +214,7 @@ const SpringDrawer = forwardRef<HTMLDivElement, SpringDrawerProps>(
     return (
       <div
         {...divProps}
-        ref={forwardedRef}
+        ref={setDrawerRef}
         className={`springDrawer ${className ?? ""}${presentationClassName}`.trim()}
         data-spring-axis={tabletSheet ? "vertical" : "horizontal"}
         style={style}

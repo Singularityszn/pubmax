@@ -179,6 +179,7 @@
 
 .menuHubEmptyAction:active {
   transform: scale(0.98);
+  --shared-press-scale: 1;
 }
 
 @media (prefers-reduced-motion: reduce) {
