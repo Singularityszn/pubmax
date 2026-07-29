@@ -53,10 +53,11 @@ import {
 // `corroborations: 1` and the POST response supplies the real number. Claiming
 // more locally would flash a pin colour the server is about to take back.
 
-type CommunitySubmissionFailure = {
+export type CommunitySubmissionFailure = {
   ok: false;
   error: string;
   reason: PriceSubmitFailureReason;
+  status?: "sign_in_required";
 };
 
 export type CommunityPriceSubmitResult =
@@ -69,6 +70,19 @@ export type CommunityPriceSubmitResult =
 export type CommunityVenueSignalSubmitResult =
   | { ok: true }
   | CommunitySubmissionFailure;
+
+export function rejectedCommunitySubmission(
+  status: number,
+  error: string | undefined,
+  fallback: string,
+): CommunitySubmissionFailure {
+  return {
+    ok: false,
+    error: error ?? fallback,
+    reason: "rejected",
+    ...(status === 401 ? { status: "sign_in_required" as const } : {}),
+  };
+}
 
 export type CommunityPricesState = {
   /** Freshest community price per drink category, by venue id. Ungated on
@@ -939,11 +953,11 @@ export function useCommunityPrices(): CommunityPricesState {
           | null;
         if (!res.ok) {
           rollback();
-          return {
-            ok: false,
-            error: data?.error ?? "Could not log that price right now.",
-            reason: "rejected",
-          };
+          return rejectedCommunitySubmission(
+            res.status,
+            data?.error,
+            "Could not log that price right now.",
+          );
         }
         // Adopt the server's authoritative record: its timestamp, so the dated
         // badge is the record's day rather than the device's guess at it, and
@@ -1052,11 +1066,11 @@ export function useCommunityPrices(): CommunityPricesState {
           | null;
         if (!response.ok) {
           rollback();
-          return {
-            ok: false,
-            error: data?.error ?? "Could not log that pub note right now.",
-            reason: "rejected",
-          };
+          return rejectedCommunitySubmission(
+            response.status,
+            data?.error,
+            "Could not log that pub note right now.",
+          );
         }
         const [stored] =
           readSignals({ signals: [data?.signal] }) ?? [];

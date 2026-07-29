@@ -4,7 +4,7 @@
 
 **Goal:** Bind contribution handles to authenticated accounts, add adult contribution eligibility, and require that identity for community price and venue-signal writes.
 
-**Architecture:** Keep public identity in the existing immutable `profiles.id` plus account-owned handle model. Store private signup details and only derived age eligibility in a separate server-only table keyed by Supabase Auth user id. A global one-screen onboarding surface claims the handle after an explicit availability check, while a reusable contribution gate asks for date of birth only on first contribution.
+**Architecture:** Keep public identity in the existing immutable `profiles.id` plus account-owned handle model. Store private signup details and only derived age eligibility in a separate server-only table keyed by Supabase Auth user id. A global one-screen onboarding surface claims the handle after an explicit availability check, while a reusable contribution gate asks for date of birth only before the first gated community price or venue-signal contribution.
 
 **Tech Stack:** Next.js 16 App Router, React 19, TypeScript, Supabase Auth and Postgres, Vitest.
 

@@ -2,11 +2,24 @@ import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 
-import { ContributionGateDialog } from "@/components/identity/ContributionGateDialog";
+import {
+  ContributionGateDialog,
+  contributionActionRequiresSignIn,
+} from "@/components/identity/ContributionGateDialog";
 
 const noop = () => {};
 
-describe("first-contribution age surface", () => {
+describe("first-gated-contribution age surface", () => {
+  it("routes write-time authentication expiry back to sign-in", () => {
+    expect(
+      contributionActionRequiresSignIn({
+        status: "sign_in_required",
+        error: "Sign in.",
+      }),
+    ).toBe(true);
+    expect(contributionActionRequiresSignIn()).toBe(false);
+  });
+
   it("asks for date of birth only in the age-required state", () => {
     const age = renderToStaticMarkup(
       createElement(ContributionGateDialog, {
@@ -20,7 +33,9 @@ describe("first-contribution age surface", () => {
       }),
     );
     expect(age).toContain('type="date"');
-    expect(age).toContain("before your first contribution");
+    expect(age).toContain(
+      "before your first gated community price or pub signal",
+    );
 
     const underage = renderToStaticMarkup(
       createElement(ContributionGateDialog, {

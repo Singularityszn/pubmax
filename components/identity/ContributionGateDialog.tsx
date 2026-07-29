@@ -81,9 +81,9 @@ export function ContributionGateDialog({
             <p className="contributionGateEyebrow">One check, once</p>
             <h2 id="contribution-gate-title">Confirm you are 18 or over</h2>
             <p>
-              We ask immediately before your first contribution because PUBMAXX
-              is about buying alcohol. Your date of birth is checked, then
-              discarded.
+              We ask immediately before your first gated community price or pub
+              signal because PUBMAXX is about buying alcohol. Your date of
+              birth is checked, then discarded.
             </p>
             <label className="contributionGateField">
               <span>Date of birth</span>
@@ -139,9 +139,22 @@ export function ContributionGateDialog({
   );
 }
 
+export type ContributionActionResult =
+  | void
+  | Readonly<{
+      status: "sign_in_required";
+      error?: string;
+    }>;
+
+export function contributionActionRequiresSignIn(
+  result: ContributionActionResult,
+): result is Exclude<ContributionActionResult, void> {
+  return Boolean(result && result.status === "sign_in_required");
+}
+
 type PendingContribution = (
   auth: AccountAuthSnapshot,
-) => void | Promise<void>;
+) => ContributionActionResult | Promise<ContributionActionResult>;
 
 type CapturedContribution = Readonly<{
   action: PendingContribution;
@@ -186,6 +199,30 @@ export function useContributionGate(): {
     };
   }, [resetGate, userId]);
 
+  const runContribution = useCallback(
+    async (contribution: CapturedContribution) => {
+      const result = await contribution.action(contribution.auth);
+      if (
+        stateUserId.current !== userId ||
+        pending.current !== contribution
+      ) {
+        return;
+      }
+      pending.current = null;
+      if (contributionActionRequiresSignIn(result)) {
+        trackEvent("contribution_gate", { step: "sign_in_required" });
+        setDateOfBirth("");
+        setError(
+          user
+            ? "Your sign-in expired. Sign out, then sign in again."
+            : result.error ?? "Sign in to contribute.",
+        );
+        setMode("sign_in_required");
+      }
+    },
+    [user, userId],
+  );
+
   const requestContribution = useCallback(
     async (action: PendingContribution) => {
       if (stateUserId.current !== userId) return;
@@ -209,8 +246,7 @@ export function useContributionGate(): {
       }
       setBusy(false);
       if (gate.status === "eligible") {
-        pending.current = null;
-        await action(auth);
+        await runContribution(contribution);
         return;
       }
       if (gate.status === "age_required") {
@@ -245,7 +281,7 @@ export function useContributionGate(): {
       pending.current = null;
       setError(gate.error ?? "Could not check contribution eligibility.");
     },
-    [session, user, userId],
+    [runContribution, session, user, userId],
   );
 
   const confirmAge = useCallback(async () => {
@@ -275,9 +311,8 @@ export function useContributionGate(): {
     setDateOfBirth(dateOfBirthAfterAssessment(dateOfBirth, gate));
     if (gate.status === "eligible") {
       setMode(null);
-      pending.current = null;
       trackEvent("contribution_gate", { step: "resumed" });
-      await contribution.action(contribution.auth);
+      await runContribution(contribution);
       return;
     }
     if (gate.status === "underage") {
@@ -300,7 +335,7 @@ export function useContributionGate(): {
       return;
     }
     setError(gate.error ?? "Could not confirm contribution eligibility.");
-  }, [busy, dateOfBirth, user, userId]);
+  }, [busy, dateOfBirth, runContribution, user, userId]);
 
   return {
     requestContribution,

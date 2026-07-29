@@ -595,7 +595,8 @@ commit.
   `app/api/identity/onboarding/route.ts` claim an account-owned handle and edit
   private optional details. `POST` on
   `app/api/identity/contribution-gate/route.ts` evaluates date of birth once
-  before the first contribution. Its sibling GETs are read-only.
+  before the first gated community price or venue-signal contribution. Its
+  sibling GETs are read-only.
 - **Authority:** every method derives the account from a verified Supabase JWT
   through `callerUserId`. Missing authority returns 401 before any read or
   write. Handle ownership is enforced transactionally by

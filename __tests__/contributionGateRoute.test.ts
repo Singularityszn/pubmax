@@ -70,7 +70,8 @@ describe("/api/identity/contribution-gate", () => {
     expect(response.status).toBe(403);
     expect(await response.json()).toEqual({
       status: "age_required",
-      error: "Confirm you are 18 or over before your first contribution.",
+      error:
+        "Confirm you are 18 or over before your first gated contribution.",
     });
 
     response = await POST(

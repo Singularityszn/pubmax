@@ -30,7 +30,8 @@ function gateResponse(
     return jsonNoStore(
       {
         ...gate,
-        error: "Confirm you are 18 or over before your first contribution.",
+        error:
+          "Confirm you are 18 or over before your first gated contribution.",
       },
       { status: 403 },
     );

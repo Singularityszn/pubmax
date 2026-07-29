@@ -7,6 +7,7 @@ import {
   readCategoryPriceIndexLoad,
   readCommunityPriceAttribution,
   readProvisionalVenueIdsLoad,
+  rejectedCommunitySubmission,
   readVenueSignalLoad,
   readVenuePriceLoad,
   rollbackOptimisticPrice,
@@ -72,6 +73,24 @@ describe("provisionalBaseBackoffMs", () => {
 });
 
 describe("community price client state", () => {
+  it("preserves write-time authentication expiry for the contribution gate", () => {
+    expect(
+      rejectedCommunitySubmission(401, "Sign in.", "Could not log."),
+    ).toEqual({
+      ok: false,
+      error: "Sign in.",
+      reason: "rejected",
+      status: "sign_in_required",
+    });
+    expect(
+      rejectedCommunitySubmission(503, undefined, "Could not log."),
+    ).toEqual({
+      ok: false,
+      error: "Could not log.",
+      reason: "rejected",
+    });
+  });
+
   it("trusts only a server-confirmed contributor attribution", () => {
     expect(
       readCommunityPriceAttribution({

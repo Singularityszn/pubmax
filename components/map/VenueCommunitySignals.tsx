@@ -3,6 +3,7 @@
 import { useMemo, useState, type FormEvent } from "react";
 import { ChevronDown, MessagesSquare } from "lucide-react";
 
+import type { ContributionActionResult } from "@/components/identity/ContributionGateDialog";
 import type { CommunityVenueSignalSubmitResult } from "@/components/map/useCommunityPrices";
 import type { AccountAuthSnapshot } from "@/lib/accountBoundFetch";
 import type { VenuePriceReadStatus } from "@/lib/mapExperienceLens";
@@ -51,7 +52,9 @@ type VenueCommunitySignalsProps = {
     signalValue: CommunityVenueSignalValue;
   }, auth: AccountAuthSnapshot) => Promise<CommunityVenueSignalSubmitResult>;
   requestContribution: (
-    action: (auth: AccountAuthSnapshot) => void | Promise<void>,
+    action: (
+      auth: AccountAuthSnapshot,
+    ) => ContributionActionResult | Promise<ContributionActionResult>,
   ) => Promise<void>;
   /** Fixed test clock. The app leaves it undefined. */
   now?: number;
@@ -161,6 +164,12 @@ export default function VenueCommunitySignals({
         signalValue,
       }, auth);
       if (!result.ok) {
+        if (result.status === "sign_in_required") {
+          return {
+            status: "sign_in_required" as const,
+            error: result.error,
+          };
+        }
         setError(result.error);
         return;
       }
