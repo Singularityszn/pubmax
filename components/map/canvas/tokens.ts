@@ -175,12 +175,48 @@ export function toMapLibreColor(colour: string, fallback: string): string {
   return MAPLIBRE_COLOR.test(source) ? source : fallback;
 }
 
+type MapThemeToken = Exclude<
+  keyof Tokens,
+  "cat" | "pricePlaqueInk" | "pricePlaqueSurface" | "priceStampTiltDeg"
+>;
+
+const MAP_THEME_TOKEN_PROPERTIES = {
+  ink: "--ink",
+  inkDeep: "--ink-deep",
+  paper: "--paper",
+  panelRaised: "--panel-raised",
+  line: "--line",
+  muted: "--muted",
+  pint: "--pint",
+  amber: "--amber",
+  brick: "--brick",
+  brass: "--brass",
+  brassBright: "--brass-bright",
+  river: "--river",
+  riverBright: "--river-bright",
+  routeLine: "--route-line",
+  skyZenith: "--map-sky-zenith",
+  skyHorizon: "--map-sky-horizon",
+  buildingEmissive: "--map-building-emissive",
+  parkTint: "--map-park-tint",
+} as const satisfies Record<MapThemeToken, `--${string}`>;
+
+export function mapTokenCssVar(tokenName: string): string {
+  const property =
+    MAP_THEME_TOKEN_PROPERTIES[
+      tokenName as keyof typeof MAP_THEME_TOKEN_PROPERTIES
+    ] ?? MAP_THEME_TOKEN_PROPERTIES.brass;
+  return `var(${property})`;
+}
+
 // Every map colour derives from the app's theme tokens so both modes
 // (candle-lit night / positron day guidebook) flip from one system.
 export function readTokens(): Tokens {
   const styles = getComputedStyle(document.documentElement);
   const token = (name: string, fallback: string) =>
     styles.getPropertyValue(name).trim() || fallback;
+  const mapToken = (name: MapThemeToken, fallback: string) =>
+    token(MAP_THEME_TOKEN_PROPERTIES[name], fallback);
   // Custom properties preserve their color-mix() source text. MapLibre needs a
   // resolved CSS colour, so briefly ask the browser to compute the two plaque
   // roles instead of duplicating theme hex values in the map.
@@ -205,28 +241,28 @@ export function readTokens(): Tokens {
   ) as Record<DrinkCategory, string>;
   return {
     cat,
-    ink: token("--ink", "#1b2620"),
-    inkDeep: token("--ink-deep", "#0f1c16"),
-    paper: token("--paper", "#f4efe4"),
-    panelRaised: token("--panel-raised", "#ffffff"),
-    line: token("--line", "#ddd5c4"),
-    muted: token("--muted", "#6b726a"),
-    pint: token("--pint", "#2f8f5b"),
-    amber: token("--amber", "#d99f45"),
-    brick: token("--brick", "#d16353"),
-    brass: token("--brass", "#b0813a"),
-    brassBright: token("--brass-bright", "#d3a44a"),
+    ink: mapToken("ink", "#1b2620"),
+    inkDeep: mapToken("inkDeep", "#0f1c16"),
+    paper: mapToken("paper", "#f4efe4"),
+    panelRaised: mapToken("panelRaised", "#ffffff"),
+    line: mapToken("line", "#ddd5c4"),
+    muted: mapToken("muted", "#6b726a"),
+    pint: mapToken("pint", "#2f8f5b"),
+    amber: mapToken("amber", "#d99f45"),
+    brick: mapToken("brick", "#d16353"),
+    brass: mapToken("brass", "#b0813a"),
+    brassBright: mapToken("brassBright", "#d3a44a"),
     pricePlaqueInk,
     pricePlaqueSurface,
     priceStampTiltDeg:
       Number.parseFloat(token("--ink-stamp-tilt", "-1.5deg")) || -1.5,
-    river: token("--river", "#2f6f8f"),
-    riverBright: token("--river-bright", "#4f9ec4"),
-    routeLine: token("--route-line", "#8b1a2b"),
-    skyZenith: token("--map-sky-zenith", "#0f1c16"),
-    skyHorizon: token("--map-sky-horizon", "#b0813a"),
-    buildingEmissive: token("--map-building-emissive", "#8f7d6b"),
-    parkTint: token("--map-park-tint", "#7ea052"),
+    river: mapToken("river", "#2f6f8f"),
+    riverBright: mapToken("riverBright", "#4f9ec4"),
+    routeLine: mapToken("routeLine", "#8b1a2b"),
+    skyZenith: mapToken("skyZenith", "#0f1c16"),
+    skyHorizon: mapToken("skyHorizon", "#b0813a"),
+    buildingEmissive: mapToken("buildingEmissive", "#8f7d6b"),
+    parkTint: mapToken("parkTint", "#7ea052"),
   };
 }
 

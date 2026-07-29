@@ -99,6 +99,10 @@ describe("mapPriceLegend", () => {
     });
     expect(degraded.hint).toContain("could not read");
     expect(degraded.hint).not.toContain("trusted whisky prices");
+    expect(degraded.clusterNote).toBe(
+      "Clusters stay grey because whisky prices could not be read just now. The number is every venue in the cluster.",
+    );
+    expect(degraded.clusterNote).not.toContain("none has");
     expect(degraded.hint).not.toBe(
       mapPriceLegend({
         kind: "drink",
@@ -144,6 +148,11 @@ describe("mapPriceLegend", () => {
     expect(legend.hint).toContain("sourced menu prices stay on venue cards");
     expect(legend.hint).not.toContain("£5.50");
     expect(legend.hint).not.toContain("trusted food prices");
+    expect(legend.clusterNote).toBe(
+      "Food clusters stay grey because food prices do not colour this map. The number is every venue in the cluster.",
+    );
+    expect(legend.clusterNote).not.toContain("price band");
+    expect(legend.noAlcoholNote).toBeNull();
   });
 });
 
@@ -179,9 +188,10 @@ describe("map key inventory", () => {
     const legend = mapPriceLegend({
       kind: "default",
       hasTypeRelativePrices: false,
+      storyColour: "var(--amber)",
     });
 
-    expect(legend.clusterNote).toContain("number is every pub");
+    expect(legend.clusterNote).toContain("number is every venue");
     expect(legend.clusterNote).toContain("most common known price band");
     expect(legend.shapes?.map((row) => row.id)).toEqual([
       "pub-drink",
@@ -211,7 +221,7 @@ describe("map key inventory", () => {
       detail: "Your approximate location.",
     });
     expect(legend.marks?.[1]?.detail).toBe(
-      "One recent pint report. A second independent drinker agreeing can set the pin's band.",
+      "One recent pint report. On a curated pub in the standard pint view, a second independent drinker agreeing can set the pin's band. A UK base pub keeps only the dot.",
     );
     expect(legend.routeMarks?.map((row) => row.id)).toEqual([
       "crawl-stop",
@@ -220,6 +230,48 @@ describe("map key inventory", () => {
       "story-corridor",
     ]);
     expect(legend.routeMarks.at(-1)?.detail).toContain("place story");
+    expect(legend.routeMarks.find((row) => row.id === "walking-route")?.colour).toBe(
+      "var(--route-line)",
+    );
+    expect(legend.routeMarks.find((row) => row.id === "straight-route")?.colour).toBe(
+      "var(--route-line)",
+    );
+    expect(legend.routeMarks.find((row) => row.id === "story-corridor")?.colour).toBe(
+      "var(--amber)",
+    );
     expect(legend.noAlcoholNote).toContain("no separate pin");
+  });
+
+  it("does not declare inactive story marks", () => {
+    const legend = mapPriceLegend({
+      kind: "default",
+      hasTypeRelativePrices: false,
+    });
+
+    expect(legend.marks.map((row) => row.id)).not.toContain("story-band");
+    expect(legend.routeMarks.map((row) => row.id)).not.toContain(
+      "story-corridor",
+    );
+  });
+
+  it("keeps pint reports outside selected lens and base-pin authority", () => {
+    const drink = mapPriceLegend({
+      kind: "drink",
+      label: "No-alcohol",
+      noun: NO_ALCOHOL_LENS_PRICE_NOUN,
+      status: "ready",
+    });
+    const food = mapPriceLegend({ kind: "food" });
+
+    expect(
+      drink.marks.find((row) => row.id === "provisional")?.detail,
+    ).toBe(
+      "One recent pint report. It does not set the selected drink band. A UK base pub keeps only the dot.",
+    );
+    expect(
+      food.marks.find((row) => row.id === "provisional")?.detail,
+    ).toBe(
+      "One recent pint report. It does not set a food pin's colour. A UK base pub keeps only the dot.",
+    );
   });
 });

@@ -5,6 +5,8 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 
 import MapKey from "@/components/map/MapKey";
+import { mapTokenCssVar } from "@/components/map/canvas/tokens";
+import type { MapPriceLegendModel } from "@/lib/mapPriceLegend";
 import { mapPriceLegend } from "@/lib/mapPriceLegend";
 
 describe("MapKey", () => {
@@ -13,6 +15,15 @@ describe("MapKey", () => {
       legend: mapPriceLegend({
         kind: "default",
         hasTypeRelativePrices: false,
+      }),
+    }),
+  );
+  const storyHtml = renderToStaticMarkup(
+    createElement(MapKey, {
+      legend: mapPriceLegend({
+        kind: "default",
+        hasTypeRelativePrices: false,
+        storyColour: mapTokenCssVar("amber"),
       }),
     }),
   );
@@ -41,8 +52,8 @@ describe("MapKey", () => {
     expect(html).toContain("<summary>Pin shapes</summary>");
     expect(html).toContain("<summary>Dots and rings</summary>");
     expect(html).toContain("<summary>Routes</summary>");
-    expect(html).toContain("Broad translucent line");
-    expect(html).toContain("place story you chose");
+    expect(storyHtml).toContain("Broad translucent line");
+    expect(storyHtml).toContain("place story you chose");
   });
 
   it("draws routed, estimated, and story lines as different marks", () => {
@@ -60,5 +71,34 @@ describe("MapKey", () => {
     expect(css).toMatch(
       /\.mapKeyMarker--story-corridor::before\s*{[^}]*height:\s*12px[^}]*filter:\s*blur\(2px\)/,
     );
+    expect(storyHtml.match(/--map-key-marker-colour:var\(--route-line\)/g)).toHaveLength(
+      2,
+    );
+    expect(storyHtml).toContain(
+      'mapKeyMarker--story-corridor" style="--map-key-marker-colour:var(--amber)',
+    );
+    expect(css).toMatch(
+      /\.mapKeyMarker--story-corridor::before\s*{[^}]*background:\s*var\(--map-key-marker-colour\)/,
+    );
+  });
+
+  it("omits undeclared sections and notes", () => {
+    const sparseLegend: MapPriceLegendModel = {
+      rows: [],
+      ariaLabel: "Sparse key",
+      title: "Sparse key",
+      hint: "No declared states.",
+      clusterNote: null,
+      shapes: [],
+      marks: [],
+      routeMarks: [],
+      noAlcoholNote: null,
+    };
+    const sparseHtml = renderToStaticMarkup(
+      createElement(MapKey, { legend: sparseLegend }),
+    );
+
+    expect(sparseHtml).not.toContain(">Clusters<");
+    expect(sparseHtml).not.toContain("<details");
   });
 });

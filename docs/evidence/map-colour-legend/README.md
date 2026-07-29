@@ -14,8 +14,8 @@ The desktop cluster donut already showed its known price mix at zoom 11.2. Indiv
 - Amber fill: pub pint is over £5.50 and no more than £7. Other venues are middle within their type.
 - Red fill: pub pint is over £7. Other venues are high within their type.
 - Grey fill: no price that the current view can show is on the map.
-- Split cluster ring: mix of known price bands inside a desktop cluster. Centre number counts every pub, including pubs without a known price.
-- Solid cluster: most common known price band inside a fallback cluster. Centre number counts every pub. Grey means none has a known price.
+- Split cluster ring: mix of known price bands inside a desktop cluster. Centre number counts every venue, including venues without a known price.
+- Solid cluster: most common known price band inside a fallback cluster. Centre number counts every venue. Grey means none has a known price.
 - Pint, wine, cocktail or spirit glass: pub. Glass follows its recorded drinks or selected drink view.
 - Coupe glass: bar.
 - Skewer: late-food venue.
@@ -23,7 +23,7 @@ The desktop cluster donut already showed its known price mix at zoom 11.2. Indiv
 - Hollow brass circle and dot: UK base pub. It never gets a map price, band or price label.
 - Brass pictogram: landmark, not a pub.
 - Blue centre with a pulse: your approximate location.
-- Small blue dot beside a pin: one recent pint report. A second independent drinker agreeing can let that figure set the pin band.
+- Small blue dot beside a pin: one recent pint report. On a curated pub in the standard pint view, a second independent drinker agreeing can let that figure set the pin band. A UK base pub keeps only the dot, and a pint report never sets a selected drink or food band.
 - Amber point with a blue halo: place in the Events overlay for tonight.
 - Blue ring: visible Pint Drop at that pub.
 - Amber ring: quiz tonight.
@@ -40,7 +40,7 @@ The desktop cluster donut already showed its known price mix at zoom 11.2. Indiv
 - Broad translucent line: corridor joining the landmarks in the selected place story.
 - No-alcohol view: no separate pin shape. Alcohol-free or soft-drink price sets the band; missing price stays grey.
 - Food view: sourced menu prices stay on venue cards and sheets. Food pins and clusters stay grey.
-- Confirmed community price: no separate map badge. Two independent drinkers must agree within the policy window before the figure can affect map colour. Its dated badge lives on the pub sheet.
+- Confirmed community price: no separate map badge. On a curated pub in the standard pint view, two independent drinkers must agree within the policy window before the figure can affect map colour. UK base pubs keep only the provisional dot. The dated badge lives on the pub sheet.
 
 ## Similar marks with different meanings
 
@@ -49,7 +49,7 @@ The desktop cluster donut already showed its known price mix at zoom 11.2. Indiv
 - Thin brass ring means a public-listing source. Single brass selection ring means a selected UK base pub. Double brass ring means a selected curated pub.
 - Desktop split clusters show price mix. Solid fallback clusters show one dominant known band.
 - A crisp solid route follows roads. A broad translucent corridor joins place-story landmarks.
-- A confirmed community figure changes the ordinary price band. It does not add a confirmed badge to the map.
+- A confirmed community figure can change a curated pub's ordinary pint band. It does not change a UK base pin, set a selected drink or food band, or add a confirmed badge to the map.
 - No-alcohol view changes price meaning but adds no distinct pin shape.
 
 ## Captures

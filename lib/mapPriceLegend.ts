@@ -10,6 +10,7 @@ export type MapKeyEntry = {
   id: string;
   label: string;
   detail: string;
+  colour?: string;
 };
 
 export type MapPriceLegendModel = {
@@ -17,14 +18,18 @@ export type MapPriceLegendModel = {
   ariaLabel: string;
   title: string;
   hint: string;
-  clusterNote: string;
+  clusterNote: string | null;
   shapes: MapKeyEntry[];
   marks: MapKeyEntry[];
   routeMarks: MapKeyEntry[];
-  noAlcoholNote: string;
+  noAlcoholNote: string | null;
 };
 
-export type MapPriceLegendContext =
+type MapPriceLegendMapState = {
+  storyColour?: string | null;
+};
+
+export type MapPriceLegendContext = (
   | {
       kind: "default";
       hasTypeRelativePrices: boolean;
@@ -37,10 +42,15 @@ export type MapPriceLegendContext =
     }
   | {
       kind: "food";
-    };
+    }
+) &
+  MapPriceLegendMapState;
 
-const CLUSTER_NOTE =
-  "A split cluster ring shows the mix of price bands inside it. A solid cluster uses the most common known price band. Grey means none has a known map price. The number is every pub in the cluster.";
+const PRICE_CLUSTER_NOTE =
+  "A split cluster ring shows the mix of price bands inside it. A solid cluster uses the most common known price band. Grey means none has a known map price. The number is every venue in the cluster.";
+
+const FOOD_CLUSTER_NOTE =
+  "Food clusters stay grey because food prices do not colour this map. The number is every venue in the cluster.";
 
 const MAP_SHAPES: MapKeyEntry[] = [
   {
@@ -68,11 +78,6 @@ const MAP_MARKS: MapKeyEntry[] = [
     id: "your-location",
     label: "Blue centre with a pulse",
     detail: "Your approximate location.",
-  },
-  {
-    id: "provisional",
-    label: "Small blue dot beside a pin",
-    detail: "One recent pint report. A second independent drinker agreeing can set the pin's band.",
   },
   {
     id: "tonight-opportunity",
@@ -103,11 +108,6 @@ const MAP_MARKS: MapKeyEntry[] = [
     label: "Double brass ring",
     detail: "Pub you selected.",
   },
-  {
-    id: "story-band",
-    label: "Coloured ring",
-    detail: "Pub in the place story you chose.",
-  },
 ];
 
 const ROUTE_MARKS: MapKeyEntry[] = [
@@ -120,16 +120,13 @@ const ROUTE_MARKS: MapKeyEntry[] = [
     id: "walking-route",
     label: "Solid line",
     detail: "Walking route along roads.",
+    colour: "var(--route-line)",
   },
   {
     id: "straight-route",
     label: "Dashed line",
     detail: "Straight estimate while a road route is unavailable.",
-  },
-  {
-    id: "story-corridor",
-    label: "Broad translucent line",
-    detail: "Corridor joining the landmarks in the place story you chose.",
+    colour: "var(--route-line)",
   },
 ];
 
@@ -174,17 +171,66 @@ function mixedPriceRows(): MapPriceLegendRow[] {
   ];
 }
 
-function withMapKey(
+type MapKeyDeclarations = Pick<
+  MapPriceLegendModel,
+  "clusterNote" | "shapes" | "marks" | "routeMarks" | "noAlcoholNote"
+>;
+
+function declaredLegend(
   legend: Pick<MapPriceLegendModel, "rows" | "ariaLabel" | "title" | "hint">,
+  declarations: Partial<MapKeyDeclarations>,
 ): MapPriceLegendModel {
   return {
     ...legend,
-    clusterNote: CLUSTER_NOTE,
-    shapes: MAP_SHAPES,
-    marks: MAP_MARKS,
-    routeMarks: ROUTE_MARKS,
-    noAlcoholNote: NO_ALCOHOL_NOTE,
+    clusterNote: null,
+    shapes: [],
+    marks: [],
+    routeMarks: [],
+    noAlcoholNote: null,
+    ...declarations,
   };
+}
+
+function mapMarks(
+  provisionalDetail: string,
+  storyColour: string | null,
+): MapKeyEntry[] {
+  return [
+    MAP_MARKS[0],
+    {
+      id: "provisional",
+      label: "Small blue dot beside a pin",
+      detail: provisionalDetail,
+    },
+    ...MAP_MARKS.slice(1),
+    ...(storyColour
+      ? [
+          {
+            id: "story-band",
+            label: "Coloured ring",
+            detail: "Pub in the place story you chose.",
+            colour: storyColour,
+          },
+        ]
+      : []),
+  ];
+}
+
+function routeMarks(storyColour: string | null): MapKeyEntry[] {
+  return [
+    ...ROUTE_MARKS,
+    ...(storyColour
+      ? [
+          {
+            id: "story-corridor",
+            label: "Broad translucent line",
+            detail:
+              "Corridor joining the landmarks in the place story you chose.",
+            colour: storyColour,
+          },
+        ]
+      : []),
+  ];
 }
 
 /**
@@ -206,55 +252,115 @@ function drinkHint(drink: string, status: CategoryPriceIndexStatus): string {
   return `Pin colours follow trusted ${drink} prices. Pubs without one stay unknown.`;
 }
 
+function drinkClusterNote(
+  drink: string,
+  status: CategoryPriceIndexStatus,
+): string {
+  if (status === "degraded") {
+    return `Clusters stay grey because ${drink} prices could not be read just now. The number is every venue in the cluster.`;
+  }
+  return PRICE_CLUSTER_NOTE;
+}
+
 export function mapPriceLegend(
   context: MapPriceLegendContext,
 ): MapPriceLegendModel {
+  const storyColour = context.storyColour ?? null;
   if (context.kind === "food") {
-    return withMapKey({
-      rows: [
-        {
-          label: "Food pins and clusters stay grey",
-          symbol: "?",
-          tone: "grey",
-        },
-      ],
-      ariaLabel: "Food map key: pins and clusters do not show prices",
-      title: "Food view",
-      hint:
-        "Pins and clusters stay grey. Any sourced menu prices stay on venue cards and sheets.",
-    });
+    return declaredLegend(
+      {
+        rows: [
+          {
+            label: "Food pins and clusters stay grey",
+            symbol: "?",
+            tone: "grey",
+          },
+        ],
+        ariaLabel: "Food map key: pins and clusters do not show prices",
+        title: "Food view",
+        hint:
+          "Pins and clusters stay grey. Any sourced menu prices stay on venue cards and sheets.",
+      },
+      {
+        clusterNote: FOOD_CLUSTER_NOTE,
+        shapes: MAP_SHAPES,
+        marks: mapMarks(
+          "One recent pint report. It does not set a food pin's colour. A UK base pub keeps only the dot.",
+          storyColour,
+        ),
+        routeMarks: routeMarks(storyColour),
+        noAlcoholNote: null,
+      },
+    );
   }
   if (context.kind === "drink") {
     const drink = context.noun.toLowerCase();
     const unreadable = context.status === "degraded";
     const rows = priceRows(drink);
-    return withMapKey({
-      // A failed category read leaves every pin in the unknown band, so keep
-      // that row and drop only the bands no pin can currently wear.
-      rows: unreadable ? rows.slice(-1) : rows,
-      ariaLabel: unreadable
-        ? `${context.label} price colour key, unavailable`
-        : `${context.label} price colour key`,
-      title: unreadable
-        ? `${context.label} prices unavailable`
-        : `${context.label} price bands`,
-      hint: drinkHint(drink, context.status),
-    });
+    return declaredLegend(
+      {
+        // A failed category read leaves every pin in the unknown band, so keep
+        // that row and drop only the bands no pin can currently wear.
+        rows: unreadable ? rows.slice(-1) : rows,
+        ariaLabel: unreadable
+          ? `${context.label} price colour key, unavailable`
+          : `${context.label} price colour key`,
+        title: unreadable
+          ? `${context.label} prices unavailable`
+          : `${context.label} price bands`,
+        hint: drinkHint(drink, context.status),
+      },
+      {
+        clusterNote: drinkClusterNote(drink, context.status),
+        shapes: MAP_SHAPES,
+        marks: mapMarks(
+          "One recent pint report. It does not set the selected drink band. A UK base pub keeps only the dot.",
+          storyColour,
+        ),
+        routeMarks: routeMarks(storyColour),
+        noAlcoholNote:
+          context.label === "No-alcohol" ? NO_ALCOHOL_NOTE : null,
+      },
+    );
   }
   if (!context.hasTypeRelativePrices) {
-    return withMapKey({
-      rows: priceRows("pint"),
-      ariaLabel: "Pint price key and filters",
-      title: "Pint price key and filters",
-      hint: "Show pubs at or under this pint price.",
-    });
+    return declaredLegend(
+      {
+        rows: priceRows("pint"),
+        ariaLabel: "Pint price key and filters",
+        title: "Pint price key and filters",
+        hint: "Show pubs at or under this pint price.",
+      },
+      {
+        clusterNote: PRICE_CLUSTER_NOTE,
+        shapes: MAP_SHAPES,
+        marks: mapMarks(
+          "One recent pint report. On a curated pub in the standard pint view, a second independent drinker agreeing can set the pin's band. A UK base pub keeps only the dot.",
+          storyColour,
+        ),
+        routeMarks: routeMarks(storyColour),
+        noAlcoholNote: NO_ALCOHOL_NOTE,
+      },
+    );
   }
-  return withMapKey({
-    rows: mixedPriceRows(),
-    ariaLabel:
-      "Price colour key: pub pints use pound thresholds; other venue types use relative low, middle, and high bands",
-    title: "Pint prices and other venue price bands",
-    hint:
-      "Pub pins use pint thresholds. Each other venue pin is low, middle, or high within its own type.",
-  });
+  return declaredLegend(
+    {
+      rows: mixedPriceRows(),
+      ariaLabel:
+        "Price colour key: pub pints use pound thresholds; other venue types use relative low, middle, and high bands",
+      title: "Pint prices and other venue price bands",
+      hint:
+        "Pub pins use pint thresholds. Each other venue pin is low, middle, or high within its own type.",
+    },
+    {
+      clusterNote: PRICE_CLUSTER_NOTE,
+      shapes: MAP_SHAPES,
+      marks: mapMarks(
+        "One recent pint report. On a curated pub in the standard pint view, a second independent drinker agreeing can set the pin's band. A UK base pub keeps only the dot.",
+        storyColour,
+      ),
+      routeMarks: routeMarks(storyColour),
+      noAlcoholNote: NO_ALCOHOL_NOTE,
+    },
+  );
 }

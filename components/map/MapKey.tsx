@@ -6,6 +6,7 @@ import {
   Martini,
   Utensils,
 } from "lucide-react";
+import type { CSSProperties } from "react";
 
 import type {
   MapKeyEntry,
@@ -36,6 +37,13 @@ function EntryList({
         <li key={entry.id} className="mapKeyItem">
           <span
             className={`mapKeyMarker mapKeyMarker--${markerKind} mapKeyMarker--${entry.id}`}
+            style={
+              entry.colour
+                ? ({
+                    "--map-key-marker-colour": entry.colour,
+                  } as CSSProperties)
+                : undefined
+            }
             aria-hidden="true"
           >
             {markerKind === "shape" ? (
@@ -78,31 +86,41 @@ export default function MapKey({
         </ul>
       </section>
 
-      <section className="mapKeySection" aria-labelledby="mapKeyClusterHeading">
-        <h3 id="mapKeyClusterHeading">Clusters</h3>
-        <div className="mapKeyClusterRow">
-          <span className="mapKeyClusterSample" aria-hidden="true">
-            #
-          </span>
-          <p>{legend.clusterNote}</p>
-        </div>
-      </section>
+      {legend.clusterNote ? (
+        <section className="mapKeySection" aria-labelledby="mapKeyClusterHeading">
+          <h3 id="mapKeyClusterHeading">Clusters</h3>
+          <div className="mapKeyClusterRow">
+            <span className="mapKeyClusterSample" aria-hidden="true">
+              #
+            </span>
+            <p>{legend.clusterNote}</p>
+          </div>
+        </section>
+      ) : null}
 
-      <details className="mapKeyDetails">
-        <summary>Pin shapes</summary>
-        <EntryList entries={legend.shapes} markerKind="shape" />
-        <p className="mapKeyNote">{legend.noAlcoholNote}</p>
-      </details>
+      {legend.shapes.length > 0 ? (
+        <details className="mapKeyDetails">
+          <summary>Pin shapes</summary>
+          <EntryList entries={legend.shapes} markerKind="shape" />
+          {legend.noAlcoholNote ? (
+            <p className="mapKeyNote">{legend.noAlcoholNote}</p>
+          ) : null}
+        </details>
+      ) : null}
 
-      <details className="mapKeyDetails">
-        <summary>Dots and rings</summary>
-        <EntryList entries={legend.marks} markerKind="mark" />
-      </details>
+      {legend.marks.length > 0 ? (
+        <details className="mapKeyDetails">
+          <summary>Dots and rings</summary>
+          <EntryList entries={legend.marks} markerKind="mark" />
+        </details>
+      ) : null}
 
-      <details className="mapKeyDetails">
-        <summary>Routes</summary>
-        <EntryList entries={legend.routeMarks} markerKind="route" />
-      </details>
+      {legend.routeMarks.length > 0 ? (
+        <details className="mapKeyDetails">
+          <summary>Routes</summary>
+          <EntryList entries={legend.routeMarks} markerKind="route" />
+        </details>
+      ) : null}
     </div>
   );
 }

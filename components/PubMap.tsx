@@ -29,7 +29,10 @@ import {
   buildMapVenueListModel,
   buildUkBasePubListModel,
 } from "@/lib/mapVenueList";
-import { UK_BOUNDS } from "@/components/map/canvas/tokens";
+import {
+  mapTokenCssVar,
+  UK_BOUNDS,
+} from "@/components/map/canvas/tokens";
 import { useFocusTrap } from "@/lib/useFocusTrap";
 import { MOBILE_MEDIA_QUERY } from "@/lib/breakpoints";
 import SpringDrawer from "@/components/map/SpringDrawer";
@@ -1184,19 +1187,28 @@ export default function PubMap({
       : experienceLens === "food"
         ? "Food"
         : null;
+  const activeBand = useMemo(
+    () => bandByIdForCity(cityId, activeBandId),
+    [cityId, activeBandId],
+  );
+  const activeStoryColour = activeBand
+    ? mapTokenCssVar(activeBand.colourToken)
+    : null;
   const activePriceLegend = mapPriceLegend(
     experienceLens === "food"
-      ? { kind: "food" }
+      ? { kind: "food", storyColour: activeStoryColour }
       : activeLensLabel && activeLensNoun
         ? {
             kind: "drink",
             label: activeLensLabel,
             noun: activeLensNoun,
             status: drinkIndexStatus,
+            storyColour: activeStoryColour,
           }
         : {
             kind: "default",
             hasTypeRelativePrices,
+            storyColour: activeStoryColour,
           },
   );
   const experienceSummary = useMemo(() => {
@@ -2412,10 +2424,6 @@ export default function PubMap({
 
   // G3: Place story deep-link chip when `?band=` resolves. Takes priority over
   // curated onboarding so the two never fight.
-  const activeBand = useMemo(
-    () => bandByIdForCity(cityId, activeBandId),
-    [cityId, activeBandId],
-  );
   const showBandChip = shouldShowBandOnboardingChip({
     loaded,
     activeBandId,
