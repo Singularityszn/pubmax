@@ -1,12 +1,12 @@
 import { withAuthFetchTimeout } from "@/lib/authFetch";
 
-export type SocialAuthProvider = "google" | "microsoft";
+export type SocialAuthProvider = "google" | "apple";
 
 export type SocialAuthProviderAvailability = Record<SocialAuthProvider, boolean>;
 
 export const NO_SOCIAL_AUTH_PROVIDERS: SocialAuthProviderAvailability = {
   google: false,
-  microsoft: false,
+  apple: false,
 };
 
 type AuthStartResult = { error: string | null };
@@ -46,7 +46,7 @@ export async function loadSocialAuthProviders(
 
     return {
       google: payload.external.google === true,
-      microsoft: payload.external.azure === true,
+      apple: payload.external.apple === true,
     };
   } catch {
     return null;
@@ -54,7 +54,7 @@ export async function loadSocialAuthProviders(
 }
 
 function unavailableMessage(provider: SocialAuthProvider): string {
-  const name = provider === "google" ? "Google" : "Microsoft";
+  const name = provider === "google" ? "Google" : "Apple";
   return `${name} sign-in isn't available right now. Use email instead.`;
 }
 

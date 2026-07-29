@@ -22,18 +22,18 @@ function settingsResponse(external: Record<string, boolean>): Response {
 }
 
 describe("Supabase social auth provider availability", () => {
-  it("reads live settings with the public key and maps Azure to Microsoft", async () => {
+  it("reads live settings with the public key and maps Google and Apple", async () => {
     const fetchImpl = vi.fn<typeof fetch>().mockResolvedValue(
       settingsResponse({
         google: true,
-        azure: false,
+        apple: false,
         email: true,
       }),
     );
 
     await expect(loadSocialAuthProviders(fetchImpl)).resolves.toEqual({
       google: true,
-      microsoft: false,
+      apple: false,
     });
     expect(fetchImpl).toHaveBeenCalledOnce();
     expect(fetchImpl).toHaveBeenCalledWith(
@@ -46,18 +46,18 @@ describe("Supabase social auth provider availability", () => {
     );
   });
 
-  it("reports Microsoft from Supabase's Azure provider flag", async () => {
+  it("reports Apple from Supabase's Apple provider flag", async () => {
     const fetchImpl = vi.fn<typeof fetch>().mockResolvedValue(
       settingsResponse({
         google: false,
-        azure: true,
+        apple: true,
         email: true,
       }),
     );
 
     await expect(loadSocialAuthProviders(fetchImpl)).resolves.toEqual({
       google: false,
-      microsoft: true,
+      apple: true,
     });
   });
 
@@ -91,10 +91,10 @@ describe("social OAuth provider guard", () => {
       guardSocialAuthProvider(
         "google",
         start,
-        async () => ({ google: false, microsoft: false }),
+        async () => ({ google: false, apple: false }),
       ),
     ).resolves.toEqual({
-      availability: { google: false, microsoft: false },
+      availability: { google: false, apple: false },
       result: {
         error: "Google sign-in isn't available right now. Use email instead.",
       },
@@ -102,15 +102,15 @@ describe("social OAuth provider guard", () => {
     expect(start).not.toHaveBeenCalled();
   });
 
-  it("does not start Microsoft OAuth when provider settings cannot be read", async () => {
+  it("does not start Apple OAuth when provider settings cannot be read", async () => {
     const start = vi.fn().mockResolvedValue({ error: null });
 
     await expect(
-      guardSocialAuthProvider("microsoft", start, async () => null),
+      guardSocialAuthProvider("apple", start, async () => null),
     ).resolves.toEqual({
       availability: null,
       result: {
-        error: "Microsoft sign-in isn't available right now. Use email instead.",
+        error: "Apple sign-in isn't available right now. Use email instead.",
       },
     });
     expect(start).not.toHaveBeenCalled();
@@ -123,10 +123,10 @@ describe("social OAuth provider guard", () => {
       guardSocialAuthProvider(
         "google",
         start,
-        async () => ({ google: true, microsoft: false }),
+        async () => ({ google: true, apple: false }),
       ),
     ).resolves.toEqual({
-      availability: { google: true, microsoft: false },
+      availability: { google: true, apple: false },
       result: { error: null },
     });
     expect(start).toHaveBeenCalledOnce();

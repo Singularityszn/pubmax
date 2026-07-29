@@ -22,10 +22,9 @@
 // accepted from a body. A client that could set it could turn one person's
 // report into an established community signal.
 //
-// Identity is server-derived (hashActor of the hashed client IP), never trusted
-// from the body - exactly as price-confirm does it, so an anonymous drinker can
-// contribute with no account and one device still can't stack duplicate
-// observations for the same drink. Rate-limited on the same isLimited plumbing.
+// Identity is server-derived from the authenticated account's immutable
+// profile id. A body handle is ignored. This binds every new contribution to
+// one claimed public handle and stops one account stacking corroborations.
 //
 // Bounds are checked by the SHARED validator (lib/communityPrice.ts) that the
 // submit UI also runs, so a rejection reads the same friendly sentence on both
@@ -44,7 +43,6 @@ import { deriveCommunityPriceActor } from "@/lib/communityPriceActor";
 import {
   NO_ALCOHOL_DRINK_CATEGORIES,
   validateCommunityPrice,
-  type CommunityPriceAttribution,
 } from "@/lib/communityPrice";
 import { validateCommunityVenueSignal } from "@/lib/communityVenueSignals";
 import { isDrinkCategory } from "@/lib/drinks";
@@ -59,12 +57,10 @@ import {
   submitCommunityPrice,
   submitCommunityVenueSignal,
 } from "@/lib/communityPriceStore";
-import {
-  identityHandleStore,
-} from "@/lib/identityHandleStore";
+import { identityHandleStore } from "@/lib/identityHandleStore";
 import { isLimited } from "@/lib/pintDrops";
+import { privateIdentityStore } from "@/lib/privateIdentityStore";
 import { profileStore } from "@/lib/profileStore";
-import { normalizeHandle } from "@/lib/profiles";
 import { getUkBaseIdIndex } from "@/lib/ukBaseIndex";
 import {
   isUkBaseId,
@@ -134,26 +130,90 @@ async function communityWriteIsLimited(
   return isLimited(venueLimitKey, venueLimitKey);
 }
 
-async function resolveOptionalPriceAttribution(
+type ContributorResolution =
+  | {
+      ok: true;
+      actor: string;
+      handle: string;
+    }
+  | {
+      ok: false;
+      response: Response;
+    };
+
+async function resolveContributor(
   request: Request,
-  assertedHandle: string | undefined,
-): Promise<CommunityPriceAttribution> {
-  if (!assertedHandle) return { status: "anonymous" };
+): Promise<ContributorResolution> {
+  const userId = await callerUserId(request);
+  if (!userId) {
+    return {
+      ok: false,
+      response: jsonNoStore(
+        { status: "sign_in_required", error: "Sign in to contribute." },
+        { status: 401 },
+      ),
+    };
+  }
   try {
-    const presented = assertedHandle.trim().replace(/^@/, "").toLowerCase();
-    const handle = normalizeHandle(assertedHandle);
-    if (!handle || handle !== presented) return { status: "anonymous" };
-    const ownerId = await callerUserId(request);
-    if (!ownerId) return { status: "anonymous" };
-    const [resolution, ownedProfile] = await Promise.all([
-      identityHandleStore().resolve(handle),
-      profileStore().getByUserId(ownerId),
+    const [profile, gate] = await Promise.all([
+      profileStore().getByUserId(userId),
+      privateIdentityStore().contributionGate(userId),
     ]);
-    return resolution && ownedProfile?.id === resolution.profileId
-      ? { status: "credited", handle: resolution.currentHandle }
-      : { status: "anonymous" };
+    if (!profile || gate.status === "onboarding_required") {
+      return {
+        ok: false,
+        response: jsonNoStore(
+          {
+            status: "onboarding_required",
+            error: "Choose your public handle before contributing.",
+          },
+          { status: 409 },
+        ),
+      };
+    }
+    if (gate.status === "age_required") {
+      return {
+        ok: false,
+        response: jsonNoStore(
+          {
+            status: gate.status,
+            error: "Confirm you are 18 or over before your first contribution.",
+          },
+          { status: 403 },
+        ),
+      };
+    }
+    if (gate.status === "underage") {
+      return {
+        ok: false,
+        response: jsonNoStore(
+          {
+            ...gate,
+            error:
+              "You must be 18 or over to contribute. PUBMAXX is about buying alcohol.",
+          },
+          { status: 403 },
+        ),
+      };
+    }
+    const handleResolution = await identityHandleStore().resolve(profile.handle);
+    const handle =
+      handleResolution?.profileId === profile.id
+        ? handleResolution.currentHandle
+        : profile.handle;
+    return {
+      ok: true,
+      actor: `profile:${profile.id}`,
+      handle,
+    };
   } catch {
-    return { status: "anonymous" };
+    return {
+      ok: false,
+      response: jsonNoStore(
+        { error: "Contribution eligibility is unavailable right now." },
+        { status: 503 },
+      ),
+    };
   }
 }
 
@@ -201,6 +261,9 @@ export async function POST(request: Request): Promise<Response> {
     return jsonNoStore({ ok: true }, { status: 200 });
   }
 
+  const contributor = await resolveContributor(request);
+  if (!contributor.ok) return contributor.response;
+
   if (readString(body.kind) === "venue-signal") {
     const parsed = validateCommunityVenueSignal(body);
     if (!parsed.ok) {
@@ -213,14 +276,13 @@ export async function POST(request: Request): Promise<Response> {
         { status: resolved.status },
       );
     }
-    const actor = deriveCommunityPriceActor(request);
-    if (await communityWriteIsLimited(actor, resolved.venueId)) {
+    if (await communityWriteIsLimited(contributor.actor, resolved.venueId)) {
       return jsonNoStore({ error: "Too many logs, slow down." }, { status: 429 });
     }
     const { signal, failed } = await submitCommunityVenueSignal({
       ...parsed.value,
       venueId: resolved.venueId,
-      actor,
+      actor: contributor.actor,
     });
     if (failed || !signal) {
       return jsonNoStore(
@@ -270,18 +332,10 @@ export async function POST(request: Request): Promise<Response> {
   }
   const submission = { ...result.value, venueId: resolved.venueId };
 
-  const actor = deriveCommunityPriceActor(request);
-  const attribution = await resolveOptionalPriceAttribution(
-    request,
-    readString(body.contributorHandle),
-  );
-
-  // Cap one device across every venue before applying the tighter per-venue
-  // budget. Without this actor-only key, changing venueId resets the budget and
-  // lets one device spray a price across the whole map. Deliberate: the key is
-  // the hashed IP, so devices behind one NAT share the 30/hour budget - a
-  // client-minted id would be cleared-storage-evadable and defeat the cap.
-  if (await communityWriteIsLimited(actor, submission.venueId)) {
+  // Cap one account across every venue before applying the tighter per-venue
+  // budget. The immutable profile id is stable across handle changes and
+  // devices, and cannot be reset by clearing browser storage.
+  if (await communityWriteIsLimited(contributor.actor, submission.venueId)) {
     return jsonNoStore({ error: "Too many price logs, slow down." }, { status: 429 });
   }
 
@@ -289,10 +343,8 @@ export async function POST(request: Request): Promise<Response> {
   // flagged so we answer 503 (degraded dependency) rather than a fake success.
   const { price, failed } = await submitCommunityPrice({
     ...submission,
-    actor,
-    ...(attribution.status === "credited"
-      ? { contributorHandle: attribution.handle }
-      : {}),
+    actor: contributor.actor,
+    contributorHandle: contributor.handle,
   });
   if (failed || !price) {
     return jsonNoStore({ error: "Could not log that price right now." }, { status: 503 });
@@ -322,7 +374,10 @@ export async function POST(request: Request): Promise<Response> {
   return jsonNoStore(
     {
       ok: true,
-      attribution,
+      attribution: {
+        status: "credited",
+        handle: contributor.handle,
+      },
       price:
         record ??
         {

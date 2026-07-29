@@ -14,6 +14,7 @@ import {
 import type { AnalyticsConsentDecision } from "@/lib/analyticsIdentity";
 import { authedFetch } from "@/lib/authedFetch";
 import { emitIdentityHandleChanged } from "@/lib/identityClient";
+import PrivateIdentityEditor from "@/components/identity/PrivateIdentityEditor";
 import NightMemoryStudio from "@/components/profile/NightMemoryStudio";
 import type { ReferralPrivateStatus } from "@/lib/referralStore";
 import {
@@ -499,6 +500,7 @@ export default function PubmaxxAccountHub() {
       />
       <div className="accountHubGrid">
         <form onSubmit={claim}><h3>{currentHandle ? "Your @handle" : "Claim your @handle"}</h3><input value={handle} onChange={(event) => setHandle(event.target.value)} pattern="[A-Za-z0-9_]{3,30}" placeholder="night_owl" required /><button type="submit">{currentHandle ? "Rename handle" : "Claim handle"}</button>{currentHandle ? <small>Renames are limited to once every 30 days. Old links keep working.</small> : null}</form>
+        <PrivateIdentityEditor />
         <div><h3>Connected accounts</h3><SocialConnectionActions providers={providers} onConnect={(provider) => void connectOAuth(provider)} />{providers.instagram.manual ? <form onSubmit={connectInstagram}><input type="url" value={instagramUrl} onChange={(event) => setInstagramUrl(event.target.value)} placeholder="Personal Instagram URL" required /><button type="submit">Add personal link</button></form> : null}<small>{connections.length} connected</small></div>
         <ReferralInviteCard
           status={referralStatus}

@@ -65,7 +65,7 @@ export const memoryIdentityHandleStore: IdentityHandleStore = {
   async availability(handle) {
     if (memoryAliases.has(handle)) return { handle, available: false, reason: "taken" };
     const legacy = await profileStore().getByHandle(handle);
-    return legacy
+    return legacy?.userId
       ? { handle, available: false, reason: "taken" }
       : { handle, available: true };
   },
@@ -192,11 +192,25 @@ export const supabaseIdentityHandleStore: IdentityHandleStore = {
   async availability(handle) {
     const { data, error } = await requireSupabaseAdmin()
       .from("profile_handle_aliases")
-      .select("profile_id")
+      .select("profile_id,is_current")
       .eq("handle", handle)
       .limit(1);
     if (error) throw new Error(error.message);
-    return (data ?? []).length
+    const alias = (data ?? [])[0] as
+      | { profile_id?: unknown; is_current?: unknown }
+      | undefined;
+    if (!alias?.profile_id) return { handle, available: true };
+    if (alias.is_current !== true) {
+      return { handle, available: false, reason: "taken" };
+    }
+    const { data: profiles, error: profileError } = await requireSupabaseAdmin()
+      .from("profiles")
+      .select("user_id")
+      .eq("id", String(alias.profile_id))
+      .limit(1);
+    if (profileError) throw new Error(profileError.message);
+    const profile = (profiles ?? [])[0] as { user_id?: unknown } | undefined;
+    return profile?.user_id
       ? { handle, available: false, reason: "taken" }
       : { handle, available: true };
   },

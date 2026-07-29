@@ -1266,8 +1266,8 @@
 .accountHub h2 { margin: .25rem 0 1rem; }
 .accountHubGrid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .75rem; }
 .accountHubGrid > * { display: grid; align-content: start; gap: .65rem; padding: 1rem; border-radius: 18px; background: var(--panel-raised); }
-.accountHubGrid input, .accountHubGrid button { min-height: 44px; border-radius: 12px; }
-.accountHubGrid input { width: 100%; padding: .7rem .8rem; border: 1px solid var(--line); background: var(--paper); color: var(--ink); }
+.accountHubGrid input, .accountHubGrid select, .accountHubGrid button { min-height: 44px; border-radius: 12px; }
+.accountHubGrid input, .accountHubGrid select { width: 100%; padding: .7rem .8rem; border: 1px solid var(--line); background: var(--paper); color: var(--ink); }
 .accountHubGrid button { padding: .65rem .8rem; border: 0; background: var(--ink); color: var(--paper); font-weight: 700; }
 .accountHubReferral { min-width: 0; }
 .accountHubReferral h3, .accountHubReferral p { margin: 0; }

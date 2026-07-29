@@ -216,27 +216,41 @@ describe("legal content pages", () => {
 
   it("discloses community venue reports and their contributor count", () => {
     expect(privacy).toMatch(/Community venue reports/);
-    expect(privacy).toMatch(/rough or posh/);
+    expect(privacy).toMatch(/rough or\s+posh/);
     expect(privacy).toMatch(/entrance and toilet access separately/);
     expect(privacy).toMatch(/door policy/);
     expect(privacy).toMatch(/people were eating/);
-    expect(privacy).toMatch(/same opaque device token/);
-    expect(privacy).toMatch(/does not enter the public contributor\s+record/);
+    expect(privacy).toMatch(/same stable private profile key/);
+    expect(privacy).toMatch(/Venue reports do not enter the public\s+contributor record/);
     expect(privacy).toMatch(/Community prices and venue reports:/);
   });
 
-  it("explains public contributor ranking and optional price attribution", () => {
+  it("explains account-bound price attribution and public contributor ranking", () => {
     expect(privacy).toMatch(/public contributor record/i);
     expect(privacy).toMatch(
       /prices[\s\S]*Visit Reports[\s\S]*Recommendations/i,
     );
-    expect(privacy).toMatch(/cannot[\s\S]*lands anonymously/i);
+    expect(privacy).toMatch(/requires a signed-in account/);
+    expect(privacy).toMatch(/server derives both from\s+the authenticated account/);
+    expect(privacy).toMatch(/Older rows that had no handle remain\s+anonymous/);
     expect(privacy).toMatch(/hidden[\s\S]*do not count/i);
     expect(privacy).toMatch(
       /Visit Reports and Recommendations[\s\S]*existing public profile[\s\S]*remain visible[\s\S]*excluded/i,
     );
     expect(privacy).toMatch(/all\s+time/i);
     expect(privacy).not.toMatch(/future contributor count/i);
+  });
+
+  it("states exactly what private identity and age-gate data is retained", () => {
+    expect(privacy).toMatch(/Google or Apple sign-in/);
+    expect(privacy).toMatch(/Full name\s+and sex are optional, private account details/);
+    expect(privacy).toMatch(/only identity shown with contributions/);
+    expect(privacy).toMatch(/do not store the date\s+of birth/);
+    expect(privacy).toMatch(/retain only an adult gate result/);
+    expect(privacy).toMatch(/calendar date when you become eligible/);
+    expect(privacy).toMatch(
+      /currently exist only to block\s+community price and venue-report writes by under-18s/,
+    );
   });
 
   it("names all three price lanes and fences the historical one", () => {

@@ -95,6 +95,10 @@ import {
   __resetMemoryProfiles,
   memoryProfileStore,
 } from "@/lib/profileStore";
+import {
+  __resetMemoryPrivateIdentities,
+  memoryPrivateIdentityStore,
+} from "@/lib/privateIdentityStore";
 import { getUkBaseIdIndex } from "@/lib/ukBaseIndex";
 import {
   MAX_PROVISIONAL_BASE_VENUE_IDS,
@@ -151,9 +155,22 @@ function get(query: string): Request {
   return new Request(`http://localhost/api/price-submit${query}`);
 }
 
+async function authorizeContributor(userId: string, handle: string): Promise<void> {
+  authState.userId = userId;
+  const onboarding = await memoryPrivateIdentityStore.completeOnboarding({
+    userId,
+    handle,
+  });
+  expect(onboarding).toMatchObject({ ok: true });
+  await memoryPrivateIdentityStore.recordAgeAssessment(userId, {
+    ok: true,
+    status: "adult",
+  });
+}
+
 const ORIGINAL_SUPABASE_URL = process.env.SUPABASE_URL;
 const ORIGINAL_SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
-beforeEach(() => {
+beforeEach(async () => {
   delete process.env.SUPABASE_URL;
   delete process.env.SUPABASE_SERVICE_ROLE_KEY;
   venueIndexState.unavailable = false;
@@ -164,7 +181,9 @@ beforeEach(() => {
   __resetCommunityPrices();
   __resetMemoryIdentityHandles();
   __resetMemoryProfiles();
+  __resetMemoryPrivateIdentities();
   __resetPintDrops();
+  await authorizeContributor("user-default", "default_contributor");
 });
 
 afterEach(async () => {
@@ -178,7 +197,7 @@ afterEach(async () => {
 });
 
 describe("POST /api/price-submit", () => {
-  it("records an anonymous submission (201) stamped community", async () => {
+  it("records an account-bound submission (201) stamped community", async () => {
     const res = await POST(
       post({ venueId: "venue-xjf3n0", drinkCategory: "beer", priceGbp: 4.2 }),
     );
@@ -188,14 +207,22 @@ describe("POST /api/price-submit", () => {
     expect(data.price?.priceGbp).toBe(4.2);
     expect(data.price?.source).toBe("community");
     expect(typeof data.price?.submittedAt).toBe("number");
-    expect(data.attribution).toEqual({ status: "anonymous" });
+    expect(data.attribution).toEqual({
+      status: "credited",
+      handle: "default_contributor",
+    });
     expect(
       (await memoryCommunityPriceStore.listLeaderboardContributions()).records,
-    ).toEqual([]);
+    ).toMatchObject([
+      {
+        handle: "default_contributor",
+        lane: "price",
+        visible: true,
+      },
+    ]);
   });
 
-  it("keeps an unowned asserted handle anonymous without creating a profile", async () => {
-    authState.userId = "user-night-owl";
+  it("ignores a client-asserted handle and credits the authenticated account", async () => {
     const res = await POST(
       post({
         venueId: "venue-xjf3n0",
@@ -207,21 +234,19 @@ describe("POST /api/price-submit", () => {
 
     expect(res.status).toBe(201);
     expect((await res.json() as PriceBody).attribution).toEqual({
-      status: "anonymous",
+      status: "credited",
+      handle: "default_contributor",
     });
     expect(await memoryProfileStore.getByHandle("night_owl")).toBeNull();
     expect(
       (await memoryCommunityPriceStore.listLeaderboardContributions()).records,
-    ).toEqual([]);
+    ).toMatchObject([{ handle: "default_contributor" }]);
   });
 
   it("credits a renamed handle through its immutable owned identity", async () => {
-    authState.userId = "user-night-owl";
+    await authorizeContributor("user-night-owl", "night_owl");
     expect(
-      await memoryIdentityHandleStore.claim(authState.userId, "night_owl"),
-    ).toMatchObject({ ok: true });
-    expect(
-      await memoryIdentityHandleStore.rename(authState.userId, "dawn_owl"),
+      await memoryIdentityHandleStore.rename("user-night-owl", "dawn_owl"),
     ).toMatchObject({
       ok: true,
       previousHandle: "night_owl",
@@ -257,8 +282,8 @@ describe("POST /api/price-submit", () => {
     expect(JSON.stringify(read)).not.toContain("actor");
   });
 
-  it("stores a stale linked-handle submission anonymously after sign-out", async () => {
-    await memoryProfileStore.linkUser("night_owl", "user-night-owl");
+  it("requires sign-in before storing a contribution", async () => {
+    authState.userId = null;
 
     const res = await POST(
       post({
@@ -269,19 +294,60 @@ describe("POST /api/price-submit", () => {
       }),
     );
 
-    expect(res.status).toBe(201);
-    expect((await res.json() as PriceBody).attribution).toEqual({
-      status: "anonymous",
+    expect(res.status).toBe(401);
+    expect(await res.json()).toMatchObject({
+      status: "sign_in_required",
+      error: "Sign in to contribute.",
     });
-    expect(await readCommunityPrices("venue-xjf3n0")).toHaveLength(1);
+    expect(await readCommunityPrices("venue-xjf3n0")).toHaveLength(0);
     expect(
       (await memoryCommunityPriceStore.listLeaderboardContributions()).records,
     ).toEqual([]);
   });
 
-  it("stores a submission anonymously when optional profile lookup fails", async () => {
-    authState.userId = "user-night-owl";
-    vi.spyOn(memoryProfileStore, "getByHandle").mockRejectedValueOnce(
+  it("requires account onboarding and the adult gate before storing", async () => {
+    authState.userId = "user-not-onboarded";
+    let res = await POST(
+      post({ venueId: "venue-xjf3n0", drinkCategory: "beer", priceGbp: 4.2 }),
+    );
+    expect(res.status).toBe(409);
+    expect(await res.json()).toMatchObject({ status: "onboarding_required" });
+
+    await memoryPrivateIdentityStore.completeOnboarding({
+      userId: "user-age-unknown",
+      handle: "age_unknown",
+    });
+    authState.userId = "user-age-unknown";
+    res = await POST(
+      post({ venueId: "venue-xjf3n0", drinkCategory: "beer", priceGbp: 4.2 }),
+    );
+    expect(res.status).toBe(403);
+    expect(await res.json()).toMatchObject({ status: "age_required" });
+
+    await memoryPrivateIdentityStore.recordAgeAssessment("user-age-unknown", {
+      ok: true,
+      status: "underage",
+      eligibleOn: "2099-01-01",
+    });
+    res = await POST(
+      post({
+        kind: "venue-signal",
+        venueId: "venue-xjf3n0",
+        signalKey: "character",
+        signalValue: "rough",
+      }),
+    );
+    expect(res.status).toBe(403);
+    expect(await res.json()).toMatchObject({
+      status: "underage",
+      error:
+        "You must be 18 or over to contribute. PUBMAXX is about buying alcohol.",
+    });
+    expect(await readCommunityPrices("venue-xjf3n0")).toEqual([]);
+  });
+
+  it("refuses a contribution when account identity lookup fails", async () => {
+    vi.spyOn(memoryProfileStore, "getByUserId").mockRejectedValueOnce(
       new Error("profile store unavailable"),
     );
 
@@ -294,11 +360,8 @@ describe("POST /api/price-submit", () => {
       }),
     );
 
-    expect(res.status).toBe(201);
-    expect((await res.json() as PriceBody).attribution).toEqual({
-      status: "anonymous",
-    });
-    expect(await readCommunityPrices("venue-xjf3n0")).toHaveLength(1);
+    expect(res.status).toBe(503);
+    expect(await readCommunityPrices("venue-xjf3n0")).toHaveLength(0);
     expect(
       (await memoryCommunityPriceStore.listLeaderboardContributions()).records,
     ).toEqual([]);
@@ -478,6 +541,7 @@ describe("POST /api/price-submit venue signals", () => {
     const first = (await (
       await POST(postSignal(submission, "203.0.113.11"))
     ).json()) as PriceBody;
+    await authorizeContributor("user-signal-second", "signal_second");
     const second = (await (
       await POST(postSignal(submission, "203.0.113.12"))
     ).json()) as PriceBody;
@@ -782,15 +846,12 @@ describe("GET /api/price-submit", () => {
 
 // The corroboration count the POST answers with is what promotes a submission
 // from the pub's sheet onto the map, so the route has to state it - and has to
-// derive it, never accept it. Identity here is the server-derived hashed IP, so
-// "a different device" is a different x-forwarded-for.
+// derive it, never accept it. Identity here is the authenticated profile id, so
+// changing IP cannot manufacture another voice.
 describe("POST /api/price-submit corroboration", () => {
-  function postAs(ip: string, body: unknown): Request {
-    return new Request("http://localhost/api/price-submit", {
-      method: "POST",
-      headers: { "content-type": "application/json", "x-forwarded-for": ip },
-      body: JSON.stringify(body),
-    });
+  async function submitAs(account: string, body: unknown): Promise<Response> {
+    await authorizeContributor(`user-${account}`, `handle_${account}`);
+    return POST(post(body));
   }
 
   async function priceOf(res: Response) {
@@ -813,36 +874,36 @@ describe("POST /api/price-submit corroboration", () => {
   it("answers a first report with one voice - the tap landed, the map did not move", async () => {
     const venueId = await realVenueId(0);
     const price = await priceOf(
-      await POST(postAs("1.1.1.1", { venueId, drinkCategory: "beer", priceGbp: 4.2 })),
+      await submitAs("one_a", { venueId, drinkCategory: "beer", priceGbp: 4.2 }),
     );
     expect(price?.corroborations).toBe(1);
   });
 
   it("answers the second independent agreeing report with two", async () => {
     const venueId = await realVenueId(1);
-    await POST(postAs("1.1.1.1", { venueId, drinkCategory: "beer", priceGbp: 4.2 }));
+    await submitAs("two_a", { venueId, drinkCategory: "beer", priceGbp: 4.2 });
     const price = await priceOf(
-      await POST(postAs("2.2.2.2", { venueId, drinkCategory: "beer", priceGbp: 4.5 })),
+      await submitAs("two_b", { venueId, drinkCategory: "beer", priceGbp: 4.5 }),
     );
-    // The response is the submitter's own figure, now backed by two devices.
+    // The response is the submitter's own figure, now backed by two accounts.
     expect(price?.priceGbp).toBe(4.5);
     expect(price?.corroborations).toBe(2);
   });
 
   it("keeps one voice when the same device logs again from the same address", async () => {
     const venueId = await realVenueId(2);
-    await POST(postAs("3.3.3.3", { venueId, drinkCategory: "beer", priceGbp: 4.2 }));
+    await submitAs("three_a", { venueId, drinkCategory: "beer", priceGbp: 4.2 });
     const price = await priceOf(
-      await POST(postAs("3.3.3.3", { venueId, drinkCategory: "beer", priceGbp: 4.3 })),
+      await submitAs("three_a", { venueId, drinkCategory: "beer", priceGbp: 4.3 }),
     );
     expect(price?.corroborations).toBe(1);
   });
 
   it("keeps one voice when a second device contradicts rather than agrees", async () => {
     const venueId = await realVenueId(3);
-    await POST(postAs("4.4.4.4", { venueId, drinkCategory: "beer", priceGbp: 4.2 }));
+    await submitAs("four_a", { venueId, drinkCategory: "beer", priceGbp: 4.2 });
     const price = await priceOf(
-      await POST(postAs("5.5.5.5", { venueId, drinkCategory: "beer", priceGbp: 7.5 })),
+      await submitAs("four_b", { venueId, drinkCategory: "beer", priceGbp: 7.5 }),
     );
     expect(price?.corroborations).toBe(1);
   });
@@ -851,7 +912,7 @@ describe("POST /api/price-submit corroboration", () => {
     const venueId = await realVenueId(4);
     const price = await priceOf(
       await POST(
-        postAs("6.6.6.6", {
+        post({
           venueId,
           drinkCategory: "beer",
           priceGbp: 4.2,
@@ -866,8 +927,8 @@ describe("POST /api/price-submit corroboration", () => {
 
   it("states the count on the read path too, so a reload agrees with the tap", async () => {
     const venueId = await realVenueId(5);
-    await POST(postAs("7.7.7.7", { venueId, drinkCategory: "beer", priceGbp: 4.2 }));
-    await POST(postAs("8.8.8.8", { venueId, drinkCategory: "beer", priceGbp: 4.2 }));
+    await submitAs("seven_a", { venueId, drinkCategory: "beer", priceGbp: 4.2 });
+    await submitAs("seven_b", { venueId, drinkCategory: "beer", priceGbp: 4.2 });
 
     const data = (await (await GET(get(`?venueId=${venueId}`))).json()) as {
       prices: Array<{ corroborations?: number }>;
@@ -878,10 +939,10 @@ describe("POST /api/price-submit corroboration", () => {
   it("keeps the corroborated figure as the map candidate when a third device disagrees", async () => {
     // Devices A and B agree on £4.20 (driving the map); C logs a fresh £9.00.
     const venueId = await realVenueId(6);
-    await POST(postAs("9.9.9.9", { venueId, drinkCategory: "beer", priceGbp: 4.2 }));
-    await POST(postAs("10.10.10.10", { venueId, drinkCategory: "beer", priceGbp: 4.2 }));
+    await submitAs("nine_a", { venueId, drinkCategory: "beer", priceGbp: 4.2 });
+    await submitAs("nine_b", { venueId, drinkCategory: "beer", priceGbp: 4.2 });
     const cPrice = await priceOf(
-      await POST(postAs("11.11.11.11", { venueId, drinkCategory: "beer", priceGbp: 9 })),
+      await submitAs("nine_c", { venueId, drinkCategory: "beer", priceGbp: 9 }),
     );
 
     // C's receipt figure is their own £9.00 at one voice - but the candidate
@@ -925,7 +986,7 @@ describe("POST /api/price-submit corroboration", () => {
       },
     ];
     const price = await priceOf(
-      await POST(postAs("12.12.12.12", { venueId, drinkCategory: "beer", priceGbp: 4.5 })),
+      await submitAs("twelve_a", { venueId, drinkCategory: "beer", priceGbp: 4.5 }),
     );
     expect(price?.priceGbp).toBe(4.5);
     expect(price?.corroborations).toBe(1);
@@ -940,7 +1001,7 @@ describe("POST /api/price-submit corroboration", () => {
     const venueId = await realVenueId(8);
     readBackState.override = [];
     const price = await priceOf(
-      await POST(postAs("13.13.13.13", { venueId, drinkCategory: "beer", priceGbp: 4.5 })),
+      await submitAs("thirteen_a", { venueId, drinkCategory: "beer", priceGbp: 4.5 }),
     );
     // Absent stays absent: the submitter's own figure at one voice, and no
     // fabricated map candidate a degraded read cannot vouch for.

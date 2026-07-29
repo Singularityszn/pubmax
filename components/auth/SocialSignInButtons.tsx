@@ -25,13 +25,13 @@ function GoogleMark(): React.JSX.Element {
   );
 }
 
-function MicrosoftMark(): React.JSX.Element {
+function AppleMark(): React.JSX.Element {
   return (
-    <svg className="authProviderMark" viewBox="0 0 23 23" aria-hidden="true" focusable="false">
-      <path fill="#F25022" d="M1 1h10v10H1z" />
-      <path fill="#7FBA00" d="M12 1h10v10H12z" />
-      <path fill="#00A4EF" d="M1 12h10v10H1z" />
-      <path fill="#FFB900" d="M12 12h10v10H12z" />
+    <svg className="authProviderMark" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+      <path
+        fill="currentColor"
+        d="M17.05 12.54c-.03-3.08 2.51-4.58 2.62-4.65a5.63 5.63 0 0 0-4.43-2.4c-1.86-.2-3.67 1.12-4.62 1.12-.98 0-2.46-1.1-4.05-1.07a5.9 5.9 0 0 0-4.97 3.03c-2.14 3.7-.55 9.14 1.51 12.14 1.03 1.47 2.23 3.11 3.81 3.05 1.55-.06 2.13-.98 4-.98 1.84 0 2.39.98 4 .94 1.66-.03 2.7-1.47 3.69-2.95a12.1 12.1 0 0 0 1.68-3.42 5.26 5.26 0 0 1-3.24-4.81ZM14.02 3.52A5.35 5.35 0 0 0 15.25 0a5.47 5.47 0 0 0-3.54 1.68 5.08 5.08 0 0 0-1.27 3.38 4.52 4.52 0 0 0 3.58-1.54Z"
+      />
     </svg>
   );
 }
@@ -40,7 +40,7 @@ function ProviderLabel({
   name,
   fullLabels,
 }: {
-  name: "Google" | "Microsoft";
+  name: "Google" | "Apple";
   fullLabels: boolean;
 }): React.JSX.Element {
   if (fullLabels) return <>Continue with {name}</>;
@@ -60,18 +60,18 @@ export default function SocialSignInButtons({
   availability,
   disabled,
   onGoogle,
-  onMicrosoft,
+  onApple,
   className,
   fullLabels = false,
 }: {
   availability: SocialAuthProviderAvailability;
   disabled: boolean;
   onGoogle: () => void | Promise<void>;
-  onMicrosoft: () => void | Promise<void>;
+  onApple: () => void | Promise<void>;
   className?: string;
   fullLabels?: boolean;
 }): React.JSX.Element | null {
-  if (!availability.google && !availability.microsoft) return null;
+  if (!availability.google && !availability.apple) return null;
 
   const classes = ["authProviders", className].filter(Boolean).join(" ");
   return (
@@ -88,16 +88,16 @@ export default function SocialSignInButtons({
           <ProviderLabel name="Google" fullLabels={fullLabels} />
         </button>
       ) : null}
-      {availability.microsoft ? (
+      {availability.apple ? (
         <button
           type="button"
           className="authSignIn"
-          onClick={() => void onMicrosoft()}
+          onClick={() => void onApple()}
           disabled={disabled}
-          aria-label="Continue with Microsoft"
+          aria-label="Continue with Apple"
         >
-          <MicrosoftMark />
-          <ProviderLabel name="Microsoft" fullLabels={fullLabels} />
+          <AppleMark />
+          <ProviderLabel name="Apple" fullLabels={fullLabels} />
         </button>
       ) : null}
     </div>

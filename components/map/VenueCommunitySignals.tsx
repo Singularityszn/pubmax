@@ -49,6 +49,9 @@ type VenueCommunitySignalsProps = {
     signalKey: CommunityVenueSignalKey;
     signalValue: CommunityVenueSignalValue;
   }) => Promise<CommunityVenueSignalSubmitResult>;
+  requestContribution: (
+    action: () => void | Promise<void>,
+  ) => Promise<void>;
   /** Fixed test clock. The app leaves it undefined. */
   now?: number;
 };
@@ -94,6 +97,7 @@ export default function VenueCommunitySignals({
   readStatus,
   submitting,
   onSubmit,
+  requestContribution,
   now,
 }: VenueCommunitySignalsProps) {
   const [mountedAt] = useState(() => Date.now());
@@ -149,16 +153,18 @@ export default function VenueCommunitySignals({
     if (submitting) return;
     setError(null);
     setSaved(false);
-    const result = await onSubmit({
-      venueId,
-      signalKey,
-      signalValue,
+    await requestContribution(async () => {
+      const result = await onSubmit({
+        venueId,
+        signalKey,
+        signalValue,
+      });
+      if (!result.ok) {
+        setError(result.error);
+        return;
+      }
+      setSaved(true);
     });
-    if (!result.ok) {
-      setError(result.error);
-      return;
-    }
-    setSaved(true);
   }
 
   return (

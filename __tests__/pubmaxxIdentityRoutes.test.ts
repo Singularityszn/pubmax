@@ -80,5 +80,8 @@ describe("PUBMAXX handle APIs", () => {
       currentHandle: "dawn_owl",
       redirect: true,
     });
+    expect(
+      await (await current(request("/api/identity/handle/current"))).json(),
+    ).toEqual({ handle: "dawn_owl" });
   });
 });

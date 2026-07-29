@@ -150,6 +150,7 @@ export const ANALYTICS_EVENTS = {
   price_submit_viewed: ["category"],
   price_submitted: ["category"],
   price_submit_failed: ["category", "reason"],
+  contribution_gate: ["step"],
   // Press-arrival funnel (the London Pint Index). Three questions, and these
   // events exist to answer exactly those: how many ARRIVED on the Index or one
   // of its dated editions (pint_index_viewed, once per page view), how many
@@ -314,6 +315,14 @@ export type AnalyticsEvent = {
 
 const MAX_STRING_LEN = 40;
 
+const CONTRIBUTION_GATE_STEPS = [
+  "sign_in_required",
+  "onboarding_required",
+  "age_required",
+  "underage",
+  "resumed",
+] as const;
+
 const SAFE_STRING_VALUES = new Set([
   // fixed product surfaces and provenance
   "landing", "home", "map", "tonight", "plan", "you", "pal", "borough", "crawl", "recap",
@@ -344,6 +353,7 @@ const SAFE_STRING_VALUES = new Set([
   // failure buckets.
   ...PRICE_SUBMIT_CATEGORIES,
   ...PRICE_SUBMIT_FAILURE_REASONS,
+  ...CONTRIBUTION_GATE_STEPS,
   // Press-arrival vocabulary: the two Pint Index surfaces, the two visit
   // kinds, and the London borough codes an arrival tap may name.
   ...PINT_INDEX_SURFACES,
@@ -390,6 +400,7 @@ const TRUSTED_HANDOFF_REQUIRED_KEYS = {
   price_submit_viewed: ["category"],
   price_submitted: ["category"],
   price_submit_failed: ["category", "reason"],
+  contribution_gate: ["step"],
   // An arrival with no surface, or a tap with no area, is an uncountable step
   // in a funnel whose whole value is the ratio between its steps.
   pint_index_viewed: ["surface", "visit"],
@@ -541,6 +552,15 @@ function isAllowedPriceFunnelProp(
   return true;
 }
 
+function isAllowedContributionGateProp(
+  name: AnalyticsEventName,
+  key: string,
+  value: string | number | boolean,
+): boolean {
+  if (name !== "contribution_gate" || key !== "step") return true;
+  return includesValue(CONTRIBUTION_GATE_STEPS, value);
+}
+
 /**
  * Press-arrival strictness. `surface`, `visit` and `area` each have their own
  * closed vocabulary, and `area` shares no key name with another event, so the
@@ -597,7 +617,7 @@ export function sanitizeEvent(
       if (value === undefined) continue;
       const customValidator = CUSTOM_PROP_VALIDATORS[key];
       const valid = name === "sign_in_initiated" && key === "provider"
-        ? value === "google" || value === "microsoft"
+        ? value === "google" || value === "apple" || value === "email"
         : customValidator
           ? customValidator(value)
           : isSafeValue(value)
@@ -606,6 +626,7 @@ export function sanitizeEvent(
             && isAllowedTrustedHandoffEventProp(name, key, value)
             && isAllowedVitalProp(name, key, value)
             && isAllowedPriceFunnelProp(name, key, value)
+            && isAllowedContributionGateProp(name, key, value)
             && isAllowedPintIndexArrivalProp(name, key, value);
       if (valid) out[key] = value as string | number | boolean;
     }

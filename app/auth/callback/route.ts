@@ -1,4 +1,4 @@
-// Auth callback landing. Supabase Auth (Google / Azure / email magic link)
+// Auth callback landing. Supabase Auth (Google / Apple / email magic link)
 // redirects here
 // with a `?code=` after the user approves. We hand that code back to the browser
 // so the browser Supabase client — which holds the PKCE code-verifier in its own

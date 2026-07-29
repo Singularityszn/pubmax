@@ -1,8 +1,8 @@
 // Identity nudge gate — decides WHEN to offer the signed-out user an account
-// (Google/Microsoft OAuth) after a genuinely high-intent action. This is the
+// (Google, Apple, or email magic link) after a genuinely high-intent action. This is the
 // WEB implementation of the Cycle-2 locked owner decision: "push identity
 // harder — account prompt after the FIRST PLAN ACTION and after the FIRST
-// MOMENT CAPTURE; browsing / map / prices are NEVER gated."
+// MOMENT CAPTURE; browsing and map reads are never gated."
 //
 // Two qualifying triggers, each recorded from its own success path:
 //   • "plan"   — a plan was created or joined successfully.

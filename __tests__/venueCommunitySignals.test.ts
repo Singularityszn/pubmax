@@ -20,6 +20,9 @@ function render(
       readStatus,
       submitting: false,
       onSubmit: async () => ({ ok: true as const }),
+      requestContribution: async (action) => {
+        await action();
+      },
       now: NOW,
     }),
   );

@@ -927,14 +927,6 @@ export function useCommunityPrices(): CommunityPricesState {
 
       setSubmitting(true);
       try {
-        let contributorHandle = "";
-        try {
-          contributorHandle = normalizeHandle(
-            window.localStorage.getItem("pubmax_handle") ?? "",
-          );
-        } catch {
-          contributorHandle = "";
-        }
         const res = await authedFetch("/api/price-submit", {
           method: "POST",
           headers: { "content-type": "application/json" },
@@ -942,7 +934,6 @@ export function useCommunityPrices(): CommunityPricesState {
             venueId,
             drinkCategory,
             priceGbp,
-            ...(contributorHandle ? { contributorHandle } : {}),
           }),
         });
         const data = (await res.json().catch(() => null)) as
@@ -1052,7 +1043,7 @@ export function useCommunityPrices(): CommunityPricesState {
 
       setSubmitting(true);
       try {
-        const response = await fetch("/api/price-submit", {
+        const response = await authedFetch("/api/price-submit", {
           method: "POST",
           headers: { "content-type": "application/json" },
           body: JSON.stringify({

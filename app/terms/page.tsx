@@ -175,10 +175,10 @@ export default function TermsPage() {
         <p className="legalBody">
           Referral rewards are not active. We can record private edges and
           milestones, but those records do not grant access to paid features
-          while we cannot reliably tie a contribution to a signed-in person and
-          stop one person using several accounts. If that changes, these terms
-          and the account surface will say what is granted before any reward
-          goes live.
+          while sign-in cannot prove one person has only one account and not
+          every qualifying contribution uses the account identity boundary. If
+          that changes, these terms and the account surface will say what is
+          granted before any reward goes live.
         </p>
       </section>
 

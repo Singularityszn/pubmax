@@ -81,15 +81,14 @@ import {
 
 export type CommunityPriceWrite = CommunityPriceInput & {
   /**
-   * Stable, opaque token for the submitter (server-derived hashed IP in the
-   * route). Lets one device replace its OWN earlier observation for the same
-   * drink instead of stacking duplicates. When omitted the write still lands,
-   * it just can't be attributed back to a device.
+   * Stable, opaque contributor key. Public contribution routes derive it from
+   * the authenticated profile id. Lets one account replace its OWN earlier
+   * observation for the same drink instead of stacking duplicates.
    */
   actor?: string;
   /**
-   * Existing public PUBMAXX handle, when this browser already has one. Price
-   * logging stays valid without it; anonymous rows never enter a named board.
+   * Server-derived public PUBMAXX handle. Optional here for legacy rows and
+   * internal imports; public contribution routes require account ownership.
    */
   contributorHandle?: string;
 };
@@ -102,7 +101,7 @@ export type CommunityPriceWriteResult = {
 };
 
 export type CommunityVenueSignalWrite = CommunityVenueSignalInput & {
-  /** Same server-derived opaque contributor token community prices use. */
+  /** Same server-derived opaque contributor key community prices use. */
   actor?: string;
 };
 

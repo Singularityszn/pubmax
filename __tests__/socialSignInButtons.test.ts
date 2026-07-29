@@ -17,36 +17,36 @@ vi.mock("@/components/auth/AuthProvider", () => ({
 const noop = async () => {};
 
 function renderProviders(
-  availability: { google: boolean; microsoft: boolean },
+  availability: { google: boolean; apple: boolean },
 ): string {
   return renderToStaticMarkup(
     createElement(SocialSignInButtons, {
       availability,
       disabled: false,
       onGoogle: noop,
-      onMicrosoft: noop,
+      onApple: noop,
     }),
   );
 }
 
 describe("social sign-in provider rendering", () => {
   it("renders no clickable provider when every live provider is disabled", () => {
-    const html = renderProviders({ google: false, microsoft: false });
+    const html = renderProviders({ google: false, apple: false });
 
     expect(html).toBe("");
   });
 
   it("renders Google only when live settings enable Google", () => {
-    const html = renderProviders({ google: true, microsoft: false });
+    const html = renderProviders({ google: true, apple: false });
 
     expect(html).toContain('aria-label="Continue with Google"');
-    expect(html).not.toContain("Continue with Microsoft");
+    expect(html).not.toContain("Continue with Apple");
   });
 
-  it("renders Microsoft only when live settings enable Azure", () => {
-    const html = renderProviders({ google: false, microsoft: true });
+  it("renders Apple only when live settings enable Apple", () => {
+    const html = renderProviders({ google: false, apple: true });
 
-    expect(html).toContain('aria-label="Continue with Microsoft"');
+    expect(html).toContain('aria-label="Continue with Apple"');
     expect(html).not.toContain("Continue with Google");
   });
 });
@@ -75,7 +75,7 @@ describe("email sign-in heading", () => {
 
 describe("signed-out sign-in surface", () => {
   function renderSignIn(
-    socialProviders: { google: boolean; microsoft: boolean },
+    socialProviders: { google: boolean; apple: boolean },
   ): string {
     authState.current = {
       user: null,
@@ -83,7 +83,7 @@ describe("signed-out sign-in surface", () => {
       configured: true,
       socialProviders,
       signInWithGoogle: vi.fn(),
-      signInWithMicrosoft: vi.fn(),
+      signInWithApple: vi.fn(),
       signInWithEmail: vi.fn(),
       cancelAuthAttempt: vi.fn(),
       signOut: vi.fn(),
@@ -92,20 +92,20 @@ describe("signed-out sign-in surface", () => {
   }
 
   it("renders complete email sign-in and no social dead ends when all are disabled", () => {
-    const html = renderSignIn({ google: false, microsoft: false });
+    const html = renderSignIn({ google: false, apple: false });
 
     expect(html).toContain("Continue with email");
     expect(html).toContain("Email me a link");
     expect(html).not.toContain("Continue with Google");
-    expect(html).not.toContain("Continue with Microsoft");
+    expect(html).not.toContain("Continue with Apple");
   });
 
   it("adds an enabled provider without replacing email sign-in", () => {
-    const html = renderSignIn({ google: true, microsoft: false });
+    const html = renderSignIn({ google: true, apple: false });
 
     expect(html).toContain('aria-label="Continue with Google"');
     expect(html).toContain("Or continue with email");
     expect(html).toContain("Email me a link");
-    expect(html).not.toContain("Continue with Microsoft");
+    expect(html).not.toContain("Continue with Apple");
   });
 });

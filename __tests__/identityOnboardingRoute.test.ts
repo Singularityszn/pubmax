@@ -1,0 +1,127 @@
+import { beforeEach, describe, expect, it, vi } from "vitest";
+
+vi.mock("@/lib/serverEnv", () => ({ assertServerEnv: () => {} }));
+vi.mock("@/lib/supabase", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/supabase")>();
+  return {
+    ...actual,
+    isSupabaseConfigured: () => false,
+    requiresSupabaseStore: () => false,
+  };
+});
+
+const authState = vi.hoisted(() => ({ userId: null as string | null }));
+vi.mock("@/lib/authServer", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/authServer")>();
+  return {
+    ...actual,
+    callerUserId: async () => authState.userId,
+  };
+});
+
+import { GET, PATCH, POST } from "@/app/api/identity/onboarding/route";
+import { __resetMemoryIdentityHandles } from "@/lib/identityHandleStore";
+import { __resetMemoryPrivateIdentities } from "@/lib/privateIdentityStore";
+import {
+  __resetMemoryProfiles,
+  memoryProfileStore,
+} from "@/lib/profileStore";
+
+function request(method = "GET", body?: unknown): Request {
+  return new Request("http://localhost/api/identity/onboarding", {
+    method,
+    headers: body ? { "content-type": "application/json" } : undefined,
+    body: body ? JSON.stringify(body) : undefined,
+  });
+}
+
+beforeEach(() => {
+  authState.userId = null;
+  __resetMemoryProfiles();
+  __resetMemoryIdentityHandles();
+  __resetMemoryPrivateIdentities();
+});
+
+describe("/api/identity/onboarding", () => {
+  it("requires a verified account", async () => {
+    expect((await GET(request())).status).toBe(401);
+    expect((await POST(request("POST", { handle: "night_owl" }))).status).toBe(401);
+  });
+
+  it("reports incomplete state without inventing an email-derived handle", async () => {
+    authState.userId = "user-1";
+    const response = await GET(request());
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({ complete: false });
+  });
+
+  it("distinguishes reserved handles from taken handles", async () => {
+    authState.userId = "user-1";
+    let response = await POST(request("POST", { handle: "karan" }));
+    expect(response.status).toBe(400);
+    expect(await response.json()).toMatchObject({
+      code: "reserved",
+      error: "That handle is not available.",
+    });
+
+    await memoryProfileStore.linkUser("night_owl", "user-other");
+    response = await POST(request("POST", { handle: "night_owl" }));
+    expect(response.status).toBe(409);
+    expect(await response.json()).toMatchObject({
+      code: "taken",
+      error: "That handle is already taken.",
+    });
+  });
+
+  it("claims a legacy handle in place and keeps optional details private", async () => {
+    authState.userId = "user-1";
+    const legacy = await memoryProfileStore.ensure("old_timer");
+
+    const response = await POST(
+      request("POST", {
+        handle: "old_timer",
+        fullName: "Nina Example",
+        sex: "female",
+      }),
+    );
+    expect(response.status).toBe(201);
+    expect(await response.json()).toEqual({
+      complete: true,
+      handle: "old_timer",
+      fullName: "Nina Example",
+      sex: "female",
+    });
+    expect(await memoryProfileStore.getByUserId("user-1")).toMatchObject({
+      id: legacy.id,
+    });
+
+    const status = await GET(request());
+    expect(await status.json()).toEqual({
+      complete: true,
+      handle: "old_timer",
+      fullName: "Nina Example",
+      sex: "female",
+    });
+  });
+
+  it("lets the account owner edit and clear private optional details", async () => {
+    authState.userId = "user-1";
+    await POST(
+      request("POST", {
+        handle: "night_person",
+        fullName: "Old Name",
+        sex: "female",
+      }),
+    );
+
+    const response = await PATCH(
+      request("PATCH", { fullName: "New Name", sex: "" }),
+    );
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({
+      complete: true,
+      handle: "night_person",
+      fullName: "New Name",
+    });
+  });
+});

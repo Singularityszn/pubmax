@@ -82,10 +82,12 @@ describe("mutating API surface certification", () => {
     // GET is read-only and is not counted. This literal is the
     // + two private referral writes: account-gated invite-link creation and
     // signup-only attribution claim. Neither accepts an account id from the
-    // caller, and neither exposes an invite edge. The deliberate
+    // caller, and neither exposes an invite edge. Plus the account-gated
+    // contribution eligibility POST. Account onboarding replaces the earlier
+    // identity claim POST, so it does not change the count. The deliberate
     // merge-coordination point: any branch adding a mutating route
     // bumps it in the same commit (docs/WRITE_SURFACE_CERTIFICATION.md).
-    expect(mutationRoutes).toHaveLength(74);
+    expect(mutationRoutes).toHaveLength(75);
   });
 
   it("gives every mutating route an abuse or authority boundary", () => {

@@ -6,7 +6,7 @@ reviewed surface—even when a POST is semantically read-only. The regression te
 Adding a mutating route or removing its authority/abuse boundary fails
 CI until this certification is deliberately updated.
 
-> **Inventory: 74 mutating routes.** The count grew 60 → 61 (email-capture
+> **Inventory: 75 mutating routes.** The count grew 60 → 61 (email-capture
 > `POST /api/email-subscribers`) → 62 (native `POST /api/push-tokens`) → 63 (the
 > Social Loop "we're out" `POST /api/check-ins`) → 64 (the vibe-vote
 > `POST /api/plans/[id]/vibe-votes`) → 65 (the area-demand capture
@@ -17,7 +17,9 @@ CI until this certification is deliberately updated.
 > community price submission `POST /api/price-submit`) → 71 (community-price
 > moderation `POST /api/admin/community-prices`) → 72 (authored weather
 > Recommendations `POST /api/weather-recommendations`) → 74 (private referral
-> invite-link creation and same-journey signup claim). Token-gated GET
+> invite-link creation and same-journey signup claim) → 75 (account-gated
+> contribution eligibility). Account onboarding replaces the earlier identity
+> claim POST, so it does not change the count. Token-gated GET
 > confirm/unsubscribe endpoints and read-only GETs (the Social Loop reads, the
 > vibe-vote tally read, the Visit Report venue / contributor-count /
 > moderator-lane reads, the operator
@@ -439,16 +441,14 @@ commit.
   `validateCommunityVenueSignal`, whose `signalKey`/`signalValue` pairs are a
   CLOSED vocabulary the browser and the server share and migration 0060 repeats
   as a CHECK, so an off-vocabulary answer cannot be stored by any door.
-- **Auth stance (keyless, optionally attributed):** device identity is the
-  server-derived `hashActor(hashIp(clientIp))` token, exactly as
-  `price-confirm` derives it, and is never trusted from the body. A
-  body-supplied `submittedAt`/`source` is ignored: the server stamps the clock
-  and the `community` lane itself. No account or handle is required. When the
-  browser offers `contributorHandle`, the route credits it only if the signed-in
-  user owns the matching public profile; an alias resolves to the current
-  handle, and every failed or absent ownership check leaves the price
-  anonymous. The actor token remains the de-duplication and corroboration key
-  and never leaves the store.
+- **Auth stance:** price and venue-signal writes require a verified account,
+  account-owned public handle, and adult contribution eligibility. Both public
+  attribution and the private `profile:<profile-id>` actor are derived on the
+  server. Body-supplied handles, actors, `submittedAt`, and `source` are
+  ignored. This stable profile actor is the de-duplication and corroboration
+  key and never leaves the store. The reader-report branch stays public and
+  uses its separate abuse-controlled actor because reporting an existing row is
+  not a contribution.
 - **Rate limit (boundary):** two durable `isLimited` tiers on the POST. An actor-wide cap
   keyed `price-submit-actor:${actor ?? "anon"}` (30/hour) stops one device
   spraying prices across the whole map by rotating `venueId`; then the per-venue
@@ -588,6 +588,24 @@ commit.
   when durable storage cannot answer. Truncating this table removes authored
   Recommendations and their contributor counts, but cannot change weather,
   reviews, prices, Night Signals, or venue data.
+
+### Contributor identity onboarding and eligibility (route 75)
+
+- **Routes / methods:** `POST` and `PATCH` on
+  `app/api/identity/onboarding/route.ts` claim an account-owned handle and edit
+  private optional details. `POST` on
+  `app/api/identity/contribution-gate/route.ts` evaluates date of birth once
+  before the first contribution. Its sibling GETs are read-only.
+- **Authority:** every method derives the account from a verified Supabase JWT
+  through `callerUserId`. Missing authority returns 401 before any read or
+  write. Handle ownership is enforced transactionally by
+  `complete_contributor_onboarding`; reserved handles are rejected by shared
+  code policy.
+- **Privacy:** the eligibility route passes the submitted date only to the age
+  assessor. It stores an adult-verification boolean, or for an under-18 only
+  the date they become eligible. It never stores date of birth. Full name and
+  sex stay in the private account table and are not returned by public profile
+  routes.
 
 ## Certification command
 

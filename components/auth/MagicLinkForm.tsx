@@ -3,6 +3,7 @@
 import { useCallback, useId, useState } from "react";
 import { Mail } from "lucide-react";
 
+import { trackEvent } from "@/lib/analytics";
 import type { MagicLinkResult } from "@/lib/passwordlessAuth";
 
 function looksLikeEmail(value: string): boolean {
@@ -31,6 +32,7 @@ export default function MagicLinkForm({
     async (event: React.FormEvent) => {
       event.preventDefault();
       if (!valid || disabled || status === "sending" || status === "sent") return;
+      trackEvent("sign_in_initiated", { provider: "email" });
       setStatus("sending");
       setMessage("");
       const result = await signInWithEmail(email);
