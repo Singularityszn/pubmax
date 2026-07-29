@@ -114,22 +114,21 @@ export default function PrivacyPage() {
           Google or Apple sign-in. That means we hold your email address. You
           must choose one public handle, which is linked to your authenticated
           account and is the only identity shown with contributions. Handle
-          alone is required to finish signup. Full name and sex are optional
-          private account details used for product analytics and social
-          features. They are never shown on prices, reports, signals,
-          Recommendations, leaderboards or the public contributor record.
+          is required to finish signup. Date of birth is required to finish signup
+          too. Full name and sex are optional. We collect and store date of
+          birth, full name and sex as private account details for product analytics and
+          social features. They are never shown on prices,
+          reports, signals, Recommendations, leaderboards or the public
+          contributor record.
         </p>
         <p className="legalBody">
-          We ask for date of birth only immediately before your first price or
-          venue-signal contribution. We assess it once, discard the date of
-          birth, and retain either an adult confirmation or, if you are under
-          18, the date you become eligible to contribute. Full name and sex stay
-          until you edit or clear them. Deleting your profile removes these
-          private identity fields and clears its editable public details. That
-          action keeps your authentication account, public handle and
-          handle-keyed contribution history. You can ask us to delete other
-          account data. People under 18 cannot contribute, but anyone can
-          browse.
+          We keep date of birth until you delete your profile. Full name and sex
+          stay until you edit or clear them, or delete your profile.
+          Deleting your profile removes these private identity fields and clears its
+          editable public details. That action keeps your authentication account,
+          public handle and handle-keyed contribution history. You can
+          ask us to delete other account data. We do not use date of birth to
+          block an account or contribution.
         </p>
         <p className="legalBody">
           Your public profile may also contain a display name, avatar, home
@@ -195,12 +194,11 @@ export default function PrivacyPage() {
           Logging tonight&rsquo;s price requires a signed-in account, a claimed
           handle and completed private profile. We store the venue, drink
           category, price and time, plus the account&rsquo;s stable private
-          profile key and current public handle. The stored age result decides
-          whether a price is accepted but is never shown with it. The server
-          derives both contribution identifiers from the authenticated account
-          and ignores any handle sent by the browser. A newly accepted price
-          therefore counts under that account&rsquo;s handle on the public
-          contributor record.
+          profile key and current public handle. The server derives both contribution
+          identifiers from the authenticated account and ignores
+          any handle sent by the browser. A newly accepted price therefore
+          counts under that account&rsquo;s handle on the public contributor
+          record.
         </p>
         <p className="legalBody">
           The private profile key exists so one account can replace its own
@@ -619,12 +617,10 @@ export default function PrivacyPage() {
       </section>
 
       <section className="legalSection" aria-labelledby="age">
-        <h2 id="age" className="legalH2">Age</h2>
+        <h2 id="age" className="legalH2">Age and access</h2>
         <p className="legalBody">
-          Anyone can browse PUBMAXX and claim a handle. Immediately before your
-          first price or venue-signal contribution, we check whether you are 18
-          or over. People under 18 cannot contribute. Pubs remain responsible
-          for deciding who they serve.
+          PUBMAXX does not block accounts or contributions based on age. Pubs
+          remain responsible for deciding who they serve.
         </p>
       </section>
 

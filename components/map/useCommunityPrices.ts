@@ -56,11 +56,7 @@ export type CommunitySubmissionFailure = {
   ok: false;
   error: string;
   reason: PriceSubmitFailureReason;
-  status?:
-    | "sign_in_required"
-    | "onboarding_required"
-    | "age_assessment_required"
-    | "age_restricted";
+  status?: "sign_in_required" | "onboarding_required";
 };
 
 export type CommunityPriceSubmitResult =
@@ -82,17 +78,13 @@ export function rejectedCommunitySubmission(
 ): CommunitySubmissionFailure {
   const contributionStatus =
     gateStatus === "sign_in_required" ||
-    gateStatus === "onboarding_required" ||
-    gateStatus === "age_assessment_required" ||
-    gateStatus === "age_restricted"
+    gateStatus === "onboarding_required"
       ? gateStatus
       : status === 401
         ? "sign_in_required"
         : status === 409
           ? "onboarding_required"
-          : status === 403
-            ? "age_restricted"
-            : null;
+          : null;
   return {
     ok: false,
     error: error ?? fallback,

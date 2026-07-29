@@ -18,16 +18,19 @@ const noop = () => {};
 
 function render(
   availability: "idle" | "checking" | "available" | "taken" | "reserved",
+  dateOfBirth = "",
 ): string {
   return renderToStaticMarkup(
     createElement(AccountOnboardingForm, {
       handle: "night_owl",
+      dateOfBirth,
       fullName: "",
       sex: "",
       availability,
       busy: false,
       error: null,
       onHandleChange: noop,
+      onDateOfBirthChange: noop,
       onFullNameChange: noop,
       onSexChange: noop,
       onSubmit: noop,
@@ -37,11 +40,16 @@ function render(
 }
 
 describe("account onboarding surface", () => {
-  it("requires only a public handle and keeps private details optional", () => {
+  it("puts required handle and date of birth before optional private details", () => {
     const html = render("idle");
-    expect(html.indexOf("Public handle")).toBeLessThan(html.indexOf("Full name"));
+    expect(html.indexOf("Public handle")).toBeLessThan(
+      html.indexOf("Date of birth"),
+    );
+    expect(html.indexOf("Date of birth")).toBeLessThan(
+      html.indexOf("Full name"),
+    );
     expect(html.indexOf("Full name")).toBeLessThan(html.indexOf("Sex"));
-    expect(html).not.toContain("Date of birth");
+    expect(html).toContain('type="date"');
     expect(html).toContain("Optional");
     expect(html).toContain("Skip optional details");
     expect(html).toContain("Only your handle is public");
@@ -62,11 +70,12 @@ describe("account onboarding surface", () => {
     expect(render("checking")).toContain("disabled");
   });
 
-  it("enables handle claim without collecting a date of birth", () => {
-    const html = render("available");
+  it("enables handle claim only after date of birth is provided", () => {
+    expect(render("available")).toContain('disabled="">Claim handle');
+    const html = render("available", "2015-02-03");
     expect(html).toContain(">Claim handle</button>");
     expect(html).not.toContain('disabled="">Claim handle');
-    expect(html).not.toContain('type="date"');
+    expect(html).toContain('value="2015-02-03"');
   });
 
   it("uses different copy for a taken handle and a reserved handle", () => {

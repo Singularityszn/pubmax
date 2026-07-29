@@ -1,11 +1,10 @@
 "use client";
 
-import { useCallback, useReducer, useRef, useState } from "react";
+import { useCallback, useReducer } from "react";
 
 import { useAuth } from "@/components/auth/AuthProvider";
 import SignInButton from "@/components/auth/SignInButton";
 import {
-  accountBoundFetch,
   captureAccountAuth,
   type AccountAuthSnapshot,
 } from "@/lib/accountBoundFetch";
@@ -15,26 +14,19 @@ import "./contributionGate.css";
 
 export type ContributionGateDialogMode =
   | "sign_in_required"
-  | "onboarding_required"
-  | "age_assessment_required"
-  | "age_restricted";
+  | "onboarding_required";
 
 type ContributionGateDialogProps = {
   mode: ContributionGateDialogMode;
   error: string | null;
   onClose: () => void;
-  ageBusy?: boolean;
-  onConfirmAge?: (dateOfBirth: string) => void;
 };
 
 export function ContributionGateDialog({
   mode,
   error,
   onClose,
-  ageBusy = false,
-  onConfirmAge,
 }: ContributionGateDialogProps): React.JSX.Element {
-  const [dateOfBirth, setDateOfBirth] = useState("");
   return (
     <div className="contributionGateBackdrop" role="presentation">
       <section
@@ -53,47 +45,12 @@ export function ContributionGateDialog({
             </p>
             <SignInButton />
           </>
-        ) : mode === "onboarding_required" ? (
+        ) : (
           <>
             <p className="contributionGateEyebrow">Profile required</p>
             <h2 id="contribution-gate-title">Finish account setup</h2>
             <p>
-              Choose your public handle before contributing.
-            </p>
-          </>
-        ) : mode === "age_assessment_required" ? (
-          <>
-            <p className="contributionGateEyebrow">Age confirmation</p>
-            <h2 id="contribution-gate-title">Confirm you’re 18 or over</h2>
-            <p>
-              Enter your date of birth for this one-time check. We discard it
-              after assessment and keep only your eligibility result.
-            </p>
-            <label className="contributionGateField">
-              Date of birth
-              <input
-                type="date"
-                value={dateOfBirth}
-                autoComplete="bday"
-                onChange={(event) => setDateOfBirth(event.target.value)}
-              />
-            </label>
-            <button
-              type="button"
-              className="contributionGatePrimary"
-              disabled={!dateOfBirth || ageBusy}
-              onClick={() => onConfirmAge?.(dateOfBirth)}
-            >
-              {ageBusy ? "Checking…" : "Confirm age"}
-            </button>
-          </>
-        ) : (
-          <>
-            <p className="contributionGateEyebrow">Contributions paused</p>
-            <h2 id="contribution-gate-title">You can’t contribute yet</h2>
-            <p>
-              PUBMAXX blocks contributions from people under 18. You can still
-              browse the map and pub pages.
+              Finish your public handle and private profile before contributing.
             </p>
           </>
         )}
@@ -167,17 +124,11 @@ export function useContributionGate(): {
     mode: null,
     error: null,
   });
-  const [ageBusy, setAgeBusy] = useState(false);
-  const pending = useRef<{
-    userId: string;
-    action: PendingContribution;
-  } | null>(null);
   if (gate.userId !== userId) {
     dispatch({ type: "account_changed", userId });
   }
 
   const resetGate = useCallback((nextUserId: string | null) => {
-    pending.current = null;
     dispatch({ type: "clear", userId: nextUserId });
   }, []);
 
@@ -197,10 +148,6 @@ export function useContributionGate(): {
       }
       const result = await action(auth);
       if (!result) return;
-      pending.current =
-        result.status === "age_assessment_required"
-          ? { userId: auth.userId, action }
-          : null;
       trackEvent("contribution_gate", { step: result.status });
       dispatch({
         type: "show",
@@ -215,73 +162,6 @@ export function useContributionGate(): {
     [session, user, userId],
   );
 
-  const confirmAge = useCallback(
-    async (dateOfBirth: string) => {
-      const auth = captureAccountAuth(userId, session);
-      const waiting = pending.current;
-      if (!auth || !waiting || waiting.userId !== auth.userId || ageBusy) return;
-      setAgeBusy(true);
-      try {
-        const response = await accountBoundFetch(
-          auth,
-          "/api/identity/contribution-age",
-          {
-            method: "POST",
-            headers: { "content-type": "application/json" },
-            body: JSON.stringify({ dateOfBirth }),
-          },
-        );
-        const body = (await response.json().catch(() => ({}))) as {
-          status?: ContributionGateDialogMode | "adult";
-          error?: unknown;
-        };
-        if (!response.ok) {
-          const mode =
-            body.status === "age_restricted" ||
-            body.status === "sign_in_required" ||
-            body.status === "onboarding_required"
-              ? body.status
-              : "age_assessment_required";
-          if (mode !== "age_assessment_required") pending.current = null;
-          if (mode === "age_restricted") {
-            trackEvent("contribution_gate", { step: "age_restricted" });
-          }
-          dispatch({
-            type: "show",
-            userId,
-            mode,
-            error: typeof body.error === "string" ? body.error : null,
-          });
-          return;
-        }
-        trackEvent("contribution_gate", { step: "age_assessment_passed" });
-        const result = await waiting.action(auth);
-        pending.current =
-          result?.status === "age_assessment_required" ? waiting : null;
-        if (!result) {
-          dispatch({ type: "clear", userId });
-          return;
-        }
-        dispatch({
-          type: "show",
-          userId,
-          mode: result.status,
-          error: result.error ?? null,
-        });
-      } catch {
-        dispatch({
-          type: "show",
-          userId,
-          mode: "age_assessment_required",
-          error: "Age confirmation is unavailable right now.",
-        });
-      } finally {
-        setAgeBusy(false);
-      }
-    },
-    [ageBusy, session, userId],
-  );
-
   return {
     requestContribution,
     contributionGateDialog:
@@ -290,8 +170,6 @@ export function useContributionGate(): {
           key={gate.mode}
           mode={gate.mode}
           error={gate.error}
-          ageBusy={ageBusy}
-          onConfirmAge={(dateOfBirth) => void confirmAge(dateOfBirth)}
           onClose={() => resetGate(userId)}
         />
       ) : null,

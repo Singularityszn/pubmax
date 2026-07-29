@@ -155,20 +155,18 @@ function get(query: string): Request {
   return new Request(`http://localhost/api/price-submit${query}`);
 }
 
-async function authorizeContributor(userId: string, handle: string): Promise<void> {
+async function authorizeContributor(
+  userId: string,
+  handle: string,
+  dateOfBirth = "1990-01-01",
+): Promise<void> {
   authState.userId = userId;
   const onboarding = await memoryPrivateIdentityStore.completeOnboarding({
     userId,
     handle,
+    dateOfBirth,
   });
   expect(onboarding).toMatchObject({ ok: true });
-  await expect(
-    memoryPrivateIdentityStore.assessContributionAge(
-      userId,
-      "1990-01-01",
-      Date.UTC(2026, 6, 29),
-    ),
-  ).resolves.toEqual({ status: "adult" });
 }
 
 const ORIGINAL_SUPABASE_URL = process.env.SUPABASE_URL;
@@ -308,7 +306,7 @@ describe("POST /api/price-submit", () => {
     ).toEqual([]);
   });
 
-  it("asks for age after handle onboarding, then blocks under-18 writes", async () => {
+  it("requires completed onboarding but allows contributions at any age", async () => {
     authState.userId = "user-not-onboarded";
     let res = await POST(
       post({ venueId: "venue-xjf3n0", drinkCategory: "beer", priceGbp: 4.2 }),
@@ -316,28 +314,11 @@ describe("POST /api/price-submit", () => {
     expect(res.status).toBe(409);
     expect(await res.json()).toMatchObject({ status: "onboarding_required" });
 
-    await memoryPrivateIdentityStore.completeOnboarding({
-      userId: "user-young",
-      handle: "young_person",
-    });
-    authState.userId = "user-young";
+    await authorizeContributor("user-young", "young_person", "2015-02-03");
     res = await POST(
       post({ venueId: "venue-xjf3n0", drinkCategory: "beer", priceGbp: 4.2 }),
     );
-    expect(res.status).toBe(409);
-    expect(await res.json()).toMatchObject({
-      status: "age_assessment_required",
-    });
-    await memoryPrivateIdentityStore.assessContributionAge(
-      "user-young",
-      "2020-01-01",
-      Date.UTC(2026, 6, 29),
-    );
-    res = await POST(
-      post({ venueId: "venue-xjf3n0", drinkCategory: "beer", priceGbp: 4.2 }),
-    );
-    expect(res.status).toBe(403);
-    expect(await res.json()).toMatchObject({ status: "age_restricted" });
+    expect(res.status).toBe(201);
     res = await POST(
       post({
         kind: "venue-signal",
@@ -346,9 +327,8 @@ describe("POST /api/price-submit", () => {
         signalValue: "rough",
       }),
     );
-    expect(res.status).toBe(403);
-    expect(await res.json()).toMatchObject({ status: "age_restricted" });
-    expect(await readCommunityPrices("venue-xjf3n0")).toHaveLength(0);
+    expect(res.status).toBe(201);
+    expect(await readCommunityPrices("venue-xjf3n0")).toHaveLength(1);
   });
 
   it("refuses a contribution when account identity lookup fails", async () => {

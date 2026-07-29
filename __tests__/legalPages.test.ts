@@ -244,15 +244,17 @@ describe("legal content pages", () => {
 
   it("states exactly what private profile data is retained", () => {
     expect(privacy).toMatch(/Google or Apple sign-in/);
-    expect(privacy).toMatch(/handle\s+alone is required to finish signup/i);
+    expect(privacy).toMatch(/date of birth is required to finish signup/i);
     expect(privacy).toMatch(/Full name and sex are optional/);
     expect(privacy).toMatch(/only identity shown with contributions/);
     expect(privacy).toMatch(
-      /date of birth only[\s\S]*immediately before[\s\S]*first[\s\S]*contribution/i,
+      /date of birth[\s\S]*full name[\s\S]*sex[\s\S]*product analytics[\s\S]*social features/i,
     );
-    expect(privacy).toMatch(/discard the date of\s+birth/i);
     expect(privacy).toMatch(
-      /adult confirmation[\s\S]*date you become eligible/i,
+      /date of birth[\s\S]*until you delete your profile/i,
+    );
+    expect(privacy).toMatch(
+      /Full name and sex[\s\S]*until you edit or clear them[\s\S]*delete your profile/i,
     );
     expect(privacy).toMatch(
       /Deleting your profile[\s\S]*removes these\s+private identity fields/,
@@ -260,16 +262,23 @@ describe("legal content pages", () => {
     expect(privacy).toMatch(
       /keeps your authentication account,\s+public\s+handle and\s+handle-keyed contribution history/,
     );
-    expect(privacy).toMatch(/under 18[\s\S]*cannot contribute/i);
     expect(terms).toMatch(
-      /date of birth only[\s\S]*immediately before[\s\S]*first[\s\S]*contribution/i,
+      /date of birth is required to finish signup/i,
     );
-    expect(terms).toMatch(/discard the date of birth/i);
+    expect(terms).toMatch(
+      /date of birth[\s\S]*full name[\s\S]*sex[\s\S]*product analytics[\s\S]*social features/i,
+    );
+    expect(terms).toMatch(/date of birth[\s\S]*until you delete your profile/i);
     expect(terms).toMatch(
       /Deleting your profile[\s\S]*removes these\s+private identity fields/,
     );
-    expect(terms).toMatch(/under 18[\s\S]*cannot contribute/i);
     expect(terms).toMatch(/Only your handle is public/);
+    for (const page of [privacy, terms]) {
+      expect(page).not.toMatch(
+        /discard the date of birth|adult confirmation|date you become eligible/i,
+      );
+      expect(page).not.toMatch(/under 18[\s\S]*cannot contribute/i);
+    }
   });
 
   it("names all three price lanes and fences the historical one", () => {
@@ -284,8 +293,10 @@ describe("legal content pages", () => {
     expect(terms).not.toMatch(/Prices\s+come\s+from\s+two\s+places/);
   });
 
-  it("states the product's contribution age boundary on the terms page", () => {
-    expect(terms).toMatch(/People under 18 cannot\s+contribute/i);
+  it("states that account and contribution access are not age-gated", () => {
+    expect(terms).toMatch(
+      /does not block accounts or contributions based on age/i,
+    );
     expect(terms).toMatch(/Pubs\s+decide who they serve/i);
     expect(terms).toMatch(/drinkaware\.co\.uk/);
   });

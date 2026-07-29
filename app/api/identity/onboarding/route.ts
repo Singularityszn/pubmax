@@ -21,8 +21,15 @@ export async function GET(request: Request): Promise<Response> {
       privateIdentityStore().read(userId),
     ]);
     if (!profile) return jsonNoStore({ complete: false });
-    if (!privateIdentity) {
-      return jsonNoStore({ complete: false, handle: profile.handle });
+    if (!privateIdentity?.dateOfBirth) {
+      return jsonNoStore({
+        complete: false,
+        handle: profile.handle,
+        ...(privateIdentity?.fullName
+          ? { fullName: privateIdentity.fullName }
+          : {}),
+        ...(privateIdentity?.sex ? { sex: privateIdentity.sex } : {}),
+      });
     }
     return jsonNoStore({
       complete: true,
@@ -63,6 +70,7 @@ export async function POST(request: Request): Promise<Response> {
   const result = await privateIdentityStore().completeOnboarding({
     userId,
     handle: typeof body.handle === "string" ? body.handle : "",
+    dateOfBirth: body.dateOfBirth,
     fullName: body.fullName,
     sex: body.sex,
   });

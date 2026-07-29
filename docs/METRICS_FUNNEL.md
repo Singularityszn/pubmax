@@ -133,10 +133,9 @@ turns into a logged price.
   enum: `invalid` (the client-side envelope check), `rejected` (a non-2xx from
   `/api/price-submit`), `offline` (transport failure).
 - `contribution_gate` - `{ step }`. Fires when required identity adds
-  friction or resolves the age check. The closed steps are
-  `sign_in_required`, `onboarding_required`, `age_assessment_required`,
-  `age_assessment_passed`, and `age_restricted`. No handle, account id, birth
-  date, venue or price is sent.
+  friction. The closed steps are `sign_in_required` and
+  `onboarding_required`. No handle, account id, birth date, venue or price is
+  sent.
 - `sign_in_initiated` - `{ provider }`. Its fixed provider values are `google`,
   `apple`, and `email`, so magic-link dependence remains measurable while
   social providers are disabled.
@@ -150,12 +149,6 @@ required_sign_in_cost = count(contribution_gate where step = sign_in_required)
 
 onboarding_cost = count(contribution_gate where step = onboarding_required)
                 / count(price_submit_viewed)
-
-age_assessment_cost = count(contribution_gate where step = age_assessment_required)
-                    / count(price_submit_viewed)
-
-age_restriction_rate = count(contribution_gate where step = age_restricted)
-                     / count(contribution_gate where step = age_assessment_required)
 ```
 
 `category` is the closed drink taxonomy (`PRICE_SUBMIT_CATEGORIES`, pinned to

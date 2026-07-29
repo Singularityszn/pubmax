@@ -258,18 +258,18 @@ async function newRound(handle = "ken"): Promise<RoundState> {
   return (await res.json()) as RoundState;
 }
 
-async function authorizeContributor(userId: string, handle: string): Promise<void> {
+async function authorizeContributor(
+  userId: string,
+  handle: string,
+  dateOfBirth = "1990-01-01",
+): Promise<void> {
   authState.userId = userId;
   const onboarding = await memoryPrivateIdentityStore.completeOnboarding({
     userId,
     handle,
+    dateOfBirth,
   });
   expect(onboarding).toMatchObject({ ok: true });
-  const age = await memoryPrivateIdentityStore.assessContributionAge(
-    userId,
-    "1990-01-01",
-  );
-  expect(age).toMatchObject({ status: "adult" });
 }
 
 beforeEach(() => {
@@ -580,7 +580,7 @@ describe("POST /api/rounds/[code] — actions", () => {
     );
   });
 
-  it("attributes an eligible account's itemised Round price to its public handle", async () => {
+  it("attributes an account's itemised Round price to its public handle", async () => {
     await authorizeContributor("user-ken", "ken");
     const { round } = await newRound("ken");
     await action(round.code, {
@@ -1144,8 +1144,8 @@ describe("POST /api/rounds/[code] — actions", () => {
     });
   });
 
-  it("allows an eligible signed-in account to share a Round price", async () => {
-    await authorizeContributor("user-young", "young_person");
+  it("allows a signed-in account of any age to share a Round price", async () => {
+    await authorizeContributor("user-young", "young_person", "2015-02-03");
     const { round } = await newRound("young_person");
     await action(round.code, {
       action: "addStop",

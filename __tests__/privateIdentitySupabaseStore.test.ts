@@ -6,8 +6,7 @@ const state = vi.hoisted(() => ({
 
 const existing = {
   user_id: "user-1",
-  adult_confirmed: true,
-  contribution_eligible_from: null,
+  date_of_birth: "2015-02-03",
   full_name: null,
   sex: null,
   created_at: "2026-07-29T10:00:00.000Z",
@@ -51,19 +50,18 @@ beforeEach(() => {
 });
 
 describe("Supabase private identity updates", () => {
-  it("preserves derived age state during optional-field edits", async () => {
+  it("preserves stored date of birth during optional-field edits", async () => {
     await expect(
       supabasePrivateIdentityStore.updateDetails("user-1", {
         fullName: "Night Owl",
       }),
     ).resolves.toMatchObject({
-      adultConfirmed: true,
+      dateOfBirth: "2015-02-03",
       fullName: "Night Owl",
     });
     expect(state.upserted).toMatchObject({
       user_id: "user-1",
-      adult_confirmed: true,
-      contribution_eligible_from: null,
+      date_of_birth: "2015-02-03",
       full_name: "Night Owl",
     });
   });

@@ -92,28 +92,27 @@ describe("community price client state", () => {
     expect(
       rejectedCommunitySubmission(
         409,
-        "Confirm age.",
+        "Finish setup.",
         "Could not log.",
-        "age_assessment_required",
+        "onboarding_required",
       ),
     ).toEqual({
       ok: false,
-      error: "Confirm age.",
+      error: "Finish setup.",
       reason: "rejected",
-      status: "age_assessment_required",
+      status: "onboarding_required",
     });
     expect(
       rejectedCommunitySubmission(
         403,
-        "Not yet.",
+        "Rejected.",
         "Could not log.",
         "age_restricted",
       ),
     ).toEqual({
       ok: false,
-      error: "Not yet.",
+      error: "Rejected.",
       reason: "rejected",
-      status: "age_restricted",
     });
   });
 

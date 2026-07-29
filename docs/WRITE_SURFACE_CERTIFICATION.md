@@ -6,7 +6,7 @@ reviewed surface—even when a POST is semantically read-only. The regression te
 Adding a mutating route or removing its authority/abuse boundary fails
 CI until this certification is deliberately updated.
 
-> **Inventory: 75 mutating routes.** The count grew 60 → 61 (email-capture
+> **Inventory: 74 mutating routes.** The count grew 60 → 61 (email-capture
 > `POST /api/email-subscribers`) → 62 (native `POST /api/push-tokens`) → 63 (the
 > Social Loop "we're out" `POST /api/check-ins`) → 64 (the vibe-vote
 > `POST /api/plans/[id]/vibe-votes`) → 65 (the area-demand capture
@@ -17,9 +17,9 @@ CI until this certification is deliberately updated.
 > community price submission `POST /api/price-submit`) → 71 (community-price
 > moderation `POST /api/admin/community-prices`) → 72 (authored weather
 > Recommendations `POST /api/weather-recommendations`) → 74 (private referral
-> invite-link creation and same-journey signup claim) → 75 (one-time
-> contribution-age assessment). Account onboarding replaces the earlier
-> identity claim POST, so its route does not change the count.
+> invite-link creation and same-journey signup claim). Account onboarding
+> replaces the earlier identity claim POST, so its route does not change the
+> count.
 > Token-gated GET
 > confirm/unsubscribe endpoints and read-only GETs (the Social Loop reads, the
 > vibe-vote tally read, the Visit Report venue / contributor-count /
@@ -445,13 +445,13 @@ commit.
   CLOSED vocabulary the browser and the server share and migration 0060 repeats
   as a CHECK, so an off-vocabulary answer cannot be stored by any door.
 - **Auth stance:** price and venue-signal writes require a verified account,
-  account-owned public handle, completed private profile, and adult
-  contribution eligibility. Both public attribution and the private
-  `profile:<profile-id>` actor are derived on the server. Body-supplied handles,
-  actors, `submittedAt`, and `source` are ignored. This stable profile actor is
-  the de-duplication and corroboration key and never leaves the store. The
-  reader-report branch stays public and uses its separate abuse-controlled
-  actor because reporting an existing row is not a contribution.
+  account-owned public handle, and completed private profile. Both public
+  attribution and the private `profile:<profile-id>` actor are derived on the
+  server. Body-supplied handles, actors, `submittedAt`, and `source` are
+  ignored. This stable profile actor is the de-duplication and corroboration
+  key and never leaves the store. The reader-report branch stays public and
+  uses its separate abuse-controlled actor because reporting an existing row
+  is not a contribution.
 - **Rate limit (boundary):** two durable `isLimited` tiers on the POST. An
   account-wide cap keyed `price-submit-actor:profile:<profile-id>` (30/hour)
   stops one account spraying observations across the whole map by rotating
@@ -592,22 +592,21 @@ commit.
   Recommendations and their contributor counts, but cannot change weather,
   reviews, prices, Night Signals, or venue data.
 
-### Contributor identity onboarding and age assessment (routes 74-75)
+### Contributor identity onboarding
 
 - **Routes / methods:** `POST` and `PATCH` on
   `app/api/identity/onboarding/route.ts` claim an account-owned handle and edit
-  the public handle plus optional private full name and sex. Its sibling GET is
-  read-only. `POST /api/identity/contribution-age` performs the one-time age
-  assessment immediately before the first gated contribution.
+  optional private full name and sex. Date of birth is required on the signup
+  POST. Its sibling GET is read-only.
 - **Authority:** every method derives the account from a verified Supabase JWT
   through `callerUserId`. Missing authority returns 401 before any read or
   write. Handle ownership is enforced transactionally by
   `complete_contributor_onboarding`; reserved handles are rejected by shared
   code policy.
-- **Privacy:** full name, sex and derived contribution eligibility stay in the
+- **Privacy:** date of birth, optional full name and optional sex stay in the
   private account table and are not returned by public profile routes. Date of
-  birth is discarded after assessment. The store retains only adult
-  confirmation or the date an under-18 account becomes eligible.
+  birth stays until profile deletion; full name and sex stay until edited,
+  cleared or profile deletion. No contribution eligibility is derived.
 
 ## Certification command
 

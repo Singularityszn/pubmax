@@ -116,6 +116,7 @@ describe("DELETE /api/profiles/[handle] triggers one-choke redaction (5.5)", () 
       await memoryPrivateIdentityStore.completeOnboarding({
         userId: "private-user",
         handle: "private_person",
+        dateOfBirth: "1990-01-01",
         fullName: "Private Person",
         sex: "female",
       }),

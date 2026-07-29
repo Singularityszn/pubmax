@@ -1,6 +1,5 @@
 import { callerUserId } from "@/lib/authServer";
 import { identityHandleStore } from "@/lib/identityHandleStore";
-import { londonCalendarDate } from "@/lib/privateIdentity";
 import { privateIdentityStore } from "@/lib/privateIdentityStore";
 import { profileStore } from "@/lib/profileStore";
 
@@ -15,14 +14,10 @@ export type ContributionIdentityResolution =
       ok: false;
       accountId?: string;
       body: {
-        status?:
-          | "sign_in_required"
-          | "onboarding_required"
-          | "age_assessment_required"
-          | "age_restricted";
+        status?: "sign_in_required" | "onboarding_required";
         error: string;
       };
-      httpStatus: 401 | 403 | 409 | 503;
+      httpStatus: 401 | 409 | 503;
     };
 
 export async function resolveContributionIdentity(
@@ -41,43 +36,15 @@ export async function resolveContributionIdentity(
       profileStore().getByUserId(userId),
       privateIdentityStore().read(userId),
     ]);
-    if (!profile || !privateIdentity) {
+    if (!profile || !privateIdentity?.dateOfBirth) {
       return {
         ok: false,
         accountId: userId,
         body: {
           status: "onboarding_required",
-          error: "Choose your public handle before contributing.",
+          error: "Finish your public handle and private profile before contributing.",
         },
         httpStatus: 409,
-      };
-    }
-    if (
-      !privateIdentity.adultConfirmed &&
-      !privateIdentity.contributionEligibleFrom
-    ) {
-      return {
-        ok: false,
-        accountId: userId,
-        body: {
-          status: "age_assessment_required",
-          error: "Confirm you are 18 or over before contributing.",
-        },
-        httpStatus: 409,
-      };
-    }
-    if (
-      privateIdentity.contributionEligibleFrom &&
-      privateIdentity.contributionEligibleFrom > londonCalendarDate(Date.now())
-    ) {
-      return {
-        ok: false,
-        accountId: userId,
-        body: {
-          status: "age_restricted",
-          error: `You cannot contribute while under 18. You can contribute from ${privateIdentity.contributionEligibleFrom}.`,
-        },
-        httpStatus: 403,
       };
     }
     const handleResolution = await identityHandleStore().resolve(profile.handle);

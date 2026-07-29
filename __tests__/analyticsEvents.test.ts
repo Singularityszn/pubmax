@@ -356,17 +356,18 @@ describe("community-price funnel events", () => {
   });
 
   it("keeps only closed, identity-free contribution gate states", () => {
-    for (const step of [
-      "sign_in_required",
-      "onboarding_required",
-      "age_assessment_required",
-      "age_assessment_passed",
-      "age_restricted",
-    ]) {
+    for (const step of ["sign_in_required", "onboarding_required"]) {
       expect(sanitizeEvent("contribution_gate", { step })).toEqual({
         name: "contribution_gate",
         props: { step },
       });
+    }
+    for (const step of [
+      "age_assessment_required",
+      "age_assessment_passed",
+      "age_restricted",
+    ]) {
+      expect(sanitizeEvent("contribution_gate", { step })).toBeNull();
     }
     expect(sanitizeEvent("contribution_gate", { step: "user@example.com" })).toBeNull();
     expect(sanitizeEvent("contribution_gate", {})).toBeNull();

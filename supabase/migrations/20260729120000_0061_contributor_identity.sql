@@ -5,8 +5,7 @@
 
 create table if not exists public.private_account_identities (
   user_id uuid primary key references auth.users(id) on delete cascade,
-  adult_confirmed boolean,
-  contribution_eligible_from date,
+  date_of_birth date not null,
   full_name text,
   sex text,
   created_at timestamptz not null default now(),
@@ -17,12 +16,6 @@ create table if not exists public.private_account_identities (
     check (
       sex is null
       or sex in ('female', 'male', 'intersex', 'prefer_not_to_say')
-    ),
-  constraint private_identity_contribution_age_check
-    check (
-      (adult_confirmed is null and contribution_eligible_from is null)
-      or (adult_confirmed is true and contribution_eligible_from is null)
-      or (adult_confirmed is null and contribution_eligible_from is not null)
     )
 );
 
@@ -167,6 +160,7 @@ grant execute on function public.claim_pubmaxx_handle(uuid, text)
 create or replace function public.complete_contributor_onboarding(
   p_user_id uuid,
   p_handle text,
+  p_date_of_birth date,
   p_full_name text default null,
   p_sex text default null
 )
@@ -185,12 +179,14 @@ begin
 
   insert into public.private_account_identities (
     user_id,
+    date_of_birth,
     full_name,
     sex,
     updated_at
   )
   values (
     p_user_id,
+    p_date_of_birth,
     nullif(trim(p_full_name), ''),
     p_sex,
     now()
@@ -213,12 +209,14 @@ $$;
 revoke all on function public.complete_contributor_onboarding(
   uuid,
   text,
+  date,
   text,
   text
 ) from public, anon, authenticated;
 grant execute on function public.complete_contributor_onboarding(
   uuid,
   text,
+  date,
   text,
   text
 ) to service_role;

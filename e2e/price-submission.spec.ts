@@ -76,11 +76,10 @@ type SubmittedPrice = {
 
 async function installContributorBoundary(
   page: Page,
-  options: { requireOnboarding: boolean; requireAge: boolean },
+  options: { requireOnboarding: boolean },
 ): Promise<{ submittedPrices: SubmittedPrice[] }> {
   await seedSignedInSession(page);
   let onboardingComplete = !options.requireOnboarding;
-  let ageConfirmed = !options.requireAge;
   const submittedPrices: SubmittedPrice[] = [];
 
   await page.route("https://pubmaxx-e2e.supabase.co/**", async (route) => {
@@ -103,6 +102,7 @@ async function installContributorBoundary(
     if (route.request().method() === "POST") {
       expect(route.request().postDataJSON()).toEqual({
         handle: "night_owl",
+        dateOfBirth: "2015-02-03",
       });
       onboardingComplete = true;
       await route.fulfill({
@@ -137,20 +137,6 @@ async function installContributorBoundary(
       }),
     });
   });
-  await page.route("**/api/identity/contribution-age", async (route) => {
-    expect(route.request().headers().authorization).toBe(
-      "Bearer pubmaxx-e2e-access-token",
-    );
-    expect(route.request().postDataJSON()).toEqual({
-      dateOfBirth: "1990-01-01",
-    });
-    ageConfirmed = true;
-    await route.fulfill({
-      status: 200,
-      contentType: "application/json",
-      body: JSON.stringify({ status: "adult" }),
-    });
-  });
   await page.route("**/api/price-submit**", async (route) => {
     if (route.request().method() !== "POST") {
       await route.fulfill({
@@ -163,17 +149,6 @@ async function installContributorBoundary(
     expect(route.request().headers().authorization).toBe(
       "Bearer pubmaxx-e2e-access-token",
     );
-    if (!ageConfirmed) {
-      await route.fulfill({
-        status: 409,
-        contentType: "application/json",
-        body: JSON.stringify({
-          status: "age_assessment_required",
-          error: "Confirm you are 18 or over before contributing.",
-        }),
-      });
-      return;
-    }
     const body = route.request().postDataJSON() as {
       venueId: string;
       drinkCategory: string;
@@ -259,13 +234,12 @@ test("an over-limit drink price is blocked before any network attempt", async ({
   expect(writes).toBe(0);
 });
 
-test("a drinker logs tonight's price after handle claim and first-contribution age check", async ({
+test("a drinker logs tonight's price after completing private signup", async ({
   page,
 }) => {
   const errors = watchPageErrors(page);
   const boundary = await installContributorBoundary(page, {
     requireOnboarding: true,
-    requireAge: true,
   });
 
   const response = await page.goto(`/map?sel=${SEED_VENUE_ID}`);
@@ -280,7 +254,7 @@ test("a drinker logs tonight's price after handle claim and first-contribution a
   });
   await expect(onboarding).toBeVisible();
   await expect(onboarding.getByLabel("Public handle")).toBeVisible();
-  await expect(onboarding.getByLabel("Date of birth")).toHaveCount(0);
+  await expect(onboarding.getByLabel("Date of birth")).toBeVisible();
   const onboardingZ = await onboarding.evaluate((element) =>
     Number.parseInt(getComputedStyle(element.parentElement!).zIndex, 10),
   );
@@ -289,6 +263,7 @@ test("a drinker logs tonight's price after handle claim and first-contribution a
   );
   expect(onboardingZ).toBeGreaterThan(venueSheetZ);
   await onboarding.getByLabel("Public handle").fill("night_owl");
+  await onboarding.getByLabel("Date of birth").fill("2015-02-03");
   const skipOptional = onboarding.getByRole("button", {
     name: "Skip optional details",
   });
@@ -331,21 +306,13 @@ test("a drinker logs tonight's price after handle claim and first-contribution a
   await expect(error).toContainText("£4.50");
   await expect(venueSheet.locator(".communityPriceRow")).toHaveCount(0);
 
-  // First valid contribution asks for date of birth only now, after handle
-  // claim. Age response is retained by boundary double as eligibility only.
+  // First valid contribution proceeds directly after completed signup. Date of
+  // birth is a private profile field, not a contribution gate.
   await priceField.fill("4.20");
   await logButton.click();
-  const ageGate = page.getByRole("dialog", {
-    name: "Confirm you’re 18 or over",
-  });
-  await expect(ageGate).toBeVisible();
-  const ageGateZ = await ageGate.evaluate((element) =>
-    Number.parseInt(getComputedStyle(element.parentElement!).zIndex, 10),
-  );
-  expect(ageGateZ).toBeGreaterThan(venueSheetZ);
-  await ageGate.getByLabel("Date of birth").fill("1990-01-01");
-  await ageGate.getByRole("button", { name: "Confirm age" }).click();
-  await expect(ageGate).toHaveCount(0);
+  await expect(
+    page.getByRole("dialog", { name: /18 or over|age/i }),
+  ).toHaveCount(0);
 
   const stamp = submit.locator(".vpsubStamp");
   await expect(stamp).toBeVisible();
@@ -416,7 +383,6 @@ test("a person can log soft-drink and alcohol-free prices from the pub sheet", a
   const errors = watchPageErrors(page);
   const boundary = await installContributorBoundary(page, {
     requireOnboarding: false,
-    requireAge: false,
   });
   const response = await page.goto(`/map?sel=${NO_ALCOHOL_VENUE_ID}`);
   expect(response?.status()).toBe(200);

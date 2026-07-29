@@ -20,26 +20,7 @@ export function londonCalendarDate(now: number): string {
   return `${read("year")}-${read("month")}-${read("day")}`;
 }
 
-type ContributionAgeAssessment =
-  | { status: "adult" }
-  | { status: "underage"; eligibleFrom: string }
-  | { status: "invalid" };
-
-export function assessContributionAge(
-  value: unknown,
-  now: number = Date.now(),
-): ContributionAgeAssessment {
-  const dateOfBirth = cleanDateOfBirth(value, now);
-  if (!dateOfBirth) return { status: "invalid" };
-  const [year, month, day] = dateOfBirth.split("-").map(Number);
-  const eighteenthBirthday = new Date(Date.UTC(year + 18, month - 1, day));
-  const eligibleFrom = eighteenthBirthday.toISOString().slice(0, 10);
-  return eligibleFrom <= londonCalendarDate(now)
-    ? { status: "adult" }
-    : { status: "underage", eligibleFrom };
-}
-
-function cleanDateOfBirth(
+export function cleanDateOfBirth(
   value: unknown,
   now: number = Date.now(),
 ): string | null {

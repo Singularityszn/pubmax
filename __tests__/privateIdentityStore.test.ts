@@ -17,10 +17,11 @@ beforeEach(() => {
 });
 
 describe("private identity store", () => {
-  it("finishes onboarding with handle alone and optional private details", async () => {
+  it("stores required date of birth with optional private details", async () => {
     const result = await memoryPrivateIdentityStore.completeOnboarding({
       userId: "user-1",
       handle: "night_owl",
+      dateOfBirth: "2015-02-03",
       fullName: "Night Owl",
       sex: "prefer_not_to_say",
     });
@@ -29,83 +30,37 @@ describe("private identity store", () => {
       ok: true,
       handle: "night_owl",
       privateIdentity: {
+        dateOfBirth: "2015-02-03",
         fullName: "Night Owl",
         sex: "prefer_not_to_say",
       },
     });
-    expect(JSON.stringify(result)).not.toContain("dateOfBirth");
   });
 
-  it("discards an adult date of birth after retaining eligibility", async () => {
-    await memoryPrivateIdentityStore.completeOnboarding({
-      userId: "user-adult",
-      handle: "adult_person",
-    });
-    await expect(
-      memoryPrivateIdentityStore.assessContributionAge(
-        "user-adult",
-        "1990-01-01",
-        Date.UTC(2026, 6, 29),
-      ),
-    ).resolves.toEqual({ status: "adult" });
-    const stored = await memoryPrivateIdentityStore.read("user-adult");
-    expect(stored).toMatchObject({ adultConfirmed: true });
-    expect(JSON.stringify(stored)).not.toContain("1990-01-01");
-    expect(JSON.stringify(stored)).not.toContain("dateOfBirth");
-  });
-
-  it("retains only the date an under-18 account becomes eligible", async () => {
-    await memoryPrivateIdentityStore.completeOnboarding({
-      userId: "user-young",
-      handle: "young_person",
-    });
-    await expect(
-      memoryPrivateIdentityStore.assessContributionAge(
-        "user-young",
-        "2020-01-01",
-        Date.UTC(2026, 6, 29),
-      ),
-    ).resolves.toEqual({
-      status: "underage",
-      eligibleFrom: "2038-01-01",
-    });
-    const stored = await memoryPrivateIdentityStore.read("user-young");
-    expect(stored).toMatchObject({ contributionEligibleFrom: "2038-01-01" });
-    expect(JSON.stringify(stored)).not.toContain("2020-01-01");
-    await expect(memoryIdentityHandleStore.resolve("young_person")).resolves.toMatchObject({
-      currentHandle: "young_person",
-    });
-  });
-
-  it("does not replace a completed age assessment", async () => {
-    await memoryPrivateIdentityStore.completeOnboarding({
-      userId: "user-locked",
-      handle: "locked_person",
-    });
-    await memoryPrivateIdentityStore.assessContributionAge(
-      "user-locked",
-      "2020-01-01",
-      Date.UTC(2026, 6, 29),
-    );
-    await expect(
-      memoryPrivateIdentityStore.assessContributionAge(
-        "user-locked",
-        "1990-01-01",
-        Date.UTC(2026, 6, 29),
-      ),
-    ).resolves.toEqual({
-      status: "underage",
-      eligibleFrom: "2038-01-01",
-    });
-    await expect(memoryPrivateIdentityStore.read("user-locked")).resolves.toMatchObject({
-      contributionEligibleFrom: "2038-01-01",
-    });
+  it("rejects a missing or invalid date before claiming the handle", async () => {
+    for (const dateOfBirth of [undefined, "", "not-a-date", "2035-01-01"]) {
+      await expect(
+        memoryPrivateIdentityStore.completeOnboarding({
+          userId: "user-invalid",
+          handle: "invalid_date_person",
+          dateOfBirth,
+        }),
+      ).resolves.toMatchObject({
+        ok: false,
+        code: "invalid",
+        error: "Enter a valid date of birth.",
+      });
+      await expect(
+        memoryIdentityHandleStore.resolve("invalid_date_person"),
+      ).resolves.toBeNull();
+    }
   });
 
   it("updates required and optional private fields without changing ownership", async () => {
     await memoryPrivateIdentityStore.completeOnboarding({
       userId: "user-1",
       handle: "night_owl",
+      dateOfBirth: "2015-02-03",
     });
     await expect(
       memoryPrivateIdentityStore.updateDetails("user-1", {
@@ -113,6 +68,7 @@ describe("private identity store", () => {
         sex: "female",
       }),
     ).resolves.toMatchObject({
+      dateOfBirth: "2015-02-03",
       fullName: "Night Owl",
       sex: "female",
     });
