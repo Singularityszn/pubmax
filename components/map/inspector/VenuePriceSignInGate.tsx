@@ -1,6 +1,9 @@
 "use client";
 
+import { useEffect } from "react";
+
 import SignInButton from "@/components/auth/SignInButton";
+import { trackEvent } from "@/lib/analytics";
 
 export default function VenuePriceSignInGate({
   venueName,
@@ -9,6 +12,12 @@ export default function VenuePriceSignInGate({
   venueName: string;
   loading: boolean;
 }) {
+  useEffect(() => {
+    if (!loading) {
+      trackEvent("contribution_gate", { step: "sign_in_required" });
+    }
+  }, [loading]);
+
   return (
     <section
       className="venuePriceSignInGate"

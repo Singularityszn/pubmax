@@ -170,4 +170,26 @@ describe("price contribution return intent", () => {
       hasRememberedPriceContribution(storage, "venue-original"),
     ).toBe(false);
   });
+
+  it("does not reopen a sign-in gate already shown for the same venue", () => {
+    const events: string[] = [];
+
+    runPriceContributionReturn({
+      authConfigured: true,
+      authLoading: false,
+      userPresent: false,
+      venueId: "venue-16pnwmm",
+      requestedVenueId: "venue-16pnwmm",
+      currentUrl:
+        "https://pubmaxxing.com/map?sel=venue-16pnwmm&contribute=price",
+      storage: null,
+      actions: {
+        replaceUrl: (url) => events.push(`url:${url}`),
+        showSignIn: () => events.push("sign-in"),
+        openForm: () => events.push("form"),
+      },
+    });
+
+    expect(events).toEqual([]);
+  });
 });

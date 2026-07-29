@@ -52,30 +52,88 @@ describe("externally trusted signing keys", () => {
 
   it("injects a fresh strong signing secret into each production-style Playwright server", async () => {
     vi.stubEnv("PW_SCREENSHOTS", "");
+    vi.stubEnv("PW_SKIP_WEBSERVER", "");
+    vi.stubEnv("PW_PORT", "3100");
+    vi.stubEnv("PW_KEYLESS_PORT", "3101");
     vi.resetModules();
     const playwrightConfig = (await import("../playwright.config")).default;
-    const webServer = playwrightConfig.webServer as {
+    const configuredWebServers = playwrightConfig.webServer as {
       command?: string;
       env?: Record<string, string>;
-    } | undefined;
-    const command = webServer?.command ?? "";
-    const encodedSecret = webServer?.env?.PLAN_IDEMPOTENCY_SECRET;
+      url?: string;
+    }[] | undefined;
+    const webServers = configuredWebServers ?? [];
 
-    expect(encodedSecret).toBeTruthy();
-    expect(Buffer.from(encodedSecret!, "base64url")).toHaveLength(32);
-    expect(webServer?.env?.PUBMAX_E2E_KEYLESS).toBe("1");
-    expect(command).not.toContain("PLAN_IDEMPOTENCY_SECRET");
-    expect(command).not.toContain("PUBMAX_E2E_KEYLESS");
-    expect(command).not.toContain(encodedSecret!);
-    expect(command).toContain("npm run build &&");
-    expect(command).toContain("npm run start");
+    expect(webServers).toHaveLength(2);
+    for (const webServer of webServers) {
+      const command = webServer.command ?? "";
+      const encodedSecret = webServer.env?.PLAN_IDEMPOTENCY_SECRET;
+      expect(encodedSecret).toBeTruthy();
+      expect(Buffer.from(encodedSecret!, "base64url")).toHaveLength(32);
+      expect(webServer.env?.PUBMAX_E2E_KEYLESS).toBe("1");
+      expect(command).not.toContain("PLAN_IDEMPOTENCY_SECRET");
+      expect(command).not.toContain("PUBMAX_E2E_KEYLESS");
+      expect(command).not.toContain(encodedSecret!);
+      expect(command).toContain("npm run build &&");
+      expect(command).toContain("npm run start");
+    }
+    const keylessServer = webServers.find(
+      (webServer) => webServer.url === "http://localhost:3101",
+    );
+    expect(keylessServer?.env?.NEXT_PUBLIC_SUPABASE_URL).toBe("");
+    expect(
+      keylessServer?.env?.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY,
+    ).toBe("");
 
     vi.resetModules();
     const nextConfig = (await import("../playwright.config")).default;
-    const nextWebServer = nextConfig.webServer as { env?: Record<string, string> } | undefined;
-    const nextSecret = nextWebServer?.env?.PLAN_IDEMPOTENCY_SECRET;
+    const nextWebServers = nextConfig.webServer as {
+      env?: Record<string, string>;
+    }[] | undefined;
+    const nextSecret = nextWebServers?.[0]?.env?.PLAN_IDEMPOTENCY_SECRET;
     expect(nextSecret).toBeTruthy();
-    expect(nextSecret).not.toBe(encodedSecret);
+    expect(nextSecret).not.toBe(
+      webServers[0]?.env?.PLAN_IDEMPOTENCY_SECRET,
+    );
+  });
+
+  it("assigns contribution E2E to matching auth projects", async () => {
+    vi.stubEnv("PW_SCREENSHOTS", "");
+    vi.stubEnv("PW_SKIP_WEBSERVER", "");
+    vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", "");
+    vi.stubEnv("NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY", "");
+    vi.resetModules();
+    const keylessConfig = (await import("../playwright.config")).default;
+    const keylessProjects = keylessConfig.projects ?? [];
+
+    expect(keylessProjects.map((project) => project.name)).toContain(
+      "chromium-keyless",
+    );
+    expect(keylessProjects.map((project) => project.name)).not.toContain(
+      "chromium-real-auth",
+    );
+    expect(
+      keylessProjects.find((project) => project.name === "chromium-keyless")
+        ?.testMatch,
+    ).toBe("**/price-contribution-entry.spec.ts");
+
+    vi.stubEnv(
+      "NEXT_PUBLIC_SUPABASE_URL",
+      "https://real-auth.example.supabase.co",
+    );
+    vi.stubEnv(
+      "NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY",
+      "real-publishable-key",
+    );
+    vi.resetModules();
+    const realAuthConfig = (await import("../playwright.config")).default;
+    const realAuthProject = realAuthConfig.projects?.find(
+      (project) => project.name === "chromium-real-auth",
+    );
+
+    expect(realAuthProject?.testMatch).toBe(
+      "**/price-contribution-auth.spec.ts",
+    );
   });
 
   it("fails closed when a Supabase-backed process has no signing secret", async () => {

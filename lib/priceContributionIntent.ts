@@ -170,6 +170,7 @@ export function runPriceContributionReturn({
   if (!hasPriceContributionIntent(currentUrl) && !rememberedIntent) return;
 
   if (authConfigured && !userPresent) {
+    if (requestedVenueId === venueId) return;
     actions.showSignIn();
     return;
   }

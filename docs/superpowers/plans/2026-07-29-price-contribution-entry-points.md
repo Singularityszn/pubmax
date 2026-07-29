@@ -24,6 +24,7 @@
 
 **Files:**
 - Create: `e2e/price-contribution-entry.spec.ts`
+- Create: `e2e/price-contribution-auth.spec.ts`
 - Create: `__tests__/venuePriceEntryPanel.test.ts`
 - Create: `__tests__/priceContributionIntent.test.ts`
 
@@ -98,7 +99,7 @@ Run:
 
 ```bash
 npx vitest run __tests__/priceContributionIntent.test.ts
-PW_SKIP_WEBSERVER=1 PW_PORT=3200 npx playwright test e2e/price-contribution-entry.spec.ts --project=chromium --workers=1
+PW_SKIP_WEBSERVER=1 PW_KEYLESS_PORT=3200 npx playwright test e2e/price-contribution-entry.spec.ts --project=chromium-keyless --workers=1
 ```
 
 Expected: all tests pass.
@@ -106,7 +107,7 @@ Expected: all tests pass.
 - [ ] **Step 8: Commit coherent implementation**
 
 ```bash
-git add lib/priceContributionIntent.ts components/map/inspector/VenuePriceSignInGate.tsx components/map/inspector/VenuePriceEntryPanel.tsx components/map/VenueInspector.tsx components/map/inspector/VenueStickyBar.tsx components/map/inspector/VenueOverviewTab.tsx components/map/VenuePriceSubmit.tsx components/map/inspector/venueSheet.css __tests__/priceContributionIntent.test.ts __tests__/venuePriceEntryPanel.test.ts e2e/price-contribution-entry.spec.ts docs/superpowers/plans/2026-07-29-price-contribution-entry-points.md
+git add lib/priceContributionIntent.ts components/map/inspector/VenuePriceSignInGate.tsx components/map/inspector/VenuePriceEntryPanel.tsx components/map/VenueInspector.tsx components/map/inspector/VenueStickyBar.tsx components/map/inspector/VenueOverviewTab.tsx components/map/VenuePriceSubmit.tsx components/map/inspector/venueSheet.css __tests__/priceContributionIntent.test.ts __tests__/venuePriceEntryPanel.test.ts e2e/price-contribution-entry.spec.ts e2e/price-contribution-auth.spec.ts playwright.config.ts docs/superpowers/plans/2026-07-29-price-contribution-entry-points.md
 git commit -m "feat: make price contribution obvious"
 ```
 
