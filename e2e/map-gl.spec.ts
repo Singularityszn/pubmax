@@ -1,6 +1,8 @@
 import { test, expect, type Page } from "@playwright/test";
 import sharp from "sharp";
 
+import { installDeterministicMapBasemap } from "./helpers/mapNetworkFixtures";
+
 test.describe.configure({ mode: "serial" });
 
 test.beforeEach(async ({ page }) => {
@@ -132,6 +134,19 @@ test("/map stays visually stable for a reduced-motion viewer while idle", async 
 
 test("/map reveals pins only for the final rapid theme style generation", async ({ page }) => {
   test.setTimeout(60_000);
+  const sourcesErrors: string[] = [];
+  const recordSourcesError = (text: string) => {
+    if (/Cannot read properties of undefined.*sources/i.test(text)) {
+      sourcesErrors.push(text);
+    }
+  };
+  page.on("console", (message) => {
+    if (message.type() === "error" || message.type() === "warning") {
+      recordSourcesError(message.text());
+    }
+  });
+  page.on("pageerror", (error) => recordSourcesError(error.message));
+  await installDeterministicMapBasemap(page, { styleDelayMs: 150 });
   await page.addInitScript(() => {
     const trace: Array<{ reason: string; generation: number }> = [];
     Object.defineProperty(window, "__pubmaxPinRevealTrace", { value: trace });
@@ -166,6 +181,10 @@ test("/map reveals pins only for the final rapid theme style generation", async 
   await page.waitForTimeout(500);
   expect((await readTrace()).filter(({ generation }) => generation > initialGeneration)).toHaveLength(1);
   await expect(page.locator(".mapFallback")).toHaveCount(0);
+  expect(
+    sourcesErrors,
+    `Rapid style replacement raised the historical sources exception:\n${sourcesErrors.join("\n")}`,
+  ).toEqual([]);
 });
 
 test("/map uses the bounded pin fallback when basemap tiles are delayed", async ({ page }) => {
