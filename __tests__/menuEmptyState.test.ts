@@ -1,21 +1,58 @@
-import { createElement } from "react";
+import {
+  Children,
+  createElement,
+  isValidElement,
+  type ReactElement,
+  type ReactNode,
+} from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import MenuCategoryGrid from "@/components/drinks/MenuCategoryGrid";
 
-describe("MenuCategoryGrid empty state", () => {
-  it("renders a contribution action when no drinks are on record", () => {
-    const html = renderToStaticMarkup(
-      createElement(MenuCategoryGrid, {
-        tiles: [],
-        onOpenDrinks: () => {},
-        onAddDrink: () => {},
-      }),
-    );
+type ButtonProps = {
+  children?: ReactNode;
+  className?: string;
+  onClick?: () => void;
+};
 
-    expect(html).toContain(
-      '<button type="button" class="menuHubEmptyAction">Add what you’re drinking</button>',
-    );
+function findEmptyAction(node: ReactNode): ReactElement<ButtonProps> | undefined {
+  if (!isValidElement(node)) return undefined;
+
+  const props = node.props as ButtonProps;
+  if (node.type === "button" && props.className === "menuHubEmptyAction") {
+    return node as ReactElement<ButtonProps>;
+  }
+
+  return Children.toArray(props.children)
+    .map(findEmptyAction)
+    .find((button) => button !== undefined);
+}
+
+describe("MenuCategoryGrid empty state", () => {
+  it("keeps the drinks contribution action working beside a food link", () => {
+    const onAddDrink = vi.fn();
+    const props = {
+      tiles: [
+        {
+          id: "food-external",
+          kind: "food-external" as const,
+          label: "Food menu",
+          href: "https://pub.example/menu",
+        },
+      ],
+      onOpenDrinks: vi.fn(),
+      onAddDrink,
+    };
+    const tree = MenuCategoryGrid(props);
+    const html = renderToStaticMarkup(tree);
+
+    expect(html).toContain("We don’t have this pub’s drinks yet.");
+    expect(html).toContain("Add what you’re drinking");
+    expect(html).toContain('href="https://pub.example/menu"');
+
+    findEmptyAction(tree)?.props.onClick?.();
+
+    expect(onAddDrink).toHaveBeenCalledTimes(1);
   });
 });
