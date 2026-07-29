@@ -74,13 +74,27 @@ type SubmittedPrice = {
   corroborations: number;
 };
 
+type SubmittedSignal = {
+  id: string;
+  venueId: string;
+  signalKey: string;
+  signalValue: string;
+  submittedAt: number;
+  source: "community";
+  corroborations: number;
+};
+
 async function installContributorBoundary(
   page: Page,
   options: { requireOnboarding: boolean },
-): Promise<{ submittedPrices: SubmittedPrice[] }> {
+): Promise<{
+  submittedPrices: SubmittedPrice[];
+  submittedSignals: SubmittedSignal[];
+}> {
   await seedSignedInSession(page);
   let onboardingComplete = !options.requireOnboarding;
   const submittedPrices: SubmittedPrice[] = [];
+  const submittedSignals: SubmittedSignal[] = [];
 
   await page.route("https://pubmaxx-e2e.supabase.co/**", async (route) => {
     await route.fulfill({
@@ -142,7 +156,10 @@ async function installContributorBoundary(
       await route.fulfill({
         status: 200,
         contentType: "application/json",
-        body: JSON.stringify({ prices: submittedPrices, signals: [] }),
+        body: JSON.stringify({
+          prices: submittedPrices,
+          signals: submittedSignals,
+        }),
       });
       return;
     }
@@ -153,7 +170,32 @@ async function installContributorBoundary(
       venueId: string;
       drinkCategory: string;
       priceGbp: number;
+      kind?: string;
+      signalKey?: string;
+      signalValue?: string;
     };
+    if (
+      body.kind === "venue-signal" &&
+      body.signalKey &&
+      body.signalValue
+    ) {
+      const submittedSignal: SubmittedSignal = {
+        id: `signal-e2e-${submittedSignals.length + 1}`,
+        venueId: body.venueId,
+        signalKey: body.signalKey,
+        signalValue: body.signalValue,
+        submittedAt: Date.now(),
+        source: "community",
+        corroborations: 1,
+      };
+      submittedSignals.push(submittedSignal);
+      await route.fulfill({
+        status: 201,
+        contentType: "application/json",
+        body: JSON.stringify({ ok: true, signal: submittedSignal }),
+      });
+      return;
+    }
     const submittedPrice: SubmittedPrice = {
       id: `price-e2e-${submittedPrices.length + 1}`,
       venueId: body.venueId,
@@ -180,7 +222,7 @@ async function installContributorBoundary(
     });
   });
 
-  return { submittedPrices };
+  return { submittedPrices, submittedSignals };
 }
 
 test.setTimeout(60_000);
@@ -300,10 +342,12 @@ test("a drinker logs tonight's price after completing private signup", async ({
   // Bounds first: an implausible figure is refused in place, with a sentence
   // that says what a real price looks like - and nothing reaches the map.
   await priceField.fill("0.45");
-  await logButton.click();
   const error = submit.getByRole("alert");
+  await expect(priceField).toHaveAttribute("aria-invalid", "true");
   await expect(error).toBeVisible();
   await expect(error).toContainText("£4.50");
+  await expect(logButton).toBeDisabled();
+  await priceField.press("Enter");
   await expect(venueSheet.locator(".communityPriceRow")).toHaveCount(0);
 
   // First valid contribution proceeds directly after completed signup. Date of
@@ -373,6 +417,29 @@ test("a drinker logs tonight's price after completing private signup", async ({
       { message: "the price on record should survive a community submission" },
     )
     .toBeGreaterThan(0);
+
+  // Venue observations cross the same captured account boundary. The 2015
+  // signup date still adds no second gate, and the saved receipt remains
+  // explicitly one person's report.
+  const signals = venueSheet.locator(".venueCommunitySignals");
+  await signals.locator("summary").click();
+  await signals.getByText("Access", { exact: true }).click();
+  await signals.getByText("Step-free", { exact: true }).click();
+  await signals.getByRole("button", { name: "Log what you saw" }).click();
+  await expect(signals.getByRole("status")).toContainText(
+    "Logged as your report",
+  );
+  await expect(
+    page.getByRole("dialog", { name: /18 or over|age/i }),
+  ).toHaveCount(0);
+  expect(boundary.submittedSignals).toContainEqual(
+    expect.objectContaining({
+      venueId: SEED_VENUE_ID,
+      signalKey: "step-free-venue",
+      signalValue: "step-free",
+      corroborations: 1,
+    }),
+  );
 
   expect(errors).toEqual([]);
 });

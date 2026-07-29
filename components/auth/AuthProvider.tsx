@@ -2,8 +2,8 @@
 
 // App-wide auth context. Holds the current Supabase session/user (or null) and
 // exposes Google, Apple, passwordless email, and sign-out actions. Additive only:
-// anonymous browsing is unaffected — nothing here gates a route or blocks a
-// render. A signed-in session just establishes identity for future authed actions.
+// anonymous browsing is unaffected - nothing here gates a route or blocks a
+// render. A signed-in session establishes identity for account-owned actions.
 //
 // React 19 note: `react-hooks/set-state-in-effect` is an ERROR here, so we never
 // call setState synchronously in the effect body. The effect only SUBSCRIBES

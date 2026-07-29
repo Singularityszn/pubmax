@@ -9,7 +9,7 @@
 //   POST { action: "report", id, reason? }                 → { ok }
 //   GET  ?venueId=<id>                                     → { prices, signals }
 //
-// The report branch is the complaint side of an otherwise open write path: it
+// The report branch is the public complaint side of the contribution path: it
 // FLAGS an observation for a human and hides nothing on its own (a threshold
 // auto-hide would be a one-tap eraser for any price a griefer disliked). Only a
 // moderator hides, via POST /api/admin/community-prices - and hiding keeps the
@@ -35,7 +35,8 @@
 // PROVENANCE: this route writes only community observations. It never edits the
 // venue dataset, the scraped price CSV, or visit_reports - the scraped baseline
 // survives every submission and keeps its own dated badge.
-// No Supabase and no env are required.
+// Reads and reader reports remain keyless. New contributions require configured
+// authentication plus a completed account profile.
 
 import { jsonNoStore } from "@/lib/apiResponses";
 import { deriveCommunityPriceActor } from "@/lib/communityPriceActor";
