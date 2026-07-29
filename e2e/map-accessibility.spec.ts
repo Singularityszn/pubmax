@@ -248,12 +248,17 @@ test.describe("map keyboard and screen-reader venue path", () => {
     await expect(search).toBeVisible({ timeout: 30_000 });
     await search.fill("Dolphin Tavern");
     const listbox = page.getByRole("listbox", { name: "Search suggestions" });
-    await expect(
-      listbox.getByRole("option", { name: /Dolphin Tavern/i }),
-    ).toBeVisible();
+    const venueOption = listbox.getByRole("option", { name: /Dolphin Tavern/i });
+    await expect(venueOption).toBeVisible();
+    const venueOptionId = await venueOption.getAttribute("id");
+    expect(venueOptionId).toBeTruthy();
 
     await search.press("ArrowDown");
+    await expect(search).toHaveAttribute("aria-activedescendant", venueOptionId!);
     await search.press("Enter");
+    await expect
+      .poll(() => new URL(page.url()).searchParams.get("sel"))
+      .not.toBeNull();
 
     const drawer = page.locator(".mapDrawer.right.open");
     await expect(drawer).toBeVisible();
