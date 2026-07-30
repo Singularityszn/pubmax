@@ -534,6 +534,18 @@
   overflow-wrap: break-word;
 }
 
+.quietPintHeritageExcerpt {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+}
+
+.quietPintHeritageQualifier {
+  display: block;
+}
+
 .quietPintFoot {
   display: flex;
   flex-wrap: wrap;
@@ -542,7 +554,8 @@
   padding: 0 14px 12px;
 }
 
-.quietPintGrade {
+.quietPintGrade,
+.quietPintEra {
   padding: 2px 8px;
   border-radius: 999px;
   border: 1px solid var(--line);

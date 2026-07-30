@@ -434,5 +434,6 @@ test("expanded city-status sheet follows wrapped headline geometry", async ({
   expect(sheetBox!.y).toBeGreaterThanOrEqual(
     bannerBox!.y + bannerBox!.height + 8,
   );
+  expect(sheetBox!.height).toBeLessThan(260);
   expect(sheetBox!.y + sheetBox!.height).toBeLessThanOrEqual(784);
 });

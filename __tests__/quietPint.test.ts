@@ -107,6 +107,7 @@ describe("buildQuietPint", () => {
     expect(top.sourceLabel).toBe("Wikipedia");
     expect(top.sourceRef).toBe("https://en.wikipedia.org/wiki/Example");
     expect(top.gradeLabel).toBe("Grade I");
+    expect(top.eraLabel).toBe("1600");
     expect(top.mapHref).toBe("/map?venue=venue-a");
   });
 

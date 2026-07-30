@@ -12,6 +12,20 @@ For each result, inspect its enclosing media query. The inventory below includes
 
 This source sweep is supplementary discovery only. CSS enumeration cannot prove that a component is mounted, that its text reaches the rendered page, or that an ancestor leaves it visible. Acceptance uses rendered production pages at 390px and 430px.
 
+PROSE MAY BE BOUNDED, BUT THE QUALIFIER ATTACHED TO IT MUST LIVE OUTSIDE THE BOUND.
+
+## Evidence correction
+
+The previous `45 passed` statement was inaccurate as rendered-coverage evidence. Of those 45 checks, 39 used synthetic `page.setContent` markup, and several targeted controls that production does not mount at phone widths. Those checks are CSS fixtures, not proof of shipped layout. They are now named `fixture-only` in the test report and are not counted as route coverage.
+
+The fixture-derived ratios 5.80:1, 6.64:1, 6.30:1, and 5.32:1 were also previously presented as shipped rendered measurements. That presentation is retracted. Production-route measurement on the real landing page, map, and opened venue sheet at both 390px and 430px gives:
+
+- landing primary 6.64:1 and placeholder 6.34:1;
+- map active chip 6.64:1 and disabled chip 5.80:1;
+- opened-sheet price plaque 6.30:1, active tab 6.64:1, primary action 5.96:1, focus outline 4.91:1, and hover tab 13.11:1.
+
+These figures come from computed paint composited through each rendered element's real ancestor surfaces. None is fixture-only.
+
 ## Mobile qualifiers rendered and verified
 
 | File and selector | Breakpoint | Reason |
@@ -32,23 +46,32 @@ This source sweep is supplementary discovery only. CSS enumeration cannot prove 
 
 ## Rendered acceptance
 
-`e2e/price-caption-integrity.spec.ts` exercises production routes rather than isolated CSS fixtures:
+`e2e/price-caption-integrity.spec.ts` separates production-route checks from fixture-only CSS checks:
 
 - `/map/glasgow?band=subcrawl` at 390px and 430px renders the exact 331-character story, expands the live MapLibre attribution control, and finds the exact `Pub data © OpenStreetMap contributors (ODbL)` credit above phone navigation.
 - Native `/onboarding` at 390px and 430px renders all three exact `PUBMAXX reviewed` source labels, then all six exact companion notes.
 - `/pal` at 390px and 430px renders exact setup progress from the live onboarding state.
+- `/historic` and a live `/borough/[slug]` route at 390px and 430px render bounded prose with their exact unbounded uncertainty clause, era, source, and following action outside the bound.
 
 City status and city suggestion have no mobile rendered-output assertion because those components are not mounted there and are explicitly outside this remediation.
 
 `e2e/dark-primary-surfaces.spec.ts` opens `/`, `/map`, and `/map?sel=venue-xjf3n0` in dark mode at both phone widths. It measures the real opened sheet's visible price plaque, then drives Add price through the signed-out gate. Each run attaches its rendered, composited contrast ratios as JSON. The same file drives the desktop map with a long user-entered query and a long major city-status headline.
 
-Focused verification:
+Fixture-only cases retained for CSS isolation:
 
-```bash
-npx playwright test e2e/price-caption-integrity.spec.ts --project=chromium
-```
+| Selector group | Why route coverage is separate |
+| --- | --- |
+| `.dealsTonightDetail` | Offer rows depend on a live listing payload; fixture verifies wrapping only. |
+| `.mapToolbarSearchStatusCopy` | Desktop recovery state requires a failed search provider; phone map does not mount this toolbar. |
+| `.mapSearchSuggestPrice*` | Suggestion price provenance depends on a matching priced search result. |
+| `.mapVenueList*Price*` | List price provenance depends on current lens and venue data. |
+| `.tonightLaneCollapsedChecked` | Collapsed lane is desktop-only; phone mounts Tonight inside its sheet. |
+| `.tonightLaneChecked`, `.tonightLaneCardTitle`, `.tonightLaneCardSource` | Rows depend on a current listings payload; fixture verifies CSS only. |
+| `.mapHeroExcerpt`, `.mapHeroQualifier` | Featured teaser is hidden on phone and therefore cannot be counted as phone coverage. |
+| `.quietPintHeritageExcerpt`, `.quietPintHeritageQualifier` | `/today` mounts this module only during a qualifying quiet window. |
+| `.bandOnboardingChip span` | Real route coverage exists at 390px and 430px; the synthetic 360px and duplicate width checks remain fixture-only. |
 
-Result: 45 passed.
+Unmounted phone surfaces are inventoried separately: desktop `.mapToolbarSearchStatusCopy`, collapsed `.tonightLaneCollapsedChecked`, `.mapHeroCard`, `.cityStatusBannerCopy`, `.cityStatusBannerDismiss`, and `.citySuggestBannerCopy`. No synthetic assertion against them is counted as phone rendering.
 
 ## Hidden cases retained
 
@@ -123,15 +146,12 @@ Changed claim-bearing rules:
 - `.tonightLaneCollapsedChecked`: date and source scope qualify freshness.
 - `.tonightLaneCardTitle`: listing conditions can limit headline claim.
 - `.tonightLaneCardSource`: source and checked date qualify listing.
-- `.mapHeroCard p`: factual story text can carry dates and scope.
 - `.bandOnboardingChip span`: story conditions must reach closing qualifier.
 - `truncateBandCopy`: character truncation cut qualifiers before CSS layout.
-- `.historicHook`: cited history can carry dates and uncertainty.
-- `.boroughHeritageHook`: cited history can carry dates and uncertainty.
-- `.quietPintHeritage`: cited history can carry dates and current-day limits.
 
 Rules deliberately left bounded:
 
+- Story and heritage prose: `.mapHeroExcerpt`, `.historicHookExcerpt`, `.boroughHeritageHookExcerpt`, and `.quietPintHeritageExcerpt` remain two-line excerpts. Their exact attached qualifier uses the corresponding unbounded `*Qualifier` sibling. Era and source metadata remain separate visible siblings.
 - User-entered search identity: `.mapToolbarSearchQuery` is a separately bounded, ellipsised span while `No venues match` and `with your current filters` remain complete and wrapping.
 - Receipt, message, feed, and poster previews: `.barTabTileNote`, `.conversationPreview`, `.feedSpillNote`, `app/p/[id] clampText`, and `app/historic/[slug] clampText` all open a full destination.
 - Venue identities: `.nmnCardName`, `.profileDropVenue`, `.venueHoverBody strong`, `.venuePickerList strong`, `.tonightPub`, `.nightCard__now`, `.nightCard__nextLabel`, `.gardenTonightPubName`, `.presenceVenue`, `.feedVenueLinkHead`, `.feedSpillVenueLink`, `.nightCrawl__doneName`, `.nightCrawl__upcomingName`, `.tonightLaneCardPlace span`, `.areaSheetPubName`, `.mapVenueListItemName`, `.mapSearchSuggestRowName`, `.spillPreviewMeta`, `truncateStopName`, and `.planSummary__editStops strong`.
@@ -145,20 +165,28 @@ No caption text was reworded.
 
 ## Wrapped-flow relationship audit
 
-| Wrapped element | Positioned or following relationship checked | Outcome |
+This pass checked offsets, margins, padding, top and bottom anchors, fixed and minimum heights, maximum heights and widths, flex bases, grid tracks, transforms, and absolutely or fixed-positioned siblings around every changed wrapping surface.
+
+| Wrapped element | Hard dimension or positioned relationship checked | Outcome |
 | --- | --- | --- |
-| `.cityStatusBannerCopy` | Expanded `.cityStatusSignalSheet` previously used a fixed 46px clearance. | Fixed: both now share `.cityStatusStack`; 8px flex gap follows actual banner height and remaining viewport height constrains sheet scrolling. |
-| `.citySuggestBannerCopy` | Desktop `.cityStatusStack` starts 82px after suggestion slot. | Shipped suggestion strings stay within the banner's 62px slot at its 420px cap; no overlap. Component is not mounted on phone. |
-| `.mapToolbarSearchStatusCopy` | City suggestion and status use toolbar resting-height tokens. | Fixed: only user-entered query span is bounded; fixed limitation and recovery qualifier remain visible without unbounded toolbar growth. |
-| `.bandOnboardingChip span` | Chip actions share its phone grid; map controls occupy independent corner and bottom lanes. | Existing content-sized first row and separate action row clear both lanes at 390px and 430px. |
-| `.tonightLaneCollapsedChecked` | Collapsed lane is absolutely positioned, but its own children remain flex-flow siblings. | Wrapped checked line grows the pill itself; no descendant or sibling uses a fixed offset from its former line height. |
-| `.tonightLaneChecked`, card titles and sources | Open lane has a viewport max-height and internal scrolling. | Normal flow absorbs extra lines; fixed viewport edge constrains panel, not following content. |
-| Search suggestion and map-list price captions | Rows and metadata are flex-flow children inside bounded scrolling panels. | Captions wrap inside their row; no overlay or following block uses their former one-line height. |
-| Deal, history, borough, weather, and map-story copy | Card actions and provenance follow in normal block or grid flow. | Following content moves with rendered copy height; no fixed pixel offset depends on a line count. |
+| `.dealsTonightDetail` | Card has 44px minimum height, rem padding and gaps, but no height, absolute child, transform, or fixed grid track. | Detail, source, and action remain normal-flow flex-column siblings; added lines grow the card. |
+| `.citySuggestBannerCopy` | Banner top uses toolbar height plus 12px; status stack starts at toolbar height plus 82px. Banner width caps at 420px, actions are 44px minimum, padding is 8px, and translateX only centres the whole banner. | Desktop shipped copy fits within the 70px inter-anchor lane. Component is unmounted on phone, so its mobile 112px rule is not claimed as rendered coverage. |
+| `.cityStatusBannerCopy` | Stack has fixed top anchor, 460px width cap, 8px gap, viewport-derived max height, and translateX centring. Sheet has 360px width cap, 420px max height, `flex-basis: auto`, and a temporary 6px entrance translateY. | Banner and sheet share normal flex flow. Short sheets hug content; long sheets shrink and scroll; no fixed 46px clearance remains. Geometry assertions wait for the entrance transform to finish. |
+| `.mapToolbarSearchStatusCopy` | Status has 52px minimum height and 8px gap; toolbar dependants use the 181px resting-height token. Recovery action is 44px minimum, and toolbar translateX only centres the whole block. | User query alone is capped at 20ch and 45 percent. Fixed prefix, limitation, and recovery copy wrap inside available status space without allowing user content to expand the dependent banner lane. |
+| `.mapSearchSuggestPrice > span` and provenance | Row has 44px minimum height, 10px gap, 6px by 14px padding, and price width capped at 180px. | Minimum height can grow. Flex metadata stays in flow and venue identity owns the remaining width; no absolute sibling or fixed height assumes one line. |
+| `.mapVenueListCompactPrice > span` and provenance | Row has 44px minimum height, 8px by 10px padding, 10px gap, and desktop price cap of 160px. Phone rule changes row to a content-sized column with 4px gap. | Price and provenance grow the row. No fixed track or positioned sibling depends on their former single-line height. |
+| `.tonightLaneCollapsedChecked` | Absolute lane top is toolbar clearance plus 60px; pill has 360px width cap, 44px minimum height, hidden border overflow, and no fixed height. Main action has 44px minimum height and 15px side padding. | Wrapped freshness grows pill and stays within border. Collapsed form is desktop-only and is not counted as phone coverage. |
+| `.tonightLaneChecked` | Open float has bottom anchor, 760px width cap, 520px or 62vh max height, 14px padding, and translateX. Sheet variant clears all positioning, transform, viewport width, and max-height rules. | Header grows in normal flow; map float remains bounded by its scroll area, while phone sheet uses parent scrolling. |
+| `.tonightLaneCardTitle` and `.tonightLaneCardSource` | Cards have fixed 208px width, 10px by 12px padding, normal flex-column height, and a following 44px minimum action with 8px top margin. | Title, conditions, and source wrap vertically. Fixed card width does not imply fixed height; horizontal and vertical scroll containers absorb growth. |
+| `.bandOnboardingChip span` | Desktop chip uses bottom 82px, 560px width cap, and translateX. Phone uses bottom lane token, two grid tracks `minmax(0, 1fr) 44px`, 8px gap, 10px padding, and 44px actions. Sheet-state hiding translates the whole chip 8px while removing pointer events. | Story owns a full content-sized first row; actions own second row. Real 390px and 430px geometry keeps chip within map, above navigation, and below 30 percent of map height. |
+| `.mapHeroExcerpt` and `.mapHeroQualifier` | Desktop teaser uses left 18px, bottom `18px + 96px`, 300px width cap, 13px by 15px padding, a 24px dismiss control, and a temporary 6px entrance translateY. Phone hides entire teaser. | Excerpt stays two lines; exact qualifier and source remain outside bound. Card grows upward from its bottom anchor and is hidden whenever planning, route, or detail chrome owns that area. |
+| `.historicHookExcerpt` and `.historicHookQualifier` | Cards use content-sized flex columns, 8px gap, 16px padding, responsive equal-width grid tracks without fixed height, and a temporary entrance translateY on the whole card. | Two-line excerpt cannot push or cover metadata. Exact qualifier and provenance follow in normal flow and remain fully visible after and during the whole-card transform. |
+| `.boroughHeritageHookExcerpt` and `.boroughHeritageHookQualifier` | Cards are content-sized grid children; map action has 44px minimum height and `margin-top: auto`. | Excerpt remains bounded. Exact qualifier expands card before auto margin positions the action; no overlap. |
+| `.quietPintHeritageExcerpt` and `.quietPintHeritageQualifier` | Link has 44px minimum height, 12px by 14px padding, and 6px gap. Foot uses wrapping flex layout with 6px by 10px gap and 12px bottom padding. | Exact qualifier, era, quiet condition, and source stay outside excerpt bound. Row height remains content-derived. |
 
 ## Contrast evidence carried forward
 
-`e2e/dark-primary-surfaces.spec.ts` calculates composited ratios from computed paint on production-route elements and their real ancestor surfaces. It covers landing primary and placeholder states, map active and disabled chips, and an opened venue sheet's active tab, primary action, price plaque, focus outline, and hover tab. Text must clear 4.5:1 and focus outline 3:1. The test attachments hold exact per-viewport ratios, so this audit does not copy a fixture-derived number.
+`e2e/dark-primary-surfaces.spec.ts` calculates composited ratios from computed paint on production-route elements and their real ancestor surfaces. It covers landing primary and placeholder states, map active and disabled chips, and an opened venue sheet's active tab, primary action, price plaque, focus outline, and hover tab. Text must clear 4.5:1 and focus outline 3:1. Exact corrected figures appear in Evidence correction and in per-viewport test attachments.
 
 After the real Add price action, the keyless signed-out production route renders `.venuePriceSignInGate`, not `.vpsubInput` or `.vpsubLog`; the test asserts that boundary. No ratio from those unmounted controls is presented as rendered evidence. Any isolated control check would be fixture-only.
 

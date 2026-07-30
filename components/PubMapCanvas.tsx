@@ -42,6 +42,7 @@ import {
 } from "@/lib/poiToggleGroups";
 import MapLayersControl from "@/components/map/MapLayersControl";
 import LandmarkPhotoCredit from "@/components/LandmarkPhotoCredit";
+import QualifyingExcerpt from "@/components/QualifyingExcerpt";
 import type { CityId } from "@/lib/cities";
 import { cityMaxBounds, DEFAULT_CITY_ID, getCity } from "@/lib/cities";
 import { selectMapFallbackPubs } from "@/lib/mapFallbackVenues";
@@ -2835,6 +2836,7 @@ export default function PubMapCanvas({
       (preferWhitby && venue.name.toLowerCase().includes("prospect of whitby") ? 1 : 0);
     return candidates.reduce((best, venue) => (score(venue) > score(best) ? venue : best));
   }, [venues, venueSignals, cityId]);
+  const heroHeritageNote = heroVenue?.curation.heritageNote;
 
   const hoverDetail = useMemo(
     () => (hoveredVenueId ? hoverDetails.get(hoveredVenueId) : undefined),
@@ -3153,10 +3155,15 @@ export default function PubMapCanvas({
           </div>
         </aside>
       ) : null}
-      {heroVenue && !heroDismissed ? (
+      {heroVenue && heroHeritageNote && !heroDismissed ? (
         <aside className="mapHeroCard" aria-label="Featured story pub">
           <div className="mapHeroCardHead">
-            <span>{heroVenue.curation.heritageEra ?? "Story pub"}</span>
+            <span>
+              {heroVenue.curation.heritageEra ?? "Story pub"}
+              {heroVenue.curation.sourceLabel
+                ? ` · ${heroVenue.curation.sourceLabel}`
+                : ""}
+            </span>
             <button
               type="button"
               onClick={() => setHeroDismissed(true)}
@@ -3166,7 +3173,13 @@ export default function PubMapCanvas({
             </button>
           </div>
           <strong>{heroVenue.name}</strong>
-          <p>{heroVenue.curation.heritageNote}</p>
+          <p>
+            <QualifyingExcerpt
+              text={heroHeritageNote}
+              excerptClassName="mapHeroExcerpt"
+              qualifierClassName="mapHeroQualifier"
+            />
+          </p>
           <button
             type="button"
             className="mapHeroVisit"

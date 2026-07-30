@@ -293,6 +293,18 @@
   overflow-wrap: break-word;
 }
 
+.historicHookExcerpt {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+}
+
+.historicHookQualifier {
+  display: block;
+}
+
 .historicProvenance {
   display: flex;
   flex-wrap: wrap;

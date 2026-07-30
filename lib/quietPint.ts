@@ -57,6 +57,7 @@ export type QuietPintRow = {
   name: string;
   /** The cited heritage one-liner. This does the selling, not marketing copy. */
   heritageLine: string;
+  eraLabel: string | null;
   /** "Grade II*" when listed, else null. A quiet badge, not a claim. */
   gradeLabel: string | null;
   /** Provenance chip text, matching Pub of the Day's "Sourced" idiom. */
@@ -191,6 +192,7 @@ export function buildQuietPint(input: BuildQuietPintInput): QuietPintModule | nu
     id: candidate.venueId,
     name: candidate.name,
     heritageLine: candidate.hook.trim(),
+    eraLabel: candidate.era,
     gradeLabel: listedBadge(candidate.listed),
     provenanceLabel: PROVENANCE_LABEL.sourced,
     sourceLabel: heritageSourceLabel(best.source),

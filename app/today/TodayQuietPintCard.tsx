@@ -12,6 +12,7 @@
 import Link from "next/link";
 import { ArrowUpRight, ExternalLink, Wine } from "lucide-react";
 
+import QualifyingExcerpt from "@/components/QualifyingExcerpt";
 import type { QuietPintModule } from "@/lib/quietPint";
 
 type Props = { module: QuietPintModule | null };
@@ -47,11 +48,20 @@ export default function TodayQuietPintCard({ module }: Props) {
                   <span className="quietPintPrice">{row.priceLabel}</span>
                 ) : null}
               </span>
-              <span className="quietPintHeritage">{row.heritageLine}</span>
+              <span className="quietPintHeritage">
+                <QualifyingExcerpt
+                  text={row.heritageLine}
+                  excerptClassName="quietPintHeritageExcerpt"
+                  qualifierClassName="quietPintHeritageQualifier"
+                />
+              </span>
             </Link>
             <div className="quietPintFoot">
               {row.gradeLabel ? (
                 <span className="quietPintGrade">{row.gradeLabel}</span>
+              ) : null}
+              {row.eraLabel ? (
+                <span className="quietPintEra">{row.eraLabel}</span>
               ) : null}
               <span className="quietPintQuiet">{row.quietLabel}</span>
               <span className="todayProvChip">{row.provenanceLabel}</span>

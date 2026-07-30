@@ -21,6 +21,11 @@ const FIRST_RUN_COMPANION_NOTES = [
   "Steady and protective",
   "Bright and encouraging",
 ] as const;
+const HISTORIC_ROUTE_EXAMPLE = JSON.parse(
+  readFileSync("public/data/historic_pubs.json", "utf8"),
+).find((pub: { name?: string }) => pub.name === "Prospect of Whitby") as {
+  hook: string;
+};
 
 const LONGEST_STORY_BAND = listEnabledCities()
   .flatMap((city) => storyBandsForCity(city.id))
@@ -38,9 +43,12 @@ type CaptionCase = {
   expectContainerGrowth?: boolean;
   visibleAtPhone?: boolean;
   expectedButtons?: string[];
+  expectedLineClamp?: number;
+  qualifierSelector?: string;
+  expectedQualifier?: string;
 };
 
-const CAPTION_CASES: CaptionCase[] = [
+const FIXTURE_ONLY_CAPTION_CASES: CaptionCase[] = [
   {
     name: "deal conditions",
     cssPath: "components/discovery/dealsTonightLane.css",
@@ -170,15 +178,22 @@ const CAPTION_CASES: CaptionCase[] = [
   {
     name: "featured story claim",
     cssPath: "app/globals.css",
-    selector: ".mapHeroCard p",
-    expected: "The listed interior dates from 1898, while the current bar layout was recorded in a later survey.",
+    selector: ".mapHeroExcerpt",
+    expected: "The listed interior dates from 1898,",
     markup: `
       <aside class="mapHeroCard">
         <strong>Featured pub</strong>
-        <p>The listed interior dates from 1898, while the current bar layout was recorded in a later survey.</p>
+        <p>
+          <span class="mapHeroExcerpt">The listed interior dates from 1898,</span>
+          <span class="mapHeroQualifier"> while the current bar layout was recorded in a later survey.</span>
+        </p>
       </aside>
     `,
     visibleAtPhone: false,
+    expectedLineClamp: 2,
+    qualifierSelector: ".mapHeroQualifier",
+    expectedQualifier:
+      " while the current bar layout was recorded in a later survey.",
   },
   {
     name: "place story condition",
@@ -202,46 +217,24 @@ const CAPTION_CASES: CaptionCase[] = [
     expectedButtons: ["Walk this story", "Dismiss Place story intro"],
   },
   {
-    name: "historic source claim",
-    cssPath: "app/historic/historic.css",
-    selector: ".historicHook",
-    expected:
-      "The listed interior dates from 1898, while the present bar arrangement was recorded during a later survey and may have changed since.",
-    markup: `
-      <article>
-        <p class="historicHook">The listed interior dates from 1898, while the present bar arrangement was recorded during a later survey and may have changed since.</p>
-        <div class="historicProvenance">Historic England · checked 30 July</div>
-      </article>
-    `,
-    checkNextSibling: true,
-  },
-  {
-    name: "borough heritage claim",
-    cssPath: "app/borough/[slug]/borough.css",
-    selector: ".boroughHeritageHook",
-    expected:
-      "The tiled frontage was recorded in the 1980 survey, but the source does not establish whether the interior remains unchanged.",
-    markup: `
-      <article>
-        <p class="boroughHeritageHook">The tiled frontage was recorded in the 1980 survey, but the source does not establish whether the interior remains unchanged.</p>
-        <a class="boroughHeritageMapLink">Read cited record</a>
-      </article>
-    `,
-    checkNextSibling: true,
-  },
-  {
     name: "quiet pint heritage claim",
     cssPath: "app/today/today.css",
-    selector: ".quietPintHeritage",
-    expected:
-      "The listed fittings date from 1902. Opening hours and present-day access are not established by the historic source.",
+    selector: ".quietPintHeritageExcerpt",
+    expected: "The listed fittings date from 1902.",
     markup: `
       <article>
-        <p class="quietPintHeritage">The listed fittings date from 1902. Opening hours and present-day access are not established by the historic source.</p>
+        <p class="quietPintHeritage">
+          <span class="quietPintHeritageExcerpt">The listed fittings date from 1902.</span>
+          <span class="quietPintHeritageQualifier"> Opening hours and present-day access are not established by the historic source.</span>
+        </p>
         <div class="quietPintFoot">Historic England</div>
       </article>
     `,
     checkNextSibling: true,
+    expectedLineClamp: 2,
+    qualifierSelector: ".quietPintHeritageQualifier",
+    expectedQualifier:
+      " Opening hours and present-day access are not established by the historic source.",
   },
 ];
 
@@ -292,16 +285,60 @@ async function expectUnclippedCaption(locator: Locator, expected: string): Promi
   expect(state.clientHeight).toBe(state.scrollHeight);
 }
 
+async function expectBoundedProse(
+  locator: Locator,
+  expected: string | undefined,
+  lineClamp: number,
+): Promise<void> {
+  if (expected !== undefined) {
+    await expect(locator).toHaveText(expected);
+  }
+  const state = await locator.evaluate((element) => {
+    const style = getComputedStyle(element);
+    return {
+      overflow: style.overflow,
+      lineClamp: style.getPropertyValue("-webkit-line-clamp"),
+      clientHeight: element.clientHeight,
+      lineHeight: Number.parseFloat(style.lineHeight),
+    };
+  });
+
+  expect(state.overflow).toBe("hidden");
+  expect(state.lineClamp).toBe(String(lineClamp));
+  expect(state.clientHeight).toBeLessThanOrEqual(
+    Math.ceil(state.lineHeight * lineClamp) + 1,
+  );
+}
+
 for (const viewport of VIEWPORTS) {
-  for (const captionCase of CAPTION_CASES) {
-    test(`${captionCase.name} stays readable at ${viewport.width}px`, async ({ page }) => {
+  for (const captionCase of FIXTURE_ONLY_CAPTION_CASES) {
+    test(`fixture-only CSS contract: ${captionCase.name} at ${viewport.width}px`, async ({ page }) => {
       await prepareCaptionCase(page, viewport, captionCase);
 
       const qualifier = page.locator(captionCase.selector);
       if (captionCase.visibleAtPhone !== false) {
         await expect(qualifier).toBeVisible();
       }
-      await expectUnclippedCaption(qualifier, captionCase.expected);
+      if (captionCase.expectedLineClamp) {
+        await expectBoundedProse(
+          qualifier,
+          captionCase.expected,
+          captionCase.expectedLineClamp,
+        );
+      } else {
+        await expectUnclippedCaption(qualifier, captionCase.expected);
+      }
+
+      if (captionCase.qualifierSelector && captionCase.expectedQualifier) {
+        const attachedQualifier = page.locator(captionCase.qualifierSelector);
+        if (captionCase.visibleAtPhone !== false) {
+          await expect(attachedQualifier).toBeVisible();
+        }
+        await expectUnclippedCaption(
+          attachedQualifier,
+          captionCase.expectedQualifier,
+        );
+      }
 
       if (captionCase.checkNextSibling) {
         const qualifierBox = await qualifier.boundingBox();
@@ -358,6 +395,94 @@ for (const viewport of VIEWPORTS) {
       expect(documentOverflow).toBeLessThanOrEqual(1);
     });
   }
+}
+
+for (const viewport of VIEWPORTS.filter(({ width }) => width >= 390)) {
+  test(`historic excerpts stay bounded beside real qualifiers at ${viewport.width}px`, async ({
+    page,
+  }) => {
+    await page.setViewportSize(viewport);
+    const response = await page.goto("/historic");
+    expect(response?.status()).toBe(200);
+
+    const card = page
+      .locator(".historicCard")
+      .filter({ hasText: "Prospect of Whitby" });
+    await expect(card).toBeVisible();
+    const hook = card.locator(".historicHook");
+    await expect(hook).toHaveText(HISTORIC_ROUTE_EXAMPLE.hook);
+    const hookExcerpt = hook.locator(".historicHookExcerpt");
+    const hookExcerptText = await hookExcerpt.textContent();
+    expect(hookExcerptText).not.toBeNull();
+    await expectBoundedProse(hookExcerpt, undefined, 2);
+    const hookQualifier = hook.locator(".historicHookQualifier");
+    const hookQualifierText = await hookQualifier.textContent();
+    expect(hookQualifierText).not.toBeNull();
+    await expect(hookQualifier).toBeVisible();
+    await expectUnclippedCaption(hookQualifier, hookQualifierText!);
+    expect(
+      `${hookExcerptText!.trim()} ${hookQualifierText!.trim()}`,
+    ).toBe(HISTORIC_ROUTE_EXAMPLE.hook);
+    const provenance = card.locator(".historicProvenance");
+    await expect(provenance).toBeVisible();
+    await expect(card.locator(".historicEra")).toHaveText("1520");
+    await expect(card.locator(".historicCite")).toBeVisible();
+    const [hookBox, provenanceBox] = await Promise.all([
+      hook.boundingBox(),
+      provenance.boundingBox(),
+    ]);
+    expect(hookBox).not.toBeNull();
+    expect(provenanceBox).not.toBeNull();
+    expect(provenanceBox!.y).toBeGreaterThanOrEqual(
+      hookBox!.y + hookBox!.height,
+    );
+
+    const boroughResponse = await page.goto("/borough/tower-hamlets");
+    expect(boroughResponse?.status()).toBe(200);
+
+    const boroughCard = page
+      .locator(".boroughHeritageCard")
+      .filter({ hasText: "Prospect of Whitby" });
+    await expect(boroughCard).toBeVisible();
+    const boroughHook = boroughCard.locator(".boroughHeritageHook");
+    await expect(boroughHook).toHaveText(HISTORIC_ROUTE_EXAMPLE.hook);
+    const boroughHookExcerpt = boroughHook.locator(
+      ".boroughHeritageHookExcerpt",
+    );
+    const boroughHookExcerptText = await boroughHookExcerpt.textContent();
+    expect(boroughHookExcerptText).not.toBeNull();
+    await expectBoundedProse(
+      boroughHookExcerpt,
+      undefined,
+      2,
+    );
+    const boroughQualifier = boroughHook.locator(
+      ".boroughHeritageHookQualifier",
+    );
+    const boroughQualifierText = await boroughQualifier.textContent();
+    expect(boroughQualifierText).not.toBeNull();
+    await expect(boroughQualifier).toBeVisible();
+    await expectUnclippedCaption(
+      boroughQualifier,
+      boroughQualifierText!,
+    );
+    expect(
+      `${boroughHookExcerptText!.trim()} ${boroughQualifierText!.trim()}`,
+    ).toBe(HISTORIC_ROUTE_EXAMPLE.hook);
+    const boroughLink = boroughCard.locator(".boroughHeritageMapLink");
+    await expect(boroughLink).toBeVisible();
+    await expect(boroughCard.locator(".boroughHeritageEra")).toHaveText("1520");
+    const [boroughHookBox, boroughLinkBox] = await Promise.all([
+      boroughHook.boundingBox(),
+      boroughLink.boundingBox(),
+    ]);
+    expect(boroughHookBox).not.toBeNull();
+    expect(boroughLinkBox).not.toBeNull();
+    expect(boroughLinkBox!.y).toBeGreaterThanOrEqual(
+      boroughHookBox!.y + boroughHookBox!.height,
+    );
+    await expect(page.locator(".boroughHeritageProvenance")).toBeVisible();
+  });
 }
 
 for (const viewport of VIEWPORTS.filter(({ width }) => width >= 390)) {
