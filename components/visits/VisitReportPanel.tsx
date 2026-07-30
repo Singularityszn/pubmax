@@ -44,6 +44,14 @@ export type VisitReportPanelProps = {
   active?: boolean;
 };
 
+export function visitReportComposerMode(
+  open: boolean,
+  accountId: string | null,
+): "open" | "closed" | "sign_in_required" {
+  if (!accountId) return "sign_in_required";
+  return open ? "open" : "closed";
+}
+
 const BUSYNESS_LABELS: Record<Busyness, string> = {
   quiet: "Quiet",
   steady: "Steady",
@@ -215,6 +223,7 @@ function VenueVisitReports({
     kind: "ok" | "error";
     text: string;
   } | null>(null);
+  const composerMode = visitReportComposerMode(open, user?.id ?? null);
 
   const requested = useRef(false);
 
@@ -339,7 +348,7 @@ function VenueVisitReports({
             Visits, written up
           </h3>
         </div>
-        {!open ? (
+        {composerMode !== "open" ? (
           <button
             type="button"
             className="visitReportOpen"
@@ -349,7 +358,9 @@ function VenueVisitReports({
               });
             }}
           >
-            {user ? "Write yours" : "Sign in to contribute"}
+            {composerMode === "sign_in_required"
+              ? "Sign in to contribute"
+              : "Write yours"}
           </button>
         ) : null}
       </div>
@@ -380,7 +391,7 @@ function VenueVisitReports({
         </p>
       )}
 
-      {open ? (
+      {composerMode === "open" ? (
         <div className="visitReportCard">
           <div className="visitReportCardHead">
             <div>

@@ -27,16 +27,11 @@ type RecommendationFormError = {
   field: WeatherRecommendationErrorField;
 };
 
-// Which field a refusal belongs to is answered by the shared validator's own
-// message table, or by the route's machine code when the refusal is about who
-// owns the handle. Never by reading server prose.
-function recommendationError(
-  message: string,
-  code?: unknown,
-): RecommendationFormError {
-  const field: WeatherRecommendationErrorField =
-    code === "FORBIDDEN" ? "handle" : weatherRecommendationErrorField(message);
-  return { message, field };
+function recommendationError(message: string): RecommendationFormError {
+  return {
+    message,
+    field: weatherRecommendationErrorField(message),
+  };
 }
 
 export type WeatherRecommendationVenueLoad = {
@@ -321,12 +316,11 @@ export default function VenueWeatherRecommendations({
             };
           }
         setError(
-          recommendationError(
-            typeof body.error === "string"
-              ? body.error
-              : "Could not save that recommendation right now.",
-            body.code,
-          ),
+            recommendationError(
+              typeof body.error === "string"
+                ? body.error
+                : "Could not save that recommendation right now.",
+            ),
         );
         return;
       }

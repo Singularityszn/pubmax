@@ -5,7 +5,9 @@ import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 
-import VisitReportPanel from "@/components/visits/VisitReportPanel";
+import VisitReportPanel, {
+  visitReportComposerMode,
+} from "@/components/visits/VisitReportPanel";
 
 const authState = vi.hoisted(() => ({
   user: null as { id: string } | null,
@@ -24,6 +26,11 @@ function source(relative: string): string {
 }
 
 describe("Visit Report venue surface", () => {
+  it("closes authoring fields when an open composer loses its account", () => {
+    expect(visitReportComposerMode(true, "account-1")).toBe("open");
+    expect(visitReportComposerMode(true, null)).toBe("sign_in_required");
+  });
+
   it("asks a signed-out visitor to sign in before mounting any report fields", () => {
     authState.user = null;
     authState.session = null;
