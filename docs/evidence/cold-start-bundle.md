@@ -4,7 +4,9 @@ Measured 30 July 2026. This file records baseline, failed probes, bounded tracin
 
 ## Finding
 
-Both `/` and `/map` production route traces contained 3,751 files and about 278.65 MiB at build time. The traced set included the source tree, Android project, documentation, screenshots, raw CSV files, raw OSM files, generated detail data, and runtime data packs unrelated to either page's first response.
+An earlier dirty-worktree measurement found 3,751 files and about 278.65 MiB in both `/` and `/map` production route traces. The later clean baseline found 3,754 files and about 278.78 MiB. Removing an untracked document between those measurements changed the trace total, evidence that the tracer was following workspace content rather than route dependencies. Reduction figures below use the clean baseline.
+
+The traced set included the source tree, Android project, documentation, screenshots, raw CSV files, raw OSM files, generated detail data, and runtime data packs unrelated to either page's first response.
 
 The route-specific compiled files were small by comparison:
 
