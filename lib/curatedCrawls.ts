@@ -205,7 +205,6 @@ export const curatedCrawls: CuratedCrawl[] = [
       "venue-1t2cfa2", // The Admiralty
       "venue-698bu3", // The Old Spades
       "venue-gk2fp9", // Sherlock Holmes
-      "venue-196albe", // The Sir Michael Balcon — JD Wetherspoon
       "venue-11iolkd", // The Lemon Tree
     ],
     startLandmarkId: "big-ben",

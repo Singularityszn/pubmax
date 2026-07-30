@@ -50,11 +50,11 @@ Run `npm run setup` after cloning so a broken push is caught locally before it l
 PubMaxing is a **thin, deterministic pipeline** with a small server seam. The data layer is pure and framework-free; the UI is a thin consumer; the backend is one write path and one Q&A path.
 
 ```
-                       public/data/pint_prices_app_dataset.json   (~3,097 price rows)
+                       public/data/pint_prices_app_dataset.json   (product price rows)
                                         │  (fetched client-side, once)
                                         ▼
    ┌─────────────────────  DATA & DOMAIN (lib/, pure) ──────────────────────┐
-   │  groupVenuePrices → ~1,197 Venues (content-hashed stable ids)          │
+   │  groupVenuePrices → Venues (content-hashed stable ids)                 │
    │  getVenueCuration → provenance-stamped claims (never flattened)        │
    │  filterVenues → scoreVenue → buildCrawlRoute (greedy walk)             │
    │  mergeVenueDrops ← community Pint Drops (demo seeds filtered out)      │
@@ -105,7 +105,7 @@ PubMaxing is a **thin, deterministic pipeline** with a small server seam. The da
 
 ### Overview
 
-This is the pure, framework-free core of PubMaxing: it turns a flat ~3,097-row price dataset into ~1,197 story-bearing `Venue` objects, and owns every rule about **money and provenance**. It groups price rows into venues, filters and scores them for a given crawl style, greedily builds a walkable route, and layers a moderated community "Pint Drop" system on top — all while keeping editorial facts, contributor evidence, and demo seeds *visibly distinct and never blended*. Everything here is deterministic and side-effect-free except the in-memory Pint Drop store, which is deliberately swappable. The UI (`components/PubMap.tsx`) is a thin consumer of these functions.
+This is the pure, framework-free core of PubMaxing: it turns the flat price dataset into story-bearing `Venue` objects, and owns every rule about **money and provenance**. It groups price rows into venues, filters and scores them for a given crawl style, greedily builds a walkable route, and layers a moderated community "Pint Drop" system on top — all while keeping editorial facts, contributor evidence, and demo seeds *visibly distinct and never blended*. Everything here is deterministic and side-effect-free except the in-memory Pint Drop store, which is deliberately swappable. The UI (`components/PubMap.tsx`) is a thin consumer of these functions.
 
 ### Key types & files
 
@@ -118,7 +118,7 @@ This is the pure, framework-free core of PubMaxing: it turns a flat ~3,097-row p
 | `lib/curatedCrawls.ts` | Four named "generational" routes as ordered lists of venue ids. |
 | `lib/nearby.ts` | `nearestVenueIds` — haversine "pubs near me" from a lat/lng. |
 | `lib/crawlUrl.ts` | `encodeCrawl` / `decodeCrawl` / `seedCrawlState` — shareable-URL round-trip for the whole crawl state. |
-| `public/data/pint_prices_app_dataset.json` | The source of truth: a ~3,097-element array of raw price rows. Fetched client-side, fed into `groupVenuePrices`. |
+| `public/data/pint_prices_app_dataset.json` | Product price rows fetched client-side and fed into `groupVenuePrices`. |
 
 ### How it works
 

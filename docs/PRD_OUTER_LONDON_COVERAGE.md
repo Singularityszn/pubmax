@@ -22,8 +22,8 @@ The Greater London bbox already includes Barnet (`LAT` 51.26–51.72, `LON` −0
 
 | Signal | Approx. value |
 |--------|----------------|
-| Slim map venues | ~1,197 |
-| Canonical app rows | ~2,107 |
+| Slim map venues | See [`venues_slim.manifest.json`](../public/data/venues_slim.manifest.json) |
+| Canonical app rows | See [`summary.json`](../data/summary.json) (`app_dataset_clean_canonical_rows`) |
 | Barnet canonical pubs | 4 |
 | Havering / Hillingdon / Redbridge leaderboard | 0 (large **embedded** scrape blobs exist — anomaly; do not blindly promote) |
 

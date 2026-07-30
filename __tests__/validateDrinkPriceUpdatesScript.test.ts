@@ -8,11 +8,18 @@ import { execFileSync } from "node:child_process";
 import { existsSync, mkdtempSync, mkdirSync, writeFileSync, cpSync, rmSync, readFileSync, readdirSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { fileURLToPath } from "node:url";
-import { dirname, join } from "node:path";
+import { dirname, join, resolve } from "node:path";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(__dirname, "..");
-const SCRIPT = join(ROOT, "scripts", "validate-data.mjs");
+const SCRIPT = resolve(
+  process.env.POSTCODE_VALIDATE_DATA_SCRIPT ??
+    join(ROOT, "scripts", "validate-data.mjs"),
+);
+const POSTCODE_CONSISTENCY_MODULE = resolve(
+  process.env.POSTCODE_CONSISTENCY_MODULE ??
+    join(ROOT, "scripts", "lib", "postcodeCoordinateConsistency.mjs"),
+);
 const BUILD_SLIM_SCRIPT = join(ROOT, "scripts", "build_slim_index.mjs");
 const DETAIL_INDEX = join(ROOT, "data", "generated", "venue_detail_index.json");
 
@@ -49,6 +56,12 @@ function setupScratch(files: Record<string, unknown>): string {
     join(ROOT, "scripts", "lib", "slimShards.mjs"),
     join(scratchScripts, "lib", "slimShards.mjs"),
   );
+  if (existsSync(POSTCODE_CONSISTENCY_MODULE)) {
+    cpSync(
+      POSTCODE_CONSISTENCY_MODULE,
+      join(scratchScripts, "lib", "postcodeCoordinateConsistency.mjs"),
+    );
+  }
   cpSync(
     join(ROOT, "lib", "nightOutPlaceSourceUrl.mjs"),
     join(scratchLib, "nightOutPlaceSourceUrl.mjs"),
@@ -113,6 +126,27 @@ function setupScratch(files: Record<string, unknown>): string {
     join(ROOT, "data", "night_out_place_provenance_registry.json"),
     join(scratchRoot, "data", "night_out_place_provenance_registry.json"),
   );
+  const scratchOsmDir = join(scratchRoot, "data", "osm", "uk");
+  mkdirSync(scratchOsmDir, { recursive: true });
+  cpSync(
+    join(ROOT, "data", "osm", "uk", "uk_osm_pubs.json"),
+    join(scratchOsmDir, "uk_osm_pubs.json"),
+  );
+  for (const file of [
+    "pint_prices_canonical_enriched.csv",
+    "borough_embedded_pint_prices.csv",
+    "pub_page_pint_prices.csv",
+    "pint_prices_app_dataset.csv",
+    "postcode_coordinate_exceptions.json",
+    "postcode_coordinate_quarantine.json",
+    "postcode_coordinate_corrections.json",
+    "postcode_coordinate_build_report.json",
+  ]) {
+    cpSync(
+      join(ROOT, "data", file),
+      join(scratchRoot, "data", file),
+    );
+  }
   for (const file of ["bars.json", "late_food.json", "restaurants.json"]) {
     cpSync(
       join(ROOT, "data", "famous_venues", file),
@@ -146,6 +180,83 @@ function runValidate(scriptsDir: string): { code: number; stdout: string } {
     const e = err as { status: number; stdout: string };
     return { code: e.status, stdout: e.stdout };
   }
+}
+
+function injectLincolnArmsContradiction(scriptsDir: string) {
+  const datasetPath = join(
+    scriptsDir,
+    "..",
+    "public",
+    "data",
+    "pint_prices_app_dataset.json",
+  );
+  const rows = JSON.parse(readFileSync(datasetPath, "utf8"));
+  rows[0] = {
+    ...rows[0],
+    pub_name: "The Lincoln Arms",
+    address: "EN1 1QT",
+    latitude: 51.5332,
+    longitude: -0.1222,
+  };
+  writeFileSync(datasetPath, JSON.stringify(rows), "utf8");
+  return rows[0] as {
+    app_price_id: string;
+    pub_name: string;
+    address: string;
+    latitude: number;
+    longitude: number;
+  };
+}
+
+function injectReassignedLincolnQuarantineLeak(scriptsDir: string) {
+  const registry = JSON.parse(
+    readFileSync(
+      join(
+        scriptsDir,
+        "..",
+        "data",
+        "postcode_coordinate_quarantine.json",
+      ),
+      "utf8",
+    ),
+  );
+  const lincoln = registry.rows.find(
+    (entry: { appPriceId: string }) =>
+      entry.appPriceId === "app_price_000339",
+  );
+  const datasetPath = join(
+    scriptsDir,
+    "..",
+    "public",
+    "data",
+    "pint_prices_app_dataset.json",
+  );
+  const rows = JSON.parse(readFileSync(datasetPath, "utf8"));
+  rows.push({
+    ...rows[0],
+    app_price_id: "app_price_reassigned",
+    pub_name: lincoln.pubName,
+    address: `155 Percival Road, Enfield ${lincoln.postcode}, UK`,
+    latitude: lincoln.latitude + 0.00000005,
+    longitude: lincoln.longitude - 0.00000005,
+  });
+  writeFileSync(datasetPath, JSON.stringify(rows), "utf8");
+}
+
+function writePostcodeCoordinateExceptions(
+  scriptsDir: string,
+  exceptions: unknown[],
+) {
+  writeFileSync(
+    join(
+      scriptsDir,
+      "..",
+      "data",
+      "postcode_coordinate_exceptions.json",
+    ),
+    JSON.stringify({ exceptions }),
+    "utf8",
+  );
 }
 
 function writePubmaxxingSnapshotWithAlcoholBuckets(
@@ -427,6 +538,145 @@ describe("validate-data.mjs slim venue index validation", () => {
     expect(code).toBe(1);
     expect(stdout).toContain("FAIL public/data/venues_slim.json");
     expect(stdout).toContain("id is not present in rebuilt full-dataset index");
+  });
+});
+
+describe("validate-data.mjs postcode-coordinate validation", () => {
+  it("FAILS loudly on the exact Lincoln Arms Enfield and King's Cross contradiction", () => {
+    const scriptsDir = setupScratch({});
+    injectLincolnArmsContradiction(scriptsDir);
+
+    const { code, stdout } = runValidate(scriptsDir);
+
+    expect(code).toBe(1);
+    expect(stdout).toContain("postcode-coordinate contradiction");
+    expect(stdout).toContain("The Lincoln Arms");
+    expect(stdout).toContain("EN1");
+    expect(stdout).toContain("12.60 km exceeds 5 km");
+  });
+
+  it("applies only an exact documented exception", () => {
+    const scriptsDir = setupScratch({});
+    const row = injectLincolnArmsContradiction(scriptsDir);
+    writePostcodeCoordinateExceptions(scriptsDir, [
+      {
+        appPriceId: row.app_price_id,
+        pubName: row.pub_name,
+        postcode: row.address,
+        latitude: row.latitude,
+        longitude: row.longitude,
+        reason:
+          "Verified boundary-site address whose entrance and postcode district are more than 5 km apart.",
+      },
+    ]);
+
+    const { stdout } = runValidate(scriptsDir);
+
+    expect(stdout).not.toContain("postcode-coordinate contradiction");
+    expect(stdout).toContain("postcode-coordinate exceptions: 1 applied");
+  });
+
+  it("FAILS when an exception has no stated reason", () => {
+    const scriptsDir = setupScratch({});
+    const row = injectLincolnArmsContradiction(scriptsDir);
+    writePostcodeCoordinateExceptions(scriptsDir, [
+      {
+        appPriceId: row.app_price_id,
+        pubName: row.pub_name,
+        postcode: row.address,
+        latitude: row.latitude,
+        longitude: row.longitude,
+        reason: "",
+      },
+    ]);
+
+    const { code, stdout } = runValidate(scriptsDir);
+
+    expect(code).toBe(1);
+    expect(stdout).toContain("invalid postcode-coordinate exception");
+    expect(stdout).toContain("reason must contain at least 20 characters");
+  });
+
+  it("FAILS when a quarantine entry is deliberately stale", () => {
+    const scriptsDir = setupScratch({});
+    const registryPath = join(
+      scriptsDir,
+      "..",
+      "data",
+      "postcode_coordinate_quarantine.json",
+    );
+    const registry = JSON.parse(readFileSync(registryPath, "utf8"));
+    registry.rows[0].appPriceId = "app_price_999999";
+    writeFileSync(registryPath, JSON.stringify(registry), "utf8");
+
+    const { code, stdout } = runValidate(scriptsDir);
+
+    expect(code).toBe(1);
+    expect(stdout).toContain("invalid postcode-coordinate quarantine");
+    expect(stdout).toContain("stale build decision input");
+    expect(stdout).toContain("postcode_coordinate_quarantine.json");
+  });
+
+  it("FAILS when a quarantined identity leaks under a reassigned id and expanded address", () => {
+    const scriptsDir = setupScratch({});
+    injectReassignedLincolnQuarantineLeak(scriptsDir);
+
+    const { code, stdout } = runValidate(scriptsDir);
+
+    expect(code).toBe(1);
+    expect(stdout).toContain(
+      "app_price_000339 (The Lincoln Arms) reached the product dataset",
+    );
+  });
+
+  it("FAILS when quarantine geography is no longer contradictory", () => {
+    const scriptsDir = setupScratch({});
+    const registryPath = join(
+      scriptsDir,
+      "..",
+      "data",
+      "postcode_coordinate_quarantine.json",
+    );
+    const registry = JSON.parse(readFileSync(registryPath, "utf8"));
+    const lincoln = registry.rows.find(
+      (entry: { appPriceId: string }) =>
+        entry.appPriceId === "app_price_000339",
+    );
+    lincoln.latitude = 51.6415276;
+    lincoln.longitude = -0.0687715;
+    writeFileSync(registryPath, JSON.stringify(registry), "utf8");
+
+    const { code, stdout } = runValidate(scriptsDir);
+
+    expect(code).toBe(1);
+    expect(stdout).toContain("invalid postcode-coordinate quarantine");
+    expect(stdout).toContain(
+      "app_price_000339 is not a postcode-coordinate contradiction",
+    );
+  });
+
+  it("FAILS partial, duplicate, and reasonless quarantine entries", () => {
+    const scriptsDir = setupScratch({});
+    const registryPath = join(
+      scriptsDir,
+      "..",
+      "data",
+      "postcode_coordinate_quarantine.json",
+    );
+    const registry = JSON.parse(readFileSync(registryPath, "utf8"));
+    registry.rows[0].reason = "";
+    delete registry.rows[1].longitude;
+    registry.rows.push({ ...registry.rows[2] });
+    writeFileSync(registryPath, JSON.stringify(registry), "utf8");
+
+    const { code, stdout } = runValidate(scriptsDir);
+
+    expect(code).toBe(1);
+    expect(stdout).toContain("reason must contain at least 20 characters");
+    expect(stdout).toContain(
+      "latitude and longitude must be finite numbers",
+    );
+    expect(stdout).toContain("duplicate appPriceId app_price_000274");
   });
 });
 

@@ -25,6 +25,13 @@ import {
   classifySlimShards,
 } from "./lib/slimShards.mjs";
 import {
+  POSTCODE_COORDINATE_MAX_DISTANCE_KM,
+  findPostcodeCoordinateContradictions,
+  parseUkPostcode,
+  publishedQuarantineLeakValidationErrors,
+  validatePostcodeCoordinateQuarantine,
+} from "./lib/postcodeCoordinateConsistency.mjs";
+import {
   nightOutPlaceProvenanceRegistryValidationErrors,
   nightOutPlaceRowValidationErrors,
   nightOutPlaceSnapshotValidationErrors,
@@ -35,6 +42,42 @@ const ROOT_DIR = join(__dirname, "..");
 const DATA_DIR = join(ROOT_DIR, "public", "data");
 const GENERATED_DATA_DIR = join(ROOT_DIR, "data", "generated");
 const FAMOUS_VENUES_DIR = join(ROOT_DIR, "data", "famous_venues");
+const UK_OSM_PUBS_FILE = join(
+  ROOT_DIR,
+  "data",
+  "osm",
+  "uk",
+  "uk_osm_pubs.json",
+);
+const POSTCODE_COORDINATE_EXCEPTIONS_FILE = join(
+  ROOT_DIR,
+  "data",
+  "postcode_coordinate_exceptions.json",
+);
+const POSTCODE_COORDINATE_QUARANTINE_FILE = join(
+  ROOT_DIR,
+  "data",
+  "postcode_coordinate_quarantine.json",
+);
+const POSTCODE_COORDINATE_CORRECTIONS_FILE = join(
+  ROOT_DIR,
+  "data",
+  "postcode_coordinate_corrections.json",
+);
+const POSTCODE_COORDINATE_BUILD_REPORT_FILE = join(
+  ROOT_DIR,
+  "data",
+  "postcode_coordinate_build_report.json",
+);
+const POSTCODE_COORDINATE_DECISION_INPUTS = [
+  "data/pint_prices_canonical_enriched.csv",
+  "data/borough_embedded_pint_prices.csv",
+  "data/pub_page_pint_prices.csv",
+  "data/osm/uk/uk_osm_pubs.json",
+  "data/postcode_coordinate_corrections.json",
+  "data/postcode_coordinate_quarantine.json",
+  "data/postcode_coordinate_exceptions.json",
+];
 const DRINK_PRICE_UPDATES_DIR = join(DATA_DIR, "drink_price_updates");
 const WHATS_ON_DIR = join(DATA_DIR, "whats_on");
 const WHATS_ON_KINDS = new Set(["sport", "quiz", "deal", "music"]);
@@ -562,10 +605,254 @@ function validateTflLines() {
 // pint_prices_app_dataset.json — the app's core dataset. Sample-check row shape
 // (pub_name + numeric-or-null price + finite lat/lng) and FAIL if the row count
 // dropped below the sane floor, which catches a truncated export.
+function sha256File(pathname) {
+  return createHash("sha256")
+    .update(readFileSync(pathname))
+    .digest("hex");
+}
+
+function normalizeQuarantineDecision(entry) {
+  return {
+    appPriceId: entry?.appPriceId,
+    pubName: entry?.pubName,
+    postcode: parseUkPostcode(entry?.postcode)?.postcode,
+    latitude: entry?.latitude,
+    longitude: entry?.longitude,
+    reason: entry?.reason,
+  };
+}
+
+function normalizeCorrectionDecision(entry) {
+  return {
+    decisionId: entry?.decisionId,
+    appPriceId: entry?.appPriceId,
+    pubName: entry?.pubName,
+    reason: entry?.reason,
+    changes: entry?.changes,
+    dataQualityNote: entry?.dataQualityNote,
+  };
+}
+
+function sortedJson(entries) {
+  return JSON.stringify(
+    [...entries].sort((left, right) =>
+      String(left?.appPriceId).localeCompare(String(right?.appPriceId)),
+    ),
+  );
+}
+
+function quarantineRegistryErrors(quarantineRegistry, osmPubs) {
+  const quarantineRows = quarantineRegistry?.rows;
+  const syntheticQuarantineRows = Array.isArray(quarantineRows)
+    ? quarantineRows.map((entry) => ({
+        app_price_id: entry?.appPriceId,
+        pub_name: entry?.pubName,
+        address: entry?.postcode,
+        latitude: entry?.latitude,
+        longitude: entry?.longitude,
+      }))
+    : [];
+  const quarantineResult = validatePostcodeCoordinateQuarantine({
+    rows: syntheticQuarantineRows,
+    osmPubs,
+    quarantineRegistry,
+  });
+  return quarantineResult.invalidQuarantines.map(
+    (error) => `invalid postcode-coordinate quarantine: ${error}`,
+  );
+}
+
+function buildReportArtifactErrors(buildReport) {
+  const errors = [];
+  const expectedOutputPath = "data/pint_prices_app_dataset.csv";
+  if (
+    buildReport?.output?.path !== expectedOutputPath ||
+    buildReport?.output?.sha256 !==
+      sha256File(join(ROOT_DIR, expectedOutputPath))
+  ) {
+    errors.push(
+      `invalid postcode-coordinate quarantine: stale build decision output ${expectedOutputPath}; run python3 scripts/build_app_dataset.py`,
+    );
+  }
+
+  const expectedInputs = new Set(POSTCODE_COORDINATE_DECISION_INPUTS);
+  const reportInputs = buildReport?.inputs;
+  if (!reportInputs || typeof reportInputs !== "object") {
+    errors.push(
+      "invalid postcode-coordinate quarantine: build report inputs must be an object",
+    );
+  } else {
+    for (const relativePath of POSTCODE_COORDINATE_DECISION_INPUTS) {
+      const expectedSha256 = sha256File(join(ROOT_DIR, relativePath));
+      if (reportInputs[relativePath]?.sha256 !== expectedSha256) {
+        errors.push(
+          `invalid postcode-coordinate quarantine: stale build decision input ${relativePath}; run python3 scripts/build_app_dataset.py`,
+        );
+      }
+    }
+    for (const relativePath of Object.keys(reportInputs)) {
+      if (!expectedInputs.has(relativePath)) {
+        errors.push(
+          `invalid postcode-coordinate quarantine: build report has unexpected input ${relativePath}`,
+        );
+      }
+    }
+  }
+  return errors;
+}
+
+function expectedCorrectionDecisions(correctionRegistry) {
+  if (!Array.isArray(correctionRegistry?.corrections)) {
+    return {
+      entries: [],
+      errors: [
+        "invalid postcode-coordinate correction: top-level corrections must be an array",
+      ],
+    };
+  }
+  return {
+    entries: correctionRegistry.corrections.flatMap((correction) =>
+      Array.isArray(correction?.appPriceIds)
+        ? correction.appPriceIds.map((appPriceId) =>
+            normalizeCorrectionDecision({
+              decisionId: correction.decisionId,
+              appPriceId,
+              pubName: correction.match?.pubName,
+              reason: correction.reason,
+              changes: correction.changes,
+              dataQualityNote: correction.dataQualityNote,
+            }),
+          )
+        : [],
+    ),
+    errors: [],
+  };
+}
+
+function decisionRegistryParity({
+  quarantineRegistry,
+  correctionRegistry,
+  buildReport,
+}) {
+  const errors = [];
+  const quarantineRows = quarantineRegistry?.rows;
+  const expectedQuarantines = Array.isArray(quarantineRows)
+    ? quarantineRows.map(normalizeQuarantineDecision)
+    : [];
+  const reportedQuarantines = Array.isArray(buildReport?.quarantines)
+    ? buildReport.quarantines.map(normalizeQuarantineDecision)
+    : [];
+  if (sortedJson(expectedQuarantines) !== sortedJson(reportedQuarantines)) {
+    errors.push(
+      "invalid postcode-coordinate quarantine: build report quarantines do not exactly match registry rows",
+    );
+  }
+
+  const expectedCorrections = expectedCorrectionDecisions(correctionRegistry);
+  errors.push(...expectedCorrections.errors);
+  const reportedCorrections = Array.isArray(buildReport?.corrections)
+    ? buildReport.corrections.map(normalizeCorrectionDecision)
+    : [];
+  if (
+    sortedJson(expectedCorrections.entries) !== sortedJson(reportedCorrections)
+  ) {
+    errors.push(
+      "invalid postcode-coordinate correction: build report corrections do not exactly match registry rows",
+    );
+  }
+  return { errors, reportedCorrections };
+}
+
+function publishedDecisionErrors({
+  publishedRows,
+  quarantineRows,
+  reportedCorrections,
+}) {
+  const errors = [];
+  const validQuarantineRows = Array.isArray(quarantineRows)
+    ? quarantineRows
+    : [];
+  errors.push(
+    ...publishedQuarantineLeakValidationErrors({
+      publishedRows,
+      quarantineRows: validQuarantineRows,
+    }),
+  );
+
+  for (const correction of reportedCorrections) {
+    const row = publishedRows.find(
+      (candidate) =>
+        candidate?.app_price_id === correction.appPriceId &&
+        candidate?.pub_name === correction.pubName,
+    );
+    if (!row) {
+      errors.push(
+        `invalid postcode-coordinate correction: ${correction.appPriceId} is missing from the product dataset`,
+      );
+      continue;
+    }
+    const productIdentityFields = new Set([
+      "latitude",
+      "longitude",
+      "primary_borough",
+    ]);
+    for (const [field, expected] of Object.entries(
+      correction.changes ?? {},
+    )) {
+      if (
+        productIdentityFields.has(field) &&
+        Object.hasOwn(row, field) &&
+        row[field] !== expected
+      ) {
+        errors.push(
+          `invalid postcode-coordinate correction: ${correction.appPriceId} field ${field} does not match its build decision`,
+        );
+      }
+    }
+    const notes = String(row.data_quality_notes ?? "").split("|");
+    if (!notes.includes(correction.dataQualityNote)) {
+      errors.push(
+        `invalid postcode-coordinate correction: ${correction.appPriceId} is missing data quality note ${correction.dataQualityNote}`,
+      );
+    }
+  }
+
+  return errors;
+}
+
+function validatePostcodeCoordinateBuildDecisions({
+  publishedRows,
+  osmPubs,
+  quarantineRegistry,
+  correctionRegistry,
+  buildReport,
+}) {
+  const parity = decisionRegistryParity({
+    quarantineRegistry,
+    correctionRegistry,
+    buildReport,
+  });
+  return [
+    ...quarantineRegistryErrors(quarantineRegistry, osmPubs),
+    ...buildReportArtifactErrors(buildReport),
+    ...parity.errors,
+    ...publishedDecisionErrors({
+      publishedRows,
+      quarantineRows: quarantineRegistry?.rows,
+      reportedCorrections: parity.reportedCorrections,
+    }),
+  ];
+}
+
 function validatePintPrices() {
   const name = "public/data/pint_prices_app_dataset.json";
   const errs = makeCollector();
   let data;
+  let osmPubs;
+  let postcodeCoordinateExceptions;
+  let postcodeCoordinateQuarantine;
+  let postcodeCoordinateCorrections;
+  let postcodeCoordinateBuildReport;
   try {
     data = loadJson("pint_prices_app_dataset.json");
   } catch (e) {
@@ -576,6 +863,58 @@ function validatePintPrices() {
   if (!Array.isArray(data)) {
     console.log(`FAIL ${name}: expected a top-level array`);
     return { ok: false, count: 0 };
+  }
+
+  try {
+    const osmData = JSON.parse(readFileSync(UK_OSM_PUBS_FILE, "utf8"));
+    if (!Array.isArray(osmData?.pubs)) {
+      errs.add(
+        "postcode-coordinate reference data: data/osm/uk/uk_osm_pubs.json must contain a pubs array",
+      );
+    } else {
+      osmPubs = osmData.pubs;
+    }
+  } catch (e) {
+    errs.add(
+      `postcode-coordinate reference data: could not read/parse data/osm/uk/uk_osm_pubs.json (${e.message})`,
+    );
+  }
+
+  try {
+    postcodeCoordinateExceptions = JSON.parse(
+      readFileSync(POSTCODE_COORDINATE_EXCEPTIONS_FILE, "utf8"),
+    );
+  } catch (e) {
+    errs.add(
+      `postcode-coordinate exceptions: could not read/parse data/postcode_coordinate_exceptions.json (${e.message})`,
+    );
+  }
+  try {
+    postcodeCoordinateQuarantine = JSON.parse(
+      readFileSync(POSTCODE_COORDINATE_QUARANTINE_FILE, "utf8"),
+    );
+  } catch (e) {
+    errs.add(
+      `postcode-coordinate quarantine: could not read/parse data/postcode_coordinate_quarantine.json (${e.message})`,
+    );
+  }
+  try {
+    postcodeCoordinateCorrections = JSON.parse(
+      readFileSync(POSTCODE_COORDINATE_CORRECTIONS_FILE, "utf8"),
+    );
+  } catch (e) {
+    errs.add(
+      `postcode-coordinate corrections: could not read/parse data/postcode_coordinate_corrections.json (${e.message})`,
+    );
+  }
+  try {
+    postcodeCoordinateBuildReport = JSON.parse(
+      readFileSync(POSTCODE_COORDINATE_BUILD_REPORT_FILE, "utf8"),
+    );
+  } catch (e) {
+    errs.add(
+      `postcode-coordinate build report: could not read/parse data/postcode_coordinate_build_report.json (${e.message})`,
+    );
   }
 
   const count = data.length;
@@ -617,6 +956,51 @@ function validatePintPrices() {
 
   if (outOfBounds > 0) {
     console.log(`  ${outOfBounds} row(s) outside Greater London bounds`);
+  }
+
+  if (osmPubs && postcodeCoordinateExceptions) {
+    const postcodeResult = findPostcodeCoordinateContradictions({
+      rows: data,
+      osmPubs,
+      exceptionRegistry: postcodeCoordinateExceptions,
+    });
+    for (const error of postcodeResult.invalidExceptions) {
+      errs.add(`invalid postcode-coordinate exception: ${error}`);
+    }
+    for (const contradiction of postcodeResult.contradictions) {
+      errs.add(
+        `row ${contradiction.rowIndex} (${contradiction.pubName}): postcode-coordinate contradiction: ${contradiction.postcode} (${contradiction.outwardCode}) distance ${contradiction.distanceKm.toFixed(2)} km exceeds ${POSTCODE_COORDINATE_MAX_DISTANCE_KM} km from its outward-code reference`,
+      );
+    }
+    console.log(
+      `  postcode-coordinate check: ${postcodeResult.checkedRows} row(s), ${postcodeResult.referenceCount} outward-code reference(s), ${postcodeResult.contradictions.length} contradiction(s)`,
+    );
+    if (postcodeResult.appliedExceptions.length > 0) {
+      console.log(
+        `  postcode-coordinate exceptions: ${postcodeResult.appliedExceptions.length} applied`,
+      );
+    }
+  }
+
+  if (
+    osmPubs &&
+    postcodeCoordinateQuarantine &&
+    postcodeCoordinateCorrections &&
+    postcodeCoordinateBuildReport
+  ) {
+    const decisionErrors = validatePostcodeCoordinateBuildDecisions({
+      publishedRows: data,
+      osmPubs,
+      quarantineRegistry: postcodeCoordinateQuarantine,
+      correctionRegistry: postcodeCoordinateCorrections,
+      buildReport: postcodeCoordinateBuildReport,
+    });
+    for (const error of decisionErrors) {
+      errs.add(error);
+    }
+    console.log(
+      `  postcode-coordinate build decisions: ${postcodeCoordinateBuildReport.corrections?.length ?? 0} correction row(s), ${postcodeCoordinateBuildReport.quarantines?.length ?? 0} quarantine row(s), ${decisionErrors.length} error(s)`,
+    );
   }
 
   const ok = errs.count === 0;

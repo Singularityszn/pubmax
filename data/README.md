@@ -36,7 +36,7 @@ is documentation of the raw scrape, not an independently-authored source.
 - Canonical enriched rows: 3,020
 - Pub-page price rows: 2,258
 - Combined rows: 5,278
-- App dataset rows: 3,097
+- App dataset rows: 3,085
 - App dataset columns: 51
 - Builder master rows: 17,673
 - Pub/location map rows: 1,197
@@ -45,6 +45,52 @@ is documentation of the raw scrape, not an independently-authored source.
 ## Caveat
 
 Use `pint_prices_app_dataset.csv` as the single app-building file and `borough_pint_prices.csv` as the strict borough truth. At scrape time, Havering, Hillingdon, and Redbridge exposed a large embedded `pubsData` object but no visible leaderboard rows, so the app dataset keeps those raw signals in `boroughs_raw_embedded_site_anomaly` and `data_quality_notes` while `boroughs_visible` and `primary_borough` remain the safer app-facing borough fields.
+
+`all_pint_prices_combined.csv` (5,278 rows) and
+`pub_locations_map_data.csv` (1,197 rows) preserve scraper evidence. Neither is
+a product input. The app builder reads the canonical enriched, embedded-price,
+and pub-page extracts listed above, then publishes
+`pint_prices_app_dataset.csv`. Quarantine entries keep exact `file:line`
+`sourceRows` references into preserved price and location evidence. Some
+embedded-only price observations never entered `all_pint_prices_combined.csv`,
+so their exact price references point to
+`borough_embedded_pint_prices.csv`; every quarantined location points to
+`pub_locations_map_data.csv`.
+
+## Postcode-coordinate gate
+
+`npm run validate-data` treats a postcode and map point that identify different
+areas as contradictory product data. The gate builds robust outward-code
+reference points from the committed UK OpenStreetMap pub extract and fails once
+a product row is more than 5 km away. That boundary came from the measured
+separation in this dataset: correct rows had a 99th percentile of 3.65 km and
+ended at 3.87 km, while the first contradiction started at 5.44 km. A
+provenance or quality marker never bypasses the gate.
+
+Genuinely odd but verified geography belongs in
+`postcode_coordinate_exceptions.json`. An exception must exactly identify the
+app price row, name, full postcode and coordinates, and state why evidence
+establishes the row despite the distance. Stale, partial, duplicate, reasonless,
+or no-longer-contradictory exceptions fail validation.
+
+Unresolved rows belong in `postcode_coordinate_quarantine.json`. Each `rows`
+entry names exactly one `appPriceId`, `pubName`, full `postcode`, `latitude`,
+`longitude`, and substantive `reason`. `scripts/build_app_dataset.py` assigns
+app price IDs before publication decisions, applies evidence-backed
+`postcode_coordinate_corrections.json` decisions, validates every quarantine
+entry against the complete pre-publication row, then omits the exact row. It
+prints one `[postcode-coordinate quarantine]` line with the reason for every
+skip. A stale, partial, duplicate, reasonless, identity-mismatched, or
+no-longer-contradictory entry stops the build.
+
+Raw scrape files, including `borough_embedded_pint_prices.csv`, remain unchanged
+so they continue to record what the source said. Corrections and quarantine are
+publication decisions, not rewrites of source evidence. Each successful build
+writes `postcode_coordinate_build_report.json`, which fingerprints all raw
+inputs and decision registries and records every applied row. `npm run
+validate-data` checks those fingerprints and exact dispositions. Editing a
+source or registry without rebuilding fails validation instead of silently
+dropping or restoring a venue.
 
 Run the scraper again with:
 
