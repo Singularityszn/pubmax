@@ -38,6 +38,18 @@ describe("mobile chrome fit at 390px", () => {
     expect(globalCss).toMatch(
       /body:has\(\.mobilePlanActivation\) \.analyticsConsentPrompt\s*{[^}]*bottom:\s*calc\(var\(--mobile-map-dock-clearance\) \+ 70px\)/,
     );
+    expect(globalCss).toMatch(
+      /body:has\(\.mobilePlanActivation\) \.analyticsConsentPrompt\s*{[^}]*box-shadow:\s*none/,
+    );
+    expect(globalCss).toMatch(
+      /body:has\(\.mobilePlanActivation\) \.analyticsConsentPromptActions\s*{[^}]*grid-template-columns:\s*repeat\(2,\s*minmax\(0,\s*1fr\)\)/,
+    );
+    expect(globalCss).toMatch(
+      /body:has\(\.mobilePlanActivation\) \.analyticsConsentPromptActions button\s*{[^}]*background:\s*transparent/,
+    );
+    expect(globalCss).not.toMatch(
+      /body:has\(\.mobilePlanActivation\) \.analyticsConsentPrompt\s*{[^}]*(?:display:\s*none|opacity:\s*0)/,
+    );
   });
 
   it("tightens the map control rail so all three chips clear the viewport", () => {
