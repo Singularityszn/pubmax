@@ -25,7 +25,7 @@ Clean baseline and completed after build:
 
 ```bash
 NEXT_DIST_DIR=.next-perf-before npm run build
-NEXT_DIST_DIR=.next-perf-path-ignore-2 npm run build
+NEXT_DIST_DIR=.next-perf-final npm run build
 ```
 
 Trace measurement command:
@@ -39,7 +39,7 @@ const routes = {
   landing: 'server/app/page.js.nft.json',
   map: 'server/app/map/page.js.nft.json',
 };
-for (const root of ['.next-perf-before', '.next-perf-path-ignore-2']) {
+for (const root of ['.next-perf-before', '.next-perf-final']) {
   for (const [route, file] of Object.entries(routes)) {
     const manifest = resolve(root, file);
     const paths = [
@@ -70,8 +70,8 @@ Measured result:
 
 | Route | Before | After | File reduction | Byte reduction |
 | --- | ---: | ---: | ---: | ---: |
-| `/` | 3,754 files, 292,326,519 bytes, 278.784 MiB | 234 files, 14,297,729 bytes, 13.635 MiB | 93.77% | 95.11% |
-| `/map` | 3,754 files, 292,324,900 bytes, 278.783 MiB | 234 files, 14,485,873 bytes, 13.815 MiB | 93.77% | 95.04% |
+| `/` | 3,754 files, 292,326,519 bytes, 278.784 MiB | 234 files, 14,297,721 bytes, 13.635 MiB | 93.77% | 95.11% |
+| `/map` | 3,754 files, 292,324,900 bytes, 278.783 MiB | 234 files, 14,485,865 bytes, 13.815 MiB | 93.77% | 95.04% |
 
 Largest remaining landing contributors:
 
