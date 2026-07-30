@@ -141,6 +141,10 @@ button.zonePintCell:active {
   color: var(--ink-soft);
 }
 
+.isCompact .zonePintIndexMethod {
+  font-size: 0.7rem;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .zonePintCell {
     transition: none;
