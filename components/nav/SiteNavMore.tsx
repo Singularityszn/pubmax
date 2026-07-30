@@ -79,10 +79,14 @@ export default function SiteNavMore({
   const buttonRef = useRef<HTMLButtonElement | null>(null);
   const menuRef = useRef<HTMLDivElement | null>(null);
   const itemRefs = useRef<Array<HTMLElement | null>>([]);
+  const pendingFocusRef = useRef<"first" | "last" | null>(null);
   const [open, setOpen] = useState(false);
   const [coords, setCoords] = useState<MenuCoords | null>(null);
 
-  const close = useCallback(() => setOpen(false), []);
+  const close = useCallback(() => {
+    pendingFocusRef.current = null;
+    setOpen(false);
+  }, []);
 
   const measure = useCallback(() => {
     const btn = buttonRef.current;
@@ -100,6 +104,17 @@ export default function SiteNavMore({
     if (!open) return;
     measure();
   }, [open, measure]);
+
+  useLayoutEffect(() => {
+    if (!open || !coords || !pendingFocusRef.current) return;
+    const focusableItems = itemRefs.current.filter(Boolean) as HTMLElement[];
+    const target =
+      pendingFocusRef.current === "last"
+        ? focusableItems[focusableItems.length - 1]
+        : focusableItems[0];
+    pendingFocusRef.current = null;
+    target?.focus();
+  }, [coords, open]);
 
   useEffect(() => {
     if (!open) return;
@@ -164,6 +179,27 @@ export default function SiteNavMore({
       event.preventDefault();
       focusableItems[focusableItems.length - 1]?.focus();
     }
+  }
+
+  function openFromTrigger(target: "first" | "last") {
+    pendingFocusRef.current = target;
+    if (open && coords) {
+      const focusableItems = itemRefs.current.filter(Boolean) as HTMLElement[];
+      const item =
+        target === "last"
+          ? focusableItems[focusableItems.length - 1]
+          : focusableItems[0];
+      pendingFocusRef.current = null;
+      item?.focus();
+      return;
+    }
+    setOpen(true);
+  }
+
+  function onTriggerKeyDown(event: ReactKeyboardEvent<HTMLButtonElement>) {
+    if (event.key !== "ArrowDown" && event.key !== "ArrowUp") return;
+    event.preventDefault();
+    openFromTrigger(event.key === "ArrowUp" ? "last" : "first");
   }
 
   const menuStyle: CSSProperties | undefined = coords
@@ -244,7 +280,14 @@ export default function SiteNavMore({
         aria-expanded={open}
         aria-controls={menuId}
         aria-label={ariaLabel}
-        onClick={() => setOpen((value) => !value)}
+        onKeyDown={onTriggerKeyDown}
+        onClick={() => {
+          if (open) {
+            close();
+            return;
+          }
+          openFromTrigger("first");
+        }}
       >
         <span>{label}</span>
         <ChevronDown size={14} aria-hidden="true" className="siteNavMoreChevron" />

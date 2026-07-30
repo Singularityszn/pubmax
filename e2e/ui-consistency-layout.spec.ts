@@ -1,8 +1,17 @@
-import { expect, test, type Locator, type Page } from "@playwright/test";
+import {
+  expect,
+  test,
+  type Browser,
+  type Locator,
+  type Page,
+} from "@playwright/test";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 
-const EVIDENCE_PHASE = process.env.UI_EVIDENCE_PHASE;
+const EVIDENCE_PHASE = process.env.UI_EVIDENCE_PHASE ?? "verify";
+const CAPTURE_EVIDENCE =
+  EVIDENCE_PHASE === "before" || EVIDENCE_PHASE === "after";
+const ASSERT_LAYOUT = EVIDENCE_PHASE !== "before";
 const ROUTES_ONLY = process.env.UI_EVIDENCE_ROUTES_ONLY === "1";
 const SURFACES_ONLY = process.env.UI_EVIDENCE_SURFACES_ONLY === "1";
 const ROUTE_FILTERS = (process.env.UI_EVIDENCE_ROUTE_FILTER ?? "")
@@ -383,7 +392,7 @@ async function measureSurfaceAssertions(
   panels: PanelMeasurement[],
 ): Promise<SurfaceAssertion[]> {
   const assertions: SurfaceAssertion[] = [];
-  if (EVIDENCE_PHASE !== "after") return assertions;
+  if (!ASSERT_LAYOUT) return assertions;
 
   for (const measuredRow of rows) {
     if (measuredRow.controls.length < 2) continue;
@@ -449,6 +458,9 @@ async function measureSurfaceAssertions(
     const notice = panels.find(
       (candidate) => candidate.name === "analytics notice",
     );
+    const planAction = panels.find(
+      (candidate) => candidate.name === "Describe your night",
+    );
     const credit = panels.find(
       (candidate) => candidate.name === "map credit",
     );
@@ -493,6 +505,35 @@ async function measureSurfaceAssertions(
       "analytics notice leaves map credit reachable",
       Number.isFinite(overlap) && overlap === 0,
       `notice ${notice?.top}-${notice?.bottom}px; credit ${credit?.top}-${credit?.bottom}px; overlap ${overlap}px`,
+    );
+    const planOverlap =
+      notice && planAction
+        ? round(
+            Math.max(
+              0,
+              Math.min(notice.bottom, planAction.bottom) -
+                Math.max(notice.top, planAction.top),
+            ),
+          )
+        : Number.NaN;
+    assertMeasured(
+      assertions,
+      surface,
+      viewport.width,
+      "analytics notice leaves primary map action clear",
+      Number.isFinite(planOverlap) && planOverlap === 0,
+      `notice ${notice?.top}-${notice?.bottom}px; action ${planAction?.top}-${planAction?.bottom}px; overlap ${planOverlap}px`,
+    );
+    const noticeShare = notice
+      ? round((notice.height / viewport.height) * 100)
+      : Number.NaN;
+    assertMeasured(
+      assertions,
+      surface,
+      viewport.width,
+      "analytics notice stays below 24 percent of phone height",
+      Number.isFinite(noticeShare) && noticeShare < 24,
+      `${noticeShare}%`,
     );
   }
 
@@ -539,7 +580,7 @@ async function verifyPostCaptureInteractions(
   assertions: SurfaceAssertion[],
 ): Promise<void> {
   if (
-    EVIDENCE_PHASE !== "after" ||
+    !ASSERT_LAYOUT ||
     surface !== "map-first-visit" ||
     viewport.width !== 390
   ) {
@@ -591,6 +632,9 @@ async function captureSurface(
         viewport.width <= 640 ? ".mobileMapChrome" : ".mapToolbar",
       ),
     ).toBeVisible({ timeout: 45_000 });
+    await expect(page.locator(".mapLoading")).toBeHidden({
+      timeout: 45_000,
+    });
   }
   if (options.signedIn) {
     await expect(page.locator("#account-settings")).toBeAttached({
@@ -638,6 +682,11 @@ async function captureSurface(
     await row(page, "Tonight Arc controls", ".tonightArcRow > button"),
     await row(
       page,
+      "analytics decisions",
+      ".analyticsConsentPromptActions > button",
+    ),
+    await row(
+      page,
       "desktop map toolbar",
       [
         ".mapSearchSuggest--toolbar > label",
@@ -680,10 +729,12 @@ async function captureSurface(
   );
 
   const screenshot = `${surface}-${viewport.width}.png`;
-  await page.screenshot({
-    path: path.join(EVIDENCE_ROOT, screenshot),
-    fullPage: false,
-  });
+  if (CAPTURE_EVIDENCE) {
+    await page.screenshot({
+      path: path.join(EVIDENCE_ROOT, screenshot),
+      fullPage: false,
+    });
+  }
 
   await verifyPostCaptureInteractions(
     page,
@@ -794,11 +845,90 @@ async function auditRoute(
   };
 }
 
+async function openSignedInProfileOptions(browser: Browser) {
+  const context = await browser.newContext();
+  const page = await context.newPage();
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await preparePage(page, { signedIn: true });
+  await page.goto(`/u/${PROFILE_HANDLE}`, { waitUntil: "domcontentloaded" });
+  await expect(page.locator("#account-settings")).toBeAttached({
+    timeout: 45_000,
+  });
+  const trigger = page.getByRole("button", { name: "Profile options" });
+  await trigger.focus();
+  await page.keyboard.press("ArrowDown");
+  const menu = page.getByRole("menu", { name: "Profile options" });
+  await expect(menu).toBeVisible();
+  return { context, menu, page, trigger };
+}
+
+test("profile Options expose working existing actions", async ({ browser }) => {
+  test.setTimeout(120_000);
+  const firstVisit = await openSignedInProfileOptions(browser);
+  await expect(
+    firstVisit.menu.locator(".siteNavMoreLabel"),
+  ).toHaveText([
+    "Edit profile",
+    "Analytics choices",
+    "About",
+    "Privacy",
+    "Terms",
+    "Sign out",
+  ]);
+  await expect(firstVisit.menu).not.toContainText("Help");
+  await expect(
+    firstVisit.menu.getByRole("menuitem", { name: /^Edit profile/ }),
+  ).toBeFocused();
+  await firstVisit.context.close();
+
+  async function exercise(
+    label: string,
+    verify: (page: Page) => Promise<void>,
+  ) {
+    const visit = await openSignedInProfileOptions(browser);
+    await visit.menu
+      .getByRole("menuitem", { name: new RegExp(`^${label}`) })
+      .click();
+    await verify(visit.page);
+    await visit.context.close();
+  }
+
+  await exercise("Edit profile", async (page) => {
+    await expect(
+      page.getByRole("form", { name: "Edit your profile" }),
+    ).toBeVisible();
+  });
+  await exercise("Analytics choices", async (page) => {
+    await expect(page).toHaveURL(/#analytics-settings$/);
+    await expect(page.locator("#analytics-settings")).toBeInViewport();
+  });
+  for (const destination of ["about", "privacy", "terms"]) {
+    const label =
+      destination.charAt(0).toUpperCase() + destination.slice(1);
+    await exercise(label, async (page) => {
+      await expect(page).toHaveURL(new RegExp(`/${destination}$`));
+      await expect(page.locator("main").first()).toBeVisible();
+    });
+  }
+  await exercise("Sign out", async (page) => {
+    await expect
+      .poll(() =>
+        page.evaluate(
+          (storageKey) => localStorage.getItem(storageKey),
+          E2E_AUTH_STORAGE_KEY,
+        ),
+      )
+      .toBeNull();
+  });
+});
+
 test("capture UI consistency evidence", async ({ browser }) => {
-  if (EVIDENCE_PHASE !== "before" && EVIDENCE_PHASE !== "after") return;
   test.setTimeout(40 * 60_000);
-  await mkdir(EVIDENCE_ROOT, { recursive: true });
-  const existingMeasurements = ROUTES_ONLY || SURFACES_ONLY
+  if (CAPTURE_EVIDENCE) {
+    await mkdir(EVIDENCE_ROOT, { recursive: true });
+  }
+  const existingMeasurements =
+    CAPTURE_EVIDENCE && (ROUTES_ONLY || SURFACES_ONLY)
     ? JSON.parse(
         await readFile(path.join(EVIDENCE_ROOT, "measurements.json"), "utf8"),
       ) as {
@@ -897,7 +1027,7 @@ test("capture UI consistency evidence", async ({ browser }) => {
         (routeOrder.get(right.requestedPath) ?? 0),
   );
 
-  if (EVIDENCE_PHASE === "after" && !SURFACES_ONLY) {
+  if (ASSERT_LAYOUT && !SURFACES_ONLY) {
     const affected = routeAudit.filter(
       (measurement) => measurement.classification === "affected",
     );
@@ -928,23 +1058,25 @@ test("capture UI consistency evidence", async ({ browser }) => {
     ).toEqual([]);
   }
 
-  await writeFile(
-    path.join(EVIDENCE_ROOT, "measurements.json"),
-    `${JSON.stringify(
-      {
-        phase: EVIDENCE_PHASE,
-        capturedAt: new Date().toISOString(),
-        server: {
-          mode: EVIDENCE_SERVER_MODE,
-          buildCommit: EVIDENCE_BUILD_COMMIT,
+  if (CAPTURE_EVIDENCE) {
+    await writeFile(
+      path.join(EVIDENCE_ROOT, "measurements.json"),
+      `${JSON.stringify(
+        {
+          phase: EVIDENCE_PHASE,
+          capturedAt: new Date().toISOString(),
+          server: {
+            mode: EVIDENCE_SERVER_MODE,
+            buildCommit: EVIDENCE_BUILD_COMMIT,
+          },
+          viewports: VIEWPORTS,
+          surfaces,
+          routeAudit,
         },
-        viewports: VIEWPORTS,
-        surfaces,
-        routeAudit,
-      },
-      null,
-      2,
-    )}\n`,
-    "utf8",
-  );
+        null,
+        2,
+      )}\n`,
+      "utf8",
+    );
+  }
 });

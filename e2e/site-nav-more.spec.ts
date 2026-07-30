@@ -4,7 +4,9 @@ test("More menu stays usable in a short desktop viewport", async ({ page }) => {
   await page.setViewportSize({ width: 667, height: 320 });
   await page.goto("/today");
 
-  await page.getByRole("button", { name: "More", exact: true }).click();
+  const trigger = page.getByRole("button", { name: "More pages" });
+  await trigger.focus();
+  await page.keyboard.press("ArrowDown");
 
   const menu = page.getByRole("menu", { name: "More pages" });
   await expect(menu).toBeVisible();
@@ -22,8 +24,13 @@ test("More menu stays usable in a short desktop viewport", async ({ page }) => {
 
   const firstItem = page.getByRole("menuitem", { name: /Plan/ });
   const lastItem = page.getByRole("menuitem", { name: /Pal/ });
-  await firstItem.focus();
+  await expect(firstItem).toBeFocused();
   await page.keyboard.press("End");
   await expect(lastItem).toBeFocused();
   await expect(lastItem).toBeInViewport();
+
+  await page.keyboard.press("Escape");
+  await expect(trigger).toBeFocused();
+  await page.keyboard.press("ArrowUp");
+  await expect(lastItem).toBeFocused();
 });
