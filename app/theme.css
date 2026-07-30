@@ -100,6 +100,7 @@ html[data-theme="dark"] {
   --neon: #78bd97; /* muted green (was #5cff99) */
   --grape: #9b90c0; /* muted violet (was #a78bfa) — no purple mesh */
   --pink: #cf8bb6; /* muted pink (was #ff7ac8) */
+  --color-on-accent: var(--ink-deep);
 
   /* Accent role discipline (token-system-v2) — dark tuning. The role tokens
      themselves are defined in globals.css as color-mix over the palette; most
@@ -242,6 +243,14 @@ html[data-theme="dark"] .mobileTabList {
    licensed accent moment. Light is untouched. */
 html[data-theme="dark"] .siteNav {
   border-color: var(--hairline);
+}
+
+html[data-theme="dark"] .lpNav {
+  border-color: var(--hairline);
+  background: var(--panel-raised);
+  box-shadow: var(--map-overlay-shadow-tight);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
 }
 
 /* Typography is theme-invariant. Dark mode changes contrast, never scale or

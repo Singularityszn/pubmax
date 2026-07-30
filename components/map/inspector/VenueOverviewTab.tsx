@@ -2,6 +2,7 @@ import Link from "next/link";
 import { useEffect, useMemo } from "react";
 import { MapPin } from "lucide-react";
 
+import Disclosure from "@/components/Disclosure";
 import PriceBadge from "@/components/PriceBadge";
 import { Amenity, ClaimBadge } from "@/components/map/venueInspectorBits";
 import {
@@ -290,9 +291,11 @@ export default function VenueOverviewTab({
     >
       <p className="venueAddress">{venue.address}</p>
       <VenueActionStrip venue={venue} />
-      <details className="venueOverviewMore">
-        <summary>Details and practical info</summary>
-        <div className="venueOverviewMoreBody">
+      <Disclosure
+        className="venueOverviewMore"
+        bodyClassName="venueOverviewMoreBody"
+        summary="Details and practical info"
+      >
       {/* FSA food hygiene rating (FHRS), matched by postcode + fuzzy name
           server-side. Renders nothing for an unmatched pub. */}
       <VenueHygiene
@@ -388,8 +391,7 @@ export default function VenueOverviewTab({
           {/* Quest chips show supporting profile progress, not a primary
               decision about this venue. Keep them with the optional detail. */}
           <NextBadgeChips />
-        </div>
-      </details>
+      </Disclosure>
       {/* Tonight's community price sits ATOP the price on record, never
           instead of it: its own row, its own dated badge, and the sourced /
           baseline row below still renders untouched. A submission is an extra

@@ -88,6 +88,7 @@
   --color-text: var(--ink);
   --color-text-soft: var(--ink-soft);
   --color-text-muted: var(--muted);
+  --input-placeholder: var(--muted);
   --color-border: var(--line);
   --color-border-soft: var(--line-soft);
 
@@ -146,11 +147,11 @@
   --hairline: #e2e0e3;
   --hairline-strong: color-mix(in srgb, var(--hairline) 68%, var(--ink-soft) 32%);
 
-  /* Fixed-contrast text: for content sitting on an accent fill or gradient
-     (buttons, chips, photo captions), not a theme-flipping surface. These
-     intentionally do NOT change between themes — the fill they sit on
-     already carries the theme's contrast logic. */
-  --color-on-accent: #fdfaf2; /* cream text for qualifying dark accent fills */
+  /* Contrast text: for content sitting on an accent fill or gradient
+     (buttons, chips, photo captions), not a page surface. Regular brass
+     brightens in dark mode, so --color-on-accent flips there; inverse,
+     strong-accent, and photo fills keep fixed text colours. */
+  --color-on-accent: #fdfaf2; /* light-theme text on regular brass */
   --color-on-inverse: #fdfaf2; /* cream text on solid ink-deep */
   --color-on-accent-strong: #16122a; /* dark text on coral or bright accent */
   --color-on-photo: #ffffff; /* white text on a photo-scrim overlay */
@@ -404,6 +405,12 @@ body {
   color: var(--ink);
   font-family: var(--font-body);
   -webkit-font-smoothing: antialiased;
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: var(--input-placeholder);
+  opacity: 1;
 }
 
 /* ── Light DOM surface remap (color-v2) ─────────────────────────────────────
@@ -1199,8 +1206,7 @@ input[type="range"] {
   min-width: 0;
 }
 
-.bandOnboardingChip strong,
-.bandOnboardingChip span {
+.bandOnboardingChip strong {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -1214,6 +1220,8 @@ input[type="range"] {
   color: var(--muted);
   font-size: 0.72rem;
   font-weight: 700;
+  overflow-wrap: break-word;
+  white-space: normal;
 }
 
 .bandOnboardingChip button {
@@ -2904,16 +2912,12 @@ input[type="range"] {
   line-height: 1.25;
 }
 
-.mapHeroCard p {
+.mapHeroCopy {
   margin: 6px 0 9px;
   font-size: 0.8rem;
   line-height: 1.5;
   color: var(--ink-soft);
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
+  overflow-wrap: break-word;
 }
 
 .mapHeroVisit {
@@ -4992,7 +4996,7 @@ button:disabled {
     --map-overlay-top: calc(var(--map-top-clearance) + 46px);
     /* Stack FABs clearly above the compact tab bar; chips one row higher. */
     --map-bottom-fab-row: calc(var(--mobile-tab-clearance) + 28px);
-    --map-bottom-chip-row: calc(var(--mobile-tab-clearance) + 62px);
+    --map-bottom-chip-row: calc(var(--mobile-tab-clearance) + 78px);
   }
 
   .mapSoftRetry {
@@ -5029,10 +5033,9 @@ button:disabled {
     gap: 4px;
   }
 
-  /* MapLibre's built-in zoom/compass/attribution compete with the bottom tab
-     bar and corner FABs on phones. App-owned London/Recenter stay visible. */
-  .maplibregl-ctrl-bottom-left .maplibregl-ctrl-group,
-  .maplibregl-ctrl-bottom-right {
+  /* MapLibre's built-in zoom/compass compete with the bottom tab bar and
+     corner FABs on phones. App-owned London/Recenter stay visible. */
+  .maplibregl-ctrl-bottom-left .maplibregl-ctrl-group {
     display: none;
   }
 
@@ -5091,6 +5094,34 @@ button:disabled {
     bottom: var(--map-bottom-chip-row);
     max-width: none;
     transform: none;
+  }
+
+  .bandOnboardingChip {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 44px;
+    align-items: stretch;
+    gap: 8px;
+    padding: 10px;
+    border-radius: 18px;
+  }
+
+  .bandOnboardingChip > div {
+    grid-column: 1 / -1;
+  }
+
+  .bandOnboardingChip > button:first-of-type {
+    grid-column: 1;
+    width: 100%;
+  }
+
+  .bandOnboardingChip > button:last-child {
+    grid-column: 2;
+    min-width: 44px;
+    padding-inline: 0;
+  }
+
+  .bandOnboardingChip button {
+    min-height: 44px;
   }
 
   .activeRoundChip {
@@ -5555,10 +5586,10 @@ html[data-legacy="1"] .textured-panel::before {
      · dark  + legacy-dark   → --cat-* is bright → INK-DEEP text (AA min 6.96 / 8.91)
 
    `--cat-on-fill` encodes exactly that flip, mirroring how the design system's
-   --color-on-accent (cream) / --color-on-accent-strong (ink) split works for
-   solid brass. Consumers set `color: var(--cat-on-fill)` on any solid category
-   fill and get an AA-clearing pairing in all four theme×legacy combinations —
-   verified with computed WCAG ratios, not eyeballed. Nothing above is modified.
+   --color-on-accent theme flip works for regular brass. Consumers set
+   `color: var(--cat-on-fill)` on any solid category fill and get an AA-clearing
+   pairing in all four theme×legacy combinations —
+   verified with computed WCAG ratios, not eyeballed.
    ═══════════════════════════════════════════════════════════════════════════ */
 :root {
   /* Light theme: cat tokens are dark → cream text clears AA (min 4.51). */

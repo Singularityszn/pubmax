@@ -2942,10 +2942,10 @@ export default function PubMap({
             onHide={hideMappedRoute}
           />
         ) : null}
-        {/* G3: Place story deep-link chip — corridor title + one-line copy when
-            `?band=` resolves. Distinct dismiss key from curated onboarding;
-            suppresses that overlay while visible. */}
-        {!mobileViewport && showBandChip && activeBand ? (
+        {/* G3: Place story deep-link chip when `?band=` resolves. Distinct
+            dismiss key from curated onboarding; suppresses that overlay while
+            visible. */}
+        {showBandChip && activeBand ? (
           <BandOnboardingChip
             title={activeBand.title}
             copy={activeBand.copy}
@@ -3041,6 +3041,7 @@ export default function PubMap({
           planStopCount={routeMappedActive ? route.length : activePlanRoute.length}
           planInteractive={mobileViewport && !ukPlaceArrival}
           venueListOpen={mapListOpen}
+          bandNoticeOpen={showBandChip}
           onPlan={openPlanning}
           searchContent={
             <MapSearchSuggest

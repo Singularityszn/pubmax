@@ -206,7 +206,13 @@ export default function MapToolbar({
           aria-atomic="true"
         >
           <span className="mapToolbarSearchStatusCopy">
-            No venues match ‘{trimmedQuery}’ with your current filters.
+            <span>No venues match ‘</span>
+            <span className="mapToolbarSearchQuery" title={trimmedQuery}>
+              {trimmedQuery}
+            </span>
+            <span className="mapToolbarSearchQualifier">
+              ’ with your current filters.
+            </span>
           </span>
           <button
             type="button"

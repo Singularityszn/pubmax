@@ -336,49 +336,49 @@ export default function CityStatusBanner({ cityId }: CityStatusBannerProps) {
   );
 
   return (
-    <>
-    <div
-      className="cityStatusBanner"
-      data-severity={headline.severity}
-      role="status"
-      aria-live="polite"
-    >
-      {hasDetails ? (
-        /* A4: a signal headline now opens the FULL feed rather than jumping to
-           one source; identical class/children so the pill looks unchanged at
-           rest. Per-signal source links live inside the sheet. */
+    <div className="cityStatusStack">
+      <div
+        className="cityStatusBanner"
+        data-severity={headline.severity}
+        role="status"
+        aria-live="polite"
+      >
+        {hasDetails ? (
+          /* A4: a signal headline now opens the FULL feed rather than jumping to
+             one source; identical class/children so the pill looks unchanged at
+             rest. Per-signal source links live inside the sheet. */
+          <button
+            type="button"
+            className="cityStatusBannerLink"
+            aria-expanded={expanded}
+            aria-controls="cityStatusSignalSheet"
+            onClick={() => setExpanded((v) => !v)}
+          >
+            {content}
+          </button>
+        ) : headline.href ? (
+          <a
+            className="cityStatusBannerLink"
+            href={headline.href}
+            target="_blank"
+            rel="noreferrer noopener"
+          >
+            {content}
+          </a>
+        ) : (
+          <span className="cityStatusBannerLink" role="presentation">
+            {content}
+          </span>
+        )}
         <button
           type="button"
-          className="cityStatusBannerLink"
-          aria-expanded={expanded}
-          aria-controls="cityStatusSignalSheet"
-          onClick={() => setExpanded((v) => !v)}
+          className="cityStatusBannerDismiss"
+          aria-label="Dismiss city status"
+          onClick={dismiss}
         >
-          {content}
+          <X size={12} strokeWidth={2.25} aria-hidden="true" />
         </button>
-      ) : headline.href ? (
-        <a
-          className="cityStatusBannerLink"
-          href={headline.href}
-          target="_blank"
-          rel="noreferrer noopener"
-        >
-          {content}
-        </a>
-      ) : (
-        <span className="cityStatusBannerLink" role="presentation">
-          {content}
-        </span>
-      )}
-      <button
-        type="button"
-        className="cityStatusBannerDismiss"
-        aria-label="Dismiss city status"
-        onClick={dismiss}
-      >
-        <X size={12} strokeWidth={2.25} aria-hidden="true" />
-      </button>
-    </div>
+      </div>
       {expanded && hasDetails ? (
         <div
           id="cityStatusSignalSheet"
@@ -454,6 +454,6 @@ export default function CityStatusBanner({ cityId }: CityStatusBannerProps) {
           ))}
         </div>
       ) : null}
-    </>
+    </div>
   );
 }

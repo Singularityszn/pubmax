@@ -20,6 +20,7 @@ import { loadBoroughHeritage, NOTABLE_CAP } from "@/lib/boroughHeritage";
 import { curatedCrawlMapHref, curatedCrawls, type CuratedCrawl } from "@/lib/curatedCrawls";
 import SiteNav from "@/components/nav/SiteNav";
 import EmptyState from "@/components/EmptyState";
+import { ProseDisclosure } from "@/components/Disclosure";
 import BoroughPassportSlice from "@/components/borough/BoroughPassportSlice";
 import BoroughPintPriceCard from "@/components/borough/BoroughPintPriceCard";
 import AreaNewsList from "@/components/areanews/AreaNewsList";
@@ -410,7 +411,11 @@ export default async function BoroughPage({ params }: PageProps) {
                   </div>
                 ) : null}
                 <h3 className="boroughHeritageName">{pub.name}</h3>
-                {pub.hook ? <p className="boroughHeritageHook">{pub.hook}</p> : null}
+                {pub.hook ? (
+                  <div className="boroughHeritageHook">
+                    <ProseDisclosure text={pub.hook} />
+                  </div>
+                ) : null}
                 {pub.venueId ? (
                   <Link
                     className="boroughHeritageMapLink"

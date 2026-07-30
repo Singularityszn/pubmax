@@ -528,16 +528,11 @@
 }
 
 .quietPintHeritage {
+  padding: 0 14px 8px;
   font-size: 0.85rem;
   line-height: 1.5;
   color: var(--ink-soft);
-  /* M1 mobile taste: scannable brief — two lines only; full story via the
-     card link (map) and "More historic pubs". Chips below stay untouched. */
-  display: -webkit-box;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2;
-  line-clamp: 2;
-  overflow: hidden;
+  overflow-wrap: break-word;
 }
 
 .quietPintFoot {
@@ -548,7 +543,8 @@
   padding: 0 14px 12px;
 }
 
-.quietPintGrade {
+.quietPintGrade,
+.quietPintEra {
   padding: 2px 8px;
   border-radius: 999px;
   border: 1px solid var(--line);

@@ -40,6 +40,7 @@
   .appShell > .siteNavBarFloating,
   .appShell .mapStage > .mapToolbar,
   .appShell .mapStage > .citySuggestBanner,
+  .appShell .mapStage > .cityStatusStack,
   .appShell .mapStage > .cityStatusBanner,
   .appShell .mapStage > .cityStatusSignalSheet,
   .appShell .mapStage > .mapConciergeAsk,
@@ -64,6 +65,10 @@
   .appShell .mapStage .maplibregl-ctrl-top-right {
     top: calc(var(--mobile-map-top) + var(--mobile-map-bar-h) + 172px);
     right: 10px;
+  }
+
+  .appShell .mapStage .maplibregl-ctrl-bottom-right {
+    bottom: var(--mobile-map-dock-clearance);
   }
 
   /* Portal sheets sit outside .appShell. Hide map-owned controls while one is

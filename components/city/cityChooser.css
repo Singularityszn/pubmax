@@ -236,6 +236,10 @@
   opacity: 1;
 }
 
+.cityChooser--section .cityChooserSearchInput::placeholder {
+  color: var(--input-placeholder);
+}
+
 .cityChooserSearchHelp {
   margin: 7px 0 0;
   max-width: 68ch;

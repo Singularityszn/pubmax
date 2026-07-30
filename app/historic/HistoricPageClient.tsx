@@ -12,6 +12,7 @@ import Link from "next/link";
 import { useMemo, useState } from "react";
 import { ArrowUpRight, ExternalLink } from "lucide-react";
 
+import { ProseDisclosure } from "@/components/Disclosure";
 import SiteNav from "@/components/nav/SiteNav";
 import type { HistoricPub } from "@/lib/historic";
 import {
@@ -198,7 +199,9 @@ export default function HistoricPageClient({
                       <p className="historicBorough">{pub.borough}</p>
                     ) : null}
 
-                    <p className="historicHook">{pub.hook}</p>
+                    <div className="historicHook">
+                      <ProseDisclosure text={pub.hook} />
+                    </div>
 
                     <div className="historicProvenance">
                       <span className="historicFactCount">

@@ -68,12 +68,12 @@
 
 .tonightLaneCollapsedChecked {
   min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  overflow-wrap: break-word;
   color: var(--muted);
   font-size: 0.65rem;
   font-weight: 650;
-  white-space: nowrap;
+  line-height: 1.25;
+  white-space: normal;
 }
 
 .tonightLane--open {
@@ -166,7 +166,7 @@
   /* Tonight and TfL are peers in one compact live rail. They no longer stack
      into three full-width banners above the map. */
   .tonightLaneCollapsed { max-width: calc(100vw - 158px); border-color: var(--line); background: color-mix(in srgb, var(--panel-raised) 94%, transparent); }
-  .tonightLaneCollapsedChecked { display: none; }
+  .tonightLaneCollapsedMain { padding-block: 7px; }
 }
 
 .tonightLaneHead {
@@ -187,6 +187,7 @@
   display: inline-flex;
   align-items: baseline;
   flex: 1 1 auto;
+  flex-wrap: wrap;
   min-width: 0;
   gap: 10px;
 }
@@ -274,10 +275,12 @@
 }
 
 .tonightLaneChecked {
+  min-width: 0;
+  overflow-wrap: break-word;
   font-size: 0.66rem;
   font-weight: 600;
   color: var(--muted);
-  white-space: nowrap;
+  white-space: normal;
 }
 
 .tonightLaneGardenCue {
@@ -429,10 +432,7 @@
   font-weight: 700;
   line-height: 1.2;
   color: var(--ink);
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
+  overflow-wrap: break-word;
 }
 
 .tonightLaneCardPlace {
@@ -466,9 +466,8 @@
   margin: 0;
   font-size: 0.62rem;
   color: var(--muted);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  overflow-wrap: break-word;
+  white-space: normal;
 }
 
 .tonightLanePlan {
@@ -529,10 +528,6 @@
 }
 
 @media (max-width: 420px) {
-  .tonightLaneCollapsedChecked {
-    display: none;
-  }
-
   .tonightLaneTitleRow {
     gap: 6px;
   }
@@ -541,9 +536,6 @@
     gap: 6px;
   }
 
-  .tonightLaneChecked {
-    display: none;
-  }
 }
 
 @media (prefers-reduced-motion: no-preference) {

@@ -34,6 +34,11 @@
        inset in, so this never double-counts. */
     bottom: calc(max(var(--mobile-tab-clearance, 58px), env(safe-area-inset-bottom, 0px)) + 12px);
   }
+
+  /* List panel owns this lane until it closes; the story notice then returns. */
+  .mapStage:has(.mapVenueList--open) .bandOnboardingChip {
+    display: none;
+  }
 }
 
 /* Toggle — the desktop affordance (the mobile rule that hides it lives BELOW
@@ -279,9 +284,8 @@
 .mapVenueListCompactPrice > span,
 .mapVenueListPriceProvenance {
   max-width: 100%;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  overflow-wrap: break-word;
+  white-space: normal;
 }
 
 .mapVenueListPriceProvenance {

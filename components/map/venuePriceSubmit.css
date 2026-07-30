@@ -201,7 +201,7 @@
 }
 
 .vpsubInput::placeholder {
-  color: color-mix(in srgb, var(--ink-soft) 45%, transparent);
+  color: var(--input-placeholder);
   font-weight: 600;
 }
 
@@ -228,7 +228,10 @@
 }
 
 .vpsubLog:disabled {
-  opacity: 0.45;
+  border-color: var(--line);
+  background: var(--panel-raised);
+  color: var(--muted);
+  opacity: 1;
   box-shadow: none;
   cursor: default;
 }

@@ -49,7 +49,7 @@ function PalSignalAvatar() {
   );
 }
 
-export default function MobileMapShell({ cityLabel, limitedCoverage, overlay, onOverlayChange, activeQuery, onClearQuery, onNearMe, nearMeStatus, nearbyCount, tonightCount, tflCount, tflStatus, priceLabel, drinkFiltersActive, experienceFilterLabel, priceCapActive, areaPriceNoun, zoneActive, planOpen, planActive, planStopCount, planInteractive, venueListOpen, onPlan, searchContent, filtersContent, tflContent, tonightContent, layersContent, palContent, momentContent, nearMeContent, areaContent }: {
+export default function MobileMapShell({ cityLabel, limitedCoverage, overlay, onOverlayChange, activeQuery, onClearQuery, onNearMe, nearMeStatus, nearbyCount, tonightCount, tflCount, tflStatus, priceLabel, drinkFiltersActive, experienceFilterLabel, priceCapActive, areaPriceNoun, zoneActive, planOpen, planActive, planStopCount, planInteractive, venueListOpen, bandNoticeOpen, onPlan, searchContent, filtersContent, tflContent, tonightContent, layersContent, palContent, momentContent, nearMeContent, areaContent }: {
   cityLabel: string;
   /** Base-pub-only arrival: omit city-guide controls that cannot answer here. */
   limitedCoverage: boolean;
@@ -77,6 +77,7 @@ export default function MobileMapShell({ cityLabel, limitedCoverage, overlay, on
   planStopCount: number;
   planInteractive: boolean;
   venueListOpen: boolean;
+  bandNoticeOpen: boolean;
   onPlan: () => void;
   searchContent: React.ReactNode;
   filtersContent: React.ReactNode;
@@ -185,7 +186,7 @@ export default function MobileMapShell({ cityLabel, limitedCoverage, overlay, on
           </IconButton>
         </div>
       ) : null}
-      {overlay === "none" && !planOpen && !venueListOpen ? (
+      {overlay === "none" && !planOpen && !venueListOpen && !bandNoticeOpen ? (
         <button
           type="button"
           className={`mobilePlanActivation${planActive ? " isActive" : ""}`}

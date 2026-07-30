@@ -368,11 +368,11 @@ test.describe("map keyboard and screen-reader venue path", () => {
     await page.setViewportSize(MOBILE);
     await page.goto(`/map?sel=${ARNOS_ARMS_ID}&mode=build`);
     const planStop = page.getByRole("button", { name: "Plan stop" });
-    const logDrop = page.getByRole("button", {
-      name: "Log a Pint Drop at Arnos Arms",
+    const addPrice = page.getByRole("button", {
+      name: "Add a price at Arnos Arms",
     });
     await expect(planStop).toBeVisible();
-    await expect(logDrop).toBeVisible();
+    await expect(addPrice).toBeVisible();
 
     for (const theme of ["light", "dark"] as const) {
       await page.evaluate((nextTheme) => {
@@ -380,7 +380,7 @@ test.describe("map keyboard and screen-reader venue path", () => {
         document.documentElement.dataset.theme = nextTheme;
       }, theme);
       await expectLockedCoralContrast(planStop);
-      await expectLockedCoralContrast(logDrop);
+      await expectLockedCoralContrast(addPrice);
     }
   });
 });

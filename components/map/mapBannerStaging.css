@@ -22,6 +22,7 @@
 
 @media (min-width: 641px) {
   /* 1. Onboarding open — suppress ambient status and Tonight. */
+  .appShell.onboarding-open .cityStatusStack,
   .appShell.onboarding-open .cityStatusBanner,
   .appShell.onboarding-open .tonightLaneCollapsed {
     display: none;
