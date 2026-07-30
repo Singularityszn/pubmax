@@ -42,7 +42,7 @@ import {
 } from "@/lib/poiToggleGroups";
 import MapLayersControl from "@/components/map/MapLayersControl";
 import LandmarkPhotoCredit from "@/components/LandmarkPhotoCredit";
-import QualifyingExcerpt from "@/components/QualifyingExcerpt";
+import { ProseDisclosure } from "@/components/Disclosure";
 import type { CityId } from "@/lib/cities";
 import { cityMaxBounds, DEFAULT_CITY_ID, getCity } from "@/lib/cities";
 import { selectMapFallbackPubs } from "@/lib/mapFallbackVenues";
@@ -3173,13 +3173,9 @@ export default function PubMapCanvas({
             </button>
           </div>
           <strong>{heroVenue.name}</strong>
-          <p>
-            <QualifyingExcerpt
-              text={heroHeritageNote}
-              excerptClassName="mapHeroExcerpt"
-              qualifierClassName="mapHeroQualifier"
-            />
-          </p>
+          <div className="mapHeroCopy">
+            <ProseDisclosure text={heroHeritageNote} />
+          </div>
           <button
             type="button"
             className="mapHeroVisit"

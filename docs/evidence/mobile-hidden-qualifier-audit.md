@@ -14,6 +14,8 @@ This source sweep is supplementary discovery only. CSS enumeration cannot prove 
 
 PROSE MAY BE BOUNDED, BUT THE QUALIFIER ATTACHED TO IT MUST LIVE OUTSIDE THE BOUND.
 
+The bounded heritage cards now use the existing native `details` disclosure pattern. Their closed state is a two-line visual preview of the same complete text node, and Show more removes that clamp. Dates, uncertainty, present-day limits, and other attached qualifiers therefore remain intact in HTML and reachable without natural-language parsing. Explicit qualifier fields were considered and judged UNNECESSARY, not deferred, because disclosure keeps the full text present and exposes it through a native control.
+
 ## Evidence correction
 
 The previous `45 passed` statement was inaccurate as rendered-coverage evidence. Of those 45 checks, 39 used synthetic `page.setContent` markup, and several targeted controls that production does not mount at phone widths. Those checks are CSS fixtures, not proof of shipped layout. They are now named `fixture-only` in the test report and are not counted as route coverage.
@@ -51,7 +53,7 @@ These figures come from computed paint composited through each rendered element'
 - `/map/glasgow?band=subcrawl` at 390px and 430px renders the exact 331-character story, expands the live MapLibre attribution control, and finds the exact `Pub data © OpenStreetMap contributors (ODbL)` credit above phone navigation.
 - Native `/onboarding` at 390px and 430px renders all three exact `PUBMAXX reviewed` source labels, then all six exact companion notes.
 - `/pal` at 390px and 430px renders exact setup progress from the live onboarding state.
-- `/historic` and a live `/borough/[slug]` route at 390px and 430px render bounded prose with their exact unbounded uncertainty clause, era, source, and following action outside the bound.
+- `/historic` and `/borough/tower-hamlets` at 390px and 430px render The Grapes as a bounded preview, keep its exact text through `since 1583` in the page, expose it through Show more, and leave era, source, and following action clear of the expanded disclosure.
 
 City status and city suggestion have no mobile rendered-output assertion because those components are not mounted there and are explicitly outside this remediation.
 
@@ -67,8 +69,6 @@ Fixture-only cases retained for CSS isolation:
 | `.mapVenueList*Price*` | List price provenance depends on current lens and venue data. |
 | `.tonightLaneCollapsedChecked` | Collapsed lane is desktop-only; phone mounts Tonight inside its sheet. |
 | `.tonightLaneChecked`, `.tonightLaneCardTitle`, `.tonightLaneCardSource` | Rows depend on a current listings payload; fixture verifies CSS only. |
-| `.mapHeroExcerpt`, `.mapHeroQualifier` | Featured teaser is hidden on phone and therefore cannot be counted as phone coverage. |
-| `.quietPintHeritageExcerpt`, `.quietPintHeritageQualifier` | `/today` mounts this module only during a qualifying quiet window. |
 | `.bandOnboardingChip span` | Real route coverage exists at 390px and 430px; the synthetic 360px and duplicate width checks remain fixture-only. |
 
 Unmounted phone surfaces are inventoried separately: desktop `.mapToolbarSearchStatusCopy`, collapsed `.tonightLaneCollapsedChecked`, `.mapHeroCard`, `.cityStatusBannerCopy`, `.cityStatusBannerDismiss`, and `.citySuggestBannerCopy`. No synthetic assertion against them is counted as phone rendering.
@@ -151,7 +151,7 @@ Changed claim-bearing rules:
 
 Rules deliberately left bounded:
 
-- Story and heritage prose: `.mapHeroExcerpt`, `.historicHookExcerpt`, `.boroughHeritageHookExcerpt`, and `.quietPintHeritageExcerpt` remain two-line excerpts. Their exact attached qualifier uses the corresponding unbounded `*Qualifier` sibling. Era and source metadata remain separate visible siblings.
+- Story and heritage prose: shared `.proseDisclosureText` remains a two-line closed preview on map hero, historic, borough, and quiet-pint cards. Show more removes the clamp from the same complete text node, so no cue list or copied qualifier fragment can drift from source prose. Era and source metadata remain separate visible siblings.
 - User-entered search identity: `.mapToolbarSearchQuery` is a separately bounded, ellipsised span while `No venues match` and `with your current filters` remain complete and wrapping.
 - Receipt, message, feed, and poster previews: `.barTabTileNote`, `.conversationPreview`, `.feedSpillNote`, `app/p/[id] clampText`, and `app/historic/[slug] clampText` all open a full destination.
 - Venue identities: `.nmnCardName`, `.profileDropVenue`, `.venueHoverBody strong`, `.venuePickerList strong`, `.tonightPub`, `.nightCard__now`, `.nightCard__nextLabel`, `.gardenTonightPubName`, `.presenceVenue`, `.feedVenueLinkHead`, `.feedSpillVenueLink`, `.nightCrawl__doneName`, `.nightCrawl__upcomingName`, `.tonightLaneCardPlace span`, `.areaSheetPubName`, `.mapVenueListItemName`, `.mapSearchSuggestRowName`, `.spillPreviewMeta`, `truncateStopName`, and `.planSummary__editStops strong`.
@@ -179,10 +179,12 @@ This pass checked offsets, margins, padding, top and bottom anchors, fixed and m
 | `.tonightLaneChecked` | Open float has bottom anchor, 760px width cap, 520px or 62vh max height, 14px padding, and translateX. Sheet variant clears all positioning, transform, viewport width, and max-height rules. | Header grows in normal flow; map float remains bounded by its scroll area, while phone sheet uses parent scrolling. |
 | `.tonightLaneCardTitle` and `.tonightLaneCardSource` | Cards have fixed 208px width, 10px by 12px padding, normal flex-column height, and a following 44px minimum action with 8px top margin. | Title, conditions, and source wrap vertically. Fixed card width does not imply fixed height; horizontal and vertical scroll containers absorb growth. |
 | `.bandOnboardingChip span` | Desktop chip uses bottom 82px, 560px width cap, and translateX. Phone uses bottom lane token, two grid tracks `minmax(0, 1fr) 44px`, 8px gap, 10px padding, and 44px actions. Sheet-state hiding translates the whole chip 8px while removing pointer events. | Story owns a full content-sized first row; actions own second row. Real 390px and 430px geometry keeps chip within map, above navigation, and below 30 percent of map height. |
-| `.mapHeroExcerpt` and `.mapHeroQualifier` | Desktop teaser uses left 18px, bottom `18px + 96px`, 300px width cap, 13px by 15px padding, a 24px dismiss control, and a temporary 6px entrance translateY. Phone hides entire teaser. | Excerpt stays two lines; exact qualifier and source remain outside bound. Card grows upward from its bottom anchor and is hidden whenever planning, route, or detail chrome owns that area. |
-| `.historicHookExcerpt` and `.historicHookQualifier` | Cards use content-sized flex columns, 8px gap, 16px padding, responsive equal-width grid tracks without fixed height, and a temporary entrance translateY on the whole card. | Two-line excerpt cannot push or cover metadata. Exact qualifier and provenance follow in normal flow and remain fully visible after and during the whole-card transform. |
-| `.boroughHeritageHookExcerpt` and `.boroughHeritageHookQualifier` | Cards are content-sized grid children; map action has 44px minimum height and `margin-top: auto`. | Excerpt remains bounded. Exact qualifier expands card before auto margin positions the action; no overlap. |
-| `.quietPintHeritageExcerpt` and `.quietPintHeritageQualifier` | Link has 44px minimum height, 12px by 14px padding, and 6px gap. Foot uses wrapping flex layout with 6px by 10px gap and 12px bottom padding. | Exact qualifier, era, quiet condition, and source stay outside excerpt bound. Row height remains content-derived. |
+| Shared `.proseDisclosure` | Native summary has a 44px minimum height, content-sized grid rows, no fixed height, no absolute child, and no transform. Closed text has a two-line clamp; `[open]` switches the same node to block flow with visible overflow and no clamp. | Full prose remains in HTML in both states. Show more expands content-derived height, and Show less restores the short preview without semantic inference or copied text. |
+| `.mapHeroCopy .proseDisclosure` | Desktop teaser uses left 18px, bottom `18px + 96px`, 300px width cap, 13px by 15px padding, a 24px dismiss control, and a temporary 6px entrance translateY. Phone hides the entire teaser. | Closed preview stays two lines. Opening grows the card upward from its bottom anchor; source stays in the header, and planning, route, or detail chrome hides the card before sharing its region. |
+| `.historicHook .proseDisclosure` | Cards use content-sized flex columns, 8px gap, 16px padding, responsive equal-width grid tracks without fixed height, and a temporary entrance translateY on the whole card. | Closed preview cannot cover metadata. Opening expands in normal flow, so provenance remains below the full text at 390px and 430px. |
+| `.boroughHeritageHook .proseDisclosure` | Cards are content-sized grid children; the map action has a 44px minimum height and `margin-top: auto`. | Opening expands the card before auto margin positions the action. Full `since 1583` text and following action do not overlap at 390px or 430px. |
+| `.quietPintHeritage .proseDisclosure` | Venue link has a 44px minimum height and 12px by 14px padding. Disclosure is a separate sibling with 14px inline padding; foot uses wrapping flex layout with 6px by 10px gap and 12px bottom padding. | Native summary is not nested in the venue link. Opening grows the content-derived row; era, quiet condition, and source remain following normal-flow siblings. |
+| `.venueOverviewMore` | Existing owner retains 12px block margins, border flow, a 44px summary, auto-positioned plus/minus marker, and 14px body padding. | Extraction changes ownership only. Optional venue details still expand in normal flow within the sheet scroll area. |
 
 ## Contrast evidence carried forward
 

@@ -528,22 +528,11 @@
 }
 
 .quietPintHeritage {
+  padding: 0 14px 8px;
   font-size: 0.85rem;
   line-height: 1.5;
   color: var(--ink-soft);
   overflow-wrap: break-word;
-}
-
-.quietPintHeritageExcerpt {
-  display: -webkit-box;
-  overflow: hidden;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2;
-  line-clamp: 2;
-}
-
-.quietPintHeritageQualifier {
-  display: block;
 }
 
 .quietPintFoot {

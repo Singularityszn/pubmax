@@ -21,11 +21,8 @@ const FIRST_RUN_COMPANION_NOTES = [
   "Steady and protective",
   "Bright and encouraging",
 ] as const;
-const HISTORIC_ROUTE_EXAMPLE = JSON.parse(
-  readFileSync("public/data/historic_pubs.json", "utf8"),
-).find((pub: { name?: string }) => pub.name === "Prospect of Whitby") as {
-  hook: string;
-};
+const THE_GRAPES_HOOK =
+  "The Grapes is a Grade II listed public house at 76 Narrow Street, Limehouse, on the north bank of the Thames; a pub has stood on the site since 1583.";
 
 const LONGEST_STORY_BAND = listEnabledCities()
   .flatMap((city) => storyBandsForCity(city.id))
@@ -43,9 +40,6 @@ type CaptionCase = {
   expectContainerGrowth?: boolean;
   visibleAtPhone?: boolean;
   expectedButtons?: string[];
-  expectedLineClamp?: number;
-  qualifierSelector?: string;
-  expectedQualifier?: string;
 };
 
 const FIXTURE_ONLY_CAPTION_CASES: CaptionCase[] = [
@@ -176,26 +170,6 @@ const FIXTURE_ONLY_CAPTION_CASES: CaptionCase[] = [
     checkNoOverlapSelector: ".tonightLaneClose",
   },
   {
-    name: "featured story claim",
-    cssPath: "app/globals.css",
-    selector: ".mapHeroExcerpt",
-    expected: "The listed interior dates from 1898,",
-    markup: `
-      <aside class="mapHeroCard">
-        <strong>Featured pub</strong>
-        <p>
-          <span class="mapHeroExcerpt">The listed interior dates from 1898,</span>
-          <span class="mapHeroQualifier"> while the current bar layout was recorded in a later survey.</span>
-        </p>
-      </aside>
-    `,
-    visibleAtPhone: false,
-    expectedLineClamp: 2,
-    qualifierSelector: ".mapHeroQualifier",
-    expectedQualifier:
-      " while the current bar layout was recorded in a later survey.",
-  },
-  {
     name: "place story condition",
     cssPath: "app/globals.css",
     selector: ".bandOnboardingChip span",
@@ -215,26 +189,6 @@ const FIXTURE_ONLY_CAPTION_CASES: CaptionCase[] = [
     growingContainerSelector: ".bandOnboardingChip",
     expectContainerGrowth: true,
     expectedButtons: ["Walk this story", "Dismiss Place story intro"],
-  },
-  {
-    name: "quiet pint heritage claim",
-    cssPath: "app/today/today.css",
-    selector: ".quietPintHeritageExcerpt",
-    expected: "The listed fittings date from 1902.",
-    markup: `
-      <article>
-        <p class="quietPintHeritage">
-          <span class="quietPintHeritageExcerpt">The listed fittings date from 1902.</span>
-          <span class="quietPintHeritageQualifier"> Opening hours and present-day access are not established by the historic source.</span>
-        </p>
-        <div class="quietPintFoot">Historic England</div>
-      </article>
-    `,
-    checkNextSibling: true,
-    expectedLineClamp: 2,
-    qualifierSelector: ".quietPintHeritageQualifier",
-    expectedQualifier:
-      " Opening hours and present-day access are not established by the historic source.",
   },
 ];
 
@@ -319,26 +273,7 @@ for (const viewport of VIEWPORTS) {
       if (captionCase.visibleAtPhone !== false) {
         await expect(qualifier).toBeVisible();
       }
-      if (captionCase.expectedLineClamp) {
-        await expectBoundedProse(
-          qualifier,
-          captionCase.expected,
-          captionCase.expectedLineClamp,
-        );
-      } else {
-        await expectUnclippedCaption(qualifier, captionCase.expected);
-      }
-
-      if (captionCase.qualifierSelector && captionCase.expectedQualifier) {
-        const attachedQualifier = page.locator(captionCase.qualifierSelector);
-        if (captionCase.visibleAtPhone !== false) {
-          await expect(attachedQualifier).toBeVisible();
-        }
-        await expectUnclippedCaption(
-          attachedQualifier,
-          captionCase.expectedQualifier,
-        );
-      }
+      await expectUnclippedCaption(qualifier, captionCase.expected);
 
       if (captionCase.checkNextSibling) {
         const qualifierBox = await qualifier.boundingBox();
@@ -398,7 +333,7 @@ for (const viewport of VIEWPORTS) {
 }
 
 for (const viewport of VIEWPORTS.filter(({ width }) => width >= 390)) {
-  test(`historic excerpts stay bounded beside real qualifiers at ${viewport.width}px`, async ({
+  test(`historic disclosures retain the full 1583 text at ${viewport.width}px`, async ({
     page,
   }) => {
     await page.setViewportSize(viewport);
@@ -407,28 +342,25 @@ for (const viewport of VIEWPORTS.filter(({ width }) => width >= 390)) {
 
     const card = page
       .locator(".historicCard")
-      .filter({ hasText: "Prospect of Whitby" });
+      .filter({ hasText: "The Grapes" });
     await expect(card).toBeVisible();
-    const hook = card.locator(".historicHook");
-    await expect(hook).toHaveText(HISTORIC_ROUTE_EXAMPLE.hook);
-    const hookExcerpt = hook.locator(".historicHookExcerpt");
-    const hookExcerptText = await hookExcerpt.textContent();
-    expect(hookExcerptText).not.toBeNull();
-    await expectBoundedProse(hookExcerpt, undefined, 2);
-    const hookQualifier = hook.locator(".historicHookQualifier");
-    const hookQualifierText = await hookQualifier.textContent();
-    expect(hookQualifierText).not.toBeNull();
-    await expect(hookQualifier).toBeVisible();
-    await expectUnclippedCaption(hookQualifier, hookQualifierText!);
-    expect(
-      `${hookExcerptText!.trim()} ${hookQualifierText!.trim()}`,
-    ).toBe(HISTORIC_ROUTE_EXAMPLE.hook);
+    const disclosure = card.locator(".proseDisclosure");
+    await expect(disclosure).not.toHaveAttribute("open", "");
+    const hook = disclosure.locator(".proseDisclosureText");
+    await expect(hook).toHaveText(THE_GRAPES_HOOK);
+    await expectBoundedProse(hook, THE_GRAPES_HOOK, 2);
+    await expect(disclosure.getByText("Show more", { exact: true })).toBeVisible();
+    await disclosure.locator("summary").click();
+    await expect(disclosure).toHaveAttribute("open", "");
+    await expectUnclippedCaption(hook, THE_GRAPES_HOOK);
+    await expect(disclosure.getByText("Show less", { exact: true })).toBeVisible();
+    await expect(hook).toContainText("since 1583");
     const provenance = card.locator(".historicProvenance");
     await expect(provenance).toBeVisible();
-    await expect(card.locator(".historicEra")).toHaveText("1520");
+    await expect(card.locator(".historicEra")).toHaveText("1583");
     await expect(card.locator(".historicCite")).toBeVisible();
     const [hookBox, provenanceBox] = await Promise.all([
-      hook.boundingBox(),
+      disclosure.boundingBox(),
       provenance.boundingBox(),
     ]);
     expect(hookBox).not.toBeNull();
@@ -442,38 +374,21 @@ for (const viewport of VIEWPORTS.filter(({ width }) => width >= 390)) {
 
     const boroughCard = page
       .locator(".boroughHeritageCard")
-      .filter({ hasText: "Prospect of Whitby" });
+      .filter({ hasText: "The Grapes" });
     await expect(boroughCard).toBeVisible();
-    const boroughHook = boroughCard.locator(".boroughHeritageHook");
-    await expect(boroughHook).toHaveText(HISTORIC_ROUTE_EXAMPLE.hook);
-    const boroughHookExcerpt = boroughHook.locator(
-      ".boroughHeritageHookExcerpt",
-    );
-    const boroughHookExcerptText = await boroughHookExcerpt.textContent();
-    expect(boroughHookExcerptText).not.toBeNull();
-    await expectBoundedProse(
-      boroughHookExcerpt,
-      undefined,
-      2,
-    );
-    const boroughQualifier = boroughHook.locator(
-      ".boroughHeritageHookQualifier",
-    );
-    const boroughQualifierText = await boroughQualifier.textContent();
-    expect(boroughQualifierText).not.toBeNull();
-    await expect(boroughQualifier).toBeVisible();
-    await expectUnclippedCaption(
-      boroughQualifier,
-      boroughQualifierText!,
-    );
-    expect(
-      `${boroughHookExcerptText!.trim()} ${boroughQualifierText!.trim()}`,
-    ).toBe(HISTORIC_ROUTE_EXAMPLE.hook);
+    const boroughDisclosure = boroughCard.locator(".proseDisclosure");
+    const boroughHook = boroughDisclosure.locator(".proseDisclosureText");
+    await expect(boroughHook).toHaveText(THE_GRAPES_HOOK);
+    await expectBoundedProse(boroughHook, THE_GRAPES_HOOK, 2);
+    await boroughDisclosure.locator("summary").click();
+    await expect(boroughDisclosure).toHaveAttribute("open", "");
+    await expectUnclippedCaption(boroughHook, THE_GRAPES_HOOK);
+    await expect(boroughHook).toContainText("since 1583");
     const boroughLink = boroughCard.locator(".boroughHeritageMapLink");
     await expect(boroughLink).toBeVisible();
-    await expect(boroughCard.locator(".boroughHeritageEra")).toHaveText("1520");
+    await expect(boroughCard.locator(".boroughHeritageEra")).toHaveText("1583");
     const [boroughHookBox, boroughLinkBox] = await Promise.all([
-      boroughHook.boundingBox(),
+      boroughDisclosure.boundingBox(),
       boroughLink.boundingBox(),
     ]);
     expect(boroughHookBox).not.toBeNull();

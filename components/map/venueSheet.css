@@ -731,36 +731,6 @@ html[data-theme="dark"] .trainBadge[data-tone="risk"] {
   color: var(--ink-soft);
 }
 
-.venueOverviewMore {
-  margin: 12px 0;
-  border-block: 1px solid var(--line);
-}
-
-.venueOverviewMore > summary {
-  min-height: 44px;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  color: var(--ink-soft);
-  font-weight: 750;
-  cursor: pointer;
-}
-
-.venueOverviewMore > summary::after {
-  content: "+";
-  margin-left: auto;
-  color: var(--muted);
-  font-size: 1.1rem;
-}
-
-.venueOverviewMore[open] > summary::after {
-  content: "−";
-}
-
-.venueOverviewMoreBody {
-  padding: 2px 0 14px;
-}
-
 .venueTabPanel .amenity,
 .venueTabPanel .accessibilityChip {
   background: var(--panel-raised);
