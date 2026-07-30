@@ -14,17 +14,18 @@ import "../legal.css";
 // registry and its gates (lib/analyticsEvents.ts, app/api/events/route.ts),
 // the browser SDK config (lib/posthogClient.ts), the first-party ingest proxy
 // (app/ingest/[...path]/route.ts), the hashed-actor derivation (lib/supabase.ts
-// hashIp/hashActor) used for price-report abuse controls and
-// app/api/weather-recommendations/route.ts, the Recommendation row shape
-// (lib/weatherRecommendationStore.ts and its migration), and the sign-in
-// paths in components/auth/AuthProvider.tsx. If one of those changes, this page
+// hashIp/hashActor) used for price-report abuse controls, the account-derived
+// Recommendation identity in app/api/weather-recommendations/route.ts, the
+// Recommendation row shape (lib/weatherRecommendationStore.ts and its
+// migration), and the sign-in paths in components/auth/AuthProvider.tsx. If one
+// of those changes, this page
 // changes in the same commit. Do NOT add practices we don't have, certifications
 // we don't hold, or a DPO we haven't appointed.
 
 const PAGE_TITLE = "Privacy";
 const PAGE_DESCRIPTION =
   "What PUBMAXX collects, why, who else sees it, how long we keep it, and how to get it deleted. Written against the app's behaviour.";
-const LAST_UPDATED = "29 July 2026";
+const LAST_UPDATED = "30 July 2026";
 
 export const metadata: Metadata = {
   title: PAGE_TITLE,
@@ -172,20 +173,21 @@ export default function PrivacyPage() {
         </p>
         <p className="legalBody">
           A Recommendation is your short opinion that one pub suits one kind of
-          weather, so it&rsquo;s posted under a name. We store your public PUBMAXX
+          weather. Writing one needs a signed-in account, a claimed public
+          handle and a completed private profile. We store your public PUBMAXX
           handle, the pub, the single condition you picked from warm, clear
           skies, raining, cold and windy, the reason you wrote, the time our
-          server took it, and the same opaque device token described below. The
-          handle is stored because the opinion is attributed to you and shown
-          with your name on it. A visible Recommendation counts on the public
-          contributor record only when that handle resolves to an existing
-          public profile. A self-asserted name without that profile can remain
-          visible on the Recommendation but is excluded from the ranking. The
-          token is stored only to rate-limit writes and to keep one contributor
-          to one Recommendation per pub and condition, so editing yours replaces
-          it rather than stacking another. The weather never writes a
-          Recommendation. It only decides which of the ones people wrote match
-          right now.
+          server took it, and your account&rsquo;s stable private profile key.
+          The server derives the handle and private key from your authenticated
+          account and ignores any handle sent by the browser. The private key
+          is used for rate limits and audit provenance and is never shown.
+          A visible Recommendation counts on the public contributor record
+          under its public handle. Historic Recommendations written under an
+          unlinked, self-asserted handle can remain visible but stay excluded
+          from that ranking. Writing another under the same handle for the same
+          pub and condition replaces the one you already had. The weather never
+          writes a Recommendation. It only decides which of the ones people
+          wrote match right now.
         </p>
 
         <h3 className="legalH3">Community price submissions</h3>
@@ -543,11 +545,13 @@ export default function PrivacyPage() {
           </li>
           <li>
             <strong>Recommendations:</strong>{" "}a Recommendation keeps your
-            handle on it for as long as it is up, because an opinion with no
-            name on it isn&rsquo;t one. Writing another for the same pub and
-            condition replaces the one you already had. There is no one-tap
-            delete for a single Recommendation yet, so ask us and we&rsquo;ll
-            take it down, the same as anything else you posted.
+            handle and private profile key for as long as it is up. The handle
+            attributes the opinion publicly; the private key stays hidden and
+            supports rate limits and audit provenance. Writing another under
+            the same handle for the same pub and condition replaces the one you
+            already had. There is no one-tap delete for a single Recommendation
+            yet, so ask us and we&rsquo;ll take it down, the same as anything
+            else you posted.
           </li>
           <li>
             <strong>Hidden or reported content:</strong>{" "}photos attached to a

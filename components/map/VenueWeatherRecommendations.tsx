@@ -5,8 +5,13 @@ import Link from "next/link";
 import { useCallback, useEffect, useState, type FormEvent } from "react";
 
 import { useAuth } from "@/components/auth/AuthProvider";
-import { useContributionGate } from "@/components/identity/ContributionGateDialog";
-import { accountBoundFetch } from "@/lib/accountBoundFetch";
+import {
+  accountComposerAuth,
+  sameAccountAuth,
+  useAccountScopedDraft,
+  useContributionGate,
+} from "@/components/identity/ContributionGateDialog";
+import { accountBoundFetch, type AccountAuthSnapshot } from "@/lib/accountBoundFetch";
 import {
   isWeatherRecommendationCondition,
   validateWeatherRecommendation,
@@ -25,6 +30,13 @@ import "./venueWeatherRecommendations.css";
 type RecommendationFormError = {
   message: string;
   field: WeatherRecommendationErrorField;
+};
+
+type WeatherRecommendationDraft = {
+  condition: WeatherRecommendationCondition;
+  reason: string;
+  error: RecommendationFormError | null;
+  saved: WeatherRecommendation | null;
 };
 
 function recommendationError(message: string): RecommendationFormError {
@@ -223,16 +235,31 @@ export default function VenueWeatherRecommendations({
   venueId: string;
   venueName: string;
 }) {
-  const { user, handle: accountHandle } = useAuth();
+  const { user, session, handle: accountHandle } = useAuth();
   const { requestContribution, contributionGateDialog } = useContributionGate();
-  const [condition, setCondition] =
-    useState<WeatherRecommendationCondition>("warm");
-  const [reason, setReason] = useState("");
+  const [rejectedAuth, setRejectedAuth] =
+    useState<AccountAuthSnapshot | null>(null);
+  const [draft, setDraft] = useAccountScopedDraft<WeatherRecommendationDraft>(
+    user?.id ?? null,
+    () => ({
+      condition: "warm",
+      reason: "",
+      error: null,
+      saved: null,
+    }),
+  );
   const [load, setLoad] = useState<WeatherRecommendationVenueLoad | null>(null);
   const [loadFailed, setLoadFailed] = useState(false);
   const [submitting, setSubmitting] = useState(false);
-  const [error, setError] = useState<RecommendationFormError | null>(null);
-  const [saved, setSaved] = useState<WeatherRecommendation | null>(null);
+  const composerAuth = accountComposerAuth(
+    user?.id ?? null,
+    session,
+    rejectedAuth,
+  );
+  const condition = draft?.condition ?? "warm";
+  const reason = draft?.reason ?? "";
+  const error = draft?.error ?? null;
+  const saved = draft?.saved ?? null;
 
   const loadRecommendations = useCallback(
     async (signal?: AbortSignal) => {
@@ -270,9 +297,8 @@ export default function VenueWeatherRecommendations({
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (submitting) return;
-    setError(null);
-    setSaved(null);
+    if (submitting || !draft || !composerAuth) return;
+    setDraft((current) => ({ ...current, error: null, saved: null }));
 
     const validation = validateWeatherRecommendation({
       venueId,
@@ -284,19 +310,25 @@ export default function VenueWeatherRecommendations({
       contributorHandle: accountHandle ?? "account",
     });
     if (!validation.ok) {
-      setError(recommendationError(validation.error));
+      setDraft((current) => ({
+        ...current,
+        error: recommendationError(validation.error),
+      }));
       return;
     }
 
     await requestContribution(async (auth) => {
-    setSubmitting(true);
-    try {
+      if (!sameAccountAuth(auth, composerAuth)) {
+        return { status: "sign_in_required" };
+      }
+      setSubmitting(true);
+      try {
         const response = await accountBoundFetch(
           auth,
           "/api/weather-recommendations",
           {
-        method: "POST",
-        headers: { "content-type": "application/json" },
+            method: "POST",
+            headers: { "content-type": "application/json" },
             body: JSON.stringify({
               venueId: validation.value.venueId,
               condition: validation.value.condition,
@@ -304,43 +336,57 @@ export default function VenueWeatherRecommendations({
             }),
           },
         );
-      const body = (await response.json()) as Record<string, unknown>;
-      if (!response.ok) {
+        const body = (await response.json()) as Record<string, unknown>;
+        if (!response.ok) {
           if (
             body.status === "sign_in_required" ||
             body.status === "onboarding_required"
           ) {
+            if (body.status === "sign_in_required") {
+              setRejectedAuth(auth);
+            }
             return {
               status: body.status,
               error: typeof body.error === "string" ? body.error : undefined,
             };
           }
-        setError(
-            recommendationError(
+          setDraft((current) => ({
+            ...current,
+            error: recommendationError(
               typeof body.error === "string"
                 ? body.error
                 : "Could not save that recommendation right now.",
             ),
-        );
-        return;
+          }));
+          return;
+        }
+        const recommendation = readRecommendation(body.recommendation);
+        if (!recommendation) {
+          setDraft((current) => ({
+            ...current,
+            error: recommendationError(
+              "Could not read that saved recommendation.",
+            ),
+          }));
+          return;
+        }
+        setDraft((current) => ({
+          ...current,
+          reason: "",
+          error: null,
+          saved: recommendation,
+        }));
+        await loadRecommendations();
+      } catch {
+        setDraft((current) => ({
+          ...current,
+          error: recommendationError(
+            "Could not save that recommendation right now.",
+          ),
+        }));
+      } finally {
+        setSubmitting(false);
       }
-      const recommendation = readRecommendation(body.recommendation);
-      if (!recommendation) {
-        setError(
-          recommendationError("Could not read that saved recommendation."),
-        );
-        return;
-      }
-      setReason("");
-      setSaved(recommendation);
-      await loadRecommendations();
-    } catch {
-      setError(
-        recommendationError("Could not save that recommendation right now."),
-      );
-    } finally {
-      setSubmitting(false);
-    }
     });
   }
 
@@ -377,108 +423,118 @@ export default function VenueWeatherRecommendations({
         </p>
       ) : null}
 
-      {user ? (
-      <form className="weatherRecForm" onSubmit={submit}>
-        <p className="weatherRecPrompt">
-          Pick the weather, then say why you&rsquo;d choose this place.
-        </p>
-        <div
-          className="weatherRecConditions"
-          role="radiogroup"
-          aria-label={`When does ${venueName} suit?`}
-        >
-          {WEATHER_RECOMMENDATION_CONDITIONS.map((option) => (
-            <label
-              key={option}
-              className={
-                condition === option
-                  ? "weatherRecCondition weatherRecConditionOn"
-                  : "weatherRecCondition"
-              }
-            >
-              <input
-                type="radio"
-                name="condition"
-                value={option}
-                checked={condition === option}
-                onChange={() => {
-                  setCondition(option);
-                  setError(null);
-                  setSaved(null);
-                }}
-              />
-              <span>{weatherRecommendationConditionLabel(option)}</span>
-            </label>
-          ))}
-        </div>
+      {composerAuth ? (
+        <form className="weatherRecForm" onSubmit={submit}>
+          <p className="weatherRecPrompt">
+            Pick the weather, then say why you&rsquo;d choose this place.
+          </p>
+          <div
+            className="weatherRecConditions"
+            role="radiogroup"
+            aria-label={`When does ${venueName} suit?`}
+          >
+            {WEATHER_RECOMMENDATION_CONDITIONS.map((option) => (
+              <label
+                key={option}
+                className={
+                  condition === option
+                    ? "weatherRecCondition weatherRecConditionOn"
+                    : "weatherRecCondition"
+                }
+              >
+                <input
+                  type="radio"
+                  name="condition"
+                  value={option}
+                  checked={condition === option}
+                  onChange={() => {
+                    setDraft((current) => ({
+                      ...current,
+                      condition: option,
+                      error: null,
+                      saved: null,
+                    }));
+                  }}
+                />
+                <span>{weatherRecommendationConditionLabel(option)}</span>
+              </label>
+            ))}
+          </div>
 
-        <label className="weatherRecField">
+          <label className="weatherRecField">
             <span>
               Why it suits{" "}
               {weatherRecommendationConditionLabel(condition).toLowerCase()}
             </span>
-          <textarea
-            name="reason"
-            value={reason}
-            onChange={(event) => {
-              setReason(event.target.value);
-              setError(null);
-              setSaved(null);
-            }}
-            aria-label={`Why ${venueName} suits this weather`}
-            aria-invalid={error?.field === "reason"}
-            aria-describedby={
-              error?.field === "reason"
-                ? `weatherRecError-${venueId}`
-                : undefined
-            }
-            maxLength={WEATHER_RECOMMENDATION_REASON_MAX}
-            rows={3}
-            placeholder="The garden keeps the evening light."
-          />
-        </label>
+            <textarea
+              name="reason"
+              value={reason}
+              onChange={(event) => {
+                setDraft((current) => ({
+                  ...current,
+                  reason: event.target.value,
+                  error: null,
+                  saved: null,
+                }));
+              }}
+              aria-label={`Why ${venueName} suits this weather`}
+              aria-invalid={error?.field === "reason"}
+              aria-describedby={
+                error?.field === "reason"
+                  ? `weatherRecError-${venueId}`
+                  : undefined
+              }
+              maxLength={WEATHER_RECOMMENDATION_REASON_MAX}
+              rows={3}
+              placeholder="The garden keeps the evening light."
+            />
+          </label>
 
-        <button
-          type="submit"
-          className="weatherRecSubmit"
+          <button
+            type="submit"
+            className="weatherRecSubmit"
             disabled={submitting || reason.trim() === ""}
-        >
-          {submitting ? "Saving…" : "Recommend it"}
-        </button>
-
-        {error ? (
-          <p
-            className="weatherRecError"
-            id={`weatherRecError-${venueId}`}
-            role="alert"
           >
-            {error.message}
-          </p>
-        ) : null}
+            {submitting ? "Saving…" : "Recommend it"}
+          </button>
 
-        {saved ? (
-          <p className="weatherRecSaved" role="status">
-            <Check size={15} aria-hidden="true" />
-            Saved under @{saved.contributorHandle} for{" "}
-            {weatherRecommendationConditionLabel(
-              saved.condition,
-            ).toLowerCase()}{" "}
-            weather.
-          </p>
-        ) : null}
+          {error ? (
+            <p
+              className="weatherRecError"
+              id={`weatherRecError-${venueId}`}
+              role="alert"
+            >
+              {error.message}
+            </p>
+          ) : null}
 
-        <p className="weatherRecHonesty">
-          This is your opinion, shown under your handle. Weather only decides
-          when it appears as a match.
-        </p>
-      </form>
+          {saved ? (
+            <p className="weatherRecSaved" role="status">
+              <Check size={15} aria-hidden="true" />
+              Saved under @{saved.contributorHandle} for{" "}
+              {weatherRecommendationConditionLabel(
+                saved.condition,
+              ).toLowerCase()}{" "}
+              weather.
+            </p>
+          ) : null}
+
+          <p className="weatherRecHonesty">
+            This is your opinion, shown under your handle. Weather only decides
+            when it appears as a match.
+          </p>
+        </form>
       ) : (
         <div className="weatherRecForm">
           <button
             type="button"
             className="weatherRecSubmit"
             onClick={() => {
-              void requestContribution(() => undefined);
+              void requestContribution((auth) =>
+                sameAccountAuth(auth, composerAuth)
+                  ? undefined
+                  : { status: "sign_in_required" },
+              );
             }}
           >
             Sign in to contribute

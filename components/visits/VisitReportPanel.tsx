@@ -7,7 +7,13 @@
 import { useEffect, useRef, useState } from "react";
 
 import { useAuth } from "@/components/auth/AuthProvider";
-import { useContributionGate } from "@/components/identity/ContributionGateDialog";
+import {
+  accountComposerAuth,
+  sameAccountAuth,
+  useAccountScopedDraft,
+  useContributionGate,
+} from "@/components/identity/ContributionGateDialog";
+import type { AccountAuthSnapshot } from "@/lib/accountBoundFetch";
 import {
   BUSYNESS_VALUES,
   earliestVisitedAt,
@@ -74,6 +80,15 @@ const SERVICE_WAIT_LABELS: Record<ServiceWait, string> = {
   quick: "Quick",
   "some-wait": "Some wait",
   long: "Long wait",
+};
+
+type VisitReportDraft = {
+  visitedAt: string;
+  busyness: Busyness | null;
+  noise: Noise | null;
+  seating: Seating | null;
+  serviceWait: ServiceWait | null;
+  note: string;
 };
 
 function visitDayLabel(day: string): string {
@@ -206,16 +221,23 @@ function VenueVisitReports({
   // The composer MIRRORS the server's window (lib/visitReports); it never
   // replaces it, so a post that skips this card meets the same bound.
   const earliest = earliestVisitedAt(now);
-  const { user } = useAuth();
+  const { user, session } = useAuth();
   const { requestContribution, contributionGateDialog } = useContributionGate();
   const [read, setRead] = useState<VisitReportVenueRead | null>(null);
-  const [open, setOpen] = useState(false);
-  const [visitedAt, setVisitedAt] = useState(latest);
-  const [busyness, setBusyness] = useState<Busyness | null>(null);
-  const [noise, setNoise] = useState<Noise | null>(null);
-  const [seating, setSeating] = useState<Seating | null>(null);
-  const [serviceWait, setServiceWait] = useState<ServiceWait | null>(null);
-  const [note, setNote] = useState("");
+  const [openAuth, setOpenAuth] = useState<AccountAuthSnapshot | null>(null);
+  const [rejectedAuth, setRejectedAuth] =
+    useState<AccountAuthSnapshot | null>(null);
+  const [draft, setDraft, clearDraft] = useAccountScopedDraft<VisitReportDraft>(
+    user?.id ?? null,
+    () => ({
+      visitedAt: latest,
+      busyness: null,
+      noise: null,
+      seating: null,
+      serviceWait: null,
+      note: "",
+    }),
+  );
   const [saving, setSaving] = useState(false);
   const [flaggingId, setFlaggingId] = useState<string | null>(null);
   const [flaggedIds, setFlaggedIds] = useState<Set<string>>(() => new Set());
@@ -223,7 +245,21 @@ function VenueVisitReports({
     kind: "ok" | "error";
     text: string;
   } | null>(null);
-  const composerMode = visitReportComposerMode(open, user?.id ?? null);
+  const composerAuth = accountComposerAuth(
+    user?.id ?? null,
+    session,
+    rejectedAuth,
+  );
+  const composerMode = visitReportComposerMode(
+    sameAccountAuth(openAuth, composerAuth),
+    composerAuth?.userId ?? null,
+  );
+  const visitedAt = draft?.visitedAt ?? latest;
+  const busyness = draft?.busyness ?? null;
+  const noise = draft?.noise ?? null;
+  const seating = draft?.seating ?? null;
+  const serviceWait = draft?.serviceWait ?? null;
+  const note = draft?.note ?? "";
 
   const requested = useRef(false);
 
@@ -249,6 +285,7 @@ function VenueVisitReports({
     note.trim() !== "";
 
   async function submit() {
+    if (!draft || !composerAuth) return;
     if (!visitedAt) {
       setFeedback({ kind: "error", text: "Add the day you were there." });
       return;
@@ -269,50 +306,55 @@ function VenueVisitReports({
     }
     setFeedback(null);
     await requestContribution(async (auth) => {
+      if (!sameAccountAuth(auth, composerAuth)) {
+        return { status: "sign_in_required" };
+      }
       setSaving(true);
-    try {
+      try {
         const result = await postVisitReport(
           {
-        venueId,
-        visitedAt,
-        busyness,
-        noise,
-        seating,
-        serviceWait,
-        note: note.trim(),
+            venueId,
+            visitedAt,
+            busyness,
+            noise,
+            seating,
+            serviceWait,
+            note: note.trim(),
           },
           auth,
         );
         if (!result.ok) {
           if (result.status) {
+            if (result.status === "sign_in_required") {
+              setRejectedAuth(auth);
+              setOpenAuth((current) =>
+                sameAccountAuth(current, auth) ? null : current,
+              );
+            }
             return { status: result.status, error: result.error };
           }
           setFeedback({ kind: "error", text: result.error });
           return;
         }
-      const nextRead = await fetchVisitReports(venueId);
-      setRead(nextRead ?? { status: "degraded", reports: [] });
-      setBusyness(null);
-      setNoise(null);
-      setSeating(null);
-      setServiceWait(null);
-      setNote("");
-      setOpen(false);
+        const nextRead = await fetchVisitReports(venueId);
+        setRead(nextRead ?? { status: "degraded", reports: [] });
+        clearDraft();
+        setOpenAuth((current) => sameAccountAuth(current, auth) ? null : current);
         setFeedback({
           kind: "ok",
           text: "Saved. Your visit is on this pub's page.",
         });
-    } catch (error) {
-      setFeedback({
-        kind: "error",
+      } catch (error) {
+        setFeedback({
+          kind: "error",
           text:
             error instanceof Error
               ? error.message
               : "Couldn't save this visit just now.",
-      });
-    } finally {
-      setSaving(false);
-    }
+        });
+      } finally {
+        setSaving(false);
+      }
     });
   }
 
@@ -353,8 +395,11 @@ function VenueVisitReports({
             type="button"
             className="visitReportOpen"
             onClick={() => {
-              void requestContribution(() => {
-                setOpen(true);
+              void requestContribution((auth) => {
+                if (!sameAccountAuth(auth, composerAuth)) {
+                  return { status: "sign_in_required" };
+                }
+                setOpenAuth(auth);
               });
             }}
           >
@@ -404,7 +449,7 @@ function VenueVisitReports({
               type="button"
               className="visitReportDismiss"
               aria-label="Close visit report"
-              onClick={() => setOpen(false)}
+              onClick={() => setOpenAuth(null)}
             >
               ×
             </button>
@@ -417,7 +462,12 @@ function VenueVisitReports({
               value={visitedAt}
               min={earliest}
               max={latest}
-              onChange={(event) => setVisitedAt(event.target.value)}
+              onChange={(event) =>
+                setDraft((current) => ({
+                  ...current,
+                  visitedAt: event.target.value,
+                }))
+              }
             />
             <small>Visits from the last {MAX_VISIT_AGE_DAYS} days.</small>
           </label>
@@ -427,28 +477,36 @@ function VenueVisitReports({
             values={BUSYNESS_VALUES}
             labels={BUSYNESS_LABELS}
             selected={busyness}
-            onSelect={setBusyness}
+            onSelect={(value) =>
+              setDraft((current) => ({ ...current, busyness: value }))
+            }
           />
           <ChoiceGroup
             label="Could you hear each other?"
             values={NOISE_VALUES}
             labels={NOISE_LABELS}
             selected={noise}
-            onSelect={setNoise}
+            onSelect={(value) =>
+              setDraft((current) => ({ ...current, noise: value }))
+            }
           />
           <ChoiceGroup
             label="Finding a seat?"
             values={SEATING_VALUES}
             labels={SEATING_LABELS}
             selected={seating}
-            onSelect={setSeating}
+            onSelect={(value) =>
+              setDraft((current) => ({ ...current, seating: value }))
+            }
           />
           <ChoiceGroup
             label="Wait at the bar?"
             values={SERVICE_WAIT_VALUES}
             labels={SERVICE_WAIT_LABELS}
             selected={serviceWait}
-            onSelect={setServiceWait}
+            onSelect={(value) =>
+              setDraft((current) => ({ ...current, serviceWait: value }))
+            }
           />
 
           <label className="visitReportNoteWrap">
@@ -457,7 +515,10 @@ function VenueVisitReports({
               className="visitReportNote"
               value={note}
               onChange={(event) =>
-                setNote(event.target.value.slice(0, MAX_VISIT_NOTE))
+                setDraft((current) => ({
+                  ...current,
+                  note: event.target.value.slice(0, MAX_VISIT_NOTE),
+                }))
               }
               maxLength={MAX_VISIT_NOTE}
               rows={3}

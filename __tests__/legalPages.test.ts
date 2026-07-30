@@ -201,9 +201,17 @@ describe("legal content pages", () => {
     // anonymity is reserved for legacy price rows without one.
     expect(privacy).toMatch(/Recommendations, and Night Memories/);
     expect(privacy).toMatch(/public PUBMAXX\s+handle/);
-    expect(privacy).toMatch(/the same opaque device token described below/);
+    expect(privacy).toMatch(/needs a signed-in account/);
+    expect(privacy).toMatch(/stable private profile key/);
+    expect(privacy).toMatch(
+      /derives the handle and private key from your authenticated\s+account/,
+    );
+    expect(privacy).toMatch(/ignores any handle sent by the browser/);
     expect(privacy).toMatch(/the time our\s+server took it/);
     expect(privacy).toMatch(/<strong>Recommendations:<\/strong>/);
+    expect(privacy).toMatch(
+      /handle and private profile key[\s\S]*for as long as it is up/,
+    );
     expect(privacy).toMatch(/replaces the one you already had/);
     // The closed vocabulary is the product's, not the page's: if a condition is
     // added or renamed, this sentence has to be rewritten with it.

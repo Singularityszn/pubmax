@@ -213,10 +213,11 @@ accepted only for newly created accounts in the same sign-in journey.
   exports read-only `GET` paths for newest-first venue rows and exact visible
   counts by contributor. Neither read carries a score, average, or aggregate
   verdict, and neither is counted as a mutating verb.
-- **Validation:** `validateVisitReport` (`lib/visitReports.ts`) — venue + handle
-  required; every structured field is coerced to a fixed allowlist (unknown →
-  null, mirrored by the DB CHECK constraints in migrations 0046 and 0058); the note is
-  cleaned, capped at 140 chars, and **slop-filtered at write time**
+- **Validation:** `validateVisitReport` (`lib/visitReports.ts`) requires the
+  venue plus the handle derived from the authenticated account; body handles
+  are ignored. Every structured field is coerced to a fixed allowlist (unknown
+  → null, mirrored by the DB CHECK constraints in migrations 0046 and 0058);
+  the note is cleaned, capped at 140 chars, and **slop-filtered at write time**
   (`lib/slopFilter`); `visitedAt` resolves to a London day key (a bare
   `YYYY-MM-DD` is taken verbatim and must be a real calendar day; a full
   timestamp folds through the London "evening date", so pre-dawn hours belong to
@@ -226,8 +227,8 @@ accepted only for newly created accounts in the same sign-in journey.
   lane sorts on it, so the window is enforced HERE and the composer's `min`/`max`
   only mirror it; at least ONE signal must survive or the body 400s
   (`INVALID_REPORT`) before the limiter/store is touched.
-- **Rate limit (boundary):** durable per-handle + hashed-IP `isLimited` with key
-  `visit-report:${handle}:${hashIp(clientIp(request))}` (raw IP never keyed) —
+- **Rate limit (boundary):** durable per-profile + hashed-IP `isLimited` with key
+  `visit-report:${contributor.actor}:${ipHash}` (raw IP never keyed) —
   429 `{ code: "RATE_LIMITED", retryable: true }` on exceed. The public `report`
   action carries the same two-axis flood cap as Pint Drops (per-target + a
   per-actor budget of 1). This is the certification boundary (rate_limit class).
@@ -240,12 +241,14 @@ accepted only for newly created accounts in the same sign-in journey.
   reversible from the same surface that made it: hidden rows keep their own
   moderator lane (`GET ?status=hidden`), carrying the identity a `restore` needs
   to put the account back on public reads.
-- **Auth stance:** the self-asserted handle resolved through
-  `resolveMessageHandle` (JWT-linked handle wins when signed in) and gated by
-  `gateHandleAction` — the same demo identity boundary as a Pint Drop, rating, or
-  check-in. Creation pauses under the solo-operator social freeze; reporting and
-  moderation stay open. One report per handle per venue per night: the store
-  upserts on `(venue_id, handle, visited_at)`.
+- **Auth stance:** creation requires `resolveContributionIdentity`, which
+  derives public attribution and the private actor from the authenticated
+  account's immutable profile id. Missing or expired auth returns
+  `sign_in_required`; incomplete profile setup returns `onboarding_required`.
+  Creation pauses under the solo-operator social freeze; reporting and
+  moderation stay open. Historic unlinked rows keep their stored attribution.
+  One report per handle per venue per night: the store upserts on
+  `(venue_id, handle, visited_at)`.
 - **Rollback / kill:** durable rows live in `public.structured_visit_reports`
   (migrations 0046 + 0058, RLS on, anon/authenticated revoked, service_role only
   — a NEW table, distinct from the Pint Drop `visit_reports` table); `truncate` is
@@ -553,19 +556,20 @@ commit.
   reason, and exactly one closed condition from `warm`, `clear`, `raining`,
   `cold`, or `windy`. The database repeats those bounds. Unknown venues and
   off-vocabulary conditions are rejected before persistence.
-- **Identity and attribution:** a verified JWT-linked handle wins over the
-  asserted handle through `resolveMessageHandle`, then `gateHandleAction`
-  protects linked handles. Keyless development keeps the existing unlinked
-  handle path. Separately, `deriveCommunityPriceActor` derives a private actor
-  token from the hashed request IP. A write fails with retryable 503 if that
-  token cannot be derived, and the database column is non-null. The handle is
-  public authorship; the actor token never leaves the store and is never
+- **Identity and attribution:** creation requires
+  `resolveContributionIdentity`, which derives the public handle and a
+  profile-based actor (`profile:${profile.id}`) from the authenticated account's
+  immutable profile id. Body handles are ignored. Missing or expired auth
+  returns `sign_in_required`; incomplete profile setup returns
+  `onboarding_required`. Historic unlinked rows keep their stored attribution.
+  The handle is public authorship; the actor never leaves the store and is never
   accepted from the body.
-- **Rate limit (boundary):** an actor-wide durable `isLimited` budget allows 30
-  writes per hour across venues. A second per-actor, per-venue budget allows
-  five per hour. One natural row per `(venue, condition, contributor_handle)`
-  means edits replace the author's earlier reason rather than increasing their
-  contribution count.
+- **Rate limit (boundary):** an actor-wide durable `isLimited` budget keyed by
+  the profile-based actor allows 30 writes per hour across venues. A second
+  per-actor, per-venue budget allows five per hour. One natural row per
+  `(venue, condition, contributor_handle)` means edits under the same handle
+  replace the author's earlier reason rather than increasing their contribution
+  count.
 - **Moderation (boundary):** `hide` and `restore` require `isModerator`; a
   reader cannot hide a Recommendation. Hiding is reversible, keeps authorship
   and moderation provenance, removes the row from venue reads and contributor

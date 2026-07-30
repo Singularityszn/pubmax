@@ -31,6 +31,14 @@ describe("Visit Report venue surface", () => {
     expect(visitReportComposerMode(true, null)).toBe("sign_in_required");
   });
 
+  it("keeps Visit Report drafts account-scoped and rejects expired sessions", () => {
+    const panel = source("components/visits/VisitReportPanel.tsx");
+
+    expect(panel).toContain("useAccountScopedDraft");
+    expect(panel).toContain("accountComposerAuth");
+    expect(panel).toContain("setRejectedAuth(auth)");
+  });
+
   it("asks a signed-out visitor to sign in before mounting any report fields", () => {
     authState.user = null;
     authState.session = null;
