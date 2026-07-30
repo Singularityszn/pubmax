@@ -8,7 +8,7 @@
   gap: 4px;
   max-width: calc(100vw - 24px);
   padding: 6px 8px 7px;
-  border: 1px solid color-mix(in srgb, var(--line) 72%, var(--brass) 28%);
+  border: 0;
   border-radius: 16px;
   background: color-mix(in srgb, var(--panel) 90%, transparent);
   box-shadow: var(--shadow-float);
@@ -107,8 +107,8 @@
        the fifth chip under a 44px button and lost its taps. Anchor left and
        end a full corner lane short of that control (--mobile-map-corner-lane,
        mobileMapShell.css). The row scrolls rather than wrapping or truncating. */
-    left: 12px;
-    right: var(--mobile-map-corner-lane, 68px);
+    left: var(--mobile-map-stack-left, 12px);
+    right: var(--mobile-map-stack-right, var(--mobile-map-corner-lane, 68px));
     display: block;
     width: auto;
     max-width: none;

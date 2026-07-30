@@ -42,4 +42,10 @@ describe("desktop map toolbar rhythm", () => {
       /@media \(min-width: 641px\) and \(max-width: 900px\)[\s\S]*--map-toolbar-resting-height:\s*155px/,
     );
   });
+
+  it("reserves the measured 155px desktop toolbar height", () => {
+    expect(ruleBody(toolbarCss, ".appShell")).toMatch(
+      /--map-toolbar-resting-height:\s*155px/,
+    );
+  });
 });

@@ -4,15 +4,19 @@
   /* Closed desktop toolbar block, including the always-visible experience
      lens. Sibling chrome uses this to clear the toolbar instead of assuming
      the older single-row height. */
-  --map-toolbar-resting-height: 181px;
+  --map-toolbar-resting-height: 155px;
+  --desktop-map-surface-width: min(1240px, calc(100vw - 32px));
 }
 
 .mapToolbar {
+  width: var(--desktop-map-surface-width);
+  max-width: none;
+  box-sizing: border-box;
   flex-direction: column;
   align-items: stretch;
   gap: 6px;
   border-radius: 16px;
-  border-color: color-mix(in srgb, var(--brass) 28%, var(--line));
+  border-color: var(--line);
   background:
     linear-gradient(
       145deg,

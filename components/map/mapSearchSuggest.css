@@ -12,7 +12,7 @@
 }
 
 .mapSearchSuggest--toolbar {
-  width: min(400px, 34vw);
+  width: min(388px, 34vw);
   min-width: 260px;
   gap: 0;
 }

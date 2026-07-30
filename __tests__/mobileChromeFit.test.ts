@@ -43,7 +43,7 @@ describe("mobile chrome fit at 390px", () => {
   it("tightens the map control rail so all three chips clear the viewport", () => {
     // 390px is the narrowest common phone; 430px keeps the roomier chips.
     expect(mobileMapCss).toMatch(
-      /@media \(max-width: 420px\)\s*{[\s\S]*?\.mobileMapRail > button\s*{[^}]*padding-inline:\s*9px/,
+      /@media \(max-width: 420px\)\s*{[\s\S]*?\.mobileMapRail > button\s*{[^}]*padding-inline:\s*5px/,
     );
   });
 
@@ -89,9 +89,13 @@ describe("mobile chrome fit at 390px", () => {
 
     const mobile = arcChipsCss.split("@media (max-width: 640px)")[1] ?? "";
     const railRule = mobile.match(/\.tonightArcChips\s*{([^}]*)}/)?.[1] ?? "";
-    const railLeft = Number(railRule.match(/left:\s*(\d+)px/)?.[1]);
+    const railLeft = Number(
+      mobileMapCss.match(/--mobile-map-stack-left:\s*(\d+)px/)?.[1],
+    );
     const laneFallback = Number(
-      railRule.match(/right:\s*var\(--mobile-map-corner-lane,\s*(\d+)px\)/)?.[1],
+      railRule.match(
+        /right:\s*var\(--mobile-map-stack-right,\s*var\(--mobile-map-corner-lane,\s*(\d+)px\)\)/,
+      )?.[1],
     );
     const railPadX = Number(railRule.match(/padding:\s*\d+px\s+(\d+)px/)?.[1]);
     const chipMinWidth = Number(
