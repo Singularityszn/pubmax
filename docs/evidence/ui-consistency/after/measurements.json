@@ -1,9 +1,9 @@
 {
   "phase": "after",
-  "capturedAt": "2026-07-30T17:27:49.224Z",
+  "capturedAt": "2026-07-30T17:50:54.186Z",
   "server": {
     "mode": "production",
-    "buildCommit": "d73eda7f"
+    "buildCommit": "3c95cce3"
   },
   "viewports": [
     {
@@ -235,6 +235,30 @@
               "height": 44
             }
           ]
+        },
+        {
+          "name": "analytics decisions",
+          "selector": ".analyticsConsentPromptActions > button",
+          "controls": [
+            {
+              "label": "Allow",
+              "left": 23,
+              "right": 192,
+              "top": 649,
+              "bottom": 693,
+              "width": 169,
+              "height": 44
+            },
+            {
+              "label": "No thanks",
+              "left": 198,
+              "right": 367,
+              "top": 649,
+              "bottom": 693,
+              "width": 169,
+              "height": 44
+            }
+          ]
         }
       ],
       "panels": [
@@ -336,6 +360,11 @@
           "detail": "44, 44, 44, 44, 44px; spread 0px"
         },
         {
+          "name": "analytics decisions shares one control height",
+          "passed": true,
+          "detail": "44, 44px; spread 0px"
+        },
+        {
           "name": "floating map stack shares one horizontal boundary",
           "passed": true,
           "detail": "mobile contextual controls 12-322px; Tonight Arc panel 12-322px; Describe your night 12-322px"
@@ -354,6 +383,16 @@
           "name": "analytics notice leaves map credit reachable",
           "passed": true,
           "detail": "notice 577.88-698px; credit 530-570px; overlap 0px"
+        },
+        {
+          "name": "analytics notice leaves primary map action clear",
+          "passed": true,
+          "detail": "notice 577.88-698px; action 710-758px; overlap 0px"
+        },
+        {
+          "name": "analytics notice stays below 24 percent of phone height",
+          "passed": true,
+          "detail": "14.23%"
         },
         {
           "name": "map credit expands",
@@ -2116,9 +2155,9 @@
           "left": 20,
           "right": 1260,
           "top": 64,
-          "bottom": 4576.95,
+          "bottom": 4369.45,
           "width": 1240,
-          "height": 4512.95
+          "height": 4305.45
         }
       ],
       "assertions": [
@@ -2180,9 +2219,9 @@
           "left": 0,
           "right": 1440,
           "top": 0,
-          "bottom": 5357.38,
+          "bottom": 5368.13,
           "width": 1440,
-          "height": 5357.38
+          "height": 5368.13
         }
       ],
       "assertions": [
@@ -3773,9 +3812,9 @@
         "left": 320,
         "right": 960,
         "top": 0,
-        "bottom": 1411.41,
+        "bottom": 1545.47,
         "width": 640,
-        "height": 1411.41
+        "height": 1545.47
       },
       "leftOffset": 320,
       "rightOffset": 320,

@@ -4,12 +4,14 @@ This evidence compares two production builds through Playwright at 390, 768,
 1280, and 1440 CSS pixels.
 
 - [Before](before/) was built from `3bc4dd42`.
-- [After](after/) was built from `d73eda7f`.
+- [After](after/) was built from `3c95cce3`.
 - Each phase used one completed `next build`, one `next start` process, and one
   sequential Playwright run for all widths and routes.
 - [Before measurements](before/measurements.json) and
   [after measurements](after/measurements.json) name server mode and build
   commit, and hold rendered boxes plus assertions.
+- Ordinary Playwright runs execute the same layout assertions without rewriting
+  evidence; explicit before or after phases add the captures and measurements.
 
 The earlier dev capture at `3bc4dd42` is retained in Git history but is not used
 for the comparison below. It left three route rows incomplete and therefore
@@ -37,6 +39,7 @@ list.
 
 No other audited route had unbalanced main-content gutters. After assertions
 reject unbalanced gutters, missing 200-response main content, and loading shells.
+The production after run recorded 47 passing layout assertions and zero failures.
 
 ## Shared-row control heights
 
@@ -121,5 +124,6 @@ Phone map checks passed:
 Desktop Options reuses the portalled `SiteNavMore` pattern. Render and route
 checks cover working Edit profile, Analytics choices, About, Privacy, Terms, and
 signed-in-only Sign out actions. Analytics choices targets the live account
-control. `/help` and `/settings` do not exist and are not listed; no About link
-is mislabeled as Help.
+control. Browser checks also cover keyboard entry, Escape focus return, exact
+destinations, and signed-out storage after Sign out. `/help` and `/settings` do
+not exist and are not listed; no About link is mislabeled as Help.
