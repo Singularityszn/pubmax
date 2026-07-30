@@ -198,6 +198,7 @@ export default function MapToolbar({
 
       <MapExperienceLensControl
         lens={experienceLens}
+        allSelected={!drinksActive}
         summary={experienceSummary}
         onChange={changeExperienceLens}
       />

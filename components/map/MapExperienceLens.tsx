@@ -14,10 +14,12 @@ const OPTIONS = [
 
 export default function MapExperienceLens({
   lens,
+  allSelected = true,
   summary,
   onChange,
 }: {
   lens: MapExperienceLensValue;
+  allSelected?: boolean;
   summary: string;
   onChange: (lens: MapExperienceLensValue) => void;
 }) {
@@ -29,7 +31,7 @@ export default function MapExperienceLens({
       </div>
       <div className="mapExperienceLensOptions" role="group" aria-label="Map view">
         {OPTIONS.map(({ id, label, Icon }) => {
-          const selected = lens === id;
+          const selected = lens === id && (id !== "all" || allSelected);
           return (
             <button
               key={id}

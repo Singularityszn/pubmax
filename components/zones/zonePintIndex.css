@@ -58,6 +58,12 @@
   box-shadow: var(--price-plaque-shine);
 }
 
+/* Interactive price plaques share the zone filter's neutral resting border.
+   The active class below is the only border that says a fare zone is selected. */
+button.zonePintCell.isPriced:not(.isActive) {
+  border-color: color-mix(in srgb, var(--line) 70%, var(--accent-action) 30%);
+}
+
 .zonePintCell.isThin {
   border-style: dashed;
   opacity: 0.78;
