@@ -90,23 +90,25 @@ should prefer the semantic name so a future palette change (e.g. retuning
 --color-text              → var(--ink)
 --color-text-soft         → var(--ink-soft)
 --color-text-muted        → var(--muted)
+--input-placeholder       → var(--muted)
 --color-border            → var(--line)
 --color-border-soft       → var(--line-soft)
 ```
 
-### Fixed-contrast text
+### Text on painted fills
 
-A handful of places set text colour on an **accent fill** (a brass
-button or gradient, an ink-deep button, a photo-caption scrim) rather than a
-theme-flipping surface. That text must stay constant in both themes — the
-fill already carries the theme's contrast logic. Use these instead of a raw
-hex:
+A handful of places set text colour on an **accent fill** (a brass button or
+gradient, an ink-deep button, a photo-caption scrim) rather than a page
+surface. Use these roles instead of a raw hex. Regular brass brightens in dark
+mode, so its text role flips with the theme; inverse, strong-accent, and photo
+fills keep fixed text colours. Exact values live in `app/globals.css` and
+`app/theme.css`.
 
 ```
---color-on-accent          #fdfaf2   cream text for qualifying dark accent fills
---color-on-inverse         #fdfaf2   cream text on solid ink-deep
---color-on-accent-strong   #16122a   dark text on coral or brass-bright
---color-on-photo           #ffffff   white text on a photo-scrim overlay
+--color-on-accent          theme-aware text on regular brass
+--color-on-inverse         cream text on solid ink-deep
+--color-on-accent-strong   dark text on coral or brass-bright
+--color-on-photo           white text on a photo-scrim overlay
 ```
 
 ## Type

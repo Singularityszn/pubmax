@@ -147,11 +147,11 @@
   --hairline: #e2e0e3;
   --hairline-strong: color-mix(in srgb, var(--hairline) 68%, var(--ink-soft) 32%);
 
-  /* Fixed-contrast text: for content sitting on an accent fill or gradient
-     (buttons, chips, photo captions), not a theme-flipping surface. These
-     intentionally do NOT change between themes — the fill they sit on
-     already carries the theme's contrast logic. */
-  --color-on-accent: #fdfaf2; /* cream text for qualifying dark accent fills */
+  /* Contrast text: for content sitting on an accent fill or gradient
+     (buttons, chips, photo captions), not a page surface. Regular brass
+     brightens in dark mode, so --color-on-accent flips there; inverse,
+     strong-accent, and photo fills keep fixed text colours. */
+  --color-on-accent: #fdfaf2; /* light-theme text on regular brass */
   --color-on-inverse: #fdfaf2; /* cream text on solid ink-deep */
   --color-on-accent-strong: #16122a; /* dark text on coral or bright accent */
   --color-on-photo: #ffffff; /* white text on a photo-scrim overlay */
@@ -5586,10 +5586,10 @@ html[data-legacy="1"] .textured-panel::before {
      · dark  + legacy-dark   → --cat-* is bright → INK-DEEP text (AA min 6.96 / 8.91)
 
    `--cat-on-fill` encodes exactly that flip, mirroring how the design system's
-   --color-on-accent (cream) / --color-on-accent-strong (ink) split works for
-   solid brass. Consumers set `color: var(--cat-on-fill)` on any solid category
-   fill and get an AA-clearing pairing in all four theme×legacy combinations —
-   verified with computed WCAG ratios, not eyeballed. Nothing above is modified.
+   --color-on-accent theme flip works for regular brass. Consumers set
+   `color: var(--cat-on-fill)` on any solid category fill and get an AA-clearing
+   pairing in all four theme×legacy combinations —
+   verified with computed WCAG ratios, not eyeballed.
    ═══════════════════════════════════════════════════════════════════════════ */
 :root {
   /* Light theme: cat tokens are dark → cream text clears AA (min 4.51). */

@@ -12,7 +12,7 @@ For each result, inspect its enclosing media query. The inventory below includes
 
 This source sweep is supplementary discovery only. CSS enumeration cannot prove that a component is mounted, that its text reaches the rendered page, or that an ancestor leaves it visible. Acceptance uses rendered production pages at 390px and 430px.
 
-PROSE MAY BE BOUNDED, BUT THE QUALIFIER ATTACHED TO IT MUST LIVE OUTSIDE THE BOUND.
+PROSE MAY BE BOUNDED, BUT ITS FULL QUALIFIED TEXT MUST REMAIN DISCLOSABLE.
 
 The bounded heritage cards now use the existing native `details` disclosure pattern. Their closed state is a two-line visual preview of the same complete text node, and Show more removes that clamp. Dates, uncertainty, present-day limits, and other attached qualifiers therefore remain intact in HTML and reachable without natural-language parsing. Explicit qualifier fields were considered and judged UNNECESSARY, not deferred, because disclosure keeps the full text present and exposes it through a native control.
 
@@ -42,9 +42,9 @@ These figures come from computed paint composited through each rendered element'
 
 | File and selector | Render ownership | Decision |
 | --- | --- | --- |
-| `components/map/cityStatusBanner.css` `.cityStatusBannerCopy` | `PubMap` mounts `CityStatusBanner` only when `!mobileViewport`. | Not mounted on mobile. Desktop banner and expanded sheet now share a content-sized flow stack, so wrapped headlines determine following-sheet geometry. Phone service-status presentation remains a separate product decision. |
-| `components/map/cityStatusBanner.css` `.cityStatusBannerDismiss` | Same desktop-only `CityStatusBanner` boundary. | Not mounted on mobile and not fixed here. |
-| `components/map/citySuggestBanner.css` `.citySuggestBannerCopy` | `PubMap` mounts `CitySuggestBanner` only when `!mobileViewport`. | Not mounted on mobile and not fixed here. Phone city-suggestion presentation remains a separate product decision. |
+| `components/map/cityStatusBanner.css` `.cityStatusBannerCopy` | `PubMap` mounts `CityStatusBanner` only when `!mobileViewport`. | No phone change required. Desktop banner and expanded sheet now share a content-sized flow stack, so wrapped headlines determine following-sheet geometry. Phone service-status presentation remains a separate product decision. |
+| `components/map/cityStatusBanner.css` `.cityStatusBannerDismiss` | Same desktop-only `CityStatusBanner` boundary. | No phone change required. |
+| `components/map/citySuggestBanner.css` `.citySuggestBannerCopy` | `PubMap` mounts `CitySuggestBanner` only when `!mobileViewport`. | No phone change required. Phone city-suggestion presentation remains a separate product decision. |
 
 ## Rendered acceptance
 

@@ -65,7 +65,7 @@ public nav. No live Reddit/X scrapers. No full food menus. No Legacy T remount.
 
 ### G3 — Band deep-link onboarding
 - First map visit with `?band={id}` shows a dismissible corridor chip:
-  title + one-line copy + “Walk this story” / dismiss.
+  title + full wrapping story copy + “Walk this story” / dismiss.
 - Does not fight the existing curated-crawl onboarding; band chip wins when
   `bandId` is set from the URL.
 

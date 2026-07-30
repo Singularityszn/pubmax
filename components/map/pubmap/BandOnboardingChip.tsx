@@ -1,9 +1,8 @@
 import { X } from "lucide-react";
 
-// G3: Place story deep-link chip — corridor title + one-line copy when `?band=`
-// resolves. Global CSS (bandOnboardingChip) is already imported by PubMap.
-// Extracted verbatim from PubMap (F1); the showBandChip/activeBand guard stays
-// in PubMap.
+// G3: Place story deep-link chip. Story copy wraps in full because its closing
+// conditions can qualify the route; the showBandChip/activeBand guard stays in
+// PubMap.
 export function BandOnboardingChip({
   title,
   copy,
