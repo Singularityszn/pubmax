@@ -72,6 +72,7 @@
   color: var(--muted);
   font-size: 0.65rem;
   font-weight: 650;
+  line-height: 1.25;
   white-space: normal;
 }
 
@@ -165,7 +166,7 @@
   /* Tonight and TfL are peers in one compact live rail. They no longer stack
      into three full-width banners above the map. */
   .tonightLaneCollapsed { max-width: calc(100vw - 158px); border-color: var(--line); background: color-mix(in srgb, var(--panel-raised) 94%, transparent); }
-  .tonightLaneCollapsedChecked { display: none; }
+  .tonightLaneCollapsedMain { padding-block: 7px; }
 }
 
 .tonightLaneHead {
@@ -186,6 +187,7 @@
   display: inline-flex;
   align-items: baseline;
   flex: 1 1 auto;
+  flex-wrap: wrap;
   min-width: 0;
   gap: 10px;
 }
@@ -273,10 +275,12 @@
 }
 
 .tonightLaneChecked {
+  min-width: 0;
+  overflow-wrap: break-word;
   font-size: 0.66rem;
   font-weight: 600;
   color: var(--muted);
-  white-space: nowrap;
+  white-space: normal;
 }
 
 .tonightLaneGardenCue {
@@ -524,10 +528,6 @@
 }
 
 @media (max-width: 420px) {
-  .tonightLaneCollapsedChecked {
-    display: none;
-  }
-
   .tonightLaneTitleRow {
     gap: 6px;
   }
@@ -536,9 +536,6 @@
     gap: 6px;
   }
 
-  .tonightLaneChecked {
-    display: none;
-  }
 }
 
 @media (prefers-reduced-motion: no-preference) {

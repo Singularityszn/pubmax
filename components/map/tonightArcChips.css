@@ -50,8 +50,11 @@
 }
 
 .tonightArcChip:disabled {
+  border-color: var(--line);
+  background: var(--panel-raised);
+  color: var(--muted);
   cursor: not-allowed;
-  opacity: 0.42;
+  opacity: 1;
 }
 
 .tonightArcChip:focus-visible {

@@ -21,6 +21,14 @@ const CSS = [
 
 type Rgba = [number, number, number, number];
 
+type PaintState = {
+  colour: string;
+  opacity: number;
+  backgroundColour: string;
+  backgroundImage: string;
+  ancestorBackgrounds: string[];
+};
+
 function parseColour(value: string): Rgba {
   const channels = value.match(/-?\d+(?:\.\d+)?/g)?.map(Number);
   if (!channels || channels.length < 3) {
@@ -82,36 +90,98 @@ function gradientColours(backgroundImage: string): Rgba[] {
   ).map(parseColour);
 }
 
-async function expectAaText(
-  locator: Locator,
-  background: "solid" | "gradient" = "solid",
-): Promise<void> {
-  const computed = await locator.evaluate((node) => {
+function withAlpha(colour: Rgba, alpha: number): Rgba {
+  return [colour[0], colour[1], colour[2], alpha];
+}
+
+function resolveBackdrop(ancestorBackgrounds: string[]): Rgba {
+  return ancestorBackgrounds
+    .map(parseColour)
+    .reverse()
+    .reduce<Rgba>(
+      (background, foreground) => composite(foreground, background),
+      [255, 255, 255, 1],
+    );
+}
+
+async function readPaintState(
+  colourLocator: Locator,
+  surfaceLocator: Locator = colourLocator,
+  pseudo?: "::placeholder",
+): Promise<PaintState> {
+  const colour = await colourLocator.evaluate(
+    (node, pseudoElement) => getComputedStyle(node, pseudoElement).color,
+    pseudo,
+  );
+  return surfaceLocator.evaluate((node, foregroundColour) => {
     const style = getComputedStyle(node);
+    const ancestorBackgrounds: string[] = [];
+    let ancestor = node.parentElement;
+    while (ancestor) {
+      ancestorBackgrounds.push(getComputedStyle(ancestor).backgroundColor);
+      ancestor = ancestor.parentElement;
+    }
     return {
-      colour: style.color,
+      colour: foregroundColour,
+      opacity: Number(style.opacity),
       backgroundColour: style.backgroundColor,
       backgroundImage: style.backgroundImage,
+      ancestorBackgrounds,
     };
-  });
+  }, colour);
+}
 
-  const foreground = parseColour(computed.colour);
-  const backgrounds =
+function renderedContrastRatios(
+  state: PaintState,
+  background: "solid" | "gradient" = "solid",
+): number[] {
+  const foreground = parseColour(state.colour);
+  const backdrop = resolveBackdrop(state.ancestorBackgrounds);
+  const surfaceColour = parseColour(state.backgroundColour);
+  const surfaceBase = composite(surfaceColour, backdrop);
+  const paintedBackgrounds =
     background === "gradient"
-      ? gradientColours(computed.backgroundImage)
-      : [parseColour(computed.backgroundColour)];
+      ? gradientColours(state.backgroundImage).map((stop) =>
+          composite(stop, surfaceBase),
+        )
+      : [surfaceBase];
 
-  expect(backgrounds.length).toBeGreaterThan(0);
-  for (const paintedBackground of backgrounds) {
-    expect(
-      contrastRatio(
-        foreground[3] < 1
-          ? composite(foreground, paintedBackground)
-          : foreground,
-        paintedBackground,
-      ),
-    ).toBeGreaterThanOrEqual(4.5);
-  }
+  return paintedBackgrounds.map((paintedBackground) => {
+    const localForeground = composite(foreground, paintedBackground);
+    const renderedForeground = composite(
+      withAlpha(localForeground, state.opacity),
+      backdrop,
+    );
+    const renderedBackground = composite(
+      withAlpha(paintedBackground, state.opacity),
+      backdrop,
+    );
+    return contrastRatio(renderedForeground, renderedBackground);
+  });
+}
+
+async function expectRenderedTextContrast(
+  colourLocator: Locator,
+  options: {
+    background?: "solid" | "gradient";
+    minimum?: number;
+    pseudo?: "::placeholder";
+    surfaceLocator?: Locator;
+  } = {},
+): Promise<number> {
+  const state = await readPaintState(
+    colourLocator,
+    options.surfaceLocator,
+    options.pseudo,
+  );
+  const ratios = renderedContrastRatios(state, options.background);
+  expect(ratios.length).toBeGreaterThan(0);
+  const minimumRatio = Math.min(...ratios);
+  expect(
+    minimumRatio,
+    `Rendered contrast for ${await colourLocator.evaluate((node) => node.className)} from ${JSON.stringify(state)}`,
+  ).toBeGreaterThanOrEqual(options.minimum ?? 4.5);
+  return minimumRatio;
 }
 
 async function prepareDarkSurfaces(
@@ -121,12 +191,18 @@ async function prepareDarkSurfaces(
   await page.setViewportSize(viewport);
   await page.emulateMedia({ reducedMotion: "reduce" });
   await page.setContent(`
-    <style>
-      ${CSS}
-      body { margin: 0; padding: 16px; }
-      .surfaceFixture { display: grid; gap: 18px; }
-    </style>
-    <main class="surfaceFixture">
+    <!doctype html>
+    <html data-theme="dark">
+    <head>
+      <style>
+        ${CSS}
+        body { margin: 0; padding: 16px; }
+        .surfaceFixture { display: grid; gap: 18px; }
+        .surfaceFixture > section { background: var(--paper); }
+      </style>
+    </head>
+    <body>
+      <main class="surfaceFixture">
       <section class="lp">
         <nav class="lpNav">
           <a class="lpWordmark" href="#">PUBMAXXING</a>
@@ -159,11 +235,10 @@ async function prepareDarkSurfaces(
           <button class="vpsubLog" disabled>Log it</button>
         </aside>
       </section>
-    </main>
+      </main>
+    </body>
+    </html>
   `);
-  await page.locator("html").evaluate((html) => {
-    html.dataset.theme = "dark";
-  });
 }
 
 for (const viewport of VIEWPORTS) {
@@ -172,10 +247,14 @@ for (const viewport of VIEWPORTS) {
   }) => {
     await prepareDarkSurfaces(page, viewport);
 
-    await expectAaText(page.locator(".lpButtonPrimary"));
-    await expectAaText(page.locator(".tonightArcChip.isOn"));
-    await expectAaText(page.locator(".venueTab.active"), "gradient");
-    await expectAaText(page.locator(".venueSheetStickyPrimary"), "gradient");
+    await expectRenderedTextContrast(page.locator(".lpButtonPrimary"));
+    await expectRenderedTextContrast(page.locator(".tonightArcChip.isOn"));
+    await expectRenderedTextContrast(page.locator(".venueTab.active"), {
+      background: "gradient",
+    });
+    await expectRenderedTextContrast(page.locator(".venueSheetStickyPrimary"), {
+      background: "gradient",
+    });
 
     const landingMaterial = await page.locator(".lpNav").evaluate((node) => {
       const style = getComputedStyle(node);
@@ -189,39 +268,20 @@ for (const viewport of VIEWPORTS) {
     expect(landingMaterial.backdropFilter).toBe("none");
 
     for (const selector of [".cityChooserSearchInput", ".vpsubInput"]) {
-      const placeholder = await page.locator(selector).evaluate((node) => {
-        const field = node.closest(".cityChooserSearchField");
-        const backgroundNode = field ?? node.parentElement;
-        return {
-          colour: getComputedStyle(node, "::placeholder").color,
-          background: getComputedStyle(backgroundNode!).backgroundColor,
-        };
+      const input = page.locator(selector);
+      const surface =
+        selector === ".cityChooserSearchInput"
+          ? page.locator(".cityChooserSearchField")
+          : page.locator(".vpsubPriceRow");
+      await expectRenderedTextContrast(input, {
+        pseudo: "::placeholder",
+        surfaceLocator: surface,
       });
-      const placeholderBackground = parseColour(placeholder.background);
-      expect(
-        contrastRatio(
-          composite(parseColour(placeholder.colour), placeholderBackground),
-          placeholderBackground,
-        ),
-      ).toBeGreaterThanOrEqual(4.5);
     }
 
-    const disabled = page.locator(".tonightArcChip:disabled");
-    const disabledState = await disabled.evaluate((node) => {
-      const style = getComputedStyle(node);
-      return {
-        opacity: Number(style.opacity),
-        colour: style.color,
-        background: style.backgroundColor,
-      };
-    });
-    expect(disabledState.opacity).toBeGreaterThanOrEqual(0.4);
-    expect(
-      contrastRatio(
-        parseColour(disabledState.colour),
-        parseColour(disabledState.background),
-      ),
-    ).toBeGreaterThanOrEqual(4.5);
+    for (const selector of [".tonightArcChip:disabled", ".vpsubLog:disabled"]) {
+      await expectRenderedTextContrast(page.locator(selector));
+    }
 
     const activeTab = page.locator(".venueTab.active");
     await activeTab.focus();
@@ -233,18 +293,17 @@ for (const viewport of VIEWPORTS) {
       };
     });
     expect(focusState.outline).not.toBe("none");
+    const sheetPaint = await readPaintState(page.locator(".mobileSharedSheet"));
+    const sheetBackground = composite(
+      parseColour(sheetPaint.backgroundColour),
+      resolveBackdrop(sheetPaint.ancestorBackgrounds),
+    );
     expect(
-      contrastRatio(
-        parseColour(focusState.outlineColour),
-        parseColour("rgb(32, 32, 36)"),
-      ),
+      contrastRatio(parseColour(focusState.outlineColour), sheetBackground),
     ).toBeGreaterThanOrEqual(3);
 
     await page.locator(".venueTab:not(.active)").hover();
-    await expect(page.locator(".venueTab:not(.active)")).toHaveCSS(
-      "color",
-      "rgb(238, 243, 239)",
-    );
+    await expectRenderedTextContrast(page.locator(".venueTab:not(.active)"));
 
     const overflow = await page.evaluate(
       () => document.documentElement.scrollWidth - innerWidth,

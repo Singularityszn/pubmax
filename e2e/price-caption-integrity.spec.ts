@@ -16,6 +16,8 @@ type CaptionCase = {
   expected: string;
   markup: string;
   checkNextSibling?: boolean;
+  checkNoOverlapSelector?: string;
+  growingContainerSelector?: string;
   visibleAtPhone?: boolean;
 };
 
@@ -146,12 +148,34 @@ const CAPTION_CASES: CaptionCase[] = [
     markup: `
       <div class="tonightLaneCollapsed">
         <button class="tonightLaneCollapsedMain">
-          <span class="tonightLaneCollapsedTitle">Tonight</span>
+          <span class="tonightLaneCollapsedTitle">On tonight · 12</span>
           <span class="tonightLaneCollapsedChecked">Checked 30 July from listed sources</span>
         </button>
+        <button class="tonightLaneOverlayToggle">Map</button>
       </div>
     `,
-    visibleAtPhone: false,
+    checkNoOverlapSelector: ".tonightLaneOverlayToggle",
+    growingContainerSelector: ".tonightLaneCollapsedMain",
+  },
+  {
+    name: "tonight expanded freshness",
+    cssPath: "components/map/tonightLane.css",
+    selector: ".tonightLaneChecked",
+    expected: "Checked 30 July from listed sources",
+    markup: `
+      <section class="tonightLane tonightLane--open tonightLane--sheet">
+        <div class="tonightLaneHead">
+          <div class="tonightLaneTitleRow">
+            <div class="tonightLaneTitleMeta">
+              <h2 class="tonightLaneTitle">On tonight</h2>
+              <span class="tonightLaneChecked">Checked 30 July from listed sources</span>
+            </div>
+            <button class="tonightLaneClose">Close</button>
+          </div>
+        </div>
+      </section>
+    `,
+    checkNoOverlapSelector: ".tonightLaneClose",
   },
   {
     name: "featured story claim",
@@ -292,6 +316,37 @@ for (const viewport of VIEWPORTS) {
         expect(qualifierBox).not.toBeNull();
         expect(nextBox).not.toBeNull();
         expect(nextBox!.y).toBeGreaterThanOrEqual(qualifierBox!.y + qualifierBox!.height);
+      }
+
+      if (captionCase.checkNoOverlapSelector) {
+        const qualifierBox = await qualifier.boundingBox();
+        const peer = page.locator(captionCase.checkNoOverlapSelector);
+        await expect(peer).toBeVisible();
+        const peerBox = await peer.boundingBox();
+        expect(qualifierBox).not.toBeNull();
+        expect(peerBox).not.toBeNull();
+        const overlaps =
+          qualifierBox!.x < peerBox!.x + peerBox!.width &&
+          qualifierBox!.x + qualifierBox!.width > peerBox!.x &&
+          qualifierBox!.y < peerBox!.y + peerBox!.height &&
+          qualifierBox!.y + qualifierBox!.height > peerBox!.y;
+        expect(overlaps).toBe(false);
+      }
+
+      if (captionCase.growingContainerSelector) {
+        const container = page.locator(captionCase.growingContainerSelector);
+        const containerBox = await container.boundingBox();
+        const qualifierBox = await qualifier.boundingBox();
+        expect(containerBox).not.toBeNull();
+        expect(qualifierBox).not.toBeNull();
+        expect(containerBox!.height).toBeGreaterThanOrEqual(44);
+        if (viewport.width === 390) {
+          expect(containerBox!.height).toBeGreaterThan(44);
+        }
+        expect(qualifierBox!.y).toBeGreaterThanOrEqual(containerBox!.y);
+        expect(qualifierBox!.y + qualifierBox!.height).toBeLessThanOrEqual(
+          containerBox!.y + containerBox!.height,
+        );
       }
 
       const documentOverflow = await page.evaluate(
