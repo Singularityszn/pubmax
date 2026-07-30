@@ -23,7 +23,8 @@ type ZonePickerProps = {
   /**
    * "toolbar" (default) renders a button that toggles a popover — for the map
    * chip row. "inline" renders the chips + index directly, for the mobile
-   * filters sheet where it sits beside the drink chips.
+   * filters sheet where it sits beside the drink chips. Both variants retain
+   * the index basis.
    */
   variant?: "toolbar" | "inline";
 };

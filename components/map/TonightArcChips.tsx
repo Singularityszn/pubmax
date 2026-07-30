@@ -12,11 +12,11 @@ import "./tonightArcChips.css";
 const CHIPS: ReadonlyArray<{
   kind: CuratedVenueKind | "club";
   label: string;
-  disabled?: boolean;
+  unavailableReason?: string;
 }> = [
   { kind: "pub", label: "Pints" },
   { kind: "bar", label: "Bars" },
-  { kind: "club", label: "Clubs", disabled: true },
+  { kind: "club", label: "Clubs", unavailableReason: "are not mapped yet" },
   { kind: "food", label: "Food" },
   { kind: "restaurant", label: "Restaurants" },
 ];
@@ -46,23 +46,43 @@ export default function TonightArcChips({
       <div className="tonightArcRow">
         {chips.map((chip) => {
           const on = chip.kind === "club" ? false : visibility[chip.kind];
+          const unavailable = chip.unavailableReason !== undefined;
           return (
             <button
               key={chip.kind}
               type="button"
               className={on ? "tonightArcChip isOn" : "tonightArcChip"}
               aria-pressed={on}
-              disabled={chip.disabled}
-              title={chip.disabled ? "Clubs arrive in Wave 2" : undefined}
+              aria-label={
+                unavailable
+                  ? `${chip.label} ${chip.unavailableReason}`
+                  : undefined
+              }
+              disabled={unavailable}
+              title={unavailable ? `${chip.label} ${chip.unavailableReason}` : undefined}
               onClick={() => {
                 if (chip.kind !== "club") {
                   onChange(toggleVenueKind(visibility, chip.kind));
                 }
               }}
             >
-              {experienceLens === "no-alcohol" && chip.kind === "pub"
-                ? "Pubs"
-                : chip.label}
+              {on ? (
+                <span className="tonightArcChipSelected" aria-hidden="true">
+                  ✓
+                </span>
+              ) : null}
+              <span className="tonightArcChipLabel">
+                <span>
+                  {experienceLens === "no-alcohol" && chip.kind === "pub"
+                    ? "Pubs"
+                    : chip.label}
+                </span>
+                {unavailable ? (
+                  <small className="tonightArcChipUnavailable">
+                    {chip.unavailableReason}
+                  </small>
+                ) : null}
+              </span>
             </button>
           );
         })}

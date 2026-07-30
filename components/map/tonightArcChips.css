@@ -32,6 +32,10 @@
 }
 
 .tonightArcChip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
   min-width: 58px;
   min-height: 38px;
   padding: 5px 10px;
@@ -41,6 +45,24 @@
   color: var(--ink-soft);
   font: 700 0.75rem/1 var(--font-sans);
   cursor: pointer;
+}
+
+.tonightArcChipSelected {
+  flex: 0 0 auto;
+  font-size: 0.8rem;
+  line-height: 1;
+}
+
+.tonightArcChipLabel {
+  display: grid;
+  gap: 1px;
+}
+
+.tonightArcChipUnavailable {
+  font-size: 0.56rem;
+  font-weight: 750;
+  line-height: 1;
+  text-transform: uppercase;
 }
 
 .tonightArcChip.isOn {

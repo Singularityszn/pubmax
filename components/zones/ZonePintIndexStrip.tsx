@@ -22,7 +22,7 @@ type ZonePintIndexStripProps = {
   onPickZone?: (zone: number) => void;
   /** Currently-selected zone, for the active cell state. */
   activeZone?: number | null;
-  /** Compact variant for the map popover (smaller type, no method note). */
+  /** Compact variant for the map popover (smaller type). */
   compact?: boolean;
 };
 
@@ -103,14 +103,12 @@ export default function ZonePintIndexStrip({
         )}
       </p>
 
-      {!compact ? (
-        <p className="zonePintIndexMethod">
-          Zones are each pub&rsquo;s <strong>nearest station&rsquo;s</strong>{" "}TfL fare
-          zone (a documented approximation, not an area boundary). Medians use real
-          observed pints; a zone with fewer than {MIN_PRICED_VENUES} priced pubs is
-          held back rather than guessed.
-        </p>
-      ) : null}
+      <p className="zonePintIndexMethod">
+        Each zone figure is the median of the cheapest recorded pint price for
+        pubs assigned to that zone. Assignment uses each pub&rsquo;s nearest
+        station&rsquo;s TfL fare zone. A figure appears after{" "}
+        {MIN_PRICED_VENUES} priced pubs.
+      </p>
     </div>
   );
 }
