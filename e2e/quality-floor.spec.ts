@@ -223,6 +223,7 @@ test("quality floor: a POI category toggle flips in the coordinated Layers sheet
 
   const layers = page.locator('.mobileSheetPortal[data-sheet-kind="layers"]');
   await expect(layers).toBeVisible();
+  await layers.getByRole("tab", { name: "Layers" }).click();
 
   const poiGroup = layers.getByRole("group", { name: "Points of interest" });
   await expect(poiGroup).toBeVisible();

@@ -420,6 +420,72 @@ for (const width of [390, 320]) {
   });
 }
 
+for (const width of [1280, 1440]) {
+  test(`${width}px OpenStreetMap credit owns its hit target and opens`, async ({
+    page,
+  }) => {
+    test.setTimeout(90_000);
+    await page.setViewportSize({ width, height: 900 });
+    const response = await page.goto("/map");
+    expect(response?.status()).toBe(200);
+
+    const attribution = page.locator(".maplibregl-ctrl-attrib");
+    await expect(attribution).toBeVisible({ timeout: 45_000 });
+    const fullCredit = attribution.locator(".maplibregl-ctrl-attrib-inner");
+    if (!(await fullCredit.isVisible())) {
+      await attribution.locator(".maplibregl-ctrl-attrib-button").click();
+    }
+
+    const openStreetMap = attribution
+      .getByRole("link", { name: "OpenStreetMap", exact: true })
+      .last();
+    await expect(openStreetMap).toBeVisible();
+    const box = await openStreetMap.boundingBox();
+    expect(box).not.toBeNull();
+    const centre = {
+      x: box!.x + box!.width / 2,
+      y: box!.y + box!.height / 2,
+    };
+    const hit = await openStreetMap.evaluate((credit, { x, y }) => {
+      const element = document.elementFromPoint(x, y);
+      return {
+        isCredit: element === credit,
+        tagName: element?.tagName.toLowerCase() ?? null,
+        className:
+          element && typeof element.className === "string"
+            ? element.className
+            : null,
+        accessibleName:
+          element?.getAttribute("aria-label") ??
+          element?.textContent?.replace(/\s+/g, " ").trim() ??
+          null,
+      };
+    }, centre);
+    expect(
+      hit.isCredit,
+      `credit centre belongs to ${JSON.stringify(hit)}`,
+    ).toBe(true);
+
+    const opened = Promise.any([
+      page.waitForEvent("popup", { timeout: 5_000 }).then((popup) => ({
+        kind: "popup",
+        url: popup.url(),
+      })),
+      page
+        .waitForURL(/^https?:\/\/(?:www\.)?openstreetmap\.org\//, {
+          timeout: 5_000,
+        })
+        .then(() => ({ kind: "navigation", url: page.url() })),
+    ]);
+    await page.mouse.click(centre.x, centre.y);
+    const destination = await opened;
+    expect(destination.kind).toMatch(/^(popup|navigation)$/);
+    expect(destination.url).toMatch(
+      /^https?:\/\/(?:www\.)?openstreetmap\.org\//,
+    );
+  });
+}
+
 test("390px drink glyphs keep the requested 22px box", async ({ page }) => {
   test.setTimeout(90_000);
   const sheet = await openFilters(page);
