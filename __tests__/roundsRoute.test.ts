@@ -634,6 +634,50 @@ describe("POST /api/rounds/[code] — actions", () => {
     });
   });
 
+  it("keeps an incompletely onboarded member's spend in the private diary", async () => {
+    const { round } = await newRound("ken");
+    await action(round.code, {
+      action: "addStop",
+      handle: "ken",
+      venueId: "venue-1",
+    });
+    await memoryProfileStore.linkUser("ken", "user-ken");
+    authState.userId = "user-ken";
+
+    const response = await action(
+      round.code,
+      {
+        action: "recordSpend",
+        handle: "ken",
+        payerHandle: "ken",
+        venueId: "venue-1",
+        clientRef: "spend-onboarding-1",
+        items: [
+          { drinkName: "Guinness", drinkCategory: "beer", priceGbp: 6.2 },
+        ],
+      },
+      { authorization: "Bearer valid" },
+    );
+
+    expect(response.status).toBe(409);
+    expect(await response.json()).toMatchObject({
+      status: "onboarding_required",
+    });
+    const state = (await (await get(round.code)).json()) as RoundState;
+    expect(state.spends).toMatchObject([
+      {
+        clientRef: "spend-onboarding-1",
+        items: [
+          {
+            drinkName: "Guinness",
+            promotionStatus: "diary_only",
+          },
+        ],
+      },
+    ]);
+    expect(await readCommunityPrices("venue-1")).toEqual([]);
+  });
+
   it("attributes an account's itemised Round price to its public handle", async () => {
     await authorizeContributor("user-ken", "ken");
     const { round } = await newRound("ken");
