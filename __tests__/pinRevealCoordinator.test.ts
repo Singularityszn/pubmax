@@ -6,7 +6,7 @@ import {
 } from "@/components/map/canvas/pinRevealCoordinator";
 
 function harness() {
-  let tilesLoaded = false;
+  let basemapPainted = false;
   let nextId = 1;
   const frames = new Map<number, FrameRequestCallback>();
   const timers = new Map<number, () => void>();
@@ -19,7 +19,7 @@ function harness() {
   const coordinator = createPinRevealCoordinator({
     pinRevealTimeoutMs: 3_000,
     readyCeilingMs: 12_000,
-    areTilesLoaded: () => tilesLoaded,
+    hasBasemapPainted: () => basemapPainted,
     setPinsVisible: (visible) => visibility.push(visible),
     subscribeRender: (listener) => {
       renderListeners.add(listener);
@@ -56,7 +56,7 @@ function harness() {
     idleListeners,
     frames,
     timers,
-    setTilesLoaded(value: boolean) { tilesLoaded = value; },
+    setBasemapPainted(value: boolean) { basemapPainted = value; },
     fireRender() { [...renderListeners].forEach((listener) => listener()); },
     fireIdle() { [...idleListeners].forEach((listener) => listener()); },
     flushFrame() {
@@ -98,7 +98,7 @@ describe("pin reveal coordinator", () => {
     expect(h.visibility).toEqual([false]);
     expect(h.frames.size).toBe(0);
 
-    h.setTilesLoaded(true);
+    h.setBasemapPainted(true);
     h.fireRender();
     expect(h.visibility).toEqual([false]);
     h.flushFrame();
@@ -131,7 +131,7 @@ describe("pin reveal coordinator", () => {
     expect(h.reveals).toEqual([]);
 
     // The basemap finally paints: the real frame lifts the chrome, not the ceiling.
-    h.setTilesLoaded(true);
+    h.setBasemapPainted(true);
     h.fireRender();
     h.flushFrame();
 
@@ -139,6 +139,19 @@ describe("pin reveal coordinator", () => {
     // Pins were already shown by the fallback, so no duplicate visibility write.
     expect(h.visibility).toEqual([false, true]);
     expect(h.timers.size).toBe(0);
+  });
+
+  it("accepts a painted basemap while another tiled source is still pending", () => {
+    const h = harness();
+    h.coordinator.arm();
+    h.setBasemapPainted(true);
+
+    h.fireRender();
+    h.flushFrame();
+    h.fireCeiling();
+
+    expect(h.reveals).toEqual([{ reason: "tiles", generation: 1 }]);
+    expect(h.visibility).toEqual([false, true]);
   });
 
   it("lifts the chrome at the honest ceiling only when tiles never settle", () => {
@@ -159,7 +172,7 @@ describe("pin reveal coordinator", () => {
     const firstTimer = [...h.timers.values()][0];
 
     h.coordinator.arm();
-    h.setTilesLoaded(true);
+    h.setBasemapPainted(true);
     staleRender?.();
     firstTimer?.();
     expect(h.reveals).toEqual([]);
@@ -172,7 +185,7 @@ describe("pin reveal coordinator", () => {
 
   it("prevents post-unmount frame and timer writes", () => {
     const h = harness();
-    h.setTilesLoaded(true);
+    h.setBasemapPainted(true);
     h.coordinator.arm();
     h.fireRender();
     const staleFrame = [...h.frames.values()][0];
@@ -190,7 +203,7 @@ describe("pin reveal coordinator", () => {
 
   it("does not trust the pre-render tile-ready value after a style load", () => {
     const h = harness();
-    h.setTilesLoaded(true);
+    h.setBasemapPainted(true);
     h.coordinator.arm();
 
     expect(h.frames.size).toBe(0);
@@ -204,7 +217,7 @@ describe("pin reveal coordinator", () => {
   it("reveals from idle only after tile readiness and still does so once", () => {
     const h = harness();
     h.coordinator.arm();
-    h.setTilesLoaded(true);
+    h.setBasemapPainted(true);
     h.fireIdle();
     h.flushFrame();
     h.fireRender();

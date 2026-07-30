@@ -28,7 +28,7 @@ type PinRevealCoordinatorOptions = {
    * expose a flat basemap void behind a prematurely retired skeleton.
    */
   readyCeilingMs: number;
-  areTilesLoaded: () => boolean;
+  hasBasemapPainted: () => boolean;
   setPinsVisible: (visible: boolean) => void;
   subscribeRender: (listener: () => void) => () => void;
   subscribeIdle: (listener: () => void) => () => void;
@@ -57,7 +57,7 @@ type PinRevealCoordinatorOptions = {
 export function createPinRevealCoordinator({
   pinRevealTimeoutMs,
   readyCeilingMs,
-  areTilesLoaded,
+  hasBasemapPainted,
   setPinsVisible,
   subscribeRender,
   subscribeIdle,
@@ -120,10 +120,10 @@ export function createPinRevealCoordinator({
       onReveal?.(reason, armedGeneration);
     };
     const scheduleTileReveal = (reason: Exclude<PinRevealReason, "timeout">) => {
-      if (!isCurrent() || frame !== null || !areTilesLoaded()) return;
+      if (!isCurrent() || frame !== null || !hasBasemapPainted()) return;
       frame = requestFrame(() => {
         frame = null;
-        if (!isCurrent() || !areTilesLoaded()) return;
+        if (!isCurrent() || !hasBasemapPainted()) return;
         reveal(reason);
       });
     };

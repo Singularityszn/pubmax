@@ -1141,6 +1141,7 @@ export default function PubMapCanvas({
     // from the old style can never mutate the new one.
     const areBasemapTilesLoaded = () => readBasemapTilesLoaded(map);
     let initialBasemapPending = true;
+    let basemapTileReadyForPaint = false;
     let tileNoticeOwner: "none" | "timeout" | "errors" = "none";
     let tileFailureStamps: number[] = [];
     let tileRetrySpent = false;
@@ -1160,6 +1161,7 @@ export default function PubMapCanvas({
       clearTileFailureRecheck();
       tileFailureStamps = [];
       failedBasemapTiles.reset();
+      basemapTileReadyForPaint = false;
     };
     const markBasemapRecovered = () => {
       if (!areBasemapTilesLoaded()) return;
@@ -1198,6 +1200,7 @@ export default function PubMapCanvas({
         return;
       }
       initialBasemapPending = false;
+      basemapTileReadyForPaint = true;
       const recoveredFailures = failedBasemapTiles.recordSuccess({
         sourceId: dataEvent.sourceId,
         sourceType: dataEvent.source?.type,
@@ -1214,7 +1217,7 @@ export default function PubMapCanvas({
     const pinRevealCoordinator = createPinRevealCoordinator({
       pinRevealTimeoutMs: PIN_REVEAL_TIMEOUT_MS,
       readyCeilingMs: PIN_READY_CEILING_MS,
-      areTilesLoaded: areBasemapTilesLoaded,
+      hasBasemapPainted: () => basemapTileReadyForPaint,
       setPinsVisible: (visible) => {
         for (const id of PUB_PIN_LAYERS) {
           if (map.getLayer(id)) {
