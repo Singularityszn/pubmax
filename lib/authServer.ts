@@ -22,6 +22,86 @@ export function bearerToken(request: Request): string | null {
   return token ? token : null;
 }
 
+export type CallerAuthIdentity = {
+  id: string;
+  /** Verified email from the JWT user, or null when absent. */
+  email: string | null;
+  /** Supabase Auth account creation time, used for signup-only attribution. */
+  createdAt: string | null;
+};
+
+export type CallerAuthVerification =
+  | { status: "absent" }
+  | { status: "invalid" }
+  | { status: "unavailable" }
+  | { status: "verified"; identity: CallerAuthIdentity };
+
+const INVALID_BEARER_CODES = new Set([
+  "bad_jwt",
+  "invalid_jwt",
+  "no_authorization",
+  "session_expired",
+  "session_not_found",
+  "unexpected_audience",
+  "user_banned",
+  "user_not_found",
+]);
+
+const INVALID_BEARER_ERROR_NAMES = new Set([
+  "AuthInvalidJwtError",
+  "AuthSessionMissingError",
+]);
+
+function isInvalidBearerError(error: unknown): boolean {
+  if (!error || typeof error !== "object") return false;
+  const candidate = error as {
+    code?: unknown;
+    name?: unknown;
+    status?: unknown;
+  };
+  if (candidate.status === 401) return true;
+  if (
+    typeof candidate.name === "string" &&
+    INVALID_BEARER_ERROR_NAMES.has(candidate.name)
+  ) {
+    return true;
+  }
+  return (
+    typeof candidate.code === "string" &&
+    INVALID_BEARER_CODES.has(candidate.code)
+  );
+}
+
+export async function verifyCallerAuth(
+  request: Request,
+): Promise<CallerAuthVerification> {
+  const token = bearerToken(request);
+  if (!token) return { status: "absent" };
+
+  const admin = getSupabaseAdmin();
+  if (!admin) return { status: "unavailable" };
+
+  try {
+    const { data, error } = await admin.auth.getUser(token);
+    if (error) {
+      return {
+        status: isInvalidBearerError(error) ? "invalid" : "unavailable",
+      };
+    }
+    const id = data.user?.id;
+    if (typeof id !== "string" || !id) return { status: "invalid" };
+    const email = typeof data.user?.email === "string" ? data.user.email : null;
+    const createdAt =
+      typeof data.user?.created_at === "string" ? data.user.created_at : null;
+    return {
+      status: "verified",
+      identity: { id, email, createdAt },
+    };
+  } catch {
+    return { status: "unavailable" };
+  }
+}
+
 /**
  * Resolve the caller's authenticated user id from their request, or null when
  * the request is anonymous / the token is invalid / auth is unconfigured.
@@ -36,14 +116,6 @@ export async function callerUserId(request: Request): Promise<string | null> {
   return identity?.id ?? null;
 }
 
-export type CallerAuthIdentity = {
-  id: string;
-  /** Verified email from the JWT user, or null when absent. */
-  email: string | null;
-  /** Supabase Auth account creation time, used for signup-only attribution. */
-  createdAt: string | null;
-};
-
 /**
  * Resolve the caller's verified id, email, and account creation time from their
  * bearer JWT, or null when anonymous / invalid / unconfigured. Same fail-closed
@@ -53,22 +125,8 @@ export type CallerAuthIdentity = {
 export async function callerAuthIdentity(
   request: Request,
 ): Promise<CallerAuthIdentity | null> {
-  const token = bearerToken(request);
-  if (!token) return null;
-
-  const admin = getSupabaseAdmin();
-  if (!admin) return null;
-
-  try {
-    const { data, error } = await admin.auth.getUser(token);
-    if (error) return null;
-    const id = data.user?.id;
-    if (typeof id !== "string" || !id) return null;
-    const email = typeof data.user?.email === "string" ? data.user.email : null;
-    const createdAt =
-      typeof data.user?.created_at === "string" ? data.user.created_at : null;
-    return { id, email, createdAt };
-  } catch {
-    return null;
-  }
+  const verification = await verifyCallerAuth(request);
+  return verification.status === "verified"
+    ? verification.identity
+    : null;
 }

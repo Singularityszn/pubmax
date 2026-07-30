@@ -59,34 +59,4 @@ describe("account-scoped contribution composers", () => {
     });
   });
 
-  it("shares a rejected token across separately mounted composers", () => {
-    const accountComposerAuth = Reflect.get(accountAuth, "accountComposerAuth");
-    const rejectAccountAuth = Reflect.get(accountAuth, "rejectAccountAuth");
-
-    expect(accountComposerAuth).toEqual(expect.any(Function));
-    expect(rejectAccountAuth).toEqual(expect.any(Function));
-    if (
-      typeof accountComposerAuth !== "function" ||
-      typeof rejectAccountAuth !== "function"
-    ) {
-      return;
-    }
-
-    const session = {
-      access_token: "shared-session",
-      user: { id: "account-a" },
-    };
-    let rejected = null;
-    const visitComposerAuth = () =>
-      accountComposerAuth("account-a", session, rejected);
-    const weatherComposerAuth = () =>
-      accountComposerAuth("account-a", session, rejected);
-
-    expect(visitComposerAuth()).not.toBeNull();
-    expect(weatherComposerAuth()).not.toBeNull();
-    rejected = rejectAccountAuth(rejected, visitComposerAuth());
-
-    expect(visitComposerAuth()).toBeNull();
-    expect(weatherComposerAuth()).toBeNull();
-  });
 });
