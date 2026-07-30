@@ -36,7 +36,7 @@ is documentation of the raw scrape, not an independently-authored source.
 - Canonical enriched rows: 3,020
 - Pub-page price rows: 2,258
 - Combined rows: 5,278
-- App dataset rows: 3,097
+- App dataset rows: 3,085
 - App dataset columns: 51
 - Builder master rows: 17,673
 - Pub/location map rows: 1,197

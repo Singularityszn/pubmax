@@ -9,25 +9,30 @@ import {
   writeFileSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { join, resolve } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 
 const ROOT = process.cwd();
-const BUILD_SCRIPT = join(ROOT, "scripts", "build_app_dataset.py");
-const QUARANTINED_IDS = [
-  "app_price_000263",
-  "app_price_000274",
-  "app_price_000339",
-  "app_price_000719",
-  "app_price_000977",
-  "app_price_001220",
-  "app_price_001614",
-  "app_price_002037",
-  "app_price_002038",
-  "app_price_002312",
-  "app_price_002483",
-  "app_price_002908",
-];
+const BUILD_SCRIPT = resolve(
+  process.env.POSTCODE_BUILD_SCRIPT ??
+    join(ROOT, "scripts", "build_app_dataset.py"),
+);
+type QuarantineIdentity = {
+  appPriceId: string;
+  pubName: string;
+  postcode: string;
+  latitude: number;
+  longitude: number;
+  reason: string;
+};
+const QUARANTINED_ROWS = (
+  JSON.parse(
+    readFileSync(
+      join(ROOT, "data", "postcode_coordinate_quarantine.json"),
+      "utf8",
+    ),
+  ) as { rows: QuarantineIdentity[] }
+).rows;
 const tempDirs: string[] = [];
 
 function parseCsv(text: string): Record<string, string>[] {
@@ -120,7 +125,7 @@ afterEach(() => {
 
 describe("build_app_dataset.py postcode-coordinate decisions", () => {
   it(
-    "prints and skips every exact quarantine row while preserving corrections",
+    "prints and excludes every registered quarantine identity while preserving corrections",
     () => {
       const scratchRoot = setupScratch();
       const result = runBuilder(scratchRoot);
@@ -134,15 +139,29 @@ describe("build_app_dataset.py postcode-coordinate decisions", () => {
       );
       const shippedIds = new Set(rows.map((row) => row.app_price_id));
 
-      for (const appPriceId of QUARANTINED_IDS) {
-        expect(shippedIds.has(appPriceId), appPriceId).toBe(false);
+      for (const quarantine of QUARANTINED_ROWS) {
+        expect(
+          rows.find(
+            (row) =>
+              row.pub_name === quarantine.pubName &&
+              row.address === quarantine.postcode &&
+              Number(row.latitude) === quarantine.latitude &&
+              Number(row.longitude) === quarantine.longitude,
+          ),
+          `${quarantine.pubName} ${quarantine.postcode} @ ${quarantine.latitude},${quarantine.longitude}`,
+        ).toBeUndefined();
+        expect(
+          shippedIds.has(quarantine.appPriceId),
+          quarantine.appPriceId,
+        ).toBe(false);
         expect(result.stdout).toContain(
-          `[postcode-coordinate quarantine] ${appPriceId}`,
+          `[postcode-coordinate quarantine] ${quarantine.appPriceId} ${quarantine.pubName} ${quarantine.postcode}`,
         );
+        expect(result.stdout).toContain(quarantine.reason);
       }
       expect(
         result.stdout.match(/\[postcode-coordinate quarantine\]/g),
-      ).toHaveLength(QUARANTINED_IDS.length);
+      ).toHaveLength(QUARANTINED_ROWS.length);
 
       const sirMichaelRows = rows.filter(
         (row) =>
