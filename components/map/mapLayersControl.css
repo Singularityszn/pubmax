@@ -6,7 +6,8 @@
   display: block;
   position: absolute;
   right: 14px;
-  bottom: 18px;
+  /* Clear MapLibre's expanded desktop attribution so its links own their taps. */
+  bottom: 34px;
   z-index: var(--z-map-hover);
   pointer-events: none;
 }

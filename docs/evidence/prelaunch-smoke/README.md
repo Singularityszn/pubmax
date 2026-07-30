@@ -7,7 +7,7 @@ Viewports: 390x844 mobile with touch emulation; 1440x900 desktop
 
 ## First-time visitor findings, worst first
 
-- **Desktop OpenStreetMap credit cannot be followed:** at 1280px and 1440px, expanded credit is visible, but its OpenStreetMap link does nothing. Hit-testing the link centre returns the overlaid `button.mapLayersFab` (`Map layers: Tube, Rail, parks, and place stories`), and a coordinate click opens neither navigation nor popup. This is a licence-credit interaction failure, not a missing-link failure.
+- **Desktop OpenStreetMap credit cannot be followed on live site:** at 1280px and 1440px, expanded credit is visible, but its OpenStreetMap link does nothing. Hit-testing the link centre returns the overlaid `button.mapLayersFab` (`Map layers: Tube, Rail, parks, and place stories`), and a coordinate click opens neither navigation nor popup. This is a licence-credit interaction failure, not a missing-link failure. Minimal branch fix is recorded below.
 - **No-alcohol key contradicts map paint:** at both widths, selecting `No alcohol` says no alcohol-free or soft-drink prices are logged and `Clusters stay grey`, but map behind it continues to show green and amber clusters. Desktop list count changes from 1,466 in default view to 33, while visible canvas still carries large coloured clusters. Key does not describe shown map.
 - **Today and Tonight disagree:** Today says `Nothing left confirmed tonight.` Tonight, opened in same pass, says `2 listings tonight` and shows two sourced events. Neither sentence narrows itself enough to make both true.
 - **Desktop map shows a false failure:** at 1440x900, the map background and pins render, then a persistent toast says `Map background couldn't load. Tap Retry to try again.` Reproduced in two fresh Chromium runs. This is untrue and asks for recovery from a failure the visitor cannot see.
@@ -289,8 +289,16 @@ Captures: [`08-map-credit-desktop.png`](08-map-credit-desktop.png), [`08-privacy
 - Console errors: none.
 - Failed requests: no HTTP 4xx/5xx. Chromium reported aborted venue-index, POI, and speculative Next.js RSC prefetch requests while map initialized. Credit and privacy main documents did not fail.
 - Mobile credit destination and both Privacy destinations resolved.
-- Desktop credit regression and minimal overlap fix are tracked below; no map behaviour, data, pricing, or identity change is in scope.
+- Regression check used local keyless builds from exact history. At `00758c0b`, immediately before PR 686, OpenStreetMap link was y=883-897, its centre hit the anchor, and a coordinate click opened copyright page at 1280 and 1440. At PR 686 commit `810c7eeb`, forced compact attribution moved link to y=871-885; its centre fell inside unchanged Layers button y=838-882, and clicks failed at both widths. PR 686 introduced defect. PR 689 inherited an already-failing parent and did not change `components/PubMapCanvas.tsx` or `components/map/mapLayersControl.css`, so its desktop boundary and 44px rhythm did not introduce it.
 
 ## Fixes
 
-None so far. Full walk completes before fix triage.
+### Desktop OpenStreetMap credit hit target
+
+- **Reason:** visible licence credit was covered by Layers button and could not be followed.
+- **Change:** moved desktop-effective Layers control from 18px to 34px above viewport bottom in `components/map/mapLayersControl.css`. Right edge, 44px control height, horizontal boundary, colours, and behaviour remain unchanged. Mobile keeps its existing override.
+- **Regression:** `e2e/drink-chip-controls.spec.ts` now checks 1280x900 and 1440x900. It asserts `document.elementFromPoint` at OpenStreetMap link centre is anchor itself, performs real coordinate click, and waits for an OpenStreetMap page or popup.
+- **Red proof:** unfixed production and unfixed local branch returned `button.mapLayersFab` at both widths; no destination opened.
+- **Green proof:** with fix, Layers button measured y=822-866 while credit remained y=871-885. Anchor owned centre at both widths and coordinate click opened OpenStreetMap. Focused Playwright run passed both cases.
+
+No other fixes attempted. No-alcohol paint/key mismatch, false map-background failure, Today/Tonight disagreement, 24C `Cold out` headline, price provenance, and Tonight desktop centring remain report-only for Firstmate because they touch map or data behaviour, pricing promises, live interpretation, or recently changed shared layout.
