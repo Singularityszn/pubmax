@@ -89,14 +89,98 @@ Largest remaining landing contributors:
 
 `/map` has the same leading runtime files plus its deliberate 375,876-byte `public/data/uk_base/places.json`. The 7,034,773-byte price dataset remains because landing reads it during request rendering. Removing it would change page data and is outside this tracing fix.
 
-The completed after build emitted no whole-project NFT warning. It retained 199 route manifest entries, matching baseline. Actual after-build NFTs contained every checked map, feed, venue-detail, image-proxy, and freshness input. The tracing contract test and affected reader tests passed:
+The completed after build emitted no whole-project NFT warning. It retained 199 route manifest entries, matching baseline. Actual after-build NFTs contained every checked map, feed, venue-detail, image-proxy, and freshness input. The focused tracing contract test passed:
 
 ```text
-Test Files  34 passed (34)
-Tests       445 passed (445)
+Test Files  1 passed (1)
+Tests       7 passed (7)
 ```
 
-Representative response parity checked `/`, `/map`, a UK place arrival, `/feed`, `/api/freshness`, and `/api/venue/venue-xjf3n0` against both builds. Status and byte counts matched. Server-rendered markup matched after removing request nonce and script tags. API JSON matched after removing request-generated timestamps. No reader changed what it opens or returns, so every page still renders the same data.
+Original response parity checked `/`, `/map`, a UK place arrival, `/feed`, `/api/freshness`, and London venue `/api/venue/venue-xjf3n0` against both builds. Status and byte counts matched. Server-rendered markup matched after removing request nonce and script tags. API JSON matched after removing request-generated timestamps. That comparison did not cover a non-London venue or a Plan reader.
+
+### Non-London packaged-artifact check
+
+The requested pre-F1 packaged failure could not be reproduced. The pre-F1 build omitted `lib/venueDetailIndex.ts` from the venue-index `RUNTIME_DATA_PACKS` module list. Its venue, Plan-anchor, and recap NFTs nevertheless contained `public/data/cities/oxford/venues_slim.json`, so the packaged artifact retained Turf Tavern through incidental tracing.
+
+Pre-F1 build and start:
+
+```bash
+NEXT_DIST_DIR=.next-f1-before npm run build
+NEXT_DIST_DIR=.next-f1-before \
+  PUBMAX_E2E_KEYLESS=1 \
+  PUBMAX_ANCHORED_GENERATION=1 \
+  PORT=3211 \
+  npm start
+```
+
+Pre-F1 requests:
+
+```bash
+curl -sS -w '\nstatus=%{http_code}\n' \
+  'http://127.0.0.1:3211/api/venue/venue-oxf-16404bl'
+curl -sS -w '\nstatus=%{http_code}\n' \
+  'http://127.0.0.1:3211/api/plans/anchor?cityId=oxford&venueId=venue-oxf-16404bl&areaKind=none'
+```
+
+Pre-F1 results:
+
+```text
+venue status=200
+venue.id=venue-oxf-16404bl
+venue.name=Turf Tavern
+venue.prices=[]
+
+plan anchor status=200
+status=resolved
+display.venueId=venue-oxf-16404bl
+display.venueName=Turf Tavern
+```
+
+Post-F1 build and start:
+
+```bash
+NEXT_DIST_DIR=.next-f1-after npm run build
+NEXT_DIST_DIR=.next-f1-after \
+  PUBMAX_E2E_KEYLESS=1 \
+  PUBMAX_ANCHORED_GENERATION=1 \
+  PORT=3212 \
+  npm start
+```
+
+Post-F1 requests:
+
+```bash
+curl -sS -w '\nstatus=%{http_code}\n' \
+  'http://127.0.0.1:3212/api/venue/venue-oxf-16404bl'
+curl -sS -w '\nstatus=%{http_code}\n' \
+  'http://127.0.0.1:3212/api/plans/anchor?cityId=oxford&venueId=venue-oxf-16404bl&areaKind=none'
+```
+
+Post-F1 results matched:
+
+```text
+venue status=200
+venue.id=venue-oxf-16404bl
+venue.name=Turf Tavern
+venue.prices=[]
+
+plan anchor status=200
+status=resolved
+display.venueId=venue-oxf-16404bl
+display.venueName=Turf Tavern
+```
+
+**Packaged non-London red proof: UNVERIFIED.** The explicit include fix remains because automatic tracing is not the deployment contract, but this local package cannot honestly supply a failing before result. Firstmate must decide whether a Vercel-isolated reproduction is required before merge.
+
+For a deployed preview with `PUBMAX_ANCHORED_GENERATION=1`, repeat:
+
+```bash
+VERIFY_ORIGIN='https://replace-with-deployment-host'
+curl -sS -w '\nstatus=%{http_code}\n' \
+  "$VERIFY_ORIGIN/api/venue/venue-oxf-16404bl"
+curl -sS -w '\nstatus=%{http_code}\n' \
+  "$VERIFY_ORIGIN/api/plans/anchor?cityId=oxford&venueId=venue-oxf-16404bl&areaKind=none"
+```
 
 ### Local cold and warm timing
 
