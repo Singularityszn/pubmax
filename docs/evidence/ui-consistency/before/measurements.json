@@ -1,9 +1,9 @@
 {
   "phase": "before",
-  "capturedAt": "2026-07-30T17:25:19.336Z",
+  "capturedAt": "2026-07-30T18:23:32.758Z",
   "server": {
     "mode": "production",
-    "buildCommit": "3bc4dd42"
+    "buildCommit": "3bc4dd42556f103129d636ab771427840a9e3af7"
   },
   "viewports": [
     {
@@ -226,6 +226,30 @@
               "top": 125,
               "bottom": 169,
               "width": 84.5,
+              "height": 44
+            }
+          ]
+        },
+        {
+          "name": "analytics decisions",
+          "selector": ".analyticsConsentPromptActions > button",
+          "controls": [
+            {
+              "label": "Allow",
+              "left": 267,
+              "right": 367,
+              "top": 593,
+              "bottom": 637,
+              "width": 100,
+              "height": 44
+            },
+            {
+              "label": "No thanks",
+              "left": 267,
+              "right": 367,
+              "top": 643,
+              "bottom": 687,
+              "width": 100,
               "height": 44
             }
           ]
@@ -676,30 +700,12 @@
           "selector": ".profileActions > a, .profileActions > button",
           "controls": [
             {
-              "label": "Invite your lot",
-              "left": 22,
-              "right": 190,
-              "top": 194.05,
-              "bottom": 238.05,
-              "width": 168,
-              "height": 44
-            },
-            {
-              "label": "Edit profile",
-              "left": 200,
-              "right": 368,
-              "top": 194.05,
-              "bottom": 238.05,
-              "width": 168,
-              "height": 44
-            },
-            {
-              "label": "Meet your Pub Pal",
-              "left": 22,
-              "right": 368,
-              "top": 248.05,
-              "bottom": 292.05,
-              "width": 346,
+              "label": "Claim this handle",
+              "left": 45,
+              "right": 198.41,
+              "top": 289.05,
+              "bottom": 333.05,
+              "width": 153.41,
               "height": 44
             }
           ]
@@ -712,9 +718,9 @@
           "left": 0,
           "right": 390,
           "top": 52,
-          "bottom": 6879.75,
+          "bottom": 2235.14,
           "width": 390,
-          "height": 6827.75
+          "height": 2183.14
         }
       ],
       "assertions": [],
@@ -1254,30 +1260,12 @@
           "selector": ".profileActions > a, .profileActions > button",
           "controls": [
             {
-              "label": "Invite your lot",
-              "left": 291.47,
-              "right": 415.13,
-              "top": 139.8,
-              "bottom": 183.8,
-              "width": 123.66,
-              "height": 44
-            },
-            {
-              "label": "Edit profile",
-              "left": 425.13,
-              "right": 534.2,
-              "top": 139.8,
-              "bottom": 183.8,
-              "width": 109.08,
-              "height": 44
-            },
-            {
-              "label": "Meet your Pub Pal",
-              "left": 544.2,
+              "label": "Claim this handle",
+              "left": 550.88,
               "right": 704.28,
               "top": 139.8,
               "bottom": 183.8,
-              "width": 160.08,
+              "width": 153.41,
               "height": 44
             }
           ]
@@ -1290,9 +1278,9 @@
           "left": 0,
           "right": 768,
           "top": 62,
-          "bottom": 5407.63,
+          "bottom": 1706.59,
           "width": 768,
-          "height": 5345.63
+          "height": 1644.59
         }
       ],
       "assertions": [],
@@ -1886,30 +1874,12 @@
           "selector": ".profileActions > a, .profileActions > button",
           "controls": [
             {
-              "label": "Invite your lot",
+              "label": "Claim this handle",
               "left": 65,
-              "right": 339,
+              "right": 218.41,
               "top": 371.47,
               "bottom": 415.47,
-              "width": 274,
-              "height": 44
-            },
-            {
-              "label": "Edit profile",
-              "left": 65,
-              "right": 339,
-              "top": 425.47,
-              "bottom": 469.47,
-              "width": 274,
-              "height": 44
-            },
-            {
-              "label": "Meet your Pub Pal",
-              "left": 65,
-              "right": 339,
-              "top": 479.47,
-              "bottom": 523.47,
-              "width": 274,
+              "width": 153.41,
               "height": 44
             }
           ]
@@ -1922,9 +1892,9 @@
           "left": 0,
           "right": 1240,
           "top": 64,
-          "bottom": 4520.95,
+          "bottom": 1382.98,
           "width": 1240,
-          "height": 4456.95
+          "height": 1318.98
         }
       ],
       "assertions": [],
@@ -2518,30 +2488,12 @@
           "selector": ".profileActions > a, .profileActions > button",
           "controls": [
             {
-              "label": "Invite your lot",
+              "label": "Claim this handle",
               "left": 65,
-              "right": 339,
+              "right": 218.41,
               "top": 371.47,
               "bottom": 415.47,
-              "width": 274,
-              "height": 44
-            },
-            {
-              "label": "Edit profile",
-              "left": 65,
-              "right": 339,
-              "top": 425.47,
-              "bottom": 469.47,
-              "width": 274,
-              "height": 44
-            },
-            {
-              "label": "Meet your Pub Pal",
-              "left": 65,
-              "right": 339,
-              "top": 479.47,
-              "bottom": 523.47,
-              "width": 274,
+              "width": 153.41,
               "height": 44
             }
           ]
@@ -2554,9 +2506,9 @@
           "left": 0,
           "right": 1240,
           "top": 64,
-          "bottom": 4520.95,
+          "bottom": 1382.98,
           "width": 1240,
-          "height": 4456.95
+          "height": 1318.98
         }
       ],
       "assertions": [],
@@ -2828,9 +2780,9 @@
         "left": 0,
         "right": 1280,
         "top": 0,
-        "bottom": 2480.63,
+        "bottom": 2387.63,
         "width": 1280,
-        "height": 2480.63
+        "height": 2387.63
       },
       "leftOffset": 0,
       "rightOffset": 0,
@@ -3042,9 +2994,9 @@
       "leftOffset": 0,
       "rightOffset": 0,
       "offsetDelta": 0,
-      "computedMaxWidth": "",
-      "computedMarginLeft": "",
-      "computedMarginRight": "",
+      "computedMaxWidth": "none",
+      "computedMarginLeft": "0px",
+      "computedMarginRight": "0px",
       "classification": "full-bleed"
     },
     {
@@ -3626,9 +3578,9 @@
         "left": 0,
         "right": 1440,
         "top": 0,
-        "bottom": 5368.13,
+        "bottom": 5357.38,
         "width": 1440,
-        "height": 5368.13
+        "height": 5357.38
       },
       "leftOffset": 0,
       "rightOffset": 0,
@@ -3879,9 +3831,9 @@
         "left": 0,
         "right": 1440,
         "top": 0,
-        "bottom": 2480.63,
+        "bottom": 2387.63,
         "width": 1440,
-        "height": 2480.63
+        "height": 2387.63
       },
       "leftOffset": 0,
       "rightOffset": 0,

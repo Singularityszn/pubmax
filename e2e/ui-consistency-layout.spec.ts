@@ -190,19 +190,15 @@ async function preparePage(
 ): Promise<void> {
   await page.emulateMedia({ reducedMotion: "reduce", colorScheme: "dark" });
   await page.addInitScript(
-    ({ firstVisit, signedIn, authStorageKey, userId, profileHandle }) => {
+    ({ firstVisit, signedIn, authStorageKey, userId }) => {
       localStorage.setItem("pubmax-theme", "dark");
-      localStorage.setItem("pubmax-tour-v1-done", "1");
-      localStorage.setItem("pubmax_onboarding_dismissed", "1");
-      sessionStorage.setItem("pubmax_onboarding_dismissed", "1");
-      sessionStorage.removeItem("pubmax:prompt-budget:v1");
-      if (firstVisit) {
-        localStorage.removeItem("pubmaxx:analytics-consent:v1");
-      } else {
+      if (!firstVisit) {
+        localStorage.setItem("pubmax-tour-v1-done", "1");
+        localStorage.setItem("pubmax_onboarding_dismissed", "1");
+        sessionStorage.setItem("pubmax_onboarding_dismissed", "1");
         localStorage.setItem("pubmaxx:analytics-consent:v1", "denied");
       }
       if (!signedIn) return;
-      localStorage.setItem("pubmax_handle", profileHandle);
       localStorage.setItem(
         authStorageKey,
         JSON.stringify({
@@ -228,7 +224,6 @@ async function preparePage(
       signedIn: Boolean(options.signedIn),
       authStorageKey: E2E_AUTH_STORAGE_KEY,
       userId: E2E_AUTH_USER_ID,
-      profileHandle: PROFILE_HANDLE,
     },
   );
 
@@ -636,7 +631,7 @@ async function captureSurface(
       timeout: 45_000,
     });
   }
-  if (options.signedIn) {
+  if (options.signedIn && ASSERT_LAYOUT) {
     await expect(page.locator("#account-settings")).toBeAttached({
       timeout: 45_000,
     });
@@ -854,6 +849,9 @@ async function openSignedInProfileOptions(browser: Browser) {
   await expect(page.locator("#account-settings")).toBeAttached({
     timeout: 45_000,
   });
+  await expect
+    .poll(() => page.evaluate(() => localStorage.getItem("pubmax_handle")))
+    .toBeNull();
   const trigger = page.getByRole("button", { name: "Profile options" });
   await trigger.focus();
   await page.keyboard.press("ArrowDown");

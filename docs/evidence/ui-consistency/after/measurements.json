@@ -1,9 +1,9 @@
 {
   "phase": "after",
-  "capturedAt": "2026-07-30T17:50:54.186Z",
+  "capturedAt": "2026-07-30T18:26:48.034Z",
   "server": {
     "mode": "production",
-    "buildCommit": "3c95cce3"
+    "buildCommit": "91faf0220ac31091f04a11ee118fff74b687a2a1+worktree-f2bc9afb"
   },
   "viewports": [
     {
@@ -1532,9 +1532,9 @@
           "left": 0,
           "right": 1280,
           "top": 0,
-          "bottom": 5070.77,
+          "bottom": 5060.02,
           "width": 1280,
-          "height": 5070.77
+          "height": 5060.02
         }
       ],
       "assertions": [
@@ -2155,9 +2155,9 @@
           "left": 20,
           "right": 1260,
           "top": 64,
-          "bottom": 4369.45,
+          "bottom": 4576.95,
           "width": 1240,
-          "height": 4305.45
+          "height": 4512.95
         }
       ],
       "assertions": [
@@ -2219,9 +2219,9 @@
           "left": 0,
           "right": 1440,
           "top": 0,
-          "bottom": 5368.13,
+          "bottom": 5357.38,
           "width": 1440,
-          "height": 5368.13
+          "height": 5357.38
         }
       ],
       "assertions": [
@@ -3122,9 +3122,9 @@
         "left": 0,
         "right": 1280,
         "top": 0,
-        "bottom": 2387.63,
+        "bottom": 2480.63,
         "width": 1280,
-        "height": 2387.63
+        "height": 2480.63
       },
       "leftOffset": 0,
       "rightOffset": 0,
@@ -3600,22 +3600,15 @@
       "requestedPath": "/plan/layout-audit-missing/recap",
       "renderedPath": "/plan/layout-audit-missing/recap",
       "status": 404,
-      "mainSelector": "main.planPage.planPage--composer",
-      "main": {
-        "left": 0,
-        "right": 1280,
-        "top": 0,
-        "bottom": 800,
-        "width": 1280,
-        "height": 800
-      },
-      "leftOffset": 0,
-      "rightOffset": 0,
-      "offsetDelta": 0,
-      "computedMaxWidth": "none",
-      "computedMarginLeft": "0px",
-      "computedMarginRight": "0px",
-      "classification": "full-bleed"
+      "mainSelector": null,
+      "main": null,
+      "leftOffset": null,
+      "rightOffset": null,
+      "offsetDelta": null,
+      "computedMaxWidth": null,
+      "computedMarginLeft": null,
+      "computedMarginRight": null,
+      "classification": "no-main"
     },
     {
       "viewportWidth": 1280,
@@ -3812,9 +3805,9 @@
         "left": 320,
         "right": 960,
         "top": 0,
-        "bottom": 1545.47,
+        "bottom": 1411.41,
         "width": 640,
-        "height": 1545.47
+        "height": 1411.41
       },
       "leftOffset": 320,
       "rightOffset": 320,
@@ -4180,9 +4173,9 @@
         "left": 0,
         "right": 1440,
         "top": 0,
-        "bottom": 2387.63,
+        "bottom": 2480.63,
         "width": 1440,
-        "height": 2387.63
+        "height": 2480.63
       },
       "leftOffset": 0,
       "rightOffset": 0,
@@ -4226,9 +4219,9 @@
         "left": 180,
         "right": 1260,
         "top": 0,
-        "bottom": 4484.61,
+        "bottom": 4313.61,
         "width": 1080,
-        "height": 4484.61
+        "height": 4313.61
       },
       "leftOffset": 180,
       "rightOffset": 180,
@@ -4658,22 +4651,15 @@
       "requestedPath": "/plan/layout-audit-missing/recap",
       "renderedPath": "/plan/layout-audit-missing/recap",
       "status": 404,
-      "mainSelector": "main.planPage.planPage--composer",
-      "main": {
-        "left": 0,
-        "right": 1440,
-        "top": 0,
-        "bottom": 900,
-        "width": 1440,
-        "height": 900
-      },
-      "leftOffset": 0,
-      "rightOffset": 0,
-      "offsetDelta": 0,
-      "computedMaxWidth": "none",
-      "computedMarginLeft": "0px",
-      "computedMarginRight": "0px",
-      "classification": "full-bleed"
+      "mainSelector": null,
+      "main": null,
+      "leftOffset": null,
+      "rightOffset": null,
+      "offsetDelta": null,
+      "computedMaxWidth": null,
+      "computedMarginLeft": null,
+      "computedMarginRight": null,
+      "classification": "no-main"
     },
     {
       "viewportWidth": 1440,

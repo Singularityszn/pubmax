@@ -4,9 +4,10 @@ This evidence compares two production builds through Playwright at 390, 768,
 1280, and 1440 CSS pixels.
 
 - [Before](before/) was built from `3bc4dd42`.
-- [After](after/) was built from `3c95cce3`.
-- Each phase used one completed `next build`, one `next start` process, and one
-  sequential Playwright run for all widths and routes.
+- [After](after/) was built from `91faf022` plus review worktree diff
+  `f2bc9afb`.
+- Each final phase used one completed `next build`, one `next start` process,
+  and one successful sequential Playwright run for all widths and routes.
 - [Before measurements](before/measurements.json) and
   [after measurements](after/measurements.json) name server mode and build
   commit, and hold rendered boxes plus assertions.
@@ -16,10 +17,9 @@ This evidence compares two production builds through Playwright at 390, 768,
 The earlier dev capture at `3bc4dd42` is retained in Git history but is not used
 for the comparison below. It left three route rows incomplete and therefore
 missed the 1440 public profile defect. Production completed 92 of 92 route
-measurements and found all six affected profile rows. Prompt winners did not
-change between dev and production. Matched visible controls kept their measured
-heights; the production recapture also used the expanded selector that includes
-Drink, My pint, and Drinks.
+measurements and found all six affected profile rows. Matched visible controls
+kept their measured heights; the production recapture also used the expanded
+selector that includes Drink, My pint, and Drinks.
 
 ## Desktop route audit
 
@@ -101,11 +101,14 @@ True prompt winners were the same before and after:
 | 1280 | None |
 | 1440 | None |
 
-No prompt was forced for evidence. At 390, full analytics copy and Privacy link
-remain visible, and Allow and No thanks remain equal 44px actions. Visual weight
-was reduced by removing notice elevation, backdrop blur, and filled action
-surfaces. Its measured box changed from 12-378px, 116px high to 12-378px,
-120.13px high. The notice remains dismissible.
+Both first-visit phases began with empty prompt-related local and session
+storage. Their setup did not complete tour or onboarding state, decide
+analytics consent, or read, write, or clear prompt budget. At 390, full
+analytics copy and Privacy link remain visible, and Allow and No thanks remain
+equal 44px actions. Visual weight was reduced by removing notice elevation,
+backdrop blur, and filled action surfaces. Its measured box changed from
+12-378px, 116px high to 12-378px, 120.13px high. The notice remains
+dismissible.
 
 Phone map checks passed:
 
@@ -127,3 +130,13 @@ signed-in-only Sign out actions. Analytics choices targets the live account
 control. Browser checks also cover keyboard entry, Escape focus return, exact
 destinations, and signed-out storage after Sign out. `/help` and `/settings` do
 not exist and are not listed; no About link is mislabeled as Help.
+
+Signed-in profile contexts contain a Supabase session and no local
+`pubmax_handle`. The before phase therefore records the ownership defect instead
+of hiding it with a second identity. The after phase derives ownership from the
+account handle, renders the owner surface at every width, and shows the Options
+menu at desktop widths.
+
+The Profile Options regression first failed against the pre-fix production
+build while waiting for `#account-settings`, then passed against the final
+production build in 6.3 seconds with all menu actions exercised.
