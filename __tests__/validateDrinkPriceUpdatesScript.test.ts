@@ -8,11 +8,18 @@ import { execFileSync } from "node:child_process";
 import { existsSync, mkdtempSync, mkdirSync, writeFileSync, cpSync, rmSync, readFileSync, readdirSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { fileURLToPath } from "node:url";
-import { dirname, join } from "node:path";
+import { dirname, join, resolve } from "node:path";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(__dirname, "..");
-const SCRIPT = join(ROOT, "scripts", "validate-data.mjs");
+const SCRIPT = resolve(
+  process.env.POSTCODE_VALIDATE_DATA_SCRIPT ??
+    join(ROOT, "scripts", "validate-data.mjs"),
+);
+const POSTCODE_CONSISTENCY_MODULE = resolve(
+  process.env.POSTCODE_CONSISTENCY_MODULE ??
+    join(ROOT, "scripts", "lib", "postcodeCoordinateConsistency.mjs"),
+);
 const BUILD_SLIM_SCRIPT = join(ROOT, "scripts", "build_slim_index.mjs");
 const DETAIL_INDEX = join(ROOT, "data", "generated", "venue_detail_index.json");
 
@@ -49,15 +56,9 @@ function setupScratch(files: Record<string, unknown>): string {
     join(ROOT, "scripts", "lib", "slimShards.mjs"),
     join(scratchScripts, "lib", "slimShards.mjs"),
   );
-  const postcodeConsistencyModule = join(
-    ROOT,
-    "scripts",
-    "lib",
-    "postcodeCoordinateConsistency.mjs",
-  );
-  if (existsSync(postcodeConsistencyModule)) {
+  if (existsSync(POSTCODE_CONSISTENCY_MODULE)) {
     cpSync(
-      postcodeConsistencyModule,
+      POSTCODE_CONSISTENCY_MODULE,
       join(scratchScripts, "lib", "postcodeCoordinateConsistency.mjs"),
     );
   }
@@ -205,6 +206,41 @@ function injectLincolnArmsContradiction(scriptsDir: string) {
     latitude: number;
     longitude: number;
   };
+}
+
+function injectReassignedLincolnQuarantineLeak(scriptsDir: string) {
+  const registry = JSON.parse(
+    readFileSync(
+      join(
+        scriptsDir,
+        "..",
+        "data",
+        "postcode_coordinate_quarantine.json",
+      ),
+      "utf8",
+    ),
+  );
+  const lincoln = registry.rows.find(
+    (entry: { appPriceId: string }) =>
+      entry.appPriceId === "app_price_000339",
+  );
+  const datasetPath = join(
+    scriptsDir,
+    "..",
+    "public",
+    "data",
+    "pint_prices_app_dataset.json",
+  );
+  const rows = JSON.parse(readFileSync(datasetPath, "utf8"));
+  rows.push({
+    ...rows[0],
+    app_price_id: "app_price_reassigned",
+    pub_name: lincoln.pubName,
+    address: `155 Percival Road, Enfield ${lincoln.postcode}, UK`,
+    latitude: lincoln.latitude + 0.000005,
+    longitude: lincoln.longitude - 0.000005,
+  });
+  writeFileSync(datasetPath, JSON.stringify(rows), "utf8");
 }
 
 function writePostcodeCoordinateExceptions(
@@ -579,6 +615,18 @@ describe("validate-data.mjs postcode-coordinate validation", () => {
     expect(stdout).toContain("invalid postcode-coordinate quarantine");
     expect(stdout).toContain("stale build decision input");
     expect(stdout).toContain("postcode_coordinate_quarantine.json");
+  });
+
+  it("FAILS when a quarantined identity leaks under a reassigned id and expanded address", () => {
+    const scriptsDir = setupScratch({});
+    injectReassignedLincolnQuarantineLeak(scriptsDir);
+
+    const { code, stdout } = runValidate(scriptsDir);
+
+    expect(code).toBe(1);
+    expect(stdout).toContain(
+      "app_price_000339 (The Lincoln Arms) reached the product dataset",
+    );
   });
 
   it("FAILS when quarantine geography is no longer contradictory", () => {

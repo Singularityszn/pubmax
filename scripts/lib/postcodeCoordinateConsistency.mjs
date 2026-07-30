@@ -2,6 +2,7 @@
 // rows formed one cluster through 3.87 km, then a clear gap to contradictions
 // starting at 5.44 km. Five kilometres keeps that empirical separation.
 export const POSTCODE_COORDINATE_MAX_DISTANCE_KM = 5;
+export const POSTCODE_COORDINATE_IDENTITY_TOLERANCE_DEGREES = 0.00001;
 
 const POSTCODE_PATTERN =
   /(?:^|[^A-Z0-9])([A-Z]{1,2}\d[A-Z\d]?)\s*(\d[ABD-HJLNP-UW-Z]{2})(?=$|[^A-Z0-9])/i;
@@ -15,6 +16,28 @@ export function parseUkPostcode(value) {
     postcode: `${match[1]} ${match[2]}`,
     outwardCode: match[1],
   };
+}
+
+export function matchesPostcodeCoordinateQuarantineIdentity(row, entry) {
+  const rowPostcode = parseUkPostcode(row?.address)?.postcode;
+  const entryPostcode = parseUkPostcode(entry?.postcode)?.postcode;
+  const rowLatitude = Number(row?.latitude);
+  const rowLongitude = Number(row?.longitude);
+  const entryLatitude = Number(entry?.latitude);
+  const entryLongitude = Number(entry?.longitude);
+  return (
+    row?.pub_name === entry?.pubName &&
+    Boolean(rowPostcode) &&
+    rowPostcode === entryPostcode &&
+    Number.isFinite(rowLatitude) &&
+    Number.isFinite(rowLongitude) &&
+    Number.isFinite(entryLatitude) &&
+    Number.isFinite(entryLongitude) &&
+    Math.abs(rowLatitude - entryLatitude) <=
+      POSTCODE_COORDINATE_IDENTITY_TOLERANCE_DEGREES &&
+    Math.abs(rowLongitude - entryLongitude) <=
+      POSTCODE_COORDINATE_IDENTITY_TOLERANCE_DEGREES
+  );
 }
 
 function median(values) {
@@ -260,18 +283,11 @@ export function validatePostcodeCoordinateQuarantine({
         return;
       }
 
-      const rowPostcode = parseUkPostcode(row.address)?.postcode;
-      const quarantinePostcode = parseUkPostcode(entry.postcode)?.postcode;
-      if (
-        row.pub_name !== entry.pubName ||
-        rowPostcode !== quarantinePostcode ||
-        Number(row.latitude) !== entry.latitude ||
-        Number(row.longitude) !== entry.longitude
-      ) {
+      if (!matchesPostcodeCoordinateQuarantineIdentity(row, entry)) {
         invalidQuarantines.push(
           describeQuarantine(
             index,
-            `identity fields do not exactly match ${entry.appPriceId}`,
+            `identity fields do not match ${entry.appPriceId}`,
           ),
         );
         return;

@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 
-import { validatePostcodeCoordinateQuarantine } from "../scripts/lib/postcodeCoordinateConsistency.mjs";
+import {
+  matchesPostcodeCoordinateQuarantineIdentity,
+  validatePostcodeCoordinateQuarantine,
+} from "../scripts/lib/postcodeCoordinateConsistency.mjs";
 import type { PostcodeCoordinateRow } from "../scripts/lib/postcodeCoordinateConsistency.mjs";
 
 const lincolnRow = {
@@ -39,6 +42,36 @@ function validate(rows: PostcodeCoordinateRow[], quarantineRows: unknown[]) {
 }
 
 describe("postcode-coordinate quarantine registry", () => {
+  it("matches a reassigned expanded-address identity within coordinate tolerance", () => {
+    const leakedRow = {
+      ...lincolnRow,
+      app_price_id: "app_price_reassigned",
+      address: "155 Percival Road, Enfield EN1 1QT, UK",
+      latitude: 51.533205,
+      longitude: -0.122205,
+    };
+
+    expect(
+      matchesPostcodeCoordinateQuarantineIdentity(
+        leakedRow,
+        lincolnQuarantine,
+      ),
+    ).toBe(true);
+  });
+
+  it("rejects a quarantine identity beyond the 0.00001 degree coordinate tolerance", () => {
+    expect(
+      matchesPostcodeCoordinateQuarantineIdentity(
+        {
+          ...lincolnRow,
+          address: "155 Percival Road, Enfield EN1 1QT, UK",
+          latitude: 51.533211,
+        },
+        lincolnQuarantine,
+      ),
+    ).toBe(false);
+  });
+
   it("applies one exact, reasoned row decision", () => {
     const result = validate([lincolnRow], [lincolnQuarantine]);
 
@@ -73,7 +106,7 @@ describe("postcode-coordinate quarantine registry", () => {
     {
       label: "identity mismatch",
       rows: [{ ...lincolnQuarantine, pubName: "Another Lincoln Arms" }],
-      expected: "identity fields do not exactly match app_price_000339",
+      expected: "identity fields do not match app_price_000339",
     },
   ])("rejects a $label entry", ({ rows, expected }) => {
     const result = validate([lincolnRow], rows);

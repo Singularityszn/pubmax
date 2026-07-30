@@ -12,6 +12,8 @@ import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 
+import { matchesPostcodeCoordinateQuarantineIdentity } from "../scripts/lib/postcodeCoordinateConsistency.mjs";
+
 const ROOT = process.cwd();
 const BUILD_SCRIPT = resolve(
   process.env.POSTCODE_BUILD_SCRIPT ??
@@ -141,12 +143,8 @@ describe("build_app_dataset.py postcode-coordinate decisions", () => {
 
       for (const quarantine of QUARANTINED_ROWS) {
         expect(
-          rows.find(
-            (row) =>
-              row.pub_name === quarantine.pubName &&
-              row.address === quarantine.postcode &&
-              Number(row.latitude) === quarantine.latitude &&
-              Number(row.longitude) === quarantine.longitude,
+          rows.find((row) =>
+            matchesPostcodeCoordinateQuarantineIdentity(row, quarantine),
           ),
           `${quarantine.pubName} ${quarantine.postcode} @ ${quarantine.latitude},${quarantine.longitude}`,
         ).toBeUndefined();

@@ -1,4 +1,5 @@
 export const POSTCODE_COORDINATE_MAX_DISTANCE_KM: number;
+export const POSTCODE_COORDINATE_IDENTITY_TOLERANCE_DEGREES: number;
 
 export type PostcodeCoordinateRow = {
   app_price_id?: string;
@@ -34,6 +35,16 @@ export type PostcodeCoordinateFinding = {
 export function parseUkPostcode(
   value: unknown,
 ): { postcode: string; outwardCode: string } | null;
+
+export function matchesPostcodeCoordinateQuarantineIdentity(
+  row: PostcodeCoordinateRow,
+  entry: {
+    pubName?: string;
+    postcode?: string;
+    latitude?: number | string;
+    longitude?: number | string;
+  },
+): boolean;
 
 export function haversineDistanceKm(
   firstLatitude: number,

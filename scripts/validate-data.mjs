@@ -27,6 +27,7 @@ import {
 import {
   POSTCODE_COORDINATE_MAX_DISTANCE_KM,
   parseUkPostcode,
+  matchesPostcodeCoordinateQuarantineIdentity,
   findPostcodeCoordinateContradictions,
   validatePostcodeCoordinateQuarantine,
 } from "./lib/postcodeCoordinateConsistency.mjs";
@@ -610,17 +611,6 @@ function sha256File(pathname) {
     .digest("hex");
 }
 
-function exactQuarantineIdentity(row, entry) {
-  return (
-    row?.app_price_id === entry?.appPriceId &&
-    row?.pub_name === entry?.pubName &&
-    parseUkPostcode(row?.address)?.postcode ===
-      parseUkPostcode(entry?.postcode)?.postcode &&
-    Number(row?.latitude) === entry?.latitude &&
-    Number(row?.longitude) === entry?.longitude
-  );
-}
-
 function normalizeQuarantineDecision(entry) {
   return {
     appPriceId: entry?.appPriceId,
@@ -783,7 +773,11 @@ function publishedDecisionErrors({
     ? quarantineRows
     : [];
   for (const entry of validQuarantineRows) {
-    if (publishedRows.some((row) => exactQuarantineIdentity(row, entry))) {
+    if (
+      publishedRows.some((row) =>
+        matchesPostcodeCoordinateQuarantineIdentity(row, entry),
+      )
+    ) {
       errors.push(
         `invalid postcode-coordinate quarantine: ${entry.appPriceId} (${entry.pubName}) reached the product dataset`,
       );
