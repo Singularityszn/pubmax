@@ -29,6 +29,7 @@ import {
   discoverRuntimeReaderRouteGlobs,
   runtimeDataPackRouteIncludes,
 } from "@/lib/venueIndexTracing.mjs";
+import { VENUE_IMAGE_HOST_TRACING_INCLUDES } from "@/lib/venueImageHostFiles.mjs";
 
 const root = join(__dirname, "..");
 const temporaryRoots: string[] = [];
@@ -155,11 +156,7 @@ describe("runtime data-pack tracing", () => {
   it("traces the image-proxy allowlist datasets without widening other routes", () => {
     const includes = tracingIncludes();
 
-    expect(includes["/api/image-proxy"]).toEqual([
-      "./public/data/venue_menu_enrichment.json",
-      "./public/data/pubmaxxing_seed_snapshot.json",
-      "./public/data/pint_prices_app_dataset.json",
-    ]);
+    expect(includes["/api/image-proxy"]).toEqual(VENUE_IMAGE_HOST_TRACING_INCLUDES);
   });
 
   it("flags a module that opens a path it assembled, and ignores a literal one", () => {
