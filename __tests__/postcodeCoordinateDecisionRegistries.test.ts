@@ -80,6 +80,17 @@ describe("postcode-coordinate quarantine registry", () => {
     expect(result.unquarantinedContradictions).toEqual([]);
   });
 
+  it("rejects any quarantine coordinate change even within leak-detection tolerance", () => {
+    const result = validate(
+      [lincolnRow],
+      [{ ...lincolnQuarantine, latitude: lincolnQuarantine.latitude + 0.000005 }],
+    );
+
+    expect(result.invalidQuarantines.join("\n")).toContain(
+      "identity fields do not match app_price_000339",
+    );
+  });
+
   it.each([
     {
       label: "partial",

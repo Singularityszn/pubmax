@@ -32,7 +32,7 @@ Built and running today:
 
 - **3-D pitched view on load** with a stable reading surface. Camera motion follows an explicit place, route, cluster, city, or reader gesture.
 - **3-D buildings, sky and fog** — the City and Canary Wharf read as skyline, not as a chart.
-- **~1,037 venues** from a 3,097-row price dataset, as custom price-coloured pins — brass stroke for story pubs, a halo where there are Pint Drops, clustered at low zoom.
+- **Price-aware venues** as custom price-coloured pins — brass stroke for story pubs, a halo where there are Pint Drops, clustered at low zoom.
 - **Cinematic fly-to** on selection with a brass ring; crawl routes draw as an animated brass line between stops.
 - **Landmark layer** — Big Ben, Tower Bridge, St Paul's and more, each with a short history card.
 - **Two moods, one system** — candle-lit night city and printed day guidebook, fully token-themed.

@@ -52,9 +52,9 @@ Use `pint_prices_app_dataset.csv` as the single app-building file and `borough_p
 areas as contradictory product data. The gate builds robust outward-code
 reference points from the committed UK OpenStreetMap pub extract and fails once
 a product row is more than 5 km away. That boundary came from the measured
-separation in this dataset: ordinary rows ended at 3.87 km and the first
-contradiction started at 5.44 km. A provenance or quality marker never bypasses
-the gate.
+separation in this dataset: correct rows had a 99th percentile of 3.65 km and
+ended at 3.87 km, while the first contradiction started at 5.44 km. A
+provenance or quality marker never bypasses the gate.
 
 Genuinely odd but verified geography belongs in
 `postcode_coordinate_exceptions.json`. An exception must exactly identify the

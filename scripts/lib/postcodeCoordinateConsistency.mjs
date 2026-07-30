@@ -18,6 +18,8 @@ export function parseUkPostcode(value) {
   };
 }
 
+// Tolerance is only for catching a quarantined identity after publication
+// transforms. Registry decisions themselves must match the exact helper below.
 export function matchesPostcodeCoordinateQuarantineIdentity(row, entry) {
   const rowPostcode = parseUkPostcode(row?.address)?.postcode;
   const entryPostcode = parseUkPostcode(entry?.postcode)?.postcode;
@@ -37,6 +39,18 @@ export function matchesPostcodeCoordinateQuarantineIdentity(row, entry) {
       POSTCODE_COORDINATE_IDENTITY_TOLERANCE_DEGREES &&
     Math.abs(rowLongitude - entryLongitude) <=
       POSTCODE_COORDINATE_IDENTITY_TOLERANCE_DEGREES
+  );
+}
+
+function matchesExactPostcodeCoordinateIdentity(row, entry) {
+  const rowPostcode = parseUkPostcode(row?.address)?.postcode;
+  const entryPostcode = parseUkPostcode(entry?.postcode)?.postcode;
+  return (
+    row?.pub_name === entry?.pubName &&
+    Boolean(rowPostcode) &&
+    rowPostcode === entryPostcode &&
+    Number(row?.latitude) === entry?.latitude &&
+    Number(row?.longitude) === entry?.longitude
   );
 }
 
@@ -283,7 +297,7 @@ export function validatePostcodeCoordinateQuarantine({
         return;
       }
 
-      if (!matchesPostcodeCoordinateQuarantineIdentity(row, entry)) {
+      if (!matchesExactPostcodeCoordinateIdentity(row, entry)) {
         invalidQuarantines.push(
           describeQuarantine(
             index,
