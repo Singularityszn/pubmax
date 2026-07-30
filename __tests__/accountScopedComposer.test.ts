@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 
+import * as accountAuth from "@/lib/accountBoundFetch";
 import * as composer from "@/components/identity/ContributionGateDialog";
 
 describe("account-scoped contribution composers", () => {
@@ -28,7 +29,7 @@ describe("account-scoped contribution composers", () => {
   });
 
   it("closes on client expiry or server rejection until reauthentication", () => {
-    const accountComposerAuth = Reflect.get(composer, "accountComposerAuth");
+    const accountComposerAuth = Reflect.get(accountAuth, "accountComposerAuth");
 
     expect(accountComposerAuth).toEqual(expect.any(Function));
     if (typeof accountComposerAuth !== "function") return;
@@ -56,5 +57,36 @@ describe("account-scoped contribution composers", () => {
       userId: "account-a",
       accessToken: "session-a-2",
     });
+  });
+
+  it("shares a rejected token across separately mounted composers", () => {
+    const accountComposerAuth = Reflect.get(accountAuth, "accountComposerAuth");
+    const rejectAccountAuth = Reflect.get(accountAuth, "rejectAccountAuth");
+
+    expect(accountComposerAuth).toEqual(expect.any(Function));
+    expect(rejectAccountAuth).toEqual(expect.any(Function));
+    if (
+      typeof accountComposerAuth !== "function" ||
+      typeof rejectAccountAuth !== "function"
+    ) {
+      return;
+    }
+
+    const session = {
+      access_token: "shared-session",
+      user: { id: "account-a" },
+    };
+    let rejected = null;
+    const visitComposerAuth = () =>
+      accountComposerAuth("account-a", session, rejected);
+    const weatherComposerAuth = () =>
+      accountComposerAuth("account-a", session, rejected);
+
+    expect(visitComposerAuth()).not.toBeNull();
+    expect(weatherComposerAuth()).not.toBeNull();
+    rejected = rejectAccountAuth(rejected, visitComposerAuth());
+
+    expect(visitComposerAuth()).toBeNull();
+    expect(weatherComposerAuth()).toBeNull();
   });
 });

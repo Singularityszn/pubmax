@@ -1,6 +1,5 @@
 "use client";
 
-import type { Session } from "@supabase/supabase-js";
 import {
   useCallback,
   useReducer,
@@ -10,10 +9,7 @@ import {
 
 import { useAuth } from "@/components/auth/AuthProvider";
 import SignInButton from "@/components/auth/SignInButton";
-import {
-  captureAccountAuth,
-  type AccountAuthSnapshot,
-} from "@/lib/accountBoundFetch";
+import type { AccountAuthSnapshot } from "@/lib/accountBoundFetch";
 import { trackEvent } from "@/lib/analytics";
 
 import "./contributionGate.css";
@@ -89,27 +85,6 @@ export type ContributionActionResult =
 type PendingContribution = (
   auth: AccountAuthSnapshot,
 ) => ContributionActionResult | Promise<ContributionActionResult>;
-
-export function sameAccountAuth(
-  left: AccountAuthSnapshot | null,
-  right: AccountAuthSnapshot | null,
-): boolean {
-  return (
-    left !== null &&
-    right !== null &&
-    left.userId === right.userId &&
-    left.accessToken === right.accessToken
-  );
-}
-
-export function accountComposerAuth(
-  expectedUserId: string | null,
-  session: Pick<Session, "access_token" | "user"> | null,
-  rejectedAuth: AccountAuthSnapshot | null,
-): AccountAuthSnapshot | null {
-  const auth = captureAccountAuth(expectedUserId, session);
-  return sameAccountAuth(auth, rejectedAuth) ? null : auth;
-}
 
 export type AccountScopedDrafts<T> = Readonly<Record<string, T>>;
 
@@ -201,7 +176,11 @@ export function useContributionGate(): {
   requestContribution: (action: PendingContribution) => Promise<void>;
   contributionGateDialog: React.JSX.Element | null;
 } {
-  const { user, session } = useAuth();
+  const {
+    user,
+    contributionAuth,
+    invalidateContributionAuth,
+  } = useAuth();
   const userId = user?.id ?? null;
   const [gate, dispatch] = useReducer(contributionGateReducer, {
     userId,
@@ -219,8 +198,7 @@ export function useContributionGate(): {
   const requestContribution = useCallback(
     async (action: PendingContribution) => {
       dispatch({ type: "clear", userId });
-      const auth = captureAccountAuth(userId, session);
-      if (!user || !auth) {
+      if (!user || !contributionAuth) {
         trackEvent("contribution_gate", { step: "sign_in_required" });
         dispatch({
           type: "show",
@@ -230,8 +208,11 @@ export function useContributionGate(): {
         });
         return;
       }
-      const result = await action(auth);
+      const result = await action(contributionAuth);
       if (!result) return;
+      if (result.status === "sign_in_required") {
+        invalidateContributionAuth(contributionAuth);
+      }
       trackEvent("contribution_gate", { step: result.status });
       dispatch({
         type: "show",
@@ -243,7 +224,7 @@ export function useContributionGate(): {
             : result.error ?? null,
       });
     },
-    [session, user, userId],
+    [contributionAuth, invalidateContributionAuth, user, userId],
   );
 
   return {

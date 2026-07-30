@@ -28,6 +28,13 @@ import type { Session, User } from "@supabase/supabase-js";
 import "@/app/auth/auth.css";
 import AccountOnboarding from "@/components/identity/AccountOnboarding";
 import IdentityNudge from "@/components/identity/IdentityNudge";
+import {
+  accountComposerAuth,
+  captureAccountAuth,
+  rejectAccountAuth,
+  sameAccountAuth,
+  type AccountAuthSnapshot,
+} from "@/lib/accountBoundFetch";
 import { trackEvent } from "@/lib/analytics";
 import { exchangeAuthCallbackCode } from "@/lib/authCallbackClient";
 import { ensureSupabaseBrowser, isAuthConfigured } from "@/lib/authClient";
@@ -138,6 +145,9 @@ export type AuthContextValue = {
   signOut: () => Promise<void>;
   /** Account-owned public handle, or null before onboarding or when signed out. */
   handle: string | null;
+  rejectedContributionAuth: AccountAuthSnapshot | null;
+  contributionAuth: AccountAuthSnapshot | null;
+  invalidateContributionAuth: (auth: AccountAuthSnapshot) => void;
   getCurrentUserId: () => string | null;
 };
 
@@ -151,16 +161,46 @@ export function AuthProvider({ children }: { children: ReactNode }): React.JSX.E
   const [authCallbackError, setAuthCallbackError] = useState<string | null>(null);
   const [socialProviders, setSocialProviders] =
     useState<SocialAuthProviderAvailability>(NO_SOCIAL_AUTH_PROVIDERS);
+  const [rejectedContributionAuth, setRejectedContributionAuth] =
+    useState<AccountAuthSnapshot | null>(null);
+  const rejectedContributionAuthRef =
+    useRef<AccountAuthSnapshot | null>(null);
   const configured = isAuthConfigured();
   const sessionTransitions = useRef(createAuthSessionTransitionTracker());
-  const updateSession = useCallback((nextSession: Session | null, event: string | null = null) => {
-    const signedIn = sessionTransitions.current.update(
-      event,
-      nextSession?.user.id ?? null,
-    );
-    setSession(nextSession);
-    return signedIn;
-  }, []);
+  const updateSession = useCallback(
+    (nextSession: Session | null, event: string | null = null) => {
+      const signedIn = sessionTransitions.current.update(
+        event,
+        nextSession?.user.id ?? null,
+      );
+      const nextAuth = captureAccountAuth(
+        nextSession?.user.id ?? null,
+        nextSession,
+      );
+      if (
+        nextAuth &&
+        rejectedContributionAuthRef.current &&
+        !sameAccountAuth(nextAuth, rejectedContributionAuthRef.current)
+      ) {
+        rejectedContributionAuthRef.current = null;
+        setRejectedContributionAuth(null);
+      }
+      setSession(nextSession);
+      return signedIn;
+    },
+    [],
+  );
+  const invalidateContributionAuth = useCallback(
+    (auth: AccountAuthSnapshot) => {
+      const rejected = rejectAccountAuth(
+        rejectedContributionAuthRef.current,
+        auth,
+      );
+      rejectedContributionAuthRef.current = rejected;
+      setRejectedContributionAuth(rejected);
+    },
+    [],
+  );
   const getCurrentUserId = useCallback(
     () => sessionTransitions.current.currentUserId(),
     [],
@@ -468,6 +508,11 @@ export function AuthProvider({ children }: { children: ReactNode }): React.JSX.E
 
   const value = useMemo<AuthContextValue>(() => {
     const user = session?.user ?? null;
+    const contributionAuth = accountComposerAuth(
+      user?.id ?? null,
+      session,
+      rejectedContributionAuth,
+    );
     return {
       session,
       user,
@@ -483,9 +528,25 @@ export function AuthProvider({ children }: { children: ReactNode }): React.JSX.E
         canonicalIdentity,
         user?.id ?? null,
       ),
+      rejectedContributionAuth,
+      contributionAuth,
+      invalidateContributionAuth,
       getCurrentUserId,
     };
-  }, [session, loading, configured, socialProviders, signInWithGoogle, signInWithApple, signInWithEmail, signOut, canonicalIdentity, getCurrentUserId]);
+  }, [
+    session,
+    loading,
+    configured,
+    socialProviders,
+    signInWithGoogle,
+    signInWithApple,
+    signInWithEmail,
+    signOut,
+    canonicalIdentity,
+    rejectedContributionAuth,
+    invalidateContributionAuth,
+    getCurrentUserId,
+  ]);
 
   return (
     <AuthContext.Provider value={value}>
@@ -523,6 +584,9 @@ export function useAuth(): AuthContextValue {
     cancelAuthAttempt: () => {},
     signOut: async () => {},
     handle: null,
+    rejectedContributionAuth: null,
+    contributionAuth: null,
+    invalidateContributionAuth: () => {},
     getCurrentUserId: () => null,
   };
 }

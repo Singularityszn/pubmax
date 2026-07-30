@@ -6,12 +6,14 @@ import { useCallback, useEffect, useState, type FormEvent } from "react";
 
 import { useAuth } from "@/components/auth/AuthProvider";
 import {
-  accountComposerAuth,
-  sameAccountAuth,
   useAccountScopedDraft,
   useContributionGate,
 } from "@/components/identity/ContributionGateDialog";
-import { accountBoundFetch, type AccountAuthSnapshot } from "@/lib/accountBoundFetch";
+import {
+  accountBoundFetch,
+  accountComposerAuth,
+  sameAccountAuth,
+} from "@/lib/accountBoundFetch";
 import {
   isWeatherRecommendationCondition,
   validateWeatherRecommendation,
@@ -235,10 +237,13 @@ export default function VenueWeatherRecommendations({
   venueId: string;
   venueName: string;
 }) {
-  const { user, session, handle: accountHandle } = useAuth();
+  const {
+    user,
+    session,
+    handle: accountHandle,
+    rejectedContributionAuth,
+  } = useAuth();
   const { requestContribution, contributionGateDialog } = useContributionGate();
-  const [rejectedAuth, setRejectedAuth] =
-    useState<AccountAuthSnapshot | null>(null);
   const [draft, setDraft] = useAccountScopedDraft<WeatherRecommendationDraft>(
     user?.id ?? null,
     () => ({
@@ -254,7 +259,7 @@ export default function VenueWeatherRecommendations({
   const composerAuth = accountComposerAuth(
     user?.id ?? null,
     session,
-    rejectedAuth,
+    rejectedContributionAuth,
   );
   const condition = draft?.condition ?? "warm";
   const reason = draft?.reason ?? "";
@@ -342,9 +347,6 @@ export default function VenueWeatherRecommendations({
             body.status === "sign_in_required" ||
             body.status === "onboarding_required"
           ) {
-            if (body.status === "sign_in_required") {
-              setRejectedAuth(auth);
-            }
             return {
               status: body.status,
               error: typeof body.error === "string" ? body.error : undefined,

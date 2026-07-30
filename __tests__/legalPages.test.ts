@@ -207,6 +207,10 @@ describe("legal content pages", () => {
       /derives the handle and private key from your authenticated\s+account/,
     );
     expect(privacy).toMatch(/ignores any handle sent by the browser/);
+    expect(privacy).toMatch(
+      /They are excluded\s+only while their stored handle does not resolve to a public profile/,
+    );
+    expect(privacy).not.toMatch(/can remain visible but stay excluded/);
     expect(privacy).toMatch(/the time our\s+server took it/);
     expect(privacy).toMatch(/<strong>Recommendations:<\/strong>/);
     expect(privacy).toMatch(

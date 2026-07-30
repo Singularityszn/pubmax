@@ -183,11 +183,13 @@ export default function PrivacyPage() {
           is used for rate limits and audit provenance and is never shown.
           A visible Recommendation counts on the public contributor record
           under its public handle. Historic Recommendations written under an
-          unlinked, self-asserted handle can remain visible but stay excluded
-          from that ranking. Writing another under the same handle for the same
-          pub and condition replaces the one you already had. The weather never
-          writes a Recommendation. It only decides which of the ones people
-          wrote match right now.
+          unlinked, self-asserted handle can remain visible. They are excluded
+          only while their stored handle does not resolve to a public profile.
+          If that handle is later linked, they count under that profile without
+          changing the historic row. Writing another under the same handle for
+          the same pub and condition replaces the one you already had. The
+          weather never writes a Recommendation. It only decides which of the
+          ones people wrote match right now.
         </p>
 
         <h3 className="legalH3">Community price submissions</h3>

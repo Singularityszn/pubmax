@@ -36,7 +36,8 @@ describe("Visit Report venue surface", () => {
 
     expect(panel).toContain("useAccountScopedDraft");
     expect(panel).toContain("accountComposerAuth");
-    expect(panel).toContain("setRejectedAuth(auth)");
+    expect(panel).toContain("rejectedContributionAuth");
+    expect(panel).not.toContain("setRejectedAuth");
   });
 
   it("asks a signed-out visitor to sign in before mounting any report fields", () => {

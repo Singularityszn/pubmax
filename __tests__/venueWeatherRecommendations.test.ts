@@ -159,7 +159,8 @@ describe("VenueWeatherRecommendations", () => {
 
     expect(source).toContain("useAccountScopedDraft");
     expect(source).toContain("accountComposerAuth");
-    expect(source).toContain("setRejectedAuth(auth)");
+    expect(source).toContain("rejectedContributionAuth");
+    expect(source).not.toContain("setRejectedAuth");
   });
 
   it("asks a signed-out visitor to sign in before rendering authoring fields", () => {

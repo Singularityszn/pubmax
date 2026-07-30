@@ -27,6 +27,35 @@ export function captureAccountAuth(
   };
 }
 
+export function sameAccountAuth(
+  left: AccountAuthSnapshot | null | undefined,
+  right: AccountAuthSnapshot | null | undefined,
+): boolean {
+  return Boolean(
+    left &&
+    right &&
+    left.userId === right.userId &&
+    left.accessToken === right.accessToken
+  );
+}
+
+export function accountComposerAuth(
+  expectedUserId: string | null,
+  session: Pick<Session, "access_token" | "user"> | null,
+  rejectedAuth: AccountAuthSnapshot | null | undefined,
+): AccountAuthSnapshot | null {
+  const auth = captureAccountAuth(expectedUserId, session);
+  return sameAccountAuth(auth, rejectedAuth) ? null : auth;
+}
+
+export function rejectAccountAuth(
+  current: AccountAuthSnapshot | null,
+  rejected: AccountAuthSnapshot | null,
+): AccountAuthSnapshot | null {
+  if (!rejected || sameAccountAuth(current, rejected)) return current;
+  return rejected;
+}
+
 export async function accountBoundFetch(
   auth: AccountAuthSnapshot | null,
   input: RequestInfo | URL,

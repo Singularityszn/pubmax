@@ -8,12 +8,14 @@ import { useEffect, useRef, useState } from "react";
 
 import { useAuth } from "@/components/auth/AuthProvider";
 import {
-  accountComposerAuth,
-  sameAccountAuth,
   useAccountScopedDraft,
   useContributionGate,
 } from "@/components/identity/ContributionGateDialog";
-import type { AccountAuthSnapshot } from "@/lib/accountBoundFetch";
+import {
+  accountComposerAuth,
+  sameAccountAuth,
+  type AccountAuthSnapshot,
+} from "@/lib/accountBoundFetch";
 import {
   BUSYNESS_VALUES,
   earliestVisitedAt,
@@ -221,12 +223,10 @@ function VenueVisitReports({
   // The composer MIRRORS the server's window (lib/visitReports); it never
   // replaces it, so a post that skips this card meets the same bound.
   const earliest = earliestVisitedAt(now);
-  const { user, session } = useAuth();
+  const { user, session, rejectedContributionAuth } = useAuth();
   const { requestContribution, contributionGateDialog } = useContributionGate();
   const [read, setRead] = useState<VisitReportVenueRead | null>(null);
   const [openAuth, setOpenAuth] = useState<AccountAuthSnapshot | null>(null);
-  const [rejectedAuth, setRejectedAuth] =
-    useState<AccountAuthSnapshot | null>(null);
   const [draft, setDraft, clearDraft] = useAccountScopedDraft<VisitReportDraft>(
     user?.id ?? null,
     () => ({
@@ -248,7 +248,7 @@ function VenueVisitReports({
   const composerAuth = accountComposerAuth(
     user?.id ?? null,
     session,
-    rejectedAuth,
+    rejectedContributionAuth,
   );
   const composerMode = visitReportComposerMode(
     sameAccountAuth(openAuth, composerAuth),
@@ -325,12 +325,6 @@ function VenueVisitReports({
         );
         if (!result.ok) {
           if (result.status) {
-            if (result.status === "sign_in_required") {
-              setRejectedAuth(auth);
-              setOpenAuth((current) =>
-                sameAccountAuth(current, auth) ? null : current,
-              );
-            }
             return { status: result.status, error: result.error };
           }
           setFeedback({ kind: "error", text: result.error });
