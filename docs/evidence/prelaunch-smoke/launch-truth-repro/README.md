@@ -67,3 +67,23 @@ Proof is deliberately split:
   desktop donut markers, including after camera zoom, so a desktop pixel claim
   would be false evidence. Live Chromium does mount them, as the supplied smoke
   capture shows; no separate product marker-absence defect was observed.
+
+## 3. Today and Tonight inventory
+
+At 1440x900 in one signed-out live pass, Today displayed:
+
+> Nothing left confirmed tonight.
+
+In the same pass, Tonight displayed `2 listings tonight`, two listing rows, and
+`DesignMyNight · sourced` on both. Captures are
+`03-04-today-desktop.png` and `03-tonight-desktop.png`.
+
+Cause: Today deliberately disables live enrichment and reads its bundled
+listings snapshot. Tonight reads `/api/whats-on` and layers live provider rows
+onto its baseline. Today's empty line claimed the whole live night was empty
+even though its code had only checked the narrower snapshot.
+
+The pre-fix regression failed because each Today daypart began with an absolute
+empty-night claim and did not name its listings snapshot. The corrected lines
+say that the snapshot has no picks and point readers to Tonight for live
+listings. A live Tonight count and an empty Today snapshot can now both be true.

@@ -109,14 +109,20 @@ export const TUBE_WHEN_LABEL: Record<DaySlot, string> = {
   night: "right now",
 };
 
-/** The tonight-picks empty state. Its reassurance only holds while the
- *  afternoon is still ahead: read at 9pm, "listings firm up through the
- *  afternoon" tells the viewer to wait for an afternoon that already went. */
+/**
+ * Today's picks come from its bundled listings snapshot. Tonight layers live
+ * listings on top, so this copy names the snapshot and never claims the live
+ * night is empty.
+ */
 export const PICKS_EMPTY_LINE: Record<DaySlot, string> = {
-  morning: "Nothing confirmed for tonight yet. Listings firm up through the afternoon.",
-  afternoon: "Nothing confirmed for tonight yet. Listings are still landing.",
-  evening: "Nothing confirmed for tonight yet.",
-  night: "Nothing left confirmed tonight.",
+  morning:
+    "Our listings snapshot has no picks for tonight yet. Live listings may still appear through the afternoon.",
+  afternoon:
+    "Our listings snapshot has no picks for tonight yet. Live listings may still appear.",
+  evening:
+    "Our listings snapshot has no picks for tonight. Check Tonight for live listings.",
+  night:
+    "Our listings snapshot has no picks for tonight. Check Tonight for live listings.",
 };
 
 /** Handles are stored lower-case; render them as typed, trimmed, never padded. */

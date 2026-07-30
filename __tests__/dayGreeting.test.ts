@@ -177,6 +177,18 @@ describe("time-band card copy", () => {
     expect(PICKS_EMPTY_LINE.night).not.toContain("afternoon");
   });
 
+  it("scopes Today's empty picks to its listings snapshot, not live Tonight", () => {
+    for (const slot of SLOTS) {
+      expect(PICKS_EMPTY_LINE[slot]).toContain("listings snapshot");
+      expect(PICKS_EMPTY_LINE[slot]).not.toMatch(
+        /^(?:Nothing|No (?:events|listings|picks)).*tonight/i,
+      );
+    }
+    expect(PICKS_EMPTY_LINE.night).not.toBe(
+      "Nothing left confirmed tonight.",
+    );
+  });
+
   it("writes no em dashes or en dashes in any band", () => {
     for (const slot of SLOTS) {
       expect(TUBE_WHEN_LABEL[slot]).not.toMatch(/[–—]/);
