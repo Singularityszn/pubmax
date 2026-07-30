@@ -3037,6 +3037,7 @@ export default function PubMap({
           planActive={routeMappedActive || activePlanRoute.length >= 2}
           planStopCount={routeMappedActive ? route.length : activePlanRoute.length}
           planInteractive={mobileViewport && !ukPlaceArrival}
+          venueListOpen={mapListOpen}
           onPlan={openPlanning}
           searchContent={
             <MapSearchSuggest

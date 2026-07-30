@@ -1,14 +1,15 @@
 /* Accessibility "List view": the keyboard/SR-reachable DOM list of the
-   venues on the map. Anchored bottom-left so it clears the top toolbar / tonight
-   lane and the bottom plan chip. Hidden while a venue sheet or planner owns the
-   map (the user is already inside a venue / planning). Tokens + both themes come
-   for free from the design system; the global reduced-motion reset neutralises
-   the panel's transition. */
+   venues on the map. Anchored bottom-left so it clears the top toolbar, tonight
+   lane, and bottom navigation. The planner action is suppressed while this list
+   is open rather than layered above or below its rows. Hidden while a venue sheet
+   or planner owns the map (the user is already inside a venue / planning).
+   Tokens + both themes come for free from the design system; the global
+   reduced-motion reset neutralises the panel's transition. */
 .mapVenueList {
   position: absolute;
   left: max(12px, env(safe-area-inset-left, 0px));
   bottom: max(16px, env(safe-area-inset-bottom, 0px));
-  z-index: 516; /* above tonight lane (512) + concierge (514), below toolbar */
+  z-index: 516; /* above contextual map lanes, below toolbar controls */
   display: flex;
   flex-direction: column;
   align-items: flex-start;
