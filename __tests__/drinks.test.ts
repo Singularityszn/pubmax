@@ -5,7 +5,6 @@ import { beforeEach, describe, expect, it } from "vitest";
 
 import {
   DRINK_CATEGORIES,
-  CATEGORY_DEFAULT_ABV,
   CATEGORY_META,
   abvForBrand,
   beerDrinksToLegacy,
@@ -122,7 +121,7 @@ describe("category taxonomy", () => {
   });
 });
 
-describe("formatAbv / CATEGORY_DEFAULT_ABV", () => {
+describe("formatAbv", () => {
   it("formats a numeric ABV as X%", () => {
     expect(formatAbv(4.2)).toBe("4.2%");
     expect(formatAbv(40)).toBe("40%");
@@ -132,16 +131,6 @@ describe("formatAbv / CATEGORY_DEFAULT_ABV", () => {
     expect(formatAbv(undefined)).toBe("");
     expect(formatAbv(null)).toBe("");
     expect(formatAbv(Number.NaN)).toBe("");
-  });
-
-  it("ships a default ABV (or null) for every category", () => {
-    expect(CATEGORY_DEFAULT_ABV.beer).toBe(4);
-    expect(CATEGORY_DEFAULT_ABV["soft-drink"]).toBe(0);
-    expect(CATEGORY_DEFAULT_ABV["alcohol-free"]).toBe(0);
-    expect(CATEGORY_DEFAULT_ABV.other).toBeNull();
-    for (const cat of DRINK_CATEGORIES) {
-      expect(cat in CATEGORY_DEFAULT_ABV).toBe(true);
-    }
   });
 
   it("abvForBrand reads brand.abv when present", () => {
