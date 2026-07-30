@@ -15,6 +15,7 @@ test("an active Plan starts a Round with its ordered stops", async ({ page }) =>
     { venueId: "venue-1f5ygjb", venueName: "The Bohemia" },
     { venueId: "venue-3h52h", venueName: "The Elephant Inn" },
   ];
+  const discardedStops = stops.slice().reverse();
   const startTime = new Date(Date.now() + 60 * 60 * 1000).toISOString();
   const handle = `bridge_${Date.now().toString(36)}`;
   const api = page.context().request;
@@ -32,7 +33,17 @@ test("an active Plan starts a Round with its ordered stops", async ({ page }) =>
   const planId = body.plan.plan.id;
 
   const ready = await api.patch(`/api/plans/${planId}`, {
-    data: { memberToken: body.memberToken, status: "ready" },
+    data: {
+      memberToken: body.memberToken,
+      status: "ready",
+      context: {
+        nightArea: "clapham",
+        daypart: "evening",
+        partyType: "friends",
+        groupSize: 3,
+        budget: "value",
+      },
+    },
   });
   expect(ready.ok()).toBeTruthy();
   const active = await api.patch(`/api/plans/${planId}`, {
@@ -41,6 +52,13 @@ test("an active Plan starts a Round with its ordered stops", async ({ page }) =>
   expect(active.ok()).toBeTruthy();
 
   await page.setViewportSize({ width: 390, height: 844 });
+  await page.route("**/api/plans/generate", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({ stops: discardedStops, alternatives: [] }),
+    });
+  });
   await page.addInitScript(
     ({ id, startsAt }) => {
       window.localStorage.setItem("pubmax-tour-v1-done", "1");
@@ -64,6 +82,12 @@ test("an active Plan starts a Round with its ordered stops", async ({ page }) =>
   for (const stop of stops) {
     await expect(route.getByText(stop.venueName, { exact: true })).toBeVisible();
   }
+
+  await page.getByRole("button", { name: "Edit route" }).click();
+  await expect(page.locator(".planSummary__editStops strong")).toHaveText(
+    discardedStops.map((stop) => stop.venueName),
+  );
+  await page.getByRole("button", { name: "Discard draft" }).click();
 
   const startRound = page.getByRole("button", { name: "Start Round", exact: true });
   await expect(startRound).toBeEnabled();

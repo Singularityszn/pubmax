@@ -20,7 +20,7 @@
 ### Task 1: Lock the active Plan journey
 
 **Files:**
-- Create: `e2e/plan-round-bridge.spec.ts`
+- Create: `e2e/plan-round-bridge.flag-on.spec.ts`
 
 **Interfaces:**
 - Consumes: existing Plan UI, `POST /api/plans`, `RoundStarter`, and Round routes.
@@ -28,11 +28,11 @@
 
 - [ ] **Step 1: Write the failing Playwright test**
 
-Create a near-start Plan with three listed venues through the Plan composer, open its full member view, start a Round, and assert the Round route contains the same three venue names in the same order.
+Create a near-start Plan with three listed venues, open its full member view, discard a generated route draft, start a Round, and assert the Round route contains the same three canonical venue names in the same order.
 
 - [ ] **Step 2: Run test to verify it fails**
 
-Run: `PW_PORT=3317 PW_SKIP_WEBSERVER=1 npx playwright test e2e/plan-round-bridge.spec.ts --project=chromium --workers=1`
+Run: `PUBMAX_FRIEND_MEMBER_REHYDRATION_V2=1 PW_PORT=3317 npx playwright test e2e/plan-round-bridge.flag-on.spec.ts --project=chromium-flag-on --workers=1`
 
 Expected: FAIL because active Plan exposes no `Start Round` control.
 
@@ -40,15 +40,15 @@ Expected: FAIL because active Plan exposes no `Start Round` control.
 
 **Files:**
 - Modify: `components/plan/PlanSummary.tsx`
-- Test: `e2e/plan-round-bridge.spec.ts`
+- Test: `e2e/plan-round-bridge.flag-on.spec.ts`
 
 **Interfaces:**
-- Consumes: member-only `PlanState`, visible canonical stops, and `RoundStarter`.
+- Consumes: member-only `PlanState`, confirmed canonical stops, and `RoundStarter`.
 - Produces: Plan detail control that creates a Round, adds stops sequentially, and navigates to `/rounds/{code}`.
 
 - [ ] **Step 1: Add minimal implementation**
 
-Render `RoundStarter` after the canonical `PlanRoute`, passing `state.plan.title` and `visibleStops` mapped to `{ id, name }`. Keep default navigation behavior.
+Keep confirmed canonical stops separate from editable draft state. Render `RoundStarter` after the canonical `PlanRoute`, passing `state.plan.title` and confirmed stops mapped to `{ id, name }`. Update confirmed stops only after a successful route save, and keep default navigation behavior.
 
 - [ ] **Step 2: Run focused tests**
 
@@ -56,7 +56,7 @@ Run:
 
 ```bash
 npm test -- __tests__/startRoundWithStops.test.ts
-PW_PORT=3317 PW_SKIP_WEBSERVER=1 npx playwright test e2e/plan-round-bridge.spec.ts --project=chromium --workers=1
+PUBMAX_FRIEND_MEMBER_REHYDRATION_V2=1 PW_PORT=3317 npx playwright test e2e/plan-round-bridge.flag-on.spec.ts --project=chromium-flag-on --workers=1
 ```
 
 Expected: both PASS.
