@@ -199,7 +199,7 @@ describe("legal content pages", () => {
     // authored reason, a server timestamp, and a server-derived actor token.
     // Current community prices also carry an account-owned public handle;
     // anonymity is reserved for legacy price rows without one.
-    expect(privacy).toMatch(/Recommendations, and Night Memories/);
+    expect(privacy).toMatch(/Recommendations, and Night\s+Memories/);
     expect(privacy).toMatch(/public PUBMAXX\s+handle/);
     expect(privacy).toMatch(/needs a signed-in account/);
     expect(privacy).toMatch(/stable private profile key/);

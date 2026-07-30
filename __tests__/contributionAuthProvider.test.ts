@@ -1,8 +1,5 @@
-import {
-  act,
-  createElement,
-  type ReactNode,
-} from "react";
+import { act as reactAct, createElement, type ReactNode } from "react";
+import { flushSync } from "react-dom";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -170,6 +167,19 @@ let root: Root | null = null;
 let previousWindow: typeof globalThis.window | undefined;
 let previousDocument: typeof globalThis.document | undefined;
 
+async function commitReactWork(work: () => void | Promise<void>): Promise<void> {
+  if (typeof reactAct === "function") {
+    await reactAct(work);
+    return;
+  }
+
+  let pending: void | Promise<void> = undefined;
+  flushSync(() => {
+    pending = work();
+  });
+  await pending;
+}
+
 function Consumer({ name }: { name: string }): ReactNode {
   const auth = useAuth();
   const { requestContribution } = useContributionGate();
@@ -201,13 +211,13 @@ beforeEach(() => {
   Object.assign(globalThis, {
     window,
     document,
-    IS_REACT_ACT_ENVIRONMENT: true,
+    IS_REACT_ACT_ENVIRONMENT: typeof reactAct === "function",
   });
 });
 
 afterEach(async () => {
   if (root) {
-    await act(async () => root?.unmount());
+    await commitReactWork(() => root?.unmount());
     root = null;
   }
   Object.assign(globalThis, {
@@ -222,7 +232,7 @@ describe("shared contribution auth invalidation", () => {
     const container = globalThis.document.createElement("div");
     root = createRoot(container);
 
-    await act(async () => {
+    await commitReactWork(async () => {
       root?.render(
         createElement(
           AuthProvider,
@@ -236,23 +246,29 @@ describe("shared contribution auth invalidation", () => {
       await Promise.resolve();
     });
 
-    expect(consumers.get("visit")?.auth.contributionAuth).toMatchObject({
-      userId: "account-a",
-      accessToken: "shared-session",
-    });
-    expect(consumers.get("weather")?.auth.contributionAuth).toMatchObject({
-      userId: "account-a",
-      accessToken: "shared-session",
+    await vi.waitFor(() => {
+      expect(consumers.get("visit")?.auth.contributionAuth).toMatchObject({
+        userId: "account-a",
+        accessToken: "shared-session",
+      });
+      expect(consumers.get("weather")?.auth.contributionAuth).toMatchObject({
+        userId: "account-a",
+        accessToken: "shared-session",
+      });
     });
 
-    await act(async () => {
+    await commitReactWork(async () => {
       await consumers.get("visit")?.requestContribution(async () => ({
         status: "sign_in_required",
       }));
     });
 
+    await vi.waitFor(() => {
+      expect(consumers.get("weather")?.auth.contributionAuth).toBeNull();
+    });
+
     let weatherActionCalled = false;
-    await act(async () => {
+    await commitReactWork(async () => {
       await consumers.get("weather")?.requestContribution(async () => {
         weatherActionCalled = true;
       });
