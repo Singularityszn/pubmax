@@ -465,6 +465,7 @@ for (const viewport of VIEWPORTS.filter(({ width }) => width >= 390)) {
         display: style.display,
         visibility: style.visibility,
         opacity: style.opacity,
+        top: rect.top,
         bottom: rect.bottom,
       };
     });
@@ -472,6 +473,7 @@ for (const viewport of VIEWPORTS.filter(({ width }) => width >= 390)) {
     expect(attributionState.display).not.toBe("none");
     expect(attributionState.visibility).toBe("visible");
     expect(Number(attributionState.opacity)).toBeGreaterThan(0);
+    expect(attributionState.top).toBeGreaterThanOrEqual(geometry!.chip.bottom);
     expect(attributionState.bottom).toBeLessThanOrEqual(geometry!.tab.y);
 
     await page.getByRole("button", { name: "More map controls" }).click();
