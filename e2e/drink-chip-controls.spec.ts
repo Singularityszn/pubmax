@@ -294,6 +294,82 @@ for (const width of [390, 320]) {
   });
 }
 
+for (const width of [390, 320]) {
+  test(`${width}px map attribution opens fully above the plan action`, async ({
+    page,
+  }) => {
+    test.setTimeout(90_000);
+    await page.setViewportSize({ width, height: 844 });
+    const response = await page.goto("/map");
+    expect(response?.status()).toBe(200);
+
+    const attribution = page.locator(".maplibregl-ctrl-attrib");
+    await expect(attribution).toBeVisible({ timeout: 45_000 });
+    await expect(attribution).toHaveClass(/maplibregl-compact/);
+    const collapsedBox = await attribution.boundingBox();
+    expect(collapsedBox).not.toBeNull();
+    expect(collapsedBox!.width).toBeLessThanOrEqual(44);
+    expect(collapsedBox!.height).toBeLessThanOrEqual(44);
+
+    await attribution.locator(".maplibregl-ctrl-attrib-button").click();
+    const fullCredit = attribution.locator(".maplibregl-ctrl-attrib-inner");
+    await expect(fullCredit).toBeVisible();
+    await expect(fullCredit).toContainText(
+      "Pub data © OpenStreetMap contributors (ODbL)",
+    );
+    await expect(fullCredit).toContainText("OpenFreeMap");
+    await expect(fullCredit).toContainText("OpenMapTiles");
+    await expect(fullCredit).toContainText("Data from OpenStreetMap");
+
+    const plan = page.getByRole("button", { name: "Describe your night" });
+    await expect(plan).toBeVisible();
+    const geometry = await page.evaluate(() => {
+      const attributionElement = document.querySelector<HTMLElement>(
+        ".maplibregl-ctrl-attrib",
+      );
+      const inner = document.querySelector<HTMLElement>(
+        ".maplibregl-ctrl-attrib-inner",
+      );
+      const planElement = document.querySelector<HTMLElement>(
+        ".mobilePlanActivation",
+      );
+      if (!attributionElement || !inner || !planElement) return null;
+      const attributionRect = attributionElement.getBoundingClientRect();
+      const planRect = planElement.getBoundingClientRect();
+      const style = getComputedStyle(inner);
+      return {
+        attribution: {
+          left: attributionRect.left,
+          right: attributionRect.right,
+          bottom: attributionRect.bottom,
+        },
+        inner: {
+          clientWidth: inner.clientWidth,
+          scrollWidth: inner.scrollWidth,
+          textOverflow: style.textOverflow,
+          whiteSpace: style.whiteSpace,
+          text: inner.textContent?.trim() ?? "",
+        },
+        plan: {
+          top: planRect.top,
+        },
+      };
+    });
+    expect(geometry).not.toBeNull();
+    expect(geometry!.attribution.left).toBeGreaterThanOrEqual(0);
+    expect(geometry!.attribution.right).toBeLessThanOrEqual(width);
+    expect(geometry!.attribution.bottom).toBeLessThanOrEqual(
+      geometry!.plan.top,
+    );
+    expect(geometry!.inner.scrollWidth).toBeLessThanOrEqual(
+      geometry!.inner.clientWidth + 1,
+    );
+    expect(geometry!.inner.textOverflow).not.toBe("ellipsis");
+    expect(geometry!.inner.whiteSpace).toBe("normal");
+    expect(geometry!.inner.text).not.toContain("…");
+  });
+}
+
 test("390px drink glyphs keep the requested 22px box", async ({ page }) => {
   test.setTimeout(90_000);
   const sheet = await openFilters(page);

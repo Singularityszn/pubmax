@@ -68,7 +68,22 @@
   }
 
   .appShell .mapStage .maplibregl-ctrl-bottom-right {
-    bottom: var(--mobile-map-dock-clearance);
+    /* MapLibre's compact info control sits above the 48px plan action. Opening
+       the full credit uses this same lane, so licence text never paints through
+       the action beneath it. */
+    bottom: calc(var(--mobile-map-dock-clearance) + 68px);
+  }
+
+  .appShell .mapStage .maplibregl-ctrl-attrib.maplibregl-compact {
+    box-sizing: border-box;
+    max-width: calc(100vw - 24px);
+  }
+
+  .appShell .mapStage .maplibregl-ctrl-attrib-inner {
+    max-width: 100%;
+    overflow-wrap: normal;
+    text-overflow: clip;
+    white-space: normal;
   }
 
   /* Portal sheets sit outside .appShell. Hide map-owned controls while one is

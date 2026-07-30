@@ -975,11 +975,20 @@ export default function PubMapCanvas({
         // on a source, so it survives every style swap (theme toggle, fallback
         // styles) and shows in every city - the rail-lines source's own
         // attribution only exists in London (buildScene).
-        attributionControl: { customAttribution: OSM_ATTRIBUTION },
+        attributionControl: {
+          compact: true,
+          customAttribution: OSM_ATTRIBUTION,
+        },
         // Attempt 2 drops to low-power: some drivers refuse a
         // high-performance context under load but grant the integrated GPU.
         ...(lowPower ? { canvasContextAttributes: { powerPreference: "low-power" } } : {}),
       });
+      // MapLibre creates a forced-compact attribution control in its expanded
+      // state. Start with the native info affordance closed; later taps still
+      // use MapLibre's own disclosure and keep every credit readable.
+      container
+        .querySelector<HTMLElement>(".maplibregl-ctrl-attrib-button")
+        ?.click();
     } catch (error) {
       reducedQuery.removeEventListener("change", onReducedChange);
       window.removeEventListener("blur", onBlur);
