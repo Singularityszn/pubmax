@@ -94,6 +94,13 @@ Commit component, tests, and local CSS together. Commit message names `computeZo
 
 ### Task 3: Make Tonight Arc state readable without colour
 
+> **Superseded:** Task 3's check mark, native disabled control, and in-chip
+> reason were replaced by the
+> [mobile map chrome plan](./2026-07-30-mobile-map-chrome.md). Current contract:
+> selection uses weight and border, Clubs remains focusable so its reason can be
+> revealed outside the chip, and no filter action changes. Do not implement this
+> task as written.
+
 **Files:**
 - Modify: `__tests__/mapExperienceLensUi.test.ts`
 - Modify: `e2e/drink-chip-controls.spec.ts`

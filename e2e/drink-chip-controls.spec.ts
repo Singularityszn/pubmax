@@ -287,10 +287,22 @@ for (const width of [390, 320]) {
     expect(selectedStyle.fontWeight).toBeGreaterThan(unselectedStyle.fontWeight);
     await expect(pints).toHaveAttribute("aria-pressed", "true");
 
-    await clubs.dispatchEvent("click");
+    const pressedBeforeUnavailableActivation = await chips.evaluateAll((buttons) =>
+      buttons.map((button) => button.getAttribute("aria-pressed")),
+    );
+    await clubs.focus();
+    await expect(clubs).toBeFocused();
+    await page.keyboard.press("Enter");
+    await expect(clubs).toHaveAttribute("aria-expanded", "true");
     const reason = arc.getByRole("tooltip");
     await expect(reason).toBeVisible();
     await expect(reason).toHaveText("Clubs are not mapped yet");
+    expect(
+      await chips.evaluateAll((buttons) =>
+        buttons.map((button) => button.getAttribute("aria-pressed")),
+      ),
+      "asking why Clubs is unavailable never changes a venue filter",
+    ).toEqual(pressedBeforeUnavailableActivation);
   });
 }
 
