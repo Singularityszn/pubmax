@@ -1,6 +1,6 @@
 // Structured Visit Reports: the single write/read seam.
 //
-//   POST { venueId, handle, visitedAt, busyness?, noise?, seating?,
+//   POST { venueId, visitedAt, busyness?, noise?, seating?,
 //          serviceWait?, note? }                  -> 201 { report }
 //   POST { action: "report", id, reason? }         -> 200 { ok } (public)
 //   POST { action: "restore" | "hide", id, note? } -> 200 { ok } (moderator)
@@ -16,22 +16,22 @@
 // Production write schema misses fail closed with 503. Reads carry a degraded
 // status so a failed lookup is never presented as an answered empty venue.
 //
-// Boundaries (write-surface certification): PUBLIC keyless contribution path.
+// Boundaries (write-surface certification): account-bound contribution path.
 // Creation and reporting are durably RATE LIMITED (rate_limit class); moderator
 // restore/hide require the admin token (moderator class). A note is
-// slop-filtered + capped at validation; identity is the self-asserted handle,
-// gated by gateHandleAction, the same demo posture as a Pint Drop / rating. A
-// hard durable write failure answers 503, never a fake success. Creation pauses
+// slop-filtered + capped at validation; creation identity is server-derived
+// from the authenticated account's immutable profile id. A body handle is
+// ignored. A hard durable write failure answers 503, never a fake success.
+// Creation pauses
 // under the solo-operator social freeze; reporting + moderation stay open.
 
 import { isModerator } from "@/lib/adminAuth";
 import { jsonNoStore } from "@/lib/apiResponses";
 import { publicApiError } from "@/lib/apiError";
+import { resolveContributionIdentity } from "@/lib/contributionIdentity.server";
 import { log } from "@/lib/log";
-import { resolveMessageHandle } from "@/lib/messageAuth";
 import { socialFreezeResponse } from "@/lib/opsFreeze";
 import { isLimited } from "@/lib/pintDrops";
-import { gateHandleAction } from "@/lib/profileOwnership";
 import { clientIp, hashActor, hashIp } from "@/lib/supabase";
 import { readString } from "@/lib/textClean";
 import { normalizeHandle, validateVisitReport } from "@/lib/visitReports";
@@ -112,33 +112,33 @@ export async function POST(request: Request): Promise<Response> {
   }
 
   // ── Create (a social write — paused under the solo-operator freeze) ─────────
+  const contributor = await resolveContributionIdentity(request);
+  if (!contributor.ok) {
+    return jsonNoStore(contributor.body, { status: contributor.httpStatus });
+  }
+
   const frozen = socialFreezeResponse();
   if (frozen) return frozen;
 
-  const result = validateVisitReport(body);
+  const result = validateVisitReport({
+    ...body,
+    handle: contributor.handle,
+  });
   if (!result.ok) {
     return publicApiError(result.error, "INVALID_REPORT", 400);
   }
 
-  // JWT-linked handle wins over a self-asserted body handle when signed in.
-  const actorHandle = await resolveMessageHandle(request, result.value.handle);
-  if (!actorHandle) {
-    return publicApiError("Add a handle.", "INVALID_REPORT", 400);
-  }
-  const ownership = await gateHandleAction(request, actorHandle);
-  if (!ownership.allowed) {
-    return publicApiError(ownership.error, "FORBIDDEN", ownership.status);
-  }
-
-  // Durable per-handle + hashed-IP rate limit (the certification boundary).
+  // Durable per-profile + hashed-IP rate limit. Profile identity survives a
+  // public handle rename, while the IP component keeps one shared origin from
+  // spending another origin's budget.
   const ipHash = hashIp(clientIp(request));
-  const key = `visit-report:${ownership.handle.toLowerCase()}:${ipHash}`;
-  if (await isLimited(ownership.handle, key, undefined, CREATE_WINDOW_MS)) {
+  const key = `visit-report:${contributor.actor}:${ipHash}`;
+  if (await isLimited(key, key, undefined, CREATE_WINDOW_MS)) {
     return publicApiError("Too many submissions, slow down.", "RATE_LIMITED", 429, { retryable: true });
   }
 
   try {
-    const report = await visitReportsStore().create({ ...result.value, handle: ownership.handle });
+    const report = await visitReportsStore().create(result.value);
     return jsonNoStore({ report }, { status: 201 });
   } catch (err) {
     log("error", "visit_reports.create_failed", {

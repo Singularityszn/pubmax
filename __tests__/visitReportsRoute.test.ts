@@ -10,6 +10,38 @@ vi.mock("@/lib/supabase", async (importOriginal) => {
   return { ...actual, isSupabaseConfigured: () => false, requiresSupabaseStore: () => false };
 });
 
+const contributionIdentityState = vi.hoisted(() => ({
+  resolution: {
+    ok: true as const,
+    accountId: "attacker-account",
+    actor: "profile:attacker-profile",
+    handle: "sam",
+  } as import("@/lib/contributionIdentity.server").ContributionIdentityResolution,
+}));
+
+vi.mock("@/lib/contributionIdentity.server", () => ({
+  resolveContributionIdentity: async () => contributionIdentityState.resolution,
+}));
+
+const rateLimitCalls = vi.hoisted(() => [] as Array<[string, string]>);
+
+vi.mock("@/lib/pintDrops", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/pintDrops")>();
+  return {
+    ...actual,
+    isLimited: async (localKey: string, durableKey: string, ...rest: unknown[]) => {
+      rateLimitCalls.push([localKey, durableKey]);
+      return actual.isLimited(
+        localKey,
+        durableKey,
+        rest[0] as number | undefined,
+        rest[1] as number | undefined,
+        rest[2] as { failClosed?: boolean } | undefined,
+      );
+    },
+  };
+});
+
 import { GET, POST } from "@/app/api/visit-reports/route";
 import { __resetVisitReports, memoryVisitReportStore } from "@/lib/visitReportsStore";
 import { __resetPintDrops } from "@/lib/pintDrops";
@@ -43,11 +75,112 @@ beforeEach(() => {
   process.env.ADMIN_TOKEN = "test-admin-secret";
   __resetVisitReports();
   __resetPintDrops();
+  rateLimitCalls.length = 0;
+  contributionIdentityState.resolution = {
+    ok: true,
+    accountId: "attacker-account",
+    actor: "profile:attacker-profile",
+    handle: "sam",
+  };
 });
 
 afterEach(() => vi.restoreAllMocks());
 
 describe("POST /api/visit-reports (create)", () => {
+  it("attributes an attacker's post to the authenticated account, not the claimed victim", async () => {
+    contributionIdentityState.resolution = {
+      ok: true,
+      accountId: "attacker-account",
+      actor: "profile:attacker-profile",
+      handle: "attacker",
+    };
+
+    const res = await POST(
+      post({
+        venueId: "venue-1",
+        handle: "victim",
+        visitedAt: dayKey(2),
+        busyness: "steady",
+      }),
+    );
+
+    expect(res.status).toBe(201);
+    expect(await res.json()).toMatchObject({
+      report: { handle: "attacker" },
+    });
+    expect((await memoryVisitReportStore.readForVenue("venue-1")).reports).toEqual([
+      expect.objectContaining({ handle: "attacker" }),
+    ]);
+  });
+
+  it("requires the established account prompt without orphaning a legacy unlinked row", async () => {
+    await memoryVisitReportStore.create({
+      venueId: "venue-legacy",
+      handle: "legacy_writer",
+      visitedAt: dayKey(3),
+      busyness: "quiet",
+      noise: null,
+      seating: null,
+      serviceWait: null,
+      note: "",
+    });
+    contributionIdentityState.resolution = {
+      ok: false,
+      body: {
+        status: "sign_in_required",
+        error: "Sign in to contribute.",
+      },
+      httpStatus: 401,
+    };
+
+    const rejected = await POST(
+      post({
+        venueId: "venue-legacy",
+        handle: "legacy_writer",
+        visitedAt: dayKey(1),
+        busyness: "rammed",
+      }),
+    );
+
+    expect(rejected.status).toBe(401);
+    expect(await rejected.json()).toMatchObject({
+      status: "sign_in_required",
+      error: "Sign in to contribute.",
+    });
+    const legacyRead = await GET(get("?venueId=venue-legacy"));
+    expect(await legacyRead.json()).toMatchObject({
+      status: "ready",
+      reports: [expect.objectContaining({ handle: "legacy_writer" })],
+    });
+  });
+
+  it("keys the creation budget by immutable profile actor plus hashed IP", async () => {
+    contributionIdentityState.resolution = {
+      ok: true,
+      accountId: "attacker-account",
+      actor: "profile:attacker-profile",
+      handle: "attacker",
+    };
+
+    const res = await POST(
+      post({
+        venueId: "venue-1",
+        handle: "victim",
+        visitedAt: dayKey(2),
+        busyness: "steady",
+      }),
+    );
+
+    expect(res.status).toBe(201);
+    expect(rateLimitCalls).toHaveLength(1);
+    const [localKey, durableKey] = rateLimitCalls[0];
+    expect(localKey).toBe(durableKey);
+    expect(localKey).toMatch(
+      /^visit-report:profile:attacker-profile:[a-f0-9]{64}$/,
+    );
+    expect(localKey).not.toContain("victim");
+  });
+
   it("creates a valid report (201) and stores it", async () => {
     const res = await POST(
       post({

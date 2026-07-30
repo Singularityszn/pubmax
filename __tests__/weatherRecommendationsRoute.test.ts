@@ -34,12 +34,17 @@ const weatherState = vi.hoisted(() => ({
   reads: 0,
 }));
 
-const handleState = vi.hoisted(() => ({
-  resolverUnavailable: false,
+const contributionIdentityState = vi.hoisted(() => ({
+  resolution: {
+    ok: true as const,
+    accountId: "night-owl-account",
+    actor: "profile:night-owl-profile",
+    handle: "night_owl",
+  } as import("@/lib/contributionIdentity.server").ContributionIdentityResolution,
 }));
 
-const actorState = vi.hoisted(() => ({
-  unavailable: false,
+vi.mock("@/lib/contributionIdentity.server", () => ({
+  resolveContributionIdentity: async () => contributionIdentityState.resolution,
 }));
 
 vi.mock("@/lib/weatherSnapshots.server", () => ({
@@ -47,26 +52,6 @@ vi.mock("@/lib/weatherSnapshots.server", () => ({
     weatherState.reads += 1;
     return weatherState.snapshot;
   },
-}));
-
-vi.mock("@/lib/communityPriceActor", () => ({
-  deriveCommunityPriceActor: () =>
-    actorState.unavailable ? undefined : "server-derived-actor",
-}));
-
-vi.mock("@/lib/messageAuth", () => ({
-  resolveMessageHandle: async (
-    _request: Request,
-    assertedHandle: string,
-  ) => handleState.resolverUnavailable ? "" : assertedHandle,
-}));
-
-vi.mock("@/lib/profileOwnership", () => ({
-  gateHandleAction: async (_request: Request, handle: string) => ({
-    allowed: true as const,
-    callerUserId: null,
-    handle,
-  }),
 }));
 
 vi.mock("@/lib/supabase", async (importOriginal) => {
@@ -139,14 +124,86 @@ beforeEach(() => {
   venueState.kind = "pub";
   weatherState.snapshot = snapshot();
   weatherState.reads = 0;
-  handleState.resolverUnavailable = false;
-  actorState.unavailable = false;
+  contributionIdentityState.resolution = {
+    ok: true,
+    accountId: "night-owl-account",
+    actor: "profile:night-owl-profile",
+    handle: "night_owl",
+  };
   __resetPintDrops();
   __resetWeatherRecommendations();
   __resetWeatherSnapshotMemo();
 });
 
 describe("POST /api/weather-recommendations", () => {
+  it("attributes an attacker's post to the authenticated account, not the claimed victim", async () => {
+    contributionIdentityState.resolution = {
+      ok: true,
+      accountId: "attacker-account",
+      actor: "profile:attacker-profile",
+      handle: "attacker",
+    };
+
+    const response = await POST(
+      post({
+        venueId: "venue-test",
+        condition: "warm",
+        reason: "The back garden catches the evening light.",
+        contributorHandle: "victim",
+      }),
+    );
+
+    expect(response.status).toBe(201);
+    expect(await response.json()).toMatchObject({
+      recommendation: { contributorHandle: "attacker" },
+    });
+    expect(
+      await memoryWeatherRecommendationStore.countForContributor("attacker"),
+    ).toEqual({ status: "ready", count: 1 });
+    expect(
+      await memoryWeatherRecommendationStore.countForContributor("victim"),
+    ).toEqual({ status: "ready", count: 0 });
+  });
+
+  it("requires the established account prompt without orphaning a legacy unlinked row", async () => {
+    await memoryWeatherRecommendationStore.create(
+      {
+        venueId: "venue-test",
+        condition: "cold",
+        reason: "The old snug keeps the draught out.",
+        contributorHandle: "legacy_writer",
+        actorHash: "legacy-device-actor",
+      },
+      1_000,
+    );
+    contributionIdentityState.resolution = {
+      ok: false,
+      body: {
+        status: "sign_in_required",
+        error: "Sign in to contribute.",
+      },
+      httpStatus: 401,
+    };
+
+    const rejected = await POST(
+      post({
+        venueId: "venue-test",
+        condition: "warm",
+        reason: "The back garden catches the evening light.",
+        contributorHandle: "legacy_writer",
+      }),
+    );
+
+    expect(rejected.status).toBe(401);
+    expect(await rejected.json()).toMatchObject({
+      status: "sign_in_required",
+      error: "Sign in to contribute.",
+    });
+    expect(
+      await memoryWeatherRecommendationStore.countForContributor("legacy_writer"),
+    ).toEqual({ status: "ready", count: 1 });
+  });
+
   it("stores a validated, canonical, attributed opinion", async () => {
     const response = await POST(
       post({
@@ -246,8 +303,15 @@ describe("POST /api/weather-recommendations", () => {
     expect(response.status).toBe(503);
   });
 
-  it("answers retryable 503 when authenticated handle resolution cannot answer", async () => {
-    handleState.resolverUnavailable = true;
+  it("answers 503 when account contribution identity cannot be resolved", async () => {
+    contributionIdentityState.resolution = {
+      ok: false,
+      accountId: "night-owl-account",
+      body: {
+        error: "Contribution identity is unavailable right now.",
+      },
+      httpStatus: 503,
+    };
     const response = await POST(
       post({
         venueId: "venue-test",
@@ -259,13 +323,21 @@ describe("POST /api/weather-recommendations", () => {
 
     expect(response.status).toBe(503);
     expect(await response.json()).toMatchObject({
-      code: "PROFILE_UNAVAILABLE",
-      retryable: true,
+      error: "Contribution identity is unavailable right now.",
     });
   });
 
-  it("answers retryable 503 when private actor provenance cannot be derived", async () => {
-    actorState.unavailable = true;
+  it("requires completed account onboarding", async () => {
+    contributionIdentityState.resolution = {
+      ok: false,
+      accountId: "night-owl-account",
+      body: {
+        status: "onboarding_required",
+        error:
+          "Choose a public handle and add your date of birth before contributing.",
+      },
+      httpStatus: 409,
+    };
     const response = await POST(
       post({
         venueId: "venue-test",
@@ -275,10 +347,9 @@ describe("POST /api/weather-recommendations", () => {
       }),
     );
 
-    expect(response.status).toBe(503);
+    expect(response.status).toBe(409);
     expect(await response.json()).toMatchObject({
-      code: "ACTOR_UNAVAILABLE",
-      retryable: true,
+      status: "onboarding_required",
     });
   });
 
