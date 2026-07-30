@@ -7,7 +7,7 @@ Viewports: 390x844 mobile with touch emulation; 1440x900 desktop
 
 ## First-time visitor findings, worst first
 
-- No launch-blocking visitor-facing defect observed in completed journeys so far.
+- **Desktop map shows a false failure:** at 1440x900, the map background and pins render, then a persistent toast says `Map background couldn't load. Tap Retry to try again.` Reproduced in two fresh Chromium runs. This is untrue and asks for recovery from a failure the visitor cannot see.
 - Home proposition is immediate at both widths: listed sourced pint prices on an interactive map, plus crawl planning.
 - First-visit analytics choice covers some below-fold home content, but leaves proposition and primary `Find my pint` action visible. `No thanks` and `Allow` are reachable at both widths.
 
@@ -16,7 +16,7 @@ Viewports: 390x844 mobile with touch emulation; 1440x900 desktop
 | Journey | Mobile | Desktop |
 | --- | --- | --- |
 | 1. Home | Pass | Pass |
-| 2. Map and key | Pending | Pending |
+| 2. Map and key | Pass | Fail |
 | 3. Venue sheet | Pending | Pending |
 | 4. Filter | Pending | Pending |
 | 5. Plan | Pending | Pending |
@@ -53,7 +53,33 @@ Capture: [`01-home-desktop.png`](01-home-desktop.png)
 
 ## 2. Open map and inspect pins and key
 
-Pending.
+**What I did**
+
+- Opened `https://pubmaxxing.com/map` in a new signed-out context at each viewport and declined optional analytics.
+- Waited ten seconds for the map and venue index.
+- Mobile: opened `More map controls`, which opens on the `Key` tab.
+- Desktop: opened the visible `Key` control.
+
+**390x844 - Pass**
+
+MapLibre canvas filled exact viewport. Coloured clusters and individual venue pins appeared behind controls; list-view count was 743 in observed state. Key explained green `£` as £5.50 or less, amber `££` as over £5.50 to £7, red `£££` as over £7, grey `?` as no pint price, plus mixed cluster rings. Copy also distinguishes pub pint thresholds from relative bands for other venue types. No overlap or horizontal overflow observed.
+
+Capture: [`02-map-mobile.png`](02-map-mobile.png)
+
+**1440x900 - Fail**
+
+MapLibre canvas filled exact viewport. London basemap, coloured clusters, individual pins, and list-view count 1,466 appeared. Expanded key clearly described price colours and cluster rings.
+
+Defect: persistent toast at bottom says `Map background couldn't load. Tap Retry to try again.` while background is visibly loaded. Same false failure appeared in a second fresh 1440x900 run after 12 seconds. Left report-only because it touches map behaviour.
+
+Capture: [`02-map-desktop.png`](02-map-desktop.png)
+
+**Diagnostics**
+
+- Main document: HTTP 200 at both widths.
+- Console errors: none at either width, including desktop reproduction.
+- Console warnings: mobile logged two headless-Chromium WebGL readback-stall warnings and unused-preload warnings; desktop reproduction logged two WebGL readback-stall warnings.
+- Failed requests: mobile logged three aborted speculative Next.js RSC prefetches (`/u/you`, `/moment`, `/today`) and no HTTP 4xx/5xx. Desktop reproduction logged no request failures and no HTTP 4xx/5xx despite false failure toast.
 
 ## 3. Open a pub
 
