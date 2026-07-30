@@ -819,6 +819,7 @@ html[data-theme="dark"] .planCrew__join button { color: #090d0b; }
   .planSummary__rail { left: 43px; top: 105px; }
   .planSummary__heading { margin-left: 57px; }
   .planSummary__headingRow { align-items: flex-start; }
+  .planSummary > .roundStarter { width: calc(100% - 44px); margin-left: 44px; }
   .planSummary__editor { margin-left: 0; }
   .planSummary__status { margin-left: 0; }
   .planCollab { margin-left: 0; padding: 15px; }

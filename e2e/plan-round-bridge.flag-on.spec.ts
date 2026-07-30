@@ -9,6 +9,11 @@ type PlanCreateResponse = {
   };
 };
 
+const MOBILE_VIEWPORTS = [
+  { width: 390, height: 844 },
+  { width: 430, height: 932 },
+] as const;
+
 test("an active Plan starts a Round with its ordered stops", async ({ page }) => {
   const stops = [
     { venueId: "venue-xjf3n0", venueName: "Arnos Arms" },
@@ -91,6 +96,50 @@ test("an active Plan starts a Round with its ordered stops", async ({ page }) =>
 
   const startRound = page.getByRole("button", { name: "Start Round", exact: true });
   await expect(startRound).toBeEnabled();
+  for (const viewport of MOBILE_VIEWPORTS) {
+    await page.setViewportSize(viewport);
+    await page.locator(".roundStarterRow").evaluate((row) => {
+      row.scrollIntoView({ block: "center" });
+    });
+    const geometry = await page.locator(".planSummary").evaluate((summary) => {
+      const starter = summary.querySelector<HTMLElement>(".roundStarter");
+      const rail = summary.querySelector<HTMLElement>(".planSummary__rail");
+      const input = summary.querySelector<HTMLInputElement>(".roundStarterRow input");
+      const action = summary.querySelector<HTMLButtonElement>(".roundStarterRow button");
+      if (!starter || !rail || !input || !action) {
+        throw new Error("Plan RoundStarter geometry is incomplete");
+      }
+
+      const starterRect = starter.getBoundingClientRect();
+      const railRect = rail.getBoundingClientRect();
+      const actionRect = action.getBoundingClientRect();
+      const overlaps = (first: DOMRect, second: DOMRect) =>
+        first.left < second.right &&
+        first.right > second.left &&
+        first.top < second.bottom &&
+        first.bottom > second.top;
+
+      return {
+        starterRailOverlap: overlaps(starterRect, railRect),
+        actionRailOverlap: overlaps(actionRect, railRect),
+      };
+    });
+
+    expect
+      .soft(
+        geometry.starterRailOverlap,
+        `RoundStarter must clear route rail at ${viewport.width}px`,
+      )
+      .toBe(false);
+    expect
+      .soft(
+        geometry.actionRailOverlap,
+        `Start Round action must clear route rail at ${viewport.width}px`,
+      )
+      .toBe(false);
+    await page.getByLabel("Your handle").click({ trial: true });
+    await startRound.click({ trial: true });
+  }
   await page.getByLabel("Your handle").fill(handle);
   await startRound.click();
   await expect(page).toHaveURL(/\/rounds\/[A-Z0-9]{6}$/);
