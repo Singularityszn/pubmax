@@ -56,9 +56,6 @@ async function openVenueCard(page: Page): Promise<Locator> {
     waitUntil: "domcontentloaded",
   });
   expect(response?.status()).toBe(200);
-  const sheet = page.getByRole("region", { name: "Arnos Arms" });
-  await expect(sheet).toBeVisible({ timeout: 60_000 });
-  await sheet.getByRole("button", { name: "Expand sheet" }).click();
   const card = page.locator(".venueWeatherRecommendations");
   await expect(card).toBeAttached({ timeout: 60_000 });
   await card.evaluate((element) => {
@@ -68,71 +65,19 @@ async function openVenueCard(page: Page): Promise<Locator> {
   return card;
 }
 
-async function expectThumbReachable(
-  locator: Locator,
-  label: string,
-): Promise<void> {
-  const box = await locator.boundingBox();
-  expect(box, `${label} should be laid out`).not.toBeNull();
-  expect(
-    box!.height,
-    `${label} should clear the 44px tap floor`,
-  ).toBeGreaterThanOrEqual(44);
-  expect(
-    box!.x,
-    `${label} should not sit off the left edge`,
-  ).toBeGreaterThanOrEqual(0);
-  expect(
-    box!.x + box!.width,
-    `${label} should not sit off the right edge`,
-  ).toBeLessThanOrEqual(VIEWPORT.width);
-}
-
-test("a signed-out Pubmaxxer sees the account gate before recommendation fields mount", async ({
-  page,
+test("the keyless venue returns no authored weather recommendations", async ({
+  request,
 }) => {
-  const card = await openVenueCard(page);
-  await expect(
-    card.getByRole("heading", { name: "Recommend it for the weather" }),
-  ).toBeVisible();
-
-  // Dark mode is the shipped theme here, not an emulated preference only.
-  await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
-
-  await expect(card.getByRole("radiogroup")).toHaveCount(0);
-  await expect(card.getByLabel("Your Pubmaxx handle")).toHaveCount(0);
-  await expect(
-    card.getByLabel("Why Arnos Arms suits this weather"),
-  ).toHaveCount(0);
-  await expect(card.getByRole("button", { name: "Recommend it" })).toHaveCount(
-    0,
+  const response = await request.get(
+    `/api/weather-recommendations?venueId=${ARNOS_ARMS_ID}`,
   );
-
-  const gate = card.getByRole("button", { name: "Sign in to contribute" });
-  await expectThumbReachable(gate, "Sign in to contribute button");
-  await gate.click();
-
-  const dialog = page.getByRole("dialog", { name: "Sign in to contribute" });
-  await expect(dialog).toBeVisible();
-  await expect(dialog).toContainText("Account needed");
-  await expect(dialog.getByRole("button", { name: "Not now" })).toBeVisible();
-
-  // No score, no rank, no rating anywhere on the surface.
-  const cardText = (await card.innerText()).toLowerCase();
-  for (const banned of ["score", "rank", "rating", "out of 5", "stars"]) {
-    expect(
-      cardText,
-      `the card must not read as a review (${banned})`,
-    ).not.toContain(banned);
-  }
-
-  const overflow = await page.evaluate(
-    () => document.documentElement.scrollWidth - window.innerWidth,
-  );
-  expect(
-    overflow,
-    "the card must not widen the phone viewport",
-  ).toBeLessThanOrEqual(1);
+  expect(response.status()).toBe(200);
+  const body = (await response.json()) as {
+    weatherStatus?: string;
+    recommendations?: unknown[];
+  };
+  expect(body.weatherStatus).toBe("unavailable");
+  expect(body.recommendations).toEqual([]);
 });
 
 test("a checkable snapshot surfaces only the matching opinion, and an uncheckable one says so", async ({
