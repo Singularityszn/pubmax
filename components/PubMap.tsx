@@ -2936,7 +2936,7 @@ export default function PubMap({
         {/* G3: Place story deep-link chip when `?band=` resolves. Distinct
             dismiss key from curated onboarding; suppresses that overlay while
             visible. */}
-        {showBandChip && activeBand && (!mobileViewport || !mapListOpen) ? (
+        {showBandChip && activeBand ? (
           <BandOnboardingChip
             title={activeBand.title}
             copy={activeBand.copy}
@@ -3038,12 +3038,7 @@ export default function PubMap({
           planStopCount={routeMappedActive ? route.length : activePlanRoute.length}
           planInteractive={mobileViewport && !ukPlaceArrival}
           venueListOpen={mapListOpen}
-          bandNoticeOpen={
-            mobileViewport &&
-            showBandChip &&
-            Boolean(activeBand) &&
-            !mapListOpen
-          }
+          bandNoticeOpen={showBandChip}
           onPlan={openPlanning}
           searchContent={
             <MapSearchSuggest

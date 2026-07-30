@@ -42,7 +42,7 @@ import {
 } from "@/lib/poiToggleGroups";
 import MapLayersControl from "@/components/map/MapLayersControl";
 import LandmarkPhotoCredit from "@/components/LandmarkPhotoCredit";
-import { ProseDisclosure } from "@/components/Disclosure";
+import MapHeroCard from "@/components/map/MapHeroCard";
 import type { CityId } from "@/lib/cities";
 import { cityMaxBounds, DEFAULT_CITY_ID, getCity } from "@/lib/cities";
 import { selectMapFallbackPubs } from "@/lib/mapFallbackVenues";
@@ -2836,7 +2836,6 @@ export default function PubMapCanvas({
       (preferWhitby && venue.name.toLowerCase().includes("prospect of whitby") ? 1 : 0);
     return candidates.reduce((best, venue) => (score(venue) > score(best) ? venue : best));
   }, [venues, venueSignals, cityId]);
-  const heroHeritageNote = heroVenue?.curation.heritageNote;
 
   const hoverDetail = useMemo(
     () => (hoveredVenueId ? hoverDetails.get(hoveredVenueId) : undefined),
@@ -3155,35 +3154,12 @@ export default function PubMapCanvas({
           </div>
         </aside>
       ) : null}
-      {heroVenue && heroHeritageNote && !heroDismissed ? (
-        <aside className="mapHeroCard" aria-label="Featured story pub">
-          <div className="mapHeroCardHead">
-            <span>
-              {heroVenue.curation.heritageEra ?? "Story pub"}
-              {heroVenue.curation.sourceLabel
-                ? ` · ${heroVenue.curation.sourceLabel}`
-                : ""}
-            </span>
-            <button
-              type="button"
-              onClick={() => setHeroDismissed(true)}
-              aria-label="Dismiss featured story pub"
-            >
-              <X size={13} />
-            </button>
-          </div>
-          <strong>{heroVenue.name}</strong>
-          <div className="mapHeroCopy">
-            <ProseDisclosure text={heroHeritageNote} />
-          </div>
-          <button
-            type="button"
-            className="mapHeroVisit"
-            onClick={() => onVenueClick(heroVenue.id)}
-          >
-            Visit
-          </button>
-        </aside>
+      {heroVenue && !heroDismissed ? (
+        <MapHeroCard
+          venue={heroVenue}
+          onDismiss={() => setHeroDismissed(true)}
+          onVisit={onVenueClick}
+        />
       ) : null}
       {/* Wave J declutter: one Layers control on all viewports (Airbnb-clean).
           Desktop mid-map POI strip + Place stories stack removed — same content
