@@ -1,5 +1,7 @@
 "use client";
 
+import { useId, useState } from "react";
+
 import {
   toggleVenueKind,
   type CuratedVenueKind,
@@ -30,12 +32,19 @@ export default function TonightArcChips({
   experienceLens?: MapExperienceLens;
   onChange: (next: VenueKindVisibility) => void;
 }) {
+  const unavailableReasonId = useId();
+  const [revealedUnavailableKind, setRevealedUnavailableKind] = useState<
+    CuratedVenueKind | "club" | null
+  >(null);
   const chips =
     experienceLens === "food"
       ? CHIPS.filter(
           (chip) => chip.kind === "food" || chip.kind === "restaurant",
         )
       : CHIPS.filter((chip) => experienceLens === "all" || chip.kind !== "club");
+  const revealedUnavailableChip = chips.find(
+    (chip) => chip.kind === revealedUnavailableKind,
+  );
   return (
     <div
       className="tonightArcChips"
@@ -47,46 +56,55 @@ export default function TonightArcChips({
         {chips.map((chip) => {
           const on = chip.kind === "club" ? false : visibility[chip.kind];
           const unavailable = chip.unavailableReason !== undefined;
+          const unavailableRevealed =
+            unavailable && revealedUnavailableKind === chip.kind;
           return (
             <button
               key={chip.kind}
               type="button"
-              className={on ? "tonightArcChip isOn" : "tonightArcChip"}
+              className={`tonightArcChip${on ? " isOn" : ""}${unavailable ? " isUnavailable" : ""}`}
               aria-pressed={on}
+              aria-disabled={unavailable || undefined}
+              aria-expanded={unavailable ? unavailableRevealed : undefined}
+              aria-controls={unavailable ? unavailableReasonId : undefined}
               aria-label={
                 unavailable
                   ? `${chip.label} ${chip.unavailableReason}`
                   : undefined
               }
-              disabled={unavailable}
               title={unavailable ? `${chip.label} ${chip.unavailableReason}` : undefined}
               onClick={() => {
+                if (unavailable) {
+                  setRevealedUnavailableKind(
+                    unavailableRevealed ? null : chip.kind,
+                  );
+                  return;
+                }
+                setRevealedUnavailableKind(null);
                 if (chip.kind !== "club") {
                   onChange(toggleVenueKind(visibility, chip.kind));
                 }
               }}
             >
-              {on ? (
-                <span className="tonightArcChipSelected" aria-hidden="true">
-                  ✓
-                </span>
-              ) : null}
               <span className="tonightArcChipLabel">
-                <span>
-                  {experienceLens === "no-alcohol" && chip.kind === "pub"
-                    ? "Pubs"
-                    : chip.label}
-                </span>
-                {unavailable ? (
-                  <small className="tonightArcChipUnavailable">
-                    {chip.unavailableReason}
-                  </small>
-                ) : null}
+                {experienceLens === "no-alcohol" && chip.kind === "pub"
+                  ? "Pubs"
+                  : chip.label}
               </span>
             </button>
           );
         })}
       </div>
+      {revealedUnavailableChip?.unavailableReason ? (
+        <span
+          className="tonightArcUnavailableReason"
+          id={unavailableReasonId}
+          role="tooltip"
+        >
+          {revealedUnavailableChip.label}{" "}
+          {revealedUnavailableChip.unavailableReason}
+        </span>
+      ) : null}
     </div>
   );
 }

@@ -211,7 +211,102 @@ test("390px zone figures state their calculation and assignment basis", async ({
   ).toBeVisible();
 });
 
-test("390px Tonight Arc controls show selection and unavailable reason without colour", async ({
+for (const width of [390, 320]) {
+  test(`${width}px Tonight Arc stays one row with equal controls`, async ({
+    page,
+  }) => {
+    test.setTimeout(90_000);
+    await page.setViewportSize({ width, height: 844 });
+    const response = await page.goto("/map");
+    expect(response?.status()).toBe(200);
+
+    const arc = page.getByRole("group", { name: "Tonight arc venue types" });
+    await expect(arc).toBeVisible({ timeout: 45_000 });
+    const row = arc.locator(".tonightArcRow");
+    const chips = row.locator(".tonightArcChip");
+    await expect(chips).toHaveCount(5);
+
+    const layout = await row.evaluate((element) => {
+      const rowRect = element.getBoundingClientRect();
+      const boxes = [...element.querySelectorAll<HTMLElement>(".tonightArcChip")].map(
+        (chip) => {
+          const rect = chip.getBoundingClientRect();
+          return {
+            label: chip.textContent?.trim() ?? "",
+            top: rect.top,
+            right: rect.right,
+            height: rect.height,
+          };
+        },
+      );
+      return {
+        boxes,
+        clientWidth: element.clientWidth,
+        scrollWidth: element.scrollWidth,
+        overflowX: getComputedStyle(element).overflowX,
+        right: rowRect.right,
+      };
+    });
+
+    expect(
+      new Set(layout.boxes.map(({ top }) => Math.round(top))).size,
+      "every chip shares one rendered row",
+    ).toBe(1);
+    expect(
+      new Set(layout.boxes.map(({ height }) => Math.round(height))).size,
+      "unavailable and available controls share one height",
+    ).toBe(1);
+    expect(layout.boxes[0]?.height).toBeGreaterThanOrEqual(44);
+    expect(layout.overflowX).toBe("auto");
+    if (width === 390) {
+      expect(layout.boxes.at(-1)?.right).toBeLessThanOrEqual(layout.right + 0.5);
+    } else {
+      expect(layout.scrollWidth).toBeGreaterThan(layout.clientWidth);
+    }
+
+    const pints = arc.getByRole("button", { name: "Pints", exact: true });
+    const bars = arc.getByRole("button", { name: "Bars", exact: true });
+    const clubs = arc.getByRole("button", {
+      name: "Clubs are not mapped yet",
+    });
+    expect((await chips.allTextContents()).join("")).not.toContain("✓");
+    await expect(clubs).toHaveText("Clubs");
+    await expect(clubs).toHaveAttribute("aria-disabled", "true");
+
+    const selectedStyle = await bars.evaluate((button) => ({
+      borderWidth: getComputedStyle(button, "::before").borderTopWidth,
+      fontWeight: Number(getComputedStyle(button).fontWeight),
+    }));
+    await bars.click();
+    await expect(bars).toHaveAttribute("aria-pressed", "false");
+    const unselectedStyle = await bars.evaluate((button) => ({
+      borderWidth: getComputedStyle(button, "::before").borderTopWidth,
+      fontWeight: Number(getComputedStyle(button).fontWeight),
+    }));
+    expect(selectedStyle.borderWidth).not.toBe(unselectedStyle.borderWidth);
+    expect(selectedStyle.fontWeight).toBeGreaterThan(unselectedStyle.fontWeight);
+    await expect(pints).toHaveAttribute("aria-pressed", "true");
+
+    const pressedBeforeUnavailableActivation = await chips.evaluateAll((buttons) =>
+      buttons.map((button) => button.getAttribute("aria-pressed")),
+    );
+    await clubs.focus();
+    await expect(clubs).toBeFocused();
+    await page.keyboard.press("Enter");
+    await expect(clubs).toHaveAttribute("aria-expanded", "true");
+    const reason = arc.getByRole("tooltip");
+    await expect(reason).toBeVisible();
+    await expect(reason).toHaveText("Clubs are not mapped yet");
+    expect(
+      await chips.evaluateAll((buttons) =>
+        buttons.map((button) => button.getAttribute("aria-pressed")),
+      ),
+      "asking why Clubs is unavailable never changes a venue filter",
+    ).toEqual(pressedBeforeUnavailableActivation);
+  });
+}
+
+test("390px Tonight Arc hides Clubs reason outside the All lens", async ({
   page,
 }) => {
   test.setTimeout(90_000);
@@ -219,20 +314,111 @@ test("390px Tonight Arc controls show selection and unavailable reason without c
   expect(response?.status()).toBe(200);
 
   const arc = page.getByRole("group", { name: "Tonight arc venue types" });
-  const pints = arc.getByRole("button", { name: "Pints", exact: true });
-  const bars = arc.getByRole("button", { name: "Bars", exact: true });
+  await expect(arc).toBeVisible({ timeout: 45_000 });
   const clubs = arc.getByRole("button", {
     name: "Clubs are not mapped yet",
   });
+  await clubs.focus();
+  await page.keyboard.press("Enter");
+  await expect(arc.getByRole("tooltip")).toHaveText(
+    "Clubs are not mapped yet",
+  );
 
-  await expect(pints).toContainText("✓");
-  await bars.click();
-  await expect(bars).toHaveAttribute("aria-pressed", "false");
-  await expect(bars).not.toContainText("✓");
-  await expect(pints).toContainText("✓");
-  await expect(clubs).toBeDisabled();
-  await expect(clubs).toContainText("are not mapped yet");
+  await page.getByRole("button", { name: /^Filters/ }).click();
+  const sheet = page.locator('.mobileSheetPortal[data-sheet-kind="filters"]');
+  const mapView = sheet.getByRole("group", { name: "Map view" });
+
+  await mapView.getByRole("button", { name: "Food", exact: true }).click();
+  await expect(arc.getByText("Clubs", { exact: true })).toHaveCount(0);
+  await expect(arc.getByRole("tooltip")).toHaveCount(0);
+
+  await mapView
+    .getByRole("button", { name: "No alcohol", exact: true })
+    .click();
+  await expect(arc.getByText("Clubs", { exact: true })).toHaveCount(0);
+  await expect(arc.getByRole("tooltip")).toHaveCount(0);
+
+  await mapView.getByRole("button", { name: "All", exact: true }).click();
+  await expect(arc.getByRole("tooltip")).toHaveText(
+    "Clubs are not mapped yet",
+  );
 });
+
+for (const width of [390, 320]) {
+  test(`${width}px map attribution opens fully above the plan action`, async ({
+    page,
+  }) => {
+    test.setTimeout(90_000);
+    await page.setViewportSize({ width, height: 844 });
+    const response = await page.goto("/map");
+    expect(response?.status()).toBe(200);
+
+    const attribution = page.locator(".maplibregl-ctrl-attrib");
+    await expect(attribution).toBeVisible({ timeout: 45_000 });
+    await expect(attribution).toHaveClass(/maplibregl-compact/);
+    const collapsedBox = await attribution.boundingBox();
+    expect(collapsedBox).not.toBeNull();
+    expect(collapsedBox!.width).toBeLessThanOrEqual(44);
+    expect(collapsedBox!.height).toBeLessThanOrEqual(44);
+
+    await attribution.locator(".maplibregl-ctrl-attrib-button").click();
+    const fullCredit = attribution.locator(".maplibregl-ctrl-attrib-inner");
+    await expect(fullCredit).toBeVisible();
+    await expect(fullCredit).toContainText(
+      "Pub data © OpenStreetMap contributors (ODbL)",
+    );
+    await expect(fullCredit).toContainText("OpenFreeMap");
+    await expect(fullCredit).toContainText("OpenMapTiles");
+    await expect(fullCredit).toContainText("Data from OpenStreetMap");
+
+    const plan = page.getByRole("button", { name: "Describe your night" });
+    await expect(plan).toBeVisible();
+    const geometry = await page.evaluate(() => {
+      const attributionElement = document.querySelector<HTMLElement>(
+        ".maplibregl-ctrl-attrib",
+      );
+      const inner = document.querySelector<HTMLElement>(
+        ".maplibregl-ctrl-attrib-inner",
+      );
+      const planElement = document.querySelector<HTMLElement>(
+        ".mobilePlanActivation",
+      );
+      if (!attributionElement || !inner || !planElement) return null;
+      const attributionRect = attributionElement.getBoundingClientRect();
+      const planRect = planElement.getBoundingClientRect();
+      const style = getComputedStyle(inner);
+      return {
+        attribution: {
+          left: attributionRect.left,
+          right: attributionRect.right,
+          bottom: attributionRect.bottom,
+        },
+        inner: {
+          clientWidth: inner.clientWidth,
+          scrollWidth: inner.scrollWidth,
+          textOverflow: style.textOverflow,
+          whiteSpace: style.whiteSpace,
+          text: inner.textContent?.trim() ?? "",
+        },
+        plan: {
+          top: planRect.top,
+        },
+      };
+    });
+    expect(geometry).not.toBeNull();
+    expect(geometry!.attribution.left).toBeGreaterThanOrEqual(0);
+    expect(geometry!.attribution.right).toBeLessThanOrEqual(width);
+    expect(geometry!.attribution.bottom).toBeLessThanOrEqual(
+      geometry!.plan.top,
+    );
+    expect(geometry!.inner.scrollWidth).toBeLessThanOrEqual(
+      geometry!.inner.clientWidth + 1,
+    );
+    expect(geometry!.inner.textOverflow).not.toBe("ellipsis");
+    expect(geometry!.inner.whiteSpace).toBe("normal");
+    expect(geometry!.inner.text).not.toContain("…");
+  });
+}
 
 test("390px drink glyphs keep the requested 22px box", async ({ page }) => {
   test.setTimeout(90_000);

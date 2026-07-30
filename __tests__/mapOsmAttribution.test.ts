@@ -35,7 +35,9 @@ describe("OpenStreetMap attribution", () => {
     // is then MapLibre's own, and a style swap (theme toggle, fallback style)
     // cannot drop a map-level attribution the way it drops a style-level one.
     const canvas = read("components/PubMapCanvas.tsx");
-    expect(canvas).toMatch(/attributionControl:\s*\{\s*customAttribution:\s*OSM_ATTRIBUTION\s*\}/);
+    expect(canvas).toMatch(
+      /attributionControl:\s*\{\s*compact:\s*true,\s*customAttribution:\s*OSM_ATTRIBUTION,\s*\}/,
+    );
   });
 
   it("also credits the wholly-OSM UK base source on the source itself", () => {

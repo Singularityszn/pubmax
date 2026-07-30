@@ -101,13 +101,14 @@ async function readPaintState(
   colourLocator: Locator,
   surfaceLocator: Locator = colourLocator,
   pseudo?: "::placeholder",
+  surfacePseudo?: "::before",
 ): Promise<PaintState> {
   const colour = await colourLocator.evaluate(
     (node, pseudoElement) => getComputedStyle(node, pseudoElement).color,
     pseudo,
   );
-  return surfaceLocator.evaluate((node, foregroundColour) => {
-    const style = getComputedStyle(node);
+  return surfaceLocator.evaluate((node, input) => {
+    const style = getComputedStyle(node, input.surfacePseudo);
     const ancestorBackgrounds: string[] = [];
     let ancestor = node.parentElement;
     while (ancestor) {
@@ -115,13 +116,13 @@ async function readPaintState(
       ancestor = ancestor.parentElement;
     }
     return {
-      colour: foregroundColour,
+      colour: input.foregroundColour,
       opacity: Number(style.opacity),
       backgroundColour: style.backgroundColor,
       backgroundImage: style.backgroundImage,
       ancestorBackgrounds,
     };
-  }, colour);
+  }, { foregroundColour: colour, surfacePseudo });
 }
 
 function renderedContrastRatios(
@@ -160,6 +161,7 @@ async function expectRenderedTextContrast(
     minimum?: number;
     pseudo?: "::placeholder";
     surfaceLocator?: Locator;
+    surfacePseudo?: "::before";
   } = {},
 ): Promise<number> {
   await expect(colourLocator).toBeVisible();
@@ -167,6 +169,7 @@ async function expectRenderedTextContrast(
     colourLocator,
     options.surfaceLocator,
     options.pseudo,
+    options.surfacePseudo,
   );
   const ratios = renderedContrastRatios(state, options.background);
   expect(ratios.length).toBeGreaterThan(0);
@@ -262,9 +265,11 @@ for (const viewport of VIEWPORTS) {
 
     measurements.mapActiveChip = await expectRenderedTextContrast(
       page.locator(".tonightArcChip.isOn").first(),
+      { surfacePseudo: "::before" },
     );
     measurements.mapDisabledChip = await expectRenderedTextContrast(
-      page.locator(".tonightArcChip:disabled"),
+      page.locator('.tonightArcChip[aria-disabled="true"]'),
+      { surfacePseudo: "::before" },
     );
     await expectNoHorizontalOverflow(page);
 

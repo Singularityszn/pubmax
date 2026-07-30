@@ -169,7 +169,7 @@ describe("MapExperienceLens", () => {
     expect(food).not.toContain(">Bars<");
   });
 
-  it("marks selected venue filters without colour and states why Clubs is unavailable", () => {
+  it("marks selected venue filters without colour and labels why Clubs is unavailable", () => {
     const html = renderToStaticMarkup(
       createElement(TonightArcChips, {
         visibility: {
@@ -184,10 +184,14 @@ describe("MapExperienceLens", () => {
     const pints = html.match(/<button[^>]*aria-pressed="true"[^>]*>[\s\S]*?Pints[\s\S]*?<\/button>/)?.[0] ?? "";
     const bars = html.match(/<button[^>]*aria-pressed="false"[^>]*>[\s\S]*?Bars[\s\S]*?<\/button>/)?.[0] ?? "";
 
-    expect(pints).toContain(">✓<");
-    expect(bars).not.toContain(">✓<");
-    expect(html).toContain("Clubs are not mapped yet");
-    expect(html).toContain(">are not mapped yet<");
+    expect(pints).toContain('class="tonightArcChip isOn"');
+    expect(bars).toContain('class="tonightArcChip"');
+    expect(pints).not.toContain("✓");
+    expect(bars).not.toContain("✓");
+    expect(html).toContain('aria-label="Clubs are not mapped yet"');
+    expect(html).toContain('aria-disabled="true"');
+    expect(html).toContain(">Clubs<");
+    expect(html).not.toContain(">are not mapped yet<");
     expect(html).not.toContain("Wave 2");
     expect(html).not.toContain("arrives in");
   });
