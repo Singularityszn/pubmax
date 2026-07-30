@@ -190,7 +190,7 @@ export default function OperatorRailPanel({ venueId, venueName }: OperatorRailPa
           ) : !signedIn ? (
             <p className="operatorRailBody">
               Sign in with the account that runs {venueName}, then send a claim.
-              Approved operators can propose corrections, events, and offers. We review each one.
+              Claims must be approved before proposal tools open.
             </p>
           ) : !checked ? (
             <p className="operatorRailBody">Checking your status…</p>
@@ -297,7 +297,7 @@ export default function OperatorRailPanel({ venueId, venueName }: OperatorRailPa
                 </p>
               ) : (
                 <p className="operatorRailBody">
-                  Tell us how we can check that you run {venueName}. We review every claim by hand.
+                  Tell us how we can check that you run {venueName}. Approval is required before proposal tools open.
                 </p>
               )}
               <label className="operatorRailField">

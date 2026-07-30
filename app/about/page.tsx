@@ -211,13 +211,14 @@ export default async function AboutPage() {
         <h2 id="ethos" className="aboutH2">What we stand for</h2>
         <ul className="aboutEthos">
           <li>
-            <strong>Prices with named sources.</strong> Every price and every fact
-            shows where it came from. If we can&rsquo;t stand a number up, we
-            leave it blank. No filler, no guess dressed up as data.
+            <strong>Prices with named sources.</strong> Listed prices name their
+            sources, and cited pub stories link to their references. If we
+            can&rsquo;t stand a number up, we leave it blank. No filler, no
+            guess dressed up as data.
           </li>
           <li>
-            <strong>Good nights count people and memories.</strong> Nothing in
-            here nudges you to drink more.
+            <strong>Good nights count people and memories.</strong> Rewards and
+            rankings do not count how much you drink.
           </li>
           <li>
             <strong>Your nights are yours.</strong> Nothing&rsquo;s public unless

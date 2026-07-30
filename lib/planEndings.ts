@@ -101,13 +101,13 @@ export function buildPlanEndingRecommendations({
       label: "Keep going",
       reason: extensionOptions.length > 0
         ? `${extensionOptions.length} grounded nearby extension${extensionOptions.length === 1 ? "" : "s"}; prices and hours remain review points.`
-        : "Nothing is close enough to add without widening the route.",
+        : "This route has no extra pub to suggest.",
       preselected: false,
       requiresConfirmation: true,
       confidence: "low",
       warnings: extensionOptions.length > 0
         ? ["Closing times are not checked. We show extra spend only when a price is recorded."]
-        : ["Nothing close enough is available to add to this route."],
+        : ["No extra pub was returned with this route."],
       options: extensionOptions,
     },
   ];

@@ -7,7 +7,55 @@ function read(path: string): string {
   return readFileSync(join(process.cwd(), path), "utf8");
 }
 
+function notInspectedFiles(evidence: string): Set<string> {
+  const sections = evidence.split("Not inspected:").slice(1);
+  return new Set(sections.flatMap((section) => {
+    const inventory = section.split(/\n##/u, 1)[0] ?? "";
+    return [...inventory.matchAll(/^- `([^`]+)`$/gmu)].map((match) => match[1]);
+  }));
+}
+
 describe("VOICE.md compliance audit", () => {
+  it("records changed audit candidates as inspected and documents absolute-claim policy", () => {
+    const evidence = read("docs/voice-audit-evidence.md");
+    const notInspected = notInspectedFiles(evidence);
+    const correctedCandidates = [
+      "app/activity/ActivityClient.tsx",
+      "app/borough/[slug]/page.tsx",
+      "app/crawls/[slug]/not-found.tsx",
+      "app/crawls/[slug]/page.tsx",
+      "app/discover/DiscoverPageClient.tsx",
+      "app/feed/FeedPageClient.tsx",
+      "app/layout.tsx",
+      "app/messages/MessagesInboxClient.tsx",
+      "app/tonight/TonightClient.tsx",
+      "components/PubMapCanvas.tsx",
+      "components/areanews/AreaNewsList.tsx",
+      "components/feed/FeedCard.tsx",
+      "components/map/ControlRail.tsx",
+      "components/map/pubmap/MapOnboardingOverlay.tsx",
+      "components/mobile/MobileMapShell.tsx",
+      "components/nearme/NearMeNow.tsx",
+      "components/pal/PalExperience.tsx",
+      "components/plan/PlanCollaborationPanel.tsx",
+      "lib/cities/glasgow/curatedCrawls.ts",
+      "lib/curation.ts",
+      "lib/heritageCrawls.ts",
+      "lib/planComposerHandoff.ts",
+      "lib/pushSender.ts",
+      "lib/pushTokenStore.ts",
+      "lib/weeklyDigest.ts",
+    ];
+
+    expect([...notInspected].filter((file) => correctedCandidates.includes(file))).toEqual([]);
+    expect(evidence).toContain("Total: 519. Inspected: 43. Not inspected: 476.");
+    expect(evidence).toContain("Total: 93. Inspected: 28. Not inspected: 65.");
+    expect(evidence).toContain("Total: 27. Inspected: 8. Not inspected: 19.");
+    expect(evidence).toContain(
+      "Absolute copy is kept only when a named code or data invariant enforces it.",
+    );
+  });
+
   it("keeps account and sign-in copy plain, precise, and free of identity plumbing", () => {
     const onboarding = read("components/identity/AccountOnboarding.tsx");
     const contributionGate = read(
@@ -227,6 +275,7 @@ describe("VOICE.md compliance audit", () => {
     expect(planEndings).not.toMatch(
       /"[^"]*(?:Night Area|late-food evidence|verify tonight)[^"]*"/u,
     );
+    expect(planEndings).not.toMatch(/Nothing[^"]*close enough/iu);
     expect(planOptimizer).not.toContain("mapped Night Area radius");
 
     expect(planCollaboration).not.toContain("Could not verify that evidence");
@@ -235,6 +284,7 @@ describe("VOICE.md compliance audit", () => {
     for (const source of [operatorRail, operatorValidation]) {
       expect(source).not.toMatch(/"[^"]*verify you[^"]*"/iu);
     }
+    expect(operatorRail).not.toContain("review every claim by hand");
 
     expect(mapList).not.toContain("Priced and curated");
     expect(mapOnboarding).not.toContain("Curated crawls");
@@ -294,6 +344,7 @@ describe("VOICE.md compliance audit", () => {
     const whatsOn = read("lib/concierge/whatsOn.ts");
     const palChat = read("lib/palChat.ts");
     const pushSender = read("lib/pushSender.ts");
+    const about = read("app/about/page.tsx");
 
     expect(palPortrait).not.toMatch(
       /(?:collar|bell) beacon|crew-band harness/iu,
@@ -304,6 +355,8 @@ describe("VOICE.md compliance audit", () => {
     expect(near).not.toContain('aria-label="Pick a night area"');
     expect(privacy).not.toContain("law doesn&rsquo;t require one");
     expect(terms).not.toMatch(/\b(?:does not require|required to finish)\b/iu);
+    expect(terms).not.toContain("So does everyone logging prices");
+    expect(terms).not.toContain("If rewards go live");
     expect(recap).not.toContain("ancient bylaws require");
 
     expect(tour).not.toContain("See who pours cheap tonight");
@@ -329,6 +382,11 @@ describe("VOICE.md compliance audit", () => {
     expect(crew).not.toContain("No account. Just your name.");
 
     expect(activity).not.toContain("reach the bar");
+    expect(activity).not.toContain("every follow, cheer and comment");
+    expect(about).not.toContain("Every price and every fact");
+    expect(about).not.toContain("Nothing in here nudges you to drink more");
+    expect(plan).not.toContain("Every listed area can be planned");
+    expect(plan).not.toContain("Every area can still make an editable route");
     expect(profile).not.toContain("Please try again");
     expect(unsupportedArea).not.toContain("Could not note that just now");
     expect(areaDemandRoute).not.toContain("Could not note that right now");

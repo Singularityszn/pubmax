@@ -186,8 +186,7 @@ export default function TermsPage() {
           Referral rewards aren&rsquo;t active. We can record private edges and
           milestones, but those records don&rsquo;t grant access to paid features
           because sign-in can&rsquo;t prove that one person has only one account.
-          If rewards go live, these terms and the account page will explain
-          what counts before anyone earns one.
+          They are milestones only, with no reward attached.
         </p>
       </section>
 
@@ -197,9 +196,9 @@ export default function TermsPage() {
           Every current price names where it came from. Prices logged by people
           carry the day they were seen. Other current prices share the source
           date for their dataset. Pubs change prices, run happy hours, charge
-          differently on a match day, and make mistakes. So does everyone
-          logging prices. A figure here is a good steer, not a quote, and the pub
-          is under no obligation to honour it.
+          differently on a match day, and make mistakes. People logging prices
+          can make mistakes too. A figure here is a good steer, not a quote,
+          and the pub is under no obligation to honour it.
           <strong> Check at the bar.</strong>
         </p>
         <p className="legalBody">

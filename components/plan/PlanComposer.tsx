@@ -974,7 +974,7 @@ function PlanComposerForm({
         {nightContext ? (
           <fieldset className="planComposer__context">
             <legend>What PUBMAXX understood. Edit anything.</legend>
-            <p id="plan-context-note" className="planComposer__contextNote">Every listed area can be planned. We show missing prices or route details so you can judge the route.</p>
+            <p id="plan-context-note" className="planComposer__contextNote">An active area warning can block route planning. We show missing prices or route details so you can judge the route.</p>
             <label htmlFor="plan-context-area">Area<select id="plan-context-area" aria-describedby="plan-context-note plan-route-status" value={nightContext.nightArea ?? ""} onChange={(event) => updateNightContext({ nightArea: event.target.value as NightContext["nightArea"] })}>
               {areaGroups.map((group) => (
                 <optgroup key={group.label} label={group.label}>
@@ -1052,7 +1052,7 @@ function PlanComposerForm({
             </span>
           </summary>
           <p className="planComposer__coverageIntro">
-            See where prices and route details have been checked. Every area can still make an editable route, and we show what is missing before you use it.
+            See where prices and route details have been checked. An active warning can stop route planning until the area is checked again.
           </p>
           <div className="planComposer__coverageGroups">
             <section aria-labelledby="plan-coverage-ready">

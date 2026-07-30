@@ -186,7 +186,7 @@ export default function ActivityClient(): React.JSX.Element {
           <EmptyState
             eyebrow="Activity"
             title="This corner is yours. Claim it."
-            body="Sign in and choose a handle. After that, every follow, cheer and comment lands right here."
+            body="Sign in and choose a handle to see follows, cheers, comments and crawl saves here."
             action={<SignInButton />}
           />
         ) : failed ? (

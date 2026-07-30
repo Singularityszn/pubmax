@@ -6,15 +6,18 @@ This file records evidence for a partial copy pass against `docs/VOICE.md`. It c
 
 Repeated variants are grouped only when they make the same claim and read from the same guarantee.
 
+Absolute copy is kept only when a named code or data invariant enforces it. Otherwise the wording states the known result or capability without a universal or unsupported cause. This rule was applied to every product string changed on this branch.
+
 | Changed claim-shaped copy | Surface | Exact guarantee |
 | --- | --- | --- |
-| “one sourced fact each”; “cited pub heritage”; “Every price and every fact shows where it came from”; “Cited history”; “Cited from Wikipedia” | About, historic pubs, crawls, discovery | `lib/aboutStats.ts` counts historic records with citations; `lib/heritageCrawls.ts` and historic venue records carry source URLs; rendered heritage provenance comes from those source fields. |
+| “one sourced fact each”; “cited pub heritage”; “Listed prices name their sources, and cited pub stories link to their references”; “Cited history”; “Cited from Wikipedia” | About, historic pubs, crawls, discovery | Current price rows expose their source through `VenuePrice.source`; `lib/aboutStats.ts` counts historic records with citations; `lib/heritageCrawls.ts` and historic venue records carry source URLs; rendered heritage provenance comes from those source fields. |
 | “Listed pint prices with named sources”; “Listed pint prices on PUBMAXX”; “Listed pint prices on an interactive map” | About, map card, landing, onboarding | Current price rows expose their source through `VenuePrice.source`; community rows carry contributor provenance; `components/map/VenuePriceStory.tsx` renders that provenance. Copy says listed, not live or observed today. |
 | “Nobody pays to rank”; “The order of pubs on your map is never for sale”; “sponsored items sit in their own labelled slots” | About, terms | Map and list ranking functions consume venue, price, distance, filter, and community-signal inputs, not payment fields. Sponsored content uses separately labelled slots rather than the venue ranking pipeline. |
-| “Nothing in here nudges you to drink more” | About, terms | Product actions record prices, visits, plans, and memories. No reward or ranking input counts alcohol units; Round totals record spend only under `lib/rounds.ts`. |
+| “Rewards and rankings do not count how much you drink” | About | No reward or ranking input counts alcohol units; Round totals record spend only under `lib/rounds.ts`. |
 | “No account needed to look”; “Free to browse”; “Browsing doesn’t need an account” | About, privacy, terms | Public map, venue, Today, Tonight, Near, crawl, historic, and Pint Index routes have no authentication gate. Contribution routes apply the account gate separately. |
 | “Night Memories and private plans aren’t public unless you choose to share them” | Privacy | Memory and plan stores use private actor or member-token reads. Public exposure requires an explicit share artifact or share link. |
 | “Choose a handle in your account first”; “Your public handle appears on every contribution”; account and profile contribution prompts | Check-ins, identity gates, activity, profile, We Are Out | `lib/contributionIdentity.server.ts` resolves the authenticated account, claimed handle, and completed private profile before current attributed contributions are accepted. |
+| “Sign in and choose a handle to see follows, cheers, comments and crawl saves here” | Activity | `lib/notifications.ts` defines those four inbox event kinds. Copy describes what the inbox can show without promising that every best-effort notification write succeeds. |
 | “Email sign-in works even when Google and Apple are unavailable” | Contribution gate | Email is an independent sign-in provider in the account flow; Google and Apple availability does not remove that route. |
 | “Logging tonight’s price needs a signed-in account, a claimed handle and completed private profile” | Privacy, terms, contribution surfaces | `app/api/price-submit/route.ts` calls the shared contribution identity resolver before writing a current community price. |
 | “one account can replace its own earlier entry”; “can’t confirm itself by changing devices or handles” | Privacy | `lib/communityPriceStore.ts` keys current contributor ownership to the stable profile actor, supersedes the actor’s earlier same-key row, and derives corroboration from independent actors. |
@@ -51,11 +54,12 @@ Repeated variants are grouped only when they make the same claim and read from t
 | “Every stop has checked information for each access need at its visit time” | Plan route evidence | The evidence resolver requires a checked result for every required access constraint at every stop and visit time. |
 | Group size did not shape order because capacity is unchecked | Plan route evidence | The route optimizer receives no checked capacity evidence and records that group size was not used as an ordering factor. |
 | “Some prices are missing”; estimated per-person spend for one recorded pint per stop | Plan summary | Budget aggregation returns `estimatedPerPersonPence: null` when a stop price is missing; otherwise it sums one recorded pint price per stop. |
-| Late-food checked count, unchecked closing times, and extra-spend copy | Plan endings | `lib/planEndings.ts` derives option counts from resolved food records, carries schedule trust, and includes spend only when a price exists. |
+| Late-food checked count, unchecked closing times, extra-spend copy, and “no extra pub” empty state | Plan endings | `lib/planEndings.ts` derives option counts from resolved food records, carries schedule trust, includes spend only when a price exists, and selects the empty copy only when its supplied extension list is empty. It makes no claim about distance or why candidates were omitted. |
 | “Live transport details were not checked or saved”; “Closing time was not checked” | Plan completion | Completion warnings are emitted when transport or schedule evidence is absent from the confirmed ending. |
-| “Every listed area can be planned”; routes remain editable with missing-detail warnings | Plan composer | Plan generation accepts registered areas and returns editable route drafts; confidence and evidence helpers expose missing price and route fields as warnings. |
+| “An active area warning can block route planning”; missing-detail warnings | Plan composer | `app/api/plans/generate/route.ts` returns `NIGHT_AREA_CONSTRAINT_BLOCKED` before route construction when an active area warning exists; confidence and evidence helpers expose missing price and route fields as warnings. |
 | “Referral rewards aren’t active”; milestones grant no paid features | Privacy, terms, account hub | Referral code stores private edges and milestones only. No entitlement or paid-feature grant reads those records. |
 | Recommendation, Visit Report, contributor-count, and moderation claims | Privacy | The corresponding stores persist the stated fields, derive public counts from visible identity-backed rows, and hide rather than delete moderated rows. |
+| Operator claims need approval before proposal tools open; proposals are reviewed before display | Operator tools | `components/operators/OperatorRailPanel.tsx` opens proposal tools only for `verified` claims; `app/api/operator-proposals/route.ts` repeats that gate and materialises a proposal only after admin acceptance. |
 | Analytics off by default, remembered choice, one-tap Allow or No thanks | Privacy, terms, account hub | Consent state defaults unset; analytics load only after allow; the same preference store powers the prompt and account setting. |
 | Analytics identifier, allow-listed events, proxy, and retention statements | Privacy, terms | Analytics client and server validation define the identifier and event schema; proxy route forwarding defines request metadata; configured processor retention values supply the stated periods. |
 | No advertising or cross-site tracking cookies | Privacy | No ad network integration or advertising-cookie writer exists in the application; optional analytics is separately consent-gated. |
@@ -83,6 +87,36 @@ Repeated variants are grouped only when they make the same claim and read from t
 ## Indirect-source inventory
 
 This branch is a partial voice pass. It does not establish that every user-facing string has been audited. Each total below comes from current source using the shown command. “Inspected” records files read during this pass. “Not inspected” names the remaining conservative candidates; some broad candidates may contain no rendered copy, but none is silently treated as reviewed.
+
+The following 25 changed candidates were inspected during this pass but were previously misclassified as not inspected. They are now counted as inspected in each inventory where they qualify:
+
+- `app/activity/ActivityClient.tsx`
+- `app/borough/[slug]/page.tsx`
+- `app/crawls/[slug]/not-found.tsx`
+- `app/crawls/[slug]/page.tsx`
+- `app/discover/DiscoverPageClient.tsx`
+- `app/feed/FeedPageClient.tsx`
+- `app/layout.tsx`
+- `app/messages/MessagesInboxClient.tsx`
+- `app/tonight/TonightClient.tsx`
+- `components/PubMapCanvas.tsx`
+- `components/areanews/AreaNewsList.tsx`
+- `components/feed/FeedCard.tsx`
+- `components/map/ControlRail.tsx`
+- `components/map/pubmap/MapOnboardingOverlay.tsx`
+- `components/mobile/MobileMapShell.tsx`
+- `components/nearme/NearMeNow.tsx`
+- `components/pal/PalExperience.tsx`
+- `components/plan/PlanCollaborationPanel.tsx`
+- `lib/cities/glasgow/curatedCrawls.ts`
+- `lib/curation.ts`
+- `lib/heritageCrawls.ts`
+- `lib/planComposerHandoff.ts`
+- `lib/pushSender.ts`
+- `lib/pushTokenStore.ts`
+- `lib/weeklyDigest.ts`
+
+Their claim-shaped changes are tied to the guarantees above. Their other changed copy is in scope even when it makes no claim requiring a guarantee row.
 
 The earlier metadata inventory overstated its coverage. It listed 19 files, but one was an Open Graph image rather than a page or layout metadata owner. The source-derived set contains 45 metadata owners. 18 were inspected and 27 were not.
 
@@ -187,7 +221,7 @@ This deliberately treats every API route as a candidate because client code can 
 
 ### Shared helper candidates
 
-Total: 519. Inspected: 42. Not inspected: 477.
+Total: 519. Inspected: 43. Not inspected: 476.
 
 Command:
 
@@ -535,7 +569,6 @@ This deliberately treats every TypeScript helper as a candidate because rendered
 - `lib/pubPalStore.ts`
 - `lib/pubmaxxIdentity.ts`
 - `lib/pushProvider.ts`
-- `lib/pushSender.ts`
 - `lib/quietPint.ts`
 - `lib/ratings.ts`
 - `lib/ratingsStore.ts`
@@ -720,7 +753,7 @@ The previous 19-file list also named `app/historic/[slug]/opengraph-image.tsx`. 
 
 ### Template and tooltip candidates
 
-Total: 93. Inspected: 5. Not inspected: 88.
+Total: 93. Inspected: 28. Not inspected: 65.
 
 Command:
 
@@ -732,39 +765,26 @@ Command:
 
 The explicit navigation owner covers menu blurbs that do not use a tooltip-named symbol. Not inspected:
 
-- `app/activity/ActivityClient.tsx`
 - `app/bar-tab/[id]/page.tsx`
-- `app/borough/[slug]/page.tsx`
-- `app/crawls/[slug]/not-found.tsx`
-- `app/crawls/[slug]/page.tsx`
-- `app/discover/DiscoverPageClient.tsx`
-- `app/feed/FeedPageClient.tsx`
 - `app/historic/[slug]/page.tsx`
-- `app/layout.tsx`
-- `app/messages/MessagesInboxClient.tsx`
 - `app/p/[id]/page.tsx`
 - `app/plan/[id]/not-found.tsx`
 - `app/plan/[id]/page.tsx`
 - `app/recap/[storyId]/page.tsx`
 - `app/rounds/[code]/RoundPageClient.tsx`
 - `app/rounds/page.tsx`
-- `app/tonight/TonightClient.tsx`
 - `components/PerformanceVitals.tsx`
 - `components/PubMap.tsx`
-- `components/PubMapCanvas.tsx`
 - `components/ThemeToggle.tsx`
-- `components/areanews/AreaNewsList.tsx`
 - `components/desktop/ConditionsChip.tsx`
 - `components/drinks/DrinkGlyph.tsx`
 - `components/drinks/DrinkMenu.tsx`
-- `components/feed/FeedCard.tsx`
 - `components/feed/FeedFilters.tsx`
 - `components/feed/PresenceStrip.tsx`
 - `components/feed/SocialTabs.tsx`
 - `components/food/FoodMenu.tsx`
 - `components/map/CityPlaceStrip.tsx`
 - `components/map/CityStatusBanner.tsx`
-- `components/map/ControlRail.tsx`
 - `components/map/MapLayersControl.tsx`
 - `components/map/MapPriceControl.tsx`
 - `components/map/RoutePanel.tsx`
@@ -772,19 +792,14 @@ The explicit navigation owner covers menu blurbs that do not use a tooltip-named
 - `components/map/VenueBuzz.tsx`
 - `components/map/VenueHygiene.tsx`
 - `components/map/composer/ComposerFields.tsx`
-- `components/map/pubmap/MapOnboardingOverlay.tsx`
 - `components/map/pubmap/MappedRouteChip.tsx`
 - `components/map/route/RouteHeader.tsx`
 - `components/map/route/RouteList.tsx`
 - `components/map/route/RouteMetrics.tsx`
-- `components/mobile/MobileMapShell.tsx`
 - `components/nav/MessagesLink.tsx`
 - `components/nav/NotificationBell.tsx`
 - `components/nav/SiteNav.tsx`
-- `components/nearme/NearMeNow.tsx`
 - `components/night/NightModeCard.tsx`
-- `components/pal/PalExperience.tsx`
-- `components/plan/PlanCollaborationPanel.tsx`
 - `components/plan/PlanRoute.tsx`
 - `components/plan/PlanVibe.tsx`
 - `components/plan/RecapDetail.tsx`
@@ -803,27 +818,22 @@ The explicit navigation owner covers menu blurbs that do not use a tooltip-named
 - `lib/cities/bristol/curatedCrawls.ts`
 - `lib/cities/cambridge/curatedCrawls.ts`
 - `lib/cities/durham/curatedCrawls.ts`
-- `lib/cities/glasgow/curatedCrawls.ts`
 - `lib/cities/liverpool/curatedCrawls.ts`
 - `lib/cities/manchester/curatedCrawls.ts`
 - `lib/cities/oxford/curatedCrawls.ts`
 - `lib/cityShare.ts`
 - `lib/curatedCrawls.ts`
-- `lib/curation.ts`
 - `lib/firstDropNudge.ts`
-- `lib/heritageCrawls.ts`
 - `lib/icsExport.ts`
 - `lib/pintDropSeeds.ts`
-- `lib/planComposerHandoff.ts`
 - `lib/planDraft.ts`
 - `lib/planInviteUi.ts`
 - `lib/pubMap.ts`
 - `lib/routePattern.ts`
-- `lib/weeklyDigest.ts`
 
 ### Notification and email candidates
 
-Total: 27. Inspected: 7. Not inspected: 20.
+Total: 27. Inspected: 8. Not inspected: 19.
 
 Command:
 
@@ -852,7 +862,6 @@ Not inspected:
 - `lib/notifications.ts`
 - `lib/notificationsStore.ts`
 - `lib/pushProvider.ts`
-- `lib/pushTokenStore.ts`
 - `lib/webPush.ts`
 - `lib/webPushPrompt.ts`
 - `lib/webPushSubscription.ts`
