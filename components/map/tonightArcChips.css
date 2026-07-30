@@ -106,7 +106,7 @@
        the right edge in this same band, so a rail sized only against 100vw put
        the fifth chip under a 44px button and lost its taps. Anchor left and
        end a full corner lane short of that control (--mobile-map-corner-lane,
-       mobileMapShell.css). Chips wrap into a second row rather than truncate. */
+       mobileMapShell.css). The row scrolls rather than wrapping or truncating. */
     left: 12px;
     right: var(--mobile-map-corner-lane, 68px);
     display: block;

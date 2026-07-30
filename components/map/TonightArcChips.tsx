@@ -81,7 +81,9 @@ export default function TonightArcChips({
                   return;
                 }
                 setRevealedUnavailableKind(null);
-                onChange(toggleVenueKind(visibility, chip.kind));
+                if (chip.kind !== "club") {
+                  onChange(toggleVenueKind(visibility, chip.kind));
+                }
               }}
             >
               <span className="tonightArcChipLabel">
