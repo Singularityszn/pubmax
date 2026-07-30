@@ -441,7 +441,7 @@ Output:
 1972926	docs/screenshots/design-craft/before-sheet-390-dark.png
 ```
 
-These files dominate the measured trace. Most are source or build inputs, not files `/` or plain `/map` opens while rendering. Any next fix should prove why each included file is needed before adding another exclusion layer.
+These files dominated the measured baseline trace. Most were source or build inputs, not files `/` or plain `/map` opened while rendering. The fix therefore had to preserve each required runtime include rather than add another exclusion layer.
 
 ## Deliberate tracing contract
 
@@ -467,7 +467,7 @@ Output:
 ]
 ```
 
-So the intentional per-route table does not explicitly add any data pack to `/`, and adds only the 375,876-byte UK place index to `/map`. That table does not explain 278.65 MiB on both routes. The next investigation should still start there because it owns the deliberate contract, then establish why Next's final `.nft.json` is much broader than the evaluated values.
+So the intentional per-route table did not explicitly add any data pack to `/`, and added only the 375,876-byte UK place index to `/map`. That table did not explain 278.65 MiB on both routes. The investigation therefore started there because it owns the deliberate contract, then established why Next's final `.nft.json` was much broader than the evaluated values.
 
 Do not add `excludeFiles` in `vercel.json`. Vercel does not support that escape hatch for Next.js functions, and it would sit on top of the repository's existing tracing contract rather than fixing it.
 
