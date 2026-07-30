@@ -1,9 +1,9 @@
 # Signed-out prelaunch smoke
 
-Live site: `https://pubmaxxing.com`  
-Date: 30 July 2026  
-Session: fresh signed-out Playwright Chromium contexts, no stored site data  
-Viewports: 390x844 mobile with touch emulation; 1440x900 desktop
+- Live site: `https://pubmaxxing.com`
+- Date: 30 July 2026
+- Session: fresh signed-out Playwright Chromium contexts, no stored site data
+- Viewports: 390x844 mobile with touch emulation; 1440x900 desktop
 
 ## First-time visitor findings, worst first
 
@@ -259,7 +259,7 @@ Capture: [`07-tonight-desktop.png`](07-tonight-desktop.png)
 - Console errors and warnings: none.
 - Failed requests: only aborted speculative Next.js RSC prefetches, with counts mobile Discover 3, Today 10, Tonight 13; desktop Discover 14, Today 7, Tonight 12. No HTTP 4xx/5xx.
 - Horizontal overflow: none; `scrollWidth` equalled viewport width on all six.
-- Fixes deferred until full walk. Today contradictions touch live data interpretation. Tonight centring is a possible small CSS fix pending diagnosis.
+- Fixes: none. Today contradictions touch live data interpretation. Tonight centring remains report-only for Firstmate pending diagnosis.
 
 ## 8. Follow map credit and privacy
 
