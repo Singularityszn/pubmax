@@ -22,7 +22,7 @@ Viewports: 390x844 mobile with touch emulation; 1440x900 desktop
 | 3. Venue sheet | Fail | Fail |
 | 4. Filter | Fail | Fail |
 | 5. Plan | Pass to read-only boundary | Pass to read-only boundary |
-| 6. Contribute price | Pending | Pending |
+| 6. Contribute price | Pass | Pass |
 | 7. Discover, Today, Tonight | Pending | Pending |
 | 8. Map credit and privacy | Pending | Pending |
 
@@ -178,7 +178,31 @@ Product did not stop signed-out visitor before route generation. Smoke stopped a
 
 ## 6. Try to contribute a price signed out
 
-Pending.
+**What I did**
+
+- Opened selected The Dove sheet signed out.
+- Recorded visible form controls before interaction.
+- Clicked `Add price` once and recorded resulting gate before entering anything.
+
+**390x844 - Pass**
+
+No contribution field was visible before click. After click, sheet immediately showed `Sign in to add a price`, `You need an account to add a price`, and `Sign in here and we’ll bring you back to The Dove.` Only new field was email sign-in input (`you@example.com`), followed by `Email me a link`. No price or drink field appeared.
+
+Capture: [`06-contribute-mobile.png`](06-contribute-mobile.png)
+
+**1440x900 - Pass**
+
+Same gate, return promise, and email-only sign-in control appeared in right-side sheet. No price field appeared. False background-failure toast from journeys 2 and 4 recurred but did not obstruct gate.
+
+Capture: [`06-contribute-desktop.png`](06-contribute-desktop.png)
+
+**Diagnostics**
+
+- Main document: HTTP 200 at both widths.
+- Console errors: none.
+- Console warnings: mobile logged two headless-Chromium WebGL readback-stall warnings plus MapLibre `road_shield_us` null-filter warning; desktop logged MapLibre warning.
+- Failed requests: mobile logged one and desktop logged twelve aborted OpenFreeMap vector-tile requests while camera/sheet state changed. No HTTP 4xx/5xx.
+- POST requests: none. No sign-in email or contribution submitted.
 
 ## 7. Open Discover, Today and Tonight
 
