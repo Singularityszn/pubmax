@@ -4,6 +4,8 @@ import {
   deriveMapRenderedState,
   sameMapRenderedState,
 } from "@/lib/mapRenderedState";
+import { mapPriceLegend } from "@/lib/mapPriceLegend";
+import { NO_ALCOHOL_LENS_PRICE_NOUN } from "@/lib/mapExperienceLens";
 
 function feature(bucket: number, kind = "pub"): GeoJSON.Feature {
   return {
@@ -36,6 +38,39 @@ describe("deriveMapRenderedState", () => {
       ],
       storyColour: "#d99f45",
     });
+  });
+
+  it("keeps the desktop No alcohol key on the cluster source state", () => {
+    // State-level assertion only. Headless GL does not mount desktop donut
+    // markers, while the 390px Playwright regression proves rendered pixels.
+    const noAlcoholSource: GeoJSON.FeatureCollection = {
+      type: "FeatureCollection",
+      features: [feature(3), feature(3), feature(3)],
+    };
+    const renderedState = deriveMapRenderedState(
+      noAlcoholSource,
+      { brass: "#b0813a" },
+      null,
+    );
+    const legend = mapPriceLegend({
+      kind: "drink",
+      label: "No-alcohol",
+      noun: NO_ALCOHOL_LENS_PRICE_NOUN,
+      status: "ready",
+      renderedState,
+    });
+
+    expect(
+      noAlcoholSource.features.map(
+        (sourceFeature) => sourceFeature.properties?.bucket,
+      ),
+    ).toEqual([3, 3, 3]);
+    expect(renderedState.priceBands).toEqual([
+      { meaning: "pint", bucket: 3 },
+    ]);
+    expect(legend.clusterNote).toBe(
+      "Clusters stay grey because no current venue has a trusted alcohol-free or soft drink price. The number is every venue in the cluster.",
+    );
   });
 
   it("derives price pairs from only the features in the scene", () => {

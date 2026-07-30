@@ -32,6 +32,67 @@ async function changedPixelRatio(first: Buffer, second: Buffer): Promise<number>
   return changed / pixels;
 }
 
+async function semanticPricePixelCount(
+  screenshot: Buffer,
+  colours: readonly [number, number, number][],
+  extract?: { left: number; top: number; width: number; height: number },
+): Promise<number> {
+  const pipeline = sharp(screenshot);
+  if (extract) pipeline.extract(extract);
+  const { data } = await pipeline.removeAlpha()
+    .raw()
+    .toBuffer({ resolveWithObject: true });
+  let count = 0;
+  for (let index = 0; index < data.length; index += 3) {
+    if (
+      colours.some(
+        ([red, green, blue]) =>
+          Math.max(
+            Math.abs(data[index] - red),
+            Math.abs(data[index + 1] - green),
+            Math.abs(data[index + 2] - blue),
+          ) <= 36,
+      )
+    ) {
+      count += 1;
+    }
+  }
+  return count;
+}
+
+async function selectNoAlcohol(page: Page): Promise<void> {
+  await page.route("**/api/price-submit?lens=no-alcohol", (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({ prices: [], truncated: false }),
+    }),
+  );
+  const indexResponse = page.waitForResponse(
+    (candidate) =>
+      candidate.url().includes("/api/price-submit?lens=no-alcohol") &&
+      candidate.status() === 200,
+  );
+  await page.getByRole("button", { name: /^Filters/ }).click();
+  const sheet = page.locator(
+    '.mobileSheetPortal[data-sheet-kind="filters"]',
+  );
+  await expect(sheet).toBeVisible();
+  await sheet
+    .getByRole("button", { name: "No alcohol", exact: true })
+    .click();
+  await indexResponse;
+}
+
+async function expectNoAlcoholKey(page: Page): Promise<void> {
+  const key = page
+    .locator('.mobileSheetPortal[data-sheet-kind="filters"]')
+    .getByLabel("Map key");
+  await expect(key).toContainText(
+    "Clusters stay grey because no current venue has a trusted alcohol-free or soft drink price.",
+  );
+}
+
 async function zoomThroughHiddenMobileControl(page: Page, steps = 3): Promise<void> {
   const zoomIn = page.locator(".maplibregl-ctrl-zoom-in");
   for (let step = 0; step < steps; step += 1) {
@@ -121,6 +182,54 @@ test("/map does not report a background failure after one basemap source paints"
   await page.waitForTimeout(13_000);
   await expect(page.locator(".mapSoftRetry")).toHaveCount(0);
   await expect(page.locator(".mapFallback")).toHaveCount(0);
+});
+
+test("/map No alcohol key matches rendered mobile clusters at 390px", async ({
+  page,
+}) => {
+  test.setTimeout(60_000);
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await installDeterministicMapBasemap(page);
+
+  await page.goto("/map");
+  const canvas = page.locator(".maplibreMap canvas").first();
+  await expect(canvas).toBeVisible({ timeout: 20_000 });
+  const renderedMapBand = {
+    left: 0,
+    top: 180,
+    width: 390,
+    height: 190,
+  };
+  const priceClusterColours = [
+    [23, 149, 98],
+    [215, 149, 26],
+  ] as const;
+
+  await selectNoAlcohol(page);
+  await expectNoAlcoholKey(page);
+  await expect
+    .poll(
+      async () =>
+        semanticPricePixelCount(
+          await canvas.screenshot(),
+          priceClusterColours,
+          renderedMapBand,
+        ),
+      { timeout: 15_000 },
+    )
+    .toBeLessThan(10);
+  await expect
+    .poll(
+      async () =>
+        semanticPricePixelCount(
+          await canvas.screenshot(),
+          [[87, 87, 95]],
+          renderedMapBand,
+        ),
+      { timeout: 15_000 },
+    )
+    .toBeGreaterThan(50);
 });
 
 test("/map stays visually stable for a reduced-motion viewer while idle", async ({ page }) => {

@@ -92,6 +92,7 @@ import {
   basemapRetryForReveal,
   createPinRevealCoordinator,
 } from "@/components/map/canvas/pinRevealCoordinator";
+import { commitPubsSourceRevision } from "@/components/map/canvas/pubSourceRevision";
 import { applySelectionMute } from "@/lib/mapBasemapTaste";
 import {
   wireClickRouting, wireHoverPrefetch, wirePubHover, wireCursor,
@@ -464,6 +465,7 @@ export default function PubMapCanvas({
   }, [mapView, maxBounds, cityBounds, landmarksGeoJSON]);
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
+  const donutSyncRef = useRef<DonutClusterSync | null>(null);
   const [mapReady, setMapReady] = useState(false);
   // Keep the latest parent callback without reading/writing refs during render
   // (react-hooks/refs). Build/event handlers + error paths read this when ready flips.
@@ -697,9 +699,12 @@ export default function PubMapCanvas({
   // (layerId::prop → value). Owned here so it survives buildScene rebuilds; a
   // theme setStyle wipes the live layers, so buildScene clears + re-applies it.
   const selectionMuteStoreRef = useRef<Map<string, unknown>>(new Map());
-  const publishRenderedState = useCallback((tokens: Tokens) => {
+  const publishRenderedState = useCallback((
+    pubsData: GeoJSON.FeatureCollection,
+    tokens: Tokens,
+  ) => {
     const next = deriveMapRenderedState(
-      pubsDataRef.current,
+      pubsData,
       tokens,
       activeBandColourTokenRef.current,
     );
@@ -1299,7 +1304,7 @@ export default function PubMapCanvas({
     const buildSceneBody = () => {
       const tokens = readTokens();
       const dark = themeRef.current === "dark";
-      publishRenderedState(tokens);
+      publishRenderedState(pubsDataRef.current, tokens);
 
       // buildScene re-runs on every style.load. After a genuine setStyle swap
       // the old style's layers are gone (getLayer → undefined) so everything
@@ -2153,6 +2158,7 @@ export default function PubMapCanvas({
     const donutSync: DonutClusterSync = createDonutClusterSync(map, cinematic, {
       enabled: useDomDonutClusters,
     });
+    donutSyncRef.current = donutSync;
     // One RAF loop for motivated feedback only: pin entrance, route direction,
     // and the selected-pin pulse. The old perpetual camera orbit changed the
     // whole canvas every frame while idle, forcing tile churn that read as
@@ -2273,6 +2279,9 @@ export default function PubMapCanvas({
       window.removeEventListener("blur", onBlur);
       window.removeEventListener("focus", onFocus);
       donutSync.destroy();
+      if (donutSyncRef.current === donutSync) {
+        donutSyncRef.current = null;
+      }
       {
         const fallback = (map as maplibregl.Map & { __pubmaxTransitFallback?: number })
           .__pubmaxTransitFallback;
@@ -2339,9 +2348,11 @@ export default function PubMapCanvas({
   }, [mapReady, applyToMap, showLandmarks, landmarksGeoJSON]);
 
   // Pubs data → source. Rebuilds when the favorite pint changes so the price
-  // buckets + serves flags re-derive against that beer.
+  // buckets + serves flags re-derive against that beer. `nextPubsData` is one
+  // source revision: the key derives from this exact object, MapLibre receives
+  // this exact object, and cached desktop paint is retired before replacement.
   useLayoutEffect(() => {
-    pubsDataRef.current = pubsToGeoJSON(
+    const nextPubsData = pubsToGeoJSON(
       venues,
       venueSignals,
       favoritePint,
@@ -2350,12 +2361,24 @@ export default function PubMapCanvas({
       provisionalVenueIds,
       lensPrices,
     );
-    publishRenderedState(readTokens());
-    if (!mapReady) return;
+    pubsDataRef.current = nextPubsData;
+    if (!mapReady) {
+      publishRenderedState(nextPubsData, readTokens());
+      return;
+    }
     applyToMap("pubs:data", (map) => {
-      (map.getSource("pubs") as maplibregl.GeoJSONSource | undefined)?.setData(
-        pubsDataRef.current,
-      );
+      const source = map.getSource("pubs") as maplibregl.GeoJSONSource | undefined;
+      if (!source) return;
+      void commitPubsSourceRevision({
+        data: nextPubsData,
+        source,
+        invalidatePaint: () => donutSyncRef.current?.invalidate(),
+        isCurrent: () => pubsDataRef.current === nextPubsData,
+        publish: (settledData) =>
+          publishRenderedState(settledData, readTokens()),
+      }).catch((error) => {
+        console.error("[pubmap] pubs source revision failed", error);
+      });
     });
   }, [
     venues,
@@ -2789,7 +2812,10 @@ export default function PubMapCanvas({
   useEffect(() => {
     activeBandColourTokenRef.current =
       activeBand?.colourToken ?? null;
-    const bandColour = publishRenderedState(readTokens()).storyColour;
+    const bandColour = publishRenderedState(
+      pubsDataRef.current,
+      readTokens(),
+    ).storyColour;
     bandCorridorRef.current = bandCorridorGeoJSON(activeBand, cityLandmarks);
     bandMemberIdsRef.current = bandMembers.map((m) => m.venue.id);
     if (!mapReady) return;
