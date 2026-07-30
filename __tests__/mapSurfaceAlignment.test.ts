@@ -22,6 +22,9 @@ describe("map surface alignment", () => {
     expect(siteNavCss).toMatch(
       /\.siteNavBarFloating\s*{[\s\S]*?width:\s*var\(--desktop-map-surface-width\)/,
     );
+    expect(tonightArcCss).toMatch(
+      /@media \(min-width: 641px\)[\s\S]*?\.tonightArcChips\s*{[\s\S]*?width:\s*var\(--desktop-map-surface-width\)[\s\S]*?background:\s*transparent/,
+    );
   });
 
   it("gives phone map actions one left-aligned safe-lane boundary", () => {

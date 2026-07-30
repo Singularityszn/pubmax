@@ -98,6 +98,25 @@
   pointer-events: none;
 }
 
+@media (min-width: 641px) {
+  .tonightArcChips {
+    width: var(--desktop-map-surface-width);
+    max-width: none;
+    padding: 0;
+    background: transparent;
+    box-shadow: none;
+    backdrop-filter: none;
+  }
+
+  .tonightArcLabel {
+    text-align: center;
+  }
+
+  .tonightArcRow {
+    justify-content: center;
+  }
+}
+
 @media (max-width: 640px) {
   .tonightArcChips {
     position: fixed;
