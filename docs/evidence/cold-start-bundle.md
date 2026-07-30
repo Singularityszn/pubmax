@@ -386,7 +386,10 @@ QUESTION: does the actual packaged `/` or `/map` Vercel function sit near or abo
 
 The local `.nft.json` sum is about 278.65 MiB, but that sum is not the packaged Vercel function size. Packaging may deduplicate shared files, add runtime layers, compress files, or use the newer Large Functions path. Do not compare the local number directly to a limit and claim deployment failure.
 
-Vercel currently documents a 250 MB standard uncompressed function limit and a Large Functions public beta for eligible Fluid Compute projects. See [Vercel function limits](https://vercel.com/docs/functions/limitations) and [Vercel's function-size troubleshooting guide](https://vercel.com/kb/guide/troubleshooting-function-250mb-limit).
+Vercel currently documents a 250 MB standard uncompressed function limit and
+Large Functions up to 5 GB with Fluid Compute and Active CPU. See
+[Vercel function limits](https://vercel.com/docs/functions/limitations) and
+[Vercel's function-size troubleshooting guide](https://vercel.com/kb/guide/troubleshooting-function-250mb-limit).
 
 Check through the normal git-driven Vercel build, not a crewmate deployment:
 

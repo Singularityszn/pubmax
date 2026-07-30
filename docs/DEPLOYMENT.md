@@ -4,6 +4,17 @@ How to deploy PubMaxing to Vercel with Supabase persistence and (optionally) The
 
 The app runs **keyless** locally (in-memory Pint Drops + structured Landlord fallback). Production is different: without Supabase configured, Pint Drop writes intentionally return **503** and admin moderation is unavailable — the store never lies about durability.
 
+## Function placement and HTML caching
+
+`vercel.json` owns the default London placement for Vercel Functions. Measured
+launch latency, the route-trace baseline, and failed tracing probes live in the
+[cold-start bundle evidence](evidence/cold-start-bundle.md); bundle reduction is
+a separate follow-up.
+
+HTML cacheability remains a security decision, not a deployment toggle. The
+[CSP and caching decision brief](evidence/csp-vs-caching.md) owns the options
+and pending captain decision.
+
 ## Environment variables
 
 Set these in the Vercel project (Settings → Environment Variables).
