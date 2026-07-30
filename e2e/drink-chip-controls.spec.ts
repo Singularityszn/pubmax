@@ -306,6 +306,44 @@ for (const width of [390, 320]) {
   });
 }
 
+test("390px Tonight Arc hides Clubs reason outside the All lens", async ({
+  page,
+}) => {
+  test.setTimeout(90_000);
+  const response = await page.goto("/map");
+  expect(response?.status()).toBe(200);
+
+  const arc = page.getByRole("group", { name: "Tonight arc venue types" });
+  await expect(arc).toBeVisible({ timeout: 45_000 });
+  const clubs = arc.getByRole("button", {
+    name: "Clubs are not mapped yet",
+  });
+  await clubs.focus();
+  await page.keyboard.press("Enter");
+  await expect(arc.getByRole("tooltip")).toHaveText(
+    "Clubs are not mapped yet",
+  );
+
+  await page.getByRole("button", { name: /^Filters/ }).click();
+  const sheet = page.locator('.mobileSheetPortal[data-sheet-kind="filters"]');
+  const mapView = sheet.getByRole("group", { name: "Map view" });
+
+  await mapView.getByRole("button", { name: "Food", exact: true }).click();
+  await expect(arc.getByText("Clubs", { exact: true })).toHaveCount(0);
+  await expect(arc.getByRole("tooltip")).toHaveCount(0);
+
+  await mapView
+    .getByRole("button", { name: "No alcohol", exact: true })
+    .click();
+  await expect(arc.getByText("Clubs", { exact: true })).toHaveCount(0);
+  await expect(arc.getByRole("tooltip")).toHaveCount(0);
+
+  await mapView.getByRole("button", { name: "All", exact: true }).click();
+  await expect(arc.getByRole("tooltip")).toHaveText(
+    "Clubs are not mapped yet",
+  );
+});
+
 for (const width of [390, 320]) {
   test(`${width}px map attribution opens fully above the plan action`, async ({
     page,

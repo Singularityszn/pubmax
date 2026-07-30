@@ -42,7 +42,7 @@ export default function TonightArcChips({
           (chip) => chip.kind === "food" || chip.kind === "restaurant",
         )
       : CHIPS.filter((chip) => experienceLens === "all" || chip.kind !== "club");
-  const revealedUnavailableChip = CHIPS.find(
+  const revealedUnavailableChip = chips.find(
     (chip) => chip.kind === revealedUnavailableKind,
   );
   return (
