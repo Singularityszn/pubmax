@@ -34,6 +34,7 @@ async function loadMobileMap(
   viewport: (typeof MOBILE_VIEWPORTS)[number],
 ): Promise<void> {
   await page.setViewportSize(viewport);
+  await page.emulateMedia({ reducedMotion: "reduce" });
   await prepareReturningVisitor(page);
   const response = await page.goto("/map");
   expect(response?.status()).toBe(200);

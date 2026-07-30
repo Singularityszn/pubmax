@@ -30,25 +30,35 @@ for (const viewport of MOBILE_VIEWPORTS) {
     const firstChoice = page.getByRole("button", { name: "Use my location" });
     await expect(heading).toBeVisible();
     await expect(firstChoice).toBeVisible();
-    expect(await page.evaluate(() => window.scrollY)).toBe(0);
-
-    const [headingBox, firstChoiceBox, navigationBox] = await Promise.all([
-      heading.boundingBox(),
-      firstChoice.boundingBox(),
-      page.locator(".mobileTabBar").boundingBox(),
-    ]);
-    expect(headingBox).not.toBeNull();
-    expect(firstChoiceBox).not.toBeNull();
-    expect(navigationBox).not.toBeNull();
-    if (!headingBox || !firstChoiceBox || !navigationBox) return;
+    const geometry = await page.locator(".planPage").evaluate((planPage) => {
+      const headingElement =
+        planPage.querySelector<HTMLElement>("#plan-intake-title");
+      const firstChoiceElement =
+        planPage.querySelector<HTMLElement>(".planIntake__locate");
+      const navigationElement =
+        document.querySelector<HTMLElement>(".mobileTabBar");
+      if (!headingElement || !firstChoiceElement || !navigationElement) {
+        throw new Error("Plan opening geometry is incomplete");
+      }
+      const headingRect = headingElement.getBoundingClientRect();
+      const firstChoiceRect = firstChoiceElement.getBoundingClientRect();
+      const navigationRect = navigationElement.getBoundingClientRect();
+      return {
+        scrollY: window.scrollY,
+        headingBottom: headingRect.bottom,
+        firstChoiceBottom: firstChoiceRect.bottom,
+        navigationTop: navigationRect.top,
+      };
+    });
+    expect(geometry.scrollY).toBe(0);
 
     expect(
-      headingBox.y + headingBox.height,
+      geometry.headingBottom,
       "first Plan heading must end above fixed navigation",
-    ).toBeLessThanOrEqual(navigationBox.y);
+    ).toBeLessThanOrEqual(geometry.navigationTop);
     expect(
-      firstChoiceBox.y + firstChoiceBox.height,
+      geometry.firstChoiceBottom,
       "first Plan choice must be fully visible above fixed navigation",
-    ).toBeLessThanOrEqual(navigationBox.y);
+    ).toBeLessThanOrEqual(geometry.navigationTop);
   });
 }
