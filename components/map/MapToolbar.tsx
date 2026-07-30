@@ -32,6 +32,7 @@ type MapToolbarProps = {
   searchContent: ReactNode;
   favoritePint: string | null;
   onFavoritePintChange: (beerId: string | null) => void;
+  drinkFiltersActive: boolean;
   drinkCategory: string;
   drinkBrand: string;
   onDrinkLensChange: (next: { drinkCategory: string; drinkBrand: string }) => void;
@@ -66,6 +67,7 @@ export default function MapToolbar({
   searchContent,
   favoritePint,
   onFavoritePintChange,
+  drinkFiltersActive,
   drinkCategory,
   drinkBrand,
   onDrinkLensChange,
@@ -106,13 +108,6 @@ export default function MapToolbar({
       onDrinkLensChange={onDrinkLensChange}
     />
   );
-  // Drive from real drink-lens state only — free-text "beer garden" must not
-  // light the Drinks control as if a drink filter were applied.
-  const drinksActive =
-    filters.requireCocktails ||
-    Boolean(drinkCategory) ||
-    filters.topShelfOnly ||
-    Boolean(favoritePint);
   const trimmedQuery = query.trim();
   const showNoSearchMatches =
     searchSettled &&
@@ -150,7 +145,7 @@ export default function MapToolbar({
           <button
             type="button"
             className={
-              drinksOpen || drinksActive
+              drinksOpen || drinkFiltersActive
                 ? "mapToolbarDrinksBtn isActive"
                 : "mapToolbarDrinksBtn"
             }
@@ -198,7 +193,7 @@ export default function MapToolbar({
 
       <MapExperienceLensControl
         lens={experienceLens}
-        allSelected={!drinksActive}
+        allSelected={!drinkFiltersActive}
         summary={experienceSummary}
         onChange={changeExperienceLens}
       />

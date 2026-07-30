@@ -2678,7 +2678,8 @@ export default function PubMap({
   const mapLoadingActive = !mapCanvasErrored && (!mapCanvasReady || (slimPins.length === 0 && !loaded));
   const mobileShellReady = !mapLoadingActive;
   const drinkFiltersActive = Boolean(
-    filters.drinkCategory ||
+    favoritePint ||
+      filters.drinkCategory ||
       filters.drinkBrand ||
       filters.drinkSubtype ||
       filters.topShelfOnly ||
@@ -2841,6 +2842,7 @@ export default function PubMap({
           }
           favoritePint={favoritePint}
           onFavoritePintChange={changeFavoritePint}
+          drinkFiltersActive={drinkFiltersActive}
           drinkCategory={filters.drinkCategory}
           drinkBrand={filters.drinkBrand}
           onDrinkLensChange={({ drinkCategory, drinkBrand }) =>

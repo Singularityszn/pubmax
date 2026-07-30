@@ -67,6 +67,47 @@ test("390px Prices and places controls show one truthful selection", async ({
   ]).toEqual(["Gin"]);
 });
 
+test("persisted favourite pint keeps All unselected after mobile and desktop reloads", async ({
+  page,
+}) => {
+  test.setTimeout(90_000);
+  const response = await page.goto("/map");
+  expect(response?.status()).toBe(200);
+  await page.evaluate(() => {
+    window.localStorage.setItem("pubmax:favoritePint:v1", "guinness");
+  });
+
+  await page.reload();
+  const filtersButton = page.getByRole("button", { name: /^Filters/ });
+  await expect(filtersButton).toBeVisible({ timeout: 45_000 });
+  await filtersButton.click();
+  const mobileSheet = page.locator(
+    '.mobileSheetPortal[data-sheet-kind="filters"]',
+  );
+  await expect(mobileSheet).toBeVisible();
+  await expect(
+    mobileSheet.getByLabel("Favourite pint or beer brand"),
+  ).toHaveValue("guinness");
+  await expect(
+    mobileSheet
+      .getByRole("group", { name: "Map view" })
+      .getByRole("button", { name: "All", exact: true }),
+  ).toHaveAttribute("aria-pressed", "false");
+
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await page.reload();
+  const desktopToolbar = page.locator(".mapToolbar");
+  await expect(desktopToolbar).toBeVisible({ timeout: 45_000 });
+  await expect(
+    desktopToolbar.getByLabel("Favourite pint or beer brand"),
+  ).toHaveValue("guinness");
+  await expect(
+    desktopToolbar
+      .getByRole("group", { name: "Map view" })
+      .getByRole("button", { name: "All", exact: true }),
+  ).toHaveAttribute("aria-pressed", "false");
+});
+
 test("390px fare-zone rows agree through selection and reset", async ({ page }) => {
   test.setTimeout(90_000);
   const sheet = await openFilters(page);
