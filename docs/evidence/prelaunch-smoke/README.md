@@ -8,8 +8,11 @@ Viewports: 390x844 mobile with touch emulation; 1440x900 desktop
 ## First-time visitor findings, worst first
 
 - **No-alcohol key contradicts map paint:** at both widths, selecting `No alcohol` says no alcohol-free or soft-drink prices are logged and `Clusters stay grey`, but map behind it continues to show green and amber clusters. Desktop list count changes from 1,466 in default view to 33, while visible canvas still carries large coloured clusters. Key does not describe shown map.
+- **Today and Tonight disagree:** Today says `Nothing left confirmed tonight.` Tonight, opened in same pass, says `2 listings tonight` and shows two sourced events. Neither sentence narrows itself enough to make both true.
 - **Desktop map shows a false failure:** at 1440x900, the map background and pins render, then a persistent toast says `Map background couldn't load. Tap Retry to try again.` Reproduced in two fresh Chromium runs. This is untrue and asks for recovery from a failure the visitor cannot see.
+- **Today calls 24C cold:** headline says `Cold out. Find somewhere with a fire.` immediately above `Thursday 30 Jul, 24C and cloudy in London.` Copy contradicts displayed measurement.
 - **Venue price source is not named:** The Dove shows £7.25 and honestly says `Dataset price. Not a live tonight feed.`, but `Dataset price` does not identify the dataset or publisher. Its Drinks detail says every drink carries its source, yet the £7.25 Asahi row only says `ON RECORD`. The nearby `Photo: pub website` is clearly an image credit, not price provenance.
+- **Tonight desktop navigation is off-centre:** at 1440x900, shared 1,100px navigation begins at x=-4 instead of x=170 as it does on Discover and Today, leaving brand against viewport edge and a large blank right margin.
 - Home proposition is immediate at both widths: listed sourced pint prices on an interactive map, plus crawl planning.
 - First-visit analytics choice covers some below-fold home content, but leaves proposition and primary `Find my pint` action visible. `No thanks` and `Allow` are reachable at both widths.
 
@@ -23,7 +26,7 @@ Viewports: 390x844 mobile with touch emulation; 1440x900 desktop
 | 4. Filter | Fail | Fail |
 | 5. Plan | Pass to read-only boundary | Pass to read-only boundary |
 | 6. Contribute price | Pass | Pass |
-| 7. Discover, Today, Tonight | Pending | Pending |
+| 7. Discover, Today, Tonight | Fail | Fail |
 | 8. Map credit and privacy | Pending | Pending |
 
 ## 1. Land on home page
@@ -206,7 +209,56 @@ Capture: [`06-contribute-desktop.png`](06-contribute-desktop.png)
 
 ## 7. Open Discover, Today and Tonight
 
-Pending.
+Opened `/discover`, `/today`, and `/tonight` directly in new signed-out contexts at each width. Waited 4.5 seconds for dynamic content and captured first screen.
+
+### Discover
+
+**390x844 - Pass**
+
+Shows real route-readiness counts, area states, drink families, city energy with demo qualification, tonight pointer, listed-price leaderboard, and editorial routes. Copy distinguishes fresh route-ready areas from reviewed, unchecked, and paused areas.
+
+Capture: [`07-discover-mobile.png`](07-discover-mobile.png)
+
+**1440x900 - Pass**
+
+Same real content, centred and readable without overflow.
+
+Capture: [`07-discover-desktop.png`](07-discover-desktop.png)
+
+### Today
+
+**390x844 and 1440x900 - Fail**
+
+Page shows real, sourced weather (`Checked 1 hour ago · via Open-Meteo`), TfL disruption, listed prices dated 3 July 2026, quiet-pub history, and an explicit event empty state.
+
+Two copy/data defects:
+
+1. Headline `Cold out. Find somewhere with a fire.` contradicts displayed 24C.
+2. `Nothing left confirmed tonight.` contradicts Tonight page’s two sourced listings from same pass. Today does not qualify empty state as a narrower area or kind.
+
+Captures: [`07-today-mobile.png`](07-today-mobile.png), [`07-today-desktop.png`](07-today-desktop.png)
+
+### Tonight
+
+**390x844 - Pass**
+
+Shows two real listings, checked 30 July, with venue, times, prices, and DesignMyNight source. `Thin coverage tonight: 2 sourced listings only. Not a full gig guide.` sets honest limit.
+
+Capture: [`07-tonight-mobile.png`](07-tonight-mobile.png)
+
+**1440x900 - Fail**
+
+Content is same and honest, but site navigation is visibly mis-centred. Measured `siteNavBar` at x=-4, width 1,100; Discover and Today place same bar at x=170. Brand nearly touches left edge while 344px remains blank on right.
+
+Capture: [`07-tonight-desktop.png`](07-tonight-desktop.png)
+
+**Diagnostics**
+
+- Main documents: HTTP 200 for all six runs.
+- Console errors and warnings: none.
+- Failed requests: only aborted speculative Next.js RSC prefetches, with counts mobile Discover 3, Today 10, Tonight 13; desktop Discover 14, Today 7, Tonight 12. No HTTP 4xx/5xx.
+- Horizontal overflow: none; `scrollWidth` equalled viewport width on all six.
+- Fixes deferred until full walk. Today contradictions touch live data interpretation. Tonight centring is a possible small CSS fix pending diagnosis.
 
 ## 8. Follow map credit and privacy
 
