@@ -215,6 +215,10 @@
   box-shadow: 0 8px 18px color-mix(in srgb, var(--brass) 28%, transparent);
 }
 
+.drinkShapeChip > svg {
+  flex: 0 0 auto;
+}
+
 .drinkShapeChipLabel {
   white-space: nowrap;
 }

@@ -2677,6 +2677,14 @@ export default function PubMap({
 
   const mapLoadingActive = !mapCanvasErrored && (!mapCanvasReady || (slimPins.length === 0 && !loaded));
   const mobileShellReady = !mapLoadingActive;
+  const drinkFiltersActive = Boolean(
+    favoritePint ||
+      filters.drinkCategory ||
+      filters.drinkBrand ||
+      filters.drinkSubtype ||
+      filters.topShelfOnly ||
+      filters.requireCocktails,
+  );
 
   return (
     <main
@@ -2834,6 +2842,7 @@ export default function PubMap({
           }
           favoritePint={favoritePint}
           onFavoritePintChange={changeFavoritePint}
+          drinkFiltersActive={drinkFiltersActive}
           drinkCategory={filters.drinkCategory}
           drinkBrand={filters.drinkBrand}
           onDrinkLensChange={({ drinkCategory, drinkBrand }) =>
@@ -3004,13 +3013,7 @@ export default function PubMap({
           tflCount={tflStatus.issueCount}
           tflStatus={tflStatus.failed ? "unavailable" : !tflStatus.payload ? "checking" : tflStatus.issueCount ? "issues" : "clear"}
           priceLabel={filters.maxPrice < 10 ? `≤£${filters.maxPrice.toFixed(2)}` : "Price"}
-          drinkFiltersActive={Boolean(
-            filters.drinkCategory ||
-              filters.drinkBrand ||
-              filters.drinkSubtype ||
-              filters.topShelfOnly ||
-              filters.requireCocktails,
-          )}
+          drinkFiltersActive={drinkFiltersActive}
           experienceFilterLabel={
             experienceLens === "no-alcohol"
               ? "no-alcohol view"
@@ -3052,6 +3055,7 @@ export default function PubMap({
             <div className="mobileMapFilters">
               <MapExperienceLensControl
                 lens={experienceLens}
+                allSelected={!drinkFiltersActive}
                 summary={experienceSummary}
                 onChange={changeExperienceLens}
               />

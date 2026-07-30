@@ -20,11 +20,9 @@ import "./mapToolbar.css";
 
 import { DrinkGlyph } from "@/components/drinks/DrinkGlyph";
 import {
-  CATEGORY_DEFAULT_ABV,
   CATEGORY_META,
   type DrinkCategory,
   categoryLabel,
-  formatAbv,
   isDrinkCategory,
 } from "@/lib/drinks";
 import {
@@ -143,10 +141,6 @@ export default function DrinkShapeChips({
       <div className="drinkShapeChips" role="group" aria-label="Filter by drink shape">
         {CHIP_CATEGORIES.map((cat) => {
           const on = active === cat;
-          const defaultAbv = formatAbv(CATEGORY_DEFAULT_ABV[cat]);
-          const label = defaultAbv
-            ? `${categoryLabel(cat)} · ~${defaultAbv}`
-            : categoryLabel(cat);
           return (
             <button
               key={cat}
@@ -157,7 +151,7 @@ export default function DrinkShapeChips({
               onClick={() => onFiltersChange(nextDrinkShapeFilters(filters, cat))}
             >
               <DrinkGlyph category={cat} size={22} inheritColor={on} />
-              <span className="drinkShapeChipLabel">{label}</span>
+              <span className="drinkShapeChipLabel">{categoryLabel(cat)}</span>
             </button>
           );
         })}
