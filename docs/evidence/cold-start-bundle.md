@@ -1,6 +1,6 @@
 # Cold-start function bundle evidence
 
-Measured 30 July 2026. Bundle reduction is deliberately deferred to a separate task. This file records the baseline and two failed probes so the next attempt starts from evidence.
+Measured 30 July 2026. This file records baseline, failed probes, bounded tracing fix, and remaining production verification.
 
 ## Finding
 
@@ -14,6 +14,116 @@ The route-specific compiled files were small by comparison:
 | `/map` | 9 | 125,104 |
 
 The deployable trace, not HTML payload or route-specific JavaScript, is the dominant cold-start risk found in this investigation.
+
+## Outcome
+
+Next was following request-time paths assembled from imported constants and variables as if they could name any file below `process.cwd()`. The warning named `next.config.mjs` because that happened to be one file captured by the widened trace. Config evaluation was not root cause.
+
+Request-time readers now mark only dynamic path operations with Next's supported `turbopackIgnore` comment. Required deployment files still come from `runtimeDataPackRouteIncludes()` and existing explicit route entries in `next.config.mjs`. `lib/venueImageHosts.server.ts` also moved from pending tracing debt into `RUNTIME_DATA_PACKS`, so `/api/image-proxy` owns its three input files explicitly.
+
+Clean baseline and completed after build:
+
+```bash
+NEXT_DIST_DIR=.next-perf-before npm run build
+NEXT_DIST_DIR=.next-perf-path-ignore-2 npm run build
+```
+
+Trace measurement command:
+
+```bash
+node --input-type=module <<'NODE'
+import { readFileSync, statSync } from 'node:fs';
+import { dirname, resolve, relative } from 'node:path';
+
+const routes = {
+  landing: 'server/app/page.js.nft.json',
+  map: 'server/app/map/page.js.nft.json',
+};
+for (const root of ['.next-perf-before', '.next-perf-path-ignore-2']) {
+  for (const [route, file] of Object.entries(routes)) {
+    const manifest = resolve(root, file);
+    const paths = [
+      ...new Set(
+        JSON.parse(readFileSync(manifest, 'utf8')).files.map(path =>
+          resolve(dirname(manifest), path),
+        ),
+      ),
+    ];
+    const rows = paths
+      .map(path => ({ path: relative(process.cwd(), path), bytes: statSync(path).size }))
+      .sort((left, right) => right.bytes - left.bytes);
+    const bytes = rows.reduce((sum, row) => sum + row.bytes, 0);
+    console.log({
+      root,
+      route,
+      files: paths.length,
+      bytes,
+      mib: +(bytes / 1048576).toFixed(3),
+      largest: rows.slice(0, 12),
+    });
+  }
+}
+NODE
+```
+
+Measured result:
+
+| Route | Before | After | File reduction | Byte reduction |
+| --- | ---: | ---: | ---: | ---: |
+| `/` | 3,754 files, 292,326,519 bytes, 278.784 MiB | 234 files, 14,297,729 bytes, 13.635 MiB | 93.77% | 95.11% |
+| `/map` | 3,754 files, 292,324,900 bytes, 278.783 MiB | 234 files, 14,485,873 bytes, 13.815 MiB | 93.77% | 95.04% |
+
+Largest remaining landing contributors:
+
+```text
+7034773  public/data/pint_prices_app_dataset.json
+1378357  node_modules/next/dist/compiled/@vercel/og/resvg.wasm
+871434   node_modules/next/dist/compiled/@vercel/og/index.node.js
+734446   node_modules/next/dist/compiled/@vercel/og/index.edge.js
+609407   node_modules/next/dist/compiled/next-server/app-page-turbo.runtime.prod.js
+280256   node_modules/@img/sharp-darwin-arm64/lib/sharp-darwin-arm64-0.35.3.node
+186113   public/data/historic_pubs.json
+```
+
+`/map` has the same leading runtime files plus its deliberate 375,876-byte `public/data/uk_base/places.json`. The 7,034,773-byte price dataset remains because landing reads it during request rendering. Removing it would change page data and is outside this tracing fix.
+
+The completed after build emitted no whole-project NFT warning. It retained 199 route manifest entries, matching baseline. Actual after-build NFTs contained every checked map, feed, venue-detail, image-proxy, and freshness input. The tracing contract test and affected reader tests passed:
+
+```text
+Test Files  34 passed (34)
+Tests       445 passed (445)
+```
+
+Representative response parity checked `/`, `/map`, a UK place arrival, `/feed`, `/api/freshness`, and `/api/venue/venue-xjf3n0` against both builds. Status and byte counts matched. Server-rendered markup matched after removing request nonce and script tags. API JSON matched after removing request-generated timestamps. No reader changed what it opens or returns, so every page still renders the same data.
+
+### Local cold and warm timing
+
+Paired trials alternated baseline and after builds. Each trial started a fresh `next start` process, waited for TCP readiness without an HTTP request, measured first request, then measured three warm requests on same process. Three fresh processes were used per route and build.
+
+| Route | Phase | Before median | After median | Before range | After range |
+| --- | --- | ---: | ---: | ---: | ---: |
+| `/` | First request | 3.125s | 3.195s | 2.760s to 5.485s | 3.144s to 3.966s |
+| `/` | Warm request | 0.289s | 0.197s | 0.173s to 0.485s | 0.157s to 0.514s |
+| `/map` | First request | 3.166s | 3.118s | 3.033s to 3.713s | 2.952s to 3.665s |
+| `/map` | Warm request | 0.028s | 0.026s | 0.021s to 0.039s | 0.010s to 0.058s |
+
+Local first-request timing did not materially improve. Landing was 0.070s slower at median; map was 0.048s faster. Both movements sit inside observed trial spread. Smaller bundle is proven, but cold-start improvement is not.
+
+**Production cold-start effect: UNVERIFIED.**
+
+After merge, run five consecutive samples per route:
+
+```bash
+for route_path in / /map; do
+  for sample_number in 1 2 3 4 5; do
+    curl -sS -o /dev/null \
+      -w "route=${route_path} sample=${sample_number} status=%{http_code} ttfb=%{time_starttransfer}s total=%{time_total}s bytes=%{size_download}\n" \
+      "https://pubmaxxing.com${route_path}"
+  done
+done
+```
+
+This sequence cannot force five independent cold starts. Compare its slow samples and median with same five-sample production method recorded by launch owner. If cold TTFB does not improve, record bundle reduction as packaging hygiene, not launch performance result.
 
 ## Production request baseline
 
@@ -370,15 +480,11 @@ Result:
 
 Lesson: ignoring the dynamic module import also did not prevent Next from identifying `next.config.mjs` as the unexpected traced file. Do not repeat this shape.
 
-## Next investigation
+## Resolved tracing cause
 
-Start with the deliberate machinery, not an exclusion list:
+The deliberate route table was not over-including. It protected files that automatic tracing cannot infer. Imported runtime path constants were the broadening source. Adding supported ignore markers at those request-time path operations stopped automatic whole-project inference, while explicit includes kept deployment data available.
 
-1. Run a clean baseline build and inspect evaluated `outputFileTracingIncludes` beside final route NFTs.
-2. Establish why a config whose explicit `/` value is `null` and `/map` value is one 375,876-byte file produces identical 3,751-file traces.
-3. Isolate whether one route such as `/api/plans/[id]/getin` poisons shared traces, whether Next always carries the config's own filesystem reads, or whether another dynamic path broadens the root. Change one variable per build.
-4. Keep `__tests__/venueIndexTracing.test.ts` green so required runtime packs never disappear while removing accidental files.
-5. Re-run fresh-process timings only after the trace is materially smaller.
+Keep `__tests__/venueIndexTracing.test.ts` green whenever adding a runtime file reader. New runtime data belongs in `RUNTIME_DATA_PACKS`, an existing explicit tracing owner, or a documented pending declaration. Never remove an include merely to reduce function size.
 
 ## Function-size question
 
