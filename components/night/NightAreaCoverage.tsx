@@ -21,9 +21,9 @@ type CoverageState = {
 
 const STATUS_ORDER: Array<{ bucket: CoverageBucket; label: string }> = [
   { bucket: "route_ready", label: "Route-ready" },
-  { bucket: "captured", label: "Captured" },
+  { bucket: "captured", label: "Some checks done" },
   { bucket: "reviewed", label: "Reviewed" },
-  { bucket: "discovered", label: "Discovered" },
+  { bucket: "discovered", label: "Not checked" },
   { bucket: "paused", label: "Paused" },
 ];
 
@@ -51,7 +51,7 @@ function stateForArea(area: NightArea, now: Date): CoverageState {
 
   switch (area.coverageStatus) {
     case "captured":
-      return { bucket: "captured", label: "Captured", detail: gateDetail, tone: "captured", ...shared };
+      return { bucket: "captured", label: "Some checks done", detail: gateDetail, tone: "captured", ...shared };
     case "reviewed":
       return { bucket: "reviewed", label: "Reviewed", detail: gateDetail, tone: "reviewed", ...shared };
     case "paused":
@@ -85,7 +85,7 @@ function stateForArea(area: NightArea, now: Date): CoverageState {
     default:
       return {
         bucket: "discovered",
-        label: "Discovered",
+        label: "Not checked",
         detail: "Haven't got to this one yet. Have a browse.",
         tone: "discovered",
         ...shared,

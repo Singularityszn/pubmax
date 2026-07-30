@@ -102,7 +102,7 @@ describe("Plan public HTTP contract", () => {
     }));
     expect(response.status).toBe(400);
     expect(await response.json()).toEqual({
-      error: "Choose venues from the Venue Dataset.",
+      error: "Choose listed venues.",
       code: "PLAN_VENUES_INVALID",
       retryable: false,
     });

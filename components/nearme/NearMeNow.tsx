@@ -7,7 +7,7 @@ import { ChevronDown, Footprints, LocateFixed, MapPin, RotateCw } from "lucide-r
 import { trackEvent } from "@/lib/analytics";
 import { CITIES, DEFAULT_CITY_ID, type CityId } from "@/lib/cities";
 import { mapHrefForCity } from "@/lib/cityPreference";
-import { PINT_DATASET_OBSERVED_AT, formatMonthYear } from "@/lib/dataFreshness";
+import { PINT_DATASET_OBSERVED_AT } from "@/lib/dataFreshness";
 import { formatPrice } from "@/lib/venues";
 import { acceptNearVenue, type RawAcceptedArea } from "@/lib/venueAcceptance";
 import { venueMapUrl } from "@/lib/venueMapUrl";
@@ -88,8 +88,8 @@ export type NearMeNowProps = {
 
 const GEO_OPTS: PositionOptions = { enableHighAccuracy: false, timeout: 7000, maximumAge: 60_000 };
 
-function nearIntroLede(observedAt: Date): string {
-  return `Find the cheapest good pints within a short walk, using prices collected ${formatMonthYear(observedAt)}.`;
+function nearIntroLede(): string {
+  return "Compare listed pint prices near you, cheapest first.";
 }
 
 /** The active browse area as an acceptance area, or null for a located answer. */
@@ -381,12 +381,11 @@ export default function NearMeNow({
     [patch, borough, cityId, router],
   );
 
-  const collectedLabel = `Prices collected ${formatMonthYear(PINT_DATASET_OBSERVED_AT)}`;
   const areaLabel = borough ?? patch?.label ?? null;
   // Evidence receipt (§L06): what "Use this pub" carries into the plan. Shown
   // only when acceptance is live, so the browse-only surface stays uncluttered.
   const acceptReceipt = intentWrite
-    ? `Keeps ${areaLabel ?? "this pub"}, tonight, and the ${formatMonthYear(PINT_DATASET_OBSERVED_AT)} price in your plan.`
+    ? `Keeps this pub for tonight${areaLabel ? ` in ${areaLabel}` : ""}.`
     : null;
   const patchMessage =
     areaLabel && patchReason
@@ -408,14 +407,14 @@ export default function NearMeNow({
     <section className="nmn" aria-label="Find nearby cheap pints">
       {state === "idle" ? (
         <div className="nmnIntro">
-          <p className="nmnLede">{nearIntroLede(PINT_DATASET_OBSERVED_AT)}</p>
+          <p className="nmnLede">{nearIntroLede()}</p>
           <button type="button" className="nmnLocate" onClick={locate}>
             <LocateFixed size={18} aria-hidden="true" /> Find my pint
           </button>
           <p className="nmnHint">We only use your location to rank pubs nearby. Nothing is stored.</p>
           <div className="nmnQuickPatches">
             <p className="nmnQuickPatchesLabel">Or pick a patch</p>
-            <ul className="nmnAreaChips" aria-label="Pick a night area">
+            <ul className="nmnAreaChips" aria-label="Pick an area">
               {NIGHT_PATCHES.map((entry) => (
                 <li key={entry.id}>
                   <button
@@ -436,8 +435,8 @@ export default function NearMeNow({
         <div className="nmnStatus" role="status">
           <span className="nmnSpinner" aria-hidden="true" />
           {patch
-            ? `Finding the cheapest pints around ${patch.label}…`
-            : "Finding the cheapest pints near you…"}
+            ? `Checking listed pint prices around ${patch.label}…`
+            : "Checking listed pint prices near you…"}
         </div>
       ) : null}
 
@@ -446,7 +445,7 @@ export default function NearMeNow({
         // for the beat the slim index takes to arrive.
         <div className="nmnStatus" role="status">
           <span className="nmnSpinner" aria-hidden="true" />
-          Pulling up the cheapest pints in town…
+          Checking listed pint prices in town…
         </div>
       ) : null}
 
@@ -468,7 +467,7 @@ export default function NearMeNow({
       {state === "ready" && !outsideCoverage && !borough && !patch ? (
         <>
           <header className="nmnHead">
-            <h2>{scope === "widened" ? "Nearest priced pubs" : "Cheapest pints near you"}</h2>
+            <h2>{scope === "widened" ? "Nearest priced pubs" : "Cheapest listed near you"}</h2>
             {scope === "widened" ? (
               <p className="nmnWiden">Not many priced pubs on your doorstep. These are the nearest, a bit further out.</p>
             ) : (
@@ -490,14 +489,13 @@ export default function NearMeNow({
               <RotateCw size={15} aria-hidden="true" /> Update location
             </button>
           </footer>
-          <p className="nmnFresh">{collectedLabel}</p>
         </>
       ) : null}
 
       {state === "ready" && areaLabel ? (
         <>
           <header className="nmnHead">
-            <h2>{borough ? `Cheapest in ${borough}` : `Cheapest around ${patch?.label}`}</h2>
+            <h2>{borough ? `Cheapest listed in ${borough}` : `Cheapest listed around ${patch?.label}`}</h2>
             {patchMessage ? <p className="nmnSub">{patchMessage}</p> : null}
             {patchEvidenceNote ? <p className="nmnPatchTier">{patchEvidenceNote}</p> : null}
           </header>
@@ -540,7 +538,6 @@ export default function NearMeNow({
               <LocateFixed size={15} aria-hidden="true" /> Try my location again
             </button>
           </footer>
-          <p className="nmnFresh">{collectedLabel}</p>
         </>
       ) : null}
     </section>
@@ -688,7 +685,7 @@ function AreaPicker({
         <ChevronDown size={14} aria-hidden="true" className={open ? "nmnAreaCaretOpen" : undefined} />
       </button>
       <div className={`nmnAreaPanel${open ? " nmnAreaPanelOpen" : ""}`} aria-hidden={!open}>
-        <ul className="nmnAreaChips" aria-label="Pick a night area">
+        <ul className="nmnAreaChips" aria-label="Pick an area">
           {NIGHT_PATCHES.map((entry) => {
             const profile = patchProfiles?.[entry.id];
             const lightly = profile ? patchIsLimited(profile) : false;

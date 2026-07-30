@@ -113,7 +113,7 @@ export function validateOperatorClaim(
   if (!account) return { ok: false, error: "Sign in to run a pub." };
 
   const venueId = readString(raw.venueId);
-  if (!venueId) return { ok: false, error: "A venue is required." };
+  if (!venueId) return { ok: false, error: "Choose a venue." };
   if (venueId.length > MAX_OPERATOR_VENUE_ID) {
     return { ok: false, error: "That venue reference is too long." };
   }
@@ -124,7 +124,7 @@ export function validateOperatorClaim(
 
   const evidenceNote = cleanText(raw.evidenceNote, MAX_EVIDENCE_NOTE);
   if (!evidenceNote) {
-    return { ok: false, error: "Add a short note on how we can verify you." };
+    return { ok: false, error: "Add a short note so we can check your claim." };
   }
 
   return {

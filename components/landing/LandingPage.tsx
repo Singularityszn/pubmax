@@ -224,7 +224,7 @@ export default function LandingPage({
           </div>
 
           <div className="lpHeroCopy">
-            <h1 id="hero-title">Real pint prices on a live map. Plan a crawl your mates will actually walk.</h1>
+            <h1 id="hero-title">Listed pint prices on an interactive map. Plan a crawl with your mates.</h1>
             {/* Flag off: lede then three equal-slot buttons (shipped).
                 Flag on: actions immediately under the title so Find my pint
                 owns the first screen; Map + Plan as secondary text. */}
@@ -266,8 +266,8 @@ export default function LandingPage({
 
         <section className="lpSignalSection" id="wedge" aria-labelledby="signal-title">
           <div className="lpSectionIntro">
-            <h2 id="signal-title">Cheap pints near you, live</h2>
-            <p>No endless listings. Just the three things that actually decide where you go.</p>
+            <h2 id="signal-title">Listed pint prices near you</h2>
+            <p>Three things decide where you go.</p>
           </div>
           <div className="lpSignalGrid">
             {PRODUCT_SIGNALS.map(({ icon: Icon, title, body }, index) => (

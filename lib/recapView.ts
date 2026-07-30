@@ -111,10 +111,7 @@ export function guardianView(input: {
   return { label, tone: badge.tone };
 }
 
-/**
- * A dry, understated London closing line. Deterministic (pure) so it never
- * flickers between renders, and it only asserts what the view already knows.
- */
+/** A factual closing line derived only from what the recap already knows. */
 export function dryLondonClosingLine(view: {
   ending: RecapEndingView | null;
   guardian: RecapGuardianView | null;
@@ -122,19 +119,19 @@ export function dryLondonClosingLine(view: {
 }): string {
   if (view.guardian) {
     return view.guardian.tone === "safe"
-      ? "Home before the last train. London, briefly, behaved."
-      : "The last train left without us. The night bus counts as public transport.";
+      ? "The night ended before the last train."
+      : "The night continued after the last train.";
   }
   if (view.ending?.kind === "food") {
-    return "Ended on food, as the ancient bylaws require.";
+    return "Ended with food.";
   }
   if (view.ending?.kind === "keep_going") {
-    return "Nobody wanted it to end. It ended anyway, later.";
+    return "The night continued after this route ended.";
   }
   if (view.stats.stopCount >= 4) {
-    return "A proper crawl. The receipts, for once, are the honest part.";
+    return "Route complete.";
   }
-  return "Another night on the tiles. Same city, quietly different.";
+  return "Night complete.";
 }
 
 function round2(value: number): number {
@@ -306,5 +303,5 @@ export function buildRecapShareText(input: RecapShareInput): string {
   const stopClause = stops > 0 ? `. ${stops} ${stops === 1 ? "stop" : "stops"}` : "";
   const spendClause =
     typeof input.totalGbp === "number" && input.totalGbp > 0 ? `, ${formatGbp(input.totalGbp)} across the night` : "";
-  return `${title}${stopClause}${spendClause}. Every pint has a story.`;
+  return `${title}${stopClause}${spendClause}. Night logged on PUBMAXX.`;
 }

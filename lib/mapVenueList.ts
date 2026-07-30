@@ -40,7 +40,7 @@ export type MapVenueListModel = {
 export type UkBasePubListRow = {
   id: string;
   name: string;
-  priceLabel: "Unverified · no price";
+  priceLabel: "Other pub · no listed price";
   distanceKm?: number;
   pub: UkBasePub;
 };
@@ -157,7 +157,7 @@ export function buildUkBasePubListModel(
   const rows = pubs.map<UkBasePubListRow>((pub) => ({
     id: pub.id,
     name: pub.name,
-    priceLabel: "Unverified · no price",
+    priceLabel: "Other pub · no listed price",
     ...(origin
       ? { distanceKm: haversineKm([origin.lng, origin.lat], [pub.lng, pub.lat]) }
       : {}),

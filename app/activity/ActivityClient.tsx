@@ -186,13 +186,13 @@ export default function ActivityClient(): React.JSX.Element {
           <EmptyState
             eyebrow="Activity"
             title="This corner is yours. Claim it."
-            body="Sign in, or drop a pint to grab a handle. After that, every follow, cheers and comment lands right here."
+            body="Sign in and choose a handle to see follows, cheers, comments and crawl saves here."
             action={<SignInButton />}
           />
         ) : failed ? (
           <EmptyState
             title="Couldn't load your activity."
-            body="We couldn't reach the bar. Give it a moment and try again."
+            body="Couldn't load your activity. Try again."
             role="alert"
           />
         ) : items.length === 0 ? (

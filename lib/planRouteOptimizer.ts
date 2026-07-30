@@ -215,12 +215,12 @@ function report<T>(evaluation: EvaluatedRoute<T>, constraints: GroundedPlanRoute
       ...(constraints.exactArea ? [{
         code: "exact_area" as const,
         status: "satisfied" as const,
-        message: "Every stop is inside the mapped Night Area radius for the selected Night Patch.",
+        message: "Every stop is within the selected patch.",
       }] : []),
       ...(constraints.accessibilityNeeds.length ? [{
         code: "accessibility" as const,
         status: "satisfied" as const,
-        message: "Every stop has distinct applicable evidence for every required access need at its visit time.",
+        message: "Every stop has checked information for each access need at its visit time.",
       }] : []),
       ...(constraints.budgetLimitPence !== null ? [{
         code: "budget_ceiling" as const,
@@ -236,7 +236,7 @@ function report<T>(evaluation: EvaluatedRoute<T>, constraints: GroundedPlanRoute
     softRelaxations: [
       ...((constraints.groupSize ?? 0) >= 6 ? [{
         code: "group_fit_unverified" as const,
-        message: "The requested group size could not shape ranking because venue capacity is not evidenced in the dataset.",
+        message: "Group size did not shape the order because we do not have checked capacity details.",
       }] : []),
       ...(constraints.budgetTier === "value"
         && constraints.budgetLimitPence === null

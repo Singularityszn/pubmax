@@ -50,7 +50,7 @@ describe("GET /api/citymcp/journey", () => {
     );
     expect(res.status).toBe(400);
     const body = await res.json();
-    expect(body.error).toMatch(/required/i);
+    expect(body.error).toBe("Add valid start and end coordinates.");
     expect(body.journeys).toEqual([]);
   });
 

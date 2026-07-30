@@ -284,7 +284,7 @@ describe("buildUkBasePubListModel", () => {
     expect(model.rows[0]).toMatchObject({
       id: "venue-uk-n-near",
       name: "Near Arms",
-      priceLabel: "Unverified · no price",
+      priceLabel: "Other pub · no listed price",
       pub: basePubs[1],
     });
   });

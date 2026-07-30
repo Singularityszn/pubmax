@@ -129,7 +129,7 @@ export function validatePintDrop(input: unknown): ValidationResult {
   const raw = input as Record<string, unknown>;
 
   const venueId = clean(raw.venueId, 64);
-  if (!venueId) return { ok: false, error: "A venue is required." };
+  if (!venueId) return { ok: false, error: "Choose a venue." };
 
   const handle = normalizeViewerHandle(clean(raw.handle, MAX_HANDLE));
   if (!handle) return { ok: false, error: "Add a contributor handle." };

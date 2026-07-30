@@ -43,13 +43,13 @@ export async function POST(request: Request): Promise<Response> {
 
     const rawVenueName = typeof record.venueName === "string" ? record.venueName.trim() : "";
     if (!rawVenueName) {
-      return jsonNoStore({ error: "venueName is required." }, { status: 400 });
+      return jsonNoStore({ error: "Add a venue name." }, { status: 400 });
     }
     const venueName = rawVenueName.slice(0, MAX_VENUE_NAME_LEN);
 
     const rawQuestion = typeof record.question === "string" ? record.question.trim() : "";
     if (!rawQuestion) {
-      return jsonNoStore({ error: "question is required." }, { status: 400 });
+      return jsonNoStore({ error: "Add a question." }, { status: 400 });
     }
     const question = rawQuestion.slice(0, MAX_QUESTION_LEN);
 
@@ -102,7 +102,7 @@ export async function GET(request: Request): Promise<Response> {
 
     const rawVenueName = params.get("venueName")?.trim() ?? "";
     if (!rawVenueName) {
-      return apiError("venue_name_required", "venueName is required.", 400);
+      return apiError("venue_name_required", "Add a venue name.", 400);
     }
     // Cap like POST so a hostile 5 kB name can't blow up retrieval.
     const venueName = rawVenueName.slice(0, MAX_VENUE_NAME_LEN);

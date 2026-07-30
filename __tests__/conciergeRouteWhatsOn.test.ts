@@ -72,7 +72,7 @@ describe("POST /api/concierge — What's-On intents", () => {
     expect(body.mode).toBe("whats-on");
     expect(body.count).toBe(0);
     expect(body.listings).toEqual([]);
-    expect(body.message).toMatch(/no verified/i);
+    expect(body.message).toMatch(/no sourced/i);
   });
 
   it("leaves plain venue-mood queries on the ranking path", async () => {
@@ -80,6 +80,17 @@ describe("POST /api/concierge — What's-On intents", () => {
     const body = await res.json();
     expect(body.mode).toBeUndefined();
     expect(body.venues).toBeDefined();
+  });
+
+  it("uses product copy for an unknown city", async () => {
+    const res = await post(
+      { query: "quiet pub", cityId: "not-a-listed-city" },
+      "198.51.100.63",
+    );
+    expect(res.status).toBe(400);
+    await expect(res.json()).resolves.toEqual({
+      error: "Choose a listed city.",
+    });
   });
 
   it("does not misdetect a generic noun phrase as an area (no false refusal)", async () => {

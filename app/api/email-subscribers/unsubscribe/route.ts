@@ -19,7 +19,7 @@ const WINDOW_MS = 60_000;
 export async function GET(request: Request): Promise<Response> {
   const token = (new URL(request.url).searchParams.get("token") ?? "").trim();
   if (!token) {
-    return publicApiError("Missing unsubscribe token.", "TOKEN_REQUIRED", 400);
+    return publicApiError("This unsubscribe link is incomplete.", "TOKEN_REQUIRED", 400);
   }
 
   const key = `email-unsub:ip:${hashIp(clientIp(request))}`;

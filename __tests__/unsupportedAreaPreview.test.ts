@@ -52,7 +52,7 @@ describe("UnsupportedAreaPreview", () => {
     });
     expect(html).not.toContain('type="email"');
     expect(html).toContain("Tell us you want Peckham");
-    expect(html).toContain("We have not mapped pubs in Peckham yet.");
+    expect(html).toContain("We haven&#x27;t mapped pubs in Peckham yet.");
   });
 
   it("offers other supported patches as alternatives without duplicating the headline", () => {

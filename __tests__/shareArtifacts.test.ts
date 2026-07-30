@@ -36,12 +36,12 @@ describe("buildPintDropShareText", () => {
   it("names the finder and price when both are known", () => {
     expect(
       buildPintDropShareText({ venueName: "The Test Tavern", priceGbp: 4.5, handle: "@old_ken" }),
-    ).toBe("@old_ken found a proper pint at The Test Tavern, £4.50. Every pint has a story.");
+    ).toBe("@old_ken logged a pint at The Test Tavern, £4.50. Logged on PUBMAXX.");
   });
 
   it("reads first-person without a handle", () => {
     expect(buildPintDropShareText({ venueName: "The Test Tavern", priceGbp: 4.5 })).toBe(
-      "Found a proper pint at The Test Tavern, £4.50. Every pint has a story.",
+      "Logged a pint at The Test Tavern, £4.50. Logged on PUBMAXX.",
     );
   });
 
@@ -49,7 +49,7 @@ describe("buildPintDropShareText", () => {
     "omits the price for dishonest/unknown value %s",
     (priceGbp) => {
       expect(buildPintDropShareText({ venueName: "The Test Tavern", priceGbp })).toBe(
-        "Found a proper pint at The Test Tavern. Every pint has a story.",
+        "Logged a pint at The Test Tavern. Logged on PUBMAXX.",
       );
     },
   );
@@ -58,13 +58,13 @@ describe("buildPintDropShareText", () => {
 describe("buildCrawlShareText", () => {
   it("includes the round total when the stops carry prices", () => {
     expect(buildCrawlShareText({ title: "Soho Loop", stopCount: 4, totalGbp: 21.4 })).toBe(
-      "Soho Loop. 4 stops, £21.40 a round. Every pint has a story.",
+      "Soho Loop. 4 stops, £21.40 a round. Listed on PUBMAXX.",
     );
   });
 
   it("drops the money line when no stop was priced", () => {
     expect(buildCrawlShareText({ title: "Soho Loop", stopCount: 1, totalGbp: 0 })).toBe(
-      "Soho Loop. 1 stop. Every pint has a story.",
+      "Soho Loop. 1 stop. Listed on PUBMAXX.",
     );
   });
 });
@@ -86,7 +86,7 @@ describe("buildVenueShareText", () => {
 describe("buildBarTabShareText", () => {
   it("frames the venue recap", () => {
     expect(buildBarTabShareText({ venueName: "The Red Lion" })).toBe(
-      "Recent pints at The Red Lion. Every pint has a story.",
+      "Recent pints logged at The Red Lion on PUBMAXX.",
     );
   });
 });

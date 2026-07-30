@@ -186,7 +186,7 @@ export async function GET(request: Request): Promise<Response> {
   // "nothing written" separate from "we could not check".
   const venueId = readString(params.get("venueId"));
   if (!venueId) {
-    return publicApiError("A venueId is required.", "INVALID_REQUEST", 400);
+    return publicApiError("Choose a venue.", "INVALID_REQUEST", 400);
   }
   const result = await visitReportsStore().readForVenue(venueId);
   return jsonNoStore(result, { status: 200 });

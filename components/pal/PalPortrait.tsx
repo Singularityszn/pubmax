@@ -165,12 +165,12 @@ function CorgiRig() {
 }
 
 const speciesDescriptions: Record<PubPalAppearance["species"], string> = {
-  greyhound: "a long-nosed signal greyhound with a loyal expression and collar beacon",
-  cat: "a black-glass signal cat with a hooked tail and brass bell beacon",
+  greyhound: "a long-nosed signal greyhound with a loyal expression and collar light",
+  cat: "a black-glass signal cat with a hooked tail and brass bell",
   pigeon: "a streetwise signal pigeon with an oil-slick chest and transit tag",
   badger: "a steady graphite signal badger with a night-key lantern",
-  corgi: "a bright signal corgi with oversized ears and a crew-band harness",
-  hound: "an alert signal hound with a loyal expression and collar beacon",
+  corgi: "a bright signal corgi with oversized ears and a crew band",
+  hound: "an alert signal hound with a loyal expression and collar light",
   raven: "an observant signal raven with a long profile and lore lens",
   fox: "a quick signal fox with bright eyes and route compass",
   rabbit: "an alert neon rabbit ready for a detour on the way home",

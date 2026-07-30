@@ -94,7 +94,7 @@ export async function POST(request: Request): Promise<Response> {
 
   const title = readString(body.title, MAX_TITLE);
   if (!title) {
-    return jsonNoStore({ error: "A crawl title is required." }, { status: 400 });
+    return jsonNoStore({ error: "Add a crawl title." }, { status: 400 });
   }
 
   const stops = readStops(body.stops);
@@ -199,7 +199,7 @@ export async function GET(request: Request): Promise<Response> {
 
   const slug = params.get("slug");
   if (!slug) {
-    return jsonNoStore({ error: "A slug is required." }, { status: 400 });
+    return jsonNoStore({ error: "Add a slug." }, { status: 400 });
   }
   const story = await getCrawlStoryBySlug(slug);
   if (!story) {

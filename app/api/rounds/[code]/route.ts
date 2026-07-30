@@ -113,13 +113,13 @@ function roundBudgetFailure(budget: RoundPriceBudget): Response | null {
   if (budget.mode === "rejected") {
     return jsonNoStore(
       {
-        error: "Your round is kept, but price sharing could not be verified.",
+        error: "Your round is kept, but price sharing could not be checked.",
       },
       { status: 503 },
     );
   }
   return jsonNoStore(
-    { error: "Your round is kept. Too many price logs, try again later." },
+    { error: "Your round is kept. Price logging is busy. Try those prices again." },
     { status: 429 },
   );
 }

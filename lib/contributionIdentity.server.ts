@@ -42,7 +42,8 @@ export async function resolveContributionIdentity(
         accountId: userId,
         body: {
           status: "onboarding_required",
-          error: "Finish your public handle and private profile before contributing.",
+          error:
+            "Choose a public handle and add your date of birth before contributing.",
         },
         httpStatus: 409,
       };

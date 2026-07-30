@@ -6,7 +6,7 @@ import { readTrustedHandoffFlags } from "@/lib/trustedHandoffFlags.server";
 export const metadata: Metadata = {
   title: "Ask your Pub Pal",
   description:
-    "Ask in plain English and get grounded picks from what we have sourced. Every answer keeps its source; nothing is made up.",
+    "Ask for pub picks and what's on. Pub and event picks show their source.",
 };
 
 // /pal/chat — a chat skin over the existing grounded concierge engine. Reachable

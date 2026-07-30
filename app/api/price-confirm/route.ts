@@ -48,9 +48,9 @@ export async function POST(request: Request): Promise<Response> {
 
   const venueId = typeof body.venueId === "string" ? body.venueId.trim() : "";
   const priceGbp = readNumber(body.priceGbp);
-  if (!venueId) return jsonNoStore({ error: "A venue is required." }, { status: 400 });
+  if (!venueId) return jsonNoStore({ error: "Choose a venue." }, { status: 400 });
   if (priceGbp === null || priceGbp <= 0) {
-    return jsonNoStore({ error: "A valid price is required." }, { status: 400 });
+    return jsonNoStore({ error: "Add a valid price." }, { status: 400 });
   }
 
   const actor = deriveActor(request);

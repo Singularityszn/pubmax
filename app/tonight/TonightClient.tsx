@@ -117,7 +117,7 @@ const QUIET_ALTERNATIVES: QuietAlternative[] = [
     href: "/map",
     icon: Beer,
     title: "Cheapest pints in London",
-    sub: "Every venue on the map, priced",
+    sub: "Listed pint prices on the map",
   },
   {
     href: "/map",
@@ -276,8 +276,8 @@ export default function TonightClient({ flags }: { flags: TrustedHandoffFlagsDTO
         </div>
         <h1 className="tonightTitle">{tonightHeading(localityBasis)}</h1>
         <p className="tonightLede">
-          Quiz, sport, deals, and live music from sourced listings. The same
-          spine as the map.
+          Quiz, sport, deals, and live music from sourced listings. Open a listed
+          venue on the map.
         </p>
         {ready || empty ? (
           <p className="tonightProvenance">

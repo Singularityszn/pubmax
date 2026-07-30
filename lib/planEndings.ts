@@ -19,7 +19,7 @@ function foodOption(terminal: LateFoodTerminal): PlanEndingOption {
   return {
     id: terminal.id,
     label: terminal.name,
-    detail: `${terminal.category} · ${distance} · verify tonight's hours`,
+    detail: `${terminal.category} · ${distance} · check tonight's hours`,
     ...(terminal.walkingDetour.minutes === null ? {} : { walkingMinutes: terminal.walkingDetour.minutes }),
     closingConfidence: terminal.openAtRequestedTime === true ? "listed" : "unknown",
     provenance: [{
@@ -37,7 +37,7 @@ function extensionOption(extension: GroundedPlanExtension): PlanEndingOption {
   return {
     id: extension.venueId,
     label: extension.venueName,
-    detail: `${extension.distanceKm.toFixed(1)} km straight-line · ${price} · closing time unverified`,
+    detail: `${extension.distanceKm.toFixed(1)} km straight-line · ${price} · closing time not checked`,
     priceImpactPence: extension.estimatedPintPricePence,
     closingConfidence: "unknown",
     provenance: [{ kind: "venue_dataset", label: `PUBMAXX venue record for ${extension.venueName}` }],
@@ -68,14 +68,14 @@ export function buildPlanEndingRecommendations({
       kind: "food",
       label: "Find food",
       reason: foodOptions.length > 0
-        ? `${foodOptions.length} reviewed option${foodOptions.length === 1 ? "" : "s"} near this Night Area.`
-        : "No reviewed late-food evidence is available here yet.",
+        ? `${foodOptions.length} checked option${foodOptions.length === 1 ? "" : "s"} near this patch.`
+        : "No late food worth pointing you to round here yet.",
       preselected: preferred === "food",
       requiresConfirmation: true,
       confidence: foodOptions.some((option) => option.closingConfidence !== "unknown") ? "medium" : "low",
       warnings: foodOptions.length > 0
-        ? ["Kitchen and closing hours are not live; verify before leaving the last pub."]
-        : ["No reviewed late-food option is available for this Night Area."],
+        ? ["Kitchens can shut early. Check tonight's hours before you leave the last pub."]
+        : ["No late food worth pointing you to round here yet."],
       options: foodOptions,
     },
     {
@@ -91,7 +91,7 @@ export function buildPlanEndingRecommendations({
       options: [{
         id: `transport:${transportAnchor.toLocaleLowerCase().replaceAll(" ", "-")}`,
         label: transportAnchor,
-        detail: "Open TfL journey planning only after you confirm.",
+        detail: "Open TfL only after you confirm.",
         href: "https://tfl.gov.uk/plan-a-journey/",
         provenance: [{ kind: "night_area_review", label: `${transportAnchor} transport anchor` }],
       }],
@@ -101,13 +101,13 @@ export function buildPlanEndingRecommendations({
       label: "Keep going",
       reason: extensionOptions.length > 0
         ? `${extensionOptions.length} grounded nearby extension${extensionOptions.length === 1 ? "" : "s"}; prices and hours remain review points.`
-        : "No grounded nearby extension is available without widening the route.",
+        : "This route has no extra pub to suggest.",
       preselected: false,
       requiresConfirmation: true,
       confidence: "low",
       warnings: extensionOptions.length > 0
-        ? ["Closing times are unverified and any extra spend is shown only when recorded."]
-        : ["No grounded extension is available for this route."],
+        ? ["Closing times are not checked. We show extra spend only when a price is recorded."]
+        : ["No extra pub was returned with this route."],
       options: extensionOptions,
     },
   ];

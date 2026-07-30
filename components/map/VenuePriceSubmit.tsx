@@ -324,18 +324,18 @@ export default function VenuePriceSubmit({
               <i className="vpsubStampDot" aria-hidden="true" />
               Its pin now carries this dot.{" "}
               {mapReach === "paint"
-                ? "A second drinker logging the same price is what sets the pin’s colour."
-                : "A second drinker logging the same price confirms the figure here."}
+                ? "A second independent drinker reporting a similar price can set the pin’s colour."
+                : "A second independent drinker reporting a similar price can confirm the figure here."}
             </p>
           ) : null}
         </div>
       ) : (
         <p className="vpsubNote">
           Your price shows on this pub&rsquo;s page straight away, dated and
-          badged as community - it never replaces the price on record.{" "}
+          badged as community. It never replaces the price on record.{" "}
           {communityReachNote(category, mapReach)} Up to £
-          {COMMUNITY_PRICE_MAX_GBP} a drink. It counts under your account-owned
-          public handle on the contributor record.
+          {COMMUNITY_PRICE_MAX_GBP} a drink. It counts under your public handle
+          on the contributor record.
         </p>
       )}
       {contributionGateDialog}

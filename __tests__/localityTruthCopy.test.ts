@@ -1,5 +1,7 @@
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { describe, expect, it, vi } from "vitest";
 
 vi.mock("next/navigation", async (importOriginal) => {
@@ -44,8 +46,8 @@ describe("locality and recency claims", () => {
       }),
     );
 
-    expect(html).toContain("Cheapest pints in central London, collected 3 July 2026");
-    expect(html).not.toContain("Cheapest pints near you today");
+    expect(html).toContain("Lowest listed prices in central London, collected 3 July 2026");
+    expect(html).not.toContain("Lowest listed prices near you today");
   });
 
   it("uses today only when the pint dataset was collected today", () => {
@@ -68,7 +70,7 @@ describe("locality and recency claims", () => {
       }),
     );
 
-    expect(html).toContain("Cheapest pints in central London today");
+    expect(html).toContain("Lowest listed prices in central London today");
   });
 
   it("names London's scope when Tonight has no locality", () => {
@@ -76,11 +78,30 @@ describe("locality and recency claims", () => {
     expect(tonightHeading("remembered-patch")).toBe("What’s on near you tonight.");
   });
 
-  it("names Near's price collection month instead of claiming right now", () => {
+  it("limits Near's intro to listed price and ordering guarantees", () => {
     const html = renderToStaticMarkup(
       createElement(NearMeNow, { autoLocate: false }),
     );
-    expect(html).toContain("prices collected July 2026");
-    expect(html).not.toContain("right now");
+    expect(html).toContain(
+      "Compare listed pint prices near you, cheapest first.",
+    );
+    expect(html).not.toContain("good pints");
+    expect(html).not.toContain("prices collected");
+  });
+
+  it("describes Near results as the cheapest listed prices", () => {
+    const source = readFileSync(
+      join(process.cwd(), "components/nearme/NearMeNow.tsx"),
+      "utf8",
+    );
+
+    expect(source).toContain("Cheapest listed near you");
+    expect(source).toContain("Cheapest listed in");
+    expect(source).toContain("Cheapest listed around");
+    expect(source).not.toContain("Finding the cheapest");
+    expect(source).not.toContain("Pulling up the cheapest");
+    expect(source).not.toContain("Prices collected");
+    expect(source).not.toContain("formatMonthYear(PINT_DATASET_OBSERVED_AT)");
+    expect(source).toContain("Keeps this pub for tonight");
   });
 });

@@ -197,6 +197,16 @@ describe("pickGuardianTip", () => {
   it("returns a tip from the list", () => {
     expect(GUARDIAN_TIPS).toContain(pickGuardianTip(NOW));
   });
+
+  it("keeps static tips to advice the product can support", () => {
+    const copy = GUARDIAN_TIPS.join(" ");
+
+    expect(copy).not.toContain("usually 20 minutes before close");
+    expect(copy).not.toContain("Weeknights are quietly the best value");
+    expect(copy).not.toContain("Zones 1–2 keep running late");
+    expect(copy).toContain("Closing times can change");
+    expect(copy).toContain("Night Tube service varies by line and night");
+  });
 });
 
 describe("opt-in gating + recipient resolution (privacy-first)", () => {
@@ -284,11 +294,45 @@ describe("rendering — honest, email-safe", () => {
   });
 
   it("text alternative mirrors the HTML content", () => {
+    const html = renderWeeklyDigestHtml(rich);
     const text = renderWeeklyDigestText(rich);
     expect(text).toContain("£4.50");
     expect(text).toContain("The Oak");
     expect(text).toContain("Quiz Night");
     expect(text).toContain("Unsubscribe");
+    expect(html).toContain("New prices logged");
+    expect(text).toContain("NEW PRICES LOGGED");
+    for (const rendered of [html, text]) {
+      expect(rendered).not.toContain("data moat");
+      expect(rendered).not.toContain("We never invent");
+    }
+  });
+
+  it("limits footer source copy when a price has no source", () => {
+    const digest = generateWeeklyDigest(
+      baseInput({
+        priceObservations: [
+          {
+            venueId: "unsourced",
+            venueName: "The Local",
+            borough: "Camden",
+            priceGbp: 5,
+            observedAt: inWindow(1),
+          },
+        ],
+      }),
+    );
+    for (const rendered of [
+      renderWeeklyDigestHtml(digest),
+      renderWeeklyDigestText(digest),
+    ]) {
+      expect(rendered).toContain(
+        "Source links appear beside prices and events when available.",
+      );
+      expect(rendered).not.toContain(
+        "Every price and event names where it came from.",
+      );
+    }
   });
 
   it("toEmailMessage bundles subject/html/text and substitutes the unsubscribe URL", () => {

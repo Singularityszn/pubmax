@@ -20,7 +20,7 @@ const SHEET_TITLES: Partial<Record<MapOverlay, string>> = {
   layers: "Map controls",
   "pub-pal": "Pub Pal",
   moment: "Choose a pub",
-  "near-me": "Cheapest pints near you",
+  "near-me": "Cheapest listed near you",
   area: "This area",
 };
 

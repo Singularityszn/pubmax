@@ -158,8 +158,8 @@ export function ReferralInviteCard({
         </p>
       ) : null}
       <small>
-        Rewards stay off until signed-in contributions and person-level account
-        checks can stop self-referrals.
+        Rewards stay off while we add checks to stop people referring
+        themselves.
       </small>
       <button type="button" disabled={busy} onClick={onInvite}>
         {busy ? "Getting your link…" : "Invite a mate"}
@@ -318,7 +318,7 @@ export default function PubmaxxAccountHub() {
 
   const analyticsControls = (
     <div>
-      <h3>Anonymous usage analytics</h3>
+      <h3>Optional usage analytics</h3>
       <p>Help improve journeys with a persistent device ID, standard browser details and allow-listed product events. This is optional and can be withdrawn here.</p>
       <div className="accountHubActions">
         <button type="button" aria-pressed={analyticsConsent === "granted"} onClick={() => updateAnalyticsConsent(true)}>Allow</button>

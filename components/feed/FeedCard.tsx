@@ -321,8 +321,8 @@ export default function FeedCard({
               prominence the brief calls for. */}
           <span
             className={`feedSpillProv feedProv-${item.provenance}`}
-            title={`Provenance: ${provLabel}`}
-            aria-label={`Provenance: ${provLabel}`}
+            title={`Source: ${provLabel}`}
+            aria-label={`Source: ${provLabel}`}
           >
             <ProvenanceCheck />
             <span className="feedSpillProvLabel">{provLabel}</span>
@@ -533,7 +533,7 @@ export default function FeedCard({
               title={`${shownHandle}'s pint at ${item.venueName}`}
               text={`${shownHandle} found a pint at ${item.venueName}${
                 typeof item.priceGbp === "number" ? `, ${formatGbp(item.priceGbp)}` : ""
-              }. Every pint has a story.`}
+              }. Logged on PUBMAXX.`}
             />
 
             <CommentThread dropId={item.id} variant="compact" />

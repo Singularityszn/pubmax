@@ -344,7 +344,7 @@ describe("map key inventory", () => {
       detail: "Your approximate location.",
     });
     expect(legend.marks?.[1]?.detail).toBe(
-      "One recent pint report. On a curated pub in the standard pint view, a second independent drinker agreeing can set the pin's band. A UK base pub keeps only the dot.",
+      "A recent pint report. On a listed pub in the standard pint view, a second independent drinker reporting a similar price can set the pin's band. A UK base pub keeps only the dot.",
     );
     expect(legend.routeMarks?.map((row) => row.id)).toEqual([
       "crawl-stop",
@@ -393,12 +393,12 @@ describe("map key inventory", () => {
     expect(
       drink.marks.find((row) => row.id === "provisional")?.detail,
     ).toBe(
-      "One recent pint report. It does not set the selected drink band. A UK base pub keeps only the dot.",
+      "A recent pint report. It doesn't set the selected drink band. A UK base pub keeps only the dot.",
     );
     expect(
       food.marks.find((row) => row.id === "provisional")?.detail,
     ).toBe(
-      "One recent pint report. It does not set a food pin's colour. A UK base pub keeps only the dot.",
+      "A recent pint report. It doesn't set a food pin's colour. A UK base pub keeps only the dot.",
     );
   });
 });

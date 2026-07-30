@@ -88,7 +88,7 @@ function validWrite(
   const actorHash =
     typeof input.actorHash === "string" ? input.actorHash.trim().slice(0, 160) : "";
   if (!validation.ok) throw new Error(validation.error);
-  if (!actorHash) throw new Error("Actor provenance is required.");
+  if (!actorHash) throw new Error("Account key is missing.");
   return { ...validation.value, actorHash };
 }
 

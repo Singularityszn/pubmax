@@ -146,7 +146,7 @@ export async function GET(request: Request): Promise<Response> {
   // Signed-in caller's OWN claim for a venue (drives the pending-state UI).
   const venueId = readString(params.get("venueId"));
   if (!venueId) {
-    return publicApiError("A venueId is required.", "INVALID_REQUEST", 400);
+    return publicApiError("Choose a venue.", "INVALID_REQUEST", 400);
   }
   const identity = await callerAuthIdentity(request);
   if (!identity) {

@@ -194,11 +194,11 @@ export function assessOpeningSchedule(
   now: number,
 ): OpeningAssessment {
   if (!visit) return { state: "unknown", source: null, warning: null };
-  if (!schedule) return { state: "unknown", source: null, warning: "Opening hours are not evidenced for this visit." };
+  if (!schedule) return { state: "unknown", source: null, warning: "Opening hours are not checked for this visit." };
   const observed = validIso(schedule.source.observedAt);
   const ageDays = observed === null ? Number.POSITIVE_INFINITY : (now - observed) / 86_400_000;
   if (ageDays < 0 || ageDays > OPENING_EVIDENCE_FRESH_DAYS) {
-    return { state: "unknown", source: schedule.source, warning: "The venue's recurring hours evidence is stale." };
+    return { state: "unknown", source: schedule.source, warning: "The venue's regular opening hours are stale." };
   }
   if (!schedule.venueListedOpen) return { state: "listed_closed", source: schedule.source, warning: null };
   if (!intervalIsListedOpen(schedule, visit.startsAt, visit.endsAt)) {

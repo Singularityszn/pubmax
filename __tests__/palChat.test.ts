@@ -102,10 +102,10 @@ describe("palAnswerFromBody — venue ranking", () => {
   it("defers to the route's own degraded-path refusal message", () => {
     const answer = palAnswerFromBody({
       venues: [],
-      message: "I couldn't load grounded venue options just now, so I won't make any up.",
+      message: "I couldn't load listed venue options.",
     });
     expect(answer.status).toBe("empty");
-    expect(answer.message).toContain("won't make any up");
+    expect(answer.message).toContain("listed venue options");
   });
 
   it("drops a venue row that has no name rather than inventing a title", () => {
@@ -144,6 +144,22 @@ describe("palAnswerFromBody — What's-On", () => {
     assertNoEmDash(answer.message);
   });
 
+  it("uses named-source copy when the route omits a listing message", () => {
+    const answer = palAnswerFromBody({
+      ...WHATS_ON_BODY,
+      message: undefined,
+    });
+    expect(answer.message).toBe("1 listing from a named source.");
+  });
+
+  it("uses a plain empty response when the route omits its message", () => {
+    const answer = palAnswerFromBody({
+      mode: "whats-on",
+      listings: [],
+    });
+    expect(answer.message).toBe("No sourced listings for that yet.");
+  });
+
   it("drops a listing with no source label — provenance is non-negotiable", () => {
     const answer = palAnswerFromBody({
       mode: "whats-on",
@@ -162,11 +178,11 @@ describe("palAnswerFromBody — What's-On", () => {
       mode: "whats-on",
       count: 0,
       listings: [],
-      message: "No verified quiz nights in Soho tonight in the data I can see, so I won't make any up.",
+      message: "No sourced quiz nights in Soho tonight in the listings I can check.",
     });
     expect(answer.status).toBe("empty");
     expect(answer.cards).toHaveLength(0);
-    expect(answer.message).toContain("won't make any up");
+    expect(answer.message).toContain("in the listings I can check");
   });
 
   it("marks a listing without a venueId as non-tappable (empty venueId)", () => {

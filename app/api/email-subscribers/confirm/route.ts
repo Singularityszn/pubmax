@@ -21,7 +21,7 @@ const WINDOW_MS = 60_000;
 export async function GET(request: Request): Promise<Response> {
   const token = (new URL(request.url).searchParams.get("token") ?? "").trim();
   if (!token) {
-    return publicApiError("Missing confirmation token.", "TOKEN_REQUIRED", 400);
+    return publicApiError("This confirmation link is incomplete.", "TOKEN_REQUIRED", 400);
   }
 
   // Light per-IP rate limit so the token space can't be brute-forced cheaply.

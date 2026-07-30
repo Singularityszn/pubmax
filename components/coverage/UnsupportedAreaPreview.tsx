@@ -85,10 +85,10 @@ export default function UnsupportedAreaPreview({
   const limited = variant === "limited";
 
   const factLine = limited
-    ? `We have ${knownArea ?? "this area"}, it is still lightly mapped.`
+    ? `We've got ${knownArea ?? "this area"}, but it's still lightly mapped.`
     : knownArea
-      ? `We have not mapped pubs in ${knownArea} yet.`
-      : "We do not have priced pubs right where you are yet.";
+      ? `We haven't mapped pubs in ${knownArea} yet.`
+      : "We don't have priced pubs right where you are yet.";
 
   const submit = useCallback(async () => {
     if (!effectiveArea || state === "sending") return;
@@ -139,7 +139,7 @@ export default function UnsupportedAreaPreview({
               </button>
             </div>
           ) : (
-            <p className="uapNearestCopy">Here is where we have the pints mapped:</p>
+            <p className="uapNearestCopy">Here&rsquo;s where we have the pints mapped:</p>
           )}
 
           <ul className="uapPatches" aria-label="Areas we cover">
@@ -198,7 +198,7 @@ export default function UnsupportedAreaPreview({
             </button>
             {state === "error" ? (
               <p className="uapRetry" role="status">
-                Could not note that just now. Try again in a moment.
+                Could not save that area. Try again.
               </p>
             ) : null}
           </div>

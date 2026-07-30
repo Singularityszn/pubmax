@@ -10,7 +10,7 @@ import { readTrustedHandoffFlags } from "@/lib/trustedHandoffFlags.server";
 export const metadata: Metadata = {
   title: "Find my pint. Nearby London pint prices",
   description:
-    "Find the cheapest good pints within a short walk using dated prices. Use your location or pick a London patch, and the nearest priced pubs line up cheapest first.",
+    "Compare listed pint prices near you, cheapest first. Use your location or pick a London patch.",
   robots: { index: false, follow: true },
   alternates: { canonical: "/near" },
 };

@@ -109,9 +109,9 @@ export default function MapVenueList({
           ) : (
             <div className="mapVenueListGroups">
               {model.rows.length > 0 ? (
-                <section className="mapVenueListGroup" aria-label="Priced and curated venues">
-                  <h3 className="mapVenueListGroupTitle">Priced and curated</h3>
-                  <ul className="mapVenueListItems" aria-label="Priced and curated venues">
+                <section className="mapVenueListGroup" aria-label="Listed pubs and venues">
+                  <h3 className="mapVenueListGroupTitle">Listed pubs and venues</h3>
+                  <ul className="mapVenueListItems" aria-label="Listed pubs and venues">
                     {model.rows.map((row) => (
                       <li key={row.id}>
                         <button
@@ -149,9 +149,9 @@ export default function MapVenueList({
                 </section>
               ) : null}
               {ukBaseModel.rows.length > 0 ? (
-                <section className="mapVenueListGroup mapVenueListGroup--unverified" aria-label="Unverified pubs with no price">
-                  <h3 className="mapVenueListGroupTitle">Unverified pubs · no price</h3>
-                  <ul className="mapVenueListItems" aria-label="Unverified pubs with no price">
+                <section className="mapVenueListGroup mapVenueListGroup--unverified" aria-label="Other pubs with no listed price">
+                  <h3 className="mapVenueListGroupTitle">Other pubs · no listed price</h3>
+                  <ul className="mapVenueListItems" aria-label="Other pubs with no listed price">
                     {ukBaseModel.rows.map((row) => (
                       <li key={row.id}>
                         <button

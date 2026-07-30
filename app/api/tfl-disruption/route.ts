@@ -40,7 +40,7 @@ export async function GET(request: Request): Promise<Response> {
   const lat = Number.parseFloat(params.get("lat") ?? "");
   const lng = Number.parseFloat(params.get("lng") ?? "");
   if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
-    return json({ error: "lat and lng are required numbers.", disruption: null }, 400);
+    return json({ error: "Add valid lat and lng coordinates.", disruption: null }, 400);
   }
   if (!pointInCityBounds(lat, lng, CITIES.london)) {
     // The patch relevance table is London-only; anywhere else is honestly silent.

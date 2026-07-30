@@ -38,7 +38,7 @@ export const PLAN_TEMPLATES: readonly PlanTemplate[] = [
     label: "Quiz night",
     title: "Quiz night",
     conciergeQuery: "pub quiz tonight in Chiswick",
-    blurb: "Timed quiz rows from the What's-On spine.",
+    blurb: "Quiz listings with start times.",
   },
   {
     id: "cheap-round",

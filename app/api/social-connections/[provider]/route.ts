@@ -21,7 +21,7 @@ export async function POST(request: Request, context: Context): Promise<Response
   const ownerId = await callerUserId(request);
   if (!ownerId) return publicApiError("Sign in to connect an account.", "AUTH_REQUIRED", 401);
   const provider = (await context.params).provider;
-  if (!isSocialProvider(provider)) return publicApiError("Unsupported social provider.", "SOCIAL_PROVIDER_NOT_FOUND", 404);
+  if (!isSocialProvider(provider)) return publicApiError("That social service is not available.", "SOCIAL_PROVIDER_NOT_FOUND", 404);
   let body: Record<string, unknown> = {};
   try { body = (await request.json()) as Record<string, unknown>; }
   catch { return publicApiError("Malformed request body.", "INVALID_JSON", 400); }
@@ -68,7 +68,7 @@ export async function DELETE(request: Request, context: Context): Promise<Respon
   const ownerId = await callerUserId(request);
   if (!ownerId) return publicApiError("Sign in to disconnect an account.", "AUTH_REQUIRED", 401);
   const provider = (await context.params).provider;
-  if (!isSocialProvider(provider)) return publicApiError("Unsupported social provider.", "SOCIAL_PROVIDER_NOT_FOUND", 404);
+  if (!isSocialProvider(provider)) return publicApiError("That social service is not available.", "SOCIAL_PROVIDER_NOT_FOUND", 404);
   try {
     await socialConnectionStore().disconnect(ownerId, provider);
     return new Response(null, { status: 204, headers: { "Cache-Control": "no-store" } });

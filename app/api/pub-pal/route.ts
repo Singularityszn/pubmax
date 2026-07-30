@@ -26,7 +26,7 @@ export async function POST(request: Request): Promise<Response> {
   if (result.ok) return jsonNoStore({ pal: result.value }, { status: 201 });
   return result.error === "error"
     ? jsonNoStore({ error: "Pub Pal could not be created right now.", code: "PUB_PAL_STORE_UNAVAILABLE", retryable: true }, { status: 503 })
-    : jsonNoStore({ error: "Complete every required Pal field and confirm you are 18+.", code: "INVALID_PUB_PAL", retryable: false }, { status: 400 });
+    : jsonNoStore({ error: "Fill in every Pal field and confirm you are 18+.", code: "INVALID_PUB_PAL", retryable: false }, { status: 400 });
 }
 
 export async function PATCH(request: Request): Promise<Response> {

@@ -35,8 +35,10 @@ describe("buildPlanEndingRecommendations", () => {
     });
 
     expect(recommendations[0]?.options).toEqual([]);
-    expect(recommendations[0]?.warnings).toContain("No reviewed late-food option is available for this Night Area.");
+    expect(recommendations[0]?.warnings).toContain("No late food worth pointing you to round here yet.");
     expect(recommendations[2]?.options).toEqual([]);
+    expect(recommendations[2]?.reason).toBe("This route has no extra pub to suggest.");
+    expect(recommendations[2]?.warnings).toEqual(["No extra pub was returned with this route."]);
   });
 
   it("caps food endings at three", () => {

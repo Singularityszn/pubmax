@@ -1041,9 +1041,9 @@ export default function PubMapCanvas({
       queueMicrotask(() =>
         reportMapError(
           probeHasContext
-            ? {
+              ? {
                 kind: "constructor",
-                message: "The map couldn't start its renderer.",
+                message: "The map couldn't start.",
                 detail: detail || undefined,
               }
             : {
@@ -2004,7 +2004,7 @@ export default function PubMapCanvas({
           reportMapError({
             kind: "no-frame",
             message:
-              "The map's renderer started but never drew a frame. This browser or device can't paint the map right now.",
+              "The map opened but did not draw anything. This browser or device cannot show the map right now.",
             detail: `No basemap frame within ${Math.round(FIRST_FRAME_TIMEOUT_MS / 1000)}s`,
           }),
         );
@@ -2870,7 +2870,7 @@ export default function PubMapCanvas({
     // hides Retry, since a re-init can't conjure a context that doesn't exist);
     // every other kind gets an honest one-liner and a Retry that fully re-inits.
     const heading = mapError.noWebgl
-      ? "Map renderer unavailable"
+      ? "Map unavailable"
       : mapError.kind === "tiles"
         ? "Map tiles unavailable"
         : mapError.kind === "no-frame"

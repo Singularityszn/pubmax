@@ -52,7 +52,7 @@ describe("GET /api/night-areas", () => {
 
     expect(response.status).toBe(400);
     expect(await response.json()).toEqual({
-      error: "city is required and must be valid.",
+      error: "Choose a valid city.",
       code: "CITY_INVALID",
       retryable: false,
     });

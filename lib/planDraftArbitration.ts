@@ -248,7 +248,7 @@ function acceptedVenueField(
   } else if (selectedVenueId && accepted.value && selectedVenueId !== accepted.value) {
     conflicts.push({
       code: "inspection-not-anchor",
-      message: "You are inspecting another Venue. Your accepted Stop 1 is unchanged.",
+      message: "You're looking at another venue. Your accepted Stop 1 is unchanged.",
       recoveryAction: "make-it-stop-1",
     });
   }

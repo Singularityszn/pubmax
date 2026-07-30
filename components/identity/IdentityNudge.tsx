@@ -53,7 +53,7 @@ const COPY: Record<IdentityNudgeTrigger, { title: string; body: string }> = {
   },
   moment: {
     title: "Own your memories",
-    body: "Sign in and your Moments save to your account, not just this device.",
+    body: "Sign in and save your Moments to your account across devices.",
   },
 };
 
@@ -234,7 +234,7 @@ export default function IdentityNudge(): React.JSX.Element | null {
             </div>
             <form className="identityNudgeEmail" onSubmit={submitEmail} noValidate>
               <label className="identityNudgeEmailLabel" htmlFor="identity-nudge-email">
-                Just leave your email. We&apos;ll send the weekly pint digest.
+                Leave your email. We&apos;ll send the weekly pint digest.
               </label>
               <div className="identityNudgeEmailRow">
                 <input

@@ -339,7 +339,7 @@ export function getVenueCuration(prices: VenuePrice[]): VenueCuration {
       (hasWikipediaList
         ? wikipediaRow?.description || "Listed on Wikipedia's List of pubs in London."
         : inferredHeritage
-          ? "The venue's own description hints at period features. Unverified. A sourced note or a visitor Pint Drop can confirm it."
+          ? "The venue's own description hints at period features. We haven't checked it. A sourced note or a visitor Pint Drop can settle it."
           : undefined),
     sourceLabel: explicit.sourceLabel ?? (hasWikipediaList ? "Wikipedia" : undefined),
     sourceUrl: explicit.sourceUrl ?? (hasWikipediaList ? wikipediaUrl : undefined),

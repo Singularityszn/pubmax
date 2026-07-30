@@ -118,14 +118,14 @@ describe("vibe tally line (share-card copy)", () => {
   });
 
   it("jabs the lone dissenter only when exactly one vote is out of step", () => {
-    expect(line(["bender", "bender", "bender", "quiet"])).toBe("3 of the lot voted On a bender, 1 coward voted Quiet pint");
+    expect(line(["bender", "bender", "bender", "quiet"])).toBe("3 of the lot voted On a bender, 1 person voted Quiet pint");
   });
 
   it("drops the jab when more than one voter dissents", () => {
     expect(line(["bender", "bender", "bender", "quiet", "lit"])).toBe("3 of the lot voted On a bender");
   });
 
-  it("never misfires on a tie — states the split, no coward", () => {
+  it("states a tie without singling anyone out", () => {
     const split = line(["bender", "bender", "quiet", "quiet"]);
     expect(split).toContain("The lot's split");
     expect(split).not.toContain("coward");

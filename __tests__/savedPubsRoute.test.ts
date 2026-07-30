@@ -162,7 +162,7 @@ describe("POST /api/saved-pubs (toggle)", () => {
   it("400s a BLANK list name — a list still needs a name", async () => {
     const res = await post({ handle: "ale", venueId: REAL_VENUE_ID, listType: "   " });
     expect(res.status).toBe(400);
-    expect(await res.json()).toEqual({ error: "A list name is required." });
+    expect(await res.json()).toEqual({ error: "Add a list name." });
 
     // Confirm nothing was stored under the handle.
     const check = await list("handle=ale");
@@ -178,7 +178,7 @@ describe("POST /api/saved-pubs (toggle)", () => {
   it("400s a missing venue id", async () => {
     const res = await post({ handle: "ale", listType: "Historic" });
     expect(res.status).toBe(400);
-    expect(await res.json()).toEqual({ error: "A venue is required." });
+    expect(await res.json()).toEqual({ error: "Choose a venue." });
   });
 
   it("400s a malformed JSON body", async () => {

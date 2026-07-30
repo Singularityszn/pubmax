@@ -118,7 +118,7 @@ const palStateSpeech: Record<PalAnimationState, string> = {
   noticing: "I hear you. Getting the signal clear.",
   listening: "Listening. Nothing from this conversation becomes memory.",
   thinking: "Thinking through a grounded answer.",
-  speaking: "Here is what I found. You choose what happens next.",
+  speaking: "Here's what I found. You choose what happens next.",
   celebrating: "Signal confirmed. Nice one.",
   sleeping: "Voice is muted. Tap the control when you want me back.",
   error: "The signal dropped. Text still works, and nothing was saved.",
@@ -126,7 +126,7 @@ const palStateSpeech: Record<PalAnimationState, string> = {
 
 function previewSpeech(step: number, draft: PubPalDraft): string {
   switch (step) {
-    case 0: return "I am for adults planning a night out.";
+    case 0: return "I'm for adults planning a night out.";
     case 1: return draft.name.trim() ? `${draft.name.trim()}. I like it.` : `A ${draft.appearance.species}. Give me a name.`;
     case 2: return `${materialCopy[draft.appearance.material]} tuned to ${signalCopy[draft.appearance.signalAffinity].toLowerCase()}.`;
     case 3: return `${voiceCopy[draft.voice.id]}. Your ${relationshipCopy[draft.personality.relationship].toLowerCase()}.`;
@@ -774,7 +774,7 @@ export default function PalExperience() {
           <div className="palMeetingCopy">
             <p className="palEyebrow">Meet your companion</p>
             <h1 id="pal-meeting-title">A little signal that becomes yours.</h1>
-            <p>Choose its form, voice and boundaries. It can help plan the night, but you approve every important action.</p>
+            <p>Choose its form, voice and boundaries. It can help plan the night. You choose what it may do.</p>
             <div className="palMeetingActions">
               <Button className="palPrimary" size="large" type="button" onClick={() => setMode("onboarding")}>Meet your Pub Pal<ArrowRight size={18} /></Button>
               <Link href="/map">Use PUBMAXX without a Pal</Link>
@@ -810,7 +810,7 @@ export default function PalExperience() {
               <p>Pub Pal is designed for adults planning nights out.</p>
               <label className="palToggleRow">
                 <input type="checkbox" checked={draft.adultConfirmed} onChange={(event) => setDraft((current) => ({ ...current, adultConfirmed: event.target.checked }))} />
-                <span><strong>I confirm I am 18 or over</strong><small>We save the confirmation time, never your date of birth.</small></span>
+                <span><strong>I confirm I&rsquo;m 18 or over</strong><small>We save the confirmation time, never your date of birth.</small></span>
               </label>
             </div>
           )}
@@ -862,9 +862,9 @@ export default function PalExperience() {
                 <input type="checkbox" checked={privacy.proposeMemories} onChange={(event) => setPrivacy((current) => ({ ...current, proposeMemories: event.target.checked }))} />
                 <span><strong>Allow memory proposals</strong><small>{privacy.proposeMemories ? "Show each suggested fact for approval" : "Never suggest facts to remember"}</small></span>
               </label>
-              <div className="palPrivacyFacts"><ShieldCheck /><p>You can inspect, correct and delete every approved memory. Safety and factuality controls cannot be disabled.</p></div>
+              <div className="palPrivacyFacts"><ShieldCheck /><p>You can inspect, correct and delete every approved memory. Safety and factuality controls can&rsquo;t be disabled.</p></div>
               <div className="palReview">
-                <div><span>Name</span><strong>{draft.name.trim() || "Name required"}</strong></div>
+                <div><span>Name</span><strong>{draft.name.trim() || "Add a name"}</strong></div>
                 <div><span>Form</span><strong>{speciesCopy[draft.appearance.species].title}, {materialCopy[draft.appearance.material]}</strong></div>
                 <div><span>Voice</span><strong>{draft.voice.id}</strong></div>
                 <div><span>Relationship</span><strong>{relationshipCopy[draft.personality.relationship]}</strong></div>

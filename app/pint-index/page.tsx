@@ -24,19 +24,19 @@ import "./pint-index.css";
 const SITE_URL = "https://pubmaxxing.com";
 
 export const metadata: Metadata = {
-  title: "The London Pint Index: public data status · PUBMAXX",
-  description: "The public London Pint Index, with explicit source, licence and observation-date validation. Unverified legacy prices are excluded.",
+  title: "The London Pint Index public data status · PUBMAXX",
+  description: "The public London Pint Index, with named sources, licences and price dates. Older map-only prices stay out.",
   alternates: { canonical: "/pint-index" },
   openGraph: {
-    title: "The London Pint Index: public data status",
-    description: "A provenance-first London pint-price dataset. Only citable observations with explicit sources and dates are published.",
+    title: "The London Pint Index public data status",
+    description: "A London pint-price dataset built from prices with named sources and dates.",
     type: "website",
     url: "/pint-index",
   },
   twitter: {
     card: "summary_large_image",
-    title: "The London Pint Index: public data status",
-    description: "Only citable pint-price observations with explicit sources and dates are published.",
+    title: "The London Pint Index public data status",
+    description: "Only pint prices with named sources and dates are published.",
   },
 };
 
@@ -46,14 +46,14 @@ function datasetJsonLd(snapshot: PintIndexSnapshot, boroughCount: number, pubCou
     "@context": "https://schema.org",
     "@type": "Dataset",
     name: "The London Pint Index",
-    description: `A provenance-validated snapshot covering ${pubCount} pubs across ${boroughCount} London boroughs.`,
+    description: `A dated London pint-price dataset covering ${pubCount} pubs across ${boroughCount} boroughs.`,
     url: `${SITE_URL}/pint-index`,
     creator: { "@type": "Organization", name: "PUBMAXX", url: SITE_URL },
     isAccessibleForFree: true,
     dateModified: snapshot.generatedAt,
     temporalCoverage: `${snapshot.observationWindow.start}/${snapshot.observationWindow.end}`,
-    measurementTechnique: "Confirmed Pint Drops, official pub or brewery sources, and explicitly licensed open datasets with observed-at dates; classified by London borough point-in-polygon boundaries.",
-    variableMeasured: "Observed pint price in GBP, aggregated per London borough",
+    measurementTechnique: "Confirmed Pint Drops, official pub or brewery sources, and licensed open datasets with price dates; assigned to London boroughs from map boundaries.",
+    variableMeasured: "Pint price in GBP, grouped by London borough",
     distribution: [{
       "@type": "DataDownload",
       encodingFormat: "text/csv",
@@ -98,7 +98,7 @@ export default async function PintIndexPage() {
         </h1>
         {window ? (
           <p className="pintIndexStamp">
-            {`Observation window: ${formatPintIndexDate(window.start)} to ${formatPintIndexDate(window.end)}.`}
+            {`Prices seen: ${formatPintIndexDate(window.start)} to ${formatPintIndexDate(window.end)}.`}
           </p>
         ) : null}
 
@@ -131,7 +131,7 @@ export default async function PintIndexPage() {
           A pint in Zone 1 costs more than Zone 3. Here is by how much. Each pub
           is placed in its <strong>nearest station&rsquo;s</strong>{" "}TfL fare zone
           (a documented approximation, not an area boundary), then we take the
-          median of every zone&rsquo;s observed cheapest pint.
+          median of every zone&rsquo;s listed cheapest pint.
         </p>
         <ZonePintIndexStrip index={zoneIndex} />
       </section>
@@ -156,10 +156,10 @@ export default async function PintIndexPage() {
         ) : (
           <PintIndexLeagueTable
             rows={rows}
-            caption="London boroughs ranked by average eligible observed pint price"
+            caption="London boroughs ranked by average eligible pint price"
           />
         )}
-        <a className="pintIndexDownload" href="/pint-index/data.csv" download>Download the public snapshot (CSV) ↓</a>
+        <a className="pintIndexDownload" href="/pint-index/data.csv" download>Download current data (CSV) ↓</a>
       </section>
 
       {dearestPint ? (
@@ -168,13 +168,13 @@ export default async function PintIndexPage() {
           <p className="pintIndexSectionDek">
             Cheapest first is the default above, because that is what you want
             on a Friday. This is the same table the other way up, ranked on the
-            priciest pint each borough has on record. Top of it right now:{" "}
+            priciest pint each borough has on record. At the top of this dataset:{" "}
             {formatPrice(dearestPint.maxGbp)} at {dearestPint.maxPubName},{" "}
             {dearestPint.name}.
           </p>
           <PintIndexLeagueTable
             rows={dearestFirst(rows)}
-            caption="London boroughs ranked by their dearest eligible observed pint price"
+            caption="London boroughs ranked by their dearest eligible pint price"
             highlight="dearest"
           />
         </section>
@@ -187,20 +187,19 @@ export default async function PintIndexPage() {
           So every closed month also gets its own page, frozen the day it goes
           up. {pintIndexMonthLabel(openMonth)} closes on{" "}
           {formatPintIndexDate(pintIndexMonthCloseDay(openMonth))} and gets
-          one next. Anything logged with a public source and the day it was seen
-          before then lands in it.
+          one next. Eligible prices dated before then can enter it.
         </p>
         <PintIndexEditions editions={editions} />
       </section>
 
       <section className="pintIndexSection" aria-labelledby="methodHeading">
-        <h2 id="methodHeading" className="pintIndexSectionTitle">Methodology &amp; provenance</h2>
-        <p className="pintIndexNote pintIndexMethodLede">Only observations with a public source and observed-at date are published. The legacy map baseline is excluded.</p>
+        <h2 id="methodHeading" className="pintIndexSectionTitle">Method and sources</h2>
+        <p className="pintIndexNote pintIndexMethodLede">Only prices with a public source and date are published. Older map-only prices stay out.</p>
         <div className="pintIndexProse">
-          <p><strong>Eligible evidence.</strong> Community submissions, a pub or brewery&rsquo;s own published material, and properly licensed open data may enter the public Index only with a public source URL and observed-at date.</p>
-          <p><strong>Borough classification.</strong> Coordinates are assigned using point-in-polygon against the versioned Greater London boundary artifact. A point outside every polygon remains unclassified; it is never snapped to an arbitrary nearest borough.</p>
-          <p><strong>Quarantine.</strong> The existing map experience may still use a legacy third-party-derived baseline for product continuity. Those rows are excluded from this public, citable Index and from its CSV and structured data.</p>
-          <p><strong>Freshness.</strong> Observation dates come from the evidence record. Build time and file modification time are never presented as when a price was seen.</p>
+          <p><strong>What counts.</strong> Community submissions, a pub or brewery&rsquo;s own published material, and properly licensed open data may enter the public Index only with a public source URL and price date.</p>
+          <p><strong>Boroughs.</strong> We place coordinates inside versioned Greater London boundary shapes. A point outside every shape gets no borough; we never assign it to an arbitrary nearby one.</p>
+          <p><strong>What stays out.</strong> The map may still use an older price baseline. Those rows stay out of this public Index, its CSV and its structured data.</p>
+          <p><strong>Dates.</strong> Price dates come from the source record. Build time and file modification time are never presented as when a price was seen.</p>
         </div>
       </section>
 

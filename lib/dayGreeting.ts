@@ -76,7 +76,7 @@ const HEADLINE: Record<VenueLens, Record<DaySlot, string>> = {
     night: "Still calm out by the river.",
   },
   any: {
-    morning: "A steady day for a proper pint.",
+    morning: "A steady day for a pint.",
     afternoon: "An easy afternoon for a pint.",
     evening: "A settled evening for a pint.",
     night: "A quiet last one, then.",

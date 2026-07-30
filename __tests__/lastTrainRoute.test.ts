@@ -27,7 +27,7 @@ describe("GET /api/last-train", () => {
   it("400s when lat/lng are missing or invalid", async () => {
     const res = await GET(new Request("http://localhost/api/last-train"));
     expect(res.status).toBe(400);
-    expect(await res.json()).toEqual({ error: "lat and lng are required numbers." });
+    expect(await res.json()).toEqual({ error: "Add valid lat and lng coordinates." });
   });
 
   it("returns live_data_unavailable gracefully when TfL StopPoint lookup fails", async () => {

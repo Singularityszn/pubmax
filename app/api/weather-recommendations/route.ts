@@ -186,7 +186,7 @@ export async function POST(request: Request): Promise<Response> {
   const actor = deriveCommunityPriceActor(request);
   if (!actor) {
     return publicApiError(
-      "Could not establish contributor provenance right now.",
+      "Could not check your account for this post right now.",
       "ACTOR_UNAVAILABLE",
       503,
       { retryable: true },
@@ -252,7 +252,7 @@ export async function POST(request: Request): Promise<Response> {
 export async function GET(request: Request): Promise<Response> {
   const venueId = new URL(request.url).searchParams.get("venueId")?.trim() ?? "";
   if (!venueId) {
-    return publicApiError("A venue is required.", "INVALID_REQUEST", 400);
+    return publicApiError("Choose a venue.", "INVALID_REQUEST", 400);
   }
 
   const venueLookup = await lookupCanonicalVenue(venueId);

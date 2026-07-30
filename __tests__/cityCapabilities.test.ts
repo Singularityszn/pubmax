@@ -30,7 +30,9 @@ describe("city capability profiles", () => {
       const profile = getCityCapabilityProfile(city.id);
       expect(profile.prices.availability).toBe("unavailable");
       expect(profile.prices.asOf).toBeNull();
-      expect(profile.prices.explanation).toMatch(/not yet/i);
+      expect(profile.prices.explanation).toBe(
+        "We haven't yet collected pint prices for this city.",
+      );
     }
   });
 

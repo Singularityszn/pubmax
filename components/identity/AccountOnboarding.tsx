@@ -107,7 +107,7 @@ export function AccountOnboardingForm({
           <p className="accountOnboardingEyebrow">Your PUBMAXX identity</p>
           <h2 id="account-onboarding-title">Choose how people know you</h2>
           <p id="account-onboarding-lead">
-            Your handle owns every contribution you make.
+            Your public handle appears on every contribution you make.
           </p>
         </header>
 
@@ -172,7 +172,7 @@ export function AccountOnboardingForm({
                 onSexChange(event.target.value as "" | PrivateIdentitySex)
               }
             >
-              <option value="">Not provided</option>
+              <option value="">Not added</option>
               {PRIVATE_IDENTITY_SEX_VALUES.map((value) => (
                 <option value={value} key={value}>
                   {SEX_LABELS[value]}

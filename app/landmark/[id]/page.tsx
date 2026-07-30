@@ -141,7 +141,7 @@ export default async function LandmarkChapterPage({ params }: PageProps) {
       ) : null}
 
       <p className="landmarkChapterFoot">
-        Every pint has a story. <Link href="/crawls">Browse route packs →</Link>
+        Cited pub stories mapped into walks. <Link href="/crawls">Browse route packs →</Link>
       </p>
     </main>
   );

@@ -156,11 +156,11 @@ function CrawlsPageInner() {
       ) : (
         <section className="crawlEmpty" aria-labelledby="crawlsHeading">
           <p className="crawlEyebrow">Crawls worth walking</p>
-          <h1 id="crawlsHeading">Every pint has a story.</h1>
+          <h1 id="crawlsHeading">Pub stories mapped into walks.</h1>
           <p className="crawlEmptyBody">
             A Crawl Story is a shareable poster of a London pub crawl, the stops, the prices,
-            the vibe. Here are a few routes worth the walk, handed down from the old hands who
-            drank them first. Pick one, or start your own on the map.
+            the vibe. Here are a few listed routes worth the walk. Pick one, or start your own
+            on the map.
           </p>
 
           <nav className="routePackNav" aria-labelledby="routePacksHeading">
@@ -400,7 +400,7 @@ function CrawlPoster({
         </button>
       </div>
 
-      <p className="crawlFootnote">Every pint has a story.</p>
+      <p className="crawlFootnote">Pubs, prices and the route between them.</p>
     </article>
   );
 }

@@ -277,7 +277,7 @@ export function nightAreaSelectorGroups(now = new Date()): NightAreaSelectorGrou
 }
 
 export function nightAreaOptionLabel(area: NightArea, disabled: boolean): string {
-  return disabled || !isNightAreaRouteReady(area) ? `${area.name} - plan with evidence gaps` : area.name;
+  return disabled || !isNightAreaRouteReady(area) ? `${area.name} - plan with warnings` : area.name;
 }
 
 export function nightAreaMapHref(area: NightArea): string {
@@ -302,10 +302,7 @@ export function errorMessageFromBody(body: unknown, fallback: string): string {
       const areaId = payload.nightArea?.id ?? payload.district?.id;
       const area = NIGHT_AREAS.find((candidate) => candidate.slug === areaId);
       const areaName = area?.name ?? "This area";
-      const serverMessage = typeof message === "string" && message.trim()
-        ? message.trim()
-        : "We're still checking this area before a crawl can be planned.";
-      return `${areaName} is not ready for route planning yet. ${serverMessage} Choose a ready area to continue.`;
+      return `${areaName} is not ready for route planning yet. We're still checking this area before planning a crawl. Choose another area to continue.`;
     }
     if (typeof message === "string" && message.trim()) return message;
   }
@@ -388,19 +385,19 @@ export function nightAreaCoverageSummary(
   const remaining = area.missingEvidence.length - missing.length;
   const missingEvidenceDetail = missing.length > 0
     ? `missing ${missing.join(" and ")}${remaining > 0 ? ` + ${remaining} more` : ""}.`
-    : "Coverage is being checked before route planning opens.";
+    : "We're still checking this area before route planning opens.";
 
   switch (area.coverageStatus) {
     case "captured":
-      return { label: "Plan with warnings", detail: `Captured coverage, ${missingEvidenceDetail}`, tone: "capture" };
+      return { label: "Plan with warnings", detail: `Some checks complete. ${missingEvidenceDetail[0]?.toUpperCase()}${missingEvidenceDetail.slice(1)}`, tone: "capture" };
     case "discovered":
-      return { label: "Low confidence", detail: "Evidence capture has not started. The route stays editable.", tone: "discovery" };
+      return { label: "Low confidence", detail: "We haven't checked this area yet. The route stays editable.", tone: "discovery" };
     case "reviewed":
-      return { label: "Plan with warnings", detail: `Reviewed coverage, ${missingEvidenceDetail}`, tone: "review" };
+      return { label: "Plan with warnings", detail: `Checked with gaps. ${missingEvidenceDetail[0]?.toUpperCase()}${missingEvidenceDetail.slice(1)}`, tone: "review" };
     case "paused":
-      return { label: "Review expired", detail: "Planning remains available with low confidence until evidence is refreshed.", tone: "paused" };
+      return { label: "Review expired", detail: "The last check expired. Planning stays available with warnings.", tone: "paused" };
     default:
-      return { label: "Plan with warnings", detail: `Review in progress, ${missingEvidenceDetail}`, tone: "review" };
+      return { label: "Plan with warnings", detail: `Checks in progress. ${missingEvidenceDetail[0]?.toUpperCase()}${missingEvidenceDetail.slice(1)}`, tone: "review" };
   }
 }
 
@@ -416,11 +413,11 @@ function formatCoverageDate(value: string | null): string | null {
   }).format(new Date(timestamp));
 }
 
-/** Keep the evidence window visible anywhere coverage is presented. */
+/** Keep the review window visible anywhere coverage is presented. */
 export function nightAreaCoverageMeta(area: NightArea, now = new Date()): string {
   const reviewed = formatCoverageDate(area.lastReviewedAt);
   const expires = formatCoverageDate(area.reviewExpiresAt);
-  if (!reviewed) return "No reviewed snapshot yet.";
+  if (!reviewed) return "Not checked yet.";
   if (!expires) return `Last checked ${reviewed}.`;
   const expiry = Date.parse(area.reviewExpiresAt ?? "");
   if (Number.isFinite(expiry) && expiry <= now.getTime()) {
@@ -885,7 +882,7 @@ function PlanComposerForm({
         throw new Error(mapped || body?.error || "The plan could not be created.");
       }
       const attribution = serverPlanCreationAttribution(body);
-      if (!attribution) throw new Error("The plan was created without verifiable route attribution. Please reload it before continuing.");
+      if (!attribution) throw new Error("We could not check the route details. Reload the plan before continuing.");
       const { grounded } = attribution;
       const acceptanceTelemetry = planAcceptanceTelemetry(body, completeStops.length);
       const acceptedToken = responseEventToken(body, "planAccepted");
@@ -919,7 +916,7 @@ function PlanComposerForm({
           },
           body: JSON.stringify({ status: "ready", ...(nightContext ? { context: nightContext } : {}) }),
         });
-        if (!metadataResponse.ok) throw new Error("The route was created, but its Night Context could not be saved. Please try again.");
+        if (!metadataResponse.ok) throw new Error("The route was created, but its details could not be saved. Try again.");
       }
       trackEvent("plan_saved", { stops: completeStops.length, grounded });
       trackMeaningfulCoreAction("plan_saved");
@@ -977,7 +974,7 @@ function PlanComposerForm({
         {nightContext ? (
           <fieldset className="planComposer__context">
             <legend>What PUBMAXX understood. Edit anything.</legend>
-            <p id="plan-context-note" className="planComposer__contextNote">Every listed area can be planned. Evidence gaps stay visible so you can judge the route.</p>
+            <p id="plan-context-note" className="planComposer__contextNote">An active area warning can block route planning. We show missing prices or route details so you can judge the route.</p>
             <label htmlFor="plan-context-area">Area<select id="plan-context-area" aria-describedby="plan-context-note plan-route-status" value={nightContext.nightArea ?? ""} onChange={(event) => updateNightContext({ nightArea: event.target.value as NightContext["nightArea"] })}>
               {areaGroups.map((group) => (
                 <optgroup key={group.label} label={group.label}>
@@ -1055,7 +1052,7 @@ function PlanComposerForm({
             </span>
           </summary>
           <p className="planComposer__coverageIntro">
-            Browse the current London capture state. Higher-confidence areas have completed the evidence gate. Every area can still produce an editable route, with missing evidence shown before you rely on it.
+            See where prices and route details have been checked. An active warning can stop route planning until the area is checked again.
           </p>
           <div className="planComposer__coverageGroups">
             <section aria-labelledby="plan-coverage-ready">

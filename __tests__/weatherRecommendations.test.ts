@@ -67,7 +67,7 @@ describe("validateWeatherRecommendation", () => {
         reason: "The garden stays bright.",
         contributorHandle: "night_owl",
       }),
-    ).toEqual({ ok: false, error: "A venue is required." });
+    ).toEqual({ ok: false, error: "Choose a venue." });
     expect(
       validateWeatherRecommendation({
         venueId: "venue-1",

@@ -164,7 +164,7 @@ export function validateCommunityPrice(input: unknown): CommunityPriceValidation
   const raw = input as Record<string, unknown>;
 
   const venueId = cleanVenueId(raw.venueId);
-  if (!venueId) return { ok: false, error: "A venue is required." };
+  if (!venueId) return { ok: false, error: "Choose a venue." };
 
   const category = typeof raw.drinkCategory === "string" ? raw.drinkCategory.trim().toLowerCase() : "";
   if (!isDrinkCategory(category)) {
@@ -419,10 +419,10 @@ export function communityReachNote(
     return "The map prices pints, so it stays on this pub's page.";
   }
   if (reach === "paint") {
-    return "It moves the map once a second drinker logs the same.";
+    return "It moves the map once a second drinker reports a similar price.";
   }
   if (reach === "mark") {
-    return "It marks this pub's pin straight away, and a second drinker logging the same price confirms the figure here.";
+    return "It marks this pub's pin straight away. A second drinker reporting a similar price confirms the figure here.";
   }
   return "It stays on this pub's page.";
 }
@@ -454,7 +454,7 @@ export function communityTrustNote(
     // Only a pin that paints has a price on record to hand the map back to.
     return paints
       ? "Over 30 days old, so the map is back on the price on record."
-      : "Over 30 days old - a record of that night, not tonight's price.";
+      : "Over 30 days old. This records that night, not tonight's price.";
   }
   if (!isCorroborated(price)) {
     // A pint report that has earned the provisional mark says where that mark
@@ -462,12 +462,12 @@ export function communityTrustNote(
     // a corroborated figure is already painting the pin - must not claim it.
     if (!marks || !marksMapProvisionally(price, now)) {
       return paints
-        ? "Awaiting confirmation - the map stays on the confirmed price until a second drinker logs this one."
-        : "Awaiting confirmation - a second report backs it up.";
+        ? "Awaiting confirmation. The map stays on the confirmed price until a second drinker reports a similar one."
+        : "Awaiting confirmation. A second report can back it up.";
     }
     return paints
-      ? "Marked on the map as unconfirmed - it moves the map once a second drinker logs the same."
-      : "Marked on the map as unconfirmed - a second drinker logging the same price confirms the figure here.";
+      ? "Marked on the map as unconfirmed. It moves the map once a second drinker reports a similar price."
+      : "Marked on the map as unconfirmed. A second drinker reporting a similar price confirms the figure here.";
   }
   return "";
 }
@@ -477,7 +477,7 @@ export function communityTrustNote(
  * sheet's full standing note (the map hover card). Same fact, same voice.
  */
 export const COMMUNITY_PROVISIONAL_SHORT_NOTE =
-  "One report so far - needs a second to move the map.";
+  "One report so far. It needs a second to move the map.";
 
 /**
  * The dated half of the restamp: "today" / "yesterday" / "3 Jul". Deliberately

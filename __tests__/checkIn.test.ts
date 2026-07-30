@@ -24,7 +24,10 @@ describe("validateCheckInInput", () => {
 
   it("rejects a missing handle", () => {
     const result = validateCheckInInput({ areaSlug: "shoreditch" });
-    expect(result.ok).toBe(false);
+    expect(result).toEqual({
+      ok: false,
+      error: "Choose a handle in your account first.",
+    });
   });
 
   it("rejects an empty area", () => {

@@ -25,10 +25,10 @@ export async function POST(request: Request, context: Context): Promise<Response
   const { id } = await context.params;
   if (!isPlanId(id)) return publicApiError("That Plan doesn't exist.", "PLAN_NOT_FOUND", 404, { details: { active: false } });
   const token = planMemberCapability(request, undefined);
-  if (!token) return publicApiError("Add a valid Plan member capability.", "PLAN_SESSION_REQUIRED", 401, { details: { active: false } });
+  if (!token) return publicApiError("That Plan link is not valid.", "PLAN_SESSION_REQUIRED", 401, { details: { active: false } });
   const result = await planMemberIdentityResult(id, token);
   if (!result.ok) return publicApiError("Plan session temporarily unavailable.", "PLAN_SESSION_UNAVAILABLE", 503, { retryable: true });
-  if (!result.identity) return publicApiError("That member capability is not active.", "PLAN_SESSION_FORBIDDEN", 401, { details: { active: false } });
+  if (!result.identity) return publicApiError("That Plan link is no longer active.", "PLAN_SESSION_FORBIDDEN", 401, { details: { active: false } });
   return attachPlanMemberSession(jsonNoStore({
     active: true,
     role: result.identity.role,

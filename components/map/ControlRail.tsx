@@ -256,7 +256,7 @@ export default function ControlRail({
           <MapPinned size={16} />
           <span>Featured routes</span>
         </div>
-        <p className="featuredHint">Curated crawls. One generation&rsquo;s pubs, handed to the next.</p>
+        <p className="featuredHint">Hand-picked crawls. One generation&rsquo;s pubs, handed to the next.</p>
         <div className="featuredList">
           {curatedCrawls.map((crawl) => (
             <button

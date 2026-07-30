@@ -171,7 +171,7 @@ async function runAnchoredGeneration<T extends ScoredPlanCandidate>(params: {
 				},
 				provenance: [
 					{ kind: "venue_dataset", label: `PUBMAXX venue record for ${stop.venueName}` },
-					{ kind: "night_area_review", label: `${area.name} Night Area review`, asOf: area.lastReviewedAt },
+					{ kind: "night_area_review", label: `${area.name} route review`, asOf: area.lastReviewedAt },
 				],
 				alternatives: [],
 			}],
@@ -204,18 +204,18 @@ export async function POST(request: Request): Promise<Response> {
   if (await isLimited(limiterKey, limiterKey, RATE_LIMIT_MAX, RATE_LIMIT_WINDOW_MS)) return publicApiError("Too many requests.", "RATE_LIMITED", 429, { retryable: true });
 	if (intake?.unsupportedPatch) {
 		return publicApiError(
-			"Exact Plan generation is not available for this genuinely unmapped Night Patch yet.",
+			"We cannot plan an exact route for this unmapped patch yet.",
 			"NIGHT_PATCH_UNSUPPORTED",
 			422,
 			{ details: { patchId: intake.unsupportedPatch } },
 		);
 	}
-	if (!query && !contextPatch && !intake?.exactNightArea) return publicApiError("Describe the night or provide Night Context.", "NIGHT_CONTEXT_REQUIRED", 400);
+	if (!query && !contextPatch && !intake?.exactNightArea) return publicApiError("Describe the night or add its time, group and area.", "NIGHT_CONTEXT_REQUIRED", 400);
 	const reconciled = reconcilePlanContext(query, contextPatch, intake, new Date(requestNow));
 	const context = reconciled.context;
   if (!context.nightArea) return publicApiError("Choose an area.", "NIGHT_AREA_REQUIRED", 422);
 	const cityId = parsedRequest.value.cityId ? parseCityId(parsedRequest.value.cityId) : DEFAULT_CITY_ID;
-  if (!cityId) return publicApiError("cityId is invalid.", "CITY_INVALID", 400);
+  if (!cityId) return publicApiError("Choose a listed city.", "CITY_INVALID", 400);
   const area = getNightArea(context.nightArea);
   if (area.cityId !== cityId) return publicApiError("That area isn't in this city.", "NIGHT_AREA_CITY_MISMATCH", 422);
 	const routeReady = isNightAreaRouteReady(area, new Date(requestNow));
@@ -236,7 +236,7 @@ export async function POST(request: Request): Promise<Response> {
 			.some((claim) => canAffectRoute(claim) && claim.routeEffect === "avoid")
 	) {
 		return publicApiError(
-			"A reviewed active exclusion means this Night Area cannot be routed right now.",
+			"An active warning means we cannot plan a route through this area right now.",
 			"NIGHT_AREA_CONSTRAINT_BLOCKED",
 			422,
 			{ details: { nightArea: area.slug } },
@@ -289,7 +289,7 @@ export async function POST(request: Request): Promise<Response> {
 		const generatedSelection = await selectPlanGenerationCandidates(candidates, context, intake, requestNow);
 		if (!generatedSelection.ok) {
 			return publicApiError(
-				`No three-stop route in ${area.name} can satisfy every required constraint with the evidence available.`,
+				`No three-stop route in ${area.name} meets every must-have need with the information available.`,
 				"GROUNDED_CONSTRAINTS_UNSATISFIED",
 				422,
 				{ details: { nightArea: area.slug, availableVenueCount: candidates.length, ...generatedSelection.selection } },
@@ -304,7 +304,7 @@ export async function POST(request: Request): Promise<Response> {
 			accessibilityEnforced = generatedSelection.accessibilityEnforced;
 		}
 	}
-  if (chosen.length < 3) return publicApiError(`Not enough grounded venues are available in ${area.name} yet.`, "GROUNDED_VENUES_INSUFFICIENT", 422, { details: { nightArea: area.slug, availableVenueCount: chosen.length } });
+  if (chosen.length < 3) return publicApiError(`Not enough listed pubs in ${area.name} yet.`, "GROUNDED_VENUES_INSUFFICIENT", 422, { details: { nightArea: area.slug, availableVenueCount: chosen.length } });
 	const pricePence = chosen.map(({ venue }, position) => groundedStops
 		? groundedStops[position].price.pence
 		: venue.cheapestPrice === null ? null : Math.round(venue.cheapestPrice * 100));
@@ -329,7 +329,7 @@ export async function POST(request: Request): Promise<Response> {
 		warnings: missingEvidence.map(planEvidenceWarning),
 		provenance: [
 			{ kind: "venue_dataset", label: "PUBMAXX Venue Dataset" },
-			{ kind: "night_area_review", label: `${area.name} Night Area review`, asOf: area.lastReviewedAt },
+			{ kind: "night_area_review", label: `${area.name} route review`, asOf: area.lastReviewedAt },
 			...(planningWeather ? [{
 				kind: "night_signal" as const,
 				label: `${planningWeather.source.publisher}: ${planningWeather.condition}`,
@@ -398,7 +398,7 @@ export async function POST(request: Request): Promise<Response> {
 			},
 			provenance: [
 				{ kind: "venue_dataset", label: `PUBMAXX venue record for ${venue.name}` },
-				{ kind: "night_area_review", label: `${area.name} Night Area review`, asOf: area.lastReviewedAt },
+				{ kind: "night_area_review", label: `${area.name} route review`, asOf: area.lastReviewedAt },
 				...tonightEvents.map((event) => ({ kind: "night_signal" as const, label: `${event.source.label}: ${event.title}`, asOf: event.observedAt })),
 				...signalClaims.map((signal) => ({ kind: "night_signal" as const, label: `${signal.publisher}: ${signal.claim}`, asOf: signal.observedAt })),
 				...(grounded?.opening.source ? [{

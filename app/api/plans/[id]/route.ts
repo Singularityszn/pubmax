@@ -23,7 +23,7 @@ function upgradeProofError(reason: PlanGroundingRejectionV2): { message: string;
     case "expired": return { message: "The grounding proof expired. Regenerate the Route and lock it in again.", code: "PLAN_ANCHOR_PROOF_EXPIRED" };
     case "route-mismatch": return { message: "The submitted Stops do not match the grounded Route.", code: "PLAN_ANCHOR_PROOF_ROUTE_MISMATCH" };
     case "operation-mismatch": return { message: "The grounding proof was issued for a different operation.", code: "PLAN_ANCHOR_PROOF_OPERATION_MISMATCH" };
-    default: return { message: "The grounding proof could not be verified.", code: "PLAN_ANCHOR_PROOF_INVALID" };
+    default: return { message: "That saved route could not be checked.", code: "PLAN_ANCHOR_PROOF_INVALID" };
   }
 }
 
@@ -52,7 +52,7 @@ function checkAnchoredUpgrade(
     return { done: publicApiError(mapped.message, mapped.code, 422) };
   }
   if (verdict.outcome !== "route") {
-    return { done: publicApiError("An upgrade must lock a grounded three-Stop route.", "PLAN_ANCHOR_OUTCOME_MISMATCH", 422) };
+    return { done: publicApiError("Save all three route stops before continuing.", "PLAN_ANCHOR_OUTCOME_MISMATCH", 422) };
   }
   return { groundedUpgrade: true, upgradeAnchored: verdict.anchored };
 }
@@ -61,7 +61,7 @@ function checkAnchoredUpgrade(
 function planUpdateError(error: PlanWriteError): Response {
   const unavailable = error === "error";
   return publicApiError(
-    error === "forbidden" ? "That member token cannot edit this Plan." : error === "conflict" ? "That Crawl Route has changed. Refresh and try again." : unavailable ? "Plan data is temporarily unavailable." : "Could not update the Plan.",
+    error === "forbidden" ? "That member token cannot edit this Plan." : error === "conflict" ? "That route has changed. Refresh and try again." : unavailable ? "Plan data is temporarily unavailable." : "Could not update the Plan.",
     unavailable ? "PLAN_UPDATE_UNAVAILABLE" : error === "forbidden" ? "PLAN_UPDATE_FORBIDDEN" : error === "not_found" ? "PLAN_NOT_FOUND" : error === "conflict" ? "PLAN_ROUTE_CONFLICT" : "PLAN_UPDATE_INVALID",
     unavailable ? 503 : error === "forbidden" ? 403 : error === "not_found" ? 404 : error === "conflict" ? 409 : 400,
     { retryable: unavailable || error === "conflict" },
@@ -121,9 +121,9 @@ export async function PATCH(request: Request, context: Context): Promise<Respons
   const hasStops = body.stops !== undefined;
   const stops = hasStops ? await canonicalPlanRoute(body.stops) : undefined;
   const expectedRouteRevision = typeof body.expectedRouteRevision === "number" && Number.isInteger(body.expectedRouteRevision) && body.expectedRouteRevision > 0 ? body.expectedRouteRevision : undefined;
-  if (body.context !== undefined && !nightContext) return publicApiError("Add a valid Night Context.", "NIGHT_CONTEXT_INVALID", 400);
-  if (hasStops && (!stops || expectedRouteRevision === undefined || status)) return publicApiError("Replace the Crawl Route with exactly three distinct Venue Dataset stops and its current route revision.", "PLAN_ROUTE_INVALID", 400);
-  if (!hasStops && !status && !nightContext) return publicApiError("Add a valid status or Night Context.", "PLAN_UPDATE_INVALID", 400);
+  if (body.context !== undefined && !nightContext) return publicApiError("Add valid Plan details.", "NIGHT_CONTEXT_INVALID", 400);
+  if (hasStops && (!stops || expectedRouteRevision === undefined || status)) return publicApiError("Choose exactly three different listed stops and use the latest route version.", "PLAN_ROUTE_INVALID", 400);
+  if (!hasStops && !status && !nightContext) return publicApiError("Choose what to update.", "PLAN_UPDATE_INVALID", 400);
   // Anchored upgrade (§3.3): a one-Stop draft rises to a grounded three-Stop
   // route only with a valid V2 proof over the exact new order.
   const upgrade = checkAnchoredUpgrade(stops, body.groundingProof, body.operationKey);

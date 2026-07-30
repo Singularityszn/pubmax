@@ -57,7 +57,7 @@ function bySlug(a: RoutablePub, b: RoutablePub): number {
   return a.slug < b.slug ? -1 : a.slug > b.slug ? 1 : 0;
 }
 
-const PROVENANCE = "Cited from Wikipedia. Never invented.";
+const PROVENANCE = "cited from Wikipedia.";
 
 function makeCrawl(
   id: string,

@@ -60,7 +60,7 @@ export default function AreaNewsList({
                 {entry.sourceName}
               </a>
               {entry.confidence === "social" ? (
-                <span className="areaNewsSocial" title="Self-reported sighting, not a verified price">
+                <span className="areaNewsSocial" title="Self-reported sighting, not a checked price">
                   spotted
                 </span>
               ) : null}

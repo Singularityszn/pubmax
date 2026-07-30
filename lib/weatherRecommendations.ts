@@ -38,7 +38,7 @@ export const WEATHER_RECOMMENDATION_RESPONSE_BUDGET_BYTES = 8 * 1024;
 // card can mark the field that is actually wrong without reading server prose.
 export const WEATHER_RECOMMENDATION_ERRORS = {
   missing: "Missing recommendation.",
-  venue: "A venue is required.",
+  venue: "Choose a venue.",
   condition: "Pick the weather this suits.",
   handle: "Add your Pubmaxx handle.",
   reasonTooShort: `Say why in at least ${WEATHER_RECOMMENDATION_REASON_MIN} characters.`,

@@ -160,7 +160,7 @@ export function validateOperatorProposal(
   if (!account) return { ok: false, error: "Sign in to propose an update." };
 
   const venueId = readString(raw.venueId);
-  if (!venueId) return { ok: false, error: "A venue is required." };
+  if (!venueId) return { ok: false, error: "Choose a venue." };
   if (venueId.length > MAX_PROPOSAL_VENUE_ID) {
     return { ok: false, error: "That venue reference is too long." };
   }

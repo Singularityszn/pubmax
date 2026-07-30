@@ -14,7 +14,7 @@ import "../legal.css";
 
 const PAGE_TITLE = "Terms of use";
 const PAGE_DESCRIPTION =
-  "The deal in plain language: what PUBMAXX is, what you can post, what prices on the map do and don't promise, and where our responsibility ends.";
+  "Plain-language terms covering what PUBMAXX is, what you can post, what map prices mean, and where our responsibility ends.";
 const LAST_UPDATED = "29 July 2026";
 
 export const metadata: Metadata = {
@@ -35,7 +35,7 @@ export default function TermsPage() {
     <main className="legalPage">
       <header className="legalHead">
         <p className="legalEyebrow">Terms of use</p>
-        <h1 className="legalTitle">The deal, in plain English</h1>
+        <h1 className="legalTitle">The deal in plain English</h1>
         <p className="legalLede">
           PUBMAXX is free, carries no ads, and nobody can pay to rank. In return
           we ask you to use it honestly and not to treat a price on the map as a
@@ -63,7 +63,7 @@ export default function TermsPage() {
           out of dated, sourced archives. That last lot is history. It is what a
           pint cost years ago, never a price for tonight, and it never moves the
           map. Heritage facts are cited, never invented. Nothing here is a
-          booking service, and we are not the pub. We don&rsquo;t sell you
+          booking service, and we&rsquo;re not the pub. We don&rsquo;t sell you
           drinks, take payment, or hold a table for you.
         </p>
       </section>
@@ -71,7 +71,7 @@ export default function TermsPage() {
       <section className="legalSection" aria-labelledby="age">
         <h2 id="age" className="legalH2">Age and alcohol</h2>
         <p className="legalBody">
-          PUBMAXX does not block accounts or contributions based on age. Pubs
+          PUBMAXX doesn&rsquo;t block accounts or contributions based on age. Pubs
           decide who they serve. Nothing in the app is designed to encourage
           you to drink more. Know your limits, and know the facts at{" "}
           <a
@@ -90,15 +90,15 @@ export default function TermsPage() {
       <section className="legalSection" aria-labelledby="account">
         <h2 id="account" className="legalH2">Your account</h2>
         <p className="legalBody">
-          Browsing does not require an account or analytics. First visit asks
-          you to tap Allow or No thanks for optional anonymous analytics. You
+          Browsing doesn&rsquo;t need an account or analytics. First visit asks
+          you to tap Allow or No thanks for optional usage analytics. You
           get the same app either way. If you allow them, we use a persistent
           device identifier and collect browser, operating system and device type,
           screen size, referrer and campaign details, plus app performance and
           the closed product events described in our privacy notice. PostHog
           deletes analytics events 12 months after collection and pseudonymous
           person and device records 12 months after their last activity. Handle
-          is required to finish signup. Date of birth is required to finish signup
+          is needed to finish signup. Date of birth is needed to finish signup
           too. Full name and sex are optional. We collect and store date of
           birth, full name and sex as private details for product analytics and social features.
           Date of birth stays until you delete your profile.
@@ -180,25 +180,25 @@ export default function TermsPage() {
           You can share one account invite link. A referral counts only when
           someone follows it, signs up and makes a first accepted contribution.
           Self-referrals, second accounts made for yourself and circular
-          referrals between two accounts do not count.
+          referrals between two accounts don&rsquo;t count.
         </p>
         <p className="legalBody">
-          Referral rewards are not active. We can record private edges and
-          milestones, but those records do not grant access to paid features
-          while sign-in cannot prove one person has only one account and not
-          every qualifying contribution uses the account identity boundary. If
-          that changes, these terms and the account surface will say what is
-          granted before any reward goes live.
+          Referral rewards aren&rsquo;t active. We can record private edges and
+          milestones, but those records don&rsquo;t grant access to paid features
+          because sign-in can&rsquo;t prove that one person has only one account.
+          They are milestones only, with no reward attached.
         </p>
       </section>
 
       <section className="legalSection" aria-labelledby="prices">
-        <h2 id="prices" className="legalH2">Prices are observations, not offers</h2>
+        <h2 id="prices" className="legalH2">How to read prices</h2>
         <p className="legalBody">
-          Every price on PUBMAXX is what someone saw, on a date we show you. Pubs
-          change prices, run happy hours, charge differently on a match day, and
-          make mistakes. So does everyone logging prices. A figure here is a good
-          steer, not a quote, and the pub is under no obligation to honour it.
+          Every current price names where it came from. Prices logged by people
+          carry the day they were seen. Other current prices share the source
+          date for their dataset. Pubs change prices, run happy hours, charge
+          differently on a match day, and make mistakes. People logging prices
+          can make mistakes too. A figure here is a good steer, not a quote,
+          and the pub is under no obligation to honour it.
           <strong> Check at the bar.</strong>
         </p>
         <p className="legalBody">
@@ -215,9 +215,9 @@ export default function TermsPage() {
       </section>
 
       <section className="legalSection" aria-labelledby="asis">
-        <h2 id="asis" className="legalH2">The app is provided as-is</h2>
+        <h2 id="asis" className="legalH2">The app comes as it is</h2>
         <p className="legalBody">
-          PUBMAXX is free and is provided as-is. We work on it constantly, which
+          PUBMAXX is free and comes as it is. We work on it constantly, which
           means features change, move, or disappear, and the site will sometimes
           be down. We don&rsquo;t promise it will be available, uninterrupted,
           error-free, or that any particular pub, price or feature will still be

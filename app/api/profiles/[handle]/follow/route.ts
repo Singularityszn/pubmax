@@ -43,7 +43,7 @@ export async function POST(
   const follower = await resolveMessageHandle(request, readString(body.follower));
   if (!follower) {
     return jsonNoStore(
-      { error: "Set a handle first. Drop a pint to claim one." },
+      { error: "Choose a handle in your account first." },
       { status: 400 },
     );
   }

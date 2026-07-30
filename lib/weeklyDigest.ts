@@ -128,11 +128,10 @@ export type WeeklyDigest = {
 //    orders guardian" voice). NOT fabricated data; clearly framed as a tip. ────
 
 export const GUARDIAN_TIPS: readonly string[] = [
-  "Last orders is usually 20 minutes before close. Check the last train home before that final round, not after.",
-  "A logged pint price helps the whole city drink cheaper. If a pub near you has no price yet, be the first to drop one.",
-  "Weeknights are quietly the best value. Many happy hours run Monday to Thursday and vanish by Friday.",
-  "Cheapest isn't just Wetherspoons: independents on the outer boroughs often undercut the chains. Check your area.",
-  "Heading out on the night tube? Zones 1–2 keep running late on Fridays and Saturdays. Plan the last leg first.",
+  "Closing times can change. Check the pub's hours and your last train before the final round.",
+  "A logged pint price makes the map more useful. If a pub near you has no price yet, add one.",
+  "Happy-hour times can change. Check the pub's own listing before you set off.",
+  "Night Tube service varies by line and night. Check TfL before the final round.",
 ];
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
@@ -407,8 +406,8 @@ export function renderWeeklyDigestHtml(digest: WeeklyDigest): string {
   if (s.dropsLogged && s.dropsLogged > 0) {
     const noun = s.dropsLogged === 1 ? "price was" : "prices were";
     rows.push(sectionBlock(
-      "The data moat grew",
-      `<p style="margin:0;font-size:15px;color:${BRAND.ink};"><strong>${s.dropsLogged}</strong> new pint ${noun} logged ${esc(digest.scopeLabel)} this week. That's the map getting more honest, one drop at a time.</p>`,
+      "New prices logged",
+      `<p style="margin:0;font-size:15px;color:${BRAND.ink};"><strong>${s.dropsLogged}</strong> new pint ${noun} logged ${esc(digest.scopeLabel)} this week.</p>`,
     ));
   }
 
@@ -445,7 +444,7 @@ ${empty}${rows.join("\n")}
 </td></tr>
 <tr><td style="padding:16px 24px 24px;border-top:1px solid ${BRAND.line};">
   <p style="margin:0;font-size:12px;color:${BRAND.muted};line-height:1.5;">
-    You're getting this because you asked us to keep you posted. Prices and events are shown only when real, sourced data exists. We never invent a pint.
+    You're getting this because you asked us to keep you posted. Source links appear beside prices and events when available.
     <br><a href="{{unsubscribe_url}}" style="color:${BRAND.muted};text-decoration:underline;">Unsubscribe</a> any time.
   </p>
 </td></tr>
@@ -492,7 +491,7 @@ export function renderWeeklyDigestText(digest: WeeklyDigest): string {
 
   if (s.dropsLogged && s.dropsLogged > 0) {
     const noun = s.dropsLogged === 1 ? "price was" : "prices were";
-    lines.push("THE DATA MOAT GREW");
+    lines.push("NEW PRICES LOGGED");
     lines.push(`  ${s.dropsLogged} new pint ${noun} logged ${digest.scopeLabel} this week.`);
     lines.push("");
   }
@@ -510,7 +509,7 @@ export function renderWeeklyDigestText(digest: WeeklyDigest): string {
   lines.push("");
   lines.push("---");
   lines.push(
-    "You're getting this because you asked us to keep you posted. We only show real, sourced data. We never invent a pint.",
+    "You're getting this because you asked us to keep you posted. Source links appear beside prices and events when available.",
   );
   lines.push("Unsubscribe: {{unsubscribe_url}}");
   return lines.join("\n");

@@ -28,7 +28,7 @@ export async function canonicalEndingSelection(
         label,
         confidence: "unknown",
         source: "PUBMAXX transport choice",
-        warnings: ["Live transport evidence was not verified or persisted when the host confirmed this ending."],
+        warnings: ["Live transport details were not checked or saved when the host confirmed this ending."],
       },
     };
   }
@@ -68,7 +68,7 @@ export async function canonicalEndingSelection(
       label: extension.name,
       confidence: "low",
       source: "PUBMAXX venue index",
-      warnings: ["Closing time was unverified when the host confirmed this extension."],
+      warnings: ["Closing time was not checked when the host confirmed this extra stop."],
     },
   };
 }

@@ -146,7 +146,7 @@ export default function MessagesInboxClient({
       ) : needsSignIn || !user ? (
         <EmptyState
           title="Sign in to message"
-          body="Private messages need a signed-in account so nobody can read or send as your handle."
+          body="Private messages need a signed-in account, so each message is tied to the right handle."
           action={<SignInButton />}
         />
       ) : failed && conversations.length === 0 ? (

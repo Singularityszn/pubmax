@@ -76,7 +76,7 @@ async function getHandler(
     !isLondonNightOutPlaceCoordinates(lat, lng)
   ) {
     return publicApiError(
-      "A valid London anchor is required.",
+      "Choose a place in London.",
       "INVALID_LONDON_ANCHOR",
       400,
     );

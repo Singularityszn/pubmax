@@ -34,7 +34,7 @@ async function getHandler(request: Request): Promise<Response> {
       borough: null,
       averagePintGbp: null,
       asOf: null,
-      error: "borough is required.",
+      error: "Add a borough.",
     });
   }
 

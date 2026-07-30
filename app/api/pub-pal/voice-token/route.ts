@@ -27,7 +27,7 @@ export async function POST(request: Request): Promise<Response> {
     if (!body.signed_url) return jsonNoStore({ error: "Voice service returned no session.", fallback: "text" }, { status: 502 });
     if (isSupabaseConfigured()) {
       const { data, error } = await requireSupabaseAdmin().rpc("consume_pub_pal_voice_trial", { p_owner_id: userId, p_month: `${month}-01`, p_limit: MONTHLY_TRIAL_SESSIONS });
-      if (error) return jsonNoStore({ error: "Voice allowance could not be verified.", fallback: "text" }, { status: 503 });
+      if (error) return jsonNoStore({ error: "Voice allowance could not be checked.", fallback: "text" }, { status: 503 });
       if (data === false) return jsonNoStore({ error: "Your trial voice allowance is used for this month.", fallback: "text", remaining: 0 }, { status: 429 });
     } else { meter.count += 1; usage.set(userId, meter); }
     return jsonNoStore({ signedUrl: body.signed_url, connectionType: "websocket", remaining: isSupabaseConfigured() ? null : MONTHLY_TRIAL_SESSIONS - meter.count, retention: "zero", mutationPolicy: "propose_then_confirm" });

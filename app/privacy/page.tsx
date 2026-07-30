@@ -23,7 +23,7 @@ import "../legal.css";
 
 const PAGE_TITLE = "Privacy";
 const PAGE_DESCRIPTION =
-  "What PUBMAXX collects, why, who else sees it, how long we keep it, and how to get it deleted. Written against what the app actually does.";
+  "What PUBMAXX collects, why, who else sees it, how long we keep it, and how to get it deleted. Written against the app's behaviour.";
 const LAST_UPDATED = "29 July 2026";
 
 export const metadata: Metadata = {
@@ -44,7 +44,7 @@ export default function PrivacyPage() {
     <main className="legalPage">
       <header className="legalHead">
         <p className="legalEyebrow">Privacy</p>
-        <h1 className="legalTitle">What we collect, and what we don&rsquo;t</h1>
+        <h1 className="legalTitle">How PUBMAXX handles your data</h1>
         <p className="legalLede">
           You can browse the whole map, every price and every historic pub,
           without an account and without telling us anything about yourself.
@@ -57,8 +57,8 @@ export default function PrivacyPage() {
         <h2 id="short" className="legalH2">The short version</h2>
         <ul className="legalPanelList">
           <li>
-            <strong>No account needed to look.</strong>{" "}Browsing is anonymous.
-            We don&rsquo;t ask who you are to show you the price of a pint.
+            <strong>No account needed to look.</strong>{" "}We don&rsquo;t ask who
+            you are to show you the price of a pint.
           </li>
           <li>
             <strong>Analytics are off until you switch them on.</strong>{" "}On
@@ -76,7 +76,7 @@ export default function PrivacyPage() {
           </li>
           <li>
             <strong>Your nights are yours.</strong>{" "}Night Memories and private
-            plans are not public unless you choose to share them.
+            plans aren&rsquo;t public unless you choose to share them.
           </li>
         </ul>
       </section>
@@ -88,16 +88,15 @@ export default function PrivacyPage() {
           UK. There is no company behind it yet, so for UK GDPR purposes the
           data controller is that individual, reachable at{" "}
           <a href={CONTACT_MAILTO} className="legalLink">{CONTACT_EMAIL}</a>. We
-          have not appointed a Data Protection Officer, because at this size the
-          law doesn&rsquo;t require one. Mail to that address reaches a person,
-          not a queue.
+          don&rsquo;t have a Data Protection Officer, because at this size the law
+          doesn&rsquo;t call for one.
         </p>
       </section>
 
       <section className="legalSection" aria-labelledby="collect">
         <h2 id="collect" className="legalH2">What we collect</h2>
 
-        <h3 className="legalH3">If you just browse</h3>
+        <h3 className="legalH3">If you browse</h3>
         <p className="legalBody">
           Nothing you type, and no account. Our hosting provider records the
           ordinary technical detail every web server sees when it serves a page:
@@ -114,7 +113,7 @@ export default function PrivacyPage() {
           Google or Apple sign-in. That means we hold your email address. You
           must choose one public handle, which is linked to your authenticated
           account and is the only identity shown with contributions. Handle
-          is required to finish signup. Date of birth is required to finish signup
+          is needed to finish signup. Date of birth is needed to finish signup
           too. Full name and sex are optional. We collect and store date of
           birth, full name and sex as private account details for product analytics and
           social features. They are never shown on prices,
@@ -127,7 +126,7 @@ export default function PrivacyPage() {
           Deleting your profile removes these private identity fields and clears its
           editable public details. That action keeps your authentication account,
           public handle and handle-keyed contribution history. You can
-          ask us to delete other account data. We do not use date of birth to
+          ask us to delete other account data. We don&rsquo;t use date of birth to
           block an account or contribution.
         </p>
         <p className="legalBody">
@@ -151,14 +150,14 @@ export default function PrivacyPage() {
         <p className="legalBody">
           Attribution works only during that sign-up. A delayed return, a
           different browser or device, an invalid link, or signing into an
-          existing account is not attributed. We don&rsquo;t guess when the
+          existing account isn&rsquo;t attributed. We don&rsquo;t guess when the
           same-journey proof is absent.
         </p>
         <p className="legalBody">
-          A referral is not qualified by signup alone. It needs the new account
+          A referral isn&rsquo;t qualified by signup alone. It needs the new account
           to make its first accepted contribution. We keep append-only milestone
           records so later decisions can be explained. Those milestone records
-          do not grant paid features today, because sign-in does not prove that
+          don&rsquo;t grant paid features today, because sign-in doesn&rsquo;t prove that
           one person has only one account.
         </p>
 
@@ -173,7 +172,7 @@ export default function PrivacyPage() {
         </p>
         <p className="legalBody">
           A Recommendation is your short opinion that one pub suits one kind of
-          weather, so it is posted under a name. We store your public PUBMAXX
+          weather, so it&rsquo;s posted under a name. We store your public PUBMAXX
           handle, the pub, the single condition you picked from warm, clear
           skies, raining, cold and windy, the reason you wrote, the time our
           server took it, and the same opaque device token described below. The
@@ -191,7 +190,7 @@ export default function PrivacyPage() {
 
         <h3 className="legalH3">Community price submissions</h3>
         <p className="legalBody">
-          Logging tonight&rsquo;s price requires a signed-in account, a claimed
+          Logging tonight&rsquo;s price needs a signed-in account, a claimed
           handle and completed private profile. We store the venue, drink
           category, price and time, plus the account&rsquo;s stable private
           profile key and current public handle. The server derives both contribution
@@ -202,7 +201,7 @@ export default function PrivacyPage() {
         </p>
         <p className="legalBody">
           The private profile key exists so one account can replace its own
-          earlier entry instead of stacking duplicates, and cannot confirm
+          earlier entry instead of stacking duplicates, and can&rsquo;t confirm
           itself by changing devices or handles. Legacy contributions made
           under a self-declared handle stay with that profile when the first
           authenticated account claims it. Older rows that had no handle remain
@@ -215,18 +214,18 @@ export default function PrivacyPage() {
           The public contributor record ranks existing public profiles by
           contributions tied to that identity: visible prices posted, Visit
           Reports written and Recommendations made, added together across all
-          time. Named Visit Reports and Recommendations that do not resolve to
+          time. Named Visit Reports and Recommendations that don&rsquo;t resolve to
           an existing public profile can remain visible on their posts but are
           excluded from this identity-backed ranking. It shows the combined
           total and each of those three counts. Hidden or taken-down
-          contributions do not count. Older price logs with no handle never
+          contributions don&rsquo;t count. Older price logs with no handle never
           appear under a name.
         </p>
         <p className="legalBody">
           We also keep whether a price was corroborated, whether a contribution
           survived moderation and whether a price was later contradicted. Those
           signals are kept so the record can be made more useful later without
-          losing its history. They do not change today&rsquo;s ranking, which is
+          losing its history. They don&rsquo;t change today&rsquo;s ranking, which is
           based only on how many identity-backed, visible contributions a
           profile has made.
         </p>
@@ -239,7 +238,7 @@ export default function PrivacyPage() {
           venue, answer and time, plus the same stable private profile key used
           for community prices. It lets your newer answer replace your older
           one and keeps one account from confirming itself.
-          Venue reports do not enter the public contributor record, and the
+          Venue reports don&rsquo;t enter the public contributor record, and the
           private key is never shown.
         </p>
 
@@ -287,7 +286,7 @@ export default function PrivacyPage() {
             saved in your browser into that public area&rsquo;s coarse centre and
             send the centre to <code>/api/whats-on</code>. Today rounds the same
             kind of centre before sending it to
-            {" "}<code>/api/tfl-disruption</code>. The saved choice itself is not
+            {" "}<code>/api/tfl-disruption</code>. The saved choice itself isn&rsquo;t
             uploaded.
           </li>
         </ul>
@@ -300,9 +299,9 @@ export default function PrivacyPage() {
         <p className="legalBody">
           Usage analytics are off by default. A small prompt asks on your first
           visit, with Allow and No thanks both one tap. The browser remembers
-          that choice so the prompt does not return on every visit.
+          that choice so the prompt doesn&rsquo;t return on every visit.
           If you allow analytics, you can turn them back off later under
-          <strong> Anonymous usage analytics</strong>{" "}in your PUBMAXX
+          <strong> Optional usage analytics</strong>{" "}in your PUBMAXX
           account settings. While they&rsquo;re on:
         </p>
         <ul className="legalList">
@@ -310,7 +309,7 @@ export default function PrivacyPage() {
             We create a persistent device identifier in your browser so page
             loads and later visits from that browser count as the same device.
             PostHog uses it for unique-user and retention analysis and keeps
-            pseudonymous person and device records. We do not identify that
+            pseudonymous person and device records. We don&rsquo;t identify that
             record with your PUBMAXX account, handle or email.
           </li>
           <li>
@@ -325,7 +324,7 @@ export default function PrivacyPage() {
             Product actions still come from a closed, named list, such as a plan
             being accepted, with allow-listed simple values. Our server
             re-checks every product event and its browser context against the
-            same rules and drops anything it does not recognise.
+            same rules and drops anything it doesn&rsquo;t recognise.
           </li>
           <li>
             For crash reporting, the browser analytics SDK sends the crash type
@@ -336,10 +335,10 @@ export default function PrivacyPage() {
           </li>
           <li>
             Analytics requests go through pubmaxxing.com rather than straight to
-            the provider. The first-party browser proxy does not forward
+            the provider. The first-party browser proxy doesn&rsquo;t forward
             cookies or sign-in headers. For named product events, the server
             passes the request user agent and raw IP address to PostHog along
-            with the validated referrer and screen context. PUBMAXX does not
+            with the validated referrer and screen context. PUBMAXX doesn&rsquo;t
             put that raw IP address in its own logs or database; its own rate
             limit keeps only a salted hash.
           </li>
@@ -357,7 +356,7 @@ export default function PrivacyPage() {
         <h3 className="legalH3">Things that aren&rsquo;t about you</h3>
         <p className="legalBody">
           Pub locations, opening hours, heritage facts, scraped and sourced
-          prices, and the weather all come from public data. None of it is
+          prices, and the weather all come from public data. None of it&rsquo;s
           personal data, and requests for it are made by our server, not by
           your browser.
         </p>
@@ -394,7 +393,7 @@ export default function PrivacyPage() {
         <h2 id="cookies" className="legalH2">Cookies and what sits on your device</h2>
         <p className="legalBody">
           We don&rsquo;t use advertising or cross-site tracking cookies, and
-          there is no ad network on the site. What we do keep in your own
+          there&rsquo;s no ad network on the site. What we do keep in your own
           browser storage:
         </p>
         <ul className="legalList">
@@ -403,7 +402,7 @@ export default function PrivacyPage() {
             in your browser and refreshes in the background.
           </li>
           <li>
-            Your analytics choice, either allowed or denied, so we do not ask on
+            Your analytics choice, either allowed or denied, so we don&rsquo;t ask on
             every visit. Until you tap Allow, no analytics identifier exists.
             After you allow it, the persistent device identifier is kept in
             browser storage and a first-party cookie so later visits remain one
@@ -438,14 +437,14 @@ export default function PrivacyPage() {
             <dt>Supabase</dt>
             <dd>
               Database, sign-in and file storage, on their EU region. Holds your
-              account, your posts and your community observation rows.
+              account, your posts and your community price and venue report rows.
             </dd>
           </div>
           <div className="legalRow">
             <dt>Vercel</dt>
             <dd>
               Hosting and CDN. Serves every page, and keeps short-lived request
-              logs that include IP addresses. Also provides the pageview counter
+              logs that include IP addresses. Also runs the pageview counter
               that stays disabled until you consent to analytics.
             </dd>
           </div>
@@ -521,7 +520,7 @@ export default function PrivacyPage() {
         <p className="legalBody">
           We don&rsquo;t sell personal data, and we don&rsquo;t share it with
           advertisers or data brokers. We&rsquo;ll only hand something over to
-          authorities if we&rsquo;re legally required to.
+          authorities if the law tells us to.
         </p>
       </section>
 
@@ -536,16 +535,16 @@ export default function PrivacyPage() {
           <li>
             <strong>Community prices and venue reports:</strong>{" "}the report
             itself stays, so later readers can see what people said and when.
-            A row is one observation: the venue, either a drink and its price
-            or one venue answer from a fixed list, the date and the private
-            profile key. Price attribution stays with the row while it is up
+            Each row records the venue, either a drink and its price or one
+            venue answer from a fixed list, the date and the private profile
+            key. Price attribution stays with the row while it is up
             and counts on the public contributor record. Legacy rows may
             instead contain an unreversible device token or no public handle.
           </li>
           <li>
             <strong>Recommendations:</strong>{" "}a Recommendation keeps your
             handle on it for as long as it is up, because an opinion with no
-            name on it is not one. Writing another for the same pub and
+            name on it isn&rsquo;t one. Writing another for the same pub and
             condition replaces the one you already had. There is no one-tap
             delete for a single Recommendation yet, so ask us and we&rsquo;ll
             take it down, the same as anything else you posted.
@@ -577,10 +576,10 @@ export default function PrivacyPage() {
             <strong>Referral records:</strong>{" "}the private invite code,
             account-to-account edge, first accepted contribution marker and
             milestone records stay until either account is deleted. Ordinary
-            product writes can only append that history. A verified account
+            product writes can only append that history. A confirmed account
             deletion removes the private referral data tied to that account.
             We retain only a one-way hash of the deleted account ID in the
-            referral system so an existing session cannot recreate those
+            referral system so an existing session can&rsquo;t recreate those
             records.
           </li>
         </ul>
@@ -598,7 +597,7 @@ export default function PrivacyPage() {
           Email{" "}
           <a href={CONTACT_MAILTO} className="legalLink">{CONTACT_EMAIL}</a>{" "}
           and say what you want. We&rsquo;ll reply within 30 days, and it
-          doesn&rsquo;t cost anything. If we can&rsquo;t verify that the account
+          doesn&rsquo;t cost anything. If we can&rsquo;t confirm that the account
           is yours we&rsquo;ll say so rather than hand your data to someone else.
         </p>
         <p className="legalBody">
@@ -619,7 +618,7 @@ export default function PrivacyPage() {
       <section className="legalSection" aria-labelledby="age">
         <h2 id="age" className="legalH2">Age and access</h2>
         <p className="legalBody">
-          PUBMAXX does not block accounts or contributions based on age. Pubs
+          PUBMAXX doesn&rsquo;t block accounts or contributions based on age. Pubs
           remain responsible for deciding who they serve.
         </p>
       </section>

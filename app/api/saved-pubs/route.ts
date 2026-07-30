@@ -81,7 +81,7 @@ export async function POST(request: Request): Promise<Response> {
   // it appears in the pick-UI before it has any saves. Rate-limited like saves.
   if (readString(body.action) === "createList") {
     const name = cleanListType(body.name ?? body.listType);
-    if (!name) return jsonNoStore({ error: "A list name is required." }, { status: 400 });
+    if (!name) return jsonNoStore({ error: "Add a list name." }, { status: 400 });
     if (await isLimited(`lists:${ownership.handle}`, `lists:${hashIp(clientIp(request))}`)) {
       return jsonNoStore({ error: "Too many lists, slow down." }, { status: 429 });
     }
@@ -90,11 +90,11 @@ export async function POST(request: Request): Promise<Response> {
   }
 
   const venueId = (readString(body.venueId) ?? "").slice(0, MAX_VENUE_ID);
-  if (!venueId) return jsonNoStore({ error: "A venue is required." }, { status: 400 });
+  if (!venueId) return jsonNoStore({ error: "Choose a venue." }, { status: 400 });
 
   const listType = cleanListType(body.listType);
   if (!listType) {
-    return jsonNoStore({ error: "A list name is required." }, { status: 400 });
+    return jsonNoStore({ error: "Add a list name." }, { status: 400 });
   }
   const venue = await resolveVenue(venueId);
   if (!isListTypeEligibleForVenue(listType, venue?.kind)) {

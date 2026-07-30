@@ -72,12 +72,12 @@ export async function POST(request: Request): Promise<Response> {
   const query = typeof record.query === "string" ? record.query.trim().slice(0, MAX_QUERY_LENGTH) : "";
   const directIntent = record.intent === undefined ? null : providedIntent(record.intent);
   if (!query && !directIntent) {
-    return jsonNoStore({ error: record.intent === undefined ? "query or intent is required." : "intent is invalid." }, { status: 400 });
+    return jsonNoStore({ error: record.intent === undefined ? "Ask a question or choose an option." : "Choose a valid option." }, { status: 400 });
   }
 
   const rawCity = typeof record.cityId === "string" ? record.cityId : undefined;
   const cityId = rawCity ? parseCityId(rawCity) : DEFAULT_CITY_ID;
-  if (!cityId) return jsonNoStore({ error: "cityId is invalid." }, { status: 400 });
+  if (!cityId) return jsonNoStore({ error: "Choose a listed city." }, { status: 400 });
 
   const limiterKey = `concierge:${hashIp(clientIp(request))}`;
   // Fail CLOSED: concierge calls a paid LLM. If the durable limiter can't
@@ -128,7 +128,7 @@ export async function POST(request: Request): Promise<Response> {
           area: whatsOnQuery.area ?? null,
           count: 0,
           listings: [],
-          message: "I couldn't load the verified What's-On data just now, so I won't make anything up.",
+          message: "I couldn't load sourced listings just now.",
           asOf: new Date().toISOString(),
         },
         { status: 503 },
@@ -180,7 +180,7 @@ export async function POST(request: Request): Promise<Response> {
       intent: directIntent ?? { mood: [], groupSize: 2 },
       intentSource: directIntent ? "provided" : "deterministic",
       venues: [],
-      message: "I couldn't load grounded venue options just now, so I won't make any up.",
+      message: "I couldn't load listed venue options.",
     });
   }
 }

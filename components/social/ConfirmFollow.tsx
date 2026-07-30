@@ -42,7 +42,7 @@ export default function ConfirmFollow({ targetHandle }: { targetHandle: string }
 
   async function addToLot() {
     if (!myHandle) {
-      setError("Set a handle first. Drop a pint to claim one.");
+      setError("Choose a handle in your account first.");
       setState("error");
       return;
     }
