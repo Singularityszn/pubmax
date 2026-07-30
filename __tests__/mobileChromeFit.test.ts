@@ -50,6 +50,9 @@ describe("mobile chrome fit at 390px", () => {
     expect(globalCss).not.toMatch(
       /body:has\(\.mobilePlanActivation\) \.analyticsConsentPrompt\s*{[^}]*(?:display:\s*none|opacity:\s*0)/,
     );
+    expect(mobileMapCss).toMatch(
+      /body:has\(\.analyticsConsentPrompt\) \.appShell \.mapStage \.maplibregl-ctrl-bottom-right\s*{[^}]*bottom:\s*calc\(var\(--mobile-map-dock-clearance\) \+ 198px\)/,
+    );
   });
 
   it("tightens the map control rail so all three chips clear the viewport", () => {

@@ -76,6 +76,13 @@
     bottom: calc(var(--mobile-map-dock-clearance) + 68px);
   }
 
+  body:has(.analyticsConsentPrompt) .appShell .mapStage .maplibregl-ctrl-bottom-right {
+    /* Keep the expandable OSM credit above the honest first-visit disclosure.
+       At 390px the notice occupies 577.88..698px; this places the measured
+       40px credit group at 530..570px instead of beneath it at 660..700px. */
+    bottom: calc(var(--mobile-map-dock-clearance) + 198px);
+  }
+
   .appShell .mapStage .maplibregl-ctrl-attrib.maplibregl-compact {
     box-sizing: border-box;
     max-width: calc(100vw - 24px);
