@@ -21,7 +21,7 @@ Viewports: 390x844 mobile with touch emulation; 1440x900 desktop
 | 2. Map and key | Pass | Fail |
 | 3. Venue sheet | Fail | Fail |
 | 4. Filter | Fail | Fail |
-| 5. Plan | Pending | Pending |
+| 5. Plan | Pass to read-only boundary | Pass to read-only boundary |
 | 6. Contribute price | Pending | Pending |
 | 7. Discover, Today, Tonight | Pending | Pending |
 | 8. Map credit and privacy | Pending | Pending |
@@ -146,7 +146,35 @@ Capture: [`04-filter-desktop.png`](04-filter-desktop.png)
 
 ## 5. Open Plan signed out
 
-Pending.
+**What I did**
+
+- Opened `https://pubmaxxing.com/plan` signed out.
+- Used `Describe instead` to skip optional five-step intake without entering personal data.
+- Selected built-in `Cheap round` prompt. This only filled local draft fields.
+- Stopped before enabled `Plan my night`, because next action sends a POST generation request and brief requires live site remain read-only.
+
+**390x844 - Pass to read-only boundary**
+
+No authentication stop appeared. Plan explained that three stops can be reviewed and changed, one link can be opened by crew without an account, and preview remains private until locked. `Cheap round` populated `deal nights and cheap pints tonight in Victoria`, changed title to `Cheap round tonight`, and enabled `Plan my night`. No field was obscured or unreachable while scrolling.
+
+Capture: [`05-plan-mobile.png`](05-plan-mobile.png)
+
+**1440x900 - Pass to read-only boundary**
+
+Same flow and state. Page stayed centred, fields and enabled action were readable, and no sign-in gate interrupted planning.
+
+Capture: [`05-plan-desktop.png`](05-plan-desktop.png)
+
+**Where it stopped**
+
+Product did not stop signed-out visitor before route generation. Smoke stopped at enabled `Plan my night` to honour read-only constraint. Route generation, anonymous link creation, and Plan-to-Round were not claimed as working because they were not submitted or seen.
+
+**Diagnostics**
+
+- Main document: HTTP 200 at both widths.
+- Console errors and warnings: none.
+- Failed requests: mobile logged six and desktop logged six aborted speculative Next.js RSC prefetches. No HTTP 4xx/5xx.
+- POST requests: none.
 
 ## 6. Try to contribute a price signed out
 
