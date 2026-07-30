@@ -1,7 +1,5 @@
 import { X } from "lucide-react";
 
-import { truncateBandCopy } from "@/lib/bandOnboardingChip";
-
 // G3: Place story deep-link chip — corridor title + one-line copy when `?band=`
 // resolves. Global CSS (bandOnboardingChip) is already imported by PubMap.
 // Extracted verbatim from PubMap (F1); the showBandChip/activeBand guard stays
@@ -21,7 +19,7 @@ export function BandOnboardingChip({
     <div className="bandOnboardingChip" role="status" aria-live="polite">
       <div>
         <strong>{title}</strong>
-        <span>{truncateBandCopy(copy)}</span>
+        <span>{copy}</span>
       </div>
       <button type="button" onClick={onWalkStory}>
         Walk this story

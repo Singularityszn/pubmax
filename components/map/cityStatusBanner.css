@@ -92,9 +92,8 @@ a.cityStatusBannerLink:hover {
   display: inline-block;
   min-width: 0;
   max-width: 100%;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  overflow-wrap: break-word;
+  white-space: normal;
   font-size: 0.76rem;
   font-weight: 700;
   color: var(--ink);
@@ -140,7 +139,7 @@ a.cityStatusBannerLink:hover {
     transform: none;
   }
   .cityStatusBannerCopy { display: none; }
-  .cityStatusBannerMobileCopy { display: inline; overflow: hidden; text-overflow: ellipsis; color: var(--ink); font-size: .72rem; font-weight: 750; white-space: nowrap; }
+  .cityStatusBannerMobileCopy { display: inline; color: var(--ink); font-size: .72rem; font-weight: 750; white-space: nowrap; }
   .cityStatusBannerDismiss { display: none; }
 
 }

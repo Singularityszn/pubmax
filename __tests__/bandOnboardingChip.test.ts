@@ -1,10 +1,12 @@
+import { createElement } from "react";
+import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 
+import { BandOnboardingChip } from "@/components/map/pubmap/BandOnboardingChip";
 import {
   bandChipDismissedKey,
   shouldShowBandOnboardingChip,
   shouldShowCuratedOnboarding,
-  truncateBandCopy,
 } from "@/lib/bandOnboardingChip";
 
 describe("bandChipDismissedKey", () => {
@@ -19,18 +21,20 @@ describe("bandChipDismissedKey", () => {
   });
 });
 
-describe("truncateBandCopy", () => {
-  it("returns short copy unchanged", () => {
-    expect(truncateBandCopy("A short corridor.")).toBe("A short corridor.");
-  });
+describe("BandOnboardingChip copy", () => {
+  it("renders a condition through its closing qualifier", () => {
+    const copy =
+      "The riverside route uses listed venues only. Opening hours still vary, so check each pub before setting off.";
+    const html = renderToStaticMarkup(
+      createElement(BandOnboardingChip, {
+        title: "Riverside story",
+        copy,
+        onWalkStory: () => undefined,
+        onDismiss: () => undefined,
+      }),
+    );
 
-  it("truncates long copy on a word boundary with an ellipsis", () => {
-    const long =
-      "The Thames was London's first high street, and the oldest riverside pubs still lean over the water where watermen drank.";
-    const out = truncateBandCopy(long, 64);
-    expect(out.endsWith("…")).toBe(true);
-    expect(out.length).toBeLessThanOrEqual(64);
-    expect(out).not.toContain("  ");
+    expect(html).toContain(copy);
   });
 });
 

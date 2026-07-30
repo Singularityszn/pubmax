@@ -10,16 +10,6 @@ export function bandChipDismissedKey(bandId: string): string {
   return `${BAND_CHIP_DISMISSED_KEY_PREFIX}:${bandId}`;
 }
 
-/** One short line for the chip; ellipsis when the band copy runs long. */
-export function truncateBandCopy(copy: string, maxChars = 96): string {
-  const trimmed = copy.trim().replace(/\s+/g, " ");
-  if (trimmed.length <= maxChars) return trimmed;
-  const cut = trimmed.slice(0, Math.max(1, maxChars - 1));
-  const lastSpace = cut.lastIndexOf(" ");
-  const base = lastSpace > Math.floor(maxChars * 0.4) ? cut.slice(0, lastSpace) : cut;
-  return `${base.replace(/[.,;:\s]+$/u, "")}…`;
-}
-
 export function shouldShowBandOnboardingChip(input: {
   loaded: boolean;
   activeBandId: string;

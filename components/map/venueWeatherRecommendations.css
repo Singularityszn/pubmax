@@ -238,7 +238,7 @@
 
 .weatherRecField input::placeholder,
 .weatherRecField textarea::placeholder {
-  color: color-mix(in srgb, var(--ink-soft) 52%, transparent);
+  color: var(--input-placeholder);
   font-weight: 550;
 }
 

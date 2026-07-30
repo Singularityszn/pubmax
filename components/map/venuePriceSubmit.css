@@ -201,7 +201,7 @@
 }
 
 .vpsubInput::placeholder {
-  color: color-mix(in srgb, var(--ink-soft) 45%, transparent);
+  color: var(--input-placeholder);
   font-weight: 600;
 }
 

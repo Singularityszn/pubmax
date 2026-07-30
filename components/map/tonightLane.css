@@ -68,12 +68,11 @@
 
 .tonightLaneCollapsedChecked {
   min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  overflow-wrap: break-word;
   color: var(--muted);
   font-size: 0.65rem;
   font-weight: 650;
-  white-space: nowrap;
+  white-space: normal;
 }
 
 .tonightLane--open {
@@ -429,10 +428,7 @@
   font-weight: 700;
   line-height: 1.2;
   color: var(--ink);
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
+  overflow-wrap: break-word;
 }
 
 .tonightLaneCardPlace {
@@ -466,9 +462,8 @@
   margin: 0;
   font-size: 0.62rem;
   color: var(--muted);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  overflow-wrap: break-word;
+  white-space: normal;
 }
 
 .tonightLanePlan {

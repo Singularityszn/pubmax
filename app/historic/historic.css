@@ -290,12 +290,7 @@
   font-size: 0.85rem;
   line-height: 1.45;
   color: var(--ink-soft);
-  /* Clamp to ~2 lines; the full sentence lives one tap away on the source. */
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
+  overflow-wrap: break-word;
 }
 
 .historicProvenance {

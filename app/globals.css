@@ -88,6 +88,7 @@
   --color-text: var(--ink);
   --color-text-soft: var(--ink-soft);
   --color-text-muted: var(--muted);
+  --input-placeholder: var(--muted);
   --color-border: var(--line);
   --color-border-soft: var(--line-soft);
 
@@ -404,6 +405,12 @@ body {
   color: var(--ink);
   font-family: var(--font-body);
   -webkit-font-smoothing: antialiased;
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: var(--input-placeholder);
+  opacity: 1;
 }
 
 /* ── Light DOM surface remap (color-v2) ─────────────────────────────────────
@@ -1199,8 +1206,7 @@ input[type="range"] {
   min-width: 0;
 }
 
-.bandOnboardingChip strong,
-.bandOnboardingChip span {
+.bandOnboardingChip strong {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -1214,6 +1220,8 @@ input[type="range"] {
   color: var(--muted);
   font-size: 0.72rem;
   font-weight: 700;
+  overflow-wrap: break-word;
+  white-space: normal;
 }
 
 .bandOnboardingChip button {
@@ -2909,11 +2917,7 @@ input[type="range"] {
   font-size: 0.8rem;
   line-height: 1.5;
   color: var(--ink-soft);
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
+  overflow-wrap: break-word;
 }
 
 .mapHeroVisit {
