@@ -5,6 +5,10 @@ import { describe, expect, it } from "vitest";
 
 const ROOT = process.cwd();
 const API_ROOT = join(ROOT, "app/api");
+const CERTIFICATION = readFileSync(
+  join(ROOT, "docs/WRITE_SURFACE_CERTIFICATION.md"),
+  "utf8",
+);
 // Mutating handlers are exported either as `export async function POST` or, when
 // wrapped by an observation seam like `withRouteTiming`, as `export const POST =
 // …`. Both forms must stay certified.
@@ -46,6 +50,28 @@ const mutationRoutes = routeFiles(API_ROOT)
   .filter(({ source }) => MUTATION_EXPORT.test(source));
 
 describe("mutating API surface certification", () => {
+  it("documents account-derived Visit Report and Recommendation identity", () => {
+    const visitReports = CERTIFICATION.match(
+      /### `app\/api\/visit-reports`[\s\S]*?(?=\n### )/,
+    )?.[0] ?? "";
+    const recommendations = CERTIFICATION.match(
+      /### `app\/api\/weather-recommendations`[\s\S]*?(?=\n### |\s*$)/,
+    )?.[0] ?? "";
+
+    expect(visitReports).toMatch(
+      /authenticated\s+account's immutable profile id/,
+    );
+    expect(visitReports).toMatch(
+      /visit-report:\$\{contributor\.actor\}:\$\{ipHash\}/,
+    );
+    expect(visitReports).not.toMatch(/per-handle|self-asserted handle/);
+    expect(recommendations).toMatch(
+      /authenticated account's\s+immutable profile id/,
+    );
+    expect(recommendations).toMatch(/profile-based actor/);
+    expect(recommendations).not.toMatch(/Keyless development|asserted handle/);
+  });
+
   it("keeps the reviewed inventory explicit", () => {
     // 72 = the Wave 0 inventory of 60 + the email-capture POST
     // (app/api/email-subscribers/route.ts, merged) + push-tokens (native shell
@@ -78,8 +104,8 @@ describe("mutating API surface certification", () => {
     // verb and is not counted. The reader-side FLAG shares the existing
     // price-submit POST rather than adding a route. Plus the authored weather
     // Recommendation POST (app/api/weather-recommendations/route.ts,
-    // fm/weather-recommendations): handle-attributed opinion, server-derived
-    // actor, closed weather vocabulary, and two rate-limit tiers. Its sibling
+    // fm/weather-recommendations): account-derived handle and profile actor,
+    // closed weather vocabulary, and two rate-limit tiers. Its sibling
     // GET is read-only and is not counted. This literal is the
     // + two private referral writes: account-gated invite-link creation and
     // signup-only attribution claim. Neither accepts an account id from the

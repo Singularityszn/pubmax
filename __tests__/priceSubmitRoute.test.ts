@@ -19,7 +19,21 @@ vi.mock("@/lib/supabase", async (importOriginal) => {
 const authState = vi.hoisted(() => ({ userId: null as string | null }));
 vi.mock("@/lib/authServer", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/authServer")>();
-  return { ...actual, callerUserId: async () => authState.userId };
+  return {
+    ...actual,
+    callerUserId: async () => authState.userId,
+    verifyCallerAuth: async () =>
+      authState.userId
+        ? {
+            status: "verified" as const,
+            identity: {
+              id: authState.userId,
+              email: null,
+              createdAt: null,
+            },
+          }
+        : { status: "absent" as const },
+  };
 });
 
 // Lets one case simulate the requested city pack failing to load; every other

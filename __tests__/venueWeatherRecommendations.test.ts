@@ -1,12 +1,41 @@
+import { readFileSync } from "node:fs";
+import path from "node:path";
+
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import VenueWeatherRecommendations, {
   WeatherRecommendationList,
   readWeatherRecommendationVenueLoad,
 } from "@/components/map/VenueWeatherRecommendations";
 import type { WeatherRecommendation } from "@/lib/weatherRecommendations";
+
+const authState = vi.hoisted(() => ({
+  user: { id: "account-1" } as { id: string } | null,
+  session: {
+    access_token: "session-token",
+    user: { id: "account-1" },
+  } as { access_token: string; user: { id: string } } | null,
+  handle: "night_owl" as string | null,
+}));
+
+vi.mock("@/components/auth/AuthProvider", () => ({
+  useAuth: () => ({
+    user: authState.user,
+    session: authState.session,
+    handle: authState.handle,
+  }),
+}));
+
+beforeEach(() => {
+  authState.user = { id: "account-1" };
+  authState.session = {
+    access_token: "session-token",
+    user: { id: "account-1" },
+  };
+  authState.handle = "night_owl";
+});
 
 function recommendation(
   overrides: Partial<WeatherRecommendation> = {},
@@ -119,6 +148,38 @@ describe("WeatherRecommendationList", () => {
 });
 
 describe("VenueWeatherRecommendations", () => {
+  it("keeps Recommendation drafts account-scoped and rejects expired sessions", () => {
+    const source = readFileSync(
+      path.join(
+        process.cwd(),
+        "components/map/VenueWeatherRecommendations.tsx",
+      ),
+      "utf8",
+    );
+
+    expect(source).toContain("useAccountScopedDraft");
+    expect(source).toContain("accountComposerAuth");
+    expect(source).toContain("rejectedContributionAuth");
+    expect(source).not.toContain("setRejectedAuth");
+  });
+
+  it("asks a signed-out visitor to sign in before rendering authoring fields", () => {
+    authState.user = null;
+    authState.session = null;
+    authState.handle = null;
+
+    const html = renderToStaticMarkup(
+      createElement(VenueWeatherRecommendations, {
+        venueId: "venue-1",
+        venueName: "The Crown",
+      }),
+    );
+
+    expect(html).toContain("Sign in to contribute");
+    expect(html).not.toContain('name="condition"');
+    expect(html).not.toContain('name="reason"');
+  });
+
   it("renders the five-condition authoring flow with labelled bounded fields", () => {
     const html = renderToStaticMarkup(
       createElement(VenueWeatherRecommendations, {
@@ -128,15 +189,12 @@ describe("VenueWeatherRecommendations", () => {
     );
 
     expect(html).toContain('role="radiogroup"');
-    expect((html.match(/type="radio"/g) ?? [])).toHaveLength(5);
-    expect((html.match(/name="condition"/g) ?? [])).toHaveLength(5);
+    expect(html.match(/type="radio"/g) ?? []).toHaveLength(5);
+    expect(html.match(/name="condition"/g) ?? []).toHaveLength(5);
     expect(html).toContain("Clear skies");
-    expect(html).toContain('aria-label="Your Pubmaxx handle"');
-    expect(html).toContain('name="contributorHandle"');
-    expect(html).toContain('maxLength="30"');
-    expect(html).toContain(
-      'aria-label="Why The Crown suits this weather"',
-    );
+    expect(html).not.toContain('name="contributorHandle"');
+    expect(html).not.toContain("Your Pubmaxx handle");
+    expect(html).toContain('aria-label="Why The Crown suits this weather"');
     expect(html).toContain('name="reason"');
     expect(html).toContain('maxLength="160"');
     expect(html).toContain("Recommend it");

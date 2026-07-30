@@ -1,4 +1,4 @@
-import { callerUserId } from "@/lib/authServer";
+import { verifyCallerAuth } from "@/lib/authServer";
 import { identityHandleStore } from "@/lib/identityHandleStore";
 import { privateIdentityStore } from "@/lib/privateIdentityStore";
 import { profileStore } from "@/lib/profileStore";
@@ -15,7 +15,9 @@ export type ContributionIdentityResolution =
       accountId?: string;
       body: {
         status?: "sign_in_required" | "onboarding_required";
+        code?: "AUTH_VERIFICATION_UNAVAILABLE";
         error: string;
+        retryable?: true;
       };
       httpStatus: 401 | 409 | 503;
     };
@@ -23,14 +25,29 @@ export type ContributionIdentityResolution =
 export async function resolveContributionIdentity(
   request: Request,
 ): Promise<ContributionIdentityResolution> {
-  const userId = await callerUserId(request);
-  if (!userId) {
+  const verification = await verifyCallerAuth(request);
+  if (
+    verification.status === "absent" ||
+    verification.status === "invalid"
+  ) {
     return {
       ok: false,
       body: { status: "sign_in_required", error: "Sign in to contribute." },
       httpStatus: 401,
     };
   }
+  if (verification.status === "unavailable") {
+    return {
+      ok: false,
+      body: {
+        code: "AUTH_VERIFICATION_UNAVAILABLE",
+        error: "Sign-in verification is unavailable right now. Try again.",
+        retryable: true,
+      },
+      httpStatus: 503,
+    };
+  }
+  const userId = verification.identity.id;
   try {
     const [profile, privateIdentity] = await Promise.all([
       profileStore().getByUserId(userId),

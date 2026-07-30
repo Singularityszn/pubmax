@@ -1,15 +1,64 @@
 import { readFileSync } from "node:fs";
 import path from "node:path";
 
-import { describe, expect, it } from "vitest";
+import { createElement } from "react";
+import { renderToStaticMarkup } from "react-dom/server";
+import { describe, expect, it, vi } from "vitest";
+
+import VisitReportPanel, {
+  visitReportComposerMode,
+} from "@/components/visits/VisitReportPanel";
+
+const authState = vi.hoisted(() => ({
+  user: null as { id: string } | null,
+  session: null as { access_token: string; user: { id: string } } | null,
+}));
+
+vi.mock("@/components/auth/AuthProvider", () => ({
+  useAuth: () => ({
+    user: authState.user,
+    session: authState.session,
+  }),
+}));
 
 function source(relative: string): string {
   return readFileSync(path.join(process.cwd(), relative), "utf8");
 }
 
 describe("Visit Report venue surface", () => {
+  it("closes authoring fields when an open composer loses its account", () => {
+    expect(visitReportComposerMode(true, "account-1")).toBe("open");
+    expect(visitReportComposerMode(true, null)).toBe("sign_in_required");
+  });
+
+  it("keeps Visit Report drafts account-scoped and rejects expired sessions", () => {
+    const panel = source("components/visits/VisitReportPanel.tsx");
+
+    expect(panel).toContain("useAccountScopedDraft");
+    expect(panel).toContain("accountComposerAuth");
+    expect(panel).toContain("rejectedContributionAuth");
+    expect(panel).not.toContain("setRejectedAuth");
+  });
+
+  it("asks a signed-out visitor to sign in before mounting any report fields", () => {
+    authState.user = null;
+    authState.session = null;
+
+    const html = renderToStaticMarkup(
+      createElement(VisitReportPanel, {
+        venueId: "venue-1",
+        venueName: "The Crown",
+      }),
+    );
+
+    expect(html).toContain("Sign in to contribute");
+    expect(html).not.toContain('type="date"');
+    expect(html).not.toContain("<textarea");
+  });
+
   it("ships one dated, bounded composer and individual report actions", () => {
     const panel = source("components/visits/VisitReportPanel.tsx");
+    const client = source("components/visits/visitReportsClient.ts");
 
     expect(panel).toContain('type="date"');
     expect(panel).toContain("MAX_VISIT_NOTE");
@@ -18,6 +67,8 @@ describe("Visit Report venue surface", () => {
     expect(panel).toContain("visitedAt");
     expect(panel).not.toContain("VisitReportSummary");
     expect(panel).not.toContain("summary");
+    expect(panel).not.toContain("visitReportHandle");
+    expect(client).not.toContain("handle: string");
   });
 
   it("mirrors the server's visit window in the composer rather than inventing one", () => {
@@ -44,7 +95,9 @@ describe("Visit Report venue surface", () => {
   it("mounts the shared lane in the map venue sheet", () => {
     const storyTab = source("components/map/inspector/VenueStoryTab.tsx");
 
-    expect(storyTab).toContain('import VisitReportPanel from "@/components/visits/VisitReportPanel"');
+    expect(storyTab).toContain(
+      'import VisitReportPanel from "@/components/visits/VisitReportPanel"',
+    );
     expect(storyTab).toContain("<VisitReportPanel");
   });
 
@@ -54,7 +107,9 @@ describe("Visit Report venue surface", () => {
 
     // A tab gate that UNMOUNTS discards a half-written account when the viewer
     // steps over to another tab, so the story tab passes the gate as a prop.
-    expect(storyTab).toMatch(/<VisitReportPanel[\s\S]*active=\{tab === "story"\}/);
+    expect(storyTab).toMatch(
+      /<VisitReportPanel[\s\S]*active=\{tab === "story"\}/,
+    );
     expect(storyTab).not.toMatch(/tab === "story" \? \(\s*<VisitReportPanel/);
     expect(panel).toContain("if (!active || requested.current) return;");
   });

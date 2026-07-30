@@ -1,13 +1,15 @@
 "use client";
 
-import { useCallback, useReducer } from "react";
+import {
+  useCallback,
+  useReducer,
+  useState,
+  type SetStateAction,
+} from "react";
 
 import { useAuth } from "@/components/auth/AuthProvider";
 import SignInButton from "@/components/auth/SignInButton";
-import {
-  captureAccountAuth,
-  type AccountAuthSnapshot,
-} from "@/lib/accountBoundFetch";
+import type { AccountAuthSnapshot } from "@/lib/accountBoundFetch";
 import { trackEvent } from "@/lib/analytics";
 
 import "./contributionGate.css";
@@ -84,6 +86,61 @@ type PendingContribution = (
   auth: AccountAuthSnapshot,
 ) => ContributionActionResult | Promise<ContributionActionResult>;
 
+export type AccountScopedDrafts<T> = Readonly<Record<string, T>>;
+
+export function readAccountScopedDraft<T>(
+  drafts: AccountScopedDrafts<T>,
+  accountId: string | null,
+  createDraft: () => T,
+): T | null {
+  if (!accountId) return null;
+  return drafts[accountId] ?? createDraft();
+}
+
+export function writeAccountScopedDraft<T>(
+  drafts: AccountScopedDrafts<T>,
+  accountId: string | null,
+  createDraft: () => T,
+  next: SetStateAction<T>,
+): AccountScopedDrafts<T> {
+  if (!accountId) return drafts;
+  const current = readAccountScopedDraft(drafts, accountId, createDraft);
+  if (!current) return drafts;
+  return {
+    ...drafts,
+    [accountId]:
+      typeof next === "function"
+        ? (next as (value: T) => T)(current)
+        : next,
+  };
+}
+
+export function useAccountScopedDraft<T>(
+  accountId: string | null,
+  createDraft: () => T,
+): readonly [T | null, (next: SetStateAction<T>) => void, () => void] {
+  const [drafts, setDrafts] = useState<AccountScopedDrafts<T>>({});
+  const draft = readAccountScopedDraft(drafts, accountId, createDraft);
+  const setDraft = useCallback(
+    (next: SetStateAction<T>) => {
+      setDrafts((current) =>
+        writeAccountScopedDraft(current, accountId, createDraft, next),
+      );
+    },
+    [accountId, createDraft],
+  );
+  const clearDraft = useCallback(() => {
+    if (!accountId) return;
+    setDrafts((current) => {
+      if (!(accountId in current)) return current;
+      const next = { ...current };
+      delete next[accountId];
+      return next;
+    });
+  }, [accountId]);
+  return [draft, setDraft, clearDraft];
+}
+
 export type ContributionGateState = {
   userId: string | null;
   mode: ContributionGateDialogMode | null;
@@ -119,7 +176,11 @@ export function useContributionGate(): {
   requestContribution: (action: PendingContribution) => Promise<void>;
   contributionGateDialog: React.JSX.Element | null;
 } {
-  const { user, session } = useAuth();
+  const {
+    user,
+    contributionAuth,
+    invalidateContributionAuth,
+  } = useAuth();
   const userId = user?.id ?? null;
   const [gate, dispatch] = useReducer(contributionGateReducer, {
     userId,
@@ -137,8 +198,7 @@ export function useContributionGate(): {
   const requestContribution = useCallback(
     async (action: PendingContribution) => {
       dispatch({ type: "clear", userId });
-      const auth = captureAccountAuth(userId, session);
-      if (!user || !auth) {
+      if (!user || !contributionAuth) {
         trackEvent("contribution_gate", { step: "sign_in_required" });
         dispatch({
           type: "show",
@@ -148,8 +208,11 @@ export function useContributionGate(): {
         });
         return;
       }
-      const result = await action(auth);
+      const result = await action(contributionAuth);
       if (!result) return;
+      if (result.status === "sign_in_required") {
+        invalidateContributionAuth(contributionAuth);
+      }
       trackEvent("contribution_gate", { step: result.status });
       dispatch({
         type: "show",
@@ -161,7 +224,7 @@ export function useContributionGate(): {
             : result.error ?? null,
       });
     },
-    [session, user, userId],
+    [contributionAuth, invalidateContributionAuth, user, userId],
   );
 
   return {

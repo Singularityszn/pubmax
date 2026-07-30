@@ -13,11 +13,9 @@ import { isModerator } from "@/lib/adminAuth";
 import { jsonNoStore } from "@/lib/apiResponses";
 import { cityIdFromVenueId } from "@/lib/cityVenueIds";
 import { DEFAULT_CITY_ID } from "@/lib/cities";
-import { deriveCommunityPriceActor } from "@/lib/communityPriceActor";
-import { resolveMessageHandle } from "@/lib/messageAuth";
+import { resolveContributionIdentity } from "@/lib/contributionIdentity.server";
 import { nearestNightAreaForViewport } from "@/lib/nightAreas";
 import { isLimited } from "@/lib/pintDrops";
-import { gateHandleAction } from "@/lib/profileOwnership";
 import { lookupCanonicalVenue } from "@/lib/venueIndex";
 import {
   conditionsForWeather,
@@ -135,7 +133,15 @@ export async function POST(request: Request): Promise<Response> {
     }
   }
 
-  const validation = validateWeatherRecommendation(body);
+  const contributor = await resolveContributionIdentity(request);
+  if (!contributor.ok) {
+    return jsonNoStore(contributor.body, { status: contributor.httpStatus });
+  }
+
+  const validation = validateWeatherRecommendation({
+    ...body,
+    contributorHandle: contributor.handle,
+  });
   if (!validation.ok) {
     return publicApiError(
       validation.error,
@@ -161,38 +167,7 @@ export async function POST(request: Request): Promise<Response> {
     );
   }
 
-  const contributorHandle = await resolveMessageHandle(
-    request,
-    validation.value.contributorHandle,
-  );
-  if (!contributorHandle) {
-    return publicApiError(
-      "Profile storage is unavailable right now. Try again shortly.",
-      "PROFILE_UNAVAILABLE",
-      503,
-      { retryable: true },
-    );
-  }
-  const ownership = await gateHandleAction(request, contributorHandle);
-  if (!ownership.allowed) {
-    return publicApiError(
-      ownership.error,
-      ownership.status === 503 ? "PROFILE_UNAVAILABLE" : "FORBIDDEN",
-      ownership.status,
-      { retryable: ownership.status === 503 },
-    );
-  }
-
-  const actor = deriveCommunityPriceActor(request);
-  if (!actor) {
-    return publicApiError(
-      "Could not check your account for this post right now.",
-      "ACTOR_UNAVAILABLE",
-      503,
-      { retryable: true },
-    );
-  }
-  const actorKey = actor;
+  const actorKey = contributor.actor;
   const actorLimitKey = `weather-recommendation-actor:${actorKey}`;
   if (
     await isLimited(
@@ -231,8 +206,8 @@ export async function POST(request: Request): Promise<Response> {
     const recommendation = await submitWeatherRecommendation({
       ...validation.value,
       venueId: venueLookup.canonicalId,
-      contributorHandle: ownership.handle,
-      actorHash: actor,
+      contributorHandle: contributor.handle,
+      actorHash: contributor.actor,
     });
     return jsonNoStore({ recommendation }, { status: 201 });
   } catch (error) {

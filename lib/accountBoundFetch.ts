@@ -5,6 +5,10 @@ export type AccountAuthSnapshot = Readonly<{
   accessToken: string;
 }>;
 
+type AccountSession = Pick<Session, "access_token"> & {
+  user: Pick<Session["user"], "id">;
+};
+
 export type AccountBoundRequest = (
   input: RequestInfo | URL,
   init?: RequestInit,
@@ -12,7 +16,7 @@ export type AccountBoundRequest = (
 
 export function captureAccountAuth(
   expectedUserId: string | null,
-  session: Pick<Session, "access_token" | "user"> | null,
+  session: AccountSession | null,
 ): AccountAuthSnapshot | null {
   if (
     !expectedUserId ||
@@ -25,6 +29,35 @@ export function captureAccountAuth(
     userId: expectedUserId,
     accessToken: session.access_token,
   };
+}
+
+export function sameAccountAuth(
+  left: AccountAuthSnapshot | null | undefined,
+  right: AccountAuthSnapshot | null | undefined,
+): boolean {
+  return Boolean(
+    left &&
+    right &&
+    left.userId === right.userId &&
+    left.accessToken === right.accessToken
+  );
+}
+
+export function accountComposerAuth(
+  expectedUserId: string | null,
+  session: AccountSession | null,
+  rejectedAuth: AccountAuthSnapshot | null | undefined,
+): AccountAuthSnapshot | null {
+  const auth = captureAccountAuth(expectedUserId, session);
+  return sameAccountAuth(auth, rejectedAuth) ? null : auth;
+}
+
+export function rejectAccountAuth(
+  current: AccountAuthSnapshot | null,
+  rejected: AccountAuthSnapshot | null,
+): AccountAuthSnapshot | null {
+  if (!rejected || sameAccountAuth(current, rejected)) return current;
+  return rejected;
 }
 
 export async function accountBoundFetch(

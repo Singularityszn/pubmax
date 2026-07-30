@@ -1,10 +1,12 @@
 "use client";
 
-// Client plumbing for the Visit Report surface: the venue read, create write,
-// and public flag. Identity reuses the app-wide
-// self-asserted handle convention (localStorage `pubmax_handle`) via the
-// ratings client, so a user who already rated a pub never re-enters their handle.
+// Client plumbing for the Visit Report surface: the venue read, account-bound
+// create write, and public flag.
 
+import {
+  accountBoundFetch,
+  type AccountAuthSnapshot,
+} from "@/lib/accountBoundFetch";
 import type {
   Busyness,
   Noise,
@@ -14,8 +16,6 @@ import type {
   VisitReportReadStatus,
 } from "@/lib/visitReports";
 
-export { storedHandle, rememberHandle } from "@/components/ratings/ratingsClient";
-
 export type VisitReportVenueRead = {
   status: VisitReportReadStatus;
   reports: VisitReportDTO[];
@@ -23,7 +23,6 @@ export type VisitReportVenueRead = {
 
 export type VisitReportDraft = {
   venueId: string;
-  handle: string;
   visitedAt: string;
   busyness?: Busyness | null;
   noise?: Noise | null;
@@ -32,11 +31,23 @@ export type VisitReportDraft = {
   note?: string;
 };
 
+export type VisitReportPostResult =
+  | { ok: true }
+  | {
+      ok: false;
+      error: string;
+      status?: "sign_in_required" | "onboarding_required";
+    };
+
 /** Read a venue's visit reports. A network failure becomes a degraded read so
  * the panel never writes "nothing here" when it could not check. */
-export async function fetchVisitReports(venueId: string): Promise<VisitReportVenueRead | null> {
+export async function fetchVisitReports(
+  venueId: string,
+): Promise<VisitReportVenueRead | null> {
   try {
-    const res = await fetch(`/api/visit-reports?venueId=${encodeURIComponent(venueId)}`);
+    const res = await fetch(
+      `/api/visit-reports?venueId=${encodeURIComponent(venueId)}`,
+    );
     if (!res.ok) return null;
     return (await res.json()) as VisitReportVenueRead;
   } catch {
@@ -58,16 +69,32 @@ export async function reportVisitReport(id: string): Promise<void> {
   }
 }
 
-/** Submit a visit report. Returns the fresh venue read (re-fetched) on success,
- *  or throws with the server's message so the caller can show inline feedback. */
-export async function postVisitReport(draft: VisitReportDraft): Promise<void> {
-  const res = await fetch("/api/visit-reports", {
+/** Submit an account-bound visit report. Auth and onboarding refusals remain
+ * typed so the shared contribution gate can close the composer. */
+export async function postVisitReport(
+  draft: VisitReportDraft,
+  auth: AccountAuthSnapshot,
+): Promise<VisitReportPostResult> {
+  const res = await accountBoundFetch(auth, "/api/visit-reports", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(draft),
   });
   if (!res.ok) {
-    const body = (await res.json().catch(() => ({}))) as { error?: string };
-    throw new Error(body.error ?? "Couldn't save your visit report just now.");
+    const body = (await res.json().catch(() => ({}))) as {
+      error?: string;
+      status?: unknown;
+    };
+    const status =
+      body.status === "sign_in_required" ||
+      body.status === "onboarding_required"
+        ? body.status
+        : undefined;
+    return {
+      ok: false,
+      error: body.error ?? "Couldn't save your visit report just now.",
+      ...(status ? { status } : {}),
+    };
   }
+  return { ok: true };
 }
