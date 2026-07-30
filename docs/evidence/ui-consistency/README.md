@@ -5,7 +5,7 @@ This evidence compares two production builds through Playwright at 390, 768,
 
 - [Before](before/) was built from `3bc4dd42`.
 - [After](after/) was built from `91faf022` plus review worktree diff
-  `f2bc9afb`.
+  `f2bc9afb`, subsequently committed as `64d9ae70`.
 - Each final phase used one completed `next build`, one `next start` process,
   and one successful sequential Playwright run for all widths and routes.
 - [Before measurements](before/measurements.json) and

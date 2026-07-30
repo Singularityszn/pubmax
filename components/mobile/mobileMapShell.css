@@ -80,8 +80,7 @@
 
   body:has(.analyticsConsentPrompt) .appShell .mapStage .maplibregl-ctrl-bottom-right {
     /* Keep the expandable OSM credit above the honest first-visit disclosure.
-       At 390px the notice occupies 577.88..698px; this places the measured
-       40px credit group at 530..570px instead of beneath it at 660..700px. */
+       e2e/ui-consistency-layout.spec.ts owns the rendered collision proof. */
     bottom: calc(var(--mobile-map-dock-clearance) + 198px);
   }
 

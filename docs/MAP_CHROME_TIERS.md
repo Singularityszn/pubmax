@@ -11,8 +11,9 @@ truth; the shell renders its descriptors.
 | 2 | **Tonight**, **Filters** | Quiet chips. Filters absorbs the old Drinks + price chips (both always opened the same sheet); refinement count renders as the chip badge |
 | 3 | **TfL** | Compact 44px icon-button in `.mobileMapUtilityCorner` (fixed, right edge, badge-capable). **List view** lives in the Layers sheet shortcut grid. |
 
-The Tonight lane, plan pill, and tab bar are unchanged — they are lanes/docks,
-not chips, and sit outside this hierarchy.
+The Tonight lane, plan pill, and tab bar are lanes or docks, not chips, and sit
+outside this hierarchy. Mobile map action geometry belongs to
+`components/mobile/mobileMapShell.css`.
 
 ## Narrow desktop state
 

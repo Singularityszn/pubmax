@@ -153,10 +153,10 @@ function localSavedDTOs(): Partial<Record<ListType, SavedPubDTO[]>> {
   return groups;
 }
 
-// "you" is the sentinel handle the nav uses (/u/you) before a device handle is
-// known. It is NOT a real person's handle — it means "the current viewer". When
-// the viewer already has a device handle we redirect /u/you → /u/<handle>; when
-// they don't, /u/you renders the first-run passport (story 30).
+// "you" is the sentinel handle the nav uses (/u/you) before a viewer handle is
+// known. It is NOT a real person's handle - it means "the current viewer". A
+// signed-in account handle or signed-out device handle redirects /u/you to the
+// real profile; without either, /u/you renders the first-run passport (story 30).
 const YOU_SENTINEL = "you";
 
 export default function ProfilePageClient({ params }: { params: Promise<{ handle: string }> }) {
@@ -402,8 +402,8 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
   // already loaded, plus this handle's published crawl-story count from
   // /api/crawls?author= (storyCount above). A durable crawl story IS the posted
   // crawl AND the story post — both passport inputs draw from the one authored-
-  // story number per buildPassport's semantics. On the /u/you first-run route
-  // (no device handle) the passport reads as own → shows the "start yours" CTA.
+  // story number per buildPassport's semantics. On the anonymous /u/you
+  // first-run route, the passport reads as own and shows the "start yours" CTA.
   const passport = buildPassport(drops as ProfileDrop[], {
     crawls: storyCount,
     storyPosts: storyCount,
@@ -445,10 +445,9 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
   }
 
   // Claim this handle: an anonymous visitor adopts the route handle as their own
-  // demo identity (localStorage `pubmax_handle`) — the same identity that
-  // authors a pint drop or a follow. This is a client-only, self-asserted claim
-  // (no server ownership check — that arrives with Supabase Auth). Setting
-  // The local handle makes this their own signed-out profile, unlocking Edit.
+  // demo identity (localStorage `pubmax_handle`), the same identity that authors
+  // a pint drop or a follow. This remains a client-only, self-asserted signed-out
+  // claim. Signed-in ownership comes from the account handle instead.
   function claimHandle() {
     try {
       window.localStorage.setItem("pubmax_handle", routeHandle);
