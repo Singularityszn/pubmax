@@ -7,9 +7,10 @@ The app runs **keyless** locally (in-memory Pint Drops + structured Landlord fal
 ## Function placement and HTML caching
 
 `vercel.json` owns the default London placement for Vercel Functions. Measured
-launch latency, the route-trace baseline, and failed tracing probes live in the
-[cold-start bundle evidence](evidence/cold-start-bundle.md); bundle reduction is
-a separate follow-up.
+launch latency, the bounded route-trace reduction, and remaining production
+verification live in the
+[cold-start bundle evidence](evidence/cold-start-bundle.md). Production
+cold-start effect remains unverified until deployment.
 
 HTML cacheability remains a security decision, not a deployment toggle. The
 [CSP and caching decision brief](evidence/csp-vs-caching.md) owns the options

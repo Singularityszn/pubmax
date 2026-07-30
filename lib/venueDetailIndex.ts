@@ -133,7 +133,9 @@ async function readManifest(): Promise<VenueDetailManifest | null> {
   if (cachedManifest) return cachedManifest;
   if (isTestRuntime()) manifestReadAttemptsForTests += 1;
   try {
-    const parsed = JSON.parse(await fs.readFile(detailIndexFile, "utf8")) as VenueDetailManifest;
+    const parsed = JSON.parse(
+      await fs.readFile(/* turbopackIgnore: true */ detailIndexFile, "utf8"),
+    ) as VenueDetailManifest;
     const valid =
       parsed.version === 1 &&
       parsed.detailsFile === "venue_details.jsonl" &&
@@ -171,7 +173,7 @@ async function readVenueFromArtifact(id: string): Promise<Venue | null | undefin
 
   let file: Awaited<ReturnType<typeof fs.open>> | null = null;
   try {
-    file = await fs.open(detailRowsFile, "r");
+    file = await fs.open(/* turbopackIgnore: true */ detailRowsFile, "r");
     const buffer = Buffer.alloc(entry.length);
     const { bytesRead } = await file.read(buffer, 0, entry.length, entry.offset);
     if (bytesRead !== entry.length) return null;

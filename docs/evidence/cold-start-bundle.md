@@ -1,10 +1,12 @@
 # Cold-start function bundle evidence
 
-Measured 30 July 2026. Bundle reduction is deliberately deferred to a separate task. This file records the baseline and two failed probes so the next attempt starts from evidence.
+Measured 30 July 2026. This file records baseline, failed probes, bounded tracing fix, and remaining production verification.
 
 ## Finding
 
-Both `/` and `/map` production route traces contained 3,751 files and about 278.65 MiB at build time. The traced set included the source tree, Android project, documentation, screenshots, raw CSV files, raw OSM files, generated detail data, and runtime data packs unrelated to either page's first response.
+An earlier dirty-worktree measurement found 3,751 files and about 278.65 MiB in both `/` and `/map` production route traces. The later clean baseline found 3,754 files and about 278.78 MiB. Removing an untracked document between those measurements changed the trace total, evidence that the tracer was following workspace content rather than route dependencies. Reduction figures below use the clean baseline.
+
+The traced set included the source tree, Android project, documentation, screenshots, raw CSV files, raw OSM files, generated detail data, and runtime data packs unrelated to either page's first response.
 
 The route-specific compiled files were small by comparison:
 
@@ -14,6 +16,292 @@ The route-specific compiled files were small by comparison:
 | `/map` | 9 | 125,104 |
 
 The deployable trace, not HTML payload or route-specific JavaScript, is the dominant cold-start risk found in this investigation.
+
+## Outcome
+
+Next was following request-time paths assembled from imported constants and variables as if they could name any file below `process.cwd()`. The warning named `next.config.mjs` because that happened to be one file captured by the widened trace. Config evaluation was not root cause.
+
+Request-time readers now mark only dynamic path operations with Next's supported `turbopackIgnore` comment. Required deployment files still come from `runtimeDataPackRouteIncludes()` and existing explicit route entries in `next.config.mjs`. `lib/venueImageHosts.server.ts` also moved from pending tracing debt into `RUNTIME_DATA_PACKS`, so `/api/image-proxy` owns its three input files explicitly.
+
+Clean baseline and completed after build:
+
+```bash
+NEXT_DIST_DIR=.next-perf-before npm run build
+NEXT_DIST_DIR=.next-perf-final npm run build
+```
+
+Trace measurement command:
+
+```bash
+node --input-type=module <<'NODE'
+import { readFileSync, statSync } from 'node:fs';
+import { dirname, resolve, relative } from 'node:path';
+
+const routes = {
+  landing: 'server/app/page.js.nft.json',
+  map: 'server/app/map/page.js.nft.json',
+};
+for (const root of ['.next-perf-before', '.next-perf-final']) {
+  for (const [route, file] of Object.entries(routes)) {
+    const manifest = resolve(root, file);
+    const paths = [
+      ...new Set(
+        JSON.parse(readFileSync(manifest, 'utf8')).files.map(path =>
+          resolve(dirname(manifest), path),
+        ),
+      ),
+    ];
+    const rows = paths
+      .map(path => ({ path: relative(process.cwd(), path), bytes: statSync(path).size }))
+      .sort((left, right) => right.bytes - left.bytes);
+    const bytes = rows.reduce((sum, row) => sum + row.bytes, 0);
+    console.log({
+      root,
+      route,
+      files: paths.length,
+      bytes,
+      mib: +(bytes / 1048576).toFixed(3),
+      largest: rows.slice(0, 12),
+    });
+  }
+}
+NODE
+```
+
+Measured result:
+
+| Route | Before | After | File reduction | Byte reduction |
+| --- | ---: | ---: | ---: | ---: |
+| `/` | 3,754 files, 292,326,519 bytes, 278.784 MiB | 234 files, 14,297,721 bytes, 13.635 MiB | 93.77% | 95.11% |
+| `/map` | 3,754 files, 292,324,900 bytes, 278.783 MiB | 234 files, 14,485,865 bytes, 13.815 MiB | 93.77% | 95.04% |
+
+Largest remaining landing contributors:
+
+```text
+7034773  public/data/pint_prices_app_dataset.json
+1378357  node_modules/next/dist/compiled/@vercel/og/resvg.wasm
+871434   node_modules/next/dist/compiled/@vercel/og/index.node.js
+734446   node_modules/next/dist/compiled/@vercel/og/index.edge.js
+609407   node_modules/next/dist/compiled/next-server/app-page-turbo.runtime.prod.js
+280256   node_modules/@img/sharp-darwin-arm64/lib/sharp-darwin-arm64-0.35.3.node
+186113   public/data/historic_pubs.json
+```
+
+`/map` has the same leading runtime files plus its deliberate 375,876-byte `public/data/uk_base/places.json`. The 7,034,773-byte price dataset remains because landing reads it during request rendering. Removing it would change page data and is outside this tracing fix.
+
+The completed after build emitted no whole-project NFT warning. It retained 199 route manifest entries, matching baseline. Actual after-build NFTs contained every checked map, feed, venue-detail, image-proxy, and freshness input. The focused tracing contract test passed:
+
+```text
+Test Files  1 passed (1)
+Tests       7 passed (7)
+```
+
+Original response parity checked `/`, `/map`, a UK place arrival, `/feed`, `/api/freshness`, and London venue `/api/venue/venue-xjf3n0` against both builds. Status and byte counts matched. Server-rendered markup matched after removing request nonce and script tags. API JSON matched after removing request-generated timestamps. That comparison did not cover a non-London venue or a Plan reader.
+
+### Non-London packaged-artifact check
+
+The requested pre-F1 packaged failure could not be reproduced. The pre-F1 build omitted `lib/venueDetailIndex.ts` from the venue-index `RUNTIME_DATA_PACKS` module list. Its venue, Plan-anchor, and recap NFTs nevertheless contained `public/data/cities/oxford/venues_slim.json`, so the packaged artifact retained Turf Tavern through incidental tracing.
+
+Pre-F1 build and start:
+
+```bash
+NEXT_DIST_DIR=.next-f1-before npm run build
+NEXT_DIST_DIR=.next-f1-before \
+  PUBMAX_E2E_KEYLESS=1 \
+  PUBMAX_ANCHORED_GENERATION=1 \
+  PORT=3211 \
+  npm start
+```
+
+Pre-F1 requests:
+
+```bash
+curl -sS -w '\nstatus=%{http_code}\n' \
+  'http://127.0.0.1:3211/api/venue/venue-oxf-16404bl'
+curl -sS -w '\nstatus=%{http_code}\n' \
+  'http://127.0.0.1:3211/api/plans/anchor?cityId=oxford&venueId=venue-oxf-16404bl&areaKind=none'
+```
+
+Pre-F1 results:
+
+```text
+venue status=200
+venue.id=venue-oxf-16404bl
+venue.name=Turf Tavern
+venue.prices=[]
+
+plan anchor status=200
+status=resolved
+display.venueId=venue-oxf-16404bl
+display.venueName=Turf Tavern
+```
+
+Post-F1 build and start:
+
+```bash
+NEXT_DIST_DIR=.next-f1-after npm run build
+NEXT_DIST_DIR=.next-f1-after \
+  PUBMAX_E2E_KEYLESS=1 \
+  PUBMAX_ANCHORED_GENERATION=1 \
+  PORT=3212 \
+  npm start
+```
+
+Post-F1 requests:
+
+```bash
+curl -sS -w '\nstatus=%{http_code}\n' \
+  'http://127.0.0.1:3212/api/venue/venue-oxf-16404bl'
+curl -sS -w '\nstatus=%{http_code}\n' \
+  'http://127.0.0.1:3212/api/plans/anchor?cityId=oxford&venueId=venue-oxf-16404bl&areaKind=none'
+```
+
+Post-F1 results matched:
+
+```text
+venue status=200
+venue.id=venue-oxf-16404bl
+venue.name=Turf Tavern
+venue.prices=[]
+
+plan anchor status=200
+status=resolved
+display.venueId=venue-oxf-16404bl
+display.venueName=Turf Tavern
+```
+
+### Accepted deployment deferral
+
+Firstmate accepted deferred packaged proof on 30 July 2026. Two outcomes remain unverified until deployment:
+
+1. Vercel-isolated packaged response behaviour for a real non-London venue and at least one affected Plan or recap route.
+2. Production cold-start effect.
+
+The possible non-London 404 is detectable within seconds after deployment and the PR is immediately reversible. Deferring the deployment check avoids holding back a measured trace reduction of about 95% with six-response parity while launch-day cold TTFB remains around two seconds. This is risk acceptance, not evidence of a speed improvement.
+
+The explicit `venueDetailIndex` include remains because incidental tracing is not a deployment contract. Current production has `PUBMAX_ANCHORED_GENERATION` and `PUBMAX_FRIEND_MEMBER_REHYDRATION_V2` off, so neither the anchor endpoint nor a member-only get-in response can prove Plan data loading. Post-deploy verification therefore creates an unlisted recap under a dedicated authenticated test account. Its server-returned UUID supplies a valid affected recap URL without inventing an id.
+
+Run this setup once after deployment. `VERIFY_AUTH_BEARER` must be a current Supabase access token for the dedicated test account.
+
+```bash
+export VERIFY_ORIGIN='https://pubmaxxing.com'
+export VERIFY_AUTH_BEARER='replace-with-dedicated-test-account-access-token'
+
+verify_memory_json=$(
+  curl --fail-with-body -sS \
+    -H "authorization: Bearer $VERIFY_AUTH_BEARER" \
+    -H 'content-type: application/json' \
+    -d '{"title":"Route bundle verification 2026-07-30"}' \
+    "$VERIFY_ORIGIN/api/night-memories"
+)
+verify_memory_id=$(jq -er '.memory.id' <<<"$verify_memory_json")
+
+verify_moment_json=$(
+  curl --fail-with-body -sS \
+    -H "authorization: Bearer $VERIFY_AUTH_BEARER" \
+    -H 'content-type: application/json' \
+    -d '{"kind":"venue","caption":"Manchester packaged-route verification","venueId":"venue-mcr-iy010v"}' \
+    "$VERIFY_ORIGIN/api/night-memories/$verify_memory_id/moments"
+)
+verify_moment_id=$(jq -er '.moment.id' <<<"$verify_moment_json")
+
+verify_story_json=$(
+  curl --fail-with-body -sS \
+    -H "authorization: Bearer $VERIFY_AUTH_BEARER" \
+    -H 'content-type: application/json' \
+    -d "$(jq -nc --arg memory_id "$verify_memory_id" \
+      '{memoryId:$memory_id,title:"Route bundle verification 2026-07-30"}')" \
+    "$VERIFY_ORIGIN/api/night-stories"
+)
+verify_story_id=$(jq -er '.story.id' <<<"$verify_story_json")
+
+verify_proposal_json=$(
+  curl --fail-with-body -sS \
+    -H "authorization: Bearer $VERIFY_AUTH_BEARER" \
+    -H 'content-type: application/json' \
+    -d "$(jq -nc --arg moment_id "$verify_moment_id" \
+      '{momentIds:[$moment_id],visibility:"unlisted"}')" \
+    "$VERIFY_ORIGIN/api/night-stories/$verify_story_id/publish-proposals"
+)
+verify_proposal_id=$(jq -er '.proposal.id' <<<"$verify_proposal_json")
+verify_confirmation_token=$(jq -er '.confirmationToken' <<<"$verify_proposal_json")
+
+curl --fail-with-body -sS \
+  -H "authorization: Bearer $VERIFY_AUTH_BEARER" \
+  -H 'content-type: application/json' \
+  -d "$(jq -nc \
+    --arg proposal_id "$verify_proposal_id" \
+    --arg confirmation_token "$verify_confirmation_token" \
+    '{proposalId:$proposal_id,confirmationToken:$confirmation_token}')" \
+  "$VERIFY_ORIGIN/api/night-stories/$verify_story_id/publish-confirmations" \
+  | jq -e '.story.status == "published" and .story.visibility == "unlisted"'
+
+verify_recap_url="$VERIFY_ORIGIN/recap/$verify_story_id"
+printf 'recap_url=%s\n' "$verify_recap_url"
+```
+
+This produces the concrete affected recap URL as
+`https://pubmaxxing.com/recap/<server-returned verify_story_id>`. Do not replace
+the server-returned UUID with a made-up id.
+
+Verify the two full production targets. Status checks distinguish a working response from a route-level 404; body checks prove the Manchester venue loaded.
+
+```bash
+verify_output_dir=$(mktemp -d)
+trap 'rm -rf "$verify_output_dir"' EXIT
+
+verify_venue_url='https://pubmaxxing.com/api/venue/venue-mcr-iy010v'
+verify_venue_status=$(
+  curl -sS -o "$verify_output_dir/venue.json" -w '%{http_code}' \
+    "$verify_venue_url"
+)
+test "$verify_venue_status" = '200'
+jq -e \
+  '.venue.id == "venue-mcr-iy010v" and .venue.name == "Grove Alehouse"' \
+  "$verify_output_dir/venue.json"
+
+verify_recap_status=$(
+  curl -sS -o "$verify_output_dir/recap.html" -w '%{http_code}' \
+    "$verify_recap_url"
+)
+test "$verify_recap_status" = '200'
+rg -Fq 'Grove Alehouse' "$verify_output_dir/recap.html"
+```
+
+Rollback:
+
+```bash
+gh-axi pr revert "$(gh-axi pr list --state all --head fm/route-bundle-278mib-cold-start --limit 1 | sed -n 's/^ \([0-9][0-9]*\),.*/\1/p')"
+```
+
+### Local cold and warm timing
+
+Paired trials alternated baseline and after builds. Each trial started a fresh `next start` process, waited for TCP readiness without an HTTP request, measured first request, then measured three warm requests on same process. Three fresh processes were used per route and build.
+
+| Route | Phase | Before median | After median | Before range | After range |
+| --- | --- | ---: | ---: | ---: | ---: |
+| `/` | First request | 3.125s | 3.195s | 2.760s to 5.485s | 3.144s to 3.966s |
+| `/` | Warm request | 0.289s | 0.197s | 0.173s to 0.485s | 0.157s to 0.514s |
+| `/map` | First request | 3.166s | 3.118s | 3.033s to 3.713s | 2.952s to 3.665s |
+| `/map` | Warm request | 0.028s | 0.026s | 0.021s to 0.039s | 0.010s to 0.058s |
+
+Local first-request timing did not materially improve. Landing was 0.070s slower at median; map was 0.048s faster. Both movements sit inside observed trial spread. Smaller bundle is proven, but cold-start improvement is not.
+
+**Production cold-start effect: UNVERIFIED.**
+
+After merge, run five consecutive samples per route:
+
+```bash
+for route_path in / /map; do
+  for sample_number in 1 2 3 4 5; do
+    curl -sS -o /dev/null \
+      -w "route=${route_path} sample=${sample_number} status=%{http_code} ttfb=%{time_starttransfer}s total=%{time_total}s bytes=%{size_download}\n" \
+      "https://pubmaxxing.com${route_path}"
+  done
+done
+```
+
+This sequence cannot force five independent cold starts. Compare its slow samples and median with same five-sample production method recorded by launch owner. If cold TTFB does not improve, record bundle reduction as packaging hygiene, not launch performance result.
 
 ## Production request baseline
 
@@ -153,7 +441,7 @@ Output:
 1972926	docs/screenshots/design-craft/before-sheet-390-dark.png
 ```
 
-These files dominate the measured trace. Most are source or build inputs, not files `/` or plain `/map` opens while rendering. Any next fix should prove why each included file is needed before adding another exclusion layer.
+These files dominated the measured baseline trace. Most were source or build inputs, not files `/` or plain `/map` opened while rendering. The fix therefore had to preserve each required runtime include rather than add another exclusion layer.
 
 ## Deliberate tracing contract
 
@@ -179,7 +467,7 @@ Output:
 ]
 ```
 
-So the intentional per-route table does not explicitly add any data pack to `/`, and adds only the 375,876-byte UK place index to `/map`. That table does not explain 278.65 MiB on both routes. The next investigation should still start there because it owns the deliberate contract, then establish why Next's final `.nft.json` is much broader than the evaluated values.
+So the intentional per-route table did not explicitly add any data pack to `/`, and added only the 375,876-byte UK place index to `/map`. That table did not explain 278.65 MiB on both routes. The investigation therefore started there because it owns the deliberate contract, then established why Next's final `.nft.json` was much broader than the evaluated values.
 
 Do not add `excludeFiles` in `vercel.json`. Vercel does not support that escape hatch for Next.js functions, and it would sit on top of the repository's existing tracing contract rather than fixing it.
 
@@ -370,15 +658,11 @@ Result:
 
 Lesson: ignoring the dynamic module import also did not prevent Next from identifying `next.config.mjs` as the unexpected traced file. Do not repeat this shape.
 
-## Next investigation
+## Resolved tracing cause
 
-Start with the deliberate machinery, not an exclusion list:
+The deliberate route table was not over-including. It protected files that automatic tracing cannot infer. Imported runtime path constants were the broadening source. Adding supported ignore markers at those request-time path operations stopped automatic whole-project inference, while explicit includes kept deployment data available.
 
-1. Run a clean baseline build and inspect evaluated `outputFileTracingIncludes` beside final route NFTs.
-2. Establish why a config whose explicit `/` value is `null` and `/map` value is one 375,876-byte file produces identical 3,751-file traces.
-3. Isolate whether one route such as `/api/plans/[id]/getin` poisons shared traces, whether Next always carries the config's own filesystem reads, or whether another dynamic path broadens the root. Change one variable per build.
-4. Keep `__tests__/venueIndexTracing.test.ts` green so required runtime packs never disappear while removing accidental files.
-5. Re-run fresh-process timings only after the trace is materially smaller.
+Keep `__tests__/venueIndexTracing.test.ts` green whenever adding a runtime file reader. New runtime data belongs in `RUNTIME_DATA_PACKS`, an existing explicit tracing owner, or a documented pending declaration. Never remove an include merely to reduce function size.
 
 ## Function-size question
 

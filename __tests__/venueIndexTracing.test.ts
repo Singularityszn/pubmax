@@ -15,7 +15,7 @@
 // import graph without being declared or carried as a named exception.
 
 import { execFileSync } from "node:child_process";
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 
@@ -29,6 +29,7 @@ import {
   discoverRuntimeReaderRouteGlobs,
   runtimeDataPackRouteIncludes,
 } from "@/lib/venueIndexTracing.mjs";
+import { VENUE_IMAGE_HOST_TRACING_INCLUDES } from "@/lib/venueImageHostFiles.mjs";
 
 const root = join(__dirname, "..");
 const temporaryRoots: string[] = [];
@@ -103,7 +104,7 @@ describe("runtime data-pack tracing", () => {
     ]);
   });
 
-  it("declares each pack's own files, and merges both where one route reads both", () => {
+  it("declares every pack owned by each reader module", () => {
     temporaryRoots.push(mkdtempSync(join(tmpdir(), "venue-index-tracing-")));
 
     const [venueIndexPack, venueDetailPack] = RUNTIME_DATA_PACKS;
@@ -125,10 +126,9 @@ describe("runtime data-pack tracing", () => {
     const includes = runtimeDataPackRouteIncludes(temporaryRoots[0]);
 
     expect(new Set(Object.keys(includes))).toEqual(new Set(["/api/packs", "/detail"]));
-    expect(new Set(includes["/api/packs"])).toEqual(
-      new Set([...venueIndexPack.files, ...venueDetailPack.files]),
-    );
-    expect(new Set(includes["/detail"])).toEqual(new Set(venueDetailPack.files));
+    const expectedFiles = new Set([...venueIndexPack.files, ...venueDetailPack.files]);
+    expect(new Set(includes["/api/packs"])).toEqual(expectedFiles);
+    expect(new Set(includes["/detail"])).toEqual(expectedFiles);
   });
 
   it("declares every pack file for every discovered runtime reader of that pack", () => {
@@ -149,6 +149,30 @@ describe("runtime data-pack tracing", () => {
           }
         }
       }
+    }
+  });
+
+  it("traces the image-proxy allowlist datasets without widening other routes", () => {
+    const includes = tracingIncludes();
+
+    expect(includes["/api/image-proxy"]).toEqual(VENUE_IMAGE_HOST_TRACING_INCLUDES);
+  });
+
+  it("ships non-London slim packs to every venue-detail reader", () => {
+    const oxfordPack = "./public/data/cities/oxford/venues_slim.json";
+    const oxfordVenues = JSON.parse(
+      readFileSync(join(root, oxfordPack.slice(2)), "utf8"),
+    ) as Array<{ id: string }>;
+    expect(oxfordVenues.some((venue) => venue.id === "venue-oxf-16404bl")).toBe(true);
+
+    const includes = tracingIncludes();
+    for (const route of [
+      "/api/venue/\\[id\\]",
+      "/api/plans/\\[id\\]/getin",
+      "/api/plans/anchor",
+      "/recap/\\[storyId\\]",
+    ]) {
+      expect(includes[route], `${route} must ship the Oxford pack`).toContain(oxfordPack);
     }
   });
 

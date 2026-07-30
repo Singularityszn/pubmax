@@ -48,8 +48,11 @@ function ensureLoaded(): void {
   loaded = true;
   if (!persistEnabled || !persistPath) return;
   try {
-    if (!existsSync(persistPath)) return;
-    const raw = readFileSync(persistPath, "utf8");
+    if (!existsSync(/* turbopackIgnore: true */ persistPath)) return;
+    const raw = readFileSync(
+      /* turbopackIgnore: true */ persistPath,
+      "utf8",
+    );
     const parsed = JSON.parse(raw) as StoreFile;
     if (!parsed || !Array.isArray(parsed.notes)) return;
     memoryNotes = parsed.notes.filter(
@@ -68,9 +71,16 @@ function ensureLoaded(): void {
 function persist(): void {
   if (!persistEnabled || !persistPath) return;
   try {
-    mkdirSync(dirname(persistPath), { recursive: true });
+    mkdirSync(
+      /* turbopackIgnore: true */ dirname(persistPath),
+      { recursive: true },
+    );
     const body: StoreFile = { version: 1, notes: memoryNotes.slice(0, MAX_QUEUE) };
-    writeFileSync(persistPath, `${JSON.stringify(body, null, 2)}\n`, "utf8");
+    writeFileSync(
+      /* turbopackIgnore: true */ persistPath,
+      `${JSON.stringify(body, null, 2)}\n`,
+      "utf8",
+    );
   } catch {
     // Read-only FS — keep serving from memory for this process.
   }

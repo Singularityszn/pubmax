@@ -91,11 +91,20 @@ let cached: Map<string, VenueRef> | null = null;
 const cityCache = new Map<string, Map<string, VenueRef>>();
 
 function publicDataPath(publicPath: string): string {
-  return path.join(process.cwd(), "public", publicPath.replace(/^\//, ""));
+  return path.join(
+    /* turbopackIgnore: true */ process.cwd(),
+    "public",
+    publicPath.replace(/^\//, ""),
+  );
 }
 
 async function readSlimIndex(publicPath: string): Promise<Map<string, VenueRef>> {
-  const rows = JSON.parse(await fs.readFile(publicDataPath(publicPath), "utf8")) as SlimRow[];
+  const rows = JSON.parse(
+    await fs.readFile(
+      /* turbopackIgnore: true */ publicDataPath(publicPath),
+      "utf8",
+    ),
+  ) as SlimRow[];
   return buildVenueIndexFromSlim(Array.isArray(rows) ? rows : []);
 }
 

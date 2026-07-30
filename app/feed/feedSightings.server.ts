@@ -49,8 +49,13 @@ function generatedAtOf(raw: unknown): number {
 
 async function build(): Promise<SightingDTO[]> {
   try {
-    const file = path.join(process.cwd(), OVERLAY_PATH);
-    const raw = JSON.parse(await fs.readFile(file, "utf8")) as unknown;
+    const file = path.join(
+      /* turbopackIgnore: true */ process.cwd(),
+      OVERLAY_PATH,
+    );
+    const raw = JSON.parse(
+      await fs.readFile(/* turbopackIgnore: true */ file, "utf8"),
+    ) as unknown;
     const updates = parseDrinkPriceUpdates(raw, generatedAtOf(raw));
     if (updates.length === 0) return [];
 

@@ -13,12 +13,10 @@
 import fs from "node:fs";
 import path from "node:path";
 
-// Files whose entire raw JSON is trusted app-served content: every https URL
-// anywhere in these files is one the app itself may fetch through the proxy.
-const WHOLE_FILE_SCAN_DATA_FILES = [
-  "public/data/venue_menu_enrichment.json",
-  "public/data/pubmaxxing_seed_snapshot.json",
-];
+import {
+  VENUE_IMAGE_HOST_PHOTO_FIELD_FILE,
+  VENUE_IMAGE_HOST_WHOLE_FILE_SCAN_FILES,
+} from "@/lib/venueImageHostFiles.mjs";
 
 // pint_prices_app_dataset.json is NOT scanned whole: alongside the venue
 // photo field it also carries ~hundreds of third-party pub `website`,
@@ -30,7 +28,6 @@ const WHOLE_FILE_SCAN_DATA_FILES = [
 // Google Places photos on lh3.googleusercontent.com, plus scraped pub-site
 // photo hosts) is an actual photo URL, so hosts are extracted from that field
 // alone, via a real JSON parse rather than a text scan.
-const PHOTO_FIELD_DATA_FILE = "public/data/pint_prices_app_dataset.json";
 const PHOTO_URL_FIELDS = ["image_url"] as const;
 
 let cached: Set<string> | null = null;
@@ -49,9 +46,12 @@ export function allowedVenueImageHosts(): Set<string> {
   if (cached) return cached;
   const hosts = new Set<string>();
 
-  for (const rel of WHOLE_FILE_SCAN_DATA_FILES) {
+  for (const rel of VENUE_IMAGE_HOST_WHOLE_FILE_SCAN_FILES) {
     try {
-      const raw = fs.readFileSync(path.join(process.cwd(), rel), "utf8");
+      const raw = fs.readFileSync(
+        path.join(/* turbopackIgnore: true */ process.cwd(), rel),
+        "utf8",
+      );
       // Hostname extraction over the raw JSON is deliberate for these two
       // files: every https URL in them is app-served content, and this
       // avoids hardcoding each file's shape here.
@@ -65,7 +65,10 @@ export function allowedVenueImageHosts(): Set<string> {
 
   try {
     const raw = fs.readFileSync(
-      path.join(process.cwd(), PHOTO_FIELD_DATA_FILE),
+      path.join(
+        /* turbopackIgnore: true */ process.cwd(),
+        VENUE_IMAGE_HOST_PHOTO_FIELD_FILE,
+      ),
       "utf8",
     );
     const rows: unknown = JSON.parse(raw);
