@@ -71,7 +71,7 @@ Product-design depth pack — decisions, not pixels. Seven layers + orient + int
 **What it looks like in practice for PubMax**
 
 - Settle ubiquitous language: **Plan / Stop / Venue / Friend / Route** (see Conceptual model).
-- Breadboard: Plan on map → add Stops → Invite Friends → optionally mint/join a **Round** from the same Plan drawer (today Rounds live on `/crawls` + `/rounds/[code]` and feel disconnected).
+- Breadboard: Plan on map → add Stops → Invite Friends → optionally mint/join a **Round** from the same Plan drawer or member-only Plan route.
 - Surface audit: same Venue in pin, list row, and detail; no shapeshifter cards; empty/error edges designed.
 - Orient when stuck: which layer is the real bottleneck (usually conceptual model or interaction flow, not color).
 
@@ -177,7 +177,7 @@ Plan  ──contains──▶  Stop  ──references──▶  Venue
 | **Friend** | Person on the Plan (invite / going / maybe / out) | Sparse on map; stronger on Round live page | **Friend** + Invite; Round participants = Friends on a shared Plan |
 | **Route** | Walking sequence / polyline between Stops | MapLibre route line | **Route** — drawn when ≥2 stops; teaches order |
 
-**Product gap to close:** Rounds (`lib/rounds.ts`, `/rounds/[code]`, starter on `/crawls`) are the social live layer, but starting a Round is disconnected from the map Plan drawer. Bridge: from an open Plan, **Start / Join Round** should mint or attach the Round to the current stops — one mental model, two places (map Plan + live Round page), shared objects.
+**Plan and Round boundary:** Rounds are the social live layer for a Plan. Both Plan surfaces reuse the shared `RoundStarter`, so one handoff path feeds the Round model.
 
 ---
 

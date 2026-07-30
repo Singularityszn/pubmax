@@ -231,7 +231,7 @@ contracts.
 | W4.1 | Keyboard/AT-operable venue list parallel to pins | [`docs/A11Y_MATRIX_2026-07-18.md`](./A11Y_MATRIX_2026-07-18.md) | **Complete** |
 | W4.2 | Desktop venue drawer focus trap | [`docs/A11Y_MATRIX_2026-07-18.md`](./A11Y_MATRIX_2026-07-18.md) | **Complete** |
 | W4.3 | Mid-crawl Night Mode surface | Unknowns U7 / Wayfinder | Giant tap targets, next-stop glance, composes existing TfL / last-train / bus; **not** a second app |
-| W4.4 | Verify Plan drawer → Round bridge E2E | `RouteActions` + `RoundStarter` | Drinker can start a Round from an active Plan without a dead end |
+| W4.4 | Active Plan → Round bridge E2E | `RoundStarter` + `e2e/plan-round-bridge.flag-on.spec.ts` | **Complete:** member Plan route now exercises the existing bridge end to end |
 
 ---
 

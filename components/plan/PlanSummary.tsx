@@ -6,6 +6,7 @@ import type { PlanState } from "@/lib/plan";
 import PlanRoute from "@/components/plan/PlanRoute";
 import PlanCollaborationPanel from "@/components/plan/PlanCollaborationPanel";
 import InvitePrivacyPreview from "@/components/plan/InvitePrivacyPreview";
+import RoundStarter from "@/components/round/RoundStarter";
 import { planViewModel } from "@/components/plan/planPresentation";
 import { routeStopsFromGenerated } from "@/components/plan/PlanComposer";
 import { parsePlanCapabilitySnapshot, planCapabilityEvent, readPlanCapabilitySnapshot } from "@/lib/planSessionCapability";
@@ -267,6 +268,7 @@ function PlanSummaryMember({ planId, state, vibeTally }: { planId: string; state
   );
   const pending = useMemo(() => parsePendingRoute(pendingRaw), [pendingRaw]);
   const initialStops = view.stops.map((stop) => ({ ...stop, alternatives: [] as RouteAlternative[] }));
+  const [canonicalStops, setCanonicalStops] = useState<EditableStop[]>(initialStops);
   const [localStops, setLocalStops] = useState<EditableStop[]>(initialStops);
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -281,10 +283,10 @@ function PlanSummaryMember({ planId, state, vibeTally }: { planId: string; state
   }, [memberToken, planId, role]);
   const [savedRevision, setSavedRevision] = useState<RouteRevision | null>(routeRevisionFromPlanState(state));
   const routeRevision = pending?.expectedRouteRevision ?? savedRevision;
-  const canonicalStops = view.stops.map((stop) => ({ venueId: stop.venueId }));
-  const hasRouteChanged = routeHasChanged(canonicalStops, draftStops);
+  const canonicalVenueIds = canonicalStops.map((stop) => ({ venueId: stop.venueId }));
+  const hasRouteChanged = routeHasChanged(canonicalVenueIds, draftStops);
   const canSaveDraft = validRouteDraft(draftStops) && hasRouteChanged && routeRevision !== null;
-  const visibleStops = draftStops.map((stop, index) => ({
+  const canonicalRouteStops = canonicalStops.map((stop, index) => ({
     venueId: stop.venueId,
     venueName: stop.venueName,
     position: typeof stop.position === "number" ? stop.position : index,
@@ -395,7 +397,9 @@ function PlanSummaryMember({ planId, state, vibeTally }: { planId: string; state
       if (!canonical) throw new Error("The server did not return a canonical route. Nothing was saved in this view.");
       setSavedRevision(routeRevisionFromPlanState(canonical) ?? routeRevision);
       clearPendingRoute(planId);
-      setLocalStops(cleanStops(canonical.stops));
+      const savedStops = cleanStops(canonical.stops);
+      setCanonicalStops(savedStops);
+      setLocalStops(savedStops);
       setEditing(false);
       setStatus("Route saved. The new order is now canonical.");
     } catch (caught) {
@@ -462,11 +466,21 @@ function PlanSummaryMember({ planId, state, vibeTally }: { planId: string; state
       {!editing && !pending ? (
         memberToken
           ? (
-            <PlanRoute
-              planId={planId}
-              startTime={state.plan.startTime}
-              stops={visibleStops}
-            />
+            <>
+              <PlanRoute
+                planId={planId}
+                startTime={state.plan.startTime}
+                stops={canonicalRouteStops}
+              />
+              {/* Round has no Plan-constraint fields, so this bridge carries only title and ordered venue identity. */}
+              <RoundStarter
+                defaultTitle={state.plan.title}
+                seedStops={canonicalRouteStops.map((stop) => ({
+                  id: stop.venueId,
+                  name: stop.venueName,
+                }))}
+              />
+            </>
           )
           : <InvitePrivacyPreview preview={invitePreview} />
       ) : null}
