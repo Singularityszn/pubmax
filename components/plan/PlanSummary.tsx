@@ -472,6 +472,7 @@ function PlanSummaryMember({ planId, state, vibeTally }: { planId: string; state
                 startTime={state.plan.startTime}
                 stops={canonicalRouteStops}
               />
+              {/* Round has no Plan-constraint fields, so this bridge carries only title and ordered venue identity. */}
               <RoundStarter
                 defaultTitle={state.plan.title}
                 seedStops={canonicalRouteStops.map((stop) => ({
