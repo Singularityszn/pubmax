@@ -1,9 +1,9 @@
 {
-  "phase": "before",
-  "capturedAt": "2026-07-30T17:25:19.336Z",
+  "phase": "after",
+  "capturedAt": "2026-07-30T17:27:49.224Z",
   "server": {
     "mode": "production",
-    "buildCommit": "3bc4dd42"
+    "buildCommit": "d73eda7f"
   },
   "viewports": [
     {
@@ -79,7 +79,13 @@
           "height": 6629.2
         }
       ],
-      "assertions": [],
+      "assertions": [
+        {
+          "name": "landing hero actions shares one control height",
+          "passed": true,
+          "detail": "54, 54, 54px; spread 0px"
+        }
+      ],
       "screenshot": "landing-390.png"
     },
     {
@@ -152,29 +158,29 @@
           "controls": [
             {
               "label": "Near me",
-              "left": 12,
-              "right": 119.39,
+              "left": 14,
+              "right": 97.23,
               "top": 72,
               "bottom": 116,
-              "width": 107.39,
+              "width": 83.23,
               "height": 44
             },
             {
               "label": "Tonight5",
-              "left": 124.39,
-              "right": 249.09,
+              "left": 102.23,
+              "right": 202.5,
               "top": 72,
               "bottom": 116,
-              "width": 124.7,
+              "width": 100.27,
               "height": 44
             },
             {
               "label": "Filters: ≤£8.00 active",
-              "left": 254.09,
-              "right": 368.59,
+              "left": 207.5,
+              "right": 299.81,
               "top": 72,
               "bottom": 116,
-              "width": 114.5,
+              "width": 92.31,
               "height": 44
             }
           ]
@@ -185,46 +191,46 @@
           "controls": [
             {
               "label": "Pints",
-              "left": 21,
-              "right": 65,
-              "top": 125,
-              "bottom": 169,
+              "left": 20,
+              "right": 64,
+              "top": 124,
+              "bottom": 168,
               "width": 44,
               "height": 44
             },
             {
               "label": "Bars",
-              "left": 70,
-              "right": 114,
-              "top": 125,
-              "bottom": 169,
+              "left": 69,
+              "right": 113,
+              "top": 124,
+              "bottom": 168,
               "width": 44,
               "height": 44
             },
             {
               "label": "Clubs are not mapped yet",
-              "left": 119,
-              "right": 165.19,
-              "top": 125,
-              "bottom": 169,
+              "left": 118,
+              "right": 164.19,
+              "top": 124,
+              "bottom": 168,
               "width": 46.19,
               "height": 44
             },
             {
               "label": "Food",
-              "left": 170.19,
-              "right": 214.19,
-              "top": 125,
-              "bottom": 169,
+              "left": 169.19,
+              "right": 213.19,
+              "top": 124,
+              "bottom": 168,
               "width": 44,
               "height": 44
             },
             {
               "label": "Restaurants",
-              "left": 219.19,
-              "right": 303.69,
-              "top": 125,
-              "bottom": 169,
+              "left": 218.19,
+              "right": 302.69,
+              "top": 124,
+              "bottom": 168,
               "width": 84.5,
               "height": 44
             }
@@ -255,11 +261,11 @@
         {
           "name": "mobile contextual controls",
           "selector": ".mobileMapRail",
-          "left": 10,
-          "right": 380,
+          "left": 12,
+          "right": 322,
           "top": 68,
           "bottom": 120,
-          "width": 370,
+          "width": 310,
           "height": 52
         },
         {
@@ -268,18 +274,18 @@
           "left": 12,
           "right": 322,
           "top": 120,
-          "bottom": 174,
+          "bottom": 172,
           "width": 310,
-          "height": 54
+          "height": 52
         },
         {
           "name": "Describe your night",
           "selector": ".mobilePlanActivation",
-          "left": 72,
-          "right": 318,
+          "left": 12,
+          "right": 322,
           "top": 710,
           "bottom": 758,
-          "width": 246,
+          "width": 310,
           "height": 48
         },
         {
@@ -287,18 +293,18 @@
           "selector": ".analyticsConsentPrompt",
           "left": 12,
           "right": 378,
-          "top": 582,
+          "top": 577.88,
           "bottom": 698,
           "width": 366,
-          "height": 116
+          "height": 120.13
         },
         {
           "name": "map credit",
           "selector": ".maplibregl-ctrl-bottom-right",
           "left": 346,
           "right": 390,
-          "top": 660,
-          "bottom": 700,
+          "top": 530,
+          "bottom": 570,
           "width": 44,
           "height": 40
         },
@@ -313,7 +319,53 @@
           "height": 844
         }
       ],
-      "assertions": [],
+      "assertions": [
+        {
+          "name": "mobile map topbar shares one control height",
+          "passed": true,
+          "detail": "44, 44, 44, 44, 44px; spread 0px"
+        },
+        {
+          "name": "mobile contextual controls shares one control height",
+          "passed": true,
+          "detail": "44, 44, 44px; spread 0px"
+        },
+        {
+          "name": "Tonight Arc controls shares one control height",
+          "passed": true,
+          "detail": "44, 44, 44, 44, 44px; spread 0px"
+        },
+        {
+          "name": "floating map stack shares one horizontal boundary",
+          "passed": true,
+          "detail": "mobile contextual controls 12-322px; Tonight Arc panel 12-322px; Describe your night 12-322px"
+        },
+        {
+          "name": "phone chrome stays within 164px",
+          "passed": true,
+          "detail": "162px"
+        },
+        {
+          "name": "phone filters stay in one uncut row",
+          "passed": true,
+          "detail": "scroll 310px; client 310px; rail 12-322px"
+        },
+        {
+          "name": "analytics notice leaves map credit reachable",
+          "passed": true,
+          "detail": "notice 577.88-698px; credit 530-570px; overlap 0px"
+        },
+        {
+          "name": "map credit expands",
+          "passed": true,
+          "detail": "expanded attribution is visible"
+        },
+        {
+          "name": "analytics notice is dismissible",
+          "passed": true,
+          "detail": "No thanks removes the notice"
+        }
+      ],
       "screenshot": "map-first-visit-390.png"
     },
     {
@@ -382,29 +434,29 @@
           "controls": [
             {
               "label": "Near me",
-              "left": 12,
-              "right": 119.39,
+              "left": 14,
+              "right": 97.23,
               "top": 72,
               "bottom": 116,
-              "width": 107.39,
+              "width": 83.23,
               "height": 44
             },
             {
               "label": "Tonight5",
-              "left": 124.39,
-              "right": 249.09,
+              "left": 102.23,
+              "right": 202.5,
               "top": 72,
               "bottom": 116,
-              "width": 124.7,
+              "width": 100.27,
               "height": 44
             },
             {
               "label": "Filters: ≤£8.00 active",
-              "left": 254.09,
-              "right": 368.59,
+              "left": 207.5,
+              "right": 299.81,
               "top": 72,
               "bottom": 116,
-              "width": 114.5,
+              "width": 92.31,
               "height": 44
             }
           ]
@@ -415,46 +467,46 @@
           "controls": [
             {
               "label": "Pints",
-              "left": 21,
-              "right": 65,
-              "top": 125,
-              "bottom": 169,
+              "left": 20,
+              "right": 64,
+              "top": 124,
+              "bottom": 168,
               "width": 44,
               "height": 44
             },
             {
               "label": "Bars",
-              "left": 70,
-              "right": 114,
-              "top": 125,
-              "bottom": 169,
+              "left": 69,
+              "right": 113,
+              "top": 124,
+              "bottom": 168,
               "width": 44,
               "height": 44
             },
             {
               "label": "Clubs are not mapped yet",
-              "left": 119,
-              "right": 165.19,
-              "top": 125,
-              "bottom": 169,
+              "left": 118,
+              "right": 164.19,
+              "top": 124,
+              "bottom": 168,
               "width": 46.19,
               "height": 44
             },
             {
               "label": "Food",
-              "left": 170.19,
-              "right": 214.19,
-              "top": 125,
-              "bottom": 169,
+              "left": 169.19,
+              "right": 213.19,
+              "top": 124,
+              "bottom": 168,
               "width": 44,
               "height": 44
             },
             {
               "label": "Restaurants",
-              "left": 219.19,
-              "right": 303.69,
-              "top": 125,
-              "bottom": 169,
+              "left": 218.19,
+              "right": 302.69,
+              "top": 124,
+              "bottom": 168,
               "width": 84.5,
               "height": 44
             }
@@ -485,11 +537,11 @@
         {
           "name": "mobile contextual controls",
           "selector": ".mobileMapRail",
-          "left": 10,
-          "right": 380,
+          "left": 12,
+          "right": 322,
           "top": 68,
           "bottom": 120,
-          "width": 370,
+          "width": 310,
           "height": 52
         },
         {
@@ -498,9 +550,9 @@
           "left": 12,
           "right": 322,
           "top": 120,
-          "bottom": 174,
+          "bottom": 172,
           "width": 310,
-          "height": 54
+          "height": 52
         },
         {
           "name": "map credit",
@@ -523,7 +575,28 @@
           "height": 844
         }
       ],
-      "assertions": [],
+      "assertions": [
+        {
+          "name": "mobile map topbar shares one control height",
+          "passed": true,
+          "detail": "44, 44, 44, 44, 44px; spread 0px"
+        },
+        {
+          "name": "mobile contextual controls shares one control height",
+          "passed": true,
+          "detail": "44, 44, 44px; spread 0px"
+        },
+        {
+          "name": "Tonight Arc controls shares one control height",
+          "passed": true,
+          "detail": "44, 44, 44, 44, 44px; spread 0px"
+        },
+        {
+          "name": "venue captions stay uncut",
+          "passed": true,
+          "detail": "[{\"text\":\"current recorded price\",\"clientWidth\":125,\"scrollWidth\":125,\"clientHeight\":14,\"scrollHeight\":14,\"textOverflow\":\"clip\"},{\"text\":\"for walk time\",\"clientWidth\":125,\"scrollWidth\":125,\"clientHeight\":14,\"scrollHeight\":14,\"textOverflow\":\"clip\"}]"
+        }
+      ],
       "screenshot": "venue-sheet-390.png"
     },
     {
@@ -659,7 +732,18 @@
           "height": 1223.89
         }
       ],
-      "assertions": [],
+      "assertions": [
+        {
+          "name": "Plan area choices shares one control height",
+          "passed": true,
+          "detail": "48, 48, 48, 48, 48, 48, 48, 48px; spread 0px"
+        },
+        {
+          "name": "Plan footer actions shares one control height",
+          "passed": true,
+          "detail": "44, 44, 44px; spread 0px"
+        }
+      ],
       "screenshot": "plan-390.png"
     },
     {
@@ -717,7 +801,13 @@
           "height": 6827.75
         }
       ],
-      "assertions": [],
+      "assertions": [
+        {
+          "name": "profile header actions shares one control height",
+          "passed": true,
+          "detail": "44, 44, 44px; spread 0px"
+        }
+      ],
       "screenshot": "profile-signed-in-390.png"
     },
     {
@@ -775,7 +865,13 @@
           "height": 5721.52
         }
       ],
-      "assertions": [],
+      "assertions": [
+        {
+          "name": "landing hero actions shares one control height",
+          "passed": true,
+          "detail": "54, 54, 54px; spread 0px"
+        }
+      ],
       "screenshot": "landing-768.png"
     },
     {
@@ -793,46 +889,46 @@
           "controls": [
             {
               "label": "Pints",
-              "left": 231.35,
+              "left": 231.34,
               "right": 281.13,
-              "top": 101.41,
-              "bottom": 135.41,
+              "top": 94.41,
+              "bottom": 128.41,
               "width": 49.78,
               "height": 34
             },
             {
               "label": "Bars",
               "left": 286.13,
-              "right": 332.43,
-              "top": 101.41,
-              "bottom": 135.41,
+              "right": 332.42,
+              "top": 94.41,
+              "bottom": 128.41,
               "width": 46.3,
               "height": 34
             },
             {
               "label": "Clubs are not mapped yet",
-              "left": 337.43,
-              "right": 387.62,
-              "top": 101.41,
-              "bottom": 135.41,
+              "left": 337.42,
+              "right": 387.61,
+              "top": 94.41,
+              "bottom": 128.41,
               "width": 50.19,
               "height": 34
             },
             {
               "label": "Food",
-              "left": 392.62,
-              "right": 441.15,
-              "top": 101.41,
-              "bottom": 135.41,
+              "left": 392.61,
+              "right": 441.14,
+              "top": 94.41,
+              "bottom": 128.41,
               "width": 48.53,
               "height": 34
             },
             {
               "label": "Restaurants",
-              "left": 446.15,
-              "right": 536.65,
-              "top": 101.41,
-              "bottom": 135.41,
+              "left": 446.14,
+              "right": 536.64,
+              "top": 94.41,
+              "bottom": 128.41,
               "width": 90.5,
               "height": 34
             }
@@ -847,36 +943,36 @@
               "left": 25,
               "right": 286.11,
               "top": 179,
-              "bottom": 213,
+              "bottom": 223,
               "width": 261.11,
-              "height": 34
+              "height": 44
             },
             {
               "label": "Show drink filters",
               "left": 472.47,
               "right": 549.97,
               "top": 179,
-              "bottom": 213,
+              "bottom": 223,
               "width": 77.5,
-              "height": 34
+              "height": 44
             },
             {
               "label": "Plan tonight",
               "left": 555.97,
               "right": 683.95,
               "top": 179,
-              "bottom": 213,
+              "bottom": 223,
               "width": 127.98,
-              "height": 34
+              "height": 44
             },
             {
               "label": "City map: London. Change city",
               "left": 689.95,
               "right": 743,
               "top": 179,
-              "bottom": 213,
+              "bottom": 223,
               "width": 53.05,
-              "height": 34
+              "height": 44
             }
           ]
         }
@@ -885,31 +981,21 @@
         {
           "name": "Tonight Arc panel",
           "selector": ".tonightArcChips",
-          "left": 222.35,
-          "right": 545.65,
+          "left": 16,
+          "right": 752,
           "top": 80,
-          "bottom": 143.41,
-          "width": 323.3,
-          "height": 63.41
-        },
-        {
-          "name": "Describe your night",
-          "selector": ".mobilePlanActivation",
-          "left": 0,
-          "right": 188.45,
-          "top": 944,
-          "bottom": 973,
-          "width": 188.45,
-          "height": 29
+          "bottom": 128.41,
+          "width": 736,
+          "height": 48.41
         },
         {
           "name": "desktop map navigation",
           "selector": ".siteNavBarFloating",
-          "left": 12,
-          "right": 756,
+          "left": 16,
+          "right": 752,
           "top": 12,
           "bottom": 74,
-          "width": 744,
+          "width": 736,
           "height": 62
         },
         {
@@ -918,9 +1004,9 @@
           "left": 16,
           "right": 752,
           "top": 171,
-          "bottom": 316,
+          "bottom": 326,
           "width": 736,
-          "height": 145
+          "height": 155
         },
         {
           "name": "map credit",
@@ -943,7 +1029,23 @@
           "height": 900
         }
       ],
-      "assertions": [],
+      "assertions": [
+        {
+          "name": "Tonight Arc controls shares one control height",
+          "passed": true,
+          "detail": "34, 34, 34, 34, 34px; spread 0px"
+        },
+        {
+          "name": "desktop map toolbar shares one control height",
+          "passed": true,
+          "detail": "44, 44, 44, 44px; spread 0px"
+        },
+        {
+          "name": "floating map stack shares one horizontal boundary",
+          "passed": true,
+          "detail": "desktop map navigation 16-752px; Tonight Arc panel 16-752px; desktop map toolbar 16-752px"
+        }
+      ],
       "screenshot": "map-first-visit-768.png"
     },
     {
@@ -961,46 +1063,46 @@
           "controls": [
             {
               "label": "Pints",
-              "left": 231.35,
+              "left": 231.34,
               "right": 281.13,
-              "top": -245.59,
-              "bottom": -211.59,
+              "top": -252.59,
+              "bottom": -218.59,
               "width": 49.78,
               "height": 34
             },
             {
               "label": "Bars",
               "left": 286.13,
-              "right": 332.43,
-              "top": -245.59,
-              "bottom": -211.59,
+              "right": 332.42,
+              "top": -252.59,
+              "bottom": -218.59,
               "width": 46.3,
               "height": 34
             },
             {
               "label": "Clubs are not mapped yet",
-              "left": 337.43,
-              "right": 387.62,
-              "top": -245.59,
-              "bottom": -211.59,
+              "left": 337.42,
+              "right": 387.61,
+              "top": -252.59,
+              "bottom": -218.59,
               "width": 50.19,
               "height": 34
             },
             {
               "label": "Food",
-              "left": 392.62,
-              "right": 441.15,
-              "top": -245.59,
-              "bottom": -211.59,
+              "left": 392.61,
+              "right": 441.14,
+              "top": -252.59,
+              "bottom": -218.59,
               "width": 48.53,
               "height": 34
             },
             {
               "label": "Restaurants",
-              "left": 446.15,
-              "right": 536.65,
-              "top": -245.59,
-              "bottom": -211.59,
+              "left": 446.14,
+              "right": 536.64,
+              "top": -252.59,
+              "bottom": -218.59,
               "width": 90.5,
               "height": 34
             }
@@ -1015,36 +1117,36 @@
               "left": 25,
               "right": 286.11,
               "top": -168,
-              "bottom": -134,
+              "bottom": -124,
               "width": 261.11,
-              "height": 34
+              "height": 44
             },
             {
               "label": "Show drink filters",
               "left": 472.47,
               "right": 549.97,
               "top": -168,
-              "bottom": -134,
+              "bottom": -124,
               "width": 77.5,
-              "height": 34
+              "height": 44
             },
             {
               "label": "Plan tonight",
               "left": 555.97,
               "right": 683.95,
               "top": -168,
-              "bottom": -134,
+              "bottom": -124,
               "width": 127.98,
-              "height": 34
+              "height": 44
             },
             {
               "label": "City map: London. Change city",
               "left": 689.95,
               "right": 743,
               "top": -168,
-              "bottom": -134,
+              "bottom": -124,
               "width": 53.05,
-              "height": 34
+              "height": 44
             }
           ]
         }
@@ -1053,21 +1155,21 @@
         {
           "name": "Tonight Arc panel",
           "selector": ".tonightArcChips",
-          "left": 222.35,
-          "right": 545.65,
+          "left": 16,
+          "right": 752,
           "top": -267,
-          "bottom": -203.59,
-          "width": 323.3,
-          "height": 63.41
+          "bottom": -218.59,
+          "width": 736,
+          "height": 48.41
         },
         {
           "name": "desktop map navigation",
           "selector": ".siteNavBarFloating",
-          "left": 12,
-          "right": 756,
+          "left": 16,
+          "right": 752,
           "top": 12,
           "bottom": 74,
-          "width": 744,
+          "width": 736,
           "height": 62
         },
         {
@@ -1076,9 +1178,9 @@
           "left": 16,
           "right": 752,
           "top": -176,
-          "bottom": -31,
+          "bottom": -21,
           "width": 736,
-          "height": 145
+          "height": 155
         },
         {
           "name": "map credit",
@@ -1101,7 +1203,18 @@
           "height": 900
         }
       ],
-      "assertions": [],
+      "assertions": [
+        {
+          "name": "Tonight Arc controls shares one control height",
+          "passed": true,
+          "detail": "34, 34, 34, 34, 34px; spread 0px"
+        },
+        {
+          "name": "desktop map toolbar shares one control height",
+          "passed": true,
+          "detail": "44, 44, 44, 44px; spread 0px"
+        }
+      ],
       "screenshot": "venue-sheet-768.png"
     },
     {
@@ -1237,7 +1350,18 @@
           "height": 1188.53
         }
       ],
-      "assertions": [],
+      "assertions": [
+        {
+          "name": "Plan area choices shares one control height",
+          "passed": true,
+          "detail": "48, 48, 48, 48, 48, 48, 48, 48px; spread 0px"
+        },
+        {
+          "name": "Plan footer actions shares one control height",
+          "passed": true,
+          "detail": "44, 44, 44px; spread 0px"
+        }
+      ],
       "screenshot": "plan-768.png"
     },
     {
@@ -1257,8 +1381,8 @@
               "label": "Invite your lot",
               "left": 291.47,
               "right": 415.13,
-              "top": 139.8,
-              "bottom": 183.8,
+              "top": 222.19,
+              "bottom": 266.19,
               "width": 123.66,
               "height": 44
             },
@@ -1266,8 +1390,8 @@
               "label": "Edit profile",
               "left": 425.13,
               "right": 534.2,
-              "top": 139.8,
-              "bottom": 183.8,
+              "top": 222.19,
+              "bottom": 266.19,
               "width": 109.08,
               "height": 44
             },
@@ -1275,9 +1399,24 @@
               "label": "Meet your Pub Pal",
               "left": 544.2,
               "right": 704.28,
-              "top": 139.8,
-              "bottom": 183.8,
+              "top": 222.19,
+              "bottom": 266.19,
               "width": 160.08,
+              "height": 44
+            }
+          ]
+        },
+        {
+          "name": "profile owner utilities",
+          "selector": ".profileOwnerUtilities .siteNavMoreBtn",
+          "controls": [
+            {
+              "label": "Profile options",
+              "left": 641.69,
+              "right": 736,
+              "top": 108.08,
+              "bottom": 152.08,
+              "width": 94.31,
               "height": 44
             }
           ]
@@ -1290,12 +1429,18 @@
           "left": 0,
           "right": 768,
           "top": 62,
-          "bottom": 5407.63,
+          "bottom": 5490.02,
           "width": 768,
-          "height": 5345.63
+          "height": 5428.02
         }
       ],
-      "assertions": [],
+      "assertions": [
+        {
+          "name": "profile header actions shares one control height",
+          "passed": true,
+          "detail": "44, 44, 44px; spread 0px"
+        }
+      ],
       "screenshot": "profile-signed-in-768.png"
     },
     {
@@ -1353,7 +1498,13 @@
           "height": 5070.77
         }
       ],
-      "assertions": [],
+      "assertions": [
+        {
+          "name": "landing hero actions shares one control height",
+          "passed": true,
+          "detail": "54, 54, 54px; spread 0px"
+        }
+      ],
       "screenshot": "landing-1280.png"
     },
     {
@@ -1371,46 +1522,46 @@
           "controls": [
             {
               "label": "Pints",
-              "left": 487.35,
+              "left": 487.34,
               "right": 537.13,
-              "top": 101.41,
-              "bottom": 135.41,
+              "top": 94.41,
+              "bottom": 128.41,
               "width": 49.78,
               "height": 34
             },
             {
               "label": "Bars",
               "left": 542.13,
-              "right": 588.43,
-              "top": 101.41,
-              "bottom": 135.41,
+              "right": 588.42,
+              "top": 94.41,
+              "bottom": 128.41,
               "width": 46.3,
               "height": 34
             },
             {
               "label": "Clubs are not mapped yet",
-              "left": 593.43,
-              "right": 643.62,
-              "top": 101.41,
-              "bottom": 135.41,
+              "left": 593.42,
+              "right": 643.61,
+              "top": 94.41,
+              "bottom": 128.41,
               "width": 50.19,
               "height": 34
             },
             {
               "label": "Food",
-              "left": 648.62,
-              "right": 697.15,
-              "top": 101.41,
-              "bottom": 135.41,
+              "left": 648.61,
+              "right": 697.14,
+              "top": 94.41,
+              "bottom": 128.41,
               "width": 48.53,
               "height": 34
             },
             {
               "label": "Restaurants",
-              "left": 702.15,
-              "right": 792.65,
-              "top": 101.41,
-              "bottom": 135.41,
+              "left": 702.14,
+              "right": 792.64,
+              "top": 94.41,
+              "bottom": 128.41,
               "width": 90.5,
               "height": 34
             }
@@ -1422,66 +1573,66 @@
           "controls": [
             {
               "label": "Search pubs",
-              "left": 119.25,
-              "right": 428.16,
-              "top": 185,
-              "bottom": 219,
-              "width": 308.91,
-              "height": 34
+              "left": 29,
+              "right": 417,
+              "top": 167,
+              "bottom": 211,
+              "width": 388,
+              "height": 44
             },
             {
               "label": "DrinkPintWineWhiskyGinVodkaRumCocktailsShotsAlcohol-freeSoft drinks",
-              "left": 434.16,
-              "right": 616.53,
+              "left": 423,
+              "right": 605.38,
               "top": 167,
-              "bottom": 199,
+              "bottom": 211,
               "width": 182.38,
-              "height": 32
+              "height": 44
             },
             {
               "label": "My pintCheapest pint (any)Guinness · 4.2%Amstel · 4%Estrella · 4.6%Peroni · 5%Neck Oil · 4.3%Birra Moretti · 4.6%Madrí · 4.6%Pravha · 4%Carling · 4%Fosters · 4%Corona · 4.5%Budweiser · 4.8%Carlsberg · 3.8%Stella Artois · 4.6%San Miguel · 5%Asahi · 5.2%Coors · 4%Camden Hells · 4.6%Kronenbourg · 5%Leffe Blonde · 6.6%Bud Light · 3.5%",
-              "left": 434.16,
-              "right": 672.97,
-              "top": 205,
-              "bottom": 237,
+              "left": 611.38,
+              "right": 850.19,
+              "top": 167,
+              "bottom": 211,
               "width": 238.81,
-              "height": 32
+              "height": 44
             },
             {
               "label": "Show drink filters",
-              "left": 770.06,
-              "right": 847.56,
-              "top": 185,
-              "bottom": 219,
+              "left": 856.19,
+              "right": 933.69,
+              "top": 167,
+              "bottom": 211,
               "width": 77.5,
-              "height": 34
+              "height": 44
             },
             {
               "label": "Zone",
-              "left": 853.56,
-              "right": 940,
-              "top": 180,
-              "bottom": 224,
+              "left": 939.69,
+              "right": 1026.13,
+              "top": 167,
+              "bottom": 211,
               "width": 86.44,
               "height": 44
             },
             {
               "label": "Plan tonight",
-              "left": 946,
-              "right": 1079.98,
-              "top": 185,
-              "bottom": 219,
+              "left": 1032.13,
+              "right": 1166.11,
+              "top": 167,
+              "bottom": 211,
               "width": 133.98,
-              "height": 34
+              "height": 44
             },
             {
               "label": "City map: London. Change city",
-              "left": 1085.98,
-              "right": 1160.75,
-              "top": 185,
-              "bottom": 219,
+              "left": 1172.11,
+              "right": 1246.88,
+              "top": 167,
+              "bottom": 211,
               "width": 74.77,
-              "height": 34
+              "height": 44
             }
           ]
         }
@@ -1490,42 +1641,32 @@
         {
           "name": "Tonight Arc panel",
           "selector": ".tonightArcChips",
-          "left": 478.35,
-          "right": 801.65,
+          "left": 20,
+          "right": 1260,
           "top": 80,
-          "bottom": 143.41,
-          "width": 323.3,
-          "height": 63.41
-        },
-        {
-          "name": "Describe your night",
-          "selector": ".mobilePlanActivation",
-          "left": 0,
-          "right": 188.45,
-          "top": 844,
-          "bottom": 873,
-          "width": 188.45,
-          "height": 29
+          "bottom": 128.41,
+          "width": 1240,
+          "height": 48.41
         },
         {
           "name": "desktop map navigation",
           "selector": ".siteNavBarFloating",
-          "left": 180.33,
-          "right": 1099.67,
+          "left": 20,
+          "right": 1260,
           "top": 12,
           "bottom": 76,
-          "width": 919.34,
+          "width": 1240,
           "height": 64
         },
         {
           "name": "desktop map toolbar",
           "selector": ".mapToolbar",
-          "left": 110.25,
-          "right": 1169.75,
+          "left": 20,
+          "right": 1260,
           "top": 159,
-          "bottom": 340,
-          "width": 1059.5,
-          "height": 181
+          "bottom": 314,
+          "width": 1240,
+          "height": 155
         },
         {
           "name": "map credit",
@@ -1548,7 +1689,23 @@
           "height": 800
         }
       ],
-      "assertions": [],
+      "assertions": [
+        {
+          "name": "Tonight Arc controls shares one control height",
+          "passed": true,
+          "detail": "34, 34, 34, 34, 34px; spread 0px"
+        },
+        {
+          "name": "desktop map toolbar shares one control height",
+          "passed": true,
+          "detail": "44, 44, 44, 44, 44, 44, 44px; spread 0px"
+        },
+        {
+          "name": "floating map stack shares one horizontal boundary",
+          "passed": true,
+          "detail": "desktop map navigation 20-1260px; Tonight Arc panel 20-1260px; desktop map toolbar 20-1260px"
+        }
+      ],
       "screenshot": "map-first-visit-1280.png"
     },
     {
@@ -1566,46 +1723,46 @@
           "controls": [
             {
               "label": "Pints",
-              "left": 487.35,
+              "left": 487.34,
               "right": 537.13,
-              "top": 101.41,
-              "bottom": 135.41,
+              "top": 94.41,
+              "bottom": 128.41,
               "width": 49.78,
               "height": 34
             },
             {
               "label": "Bars",
               "left": 542.13,
-              "right": 588.43,
-              "top": 101.41,
-              "bottom": 135.41,
+              "right": 588.42,
+              "top": 94.41,
+              "bottom": 128.41,
               "width": 46.3,
               "height": 34
             },
             {
               "label": "Clubs are not mapped yet",
-              "left": 593.43,
-              "right": 643.62,
-              "top": 101.41,
-              "bottom": 135.41,
+              "left": 593.42,
+              "right": 643.61,
+              "top": 94.41,
+              "bottom": 128.41,
               "width": 50.19,
               "height": 34
             },
             {
               "label": "Food",
-              "left": 648.62,
-              "right": 697.15,
-              "top": 101.41,
-              "bottom": 135.41,
+              "left": 648.61,
+              "right": 697.14,
+              "top": 94.41,
+              "bottom": 128.41,
               "width": 48.53,
               "height": 34
             },
             {
               "label": "Restaurants",
-              "left": 702.15,
-              "right": 792.65,
-              "top": 101.41,
-              "bottom": 135.41,
+              "left": 702.14,
+              "right": 792.64,
+              "top": 94.41,
+              "bottom": 128.41,
               "width": 90.5,
               "height": 34
             }
@@ -1617,66 +1774,66 @@
           "controls": [
             {
               "label": "Search pubs",
-              "left": 119.25,
-              "right": 428.16,
-              "top": 185,
-              "bottom": 219,
-              "width": 308.91,
-              "height": 34
+              "left": 29,
+              "right": 417,
+              "top": 167,
+              "bottom": 211,
+              "width": 388,
+              "height": 44
             },
             {
               "label": "DrinkPintWineWhiskyGinVodkaRumCocktailsShotsAlcohol-freeSoft drinks",
-              "left": 434.16,
-              "right": 616.53,
+              "left": 423,
+              "right": 605.38,
               "top": 167,
-              "bottom": 199,
+              "bottom": 211,
               "width": 182.38,
-              "height": 32
+              "height": 44
             },
             {
               "label": "My pintCheapest pint (any)Guinness · 4.2%Amstel · 4%Estrella · 4.6%Peroni · 5%Neck Oil · 4.3%Birra Moretti · 4.6%Madrí · 4.6%Pravha · 4%Carling · 4%Fosters · 4%Corona · 4.5%Budweiser · 4.8%Carlsberg · 3.8%Stella Artois · 4.6%San Miguel · 5%Asahi · 5.2%Coors · 4%Camden Hells · 4.6%Kronenbourg · 5%Leffe Blonde · 6.6%Bud Light · 3.5%",
-              "left": 434.16,
-              "right": 672.97,
-              "top": 205,
-              "bottom": 237,
+              "left": 611.38,
+              "right": 850.19,
+              "top": 167,
+              "bottom": 211,
               "width": 238.81,
-              "height": 32
+              "height": 44
             },
             {
               "label": "Show drink filters",
-              "left": 770.06,
-              "right": 847.56,
-              "top": 185,
-              "bottom": 219,
+              "left": 856.19,
+              "right": 933.69,
+              "top": 167,
+              "bottom": 211,
               "width": 77.5,
-              "height": 34
+              "height": 44
             },
             {
               "label": "Zone",
-              "left": 853.56,
-              "right": 940,
-              "top": 180,
-              "bottom": 224,
+              "left": 939.69,
+              "right": 1026.13,
+              "top": 167,
+              "bottom": 211,
               "width": 86.44,
               "height": 44
             },
             {
               "label": "Plan tonight",
-              "left": 946,
-              "right": 1079.98,
-              "top": 185,
-              "bottom": 219,
+              "left": 1032.13,
+              "right": 1166.11,
+              "top": 167,
+              "bottom": 211,
               "width": 133.98,
-              "height": 34
+              "height": 44
             },
             {
               "label": "City map: London. Change city",
-              "left": 1085.98,
-              "right": 1160.75,
-              "top": 185,
-              "bottom": 219,
+              "left": 1172.11,
+              "right": 1246.88,
+              "top": 167,
+              "bottom": 211,
               "width": 74.77,
-              "height": 34
+              "height": 44
             }
           ]
         }
@@ -1685,32 +1842,32 @@
         {
           "name": "Tonight Arc panel",
           "selector": ".tonightArcChips",
-          "left": 478.35,
-          "right": 801.65,
+          "left": 20,
+          "right": 1260,
           "top": 80,
-          "bottom": 143.41,
-          "width": 323.3,
-          "height": 63.41
+          "bottom": 128.41,
+          "width": 1240,
+          "height": 48.41
         },
         {
           "name": "desktop map navigation",
           "selector": ".siteNavBarFloating",
-          "left": 180.33,
-          "right": 1099.67,
+          "left": 20,
+          "right": 1260,
           "top": 12,
           "bottom": 76,
-          "width": 919.34,
+          "width": 1240,
           "height": 64
         },
         {
           "name": "desktop map toolbar",
           "selector": ".mapToolbar",
-          "left": 110.25,
-          "right": 1169.75,
+          "left": 20,
+          "right": 1260,
           "top": 159,
-          "bottom": 340,
-          "width": 1059.5,
-          "height": 181
+          "bottom": 314,
+          "width": 1240,
+          "height": 155
         },
         {
           "name": "map credit",
@@ -1733,7 +1890,18 @@
           "height": 800
         }
       ],
-      "assertions": [],
+      "assertions": [
+        {
+          "name": "Tonight Arc controls shares one control height",
+          "passed": true,
+          "detail": "34, 34, 34, 34, 34px; spread 0px"
+        },
+        {
+          "name": "desktop map toolbar shares one control height",
+          "passed": true,
+          "detail": "44, 44, 44, 44, 44, 44, 44px; spread 0px"
+        }
+      ],
       "screenshot": "venue-sheet-1280.png"
     },
     {
@@ -1869,7 +2037,18 @@
           "height": 1554.3
         }
       ],
-      "assertions": [],
+      "assertions": [
+        {
+          "name": "Plan area choices shares one control height",
+          "passed": true,
+          "detail": "48, 48, 48, 48, 48, 48, 48, 48px; spread 0px"
+        },
+        {
+          "name": "Plan footer actions shares one control height",
+          "passed": true,
+          "detail": "44, 44, 44px; spread 0px"
+        }
+      ],
       "screenshot": "plan-1280.png"
     },
     {
@@ -1887,8 +2066,8 @@
           "controls": [
             {
               "label": "Invite your lot",
-              "left": 65,
-              "right": 339,
+              "left": 85,
+              "right": 359,
               "top": 371.47,
               "bottom": 415.47,
               "width": 274,
@@ -1896,8 +2075,8 @@
             },
             {
               "label": "Edit profile",
-              "left": 65,
-              "right": 339,
+              "left": 85,
+              "right": 359,
               "top": 425.47,
               "bottom": 469.47,
               "width": 274,
@@ -1905,11 +2084,26 @@
             },
             {
               "label": "Meet your Pub Pal",
-              "left": 65,
-              "right": 339,
+              "left": 85,
+              "right": 359,
               "top": 479.47,
               "bottom": 523.47,
               "width": 274,
+              "height": 44
+            }
+          ]
+        },
+        {
+          "name": "profile owner utilities",
+          "selector": ".profileOwnerUtilities .siteNavMoreBtn",
+          "controls": [
+            {
+              "label": "Profile options",
+              "left": 1133.69,
+              "right": 1228,
+              "top": 128,
+              "bottom": 172,
+              "width": 94.31,
               "height": 44
             }
           ]
@@ -1919,15 +2113,21 @@
         {
           "name": "page main",
           "selector": "main",
-          "left": 0,
-          "right": 1240,
+          "left": 20,
+          "right": 1260,
           "top": 64,
-          "bottom": 4520.95,
+          "bottom": 4576.95,
           "width": 1240,
-          "height": 4456.95
+          "height": 4512.95
         }
       ],
-      "assertions": [],
+      "assertions": [
+        {
+          "name": "profile header actions shares one control height",
+          "passed": true,
+          "detail": "44, 44, 44px; spread 0px"
+        }
+      ],
       "screenshot": "profile-signed-in-1280.png"
     },
     {
@@ -1980,12 +2180,18 @@
           "left": 0,
           "right": 1440,
           "top": 0,
-          "bottom": 5368.13,
+          "bottom": 5357.38,
           "width": 1440,
-          "height": 5368.13
+          "height": 5357.38
         }
       ],
-      "assertions": [],
+      "assertions": [
+        {
+          "name": "landing hero actions shares one control height",
+          "passed": true,
+          "detail": "54, 54, 54px; spread 0px"
+        }
+      ],
       "screenshot": "landing-1440.png"
     },
     {
@@ -2003,46 +2209,46 @@
           "controls": [
             {
               "label": "Pints",
-              "left": 567.35,
+              "left": 567.34,
               "right": 617.13,
-              "top": 101.41,
-              "bottom": 135.41,
+              "top": 94.41,
+              "bottom": 128.41,
               "width": 49.78,
               "height": 34
             },
             {
               "label": "Bars",
               "left": 622.13,
-              "right": 668.43,
-              "top": 101.41,
-              "bottom": 135.41,
+              "right": 668.42,
+              "top": 94.41,
+              "bottom": 128.41,
               "width": 46.3,
               "height": 34
             },
             {
               "label": "Clubs are not mapped yet",
-              "left": 673.43,
-              "right": 723.62,
-              "top": 101.41,
-              "bottom": 135.41,
+              "left": 673.42,
+              "right": 723.61,
+              "top": 94.41,
+              "bottom": 128.41,
               "width": 50.19,
               "height": 34
             },
             {
               "label": "Food",
-              "left": 728.62,
-              "right": 777.15,
-              "top": 101.41,
-              "bottom": 135.41,
+              "left": 728.61,
+              "right": 777.14,
+              "top": 94.41,
+              "bottom": 128.41,
               "width": 48.53,
               "height": 34
             },
             {
               "label": "Restaurants",
-              "left": 782.15,
-              "right": 872.65,
-              "top": 101.41,
-              "bottom": 135.41,
+              "left": 782.14,
+              "right": 872.64,
+              "top": 94.41,
+              "bottom": 128.41,
               "width": 90.5,
               "height": 34
             }
@@ -2054,66 +2260,66 @@
           "controls": [
             {
               "label": "Search pubs",
-              "left": 199.25,
-              "right": 508.16,
-              "top": 185,
-              "bottom": 219,
-              "width": 308.91,
-              "height": 34
+              "left": 109,
+              "right": 497,
+              "top": 167,
+              "bottom": 211,
+              "width": 388,
+              "height": 44
             },
             {
               "label": "DrinkPintWineWhiskyGinVodkaRumCocktailsShotsAlcohol-freeSoft drinks",
-              "left": 514.16,
-              "right": 696.53,
+              "left": 503,
+              "right": 685.38,
               "top": 167,
-              "bottom": 199,
+              "bottom": 211,
               "width": 182.38,
-              "height": 32
+              "height": 44
             },
             {
               "label": "My pintCheapest pint (any)Guinness · 4.2%Amstel · 4%Estrella · 4.6%Peroni · 5%Neck Oil · 4.3%Birra Moretti · 4.6%Madrí · 4.6%Pravha · 4%Carling · 4%Fosters · 4%Corona · 4.5%Budweiser · 4.8%Carlsberg · 3.8%Stella Artois · 4.6%San Miguel · 5%Asahi · 5.2%Coors · 4%Camden Hells · 4.6%Kronenbourg · 5%Leffe Blonde · 6.6%Bud Light · 3.5%",
-              "left": 514.16,
-              "right": 752.97,
-              "top": 205,
-              "bottom": 237,
+              "left": 691.38,
+              "right": 930.19,
+              "top": 167,
+              "bottom": 211,
               "width": 238.81,
-              "height": 32
+              "height": 44
             },
             {
               "label": "Show drink filters",
-              "left": 850.06,
-              "right": 927.56,
-              "top": 185,
-              "bottom": 219,
+              "left": 936.19,
+              "right": 1013.69,
+              "top": 167,
+              "bottom": 211,
               "width": 77.5,
-              "height": 34
+              "height": 44
             },
             {
               "label": "Zone",
-              "left": 933.56,
-              "right": 1020,
-              "top": 180,
-              "bottom": 224,
+              "left": 1019.69,
+              "right": 1106.13,
+              "top": 167,
+              "bottom": 211,
               "width": 86.44,
               "height": 44
             },
             {
               "label": "Plan tonight",
-              "left": 1026,
-              "right": 1159.98,
-              "top": 185,
-              "bottom": 219,
+              "left": 1112.13,
+              "right": 1246.11,
+              "top": 167,
+              "bottom": 211,
               "width": 133.98,
-              "height": 34
+              "height": 44
             },
             {
               "label": "City map: London. Change city",
-              "left": 1165.98,
-              "right": 1240.75,
-              "top": 185,
-              "bottom": 219,
+              "left": 1252.11,
+              "right": 1326.88,
+              "top": 167,
+              "bottom": 211,
               "width": 74.77,
-              "height": 34
+              "height": 44
             }
           ]
         }
@@ -2122,42 +2328,32 @@
         {
           "name": "Tonight Arc panel",
           "selector": ".tonightArcChips",
-          "left": 558.35,
-          "right": 881.65,
+          "left": 100,
+          "right": 1340,
           "top": 80,
-          "bottom": 143.41,
-          "width": 323.3,
-          "height": 63.41
-        },
-        {
-          "name": "Describe your night",
-          "selector": ".mobilePlanActivation",
-          "left": 0,
-          "right": 188.45,
-          "top": 944,
-          "bottom": 973,
-          "width": 188.45,
-          "height": 29
+          "bottom": 128.41,
+          "width": 1240,
+          "height": 48.41
         },
         {
           "name": "desktop map navigation",
           "selector": ".siteNavBarFloating",
-          "left": 260.33,
-          "right": 1179.67,
+          "left": 100,
+          "right": 1340,
           "top": 12,
           "bottom": 76,
-          "width": 919.34,
+          "width": 1240,
           "height": 64
         },
         {
           "name": "desktop map toolbar",
           "selector": ".mapToolbar",
-          "left": 190.25,
-          "right": 1249.75,
+          "left": 100,
+          "right": 1340,
           "top": 159,
-          "bottom": 340,
-          "width": 1059.5,
-          "height": 181
+          "bottom": 314,
+          "width": 1240,
+          "height": 155
         },
         {
           "name": "map credit",
@@ -2180,7 +2376,23 @@
           "height": 900
         }
       ],
-      "assertions": [],
+      "assertions": [
+        {
+          "name": "Tonight Arc controls shares one control height",
+          "passed": true,
+          "detail": "34, 34, 34, 34, 34px; spread 0px"
+        },
+        {
+          "name": "desktop map toolbar shares one control height",
+          "passed": true,
+          "detail": "44, 44, 44, 44, 44, 44, 44px; spread 0px"
+        },
+        {
+          "name": "floating map stack shares one horizontal boundary",
+          "passed": true,
+          "detail": "desktop map navigation 100-1340px; Tonight Arc panel 100-1340px; desktop map toolbar 100-1340px"
+        }
+      ],
       "screenshot": "map-first-visit-1440.png"
     },
     {
@@ -2198,46 +2410,46 @@
           "controls": [
             {
               "label": "Pints",
-              "left": 567.35,
+              "left": 567.34,
               "right": 617.13,
-              "top": 101.41,
-              "bottom": 135.41,
+              "top": 94.41,
+              "bottom": 128.41,
               "width": 49.78,
               "height": 34
             },
             {
               "label": "Bars",
               "left": 622.13,
-              "right": 668.43,
-              "top": 101.41,
-              "bottom": 135.41,
+              "right": 668.42,
+              "top": 94.41,
+              "bottom": 128.41,
               "width": 46.3,
               "height": 34
             },
             {
               "label": "Clubs are not mapped yet",
-              "left": 673.43,
-              "right": 723.62,
-              "top": 101.41,
-              "bottom": 135.41,
+              "left": 673.42,
+              "right": 723.61,
+              "top": 94.41,
+              "bottom": 128.41,
               "width": 50.19,
               "height": 34
             },
             {
               "label": "Food",
-              "left": 728.62,
-              "right": 777.15,
-              "top": 101.41,
-              "bottom": 135.41,
+              "left": 728.61,
+              "right": 777.14,
+              "top": 94.41,
+              "bottom": 128.41,
               "width": 48.53,
               "height": 34
             },
             {
               "label": "Restaurants",
-              "left": 782.15,
-              "right": 872.65,
-              "top": 101.41,
-              "bottom": 135.41,
+              "left": 782.14,
+              "right": 872.64,
+              "top": 94.41,
+              "bottom": 128.41,
               "width": 90.5,
               "height": 34
             }
@@ -2249,66 +2461,66 @@
           "controls": [
             {
               "label": "Search pubs",
-              "left": 199.25,
-              "right": 508.16,
-              "top": 185,
-              "bottom": 219,
-              "width": 308.91,
-              "height": 34
+              "left": 109,
+              "right": 497,
+              "top": 167,
+              "bottom": 211,
+              "width": 388,
+              "height": 44
             },
             {
               "label": "DrinkPintWineWhiskyGinVodkaRumCocktailsShotsAlcohol-freeSoft drinks",
-              "left": 514.16,
-              "right": 696.53,
+              "left": 503,
+              "right": 685.38,
               "top": 167,
-              "bottom": 199,
+              "bottom": 211,
               "width": 182.38,
-              "height": 32
+              "height": 44
             },
             {
               "label": "My pintCheapest pint (any)Guinness · 4.2%Amstel · 4%Estrella · 4.6%Peroni · 5%Neck Oil · 4.3%Birra Moretti · 4.6%Madrí · 4.6%Pravha · 4%Carling · 4%Fosters · 4%Corona · 4.5%Budweiser · 4.8%Carlsberg · 3.8%Stella Artois · 4.6%San Miguel · 5%Asahi · 5.2%Coors · 4%Camden Hells · 4.6%Kronenbourg · 5%Leffe Blonde · 6.6%Bud Light · 3.5%",
-              "left": 514.16,
-              "right": 752.97,
-              "top": 205,
-              "bottom": 237,
+              "left": 691.38,
+              "right": 930.19,
+              "top": 167,
+              "bottom": 211,
               "width": 238.81,
-              "height": 32
+              "height": 44
             },
             {
               "label": "Show drink filters",
-              "left": 850.06,
-              "right": 927.56,
-              "top": 185,
-              "bottom": 219,
+              "left": 936.19,
+              "right": 1013.69,
+              "top": 167,
+              "bottom": 211,
               "width": 77.5,
-              "height": 34
+              "height": 44
             },
             {
               "label": "Zone",
-              "left": 933.56,
-              "right": 1020,
-              "top": 180,
-              "bottom": 224,
+              "left": 1019.69,
+              "right": 1106.13,
+              "top": 167,
+              "bottom": 211,
               "width": 86.44,
               "height": 44
             },
             {
               "label": "Plan tonight",
-              "left": 1026,
-              "right": 1159.98,
-              "top": 185,
-              "bottom": 219,
+              "left": 1112.13,
+              "right": 1246.11,
+              "top": 167,
+              "bottom": 211,
               "width": 133.98,
-              "height": 34
+              "height": 44
             },
             {
               "label": "City map: London. Change city",
-              "left": 1165.98,
-              "right": 1240.75,
-              "top": 185,
-              "bottom": 219,
+              "left": 1252.11,
+              "right": 1326.88,
+              "top": 167,
+              "bottom": 211,
               "width": 74.77,
-              "height": 34
+              "height": 44
             }
           ]
         }
@@ -2317,32 +2529,32 @@
         {
           "name": "Tonight Arc panel",
           "selector": ".tonightArcChips",
-          "left": 558.35,
-          "right": 881.65,
+          "left": 100,
+          "right": 1340,
           "top": 80,
-          "bottom": 143.41,
-          "width": 323.3,
-          "height": 63.41
+          "bottom": 128.41,
+          "width": 1240,
+          "height": 48.41
         },
         {
           "name": "desktop map navigation",
           "selector": ".siteNavBarFloating",
-          "left": 260.33,
-          "right": 1179.67,
+          "left": 100,
+          "right": 1340,
           "top": 12,
           "bottom": 76,
-          "width": 919.34,
+          "width": 1240,
           "height": 64
         },
         {
           "name": "desktop map toolbar",
           "selector": ".mapToolbar",
-          "left": 190.25,
-          "right": 1249.75,
+          "left": 100,
+          "right": 1340,
           "top": 159,
-          "bottom": 340,
-          "width": 1059.5,
-          "height": 181
+          "bottom": 314,
+          "width": 1240,
+          "height": 155
         },
         {
           "name": "map credit",
@@ -2365,7 +2577,18 @@
           "height": 900
         }
       ],
-      "assertions": [],
+      "assertions": [
+        {
+          "name": "Tonight Arc controls shares one control height",
+          "passed": true,
+          "detail": "34, 34, 34, 34, 34px; spread 0px"
+        },
+        {
+          "name": "desktop map toolbar shares one control height",
+          "passed": true,
+          "detail": "44, 44, 44, 44, 44, 44, 44px; spread 0px"
+        }
+      ],
       "screenshot": "venue-sheet-1440.png"
     },
     {
@@ -2501,7 +2724,18 @@
           "height": 1558.52
         }
       ],
-      "assertions": [],
+      "assertions": [
+        {
+          "name": "Plan area choices shares one control height",
+          "passed": true,
+          "detail": "48, 48, 48, 48, 48, 48, 48, 48px; spread 0px"
+        },
+        {
+          "name": "Plan footer actions shares one control height",
+          "passed": true,
+          "detail": "44, 44, 44px; spread 0px"
+        }
+      ],
       "screenshot": "plan-1440.png"
     },
     {
@@ -2519,8 +2753,8 @@
           "controls": [
             {
               "label": "Invite your lot",
-              "left": 65,
-              "right": 339,
+              "left": 165,
+              "right": 439,
               "top": 371.47,
               "bottom": 415.47,
               "width": 274,
@@ -2528,8 +2762,8 @@
             },
             {
               "label": "Edit profile",
-              "left": 65,
-              "right": 339,
+              "left": 165,
+              "right": 439,
               "top": 425.47,
               "bottom": 469.47,
               "width": 274,
@@ -2537,11 +2771,26 @@
             },
             {
               "label": "Meet your Pub Pal",
-              "left": 65,
-              "right": 339,
+              "left": 165,
+              "right": 439,
               "top": 479.47,
               "bottom": 523.47,
               "width": 274,
+              "height": 44
+            }
+          ]
+        },
+        {
+          "name": "profile owner utilities",
+          "selector": ".profileOwnerUtilities .siteNavMoreBtn",
+          "controls": [
+            {
+              "label": "Profile options",
+              "left": 1213.69,
+              "right": 1308,
+              "top": 128,
+              "bottom": 172,
+              "width": 94.31,
               "height": 44
             }
           ]
@@ -2551,15 +2800,21 @@
         {
           "name": "page main",
           "selector": "main",
-          "left": 0,
-          "right": 1240,
+          "left": 100,
+          "right": 1340,
           "top": 64,
-          "bottom": 4520.95,
+          "bottom": 4576.95,
           "width": 1240,
-          "height": 4456.95
+          "height": 4512.95
         }
       ],
-      "assertions": [],
+      "assertions": [
+        {
+          "name": "profile header actions shares one control height",
+          "passed": true,
+          "detail": "44, 44, 44px; spread 0px"
+        }
+      ],
       "screenshot": "profile-signed-in-1440.png"
     }
   ],
@@ -2828,9 +3083,9 @@
         "left": 0,
         "right": 1280,
         "top": 0,
-        "bottom": 2480.63,
+        "bottom": 2387.63,
         "width": 1280,
-        "height": 2480.63
+        "height": 2387.63
       },
       "leftOffset": 0,
       "rightOffset": 0,
@@ -3042,9 +3297,9 @@
       "leftOffset": 0,
       "rightOffset": 0,
       "offsetDelta": 0,
-      "computedMaxWidth": "",
-      "computedMarginLeft": "",
-      "computedMarginRight": "",
+      "computedMaxWidth": "none",
+      "computedMarginLeft": "0px",
+      "computedMarginRight": "0px",
       "classification": "full-bleed"
     },
     {
@@ -3306,15 +3561,22 @@
       "requestedPath": "/plan/layout-audit-missing/recap",
       "renderedPath": "/plan/layout-audit-missing/recap",
       "status": 404,
-      "mainSelector": null,
-      "main": null,
-      "leftOffset": null,
-      "rightOffset": null,
-      "offsetDelta": null,
-      "computedMaxWidth": null,
-      "computedMarginLeft": null,
-      "computedMarginRight": null,
-      "classification": "no-main"
+      "mainSelector": "main.planPage.planPage--composer",
+      "main": {
+        "left": 0,
+        "right": 1280,
+        "top": 0,
+        "bottom": 800,
+        "width": 1280,
+        "height": 800
+      },
+      "leftOffset": 0,
+      "rightOffset": 0,
+      "offsetDelta": 0,
+      "computedMaxWidth": "none",
+      "computedMarginLeft": "0px",
+      "computedMarginRight": "0px",
+      "classification": "full-bleed"
     },
     {
       "viewportWidth": 1280,
@@ -3370,20 +3632,20 @@
       "status": 200,
       "mainSelector": "main.container.profileMain",
       "main": {
-        "left": 0,
-        "right": 1240,
+        "left": 20,
+        "right": 1260,
         "top": 64,
         "bottom": 1573.7,
         "width": 1240,
         "height": 1509.7
       },
-      "leftOffset": 0,
-      "rightOffset": 40,
-      "offsetDelta": 40,
+      "leftOffset": 20,
+      "rightOffset": 20,
+      "offsetDelta": 0,
       "computedMaxWidth": "1240px",
-      "computedMarginLeft": "0px",
-      "computedMarginRight": "0px",
-      "classification": "affected"
+      "computedMarginLeft": "20px",
+      "computedMarginRight": "20px",
+      "classification": "centred"
     },
     {
       "viewportWidth": 1280,
@@ -3554,20 +3816,20 @@
       "status": 200,
       "mainSelector": "main.container.profileMain",
       "main": {
-        "left": 0,
-        "right": 1240,
+        "left": 20,
+        "right": 1260,
         "top": 64,
         "bottom": 652.53,
         "width": 1240,
         "height": 588.53
       },
-      "leftOffset": 0,
-      "rightOffset": 40,
-      "offsetDelta": 40,
+      "leftOffset": 20,
+      "rightOffset": 20,
+      "offsetDelta": 0,
       "computedMaxWidth": "1240px",
-      "computedMarginLeft": "0px",
-      "computedMarginRight": "0px",
-      "classification": "affected"
+      "computedMarginLeft": "20px",
+      "computedMarginRight": "20px",
+      "classification": "centred"
     },
     {
       "viewportWidth": 1280,
@@ -3577,20 +3839,20 @@
       "status": 200,
       "mainSelector": "main.container.profileMain",
       "main": {
-        "left": 0,
-        "right": 1240,
+        "left": 20,
+        "right": 1260,
         "top": 64,
-        "bottom": 1382.98,
+        "bottom": 1394.98,
         "width": 1240,
-        "height": 1318.98
+        "height": 1330.98
       },
-      "leftOffset": 0,
-      "rightOffset": 40,
-      "offsetDelta": 40,
+      "leftOffset": 20,
+      "rightOffset": 20,
+      "offsetDelta": 0,
       "computedMaxWidth": "1240px",
-      "computedMarginLeft": "0px",
-      "computedMarginRight": "0px",
-      "classification": "affected"
+      "computedMarginLeft": "20px",
+      "computedMarginRight": "20px",
+      "classification": "centred"
     },
     {
       "viewportWidth": 1280,
@@ -3626,9 +3888,9 @@
         "left": 0,
         "right": 1440,
         "top": 0,
-        "bottom": 5368.13,
+        "bottom": 5357.38,
         "width": 1440,
-        "height": 5368.13
+        "height": 5357.38
       },
       "leftOffset": 0,
       "rightOffset": 0,
@@ -3879,9 +4141,9 @@
         "left": 0,
         "right": 1440,
         "top": 0,
-        "bottom": 2480.63,
+        "bottom": 2387.63,
         "width": 1440,
-        "height": 2480.63
+        "height": 2387.63
       },
       "leftOffset": 0,
       "rightOffset": 0,
@@ -4428,20 +4690,20 @@
       "status": 200,
       "mainSelector": "main.container.profileMain",
       "main": {
-        "left": 0,
-        "right": 1240,
+        "left": 100,
+        "right": 1340,
         "top": 64,
         "bottom": 1573.7,
         "width": 1240,
         "height": 1509.7
       },
-      "leftOffset": 0,
-      "rightOffset": 200,
-      "offsetDelta": 200,
+      "leftOffset": 100,
+      "rightOffset": 100,
+      "offsetDelta": 0,
       "computedMaxWidth": "1240px",
-      "computedMarginLeft": "0px",
-      "computedMarginRight": "0px",
-      "classification": "affected"
+      "computedMarginLeft": "100px",
+      "computedMarginRight": "100px",
+      "classification": "centred"
     },
     {
       "viewportWidth": 1440,
@@ -4612,20 +4874,20 @@
       "status": 200,
       "mainSelector": "main.container.profileMain",
       "main": {
-        "left": 0,
-        "right": 1240,
+        "left": 100,
+        "right": 1340,
         "top": 64,
         "bottom": 652.53,
         "width": 1240,
         "height": 588.53
       },
-      "leftOffset": 0,
-      "rightOffset": 200,
-      "offsetDelta": 200,
+      "leftOffset": 100,
+      "rightOffset": 100,
+      "offsetDelta": 0,
       "computedMaxWidth": "1240px",
-      "computedMarginLeft": "0px",
-      "computedMarginRight": "0px",
-      "classification": "affected"
+      "computedMarginLeft": "100px",
+      "computedMarginRight": "100px",
+      "classification": "centred"
     },
     {
       "viewportWidth": 1440,
@@ -4635,20 +4897,20 @@
       "status": 200,
       "mainSelector": "main.container.profileMain",
       "main": {
-        "left": 0,
-        "right": 1240,
+        "left": 100,
+        "right": 1340,
         "top": 64,
-        "bottom": 1382.98,
+        "bottom": 1394.98,
         "width": 1240,
-        "height": 1318.98
+        "height": 1330.98
       },
-      "leftOffset": 0,
-      "rightOffset": 200,
-      "offsetDelta": 200,
+      "leftOffset": 100,
+      "rightOffset": 100,
+      "offsetDelta": 0,
       "computedMaxWidth": "1240px",
-      "computedMarginLeft": "0px",
-      "computedMarginRight": "0px",
-      "classification": "affected"
+      "computedMarginLeft": "100px",
+      "computedMarginRight": "100px",
+      "classification": "centred"
     },
     {
       "viewportWidth": 1440,

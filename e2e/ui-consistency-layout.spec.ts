@@ -5,7 +5,13 @@ import path from "node:path";
 const EVIDENCE_PHASE = process.env.UI_EVIDENCE_PHASE;
 const ROUTES_ONLY = process.env.UI_EVIDENCE_ROUTES_ONLY === "1";
 const SURFACES_ONLY = process.env.UI_EVIDENCE_SURFACES_ONLY === "1";
-const ROUTE_FILTER = process.env.UI_EVIDENCE_ROUTE_FILTER ?? "";
+const ROUTE_FILTERS = (process.env.UI_EVIDENCE_ROUTE_FILTER ?? "")
+  .split(",")
+  .filter(Boolean);
+const EVIDENCE_SERVER_MODE =
+  process.env.UI_EVIDENCE_SERVER_MODE ?? "unspecified";
+const EVIDENCE_BUILD_COMMIT =
+  process.env.UI_EVIDENCE_BUILD_COMMIT ?? "unspecified";
 const EVIDENCE_ROOT = path.join(
   "docs",
   "evidence",
@@ -102,6 +108,12 @@ type PanelMeasurement = Rect & {
   selector: string;
 };
 
+type SurfaceAssertion = {
+  name: string;
+  passed: boolean;
+  detail: string;
+};
+
 type SurfaceMeasurement = {
   viewport: { width: number; height: number };
   surface: string;
@@ -113,6 +125,7 @@ type SurfaceMeasurement = {
   } | null;
   rows: RowMeasurement[];
   panels: PanelMeasurement[];
+  assertions: SurfaceAssertion[];
   screenshot: string;
 };
 
@@ -348,6 +361,215 @@ async function panel(
   return box ? { name, selector, ...rectFromBox(box) } : null;
 }
 
+function assertMeasured(
+  assertions: SurfaceAssertion[],
+  surface: string,
+  viewportWidth: number,
+  name: string,
+  passed: boolean,
+  detail: string,
+): void {
+  assertions.push({ name, passed, detail });
+  expect(passed, `${surface} ${viewportWidth}: ${name} (${detail})`).toBe(
+    true,
+  );
+}
+
+async function measureSurfaceAssertions(
+  page: Page,
+  viewport: (typeof VIEWPORTS)[number],
+  surface: string,
+  rows: RowMeasurement[],
+  panels: PanelMeasurement[],
+): Promise<SurfaceAssertion[]> {
+  const assertions: SurfaceAssertion[] = [];
+  if (EVIDENCE_PHASE !== "after") return assertions;
+
+  for (const measuredRow of rows) {
+    if (measuredRow.controls.length < 2) continue;
+    const heights = measuredRow.controls.map((control) => control.height);
+    const spread = round(Math.max(...heights) - Math.min(...heights));
+    assertMeasured(
+      assertions,
+      surface,
+      viewport.width,
+      `${measuredRow.name} shares one control height`,
+      spread <= 0.1,
+      `${heights.join(", ")}px; spread ${spread}px`,
+    );
+  }
+
+  if (surface === "map-first-visit") {
+    const names =
+      viewport.width <= 640
+        ? [
+            "mobile contextual controls",
+            "Tonight Arc panel",
+            "Describe your night",
+          ]
+        : [
+            "desktop map navigation",
+            "Tonight Arc panel",
+            "desktop map toolbar",
+          ];
+    const stack = names
+      .map((name) => panels.find((candidate) => candidate.name === name))
+      .filter((candidate): candidate is PanelMeasurement => Boolean(candidate));
+    assertMeasured(
+      assertions,
+      surface,
+      viewport.width,
+      "floating map stack shares one horizontal boundary",
+      stack.length === names.length &&
+        Math.max(...stack.map((candidate) => candidate.left)) -
+          Math.min(...stack.map((candidate) => candidate.left)) <=
+          0.5 &&
+        Math.max(...stack.map((candidate) => candidate.right)) -
+          Math.min(...stack.map((candidate) => candidate.right)) <=
+          0.5,
+      stack
+        .map(
+          (candidate) =>
+            `${candidate.name} ${candidate.left}-${candidate.right}px`,
+        )
+        .join("; "),
+    );
+  }
+
+  if (surface === "map-first-visit" && viewport.width === 390) {
+    const topbar = panels.find(
+      (candidate) => candidate.name === "mobile map topbar",
+    );
+    const arc = panels.find(
+      (candidate) => candidate.name === "Tonight Arc panel",
+    );
+    const rail = panels.find(
+      (candidate) => candidate.name === "mobile contextual controls",
+    );
+    const notice = panels.find(
+      (candidate) => candidate.name === "analytics notice",
+    );
+    const credit = panels.find(
+      (candidate) => candidate.name === "map credit",
+    );
+    const chromeHeight =
+      topbar && arc ? round(arc.bottom - topbar.top) : Number.NaN;
+    assertMeasured(
+      assertions,
+      surface,
+      viewport.width,
+      "phone chrome stays within 164px",
+      Number.isFinite(chromeHeight) && chromeHeight <= 164,
+      `${chromeHeight}px`,
+    );
+    const railMetrics = await page
+      .locator(".mobileMapRail")
+      .evaluate((element) => ({
+        clientWidth: element.clientWidth,
+        scrollWidth: element.scrollWidth,
+      }));
+    assertMeasured(
+      assertions,
+      surface,
+      viewport.width,
+      "phone filters stay in one uncut row",
+      railMetrics.scrollWidth <= railMetrics.clientWidth,
+      `scroll ${railMetrics.scrollWidth}px; client ${railMetrics.clientWidth}px; rail ${rail?.left}-${rail?.right}px`,
+    );
+    const overlap =
+      notice && credit
+        ? round(
+            Math.max(
+              0,
+              Math.min(notice.bottom, credit.bottom) -
+                Math.max(notice.top, credit.top),
+            ),
+          )
+        : Number.NaN;
+    assertMeasured(
+      assertions,
+      surface,
+      viewport.width,
+      "analytics notice leaves map credit reachable",
+      Number.isFinite(overlap) && overlap === 0,
+      `notice ${notice?.top}-${notice?.bottom}px; credit ${credit?.top}-${credit?.bottom}px; overlap ${overlap}px`,
+    );
+  }
+
+  if (surface === "venue-sheet" && viewport.width === 390) {
+    const captionChecks = await page
+      .locator(".mobileVenuePeekSummary small:visible")
+      .evaluateAll((elements) =>
+        elements.map((element) => {
+          const style = getComputedStyle(element);
+          return {
+            text: element.textContent?.replace(/\s+/g, " ").trim() ?? "",
+            clientWidth: element.clientWidth,
+            scrollWidth: element.scrollWidth,
+            clientHeight: element.clientHeight,
+            scrollHeight: element.scrollHeight,
+            textOverflow: style.textOverflow,
+          };
+        }),
+      );
+    assertMeasured(
+      assertions,
+      surface,
+      viewport.width,
+      "venue captions stay uncut",
+      captionChecks.length > 0 &&
+        captionChecks.every(
+          (caption) =>
+            caption.scrollWidth <= caption.clientWidth + 1 &&
+            caption.scrollHeight <= caption.clientHeight + 1 &&
+            caption.textOverflow !== "ellipsis",
+        ),
+      JSON.stringify(captionChecks),
+    );
+  }
+  return assertions;
+}
+
+async function verifyPostCaptureInteractions(
+  page: Page,
+  viewport: (typeof VIEWPORTS)[number],
+  surface: string,
+  firstVisitPrompt: SurfaceMeasurement["firstVisitPrompt"],
+  firstVisitPromptLocator: Locator,
+  assertions: SurfaceAssertion[],
+): Promise<void> {
+  if (
+    EVIDENCE_PHASE !== "after" ||
+    surface !== "map-first-visit" ||
+    viewport.width !== 390
+  ) {
+    return;
+  }
+  const creditButton = page.locator(".maplibregl-ctrl-attrib-button").first();
+  await creditButton.click();
+  assertMeasured(
+    assertions,
+    surface,
+    viewport.width,
+    "map credit expands",
+    await page
+      .locator(".maplibregl-ctrl-attrib-inner")
+      .first()
+      .isVisible(),
+    "expanded attribution is visible",
+  );
+  if (firstVisitPrompt?.kind !== "analytics consent") return;
+  await page.getByRole("button", { name: "No thanks" }).click();
+  assertMeasured(
+    assertions,
+    surface,
+    viewport.width,
+    "analytics notice is dismissible",
+    await firstVisitPromptLocator.isHidden(),
+    "No thanks removes the notice",
+  );
+}
+
 async function captureSurface(
   page: Page,
   viewport: (typeof VIEWPORTS)[number],
@@ -414,11 +636,24 @@ async function captureSurface(
     await row(page, "mobile map topbar", ".mobileMapTopbar > a, .mobileMapTopbar > button"),
     await row(page, "mobile contextual controls", ".mobileMapRail > button"),
     await row(page, "Tonight Arc controls", ".tonightArcRow > button"),
-    await row(page, "desktop map toolbar", ".mapToolbarRow button"),
+    await row(
+      page,
+      "desktop map toolbar",
+      [
+        ".mapSearchSuggest--toolbar > label",
+        ".mapToolbarDesktopExtras .favoritePintControl",
+        ".mapToolbar > .mapToolbarRow > .conditionsChip",
+        ".mapToolbarDrinksBtn",
+        ".zonePickerBtn",
+        ".planBtn",
+        ".citySwitcherTrigger",
+      ].join(", "),
+    ),
     await row(page, "landing hero actions", ".lpHeroActions .lpButton"),
     await row(page, "Plan area choices", ".planIntake__choices--areas > button"),
     await row(page, "Plan footer actions", ".planIntake__actions button"),
     await row(page, "profile header actions", ".profileActions > a, .profileActions > button"),
+    await row(page, "profile owner utilities", ".profileOwnerUtilities .siteNavMoreBtn"),
   ].filter((measurement) => measurement.controls.length > 0);
 
   const panelCandidates = await Promise.all([
@@ -430,8 +665,19 @@ async function captureSurface(
     panel(page, "analytics notice", ".analyticsConsentPrompt"),
     panel(page, "desktop map navigation", ".siteNavBarFloating"),
     panel(page, "desktop map toolbar", ".mapToolbar"),
+    panel(page, "map credit", ".maplibregl-ctrl-bottom-right"),
     panel(page, "page main", "main"),
   ]);
+  const panels = panelCandidates.filter(
+    (measurement): measurement is PanelMeasurement => measurement !== null,
+  );
+  const assertions = await measureSurfaceAssertions(
+    page,
+    viewport,
+    surface,
+    rows,
+    panels,
+  );
 
   const screenshot = `${surface}-${viewport.width}.png`;
   await page.screenshot({
@@ -439,15 +685,23 @@ async function captureSurface(
     fullPage: false,
   });
 
+  await verifyPostCaptureInteractions(
+    page,
+    viewport,
+    surface,
+    firstVisitPrompt,
+    firstVisitPromptLocator,
+    assertions,
+  );
+
   return {
     viewport: { width: viewport.width, height: viewport.height },
     surface,
     path: page.url().replace(/^https?:\/\/[^/]+/, ""),
     firstVisitPrompt,
     rows,
-    panels: panelCandidates.filter(
-      (measurement): measurement is PanelMeasurement => measurement !== null,
-    ),
+    panels,
+    assertions,
     screenshot,
   };
 }
@@ -461,10 +715,21 @@ async function auditRoute(
     width: viewportWidth,
     height: viewportWidth === 1280 ? 800 : 900,
   });
-  const response = await page.goto(route.path, {
+  let response = await page.goto(route.path, {
     waitUntil: "domcontentloaded",
     timeout: 120_000,
   }).catch(() => null);
+  if (!response || new URL(page.url()).pathname === "/") {
+    response = await page.goto(route.path, {
+      waitUntil: "domcontentloaded",
+      timeout: 120_000,
+    }).catch(() => null);
+  }
+  await page
+    .locator("main.routeLoadingShell")
+    .waitFor({ state: "hidden", timeout: 45_000 })
+    .catch(() => undefined);
+  await settle(page);
   const main = page.locator("main, .cityChooserInner").first();
   const box = (await main.isVisible().catch(() => false))
     ? await main.boundingBox().catch(() => null)
@@ -602,15 +867,15 @@ test("capture UI consistency evidence", async ({ browser }) => {
     await profileContext.close();
   }
 
-  const selectedRoutes = ROUTE_FILTER
-    ? ROUTES.filter((route) => route.path === ROUTE_FILTER)
+  const selectedRoutes = ROUTE_FILTERS.length > 0
+    ? ROUTES.filter((route) => ROUTE_FILTERS.includes(route.path))
     : ROUTES;
   const routeAudit: RouteMeasurement[] =
     SURFACES_ONLY
       ? existingMeasurements?.routeAudit ?? []
-      : ROUTE_FILTER && existingMeasurements?.routeAudit
+      : ROUTE_FILTERS.length > 0 && existingMeasurements?.routeAudit
       ? existingMeasurements.routeAudit.filter(
-          (measurement) => measurement.requestedPath !== ROUTE_FILTER,
+          (measurement) => !ROUTE_FILTERS.includes(measurement.requestedPath),
         )
       : [];
   for (const viewportWidth of SURFACES_ONLY ? [] : [1280, 1440] as const) {
@@ -632,12 +897,47 @@ test("capture UI consistency evidence", async ({ browser }) => {
         (routeOrder.get(right.requestedPath) ?? 0),
   );
 
+  if (EVIDENCE_PHASE === "after" && !SURFACES_ONLY) {
+    const affected = routeAudit.filter(
+      (measurement) => measurement.classification === "affected",
+    );
+    expect(
+      affected,
+      `desktop routes with unbalanced gutters: ${affected
+        .map(
+          (measurement) =>
+            `${measurement.viewportWidth} ${measurement.requestedPath} ${measurement.leftOffset}/${measurement.rightOffset}`,
+        )
+        .join(", ")}`,
+    ).toEqual([]);
+    const incomplete = routeAudit.filter(
+      (measurement) =>
+        measurement.status === null ||
+        measurement.mainSelector === "main.routeLoadingShell" ||
+        (measurement.classification === "no-main" &&
+          measurement.status !== 404),
+    );
+    expect(
+      incomplete,
+      `desktop route measurements incomplete: ${incomplete
+        .map(
+          (measurement) =>
+            `${measurement.viewportWidth} ${measurement.requestedPath} ${measurement.status ?? "no response"} ${measurement.mainSelector ?? "no main"}`,
+        )
+        .join(", ")}`,
+    ).toEqual([]);
+  }
+
   await writeFile(
     path.join(EVIDENCE_ROOT, "measurements.json"),
     `${JSON.stringify(
       {
         phase: EVIDENCE_PHASE,
         capturedAt: new Date().toISOString(),
+        server: {
+          mode: EVIDENCE_SERVER_MODE,
+          buildCommit: EVIDENCE_BUILD_COMMIT,
+        },
         viewports: VIEWPORTS,
         surfaces,
         routeAudit,
