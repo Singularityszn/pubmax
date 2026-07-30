@@ -12,11 +12,11 @@ import "./tonightArcChips.css";
 const CHIPS: ReadonlyArray<{
   kind: CuratedVenueKind | "club";
   label: string;
-  disabled?: boolean;
+  unavailableUntil?: string;
 }> = [
   { kind: "pub", label: "Pints" },
   { kind: "bar", label: "Bars" },
-  { kind: "club", label: "Clubs", disabled: true },
+  { kind: "club", label: "Clubs", unavailableUntil: "Wave 2" },
   { kind: "food", label: "Food" },
   { kind: "restaurant", label: "Restaurants" },
 ];
@@ -46,6 +46,7 @@ export default function TonightArcChips({
       <div className="tonightArcRow">
         {chips.map((chip) => {
           const on = chip.kind === "club" ? false : visibility[chip.kind];
+          const unavailable = chip.unavailableUntil !== undefined;
           return (
             <button
               key={chip.kind}
@@ -53,12 +54,16 @@ export default function TonightArcChips({
               className={on ? "tonightArcChip isOn" : "tonightArcChip"}
               aria-pressed={on}
               aria-label={
-                chip.disabled
-                  ? "Clubs unavailable: arrives in Wave 2"
+                unavailable
+                  ? `${chip.label} unavailable: arrives in ${chip.unavailableUntil}`
                   : undefined
               }
-              disabled={chip.disabled}
-              title={chip.disabled ? "Clubs arrive in Wave 2" : undefined}
+              disabled={unavailable}
+              title={
+                unavailable
+                  ? `${chip.label} arrive in ${chip.unavailableUntil}`
+                  : undefined
+              }
               onClick={() => {
                 if (chip.kind !== "club") {
                   onChange(toggleVenueKind(visibility, chip.kind));
@@ -76,8 +81,10 @@ export default function TonightArcChips({
                     ? "Pubs"
                     : chip.label}
                 </span>
-                {chip.disabled ? (
-                  <small className="tonightArcChipUnavailable">Wave 2</small>
+                {unavailable ? (
+                  <small className="tonightArcChipUnavailable">
+                    {chip.unavailableUntil}
+                  </small>
                 ) : null}
               </span>
             </button>
