@@ -30,6 +30,15 @@
   justify-content: flex-start;
 }
 
+.mapToolbarDesktopExtras .favoritePintPicker {
+  flex-wrap: nowrap !important;
+}
+
+.mapToolbarDesktopExtras .favoritePintControl {
+  min-height: 44px;
+  box-sizing: border-box;
+}
+
 .mapToolbarSearch {
   position: relative;
   min-width: 0;
@@ -113,7 +122,7 @@
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  min-height: 34px;
+  min-height: 44px;
   padding: 0 10px;
   border: 1px solid color-mix(in srgb, var(--line) 78%, var(--brass) 22%);
   border-radius: var(--control-radius, 14px);
@@ -125,6 +134,7 @@
   cursor: pointer;
   touch-action: manipulation;
   flex: 0 0 auto;
+  box-sizing: border-box;
   transition:
     background var(--duration-base) var(--ease-out),
     border-color var(--duration-base) var(--ease-out),
@@ -339,7 +349,7 @@
   .appShell {
     --map-top-clearance: calc(171px + env(safe-area-inset-top, 0px));
     --map-overlay-top: calc(var(--map-top-clearance) + 58px);
-    --map-toolbar-resting-height: 145px;
+    --map-toolbar-resting-height: 155px;
   }
 
   .mapToolbar {

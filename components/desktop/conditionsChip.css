@@ -6,6 +6,7 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
+  min-height: 44px;
   padding: 6px 10px;
   border-radius: var(--radius-sm);
   border: 1px solid var(--badge-border);
@@ -15,6 +16,7 @@
   line-height: 1.2;
   white-space: nowrap;
   flex: none;
+  box-sizing: border-box;
 }
 
 .conditionsChipWeather {
