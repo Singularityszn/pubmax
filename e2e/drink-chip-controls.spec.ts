@@ -67,6 +67,33 @@ test("390px Prices and places controls show one truthful selection", async ({
   ]).toEqual(["Gin"]);
 });
 
+for (const viewport of [
+  { width: 390, height: 844 },
+  { width: 430, height: 932 },
+]) {
+  test(`${viewport.width}px Prices and places exposes derived map key rows`, async ({
+    page,
+  }) => {
+    test.setTimeout(90_000);
+    await page.setViewportSize(viewport);
+    const sheet = await openFilters(page);
+    const key = sheet.getByLabel("Map key");
+    const heading = key.getByRole("heading", {
+      name: "Pint prices and other venue price bands",
+    });
+
+    await heading.scrollIntoViewIfNeeded();
+    await expect(key).toBeVisible();
+    await expect(heading).toBeVisible();
+    await expect(key.locator(".mapKeyPriceRows li")).toHaveText([
+      "££5.50 or less; low for its venue type",
+      "££Over £5.50, up to £7; middle for its venue type",
+      "£££Over £7; high for its venue type",
+      "?No pint price on the map",
+    ]);
+  });
+}
+
 test("persisted favourite pint keeps All unselected after mobile and desktop reloads", async ({
   page,
 }) => {
@@ -139,6 +166,47 @@ test("390px fare-zone rows agree through selection and reset", async ({ page }) 
   ).toBe(
     await zoneFiveChip.evaluate((button) => getComputedStyle(button).borderColor),
   );
+});
+
+test("390px zone figures state their calculation and assignment basis", async ({
+  page,
+}) => {
+  test.setTimeout(90_000);
+  const sheet = await openFilters(page);
+
+  await expect(
+    sheet.getByText(
+      "Each zone figure is the median of the cheapest recorded pint price for pubs assigned to that zone.",
+    ),
+  ).toBeVisible();
+  await expect(
+    sheet.getByText(
+      "Assignment uses each pub’s nearest station’s TfL fare zone. A figure appears after 10 priced pubs.",
+    ),
+  ).toBeVisible();
+});
+
+test("390px Tonight Arc controls show selection and unavailable reason without colour", async ({
+  page,
+}) => {
+  test.setTimeout(90_000);
+  const response = await page.goto("/map");
+  expect(response?.status()).toBe(200);
+
+  const arc = page.getByRole("group", { name: "Tonight arc venue types" });
+  const pints = arc.getByRole("button", { name: "Pints", exact: true });
+  const bars = arc.getByRole("button", { name: "Bars", exact: true });
+  const clubs = arc.getByRole("button", {
+    name: "Clubs unavailable: arrives in Wave 2",
+  });
+
+  await expect(pints).toContainText("✓");
+  await bars.click();
+  await expect(bars).toHaveAttribute("aria-pressed", "false");
+  await expect(bars).not.toContainText("✓");
+  await expect(pints).toContainText("✓");
+  await expect(clubs).toBeDisabled();
+  await expect(clubs).toContainText("Wave 2");
 });
 
 test("390px drink glyphs keep the requested 22px box", async ({ page }) => {
