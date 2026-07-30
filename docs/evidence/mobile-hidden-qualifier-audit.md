@@ -26,7 +26,7 @@ This source sweep is supplementary discovery only. CSS enumeration cannot prove 
 
 | File and selector | Render ownership | Decision |
 | --- | --- | --- |
-| `components/map/cityStatusBanner.css` `.cityStatusBannerCopy` | `PubMap` mounts `CityStatusBanner` only when `!mobileViewport`. | Not mounted on mobile and not fixed here. Phone service-status presentation remains a separate product decision. |
+| `components/map/cityStatusBanner.css` `.cityStatusBannerCopy` | `PubMap` mounts `CityStatusBanner` only when `!mobileViewport`. | Not mounted on mobile. Desktop banner and expanded sheet now share a content-sized flow stack, so wrapped headlines determine following-sheet geometry. Phone service-status presentation remains a separate product decision. |
 | `components/map/cityStatusBanner.css` `.cityStatusBannerDismiss` | Same desktop-only `CityStatusBanner` boundary. | Not mounted on mobile and not fixed here. |
 | `components/map/citySuggestBanner.css` `.citySuggestBannerCopy` | `PubMap` mounts `CitySuggestBanner` only when `!mobileViewport`. | Not mounted on mobile and not fixed here. Phone city-suggestion presentation remains a separate product decision. |
 
@@ -39,6 +39,8 @@ This source sweep is supplementary discovery only. CSS enumeration cannot prove 
 - `/pal` at 390px and 430px renders exact setup progress from the live onboarding state.
 
 City status and city suggestion have no mobile rendered-output assertion because those components are not mounted there and are explicitly outside this remediation.
+
+`e2e/dark-primary-surfaces.spec.ts` opens `/`, `/map`, and `/map?sel=venue-xjf3n0` in dark mode at both phone widths. It measures the real opened sheet's visible price plaque, then drives Add price through the signed-out gate. Each run attaches its rendered, composited contrast ratios as JSON. The same file drives the desktop map with a long user-entered query and a long major city-status headline.
 
 Focused verification:
 
@@ -130,6 +132,7 @@ Changed claim-bearing rules:
 
 Rules deliberately left bounded:
 
+- User-entered search identity: `.mapToolbarSearchQuery` is a separately bounded, ellipsised span while `No venues match` and `with your current filters` remain complete and wrapping.
 - Receipt, message, feed, and poster previews: `.barTabTileNote`, `.conversationPreview`, `.feedSpillNote`, `app/p/[id] clampText`, and `app/historic/[slug] clampText` all open a full destination.
 - Venue identities: `.nmnCardName`, `.profileDropVenue`, `.venueHoverBody strong`, `.venuePickerList strong`, `.tonightPub`, `.nightCard__now`, `.nightCard__nextLabel`, `.gardenTonightPubName`, `.presenceVenue`, `.feedVenueLinkHead`, `.feedSpillVenueLink`, `.nightCrawl__doneName`, `.nightCrawl__upcomingName`, `.tonightLaneCardPlace span`, `.areaSheetPubName`, `.mapVenueListItemName`, `.mapSearchSuggestRowName`, `.spillPreviewMeta`, `truncateStopName`, and `.planSummary__editStops strong`.
 - Area identities: `.nmnCardBorough`, `.crawlCompactArea`, `.gardenTonightPubArea`, `.mobileMapAreaLabel`, and `.citySwitcherLabel`.
@@ -140,14 +143,23 @@ Rules deliberately left bounded:
 
 No caption text was reworded.
 
+## Wrapped-flow relationship audit
+
+| Wrapped element | Positioned or following relationship checked | Outcome |
+| --- | --- | --- |
+| `.cityStatusBannerCopy` | Expanded `.cityStatusSignalSheet` previously used a fixed 46px clearance. | Fixed: both now share `.cityStatusStack`; 8px flex gap follows actual banner height and remaining viewport height constrains sheet scrolling. |
+| `.citySuggestBannerCopy` | Desktop `.cityStatusStack` starts 82px after suggestion slot. | Shipped suggestion strings stay within the banner's 62px slot at its 420px cap; no overlap. Component is not mounted on phone. |
+| `.mapToolbarSearchStatusCopy` | City suggestion and status use toolbar resting-height tokens. | Fixed: only user-entered query span is bounded; fixed limitation and recovery qualifier remain visible without unbounded toolbar growth. |
+| `.bandOnboardingChip span` | Chip actions share its phone grid; map controls occupy independent corner and bottom lanes. | Existing content-sized first row and separate action row clear both lanes at 390px and 430px. |
+| `.tonightLaneCollapsedChecked` | Collapsed lane is absolutely positioned, but its own children remain flex-flow siblings. | Wrapped checked line grows the pill itself; no descendant or sibling uses a fixed offset from its former line height. |
+| `.tonightLaneChecked`, card titles and sources | Open lane has a viewport max-height and internal scrolling. | Normal flow absorbs extra lines; fixed viewport edge constrains panel, not following content. |
+| Search suggestion and map-list price captions | Rows and metadata are flex-flow children inside bounded scrolling panels. | Captions wrap inside their row; no overlay or following block uses their former one-line height. |
+| Deal, history, borough, weather, and map-story copy | Card actions and provenance follow in normal block or grid flow. | Following content moves with rendered copy height; no fixed pixel offset depends on a line count. |
+
 ## Contrast evidence carried forward
 
-Composited rendered measurements from shipped dark elements and their parent surfaces:
+`e2e/dark-primary-surfaces.spec.ts` calculates composited ratios from computed paint on production-route elements and their real ancestor surfaces. It covers landing primary and placeholder states, map active and disabled chips, and an opened venue sheet's active tab, primary action, price plaque, focus outline, and hover tab. Text must clear 4.5:1 and focus outline 3:1. The test attachments hold exact per-viewport ratios, so this audit does not copy a fixture-derived number.
 
-- Placeholder and disabled-control text on raised surfaces: 5.80:1.
-- Dark text on coral primary controls: 6.64:1.
-- Price plaque text: 6.30:1.
-- Coral focus outline against raised sheet: 5.32:1.
-- Each two-tone pin edge against every tested dark basemap tone: at least 3:1.
+After the real Add price action, the keyless signed-out production route renders `.venuePriceSignInGate`, not `.vpsubInput` or `.vpsubLog`; the test asserts that boundary. No ratio from those unmounted controls is presented as rendered evidence. Any isolated control check would be fixture-only.
 
-Disabled controls are exempt from WCAG text-contrast success criteria because they are inactive user-interface components. PUBMAXX still keeps them at 5.80:1 so state is understandable before interaction and disabled actions do not look missing; cursor, opacity, and disabled semantics remain additional state cues.
+Disabled controls are exempt from WCAG text-contrast success criteria because they are inactive user-interface components. PUBMAXX still holds them to the same 4.5:1 test floor so state is understandable before interaction and disabled actions do not look missing; cursor, opacity, and disabled semantics remain additional state cues.
