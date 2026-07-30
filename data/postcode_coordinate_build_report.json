@@ -16,7 +16,7 @@
       "sha256": "95997a516fd8ba7acab7a5b1e0b6f5a2d6fc30bf8c1d374859f58f8227e26b87"
     },
     "data/postcode_coordinate_quarantine.json": {
-      "sha256": "615cb646bb735f1aeaf06a3ce713a2ac6d1dfcf1ea7f4191c3bb5cba4a1d6346"
+      "sha256": "56bac489da4e1cd999f1aa0bdd2e40abdd33d7c21621b9b3b99b26331512c1d8"
     },
     "data/postcode_coordinate_exceptions.json": {
       "sha256": "d1a496eaef7e17ee859ac444c8a0d8a43a063012e388c1984e60871b9243a74f"

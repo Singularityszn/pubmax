@@ -46,6 +46,17 @@ is documentation of the raw scrape, not an independently-authored source.
 
 Use `pint_prices_app_dataset.csv` as the single app-building file and `borough_pint_prices.csv` as the strict borough truth. At scrape time, Havering, Hillingdon, and Redbridge exposed a large embedded `pubsData` object but no visible leaderboard rows, so the app dataset keeps those raw signals in `boroughs_raw_embedded_site_anomaly` and `data_quality_notes` while `boroughs_visible` and `primary_borough` remain the safer app-facing borough fields.
 
+`all_pint_prices_combined.csv` (5,278 rows) and
+`pub_locations_map_data.csv` (1,197 rows) preserve scraper evidence. Neither is
+a product input. The app builder reads the canonical enriched, embedded-price,
+and pub-page extracts listed above, then publishes
+`pint_prices_app_dataset.csv`. Quarantine entries keep exact `file:line`
+`sourceRows` references into preserved price and location evidence. Some
+embedded-only price observations never entered `all_pint_prices_combined.csv`,
+so their exact price references point to
+`borough_embedded_pint_prices.csv`; every quarantined location points to
+`pub_locations_map_data.csv`.
+
 ## Postcode-coordinate gate
 
 `npm run validate-data` treats a postcode and map point that identify different

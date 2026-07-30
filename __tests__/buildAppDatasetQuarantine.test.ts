@@ -12,7 +12,7 @@ import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 
-import { matchesPostcodeCoordinateQuarantineIdentity } from "../scripts/lib/postcodeCoordinateConsistency.mjs";
+import { matchesStrictBuildQuarantineIdentity } from "../scripts/lib/postcodeCoordinateConsistency.mjs";
 
 const ROOT = process.cwd();
 const BUILD_SCRIPT = resolve(
@@ -144,7 +144,7 @@ describe("build_app_dataset.py postcode-coordinate decisions", () => {
       for (const quarantine of QUARANTINED_ROWS) {
         expect(
           rows.find((row) =>
-            matchesPostcodeCoordinateQuarantineIdentity(row, quarantine),
+            matchesStrictBuildQuarantineIdentity(row, quarantine),
           ),
           `${quarantine.pubName} ${quarantine.postcode} @ ${quarantine.latitude},${quarantine.longitude}`,
         ).toBeUndefined();

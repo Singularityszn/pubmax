@@ -26,9 +26,9 @@ import {
 } from "./lib/slimShards.mjs";
 import {
   POSTCODE_COORDINATE_MAX_DISTANCE_KM,
-  parseUkPostcode,
-  matchesPostcodeCoordinateQuarantineIdentity,
   findPostcodeCoordinateContradictions,
+  parseUkPostcode,
+  publishedQuarantineLeakValidationErrors,
   validatePostcodeCoordinateQuarantine,
 } from "./lib/postcodeCoordinateConsistency.mjs";
 import {
@@ -772,17 +772,12 @@ function publishedDecisionErrors({
   const validQuarantineRows = Array.isArray(quarantineRows)
     ? quarantineRows
     : [];
-  for (const entry of validQuarantineRows) {
-    if (
-      publishedRows.some((row) =>
-        matchesPostcodeCoordinateQuarantineIdentity(row, entry),
-      )
-    ) {
-      errors.push(
-        `invalid postcode-coordinate quarantine: ${entry.appPriceId} (${entry.pubName}) reached the product dataset`,
-      );
-    }
-  }
+  errors.push(
+    ...publishedQuarantineLeakValidationErrors({
+      publishedRows,
+      quarantineRows: validQuarantineRows,
+    }),
+  );
 
   for (const correction of reportedCorrections) {
     const row = publishedRows.find(

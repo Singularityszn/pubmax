@@ -1,7 +1,11 @@
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
 import {
-  matchesPostcodeCoordinateQuarantineIdentity,
+  matchesStrictBuildQuarantineIdentity,
+  matchesTolerantPublishedQuarantineLeak,
+  publishedQuarantineLeakValidationErrors,
   validatePostcodeCoordinateQuarantine,
 } from "../scripts/lib/postcodeCoordinateConsistency.mjs";
 import type { PostcodeCoordinateRow } from "../scripts/lib/postcodeCoordinateConsistency.mjs";
@@ -42,30 +46,92 @@ function validate(rows: PostcodeCoordinateRow[], quarantineRows: unknown[]) {
 }
 
 describe("postcode-coordinate quarantine registry", () => {
-  it("matches a reassigned expanded-address identity within coordinate tolerance", () => {
+  it("keeps every decision navigable to exact preserved source lines", () => {
+    const registry = JSON.parse(
+      readFileSync(
+        join(process.cwd(), "data", "postcode_coordinate_quarantine.json"),
+        "utf8",
+      ),
+    ) as {
+      rows: {
+        appPriceId: string;
+        pubName: string;
+        sourceRows: string[];
+      }[];
+    };
+
+    for (const entry of registry.rows) {
+      expect(entry.sourceRows.length, entry.appPriceId).toBeGreaterThan(1);
+      expect(
+        entry.sourceRows.some((reference) =>
+          reference.startsWith("data/pub_locations_map_data.csv:"),
+        ),
+        entry.appPriceId,
+      ).toBe(true);
+      expect(
+        entry.sourceRows.some(
+          (reference) =>
+            reference.startsWith(
+              "data/all_pint_prices_combined.csv:",
+            ) ||
+            reference.startsWith(
+              "data/borough_embedded_pint_prices.csv:",
+            ),
+        ),
+        entry.appPriceId,
+      ).toBe(true);
+
+      for (const reference of entry.sourceRows) {
+        const match = reference.match(/^(.+):([1-9]\d*)$/);
+        expect(match, reference).not.toBeNull();
+        const [, relativePath, lineText] = match!;
+        const sourceLine = readFileSync(
+          join(process.cwd(), relativePath),
+          "utf8",
+        ).split(/\r?\n/)[Number(lineText) - 1];
+        expect(sourceLine, reference).toContain(entry.pubName);
+      }
+    }
+  });
+
+  it("fails loudly when a published row leaks within measured coordinate tolerance", () => {
     const leakedRow = {
       ...lincolnRow,
       app_price_id: "app_price_reassigned",
       address: "155 Percival Road, Enfield EN1 1QT, UK",
-      latitude: 51.533205,
-      longitude: -0.122205,
+      latitude: 51.53320005,
+      longitude: -0.12220005,
     };
 
     expect(
-      matchesPostcodeCoordinateQuarantineIdentity(
-        leakedRow,
+      publishedQuarantineLeakValidationErrors({
+        publishedRows: [leakedRow],
+        quarantineRows: [lincolnQuarantine],
+      }),
+    ).toEqual([
+      "invalid postcode-coordinate quarantine: app_price_000339 (The Lincoln Arms) reached the product dataset",
+    ]);
+    expect(
+      matchesStrictBuildQuarantineIdentity(leakedRow, lincolnQuarantine),
+    ).toBe(false);
+  });
+
+  it("matches the strict build identity only without coordinate drift", () => {
+    expect(
+      matchesStrictBuildQuarantineIdentity(
+        lincolnRow,
         lincolnQuarantine,
       ),
     ).toBe(true);
   });
 
-  it("rejects a quarantine identity beyond the 0.00001 degree coordinate tolerance", () => {
+  it("rejects a published identity beyond the measured leak tolerance", () => {
     expect(
-      matchesPostcodeCoordinateQuarantineIdentity(
+      matchesTolerantPublishedQuarantineLeak(
         {
           ...lincolnRow,
           address: "155 Percival Road, Enfield EN1 1QT, UK",
-          latitude: 51.533211,
+          latitude: 51.53320011,
         },
         lincolnQuarantine,
       ),
@@ -83,7 +149,12 @@ describe("postcode-coordinate quarantine registry", () => {
   it("rejects any quarantine coordinate change even within leak-detection tolerance", () => {
     const result = validate(
       [lincolnRow],
-      [{ ...lincolnQuarantine, latitude: lincolnQuarantine.latitude + 0.000005 }],
+      [
+        {
+          ...lincolnQuarantine,
+          latitude: lincolnQuarantine.latitude + 0.00000005,
+        },
+      ],
     );
 
     expect(result.invalidQuarantines.join("\n")).toContain(

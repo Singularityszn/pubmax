@@ -2,7 +2,18 @@
 // rows formed one cluster through 3.87 km, then a clear gap to contradictions
 // starting at 5.44 km. Five kilometres keeps that empirical separation.
 export const POSTCODE_COORDINATE_MAX_DISTANCE_KM = 5;
-export const POSTCODE_COORDINATE_IDENTITY_TOLERANCE_DEGREES = 0.00001;
+
+// Build matching and published leak detection intentionally have opposite
+// contracts. A build decision must match its pre-publication row exactly so
+// quarantine never broadens silently. Published validation tolerates only
+// serialization-scale coordinate drift, then fails for human judgment instead
+// of silently excluding the nearby row. Measured on committed product points
+// on 2026-07-30: three closer pairs at 0.100 m, 0.278 m, and 0.346 m were
+// duplicate aliases; nearest genuinely distinct venues were The Boathouse and
+// The Rocket at 0.416 m. At London latitudes, 0.0000001 degrees is at most
+// 0.0112 m, below 3% of that observed minimum.
+export const POSTCODE_COORDINATE_PUBLISHED_LEAK_TOLERANCE_DEGREES =
+  0.0000001;
 
 const POSTCODE_PATTERN =
   /(?:^|[^A-Z0-9])([A-Z]{1,2}\d[A-Z\d]?)\s*(\d[ABD-HJLNP-UW-Z]{2})(?=$|[^A-Z0-9])/i;
@@ -18,9 +29,7 @@ export function parseUkPostcode(value) {
   };
 }
 
-// Tolerance is only for catching a quarantined identity after publication
-// transforms. Registry decisions themselves must match the exact helper below.
-export function matchesPostcodeCoordinateQuarantineIdentity(row, entry) {
+export function matchesTolerantPublishedQuarantineLeak(row, entry) {
   const rowPostcode = parseUkPostcode(row?.address)?.postcode;
   const entryPostcode = parseUkPostcode(entry?.postcode)?.postcode;
   const rowLatitude = Number(row?.latitude);
@@ -36,13 +45,13 @@ export function matchesPostcodeCoordinateQuarantineIdentity(row, entry) {
     Number.isFinite(entryLatitude) &&
     Number.isFinite(entryLongitude) &&
     Math.abs(rowLatitude - entryLatitude) <=
-      POSTCODE_COORDINATE_IDENTITY_TOLERANCE_DEGREES &&
+      POSTCODE_COORDINATE_PUBLISHED_LEAK_TOLERANCE_DEGREES &&
     Math.abs(rowLongitude - entryLongitude) <=
-      POSTCODE_COORDINATE_IDENTITY_TOLERANCE_DEGREES
+      POSTCODE_COORDINATE_PUBLISHED_LEAK_TOLERANCE_DEGREES
   );
 }
 
-function matchesExactPostcodeCoordinateIdentity(row, entry) {
+export function matchesStrictBuildQuarantineIdentity(row, entry) {
   const rowPostcode = parseUkPostcode(row?.address)?.postcode;
   const entryPostcode = parseUkPostcode(entry?.postcode)?.postcode;
   return (
@@ -51,6 +60,28 @@ function matchesExactPostcodeCoordinateIdentity(row, entry) {
     rowPostcode === entryPostcode &&
     Number(row?.latitude) === entry?.latitude &&
     Number(row?.longitude) === entry?.longitude
+  );
+}
+
+export function findTolerantPublishedQuarantineLeaks({
+  publishedRows,
+  quarantineRows,
+}) {
+  const leaks = [];
+  for (const quarantine of quarantineRows) {
+    for (const row of publishedRows) {
+      if (matchesTolerantPublishedQuarantineLeak(row, quarantine)) {
+        leaks.push({ row, quarantine });
+      }
+    }
+  }
+  return leaks;
+}
+
+export function publishedQuarantineLeakValidationErrors(options) {
+  return findTolerantPublishedQuarantineLeaks(options).map(
+    ({ quarantine }) =>
+      `invalid postcode-coordinate quarantine: ${quarantine.appPriceId} (${quarantine.pubName}) reached the product dataset`,
   );
 }
 
@@ -297,7 +328,7 @@ export function validatePostcodeCoordinateQuarantine({
         return;
       }
 
-      if (!matchesExactPostcodeCoordinateIdentity(row, entry)) {
+      if (!matchesStrictBuildQuarantineIdentity(row, entry)) {
         invalidQuarantines.push(
           describeQuarantine(
             index,
