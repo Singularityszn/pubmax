@@ -48,4 +48,10 @@ describe("map surface alignment", () => {
       /\.tonightArcChip\.isOn\s*{[\s\S]*?border-color:/,
     );
   });
+
+  it("does not leak mobile-only controls into desktop layout", () => {
+    expect(mobileCss).toMatch(
+      /@media \(min-width: 641px\)\s*{[\s\S]*?\.mobileMapUtilityCorner,[\s\S]*?\.mobilePlanActivation[\s\S]*?display:\s*none/,
+    );
+  });
 });

@@ -1,5 +1,7 @@
 @media (min-width: 641px) {
   .mobileMapChrome,
+  .mobileMapUtilityCorner,
+  .mobilePlanActivation,
   .mobileSheetPortal { display: none; }
 }
 
