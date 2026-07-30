@@ -101,7 +101,7 @@ Commit component, tests, and local CSS together. Commit message names `computeZo
 
 **Interfaces:**
 - Consumes: existing `visibility` booleans and disabled Clubs declaration
-- Produces: visible selected mark for active chips and visible `Wave 2` reason for disabled Clubs
+- Produces: visible selected mark for active chips and visible `Clubs are not mapped yet` reason for disabled Clubs
 
 - [ ] **Step 1: Write failing rendered tests**
 
@@ -117,7 +117,7 @@ Expected: FAIL because selection depends on fill and Clubs reason exists only in
 
 - [ ] **Step 3: Add direct control cues**
 
-Render a compact check mark only for selected chips. Render `Wave 2` inside disabled Clubs and provide an accessible unavailable label. Add only local alignment rules needed at phone width.
+Render a compact check mark only for selected chips. Render `Clubs are not mapped yet` inside disabled Clubs and provide an accessible unavailable label. Add only local alignment rules needed at phone width.
 
 - [ ] **Step 4: Verify green and inspect real pages**
 
