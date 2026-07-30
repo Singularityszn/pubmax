@@ -7,6 +7,7 @@ Viewports: 390x844 mobile with touch emulation; 1440x900 desktop
 
 ## First-time visitor findings, worst first
 
+- **No-alcohol key contradicts map paint:** at both widths, selecting `No alcohol` says no alcohol-free or soft-drink prices are logged and `Clusters stay grey`, but map behind it continues to show green and amber clusters. Desktop list count changes from 1,466 in default view to 33, while visible canvas still carries large coloured clusters. Key does not describe shown map.
 - **Desktop map shows a false failure:** at 1440x900, the map background and pins render, then a persistent toast says `Map background couldn't load. Tap Retry to try again.` Reproduced in two fresh Chromium runs. This is untrue and asks for recovery from a failure the visitor cannot see.
 - **Venue price source is not named:** The Dove shows £7.25 and honestly says `Dataset price. Not a live tonight feed.`, but `Dataset price` does not identify the dataset or publisher. Its Drinks detail says every drink carries its source, yet the £7.25 Asahi row only says `ON RECORD`. The nearby `Photo: pub website` is clearly an image credit, not price provenance.
 - Home proposition is immediate at both widths: listed sourced pint prices on an interactive map, plus crawl planning.
@@ -19,7 +20,7 @@ Viewports: 390x844 mobile with touch emulation; 1440x900 desktop
 | 1. Home | Pass | Pass |
 | 2. Map and key | Pass | Fail |
 | 3. Venue sheet | Fail | Fail |
-| 4. Filter | Pending | Pending |
+| 4. Filter | Fail | Fail |
 | 5. Plan | Pending | Pending |
 | 6. Contribute price | Pending | Pending |
 | 7. Discover, Today, Tonight | Pending | Pending |
@@ -114,7 +115,34 @@ Capture: [`03-venue-desktop.png`](03-venue-desktop.png)
 
 ## 4. Use a filter
 
-Pending.
+**What I did**
+
+- Opened map in a fresh context and selected `No alcohol` under `SHOW ME`.
+- Waited six seconds after selection.
+- Mobile: kept `Prices and places` open so selected filter, empty-state sentence, key, and canvas behind it were visible together.
+- Desktop: reopened `Map key` after filter settled.
+
+**390x844 - Fail**
+
+Filter visibly applied: top category changed from `Pints` to `Pubs`; hidden list-view count changed from 743 in default journey to 49 in this run. Sheet plainly says `No alcohol-free or soft drink prices logged here yet` and key says pins without a trusted price stay unknown and clusters stay grey.
+
+Failure: map behind sheet still shows green and amber clusters, directly contradicting key. This remained after closing sheet and waiting another six seconds in a separate check.
+
+Capture: [`04-filter-mobile.png`](04-filter-mobile.png)
+
+**1440x900 - Fail**
+
+Filter visibly applied and list-view count changed from 1,466 in default journey to 33 in this run. Key says no no-alcohol price exists on map and all clusters stay grey. Canvas still shows green and amber clusters with counts far above filtered list count. False background-failure toast from journey 2 also recurred.
+
+Capture: [`04-filter-desktop.png`](04-filter-desktop.png)
+
+**Diagnostics**
+
+- Main document: HTTP 200 at both widths.
+- Console errors: none.
+- Console warnings: mobile logged two headless-Chromium WebGL readback-stall warnings; desktop logged none during measured run.
+- Failed requests: mobile logged none; desktop logged one aborted speculative Next.js RSC prefetch for `/feed`. No HTTP 4xx/5xx at either width.
+- Fix: none. Paint, cluster membership, pricing lens, and map key are map/pricing behaviour and explicitly report-only.
 
 ## 5. Open Plan signed out
 
