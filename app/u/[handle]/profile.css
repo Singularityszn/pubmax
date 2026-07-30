@@ -10,12 +10,15 @@
 
 /* ── Main scaffolding ────────────────────────────────────────────────── */
 .profilePage .profileMain {
+  width: 100%;
+  box-sizing: border-box;
   padding-block: clamp(32px, 6vw, 64px);
   /* .container (Tailwind) sets width but no inline padding, so without this the
      profile body text touched the screen edge on phones. Cap the shell at the
      shared --content-max-wide (1240px) so it stops widening past the marketing
      surfaces at the ≥xl breakpoints (.container ran up to 1536px un-retrofit). */
   max-width: var(--content-max-wide);
+  margin-inline: auto;
   padding-inline: var(--page-gutter);
   display: grid;
   gap: clamp(32px, 5vw, 52px);
