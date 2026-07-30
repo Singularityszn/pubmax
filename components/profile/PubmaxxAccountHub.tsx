@@ -317,7 +317,7 @@ export default function PubmaxxAccountHub() {
   }
 
   const analyticsControls = (
-    <div>
+    <div id="analytics-settings">
       <h3>Optional usage analytics</h3>
       <p>Help improve journeys with a persistent device ID, standard browser details and allow-listed product events. This is optional and can be withdrawn here.</p>
       <div className="accountHubActions">

@@ -15,6 +15,10 @@ import PubmaxxAccountHub from "@/components/profile/PubmaxxAccountHub";
 import SavedPubList from "@/components/profile/SavedPubList";
 import YourContributionsCard from "@/components/profile/YourContributionsCard";
 import SiteNav from "@/components/nav/SiteNav";
+import SiteNavMore, {
+  type SiteNavMoreItem,
+} from "@/components/nav/SiteNavMore";
+import { useAuth } from "@/components/auth/AuthProvider";
 import { BADGE_EVENTS } from "@/lib/badgeEvents";
 import {
   BADGE_EVENT_OPT_INS_STORAGE_KEY,
@@ -160,6 +164,7 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
   const routeHandle = normalizeHandle(use(params)?.handle);
   const isYouRoute = routeHandle === YOU_SENTINEL;
   const router = useRouter();
+  const { user, signOut } = useAuth();
   const storedBadgeEventOptInRaw = useSyncExternalStore(
     subscribeBadgeEventOptIns,
     currentBadgeEventOptInRaw,
@@ -503,6 +508,50 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
       <ProfileMessageButton targetHandle={routeHandle} viewerHandle={myHandle} />
     </>
   );
+  const profileOptions: SiteNavMoreItem[] = [
+    {
+      id: "edit-profile",
+      label: "Edit profile",
+      description: "Change your public name, bio, city, or photo",
+      onSelect: () => setEditing(true),
+    },
+    {
+      id: "analytics-settings",
+      label: "Analytics choices",
+      description: "Review optional usage analytics",
+      onSelect: () => {
+        const target = document.getElementById("analytics-settings");
+        if (!target) return;
+        window.history.replaceState(null, "", "#analytics-settings");
+        target.scrollIntoView({ block: "start" });
+      },
+    },
+    {
+      href: "/about",
+      label: "About",
+      description: "What PUBMAXX is for",
+    },
+    {
+      href: "/privacy",
+      label: "Privacy",
+      description: "How PUBMAXX handles data",
+    },
+    {
+      href: "/terms",
+      label: "Terms",
+      description: "Rules for using PUBMAXX",
+    },
+    ...(user
+      ? [
+          {
+            id: "sign-out",
+            label: "Sign out",
+            description: "End this account session",
+            onSelect: signOut,
+          } satisfies SiteNavMoreItem,
+        ]
+      : []),
+  ];
 
   return (
     <div className="lp profilePage">
@@ -557,6 +606,16 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
               // panes are display:contents below the breakpoint, so the phone
               // layout is the same single column it was before.
               <div className="profileLayout">
+                {isOwnProfile ? (
+                  <div className="profileOwnerUtilities">
+                    <SiteNavMore
+                      className="profileOptions"
+                      label="Options"
+                      ariaLabel="Profile options"
+                      items={profileOptions}
+                    />
+                  </div>
+                ) : null}
                 <div className="profileIdentityPane">
                   <div className={isOwnProfile ? "youProfileIdentity" : undefined}>
                     <ProfileHeader

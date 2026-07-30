@@ -3,7 +3,8 @@
 // Desktop SiteNav "More" overflow (Wave D2.2). Secondary destinations that are
 // not in the primary Today/Map/Tonight/Stories/You row. Desktop ≥641 only —
 // CSS hides this entire control on phones so the compact bar stays unchanged.
-// Links only: no feature rewrites. Esc closes; ArrowUp/Down move focus.
+// Link and action items share one implementation. Esc closes; ArrowUp/Down
+// move focus.
 //
 // Menu is portaled to document.body with position:fixed. The siteNavBar uses
 // backdrop-filter + pill border-radius, which clips absolutely positioned
@@ -32,6 +33,33 @@ export const SITE_NAV_MORE_LINKS = [
   { href: "/pal", label: "Pal", description: "Ask for a pub that fits tonight" },
 ] as const;
 
+type SiteNavMoreLinkItem = {
+  href: string;
+  label: string;
+  description: string;
+  id?: never;
+  onSelect?: never;
+};
+
+type SiteNavMoreActionItem = {
+  id: string;
+  label: string;
+  description: string;
+  onSelect: () => void | Promise<void>;
+  href?: never;
+};
+
+export type SiteNavMoreItem =
+  | SiteNavMoreLinkItem
+  | SiteNavMoreActionItem;
+
+type SiteNavMoreProps = {
+  items?: readonly SiteNavMoreItem[];
+  label?: string;
+  ariaLabel?: string;
+  className?: string;
+};
+
 function pathMatches(pathname: string, href: string): boolean {
   return pathname === href || pathname.startsWith(`${href}/`);
 }
@@ -40,12 +68,17 @@ type MenuCoords = { top: number; right: number; maxHeight: number };
 
 const MENU_VIEWPORT_GUTTER = 8;
 
-export default function SiteNavMore(): React.JSX.Element {
+export default function SiteNavMore({
+  items = SITE_NAV_MORE_LINKS,
+  label = "More",
+  ariaLabel = "More pages",
+  className,
+}: SiteNavMoreProps = {}): React.JSX.Element {
   const pathname = usePathname() ?? "";
   const menuId = useId();
   const buttonRef = useRef<HTMLButtonElement | null>(null);
   const menuRef = useRef<HTMLDivElement | null>(null);
-  const itemRefs = useRef<Array<HTMLAnchorElement | null>>([]);
+  const itemRefs = useRef<Array<HTMLElement | null>>([]);
   const [open, setOpen] = useState(false);
   const [coords, setCoords] = useState<MenuCoords | null>(null);
 
@@ -102,31 +135,34 @@ export default function SiteNavMore(): React.JSX.Element {
 
   function onMenuKeyDown(event: ReactKeyboardEvent<HTMLDivElement>) {
     if (!open) return;
-    const items = itemRefs.current.filter(Boolean) as HTMLAnchorElement[];
-    if (!items.length) return;
+    const focusableItems = itemRefs.current.filter(Boolean) as HTMLElement[];
+    if (!focusableItems.length) return;
     const current = document.activeElement;
-    const index = items.findIndex((el) => el === current);
+    const index = focusableItems.findIndex((el) => el === current);
 
     if (event.key === "ArrowDown") {
       event.preventDefault();
-      const next = index < 0 ? 0 : (index + 1) % items.length;
-      items[next]?.focus();
+      const next = index < 0 ? 0 : (index + 1) % focusableItems.length;
+      focusableItems[next]?.focus();
       return;
     }
     if (event.key === "ArrowUp") {
       event.preventDefault();
-      const next = index < 0 ? items.length - 1 : (index - 1 + items.length) % items.length;
-      items[next]?.focus();
+      const next =
+        index < 0
+          ? focusableItems.length - 1
+          : (index - 1 + focusableItems.length) % focusableItems.length;
+      focusableItems[next]?.focus();
       return;
     }
     if (event.key === "Home") {
       event.preventDefault();
-      items[0]?.focus();
+      focusableItems[0]?.focus();
       return;
     }
     if (event.key === "End") {
       event.preventDefault();
-      items[items.length - 1]?.focus();
+      focusableItems[focusableItems.length - 1]?.focus();
     }
   }
 
@@ -144,27 +180,53 @@ export default function SiteNavMore(): React.JSX.Element {
             className="siteNavMoreMenu siteNavMoreMenuPortaled"
             id={menuId}
             role="menu"
-            aria-label="More pages"
+            aria-label={ariaLabel}
             style={menuStyle}
             onKeyDown={onMenuKeyDown}
           >
-            {SITE_NAV_MORE_LINKS.map((link, index) => {
-              const active = pathMatches(pathname, link.href);
-              return (
+            {items.map((item, index) => {
+              const contents = (
+                <>
+                  <span className="siteNavMoreLabel">{item.label}</span>
+                  <span className="siteNavMoreDescription">
+                    {item.description}
+                  </span>
+                </>
+              );
+              if (item.href) {
+                const active = pathMatches(pathname, item.href);
+                return (
                 <Link
-                  key={link.href}
+                  key={item.href}
                   ref={(el) => {
                     itemRefs.current[index] = el;
                   }}
-                  href={link.href}
+                  href={item.href}
                   role="menuitem"
                   className={active ? "siteNavMoreItem isActive" : "siteNavMoreItem"}
                   aria-current={active ? "page" : undefined}
                   onClick={close}
                 >
-                  <span className="siteNavMoreLabel">{link.label}</span>
-                  <span className="siteNavMoreDescription">{link.description}</span>
+                  {contents}
                 </Link>
+                );
+              }
+              return (
+                <button
+                  key={item.id}
+                  ref={(el) => {
+                    itemRefs.current[index] = el;
+                  }}
+                  type="button"
+                  role="menuitem"
+                  className="siteNavMoreItem"
+                  onClick={() => {
+                    close();
+                    void item.onSelect?.();
+                  }}
+                >
+                  {contents}
+                </button>
               );
             })}
           </div>,
@@ -173,7 +235,7 @@ export default function SiteNavMore(): React.JSX.Element {
       : null;
 
   return (
-    <div className="siteNavMore">
+    <div className={className ? `siteNavMore ${className}` : "siteNavMore"}>
       <button
         ref={buttonRef}
         type="button"
@@ -181,9 +243,10 @@ export default function SiteNavMore(): React.JSX.Element {
         aria-haspopup="menu"
         aria-expanded={open}
         aria-controls={menuId}
+        aria-label={ariaLabel}
         onClick={() => setOpen((value) => !value)}
       >
-        <span>More</span>
+        <span>{label}</span>
         <ChevronDown size={14} aria-hidden="true" className="siteNavMoreChevron" />
       </button>
       {menu}

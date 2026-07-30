@@ -37,23 +37,47 @@
   display: contents;
 }
 
+.profilePage .profileOwnerUtilities {
+  display: none;
+}
+
+@media (min-width: 641px) {
+  .profilePage .profileOwnerUtilities {
+    display: flex;
+    min-height: 44px;
+    align-items: center;
+    justify-content: flex-end;
+  }
+}
+
 @media (min-width: 1024px) {
   .profilePage .profileLayout {
     display: grid;
     grid-template-columns: 340px minmax(0, 1fr);
+    grid-template-rows: auto minmax(0, 1fr);
     align-items: start;
     column-gap: clamp(28px, 3vw, 44px);
+    row-gap: 12px;
+  }
+
+  .profilePage .profileOwnerUtilities {
+    grid-column: 2;
+    grid-row: 1;
   }
 
   .profilePage .profileIdentityPane {
     display: block;
     position: sticky;
+    grid-column: 1;
+    grid-row: 1 / span 2;
     top: 96px; /* clears the floating SiteNav pill, same offset as feed/tonight */
     align-self: start;
   }
 
   .profilePage .profileContentPane {
     display: grid;
+    grid-column: 2;
+    grid-row: 2;
     gap: clamp(28px, 4vw, 44px);
     min-width: 0;
   }
