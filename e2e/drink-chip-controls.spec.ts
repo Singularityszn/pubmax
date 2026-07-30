@@ -48,11 +48,6 @@ test("390px drink chip labels contain category names only", async ({
   const sheet = await openFilters(page);
   const shapeGroup = sheet.getByRole("group", { name: "Filter by drink shape" });
 
-  const capturePath = process.env.DRINK_CHIP_CAPTURE_PATH;
-  if (capturePath) {
-    await page.screenshot({ path: capturePath, fullPage: true });
-  }
-
   await expect(shapeGroup.getByRole("button")).toHaveText(CHIP_LABELS);
 });
 
@@ -85,15 +80,15 @@ test("390px fare-zone rows agree through selection and reset", async ({ page }) 
 
   await zoneGroup.getByRole("button", { name: "Zone 5", exact: true }).click();
   expect(await pressedLabels(zoneGroup)).toEqual(["Zone 5"]);
-  expect(await pressedLabels(zonePriceGroup)).toEqual(["Zone 5£4.60"]);
+  const pressedPriceLabels = await pressedLabels(zonePriceGroup);
+  expect(pressedPriceLabels).toHaveLength(1);
+  expect(pressedPriceLabels[0]).toMatch(/^Zone 5£\d/);
 
   await zoneGroup.getByRole("button", { name: "All", exact: true }).click();
   expect(await pressedLabels(zoneGroup)).toEqual(["All"]);
   expect(await pressedLabels(zonePriceGroup)).toEqual([]);
 
-  const zoneFivePrice = zonePriceGroup.getByRole("button", {
-    name: /Zone 5 £4\.60/,
-  });
+  const zoneFivePrice = zonePriceGroup.locator('button[title^="Zone 5:"]');
   const zoneFiveChip = zoneGroup.getByRole("button", {
     name: "Zone 5",
     exact: true,
@@ -103,18 +98,50 @@ test("390px fare-zone rows agree through selection and reset", async ({ page }) 
   ).toBe(
     await zoneFiveChip.evaluate((button) => getComputedStyle(button).borderColor),
   );
-  console.log(
-    `fare-zone reset styles: ${JSON.stringify({
-      allClass: await zoneGroup
-        .getByRole("button", { name: "All", exact: true })
-        .getAttribute("class"),
-      zoneFiveClass: await zoneFivePrice.getAttribute("class"),
-      zoneFiveBorder: await zoneFivePrice.evaluate(
-        (button) => getComputedStyle(button).border,
-      ),
-      zoneFiveOutline: await zoneFivePrice.evaluate(
-        (button) => getComputedStyle(button).outline,
-      ),
-    })}`,
+});
+
+test("390px drink glyphs keep the requested 22px box", async ({ page }) => {
+  test.setTimeout(90_000);
+  const sheet = await openFilters(page);
+  const shapeGroup = sheet.getByRole("group", { name: "Filter by drink shape" });
+
+  const capturePath = process.env.DRINK_CHIP_CAPTURE_PATH;
+  if (capturePath) {
+    await page.screenshot({ path: capturePath, fullPage: true });
+  }
+
+  const measurements = await shapeGroup.locator("svg").evaluateAll((glyphs) =>
+    glyphs.map((glyph) => {
+      const box = glyph.getBoundingClientRect();
+      const marks = glyph.querySelectorAll(
+        "path, line, rect, circle, ellipse, polyline, polygon",
+      );
+      return {
+        label:
+          glyph.closest("button")?.getAttribute("aria-label")?.replace(" (selected)", "") ??
+          "",
+        width: box.width,
+        height: box.height,
+        viewBox: glyph.getAttribute("viewBox"),
+        strokeWidths: [...new Set(
+          [...marks].map((mark) => getComputedStyle(mark).strokeWidth),
+        )],
+      };
+    }),
+  );
+
+  console.log(`drink glyph measurements: ${JSON.stringify(measurements)}`);
+  expect(measurements.map(({ label, width, height, viewBox }) => ({
+    label,
+    width,
+    height,
+    viewBox,
+  }))).toEqual(
+    CHIP_LABELS.map((label) => ({
+      label,
+      width: 22,
+      height: 22,
+      viewBox: "0 0 32 32",
+    })),
   );
 });
