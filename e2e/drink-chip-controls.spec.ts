@@ -71,25 +71,50 @@ for (const viewport of [
   { width: 390, height: 844 },
   { width: 430, height: 932 },
 ]) {
-  test(`${viewport.width}px Prices and places exposes derived map key rows`, async ({
+  test(`${viewport.width}px Prices and places keeps the active map key for every lens`, async ({
     page,
   }) => {
     test.setTimeout(90_000);
     await page.setViewportSize(viewport);
     const sheet = await openFilters(page);
     const key = sheet.getByLabel("Map key");
-    const heading = key.getByRole("heading", {
-      name: "Pint prices and other venue price bands",
-    });
+    const heading = key.locator("#mapKeyPriceHeading");
+    const rows = key.locator(".mapKeyPriceRows li");
 
     await heading.scrollIntoViewIfNeeded();
     await expect(key).toBeVisible();
-    await expect(heading).toBeVisible();
-    await expect(key.locator(".mapKeyPriceRows li")).toHaveText([
+    await expect(heading).toHaveText(
+      "Pint prices and other venue price bands",
+    );
+    await expect(rows).toHaveText([
       "££5.50 or less; low for its venue type",
       "££Over £5.50, up to £7; middle for its venue type",
       "£££Over £7; high for its venue type",
       "?No pint price on the map",
+    ]);
+
+    const noAlcoholIndex = page.waitForResponse(
+      (candidate) =>
+        candidate.url().includes("/api/price-submit?lens=no-alcohol") &&
+        candidate.status() === 200,
+    );
+    await sheet
+      .getByRole("button", { name: "No alcohol", exact: true })
+      .click();
+    await noAlcoholIndex;
+    await expect(heading).toHaveText("No-alcohol price bands");
+    await expect(rows.last()).toHaveText(
+      "?No alcohol-free or soft drink price on the map",
+    );
+    await expect(key.locator(".mapKeyPriceRows")).not.toContainText("pint");
+    await expect(key.locator(".mapKeyPriceRows")).not.toContainText(
+      "venue type",
+    );
+
+    await sheet.getByRole("button", { name: "Food", exact: true }).click();
+    await expect(heading).toHaveText("Food view");
+    await expect(rows).toHaveText([
+      "?Food pins and clusters stay grey",
     ]);
   });
 }

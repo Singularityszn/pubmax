@@ -3091,18 +3091,16 @@ export default function PubMap({
                     onSelect={selectPersona}
                     tonightCategory={personaTonightCategory}
                   />
-                  <MobilePriceChoices
-                    maxPrice={filters.maxPrice}
-                    drinkLabel={activeLensLabel ?? undefined}
-                    drinkNoun={activeLensNoun ?? undefined}
-                    drinkIndexStatus={drinkIndexStatus}
-                    renderedState={renderedMapState}
-                    onMaxPriceChange={(maxPrice) =>
-                      setFilters((current) => ({ ...current, maxPrice }))
-                    }
-                  />
                 </>
               ) : null}
+              <MobilePriceChoices
+                maxPrice={filters.maxPrice}
+                legend={activePriceLegend}
+                drinkLabel={activeLensLabel ?? undefined}
+                onMaxPriceChange={(maxPrice) =>
+                  setFilters((current) => ({ ...current, maxPrice }))
+                }
+              />
             </div>
           }
           tflContent={<MobileTflPanel status={tflStatus} />}
@@ -3175,10 +3173,8 @@ export default function PubMap({
                   <FavoritePintPicker value={favoritePint} onChange={changeFavoritePint} drinkCategory={filters.drinkCategory} drinkBrand={filters.drinkBrand} onDrinkLensChange={({ drinkCategory, drinkBrand }) => setFilters((current) => ({ ...current, drinkCategory, drinkBrand, drinkSubtype: drinkCategory === current.drinkCategory ? current.drinkSubtype : "", topShelfOnly: drinkCategory ? current.topShelfOnly : false, requireCocktails: drinkCategory === "cocktail" }))} />
                   <MobilePriceChoices
                     maxPrice={filters.maxPrice}
+                    legend={activePriceLegend}
                     drinkLabel={activeLensLabel ?? undefined}
-                    drinkNoun={activeLensNoun ?? undefined}
-                    drinkIndexStatus={drinkIndexStatus}
-                    renderedState={renderedMapState}
                     onMaxPriceChange={(maxPrice) =>
                       setFilters((current) => ({ ...current, maxPrice }))
                     }

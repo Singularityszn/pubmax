@@ -20,7 +20,7 @@ describe("MobilePriceChoices", () => {
     const html = renderToStaticMarkup(
       createElement(MobilePriceChoices, {
         maxPrice: 7,
-        renderedState,
+        legend,
         onMaxPriceChange: () => undefined,
       }),
     );

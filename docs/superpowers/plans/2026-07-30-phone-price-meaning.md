@@ -4,13 +4,13 @@
 
 **Goal:** Make map price data understandable from the phone filter sheet while making selected and unavailable Tonight Arc controls self-evident.
 
-**Architecture:** `MobilePriceChoices` will keep deriving `MapPriceLegendModel` through `mapPriceLegend`, but delegate all legend rendering to existing `MapKey`. `ZonePintIndexStrip` will expose one compact method note whose claims match `computeZonePintIndex`. `TonightArcChips` will add non-colour selected and unavailable cues without changing filter behavior.
+**Architecture:** `PubMap` will pass its existing active `MapPriceLegendModel` to `MobilePriceChoices`, which delegates all legend rendering to existing `MapKey` outside the all-only filter controls. `ZonePintIndexStrip` will expose one compact method note whose claims match `computeZonePintIndex`. `TonightArcChips` will add non-colour selected and unavailable cues without changing filter behavior.
 
 **Tech Stack:** Next.js 16, React 19, TypeScript, Vitest, Playwright, local component CSS.
 
 ## Global Constraints
 
-- Do not edit `components/map/DrinkShapeChips.tsx`, drink glyph component, or `components/PubMap.tsx`.
+- Do not edit `components/map/DrinkShapeChips.tsx` or drink glyph component. Keep the authorised `components/PubMap.tsx` edit limited to the sheet's MapKey mount and active legend prop.
 - Do not add another legend, colour list, filter behavior change, or price calculation change.
 - Run each acceptance check against current code and observe expected failure before implementation.
 - Prove phone behavior at 390px and 430px.
@@ -25,15 +25,16 @@
 - Modify: `__tests__/mobilePriceChoices.test.ts`
 - Modify: `e2e/drink-chip-controls.spec.ts`
 - Modify: `components/map/MobilePriceChoices.tsx`
+- Modify: `components/PubMap.tsx`
 - Modify: `components/mobile/mobileMapShell.css`
 
 **Interfaces:**
-- Consumes: `MapKey({ legend: MapPriceLegendModel })` and `mapPriceLegend(context)`
-- Produces: phone filter sheet containing `aria-label="Map key"` and rows from derived legend
+- Consumes: `MapKey({ legend: MapPriceLegendModel })` and `activePriceLegend`
+- Produces: phone filter sheet containing `aria-label="Map key"` and rows from the active derived legend in every experience lens
 
 - [ ] **Step 1: Write failing rendered tests**
 
-Render `MobilePriceChoices` with a sparse `MapRenderedState`. Assert `MapKey` markup is present, only derived rows appear, and old `mobilePriceBandLegend` markup is absent. Add Playwright coverage opening Prices and places at 390px and 430px, then assert Map key visibility and displayed derived rows.
+Render `MobilePriceChoices` with a sparse derived legend. Assert `MapKey` markup is present, only supplied rows appear, and old `mobilePriceBandLegend` markup is absent. Add Playwright coverage opening Prices and places at 390px and 430px, then assert Map key visibility and active rows for All, No alcohol, and Food.
 
 - [ ] **Step 2: Run tests to verify failure**
 
@@ -45,7 +46,7 @@ Expected: unit test fails because no `.mapKey` exists; browser test fails becaus
 
 - [ ] **Step 3: Render existing MapKey**
 
-Import `MapKey` in `MobilePriceChoices` and replace the custom legend section with `<MapKey legend={legend} />`. Remove obsolete `mobilePriceBandLegend` rules only.
+Import `MapKey` in `MobilePriceChoices` and replace the custom legend section with `<MapKey legend={legend} />`. Pass `activePriceLegend` from `PubMap` and keep this component mounted outside the all-only filter controls. Remove obsolete `mobilePriceBandLegend` rules only.
 
 - [ ] **Step 4: Verify green**
 
@@ -146,4 +147,4 @@ Run `npm run lint`, `npm run typecheck`, and relevant test files. Then run `npm 
 
 - [ ] **Step 3: Review**
 
-Inspect `git diff` and commit history. Confirm no edits to prohibited files, no second legend or colour list, no generated-file churn, and clean worktree.
+Inspect `git diff` and commit history. Confirm the authorised `PubMap` edit adds no branch, no prohibited files changed, no second legend or colour list exists, no generated-file churn occurred, and the worktree is clean.
