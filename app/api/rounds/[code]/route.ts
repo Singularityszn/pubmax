@@ -271,8 +271,7 @@ async function recordSpend(
     observed.length > 0 &&
     hasBearer &&
     contributor &&
-    !contributor.ok &&
-    contributor.httpStatus === 401
+    !contributor.ok
   ) {
     return jsonNoStore(contributor.body, { status: contributor.httpStatus });
   }

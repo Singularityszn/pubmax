@@ -41,7 +41,7 @@ export async function resolveContributionIdentity(
       ok: false,
       body: {
         code: "AUTH_VERIFICATION_UNAVAILABLE",
-        error: "Sign-in verification is unavailable right now.",
+        error: "Sign-in verification is unavailable right now. Try again.",
         retryable: true,
       },
       httpStatus: 503,

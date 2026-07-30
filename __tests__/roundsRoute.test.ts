@@ -147,12 +147,28 @@ vi.mock("@/lib/communityPriceStore", async (importOriginal) => {
   };
 });
 
-const authState = vi.hoisted(() => ({ userId: null as string | null }));
+const authState = vi.hoisted(() => ({
+  userId: null as string | null,
+  verificationUnavailable: false,
+}));
 vi.mock("@/lib/authServer", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/authServer")>();
   return {
     ...actual,
     callerUserId: async () => authState.userId,
+    verifyCallerAuth: async () =>
+      authState.verificationUnavailable
+        ? { status: "unavailable" as const }
+        : authState.userId
+          ? {
+              status: "verified" as const,
+              identity: {
+                id: authState.userId,
+                email: null,
+                createdAt: null,
+              },
+            }
+          : { status: "absent" as const },
   };
 });
 
@@ -278,6 +294,7 @@ beforeEach(() => {
   __resetMemoryProfiles();
   __resetMemoryPrivateIdentities();
   authState.userId = null;
+  authState.verificationUnavailable = false;
   // Clear the shared in-memory rate-limit window so per-handle create/action
   // budgets don't leak across cases (the limiter keys on handle + hashed IP).
   __resetPintDrops();
@@ -578,6 +595,43 @@ describe("POST /api/rounds/[code] — actions", () => {
     expect(((await (await get(round.code)).json()) as RoundState).spends).toEqual(
       [],
     );
+  });
+
+  it("returns retryable 503 without writing when auth verification is unavailable", async () => {
+    await authorizeContributor("user-ken", "ken");
+    const { round } = await newRound("ken");
+    await action(round.code, {
+      action: "addStop",
+      handle: "ken",
+      venueId: "venue-1",
+    });
+    authState.verificationUnavailable = true;
+
+    const response = await action(
+      round.code,
+      {
+        action: "recordSpend",
+        handle: "ken",
+        payerHandle: "ken",
+        venueId: "venue-1",
+        clientRef: "spend-auth-outage-1",
+        items: [
+          { drinkName: "Guinness", drinkCategory: "beer", priceGbp: 6.2 },
+        ],
+      },
+      { authorization: "Bearer valid" },
+    );
+
+    expect(response.status).toBe(503);
+    const responseBody = await response.json();
+    expect(((await (await get(round.code)).json()) as RoundState).spends).toEqual(
+      [],
+    );
+    expect(responseBody).toEqual({
+      code: "AUTH_VERIFICATION_UNAVAILABLE",
+      error: "Sign-in verification is unavailable right now. Try again.",
+      retryable: true,
+    });
   });
 
   it("attributes an account's itemised Round price to its public handle", async () => {
