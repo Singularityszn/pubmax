@@ -56,6 +56,11 @@ async function openVenueCard(page: Page): Promise<Locator> {
     waitUntil: "domcontentloaded",
   });
   expect(response?.status()).toBe(200);
+  const details = page.locator(".venueOverviewMore");
+  await expect(details).toBeVisible({ timeout: 60_000 });
+  if (!(await details.evaluate((element) => element.hasAttribute("open")))) {
+    await details.locator("> summary").click();
+  }
   const card = page.locator(".venueWeatherRecommendations");
   await expect(card).toBeAttached({ timeout: 60_000 });
   await card.evaluate((element) => {

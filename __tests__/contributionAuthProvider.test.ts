@@ -66,8 +66,6 @@ import {
 } from "@/components/auth/AuthProvider";
 import { useContributionGate } from "@/components/identity/ContributionGateDialog";
 
-type EventListener = (...args: unknown[]) => void;
-
 class TestNode {
   nodeType: number;
   nodeName: string;
@@ -184,8 +182,8 @@ beforeEach(() => {
   const document = new TestDocument();
   const window = {
     document,
-    addEventListener: (_type: string, _listener: EventListener) => {},
-    removeEventListener: (_type: string, _listener: EventListener) => {},
+    addEventListener: () => {},
+    removeEventListener: () => {},
     dispatchEvent: () => true,
     setTimeout,
     clearTimeout,

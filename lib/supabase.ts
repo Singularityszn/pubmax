@@ -166,9 +166,9 @@ export async function checkRateLimitDurable(
  * M1 trust boundary: `x-forwarded-for` is client-suppliable. On Vercel the
  * edge normalises it (left-most entry = real client), which this deployment
  * relies on; a self-hosted deployment must front this with a trusted proxy
- * that overwrites the header. The IP is a SECONDARY limiter signal — write
- * keys lead with the contributor handle — so a spoofed header only widens one
- * actor's own budget.
+ * that overwrites the header. The IP is a SECONDARY limiter signal - write
+ * keys pair it with an account or contributor identity - so a spoofed header
+ * only widens one actor's own budget.
  */
 export function clientIp(request: Request): string {
   return (

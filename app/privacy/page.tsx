@@ -15,10 +15,9 @@ import "../legal.css";
 // the browser SDK config (lib/posthogClient.ts), the first-party ingest proxy
 // (app/ingest/[...path]/route.ts), the hashed-actor derivation (lib/supabase.ts
 // hashIp/hashActor) used for price-report abuse controls, the account-derived
-// Recommendation identity in app/api/weather-recommendations/route.ts, the
-// Recommendation row shape (lib/weatherRecommendationStore.ts and its
-// migration), and the sign-in paths in components/auth/AuthProvider.tsx. If one
-// of those changes, this page
+// Visit Report and Recommendation identity in their API routes, their row
+// shapes and migrations, and the sign-in paths in
+// components/auth/AuthProvider.tsx. If one of those changes, this page
 // changes in the same commit. Do NOT add practices we don't have, certifications
 // we don't hold, or a DPO we haven't appointed.
 
@@ -166,10 +165,10 @@ export default function PrivacyPage() {
         <p className="legalBody">
           Pint Drops (a price, a note, sometimes a photo), plans and crawl
           routes, presence taps (&ldquo;I&rsquo;m here tonight&rdquo;), ratings,
-          messages to other people, Recommendations, and Night Memories. We keep
-          these because they are the product. A price with no date and no source
-          is worth nothing. Presence is always a deliberate tap; the app never
-          tracks your location in the background.
+          messages to other people, Visit Reports, Recommendations, and Night
+          Memories. We keep these because they are the product. A price with no
+          date and no source is worth nothing. Presence is always a deliberate
+          tap; the app never tracks your location in the background.
         </p>
         <p className="legalBody">
           A Recommendation is your short opinion that one pub suits one kind of
@@ -190,6 +189,20 @@ export default function PrivacyPage() {
           the same pub and condition replaces the one you already had. The
           weather never writes a Recommendation. It only decides which of the
           ones people wrote match right now.
+        </p>
+
+        <h3 className="legalH3">Visit Reports</h3>
+        <p className="legalBody">
+          A Visit Report records what you noticed on one dated pub visit.
+          Writing one needs a signed-in account, a claimed public handle and a
+          completed private profile. We store your public handle, the pub, the
+          visit date, the observations and note you chose, and the time our
+          server took it. The server derives your handle from your authenticated
+          account and ignores any handle sent by the browser. To limit abuse, we
+          use your account&rsquo;s stable private profile key together with a salted
+          hash of your IP address. We never store the raw address. Historic
+          Visit Reports written under an unlinked, self-asserted handle keep
+          that attribution and can remain visible.
         </p>
 
         <h3 className="legalH3">Community price submissions</h3>

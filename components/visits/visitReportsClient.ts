@@ -69,8 +69,8 @@ export async function reportVisitReport(id: string): Promise<void> {
   }
 }
 
-/** Submit a visit report. Returns the fresh venue read (re-fetched) on success,
- *  or throws with the server's message so the caller can show inline feedback. */
+/** Submit an account-bound visit report. Auth and onboarding refusals remain
+ * typed so the shared contribution gate can close the composer. */
 export async function postVisitReport(
   draft: VisitReportDraft,
   auth: AccountAuthSnapshot,
