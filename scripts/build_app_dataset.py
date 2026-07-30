@@ -3,14 +3,16 @@
 
 from __future__ import annotations
 
+import csv
 import hashlib
 import json
+import math
 import subprocess
 import sys
+from collections import defaultdict
 from pathlib import Path
+from typing import Iterable
 from urllib.parse import quote
-
-import pandas as pd
 
 
 DATA = Path("data")
@@ -30,23 +32,85 @@ DECISION_INPUT_FILES = [
     DATA / "postcode_coordinate_exceptions.json",
 ]
 DECISION_REPORT = DATA / "postcode_coordinate_build_report.json"
+EXPECTED_COLUMNS = [
+    "borough",
+    "rank",
+    "pub_key",
+    "pub_name",
+    "name",
+    "address",
+    "pint_name",
+    "price_text",
+    "price_gbp",
+    "pint_position_for_pub",
+    "pub_url",
+    "constructed_pub_url",
+    "borough_url",
+    "estimated_average_price_text",
+    "latitude",
+    "longitude",
+    "distance",
+    "phone_number",
+    "email",
+    "website",
+    "booking_link",
+    "image_url",
+    "description",
+    "comment",
+    "food",
+    "cocktails",
+    "beer_garden",
+    "live_sports",
+    "live_music",
+    "pub_quiz",
+    "darts",
+    "pool",
+    "happy_hour",
+    "karaoke",
+    "cool",
+    "locality",
+    "scraped_at",
+]
+CSV_MISSING_VALUES = {
+    "",
+    "#N/A",
+    "#N/A N/A",
+    "#NA",
+    "-1.#IND",
+    "-1.#QNAN",
+    "-NaN",
+    "-nan",
+    "1.#IND",
+    "1.#QNAN",
+    "<NA>",
+    "N/A",
+    "NA",
+    "NULL",
+    "NaN",
+    "None",
+    "n/a",
+    "nan",
+    "null",
+}
 
 
 def clean(value: object) -> str:
-    if pd.isna(value):
+    if value is None or (
+        isinstance(value, float) and math.isnan(value)
+    ):
         return ""
     return " ".join(str(value).split()).strip()
 
 
-def first_nonblank(values: pd.Series) -> str:
+def first_nonblank(values: Iterable[object]) -> object:
     for value in values:
         text = clean(value)
         if text:
-            return text
+            return value if isinstance(value, (int, float)) else text
     return ""
 
 
-def join_unique(values: pd.Series) -> str:
+def join_unique(values: Iterable[object]) -> str:
     output: list[str] = []
     seen: set[str] = set()
     for value in values:
@@ -60,17 +124,19 @@ def join_unique(values: pd.Series) -> str:
 
 def price_num(value: object) -> float | None:
     try:
-        if pd.isna(value):
-            return None
-        return round(float(str(value).replace("£", "").strip()), 2)
-    except Exception:  # noqa: BLE001 - source data can contain messy text.
+        parsed = float(str(value).replace("£", "").strip())
+        return round(parsed, 2) if math.isfinite(parsed) else None
+    except (TypeError, ValueError):
         return None
 
 
 def pub_url_from_fields(address: str, pub_name: str) -> str:
     if not address or not pub_name:
         return ""
-    return f"https://www.pint-prices.com/pub/{quote(address, safe='')}/{quote(pub_name, safe='')}"
+    return (
+        f"https://www.pint-prices.com/pub/"
+        f"{quote(address, safe='')}/{quote(pub_name, safe='')}"
+    )
 
 
 def sha256_file(path: Path) -> str:
@@ -81,18 +147,272 @@ def sha256_file(path: Path) -> str:
     return digest.hexdigest()
 
 
+def read_csv(
+    path: Path,
+    *,
+    numeric_fields: set[str] | None = None,
+) -> list[dict[str, object]]:
+    with path.open("r", encoding="utf-8", newline="") as handle:
+        rows: list[dict[str, object]] = [dict(row) for row in csv.DictReader(handle)]
+    for row in rows:
+        for field, raw_value in row.items():
+            if clean(raw_value) in CSV_MISSING_VALUES:
+                row[field] = None
+        for field in numeric_fields or set():
+            value = clean(row.get(field))
+            try:
+                row[field] = float(value) if value else None
+            except ValueError:
+                row[field] = value
+    return rows
+
+
+def prep(
+    rows: Iterable[dict[str, object]],
+    source: str,
+) -> list[dict[str, object]]:
+    prepared: list[dict[str, object]] = []
+    for original in rows:
+        row = dict(original)
+        for column in EXPECTED_COLUMNS:
+            row.setdefault(column, "")
+
+        row["source_dataset"] = source
+        row["price_gbp_num"] = price_num(row["price_gbp"])
+        row["pub_name_clean"] = clean(row["pub_name"]) or clean(row["name"])
+        row["address_clean"] = clean(row["address"])
+        row["pint_name_clean"] = clean(row["pint_name"])
+        row["latitude_clean"] = clean(row["latitude"])
+        row["longitude_clean"] = clean(row["longitude"])
+        row["dedupe_key"] = (
+            str(row["pub_name_clean"]).lower(),
+            str(row["address_clean"]).lower(),
+            row["latitude_clean"],
+            row["longitude_clean"],
+            str(row["pint_name_clean"]).lower(),
+            row["price_gbp_num"],
+        )
+        prepared.append(row)
+    return prepared
+
+
+def values(rows: Iterable[dict[str, object]], field: str) -> list[object]:
+    return [row.get(field, "") for row in rows]
+
+
+def assemble_records(
+    prepared_rows: Iterable[dict[str, object]],
+) -> list[dict[str, object]]:
+    groups: dict[tuple[object, ...], list[dict[str, object]]] = defaultdict(list)
+    for row in prepared_rows:
+        groups[row["dedupe_key"]].append(row)
+
+    records: list[dict[str, object]] = []
+    for group in groups.values():
+        visible = [
+            row
+            for row in group
+            if row["source_dataset"]
+            == "canonical_borough_leaderboard_enriched"
+        ]
+        raw = [
+            row
+            for row in group
+            if row["source_dataset"] == "borough_embedded_map_data_raw"
+        ]
+        pub = [
+            row
+            for row in group
+            if row["source_dataset"] == "individual_pub_page"
+        ]
+        preferred = [*visible, *raw, *pub]
+
+        boroughs_visible = join_unique(values(visible, "borough"))
+        raw_boroughs = {
+            clean(value)
+            for value in values(raw, "borough")
+            if clean(value)
+        }
+        anomaly_hits = sorted(raw_boroughs & ANOMALY_BOROUGHS)
+        non_anomaly_raw = [
+            row for row in raw if row["borough"] not in ANOMALY_BOROUGHS
+        ]
+        quality_notes: list[str] = []
+        if anomaly_hits:
+            quality_notes.append("raw_embedded_includes_site_anomaly_borough")
+        if not visible:
+            quality_notes.append("not_visible_in_borough_leaderboard")
+        if not pub:
+            quality_notes.append("not_found_on_individual_pub_page_extract")
+        if not first_nonblank(
+            values(preferred, "latitude_clean")
+        ) or not first_nonblank(values(preferred, "longitude_clean")):
+            quality_notes.append("missing_coordinates")
+
+        pub_name = clean(first_nonblank(values(preferred, "pub_name_clean")))
+        address = clean(first_nonblank(values(preferred, "address_clean")))
+        constructed_pub_url = clean(
+            first_nonblank(values(preferred, "constructed_pub_url"))
+        ) or pub_url_from_fields(address, pub_name)
+        trusted_group_boroughs = [
+            row["borough"]
+            for row in group
+            if row["borough"] not in ANOMALY_BOROUGHS
+        ]
+
+        records.append(
+            {
+                "app_price_id": f"app_price_{len(records) + 1:06d}",
+                "pub_name": pub_name,
+                "pint_name": first_nonblank(
+                    values(preferred, "pint_name_clean")
+                ),
+                "price_gbp": first_nonblank(
+                    values(preferred, "price_gbp_num")
+                ),
+                "price_text": first_nonblank(
+                    values(preferred, "price_text")
+                ),
+                "address": address,
+                "latitude": first_nonblank(
+                    values(preferred, "latitude_clean")
+                ),
+                "longitude": first_nonblank(
+                    values(preferred, "longitude_clean")
+                ),
+                "boroughs_visible": boroughs_visible,
+                "boroughs_raw_embedded": join_unique(
+                    values(raw, "borough")
+                ),
+                "boroughs_raw_embedded_non_anomaly": join_unique(
+                    values(non_anomaly_raw, "borough")
+                ),
+                "boroughs_raw_embedded_site_anomaly": "|".join(
+                    anomaly_hits
+                ),
+                "boroughs_all_sources": join_unique(
+                    values(group, "borough")
+                ),
+                # Embedded source glitches stamped hundreds of unrelated pubs
+                # with anomaly boroughs. Leave the field blank when no trusted
+                # source exists; geometric export assigns the true borough.
+                "primary_borough": first_nonblank(
+                    values(visible, "borough")
+                )
+                or first_nonblank(values(non_anomaly_raw, "borough"))
+                or first_nonblank(trusted_group_boroughs),
+                "rank_visible_borough": first_nonblank(
+                    values(visible, "rank")
+                ),
+                "estimated_average_price_text": first_nonblank(
+                    values(visible, "estimated_average_price_text")
+                ),
+                "pub_url": first_nonblank(
+                    values(preferred, "pub_url")
+                )
+                or constructed_pub_url,
+                "constructed_pub_url": constructed_pub_url,
+                "borough_urls": join_unique(
+                    values(preferred, "borough_url")
+                ),
+                "pub_key": first_nonblank(values(preferred, "pub_key")),
+                "pint_position_for_pub": first_nonblank(
+                    values(preferred, "pint_position_for_pub")
+                ),
+                "phone_number": first_nonblank(
+                    values(preferred, "phone_number")
+                ),
+                "email": first_nonblank(values(preferred, "email")),
+                "website": first_nonblank(values(preferred, "website")),
+                "booking_link": first_nonblank(
+                    values(preferred, "booking_link")
+                ),
+                "image_url": first_nonblank(
+                    values(preferred, "image_url")
+                ),
+                "description": first_nonblank(
+                    values(preferred, "description")
+                ),
+                "comment": first_nonblank(values(preferred, "comment")),
+                "food": first_nonblank(values(preferred, "food")),
+                "cocktails": first_nonblank(
+                    values(preferred, "cocktails")
+                ),
+                "beer_garden": first_nonblank(
+                    values(preferred, "beer_garden")
+                ),
+                "live_sports": first_nonblank(
+                    values(preferred, "live_sports")
+                ),
+                "live_music": first_nonblank(
+                    values(preferred, "live_music")
+                ),
+                "pub_quiz": first_nonblank(
+                    values(preferred, "pub_quiz")
+                ),
+                "darts": first_nonblank(values(preferred, "darts")),
+                "pool": first_nonblank(values(preferred, "pool")),
+                "happy_hour": first_nonblank(
+                    values(preferred, "happy_hour")
+                ),
+                "karaoke": first_nonblank(values(preferred, "karaoke")),
+                "cool": first_nonblank(values(preferred, "cool")),
+                "locality": first_nonblank(values(preferred, "locality")),
+                "source_datasets": join_unique(
+                    values(group, "source_dataset")
+                ),
+                "source_row_count": len(group),
+                "visible_borough_source_row_count": len(visible),
+                "raw_embedded_source_row_count": len(raw),
+                "individual_pub_page_source_row_count": len(pub),
+                "has_visible_borough_row": bool(visible),
+                "has_raw_embedded_map_row": bool(raw),
+                "has_individual_pub_page_row": bool(pub),
+                "is_clean_canonical_app_row": bool(visible)
+                and bool(first_nonblank(values(preferred, "latitude_clean")))
+                and bool(
+                    first_nonblank(values(preferred, "longitude_clean"))
+                ),
+                "data_quality_notes": "|".join(quality_notes),
+                "scraped_at_values": join_unique(
+                    values(preferred, "scraped_at")
+                ),
+            }
+        )
+    return records
+
+
+def record_sort_key(record: dict[str, object]) -> tuple[object, ...]:
+    price = record["price_gbp"]
+    return (
+        not bool(record["is_clean_canonical_app_row"]),
+        str(record["primary_borough"]),
+        str(record["pub_name"]),
+        str(record["pint_name"]),
+        price is None or price == "",
+        0 if price is None or price == "" else float(price),
+    )
+
+
+def in_london_bounds(row: dict[str, object]) -> bool:
+    try:
+        latitude = float(str(row["latitude"]))
+        longitude = float(str(row["longitude"]))
+    except (TypeError, ValueError):
+        return False
+    return (
+        LONDON_LAT_MIN <= latitude <= LONDON_LAT_MAX
+        and LONDON_LON_MIN <= longitude <= LONDON_LON_MAX
+    )
+
+
 def apply_postcode_coordinate_decisions(
-    app: pd.DataFrame,
-) -> tuple[pd.DataFrame, dict[str, object]]:
-    latitudes = pd.to_numeric(app["latitude"], errors="coerce")
-    longitudes = pd.to_numeric(app["longitude"], errors="coerce")
-    product_candidates = app[
-        latitudes.between(LONDON_LAT_MIN, LONDON_LAT_MAX)
-        & longitudes.between(LONDON_LON_MIN, LONDON_LON_MAX)
-    ]
+    app: list[dict[str, object]],
+) -> tuple[list[dict[str, object]], dict[str, object]]:
+    product_candidates = [row for row in app if in_london_bounds(row)]
     result = subprocess.run(
         ["node", str(DECISION_SCRIPT)],
-        input=product_candidates.to_json(orient="records"),
+        input=json.dumps(product_candidates, ensure_ascii=False),
         text=True,
         capture_output=True,
         check=False,
@@ -103,25 +423,27 @@ def apply_postcode_coordinate_decisions(
         raise SystemExit(result.returncode)
 
     decisions = json.loads(result.stdout)
+    rows_by_id = {
+        str(row["app_price_id"]): row
+        for row in app
+    }
     for correction in decisions["appliedCorrections"]:
-        matches = app.index[app["app_price_id"].eq(correction["appPriceId"])]
-        if len(matches) != 1:
+        app_price_id = correction["appPriceId"]
+        row = rows_by_id.get(app_price_id)
+        if row is None:
             raise RuntimeError(
-                f"validated correction {correction['appPriceId']} no longer matches one row"
+                f"validated correction {app_price_id} no longer matches one row"
             )
-        row_index = matches[0]
         for field, value in correction["changes"].items():
-            if field in {"latitude", "longitude"}:
-                value = str(value)
-            app.at[row_index, field] = value
+            row[field] = str(value) if field in {"latitude", "longitude"} else value
         notes = [
             note
-            for note in clean(app.at[row_index, "data_quality_notes"]).split("|")
+            for note in clean(row["data_quality_notes"]).split("|")
             if note
         ]
         if correction["dataQualityNote"] not in notes:
             notes.append(correction["dataQualityNote"])
-        app.at[row_index, "data_quality_notes"] = "|".join(notes)
+        row["data_quality_notes"] = "|".join(notes)
 
     quarantined_ids: set[str] = set()
     for quarantine in decisions["appliedQuarantines"]:
@@ -136,208 +458,69 @@ def apply_postcode_coordinate_decisions(
 
     report = {
         "inputs": {
-            str(path): {"sha256": sha256_file(path)} for path in DECISION_INPUT_FILES
+            str(path): {"sha256": sha256_file(path)}
+            for path in DECISION_INPUT_FILES
         },
         "checkedRows": decisions["checkedRows"],
         "outwardCodeReferences": decisions["referenceCount"],
         "corrections": decisions["appliedCorrections"],
         "quarantines": decisions["appliedQuarantines"],
     }
-    app = app[~app["app_price_id"].isin(quarantined_ids)].copy()
-    return app, report
-
-
-def prep(df: pd.DataFrame, source: str) -> pd.DataFrame:
-    df = df.copy()
-    expected_columns = [
-        "borough",
-        "rank",
-        "pub_key",
-        "pub_name",
-        "name",
-        "address",
-        "pint_name",
-        "price_text",
-        "price_gbp",
-        "pint_position_for_pub",
-        "pub_url",
-        "constructed_pub_url",
-        "borough_url",
-        "estimated_average_price_text",
-        "latitude",
-        "longitude",
-        "distance",
-        "phone_number",
-        "email",
-        "website",
-        "booking_link",
-        "image_url",
-        "description",
-        "comment",
-        "food",
-        "cocktails",
-        "beer_garden",
-        "live_sports",
-        "live_music",
-        "pub_quiz",
-        "darts",
-        "pool",
-        "happy_hour",
-        "karaoke",
-        "cool",
-        "locality",
-        "scraped_at",
-    ]
-    for column in expected_columns:
-        if column not in df.columns:
-            df[column] = ""
-
-    df["source_dataset"] = source
-    df["price_gbp_num"] = df["price_gbp"].map(price_num)
-    df["pub_name_clean"] = df.apply(
-        lambda row: clean(row["pub_name"]) or clean(row["name"]), axis=1
+    return (
+        [
+            row
+            for row in app
+            if str(row["app_price_id"]) not in quarantined_ids
+        ],
+        report,
     )
-    df["address_clean"] = df["address"].map(clean)
-    df["pint_name_clean"] = df["pint_name"].map(clean)
-    df["latitude_clean"] = df["latitude"].map(clean)
-    df["longitude_clean"] = df["longitude"].map(clean)
-    df["dedupe_key"] = df.apply(
-        lambda row: (
-            row["pub_name_clean"].lower(),
-            row["address_clean"].lower(),
-            row["latitude_clean"],
-            row["longitude_clean"],
-            row["pint_name_clean"].lower(),
-            row["price_gbp_num"],
-        ),
-        axis=1,
-    )
-    return df
+
+
+def write_csv(path: Path, rows: list[dict[str, object]]) -> None:
+    if not rows:
+        raise RuntimeError("app dataset cannot be empty")
+    with path.open("w", encoding="utf-8", newline="") as handle:
+        writer = csv.DictWriter(
+            handle,
+            fieldnames=list(rows[0]),
+            extrasaction="ignore",
+            lineterminator="\n",
+        )
+        writer.writeheader()
+        writer.writerows(rows)
 
 
 def main() -> None:
-    canonical = pd.read_csv(DATA / "pint_prices_canonical_enriched.csv", low_memory=False)
-    embedded = pd.read_csv(DATA / "borough_embedded_pint_prices.csv", low_memory=False)
-    pub_pages = pd.read_csv(DATA / "pub_page_pint_prices.csv", low_memory=False)
+    all_rows = [
+        *prep(
+            read_csv(
+                DATA / "pint_prices_canonical_enriched.csv",
+                numeric_fields={"latitude", "longitude"},
+            ),
+            "canonical_borough_leaderboard_enriched",
+        ),
+        *prep(
+            read_csv(
+                DATA / "borough_embedded_pint_prices.csv",
+                numeric_fields={"latitude", "longitude", "price_text"},
+            ),
+            "borough_embedded_map_data_raw",
+        ),
+        *prep(
+            read_csv(
+                DATA / "pub_page_pint_prices.csv",
+                numeric_fields={"latitude", "longitude"},
+            ),
+            "individual_pub_page",
+        ),
+    ]
+    app = sorted(assemble_records(all_rows), key=record_sort_key)
+    for index, row in enumerate(app, start=1):
+        row["app_price_id"] = f"app_price_{index:06d}"
 
-    all_rows = pd.concat(
-        [
-            prep(canonical, "canonical_borough_leaderboard_enriched"),
-            prep(embedded, "borough_embedded_map_data_raw"),
-            prep(pub_pages, "individual_pub_page"),
-        ],
-        ignore_index=True,
-    )
-
-    records: list[dict[str, object]] = []
-    for _, group in all_rows.groupby("dedupe_key", dropna=False, sort=False):
-        visible = group[group["source_dataset"].eq("canonical_borough_leaderboard_enriched")]
-        raw = group[group["source_dataset"].eq("borough_embedded_map_data_raw")]
-        pub = group[group["source_dataset"].eq("individual_pub_page")]
-        preferred = pd.concat([visible, raw, pub], ignore_index=False)
-
-        boroughs_visible = join_unique(visible["borough"])
-        raw_boroughs = {clean(value) for value in raw["borough"] if clean(value)}
-        anomaly_hits = sorted(raw_boroughs & ANOMALY_BOROUGHS)
-        non_anomaly_raw = raw[~raw["borough"].isin(list(ANOMALY_BOROUGHS))]
-        quality_notes: list[str] = []
-        if anomaly_hits:
-            quality_notes.append("raw_embedded_includes_site_anomaly_borough")
-        if visible.empty:
-            quality_notes.append("not_visible_in_borough_leaderboard")
-        if pub.empty:
-            quality_notes.append("not_found_on_individual_pub_page_extract")
-        if not first_nonblank(preferred["latitude_clean"]) or not first_nonblank(
-            preferred["longitude_clean"]
-        ):
-            quality_notes.append("missing_coordinates")
-
-        pub_name = first_nonblank(preferred["pub_name_clean"])
-        address = first_nonblank(preferred["address_clean"])
-        constructed_pub_url = first_nonblank(preferred["constructed_pub_url"]) or pub_url_from_fields(
-            address, pub_name
-        )
-
-        records.append(
-            {
-                "app_price_id": f"app_price_{len(records) + 1:06d}",
-                "pub_name": pub_name,
-                "pint_name": first_nonblank(preferred["pint_name_clean"]),
-                "price_gbp": first_nonblank(preferred["price_gbp_num"]),
-                "price_text": first_nonblank(preferred["price_text"]),
-                "address": address,
-                "latitude": first_nonblank(preferred["latitude_clean"]),
-                "longitude": first_nonblank(preferred["longitude_clean"]),
-                "boroughs_visible": boroughs_visible,
-                "boroughs_raw_embedded": join_unique(raw["borough"]),
-                "boroughs_raw_embedded_non_anomaly": join_unique(non_anomaly_raw["borough"]),
-                "boroughs_raw_embedded_site_anomaly": "|".join(anomaly_hits),
-                "boroughs_all_sources": join_unique(group["borough"]),
-                # NEVER let an ANOMALY_BOROUGHS value become primary: the site
-                # glitch tagged hundreds of pubs under Havering/Hillingdon/
-                # Redbridge, and the old last-resort `group["borough"]` fallback
-                # resurrected exactly those values (593 rows all labelled
-                # "Havering" — the F7 borough-join bug). Rows with no trusted
-                # source stay blank here; export_app_dataset_json.py assigns
-                # the true borough geometrically from lat/lng.
-                "primary_borough": first_nonblank(visible["borough"])
-                or first_nonblank(non_anomaly_raw["borough"])
-                or first_nonblank(
-                    group.loc[~group["borough"].isin(list(ANOMALY_BOROUGHS)), "borough"]
-                ),
-                "rank_visible_borough": first_nonblank(visible["rank"]),
-                "estimated_average_price_text": first_nonblank(
-                    visible["estimated_average_price_text"]
-                ),
-                "pub_url": first_nonblank(preferred["pub_url"]) or constructed_pub_url,
-                "constructed_pub_url": constructed_pub_url,
-                "borough_urls": join_unique(preferred["borough_url"]),
-                "pub_key": first_nonblank(preferred["pub_key"]),
-                "pint_position_for_pub": first_nonblank(preferred["pint_position_for_pub"]),
-                "phone_number": first_nonblank(preferred["phone_number"]),
-                "email": first_nonblank(preferred["email"]),
-                "website": first_nonblank(preferred["website"]),
-                "booking_link": first_nonblank(preferred["booking_link"]),
-                "image_url": first_nonblank(preferred["image_url"]),
-                "description": first_nonblank(preferred["description"]),
-                "comment": first_nonblank(preferred["comment"]),
-                "food": first_nonblank(preferred["food"]),
-                "cocktails": first_nonblank(preferred["cocktails"]),
-                "beer_garden": first_nonblank(preferred["beer_garden"]),
-                "live_sports": first_nonblank(preferred["live_sports"]),
-                "live_music": first_nonblank(preferred["live_music"]),
-                "pub_quiz": first_nonblank(preferred["pub_quiz"]),
-                "darts": first_nonblank(preferred["darts"]),
-                "pool": first_nonblank(preferred["pool"]),
-                "happy_hour": first_nonblank(preferred["happy_hour"]),
-                "karaoke": first_nonblank(preferred["karaoke"]),
-                "cool": first_nonblank(preferred["cool"]),
-                "locality": first_nonblank(preferred["locality"]),
-                "source_datasets": join_unique(group["source_dataset"]),
-                "source_row_count": len(group),
-                "visible_borough_source_row_count": len(visible),
-                "raw_embedded_source_row_count": len(raw),
-                "individual_pub_page_source_row_count": len(pub),
-                "has_visible_borough_row": not visible.empty,
-                "has_raw_embedded_map_row": not raw.empty,
-                "has_individual_pub_page_row": not pub.empty,
-                "is_clean_canonical_app_row": (not visible.empty)
-                and bool(first_nonblank(preferred["latitude_clean"]))
-                and bool(first_nonblank(preferred["longitude_clean"])),
-                "data_quality_notes": "|".join(quality_notes),
-                "scraped_at_values": join_unique(preferred["scraped_at"]),
-            }
-        )
-
-    app = pd.DataFrame(records)
-    app = app.sort_values(
-        ["is_clean_canonical_app_row", "primary_borough", "pub_name", "pint_name", "price_gbp"],
-        ascending=[False, True, True, True, True],
-    ).reset_index(drop=True)
-    app["app_price_id"] = [f"app_price_{index + 1:06d}" for index in range(len(app))]
     app, decision_report = apply_postcode_coordinate_decisions(app)
     output_path = DATA / "pint_prices_app_dataset.csv"
-    app.to_csv(output_path, index=False)
+    write_csv(output_path, app)
     decision_report["output"] = {
         "path": str(output_path),
         "sha256": sha256_file(output_path),
@@ -353,35 +536,44 @@ def main() -> None:
     summary.update(
         {
             "pint_prices_app_dataset_rows": len(app),
-            "pint_prices_app_dataset_columns": len(app.columns),
-            "app_dataset_rows_with_coordinates": int(
-                app[["latitude", "longitude"]].replace("", pd.NA).notna().all(axis=1).sum()
+            "pint_prices_app_dataset_columns": len(app[0]),
+            "app_dataset_rows_with_coordinates": sum(
+                bool(clean(row["latitude"])) and bool(clean(row["longitude"]))
+                for row in app
             ),
-            "app_dataset_clean_canonical_rows": int(app["is_clean_canonical_app_row"].sum()),
-            "app_dataset_rows_with_visible_borough": int(app["has_visible_borough_row"].sum()),
-            "app_dataset_rows_with_pub_page": int(app["has_individual_pub_page_row"].sum()),
-            "app_dataset_visible_borough_source_rows_represented": int(
-                app["visible_borough_source_row_count"].sum()
+            "app_dataset_clean_canonical_rows": sum(
+                bool(row["is_clean_canonical_app_row"]) for row in app
             ),
-            "app_dataset_raw_embedded_source_rows_represented": int(
-                app["raw_embedded_source_row_count"].sum()
+            "app_dataset_rows_with_visible_borough": sum(
+                bool(row["has_visible_borough_row"]) for row in app
             ),
-            "app_dataset_individual_pub_page_source_rows_represented": int(
-                app["individual_pub_page_source_row_count"].sum()
+            "app_dataset_rows_with_pub_page": sum(
+                bool(row["has_individual_pub_page_row"]) for row in app
             ),
-            "app_dataset_rows_raw_only": int(
-                (
-                    ~app["has_visible_borough_row"]
-                    & app["has_raw_embedded_map_row"]
-                    & ~app["has_individual_pub_page_row"]
-                ).sum()
+            "app_dataset_visible_borough_source_rows_represented": sum(
+                int(row["visible_borough_source_row_count"]) for row in app
+            ),
+            "app_dataset_raw_embedded_source_rows_represented": sum(
+                int(row["raw_embedded_source_row_count"]) for row in app
+            ),
+            "app_dataset_individual_pub_page_source_rows_represented": sum(
+                int(row["individual_pub_page_source_row_count"]) for row in app
+            ),
+            "app_dataset_rows_raw_only": sum(
+                not bool(row["has_visible_borough_row"])
+                and bool(row["has_raw_embedded_map_row"])
+                and not bool(row["has_individual_pub_page_row"])
+                for row in app
             ),
         }
     )
-    summary_path.write_text(json.dumps(summary, ensure_ascii=False, indent=2), encoding="utf-8")
+    summary_path.write_text(
+        json.dumps(summary, ensure_ascii=False, indent=2),
+        encoding="utf-8",
+    )
 
     print(f"wrote {output_path}")
-    print(f"rows={len(app)} columns={len(app.columns)}")
+    print(f"rows={len(app)} columns={len(app[0])}")
 
 
 if __name__ == "__main__":

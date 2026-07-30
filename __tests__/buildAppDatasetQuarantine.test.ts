@@ -112,7 +112,7 @@ function setupScratch(): string {
 }
 
 function runBuilder(scratchRoot: string) {
-  return spawnSync("python3", [BUILD_SCRIPT], {
+  return spawnSync("python3", ["-S", BUILD_SCRIPT], {
     cwd: scratchRoot,
     encoding: "utf8",
     timeout: 120_000,
@@ -200,6 +200,50 @@ describe("build_app_dataset.py postcode-coordinate decisions", () => {
       expect(result.status).not.toBe(0);
       expect(result.stderr).toContain(
         "app_price_999999 is not in the pre-publication dataset",
+      );
+    },
+    120_000,
+  );
+
+  it(
+    "keeps identities stable across harmless source serialization changes",
+    () => {
+      const scratchRoot = setupScratch();
+      const embeddedPath = join(
+        scratchRoot,
+        "data",
+        "borough_embedded_pint_prices.csv",
+      );
+      const original = readFileSync(embeddedPath, "utf8");
+      const mutated = original
+        .replace(
+          "Arnos Arms,Amstel,5.50,5.5,1,",
+          "Arnos Arms,Amstel,£5.50,5.5,1,",
+        )
+        .replaceAll(
+          ",51.6162,,,,-0.132117,Arnos Arms",
+          ",51.6162000,,,,-0.1321170,Arnos Arms",
+        )
+        .replace(
+          "PO20 3YA,,,,AUTO_ADDED_PINT,,,,,,,,,,50.8379",
+          "PO20 3YA,,,,AUTO_ADDED_PINT,,,,N/A,,,,,,50.8379",
+        );
+      expect(mutated).not.toBe(original);
+      writeFileSync(embeddedPath, mutated, "utf8");
+
+      const result = runBuilder(scratchRoot);
+
+      expect(result.status, result.stderr).toBe(0);
+      expect(
+        readFileSync(
+          join(scratchRoot, "data", "pint_prices_app_dataset.csv"),
+          "utf8",
+        ),
+      ).toBe(
+        readFileSync(
+          join(ROOT, "data", "pint_prices_app_dataset.csv"),
+          "utf8",
+        ),
       );
     },
     120_000,

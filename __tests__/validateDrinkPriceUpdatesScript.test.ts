@@ -237,8 +237,8 @@ function injectReassignedLincolnQuarantineLeak(scriptsDir: string) {
     app_price_id: "app_price_reassigned",
     pub_name: lincoln.pubName,
     address: `155 Percival Road, Enfield ${lincoln.postcode}, UK`,
-    latitude: lincoln.latitude + 0.000005,
-    longitude: lincoln.longitude - 0.000005,
+    latitude: lincoln.latitude + 0.00000005,
+    longitude: lincoln.longitude - 0.00000005,
   });
   writeFileSync(datasetPath, JSON.stringify(rows), "utf8");
 }
