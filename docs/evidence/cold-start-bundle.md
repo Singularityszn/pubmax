@@ -170,16 +170,108 @@ display.venueId=venue-oxf-16404bl
 display.venueName=Turf Tavern
 ```
 
-**Packaged non-London red proof: UNVERIFIED.** The explicit include fix remains because automatic tracing is not the deployment contract, but this local package cannot honestly supply a failing before result. Firstmate must decide whether a Vercel-isolated reproduction is required before merge.
+### Accepted deployment deferral
 
-For a deployed preview with `PUBMAX_ANCHORED_GENERATION=1`, repeat:
+Firstmate accepted deferred packaged proof on 30 July 2026. Two outcomes remain unverified until deployment:
+
+1. Vercel-isolated packaged response behaviour for a real non-London venue and at least one affected Plan or recap route.
+2. Production cold-start effect.
+
+The possible non-London 404 is detectable within seconds after deployment and the PR is immediately reversible. Deferring the deployment check avoids holding back a measured trace reduction of about 95% with six-response parity while launch-day cold TTFB remains around two seconds. This is risk acceptance, not evidence of a speed improvement.
+
+The explicit `venueDetailIndex` include remains because incidental tracing is not a deployment contract. Current production has `PUBMAX_ANCHORED_GENERATION` and `PUBMAX_FRIEND_MEMBER_REHYDRATION_V2` off, so neither the anchor endpoint nor a member-only get-in response can prove Plan data loading. Post-deploy verification therefore creates an unlisted recap under a dedicated authenticated test account. Its server-returned UUID supplies a valid affected recap URL without inventing an id.
+
+Run this setup once after deployment. `VERIFY_AUTH_BEARER` must be a current Supabase access token for the dedicated test account.
 
 ```bash
-VERIFY_ORIGIN='https://replace-with-deployment-host'
-curl -sS -w '\nstatus=%{http_code}\n' \
-  "$VERIFY_ORIGIN/api/venue/venue-oxf-16404bl"
-curl -sS -w '\nstatus=%{http_code}\n' \
-  "$VERIFY_ORIGIN/api/plans/anchor?cityId=oxford&venueId=venue-oxf-16404bl&areaKind=none"
+export VERIFY_ORIGIN='https://pubmaxxing.com'
+export VERIFY_AUTH_BEARER='replace-with-dedicated-test-account-access-token'
+
+verify_memory_json=$(
+  curl --fail-with-body -sS \
+    -H "authorization: Bearer $VERIFY_AUTH_BEARER" \
+    -H 'content-type: application/json' \
+    -d '{"title":"Route bundle verification 2026-07-30"}' \
+    "$VERIFY_ORIGIN/api/night-memories"
+)
+verify_memory_id=$(jq -er '.memory.id' <<<"$verify_memory_json")
+
+verify_moment_json=$(
+  curl --fail-with-body -sS \
+    -H "authorization: Bearer $VERIFY_AUTH_BEARER" \
+    -H 'content-type: application/json' \
+    -d '{"kind":"venue","caption":"Manchester packaged-route verification","venueId":"venue-mcr-iy010v"}' \
+    "$VERIFY_ORIGIN/api/night-memories/$verify_memory_id/moments"
+)
+verify_moment_id=$(jq -er '.moment.id' <<<"$verify_moment_json")
+
+verify_story_json=$(
+  curl --fail-with-body -sS \
+    -H "authorization: Bearer $VERIFY_AUTH_BEARER" \
+    -H 'content-type: application/json' \
+    -d "$(jq -nc --arg memory_id "$verify_memory_id" \
+      '{memoryId:$memory_id,title:"Route bundle verification 2026-07-30"}')" \
+    "$VERIFY_ORIGIN/api/night-stories"
+)
+verify_story_id=$(jq -er '.story.id' <<<"$verify_story_json")
+
+verify_proposal_json=$(
+  curl --fail-with-body -sS \
+    -H "authorization: Bearer $VERIFY_AUTH_BEARER" \
+    -H 'content-type: application/json' \
+    -d "$(jq -nc --arg moment_id "$verify_moment_id" \
+      '{momentIds:[$moment_id],visibility:"unlisted"}')" \
+    "$VERIFY_ORIGIN/api/night-stories/$verify_story_id/publish-proposals"
+)
+verify_proposal_id=$(jq -er '.proposal.id' <<<"$verify_proposal_json")
+verify_confirmation_token=$(jq -er '.confirmationToken' <<<"$verify_proposal_json")
+
+curl --fail-with-body -sS \
+  -H "authorization: Bearer $VERIFY_AUTH_BEARER" \
+  -H 'content-type: application/json' \
+  -d "$(jq -nc \
+    --arg proposal_id "$verify_proposal_id" \
+    --arg confirmation_token "$verify_confirmation_token" \
+    '{proposalId:$proposal_id,confirmationToken:$confirmation_token}')" \
+  "$VERIFY_ORIGIN/api/night-stories/$verify_story_id/publish-confirmations" \
+  | jq -e '.story.status == "published" and .story.visibility == "unlisted"'
+
+verify_recap_url="$VERIFY_ORIGIN/recap/$verify_story_id"
+printf 'recap_url=%s\n' "$verify_recap_url"
+```
+
+This produces the concrete affected recap URL as
+`https://pubmaxxing.com/recap/<server-returned verify_story_id>`. Do not replace
+the server-returned UUID with a made-up id.
+
+Verify the two full production targets. Status checks distinguish a working response from a route-level 404; body checks prove the Manchester venue loaded.
+
+```bash
+verify_output_dir=$(mktemp -d)
+trap 'rm -rf "$verify_output_dir"' EXIT
+
+verify_venue_url='https://pubmaxxing.com/api/venue/venue-mcr-iy010v'
+verify_venue_status=$(
+  curl -sS -o "$verify_output_dir/venue.json" -w '%{http_code}' \
+    "$verify_venue_url"
+)
+test "$verify_venue_status" = '200'
+jq -e \
+  '.venue.id == "venue-mcr-iy010v" and .venue.name == "Grove Alehouse"' \
+  "$verify_output_dir/venue.json"
+
+verify_recap_status=$(
+  curl -sS -o "$verify_output_dir/recap.html" -w '%{http_code}' \
+    "$verify_recap_url"
+)
+test "$verify_recap_status" = '200'
+rg -Fq 'Grove Alehouse' "$verify_output_dir/recap.html"
+```
+
+Rollback:
+
+```bash
+gh-axi pr revert "$(gh-axi pr list --state all --head fm/route-bundle-278mib-cold-start --limit 1 | sed -n 's/^ \([0-9][0-9]*\),.*/\1/p')"
 ```
 
 ### Local cold and warm timing
