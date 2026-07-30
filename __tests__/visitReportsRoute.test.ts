@@ -229,7 +229,7 @@ describe("POST /api/visit-reports (create)", () => {
     expect(data.code).toBe("INVALID_REPORT");
   });
 
-  it("429s once the per-handle durable budget is exceeded", async () => {
+  it("429s once the per-profile durable budget is exceeded", async () => {
     let last: Response | null = null;
     for (let i = 0; i < 9; i += 1) {
       last = await POST(post({ venueId: "venue-1", handle: "sam", busyness: "steady" }));

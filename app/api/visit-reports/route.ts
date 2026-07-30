@@ -38,7 +38,7 @@ import { normalizeHandle, validateVisitReport } from "@/lib/visitReports";
 import { visitReportsStore } from "@/lib/visitReportsStore";
 
 // A genuine reporter files a handful of reports; more from one origin in the
-// window is abuse. Durable per-handle + hashed-IP, like the app's other writes.
+// window is abuse. Durable per-profile + hashed-IP, like the app's other writes.
 const CREATE_WINDOW_MS = 60_000;
 // One report flag per actor per target per window (a second is rejected cheaply
 // before it touches the store; durable per-actor uniqueness lives in the store).
