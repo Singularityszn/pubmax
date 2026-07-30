@@ -147,4 +147,3 @@ Run `npm run lint`, `npm run typecheck`, and relevant test files. Then run `npm 
 - [ ] **Step 3: Review**
 
 Inspect `git diff` and commit history. Confirm no edits to prohibited files, no second legend or colour list, no generated-file churn, and clean worktree.
-
