@@ -152,6 +152,16 @@ describe("runtime data-pack tracing", () => {
     }
   });
 
+  it("traces the image-proxy allowlist datasets without widening other routes", () => {
+    const includes = tracingIncludes();
+
+    expect(includes["/api/image-proxy"]).toEqual([
+      "./public/data/venue_menu_enrichment.json",
+      "./public/data/pubmaxxing_seed_snapshot.json",
+      "./public/data/pint_prices_app_dataset.json",
+    ]);
+  });
+
   it("flags a module that opens a path it assembled, and ignores a literal one", () => {
     temporaryRoots.push(mkdtempSync(join(tmpdir(), "venue-index-tracing-")));
 

@@ -18,13 +18,18 @@ import { VENUE_ALIASES_FILE } from "@/lib/venueAliasesFile.mjs";
 type AliasDoc = { aliases?: Record<string, unknown> };
 
 let cached: Map<string, string> | null = null;
-let aliasPath = path.join(process.cwd(), VENUE_ALIASES_FILE);
+let aliasPath = path.join(
+  /* turbopackIgnore: true */ process.cwd(),
+  VENUE_ALIASES_FILE,
+);
 
 async function loadAliases(): Promise<Map<string, string>> {
   if (cached) return cached;
   const map = new Map<string, string>();
   try {
-    const doc = JSON.parse(await fs.readFile(aliasPath, "utf8")) as AliasDoc;
+    const doc = JSON.parse(
+      await fs.readFile(/* turbopackIgnore: true */ aliasPath, "utf8"),
+    ) as AliasDoc;
     const aliases = doc?.aliases;
     if (aliases && typeof aliases === "object") {
       for (const [from, to] of Object.entries(aliases)) {
@@ -62,7 +67,10 @@ export function resetVenueAliasesForTests(): void {
     Boolean(process.env.VITEST_WORKER_ID)
   ) {
     cached = null;
-    aliasPath = path.join(process.cwd(), VENUE_ALIASES_FILE);
+    aliasPath = path.join(
+      /* turbopackIgnore: true */ process.cwd(),
+      VENUE_ALIASES_FILE,
+    );
   }
 }
 

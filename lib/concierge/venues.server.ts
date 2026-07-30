@@ -74,7 +74,14 @@ export async function loadConciergeVenues(cityId: CityId): Promise<ConciergeVenu
   const load = (async () => {
     try {
       const publicPath = getCity(cityId).slimVenuesPath.replace(/^\//, "");
-      const raw = await readFile(path.join(process.cwd(), "public", publicPath), "utf8");
+      const raw = await readFile(
+        path.join(
+          /* turbopackIgnore: true */ process.cwd(),
+          "public",
+          publicPath,
+        ),
+        "utf8",
+      );
       const parsed: unknown = JSON.parse(raw);
       const venues = Array.isArray(parsed)
         ? parsed.map(toVenue).filter((venue): venue is ConciergeVenue => venue !== null)

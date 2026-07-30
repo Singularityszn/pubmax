@@ -38,9 +38,15 @@ async function cityCoverage(
     const { promises: fs } = await import("fs");
     const path = await import("path");
     // slimVenuesPath is a public URL path (e.g. "/data/venues_slim.json").
-    const file = path.join(process.cwd(), "public", slimVenuesPath.replace(/^\//, ""));
+    const file = path.join(
+      /* turbopackIgnore: true */ process.cwd(),
+      "public",
+      slimVenuesPath.replace(/^\//, ""),
+    );
     return summarizeCityPubCoverage(
-      JSON.parse(await fs.readFile(file, "utf8")),
+      JSON.parse(
+        await fs.readFile(/* turbopackIgnore: true */ file, "utf8"),
+      ),
     );
   } catch {
     return { count: 0, min: null, max: null };

@@ -29,7 +29,10 @@ import {
   type UkPlaceMapArrival,
 } from "@/lib/ukPlaceSearch";
 
-const INDEX_FILE = join(process.cwd(), UK_PLACE_INDEX_FILE);
+const INDEX_FILE = join(
+  /* turbopackIgnore: true */ process.cwd(),
+  UK_PLACE_INDEX_FILE,
+);
 
 let byName: Map<string, UkPlace[]> | null = null;
 let reported = false;
@@ -38,7 +41,9 @@ function placeIndex(): Map<string, UkPlace[]> | null {
   if (byName) return byName;
   try {
     const places = parseUkPlaceIndex(
-      JSON.parse(readFileSync(INDEX_FILE, "utf8")) as unknown,
+      JSON.parse(
+        readFileSync(/* turbopackIgnore: true */ INDEX_FILE, "utf8"),
+      ) as unknown,
     );
     if (places.length === 0) throw new Error("index has no usable place rows");
     const index = new Map<string, UkPlace[]>();

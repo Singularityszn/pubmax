@@ -31,7 +31,10 @@ export type VenueMenuEnrichmentFile = {
   venues: Record<string, VenueMenuEnrichmentRecord>;
 };
 
-const DEFAULT_PATH = path.join(process.cwd(), VENUE_MENU_ENRICHMENT_FILE);
+const DEFAULT_PATH = path.join(
+  /* turbopackIgnore: true */ process.cwd(),
+  VENUE_MENU_ENRICHMENT_FILE,
+);
 
 let enrichmentPath = DEFAULT_PATH;
 let cachedIndex: ReadonlyMap<string, VenueMenuEnrichmentRecord> | undefined;
@@ -77,7 +80,10 @@ export async function loadVenueMenuEnrichmentIndex(): Promise<
 > {
   if (cachedIndex) return cachedIndex;
   try {
-    const raw = await readFile(enrichmentPath, "utf8");
+    const raw = await readFile(
+      /* turbopackIgnore: true */ enrichmentPath,
+      "utf8",
+    );
     const parsed = JSON.parse(raw) as VenueMenuEnrichmentFile;
     if (
       !parsed ||

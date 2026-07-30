@@ -69,7 +69,11 @@ export function rankCities(input: CityRivalryInput[]): CityRivalryEntry[] {
 /** Resolve slim JSON path on disk from a CityConfig.slimVenuesPath. */
 export function slimVenuesDiskPath(slimVenuesPath: string): string {
   const rel = slimVenuesPath.replace(/^\//, "");
-  return path.join(process.cwd(), "public", rel.replace(/^data\//, "data/"));
+  return path.join(
+    /* turbopackIgnore: true */ process.cwd(),
+    "public",
+    rel.replace(/^data\//, "data/"),
+  );
 }
 
 /**
@@ -86,8 +90,15 @@ export function countSlimVenues(
   const city = CITIES[cityId];
   if (!city) return 0;
   try {
-    const file = path.join(process.cwd(), "public", city.slimVenuesPath.replace(/^\//, ""));
-    const raw = readFileSync(file, "utf8");
+    const file = path.join(
+      /* turbopackIgnore: true */ process.cwd(),
+      "public",
+      city.slimVenuesPath.replace(/^\//, ""),
+    );
+    const raw = readFileSync(
+      /* turbopackIgnore: true */ file,
+      "utf8",
+    );
     const rows = JSON.parse(raw) as unknown;
     return Array.isArray(rows) ? rows.length : 0;
   } catch {

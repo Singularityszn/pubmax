@@ -26,10 +26,18 @@ import {
 
 export function readFreshnessArtifact(rootDir: string, relPath: string | null): ArtifactRead {
   if (!relPath) return { kind: "absent" };
-  const abs = join(rootDir, relPath);
-  if (!existsSync(abs)) return { kind: "missing", path: relPath };
+  const abs = join(/* turbopackIgnore: true */ rootDir, relPath);
+  if (!existsSync(/* turbopackIgnore: true */ abs)) {
+    return { kind: "missing", path: relPath };
+  }
   try {
-    return { kind: "ok", path: relPath, json: JSON.parse(readFileSync(abs, "utf8")) };
+    return {
+      kind: "ok",
+      path: relPath,
+      json: JSON.parse(
+        readFileSync(/* turbopackIgnore: true */ abs, "utf8"),
+      ),
+    };
   } catch (err) {
     return {
       kind: "unreadable",

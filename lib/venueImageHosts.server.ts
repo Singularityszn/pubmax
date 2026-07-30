@@ -51,7 +51,10 @@ export function allowedVenueImageHosts(): Set<string> {
 
   for (const rel of WHOLE_FILE_SCAN_DATA_FILES) {
     try {
-      const raw = fs.readFileSync(path.join(process.cwd(), rel), "utf8");
+      const raw = fs.readFileSync(
+        path.join(/* turbopackIgnore: true */ process.cwd(), rel),
+        "utf8",
+      );
       // Hostname extraction over the raw JSON is deliberate for these two
       // files: every https URL in them is app-served content, and this
       // avoids hardcoding each file's shape here.
@@ -65,7 +68,10 @@ export function allowedVenueImageHosts(): Set<string> {
 
   try {
     const raw = fs.readFileSync(
-      path.join(process.cwd(), PHOTO_FIELD_DATA_FILE),
+      path.join(
+        /* turbopackIgnore: true */ process.cwd(),
+        PHOTO_FIELD_DATA_FILE,
+      ),
       "utf8",
     );
     const rows: unknown = JSON.parse(raw);
