@@ -57,7 +57,7 @@ describe("mobile chrome fit at 390px", () => {
     );
   });
 
-  it("fits every Tonight Arc chip inside the rail panel, clear of the TfL control", () => {
+  it("keeps the Tonight Arc in one horizontal rail clear of the TfL control", () => {
     // The rail used to be sized against the viewport ALONE (min(100vw - 24px,
     // 366px), centred), which is not the constraint that matters: the TfL
     // utility control is fixed to the right map edge in the same vertical band,
@@ -131,11 +131,17 @@ describe("mobile chrome fit at 390px", () => {
 
     const contentBox = railRight - railLeft - railPadX * 2 - 2;
     expect(chipMinWidth, "widest single chip vs rail content box").toBeLessThanOrEqual(contentBox);
-    // Chips wrap to a second row rather than shrink or ellipse: a lane label is
-    // read, not guessed.
-    expect(mobile).toMatch(/\.tonightArcRow\s*{[^}]*flex-wrap:\s*wrap/);
-    expect(mobile).toMatch(/\.tonightArcChip\s*{[^}]*flex:\s*0 1 auto/);
+    // Controls keep their 44px hit box while a 34px pseudo-element draws the
+    // smaller pill. The row scrolls when it cannot fit instead of adding a
+    // second band over the map.
+    expect(mobile).toMatch(/\.tonightArcRow\s*{[^}]*flex-wrap:\s*nowrap/);
+    expect(mobile).toMatch(/\.tonightArcRow\s*{[^}]*overflow-x:\s*auto/);
+    expect(mobile).toMatch(
+      /\.tonightArcChip::before\s*{[^}]*inset-block:\s*5px/,
+    );
+    expect(mobile).toMatch(/\.tonightArcChip\s*{[^}]*flex:\s*0 0 auto/);
     expect(arcChipsCss, "chip labels are never truncated").not.toMatch(/text-overflow/);
+    expect(arcChipsTsx, "selection uses weight and border rather than ticks").not.toContain("✓");
     expect(rowGap, "row gap parsed").toBeGreaterThan(0);
   });
 
