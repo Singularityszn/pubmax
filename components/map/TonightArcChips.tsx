@@ -12,11 +12,11 @@ import "./tonightArcChips.css";
 const CHIPS: ReadonlyArray<{
   kind: CuratedVenueKind | "club";
   label: string;
-  unavailableUntil?: string;
+  unavailableReason?: string;
 }> = [
   { kind: "pub", label: "Pints" },
   { kind: "bar", label: "Bars" },
-  { kind: "club", label: "Clubs", unavailableUntil: "Wave 2" },
+  { kind: "club", label: "Clubs", unavailableReason: "are not mapped yet" },
   { kind: "food", label: "Food" },
   { kind: "restaurant", label: "Restaurants" },
 ];
@@ -46,7 +46,7 @@ export default function TonightArcChips({
       <div className="tonightArcRow">
         {chips.map((chip) => {
           const on = chip.kind === "club" ? false : visibility[chip.kind];
-          const unavailable = chip.unavailableUntil !== undefined;
+          const unavailable = chip.unavailableReason !== undefined;
           return (
             <button
               key={chip.kind}
@@ -55,15 +55,11 @@ export default function TonightArcChips({
               aria-pressed={on}
               aria-label={
                 unavailable
-                  ? `${chip.label} unavailable: arrives in ${chip.unavailableUntil}`
+                  ? `${chip.label} ${chip.unavailableReason}`
                   : undefined
               }
               disabled={unavailable}
-              title={
-                unavailable
-                  ? `${chip.label} arrive in ${chip.unavailableUntil}`
-                  : undefined
-              }
+              title={unavailable ? `${chip.label} ${chip.unavailableReason}` : undefined}
               onClick={() => {
                 if (chip.kind !== "club") {
                   onChange(toggleVenueKind(visibility, chip.kind));
@@ -83,7 +79,7 @@ export default function TonightArcChips({
                 </span>
                 {unavailable ? (
                   <small className="tonightArcChipUnavailable">
-                    {chip.unavailableUntil}
+                    {chip.unavailableReason}
                   </small>
                 ) : null}
               </span>

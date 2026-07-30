@@ -186,7 +186,9 @@ describe("MapExperienceLens", () => {
 
     expect(pints).toContain(">✓<");
     expect(bars).not.toContain(">✓<");
-    expect(html).toContain("Clubs unavailable: arrives in Wave 2");
-    expect(html).toContain(">Wave 2<");
+    expect(html).toContain("Clubs are not mapped yet");
+    expect(html).toContain(">are not mapped yet<");
+    expect(html).not.toContain("Wave 2");
+    expect(html).not.toContain("arrives in");
   });
 });

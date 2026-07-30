@@ -197,7 +197,7 @@ test("390px Tonight Arc controls show selection and unavailable reason without c
   const pints = arc.getByRole("button", { name: "Pints", exact: true });
   const bars = arc.getByRole("button", { name: "Bars", exact: true });
   const clubs = arc.getByRole("button", {
-    name: "Clubs unavailable: arrives in Wave 2",
+    name: "Clubs are not mapped yet",
   });
 
   await expect(pints).toContainText("✓");
@@ -206,7 +206,7 @@ test("390px Tonight Arc controls show selection and unavailable reason without c
   await expect(bars).not.toContainText("✓");
   await expect(pints).toContainText("✓");
   await expect(clubs).toBeDisabled();
-  await expect(clubs).toContainText("Wave 2");
+  await expect(clubs).toContainText("are not mapped yet");
 });
 
 test("390px drink glyphs keep the requested 22px box", async ({ page }) => {
