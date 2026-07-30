@@ -8,6 +8,7 @@ Viewports: 390x844 mobile with touch emulation; 1440x900 desktop
 ## First-time visitor findings, worst first
 
 - **Desktop map shows a false failure:** at 1440x900, the map background and pins render, then a persistent toast says `Map background couldn't load. Tap Retry to try again.` Reproduced in two fresh Chromium runs. This is untrue and asks for recovery from a failure the visitor cannot see.
+- **Venue price source is not named:** The Dove shows £7.25 and honestly says `Dataset price. Not a live tonight feed.`, but `Dataset price` does not identify the dataset or publisher. Its Drinks detail says every drink carries its source, yet the £7.25 Asahi row only says `ON RECORD`. The nearby `Photo: pub website` is clearly an image credit, not price provenance.
 - Home proposition is immediate at both widths: listed sourced pint prices on an interactive map, plus crawl planning.
 - First-visit analytics choice covers some below-fold home content, but leaves proposition and primary `Find my pint` action visible. `No thanks` and `Allow` are reachable at both widths.
 
@@ -17,7 +18,7 @@ Viewports: 390x844 mobile with touch emulation; 1440x900 desktop
 | --- | --- | --- |
 | 1. Home | Pass | Pass |
 | 2. Map and key | Pass | Fail |
-| 3. Venue sheet | Pending | Pending |
+| 3. Venue sheet | Fail | Fail |
 | 4. Filter | Pending | Pending |
 | 5. Plan | Pending | Pending |
 | 6. Contribute price | Pending | Pending |
@@ -83,7 +84,33 @@ Capture: [`02-map-desktop.png`](02-map-desktop.png)
 
 ## 3. Open a pub
 
-Pending.
+**What I did**
+
+- Opened map and searched `Dov` at each width.
+- Tapped visible `The Dove` result, opening selected venue `venue-1p5ftm3`.
+- Scrolled its Overview to price provenance, then also checked Drinks > Beer > Asahi for a more specific source.
+
+**390x844 - Fail**
+
+Sheet opened without overlap and showed The Dove, £7.25, `current recorded price`, and `Baseline on record`. Wording `Dataset price. Not a live tonight feed.` is appropriately cautious about freshness.
+
+Failure: no named price source appears. `Dataset price` is a source class, not an origin a visitor can check. The Drinks detail for £7.25 Asahi says `ON RECORD` and `Every drink carries its source`, but still names no dataset, publisher, or listing. `Photo: pub website` is an image credit only.
+
+Capture: [`03-venue-mobile.png`](03-venue-mobile.png)
+
+**1440x900 - Fail**
+
+Same venue opened in right-side sheet without clipping. Overview shows `Baseline on record`, £7.25, and the same honest freshness qualifier. Same named-source omission remains.
+
+Capture: [`03-venue-desktop.png`](03-venue-desktop.png)
+
+**Diagnostics**
+
+- Main document: HTTP 200 at both widths.
+- Console errors: none.
+- Console warnings: both widths logged two headless-Chromium WebGL readback-stall warnings and one MapLibre style warning: `layers[road_shield_us].filter[1]: Expected value to be of type number, but found null instead.`
+- Failed requests: mobile logged one aborted speculative Next.js RSC prefetch for `/today`; desktop logged none. No HTTP 4xx/5xx at either width.
+- Fix: none. Price provenance touches pricing and data promises, so this remains for Firstmate.
 
 ## 4. Use a filter
 
