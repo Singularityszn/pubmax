@@ -6,6 +6,7 @@ import type { PlanState } from "@/lib/plan";
 import PlanRoute from "@/components/plan/PlanRoute";
 import PlanCollaborationPanel from "@/components/plan/PlanCollaborationPanel";
 import InvitePrivacyPreview from "@/components/plan/InvitePrivacyPreview";
+import RoundStarter from "@/components/round/RoundStarter";
 import { planViewModel } from "@/components/plan/planPresentation";
 import { routeStopsFromGenerated } from "@/components/plan/PlanComposer";
 import { parsePlanCapabilitySnapshot, planCapabilityEvent, readPlanCapabilitySnapshot } from "@/lib/planSessionCapability";
@@ -462,11 +463,20 @@ function PlanSummaryMember({ planId, state, vibeTally }: { planId: string; state
       {!editing && !pending ? (
         memberToken
           ? (
-            <PlanRoute
-              planId={planId}
-              startTime={state.plan.startTime}
-              stops={visibleStops}
-            />
+            <>
+              <PlanRoute
+                planId={planId}
+                startTime={state.plan.startTime}
+                stops={visibleStops}
+              />
+              <RoundStarter
+                defaultTitle={state.plan.title}
+                seedStops={visibleStops.map((stop) => ({
+                  id: stop.venueId,
+                  name: stop.venueName,
+                }))}
+              />
+            </>
           )
           : <InvitePrivacyPreview preview={invitePreview} />
       ) : null}
