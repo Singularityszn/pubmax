@@ -6,6 +6,8 @@
 
 import { useEffect, useRef, useState } from "react";
 
+import { useAuth } from "@/components/auth/AuthProvider";
+import { useContributionGate } from "@/components/identity/ContributionGateDialog";
 import {
   BUSYNESS_VALUES,
   earliestVisitedAt,
@@ -25,9 +27,7 @@ import {
 import {
   fetchVisitReports,
   postVisitReport,
-  rememberHandle,
   reportVisitReport,
-  storedHandle,
   type VisitReportVenueRead,
 } from "./visitReportsClient";
 
@@ -81,9 +81,13 @@ function visitDayLabel(day: string): string {
 
 function reportDetails(report: VisitReportDTO): string[] {
   return [
-    report.busyness ? `Crowd: ${BUSYNESS_LABELS[report.busyness].toLowerCase()}` : "",
+    report.busyness
+      ? `Crowd: ${BUSYNESS_LABELS[report.busyness].toLowerCase()}`
+      : "",
     report.noise ? `Noise: ${NOISE_LABELS[report.noise].toLowerCase()}` : "",
-    report.seating ? `Seats: ${SEATING_LABELS[report.seating].toLowerCase()}` : "",
+    report.seating
+      ? `Seats: ${SEATING_LABELS[report.seating].toLowerCase()}`
+      : "",
     report.serviceWait
       ? `Bar wait: ${SERVICE_WAIT_LABELS[report.serviceWait].toLowerCase()}`
       : "",
@@ -107,7 +111,9 @@ function VisitReportRow({
       <p className="visitReportByline">
         <strong>@{report.handle}</strong>
         <span aria-hidden="true"> · </span>
-        <time dateTime={report.visitedAt}>Visited {visitDayLabel(report.visitedAt)}</time>
+        <time dateTime={report.visitedAt}>
+          Visited {visitDayLabel(report.visitedAt)}
+        </time>
       </p>
       {report.note ? <p className="visitReportAccount">{report.note}</p> : null}
       {details.length > 0 ? (
@@ -182,15 +188,19 @@ export default function VisitReportPanel({
   );
 }
 
-function VenueVisitReports({ venueId, venueName, active = true }: VisitReportPanelProps) {
+function VenueVisitReports({
+  venueId,
+  venueName,
+  active = true,
+}: VisitReportPanelProps) {
   const now = new Date();
   const latest = latestVisitedAt(now);
   // The composer MIRRORS the server's window (lib/visitReports); it never
   // replaces it, so a post that skips this card meets the same bound.
   const earliest = earliestVisitedAt(now);
+  const { user } = useAuth();
+  const { requestContribution, contributionGateDialog } = useContributionGate();
   const [read, setRead] = useState<VisitReportVenueRead | null>(null);
-  const [handle, setHandle] = useState("");
-  const [handleRemembered, setHandleRemembered] = useState(false);
   const [open, setOpen] = useState(false);
   const [visitedAt, setVisitedAt] = useState(latest);
   const [busyness, setBusyness] = useState<Busyness | null>(null);
@@ -201,9 +211,10 @@ function VenueVisitReports({ venueId, venueName, active = true }: VisitReportPan
   const [saving, setSaving] = useState(false);
   const [flaggingId, setFlaggingId] = useState<string | null>(null);
   const [flaggedIds, setFlaggedIds] = useState<Set<string>>(() => new Set());
-  const [feedback, setFeedback] = useState<{ kind: "ok" | "error"; text: string } | null>(
-    null,
-  );
+  const [feedback, setFeedback] = useState<{
+    kind: "ok" | "error";
+    text: string;
+  } | null>(null);
 
   const requested = useRef(false);
 
@@ -212,11 +223,8 @@ function VenueVisitReports({ venueId, venueName, active = true }: VisitReportPan
     requested.current = true;
     let cancelled = false;
     void Promise.resolve().then(async () => {
-      const remembered = storedHandle();
       const nextRead = await fetchVisitReports(venueId);
       if (cancelled) return;
-      setHandle(remembered);
-      setHandleRemembered(Boolean(remembered));
       setRead(nextRead ?? { status: "degraded", reports: [] });
     });
     return () => {
@@ -232,11 +240,6 @@ function VenueVisitReports({ venueId, venueName, active = true }: VisitReportPan
     note.trim() !== "";
 
   async function submit() {
-    const cleanHandle = handle.trim();
-    if (!cleanHandle) {
-      setFeedback({ kind: "error", text: "Add your handle. This account needs a name." });
-      return;
-    }
     if (!visitedAt) {
       setFeedback({ kind: "error", text: "Add the day you were there." });
       return;
@@ -249,24 +252,35 @@ function VenueVisitReports({ venueId, venueName, active = true }: VisitReportPan
       return;
     }
     if (!hasDraft) {
-      setFeedback({ kind: "error", text: "Add one thing you found on the visit." });
+      setFeedback({
+        kind: "error",
+        text: "Add one thing you found on the visit.",
+      });
       return;
     }
-    setSaving(true);
     setFeedback(null);
+    await requestContribution(async (auth) => {
+      setSaving(true);
     try {
-      await postVisitReport({
+        const result = await postVisitReport(
+          {
         venueId,
-        handle: cleanHandle,
         visitedAt,
         busyness,
         noise,
         seating,
         serviceWait,
         note: note.trim(),
-      });
-      rememberHandle(cleanHandle);
-      setHandleRemembered(true);
+          },
+          auth,
+        );
+        if (!result.ok) {
+          if (result.status) {
+            return { status: result.status, error: result.error };
+          }
+          setFeedback({ kind: "error", text: result.error });
+          return;
+        }
       const nextRead = await fetchVisitReports(venueId);
       setRead(nextRead ?? { status: "degraded", reports: [] });
       setBusyness(null);
@@ -275,15 +289,22 @@ function VenueVisitReports({ venueId, venueName, active = true }: VisitReportPan
       setServiceWait(null);
       setNote("");
       setOpen(false);
-      setFeedback({ kind: "ok", text: "Saved. Your visit is on this pub's page." });
+        setFeedback({
+          kind: "ok",
+          text: "Saved. Your visit is on this pub's page.",
+        });
     } catch (error) {
       setFeedback({
         kind: "error",
-        text: error instanceof Error ? error.message : "Couldn't save this visit just now.",
+          text:
+            error instanceof Error
+              ? error.message
+              : "Couldn't save this visit just now.",
       });
     } finally {
       setSaving(false);
     }
+    });
   }
 
   async function flag(id: string) {
@@ -296,7 +317,10 @@ function VenueVisitReports({ venueId, venueName, active = true }: VisitReportPan
     } catch (error) {
       setFeedback({
         kind: "error",
-        text: error instanceof Error ? error.message : "Couldn't report this visit just now.",
+        text:
+          error instanceof Error
+            ? error.message
+            : "Couldn't report this visit just now.",
       });
     } finally {
       setFlaggingId(null);
@@ -304,7 +328,10 @@ function VenueVisitReports({ venueId, venueName, active = true }: VisitReportPan
   }
 
   return (
-    <section className="visitReportPanel" aria-labelledby={`visitReports-${venueId}`}>
+    <section
+      className="visitReportPanel"
+      aria-labelledby={`visitReports-${venueId}`}
+    >
       <div className="visitReportHead">
         <div>
           <span className="visitReportLabel">On the night</span>
@@ -313,8 +340,16 @@ function VenueVisitReports({ venueId, venueName, active = true }: VisitReportPan
           </h3>
         </div>
         {!open ? (
-          <button type="button" className="visitReportOpen" onClick={() => setOpen(true)}>
-            Write yours
+          <button
+            type="button"
+            className="visitReportOpen"
+            onClick={() => {
+              void requestContribution(() => {
+                setOpen(true);
+              });
+            }}
+          >
+            {user ? "Write yours" : "Sign in to contribute"}
           </button>
         ) : null}
       </div>
@@ -336,16 +371,22 @@ function VenueVisitReports({ venueId, venueName, active = true }: VisitReportPan
           ))}
         </div>
       ) : read.status === "ready" ? (
-        <p className="visitReportEmpty">No visits have been written up here yet.</p>
+        <p className="visitReportEmpty">
+          No visits have been written up here yet.
+        </p>
       ) : (
-        <p className="visitReportEmpty">We couldn&apos;t check the visit notes here just now.</p>
+        <p className="visitReportEmpty">
+          We couldn&apos;t check the visit notes here just now.
+        </p>
       )}
 
       {open ? (
         <div className="visitReportCard">
           <div className="visitReportCardHead">
             <div>
-              <span className="visitReportCardTitle">What was {venueName} like?</span>
+              <span className="visitReportCardTitle">
+                What was {venueName} like?
+              </span>
               <p>Pick what you saw. Add one short line if it helps.</p>
             </div>
             <button
@@ -404,28 +445,15 @@ function VenueVisitReports({ venueId, venueName, active = true }: VisitReportPan
             <textarea
               className="visitReportNote"
               value={note}
-              onChange={(event) => setNote(event.target.value.slice(0, MAX_VISIT_NOTE))}
+              onChange={(event) =>
+                setNote(event.target.value.slice(0, MAX_VISIT_NOTE))
+              }
               maxLength={MAX_VISIT_NOTE}
               rows={3}
               placeholder="What did you find when you walked in?"
             />
             <small>{MAX_VISIT_NOTE - note.length} characters left</small>
           </label>
-
-          {!handleRemembered ? (
-            <label className="visitReportHandleWrap">
-              <span>Your contributor handle</span>
-              <input
-                className="visitReportHandle"
-                type="text"
-                value={handle}
-                onChange={(event) => setHandle(event.target.value)}
-                placeholder="your_handle"
-                autoComplete="nickname"
-                maxLength={40}
-              />
-            </label>
-          ) : null}
 
           <button
             type="button"
@@ -436,20 +464,23 @@ function VenueVisitReports({ venueId, venueName, active = true }: VisitReportPan
             {saving ? "Saving…" : "Add visit account"}
           </button>
           <p className="visitReportTrust">
-            This is your account of one visit. It is shown with your handle and the day,
-            not as a checked fact about the pub.
+            This is your account of one visit. It is shown with your handle and
+            the day, not as a checked fact about the pub.
           </p>
         </div>
       ) : null}
 
       {feedback ? (
         <p
-          className={feedback.kind === "error" ? "visitReportError" : "visitReportOk"}
+          className={
+            feedback.kind === "error" ? "visitReportError" : "visitReportOk"
+          }
           role={feedback.kind === "error" ? "alert" : "status"}
         >
           {feedback.text}
         </p>
       ) : null}
+      {contributionGateDialog}
     </section>
   );
 }

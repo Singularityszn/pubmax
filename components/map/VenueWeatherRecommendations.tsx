@@ -2,15 +2,11 @@
 
 import { Check, CloudSun } from "lucide-react";
 import Link from "next/link";
-import {
-  useCallback,
-  useEffect,
-  useState,
-  type FormEvent,
-} from "react";
+import { useCallback, useEffect, useState, type FormEvent } from "react";
 
-import { authedFetch } from "@/lib/authedFetch";
-import { normalizeHandle } from "@/lib/profiles";
+import { useAuth } from "@/components/auth/AuthProvider";
+import { useContributionGate } from "@/components/identity/ContributionGateDialog";
+import { accountBoundFetch } from "@/lib/accountBoundFetch";
 import {
   isWeatherRecommendationCondition,
   validateWeatherRecommendation,
@@ -25,9 +21,6 @@ import {
 } from "@/lib/weatherRecommendations";
 
 import "./venueWeatherRecommendations.css";
-
-const HANDLE_KEY = "pubmax_handle";
-const HANDLE_MAX = 30;
 
 type RecommendationFormError = {
   message: string;
@@ -198,9 +191,7 @@ export function WeatherRecommendationList({
               <article className="weatherRecOpinion" key={recommendation.id}>
                 <p className="weatherRecAttribution">
                   <Link
-                    href={`/u/${encodeURIComponent(
-                      recommendation.contributorHandle,
-                    )}`}
+                    href={`/u/${encodeURIComponent(recommendation.contributorHandle)}`}
                   >
                     @{recommendation.contributorHandle}
                   </Link>{" "}
@@ -230,14 +221,6 @@ export function WeatherRecommendationList({
   );
 }
 
-function readStoredHandle(): string {
-  try {
-    return normalizeHandle(window.localStorage.getItem(HANDLE_KEY) ?? "");
-  } catch {
-    return "";
-  }
-}
-
 export default function VenueWeatherRecommendations({
   venueId,
   venueName,
@@ -245,10 +228,11 @@ export default function VenueWeatherRecommendations({
   venueId: string;
   venueName: string;
 }) {
+  const { user, handle: accountHandle } = useAuth();
+  const { requestContribution, contributionGateDialog } = useContributionGate();
   const [condition, setCondition] =
     useState<WeatherRecommendationCondition>("warm");
   const [reason, setReason] = useState("");
-  const [contributorHandle, setContributorHandle] = useState("");
   const [load, setLoad] = useState<WeatherRecommendationVenueLoad | null>(null);
   const [loadFailed, setLoadFailed] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -263,14 +247,17 @@ export default function VenueWeatherRecommendations({
           { signal },
         );
         if (!response.ok) throw new Error("recommendation read failed");
-        const parsed = readWeatherRecommendationVenueLoad(await response.json());
+        const parsed = readWeatherRecommendationVenueLoad(
+          await response.json(),
+        );
         if (parsed.status !== "ready") {
           throw new Error("invalid recommendation payload");
         }
         setLoad(parsed.value);
         setLoadFailed(false);
       } catch (caught) {
-        if (caught instanceof DOMException && caught.name === "AbortError") return;
+        if (caught instanceof DOMException && caught.name === "AbortError")
+          return;
         setLoadFailed(true);
       }
     },
@@ -280,8 +267,6 @@ export default function VenueWeatherRecommendations({
   useEffect(() => {
     const controller = new AbortController();
     async function begin() {
-      const stored = readStoredHandle();
-      if (stored) setContributorHandle(stored);
       await loadRecommendations(controller.signal);
     }
     void begin();
@@ -298,22 +283,43 @@ export default function VenueWeatherRecommendations({
       venueId,
       condition,
       reason,
-      contributorHandle,
+      // Validation's persisted row shape includes attribution. The client only
+      // validates authorable fields and never sends this placeholder; server
+      // identity supplies the real handle.
+      contributorHandle: accountHandle ?? "account",
     });
     if (!validation.ok) {
       setError(recommendationError(validation.error));
       return;
     }
 
+    await requestContribution(async (auth) => {
     setSubmitting(true);
     try {
-      const response = await authedFetch("/api/weather-recommendations", {
+        const response = await accountBoundFetch(
+          auth,
+          "/api/weather-recommendations",
+          {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify(validation.value),
-      });
+            body: JSON.stringify({
+              venueId: validation.value.venueId,
+              condition: validation.value.condition,
+              reason: validation.value.reason,
+            }),
+          },
+        );
       const body = (await response.json()) as Record<string, unknown>;
       if (!response.ok) {
+          if (
+            body.status === "sign_in_required" ||
+            body.status === "onboarding_required"
+          ) {
+            return {
+              status: body.status,
+              error: typeof body.error === "string" ? body.error : undefined,
+            };
+          }
         setError(
           recommendationError(
             typeof body.error === "string"
@@ -331,15 +337,6 @@ export default function VenueWeatherRecommendations({
         );
         return;
       }
-      try {
-        window.localStorage.setItem(
-          HANDLE_KEY,
-          recommendation.contributorHandle,
-        );
-      } catch {
-        // The Recommendation still landed. Only handle recall is unavailable.
-      }
-      setContributorHandle(recommendation.contributorHandle);
       setReason("");
       setSaved(recommendation);
       await loadRecommendations();
@@ -350,6 +347,7 @@ export default function VenueWeatherRecommendations({
     } finally {
       setSubmitting(false);
     }
+    });
   }
 
   return (
@@ -359,9 +357,7 @@ export default function VenueWeatherRecommendations({
     >
       <div className="weatherRecHead">
         <CloudSun size={17} aria-hidden="true" />
-        <h3 id={`weatherRecTitle-${venueId}`}>
-          Recommend it for the weather
-        </h3>
+        <h3 id={`weatherRecTitle-${venueId}`}>Recommend it for the weather</h3>
       </div>
 
       {load ? (
@@ -387,6 +383,7 @@ export default function VenueWeatherRecommendations({
         </p>
       ) : null}
 
+      {user ? (
       <form className="weatherRecForm" onSubmit={submit}>
         <p className="weatherRecPrompt">
           Pick the weather, then say why you&rsquo;d choose this place.
@@ -422,33 +419,10 @@ export default function VenueWeatherRecommendations({
         </div>
 
         <label className="weatherRecField">
-          <span>Your Pubmaxx handle</span>
-          <input
-            type="text"
-            name="contributorHandle"
-            value={contributorHandle}
-            onChange={(event) => {
-              setContributorHandle(event.target.value);
-              setError(null);
-            }}
-            aria-label="Your Pubmaxx handle"
-            autoComplete="username"
-            autoCapitalize="off"
-            autoCorrect="off"
-            spellCheck={false}
-            maxLength={HANDLE_MAX}
-            placeholder="your_handle"
-            aria-invalid={error?.field === "handle"}
-            aria-describedby={
-              error?.field === "handle"
-                ? `weatherRecError-${venueId}`
-                : undefined
-            }
-          />
-        </label>
-
-        <label className="weatherRecField">
-          <span>Why it suits {weatherRecommendationConditionLabel(condition).toLowerCase()}</span>
+            <span>
+              Why it suits{" "}
+              {weatherRecommendationConditionLabel(condition).toLowerCase()}
+            </span>
           <textarea
             name="reason"
             value={reason}
@@ -473,11 +447,7 @@ export default function VenueWeatherRecommendations({
         <button
           type="submit"
           className="weatherRecSubmit"
-          disabled={
-            submitting ||
-            contributorHandle.trim() === "" ||
-            reason.trim() === ""
-          }
+            disabled={submitting || reason.trim() === ""}
         >
           {submitting ? "Saving…" : "Recommend it"}
         </button>
@@ -508,6 +478,20 @@ export default function VenueWeatherRecommendations({
           when it appears as a match.
         </p>
       </form>
+      ) : (
+        <div className="weatherRecForm">
+          <button
+            type="button"
+            className="weatherRecSubmit"
+            onClick={() => {
+              void requestContribution(() => undefined);
+            }}
+          >
+            Sign in to contribute
+          </button>
+        </div>
+      )}
+      {contributionGateDialog}
     </section>
   );
 }
