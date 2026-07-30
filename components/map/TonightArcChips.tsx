@@ -52,6 +52,11 @@ export default function TonightArcChips({
               type="button"
               className={on ? "tonightArcChip isOn" : "tonightArcChip"}
               aria-pressed={on}
+              aria-label={
+                chip.disabled
+                  ? "Clubs unavailable: arrives in Wave 2"
+                  : undefined
+              }
               disabled={chip.disabled}
               title={chip.disabled ? "Clubs arrive in Wave 2" : undefined}
               onClick={() => {
@@ -60,9 +65,21 @@ export default function TonightArcChips({
                 }
               }}
             >
-              {experienceLens === "no-alcohol" && chip.kind === "pub"
-                ? "Pubs"
-                : chip.label}
+              {on ? (
+                <span className="tonightArcChipSelected" aria-hidden="true">
+                  ✓
+                </span>
+              ) : null}
+              <span className="tonightArcChipLabel">
+                <span>
+                  {experienceLens === "no-alcohol" && chip.kind === "pub"
+                    ? "Pubs"
+                    : chip.label}
+                </span>
+                {chip.disabled ? (
+                  <small className="tonightArcChipUnavailable">Wave 2</small>
+                ) : null}
+              </span>
             </button>
           );
         })}

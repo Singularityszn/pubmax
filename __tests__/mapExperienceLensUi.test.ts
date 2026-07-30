@@ -168,4 +168,25 @@ describe("MapExperienceLens", () => {
     expect(food).not.toContain(">Pints<");
     expect(food).not.toContain(">Bars<");
   });
+
+  it("marks selected venue filters without colour and states why Clubs is unavailable", () => {
+    const html = renderToStaticMarkup(
+      createElement(TonightArcChips, {
+        visibility: {
+          pub: true,
+          bar: false,
+          food: true,
+          restaurant: false,
+        },
+        onChange: () => undefined,
+      }),
+    );
+    const pints = html.match(/<button[^>]*aria-pressed="true"[^>]*>[\s\S]*?Pints[\s\S]*?<\/button>/)?.[0] ?? "";
+    const bars = html.match(/<button[^>]*aria-pressed="false"[^>]*>[\s\S]*?Bars[\s\S]*?<\/button>/)?.[0] ?? "";
+
+    expect(pints).toContain(">✓<");
+    expect(bars).not.toContain(">✓<");
+    expect(html).toContain("Clubs unavailable: arrives in Wave 2");
+    expect(html).toContain(">Wave 2<");
+  });
 });
