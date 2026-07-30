@@ -9,7 +9,7 @@
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  min-height: 34px;
+  min-height: 44px;
   padding: 0 10px;
   border: 1px solid color-mix(in srgb, var(--line) 70%, var(--brass) 30%);
   border-radius: 999px;
@@ -19,6 +19,7 @@
   font-weight: 800;
   cursor: pointer;
   touch-action: manipulation;
+  box-sizing: border-box;
   transition:
     background var(--duration-base) var(--ease-out),
     border-color var(--duration-base) var(--ease-out),

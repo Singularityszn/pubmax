@@ -1,5 +1,7 @@
 @media (min-width: 641px) {
   .mobileMapChrome,
+  .mobileMapUtilityCorner,
+  .mobilePlanActivation,
   .mobileSheetPortal { display: none; }
 }
 
@@ -22,6 +24,8 @@
     --mobile-map-corner-lane: calc(
       var(--mobile-map-corner-inset) + var(--mobile-map-corner-btn) + 12px
     );
+    --mobile-map-stack-left: 12px;
+    --mobile-map-stack-right: var(--mobile-map-corner-lane);
   }
 
   .mobileMapChrome {
@@ -72,6 +76,12 @@
        the full credit uses this same lane, so licence text never paints through
        the action beneath it. */
     bottom: calc(var(--mobile-map-dock-clearance) + 68px);
+  }
+
+  body:has(.analyticsConsentPrompt) .appShell .mapStage .maplibregl-ctrl-bottom-right {
+    /* Keep the expandable OSM credit above the honest first-visit disclosure.
+       e2e/ui-consistency-layout.spec.ts owns the rendered collision proof. */
+    bottom: calc(var(--mobile-map-dock-clearance) + 198px);
   }
 
   .appShell .mapStage .maplibregl-ctrl-attrib.maplibregl-compact {
@@ -205,6 +215,11 @@
   .mobileMapRail {
     display: flex;
     gap: 6px;
+    width: calc(
+      100vw - var(--mobile-map-stack-left) - var(--mobile-map-stack-right)
+    );
+    margin-left: calc(var(--mobile-map-stack-left) - 10px);
+    box-sizing: border-box;
     min-height: var(--mobile-map-rail-h);
     overflow-x: auto;
     padding: 4px 2px;
@@ -221,7 +236,11 @@
      chips. */
   @media (max-width: 420px) {
     .mobileMapRail { gap: 5px; }
-    .mobileMapRail > button { gap: 6px; padding-inline: 9px; }
+    .mobileMapRail > button {
+      gap: 4px;
+      padding-inline: 5px;
+      font-size: 0.78rem;
+    }
   }
   /* Owner ruling (2026-07-23): the map-chrome control chips (Near me / Tonight /
      Filters) move off the shared Chip pill onto the 14px rectangle button
@@ -286,11 +305,12 @@
 
   .mobilePlanActivation {
     position: fixed;
-    left: 50%;
+    left: var(--mobile-map-stack-left);
+    right: var(--mobile-map-stack-right);
     z-index: var(--z-map-toolbar);
     /* Leave a clear lane for the TfL corner FAB on narrow phones. */
-    min-width: min(246px, calc(100vw - 88px));
-    max-width: calc(100vw - 88px);
+    min-width: 0;
+    max-width: none;
     min-height: 48px;
     bottom: calc(var(--mobile-map-dock-clearance) + 10px);
     display: inline-flex;
@@ -308,9 +328,9 @@
     color: var(--color-text);
     box-shadow: 0 6px 18px color-mix(in srgb, var(--ink-deep) 18%, transparent);
     font: inherit;
-    transform: translateX(-50%);
+    transform: none;
   }
-  .mobilePlanActivation:active { transform: translateX(-50%) scale(.98); --shared-press-scale: 1; }
+  .mobilePlanActivation:active { transform: scale(.98); --shared-press-scale: 1; }
   .mobilePlanActivation > span { display: grid; text-align: left; line-height: 1.05; }
   .mobilePlanActivation strong { font-size: var(--text-sm); font-weight: 800; white-space: nowrap; }
   .mobilePlanActivation small { margin-top: 3px; font-size: .66rem; font-weight: 700; opacity: .78; }
@@ -558,5 +578,5 @@
 }
 
 @media (max-width: 640px) and (prefers-reduced-motion: reduce) {
-  .mobilePlanActivation:active { transform: translateX(-50%); }
+  .mobilePlanActivation:active { transform: none; }
 }

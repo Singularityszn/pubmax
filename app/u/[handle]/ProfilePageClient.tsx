@@ -15,6 +15,10 @@ import PubmaxxAccountHub from "@/components/profile/PubmaxxAccountHub";
 import SavedPubList from "@/components/profile/SavedPubList";
 import YourContributionsCard from "@/components/profile/YourContributionsCard";
 import SiteNav from "@/components/nav/SiteNav";
+import SiteNavMore, {
+  type SiteNavMoreItem,
+} from "@/components/nav/SiteNavMore";
+import { useAuth } from "@/components/auth/AuthProvider";
 import { BADGE_EVENTS } from "@/lib/badgeEvents";
 import {
   BADGE_EVENT_OPT_INS_STORAGE_KEY,
@@ -149,10 +153,10 @@ function localSavedDTOs(): Partial<Record<ListType, SavedPubDTO[]>> {
   return groups;
 }
 
-// "you" is the sentinel handle the nav uses (/u/you) before a device handle is
-// known. It is NOT a real person's handle — it means "the current viewer". When
-// the viewer already has a device handle we redirect /u/you → /u/<handle>; when
-// they don't, /u/you renders the first-run passport (story 30).
+// "you" is the sentinel handle the nav uses (/u/you) before a viewer handle is
+// known. It is NOT a real person's handle - it means "the current viewer". A
+// signed-in account handle or signed-out device handle redirects /u/you to the
+// real profile; without either, /u/you renders the first-run passport (story 30).
 const YOU_SENTINEL = "you";
 
 export default function ProfilePageClient({ params }: { params: Promise<{ handle: string }> }) {
@@ -160,6 +164,7 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
   const routeHandle = normalizeHandle(use(params)?.handle);
   const isYouRoute = routeHandle === YOU_SENTINEL;
   const router = useRouter();
+  const { user, handle: accountHandle, signOut } = useAuth();
   const storedBadgeEventOptInRaw = useSyncExternalStore(
     subscribeBadgeEventOptIns,
     currentBadgeEventOptInRaw,
@@ -182,10 +187,10 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
   const [saved, setSaved] = useState<Partial<Record<ListType, SavedPubDTO[]>>>({});
   const [followedLists, setFollowedLists] = useState<FollowedSavedListDTO[]>([]);
 
-  // The viewer's own handle (localStorage `pubmax_handle`), read after mount so
-  // the server render and hydration agree. Drives the follow button + whether
-  // this is the viewer's own profile.
+  // Signed-out fallback handle, read after mount so the server render and
+  // hydration agree. Signed-in ownership comes from the account identity.
   const [myHandle, setMyHandle] = useState("");
+  const viewerHandle = user ? normalizeHandle(accountHandle ?? "") : myHandle;
   // Durable profile row + follow graph, fetched from /api/profiles/[handle].
   // Null profile → fall back to the synthesized-from-drops identity.
   const [stored, setStored] = useState<ProfileRecord | null>(null);
@@ -279,10 +284,8 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
     return () => controller.abort();
   }, [routeHandle]);
 
-  // Read the viewer's own handle after mount (avoids a hydration mismatch — the
-  // server can't know localStorage). Done in an async step, not the synchronous
-  // effect body, so it satisfies react-hooks/set-state-in-effect (mirrors the
-  // loadSaved effect above).
+  // Read the signed-out fallback handle after mount. The server cannot know
+  // localStorage, and signed-in identity remains account-owned.
   useEffect(() => {
     let active = true;
     async function loadHandle() {
@@ -328,16 +331,15 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
     return () => controller.abort();
   }, [routeHandle]);
 
-  // /u/you resolution: once we know the viewer's device handle, redirect the
-  // sentinel route to their real profile (/u/<handle>). With no device handle,
-  // /u/you stays put and renders the anonymous first-run passport below. Guarded
-  // so we never redirect to /u/you itself (would loop).
+  // /u/you resolution: once viewer identity is known, redirect the sentinel
+  // route to its real profile. With no signed-out fallback, /u/you stays put and
+  // renders the anonymous first-run passport below.
   useEffect(() => {
     if (!isYouRoute) return;
-    if (myHandle && myHandle !== YOU_SENTINEL) {
-      router.replace(`/u/${encodeURIComponent(myHandle)}`);
+    if (viewerHandle && viewerHandle !== YOU_SENTINEL) {
+      router.replace(`/u/${encodeURIComponent(viewerHandle)}`);
     }
-  }, [isYouRoute, myHandle, router]);
+  }, [isYouRoute, router, viewerHandle]);
 
   // Fetch the durable profile row + follow counts + whether the viewer follows
   // this handle. Best-effort: a failure just leaves the synthesized identity and
@@ -347,7 +349,9 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
     const controller = new AbortController();
     async function loadProfile() {
       try {
-        const qs = myHandle ? `?viewer=${encodeURIComponent(myHandle)}` : "";
+        const qs = viewerHandle
+          ? `?viewer=${encodeURIComponent(viewerHandle)}`
+          : "";
         const res = await fetch(`/api/profiles/${encodeURIComponent(routeHandle)}${qs}`, {
           signal: controller.signal,
         });
@@ -366,7 +370,7 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
     }
     void loadProfile();
     return () => controller.abort();
-  }, [routeHandle, myHandle]);
+  }, [routeHandle, viewerHandle]);
 
   const synthesized = deriveProfileFromDrops(routeHandle, drops as ProfileDrop[]);
   // Overlay any durable, user-owned fields on top of the synthesized identity.
@@ -378,8 +382,8 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
     avatarUrl: stored?.avatarUrl ?? synthesized.avatarUrl,
   };
   const stats = profileStats(drops as ProfileDrop[]);
-  const isOwnProfile = myHandle !== "" && myHandle === routeHandle;
-  const isAnonymous = myHandle === "";
+  const isOwnProfile = viewerHandle !== "" && viewerHandle === routeHandle;
+  const isAnonymous = !user && viewerHandle === "";
   // Signed-out /u/you: the viewer has no handle yet. This is an INVITATION, not a
   // profile — so it shows only the honest "make the night yours" intro + the
   // claim/account surface, never the pseudo-profile scaffolding (a "@you"
@@ -398,8 +402,8 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
   // already loaded, plus this handle's published crawl-story count from
   // /api/crawls?author= (storyCount above). A durable crawl story IS the posted
   // crawl AND the story post — both passport inputs draw from the one authored-
-  // story number per buildPassport's semantics. On the /u/you first-run route
-  // (no device handle) the passport reads as own → shows the "start yours" CTA.
+  // story number per buildPassport's semantics. On the anonymous /u/you
+  // first-run route, the passport reads as own and shows the "start yours" CTA.
   const passport = buildPassport(drops as ProfileDrop[], {
     crawls: storyCount,
     storyPosts: storyCount,
@@ -441,10 +445,9 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
   }
 
   // Claim this handle: an anonymous visitor adopts the route handle as their own
-  // demo identity (localStorage `pubmax_handle`) — the same identity that
-  // authors a pint drop or a follow. This is a client-only, self-asserted claim
-  // (no server ownership check — that arrives with Supabase Auth). Setting
-  // myHandle makes this their own profile, unlocking the Edit control.
+  // demo identity (localStorage `pubmax_handle`), the same identity that authors
+  // a pint drop or a follow. This remains a client-only, self-asserted signed-out
+  // claim. Signed-in ownership comes from the account handle instead.
   function claimHandle() {
     try {
       window.localStorage.setItem("pubmax_handle", routeHandle);
@@ -494,15 +497,62 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
     <>
       <FollowButton
         targetHandle={routeHandle}
-        followerHandle={myHandle}
+        followerHandle={viewerHandle}
         initialFollowing={following}
         onCountsChange={setCounts}
       />
       {/* E4: additive 1:1 messaging control. Only renders when the viewer has a
           handle distinct from this profile (the button self-guards). */}
-      <ProfileMessageButton targetHandle={routeHandle} viewerHandle={myHandle} />
+      <ProfileMessageButton
+        targetHandle={routeHandle}
+        viewerHandle={viewerHandle}
+      />
     </>
   );
+  const profileOptions: SiteNavMoreItem[] = [
+    {
+      id: "edit-profile",
+      label: "Edit profile",
+      description: "Change your public name, bio, city, or photo",
+      onSelect: () => setEditing(true),
+    },
+    {
+      id: "analytics-settings",
+      label: "Analytics choices",
+      description: "Review optional usage analytics",
+      onSelect: () => {
+        const target = document.getElementById("analytics-settings");
+        if (!target) return;
+        window.history.replaceState(null, "", "#analytics-settings");
+        target.scrollIntoView({ block: "start" });
+      },
+    },
+    {
+      href: "/about",
+      label: "About",
+      description: "What PUBMAXX is for",
+    },
+    {
+      href: "/privacy",
+      label: "Privacy",
+      description: "How PUBMAXX handles data",
+    },
+    {
+      href: "/terms",
+      label: "Terms",
+      description: "Rules for using PUBMAXX",
+    },
+    ...(user
+      ? [
+          {
+            id: "sign-out",
+            label: "Sign out",
+            description: "End this account session",
+            onSelect: signOut,
+          } satisfies SiteNavMoreItem,
+        ]
+      : []),
+  ];
 
   return (
     <div className="lp profilePage">
@@ -557,6 +607,16 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
               // panes are display:contents below the breakpoint, so the phone
               // layout is the same single column it was before.
               <div className="profileLayout">
+                {isOwnProfile ? (
+                  <div className="profileOwnerUtilities">
+                    <SiteNavMore
+                      className="profileOptions"
+                      label="Options"
+                      ariaLabel="Profile options"
+                      items={profileOptions}
+                    />
+                  </div>
+                ) : null}
                 <div className="profileIdentityPane">
                   <div className={isOwnProfile ? "youProfileIdentity" : undefined}>
                     <ProfileHeader
@@ -689,7 +749,7 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
                   {!youSignedOut ? (
                     <div id="saved-pubs">
                       <SavedPubList
-                        ownerHandle={isYouRoute ? myHandle : routeHandle}
+                        ownerHandle={isYouRoute ? viewerHandle : routeHandle}
                         groups={saved}
                         followedLists={followedLists}
                       />

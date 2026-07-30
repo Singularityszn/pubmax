@@ -10,12 +10,15 @@
 
 /* ── Main scaffolding ────────────────────────────────────────────────── */
 .profilePage .profileMain {
+  width: 100%;
+  box-sizing: border-box;
   padding-block: clamp(32px, 6vw, 64px);
   /* .container (Tailwind) sets width but no inline padding, so without this the
      profile body text touched the screen edge on phones. Cap the shell at the
      shared --content-max-wide (1240px) so it stops widening past the marketing
      surfaces at the ≥xl breakpoints (.container ran up to 1536px un-retrofit). */
   max-width: var(--content-max-wide);
+  margin-inline: auto;
   padding-inline: var(--page-gutter);
   display: grid;
   gap: clamp(32px, 5vw, 52px);
@@ -34,23 +37,47 @@
   display: contents;
 }
 
+.profilePage .profileOwnerUtilities {
+  display: none;
+}
+
+@media (min-width: 641px) {
+  .profilePage .profileOwnerUtilities {
+    display: flex;
+    min-height: 44px;
+    align-items: center;
+    justify-content: flex-end;
+  }
+}
+
 @media (min-width: 1024px) {
   .profilePage .profileLayout {
     display: grid;
     grid-template-columns: 340px minmax(0, 1fr);
+    grid-template-rows: auto minmax(0, 1fr);
     align-items: start;
     column-gap: clamp(28px, 3vw, 44px);
+    row-gap: 12px;
+  }
+
+  .profilePage .profileOwnerUtilities {
+    grid-column: 2;
+    grid-row: 1;
   }
 
   .profilePage .profileIdentityPane {
     display: block;
     position: sticky;
+    grid-column: 1;
+    grid-row: 1 / span 2;
     top: 96px; /* clears the floating SiteNav pill, same offset as feed/tonight */
     align-self: start;
   }
 
   .profilePage .profileContentPane {
     display: grid;
+    grid-column: 2;
+    grid-row: 2;
     gap: clamp(28px, 4vw, 44px);
     min-width: 0;
   }

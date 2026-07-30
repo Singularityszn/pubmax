@@ -4,15 +4,19 @@
   /* Closed desktop toolbar block, including the always-visible experience
      lens. Sibling chrome uses this to clear the toolbar instead of assuming
      the older single-row height. */
-  --map-toolbar-resting-height: 181px;
+  --map-toolbar-resting-height: 155px;
+  --desktop-map-surface-width: min(1240px, calc(100vw - 32px));
 }
 
 .mapToolbar {
+  width: var(--desktop-map-surface-width);
+  max-width: none;
+  box-sizing: border-box;
   flex-direction: column;
   align-items: stretch;
   gap: 6px;
   border-radius: 16px;
-  border-color: color-mix(in srgb, var(--brass) 28%, var(--line));
+  border-color: var(--line);
   background:
     linear-gradient(
       145deg,
@@ -28,6 +32,15 @@
   gap: 6px;
   flex-wrap: nowrap;
   justify-content: flex-start;
+}
+
+.mapToolbarDesktopExtras .favoritePintPicker {
+  flex-wrap: nowrap !important;
+}
+
+.mapToolbarDesktopExtras .favoritePintControl {
+  min-height: 44px;
+  box-sizing: border-box;
 }
 
 .mapToolbarSearch {
@@ -113,7 +126,7 @@
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  min-height: 34px;
+  min-height: 44px;
   padding: 0 10px;
   border: 1px solid color-mix(in srgb, var(--line) 78%, var(--brass) 22%);
   border-radius: var(--control-radius, 14px);
@@ -125,6 +138,7 @@
   cursor: pointer;
   touch-action: manipulation;
   flex: 0 0 auto;
+  box-sizing: border-box;
   transition:
     background var(--duration-base) var(--ease-out),
     border-color var(--duration-base) var(--ease-out),
@@ -339,7 +353,7 @@
   .appShell {
     --map-top-clearance: calc(171px + env(safe-area-inset-top, 0px));
     --map-overlay-top: calc(var(--map-top-clearance) + 58px);
-    --map-toolbar-resting-height: 145px;
+    --map-toolbar-resting-height: 155px;
   }
 
   .mapToolbar {

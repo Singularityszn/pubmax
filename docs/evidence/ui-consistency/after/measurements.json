@@ -1,0 +1,4964 @@
+{
+  "phase": "after",
+  "capturedAt": "2026-07-30T18:26:48.034Z",
+  "server": {
+    "mode": "production",
+    "buildCommit": "91faf0220ac31091f04a11ee118fff74b687a2a1+worktree-f2bc9afb"
+  },
+  "viewports": [
+    {
+      "width": 390,
+      "height": 844
+    },
+    {
+      "width": 768,
+      "height": 900
+    },
+    {
+      "width": 1280,
+      "height": 800
+    },
+    {
+      "width": 1440,
+      "height": 900
+    }
+  ],
+  "surfaces": [
+    {
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "surface": "landing",
+      "path": "/",
+      "firstVisitPrompt": null,
+      "rows": [
+        {
+          "name": "landing hero actions",
+          "selector": ".lpHeroActions .lpButton",
+          "controls": [
+            {
+              "label": "Find my pint",
+              "left": 22,
+              "right": 368,
+              "top": 513.55,
+              "bottom": 567.55,
+              "width": 346,
+              "height": 54
+            },
+            {
+              "label": "Open the map",
+              "left": 22,
+              "right": 190,
+              "top": 577.55,
+              "bottom": 631.55,
+              "width": 168,
+              "height": 54
+            },
+            {
+              "label": "Plan my night",
+              "left": 200,
+              "right": 368,
+              "top": 577.55,
+              "bottom": 631.55,
+              "width": 168,
+              "height": 54
+            }
+          ]
+        }
+      ],
+      "panels": [
+        {
+          "name": "page main",
+          "selector": "main",
+          "left": 0,
+          "right": 390,
+          "top": 0,
+          "bottom": 6629.2,
+          "width": 390,
+          "height": 6629.2
+        }
+      ],
+      "assertions": [
+        {
+          "name": "landing hero actions shares one control height",
+          "passed": true,
+          "detail": "54, 54, 54px; spread 0px"
+        }
+      ],
+      "screenshot": "landing-390.png"
+    },
+    {
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "surface": "map-first-visit",
+      "path": "/map",
+      "firstVisitPrompt": {
+        "kind": "analytics consent",
+        "accessibleName": "Anonymous analytics choice",
+        "className": "analyticsConsentPrompt"
+      },
+      "rows": [
+        {
+          "name": "mobile map topbar",
+          "selector": ".mobileMapTopbar > a, .mobileMapTopbar > button",
+          "controls": [
+            {
+              "label": "Open PUBMAXX landing page",
+              "left": 23,
+              "right": 126,
+              "top": 14,
+              "bottom": 58,
+              "width": 103,
+              "height": 44
+            },
+            {
+              "label": "Area: King's Cross. See its cheapest pints or go somewhere else",
+              "left": 128,
+              "right": 236,
+              "top": 14,
+              "bottom": 58,
+              "width": 108,
+              "height": 44
+            },
+            {
+              "label": "Search the map",
+              "left": 238,
+              "right": 282,
+              "top": 14,
+              "bottom": 58,
+              "width": 44,
+              "height": 44
+            },
+            {
+              "label": "Open Pub Pal",
+              "left": 284,
+              "right": 328,
+              "top": 14,
+              "bottom": 58,
+              "width": 44,
+              "height": 44
+            },
+            {
+              "label": "More map controls",
+              "left": 330,
+              "right": 374,
+              "top": 14,
+              "bottom": 58,
+              "width": 44,
+              "height": 44
+            }
+          ]
+        },
+        {
+          "name": "mobile contextual controls",
+          "selector": ".mobileMapRail > button",
+          "controls": [
+            {
+              "label": "Near me",
+              "left": 14,
+              "right": 97.23,
+              "top": 72,
+              "bottom": 116,
+              "width": 83.23,
+              "height": 44
+            },
+            {
+              "label": "Tonight5",
+              "left": 102.23,
+              "right": 202.5,
+              "top": 72,
+              "bottom": 116,
+              "width": 100.27,
+              "height": 44
+            },
+            {
+              "label": "Filters: ≤£8.00 active",
+              "left": 207.5,
+              "right": 299.81,
+              "top": 72,
+              "bottom": 116,
+              "width": 92.31,
+              "height": 44
+            }
+          ]
+        },
+        {
+          "name": "Tonight Arc controls",
+          "selector": ".tonightArcRow > button",
+          "controls": [
+            {
+              "label": "Pints",
+              "left": 20,
+              "right": 64,
+              "top": 124,
+              "bottom": 168,
+              "width": 44,
+              "height": 44
+            },
+            {
+              "label": "Bars",
+              "left": 69,
+              "right": 113,
+              "top": 124,
+              "bottom": 168,
+              "width": 44,
+              "height": 44
+            },
+            {
+              "label": "Clubs are not mapped yet",
+              "left": 118,
+              "right": 164.19,
+              "top": 124,
+              "bottom": 168,
+              "width": 46.19,
+              "height": 44
+            },
+            {
+              "label": "Food",
+              "left": 169.19,
+              "right": 213.19,
+              "top": 124,
+              "bottom": 168,
+              "width": 44,
+              "height": 44
+            },
+            {
+              "label": "Restaurants",
+              "left": 218.19,
+              "right": 302.69,
+              "top": 124,
+              "bottom": 168,
+              "width": 84.5,
+              "height": 44
+            }
+          ]
+        },
+        {
+          "name": "analytics decisions",
+          "selector": ".analyticsConsentPromptActions > button",
+          "controls": [
+            {
+              "label": "Allow",
+              "left": 23,
+              "right": 192,
+              "top": 649,
+              "bottom": 693,
+              "width": 169,
+              "height": 44
+            },
+            {
+              "label": "No thanks",
+              "left": 198,
+              "right": 367,
+              "top": 649,
+              "bottom": 693,
+              "width": 169,
+              "height": 44
+            }
+          ]
+        }
+      ],
+      "panels": [
+        {
+          "name": "mobile map chrome",
+          "selector": ".mobileMapChrome",
+          "left": 10,
+          "right": 380,
+          "top": 10,
+          "bottom": 120,
+          "width": 370,
+          "height": 110
+        },
+        {
+          "name": "mobile map topbar",
+          "selector": ".mobileMapTopbar",
+          "left": 10,
+          "right": 380,
+          "top": 10,
+          "bottom": 62,
+          "width": 370,
+          "height": 52
+        },
+        {
+          "name": "mobile contextual controls",
+          "selector": ".mobileMapRail",
+          "left": 12,
+          "right": 322,
+          "top": 68,
+          "bottom": 120,
+          "width": 310,
+          "height": 52
+        },
+        {
+          "name": "Tonight Arc panel",
+          "selector": ".tonightArcChips",
+          "left": 12,
+          "right": 322,
+          "top": 120,
+          "bottom": 172,
+          "width": 310,
+          "height": 52
+        },
+        {
+          "name": "Describe your night",
+          "selector": ".mobilePlanActivation",
+          "left": 12,
+          "right": 322,
+          "top": 710,
+          "bottom": 758,
+          "width": 310,
+          "height": 48
+        },
+        {
+          "name": "analytics notice",
+          "selector": ".analyticsConsentPrompt",
+          "left": 12,
+          "right": 378,
+          "top": 577.88,
+          "bottom": 698,
+          "width": 366,
+          "height": 120.13
+        },
+        {
+          "name": "map credit",
+          "selector": ".maplibregl-ctrl-bottom-right",
+          "left": 346,
+          "right": 390,
+          "top": 530,
+          "bottom": 570,
+          "width": 44,
+          "height": 40
+        },
+        {
+          "name": "page main",
+          "selector": "main",
+          "left": 0,
+          "right": 390,
+          "top": 0,
+          "bottom": 844,
+          "width": 390,
+          "height": 844
+        }
+      ],
+      "assertions": [
+        {
+          "name": "mobile map topbar shares one control height",
+          "passed": true,
+          "detail": "44, 44, 44, 44, 44px; spread 0px"
+        },
+        {
+          "name": "mobile contextual controls shares one control height",
+          "passed": true,
+          "detail": "44, 44, 44px; spread 0px"
+        },
+        {
+          "name": "Tonight Arc controls shares one control height",
+          "passed": true,
+          "detail": "44, 44, 44, 44, 44px; spread 0px"
+        },
+        {
+          "name": "analytics decisions shares one control height",
+          "passed": true,
+          "detail": "44, 44px; spread 0px"
+        },
+        {
+          "name": "floating map stack shares one horizontal boundary",
+          "passed": true,
+          "detail": "mobile contextual controls 12-322px; Tonight Arc panel 12-322px; Describe your night 12-322px"
+        },
+        {
+          "name": "phone chrome stays within 164px",
+          "passed": true,
+          "detail": "162px"
+        },
+        {
+          "name": "phone filters stay in one uncut row",
+          "passed": true,
+          "detail": "scroll 310px; client 310px; rail 12-322px"
+        },
+        {
+          "name": "analytics notice leaves map credit reachable",
+          "passed": true,
+          "detail": "notice 577.88-698px; credit 530-570px; overlap 0px"
+        },
+        {
+          "name": "analytics notice leaves primary map action clear",
+          "passed": true,
+          "detail": "notice 577.88-698px; action 710-758px; overlap 0px"
+        },
+        {
+          "name": "analytics notice stays below 24 percent of phone height",
+          "passed": true,
+          "detail": "14.23%"
+        },
+        {
+          "name": "map credit expands",
+          "passed": true,
+          "detail": "expanded attribution is visible"
+        },
+        {
+          "name": "analytics notice is dismissible",
+          "passed": true,
+          "detail": "No thanks removes the notice"
+        }
+      ],
+      "screenshot": "map-first-visit-390.png"
+    },
+    {
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "surface": "venue-sheet",
+      "path": "/map?sel=venue-xjf3n0",
+      "firstVisitPrompt": null,
+      "rows": [
+        {
+          "name": "mobile map topbar",
+          "selector": ".mobileMapTopbar > a, .mobileMapTopbar > button",
+          "controls": [
+            {
+              "label": "Open PUBMAXX landing page",
+              "left": 23,
+              "right": 126,
+              "top": 14,
+              "bottom": 58,
+              "width": 103,
+              "height": 44
+            },
+            {
+              "label": "Area: Camden. See its cheapest pints or go somewhere else",
+              "left": 128,
+              "right": 236,
+              "top": 14,
+              "bottom": 58,
+              "width": 108,
+              "height": 44
+            },
+            {
+              "label": "Search the map",
+              "left": 238,
+              "right": 282,
+              "top": 14,
+              "bottom": 58,
+              "width": 44,
+              "height": 44
+            },
+            {
+              "label": "Open Pub Pal",
+              "left": 284,
+              "right": 328,
+              "top": 14,
+              "bottom": 58,
+              "width": 44,
+              "height": 44
+            },
+            {
+              "label": "More map controls",
+              "left": 330,
+              "right": 374,
+              "top": 14,
+              "bottom": 58,
+              "width": 44,
+              "height": 44
+            }
+          ]
+        },
+        {
+          "name": "mobile contextual controls",
+          "selector": ".mobileMapRail > button",
+          "controls": [
+            {
+              "label": "Near me",
+              "left": 14,
+              "right": 97.23,
+              "top": 72,
+              "bottom": 116,
+              "width": 83.23,
+              "height": 44
+            },
+            {
+              "label": "Tonight5",
+              "left": 102.23,
+              "right": 202.5,
+              "top": 72,
+              "bottom": 116,
+              "width": 100.27,
+              "height": 44
+            },
+            {
+              "label": "Filters: ≤£8.00 active",
+              "left": 207.5,
+              "right": 299.81,
+              "top": 72,
+              "bottom": 116,
+              "width": 92.31,
+              "height": 44
+            }
+          ]
+        },
+        {
+          "name": "Tonight Arc controls",
+          "selector": ".tonightArcRow > button",
+          "controls": [
+            {
+              "label": "Pints",
+              "left": 20,
+              "right": 64,
+              "top": 124,
+              "bottom": 168,
+              "width": 44,
+              "height": 44
+            },
+            {
+              "label": "Bars",
+              "left": 69,
+              "right": 113,
+              "top": 124,
+              "bottom": 168,
+              "width": 44,
+              "height": 44
+            },
+            {
+              "label": "Clubs are not mapped yet",
+              "left": 118,
+              "right": 164.19,
+              "top": 124,
+              "bottom": 168,
+              "width": 46.19,
+              "height": 44
+            },
+            {
+              "label": "Food",
+              "left": 169.19,
+              "right": 213.19,
+              "top": 124,
+              "bottom": 168,
+              "width": 44,
+              "height": 44
+            },
+            {
+              "label": "Restaurants",
+              "left": 218.19,
+              "right": 302.69,
+              "top": 124,
+              "bottom": 168,
+              "width": 84.5,
+              "height": 44
+            }
+          ]
+        }
+      ],
+      "panels": [
+        {
+          "name": "mobile map chrome",
+          "selector": ".mobileMapChrome",
+          "left": 10,
+          "right": 380,
+          "top": 10,
+          "bottom": 120,
+          "width": 370,
+          "height": 110
+        },
+        {
+          "name": "mobile map topbar",
+          "selector": ".mobileMapTopbar",
+          "left": 10,
+          "right": 380,
+          "top": 10,
+          "bottom": 62,
+          "width": 370,
+          "height": 52
+        },
+        {
+          "name": "mobile contextual controls",
+          "selector": ".mobileMapRail",
+          "left": 12,
+          "right": 322,
+          "top": 68,
+          "bottom": 120,
+          "width": 310,
+          "height": 52
+        },
+        {
+          "name": "Tonight Arc panel",
+          "selector": ".tonightArcChips",
+          "left": 12,
+          "right": 322,
+          "top": 120,
+          "bottom": 172,
+          "width": 310,
+          "height": 52
+        },
+        {
+          "name": "map credit",
+          "selector": ".maplibregl-ctrl-bottom-right",
+          "left": 346,
+          "right": 390,
+          "top": 660,
+          "bottom": 700,
+          "width": 44,
+          "height": 40
+        },
+        {
+          "name": "page main",
+          "selector": "main",
+          "left": 0,
+          "right": 390,
+          "top": 0,
+          "bottom": 844,
+          "width": 390,
+          "height": 844
+        }
+      ],
+      "assertions": [
+        {
+          "name": "mobile map topbar shares one control height",
+          "passed": true,
+          "detail": "44, 44, 44, 44, 44px; spread 0px"
+        },
+        {
+          "name": "mobile contextual controls shares one control height",
+          "passed": true,
+          "detail": "44, 44, 44px; spread 0px"
+        },
+        {
+          "name": "Tonight Arc controls shares one control height",
+          "passed": true,
+          "detail": "44, 44, 44, 44, 44px; spread 0px"
+        },
+        {
+          "name": "venue captions stay uncut",
+          "passed": true,
+          "detail": "[{\"text\":\"current recorded price\",\"clientWidth\":125,\"scrollWidth\":125,\"clientHeight\":14,\"scrollHeight\":14,\"textOverflow\":\"clip\"},{\"text\":\"for walk time\",\"clientWidth\":125,\"scrollWidth\":125,\"clientHeight\":14,\"scrollHeight\":14,\"textOverflow\":\"clip\"}]"
+        }
+      ],
+      "screenshot": "venue-sheet-390.png"
+    },
+    {
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "surface": "plan",
+      "path": "/plan",
+      "firstVisitPrompt": null,
+      "rows": [
+        {
+          "name": "Plan area choices",
+          "selector": ".planIntake__choices--areas > button",
+          "controls": [
+            {
+              "label": "Soho",
+              "left": 60,
+              "right": 146.09,
+              "top": 730.89,
+              "bottom": 778.89,
+              "width": 86.09,
+              "height": 48
+            },
+            {
+              "label": "Shoreditch",
+              "left": 154.09,
+              "right": 277.88,
+              "top": 730.89,
+              "bottom": 778.89,
+              "width": 123.78,
+              "height": 48
+            },
+            {
+              "label": "Camden",
+              "left": 60,
+              "right": 166.95,
+              "top": 786.89,
+              "bottom": 834.89,
+              "width": 106.95,
+              "height": 48
+            },
+            {
+              "label": "London Bridge",
+              "left": 174.95,
+              "right": 321.77,
+              "top": 786.89,
+              "bottom": 834.89,
+              "width": 146.81,
+              "height": 48
+            },
+            {
+              "label": "Brixton",
+              "left": 60,
+              "right": 159.91,
+              "top": 842.89,
+              "bottom": 890.89,
+              "width": 99.91,
+              "height": 48
+            },
+            {
+              "label": "Clapham",
+              "left": 167.91,
+              "right": 278.34,
+              "top": 842.89,
+              "bottom": 890.89,
+              "width": 110.44,
+              "height": 48
+            },
+            {
+              "label": "Islington",
+              "left": 60,
+              "right": 169.27,
+              "top": 898.89,
+              "bottom": 946.89,
+              "width": 109.27,
+              "height": 48
+            },
+            {
+              "label": "Hackney",
+              "left": 177.27,
+              "right": 287.16,
+              "top": 898.89,
+              "bottom": 946.89,
+              "width": 109.89,
+              "height": 48
+            }
+          ]
+        },
+        {
+          "name": "Plan footer actions",
+          "selector": ".planIntake__actions button",
+          "controls": [
+            {
+              "label": "Back",
+              "left": 60,
+              "right": 120.47,
+              "top": 1045.89,
+              "bottom": 1089.89,
+              "width": 60.47,
+              "height": 44
+            },
+            {
+              "label": "Skip for now",
+              "left": 60,
+              "right": 191,
+              "top": 989.89,
+              "bottom": 1033.89,
+              "width": 131,
+              "height": 44
+            },
+            {
+              "label": "Continue",
+              "left": 199,
+              "right": 330,
+              "top": 989.89,
+              "bottom": 1033.89,
+              "width": 131,
+              "height": 44
+            }
+          ]
+        }
+      ],
+      "panels": [
+        {
+          "name": "page main",
+          "selector": "main",
+          "left": 0,
+          "right": 390,
+          "top": 0,
+          "bottom": 1223.89,
+          "width": 390,
+          "height": 1223.89
+        }
+      ],
+      "assertions": [
+        {
+          "name": "Plan area choices shares one control height",
+          "passed": true,
+          "detail": "48, 48, 48, 48, 48, 48, 48, 48px; spread 0px"
+        },
+        {
+          "name": "Plan footer actions shares one control height",
+          "passed": true,
+          "detail": "44, 44, 44px; spread 0px"
+        }
+      ],
+      "screenshot": "plan-390.png"
+    },
+    {
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "surface": "profile-signed-in",
+      "path": "/u/layoutcaptain",
+      "firstVisitPrompt": null,
+      "rows": [
+        {
+          "name": "profile header actions",
+          "selector": ".profileActions > a, .profileActions > button",
+          "controls": [
+            {
+              "label": "Invite your lot",
+              "left": 22,
+              "right": 190,
+              "top": 194.05,
+              "bottom": 238.05,
+              "width": 168,
+              "height": 44
+            },
+            {
+              "label": "Edit profile",
+              "left": 200,
+              "right": 368,
+              "top": 194.05,
+              "bottom": 238.05,
+              "width": 168,
+              "height": 44
+            },
+            {
+              "label": "Meet your Pub Pal",
+              "left": 22,
+              "right": 368,
+              "top": 248.05,
+              "bottom": 292.05,
+              "width": 346,
+              "height": 44
+            }
+          ]
+        }
+      ],
+      "panels": [
+        {
+          "name": "page main",
+          "selector": "main",
+          "left": 0,
+          "right": 390,
+          "top": 52,
+          "bottom": 6879.75,
+          "width": 390,
+          "height": 6827.75
+        }
+      ],
+      "assertions": [
+        {
+          "name": "profile header actions shares one control height",
+          "passed": true,
+          "detail": "44, 44, 44px; spread 0px"
+        }
+      ],
+      "screenshot": "profile-signed-in-390.png"
+    },
+    {
+      "viewport": {
+        "width": 768,
+        "height": 900
+      },
+      "surface": "landing",
+      "path": "/",
+      "firstVisitPrompt": null,
+      "rows": [
+        {
+          "name": "landing hero actions",
+          "selector": ".lpHeroActions .lpButton",
+          "controls": [
+            {
+              "label": "Find my pint",
+              "left": 32,
+              "right": 252,
+              "top": 674.66,
+              "bottom": 728.66,
+              "width": 220,
+              "height": 54
+            },
+            {
+              "label": "Open the map",
+              "left": 262,
+              "right": 482,
+              "top": 674.66,
+              "bottom": 728.66,
+              "width": 220,
+              "height": 54
+            },
+            {
+              "label": "Plan my night",
+              "left": 492,
+              "right": 712,
+              "top": 674.66,
+              "bottom": 728.66,
+              "width": 220,
+              "height": 54
+            }
+          ]
+        }
+      ],
+      "panels": [
+        {
+          "name": "page main",
+          "selector": "main",
+          "left": 0,
+          "right": 768,
+          "top": 0,
+          "bottom": 5721.52,
+          "width": 768,
+          "height": 5721.52
+        }
+      ],
+      "assertions": [
+        {
+          "name": "landing hero actions shares one control height",
+          "passed": true,
+          "detail": "54, 54, 54px; spread 0px"
+        }
+      ],
+      "screenshot": "landing-768.png"
+    },
+    {
+      "viewport": {
+        "width": 768,
+        "height": 900
+      },
+      "surface": "map-first-visit",
+      "path": "/map",
+      "firstVisitPrompt": null,
+      "rows": [
+        {
+          "name": "Tonight Arc controls",
+          "selector": ".tonightArcRow > button",
+          "controls": [
+            {
+              "label": "Pints",
+              "left": 231.34,
+              "right": 281.13,
+              "top": 94.41,
+              "bottom": 128.41,
+              "width": 49.78,
+              "height": 34
+            },
+            {
+              "label": "Bars",
+              "left": 286.13,
+              "right": 332.42,
+              "top": 94.41,
+              "bottom": 128.41,
+              "width": 46.3,
+              "height": 34
+            },
+            {
+              "label": "Clubs are not mapped yet",
+              "left": 337.42,
+              "right": 387.61,
+              "top": 94.41,
+              "bottom": 128.41,
+              "width": 50.19,
+              "height": 34
+            },
+            {
+              "label": "Food",
+              "left": 392.61,
+              "right": 441.14,
+              "top": 94.41,
+              "bottom": 128.41,
+              "width": 48.53,
+              "height": 34
+            },
+            {
+              "label": "Restaurants",
+              "left": 446.14,
+              "right": 536.64,
+              "top": 94.41,
+              "bottom": 128.41,
+              "width": 90.5,
+              "height": 34
+            }
+          ]
+        },
+        {
+          "name": "desktop map toolbar",
+          "selector": ".mapSearchSuggest--toolbar > label, .mapToolbarDesktopExtras .favoritePintControl, .mapToolbar > .mapToolbarRow > .conditionsChip, .mapToolbarDrinksBtn, .zonePickerBtn, .planBtn, .citySwitcherTrigger",
+          "controls": [
+            {
+              "label": "Search pubs",
+              "left": 25,
+              "right": 286.11,
+              "top": 179,
+              "bottom": 223,
+              "width": 261.11,
+              "height": 44
+            },
+            {
+              "label": "Show drink filters",
+              "left": 472.47,
+              "right": 549.97,
+              "top": 179,
+              "bottom": 223,
+              "width": 77.5,
+              "height": 44
+            },
+            {
+              "label": "Plan tonight",
+              "left": 555.97,
+              "right": 683.95,
+              "top": 179,
+              "bottom": 223,
+              "width": 127.98,
+              "height": 44
+            },
+            {
+              "label": "City map: London. Change city",
+              "left": 689.95,
+              "right": 743,
+              "top": 179,
+              "bottom": 223,
+              "width": 53.05,
+              "height": 44
+            }
+          ]
+        }
+      ],
+      "panels": [
+        {
+          "name": "Tonight Arc panel",
+          "selector": ".tonightArcChips",
+          "left": 16,
+          "right": 752,
+          "top": 80,
+          "bottom": 128.41,
+          "width": 736,
+          "height": 48.41
+        },
+        {
+          "name": "desktop map navigation",
+          "selector": ".siteNavBarFloating",
+          "left": 16,
+          "right": 752,
+          "top": 12,
+          "bottom": 74,
+          "width": 736,
+          "height": 62
+        },
+        {
+          "name": "desktop map toolbar",
+          "selector": ".mapToolbar",
+          "left": 16,
+          "right": 752,
+          "top": 171,
+          "bottom": 326,
+          "width": 736,
+          "height": 155
+        },
+        {
+          "name": "map credit",
+          "selector": ".maplibregl-ctrl-bottom-right",
+          "left": 724,
+          "right": 768,
+          "top": 856,
+          "bottom": 900,
+          "width": 44,
+          "height": 44
+        },
+        {
+          "name": "page main",
+          "selector": "main",
+          "left": 0,
+          "right": 768,
+          "top": 0,
+          "bottom": 900,
+          "width": 768,
+          "height": 900
+        }
+      ],
+      "assertions": [
+        {
+          "name": "Tonight Arc controls shares one control height",
+          "passed": true,
+          "detail": "34, 34, 34, 34, 34px; spread 0px"
+        },
+        {
+          "name": "desktop map toolbar shares one control height",
+          "passed": true,
+          "detail": "44, 44, 44, 44px; spread 0px"
+        },
+        {
+          "name": "floating map stack shares one horizontal boundary",
+          "passed": true,
+          "detail": "desktop map navigation 16-752px; Tonight Arc panel 16-752px; desktop map toolbar 16-752px"
+        }
+      ],
+      "screenshot": "map-first-visit-768.png"
+    },
+    {
+      "viewport": {
+        "width": 768,
+        "height": 900
+      },
+      "surface": "venue-sheet",
+      "path": "/map?sel=venue-xjf3n0",
+      "firstVisitPrompt": null,
+      "rows": [
+        {
+          "name": "Tonight Arc controls",
+          "selector": ".tonightArcRow > button",
+          "controls": [
+            {
+              "label": "Pints",
+              "left": 231.34,
+              "right": 281.13,
+              "top": -252.59,
+              "bottom": -218.59,
+              "width": 49.78,
+              "height": 34
+            },
+            {
+              "label": "Bars",
+              "left": 286.13,
+              "right": 332.42,
+              "top": -252.59,
+              "bottom": -218.59,
+              "width": 46.3,
+              "height": 34
+            },
+            {
+              "label": "Clubs are not mapped yet",
+              "left": 337.42,
+              "right": 387.61,
+              "top": -252.59,
+              "bottom": -218.59,
+              "width": 50.19,
+              "height": 34
+            },
+            {
+              "label": "Food",
+              "left": 392.61,
+              "right": 441.14,
+              "top": -252.59,
+              "bottom": -218.59,
+              "width": 48.53,
+              "height": 34
+            },
+            {
+              "label": "Restaurants",
+              "left": 446.14,
+              "right": 536.64,
+              "top": -252.59,
+              "bottom": -218.59,
+              "width": 90.5,
+              "height": 34
+            }
+          ]
+        },
+        {
+          "name": "desktop map toolbar",
+          "selector": ".mapSearchSuggest--toolbar > label, .mapToolbarDesktopExtras .favoritePintControl, .mapToolbar > .mapToolbarRow > .conditionsChip, .mapToolbarDrinksBtn, .zonePickerBtn, .planBtn, .citySwitcherTrigger",
+          "controls": [
+            {
+              "label": "Search pubs",
+              "left": 25,
+              "right": 286.11,
+              "top": -168,
+              "bottom": -124,
+              "width": 261.11,
+              "height": 44
+            },
+            {
+              "label": "Show drink filters",
+              "left": 472.47,
+              "right": 549.97,
+              "top": -168,
+              "bottom": -124,
+              "width": 77.5,
+              "height": 44
+            },
+            {
+              "label": "Plan tonight",
+              "left": 555.97,
+              "right": 683.95,
+              "top": -168,
+              "bottom": -124,
+              "width": 127.98,
+              "height": 44
+            },
+            {
+              "label": "City map: London. Change city",
+              "left": 689.95,
+              "right": 743,
+              "top": -168,
+              "bottom": -124,
+              "width": 53.05,
+              "height": 44
+            }
+          ]
+        }
+      ],
+      "panels": [
+        {
+          "name": "Tonight Arc panel",
+          "selector": ".tonightArcChips",
+          "left": 16,
+          "right": 752,
+          "top": -267,
+          "bottom": -218.59,
+          "width": 736,
+          "height": 48.41
+        },
+        {
+          "name": "desktop map navigation",
+          "selector": ".siteNavBarFloating",
+          "left": 16,
+          "right": 752,
+          "top": 12,
+          "bottom": 74,
+          "width": 736,
+          "height": 62
+        },
+        {
+          "name": "desktop map toolbar",
+          "selector": ".mapToolbar",
+          "left": 16,
+          "right": 752,
+          "top": -176,
+          "bottom": -21,
+          "width": 736,
+          "height": 155
+        },
+        {
+          "name": "map credit",
+          "selector": ".maplibregl-ctrl-bottom-right",
+          "left": 724,
+          "right": 768,
+          "top": 509,
+          "bottom": 553,
+          "width": 44,
+          "height": 44
+        },
+        {
+          "name": "page main",
+          "selector": "main",
+          "left": 0,
+          "right": 768,
+          "top": 0,
+          "bottom": 900,
+          "width": 768,
+          "height": 900
+        }
+      ],
+      "assertions": [
+        {
+          "name": "Tonight Arc controls shares one control height",
+          "passed": true,
+          "detail": "34, 34, 34, 34, 34px; spread 0px"
+        },
+        {
+          "name": "desktop map toolbar shares one control height",
+          "passed": true,
+          "detail": "44, 44, 44, 44px; spread 0px"
+        }
+      ],
+      "screenshot": "venue-sheet-768.png"
+    },
+    {
+      "viewport": {
+        "width": 768,
+        "height": 900
+      },
+      "surface": "plan",
+      "path": "/plan",
+      "firstVisitPrompt": null,
+      "rows": [
+        {
+          "name": "Plan area choices",
+          "selector": ".planIntake__choices--areas > button",
+          "controls": [
+            {
+              "label": "Soho",
+              "left": 108.78,
+              "right": 194.88,
+              "top": 831.14,
+              "bottom": 879.14,
+              "width": 86.09,
+              "height": 48
+            },
+            {
+              "label": "Shoreditch",
+              "left": 202.88,
+              "right": 326.66,
+              "top": 831.14,
+              "bottom": 879.14,
+              "width": 123.78,
+              "height": 48
+            },
+            {
+              "label": "Camden",
+              "left": 334.66,
+              "right": 441.61,
+              "top": 831.14,
+              "bottom": 879.14,
+              "width": 106.95,
+              "height": 48
+            },
+            {
+              "label": "London Bridge",
+              "left": 449.61,
+              "right": 596.42,
+              "top": 831.14,
+              "bottom": 879.14,
+              "width": 146.81,
+              "height": 48
+            },
+            {
+              "label": "Brixton",
+              "left": 108.78,
+              "right": 208.69,
+              "top": 887.14,
+              "bottom": 935.14,
+              "width": 99.91,
+              "height": 48
+            },
+            {
+              "label": "Clapham",
+              "left": 216.69,
+              "right": 327.13,
+              "top": 887.14,
+              "bottom": 935.14,
+              "width": 110.44,
+              "height": 48
+            },
+            {
+              "label": "Islington",
+              "left": 335.13,
+              "right": 444.39,
+              "top": 887.14,
+              "bottom": 935.14,
+              "width": 109.27,
+              "height": 48
+            },
+            {
+              "label": "Hackney",
+              "left": 452.39,
+              "right": 562.28,
+              "top": 887.14,
+              "bottom": 935.14,
+              "width": 109.89,
+              "height": 48
+            }
+          ]
+        },
+        {
+          "name": "Plan footer actions",
+          "selector": ".planIntake__actions button",
+          "controls": [
+            {
+              "label": "Back",
+              "left": 108.78,
+              "right": 169.25,
+              "top": 978.14,
+              "bottom": 1022.14,
+              "width": 60.47,
+              "height": 44
+            },
+            {
+              "label": "Skip for now",
+              "left": 445.91,
+              "right": 552.63,
+              "top": 978.14,
+              "bottom": 1022.14,
+              "width": 106.72,
+              "height": 44
+            },
+            {
+              "label": "Continue",
+              "left": 560.63,
+              "right": 659.22,
+              "top": 978.14,
+              "bottom": 1022.14,
+              "width": 98.59,
+              "height": 44
+            }
+          ]
+        }
+      ],
+      "panels": [
+        {
+          "name": "page main",
+          "selector": "main",
+          "left": 0,
+          "right": 768,
+          "top": 0,
+          "bottom": 1188.53,
+          "width": 768,
+          "height": 1188.53
+        }
+      ],
+      "assertions": [
+        {
+          "name": "Plan area choices shares one control height",
+          "passed": true,
+          "detail": "48, 48, 48, 48, 48, 48, 48, 48px; spread 0px"
+        },
+        {
+          "name": "Plan footer actions shares one control height",
+          "passed": true,
+          "detail": "44, 44, 44px; spread 0px"
+        }
+      ],
+      "screenshot": "plan-768.png"
+    },
+    {
+      "viewport": {
+        "width": 768,
+        "height": 900
+      },
+      "surface": "profile-signed-in",
+      "path": "/u/layoutcaptain",
+      "firstVisitPrompt": null,
+      "rows": [
+        {
+          "name": "profile header actions",
+          "selector": ".profileActions > a, .profileActions > button",
+          "controls": [
+            {
+              "label": "Invite your lot",
+              "left": 291.47,
+              "right": 415.13,
+              "top": 222.19,
+              "bottom": 266.19,
+              "width": 123.66,
+              "height": 44
+            },
+            {
+              "label": "Edit profile",
+              "left": 425.13,
+              "right": 534.2,
+              "top": 222.19,
+              "bottom": 266.19,
+              "width": 109.08,
+              "height": 44
+            },
+            {
+              "label": "Meet your Pub Pal",
+              "left": 544.2,
+              "right": 704.28,
+              "top": 222.19,
+              "bottom": 266.19,
+              "width": 160.08,
+              "height": 44
+            }
+          ]
+        },
+        {
+          "name": "profile owner utilities",
+          "selector": ".profileOwnerUtilities .siteNavMoreBtn",
+          "controls": [
+            {
+              "label": "Profile options",
+              "left": 641.69,
+              "right": 736,
+              "top": 108.08,
+              "bottom": 152.08,
+              "width": 94.31,
+              "height": 44
+            }
+          ]
+        }
+      ],
+      "panels": [
+        {
+          "name": "page main",
+          "selector": "main",
+          "left": 0,
+          "right": 768,
+          "top": 62,
+          "bottom": 5490.02,
+          "width": 768,
+          "height": 5428.02
+        }
+      ],
+      "assertions": [
+        {
+          "name": "profile header actions shares one control height",
+          "passed": true,
+          "detail": "44, 44, 44px; spread 0px"
+        }
+      ],
+      "screenshot": "profile-signed-in-768.png"
+    },
+    {
+      "viewport": {
+        "width": 1280,
+        "height": 800
+      },
+      "surface": "landing",
+      "path": "/",
+      "firstVisitPrompt": null,
+      "rows": [
+        {
+          "name": "landing hero actions",
+          "selector": ".lpHeroActions .lpButton",
+          "controls": [
+            {
+              "label": "Find my pint",
+              "left": 51.19,
+              "right": 215.27,
+              "top": 734.23,
+              "bottom": 788.23,
+              "width": 164.08,
+              "height": 54
+            },
+            {
+              "label": "Open the map",
+              "left": 225.27,
+              "right": 389.36,
+              "top": 734.23,
+              "bottom": 788.23,
+              "width": 164.09,
+              "height": 54
+            },
+            {
+              "label": "Plan my night",
+              "left": 399.36,
+              "right": 563.45,
+              "top": 734.23,
+              "bottom": 788.23,
+              "width": 164.09,
+              "height": 54
+            }
+          ]
+        }
+      ],
+      "panels": [
+        {
+          "name": "page main",
+          "selector": "main",
+          "left": 0,
+          "right": 1280,
+          "top": 0,
+          "bottom": 5060.02,
+          "width": 1280,
+          "height": 5060.02
+        }
+      ],
+      "assertions": [
+        {
+          "name": "landing hero actions shares one control height",
+          "passed": true,
+          "detail": "54, 54, 54px; spread 0px"
+        }
+      ],
+      "screenshot": "landing-1280.png"
+    },
+    {
+      "viewport": {
+        "width": 1280,
+        "height": 800
+      },
+      "surface": "map-first-visit",
+      "path": "/map",
+      "firstVisitPrompt": null,
+      "rows": [
+        {
+          "name": "Tonight Arc controls",
+          "selector": ".tonightArcRow > button",
+          "controls": [
+            {
+              "label": "Pints",
+              "left": 487.34,
+              "right": 537.13,
+              "top": 94.41,
+              "bottom": 128.41,
+              "width": 49.78,
+              "height": 34
+            },
+            {
+              "label": "Bars",
+              "left": 542.13,
+              "right": 588.42,
+              "top": 94.41,
+              "bottom": 128.41,
+              "width": 46.3,
+              "height": 34
+            },
+            {
+              "label": "Clubs are not mapped yet",
+              "left": 593.42,
+              "right": 643.61,
+              "top": 94.41,
+              "bottom": 128.41,
+              "width": 50.19,
+              "height": 34
+            },
+            {
+              "label": "Food",
+              "left": 648.61,
+              "right": 697.14,
+              "top": 94.41,
+              "bottom": 128.41,
+              "width": 48.53,
+              "height": 34
+            },
+            {
+              "label": "Restaurants",
+              "left": 702.14,
+              "right": 792.64,
+              "top": 94.41,
+              "bottom": 128.41,
+              "width": 90.5,
+              "height": 34
+            }
+          ]
+        },
+        {
+          "name": "desktop map toolbar",
+          "selector": ".mapSearchSuggest--toolbar > label, .mapToolbarDesktopExtras .favoritePintControl, .mapToolbar > .mapToolbarRow > .conditionsChip, .mapToolbarDrinksBtn, .zonePickerBtn, .planBtn, .citySwitcherTrigger",
+          "controls": [
+            {
+              "label": "Search pubs",
+              "left": 29,
+              "right": 417,
+              "top": 167,
+              "bottom": 211,
+              "width": 388,
+              "height": 44
+            },
+            {
+              "label": "DrinkPintWineWhiskyGinVodkaRumCocktailsShotsAlcohol-freeSoft drinks",
+              "left": 423,
+              "right": 605.38,
+              "top": 167,
+              "bottom": 211,
+              "width": 182.38,
+              "height": 44
+            },
+            {
+              "label": "My pintCheapest pint (any)Guinness · 4.2%Amstel · 4%Estrella · 4.6%Peroni · 5%Neck Oil · 4.3%Birra Moretti · 4.6%Madrí · 4.6%Pravha · 4%Carling · 4%Fosters · 4%Corona · 4.5%Budweiser · 4.8%Carlsberg · 3.8%Stella Artois · 4.6%San Miguel · 5%Asahi · 5.2%Coors · 4%Camden Hells · 4.6%Kronenbourg · 5%Leffe Blonde · 6.6%Bud Light · 3.5%",
+              "left": 611.38,
+              "right": 850.19,
+              "top": 167,
+              "bottom": 211,
+              "width": 238.81,
+              "height": 44
+            },
+            {
+              "label": "Show drink filters",
+              "left": 856.19,
+              "right": 933.69,
+              "top": 167,
+              "bottom": 211,
+              "width": 77.5,
+              "height": 44
+            },
+            {
+              "label": "Zone",
+              "left": 939.69,
+              "right": 1026.13,
+              "top": 167,
+              "bottom": 211,
+              "width": 86.44,
+              "height": 44
+            },
+            {
+              "label": "Plan tonight",
+              "left": 1032.13,
+              "right": 1166.11,
+              "top": 167,
+              "bottom": 211,
+              "width": 133.98,
+              "height": 44
+            },
+            {
+              "label": "City map: London. Change city",
+              "left": 1172.11,
+              "right": 1246.88,
+              "top": 167,
+              "bottom": 211,
+              "width": 74.77,
+              "height": 44
+            }
+          ]
+        }
+      ],
+      "panels": [
+        {
+          "name": "Tonight Arc panel",
+          "selector": ".tonightArcChips",
+          "left": 20,
+          "right": 1260,
+          "top": 80,
+          "bottom": 128.41,
+          "width": 1240,
+          "height": 48.41
+        },
+        {
+          "name": "desktop map navigation",
+          "selector": ".siteNavBarFloating",
+          "left": 20,
+          "right": 1260,
+          "top": 12,
+          "bottom": 76,
+          "width": 1240,
+          "height": 64
+        },
+        {
+          "name": "desktop map toolbar",
+          "selector": ".mapToolbar",
+          "left": 20,
+          "right": 1260,
+          "top": 159,
+          "bottom": 314,
+          "width": 1240,
+          "height": 155
+        },
+        {
+          "name": "map credit",
+          "selector": ".maplibregl-ctrl-bottom-right",
+          "left": 1236,
+          "right": 1280,
+          "top": 756,
+          "bottom": 800,
+          "width": 44,
+          "height": 44
+        },
+        {
+          "name": "page main",
+          "selector": "main",
+          "left": 0,
+          "right": 1280,
+          "top": 0,
+          "bottom": 800,
+          "width": 1280,
+          "height": 800
+        }
+      ],
+      "assertions": [
+        {
+          "name": "Tonight Arc controls shares one control height",
+          "passed": true,
+          "detail": "34, 34, 34, 34, 34px; spread 0px"
+        },
+        {
+          "name": "desktop map toolbar shares one control height",
+          "passed": true,
+          "detail": "44, 44, 44, 44, 44, 44, 44px; spread 0px"
+        },
+        {
+          "name": "floating map stack shares one horizontal boundary",
+          "passed": true,
+          "detail": "desktop map navigation 20-1260px; Tonight Arc panel 20-1260px; desktop map toolbar 20-1260px"
+        }
+      ],
+      "screenshot": "map-first-visit-1280.png"
+    },
+    {
+      "viewport": {
+        "width": 1280,
+        "height": 800
+      },
+      "surface": "venue-sheet",
+      "path": "/map?sel=venue-xjf3n0",
+      "firstVisitPrompt": null,
+      "rows": [
+        {
+          "name": "Tonight Arc controls",
+          "selector": ".tonightArcRow > button",
+          "controls": [
+            {
+              "label": "Pints",
+              "left": 487.34,
+              "right": 537.13,
+              "top": 94.41,
+              "bottom": 128.41,
+              "width": 49.78,
+              "height": 34
+            },
+            {
+              "label": "Bars",
+              "left": 542.13,
+              "right": 588.42,
+              "top": 94.41,
+              "bottom": 128.41,
+              "width": 46.3,
+              "height": 34
+            },
+            {
+              "label": "Clubs are not mapped yet",
+              "left": 593.42,
+              "right": 643.61,
+              "top": 94.41,
+              "bottom": 128.41,
+              "width": 50.19,
+              "height": 34
+            },
+            {
+              "label": "Food",
+              "left": 648.61,
+              "right": 697.14,
+              "top": 94.41,
+              "bottom": 128.41,
+              "width": 48.53,
+              "height": 34
+            },
+            {
+              "label": "Restaurants",
+              "left": 702.14,
+              "right": 792.64,
+              "top": 94.41,
+              "bottom": 128.41,
+              "width": 90.5,
+              "height": 34
+            }
+          ]
+        },
+        {
+          "name": "desktop map toolbar",
+          "selector": ".mapSearchSuggest--toolbar > label, .mapToolbarDesktopExtras .favoritePintControl, .mapToolbar > .mapToolbarRow > .conditionsChip, .mapToolbarDrinksBtn, .zonePickerBtn, .planBtn, .citySwitcherTrigger",
+          "controls": [
+            {
+              "label": "Search pubs",
+              "left": 29,
+              "right": 417,
+              "top": 167,
+              "bottom": 211,
+              "width": 388,
+              "height": 44
+            },
+            {
+              "label": "DrinkPintWineWhiskyGinVodkaRumCocktailsShotsAlcohol-freeSoft drinks",
+              "left": 423,
+              "right": 605.38,
+              "top": 167,
+              "bottom": 211,
+              "width": 182.38,
+              "height": 44
+            },
+            {
+              "label": "My pintCheapest pint (any)Guinness · 4.2%Amstel · 4%Estrella · 4.6%Peroni · 5%Neck Oil · 4.3%Birra Moretti · 4.6%Madrí · 4.6%Pravha · 4%Carling · 4%Fosters · 4%Corona · 4.5%Budweiser · 4.8%Carlsberg · 3.8%Stella Artois · 4.6%San Miguel · 5%Asahi · 5.2%Coors · 4%Camden Hells · 4.6%Kronenbourg · 5%Leffe Blonde · 6.6%Bud Light · 3.5%",
+              "left": 611.38,
+              "right": 850.19,
+              "top": 167,
+              "bottom": 211,
+              "width": 238.81,
+              "height": 44
+            },
+            {
+              "label": "Show drink filters",
+              "left": 856.19,
+              "right": 933.69,
+              "top": 167,
+              "bottom": 211,
+              "width": 77.5,
+              "height": 44
+            },
+            {
+              "label": "Zone",
+              "left": 939.69,
+              "right": 1026.13,
+              "top": 167,
+              "bottom": 211,
+              "width": 86.44,
+              "height": 44
+            },
+            {
+              "label": "Plan tonight",
+              "left": 1032.13,
+              "right": 1166.11,
+              "top": 167,
+              "bottom": 211,
+              "width": 133.98,
+              "height": 44
+            },
+            {
+              "label": "City map: London. Change city",
+              "left": 1172.11,
+              "right": 1246.88,
+              "top": 167,
+              "bottom": 211,
+              "width": 74.77,
+              "height": 44
+            }
+          ]
+        }
+      ],
+      "panels": [
+        {
+          "name": "Tonight Arc panel",
+          "selector": ".tonightArcChips",
+          "left": 20,
+          "right": 1260,
+          "top": 80,
+          "bottom": 128.41,
+          "width": 1240,
+          "height": 48.41
+        },
+        {
+          "name": "desktop map navigation",
+          "selector": ".siteNavBarFloating",
+          "left": 20,
+          "right": 1260,
+          "top": 12,
+          "bottom": 76,
+          "width": 1240,
+          "height": 64
+        },
+        {
+          "name": "desktop map toolbar",
+          "selector": ".mapToolbar",
+          "left": 20,
+          "right": 1260,
+          "top": 159,
+          "bottom": 314,
+          "width": 1240,
+          "height": 155
+        },
+        {
+          "name": "map credit",
+          "selector": ".maplibregl-ctrl-bottom-right",
+          "left": 1236,
+          "right": 1280,
+          "top": 756,
+          "bottom": 800,
+          "width": 44,
+          "height": 44
+        },
+        {
+          "name": "page main",
+          "selector": "main",
+          "left": 0,
+          "right": 1280,
+          "top": 0,
+          "bottom": 800,
+          "width": 1280,
+          "height": 800
+        }
+      ],
+      "assertions": [
+        {
+          "name": "Tonight Arc controls shares one control height",
+          "passed": true,
+          "detail": "34, 34, 34, 34, 34px; spread 0px"
+        },
+        {
+          "name": "desktop map toolbar shares one control height",
+          "passed": true,
+          "detail": "44, 44, 44, 44, 44, 44, 44px; spread 0px"
+        }
+      ],
+      "screenshot": "venue-sheet-1280.png"
+    },
+    {
+      "viewport": {
+        "width": 1280,
+        "height": 800
+      },
+      "surface": "plan",
+      "path": "/plan",
+      "firstVisitPrompt": null,
+      "rows": [
+        {
+          "name": "Plan area choices",
+          "selector": ".planIntake__choices--areas > button",
+          "controls": [
+            {
+              "label": "Soho",
+              "left": 258,
+              "right": 344.09,
+              "top": 1189.3,
+              "bottom": 1237.3,
+              "width": 86.09,
+              "height": 48
+            },
+            {
+              "label": "Shoreditch",
+              "left": 352.09,
+              "right": 475.88,
+              "top": 1189.3,
+              "bottom": 1237.3,
+              "width": 123.78,
+              "height": 48
+            },
+            {
+              "label": "Camden",
+              "left": 483.88,
+              "right": 590.83,
+              "top": 1189.3,
+              "bottom": 1237.3,
+              "width": 106.95,
+              "height": 48
+            },
+            {
+              "label": "London Bridge",
+              "left": 598.83,
+              "right": 745.64,
+              "top": 1189.3,
+              "bottom": 1237.3,
+              "width": 146.81,
+              "height": 48
+            },
+            {
+              "label": "Brixton",
+              "left": 753.64,
+              "right": 853.55,
+              "top": 1189.3,
+              "bottom": 1237.3,
+              "width": 99.91,
+              "height": 48
+            },
+            {
+              "label": "Clapham",
+              "left": 861.55,
+              "right": 971.98,
+              "top": 1189.3,
+              "bottom": 1237.3,
+              "width": 110.44,
+              "height": 48
+            },
+            {
+              "label": "Islington",
+              "left": 258,
+              "right": 367.27,
+              "top": 1245.3,
+              "bottom": 1293.3,
+              "width": 109.27,
+              "height": 48
+            },
+            {
+              "label": "Hackney",
+              "left": 375.27,
+              "right": 485.16,
+              "top": 1245.3,
+              "bottom": 1293.3,
+              "width": 109.89,
+              "height": 48
+            }
+          ]
+        },
+        {
+          "name": "Plan footer actions",
+          "selector": ".planIntake__actions button",
+          "controls": [
+            {
+              "label": "Back",
+              "left": 258,
+              "right": 318.47,
+              "top": 1336.3,
+              "bottom": 1380.3,
+              "width": 60.47,
+              "height": 44
+            },
+            {
+              "label": "Skip for now",
+              "left": 808.69,
+              "right": 915.41,
+              "top": 1336.3,
+              "bottom": 1380.3,
+              "width": 106.72,
+              "height": 44
+            },
+            {
+              "label": "Continue",
+              "left": 923.41,
+              "right": 1022,
+              "top": 1336.3,
+              "bottom": 1380.3,
+              "width": 98.59,
+              "height": 44
+            }
+          ]
+        }
+      ],
+      "panels": [
+        {
+          "name": "page main",
+          "selector": "main",
+          "left": 0,
+          "right": 1280,
+          "top": 0,
+          "bottom": 1554.3,
+          "width": 1280,
+          "height": 1554.3
+        }
+      ],
+      "assertions": [
+        {
+          "name": "Plan area choices shares one control height",
+          "passed": true,
+          "detail": "48, 48, 48, 48, 48, 48, 48, 48px; spread 0px"
+        },
+        {
+          "name": "Plan footer actions shares one control height",
+          "passed": true,
+          "detail": "44, 44, 44px; spread 0px"
+        }
+      ],
+      "screenshot": "plan-1280.png"
+    },
+    {
+      "viewport": {
+        "width": 1280,
+        "height": 800
+      },
+      "surface": "profile-signed-in",
+      "path": "/u/layoutcaptain",
+      "firstVisitPrompt": null,
+      "rows": [
+        {
+          "name": "profile header actions",
+          "selector": ".profileActions > a, .profileActions > button",
+          "controls": [
+            {
+              "label": "Invite your lot",
+              "left": 85,
+              "right": 359,
+              "top": 371.47,
+              "bottom": 415.47,
+              "width": 274,
+              "height": 44
+            },
+            {
+              "label": "Edit profile",
+              "left": 85,
+              "right": 359,
+              "top": 425.47,
+              "bottom": 469.47,
+              "width": 274,
+              "height": 44
+            },
+            {
+              "label": "Meet your Pub Pal",
+              "left": 85,
+              "right": 359,
+              "top": 479.47,
+              "bottom": 523.47,
+              "width": 274,
+              "height": 44
+            }
+          ]
+        },
+        {
+          "name": "profile owner utilities",
+          "selector": ".profileOwnerUtilities .siteNavMoreBtn",
+          "controls": [
+            {
+              "label": "Profile options",
+              "left": 1133.69,
+              "right": 1228,
+              "top": 128,
+              "bottom": 172,
+              "width": 94.31,
+              "height": 44
+            }
+          ]
+        }
+      ],
+      "panels": [
+        {
+          "name": "page main",
+          "selector": "main",
+          "left": 20,
+          "right": 1260,
+          "top": 64,
+          "bottom": 4576.95,
+          "width": 1240,
+          "height": 4512.95
+        }
+      ],
+      "assertions": [
+        {
+          "name": "profile header actions shares one control height",
+          "passed": true,
+          "detail": "44, 44, 44px; spread 0px"
+        }
+      ],
+      "screenshot": "profile-signed-in-1280.png"
+    },
+    {
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "surface": "landing",
+      "path": "/",
+      "firstVisitPrompt": null,
+      "rows": [
+        {
+          "name": "landing hero actions",
+          "selector": ".lpHeroActions .lpButton",
+          "controls": [
+            {
+              "label": "Find my pint",
+              "left": 52,
+              "right": 239.14,
+              "top": 798.95,
+              "bottom": 852.95,
+              "width": 187.14,
+              "height": 54
+            },
+            {
+              "label": "Open the map",
+              "left": 249.14,
+              "right": 436.28,
+              "top": 798.95,
+              "bottom": 852.95,
+              "width": 187.14,
+              "height": 54
+            },
+            {
+              "label": "Plan my night",
+              "left": 446.28,
+              "right": 633.42,
+              "top": 798.95,
+              "bottom": 852.95,
+              "width": 187.14,
+              "height": 54
+            }
+          ]
+        }
+      ],
+      "panels": [
+        {
+          "name": "page main",
+          "selector": "main",
+          "left": 0,
+          "right": 1440,
+          "top": 0,
+          "bottom": 5357.38,
+          "width": 1440,
+          "height": 5357.38
+        }
+      ],
+      "assertions": [
+        {
+          "name": "landing hero actions shares one control height",
+          "passed": true,
+          "detail": "54, 54, 54px; spread 0px"
+        }
+      ],
+      "screenshot": "landing-1440.png"
+    },
+    {
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "surface": "map-first-visit",
+      "path": "/map",
+      "firstVisitPrompt": null,
+      "rows": [
+        {
+          "name": "Tonight Arc controls",
+          "selector": ".tonightArcRow > button",
+          "controls": [
+            {
+              "label": "Pints",
+              "left": 567.34,
+              "right": 617.13,
+              "top": 94.41,
+              "bottom": 128.41,
+              "width": 49.78,
+              "height": 34
+            },
+            {
+              "label": "Bars",
+              "left": 622.13,
+              "right": 668.42,
+              "top": 94.41,
+              "bottom": 128.41,
+              "width": 46.3,
+              "height": 34
+            },
+            {
+              "label": "Clubs are not mapped yet",
+              "left": 673.42,
+              "right": 723.61,
+              "top": 94.41,
+              "bottom": 128.41,
+              "width": 50.19,
+              "height": 34
+            },
+            {
+              "label": "Food",
+              "left": 728.61,
+              "right": 777.14,
+              "top": 94.41,
+              "bottom": 128.41,
+              "width": 48.53,
+              "height": 34
+            },
+            {
+              "label": "Restaurants",
+              "left": 782.14,
+              "right": 872.64,
+              "top": 94.41,
+              "bottom": 128.41,
+              "width": 90.5,
+              "height": 34
+            }
+          ]
+        },
+        {
+          "name": "desktop map toolbar",
+          "selector": ".mapSearchSuggest--toolbar > label, .mapToolbarDesktopExtras .favoritePintControl, .mapToolbar > .mapToolbarRow > .conditionsChip, .mapToolbarDrinksBtn, .zonePickerBtn, .planBtn, .citySwitcherTrigger",
+          "controls": [
+            {
+              "label": "Search pubs",
+              "left": 109,
+              "right": 497,
+              "top": 167,
+              "bottom": 211,
+              "width": 388,
+              "height": 44
+            },
+            {
+              "label": "DrinkPintWineWhiskyGinVodkaRumCocktailsShotsAlcohol-freeSoft drinks",
+              "left": 503,
+              "right": 685.38,
+              "top": 167,
+              "bottom": 211,
+              "width": 182.38,
+              "height": 44
+            },
+            {
+              "label": "My pintCheapest pint (any)Guinness · 4.2%Amstel · 4%Estrella · 4.6%Peroni · 5%Neck Oil · 4.3%Birra Moretti · 4.6%Madrí · 4.6%Pravha · 4%Carling · 4%Fosters · 4%Corona · 4.5%Budweiser · 4.8%Carlsberg · 3.8%Stella Artois · 4.6%San Miguel · 5%Asahi · 5.2%Coors · 4%Camden Hells · 4.6%Kronenbourg · 5%Leffe Blonde · 6.6%Bud Light · 3.5%",
+              "left": 691.38,
+              "right": 930.19,
+              "top": 167,
+              "bottom": 211,
+              "width": 238.81,
+              "height": 44
+            },
+            {
+              "label": "Show drink filters",
+              "left": 936.19,
+              "right": 1013.69,
+              "top": 167,
+              "bottom": 211,
+              "width": 77.5,
+              "height": 44
+            },
+            {
+              "label": "Zone",
+              "left": 1019.69,
+              "right": 1106.13,
+              "top": 167,
+              "bottom": 211,
+              "width": 86.44,
+              "height": 44
+            },
+            {
+              "label": "Plan tonight",
+              "left": 1112.13,
+              "right": 1246.11,
+              "top": 167,
+              "bottom": 211,
+              "width": 133.98,
+              "height": 44
+            },
+            {
+              "label": "City map: London. Change city",
+              "left": 1252.11,
+              "right": 1326.88,
+              "top": 167,
+              "bottom": 211,
+              "width": 74.77,
+              "height": 44
+            }
+          ]
+        }
+      ],
+      "panels": [
+        {
+          "name": "Tonight Arc panel",
+          "selector": ".tonightArcChips",
+          "left": 100,
+          "right": 1340,
+          "top": 80,
+          "bottom": 128.41,
+          "width": 1240,
+          "height": 48.41
+        },
+        {
+          "name": "desktop map navigation",
+          "selector": ".siteNavBarFloating",
+          "left": 100,
+          "right": 1340,
+          "top": 12,
+          "bottom": 76,
+          "width": 1240,
+          "height": 64
+        },
+        {
+          "name": "desktop map toolbar",
+          "selector": ".mapToolbar",
+          "left": 100,
+          "right": 1340,
+          "top": 159,
+          "bottom": 314,
+          "width": 1240,
+          "height": 155
+        },
+        {
+          "name": "map credit",
+          "selector": ".maplibregl-ctrl-bottom-right",
+          "left": 1396,
+          "right": 1440,
+          "top": 856,
+          "bottom": 900,
+          "width": 44,
+          "height": 44
+        },
+        {
+          "name": "page main",
+          "selector": "main",
+          "left": 0,
+          "right": 1440,
+          "top": 0,
+          "bottom": 900,
+          "width": 1440,
+          "height": 900
+        }
+      ],
+      "assertions": [
+        {
+          "name": "Tonight Arc controls shares one control height",
+          "passed": true,
+          "detail": "34, 34, 34, 34, 34px; spread 0px"
+        },
+        {
+          "name": "desktop map toolbar shares one control height",
+          "passed": true,
+          "detail": "44, 44, 44, 44, 44, 44, 44px; spread 0px"
+        },
+        {
+          "name": "floating map stack shares one horizontal boundary",
+          "passed": true,
+          "detail": "desktop map navigation 100-1340px; Tonight Arc panel 100-1340px; desktop map toolbar 100-1340px"
+        }
+      ],
+      "screenshot": "map-first-visit-1440.png"
+    },
+    {
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "surface": "venue-sheet",
+      "path": "/map?sel=venue-xjf3n0",
+      "firstVisitPrompt": null,
+      "rows": [
+        {
+          "name": "Tonight Arc controls",
+          "selector": ".tonightArcRow > button",
+          "controls": [
+            {
+              "label": "Pints",
+              "left": 567.34,
+              "right": 617.13,
+              "top": 94.41,
+              "bottom": 128.41,
+              "width": 49.78,
+              "height": 34
+            },
+            {
+              "label": "Bars",
+              "left": 622.13,
+              "right": 668.42,
+              "top": 94.41,
+              "bottom": 128.41,
+              "width": 46.3,
+              "height": 34
+            },
+            {
+              "label": "Clubs are not mapped yet",
+              "left": 673.42,
+              "right": 723.61,
+              "top": 94.41,
+              "bottom": 128.41,
+              "width": 50.19,
+              "height": 34
+            },
+            {
+              "label": "Food",
+              "left": 728.61,
+              "right": 777.14,
+              "top": 94.41,
+              "bottom": 128.41,
+              "width": 48.53,
+              "height": 34
+            },
+            {
+              "label": "Restaurants",
+              "left": 782.14,
+              "right": 872.64,
+              "top": 94.41,
+              "bottom": 128.41,
+              "width": 90.5,
+              "height": 34
+            }
+          ]
+        },
+        {
+          "name": "desktop map toolbar",
+          "selector": ".mapSearchSuggest--toolbar > label, .mapToolbarDesktopExtras .favoritePintControl, .mapToolbar > .mapToolbarRow > .conditionsChip, .mapToolbarDrinksBtn, .zonePickerBtn, .planBtn, .citySwitcherTrigger",
+          "controls": [
+            {
+              "label": "Search pubs",
+              "left": 109,
+              "right": 497,
+              "top": 167,
+              "bottom": 211,
+              "width": 388,
+              "height": 44
+            },
+            {
+              "label": "DrinkPintWineWhiskyGinVodkaRumCocktailsShotsAlcohol-freeSoft drinks",
+              "left": 503,
+              "right": 685.38,
+              "top": 167,
+              "bottom": 211,
+              "width": 182.38,
+              "height": 44
+            },
+            {
+              "label": "My pintCheapest pint (any)Guinness · 4.2%Amstel · 4%Estrella · 4.6%Peroni · 5%Neck Oil · 4.3%Birra Moretti · 4.6%Madrí · 4.6%Pravha · 4%Carling · 4%Fosters · 4%Corona · 4.5%Budweiser · 4.8%Carlsberg · 3.8%Stella Artois · 4.6%San Miguel · 5%Asahi · 5.2%Coors · 4%Camden Hells · 4.6%Kronenbourg · 5%Leffe Blonde · 6.6%Bud Light · 3.5%",
+              "left": 691.38,
+              "right": 930.19,
+              "top": 167,
+              "bottom": 211,
+              "width": 238.81,
+              "height": 44
+            },
+            {
+              "label": "Show drink filters",
+              "left": 936.19,
+              "right": 1013.69,
+              "top": 167,
+              "bottom": 211,
+              "width": 77.5,
+              "height": 44
+            },
+            {
+              "label": "Zone",
+              "left": 1019.69,
+              "right": 1106.13,
+              "top": 167,
+              "bottom": 211,
+              "width": 86.44,
+              "height": 44
+            },
+            {
+              "label": "Plan tonight",
+              "left": 1112.13,
+              "right": 1246.11,
+              "top": 167,
+              "bottom": 211,
+              "width": 133.98,
+              "height": 44
+            },
+            {
+              "label": "City map: London. Change city",
+              "left": 1252.11,
+              "right": 1326.88,
+              "top": 167,
+              "bottom": 211,
+              "width": 74.77,
+              "height": 44
+            }
+          ]
+        }
+      ],
+      "panels": [
+        {
+          "name": "Tonight Arc panel",
+          "selector": ".tonightArcChips",
+          "left": 100,
+          "right": 1340,
+          "top": 80,
+          "bottom": 128.41,
+          "width": 1240,
+          "height": 48.41
+        },
+        {
+          "name": "desktop map navigation",
+          "selector": ".siteNavBarFloating",
+          "left": 100,
+          "right": 1340,
+          "top": 12,
+          "bottom": 76,
+          "width": 1240,
+          "height": 64
+        },
+        {
+          "name": "desktop map toolbar",
+          "selector": ".mapToolbar",
+          "left": 100,
+          "right": 1340,
+          "top": 159,
+          "bottom": 314,
+          "width": 1240,
+          "height": 155
+        },
+        {
+          "name": "map credit",
+          "selector": ".maplibregl-ctrl-bottom-right",
+          "left": 1396,
+          "right": 1440,
+          "top": 856,
+          "bottom": 900,
+          "width": 44,
+          "height": 44
+        },
+        {
+          "name": "page main",
+          "selector": "main",
+          "left": 0,
+          "right": 1440,
+          "top": 0,
+          "bottom": 900,
+          "width": 1440,
+          "height": 900
+        }
+      ],
+      "assertions": [
+        {
+          "name": "Tonight Arc controls shares one control height",
+          "passed": true,
+          "detail": "34, 34, 34, 34, 34px; spread 0px"
+        },
+        {
+          "name": "desktop map toolbar shares one control height",
+          "passed": true,
+          "detail": "44, 44, 44, 44, 44, 44, 44px; spread 0px"
+        }
+      ],
+      "screenshot": "venue-sheet-1440.png"
+    },
+    {
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "surface": "plan",
+      "path": "/plan",
+      "firstVisitPrompt": null,
+      "rows": [
+        {
+          "name": "Plan area choices",
+          "selector": ".planIntake__choices--areas > button",
+          "controls": [
+            {
+              "label": "Soho",
+              "left": 338,
+              "right": 424.09,
+              "top": 1193.52,
+              "bottom": 1241.52,
+              "width": 86.09,
+              "height": 48
+            },
+            {
+              "label": "Shoreditch",
+              "left": 432.09,
+              "right": 555.88,
+              "top": 1193.52,
+              "bottom": 1241.52,
+              "width": 123.78,
+              "height": 48
+            },
+            {
+              "label": "Camden",
+              "left": 563.88,
+              "right": 670.83,
+              "top": 1193.52,
+              "bottom": 1241.52,
+              "width": 106.95,
+              "height": 48
+            },
+            {
+              "label": "London Bridge",
+              "left": 678.83,
+              "right": 825.64,
+              "top": 1193.52,
+              "bottom": 1241.52,
+              "width": 146.81,
+              "height": 48
+            },
+            {
+              "label": "Brixton",
+              "left": 833.64,
+              "right": 933.55,
+              "top": 1193.52,
+              "bottom": 1241.52,
+              "width": 99.91,
+              "height": 48
+            },
+            {
+              "label": "Clapham",
+              "left": 941.55,
+              "right": 1051.98,
+              "top": 1193.52,
+              "bottom": 1241.52,
+              "width": 110.44,
+              "height": 48
+            },
+            {
+              "label": "Islington",
+              "left": 338,
+              "right": 447.27,
+              "top": 1249.52,
+              "bottom": 1297.52,
+              "width": 109.27,
+              "height": 48
+            },
+            {
+              "label": "Hackney",
+              "left": 455.27,
+              "right": 565.16,
+              "top": 1249.52,
+              "bottom": 1297.52,
+              "width": 109.89,
+              "height": 48
+            }
+          ]
+        },
+        {
+          "name": "Plan footer actions",
+          "selector": ".planIntake__actions button",
+          "controls": [
+            {
+              "label": "Back",
+              "left": 338,
+              "right": 398.47,
+              "top": 1340.52,
+              "bottom": 1384.52,
+              "width": 60.47,
+              "height": 44
+            },
+            {
+              "label": "Skip for now",
+              "left": 888.69,
+              "right": 995.41,
+              "top": 1340.52,
+              "bottom": 1384.52,
+              "width": 106.72,
+              "height": 44
+            },
+            {
+              "label": "Continue",
+              "left": 1003.41,
+              "right": 1102,
+              "top": 1340.52,
+              "bottom": 1384.52,
+              "width": 98.59,
+              "height": 44
+            }
+          ]
+        }
+      ],
+      "panels": [
+        {
+          "name": "page main",
+          "selector": "main",
+          "left": 0,
+          "right": 1440,
+          "top": 0,
+          "bottom": 1558.52,
+          "width": 1440,
+          "height": 1558.52
+        }
+      ],
+      "assertions": [
+        {
+          "name": "Plan area choices shares one control height",
+          "passed": true,
+          "detail": "48, 48, 48, 48, 48, 48, 48, 48px; spread 0px"
+        },
+        {
+          "name": "Plan footer actions shares one control height",
+          "passed": true,
+          "detail": "44, 44, 44px; spread 0px"
+        }
+      ],
+      "screenshot": "plan-1440.png"
+    },
+    {
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "surface": "profile-signed-in",
+      "path": "/u/layoutcaptain",
+      "firstVisitPrompt": null,
+      "rows": [
+        {
+          "name": "profile header actions",
+          "selector": ".profileActions > a, .profileActions > button",
+          "controls": [
+            {
+              "label": "Invite your lot",
+              "left": 165,
+              "right": 439,
+              "top": 371.47,
+              "bottom": 415.47,
+              "width": 274,
+              "height": 44
+            },
+            {
+              "label": "Edit profile",
+              "left": 165,
+              "right": 439,
+              "top": 425.47,
+              "bottom": 469.47,
+              "width": 274,
+              "height": 44
+            },
+            {
+              "label": "Meet your Pub Pal",
+              "left": 165,
+              "right": 439,
+              "top": 479.47,
+              "bottom": 523.47,
+              "width": 274,
+              "height": 44
+            }
+          ]
+        },
+        {
+          "name": "profile owner utilities",
+          "selector": ".profileOwnerUtilities .siteNavMoreBtn",
+          "controls": [
+            {
+              "label": "Profile options",
+              "left": 1213.69,
+              "right": 1308,
+              "top": 128,
+              "bottom": 172,
+              "width": 94.31,
+              "height": 44
+            }
+          ]
+        }
+      ],
+      "panels": [
+        {
+          "name": "page main",
+          "selector": "main",
+          "left": 100,
+          "right": 1340,
+          "top": 64,
+          "bottom": 4576.95,
+          "width": 1240,
+          "height": 4512.95
+        }
+      ],
+      "assertions": [
+        {
+          "name": "profile header actions shares one control height",
+          "passed": true,
+          "detail": "44, 44, 44px; spread 0px"
+        }
+      ],
+      "screenshot": "profile-signed-in-1440.png"
+    }
+  ],
+  "routeAudit": [
+    {
+      "viewportWidth": 1280,
+      "source": "app/page.tsx",
+      "requestedPath": "/",
+      "renderedPath": "/",
+      "status": 200,
+      "mainSelector": "main",
+      "main": {
+        "left": 0,
+        "right": 1280,
+        "top": 0,
+        "bottom": 5060.02,
+        "width": 1280,
+        "height": 5060.02
+      },
+      "leftOffset": 0,
+      "rightOffset": 0,
+      "offsetDelta": 0,
+      "computedMaxWidth": "none",
+      "computedMarginLeft": "0px",
+      "computedMarginRight": "0px",
+      "classification": "full-bleed"
+    },
+    {
+      "viewportWidth": 1280,
+      "source": "app/about/page.tsx",
+      "requestedPath": "/about",
+      "renderedPath": "/about",
+      "status": 200,
+      "mainSelector": "main.aboutPage",
+      "main": {
+        "left": 260,
+        "right": 1020,
+        "top": 0,
+        "bottom": 3612.03,
+        "width": 760,
+        "height": 3612.03
+      },
+      "leftOffset": 260,
+      "rightOffset": 260,
+      "offsetDelta": 0,
+      "computedMaxWidth": "760px",
+      "computedMarginLeft": "260px",
+      "computedMarginRight": "260px",
+      "classification": "centred"
+    },
+    {
+      "viewportWidth": 1280,
+      "source": "app/activity/page.tsx",
+      "requestedPath": "/activity",
+      "renderedPath": "/activity",
+      "status": 200,
+      "mainSelector": "main.activity",
+      "main": {
+        "left": 100,
+        "right": 1180,
+        "top": 108,
+        "bottom": 510.3,
+        "width": 1080,
+        "height": 402.3
+      },
+      "leftOffset": 100,
+      "rightOffset": 100,
+      "offsetDelta": 0,
+      "computedMaxWidth": "1080px",
+      "computedMarginLeft": "84px",
+      "computedMarginRight": "84px",
+      "classification": "centred"
+    },
+    {
+      "viewportWidth": 1280,
+      "source": "app/add/[handle]/page.tsx",
+      "requestedPath": "/add/layoutcaptain",
+      "renderedPath": "/add/layoutcaptain",
+      "status": 200,
+      "mainSelector": "main.addShell",
+      "main": {
+        "left": 0,
+        "right": 1280,
+        "top": 0,
+        "bottom": 800,
+        "width": 1280,
+        "height": 800
+      },
+      "leftOffset": 0,
+      "rightOffset": 0,
+      "offsetDelta": 0,
+      "computedMaxWidth": "none",
+      "computedMarginLeft": "0px",
+      "computedMarginRight": "0px",
+      "classification": "full-bleed"
+    },
+    {
+      "viewportWidth": 1280,
+      "source": "app/admin/page.tsx",
+      "requestedPath": "/admin",
+      "renderedPath": "/admin",
+      "status": 200,
+      "mainSelector": "main.admin",
+      "main": {
+        "left": 260,
+        "right": 1020,
+        "top": 0,
+        "bottom": 1277.09,
+        "width": 760,
+        "height": 1277.09
+      },
+      "leftOffset": 260,
+      "rightOffset": 260,
+      "offsetDelta": 0,
+      "computedMaxWidth": "760px",
+      "computedMarginLeft": "260px",
+      "computedMarginRight": "260px",
+      "classification": "centred"
+    },
+    {
+      "viewportWidth": 1280,
+      "source": "app/bar-tab/[id]/page.tsx",
+      "requestedPath": "/bar-tab/venue-xjf3n0",
+      "renderedPath": "/bar-tab/venue-xjf3n0",
+      "status": 200,
+      "mainSelector": "main.barTabPage",
+      "main": {
+        "left": 160,
+        "right": 1120,
+        "top": 0,
+        "bottom": 752.44,
+        "width": 960,
+        "height": 752.44
+      },
+      "leftOffset": 160,
+      "rightOffset": 160,
+      "offsetDelta": 0,
+      "computedMaxWidth": "960px",
+      "computedMarginLeft": "160px",
+      "computedMarginRight": "160px",
+      "classification": "centred"
+    },
+    {
+      "viewportWidth": 1280,
+      "source": "app/borough/[slug]/page.tsx",
+      "requestedPath": "/borough/enfield",
+      "renderedPath": "/borough/enfield",
+      "status": 200,
+      "mainSelector": "main.boroughPage",
+      "main": {
+        "left": 200,
+        "right": 1080,
+        "top": 0,
+        "bottom": 9298.67,
+        "width": 880,
+        "height": 9298.67
+      },
+      "leftOffset": 200,
+      "rightOffset": 200,
+      "offsetDelta": 0,
+      "computedMaxWidth": "880px",
+      "computedMarginLeft": "200px",
+      "computedMarginRight": "200px",
+      "classification": "centred"
+    },
+    {
+      "viewportWidth": 1280,
+      "source": "app/borough/page.tsx",
+      "requestedPath": "/borough",
+      "renderedPath": "/borough",
+      "status": 200,
+      "mainSelector": "main.boroughPage",
+      "main": {
+        "left": 200,
+        "right": 1080,
+        "top": 0,
+        "bottom": 2201.75,
+        "width": 880,
+        "height": 2201.75
+      },
+      "leftOffset": 200,
+      "rightOffset": 200,
+      "offsetDelta": 0,
+      "computedMaxWidth": "880px",
+      "computedMarginLeft": "200px",
+      "computedMarginRight": "200px",
+      "classification": "centred"
+    },
+    {
+      "viewportWidth": 1280,
+      "source": "app/choose-city/page.tsx",
+      "requestedPath": "/choose-city",
+      "renderedPath": "/choose-city",
+      "status": 200,
+      "mainSelector": "div.cityChooserInner",
+      "main": {
+        "left": 180,
+        "right": 1100,
+        "top": 64,
+        "bottom": 835.83,
+        "width": 920,
+        "height": 771.83
+      },
+      "leftOffset": 180,
+      "rightOffset": 180,
+      "offsetDelta": 0,
+      "computedMaxWidth": "920px",
+      "computedMarginLeft": "132px",
+      "computedMarginRight": "132px",
+      "classification": "centred"
+    },
+    {
+      "viewportWidth": 1280,
+      "source": "app/contributors/page.tsx",
+      "requestedPath": "/contributors",
+      "renderedPath": "/contributors",
+      "status": 200,
+      "mainSelector": "main.contributorMain",
+      "main": {
+        "left": 210,
+        "right": 1070,
+        "top": 64,
+        "bottom": 669.27,
+        "width": 860,
+        "height": 605.27
+      },
+      "leftOffset": 210,
+      "rightOffset": 210,
+      "offsetDelta": 0,
+      "computedMaxWidth": "none",
+      "computedMarginLeft": "210px",
+      "computedMarginRight": "210px",
+      "classification": "centred"
+    },
+    {
+      "viewportWidth": 1280,
+      "source": "app/crawls/[slug]/page.tsx",
+      "requestedPath": "/crawls/layout-audit-missing",
+      "renderedPath": "/crawls/layout-audit-missing",
+      "status": 404,
+      "mainSelector": "main.storyShell",
+      "main": {
+        "left": 0,
+        "right": 1280,
+        "top": 0,
+        "bottom": 800,
+        "width": 1280,
+        "height": 800
+      },
+      "leftOffset": 0,
+      "rightOffset": 0,
+      "offsetDelta": 0,
+      "computedMaxWidth": "none",
+      "computedMarginLeft": "0px",
+      "computedMarginRight": "0px",
+      "classification": "full-bleed"
+    },
+    {
+      "viewportWidth": 1280,
+      "source": "app/crawls/page.tsx",
+      "requestedPath": "/crawls",
+      "renderedPath": "/crawls",
+      "status": 200,
+      "mainSelector": "main.crawlsShell",
+      "main": {
+        "left": 0,
+        "right": 1280,
+        "top": 0,
+        "bottom": 2480.63,
+        "width": 1280,
+        "height": 2480.63
+      },
+      "leftOffset": 0,
+      "rightOffset": 0,
+      "offsetDelta": 0,
+      "computedMaxWidth": "none",
+      "computedMarginLeft": "0px",
+      "computedMarginRight": "0px",
+      "classification": "full-bleed"
+    },
+    {
+      "viewportWidth": 1280,
+      "source": "app/discover/page.tsx",
+      "requestedPath": "/discover",
+      "renderedPath": "/discover",
+      "status": 200,
+      "mainSelector": "main.discoverPage",
+      "main": {
+        "left": 100,
+        "right": 1180,
+        "top": 0,
+        "bottom": 4484.61,
+        "width": 1080,
+        "height": 4484.61
+      },
+      "leftOffset": 100,
+      "rightOffset": 100,
+      "offsetDelta": 0,
+      "computedMaxWidth": "1080px",
+      "computedMarginLeft": "100px",
+      "computedMarginRight": "100px",
+      "classification": "centred"
+    },
+    {
+      "viewportWidth": 1280,
+      "source": "app/drinks/page.tsx",
+      "requestedPath": "/drinks",
+      "renderedPath": "/discover",
+      "status": 200,
+      "mainSelector": "main.discoverPage",
+      "main": {
+        "left": 100,
+        "right": 1180,
+        "top": 0,
+        "bottom": 4484.61,
+        "width": 1080,
+        "height": 4484.61
+      },
+      "leftOffset": 100,
+      "rightOffset": 100,
+      "offsetDelta": 0,
+      "computedMaxWidth": "1080px",
+      "computedMarginLeft": "100px",
+      "computedMarginRight": "100px",
+      "classification": "centred"
+    },
+    {
+      "viewportWidth": 1280,
+      "source": "app/feed/page.tsx",
+      "requestedPath": "/feed",
+      "renderedPath": "/feed",
+      "status": 200,
+      "mainSelector": "main.feedShell",
+      "main": {
+        "left": 0,
+        "right": 1280,
+        "top": 0,
+        "bottom": 5146.22,
+        "width": 1280,
+        "height": 5146.22
+      },
+      "leftOffset": 0,
+      "rightOffset": 0,
+      "offsetDelta": 0,
+      "computedMaxWidth": "none",
+      "computedMarginLeft": "0px",
+      "computedMarginRight": "0px",
+      "classification": "full-bleed"
+    },
+    {
+      "viewportWidth": 1280,
+      "source": "app/historic/[slug]/page.tsx",
+      "requestedPath": "/historic/prospect-of-whitby",
+      "renderedPath": "/historic/prospect-of-whitby",
+      "status": 200,
+      "mainSelector": "main.hdPage",
+      "main": {
+        "left": 280,
+        "right": 1000,
+        "top": 0,
+        "bottom": 976.56,
+        "width": 720,
+        "height": 976.56
+      },
+      "leftOffset": 280,
+      "rightOffset": 280,
+      "offsetDelta": 0,
+      "computedMaxWidth": "720px",
+      "computedMarginLeft": "280px",
+      "computedMarginRight": "280px",
+      "classification": "centred"
+    },
+    {
+      "viewportWidth": 1280,
+      "source": "app/historic/page.tsx",
+      "requestedPath": "/historic",
+      "renderedPath": "/historic",
+      "status": 200,
+      "mainSelector": "main.historicPage",
+      "main": {
+        "left": 100,
+        "right": 1180,
+        "top": 0,
+        "bottom": 29952.69,
+        "width": 1080,
+        "height": 29952.69
+      },
+      "leftOffset": 100,
+      "rightOffset": 100,
+      "offsetDelta": 0,
+      "computedMaxWidth": "1080px",
+      "computedMarginLeft": "100px",
+      "computedMarginRight": "100px",
+      "classification": "centred"
+    },
+    {
+      "viewportWidth": 1280,
+      "source": "app/landmark/[id]/page.tsx",
+      "requestedPath": "/landmark/venue-xjf3n0",
+      "renderedPath": "/landmark/venue-xjf3n0",
+      "status": 404,
+      "mainSelector": "main",
+      "main": {
+        "left": 0,
+        "right": 1280,
+        "top": 0,
+        "bottom": 800,
+        "width": 1280,
+        "height": 800
+      },
+      "leftOffset": 0,
+      "rightOffset": 0,
+      "offsetDelta": 0,
+      "computedMaxWidth": "none",
+      "computedMarginLeft": "0px",
+      "computedMarginRight": "0px",
+      "classification": "full-bleed"
+    },
+    {
+      "viewportWidth": 1280,
+      "source": "app/ledger/[id]/page.tsx",
+      "requestedPath": "/ledger/venue-xjf3n0",
+      "renderedPath": "/ledger/venue-xjf3n0",
+      "status": 200,
+      "mainSelector": "main.ledgerPage",
+      "main": {
+        "left": 280,
+        "right": 1000,
+        "top": 0,
+        "bottom": 1344.23,
+        "width": 720,
+        "height": 1344.23
+      },
+      "leftOffset": 280,
+      "rightOffset": 280,
+      "offsetDelta": 0,
+      "computedMaxWidth": "720px",
+      "computedMarginLeft": "280px",
+      "computedMarginRight": "280px",
+      "classification": "centred"
+    },
+    {
+      "viewportWidth": 1280,
+      "source": "app/map/[city]/page.tsx",
+      "requestedPath": "/map/london",
+      "renderedPath": "/map/london",
+      "status": 200,
+      "mainSelector": "main.mapSkeleton",
+      "main": {
+        "left": 0,
+        "right": 1280,
+        "top": 0,
+        "bottom": 800,
+        "width": 1280,
+        "height": 800
+      },
+      "leftOffset": 0,
+      "rightOffset": 0,
+      "offsetDelta": 0,
+      "computedMaxWidth": "none",
+      "computedMarginLeft": "0px",
+      "computedMarginRight": "0px",
+      "classification": "full-bleed"
+    },
+    {
+      "viewportWidth": 1280,
+      "source": "app/map/page.tsx",
+      "requestedPath": "/map",
+      "renderedPath": "/map",
+      "status": 200,
+      "mainSelector": "main.mapSkeleton",
+      "main": {
+        "left": 0,
+        "right": 1280,
+        "top": 0,
+        "bottom": 800,
+        "width": 1280,
+        "height": 800
+      },
+      "leftOffset": 0,
+      "rightOffset": 0,
+      "offsetDelta": 0,
+      "computedMaxWidth": "none",
+      "computedMarginLeft": "0px",
+      "computedMarginRight": "0px",
+      "classification": "full-bleed"
+    },
+    {
+      "viewportWidth": 1280,
+      "source": "app/messages/[id]/page.tsx",
+      "requestedPath": "/messages/layout-audit-missing",
+      "renderedPath": "/messages/layout-audit-missing",
+      "status": 200,
+      "mainSelector": "main.container.messagesMain.messagesMainThread",
+      "main": {
+        "left": 20,
+        "right": 1260,
+        "top": 64,
+        "bottom": 800,
+        "width": 1240,
+        "height": 736
+      },
+      "leftOffset": 20,
+      "rightOffset": 20,
+      "offsetDelta": 0,
+      "computedMaxWidth": "1240px",
+      "computedMarginLeft": "20px",
+      "computedMarginRight": "20px",
+      "classification": "centred"
+    },
+    {
+      "viewportWidth": 1280,
+      "source": "app/messages/page.tsx",
+      "requestedPath": "/messages",
+      "renderedPath": "/messages",
+      "status": 200,
+      "mainSelector": "main.container.messagesMain.messagesMainInbox",
+      "main": {
+        "left": 20,
+        "right": 1260,
+        "top": 64,
+        "bottom": 800,
+        "width": 1240,
+        "height": 736
+      },
+      "leftOffset": 20,
+      "rightOffset": 20,
+      "offsetDelta": 0,
+      "computedMaxWidth": "1240px",
+      "computedMarginLeft": "20px",
+      "computedMarginRight": "20px",
+      "classification": "centred"
+    },
+    {
+      "viewportWidth": 1280,
+      "source": "app/moment/page.tsx",
+      "requestedPath": "/moment",
+      "renderedPath": "/moment",
+      "status": 200,
+      "mainSelector": "main.momentMain",
+      "main": {
+        "left": 260,
+        "right": 1020,
+        "top": 64,
+        "bottom": 1477.7,
+        "width": 760,
+        "height": 1413.7
+      },
+      "leftOffset": 260,
+      "rightOffset": 260,
+      "offsetDelta": 0,
+      "computedMaxWidth": "none",
+      "computedMarginLeft": "260px",
+      "computedMarginRight": "260px",
+      "classification": "centred"
+    },
+    {
+      "viewportWidth": 1280,
+      "source": "app/near/page.tsx",
+      "requestedPath": "/near",
+      "renderedPath": "/near",
+      "status": 200,
+      "mainSelector": "main.nmnPageBody",
+      "main": {
+        "left": 360,
+        "right": 920,
+        "top": 80,
+        "bottom": 393,
+        "width": 560,
+        "height": 313
+      },
+      "leftOffset": 360,
+      "rightOffset": 360,
+      "offsetDelta": 0,
+      "computedMaxWidth": "min(560px, 100%)",
+      "computedMarginLeft": "328px",
+      "computedMarginRight": "328px",
+      "classification": "centred"
+    },
+    {
+      "viewportWidth": 1280,
+      "source": "app/onboarding/page.tsx",
+      "requestedPath": "/onboarding",
+      "renderedPath": "/onboarding",
+      "status": 200,
+      "mainSelector": "main.firstRunOnboarding.firstRunOnboardingGate",
+      "main": {
+        "left": 0,
+        "right": 1280,
+        "top": 0,
+        "bottom": 800,
+        "width": 1280,
+        "height": 800
+      },
+      "leftOffset": 0,
+      "rightOffset": 0,
+      "offsetDelta": 0,
+      "computedMaxWidth": "none",
+      "computedMarginLeft": "0px",
+      "computedMarginRight": "0px",
+      "classification": "full-bleed"
+    },
+    {
+      "viewportWidth": 1280,
+      "source": "app/p/[id]/page.tsx",
+      "requestedPath": "/p/layout-audit-missing",
+      "renderedPath": "/p/layout-audit-missing",
+      "status": 200,
+      "mainSelector": "main.permalink.permalink--empty",
+      "main": {
+        "left": 0,
+        "right": 1280,
+        "top": 0,
+        "bottom": 800,
+        "width": 1280,
+        "height": 800
+      },
+      "leftOffset": 0,
+      "rightOffset": 0,
+      "offsetDelta": 0,
+      "computedMaxWidth": "none",
+      "computedMarginLeft": "0px",
+      "computedMarginRight": "0px",
+      "classification": "full-bleed"
+    },
+    {
+      "viewportWidth": 1280,
+      "source": "app/pal/chat/page.tsx",
+      "requestedPath": "/pal/chat",
+      "renderedPath": "/pal/chat",
+      "status": 200,
+      "mainSelector": "main.palChat",
+      "main": {
+        "left": 0,
+        "right": 1280,
+        "top": 0,
+        "bottom": 800,
+        "width": 1280,
+        "height": 800
+      },
+      "leftOffset": 0,
+      "rightOffset": 0,
+      "offsetDelta": 0,
+      "computedMaxWidth": "none",
+      "computedMarginLeft": "0px",
+      "computedMarginRight": "0px",
+      "classification": "full-bleed"
+    },
+    {
+      "viewportWidth": 1280,
+      "source": "app/pal/page.tsx",
+      "requestedPath": "/pal",
+      "renderedPath": "/pal",
+      "status": 200,
+      "mainSelector": "main.palExperience.palMeeting",
+      "main": {
+        "left": 0,
+        "right": 1280,
+        "top": 0,
+        "bottom": 888,
+        "width": 1280,
+        "height": 888
+      },
+      "leftOffset": 0,
+      "rightOffset": 0,
+      "offsetDelta": 0,
+      "computedMaxWidth": "none",
+      "computedMarginLeft": "0px",
+      "computedMarginRight": "0px",
+      "classification": "full-bleed"
+    },
+    {
+      "viewportWidth": 1280,
+      "source": "app/pint-index/[month]/page.tsx",
+      "requestedPath": "/pint-index/2026-06",
+      "renderedPath": "/pint-index/2026-06",
+      "status": 200,
+      "mainSelector": "main.pintIndexPage",
+      "main": {
+        "left": 160,
+        "right": 1120,
+        "top": 0,
+        "bottom": 785.8,
+        "width": 960,
+        "height": 785.8
+      },
+      "leftOffset": 160,
+      "rightOffset": 160,
+      "offsetDelta": 0,
+      "computedMaxWidth": "960px",
+      "computedMarginLeft": "160px",
+      "computedMarginRight": "160px",
+      "classification": "centred"
+    },
+    {
+      "viewportWidth": 1280,
+      "source": "app/pint-index/page.tsx",
+      "requestedPath": "/pint-index",
+      "renderedPath": "/pint-index",
+      "status": 200,
+      "mainSelector": "main.pintIndexPage",
+      "main": {
+        "left": 160,
+        "right": 1120,
+        "top": 0,
+        "bottom": 2323.75,
+        "width": 960,
+        "height": 2323.75
+      },
+      "leftOffset": 160,
+      "rightOffset": 160,
+      "offsetDelta": 0,
+      "computedMaxWidth": "960px",
+      "computedMarginLeft": "160px",
+      "computedMarginRight": "160px",
+      "classification": "centred"
+    },
+    {
+      "viewportWidth": 1280,
+      "source": "app/plan/[id]/page.tsx",
+      "requestedPath": "/plan/layout-audit-missing",
+      "renderedPath": "/plan/layout-audit-missing",
+      "status": 404,
+      "mainSelector": "main.planPage.planPage--composer",
+      "main": {
+        "left": 0,
+        "right": 1280,
+        "top": 0,
+        "bottom": 800,
+        "width": 1280,
+        "height": 800
+      },
+      "leftOffset": 0,
+      "rightOffset": 0,
+      "offsetDelta": 0,
+      "computedMaxWidth": "none",
+      "computedMarginLeft": "0px",
+      "computedMarginRight": "0px",
+      "classification": "full-bleed"
+    },
+    {
+      "viewportWidth": 1280,
+      "source": "app/plan/[id]/recap/page.tsx",
+      "requestedPath": "/plan/layout-audit-missing/recap",
+      "renderedPath": "/plan/layout-audit-missing/recap",
+      "status": 404,
+      "mainSelector": null,
+      "main": null,
+      "leftOffset": null,
+      "rightOffset": null,
+      "offsetDelta": null,
+      "computedMaxWidth": null,
+      "computedMarginLeft": null,
+      "computedMarginRight": null,
+      "classification": "no-main"
+    },
+    {
+      "viewportWidth": 1280,
+      "source": "app/plan/page.tsx",
+      "requestedPath": "/plan",
+      "renderedPath": "/plan",
+      "status": 200,
+      "mainSelector": "main.planPage.planPage--composer",
+      "main": {
+        "left": 0,
+        "right": 1280,
+        "top": 0,
+        "bottom": 1554.3,
+        "width": 1280,
+        "height": 1554.3
+      },
+      "leftOffset": 0,
+      "rightOffset": 0,
+      "offsetDelta": 0,
+      "computedMaxWidth": "none",
+      "computedMarginLeft": "0px",
+      "computedMarginRight": "0px",
+      "classification": "full-bleed"
+    },
+    {
+      "viewportWidth": 1280,
+      "source": "app/privacy/page.tsx",
+      "requestedPath": "/privacy",
+      "renderedPath": "/privacy",
+      "status": 200,
+      "mainSelector": "main.legalPage",
+      "main": {
+        "left": 260,
+        "right": 1020,
+        "top": 0,
+        "bottom": 10126.39,
+        "width": 760,
+        "height": 10126.39
+      },
+      "leftOffset": 260,
+      "rightOffset": 260,
+      "offsetDelta": 0,
+      "computedMaxWidth": "760px",
+      "computedMarginLeft": "260px",
+      "computedMarginRight": "260px",
+      "classification": "centred"
+    },
+    {
+      "viewportWidth": 1280,
+      "source": "app/profile/page.tsx",
+      "requestedPath": "/profile",
+      "renderedPath": "/u/you",
+      "status": 200,
+      "mainSelector": "main.container.profileMain",
+      "main": {
+        "left": 20,
+        "right": 1260,
+        "top": 64,
+        "bottom": 1573.7,
+        "width": 1240,
+        "height": 1509.7
+      },
+      "leftOffset": 20,
+      "rightOffset": 20,
+      "offsetDelta": 0,
+      "computedMaxWidth": "1240px",
+      "computedMarginLeft": "20px",
+      "computedMarginRight": "20px",
+      "classification": "centred"
+    },
+    {
+      "viewportWidth": 1280,
+      "source": "app/pubs/page.tsx",
+      "requestedPath": "/pubs",
+      "renderedPath": "/pubs",
+      "status": 200,
+      "mainSelector": "main.pubsShell",
+      "main": {
+        "left": 0,
+        "right": 1280,
+        "top": 0,
+        "bottom": 3722.91,
+        "width": 1280,
+        "height": 3722.91
+      },
+      "leftOffset": 0,
+      "rightOffset": 0,
+      "offsetDelta": 0,
+      "computedMaxWidth": "none",
+      "computedMarginLeft": "0px",
+      "computedMarginRight": "0px",
+      "classification": "full-bleed"
+    },
+    {
+      "viewportWidth": 1280,
+      "source": "app/recap/[storyId]/page.tsx",
+      "requestedPath": "/recap/layout-audit-missing",
+      "renderedPath": "/recap/layout-audit-missing",
+      "status": 404,
+      "mainSelector": "main",
+      "main": {
+        "left": 0,
+        "right": 1280,
+        "top": 0,
+        "bottom": 800,
+        "width": 1280,
+        "height": 800
+      },
+      "leftOffset": 0,
+      "rightOffset": 0,
+      "offsetDelta": 0,
+      "computedMaxWidth": "none",
+      "computedMarginLeft": "0px",
+      "computedMarginRight": "0px",
+      "classification": "full-bleed"
+    },
+    {
+      "viewportWidth": 1280,
+      "source": "app/rounds/[code]/page.tsx",
+      "requestedPath": "/rounds/layout-audit-missing",
+      "renderedPath": "/rounds/layout-audit-missing",
+      "status": 200,
+      "mainSelector": "main.roundShell",
+      "main": {
+        "left": 0,
+        "right": 1280,
+        "top": 0,
+        "bottom": 800,
+        "width": 1280,
+        "height": 800
+      },
+      "leftOffset": 0,
+      "rightOffset": 0,
+      "offsetDelta": 0,
+      "computedMaxWidth": "none",
+      "computedMarginLeft": "0px",
+      "computedMarginRight": "0px",
+      "classification": "full-bleed"
+    },
+    {
+      "viewportWidth": 1280,
+      "source": "app/rounds/page.tsx",
+      "requestedPath": "/rounds",
+      "renderedPath": "/rounds",
+      "status": 200,
+      "mainSelector": "main.roundShell",
+      "main": {
+        "left": 0,
+        "right": 1280,
+        "top": 0,
+        "bottom": 800,
+        "width": 1280,
+        "height": 800
+      },
+      "leftOffset": 0,
+      "rightOffset": 0,
+      "offsetDelta": 0,
+      "computedMaxWidth": "none",
+      "computedMarginLeft": "0px",
+      "computedMarginRight": "0px",
+      "classification": "full-bleed"
+    },
+    {
+      "viewportWidth": 1280,
+      "source": "app/terms/page.tsx",
+      "requestedPath": "/terms",
+      "renderedPath": "/terms",
+      "status": 200,
+      "mainSelector": "main.legalPage",
+      "main": {
+        "left": 260,
+        "right": 1020,
+        "top": 0,
+        "bottom": 3946.95,
+        "width": 760,
+        "height": 3946.95
+      },
+      "leftOffset": 260,
+      "rightOffset": 260,
+      "offsetDelta": 0,
+      "computedMaxWidth": "760px",
+      "computedMarginLeft": "260px",
+      "computedMarginRight": "260px",
+      "classification": "centred"
+    },
+    {
+      "viewportWidth": 1280,
+      "source": "app/today/page.tsx",
+      "requestedPath": "/today",
+      "renderedPath": "/today",
+      "status": 200,
+      "mainSelector": "main.todayPage",
+      "main": {
+        "left": 320,
+        "right": 960,
+        "top": 0,
+        "bottom": 1411.41,
+        "width": 640,
+        "height": 1411.41
+      },
+      "leftOffset": 320,
+      "rightOffset": 320,
+      "offsetDelta": 0,
+      "computedMaxWidth": "640px",
+      "computedMarginLeft": "320px",
+      "computedMarginRight": "320px",
+      "classification": "centred"
+    },
+    {
+      "viewportWidth": 1280,
+      "source": "app/tonight/page.tsx",
+      "requestedPath": "/tonight",
+      "renderedPath": "/tonight",
+      "status": 200,
+      "mainSelector": "main.tonightPage",
+      "main": {
+        "left": 280,
+        "right": 1000,
+        "top": 0,
+        "bottom": 462.63,
+        "width": 720,
+        "height": 462.63
+      },
+      "leftOffset": 280,
+      "rightOffset": 280,
+      "offsetDelta": 0,
+      "computedMaxWidth": "720px",
+      "computedMarginLeft": "280px",
+      "computedMarginRight": "280px",
+      "classification": "centred"
+    },
+    {
+      "viewportWidth": 1280,
+      "source": "app/u/[handle]/lists/[listType]/page.tsx",
+      "requestedPath": "/u/layoutcaptain/lists/favourites",
+      "renderedPath": "/u/layoutcaptain/lists/favourites",
+      "status": 200,
+      "mainSelector": "main.container.profileMain",
+      "main": {
+        "left": 20,
+        "right": 1260,
+        "top": 64,
+        "bottom": 652.53,
+        "width": 1240,
+        "height": 588.53
+      },
+      "leftOffset": 20,
+      "rightOffset": 20,
+      "offsetDelta": 0,
+      "computedMaxWidth": "1240px",
+      "computedMarginLeft": "20px",
+      "computedMarginRight": "20px",
+      "classification": "centred"
+    },
+    {
+      "viewportWidth": 1280,
+      "source": "app/u/[handle]/page.tsx",
+      "requestedPath": "/u/layoutcaptain",
+      "renderedPath": "/u/layoutcaptain",
+      "status": 200,
+      "mainSelector": "main.container.profileMain",
+      "main": {
+        "left": 20,
+        "right": 1260,
+        "top": 64,
+        "bottom": 1394.98,
+        "width": 1240,
+        "height": 1330.98
+      },
+      "leftOffset": 20,
+      "rightOffset": 20,
+      "offsetDelta": 0,
+      "computedMaxWidth": "1240px",
+      "computedMarginLeft": "20px",
+      "computedMarginRight": "20px",
+      "classification": "centred"
+    },
+    {
+      "viewportWidth": 1280,
+      "source": "app/we-are-out/page.tsx",
+      "requestedPath": "/we-are-out",
+      "renderedPath": "/we-are-out",
+      "status": 200,
+      "mainSelector": "main.feedShell.weAreOut",
+      "main": {
+        "left": 0,
+        "right": 1280,
+        "top": 0,
+        "bottom": 800,
+        "width": 1280,
+        "height": 800
+      },
+      "leftOffset": 0,
+      "rightOffset": 0,
+      "offsetDelta": 0,
+      "computedMaxWidth": "none",
+      "computedMarginLeft": "0px",
+      "computedMarginRight": "0px",
+      "classification": "full-bleed"
+    },
+    {
+      "viewportWidth": 1440,
+      "source": "app/page.tsx",
+      "requestedPath": "/",
+      "renderedPath": "/",
+      "status": 200,
+      "mainSelector": "main",
+      "main": {
+        "left": 0,
+        "right": 1440,
+        "top": 0,
+        "bottom": 5357.38,
+        "width": 1440,
+        "height": 5357.38
+      },
+      "leftOffset": 0,
+      "rightOffset": 0,
+      "offsetDelta": 0,
+      "computedMaxWidth": "none",
+      "computedMarginLeft": "0px",
+      "computedMarginRight": "0px",
+      "classification": "full-bleed"
+    },
+    {
+      "viewportWidth": 1440,
+      "source": "app/about/page.tsx",
+      "requestedPath": "/about",
+      "renderedPath": "/about",
+      "status": 200,
+      "mainSelector": "main.aboutPage",
+      "main": {
+        "left": 340,
+        "right": 1100,
+        "top": 0,
+        "bottom": 3612.03,
+        "width": 760,
+        "height": 3612.03
+      },
+      "leftOffset": 340,
+      "rightOffset": 340,
+      "offsetDelta": 0,
+      "computedMaxWidth": "760px",
+      "computedMarginLeft": "340px",
+      "computedMarginRight": "340px",
+      "classification": "centred"
+    },
+    {
+      "viewportWidth": 1440,
+      "source": "app/activity/page.tsx",
+      "requestedPath": "/activity",
+      "renderedPath": "/activity",
+      "status": 200,
+      "mainSelector": "main.activity",
+      "main": {
+        "left": 180,
+        "right": 1260,
+        "top": 108,
+        "bottom": 510.3,
+        "width": 1080,
+        "height": 402.3
+      },
+      "leftOffset": 180,
+      "rightOffset": 180,
+      "offsetDelta": 0,
+      "computedMaxWidth": "1080px",
+      "computedMarginLeft": "164px",
+      "computedMarginRight": "164px",
+      "classification": "centred"
+    },
+    {
+      "viewportWidth": 1440,
+      "source": "app/add/[handle]/page.tsx",
+      "requestedPath": "/add/layoutcaptain",
+      "renderedPath": "/add/layoutcaptain",
+      "status": 200,
+      "mainSelector": "main.addShell",
+      "main": {
+        "left": 0,
+        "right": 1440,
+        "top": 0,
+        "bottom": 900,
+        "width": 1440,
+        "height": 900
+      },
+      "leftOffset": 0,
+      "rightOffset": 0,
+      "offsetDelta": 0,
+      "computedMaxWidth": "none",
+      "computedMarginLeft": "0px",
+      "computedMarginRight": "0px",
+      "classification": "full-bleed"
+    },
+    {
+      "viewportWidth": 1440,
+      "source": "app/admin/page.tsx",
+      "requestedPath": "/admin",
+      "renderedPath": "/admin",
+      "status": 200,
+      "mainSelector": "main.admin",
+      "main": {
+        "left": 340,
+        "right": 1100,
+        "top": 0,
+        "bottom": 1277.09,
+        "width": 760,
+        "height": 1277.09
+      },
+      "leftOffset": 340,
+      "rightOffset": 340,
+      "offsetDelta": 0,
+      "computedMaxWidth": "760px",
+      "computedMarginLeft": "340px",
+      "computedMarginRight": "340px",
+      "classification": "centred"
+    },
+    {
+      "viewportWidth": 1440,
+      "source": "app/bar-tab/[id]/page.tsx",
+      "requestedPath": "/bar-tab/venue-xjf3n0",
+      "renderedPath": "/bar-tab/venue-xjf3n0",
+      "status": 200,
+      "mainSelector": "main.barTabPage",
+      "main": {
+        "left": 240,
+        "right": 1200,
+        "top": 0,
+        "bottom": 752.44,
+        "width": 960,
+        "height": 752.44
+      },
+      "leftOffset": 240,
+      "rightOffset": 240,
+      "offsetDelta": 0,
+      "computedMaxWidth": "960px",
+      "computedMarginLeft": "240px",
+      "computedMarginRight": "240px",
+      "classification": "centred"
+    },
+    {
+      "viewportWidth": 1440,
+      "source": "app/borough/[slug]/page.tsx",
+      "requestedPath": "/borough/enfield",
+      "renderedPath": "/borough/enfield",
+      "status": 200,
+      "mainSelector": "main.boroughPage",
+      "main": {
+        "left": 280,
+        "right": 1160,
+        "top": 0,
+        "bottom": 9298.67,
+        "width": 880,
+        "height": 9298.67
+      },
+      "leftOffset": 280,
+      "rightOffset": 280,
+      "offsetDelta": 0,
+      "computedMaxWidth": "880px",
+      "computedMarginLeft": "280px",
+      "computedMarginRight": "280px",
+      "classification": "centred"
+    },
+    {
+      "viewportWidth": 1440,
+      "source": "app/borough/page.tsx",
+      "requestedPath": "/borough",
+      "renderedPath": "/borough",
+      "status": 200,
+      "mainSelector": "main.boroughPage",
+      "main": {
+        "left": 280,
+        "right": 1160,
+        "top": 0,
+        "bottom": 2201.75,
+        "width": 880,
+        "height": 2201.75
+      },
+      "leftOffset": 280,
+      "rightOffset": 280,
+      "offsetDelta": 0,
+      "computedMaxWidth": "880px",
+      "computedMarginLeft": "280px",
+      "computedMarginRight": "280px",
+      "classification": "centred"
+    },
+    {
+      "viewportWidth": 1440,
+      "source": "app/choose-city/page.tsx",
+      "requestedPath": "/choose-city",
+      "renderedPath": "/choose-city",
+      "status": 200,
+      "mainSelector": "div.cityChooserInner",
+      "main": {
+        "left": 260,
+        "right": 1180,
+        "top": 64.08,
+        "bottom": 835.91,
+        "width": 920,
+        "height": 771.83
+      },
+      "leftOffset": 260,
+      "rightOffset": 260,
+      "offsetDelta": 0,
+      "computedMaxWidth": "920px",
+      "computedMarginLeft": "212px",
+      "computedMarginRight": "212px",
+      "classification": "centred"
+    },
+    {
+      "viewportWidth": 1440,
+      "source": "app/contributors/page.tsx",
+      "requestedPath": "/contributors",
+      "renderedPath": "/contributors",
+      "status": 200,
+      "mainSelector": "main.contributorMain",
+      "main": {
+        "left": 290,
+        "right": 1150,
+        "top": 64,
+        "bottom": 669.27,
+        "width": 860,
+        "height": 605.27
+      },
+      "leftOffset": 290,
+      "rightOffset": 290,
+      "offsetDelta": 0,
+      "computedMaxWidth": "none",
+      "computedMarginLeft": "290px",
+      "computedMarginRight": "290px",
+      "classification": "centred"
+    },
+    {
+      "viewportWidth": 1440,
+      "source": "app/crawls/[slug]/page.tsx",
+      "requestedPath": "/crawls/layout-audit-missing",
+      "renderedPath": "/crawls/layout-audit-missing",
+      "status": 404,
+      "mainSelector": "main.storyShell",
+      "main": {
+        "left": 0,
+        "right": 1440,
+        "top": 0,
+        "bottom": 900,
+        "width": 1440,
+        "height": 900
+      },
+      "leftOffset": 0,
+      "rightOffset": 0,
+      "offsetDelta": 0,
+      "computedMaxWidth": "none",
+      "computedMarginLeft": "0px",
+      "computedMarginRight": "0px",
+      "classification": "full-bleed"
+    },
+    {
+      "viewportWidth": 1440,
+      "source": "app/crawls/page.tsx",
+      "requestedPath": "/crawls",
+      "renderedPath": "/crawls",
+      "status": 200,
+      "mainSelector": "main.crawlsShell",
+      "main": {
+        "left": 0,
+        "right": 1440,
+        "top": 0,
+        "bottom": 2480.63,
+        "width": 1440,
+        "height": 2480.63
+      },
+      "leftOffset": 0,
+      "rightOffset": 0,
+      "offsetDelta": 0,
+      "computedMaxWidth": "none",
+      "computedMarginLeft": "0px",
+      "computedMarginRight": "0px",
+      "classification": "full-bleed"
+    },
+    {
+      "viewportWidth": 1440,
+      "source": "app/discover/page.tsx",
+      "requestedPath": "/discover",
+      "renderedPath": "/discover",
+      "status": 200,
+      "mainSelector": "main.discoverPage",
+      "main": {
+        "left": 180,
+        "right": 1260,
+        "top": 0,
+        "bottom": 4484.61,
+        "width": 1080,
+        "height": 4484.61
+      },
+      "leftOffset": 180,
+      "rightOffset": 180,
+      "offsetDelta": 0,
+      "computedMaxWidth": "1080px",
+      "computedMarginLeft": "180px",
+      "computedMarginRight": "180px",
+      "classification": "centred"
+    },
+    {
+      "viewportWidth": 1440,
+      "source": "app/drinks/page.tsx",
+      "requestedPath": "/drinks",
+      "renderedPath": "/discover",
+      "status": 200,
+      "mainSelector": "main.discoverPage",
+      "main": {
+        "left": 180,
+        "right": 1260,
+        "top": 0,
+        "bottom": 4313.61,
+        "width": 1080,
+        "height": 4313.61
+      },
+      "leftOffset": 180,
+      "rightOffset": 180,
+      "offsetDelta": 0,
+      "computedMaxWidth": "1080px",
+      "computedMarginLeft": "180px",
+      "computedMarginRight": "180px",
+      "classification": "centred"
+    },
+    {
+      "viewportWidth": 1440,
+      "source": "app/feed/page.tsx",
+      "requestedPath": "/feed",
+      "renderedPath": "/feed",
+      "status": 200,
+      "mainSelector": "main.feedShell",
+      "main": {
+        "left": 0,
+        "right": 1440,
+        "top": 0,
+        "bottom": 5159.78,
+        "width": 1440,
+        "height": 5159.78
+      },
+      "leftOffset": 0,
+      "rightOffset": 0,
+      "offsetDelta": 0,
+      "computedMaxWidth": "none",
+      "computedMarginLeft": "0px",
+      "computedMarginRight": "0px",
+      "classification": "full-bleed"
+    },
+    {
+      "viewportWidth": 1440,
+      "source": "app/historic/[slug]/page.tsx",
+      "requestedPath": "/historic/prospect-of-whitby",
+      "renderedPath": "/historic/prospect-of-whitby",
+      "status": 200,
+      "mainSelector": "main.hdPage",
+      "main": {
+        "left": 360,
+        "right": 1080,
+        "top": 0,
+        "bottom": 976.56,
+        "width": 720,
+        "height": 976.56
+      },
+      "leftOffset": 360,
+      "rightOffset": 360,
+      "offsetDelta": 0,
+      "computedMaxWidth": "720px",
+      "computedMarginLeft": "360px",
+      "computedMarginRight": "360px",
+      "classification": "centred"
+    },
+    {
+      "viewportWidth": 1440,
+      "source": "app/historic/page.tsx",
+      "requestedPath": "/historic",
+      "renderedPath": "/historic",
+      "status": 200,
+      "mainSelector": "main.historicPage",
+      "main": {
+        "left": 180,
+        "right": 1260,
+        "top": 0,
+        "bottom": 29952.69,
+        "width": 1080,
+        "height": 29952.69
+      },
+      "leftOffset": 180,
+      "rightOffset": 180,
+      "offsetDelta": 0,
+      "computedMaxWidth": "1080px",
+      "computedMarginLeft": "180px",
+      "computedMarginRight": "180px",
+      "classification": "centred"
+    },
+    {
+      "viewportWidth": 1440,
+      "source": "app/landmark/[id]/page.tsx",
+      "requestedPath": "/landmark/venue-xjf3n0",
+      "renderedPath": "/landmark/venue-xjf3n0",
+      "status": 404,
+      "mainSelector": "main",
+      "main": {
+        "left": 0,
+        "right": 1440,
+        "top": 0,
+        "bottom": 900,
+        "width": 1440,
+        "height": 900
+      },
+      "leftOffset": 0,
+      "rightOffset": 0,
+      "offsetDelta": 0,
+      "computedMaxWidth": "none",
+      "computedMarginLeft": "0px",
+      "computedMarginRight": "0px",
+      "classification": "full-bleed"
+    },
+    {
+      "viewportWidth": 1440,
+      "source": "app/ledger/[id]/page.tsx",
+      "requestedPath": "/ledger/venue-xjf3n0",
+      "renderedPath": "/ledger/venue-xjf3n0",
+      "status": 200,
+      "mainSelector": "main.ledgerPage",
+      "main": {
+        "left": 360,
+        "right": 1080,
+        "top": 0,
+        "bottom": 1344.23,
+        "width": 720,
+        "height": 1344.23
+      },
+      "leftOffset": 360,
+      "rightOffset": 360,
+      "offsetDelta": 0,
+      "computedMaxWidth": "720px",
+      "computedMarginLeft": "360px",
+      "computedMarginRight": "360px",
+      "classification": "centred"
+    },
+    {
+      "viewportWidth": 1440,
+      "source": "app/map/[city]/page.tsx",
+      "requestedPath": "/map/london",
+      "renderedPath": "/map/london",
+      "status": 200,
+      "mainSelector": "main.mapSkeleton",
+      "main": {
+        "left": 0,
+        "right": 1440,
+        "top": 0,
+        "bottom": 900,
+        "width": 1440,
+        "height": 900
+      },
+      "leftOffset": 0,
+      "rightOffset": 0,
+      "offsetDelta": 0,
+      "computedMaxWidth": "none",
+      "computedMarginLeft": "0px",
+      "computedMarginRight": "0px",
+      "classification": "full-bleed"
+    },
+    {
+      "viewportWidth": 1440,
+      "source": "app/map/page.tsx",
+      "requestedPath": "/map",
+      "renderedPath": "/map",
+      "status": 200,
+      "mainSelector": "main.mapSkeleton",
+      "main": {
+        "left": 0,
+        "right": 1440,
+        "top": 0,
+        "bottom": 900,
+        "width": 1440,
+        "height": 900
+      },
+      "leftOffset": 0,
+      "rightOffset": 0,
+      "offsetDelta": 0,
+      "computedMaxWidth": "none",
+      "computedMarginLeft": "0px",
+      "computedMarginRight": "0px",
+      "classification": "full-bleed"
+    },
+    {
+      "viewportWidth": 1440,
+      "source": "app/messages/[id]/page.tsx",
+      "requestedPath": "/messages/layout-audit-missing",
+      "renderedPath": "/messages/layout-audit-missing",
+      "status": 200,
+      "mainSelector": "main.container.messagesMain.messagesMainThread",
+      "main": {
+        "left": 100,
+        "right": 1340,
+        "top": 64,
+        "bottom": 900,
+        "width": 1240,
+        "height": 836
+      },
+      "leftOffset": 100,
+      "rightOffset": 100,
+      "offsetDelta": 0,
+      "computedMaxWidth": "1240px",
+      "computedMarginLeft": "100px",
+      "computedMarginRight": "100px",
+      "classification": "centred"
+    },
+    {
+      "viewportWidth": 1440,
+      "source": "app/messages/page.tsx",
+      "requestedPath": "/messages",
+      "renderedPath": "/messages",
+      "status": 200,
+      "mainSelector": "main.container.messagesMain.messagesMainInbox",
+      "main": {
+        "left": 100,
+        "right": 1340,
+        "top": 64,
+        "bottom": 900,
+        "width": 1240,
+        "height": 836
+      },
+      "leftOffset": 100,
+      "rightOffset": 100,
+      "offsetDelta": 0,
+      "computedMaxWidth": "1240px",
+      "computedMarginLeft": "100px",
+      "computedMarginRight": "100px",
+      "classification": "centred"
+    },
+    {
+      "viewportWidth": 1440,
+      "source": "app/moment/page.tsx",
+      "requestedPath": "/moment",
+      "renderedPath": "/moment",
+      "status": 200,
+      "mainSelector": "main.momentMain",
+      "main": {
+        "left": 340,
+        "right": 1100,
+        "top": 64,
+        "bottom": 1477.7,
+        "width": 760,
+        "height": 1413.7
+      },
+      "leftOffset": 340,
+      "rightOffset": 340,
+      "offsetDelta": 0,
+      "computedMaxWidth": "none",
+      "computedMarginLeft": "340px",
+      "computedMarginRight": "340px",
+      "classification": "centred"
+    },
+    {
+      "viewportWidth": 1440,
+      "source": "app/near/page.tsx",
+      "requestedPath": "/near",
+      "renderedPath": "/near",
+      "status": 200,
+      "mainSelector": "main.nmnPageBody",
+      "main": {
+        "left": 440,
+        "right": 1000,
+        "top": 80,
+        "bottom": 393,
+        "width": 560,
+        "height": 313
+      },
+      "leftOffset": 440,
+      "rightOffset": 440,
+      "offsetDelta": 0,
+      "computedMaxWidth": "min(560px, 100%)",
+      "computedMarginLeft": "408px",
+      "computedMarginRight": "408px",
+      "classification": "centred"
+    },
+    {
+      "viewportWidth": 1440,
+      "source": "app/onboarding/page.tsx",
+      "requestedPath": "/onboarding",
+      "renderedPath": "/onboarding",
+      "status": 200,
+      "mainSelector": "main.firstRunOnboarding.firstRunOnboardingGate",
+      "main": {
+        "left": 0,
+        "right": 1440,
+        "top": 0,
+        "bottom": 900,
+        "width": 1440,
+        "height": 900
+      },
+      "leftOffset": 0,
+      "rightOffset": 0,
+      "offsetDelta": 0,
+      "computedMaxWidth": "none",
+      "computedMarginLeft": "0px",
+      "computedMarginRight": "0px",
+      "classification": "full-bleed"
+    },
+    {
+      "viewportWidth": 1440,
+      "source": "app/p/[id]/page.tsx",
+      "requestedPath": "/p/layout-audit-missing",
+      "renderedPath": "/p/layout-audit-missing",
+      "status": 200,
+      "mainSelector": "main.permalink.permalink--empty",
+      "main": {
+        "left": 0,
+        "right": 1440,
+        "top": 0,
+        "bottom": 900,
+        "width": 1440,
+        "height": 900
+      },
+      "leftOffset": 0,
+      "rightOffset": 0,
+      "offsetDelta": 0,
+      "computedMaxWidth": "none",
+      "computedMarginLeft": "0px",
+      "computedMarginRight": "0px",
+      "classification": "full-bleed"
+    },
+    {
+      "viewportWidth": 1440,
+      "source": "app/pal/chat/page.tsx",
+      "requestedPath": "/pal/chat",
+      "renderedPath": "/pal/chat",
+      "status": 200,
+      "mainSelector": "main.palChat",
+      "main": {
+        "left": 0,
+        "right": 1440,
+        "top": 0,
+        "bottom": 900,
+        "width": 1440,
+        "height": 900
+      },
+      "leftOffset": 0,
+      "rightOffset": 0,
+      "offsetDelta": 0,
+      "computedMaxWidth": "none",
+      "computedMarginLeft": "0px",
+      "computedMarginRight": "0px",
+      "classification": "full-bleed"
+    },
+    {
+      "viewportWidth": 1440,
+      "source": "app/pal/page.tsx",
+      "requestedPath": "/pal",
+      "renderedPath": "/pal",
+      "status": 200,
+      "mainSelector": "main.palExperience.palMeeting",
+      "main": {
+        "left": 0,
+        "right": 1440,
+        "top": 0,
+        "bottom": 956,
+        "width": 1440,
+        "height": 956
+      },
+      "leftOffset": 0,
+      "rightOffset": 0,
+      "offsetDelta": 0,
+      "computedMaxWidth": "none",
+      "computedMarginLeft": "0px",
+      "computedMarginRight": "0px",
+      "classification": "full-bleed"
+    },
+    {
+      "viewportWidth": 1440,
+      "source": "app/pint-index/[month]/page.tsx",
+      "requestedPath": "/pint-index/2026-06",
+      "renderedPath": "/pint-index/2026-06",
+      "status": 200,
+      "mainSelector": "main.pintIndexPage",
+      "main": {
+        "left": 240,
+        "right": 1200,
+        "top": 0,
+        "bottom": 785.8,
+        "width": 960,
+        "height": 785.8
+      },
+      "leftOffset": 240,
+      "rightOffset": 240,
+      "offsetDelta": 0,
+      "computedMaxWidth": "960px",
+      "computedMarginLeft": "240px",
+      "computedMarginRight": "240px",
+      "classification": "centred"
+    },
+    {
+      "viewportWidth": 1440,
+      "source": "app/pint-index/page.tsx",
+      "requestedPath": "/pint-index",
+      "renderedPath": "/pint-index",
+      "status": 200,
+      "mainSelector": "main.pintIndexPage",
+      "main": {
+        "left": 240,
+        "right": 1200,
+        "top": 0,
+        "bottom": 2323.75,
+        "width": 960,
+        "height": 2323.75
+      },
+      "leftOffset": 240,
+      "rightOffset": 240,
+      "offsetDelta": 0,
+      "computedMaxWidth": "960px",
+      "computedMarginLeft": "240px",
+      "computedMarginRight": "240px",
+      "classification": "centred"
+    },
+    {
+      "viewportWidth": 1440,
+      "source": "app/plan/[id]/page.tsx",
+      "requestedPath": "/plan/layout-audit-missing",
+      "renderedPath": "/plan/layout-audit-missing",
+      "status": 404,
+      "mainSelector": "main.planPage.planPage--composer",
+      "main": {
+        "left": 0,
+        "right": 1440,
+        "top": 0,
+        "bottom": 900,
+        "width": 1440,
+        "height": 900
+      },
+      "leftOffset": 0,
+      "rightOffset": 0,
+      "offsetDelta": 0,
+      "computedMaxWidth": "none",
+      "computedMarginLeft": "0px",
+      "computedMarginRight": "0px",
+      "classification": "full-bleed"
+    },
+    {
+      "viewportWidth": 1440,
+      "source": "app/plan/[id]/recap/page.tsx",
+      "requestedPath": "/plan/layout-audit-missing/recap",
+      "renderedPath": "/plan/layout-audit-missing/recap",
+      "status": 404,
+      "mainSelector": null,
+      "main": null,
+      "leftOffset": null,
+      "rightOffset": null,
+      "offsetDelta": null,
+      "computedMaxWidth": null,
+      "computedMarginLeft": null,
+      "computedMarginRight": null,
+      "classification": "no-main"
+    },
+    {
+      "viewportWidth": 1440,
+      "source": "app/plan/page.tsx",
+      "requestedPath": "/plan",
+      "renderedPath": "/plan",
+      "status": 200,
+      "mainSelector": "main.planPage.planPage--composer",
+      "main": {
+        "left": 0,
+        "right": 1440,
+        "top": 0,
+        "bottom": 1558.52,
+        "width": 1440,
+        "height": 1558.52
+      },
+      "leftOffset": 0,
+      "rightOffset": 0,
+      "offsetDelta": 0,
+      "computedMaxWidth": "none",
+      "computedMarginLeft": "0px",
+      "computedMarginRight": "0px",
+      "classification": "full-bleed"
+    },
+    {
+      "viewportWidth": 1440,
+      "source": "app/privacy/page.tsx",
+      "requestedPath": "/privacy",
+      "renderedPath": "/privacy",
+      "status": 200,
+      "mainSelector": "main.legalPage",
+      "main": {
+        "left": 340,
+        "right": 1100,
+        "top": 0,
+        "bottom": 10126.39,
+        "width": 760,
+        "height": 10126.39
+      },
+      "leftOffset": 340,
+      "rightOffset": 340,
+      "offsetDelta": 0,
+      "computedMaxWidth": "760px",
+      "computedMarginLeft": "340px",
+      "computedMarginRight": "340px",
+      "classification": "centred"
+    },
+    {
+      "viewportWidth": 1440,
+      "source": "app/profile/page.tsx",
+      "requestedPath": "/profile",
+      "renderedPath": "/u/you",
+      "status": 200,
+      "mainSelector": "main.container.profileMain",
+      "main": {
+        "left": 100,
+        "right": 1340,
+        "top": 64,
+        "bottom": 1573.7,
+        "width": 1240,
+        "height": 1509.7
+      },
+      "leftOffset": 100,
+      "rightOffset": 100,
+      "offsetDelta": 0,
+      "computedMaxWidth": "1240px",
+      "computedMarginLeft": "100px",
+      "computedMarginRight": "100px",
+      "classification": "centred"
+    },
+    {
+      "viewportWidth": 1440,
+      "source": "app/pubs/page.tsx",
+      "requestedPath": "/pubs",
+      "renderedPath": "/pubs",
+      "status": 200,
+      "mainSelector": "main.pubsShell",
+      "main": {
+        "left": 0,
+        "right": 1440,
+        "top": 0,
+        "bottom": 3722.91,
+        "width": 1440,
+        "height": 3722.91
+      },
+      "leftOffset": 0,
+      "rightOffset": 0,
+      "offsetDelta": 0,
+      "computedMaxWidth": "none",
+      "computedMarginLeft": "0px",
+      "computedMarginRight": "0px",
+      "classification": "full-bleed"
+    },
+    {
+      "viewportWidth": 1440,
+      "source": "app/recap/[storyId]/page.tsx",
+      "requestedPath": "/recap/layout-audit-missing",
+      "renderedPath": "/recap/layout-audit-missing",
+      "status": 404,
+      "mainSelector": "main",
+      "main": {
+        "left": 0,
+        "right": 1440,
+        "top": 0,
+        "bottom": 900,
+        "width": 1440,
+        "height": 900
+      },
+      "leftOffset": 0,
+      "rightOffset": 0,
+      "offsetDelta": 0,
+      "computedMaxWidth": "none",
+      "computedMarginLeft": "0px",
+      "computedMarginRight": "0px",
+      "classification": "full-bleed"
+    },
+    {
+      "viewportWidth": 1440,
+      "source": "app/rounds/[code]/page.tsx",
+      "requestedPath": "/rounds/layout-audit-missing",
+      "renderedPath": "/rounds/layout-audit-missing",
+      "status": 200,
+      "mainSelector": "main.roundShell",
+      "main": {
+        "left": 0,
+        "right": 1440,
+        "top": 0,
+        "bottom": 900,
+        "width": 1440,
+        "height": 900
+      },
+      "leftOffset": 0,
+      "rightOffset": 0,
+      "offsetDelta": 0,
+      "computedMaxWidth": "none",
+      "computedMarginLeft": "0px",
+      "computedMarginRight": "0px",
+      "classification": "full-bleed"
+    },
+    {
+      "viewportWidth": 1440,
+      "source": "app/rounds/page.tsx",
+      "requestedPath": "/rounds",
+      "renderedPath": "/rounds",
+      "status": 200,
+      "mainSelector": "main.roundShell",
+      "main": {
+        "left": 0,
+        "right": 1440,
+        "top": 0,
+        "bottom": 900,
+        "width": 1440,
+        "height": 900
+      },
+      "leftOffset": 0,
+      "rightOffset": 0,
+      "offsetDelta": 0,
+      "computedMaxWidth": "none",
+      "computedMarginLeft": "0px",
+      "computedMarginRight": "0px",
+      "classification": "full-bleed"
+    },
+    {
+      "viewportWidth": 1440,
+      "source": "app/terms/page.tsx",
+      "requestedPath": "/terms",
+      "renderedPath": "/terms",
+      "status": 200,
+      "mainSelector": "main.legalPage",
+      "main": {
+        "left": 340,
+        "right": 1100,
+        "top": 0,
+        "bottom": 3946.95,
+        "width": 760,
+        "height": 3946.95
+      },
+      "leftOffset": 340,
+      "rightOffset": 340,
+      "offsetDelta": 0,
+      "computedMaxWidth": "760px",
+      "computedMarginLeft": "340px",
+      "computedMarginRight": "340px",
+      "classification": "centred"
+    },
+    {
+      "viewportWidth": 1440,
+      "source": "app/today/page.tsx",
+      "requestedPath": "/today",
+      "renderedPath": "/today",
+      "status": 200,
+      "mainSelector": "main.todayPage",
+      "main": {
+        "left": 400,
+        "right": 1040,
+        "top": 0,
+        "bottom": 1545.47,
+        "width": 640,
+        "height": 1545.47
+      },
+      "leftOffset": 400,
+      "rightOffset": 400,
+      "offsetDelta": 0,
+      "computedMaxWidth": "640px",
+      "computedMarginLeft": "400px",
+      "computedMarginRight": "400px",
+      "classification": "centred"
+    },
+    {
+      "viewportWidth": 1440,
+      "source": "app/tonight/page.tsx",
+      "requestedPath": "/tonight",
+      "renderedPath": "/tonight",
+      "status": 200,
+      "mainSelector": "main.tonightPage",
+      "main": {
+        "left": 360,
+        "right": 1080,
+        "top": 0,
+        "bottom": 462.63,
+        "width": 720,
+        "height": 462.63
+      },
+      "leftOffset": 360,
+      "rightOffset": 360,
+      "offsetDelta": 0,
+      "computedMaxWidth": "720px",
+      "computedMarginLeft": "360px",
+      "computedMarginRight": "360px",
+      "classification": "centred"
+    },
+    {
+      "viewportWidth": 1440,
+      "source": "app/u/[handle]/lists/[listType]/page.tsx",
+      "requestedPath": "/u/layoutcaptain/lists/favourites",
+      "renderedPath": "/u/layoutcaptain/lists/favourites",
+      "status": 200,
+      "mainSelector": "main.container.profileMain",
+      "main": {
+        "left": 100,
+        "right": 1340,
+        "top": 64,
+        "bottom": 652.53,
+        "width": 1240,
+        "height": 588.53
+      },
+      "leftOffset": 100,
+      "rightOffset": 100,
+      "offsetDelta": 0,
+      "computedMaxWidth": "1240px",
+      "computedMarginLeft": "100px",
+      "computedMarginRight": "100px",
+      "classification": "centred"
+    },
+    {
+      "viewportWidth": 1440,
+      "source": "app/u/[handle]/page.tsx",
+      "requestedPath": "/u/layoutcaptain",
+      "renderedPath": "/u/layoutcaptain",
+      "status": 200,
+      "mainSelector": "main.container.profileMain",
+      "main": {
+        "left": 100,
+        "right": 1340,
+        "top": 64,
+        "bottom": 1394.98,
+        "width": 1240,
+        "height": 1330.98
+      },
+      "leftOffset": 100,
+      "rightOffset": 100,
+      "offsetDelta": 0,
+      "computedMaxWidth": "1240px",
+      "computedMarginLeft": "100px",
+      "computedMarginRight": "100px",
+      "classification": "centred"
+    },
+    {
+      "viewportWidth": 1440,
+      "source": "app/we-are-out/page.tsx",
+      "requestedPath": "/we-are-out",
+      "renderedPath": "/we-are-out",
+      "status": 200,
+      "mainSelector": "main.feedShell.weAreOut",
+      "main": {
+        "left": 0,
+        "right": 1440,
+        "top": 0,
+        "bottom": 900,
+        "width": 1440,
+        "height": 900
+      },
+      "leftOffset": 0,
+      "rightOffset": 0,
+      "offsetDelta": 0,
+      "computedMaxWidth": "none",
+      "computedMarginLeft": "0px",
+      "computedMarginRight": "0px",
+      "classification": "full-bleed"
+    }
+  ]
+}

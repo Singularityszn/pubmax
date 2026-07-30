@@ -12,13 +12,13 @@
 }
 
 .mapSearchSuggest--toolbar {
-  width: min(400px, 34vw);
+  width: min(388px, 34vw);
   min-width: 260px;
   gap: 0;
 }
 
 .mapSearchSuggest--toolbar > label {
-  min-height: 34px;
+  min-height: 44px;
   border: 0;
   border-radius: 10px;
   background: transparent;

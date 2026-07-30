@@ -114,8 +114,8 @@
   top: 12px;
   left: 50%;
   z-index: var(--z-modal);
-  width: max-content;
-  max-width: calc(100vw - 24px);
+  width: var(--desktop-map-surface-width);
+  max-width: none;
   transform: translateX(-50%);
   box-sizing: border-box;
 }
@@ -345,6 +345,15 @@
   border-radius: 10px;
   color: var(--ink);
   text-decoration: none;
+}
+
+button.siteNavMoreItem {
+  width: 100%;
+  border: 0;
+  background: transparent;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
 }
 
 .siteNavMoreLabel {
