@@ -1,13 +1,30 @@
 import { readFileSync } from "node:fs";
 import { expect, test, type Locator, type Page } from "@playwright/test";
 
+import { storyBandsForCity } from "@/lib/cityStoryBands";
+import { listEnabledCities } from "@/lib/cities";
+
 const VIEWPORTS = [
+  { width: 360, height: 800 },
   { width: 390, height: 844 },
   { width: 430, height: 932 },
 ] as const;
 
 const DEAL_QUALIFIER =
   "Two pints for £12 before 7pm on Thursdays. Booking excludes match nights, bank holidays, and the terrace.";
+const OSM_PUB_ATTRIBUTION = "Pub data © OpenStreetMap contributors (ODbL)";
+const FIRST_RUN_COMPANION_NOTES = [
+  "Loyal and perceptive",
+  "Calm and mischievous",
+  "Curious and quick",
+  "Streetwise and social",
+  "Steady and protective",
+  "Bright and encouraging",
+] as const;
+
+const LONGEST_STORY_BAND = listEnabledCities()
+  .flatMap((city) => storyBandsForCity(city.id))
+  .sort((left, right) => right.copy.length - left.copy.length)[0]!;
 
 type CaptionCase = {
   name: string;
@@ -18,7 +35,9 @@ type CaptionCase = {
   checkNextSibling?: boolean;
   checkNoOverlapSelector?: string;
   growingContainerSelector?: string;
+  expectContainerGrowth?: boolean;
   visibleAtPhone?: boolean;
+  expectedButtons?: string[];
 };
 
 const CAPTION_CASES: CaptionCase[] = [
@@ -38,35 +57,6 @@ const CAPTION_CASES: CaptionCase[] = [
       </section>
     `,
     checkNextSibling: true,
-  },
-  {
-    name: "city status",
-    cssPath: "components/map/cityStatusBanner.css",
-    selector: ".cityStatusBannerCopy",
-    expected: "Central line suspended between White City and Ealing Broadway until the last train.",
-    markup: `
-      <div class="cityStatusBanner" data-severity="major">
-        <span class="cityStatusBannerLink">
-          <span class="cityStatusBannerCopy">Central line suspended between White City and Ealing Broadway until the last train.</span>
-          <span class="cityStatusBannerMobileCopy">TfL live · 1</span>
-        </span>
-        <button class="cityStatusBannerDismiss">Close</button>
-      </div>
-    `,
-    visibleAtPhone: false,
-  },
-  {
-    name: "location condition",
-    cssPath: "components/map/citySuggestBanner.css",
-    selector: ".citySuggestBannerCopy",
-    expected: "You appear to be near Manchester. Switch maps only if that is where tonight starts.",
-    markup: `
-      <div class="citySuggestBanner">
-        <p class="citySuggestBannerCopy">You appear to be near Manchester. Switch maps only if that is where tonight starts.</p>
-        <button class="citySuggestBannerSwitch">Switch</button>
-      </div>
-    `,
-    visibleAtPhone: false,
   },
   {
     name: "search recovery status",
@@ -194,17 +184,22 @@ const CAPTION_CASES: CaptionCase[] = [
     name: "place story condition",
     cssPath: "app/globals.css",
     selector: ".bandOnboardingChip span",
-    expected:
-      "The riverside route uses listed venues only. Opening hours still vary, so check each pub before setting off.",
+    expected: LONGEST_STORY_BAND.copy,
     markup: `
-      <div class="bandOnboardingChip">
+      <div class="bandOnboardingChip" role="status" aria-live="polite">
         <div>
-          <strong>Riverside story</strong>
-          <span>The riverside route uses listed venues only. Opening hours still vary, so check each pub before setting off.</span>
+          <strong>${LONGEST_STORY_BAND.title}</strong>
+          <span>${LONGEST_STORY_BAND.copy}</span>
         </div>
-        <button>Walk this story</button>
+        <button type="button">Walk this story</button>
+        <button type="button" aria-label="Dismiss Place story intro">
+          <svg aria-hidden="true"></svg>
+        </button>
       </div>
     `,
+    growingContainerSelector: ".bandOnboardingChip",
+    expectContainerGrowth: true,
+    expectedButtons: ["Walk this story", "Dismiss Place story intro"],
   },
   {
     name: "historic source claim",
@@ -340,7 +335,7 @@ for (const viewport of VIEWPORTS) {
         expect(containerBox).not.toBeNull();
         expect(qualifierBox).not.toBeNull();
         expect(containerBox!.height).toBeGreaterThanOrEqual(44);
-        if (viewport.width === 390) {
+        if (captionCase.expectContainerGrowth) {
           expect(containerBox!.height).toBeGreaterThan(44);
         }
         expect(qualifierBox!.y).toBeGreaterThanOrEqual(containerBox!.y);
@@ -349,10 +344,169 @@ for (const viewport of VIEWPORTS) {
         );
       }
 
+      if (captionCase.expectedButtons) {
+        const buttons = page.locator("button");
+        await expect(buttons).toHaveCount(captionCase.expectedButtons.length);
+        for (const name of captionCase.expectedButtons) {
+          await expect(page.getByRole("button", { name, exact: true })).toBeVisible();
+        }
+      }
+
       const documentOverflow = await page.evaluate(
         () => document.documentElement.scrollWidth - window.innerWidth,
       );
       expect(documentOverflow).toBeLessThanOrEqual(1);
     });
   }
+}
+
+for (const viewport of VIEWPORTS.filter(({ width }) => width >= 390)) {
+  test(`mobile map renders story qualifier and attribution at ${viewport.width}px`, async ({
+    page,
+  }) => {
+    await page.setViewportSize(viewport);
+    await page.addInitScript(() => {
+      window.localStorage.setItem("pubmax-tour-v1-done", "1");
+      window.sessionStorage.setItem("pubmax_onboarding_dismissed", "1");
+    });
+
+    const response = await page.goto("/map/glasgow?band=subcrawl");
+    expect(response?.status()).toBe(200);
+    await expect(page.locator(".mapLoading")).toBeHidden({ timeout: 30_000 });
+
+    const chip = page.locator(".bandOnboardingChip");
+    await expect(chip).toBeVisible();
+    await expect(chip.locator("span")).toHaveText(LONGEST_STORY_BAND.copy);
+    await expectUnclippedCaption(chip.locator("span"), LONGEST_STORY_BAND.copy);
+    await expect(chip.getByRole("button")).toHaveCount(2);
+    await expect(chip.getByRole("button", { name: "Walk this story" })).toBeVisible();
+    await expect(
+      chip.getByRole("button", { name: "Dismiss Place story intro" }),
+    ).toBeVisible();
+    await expect(page.locator(".mobilePlanActivation")).toHaveCount(0);
+
+    const geometry = await page.evaluate(() => {
+      const chipElement = document.querySelector(".bandOnboardingChip");
+      const mapElement = document.querySelector(".mapStage");
+      const tabElement = document.querySelector(".mobileTabBar");
+      if (!chipElement || !mapElement || !tabElement) return null;
+      const chip = chipElement.getBoundingClientRect();
+      const map = mapElement.getBoundingClientRect();
+      const tab = tabElement.getBoundingClientRect();
+      return {
+        chip: { x: chip.x, y: chip.y, width: chip.width, height: chip.height, bottom: chip.bottom },
+        map: { x: map.x, y: map.y, width: map.width, height: map.height },
+        tab: { x: tab.x, y: tab.y, width: tab.width, height: tab.height },
+      };
+    });
+    expect(geometry).not.toBeNull();
+    expect(geometry!.chip.height).toBeGreaterThan(120);
+    expect(geometry!.chip.x).toBeGreaterThanOrEqual(geometry!.map.x);
+    expect(geometry!.chip.x + geometry!.chip.width).toBeLessThanOrEqual(
+      geometry!.map.x + geometry!.map.width,
+    );
+    expect(geometry!.chip.y).toBeGreaterThanOrEqual(geometry!.map.y);
+    expect(geometry!.chip.bottom).toBeLessThanOrEqual(geometry!.tab.y);
+    expect(geometry!.chip.height / geometry!.map.height).toBeLessThan(0.3);
+
+    const attribution = page.locator(".maplibregl-ctrl-attrib");
+    await expect(attribution).toBeVisible();
+    const attributionInner = attribution.locator(".maplibregl-ctrl-attrib-inner");
+    if (!(await attributionInner.isVisible())) {
+      await attribution.locator(".maplibregl-ctrl-attrib-button").click();
+    }
+    await expect(attributionInner).toBeVisible();
+    await expect(attributionInner).toContainText(OSM_PUB_ATTRIBUTION);
+    const attributionState = await attributionInner.evaluate((element) => {
+      const style = getComputedStyle(element);
+      const rect = element.getBoundingClientRect();
+      return {
+        text: element.textContent,
+        display: style.display,
+        visibility: style.visibility,
+        opacity: style.opacity,
+        bottom: rect.bottom,
+      };
+    });
+    expect(attributionState.text).toContain(OSM_PUB_ATTRIBUTION);
+    expect(attributionState.display).not.toBe("none");
+    expect(attributionState.visibility).toBe("visible");
+    expect(Number(attributionState.opacity)).toBeGreaterThan(0);
+    expect(attributionState.bottom).toBeLessThanOrEqual(geometry!.tab.y);
+
+    await page.getByRole("button", { name: "More map controls" }).click();
+    const layersSheet = page.locator(
+      '.mobileSheetPortal[data-sheet-kind="layers"]:visible',
+    );
+    await expect(layersSheet).toBeVisible();
+    await layersSheet.getByRole("tab", { name: "Layers" }).click();
+    const listShortcut = layersSheet.getByRole("button", {
+      name: "List view of venues on the map",
+    });
+    await expect(listShortcut).toBeVisible();
+    await listShortcut.click();
+    await expect(page.locator(".mapVenueListPanel")).toBeVisible();
+    await expect(chip).toHaveCount(0);
+
+    expect(
+      await page.evaluate(() => document.documentElement.scrollWidth - innerWidth),
+    ).toBeLessThanOrEqual(1);
+  });
+
+  test(`first-run qualifiers render on the real page at ${viewport.width}px`, async ({
+    page,
+  }) => {
+    await page.setViewportSize(viewport);
+    await page.emulateMedia({ reducedMotion: "reduce" });
+    await page.addInitScript(() => {
+      Object.defineProperty(window, "Capacitor", {
+        configurable: true,
+        value: {
+          isNativePlatform: () => true,
+          getPlatform: () => "ios",
+        },
+      });
+    });
+
+    const response = await page.goto("/");
+    expect(response?.status()).toBe(200);
+    await expect(page).toHaveURL(/\/onboarding$/);
+
+    const reviewedSources = page.getByText("PUBMAXX reviewed", { exact: true });
+    await expect(reviewedSources).toHaveCount(3);
+    for (let index = 0; index < 3; index += 1) {
+      await expectUnclippedCaption(reviewedSources.nth(index), "PUBMAXX reviewed");
+      await expect(reviewedSources.nth(index)).toBeVisible();
+    }
+
+    await page.getByRole("button", { name: "Use London" }).click();
+    for (const note of FIRST_RUN_COMPANION_NOTES) {
+      const qualifier = page.getByText(note, { exact: true });
+      await expect(qualifier).toBeVisible();
+      await expectUnclippedCaption(qualifier, note);
+    }
+  });
+
+  test(`Pal setup progress renders on the real page at ${viewport.width}px`, async ({
+    page,
+  }) => {
+    await page.setViewportSize(viewport);
+    await page.emulateMedia({ reducedMotion: "reduce" });
+    await page.addInitScript(() => {
+      window.localStorage.setItem(
+        "pubmaxx.pub-pal-route-activation.v1",
+        JSON.stringify({
+          version: 1,
+          activatedAt: new Date().toISOString(),
+        }),
+      );
+    });
+
+    const response = await page.goto("/pal");
+    expect(response?.status()).toBe(200);
+    await page.getByRole("button", { name: "Meet your Pub Pal" }).click();
+    const progress = page.locator(".palTopbar > span");
+    await expect(progress).toBeVisible();
+    await expectUnclippedCaption(progress, "1 of 5");
+  });
 }

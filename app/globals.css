@@ -5033,10 +5033,9 @@ button:disabled {
     gap: 4px;
   }
 
-  /* MapLibre's built-in zoom/compass/attribution compete with the bottom tab
-     bar and corner FABs on phones. App-owned London/Recenter stay visible. */
-  .maplibregl-ctrl-bottom-left .maplibregl-ctrl-group,
-  .maplibregl-ctrl-bottom-right {
+  /* MapLibre's built-in zoom/compass compete with the bottom tab bar and
+     corner FABs on phones. App-owned London/Recenter stay visible. */
+  .maplibregl-ctrl-bottom-left .maplibregl-ctrl-group {
     display: none;
   }
 
@@ -5095,6 +5094,34 @@ button:disabled {
     bottom: var(--map-bottom-chip-row);
     max-width: none;
     transform: none;
+  }
+
+  .bandOnboardingChip {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 44px;
+    align-items: stretch;
+    gap: 8px;
+    padding: 10px;
+    border-radius: 18px;
+  }
+
+  .bandOnboardingChip > div {
+    grid-column: 1 / -1;
+  }
+
+  .bandOnboardingChip > button:first-of-type {
+    grid-column: 1;
+    width: 100%;
+  }
+
+  .bandOnboardingChip > button:last-child {
+    grid-column: 2;
+    min-width: 44px;
+    padding-inline: 0;
+  }
+
+  .bandOnboardingChip button {
+    min-height: 44px;
   }
 
   .activeRoundChip {

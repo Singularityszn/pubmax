@@ -498,12 +498,17 @@
     padding-inline: 14px;
   }
 
-  .firstRunAreaList small {
-    display: none;
+  .firstRunAreaList article {
+    grid-template-columns: 30px minmax(0, 1fr);
   }
 
-  .firstRunCompanionChoice small {
-    display: none;
+  .firstRunAreaList small {
+    grid-column: 2;
+    text-align: left;
+  }
+
+  .firstRunCompanionGrid {
+    grid-template-columns: 1fr;
   }
 
   .firstRunActions {

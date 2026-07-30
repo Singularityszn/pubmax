@@ -66,6 +66,10 @@
     right: 10px;
   }
 
+  .appShell .mapStage .maplibregl-ctrl-bottom-right {
+    bottom: var(--mobile-map-dock-clearance);
+  }
+
   /* Portal sheets sit outside .appShell. Hide map-owned controls while one is
      open so the compass cannot paint over or intercept sheet content. */
   body:has(.mobileSheetPortal) .appShell .mapStage .maplibregl-ctrl-top-right {

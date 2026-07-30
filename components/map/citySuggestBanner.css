@@ -105,12 +105,19 @@
        the same "row after the toolbar" convention used elsewhere. */
     top: calc(var(--map-top-clearance, 0px) + 112px);
     right: 12px;
-    left: auto;
-    max-width: 150px;
-    padding-block: 4px;
+    left: 12px;
+    width: auto;
+    max-width: none;
+    align-items: flex-start;
+    padding: 8px;
     border-color: var(--line);
-    background: color-mix(in srgb, var(--panel-raised) 94%, transparent);
+    border-radius: 18px;
+    background: color-mix(in srgb, var(--panel-raised) 96%, transparent);
+    transform: none;
   }
-  .citySuggestBannerCopy { display: none; }
-  .citySuggestBanner { transform: none; }
+
+  .citySuggestBannerCopy {
+    display: block;
+    flex: 1 1 auto;
+  }
 }
