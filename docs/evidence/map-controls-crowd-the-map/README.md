@@ -32,6 +32,18 @@ Measured clearance: `20px`.
 `components/PubMap.tsx` ESLint complexity stayed at `233` before and after.
 Complexity delta: `0`.
 
+## Capture-only development badge
+
+Dark circle over `Today` in after capture is Next.js development tooling, not
+product UI. A repeat Playwright inspection found a `<nextjs-portal>` shadow-root
+button labelled `Open Next.js Dev Tools` at `(22, 790)` with size `32x32px`.
+That portal supplied circle in development capture.
+
+Same 390x844 Playwright check against production build found zero
+`<nextjs-portal>` elements. Hit testing at same coordinate returned only
+`Today` tab icon and its navigation ancestors, and production screenshot showed
+tab unobstructed.
+
 ## Captures
 
 - [Before, 390x844](before-390x844.png)
