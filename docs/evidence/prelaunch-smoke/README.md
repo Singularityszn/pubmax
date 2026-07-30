@@ -7,6 +7,7 @@ Viewports: 390x844 mobile with touch emulation; 1440x900 desktop
 
 ## First-time visitor findings, worst first
 
+- **Desktop OpenStreetMap credit cannot be followed:** at 1280px and 1440px, expanded credit is visible, but its OpenStreetMap link does nothing. Hit-testing the link centre returns the overlaid `button.mapLayersFab` (`Map layers: Tube, Rail, parks, and place stories`), and a coordinate click opens neither navigation nor popup. This is a licence-credit interaction failure, not a missing-link failure.
 - **No-alcohol key contradicts map paint:** at both widths, selecting `No alcohol` says no alcohol-free or soft-drink prices are logged and `Clusters stay grey`, but map behind it continues to show green and amber clusters. Desktop list count changes from 1,466 in default view to 33, while visible canvas still carries large coloured clusters. Key does not describe shown map.
 - **Today and Tonight disagree:** Today says `Nothing left confirmed tonight.` Tonight, opened in same pass, says `2 listings tonight` and shows two sourced events. Neither sentence narrows itself enough to make both true.
 - **Desktop map shows a false failure:** at 1440x900, the map background and pins render, then a persistent toast says `Map background couldn't load. Tap Retry to try again.` Reproduced in two fresh Chromium runs. This is untrue and asks for recovery from a failure the visitor cannot see.
@@ -27,7 +28,7 @@ Viewports: 390x844 mobile with touch emulation; 1440x900 desktop
 | 5. Plan | Pass to read-only boundary | Pass to read-only boundary |
 | 6. Contribute price | Pass | Pass |
 | 7. Discover, Today, Tonight | Fail | Fail |
-| 8. Map credit and privacy | Pending | Pending |
+| 8. Map credit and privacy | Pass | Fail |
 
 ## 1. Land on home page
 
@@ -262,7 +263,33 @@ Capture: [`07-tonight-desktop.png`](07-tonight-desktop.png)
 
 ## 8. Follow map credit and privacy
 
-Pending.
+**What I did**
+
+- Opened the map, expanded MapLibre attribution, and tried the OpenStreetMap copyright link.
+- Opened the home page and followed the visible Privacy link.
+- Desktop diagnosis also repeated the credit check at 1280x900 because this overlap crosses the desktop boundary changed immediately before launch.
+
+**390x844 - Pass**
+
+Expanded map credit remained readable. Clicking `OpenStreetMap` opened `https://www.openstreetmap.org/copyright`; destination title was `Copyright and License | OpenStreetMap`. Privacy link opened `https://pubmaxxing.com/privacy`, HTTP 200, titled `Privacy | PUBMAXX`.
+
+Captures: [`08-map-credit-mobile.png`](08-map-credit-mobile.png), [`08-privacy-mobile.png`](08-privacy-mobile.png)
+
+**1440x900 - Fail**
+
+Privacy link opened `/privacy`, HTTP 200, with expected title and readable page.
+
+Map credit failed. Expanded credit and OpenStreetMap anchor were visible. Anchor rectangle was x=1316.625, y=871, width=85.375, height=14. At its own centre, x=1359.3125 and y=878, `document.elementFromPoint` returned `button.mapLayersFab`, labelled `Map layers: Tube, Rail, parks, and place stories`. A real coordinate click opened neither same-page navigation nor a popup. At 1280x900, same check returned same covering button and same failed click.
+
+Captures: [`08-map-credit-desktop.png`](08-map-credit-desktop.png), [`08-privacy-desktop.png`](08-privacy-desktop.png)
+
+**Diagnostics**
+
+- Main documents: HTTP 200.
+- Console errors: none.
+- Failed requests: no HTTP 4xx/5xx. Chromium reported aborted venue-index, POI, and speculative Next.js RSC prefetch requests while map initialized. Credit and privacy main documents did not fail.
+- Mobile credit destination and both Privacy destinations resolved.
+- Desktop credit regression and minimal overlap fix are tracked below; no map behaviour, data, pricing, or identity change is in scope.
 
 ## Fixes
 
