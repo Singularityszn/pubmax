@@ -95,9 +95,13 @@ paths.
 
 ### S4: CSP Script Nonce
 
-**Fixed:** Script-injection XSS blocked via per-request nonce on RSC inline scripts. Middleware applies `'nonce-<value>'` to CSP script-src directive; Next.js App Router attaches matching nonce to inline `<script>` tags for hydration payloads.
+**Fixed:** Arbitrary inline scripts without the per-request nonce are blocked.
+`proxy.ts` places the nonce in the request and response CSP, and Next.js stamps
+the matching value onto its inline hydration scripts.
 
-**Impact:** `'unsafe-inline'` remains in script-src (required for Next.js 16 RSC) but is silently ignored in presence of nonce. Future: when Next.js supports SRI for inline hydration scripts, remove nonce and drop `'unsafe-inline'` entirely.
+**Impact:** `script-src` no longer includes `'unsafe-inline'`. The nonce keeps
+HTML dynamic; the [CSP and caching decision brief](evidence/csp-vs-caching.md)
+owns alternatives and their security consequences.
 
 ---
 

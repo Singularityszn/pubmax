@@ -204,10 +204,12 @@ flashes a blank canvas or repeatedly re-fits after the user begins interacting.
 
 ### Rendering and caching
 
-- Public marketing, borough, venue, crawl, recap, and share pages use static CSP
-  and ISR with explicit revalidation.
-- Map, planning, authentication, owner profiles, private memories, and Pub Pal keep
-  per-request nonce CSP and private/no-store responses.
+- Launch keeps the current per-request nonce CSP and dynamic HTML rendering.
+  The [CSP and caching decision brief](evidence/csp-vs-caching.md) owns the
+  post-launch choice between retaining that boundary and prototyping static
+  public routes with hash-based CSP.
+- Authentication, owner profiles, private memories, and Pub Pal remain
+  private/no-store under either public-route decision.
 - Serve versioned city-scoped slim map data with CDN caching, ETags,
   stale-while-revalidate, and visible freshness.
 - Never cache secrets, precise location history, voice transcripts, unapproved
