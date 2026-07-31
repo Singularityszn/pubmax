@@ -2570,6 +2570,16 @@ input[type="range"] {
   overflow-y: auto;
 }
 
+@media (max-width: 640px) {
+  .mapFallback {
+    place-content: start center;
+    padding-top: calc(
+      var(--mobile-map-top) + var(--mobile-map-bar-h) +
+      var(--mobile-map-rail-h) + 70px
+    );
+  }
+}
+
 .mapFallback strong {
   font-family: var(--serif);
   font-weight: 600;
@@ -2640,6 +2650,7 @@ input[type="range"] {
    used for guidebook actions elsewhere; lifts on hover like the map's cards. */
 .mapFallbackRetry {
   margin-top: 14px;
+  min-height: 44px;
   padding: 7px 20px;
   border: 1px solid var(--brass);
   border-radius: var(--radius-sm);

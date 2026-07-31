@@ -32,6 +32,35 @@ async function changedPixelRatio(first: Buffer, second: Buffer): Promise<number>
   return changed / pixels;
 }
 
+const MOBILE_CLUSTER_COLOURS = [
+  [24, 167, 109],
+  [242, 167, 27],
+  [255, 90, 95],
+] as const;
+
+async function mobileClusterColourPixelCount(frame: Buffer): Promise<number> {
+  const { data } = await sharp(frame)
+    .extract({ left: 0, top: 180, width: 390, height: 510 })
+    .removeAlpha()
+    .raw()
+    .toBuffer({ resolveWithObject: true });
+
+  let count = 0;
+  for (let index = 0; index < data.length; index += 3) {
+    if (
+      MOBILE_CLUSTER_COLOURS.some(
+        ([red, green, blue]) =>
+          Math.abs(data[index] - red) <= 26 &&
+          Math.abs(data[index + 1] - green) <= 26 &&
+          Math.abs(data[index + 2] - blue) <= 26,
+      )
+    ) {
+      count += 1;
+    }
+  }
+  return count;
+}
+
 function relativeLuminance([red, green, blue]: readonly number[]): number {
   const [r, g, b] = [red, green, blue].map((channel) => {
     const value = channel / 255;
@@ -82,6 +111,42 @@ async function zoomThroughHiddenMobileControl(page: Page, steps = 3): Promise<vo
 // browser with a working GL stack must paint the MapLibre canvas and NEVER show
 // the "Map renderer unavailable" fallback. It is the regression guard for the
 // real-browser fallback reports.
+
+test("/map phone handoff contains real price clusters before loading retires", async ({
+  page,
+}) => {
+  test.setTimeout(60_000);
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.addInitScript(() => {
+    const trace: Array<{ reason: string; generation: number }> = [];
+    Object.defineProperty(window, "__pubmaxPinRevealTrace", { value: trace });
+    window.addEventListener("pubmax:pin-reveal", (event) => {
+      trace.push((event as CustomEvent<{ reason: string; generation: number }>).detail);
+    });
+  });
+
+  await page.goto("/map");
+  await expect
+    .poll(
+      () =>
+        page.evaluate(
+          () =>
+            (window as typeof window & {
+              __pubmaxPinRevealTrace: Array<{ reason: string; generation: number }>;
+            }).__pubmaxPinRevealTrace.length,
+        ),
+      { timeout: 30_000 },
+    )
+    .toBeGreaterThan(0);
+
+  await expect(page.locator(".mapLoading")).toHaveCount(0);
+  await expect(page.locator(".mapFallback")).toHaveCount(0);
+  const frame = await page.screenshot();
+  expect(
+    await mobileClusterColourPixelCount(frame),
+    "settled phone frame must contain the shipped price-cluster colours",
+  ).toBeGreaterThanOrEqual(500);
+});
 
 test("/map renders the MapLibre canvas with real size and never falls back", async ({
   page,
@@ -241,7 +306,9 @@ test("/map reveals pins only for the final rapid theme style generation", async 
   ).toEqual([]);
 });
 
-test("/map uses the bounded pin fallback when basemap tiles are delayed", async ({ page }) => {
+test("/map shows the no-frame fallback when basemap tiles miss the phone readiness ceiling", async ({
+  page,
+}) => {
   test.setTimeout(60_000);
   await page.setViewportSize({ width: 390, height: 844 });
   await page.addInitScript(() => {
@@ -267,28 +334,32 @@ test("/map uses the bounded pin fallback when basemap tiles are delayed", async 
       __pubmaxPinRevealTrace: Array<{ reason: string; generation: number }>;
     }
   ).__pubmaxPinRevealTrace);
-  await expect.poll(async () => (await trace()).at(-1)?.reason, { timeout: 20_000 }).toBe("timeout");
-  const reveal = (await trace()).at(-1)!;
-  await page.waitForTimeout(1_000);
-  expect((await trace()).filter(({ generation }) => generation === reveal.generation)).toHaveLength(1);
-  await expect(page.locator(".mapFallback")).toHaveCount(0);
+  const fallback = page.locator(".mapFallback");
+  await expect(fallback).toBeVisible({ timeout: 20_000 });
+  await expect(fallback).toContainText("Map couldn't draw");
+  await expect(fallback).toContainText("The map couldn't finish drawing its pubs.");
+  expect(await trace(), "phone timeout must not claim a visible pin frame").toEqual([]);
+  await expect(page.locator(".mapLoading")).toHaveCount(0);
 
-  const notice = page.locator(".mapSoftRetry");
-  await expect(notice).toContainText("Map background couldn't load");
-  const retry = notice.getByRole("button", { name: "Retry" });
+  const retry = fallback.getByRole("button", { name: "Retry" });
   await expect(retry).toBeVisible();
-  const [retryBox, tabBarBox] = await Promise.all([
+  const [headingBox, arcBox, retryBox, tabBarBox] = await Promise.all([
+    fallback.locator("strong").boundingBox(),
+    page.locator(".tonightArcChips").boundingBox(),
     retry.boundingBox(),
     page.locator(".mobileTabBar").boundingBox(),
   ]);
+  expect(headingBox).not.toBeNull();
+  expect(arcBox).not.toBeNull();
   expect(retryBox).not.toBeNull();
   expect(tabBarBox).not.toBeNull();
+  expect(headingBox!.y).toBeGreaterThanOrEqual(arcBox!.y + arcBox!.height + 8);
   expect(retryBox!.height).toBeGreaterThanOrEqual(44);
   expect(retryBox!.y + retryBox!.height).toBeLessThanOrEqual(tabBarBox!.y);
 
   holdTiles = false;
   await retry.click();
-  await expect(notice).toHaveCount(0);
+  await expect(fallback).toHaveCount(0);
   await expect
     .poll(async () => (await trace()).at(-1)?.reason, { timeout: 20_000 })
     .toMatch(/^(tiles|idle)$/);

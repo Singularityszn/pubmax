@@ -2,10 +2,11 @@
 
 ## Verdict
 
-Late render. Default filters were clear and venue data was present. Mobile
-loading chrome retired after basemap paint, while MapLibre was still processing
-and compositing the `pubs` GeoJSON source. Landmark icons use a separate source,
-so they appeared first and made the unfinished map look settled.
+Late render. Default filters were clear and venue data was present in app
+memory. Mobile loading chrome retired after basemap paint, while MapLibre was
+still processing and compositing the `pubs` GeoJSON source. Landmark icons use
+a separate source, so they appeared first and made the unfinished map look
+settled.
 
 Before the fix, the recorded app fired `pubmax:pin-reveal` at 10,416.8 ms after
 navigation and removed loading chrome at 10,517.0 ms. The recording still showed

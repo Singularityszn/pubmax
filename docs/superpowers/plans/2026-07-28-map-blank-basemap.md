@@ -150,7 +150,7 @@ Run:
 
 ```bash
 npm test -- __tests__/pinRevealCoordinator.test.ts __tests__/mapTileFailure.test.ts
-PW_SKIP_WEBSERVER=1 PW_PORT=3218 npx playwright test e2e/map-gl.spec.ts --project=chromium-gl --grep "bounded pin fallback"
+PW_SKIP_WEBSERVER=1 PW_PORT=3218 npx playwright test e2e/map-gl.spec.ts --project=chromium-gl
 ```
 
 Expected: all pass, failed basemap is stated, and successful recovery clears
