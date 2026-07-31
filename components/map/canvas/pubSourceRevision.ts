@@ -5,13 +5,13 @@ type PubsSource = {
   setData: (data: GeoJSON.FeatureCollection) => Promise<void>;
 };
 
-type PubsSourceDataEvent = {
+export type PubsSourceDataEvent = {
   isSourceLoaded?: boolean;
   sourceId?: string;
   sourceDataType?: string;
 };
 
-type PubsSourceErrorEvent = {
+export type PubsSourceErrorEvent = {
   sourceId?: string;
 };
 

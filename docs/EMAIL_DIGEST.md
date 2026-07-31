@@ -69,8 +69,7 @@ Enforced by the generator and covered by tests:
 - A section renders **only** when real data backs it — no "0 drops 🎉" filler, no
   invented prices or events.
 - Prices honour an observed-at window (default 7 days); stale never reads live.
-- Price provenance `{label, url}` rides a line when its record carries it;
-  what's-on lines always carry their source.
+- Provenance `{label, url}` rides every price / what's-on line.
 - An **empty week** yields a shorter email (greeting + one honest guardian tip +
   unsubscribe), never padding. See the three rendered examples in
   `docs/digest-samples/`.
