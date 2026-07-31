@@ -30,15 +30,13 @@ function setup(ready = true) {
   const listeners = new Map<EventName, Set<Listener>>();
   const source = {
     loaded: vi.fn(() => false),
-    setData: vi.fn<
-      (data: GeoJSON.FeatureCollection) => Promise<void>
-    >(() => Promise.resolve()),
+    setData: vi.fn(() => Promise.resolve()),
   };
   const beginPaintRevision = vi.fn();
   const publish = vi.fn();
   let structureReady = ready;
   const map = {
-    getSource: vi.fn<() => typeof source | undefined>(() => source),
+    getSource: vi.fn(() => source),
     triggerRepaint: vi.fn(),
   };
   const subscribe = (type: EventName, listener: Listener) => {
