@@ -2772,6 +2772,7 @@ export default function PubMap({
         ) : null}
         <PubMapCanvas
           venues={canvasVenues}
+          venueDataReady={loaded && loadedCityId === cityId}
           // Clean first view stays route-free. Once the user maps a crawl, the
           // line remains visible even if the mobile planner closes.
           route={routeForMap}

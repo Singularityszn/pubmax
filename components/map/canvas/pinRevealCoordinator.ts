@@ -33,6 +33,15 @@ type PinRevealCoordinatorOptions = {
    */
   readyCeilingMs: number;
   hasBasemapPainted: () => boolean;
+  hasPinsPaintable: () => boolean;
+  /**
+   * Keep parent loading chrome up for one render after pin layers become
+   * visible. The render that discovers source readiness was painted while
+   * those layers were still hidden.
+   */
+  confirmVisibleFrameBeforeReveal?: boolean;
+  /** Optional compositor guard after the confirmed visible render. */
+  visibleFrameHoldMs?: number;
   setPinsVisible: (visible: boolean) => void;
   subscribeRender: (listener: () => void) => () => void;
   subscribeIdle: (listener: () => void) => () => void;
@@ -44,10 +53,10 @@ type PinRevealCoordinatorOptions = {
 };
 
 /**
- * Keeps local GeoJSON pins behind the basemap's first painted tile frame, and
- * keeps the parent loading skeleton up until that same frame. Every style
- * rebuild owns one generation; callbacks from superseded styles are harmless
- * even when the browser delivers an old event late.
+ * Keeps local GeoJSON pins behind both basemap paint and pub-source readiness,
+ * then keeps parent loading chrome up until its configured visible-frame gate.
+ * Every style rebuild owns one generation; callbacks from superseded styles
+ * are harmless even when the browser delivers an old event late.
  *
  * Two independent clocks guard the two failure modes:
  *  - `pinRevealTimeoutMs`: a short fallback that un-gates the local pins so they
@@ -62,6 +71,9 @@ export function createPinRevealCoordinator({
   pinRevealTimeoutMs,
   readyCeilingMs,
   hasBasemapPainted,
+  hasPinsPaintable,
+  confirmVisibleFrameBeforeReveal = false,
+  visibleFrameHoldMs = 0,
   setPinsVisible,
   subscribeRender,
   subscribeIdle,
@@ -72,9 +84,15 @@ export function createPinRevealCoordinator({
   onReveal,
 }: PinRevealCoordinatorOptions) {
   let generation = 0;
-  let state: "idle" | "gated" | "revealed" | "cancelled" = "idle";
+  let state:
+    | "idle"
+    | "gated"
+    | "awaiting-visible-frame"
+    | "revealed"
+    | "cancelled" = "idle";
   let pinTimer: number | null = null;
   let ceilingTimer: number | null = null;
+  let visibleTimer: number | null = null;
   let unsubscribeRender: (() => void) | null = null;
   let unsubscribeIdle: (() => void) | null = null;
 
@@ -83,6 +101,8 @@ export function createPinRevealCoordinator({
     pinTimer = null;
     if (ceilingTimer !== null) clearTimer(ceilingTimer);
     ceilingTimer = null;
+    if (visibleTimer !== null) clearTimer(visibleTimer);
+    visibleTimer = null;
     unsubscribeRender?.();
     unsubscribeRender = null;
     unsubscribeIdle?.();
@@ -90,7 +110,9 @@ export function createPinRevealCoordinator({
   };
 
   const cancelCurrent = () => {
-    if (state === "gated") state = "cancelled";
+    if (state === "gated" || state === "awaiting-visible-frame") {
+      state = "cancelled";
+    }
     clearPending();
   };
 
@@ -113,8 +135,13 @@ export function createPinRevealCoordinator({
       pinsShown = true;
       setPinsVisible(true);
     };
-    const reveal = (reason: PinRevealReason) => {
-      if (!isCurrent()) return;
+    const finishReveal = (reason: PinRevealReason) => {
+      if (
+        generation !== armedGeneration ||
+        (state !== "gated" && state !== "awaiting-visible-frame")
+      ) {
+        return;
+      }
       state = "revealed";
       clearPending();
       showPins();
@@ -133,8 +160,30 @@ export function createPinRevealCoordinator({
       unsubscribeRender = subscribeRender(scheduleTimeoutRecovery);
       unsubscribeIdle = subscribeIdle(scheduleTimeoutRecovery);
     };
+    const reveal = (reason: PinRevealReason) => {
+      if (!isCurrent()) return;
+      showPins();
+      if (!confirmVisibleFrameBeforeReveal) {
+        finishReveal(reason);
+        return;
+      }
+      state = "awaiting-visible-frame";
+      clearPending();
+      unsubscribeRender = subscribeRender(() => {
+        unsubscribeRender?.();
+        unsubscribeRender = null;
+        if (visibleFrameHoldMs <= 0) {
+          finishReveal(reason);
+          return;
+        }
+        visibleTimer = setTimer(
+          () => finishReveal(reason),
+          visibleFrameHoldMs,
+        );
+      });
+    };
     const revealPainted = (reason: Exclude<PinRevealReason, "timeout">) => {
-      if (!isCurrent() || !hasBasemapPainted()) return;
+      if (!isCurrent() || !hasBasemapPainted() || !hasPinsPaintable()) return;
       reveal(reason);
     };
 

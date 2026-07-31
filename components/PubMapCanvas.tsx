@@ -138,6 +138,8 @@ maplibregl.setWorkerUrl("/vendor/maplibre/maplibre-gl-worker.mjs");
 
 type PubMapCanvasProps = {
   venues: Venue[];
+  /** Parent's slim venue read has settled for the active city. */
+  venueDataReady: boolean;
   route: Venue[];
   selectedVenueId: string;
   onVenueClick: (id: string) => void;
@@ -318,6 +320,9 @@ const PIN_REVEAL_TIMEOUT_MS = 3000;
 // design judge measured (~9s) and above the first-frame watchdog so a genuinely
 // dead canvas surfaces the error fallback rather than a blank lift.
 const PIN_READY_CEILING_MS = 12_000;
+// MapLibre's GeoJSON worker and render events can lead the phone compositor by
+// several frames. Keep honest loading chrome through that observed handoff.
+const PHONE_PIN_COMPOSITE_HOLD_MS = 500;
 // First-painted-frame watchdog. `style.load` is a network/parse event — it can
 // fire (and retire the parent's loading chrome) in a browser whose WebGL
 // context was GRANTED but whose render loop never produces a frame (dead
@@ -370,6 +375,7 @@ function probeWebGl2(): { hasContext: boolean; status: string } {
 
 export default function PubMapCanvas({
   venues,
+  venueDataReady,
   route,
   selectedVenueId,
   onVenueClick,
@@ -638,6 +644,10 @@ export default function PubMapCanvas({
     type: "FeatureCollection",
     features: [],
   });
+  const venueDataReadyRef = useRef(venueDataReady);
+  useLayoutEffect(() => {
+    venueDataReadyRef.current = venueDataReady;
+  }, [venueDataReady]);
   // UK base pubs for the CURRENT viewport only (useUkBaseStreaming refills it
   // on every settled camera). Held as a ref like every other source payload so
   // a theme setStyle can reseed the layer without a refetch.
@@ -888,6 +898,7 @@ export default function PubMapCanvas({
     };
     paintContainerBase(themeRef.current);
     hoverCapableRef.current = window.matchMedia("(hover: hover) and (pointer: fine)").matches;
+    const phoneFirstImpression = window.matchMedia("(max-width: 640px)").matches;
     const reducedQuery = window.matchMedia("(prefers-reduced-motion: reduce)");
     reducedRef.current = reducedQuery.matches;
     const onReducedChange = () => {
@@ -1215,10 +1226,17 @@ export default function PubMapCanvas({
     };
     map.on("sourcedata", onBasemapTileLoaded);
 
+    const hasPinsPaintable = () => {
+      if (!venueDataReadyRef.current || !map.getSource("pubs")) return false;
+      return map.isSourceLoaded("pubs");
+    };
     const pinRevealCoordinator = createPinRevealCoordinator({
       pinRevealTimeoutMs: PIN_REVEAL_TIMEOUT_MS,
       readyCeilingMs: PIN_READY_CEILING_MS,
       hasBasemapPainted: () => basemapTileReadyForPaint,
+      hasPinsPaintable,
+      confirmVisibleFrameBeforeReveal: phoneFirstImpression,
+      visibleFrameHoldMs: phoneFirstImpression ? PHONE_PIN_COMPOSITE_HOLD_MS : 0,
       setPinsVisible: (visible) => {
         for (const id of PUB_PIN_LAYERS) {
           if (map.getLayer(id)) {
@@ -1243,11 +1261,22 @@ export default function PubMapCanvas({
         setSoftRetry((current) => current?.kind === "tiles" ? null : current);
       },
       onReveal: (reason, generation) => {
-        const basemapRetry = basemapRetryForReveal(reason, tileNoticeOwner);
+        if (reason === "timeout" && !hasPinsPaintable()) {
+          reportMapError({
+            kind: "no-frame",
+            message: "The map couldn't finish drawing its pubs.",
+            detail: "Pub source readiness timed out.",
+          });
+          return;
+        }
+        const basemapRetry =
+          reason === "timeout" && basemapTileReadyForPaint
+            ? null
+            : basemapRetryForReveal(reason, tileNoticeOwner);
         if (basemapRetry) {
           tileNoticeOwner = "timeout";
           setSoftRetry(basemapRetry);
-        } else if (reason !== "timeout") {
+        } else if (reason !== "timeout" || basemapTileReadyForPaint) {
           markBasemapRecovered();
         }
         // Void fix (#395 R2, #397): lift the PARENT loading chrome HERE — the
@@ -1554,7 +1583,10 @@ export default function PubMapCanvas({
       // actual first reveal. Deliberately NOT marked fired yet.
       if (map.getLayoutProperty("pubs-point", "visibility") === "none") return;
       pinEntranceFired = true;
-      if (reducedRef.current) return; // no-preference gated: instant pins
+      // Phone readiness waits for a frame with visible map content. Starting
+      // the opacity entrance after that frame would immediately blank those
+      // pins again while the parent loading chrome retires.
+      if (reducedRef.current || phoneFirstImpression) return;
       pinEntranceActiveRef.current = true;
       pinEntranceStartRef.current = performance.now();
       map.setPaintProperty("pubs-point", "icon-opacity-transition", { duration: 0, delay: 0 });
