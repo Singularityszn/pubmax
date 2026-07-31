@@ -175,6 +175,19 @@ describe("pin reveal coordinator", () => {
     expect(h.reveals).toEqual([{ reason: "tiles", generation: 1 }]);
   });
 
+  it("does not wait for another render after the honest phone ceiling", () => {
+    const h = harness({
+      confirmVisibleFrameBeforeReveal: true,
+      visibleFrameHoldMs: 500,
+    });
+    h.coordinator.arm();
+    h.firePinTimeout();
+
+    h.fireCeiling();
+
+    expect(h.reveals).toEqual([{ reason: "timeout", generation: 1 }]);
+  });
+
   it("un-gates pins on the short fallback without lifting the parent chrome", () => {
     const h = harness();
     h.coordinator.arm();

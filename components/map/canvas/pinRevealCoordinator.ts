@@ -160,7 +160,9 @@ export function createPinRevealCoordinator({
     const reveal = (reason: PinRevealReason) => {
       if (!isCurrent()) return;
       showPins();
-      if (!confirmVisibleFrameBeforeReveal) {
+      // The ceiling must terminate without depending on another MapLibre
+      // render. A stalled renderer is exactly why that timeout exists.
+      if (!confirmVisibleFrameBeforeReveal || reason === "timeout") {
         finishReveal(reason);
         return;
       }
