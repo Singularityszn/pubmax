@@ -230,8 +230,9 @@ export function namedLegacyPintPriceSource(
 }
 
 // A pint row → a beer Drink. Rows without a numeric price are skipped (a menu
-// entry must carry a price; an unpriced pint is not a menu item). Provenance is
-// the honest dataset baseline — sourced from the app dataset, not a live feed.
+// entry must carry a price; an unpriced pint is not a menu item). A valid
+// publisher URL on the row stays attached; otherwise provenance says only that
+// this is an app-dataset baseline, not a live feed.
 export function legacyPricesToDrinks(
   prices: LegacyPintPrice[],
   observedAt: string,

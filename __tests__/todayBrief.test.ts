@@ -101,7 +101,7 @@ describe("buildWeatherBrief", () => {
         condition: "Cloudy",
       }),
       NOW,
-    ) as WeatherBrief & { ruleId?: string };
+    ) as WeatherBrief;
 
     expect(brief.tempLabel).toBe("24C");
     expect(brief.ruleId).toBe("hard-rain");

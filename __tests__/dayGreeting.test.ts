@@ -79,22 +79,18 @@ describe("buildDayGreeting", () => {
 
   it("describes the rule behind the displayed reading, not only its shared lens", () => {
     const now = new Date("2026-07-25T23:30:00.000Z");
-    const warmRain = {
-      ...brief({
-        tempLabel: "24C",
-        conditionLabel: "cloudy",
-        venueLens: "fireplace",
-      }),
+    const warmRain = brief({
+      tempLabel: "24C",
+      conditionLabel: "cloudy",
+      venueLens: "fireplace",
       ruleId: "hard-rain",
-    } as WeatherBrief;
-    const cold = {
-      ...brief({
-        tempLabel: "7C",
-        conditionLabel: "cloudy",
-        venueLens: "fireplace",
-      }),
+    });
+    const cold = brief({
+      tempLabel: "7C",
+      conditionLabel: "cloudy",
+      venueLens: "fireplace",
       ruleId: "cold",
-    } as WeatherBrief;
+    });
 
     const warmGreeting = buildDayGreeting({
       now,

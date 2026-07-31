@@ -26,9 +26,9 @@ import "./drinkMenu.css";
 // beyond its pint rows, an honest EmptyState renders instead of a bare frame.
 
 // Honest source labels for the provenance chip. A seeded demo menu reads
-// "Demo"; a first-party dataset price reads "On record"; anything else shows
-// its raw source so a new permissible source (Wikidata, a chain site) is never
-// silently relabelled.
+// "Demo"; an unnamed dataset price reads "On record"; anything else shows its
+// source so a new permissible source (Wikidata, a chain site) is never silently
+// relabelled.
 function provenanceLabel(prov: DrinkProvenance): string {
   if (isDemoProvenance(prov)) return "Demo";
   if (prov.source === "app-dataset") return "On record";
