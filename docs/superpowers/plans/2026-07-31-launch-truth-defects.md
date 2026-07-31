@@ -77,25 +77,33 @@ git commit -m "fix(map): report background failure only before a painted tile"
 
 Commit body guarantee: visible painted basemap is authoritative for first-paint success; a genuine no-tile failure still reports.
 
-### Task 2: Revert No-alcohol revision publication
+### Task 2: Atomic No-alcohol source revision
 
 **Files:**
 - Modify: `components/map/canvas/donutClusters.ts`
 - Modify: `components/PubMapCanvas.tsx`
-- Delete: `components/map/canvas/pubSourceRevision.ts`
+- Create: `components/map/canvas/pubSourceRevision.ts`
 - Test: `__tests__/canvas-donutClusters.test.ts`
+- Test: `__tests__/pubSourceRevision.test.ts`
+- Test: `__tests__/mapRenderedState.test.ts`
+- Test: `e2e/map-gl.spec.ts`
 - Modify: `docs/evidence/prelaunch-smoke/launch-truth-repro/README.md`
 
 **Interfaces:**
-- Consumes: Firstmate decision after fourth same-revision review finding.
-- Produces: additive rollback of shared revision publication without changing
-  painted-basemap timeout recovery.
+- Consumes: one captured `pubs` GeoJSON revision, MapLibre worker/source
+  settlement, and the next render boundary.
+- Produces: key state and desktop donut paint committed from the same tagged
+  revision, with source failures suppressed.
 
-- [ ] **Step 1: Reproduce stale donut reactivation**
+- [ ] **Step 1: Reproduce premature publication and stale donut reactivation**
 
 ```ts
-sync.invalidate();
-pubsSourceDataHandler(previousSnapshot);
+coordinator.request(noAlcoholRevision);
+emit("sourcedata", { sourceId: "pubs", isSourceLoaded: true });
+expect(publish).not.toHaveBeenCalled();
+
+sync.commitRevision(2);
+pubsSourceDataHandler(clusterFromRevision(1));
 expect(markerInstances).toHaveLength(1);
 ```
 
@@ -104,29 +112,35 @@ expect(markerInstances).toHaveLength(1);
 Run:
 
 ```bash
-npx vitest run __tests__/canvas-donutClusters.test.ts
+npx vitest run __tests__/pubSourceRevision.test.ts __tests__/canvas-donutClusters.test.ts __tests__/mapRenderedState.test.ts
+PW_PORT=3212 npx playwright test e2e/map-gl.spec.ts --project=chromium-gl --grep "No alcohol"
 ```
 
-Expected: old `sourcedata` snapshot creates another donut after invalidation.
+Expected: key state publishes before exact source settlement, old source tiles
+can reactivate a desktop donut, and mobile pixels retain old price colours.
 
-- [ ] **Step 3: Revert shared revision publication**
+- [ ] **Step 3: Commit one tagged source revision**
 
-Remove coordinator, invalidation API, publication claims, state-level proof,
-mobile proof, and dedicated screenshots. Preserve every timeout-only
-late-paint recovery change and genuine error notice.
+Capture `nextPubsData` once. Tag each feature with its application revision,
+retire donut paint before `setData`, then wait for worker and source settlement
+plus a later render. Publish the key from that captured object and commit its
+revision to donut reconciliation together. Ignore queried cluster features from
+any other revision. Suppress publication after source errors or supersession.
 
-- [ ] **Step 4: Record decision and learning**
+- [ ] **Step 4: Record bounded proof**
 
-Record old renderable tiles, event tagging limits, source settlement limits,
-render boundary limits, and donut reactivation in launch-truth evidence.
+Keep the mobile proof pixel-level. Label desktop proof state-level because
+headless WebGL does not mount donut markers; use coordinator, donut-fence, and
+rendered-state tests rather than claiming pixels that were not observed.
 
 - [ ] **Step 5: Commit**
 
 ```bash
-git commit -m "revert(map): remove revision publication coupling"
+git commit -m "fix(map): publish no-alcohol state from one source revision"
 ```
 
-Commit body guarantee: false-toast and late-paint recovery remain independent.
+Commit body guarantee: No-alcohol key and cluster paint publish from one
+captured source revision; source failures publish neither.
 
 ### Task 3: Today and Tonight source boundary
 
@@ -233,7 +247,7 @@ Commit body guarantee: recommendation retains rule from same reading used for di
 - Modify: `components/map/inspector/VenueOverviewTab.tsx`
 - Test: `__tests__/drinks.test.ts`
 - Test: `__tests__/drinkMenu.test.ts`
-- Create: `__tests__/venuePriceSource.test.ts`
+- Create: `__tests__/priceSourcePresentation.test.ts`
 - Modify: `docs/evidence/prelaunch-smoke/launch-truth-repro/README.md`
 
 **Interfaces:**
@@ -259,7 +273,7 @@ record` or a bare `Dataset price`.
 Run:
 
 ```bash
-npx vitest run __tests__/drinks.test.ts __tests__/drinkMenu.test.ts __tests__/venuePriceSource.test.ts
+npx vitest run __tests__/drinks.test.ts __tests__/drinkMenu.test.ts __tests__/priceSourcePresentation.test.ts
 ```
 
 Expected: adapter discards `pub_url`; both UI surfaces show generic source
@@ -297,13 +311,13 @@ Commit body guarantee: every displayed baseline source claim carries publisher f
 - [ ] **Step 1: Run focused suites**
 
 ```bash
-npx vitest run __tests__/pinRevealCoordinator.test.ts __tests__/canvas-donutClusters.test.ts __tests__/dayGreeting.test.ts __tests__/todayBrief.test.ts __tests__/drinks.test.ts __tests__/drinkMenu.test.ts __tests__/venuePriceSource.test.ts __tests__/priceSourcePresentation.test.ts
+npx vitest run __tests__/pinRevealCoordinator.test.ts __tests__/pubSourceRevision.test.ts __tests__/canvas-donutClusters.test.ts __tests__/mapRenderedState.test.ts __tests__/dayGreeting.test.ts __tests__/todayBrief.test.ts __tests__/drinks.test.ts __tests__/drinkMenu.test.ts __tests__/priceSourcePresentation.test.ts
 ```
 
 - [ ] **Step 2: Run rendered Playwright matrix**
 
 ```bash
-PW_PORT=3213 npx playwright test e2e/map-gl.spec.ts --project=chromium-gl --grep "does not report a background failure|keeps the honest retry"
+PW_PORT=3213 npx playwright test e2e/map-gl.spec.ts --project=chromium-gl --grep "does not report a background failure|No alcohol|keeps the honest retry"
 ```
 
 - [ ] **Step 3: Run project gate**

@@ -58,22 +58,24 @@ Cause: cluster paint and key meaning crossed the source boundary on separate
 clocks. The key derived from desired GeoJSON immediately. GL paint settled
 later, while desktop donuts could retain cached counts from the prior source.
 
-On 31 July 2026, after a fourth same-revision review finding, Firstmate ordered
-the shared revision and key-publication work reverted through additive commits.
-The revision coordinator, donut invalidation API, dedicated tests, rendered
-proof, screenshots, and public claims were removed. False-toast prevention and
-timeout-only late-paint recovery remain independent and stay in place.
+The correction captures one `nextPubsData` revision and tags every feature with
+its application revision. Before `setData`, desktop donuts surrender paint.
+The coordinator then waits for the worker promise, source settlement, and a
+later render before it publishes key state and commits that same revision to
+donut reconciliation. Superseded worker completions and source errors publish
+nothing. Desktop donut queries ignore features from any other tagged revision,
+so old source tiles cannot reactivate stale markers after the new commit.
 
-The final red reproduction showed why another narrow fix was unsafe. After
-`invalidate`, a `pubs` source event queried the previous snapshot and created a
-second donut marker. MapLibre may keep old source tiles renderable after
-`setData`. A tagged `sourcedata` event identifies source and event type, not the
-application revision that produced queried features. `isSourceLoaded` reports
-source settlement but does not prove that every renderable or queried tile came
-from the newest requested object. A later render boundary can therefore still
-cross while old tiles are renderable. One-shot donut invalidation is not a
-lifetime fence because existing source and render listeners can reactivate old
-markers immediately.
+Proof is deliberately split:
+
+- Mobile rendered-pixel proof: the 390x844 Playwright regression crops the
+  exposed map band. While the No-alcohol key says clusters stay grey, it finds
+  grey cluster pixels and fewer than ten green or amber price pixels.
+- Desktop state-level proof: coordinator tests pin settlement, the render
+  boundary, supersession, and source-error suppression; donut tests pin the
+  revision fence; rendered-state tests derive the key from committed data.
+  Headless WebGL did not mount desktop donut markers, so this is not labelled
+  desktop rendered-pixel proof.
 
 ## 3. Today and Tonight inventory
 

@@ -67,9 +67,13 @@ spend one bounded style retry, then show:
 
 > Map background couldn't load. Tap Retry to try again.
 
-The Retry action reinitialises the map. A slower successful tile stream also
-clears a timeout-owned notice automatically. A notice caused by actual request
-errors stays until Retry because MapLibre considers errored tiles settled.
+The Retry action reinitialises the map. First-paint success comes from a loaded
+basemap tile crossing a later render boundary, not from every tiled source
+settling. A secondary source may therefore remain pending without turning an
+already-painted background into a failure. If the readiness ceiling fires
+first, a later painted tile clears only the timeout-owned notice. A notice
+caused by actual request errors stays until Retry because MapLibre considers
+errored tiles settled.
 
 After the basemap has painted, a concurrent failed viewport now owns a
 generation-scoped recheck at the five-second sustain boundary. Each failed
