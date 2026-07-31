@@ -65,11 +65,11 @@ git commit -m "test(map): lock phone chrome fit and tap delivery"
 - Consumes: existing `--mobile-map-stack-left`, `--mobile-map-stack-right`, `--mobile-map-corner-lane`, and 44px control sizes
 - Produces: balanced 12px phone shell gutters, one outer row boundary, internally reserved TfL lane, and unchanged desktop rules
 
-- [ ] **Step 1: Apply smallest CSS change**
+- [x] **Step 1: Apply smallest CSS change**
 
 Use existing 12px stack inset on both outer edges. Make topbar, contextual rail, Tonight Arc outer shell, and primary action share those edges. Keep TfL in its existing row and reserve its existing corner lane within that row. Keep rows non-wrapping and horizontally scrollable. Do not add a height, component, dependency, or desktop selector.
 
-- [ ] **Step 2: Run focused red-green test**
+- [x] **Step 2: Run focused red-green test**
 
 Run:
 

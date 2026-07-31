@@ -25,14 +25,14 @@
       var(--mobile-map-corner-inset) + var(--mobile-map-corner-btn) + 12px
     );
     --mobile-map-stack-left: 12px;
-    --mobile-map-stack-right: var(--mobile-map-corner-lane);
+    --mobile-map-stack-right: 12px;
   }
 
   .mobileMapChrome {
     position: fixed;
     top: var(--mobile-map-top);
-    left: 10px;
-    right: 10px;
+    left: var(--mobile-map-stack-left);
+    right: var(--mobile-map-stack-right);
     z-index: var(--z-map-toolbar);
     display: grid;
     gap: 6px;
@@ -215,10 +215,8 @@
   .mobileMapRail {
     display: flex;
     gap: 6px;
-    width: calc(
-      100vw - var(--mobile-map-stack-left) - var(--mobile-map-stack-right)
-    );
-    margin-left: calc(var(--mobile-map-stack-left) - 10px);
+    width: 100%;
+    margin-left: 0;
     box-sizing: border-box;
     min-height: var(--mobile-map-rail-h);
     overflow-x: auto;
@@ -228,12 +226,8 @@
     scroll-snap-type: x proximity;
   }
   .mobileMapRail::-webkit-scrollbar { display: none; }
-  /* At 390px the three chips measured 391px against 370px of rail, so Filters
-     was cut clean through its refinement badge - the one glyph that says the
-     map is filtered. The rail stays a scroller (a fourth chip would still
-     scroll); this just buys back the ~21px so the shipped set of three sits
-     inside the viewport at the narrowest common phone. 430px keeps the roomier
-     chips. */
+  /* Keep the shipped controls compact on narrow phones. The full row uses the
+     balanced shell boundary and remains a scroller if labels grow later. */
   @media (max-width: 420px) {
     .mobileMapRail { gap: 5px; }
     .mobileMapRail > button {
@@ -271,7 +265,7 @@
   .mobileMapUtilityCorner {
     position: fixed;
     right: var(--mobile-map-corner-inset);
-    top: calc(var(--mobile-map-chrome-h, 118px) + env(safe-area-inset-top) + 14px);
+    top: calc(var(--mobile-map-chrome-h, 118px) + env(safe-area-inset-top) + 12px);
     bottom: calc(var(--mobile-map-dock-clearance) + 72px);
     z-index: var(--z-map-toolbar);
     display: flex;
@@ -308,7 +302,6 @@
     left: var(--mobile-map-stack-left);
     right: var(--mobile-map-stack-right);
     z-index: var(--z-map-toolbar);
-    /* Leave a clear lane for the TfL corner FAB on narrow phones. */
     min-width: 0;
     max-width: none;
     min-height: 48px;

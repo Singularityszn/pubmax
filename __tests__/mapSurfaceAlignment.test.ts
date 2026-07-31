@@ -27,19 +27,23 @@ describe("map surface alignment", () => {
     );
   });
 
-  it("gives phone map actions one left-aligned safe-lane boundary", () => {
+  it("gives phone map controls one centred boundary with balanced gutters", () => {
     expect(mobileCss).toMatch(/--mobile-map-stack-left:\s*12px/);
+    expect(mobileCss).toMatch(/--mobile-map-stack-right:\s*12px/);
     expect(mobileCss).toMatch(
-      /--mobile-map-stack-right:\s*var\(--mobile-map-corner-lane\)/,
+      /\.mobileMapChrome\s*{[\s\S]*?left:\s*var\(--mobile-map-stack-left\)[\s\S]*?right:\s*var\(--mobile-map-stack-right\)/,
     );
     expect(mobileCss).toMatch(
-      /\.mobileMapRail\s*{[\s\S]*?width:\s*calc\(\s*100vw - var\(--mobile-map-stack-left\) - var\(--mobile-map-stack-right\)\s*\)/,
+      /\.mobileMapRail\s*{[\s\S]*?width:\s*100%[\s\S]*?margin-left:\s*0/,
     );
     expect(mobileCss).toMatch(
       /\.mobilePlanActivation\s*{[\s\S]*?left:\s*var\(--mobile-map-stack-left\)[\s\S]*?right:\s*var\(--mobile-map-stack-right\)/,
     );
     expect(tonightArcCss).toMatch(
       /@media \(max-width: 640px\)[\s\S]*?\.tonightArcChips\s*{[\s\S]*?left:\s*var\(--mobile-map-stack-left,[^)]+\)[\s\S]*?right:\s*var\(--mobile-map-stack-right,/,
+    );
+    expect(tonightArcCss).toMatch(
+      /@media \(max-width: 640px\)[\s\S]*?\.tonightArcChips\s*{[\s\S]*?padding-right:\s*calc\(var\(--mobile-map-corner-btn,\s*44px\) \+ 12px\)/,
     );
   });
 

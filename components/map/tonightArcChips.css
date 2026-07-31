@@ -121,17 +121,15 @@
   .tonightArcChips {
     position: fixed;
     top: calc(var(--mobile-map-top) + var(--mobile-map-bar-h) + 58px);
-    /* Fitting the viewport is not enough: the TfL utility control is fixed to
-       the right edge in this same band, so a rail sized only against 100vw put
-       the fifth chip under a 44px button and lost its taps. Anchor left and
-       end a full corner lane short of that control (--mobile-map-corner-lane,
-       mobileMapShell.css). The row scrolls rather than wrapping or truncating. */
+    /* Outer shell shares the balanced phone boundary. The right padding keeps
+       row content clear of the TfL control inside that boundary. */
     left: var(--mobile-map-stack-left, 12px);
-    right: var(--mobile-map-stack-right, var(--mobile-map-corner-lane, 68px));
+    right: var(--mobile-map-stack-right, 12px);
     display: block;
     width: auto;
     max-width: none;
     padding: 4px 8px;
+    padding-right: calc(var(--mobile-map-corner-btn, 44px) + 12px);
     transform: none;
   }
 
