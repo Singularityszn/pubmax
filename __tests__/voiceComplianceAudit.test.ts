@@ -389,6 +389,14 @@ describe("VOICE.md compliance audit", () => {
     expect(about).not.toContain("Every one names where it came from");
     expect(about).not.toContain("Listed prices name their sources");
     expect(about).not.toContain("Listed pint prices with named sources");
+    expect(about).not.toMatch(/prices from real people|every figure links back/iu);
+    expect(accountHub).not.toMatch(/prices from real people/iu);
+    expect(about).toMatch(
+      /names? and links? publishers? when recorded[\s\S]*says? when none is recorded/iu,
+    );
+    expect(accountHub).toMatch(
+      /prices name and link their publisher when recorded and say when none is recorded/iu,
+    );
     expect(crew).not.toContain("No account. Just your name.");
 
     expect(activity).not.toContain("reach the bar");

@@ -127,20 +127,11 @@ export function createPinRevealCoordinator({
         if (
           generation !== armedGeneration ||
           state !== "revealed" ||
-          frame !== null ||
           !hasBasemapPainted()
         ) return;
-        frame = requestFrame(() => {
-          frame = null;
-          if (
-            generation !== armedGeneration ||
-            state !== "revealed" ||
-            !hasBasemapPainted()
-          ) return;
-          const canRecover = canRecoverAfterTimeout?.() ?? true;
-          clearPending();
-          if (canRecover) onPaintAfterTimeout(armedGeneration);
-        });
+        const canRecover = canRecoverAfterTimeout?.() ?? true;
+        clearPending();
+        if (canRecover) onPaintAfterTimeout(armedGeneration);
       };
       unsubscribeRender = subscribeRender(scheduleTimeoutRecovery);
       unsubscribeIdle = subscribeIdle(scheduleTimeoutRecovery);

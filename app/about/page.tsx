@@ -19,7 +19,7 @@ import "./about.css";
 
 const PAGE_TITLE = "Our story: why PUBMAXX exists";
 const PAGE_DESCRIPTION =
-  "A pint in London can cost eight quid, and nobody tells you where it doesn't. PUBMAXX puts real prices from real people on one map, with the whole night in a single plan. Free, and nobody pays to rank.";
+  "A pint in London can cost eight quid. PUBMAXX puts listed prices on one map, names and links publishers when recorded, and says when none is recorded. Free, and nobody pays to rank.";
 
 export const metadata: Metadata = {
   title: PAGE_TITLE,
@@ -348,8 +348,9 @@ export default async function AboutPage() {
             <span className="aboutPriceStamp">{cheapest}</span> at the cheap end
             to <span className="aboutPriceStamp">{dearest}</span> at the top. It
             is built from{" "}
-            <strong>{fmtInt(stats.pintPricesObserved)}</strong> sourced
-            readings, and every figure links back to where it came from.
+            <strong>{fmtInt(stats.pintPricesObserved)}</strong> price readings.
+            Listed prices name and link their publisher when recorded, and say
+            when none is recorded.
           </li>
           <li>
             <strong>A price series, not a one-off headline.</strong> The prices

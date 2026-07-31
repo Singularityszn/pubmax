@@ -2,7 +2,7 @@
 
 _The one doc that decides how every string in the app reads. If copy fights this, the copy is wrong._
 
-PUBMAX sounds like a Londoner who knows the pub, not a brand that owns one. Dry, warm, direct, a bit funny, never salesy. We're for the commoners: the people getting mugged £7.20 for a lager who just want a good pint without thinking about it. The whole point of the app is in the voice: **a pint shouldn't cost a day's lunch, so we show real prices from real people, and nobody ever pays to rank.**
+PUBMAX sounds like a Londoner who knows the pub, not a brand that owns one. Dry, warm, direct, a bit funny, never salesy. We're for the commoners: the people getting mugged £7.20 for a lager who just want a good pint without thinking about it. The whole point of the app is in the voice: **a pint shouldn't cost a day's lunch, so we show listed prices with honest publisher status, and nobody ever pays to rank.**
 
 ---
 

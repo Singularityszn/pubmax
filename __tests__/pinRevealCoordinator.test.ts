@@ -16,7 +16,7 @@ function harness() {
   const visibility: boolean[] = [];
   const reveals: Array<{ reason: string; generation: number }> = [];
   const timeoutRecoveries: number[] = [];
-  let timeoutRecoveryAllowed = true;
+  let noticeOwner: "none" | "timeout" | "errors" = "none";
 
   const coordinator = createPinRevealCoordinator({
     pinRevealTimeoutMs: 3_000,
@@ -47,10 +47,15 @@ function harness() {
       timers.delete(id);
       timerDelays.delete(id);
     },
-    canRecoverAfterTimeout: () => timeoutRecoveryAllowed,
-    onPaintAfterTimeout: (generation: number) =>
-      timeoutRecoveries.push(generation),
-    onReveal: (reason, generation) => reveals.push({ reason, generation }),
+    canRecoverAfterTimeout: () => noticeOwner === "timeout",
+    onPaintAfterTimeout: (generation: number) => {
+      noticeOwner = "none";
+      timeoutRecoveries.push(generation);
+    },
+    onReveal: (reason, generation) => {
+      if (reason === "timeout") noticeOwner = "timeout";
+      reveals.push({ reason, generation });
+    },
   });
 
   return {
@@ -62,8 +67,11 @@ function harness() {
     idleListeners,
     frames,
     timers,
-    setTimeoutRecoveryAllowed(value: boolean) {
-      timeoutRecoveryAllowed = value;
+    getNoticeOwner() {
+      return noticeOwner;
+    },
+    reportGenuineFailure() {
+      noticeOwner = "errors";
     },
     setBasemapPainted(value: boolean) { basemapPainted = value; },
     fireRender() { [...renderListeners].forEach((listener) => listener()); },
@@ -174,29 +182,32 @@ describe("pin reveal coordinator", () => {
     expect(h.reveals).toEqual([{ reason: "timeout", generation: 1 }]);
   });
 
-  it("recovers a timeout after a later tile paint without waiting for idle", () => {
+  it("clears a timeout-owned notice in the first render that paints the basemap", () => {
     const h = harness();
     h.coordinator.arm();
     h.fireCeiling();
+    expect(h.getNoticeOwner()).toBe("timeout");
 
     h.setBasemapPainted(true);
     h.fireRender();
-    h.flushFrame();
 
+    expect(h.getNoticeOwner()).toBe("none");
     expect(h.timeoutRecoveries).toEqual([1]);
+    expect(h.frames.size).toBe(0);
   });
 
-  it("preserves an error-owned notice when a later tile paints", () => {
+  it("preserves an error-owned notice when the basemap later renders", () => {
     const h = harness();
     h.coordinator.arm();
     h.fireCeiling();
-    h.setTimeoutRecoveryAllowed(false);
+    h.reportGenuineFailure();
 
     h.setBasemapPainted(true);
     h.fireRender();
-    h.flushFrame();
 
+    expect(h.getNoticeOwner()).toBe("errors");
     expect(h.timeoutRecoveries).toEqual([]);
+    expect(h.frames.size).toBe(0);
   });
 
   it("cancels obsolete style generations and ignores stale callbacks", () => {
