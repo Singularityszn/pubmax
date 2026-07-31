@@ -9,6 +9,7 @@ import {
   type DrinkCategory,
   type DrinkProvenance,
 } from "@/lib/drinks";
+import { firstHttp } from "@/lib/httpUrl";
 import { DrinkGlyph } from "./DrinkGlyph";
 
 import "./drinkMenu.css";
@@ -41,10 +42,23 @@ function isDemoProvenance(prov: DrinkProvenance): boolean {
 function ProvChip({ prov }: { prov: DrinkProvenance }) {
   const label = provenanceLabel(prov);
   const kind = isDemoProvenance(prov) ? "demo" : "sourced";
-  return (
+  const className = `drinkProvChip ${kind}`;
+  const title = `${label} · ${prov.licence}`;
+  const sourceUrl = firstHttp(prov.sourceUrl);
+  return sourceUrl ? (
+    <a
+      className={className}
+      title={title}
+      href={sourceUrl}
+      target="_blank"
+      rel="noopener noreferrer"
+    >
+      {label}
+    </a>
+  ) : (
     <span
-      className={`drinkProvChip ${kind}`}
-      title={`${prov.source} · ${prov.licence}`}
+      className={className}
+      title={title}
     >
       {label}
     </span>
@@ -199,8 +213,8 @@ export default function DrinkMenu({
         />
       ))}
       <p className="drinkMenuFootnote">
-        Every drink carries its source · Demo items are seeded examples, never a
-        live price.
+        Price sources link where the record names one · Demo items are seeded
+        examples, not live prices.
       </p>
     </div>
   );

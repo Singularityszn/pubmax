@@ -110,3 +110,28 @@ The corrected brief retains the rule selected from the same observation that
 supplies its displayed temperature. Fireplace headlines now distinguish rain,
 cold and winter rules. The regression proves a 24C hard-rain reading says rain
 and never cold, while a 7C cold reading still says cold.
+
+## 5. Dove price provenance
+
+At 1440x900 in a signed-out live pass I opened The Dove. Its Overview showed
+`Baseline on record`, `£7.25` and `Dataset price. Not a live tonight feed.`
+No named price publisher appeared. `05-dove-source-desktop.png` and
+`observations.json` record that pass. The nearby `Photo: pub website` remained
+an image credit, not price provenance.
+
+The authoritative `app_price_001178` record for the £7.25 Asahi price already
+carried a specific `pub_url` on Pint Prices. The legacy drink adapter discarded
+that field and replaced it with `app-dataset`; the Drinks UI translated that
+generic token to `On record`. Overview read only the convenient
+`venue.cheapestPrice` number, not the matching source-bearing price row.
+
+Before implementation, the adapter regression failed with `app-dataset`
+instead of `Pint Prices`, and the 1440x900 Playwright regression failed because
+Overview had no `Pint Prices` link.
+
+The correction validates and names the source on the price record. Overview
+finds the row that supplies its baseline figure, and the Drinks adapter carries
+that same row's publisher and URL into Asahi. The post-fix Playwright pass
+observed £7.25 and the exact Pint Prices link in both places. The menu footnote
+now says source links appear where a record names one; it no longer claims
+every drink has a named source.

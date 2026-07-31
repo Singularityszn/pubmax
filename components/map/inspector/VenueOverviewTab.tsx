@@ -50,6 +50,7 @@ import {
   type MapExperienceLens,
   type VenuePriceReadStatus,
 } from "@/lib/mapExperienceLens";
+import { namedLegacyPintPriceSource } from "@/lib/drinks";
 
 function VenuePriceSummary({
   venue,
@@ -66,6 +67,13 @@ function VenuePriceSummary({
   anchorStamp: string | null;
   onStartFirstDrop: () => void;
 }) {
+  const baselinePriceRow = venue.prices.find(
+    (price) => price.price_gbp === venue.cheapestPrice,
+  );
+  const baselineSource = baselinePriceRow
+    ? namedLegacyPintPriceSource(baselinePriceRow)
+    : null;
+
   if (
     !isPubVenue(venue) &&
     venue.anchorLabel &&
@@ -143,7 +151,21 @@ function VenuePriceSummary({
           {formatPrice(venue.cheapestPrice)}
         </PriceBadge>
         <small className="communityPriceNote">
-          Dataset price. Not a live tonight feed.
+          {baselineSource ? (
+            <>
+              Dataset price from{" "}
+              <a
+                href={baselineSource.url}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                {baselineSource.label}
+              </a>
+              . Not a live tonight feed.
+            </>
+          ) : (
+            <>Dataset price. Source not named in record. Not a live tonight feed.</>
+          )}
         </small>
       </div>
     );
