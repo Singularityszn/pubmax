@@ -8,7 +8,6 @@ import {
 function harness() {
   let basemapPainted = false;
   let nextId = 1;
-  const frames = new Map<number, FrameRequestCallback>();
   const timers = new Map<number, () => void>();
   const timerDelays = new Map<number, number>();
   const renderListeners = new Set<() => void>();
@@ -31,12 +30,6 @@ function harness() {
       idleListeners.add(listener);
       return () => idleListeners.delete(listener);
     },
-    requestFrame: (callback) => {
-      const id = nextId++;
-      frames.set(id, callback);
-      return id;
-    },
-    cancelFrame: (id) => frames.delete(id),
     setTimer: (callback, delayMs) => {
       const id = nextId++;
       timers.set(id, callback);
@@ -65,7 +58,6 @@ function harness() {
     timeoutRecoveries,
     renderListeners,
     idleListeners,
-    frames,
     timers,
     getNoticeOwner() {
       return noticeOwner;
@@ -76,12 +68,6 @@ function harness() {
     setBasemapPainted(value: boolean) { basemapPainted = value; },
     fireRender() { [...renderListeners].forEach((listener) => listener()); },
     fireIdle() { [...idleListeners].forEach((listener) => listener()); },
-    flushFrame() {
-      const entry = frames.entries().next().value as [number, FrameRequestCallback] | undefined;
-      if (!entry) return;
-      frames.delete(entry[0]);
-      entry[1](0);
-    },
     fireByDelay(delayMs: number) {
       for (const [id, delay] of timerDelays) {
         if (delay === delayMs) {
@@ -113,12 +99,9 @@ describe("pin reveal coordinator", () => {
     h.fireRender();
     h.fireIdle();
     expect(h.visibility).toEqual([false]);
-    expect(h.frames.size).toBe(0);
 
     h.setBasemapPainted(true);
     h.fireRender();
-    expect(h.visibility).toEqual([false]);
-    h.flushFrame();
 
     expect(h.visibility).toEqual([false, true]);
     expect(h.reveals).toEqual([{ reason: "tiles", generation: 1 }]);
@@ -150,7 +133,6 @@ describe("pin reveal coordinator", () => {
     // The basemap finally paints: the real frame lifts the chrome, not the ceiling.
     h.setBasemapPainted(true);
     h.fireRender();
-    h.flushFrame();
 
     expect(h.reveals).toEqual([{ reason: "tiles", generation: 1 }]);
     // Pins were already shown by the fallback, so no duplicate visibility write.
@@ -164,11 +146,22 @@ describe("pin reveal coordinator", () => {
     h.setBasemapPainted(true);
 
     h.fireRender();
-    h.flushFrame();
     h.fireCeiling();
 
     expect(h.reveals).toEqual([{ reason: "tiles", generation: 1 }]);
     expect(h.visibility).toEqual([false, true]);
+  });
+
+  it("lets rendered tiles beat the ceiling in the same event turn", () => {
+    const h = harness();
+    h.coordinator.arm();
+    h.setBasemapPainted(true);
+
+    h.fireRender();
+    h.fireCeiling();
+
+    expect(h.reveals).toEqual([{ reason: "tiles", generation: 1 }]);
+    expect(h.getNoticeOwner()).toBe("none");
   });
 
   it("lifts the chrome at the honest ceiling only when tiles never settle", () => {
@@ -193,7 +186,6 @@ describe("pin reveal coordinator", () => {
 
     expect(h.getNoticeOwner()).toBe("none");
     expect(h.timeoutRecoveries).toEqual([1]);
-    expect(h.frames.size).toBe(0);
   });
 
   it("preserves an error-owned notice when the basemap later renders", () => {
@@ -207,7 +199,6 @@ describe("pin reveal coordinator", () => {
 
     expect(h.getNoticeOwner()).toBe("errors");
     expect(h.timeoutRecoveries).toEqual([]);
-    expect(h.frames.size).toBe(0);
   });
 
   it("cancels obsolete style generations and ignores stale callbacks", () => {
@@ -223,21 +214,19 @@ describe("pin reveal coordinator", () => {
     expect(h.reveals).toEqual([]);
 
     h.fireRender();
-    h.flushFrame();
     expect(h.visibility).toEqual([false, false, true]);
     expect(h.reveals).toEqual([{ reason: "tiles", generation: 2 }]);
   });
 
-  it("prevents post-unmount frame and timer writes", () => {
+  it("prevents post-unmount event and timer writes", () => {
     const h = harness();
     h.setBasemapPainted(true);
     h.coordinator.arm();
-    h.fireRender();
-    const staleFrame = [...h.frames.values()][0];
+    const staleRender = [...h.renderListeners][0];
     const staleTimer = [...h.timers.values()][0];
 
     h.coordinator.dispose();
-    staleFrame?.(0);
+    staleRender?.();
     staleTimer?.();
 
     expect(h.visibility).toEqual([false]);
@@ -251,11 +240,9 @@ describe("pin reveal coordinator", () => {
     h.setBasemapPainted(true);
     h.coordinator.arm();
 
-    expect(h.frames.size).toBe(0);
     expect(h.reveals).toEqual([]);
 
     h.fireRender();
-    h.flushFrame();
     expect(h.reveals).toEqual([{ reason: "tiles", generation: 1 }]);
   });
 
@@ -264,7 +251,6 @@ describe("pin reveal coordinator", () => {
     h.coordinator.arm();
     h.setBasemapPainted(true);
     h.fireIdle();
-    h.flushFrame();
     h.fireRender();
 
     expect(h.reveals).toEqual([{ reason: "idle", generation: 1 }]);

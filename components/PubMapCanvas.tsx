@@ -1233,8 +1233,6 @@ export default function PubMapCanvas({
         map.on("idle", listener);
         return () => map.off("idle", listener);
       },
-      requestFrame: (callback) => requestAnimationFrame(callback),
-      cancelFrame: (id) => cancelAnimationFrame(id),
       setTimer: (callback, delayMs) => window.setTimeout(callback, delayMs),
       clearTimer: (handle) => window.clearTimeout(handle),
       canRecoverAfterTimeout: () => tileNoticeOwner === "timeout",

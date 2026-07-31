@@ -3,6 +3,8 @@ import { headers } from "next/headers";
 import Link from "next/link";
 
 import { loadAboutStats, type AboutStats } from "@/lib/aboutStats";
+import { buildLeagueTable, indexSummary } from "@/lib/pintIndex";
+import { loadPublicPintIndexSnapshot } from "@/lib/pintIndexSnapshot.server";
 import { CONTACT_EMAIL } from "@/lib/siteContact";
 
 import "./about.css";
@@ -93,7 +95,14 @@ function tractionStats(s: AboutStats): Stat[] {
 }
 
 export default async function AboutPage() {
-  const stats = await loadAboutStats();
+  const [stats, pintIndexSnapshot] = await Promise.all([
+    loadAboutStats(),
+    loadPublicPintIndexSnapshot(),
+  ]);
+  const pintIndexRows = pintIndexSnapshot
+    ? buildLeagueTable(pintIndexSnapshot)
+    : [];
+  const pintIndexSummary = indexSummary(pintIndexRows);
   const nonce = (await headers()).get("x-nonce") ?? undefined;
 
   // AboutPage + Organization JSON-LD. NOTE (see agent report): components/seo/
@@ -340,32 +349,36 @@ export default async function AboutPage() {
           your angle.
         </p>
         <ul className="aboutEthos">
-          <li>
-            <strong>London&rsquo;s pint price league table.</strong> The Pint
-            Index ranks{" "}
-            <strong>{fmtInt(stats.boroughsCovered)}</strong> boroughs and
-            neighbourhoods by the price of a pint, from{" "}
-            <span className="aboutPriceStamp">{cheapest}</span> at the cheap end
-            to <span className="aboutPriceStamp">{dearest}</span> at the top. It
-            is built from{" "}
-            <strong>{fmtInt(stats.pintPricesObserved)}</strong> price readings.
-            Listed prices name and link their publisher when recorded, and say
-            when none is recorded.
-          </li>
-          <li>
-            <strong>A price series, not a one-off headline.</strong> The prices
-            people log carry the day they were seen, so the Pint Index can show
-            how a London pint moves over a season, not just what it costs today.
-          </li>
-          <li>
-            <strong>Sourced, never invented.</strong> Where the data
-            can&rsquo;t stand up an honest number for an area, the table shows
-            nothing there. No filler, no estimate dressed up as a fact.
-          </li>
+          {pintIndexRows.length > 0 && pintIndexSnapshot ? (
+            <>
+              <li>
+                <strong>London&rsquo;s pint price league table.</strong> The
+                Pint Index currently ranks{" "}
+                <strong>{fmtInt(pintIndexSummary.boroughCount)}</strong>{" "}
+                boroughs from{" "}
+                <strong>{fmtInt(pintIndexSnapshot.observations.length)}</strong>{" "}
+                dated prices across{" "}
+                <strong>{fmtInt(pintIndexSummary.pubCount)}</strong> pubs.
+              </li>
+              <li>
+                <strong>A price series, not a one-off headline.</strong> Only
+                prices with a public source and date enter the Index. Closed
+                months keep their own frozen edition.
+              </li>
+            </>
+          ) : (
+            <li>
+              <strong>No borough league yet.</strong> The public Pint Index has
+              no dated prices with a public source to rank yet. Older map-only
+              prices stay separate from the league.
+            </li>
+          )}
         </ul>
         <p className="aboutBody">
           <Link href="/pint-index" className="aboutLink">
-            See the league table
+            {pintIndexRows.length > 0
+              ? "See the league table"
+              : "See the Index status"}
           </Link>
         </p>
       </section>

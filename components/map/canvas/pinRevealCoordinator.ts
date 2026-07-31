@@ -32,8 +32,6 @@ type PinRevealCoordinatorOptions = {
   setPinsVisible: (visible: boolean) => void;
   subscribeRender: (listener: () => void) => () => void;
   subscribeIdle: (listener: () => void) => () => void;
-  requestFrame: (callback: FrameRequestCallback) => number;
-  cancelFrame: (id: number) => void;
   setTimer: (callback: () => void, delayMs: number) => number;
   clearTimer: (handle: number) => void;
   canRecoverAfterTimeout?: () => boolean;
@@ -45,7 +43,7 @@ type PinRevealCoordinatorOptions = {
  * Keeps local GeoJSON pins behind the basemap's first painted tile frame, and
  * keeps the parent loading skeleton up until that same frame. Every style
  * rebuild owns one generation; callbacks from superseded styles are harmless
- * even when the browser delivers a cancelled frame/event late.
+ * even when the browser delivers an old event late.
  *
  * Two independent clocks guard the two failure modes:
  *  - `pinRevealTimeoutMs`: a short fallback that un-gates the local pins so they
@@ -63,8 +61,6 @@ export function createPinRevealCoordinator({
   setPinsVisible,
   subscribeRender,
   subscribeIdle,
-  requestFrame,
-  cancelFrame,
   setTimer,
   clearTimer,
   canRecoverAfterTimeout,
@@ -73,15 +69,12 @@ export function createPinRevealCoordinator({
 }: PinRevealCoordinatorOptions) {
   let generation = 0;
   let state: "idle" | "gated" | "revealed" | "cancelled" = "idle";
-  let frame: number | null = null;
   let pinTimer: number | null = null;
   let ceilingTimer: number | null = null;
   let unsubscribeRender: (() => void) | null = null;
   let unsubscribeIdle: (() => void) | null = null;
 
   const clearPending = () => {
-    if (frame !== null) cancelFrame(frame);
-    frame = null;
     if (pinTimer !== null) clearTimer(pinTimer);
     pinTimer = null;
     if (ceilingTimer !== null) clearTimer(ceilingTimer);
@@ -136,17 +129,13 @@ export function createPinRevealCoordinator({
       unsubscribeRender = subscribeRender(scheduleTimeoutRecovery);
       unsubscribeIdle = subscribeIdle(scheduleTimeoutRecovery);
     };
-    const scheduleTileReveal = (reason: Exclude<PinRevealReason, "timeout">) => {
-      if (!isCurrent() || frame !== null || !hasBasemapPainted()) return;
-      frame = requestFrame(() => {
-        frame = null;
-        if (!isCurrent() || !hasBasemapPainted()) return;
-        reveal(reason);
-      });
+    const revealPainted = (reason: Exclude<PinRevealReason, "timeout">) => {
+      if (!isCurrent() || !hasBasemapPainted()) return;
+      reveal(reason);
     };
 
-    unsubscribeRender = subscribeRender(() => scheduleTileReveal("tiles"));
-    unsubscribeIdle = subscribeIdle(() => scheduleTileReveal("idle"));
+    unsubscribeRender = subscribeRender(() => revealPainted("tiles"));
+    unsubscribeIdle = subscribeIdle(() => revealPainted("idle"));
     // Short fallback: un-gate the local pins so they can't hang hidden. This
     // runs behind the still-present parent skeleton and never lifts the chrome.
     pinTimer = setTimer(() => {
