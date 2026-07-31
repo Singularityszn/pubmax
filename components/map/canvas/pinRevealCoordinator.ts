@@ -36,6 +36,8 @@ type PinRevealCoordinatorOptions = {
   cancelFrame: (id: number) => void;
   setTimer: (callback: () => void, delayMs: number) => number;
   clearTimer: (handle: number) => void;
+  canRecoverAfterTimeout?: () => boolean;
+  onPaintAfterTimeout?: (generation: number) => void;
   onReveal?: (reason: PinRevealReason, generation: number) => void;
 };
 
@@ -65,6 +67,8 @@ export function createPinRevealCoordinator({
   cancelFrame,
   setTimer,
   clearTimer,
+  canRecoverAfterTimeout,
+  onPaintAfterTimeout,
   onReveal,
 }: PinRevealCoordinatorOptions) {
   let generation = 0;
@@ -118,6 +122,28 @@ export function createPinRevealCoordinator({
       clearPending();
       showPins();
       onReveal?.(reason, armedGeneration);
+      if (reason !== "timeout" || !onPaintAfterTimeout) return;
+      const scheduleTimeoutRecovery = () => {
+        if (
+          generation !== armedGeneration ||
+          state !== "revealed" ||
+          frame !== null ||
+          !hasBasemapPainted()
+        ) return;
+        frame = requestFrame(() => {
+          frame = null;
+          if (
+            generation !== armedGeneration ||
+            state !== "revealed" ||
+            !hasBasemapPainted()
+          ) return;
+          const canRecover = canRecoverAfterTimeout?.() ?? true;
+          clearPending();
+          if (canRecover) onPaintAfterTimeout(armedGeneration);
+        });
+      };
+      unsubscribeRender = subscribeRender(scheduleTimeoutRecovery);
+      unsubscribeIdle = subscribeIdle(scheduleTimeoutRecovery);
     };
     const scheduleTileReveal = (reason: Exclude<PinRevealReason, "timeout">) => {
       if (!isCurrent() || frame !== null || !hasBasemapPainted()) return;

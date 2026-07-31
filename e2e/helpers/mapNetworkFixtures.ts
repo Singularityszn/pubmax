@@ -50,6 +50,8 @@ function emptyStyle(stallSecondaryRaster: boolean) {
 export async function installDeterministicMapBasemap(
   page: Page,
   options: {
+    primaryRasterDelayMs?: number;
+    secondaryRasterDelayMs?: number;
     styleDelayMs?: number;
     stallSecondaryRaster?: boolean;
   } = {},
@@ -73,16 +75,23 @@ export async function installDeterministicMapBasemap(
 
   await page.route("**/*.mvt*", emptyVectorTile);
   await page.route("**/*.pbf*", emptyVectorTile);
-  await page.route("**/__empty/**/*.png", (route) =>
-    route.fulfill({
+  await page.route("**/__empty/**/*.png", async (route) => {
+    if (options.primaryRasterDelayMs) {
+      await new Promise((resolve) =>
+        setTimeout(resolve, options.primaryRasterDelayMs),
+      );
+    }
+    await route.fulfill({
       status: 200,
       contentType: "image/png",
       body: EMPTY_RASTER_TILE,
-    }),
-  );
+    });
+  });
   if (options.stallSecondaryRaster) {
     await page.route("**/__pending/**/*.png", async (route) => {
-      await new Promise((resolve) => setTimeout(resolve, 20_000));
+      await new Promise((resolve) =>
+        setTimeout(resolve, options.secondaryRasterDelayMs ?? 20_000),
+      );
       await route.fulfill({
         status: 200,
         contentType: "image/png",

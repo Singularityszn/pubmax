@@ -1284,6 +1284,12 @@ export default function PubMapCanvas({
       cancelFrame: (id) => cancelAnimationFrame(id),
       setTimer: (callback, delayMs) => window.setTimeout(callback, delayMs),
       clearTimer: (handle) => window.clearTimeout(handle),
+      canRecoverAfterTimeout: () => tileNoticeOwner === "timeout",
+      onPaintAfterTimeout: () => {
+        if (tileNoticeOwner !== "timeout") return;
+        tileNoticeOwner = "none";
+        setSoftRetry((current) => current?.kind === "tiles" ? null : current);
+      },
       onReveal: (reason, generation) => {
         const basemapRetry = basemapRetryForReveal(reason);
         if (basemapRetry) {

@@ -3,7 +3,11 @@ import { describe, expect, it, vi } from "vitest";
 import { createPubsSourceRevisionCoordinator } from "@/components/map/canvas/pubSourceRevision";
 
 type EventName = "sourcedata" | "sourcedataabort" | "error" | "render";
-type Listener = (event: { sourceId?: string; sourceDataType?: string }) => void;
+type Listener = (event: {
+  isSourceLoaded?: boolean;
+  sourceId?: string;
+  sourceDataType?: string;
+}) => void;
 
 function data(bucket: number): GeoJSON.FeatureCollection {
   return {
@@ -38,7 +42,11 @@ function setup(ready = true) {
   };
   const emit = (
     type: EventName,
-    event: { sourceId?: string; sourceDataType?: string } = {},
+    event: {
+      isSourceLoaded?: boolean;
+      sourceId?: string;
+      sourceDataType?: string;
+    } = {},
   ) => {
     for (const listener of [...(listeners.get(type) ?? [])]) listener(event);
   };
@@ -100,10 +108,23 @@ describe("createPubsSourceRevisionCoordinator", () => {
     emit("render");
     expect(publish).not.toHaveBeenCalled();
 
-    emit("sourcedata", { sourceId: "pubs", sourceDataType: "content" });
-    expect(map.triggerRepaint).toHaveBeenCalledOnce();
+    emit("sourcedata", {
+      isSourceLoaded: false,
+      sourceId: "pubs",
+      sourceDataType: "content",
+    });
+    expect(map.triggerRepaint).not.toHaveBeenCalled();
     expect(publish).not.toHaveBeenCalled();
 
+    emit("render");
+    expect(publish).not.toHaveBeenCalled();
+
+    emit("sourcedata", {
+      isSourceLoaded: true,
+      sourceId: "pubs",
+      sourceDataType: "idle",
+    });
+    expect(map.triggerRepaint).toHaveBeenCalledOnce();
     emit("render");
     expect(publish).toHaveBeenCalledWith(revision);
     expect(coordinator.getCommittedData()).toBe(revision);
@@ -116,7 +137,12 @@ describe("createPubsSourceRevisionCoordinator", () => {
     const revision = data(3);
 
     coordinator.request(initial);
-    emit("sourcedata", { sourceId: "pubs", sourceDataType: "content" });
+    emit("sourcedata", {
+      isSourceLoaded: false,
+      sourceId: "pubs",
+      sourceDataType: "content",
+    });
+    emit("sourcedata", { isSourceLoaded: true, sourceId: "pubs" });
     emit("render");
     setStructureReady(false);
     coordinator.request(revision);
@@ -129,7 +155,12 @@ describe("createPubsSourceRevisionCoordinator", () => {
 
     coordinator.flush();
     expect(source.setData).toHaveBeenCalledWith(revision);
-    emit("sourcedata", { sourceId: "pubs", sourceDataType: "content" });
+    emit("sourcedata", {
+      isSourceLoaded: false,
+      sourceId: "pubs",
+      sourceDataType: "content",
+    });
+    emit("sourcedata", { isSourceLoaded: true, sourceId: "pubs" });
     emit("render");
     expect(publish).toHaveBeenCalledTimes(2);
     expect(publish).toHaveBeenCalledWith(revision);
@@ -139,7 +170,11 @@ describe("createPubsSourceRevisionCoordinator", () => {
     const { coordinator, emit, publish } = setup();
 
     coordinator.request(data(1));
-    emit("sourcedata", { sourceId: "pubs", sourceDataType: "content" });
+    emit("sourcedata", {
+      isSourceLoaded: false,
+      sourceId: "pubs",
+      sourceDataType: "content",
+    });
     emit("error", { sourceId: "pubs" });
     emit("render");
 
@@ -153,7 +188,12 @@ describe("createPubsSourceRevisionCoordinator", () => {
     const pending = data(3);
 
     coordinator.request(settled);
-    emit("sourcedata", { sourceId: "pubs", sourceDataType: "content" });
+    emit("sourcedata", {
+      isSourceLoaded: false,
+      sourceId: "pubs",
+      sourceDataType: "content",
+    });
+    emit("sourcedata", { isSourceLoaded: true, sourceId: "pubs" });
     emit("render");
     coordinator.request(pending);
 
@@ -169,14 +209,23 @@ describe("createPubsSourceRevisionCoordinator", () => {
 
     coordinator.request(stale);
     coordinator.request(latest);
-    emit("sourcedata", { sourceId: "pubs", sourceDataType: "content" });
+    emit("sourcedata", {
+      isSourceLoaded: false,
+      sourceId: "pubs",
+      sourceDataType: "content",
+    });
 
     expect(source.setData).toHaveBeenCalledTimes(2);
     expect(source.setData).toHaveBeenLastCalledWith(latest);
     emit("render");
     expect(publish).not.toHaveBeenCalled();
 
-    emit("sourcedata", { sourceId: "pubs", sourceDataType: "content" });
+    emit("sourcedata", {
+      isSourceLoaded: false,
+      sourceId: "pubs",
+      sourceDataType: "content",
+    });
+    emit("sourcedata", { isSourceLoaded: true, sourceId: "pubs" });
     emit("render");
     expect(publish).toHaveBeenCalledOnce();
     expect(publish).toHaveBeenCalledWith(latest);

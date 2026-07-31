@@ -3,6 +3,7 @@ type PubsSource = {
 };
 
 export type PubsSourceDataEvent = {
+  isSourceLoaded?: boolean;
   sourceId?: string;
   sourceDataType?: string;
 };
@@ -51,6 +52,7 @@ export function createPubsSourceRevisionCoordinator({
 }: CreatePubsSourceRevisionCoordinatorOptions): PubsSourceRevisionCoordinator {
   let active:
     | (PubsSourceRevision & {
+        awaitingRender: boolean;
         detach: () => void;
         sawContent: boolean;
       })
@@ -78,16 +80,23 @@ export function createPubsSourceRevisionCoordinator({
     const onSourceData = (event: PubsSourceDataEvent) => {
       if (
         event.sourceId !== "pubs" ||
-        event.sourceDataType !== "content" ||
         active?.id !== revision.id
       ) {
         return;
       }
-      active.sawContent = true;
-      if (revision.id !== latestRevisionId) {
-        finish(false);
-        return;
+      if (event.sourceDataType === "content") {
+        active.sawContent = true;
+        if (revision.id !== latestRevisionId) {
+          finish(false);
+          return;
+        }
       }
+      if (
+        !active.sawContent ||
+        !event.isSourceLoaded ||
+        active.awaitingRender
+      ) return;
+      active.awaitingRender = true;
       unsubscribeRender = subscribeRender(onRender);
       triggerRepaint();
     };
@@ -97,7 +106,11 @@ export function createPubsSourceRevisionCoordinator({
       }
     };
     const onRender = () => {
-      if (active?.id !== revision.id || !active.sawContent) return;
+      if (
+        active?.id !== revision.id ||
+        !active.sawContent ||
+        !active.awaitingRender
+      ) return;
       finish(
         revision.id === latestRevisionId &&
           isStyleStructureReady() &&
@@ -125,6 +138,7 @@ export function createPubsSourceRevisionCoordinator({
 
     active = {
       ...revision,
+      awaitingRender: false,
       detach,
       sawContent: false,
     };

@@ -15,6 +15,8 @@ function harness() {
   const idleListeners = new Set<() => void>();
   const visibility: boolean[] = [];
   const reveals: Array<{ reason: string; generation: number }> = [];
+  const timeoutRecoveries: number[] = [];
+  let timeoutRecoveryAllowed = true;
 
   const coordinator = createPinRevealCoordinator({
     pinRevealTimeoutMs: 3_000,
@@ -45,6 +47,9 @@ function harness() {
       timers.delete(id);
       timerDelays.delete(id);
     },
+    canRecoverAfterTimeout: () => timeoutRecoveryAllowed,
+    onPaintAfterTimeout: (generation: number) =>
+      timeoutRecoveries.push(generation),
     onReveal: (reason, generation) => reveals.push({ reason, generation }),
   });
 
@@ -52,10 +57,14 @@ function harness() {
     coordinator,
     visibility,
     reveals,
+    timeoutRecoveries,
     renderListeners,
     idleListeners,
     frames,
     timers,
+    setTimeoutRecoveryAllowed(value: boolean) {
+      timeoutRecoveryAllowed = value;
+    },
     setBasemapPainted(value: boolean) { basemapPainted = value; },
     fireRender() { [...renderListeners].forEach((listener) => listener()); },
     fireIdle() { [...idleListeners].forEach((listener) => listener()); },
@@ -163,6 +172,31 @@ describe("pin reveal coordinator", () => {
 
     expect(h.visibility).toEqual([false, true]);
     expect(h.reveals).toEqual([{ reason: "timeout", generation: 1 }]);
+  });
+
+  it("recovers a timeout after a later tile paint without waiting for idle", () => {
+    const h = harness();
+    h.coordinator.arm();
+    h.fireCeiling();
+
+    h.setBasemapPainted(true);
+    h.fireRender();
+    h.flushFrame();
+
+    expect(h.timeoutRecoveries).toEqual([1]);
+  });
+
+  it("preserves an error-owned notice when a later tile paints", () => {
+    const h = harness();
+    h.coordinator.arm();
+    h.fireCeiling();
+    h.setTimeoutRecoveryAllowed(false);
+
+    h.setBasemapPainted(true);
+    h.fireRender();
+    h.flushFrame();
+
+    expect(h.timeoutRecoveries).toEqual([]);
   });
 
   it("cancels obsolete style generations and ignores stale callbacks", () => {
