@@ -15,20 +15,6 @@ export const EMPTY_MAP_RENDERED_STATE: MapRenderedState = {
   storyColour: null,
 };
 
-export function resolveMapStoryColour<Tokens extends { brass: string }>(
-  tokens: Tokens,
-  storyColourToken: string | null,
-): string | null {
-  const tokenValue = storyColourToken
-    ? Reflect.get(tokens, storyColourToken)
-    : null;
-  return storyColourToken === null
-    ? null
-    : typeof tokenValue === "string" && tokenValue.trim()
-      ? tokenValue
-      : tokens.brass;
-}
-
 function isMapRenderedPriceBucket(
   value: unknown,
 ): value is MapRenderedPriceBucket {
@@ -67,9 +53,18 @@ export function deriveMapRenderedState<Tokens extends { brass: string }>(
           : [],
       ),
   );
+  const tokenValue = storyColourToken
+    ? Reflect.get(tokens, storyColourToken)
+    : null;
+
   return {
     priceBands,
-    storyColour: resolveMapStoryColour(tokens, storyColourToken),
+    storyColour:
+      storyColourToken === null
+        ? null
+        : typeof tokenValue === "string" && tokenValue.trim()
+          ? tokenValue
+          : tokens.brass,
   };
 }
 

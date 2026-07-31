@@ -32,7 +32,6 @@ import {
   PIN_PRICE_LABEL_MIN_ZOOM,
   SELECTED_PIN_PRICE_LABEL_EXPR,
 } from "./filters";
-import { PUBS_SOURCE_REVISION_PROPERTY } from "./pubSourceRevision";
 
 // The two zooms that shape pub density. They are deliberately NOT the same
 // number any more:
@@ -875,10 +874,6 @@ export function buildPubs(ctx: SceneCtx) {
         b1: ["+", ["case", ["==", ["get", "bucket"], 1], 1, 0]],
         b2: ["+", ["case", ["==", ["get", "bucket"], 2], 1, 0]],
         b3: ["+", ["case", ["==", ["get", "bucket"], 3], 1, 0]],
-        [PUBS_SOURCE_REVISION_PROPERTY]: [
-          "max",
-          ["get", PUBS_SOURCE_REVISION_PROPERTY],
-        ],
       },
     });
   }
