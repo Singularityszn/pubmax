@@ -136,7 +136,16 @@ function VenuePriceSummary({
         <PriceBadge variant="current">
           {formatPrice(venue.cheapestPrice)}
         </PriceBadge>
-        {sourcedObserved ? <small>{sourcedObserved}</small> : null}
+        <small>
+          {sourcedObserved ? `${sourcedObserved} · ` : ""}
+          <a
+            href={sourcedPrice.sourceUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            {sourcedPrice.sourceLabel}
+          </a>
+        </small>
       </div>
     );
   }

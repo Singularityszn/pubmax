@@ -6,6 +6,7 @@ import DrinkMenu from "@/components/drinks/DrinkMenu";
 import VenueOverviewTab from "@/components/map/inspector/VenueOverviewTab";
 import type { CommunityPricesState } from "@/components/map/useCommunityPrices";
 import type { Drink } from "@/lib/drinks";
+import type { PricedVenue } from "@/lib/priceUpdates";
 import type { Venue, VenuePrice } from "@/lib/venues";
 
 const noop = () => {};
@@ -137,8 +138,14 @@ function communityPrices(venueId: string): CommunityPricesState {
   };
 }
 
-function renderOverview(pubUrl: string): string {
-  const currentVenue = venue(pubUrl);
+function renderOverview(
+  pubUrl: string,
+  sourcedPrice: PricedVenue["sourcedPrice"] = null,
+): string {
+  const currentVenue: PricedVenue = {
+    ...venue(pubUrl),
+    sourcedPrice,
+  };
   return renderToStaticMarkup(
     createElement(VenueOverviewTab, {
       venue: currentVenue,
@@ -213,5 +220,19 @@ describe("baseline price-source presentation", () => {
     expect(html).toContain(`href="${sourceUrl}"`);
     expect(html).toContain(">Pint Prices</a>");
     expect(html).not.toContain("Publisher not recorded for this price");
+  });
+
+  it("links the publisher that supplied a winning refresh-file price", () => {
+    const sourceUrl = "https://example.com/menu/test-arms";
+    const html = renderOverview("", {
+      provenance: "sourced",
+      sourceLabel: "The Test Arms menu",
+      sourceUrl,
+      observedAt: OBSERVED,
+    });
+
+    expect(html).toContain("Sourced price");
+    expect(html).toContain(`href="${sourceUrl}"`);
+    expect(html).toContain(">The Test Arms menu</a>");
   });
 });
