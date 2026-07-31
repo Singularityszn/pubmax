@@ -23,9 +23,9 @@ type PinRevealCoordinatorOptions = {
   pinRevealTimeoutMs: number;
   /**
    * Honest upper bound for firing the reveal (which lifts the parent loading
-   * chrome) when tiles never settle. The theme-matched skeleton stays up until
-   * a real painted frame OR this ceiling, so a slow tile stream can never
-   * expose a flat basemap void behind a prematurely retired skeleton.
+   * chrome) when no basemap tile becomes paintable. The theme-matched skeleton
+   * stays up until a real painted frame OR this ceiling, so a slow tile stream
+   * can never expose a flat basemap void behind a prematurely retired skeleton.
    */
   readyCeilingMs: number;
   hasBasemapPainted: () => boolean;
@@ -51,10 +51,10 @@ type PinRevealCoordinatorOptions = {
  *  - `pinRevealTimeoutMs`: a short fallback that un-gates the local pins so they
  *    never hang hidden. It does not lift the parent chrome.
  *  - `readyCeilingMs`: a longer honest upper bound that lifts the parent chrome
- *    even if the basemap never reports loaded tiles. The reveal itself always
- *    prefers a real render/idle frame with tiles loaded; the ceiling only fires
- *    when that frame never arrives, so the skeleton (not flat grey) is what the
- *    user sees during a slow tile stream.
+ *    even if no basemap tile loads. The reveal itself prefers a render/idle
+ *    frame after at least one loaded tile; the ceiling only fires when that
+ *    frame never arrives, so the skeleton (not flat grey) is what the user sees
+ *    during a slow tile stream.
  */
 export function createPinRevealCoordinator({
   pinRevealTimeoutMs,
@@ -161,7 +161,7 @@ export function createPinRevealCoordinator({
     pinTimer = setTimer(() => {
       if (isCurrent()) showPins();
     }, pinRevealTimeoutMs);
-    // Honest upper bound: lift the parent chrome even if tiles never settle.
+    // Honest upper bound: lift the parent chrome if no tile becomes paintable.
     ceilingTimer = setTimer(() => reveal("timeout"), readyCeilingMs);
     return armedGeneration;
   };

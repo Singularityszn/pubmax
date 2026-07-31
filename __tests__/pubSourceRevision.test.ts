@@ -29,7 +29,7 @@ function setup(ready = true) {
   const invalidatePaint = vi.fn();
   let structureReady = ready;
   const map = {
-    getSource: vi.fn(() => source),
+    getSource: vi.fn<() => typeof source | undefined>(() => source),
     triggerRepaint: vi.fn(),
   };
   const subscribe = (type: EventName, listener: Listener) => {

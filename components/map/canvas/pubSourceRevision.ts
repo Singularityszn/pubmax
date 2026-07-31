@@ -40,6 +40,12 @@ type CreatePubsSourceRevisionCoordinatorOptions = {
   triggerRepaint: () => void;
 };
 
+/**
+ * Serializes `pubs` GeoJSON revisions across MapLibre's asynchronous source
+ * worker. A revision becomes committed only after its content event reports
+ * loaded and a later render occurs, so published key state and map paint use
+ * the same data object. Failed or superseded revisions never publish.
+ */
 export function createPubsSourceRevisionCoordinator({
   getSource,
   invalidatePaint,

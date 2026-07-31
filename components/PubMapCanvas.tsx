@@ -309,18 +309,18 @@ type PubMapCanvasProps = {
 };
 
 
-// Short fallback that un-gates the local pins if slow or incomplete community
-// tiles never report loaded, so the pub layer can't hang hidden indefinitely.
+// Short fallback that un-gates local pins if no basemap tile becomes paintable,
+// so the pub layer cannot hang hidden indefinitely.
 // This runs BEHIND the still-present parent skeleton and never lifts the chrome.
 const PIN_REVEAL_TIMEOUT_MS = 3000;
-// Honest upper bound for lifting the parent loading chrome when tiles never
-// settle. On a slow tile stream the reveal always prefers a real render/idle
-// frame with tiles loaded (so the theme-matched pitched-London skeleton stays
-// up until the basemap actually paints); this ceiling only fires when that
-// frame never arrives, so the user never sees a flat basemap void behind a
-// prematurely retired skeleton. Kept above the slow-stream window the design
-// judge measured (~9s) and above the first-frame watchdog so a genuinely dead
-// canvas surfaces the error fallback rather than a blank lift.
+// Honest upper bound for lifting the parent loading chrome when no basemap tile
+// becomes paintable. On a slow tile stream the reveal prefers a render/idle
+// frame after at least one loaded tile (so the theme-matched pitched-London
+// skeleton stays up until the basemap actually paints); this ceiling only fires
+// when that frame never arrives, so the user never sees a flat basemap void
+// behind a prematurely retired skeleton. Kept above the slow-stream window the
+// design judge measured (~9s) and above the first-frame watchdog so a genuinely
+// dead canvas surfaces the error fallback rather than a blank lift.
 const PIN_READY_CEILING_MS = 12_000;
 // First-painted-frame watchdog. `style.load` is a network/parse event — it can
 // fire (and retire the parent's loading chrome) in a browser whose WebGL
@@ -1594,15 +1594,13 @@ export default function PubMapCanvas({
       map.setPaintProperty("pubs-point", "icon-opacity", pubIconOpacityExpr(selectedIdRef.current));
       map.setPaintProperty("pubs-point", "text-opacity", pubIconOpacityExpr(selectedIdRef.current));
     };
-    // Fired once per mount, at the FIRST moment pins are actually visible:
-    // either directly from settleSceneReady (tiles were already loaded, so the
-    // D2 tile-paint gate never armed) or from the gate's own revealPins (see
-    // buildSceneBody) once it flips the pub layers back to visible. Starting
-    // the clock at settle while the gate still held pins at visibility:none
-    // would burn the whole 400ms ramp invisibly — users would only ever see
-    // the instant post-entrance state. `pinEntranceFired` (not `sceneSettled`)
-    // is the once-only guard so the deferred reveal path can still fire, while
-    // theme-swap rebuilds (which re-run revealPins) can never re-trigger it.
+    // Fired once per mount, when the tile-paint coordinator first flips the pub
+    // layers back to visible. settleSceneReady calls this while the gate still
+    // holds pins at visibility:none, so it deliberately does not start there.
+    // Starting the clock at settle would burn the whole 400ms ramp invisibly
+    // and users would only see the instant post-entrance state.
+    // `pinEntranceFired` (not `sceneSettled`) is the once-only guard, so later
+    // style-generation reveals can never re-trigger it.
     let pinEntranceFired = false;
     const startPinEntrance = () => {
       if (pinEntranceFired || !map.getLayer("pubs-point")) return;

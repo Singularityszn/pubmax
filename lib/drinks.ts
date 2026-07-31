@@ -46,6 +46,7 @@ export type DrinkCategory = (typeof DRINK_CATEGORIES)[number];
 // source (a chain's own site, Wikidata, Open Food Facts…).
 export type DrinkProvenance = {
   source: string;
+  /** Validated publisher link when the price record names one. */
   sourceUrl?: string;
   licence: string;
   // ISO-8601 timestamp the fact was observed/seeded.
