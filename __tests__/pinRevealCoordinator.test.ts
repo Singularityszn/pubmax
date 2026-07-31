@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   basemapRetryForReveal,
   createPinRevealCoordinator,
+  type BasemapNoticeOwner,
 } from "@/components/map/canvas/pinRevealCoordinator";
 
 function harness() {
@@ -15,7 +16,7 @@ function harness() {
   const visibility: boolean[] = [];
   const reveals: Array<{ reason: string; generation: number }> = [];
   const timeoutRecoveries: number[] = [];
-  let noticeOwner: "none" | "timeout" | "errors" = "none";
+  let noticeOwner: BasemapNoticeOwner = "none";
 
   const coordinator = createPinRevealCoordinator({
     pinRevealTimeoutMs: 3_000,
@@ -46,7 +47,9 @@ function harness() {
       timeoutRecoveries.push(generation);
     },
     onReveal: (reason, generation) => {
-      if (reason === "timeout") noticeOwner = "timeout";
+      if (basemapRetryForReveal(reason, noticeOwner)) {
+        noticeOwner = "timeout";
+      }
       reveals.push({ reason, generation });
     },
   });
@@ -84,12 +87,13 @@ function harness() {
 
 describe("pin reveal coordinator", () => {
   it("turns only a basemap timeout into an honest retry notice", () => {
-    expect(basemapRetryForReveal("tiles")).toBeNull();
-    expect(basemapRetryForReveal("idle")).toBeNull();
-    expect(basemapRetryForReveal("timeout")).toEqual({
+    expect(basemapRetryForReveal("tiles", "none")).toBeNull();
+    expect(basemapRetryForReveal("idle", "none")).toBeNull();
+    expect(basemapRetryForReveal("timeout", "none")).toEqual({
       kind: "tiles",
       message: "Map background couldn't load. Tap Retry to try again.",
     });
+    expect(basemapRetryForReveal("timeout", "errors")).toBeNull();
   });
 
   it("keeps pins gated until basemap tiles have painted", () => {
@@ -193,6 +197,21 @@ describe("pin reveal coordinator", () => {
     h.coordinator.arm();
     h.fireCeiling();
     h.reportGenuineFailure();
+
+    h.setBasemapPainted(true);
+    h.fireRender();
+
+    expect(h.getNoticeOwner()).toBe("errors");
+    expect(h.timeoutRecoveries).toEqual([]);
+  });
+
+  it("keeps an error-owned notice through the ceiling and later paint", () => {
+    const h = harness();
+    h.coordinator.arm();
+    h.reportGenuineFailure();
+
+    h.fireCeiling();
+    expect(h.getNoticeOwner()).toBe("errors");
 
     h.setBasemapPainted(true);
     h.fireRender();

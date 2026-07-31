@@ -4,7 +4,7 @@ import Link from "next/link";
 
 import { loadAboutStats, type AboutStats } from "@/lib/aboutStats";
 import { buildLeagueTable, indexSummary } from "@/lib/pintIndex";
-import { loadPublicPintIndexSnapshot } from "@/lib/pintIndexSnapshot.server";
+import { loadPublicPintIndexSnapshot } from "@/lib/publicPintIndexSnapshot.server";
 import { CONTACT_EMAIL } from "@/lib/siteContact";
 
 import "./about.css";

@@ -91,6 +91,7 @@ import {
   BASEMAP_RETRY_NOTICE,
   basemapRetryForReveal,
   createPinRevealCoordinator,
+  type BasemapNoticeOwner,
 } from "@/components/map/canvas/pinRevealCoordinator";
 import { applySelectionMute } from "@/lib/mapBasemapTaste";
 import {
@@ -1142,7 +1143,7 @@ export default function PubMapCanvas({
     const areBasemapTilesLoaded = () => readBasemapTilesLoaded(map);
     let initialBasemapPending = true;
     let basemapTileReadyForPaint = false;
-    let tileNoticeOwner: "none" | "timeout" | "errors" = "none";
+    let tileNoticeOwner: BasemapNoticeOwner = "none";
     let tileFailureStamps: number[] = [];
     let tileRetrySpent = false;
     let tileFailureSurfaced = false;
@@ -1242,11 +1243,11 @@ export default function PubMapCanvas({
         setSoftRetry((current) => current?.kind === "tiles" ? null : current);
       },
       onReveal: (reason, generation) => {
-        const basemapRetry = basemapRetryForReveal(reason);
+        const basemapRetry = basemapRetryForReveal(reason, tileNoticeOwner);
         if (basemapRetry) {
           tileNoticeOwner = "timeout";
           setSoftRetry(basemapRetry);
-        } else {
+        } else if (reason !== "timeout") {
           markBasemapRecovered();
         }
         // Void fix (#395 R2, #397): lift the PARENT loading chrome HERE — the

@@ -1,15 +1,19 @@
 export type PinRevealReason = "tiles" | "idle" | "timeout";
+export type BasemapNoticeOwner = "none" | "timeout" | "errors";
 
 export const BASEMAP_RETRY_NOTICE = {
   kind: "tiles",
   message: "Map background couldn't load. Tap Retry to try again.",
 } as const;
 
-export function basemapRetryForReveal(reason: PinRevealReason): {
+export function basemapRetryForReveal(
+  reason: PinRevealReason,
+  currentOwner: BasemapNoticeOwner,
+): {
   kind: "tiles";
   message: string;
 } | null {
-  if (reason !== "timeout") return null;
+  if (reason !== "timeout" || currentOwner === "errors") return null;
   return BASEMAP_RETRY_NOTICE;
 }
 

@@ -26,7 +26,7 @@ vi.mock("@/lib/aboutStats", () => ({
   loadAboutStats: async () => fixtures.stats,
 }));
 
-vi.mock("@/lib/pintIndexSnapshot.server", () => ({
+vi.mock("@/lib/publicPintIndexSnapshot.server", () => ({
   loadPublicPintIndexSnapshot: async () => fixtures.snapshot,
 }));
 

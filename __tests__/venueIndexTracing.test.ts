@@ -29,6 +29,7 @@ import {
   discoverRuntimeReaderRouteGlobs,
   runtimeDataPackRouteIncludes,
 } from "@/lib/venueIndexTracing.mjs";
+import { PINT_INDEX_SNAPSHOT_TRACING_INCLUDE } from "@/lib/pintIndexSnapshotFile.mjs";
 import { VENUE_IMAGE_HOST_TRACING_INCLUDES } from "@/lib/venueImageHostFiles.mjs";
 
 const root = join(__dirname, "..");
@@ -156,6 +157,12 @@ describe("runtime data-pack tracing", () => {
     const includes = tracingIncludes();
 
     expect(includes["/api/image-proxy"]).toEqual(VENUE_IMAGE_HOST_TRACING_INCLUDES);
+  });
+
+  it("ships the public Pint Index snapshot with the About page", () => {
+    const includes = tracingIncludes();
+
+    expect(includes["/about"]).toContain(PINT_INDEX_SNAPSHOT_TRACING_INCLUDE);
   });
 
   it("ships non-London slim packs to every venue-detail reader", () => {
