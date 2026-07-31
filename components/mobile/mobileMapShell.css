@@ -236,6 +236,26 @@
       font-size: 0.78rem;
     }
   }
+  @media (max-width: 360px) {
+    .mobileMapRail {
+      gap: 3px;
+      padding-inline: 0;
+    }
+    .mobileMapRail > button {
+      gap: 2px;
+      padding-inline: 3px;
+      font-size: 0.72rem;
+    }
+    .mobileMapRail > button > svg {
+      width: 15px;
+      height: 15px;
+    }
+    .mobileMapChipCount {
+      min-width: 1rem;
+      height: 1rem;
+      font-size: 0.62rem;
+    }
+  }
   /* Owner ruling (2026-07-23): the map-chrome control chips (Near me / Tonight /
      Filters) move off the shared Chip pill onto the 14px rectangle button
      language. Scoped to the rail so the shared Chip component elsewhere is

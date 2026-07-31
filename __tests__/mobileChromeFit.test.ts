@@ -110,11 +110,6 @@ describe("mobile chrome fit at 390px", () => {
     const stackRight = Number(
       mobileMapCss.match(/--mobile-map-stack-right:\s*(\d+)px/)?.[1],
     );
-    const arcCornerGap = Number(
-      railRule.match(
-        /padding-right:\s*calc\(var\(--mobile-map-corner-btn,\s*44px\) \+ (\d+)px\)/,
-      )?.[1],
-    );
     const railPadX = Number(railRule.match(/padding:\s*\d+px\s+(\d+)px/)?.[1]);
     const chipMinWidth = Number(
       mobile.match(/\.tonightArcChip\s*{[^}]*min-width:\s*(\d+)px/)?.[1],
@@ -126,7 +121,6 @@ describe("mobile chrome fit at 390px", () => {
       ["TfL corner lane gap", cornerGap],
       ["rail left inset", railLeft],
       ["shared right inset", stackRight],
-      ["Tonight Arc corner gap", arcCornerGap],
       ["rail padding", railPadX],
       ["chip min-width", chipMinWidth],
       ["row gap", rowGap],
@@ -140,10 +134,12 @@ describe("mobile chrome fit at 390px", () => {
       /left:\s*50%/,
     );
     expect(railRule).toMatch(/transform:\s*none/);
+    expect(railRule).toMatch(
+      /padding-right:\s*calc\(var\(--mobile-map-corner-lane\) - var\(--mobile-map-stack-right\)\)/,
+    );
 
     const viewport = 390;
-    const railRight =
-      viewport - stackRight - cornerBtn - arcCornerGap;
+    const railRight = viewport - cornerInset - cornerBtn - cornerGap;
     const tflLeft = viewport - cornerInset - cornerBtn;
     expect(railRight, "rail content clears the TfL control's left edge").toBeLessThanOrEqual(
       tflLeft,

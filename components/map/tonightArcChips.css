@@ -129,7 +129,7 @@
     width: auto;
     max-width: none;
     padding: 4px 8px;
-    padding-right: calc(var(--mobile-map-corner-btn, 44px) + 12px);
+    padding-right: calc(var(--mobile-map-corner-lane) - var(--mobile-map-stack-right));
     transform: none;
   }
 

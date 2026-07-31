@@ -44,6 +44,7 @@ async function openPhoneMap(
   page: Page,
   viewport: (typeof VIEWPORTS)[number],
   reducedMotion: "reduce" | "no-preference" = "reduce",
+  path = "/map",
 ): Promise<void> {
   await page.setViewportSize(viewport);
   await page.emulateMedia({ reducedMotion });
@@ -67,7 +68,7 @@ async function openPhoneMap(
     });
   });
 
-  const response = await page.goto("/map");
+  const response = await page.goto(path);
   expect(response?.status()).toBe(200);
   await expect(page.locator(".mobileMapTopbar")).toBeVisible({
     timeout: 45_000,
@@ -137,8 +138,12 @@ async function tapRenderedCentre(
   control: Locator,
   viewportWidth: number,
   label: string,
+  scrollIntoView = true,
+  visibleWithin?: Locator,
 ): Promise<void> {
-  await control.scrollIntoViewIfNeeded();
+  if (scrollIntoView) {
+    await control.scrollIntoViewIfNeeded();
+  }
   const box = await control.boundingBox();
   expect(box, `${label} has a rendered box`).not.toBeNull();
   if (!box) return;
@@ -148,6 +153,19 @@ async function tapRenderedCentre(
   expect(box.x + box.width, `${label} right`).toBeLessThanOrEqual(
     viewportWidth,
   );
+  if (visibleWithin) {
+    const containerBox = await visibleWithin.boundingBox();
+    expect(containerBox, `${label} visible container has a box`).not.toBeNull();
+    if (containerBox) {
+      expect(box.x, `${label} clears its container left`).toBeGreaterThanOrEqual(
+        containerBox.x,
+      );
+      expect(
+        box.x + box.width,
+        `${label} clears its container right`,
+      ).toBeLessThanOrEqual(containerBox.x + containerBox.width);
+    }
+  }
 
   const centre = { x: box.x + box.width / 2, y: box.y + box.height / 2 };
   const receivesTap = await control.evaluate(
@@ -299,7 +317,14 @@ for (const viewport of VIEWPORTS) {
     });
 
     const nearMe = rail.getByRole("button", { name: "Near me" });
-    await tapRenderedCentre(page, nearMe, viewport.width, "Near me");
+    await tapRenderedCentre(
+      page,
+      nearMe,
+      viewport.width,
+      "Near me",
+      false,
+      rail,
+    );
     await expect(rail.getByRole("button", { name: "Nearby" })).toBeVisible({
       timeout: 20_000,
     });
@@ -308,14 +333,28 @@ for (const viewport of VIEWPORTS) {
     }
 
     const tonight = rail.getByRole("button", { name: /^Tonight/ });
-    await tapRenderedCentre(page, tonight, viewport.width, "Tonight");
+    await tapRenderedCentre(
+      page,
+      tonight,
+      viewport.width,
+      "Tonight",
+      false,
+      rail,
+    );
     await expect(
       page.locator('.mobileSheetPortal[data-sheet-kind="tonight"]:visible'),
     ).toHaveCount(1);
     await dismissSheet(page);
 
     const filters = rail.getByRole("button", { name: /^Filters/ });
-    await tapRenderedCentre(page, filters, viewport.width, "Filters");
+    await tapRenderedCentre(
+      page,
+      filters,
+      viewport.width,
+      "Filters",
+      false,
+      rail,
+    );
     const sheet = page.locator(
       '.mobileSheetPortal[data-sheet-kind="filters"]:visible',
     );
@@ -331,6 +370,121 @@ for (const viewport of VIEWPORTS) {
     ).toHaveAttribute("aria-pressed", "true");
   });
 }
+
+test("320px active rail states and safe-area Arc stay directly tappable", async ({
+  page,
+}) => {
+  const viewport = VIEWPORTS[2];
+  await openPhoneMap(page, viewport, "reduce", "/map?drink=wine");
+
+  const rail = page.getByRole("navigation", {
+    name: "Contextual map controls",
+  });
+  const filters = rail.getByRole("button", {
+    name: "Filters: drinks active",
+  });
+  await expect(filters.locator(".mobileMapChipCount")).toHaveText("1");
+  expect(await rail.evaluate((element) => element.scrollLeft)).toBe(0);
+  await tapRenderedCentre(
+    page,
+    filters,
+    viewport.width,
+    "Active Filters",
+    false,
+    rail,
+  );
+  await expect(
+    page.locator('.mobileSheetPortal[data-sheet-kind="filters"]:visible'),
+  ).toHaveCount(1);
+  await dismissSheet(page);
+
+  const nearMe = rail.getByRole("button", { name: "Near me" });
+  await tapRenderedCentre(page, nearMe, viewport.width, "Near me", false);
+  const nearby = rail.getByRole("button", { name: /^Nearby \d+$/ });
+  await expect(nearby).toBeVisible({ timeout: 20_000 });
+  if (await page.locator(".mobileSheetPortal:visible").count()) {
+    await dismissSheet(page);
+  }
+
+  for (const control of [
+    { locator: nearby, label: "Nearby" },
+    {
+      locator: rail.getByRole("button", { name: /^Tonight/ }),
+      label: "Tonight",
+    },
+    { locator: filters, label: "Active Filters" },
+  ]) {
+    await tapRenderedCentre(
+      page,
+      control.locator,
+      viewport.width,
+      control.label,
+      false,
+      rail,
+    );
+    if (await page.locator(".mobileSheetPortal:visible").count()) {
+      await dismissSheet(page);
+    }
+  }
+
+  const safeAreaRight = 32;
+  const chromium = await page.context().newCDPSession(page);
+  await chromium.send("Emulation.setSafeAreaInsetsOverride", {
+    insets: { top: 0, right: safeAreaRight, bottom: 0, left: 0 },
+  });
+  await page.evaluate(async () => {
+    await new Promise<void>((resolve) =>
+      requestAnimationFrame(() => resolve()),
+    );
+  });
+
+  const safeAreaLayout = await page.evaluate(() => {
+    const box = (selector: string) => {
+      const element = document.querySelector<HTMLElement>(selector);
+      if (!element) throw new Error(`Missing ${selector}`);
+      const rect = element.getBoundingClientRect();
+      return {
+        left: rect.left,
+        right: rect.right,
+        width: rect.width,
+      };
+    };
+    return {
+      arcRow: box(".tonightArcRow"),
+      utility: box(".mobileMapUtilityCorner > button"),
+    };
+  });
+  expect(safeAreaLayout.utility.right).toBe(viewport.width - safeAreaRight);
+  expect(
+    safeAreaLayout.utility.left - safeAreaLayout.arcRow.right,
+    "Tonight Arc content keeps a 12px gap from the safe-area TfL lane",
+  ).toBeGreaterThanOrEqual(12);
+
+  const arc = page.getByRole("group", {
+    name: "Tonight arc venue types",
+  });
+  const arcButtons = arc.locator(".tonightArcChip");
+  for (let index = 0; index < (await arcButtons.count()); index += 1) {
+    const button = arcButtons.nth(index);
+    const label =
+      (await button.getAttribute("aria-label")) ??
+      (await button.textContent())?.trim() ??
+      `Tonight Arc control ${index + 1}`;
+    const disabled = (await button.getAttribute("aria-disabled")) === "true";
+    const pressedBefore = await button.getAttribute("aria-pressed");
+    await tapRenderedCentre(page, button, viewport.width, label);
+    if (disabled) {
+      await expect(button).toHaveAttribute("aria-expanded", "true");
+      await tapRenderedCentre(page, button, viewport.width, `Close ${label}`);
+      await expect(button).toHaveAttribute("aria-expanded", "false");
+    } else {
+      await expect(button).toHaveAttribute(
+        "aria-pressed",
+        pressedBefore === "true" ? "false" : "true",
+      );
+    }
+  }
+});
 
 test("390px recorded map journey reaches Filters and a painted pin", async ({
   page,
