@@ -61,6 +61,29 @@ Raw pre-fix instrumentation remains in
 readiness proxy only, because the investigation proved that old event did not
 mean pixels were visible.
 
+## Remaining wait finding
+
+The fix makes the wait honest; it does not make the map fast. In the clean
+phone recording, first product paint is at 1.00 seconds and the first cluster
+frame is at 11.92 seconds, leaving a 10.92-second visible wait.
+
+Venue data does not dominate that wait. Browser marks from the same run put
+first paint at 960.0 ms, slim pins ready at 2,919.0 ms, and the source-aware
+pin reveal at 10,581.5 ms:
+
+- Initial app and slim-data work took 1,959.0 ms after first paint.
+- The MapLibre readiness and compositing lane then took 7,662.5 ms from slim
+  pins ready to reveal, 79.6% of the measured browser-clock wait.
+- The deliberate phone compositor guard is the final 500 ms of that lane. The
+  preceding 7,162.5 ms is waiting for MapLibre's basemap, GeoJSON worker/source,
+  and confirmed render path.
+
+This run ended through the `tiles` path, not the 12-second readiness ceiling.
+Current marks do not distinguish whether basemap tile paint or `pubs` source
+processing was the last of those MapLibre prerequisites. Next performance
+investigation should time those two signals separately. No performance fix is
+attempted here.
+
 The six timing runs also recorded three unrelated local-production failures:
 `/_vercel/insights/script.js` returned 404, while
 `/api/pint-drops?city=london` and
