@@ -91,6 +91,7 @@ import {
   BASEMAP_RETRY_NOTICE,
   basemapRetryForReveal,
   createPinRevealCoordinator,
+  isPhonePinRevealFailure,
   type BasemapNoticeOwner,
 } from "@/components/map/canvas/pinRevealCoordinator";
 import { applySelectionMute } from "@/lib/mapBasemapTaste";
@@ -138,6 +139,8 @@ maplibregl.setWorkerUrl("/vendor/maplibre/maplibre-gl-worker.mjs");
 
 type PubMapCanvasProps = {
   venues: Venue[];
+  /** Parent's slim venue read has settled for the active city. */
+  venueDataReady: boolean;
   route: Venue[];
   selectedVenueId: string;
   onVenueClick: (id: string) => void;
@@ -211,7 +214,7 @@ type PubMapCanvasProps = {
   onAskPubmaxxer?: (venueId: string) => void;
   /** Deep-link a landmark history card open on arrival (`?landmark=`). */
   initialLandmarkId?: string;
-  /** Wave K2 — parent keeps the loading chrome until WebGL style + scene are ready. */
+  /** Reports when the canvas can replace the parent's loading chrome. */
   onMapReady?: (ready: boolean) => void;
   /**
    * Called with `true` the moment the canvas commits to its user-facing error
@@ -305,19 +308,19 @@ type PubMapCanvasProps = {
 };
 
 
-// Short fallback that un-gates local pins if no basemap tile becomes paintable,
-// so the pub layer cannot hang hidden indefinitely.
-// This runs BEHIND the still-present parent skeleton and never lifts the chrome.
+// Short fallback that un-gates local pins when the normal handoff stalls, so
+// the pub layers cannot hang hidden indefinitely. This runs behind the
+// still-present parent skeleton and never lifts the chrome.
 const PIN_REVEAL_TIMEOUT_MS = 3000;
-// Honest upper bound for lifting the parent loading chrome when no basemap tile
-// becomes paintable. On a slow tile stream the reveal prefers a render/idle
-// frame after at least one loaded tile (so the theme-matched pitched-London
-// skeleton stays up until the basemap actually paints); this ceiling only fires
-// when that frame never arrives, so the user never sees a flat basemap void
-// behind a prematurely retired skeleton. Kept above the slow-stream window the
-// design judge measured (~9s) and above the first-frame watchdog so a genuinely
-// dead canvas surfaces the error fallback rather than a blank lift.
+// Honest upper bound for the visible-map handoff. Desktop can degrade to its
+// existing basemap retry state; phone turns every ceiling expiry into the
+// no-frame fallback because neither basemap paint nor an empty `pubs` source is
+// enough to prove a settled first impression. Kept above the measured slow
+// stream and first-frame watchdog windows.
 const PIN_READY_CEILING_MS = 12_000;
+// MapLibre's GeoJSON worker and render events can lead the phone compositor by
+// several frames. Keep honest loading chrome through that observed handoff.
+const PHONE_PIN_COMPOSITE_HOLD_MS = 500;
 // First-painted-frame watchdog. `style.load` is a network/parse event — it can
 // fire (and retire the parent's loading chrome) in a browser whose WebGL
 // context was GRANTED but whose render loop never produces a frame (dead
@@ -330,8 +333,8 @@ const FIRST_FRAME_TIMEOUT_MS = 10_000;
 // How many venues the no-map fallback lists so the venue content stays
 // reachable without a single WebGL frame.
 const FALLBACK_VENUE_COUNT = 6;
-// Every pub-source layer, gated together so pin paint can be withheld until the
-// basemap has actually painted (see the tile-paint gate in buildSceneBody).
+// Every pub-source layer, gated together through the basemap gate on desktop
+// and the stricter source-aware visible-frame handoff on phone.
 const PUB_PIN_LAYERS = [
   "pubs-scraped-halo",
   "pubs-drops-halo",
@@ -370,6 +373,7 @@ function probeWebGl2(): { hasContext: boolean; status: string } {
 
 export default function PubMapCanvas({
   venues,
+  venueDataReady,
   route,
   selectedVenueId,
   onVenueClick,
@@ -638,6 +642,10 @@ export default function PubMapCanvas({
     type: "FeatureCollection",
     features: [],
   });
+  const venueDataReadyRef = useRef(venueDataReady);
+  useLayoutEffect(() => {
+    venueDataReadyRef.current = venueDataReady;
+  }, [venueDataReady]);
   // UK base pubs for the CURRENT viewport only (useUkBaseStreaming refills it
   // on every settled camera). Held as a ref like every other source payload so
   // a theme setStyle can reseed the layer without a refetch.
@@ -711,18 +719,13 @@ export default function PubMapCanvas({
     return next;
   }, []);
 
-  // Style-load gate. Every source/layer mutation (setData, setFilter,
-  // setPaintProperty, setLayoutProperty) throws "Style is not done loading" if
-  // it lands while a style is mid-load — the initial load, or the theme
-  // setStyle({diff:false}) swap window, during which `mapReady` is still true.
-  // The data effects fire on their own React cadence (slim→full venues, live
-  // drops, selection, filters), so any can arrive in that window. `applyToMap`
-  // runs the mutation now when the style is loaded, else queues it (keyed, so a
-  // rapid churn collapses to the latest write) to flush on the next style.load.
-  // This is the honest fix for the race: no update is dropped, none races the
-  // swap. buildScene re-seeds SOURCES from the data refs on style.load, so the
-  // queue only needs to carry post-build mutations (filters/paint/visibility)
-  // and any setData that raced an in-flight swap.
+  // Strict style-load gate for mutations that depend on fully loaded style
+  // resources. Effects fire on their own React cadence, including during a
+  // theme setStyle({diff:false}) swap while `mapReady` remains true. Queue those
+  // writes by key and flush the latest mutation on style.load. Existing GeoJSON
+  // sources use structural-readiness paths instead because isStyleLoaded() also
+  // waits for tiles and images; their setData calls are safe once the source
+  // exists and must not wait for another style.load that may never arrive.
   const pendingUpdatesRef = useRef<Map<string, (map: maplibregl.Map) => void>>(new Map());
   // Structural style readiness owned by this component. MapLibre's public
   // style.load event fires after the style graph is ready for source/layer
@@ -888,6 +891,7 @@ export default function PubMapCanvas({
     };
     paintContainerBase(themeRef.current);
     hoverCapableRef.current = window.matchMedia("(hover: hover) and (pointer: fine)").matches;
+    const phoneFirstImpression = window.matchMedia("(max-width: 640px)").matches;
     const reducedQuery = window.matchMedia("(prefers-reduced-motion: reduce)");
     reducedRef.current = reducedQuery.matches;
     const onReducedChange = () => {
@@ -1215,10 +1219,17 @@ export default function PubMapCanvas({
     };
     map.on("sourcedata", onBasemapTileLoaded);
 
+    const hasPinsPaintable = () => {
+      if (!venueDataReadyRef.current || !map.getSource("pubs")) return false;
+      return map.isSourceLoaded("pubs");
+    };
     const pinRevealCoordinator = createPinRevealCoordinator({
       pinRevealTimeoutMs: PIN_REVEAL_TIMEOUT_MS,
       readyCeilingMs: PIN_READY_CEILING_MS,
       hasBasemapPainted: () => basemapTileReadyForPaint,
+      hasPinsPaintable: () => !phoneFirstImpression || hasPinsPaintable(),
+      confirmVisibleFrameBeforeReveal: phoneFirstImpression,
+      visibleFrameHoldMs: phoneFirstImpression ? PHONE_PIN_COMPOSITE_HOLD_MS : 0,
       setPinsVisible: (visible) => {
         for (const id of PUB_PIN_LAYERS) {
           if (map.getLayer(id)) {
@@ -1243,22 +1254,26 @@ export default function PubMapCanvas({
         setSoftRetry((current) => current?.kind === "tiles" ? null : current);
       },
       onReveal: (reason, generation) => {
+        if (isPhonePinRevealFailure(phoneFirstImpression, reason)) {
+          reportMapError({
+            kind: "no-frame",
+            message: "The map couldn't finish drawing its pubs.",
+            detail: "Pin frame readiness timed out.",
+          });
+          return;
+        }
         const basemapRetry = basemapRetryForReveal(reason, tileNoticeOwner);
         if (basemapRetry) {
           tileNoticeOwner = "timeout";
           setSoftRetry(basemapRetry);
-        } else if (reason !== "timeout") {
+        } else if (reason !== "timeout" || basemapTileReadyForPaint) {
           markBasemapRecovered();
         }
-        // Void fix (#395 R2, #397): lift the PARENT loading chrome HERE — the
-        // reveal is the first frame with the basemap actually painted (reason
-        // "tiles"/"idle") or, only if that frame never arrives, an honest
-        // ceiling degrade ("timeout" at PIN_READY_CEILING_MS). style.load only
-        // built the scene graph; on a slow tile stream that left a flat
-        // background-only rectangle (grey/near-black) exposed for many seconds
-        // once the chrome retired at style.load. Holding parent-ready until a
-        // real painted frame keeps the pitched-London skeleton over the whole
-        // void window instead of retiring it on a blind short timeout.
+        // Lift parent loading chrome only after basemap paint. Phone adds the
+        // stricter pub-source and composite gates above because its unfinished
+        // frame otherwise looks settled. Desktop keeps its established tile
+        // gate. The ceiling degrades honestly if either required phone signal
+        // never arrives.
         onMapReadyRef.current?.(true);
         window.dispatchEvent(new CustomEvent("pubmax:pin-reveal", {
           detail: { reason, generation },
@@ -1554,7 +1569,10 @@ export default function PubMapCanvas({
       // actual first reveal. Deliberately NOT marked fired yet.
       if (map.getLayoutProperty("pubs-point", "visibility") === "none") return;
       pinEntranceFired = true;
-      if (reducedRef.current) return; // no-preference gated: instant pins
+      // Phone readiness waits for a frame with visible map content. Starting
+      // the opacity entrance after that frame would immediately blank those
+      // pins again while the parent loading chrome retires.
+      if (reducedRef.current || phoneFirstImpression) return;
       pinEntranceActiveRef.current = true;
       pinEntranceStartRef.current = performance.now();
       map.setPaintProperty("pubs-point", "icon-opacity-transition", { duration: 0, delay: 0 });
@@ -2355,11 +2373,15 @@ export default function PubMapCanvas({
     );
     publishRenderedState(readTokens());
     if (!mapReady) return;
-    applyToMap("pubs:data", (map) => {
-      (map.getSource("pubs") as maplibregl.GeoJSONSource | undefined)?.setData(
-        pubsDataRef.current,
-      );
-    });
+    // Updating an existing GeoJSON source is safe once style structure exists.
+    // `applyToMap` waits for every tile and image through isStyleLoaded(); a
+    // slim-index update arriving after the one style.load would otherwise sit
+    // queued forever, leaving the initial empty pubs source marked as loaded.
+    const map = mapRef.current;
+    if (!map || !styleStructureReadyRef.current) return;
+    (map.getSource("pubs") as maplibregl.GeoJSONSource | undefined)?.setData(
+      pubsDataRef.current,
+    );
   }, [
     venues,
     venueSignals,
@@ -2369,7 +2391,6 @@ export default function PubMapCanvas({
     provisionalVenueIds,
     lensPrices,
     mapReady,
-    applyToMap,
     publishRenderedState,
   ]);
 
@@ -2901,7 +2922,9 @@ export default function PubMapCanvas({
     const fallbackVenues = selectMapFallbackPubs(venues, FALLBACK_VENUE_COUNT);
     return (
       <div className="mapCanvasWrap">
-        <div className="mapFallback" role="alert">
+        {/* Force a fresh node: MapLibre's imperative light-theme background
+            would otherwise survive React's div-for-div fallback swap. */}
+        <div key="map-fallback" className="mapFallback" role="alert">
           <strong>{heading}</strong>
           <p>
             {mapError.message}

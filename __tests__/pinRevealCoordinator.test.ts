@@ -3,11 +3,19 @@ import { describe, expect, it } from "vitest";
 import {
   basemapRetryForReveal,
   createPinRevealCoordinator,
+  isPhonePinRevealFailure,
   type BasemapNoticeOwner,
 } from "@/components/map/canvas/pinRevealCoordinator";
 
-function harness() {
+function harness({
+  confirmVisibleFrameBeforeReveal = false,
+  visibleFrameHoldMs = 0,
+}: {
+  confirmVisibleFrameBeforeReveal?: boolean;
+  visibleFrameHoldMs?: number;
+} = {}) {
   let basemapPainted = false;
+  let pinsPaintable = true;
   let nextId = 1;
   const timers = new Map<number, () => void>();
   const timerDelays = new Map<number, number>();
@@ -22,6 +30,9 @@ function harness() {
     pinRevealTimeoutMs: 3_000,
     readyCeilingMs: 12_000,
     hasBasemapPainted: () => basemapPainted,
+    hasPinsPaintable: () => pinsPaintable,
+    confirmVisibleFrameBeforeReveal,
+    visibleFrameHoldMs,
     setPinsVisible: (visible) => visibility.push(visible),
     subscribeRender: (listener) => {
       renderListeners.add(listener);
@@ -69,6 +80,7 @@ function harness() {
       noticeOwner = "errors";
     },
     setBasemapPainted(value: boolean) { basemapPainted = value; },
+    setPinsPaintable(value: boolean) { pinsPaintable = value; },
     fireRender() { [...renderListeners].forEach((listener) => listener()); },
     fireIdle() { [...idleListeners].forEach((listener) => listener()); },
     fireByDelay(delayMs: number) {
@@ -86,6 +98,12 @@ function harness() {
 }
 
 describe("pin reveal coordinator", () => {
+  it("treats every phone readiness ceiling as a failed visible handoff", () => {
+    expect(isPhonePinRevealFailure(true, "timeout")).toBe(true);
+    expect(isPhonePinRevealFailure(true, "tiles")).toBe(false);
+    expect(isPhonePinRevealFailure(false, "timeout")).toBe(false);
+  });
+
   it("turns only a basemap timeout into an honest retry notice", () => {
     expect(basemapRetryForReveal("tiles", "none")).toBeNull();
     expect(basemapRetryForReveal("idle", "none")).toBeNull();
@@ -112,6 +130,71 @@ describe("pin reveal coordinator", () => {
     expect(h.renderListeners.size).toBe(0);
     expect(h.idleListeners.size).toBe(0);
     expect(h.timers.size).toBe(0);
+  });
+
+  it("keeps readiness gated until the latest pub source is paintable", () => {
+    const h = harness();
+    h.setBasemapPainted(true);
+    h.setPinsPaintable(false);
+    h.coordinator.arm();
+
+    h.fireRender();
+    h.fireIdle();
+    expect(h.visibility).toEqual([false]);
+    expect(h.reveals).toEqual([]);
+
+    h.setPinsPaintable(true);
+    h.fireRender();
+
+    expect(h.visibility).toEqual([false, true]);
+    expect(h.reveals).toEqual([{ reason: "tiles", generation: 1 }]);
+  });
+
+  it("can keep parent loading active until a frame renders visible pins", () => {
+    const h = harness({ confirmVisibleFrameBeforeReveal: true });
+    h.setBasemapPainted(true);
+    h.coordinator.arm();
+
+    // First frame proves sources are ready and un-gates the pin layers, but it
+    // was painted while those layers were still hidden.
+    h.fireRender();
+    expect(h.visibility).toEqual([false, true]);
+    expect(h.reveals).toEqual([]);
+
+    // Only the next render can contain the now-visible pin layers.
+    h.fireRender();
+    expect(h.reveals).toEqual([{ reason: "tiles", generation: 1 }]);
+  });
+
+  it("can hold loading chrome through the phone's visual composite", () => {
+    const h = harness({
+      confirmVisibleFrameBeforeReveal: true,
+      visibleFrameHoldMs: 500,
+    });
+    h.setBasemapPainted(true);
+    h.coordinator.arm();
+
+    h.fireRender();
+    h.fireRender();
+    expect(h.reveals).toEqual([]);
+
+    h.fireByDelay(500);
+    expect(h.reveals).toEqual([{ reason: "tiles", generation: 1 }]);
+  });
+
+  it("emits timeout when no phone frame follows the paintable-source render", () => {
+    const h = harness({
+      confirmVisibleFrameBeforeReveal: true,
+      visibleFrameHoldMs: 500,
+    });
+    h.setBasemapPainted(true);
+    h.coordinator.arm();
+    h.fireRender();
+    expect(h.reveals).toEqual([]);
+
+    h.fireCeiling();
+
+    expect(h.reveals).toEqual([{ reason: "timeout", generation: 1 }]);
   });
 
   it("un-gates pins on the short fallback without lifting the parent chrome", () => {

@@ -32,6 +32,68 @@ async function changedPixelRatio(first: Buffer, second: Buffer): Promise<number>
   return changed / pixels;
 }
 
+const MOBILE_CLUSTER_COLOURS = [
+  [24, 167, 109],
+  [242, 167, 27],
+  [255, 90, 95],
+] as const;
+
+async function mobileClusterColourPixelCount(frame: Buffer): Promise<number> {
+  const { data } = await sharp(frame)
+    .extract({ left: 0, top: 180, width: 390, height: 510 })
+    .removeAlpha()
+    .raw()
+    .toBuffer({ resolveWithObject: true });
+
+  let count = 0;
+  for (let index = 0; index < data.length; index += 3) {
+    if (
+      MOBILE_CLUSTER_COLOURS.some(
+        ([red, green, blue]) =>
+          Math.abs(data[index] - red) <= 26 &&
+          Math.abs(data[index + 1] - green) <= 26 &&
+          Math.abs(data[index + 2] - blue) <= 26,
+      )
+    ) {
+      count += 1;
+    }
+  }
+  return count;
+}
+
+function relativeLuminance([red, green, blue]: readonly number[]): number {
+  const [r, g, b] = [red, green, blue].map((channel) => {
+    const value = channel / 255;
+    return value <= 0.04045
+      ? value / 12.92
+      : ((value + 0.055) / 1.055) ** 2.4;
+  });
+  return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+}
+
+function contrastRatio(
+  foreground: readonly number[],
+  background: readonly number[],
+): number {
+  const lighter = Math.max(
+    relativeLuminance(foreground),
+    relativeLuminance(background),
+  );
+  const darker = Math.min(
+    relativeLuminance(foreground),
+    relativeLuminance(background),
+  );
+  return (lighter + 0.05) / (darker + 0.05);
+}
+
+function rgbChannels(cssColour: string): [number, number, number] {
+  const channels = cssColour.match(/\d+(?:\.\d+)?/g)?.map(Number);
+  if (!channels || channels.length < 3) {
+    throw new Error(`Could not parse computed colour: ${cssColour}`);
+  }
+  return [channels[0], channels[1], channels[2]];
+}
+
 async function zoomThroughHiddenMobileControl(page: Page, steps = 3): Promise<void> {
   const zoomIn = page.locator(".maplibregl-ctrl-zoom-in");
   for (let step = 0; step < steps; step += 1) {
@@ -49,6 +111,42 @@ async function zoomThroughHiddenMobileControl(page: Page, steps = 3): Promise<vo
 // browser with a working GL stack must paint the MapLibre canvas and NEVER show
 // the "Map renderer unavailable" fallback. It is the regression guard for the
 // real-browser fallback reports.
+
+test("/map phone handoff contains real price clusters before loading retires", async ({
+  page,
+}) => {
+  test.setTimeout(60_000);
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.addInitScript(() => {
+    const trace: Array<{ reason: string; generation: number }> = [];
+    Object.defineProperty(window, "__pubmaxPinRevealTrace", { value: trace });
+    window.addEventListener("pubmax:pin-reveal", (event) => {
+      trace.push((event as CustomEvent<{ reason: string; generation: number }>).detail);
+    });
+  });
+
+  await page.goto("/map");
+  await expect
+    .poll(
+      () =>
+        page.evaluate(
+          () =>
+            (window as typeof window & {
+              __pubmaxPinRevealTrace: Array<{ reason: string; generation: number }>;
+            }).__pubmaxPinRevealTrace.length,
+        ),
+      { timeout: 30_000 },
+    )
+    .toBeGreaterThan(0);
+
+  await expect(page.locator(".mapLoading")).toHaveCount(0);
+  await expect(page.locator(".mapFallback")).toHaveCount(0);
+  const frame = await page.screenshot();
+  expect(
+    await mobileClusterColourPixelCount(frame),
+    "settled phone frame must contain the shipped price-cluster colours",
+  ).toBeGreaterThanOrEqual(500);
+});
 
 test("/map renders the MapLibre canvas with real size and never falls back", async ({
   page,
@@ -208,7 +306,9 @@ test("/map reveals pins only for the final rapid theme style generation", async 
   ).toEqual([]);
 });
 
-test("/map uses the bounded pin fallback when basemap tiles are delayed", async ({ page }) => {
+test("/map shows the no-frame fallback when basemap tiles miss the phone readiness ceiling", async ({
+  page,
+}) => {
   test.setTimeout(60_000);
   await page.setViewportSize({ width: 390, height: 844 });
   await page.addInitScript(() => {
@@ -234,28 +334,32 @@ test("/map uses the bounded pin fallback when basemap tiles are delayed", async 
       __pubmaxPinRevealTrace: Array<{ reason: string; generation: number }>;
     }
   ).__pubmaxPinRevealTrace);
-  await expect.poll(async () => (await trace()).at(-1)?.reason, { timeout: 20_000 }).toBe("timeout");
-  const reveal = (await trace()).at(-1)!;
-  await page.waitForTimeout(1_000);
-  expect((await trace()).filter(({ generation }) => generation === reveal.generation)).toHaveLength(1);
-  await expect(page.locator(".mapFallback")).toHaveCount(0);
+  const fallback = page.locator(".mapFallback");
+  await expect(fallback).toBeVisible({ timeout: 20_000 });
+  await expect(fallback).toContainText("Map couldn't draw");
+  await expect(fallback).toContainText("The map couldn't finish drawing its pubs.");
+  expect(await trace(), "phone timeout must not claim a visible pin frame").toEqual([]);
+  await expect(page.locator(".mapLoading")).toHaveCount(0);
 
-  const notice = page.locator(".mapSoftRetry");
-  await expect(notice).toContainText("Map background couldn't load");
-  const retry = notice.getByRole("button", { name: "Retry" });
+  const retry = fallback.getByRole("button", { name: "Retry" });
   await expect(retry).toBeVisible();
-  const [retryBox, tabBarBox] = await Promise.all([
+  const [headingBox, arcBox, retryBox, tabBarBox] = await Promise.all([
+    fallback.locator("strong").boundingBox(),
+    page.locator(".tonightArcChips").boundingBox(),
     retry.boundingBox(),
     page.locator(".mobileTabBar").boundingBox(),
   ]);
+  expect(headingBox).not.toBeNull();
+  expect(arcBox).not.toBeNull();
   expect(retryBox).not.toBeNull();
   expect(tabBarBox).not.toBeNull();
+  expect(headingBox!.y).toBeGreaterThanOrEqual(arcBox!.y + arcBox!.height + 8);
   expect(retryBox!.height).toBeGreaterThanOrEqual(44);
   expect(retryBox!.y + retryBox!.height).toBeLessThanOrEqual(tabBarBox!.y);
 
   holdTiles = false;
   await retry.click();
-  await expect(notice).toHaveCount(0);
+  await expect(fallback).toHaveCount(0);
   await expect
     .poll(async () => (await trace()).at(-1)?.reason, { timeout: 20_000 })
     .toMatch(/^(tiles|idle)$/);
@@ -445,16 +549,12 @@ test("/map states a TileJSON metadata failure instead of revealing a blank field
   await expect(page.locator(".mapFallback")).toHaveCount(0);
 });
 
-// First-frame watchdog contract (the blank-white-map report). A browser can
-// GRANT a WebGL context (so the constructor succeeds and style.load fires,
-// retiring the loading chrome) while its render loop never produces a single
-// frame — dead software rasterizer, GPU-process crash after context creation,
-// stalled rAF. Before the watchdog, that user sat on a permanently blank white
-// map with no basemap, no pins, and no fallback. Stubbing rAF to never fire is
-// the deterministic stand-in for "the first basemap frame never arrives": this
-// project (SwiftShader) guarantees construction succeeds, so the only way the
-// fallback can appear is via the FIRST_FRAME_TIMEOUT_MS watchdog.
-test("/map degrades to the fallback when the renderer never draws a frame", async ({
+// Phone readiness-ceiling contract. A browser can grant WebGL while its render
+// loop never produces the pub frame required to retire loading chrome. Stubbing
+// rAF keeps that compositor handoff from completing; the 12-second ceiling must
+// finish on the honest, readable no-frame fallback rather than expose the
+// unfinished map.
+test("/map shows a readable fallback when phone rendering misses its readiness ceiling", async ({
   page,
 }) => {
   test.setTimeout(60_000);
@@ -470,12 +570,12 @@ test("/map degrades to the fallback when the renderer never draws a frame", asyn
   // The map constructs (context granted) — the canvas exists…
   await expect(page.locator(".maplibreMap canvas").first()).toBeVisible({ timeout: 20_000 });
 
-  // …but no frame ever renders, so the watchdog must surface the honest
-  // fallback (10s timeout + queueMicrotask + render slack).
+  // No pub frame ever renders, so the phone readiness ceiling must surface the
+  // honest fallback (12s ceiling + render slack).
   const fallback = page.locator(".mapFallback");
   await expect(fallback).toBeVisible({ timeout: 25_000 });
   await expect(fallback).toContainText("Map couldn't draw");
-  await expect(fallback).toContainText(/renderer started but never drew a frame/i);
+  await expect(fallback).toContainText("The map couldn't finish drawing its pubs.");
   await expect(fallback.getByRole("button", { name: "Technical details" })).toHaveAttribute(
     "aria-expanded",
     "false",
@@ -490,6 +590,25 @@ test("/map degrades to the fallback when the renderer never draws a frame", asyn
   await expect
     .poll(async () => page.locator(".mapFallbackVenue").count(), { timeout: 15_000 })
     .toBeGreaterThan(0);
+
+  const fallbackBackground = rgbChannels(
+    await fallback.evaluate((node) => getComputedStyle(node).backgroundColor),
+  );
+  for (const [label, control] of [
+    ["heading", fallback.locator("strong")],
+    ["explanation", fallback.locator("p")],
+    ["venue", fallback.locator(".mapFallbackVenueName").first()],
+    ["Browse link", fallback.locator(".mapFallbackBrowse")],
+    ["Retry", fallback.locator(".mapFallbackRetry")],
+  ] as const) {
+    const foreground = rgbChannels(
+      await control.evaluate((node) => getComputedStyle(node).color),
+    );
+    expect(
+      contrastRatio(foreground, fallbackBackground),
+      `${label} contrast against fallback surface`,
+    ).toBeGreaterThanOrEqual(4.5);
+  }
 });
 
 test("/map reuses granted location after an explicit Near me action", async ({ page, context }) => {

@@ -141,10 +141,9 @@ export default defineConfig({
         // tiles.openfreemap.org responses from cache, bypassing page.route()
         // network interception entirely (SW fetch handling happens outside
         // Playwright's request interception). That silently defeated the
-        // "delayed tiles" scenario in map-gl.spec.ts (pin-reveal reason came
-        // back "tiles" instead of the expected "timeout"). Blocking SW
-        // registration for this project keeps every route()-based delay/failure
-        // simulation honest.
+        // delayed-tile scenarios in map-gl.spec.ts. Blocking SW registration
+        // keeps route()-based delays on the page's network path, including the
+        // phone readiness-ceiling case that must reach the no-frame fallback.
         serviceWorkers: "block",
       },
     },

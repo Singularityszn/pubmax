@@ -539,9 +539,9 @@ export default function PubMap({
   // render before the loading effect clears old pins; this prevents that prior
   // city's index from producing a transient, dishonest search result.
   const [loadedCityId, setLoadedCityId] = useState<CityId | null>(null);
-  // Wave K2 — WebGL style + scene ready. Keep loading chrome until both slim
-  // pins and the basemap have arrived (warmup can make slim arrive first).
-  // Canvas owns hang recovery (reportMapError lifts this via onMapReady).
+  // Canvas handoff readiness. Desktop waits for basemap paint; phone also waits
+  // for the active city's slim data, a paintable pubs source, and its guarded
+  // visible frame. Canvas errors lift this state so fallback UI is not hidden.
   const [mapCanvasReady, setMapCanvasReady] = useState(false);
   // Canvas has committed to its user-facing error fallback (WebGL/tiles/etc.).
   // We drop the loading skeleton immediately in that case even if slim pins
@@ -2741,10 +2741,9 @@ export default function PubMap({
         {ukPlaceArrival ? (
           <UkPlaceArrivalBanner arrival={ukPlaceArrival} />
         ) : null}
-        {/* Wave K2 / Issue #35 — keep the pitched-London loading chrome until
-            BOTH the slim pin index and WebGL basemap scene are ready. Warmup
-            can make slim pins arrive before tiles; retiring early left a blank
-            canvas. Copy matches MapLoadingSkeleton for a seamless handoff. */}
+        {/* Keep pitched-London loading chrome until slim data and the canvas's
+            viewport-specific handoff are ready. Phone requires a guarded frame
+            with its pubs source paintable; desktop retains its basemap gate. */}
         {mapLoadingActive ? (
           <div
             className="mapLoading"
@@ -2772,6 +2771,7 @@ export default function PubMap({
         ) : null}
         <PubMapCanvas
           venues={canvasVenues}
+          venueDataReady={loaded && loadedCityId === cityId}
           // Clean first view stays route-free. Once the user maps a crawl, the
           // line remains visible even if the mobile planner closes.
           route={routeForMap}

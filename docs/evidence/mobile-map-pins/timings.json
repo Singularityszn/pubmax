@@ -1,0 +1,750 @@
+{
+  "measuredAt": "2026-07-31T08:32:07.172Z",
+  "method": {
+    "browser": "Playwright Chromium, headless, SwiftShader WebGL",
+    "server": "Next.js production build on isolated localhost:3317",
+    "firstPaint": "First recorded WebM frame containing at least 20 visibly chromatic product pixels in a quarter-scale viewport",
+    "pinsVisible": "First recorded WebM frame containing shipped cluster-colour pixels in a half-scale map crop: 500 mobile, 1,000 desktop",
+    "framePrecision": "Both boundaries use the same video timeline sampled every 0.04 seconds, giving plus or minus 40 ms precision without clock conversion",
+    "visualProbe": "Mobile crop 390x510 at (0,180); desktop crop 800x560 at (300,240); RGB channel tolerance 26 after WebM compression",
+    "coldLoad": "Fresh browser context per sample, storage cleared before app code, service workers blocked",
+    "samplesPerViewport": 3
+  },
+  "samples": [
+    {
+      "viewport": "mobile",
+      "sample": 1,
+      "viewportSize": {
+        "width": 390,
+        "height": 844
+      },
+      "visualCrop": {
+        "x": 0,
+        "y": 180,
+        "width": 390,
+        "height": 510
+      },
+      "videoClusterThreshold": 500,
+      "browserPaints": {
+        "first-paint": 12384,
+        "first-contentful-paint": 12384
+      },
+      "slimPinsReadyMs": 1363.8,
+      "pinRevealMs": 23094.5,
+      "pinRevealReason": "tiles",
+      "loadingRemovedMs": 23112.2,
+      "loadingTransitions": [
+        {
+          "at": 247.9,
+          "present": true,
+          "kind": "route"
+        },
+        {
+          "at": 23112.2,
+          "present": false,
+          "kind": "none"
+        }
+      ],
+      "mapLoadingPresent": false,
+      "fallbackPresent": false,
+      "mobileSession": {
+        "viewport": {
+          "center": [
+            -0.12,
+            51.52
+          ],
+          "zoom": 11.5,
+          "pitch": 38.00000000000001,
+          "bearing": -8
+        },
+        "filters": {
+          "query": "",
+          "maxPrice": 8,
+          "crawlStyle": "balanced",
+          "stopCount": 6,
+          "routeWindow": 20,
+          "requireBeerGarden": false,
+          "requireNonAlcoholic": false,
+          "requireLiveSports": false,
+          "requireFood": false,
+          "requireCocktails": false,
+          "requireWater": false,
+          "requireHeritage": false,
+          "requirePintDrops": false,
+          "canonicalOnly": false,
+          "requireStepFree": false,
+          "requireAccessibleToilet": false,
+          "requireSeatedService": false,
+          "drinkCategory": "",
+          "drinkBrand": "",
+          "drinkSubtype": "",
+          "topShelfOnly": false,
+          "zone": ""
+        },
+        "cityId": "london",
+        "nightArea": null,
+        "selectedVenueId": null,
+        "openSheet": null,
+        "version": 1,
+        "savedAt": "2026-07-31T08:20:16.921Z"
+      },
+      "theme": "light",
+      "settledScreenshotPixelCount": 6651,
+      "videoTiming": {
+        "durationSeconds": 18.64,
+        "frameStepSeconds": 0.04,
+        "firstPaintVideoSeconds": 0.04,
+        "firstPaintPixelCount": 459,
+        "firstClusterVideoSeconds": 13.44,
+        "firstClusterPixelCount": 1384,
+        "firstPaintToPinVisibleMs": 13400
+      },
+      "failedResponses": [
+        {
+          "status": 404,
+          "url": "http://127.0.0.1:3317/_vercel/insights/script.js"
+        },
+        {
+          "status": 500,
+          "url": "http://127.0.0.1:3317/api/pint-drops?city=london"
+        },
+        {
+          "status": 500,
+          "url": "http://127.0.0.1:3317/api/pint-drops?venueId=venue-s0go8s"
+        }
+      ]
+    },
+    {
+      "viewport": "mobile",
+      "sample": 2,
+      "viewportSize": {
+        "width": 390,
+        "height": 844
+      },
+      "visualCrop": {
+        "x": 0,
+        "y": 180,
+        "width": 390,
+        "height": 510
+      },
+      "videoClusterThreshold": 500,
+      "browserPaints": {
+        "first-paint": 668,
+        "first-contentful-paint": 668
+      },
+      "slimPinsReadyMs": 848,
+      "pinRevealMs": 5708.9,
+      "pinRevealReason": "tiles",
+      "loadingRemovedMs": 5730,
+      "loadingTransitions": [
+        {
+          "at": 257.6,
+          "present": true,
+          "kind": "route"
+        },
+        {
+          "at": 5730,
+          "present": false,
+          "kind": "none"
+        }
+      ],
+      "mapLoadingPresent": false,
+      "fallbackPresent": false,
+      "mobileSession": {
+        "viewport": {
+          "center": [
+            -0.12,
+            51.52
+          ],
+          "zoom": 11.5,
+          "pitch": 38.00000000000001,
+          "bearing": -8
+        },
+        "filters": {
+          "query": "",
+          "maxPrice": 8,
+          "crawlStyle": "balanced",
+          "stopCount": 6,
+          "routeWindow": 20,
+          "requireBeerGarden": false,
+          "requireNonAlcoholic": false,
+          "requireLiveSports": false,
+          "requireFood": false,
+          "requireCocktails": false,
+          "requireWater": false,
+          "requireHeritage": false,
+          "requirePintDrops": false,
+          "canonicalOnly": false,
+          "requireStepFree": false,
+          "requireAccessibleToilet": false,
+          "requireSeatedService": false,
+          "drinkCategory": "",
+          "drinkBrand": "",
+          "drinkSubtype": "",
+          "topShelfOnly": false,
+          "zone": ""
+        },
+        "cityId": "london",
+        "nightArea": null,
+        "selectedVenueId": null,
+        "openSheet": null,
+        "version": 1,
+        "savedAt": "2026-07-31T08:20:54.245Z"
+      },
+      "theme": "light",
+      "settledScreenshotPixelCount": 6651,
+      "videoTiming": {
+        "durationSeconds": 10.6,
+        "frameStepSeconds": 0.04,
+        "firstPaintVideoSeconds": 0.04,
+        "firstPaintPixelCount": 461,
+        "firstClusterVideoSeconds": 5.68,
+        "firstClusterPixelCount": 1082,
+        "firstPaintToPinVisibleMs": 5640
+      },
+      "failedResponses": [
+        {
+          "status": 404,
+          "url": "http://127.0.0.1:3317/_vercel/insights/script.js"
+        },
+        {
+          "status": 500,
+          "url": "http://127.0.0.1:3317/api/pint-drops?city=london"
+        },
+        {
+          "status": 500,
+          "url": "http://127.0.0.1:3317/api/pint-drops?venueId=venue-s0go8s"
+        }
+      ]
+    },
+    {
+      "viewport": "mobile",
+      "sample": 3,
+      "viewportSize": {
+        "width": 390,
+        "height": 844
+      },
+      "visualCrop": {
+        "x": 0,
+        "y": 180,
+        "width": 390,
+        "height": 510
+      },
+      "videoClusterThreshold": 500,
+      "browserPaints": {
+        "first-paint": 520,
+        "first-contentful-paint": 520
+      },
+      "slimPinsReadyMs": 700.6,
+      "pinRevealMs": 7459.9,
+      "pinRevealReason": "tiles",
+      "loadingRemovedMs": 7500.8,
+      "loadingTransitions": [
+        {
+          "at": 129.9,
+          "present": true,
+          "kind": "route"
+        },
+        {
+          "at": 7500.8,
+          "present": false,
+          "kind": "none"
+        }
+      ],
+      "mapLoadingPresent": false,
+      "fallbackPresent": false,
+      "mobileSession": {
+        "viewport": {
+          "center": [
+            -0.12,
+            51.52
+          ],
+          "zoom": 11.5,
+          "pitch": 38.00000000000001,
+          "bearing": -8
+        },
+        "filters": {
+          "query": "",
+          "maxPrice": 8,
+          "crawlStyle": "balanced",
+          "stopCount": 6,
+          "routeWindow": 20,
+          "requireBeerGarden": false,
+          "requireNonAlcoholic": false,
+          "requireLiveSports": false,
+          "requireFood": false,
+          "requireCocktails": false,
+          "requireWater": false,
+          "requireHeritage": false,
+          "requirePintDrops": false,
+          "canonicalOnly": false,
+          "requireStepFree": false,
+          "requireAccessibleToilet": false,
+          "requireSeatedService": false,
+          "drinkCategory": "",
+          "drinkBrand": "",
+          "drinkSubtype": "",
+          "topShelfOnly": false,
+          "zone": ""
+        },
+        "cityId": "london",
+        "nightArea": null,
+        "selectedVenueId": null,
+        "openSheet": null,
+        "version": 1,
+        "savedAt": "2026-07-31T08:21:15.692Z"
+      },
+      "theme": "light",
+      "settledScreenshotPixelCount": 6651,
+      "videoTiming": {
+        "durationSeconds": 12.2,
+        "frameStepSeconds": 0.04,
+        "firstPaintVideoSeconds": 0.04,
+        "firstPaintPixelCount": 4386,
+        "firstClusterVideoSeconds": 7.56,
+        "firstClusterPixelCount": 1386,
+        "firstPaintToPinVisibleMs": 7520
+      },
+      "failedResponses": [
+        {
+          "status": 404,
+          "url": "http://127.0.0.1:3317/_vercel/insights/script.js"
+        },
+        {
+          "status": 500,
+          "url": "http://127.0.0.1:3317/api/pint-drops?city=london"
+        },
+        {
+          "status": 500,
+          "url": "http://127.0.0.1:3317/api/pint-drops?venueId=venue-s0go8s"
+        }
+      ]
+    },
+    {
+      "viewport": "desktop",
+      "sample": 1,
+      "viewportSize": {
+        "width": 1440,
+        "height": 900
+      },
+      "visualCrop": {
+        "x": 300,
+        "y": 240,
+        "width": 800,
+        "height": 560
+      },
+      "videoClusterThreshold": 1000,
+      "browserPaints": {
+        "first-paint": 792,
+        "first-contentful-paint": 792
+      },
+      "slimPinsReadyMs": 805.3,
+      "pinRevealMs": 19642.8,
+      "pinRevealReason": "tiles",
+      "loadingRemovedMs": 19678.5,
+      "loadingTransitions": [
+        {
+          "at": 146.2,
+          "present": true,
+          "kind": "route"
+        },
+        {
+          "at": 19678.5,
+          "present": false,
+          "kind": "none"
+        }
+      ],
+      "mapLoadingPresent": false,
+      "fallbackPresent": false,
+      "mobileSession": {
+        "viewport": {
+          "center": [
+            -0.12,
+            51.52
+          ],
+          "zoom": 11.5,
+          "pitch": 38.00000000000001,
+          "bearing": -8
+        },
+        "filters": {
+          "query": "",
+          "maxPrice": 8,
+          "crawlStyle": "balanced",
+          "stopCount": 6,
+          "routeWindow": 20,
+          "requireBeerGarden": false,
+          "requireNonAlcoholic": false,
+          "requireLiveSports": false,
+          "requireFood": false,
+          "requireCocktails": false,
+          "requireWater": false,
+          "requireHeritage": false,
+          "requirePintDrops": false,
+          "canonicalOnly": false,
+          "requireStepFree": false,
+          "requireAccessibleToilet": false,
+          "requireSeatedService": false,
+          "drinkCategory": "",
+          "drinkBrand": "",
+          "drinkSubtype": "",
+          "topShelfOnly": false,
+          "zone": ""
+        },
+        "cityId": "london",
+        "nightArea": null,
+        "selectedVenueId": null,
+        "openSheet": null,
+        "version": 1,
+        "savedAt": "2026-07-31T08:21:51.153Z"
+      },
+      "theme": "light",
+      "settledScreenshotPixelCount": 11293,
+      "videoTiming": {
+        "durationSeconds": 26.68,
+        "frameStepSeconds": 0.04,
+        "firstPaintVideoSeconds": 0.04,
+        "firstPaintPixelCount": 12033,
+        "firstClusterVideoSeconds": 22.64,
+        "firstClusterPixelCount": 1043,
+        "firstPaintToPinVisibleMs": 22600
+      },
+      "failedResponses": [
+        {
+          "status": 404,
+          "url": "http://127.0.0.1:3317/_vercel/insights/script.js"
+        },
+        {
+          "status": 500,
+          "url": "http://127.0.0.1:3317/api/pint-drops?city=london"
+        },
+        {
+          "status": 500,
+          "url": "http://127.0.0.1:3317/api/pint-drops?venueId=venue-s0go8s"
+        }
+      ]
+    },
+    {
+      "viewport": "desktop",
+      "sample": 2,
+      "viewportSize": {
+        "width": 1440,
+        "height": 900
+      },
+      "visualCrop": {
+        "x": 300,
+        "y": 240,
+        "width": 800,
+        "height": 560
+      },
+      "videoClusterThreshold": 1000,
+      "browserPaints": {
+        "first-paint": 964,
+        "first-contentful-paint": 964
+      },
+      "slimPinsReadyMs": 1172.8,
+      "pinRevealMs": 18630.9,
+      "pinRevealReason": "tiles",
+      "loadingRemovedMs": 18673.7,
+      "loadingTransitions": [
+        {
+          "at": 251.6,
+          "present": true,
+          "kind": "route"
+        },
+        {
+          "at": 18673.7,
+          "present": false,
+          "kind": "none"
+        }
+      ],
+      "mapLoadingPresent": false,
+      "fallbackPresent": false,
+      "mobileSession": {
+        "viewport": {
+          "center": [
+            -0.12,
+            51.52
+          ],
+          "zoom": 11.5,
+          "pitch": 38.00000000000001,
+          "bearing": -8
+        },
+        "filters": {
+          "query": "",
+          "maxPrice": 8,
+          "crawlStyle": "balanced",
+          "stopCount": 6,
+          "routeWindow": 20,
+          "requireBeerGarden": false,
+          "requireNonAlcoholic": false,
+          "requireLiveSports": false,
+          "requireFood": false,
+          "requireCocktails": false,
+          "requireWater": false,
+          "requireHeritage": false,
+          "requirePintDrops": false,
+          "canonicalOnly": false,
+          "requireStepFree": false,
+          "requireAccessibleToilet": false,
+          "requireSeatedService": false,
+          "drinkCategory": "",
+          "drinkBrand": "",
+          "drinkSubtype": "",
+          "topShelfOnly": false,
+          "zone": ""
+        },
+        "cityId": "london",
+        "nightArea": null,
+        "selectedVenueId": null,
+        "openSheet": null,
+        "version": 1,
+        "savedAt": "2026-07-31T08:24:04.370Z"
+      },
+      "theme": "light",
+      "settledScreenshotPixelCount": 11293,
+      "videoTiming": {
+        "durationSeconds": 26.4,
+        "frameStepSeconds": 0.04,
+        "firstPaintVideoSeconds": 0.92,
+        "firstPaintPixelCount": 9783,
+        "firstClusterVideoSeconds": 23.36,
+        "firstClusterPixelCount": 1045,
+        "firstPaintToPinVisibleMs": 22440
+      },
+      "failedResponses": [
+        {
+          "status": 404,
+          "url": "http://127.0.0.1:3317/_vercel/insights/script.js"
+        },
+        {
+          "status": 500,
+          "url": "http://127.0.0.1:3317/api/pint-drops?city=london"
+        },
+        {
+          "status": 500,
+          "url": "http://127.0.0.1:3317/api/pint-drops?venueId=venue-s0go8s"
+        }
+      ]
+    },
+    {
+      "viewport": "desktop",
+      "sample": 3,
+      "viewportSize": {
+        "width": 1440,
+        "height": 900
+      },
+      "visualCrop": {
+        "x": 300,
+        "y": 240,
+        "width": 800,
+        "height": 560
+      },
+      "videoClusterThreshold": 1000,
+      "browserPaints": {
+        "first-paint": 496,
+        "first-contentful-paint": 1448
+      },
+      "slimPinsReadyMs": 1727.5,
+      "pinRevealMs": 35009.9,
+      "pinRevealReason": "tiles",
+      "loadingRemovedMs": 35224.4,
+      "loadingTransitions": [
+        {
+          "at": 386.4,
+          "present": false,
+          "kind": "none"
+        },
+        {
+          "at": 431.7,
+          "present": true,
+          "kind": "route"
+        },
+        {
+          "at": 35224.4,
+          "present": false,
+          "kind": "none"
+        }
+      ],
+      "mapLoadingPresent": false,
+      "fallbackPresent": false,
+      "mobileSession": {
+        "viewport": {
+          "center": [
+            -0.12,
+            51.52
+          ],
+          "zoom": 11.5,
+          "pitch": 38.00000000000001,
+          "bearing": -8
+        },
+        "filters": {
+          "query": "",
+          "maxPrice": 8,
+          "crawlStyle": "balanced",
+          "stopCount": 6,
+          "routeWindow": 20,
+          "requireBeerGarden": false,
+          "requireNonAlcoholic": false,
+          "requireLiveSports": false,
+          "requireFood": false,
+          "requireCocktails": false,
+          "requireWater": false,
+          "requireHeritage": false,
+          "requirePintDrops": false,
+          "canonicalOnly": false,
+          "requireStepFree": false,
+          "requireAccessibleToilet": false,
+          "requireSeatedService": false,
+          "drinkCategory": "",
+          "drinkBrand": "",
+          "drinkSubtype": "",
+          "topShelfOnly": false,
+          "zone": ""
+        },
+        "cityId": "london",
+        "nightArea": null,
+        "selectedVenueId": null,
+        "openSheet": null,
+        "version": 1,
+        "savedAt": "2026-07-31T08:27:25.397Z"
+      },
+      "theme": "light",
+      "settledScreenshotPixelCount": 11293,
+      "videoTiming": {
+        "durationSeconds": 48.2,
+        "frameStepSeconds": 0.04,
+        "firstPaintVideoSeconds": 1.4,
+        "firstPaintPixelCount": 9783,
+        "firstClusterVideoSeconds": 41.8,
+        "firstClusterPixelCount": 1042,
+        "firstPaintToPinVisibleMs": 40400
+      },
+      "failedResponses": [
+        {
+          "status": 404,
+          "url": "http://127.0.0.1:3317/_vercel/insights/script.js"
+        },
+        {
+          "status": 500,
+          "url": "http://127.0.0.1:3317/api/pint-drops?city=london"
+        },
+        {
+          "status": 500,
+          "url": "http://127.0.0.1:3317/api/pint-drops?venueId=venue-s0go8s"
+        },
+        {
+          "status": 500,
+          "url": "http://127.0.0.1:3317/api/pint-drops?city=london"
+        }
+      ]
+    }
+  ],
+  "recordingSample": {
+    "viewport": "mobile",
+    "sample": 4,
+    "viewportSize": {
+      "width": 390,
+      "height": 844
+    },
+    "visualCrop": {
+      "x": 0,
+      "y": 180,
+      "width": 390,
+      "height": 510
+    },
+    "videoClusterThreshold": 500,
+    "browserPaints": {
+      "first-paint": 960,
+      "first-contentful-paint": 960
+    },
+    "slimPinsReadyMs": 2919,
+    "pinRevealMs": 10581.5,
+    "pinRevealReason": "tiles",
+    "loadingRemovedMs": 10611.7,
+    "loadingTransitions": [
+      {
+        "at": 219.5,
+        "present": true,
+        "kind": "route"
+      },
+      {
+        "at": 10611.7,
+        "present": false,
+        "kind": "none"
+      }
+    ],
+    "mapLoadingPresent": false,
+    "fallbackPresent": false,
+    "mobileSession": {
+      "viewport": {
+        "center": [
+          -0.12,
+          51.52
+        ],
+        "zoom": 11.5,
+        "pitch": 38.00000000000001,
+        "bearing": -8
+      },
+      "filters": {
+        "query": "",
+        "maxPrice": 8,
+        "crawlStyle": "balanced",
+        "stopCount": 6,
+        "routeWindow": 20,
+        "requireBeerGarden": false,
+        "requireNonAlcoholic": false,
+        "requireLiveSports": false,
+        "requireFood": false,
+        "requireCocktails": false,
+        "requireWater": false,
+        "requireHeritage": false,
+        "requirePintDrops": false,
+        "canonicalOnly": false,
+        "requireStepFree": false,
+        "requireAccessibleToilet": false,
+        "requireSeatedService": false,
+        "drinkCategory": "",
+        "drinkBrand": "",
+        "drinkSubtype": "",
+        "topShelfOnly": false,
+        "zone": ""
+      },
+      "cityId": "london",
+      "nightArea": null,
+      "selectedVenueId": null,
+      "openSheet": null,
+      "version": 1,
+      "savedAt": "2026-07-31T08:31:35.821Z"
+    },
+    "theme": "light",
+    "settledScreenshotPixelCount": 6651,
+    "videoTiming": {
+      "durationSeconds": 17.08,
+      "frameStepSeconds": 0.04,
+      "firstPaintVideoSeconds": 1,
+      "firstPaintPixelCount": 4119,
+      "firstClusterVideoSeconds": 11.92,
+      "firstClusterPixelCount": 1081,
+      "firstPaintToPinVisibleMs": 10920
+    },
+    "failedResponses": [
+      {
+        "status": 404,
+        "url": "http://127.0.0.1:3317/_vercel/insights/script.js"
+      },
+      {
+        "status": 500,
+        "url": "http://127.0.0.1:3317/api/pint-drops?city=london"
+      },
+      {
+        "status": 500,
+        "url": "http://127.0.0.1:3317/api/pint-drops?venueId=venue-s0go8s"
+      }
+    ]
+  },
+  "bannerCheck": {
+    "citySuggestCount": 0,
+    "cityStatusCount": 0,
+    "visibleHeadlines": []
+  }
+}

@@ -136,8 +136,9 @@ than a timeout.
 ## Retry usability
 
 At 390 by 844, a deterministic 15-second vector-tile delay reaches the honest
-notice, keeps it above phone navigation, and gives Retry a 44px target. Removing
-the delay and tapping Retry reconstructs the map and reaches a real tile reveal.
+no-frame fallback, keeps it clear of phone navigation, and gives Retry a 44px
+target. Removing the delay and tapping Retry reconstructs the map and reaches a
+real tile reveal.
 
 ## Screenshots
 
@@ -157,6 +158,6 @@ Captain's original iPhone screenshot:
 ## Verification
 
 - `npm test -- __tests__/serviceWorkerCache.test.ts __tests__/mapTileFailure.test.ts __tests__/pinRevealCoordinator.test.ts __tests__/mapWarmup.test.ts`
-- `PW_SKIP_WEBSERVER=1 PW_PORT=3218 npx playwright test e2e/map-gl.spec.ts --project=chromium-gl --grep "bounded pin fallback"`
+- `PW_SKIP_WEBSERVER=1 PW_PORT=3218 npx playwright test e2e/map-gl.spec.ts --project=chromium-gl`
 - `PW_SKIP_WEBSERVER=1 PW_PORT=3218 PW_MAP_EVIDENCE=1 npx playwright test e2e/map-service-worker.spec.ts --project=chromium-sw-gl`
 - `npm run verify`
