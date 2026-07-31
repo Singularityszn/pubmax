@@ -214,17 +214,21 @@ describe("time-band card copy", () => {
     }
   });
 
-  it("only promises the afternoon while the afternoon is still ahead", () => {
-    expect(PICKS_EMPTY_LINE.morning).toContain("afternoon");
-    expect(PICKS_EMPTY_LINE.evening).not.toContain("afternoon");
-    expect(PICKS_EMPTY_LINE.night).not.toContain("afternoon");
-  });
+  it("scopes Today's empty picks to tonight's list in reader-facing words", () => {
+    expect(PICKS_EMPTY_LINE).toEqual({
+      morning:
+        "Nothing left on tonight's list. Open Tonight for live listings.",
+      afternoon:
+        "Nothing left on tonight's list. Open Tonight for live listings.",
+      evening:
+        "Nothing left on tonight's list. Open Tonight for live listings.",
+      night:
+        "Nothing left on tonight's list. Open Tonight for live listings.",
+    });
 
-  it("scopes Today's empty picks to its listings snapshot, not live Tonight", () => {
     for (const slot of SLOTS) {
-      expect(PICKS_EMPTY_LINE[slot]).toContain("listings snapshot");
       expect(PICKS_EMPTY_LINE[slot]).not.toMatch(
-        /^(?:Nothing|No (?:events|listings|picks)).*tonight/i,
+        /\b(?:snapshot|check|feed|inventory)\b/i,
       );
     }
     expect(PICKS_EMPTY_LINE.night).not.toBe(

@@ -109,13 +109,15 @@ listings snapshot. Tonight reads `/api/whats-on` and layers live provider rows
 onto its baseline. Today's empty line claimed the whole live night was empty
 even though its code had only checked the narrower snapshot.
 
-The pre-fix regression failed because each Today daypart began with an absolute
-empty-night claim. The narrower replacement no longer claims that live Tonight
-is empty, but its visible `listings snapshot` wording breaks the reader-facing
-language contract in [`docs/VOICE.md`](../../../VOICE.md). Captain-approved
-follow-up remains: replace all four dayparts with plain Today-list wording,
-without product plumbing terms, and update their assertions. The truth scope is
-fixed; the copy cleanup is not.
+The first pre-fix regression failed because each Today daypart began with an
+absolute empty-night claim. A follow-up red regression then showed all four
+dayparts exposing `listings snapshot`, a product plumbing term. The matching
+green result requires every daypart to say:
+
+> Nothing left on tonight's list. Open Tonight for live listings.
+
+That sentence is limited to the list Today actually rendered and points to the
+separate live listings surface without claiming it is empty.
 
 ## 4. Warm reading with a cold headline
 

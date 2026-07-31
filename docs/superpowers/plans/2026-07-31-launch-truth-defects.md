@@ -135,12 +135,14 @@ Commit body guarantee: paint was wrong; key already described active GeoJSON buc
 
 **Interfaces:**
 - Consumes: Today's baseline-only `picks.length`.
-- Produces: empty sentence explicitly scoped to Today's earlier listings check.
+- Produces: empty sentence explicitly scoped to the list Today renders.
 
 - [ ] **Step 1: Write failing contradiction regression**
 
 ```ts
-expect(PICKS_EMPTY_LINE.night).toContain("earlier listings check");
+expect(PICKS_EMPTY_LINE.night).toBe(
+  "Nothing left on tonight's list. Open Tonight for live listings.",
+);
 expect(PICKS_EMPTY_LINE.night).not.toBe("Nothing left confirmed tonight.");
 ```
 
@@ -152,11 +154,14 @@ Run:
 npx vitest run __tests__/dayGreeting.test.ts
 ```
 
-Expected: current absolute sentence contradicts live Tonight inventory.
+Expected: current absolute sentence contradicts live Tonight inventory. A
+follow-up reader-language regression also rejects plumbing terms such as
+`snapshot` and `check`.
 
 - [ ] **Step 3: Scope empty copy**
 
-Make each daypart state that Today's earlier listings check found no picks. Keep Tonight's live `2 listings tonight` statement unchanged.
+Make each daypart state that nothing remains on the list Today renders. Keep
+Tonight's live `2 listings tonight` statement unchanged.
 
 - [ ] **Step 4: Run focused green test**
 
@@ -165,7 +170,7 @@ Run same command. Expected: source-scoped Today empty state and live Tonight cou
 - [ ] **Step 5: Commit**
 
 ```bash
-git commit -m "fix(today): scope empty picks to earlier listings check"
+git commit -m "fix(today): scope empty picks to today's list"
 ```
 
 Commit body guarantee: baseline-only Today never claims live Tonight inventory is empty.

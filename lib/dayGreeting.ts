@@ -145,19 +145,15 @@ export const TUBE_WHEN_LABEL: Record<DaySlot, string> = {
 };
 
 /**
- * Today's picks come from its bundled listings snapshot. Tonight layers live
- * listings on top, so this copy names the snapshot and never claims the live
- * night is empty.
+ * Today's card only speaks for the list it renders. Tonight can add live
+ * listings, so this copy points there without claiming the whole night is empty
+ * or exposing how either list is assembled.
  */
 export const PICKS_EMPTY_LINE: Record<DaySlot, string> = {
-  morning:
-    "Our listings snapshot has no picks for tonight yet. Live listings may still appear through the afternoon.",
-  afternoon:
-    "Our listings snapshot has no picks for tonight yet. Live listings may still appear.",
-  evening:
-    "Our listings snapshot has no picks for tonight. Check Tonight for live listings.",
-  night:
-    "Our listings snapshot has no picks for tonight. Check Tonight for live listings.",
+  morning: "Nothing left on tonight's list. Open Tonight for live listings.",
+  afternoon: "Nothing left on tonight's list. Open Tonight for live listings.",
+  evening: "Nothing left on tonight's list. Open Tonight for live listings.",
+  night: "Nothing left on tonight's list. Open Tonight for live listings.",
 };
 
 /** Handles are stored lower-case; render them as typed, trimmed, never padded. */
