@@ -27,9 +27,11 @@ Video is illustration. Rendered Playwright assertions are the guarantee. The
 focused test reads actual boxes, checks the centre hit owner with
 `document.elementFromPoint()`, and sends a real Playwright mouse tap. It covers
 Area, Search, Pub Pal, More, all five Tonight Arc controls, Near me, Tonight,
-and Filters. Every tested control has a 44px minimum hit box.
+and Filters. It also exercises active rail controls at 320px and the Tonight
+Arc beside an emulated right safe-area inset. Every tested control has a 44px
+minimum hit box.
 
-Passing measurements:
+Measurements recorded by the earlier passing run:
 
 | Viewport | Shared left | Shared right | Shared width | Chrome top | Chrome bottom | Chrome height |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: |
@@ -39,8 +41,9 @@ Passing measurements:
 
 Topbar, contextual rail, Tonight Arc shell, and Describe your night share those
 outer edges. This is one centred alignment system with balanced 12px gutters.
-At 390px the Filters control ends at 299.813px inside the 378px boundary. At
-320px it ends at 299.813px inside the 308px boundary.
+These figures label the captured evidence run, not current expected values.
+Current geometry and tap ownership come from the assertions, including narrow
+active rail states and right safe-area clearance.
 
 ## Red-first record
 

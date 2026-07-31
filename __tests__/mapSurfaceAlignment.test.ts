@@ -43,7 +43,7 @@ describe("map surface alignment", () => {
       /@media \(max-width: 640px\)[\s\S]*?\.tonightArcChips\s*{[\s\S]*?left:\s*var\(--mobile-map-stack-left,[^)]+\)[\s\S]*?right:\s*var\(--mobile-map-stack-right,/,
     );
     expect(tonightArcCss).toMatch(
-      /@media \(max-width: 640px\)[\s\S]*?\.tonightArcChips\s*{[\s\S]*?padding-right:\s*calc\(var\(--mobile-map-corner-btn,\s*44px\) \+ 12px\)/,
+      /@media \(max-width: 640px\)[\s\S]*?\.tonightArcChips\s*{[\s\S]*?padding-right:\s*calc\(var\(--mobile-map-corner-lane\) - var\(--mobile-map-stack-right\)\)/,
     );
   });
 
