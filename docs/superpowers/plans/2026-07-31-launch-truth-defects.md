@@ -77,27 +77,27 @@ git commit -m "fix(map): report background failure only before a painted tile"
 
 Commit body guarantee: visible painted basemap is authoritative for first-paint success; a genuine no-tile failure still reports.
 
-### Task 2: No-alcohol rendered clusters
+### Task 2: Revert No-alcohol revision publication
 
 **Files:**
 - Modify: `components/map/canvas/donutClusters.ts`
 - Modify: `components/PubMapCanvas.tsx`
+- Delete: `components/map/canvas/pubSourceRevision.ts`
 - Test: `__tests__/canvas-donutClusters.test.ts`
-- Test: `e2e/map-gl.spec.ts`
 - Modify: `docs/evidence/prelaunch-smoke/launch-truth-repro/README.md`
 
 **Interfaces:**
-- Consumes: app-owned `pubs` GeoJSON source revision and MapLibre source events.
-- Produces: rendered desktop donut and mobile GL cluster buckets matching current source buckets after lens change.
+- Consumes: Firstmate decision after fourth same-revision review finding.
+- Produces: additive rollback of shared revision publication without changing
+  painted-basemap timeout recovery.
 
-- [ ] **Step 1: Write failing rendered-state tests**
+- [ ] **Step 1: Reproduce stale donut reactivation**
 
 ```ts
-expect(await renderedClusterBuckets(page)).toEqual(["3"]);
-expect(await keyRows(page)).toEqual(["No alcohol-free or soft drink price on the map"]);
+sync.invalidate();
+pubsSourceDataHandler(previousSnapshot);
+expect(markerInstances).toHaveLength(1);
 ```
-
-Run at 390x844 and 1440x900 using deterministic basemap. Read DOM donut segment buckets on desktop and screenshot pixels or queried rendered GL output on mobile.
 
 - [ ] **Step 2: Run tests and record expected red**
 
@@ -105,26 +105,28 @@ Run:
 
 ```bash
 npx vitest run __tests__/canvas-donutClusters.test.ts
-PW_PORT=3212 npx playwright test e2e/map-gl.spec.ts --project=chromium-gl --grep "No alcohol"
 ```
 
-Expected: key reports unknown bucket while rendered clusters retain previous price colours.
+Expected: old `sourcedata` snapshot creates another donut after invalidation.
 
-- [ ] **Step 3: Invalidate stale cluster render state on source replacement**
+- [ ] **Step 3: Revert shared revision publication**
 
-Give `DonutClusterSync` an `invalidate` operation. Clear old markers and return ownership to GL before `pubs.setData`, then rebuild from settled source events. Do not change price policy or legend wording.
+Remove coordinator, invalidation API, publication claims, state-level proof,
+mobile proof, and dedicated screenshots. Preserve every timeout-only
+late-paint recovery change and genuine error notice.
 
-- [ ] **Step 4: Run focused green tests**
+- [ ] **Step 4: Record decision and learning**
 
-Run same commands. Expected: key and rendered cluster buckets agree at both widths.
+Record old renderable tiles, event tagging limits, source settlement limits,
+render boundary limits, and donut reactivation in launch-truth evidence.
 
 - [ ] **Step 5: Commit**
 
 ```bash
-git commit -m "fix(map): repaint no-alcohol clusters from active lens data"
+git commit -m "revert(map): remove revision publication coupling"
 ```
 
-Commit body guarantee: paint was wrong; key already described active GeoJSON buckets.
+Commit body guarantee: false-toast and late-paint recovery remain independent.
 
 ### Task 3: Today and Tonight source boundary
 
@@ -295,13 +297,13 @@ Commit body guarantee: every displayed baseline source claim carries publisher f
 - [ ] **Step 1: Run focused suites**
 
 ```bash
-npx vitest run __tests__/pinRevealCoordinator.test.ts __tests__/canvas-donutClusters.test.ts __tests__/dayGreeting.test.ts __tests__/todayBrief.test.ts __tests__/drinks.test.ts __tests__/drinkMenu.test.ts __tests__/venuePriceSource.test.ts
+npx vitest run __tests__/pinRevealCoordinator.test.ts __tests__/canvas-donutClusters.test.ts __tests__/dayGreeting.test.ts __tests__/todayBrief.test.ts __tests__/drinks.test.ts __tests__/drinkMenu.test.ts __tests__/venuePriceSource.test.ts __tests__/priceSourcePresentation.test.ts
 ```
 
 - [ ] **Step 2: Run rendered Playwright matrix**
 
 ```bash
-PW_PORT=3213 npx playwright test e2e/map-gl.spec.ts --project=chromium-gl --grep "painted basemap|No alcohol|keeps the honest retry"
+PW_PORT=3213 npx playwright test e2e/map-gl.spec.ts --project=chromium-gl --grep "does not report a background failure|keeps the honest retry"
 ```
 
 - [ ] **Step 3: Run project gate**

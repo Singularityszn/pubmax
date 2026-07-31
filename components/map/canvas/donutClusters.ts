@@ -53,12 +53,6 @@ type MarkerEntry = {
 };
 
 export type DonutClusterSync = {
-  /**
-   * Drop markers from the previous `pubs` source revision before setData.
-   * The GL fallback becomes visible until MapLibre exposes clusters derived
-   * from the replacement source.
-   */
-  invalidate: () => void;
   /** Detach every listener + marker. Safe to call once, from the same
    *  cleanup path that tears down the rest of the map instance. */
   destroy: () => void;
@@ -77,12 +71,7 @@ export function createDonutClusterSync(
   // while vector-source tiles settle. The permanent MapLibre cluster/count
   // layers already carry the same interaction and remain GPU-composited, so
   // mobile/coarse-pointer callers disable this decorative DOM enhancement.
-  if (!enabled) {
-    return {
-      invalidate: () => {},
-      destroy: () => {},
-    };
-  }
+  if (!enabled) return { destroy: () => {} };
 
   const markers = new Map<number, MarkerEntry>();
   let donutsActive = false;
@@ -247,7 +236,6 @@ export function createDonutClusterSync(
   map.on("style.load", onStyleLoad);
 
   return {
-    invalidate: deactivate,
     destroy: () => {
       map.off("render", throttledSync);
       map.off("moveend", onSettledMap);

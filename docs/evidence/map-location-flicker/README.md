@@ -80,15 +80,13 @@ never reached zero. Neither occurred in the counterfactual or after the fix.
 
 ## Fix and after evidence
 
-Render and source-data queries may update active donuts from non-empty
-snapshots, but cannot deactivate them from a transient empty snapshot. Starting
-a new `pubs` revision now retires cached donuts before `setData`; the exact
-revision must then report loaded content and cross a later render before its
-key state publishes. A completed empty revision or a settled `moveend` or
-`idle` event remains authoritative, so a genuinely empty result still clears
-stale markers and restores the GL layers. Crossing the existing cluster zoom
-boundary still deactivates immediately. Density, clustering, and collision
-contracts are unchanged.
+Render and source-data queries may now update active donuts from non-empty
+snapshots, but cannot deactivate them from a transient empty snapshot. A
+completed `pubs` source revision or a settled `moveend` or `idle` event remains
+authoritative, so a genuinely empty result still clears stale markers and
+restores the GL layers. Crossing the existing cluster zoom boundary still
+deactivates immediately. Density, clustering, and collision contracts are
+unchanged.
 
 After the fix, 40 samples taken 100 ms apart all retained the same 29 DOM
 markers. That time series, rather than a single still frame, is the evidence

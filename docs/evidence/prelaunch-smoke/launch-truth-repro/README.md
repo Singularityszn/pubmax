@@ -26,15 +26,11 @@ Cause: first-paint success required every tiled source to settle. One painted
 source plus one pending source was therefore reported as total background
 failure.
 
-The correction-round focused run
-`npm test -- __tests__/pinRevealCoordinator.test.ts __tests__/pubSourceRevision.test.ts`
-recorded the late-paint recovery regression red: generation 1 was expected in
-the timeout-recovery lane and the lane stayed empty. That run finished with 15
-passing and 2 failing tests. The matching focused green run,
-`npx vitest run __tests__/pinRevealCoordinator.test.ts __tests__/pubSourceRevision.test.ts`,
-finished with all 17 tests passing. It covers recovery after a late first paint
-plus the separate ownership guard that leaves a genuine error-owned notice
-intact. The focused Chromium green,
+The correction-round focused pin-reveal regression recorded the late-paint
+recovery lane red before implementation. The current focused suite,
+`npx vitest run __tests__/pinRevealCoordinator.test.ts`, covers recovery after
+a late first paint plus the separate ownership guard that leaves a genuine
+error-owned notice intact. The focused Chromium green,
 `PW_SKIP_WEBSERVER=1 npx playwright test e2e/map-gl.spec.ts --project=chromium-gl --grep "does not report a background failure"`,
 passed with the primary tile delayed beyond the readiness ceiling and the
 secondary source still pending.
@@ -50,10 +46,7 @@ Fresh signed-out live passes at 390x844 and 1440x900 reproduced the selected
 > soft drink price.
 
 The supplied live smoke capture `../04-filter-mobile.png` visibly retains green
-and amber cluster discs behind those claims. My later live captures are
-`02-no-alcohol-390.png` and `02-no-alcohol-1440.png`; their settled frames do
-not retain the same coloured cluster field from the supplied capture, so they
-are not presented as a second pixel reproduction.
+and amber cluster discs behind those claims.
 
 I reproduced the underlying pre-fix boundary deterministically. A painted
 desktop donut survived replacement of the `pubs` source because the sync had no
@@ -65,34 +58,22 @@ Cause: cluster paint and key meaning crossed the source boundary on separate
 clocks. The key derived from desired GeoJSON immediately. GL paint settled
 later, while desktop donuts could retain cached counts from the prior source.
 
-The correction commits one `nextPubsData` revision. Cached donuts retire first,
-MapLibre settles that exact object, and only then may that exact object publish
-key state. Superseded worker completions cannot publish.
+On 31 July 2026, after a fourth same-revision review finding, Firstmate ordered
+the shared revision and key-publication work reverted through additive commits.
+The revision coordinator, donut invalidation API, dedicated tests, rendered
+proof, screenshots, and public claims were removed. False-toast prevention and
+timeout-only late-paint recovery remain independent and stay in place.
 
-The same correction-round red recorded premature publication: the source
-revision test expected no key publication after the old tiles rendered between
-the tagged `content` event and source settlement, but publication had already
-occurred once. The matching 17-test green waits for revision-tagged content,
-then `pubs` source settlement, then a render boundary before publishing. Its
-failure case still suppresses publication, queued lens revisions still cross
-the same boundary, and story-band reads remain on committed data.
-
-Captain approved keeping the F4 source-revision correction and F5 late-paint
-timeout recovery in one pipeline-owned fix. Re-review raised no further finding
-on the same-revision guarantee, so the trip-wire did not fire and the
-No-alcohol key lens stays in.
-
-Proof is deliberately split:
-
-- Mobile rendered proof: the 390x844 Playwright test crops to the exposed map
-  band, excluding controls and sheet. It finds grey cluster pixels and no green
-  or amber cluster pixels while the No-alcohol key says clusters stay grey.
-- Desktop state-level proof: unit tests require old donut invalidation and
-  derive the No-alcohol key from the same all-unknown source revision handed to
-  cluster paint. This is not labelled rendered proof. Headless GL did not mount
-  desktop donut markers, including after camera zoom, so a desktop pixel claim
-  would be false evidence. Live Chromium does mount them, as the supplied smoke
-  capture shows; no separate product marker-absence defect was observed.
+The final red reproduction showed why another narrow fix was unsafe. After
+`invalidate`, a `pubs` source event queried the previous snapshot and created a
+second donut marker. MapLibre may keep old source tiles renderable after
+`setData`. A tagged `sourcedata` event identifies source and event type, not the
+application revision that produced queried features. `isSourceLoaded` reports
+source settlement but does not prove that every renderable or queried tile came
+from the newest requested object. A later render boundary can therefore still
+cross while old tiles are renderable. One-shot donut invalidation is not a
+lifetime fence because existing source and render listeners can reactivate old
+markers immediately.
 
 ## 3. Today and Tonight inventory
 

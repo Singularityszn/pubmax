@@ -378,47 +378,4 @@ describe("createDonutClusterSync (M5 donut — listener lifecycle)", () => {
     vi.unstubAllGlobals();
     vi.restoreAllMocks();
   });
-
-  it("invalidates painted donuts before the pubs source is replaced", () => {
-    stubMarkerDocument();
-
-    const { map, handlers } = makeFakeMap();
-    map.getSource = () => ({}) as never;
-    map.getLayer = () => ({}) as never;
-    map.querySourceFeatures = vi.fn(() => [{
-      properties: {
-        cluster_id: 20,
-        point_count: 3,
-        b0: 1,
-        b1: 1,
-        b2: 1,
-        b3: 0,
-      },
-      geometry: {
-        type: "Point",
-        coordinates: [-0.12, 51.52],
-      },
-    }]);
-
-    const sync = createDonutClusterSync(
-      map as unknown as maplibregl.Map,
-      () => {},
-    );
-    const [moveend] = [...(handlers.get("moveend") ?? [])];
-    moveend();
-    expect(markerHarness.instances).toHaveLength(1);
-
-    sync.invalidate();
-
-    expect(markerHarness.instances[0].remove).toHaveBeenCalledOnce();
-    expect(map.setLayoutProperty).toHaveBeenLastCalledWith(
-      "cluster-count",
-      "visibility",
-      "visible",
-    );
-
-    sync.destroy();
-    vi.unstubAllGlobals();
-    vi.restoreAllMocks();
-  });
 });
