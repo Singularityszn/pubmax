@@ -182,13 +182,15 @@ describe("pin reveal coordinator", () => {
     expect(h.reveals).toEqual([{ reason: "tiles", generation: 1 }]);
   });
 
-  it("emits timeout when source flags are ready but no phone frame follows", () => {
+  it("emits timeout when no phone frame follows the paintable-source render", () => {
     const h = harness({
       confirmVisibleFrameBeforeReveal: true,
       visibleFrameHoldMs: 500,
     });
+    h.setBasemapPainted(true);
     h.coordinator.arm();
-    h.firePinTimeout();
+    h.fireRender();
+    expect(h.reveals).toEqual([]);
 
     h.fireCeiling();
 

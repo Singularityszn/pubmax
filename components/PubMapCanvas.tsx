@@ -1270,10 +1270,7 @@ export default function PubMapCanvas({
           });
           return;
         }
-        const basemapRetry =
-          reason === "timeout" && basemapTileReadyForPaint
-            ? null
-            : basemapRetryForReveal(reason, tileNoticeOwner);
+        const basemapRetry = basemapRetryForReveal(reason, tileNoticeOwner);
         if (basemapRetry) {
           tileNoticeOwner = "timeout";
           setSoftRetry(basemapRetry);

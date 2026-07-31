@@ -164,17 +164,20 @@ export function createPinRevealCoordinator({
       unsubscribeRender = subscribeRender(scheduleTimeoutRecovery);
       unsubscribeIdle = subscribeIdle(scheduleTimeoutRecovery);
     };
-    const reveal = (reason: PinRevealReason) => {
+    const reveal = (reason: Exclude<PinRevealReason, "timeout">) => {
       if (!isCurrent()) return;
       showPins();
-      // The ceiling must terminate without depending on another MapLibre
-      // render. A stalled renderer is exactly why that timeout exists.
-      if (!confirmVisibleFrameBeforeReveal || reason === "timeout") {
+      if (!confirmVisibleFrameBeforeReveal) {
         finishReveal(reason);
         return;
       }
       state = "awaiting-visible-frame";
-      clearPending();
+      if (pinTimer !== null) clearTimer(pinTimer);
+      pinTimer = null;
+      unsubscribeRender?.();
+      unsubscribeRender = null;
+      unsubscribeIdle?.();
+      unsubscribeIdle = null;
       unsubscribeRender = subscribeRender(() => {
         unsubscribeRender?.();
         unsubscribeRender = null;
@@ -200,8 +203,8 @@ export function createPinRevealCoordinator({
     pinTimer = setTimer(() => {
       if (isCurrent()) showPins();
     }, pinRevealTimeoutMs);
-    // Honest upper bound: lift the parent chrome if no tile becomes paintable.
-    ceilingTimer = setTimer(() => reveal("timeout"), readyCeilingMs);
+    // Honest upper bound: lift the parent chrome if a required signal never arrives.
+    ceilingTimer = setTimer(() => finishReveal("timeout"), readyCeilingMs);
     return armedGeneration;
   };
 
