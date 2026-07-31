@@ -110,9 +110,12 @@ onto its baseline. Today's empty line claimed the whole live night was empty
 even though its code had only checked the narrower snapshot.
 
 The pre-fix regression failed because each Today daypart began with an absolute
-empty-night claim and did not name its listings snapshot. The corrected lines
-say that the snapshot has no picks and point readers to Tonight for live
-listings. A live Tonight count and an empty Today snapshot can now both be true.
+empty-night claim. The narrower replacement no longer claims that live Tonight
+is empty, but its visible `listings snapshot` wording breaks the reader-facing
+language contract in [`docs/VOICE.md`](../../../VOICE.md). Captain-approved
+follow-up remains: replace all four dayparts with plain Today-list wording,
+without product plumbing terms, and update their assertions. The truth scope is
+fixed; the copy cleanup is not.
 
 ## 4. Warm reading with a cold headline
 
