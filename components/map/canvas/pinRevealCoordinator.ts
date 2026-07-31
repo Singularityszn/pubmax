@@ -1,15 +1,19 @@
 export type PinRevealReason = "tiles" | "idle" | "timeout";
+export type BasemapNoticeOwner = "none" | "timeout" | "errors";
 
 export const BASEMAP_RETRY_NOTICE = {
   kind: "tiles",
   message: "Map background couldn't load. Tap Retry to try again.",
 } as const;
 
-export function basemapRetryForReveal(reason: PinRevealReason): {
+export function basemapRetryForReveal(
+  reason: PinRevealReason,
+  currentOwner: BasemapNoticeOwner,
+): {
   kind: "tiles";
   message: string;
 } | null {
-  if (reason !== "timeout") return null;
+  if (reason !== "timeout" || currentOwner === "errors") return null;
   return BASEMAP_RETRY_NOTICE;
 }
 
@@ -23,19 +27,19 @@ type PinRevealCoordinatorOptions = {
   pinRevealTimeoutMs: number;
   /**
    * Honest upper bound for firing the reveal (which lifts the parent loading
-   * chrome) when tiles never settle. The theme-matched skeleton stays up until
-   * a real painted frame OR this ceiling, so a slow tile stream can never
-   * expose a flat basemap void behind a prematurely retired skeleton.
+   * chrome) when no basemap tile becomes paintable. The theme-matched skeleton
+   * stays up until a real painted frame OR this ceiling, so a slow tile stream
+   * can never expose a flat basemap void behind a prematurely retired skeleton.
    */
   readyCeilingMs: number;
-  areTilesLoaded: () => boolean;
+  hasBasemapPainted: () => boolean;
   setPinsVisible: (visible: boolean) => void;
   subscribeRender: (listener: () => void) => () => void;
   subscribeIdle: (listener: () => void) => () => void;
-  requestFrame: (callback: FrameRequestCallback) => number;
-  cancelFrame: (id: number) => void;
   setTimer: (callback: () => void, delayMs: number) => number;
   clearTimer: (handle: number) => void;
+  canRecoverAfterTimeout?: () => boolean;
+  onPaintAfterTimeout?: (generation: number) => void;
   onReveal?: (reason: PinRevealReason, generation: number) => void;
 };
 
@@ -43,41 +47,38 @@ type PinRevealCoordinatorOptions = {
  * Keeps local GeoJSON pins behind the basemap's first painted tile frame, and
  * keeps the parent loading skeleton up until that same frame. Every style
  * rebuild owns one generation; callbacks from superseded styles are harmless
- * even when the browser delivers a cancelled frame/event late.
+ * even when the browser delivers an old event late.
  *
  * Two independent clocks guard the two failure modes:
  *  - `pinRevealTimeoutMs`: a short fallback that un-gates the local pins so they
  *    never hang hidden. It does not lift the parent chrome.
  *  - `readyCeilingMs`: a longer honest upper bound that lifts the parent chrome
- *    even if the basemap never reports loaded tiles. The reveal itself always
- *    prefers a real render/idle frame with tiles loaded; the ceiling only fires
- *    when that frame never arrives, so the skeleton (not flat grey) is what the
- *    user sees during a slow tile stream.
+ *    even if no basemap tile loads. The reveal itself prefers a render/idle
+ *    frame after at least one loaded tile; the ceiling only fires when that
+ *    frame never arrives, so the skeleton (not flat grey) is what the user sees
+ *    during a slow tile stream.
  */
 export function createPinRevealCoordinator({
   pinRevealTimeoutMs,
   readyCeilingMs,
-  areTilesLoaded,
+  hasBasemapPainted,
   setPinsVisible,
   subscribeRender,
   subscribeIdle,
-  requestFrame,
-  cancelFrame,
   setTimer,
   clearTimer,
+  canRecoverAfterTimeout,
+  onPaintAfterTimeout,
   onReveal,
 }: PinRevealCoordinatorOptions) {
   let generation = 0;
   let state: "idle" | "gated" | "revealed" | "cancelled" = "idle";
-  let frame: number | null = null;
   let pinTimer: number | null = null;
   let ceilingTimer: number | null = null;
   let unsubscribeRender: (() => void) | null = null;
   let unsubscribeIdle: (() => void) | null = null;
 
   const clearPending = () => {
-    if (frame !== null) cancelFrame(frame);
-    frame = null;
     if (pinTimer !== null) clearTimer(pinTimer);
     pinTimer = null;
     if (ceilingTimer !== null) clearTimer(ceilingTimer);
@@ -118,24 +119,33 @@ export function createPinRevealCoordinator({
       clearPending();
       showPins();
       onReveal?.(reason, armedGeneration);
+      if (reason !== "timeout" || !onPaintAfterTimeout) return;
+      const scheduleTimeoutRecovery = () => {
+        if (
+          generation !== armedGeneration ||
+          state !== "revealed" ||
+          !hasBasemapPainted()
+        ) return;
+        const canRecover = canRecoverAfterTimeout?.() ?? true;
+        clearPending();
+        if (canRecover) onPaintAfterTimeout(armedGeneration);
+      };
+      unsubscribeRender = subscribeRender(scheduleTimeoutRecovery);
+      unsubscribeIdle = subscribeIdle(scheduleTimeoutRecovery);
     };
-    const scheduleTileReveal = (reason: Exclude<PinRevealReason, "timeout">) => {
-      if (!isCurrent() || frame !== null || !areTilesLoaded()) return;
-      frame = requestFrame(() => {
-        frame = null;
-        if (!isCurrent() || !areTilesLoaded()) return;
-        reveal(reason);
-      });
+    const revealPainted = (reason: Exclude<PinRevealReason, "timeout">) => {
+      if (!isCurrent() || !hasBasemapPainted()) return;
+      reveal(reason);
     };
 
-    unsubscribeRender = subscribeRender(() => scheduleTileReveal("tiles"));
-    unsubscribeIdle = subscribeIdle(() => scheduleTileReveal("idle"));
+    unsubscribeRender = subscribeRender(() => revealPainted("tiles"));
+    unsubscribeIdle = subscribeIdle(() => revealPainted("idle"));
     // Short fallback: un-gate the local pins so they can't hang hidden. This
     // runs behind the still-present parent skeleton and never lifts the chrome.
     pinTimer = setTimer(() => {
       if (isCurrent()) showPins();
     }, pinRevealTimeoutMs);
-    // Honest upper bound: lift the parent chrome even if tiles never settle.
+    // Honest upper bound: lift the parent chrome if no tile becomes paintable.
     ceilingTimer = setTimer(() => reveal("timeout"), readyCeilingMs);
     return armedGeneration;
   };

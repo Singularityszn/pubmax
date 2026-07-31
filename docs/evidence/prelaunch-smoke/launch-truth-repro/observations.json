@@ -1,0 +1,84 @@
+[
+  {
+    "defect": 1,
+    "viewport": "1440x900",
+    "status": 200,
+    "canvasVisible": true,
+    "canvasBox": {
+      "x": 0,
+      "y": 0,
+      "width": 1440,
+      "height": 900
+    },
+    "noticeVisible": false,
+    "notice": null
+  },
+  {
+    "defect": 2,
+    "viewport": "390x844",
+    "status": 200,
+    "noAlcoholPressed": "true",
+    "keyText": "No-alcohol price bandsPin colours follow trusted alcohol-free or soft drink prices. Pubs without one stay unknown.?No alcohol-free or soft drink price on the mapClusters#Clusters stay grey because no current venue has a trusted alcohol-free or soft drink price. The number is every venue in the cluster.Pin shapesPint, wine, cocktail or spirit glassPub. The glass follows its recorded drinks or the drink view you chose.Coupe glassBar.SkewerLate food.ForkRestaurant.Hollow circle and dotPub on the UK base map. No map price.Brass pictogramLandmark, not a pub.The no-alcohol view has no separate pin shape. It uses alcohol-free and soft drink prices. Missing prices stay grey.Dots and ringsBlue centre with a pulseYour approximate location.Small blue dot beside a pinA recent pint report. It doesn't set the selected drink band. A UK base pub keeps only the dot.Amber point with a blue haloPlace in the Events overlay for tonight.Blue ringThis pub has a visible Pint Drop.Amber ringQuiz on tonight.Bright blue ringLive sport shown here.Bright brass ringDeal on tonight.Dark blue ringLive music tonight.Thin brass ringPub added from a public listing.Single brass selection ringUK base pub you selected.Double brass ringPub you selected.Routes1Numbered dark circleStop in your crawl.Solid lineWalking route along roads.Dashed lineStraight estimate while a road route is unavailable.",
+    "statusText": [
+      "No alcohol-free or soft drink prices logged here yet. Food venues still show sourced menu prices."
+    ]
+  },
+  {
+    "defect": 2,
+    "viewport": "1440x900",
+    "status": 200,
+    "noAlcoholPressed": "true",
+    "keyText": "No-alcohol price bandsPin colours follow trusted alcohol-free or soft drink prices. Pubs without one stay unknown.?No alcohol-free or soft drink price on the mapClusters#Clusters stay grey because no current venue has a trusted alcohol-free or soft drink price. The number is every venue in the cluster.Pin shapesPint, wine, cocktail or spirit glassPub. The glass follows its recorded drinks or the drink view you chose.Coupe glassBar.SkewerLate food.ForkRestaurant.Hollow circle and dotPub on the UK base map. No map price.Brass pictogramLandmark, not a pub.The no-alcohol view has no separate pin shape. It uses alcohol-free and soft drink prices. Missing prices stay grey.Dots and ringsBlue centre with a pulseYour approximate location.Small blue dot beside a pinA recent pint report. It doesn't set the selected drink band. A UK base pub keeps only the dot.Amber point with a blue haloPlace in the Events overlay for tonight.Blue ringThis pub has a visible Pint Drop.Amber ringQuiz on tonight.Bright blue ringLive sport shown here.Bright brass ringDeal on tonight.Dark blue ringLive music tonight.Thin brass ringPub added from a public listing.Single brass selection ringUK base pub you selected.Double brass ringPub you selected.Routes1Numbered dark circleStop in your crawl.Solid lineWalking route along roads.Dashed lineStraight estimate while a road route is unavailable.",
+    "statusText": [
+      "",
+      "No alcohol-free or soft drink prices logged here yet. Food venues still show sourced menu prices.",
+      "Visiting another city?Near me?",
+      "Wildfires in East LondonTfL live · 3"
+    ]
+  },
+  {
+    "defects": [
+      3,
+      4
+    ],
+    "route": "today",
+    "viewport": "1440x900",
+    "status": 200,
+    "matchingLines": [
+      "Nothing left confirmed tonight."
+    ]
+  },
+  {
+    "defects": [
+      3
+    ],
+    "route": "tonight",
+    "viewport": "1440x900",
+    "status": 200,
+    "matchingLines": [
+      "Quiz, sport, deals, and live music from sourced listings. Open a listed venue on the map.",
+      "2 listings tonight · Freshness unknown · via what’s-on",
+      "Thin coverage tonight: 2 sourced listings only. Not a full gig guide.",
+      "DesignMyNight · sourced",
+      "DesignMyNight · sourced",
+      "via DesignMyNight",
+      "DesignMyNight",
+      "via DesignMyNight",
+      "DesignMyNight"
+    ]
+  },
+  {
+    "defect": 5,
+    "viewport": "1440x900",
+    "status": 200,
+    "matchingLines": [
+      "Asahi · 5.2%",
+      "The Dove",
+      "Photo: pub website",
+      "Baseline on record",
+      "£7.25",
+      "Dataset price. Not a live tonight feed.",
+      "Save The Dove to a list"
+    ]
+  }
+]

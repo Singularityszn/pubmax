@@ -59,6 +59,9 @@ const ARNOS_ARMS_ID = stableVenueIdFromKey(
   ].join("|"),
 );
 const OLD_BELL_ID = "venue-1tu6vof";
+const DOVE_ID = "venue-1p5ftm3";
+const DOVE_PRICE_SOURCE =
+  "https://www.pint-prices.com/pub/19%20Upper%20Mall,%20London%20W6%209TA/The%20Dove";
 
 // ---------------------------------------------------------------------------
 // Place stories live in MapLayersControl after Wave J declutter (was mid-map
@@ -113,6 +116,36 @@ test.describe("map / story bands (#15)", () => {
 // straight to a known seed venue (mirrors smoke.spec's sel= precedent) so this
 // never depends on a canvas pin click.
 test.describe("map / venue sheet tabs", () => {
+  test("names The Dove price publisher in Overview and its Asahi row", async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.goto(`/map?sel=${DOVE_ID}`);
+
+    const overview = page.locator("#venuePanel-overview");
+    await expect(overview).toBeVisible();
+    await expect(overview).toContainText("£7.25");
+    const overviewSource = overview.getByRole("link", {
+      name: "Pint Prices",
+      exact: true,
+    });
+    await expect(overviewSource).toHaveAttribute("href", DOVE_PRICE_SOURCE);
+
+    const tablist = page.getByRole("tablist", { name: "Venue detail sections" });
+    await tablist.getByRole("tab", { name: "Drinks", exact: true }).click();
+    const menu = page.locator("#venuePanel-menu");
+    await menu.getByRole("button", { name: /^Drinks/ }).click();
+
+    const asahi = menu.locator(".drinkRow").filter({ hasText: /Asahi/i });
+    await expect(asahi).toContainText("£7.25");
+    await expect(
+      asahi.getByRole("link", { name: "Pint Prices", exact: true }),
+    ).toHaveAttribute("href", DOVE_PRICE_SOURCE);
+    await expect(menu.locator(".drinkMenuFootnote")).not.toContainText(
+      "Every drink carries its source",
+    );
+  });
+
   test("empty Drinks action opens the Pint Drop composer on Stories", async ({
     page,
   }) => {

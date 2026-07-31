@@ -520,7 +520,7 @@ export default function PubmaxxAccountHub() {
         try {
           await navigator.share({
             title: "PUBMAXX",
-            text: "Real pub prices from real people.",
+            text: "Listed pub prices name and link their publisher when recorded and say when none is recorded.",
             url: body.url,
           });
           setMessage("Invite link ready to share.");

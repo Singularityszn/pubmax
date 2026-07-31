@@ -293,6 +293,7 @@ describe("drink menu materialisation from updates", () => {
     expect(drink.alcoholType).toBe("low-no");
     expect(drink.provenance).toEqual({
       source: "J D Wetherspoon — official site",
+      sourceUrl: "https://www.jdwetherspoon.com/pubs/all-pubs/the-test-arms",
       licence: "All rights reserved — first-party publisher, attributed use only.",
       observedAt: "2026-07-01T00:00:00.000Z",
     });

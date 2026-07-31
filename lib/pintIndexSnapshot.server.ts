@@ -7,25 +7,14 @@ import {
   validateArchivedPintIndexSnapshot,
   type ArchivedPintIndexSnapshot,
 } from "@/lib/pintIndexArchive";
-import { validatePintIndexSnapshot, type PintIndexSnapshot } from "@/lib/pintIndex";
-
-export const PINT_INDEX_SNAPSHOT_PATH = "public/data/pint_index_snapshot.json";
+export { PINT_INDEX_SNAPSHOT_PATH } from "@/lib/pintIndexSnapshotFile.mjs";
+export { loadPublicPintIndexSnapshot } from "@/lib/publicPintIndexSnapshot.server";
 
 /** One JSON file per frozen month, named `YYYY-MM.json`. */
 export const PINT_INDEX_ARCHIVE_DIR = "public/data/pint_index";
 
 export function sha256Hex(input: string): string {
   return createHash("sha256").update(input, "utf8").digest("hex");
-}
-
-export async function loadPublicPintIndexSnapshot(): Promise<PintIndexSnapshot | null> {
-  try {
-    const raw = await fs.readFile(path.join(process.cwd(), PINT_INDEX_SNAPSHOT_PATH), "utf8");
-    const result = validatePintIndexSnapshot(JSON.parse(raw));
-    return result.ok ? result.snapshot : null;
-  } catch {
-    return null;
-  }
 }
 
 /** Every published month id, newest first. Missing directory reads as none. */

@@ -3,23 +3,25 @@ import { describe, expect, it } from "vitest";
 import {
   basemapRetryForReveal,
   createPinRevealCoordinator,
+  type BasemapNoticeOwner,
 } from "@/components/map/canvas/pinRevealCoordinator";
 
 function harness() {
-  let tilesLoaded = false;
+  let basemapPainted = false;
   let nextId = 1;
-  const frames = new Map<number, FrameRequestCallback>();
   const timers = new Map<number, () => void>();
   const timerDelays = new Map<number, number>();
   const renderListeners = new Set<() => void>();
   const idleListeners = new Set<() => void>();
   const visibility: boolean[] = [];
   const reveals: Array<{ reason: string; generation: number }> = [];
+  const timeoutRecoveries: number[] = [];
+  let noticeOwner: BasemapNoticeOwner = "none";
 
   const coordinator = createPinRevealCoordinator({
     pinRevealTimeoutMs: 3_000,
     readyCeilingMs: 12_000,
-    areTilesLoaded: () => tilesLoaded,
+    hasBasemapPainted: () => basemapPainted,
     setPinsVisible: (visible) => visibility.push(visible),
     subscribeRender: (listener) => {
       renderListeners.add(listener);
@@ -29,12 +31,6 @@ function harness() {
       idleListeners.add(listener);
       return () => idleListeners.delete(listener);
     },
-    requestFrame: (callback) => {
-      const id = nextId++;
-      frames.set(id, callback);
-      return id;
-    },
-    cancelFrame: (id) => frames.delete(id),
     setTimer: (callback, delayMs) => {
       const id = nextId++;
       timers.set(id, callback);
@@ -45,26 +41,36 @@ function harness() {
       timers.delete(id);
       timerDelays.delete(id);
     },
-    onReveal: (reason, generation) => reveals.push({ reason, generation }),
+    canRecoverAfterTimeout: () => noticeOwner === "timeout",
+    onPaintAfterTimeout: (generation: number) => {
+      noticeOwner = "none";
+      timeoutRecoveries.push(generation);
+    },
+    onReveal: (reason, generation) => {
+      if (basemapRetryForReveal(reason, noticeOwner)) {
+        noticeOwner = "timeout";
+      }
+      reveals.push({ reason, generation });
+    },
   });
 
   return {
     coordinator,
     visibility,
     reveals,
+    timeoutRecoveries,
     renderListeners,
     idleListeners,
-    frames,
     timers,
-    setTilesLoaded(value: boolean) { tilesLoaded = value; },
+    getNoticeOwner() {
+      return noticeOwner;
+    },
+    reportGenuineFailure() {
+      noticeOwner = "errors";
+    },
+    setBasemapPainted(value: boolean) { basemapPainted = value; },
     fireRender() { [...renderListeners].forEach((listener) => listener()); },
     fireIdle() { [...idleListeners].forEach((listener) => listener()); },
-    flushFrame() {
-      const entry = frames.entries().next().value as [number, FrameRequestCallback] | undefined;
-      if (!entry) return;
-      frames.delete(entry[0]);
-      entry[1](0);
-    },
     fireByDelay(delayMs: number) {
       for (const [id, delay] of timerDelays) {
         if (delay === delayMs) {
@@ -81,12 +87,13 @@ function harness() {
 
 describe("pin reveal coordinator", () => {
   it("turns only a basemap timeout into an honest retry notice", () => {
-    expect(basemapRetryForReveal("tiles")).toBeNull();
-    expect(basemapRetryForReveal("idle")).toBeNull();
-    expect(basemapRetryForReveal("timeout")).toEqual({
+    expect(basemapRetryForReveal("tiles", "none")).toBeNull();
+    expect(basemapRetryForReveal("idle", "none")).toBeNull();
+    expect(basemapRetryForReveal("timeout", "none")).toEqual({
       kind: "tiles",
       message: "Map background couldn't load. Tap Retry to try again.",
     });
+    expect(basemapRetryForReveal("timeout", "errors")).toBeNull();
   });
 
   it("keeps pins gated until basemap tiles have painted", () => {
@@ -96,12 +103,9 @@ describe("pin reveal coordinator", () => {
     h.fireRender();
     h.fireIdle();
     expect(h.visibility).toEqual([false]);
-    expect(h.frames.size).toBe(0);
 
-    h.setTilesLoaded(true);
+    h.setBasemapPainted(true);
     h.fireRender();
-    expect(h.visibility).toEqual([false]);
-    h.flushFrame();
 
     expect(h.visibility).toEqual([false, true]);
     expect(h.reveals).toEqual([{ reason: "tiles", generation: 1 }]);
@@ -131,14 +135,37 @@ describe("pin reveal coordinator", () => {
     expect(h.reveals).toEqual([]);
 
     // The basemap finally paints: the real frame lifts the chrome, not the ceiling.
-    h.setTilesLoaded(true);
+    h.setBasemapPainted(true);
     h.fireRender();
-    h.flushFrame();
 
     expect(h.reveals).toEqual([{ reason: "tiles", generation: 1 }]);
     // Pins were already shown by the fallback, so no duplicate visibility write.
     expect(h.visibility).toEqual([false, true]);
     expect(h.timers.size).toBe(0);
+  });
+
+  it("accepts a painted basemap while another tiled source is still pending", () => {
+    const h = harness();
+    h.coordinator.arm();
+    h.setBasemapPainted(true);
+
+    h.fireRender();
+    h.fireCeiling();
+
+    expect(h.reveals).toEqual([{ reason: "tiles", generation: 1 }]);
+    expect(h.visibility).toEqual([false, true]);
+  });
+
+  it("lets rendered tiles beat the ceiling in the same event turn", () => {
+    const h = harness();
+    h.coordinator.arm();
+    h.setBasemapPainted(true);
+
+    h.fireRender();
+    h.fireCeiling();
+
+    expect(h.reveals).toEqual([{ reason: "tiles", generation: 1 }]);
+    expect(h.getNoticeOwner()).toBe("none");
   });
 
   it("lifts the chrome at the honest ceiling only when tiles never settle", () => {
@@ -152,6 +179,47 @@ describe("pin reveal coordinator", () => {
     expect(h.reveals).toEqual([{ reason: "timeout", generation: 1 }]);
   });
 
+  it("clears a timeout-owned notice in the first render that paints the basemap", () => {
+    const h = harness();
+    h.coordinator.arm();
+    h.fireCeiling();
+    expect(h.getNoticeOwner()).toBe("timeout");
+
+    h.setBasemapPainted(true);
+    h.fireRender();
+
+    expect(h.getNoticeOwner()).toBe("none");
+    expect(h.timeoutRecoveries).toEqual([1]);
+  });
+
+  it("preserves an error-owned notice when the basemap later renders", () => {
+    const h = harness();
+    h.coordinator.arm();
+    h.fireCeiling();
+    h.reportGenuineFailure();
+
+    h.setBasemapPainted(true);
+    h.fireRender();
+
+    expect(h.getNoticeOwner()).toBe("errors");
+    expect(h.timeoutRecoveries).toEqual([]);
+  });
+
+  it("keeps an error-owned notice through the ceiling and later paint", () => {
+    const h = harness();
+    h.coordinator.arm();
+    h.reportGenuineFailure();
+
+    h.fireCeiling();
+    expect(h.getNoticeOwner()).toBe("errors");
+
+    h.setBasemapPainted(true);
+    h.fireRender();
+
+    expect(h.getNoticeOwner()).toBe("errors");
+    expect(h.timeoutRecoveries).toEqual([]);
+  });
+
   it("cancels obsolete style generations and ignores stale callbacks", () => {
     const h = harness();
     h.coordinator.arm();
@@ -159,27 +227,25 @@ describe("pin reveal coordinator", () => {
     const firstTimer = [...h.timers.values()][0];
 
     h.coordinator.arm();
-    h.setTilesLoaded(true);
+    h.setBasemapPainted(true);
     staleRender?.();
     firstTimer?.();
     expect(h.reveals).toEqual([]);
 
     h.fireRender();
-    h.flushFrame();
     expect(h.visibility).toEqual([false, false, true]);
     expect(h.reveals).toEqual([{ reason: "tiles", generation: 2 }]);
   });
 
-  it("prevents post-unmount frame and timer writes", () => {
+  it("prevents post-unmount event and timer writes", () => {
     const h = harness();
-    h.setTilesLoaded(true);
+    h.setBasemapPainted(true);
     h.coordinator.arm();
-    h.fireRender();
-    const staleFrame = [...h.frames.values()][0];
+    const staleRender = [...h.renderListeners][0];
     const staleTimer = [...h.timers.values()][0];
 
     h.coordinator.dispose();
-    staleFrame?.(0);
+    staleRender?.();
     staleTimer?.();
 
     expect(h.visibility).toEqual([false]);
@@ -190,23 +256,20 @@ describe("pin reveal coordinator", () => {
 
   it("does not trust the pre-render tile-ready value after a style load", () => {
     const h = harness();
-    h.setTilesLoaded(true);
+    h.setBasemapPainted(true);
     h.coordinator.arm();
 
-    expect(h.frames.size).toBe(0);
     expect(h.reveals).toEqual([]);
 
     h.fireRender();
-    h.flushFrame();
     expect(h.reveals).toEqual([{ reason: "tiles", generation: 1 }]);
   });
 
   it("reveals from idle only after tile readiness and still does so once", () => {
     const h = harness();
     h.coordinator.arm();
-    h.setTilesLoaded(true);
+    h.setBasemapPainted(true);
     h.fireIdle();
-    h.flushFrame();
     h.fireRender();
 
     expect(h.reveals).toEqual([{ reason: "idle", generation: 1 }]);

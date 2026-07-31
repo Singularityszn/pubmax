@@ -3,6 +3,8 @@ import { headers } from "next/headers";
 import Link from "next/link";
 
 import { loadAboutStats, type AboutStats } from "@/lib/aboutStats";
+import { buildLeagueTable, indexSummary } from "@/lib/pintIndex";
+import { loadPublicPintIndexSnapshot } from "@/lib/publicPintIndexSnapshot.server";
 import { CONTACT_EMAIL } from "@/lib/siteContact";
 
 import "./about.css";
@@ -19,7 +21,7 @@ import "./about.css";
 
 const PAGE_TITLE = "Our story: why PUBMAXX exists";
 const PAGE_DESCRIPTION =
-  "A pint in London can cost eight quid, and nobody tells you where it doesn't. PUBMAXX puts real prices from real people on one map, with the whole night in a single plan. Free, and nobody pays to rank.";
+  "A pint in London can cost eight quid. PUBMAXX puts listed prices on one map, names and links publishers when recorded, and says when none is recorded. Free, and nobody pays to rank.";
 
 export const metadata: Metadata = {
   title: PAGE_TITLE,
@@ -72,12 +74,12 @@ function tractionStats(s: AboutStats): Stat[] {
     {
       value: fmtInt(s.pubsTracked),
       label: "pubs tracked",
-      note: "each one carrying a real, sourced price",
+      note: "each one carrying a price on record",
     },
     {
       value: fmtInt(s.pintPricesObserved),
       label: "pint prices logged",
-      note: "readings from public data, every one sourced",
+      note: "readings with their source status shown",
     },
     {
       value: fmtInt(s.historicPubsCited),
@@ -93,7 +95,14 @@ function tractionStats(s: AboutStats): Stat[] {
 }
 
 export default async function AboutPage() {
-  const stats = await loadAboutStats();
+  const [stats, pintIndexSnapshot] = await Promise.all([
+    loadAboutStats(),
+    loadPublicPintIndexSnapshot(),
+  ]);
+  const pintIndexRows = pintIndexSnapshot
+    ? buildLeagueTable(pintIndexSnapshot)
+    : [];
+  const pintIndexSummary = indexSummary(pintIndexRows);
   const nonce = (await headers()).get("x-nonce") ?? undefined;
 
   // AboutPage + Organization JSON-LD. NOTE (see agent report): components/seo/
@@ -119,7 +128,7 @@ export default async function AboutPage() {
       url: "https://pubmaxxing.com",
       logo: "https://pubmaxxing.com/icon-512.png",
       description:
-        "Listed pint prices with named sources, mapped with cited pub heritage. A free pub-crawl planner for the UK that never lets anyone pay to rank.",
+        "Listed pint prices with explicit source status, mapped with cited pub heritage. A free pub-crawl planner for the UK that never lets anyone pay to rank.",
       email: CONTACT_EMAIL,
       sameAs: ["https://x.com/karansznx"],
     },
@@ -174,10 +183,11 @@ export default async function AboutPage() {
       <section className="aboutSection" aria-labelledby="did">
         <h2 id="did" className="aboutH2">What we did about it</h2>
         <p className="aboutBody">
-          We put real prices on the map. Every one names where it came from,
-          and the ones logged by drinkers carry the day they were seen. Tap a
-          pub and you see what a pint costs before you set off, not after
-          you&rsquo;ve handed over a note.
+          We put real prices on the map. When a price record names a publisher,
+          we name and link it. When no publisher is recorded, the price says so.
+          The ones logged by drinkers carry the day they were seen. Tap a pub and
+          you see what a pint costs before you set off, not after you&rsquo;ve
+          handed over a note.
         </p>
         <p className="aboutBody">
           We kept the stories too. Most of these pubs have been pouring for a
@@ -211,10 +221,10 @@ export default async function AboutPage() {
         <h2 id="ethos" className="aboutH2">What we stand for</h2>
         <ul className="aboutEthos">
           <li>
-            <strong>Prices with named sources.</strong> Listed prices name their
-            sources, and cited pub stories link to their references. If we
-            can&rsquo;t stand a number up, we leave it blank. No filler, no
-            guess dressed up as data.
+            <strong>Prices with honest source status.</strong> Listed prices
+            name and link their publisher when recorded, and say when no
+            publisher is recorded. A missing publisher stays missing rather
+            than being guessed. Cited pub stories link to their references.
           </li>
           <li>
             <strong>Good nights count people and memories.</strong> Rewards and
@@ -272,8 +282,8 @@ export default async function AboutPage() {
           <div className="aboutPressRow">
             <dt>One line</dt>
             <dd>
-              Listed pint prices with named sources, one map, and the whole night in
-              a single plan. Free, and nobody pays to rank.
+              Listed pint prices with explicit source status, one map, and the
+              whole night in a single plan. Free, and nobody pays to rank.
             </dd>
           </div>
           <div className="aboutPressRow">
@@ -339,31 +349,36 @@ export default async function AboutPage() {
           your angle.
         </p>
         <ul className="aboutEthos">
-          <li>
-            <strong>London&rsquo;s pint price league table.</strong> The Pint
-            Index ranks{" "}
-            <strong>{fmtInt(stats.boroughsCovered)}</strong> boroughs and
-            neighbourhoods by the price of a pint, from{" "}
-            <span className="aboutPriceStamp">{cheapest}</span> at the cheap end
-            to <span className="aboutPriceStamp">{dearest}</span> at the top. It
-            is built from{" "}
-            <strong>{fmtInt(stats.pintPricesObserved)}</strong> sourced
-            readings, and every figure links back to where it came from.
-          </li>
-          <li>
-            <strong>A price series, not a one-off headline.</strong> The prices
-            people log carry the day they were seen, so the Pint Index can show
-            how a London pint moves over a season, not just what it costs today.
-          </li>
-          <li>
-            <strong>Sourced, never invented.</strong> Where the data
-            can&rsquo;t stand up an honest number for an area, the table shows
-            nothing there. No filler, no estimate dressed up as a fact.
-          </li>
+          {pintIndexRows.length > 0 && pintIndexSnapshot ? (
+            <>
+              <li>
+                <strong>London&rsquo;s pint price league table.</strong> The
+                Pint Index currently ranks{" "}
+                <strong>{fmtInt(pintIndexSummary.boroughCount)}</strong>{" "}
+                boroughs from{" "}
+                <strong>{fmtInt(pintIndexSnapshot.observations.length)}</strong>{" "}
+                dated prices across{" "}
+                <strong>{fmtInt(pintIndexSummary.pubCount)}</strong> pubs.
+              </li>
+              <li>
+                <strong>A price series, not a one-off headline.</strong> Only
+                prices with a public source and date enter the Index. Closed
+                months keep their own frozen edition.
+              </li>
+            </>
+          ) : (
+            <li>
+              <strong>No borough league yet.</strong> The public Pint Index has
+              no dated prices with a public source to rank yet. Older map-only
+              prices stay separate from the league.
+            </li>
+          )}
         </ul>
         <p className="aboutBody">
           <Link href="/pint-index" className="aboutLink">
-            See the league table
+            {pintIndexRows.length > 0
+              ? "See the league table"
+              : "See the Index status"}
           </Link>
         </p>
       </section>

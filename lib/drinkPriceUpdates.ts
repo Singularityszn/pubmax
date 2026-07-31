@@ -148,6 +148,7 @@ function rowKey(venueKey: string, drinkName: string, category: string): string {
 function updateProvenance(update: DrinkPriceUpdate): DrinkProvenance {
   return {
     source: update.source.label,
+    sourceUrl: update.source.url,
     licence: update.source.licence,
     observedAt: update.observedAt,
   };

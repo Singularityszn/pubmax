@@ -205,6 +205,27 @@ describe("legacyPricesToDrinks", () => {
     });
   });
 
+  it("keeps the named publisher from a price record instead of a generic dataset label", () => {
+    const sourceUrl =
+      "https://www.pint-prices.com/pub/19%20Upper%20Mall,%20London%20W6%209TA/The%20Dove";
+    const [drink] = legacyPricesToDrinks(
+      [
+        {
+          app_price_id: "app_price_001178",
+          pint_name: "ASAHI",
+          price_gbp: 7.25,
+          pub_url: sourceUrl,
+        },
+      ],
+      OBSERVED,
+    );
+
+    expect(drink.provenance).toMatchObject({
+      source: "Pint Prices",
+      sourceUrl,
+    });
+  });
+
   it("skips rows without a numeric price (a menu item must carry a price)", () => {
     const drinks = legacyPricesToDrinks(
       [

@@ -16,6 +16,7 @@ function brief(overrides: Partial<WeatherBrief> = {}): WeatherBrief {
     tempLabel: "24C",
     conditionLabel: "clear",
     verdictLine: "Beer garden weather. Lager or cider.",
+    ruleId: "summer-garden",
     drinkSuggestion: "a cold lager or cider",
     venueLens: "beer-garden",
     stale: false,
@@ -59,7 +60,11 @@ describe("buildDayGreeting", () => {
   it("moves with the lens, not just the clock", () => {
     const now = new Date("2026-07-25T18:00:00.000Z");
     expect(
-      buildDayGreeting({ now, weather: brief({ venueLens: "fireplace" }), dateLabel: DATE_LABEL })
+      buildDayGreeting({
+        now,
+        weather: brief({ venueLens: "fireplace", ruleId: "cold" }),
+        dateLabel: DATE_LABEL,
+      })
         .headline,
     ).toBe("An evening for a fire and a dark pint.");
     expect(
@@ -70,6 +75,39 @@ describe("buildDayGreeting", () => {
       buildDayGreeting({ now, weather: brief({ venueLens: "any" }), dateLabel: DATE_LABEL })
         .headline,
     ).toBe("A settled evening for a pint.");
+  });
+
+  it("describes the rule behind the displayed reading, not only its shared lens", () => {
+    const now = new Date("2026-07-25T23:30:00.000Z");
+    const warmRain = brief({
+      tempLabel: "24C",
+      conditionLabel: "cloudy",
+      venueLens: "fireplace",
+      ruleId: "hard-rain",
+    });
+    const cold = brief({
+      tempLabel: "7C",
+      conditionLabel: "cloudy",
+      venueLens: "fireplace",
+      ruleId: "cold",
+    });
+
+    const warmGreeting = buildDayGreeting({
+      now,
+      weather: warmRain,
+      dateLabel: DATE_LABEL,
+    });
+    const coldGreeting = buildDayGreeting({
+      now,
+      weather: cold,
+      dateLabel: DATE_LABEL,
+    });
+
+    expect(warmGreeting.support).toContain("24C");
+    expect(warmGreeting.headline).toContain("Rain");
+    expect(warmGreeting.headline).not.toContain("Cold");
+    expect(coldGreeting.support).toContain("7C");
+    expect(coldGreeting.headline).toContain("Cold");
   });
 
   it("moves with the clock, not just the lens", () => {
@@ -142,7 +180,12 @@ describe("buildDayGreeting", () => {
     ];
     for (const iso of times) {
       for (const venueLens of lenses) {
-        for (const weather of [brief({ venueLens }), brief({ venueLens, stale: true }), null]) {
+        const ruleId = venueLens === "fireplace" ? "cold" : "summer-garden";
+        for (const weather of [
+          brief({ venueLens, ruleId }),
+          brief({ venueLens, ruleId, stale: true }),
+          null,
+        ]) {
           const greeting = buildDayGreeting({
             now: new Date(iso),
             weather,
@@ -171,10 +214,26 @@ describe("time-band card copy", () => {
     }
   });
 
-  it("only promises the afternoon while the afternoon is still ahead", () => {
-    expect(PICKS_EMPTY_LINE.morning).toContain("afternoon");
-    expect(PICKS_EMPTY_LINE.evening).not.toContain("afternoon");
-    expect(PICKS_EMPTY_LINE.night).not.toContain("afternoon");
+  it("scopes Today's empty picks to tonight's list in reader-facing words", () => {
+    expect(PICKS_EMPTY_LINE).toEqual({
+      morning:
+        "Nothing left on tonight's list. Open Tonight for live listings.",
+      afternoon:
+        "Nothing left on tonight's list. Open Tonight for live listings.",
+      evening:
+        "Nothing left on tonight's list. Open Tonight for live listings.",
+      night:
+        "Nothing left on tonight's list. Open Tonight for live listings.",
+    });
+
+    for (const slot of SLOTS) {
+      expect(PICKS_EMPTY_LINE[slot]).not.toMatch(
+        /\b(?:snapshot|check|feed|inventory)\b/i,
+      );
+    }
+    expect(PICKS_EMPTY_LINE.night).not.toBe(
+      "Nothing left confirmed tonight.",
+    );
   });
 
   it("writes no em dashes or en dashes in any band", () => {

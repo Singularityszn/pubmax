@@ -1,5 +1,9 @@
 # Signed-out prelaunch smoke
 
+This file records the original smoke result. Follow-up corrections and their
+red-green evidence live in
+[`launch-truth-repro/README.md`](launch-truth-repro/README.md).
+
 - Live site: `https://pubmaxxing.com`
 - Date: 30 July 2026
 - Session: fresh signed-out Playwright Chromium contexts, no stored site data

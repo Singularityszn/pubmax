@@ -306,7 +306,13 @@ describe("legal content pages", () => {
     expect(terms).toMatch(/never\s+a\s+price\s+for\s+tonight/);
     expect(terms).toMatch(/dated\s+record\s+of\s+the\s+past/);
     expect(terms).not.toMatch(/Prices\s+come\s+from\s+two\s+places/);
-    expect(terms).toMatch(/Every current price names where it came from/);
+    expect(terms).toMatch(
+      /A current price names and links its publisher when its record does/,
+    );
+    expect(terms).toMatch(
+      /When no publisher is recorded for a price, we say so beside it/,
+    );
+    expect(terms).not.toMatch(/Every current price names where it came from/);
     expect(terms).not.toMatch(
       /Every price on PUBMAXX is what someone saw, on a date we show you/,
     );

@@ -207,6 +207,12 @@ describe("VOICE.md compliance audit", () => {
       "Every price on PUBMAXX is what someone saw, on a date we show you",
     );
     expect(terms).toContain(
+      "A current price names and links its publisher when its record does.",
+    );
+    expect(terms).toContain(
+      "When no publisher is recorded for a price, we say so beside it.",
+    );
+    expect(terms).not.toContain(
       "Every current price names where it came from.",
     );
 
@@ -345,6 +351,7 @@ describe("VOICE.md compliance audit", () => {
     const palChat = read("lib/palChat.ts");
     const pushSender = read("lib/pushSender.ts");
     const about = read("app/about/page.tsx");
+    const accountHub = read("components/profile/PubmaxxAccountHub.tsx");
 
     expect(palPortrait).not.toMatch(
       /(?:collar|bell) beacon|crew-band harness/iu,
@@ -379,6 +386,18 @@ describe("VOICE.md compliance audit", () => {
     expect(pushSender).toContain("updates for tonight");
     expect(landing).not.toContain("Cheap pints near you, live");
     expect(landing).not.toContain("No endless listings. Just");
+    expect(landing).not.toContain("Every price names where it came from");
+    expect(about).not.toContain("Every one names where it came from");
+    expect(about).not.toContain("Listed prices name their sources");
+    expect(about).not.toContain("Listed pint prices with named sources");
+    expect(about).not.toMatch(/prices from real people|every figure links back/iu);
+    expect(accountHub).not.toMatch(/prices from real people/iu);
+    expect(about).toMatch(
+      /names? and links? publishers? when recorded[\s\S]*says? when none is recorded/iu,
+    );
+    expect(accountHub).toMatch(
+      /prices name and link their publisher when recorded and say when none is recorded/iu,
+    );
     expect(crew).not.toContain("No account. Just your name.");
 
     expect(activity).not.toContain("reach the bar");

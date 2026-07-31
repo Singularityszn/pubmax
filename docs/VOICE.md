@@ -2,7 +2,7 @@
 
 _The one doc that decides how every string in the app reads. If copy fights this, the copy is wrong._
 
-PUBMAX sounds like a Londoner who knows the pub, not a brand that owns one. Dry, warm, direct, a bit funny, never salesy. We're for the commoners: the people getting mugged £7.20 for a lager who just want a good pint without thinking about it. The whole point of the app is in the voice: **a pint shouldn't cost a day's lunch, so we show real prices from real people, and nobody ever pays to rank.**
+PUBMAX sounds like a Londoner who knows the pub, not a brand that owns one. Dry, warm, direct, a bit funny, never salesy. We're for the commoners: the people getting mugged £7.20 for a lager who just want a good pint without thinking about it. The whole point of the app is in the voice: **a pint shouldn't cost a day's lunch, so we show listed prices with honest publisher status, and nobody ever pays to rank.**
 
 ---
 
@@ -11,7 +11,7 @@ PUBMAX sounds like a Londoner who knows the pub, not a brand that owns one. Dry,
 Say it the way you'd say it to a mate, not the way a startup says it in a deck.
 
 - London pints cost a fortune. We show you what every pub actually charges, so you stop guessing and stop overpaying.
-- Every price names where it came from. The ones logged by drinkers carry the day they were seen; the rest are cited from public sources. Never claim every price is dated: only the people-logged lanes carry per-row dates (`__tests__/landingPriceHonesty.test.ts` pins the landing page's half of that). No made-up numbers.
+- Every price says exactly what its own record supports. When the record names a publisher, name and link it. When no publisher is recorded for that price, say so plainly beside the figure. Never infer one from venue notes, image credits, or unrelated metadata. The ones logged by drinkers carry the day they were seen; only the people-logged lanes carry per-row dates. No made-up numbers.
 - Nobody buys their way to the top. There's a hard wall in the code (`lib/sponsorship.ts`) between paid placements and the prices you see. A sponsored thing says "Sponsored" and sits in its own slot. Prices are never for sale.
 
 Never write the mission as a mission. No "we're on a journey to democratise fair pricing." State the problem, hand the reader a choice, move on.
@@ -94,9 +94,8 @@ Some of these are lines we already own and should copy the rhythm of. Others are
 | 8 | No grounded nearby extension is available without widening the route. | Nothing close enough to add without dragging the night out. | `NightModeCard` |
 | 9 | Nearest rail signal: {station}. | Nearest station: {station}. | `NightModeCard` |
 | 10 | Kitchen hours can change; verify tonight before leaving the last pub. | Kitchens can shut early. Check tonight's hours before you leave the last pub. | `NightModeCard` |
-| 11 | It is price-aware — you can see what a pint costs. It is story-led — every pub carries heritage. And it is map-first — the map is the product. | We put real prices on the map. Every one names where it came from, and the ones logged by drinkers carry the day they were seen. Tap a pub and you see what a pint costs before you set off, not after you've handed over a note. | `/about` story page (killed the "It is X. It is Y. And it is Z." triad and three em dashes) |
-| 12 | After a hard day's work you want a cheap pint nearby — without bouncing between Google Maps, other maps, and ChatGPT. | You finish work, you want a good pint nearby. So you open Google Maps, then another map, then reviews, then you're asking ChatGPT, and an hour later you're back at the same place as last time. | `/about` lede |
-| 13 | Karan Manoharan &mdash; X | Karan Manoharan · X | `/about` press-kit founder line (no dash construction) |
+| 11 | After a hard day's work you want a cheap pint nearby — without bouncing between Google Maps, other maps, and ChatGPT. | You finish work, you want a good pint nearby. So you open Google Maps, then another map, then reviews, then you're asking ChatGPT, and an hour later you're back at the same place as last time. | `/about` lede |
+| 12 | Karan Manoharan &mdash; X | Karan Manoharan · X | `/about` press-kit founder line (no dash construction) |
 
 ## Where the jokes live
 

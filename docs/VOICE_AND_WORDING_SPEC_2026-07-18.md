@@ -60,7 +60,7 @@ Every finding quoted from live copy (or source where the string is a hidden stat
 | `Side quests nearby` (highlight) / `Find the side quest` (step 01) | Gamer-American; not pub language | `What's on round the corner` / `Start with what's nearby` |
 | `The city, with signal.` (§2 h2) | Abstract; a 6pm user can't decode it | `Cheap pints, live.` |
 | `PUBMAXX clears away the listings noise and keeps the three things that change your decision.` | Corporate abstraction | `We keep the three things that actually decide your night: the price, what's on, and how you get there.` |
-| `Prices you can trust` / `Observed prices carry dates and provenance, so a cheap pint never arrives as a vague promise.` | "provenance" jargon | `Prices that are real` / `Every price has a date and a source, so a cheap pint is never a rumour.` |
+| `Prices you can trust` / `Observed prices carry dates and provenance, so a cheap pint never arrives as a vague promise.` | "provenance" jargon | Price-source wording is now owned by [`docs/VOICE.md`](./VOICE.md); never promise a publisher or day that the price record does not carry. |
 | `A city that changes with you` / `Morning calm, after-work energy and late-night events appear when they are useful—not all at once.` | Vague; em-dash glued | `The city, by the hour` / `Morning calm, after-work buzz, late-night lock-ins — shown when they're useful, not all at once.` |
 | `One route, every way there` | Cryptic | `One route, every way home` |
 | `The map gets better when Pubmaxxers show up.` | Invented jargon "Pubmaxxers" | `The map gets sharper every time someone logs a pint.` |

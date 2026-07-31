@@ -1,4 +1,5 @@
 import { BEERS, normalizeBeer } from "@/lib/beers";
+import { firstHttp } from "@/lib/httpUrl";
 import { isNonAlcoholicDrink } from "@/lib/nonAlcoholicDrinks";
 
 // The all-drinks data model (PRD E1 — "extend, do not fork"). A venue today
@@ -45,6 +46,8 @@ export type DrinkCategory = (typeof DRINK_CATEGORIES)[number];
 // source (a chain's own site, Wikidata, Open Food Facts…).
 export type DrinkProvenance = {
   source: string;
+  /** Validated publisher link when the price record names one. */
+  sourceUrl?: string;
   licence: string;
   // ISO-8601 timestamp the fact was observed/seeded.
   observedAt: string;
@@ -199,11 +202,38 @@ export type LegacyPintPrice = {
   app_price_id: string;
   pint_name: string;
   price_gbp: number | null;
+  pub_url?: string;
 };
 
+type NamedPriceSource = {
+  label: string;
+  url: string;
+};
+
+function publisherLabelForUrl(sourceUrl: string): string {
+  const hostname = new URL(sourceUrl).hostname.toLocaleLowerCase("en-GB");
+  if (hostname === "pint-prices.com" || hostname.endsWith(".pint-prices.com")) {
+    return "Pint Prices";
+  }
+  return hostname.replace(/^www\./, "");
+}
+
+/** Named publisher carried by the price record itself, or null when absent. */
+export function namedLegacyPintPriceSource(
+  price: LegacyPintPrice,
+): NamedPriceSource | null {
+  const url = firstHttp(price.pub_url);
+  if (!url) return null;
+  return {
+    label: publisherLabelForUrl(url),
+    url,
+  };
+}
+
 // A pint row → a beer Drink. Rows without a numeric price are skipped (a menu
-// entry must carry a price; an unpriced pint is not a menu item). Provenance is
-// the honest dataset baseline — sourced from the app dataset, not a live feed.
+// entry must carry a price; an unpriced pint is not a menu item). A valid
+// publisher URL on the row stays attached; otherwise provenance says only that
+// this is an app-dataset baseline, not a live feed.
 export function legacyPricesToDrinks(
   prices: LegacyPintPrice[],
   observedAt: string,
@@ -223,6 +253,7 @@ export function legacyPricesToDrinks(
       typeof catalogAbv === "number" && Number.isFinite(catalogAbv)
         ? catalogAbv
         : undefined;
+    const namedSource = namedLegacyPintPriceSource(price);
     drinks.push({
       id: `beer-${price.app_price_id}`,
       category: "beer",
@@ -232,8 +263,9 @@ export function legacyPricesToDrinks(
       alcoholType: alcoholTypeForDrink({ name, abv }),
       priceGbp: price.price_gbp,
       provenance: {
-        source: "app-dataset",
-        licence: "first-party",
+        source: namedSource?.label ?? "app-dataset",
+        ...(namedSource ? { sourceUrl: namedSource.url } : {}),
+        licence: namedSource ? "not stated in record" : "first-party",
         observedAt,
       },
     });

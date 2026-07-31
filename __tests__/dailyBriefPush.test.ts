@@ -8,6 +8,7 @@ const WEATHER: WeatherBrief = {
   tempLabel: "19C",
   conditionLabel: "clear",
   verdictLine: "Beer garden weather. Lager or cider.",
+  ruleId: "summer-garden",
   drinkSuggestion: "a cold lager or cider",
   venueLens: "beer-garden",
   stale: false,

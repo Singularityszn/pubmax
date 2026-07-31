@@ -82,17 +82,19 @@ never reached zero. Neither occurred in the counterfactual or after the fix.
 
 Render and source-data queries may now update active donuts from non-empty
 snapshots, but cannot deactivate them from a transient empty snapshot. A
-completed `pubs` source revision or a settled `moveend` or `idle` event remains
-authoritative, so a genuinely empty result still clears stale markers and
-restores the GL layers. Crossing the existing cluster zoom boundary still
-deactivates immediately. Density, clustering, and collision contracts are
-unchanged.
+`pubs` content event MapLibre marks loaded, or a settled `moveend` or `idle`
+event, remains authoritative for this transient-empty policy, so a genuinely
+empty result still clears stale markers and restores the GL layers. It does not
+prove which application revision is painted; the separate limitation is
+recorded in the [launch-truth reproduction](../prelaunch-smoke/launch-truth-repro/README.md).
+Crossing the existing cluster zoom boundary still deactivates immediately.
+Density, clustering, and collision contracts are unchanged.
 
 After the fix, 40 samples taken 100 ms apart all retained the same 29 DOM
 markers. That time series, rather than a single still frame, is the evidence
 that alternation stopped. The Playwright journey and focused unit regression
-cover both sides: transient render emptiness retains markers, while a completed
-empty `pubs` source revision clears them.
+cover both sides: transient render emptiness retains markers, while a settled
+empty `pubs` source event clears them.
 
 These loaded-basemap frames are 1.5 seconds apart at the same settled desktop
 Manchester viewport after granted location. Cluster symbols remain in the same
