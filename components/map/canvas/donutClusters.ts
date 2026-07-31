@@ -3,6 +3,7 @@ import type { GeoJSONFeature } from "maplibre-gl";
 import { buildDonutMarkerSvg, donutTotal, type DonutCounts } from "@/lib/donutClusterGeometry";
 import { readTokens } from "./tokens";
 import { CLUSTER_MAX_ZOOM } from "./buildScene";
+import { PUBS_SOURCE_REVISION_PROPERTY } from "./pubSourceRevision";
 
 // M5 — donut cluster markers segmented by price band. `clusterProperties`
 // (wired in buildPubs, buildScene.ts) accumulate per-bucket counts (b0..b3 —
@@ -53,6 +54,10 @@ type MarkerEntry = {
 };
 
 export type DonutClusterSync = {
+  /** Retire old DOM paint before a replacement pubs revision starts. */
+  beginRevision: () => void;
+  /** Allow only clusters tagged with the committed pubs revision. */
+  commitRevision: (revision: number) => void;
   /** Detach every listener + marker. Safe to call once, from the same
    *  cleanup path that tears down the rest of the map instance. */
   destroy: () => void;
@@ -71,9 +76,16 @@ export function createDonutClusterSync(
   // while vector-source tiles settle. The permanent MapLibre cluster/count
   // layers already carry the same interaction and remain GPU-composited, so
   // mobile/coarse-pointer callers disable this decorative DOM enhancement.
-  if (!enabled) return { destroy: () => {} };
+  if (!enabled) {
+    return {
+      beginRevision: () => {},
+      commitRevision: () => {},
+      destroy: () => {},
+    };
+  }
 
   const markers = new Map<number, MarkerEntry>();
+  let committedRevision: number | null = null;
   let donutsActive = false;
   let lastRenderAt = 0;
 
@@ -112,6 +124,7 @@ export function createDonutClusterSync(
   };
 
   const sync = (emptyIsAuthoritative: boolean) => {
+    if (committedRevision === null) return;
     if (!map.getSource("pubs") || !map.getLayer("clusters")) return;
     // D2 contract: cluster features exist while floor(zoom) <= CLUSTER_MAX_ZOOM
     // (MapLibre serves cluster tiles through the whole 13.x band and dissolves
@@ -130,7 +143,16 @@ export function createDonutClusterSync(
     const byId = new Map<number, GeoJSONFeature>();
     for (const feature of features) {
       const id = feature.properties?.cluster_id;
-      if (typeof id === "number" && !byId.has(id)) byId.set(id, feature);
+      const sourceRevision = Number(
+        feature.properties?.[PUBS_SOURCE_REVISION_PROPERTY],
+      );
+      if (
+        sourceRevision === committedRevision &&
+        typeof id === "number" &&
+        !byId.has(id)
+      ) {
+        byId.set(id, feature);
+      }
     }
     if (byId.size === 0) {
       // MapLibre 6 can briefly expose an empty querySourceFeatures snapshot
@@ -236,6 +258,13 @@ export function createDonutClusterSync(
   map.on("style.load", onStyleLoad);
 
   return {
+    beginRevision: () => {
+      committedRevision = null;
+      deactivate();
+    },
+    commitRevision: (revision) => {
+      committedRevision = revision;
+    },
     destroy: () => {
       map.off("render", throttledSync);
       map.off("moveend", onSettledMap);

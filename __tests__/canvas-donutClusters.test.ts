@@ -42,6 +42,9 @@ import {
   readCounts,
   countsEqual,
 } from "@/components/map/canvas/donutClusters";
+import {
+  PUBS_SOURCE_REVISION_PROPERTY,
+} from "@/components/map/canvas/pubSourceRevision";
 import type { DonutCounts } from "@/lib/donutClusterGeometry";
 
 // Pure helpers cover bucket coercion and SVG rebuilds. The fake map covers
@@ -169,7 +172,11 @@ describe("createDonutClusterSync (M5 donut — listener lifecycle)", () => {
       map.getLayer = () => ({}) as never;
       map.getZoom = () => zoom;
       map.querySourceFeatures = querySourceFeatures;
-      createDonutClusterSync(map as unknown as maplibregl.Map, () => {});
+      const sync = createDonutClusterSync(
+        map as unknown as maplibregl.Map,
+        () => {},
+      );
+      sync.commitRevision(1);
       const [moveend] = [...(handlers.get("moveend") ?? [])];
       moveend();
       return querySourceFeatures;
@@ -206,6 +213,7 @@ describe("createDonutClusterSync (M5 donut — listener lifecycle)", () => {
         b1: 1,
         b2: 1,
         b3: 1,
+        [PUBS_SOURCE_REVISION_PROPERTY]: 1,
       },
       geometry: {
         type: "Point",
@@ -223,6 +231,7 @@ describe("createDonutClusterSync (M5 donut — listener lifecycle)", () => {
       map as unknown as maplibregl.Map,
       () => {},
     );
+    sync.commitRevision(1);
     const [moveend] = [...(handlers.get("moveend") ?? [])];
     const [render] = [...(handlers.get("render") ?? [])];
     const [sourcedata] = [...(handlers.get("sourcedata") ?? [])];
@@ -303,6 +312,7 @@ describe("createDonutClusterSync (M5 donut — listener lifecycle)", () => {
         b1: 1,
         b2: 1,
         b3: 0,
+        [PUBS_SOURCE_REVISION_PROPERTY]: 1,
       },
       geometry: {
         type: "Point",
@@ -320,6 +330,7 @@ describe("createDonutClusterSync (M5 donut — listener lifecycle)", () => {
       map as unknown as maplibregl.Map,
       () => {},
     );
+    sync.commitRevision(1);
     const [render] = [...(handlers.get("render") ?? [])];
     const [sourcedata] = [...(handlers.get("sourcedata") ?? [])];
 
@@ -357,6 +368,7 @@ describe("createDonutClusterSync (M5 donut — listener lifecycle)", () => {
         b1: 1,
         b2: 0,
         b3: 0,
+        [PUBS_SOURCE_REVISION_PROPERTY]: 1,
       },
       geometry: {
         type: "Point",
@@ -368,11 +380,90 @@ describe("createDonutClusterSync (M5 donut — listener lifecycle)", () => {
       map as unknown as maplibregl.Map,
       () => {},
     );
+    sync.commitRevision(1);
     const [idle] = [...(handlers.get("idle") ?? [])];
 
     expect(idle).toBeTypeOf("function");
     idle();
     expect(markerHarness.instances).toHaveLength(1);
+
+    sync.destroy();
+    vi.unstubAllGlobals();
+    vi.restoreAllMocks();
+  });
+
+  it("fences stale source tiles until the committed revision is queryable", () => {
+    stubMarkerDocument();
+
+    const { map, handlers } = makeFakeMap();
+    const cluster = (revision: number) => ({
+      properties: {
+        cluster_id: 20,
+        point_count: 3,
+        b0: 1,
+        b1: 1,
+        b2: 1,
+        b3: 0,
+        [PUBS_SOURCE_REVISION_PROPERTY]: revision,
+      },
+      geometry: {
+        type: "Point",
+        coordinates: [-0.12, 51.52],
+      },
+    });
+    map.getSource = () => ({}) as never;
+    map.getLayer = () => ({}) as never;
+    map.querySourceFeatures = vi
+      .fn()
+      .mockReturnValueOnce([cluster(1)])
+      .mockReturnValueOnce([cluster(1)])
+      .mockReturnValueOnce([cluster(2)]);
+
+    const sync = createDonutClusterSync(
+      map as unknown as maplibregl.Map,
+      () => {},
+    );
+    const [moveend] = [...(handlers.get("moveend") ?? [])];
+    const [sourcedata] = [...(handlers.get("sourcedata") ?? [])];
+
+    sync.commitRevision(1);
+    moveend();
+    expect(markerHarness.instances).toHaveLength(1);
+
+    sync.beginRevision();
+    expect(markerHarness.instances[0].remove).toHaveBeenCalledOnce();
+
+    sync.commitRevision(2);
+    expect(markerHarness.instances).toHaveLength(1);
+    expect(map.setLayoutProperty).toHaveBeenLastCalledWith(
+      "cluster-count",
+      "visibility",
+      "visible",
+    );
+
+    sourcedata({
+      sourceId: "pubs",
+      sourceDataType: "content",
+      isSourceLoaded: true,
+    });
+    expect(markerHarness.instances).toHaveLength(1);
+    expect(map.setLayoutProperty).toHaveBeenLastCalledWith(
+      "cluster-count",
+      "visibility",
+      "visible",
+    );
+
+    sourcedata({
+      sourceId: "pubs",
+      sourceDataType: "content",
+      isSourceLoaded: true,
+    });
+    expect(markerHarness.instances).toHaveLength(2);
+    expect(map.setLayoutProperty).toHaveBeenLastCalledWith(
+      "cluster-count",
+      "visibility",
+      "none",
+    );
 
     sync.destroy();
     vi.unstubAllGlobals();
