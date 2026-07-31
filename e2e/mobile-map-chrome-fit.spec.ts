@@ -416,4 +416,5 @@ test("390px recorded map journey reaches Filters and a painted pin", async ({
   }
   expect(pinOpened, "a painted map pin receives its own tap").toBe(true);
   await expect(venueSheet).toHaveCount(1);
+  await page.waitForTimeout(1_200);
 });

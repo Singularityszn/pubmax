@@ -79,7 +79,7 @@ PW_PORT=32171 npx playwright test e2e/mobile-map-chrome-fit.spec.ts --project=ch
 
 Expected: PASS for 390px, 430px, and 320px with tap delivery, equal edges, and height at most 164px.
 
-- [ ] **Step 3: Run nearby contracts**
+- [x] **Step 3: Run nearby contracts**
 
 Run:
 
@@ -90,7 +90,7 @@ PW_PORT=32172 npx playwright test e2e/mobile-map-shell-matrix.spec.ts e2e/drink-
 
 Expected: PASS with no desktop-file changes and no altered control behaviour.
 
-- [ ] **Step 4: Commit implementation**
+- [x] **Step 4: Commit implementation**
 
 ```bash
 git add components/mobile/mobileMapShell.css components/map/tonightArcChips.css __tests__/mobileChromeFit.test.ts
@@ -109,19 +109,19 @@ Commit body states: `Alignment system: centred phone shell with balanced 12px gu
 - Consumes: fixed rendered UI and dedicated Playwright journey
 - Produces: committed recording of map open, Filters open, filter change, dismiss, and pin tap
 
-- [ ] **Step 1: Record real journey**
+- [x] **Step 1: Record real journey**
 
 Create evidence directory explicitly with `mkdir -p`. Run dedicated 390px Playwright journey with video enabled. Exercise map open, Filters tap, one filter change, sheet dismissal, and a real painted pin tap. Copy resulting WebM into evidence directory and verify it with `ls -la` and `ffprobe`.
 
-- [ ] **Step 2: Inspect recording**
+- [x] **Step 2: Inspect recording**
 
 Extract representative frames with `ffmpeg` and inspect them. Confirm no clipped controls, sheet transition settles, filter selection is visible, and pin tap opens venue sheet.
 
-- [ ] **Step 3: Record measured evidence**
+- [x] **Step 3: Record measured evidence**
 
 Document exact measured 390px, 430px, and 320px boundaries and chrome heights from passing Playwright output. Record `components/PubMap.tsx` and `components/PubMapCanvas.tsx` complexity delta as zero because neither file changed.
 
-- [ ] **Step 4: Run final verification**
+- [x] **Step 4: Run final verification**
 
 Run:
 
@@ -136,7 +136,7 @@ git status --short
 
 Expected: every command exits zero and only scoped files remain.
 
-- [ ] **Step 5: Commit evidence**
+- [x] **Step 5: Commit evidence**
 
 ```bash
 git add docs/evidence/mobile-map-chrome
