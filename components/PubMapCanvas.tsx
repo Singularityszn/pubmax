@@ -91,6 +91,7 @@ import {
   BASEMAP_RETRY_NOTICE,
   basemapRetryForReveal,
   createPinRevealCoordinator,
+  isPhonePinRevealFailure,
   type BasemapNoticeOwner,
 } from "@/components/map/canvas/pinRevealCoordinator";
 import { applySelectionMute } from "@/lib/mapBasemapTaste";
@@ -1261,15 +1262,11 @@ export default function PubMapCanvas({
         setSoftRetry((current) => current?.kind === "tiles" ? null : current);
       },
       onReveal: (reason, generation) => {
-        if (
-          phoneFirstImpression &&
-          reason === "timeout" &&
-          !hasPinsPaintable()
-        ) {
+        if (isPhonePinRevealFailure(phoneFirstImpression, reason)) {
           reportMapError({
             kind: "no-frame",
             message: "The map couldn't finish drawing its pubs.",
-            detail: "Pub source readiness timed out.",
+            detail: "Pin frame readiness timed out.",
           });
           return;
         }

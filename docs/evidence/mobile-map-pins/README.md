@@ -15,7 +15,9 @@ cluster-colour pixels in the map crop.
 After the fix, the clean recording shows loading chrome at 11.88 seconds and
 coloured price clusters in the next 25 fps frame at 11.92 seconds. The settled
 screenshot contains 6,651 cluster-colour pixels in the same crop. There is no
-empty-and-settled frame at the handoff.
+empty-and-settled frame at the handoff. If the phone cannot confirm that frame
+before the readiness ceiling, it now shows the honest no-frame fallback instead
+of retiring loading chrome.
 
 ## Measured timing
 

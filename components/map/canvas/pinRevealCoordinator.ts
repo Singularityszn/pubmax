@@ -17,6 +17,13 @@ export function basemapRetryForReveal(
   return BASEMAP_RETRY_NOTICE;
 }
 
+export function isPhonePinRevealFailure(
+  phoneFirstImpression: boolean,
+  reason: PinRevealReason,
+): boolean {
+  return phoneFirstImpression && reason === "timeout";
+}
+
 type PinRevealCoordinatorOptions = {
   /**
    * Un-gates the local GeoJSON pins if the basemap never reports painted tiles,

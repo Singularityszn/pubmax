@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   basemapRetryForReveal,
   createPinRevealCoordinator,
+  isPhonePinRevealFailure,
   type BasemapNoticeOwner,
 } from "@/components/map/canvas/pinRevealCoordinator";
 
@@ -97,6 +98,12 @@ function harness({
 }
 
 describe("pin reveal coordinator", () => {
+  it("treats every phone readiness ceiling as a failed visible handoff", () => {
+    expect(isPhonePinRevealFailure(true, "timeout")).toBe(true);
+    expect(isPhonePinRevealFailure(true, "tiles")).toBe(false);
+    expect(isPhonePinRevealFailure(false, "timeout")).toBe(false);
+  });
+
   it("turns only a basemap timeout into an honest retry notice", () => {
     expect(basemapRetryForReveal("tiles", "none")).toBeNull();
     expect(basemapRetryForReveal("idle", "none")).toBeNull();
@@ -175,7 +182,7 @@ describe("pin reveal coordinator", () => {
     expect(h.reveals).toEqual([{ reason: "tiles", generation: 1 }]);
   });
 
-  it("does not wait for another render after the honest phone ceiling", () => {
+  it("emits timeout when source flags are ready but no phone frame follows", () => {
     const h = harness({
       confirmVisibleFrameBeforeReveal: true,
       visibleFrameHoldMs: 500,
