@@ -1234,7 +1234,7 @@ export default function PubMapCanvas({
       pinRevealTimeoutMs: PIN_REVEAL_TIMEOUT_MS,
       readyCeilingMs: PIN_READY_CEILING_MS,
       hasBasemapPainted: () => basemapTileReadyForPaint,
-      hasPinsPaintable,
+      hasPinsPaintable: () => !phoneFirstImpression || hasPinsPaintable(),
       confirmVisibleFrameBeforeReveal: phoneFirstImpression,
       visibleFrameHoldMs: phoneFirstImpression ? PHONE_PIN_COMPOSITE_HOLD_MS : 0,
       setPinsVisible: (visible) => {
@@ -1261,7 +1261,11 @@ export default function PubMapCanvas({
         setSoftRetry((current) => current?.kind === "tiles" ? null : current);
       },
       onReveal: (reason, generation) => {
-        if (reason === "timeout" && !hasPinsPaintable()) {
+        if (
+          phoneFirstImpression &&
+          reason === "timeout" &&
+          !hasPinsPaintable()
+        ) {
           reportMapError({
             kind: "no-frame",
             message: "The map couldn't finish drawing its pubs.",
@@ -1279,15 +1283,11 @@ export default function PubMapCanvas({
         } else if (reason !== "timeout" || basemapTileReadyForPaint) {
           markBasemapRecovered();
         }
-        // Void fix (#395 R2, #397): lift the PARENT loading chrome HERE — the
-        // reveal is the first frame with the basemap actually painted (reason
-        // "tiles"/"idle") or, only if that frame never arrives, an honest
-        // ceiling degrade ("timeout" at PIN_READY_CEILING_MS). style.load only
-        // built the scene graph; on a slow tile stream that left a flat
-        // background-only rectangle (grey/near-black) exposed for many seconds
-        // once the chrome retired at style.load. Holding parent-ready until a
-        // real painted frame keeps the pitched-London skeleton over the whole
-        // void window instead of retiring it on a blind short timeout.
+        // Lift parent loading chrome only after basemap paint. Phone adds the
+        // stricter pub-source and composite gates above because its unfinished
+        // frame otherwise looks settled. Desktop keeps its established tile
+        // gate. The ceiling degrades honestly if either required phone signal
+        // never arrives.
         onMapReadyRef.current?.(true);
         window.dispatchEvent(new CustomEvent("pubmax:pin-reveal", {
           detail: { reason, generation },

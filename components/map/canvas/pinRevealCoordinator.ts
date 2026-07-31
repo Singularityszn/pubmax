@@ -26,10 +26,9 @@ type PinRevealCoordinatorOptions = {
    */
   pinRevealTimeoutMs: number;
   /**
-   * Honest upper bound for firing the reveal (which lifts the parent loading
-   * chrome) when no basemap tile becomes paintable. The theme-matched skeleton
-   * stays up until a real painted frame OR this ceiling, so a slow tile stream
-   * can never expose a flat basemap void behind a prematurely retired skeleton.
+   * Honest upper bound for firing the reveal when a required paint signal
+   * never arrives. The loading skeleton stays up until a real qualifying frame
+   * or this ceiling.
    */
   readyCeilingMs: number;
   hasBasemapPainted: () => boolean;
@@ -53,7 +52,7 @@ type PinRevealCoordinatorOptions = {
 };
 
 /**
- * Keeps local GeoJSON pins behind both basemap paint and pub-source readiness,
+ * Keeps local GeoJSON pins behind configured basemap and source paint signals,
  * then keeps parent loading chrome up until its configured visible-frame gate.
  * Every style rebuild owns one generation; callbacks from superseded styles
  * are harmless even when the browser delivers an old event late.
@@ -62,10 +61,8 @@ type PinRevealCoordinatorOptions = {
  *  - `pinRevealTimeoutMs`: a short fallback that un-gates the local pins so they
  *    never hang hidden. It does not lift the parent chrome.
  *  - `readyCeilingMs`: a longer honest upper bound that lifts the parent chrome
- *    even if no basemap tile loads. The reveal itself prefers a render/idle
- *    frame after at least one loaded tile; the ceiling only fires when that
- *    frame never arrives, so the skeleton (not flat grey) is what the user sees
- *    during a slow tile stream.
+ *    even if a required signal never arrives. A consumer may turn that timeout
+ *    into an explicit degraded or error surface.
  */
 export function createPinRevealCoordinator({
   pinRevealTimeoutMs,
