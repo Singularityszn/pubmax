@@ -26,6 +26,19 @@ Cause: first-paint success required every tiled source to settle. One painted
 source plus one pending source was therefore reported as total background
 failure.
 
+The correction-round focused run
+`npm test -- __tests__/pinRevealCoordinator.test.ts __tests__/pubSourceRevision.test.ts`
+recorded the late-paint recovery regression red: generation 1 was expected in
+the timeout-recovery lane and the lane stayed empty. That run finished with 15
+passing and 2 failing tests. The matching focused green run,
+`npx vitest run __tests__/pinRevealCoordinator.test.ts __tests__/pubSourceRevision.test.ts`,
+finished with all 17 tests passing. It covers recovery after a late first paint
+plus the separate ownership guard that leaves a genuine error-owned notice
+intact. The focused Chromium green,
+`PW_SKIP_WEBSERVER=1 npx playwright test e2e/map-gl.spec.ts --project=chromium-gl --grep "does not report a background failure"`,
+passed with the primary tile delayed beyond the readiness ceiling and the
+secondary source still pending.
+
 ## 2. No-alcohol key and cluster paint
 
 Fresh signed-out live passes at 390x844 and 1440x900 reproduced the selected
@@ -55,6 +68,19 @@ later, while desktop donuts could retain cached counts from the prior source.
 The correction commits one `nextPubsData` revision. Cached donuts retire first,
 MapLibre settles that exact object, and only then may that exact object publish
 key state. Superseded worker completions cannot publish.
+
+The same correction-round red recorded premature publication: the source
+revision test expected no key publication after the old tiles rendered between
+the tagged `content` event and source settlement, but publication had already
+occurred once. The matching 17-test green waits for revision-tagged content,
+then `pubs` source settlement, then a render boundary before publishing. Its
+failure case still suppresses publication, queued lens revisions still cross
+the same boundary, and story-band reads remain on committed data.
+
+Captain approved keeping the F4 source-revision correction and F5 late-paint
+timeout recovery in one pipeline-owned fix. Re-review raised no further finding
+on the same-revision guarantee, so the trip-wire did not fire and the
+No-alcohol key lens stays in.
 
 Proof is deliberately split:
 

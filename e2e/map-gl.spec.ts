@@ -161,10 +161,10 @@ test("/map renders the MapLibre canvas with real size and never falls back", asy
 test("/map does not report a background failure after one basemap source paints", async ({
   page,
 }) => {
-  test.setTimeout(55_000);
+  test.setTimeout(75_000);
   await installDeterministicMapBasemap(page, {
-    primaryRasterDelayMs: 20_000,
-    secondaryRasterDelayMs: 60_000,
+    primaryRasterDelayMs: 28_000,
+    secondaryRasterDelayMs: 75_000,
     stallSecondaryRaster: true,
   });
 
@@ -173,9 +173,9 @@ test("/map does not report a background failure after one basemap source paints"
   await expect(canvas).toBeVisible({ timeout: 20_000 });
   const notice = page.locator(".mapSoftRetry");
   await expect(notice).toContainText("Map background couldn't load", {
-    timeout: 18_000,
+    timeout: 30_000,
   });
-  await expect(notice).toHaveCount(0, { timeout: 12_000 });
+  await expect(notice).toHaveCount(0, { timeout: 30_000 });
   await expect(page.locator(".mapFallback")).toHaveCount(0);
 });
 
