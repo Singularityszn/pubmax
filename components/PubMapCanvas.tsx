@@ -2927,7 +2927,9 @@ export default function PubMapCanvas({
     const fallbackVenues = selectMapFallbackPubs(venues, FALLBACK_VENUE_COUNT);
     return (
       <div className="mapCanvasWrap">
-        <div className="mapFallback" role="alert">
+        {/* Force a fresh node: MapLibre's imperative light-theme background
+            would otherwise survive React's div-for-div fallback swap. */}
+        <div key="map-fallback" className="mapFallback" role="alert">
           <strong>{heading}</strong>
           <p>
             {mapError.message}

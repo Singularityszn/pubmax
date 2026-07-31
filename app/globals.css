@@ -2563,8 +2563,8 @@ input[type="range"] {
   height: 100%;
   padding: 32px;
   text-align: center;
-  background: var(--ink-deep);
-  color: var(--paper);
+  background: var(--color-surface-inverse);
+  color: var(--color-on-inverse);
   /* The static venue list can outgrow a short viewport — scroll inside the
      card rather than clipping the Retry button off-screen. */
   overflow-y: auto;
@@ -2582,7 +2582,7 @@ input[type="range"] {
   max-width: 340px;
   font-size: 0.85rem;
   line-height: 1.55;
-  color: var(--muted);
+  color: var(--color-on-inverse);
 }
 
 /* The technical diagnostic now lives behind a collapsed disclosure — never
@@ -2631,7 +2631,7 @@ input[type="range"] {
   font-size: 0.68rem;
   letter-spacing: 0.02em;
   line-height: 1.4;
-  color: var(--muted);
+  color: var(--color-on-inverse);
   opacity: 0.75;
   overflow-wrap: anywhere;
 }
@@ -2644,7 +2644,7 @@ input[type="range"] {
   border: 1px solid var(--brass);
   border-radius: var(--radius-sm);
   background: transparent;
-  color: var(--paper);
+  color: var(--color-on-inverse);
   font-family: var(--serif, inherit);
   font-weight: 600;
   font-variation-settings: "SOFT" 0;
@@ -2684,10 +2684,10 @@ input[type="range"] {
   gap: 12px;
   width: 100%;
   padding: 8px 12px;
-  border: 1px solid color-mix(in srgb, var(--paper) 18%, transparent);
+  border: 1px solid color-mix(in srgb, var(--color-on-inverse) 18%, transparent);
   border-radius: var(--radius-sm);
-  background: color-mix(in srgb, var(--paper) 6%, transparent);
-  color: var(--paper);
+  background: color-mix(in srgb, var(--color-on-inverse) 6%, transparent);
+  color: var(--color-on-inverse);
   text-align: left;
   cursor: pointer;
   transition: background 0.15s ease;
@@ -2695,7 +2695,7 @@ input[type="range"] {
 
 .mapFallbackVenue:hover,
 .mapFallbackVenue:focus-visible {
-  background: color-mix(in srgb, var(--paper) 12%, transparent);
+  background: color-mix(in srgb, var(--color-on-inverse) 12%, transparent);
 }
 
 .mapFallbackVenueName {
@@ -2706,7 +2706,7 @@ input[type="range"] {
 .mapFallbackVenueMeta {
   flex-shrink: 0;
   font-size: 0.72rem;
-  color: var(--muted);
+  color: var(--color-on-inverse);
 }
 
 .mapFallbackBrowse {

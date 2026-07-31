@@ -32,6 +32,39 @@ async function changedPixelRatio(first: Buffer, second: Buffer): Promise<number>
   return changed / pixels;
 }
 
+function relativeLuminance([red, green, blue]: readonly number[]): number {
+  const [r, g, b] = [red, green, blue].map((channel) => {
+    const value = channel / 255;
+    return value <= 0.04045
+      ? value / 12.92
+      : ((value + 0.055) / 1.055) ** 2.4;
+  });
+  return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+}
+
+function contrastRatio(
+  foreground: readonly number[],
+  background: readonly number[],
+): number {
+  const lighter = Math.max(
+    relativeLuminance(foreground),
+    relativeLuminance(background),
+  );
+  const darker = Math.min(
+    relativeLuminance(foreground),
+    relativeLuminance(background),
+  );
+  return (lighter + 0.05) / (darker + 0.05);
+}
+
+function rgbChannels(cssColour: string): [number, number, number] {
+  const channels = cssColour.match(/\d+(?:\.\d+)?/g)?.map(Number);
+  if (!channels || channels.length < 3) {
+    throw new Error(`Could not parse computed colour: ${cssColour}`);
+  }
+  return [channels[0], channels[1], channels[2]];
+}
+
 async function zoomThroughHiddenMobileControl(page: Page, steps = 3): Promise<void> {
   const zoomIn = page.locator(".maplibregl-ctrl-zoom-in");
   for (let step = 0; step < steps; step += 1) {
@@ -445,16 +478,12 @@ test("/map states a TileJSON metadata failure instead of revealing a blank field
   await expect(page.locator(".mapFallback")).toHaveCount(0);
 });
 
-// First-frame watchdog contract (the blank-white-map report). A browser can
-// GRANT a WebGL context (so the constructor succeeds and style.load fires,
-// retiring the loading chrome) while its render loop never produces a single
-// frame — dead software rasterizer, GPU-process crash after context creation,
-// stalled rAF. Before the watchdog, that user sat on a permanently blank white
-// map with no basemap, no pins, and no fallback. Stubbing rAF to never fire is
-// the deterministic stand-in for "the first basemap frame never arrives": this
-// project (SwiftShader) guarantees construction succeeds, so the only way the
-// fallback can appear is via the FIRST_FRAME_TIMEOUT_MS watchdog.
-test("/map degrades to the fallback when the renderer never draws a frame", async ({
+// Phone readiness-ceiling contract. A browser can grant WebGL while its render
+// loop never produces the pub frame required to retire loading chrome. Stubbing
+// rAF keeps that compositor handoff from completing; the 12-second ceiling must
+// finish on the honest, readable no-frame fallback rather than expose the
+// unfinished map.
+test("/map shows a readable fallback when phone rendering misses its readiness ceiling", async ({
   page,
 }) => {
   test.setTimeout(60_000);
@@ -470,12 +499,12 @@ test("/map degrades to the fallback when the renderer never draws a frame", asyn
   // The map constructs (context granted) — the canvas exists…
   await expect(page.locator(".maplibreMap canvas").first()).toBeVisible({ timeout: 20_000 });
 
-  // …but no frame ever renders, so the watchdog must surface the honest
-  // fallback (10s timeout + queueMicrotask + render slack).
+  // No pub frame ever renders, so the phone readiness ceiling must surface the
+  // honest fallback (12s ceiling + render slack).
   const fallback = page.locator(".mapFallback");
   await expect(fallback).toBeVisible({ timeout: 25_000 });
   await expect(fallback).toContainText("Map couldn't draw");
-  await expect(fallback).toContainText(/renderer started but never drew a frame/i);
+  await expect(fallback).toContainText("The map couldn't finish drawing its pubs.");
   await expect(fallback.getByRole("button", { name: "Technical details" })).toHaveAttribute(
     "aria-expanded",
     "false",
@@ -490,6 +519,25 @@ test("/map degrades to the fallback when the renderer never draws a frame", asyn
   await expect
     .poll(async () => page.locator(".mapFallbackVenue").count(), { timeout: 15_000 })
     .toBeGreaterThan(0);
+
+  const fallbackBackground = rgbChannels(
+    await fallback.evaluate((node) => getComputedStyle(node).backgroundColor),
+  );
+  for (const [label, control] of [
+    ["heading", fallback.locator("strong")],
+    ["explanation", fallback.locator("p")],
+    ["venue", fallback.locator(".mapFallbackVenueName").first()],
+    ["Browse link", fallback.locator(".mapFallbackBrowse")],
+    ["Retry", fallback.locator(".mapFallbackRetry")],
+  ] as const) {
+    const foreground = rgbChannels(
+      await control.evaluate((node) => getComputedStyle(node).color),
+    );
+    expect(
+      contrastRatio(foreground, fallbackBackground),
+      `${label} contrast against fallback surface`,
+    ).toBeGreaterThanOrEqual(4.5);
+  }
 });
 
 test("/map reuses granted location after an explicit Near me action", async ({ page, context }) => {
