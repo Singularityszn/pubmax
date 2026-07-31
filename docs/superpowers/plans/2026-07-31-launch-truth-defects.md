@@ -2,9 +2,9 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task. This dispatch requires inline execution and forbids delegation.
 
-**Goal:** Make five launch-critical claims derive from authoritative rendered, listing, weather, and price-source state.
+**Goal:** Fix four launch-critical truth defects and record the deliberate withdrawal of the No-alcohol correction.
 
-**Architecture:** Keep each fix at existing pure boundary. Map readiness distinguishes a painted tile from full-source settlement; cluster tests read painted output; Today names its earlier listing check; weather headlines retain rule cause; legacy drink provenance preserves source URL and publisher.
+**Architecture:** Keep each shipped fix at its existing pure boundary. Map readiness distinguishes a painted tile from full-source settlement; Today names its earlier listing check; weather headlines retain rule cause; legacy drink provenance preserves source URL and publisher. The No-alcohol revision-publication attempt is rolled back additively and retained only as evidence of an unresolved boundary.
 
 **Tech Stack:** Next.js 16, React 19, TypeScript, Vitest, Playwright, MapLibre GL 6
 
@@ -291,7 +291,7 @@ Commit body guarantee: every displayed baseline source claim carries publisher f
 - Modify only if verification reveals a defect.
 
 **Interfaces:**
-- Consumes: five focused commits.
+- Consumes: four focused fixes plus the additive No-alcohol rollback.
 - Produces: verified branch ready for Firstmate's no-mistakes gate.
 
 - [ ] **Step 1: Run focused suites**

@@ -15,7 +15,7 @@ import "../legal.css";
 const PAGE_TITLE = "Terms of use";
 const PAGE_DESCRIPTION =
   "Plain-language terms covering what PUBMAXX is, what you can post, what map prices mean, and where our responsibility ends.";
-const LAST_UPDATED = "29 July 2026";
+const LAST_UPDATED = "31 July 2026";
 
 export const metadata: Metadata = {
   title: PAGE_TITLE,

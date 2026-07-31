@@ -351,6 +351,7 @@ describe("VOICE.md compliance audit", () => {
     const palChat = read("lib/palChat.ts");
     const pushSender = read("lib/pushSender.ts");
     const about = read("app/about/page.tsx");
+    const accountHub = read("components/profile/PubmaxxAccountHub.tsx");
 
     expect(palPortrait).not.toMatch(
       /(?:collar|bell) beacon|crew-band harness/iu,
