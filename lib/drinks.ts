@@ -205,7 +205,7 @@ export type LegacyPintPrice = {
   pub_url?: string;
 };
 
-export type NamedPriceSource = {
+type NamedPriceSource = {
   label: string;
   url: string;
 };
