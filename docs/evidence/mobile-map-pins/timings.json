@@ -1,0 +1,797 @@
+{
+  "measuredAt": "2026-07-31T07:35:25.769Z",
+  "method": {
+    "browser": "Playwright Chromium, headless, SwiftShader WebGL",
+    "server": "Next.js production build on isolated localhost:3317",
+    "firstPaint": "Browser Paint Timing entry named first-paint, relative to navigation start",
+    "pinsVisible": "First requestAnimationFrame after pubmax:pin-reveal. Mobile reveal now follows a confirmed render with visible pub layers; desktop reveal makes those layers visible, so its next frame is the comparable visual boundary.",
+    "coldLoad": "Fresh browser context per sample, local/session storage cleared before app code, service workers blocked",
+    "samplesPerViewport": 3
+  },
+  "samples": [
+    {
+      "viewport": "mobile",
+      "sample": 1,
+      "viewportSize": {
+        "width": 390,
+        "height": 844
+      },
+      "paints": {
+        "first-paint": 9368,
+        "first-contentful-paint": 9368
+      },
+      "mapChunkReadyMs": 9535.7,
+      "slimPinsReadyMs": 12586.8,
+      "pinRevealMs": 16142.6,
+      "pinRevealReason": "tiles",
+      "pinRevealGeneration": 1,
+      "firstVisualFrameMs": 16170,
+      "firstPaintToPinVisibleMs": 6802,
+      "loadingRemovedMs": 16159.6,
+      "emptySettledGapMs": 10.4,
+      "loadingTransitions": [
+        {
+          "at": 505.7,
+          "present": true,
+          "kind": "route"
+        },
+        {
+          "at": 16159.6,
+          "present": false,
+          "kind": "none"
+        }
+      ],
+      "mapLoadingTransitions": [
+        {
+          "at": 505.7,
+          "present": false
+        },
+        {
+          "at": 9542.6,
+          "present": true
+        },
+        {
+          "at": 16159.6,
+          "present": false
+        }
+      ],
+      "canvasTransitions": [
+        {
+          "at": 505.7,
+          "present": false
+        },
+        {
+          "at": 9542.6,
+          "present": true
+        }
+      ],
+      "mapLoadingPresent": false,
+      "canvasPresent": true,
+      "fallbackPresent": false,
+      "visibleBannerHeadlines": [],
+      "finalUrl": "http://127.0.0.1:3317/map",
+      "mobileSession": {
+        "viewport": {
+          "center": [
+            -0.12,
+            51.52
+          ],
+          "zoom": 11.5,
+          "pitch": 38.00000000000001,
+          "bearing": -8
+        },
+        "filters": {
+          "query": "",
+          "maxPrice": 8,
+          "crawlStyle": "balanced",
+          "stopCount": 6,
+          "routeWindow": 20,
+          "requireBeerGarden": false,
+          "requireNonAlcoholic": false,
+          "requireLiveSports": false,
+          "requireFood": false,
+          "requireCocktails": false,
+          "requireWater": false,
+          "requireHeritage": false,
+          "requirePintDrops": false,
+          "canonicalOnly": false,
+          "requireStepFree": false,
+          "requireAccessibleToilet": false,
+          "requireSeatedService": false,
+          "drinkCategory": "",
+          "drinkBrand": "",
+          "drinkSubtype": "",
+          "topShelfOnly": false,
+          "zone": ""
+        },
+        "cityId": "london",
+        "nightArea": null,
+        "selectedVenueId": null,
+        "openSheet": null,
+        "version": 1,
+        "savedAt": "2026-07-31T07:33:42.342Z"
+      },
+      "theme": "light",
+      "browserErrors": [
+        "console: Failed to load resource: the server responded with a status of 404 (Not Found)",
+        "console: Refused to execute script from 'http://127.0.0.1:3317/_vercel/insights/script.js' because its MIME type ('text/html') is not executable, and strict MIME type checking is enabled.",
+        "console: Failed to load resource: the server responded with a status of 500 (Internal Server Error)",
+        "console: Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+      ]
+    },
+    {
+      "viewport": "mobile",
+      "sample": 2,
+      "viewportSize": {
+        "width": 390,
+        "height": 844
+      },
+      "paints": {
+        "first-paint": 564,
+        "first-contentful-paint": 564
+      },
+      "mapChunkReadyMs": 787.6,
+      "slimPinsReadyMs": 836,
+      "pinRevealMs": 5918.8,
+      "pinRevealReason": "tiles",
+      "pinRevealGeneration": 1,
+      "firstVisualFrameMs": 5936.5,
+      "firstPaintToPinVisibleMs": 5372.5,
+      "loadingRemovedMs": 5936.3,
+      "emptySettledGapMs": 0.2,
+      "loadingTransitions": [
+        {
+          "at": 200,
+          "present": true,
+          "kind": "route"
+        },
+        {
+          "at": 5936.3,
+          "present": false,
+          "kind": "none"
+        }
+      ],
+      "mapLoadingTransitions": [
+        {
+          "at": 200.1,
+          "present": false
+        },
+        {
+          "at": 967,
+          "present": true
+        },
+        {
+          "at": 5936.3,
+          "present": false
+        }
+      ],
+      "canvasTransitions": [
+        {
+          "at": 200.1,
+          "present": false
+        },
+        {
+          "at": 1682.9,
+          "present": true
+        }
+      ],
+      "mapLoadingPresent": false,
+      "canvasPresent": true,
+      "fallbackPresent": false,
+      "visibleBannerHeadlines": [],
+      "finalUrl": "http://127.0.0.1:3317/map",
+      "mobileSession": {
+        "viewport": {
+          "center": [
+            -0.12,
+            51.52
+          ],
+          "zoom": 11.5,
+          "pitch": 38.00000000000001,
+          "bearing": -8
+        },
+        "filters": {
+          "query": "",
+          "maxPrice": 8,
+          "crawlStyle": "balanced",
+          "stopCount": 6,
+          "routeWindow": 20,
+          "requireBeerGarden": false,
+          "requireNonAlcoholic": false,
+          "requireLiveSports": false,
+          "requireFood": false,
+          "requireCocktails": false,
+          "requireWater": false,
+          "requireHeritage": false,
+          "requirePintDrops": false,
+          "canonicalOnly": false,
+          "requireStepFree": false,
+          "requireAccessibleToilet": false,
+          "requireSeatedService": false,
+          "drinkCategory": "",
+          "drinkBrand": "",
+          "drinkSubtype": "",
+          "topShelfOnly": false,
+          "zone": ""
+        },
+        "cityId": "london",
+        "nightArea": null,
+        "selectedVenueId": null,
+        "openSheet": null,
+        "version": 1,
+        "savedAt": "2026-07-31T07:33:52.895Z"
+      },
+      "theme": "light",
+      "browserErrors": [
+        "console: Failed to load resource: the server responded with a status of 404 (Not Found)",
+        "console: Refused to execute script from 'http://127.0.0.1:3317/_vercel/insights/script.js' because its MIME type ('text/html') is not executable, and strict MIME type checking is enabled.",
+        "console: Failed to load resource: the server responded with a status of 500 (Internal Server Error)",
+        "console: Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+      ]
+    },
+    {
+      "viewport": "mobile",
+      "sample": 3,
+      "viewportSize": {
+        "width": 390,
+        "height": 844
+      },
+      "paints": {
+        "first-paint": 460,
+        "first-contentful-paint": 460
+      },
+      "mapChunkReadyMs": 734.4,
+      "slimPinsReadyMs": 774.8,
+      "pinRevealMs": 6164.1,
+      "pinRevealReason": "tiles",
+      "pinRevealGeneration": 1,
+      "firstVisualFrameMs": 6176.3,
+      "firstPaintToPinVisibleMs": 5716.3,
+      "loadingRemovedMs": 6192.4,
+      "emptySettledGapMs": 0,
+      "loadingTransitions": [
+        {
+          "at": 158,
+          "present": true,
+          "kind": "route"
+        },
+        {
+          "at": 6192.4,
+          "present": false,
+          "kind": "none"
+        }
+      ],
+      "mapLoadingTransitions": [
+        {
+          "at": 158,
+          "present": false
+        },
+        {
+          "at": 836.7,
+          "present": true
+        },
+        {
+          "at": 6192.4,
+          "present": false
+        }
+      ],
+      "canvasTransitions": [
+        {
+          "at": 158.1,
+          "present": false
+        },
+        {
+          "at": 1617.8,
+          "present": true
+        }
+      ],
+      "mapLoadingPresent": false,
+      "canvasPresent": true,
+      "fallbackPresent": false,
+      "visibleBannerHeadlines": [],
+      "finalUrl": "http://127.0.0.1:3317/map",
+      "mobileSession": {
+        "viewport": {
+          "center": [
+            -0.12,
+            51.52
+          ],
+          "zoom": 11.5,
+          "pitch": 38.00000000000001,
+          "bearing": -8
+        },
+        "filters": {
+          "query": "",
+          "maxPrice": 8,
+          "crawlStyle": "balanced",
+          "stopCount": 6,
+          "routeWindow": 20,
+          "requireBeerGarden": false,
+          "requireNonAlcoholic": false,
+          "requireLiveSports": false,
+          "requireFood": false,
+          "requireCocktails": false,
+          "requireWater": false,
+          "requireHeritage": false,
+          "requirePintDrops": false,
+          "canonicalOnly": false,
+          "requireStepFree": false,
+          "requireAccessibleToilet": false,
+          "requireSeatedService": false,
+          "drinkCategory": "",
+          "drinkBrand": "",
+          "drinkSubtype": "",
+          "topShelfOnly": false,
+          "zone": ""
+        },
+        "cityId": "london",
+        "nightArea": null,
+        "selectedVenueId": null,
+        "openSheet": null,
+        "version": 1,
+        "savedAt": "2026-07-31T07:34:00.339Z"
+      },
+      "theme": "light",
+      "browserErrors": [
+        "console: Failed to load resource: the server responded with a status of 404 (Not Found)",
+        "console: Refused to execute script from 'http://127.0.0.1:3317/_vercel/insights/script.js' because its MIME type ('text/html') is not executable, and strict MIME type checking is enabled.",
+        "console: Failed to load resource: the server responded with a status of 500 (Internal Server Error)",
+        "console: Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+      ]
+    },
+    {
+      "viewport": "desktop",
+      "sample": 1,
+      "viewportSize": {
+        "width": 1440,
+        "height": 900
+      },
+      "paints": {
+        "first-paint": 608,
+        "first-contentful-paint": 608
+      },
+      "mapChunkReadyMs": 698,
+      "slimPinsReadyMs": 830.8,
+      "pinRevealMs": 17124.9,
+      "pinRevealReason": "tiles",
+      "pinRevealGeneration": 1,
+      "firstVisualFrameMs": 17158.5,
+      "firstPaintToPinVisibleMs": 16550.5,
+      "loadingRemovedMs": 17138.9,
+      "emptySettledGapMs": 19.6,
+      "loadingTransitions": [
+        {
+          "at": 163.1,
+          "present": true,
+          "kind": "route"
+        },
+        {
+          "at": 17138.9,
+          "present": false,
+          "kind": "none"
+        }
+      ],
+      "mapLoadingTransitions": [
+        {
+          "at": 163.1,
+          "present": false
+        },
+        {
+          "at": 743.9,
+          "present": true
+        },
+        {
+          "at": 17139,
+          "present": false
+        }
+      ],
+      "canvasTransitions": [
+        {
+          "at": 163.1,
+          "present": false
+        },
+        {
+          "at": 5218.8,
+          "present": true
+        }
+      ],
+      "mapLoadingPresent": false,
+      "canvasPresent": true,
+      "fallbackPresent": false,
+      "visibleBannerHeadlines": [
+        "Visiting another city?",
+        "Wildfire in Rainham East London"
+      ],
+      "finalUrl": "http://127.0.0.1:3317/map",
+      "mobileSession": {
+        "viewport": {
+          "center": [
+            -0.12,
+            51.52
+          ],
+          "zoom": 11.5,
+          "pitch": 38.00000000000001,
+          "bearing": -8
+        },
+        "filters": {
+          "query": "",
+          "maxPrice": 8,
+          "crawlStyle": "balanced",
+          "stopCount": 6,
+          "routeWindow": 20,
+          "requireBeerGarden": false,
+          "requireNonAlcoholic": false,
+          "requireLiveSports": false,
+          "requireFood": false,
+          "requireCocktails": false,
+          "requireWater": false,
+          "requireHeritage": false,
+          "requirePintDrops": false,
+          "canonicalOnly": false,
+          "requireStepFree": false,
+          "requireAccessibleToilet": false,
+          "requireSeatedService": false,
+          "drinkCategory": "",
+          "drinkBrand": "",
+          "drinkSubtype": "",
+          "topShelfOnly": false,
+          "zone": ""
+        },
+        "cityId": "london",
+        "nightArea": null,
+        "selectedVenueId": null,
+        "openSheet": null,
+        "version": 1,
+        "savedAt": "2026-07-31T07:34:14.245Z"
+      },
+      "theme": "light",
+      "browserErrors": [
+        "console: Failed to load resource: the server responded with a status of 404 (Not Found)",
+        "console: Refused to execute script from 'http://127.0.0.1:3317/_vercel/insights/script.js' because its MIME type ('text/html') is not executable, and strict MIME type checking is enabled.",
+        "console: Failed to load resource: the server responded with a status of 500 (Internal Server Error)",
+        "console: Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+      ]
+    },
+    {
+      "viewport": "desktop",
+      "sample": 2,
+      "viewportSize": {
+        "width": 1440,
+        "height": 900
+      },
+      "paints": {
+        "first-paint": 1496,
+        "first-contentful-paint": 1496
+      },
+      "mapChunkReadyMs": 1541.7,
+      "slimPinsReadyMs": 1597.9,
+      "pinRevealMs": 16105.3,
+      "pinRevealReason": "tiles",
+      "pinRevealGeneration": 1,
+      "firstVisualFrameMs": 16139.2,
+      "firstPaintToPinVisibleMs": 14643.2,
+      "loadingRemovedMs": 16120.3,
+      "emptySettledGapMs": 18.9,
+      "loadingTransitions": [
+        {
+          "at": 494.9,
+          "present": true,
+          "kind": "route"
+        },
+        {
+          "at": 16120.3,
+          "present": false,
+          "kind": "none"
+        }
+      ],
+      "mapLoadingTransitions": [
+        {
+          "at": 494.9,
+          "present": false
+        },
+        {
+          "at": 1656.2,
+          "present": true
+        },
+        {
+          "at": 16120.3,
+          "present": false
+        }
+      ],
+      "canvasTransitions": [
+        {
+          "at": 494.9,
+          "present": false
+        },
+        {
+          "at": 4778.6,
+          "present": true
+        }
+      ],
+      "mapLoadingPresent": false,
+      "canvasPresent": true,
+      "fallbackPresent": false,
+      "visibleBannerHeadlines": [
+        "Visiting another city?",
+        "Wildfire in Rainham East London"
+      ],
+      "finalUrl": "http://127.0.0.1:3317/map",
+      "mobileSession": {
+        "viewport": {
+          "center": [
+            -0.12,
+            51.52
+          ],
+          "zoom": 11.5,
+          "pitch": 38.00000000000001,
+          "bearing": -8
+        },
+        "filters": {
+          "query": "",
+          "maxPrice": 8,
+          "crawlStyle": "balanced",
+          "stopCount": 6,
+          "routeWindow": 20,
+          "requireBeerGarden": false,
+          "requireNonAlcoholic": false,
+          "requireLiveSports": false,
+          "requireFood": false,
+          "requireCocktails": false,
+          "requireWater": false,
+          "requireHeritage": false,
+          "requirePintDrops": false,
+          "canonicalOnly": false,
+          "requireStepFree": false,
+          "requireAccessibleToilet": false,
+          "requireSeatedService": false,
+          "drinkCategory": "",
+          "drinkBrand": "",
+          "drinkSubtype": "",
+          "topShelfOnly": false,
+          "zone": ""
+        },
+        "cityId": "london",
+        "nightArea": null,
+        "selectedVenueId": null,
+        "openSheet": null,
+        "version": 1,
+        "savedAt": "2026-07-31T07:34:31.104Z"
+      },
+      "theme": "light",
+      "browserErrors": [
+        "console: Failed to load resource: the server responded with a status of 404 (Not Found)",
+        "console: Refused to execute script from 'http://127.0.0.1:3317/_vercel/insights/script.js' because its MIME type ('text/html') is not executable, and strict MIME type checking is enabled.",
+        "console: Failed to load resource: the server responded with a status of 500 (Internal Server Error)",
+        "console: Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+      ]
+    },
+    {
+      "viewport": "desktop",
+      "sample": 3,
+      "viewportSize": {
+        "width": 1440,
+        "height": 900
+      },
+      "paints": {
+        "first-paint": 1188,
+        "first-contentful-paint": 1188
+      },
+      "mapChunkReadyMs": 2798.6,
+      "slimPinsReadyMs": 5748.3,
+      "pinRevealMs": 13469.1,
+      "pinRevealReason": "tiles",
+      "pinRevealGeneration": 1,
+      "firstVisualFrameMs": 13496.7,
+      "firstPaintToPinVisibleMs": 12308.7,
+      "loadingRemovedMs": 13478.4,
+      "emptySettledGapMs": 18.3,
+      "loadingTransitions": [
+        {
+          "at": 285.5,
+          "present": true,
+          "kind": "route"
+        },
+        {
+          "at": 13478.4,
+          "present": false,
+          "kind": "none"
+        }
+      ],
+      "mapLoadingTransitions": [
+        {
+          "at": 285.5,
+          "present": false
+        },
+        {
+          "at": 2822.5,
+          "present": true
+        },
+        {
+          "at": 13478.4,
+          "present": false
+        }
+      ],
+      "canvasTransitions": [
+        {
+          "at": 285.5,
+          "present": false
+        },
+        {
+          "at": 2822.6,
+          "present": true
+        }
+      ],
+      "mapLoadingPresent": false,
+      "canvasPresent": true,
+      "fallbackPresent": false,
+      "visibleBannerHeadlines": [
+        "Visiting another city?",
+        "Wildfire in Rainham East London"
+      ],
+      "finalUrl": "http://127.0.0.1:3317/map",
+      "mobileSession": {
+        "viewport": {
+          "center": [
+            -0.12,
+            51.52
+          ],
+          "zoom": 11.5,
+          "pitch": 38.00000000000001,
+          "bearing": -8
+        },
+        "filters": {
+          "query": "",
+          "maxPrice": 8,
+          "crawlStyle": "balanced",
+          "stopCount": 6,
+          "routeWindow": 20,
+          "requireBeerGarden": false,
+          "requireNonAlcoholic": false,
+          "requireLiveSports": false,
+          "requireFood": false,
+          "requireCocktails": false,
+          "requireWater": false,
+          "requireHeritage": false,
+          "requirePintDrops": false,
+          "canonicalOnly": false,
+          "requireStepFree": false,
+          "requireAccessibleToilet": false,
+          "requireSeatedService": false,
+          "drinkCategory": "",
+          "drinkBrand": "",
+          "drinkSubtype": "",
+          "topShelfOnly": false,
+          "zone": ""
+        },
+        "cityId": "london",
+        "nightArea": null,
+        "selectedVenueId": null,
+        "openSheet": null,
+        "version": 1,
+        "savedAt": "2026-07-31T07:34:48.808Z"
+      },
+      "theme": "light",
+      "browserErrors": [
+        "console: Failed to load resource: the server responded with a status of 404 (Not Found)",
+        "console: Refused to execute script from 'http://127.0.0.1:3317/_vercel/insights/script.js' because its MIME type ('text/html') is not executable, and strict MIME type checking is enabled.",
+        "console: Failed to load resource: the server responded with a status of 500 (Internal Server Error)",
+        "console: Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+      ]
+    }
+  ],
+  "recordingSample": {
+    "viewport": "mobile",
+    "sample": 4,
+    "viewportSize": {
+      "width": 390,
+      "height": 844
+    },
+    "paints": {
+      "first-paint": 768,
+      "first-contentful-paint": 768
+    },
+    "mapChunkReadyMs": 1228.5,
+    "slimPinsReadyMs": 1269.3,
+    "pinRevealMs": 14648.6,
+    "pinRevealReason": "tiles",
+    "pinRevealGeneration": 1,
+    "firstVisualFrameMs": 14676.8,
+    "firstPaintToPinVisibleMs": 13908.8,
+    "loadingRemovedMs": 14666,
+    "emptySettledGapMs": 10.8,
+    "loadingTransitions": [
+      {
+        "at": 364.3,
+        "present": true,
+        "kind": "route"
+      },
+      {
+        "at": 14666,
+        "present": false,
+        "kind": "none"
+      }
+    ],
+    "mapLoadingTransitions": [
+      {
+        "at": 364.3,
+        "present": false
+      },
+      {
+        "at": 1486.1,
+        "present": true
+      },
+      {
+        "at": 14666,
+        "present": false
+      }
+    ],
+    "canvasTransitions": [
+      {
+        "at": 364.3,
+        "present": false
+      },
+      {
+        "at": 4106.8,
+        "present": true
+      }
+    ],
+    "mapLoadingPresent": false,
+    "canvasPresent": true,
+    "fallbackPresent": false,
+    "visibleBannerHeadlines": [],
+    "finalUrl": "http://127.0.0.1:3317/map",
+    "mobileSession": {
+      "viewport": {
+        "center": [
+          -0.12,
+          51.52
+        ],
+        "zoom": 11.5,
+        "pitch": 38.00000000000001,
+        "bearing": -8
+      },
+      "filters": {
+        "query": "",
+        "maxPrice": 8,
+        "crawlStyle": "balanced",
+        "stopCount": 6,
+        "routeWindow": 20,
+        "requireBeerGarden": false,
+        "requireNonAlcoholic": false,
+        "requireLiveSports": false,
+        "requireFood": false,
+        "requireCocktails": false,
+        "requireWater": false,
+        "requireHeritage": false,
+        "requirePintDrops": false,
+        "canonicalOnly": false,
+        "requireStepFree": false,
+        "requireAccessibleToilet": false,
+        "requireSeatedService": false,
+        "drinkCategory": "",
+        "drinkBrand": "",
+        "drinkSubtype": "",
+        "topShelfOnly": false,
+        "zone": ""
+      },
+      "cityId": "london",
+      "nightArea": null,
+      "selectedVenueId": null,
+      "openSheet": null,
+      "version": 1,
+      "savedAt": "2026-07-31T07:35:05.150Z"
+    },
+    "theme": "light",
+    "browserErrors": [
+      "console: Failed to load resource: the server responded with a status of 404 (Not Found)",
+      "console: Refused to execute script from 'http://127.0.0.1:3317/_vercel/insights/script.js' because its MIME type ('text/html') is not executable, and strict MIME type checking is enabled.",
+      "console: Failed to load resource: the server responded with a status of 500 (Internal Server Error)",
+      "console: Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+    ]
+  },
+  "bannerCheck": {
+    "citySuggestCount": 0,
+    "cityStatusCount": 0,
+    "visibleHeadlines": []
+  }
+}
