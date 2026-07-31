@@ -8,7 +8,7 @@ Desktop keeps a small Key control on the map. Phone puts Key first in the existi
 
 The desktop cluster donut already showed its known price mix at zoom 11.2. Individual pins begin at zoom 12, 0.8 above the landing view. Phones and large cluster sets used solid circles whose colour meant cluster size. They now use the most common known price band inside each cluster. Grey means that cluster has no known price. Cluster radius, count, zoom limits and collision rules did not change.
 
-The key derives from rendered scene state. `deriveMapRenderedState` in `lib/mapRenderedState.ts` is the single decision point called by `PubMapCanvas`: it publishes `MapRenderedPriceBand` pairs that keep each GeoJSON bucket attached to its price meaning, plus the resolved story token used by each scene rebuild. Every price row comes from those pairs, so filter changes, failed refreshes and theme changes cannot create a parallel legend answer.
+The key derives from committed rendered scene state. `PubsSourceRevisionCoordinator` in `components/map/canvas/pubSourceRevision.ts` retires cached donut paint, settles one exact `pubs` GeoJSON revision through MapLibre, and crosses a later render boundary before `PubMapCanvas` may publish key state. Failed and superseded revisions never publish. `deriveMapRenderedState` in `lib/mapRenderedState.ts` remains the single decision point for the committed revision: its `MapRenderedPriceBand` pairs keep each GeoJSON bucket attached to its price meaning, plus the resolved story token used by the scene. Every price row comes from those pairs, so filter changes, failed refreshes and theme changes cannot create a parallel legend answer.
 
 ## Legend authority
 
@@ -37,4 +37,4 @@ After, unobscured phone map at the same landing zoom:
 
 The after phone captures measure 390 CSS pixels wide with a 390-pixel document width. All five sheet tabs fit between x=4 and x=388. Tabs and disclosure controls have 44-pixel touch targets. Accessibility snapshots expose Map controls as a dialog, Key as the selected tab, price bands as text, and Pin shapes, Dots and rings, and Routes as disclosures. The desktop Key is a native button; Escape closes it and Enter reopens it with focus retained.
 
-Code authorities: `lib/mapPriceLegend.ts` owns the key, `lib/mapRenderedState.ts` owns its rendered-scene input, and `components/map/canvas/buildScene.ts` owns map density and collision contracts. Community-price authority remains with `components/map/communityPriceSignals.ts`.
+Code authorities: `lib/mapPriceLegend.ts` owns the key, `components/map/canvas/pubSourceRevision.ts` owns the paint-to-publication boundary, `lib/mapRenderedState.ts` owns the committed scene input, and `components/map/canvas/buildScene.ts` owns map density and collision contracts. Community-price authority remains with `components/map/communityPriceSignals.ts`.
