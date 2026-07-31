@@ -1,11 +1,11 @@
 {
-  "measuredAt": "2026-07-31T07:35:25.769Z",
+  "measuredAt": "2026-07-31T07:49:48.161Z",
   "method": {
     "browser": "Playwright Chromium, headless, SwiftShader WebGL",
     "server": "Next.js production build on isolated localhost:3317",
     "firstPaint": "Browser Paint Timing entry named first-paint, relative to navigation start",
-    "pinsVisible": "First requestAnimationFrame after pubmax:pin-reveal. Mobile reveal now follows a confirmed render with visible pub layers; desktop reveal makes those layers visible, so its next frame is the comparable visual boundary.",
-    "coldLoad": "Fresh browser context per sample, local/session storage cleared before app code, service workers blocked",
+    "pinsVisible": "First requestAnimationFrame after pubmax:pin-reveal. Mobile reveal follows source readiness, a visible render, and compositor hold. Desktop reveal keeps its existing tile gate.",
+    "coldLoad": "Fresh browser context per sample, storage cleared before app code, service workers blocked",
     "samplesPerViewport": 3
   },
   "samples": [
@@ -17,58 +17,31 @@
         "height": 844
       },
       "paints": {
-        "first-paint": 9368,
-        "first-contentful-paint": 9368
+        "first-paint": 15820,
+        "first-contentful-paint": 15820
       },
-      "mapChunkReadyMs": 9535.7,
-      "slimPinsReadyMs": 12586.8,
-      "pinRevealMs": 16142.6,
+      "slimPinsReadyMs": 16450.5,
+      "pinRevealMs": 27846.6,
       "pinRevealReason": "tiles",
       "pinRevealGeneration": 1,
-      "firstVisualFrameMs": 16170,
-      "firstPaintToPinVisibleMs": 6802,
-      "loadingRemovedMs": 16159.6,
-      "emptySettledGapMs": 10.4,
+      "firstVisualFrameMs": 27875.1,
+      "firstPaintToPinVisibleMs": 12055.1,
+      "loadingRemovedMs": 27864.8,
+      "emptySettledGapMs": 10.3,
       "loadingTransitions": [
         {
-          "at": 505.7,
+          "at": 698.7,
           "present": true,
           "kind": "route"
         },
         {
-          "at": 16159.6,
+          "at": 27864.8,
           "present": false,
           "kind": "none"
         }
       ],
-      "mapLoadingTransitions": [
-        {
-          "at": 505.7,
-          "present": false
-        },
-        {
-          "at": 9542.6,
-          "present": true
-        },
-        {
-          "at": 16159.6,
-          "present": false
-        }
-      ],
-      "canvasTransitions": [
-        {
-          "at": 505.7,
-          "present": false
-        },
-        {
-          "at": 9542.6,
-          "present": true
-        }
-      ],
       "mapLoadingPresent": false,
-      "canvasPresent": true,
       "fallbackPresent": false,
-      "visibleBannerHeadlines": [],
       "finalUrl": "http://127.0.0.1:3317/map",
       "mobileSession": {
         "viewport": {
@@ -109,7 +82,7 @@
         "selectedVenueId": null,
         "openSheet": null,
         "version": 1,
-        "savedAt": "2026-07-31T07:33:42.342Z"
+        "savedAt": "2026-07-31T07:47:58.997Z"
       },
       "theme": "light",
       "browserErrors": [
@@ -127,58 +100,31 @@
         "height": 844
       },
       "paints": {
-        "first-paint": 564,
-        "first-contentful-paint": 564
+        "first-paint": 580,
+        "first-contentful-paint": 580
       },
-      "mapChunkReadyMs": 787.6,
-      "slimPinsReadyMs": 836,
-      "pinRevealMs": 5918.8,
+      "slimPinsReadyMs": 962.9,
+      "pinRevealMs": 9426.3,
       "pinRevealReason": "tiles",
       "pinRevealGeneration": 1,
-      "firstVisualFrameMs": 5936.5,
-      "firstPaintToPinVisibleMs": 5372.5,
-      "loadingRemovedMs": 5936.3,
-      "emptySettledGapMs": 0.2,
+      "firstVisualFrameMs": 9441.4,
+      "firstPaintToPinVisibleMs": 8861.4,
+      "loadingRemovedMs": 9459.5,
+      "emptySettledGapMs": 0,
       "loadingTransitions": [
         {
-          "at": 200,
+          "at": 206.2,
           "present": true,
           "kind": "route"
         },
         {
-          "at": 5936.3,
+          "at": 9459.5,
           "present": false,
           "kind": "none"
         }
       ],
-      "mapLoadingTransitions": [
-        {
-          "at": 200.1,
-          "present": false
-        },
-        {
-          "at": 967,
-          "present": true
-        },
-        {
-          "at": 5936.3,
-          "present": false
-        }
-      ],
-      "canvasTransitions": [
-        {
-          "at": 200.1,
-          "present": false
-        },
-        {
-          "at": 1682.9,
-          "present": true
-        }
-      ],
       "mapLoadingPresent": false,
-      "canvasPresent": true,
       "fallbackPresent": false,
-      "visibleBannerHeadlines": [],
       "finalUrl": "http://127.0.0.1:3317/map",
       "mobileSession": {
         "viewport": {
@@ -219,7 +165,7 @@
         "selectedVenueId": null,
         "openSheet": null,
         "version": 1,
-        "savedAt": "2026-07-31T07:33:52.895Z"
+        "savedAt": "2026-07-31T07:48:17.778Z"
       },
       "theme": "light",
       "browserErrors": [
@@ -237,58 +183,31 @@
         "height": 844
       },
       "paints": {
-        "first-paint": 460,
-        "first-contentful-paint": 460
+        "first-paint": 796,
+        "first-contentful-paint": 796
       },
-      "mapChunkReadyMs": 734.4,
-      "slimPinsReadyMs": 774.8,
-      "pinRevealMs": 6164.1,
+      "slimPinsReadyMs": 885.1,
+      "pinRevealMs": 7648.1,
       "pinRevealReason": "tiles",
       "pinRevealGeneration": 1,
-      "firstVisualFrameMs": 6176.3,
-      "firstPaintToPinVisibleMs": 5716.3,
-      "loadingRemovedMs": 6192.4,
+      "firstVisualFrameMs": 7658.8,
+      "firstPaintToPinVisibleMs": 6862.8,
+      "loadingRemovedMs": 7676.3,
       "emptySettledGapMs": 0,
       "loadingTransitions": [
         {
-          "at": 158,
+          "at": 218.3,
           "present": true,
           "kind": "route"
         },
         {
-          "at": 6192.4,
+          "at": 7676.3,
           "present": false,
           "kind": "none"
         }
       ],
-      "mapLoadingTransitions": [
-        {
-          "at": 158,
-          "present": false
-        },
-        {
-          "at": 836.7,
-          "present": true
-        },
-        {
-          "at": 6192.4,
-          "present": false
-        }
-      ],
-      "canvasTransitions": [
-        {
-          "at": 158.1,
-          "present": false
-        },
-        {
-          "at": 1617.8,
-          "present": true
-        }
-      ],
       "mapLoadingPresent": false,
-      "canvasPresent": true,
       "fallbackPresent": false,
-      "visibleBannerHeadlines": [],
       "finalUrl": "http://127.0.0.1:3317/map",
       "mobileSession": {
         "viewport": {
@@ -329,7 +248,7 @@
         "selectedVenueId": null,
         "openSheet": null,
         "version": 1,
-        "savedAt": "2026-07-31T07:34:00.339Z"
+        "savedAt": "2026-07-31T07:48:27.876Z"
       },
       "theme": "light",
       "browserErrors": [
@@ -347,61 +266,31 @@
         "height": 900
       },
       "paints": {
-        "first-paint": 608,
-        "first-contentful-paint": 608
+        "first-paint": 828,
+        "first-contentful-paint": 828
       },
-      "mapChunkReadyMs": 698,
-      "slimPinsReadyMs": 830.8,
-      "pinRevealMs": 17124.9,
+      "slimPinsReadyMs": 1126.2,
+      "pinRevealMs": 22764.3,
       "pinRevealReason": "tiles",
       "pinRevealGeneration": 1,
-      "firstVisualFrameMs": 17158.5,
-      "firstPaintToPinVisibleMs": 16550.5,
-      "loadingRemovedMs": 17138.9,
-      "emptySettledGapMs": 19.6,
+      "firstVisualFrameMs": 22843.6,
+      "firstPaintToPinVisibleMs": 22015.6,
+      "loadingRemovedMs": 22804.7,
+      "emptySettledGapMs": 38.9,
       "loadingTransitions": [
         {
-          "at": 163.1,
+          "at": 202.8,
           "present": true,
           "kind": "route"
         },
         {
-          "at": 17138.9,
+          "at": 22804.7,
           "present": false,
           "kind": "none"
         }
       ],
-      "mapLoadingTransitions": [
-        {
-          "at": 163.1,
-          "present": false
-        },
-        {
-          "at": 743.9,
-          "present": true
-        },
-        {
-          "at": 17139,
-          "present": false
-        }
-      ],
-      "canvasTransitions": [
-        {
-          "at": 163.1,
-          "present": false
-        },
-        {
-          "at": 5218.8,
-          "present": true
-        }
-      ],
       "mapLoadingPresent": false,
-      "canvasPresent": true,
       "fallbackPresent": false,
-      "visibleBannerHeadlines": [
-        "Visiting another city?",
-        "Wildfire in Rainham East London"
-      ],
       "finalUrl": "http://127.0.0.1:3317/map",
       "mobileSession": {
         "viewport": {
@@ -442,7 +331,7 @@
         "selectedVenueId": null,
         "openSheet": null,
         "version": 1,
-        "savedAt": "2026-07-31T07:34:14.245Z"
+        "savedAt": "2026-07-31T07:48:49.921Z"
       },
       "theme": "light",
       "browserErrors": [
@@ -460,61 +349,31 @@
         "height": 900
       },
       "paints": {
-        "first-paint": 1496,
-        "first-contentful-paint": 1496
+        "first-paint": 1040,
+        "first-contentful-paint": 1040
       },
-      "mapChunkReadyMs": 1541.7,
-      "slimPinsReadyMs": 1597.9,
-      "pinRevealMs": 16105.3,
+      "slimPinsReadyMs": 2623.5,
+      "pinRevealMs": 10828.9,
       "pinRevealReason": "tiles",
       "pinRevealGeneration": 1,
-      "firstVisualFrameMs": 16139.2,
-      "firstPaintToPinVisibleMs": 14643.2,
-      "loadingRemovedMs": 16120.3,
-      "emptySettledGapMs": 18.9,
+      "firstVisualFrameMs": 10876.9,
+      "firstPaintToPinVisibleMs": 9836.9,
+      "loadingRemovedMs": 10849.6,
+      "emptySettledGapMs": 27.3,
       "loadingTransitions": [
         {
-          "at": 494.9,
+          "at": 266.1,
           "present": true,
           "kind": "route"
         },
         {
-          "at": 16120.3,
+          "at": 10849.6,
           "present": false,
           "kind": "none"
         }
       ],
-      "mapLoadingTransitions": [
-        {
-          "at": 494.9,
-          "present": false
-        },
-        {
-          "at": 1656.2,
-          "present": true
-        },
-        {
-          "at": 16120.3,
-          "present": false
-        }
-      ],
-      "canvasTransitions": [
-        {
-          "at": 494.9,
-          "present": false
-        },
-        {
-          "at": 4778.6,
-          "present": true
-        }
-      ],
       "mapLoadingPresent": false,
-      "canvasPresent": true,
       "fallbackPresent": false,
-      "visibleBannerHeadlines": [
-        "Visiting another city?",
-        "Wildfire in Rainham East London"
-      ],
       "finalUrl": "http://127.0.0.1:3317/map",
       "mobileSession": {
         "viewport": {
@@ -555,7 +414,7 @@
         "selectedVenueId": null,
         "openSheet": null,
         "version": 1,
-        "savedAt": "2026-07-31T07:34:31.104Z"
+        "savedAt": "2026-07-31T07:49:04.348Z"
       },
       "theme": "light",
       "browserErrors": [
@@ -573,61 +432,31 @@
         "height": 900
       },
       "paints": {
-        "first-paint": 1188,
-        "first-contentful-paint": 1188
+        "first-paint": 888,
+        "first-contentful-paint": 888
       },
-      "mapChunkReadyMs": 2798.6,
-      "slimPinsReadyMs": 5748.3,
-      "pinRevealMs": 13469.1,
+      "slimPinsReadyMs": 1016.1,
+      "pinRevealMs": 10754.2,
       "pinRevealReason": "tiles",
       "pinRevealGeneration": 1,
-      "firstVisualFrameMs": 13496.7,
-      "firstPaintToPinVisibleMs": 12308.7,
-      "loadingRemovedMs": 13478.4,
-      "emptySettledGapMs": 18.3,
+      "firstVisualFrameMs": 10779.4,
+      "firstPaintToPinVisibleMs": 9891.4,
+      "loadingRemovedMs": 10763.2,
+      "emptySettledGapMs": 16.2,
       "loadingTransitions": [
         {
-          "at": 285.5,
+          "at": 272,
           "present": true,
           "kind": "route"
         },
         {
-          "at": 13478.4,
+          "at": 10763.2,
           "present": false,
           "kind": "none"
         }
       ],
-      "mapLoadingTransitions": [
-        {
-          "at": 285.5,
-          "present": false
-        },
-        {
-          "at": 2822.5,
-          "present": true
-        },
-        {
-          "at": 13478.4,
-          "present": false
-        }
-      ],
-      "canvasTransitions": [
-        {
-          "at": 285.5,
-          "present": false
-        },
-        {
-          "at": 2822.6,
-          "present": true
-        }
-      ],
       "mapLoadingPresent": false,
-      "canvasPresent": true,
       "fallbackPresent": false,
-      "visibleBannerHeadlines": [
-        "Visiting another city?",
-        "Wildfire in Rainham East London"
-      ],
       "finalUrl": "http://127.0.0.1:3317/map",
       "mobileSession": {
         "viewport": {
@@ -668,7 +497,7 @@
         "selectedVenueId": null,
         "openSheet": null,
         "version": 1,
-        "savedAt": "2026-07-31T07:34:48.808Z"
+        "savedAt": "2026-07-31T07:49:18.061Z"
       },
       "theme": "light",
       "browserErrors": [
@@ -687,58 +516,31 @@
       "height": 844
     },
     "paints": {
-      "first-paint": 768,
-      "first-contentful-paint": 768
+      "first-paint": 1164,
+      "first-contentful-paint": 1164
     },
-    "mapChunkReadyMs": 1228.5,
-    "slimPinsReadyMs": 1269.3,
-    "pinRevealMs": 14648.6,
+    "slimPinsReadyMs": 3337.5,
+    "pinRevealMs": 12012.1,
     "pinRevealReason": "tiles",
     "pinRevealGeneration": 1,
-    "firstVisualFrameMs": 14676.8,
-    "firstPaintToPinVisibleMs": 13908.8,
-    "loadingRemovedMs": 14666,
-    "emptySettledGapMs": 10.8,
+    "firstVisualFrameMs": 12022.7,
+    "firstPaintToPinVisibleMs": 10858.7,
+    "loadingRemovedMs": 12039.9,
+    "emptySettledGapMs": 0,
     "loadingTransitions": [
       {
-        "at": 364.3,
+        "at": 632.6,
         "present": true,
         "kind": "route"
       },
       {
-        "at": 14666,
+        "at": 12039.9,
         "present": false,
         "kind": "none"
       }
     ],
-    "mapLoadingTransitions": [
-      {
-        "at": 364.3,
-        "present": false
-      },
-      {
-        "at": 1486.1,
-        "present": true
-      },
-      {
-        "at": 14666,
-        "present": false
-      }
-    ],
-    "canvasTransitions": [
-      {
-        "at": 364.3,
-        "present": false
-      },
-      {
-        "at": 4106.8,
-        "present": true
-      }
-    ],
     "mapLoadingPresent": false,
-    "canvasPresent": true,
     "fallbackPresent": false,
-    "visibleBannerHeadlines": [],
     "finalUrl": "http://127.0.0.1:3317/map",
     "mobileSession": {
       "viewport": {
@@ -779,14 +581,14 @@
       "selectedVenueId": null,
       "openSheet": null,
       "version": 1,
-      "savedAt": "2026-07-31T07:35:05.150Z"
+      "savedAt": "2026-07-31T07:49:31.323Z"
     },
     "theme": "light",
     "browserErrors": [
-      "console: Failed to load resource: the server responded with a status of 404 (Not Found)",
-      "console: Refused to execute script from 'http://127.0.0.1:3317/_vercel/insights/script.js' because its MIME type ('text/html') is not executable, and strict MIME type checking is enabled.",
       "console: Failed to load resource: the server responded with a status of 500 (Internal Server Error)",
-      "console: Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+      "console: Failed to load resource: the server responded with a status of 500 (Internal Server Error)",
+      "console: Failed to load resource: the server responded with a status of 404 (Not Found)",
+      "console: Refused to execute script from 'http://127.0.0.1:3317/_vercel/insights/script.js' because its MIME type ('text/html') is not executable, and strict MIME type checking is enabled."
     ]
   },
   "bannerCheck": {

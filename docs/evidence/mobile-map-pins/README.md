@@ -12,9 +12,9 @@ navigation and removed loading chrome at 10,517.0 ms. The recording still showed
 only landmarks at its 12-second frame. The paired screenshot contains zero
 cluster-colour pixels in the map crop.
 
-After the fix, the same recording review shows loading chrome in the 15.20-second
-video frame and coloured price clusters in the next sampled frame at 15.25
-seconds. The settled screenshot contains 7,305 cluster-colour pixels in the same
+After the fix, the same recording review shows loading chrome in the 11.51-second
+video frame and coloured price clusters in the next sampled frame at 11.56
+seconds. The settled screenshot contains 6,651 cluster-colour pixels in the same
 crop. There is no empty-and-settled frame at the handoff.
 
 ## Measured timing
@@ -24,8 +24,8 @@ source-aware reveal. Three fresh runs per viewport:
 
 | Viewport | Run 1 | Run 2 | Run 3 | Median |
 | --- | ---: | ---: | ---: | ---: |
-| 390x844 mobile | 6,802.0 ms | 5,372.5 ms | 5,716.3 ms | 5,716.3 ms |
-| 1440x900 desktop | 16,550.5 ms | 14,643.2 ms | 12,308.7 ms | 14,643.2 ms |
+| 390x844 mobile | 12,055.1 ms | 8,861.4 ms | 6,862.8 ms | 8,861.4 ms |
+| 1440x900 desktop | 22,015.6 ms | 9,836.9 ms | 9,891.4 ms | 9,891.4 ms |
 
 These are controlled reproduction timings, not customer-device benchmarks.
 Headless Chromium used SwiftShader, and the larger desktop WebGL surface was
@@ -43,7 +43,7 @@ slower in these runs. Every figure above comes from
   `pubmax:pin-reveal`. That event now follows slim-index settlement,
   `map.isSourceLoaded("pubs")`, a render with visible pub layers, and the
   phone compositor guard.
-- Recording metadata was checked in Chromium: 390x844, 16.84 seconds.
+- Recording metadata was checked in Chromium: 390x844, 13.36 seconds.
 - Screenshot pixel check used the shipped light cluster colours with an
   18-channel tolerance over the 390x510 map crop beginning at y=180.
 
