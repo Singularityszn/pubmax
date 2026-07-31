@@ -12,24 +12,25 @@ navigation and removed loading chrome at 10,517.0 ms. The recording still showed
 only landmarks at its 12-second frame. The paired screenshot contains zero
 cluster-colour pixels in the map crop.
 
-After the fix, the same recording review shows loading chrome in the 11.51-second
-video frame and coloured price clusters in the next sampled frame at 11.56
-seconds. The settled screenshot contains 6,651 cluster-colour pixels in the same
-crop. There is no empty-and-settled frame at the handoff.
+After the fix, the clean recording shows loading chrome at 11.88 seconds and
+coloured price clusters in the next 25 fps frame at 11.92 seconds. The settled
+screenshot contains 6,651 cluster-colour pixels in the same crop. There is no
+empty-and-settled frame at the handoff.
 
 ## Measured timing
 
-Measured from browser `first-paint` to the first visual frame after the
-source-aware reveal. Three fresh runs per viewport:
+Measured from the first painted product frame to the first frame containing
+real cluster pixels. Both boundaries come from each run's WebM recording. Three
+fresh runs per viewport:
 
 | Viewport | Run 1 | Run 2 | Run 3 | Median |
 | --- | ---: | ---: | ---: | ---: |
-| 390x844 mobile | 12,055.1 ms | 8,861.4 ms | 6,862.8 ms | 8,861.4 ms |
-| 1440x900 desktop | 22,015.6 ms | 9,836.9 ms | 9,891.4 ms | 9,891.4 ms |
+| 390x844 mobile | 13,400 ms | 5,640 ms | 7,520 ms | 7,520 ms |
+| 1440x900 desktop | 22,600 ms | 22,440 ms | 40,400 ms | 22,600 ms |
 
 These are controlled reproduction timings, not customer-device benchmarks.
 Headless Chromium used SwiftShader, and the larger desktop WebGL surface was
-slower in these runs. Every figure above comes from
+much slower in these runs. Every figure above comes from
 [`timings.json`](./timings.json).
 
 ## Method
@@ -38,19 +39,34 @@ slower in these runs. Every figure above comes from
 - Playwright Chromium, headless, SwiftShader WebGL.
 - Fresh browser context per run, storage cleared before app code, service
   workers blocked.
-- Browser Paint Timing supplied `first-paint`.
-- Pin visibility boundary was the first animation frame after
-  `pubmax:pin-reveal`. That event now follows slim-index settlement,
-  `map.isSourceLoaded("pubs")`, a render with visible pub layers, and the
-  phone compositor guard.
-- Recording metadata was checked in Chromium: 390x844, 13.36 seconds.
-- Screenshot pixel check used the shipped light cluster colours with an
-  18-channel tolerance over the 390x510 map crop beginning at y=180.
+- First paint was the first recorded frame with at least 20 visibly chromatic
+  product pixels in a quarter-scale viewport. This excludes Playwright's blank
+  recorder frame.
+- Pin visibility was the first recorded frame with the shipped light cluster
+  colours in the map crop. Mobile required 500 half-scale pixels and desktop
+  1,000, avoiding the coloured dots in the route-loading illustration.
+- Both frames were sampled on the same WebM timeline every 0.04 seconds. No
+  conversion from browser clock to video clock was used. Precision is plus or
+  minus 40 ms.
+- Browser Paint Timing, `pubmax:first-pins`, `pubmax:pin-reveal`, loading
+  transitions, pixel counts, and default filter state remain in the raw JSON as
+  cross-checks.
+- Clean journey recording metadata was checked in Chromium: 390x844, 17.08
+  seconds.
 
 Raw pre-fix instrumentation remains in
 [`timings-before.json`](./timings-before.json). Its reveal timestamp is a
 readiness proxy only, because the investigation proved that old event did not
 mean pixels were visible.
+
+The six timing runs also recorded three unrelated local-production failures:
+`/_vercel/insights/script.js` returned 404, while
+`/api/pint-drops?city=london` and
+`/api/pint-drops?venueId=venue-s0go8s` returned 500. Server logs identify the
+Pint Drops cause as production mode refusing an in-memory store without
+Supabase. The explicit local production QA override was not set. Venue data,
+map style, and pin-source requests succeeded; all failed URLs are preserved per
+run in `timings.json`.
 
 ## Artifacts
 
