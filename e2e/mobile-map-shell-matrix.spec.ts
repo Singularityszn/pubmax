@@ -103,7 +103,7 @@ for (const viewport of VIEWPORTS) {
         return JSON.stringify(raw?.viewport ?? null);
       })).not.toBe(viewportBeforeNearby);
       await waitForMapPaint(page);
-      const nearMeClose = page.getByRole("button", { name: "Close Cheapest pints near you" });
+      const nearMeClose = page.getByRole("button", { name: "Close Cheapest listed near you" });
       if (await nearMeClose.isVisible().catch(() => false)) {
         await nearMeClose.click();
         await expect(page.locator(".mobileSheetPortal:visible")).toHaveCount(0);
@@ -141,11 +141,16 @@ for (const viewport of VIEWPORTS) {
 
       await page.getByRole("button", { name: "More map controls" }).click();
       await expect(page.locator(".mobileSheetPortal:visible")).toHaveCount(1);
-      await expect(page.getByRole("button", { name: "Plan tonight" })).toBeVisible();
+      await expect(
+        page.getByRole("tablist", { name: "Map control sections" }),
+      ).toBeVisible();
       const sheetBefore = await page.locator(".mobileSharedSheet").boundingBox();
       expect(sheetBefore?.x).toBe(0);
       expect(sheetBefore?.width).toBe(viewport.width);
 
+      const layerTabs = page.getByRole("tablist", { name: "Map control sections" });
+      const layersTab = layerTabs.getByRole("tab", { name: "Layers" });
+      await layersTab.click();
       const toggle = page.getByRole("button", { name: `Switch to ${theme === "light" ? "dark" : "light"} theme` });
       await toggle.click();
       const nextTheme = theme === "light" ? "dark" : "light";
@@ -156,8 +161,6 @@ for (const viewport of VIEWPORTS) {
       await page.getByRole("button", { name: `Switch to ${theme} theme` }).click();
       await expect(page.locator("html")).toHaveAttribute("data-theme", theme);
 
-      const layerTabs = page.getByRole("tablist", { name: "Layer settings sections" });
-      const layersTab = layerTabs.getByRole("tab", { name: "Layers" });
       await layersTab.focus();
       await page.keyboard.press("ArrowRight");
       await expect(layerTabs.getByRole("tab", { name: "Prices" })).toHaveAttribute("aria-selected", "true");
@@ -178,11 +181,11 @@ for (const viewport of VIEWPORTS) {
       await expect(page.locator(".mapVenueListPanel")).toHaveCount(0);
 
       await page.getByRole("button", { name: "More map controls" }).click();
-      await page.getByRole("button", { name: "Close Map layers" }).click();
+      await page.getByRole("button", { name: "Close Map controls" }).click();
       await page.getByRole("button", { name: /Filters/ }).click();
       const filtersSheet = page.locator('.mobileSheetPortal[data-sheet-kind="filters"]:visible');
       await expect(filtersSheet).toHaveCount(1);
-      await expect(filtersSheet.getByRole("heading", { name: "Drinks and price" })).toBeVisible();
+      await expect(filtersSheet.getByRole("heading", { name: "Prices and places" })).toBeVisible();
       await expectNoHorizontalOverflow(page);
       await saveShot(page, `filters-${viewport.width}x${viewport.height}-${theme}`);
     });

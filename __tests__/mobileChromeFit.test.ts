@@ -107,10 +107,8 @@ describe("mobile chrome fit at 390px", () => {
     const railLeft = Number(
       mobileMapCss.match(/--mobile-map-stack-left:\s*(\d+)px/)?.[1],
     );
-    const laneFallback = Number(
-      railRule.match(
-        /right:\s*var\(--mobile-map-stack-right,\s*var\(--mobile-map-corner-lane,\s*(\d+)px\)\)/,
-      )?.[1],
+    const stackRight = Number(
+      mobileMapCss.match(/--mobile-map-stack-right:\s*(\d+)px/)?.[1],
     );
     const railPadX = Number(railRule.match(/padding:\s*\d+px\s+(\d+)px/)?.[1]);
     const chipMinWidth = Number(
@@ -122,7 +120,7 @@ describe("mobile chrome fit at 390px", () => {
       ["TfL corner button size", cornerBtn],
       ["TfL corner lane gap", cornerGap],
       ["rail left inset", railLeft],
-      ["rail lane fallback", laneFallback],
+      ["shared right inset", stackRight],
       ["rail padding", railPadX],
       ["chip min-width", chipMinWidth],
       ["row gap", rowGap],
@@ -136,19 +134,19 @@ describe("mobile chrome fit at 390px", () => {
       /left:\s*50%/,
     );
     expect(railRule).toMatch(/transform:\s*none/);
-
-    const lane = cornerInset + cornerBtn + cornerGap;
-    expect(laneFallback, "rail's lane fallback matches the shared lane").toBe(lane);
+    expect(railRule).toMatch(
+      /padding-right:\s*calc\(var\(--mobile-map-corner-lane\) - var\(--mobile-map-stack-right\)\)/,
+    );
 
     const viewport = 390;
-    const railRight = viewport - lane;
+    const railRight = viewport - cornerInset - cornerBtn - cornerGap;
     const tflLeft = viewport - cornerInset - cornerBtn;
-    expect(railRight, "rail right edge clears the TfL control's left edge").toBeLessThanOrEqual(
+    expect(railRight, "rail content clears the TfL control's left edge").toBeLessThanOrEqual(
       tflLeft,
     );
     expect(railLeft, "rail keeps the 12px left map inset").toBeGreaterThanOrEqual(12);
 
-    const contentBox = railRight - railLeft - railPadX * 2 - 2;
+    const contentBox = railRight - railLeft - railPadX;
     expect(chipMinWidth, "widest single chip vs rail content box").toBeLessThanOrEqual(contentBox);
     // Controls keep their 44px hit box while a 34px pseudo-element draws the
     // smaller pill. The row scrolls when it cannot fit instead of adding a
