@@ -19,7 +19,7 @@
 // No em dashes or en dashes anywhere (product-copy rule).
 
 import { londonHour } from "@/lib/ambientPresence";
-import type { VenueLens } from "@/lib/drinkWeather";
+import type { DrinkWeatherRuleId, VenueLens } from "@/lib/drinkWeather";
 import type { WeatherBrief } from "@/lib/todayBrief";
 
 /** The four bands the copy is written for, in Europe/London wall-clock time. */
@@ -64,10 +64,10 @@ const HEADLINE: Record<VenueLens, Record<DaySlot, string>> = {
     night: "Warm enough for the garden still.",
   },
   fireplace: {
-    morning: "One for a fireplace today.",
-    afternoon: "Grey out. Fireplace weather.",
-    evening: "An evening for a fire and a dark pint.",
-    night: "Cold out. Find somewhere with a fire.",
+    morning: "One for somewhere indoors today.",
+    afternoon: "One for somewhere indoors.",
+    evening: "An evening for somewhere indoors.",
+    night: "Find somewhere indoors.",
   },
   riverside: {
     morning: "Mild enough for the river later.",
@@ -82,6 +82,41 @@ const HEADLINE: Record<VenueLens, Record<DaySlot, string>> = {
     night: "A quiet last one, then.",
   },
 };
+
+type FireplaceRuleId = Extract<DrinkWeatherRuleId, "hard-rain" | "cold" | "winter-porter">;
+
+const FIREPLACE_HEADLINE: Record<FireplaceRuleId, Record<DaySlot, string>> = {
+  "hard-rain": {
+    morning: "Rain on the cards. One for somewhere under cover.",
+    afternoon: "Rain on the cards. Find somewhere under cover.",
+    evening: "Wet evening on the cards. Find somewhere under cover.",
+    night: "Rain on the cards. Find somewhere under cover.",
+  },
+  cold: {
+    morning: "One for a fireplace today.",
+    afternoon: "Cold out. Fireplace weather.",
+    evening: "An evening for a fire and a dark pint.",
+    night: "Cold out. Find somewhere with a fire.",
+  },
+  "winter-porter": {
+    morning: "Winter day. One for somewhere warm.",
+    afternoon: "Winter out. Find somewhere cosy.",
+    evening: "Winter evening. Find somewhere with a fire.",
+    night: "Winter night. Find somewhere with a fire.",
+  },
+};
+
+function weatherHeadline(weather: WeatherBrief, slot: DaySlot): string {
+  if (weather.venueLens !== "fireplace") return HEADLINE[weather.venueLens][slot];
+  if (
+    weather.ruleId === "hard-rain" ||
+    weather.ruleId === "cold" ||
+    weather.ruleId === "winter-porter"
+  ) {
+    return FIREPLACE_HEADLINE[weather.ruleId][slot];
+  }
+  return HEADLINE.fireplace[slot];
+}
 
 // Used when there is no honest verdict to lean on. Says what the page is for
 // instead of guessing at the sky.
@@ -165,7 +200,7 @@ export function buildDayGreeting(input: {
   return {
     slot,
     salutation,
-    headline: HEADLINE[weather.venueLens][slot],
+    headline: weatherHeadline(weather, slot),
     support,
     weatherAware: true,
   };

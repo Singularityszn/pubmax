@@ -93,6 +93,20 @@ describe("buildWeatherBrief", () => {
     });
   });
 
+  it("preserves the rule that produced a warm displayed reading", () => {
+    const brief = buildWeatherBrief(
+      snapshot({
+        feelsLikeC: 24,
+        precipitationProbabilityPct: 70,
+        condition: "Cloudy",
+      }),
+      NOW,
+    ) as WeatherBrief & { ruleId?: string };
+
+    expect(brief.tempLabel).toBe("24C");
+    expect(brief.ruleId).toBe("hard-rain");
+  });
+
   it("still shows a stale-but-real observation, marked Last checked", () => {
     // Observed 3 days ago with a 12h ttl: long past expiry at NOW.
     const brief = buildWeatherBrief(snapshot({ ageHours: 72 }), NOW) as WeatherBrief;

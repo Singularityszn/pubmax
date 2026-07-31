@@ -87,3 +87,26 @@ The pre-fix regression failed because each Today daypart began with an absolute
 empty-night claim and did not name its listings snapshot. The corrected lines
 say that the snapshot has no picks and point readers to Tonight for live
 listings. A live Tonight count and an empty Today snapshot can now both be true.
+
+## 4. Warm reading with a cold headline
+
+The supplied 1440x900 smoke capture shows `Cold out. Find somewhere with a
+fire.` above `Thursday 30 Jul, 24C and cloudy in London.` My later signed-out
+live pass had no weather verdict, so I did not claim a second live
+reproduction.
+
+I reproduced the pre-fix contradiction deterministically with the same weather
+path. An Open-Meteo-shaped observation at 24C with 70% precipitation selected
+the `hard-rain` rule and its `fireplace` lens. `buildWeatherBrief` displayed
+`24C` but discarded the rule ID. `buildDayGreeting` then saw only `fireplace`
+and returned `Cold out. Find somewhere with a fire.`
+
+Both regressions failed before implementation:
+
+- the 24C brief had `ruleId` undefined instead of `hard-rain`;
+- the 24C greeting returned the cold headline instead of a rain headline.
+
+The corrected brief retains the rule selected from the same observation that
+supplies its displayed temperature. Fireplace headlines now distinguish rain,
+cold and winter rules. The regression proves a 24C hard-rain reading says rain
+and never cold, while a 7C cold reading still says cold.

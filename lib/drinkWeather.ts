@@ -15,6 +15,17 @@
 
 export type VenueLens = "beer-garden" | "fireplace" | "riverside" | "any";
 
+export type DrinkWeatherRuleId =
+  | "hard-rain"
+  | "cold"
+  | "summer-garden"
+  | "warm-dry"
+  | "winter-porter"
+  | "mild-riverside"
+  | "crisp-autumn"
+  | "cool-spring"
+  | "cool-default";
+
 export type DrinkWeatherInput = {
   /** Feels-like temperature in Celsius. */
   tempC: number;
@@ -26,7 +37,7 @@ export type DrinkWeatherInput = {
 
 export type DrinkWeatherVerdict = {
   /** Stable identifier for the rule that fired (tests, analytics). */
-  ruleId: string;
+  ruleId: DrinkWeatherRuleId;
   venueLens: VenueLens;
   /** The pint to reach for, lower-case noun phrase: "a cold lager or cider". */
   drinkSuggestion: string;

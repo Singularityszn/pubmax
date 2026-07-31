@@ -17,7 +17,11 @@
 // No em dashes or en dashes anywhere (product-copy rule extends to the strings
 // this module builds).
 
-import { evaluateDrinkWeather, type VenueLens } from "@/lib/drinkWeather";
+import {
+  evaluateDrinkWeather,
+  type DrinkWeatherRuleId,
+  type VenueLens,
+} from "@/lib/drinkWeather";
 import { haversineKm } from "@/lib/haversine";
 import { sanitizeHeritageFacts, type HeritageFact } from "@/lib/heritageFacts";
 import { firstHttp } from "@/lib/httpUrl";
@@ -46,6 +50,8 @@ export type WeatherBrief = {
   conditionLabel: string;
   /** The verdict's calm line, e.g. "Beer garden weather. Lager or cider." */
   verdictLine: string;
+  /** The exact weather rule selected from this displayed observation. */
+  ruleId: DrinkWeatherRuleId;
   /** Lower-case drink phrase, e.g. "a cold lager or cider". */
   drinkSuggestion: string;
   /** The verdict's venue classification, so surfaces above the card (the /today
@@ -116,6 +122,7 @@ export function buildWeatherBrief(
     tempLabel: `${Math.round(observation.feelsLikeC)}C`,
     conditionLabel: observation.condition.trim().toLocaleLowerCase("en-GB"),
     verdictLine: verdict.line,
+    ruleId: verdict.ruleId,
     drinkSuggestion: verdict.drinkSuggestion,
     venueLens: verdict.venueLens,
     stale,
