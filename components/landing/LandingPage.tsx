@@ -52,8 +52,8 @@ const PintDropStrip = dynamic(() => import("./PintDropStrip"), {
 const PRODUCT_SIGNALS = [
   {
     icon: Coins,
-    title: "Prices from real people",
-    body: "Every price names where it came from, and the ones logged by drinkers carry the day they were seen. So a cheap pint is a fact you can check, not a promise you have to trust.",
+    title: "Prices on record",
+    body: "When a price record names a publisher, we name and link it. When no publisher is recorded, the price says so. The ones logged by drinkers carry the day they were seen.",
   },
   {
     icon: CalendarClock,
@@ -94,10 +94,10 @@ function heroReadout(
     chips.push({ icon: MapPin, value: fmtInt(stats.pubsTracked), label: "pubs tracked" });
   }
   if (stats.pintPricesObserved > 0) {
-    // "sourced", never "dated": this count is the CURATED index's priced rows,
-    // which carry a source but no per-row observation date (only the community
-    // lane and the first-party drink_price_updates lane are genuinely dated).
-    chips.push({ icon: Receipt, value: fmtInt(stats.pintPricesObserved), label: "prices, each sourced" });
+    // This count is the CURATED index's priced rows. Some legacy rows do not
+    // name a publisher, and only community and first-party update rows carry a
+    // genuine per-row date.
+    chips.push({ icon: Receipt, value: fmtInt(stats.pintPricesObserved), label: "prices on record" });
   }
   if (stats.boroughsCovered > 0) {
     chips.push({ icon: Building2, value: fmtInt(stats.boroughsCovered), label: "London boroughs" });
@@ -113,7 +113,7 @@ function footerFacts(
   if (!stats) return [];
   const facts: Array<{ value: string; label: string }> = [];
   if (stats.pubsTracked > 0) facts.push({ value: fmtInt(stats.pubsTracked), label: "pubs tracked" });
-  if (stats.pintPricesObserved > 0) facts.push({ value: fmtInt(stats.pintPricesObserved), label: "sourced prices" });
+  if (stats.pintPricesObserved > 0) facts.push({ value: fmtInt(stats.pintPricesObserved), label: "recorded prices" });
   if (stats.boroughsCovered > 0) facts.push({ value: fmtInt(stats.boroughsCovered), label: "London boroughs" });
   if (stats.citiesCovered > 0) facts.push({ value: fmtInt(stats.citiesCovered), label: "UK cities" });
   if (stats.historicPubsCited > 0) facts.push({ value: fmtInt(stats.historicPubsCited), label: "historic pubs cited" });
@@ -184,8 +184,8 @@ export default function LandingPage({
   );
   const heroLede = (
     <p className="lpHeroLede">
-      Every price carries its source, rolled up by fare zone and borough. Pick your drink and
-      see which nearby pubs pour it cheapest.
+      Price records show their publisher when one is recorded and say when none
+      is. Pick your drink and see which nearby pubs pour it cheapest.
     </p>
   );
 
@@ -253,7 +253,7 @@ export default function LandingPage({
             ) : (
               <div className="lpLiveReadout" aria-label="Product highlights">
                 <span><MapPin size={15} aria-hidden="true" /> Real prices, mapped</span>
-                <span><Receipt size={15} aria-hidden="true" /> Every one sourced</span>
+                <span><Receipt size={15} aria-hidden="true" /> Source status shown</span>
               </div>
             )}
           </div>
@@ -359,8 +359,8 @@ export default function LandingPage({
             </Link>
             <p className="lpFooterPitch">
               A pint in London can cost eight quid and nobody tells you where it is
-              cheaper. We show real prices from real people, get your mates in one
-              place, and put you all on one route.
+              cheaper. We show prices on record, get your mates in one place, and
+              put you all on one route.
             </p>
             <p className="lpFooterMission">
               Built so the price of a pint stays fair, by people who go to the pub.
@@ -393,9 +393,9 @@ export default function LandingPage({
 
         <div className="lpFooterBase">
           <p className="lpFooterProvenance">
-            Every price comes with its source, and the ones drinkers log come
-            with the day they were seen. Nothing here is made up, and no pub can
-            pay to rank higher.
+            When a price record names a publisher, we name and link it. When no
+            publisher is recorded, the price says so. The ones drinkers log come
+            with the day they were seen, and no pub can pay to rank higher.
           </p>
           {footerFacts(stats).length > 0 ? (
             <ul className="lpFooterFacts" aria-label="What we track">

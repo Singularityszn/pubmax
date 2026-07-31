@@ -34,7 +34,7 @@ const SITE_JSON_LD = [
     alternateName: "PUBMAXX",
     url: "https://pubmaxxing.com",
     description:
-      "A London pub map and crawl planner with listed pint prices, named sources and cited pub history.",
+      "A London pub map and crawl planner with listed pint prices, explicit source status and cited pub history.",
   },
   {
     "@context": "https://schema.org",

@@ -58,9 +58,10 @@ export default function TermsPage() {
         <h2 id="what" className="legalH2">What PUBMAXX is</h2>
         <p className="legalBody">
           A map of pubs with prices on it, plus tools to plan a night with your
-          mates. Prices come from three places: public sources we cite with a
-          date, prices logged by people standing in the pub, and old prices read
-          out of dated, sourced archives. That last lot is history. It is what a
+          mates. Prices come from three places: baseline records, prices logged
+          by people standing in the pub, and old prices read out of dated,
+          sourced archives. Baseline prices show their publisher when one is
+          recorded and say when none is. That last lot is history. It is what a
           pint cost years ago, never a price for tonight, and it never moves the
           map. Heritage facts are cited, never invented. Nothing here is a
           booking service, and we&rsquo;re not the pub. We don&rsquo;t sell you
@@ -193,12 +194,13 @@ export default function TermsPage() {
       <section className="legalSection" aria-labelledby="prices">
         <h2 id="prices" className="legalH2">How to read prices</h2>
         <p className="legalBody">
-          Every current price names where it came from. Prices logged by people
-          carry the day they were seen. Other current prices share the source
-          date for their dataset. Pubs change prices, run happy hours, charge
-          differently on a match day, and make mistakes. People logging prices
-          can make mistakes too. A figure here is a good steer, not a quote,
-          and the pub is under no obligation to honour it.
+          A current price names and links its publisher when its record does.
+          When no publisher is recorded for a price, we say so beside it.
+          Prices logged by people carry the day they were seen. Other current
+          prices share the date for their dataset. Pubs change prices, run happy
+          hours, charge differently on a match day, and make mistakes. People
+          logging prices can make mistakes too. A figure here is a good steer,
+          not a quote, and the pub is under no obligation to honour it.
           <strong> Check at the bar.</strong>
         </p>
         <p className="legalBody">

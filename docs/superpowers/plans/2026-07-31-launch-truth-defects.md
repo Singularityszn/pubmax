@@ -236,7 +236,8 @@ Commit body guarantee: recommendation retains rule from same reading used for di
 
 **Interfaces:**
 - Consumes: each legacy price row's `pub_url`, including The Dove's Pint Prices page.
-- Produces: named `Pint Prices` source link in overview and per-drink provenance.
+- Produces: named `Pint Prices` source link when recorded, or explicit
+  `Publisher not recorded` status beside an unattributed price.
 
 - [ ] **Step 1: Write failing provenance tests**
 
@@ -247,7 +248,9 @@ expect(doveDrink.provenance).toMatchObject({
 });
 ```
 
-Render menu and overview seams; require visible `Pint Prices`, not `On record` or bare `Dataset price`.
+Render menu and overview seams. Require visible `Pint Prices` for The Dove and
+`Publisher not recorded` for a record without a publisher, never generic `On
+record` or a bare `Dataset price`.
 
 - [ ] **Step 2: Run tests and record expected red**
 
@@ -257,11 +260,16 @@ Run:
 npx vitest run __tests__/drinks.test.ts __tests__/drinkMenu.test.ts __tests__/venuePriceSource.test.ts
 ```
 
-Expected: adapter discards `pub_url`; both UI surfaces show generic source classes.
+Expected: adapter discards `pub_url`; both UI surfaces show generic source
+classes. Follow-up rendered regressions fail because the unattributed rows do
+not say that their publisher is missing.
 
 - [ ] **Step 3: Preserve and render named source**
 
-Extend legacy price provenance with validated source URL and publisher derived from supported host. Render source link for baseline overview and drink rows. Keep image credit separate.
+Extend legacy price provenance with the validated source URL and publisher
+already present on the row. Render that source link for baseline overview and
+drink rows. When no publisher is recorded, keep the price visible and label
+that state beside it. Keep image credit separate.
 
 - [ ] **Step 4: Run focused green tests**
 

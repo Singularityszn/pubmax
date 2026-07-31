@@ -11,10 +11,10 @@ import { describe, expect, it } from "vitest";
 // lanes are genuinely dated per row: community submissions (each stamped by the
 // server clock at submit time) and the first-party drink_price_updates feed.
 //
-// So "sourced" is the strong, true claim for the headline numbers, and any
-// dating language on the landing page has to be scoped to the people-logged
-// lane. This test guards the claim, not the wording: rephrase freely, just
-// never let "every price" and "dated" back into the same sentence.
+// Publisher attribution is narrower than "the row came from a dataset": some
+// baseline rows have no publisher recorded. Landing copy must name that state
+// instead of claiming that every figure names a publisher. Dating language
+// remains scoped to the people-logged lane.
 
 const LANDING = path.join(__dirname, "..", "components", "landing", "LandingPage.tsx");
 
@@ -42,9 +42,19 @@ describe("landing price-provenance copy", () => {
     }
   });
 
-  it("still claims provenance, which IS true of every price", () => {
-    expect(copy).toContain("each sourced");
-    expect(copy).toContain("sourced prices");
+  it("names publisher presence and absence without a blanket source claim", () => {
+    const flat = copy.replace(/\s+/g, " ");
+    expect(flat).toContain(
+      "When a price record names a publisher, we name and link it.",
+    );
+    expect(flat).toContain(
+      "When no publisher is recorded, the price says so.",
+    );
+    expect(copy).toContain('label: "prices on record"');
+    expect(copy).toContain('label: "recorded prices"');
+    expect(copy).not.toContain("Every price names where it came from");
+    expect(copy).not.toContain("each sourced");
+    expect(copy).not.toContain("sourced prices");
   });
 
   it("scopes what dating language remains to the people-logged lane", () => {
@@ -52,7 +62,8 @@ describe("landing price-provenance copy", () => {
     // price in the same breath - the only lane where a per-row date exists.
     // (Rewrite the wording as you like; keep the scoping.)
     const flat = copy.replace(/\s+/g, " ");
-    expect(flat).toContain("the ones logged by drinkers carry the day they were seen");
-    expect(flat).toContain("the ones drinkers log come with the day they were seen");
+    const lower = flat.toLowerCase();
+    expect(lower).toContain("the ones logged by drinkers carry the day they were seen");
+    expect(lower).toContain("the ones drinkers log come with the day they were seen");
   });
 });

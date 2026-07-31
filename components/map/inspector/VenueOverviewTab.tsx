@@ -164,7 +164,10 @@ function VenuePriceSummary({
               . Not a live tonight feed.
             </>
           ) : (
-            <>Dataset price. Source not named in record. Not a live tonight feed.</>
+            <>
+              Price on record. Publisher not recorded for this price. Not a live
+              tonight feed.
+            </>
           )}
         </small>
       </div>

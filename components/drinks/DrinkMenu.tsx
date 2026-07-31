@@ -26,17 +26,21 @@ import "./drinkMenu.css";
 // beyond its pint rows, an honest EmptyState renders instead of a bare frame.
 
 // Honest source labels for the provenance chip. A seeded demo menu reads
-// "Demo"; an unnamed dataset price reads "On record"; anything else shows its
-// source so a new permissible source (Wikidata, a chain site) is never silently
-// relabelled.
+// "Demo"; an unattributed dataset price says its publisher was not recorded;
+// anything else shows its source so a new permissible source (Wikidata, a chain
+// site) is never silently relabelled.
 function provenanceLabel(prov: DrinkProvenance): string {
   if (isDemoProvenance(prov)) return "Demo";
-  if (prov.source === "app-dataset") return "On record";
+  if (isUnattributedPrice(prov)) return "Publisher not recorded";
   return prov.source;
 }
 
 function isDemoProvenance(prov: DrinkProvenance): boolean {
   return prov.source === "seed" || prov.source.toLowerCase().includes("demo");
+}
+
+function isUnattributedPrice(prov: DrinkProvenance): boolean {
+  return prov.source === "app-dataset" && !firstHttp(prov.sourceUrl);
 }
 
 function ProvChip({ prov }: { prov: DrinkProvenance }) {
@@ -177,6 +181,9 @@ export default function DrinkMenu({
   const groups = groupDrinksByCategory(drinks).filter((group) =>
     categoryFilter ? group.category === categoryFilter : true,
   );
+  const hasUnattributedPrice = groups.some((group) =>
+    group.drinks.some((drink) => isUnattributedPrice(drink.provenance)),
+  );
 
   if (groups.length === 0) {
     return (
@@ -213,8 +220,10 @@ export default function DrinkMenu({
         />
       ))}
       <p className="drinkMenuFootnote">
-        Price sources link where the record names one · Demo items are seeded
-        examples, not live prices.
+        {hasUnattributedPrice
+          ? "“Publisher not recorded” means the price is on record but its publisher was not captured."
+          : "Publisher links open where the price record names one."}{" "}
+        · Demo items are seeded examples, not live prices.
       </p>
     </div>
   );

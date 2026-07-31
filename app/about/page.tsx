@@ -72,12 +72,12 @@ function tractionStats(s: AboutStats): Stat[] {
     {
       value: fmtInt(s.pubsTracked),
       label: "pubs tracked",
-      note: "each one carrying a real, sourced price",
+      note: "each one carrying a price on record",
     },
     {
       value: fmtInt(s.pintPricesObserved),
       label: "pint prices logged",
-      note: "readings from public data, every one sourced",
+      note: "readings with their source status shown",
     },
     {
       value: fmtInt(s.historicPubsCited),
@@ -119,7 +119,7 @@ export default async function AboutPage() {
       url: "https://pubmaxxing.com",
       logo: "https://pubmaxxing.com/icon-512.png",
       description:
-        "Listed pint prices with named sources, mapped with cited pub heritage. A free pub-crawl planner for the UK that never lets anyone pay to rank.",
+        "Listed pint prices with explicit source status, mapped with cited pub heritage. A free pub-crawl planner for the UK that never lets anyone pay to rank.",
       email: CONTACT_EMAIL,
       sameAs: ["https://x.com/karansznx"],
     },
@@ -174,10 +174,11 @@ export default async function AboutPage() {
       <section className="aboutSection" aria-labelledby="did">
         <h2 id="did" className="aboutH2">What we did about it</h2>
         <p className="aboutBody">
-          We put real prices on the map. Every one names where it came from,
-          and the ones logged by drinkers carry the day they were seen. Tap a
-          pub and you see what a pint costs before you set off, not after
-          you&rsquo;ve handed over a note.
+          We put real prices on the map. When a price record names a publisher,
+          we name and link it. When no publisher is recorded, the price says so.
+          The ones logged by drinkers carry the day they were seen. Tap a pub and
+          you see what a pint costs before you set off, not after you&rsquo;ve
+          handed over a note.
         </p>
         <p className="aboutBody">
           We kept the stories too. Most of these pubs have been pouring for a
@@ -211,10 +212,10 @@ export default async function AboutPage() {
         <h2 id="ethos" className="aboutH2">What we stand for</h2>
         <ul className="aboutEthos">
           <li>
-            <strong>Prices with named sources.</strong> Listed prices name their
-            sources, and cited pub stories link to their references. If we
-            can&rsquo;t stand a number up, we leave it blank. No filler, no
-            guess dressed up as data.
+            <strong>Prices with honest source status.</strong> Listed prices
+            name and link their publisher when recorded, and say when no
+            publisher is recorded. A missing publisher stays missing rather
+            than being guessed. Cited pub stories link to their references.
           </li>
           <li>
             <strong>Good nights count people and memories.</strong> Rewards and
@@ -272,8 +273,8 @@ export default async function AboutPage() {
           <div className="aboutPressRow">
             <dt>One line</dt>
             <dd>
-              Listed pint prices with named sources, one map, and the whole night in
-              a single plan. Free, and nobody pays to rank.
+              Listed pint prices with explicit source status, one map, and the
+              whole night in a single plan. Free, and nobody pays to rank.
             </dd>
           </div>
           <div className="aboutPressRow">

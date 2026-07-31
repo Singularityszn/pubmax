@@ -166,3 +166,14 @@ that same row's publisher and URL into Asahi. The post-fix Playwright pass
 observed £7.25 and the exact Pint Prices link in both places. The menu footnote
 now says source links appear where a record names one; it no longer claims
 every drink has a named source.
+
+A follow-up audit found 65 other baseline price records with no publisher
+recorded. Those prices are unattributed, not contradicted, so they remain
+visible. Pre-fix rendered regressions failed because an unattributed Drink row
+only said `On record`, an Overview row said `Source not named in record`, and
+public landing and Terms copy still promised a publisher for every price. The
+matching green regressions require the price row to say `Publisher not
+recorded`, explain that the price is on record but its publisher was not
+captured, and preserve the publisher link for a named record. Overview says
+`Price on record. Publisher not recorded for this price.` Marketing and legal
+copy now describe both states rather than making a blanket attribution claim.
