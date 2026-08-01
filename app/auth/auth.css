@@ -824,3 +824,95 @@
     animation: none;
   }
 }
+
+/* ── Clerk account controls ──────────────────────────────────────────────
+   Clerk sits inside the SAME surface as the Google / Apple / magic-link
+   options, so it borrows .authSignIn rather than shipping a second button
+   language. Only the layout, the lead emphasis and the caption are new.
+
+   The rule DESIGN.md §6 makes explicit and this block obeys: no new card, no
+   second accent. Coral already owns the primary action, so the lead button is
+   a weight and border change, not another colour. */
+.clerkAccount {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  min-width: 0;
+  width: 100%;
+}
+
+.clerkAccountActions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  min-width: 0;
+}
+
+.clerkAccountActions .authSignIn {
+  justify-content: center;
+  width: 100%;
+  /* Press feedback belongs on the press, not the release: the pill answers the
+     finger before anything else happens. Scoped to the Clerk pills so the
+     shared .authSignIn used by Google, Apple and the magic-link CTA keeps the
+     transition it already ships. */
+  transition:
+    border-color 0.18s ease,
+    background-color 0.18s ease,
+    transform 160ms cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+.clerkAccountActions .authSignIn:active {
+  transform: scale(0.97);
+}
+
+/* The lead action. Coral is already the app's one accent, so emphasis here is
+   a firmer edge and a heavier label, never a second hue. */
+.clerkAccountPrimary {
+  border-color: var(--brass);
+  font-weight: 700;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .clerkAccountPrimary:hover {
+    background: var(--panel);
+    border-color: var(--brass-bright);
+  }
+}
+
+.clerkAccountPrimary:focus-visible {
+  outline: 2px solid var(--brass);
+  outline-offset: 2px;
+}
+
+/* The honesty caption. It wraps and never truncates: a disclosure cut mid
+   sentence is a disclosure the reader never received. */
+.clerkAccountNote {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.75rem;
+  line-height: 1.35;
+  text-wrap: pretty;
+  overflow-wrap: anywhere;
+}
+
+.clerkAccountSignedIn {
+  flex-direction: row;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.clerkAccountNoteInline {
+  min-width: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .clerkAccountActions .authSignIn {
+    transition:
+      border-color 0.18s ease,
+      background-color 0.18s ease;
+  }
+
+  .clerkAccountActions .authSignIn:active {
+    transform: none;
+  }
+}
