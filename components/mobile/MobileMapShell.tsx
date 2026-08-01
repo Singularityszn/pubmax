@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Ellipsis, LocateFixed, MapPin, Route, Search, SlidersHorizontal, Sparkles, TrainFront, X } from "lucide-react";
+import { Ellipsis, LocateFixed, LocateOff, MapPin, Route, Search, SlidersHorizontal, Sparkles, TrainFront, X } from "lucide-react";
 import { useCallback } from "react";
 
 import PubmaxxWordmark from "@/components/brand/PubmaxxWordmark";
@@ -49,7 +49,7 @@ function PalSignalAvatar() {
   );
 }
 
-export default function MobileMapShell({ cityLabel, limitedCoverage, overlay, onOverlayChange, activeQuery, onClearQuery, onNearMe, nearMeStatus, nearbyCount, tonightCount, tflCount, tflStatus, priceLabel, drinkFiltersActive, experienceFilterLabel, priceCapActive, areaPriceNoun, zoneActive, planOpen, planActive, planStopCount, planInteractive, venueListOpen, bandNoticeOpen, onPlan, searchContent, filtersContent, tflContent, tonightContent, layersContent, palContent, momentContent, nearMeContent, areaContent }: {
+export default function MobileMapShell({ cityLabel, limitedCoverage, overlay, onOverlayChange, activeQuery, onClearQuery, onNearMe, nearMeStatus, nearMeError, onDismissNearMeError, nearbyCount, tonightCount, tflCount, tflStatus, priceLabel, drinkFiltersActive, experienceFilterLabel, priceCapActive, areaPriceNoun, zoneActive, planOpen, planActive, planStopCount, planInteractive, venueListOpen, bandNoticeOpen, onPlan, searchContent, filtersContent, tflContent, tonightContent, layersContent, palContent, momentContent, nearMeContent, areaContent }: {
   cityLabel: string;
   /** Base-pub-only arrival: omit city-guide controls that cannot answer here. */
   limitedCoverage: boolean;
@@ -61,6 +61,10 @@ export default function MobileMapShell({ cityLabel, limitedCoverage, overlay, on
   onClearQuery: () => void;
   onNearMe: () => void;
   nearMeStatus: "idle" | "requesting" | "ready" | "error";
+  /** Why Near me could not place the reader. Null while it can, or has not run. */
+  nearMeError: string | null;
+  /** Clears that message, so the map is never left holding a stale reason. */
+  onDismissNearMeError: () => void;
   nearbyCount: number;
   tonightCount: number;
   tflCount: number;
@@ -176,6 +180,34 @@ export default function MobileMapShell({ cityLabel, limitedCoverage, overlay, on
           </div>
         ) : null}
       </div>
+      {/* Near me failed. The chip alone says "Try near me", which names no
+          reason and offers no way on, so the reason lands here under the chip
+          that was tapped, with the area picker one tap away. role="alert"
+          announces it, the same as the desktop rail does. */}
+      {overlay !== "search" && nearMeError ? (
+        <div className="mobileMapNearMeAlert" role="alert">
+          <LocateOff size={17} aria-hidden="true" />
+          <p className="mobileMapNearMeAlertText">{nearMeError}</p>
+          <button
+            type="button"
+            className="mobileMapNearMeAlertDismiss"
+            aria-label="Dismiss the Near me message"
+            onClick={onDismissNearMeError}
+          >
+            <X size={17} aria-hidden="true" />
+          </button>
+          <button
+            type="button"
+            className="mobileMapNearMeAlertArea"
+            onClick={() => {
+              onDismissNearMeError();
+              onOverlayChange("area");
+            }}
+          >
+            Pick an area
+          </button>
+        </div>
+      ) : null}
       {/* TIER 3 — TfL stays in the map's corner, out of the answer's way. */}
       {overlay !== "search" ? (
         <div className="mobileMapUtilityCorner" aria-label="Map utilities">

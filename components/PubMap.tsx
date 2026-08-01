@@ -26,6 +26,11 @@ import { filterMapVenues, withForcedVenue } from "@/lib/filterMapVenues";
 import { mergePriceUpdates, parsePriceUpdates, type PriceUpdate } from "@/lib/priceUpdates";
 import { nearestVenueIds, nearbyVenuesForMap } from "@/lib/nearby";
 import {
+  NEAR_ME_LOCATION_OPTIONS,
+  nearMeLocationFailure,
+  nearMeLocationMessage,
+} from "@/lib/nearMeLocation";
+import {
   buildMapVenueListModel,
   buildUkBasePubListModel,
 } from "@/lib/mapVenueList";
@@ -2097,7 +2102,7 @@ export default function PubMap({
   const startNearbyCrawl = useCallback(() => {
     setNearbyError(null);
     if (typeof navigator === "undefined" || !navigator.geolocation) {
-      setNearbyError("Location isn't available in this browser.");
+      setNearbyError(nearMeLocationMessage("unsupported"));
       return;
     }
     setNearbyLoading(true);
@@ -2121,10 +2126,11 @@ export default function PubMap({
         setActiveCrawl(null); // a near-me crawl isn't a curated one
         showLoadedRoute(ids[0]);
       },
-      () => {
+      (error) => {
         setNearbyLoading(false);
-        setNearbyError("Location's off, so Near me can't reach you. The map still works, and every price on it stands.");
+        setNearbyError(nearMeLocationMessage(nearMeLocationFailure(error)));
       },
+      NEAR_ME_LOCATION_OPTIONS,
     );
   }, [
     filteredPubVenues,
@@ -2142,7 +2148,7 @@ export default function PubMap({
   const showNearbyMap = useCallback(() => {
     setNearbyError(null);
     if (typeof navigator === "undefined" || !navigator.geolocation) {
-      setNearbyError("Location isn't available in this browser.");
+      setNearbyError(nearMeLocationMessage("unsupported"));
       return;
     }
     setNearbyLoading(true);
@@ -2172,11 +2178,11 @@ export default function PubMap({
         // the chip now yields an ANSWER, not just a recentre.
         setMapOverlay("near-me");
       },
-      () => {
+      (error) => {
         setNearbyLoading(false);
-        setNearbyError("Location's off, so Near me can't reach you. The map still works, and every price on it stands.");
+        setNearbyError(nearMeLocationMessage(nearMeLocationFailure(error)));
       },
-      { enableHighAccuracy: false, timeout: 7000, maximumAge: 60_000 },
+      NEAR_ME_LOCATION_OPTIONS,
     );
   }, [filteredVenues]);
 
@@ -3008,6 +3014,8 @@ export default function PubMap({
           onClearQuery={clearMapQuery}
           onNearMe={showNearbyMap}
           nearMeStatus={nearbyLoading ? "requesting" : nearbyMapResult ? "ready" : nearbyError ? "error" : "idle"}
+          nearMeError={nearbyError}
+          onDismissNearMeError={() => setNearbyError(null)}
           nearbyCount={nearbyMapResult?.venueIds.length ?? 0}
           tonightCount={whatsOnTonight.rows.length}
           tflCount={tflStatus.issueCount}
