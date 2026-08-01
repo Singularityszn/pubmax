@@ -18,6 +18,7 @@ import {
   clerkCspSources,
   clerkFrontendApiOrigin,
   isClerkConfigured,
+  isClerkMiddlewareConfigured,
 } from "@/lib/clerkIdentity";
 import { config, securityProxy } from "@/proxy";
 
@@ -277,6 +278,39 @@ describe("the canonical-host redirect survives the Clerk composition", () => {
 
     expect(response.status).toBe(200);
     expect(response.headers.get("location")).toBeNull();
+  });
+});
+
+describe("the middleware gate needs BOTH keys", () => {
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
+  it("stays off with only the publishable key", () => {
+    // Observed, not theorised: running this app with only the publishable key
+    // set made clerkMiddleware() throw "@clerk/nextjs: Missing secretKey" on
+    // every request, so every page 500'd, not only sign-in. The browser half
+    // still turns on, because clerk-js needs no secret.
+    vi.stubEnv("NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY", PUBLISHABLE_KEY);
+    vi.stubEnv("CLERK_SECRET_KEY", "");
+
+    expect(isClerkConfigured()).toBe(true);
+    expect(isClerkMiddlewareConfigured()).toBe(false);
+  });
+
+  it("stays off with only the secret key", () => {
+    vi.stubEnv("NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY", "");
+    vi.stubEnv("CLERK_SECRET_KEY", "sk_test_not_a_real_key");
+
+    expect(isClerkConfigured()).toBe(false);
+    expect(isClerkMiddlewareConfigured()).toBe(false);
+  });
+
+  it("turns on only once both keys are present", () => {
+    vi.stubEnv("NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY", PUBLISHABLE_KEY);
+    vi.stubEnv("CLERK_SECRET_KEY", "sk_test_not_a_real_key");
+
+    expect(isClerkMiddlewareConfigured()).toBe(true);
   });
 });
 

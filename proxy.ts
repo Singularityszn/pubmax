@@ -2,7 +2,7 @@ import { clerkMiddleware } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
 import type { NextRequest, ProxyConfig } from "next/server";
 
-import { clerkCspSources, isClerkConfigured } from "@/lib/clerkIdentity";
+import { clerkCspSources, isClerkMiddlewareConfigured } from "@/lib/clerkIdentity";
 
 const CANONICAL_HOST = "pubmaxxing.com";
 
@@ -220,10 +220,14 @@ export function securityProxy(request: NextRequest) {
 // export would have made Next keep running the un-composed function and Clerk
 // would never have executed — silently, with no error anywhere.
 //
-// WHY THE TERNARY: clerkMiddleware() throws per request when no publishable key
-// is present, which would turn an unset env var into a site-wide 500. With no
-// key configured the raw securityProxy ships and behaviour is exactly today's.
-export const proxy = isClerkConfigured()
+// WHY THE TERNARY, AND WHY IT NEEDS BOTH KEYS: clerkMiddleware() throws
+// "@clerk/nextjs: Missing secretKey" on EVERY request when CLERK_SECRET_KEY is
+// absent, so gating on the publishable key alone would turn a half-configured
+// deployment into a site-wide 500 on pages that have nothing to do with
+// identity. Verified by running this app with only the publishable key set.
+// Requiring both keys means the worst half-configured case is browser-side
+// Clerk with no server session, and the site itself stays up.
+export const proxy = isClerkMiddlewareConfigured()
   ? clerkMiddleware(async (_auth, request) => securityProxy(request))
   : securityProxy;
 
