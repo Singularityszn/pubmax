@@ -19,8 +19,10 @@ import { useCallback, useEffect, useId, useRef, useState } from "react";
 import { LogIn } from "lucide-react";
 
 import { useAuth } from "@/components/auth/AuthProvider";
+import ClerkAccountControls from "@/components/auth/ClerkAccountControls";
 import MagicLinkForm from "@/components/auth/MagicLinkForm";
 import SocialSignInButtons from "@/components/auth/SocialSignInButtons";
+import { isClerkConfigured } from "@/lib/clerkIdentity";
 import { trackEvent } from "@/lib/analytics";
 import {
   AUTH_MENU_FOCUSABLE_SELECTOR,
@@ -181,8 +183,12 @@ export default function SignInButton({
     setBusy(null);
   }, [signOut]);
 
-  // Hide entirely when the public env is missing — no dead button.
-  if (!configured) return null;
+  // Hide entirely when NEITHER identity system is configured — no dead button.
+  // Clerk is checked as well as Supabase because the two are independent: a
+  // deployment with a Clerk key and no Supabase env used to render nothing at
+  // all, which left a signed-out reader with no way to make an account.
+  const clerkConfigured = isClerkConfigured();
+  if (!configured && !clerkConfigured) return null;
 
   // Avoid a flash of the wrong state while the first getSession() resolves.
   if (loading) return null;
@@ -223,8 +229,12 @@ export default function SignInButton({
   }
 
   const hasSocialProviders = socialProviders.google || socialProviders.apple;
-  const options = (
-    <div className="authOptions">
+  // The Supabase half renders only while Supabase is configured. Without that
+  // guard, relaxing the gate above would surface a magic-link form whose submit
+  // can only answer "Sign-in is not configured." — a dead control, which is
+  // exactly what the original `!configured` early return existed to prevent.
+  const supabaseOptions = configured ? (
+    <>
       <SocialSignInButtons
         availability={socialProviders}
         disabled={busy !== null}
@@ -237,6 +247,12 @@ export default function SignInButton({
         signInWithEmail={signInWithEmail}
         cancelAuthAttempt={cancelAuthAttempt}
       />
+    </>
+  ) : null;
+  const options = (
+    <div className="authOptions">
+      {supabaseOptions}
+      <ClerkAccountControls />
     </div>
   );
 
@@ -277,19 +293,24 @@ export default function SignInButton({
         </button>
         {menuOpen ? (
           <div className="authMenu" id={menuId} aria-label="Sign in options" ref={menuRef}>
-            <SocialSignInButtons
-              availability={socialProviders}
-              disabled={busy !== null}
-              onGoogle={onSignInGoogle}
-              onApple={onSignInApple}
-              fullLabels
-            />
-            <MagicLinkForm
-              disabled={busy !== null}
-              hasSocialProviders={hasSocialProviders}
-              signInWithEmail={signInWithEmail}
-              cancelAuthAttempt={cancelAuthAttempt}
-            />
+            {configured ? (
+              <>
+                <SocialSignInButtons
+                  availability={socialProviders}
+                  disabled={busy !== null}
+                  onGoogle={onSignInGoogle}
+                  onApple={onSignInApple}
+                  fullLabels
+                />
+                <MagicLinkForm
+                  disabled={busy !== null}
+                  hasSocialProviders={hasSocialProviders}
+                  signInWithEmail={signInWithEmail}
+                  cancelAuthAttempt={cancelAuthAttempt}
+                />
+              </>
+            ) : null}
+            <ClerkAccountControls />
           </div>
         ) : null}
       </div>
