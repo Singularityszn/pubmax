@@ -52,15 +52,34 @@ export function readClerkPublishableKey(): string | undefined {
 }
 
 /**
- * Whether Clerk may run at all. Everything Clerk-shaped is gated on this, so a
- * deployment with no key keeps exactly today's behaviour instead of failing:
- * clerkMiddleware() throws per request when it cannot find a key, which would
- * turn a missing env var into a site-wide 500 rather than an absent button.
+ * Whether the BROWSER half of Clerk may run: the provider, the buttons and the
+ * CSP origins. clerk-js needs only the publishable key, so this is the gate for
+ * anything a reader can see. With no key, nothing Clerk-shaped renders and the
+ * Content-Security-Policy is byte-for-byte its pre-Clerk self.
  */
 export function isClerkConfigured(
   publishableKey: string | undefined = readClerkPublishableKey(),
 ): boolean {
   return clerkFrontendApiOrigin(publishableKey) !== null;
+}
+
+/**
+ * Whether clerkMiddleware() may run. SERVER-ONLY: it reads CLERK_SECRET_KEY, so
+ * it must never be called from a client component.
+ *
+ * This is a SEPARATE and STRICTER gate than isClerkConfigured() on purpose, and
+ * the difference is not cosmetic. clerkMiddleware() throws
+ * "@clerk/nextjs: Missing secretKey" on EVERY request when the secret key is
+ * absent, so a deployment carrying only the publishable key does not get a
+ * degraded sign-in: it gets a site-wide 500 on every page, including pages that
+ * have nothing to do with identity. Requiring both keys means a half-configured
+ * deployment stays a fully working site whose Clerk buttons simply run
+ * browser-side without a server session, which is a bad day rather than an
+ * outage.
+ */
+export function isClerkMiddlewareConfigured(): boolean {
+  const secretKey = process.env.CLERK_SECRET_KEY;
+  return isClerkConfigured() && Boolean(secretKey && secretKey.trim());
 }
 
 /**
