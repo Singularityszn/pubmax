@@ -336,7 +336,6 @@ const FALLBACK_VENUE_COUNT = 6;
 // Every pub-source layer, gated together through the basemap gate on desktop
 // and the stricter source-aware visible-frame handoff on phone.
 const PUB_PIN_LAYERS = [
-  "pubs-scraped-halo",
   "pubs-drops-halo",
   "pubs-whatson-badge",
   "band-members-halo",
@@ -676,7 +675,7 @@ export default function PubMapCanvas({
   });
   // The active band's token colour, read into the corridor + member-halo paint
   // on each build (a setStyle rebuild re-reads it from the live tokens).
-  const bandColorRef = useRef<string>("#b0813a");
+  const bandColorRef = useRef<string>("#4f9ec4");
   const activeBandColourTokenRef = useRef(
     activeBand?.colourToken ?? null,
   );
@@ -712,7 +711,9 @@ export default function PubMapCanvas({
       tokens,
       activeBandColourTokenRef.current,
     );
-    bandColorRef.current = next.storyColour ?? tokens.brass;
+    // A band without its own story colour rings in river, never coral —
+    // coral rings belong to selection alone (design judgement 2026-08-01).
+    bandColorRef.current = next.storyColour ?? tokens.riverBright;
     if (sameMapRenderedState(renderedStateRef.current, next)) return next;
     renderedStateRef.current = next;
     onRenderedStateChangeRef.current?.(next);
