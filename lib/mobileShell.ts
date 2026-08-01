@@ -53,7 +53,8 @@ export type MapViewportSnapshot = {
 export type NearbyMapResult = {
   location: { lat: number; lng: number };
   venueIds: string[];
-  radiusKm: 2.5;
+  /** The ring answered from — NEAR_ME_MAP_RADIUS_KM, the sheet's own walk ring. */
+  radiusKm: number;
   strategy: "within-radius" | "nearest-20";
 };
 

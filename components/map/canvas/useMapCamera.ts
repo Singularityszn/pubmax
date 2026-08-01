@@ -2,10 +2,39 @@ import { useCallback, useEffect, useMemo } from "react";
 import type { MutableRefObject } from "react";
 import * as maplibregl from "maplibre-gl";
 import type { Venue } from "@/lib/venues";
-import { LONG_JUMP_CURVE } from "./easing";
+import { LONG_JUMP_CURVE, easeOutCubic } from "./easing";
 import { createCameraIntentCoordinator, type CameraIntentKind } from "@/lib/cameraIntent";
+import { mapVisibleBand, nearMeCameraFrame, nearestVenueKm } from "@/lib/nearMeMapFrame";
 
 type MapView = { center: [number, number]; zoom: number; pitch: number; bearing: number };
+
+// Chrome the near-me camera must stay clear of. The top values match the map's
+// own floating chrome; the bottom values are the fallback when no sheet is open.
+const PHONE_TOP_INSET = 190;
+const PHONE_BOTTOM_INSET = 190;
+const DESKTOP_TOP_INSET = 150;
+const DESKTOP_BOTTOM_INSET = 110;
+
+/** The one sheet class that can cover the map on a phone. */
+const BOTTOM_SHEET_SELECTOR = ".mobileSharedSheet.open";
+
+// Long enough to read as travel between two places, short enough that the
+// answer does not feel withheld. Matches the pub-select fly-to.
+const NEAR_ME_CAMERA_DURATION_MS = 700;
+
+/**
+ * Top edge of an open bottom sheet, in map-container pixels, or null when no
+ * sheet covers the map. Measured because a contextual sheet is content-height:
+ * no constant can stand in for it.
+ */
+function measureBottomSheetTop(containerTop: number): number | null {
+  if (typeof document === "undefined") return null;
+  const sheet = document.querySelector(BOTTOM_SHEET_SELECTOR);
+  if (!sheet) return null;
+  const rect = sheet.getBoundingClientRect();
+  if (rect.height <= 0) return null;
+  return rect.top - containerTop;
+}
 
 type CameraRefs = {
   mapRef: MutableRefObject<maplibregl.Map | null>;
@@ -117,27 +146,46 @@ export function useMapCamera(refs: CameraRefs) {
     }));
   }, [reducedRef, scheduleCamera, venuesRef]);
 
+  // Near me puts the READER on the map, not a cloud of pubs. A fitBounds over
+  // nearby venues centres the cloud, which drops the reader wherever the
+  // geometry leaves them — on a phone, under the near-me sheet. `nearMeCameraFrame`
+  // keeps the centre on the reader and lets only zoom and screen offset move.
   const fitNearby = useCallback(
     (location: { lat: number; lng: number }, nearbyVenues: Venue[]) => {
-      const bounds = new maplibregl.LngLatBounds([location.lng, location.lat], [
-        location.lng,
-        location.lat,
-      ]);
-      nearbyVenues.forEach((venue) => bounds.extend([venue.longitude, venue.latitude]));
+      const map = mapRef.current;
+      if (!map) return;
       const isPhone = window.matchMedia("(max-width: 640px)").matches;
+      const container = map.getContainer().getBoundingClientRect();
+      const viewport = { width: container.width, height: container.height };
+      const band = mapVisibleBand({
+        height: viewport.height,
+        topInset: isPhone ? PHONE_TOP_INSET : DESKTOP_TOP_INSET,
+        // Measured, not assumed: the phone sheet is sized by its own content.
+        coverTop: measureBottomSheetTop(container.top),
+        bottomInset: isPhone ? PHONE_BOTTOM_INSET : DESKTOP_BOTTOM_INSET,
+      });
+      const frame = nearMeCameraFrame({
+        location,
+        nearestVenueKm: nearestVenueKm(location, nearbyVenues),
+        viewport,
+        band,
+      });
       const locationKey = `${location.lat.toFixed(4)},${location.lng.toFixed(4)}`;
-      scheduleCamera("nearby", `nearby:${locationKey}:${nearbyVenues.map((venue) => venue.id).join(">")}`, (map) => map.fitBounds(bounds, {
-        padding: isPhone
-          ? { top: 190, right: 34, bottom: 190, left: 34 }
-          : { top: 150, right: 90, bottom: 110, left: 90 },
-        maxZoom: 14.25,
-        duration: reducedRef.current ? 0 : 700,
+      scheduleCamera("nearby", `nearby:${locationKey}:${nearbyVenues.map((venue) => venue.id).join(">")}`, (target) => target.easeTo({
+        center: frame.center,
+        zoom: frame.zoom,
+        offset: frame.offset,
+        // The move has one job: carry the reader's eye from the city to their
+        // own street. Ease-out starts fast, so the arrival reads as an answer
+        // rather than a slow pan. Reduced motion takes the same frame instantly.
+        duration: reducedRef.current ? 0 : NEAR_ME_CAMERA_DURATION_MS,
+        easing: easeOutCubic,
         pitch: isPhone ? 28 : 34,
-        // Keep the current rotation (fitBounds would zero it otherwise).
-        bearing: map.getBearing(),
+        // Keep the current rotation (a fit would zero it otherwise).
+        bearing: target.getBearing(),
       }));
     },
-    [reducedRef, scheduleCamera],
+    [mapRef, reducedRef, scheduleCamera],
   );
 
   return { cinematic, fitRoute, fitCityBounds, fitQueryVenues, fitNearby };
