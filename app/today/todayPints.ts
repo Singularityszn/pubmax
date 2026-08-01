@@ -64,7 +64,14 @@ export function buildTodayPintsForPatch(
   const area = areaUnderCentre("london", centre);
   if (!area) return null;
 
-  const priced = cheapestDrinksInArea(area, venues, centre, venues.length)
+  // Distances are never printed here, and the patch centre is a map point, so
+  // the rows carry the map origin rather than a claim about any reader.
+  const priced = cheapestDrinksInArea(
+    area,
+    venues,
+    { point: centre, origin: "map" },
+    venues.length,
+  )
     .filter((row) => row.price !== null)
     .slice(0, TODAY_PINTS_LIMIT);
   if (priced.length === 0) return null;

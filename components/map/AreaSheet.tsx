@@ -10,6 +10,7 @@ import {
   areaSheetOverflowLabel,
   cheapestDrinksInArea,
   cheapestDrinksNearPoint,
+  type AreaDistanceFrom,
   type AreaElsewhereOption,
 } from "@/lib/areaButton";
 import type { NightArea } from "@/lib/nightAreas";
@@ -58,8 +59,14 @@ type AreaSheetProps = {
   /** How complete the selected drink's cross-venue read was. A failed or
    *  truncated index may never be rendered as "none here yet". */
   lensStatus?: CategoryPriceIndexStatus;
-  /** Live map centre [lng, lat], for area membership + row distances. */
-  center: [number, number];
+  /**
+   * The point every row distance is measured from, carried with WHOSE point it
+   * is. A granted location makes it the reader's, and only then may a row say
+   * "away"; otherwise it is the live map centre and the row says so. The two
+   * travel together so a reader-measured row can never be worded as a
+   * map-measured one, or the other way about.
+   */
+  distanceFrom: AreaDistanceFrom;
   /** Fly + open a pub's venue card — the same selection a pin tap drives. */
   onSelectVenue: (id: string) => void;
   /** Fly the map to another area's centre (reduced-motion safe in the canvas). */
@@ -97,7 +104,7 @@ export default function AreaSheet({
   lensPrices = null,
   drinkLabel = "Pints",
   lensStatus = "ready",
-  center,
+  distanceFrom,
   onSelectVenue,
   onFlyToArea,
   onUseMyLocation,
@@ -126,14 +133,14 @@ export default function AreaSheet({
           ? cheapestDrinksInArea(
               area,
               venues,
-              center,
+              distanceFrom,
               undefined,
               lensPrices,
               drinkLabel,
               lensStatus,
             )
           : [],
-    [placeFocus, area, venues, center, lensPrices, drinkLabel, lensStatus],
+    [placeFocus, area, venues, distanceFrom, lensPrices, drinkLabel, lensStatus],
   );
   // The lead the sheet prints. The rest stay on the map, and the row below the
   // lead says how many they are.

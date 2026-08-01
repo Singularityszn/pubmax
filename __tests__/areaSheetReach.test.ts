@@ -41,7 +41,10 @@ function renderSheet(
       cityId: "london" as const,
       area: soho,
       venues: Array.from({ length: venueCount }, (_, i) => venue(i)),
-      center: [soho.centre.lng, soho.centre.lat] as [number, number],
+      distanceFrom: {
+        point: [soho.centre.lng, soho.centre.lat] as [number, number],
+        origin: "map" as const,
+      },
       onSelectVenue: vi.fn(),
       onFlyToArea: vi.fn(),
       onClose: vi.fn(),

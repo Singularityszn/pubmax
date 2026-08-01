@@ -1,13 +1,14 @@
 "use client";
 
 import Link from "next/link";
-import { Ellipsis, LocateFixed, LocateOff, MapPin, Route, Search, SlidersHorizontal, Sparkles, TrainFront, X } from "lucide-react";
+import { Ellipsis, LocateFixed, LocateOff, Map as MapGlyph, Route, Search, SlidersHorizontal, Sparkles, TrainFront, X } from "lucide-react";
 import { useCallback } from "react";
 
 import PubmaxxWordmark from "@/components/brand/PubmaxxWordmark";
 import { Chip } from "@/components/ui/chip";
 import { IconButton } from "@/components/ui/icon-button";
 import { Sheet } from "@/components/ui/sheet";
+import { areaChipClaim, areaChipClaimPrefix, type MapPlaceOrigin } from "@/lib/areaButton";
 import { buildFiltersChip, buildNearMeChip, buildTflCorner } from "@/lib/mapChromeTiers";
 import { MAP_SHEET_TITLES, type MapOverlay, type MapSheetKind } from "@/lib/mobileShell";
 
@@ -38,8 +39,16 @@ function PalSignalAvatar() {
   );
 }
 
-export default function MobileMapShell({ cityLabel, limitedCoverage, overlay, onOverlayChange, activeQuery, onClearQuery, onNearMe, nearMeStatus, nearMeError, onDismissNearMeError, nearbyCount, tonightCount, tflCount, tflStatus, priceLabel, drinkFiltersActive, experienceFilterLabel, priceCapActive, areaPriceNoun, zoneActive, planOpen, planActive, planStopCount, planInteractive, venueListOpen, bandNoticeOpen, onPlan, searchContent, filtersContent, tflContent, tonightContent, layersContent, palContent, momentContent, nearMeContent, areaContent }: {
+export default function MobileMapShell({ cityLabel, cityLabelOrigin, limitedCoverage, overlay, onOverlayChange, activeQuery, onClearQuery, onNearMe, nearMeStatus, nearMeError, onDismissNearMeError, nearbyCount, tonightCount, tflCount, tflStatus, priceLabel, drinkFiltersActive, experienceFilterLabel, priceCapActive, areaPriceNoun, zoneActive, planOpen, planActive, planStopCount, planInteractive, venueListOpen, bandNoticeOpen, onPlan, searchContent, filtersContent, tflContent, tonightContent, layersContent, palContent, momentContent, nearMeContent, areaContent }: {
   cityLabel: string;
+  /**
+   * Whether that name is where the READER is, or only what the map is looking
+   * at. A granted location inside the named area earns "reader"; everything
+   * else is "map". The chip carries the answer in its glyph and its accessible
+   * name, because a location pin beside a place name reads as "you are here"
+   * to a reader who never gave the map a location.
+   */
+  cityLabelOrigin: MapPlaceOrigin;
   /** Base-pub-only arrival: omit city-guide controls that cannot answer here. */
   limitedCoverage: boolean;
   overlay: MapOverlay;
@@ -84,6 +93,16 @@ export default function MobileMapShell({ cityLabel, limitedCoverage, overlay, on
   areaContent: React.ReactNode;
 }) {
   const closeSheet = useCallback(() => onOverlayChange("none"), [onOverlayChange]);
+  // The glyph is half the claim. LocateFixed is this map's "you are here" mark
+  // (the Near me chip wears it), so it may appear only when a granted location
+  // sits inside the named area. Otherwise the chip wears the map itself.
+  const areaGlyph =
+    cityLabelOrigin === "reader" ? (
+      <LocateFixed size={14} aria-hidden="true" />
+    ) : (
+      <MapGlyph size={14} aria-hidden="true" />
+    );
+  const areaClaim = areaChipClaim(cityLabelOrigin, cityLabel);
 
   if (limitedCoverage) {
     return (
@@ -93,7 +112,12 @@ export default function MobileMapShell({ cityLabel, limitedCoverage, overlay, on
             <PubmaxxWordmark />
           </Link>
           <span className="mobileMapArea mobileMapAreaStatic">
-            <MapPin size={14} aria-hidden="true" />
+            {areaGlyph}
+            {/* The visible chip is one short name. The claim behind it is read
+                out here, so a screen reader is told what the name IS. */}
+            <span className="mobileMapAreaClaim">
+              {areaChipClaimPrefix(cityLabelOrigin)}
+            </span>
             <span className="mobileMapAreaLabel">{cityLabel}</span>
           </span>
         </header>
@@ -126,10 +150,10 @@ export default function MobileMapShell({ cityLabel, limitedCoverage, overlay, on
             className="mobileMapArea"
             aria-expanded={overlay === "area"}
             aria-haspopup="dialog"
-            aria-label={`Area: ${cityLabel}. See its cheapest ${areaPriceNoun} or go somewhere else`}
+            aria-label={`${areaClaim}. See its cheapest ${areaPriceNoun} or go somewhere else`}
             onClick={() => set("area")}
           >
-            <MapPin size={14} aria-hidden="true" />
+            {areaGlyph}
             <span className="mobileMapAreaLabel">{cityLabel}</span>
           </button>
           <IconButton aria-label="Search the map" aria-expanded={overlay === "search"} onClick={() => set("search")}><Search size={19} /></IconButton>

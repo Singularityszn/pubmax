@@ -254,9 +254,11 @@ import {
   resolveQueryRestoreFit,
 } from "@/lib/mapArrival";
 import {
+  areaLabelOrigin,
   areaSheetOpenDelay,
   areaUnderCentre,
   planAreaSelect,
+  type AreaDistanceFrom,
   type AreaElsewhereOption,
 } from "@/lib/areaButton";
 import type { AreaSheetPlaceFocus } from "@/components/map/AreaSheet";
@@ -2225,6 +2227,23 @@ export default function PubMap({
     () => areaUnderCentre(cityId, mapViewport.center),
     [cityId, mapViewport.center],
   );
+  // ...and whether that name is also where the READER is. A base-pub arrival
+  // names a place from the URL, which nobody's location chose, so it stays a
+  // map claim whatever the browser later grants.
+  const areaChipOrigin = useMemo(
+    () => (ukPlaceArrival ? "map" : areaLabelOrigin(centreArea, userLocation)),
+    [centreArea, ukPlaceArrival, userLocation],
+  );
+  // Where the Area sheet's row distances are measured from. A granted location
+  // is the reader's own point, and only then may a row say "away". With none,
+  // the map centre is all we have and the rows name it.
+  const areaSheetDistanceFrom = useMemo<AreaDistanceFrom>(
+    () =>
+      userLocation
+        ? { point: [userLocation.lng, userLocation.lat], origin: "reader" }
+        : { point: mapViewport.center, origin: "map" },
+    [mapViewport.center, userLocation],
+  );
   // Area button "go somewhere else": bump a token to fly the canvas camera.
   const [areaFocus, setAreaFocus] = useState<
     { center: [number, number]; zoom: number; token: number } | null
@@ -3007,6 +3026,7 @@ export default function PubMap({
         {mobileShellReady ? (
         <MobileMapShell
           cityLabel={ukPlaceArrival?.name ?? centreArea?.name ?? activeNightArea?.name ?? mapContextName}
+          cityLabelOrigin={areaChipOrigin}
           limitedCoverage={Boolean(ukPlaceArrival)}
           overlay={mobileShellState.overlay}
           onOverlayChange={changeMapOverlay}
@@ -3265,7 +3285,7 @@ export default function PubMap({
                   : "Pints"
               }
               lensStatus={drinkIndexStatus}
-              center={mapViewport.center}
+              distanceFrom={areaSheetDistanceFrom}
               onSelectVenue={selectVenue}
               onFlyToArea={flyToArea}
               /* The map's one Near me path. On success it opens the near-me
