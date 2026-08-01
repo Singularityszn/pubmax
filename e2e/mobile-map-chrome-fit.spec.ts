@@ -254,7 +254,9 @@ for (const viewport of VIEWPORTS) {
   }) => {
     await openPhoneMap(page, viewport);
     const topbar = page.locator(".mobileMapTopbar");
-    const area = topbar.getByRole("button", { name: /^Area:/ });
+    // No location is granted in this run, so the chip names what the map is
+    // looking at rather than claiming the reader.
+    const area = topbar.getByRole("button", { name: /^Area in view:/ });
     await tapRenderedCentre(page, area, viewport.width, "Area");
     await expect(
       page.locator('.mobileSheetPortal[data-sheet-kind="area"]:visible'),
