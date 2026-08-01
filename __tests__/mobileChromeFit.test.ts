@@ -158,7 +158,12 @@ describe("mobile chrome fit at 390px", () => {
     );
     expect(mobile).toMatch(/\.tonightArcChip\s*{[^}]*flex:\s*0 0 auto/);
     expect(arcChipsCss, "chip labels are never truncated").not.toMatch(/text-overflow/);
-    expect(arcChipsTsx, "selection uses weight and border rather than ticks").not.toContain("✓");
+    // Design judgement 2026-08-01 (finding 2.1): the selected chip carries a
+    // tick so selection reads without colour. Only the selected chip may grow
+    // by that glyph — the row stays a one-line scroller either way.
+    expect(arcChipsTsx, "the tick renders on the selected chip alone").toMatch(
+      /\{on \? \([\s\S]*?tonightArcChipTick/,
+    );
     expect(rowGap, "row gap parsed").toBeGreaterThan(0);
   });
 

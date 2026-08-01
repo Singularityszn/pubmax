@@ -17,7 +17,7 @@
 }
 
 .tonightArcLabel {
-  color: var(--brass);
+  color: var(--muted);
   font-size: 0.65rem;
   font-weight: 800;
   letter-spacing: 0.08em;
@@ -52,11 +52,20 @@
   z-index: 1;
 }
 
+/* Selection is a raised neutral fill plus a tick, never the accent: coral on
+   the map belongs to the primary CTA, the selected pin ring and the active
+   tab glyph alone (design judgement 2026-08-01, finding 2.1). */
 .tonightArcChip.isOn {
-  border-width: 2px;
-  border-color: color-mix(in srgb, var(--ink-deep) 72%, var(--brass) 28%);
-  background: var(--brass);
-  color: var(--color-on-accent);
+  border-color: var(--ink-soft);
+  background: var(--panel-raised);
+  color: var(--ink);
+  font-weight: 800;
+}
+
+.tonightArcChipTick {
+  position: relative;
+  z-index: 1;
+  margin-right: 3px;
   font-weight: 800;
 }
 
@@ -177,13 +186,18 @@
   .tonightArcChip.isOn {
     border: 0;
     background: transparent;
-    color: var(--color-on-accent);
+    color: var(--ink);
   }
 
   .tonightArcChip.isOn::before {
-    border-width: 2px;
-    border-color: color-mix(in srgb, var(--ink-deep) 72%, var(--brass) 28%);
-    background: var(--brass);
+    border-color: var(--ink-soft);
+    background: var(--panel-raised);
+  }
+
+  /* Unselected chips ghost on the blurred bar behind them: a hairline border,
+     no fill, so the one selected chip is the only raised surface in the row. */
+  .tonightArcChip:not(.isOn)::before {
+    background: transparent;
   }
 
   .tonightArcChip[aria-disabled="true"] {
@@ -194,7 +208,7 @@
 
   .tonightArcChip[aria-disabled="true"]::before {
     border-color: var(--line);
-    background: var(--panel-raised);
+    background: transparent;
   }
 
   .tonightArcChip:focus-visible {

@@ -86,6 +86,13 @@ export default function TonightArcChips({
                 }
               }}
             >
+              {/* The tick, not a colour, marks selection (aria-pressed already
+                  names it for readers, so the glyph stays decorative). */}
+              {on ? (
+                <span className="tonightArcChipTick" aria-hidden="true">
+                  ✓
+                </span>
+              ) : null}
               <span className="tonightArcChipLabel">
                 {experienceLens === "no-alcohol" && chip.kind === "pub"
                   ? "Pubs"

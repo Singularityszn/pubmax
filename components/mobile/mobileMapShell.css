@@ -265,21 +265,22 @@
      language. Scoped to the rail so the shared Chip component elsewhere is
      untouched. */
   .mobileMapRail > button { min-height: 44px; border-radius: var(--control-radius, 14px); scroll-snap-align: start; box-shadow: 0 3px 10px color-mix(in srgb, var(--ink-deep) 12%, transparent); }
-  .mobileMapRail > button[aria-pressed="true"] { border-color: var(--color-accent); color: var(--color-accent); }
-  .mobileMapChipCount { min-width: 1.2rem; height: 1.2rem; display: grid; place-items: center; border-radius: 999px; background: var(--color-accent); color: var(--color-on-accent); font-family: var(--font-data); font-size: .68rem; }
+  .mobileMapRail > button[aria-pressed="true"] { border-color: var(--ink-soft); color: var(--ink); }
+  .mobileMapChipCount { min-width: 1.2rem; height: 1.2rem; display: grid; place-items: center; border-radius: 999px; border: 1px solid var(--line); background: var(--panel-raised); color: var(--ink); font-family: var(--font-data); font-size: .68rem; }
 
-  /* TIER 1 — the one primary-weight chip. Filled accent so "Near me" reads as
-     THE action; every other chip stays quiet. (When #328's role tokens land,
-     --color-accent here becomes --accent-action — same value, clearer name.) */
+  /* The rail is neutral chrome. Coral on the map belongs to the primary CTA,
+     the selected pin ring and the active tab glyph alone (design judgement
+     2026-08-01, finding 2.1), so "Near me" holds its lead through weight,
+     not through the accent. */
   .mobileMapChipPrimary {
-    background: var(--color-accent);
-    border-color: var(--color-accent);
-    color: var(--color-on-accent);
+    background: var(--color-surface-raised);
+    border-color: var(--ink-soft);
+    color: var(--color-text);
+    font-weight: 800;
   }
   .mobileMapRail > .mobileMapChipPrimary[aria-pressed="true"] {
-    border-color: var(--ink-deep);
-    color: var(--color-on-accent);
-    filter: saturate(1.08);
+    border-color: var(--ink);
+    color: var(--ink);
   }
   .mobileMapChipPrimary:disabled { opacity: .72; }
 
@@ -315,8 +316,9 @@
     display: grid;
     place-items: center;
     border-radius: 999px;
-    background: var(--color-accent);
-    color: var(--color-on-accent);
+    border: 1px solid var(--line);
+    background: var(--panel-raised);
+    color: var(--ink);
     font-family: var(--font-data);
     font-size: .64rem;
   }
@@ -364,10 +366,10 @@
     justify-self: start;
     min-height: 44px;
     padding-inline: 14px;
-    border: 1px solid var(--color-accent);
+    border: 1px solid var(--ink-soft);
     border-radius: var(--control-radius, 14px);
     background: transparent;
-    color: var(--color-accent);
+    color: var(--ink);
     font: inherit;
     font-size: var(--text-sm);
     font-weight: 700;
