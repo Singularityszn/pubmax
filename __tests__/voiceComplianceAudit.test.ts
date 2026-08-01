@@ -137,6 +137,7 @@ describe("VOICE.md compliance audit", () => {
     const tonight = read("app/tonight/TonightClient.tsx");
     const tonightPage = read("app/tonight/page.tsx");
     const near = read("components/nearme/NearMeNow.tsx");
+    const nearHeadline = read("lib/nearMeAnswer.ts");
     const nearPage = read("app/near/page.tsx");
     const palChatPage = read("app/pal/chat/page.tsx");
     const tonightNearby = read("components/discovery/TonightNearbyLane.tsx");
@@ -168,7 +169,10 @@ describe("VOICE.md compliance audit", () => {
     expect(planTemplates).not.toContain("What's-On spine");
     expect(planTemplates).toContain("Quiz listings with start times.");
 
-    expect(near).toContain("Cheapest listed near you");
+    // The near-me headline moved to lib/nearMeAnswer.ts (nearMeAnswerHeadline)
+    // so the map's sheet chrome can check it never restates the body's line.
+    // The sentence is still the one the reader gets, so the fence follows it.
+    expect(nearHeadline).toContain("Cheapest listed near you");
     expect(near).not.toContain("Finding the cheapest");
     expect(near).not.toContain("Pulling up the cheapest");
     expect(nearPage).not.toContain("good pints");

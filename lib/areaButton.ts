@@ -25,6 +25,30 @@ import type { Venue } from "@/lib/venues";
 export const AREA_PUB_LIMIT = 10;
 
 /**
+ * How many of those rows the SHEET prints before it hands over to the picker.
+ *
+ * The sheet answers two questions: what is cheap here, and how do I go
+ * somewhere else. Printing all ten rows answered the first and pushed the
+ * second about 650 px below the fold on a 390x844 phone, so a reader looking
+ * for "change my area" met a price list and gave up. That became load-bearing
+ * when a failed Near me started offering "Pick an area" as its way on.
+ *
+ * Three rows is the lead: enough to read as an answer, short enough that the
+ * picker's own heading lands inside the first screen. The rest are not hidden.
+ * They are on the map, which is the product, and the row under the lead names
+ * how many are left and takes the reader there.
+ */
+export const AREA_SHEET_LEAD_ROWS = 3;
+
+/** What the row under the lead says: it names the rest rather than implying
+ *  the lead is all of them. */
+export function areaSheetOverflowLabel(total: number): string {
+  const rest = Math.max(0, total - AREA_SHEET_LEAD_ROWS);
+  if (rest <= 0) return "See all on the map";
+  return rest === 1 ? "See the other one on the map" : `See the other ${rest} on the map`;
+}
+
+/**
  * Radius of the ad-hoc "area" the sheet derives around a locality/borough
  * centroid — the place a map-search result flies to that is NOT one of the
  * modelled Night Areas. A modelled area carries its own `radiusKm`; a plain

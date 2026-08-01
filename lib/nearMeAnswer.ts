@@ -32,6 +32,28 @@ export const WIDENED_RADIUS_KM = 2.5;
 export const MIN_ANSWERS = 3;
 export const MAX_ANSWERS = 5;
 
+/**
+ * The one sentence the near-me answer names itself with.
+ *
+ * It moves with the answer: a widened ring is not "near you", and a picked
+ * borough or patch is not near the reader at all. It lives here, pure, because
+ * a HOST that frames this answer (the map's near-me sheet, whose chrome prints
+ * the sheet's only heading) must be able to check that its own title never
+ * restates this line. Two stacked headings saying the same thing was the
+ * defect; a chrome title that contradicts this line would be worse.
+ */
+export function nearMeAnswerHeadline(input: {
+  scope: NearMeScope;
+  borough?: string | null;
+  patchLabel?: string | null;
+}): string {
+  if (input.borough) return `Cheapest listed in ${input.borough}`;
+  if (input.patchLabel) return `Cheapest listed around ${input.patchLabel}`;
+  return input.scope === "widened"
+    ? "Nearest priced pubs"
+    : "Cheapest listed near you";
+}
+
 /** Whole walking minutes for a distance, floored at 1 so nothing reads "0 min". */
 export function walkMinutesFromKm(km: number): number {
   if (!Number.isFinite(km) || km <= 0) return 1;

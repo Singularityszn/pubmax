@@ -14,6 +14,7 @@ import { venueMapUrl } from "@/lib/venueMapUrl";
 import { loadSlimVenuesForCity } from "@/lib/venuesSlim";
 import {
   boroughsWithPrices,
+  nearMeAnswerHeadline,
   rankBoroughCheapest,
   rankNearMe,
   type NearMeCard,
@@ -84,7 +85,29 @@ export type NearMeNowProps = {
    * accepted, distinct from opening it for a look.
    */
   intentWrite?: boolean;
+  /**
+   * The host already prints this answer's heading, so print the headline as a
+   * plain line instead. The map's near-me sheet is the case: its chrome header
+   * carries the sheet's one heading and the dialog's accessible name, and a
+   * second heading right under it read as the title twice.
+   */
+  titledByHost?: boolean;
 };
+
+/** The answer's headline, as a heading of its own or the host's plain line. */
+function AnswerHeadline({
+  text,
+  titledByHost,
+}: {
+  text: string;
+  titledByHost: boolean;
+}) {
+  return titledByHost ? (
+    <p className="nmnHeadline">{text}</p>
+  ) : (
+    <h2>{text}</h2>
+  );
+}
 
 const GEO_OPTS: PositionOptions = { enableHighAccuracy: false, timeout: 7000, maximumAge: 60_000 };
 
@@ -144,6 +167,7 @@ export default function NearMeNow({
   initialPatchId = null,
   syncPatchToUrl = false,
   intentWrite = false,
+  titledByHost = false,
 }: NearMeNowProps) {
   const router = useRouter();
   const pathname = usePathname();
@@ -467,7 +491,10 @@ export default function NearMeNow({
       {state === "ready" && !outsideCoverage && !borough && !patch ? (
         <>
           <header className="nmnHead">
-            <h2>{scope === "widened" ? "Nearest priced pubs" : "Cheapest listed near you"}</h2>
+            <AnswerHeadline
+              text={nearMeAnswerHeadline({ scope })}
+              titledByHost={titledByHost}
+            />
             {scope === "widened" ? (
               <p className="nmnWiden">Not many priced pubs on your doorstep. These are the nearest, a bit further out.</p>
             ) : (
@@ -495,7 +522,14 @@ export default function NearMeNow({
       {state === "ready" && areaLabel ? (
         <>
           <header className="nmnHead">
-            <h2>{borough ? `Cheapest listed in ${borough}` : `Cheapest listed around ${patch?.label}`}</h2>
+            <AnswerHeadline
+              text={nearMeAnswerHeadline({
+                scope,
+                borough,
+                patchLabel: patch?.label ?? null,
+              })}
+              titledByHost={titledByHost}
+            />
             {patchMessage ? <p className="nmnSub">{patchMessage}</p> : null}
             {patchEvidenceNote ? <p className="nmnPatchTier">{patchEvidenceNote}</p> : null}
           </header>

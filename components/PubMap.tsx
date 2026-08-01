@@ -3239,6 +3239,7 @@ export default function PubMap({
               <NearMeNow
                 cityId={cityId}
                 onSelectVenue={selectVenue}
+                titledByHost
                 initialLocation={userLocation}
                 venues={filteredPubVenues.map((venue) => ({
                   id: venue.id,
@@ -3267,6 +3268,12 @@ export default function PubMap({
               center={mapViewport.center}
               onSelectVenue={selectVenue}
               onFlyToArea={flyToArea}
+              /* The map's one Near me path. On success it opens the near-me
+                 sheet over this one; on failure nearbyError lands in the
+                 sheet, because the alert under the chip is behind it. */
+              onUseMyLocation={showNearbyMap}
+              locationBusy={nearbyLoading}
+              locationNote={nearbyError}
               onClose={() => changeMapOverlay("none")}
             />
           }

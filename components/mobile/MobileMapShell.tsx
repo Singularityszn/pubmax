@@ -9,20 +9,9 @@ import { Chip } from "@/components/ui/chip";
 import { IconButton } from "@/components/ui/icon-button";
 import { Sheet } from "@/components/ui/sheet";
 import { buildFiltersChip, buildNearMeChip, buildTflCorner } from "@/lib/mapChromeTiers";
-import type { MapOverlay, MapSheetKind } from "@/lib/mobileShell";
+import { MAP_SHEET_TITLES, type MapOverlay, type MapSheetKind } from "@/lib/mobileShell";
 
 import "./mobileMapShell.css";
-
-const SHEET_TITLES: Partial<Record<MapOverlay, string>> = {
-  filters: "Prices and places",
-  tfl: "TfL live",
-  tonight: "Tonight",
-  layers: "Map controls",
-  "pub-pal": "Pub Pal",
-  moment: "Choose a pub",
-  "near-me": "Cheapest listed near you",
-  area: "This area",
-};
 
 const CONTEXTUAL_SHEETS: readonly MapSheetKind[] = [
   "filters",
@@ -233,7 +222,7 @@ export default function MobileMapShell({ cityLabel, limitedCoverage, overlay, on
           </span>
         </button>
       ) : null}
-      <Sheet kind={sheetKind} title={sheetKind ? SHEET_TITLES[sheetKind] ?? "Map controls" : "Map controls"} initialSnap={sheetKind === "moment" || sheetKind === "layers" || sheetKind === "near-me" || sheetKind === "area" ? "full" : "half"} onClose={closeSheet}>{sheetContent}</Sheet>
+      <Sheet kind={sheetKind} title={sheetKind ? MAP_SHEET_TITLES[sheetKind] ?? "Map controls" : "Map controls"} initialSnap={sheetKind === "moment" || sheetKind === "layers" || sheetKind === "near-me" || sheetKind === "area" ? "full" : "half"} onClose={closeSheet}>{sheetContent}</Sheet>
     </>
   );
 }

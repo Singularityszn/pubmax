@@ -113,6 +113,17 @@
   color: var(--ink);
 }
 
+/* Hosted in a sheet whose chrome already carries the one heading: same line,
+   same weight, one step down in size so the chrome title stays the title. */
+.nmnHeadline {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 1.05rem;
+  line-height: 1.25;
+  letter-spacing: -0.01em;
+  color: var(--ink);
+}
+
 .nmnSub,
 .nmnWiden {
   margin: 0;
