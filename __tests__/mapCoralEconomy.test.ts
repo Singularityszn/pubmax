@@ -120,10 +120,9 @@ describe("finding 2.1 — map chrome holds no coral fills", () => {
   });
 
   it("the active tab keeps a coral glyph but an ink label", () => {
-    for (const body of rules(navCss, ".mobileTab.isActive {")) {
-      expect(body).toMatch(/color:\s*var\(--ink\)/);
-      expect(body).not.toMatch(/background:[^;]*--brass/);
-    }
+    const tab = /\.mobileTab\.isActive\s*\{([^}]*)\}/.exec(navCss)?.[1] ?? "";
+    expect(tab).toMatch(/color:\s*var\(--ink\)/);
+    expect(tab).not.toMatch(/--brass/);
     // The glyph is the one surviving coral mark in the tab bar.
     expect(navCss).toMatch(
       /\.mobileTab\.isActive \.mobileTabIcon\s*\{[^}]*color:\s*var\(--brass\)/,
