@@ -851,19 +851,13 @@
 .clerkAccountActions .authSignIn {
   justify-content: center;
   width: 100%;
-  /* Press feedback belongs on the press, not the release: the pill answers the
-     finger before anything else happens. Scoped to the Clerk pills so the
-     shared .authSignIn used by Google, Apple and the magic-link CTA keeps the
-     transition it already ships. */
-  transition:
-    border-color 0.18s ease,
-    background-color 0.18s ease,
-    transform 160ms cubic-bezier(0.23, 1, 0.32, 1);
 }
 
-.clerkAccountActions .authSignIn:active {
-  transform: scale(0.97);
-}
+/* NOTE ON PRESS FEEDBACK: these pills need none of their own. app/globals.css
+   already presses every <button> on :active via --press-scale, behind a
+   prefers-reduced-motion: no-preference gate, and __tests__/designCraftCss.test.ts
+   holds that to ONE scale owner per control. A local transform: scale() here
+   would be a second owner and would lose the reduced-motion gate with it. */
 
 /* The lead action. Coral is already the app's one accent, so emphasis here is
    a firmer edge and a heavier label, never a second hue. */
@@ -905,14 +899,3 @@
   min-width: 0;
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .clerkAccountActions .authSignIn {
-    transition:
-      border-color 0.18s ease,
-      background-color 0.18s ease;
-  }
-
-  .clerkAccountActions .authSignIn:active {
-    transform: none;
-  }
-}
