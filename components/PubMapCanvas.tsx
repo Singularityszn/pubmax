@@ -101,7 +101,7 @@ import {
 import { useMapCamera } from "@/components/map/canvas/useMapCamera";
 import { easeOutCubic, PUB_SELECT_PITCH, PUB_SELECT_PITCH_MOBILE, PUB_SELECT_DURATION_MS } from "@/components/map/canvas/easing";
 import { mobileSelectCameraOffset } from "@/lib/sheetSnap";
-import { nearbyVenuesForMap } from "@/lib/nearby";
+import { nearMeMapVenues } from "@/lib/nearMeMapFrame";
 import { isUkBaseId, type UkBasePub } from "@/lib/ukBasePubs";
 import { useUkBaseStreaming } from "@/components/map/pubmap/useUkBaseStreaming";
 import type { MapViewportSnapshot } from "@/lib/mobileShell";
@@ -447,15 +447,10 @@ export default function PubMapCanvas({
     () => landmarksToGeoJSON(cityLandmarks),
     [cityLandmarks],
   );
+  // Same selector the near-me chip counts, so the highlighted pins and the
+  // chip's number can never drift apart.
   const nearbyMapVenues = useMemo(
-    () =>
-      userLocation
-        ? nearbyVenuesForMap(userLocation.lat, userLocation.lng, venues, {
-            radiusKm: 2.5,
-            minCount: 20,
-            maxCount: 20,
-          })
-        : [],
+    () => (userLocation ? nearMeMapVenues(userLocation.lat, userLocation.lng, venues) : []),
     [userLocation, venues],
   );
   const cityBounds = useMemo(
