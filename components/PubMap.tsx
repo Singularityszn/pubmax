@@ -23,6 +23,11 @@ import {
   type Filters,
   type Venue,
 } from "@/lib/venues";
+import {
+  isMapSearchField,
+  typedSearchCameraMove,
+  TYPED_SEARCH_MIN_QUERY,
+} from "@/lib/mapSearchCamera";
 import { filterMapVenues, withForcedVenue } from "@/lib/filterMapVenues";
 import { mergePriceUpdates, parsePriceUpdates, type PriceUpdate } from "@/lib/priceUpdates";
 import { nearestVenueIds, nearbyVenuesForMap } from "@/lib/nearby";
@@ -1855,7 +1860,9 @@ export default function PubMap({
   // change drives a move.
   const [searchFitToken, setSearchFitToken] = useState(0);
   const [searchAreaNewsArea, setSearchAreaNewsArea] = useState<string | null>(null);
-  const selectedSearchAreaQueryRef = useRef<string | null>(null);
+  // The query whose camera an explicit pick already owns. Cleared on every
+  // keystroke, so the next word re-arms the typed-search move.
+  const searchQueryCameraOwnedRef = useRef<string | null>(null);
   const filteredVenuesRef = useRef(filteredVenues);
   useEffect(() => {
     filteredVenuesRef.current = filteredVenues;
@@ -1866,6 +1873,23 @@ export default function PubMap({
   }, [selectVenue]);
 
   const trimmedMapQuery = filters.query.trim();
+  // A search field under the reader's finger owns the screen. This tracks
+  // whether it still holds the caret; lib/mapSearchCamera owns the rule.
+  const [mapSearchFieldFocused, setMapSearchFieldFocused] = useState(false);
+  useEffect(() => {
+    const readFocus = () =>
+      setMapSearchFieldFocused(isMapSearchField(document.activeElement));
+    readFocus();
+    // focusout lands with activeElement on <body>; the focusin that follows in
+    // the same tick corrects it, and the effect's cleanup drops the timer the
+    // intermediate state armed. So a tab between two fields never moves the map.
+    document.addEventListener("focusin", readFocus);
+    document.addEventListener("focusout", readFocus);
+    return () => {
+      document.removeEventListener("focusin", readFocus);
+      document.removeEventListener("focusout", readFocus);
+    };
+  }, []);
   const didMountSearchFlyRef = useRef(false);
   useEffect(() => {
     if (ukPlaceArrival) return;
@@ -1874,23 +1898,31 @@ export default function PubMap({
       didMountSearchFlyRef.current = true;
       return;
     }
-    // Too short to be a deliberate lookup; don't move the camera on a stray key.
-    if (trimmedMapQuery.length < 2) return;
+    // The camera stays still while the reader is typing. Once focus leaves the
+    // field this effect runs again and the same move happens, deferred rather
+    // than dropped.
+    if (mapSearchFieldFocused) return;
+    if (trimmedMapQuery.length < TYPED_SEARCH_MIN_QUERY) return;
     const handle = window.setTimeout(() => {
-      // An explicit area/locality choice owns the camera. Do not let the typed
-      // pub-fit timer fire late and replace that target with matching venue pins.
-      if (selectedSearchAreaQueryRef.current === trimmedMapQuery) return;
-      const matches = filteredVenuesRef.current;
-      if (matches.length === 1) {
-        // Exactly one match: fly to it and open its sheet (reuses the pin path).
-        selectVenue(matches[0].id);
-      } else if (matches.length > 1) {
-        // A set of matches: frame them all so none stay hidden off-screen.
+      const move = typedSearchCameraMove({
+        query: trimmedMapQuery,
+        matchCount: filteredVenuesRef.current.length,
+        // Re-read at fire time: focus can return during the debounce.
+        searchFieldFocused: isMapSearchField(document.activeElement),
+        // An explicit pick (an area, a pub) already pointed the camera at an
+        // answer for this query. Do not let the timer fire late and replace it.
+        cameraOwnedByPick: searchQueryCameraOwnedRef.current === trimmedMapQuery,
+      });
+      if (move === "select-one") {
+        // Fly to the one match and open its sheet (reuses the pin path).
+        selectVenue(filteredVenuesRef.current[0].id);
+      } else if (move === "fit-many") {
+        // Frame the whole matched set so none stay hidden off-screen.
         setSearchFitToken((token) => token + 1);
       }
     }, 320);
     return () => window.clearTimeout(handle);
-  }, [trimmedMapQuery, selectVenue, ukPlaceArrival]);
+  }, [mapSearchFieldFocused, trimmedMapQuery, selectVenue, ukPlaceArrival]);
 
   // #397: a query restored from the URL (?q=) must fly to its matches exactly
   // like typed search does (#371). The typed-search effect above deliberately
@@ -1944,7 +1976,7 @@ export default function PubMap({
   // mobile active-search chip so a restored (or typed) query is never an
   // invisible filter. Leaves every other filter and the camera untouched.
   const changeMapSearchQuery = useCallback((query: string) => {
-    selectedSearchAreaQueryRef.current = null;
+    searchQueryCameraOwnedRef.current = null;
     setSearchAreaNewsArea(null);
     setFilters((current) => ({ ...current, query }));
   }, [setFilters]);
@@ -2296,7 +2328,7 @@ export default function PubMap({
   const selectSearchArea = useCallback(
     (option: MapSearchAreaOption) => {
       const journey = planAreaSelect(option);
-      selectedSearchAreaQueryRef.current = trimmedMapQuery;
+      searchQueryCameraOwnedRef.current = trimmedMapQuery;
       setSearchAreaNewsArea(option.areaNewsArea || null);
       // 1. Fly the camera to the chosen place.
       setAreaFocus((prev) => ({
@@ -2334,8 +2366,13 @@ export default function PubMap({
   // a browse pin tap. The current search input text is NOT proof of origin — only
   // an explicit result selection through this seam is.
   const selectVenueFromSearch = useCallback(
-    (id: string) => selectVenue(id, "overview", "map-search"),
-    [selectVenue],
+    (id: string) => {
+      // The reader picked a pub for this query, so the deferred typed-search
+      // move must not fit the whole matched set over their choice on blur.
+      searchQueryCameraOwnedRef.current = trimmedMapQuery;
+      selectVenue(id, "overview", "map-search");
+    },
+    [selectVenue, trimmedMapQuery],
   );
   const sharedMapSearchProps = {
     cityId,
