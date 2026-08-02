@@ -2,8 +2,10 @@
 
 import MapKey from "@/components/map/MapKey";
 import type { MapPriceLegendModel } from "@/lib/mapPriceLegend";
+import { NO_PINT_PRICE_CAP } from "@/lib/venues";
 
-const PRICE_CHOICES = [10, 7, 6, 5.5];
+/** The caps this sheet can set. The first is "Any", the one OFF value. */
+export const PRICE_CHOICES = [NO_PINT_PRICE_CAP, 7, 6, 5.5];
 
 export default function MobilePriceChoices({
   maxPrice,
@@ -30,7 +32,7 @@ export default function MobilePriceChoices({
               aria-pressed={maxPrice === price}
               onClick={() => onMaxPriceChange(price)}
             >
-              {price === 10 ? "Any" : `£${price.toFixed(2)}`}
+              {price === NO_PINT_PRICE_CAP ? "Any" : `£${price.toFixed(2)}`}
             </button>
           ))}
         </fieldset>

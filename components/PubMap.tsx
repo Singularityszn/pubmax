@@ -19,6 +19,7 @@ import {
   buildCrawlRoute,
   formatPrice,
   mergeVenueDrops,
+  NO_PINT_PRICE_CAP,
   type Filters,
   type Venue,
 } from "@/lib/venues";
@@ -3061,7 +3062,7 @@ export default function PubMap({
           nearbyCount={nearbyMapResult?.venueIds.length ?? 0}
           tflCount={tflStatus.issueCount}
           tflStatus={tflStatus.failed ? "unavailable" : !tflStatus.payload ? "checking" : tflStatus.issueCount ? "issues" : "clear"}
-          priceLabel={filters.maxPrice < 10 ? `≤£${filters.maxPrice.toFixed(2)}` : "Price"}
+          priceLabel={filters.maxPrice < NO_PINT_PRICE_CAP ? `≤£${filters.maxPrice.toFixed(2)}` : "Price"}
           drinkFiltersActive={drinkFiltersActive}
           experienceFilterLabel={
             experienceLens === "no-alcohol"
@@ -3078,7 +3079,7 @@ export default function PubMap({
           priceCapActive={
             experienceLens === "all" &&
             mapDrinkLensCategory === null &&
-            filters.maxPrice < 10
+            filters.maxPrice < NO_PINT_PRICE_CAP
           }
           areaPriceNoun={
             mapDrinkLensCategory

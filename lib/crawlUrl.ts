@@ -1,4 +1,4 @@
-import type { CrawlStyle, Filters } from "@/lib/venues";
+import { NO_PINT_PRICE_CAP, type CrawlStyle, type Filters } from "@/lib/venues";
 import { initialFilters, type CrawlMode } from "@/components/map/ControlRail";
 import {
   findBrand,
@@ -85,7 +85,7 @@ const CROSS_STYLES = new Set<CrawlStyle>([
   "sports",
   "dateNight",
 ]);
-const MAX_PRICE = { min: 4, max: 9 };
+const MAX_PRICE = { min: 4, max: NO_PINT_PRICE_CAP };
 const STOPS = { min: 4, max: 7 };
 const WINDOW = { min: 15, max: 30 };
 

@@ -6,13 +6,15 @@ import { Coins, X } from "lucide-react";
 import { useEffect, useId, useRef, useState } from "react";
 
 import type { MapPriceLegendModel } from "@/lib/mapPriceLegend";
-import type { Filters } from "@/lib/venues";
+import { NO_PINT_PRICE_CAP, type Filters } from "@/lib/venues";
 import MapKey from "@/components/map/MapKey";
 
 import "./mapPriceControl.css";
 
 const PRICE_OPTIONS: { label: string; maxPrice: number }[] = [
-  { label: "Any", maxPrice: 9 },
+  // "Any" has to be the one OFF value, or picking it leaves a cap behind that
+  // no control reads back. See NO_PINT_PRICE_CAP.
+  { label: "Any", maxPrice: NO_PINT_PRICE_CAP },
   { label: "≤ £5.50", maxPrice: 5.5 },
   { label: "≤ £7", maxPrice: 7 },
 ];
@@ -27,8 +29,8 @@ type MapPriceControlProps = {
 };
 
 function activeLabel(maxPrice: number): string {
-  // Default product filter is ≤£7 — keep the FAB as "Prices" (not cryptic "≤£7").
-  // Only surface a £ label when the user tightens below the default band.
+  // A fresh visitor has no cap, so the FAB reads "Prices" (not a cryptic "≤£10").
+  // Only surface a £ label when the reader tightens to the cheapest band.
   if (maxPrice <= 5.5) return "≤£5.50";
   return "Prices";
 }
@@ -160,7 +162,7 @@ export default function MapPriceControl({
                 {PRICE_OPTIONS.map((option) => {
                   const on =
                     option.label === "Any"
-                      ? filters.maxPrice >= 9
+                      ? filters.maxPrice >= NO_PINT_PRICE_CAP
                       : Math.abs(filters.maxPrice - option.maxPrice) < 0.01;
                   return (
                     <button
