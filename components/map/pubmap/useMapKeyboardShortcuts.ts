@@ -6,6 +6,9 @@ type KeyboardShortcutArgs = {
   closePlanning: () => void;
   closeComposer: () => void;
   setSelectedVenueId: Dispatch<SetStateAction<string>>;
+  /** D4 — the Drop pub picker is topmost, and Escape must be a way out of it. */
+  logIntentFallbackVisible: boolean;
+  dismissLogIntent: () => void;
 };
 
 // Keyboard shortcuts: "/" focuses search (unless already typing), Esc clears
@@ -18,6 +21,8 @@ export function useMapKeyboardShortcuts({
   closePlanning,
   closeComposer,
   setSelectedVenueId,
+  logIntentFallbackVisible,
+  dismissLogIntent,
 }: KeyboardShortcutArgs) {
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -38,7 +43,12 @@ export function useMapKeyboardShortcuts({
           search.focus();
         }
       } else if (event.key === "Escape") {
-        // Topmost first: planner (higher z on mobile) then venue detail.
+        // Topmost first: the Drop pub picker, then the planner (higher z on
+        // mobile), then venue detail.
+        if (logIntentFallbackVisible) {
+          dismissLogIntent();
+          return;
+        }
         if (planningOpen) {
           closePlanning();
           return;
@@ -46,11 +56,20 @@ export function useMapKeyboardShortcuts({
         setSelectedVenueId((current) => {
           if (!current) return current;
           closeComposer();
+          // Closing the pub ends the Drop flow, same as the sheet's own X.
+          dismissLogIntent();
           return "";
         });
       }
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [closeComposer, closePlanning, planningOpen, setSelectedVenueId]);
+  }, [
+    closeComposer,
+    closePlanning,
+    dismissLogIntent,
+    logIntentFallbackVisible,
+    planningOpen,
+    setSelectedVenueId,
+  ]);
 }

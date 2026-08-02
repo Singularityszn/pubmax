@@ -1,3 +1,5 @@
+import { X } from "lucide-react";
+
 import {
   formatLogNearbyDistance,
   type LogNearbyCandidate,
@@ -22,6 +24,7 @@ export function LogIntentFallback({
   onPrefetchVenue,
   onFocusSearch,
   onResetFilters,
+  onDismiss,
 }: {
   candidates: LogNearbyCandidate[];
   origin: LogNearbyOriginSource | null;
@@ -30,12 +33,26 @@ export function LogIntentFallback({
   onPrefetchVenue: (id: string) => void;
   onFocusSearch: () => void;
   onResetFilters: () => void;
+  /** D4 — the desktop panel's own way out. The phone sheet already has one. */
+  onDismiss?: () => void;
 }) {
   const listed = candidates.length > 0 && origin !== null;
   return (
     <div className="logIntentFallback" role="status" aria-live="polite">
       <div>
-        <strong>Pick a pub to log a Pint Drop</strong>
+        <div className="logIntentHead">
+          <strong>Pick a pub to log a Pint Drop</strong>
+          {onDismiss ? (
+            <button
+              type="button"
+              className="logIntentClose"
+              onClick={onDismiss}
+              aria-label="Close the pub picker"
+            >
+              <X size={16} aria-hidden="true" />
+            </button>
+          ) : null}
+        </div>
         <p className="description">
           {!listed
             ? "We won’t guess which pub you’re in. Search for it, or tap it on the map. Then we’ll open the Pint Drop composer."

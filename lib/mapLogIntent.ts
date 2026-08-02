@@ -158,6 +158,20 @@ export function hasMapLogIntent(query: QueryLike): boolean {
   return new URLSearchParams(normalized).get("log") === "1";
 }
 
+/**
+ * D4 — leaving the Drop flow must take `log=1` with it. The param survived
+ * every close (useCrawlUrl keeps it as an owned passthrough), so closing the
+ * venue sheet reopened the pub picker and closing the picker left the flag
+ * armed for the next close. The reader could not get out.
+ * Returns the query WITHOUT a leading "?", empty when nothing else is left.
+ */
+export function clearMapLogIntentSearch(search: string): string {
+  const normalized = search.startsWith("?") ? search.slice(1) : search;
+  const params = new URLSearchParams(normalized);
+  params.delete("log");
+  return params.toString();
+}
+
 export function shouldRunMapLogIntent(input: {
   hasLogIntent: boolean;
   handled: boolean;

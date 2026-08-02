@@ -20,6 +20,40 @@
   color: var(--ink);
 }
 
+.logIntentHead {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+/* D4 — the desktop panel's own way out. It also clears `log=1`, so the picker
+   stays shut instead of rearming on the next close. */
+.logIntentClose {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 44px;
+  height: 44px;
+  margin: -10px -8px -10px 0;
+  border: 0;
+  border-radius: var(--radius);
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  transition:
+    background 0.15s ease,
+    color 0.15s ease;
+}
+
+.logIntentClose:hover,
+.logIntentClose:focus-visible {
+  background: color-mix(in srgb, var(--brass) 12%, transparent);
+  color: var(--ink);
+  outline: none;
+}
+
 .logIntentFallback strong {
   display: block;
   font-family: var(--font-display, var(--serif));

@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   buildLogNearbyCandidates,
+  clearMapLogIntentSearch,
   formatLogNearbyDistance,
   hasMapLogIntent,
   resolveLogNearbyOrigin,
@@ -153,6 +154,27 @@ describe("hasMapLogIntent", () => {
     expect(hasMapLogIntent("sel=pub-1&log=1")).toBe(true);
     expect(hasMapLogIntent("?catalog=1")).toBe(false);
     expect(hasMapLogIntent("?log=0")).toBe(false);
+  });
+});
+
+// D4 — closing either surface must leave no `log` param, so the picker cannot
+// rearm on the next close.
+describe("clearMapLogIntentSearch", () => {
+  it("leaves no log param behind", () => {
+    expect(clearMapLogIntentSearch("?log=1")).toBe("");
+    expect(hasMapLogIntent(clearMapLogIntentSearch("?log=1"))).toBe(false);
+    expect(hasMapLogIntent(clearMapLogIntentSearch("?sel=pub-1&log=1&q=camden"))).toBe(false);
+  });
+
+  it("keeps every other param the map owns", () => {
+    expect(clearMapLogIntentSearch("?sel=pub-1&log=1&q=camden")).toBe("sel=pub-1&q=camden");
+    expect(clearMapLogIntentSearch("?plan=1&log=1")).toBe("plan=1");
+  });
+
+  it("is a no-op on a URL that never carried the flag", () => {
+    expect(clearMapLogIntentSearch("?sel=pub-1")).toBe("sel=pub-1");
+    expect(clearMapLogIntentSearch("?catalog=1")).toBe("catalog=1");
+    expect(clearMapLogIntentSearch("")).toBe("");
   });
 });
 
