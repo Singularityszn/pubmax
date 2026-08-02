@@ -263,14 +263,24 @@ for (const viewport of VIEWPORTS) {
     await expect(page.locator(".mapCanvasWrap")).toBeVisible({ timeout: 45_000 });
     await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
 
+    // The venue-type chips are read in the Filters sheet on a phone (design
+    // judgement 2026-08-01, finding 2.3), so that is where their contrast is
+    // measured.
+    await page
+      .locator(".mobileMapTopbar")
+      .getByRole("button", { name: /^Filters/ })
+      .click();
+    const filtersSheet = page.locator(
+      '.mobileSheetPortal[data-sheet-kind="filters"]',
+    );
+    await expect(filtersSheet).toBeVisible({ timeout: 45_000 });
     measurements.mapActiveChip = await expectRenderedTextContrast(
-      page.locator(".tonightArcChip.isOn").first(),
-      { surfacePseudo: "::before" },
+      filtersSheet.locator(".tonightArcChip.isOn").first(),
     );
     measurements.mapDisabledChip = await expectRenderedTextContrast(
-      page.locator('.tonightArcChip[aria-disabled="true"]'),
-      { surfacePseudo: "::before" },
+      filtersSheet.locator('.tonightArcChip[aria-disabled="true"]'),
     );
+    await page.keyboard.press("Escape");
     await expectNoHorizontalOverflow(page);
 
     const sheetResponse = await page.goto(`/map?sel=${ARNOS_ARMS_ID}`);

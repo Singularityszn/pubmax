@@ -79,7 +79,9 @@ for (const viewport of VIEWPORTS) {
       const response = await page.goto("/map");
       expect(response?.status()).toBe(200);
       await expect(page.locator(".mobileMapTopbar")).toBeVisible({ timeout: 30_000 });
-      await expect(page.locator(".mobileMapRail")).toBeVisible();
+      // ONE bar (design judgement 2026-08-01, finding 2.3): no control rail.
+      await expect(page.locator(".mobileMapRail")).toHaveCount(0);
+      await expect(page.locator(".mobileMapLocateFab")).toBeVisible();
       await expect(page.getByRole("navigation", { name: "Primary" })).toBeVisible();
       await expect(page.locator("html")).toHaveAttribute("data-theme", theme);
       await expect(page.locator(".mapLoading")).toBeHidden({ timeout: 30_000 });
@@ -135,7 +137,7 @@ for (const viewport of VIEWPORTS) {
         await expect(page.locator(selector)).toHaveCount(0);
       }
 
-      await expectTouchTargets(page.locator(".mobileMapTopbar button, .mobileMapRail button, .mobileMapUtilityCorner button, .mobileTabBar a"));
+      await expectTouchTargets(page.locator(".mobileMapTopbar button, .mobileMapUtilityCorner button, .mobileTabBar a"));
       await expectNoHorizontalOverflow(page);
       await saveShot(page, `map-${viewport.width}x${viewport.height}-${theme}`);
 

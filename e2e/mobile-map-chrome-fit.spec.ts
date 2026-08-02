@@ -1,5 +1,14 @@
 import { expect, test, type Locator, type Page } from "@playwright/test";
 
+// Rendered geometry for the phone map chrome at 320, 390 and 430.
+//
+// Design judgement 2026-08-01, finding 2.3 collapsed that chrome to ONE bar.
+// What used to stack here — a Near me / Tonight / Filters rail and a
+// full-width category band — is gone: the category toggles live in the Filters
+// sheet, Near me is a round map-edge FAB, and Tonight keeps its other two
+// homes. So the measurements below are the bar, the map-edge lane and the plan
+// pill, and the budget they may not exceed.
+
 const VIEWPORTS = [
   { width: 390, height: 844 },
   { width: 430, height: 932 },
@@ -17,15 +26,12 @@ type Rect = {
 
 type ShellLayout = {
   topbar: Rect;
-  rail: Rect;
-  arc: Rect;
   utility: Rect;
+  locate: Rect;
   plan: Rect;
-  railButtons: Array<Rect & { label: string }>;
-  railOverflowX: string;
-  railClientWidth: number;
-  railScrollWidth: number;
-  arcOverflowX: string;
+  barControls: Array<Rect & { label: string }>;
+  barClientWidth: number;
+  barScrollWidth: number;
 };
 
 test.use({
@@ -73,10 +79,12 @@ async function openPhoneMap(
   await expect(page.locator(".mobileMapTopbar")).toBeVisible({
     timeout: 45_000,
   });
-  await expect(page.locator(".mobileMapRail")).toBeVisible();
+  // One bar: neither the old rail nor the map-floating category band.
+  await expect(page.locator(".mobileMapRail")).toHaveCount(0);
   await expect(
     page.getByRole("group", { name: "Tonight arc venue types" }),
-  ).toBeVisible({ timeout: 45_000 });
+  ).toHaveCount(0);
+  await expect(page.locator(".mobileMapLocateFab")).toBeVisible();
   await expect(
     page.getByRole("button", { name: "Describe your night" }),
   ).toBeVisible();
@@ -98,23 +106,21 @@ async function shellLayout(page: Page): Promise<ShellLayout> {
         height: box.height,
       };
     };
-    const rail = document.querySelector<HTMLElement>(".mobileMapRail");
-    const arcRow = document.querySelector<HTMLElement>(".tonightArcRow");
-    if (!rail || !arcRow) throw new Error("Missing mobile map rows");
+    const bar = document.querySelector<HTMLElement>(".mobileMapTopbar");
+    if (!bar) throw new Error("Missing the phone map bar");
 
     return {
       topbar: rect(".mobileMapTopbar"),
-      rail: rect(".mobileMapRail"),
-      arc: rect(".tonightArcChips"),
-      utility: rect(".mobileMapUtilityCorner > button"),
+      utility: rect(".mobileMapTflButton"),
+      locate: rect(".mobileMapLocateFab"),
       plan: rect(".mobilePlanActivation"),
-      railButtons: [...rail.querySelectorAll<HTMLElement>("button")].map(
-        (button) => {
-          const box = button.getBoundingClientRect();
+      barControls: [...bar.querySelectorAll<HTMLElement>("a, button")].map(
+        (control) => {
+          const box = control.getBoundingClientRect();
           return {
             label:
-              button.getAttribute("aria-label") ??
-              button.textContent?.replace(/\s+/g, " ").trim() ??
+              control.getAttribute("aria-label") ??
+              control.textContent?.replace(/\s+/g, " ").trim() ??
               "",
             top: box.top,
             right: box.right,
@@ -125,10 +131,8 @@ async function shellLayout(page: Page): Promise<ShellLayout> {
           };
         },
       ),
-      railOverflowX: getComputedStyle(rail).overflowX,
-      railClientWidth: rail.clientWidth,
-      railScrollWidth: rail.scrollWidth,
-      arcOverflowX: getComputedStyle(arcRow).overflowX,
+      barClientWidth: bar.clientWidth,
+      barScrollWidth: bar.scrollWidth,
     };
   });
 }
@@ -185,7 +189,7 @@ async function dismissSheet(page: Page): Promise<void> {
 }
 
 for (const viewport of VIEWPORTS) {
-  test(`${viewport.width}px phone chrome shares one boundary and fits 164px`, async ({
+  test(`${viewport.width}px phone chrome is one bar sharing the shell boundary`, async ({
     page,
   }) => {
     await openPhoneMap(page, viewport);
@@ -196,8 +200,6 @@ for (const viewport of VIEWPORTS) {
 
     for (const [name, box] of Object.entries({
       topbar: layout.topbar,
-      rail: layout.rail,
-      arc: layout.arc,
       plan: layout.plan,
     })) {
       expect(box.left, `${name} left is inside viewport`).toBeGreaterThanOrEqual(
@@ -208,7 +210,7 @@ for (const viewport of VIEWPORTS) {
       );
     }
 
-    const shared = [layout.topbar, layout.rail, layout.arc, layout.plan];
+    const shared = [layout.topbar, layout.plan];
     expect(
       new Set(shared.map(({ left }) => Math.round(left))).size,
       "stacked surfaces share one left edge",
@@ -218,32 +220,39 @@ for (const viewport of VIEWPORTS) {
       "stacked surfaces share one right edge",
     ).toBe(1);
 
-    const chromeTop = Math.min(
-      layout.topbar.top,
-      layout.rail.top,
-      layout.arc.top,
-      layout.utility.top,
-    );
-    const chromeBottom = Math.max(
+    // The whole top chrome is the bar. Its budget is what one bar costs, not
+    // what a three-row stack used to.
+    expect(
+      layout.topbar.bottom - layout.topbar.top,
+      "phone top chrome height",
+    ).toBeLessThanOrEqual(60);
+
+    // The map-edge lane runs TfL at the top and Near me at the thumb, both
+    // right-aligned and both clear of the bar.
+    expect(layout.utility.top, "TfL clears the bar").toBeGreaterThan(
       layout.topbar.bottom,
-      layout.rail.bottom,
-      layout.arc.bottom,
+    );
+    expect(layout.locate.top, "Near me sits below TfL").toBeGreaterThan(
       layout.utility.bottom,
     );
-    expect(chromeBottom - chromeTop, "phone chrome height").toBeLessThanOrEqual(
-      164,
+    expect(layout.locate.bottom, "Near me clears the plan pill").toBeLessThanOrEqual(
+      layout.plan.top,
     );
+    expect(
+      Math.round(layout.locate.right),
+      "map-edge controls share one right edge",
+    ).toBe(Math.round(layout.utility.right));
 
-    expect(layout.railOverflowX).toBe("auto");
-    expect(layout.arcOverflowX).toBe("auto");
-    for (const button of layout.railButtons) {
-      expect(button.left, `${button.label} left is visible`).toBeGreaterThanOrEqual(
-        layout.rail.left,
+    // The bar never scrolls: every control is rendered, none is cut.
+    expect(layout.barScrollWidth).toBeLessThanOrEqual(layout.barClientWidth);
+    for (const control of layout.barControls) {
+      expect(control.left, `${control.label} left is visible`).toBeGreaterThanOrEqual(
+        layout.topbar.left,
       );
-      expect(button.right, `${button.label} right is visible`).toBeLessThanOrEqual(
-        layout.rail.right,
+      expect(control.right, `${control.label} right is visible`).toBeLessThanOrEqual(
+        layout.topbar.right,
       );
-      expect(button.height, `${button.label} tap height`).toBeGreaterThanOrEqual(
+      expect(control.height, `${control.label} tap height`).toBeGreaterThanOrEqual(
         44,
       );
     }
@@ -273,13 +282,6 @@ for (const viewport of VIEWPORTS) {
       page.getByRole("combobox", { name: "Search pubs" }),
     ).toHaveCount(0);
 
-    const pal = topbar.getByRole("button", { name: "Open Pub Pal" });
-    await tapRenderedCentre(page, pal, viewport.width, "Pub Pal");
-    await expect(
-      page.locator('.mobileSheetPortal[data-sheet-kind="pub-pal"]:visible'),
-    ).toHaveCount(1);
-    await dismissSheet(page);
-
     const more = topbar.getByRole("button", { name: "More map controls" });
     await tapRenderedCentre(page, more, viewport.width, "More map controls");
     await expect(
@@ -287,13 +289,29 @@ for (const viewport of VIEWPORTS) {
     ).toHaveCount(1);
     await dismissSheet(page);
 
-    const arc = page.getByRole("group", {
-      name: "Tonight arc venue types",
+    // Near me is the map-edge FAB now. Its state is its accessible name.
+    const nearMe = page.getByRole("button", { name: "Near me" });
+    await tapRenderedCentre(page, nearMe, viewport.width, "Near me", false);
+    await expect(page.getByRole("button", { name: /^Nearby \d+$/ })).toBeVisible({
+      timeout: 20_000,
     });
+    if (await page.locator(".mobileSheetPortal:visible").count()) {
+      await dismissSheet(page);
+    }
+
+    const filters = topbar.getByRole("button", { name: /^Filters/ });
+    await tapRenderedCentre(page, filters, viewport.width, "Filters");
+    const sheet = page.locator(
+      '.mobileSheetPortal[data-sheet-kind="filters"]:visible',
+    );
+    await expect(sheet).toHaveCount(1);
+
+    // The venue-type toggles have exactly one home on a phone: this sheet.
+    const arc = sheet.getByRole("group", { name: "Tonight arc venue types" });
+    await expect(arc).toHaveCount(1);
     const arcButtons = arc.locator(".tonightArcChip");
-    const arcButtonCount = await arcButtons.count();
-    expect(arcButtonCount).toBe(5);
-    for (let index = 0; index < arcButtonCount; index += 1) {
+    expect(await arcButtons.count()).toBe(5);
+    for (let index = 0; index < (await arcButtons.count()); index += 1) {
       const button = arcButtons.nth(index);
       const label =
         (await button.getAttribute("aria-label")) ??
@@ -314,53 +332,6 @@ for (const viewport of VIEWPORTS) {
       }
     }
 
-    const rail = page.getByRole("navigation", {
-      name: "Contextual map controls",
-    });
-
-    const nearMe = rail.getByRole("button", { name: "Near me" });
-    await tapRenderedCentre(
-      page,
-      nearMe,
-      viewport.width,
-      "Near me",
-      false,
-      rail,
-    );
-    await expect(rail.getByRole("button", { name: "Nearby" })).toBeVisible({
-      timeout: 20_000,
-    });
-    if (await page.locator(".mobileSheetPortal:visible").count()) {
-      await dismissSheet(page);
-    }
-
-    const tonight = rail.getByRole("button", { name: /^Tonight/ });
-    await tapRenderedCentre(
-      page,
-      tonight,
-      viewport.width,
-      "Tonight",
-      false,
-      rail,
-    );
-    await expect(
-      page.locator('.mobileSheetPortal[data-sheet-kind="tonight"]:visible'),
-    ).toHaveCount(1);
-    await dismissSheet(page);
-
-    const filters = rail.getByRole("button", { name: /^Filters/ });
-    await tapRenderedCentre(
-      page,
-      filters,
-      viewport.width,
-      "Filters",
-      false,
-      rail,
-    );
-    const sheet = page.locator(
-      '.mobileSheetPortal[data-sheet-kind="filters"]:visible',
-    );
-    await expect(sheet).toHaveCount(1);
     const wine = sheet
       .getByRole("group", { name: "Filter by drink shape" })
       .getByRole("button", { name: "Wine", exact: true });
@@ -373,60 +344,50 @@ for (const viewport of VIEWPORTS) {
   });
 }
 
-test("320px active rail states and safe-area Arc stay directly tappable", async ({
+test("320px keeps the whole place name and the map-edge lane tappable", async ({
   page,
 }) => {
   const viewport = VIEWPORTS[2];
   await openPhoneMap(page, viewport, "reduce", "/map?drink=wine");
 
-  const rail = page.getByRole("navigation", {
-    name: "Contextual map controls",
-  });
-  const filters = rail.getByRole("button", {
+  const topbar = page.locator(".mobileMapTopbar");
+  // The wordmark yields its column at 360px and below, so the place name is
+  // read whole rather than cut (design judgement 2026-08-01, finding 2.3).
+  await expect(topbar.locator(".mobileMapBrand")).toBeHidden();
+  const areaName = topbar.locator(".mobileMapAreaLabel");
+  const areaFit = await areaName.evaluate((element) => ({
+    clientWidth: element.clientWidth,
+    scrollWidth: element.scrollWidth,
+  }));
+  expect(
+    areaFit.scrollWidth,
+    "the place name is not truncated at 320px",
+  ).toBeLessThanOrEqual(areaFit.clientWidth);
+
+  const filters = topbar.getByRole("button", {
     name: "Filters: drinks active",
   });
-  await expect(filters.locator(".mobileMapChipCount")).toHaveText("1");
-  expect(await rail.evaluate((element) => element.scrollLeft)).toBe(0);
+  await expect(filters.locator(".mobileMapTopbarBadge")).toHaveText("1");
   await tapRenderedCentre(
     page,
     filters,
     viewport.width,
     "Active Filters",
     false,
-    rail,
+    topbar,
   );
   await expect(
     page.locator('.mobileSheetPortal[data-sheet-kind="filters"]:visible'),
   ).toHaveCount(1);
   await dismissSheet(page);
 
-  const nearMe = rail.getByRole("button", { name: "Near me" });
+  const nearMe = page.getByRole("button", { name: "Near me" });
   await tapRenderedCentre(page, nearMe, viewport.width, "Near me", false);
-  const nearby = rail.getByRole("button", { name: /^Nearby \d+$/ });
-  await expect(nearby).toBeVisible({ timeout: 20_000 });
+  await expect(page.getByRole("button", { name: /^Nearby \d+$/ })).toBeVisible({
+    timeout: 20_000,
+  });
   if (await page.locator(".mobileSheetPortal:visible").count()) {
     await dismissSheet(page);
-  }
-
-  for (const control of [
-    { locator: nearby, label: "Nearby" },
-    {
-      locator: rail.getByRole("button", { name: /^Tonight/ }),
-      label: "Tonight",
-    },
-    { locator: filters, label: "Active Filters" },
-  ]) {
-    await tapRenderedCentre(
-      page,
-      control.locator,
-      viewport.width,
-      control.label,
-      false,
-      rail,
-    );
-    if (await page.locator(".mobileSheetPortal:visible").count()) {
-      await dismissSheet(page);
-    }
   }
 
   const safeAreaRight = 32;
@@ -445,47 +406,18 @@ test("320px active rail states and safe-area Arc stay directly tappable", async 
       const element = document.querySelector<HTMLElement>(selector);
       if (!element) throw new Error(`Missing ${selector}`);
       const rect = element.getBoundingClientRect();
-      return {
-        left: rect.left,
-        right: rect.right,
-        width: rect.width,
-      };
+      return { left: rect.left, right: rect.right, width: rect.width };
     };
     return {
-      arcRow: box(".tonightArcRow"),
-      utility: box(".mobileMapUtilityCorner > button"),
+      tfl: box(".mobileMapTflButton"),
+      locate: box(".mobileMapLocateFab"),
     };
   });
-  expect(safeAreaLayout.utility.right).toBe(viewport.width - safeAreaRight);
+  expect(safeAreaLayout.tfl.right).toBe(viewport.width - safeAreaRight);
   expect(
-    safeAreaLayout.utility.left - safeAreaLayout.arcRow.right,
-    "Tonight Arc content keeps a 12px gap from the safe-area TfL lane",
-  ).toBeGreaterThanOrEqual(12);
-
-  const arc = page.getByRole("group", {
-    name: "Tonight arc venue types",
-  });
-  const arcButtons = arc.locator(".tonightArcChip");
-  for (let index = 0; index < (await arcButtons.count()); index += 1) {
-    const button = arcButtons.nth(index);
-    const label =
-      (await button.getAttribute("aria-label")) ??
-      (await button.textContent())?.trim() ??
-      `Tonight Arc control ${index + 1}`;
-    const disabled = (await button.getAttribute("aria-disabled")) === "true";
-    const pressedBefore = await button.getAttribute("aria-pressed");
-    await tapRenderedCentre(page, button, viewport.width, label);
-    if (disabled) {
-      await expect(button).toHaveAttribute("aria-expanded", "true");
-      await tapRenderedCentre(page, button, viewport.width, `Close ${label}`);
-      await expect(button).toHaveAttribute("aria-expanded", "false");
-    } else {
-      await expect(button).toHaveAttribute(
-        "aria-pressed",
-        pressedBefore === "true" ? "false" : "true",
-      );
-    }
-  }
+    Math.round(safeAreaLayout.locate.right),
+    "both map-edge controls honour the safe-area inset",
+  ).toBe(viewport.width - safeAreaRight);
 });
 
 test("390px recorded map journey reaches Filters and a painted pin", async ({
@@ -496,7 +428,7 @@ test("390px recorded map journey reaches Filters and a painted pin", async ({
   await page.waitForTimeout(500);
 
   const filters = page
-    .getByRole("navigation", { name: "Contextual map controls" })
+    .locator(".mobileMapTopbar")
     .getByRole("button", { name: /^Filters/ });
   await tapRenderedCentre(page, filters, viewport.width, "Filters");
   const filtersSheet = page.locator(
@@ -543,8 +475,8 @@ test("390px recorded map journey reaches Filters and a painted pin", async ({
   let pinOpened = false;
   for (let cameraStage = 0; cameraStage < 7 && !pinOpened; cameraStage += 1) {
     let cameraAdvanced = false;
-    for (let y = 190; y <= 670 && !pinOpened && !cameraAdvanced; y += 20) {
-      for (let x = 20; x <= 340; x += 20) {
+    for (let y = 110; y <= 670 && !pinOpened && !cameraAdvanced; y += 20) {
+      for (let x = 20; x <= 300; x += 20) {
         await page.mouse.click(x, y);
         await page.waitForTimeout(40);
         if (await venueSheet.count()) {
