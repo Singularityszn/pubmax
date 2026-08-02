@@ -70,9 +70,10 @@ export type NearMeCameraFrame = {
   center: [number, number];
   zoom: number;
   /**
-   * MapLibre easeTo `offset` in pixels. Positive y moves the camera centre
-   * down, so the reader appears higher on screen — above the sheet, not under
-   * it. Same sign convention as `mobileSelectCameraOffset`.
+   * MapLibre easeTo `offset` in pixels: where the target sits relative to the
+   * container centre. Measured on the shipped map, positive y puts the target
+   * BELOW the centre, so lifting the reader above a bottom sheet needs a
+   * negative y.
    */
   offset: [number, number];
 };
@@ -142,7 +143,7 @@ export function nearMeCameraFrame(input: {
     Math.max(NEAR_ME_MIN_ZOOM, zoomForMetresPerPixel(needed, location.lat)),
   );
   const bandCentre = (band.top + band.bottom) / 2;
-  const offsetY = Math.round(viewport.height / 2 - bandCentre);
+  const offsetY = Math.round(bandCentre - viewport.height / 2);
   return {
     center: [location.lng, location.lat],
     zoom,
@@ -165,9 +166,9 @@ export function nearMeVisibleBounds(
   const [centreLng, centreLat] = frame.center;
   const resolution = metresPerPixel(frame.zoom, centreLat);
   // Screen y grows downward, so a reader sitting BELOW the band centre means
-  // the band shows ground to the north of them. The offset lifts the reader by
-  // offset.y pixels, which is what closes that gap.
-  const readerScreenY = viewport.height / 2 - frame.offset[1];
+  // the band shows ground to the north of them. A negative offset lifts the
+  // reader up the screen, which is what closes that gap.
+  const readerScreenY = viewport.height / 2 + frame.offset[1];
   const bandCentreGapPx = readerScreenY - (band.top + band.bottom) / 2;
   const halfWidthM = (viewport.width / 2) * resolution;
   const halfHeightM = ((band.bottom - band.top) / 2) * resolution;
