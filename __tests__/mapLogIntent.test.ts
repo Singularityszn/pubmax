@@ -4,8 +4,10 @@ import {
   buildLogNearbyCandidates,
   formatLogNearbyDistance,
   hasMapLogIntent,
+  resolveLogNearbyOrigin,
   resolveMapLogIntent,
   shouldRunMapLogIntent,
+  LOG_NEARBY_MAX_KM,
 } from "@/lib/mapLogIntent";
 
 describe("resolveMapLogIntent", () => {
@@ -218,6 +220,71 @@ describe("buildLogNearbyCandidates", () => {
     expect(ranked.map((c) => c.id)).toEqual(["near", "mid", "far"]);
     expect(ranked[0].distanceKm).toBeLessThan(ranked[1].distanceKm!);
     expect(ranked[1].distanceKm).toBeLessThan(ranked[2].distanceKm!);
+  });
+});
+
+describe("resolveLogNearbyOrigin", () => {
+  it("falls back to the map centre when the reader gave no location", () => {
+    expect(
+      resolveLogNearbyOrigin({ userLocation: null, mapCenter: [-0.143, 51.539] }),
+    ).toEqual({ origin: { lat: 51.539, lng: -0.143 }, source: "map" });
+  });
+
+  it("prefers a real location fix over the map centre", () => {
+    expect(
+      resolveLogNearbyOrigin({
+        userLocation: { lat: 51.514, lng: -0.128 },
+        mapCenter: [-0.143, 51.539],
+      }),
+    ).toEqual({ origin: { lat: 51.514, lng: -0.128 }, source: "user" });
+  });
+
+  it("reports no origin when neither is known", () => {
+    expect(resolveLogNearbyOrigin({ userLocation: null, mapCenter: null })).toBeNull();
+  });
+});
+
+// D1 — the shipped picker offered the same five pubs to every visitor, from
+// Finchley to Bexleyheath, about twenty miles apart. The list must come from
+// the area the reader is looking at.
+describe("log picker shortlist follows the viewport centre", () => {
+  const LONDON_PUBS = [
+    { id: "finchley-usc", name: "Finchley United Services Club Ltd", latitude: 51.6, longitude: -0.187 },
+    { id: "bohemia", name: "The Bohemia", latitude: 51.607, longitude: -0.185 },
+    { id: "elephant", name: "The Elephant Inn", latitude: 51.593, longitude: -0.196 },
+    { id: "bexley-wmc", name: "Bexleyheath Working Mens Club", latitude: 51.457, longitude: 0.147 },
+    { id: "delicio", name: "Delicio (Bexleyheath)", latitude: 51.458, longitude: 0.149 },
+    { id: "camden-head", name: "Camden Head", latitude: 51.539, longitude: -0.143 },
+    { id: "falcon", name: "The Falcon, Camden", latitude: 51.537, longitude: -0.139 },
+  ];
+
+  function pickerFor(mapCenter: [number, number]): string[] {
+    const resolved = resolveLogNearbyOrigin({ userLocation: null, mapCenter });
+    return buildLogNearbyCandidates(
+      LONDON_PUBS,
+      undefined,
+      resolved?.origin ?? null,
+      LOG_NEARBY_MAX_KM,
+    ).map((candidate) => candidate.id);
+  }
+
+  it("offers Camden pubs over a Camden viewport", () => {
+    expect(pickerFor([-0.143, 51.539])).toEqual(["camden-head", "falcon"]);
+  });
+
+  it("offers Bexleyheath pubs over a Bexleyheath viewport", () => {
+    expect(pickerFor([0.148, 51.457])).toEqual(["bexley-wmc", "delicio"]);
+  });
+
+  it("offers nothing rather than a distant pub the reader cannot be in", () => {
+    // Mid-Channel: every London pub is far away, so the honest list is empty.
+    expect(pickerFor([1.2, 50.6])).toEqual([]);
+  });
+
+  it("keeps the plain filtered order when no origin is known", () => {
+    expect(
+      buildLogNearbyCandidates(LONDON_PUBS, undefined, null, LOG_NEARBY_MAX_KM).map((c) => c.id),
+    ).toEqual(["finchley-usc", "bohemia", "elephant", "bexley-wmc", "delicio"]);
   });
 });
 
