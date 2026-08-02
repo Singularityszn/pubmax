@@ -13,6 +13,7 @@ import {
   formatAreaDistance,
   LOCALITY_RADIUS_KM,
   planAreaSelect,
+  type AreaDistanceFrom,
   type AreaElsewhereOption,
 } from "@/lib/areaButton";
 import { getNightArea } from "@/lib/nightAreas";
@@ -65,20 +66,45 @@ describe("areaUnderCentre — the live centre label", () => {
 
 describe("formatAreaDistance — honest, direct register", () => {
   it("reads close distances in metres and far ones in kilometres", () => {
-    expect(formatAreaDistance(0)).toBe("right here");
-    expect(formatAreaDistance(0.05)).toBe("right here");
-    expect(formatAreaDistance(0.42)).toBe("420 m away");
-    expect(formatAreaDistance(1.25)).toBe("1.3 km away");
+    expect(formatAreaDistance(0, "reader")).toBe("right here");
+    expect(formatAreaDistance(0.05, "reader")).toBe("right here");
+    expect(formatAreaDistance(0.42, "reader")).toBe("420 m away");
+    expect(formatAreaDistance(1.25, "reader")).toBe("1.3 km away");
   });
 
   it("returns empty for a non-finite or negative distance", () => {
+    expect(formatAreaDistance(Number.NaN, "reader")).toBe("");
+    expect(formatAreaDistance(-1, "reader")).toBe("");
     expect(formatAreaDistance(Number.NaN)).toBe("");
     expect(formatAreaDistance(-1)).toBe("");
+  });
+
+  // "away" is a distance from the READER. The map centre is not the reader, so
+  // a map-measured row may not borrow the word, and it names what it measured
+  // from instead of leaving the reader to assume.
+  it("never says away when the distance was measured from the map centre", () => {
+    for (const km of [0, 0.05, 0.42, 1.25, 9]) {
+      expect(formatAreaDistance(km, "map")).not.toContain("away");
+      expect(formatAreaDistance(km, "map")).toContain("map centre");
+    }
+    expect(formatAreaDistance(0.42, "map")).toBe("420 m from map centre");
+    expect(formatAreaDistance(1.25, "map")).toBe("1.3 km from map centre");
+    expect(formatAreaDistance(0.05, "map")).toBe("at the map centre");
+  });
+
+  it("claims the reader only when a caller says so", () => {
+    // A caller that told us nothing has earned no claim on the reader.
+    expect(formatAreaDistance(0.42)).toBe("420 m from map centre");
+    expect(formatAreaDistance(0.05)).not.toBe("right here");
   });
 });
 
 describe("cheapestDrinksInArea - ranking + fail-soft pricing", () => {
   const soho = getNightArea("piccadilly-soho");
+  const fromMapCentre: AreaDistanceFrom = {
+    point: [soho.centre.lng, soho.centre.lat],
+    origin: "map",
+  };
   const inArea = (id: string, extra: Partial<Venue> = {}) =>
     venue({
       id,
@@ -93,10 +119,7 @@ describe("cheapestDrinksInArea - ranking + fail-soft pricing", () => {
       inArea("cheap", { cheapestPrice: 4.5 }),
       inArea("mid", { cheapestPrice: 5.9 }),
     ];
-    const rows = cheapestDrinksInArea(soho, venues, [
-      soho.centre.lng,
-      soho.centre.lat,
-    ]);
+    const rows = cheapestDrinksInArea(soho, venues, fromMapCentre);
     expect(rows.map((r) => r.id)).toEqual(["cheap", "mid", "dear"]);
     expect(rows[0].priceLabel).toBe("£4.50");
   });
@@ -106,10 +129,7 @@ describe("cheapestDrinksInArea - ranking + fail-soft pricing", () => {
       inArea("baseline", { cheapestPrice: 5.0 }),
       inArea("dropped", { cheapestPrice: 6.0, latestContributorPrice: 4.2 }),
     ];
-    const rows = cheapestDrinksInArea(soho, venues, [
-      soho.centre.lng,
-      soho.centre.lat,
-    ]);
+    const rows = cheapestDrinksInArea(soho, venues, fromMapCentre);
     expect(rows[0].id).toBe("dropped");
     expect(rows[0].priceLabel).toBe("£4.20");
   });
@@ -119,10 +139,7 @@ describe("cheapestDrinksInArea - ranking + fail-soft pricing", () => {
       inArea("unpriced", { cheapestPrice: null }),
       inArea("priced", { cheapestPrice: 5.5 }),
     ];
-    const rows = cheapestDrinksInArea(soho, venues, [
-      soho.centre.lng,
-      soho.centre.lat,
-    ]);
+    const rows = cheapestDrinksInArea(soho, venues, fromMapCentre);
     expect(rows.map((r) => r.id)).toEqual(["priced", "unpriced"]);
     expect(rows[1].priceLabel).toBe("no priced pints yet");
     expect(rows[1].price).toBeNull();
@@ -156,7 +173,7 @@ describe("cheapestDrinksInArea - ranking + fail-soft pricing", () => {
     const rows = cheapestDrinksInArea(
       soho,
       venues,
-      [soho.centre.lng, soho.centre.lat],
+      fromMapCentre,
       10,
       whiskyPrices,
       "Whisky",
@@ -187,7 +204,7 @@ describe("cheapestDrinksInArea - ranking + fail-soft pricing", () => {
     const rows = cheapestDrinksInArea(
       soho,
       [...near, faraway],
-      [soho.centre.lng, soho.centre.lat],
+      fromMapCentre,
     );
     expect(rows).toHaveLength(10);
     expect(rows.some((r) => r.id === "faraway")).toBe(false);
@@ -210,9 +227,10 @@ describe("cheapestDrinksNearPoint - ad-hoc locality/borough ring", () => {
     );
     expect(rows.map((r) => r.id)).toEqual(["cheap", "dear"]);
     expect(rows[0].priceLabel).toBe("£4.10");
-    // Distance is measured from the centroid the camera flew to, so a venue a
-    // couple hundred metres off reads as a short metres-away hop.
-    expect(rows[0].distanceLabel).toMatch(/m away$/);
+    // Distance is measured from the centroid the camera flew to. That is a map
+    // point, never the reader, so the row names it rather than saying "away".
+    expect(rows[0].distanceLabel).toMatch(/^\d+ m from map centre$/);
+    expect(rows[0].distanceLabel).not.toContain("away");
   });
 
   it("excludes venues outside the ~1.2km ring and caps at ten", () => {
@@ -362,7 +380,10 @@ describe("area rows under an incomplete drink read", () => {
         longitude: soho.centre.lng,
       }),
     ];
-    const centre: [number, number] = [soho.centre.lng, soho.centre.lat];
+    const centre: AreaDistanceFrom = {
+      point: [soho.centre.lng, soho.centre.lat],
+      origin: "map",
+    };
     const degraded = cheapestDrinksInArea(
       soho,
       venues,

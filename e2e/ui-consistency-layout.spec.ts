@@ -406,11 +406,7 @@ async function measureSurfaceAssertions(
   if (surface === "map-first-visit") {
     const names =
       viewport.width <= 640
-        ? [
-            "mobile contextual controls",
-            "Tonight Arc panel",
-            "Describe your night",
-          ]
+        ? ["mobile map topbar", "Describe your night"]
         : [
             "desktop map navigation",
             "Tonight Arc panel",
@@ -444,12 +440,6 @@ async function measureSurfaceAssertions(
     const topbar = panels.find(
       (candidate) => candidate.name === "mobile map topbar",
     );
-    const arc = panels.find(
-      (candidate) => candidate.name === "Tonight Arc panel",
-    );
-    const rail = panels.find(
-      (candidate) => candidate.name === "mobile contextual controls",
-    );
     const notice = panels.find(
       (candidate) => candidate.name === "analytics notice",
     );
@@ -459,8 +449,9 @@ async function measureSurfaceAssertions(
     const credit = panels.find(
       (candidate) => candidate.name === "map credit",
     );
-    const chromeHeight =
-      topbar && arc ? round(arc.bottom - topbar.top) : Number.NaN;
+    // The phone map chrome is ONE bar (design judgement 2026-08-01, finding
+    // 2.3), so the whole stack is the bar's own height, not a three-row band.
+    const chromeHeight = topbar ? round(topbar.bottom - topbar.top) : Number.NaN;
     assertMeasured(
       assertions,
       surface,
@@ -469,8 +460,8 @@ async function measureSurfaceAssertions(
       Number.isFinite(chromeHeight) && chromeHeight <= 164,
       `${chromeHeight}px`,
     );
-    const railMetrics = await page
-      .locator(".mobileMapRail")
+    const barMetrics = await page
+      .locator(".mobileMapTopbar")
       .evaluate((element) => ({
         clientWidth: element.clientWidth,
         scrollWidth: element.scrollWidth,
@@ -479,9 +470,9 @@ async function measureSurfaceAssertions(
       assertions,
       surface,
       viewport.width,
-      "phone filters stay in one uncut row",
-      railMetrics.scrollWidth <= railMetrics.clientWidth,
-      `scroll ${railMetrics.scrollWidth}px; client ${railMetrics.clientWidth}px; rail ${rail?.left}-${rail?.right}px`,
+      "phone controls stay in one uncut row",
+      barMetrics.scrollWidth <= barMetrics.clientWidth,
+      `scroll ${barMetrics.scrollWidth}px; client ${barMetrics.clientWidth}px; bar ${topbar?.left}-${topbar?.right}px`,
     );
     const overlap =
       notice && credit
@@ -673,7 +664,7 @@ async function captureSurface(
 
   const rows = [
     await row(page, "mobile map topbar", ".mobileMapTopbar > a, .mobileMapTopbar > button"),
-    await row(page, "mobile contextual controls", ".mobileMapRail > button"),
+    await row(page, "map edge controls", ".mobileMapUtilityCorner > button"),
     await row(page, "Tonight Arc controls", ".tonightArcRow > button"),
     await row(
       page,
@@ -687,6 +678,7 @@ async function captureSurface(
         ".mapSearchSuggest--toolbar > label",
         ".mapToolbarDesktopExtras .favoritePintControl",
         ".mapToolbar > .mapToolbarRow > .conditionsChip",
+        ".mapToolbarLensBtn",
         ".mapToolbarDrinksBtn",
         ".zonePickerBtn",
         ".planBtn",
@@ -703,7 +695,6 @@ async function captureSurface(
   const panelCandidates = await Promise.all([
     panel(page, "mobile map chrome", ".mobileMapChrome"),
     panel(page, "mobile map topbar", ".mobileMapTopbar"),
-    panel(page, "mobile contextual controls", ".mobileMapRail"),
     panel(page, "Tonight Arc panel", ".tonightArcChips"),
     panel(page, "Describe your night", ".mobilePlanActivation"),
     panel(page, "analytics notice", ".analyticsConsentPrompt"),

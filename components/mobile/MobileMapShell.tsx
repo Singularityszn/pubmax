@@ -1,28 +1,17 @@
 "use client";
 
 import Link from "next/link";
-import { Ellipsis, LocateFixed, MapPin, Route, Search, SlidersHorizontal, Sparkles, TrainFront, X } from "lucide-react";
+import { Ellipsis, LocateFixed, LocateOff, Map as MapGlyph, Route, Search, SlidersHorizontal, TrainFront, X } from "lucide-react";
 import { useCallback } from "react";
 
 import PubmaxxWordmark from "@/components/brand/PubmaxxWordmark";
-import { Chip } from "@/components/ui/chip";
 import { IconButton } from "@/components/ui/icon-button";
 import { Sheet } from "@/components/ui/sheet";
-import { buildFiltersChip, buildNearMeChip, buildTflCorner } from "@/lib/mapChromeTiers";
-import type { MapOverlay, MapSheetKind } from "@/lib/mobileShell";
+import { areaChipClaim, areaChipClaimPrefix, type MapPlaceOrigin } from "@/lib/areaButton";
+import { buildFiltersChip, buildNearMeChip, buildTflCorner, type CornerUtilityModel, type PrimaryChipModel } from "@/lib/mapChromeTiers";
+import { MAP_SHEET_TITLES, type MapOverlay, type MapSheetKind } from "@/lib/mobileShell";
 
 import "./mobileMapShell.css";
-
-const SHEET_TITLES: Partial<Record<MapOverlay, string>> = {
-  filters: "Prices and places",
-  tfl: "TfL live",
-  tonight: "Tonight",
-  layers: "Map controls",
-  "pub-pal": "Pub Pal",
-  moment: "Choose a pub",
-  "near-me": "Cheapest listed near you",
-  area: "This area",
-};
 
 const CONTEXTUAL_SHEETS: readonly MapSheetKind[] = [
   "filters",
@@ -35,22 +24,64 @@ const CONTEXTUAL_SHEETS: readonly MapSheetKind[] = [
   "area",
 ];
 
-function PalSignalAvatar() {
+/**
+ * The map edge, top to bottom: TfL at the top, Near me at the thumb.
+ *
+ * Near me is a round FAB rather than a bar chip because that is what a map
+ * reader already knows a locate control looks like, and because the one top
+ * bar has no room left at 320px (design judgement 2026-08-01, finding 2.3).
+ * Its state stays in the accessible name: "Near me", "Locating", "Nearby 12",
+ * "Try near me".
+ */
+function MapEdgeControls({
+  tfl,
+  tflOpen,
+  onOpenTfl,
+  nearMe,
+  nearbyCount,
+  onNearMe,
+}: {
+  tfl: CornerUtilityModel;
+  tflOpen: boolean;
+  onOpenTfl: () => void;
+  nearMe: PrimaryChipModel;
+  nearbyCount: number;
+  onNearMe: () => void;
+}) {
   return (
-    <span className="mobilePalAvatar" aria-hidden="true">
-      <svg viewBox="0 0 40 40">
-        <path className="mobilePalAvatarBack" d="m11 14-5-5 2 13m21-8 5-5-2 13" />
-        <path className="mobilePalAvatarHead" d="M8 17c2-12 22-12 24 0 2 12-4 19-12 19S6 29 8 17Z" />
-        <path className="mobilePalAvatarMuzzle" d="M14 24c3-3 9-3 12 0 2 5-1 8-6 8s-8-3-6-8Z" />
-        <circle cx="15" cy="20" r="1.6" /><circle cx="25" cy="20" r="1.6" />
-        <path d="M18 25h4l-2 2Z" />
-      </svg>
-    </span>
+    <div className="mobileMapUtilityCorner" aria-label="Map utilities">
+      <IconButton className="mobileMapTflButton" aria-label={tfl.ariaLabel} aria-expanded={tflOpen} onClick={onOpenTfl}>
+        <TrainFront size={19} />
+        {tfl.statusSuffix ? <span className="mobileMapCornerSuffix" aria-hidden="true">{tfl.statusSuffix}</span> : null}
+        {tfl.badge ? <span className="mobileMapCornerBadge">{tfl.badge}</span> : null}
+      </IconButton>
+      <button
+        type="button"
+        className="mobileMapLocateFab"
+        aria-label={nearMe.label}
+        aria-pressed={nearMe.pressed}
+        disabled={nearMe.disabled}
+        onClick={onNearMe}
+      >
+        <LocateFixed size={20} aria-hidden="true" />
+        {nearMe.pressed && nearbyCount ? (
+          <span className="mobileMapCornerBadge" aria-hidden="true">{nearbyCount}</span>
+        ) : null}
+      </button>
+    </div>
   );
 }
 
-export default function MobileMapShell({ cityLabel, limitedCoverage, overlay, onOverlayChange, activeQuery, onClearQuery, onNearMe, nearMeStatus, nearbyCount, tonightCount, tflCount, tflStatus, priceLabel, drinkFiltersActive, experienceFilterLabel, priceCapActive, areaPriceNoun, zoneActive, planOpen, planActive, planStopCount, planInteractive, venueListOpen, bandNoticeOpen, onPlan, searchContent, filtersContent, tflContent, tonightContent, layersContent, palContent, momentContent, nearMeContent, areaContent }: {
+export default function MobileMapShell({ cityLabel, cityLabelOrigin, limitedCoverage, overlay, onOverlayChange, activeQuery, onClearQuery, onNearMe, nearMeStatus, nearMeError, onDismissNearMeError, nearbyCount, tflCount, tflStatus, priceLabel, drinkFiltersActive, experienceFilterLabel, priceCapActive, areaPriceNoun, zoneActive, planOpen, planActive, planStopCount, planInteractive, venueListOpen, bandNoticeOpen, onPlan, searchContent, filtersContent, tflContent, tonightContent, layersContent, palContent, momentContent, nearMeContent, areaContent }: {
   cityLabel: string;
+  /**
+   * Whether that name is where the READER is, or only what the map is looking
+   * at. A granted location inside the named area earns "reader"; everything
+   * else is "map". The chip carries the answer in its glyph and its accessible
+   * name, because a location pin beside a place name reads as "you are here"
+   * to a reader who never gave the map a location.
+   */
+  cityLabelOrigin: MapPlaceOrigin;
   /** Base-pub-only arrival: omit city-guide controls that cannot answer here. */
   limitedCoverage: boolean;
   overlay: MapOverlay;
@@ -61,8 +92,11 @@ export default function MobileMapShell({ cityLabel, limitedCoverage, overlay, on
   onClearQuery: () => void;
   onNearMe: () => void;
   nearMeStatus: "idle" | "requesting" | "ready" | "error";
+  /** Why Near me could not place the reader. Null while it can, or has not run. */
+  nearMeError: string | null;
+  /** Clears that message, so the map is never left holding a stale reason. */
+  onDismissNearMeError: () => void;
   nearbyCount: number;
-  tonightCount: number;
   tflCount: number;
   tflStatus: "checking" | "clear" | "issues" | "unavailable";
   priceLabel: string;
@@ -91,6 +125,16 @@ export default function MobileMapShell({ cityLabel, limitedCoverage, overlay, on
   areaContent: React.ReactNode;
 }) {
   const closeSheet = useCallback(() => onOverlayChange("none"), [onOverlayChange]);
+  // The glyph is half the claim. LocateFixed is this map's "you are here" mark
+  // (the Near me chip wears it), so it may appear only when a granted location
+  // sits inside the named area. Otherwise the chip wears the map itself.
+  const areaGlyph =
+    cityLabelOrigin === "reader" ? (
+      <LocateFixed size={14} aria-hidden="true" />
+    ) : (
+      <MapGlyph size={14} aria-hidden="true" />
+    );
+  const areaClaim = areaChipClaim(cityLabelOrigin, cityLabel);
 
   if (limitedCoverage) {
     return (
@@ -100,7 +144,12 @@ export default function MobileMapShell({ cityLabel, limitedCoverage, overlay, on
             <PubmaxxWordmark />
           </Link>
           <span className="mobileMapArea mobileMapAreaStatic">
-            <MapPin size={14} aria-hidden="true" />
+            {areaGlyph}
+            {/* The visible chip is one short name. The claim behind it is read
+                out here, so a screen reader is told what the name IS. */}
+            <span className="mobileMapAreaClaim">
+              {areaChipClaimPrefix(cityLabelOrigin)}
+            </span>
             <span className="mobileMapAreaLabel">{cityLabel}</span>
           </span>
         </header>
@@ -126,6 +175,13 @@ export default function MobileMapShell({ cityLabel, limitedCoverage, overlay, on
   return (
     <>
       <div className="mobileMapChrome" aria-label="Map controls">
+        {/* ONE top bar (design judgement 2026-08-01, finding 2.3). The old
+            chrome stacked three containers: this bar, a Near me / Tonight /
+            Filters rail, and a full-width category row. The category toggles
+            now live in the Filters sheet beside "Show me", Near me is a round
+            map-edge FAB, and Tonight keeps its two existing homes (the More
+            sheet's Events tab and the tab bar). Six slots is what 320px holds
+            at the 44px tap floor, so the bar cannot grow again in silence. */}
         <header className="mobileMapTopbar">
           <Link href="/" className="mobileMapBrand" aria-label="Open PUBMAXX landing page"><PubmaxxWordmark /></Link>
           <button
@@ -133,30 +189,32 @@ export default function MobileMapShell({ cityLabel, limitedCoverage, overlay, on
             className="mobileMapArea"
             aria-expanded={overlay === "area"}
             aria-haspopup="dialog"
-            aria-label={`Area: ${cityLabel}. See its cheapest ${areaPriceNoun} or go somewhere else`}
+            aria-label={`${areaClaim}. See its cheapest ${areaPriceNoun} or go somewhere else`}
             onClick={() => set("area")}
           >
-            <MapPin size={14} aria-hidden="true" />
+            {areaGlyph}
             <span className="mobileMapAreaLabel">{cityLabel}</span>
           </button>
           <IconButton aria-label="Search the map" aria-expanded={overlay === "search"} onClick={() => set("search")}><Search size={19} /></IconButton>
-          <IconButton className="mobileMapPalButton" aria-label="Open Pub Pal" aria-expanded={overlay === "pub-pal"} onClick={() => set("pub-pal")}><PalSignalAvatar /></IconButton>
+          <IconButton
+            className="mobileMapFiltersButton"
+            aria-label={filtersChip.ariaLabel}
+            aria-expanded={overlay === "filters"}
+            onClick={() => set("filters")}
+          >
+            <SlidersHorizontal size={19} />
+            {/* The badge counts refinements. The accessible name already names
+                them, so the glyph is decorative. */}
+            {filtersChip.refinements ? (
+              <span className="mobileMapTopbarBadge" aria-hidden="true">{filtersChip.refinements}</span>
+            ) : null}
+          </IconButton>
           <IconButton aria-label="More map controls" aria-expanded={overlay === "layers"} onClick={() => set("layers")}><Ellipsis size={20} /></IconButton>
         </header>
 
         {overlay === "search" ? (
           <div className="mobileMapSearchRow">{searchContent}</div>
-        ) : (
-          <nav className="mobileMapRail" aria-label="Contextual map controls">
-            {/* TIER 1 — the answer. The only primary-weight chip on the map. */}
-            <Chip className="mobileMapChipPrimary" aria-pressed={nearMe.pressed} disabled={nearMe.disabled} onClick={onNearMe}><LocateFixed size={17} />{nearMe.label}</Chip>
-            {/* TIER 2 — answer-adjacent surfaces. Filters absorbs the old
-                Drinks + price chips (both always opened this same sheet); the
-                zone picker joins as a sheet section when that lane lands. */}
-            <Chip aria-pressed={overlay === "tonight"} onClick={() => set("tonight")}><Sparkles size={17} />Tonight{tonightCount ? <span className="mobileMapChipCount">{tonightCount}</span> : null}</Chip>
-            <Chip aria-pressed={overlay === "filters"} aria-label={filtersChip.ariaLabel} onClick={() => set("filters")}><SlidersHorizontal size={17} />{filtersChip.label}{filtersChip.refinements ? <span className="mobileMapChipCount">{filtersChip.refinements}</span> : null}</Chip>
-          </nav>
-        )}
+        ) : null}
         {/* #395 R1 — active-search chip. When a query filters the map (restored
             session OR typed) and the search field is closed, surface it as a
             dismissible chip so the filter is never invisible. Tapping it clears
@@ -176,15 +234,48 @@ export default function MobileMapShell({ cityLabel, limitedCoverage, overlay, on
           </div>
         ) : null}
       </div>
-      {/* TIER 3 — TfL stays in the map's corner, out of the answer's way. */}
-      {overlay !== "search" ? (
-        <div className="mobileMapUtilityCorner" aria-label="Map utilities">
-          <IconButton aria-label={tflCorner.ariaLabel} aria-expanded={overlay === "tfl"} onClick={() => set("tfl")}>
-            <TrainFront size={19} />
-            {tflCorner.statusSuffix ? <span className="mobileMapCornerSuffix" aria-hidden="true">{tflCorner.statusSuffix}</span> : null}
-            {tflCorner.badge ? <span className="mobileMapCornerBadge">{tflCorner.badge}</span> : null}
-          </IconButton>
+      {/* Near me failed. The control alone says "Try near me", which names no
+          reason and offers no way on, so the reason docks under the one top
+          bar, with the area picker one tap away. role="alert" announces it,
+          the same as the desktop rail does. */}
+      {overlay !== "search" && nearMeError ? (
+        <div className="mobileMapNearMeAlert" role="alert">
+          <LocateOff size={17} aria-hidden="true" />
+          <p className="mobileMapNearMeAlertText">{nearMeError}</p>
+          <button
+            type="button"
+            className="mobileMapNearMeAlertDismiss"
+            aria-label="Dismiss the Near me message"
+            onClick={onDismissNearMeError}
+          >
+            <X size={17} aria-hidden="true" />
+          </button>
+          <button
+            type="button"
+            className="mobileMapNearMeAlertArea"
+            onClick={() => {
+              onDismissNearMeError();
+              onOverlayChange("area");
+            }}
+          >
+            Pick an area
+          </button>
         </div>
+      ) : null}
+      {/* The map edge, top to bottom: TfL at the top, Near me at the thumb.
+          Near me is a round FAB rather than a bar chip because that is what a
+          map reader already knows a locate control looks like, and because the
+          bar has no room left at 320px. Its state stays in the accessible
+          name ("Near me", "Locating", "Nearby 12", "Try near me"). */}
+      {overlay !== "search" ? (
+        <MapEdgeControls
+          tfl={tflCorner}
+          tflOpen={overlay === "tfl"}
+          onOpenTfl={() => set("tfl")}
+          nearMe={nearMe}
+          nearbyCount={nearbyCount}
+          onNearMe={onNearMe}
+        />
       ) : null}
       {overlay === "none" && !planOpen && !venueListOpen && !bandNoticeOpen ? (
         <button
@@ -201,7 +292,7 @@ export default function MobileMapShell({ cityLabel, limitedCoverage, overlay, on
           </span>
         </button>
       ) : null}
-      <Sheet kind={sheetKind} title={sheetKind ? SHEET_TITLES[sheetKind] ?? "Map controls" : "Map controls"} initialSnap={sheetKind === "moment" || sheetKind === "layers" || sheetKind === "near-me" || sheetKind === "area" ? "full" : "half"} onClose={closeSheet}>{sheetContent}</Sheet>
+      <Sheet kind={sheetKind} title={sheetKind ? MAP_SHEET_TITLES[sheetKind] ?? "Map controls" : "Map controls"} initialSnap={sheetKind === "moment" || sheetKind === "layers" || sheetKind === "near-me" || sheetKind === "area" ? "full" : "half"} onClose={closeSheet}>{sheetContent}</Sheet>
     </>
   );
 }

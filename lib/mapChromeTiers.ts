@@ -4,14 +4,19 @@
 // instrument-panel, not answer. This module is the single source of truth for
 // what sits where, so the shell renders hierarchy instead of a flat rail:
 //
-//   TIER 1  Near me            — THE answer; the only primary-weight chip.
-//   TIER 2  Tonight, Filters   — answer-adjacent surfaces; Filters absorbs the
-//                                old Drinks + price chips (both always opened
-//                                the same sheet) and, when the zone lens lands,
-//                                the Zone picker (its sheet section already
-//                                exists there on that branch).
+//   TIER 1  Near me            — THE answer; a round map-edge FAB, the map's
+//                                one primary action.
+//   TIER 2  Filters            — one icon-button in the single top bar. It
+//                                absorbs the old Drinks + price chips (both
+//                                always opened the same sheet), the zone
+//                                picker, and the venue-type toggles.
 //   TIER 3  TfL               — compact corner icon-button with badges, out of
 //                                the answer's way. List lives in Layers.
+//
+// Design judgement 2026-08-01, finding 2.3 collapsed the phone chrome to ONE
+// bar. Tonight left the map chrome with both of its other homes intact (the
+// More sheet's Events tab and the tab bar), because a third stacked container
+// cost more than the tap it saved.
 //
 // Pure and render-free so the hierarchy is unit-testable; the shell just maps
 // descriptors to components. Adoption notes for the in-flight chip PRs live in

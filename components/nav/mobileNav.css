@@ -89,10 +89,10 @@
 @keyframes mobileTabDropGlow {
   0%,
   100% {
-    box-shadow: 0 2px 8px color-mix(in srgb, var(--brass) 20%, transparent);
+    box-shadow: 0 2px 8px color-mix(in srgb, var(--ink-deep) 20%, transparent);
   }
   50% {
-    box-shadow: 0 2px 13px color-mix(in srgb, var(--brass) 32%, transparent);
+    box-shadow: 0 2px 13px color-mix(in srgb, var(--ink-deep) 32%, transparent);
   }
 }
 
@@ -147,7 +147,7 @@
     margin: 0 auto;
     padding: var(--tab-inset);
     list-style: none;
-    border: 1px solid color-mix(in srgb, var(--brass) 18%, var(--line));
+    border: 1px solid var(--line);
     border-radius: 16px;
     background: var(--panel-raised);
     box-shadow:
@@ -169,7 +169,7 @@
     left: var(--tab-inset);
     width: calc((100% - 2 * var(--tab-inset)) / var(--tab-count));
     border-radius: 12px;
-    background: color-mix(in srgb, var(--brass) 13%, transparent);
+    background: color-mix(in srgb, var(--ink) 9%, transparent);
     transform: translateX(calc(var(--active-index, -1) * 100%));
     z-index: 0;
     pointer-events: none;
@@ -255,15 +255,18 @@
 @media (max-width: 640px) and (hover: hover) and (pointer: fine) {
   .mobileTab:hover {
     color: var(--ink);
-    background: color-mix(in srgb, var(--brass) 8%, transparent);
+    background: color-mix(in srgb, var(--ink) 8%, transparent);
   }
 }
 
 @media (max-width: 640px) {
-  /* Active = icon tint + soft fill, not a heavy inset card that dwarfs siblings. */
+  /* Active = coral GLYPH + ink label. The glyph is the one coral mark the tab
+     bar keeps (finding 2.1's three-place accent budget), and the ink label is
+     what closes the 2.91:1 light-theme failure (finding 2.2). The gliding
+     highlight behind it carries the fill, so the tab itself stays clean. */
   .mobileTab.isActive {
-    color: var(--brass);
-    background: color-mix(in srgb, var(--brass) 12%, transparent);
+    color: var(--ink);
+    background: transparent;
     box-shadow: none;
   }
 
@@ -289,9 +292,12 @@
     margin-top: -2px;
     margin-bottom: -2px;
     border-radius: 50%;
-    background: color-mix(in srgb, var(--brass) 92%, var(--panel-raised));
-    color: var(--color-on-accent, #fdfaf2);
-    box-shadow: 0 2px 8px color-mix(in srgb, var(--brass) 20%, transparent);
+    /* Solid ink, not coral: Moment is an action circle, and coral in the tab
+       bar belongs to the active glyph alone (finding 2.1). Ink flips per
+       theme, so the circle stays the bar's strongest neutral in both. */
+    background: var(--ink);
+    color: var(--paper);
+    box-shadow: 0 2px 8px color-mix(in srgb, var(--ink-deep) 20%, transparent);
     border: 1.5px solid color-mix(in srgb, var(--panel-raised) 92%, transparent);
   }
 
@@ -301,16 +307,16 @@
   }
 
   .mobileTabPrimary:focus-visible {
-    background: color-mix(in srgb, var(--brass) 8%, transparent);
-    color: var(--brass);
+    background: color-mix(in srgb, var(--ink) 8%, transparent);
+    color: var(--ink);
   }
 
   .mobileTabPrimary:focus-visible .mobileTabLabel {
-    color: var(--brass);
+    color: var(--ink);
   }
 
   .mobileTabPrimary:focus-visible .mobileTabIcon {
-    background: var(--brass-bright, #ff8a5c);
+    background: var(--ink-soft);
     transform: translateY(-1px);
   }
 
@@ -320,7 +326,7 @@
   .mobileTabPrimary:active .mobileTabIcon {
     animation-play-state: paused;
     transform: scale(var(--press-scale-firm));
-    box-shadow: 0 1px 4px color-mix(in srgb, var(--brass) 26%, transparent);
+    box-shadow: 0 1px 4px color-mix(in srgb, var(--ink-deep) 26%, transparent);
   }
 
   .mobileTabPrimary:active {
@@ -340,16 +346,16 @@
 
 @media (max-width: 640px) and (hover: hover) and (pointer: fine) {
   .mobileTabPrimary:hover {
-    background: color-mix(in srgb, var(--brass) 8%, transparent);
-    color: var(--brass);
+    background: color-mix(in srgb, var(--ink) 8%, transparent);
+    color: var(--ink);
   }
 
   .mobileTabPrimary:hover .mobileTabLabel {
-    color: var(--brass);
+    color: var(--ink);
   }
 
   .mobileTabPrimary:hover .mobileTabIcon {
-    background: var(--brass-bright, #ff8a5c);
+    background: var(--ink-soft);
     transform: translateY(-1px);
   }
 }

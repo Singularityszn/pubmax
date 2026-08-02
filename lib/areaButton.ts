@@ -25,6 +25,30 @@ import type { Venue } from "@/lib/venues";
 export const AREA_PUB_LIMIT = 10;
 
 /**
+ * How many of those rows the SHEET prints before it hands over to the picker.
+ *
+ * The sheet answers two questions: what is cheap here, and how do I go
+ * somewhere else. Printing all ten rows answered the first and pushed the
+ * second about 650 px below the fold on a 390x844 phone, so a reader looking
+ * for "change my area" met a price list and gave up. That became load-bearing
+ * when a failed Near me started offering "Pick an area" as its way on.
+ *
+ * Three rows is the lead: enough to read as an answer, short enough that the
+ * picker's own heading lands inside the first screen. The rest are not hidden.
+ * They are on the map, which is the product, and the row under the lead names
+ * how many are left and takes the reader there.
+ */
+export const AREA_SHEET_LEAD_ROWS = 3;
+
+/** What the row under the lead says: it names the rest rather than implying
+ *  the lead is all of them. */
+export function areaSheetOverflowLabel(total: number): string {
+  const rest = Math.max(0, total - AREA_SHEET_LEAD_ROWS);
+  if (rest <= 0) return "See all on the map";
+  return rest === 1 ? "See the other one on the map" : `See the other ${rest} on the map`;
+}
+
+/**
  * Radius of the ad-hoc "area" the sheet derives around a locality/borough
  * centroid — the place a map-search result flies to that is NOT one of the
  * modelled Night Areas. A modelled area carries its own `radiusKm`; a plain
@@ -88,12 +112,84 @@ export function areaUnderCentre(
   return containing ?? nearest;
 }
 
-/** One-line distance from the map centre, direct register, no fake precision. */
-export function formatAreaDistance(km: number): string {
+/**
+ * Whose position a place claim on the map is measured against.
+ *
+ * "reader" is the person holding the phone, and only a granted browser location
+ * earns it. "map" is the camera's own centre, which is all the map knows when
+ * no location was given. The two are a different SENTENCE, not a different
+ * precision: "179 m away" answers a question about the reader, and a map that
+ * was never told where the reader is may not answer it. Every surface that
+ * prints a place or a distance takes this rather than assuming the reader.
+ */
+export type MapPlaceOrigin = "reader" | "map";
+
+/** The point row distances are measured from, carried WITH whose point it is,
+ *  so a reader-measured row can never be worded as a map-measured one. */
+export type AreaDistanceFrom = {
+  /** [lng, lat] every row distance is measured from. */
+  point: [number, number];
+  origin: MapPlaceOrigin;
+};
+
+/**
+ * May the Area chip claim the named area is where the READER stands?
+ *
+ * Only a granted location INSIDE that area's own region earns "reader". The
+ * containment test is direct rather than through areaUnderCentre, which falls
+ * back to the nearest area: a reader in Manchester would otherwise "match" a
+ * London area and the chip would name a place they are 260 km from.
+ */
+export function areaLabelOrigin(
+  area: NightArea | null | undefined,
+  reader: { lat: number; lng: number } | null | undefined,
+): MapPlaceOrigin {
+  if (!area || !reader) return "map";
+  if (!Number.isFinite(reader.lat) || !Number.isFinite(reader.lng)) return "map";
+  const km = haversineKm(
+    [reader.lng, reader.lat],
+    [area.centre.lng, area.centre.lat],
+  );
+  return km <= area.radiusKm ? "reader" : "map";
+}
+
+/**
+ * What the Area chip claims about the place it names.
+ *
+ * The chip is one short name in a narrow phone bar, so the claim rides its
+ * accessible name and its glyph rather than a longer line. "Your area" is the
+ * only wording that places the reader, and areaLabelOrigin is the one thing
+ * allowed to award it.
+ */
+export function areaChipClaimPrefix(origin: MapPlaceOrigin): string {
+  return origin === "reader" ? "Your area: " : "Area in view: ";
+}
+
+export function areaChipClaim(origin: MapPlaceOrigin, name: string): string {
+  return `${areaChipClaimPrefix(origin)}${name}`;
+}
+
+/**
+ * One-line distance, direct register, no fake precision.
+ *
+ * "away" is a distance from the READER, so it needs a granted location behind
+ * it. Without one the row names the map centre it was actually measured from.
+ * The default is "map" because that is the claim a caller that told us nothing
+ * has earned.
+ */
+export function formatAreaDistance(
+  km: number,
+  origin: MapPlaceOrigin = "map",
+): string {
   if (!Number.isFinite(km) || km < 0) return "";
-  if (km < 0.1) return "right here";
-  if (km < 1) return `${Math.round(km * 1000)} m away`;
-  return `${km.toFixed(1)} km away`;
+  if (origin === "reader") {
+    if (km < 0.1) return "right here";
+    if (km < 1) return `${Math.round(km * 1000)} m away`;
+    return `${km.toFixed(1)} km away`;
+  }
+  if (km < 0.1) return "at the map centre";
+  if (km < 1) return `${Math.round(km * 1000)} m from map centre`;
+  return `${km.toFixed(1)} km from map centre`;
 }
 
 /**
@@ -151,6 +247,7 @@ function rankCheapestDrinks(
   radiusKm: number,
   venues: Venue[],
   origin: [number, number],
+  originKind: MapPlaceOrigin,
   limit: number,
   lensPrices: ReadonlyMap<string, MapLensPrice> | null,
   lensCategoryLabel: string,
@@ -196,33 +293,36 @@ function rankCheapestDrinks(
                 lensStatus,
               ),
       distanceKm,
-      distanceLabel: formatAreaDistance(distanceKm),
+      distanceLabel: formatAreaDistance(distanceKm, originKind),
     }));
 }
 
 /**
- * Modelled area's cheapest drinks, measured from live map centre (or
- * area centre before the map settles) so the distances read honestly.
+ * Modelled area's cheapest drinks, measured from `from` — the reader's granted
+ * location, or the live map centre when there is none. An unusable point falls
+ * back to the area centre, which is a map point, so the fallback also drops any
+ * reader claim the caller made: a row may never say "away" from a point we lost.
  */
 export function cheapestDrinksInArea(
   area: NightArea,
   venues: Venue[],
-  center: [number, number],
+  from: AreaDistanceFrom,
   limit: number = AREA_PUB_LIMIT,
   lensPrices: ReadonlyMap<string, MapLensPrice> | null = null,
   lensCategoryLabel: string = "Pint",
   lensStatus: CategoryPriceIndexStatus = "ready",
 ): AreaPubRow[] {
-  const [lng, lat] = center;
-  const origin: [number, number] =
-    Number.isFinite(lng) && Number.isFinite(lat)
-      ? [lng, lat]
-      : [area.centre.lng, area.centre.lat];
+  const [lng, lat] = from.point;
+  const usable = Number.isFinite(lng) && Number.isFinite(lat);
+  const origin: [number, number] = usable
+    ? [lng, lat]
+    : [area.centre.lng, area.centre.lat];
   return rankCheapestDrinks(
     area.centre,
     area.radiusKm,
     venues,
     origin,
+    usable ? from.origin : "map",
     limit,
     lensPrices,
     lensCategoryLabel,
@@ -234,8 +334,10 @@ export function cheapestDrinksInArea(
  * Cheapest drinks within a walkable ring of an arbitrary place centroid - a
  * locality or borough a map search flew to that is not a modelled Night Area.
  * Distances are measured from the centroid itself (the place the camera lands
- * on). Returns [] when no priced-or-unpriced venue sits inside the ring, which
- * the sheet renders as its honest "no priced pints nearby yet" line.
+ * on), which is a MAP point and never the reader, so the rows are worded that
+ * way with no origin to choose. Returns [] when no priced-or-unpriced venue
+ * sits inside the ring, which the sheet renders as its honest "no priced pints
+ * nearby yet" line.
  */
 export function cheapestDrinksNearPoint(
   center: [number, number],
@@ -253,6 +355,7 @@ export function cheapestDrinksNearPoint(
     radiusKm,
     venues,
     center,
+    "map",
     limit,
     lensPrices,
     lensCategoryLabel,
@@ -332,7 +435,9 @@ export function buildAreaSheetModel(
 ): AreaSheetModel {
   return {
     areaName: area ? area.name : "",
-    pubs: area ? cheapestDrinksInArea(area, venues, center) : [],
+    pubs: area
+      ? cheapestDrinksInArea(area, venues, { point: center, origin: "map" })
+      : [],
     elsewhere: areaElsewhereOptions(cityId, now),
   };
 }

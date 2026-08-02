@@ -13,12 +13,15 @@
        rest and made the bar jump on nav to/from /map). */
     --mobile-map-top: var(--topbar-inset, calc(env(safe-area-inset-top, 0px) + 10px));
     --mobile-map-bar-h: 52px;
-    --mobile-map-rail-h: 52px;
+    /* The whole phone map chrome is ONE bar (finding 2.3), so its resting
+       height is the bar's own bottom edge. Every surface that used to clear a
+       three-row stack reads this instead of a hand-copied 118px. */
+    --mobile-map-chrome-h: calc(var(--mobile-map-top) + var(--mobile-map-bar-h));
     --mobile-map-dock-clearance: calc(var(--tabbar-h) + env(safe-area-inset-bottom, 0px) + 12px);
-    /* The TfL utility control is fixed to the right map edge (tier 3 below).
-       Publish its footprint as a LANE so any full-width overlay in the same
-       band (the Tonight Arc rail) can stop short of it instead of sliding
-       under a 44px button that would swallow its taps. */
+    /* The map-edge controls (TfL at the top, Near me at the thumb) are fixed
+       to the right map edge. Publish their footprint as a LANE so any
+       full-width overlay in the same band stops short of it instead of
+       sliding under a 44px button that would swallow its taps. */
     --mobile-map-corner-inset: max(12px, env(safe-area-inset-right));
     --mobile-map-corner-btn: 44px;
     --mobile-map-corner-lane: calc(
@@ -66,8 +69,10 @@
     display: none;
   }
 
+  /* The compass sits under the TfL button in the same right lane: chrome
+     bottom + 12px gap + the 44px button + a 10px gap. */
   .appShell .mapStage .maplibregl-ctrl-top-right {
-    top: calc(var(--mobile-map-top) + var(--mobile-map-bar-h) + 172px);
+    top: calc(var(--mobile-map-chrome-h) + 66px);
     right: 10px;
   }
 
@@ -124,7 +129,14 @@
   .mobileMapTopbar {
     min-height: var(--mobile-map-bar-h);
     display: grid;
-    grid-template-columns: minmax(64px, 1fr) minmax(0, 108px) 44px 44px 44px;
+    /* Five slots: wordmark, area, search, filters, more. The wordmark is
+       content-sized so it can never be cut mid-word, and the place name takes
+       what is left. Measured at 390x844x3, a sixth 44px control left "King's
+       Cross" 54px of a 72px name — a map that names where you are and then
+       cuts the name is worse than one that never claimed it. The 360px rule
+       below is what three controls plus a whole name cost on the narrowest
+       phone. */
+    grid-template-columns: auto minmax(0, 1fr) 44px 44px 44px;
     align-items: center;
     gap: 2px;
     /* Vertical padding 3px (was 4px): 44px control row + 3+3 padding + 1+1
@@ -147,7 +159,16 @@
 
   /* The wordmark is a real link home, so it gets a real hit target: the text is
      14px tall, the tappable box is the full 44px bar row. */
-  .mobileMapBrand { display: inline-flex; align-items: center; min-width: 0; min-height: 44px; overflow: hidden; color: var(--color-text); font-size: .7rem; text-decoration: none; }
+  .mobileMapBrand { display: inline-flex; align-items: center; min-width: 0; min-height: 44px; color: var(--color-text); font-size: .7rem; white-space: nowrap; text-decoration: none; }
+
+  /* 320px is the narrowest phone this app is measured on, and three controls
+     plus a readable place name is what it holds. The wordmark yields its
+     column there: a truncated place name would leave the map claiming a name
+     nobody can read, and the reader is already inside the app. */
+  @media (max-width: 360px) {
+    .mobileMapTopbar { grid-template-columns: minmax(0, 1fr) 44px 44px 44px; }
+    .mobileMapBrand { display: none; }
+  }
   .mobileMapBrand .pubmaxxWordmark { max-width: 100%; font-size: inherit; }
   /* Area button — the live Night Area under the map centre. Evolves the old
      static, truncated city label into a first-class 44px control that opens the
@@ -156,6 +177,10 @@
   .mobileMapArea { display: inline-flex; align-items: center; gap: 4px; min-width: 0; min-height: 44px; padding-inline: 6px; border-radius: var(--radius-sm); color: var(--color-text-soft); cursor: pointer; }
   .mobileMapArea > svg { flex: 0 0 auto; }
   .mobileMapAreaLabel { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: .72rem; font-weight: 700; }
+  /* What the name IS, for a screen reader. The button states it in its own
+     accessible name; the static arrival chip is a span, so it carries the
+     claim here. It takes no room in the 44px bar. */
+  .mobileMapAreaClaim { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
   .mobileMapArea:hover, .mobileMapArea:focus-visible { color: var(--color-text); }
   .mobileMapArea[aria-expanded="true"] { color: var(--color-text); background: var(--state-active-surface); }
   .mobileMapAreaStatic { cursor: default; }
@@ -212,94 +237,86 @@
     color: var(--color-text-soft);
   }
 
-  .mobileMapRail {
-    display: flex;
-    gap: 6px;
-    width: 100%;
-    margin-left: 0;
-    box-sizing: border-box;
-    min-height: var(--mobile-map-rail-h);
-    overflow-x: auto;
-    padding: 4px 2px;
-    scrollbar-width: none;
-    pointer-events: auto;
-    scroll-snap-type: x proximity;
+  /* The refinement count on the Filters control. The button's accessible name
+     already names the active refinements, so this is a decorative mark. */
+  .mobileMapFiltersButton { position: relative; }
+  .mobileMapTopbarBadge {
+    position: absolute;
+    top: 1px;
+    right: 1px;
+    min-width: 1.05rem;
+    height: 1.05rem;
+    display: grid;
+    place-items: center;
+    border-radius: 999px;
+    border: 1px solid var(--line);
+    background: var(--panel-raised);
+    color: var(--ink);
+    font-family: var(--font-data);
+    font-size: .62rem;
   }
-  .mobileMapRail::-webkit-scrollbar { display: none; }
-  /* Keep the shipped controls compact on narrow phones. The full row uses the
-     balanced shell boundary and remains a scroller if labels grow later. */
-  @media (max-width: 420px) {
-    .mobileMapRail { gap: 5px; }
-    .mobileMapRail > button {
-      gap: 4px;
-      padding-inline: 5px;
-      font-size: 0.78rem;
-    }
-  }
-  @media (max-width: 360px) {
-    .mobileMapRail {
-      gap: 3px;
-      padding-inline: 0;
-    }
-    .mobileMapRail > button {
-      gap: 2px;
-      padding-inline: 3px;
-      font-size: 0.72rem;
-    }
-    .mobileMapRail > button > svg {
-      width: 15px;
-      height: 15px;
-    }
-    .mobileMapChipCount {
-      min-width: 1rem;
-      height: 1rem;
-      font-size: 0.62rem;
-    }
-  }
-  /* Owner ruling (2026-07-23): the map-chrome control chips (Near me / Tonight /
-     Filters) move off the shared Chip pill onto the 14px rectangle button
-     language. Scoped to the rail so the shared Chip component elsewhere is
-     untouched. */
-  .mobileMapRail > button { min-height: 44px; border-radius: var(--control-radius, 14px); scroll-snap-align: start; box-shadow: 0 3px 10px color-mix(in srgb, var(--ink-deep) 12%, transparent); }
-  .mobileMapRail > button[aria-pressed="true"] { border-color: var(--color-accent); color: var(--color-accent); }
-  .mobileMapChipCount { min-width: 1.2rem; height: 1.2rem; display: grid; place-items: center; border-radius: 999px; background: var(--color-accent); color: var(--color-on-accent); font-family: var(--font-data); font-size: .68rem; }
 
-  /* TIER 1 — the one primary-weight chip. Filled accent so "Near me" reads as
-     THE action; every other chip stays quiet. (When #328's role tokens land,
-     --color-accent here becomes --accent-action — same value, clearer name.) */
-  .mobileMapChipPrimary {
-    background: var(--color-accent);
-    border-color: var(--color-accent);
-    color: var(--color-on-accent);
-  }
-  .mobileMapRail > .mobileMapChipPrimary[aria-pressed="true"] {
-    border-color: var(--ink-deep);
-    color: var(--color-on-accent);
-    filter: saturate(1.08);
-  }
-  .mobileMapChipPrimary:disabled { opacity: .72; }
-
-  /* TIER 3 — lone TfL FAB after List moved into Layers. Keep clear of the
-     chrome, the plan pill, and the right map edge so it never stacks into a
-     button column again. */
+  /* The map edge owns the two controls the bar cannot hold: TfL at the top,
+     Near me at the thumb. Both keep clear of the chrome, the plan pill, and
+     the right map edge, in the one published corner lane. */
   .mobileMapUtilityCorner {
     position: fixed;
     right: var(--mobile-map-corner-inset);
-    top: calc(var(--mobile-map-chrome-h, 118px) + env(safe-area-inset-top) + 12px);
+    top: calc(var(--mobile-map-chrome-h) + 12px);
     bottom: calc(var(--mobile-map-dock-clearance) + 72px);
     z-index: var(--z-map-toolbar);
     display: flex;
     flex-direction: column;
-    justify-content: flex-start;
+    justify-content: space-between;
+    align-items: flex-end;
     gap: 10px;
     pointer-events: none;
   }
+
+  /* Near me is the map's one primary action, so it leads on weight, not on the
+     accent: coral belongs to the landing CTA, the selected pin ring and the
+     active tab glyph alone (design judgement 2026-08-01, finding 2.1). */
+  .mobileMapLocateFab {
+    position: relative;
+    flex: 0 0 auto;
+    /* The TfL button above stretches to the lane so its status suffix has
+       room; this one is a circle, so it aligns to the edge instead. */
+    align-self: flex-end;
+    display: grid;
+    place-items: center;
+    width: 52px;
+    height: 52px;
+    border: 1px solid var(--ink-soft);
+    border-radius: 50%;
+    background: var(--color-surface-raised);
+    color: var(--color-text);
+    box-shadow: 0 6px 18px color-mix(in srgb, var(--ink-deep) 18%, transparent);
+    pointer-events: auto;
+    cursor: pointer;
+  }
+  /* The first-visit analytics disclosure owns the same bottom lane, so the
+     map-edge column steps above it rather than putting a 52px FAB on top of a
+     consent choice. Same offset the OSM credit already uses. */
+  body:has(.analyticsConsentPrompt) .mobileMapUtilityCorner {
+    bottom: calc(var(--mobile-map-dock-clearance) + 200px);
+  }
+
+  .mobileMapLocateFab[aria-pressed="true"] { border-color: var(--ink); color: var(--ink); }
+  .mobileMapLocateFab:disabled { cursor: wait; opacity: .72; }
+  .mobileMapLocateFab:active { transform: scale(.97); --shared-press-scale: 1; }
+  .mobileMapLocateFab:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 2px; }
   .mobileMapUtilityCorner > button {
     position: relative;
     min-width: var(--mobile-map-corner-btn);
     min-height: 44px;
     pointer-events: auto;
     box-shadow: 0 2px 8px color-mix(in srgb, var(--ink-deep) 12%, transparent);
+  }
+  /* The status suffix ("OK", "?") rides inside the pill rather than spilling
+     past its edge: the icon size is a floor here, not a fixed width. */
+  .mobileMapUtilityCorner > .mobileMapTflButton {
+    width: auto;
+    padding-inline: 7px;
   }
   .mobileMapCornerSuffix { font-size: .62rem; font-weight: 700; margin-left: 2px; }
   .mobileMapCornerBadge {
@@ -311,10 +328,81 @@
     display: grid;
     place-items: center;
     border-radius: 999px;
-    background: var(--color-accent);
-    color: var(--color-on-accent);
+    border: 1px solid var(--line);
+    background: var(--panel-raised);
+    color: var(--ink);
     font-family: var(--font-data);
     font-size: .64rem;
+  }
+
+  /* Near me could not place the reader, and the phone now says so. The chip
+     alone reads "Try near me": no reason, no way on. This card names the reason
+     and hands over the area picker.
+
+     It is a fixed sibling of the chrome, not a second row inside it, so the
+     one bar keeps its own height. It docks 8px under the bar, on the same
+     left/right boundary as every other stacked surface. */
+  .mobileMapNearMeAlert {
+    position: fixed;
+    top: calc(var(--mobile-map-chrome-h) + 8px);
+    left: var(--mobile-map-stack-left);
+    right: var(--mobile-map-stack-right);
+    z-index: var(--z-map-toolbar);
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) 44px;
+    align-items: start;
+    gap: 8px;
+    box-sizing: border-box;
+    padding: 10px 8px 10px 12px;
+    border: 1px solid var(--color-border);
+    border-radius: var(--control-radius, 14px);
+    background: var(--color-surface-raised);
+    box-shadow: var(--shadow-sm);
+    pointer-events: auto;
+  }
+  .mobileMapNearMeAlert > svg { margin-top: 3px; color: var(--color-text-soft); }
+  /* A reason is read whole or not at all, so it wraps and never ellipses. */
+  .mobileMapNearMeAlertText {
+    margin: 0;
+    align-self: center;
+    color: var(--color-text);
+    font-size: var(--text-sm);
+    line-height: 1.35;
+    white-space: normal;
+    overflow-wrap: break-word;
+  }
+  .mobileMapNearMeAlertArea {
+    grid-column: 2 / -1;
+    justify-self: start;
+    min-height: 44px;
+    padding-inline: 14px;
+    border: 1px solid var(--ink-soft);
+    border-radius: var(--control-radius, 14px);
+    background: transparent;
+    color: var(--ink);
+    font: inherit;
+    font-size: var(--text-sm);
+    font-weight: 700;
+    cursor: pointer;
+  }
+  .mobileMapNearMeAlertDismiss {
+    grid-row: 1;
+    grid-column: 3;
+    display: grid;
+    place-items: center;
+    min-width: 44px;
+    min-height: 44px;
+    margin: -8px 0 0;
+    border: 0;
+    border-radius: var(--radius-sm);
+    background: transparent;
+    color: var(--color-text-soft);
+    cursor: pointer;
+  }
+  .mobileMapNearMeAlertArea:focus-visible,
+  .mobileMapNearMeAlertDismiss:focus-visible {
+    outline: 2px solid var(--color-accent);
+    outline-offset: 2px;
   }
 
   .mobilePlanActivation {
@@ -582,7 +670,7 @@
 }
 
 @media (max-width: 640px) and (prefers-contrast: more) {
-  .mobileMapTopbar, .mobileMapRail > button, .mobileSharedSheet.mapDrawer { border-width: 2px; }
+  .mobileMapTopbar, .mobileMapLocateFab, .mobileMapNearMeAlert, .mobileSharedSheet.mapDrawer { border-width: 2px; }
   .mobileSharedSheet.mapDrawer {
     background: var(--sheet-material-solid);
     backdrop-filter: none;
@@ -591,5 +679,5 @@
 }
 
 @media (max-width: 640px) and (prefers-reduced-motion: reduce) {
-  .mobilePlanActivation:active { transform: none; }
+  .mobilePlanActivation:active, .mobileMapLocateFab:active { transform: none; }
 }

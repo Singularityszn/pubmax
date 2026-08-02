@@ -34,17 +34,16 @@ describe("map surface alignment", () => {
       /\.mobileMapChrome\s*{[\s\S]*?left:\s*var\(--mobile-map-stack-left\)[\s\S]*?right:\s*var\(--mobile-map-stack-right\)/,
     );
     expect(mobileCss).toMatch(
-      /\.mobileMapRail\s*{[\s\S]*?width:\s*100%[\s\S]*?margin-left:\s*0/,
-    );
-    expect(mobileCss).toMatch(
       /\.mobilePlanActivation\s*{[\s\S]*?left:\s*var\(--mobile-map-stack-left\)[\s\S]*?right:\s*var\(--mobile-map-stack-right\)/,
     );
-    expect(tonightArcCss).toMatch(
-      /@media \(max-width: 640px\)[\s\S]*?\.tonightArcChips\s*{[\s\S]*?left:\s*var\(--mobile-map-stack-left,[^)]+\)[\s\S]*?right:\s*var\(--mobile-map-stack-right,/,
+    expect(mobileCss).toMatch(
+      /\.mobileMapNearMeAlert\s*{[\s\S]*?left:\s*var\(--mobile-map-stack-left\)[\s\S]*?right:\s*var\(--mobile-map-stack-right\)/,
     );
-    expect(tonightArcCss).toMatch(
-      /@media \(max-width: 640px\)[\s\S]*?\.tonightArcChips\s*{[\s\S]*?padding-right:\s*calc\(var\(--mobile-map-corner-lane\) - var\(--mobile-map-stack-right\)\)/,
-    );
+    // The Tonight Arc floats over the DESKTOP map only. On a phone it is a
+    // section of the Filters sheet, so it declares no phone map geometry at
+    // all (design judgement 2026-08-01, finding 2.3).
+    expect(tonightArcCss).not.toMatch(/@media \(max-width: 640px\)/);
+    expect(tonightArcCss).not.toMatch(/--mobile-map-corner-lane/);
   });
 
   it("uses an accent border only for selected Tonight Arc state", () => {

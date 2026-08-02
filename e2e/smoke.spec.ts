@@ -222,9 +222,10 @@ test("mobile map shell controls stay inside the coordinated chrome at 390px", as
   expect(response?.status()).toBe(200);
 
   await expect(page.locator(".mobileMapTopbar")).toBeVisible({ timeout: 20_000 });
-  await expect(page.locator(".mobileMapRail")).toBeVisible();
+  // The phone map chrome is ONE bar (design judgement 2026-08-01, finding 2.3).
+  await expect(page.locator(".mobileMapRail")).toHaveCount(0);
 
-  for (const selector of [".mobileMapTopbar", ".mobileMapRail"]) {
+  for (const selector of [".mobileMapTopbar"]) {
     const control = page.locator(selector);
     await expect(control).toBeVisible();
     const box = await control.evaluate((element) => {
@@ -239,7 +240,7 @@ test("mobile map shell controls stay inside the coordinated chrome at 390px", as
 
   // B1 consolidated separate Drinks/Price controls into one Filters sheet.
   const filters = page
-    .getByRole("navigation", { name: "Contextual map controls" })
+    .locator(".mobileMapTopbar")
     .getByRole("button", { name: /^Filters/ });
   await expect(filters).toBeVisible();
   await filters.click();

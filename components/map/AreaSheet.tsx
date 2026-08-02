@@ -1,12 +1,16 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef } from "react";
+import { LocateFixed } from "lucide-react";
 
 import type { CityId } from "@/lib/cities";
 import {
+  AREA_SHEET_LEAD_ROWS,
   areaElsewhereOptions,
+  areaSheetOverflowLabel,
   cheapestDrinksInArea,
   cheapestDrinksNearPoint,
+  type AreaDistanceFrom,
   type AreaElsewhereOption,
 } from "@/lib/areaButton";
 import type { NightArea } from "@/lib/nightAreas";
@@ -34,8 +38,11 @@ export type AreaSheetPlaceFocus = {
 
 // Body of the map's Area sheet (the house bottom Sheet the mobile top-bar Area
 // button opens). Two sections: the current area's cheapest pints, and a "go
-// somewhere else" grid of the modelled Night Areas. All the logic lives in
+// somewhere else" grid of the modelled areas. All the logic lives in
 // lib/areaButton.ts — this is a thin, hermetic render over those models.
+//
+// The price list prints a LEAD of AREA_SHEET_LEAD_ROWS rows, not all ten, so
+// the picker below it stays on the first screen. See that constant for why.
 type AreaSheetProps = {
   cityId: CityId;
   /** The Night Area under the map centre, or null before the map settles. */
@@ -52,12 +59,35 @@ type AreaSheetProps = {
   /** How complete the selected drink's cross-venue read was. A failed or
    *  truncated index may never be rendered as "none here yet". */
   lensStatus?: CategoryPriceIndexStatus;
-  /** Live map centre [lng, lat], for area membership + row distances. */
-  center: [number, number];
+  /**
+   * The point every row distance is measured from, carried with WHOSE point it
+   * is. A granted location makes it the reader's, and only then may a row say
+   * "away"; otherwise it is the live map centre and the row says so. The two
+   * travel together so a reader-measured row can never be worded as a
+   * map-measured one, or the other way about.
+   */
+  distanceFrom: AreaDistanceFrom;
   /** Fly + open a pub's venue card — the same selection a pin tap drives. */
   onSelectVenue: (id: string) => void;
   /** Fly the map to another area's centre (reduced-motion safe in the canvas). */
   onFlyToArea: (option: AreaElsewhereOption) => void;
+  /**
+   * Hand the map the reader's real location. This is the map's ONE Near me
+   * path (PubMap's showNearbyMap), passed in rather than repeated here: a
+   * second getCurrentPosition would be a second set of request options, a
+   * second timeout, and a second story about what went wrong. Omit it and the
+   * action is not offered, which is right for any host that cannot locate.
+   */
+  onUseMyLocation?: () => void;
+  /** That request is running. The action waits rather than firing twice. */
+  locationBusy?: boolean;
+  /**
+   * Why the last location request could not place the reader, already worded
+   * by lib/nearMeLocation.ts. The sheet prints it and writes none of its own.
+   * Every one of those sentences names picking an area as the way on, and the
+   * picker is the next thing under it.
+   */
+  locationNote?: string | null;
   /** Close the sheet (the map is already in view). */
   onClose: () => void;
 };
@@ -74,9 +104,12 @@ export default function AreaSheet({
   lensPrices = null,
   drinkLabel = "Pints",
   lensStatus = "ready",
-  center,
+  distanceFrom,
   onSelectVenue,
   onFlyToArea,
+  onUseMyLocation,
+  locationBusy = false,
+  locationNote = null,
   onClose,
 }: AreaSheetProps) {
   const closeTimer = useRef<number | null>(null);
@@ -100,14 +133,20 @@ export default function AreaSheet({
           ? cheapestDrinksInArea(
               area,
               venues,
-              center,
+              distanceFrom,
               undefined,
               lensPrices,
               drinkLabel,
               lensStatus,
             )
           : [],
-    [placeFocus, area, venues, center, lensPrices, drinkLabel, lensStatus],
+    [placeFocus, area, venues, distanceFrom, lensPrices, drinkLabel, lensStatus],
+  );
+  // The lead the sheet prints. The rest stay on the map, and the row below the
+  // lead says how many they are.
+  const leadPubs = useMemo(
+    () => pubs.slice(0, AREA_SHEET_LEAD_ROWS),
+    [pubs],
   );
   const focusName = placeFocus?.name ?? area?.name ?? null;
   const drinkNoun = lensPrices === null ? "pints" : drinkLabel.toLowerCase();
@@ -163,7 +202,7 @@ export default function AreaSheet({
         ) : null}
         {focusName && pubs.length > 0 ? (
           <ul className="areaSheetList">
-            {pubs.map((pub) => (
+            {leadPubs.map((pub) => (
               <li key={pub.id}>
                 <button
                   type="button"
@@ -190,7 +229,7 @@ export default function AreaSheet({
             ))}
             <li>
               <button type="button" className="areaSheetSeeAll" onClick={onClose}>
-                See all on the map
+                {areaSheetOverflowLabel(pubs.length)}
               </button>
             </li>
           </ul>
@@ -209,6 +248,23 @@ export default function AreaSheet({
 
       <section className="areaSheetSection" aria-label="Go somewhere else">
         <h3 className="areaSheetHeading">Go somewhere else</h3>
+        {/* The reader's own spot is the first way out, above the twenty fixed
+            choices: /plan and /near both offer it, and a reader whose Near me
+            just failed arrives here looking for exactly this. */}
+        {onUseMyLocation ? (
+          <button
+            type="button"
+            className="areaSheetLocate"
+            disabled={locationBusy}
+            onClick={onUseMyLocation}
+          >
+            <LocateFixed size={17} aria-hidden="true" />
+            <span>{locationBusy ? "Locating" : "Use my location"}</span>
+          </button>
+        ) : null}
+        {onUseMyLocation && locationNote ? (
+          <p className="areaSheetLocateNote">{locationNote}</p>
+        ) : null}
         <ul className="areaSheetGrid">
           {elsewhere.map((option) => {
             const isCurrent = option.slug === area?.slug;

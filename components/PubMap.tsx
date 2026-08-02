@@ -26,6 +26,11 @@ import { filterMapVenues, withForcedVenue } from "@/lib/filterMapVenues";
 import { mergePriceUpdates, parsePriceUpdates, type PriceUpdate } from "@/lib/priceUpdates";
 import { nearestVenueIds, nearbyVenuesForMap } from "@/lib/nearby";
 import {
+  NEAR_ME_LOCATION_OPTIONS,
+  nearMeLocationFailure,
+  nearMeLocationMessage,
+} from "@/lib/nearMeLocation";
+import {
   buildMapVenueListModel,
   buildUkBasePubListModel,
 } from "@/lib/mapVenueList";
@@ -249,9 +254,11 @@ import {
   resolveQueryRestoreFit,
 } from "@/lib/mapArrival";
 import {
+  areaLabelOrigin,
   areaSheetOpenDelay,
   areaUnderCentre,
   planAreaSelect,
+  type AreaDistanceFrom,
   type AreaElsewhereOption,
 } from "@/lib/areaButton";
 import type { AreaSheetPlaceFocus } from "@/components/map/AreaSheet";
@@ -470,6 +477,18 @@ export default function PubMap({
     locationAllowsInterruptivePrompt,
     () => false,
   );
+  /**
+   * Has the reader moved the camera themselves yet?
+   *
+   * The ambient banners (city suggest, city status) are an opening offer. Once
+   * the reader drives the map, the map is the answer and the banners step off
+   * it (design judgement 2026-08-01, finding 2.15). This is session state, not
+   * a dismissal: it never writes to the per-banner "do not show me this again"
+   * stores, because ignoring an offer is not rejecting it.
+   */
+  const [mapCameraTouched, setMapCameraTouched] = useState(false);
+  const dismissAmbientBanners = useCallback(() => setMapCameraTouched(true), []);
+  const ambientBannerLane = !mobileViewport && !mapCameraTouched;
   const railViewport = useSyncExternalStore(
     subscribeDesktopRailViewport,
     desktopRailViewportSnapshot,
@@ -2097,7 +2116,7 @@ export default function PubMap({
   const startNearbyCrawl = useCallback(() => {
     setNearbyError(null);
     if (typeof navigator === "undefined" || !navigator.geolocation) {
-      setNearbyError("Location isn't available in this browser.");
+      setNearbyError(nearMeLocationMessage("unsupported"));
       return;
     }
     setNearbyLoading(true);
@@ -2121,10 +2140,11 @@ export default function PubMap({
         setActiveCrawl(null); // a near-me crawl isn't a curated one
         showLoadedRoute(ids[0]);
       },
-      () => {
+      (error) => {
         setNearbyLoading(false);
-        setNearbyError("Location's off, so Near me can't reach you. The map still works, and every price on it stands.");
+        setNearbyError(nearMeLocationMessage(nearMeLocationFailure(error)));
       },
+      NEAR_ME_LOCATION_OPTIONS,
     );
   }, [
     filteredPubVenues,
@@ -2142,7 +2162,7 @@ export default function PubMap({
   const showNearbyMap = useCallback(() => {
     setNearbyError(null);
     if (typeof navigator === "undefined" || !navigator.geolocation) {
-      setNearbyError("Location isn't available in this browser.");
+      setNearbyError(nearMeLocationMessage("unsupported"));
       return;
     }
     setNearbyLoading(true);
@@ -2172,11 +2192,11 @@ export default function PubMap({
         // the chip now yields an ANSWER, not just a recentre.
         setMapOverlay("near-me");
       },
-      () => {
+      (error) => {
         setNearbyLoading(false);
-        setNearbyError("Location's off, so Near me can't reach you. The map still works, and every price on it stands.");
+        setNearbyError(nearMeLocationMessage(nearMeLocationFailure(error)));
       },
-      { enableHighAccuracy: false, timeout: 7000, maximumAge: 60_000 },
+      NEAR_ME_LOCATION_OPTIONS,
     );
   }, [filteredVenues]);
 
@@ -2218,6 +2238,23 @@ export default function PubMap({
   const centreArea = useMemo(
     () => areaUnderCentre(cityId, mapViewport.center),
     [cityId, mapViewport.center],
+  );
+  // ...and whether that name is also where the READER is. A base-pub arrival
+  // names a place from the URL, which nobody's location chose, so it stays a
+  // map claim whatever the browser later grants.
+  const areaChipOrigin = useMemo(
+    () => (ukPlaceArrival ? "map" : areaLabelOrigin(centreArea, userLocation)),
+    [centreArea, ukPlaceArrival, userLocation],
+  );
+  // Where the Area sheet's row distances are measured from. A granted location
+  // is the reader's own point, and only then may a row say "away". With none,
+  // the map centre is all we have and the rows name it.
+  const areaSheetDistanceFrom = useMemo<AreaDistanceFrom>(
+    () =>
+      userLocation
+        ? { point: [userLocation.lng, userLocation.lat], origin: "reader" }
+        : { point: mapViewport.center, origin: "map" },
+    [mapViewport.center, userLocation],
   );
   // Area button "go somewhere else": bump a token to fly the canvas camera.
   const [areaFocus, setAreaFocus] = useState<
@@ -2731,7 +2768,10 @@ export default function PubMap({
           canvas pins are pointer-only; List view provides their operable DOM
           parallel alongside search and the tonight lane). */}
       <section className="mapStage" aria-label={`Interactive pub map of ${mapDisplayName}`}>
-        {!ukPlaceArrival ? (
+        {/* Desktop only. On a phone these toggles are a section of the Filters
+            sheet instead, so the map keeps the band the third chrome bar used
+            to take (design judgement 2026-08-01, finding 2.3). */}
+        {!ukPlaceArrival && !mobileViewport ? (
           <TonightArcChips
             visibility={venueKindVisibility}
             experienceLens={experienceLens}
@@ -2823,6 +2863,7 @@ export default function PubMap({
           hideLayersControl={mobileViewport}
           focusPoint={areaFocus}
           onViewportChange={setMapViewport}
+          onUserCameraMove={dismissAmbientBanners}
           onBoundsChange={handleMapBoundsChange}
         />
         {!mobileViewport ? <MapToolbar
@@ -2883,13 +2924,19 @@ export default function PubMap({
         {railViewport && !detailOpen ? (
           <MapDesktopRail area={searchAreaNewsArea ?? suggestedPlanArea?.slug ?? null} />
         ) : null}
-        {!mobileViewport && !ukPlaceArrival ? (
+        {/* Ambient banners dock under the control bar and step off the map the
+            moment the reader moves the camera (design judgement 2026-08-01,
+            finding 2.15). They used to park in the exact centre of the
+            viewport, over the pins the map exists to show. */}
+        {ambientBannerLane && !ukPlaceArrival ? (
           <CitySuggestBanner
             cityId={cityId}
             onLocationFound={setUserLocation}
           />
         ) : null}
-        {!mobileViewport && isLondon ? <CityStatusBanner cityId={cityId} /> : null}
+        {ambientBannerLane && isLondon ? (
+          <CityStatusBanner cityId={cityId} />
+        ) : null}
         {/* F3: concierge as map home — a first-class grounded ask affordance in
             the bottom map-home lane. Rendered before the Tonight lane so its
             sibling CSS lifts the lane above the collapsed pill (no collision). */}
@@ -3001,6 +3048,7 @@ export default function PubMap({
         {mobileShellReady ? (
         <MobileMapShell
           cityLabel={ukPlaceArrival?.name ?? centreArea?.name ?? activeNightArea?.name ?? mapContextName}
+          cityLabelOrigin={areaChipOrigin}
           limitedCoverage={Boolean(ukPlaceArrival)}
           overlay={mobileShellState.overlay}
           onOverlayChange={changeMapOverlay}
@@ -3008,8 +3056,9 @@ export default function PubMap({
           onClearQuery={clearMapQuery}
           onNearMe={showNearbyMap}
           nearMeStatus={nearbyLoading ? "requesting" : nearbyMapResult ? "ready" : nearbyError ? "error" : "idle"}
+          nearMeError={nearbyError}
+          onDismissNearMeError={() => setNearbyError(null)}
           nearbyCount={nearbyMapResult?.venueIds.length ?? 0}
-          tonightCount={whatsOnTonight.rows.length}
           tflCount={tflStatus.issueCount}
           tflStatus={tflStatus.failed ? "unavailable" : !tflStatus.payload ? "checking" : tflStatus.issueCount ? "issues" : "clear"}
           priceLabel={filters.maxPrice < 10 ? `≤£${filters.maxPrice.toFixed(2)}` : "Price"}
@@ -3059,6 +3108,13 @@ export default function PubMap({
                 allSelected={!drinkFiltersActive}
                 summary={experienceSummary}
                 onChange={changeExperienceLens}
+              />
+              {/* The phone's only copy of the venue-type toggles. */}
+              <TonightArcChips
+                visibility={venueKindVisibility}
+                experienceLens={experienceLens}
+                variant="sheet"
+                onChange={setVenueKindVisibility}
               />
               {experienceLens === "all" ? (
                 <>
@@ -3160,6 +3216,19 @@ export default function PubMap({
                     <List size={18} aria-hidden="true" />
                     {mapListOpen ? "Hide venue list" : "List view"}
                   </Button>
+                  {/* Pub Pal left the one top bar so the place name beside the
+                      wordmark stays whole (finding 2.3). It keeps a named
+                      shortcut here, beside the map's other destinations. */}
+                  <Button
+                    asChild
+                    variant="secondary"
+                    className="w-full justify-start"
+                  >
+                    <Link href="/pal">
+                      <Sparkles size={18} aria-hidden="true" />
+                      Ask your Pub Pal
+                    </Link>
+                  </Button>
                 </div>
                 {routeMappedActive ? <Button variant="secondary" onClick={hideMappedRoute}>Hide active route</Button> : null}
                 <div className="mobileLayersTheme">
@@ -3231,6 +3300,7 @@ export default function PubMap({
               <NearMeNow
                 cityId={cityId}
                 onSelectVenue={selectVenue}
+                titledByHost
                 initialLocation={userLocation}
                 venues={filteredPubVenues.map((venue) => ({
                   id: venue.id,
@@ -3256,9 +3326,15 @@ export default function PubMap({
                   : "Pints"
               }
               lensStatus={drinkIndexStatus}
-              center={mapViewport.center}
+              distanceFrom={areaSheetDistanceFrom}
               onSelectVenue={selectVenue}
               onFlyToArea={flyToArea}
+              /* The map's one Near me path. On success it opens the near-me
+                 sheet over this one; on failure nearbyError lands in the
+                 sheet, because the alert under the chip is behind it. */
+              onUseMyLocation={showNearbyMap}
+              locationBusy={nearbyLoading}
+              locationNote={nearbyError}
               onClose={() => changeMapOverlay("none")}
             />
           }

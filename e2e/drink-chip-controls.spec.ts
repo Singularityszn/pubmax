@@ -212,7 +212,7 @@ test("390px zone figures state their calculation and assignment basis", async ({
 });
 
 for (const width of [390, 320]) {
-  test(`${width}px Tonight Arc stays one row with equal controls`, async ({
+  test(`${width}px Tonight Arc controls are equal and whole`, async ({
     page,
   }) => {
     test.setTimeout(90_000);
@@ -220,7 +220,21 @@ for (const width of [390, 320]) {
     const response = await page.goto("/map");
     expect(response?.status()).toBe(200);
 
-    const arc = page.getByRole("group", { name: "Tonight arc venue types" });
+    // On a phone these toggles live in the Filters sheet (design judgement
+    // 2026-08-01, finding 2.3); they no longer float over the map.
+    await expect(
+      page.getByRole("group", { name: "Tonight arc venue types" }),
+    ).toHaveCount(0);
+    await page
+      .locator(".mobileMapTopbar")
+      .getByRole("button", { name: /^Filters/ })
+      .click();
+    const filtersSheet = page.locator(
+      '.mobileSheetPortal[data-sheet-kind="filters"]',
+    );
+    const arc = filtersSheet.getByRole("group", {
+      name: "Tonight arc venue types",
+    });
     await expect(arc).toBeVisible({ timeout: 45_000 });
     const row = arc.locator(".tonightArcRow");
     const chips = row.locator(".tonightArcChip");
@@ -249,19 +263,17 @@ for (const width of [390, 320]) {
     });
 
     expect(
-      new Set(layout.boxes.map(({ top }) => Math.round(top))).size,
-      "every chip shares one rendered row",
-    ).toBe(1);
-    expect(
       new Set(layout.boxes.map(({ height }) => Math.round(height))).size,
       "unavailable and available controls share one height",
     ).toBe(1);
     expect(layout.boxes[0]?.height).toBeGreaterThanOrEqual(44);
-    expect(layout.overflowX).toBe("auto");
-    if (width === 390) {
-      expect(layout.boxes.at(-1)?.right).toBeLessThanOrEqual(layout.right + 0.5);
-    } else {
-      expect(layout.scrollWidth).toBeGreaterThan(layout.clientWidth);
+    // In a sheet the row is plain content: it wraps rather than scrolling, so
+    // no control is ever parked off the edge of its container.
+    expect(layout.scrollWidth).toBeLessThanOrEqual(layout.clientWidth);
+    for (const box of layout.boxes) {
+      expect(box.right, `${box.label} stays inside the row`).toBeLessThanOrEqual(
+        layout.right + 0.5,
+      );
     }
 
     const pints = arc.getByRole("button", { name: "Pints", exact: true });
@@ -313,7 +325,12 @@ test("390px Tonight Arc hides Clubs reason outside the All lens", async ({
   const response = await page.goto("/map");
   expect(response?.status()).toBe(200);
 
-  const arc = page.getByRole("group", { name: "Tonight arc venue types" });
+  await page
+    .locator(".mobileMapTopbar")
+    .getByRole("button", { name: /^Filters/ })
+    .click();
+  const sheet = page.locator('.mobileSheetPortal[data-sheet-kind="filters"]');
+  const arc = sheet.getByRole("group", { name: "Tonight arc venue types" });
   await expect(arc).toBeVisible({ timeout: 45_000 });
   const clubs = arc.getByRole("button", {
     name: "Clubs are not mapped yet",
@@ -323,9 +340,6 @@ test("390px Tonight Arc hides Clubs reason outside the All lens", async ({
   await expect(arc.getByRole("tooltip")).toHaveText(
     "Clubs are not mapped yet",
   );
-
-  await page.getByRole("button", { name: /^Filters/ }).click();
-  const sheet = page.locator('.mobileSheetPortal[data-sheet-kind="filters"]');
   const mapView = sheet.getByRole("group", { name: "Map view" });
 
   await mapView.getByRole("button", { name: "Food", exact: true }).click();

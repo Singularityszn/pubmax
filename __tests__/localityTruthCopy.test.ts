@@ -94,10 +94,17 @@ describe("locality and recency claims", () => {
       join(process.cwd(), "components/nearme/NearMeNow.tsx"),
       "utf8",
     );
+    // The three headlines moved to nearMeAnswerHeadline so the map's sheet
+    // chrome can check its own title never restates one of them. Same words,
+    // one owner.
+    const headlines = readFileSync(
+      join(process.cwd(), "lib/nearMeAnswer.ts"),
+      "utf8",
+    );
 
-    expect(source).toContain("Cheapest listed near you");
-    expect(source).toContain("Cheapest listed in");
-    expect(source).toContain("Cheapest listed around");
+    expect(headlines).toContain("Cheapest listed near you");
+    expect(headlines).toContain("Cheapest listed in");
+    expect(headlines).toContain("Cheapest listed around");
     expect(source).not.toContain("Finding the cheapest");
     expect(source).not.toContain("Pulling up the cheapest");
     expect(source).not.toContain("Prices collected");

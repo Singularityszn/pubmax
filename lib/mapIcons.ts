@@ -1198,23 +1198,24 @@ export const UK_BASE_ICON_KEY = "pub";
 // phone (owner-standard visual check), which is not "subordinate", it is absent.
 const BASE_PUB_RING_RADIUS = BOX * 0.2;
 
+// A desaturated bark neutral at reduced opacity, never brand coral: dozens of
+// base rings share every street with the selection ring, so a coral base ring
+// spends the accent that selection and the primary CTA own (design judgement
+// 2026-08-01, findings 2.1 and 2.9). The paper backing keeps the ring legible
+// over dark buildings without competing with a priced pin.
+export const BASE_PUB_RING_COLOR = "#6b5f57";
+export const BASE_PUB_RING_OPACITY = 0.6;
+
 function drawBasePub(ctx: CanvasRenderingContext2D, t: IconTokens): void {
   const c = BOX / 2;
-  // Brass, not a neutral grey: a neutral ring reads as basemap furniture (it
-  // sat indistinguishable from the OSM POI dots in the owner-standard 390px
-  // check). The app's own accent, unfilled and small, says "we know a pub is
-  // here and there is nothing in the glass yet" without competing with the
-  // filled price glasses.
-  const ink = t.brass;
+  const ink = BASE_PUB_RING_COLOR;
   ctx.save();
-  // Paper-toned backing so the ring survives over dark buildings and parks
-  // without becoming a solid disc that competes with a priced pin.
   ctx.globalAlpha = 0.72;
   ctx.fillStyle = t.paper;
   ctx.beginPath();
   ctx.arc(c, c, BASE_PUB_RING_RADIUS, 0, Math.PI * 2);
   ctx.fill();
-  ctx.globalAlpha = 1;
+  ctx.globalAlpha = BASE_PUB_RING_OPACITY;
   ctx.strokeStyle = ink;
   ctx.lineWidth = STROKE * 1.15;
   ctx.beginPath();

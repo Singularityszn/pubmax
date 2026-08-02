@@ -7,6 +7,12 @@ const mobileShell = readFileSync(
   join(process.cwd(), "components/mobile/MobileMapShell.tsx"),
   "utf8",
 );
+// The sheet title table moved to lib/mobileShell.ts so a node test can hold a
+// chrome title apart from the line its body prints (MAP_SHEET_TITLES).
+const sheetTitles = readFileSync(
+  join(process.cwd(), "lib/mobileShell.ts"),
+  "utf8",
+);
 const mobileCss = readFileSync(
   join(process.cwd(), "components/mobile/mobileMapShell.css"),
   "utf8",
@@ -30,7 +36,8 @@ describe("mobile map price chrome", () => {
     expect(pubMap).toContain('<TabsTrigger value="key">Key</TabsTrigger>');
     expect(pubMap).toContain('<TabsContent value="key"');
     expect(pubMap).toContain("<MapKey");
-    expect(mobileShell).toContain('layers: "Map controls"');
+    expect(sheetTitles).toContain('layers: "Map controls"');
+    expect(mobileShell).toContain("MAP_SHEET_TITLES[sheetKind]");
     expect(pubMap).toContain('className="mobileMapControlTabs"');
     expect(mobileCss).toMatch(
       /\.mobileMapControlTabs\s*>\s*\[role="tab"\]\s*{[\s\S]*?flex:\s*1[\s\S]*?min-width:\s*0[\s\S]*?min-height:\s*44px/,

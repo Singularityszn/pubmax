@@ -110,8 +110,8 @@ export const CLUSTER_COLLISION_PADDING = 10;
 // short of moving the map (components/map/communityPriceSignals.ts).
 //
 // Why a dot and not a colour: pin FILL is the price-band system (≤£5.50 /
-// ≤£7 / >£7 / unpriced) and a ring is already spoken for three times over
-// (scraped brass, Pint Drops river, What's-On accent). A badge is the one form
+// ≤£7 / >£7 / unpriced) and a ring is already spoken for twice over
+// (Pint Drops river, What's-On accent). A badge is the one form
 // left that adds a fact without editing any of those - it says "someone was
 // here", never "the price is this".
 //
@@ -877,23 +877,13 @@ export function buildPubs(ctx: SceneCtx) {
       },
     });
   }
-  // Scraped-pub halo: warm brass ring so Young's / Nicholson's / gazetteer
-  // pins read as "from our scrapes" without fighting the drink fill.
-  addLayerOnce({
-    id: "pubs-scraped-halo",
-    type: "circle",
-    source: "pubs",
-    minzoom: PIN_MIN_ZOOM,
-    filter: ["all", ["!", ["has", "point_count"]], ["get", "scraped"]],
-    paint: {
-      "circle-color": "rgba(0,0,0,0)",
-      "circle-radius": ["interpolate", ["linear"], ["zoom"], 11, 8, 15, 13],
-      "circle-stroke-color": tokens.brass,
-      "circle-stroke-width": ["interpolate", ["linear"], ["zoom"], 11, 1.4, 15, 2.2],
-      "circle-stroke-opacity": dark ? 0.75 : 0.7,
-      "circle-blur": 0.12,
-    },
-  });
+  // No scraped-provenance halo. It drew a coral ring on every scraped pin,
+  // and because a circle layer never joins the symbol collision index, dense
+  // streets kept the ring after the glyph was dropped — dozens of empty coral
+  // circles that read as render bugs and wore the selection ring's colour
+  // (design judgement 2026-08-01, finding 2.9). Scrape provenance still
+  // travels on the feature (`scraped`) and on the venue sheet's source rows;
+  // it was never a fact a reader needed painted on the street.
   // Pint-Drops ring: a river-toned glow + a crisp outline so community
   // activity reads at a glance without muddying the price fill under it.
   addLayerOnce({
@@ -933,7 +923,9 @@ export function buildPubs(ctx: SceneCtx) {
         "sport", tokens.riverBright,
         "deal", tokens.brassBright,
         "music", tokens.river,
-        tokens.brass,
+        // An unknown hero kind falls back to the muted neutral, never coral:
+        // coral rings are the selection ring's own mark (finding 2.1).
+        tokens.muted,
       ] as maplibregl.ExpressionSpecification,
       "circle-stroke-width": [
         "interpolate",
@@ -991,7 +983,7 @@ export function buildPubs(ctx: SceneCtx) {
       // make any large curated city source unreadable at street zoom.
       "icon-allow-overlap": false,
       "icon-ignore-placement": false,
-      // Padding covers the widest halo ring a pin can wear (scraped / drops /
+      // Padding covers the widest halo ring a pin can wear (drops /
       // what's-on badges, radius ≤ 15px at z15) so those rings stay clear of
       // the neighbouring pin too.
       "icon-padding": 6,

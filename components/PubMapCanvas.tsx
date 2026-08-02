@@ -296,6 +296,13 @@ type PubMapCanvasProps = {
   focusPoint?: { center: [number, number]; zoom: number; token: number } | null;
   onViewportChange?: (viewport: MapViewportSnapshot) => void;
   /**
+   * Fired once the reader moves the camera themselves — a drag, a pinch, a
+   * wheel zoom. Programmatic flights carry no originalEvent, so they never
+   * fire it. Ambient banners use this to step off the map (design judgement
+   * 2026-08-01, finding 2.15).
+   */
+  onUserCameraMove?: () => void;
+  /**
    * Emitted (on first idle + every moveend) with the current viewport edges so
    * the map can lazily load the slim-index shards it intersects (Cycle-5).
    */
@@ -336,7 +343,6 @@ const FALLBACK_VENUE_COUNT = 6;
 // Every pub-source layer, gated together through the basemap gate on desktop
 // and the stricter source-aware visible-frame handoff on phone.
 const PUB_PIN_LAYERS = [
-  "pubs-scraped-halo",
   "pubs-drops-halo",
   "pubs-whatson-badge",
   "band-members-halo",
@@ -419,6 +425,7 @@ export default function PubMapCanvas({
   hideLayersControl = false,
   focusPoint = null,
   onViewportChange,
+  onUserCameraMove,
   onBoundsChange,
 }: PubMapCanvasProps) {
   const showLandmarks = cityLandmarks.length > 0;
@@ -599,6 +606,7 @@ export default function PubMapCanvas({
   const onLandmarkSelectRef = useRef(onLandmarkSelect);
   const onTonightOpportunityClickRef = useRef(onTonightOpportunityClick);
   const onViewportChangeRef = useRef(onViewportChange);
+  const onUserCameraMoveRef = useRef(onUserCameraMove);
   const onBoundsChangeRef = useRef(onBoundsChange);
   const cityLandmarksRef = useRef(cityLandmarks);
   const tonightOpportunitiesRef = useRef(tonightOpportunities);
@@ -622,6 +630,7 @@ export default function PubMapCanvas({
     onLandmarkSelectRef.current = onLandmarkSelect;
     onTonightOpportunityClickRef.current = onTonightOpportunityClick;
     onViewportChangeRef.current = onViewportChange;
+    onUserCameraMoveRef.current = onUserCameraMove;
     onBoundsChangeRef.current = onBoundsChange;
     cityLandmarksRef.current = cityLandmarks;
   }, [
@@ -632,6 +641,7 @@ export default function PubMapCanvas({
     onLandmarkSelect,
     onTonightOpportunityClick,
     onViewportChange,
+    onUserCameraMove,
     onBoundsChange,
     cityLandmarks,
   ]);
@@ -676,7 +686,7 @@ export default function PubMapCanvas({
   });
   // The active band's token colour, read into the corridor + member-halo paint
   // on each build (a setStyle rebuild re-reads it from the live tokens).
-  const bandColorRef = useRef<string>("#b0813a");
+  const bandColorRef = useRef<string>("#4f9ec4");
   const activeBandColourTokenRef = useRef(
     activeBand?.colourToken ?? null,
   );
@@ -712,7 +722,9 @@ export default function PubMapCanvas({
       tokens,
       activeBandColourTokenRef.current,
     );
-    bandColorRef.current = next.storyColour ?? tokens.brass;
+    // A band without its own story colour rings in river, never coral —
+    // coral rings belong to selection alone (design judgement 2026-08-01).
+    bandColorRef.current = next.storyColour ?? tokens.riverBright;
     if (sameMapRenderedState(renderedStateRef.current, next)) return next;
     renderedStateRef.current = next;
     onRenderedStateChangeRef.current?.(next);
@@ -1107,6 +1119,15 @@ export default function PubMapCanvas({
         north: b.getNorth(),
       });
     };
+    // A gesture carries an originalEvent; a programmatic fly does not. That is
+    // the whole test: a banner steps off the map when the READER moves it, and
+    // never when the app flies the camera for them.
+    const emitUserCameraMove = (event: { originalEvent?: unknown }) => {
+      if (event.originalEvent) onUserCameraMoveRef.current?.();
+    };
+    map.on("dragstart", emitUserCameraMove);
+    map.on("zoomstart", emitUserCameraMove);
+    map.on("rotatestart", emitUserCameraMove);
     map.on("moveend", () => {
       // Audit F5: every camera move (programmatic flys included) ends on a
       // fresh present. A repaint moves no camera, so this cannot re-fire

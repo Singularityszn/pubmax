@@ -22,6 +22,27 @@ export type MapOverlay =
 export type MapSheetKind = Exclude<MapOverlay, "none" | "search">;
 export type MapSheetDetent = SheetSnap;
 
+/**
+ * What each contextual sheet's chrome prints, and the dialog's accessible name.
+ *
+ * The chrome owns the ONE heading a sheet gets, so a body must not print the
+ * same line again below it. That makes a title here a promise: it has to be
+ * true in every state its body can reach. "Near me" is the near-me title for
+ * exactly that reason. That body answers "near you", "a bit further out", or a
+ * borough the reader picked, so no single one of the three may sit in the
+ * chrome. `__tests__/mapSheetHeadings.test.ts` holds the pair apart.
+ */
+export const MAP_SHEET_TITLES: Partial<Record<MapSheetKind, string>> = {
+  filters: "Prices and places",
+  tfl: "TfL live",
+  tonight: "Tonight",
+  layers: "Map controls",
+  "pub-pal": "Pub Pal",
+  moment: "Choose a pub",
+  "near-me": "Near me",
+  area: "This area",
+};
+
 export type MapViewportSnapshot = {
   center: [number, number];
   zoom: number;

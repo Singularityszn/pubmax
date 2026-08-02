@@ -17,7 +17,7 @@
 }
 
 .tonightArcLabel {
-  color: var(--brass);
+  color: var(--muted);
   font-size: 0.65rem;
   font-weight: 800;
   letter-spacing: 0.08em;
@@ -52,11 +52,20 @@
   z-index: 1;
 }
 
+/* Selection is a raised neutral fill plus a tick, never the accent: coral on
+   the map belongs to the primary CTA, the selected pin ring and the active
+   tab glyph alone (design judgement 2026-08-01, finding 2.1). */
 .tonightArcChip.isOn {
-  border-width: 2px;
-  border-color: color-mix(in srgb, var(--ink-deep) 72%, var(--brass) 28%);
-  background: var(--brass);
-  color: var(--color-on-accent);
+  border-color: var(--ink-soft);
+  background: var(--panel-raised);
+  color: var(--ink);
+  font-weight: 800;
+}
+
+.tonightArcChipTick {
+  position: relative;
+  z-index: 1;
+  margin-right: 3px;
   font-weight: 800;
 }
 
@@ -91,9 +100,11 @@
   transform: translateX(-50%);
 }
 
-.appShell.sheet-full .tonightArcChips,
-.appShell.detail-open .tonightArcChips,
-.appShell.onboarding-open .tonightArcChips {
+/* Map-floating copy only. The sheet copy is content the reader opened, so a
+   full sheet or an open venue may never fade it out. */
+.appShell.sheet-full .tonightArcChips:not(.tonightArcChipsSheet),
+.appShell.detail-open .tonightArcChips:not(.tonightArcChipsSheet),
+.appShell.onboarding-open .tonightArcChips:not(.tonightArcChipsSheet) {
   opacity: 0;
   pointer-events: none;
 }
@@ -117,87 +128,28 @@
   }
 }
 
-@media (max-width: 640px) {
-  .tonightArcChips {
-    position: fixed;
-    top: calc(var(--mobile-map-top) + var(--mobile-map-bar-h) + 58px);
-    /* Outer shell shares the balanced phone boundary. The right padding keeps
-       row content clear of the TfL control inside that boundary. */
-    left: var(--mobile-map-stack-left, 12px);
-    right: var(--mobile-map-stack-right, 12px);
-    display: block;
-    width: auto;
-    max-width: none;
-    padding: 4px 8px;
-    padding-right: calc(var(--mobile-map-corner-lane) - var(--mobile-map-stack-right));
-    transform: none;
-  }
+/* Sheet variant — the phone home for these toggles (design judgement
+   2026-08-01, finding 2.3). They used to float as a third chrome bar over the
+   map; they now sit in the Filters sheet beside "Show me", so the map keeps
+   the band they occupied. In a sheet the row is plain content: it wraps
+   instead of scrolling, and each control takes the 44px tap floor. */
+.tonightArcChipsSheet {
+  position: static;
+  display: grid;
+  width: 100%;
+  max-width: none;
+  padding: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  backdrop-filter: none;
+  transform: none;
+}
 
-  .tonightArcLabel {
-    display: none;
-  }
+.tonightArcChipsSheet .tonightArcRow {
+  flex-wrap: wrap;
+}
 
-  .tonightArcRow {
-    flex-wrap: nowrap;
-    justify-content: flex-start;
-    overflow-x: auto;
-    overflow-y: hidden;
-    overscroll-behavior-inline: contain;
-    scrollbar-width: none;
-    scroll-snap-type: x proximity;
-  }
-
-  .tonightArcRow::-webkit-scrollbar {
-    display: none;
-  }
-
-  /* The control keeps its 44px touch box. Its pseudo-element draws the 34px
-     visual pill, so density does not come at the expense of the tap floor. */
-  .tonightArcChip {
-    flex: 0 0 auto;
-    min-width: 44px;
-    min-height: 44px;
-    padding: 5px 7px;
-    border: 0;
-    background: transparent;
-    scroll-snap-align: start;
-  }
-
-  .tonightArcChip::before {
-    position: absolute;
-    z-index: 0;
-    inset-block: 5px;
-    inset-inline: 0;
-    border: 1px solid var(--line);
-    border-radius: 999px;
-    background: var(--panel-raised);
-    content: "";
-  }
-
-  .tonightArcChip.isOn {
-    border: 0;
-    background: transparent;
-    color: var(--color-on-accent);
-  }
-
-  .tonightArcChip.isOn::before {
-    border-width: 2px;
-    border-color: color-mix(in srgb, var(--ink-deep) 72%, var(--brass) 28%);
-    background: var(--brass);
-  }
-
-  .tonightArcChip[aria-disabled="true"] {
-    border: 0;
-    background: transparent;
-    color: var(--muted);
-  }
-
-  .tonightArcChip[aria-disabled="true"]::before {
-    border-color: var(--line);
-    background: var(--panel-raised);
-  }
-
-  .tonightArcChip:focus-visible {
-    outline-offset: -3px;
-  }
+.tonightArcChipsSheet .tonightArcChip {
+  min-height: 44px;
 }

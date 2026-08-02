@@ -1,11 +1,15 @@
 import { expect, test, type Page } from "@playwright/test";
 
-// Regression guard for the map Tonight sheet (owner bug: tapping the Tonight
-// rail chip opened a sheet whose lane content was absolutely positioned for the
-// map edge — clipped off-canvas left, empty white body, and TWO bare × close
-// affordances). The lane now renders in-flow via variant="sheet"; the sheet's
-// own header owns the single close. Rows are route-mocked so the populated lane
-// path is exercised deterministically at 390×844, both themes.
+// Regression guard for the map's phone Tonight surface (owner bug: opening it
+// gave a sheet whose lane content was absolutely positioned for the map edge —
+// clipped off-canvas left, empty white body, and TWO bare × close affordances).
+// The lane renders in-flow via variant="sheet"; the sheet's own header owns the
+// single close. Rows are route-mocked so the populated lane path is exercised
+// deterministically at 390×844, both themes.
+//
+// The Tonight chip left the phone map chrome with the one-bar pass (design
+// judgement 2026-08-01, finding 2.3), so the surface under test is the Map
+// controls sheet's Events tab, which always rendered the same lane.
 
 function tonightRows() {
   const day = new Date().toISOString().slice(0, 10);
@@ -83,21 +87,16 @@ test.use({
 test.setTimeout(90_000);
 
 for (const theme of ["light", "dark"] as const) {
-  test(`map Tonight sheet lays out in-flow with one close (${theme})`, async ({ page }) => {
+  test(`map Tonight lane lays out in-flow with one close (${theme})`, async ({ page }) => {
     await seed(page, theme);
     const response = await page.goto("/map");
     expect(response?.status()).toBe(200);
     await page.locator(".mapCanvasWrap").waitFor({ state: "visible", timeout: 30_000 });
 
-    // Open the Tonight sheet from the compact map rail (not the bottom nav link).
-    await page
-      .locator(".mobileMapRail")
-      .getByRole("button", { name: /Tonight/ })
-      .click();
-
-    const sheet = page.locator('.mobileSheetPortal[data-sheet-kind="tonight"]');
+    await page.getByRole("button", { name: "More map controls" }).click();
+    const sheet = page.locator('.mobileSheetPortal[data-sheet-kind="layers"]');
     await expect(sheet).toBeVisible();
-    await expect(sheet.getByRole("heading", { name: "Tonight" })).toBeVisible();
+    await sheet.getByRole("tab", { name: "Events" }).click();
 
     // Lane renders in-flow, not the absolutely-floated map-edge card.
     const lane = sheet.locator(".tonightLane--sheet");
@@ -113,7 +112,7 @@ for (const theme of ["light", "dark"] as const) {
 
     // Exactly ONE close affordance — the sheet header's own. The lane-internal
     // collapse × and the bare pins-dismiss × must not appear inside the sheet.
-    await expect(sheet.getByRole("button", { name: "Close Tonight" })).toHaveCount(1);
+    await expect(sheet.getByRole("button", { name: "Close Map controls" })).toHaveCount(1);
     await expect(sheet.locator(".tonightLaneClose")).toHaveCount(0);
     await expect(sheet.getByRole("button", { name: "Dismiss tonight map pins" })).toHaveCount(0);
 

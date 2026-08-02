@@ -26,10 +26,20 @@ const CHIPS: ReadonlyArray<{
 export default function TonightArcChips({
   visibility,
   experienceLens = "all",
+  variant = "map",
   onChange,
 }: {
   visibility: VenueKindVisibility;
   experienceLens?: MapExperienceLens;
+  /**
+   * Where the toggles are read.
+   *
+   * "map" floats them over the desktop map under the control bar. "sheet" is
+   * the phone home: the Filters sheet, beside "Show me". A phone gets ONE of
+   * the two, never both (design judgement 2026-08-01, finding 2.3) — a second
+   * copy in the chrome was the third stacked bar that buried the map.
+   */
+  variant?: "map" | "sheet";
   onChange: (next: VenueKindVisibility) => void;
 }) {
   const unavailableReasonId = useId();
@@ -47,7 +57,9 @@ export default function TonightArcChips({
   );
   return (
     <div
-      className="tonightArcChips"
+      className={
+        variant === "sheet" ? "tonightArcChips tonightArcChipsSheet" : "tonightArcChips"
+      }
       role="group"
       aria-label="Tonight arc venue types"
     >
@@ -86,6 +98,13 @@ export default function TonightArcChips({
                 }
               }}
             >
+              {/* The tick, not a colour, marks selection (aria-pressed already
+                  names it for readers, so the glyph stays decorative). */}
+              {on ? (
+                <span className="tonightArcChipTick" aria-hidden="true">
+                  ✓
+                </span>
+              ) : null}
               <span className="tonightArcChipLabel">
                 {experienceLens === "no-alcohol" && chip.kind === "pub"
                   ? "Pubs"

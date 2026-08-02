@@ -343,17 +343,19 @@ test("/map shows the no-frame fallback when basemap tiles miss the phone readine
 
   const retry = fallback.getByRole("button", { name: "Retry" });
   await expect(retry).toBeVisible();
-  const [headingBox, arcBox, retryBox, tabBarBox] = await Promise.all([
+  // The phone map chrome is ONE bar (design judgement 2026-08-01, finding
+  // 2.3), so the fallback clears the bar rather than a floating category band.
+  const [headingBox, barBox, retryBox, tabBarBox] = await Promise.all([
     fallback.locator("strong").boundingBox(),
-    page.locator(".tonightArcChips").boundingBox(),
+    page.locator(".mobileMapTopbar").boundingBox(),
     retry.boundingBox(),
     page.locator(".mobileTabBar").boundingBox(),
   ]);
   expect(headingBox).not.toBeNull();
-  expect(arcBox).not.toBeNull();
+  expect(barBox).not.toBeNull();
   expect(retryBox).not.toBeNull();
   expect(tabBarBox).not.toBeNull();
-  expect(headingBox!.y).toBeGreaterThanOrEqual(arcBox!.y + arcBox!.height + 8);
+  expect(headingBox!.y).toBeGreaterThanOrEqual(barBox!.y + barBox!.height + 8);
   expect(retryBox!.height).toBeGreaterThanOrEqual(44);
   expect(retryBox!.y + retryBox!.height).toBeLessThanOrEqual(tabBarBox!.y);
 

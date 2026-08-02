@@ -148,10 +148,12 @@
   --hairline-strong: color-mix(in srgb, var(--hairline) 68%, var(--ink-soft) 32%);
 
   /* Contrast text: for content sitting on an accent fill or gradient
-     (buttons, chips, photo captions), not a page surface. Regular brass
-     brightens in dark mode, so --color-on-accent flips there; inverse,
-     strong-accent, and photo fills keep fixed text colours. */
-  --color-on-accent: #fdfaf2; /* light-theme text on regular brass */
+     (buttons, chips, photo captions), not a page surface. Brass is the same
+     coral in both themes, and cream on that coral measured 2.9:1 (July and
+     August audits), so text on brass is the fixed dark ink in both themes —
+     DESIGN.md's "fixed dark label ink for AA contrast". Inverse, strong-accent
+     and photo fills keep their own fixed text colours. */
+  --color-on-accent: var(--color-on-accent-strong); /* dark ink on regular brass */
   --color-on-inverse: #fdfaf2; /* cream text on solid ink-deep */
   --color-on-accent-strong: #16122a; /* dark text on coral or bright accent */
   --color-on-photo: #ffffff; /* white text on a photo-scrim overlay */
@@ -694,7 +696,9 @@ button {
   display: grid;
   place-items: center;
   background: linear-gradient(135deg, var(--brass), var(--river));
-  color: var(--color-on-accent);
+  /* Cream, not on-accent: the river end of this gradient is a mid blue that
+     dark ink fails against. On-inverse is the fixed cream for dark fills. */
+  color: var(--color-on-inverse);
   border-radius: 14px;
   box-shadow: var(--shadow);
 }
@@ -2152,15 +2156,18 @@ input[type="range"] {
   background: var(--ink-deep);
 }
 
+/* River, not coral: "you are here" is information in standard map grammar,
+   and a coral dot with a coral pulse wears the selection ring's colour
+   (design judgement 2026-08-01, finding 2.1's three-place accent budget). */
 .mapUserLocationMarker {
   position: relative;
   width: 18px;
   height: 18px;
   border: 3px solid var(--paper);
   border-radius: 50%;
-  background: var(--color-accent);
+  background: var(--color-info-strong);
   box-shadow:
-    0 0 0 5px color-mix(in srgb, var(--color-accent) 22%, transparent),
+    0 0 0 5px color-mix(in srgb, var(--color-info-strong) 22%, transparent),
     0 5px 16px color-mix(in srgb, var(--ink-deep) 32%, transparent);
 }
 
@@ -2168,7 +2175,7 @@ input[type="range"] {
   content: "";
   position: absolute;
   inset: -8px;
-  border: 2px solid color-mix(in srgb, var(--color-accent) 52%, transparent);
+  border: 2px solid color-mix(in srgb, var(--color-info-strong) 52%, transparent);
   border-radius: inherit;
   animation: mapLocationSignal 1.8s var(--ease-out) infinite;
 }
@@ -3746,7 +3753,8 @@ input[type="range"] {
   display: grid;
   place-items: center;
   background: linear-gradient(135deg, var(--brass), var(--river));
-  color: var(--color-on-accent);
+  /* Cream for the same reason as .brandMark: the river end fails dark ink. */
+  color: var(--color-on-inverse);
   border-radius: 999px;
   font-weight: 800;
   font-variant-numeric: tabular-nums;

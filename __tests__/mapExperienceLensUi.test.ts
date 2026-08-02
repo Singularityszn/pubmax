@@ -186,7 +186,10 @@ describe("MapExperienceLens", () => {
 
     expect(pints).toContain('class="tonightArcChip isOn"');
     expect(bars).toContain('class="tonightArcChip"');
-    expect(pints).not.toContain("✓");
+    // The tick is the non-colour selection mark (design judgement 2026-08-01,
+    // finding 2.1: selection reads without the accent). Decorative only —
+    // aria-pressed carries the state.
+    expect(pints).toContain('class="tonightArcChipTick" aria-hidden="true"');
     expect(bars).not.toContain("✓");
     expect(html).toContain('aria-label="Clubs are not mapped yet"');
     expect(html).toContain('aria-disabled="true"');
