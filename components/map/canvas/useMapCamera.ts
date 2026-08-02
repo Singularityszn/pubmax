@@ -2,10 +2,134 @@ import { useCallback, useEffect, useMemo } from "react";
 import type { MutableRefObject } from "react";
 import * as maplibregl from "maplibre-gl";
 import type { Venue } from "@/lib/venues";
-import { LONG_JUMP_CURVE } from "./easing";
+import { LONG_JUMP_CURVE, easeOutCubic } from "./easing";
 import { createCameraIntentCoordinator, type CameraIntentKind } from "@/lib/cameraIntent";
+import { mapVisibleBand, nearMeCameraFrame, nearestVenueKm } from "@/lib/nearMeMapFrame";
 
 type MapView = { center: [number, number]; zoom: number; pitch: number; bearing: number };
+
+// Chrome the near-me camera must stay clear of. The top values are only a
+// FALLBACK: the phone chrome stack is being reworked, and a hardcoded height
+// would drift the reader silently under a changed chip row. Measure it.
+const PHONE_TOP_INSET = 190;
+const PHONE_BOTTOM_INSET = 190;
+const DESKTOP_TOP_INSET = 150;
+const DESKTOP_BOTTOM_INSET = 110;
+
+/** The one sheet class that can cover the map on a phone. */
+const BOTTOM_SHEET_SELECTOR = ".mobileSharedSheet.open";
+
+/** The floating chrome stack above the map on a phone. */
+const TOP_CHROME_SELECTOR = ".mobileMapChrome";
+
+/** Breathing room between the lowest chrome and the reader's own band. */
+const TOP_CHROME_GAP_PX = 12;
+
+/**
+ * Bottom edge of the map's own floating chrome, in map-container pixels.
+ *
+ * Measured for the same reason the sheet is: it is a stack whose rows come and
+ * go (a query chip, a rail, a search row), so its height is a fact about the
+ * moment rather than a constant. Falls back to the inset above when it cannot
+ * be read.
+ */
+function measureTopChromeBottom(containerTop: number, fallback: number): number {
+  if (typeof document === "undefined") return fallback;
+  const chrome = document.querySelector(TOP_CHROME_SELECTOR);
+  if (!chrome) return fallback;
+  const rect = chrome.getBoundingClientRect();
+  if (rect.height <= 0) return fallback;
+  return rect.bottom - containerTop + TOP_CHROME_GAP_PX;
+}
+
+// Long enough to read as travel between two places, short enough that the
+// answer does not feel withheld. Matches the pub-select fly-to.
+const NEAR_ME_CAMERA_DURATION_MS = 700;
+
+/** Give up waiting for the sheet after this; a stuck sheet must not strand the camera. */
+const SHEET_SETTLE_TIMEOUT_MS = 900;
+
+/** Frames the sheet edge must hold still before its geometry is trusted. */
+const SHEET_SETTLE_STABLE_FRAMES = 4;
+
+/**
+ * Less cover than this is a sheet that has not grown yet, not a band. The
+ * near-me sheet mounts at full height of nothing and springs open, so its first
+ * frame reports an edge at the bottom of the screen.
+ */
+const SHEET_UNGROWN_COVER_PX = 64;
+
+/**
+ * Top edge of an open bottom sheet, in map-container pixels, or null when no
+ * sheet covers the map. Measured because a contextual sheet is content-height:
+ * its snap cap is a maximum, not the height it settles at, so no constant can
+ * stand in for it.
+ */
+function measureBottomSheetTop(containerTop: number): number | null {
+  if (typeof document === "undefined") return null;
+  const sheet = document.querySelector(BOTTOM_SHEET_SELECTOR);
+  if (!sheet) return null;
+  const rect = sheet.getBoundingClientRect();
+  if (rect.height <= 0) return null;
+  return rect.top - containerTop;
+}
+
+/**
+ * Call back with the sheet's resting top edge, once it has one.
+ *
+ * The camera aims ONCE, from here. An earlier version aimed immediately and
+ * then re-aimed when the sheet settled, which looked like the camera missing
+ * and correcting itself on every single open: the first reading is taken while
+ * the sheet is still a sliver at the bottom of the screen, so the correction
+ * was the norm and it was worth about 180px of pan. Under reduced motion it was
+ * worse still, because both moves were instant jumps.
+ *
+ * Waiting costs about a third of a second before the camera starts, and nothing
+ * is withheld in that time: the sheet and its list are what the reader is
+ * watching. Watching the edge needs no knowledge of the sheet's own spring,
+ * which is why it is done this way.
+ */
+function whenBottomSheetSettles(
+  containerTop: number,
+  done: (coverTop: number | null) => void,
+): void {
+  const measure = (): number | null => {
+    const top = measureBottomSheetTop(containerTop);
+    if (top === null) return null;
+    // Still growing. Not a band yet, and not "no sheet" either.
+    return top;
+  };
+  if (typeof requestAnimationFrame === "undefined" || typeof document === "undefined") {
+    done(measure());
+    return;
+  }
+  const containerHeight = document.documentElement.clientHeight;
+  const grown = (top: number | null): boolean =>
+    top !== null && containerHeight - top >= SHEET_UNGROWN_COVER_PX;
+  // No sheet at all (desktop, or a near-me answer with no sheet host): there is
+  // nothing to wait for, so do not spend the timeout finding that out.
+  if (!document.querySelector(BOTTOM_SHEET_SELECTOR)) {
+    done(null);
+    return;
+  }
+  const startedAt = performance.now();
+  let previous = measure();
+  let stableFrames = 0;
+  const step = () => {
+    const current = measure();
+    stableFrames = current === previous ? stableFrames + 1 : 0;
+    previous = current;
+    const settled = grown(current) && stableFrames >= SHEET_SETTLE_STABLE_FRAMES;
+    if (settled || performance.now() - startedAt > SHEET_SETTLE_TIMEOUT_MS) {
+      // A sheet that never grew is treated as no cover rather than as a band
+      // pinned to the bottom of the screen.
+      done(grown(current) ? current : null);
+      return;
+    }
+    requestAnimationFrame(step);
+  };
+  requestAnimationFrame(step);
+}
 
 type CameraRefs = {
   mapRef: MutableRefObject<maplibregl.Map | null>;
@@ -117,27 +241,49 @@ export function useMapCamera(refs: CameraRefs) {
     }));
   }, [reducedRef, scheduleCamera, venuesRef]);
 
+  // Near me puts the READER on the map, not a cloud of pubs. A fitBounds over
+  // nearby venues centres the cloud, which drops the reader wherever the
+  // geometry leaves them — on a phone, under the near-me sheet. `nearMeCameraFrame`
+  // keeps the centre on the reader and lets only zoom and screen offset move.
   const fitNearby = useCallback(
     (location: { lat: number; lng: number }, nearbyVenues: Venue[]) => {
-      const bounds = new maplibregl.LngLatBounds([location.lng, location.lat], [
-        location.lng,
-        location.lat,
-      ]);
-      nearbyVenues.forEach((venue) => bounds.extend([venue.longitude, venue.latitude]));
+      const map = mapRef.current;
+      if (!map) return;
       const isPhone = window.matchMedia("(max-width: 640px)").matches;
+      const container = map.getContainer().getBoundingClientRect();
+      const viewport = { width: container.width, height: container.height };
+      const reach = nearestVenueKm(location, nearbyVenues);
+      const venueKey = nearbyVenues.map((venue) => venue.id).join(">");
       const locationKey = `${location.lat.toFixed(4)},${location.lng.toFixed(4)}`;
-      scheduleCamera("nearby", `nearby:${locationKey}:${nearbyVenues.map((venue) => venue.id).join(">")}`, (map) => map.fitBounds(bounds, {
-        padding: isPhone
-          ? { top: 190, right: 34, bottom: 190, left: 34 }
-          : { top: 150, right: 90, bottom: 110, left: 90 },
-        maxZoom: 14.25,
-        duration: reducedRef.current ? 0 : 700,
-        pitch: isPhone ? 28 : 34,
-        // Keep the current rotation (fitBounds would zero it otherwise).
-        bearing: map.getBearing(),
-      }));
+      // One move, aimed at the band the reader actually ends up with. See
+      // whenBottomSheetSettles for why this waits rather than aiming twice.
+      whenBottomSheetSettles(container.top, (coverTop) => {
+        const band = mapVisibleBand({
+          height: viewport.height,
+          topInset: isPhone
+            ? measureTopChromeBottom(container.top, PHONE_TOP_INSET)
+            : DESKTOP_TOP_INSET,
+          coverTop,
+          bottomInset: isPhone ? PHONE_BOTTOM_INSET : DESKTOP_BOTTOM_INSET,
+        });
+        const frame = nearMeCameraFrame({ location, nearestVenueKm: reach, viewport, band });
+        scheduleCamera("nearby", `nearby:${locationKey}:${band.bottom}:${venueKey}`, (target) => target.easeTo({
+          center: frame.center,
+          zoom: frame.zoom,
+          offset: frame.offset,
+          // The move has one job: carry the reader's eye from the city to their
+          // own street. Ease-out starts fast, so the arrival reads as an answer
+          // rather than a slow pan. Reduced motion takes the same frame in one
+          // instant jump, which is why there is only ever one move to take.
+          duration: reducedRef.current ? 0 : NEAR_ME_CAMERA_DURATION_MS,
+          easing: easeOutCubic,
+          pitch: isPhone ? 28 : 34,
+          // Keep the current rotation (a fit would zero it otherwise).
+          bearing: target.getBearing(),
+        }));
+      });
     },
-    [reducedRef, scheduleCamera],
+    [mapRef, reducedRef, scheduleCamera],
   );
 
   return { cinematic, fitRoute, fitCityBounds, fitQueryVenues, fitNearby };

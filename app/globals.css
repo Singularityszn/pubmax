@@ -2156,48 +2156,14 @@ input[type="range"] {
   background: var(--ink-deep);
 }
 
-/* River, not coral: "you are here" is information in standard map grammar,
-   and a coral dot with a coral pulse wears the selection ring's colour
-   (design judgement 2026-08-01, finding 2.1's three-place accent budget). */
-.mapUserLocationMarker {
-  position: relative;
-  width: 18px;
-  height: 18px;
-  border: 3px solid var(--paper);
-  border-radius: 50%;
-  background: var(--color-info-strong);
-  box-shadow:
-    0 0 0 5px color-mix(in srgb, var(--color-info-strong) 22%, transparent),
-    0 5px 16px color-mix(in srgb, var(--ink-deep) 32%, transparent);
-}
-
-.mapUserLocationMarker::after {
-  content: "";
-  position: absolute;
-  inset: -8px;
-  border: 2px solid color-mix(in srgb, var(--color-info-strong) 52%, transparent);
-  border-radius: inherit;
-  animation: mapLocationSignal 1.8s var(--ease-out) infinite;
-}
-
-@keyframes mapLocationSignal {
-  0% {
-    opacity: 0.7;
-    transform: scale(0.68);
-  }
-  75%,
-  100% {
-    opacity: 0;
-    transform: scale(1.35);
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .mapUserLocationMarker::after {
-    animation: none;
-    opacity: 0.45;
-  }
-}
+/* The reader's dot moved onto the canvas, beneath the pins, so a pin the
+   reader is standing on keeps its price readable. Its paint lives in
+   buildUserLocation (components/map/canvas/buildScene.ts) and reads
+   --color-info-strong, the river blue this rule read. River, not coral:
+   "you are here" is information in standard map grammar, and a coral dot
+   would wear the selection ring's colour (design judgement 2026-08-01,
+   finding 2.1's three-place accent budget). Its CSS pulse did not survive
+   the move. */
 
 /* Landmark history card — a sourced note pinned over the map. */
 .landmarkCard {

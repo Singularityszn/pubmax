@@ -19,6 +19,7 @@ const shellCss = read("components/mobile/mobileMapShell.css");
 const navCss = read("components/nav/mobileNav.css");
 const mapIconsSrc = read("lib/mapIcons.ts");
 const buildSceneSrc = read("components/map/canvas/buildScene.ts");
+const tokensSrc = read("components/map/canvas/tokens.ts");
 const canvasSrc = read("components/PubMapCanvas.tsx");
 
 // --- token resolution -------------------------------------------------------
@@ -170,5 +171,22 @@ describe("findings 2.1 / 2.9 — map canvas coral economy", () => {
   it("the selected-pin rings stay coral — selection owns the accent", () => {
     const glow = /id: "pubs-selected-glow"[\s\S]*?\},/.exec(buildSceneSrc)?.[0] ?? "";
     expect(glow).toContain("tokens.brass");
+  });
+
+  // The reader's dot moved from a DOM marker onto the canvas. The marker was
+  // already river; the token that replaced it must be too, or "you are here"
+  // wears the selection ring's colour and the accent budget gains a fourth
+  // place. The source is read rather than restated, so a retune re-runs here.
+  it("the reader's own dot paints river, never the selection coral", () => {
+    expect(tokensSrc).toMatch(
+      /const userLocation = resolvedColour\("--color-info-strong",/,
+    );
+    expect(tokensSrc).not.toMatch(
+      /const userLocation = resolvedColour\("--color-accent",/,
+    );
+    const dot = /export function buildUserLocation[\s\S]*?\n\}/.exec(buildSceneSrc)?.[0] ?? "";
+    expect(dot.length).toBeGreaterThan(0);
+    expect(dot).not.toContain("tokens.brass");
+    expect(dot).not.toContain("tokens.brick");
   });
 });
