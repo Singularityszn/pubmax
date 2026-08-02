@@ -1,9 +1,10 @@
 /* Compact map toolbar — map-first on phones; drink filters opt-in. */
 
 .appShell {
-  /* Closed desktop toolbar block, including the always-visible experience
-     lens. Sibling chrome uses this to clear the toolbar instead of assuming
-     the older single-row height. */
+  /* Fallback only. The toolbar publishes its own rendered height on .appShell
+     (MapToolbar's ResizeObserver), because the block grows when the reader
+     opens the experience lens or the drink panel, and the banners docked under
+     it may not float over the map on a stale constant. */
   --map-toolbar-resting-height: 155px;
   --desktop-map-surface-width: min(1240px, calc(100vw - 32px));
 }
@@ -121,7 +122,10 @@
   outline-offset: 2px;
 }
 
-/* Wave J declutter — Drinks is secondary/outline; Plan tonight stays primary. */
+/* Wave J declutter — Drinks is secondary/outline; Plan tonight stays primary.
+   "Show me" shares that idiom: it opens the experience-lens panel, which is
+   closed at rest (design judgement 2026-08-01, finding 2.15). */
+.mapToolbarLensBtn,
 .mapToolbarDrinksBtn {
   display: inline-flex;
   align-items: center;
@@ -145,6 +149,7 @@
     color var(--duration-base) var(--ease-out);
 }
 
+.mapToolbarLensBtn.isActive,
 .mapToolbarDrinksBtn.isActive {
   border-color: color-mix(in srgb, var(--brass) 55%, var(--line));
   background: color-mix(in srgb, var(--brass) 8%, transparent);
@@ -430,6 +435,7 @@
     font-size: 0.74rem;
   }
 
+  .mapToolbarLensBtn,
   .mapToolbarDrinksBtn {
     min-height: 44px;
     height: 44px;

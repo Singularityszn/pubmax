@@ -1,12 +1,14 @@
 "use client";
 
-import { Route, Wine } from "lucide-react";
-import { useEffect, useState, type ReactNode } from "react";
+import { Layers, Route, Wine } from "lucide-react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 
 import CitySwitcher from "@/components/map/CitySwitcher";
 import ConditionsChip from "@/components/desktop/ConditionsChip";
 import DrinkShapeChips from "@/components/map/DrinkShapeChips";
-import MapExperienceLensControl from "@/components/map/MapExperienceLens";
+import MapExperienceLensControl, {
+  MAP_EXPERIENCE_LENS_OPTIONS,
+} from "@/components/map/MapExperienceLens";
 import FavoritePintPicker from "@/components/map/FavoritePintPicker";
 import PersonaLensPicker from "@/components/map/PersonaLensPicker";
 import ZonePicker from "@/components/map/ZonePicker";
@@ -88,7 +90,31 @@ export default function MapToolbar({
   onExperienceLensChange,
 }: MapToolbarProps) {
   const [drinksOpen, setDrinksOpen] = useState(false);
+  // Closed at rest (design judgement 2026-08-01, finding 2.15). The panel used
+  // to arrive open, so the toolbar block was a third layer over the map before
+  // the reader asked for anything.
+  const [lensOpen, setLensOpen] = useState(false);
+  const toolbarRef = useRef<HTMLDivElement | null>(null);
   const [isMobile, setIsMobile] = useState<boolean | null>(null);
+  // The banners below the toolbar dock against its rendered bottom edge. That
+  // edge moves when the lens or drink panels open, so the toolbar publishes its
+  // own height rather than every sibling copying a constant that goes stale.
+  useEffect(() => {
+    const node = toolbarRef.current;
+    const shell = node?.closest<HTMLElement>(".appShell");
+    if (!node || !shell || typeof ResizeObserver === "undefined") return;
+    const observer = new ResizeObserver(() => {
+      shell.style.setProperty(
+        "--map-toolbar-resting-height",
+        `${Math.round(node.getBoundingClientRect().height)}px`,
+      );
+    });
+    observer.observe(node);
+    return () => {
+      observer.disconnect();
+      shell.style.removeProperty("--map-toolbar-resting-height");
+    };
+  }, []);
   useEffect(() => {
     const mq = window.matchMedia("(max-width: 640px)");
     const sync = () => {
@@ -118,9 +144,16 @@ export default function MapToolbar({
     if (next !== "all") setDrinksOpen(false);
     onExperienceLensChange(next);
   };
+  // A closed panel may not hide which view the map is under, so the control
+  // names it. "All" is the resting view, so it needs no name.
+  const activeLensLabel =
+    MAP_EXPERIENCE_LENS_OPTIONS.find(
+      (option) => option.id === experienceLens && option.id !== "all",
+    )?.label ?? null;
 
   return (
     <div
+      ref={toolbarRef}
       className="mapToolbar"
       // No search control on a base-pub-only arrival, so no search landmark:
       // navigating by landmark to a region with nothing to search is a dead end.
@@ -140,6 +173,21 @@ export default function MapToolbar({
             the toolbar carries the compact chip instead. Fail-soft: renders
             nothing when the weather has no verdict. */}
         {isMobile === false ? <ConditionsChip /> : null}
+
+        <button
+          type="button"
+          className={
+            lensOpen || activeLensLabel
+              ? "mapToolbarLensBtn isActive"
+              : "mapToolbarLensBtn"
+          }
+          aria-pressed={lensOpen}
+          aria-expanded={lensOpen}
+          onClick={() => setLensOpen((open) => !open)}
+        >
+          <Layers size={15} aria-hidden="true" />
+          <span>{activeLensLabel ? `Show me: ${activeLensLabel}` : "Show me"}</span>
+        </button>
 
         {experienceLens === "all" ? (
           <button
@@ -191,12 +239,14 @@ export default function MapToolbar({
         <CitySwitcher cityId={cityId} />
       </div>
 
-      <MapExperienceLensControl
-        lens={experienceLens}
-        allSelected={!drinkFiltersActive}
-        summary={experienceSummary}
-        onChange={changeExperienceLens}
-      />
+      {lensOpen ? (
+        <MapExperienceLensControl
+          lens={experienceLens}
+          allSelected={!drinkFiltersActive}
+          summary={experienceSummary}
+          onChange={changeExperienceLens}
+        />
+      ) : null}
 
       {showNoSearchMatches ? (
         <div

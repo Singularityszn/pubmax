@@ -477,6 +477,18 @@ export default function PubMap({
     locationAllowsInterruptivePrompt,
     () => false,
   );
+  /**
+   * Has the reader moved the camera themselves yet?
+   *
+   * The ambient banners (city suggest, city status) are an opening offer. Once
+   * the reader drives the map, the map is the answer and the banners step off
+   * it (design judgement 2026-08-01, finding 2.15). This is session state, not
+   * a dismissal: it never writes to the per-banner "do not show me this again"
+   * stores, because ignoring an offer is not rejecting it.
+   */
+  const [mapCameraTouched, setMapCameraTouched] = useState(false);
+  const dismissAmbientBanners = useCallback(() => setMapCameraTouched(true), []);
+  const ambientBannerLane = !mobileViewport && !mapCameraTouched;
   const railViewport = useSyncExternalStore(
     subscribeDesktopRailViewport,
     desktopRailViewportSnapshot,
@@ -2851,6 +2863,7 @@ export default function PubMap({
           hideLayersControl={mobileViewport}
           focusPoint={areaFocus}
           onViewportChange={setMapViewport}
+          onUserCameraMove={dismissAmbientBanners}
           onBoundsChange={handleMapBoundsChange}
         />
         {!mobileViewport ? <MapToolbar
@@ -2911,13 +2924,19 @@ export default function PubMap({
         {railViewport && !detailOpen ? (
           <MapDesktopRail area={searchAreaNewsArea ?? suggestedPlanArea?.slug ?? null} />
         ) : null}
-        {!mobileViewport && !ukPlaceArrival ? (
+        {/* Ambient banners dock under the control bar and step off the map the
+            moment the reader moves the camera (design judgement 2026-08-01,
+            finding 2.15). They used to park in the exact centre of the
+            viewport, over the pins the map exists to show. */}
+        {ambientBannerLane && !ukPlaceArrival ? (
           <CitySuggestBanner
             cityId={cityId}
             onLocationFound={setUserLocation}
           />
         ) : null}
-        {!mobileViewport && isLondon ? <CityStatusBanner cityId={cityId} /> : null}
+        {ambientBannerLane && isLondon ? (
+          <CityStatusBanner cityId={cityId} />
+        ) : null}
         {/* F3: concierge as map home — a first-class grounded ask affordance in
             the bottom map-home lane. Rendered before the Tonight lane so its
             sibling CSS lifts the lane above the collapsed pill (no collision). */}

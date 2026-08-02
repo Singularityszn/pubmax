@@ -6,11 +6,21 @@ import type { MapExperienceLens as MapExperienceLensValue } from "@/lib/mapExper
 
 import "./mapExperienceLens.css";
 
-const OPTIONS = [
+/**
+ * The three map views, and the one place their names are written.
+ *
+ * The desktop control that OPENS this panel prints the active view in its own
+ * label, because the panel is closed at rest (design judgement 2026-08-01,
+ * finding 2.15): a lens nobody can see is a filtered map with no visible
+ * cause. Both surfaces read this table so the two names cannot drift.
+ */
+export const MAP_EXPERIENCE_LENS_OPTIONS = [
   { id: "all", label: "All", Icon: Map },
   { id: "no-alcohol", label: "No alcohol", Icon: GlassWater },
   { id: "food", label: "Food", Icon: Utensils },
 ] as const;
+
+const OPTIONS = MAP_EXPERIENCE_LENS_OPTIONS;
 
 export default function MapExperienceLens({
   lens,

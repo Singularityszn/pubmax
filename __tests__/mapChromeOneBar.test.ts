@@ -99,18 +99,62 @@ describe("finding 2.3 — the category toggles have exactly one home per viewpor
 
 describe("finding 2.15 — SHOW ME opens only from its own control", () => {
   it("does not mount the experience lens panel by default", () => {
-    expect(toolbar).toMatch(/useState\(false\)[\s\S]{0,0}|lensOpen/);
-    expect(toolbar, "the panel is conditional").toMatch(
-      /\{lensOpen \? \(?\s*<MapExperienceLensControl/,
-    );
     expect(toolbar, "closed on first paint").toMatch(
       /const \[lensOpen, setLensOpen\] = useState\(false\)/,
+    );
+    expect(toolbar, "the panel is conditional").toMatch(
+      /\{lensOpen \? \(\s*<MapExperienceLensControl/,
     );
   });
 
   it("gives it a control that names its own state", () => {
-    expect(toolbar).toMatch(/className="mapToolbarLensBtn/);
+    expect(toolbar).toContain('"mapToolbarLensBtn"');
     expect(toolbar).toMatch(/aria-expanded=\{lensOpen\}/);
     expect(toolbar).toMatch(/setLensOpen\(\(open\) => !open\)/);
+  });
+
+  it("names the active view on the closed control, so no lens is invisible", () => {
+    expect(toolbar).toMatch(/MAP_EXPERIENCE_LENS_OPTIONS\.find/);
+    expect(toolbar).toContain("`Show me: ${activeLensLabel}`");
+    const lens = read("components/map/MapExperienceLens.tsx");
+    expect(lens, "one table of view names").toContain(
+      "export const MAP_EXPERIENCE_LENS_OPTIONS",
+    );
+  });
+});
+
+describe("finding 2.15 — the banners dock under the bar and step off the map", () => {
+  it("docks them against the toolbar's measured height, not a constant", () => {
+    const toolbarCss = read("components/map/mapToolbar.css");
+    expect(toolbar, "the toolbar publishes its own height").toMatch(
+      /setProperty\(\s*"--map-toolbar-resting-height"/,
+    );
+    expect(toolbar).toMatch(/new ResizeObserver/);
+    // The constant survives only as the pre-measure fallback.
+    expect(toolbarCss).toMatch(/--map-toolbar-resting-height:\s*155px/);
+    for (const file of [
+      "components/map/citySuggestBanner.css",
+      "components/map/cityStatusBanner.css",
+    ]) {
+      expect(read(file), `${file} docks under the bar`).toMatch(
+        /var\(--map-toolbar-resting-height/,
+      );
+    }
+  });
+
+  it("hides them once the reader moves the camera, and only then", () => {
+    const canvas = read("components/PubMapCanvas.tsx");
+    // A gesture carries an originalEvent; a programmatic fly does not.
+    expect(canvas).toMatch(
+      /if \(event\.originalEvent\) onUserCameraMoveRef\.current\?\.\(\)/,
+    );
+    expect(canvas).toMatch(/map\.on\("dragstart", emitUserCameraMove\)/);
+    expect(canvas).toMatch(/map\.on\("zoomstart", emitUserCameraMove\)/);
+    expect(pubMap).toMatch(/onUserCameraMove=\{dismissAmbientBanners\}/);
+    expect(pubMap).toMatch(
+      /const ambientBannerLane = !mobileViewport && !mapCameraTouched/,
+    );
+    expect(pubMap).toMatch(/\{ambientBannerLane && !ukPlaceArrival \?/);
+    expect(pubMap).toMatch(/\{ambientBannerLane && isLondon \?/);
   });
 });
