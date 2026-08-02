@@ -206,8 +206,20 @@ export type VenueFilterHints = {
   topShelf?: boolean;
 };
 
+/**
+ * The one `maxPrice` that means "no pint-price cap". A cap a reader cannot see
+ * is worse than a wrong figure, because nothing tells them there is anything
+ * to disbelieve: a default of 8 lit a "1" filter badge reading "≤£8.00" that no
+ * control in the app could show or clear. So the OFF value is a single shared
+ * number, it is what a fresh visitor starts on, and every price control offers
+ * it as "Any". It sits above every priced pub in the curated index, so it caps
+ * nothing; non-pub anchors bypass the cap in filterVenues regardless.
+ */
+export const NO_PINT_PRICE_CAP = 10;
+
 export type Filters = {
   query: string;
+  /** Maximum pint price. `NO_PINT_PRICE_CAP` means no cap at all. */
   maxPrice: number;
   crawlStyle: CrawlStyle;
   stopCount: number;

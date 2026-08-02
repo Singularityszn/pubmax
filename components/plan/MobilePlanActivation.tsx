@@ -240,7 +240,9 @@ export function MobilePlanActivation({
       </div>
       <div className="mobilePlannerIntentChips" role="group" aria-label="Route needs">
         <Chip aria-pressed={stepFree} onClick={() => setStepFree((current) => !current)}>Step-free</Chip>
-        <Chip aria-pressed={zeroProof} onClick={() => setZeroProof((current) => !current)}>0.0 options</Chip>
+        {/* "0.0 options" read as broken number formatting, not as a drink.
+            The chip names the drink the way the rest of the app does. */}
+        <Chip aria-pressed={zeroProof} onClick={() => setZeroProof((current) => !current)}>Alcohol-free</Chip>
       </div>
       <Button type="button" size="large" className="w-full" disabled={loading} aria-busy={loading} onClick={() => void generate()}>{loading ? <span className="mobilePlannerIntentPending"><PubmaxxLoadingEmber size={15} />Building route</span> : "Build 3-stop route"}</Button>
       {error ? <p className="mobilePlannerIntentError" role="alert">{error}</p> : null}

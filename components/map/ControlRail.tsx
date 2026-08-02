@@ -28,7 +28,7 @@ import {
   isKnownSeatedService,
   isKnownStepFree,
 } from "@/lib/venueAccessibility";
-import type { CrawlStyle, Filters, Venue } from "@/lib/venues";
+import { NO_PINT_PRICE_CAP, type CrawlStyle, type Filters, type Venue } from "@/lib/venues";
 
 /** City-aware search placeholder examples (neighbourhoods, not Tube jargon). */
 export function citySearchPlaceholder(cityId: CityId, displayName: string): string {
@@ -76,7 +76,8 @@ export const styleLabels: Record<CrawlStyle, string> = {
 
 export const initialFilters: Filters = {
   query: "",
-  maxPrice: 8,
+  // A fresh visitor starts with NO price cap. See NO_PINT_PRICE_CAP.
+  maxPrice: NO_PINT_PRICE_CAP,
   crawlStyle: "balanced",
   stopCount: 6,
   routeWindow: 20,
@@ -306,12 +307,16 @@ export default function ControlRail({
       <section className="panelSection">
         <div className="rangeLine">
           <span>Max Pint</span>
-          <strong>£{filters.maxPrice.toFixed(2)}</strong>
+          {/* The slider's top end is the OFF value, so it reads as no cap
+              rather than as a figure it never applies. */}
+          <strong>
+            {filters.maxPrice >= NO_PINT_PRICE_CAP ? "Any" : `£${filters.maxPrice.toFixed(2)}`}
+          </strong>
         </div>
         <input
           type="range"
           min="4"
-          max="9"
+          max={NO_PINT_PRICE_CAP}
           step="0.25"
           value={filters.maxPrice}
           aria-label="Maximum pint price"
