@@ -5,6 +5,33 @@ import { useEffect, type RefObject } from "react";
 const FOCUSABLE_SELECTOR =
   'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
 
+/**
+ * A trap may only stand the rest of the page down when its own container is
+ * on screen. The phone sheet portal stays MOUNTED at desktop widths and CSS
+ * hides it (`display: none`, mobileMapShell.css). Its React state still runs,
+ * so a sheet opened at the `full` detent used to inert the whole desktop app
+ * behind a surface nobody could see: every pin, the toolbar search, and the
+ * desktop Pint Drop picker's own rows went unclickable and unfocusable.
+ * `displayChain` is the computed `display` of the container and each ancestor.
+ */
+export function shouldEngageFocusTrap(input: {
+  active: boolean;
+  displayChain: string[];
+}): boolean {
+  if (!input.active) return false;
+  return !input.displayChain.includes("none");
+}
+
+function displayChain(container: HTMLElement): string[] {
+  const chain: string[] = [];
+  let cursor: HTMLElement | null = container;
+  while (cursor) {
+    chain.push(window.getComputedStyle(cursor).display);
+    cursor = cursor.parentElement;
+  }
+  return chain;
+}
+
 // Shared modal focus trap, extracted from the mobile bottom sheet
 // (MobileSharedSheet) so the desktop venue drawer can reuse the SAME behaviour
 // for its full open lifetime. While `active`:
@@ -14,6 +41,7 @@ const FOCUSABLE_SELECTOR =
 //      whether the trapped node is a body-level portal (mobile sheet) or nested
 //      inside the app shell (desktop drawer). Prior `inert` values are restored
 //      on teardown.
+//   3. A container CSS has hidden never traps at all (shouldEngageFocusTrap).
 // Focus capture/restore and Esc stay with each caller (both surfaces already
 // own those); this hook is ONLY the trap.
 export function useFocusTrap(
@@ -24,6 +52,7 @@ export function useFocusTrap(
     if (!active || typeof document === "undefined") return;
     const container = containerRef.current;
     if (!container) return;
+    if (!shouldEngageFocusTrap({ active, displayChain: displayChain(container) })) return;
 
     // Inert every element outside the container: at each level from the
     // container up to <body>, inert the off-path siblings.
