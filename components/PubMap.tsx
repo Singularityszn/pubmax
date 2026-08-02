@@ -2756,7 +2756,10 @@ export default function PubMap({
           canvas pins are pointer-only; List view provides their operable DOM
           parallel alongside search and the tonight lane). */}
       <section className="mapStage" aria-label={`Interactive pub map of ${mapDisplayName}`}>
-        {!ukPlaceArrival ? (
+        {/* Desktop only. On a phone these toggles are a section of the Filters
+            sheet instead, so the map keeps the band the third chrome bar used
+            to take (design judgement 2026-08-01, finding 2.3). */}
+        {!ukPlaceArrival && !mobileViewport ? (
           <TonightArcChips
             visibility={venueKindVisibility}
             experienceLens={experienceLens}
@@ -3037,7 +3040,6 @@ export default function PubMap({
           nearMeError={nearbyError}
           onDismissNearMeError={() => setNearbyError(null)}
           nearbyCount={nearbyMapResult?.venueIds.length ?? 0}
-          tonightCount={whatsOnTonight.rows.length}
           tflCount={tflStatus.issueCount}
           tflStatus={tflStatus.failed ? "unavailable" : !tflStatus.payload ? "checking" : tflStatus.issueCount ? "issues" : "clear"}
           priceLabel={filters.maxPrice < 10 ? `≤£${filters.maxPrice.toFixed(2)}` : "Price"}
@@ -3087,6 +3089,13 @@ export default function PubMap({
                 allSelected={!drinkFiltersActive}
                 summary={experienceSummary}
                 onChange={changeExperienceLens}
+              />
+              {/* The phone's only copy of the venue-type toggles. */}
+              <TonightArcChips
+                visibility={venueKindVisibility}
+                experienceLens={experienceLens}
+                variant="sheet"
+                onChange={setVenueKindVisibility}
               />
               {experienceLens === "all" ? (
                 <>

@@ -115,12 +115,12 @@ describe("the phone shows the near me failure", () => {
     expect(mobileShell).toContain('aria-label="Dismiss the Near me message"');
   });
 
-  it("lands clear of the arc and keeps its controls thumb-sized", () => {
+  it("docks under the one top bar and keeps its controls thumb-sized", () => {
     const alert = mobileCss.match(/\.mobileMapNearMeAlert\s*{([^}]*)}/)?.[1] ?? "";
     expect(alert, ".mobileMapNearMeAlert rule present").not.toBe("");
     expect(alert).toMatch(/position:\s*fixed/);
     expect(alert).toMatch(
-      /top:\s*calc\(var\(--mobile-map-top\) \+ var\(--mobile-map-bar-h\) \+ 118px\)/,
+      /top:\s*calc\(var\(--mobile-map-chrome-h\) \+ 8px\)/,
     );
     // Same left/right boundary as every other stacked phone surface.
     expect(alert).toMatch(/left:\s*var\(--mobile-map-stack-left\)/);
@@ -135,17 +135,16 @@ describe("the phone shows the near me failure", () => {
     expect(text, "a reason is never truncated").not.toMatch(/text-overflow:\s*ellipsis/);
   });
 
-  it("stays out of the chrome grid, which the phone counts as two rows", () => {
-    // The chrome grid ends where the Tonight Arc begins, so a third row inside
-    // it would paint through the arc. e2e/mobile-map-shell-matrix.spec.ts counts
-    // those rows; this reads the source that has to keep them at two.
+  it("stays out of the chrome grid, which the phone keeps at one bar", () => {
+    // The chrome is ONE bar (design judgement 2026-08-01, finding 2.3), so a
+    // row added inside it would put the reader back in front of a stack.
     const start = mobileShell.lastIndexOf('<div className="mobileMapChrome"');
     const end = mobileShell.indexOf("\n      </div>", start);
     expect(start, "the map chrome container").toBeGreaterThan(-1);
     expect(end, "its closing tag").toBeGreaterThan(start);
     const chrome = mobileShell.slice(start, end);
-    expect(chrome, "the chrome still holds the rail").toContain("mobileMapRail");
-    expect(chrome, "the alert is a sibling, not a third row").not.toContain(
+    expect(chrome, "the chrome still holds the top bar").toContain("mobileMapTopbar");
+    expect(chrome, "the alert is a sibling, not a second row").not.toContain(
       "mobileMapNearMeAlert",
     );
   });

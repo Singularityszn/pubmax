@@ -55,11 +55,35 @@ describe("mobile chrome fit at 390px", () => {
     );
   });
 
-  it("tightens the map control rail so all three chips clear the viewport", () => {
-    // 390px is the narrowest common phone; 430px keeps the roomier chips.
-    expect(mobileMapCss).toMatch(
-      /@media \(max-width: 420px\)\s*{[\s\S]*?\.mobileMapRail > button\s*{[^}]*padding-inline:\s*5px/,
+  it("fits the one top bar inside the narrowest phone at the tap floor", () => {
+    // 320px is the narrowest phone the e2e matrix runs. The bar is six slots:
+    // wordmark, area, search, filters, Pub Pal, more. Four of them are 44px
+    // controls, so the arithmetic below is what stops a seventh being added
+    // and pushing a control off the viewport (finding 2.3).
+    const bar = mobileMapCss.match(/\.mobileMapTopbar\s*{([^}]*)}/)?.[1] ?? "";
+    expect(bar, ".mobileMapTopbar rule present").not.toBe("");
+    const columns = bar.match(/grid-template-columns:\s*([^;]+);/)?.[1]?.trim() ?? "";
+    expect(columns, "the bar declares its columns").not.toBe("");
+    const fixed = [...columns.replace(/minmax\([^)]*\)/g, "").matchAll(/(\d+)px/g)].map(
+      (m) => Number(m[1]),
     );
+    expect(fixed.length, "fixed control columns").toBe(4);
+    for (const width of fixed) {
+      expect(width, "every control column keeps the 44px tap floor").toBeGreaterThanOrEqual(44);
+    }
+    const brandFloor = Number(columns.match(/minmax\((\d+)px,\s*1fr\)/)?.[1]);
+    expect(Number.isFinite(brandFloor), "wordmark floor parsed").toBe(true);
+
+    const stackLeft = Number(mobileMapCss.match(/--mobile-map-stack-left:\s*(\d+)px/)?.[1]);
+    const stackRight = Number(mobileMapCss.match(/--mobile-map-stack-right:\s*(\d+)px/)?.[1]);
+    const padding = bar.match(/padding:\s*(\d+)px\s+(\d+)px\s+(\d+)px\s+(\d+)px/);
+    expect(padding, "the bar declares its padding").not.toBeNull();
+    const padInline = Number(padding?.[2]) + Number(padding?.[4]);
+    const content = 320 - stackLeft - stackRight - 2 - padInline;
+    const taken = fixed.reduce((sum, width) => sum + width, 0) + brandFloor;
+    expect(taken, "the bar's own minimum fits 320px").toBeLessThan(content);
+    // And the area name still gets a readable column rather than zero.
+    expect(content - taken, "area name column at 320px").toBeGreaterThanOrEqual(40);
   });
 
   it("never truncates the venue price caption", () => {
@@ -72,18 +96,12 @@ describe("mobile chrome fit at 390px", () => {
     );
   });
 
-  it("keeps the Tonight Arc in one horizontal rail clear of the TfL control", () => {
-    // The rail used to be sized against the viewport ALONE (min(100vw - 24px,
-    // 366px), centred), which is not the constraint that matters: the TfL
-    // utility control is fixed to the right map edge in the same vertical band,
-    // so a viewport-wide rail put the fifth chip ("Restaurants") under a 44px
-    // button — half the label hidden, and every tap in that strip opening TfL
-    // instead of the lane toggle. Measured at 390x844: chip 259.7..352.8 vs
-    // button 334..378. So this pins the rail against the CONTROL, not the
-    // viewport, and the lane is one shared variable so the two cannot drift.
-    const chipCount = (arcChipsTsx.match(/\bkind:\s*"/g) ?? []).length;
-    expect(chipCount, "chips declared in TonightArcChips").toBe(5);
-
+  it("keeps the map-edge lane clear for the two controls that live on it", () => {
+    // The Tonight Arc used to be a full-width band in this same vertical strip,
+    // and the TfL button swallowed the taps meant for its fifth chip. The arc
+    // has left the phone map entirely (finding 2.3), so what the lane has to
+    // describe now is the two map-edge controls themselves: TfL at the top and
+    // the Near me FAB at the thumb.
     const cornerInset = Number(
       mobileMapCss.match(/--mobile-map-corner-inset:\s*max\((\d+)px/)?.[1],
     );
@@ -93,78 +111,42 @@ describe("mobile chrome fit at 390px", () => {
         /--mobile-map-corner-lane:\s*calc\([\s\S]*?--mobile-map-corner-btn\)\s*\+\s*(\d+)px/,
       )?.[1],
     );
-    // The lane only describes the control if the control is actually laid out
-    // from the same two numbers.
+    for (const [label, value] of [
+      ["map-edge inset", cornerInset],
+      ["map-edge button size", cornerBtn],
+      ["map-edge lane gap", cornerGap],
+    ] as const) {
+      expect(Number.isFinite(value), `${label} parsed from CSS`).toBe(true);
+    }
+    // The lane only describes the controls if the controls are laid out from
+    // the same two numbers.
     expect(mobileMapCss).toMatch(
       /\.mobileMapUtilityCorner\s*{[^}]*right:\s*var\(--mobile-map-corner-inset\)/,
     );
     expect(mobileMapCss).toMatch(
       /\.mobileMapUtilityCorner > button\s*{[^}]*min-width:\s*var\(--mobile-map-corner-btn\)/,
     );
-
-    const mobile = arcChipsCss.split("@media (max-width: 640px)")[1] ?? "";
-    const railRule = mobile.match(/\.tonightArcChips\s*{([^}]*)}/)?.[1] ?? "";
-    const railLeft = Number(
-      mobileMapCss.match(/--mobile-map-stack-left:\s*(\d+)px/)?.[1],
+    // TfL at the top, Near me at the bottom of that one lane.
+    expect(mobileMapCss).toMatch(
+      /\.mobileMapUtilityCorner\s*{[^}]*justify-content:\s*space-between/,
     );
-    const stackRight = Number(
-      mobileMapCss.match(/--mobile-map-stack-right:\s*(\d+)px/)?.[1],
-    );
-    const railPadX = Number(railRule.match(/padding:\s*\d+px\s+(\d+)px/)?.[1]);
-    const chipMinWidth = Number(
-      mobile.match(/\.tonightArcChip\s*{[^}]*min-width:\s*(\d+)px/)?.[1],
-    );
-    const rowGap = Number(arcChipsCss.match(/\.tonightArcRow\s*{[^}]*gap:\s*(\d+)px/)?.[1]);
-    for (const [label, value] of [
-      ["TfL corner inset", cornerInset],
-      ["TfL corner button size", cornerBtn],
-      ["TfL corner lane gap", cornerGap],
-      ["rail left inset", railLeft],
-      ["shared right inset", stackRight],
-      ["rail padding", railPadX],
-      ["chip min-width", chipMinWidth],
-      ["row gap", rowGap],
-    ] as const) {
-      expect(Number.isFinite(value), `${label} parsed from CSS`).toBe(true);
-    }
-
-    // The rail anchors left and ends short of the lane, so it cannot be centred
-    // back over the control by a future width tweak.
-    expect(railRule, "rail anchors left rather than centring across the control").not.toMatch(
-      /left:\s*50%/,
-    );
-    expect(railRule).toMatch(/transform:\s*none/);
-    expect(railRule).toMatch(
-      /padding-right:\s*calc\(var\(--mobile-map-corner-lane\) - var\(--mobile-map-stack-right\)\)/,
+    const fab = mobileMapCss.match(/\.mobileMapLocateFab\s*{([^}]*)}/)?.[1] ?? "";
+    expect(fab, ".mobileMapLocateFab rule present").not.toBe("");
+    expect(fab, "a locate FAB is round").toMatch(/border-radius:\s*50%/);
+    const fabSize = Number(fab.match(/width:\s*(\d+)px/)?.[1]);
+    expect(fabSize, "the FAB keeps the tap floor").toBeGreaterThanOrEqual(44);
+    expect(fabSize, "and stays inside the published lane").toBeLessThanOrEqual(
+      cornerInset + cornerBtn + cornerGap,
     );
 
-    const viewport = 390;
-    const railRight = viewport - cornerInset - cornerBtn - cornerGap;
-    const tflLeft = viewport - cornerInset - cornerBtn;
-    expect(railRight, "rail content clears the TfL control's left edge").toBeLessThanOrEqual(
-      tflLeft,
-    );
-    expect(railLeft, "rail keeps the 12px left map inset").toBeGreaterThanOrEqual(12);
-
-    const contentBox = railRight - railLeft - railPadX;
-    expect(chipMinWidth, "widest single chip vs rail content box").toBeLessThanOrEqual(contentBox);
-    // Controls keep their 44px hit box while a 34px pseudo-element draws the
-    // smaller pill. The row scrolls when it cannot fit instead of adding a
-    // second band over the map.
-    expect(mobile).toMatch(/\.tonightArcRow\s*{[^}]*flex-wrap:\s*nowrap/);
-    expect(mobile).toMatch(/\.tonightArcRow\s*{[^}]*overflow-x:\s*auto/);
-    expect(mobile).toMatch(
-      /\.tonightArcChip::before\s*{[^}]*inset-block:\s*5px/,
-    );
-    expect(mobile).toMatch(/\.tonightArcChip\s*{[^}]*flex:\s*0 0 auto/);
+    const chipCount = (arcChipsTsx.match(/\bkind:\s*"/g) ?? []).length;
+    expect(chipCount, "chips declared in TonightArcChips").toBe(5);
     expect(arcChipsCss, "chip labels are never truncated").not.toMatch(/text-overflow/);
     // Design judgement 2026-08-01 (finding 2.1): the selected chip carries a
-    // tick so selection reads without colour. Only the selected chip may grow
-    // by that glyph — the row stays a one-line scroller either way.
+    // tick so selection reads without colour.
     expect(arcChipsTsx, "the tick renders on the selected chip alone").toMatch(
       /\{on \? \([\s\S]*?tonightArcChipTick/,
     );
-    expect(rowGap, "row gap parsed").toBeGreaterThan(0);
   });
 
   it("keeps a venue name whole when a drink lens puts an unknown caption in the row", () => {
@@ -231,9 +213,11 @@ describe("mobile chrome fit at 390px", () => {
 });
 
 describe("mobile tap-target floors", () => {
-  it("gives the map's Tonight Arc chips a 44px floor on a phone", () => {
+  it("gives the Tonight Arc chips a 44px floor where a phone reads them", () => {
+    // Their phone home is the Filters sheet, so the floor rides the sheet
+    // variant rather than a viewport query.
     expect(arcChipsCss).toMatch(
-      /@media \(max-width: 640px\)[\s\S]*?\.tonightArcChip\s*{[^}]*min-height:\s*44px/,
+      /\.tonightArcChipsSheet \.tonightArcChip\s*{[^}]*min-height:\s*44px/,
     );
   });
 

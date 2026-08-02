@@ -105,14 +105,16 @@ describe("finding 2.1 — map chrome holds no coral fills", () => {
     }
   });
 
-  it("the Near me chip is no longer a coral fill", () => {
-    for (const body of rules(shellCss, ".mobileMapChipPrimary")) {
-      expect(body).not.toMatch(accentPattern);
+  it("the Near me control is no longer a coral fill", () => {
+    for (const body of rules(shellCss, ".mobileMapLocateFab")) {
+      // The focus ring is the one accent this control keeps: it marks where
+      // the keyboard is, which is not a fill.
+      expect(body.replace(/outline:[^;]+;/g, "")).not.toMatch(accentPattern);
     }
   });
 
   it("chip badge counts and the TfL badge are ink on panel, not coral", () => {
-    for (const sel of [".mobileMapChipCount", ".mobileMapCornerBadge"]) {
+    for (const sel of [".mobileMapTopbarBadge", ".mobileMapCornerBadge"]) {
       for (const body of rules(shellCss, sel)) {
         expect(body).not.toMatch(accentPattern);
       }
