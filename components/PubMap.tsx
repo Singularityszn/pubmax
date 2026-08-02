@@ -224,7 +224,10 @@ import { haversineKm } from "@/lib/haversine";
 import { mergeLazyDetailPins } from "@/lib/lazyVenueDetail";
 import {
   buildLogNearbyCandidates,
+  clearMapLogIntentSearch,
   hasMapLogIntent,
+  resolveLogNearbyOrigin,
+  LOG_NEARBY_MAX_KM,
 } from "@/lib/mapLogIntent";
 import prefetchVenue from "@/lib/prefetchVenue";
 import { warmVenueDetail } from "@/lib/warmVenueDetail";
@@ -333,6 +336,19 @@ function readSavedVenueIds(): Set<string> {
 // param probes below can't drift on the SSR ("") fallback.
 function currentSearch(): string {
   return typeof window === "undefined" ? "" : window.location.search;
+}
+
+// D4 — take `log=1` off the current history entry. Idempotent, so it can run
+// again after a popstate restores an entry that still carries the flag.
+function dropLogParamFromUrl(): void {
+  if (typeof window === "undefined") return;
+  if (!hasMapLogIntent(window.location.search)) return;
+  const query = clearMapLogIntentSearch(window.location.search);
+  window.history.replaceState(
+    window.history.state,
+    "",
+    `${window.location.pathname}${query ? `?${query}` : ""}${window.location.hash}`,
+  );
 }
 
 // hasCrawlArrivalParams (pure §4.5 deep-link probe) now lives in @/lib/pubMap.
@@ -688,6 +704,31 @@ export default function PubMap({
     return new Set([seed.bandId]);
   });
   const [logIntentFallbackVisible, setLogIntentFallbackVisible] = useState(false);
+  // D4 — `log=1` is an owned URL passthrough, so it outlived every close and
+  // rearmed the pub picker each time. Leaving the flow disarms it: the flag
+  // leaves the URL, and this state stands the intent down for the render pass
+  // (a replaceState never re-runs Next's useSearchParams).
+  const [logIntentCleared, setLogIntentCleared] = useState(false);
+  const clearLogIntent = useCallback(() => {
+    setLogIntentFallbackVisible(false);
+    setLogIntentCleared(true);
+    dropLogParamFromUrl();
+  }, []);
+  // Closing the sheet POPS the selection entry (useMapSelectionHistory), and
+  // the clean entry underneath still carries `log=1` — it is an owned
+  // passthrough there too, written before the reader left the flow. So one
+  // strip is not enough: hold the URL clean for the rest of the session, on
+  // every render and on every history pop. Otherwise Back or a reload rearms
+  // the picker the reader just closed.
+  useEffect(() => {
+    if (!logIntentCleared) return;
+    dropLogParamFromUrl();
+  });
+  useEffect(() => {
+    if (!logIntentCleared || typeof window === "undefined") return;
+    window.addEventListener("popstate", dropLogParamFromUrl);
+    return () => window.removeEventListener("popstate", dropLogParamFromUrl);
+  }, [logIntentCleared]);
   const [tonightOverlayVisible, setTonightOverlayVisible] = useState(false);
   const [tonightDismissed, setTonightDismissed] = useState<boolean>(
     readTonightOverlayDismissed,
@@ -858,8 +899,10 @@ export default function PubMap({
     setSelectedVenueId("");
     setMapOverlay("none");
     closeComposer();
-    if (hasMapLogIntent(currentSearch())) setLogIntentFallbackVisible(true);
-  }, [closeComposer, setSelectedVenueId]);
+    // D4: closing the pub the reader came to log ENDS the Drop flow. Reopening
+    // the picker here is what made `?log=1` a trap with no way out.
+    clearLogIntent();
+  }, [clearLogIntent, closeComposer, setSelectedVenueId]);
   const {
     sheetSnap,
     setSheetSnap,
@@ -1353,7 +1396,7 @@ export default function PubMap({
       ? city.displayName
       : "UK");
 
-  const hasReactiveLogIntent = hasMapLogIntent(searchParams);
+  const hasReactiveLogIntent = hasMapLogIntent(searchParams) && !logIntentCleared;
   const shouldBuildSuggestedRoute = !hasReactiveLogIntent || planningOpen || routeMapped;
   const suggestedRoute = useMemo(
     () => (shouldBuildSuggestedRoute ? buildCrawlRoute(filteredPubVenues, filters) : EMPTY_ROUTE),
@@ -1583,9 +1626,21 @@ export default function PubMap({
     tonightDeepLinkKind && srcParam !== dismissedTonightSrc ? tonightDeepLinkKind : null;
   const tonightLaneForcedOpen = Boolean(tonightLaneKind);
 
+  // D1 — the picker is grounded in a real origin: the reader's fix, else the
+  // centre of the map they are looking at. It never offers a city-wide five.
+  const logNearbyOrigin = useMemo(
+    () => resolveLogNearbyOrigin({ userLocation, mapCenter: mapViewport.center }),
+    [mapViewport.center, userLocation],
+  );
   const logNearbyCandidates = useMemo(
-    () => buildLogNearbyCandidates(filteredPubVenues, undefined, userLocation),
-    [filteredPubVenues, userLocation],
+    () =>
+      buildLogNearbyCandidates(
+        filteredPubVenues,
+        undefined,
+        logNearbyOrigin?.origin ?? null,
+        LOG_NEARBY_MAX_KM,
+      ),
+    [filteredPubVenues, logNearbyOrigin],
   );
 
   const showLoadedRoute = useCallback(
@@ -2030,7 +2085,14 @@ export default function PubMap({
 
   // Keyboard shortcuts: "/" focuses search, Esc clears selection / closes the
   // planner (see components/map/pubmap/useMapKeyboardShortcuts.ts).
-  useMapKeyboardShortcuts({ planningOpen, closePlanning, closeComposer, setSelectedVenueId });
+  useMapKeyboardShortcuts({
+    planningOpen,
+    closePlanning,
+    closeComposer,
+    setSelectedVenueId,
+    logIntentFallbackVisible,
+    dismissLogIntent: clearLogIntent,
+  });
 
   const toggleBuiltStop = useCallback((id: string) => {
     setBuiltIds((current) => {
@@ -2347,7 +2409,7 @@ export default function PubMap({
       // 3. Collapse the search UI now (unmounts the input → keyboard closes,
       //    suggestions panel gone) via a direct set so it survives the auto-open
       //    below (changeMapOverlay would clear the pending target + timer).
-      setLogIntentFallbackVisible(false);
+      clearLogIntent();
       setMapOverlay("none");
       // 4. Open the pubs display as the camera settles (reduced-motion jumps,
       //    so the sheet opens on the next tick instead of trailing the fly).
@@ -2360,7 +2422,7 @@ export default function PubMap({
         setMapOverlay("area");
       }, areaSheetOpenDelay(reduced));
     },
-    [cityId, clearAreaSheetTimer, trimmedMapQuery],
+    [cityId, clearAreaSheetTimer, clearLogIntent, trimmedMapQuery],
   );
   // §4.8: picking a search result records the typed "map-search" origin, unlike
   // a browse pin tap. The current search input text is NOT proof of origin — only
@@ -2415,7 +2477,8 @@ export default function PubMap({
   };
 
   const changeMapOverlay = useCallback((next: MapOverlay) => {
-    if (next !== "moment") setLogIntentFallbackVisible(false);
+    // Leaving the phone "Choose a pub" sheet leaves the Drop flow (D4).
+    if (next !== "moment") clearLogIntent();
     if (next !== "none" && isMobileViewport()) {
       setPlanningOpen(false);
       setSelectedVenueId("");
@@ -2427,7 +2490,7 @@ export default function PubMap({
     clearAreaSheetTimer();
     setSearchAreaTarget(null);
     setMapOverlay(next);
-  }, [clearAreaSheetTimer, closeComposer, setPlanningOpen]);
+  }, [clearAreaSheetTimer, clearLogIntent, closeComposer, setPlanningOpen]);
 
   useEffect(() => {
     // An uncovered-place arrival is a one-off destination, not a city session:
@@ -3008,12 +3071,13 @@ export default function PubMap({
         {!mobileViewport && logIntentFallbackVisible ? (
           <LogIntentFallback
             candidates={logNearbyCandidates}
-            hasUserLocation={Boolean(userLocation)}
+            origin={logNearbyOrigin?.source ?? null}
             filteredPubVenueCount={filteredPubVenueCount}
             onPickVenue={pickLogNearbyVenue}
             onPrefetchVenue={prefetchVenueDetail}
             onFocusSearch={focusMapSearch}
             onResetFilters={resetLogIntentFilters}
+            onDismiss={clearLogIntent}
           />
         ) : null}
         {!mobileViewport ? <ActiveRoundChip refreshKey={activeRoundStartedCode} /> : null}
@@ -3322,7 +3386,7 @@ export default function PubMap({
           momentContent={
             <LogIntentFallback
               candidates={logNearbyCandidates}
-              hasUserLocation={Boolean(userLocation)}
+              origin={logNearbyOrigin?.source ?? null}
               filteredPubVenueCount={filteredPubVenueCount}
               onPickVenue={pickLogNearbyVenue}
               onPrefetchVenue={prefetchVenueDetail}
