@@ -11,6 +11,49 @@
   gap: 8px;
 }
 
+/* The phone overlay variant. Its host is a fixed-width chrome stack, so the
+   field and the panel take the host's width and never their content's: a row
+   of long pub names would otherwise size the panel to max-content and push the
+   whole stack, distance column first, past the right edge of the screen. */
+.mapSearchSuggest--overlay {
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.mapSearchSuggest--overlay .mapSearchSuggestPanel {
+  max-width: 100%;
+}
+
+/* At phone width one line cannot hold a name, a kind, a borough, a price and a
+   distance. The distance never shrinks, so bounding the panel starved the
+   price to a few pixels and it drew on top of the borough, while the name
+   ellipsed to nothing. Give the name its own line and let the figures share
+   the next. Nothing is abbreviated away: a row is read on its own, so the
+   distance keeps the words that say what it is measured from. */
+.mapSearchSuggest--overlay .mapSearchSuggestRow {
+  flex-wrap: wrap;
+  row-gap: 2px;
+  padding-block: 8px;
+}
+
+.mapSearchSuggest--overlay .mapSearchSuggestRowMain {
+  flex: 1 1 100%;
+}
+
+.mapSearchSuggest--overlay .mapSearchSuggestMeta {
+  flex: 1 1 100%;
+  justify-content: flex-start;
+  gap: 8px;
+}
+
+.mapSearchSuggest--overlay .mapSearchSuggestPrice {
+  flex-direction: row;
+  align-items: baseline;
+  gap: 6px;
+  max-width: none;
+}
+
 .mapSearchSuggest--toolbar {
   width: min(388px, 34vw);
   min-width: 260px;

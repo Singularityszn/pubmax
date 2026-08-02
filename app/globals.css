@@ -763,6 +763,22 @@ h3 {
   box-shadow: 0 0 0 4px color-mix(in srgb, var(--brass) 18%, transparent);
 }
 
+/* The house search field (components/ui/search-field.tsx) is ONE control, so it
+   wears one focus ring: the label's. These two rules live here rather than as
+   utility classes on the input because each has to beat a rule it cannot
+   outrank from there — the global :focus-visible outline above, and the UA's
+   own cancel glyph. Both defects were visible: a focused field drew a ring
+   inside its own ring, and a second X sat beside the labelled Clear search. */
+.houseSearchField input[type="search"]:focus-visible {
+  outline: none;
+}
+
+.houseSearchField input[type="search"]::-webkit-search-cancel-button {
+  -webkit-appearance: none;
+  appearance: none;
+  display: none;
+}
+
 .searchBox input {
   width: 100%;
   border: 0;
