@@ -271,6 +271,7 @@ import {
 import {
   areaLabelOrigin,
   areaSheetOpenDelay,
+  areaClaimedByViewport,
   areaUnderCentre,
   planAreaSelect,
   type AreaDistanceFrom,
@@ -621,6 +622,11 @@ export default function PubMap({
       ? withCityCameraAttitude(restoredMobileSession.viewport, city.mapView)
       : initialMapView,
   );
+  // The settled view's own edges, published by the canvas on every moveend. The
+  // centre alone cannot answer what the view is OVER, which is what a place
+  // name claims (see areaClaimedByViewport). Null until the map first settles,
+  // and a map that has not settled claims no place.
+  const [mapBounds, setMapBounds] = useState<MapBounds | null>(null);
   const [poiHidden, setPoiHidden] = useState(defaultPoiHiddenForViewport);
   const [venueKindVisibility, setVenueKindVisibility] = useState(
     defaultVenueKindVisibility,
@@ -1046,6 +1052,17 @@ export default function PubMap({
   // it — the map keeps working with whatever loaded.
   const handleMapBoundsChange = useCallback(
     (bounds: MapBounds) => {
+      // Same settled camera the place claim is measured against, so the name in
+      // the bar can never describe a view the reader has already left.
+      setMapBounds((current) =>
+        current &&
+        current.west === bounds.west &&
+        current.east === bounds.east &&
+        current.south === bounds.south &&
+        current.north === bounds.north
+          ? current
+          : bounds,
+      );
       const loader = slimLoaderRef.current;
       if (!loader) return;
       void loader
@@ -2349,12 +2366,21 @@ export default function PubMap({
     () => areaUnderCentre(cityId, mapViewport.center),
     [cityId, mapViewport.center],
   );
+  // The place the top bar is allowed to NAME. Narrower than centreArea, which
+  // answers "nearest area" for the sheet's pub list: a name printed in the bar
+  // is a claim about what is on screen, so a view spanning several areas earns
+  // no area name and the bar says the city instead.
+  const claimedArea = useMemo(
+    () => areaClaimedByViewport(cityId, mapViewport.center, mapBounds),
+    [cityId, mapBounds, mapViewport.center],
+  );
   // ...and whether that name is also where the READER is. A base-pub arrival
   // names a place from the URL, which nobody's location chose, so it stays a
-  // map claim whatever the browser later grants.
+  // map claim whatever the browser later grants. Measured against the CLAIMED
+  // area, so an unclaimed view can never read as "Your area: London".
   const areaChipOrigin = useMemo(
-    () => (ukPlaceArrival ? "map" : areaLabelOrigin(centreArea, userLocation)),
-    [centreArea, ukPlaceArrival, userLocation],
+    () => (ukPlaceArrival ? "map" : areaLabelOrigin(claimedArea, userLocation)),
+    [claimedArea, ukPlaceArrival, userLocation],
   );
   // Where the Area sheet's row distances are measured from. A granted location
   // is the reader's own point, and only then may a row say "away". With none,
@@ -3164,7 +3190,7 @@ export default function PubMap({
 
         {mobileShellReady ? (
         <MobileMapShell
-          cityLabel={ukPlaceArrival?.name ?? centreArea?.name ?? activeNightArea?.name ?? mapContextName}
+          cityLabel={ukPlaceArrival?.name ?? claimedArea?.name ?? mapContextName}
           cityLabelOrigin={areaChipOrigin}
           limitedCoverage={Boolean(ukPlaceArrival)}
           overlay={mobileShellState.overlay}
