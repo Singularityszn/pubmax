@@ -67,6 +67,7 @@ describe("OpenStreetMap attribution", () => {
       bandColor: "#000000",
       bandMemberIds: [],
       pubsData: { type: "FeatureCollection", features: [] },
+      userLocationData: { type: "FeatureCollection", features: [] },
       ukBaseData: { type: "FeatureCollection", features: [] },
       tonightData: { type: "FeatureCollection", features: [] },
       tonightVisible: false,

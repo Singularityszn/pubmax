@@ -24,7 +24,13 @@ import {
 } from "@/lib/venues";
 import { filterMapVenues, withForcedVenue } from "@/lib/filterMapVenues";
 import { mergePriceUpdates, parsePriceUpdates, type PriceUpdate } from "@/lib/priceUpdates";
-import { nearestVenueIds, nearbyVenuesForMap } from "@/lib/nearby";
+import { nearestVenueIds } from "@/lib/nearby";
+import {
+  NEAR_ME_MAP_MIN_VENUES,
+  NEAR_ME_MAP_RADIUS_KM,
+  nearMeMapVenues,
+  withinNearMeRing,
+} from "@/lib/nearMeMapFrame";
 import {
   NEAR_ME_LOCATION_OPTIONS,
   nearMeLocationFailure,
@@ -2180,20 +2186,17 @@ export default function PubMap({
           lat: position.coords.latitude,
           lng: position.coords.longitude,
         };
-        const nearby = nearbyVenuesForMap(location.lat, location.lng, filteredVenues, {
-          radiusKm: 2.5,
-          minCount: 20,
-          maxCount: Math.max(20, filteredVenues.length),
-        });
-        const withinRadius = nearby.filter(
-          (venue) => haversineKm([location.lng, location.lat], [venue.longitude, venue.latitude]) <= 2.5,
-        );
+        // The map answers the same ring the sheet names — about a 12-minute
+        // walk. The chip counts THIS set, so its number and the sheet's
+        // sentence stay one claim.
+        const nearby = nearMeMapVenues(location.lat, location.lng, filteredVenues);
+        const withinRing = withinNearMeRing(location, filteredVenues);
         setUserLocation(location);
         setNearbyMapResult({
           location,
           venueIds: nearby.map((venue) => venue.id),
-          radiusKm: 2.5,
-          strategy: withinRadius.length >= 20 ? "within-radius" : "nearest-20",
+          radiusKm: NEAR_ME_MAP_RADIUS_KM,
+          strategy: withinRing >= NEAR_ME_MAP_MIN_VENUES ? "within-radius" : "nearest-20",
         });
         setNearbyLoading(false);
         // Highlight nearby pins AND present the instant-answer cards (Lane 1):

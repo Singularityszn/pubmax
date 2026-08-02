@@ -126,6 +126,14 @@ export type Tokens = {
   brassBright: string;
   pricePlaqueInk: string;
   pricePlaqueSurface: string;
+  /**
+   * The reader's own position. Named rather than borrowed from a price band,
+   * because "where you are" is not a price and must never be read as one.
+   * Resolves `--color-info-strong` (river): "you are here" is information in
+   * standard map grammar, and coral belongs to selection alone under the
+   * coral economy (design judgement 2026-08-01, finding 2.1).
+   */
+  userLocation: string;
   priceStampTiltDeg: number;
   river: string;
   riverBright: string;
@@ -177,7 +185,11 @@ export function toMapLibreColor(colour: string, fallback: string): string {
 
 type MapThemeToken = Exclude<
   keyof Tokens,
-  "cat" | "pricePlaqueInk" | "pricePlaqueSurface" | "priceStampTiltDeg"
+  | "cat"
+  | "pricePlaqueInk"
+  | "pricePlaqueSurface"
+  | "priceStampTiltDeg"
+  | "userLocation"
 >;
 
 const MAP_THEME_TOKEN_PROPERTIES = {
@@ -221,6 +233,7 @@ export function readTokens(): Tokens {
   };
   const pricePlaqueInk = resolvedColour("--accent-price-ink", "#8f671f");
   const pricePlaqueSurface = resolvedColour("--price-plaque-surface", "#f4ead5");
+  const userLocation = resolvedColour("--color-info-strong", "#29b6f6");
   colourProbe.remove();
   // Additive `--cat-*` read: one entry per drink family, resolved from the live
   // computed vars (with the canonical light hex as a fallback) so map consumers
@@ -246,6 +259,7 @@ export function readTokens(): Tokens {
     brassBright: mapToken("brassBright", "#d3a44a"),
     pricePlaqueInk,
     pricePlaqueSurface,
+    userLocation,
     priceStampTiltDeg:
       Number.parseFloat(token("--ink-stamp-tilt", "-1.5deg")) || -1.5,
     river: mapToken("river", "#2f6f8f"),
