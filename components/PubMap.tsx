@@ -3216,6 +3216,19 @@ export default function PubMap({
                     <List size={18} aria-hidden="true" />
                     {mapListOpen ? "Hide venue list" : "List view"}
                   </Button>
+                  {/* Pub Pal left the one top bar so the place name beside the
+                      wordmark stays whole (finding 2.3). It keeps a named
+                      shortcut here, beside the map's other destinations. */}
+                  <Button
+                    asChild
+                    variant="secondary"
+                    className="w-full justify-start"
+                  >
+                    <Link href="/pal">
+                      <Sparkles size={18} aria-hidden="true" />
+                      Ask your Pub Pal
+                    </Link>
+                  </Button>
                 </div>
                 {routeMappedActive ? <Button variant="secondary" onClick={hideMappedRoute}>Hide active route</Button> : null}
                 <div className="mobileLayersTheme">

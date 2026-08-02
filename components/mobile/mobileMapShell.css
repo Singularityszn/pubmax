@@ -129,11 +129,14 @@
   .mobileMapTopbar {
     min-height: var(--mobile-map-bar-h);
     display: grid;
-    /* Six slots: wordmark, area, search, filters, Pub Pal, more. At 320px the
-       four 44px controls and the wordmark's 56px floor take 232 of the 277
-       available, so the area name keeps a real column and nothing is pushed
-       out of the viewport. A seventh slot does not fit at the tap floor. */
-    grid-template-columns: minmax(56px, 1fr) minmax(0, 108px) 44px 44px 44px 44px;
+    /* Five slots: wordmark, area, search, filters, more. The wordmark is
+       content-sized so it can never be cut mid-word, and the place name takes
+       what is left. Measured at 390x844x3, a sixth 44px control left "King's
+       Cross" 54px of a 72px name — a map that names where you are and then
+       cuts the name is worse than one that never claimed it. The 360px rule
+       below is what three controls plus a whole name cost on the narrowest
+       phone. */
+    grid-template-columns: auto minmax(0, 1fr) 44px 44px 44px;
     align-items: center;
     gap: 2px;
     /* Vertical padding 3px (was 4px): 44px control row + 3+3 padding + 1+1
@@ -156,7 +159,16 @@
 
   /* The wordmark is a real link home, so it gets a real hit target: the text is
      14px tall, the tappable box is the full 44px bar row. */
-  .mobileMapBrand { display: inline-flex; align-items: center; min-width: 0; min-height: 44px; overflow: hidden; color: var(--color-text); font-size: .7rem; text-decoration: none; }
+  .mobileMapBrand { display: inline-flex; align-items: center; min-width: 0; min-height: 44px; color: var(--color-text); font-size: .7rem; white-space: nowrap; text-decoration: none; }
+
+  /* 320px is the narrowest phone this app is measured on, and three controls
+     plus a readable place name is what it holds. The wordmark yields its
+     column there: a truncated place name would leave the map claiming a name
+     nobody can read, and the reader is already inside the app. */
+  @media (max-width: 360px) {
+    .mobileMapTopbar { grid-template-columns: minmax(0, 1fr) 44px 44px 44px; }
+    .mobileMapBrand { display: none; }
+  }
   .mobileMapBrand .pubmaxxWordmark { max-width: 100%; font-size: inherit; }
   /* Area button — the live Night Area under the map centre. Evolves the old
      static, truncated city label into a first-class 44px control that opens the
@@ -267,6 +279,9 @@
   .mobileMapLocateFab {
     position: relative;
     flex: 0 0 auto;
+    /* The TfL button above stretches to the lane so its status suffix has
+       room; this one is a circle, so it aligns to the edge instead. */
+    align-self: flex-end;
     display: grid;
     place-items: center;
     width: 52px;
@@ -279,6 +294,13 @@
     pointer-events: auto;
     cursor: pointer;
   }
+  /* The first-visit analytics disclosure owns the same bottom lane, so the
+     map-edge column steps above it rather than putting a 52px FAB on top of a
+     consent choice. Same offset the OSM credit already uses. */
+  body:has(.analyticsConsentPrompt) .mobileMapUtilityCorner {
+    bottom: calc(var(--mobile-map-dock-clearance) + 200px);
+  }
+
   .mobileMapLocateFab[aria-pressed="true"] { border-color: var(--ink); color: var(--ink); }
   .mobileMapLocateFab:disabled { cursor: wait; opacity: .72; }
   .mobileMapLocateFab:active { transform: scale(.97); --shared-press-scale: 1; }
@@ -289,6 +311,12 @@
     min-height: 44px;
     pointer-events: auto;
     box-shadow: 0 2px 8px color-mix(in srgb, var(--ink-deep) 12%, transparent);
+  }
+  /* The status suffix ("OK", "?") rides inside the pill rather than spilling
+     past its edge: the icon size is a floor here, not a fixed width. */
+  .mobileMapUtilityCorner > .mobileMapTflButton {
+    width: auto;
+    padding-inline: 7px;
   }
   .mobileMapCornerSuffix { font-size: .62rem; font-weight: 700; margin-left: 2px; }
   .mobileMapCornerBadge {

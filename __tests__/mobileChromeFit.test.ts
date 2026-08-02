@@ -56,34 +56,46 @@ describe("mobile chrome fit at 390px", () => {
   });
 
   it("fits the one top bar inside the narrowest phone at the tap floor", () => {
-    // 320px is the narrowest phone the e2e matrix runs. The bar is six slots:
-    // wordmark, area, search, filters, Pub Pal, more. Four of them are 44px
-    // controls, so the arithmetic below is what stops a seventh being added
-    // and pushing a control off the viewport (finding 2.3).
+    // 320px is the narrowest phone the e2e matrix runs. The bar is five slots:
+    // wordmark, area, search, filters, more. Three of them are 44px controls,
+    // and at 360px and below the wordmark yields its column so the place name
+    // is never cut to nothing. Measured at 390x844x3, a sixth control left
+    // "King's Cross" 54px of a 72px name. The arithmetic below is what stops a
+    // sixth slot coming back (finding 2.3).
     const bar = mobileMapCss.match(/\.mobileMapTopbar\s*{([^}]*)}/)?.[1] ?? "";
     expect(bar, ".mobileMapTopbar rule present").not.toBe("");
-    const columns = bar.match(/grid-template-columns:\s*([^;]+);/)?.[1]?.trim() ?? "";
-    expect(columns, "the bar declares its columns").not.toBe("");
-    const fixed = [...columns.replace(/minmax\([^)]*\)/g, "").matchAll(/(\d+)px/g)].map(
-      (m) => Number(m[1]),
-    );
-    expect(fixed.length, "fixed control columns").toBe(4);
-    for (const width of fixed) {
+    const fixedColumns = (columns: string): number[] =>
+      [...columns.replace(/minmax\([^)]*\)/g, "").matchAll(/(\d+)px/g)].map((m) => Number(m[1]));
+
+    const wide = bar.match(/grid-template-columns:\s*([^;]+);/)?.[1]?.trim() ?? "";
+    expect(wide, "the bar declares its columns").not.toBe("");
+    // The wordmark column is content-sized, so a long wordmark cannot be cut
+    // mid-word by a narrower phone; the area name is what gives way.
+    expect(wide).toMatch(/^auto\s+minmax\(0,\s*1fr\)/);
+    const wideFixed = fixedColumns(wide);
+    expect(wideFixed.length, "fixed control columns").toBe(3);
+
+    const narrow =
+      mobileMapCss
+        .match(/@media \(max-width: 360px\)\s*{[\s\S]*?\.mobileMapTopbar\s*{([^}]*)}/)?.[1]
+        ?.match(/grid-template-columns:\s*([^;]+);/)?.[1]
+        ?.trim() ?? "";
+    expect(narrow, "the 360px bar declares its columns").not.toBe("");
+    const narrowFixed = fixedColumns(narrow);
+    for (const width of [...wideFixed, ...narrowFixed]) {
       expect(width, "every control column keeps the 44px tap floor").toBeGreaterThanOrEqual(44);
     }
-    const brandFloor = Number(columns.match(/minmax\((\d+)px,\s*1fr\)/)?.[1]);
-    expect(Number.isFinite(brandFloor), "wordmark floor parsed").toBe(true);
 
     const stackLeft = Number(mobileMapCss.match(/--mobile-map-stack-left:\s*(\d+)px/)?.[1]);
     const stackRight = Number(mobileMapCss.match(/--mobile-map-stack-right:\s*(\d+)px/)?.[1]);
     const padding = bar.match(/padding:\s*(\d+)px\s+(\d+)px\s+(\d+)px\s+(\d+)px/);
     expect(padding, "the bar declares its padding").not.toBeNull();
     const padInline = Number(padding?.[2]) + Number(padding?.[4]);
-    const content = 320 - stackLeft - stackRight - 2 - padInline;
-    const taken = fixed.reduce((sum, width) => sum + width, 0) + brandFloor;
-    expect(taken, "the bar's own minimum fits 320px").toBeLessThan(content);
-    // And the area name still gets a readable column rather than zero.
-    expect(content - taken, "area name column at 320px").toBeGreaterThanOrEqual(40);
+    const gap = Number(bar.match(/gap:\s*(\d+)px/)?.[1]);
+    const content = 320 - stackLeft - stackRight - 2 - padInline - gap * narrowFixed.length;
+    const taken = narrowFixed.reduce((sum, width) => sum + width, 0);
+    // The place name keeps a readable column at 320px rather than zero.
+    expect(content - taken, "area name column at 320px").toBeGreaterThanOrEqual(60);
   });
 
   it("never truncates the venue price caption", () => {
